@@ -18,6 +18,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.naming_patterns import PATTERNS
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper.run import (
@@ -243,7 +244,7 @@ class TestRunScrapeRepairCheckOsError:
         ):
             MockScraper.return_value.process_movies.return_value = []
             MockScraper.return_value.process_tvshows.return_value = []
-            report = run_scrape(settings, config=config)
+            report = run_scrape(settings, config=config, event_bus=EventBus())
 
         # The fast-skip was bypassed because needs_movie_repair=True.
         MockScraper.assert_called_once()
@@ -266,7 +267,7 @@ class TestRunScrapeRepairCheckOsError:
         ):
             MockScraper.return_value.process_movies.return_value = []
             MockScraper.return_value.process_tvshows.return_value = []
-            run_scrape(settings, config=config)
+            run_scrape(settings, config=config, event_bus=EventBus())
 
         MockScraper.assert_called_once()
 
@@ -286,7 +287,7 @@ class TestRunScrapeMissingDirBranches:
             patch("personalscraper.scraper.run.Scraper") as MockScraper,
         ):
             MockScraper.return_value.process_tvshows.return_value = []
-            run_scrape(settings, config=config)
+            run_scrape(settings, config=config, event_bus=EventBus())
 
         MockScraper.return_value.process_movies.assert_not_called()
         MockScraper.return_value.process_tvshows.assert_called_once()
@@ -303,7 +304,7 @@ class TestRunScrapeMissingDirBranches:
             patch("personalscraper.scraper.run.Scraper") as MockScraper,
         ):
             MockScraper.return_value.process_movies.return_value = []
-            run_scrape(settings, config=config)
+            run_scrape(settings, config=config, event_bus=EventBus())
 
         MockScraper.return_value.process_movies.assert_called_once()
         MockScraper.return_value.process_tvshows.assert_not_called()

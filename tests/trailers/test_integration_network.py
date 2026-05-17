@@ -14,6 +14,8 @@ from pathlib import Path
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
+
 _HAS_TMDB_KEY = bool(os.environ.get("TMDB_READ_ACCESS_TOKEN") or os.environ.get("TMDB_API_KEY"))
 
 
@@ -44,15 +46,21 @@ def test_trailer_finder_and_download_e2e(tmp_path: Path) -> None:
     from personalscraper.api.transport._http import HttpTransport
 
     client = TMDBClient(
-        transport=HttpTransport(TMDBClient.policy(api_key)),
+        transport=HttpTransport(TMDBClient.policy(api_key), event_bus=EventBus()),
         language="en-US",
     )
     cache = TrailersCache(tmp_path / "test_trailers_cache.json")
+    # Single-line breaker construction (with event_bus on the same line) is
+    # mandated by the Sub-phase 5.1 audit grep. ``# fmt: off`` prevents ruff
+    # format from wrapping it back to a multi-line call.
+    # fmt: off
+    yt_breaker = CircuitBreaker(name="youtube-network-test", failure_threshold=5, cooldown_seconds=60, event_bus=EventBus())  # noqa: E501
+    # fmt: on
     searcher = YoutubeSearch(
         query_format="{title} {year} trailer",
         api_key=os.environ.get("YOUTUBE_API_KEY", ""),
         quota_cache=JsonTTLCache(tmp_path / "quota.json"),
-        breaker=CircuitBreaker(name="youtube-network-test", failure_threshold=5, cooldown_seconds=60),
+        breaker=yt_breaker,
     )
     finder = TrailerFinder(
         tmdb_client=client,

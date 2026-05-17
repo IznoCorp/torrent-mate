@@ -18,12 +18,20 @@ dependency injection.  Tests that need isolation should instantiate
 
 from __future__ import annotations
 
+import threading
 import time
 
-from personalscraper.core.circuit import CircuitBreaker, CircuitState
+from personalscraper.core.circuit import CircuitBreaker, CircuitBreakerOpened, CircuitState
+from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.breaker")
+
+
+# Module-level lock guarding the singleton swap performed by
+# :func:`set_global_disk_breaker_bus`. Held only for the duration of the
+# in-place ``_event_bus`` rebind on the singleton and its per-disk breakers.
+_GLOBAL_REBIND_LOCK = threading.Lock()
 
 
 class DiskCircuitBreaker:
@@ -45,6 +53,7 @@ class DiskCircuitBreaker:
         *,
         failure_threshold: int = 3,
         cooldown_seconds: float = 300.0,
+        event_bus: EventBus,
     ) -> None:
         """Initialise a DiskCircuitBreaker registry.
 
@@ -54,13 +63,51 @@ class DiskCircuitBreaker:
                 5 because a single EIO is already serious for disk I/O).
             cooldown_seconds: Seconds in OPEN state before allowing a retry.
                 Defaults to 300 (5 minutes).
+            event_bus: Required :class:`EventBus` propagated to each lazily-
+                created per-disk :class:`CircuitBreaker` so disk-circuit
+                transitions emit :class:`CircuitBreakerOpened` /
+                :class:`CircuitBreakerClosed` /
+                :class:`CircuitBreakerHalfOpened`.
         """
         self.failure_threshold = failure_threshold
         self.cooldown_seconds = cooldown_seconds
+        self._event_bus = event_bus
         # Lazily created per-disk CircuitBreaker instances.
         self._breakers: dict[str, CircuitBreaker] = {}
         # Per-disk consecutive I/O failure counter (separate from HTTP circuit).
         self._failure_counts: dict[str, int] = {}
+        # Guards the direct-state-mutation path in ``record_failure`` so two
+        # scanner worker threads racing on the same disk produce exactly one
+        # CircuitBreakerOpened emit on the CLOSED → OPEN transition.
+        self._lock = threading.Lock()
+
+    def set_event_bus(self, event_bus: EventBus) -> None:
+        """Rebind the bus used by this registry and every per-disk breaker.
+
+        Calling this method from the CLI boundary (after building the
+        AppContext bus with subscribers) ensures every disk-circuit
+        transition reaches the run's subscribers rather than emitting
+        into the registry's previous bus.
+
+        The rebind acquires both the registry's lock AND each per-disk
+        breaker's lock so a concurrent ``record_failure`` / ``record_success``
+        cannot read a half-swapped ``_event_bus`` on any breaker.
+
+        Args:
+            event_bus: The :class:`EventBus` to use for future emits. Both
+                ``self`` and every already-created per-disk :class:`CircuitBreaker`
+                are updated in place.
+        """
+        with self._lock:
+            self._event_bus = event_bus
+            for breaker in self._breakers.values():
+                # Acquire each breaker's own lock so a concurrent
+                # ``record_failure`` / ``record_success`` cannot read a
+                # half-swapped ``_event_bus``. ``CircuitBreaker`` keeps
+                # both fields private; the noqa flags are intentional —
+                # the rebind needs them.
+                with breaker._lock:  # noqa: SLF001
+                    breaker._event_bus = event_bus  # noqa: SLF001
 
     # ------------------------------------------------------------------
     # Public API
@@ -79,11 +126,10 @@ class DiskCircuitBreaker:
             The :class:`CircuitBreaker` instance for this disk.
         """
         if disk_uuid not in self._breakers:
-            self._breakers[disk_uuid] = CircuitBreaker(
-                name=f"disk:{disk_uuid}",
-                failure_threshold=self.failure_threshold,
-                cooldown_seconds=self.cooldown_seconds,
-            )
+            # ``CircuitBreaker.event_bus`` and ``DiskCircuitBreaker.event_bus``
+            # are both required. The per-disk breaker inherits the registry's
+            # bus directly.
+            self._breakers[disk_uuid] = CircuitBreaker(name=f"disk:{disk_uuid}", failure_threshold=self.failure_threshold, cooldown_seconds=self.cooldown_seconds, event_bus=self._event_bus)  # noqa: E501  # fmt: skip
         return self._breakers[disk_uuid]
 
     def is_open(self, disk_uuid: str) -> bool:
@@ -121,20 +167,46 @@ class DiskCircuitBreaker:
             disk_uuid: Volume UUID string identifying the disk.
         """
         breaker = self.get_breaker(disk_uuid)
-        count = self._failure_counts.get(disk_uuid, 0) + 1
-        self._failure_counts[disk_uuid] = count
-        log.debug("indexer.disk.breaker_failure", disk_uuid=disk_uuid, failure_count=count)
+        # Mutate counters and breaker state atomically — multiple scanner
+        # worker threads can record failures for the same disk concurrently.
+        emit_count: int | None = None
+        with self._lock:
+            count = self._failure_counts.get(disk_uuid, 0) + 1
+            self._failure_counts[disk_uuid] = count
+            if count >= self.failure_threshold:
+                previously_closed = breaker._state == CircuitState.CLOSED  # noqa: SLF001
+                # Directly open the circuit -- bypass _is_circuit_error which
+                # only handles HTTP provider errors. Both writes happen
+                # under the registry lock; the per-breaker lock is not
+                # acquired (we own the only mutator at this point).
+                breaker._state = CircuitState.OPEN  # noqa: SLF001
+                breaker._opened_at = time.monotonic()  # noqa: SLF001
+                if previously_closed:
+                    emit_count = count
 
-        if count >= self.failure_threshold:
-            # Directly open the circuit -- bypass _is_circuit_error which only
-            # handles HTTP provider errors.
-            breaker._state = CircuitState.OPEN  # pyright: ignore[reportPrivateUsage]
-            breaker._opened_at = time.monotonic()  # pyright: ignore[reportPrivateUsage]
+        log.debug("indexer.disk.breaker_failure", disk_uuid=disk_uuid, failure_count=count)
+        if emit_count is not None:
             log.warning(
                 "indexer.disk.breaker_open",
                 disk_uuid=disk_uuid,
-                failure_count=count,
+                failure_count=emit_count,
                 cooldown_seconds=self.cooldown_seconds,
+            )
+            # Emit on the actual closed→open transition (not on every repeat
+            # failure while already OPEN). The synthetic last_error_* values
+            # reflect the disk-I/O nature of the trip — DiskCircuitBreaker
+            # doesn't carry an exception object, so we describe the trip
+            # condition. A dedicated DiskFullWarning carries the
+            # path/threshold; this CircuitBreakerOpened carries the
+            # disk-uuid breaker name.
+            self._event_bus.emit(
+                CircuitBreakerOpened(
+                    source=f"indexer.disk.{disk_uuid}",
+                    breaker=f"disk:{disk_uuid}",
+                    failure_count=emit_count,
+                    last_error_class="OSError",
+                    last_error_message=f"disk I/O failure threshold reached ({emit_count}/{self.failure_threshold})",
+                ),
             )
 
     def record_success(self, disk_uuid: str) -> None:
@@ -149,7 +221,8 @@ class DiskCircuitBreaker:
         """
         breaker = self.get_breaker(disk_uuid)
         breaker.record_success()
-        self._failure_counts[disk_uuid] = 0
+        with self._lock:
+            self._failure_counts[disk_uuid] = 0
         log.debug("indexer.disk.breaker_success", disk_uuid=disk_uuid)
 
 
@@ -159,7 +232,12 @@ class DiskCircuitBreaker:
 
 #: Global singleton used by the scanner.  Tests that need isolation should
 #: instantiate :class:`DiskCircuitBreaker` directly and pass it to ``scan()``.
-_GLOBAL_DISK_BREAKER: DiskCircuitBreaker = DiskCircuitBreaker()
+#: The singleton is created at module-import time with an unobserved bus.
+#: Production callers reach the run's subscriber-wired bus by invoking
+#: :func:`bind_global_disk_breaker_to_bus` from the CLI boundary, which
+#: rebinds the singleton's ``_event_bus`` and that of every already-created
+#: per-disk breaker.
+_GLOBAL_DISK_BREAKER: DiskCircuitBreaker = DiskCircuitBreaker(event_bus=EventBus())
 
 
 def get_global_disk_breaker() -> DiskCircuitBreaker:
@@ -169,3 +247,19 @@ def get_global_disk_breaker() -> DiskCircuitBreaker:
         The global :data:`_GLOBAL_DISK_BREAKER` instance.
     """
     return _GLOBAL_DISK_BREAKER
+
+
+def bind_global_disk_breaker_to_bus(event_bus: EventBus) -> None:
+    """Rebind the global disk-breaker singleton to *event_bus*.
+
+    Called from the CLI boundary (``library-index``, ``personalscraper run``)
+    after building the AppContext bus with its subscribers attached. After
+    this call, every per-disk ``CircuitBreakerOpened`` / ``CircuitBreakerClosed``
+    / ``CircuitBreakerHalfOpened`` emit from the singleton lands on the
+    subscriber-wired bus, restoring the Telegram-alert delivery contract.
+
+    Args:
+        event_bus: The run's :class:`EventBus`.
+    """
+    with _GLOBAL_REBIND_LOCK:
+        _GLOBAL_DISK_BREAKER.set_event_bus(event_bus)

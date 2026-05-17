@@ -7,7 +7,7 @@ rate-limit/auth uniformly, and returns parsed responses based on response_format
 from __future__ import annotations
 
 import time
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import requests
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential_jitter
@@ -17,6 +17,9 @@ from personalscraper.api.transport._policy import TransportPolicy
 from personalscraper.api.transport._rate import RateLimiter
 from personalscraper.core.circuit import CircuitBreaker
 from personalscraper.logger import get_logger
+
+if TYPE_CHECKING:
+    from personalscraper.core.event_bus import EventBus
 
 
 class HttpTransport:
@@ -34,7 +37,18 @@ class HttpTransport:
         _policy: The TransportPolicy declaring provider behavior.
     """
 
-    def __init__(self, policy: TransportPolicy) -> None:
+    def __init__(self, policy: TransportPolicy, *, event_bus: EventBus) -> None:
+        """Initialize the HTTP transport from ``policy`` and thread ``event_bus``.
+
+        Args:
+            policy: The :class:`TransportPolicy` declaring provider behavior
+                (auth, retry, circuit, rate limit).
+            event_bus: Required :class:`EventBus` forwarded to the internal
+                :class:`CircuitBreaker` so transitions emit
+                :class:`CircuitBreakerOpened` / ``Closed`` / ``HalfOpened``.
+                Tests that don't care about emit can pass a fresh
+                ``EventBus()`` with no subscribers.
+        """
         self._policy = policy
         self._log = get_logger(f"api.{policy.provider_name.lower()}")
 
@@ -44,11 +58,7 @@ class HttpTransport:
             self._session.headers[k] = v
         policy.auth.apply(self._session)
 
-        self._circuit = CircuitBreaker(
-            name=policy.provider_name,
-            failure_threshold=policy.circuit.failure_threshold,
-            cooldown_seconds=policy.circuit.cooldown_seconds,
-        )
+        self._circuit = CircuitBreaker(name=policy.provider_name, failure_threshold=policy.circuit.failure_threshold, cooldown_seconds=policy.circuit.cooldown_seconds, event_bus=event_bus)  # noqa: E501  # fmt: skip
         self._rate_limiter = RateLimiter(policy.rate_limit.requests_per_second)
 
     # -- Public API ----------------------------------------------------------

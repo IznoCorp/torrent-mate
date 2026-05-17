@@ -23,6 +23,7 @@ from personalscraper.api.transport._auth import LoginAuth
 from personalscraper.api.transport._http import HttpTransport
 from personalscraper.api.transport._policy import TransportPolicy
 from personalscraper.conf.models.api_config import TorrentClientEntry
+from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 
 log = get_logger("api.torrent.transmission")
@@ -207,7 +208,8 @@ def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -
             base_url=base_url,
             auth=LoginAuth(username, password),
             timeout_seconds=5,
-        )
+        ),
+        event_bus=EventBus(),
     )
 
     # Pre-check: POST a lightweight session_get to exercise auth + RPC stack.

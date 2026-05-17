@@ -27,6 +27,7 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 
 from personalscraper.conf.models.scraper import ScraperConfig
+from personalscraper.core.event_bus import EventBus
 from personalscraper.scraper.nfo_generator import NFOGenerator
 
 # ---------------------------------------------------------------------------
@@ -235,7 +236,7 @@ class TestConfiguredLanguageRespected:
             patch("personalscraper.api.transport._http.HttpTransport", return_value=mock_instance),
             patch("personalscraper.api.metadata.tvdb.HttpTransport", return_value=mock_instance),
         ):
-            client = TVDBClient(api_key="placeholder")
+            client = TVDBClient(api_key="placeholder", event_bus=EventBus())
         # The 3-char mapping must include FR → fra (used by the TV
         # episode translation fetcher when the primary language is FR).
         assert client.map_language("fr") == "fra"

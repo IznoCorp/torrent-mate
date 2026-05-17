@@ -15,9 +15,10 @@ from pathlib import Path
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
-from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
+from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.sorter.cleaner import NameCleaner
 from personalscraper.sorter.sorter import Sorter
 
@@ -30,7 +31,7 @@ def run_sort(
     config: Config,
     dry_run: bool = False,
     *,
-    observers: tuple[PipelineObserver, ...] = (),
+    event_bus: EventBus,
 ) -> StepReport:
     """Sort all items from the ingest directory into type subdirectories.
 
@@ -45,8 +46,8 @@ def run_sort(
         staging_dir: Absolute path to the staging area (from Config.paths).
         config: Loaded Config instance (required) for staging_dirs and path resolution.
         dry_run: If True, simulate moves without actually moving.
-        observers: Tuple of pipeline observers for per-item progress
-            notifications.
+        event_bus: Required in-process EventBus. Each per-item lifecycle
+            transition emits an ``ItemProgressed`` event on the bus.
 
     Returns:
         StepReport with counts and per-item details.
@@ -66,58 +67,51 @@ def run_sort(
 
     report = StepReport(name="sort")
     for r in results:
-        notify_progress(
-            observers,
-            StepEvent(step="sort", item=r.source.name, status="started"),
-        )
+        event_bus.emit(ItemProgressed(step="sort", item=r.source.name, status="started"))
         if r.status == "moved":
             report.success_count += 1
             report.details.append(f"{r.source.name} -> {r.destination}")
-            notify_progress(
-                observers,
-                StepEvent(
+            event_bus.emit(
+                ItemProgressed(
                     step="sort",
                     item=r.source.name,
                     status="moved",
                     details={"destination": str(r.destination)},
-                ),
+                )
             )
         elif r.status == "dry-run":
             report.success_count += 1
             report.details.append(f"[DRY-RUN] {r.source.name} -> {r.destination}")
-            notify_progress(
-                observers,
-                StepEvent(
+            event_bus.emit(
+                ItemProgressed(
                     step="sort",
                     item=r.source.name,
                     status="moved",
                     details={"destination": str(r.destination), "dry_run": True},
-                ),
+                )
             )
         elif r.status == "skipped":
             report.skip_count += 1
             if r.message:
                 report.warnings.append(f"{r.source.name}: {r.message}")
-            notify_progress(
-                observers,
-                StepEvent(
+            event_bus.emit(
+                ItemProgressed(
                     step="sort",
                     item=r.source.name,
                     status="skipped",
                     details={"reason": r.message or ""},
-                ),
+                )
             )
         elif r.status == "error":
             report.error_count += 1
             report.warnings.append(f"ERROR {r.source.name}: {r.message}")
-            notify_progress(
-                observers,
-                StepEvent(
+            event_bus.emit(
+                ItemProgressed(
                     step="sort",
                     item=r.source.name,
                     status="error",
                     details={"error": r.message or ""},
-                ),
+                )
             )
 
     # After sort consumes files from the ingest dir, prune any

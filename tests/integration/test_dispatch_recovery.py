@@ -15,6 +15,7 @@ from personalscraper.conf import ids as CID
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.dispatch.run import run_dispatch
 from personalscraper.sorter.file_type import FileType
@@ -138,7 +139,7 @@ def test_crash_recovery_uses_filesystem_scan(
     new_marker = new_movie_dir / "file_new.mkv"
     new_marker.write_bytes(b"new_content" * 10)
 
-    report = run_dispatch(_make_settings(), config, dry_run=False, verified=None)
+    report = run_dispatch(_make_settings(), config, dry_run=False, verified=None, event_bus=EventBus())
 
     # Dispatch must succeed with no errors.
     assert report.error_count == 0, f"Expected no dispatch errors. Got: {report.details}"
@@ -159,7 +160,7 @@ def test_crash_recovery_uses_filesystem_scan(
     )
 
     # The DB-backed index must have an entry for the movie after dispatch.
-    post_index = MediaIndex(index_path)
+    post_index = MediaIndex(index_path, event_bus=EventBus())
     entry = post_index.find(folder, "movie")
     assert entry is not None, (
         f"MediaIndex should have an entry for '{folder}' after dispatch. Total entries in index: {post_index.count}"

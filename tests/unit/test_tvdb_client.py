@@ -23,6 +23,7 @@ from personalscraper.api.metadata._base import (
     Video,
 )
 from personalscraper.api.metadata.tvdb import TVDBClient
+from personalscraper.core.event_bus import EventBus
 
 SAMPLES = Path("docs/reference/_samples/tvdb")
 
@@ -79,7 +80,7 @@ class TestBootstrapLogin:
             # First call (bootstrap) returns context-managed bootstrap; second is main transport
             MockTransport.side_effect = [bootstrap, main]
 
-            c = TVDBClient("fake-api-key")
+            c = TVDBClient("fake-api-key", event_bus=EventBus())
 
         assert c._transport is main
         bootstrap.post.assert_called_once_with("/login", data={"apikey": "fake-api-key"})
@@ -94,7 +95,7 @@ class TestBootstrapLogin:
             MockTransport.return_value = bootstrap
 
             with pytest.raises(TypeError, match="Expected dict"):
-                TVDBClient("fake-api-key")
+                TVDBClient("fake-api-key", event_bus=EventBus())
 
 
 # ── policy + circuit property ─────────────────────────────────────────

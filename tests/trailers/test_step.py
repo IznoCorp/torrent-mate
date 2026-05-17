@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.models import PipelineReport, StepReport
 from personalscraper.trailers.step import run_trailers
 
@@ -39,20 +40,20 @@ class TestRunTrailers:
                 "skipped_by_state": 0,
             }
             mock_orch.failed_items = []
-            result = run_trailers(config, staging_dir=tmp_path, verified=[])
+            result = run_trailers(config, staging_dir=tmp_path, verified=[], event_bus=EventBus())
         assert isinstance(result, StepReport)
         assert result.name == "trailers"
 
     def test_skipped_when_disabled(self, config, tmp_path):
         """run_trailers() returns a skipped report when config.trailers.enabled=False."""
         config.trailers.enabled = False
-        result = run_trailers(config, staging_dir=tmp_path, verified=[])
+        result = run_trailers(config, staging_dir=tmp_path, verified=[], event_bus=EventBus())
         assert result.name == "trailers"
         assert result.status == "skipped"
 
     def test_skip_trailers_flag_skips(self, config, tmp_path):
         """run_trailers() respects the skip_trailers flag."""
-        result = run_trailers(config, staging_dir=tmp_path, verified=[], skip_trailers=True)
+        result = run_trailers(config, staging_dir=tmp_path, verified=[], skip_trailers=True, event_bus=EventBus())
         assert result.status == "skipped"
 
     def test_counts_in_step_report(self, config, tmp_path):
@@ -68,7 +69,7 @@ class TestRunTrailers:
                 "skipped_by_state": 2,
             }
             mock_orch.failed_items = []
-            result = run_trailers(config, staging_dir=tmp_path, verified=[])
+            result = run_trailers(config, staging_dir=tmp_path, verified=[], event_bus=EventBus())
         assert result.success_count == 3
         assert result.skip_count == 5 + 2
         assert result.counts.get("downloaded") == 3
@@ -86,7 +87,7 @@ class TestRunTrailers:
                 "skipped_by_state": 0,
             }
             mock_orch.failed_items = [("movie:tmdb:1", "bot_detected", "sign in")]
-            result = run_trailers(config, staging_dir=tmp_path, verified=[])
+            result = run_trailers(config, staging_dir=tmp_path, verified=[], event_bus=EventBus())
         assert result.status == "partial"
 
     def test_success_status_when_no_failures(self, config, tmp_path):
@@ -102,7 +103,7 @@ class TestRunTrailers:
                 "skipped_by_state": 0,
             }
             mock_orch.failed_items = []
-            result = run_trailers(config, staging_dir=tmp_path, verified=[])
+            result = run_trailers(config, staging_dir=tmp_path, verified=[], event_bus=EventBus())
         assert result.status == "success"
 
 
@@ -172,7 +173,7 @@ class TestRunTrailersVerifiedFiltering:
             }
             mock_orch.failed_items = []
 
-            run_trailers(config, staging_dir=tmp_path, verified=[verified_item])
+            run_trailers(config, staging_dir=tmp_path, verified=[verified_item], event_bus=EventBus())
 
         # orchestrator.run() must have been called with only item_a
         mock_orch.run.assert_called_once()
@@ -205,7 +206,7 @@ class TestRunTrailersVerifiedFiltering:
             }
             mock_orch.failed_items = []
 
-            run_trailers(config, staging_dir=tmp_path, verified=[])
+            run_trailers(config, staging_dir=tmp_path, verified=[], event_bus=EventBus())
 
         mock_orch.run.assert_called_once_with(items=None)
 
@@ -266,7 +267,7 @@ class TestStateWriteFailure:
             mock_orch.run.side_effect = no_space_error
 
             with caplog.at_level(logging.ERROR):
-                result = run_trailers(config, staging_dir=tmp_path, verified=[])
+                result = run_trailers(config, staging_dir=tmp_path, verified=[], event_bus=EventBus())
 
         assert result.status == "error", f"expected status='error', got {result.status!r}"
         assert result.error_count == 1
@@ -296,4 +297,37 @@ class TestStateWriteFailure:
         assert not crash_events, (
             "trailers_step_crashed must NOT fire for OSError; "
             f"records: {[(r.levelno, getattr(r, 'msg', r.getMessage())) for r in caplog.records]}"
+        )
+
+
+class TestRunTrailersBusPassThrough:
+    """Regression: run_trailers must forward its event_bus argument to TrailersOrchestrator.
+
+    Pre-fix the function instantiated a throwaway ``EventBus()`` for the
+    orchestrator, so every event emitted by trailer download work fell into a
+    void with no subscribers — breaking the Telegram/RichConsole delivery
+    contract for the trailers stage of ``personalscraper run``.
+    """
+
+    def test_orchestrator_receives_caller_bus(self, config, tmp_path):
+        """The bus passed to run_trailers() is the bus given to TrailersOrchestrator()."""
+        caller_bus = EventBus()
+        with patch("personalscraper.trailers.orchestrator.TrailersOrchestrator") as MockOrch:
+            mock_orch = MockOrch.return_value
+            mock_orch.run.return_value = {
+                "downloaded": 0,
+                "already_present": 0,
+                "no_trailer": 0,
+                "bot_detected": 0,
+                "error": 0,
+                "skipped_by_state": 0,
+            }
+            mock_orch.failed_items = []
+            run_trailers(config, staging_dir=tmp_path, verified=[], event_bus=caller_bus)
+
+        MockOrch.assert_called_once()
+        kwargs = MockOrch.call_args.kwargs
+        assert kwargs.get("event_bus") is caller_bus, (
+            "TrailersOrchestrator must receive the bus passed to run_trailers, "
+            "not a freshly constructed EventBus() with no subscribers."
         )

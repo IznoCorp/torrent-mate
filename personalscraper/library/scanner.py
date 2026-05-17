@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from personalscraper.conf.models.disks import DiskConfig
 
 from personalscraper.conf.ids import AUDIOBOOKS, TV_CATEGORY_IDS
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.repos import disk_repo, tv_repo
 from personalscraper.indexer.repos import item_repo as _item_repo
 from personalscraper.indexer.scanner import ScanMode
@@ -631,7 +632,12 @@ def _ensure_disk_row(conn: sqlite3.Connection, disk_cfg: DiskConfig, now_s: int)
     )
 
 
-def scan_library(config: Config, conn: sqlite3.Connection) -> None:
+def scan_library(
+    config: Config,
+    conn: sqlite3.Connection,
+    *,
+    event_bus: EventBus,
+) -> None:
     """Populate the indexer DB from a full walk of all mounted storage disks.
 
     For each media directory found on disk the function writes:
@@ -651,6 +657,9 @@ def scan_library(config: Config, conn: sqlite3.Connection) -> None:
     Args:
         config: Loaded pipeline :class:`~personalscraper.conf.models.Config`.
         conn: Open SQLite connection with all migrations applied.
+        event_bus: Required :class:`EventBus` forwarded to the underlying
+            indexer scan so disk-circuit and ``LibraryScanCompleted`` events
+            reach the run's subscribers.
     """
     now_s = int(time.time())
     disk_rows: list[DiskRow] = []
@@ -723,4 +732,5 @@ def scan_library(config: Config, conn: sqlite3.Connection) -> None:
             mode=ScanMode.full,
             generation=next_generation,
             conn=conn,
+            event_bus=event_bus,
         )

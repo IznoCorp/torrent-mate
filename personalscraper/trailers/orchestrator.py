@@ -27,6 +27,7 @@ from personalscraper.scraper.ytdlp_downloader import (
     DownloadStatus,
     YtdlpDownloader,
 )
+from personalscraper.trailers.events import TrailerDownloaded
 from personalscraper.trailers.placement import (
     trailer_exists,
     trailer_path_for,
@@ -44,6 +45,7 @@ from personalscraper.trailers.state import (
 )
 
 if TYPE_CHECKING:
+    from personalscraper.core.event_bus import EventBus
     from personalscraper.scraper.trailer_finder import TrailerFinder
 
 log = get_logger(__name__)
@@ -126,15 +128,29 @@ class TrailersOrchestrator:
             :class:`_LibraryEntry`.  Populated on first need during run().
     """
 
-    def __init__(self, config: Any, staging_dir: Path | None) -> None:
+    def __init__(
+        self,
+        config: Any,
+        staging_dir: Path | None,
+        *,
+        event_bus: "EventBus",
+    ) -> None:
         """Wire up Scanner, TrailerFinder, YtdlpDownloader, TrailerStateStore.
 
         Args:
             config: Loaded pipeline Config.
             staging_dir: Path to the staging area (for pipeline step) or None.
+            event_bus: Required :class:`~personalscraper.core.event_bus.EventBus`
+                threaded from the trailers CLI command boundary or from the
+                pipeline ``trailers`` step. The orchestrator emits
+                ``TrailerDownloaded`` events on it and forwards it to the
+                TMDB/YouTube transports + YouTube ``CircuitBreaker``. Tests
+                that don't care about emit can pass a fresh ``EventBus()``
+                with no subscribers.
         """
         self._config = config
         self._staging_dir = staging_dir
+        self._event_bus = event_bus
         self._failed_items: list[tuple[str, str, str]] = []
         self._item_results: list[tuple[str, str, str | None]] = []
 
@@ -525,6 +541,21 @@ class TrailersOrchestrator:
                             nfo_path=str(item.nfo_path),
                         )
 
+                # Bus emit (Sub-phase 4.4) — fires only on successful
+                # downloads with a real output path. ``source_url`` is the
+                # ``url`` already in scope (the resolved YouTube video URL
+                # passed to YtdlpDownloader.download); ``trailer_url_callsite_count: 4``
+                # per the locked pre-flight grep.
+                if result.output_path is not None:
+                    self._event_bus.emit(
+                        TrailerDownloaded(
+                            source="trailers.orchestrator",
+                            media_path=item.path,
+                            trailer_path=result.output_path,
+                            source_url=url,
+                        ),
+                    )
+
             elif result.status == DownloadStatus.BOT_DETECTED:
                 log.warning("trailers_bot_detected", key=key, title=item.title, url=url)
                 counts["bot_detected"] += 1
@@ -658,12 +689,8 @@ class TrailersOrchestrator:
                     cooldown_seconds=int(cb_cfg.tmdb_videos.cooldown_sec),
                 ),
             )
-            tmdb_client = TMDBClient(transport=HttpTransport(tmdb_policy))
-            youtube_breaker = CircuitBreaker(
-                name="trailers_youtube",
-                failure_threshold=int(cb_cfg.youtube.errors_threshold),
-                cooldown_seconds=float(cb_cfg.youtube.cooldown_sec),
-            )
+            tmdb_client = TMDBClient(transport=HttpTransport(tmdb_policy, event_bus=self._event_bus))
+            youtube_breaker = CircuitBreaker(name="trailers_youtube", failure_threshold=int(cb_cfg.youtube.errors_threshold), cooldown_seconds=float(cb_cfg.youtube.cooldown_sec), event_bus=self._event_bus)  # noqa: E501  # fmt: skip
 
             quota_cache = JsonTTLCache(cache_dir / "youtube_quota.json")
             yt_api_cfg = self._config.trailers.youtube_api
@@ -727,7 +754,7 @@ class TrailersOrchestrator:
             return index
         conn: sqlite3.Connection | None = None
         try:
-            conn = _open_indexer_db(db_path)
+            conn = _open_indexer_db(db_path, event_bus=self._event_bus)
             rows = _indexer_item_repo.list_all_dispatch_items(conn)
         except Exception as exc:  # noqa: BLE001 — degraded, but loudly logged
             log.error(

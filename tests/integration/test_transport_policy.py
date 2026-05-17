@@ -12,6 +12,7 @@ from personalscraper.api._contracts import CircuitOpenError
 from personalscraper.api.transport._auth import ApiKeyAuth, NoAuth
 from personalscraper.api.transport._http import HttpTransport
 from personalscraper.api.transport._policy import CircuitPolicy, RetryPolicy, TransportPolicy
+from personalscraper.core.event_bus import EventBus
 
 BASE = "http://test-api.example.com"
 
@@ -36,7 +37,7 @@ class TestQueryAuthParam:
         """ApiKeyAuth(location='query') adds api_key to query params."""
         responses.add(responses.GET, re.compile(rf"{BASE}/test"), json={"ok": True})
 
-        transport = HttpTransport(_make_policy())
+        transport = HttpTransport(_make_policy(), event_bus=EventBus())
         transport.get("/test")
         transport.close()
 
@@ -56,7 +57,7 @@ class TestRetryBehavior:
         responses.add(responses.GET, url, json={"error": "boom"}, status=503)
         responses.add(responses.GET, url, json={"ok": True}, status=200)
 
-        transport = HttpTransport(_make_policy())
+        transport = HttpTransport(_make_policy(), event_bus=EventBus())
         result = transport.get("/flaky")
         transport.close()
 
@@ -80,7 +81,7 @@ class TestCircuitBreaker:
         for _ in range(3):
             responses.add(responses.GET, url, json={"error": "down"}, status=500)
 
-        transport = HttpTransport(_make_policy())
+        transport = HttpTransport(_make_policy(), event_bus=EventBus())
 
         # Call 1 — fails, circuit records 1 final failure
         with pytest.raises(Exception):
@@ -104,7 +105,7 @@ class TestResponseFormats:
         url = f"{BASE}/text"
         responses.add(responses.GET, url, body="plain text response", status=200)
 
-        transport = HttpTransport(_make_policy(response_format="text", auth=NoAuth()))
+        transport = HttpTransport(_make_policy(response_format="text", auth=NoAuth()), event_bus=EventBus())
         result = transport.get("/text")
         transport.close()
 
@@ -122,7 +123,7 @@ class TestResponseFormats:
             content_type="application/xml",
         )
 
-        transport = HttpTransport(_make_policy(response_format="xml", auth=NoAuth()))
+        transport = HttpTransport(_make_policy(response_format="xml", auth=NoAuth()), event_bus=EventBus())
         result = transport.get("/xml")
         transport.close()
 

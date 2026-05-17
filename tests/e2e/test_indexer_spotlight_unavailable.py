@@ -20,6 +20,7 @@ from unittest.mock import patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.repos import disk_repo
 from personalscraper.indexer.scanner import ScanMode, scan
@@ -165,6 +166,7 @@ class TestSpotlightUnavailable:
                 conn=conn,
                 staging_dir=mount,
                 spotlight_enabled=True,
+                event_bus=EventBus(),
             )
 
         # Scan must complete cleanly via dir-mtime walk.

@@ -45,6 +45,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from personalscraper.conf.models.disks import DiskConfig
+from personalscraper.core.event_bus import EventBus
 from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.verify.verifier import VerifyResult
@@ -78,8 +79,8 @@ class TestDispatcherInit:
 
     def test_init_with_rsync(self, test_config, mock_settings: MagicMock, tmp_path: Path) -> None:
         """Should initialize when rsync is available."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
         assert d is not None
 
     @patch("shutil.which", return_value=None)
@@ -89,9 +90,9 @@ class TestDispatcherInit:
         """Should raise DispatchError when rsync is missing."""
         from personalscraper.dispatch._types import DispatchError
 
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         with pytest.raises(DispatchError, match="rsync"):
-            Dispatcher(test_config, mock_settings, idx)
+            Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
 
 # ---------------------------------------------------------------------------
@@ -109,8 +110,8 @@ class TestDispatchMovie:
         tmp_path: Path,
     ) -> None:
         """Dry run should report action without moving."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True, event_bus=EventBus())
 
         movie_dir = tmp_path / "Matrix (1999)"
         movie_dir.mkdir()
@@ -139,8 +140,8 @@ class TestDispatchMovie:
         tmp_path: Path,
     ) -> None:
         """Should skip when no disk has enough space."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         movie_dir = tmp_path / "Movie (2024)"
         movie_dir.mkdir()
@@ -177,8 +178,8 @@ class TestDispatchTvshow:
         tmp_path: Path,
     ) -> None:
         """Dry run for new show should report action."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True, event_bus=EventBus())
 
         show_dir = tmp_path / "Fallout (2024)"
         show_dir.mkdir()
@@ -214,8 +215,8 @@ class TestProcess:
         tmp_path: Path,
     ) -> None:
         """Should dispatch each verified item."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True, event_bus=EventBus())
 
         movie_dir = tmp_path / "Movie (2024)"
         movie_dir.mkdir()
@@ -252,8 +253,8 @@ class TestProcess:
         tmp_path: Path,
     ) -> None:
         """Should skip items without a category."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True, event_bus=EventBus())
 
         verified = [
             VerifyResult(
@@ -275,8 +276,8 @@ class TestProcess:
         tmp_path: Path,
     ) -> None:
         """Should return empty results for empty verified list."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         results = d.process(verified=[])
         assert results == []
@@ -297,8 +298,8 @@ class TestVerifyTransfer:
         tmp_path: Path,
     ) -> None:
         """Should return True when all files match."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
@@ -317,8 +318,8 @@ class TestVerifyTransfer:
         tmp_path: Path,
     ) -> None:
         """Should return False when dest file is missing."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
@@ -335,8 +336,8 @@ class TestVerifyTransfer:
         tmp_path: Path,
     ) -> None:
         """Should return False when file sizes differ."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
@@ -363,8 +364,8 @@ class TestReplace:
         tmp_path: Path,
     ) -> None:
         """Rsync failure should clean tmp_new and return False."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         source = tmp_path / "source"
         dest = tmp_path / "dest"
@@ -387,8 +388,8 @@ class TestReplace:
         tmp_path: Path,
     ) -> None:
         """If atomic swap fails, original should be restored from tmp_old."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         source = tmp_path / "source"
         dest = tmp_path / "dest"
@@ -425,8 +426,8 @@ class TestReplace:
         tmp_path: Path,
     ) -> None:
         """Successful replace: rsync → swap → cleanup old + source."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         source = tmp_path / "source"
         dest = tmp_path / "dest"
@@ -465,8 +466,8 @@ class TestMerge:
         tmp_path: Path,
     ) -> None:
         """Rsync failure should return False."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         source = tmp_path / "source"
         dest = tmp_path / "dest"
@@ -485,8 +486,8 @@ class TestMerge:
         tmp_path: Path,
     ) -> None:
         """Verification failure after rsync should return False."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         source = tmp_path / "source"
         dest = tmp_path / "dest"
@@ -509,8 +510,8 @@ class TestMerge:
         tmp_path: Path,
     ) -> None:
         """Successful merge: rsync + verify → source removed."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         source = tmp_path / "source"
         dest = tmp_path / "dest"
@@ -534,8 +535,8 @@ class TestMerge:
         tmp_path: Path,
     ) -> None:
         """OSError during merge should return False."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         source = tmp_path / "source"
         dest = tmp_path / "dest"
@@ -563,8 +564,8 @@ class TestMoveNew:
         tmp_path: Path,
     ) -> None:
         """Successful move: rsync to tmp → rename → verify → source removed."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         source = tmp_path / "source"
         dest = tmp_path / "dest" / "movies" / "Movie (2024)"
@@ -593,8 +594,8 @@ class TestMoveNew:
         tmp_path: Path,
     ) -> None:
         """Rsync failure should return False, dest should not exist."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         source = tmp_path / "source"
         dest = tmp_path / "dest" / "movies" / "Movie (2024)"
@@ -613,8 +614,8 @@ class TestMoveNew:
         tmp_path: Path,
     ) -> None:
         """Verification failure should return False."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         source = tmp_path / "source"
         dest = tmp_path / "dest" / "movies" / "Movie (2024)"
@@ -636,8 +637,8 @@ class TestMoveNew:
         tmp_path: Path,
     ) -> None:
         """Existing orphan _tmp_dispatch_* is cleaned before new attempt."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         source = tmp_path / "source"
         dest = tmp_path / "dest" / "movies" / "Movie (2024)"
@@ -675,8 +676,8 @@ class TestRsync:
         tmp_path: Path,
     ) -> None:
         """Successful rsync returns True."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
@@ -696,8 +697,8 @@ class TestRsync:
         tmp_path: Path,
     ) -> None:
         """Failed rsync (non-zero returncode) returns False."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
@@ -716,8 +717,8 @@ class TestRsync:
         tmp_path: Path,
     ) -> None:
         """Timeout should return False."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
@@ -736,8 +737,8 @@ class TestRsync:
         tmp_path: Path,
     ) -> None:
         """delete=True should include --delete flag."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
@@ -757,8 +758,8 @@ class TestRsync:
         tmp_path: Path,
     ) -> None:
         """Rsync command should exclude .DS_Store and ._* files (Bug #1)."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
@@ -779,8 +780,8 @@ class TestRsync:
         tmp_path: Path,
     ) -> None:
         """Rsync merge command should also exclude .DS_Store and ._* files (Bug #1)."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
@@ -812,8 +813,8 @@ class TestDispatchDryRun:
         tmp_path: Path,
     ) -> None:
         """Dry run should not call rsync or modify filesystem."""
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True, event_bus=EventBus())
 
         movie_dir = tmp_path / "DryRunMovie (2024)"
         movie_dir.mkdir()
@@ -862,8 +863,8 @@ class TestOrphanCleanup:
         orphan.mkdir()
         (orphan / "partial.mkv").write_bytes(b"\x00" * 512)
 
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
         d._disk_configs = [DiskConfig(id="drive_a", path=disk, categories=["movies"])]
 
         cleaned = d._cleanup_orphan_temps()
@@ -886,8 +887,8 @@ class TestOrphanCleanup:
         backup.mkdir()
         (backup / "old_file.mkv").write_bytes(b"\x00" * 100)
 
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
         d._disk_configs = [DiskConfig(id="drive_a", path=disk, categories=["tv_shows"])]
 
         cleaned = d._cleanup_orphan_temps()
@@ -1022,8 +1023,8 @@ class TestNtfsIllegalAtDispatch:
         """dispatch_movie returns skipped when _transfer.has_ntfs_illegal_names is True."""
         from personalscraper.dispatch._movie import dispatch_movie
 
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         movie_dir = tmp_path / "Bad Movie"
         movie_dir.mkdir()
@@ -1041,8 +1042,8 @@ class TestNtfsIllegalAtDispatch:
         """dispatch_tvshow returns skipped when _transfer.has_ntfs_illegal_names is True."""
         from personalscraper.dispatch._tv import dispatch_tvshow
 
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         show_dir = tmp_path / "Bad Show"
         show_dir.mkdir()
@@ -1070,7 +1071,7 @@ class TestDispatchExistingItemBranches:
         from personalscraper.dispatch._movie import dispatch_movie
         from personalscraper.dispatch.media_index import IndexEntry
 
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         # Create the destination on disk so _resolve_existing_on_filesystem
         # validates it as truly existing.
         dest_dir = tmp_path / "drive_a" / "Films" / "Movie (2024)"
@@ -1087,7 +1088,7 @@ class TestDispatchExistingItemBranches:
             )
         )
 
-        d = Dispatcher(test_config, mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         movie_dir = tmp_path / "Movie (2024)"
         movie_dir.mkdir()
@@ -1112,7 +1113,7 @@ class TestDispatchExistingItemBranches:
         from personalscraper.dispatch._movie import dispatch_movie
         from personalscraper.dispatch.media_index import IndexEntry
 
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         dest_dir = tmp_path / "drive_a" / "Films" / "Movie (2024)"
         dest_dir.mkdir(parents=True)
         (dest_dir / "Movie.mkv").write_bytes(b"old")
@@ -1127,7 +1128,7 @@ class TestDispatchExistingItemBranches:
             )
         )
 
-        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True, event_bus=EventBus())
 
         movie_dir = tmp_path / "Movie (2024)"
         movie_dir.mkdir()
@@ -1152,7 +1153,7 @@ class TestDispatchExistingItemBranches:
         from personalscraper.dispatch._tv import dispatch_tvshow
         from personalscraper.dispatch.media_index import IndexEntry
 
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         dest_dir = tmp_path / "drive_a" / "Series" / "Show (2024)"
         dest_dir.mkdir(parents=True)
         (dest_dir / "S01E01.mkv").write_bytes(b"old")
@@ -1167,7 +1168,7 @@ class TestDispatchExistingItemBranches:
             )
         )
 
-        d = Dispatcher(test_config, mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         show_dir = tmp_path / "Show (2024)"
         show_dir.mkdir()
@@ -1192,7 +1193,7 @@ class TestDispatchExistingItemBranches:
         from personalscraper.dispatch._tv import dispatch_tvshow
         from personalscraper.dispatch.media_index import IndexEntry
 
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         dest_dir = tmp_path / "drive_a" / "Series" / "Show (2024)"
         dest_dir.mkdir(parents=True)
         (dest_dir / "S01E01.mkv").write_bytes(b"old")
@@ -1207,7 +1208,7 @@ class TestDispatchExistingItemBranches:
             )
         )
 
-        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True, event_bus=EventBus())
 
         show_dir = tmp_path / "Show (2024)"
         show_dir.mkdir()
@@ -1231,8 +1232,8 @@ class TestDispatchExistingItemBranches:
         """When no disk accepts the category or has enough space, skip new TV show."""
         from personalscraper.dispatch._tv import dispatch_tvshow
 
-        idx = MediaIndex(tmp_path / "index.db")
-        d = Dispatcher(test_config, mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         show_dir = tmp_path / "Show (2024)"
         show_dir.mkdir()
@@ -1272,7 +1273,7 @@ class TestDispatchOutboxPublish:
         from personalscraper.dispatch._movie import dispatch_movie
         from personalscraper.dispatch.media_index import IndexEntry
 
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         dest_dir = tmp_path / "drive_a" / "Films" / "Movie (2024)"
         dest_dir.mkdir(parents=True)
         (dest_dir / "Movie.mkv").write_bytes(b"old")
@@ -1287,7 +1288,7 @@ class TestDispatchOutboxPublish:
             )
         )
 
-        d = Dispatcher(test_config, mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         movie_dir = tmp_path / "Movie (2024)"
         movie_dir.mkdir()
@@ -1319,7 +1320,7 @@ class TestDispatchOutboxPublish:
         from personalscraper.dispatch._tv import dispatch_tvshow
         from personalscraper.dispatch.media_index import IndexEntry
 
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         dest_dir = tmp_path / "drive_a" / "Series" / "Show (2024)"
         dest_dir.mkdir(parents=True)
         (dest_dir / "S01E01.mkv").write_bytes(b"old")
@@ -1334,7 +1335,7 @@ class TestDispatchOutboxPublish:
             )
         )
 
-        d = Dispatcher(test_config, mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         show_dir = tmp_path / "Show (2024)"
         show_dir.mkdir()
@@ -1374,7 +1375,8 @@ class TestCleanupNonDirItems:
         (category / "random_file.txt").write_text("not a dir")
 
         disk = DiskConfig(id="disk", path=disk_root, categories=["movies"])
-        d = Dispatcher(test_config, mock_settings, MediaIndex(tmp_path / "index.db"))
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
         d._disk_configs = [disk]
 
         cleaned = d._cleanup_orphan_temps()
@@ -1490,7 +1492,7 @@ class TestResolveExistingOnFilesystem:
         """When the index entry's path still exists on disk, return it unchanged."""
         from personalscraper.dispatch.media_index import IndexEntry
 
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         dest = tmp_path / "disk" / "Films" / "Movie (2024)"
         dest.mkdir(parents=True)
 
@@ -1503,7 +1505,7 @@ class TestResolveExistingOnFilesystem:
                 media_type="movie",
             )
         )
-        d = Dispatcher(test_config, mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
 
         result = d._resolve_existing_on_filesystem("Movie (2024)", "movie")
         assert result is not None
@@ -1516,7 +1518,7 @@ class TestResolveExistingOnFilesystem:
         """Index points to a stale path, but name found on another disk → log drift."""
         from personalscraper.dispatch.media_index import IndexEntry
 
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         # Index points to old location that no longer exists.
         idx.add(
             IndexEntry(
@@ -1533,7 +1535,7 @@ class TestResolveExistingOnFilesystem:
         real_dest.mkdir(parents=True)
 
         disk_b = DiskConfig(id="disk_b", path=tmp_path / "disk_b" / "medias", categories=["movies"])
-        d = Dispatcher(test_config, mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
         d._disk_configs = [disk_b]
 
         result = d._resolve_existing_on_filesystem("Movie (2024)", "movie")
@@ -1544,7 +1546,7 @@ class TestResolveExistingOnFilesystem:
         """Index entry is stale and name not found on any disk → return None."""
         from personalscraper.dispatch.media_index import IndexEntry
 
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         idx.add(
             IndexEntry(
                 name="Movie (2024)",
@@ -1557,7 +1559,7 @@ class TestResolveExistingOnFilesystem:
 
         disk_a = DiskConfig(id="disk_a", path=tmp_path / "disk_a" / "medias", categories=["movies"])
         disk_a.path.mkdir(parents=True)  # disk exists but has no matching folder
-        d = Dispatcher(test_config, mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
         d._disk_configs = [disk_a]
 
         result = d._resolve_existing_on_filesystem("Movie (2024)", "movie")
@@ -1565,13 +1567,13 @@ class TestResolveExistingOnFilesystem:
 
     def test_no_index_entry_name_found_on_disk(self, test_config, mock_settings: MagicMock, tmp_path: Path) -> None:
         """No index entry, but name found on a disk → returns synthetic entry."""
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
 
         dest = tmp_path / "disk" / "medias" / "Films" / "Movie (2024)"
         dest.mkdir(parents=True)
 
         disk = DiskConfig(id="disk", path=tmp_path / "disk" / "medias", categories=["movies"])
-        d = Dispatcher(test_config, mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
         d._disk_configs = [disk]
 
         result = d._resolve_existing_on_filesystem("Movie (2024)", "movie")
@@ -1583,7 +1585,7 @@ class TestResolveExistingOnFilesystem:
         """Disk whose mount path is absent is skipped during the scan."""
         from personalscraper.dispatch.media_index import IndexEntry
 
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         idx.add(
             IndexEntry(
                 name="Movie (2024)",
@@ -1596,7 +1598,7 @@ class TestResolveExistingOnFilesystem:
 
         # Create a disk cfg pointing to nonexistent path.
         disk = DiskConfig(id="disk", path=tmp_path / "nonexistent", categories=["movies"])
-        d = Dispatcher(test_config, mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
         d._disk_configs = [disk]
 
         result = d._resolve_existing_on_filesystem("Movie (2024)", "movie")
@@ -1606,7 +1608,7 @@ class TestResolveExistingOnFilesystem:
         """OSError during disk iterdir is caught and the disk is skipped."""
         from personalscraper.dispatch.media_index import IndexEntry
 
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         idx.add(
             IndexEntry(
                 name="Movie (2024)",
@@ -1620,7 +1622,7 @@ class TestResolveExistingOnFilesystem:
         disk = DiskConfig(id="disk", path=tmp_path / "disk", categories=["movies"])
         disk.path.mkdir()
 
-        d = Dispatcher(test_config, mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
         d._disk_configs = [disk]
 
         with patch.object(Path, "iterdir", side_effect=OSError("io error")):
@@ -1645,7 +1647,8 @@ class TestCleanupOrphanTempsBranches:
         orphan.mkdir(parents=True)
 
         disk = DiskConfig(id="disk", path=disk_root, categories=["movies"])
-        d = Dispatcher(test_config, mock_settings, MediaIndex(tmp_path / "index.db"), dry_run=True)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True, event_bus=EventBus())
         d._disk_configs = [disk]
 
         cleaned = d._cleanup_orphan_temps()
@@ -1661,7 +1664,8 @@ class TestCleanupOrphanTempsBranches:
         backup.mkdir(parents=True)
 
         disk = DiskConfig(id="disk", path=disk_root, categories=["movies"])
-        d = Dispatcher(test_config, mock_settings, MediaIndex(tmp_path / "index.db"), dry_run=True)
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True, event_bus=EventBus())
         d._disk_configs = [disk]
 
         cleaned = d._cleanup_orphan_temps()
@@ -1674,7 +1678,8 @@ class TestCleanupOrphanTempsBranches:
         disk_root.mkdir(parents=True)
 
         disk = DiskConfig(id="disk", path=disk_root, categories=["movies"])
-        d = Dispatcher(test_config, mock_settings, MediaIndex(tmp_path / "index.db"))
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
         d._disk_configs = [disk]
 
         with patch.object(Path, "iterdir", side_effect=OSError("i/o")):
@@ -1689,7 +1694,8 @@ class TestCleanupOrphanTempsBranches:
         orphan.mkdir(parents=True)
 
         disk = DiskConfig(id="disk", path=disk_root, categories=["movies"])
-        d = Dispatcher(test_config, mock_settings, MediaIndex(tmp_path / "index.db"))
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
         d._disk_configs = [disk]
 
         with patch(
@@ -1708,7 +1714,8 @@ class TestCleanupOrphanTempsBranches:
         backup.mkdir(parents=True)
 
         disk = DiskConfig(id="disk", path=disk_root, categories=["movies"])
-        d = Dispatcher(test_config, mock_settings, MediaIndex(tmp_path / "index.db"))
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
         d._disk_configs = [disk]
 
         with patch(

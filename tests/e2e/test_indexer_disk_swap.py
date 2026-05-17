@@ -39,6 +39,7 @@ from unittest.mock import patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.breaker import DiskCircuitBreaker
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.merkle import DiskBulkChangeDetected
@@ -162,7 +163,8 @@ def _run_initial_scan(conn: sqlite3.Connection, disk: DiskRow, mount: str) -> Di
             mode=ScanMode.full,
             generation=1,
             conn=conn,
-            disk_breaker=DiskCircuitBreaker(),
+            disk_breaker=DiskCircuitBreaker(event_bus=EventBus()),
+            event_bus=EventBus(),
         )
 
     # Store a stale root that will never match the DB-computed root, ensuring
@@ -257,7 +259,8 @@ class TestDiskSwapFreeze:
                 conn=conn,
                 confirm_bulk_change=False,
                 merkle_delta_freeze_threshold=_FREEZE_THRESHOLD,
-                disk_breaker=DiskCircuitBreaker(),
+                disk_breaker=DiskCircuitBreaker(event_bus=EventBus()),
+                event_bus=EventBus(),
             )
 
         # Exception attributes must reflect the freeze.
@@ -329,7 +332,8 @@ class TestDiskSwapFreeze:
                 conn=conn,
                 confirm_bulk_change=True,
                 merkle_delta_freeze_threshold=_FREEZE_THRESHOLD,
-                disk_breaker=DiskCircuitBreaker(),
+                disk_breaker=DiskCircuitBreaker(event_bus=EventBus()),
+                event_bus=EventBus(),
             )
 
         assert result.status == "ok", f"Expected status='ok', got {result.status!r}"

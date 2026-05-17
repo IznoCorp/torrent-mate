@@ -5,35 +5,36 @@ from __future__ import annotations
 from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from uuid import UUID
 
 if TYPE_CHECKING:
-    from personalscraper.conf.models.config import Config
-    from personalscraper.config import Settings
+    from personalscraper.core.app_context import AppContext
     from personalscraper.models import StepReport
-    from personalscraper.pipeline_observer import PipelineObserver
 
 
 @dataclass(frozen=True)
 class StepContext:
     """Immutable context bundle passed to every pipeline step adapter.
 
+    The :class:`EventBus` carried by ``ctx.app.event_bus`` is the sole emit
+    substrate. Every step reads its config/settings via ``ctx.app.config``
+    / ``ctx.app.settings``.
+
     Attributes:
-        config: Loaded configuration with disk definitions and category mapping.
-        settings: Pipeline settings with numeric thresholds and credentials.
+        app: Process-scoped service bundle (config, settings, event_bus).
+        run_id: Per-run UUID, identifies a single pipeline invocation.
         dry_run: If True, preview operations without side effects.
         interactive: If True, prompt before destructive actions.
         verbose: If True, emit detailed progress output.
-        observers: Tuple of pipeline observers for progress and lifecycle notifications.
         upstream: Reports from previously executed steps, keyed by step name.
-        extras: Mutable mapping for ad-hoc cross-step data (e.g. verified paths).
+        extras: Mutable mapping for ad-hoc cross-step data.
     """
 
-    config: "Config"
-    settings: "Settings"
+    app: "AppContext"
+    run_id: UUID
     dry_run: bool
     interactive: bool
     verbose: bool
-    observers: tuple["PipelineObserver", ...]
     upstream: Mapping[str, "StepReport"]
     extras: MutableMapping[str, Any]
 

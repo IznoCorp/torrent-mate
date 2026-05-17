@@ -27,6 +27,7 @@ import requests
 
 from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError
 from personalscraper.core.circuit import CircuitBreaker
+from personalscraper.core.event_bus import EventBus
 from personalscraper.ingest.ingest import run_ingest
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
@@ -180,7 +181,7 @@ class TestCircuitOpenedEvent:
         Args:
             caplog: Pytest log capture fixture.
         """
-        cb = CircuitBreaker(name="TMDB_test", failure_threshold=1, cooldown_seconds=30.0)
+        cb = CircuitBreaker(name="TMDB_test", failure_threshold=1, cooldown_seconds=30.0, event_bus=EventBus())
         with caplog.at_level(logging.WARNING, logger="circuit_breaker"):
             # ConnectionError is a circuit-eligible error (triggers the threshold)
             cb.record_failure(requests.exceptions.ConnectionError("connection refused"))
@@ -253,7 +254,7 @@ class TestIngestQbitAuthLockoutEvent:
         mock_qbit_cls.return_value = mock_client
 
         with caplog.at_level(logging.ERROR, logger="ingest"):
-            run_ingest(settings, config=_make_config(tmp_path))
+            run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert _has_event(caplog, "ingest_qbit_auth_lockout"), "ingest event 'ingest_qbit_auth_lockout' was not emitted"
         assert not _has_event(caplog, "ingest_unexpected_error"), "auth_lockout should not fall through to catch-all"

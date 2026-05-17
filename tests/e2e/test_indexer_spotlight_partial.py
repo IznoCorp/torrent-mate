@@ -25,6 +25,7 @@ from unittest.mock import patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.repos import disk_repo
 from personalscraper.indexer.scanner import ScanMode, scan
@@ -162,6 +163,7 @@ class TestSpotlightPartial:
                 generation=1,
                 conn=conn,
                 spotlight_enabled=True,
+                event_bus=EventBus(),
             )
 
         assert result.status == "ok", f"Expected status='ok', got {result.status!r}"
@@ -218,6 +220,7 @@ class TestSpotlightPartial:
                 generation=1,
                 conn=conn,
                 spotlight_enabled=True,
+                event_bus=EventBus(),
             )
 
         assert result.status == "ok", f"Expected status='ok', got {result.status!r}"

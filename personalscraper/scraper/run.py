@@ -12,11 +12,12 @@ from pathlib import Path
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS, SEASON_DIR_RE
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
-from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
+from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.scraper.scraper import Scraper, ScrapeResult, verify_tvshow_scrape_drift
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS, FileType
 
@@ -143,7 +144,8 @@ def run_scrape(
     interactive: bool = False,
     movies_only: bool = False,
     tvshows_only: bool = False,
-    observers: tuple[PipelineObserver, ...] = (),
+    *,
+    event_bus: EventBus,
 ) -> StepReport:
     """Run the scrape pipeline step.
 
@@ -160,7 +162,8 @@ def run_scrape(
         interactive: If True, prompt user for ambiguous matches.
         movies_only: If True, process only {movies_dir}/.
         tvshows_only: If True, process only {tvshows_dir}/.
-        observers: Tuple of pipeline observers for progress and lifecycle notifications.
+        event_bus: Required in-process EventBus. Each per-item
+        lifecycle transition emits an ``ItemProgressed`` event on the bus.
 
     Returns:
         StepReport with success/skip/error counts and details.
@@ -190,6 +193,7 @@ def run_scrape(
         dry_run=dry_run,
         interactive=interactive,
         config=config,
+        event_bus=event_bus,
     )
 
     all_results: list[ScrapeResult] = []
@@ -211,48 +215,49 @@ def run_scrape(
     # Emit per-folder progress events
     for r in all_results:
         item_name = r.media_path.name
-        notify_progress(
-            observers,
-            StepEvent(step="scrape", item=item_name, status="started"),
-        )
+        event_bus.emit(ItemProgressed(step="scrape", item=item_name, status="started"))
         if r.action in ("scraped", "artwork_recovered"):
-            notify_progress(
-                observers,
-                StepEvent(
+            event_bus.emit(
+                ItemProgressed(
                     step="scrape",
                     item=item_name,
                     status="matched",
-                    details={"action": r.action},
-                ),
+                    details={
+                        "action": r.action,
+                        "provider": r.match.source if r.match else "",
+                        "confidence": r.match.confidence if r.match else 0.0,
+                    },
+                )
             )
         elif r.action == "skipped_low_confidence":
-            notify_progress(
-                observers,
-                StepEvent(
+            event_bus.emit(
+                ItemProgressed(
                     step="scrape",
                     item=item_name,
                     status="skipped_low_confidence",
-                ),
+                    details={
+                        "provider": r.match.source if r.match else "",
+                        "confidence": r.match.confidence if r.match else 0.0,
+                    },
+                )
             )
         elif r.action in ("skipped_already_done", "skipped_no_category"):
-            notify_progress(
-                observers,
-                StepEvent(
+            event_bus.emit(
+                ItemProgressed(
                     step="scrape",
                     item=item_name,
                     status="skipped",
                     details={"action": r.action},
-                ),
+                )
             )
         elif r.action == "error":
-            notify_progress(
-                observers,
-                StepEvent(
+            event_bus.emit(
+                ItemProgressed(
                     step="scrape",
                     item=item_name,
                     status="failed",
                     details={"error": r.error or ""},
-                ),
+                )
             )
 
     # Convert to StepReport

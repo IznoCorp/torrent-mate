@@ -13,9 +13,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
-from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
+from personalscraper.pipeline_events import ItemProgressed
 
 logger = get_logger(__name__)
 
@@ -25,7 +26,8 @@ def run_trailers(
     staging_dir: Path,
     verified: list[Any],
     skip_trailers: bool = False,
-    observers: tuple[PipelineObserver, ...] = (),
+    *,
+    event_bus: EventBus,
 ) -> StepReport:
     """Run the trailers pipeline step for all staged media items.
 
@@ -40,7 +42,8 @@ def run_trailers(
         verified: List of items that passed the previous ``verify`` step. Items
             absent from this list are skipped (they failed verify already).
         skip_trailers: If True, return a skipped StepReport immediately.
-        observers: Tuple of pipeline observers for progress and lifecycle notifications.
+        event_bus: Required in-process EventBus. Each per-item
+            lifecycle transition emits an ``ItemProgressed`` event on the bus.
 
     Returns:
         StepReport with name="trailers", status in
@@ -53,16 +56,13 @@ def run_trailers(
             enabled=config.trailers.enabled,
             skip_flag=skip_trailers,
         )
-        notify_progress(
-            observers,
-            StepEvent(
+        event_bus.emit(
+            ItemProgressed(
                 step="trailers",
                 item="<step>",
                 status="skipped",
-                details={
-                    "reason": "skip_flag" if skip_trailers else "disabled_by_config",
-                },
-            ),
+                details={"reason": "skip_flag" if skip_trailers else "disabled_by_config"},
+            )
         )
         return StepReport(name="trailers", status="skipped")
 
@@ -72,7 +72,7 @@ def run_trailers(
     from personalscraper.trailers.state import TrailerStateLocked  # noqa: PLC0415
 
     try:
-        orchestrator = TrailersOrchestrator(config=config, staging_dir=staging_dir)
+        orchestrator = TrailersOrchestrator(config=config, staging_dir=staging_dir, event_bus=event_bus)
 
         # Build the items list to pass to the orchestrator.
         #
@@ -108,10 +108,7 @@ def run_trailers(
             for item in orchestrator_items:
                 item_path = getattr(item, "path", None)
                 item_name = str(item_path.name) if item_path else str(item)
-                notify_progress(
-                    observers,
-                    StepEvent(step="trailers", item=item_name, status="started"),
-                )
+                event_bus.emit(ItemProgressed(step="trailers", item=item_name, status="started"))
 
         counts = orchestrator.run(items=orchestrator_items)
         failed_items = orchestrator.failed_items
@@ -123,14 +120,13 @@ def run_trailers(
 
         # Emit per-item completion events from orchestrator results
         for item_path, status, reason in item_results:
-            notify_progress(
-                observers,
-                StepEvent(
+            event_bus.emit(
+                ItemProgressed(
                     step="trailers",
                     item=item_path,
                     status=status,
                     details={"reason": reason or ""},
-                ),
+                )
             )
 
         # Partial: some items succeeded but at least one failed or was bot-detected.
@@ -147,7 +143,7 @@ def run_trailers(
             error_count=error_count,
             status=step_status,
             counts=counts,
-            failed_items=failed_items,
+            failed_items=failed_items,  # type: ignore[arg-type]  # coerced via StepReport.__post_init__
         )
         logger.info(
             "trailers_step_complete",
@@ -167,14 +163,13 @@ def run_trailers(
             lock_path=str(exc.lock_path),
             holder_pid=exc.holder_pid,
         )
-        notify_progress(
-            observers,
-            StepEvent(
+        event_bus.emit(
+            ItemProgressed(
                 step="trailers",
                 item="<step>",
                 status="failed",
                 details={"reason": "state_locked", "holder_pid": str(exc.holder_pid or "")},
-            ),
+            )
         )
         return StepReport(name="trailers", error_count=1, status="error")
 
@@ -190,14 +185,13 @@ def run_trailers(
             error=exc.strerror,
             exc_info=True,
         )
-        notify_progress(
-            observers,
-            StepEvent(
+        event_bus.emit(
+            ItemProgressed(
                 step="trailers",
                 item="<step>",
                 status="failed",
                 details={"reason": "state_write_failed", "error": exc.strerror or ""},
-            ),
+            )
         )
         return StepReport(
             name="trailers",
@@ -212,13 +206,12 @@ def run_trailers(
             error=str(exc),
             error_type=type(exc).__name__,
         )
-        notify_progress(
-            observers,
-            StepEvent(
+        event_bus.emit(
+            ItemProgressed(
                 step="trailers",
                 item="<step>",
                 status="failed",
                 details={"reason": "crashed", "error_type": type(exc).__name__},
-            ),
+            )
         )
         return StepReport(name="trailers", error_count=1, status="error")

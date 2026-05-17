@@ -14,12 +14,13 @@ from pathlib import Path
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
-from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
+from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.sorter.file_type import FileType
 from personalscraper.verify.verifier import VerifyResult
 
@@ -77,7 +78,8 @@ def run_dispatch(
     config: "Config",
     dry_run: bool = False,
     verified: list[VerifyResult] | None = None,
-    observers: tuple[PipelineObserver, ...] = (),
+    *,
+    event_bus: EventBus,
 ) -> StepReport:
     """Run the dispatch pipeline step.
 
@@ -87,7 +89,10 @@ def run_dispatch(
         dry_run: If True, preview without transferring files.
         verified: Verified items from the verify step (pipeline mode).
             If None, runs verify first to obtain dispatchable items.
-        observers: Tuple of pipeline observers for progress and lifecycle notifications.
+        event_bus: Required in-process EventBus. Each per-item
+            lifecycle transition emits an ``ItemProgressed`` event on the bus.
+            Also forwarded to ``MediaIndex`` so ``open_db``'s pre-open
+            free-space guard emits ``DiskFullWarning`` on the same bus.
 
     Returns:
         StepReport with dispatch counts and details.
@@ -104,7 +109,7 @@ def run_dispatch(
     if not dry_run:
         cleaned = _cleanup_staging_orphans(settings, config, staging_dir)
 
-    with MediaIndex(index_path, config=config, auto_rebuild=not dry_run) as index:
+    with MediaIndex(index_path, config=config, auto_rebuild=not dry_run, event_bus=event_bus) as index:
         preview_index = False
         if dry_run:
             index.begin_preview()
@@ -129,29 +134,27 @@ def run_dispatch(
                 event = "index_rebuilt_on_empty_preview" if dry_run else "index_rebuilt_on_empty"
                 log.info(event, entries=count)
 
-            dispatcher = Dispatcher(config=config, settings=settings, index=index, dry_run=dry_run)
+            dispatcher = Dispatcher(
+                config=config,
+                settings=settings,
+                index=index,
+                dry_run=dry_run,
+                event_bus=event_bus,
+            )
 
             if verified is None:
                 # Standalone mode: run verify first to get dispatchable items
                 from personalscraper.verify.run import run_verify
 
-                _, verified = run_verify(settings, config, dry_run=dry_run)
+                _, verified = run_verify(settings, config, dry_run=dry_run, event_bus=event_bus)
 
             results = dispatcher.process(verified=verified)
 
             for r in results:
-                notify_progress(
-                    observers,
-                    StepEvent(
-                        step="dispatch",
-                        item=r.source.name,
-                        status="started",
-                    ),
-                )
+                event_bus.emit(ItemProgressed(step="dispatch", item=r.source.name, status="started"))
                 if r.action in ("replaced", "merged", "moved"):
-                    notify_progress(
-                        observers,
-                        StepEvent(
+                    event_bus.emit(
+                        ItemProgressed(
                             step="dispatch",
                             item=r.source.name,
                             status=r.action,
@@ -159,28 +162,26 @@ def run_dispatch(
                                 "dest": str(r.destination) if r.destination else "",
                                 "disk": r.disk or "",
                             },
-                        ),
+                        )
                     )
                 elif r.action == "skipped":
-                    notify_progress(
-                        observers,
-                        StepEvent(
+                    event_bus.emit(
+                        ItemProgressed(
                             step="dispatch",
                             item=r.source.name,
                             status="skipped",
                             details={"reason": r.reason or ""},
-                        ),
+                        )
                     )
                 else:
                     # error or unknown action
-                    notify_progress(
-                        observers,
-                        StepEvent(
+                    event_bus.emit(
+                        ItemProgressed(
                             step="dispatch",
                             item=r.source.name,
                             status="error",
                             details={"action": r.action, "reason": r.reason or ""},
-                        ),
+                        )
                     )
 
             # Drain the outbox so that write-through events emitted during
@@ -188,7 +189,7 @@ def run_dispatch(
             # rather than waiting for the next nightly scan.
             if not dry_run:
                 _drain_dispatch_outbox(config)
-                _enrich_after_dispatch(config, results)
+                _enrich_after_dispatch(config, results, event_bus=event_bus)
         finally:
             if preview_index:
                 index.rollback_preview()
@@ -236,7 +237,7 @@ def _drain_dispatch_outbox(config: Config) -> None:
         conn.close()
 
 
-def _enrich_after_dispatch(config: Config, results: list[DispatchResult]) -> None:
+def _enrich_after_dispatch(config: Config, results: list[DispatchResult], *, event_bus: EventBus) -> None:
     """Run an enrich scan on every disk that received files during dispatch.
 
     Newly dispatched files land in the indexer DB with ``enriched_at=NULL``.
@@ -246,8 +247,13 @@ def _enrich_after_dispatch(config: Config, results: list[DispatchResult]) -> Non
     the contract of "the index is always up-to-date after dispatch."
 
     Args:
-        config: Validated Config with a resolved ``indexer.db_path``.
-        results: Dispatch results from the just-completed run.
+        config: Application config providing the indexer DB path.
+        results: Dispatch results from the current step; affected disk IDs
+            are derived from the ``moved`` / ``replaced`` / ``merged``
+            entries.
+        event_bus: Required :class:`EventBus` forwarded to the indexer
+            ``scan`` call so its breaker emits + ``LibraryScanCompleted``
+            event reach subscribers (Sub-phase 5.2).
     """
     import sqlite3
 
@@ -284,6 +290,7 @@ def _enrich_after_dispatch(config: Config, results: list[DispatchResult]) -> Non
             mode="enrich",  # type: ignore[arg-type]
             generation=next_generation,
             conn=conn,
+            event_bus=event_bus,
         )
         log.info(
             "dispatch_post_enrich_done",

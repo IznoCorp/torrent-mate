@@ -3,6 +3,17 @@
 Defines the main app with global options (--verbose, --quiet, --version,
 --config). Command bodies live in personalscraper.commands.* modules and
 register themselves against the shared Typer app imported here.
+
+This module is the system boundary that resolves and loads the typed
+JSON5 :class:`Config`. Commands that need the process-scoped service
+bundle wrap the loaded ``Config`` + env-var ``Settings`` into an
+:class:`AppContext` at their own boundary — see
+``personalscraper.commands.pipeline._build_app_context`` for the pipeline
+command, and ``personalscraper.commands.library.scan`` /
+``personalscraper.trailers.cli`` for the launchd + trailers entrypoints.
+Internal components MUST NOT receive an ``AppContext`` "for convenience" —
+``tests/architecture/test_app_context_boundary.py`` enforces the
+boundary-only rule from DESIGN §Architecture.
 """
 
 from __future__ import annotations

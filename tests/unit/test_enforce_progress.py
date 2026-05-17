@@ -1,35 +1,37 @@
-"""Tests for enforce progress events."""
+"""Tests for enforce progress events — migrated to EventBus + ``ItemProgressed``."""
 
 from __future__ import annotations
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.enforce.run import run_enforce
-from personalscraper.pipeline_observer import CollectorObserver
+from personalscraper.pipeline_events import ItemProgressed
+from tests.fixtures.event_bus import CollectingSubscriber
+
+
+def _config() -> MagicMock:
+    config = MagicMock()
+    config.paths.staging_dir = Path("/tmp/staging")
+    return config
 
 
 class TestEnforceProgress:
-    """Verify run_enforce emits per-item progress events."""
+    """Verify run_enforce emits per-item ``ItemProgressed`` events on the bus."""
 
     @patch("personalscraper.enforce.run.check_coherence", return_value=[])
     @patch("personalscraper.enforce.run.validate_structure", return_value=[])
     @patch("personalscraper.enforce.run.sanitize_files", return_value=[])
-    def test_accepts_observers(self, _san, _val, _coh) -> None:
-        """run_enforce accepts observers without error."""
-        settings = MagicMock()
-        config = MagicMock()
-        config.paths.staging_dir = Path("/tmp/staging")
-
-        report = run_enforce(settings, config, dry_run=True, observers=())
+    def test_accepts_event_bus(self, _san, _val, _coh) -> None:
+        """run_enforce accepts ``event_bus`` without error."""
+        report = run_enforce(MagicMock(), _config(), dry_run=True, event_bus=EventBus())
         assert report.name == "enforce"
 
     def test_emits_events_per_sanitize_result(self) -> None:
         """Each sanitized item emits started + fixed events."""
-        collector = CollectorObserver()
-        settings = MagicMock()
-        config = MagicMock()
-        config.paths.staging_dir = Path("/tmp/staging")
+        bus = EventBus()
+        collector = CollectingSubscriber(bus, ItemProgressed)
 
         fake_result = MagicMock()
         fake_result.old_name = "Bad.Name.2024"
@@ -39,20 +41,18 @@ class TestEnforceProgress:
         with patch("personalscraper.enforce.run.sanitize_files", return_value=[fake_result]):
             with patch("personalscraper.enforce.run.validate_structure", return_value=[]):
                 with patch("personalscraper.enforce.run.check_coherence", return_value=[]):
-                    run_enforce(settings, config, dry_run=True, observers=(collector,))
+                    run_enforce(MagicMock(), _config(), dry_run=True, event_bus=bus)
 
-        started = [e for e in collector.progress if e.status == "started"]
-        fixed = [e for e in collector.progress if e.status == "fixed"]
-        assert len(started) >= 1, "expected at least 1 started event from sanitize"
-        assert len(fixed) >= 1, "expected at least 1 fixed event from sanitize"
+        started = [e for e in collector.received if e.status == "started"]
+        fixed = [e for e in collector.received if e.status == "fixed"]
+        assert len(started) >= 1
+        assert len(fixed) >= 1
         assert started[0].step == "enforce"
 
     def test_emits_events_for_structure_results(self) -> None:
         """Structure results emit started + fixed events."""
-        collector = CollectorObserver()
-        settings = MagicMock()
-        config = MagicMock()
-        config.paths.staging_dir = Path("/tmp/staging")
+        bus = EventBus()
+        collector = CollectingSubscriber(bus, ItemProgressed)
 
         fake_structure = MagicMock()
         fake_structure.path = MagicMock()
@@ -64,17 +64,15 @@ class TestEnforceProgress:
         with patch("personalscraper.enforce.run.sanitize_files", return_value=[]):
             with patch("personalscraper.enforce.run.validate_structure", return_value=[fake_structure]):
                 with patch("personalscraper.enforce.run.check_coherence", return_value=[]):
-                    run_enforce(settings, config, dry_run=True, observers=(collector,))
+                    run_enforce(MagicMock(), _config(), dry_run=True, event_bus=bus)
 
-        structure_events = [e for e in collector.progress if e.item == "Inception (2010)"]
-        assert len(structure_events) >= 2, "expected started + fixed events for structure item"
+        structure_events = [e for e in collector.received if e.item == "Inception (2010)"]
+        assert len(structure_events) >= 2
 
     def test_sanitize_skip_emits_skipped(self) -> None:
         """A sanitize_result with action='skipped' emits a skipped event (no fixed)."""
-        collector = CollectorObserver()
-        settings = MagicMock()
-        config = MagicMock()
-        config.paths.staging_dir = Path("/tmp/staging")
+        bus = EventBus()
+        collector = CollectingSubscriber(bus, ItemProgressed)
 
         skipped_result = MagicMock()
         skipped_result.old_name = "Already.OK.2024"
@@ -86,19 +84,17 @@ class TestEnforceProgress:
             patch("personalscraper.enforce.run.validate_structure", return_value=[]),
             patch("personalscraper.enforce.run.check_coherence", return_value=[]),
         ):
-            run_enforce(settings, config, dry_run=True, observers=(collector,))
+            run_enforce(MagicMock(), _config(), dry_run=True, event_bus=bus)
 
-        skipped = [e for e in collector.progress if e.status == "skipped"]
-        fixed = [e for e in collector.progress if e.status == "fixed"]
+        skipped = [e for e in collector.received if e.status == "skipped"]
+        fixed = [e for e in collector.received if e.status == "fixed"]
         assert len(skipped) >= 1
         assert len(fixed) == 0
 
     def test_structure_unrepaired_emits_skipped(self) -> None:
         """A structure_result with action != 'repaired' emits skipped (not fixed)."""
-        collector = CollectorObserver()
-        settings = MagicMock()
-        config = MagicMock()
-        config.paths.staging_dir = Path("/tmp/staging")
+        bus = EventBus()
+        collector = CollectingSubscriber(bus, ItemProgressed)
 
         struct = MagicMock()
         struct.path = MagicMock()
@@ -112,9 +108,9 @@ class TestEnforceProgress:
             patch("personalscraper.enforce.run.validate_structure", return_value=[struct]),
             patch("personalscraper.enforce.run.check_coherence", return_value=[]),
         ):
-            run_enforce(settings, config, dry_run=True, observers=(collector,))
+            run_enforce(MagicMock(), _config(), dry_run=True, event_bus=bus)
 
-        events_for_item = [e for e in collector.progress if e.item == "Broken (2010)"]
+        events_for_item = [e for e in collector.received if e.item == "Broken (2010)"]
         statuses = [e.status for e in events_for_item]
         assert "started" in statuses
         assert "skipped" in statuses

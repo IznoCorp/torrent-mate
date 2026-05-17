@@ -3,6 +3,7 @@
 All tests use real filesystem operations. API calls are mocked.
 """
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.process.reclean import reclean_folders
 from personalscraper.sorter.run import run_sort
 
@@ -20,11 +21,11 @@ class TestSortDoubleRun:
         (item / "movie.mkv").write_text("video")
 
         # First sort
-        report1 = run_sort(resilience_settings, staging_dir=staging, config=resilience_config)
+        report1 = run_sort(resilience_settings, staging_dir=staging, config=resilience_config, event_bus=EventBus())
         assert report1.success_count >= 1
 
         # Second sort — ingest dir should be empty
-        report2 = run_sort(resilience_settings, staging_dir=staging, config=resilience_config)
+        report2 = run_sort(resilience_settings, staging_dir=staging, config=resilience_config, event_bus=EventBus())
         assert report2.success_count == 0
         assert report2.error_count == 0
 

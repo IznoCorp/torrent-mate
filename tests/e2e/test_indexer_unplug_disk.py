@@ -29,6 +29,7 @@ from unittest.mock import patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.merkle import DiskUnmountedError
 from personalscraper.indexer.repos import disk_repo
@@ -176,6 +177,7 @@ class TestUnpluggedDiskNoStrike:
                 mode=ScanMode.full,
                 generation=2,
                 conn=conn,
+                event_bus=EventBus(),
             )
 
         # Scan must complete cleanly (not 'failed').

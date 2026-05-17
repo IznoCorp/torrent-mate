@@ -11,8 +11,17 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.core.app_context import AppContext
+from personalscraper.core.event_bus import EventBus
 from personalscraper.models import StepReport
 from personalscraper.pipeline import Pipeline
+
+
+@pytest.fixture
+def orch_app(orch_config, orch_settings):
+    """Build the AppContext used by every orchestration test."""
+    return AppContext(config=orch_config, settings=orch_settings, event_bus=EventBus())
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -128,6 +137,7 @@ class TestPipelineOrchestration:
 
     def test_step_order(
         self,
+        orch_app,
         orch_config,
         orch_settings,
     ):
@@ -161,10 +171,8 @@ class TestPipelineOrchestration:
             order.append("dispatch")
             return StepReport(name="dispatch")
 
-        pipeline = Pipeline(
-            orch_config,
-            orch_settings,
-            observers=[],
+        pipeline = Pipeline(orch_app)
+        pipeline.run(
             step_overrides={
                 "ingest": recorder("ingest"),
                 "sort": recorder("sort"),
@@ -177,12 +185,12 @@ class TestPipelineOrchestration:
                 "dispatch": dispatch_recorder,
             },
         )
-        pipeline.run()
 
         assert order == ["ingest", "sort", "clean", "scrape", "cleanup", "enforce", "verify", "trailers", "dispatch"]
 
     def test_ingest_crash_aborts_pipeline(
         self,
+        orch_app,
         orch_config,
         orch_settings,
     ):
@@ -199,16 +207,13 @@ class TestPipelineOrchestration:
             executed.append("sort")
             return StepReport(name="sort")
 
-        pipeline = Pipeline(
-            orch_config,
-            orch_settings,
-            observers=[],
+        pipeline = Pipeline(orch_app)
+        report = pipeline.run(
             step_overrides={
                 "ingest": crashing_ingest,
                 "sort": sort_sentinel,
             },
         )
-        report = pipeline.run()
 
         # Pipeline returned early — only ingest step present, with error
         assert "ingest" in report.steps
@@ -218,6 +223,7 @@ class TestPipelineOrchestration:
 
     def test_sort_crash_aborts_pipeline(
         self,
+        orch_app,
         orch_config,
         orch_settings,
     ):
@@ -234,17 +240,14 @@ class TestPipelineOrchestration:
             executed.append("clean")
             return StepReport(name="clean")
 
-        pipeline = Pipeline(
-            orch_config,
-            orch_settings,
-            observers=[],
+        pipeline = Pipeline(orch_app)
+        report = pipeline.run(
             step_overrides={
                 "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
                 "sort": crashing_sort,
                 "clean": clean_sentinel,
             },
         )
-        report = pipeline.run()
 
         assert "sort" in report.steps
         assert report.steps["sort"].error_count == 1
@@ -253,14 +256,13 @@ class TestPipelineOrchestration:
 
     def test_reporter_aggregation(
         self,
+        orch_app,
         orch_config,
         orch_settings,
     ):
         """All 9 StepReports from overrides roll up into the PipelineReport."""
-        pipeline = Pipeline(
-            orch_config,
-            orch_settings,
-            observers=[],
+        pipeline = Pipeline(orch_app)
+        report = pipeline.run(
             step_overrides={
                 "ingest": lambda *_a, **_kw: StepReport(name="ingest", success_count=3),
                 "sort": lambda *_a, **_kw: StepReport(name="sort", success_count=3),
@@ -273,7 +275,6 @@ class TestPipelineOrchestration:
                 "dispatch": lambda *_a, **_kw: StepReport(name="dispatch", success_count=3),
             },
         )
-        report = pipeline.run()
 
         assert list(report.steps.keys()) == [
             "ingest",
@@ -291,14 +292,13 @@ class TestPipelineOrchestration:
 
     def test_dispatch_skipped_no_verified(
         self,
+        orch_app,
         orch_config,
         orch_settings,
     ):
         """Dispatch step is skipped (skip_count=1) when verify returns no items."""
-        pipeline = Pipeline(
-            orch_config,
-            orch_settings,
-            observers=[],
+        pipeline = Pipeline(orch_app)
+        report = pipeline.run(
             step_overrides={
                 "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
                 "sort": lambda *_a, **_kw: StepReport(name="sort"),
@@ -309,13 +309,13 @@ class TestPipelineOrchestration:
                 "verify": _verify_noop,
             },
         )
-        report = pipeline.run()
 
         assert "dispatch" in report.steps
         assert report.steps["dispatch"].skip_count == 1
 
     def test_clean_crash_does_not_block_scrape(
         self,
+        orch_app,
         orch_config,
         orch_settings,
     ):
@@ -324,10 +324,8 @@ class TestPipelineOrchestration:
         def crashing_clean(*_a, **_kw) -> StepReport:
             raise RuntimeError("reclean boom")
 
-        pipeline = Pipeline(
-            orch_config,
-            orch_settings,
-            observers=[],
+        pipeline = Pipeline(orch_app)
+        report = pipeline.run(
             step_overrides={
                 "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
                 "sort": lambda *_a, **_kw: StepReport(name="sort"),
@@ -338,7 +336,6 @@ class TestPipelineOrchestration:
                 "verify": _verify_noop,
             },
         )
-        report = pipeline.run()
 
         # Clean recorded the fatal error
         assert report.steps["clean"].error_count == 1
@@ -357,6 +354,7 @@ class TestPipelineOrchestration:
         mock_ingest,
         mock_sort,
         mock_scrape,
+        orch_app,
         orch_config,
         orch_settings,
     ):
@@ -374,13 +372,10 @@ class TestPipelineOrchestration:
             mock_verify.return_value = (StepReport(name="verify"), [MagicMock()])
             with patch("personalscraper.dispatch.run.run_dispatch") as mock_dispatch:
                 mock_dispatch.return_value = StepReport(name="dispatch")
-                pipeline = Pipeline(
-                    orch_config,
-                    orch_settings,
+                pipeline = Pipeline(orch_app)
+                pipeline.run(
                     interactive=True,
-                    observers=[],
                 )
-                pipeline.run()
 
         assert mock_scrape.call_args.kwargs["interactive"] is True
 
@@ -394,6 +389,7 @@ class TestPipelineOrchestration:
         mock_ingest,
         mock_sort,
         mock_scrape,
+        orch_app,
         orch_config,
         orch_settings,
     ):
@@ -422,7 +418,7 @@ class TestPipelineOrchestration:
             # only; the real trailers step requires a full config (TMDB key, state
             # file path, etc.) that is not available in this integration fixture.
             mock_trailers.return_value = StepReport(name="trailers", status="skipped")
-            pipeline = Pipeline(orch_config, orch_settings, observers=[])
+            pipeline = Pipeline(orch_app)
             report = pipeline.run()
 
         # The clean step should have re-cleaned the polluted folder
@@ -440,7 +436,12 @@ class TestPipelineOrchestration:
 class TestTrailerErrorFlagWiring:
     """Tests for --continue-on-trailer-error flag behavior (C2)."""
 
-    def test_pipeline_aborts_when_trailers_error_and_continue_on_error_false(self, orch_config, orch_settings):
+    def test_pipeline_aborts_when_trailers_error_and_continue_on_error_false(
+        self,
+        orch_app,
+        orch_config,
+        orch_settings,
+    ):
         """Pipeline raises TrailerStepFailed when trailers step fails and flag is False.
 
         When the trailers step returns status='error' and
@@ -449,6 +450,7 @@ class TestTrailerErrorFlagWiring:
         CLI a hook to exit with code 2.
 
         Args:
+            orch_app: AppContext built from ``orch_config`` + ``orch_settings``.
             orch_config: Minimal Config mock.
             orch_settings: Minimal Settings mock.
         """
@@ -456,33 +458,30 @@ class TestTrailerErrorFlagWiring:
 
         dispatch_executed: list[bool] = []
 
-        pipeline = Pipeline(
-            orch_config,
-            orch_settings,
-            observers=[],
-            continue_on_trailer_error=False,
-            step_overrides={
-                "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
-                "sort": lambda *_a, **_kw: StepReport(name="sort"),
-                "clean": lambda *_a, **_kw: StepReport(name="clean"),
-                "scrape": lambda *_a, **_kw: StepReport(name="scrape"),
-                "cleanup": lambda *_a, **_kw: StepReport(name="cleanup"),
-                "enforce": lambda *_a, **_kw: StepReport(name="enforce"),
-                "verify": _verify_with_items,
-                # Trailers step returns error status
-                "trailers": lambda *_a, **_kw: StepReport(name="trailers", status="error", error_count=1),
-                "dispatch": lambda *_a, **_kw: (dispatch_executed.append(True), StepReport(name="dispatch"))[1],
-            },
-        )
-
+        pipeline = Pipeline(orch_app)
         with pytest.raises(TrailerStepFailed):
-            pipeline.run()
+            pipeline.run(
+                continue_on_trailer_error=False,
+                step_overrides={
+                    "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
+                    "sort": lambda *_a, **_kw: StepReport(name="sort"),
+                    "clean": lambda *_a, **_kw: StepReport(name="clean"),
+                    "scrape": lambda *_a, **_kw: StepReport(name="scrape"),
+                    "cleanup": lambda *_a, **_kw: StepReport(name="cleanup"),
+                    "enforce": lambda *_a, **_kw: StepReport(name="enforce"),
+                    "verify": _verify_with_items,
+                    # Trailers step returns error status
+                    "trailers": lambda *_a, **_kw: StepReport(name="trailers", status="error", error_count=1),
+                    "dispatch": lambda *_a, **_kw: (dispatch_executed.append(True), StepReport(name="dispatch"))[1],
+                },
+            )
 
         # Dispatch must NOT have been called
         assert dispatch_executed == []
 
     def test_pipeline_continues_when_continue_on_trailer_error_true(
         self,
+        orch_app,
         orch_config,
         orch_settings,
     ):
@@ -492,15 +491,14 @@ class TestTrailerErrorFlagWiring:
         continues and dispatch executes normally.
 
         Args:
+            orch_app: AppContext built from ``orch_config`` + ``orch_settings``.
             orch_config: Minimal Config mock.
             orch_settings: Minimal Settings mock.
         """
         dispatch_executed: list[bool] = []
 
-        pipeline = Pipeline(
-            orch_config,
-            orch_settings,
-            observers=[],
+        pipeline = Pipeline(orch_app)
+        report = pipeline.run(
             continue_on_trailer_error=True,
             step_overrides={
                 "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
@@ -514,8 +512,6 @@ class TestTrailerErrorFlagWiring:
                 "dispatch": lambda *_a, **_kw: (dispatch_executed.append(True), StepReport(name="dispatch"))[1],
             },
         )
-
-        report = pipeline.run()
 
         # Dispatch must have executed
         assert dispatch_executed == [True]
@@ -538,7 +534,7 @@ class TestTrailerStepFailedE2E:
     """
 
     def test_real_run_trailers_failure_propagates_TrailerStepFailed_to_pipeline(
-        self, orch_config, orch_settings, tmp_path
+        self, orch_app, orch_config, orch_settings, tmp_path
     ):
         """TrailerStateLocked from state_store.set propagates to TrailerStepFailed.
 
@@ -549,10 +545,10 @@ class TestTrailerStepFailedE2E:
         ``TrailerStepFailed`` before dispatch executes.
 
         Args:
+            orch_app: AppContext built from ``orch_config`` + ``orch_settings``.
             orch_config: Minimal Config mock (``trailers.enabled`` overridden
                 to ``True`` for this test).
             orch_settings: Minimal Settings mock.
-           : Rich Console in quiet mode.
             tmp_path: Pytest tmp_path fixture.
         """
         from unittest.mock import patch
@@ -575,29 +571,25 @@ class TestTrailerStepFailedE2E:
             "personalscraper.trailers.orchestrator.TrailersOrchestrator.run",
             side_effect=locked_exc,
         ):
-            pipeline = Pipeline(
-                orch_config,
-                orch_settings,
-                observers=[],
-                continue_on_trailer_error=False,
-                step_overrides={
-                    "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
-                    "sort": lambda *_a, **_kw: StepReport(name="sort"),
-                    "clean": lambda *_a, **_kw: StepReport(name="clean"),
-                    "scrape": lambda *_a, **_kw: StepReport(name="scrape"),
-                    "cleanup": lambda *_a, **_kw: StepReport(name="cleanup"),
-                    "enforce": lambda *_a, **_kw: StepReport(name="enforce"),
-                    "verify": _verify_with_items,
-                    # "trailers" NOT overridden — real run_trailers runs.
-                    "dispatch": lambda *_a, **_kw: (
-                        dispatch_executed.append(True),
-                        StepReport(name="dispatch"),
-                    )[1],
-                },
-            )
-
+            pipeline = Pipeline(orch_app)
             with pytest.raises(TrailerStepFailed):
-                pipeline.run()
+                pipeline.run(
+                    continue_on_trailer_error=False,
+                    step_overrides={
+                        "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
+                        "sort": lambda *_a, **_kw: StepReport(name="sort"),
+                        "clean": lambda *_a, **_kw: StepReport(name="clean"),
+                        "scrape": lambda *_a, **_kw: StepReport(name="scrape"),
+                        "cleanup": lambda *_a, **_kw: StepReport(name="cleanup"),
+                        "enforce": lambda *_a, **_kw: StepReport(name="enforce"),
+                        "verify": _verify_with_items,
+                        # "trailers" NOT overridden — real run_trailers runs.
+                        "dispatch": lambda *_a, **_kw: (
+                            dispatch_executed.append(True),
+                            StepReport(name="dispatch"),
+                        )[1],
+                    },
+                )
 
         # Dispatch must NOT have been called — the pipeline aborted before it.
         assert dispatch_executed == [], "dispatch must not execute when TrailerStepFailed is raised"

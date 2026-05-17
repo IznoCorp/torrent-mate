@@ -31,7 +31,12 @@ class IngestStep:
         """
         from personalscraper.ingest.ingest import run_ingest
 
-        return run_ingest(ctx.settings, dry_run=ctx.dry_run, config=ctx.config, observers=ctx.observers)
+        return run_ingest(
+            ctx.app.settings,
+            dry_run=ctx.dry_run,
+            config=ctx.app.config,
+            event_bus=ctx.app.event_bus,
+        )
 
 
 class SortStep:
@@ -51,11 +56,11 @@ class SortStep:
         from personalscraper.sorter.run import run_sort
 
         return run_sort(
-            ctx.settings,
-            staging_dir=ctx.config.paths.staging_dir,
+            ctx.app.settings,
+            staging_dir=ctx.app.config.paths.staging_dir,
             dry_run=ctx.dry_run,
-            config=ctx.config,
-            observers=ctx.observers,
+            config=ctx.app.config,
+            event_bus=ctx.app.event_bus,
         )
 
 
@@ -75,7 +80,12 @@ class CleanStep:
         """
         from personalscraper.process.run import run_clean
 
-        return run_clean(ctx.settings, dry_run=ctx.dry_run, config=ctx.config, observers=ctx.observers)
+        return run_clean(
+            ctx.app.settings,
+            dry_run=ctx.dry_run,
+            config=ctx.app.config,
+            event_bus=ctx.app.event_bus,
+        )
 
 
 class ScrapeStep:
@@ -95,11 +105,11 @@ class ScrapeStep:
         from personalscraper.scraper.run import run_scrape
 
         return run_scrape(
-            ctx.settings,
-            config=ctx.config,
+            ctx.app.settings,
+            config=ctx.app.config,
             dry_run=ctx.dry_run,
             interactive=ctx.interactive,
-            observers=ctx.observers,
+            event_bus=ctx.app.event_bus,
         )
 
 
@@ -119,7 +129,12 @@ class CleanupStep:
         """
         from personalscraper.process.run import run_cleanup
 
-        return run_cleanup(ctx.settings, dry_run=ctx.dry_run, config=ctx.config, observers=ctx.observers)
+        return run_cleanup(
+            ctx.app.settings,
+            dry_run=ctx.dry_run,
+            config=ctx.app.config,
+            event_bus=ctx.app.event_bus,
+        )
 
 
 class EnforceStep:
@@ -138,7 +153,7 @@ class EnforceStep:
         """
         from personalscraper.enforce.run import run_enforce
 
-        return run_enforce(ctx.settings, ctx.config, dry_run=ctx.dry_run, observers=ctx.observers)
+        return run_enforce(ctx.app.settings, ctx.app.config, dry_run=ctx.dry_run, event_bus=ctx.app.event_bus)
 
 
 class VerifyStep:
@@ -162,7 +177,13 @@ class VerifyStep:
         """
         from personalscraper.verify.run import run_verify
 
-        return run_verify(ctx.settings, ctx.config, dry_run=ctx.dry_run, fix=False, observers=ctx.observers)
+        return run_verify(
+            ctx.app.settings,
+            ctx.app.config,
+            dry_run=ctx.dry_run,
+            fix=False,
+            event_bus=ctx.app.event_bus,
+        )
 
 
 class TrailersStep:
@@ -183,11 +204,11 @@ class TrailersStep:
         from personalscraper.trailers.step import run_trailers
 
         return run_trailers(
-            ctx.config,
-            staging_dir=ctx.config.paths.staging_dir,
+            ctx.app.config,
+            staging_dir=ctx.app.config.paths.staging_dir,
             verified=ctx.extras.get("verified", []),
             skip_trailers=bool(ctx.extras.get("skip_trailers", False)),
-            observers=ctx.observers,
+            event_bus=ctx.app.event_bus,
         )
 
 
@@ -209,11 +230,11 @@ class DispatchStep:
         from personalscraper.dispatch.run import run_dispatch
 
         return run_dispatch(
-            ctx.settings,
-            config=ctx.config,
+            ctx.app.settings,
+            config=ctx.app.config,
             dry_run=ctx.dry_run,
             verified=ctx.extras.get("verified"),
-            observers=ctx.observers,
+            event_bus=ctx.app.event_bus,
         )
 
 
@@ -246,44 +267,65 @@ class LegacyCallableStep:
             The return value of the wrapped legacy callable.
         """
         if self.name == "ingest":
-            return self._fn(ctx.settings, dry_run=ctx.dry_run, config=ctx.config, observers=ctx.observers)
+            return self._fn(
+                ctx.app.settings,
+                dry_run=ctx.dry_run,
+                config=ctx.app.config,
+                event_bus=ctx.app.event_bus,
+            )
         if self.name == "sort":
             return self._fn(
-                ctx.settings,
-                staging_dir=ctx.config.paths.staging_dir,
+                ctx.app.settings,
+                staging_dir=ctx.app.config.paths.staging_dir,
                 dry_run=ctx.dry_run,
-                config=ctx.config,
-                observers=ctx.observers,
+                config=ctx.app.config,
+                event_bus=ctx.app.event_bus,
             )
         if self.name in {"clean", "cleanup"}:
-            return self._fn(ctx.settings, dry_run=ctx.dry_run, config=ctx.config, observers=ctx.observers)
+            return self._fn(
+                ctx.app.settings,
+                dry_run=ctx.dry_run,
+                config=ctx.app.config,
+                event_bus=ctx.app.event_bus,
+            )
         if self.name == "scrape":
             return self._fn(
-                ctx.settings,
-                config=ctx.config,
+                ctx.app.settings,
+                config=ctx.app.config,
                 dry_run=ctx.dry_run,
                 interactive=ctx.interactive,
-                observers=ctx.observers,
+                event_bus=ctx.app.event_bus,
             )
         if self.name == "enforce":
-            return self._fn(ctx.settings, ctx.config, dry_run=ctx.dry_run, observers=ctx.observers)
+            return self._fn(
+                ctx.app.settings,
+                ctx.app.config,
+                dry_run=ctx.dry_run,
+                event_bus=ctx.app.event_bus,
+            )
         if self.name == "verify":
-            return self._fn(ctx.settings, ctx.config, dry_run=ctx.dry_run, fix=False, observers=ctx.observers)
+            return self._fn(
+                ctx.app.settings,
+                ctx.app.config,
+                dry_run=ctx.dry_run,
+                fix=False,
+                event_bus=ctx.app.event_bus,
+            )
         if self.name == "trailers":
             return self._fn(
-                ctx.config,
-                staging_dir=ctx.config.paths.staging_dir,
+                ctx.app.config,
+                staging_dir=ctx.app.config.paths.staging_dir,
                 verified=ctx.extras.get("verified", []),
                 skip_trailers=bool(ctx.extras.get("skip_trailers", False)),
-                observers=ctx.observers,
+                event_bus=ctx.app.event_bus,
             )
         if self.name == "dispatch":
             return self._fn(
-                ctx.settings,
-                config=ctx.config,
+                ctx.app.settings,
+                config=ctx.app.config,
                 dry_run=ctx.dry_run,
                 verified=ctx.extras.get("verified"),
-                observers=ctx.observers,
+                event_bus=ctx.app.event_bus,
             )
         return self._fn(ctx)
 

@@ -41,6 +41,7 @@ from unittest.mock import patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.repos import disk_repo
 from personalscraper.indexer.scanner import ScanMode, scan
@@ -379,6 +380,7 @@ class TestPerfBudgetRows:
                 disk_filter=disk_filter,
                 db_path=db_path,
                 budget_seconds=budget_seconds,
+                event_bus=EventBus(),
             )
             elapsed = time.monotonic() - t0
         conn.close()
@@ -425,7 +427,7 @@ class TestPerfBudgetRows:
         # then wipe merkle_root so the next quick scan must walk.
         conn = _open_db(db_path)
         with patch(_GUARD_PATCH, return_value=None):
-            scan(disks=disks, mode=ScanMode.full, generation=1, conn=conn, db_path=db_path)
+            scan(disks=disks, mode=ScanMode.full, generation=1, conn=conn, db_path=db_path, event_bus=EventBus())
         # Wipe merkle_root for all disks to force full dir-mtime walk.
         for disk in disks:
             conn.execute("UPDATE disk SET merkle_root = NULL WHERE id = ?", (disk.id,))
@@ -568,6 +570,7 @@ class TestSplitColdScanInvariant:
                 generation=1,
                 conn=conn_s,
                 db_path=single_db,
+                event_bus=EventBus(),
             )
         single_state = _collect_db_state(conn_s)
         conn_s.close()
@@ -586,6 +589,7 @@ class TestSplitColdScanInvariant:
                 conn=conn_sp,
                 disk_filter="disk1",
                 db_path=split_db,
+                event_bus=EventBus(),
             )
             scan(
                 disks=[d1_sp, d2_sp],
@@ -594,6 +598,7 @@ class TestSplitColdScanInvariant:
                 conn=conn_sp,
                 disk_filter="disk2",
                 db_path=split_db,
+                event_bus=EventBus(),
             )
         split_state = _collect_db_state(conn_sp)
         conn_sp.close()
@@ -635,6 +640,7 @@ class TestTwoStagePathInvariant:
                 generation=1,
                 conn=conn_f,
                 db_path=db_full,
+                event_bus=EventBus(),
             )
             scan(
                 disks=[d_full],
@@ -642,6 +648,7 @@ class TestTwoStagePathInvariant:
                 generation=2,
                 conn=conn_f,
                 db_path=db_full,
+                event_bus=EventBus(),
             )
         state_full = _collect_db_state(conn_f)
         conn_f.close()
@@ -659,6 +666,7 @@ class TestTwoStagePathInvariant:
                 conn=conn_q,
                 db_path=db_quick,
                 confirm_bulk_change=True,  # no bulk-change freeze on first scan
+                event_bus=EventBus(),
             )
             scan(
                 disks=[d_quick],
@@ -666,6 +674,7 @@ class TestTwoStagePathInvariant:
                 generation=2,
                 conn=conn_q,
                 db_path=db_quick,
+                event_bus=EventBus(),
             )
         state_quick = _collect_db_state(conn_q)
         conn_q.close()

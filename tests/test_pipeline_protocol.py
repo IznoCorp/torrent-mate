@@ -4,20 +4,29 @@
 
 from __future__ import annotations
 
+from unittest.mock import Mock
+from uuid import uuid4
+
 import pytest
 
+from personalscraper.core.app_context import AppContext
+from personalscraper.core.event_bus import EventBus
 from personalscraper.models import StepReport
 from personalscraper.pipeline_protocol import PipelineStep, StepContext, is_pipeline_step
 
 
+def _make_app() -> AppContext:
+    """Build a synthetic AppContext for protocol-shape tests."""
+    return AppContext(config=Mock(), settings=Mock(), event_bus=EventBus())
+
+
 def test_step_context_is_frozen() -> None:
     ctx = StepContext(
-        config=None,  # type: ignore[arg-type]
-        settings=None,  # type: ignore[arg-type]
+        app=_make_app(),
+        run_id=uuid4(),
         dry_run=False,
         interactive=False,
         verbose=False,
-        observers=(),
         upstream={},
         extras={},
     )
@@ -47,13 +56,34 @@ def test_is_pipeline_step_rejects_missing_name() -> None:
 def test_step_context_upstream_mapping() -> None:
     prior = StepReport(name="ingest", success_count=3)
     ctx = StepContext(
-        config=None,  # type: ignore[arg-type]
-        settings=None,  # type: ignore[arg-type]
+        app=_make_app(),
+        run_id=uuid4(),
         dry_run=False,
         interactive=False,
         verbose=False,
-        observers=(),
         upstream={"ingest": prior},
         extras={},
     )
     assert ctx.upstream["ingest"].success_count == 3
+
+
+def test_step_context_app_is_required_field() -> None:
+    """Sub-phase 2.2c: app is the only source for config/settings now.
+
+    The legacy mirrors were dropped — callers MUST read via ctx.app.config
+    and ctx.app.settings.
+    """
+    app = _make_app()
+    ctx = StepContext(
+        app=app,
+        run_id=uuid4(),
+        dry_run=False,
+        interactive=False,
+        verbose=False,
+        upstream={},
+        extras={},
+    )
+    assert ctx.app is app
+    # Legacy mirrors are GONE — Sub-phase 2.2c removed them.
+    assert not hasattr(ctx, "config")
+    assert not hasattr(ctx, "settings")

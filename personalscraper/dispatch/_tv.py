@@ -7,8 +7,10 @@ from typing import TYPE_CHECKING
 
 from personalscraper.conf import resolver
 from personalscraper.dispatch import _transfer
+from personalscraper.dispatch._movie import _disk_root_for
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.disk_scanner import get_disk_status
+from personalscraper.dispatch.events import ItemDispatched
 from personalscraper.dispatch.media_index import IndexEntry
 from personalscraper.indexer.outbox._disk import disk_id_for_path
 from personalscraper.indexer.outbox._publish import publish_event
@@ -140,6 +142,21 @@ def dispatch_tvshow(
                 db_path=_db_path,
                 source="dispatch",
             )
+
+    # Bus emit (Sub-phase 4.3) — only on real completed transfers. Dry-run
+    # is excluded by the same reasoning as dispatch_movie: ItemDispatched is
+    # the record of completed transfers; dry-run never completes one.
+    if not dispatcher.dry_run and result.action in ("moved", "merged") and result.destination is not None:
+        target_disk_path = _disk_root_for(dispatcher, result.disk)
+        dispatcher._event_bus.emit(
+            ItemDispatched(
+                source="dispatch.tv",
+                item=show_dir.name,
+                target_disk=target_disk_path,
+                category_id=category_id,
+                action=result.action,  # type: ignore[arg-type]  # narrowed by guard above
+            ),
+        )
 
     return result
 

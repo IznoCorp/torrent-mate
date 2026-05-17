@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations, open_db
 from personalscraper.indexer.schema import (
     ArtworkInventory,
@@ -35,7 +36,7 @@ class TestIndexerSchemaContract:
         (regression captured in fc7d16c).
         """
         db_path = tmp_path / "lib.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, _MIGRATIONS_DIR)
 
         rows = conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()

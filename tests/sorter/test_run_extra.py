@@ -17,6 +17,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from personalscraper.conf.models.config import Config
+from personalscraper.core.event_bus import EventBus
 from personalscraper.models import SortResult
 from personalscraper.sorter.run import run_sort
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
@@ -95,7 +96,7 @@ class TestRunSortStatusBranches:
 
         with patch("personalscraper.sorter.run.Sorter") as MockSorter:
             MockSorter.return_value.process.return_value = [skipped_result]
-            report = run_sort(gate_settings, staging_dir=config.paths.staging_dir, config=config)
+            report = run_sort(gate_settings, staging_dir=config.paths.staging_dir, config=config, event_bus=EventBus())
 
         assert report.skip_count == 1
         assert report.success_count == 0
@@ -108,7 +109,7 @@ class TestRunSortStatusBranches:
 
         with patch("personalscraper.sorter.run.Sorter") as MockSorter:
             MockSorter.return_value.process.return_value = [skipped_result]
-            report = run_sort(gate_settings, staging_dir=config.paths.staging_dir, config=config)
+            report = run_sort(gate_settings, staging_dir=config.paths.staging_dir, config=config, event_bus=EventBus())
 
         assert report.skip_count == 1
         assert report.warnings == []
@@ -120,7 +121,7 @@ class TestRunSortStatusBranches:
 
         with patch("personalscraper.sorter.run.Sorter") as MockSorter:
             MockSorter.return_value.process.return_value = [error_result]
-            report = run_sort(gate_settings, staging_dir=config.paths.staging_dir, config=config)
+            report = run_sort(gate_settings, staging_dir=config.paths.staging_dir, config=config, event_bus=EventBus())
 
         assert report.error_count == 1
         assert any("Permission denied" in w for w in report.warnings)
@@ -142,7 +143,7 @@ class TestRunSortTrackerPruneFailure:
             MockSorter.return_value.process.return_value = [moved_result]
             MockTracker.return_value.prune_consumed_dest_paths.side_effect = RuntimeError("tracker boom")
 
-            report = run_sort(gate_settings, staging_dir=config.paths.staging_dir, config=config)
+            report = run_sort(gate_settings, staging_dir=config.paths.staging_dir, config=config, event_bus=EventBus())
 
         # The success path still succeeded; tracker exception did not propagate.
         assert report.success_count == 1
@@ -165,6 +166,6 @@ class TestRunSortTrackerPruneFailure:
             MockSorter.return_value.process.return_value = [moved_result]
             MockTracker.return_value.prune_consumed_dest_paths.return_value = ["stale_entry"]
 
-            report = run_sort(gate_settings, staging_dir=config.paths.staging_dir, config=config)
+            report = run_sort(gate_settings, staging_dir=config.paths.staging_dir, config=config, event_bus=EventBus())
 
         assert report.success_count == 1

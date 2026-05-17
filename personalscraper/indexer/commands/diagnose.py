@@ -6,6 +6,7 @@ from pathlib import Path
 
 import typer
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.cli")
@@ -16,6 +17,7 @@ def config_migrate_category_command(
     from_category: str,
     to_category: str,
     config_path: Path | None = None,
+    event_bus: EventBus,
 ) -> int:
     """Rewrite every ``media_item.category_id`` from *from_category* to *to_category*.
 
@@ -37,6 +39,9 @@ def config_migrate_category_command(
         to_category: The new category_id string to write.  Must be a declared id
             in the current config.
         config_path: Optional explicit path to config.json5 or config directory.
+        event_bus: Required :class:`EventBus` forwarded to ``open_db`` so the
+            pre-open free-space guard emits ``DiskFullWarning`` on the run's
+            subscriber-wired bus.
 
     Returns:
         ``0`` on success (including no-op when zero rows matched), ``1`` on
@@ -90,7 +95,7 @@ def config_migrate_category_command(
 
     try:
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=event_bus)
     except (
         IndexerLockError,
         IndexerCorruptError,

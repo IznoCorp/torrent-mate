@@ -6,7 +6,12 @@ import typer
 
 from personalscraper import cli as cli_compat
 from personalscraper.cli_app import app
-from personalscraper.cli_helpers import _bootstrap_staging, handle_cli_errors
+from personalscraper.cli_helpers import (
+    _bootstrap_staging,
+    _build_app_context,
+    handle_cli_errors,
+    per_step_boundary,
+)
 from personalscraper.cli_state import state
 from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.logger import get_logger
@@ -30,13 +35,15 @@ def ingest(
         settings = cli_compat.get_settings()
         staging_dir = config.paths.staging_dir
         ingest_dir = staging_path(config, find_ingest_dir(config))
-        report = cli_compat.run_ingest(
-            settings,
-            dry_run=dry_run,
-            ingest_dir=ingest_dir,
-            staging_dir=staging_dir,
-            config=config,
-        )
+        with per_step_boundary(config, settings) as app_context:
+            report = cli_compat.run_ingest(
+                settings,
+                dry_run=dry_run,
+                ingest_dir=ingest_dir,
+                staging_dir=staging_dir,
+                config=config,
+                event_bus=app_context.event_bus,
+            )
         console.print(
             f"[bold]Ingest:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
         )
@@ -61,7 +68,14 @@ def sort(
     try:
         _bootstrap_staging(ctx)
         settings = cli_compat.get_settings()
-        report = run_sort(settings, staging_dir=config.paths.staging_dir, dry_run=dry_run, config=config)
+        with per_step_boundary(config, settings) as app_context:
+            report = run_sort(
+                settings,
+                staging_dir=config.paths.staging_dir,
+                dry_run=dry_run,
+                config=config,
+                event_bus=app_context.event_bus,
+            )
         console.print(
             f"[bold]Sort:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
         )
@@ -93,14 +107,16 @@ def scrape(
     try:
         _bootstrap_staging(ctx)
         settings = cli_compat.get_settings()
-        report = run_scrape(
-            settings,
-            config=config,
-            dry_run=dry_run,
-            interactive=interactive,
-            movies_only=movies_only,
-            tvshows_only=tvshows_only,
-        )
+        with per_step_boundary(config, settings) as app_context:
+            report = run_scrape(
+                settings,
+                config=config,
+                dry_run=dry_run,
+                interactive=interactive,
+                movies_only=movies_only,
+                tvshows_only=tvshows_only,
+                event_bus=app_context.event_bus,
+            )
         console.print(
             f"[bold]Scrape:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
         )
@@ -130,13 +146,15 @@ def verify(
     try:
         _bootstrap_staging(ctx)
         settings = cli_compat.get_settings()
-        report, dispatchable = run_verify(
-            settings,
-            config,
-            dry_run=dry_run,
-            movies_only=movies_only,
-            tvshows_only=tvshows_only,
-        )
+        with per_step_boundary(config, settings) as app_context:
+            report, dispatchable = run_verify(
+                settings,
+                config,
+                dry_run=dry_run,
+                movies_only=movies_only,
+                tvshows_only=tvshows_only,
+                event_bus=app_context.event_bus,
+            )
         console.print(f"[bold]Verify:[/bold] {report.success_count} OK, {report.error_count} blocked")
         console.print(f"  {len(dispatchable)} ready for dispatch")
         if state["verbose"]:
@@ -163,7 +181,8 @@ def enforce(
     try:
         _bootstrap_staging(ctx)
         settings = cli_compat.get_settings()
-        report = run_enforce(settings, config, dry_run=dry_run)
+        with per_step_boundary(config, settings) as app_context:
+            report = run_enforce(settings, config, dry_run=dry_run, event_bus=app_context.event_bus)
         console.print(f"Enforce: {report.success_count} fixed, {report.skip_count} OK, {report.error_count} errors")
         if state["verbose"]:
             for detail in report.details:
@@ -189,7 +208,8 @@ def dispatch(
     try:
         _bootstrap_staging(ctx)
         settings = cli_compat.get_settings()
-        report = run_dispatch(settings, config=config, dry_run=dry_run)
+        with per_step_boundary(config, settings) as app_context:
+            report = run_dispatch(settings, config=config, dry_run=dry_run, event_bus=app_context.event_bus)
         console.print(
             f"[bold]Dispatch:[/bold] {report.success_count} OK, "
             f"{report.skip_count} skipped, {report.error_count} errors"
@@ -220,7 +240,14 @@ def process(
         _bootstrap_staging(ctx)
         settings = cli_compat.get_settings()
         try:
-            clean, scrape, cleanup = run_process(settings, dry_run=dry_run, interactive=interactive, config=config)
+            with per_step_boundary(config, settings) as app_context:
+                clean, scrape, cleanup = run_process(
+                    settings,
+                    dry_run=dry_run,
+                    interactive=interactive,
+                    config=config,
+                    event_bus=app_context.event_bus,
+                )
         except Exception as exc:
             console.print(f"[red]Process failed: {type(exc).__name__}: {exc}[/red]")
             get_logger("pipeline").exception("process_command_failed", error=str(exc))
@@ -258,7 +285,7 @@ def run(
         False,
         "--headless",
         help=(
-            "Run with no observers (silent mode for cron / CI). "
+            "Run with no subscribers (silent mode for cron / CI). "
             "Disables Rich console output and Telegram notifications."
         ),
     ),
@@ -272,9 +299,10 @@ def run(
     from personalscraper.api.notify.telegram import TelegramNotifier
     from personalscraper.api.transport._http import HttpTransport
     from personalscraper.logger import cleanup_old_logs
-    from personalscraper.observers.rich_console import RichConsoleObserver
     from personalscraper.pipeline import Pipeline
-    from personalscraper.pipeline_observer import PipelineObserver
+    from personalscraper.subscribers.debug_log import DebugLogSubscriber
+    from personalscraper.subscribers.rich_console import RichConsoleSubscriber
+    from personalscraper.subscribers.telegram import TelegramSubscriber
 
     config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
@@ -288,10 +316,21 @@ def run(
     try:
         settings = cli_compat.get_settings()
 
+        # The :class:`AppContext` is built once per invocation at the CLI
+        # boundary via :func:`_build_app_context` (Sub-phase 2.4 — boundary-only
+        # rule from DESIGN §Architecture, enforced by the AST allowlist landed
+        # in Sub-phase 2.6). Constructed early so the healthcheck and Telegram
+        # transports built below can plumb ``app_context.event_bus`` into their
+        # circuit breakers (Sub-phase 4.1).
+        app_context = _build_app_context(config, settings)
+
         # Healthcheck client (None if not configured — pings short-circuit at the call site).
         healthcheck: HealthcheckClient | None = None
         if HealthcheckClient.is_configured(settings):
-            hc_transport = HttpTransport(HealthcheckClient.policy(settings.healthcheck_url))
+            hc_transport = HttpTransport(
+                HealthcheckClient.policy(settings.healthcheck_url),
+                event_bus=app_context.event_bus,
+            )
             healthcheck = HealthcheckClient(hc_transport)
             healthcheck.ping_start()
 
@@ -315,35 +354,53 @@ def run(
                 continue_on_trailer_error or config.trailers.pipeline.continue_on_error
             )
 
-            from personalscraper.observers.telegram import TelegramObserver
             from personalscraper.trailers.state import TrailerStepFailed  # noqa: PLC0415
 
-            # Build observer list — RichConsoleObserver now prints the banner in
-            # on_pipeline_start, replacing the inline console.print that was here.
-            # --headless skips all observer registration for silent cron/CI runs.
-            pipeline_observers: list[PipelineObserver] = []
+            # Build subscribers — both self-subscribe in their constructors via the
+            # shared AppContext bus. ``--headless`` skips subscriber construction
+            # for silent cron / CI runs.
+            rich_subscriber: RichConsoleSubscriber | None = None
+            telegram_subscriber: TelegramSubscriber | None = None
+            # ``--verbose`` activates the DebugLogSubscriber which logs every
+            # emitted event at DEBUG. Registered independently of ``--headless``
+            # so verbose log streams work even in cron / CI contexts that
+            # suppress Rich / Telegram output.
+            debug_subscriber: DebugLogSubscriber | None = None
+            if verbose:
+                debug_subscriber = DebugLogSubscriber(app_context.event_bus)
             if not headless:
-                pipeline_observers.append(
-                    RichConsoleObserver(console=console, verbose=verbose, dry_run=dry_run, run_id=run_id)
+                rich_subscriber = RichConsoleSubscriber(
+                    app_context.event_bus,
+                    console=console,
+                    verbose=verbose,
+                    dry_run=dry_run,
+                    run_id=run_id,
                 )
                 if TelegramNotifier.is_configured(settings):
-                    tg_transport = HttpTransport(TelegramNotifier.policy(settings.telegram_bot_token))
+                    tg_transport = HttpTransport(
+                        TelegramNotifier.policy(settings.telegram_bot_token),
+                        event_bus=app_context.event_bus,
+                    )
                     tg_notifier = TelegramNotifier(tg_transport, settings.telegram_chat_id)
-                    pipeline_observers.append(TelegramObserver(tg_notifier))
+                    telegram_subscriber = TelegramSubscriber(app_context.event_bus, tg_notifier)
 
-            # Delegate to Pipeline orchestrator (9-step sequential flow)
-            pipeline = Pipeline(
-                config,
-                settings,
-                dry_run=dry_run,
-                interactive=interactive,
-                verbose=verbose,
-                observers=pipeline_observers,
-                skip_trailers=effective_skip_trailers,
-                continue_on_trailer_error=effective_continue_on_trailer_error,
-            )
+            pipeline = Pipeline(app_context)
             try:
-                report = pipeline.run()
+                try:
+                    report = pipeline.run(
+                        dry_run=dry_run,
+                        interactive=interactive,
+                        verbose=verbose,
+                        skip_trailers=effective_skip_trailers,
+                        continue_on_trailer_error=effective_continue_on_trailer_error,
+                    )
+                finally:
+                    if rich_subscriber is not None:
+                        rich_subscriber.close()
+                    if telegram_subscriber is not None:
+                        telegram_subscriber.close()
+                    if debug_subscriber is not None:
+                        debug_subscriber.close()
             except TrailerStepFailed as exc:
                 # Trailers step failed and --continue-on-trailer-error was not set.
                 # Exit with code 2 (distinct from generic pipeline error exit 1) so

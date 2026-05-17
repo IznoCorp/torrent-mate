@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.library.models import (
     ISSUE_ACTORS_DIR,
     ISSUE_JUNK_FILES,
@@ -131,7 +132,7 @@ class TestScanIntegration:
         conn = sqlite3.connect(":memory:")
         apply_migrations(conn, MIGRATIONS_DIR)
         with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
-            scan_library(mini_library["config"], conn)
+            scan_library(mini_library["config"], conn, event_bus=EventBus())
 
         count = conn.execute("SELECT COUNT(*) FROM media_item").fetchone()[0]
         assert count == 3
@@ -151,7 +152,7 @@ class TestScanIntegration:
         conn = sqlite3.connect(":memory:")
         apply_migrations(conn, MIGRATIONS_DIR)
         with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
-            scan_library(mini_library["config"], conn)
+            scan_library(mini_library["config"], conn, event_bus=EventBus())
 
         # Matrix item should have actors_dir + junk_files issues
         matrix_id = conn.execute("SELECT id FROM media_item WHERE title = 'The Matrix'").fetchone()[0]
@@ -171,7 +172,7 @@ class TestScanIntegration:
         conn = sqlite3.connect(":memory:")
         apply_migrations(conn, MIGRATIONS_DIR)
         with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
-            scan_library(mini_library["config"], conn)
+            scan_library(mini_library["config"], conn, event_bus=EventBus())
 
         fallout_id = conn.execute("SELECT id FROM media_item WHERE title = 'Fallout'").fetchone()[0]
 
@@ -197,7 +198,7 @@ class TestScanIntegration:
         conn = sqlite3.connect(":memory:")
         apply_migrations(conn, MIGRATIONS_DIR)
         with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
-            scan_library(mini_library["config"], conn)
+            scan_library(mini_library["config"], conn, event_bus=EventBus())
 
         movie_count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'movie'").fetchone()[0]
         show_count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'show'").fetchone()[0]
@@ -306,7 +307,7 @@ class TestReportIntegration:
         conn = sqlite3.connect(":memory:")
         apply_migrations(conn, MIGRATIONS_DIR)
         with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
-            scan_library(mini_library["config"], conn)
+            scan_library(mini_library["config"], conn, event_bus=EventBus())
 
         analysis_result = analyze(conn)
         report = generate_report(analysis_result=analysis_result)
@@ -335,7 +336,7 @@ class TestFullWorkflow:
         apply_migrations(conn, MIGRATIONS_DIR)
 
         with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
-            scan_library(mini_library["config"], conn)
+            scan_library(mini_library["config"], conn, event_bus=EventBus())
 
         # Matrix must have issues after first scan
         matrix_id = conn.execute("SELECT id FROM media_item WHERE title = 'The Matrix'").fetchone()[0]
@@ -347,7 +348,7 @@ class TestFullWorkflow:
 
         # Rescan — issues for Matrix should be gone
         with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
-            scan_library(mini_library["config"], conn)
+            scan_library(mini_library["config"], conn, event_bus=EventBus())
 
         remaining = conn.execute("SELECT COUNT(*) FROM item_issue WHERE item_id = ?", (matrix_id,)).fetchone()[0]
         assert remaining < initial_issues

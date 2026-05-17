@@ -57,14 +57,36 @@ def library_reconcile(
         personalscraper library-reconcile --scope enrich --scope release
         personalscraper library-reconcile --enqueue-repairs
     """
+    from uuid import uuid4  # noqa: PLC0415
+
+    from personalscraper import cli as cli_compat  # noqa: PLC0415
+    from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
+    from personalscraper.core.event_bus import EventBus, current_correlation_id  # noqa: PLC0415
     from personalscraper.indexer.cli import library_reconcile_command  # noqa: PLC0415
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
-    rc = library_reconcile_command(
-        scopes=scope if scope else None,
-        enqueue_repairs=enqueue_repairs,
-        config_path=effective_config,
-    )
+
+    # Build the process-scoped AppContext at the CLI boundary so the
+    # pre-open free-space guard inside ``open_db`` emits ``DiskFullWarning``
+    # on the bus subscribers are wired to (consistency with library-index).
+    loaded_config = ctx.obj.config if ctx.obj is not None else None
+    if loaded_config is not None:
+        settings = cli_compat.get_settings()
+        app_context = _build_app_context(loaded_config, settings)
+        event_bus = app_context.event_bus
+    else:
+        event_bus = EventBus()
+
+    token = current_correlation_id.set(str(uuid4()))
+    try:
+        rc = library_reconcile_command(
+            scopes=scope if scope else None,
+            enqueue_repairs=enqueue_repairs,
+            config_path=effective_config,
+            event_bus=event_bus,
+        )
+    finally:
+        current_correlation_id.reset(token)
     if rc != 0:
         raise typer.Exit(rc)
 

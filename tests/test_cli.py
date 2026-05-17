@@ -26,16 +26,16 @@ _PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
 
 def test_appctx_instantiation() -> None:
     """AppCtx can be instantiated with None values for both fields."""
-    ctx = AppCtx(config=None, config_override=None)
-    assert ctx.config is None
-    assert ctx.config_override is None
+    legacy = AppCtx(config=None, config_override=None)
+    assert legacy.config is None
+    assert legacy.config_override is None
 
 
 def test_appctx_with_path() -> None:
     """AppCtx stores config_override Path when provided."""
     p = Path("/tmp/config.json5")
-    ctx = AppCtx(config=None, config_override=p)
-    assert ctx.config_override == p
+    legacy = AppCtx(config=None, config_override=p)
+    assert legacy.config_override == p
 
 
 # Patches for standalone commands
@@ -229,14 +229,20 @@ def test_run_delegates_to_pipeline(mock_pipeline_run):
 
 @patch(_PATCH_PIPELINE_RUN, autospec=True)
 def test_run_dry_run_and_interactive_flags(mock_pipeline_run):
-    """--dry-run and --interactive flags are passed to Pipeline."""
+    """--dry-run and --interactive flags reach ``Pipeline.run`` as kwargs.
+
+    Sub-phase 2.3 contract: ``dry_run`` and ``interactive`` are keyword-only
+    parameters of :meth:`Pipeline.run`, not attributes set by
+    ``__init__``. ``autospec=True`` makes the mock receive ``self`` as
+    the first positional arg, so the run-scope flags appear in
+    ``call_args.kwargs``.
+    """
     mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run", "--dry-run", "--interactive"])
     assert result.exit_code == 0
-    # autospec=True makes the mock receive self — check Pipeline instance attributes
-    pipeline_instance = mock_pipeline_run.call_args.args[0]
-    assert pipeline_instance.dry_run is True
-    assert pipeline_instance.interactive is True
+    kwargs = mock_pipeline_run.call_args.kwargs
+    assert kwargs.get("dry_run") is True
+    assert kwargs.get("interactive") is True
 
 
 @patch("personalscraper.cli.acquire_lock", return_value=False)
@@ -247,46 +253,50 @@ def test_run_lock_blocked(mock_lock):
     assert "Another instance" in result.output
 
 
+@patch("personalscraper.subscribers.telegram.TelegramSubscriber.close", return_value=None)
+@patch("personalscraper.subscribers.telegram.TelegramSubscriber.__init__", return_value=None)
 @patch(_PATCH_NOTIFIER_CONFIGURED, return_value=True)
-@patch("personalscraper.pipeline.Pipeline.__init__", return_value=None)
 @patch(_PATCH_PIPELINE_RUN)
-def test_run_sends_telegram_when_configured(mock_pipeline_run, mock_pipeline_init, mock_notifier_cfg):
-    """TelegramObserver is passed to Pipeline when notifier is configured."""
+def test_run_sends_telegram_when_configured(mock_pipeline_run, mock_notifier_cfg, mock_tg_sub_init, mock_tg_sub_close):
+    """TelegramSubscriber is constructed on the event bus when notifier is configured.
+
+    ``TelegramSubscriber`` self-subscribes in ``__init__`` against the
+    AppContext bus. The CLI bootstrap should build it when
+    ``TelegramNotifier.is_configured`` is True. ``Pipeline.run`` has no
+    ``observers`` kwarg — the bus is the sole emit substrate.
+    """
     mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run"])
-    assert result.exit_code == 0
-    _, kwargs = mock_pipeline_init.call_args
-    observers = kwargs.get("observers", [])
-    assert any(obs.name == "telegram" for obs in observers), (
-        f"TelegramObserver not found in observers: {[getattr(o, 'name', type(o).__name__) for o in observers]}"
-    )
+    assert result.exit_code == 0, result.output
+    assert mock_tg_sub_init.called, "TelegramSubscriber was not constructed"
+    _, kwargs = mock_pipeline_run.call_args
+    assert "observers" not in kwargs, "Pipeline.run must not accept an observers kwarg"
 
 
+@patch("personalscraper.subscribers.telegram.TelegramSubscriber.close", return_value=None)
+@patch("personalscraper.subscribers.telegram.TelegramSubscriber.__init__", return_value=None)
 @patch(_PATCH_NOTIFIER_CONFIGURED, return_value=False)
-@patch("personalscraper.pipeline.Pipeline.__init__", return_value=None)
 @patch(_PATCH_PIPELINE_RUN)
-def test_run_no_telegram_when_not_configured(mock_pipeline_run, mock_pipeline_init, mock_cfg):
-    """is_configured gating: when notifier is not configured, no TelegramObserver is wired."""
+def test_run_no_telegram_when_not_configured(mock_pipeline_run, mock_cfg, mock_tg_sub_init, mock_tg_sub_close):
+    """is_configured gating: when notifier is not configured, no TelegramSubscriber is wired."""
     mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run"])
     assert result.exit_code == 0
-    _, kwargs = mock_pipeline_init.call_args
-    observers = kwargs.get("observers", [])
-    names = [getattr(o, "name", type(o).__name__) for o in observers]
-    assert not any(n == "telegram" for n in names), f"TelegramObserver should not be wired, got {names}"
+    assert not mock_tg_sub_init.called, "TelegramSubscriber must not be constructed when notifier is not configured"
 
 
+@patch("personalscraper.subscribers.telegram.TelegramSubscriber.close", return_value=None)
+@patch("personalscraper.subscribers.telegram.TelegramSubscriber.__init__", return_value=None)
 @patch(_PATCH_NOTIFIER_CONFIGURED, return_value=True)
-@patch("personalscraper.pipeline.Pipeline.__init__", return_value=None)
 @patch(_PATCH_PIPELINE_RUN)
-def test_run_headless_disables_all_observers(mock_pipeline_run, mock_pipeline_init, mock_cfg):
-    """--headless flag yields an empty observers list, even when Telegram is configured."""
+def test_run_headless_disables_all_observers(mock_pipeline_run, mock_cfg, mock_tg_sub_init, mock_tg_sub_close):
+    """``--headless`` skips subscriber construction and Pipeline.run still has no ``observers`` kwarg."""
     mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run", "--headless"])
     assert result.exit_code == 0
-    _, kwargs = mock_pipeline_init.call_args
-    observers = kwargs.get("observers", [])
-    assert observers == [], f"--headless must produce empty observer list, got {observers}"
+    assert not mock_tg_sub_init.called, "--headless must skip TelegramSubscriber construction"
+    _, kwargs = mock_pipeline_run.call_args
+    assert "observers" not in kwargs, "Pipeline.run must not accept an observers kwarg"
 
 
 @patch(_PATCH_HC_CONFIGURED, return_value=True)
@@ -361,25 +371,23 @@ def test_run_releases_lock_on_pipeline_crash(mock_release, mock_pipeline_run):
     mock_release.assert_called_once()
 
 
-@patch("personalscraper.pipeline.Pipeline.__init__", return_value=None)
 @patch(_PATCH_PIPELINE_RUN)
-def test_run_accepts_skip_trailers(mock_pipeline_run, mock_pipeline_init):
-    """--skip-trailers is accepted and passed to Pipeline as skip_trailers=True."""
+def test_run_accepts_skip_trailers(mock_pipeline_run):
+    """--skip-trailers is accepted and passed to Pipeline.run as skip_trailers=True."""
     mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run", "--skip-trailers"])
     assert result.exit_code == 0, result.output
-    _, kwargs = mock_pipeline_init.call_args
+    _, kwargs = mock_pipeline_run.call_args
     assert kwargs.get("skip_trailers") is True
 
 
-@patch("personalscraper.pipeline.Pipeline.__init__", return_value=None)
 @patch(_PATCH_PIPELINE_RUN)
-def test_run_accepts_continue_on_trailer_error(mock_pipeline_run, mock_pipeline_init):
-    """--continue-on-trailer-error is accepted and passed to Pipeline as continue_on_trailer_error=True."""
+def test_run_accepts_continue_on_trailer_error(mock_pipeline_run):
+    """--continue-on-trailer-error reaches Pipeline.run as continue_on_trailer_error=True."""
     mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run", "--continue-on-trailer-error"])
     assert result.exit_code == 0, result.output
-    _, kwargs = mock_pipeline_init.call_args
+    _, kwargs = mock_pipeline_run.call_args
     assert kwargs.get("continue_on_trailer_error") is True
 
 

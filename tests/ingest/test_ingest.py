@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.ingest.ingest import (
     _check_disk_space,
     _cleanup_orphan_temps,
@@ -274,7 +275,7 @@ class TestRunIngest:
         mock_client.__exit__ = MagicMock(return_value=False)
         mock_qbit_cls.return_value = mock_client
 
-        report = run_ingest(settings, config=_make_config(tmp_path))
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert report.success_count == 0
         assert report.error_count == 0
@@ -303,7 +304,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.return_value = True
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=_make_config(tmp_path))
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert report.skip_count == 1
         assert report.success_count == 0
@@ -340,7 +341,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=_make_config(tmp_path))
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert report.success_count == 1
         mock_transfer.assert_called_once()
@@ -379,7 +380,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=_make_config(tmp_path))
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert report.success_count == 1
         mock_transfer.assert_called_once()
@@ -420,7 +421,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=config)
+        report = run_ingest(settings, config=config, event_bus=EventBus())
 
         assert report.skip_count == 1
         assert report.success_count == 0
@@ -457,7 +458,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=_make_config(tmp_path))
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert report.error_count == 1
         assert report.success_count == 0
@@ -492,7 +493,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, dry_run=True, config=_make_config(tmp_path))
+        report = run_ingest(settings, dry_run=True, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert report.success_count == 1
         mock_tracker.mark_ingested.assert_not_called()
@@ -516,7 +517,7 @@ class TestRunIngest:
         mock_client.__exit__ = MagicMock(return_value=False)
         mock_qbit_cls.return_value = mock_client
 
-        report = run_ingest(settings, config=_make_config(tmp_path))
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert report.name == "ingest"
         assert report.success_count == 0
@@ -561,7 +562,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.side_effect = [False, False, True]
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=_make_config(tmp_path))
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert report.success_count == 2
         assert report.skip_count == 1
@@ -577,7 +578,7 @@ class TestRunIngest:
 
         mock_qbit_cls.side_effect = ConnectionError("Cannot connect")
 
-        report = run_ingest(settings, config=_make_config(tmp_path))
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert report.error_count == 1
         assert "init failed" in report.details[0].lower()
@@ -608,7 +609,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=_make_config(tmp_path))
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert report.skip_count == 1
         # Escalated to error because ALL torrents had missing content
@@ -658,7 +659,7 @@ class TestRunIngest:
         # 2nd call raises OSError, 1st and 3rd succeed
         mock_transfer.side_effect = [True, OSError("Disk I/O error"), True]
 
-        report = run_ingest(settings, config=_make_config(tmp_path))
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert report.success_count == 2
         assert report.error_count == 1
@@ -707,7 +708,7 @@ class TestRunIngest:
         # Both transfers raise the same error type → triggers abort after 2nd
         mock_transfer.side_effect = [OSError("Disk dead"), OSError("Disk dead")]
 
-        report = run_ingest(settings, config=_make_config(tmp_path))
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         # 2 errors, loop aborted before reaching torrent 3
         assert report.error_count == 2
@@ -732,7 +733,7 @@ class TestRunIngest:
         mock_client.get_completed.side_effect = qbittorrentapi.Forbidden403Error()
         mock_qbit_cls.return_value = mock_client
 
-        report = run_ingest(settings, config=_make_config(tmp_path))
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert report.error_count >= 1
         combined = " ".join(report.details).lower()
@@ -756,7 +757,7 @@ class TestRunIngest:
         mock_client.get_completed.side_effect = qbittorrentapi.LoginFailed()
         mock_qbit_cls.return_value = mock_client
 
-        report = run_ingest(settings, config=_make_config(tmp_path))
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert report.error_count >= 1
         combined = " ".join(report.details).lower()
@@ -778,7 +779,7 @@ class TestRunIngest:
         mock_client.get_completed.side_effect = qbittorrentapi.APIConnectionError("Connection refused")
         mock_qbit_cls.return_value = mock_client
 
-        report = run_ingest(settings, config=_make_config(tmp_path))
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert report.error_count >= 1
         combined = " ".join(report.details).lower()
@@ -817,7 +818,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=_make_config(tmp_path))
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert report.skip_count == 1
         mock_tracker.mark_ingested.assert_called_once()
@@ -848,7 +849,7 @@ class TestRunIngest:
         mock_qbit_cls.return_value = mock_client
 
         with caplog.at_level(logging.ERROR, logger="ingest"):
-            report = run_ingest(settings, config=_make_config(tmp_path))
+            report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert report.error_count >= 1
 
@@ -903,7 +904,7 @@ class TestRunIngest:
         }
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=_make_config(tmp_path))
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert report.skip_count == 1
         assert any("orphan entry" in w for w in report.warnings)
@@ -958,7 +959,7 @@ class TestRunIngest:
         config = _make_config(tmp_path)
         # Default min_ratio == 0 so the loop continues past the ratio gate.
         with caplog.at_level(logging.WARNING, logger="ingest"):
-            report = run_ingest(settings, config=config)
+            report = run_ingest(settings, config=config, event_bus=EventBus())
 
         assert report.success_count == 1
         events = [r.msg for r in caplog.records if isinstance(r.msg, dict)]
@@ -1004,7 +1005,7 @@ class TestRunIngest:
         config = _make_config(tmp_path)
         config.ingest.min_ratio = 1.0  # require ratio >= 1.0
 
-        report = run_ingest(settings, config=config)
+        report = run_ingest(settings, config=config, event_bus=EventBus())
 
         assert report.skip_count == 1
         assert report.success_count == 0
@@ -1049,7 +1050,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=_make_config(tmp_path))
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert report.skip_count == 1
         # Tracker recorded the staged dest path
@@ -1091,7 +1092,7 @@ class TestRunIngest:
         mock_tracker = MagicMock()
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=config)
+        report = run_ingest(settings, config=config, event_bus=EventBus())
 
         assert report.error_count == 0
         # Legacy path: QBitClient was constructed with host/port and login()
@@ -1126,7 +1127,7 @@ class TestRunIngest:
         mock_tracker_cls.return_value = mock_tracker
 
         # Should NOT raise
-        report = run_ingest(settings, config=_make_config(tmp_path))
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert report.error_count == 0
         mock_client.logout.assert_called_once()

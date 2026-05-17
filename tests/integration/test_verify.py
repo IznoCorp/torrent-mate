@@ -13,6 +13,7 @@ from pathlib import Path
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.sorter.file_type import FileType
 from personalscraper.verify.run import run_verify
 
@@ -103,6 +104,7 @@ def test_verify_accepts_complete_folder(staging_tree: Path, integration_config: 
         dry_run=False,
         fix=False,
         movies_only=True,
+        event_bus=EventBus(),
     )
 
     assert results, "run_verify returned no results — verify step did not run or produced no output"
@@ -137,6 +139,7 @@ def test_verify_blocks_missing_poster(staging_tree: Path, integration_config: Co
         dry_run=False,
         fix=False,
         movies_only=True,
+        event_bus=EventBus(),
     )
 
     # Blocked folders do NOT appear in the dispatchable list — verify via report.

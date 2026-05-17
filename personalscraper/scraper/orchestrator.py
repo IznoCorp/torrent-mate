@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.logger import get_logger
+
+if TYPE_CHECKING:
+    from personalscraper.core.event_bus import EventBus
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper.artwork import ArtworkDownloader
@@ -40,6 +44,8 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
         dry_run: bool = False,
         interactive: bool = False,
         config: Config | None = None,
+        *,
+        event_bus: EventBus,
     ):
         """Initialize the scraper with API clients and helpers.
 
@@ -51,12 +57,17 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
             config: Config for classification rules and paths. When provided,
                 classifier.classify() is called for every scraped item to assign
                 a category_id. When None, classification is skipped (legacy mode).
+            event_bus: Required :class:`EventBus` forwarded to the TMDB/TVDB
+                HTTP transports so their circuit breakers emit
+                :class:`CircuitBreakerOpened` / ``Closed`` / ``HalfOpened`` on
+                transitions.
         """
         self.settings = settings
         self.config = config
         self.patterns = patterns
         self.dry_run = dry_run
         self.interactive = interactive
+        self._event_bus = event_bus
         scraper_config = config.scraper if config is not None else None
         thresholds_config = config.thresholds if config is not None else None
         self._scraper_language = scraper_config.language if scraper_config is not None else "fr-FR"
@@ -77,12 +88,13 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
 
         tmdb_policy = TMDBClient.policy(settings.tmdb_api_key, circuit=cb_policy)
         self._tmdb = TMDBClient(
-            transport=HttpTransport(tmdb_policy),
+            transport=HttpTransport(tmdb_policy, event_bus=event_bus),
             language=self._scraper_language,
         )
         self._tvdb = TVDBClient(
             api_key=settings.tvdb_api_key,
             circuit=cb_policy,
+            event_bus=event_bus,
         )
 
         # Initialize helpers.  Pass db_path so write-through outbox publishes

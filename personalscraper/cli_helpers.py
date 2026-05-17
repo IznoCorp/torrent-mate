@@ -3,15 +3,71 @@
 from __future__ import annotations
 
 import functools
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 import typer
 from pydantic import ValidationError
 
 from personalscraper.cli_state import AppCtx, state
 from personalscraper.conf.staging import ensure_staging_tree as _ensure_staging_tree
+from personalscraper.core.app_context import AppContext
+from personalscraper.core.event_bus import EventBus, current_correlation_id
 from personalscraper.logger import get_logger
+
+if TYPE_CHECKING:
+    from personalscraper.conf.models.config import Config
+    from personalscraper.config import Settings
+
+
+def _build_app_context(config: "Config", settings: "Settings") -> AppContext:
+    """Build the process-scoped :class:`AppContext` for a CLI invocation.
+
+    Constructed once per CLI command invocation at the boundary
+    (``personalscraper run``, the launchd ``library-index`` command, the
+    four ``trailers`` subcommands). The :class:`EventBus` is a fresh
+    in-process instance; subscriber wiring (``RichConsoleSubscriber``,
+    ``TelegramSubscriber``, …) is the caller's responsibility.
+
+    Args:
+        config: The typed JSON5 configuration loaded by ``cli.main``.
+        settings: The Pydantic env-var settings (API keys, paths).
+
+    Returns:
+        A frozen :class:`AppContext` ready to drive ``Pipeline.__init__``
+        or the orchestrator entrypoints for the launchd / trailers
+        commands.
+    """
+    return AppContext(config=config, settings=settings, event_bus=EventBus())
+
+
+@contextmanager
+def per_step_boundary(config: "Config", settings: "Settings") -> Iterator[AppContext]:
+    """Context manager wrapping the per-step CLI boundary.
+
+    Builds an :class:`AppContext`, binds ``current_correlation_id`` for the
+    duration of the block, and yields the context. On exit the ContextVar
+    is reset whether the body succeeded or raised. Used by the per-step
+    Typer subcommands (``ingest``, ``sort``, ``scrape``, ``verify``,
+    ``enforce``, ``dispatch``, ``process``) so every event emitted during
+    a standalone subcommand carries a correlation_id and lands on a bus
+    consistent with ``personalscraper run``.
+
+    Args:
+        config: Loaded JSON5 configuration.
+        settings: Loaded env-var settings.
+
+    Yields:
+        The fresh :class:`AppContext` bound for this invocation.
+    """
+    app_context = _build_app_context(config, settings)
+    token = current_correlation_id.set(str(uuid4()))
+    try:
+        yield app_context
+    finally:
+        current_correlation_id.reset(token)
 
 
 def _format_validation(exc: ValidationError) -> str:
@@ -40,20 +96,20 @@ def handle_cli_errors(func: Callable[..., Any]) -> Callable[..., Any]:
 
 
 def _bootstrap_staging(ctx: typer.Context) -> None:
-    """Call ensure_staging_tree if config is available on the AppCtx."""
-    app_ctx: AppCtx = ctx.obj
-    if app_ctx is not None and app_ctx.config is not None:
-        _ensure_staging_tree(app_ctx.config)
+    """Call ensure_staging_tree if config is available on the legacy ``AppCtx``."""
+    legacy: AppCtx = ctx.obj
+    if legacy is not None and legacy.config is not None:
+        _ensure_staging_tree(legacy.config)
 
 
 def _resolve_category(ctx: typer.Context, category: str | None) -> str | None:
     """Resolve a --category CLI value to a canonical category_id."""
     if category is None:
         return None
-    app_ctx: AppCtx = ctx.obj
-    resolved: str | None = app_ctx.config.resolve_category_alias(category)  # type: ignore[union-attr]
+    legacy: AppCtx = ctx.obj
+    resolved: str | None = legacy.config.resolve_category_alias(category)  # type: ignore[union-attr]
     if resolved is None:
-        conf = app_ctx.config
+        conf = legacy.config
         alias_map = {cid: ccfg.aliases for cid, ccfg in conf.categories.items() if ccfg.aliases}  # type: ignore[union-attr]
         alias_hint = ", ".join(f"{cid}: {aliases}" for cid, aliases in sorted(alias_map.items()))
         valid_ids = ", ".join(sorted(conf.all_category_ids))  # type: ignore[union-attr]
@@ -65,4 +121,11 @@ def _resolve_category(ctx: typer.Context, category: str | None) -> str | None:
     return resolved
 
 
-__all__ = ["_bootstrap_staging", "_format_validation", "_resolve_category", "handle_cli_errors"]
+__all__ = [
+    "_bootstrap_staging",
+    "_build_app_context",
+    "_format_validation",
+    "_resolve_category",
+    "handle_cli_errors",
+    "per_step_boundary",
+]

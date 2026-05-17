@@ -23,11 +23,15 @@ import subprocess
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator
+from typing import TYPE_CHECKING, Generator
 
 from filelock import FileLock, Timeout
 
+from personalscraper.indexer.events import DiskFullWarning
 from personalscraper.logger import get_logger
+
+if TYPE_CHECKING:
+    from personalscraper.core.event_bus import EventBus
 
 log = get_logger("indexer.db")
 
@@ -182,7 +186,12 @@ def _find_ntfs_mount(path: Path) -> str | None:
     return best
 
 
-def check_free_space(path: Path, expected_growth_bytes: int) -> None:
+def check_free_space(
+    path: Path,
+    expected_growth_bytes: int,
+    *,
+    event_bus: EventBus,
+) -> None:
     """Verify that *path*'s parent partition has enough room for the indexer.
 
     Raises :class:`IndexerDiskFullError` if ``free < 2 × expected_growth_bytes``.
@@ -190,6 +199,9 @@ def check_free_space(path: Path, expected_growth_bytes: int) -> None:
     Args:
         path: The DB path whose parent partition is checked.
         expected_growth_bytes: Estimated number of bytes the indexer will write.
+        event_bus: Required :class:`EventBus`. When the free-space check
+            fails, a :class:`DiskFullWarning` is emitted before
+            :class:`IndexerDiskFullError` is raised.
 
     Raises:
         IndexerDiskFullError: When available space is below the safety threshold.
@@ -198,46 +210,19 @@ def check_free_space(path: Path, expected_growth_bytes: int) -> None:
     free_bytes = stat.f_frsize * stat.f_bavail
     required_bytes = 2 * expected_growth_bytes
     if free_bytes < required_bytes:
+        event_bus.emit(
+            DiskFullWarning(
+                source="indexer.db.check_free_space",
+                disk_path=path,
+                free_bytes=free_bytes,
+                threshold_bytes=required_bytes,
+            ),
+        )
         raise IndexerDiskFullError(path, free_bytes, required_bytes)
 
 
-def handle_disk_full(conn: sqlite3.Connection, exc: sqlite3.OperationalError) -> None:
-    """Handle a mid-scan disk-full ``OperationalError``.
-
-    If *exc* signals "disk I/O error" or "database or disk is full",
-    this function runs ``PRAGMA wal_checkpoint(TRUNCATE)``, commits the
-    connection, logs ``indexer.db.disk_full``, and raises
-    :class:`IndexerDiskFullError`.
-
-    For any other ``OperationalError`` the function returns ``None`` silently
-    so callers can re-raise the original exception themselves.
-
-    Args:
-        conn: Open SQLite connection.
-        exc: The ``OperationalError`` caught by the caller.
-
-    Raises:
-        IndexerDiskFullError: When the error is disk-related.
-    """
-    msg = exc.args[0] if exc.args else ""
-    disk_full_signals = ("disk i/o error", "database or disk is full")
-    if not any(signal in msg.lower() for signal in disk_full_signals):
-        return None
-
-    try:
-        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-        conn.commit()
-    except Exception:  # noqa: BLE001 — best-effort; ignore secondary errors
-        pass
-
-    log.warning(
-        "indexer.db.disk_full",
-        error=str(exc),
-        error_type=type(exc).__name__,
-        exc_info=True,
-    )
-    raise IndexerDiskFullError(Path("."), 0, 0) from exc
-
+# See ``personalscraper.indexer._disk_guard.handle_disk_full`` for the
+# disk-full recovery path (PRAGMA wal_checkpoint + DiskFullWarning emit).
 
 # ---------------------------------------------------------------------------
 # Core API
@@ -249,6 +234,7 @@ def open_db(
     expected_growth_bytes: int = 0,
     *,
     rebuild: bool = False,
+    event_bus: EventBus,
 ) -> sqlite3.Connection:
     """Open (or create) the indexer SQLite database at *path*.
 
@@ -273,6 +259,9 @@ def open_db(
         rebuild: When ``True``, a corrupt existing DB is quarantined and a
             fresh empty DB is created.  When ``False`` (default), corruption
             raises :class:`IndexerCorruptError` immediately.
+        event_bus: Required :class:`EventBus` forwarded to
+            :func:`check_free_space` so the pre-open free-space guard emits
+            :class:`DiskFullWarning` on threshold violation.
 
     Returns:
         An open :class:`sqlite3.Connection` with all PRAGMAs applied.
@@ -289,7 +278,7 @@ def open_db(
 
     # --- Pre-open free-space guard ---
     if expected_growth_bytes > 0:
-        check_free_space(path, expected_growth_bytes)
+        check_free_space(path, expected_growth_bytes, event_bus=event_bus)
 
     # --- Corruption check ---
     # Signals produced by SQLite when the file is corrupt or not a valid DB at all.

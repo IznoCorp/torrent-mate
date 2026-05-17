@@ -22,6 +22,7 @@ from personalscraper.api._contracts import ApiError
 from personalscraper.api.transport._auth import NoAuth
 from personalscraper.api.transport._http import HttpTransport
 from personalscraper.api.transport._policy import CircuitPolicy, RetryPolicy, TransportPolicy
+from personalscraper.core.event_bus import EventBus
 
 BASE = "http://transport-test.example.com"
 
@@ -52,7 +53,7 @@ class TestRetryOnConnectionError:
         responses.add(responses.GET, url, body=requests.ConnectionError("connection reset"))
         responses.add(responses.GET, url, json={"ok": True}, status=200)
 
-        transport = HttpTransport(_make_policy())
+        transport = HttpTransport(_make_policy(), event_bus=EventBus())
         try:
             result = transport.get("/flaky")
         finally:
@@ -69,7 +70,7 @@ class TestRetryOnConnectionError:
         responses.add(responses.GET, url, body=requests.Timeout("read timed out"))
         responses.add(responses.GET, url, json={"ok": True}, status=200)
 
-        transport = HttpTransport(_make_policy())
+        transport = HttpTransport(_make_policy(), event_bus=EventBus())
         try:
             result = transport.get("/slow")
         finally:
@@ -86,7 +87,7 @@ class TestRetryOnConnectionError:
         for _ in range(3):
             responses.add(responses.GET, url, body=requests.ConnectionError("dead"))
 
-        transport = HttpTransport(_make_policy())
+        transport = HttpTransport(_make_policy(), event_bus=EventBus())
         try:
             with pytest.raises(requests.ConnectionError):
                 transport.get("/dead")
@@ -112,7 +113,7 @@ class TestErrorBodyExtraction:
             status=404,
         )
 
-        transport = HttpTransport(_make_policy())
+        transport = HttpTransport(_make_policy(), event_bus=EventBus())
         try:
             with pytest.raises(ApiError) as exc:
                 transport.get("/missing")
@@ -133,7 +134,7 @@ class TestErrorBodyExtraction:
             status=403,
         )
 
-        transport = HttpTransport(_make_policy())
+        transport = HttpTransport(_make_policy(), event_bus=EventBus())
         try:
             with pytest.raises(ApiError) as exc:
                 transport.get("/forbidden")
@@ -155,7 +156,7 @@ class TestErrorBodyExtraction:
             content_type="text/html",
         )
 
-        transport = HttpTransport(_make_policy())
+        transport = HttpTransport(_make_policy(), event_bus=EventBus())
         try:
             with pytest.raises(ApiError) as exc:
                 transport.get("/proxy_html")

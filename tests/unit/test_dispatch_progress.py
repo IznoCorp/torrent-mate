@@ -1,13 +1,15 @@
-"""Tests for dispatch progress events."""
+"""Tests for dispatch progress events — migrated to EventBus + ``ItemProgressed``."""
 
 from __future__ import annotations
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.run import run_dispatch
-from personalscraper.pipeline_observer import CollectorObserver
+from personalscraper.pipeline_events import ItemProgressed
+from tests.fixtures.event_bus import CollectingSubscriber
 
 
 def _base_config() -> MagicMock:
@@ -39,12 +41,13 @@ class TestDispatchProgress:
         """Empty dispatcher result set → no per-item events."""
         _patch_index(_idx)
         _disp.return_value.process.return_value = []
-        collector = CollectorObserver()
+        bus = EventBus()
+        collector = CollectingSubscriber(bus, ItemProgressed)
 
-        report = run_dispatch(MagicMock(), config=_base_config(), dry_run=True, verified=[], observers=(collector,))
+        report = run_dispatch(MagicMock(), config=_base_config(), dry_run=True, verified=[], event_bus=bus)
 
         assert report.name == "dispatch"
-        assert collector.progress == []
+        assert collector.received == []
 
     @patch("personalscraper.dispatch.run.Dispatcher")
     @patch("personalscraper.dispatch.run.MediaIndex")
@@ -59,12 +62,12 @@ class TestDispatchProgress:
             DispatchResult(source=Path("/e"), action="error", reason="disk_full"),
         ]
         _disp.return_value.process.return_value = results
-        collector = CollectorObserver()
+        bus = EventBus()
+        collector = CollectingSubscriber(bus, ItemProgressed)
 
-        run_dispatch(MagicMock(), config=_base_config(), dry_run=True, verified=[], observers=(collector,))
+        run_dispatch(MagicMock(), config=_base_config(), dry_run=True, verified=[], event_bus=bus)
 
-        statuses = [e.status for e in collector.progress]
-        # Each result contributes started + terminal → 10 events total.
+        statuses = [e.status for e in collector.received]
         assert statuses.count("started") == 5
         assert "moved" in statuses
         assert "merged" in statuses
@@ -72,7 +75,7 @@ class TestDispatchProgress:
         assert "skipped" in statuses
         assert "error" in statuses
 
-        skipped = [e for e in collector.progress if e.status == "skipped"][0]
+        skipped = [e for e in collector.received if e.status == "skipped"][0]
         assert skipped.details["reason"] == "duplicate"
-        error = [e for e in collector.progress if e.status == "error"][0]
+        error = [e for e in collector.received if e.status == "error"][0]
         assert error.details["reason"] == "disk_full"

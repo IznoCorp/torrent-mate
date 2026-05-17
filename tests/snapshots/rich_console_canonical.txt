@@ -1,0 +1,117 @@
+PersonalScraper Pipeline LIVE  canonical-live
+
+1/9 INGEST
+   ingest: movie1.mkv — started
+   5 OK, 1 skip (12.3s)
+   downloaded movie1
+
+2/9 SORT
+   sort: movie2.mkv — completed
+   3 OK, 2 skip (5.0s)
+   moved movie3
+   ! unknown extension .xyz
+
+3/9 CLEAN
+   clean: movie3.mkv — skipped
+   nothing to do (0.1s)
+
+4/9 SCRAPE
+   scrape: movie4.mkv — failed
+   2 OK, 1 err (7.0s)
+   scraped movie4
+   ! TMDB rate limit hit
+
+5/9 CLEANUP
+   cleanup: movie5.mkv — moved
+   1 OK, 1 skip (3.0s)
+   cleaned movie6
+
+6/9 ENFORCE
+   enforce: movie6.mkv — copied
+   4 OK (4.0s)
+   enforced movie7
+
+7/9 VERIFY
+   verify: movie7.mkv — fixed
+   2 OK, 1 skip, 1 err (5.0s)
+   verified movie9
+   ! nfo missing on movie8
+
+8/9 TRAILERS
+   trailers: movie8.mkv — blocked
+   3 OK, 2 err (6.0s)
+   trailer fetched movie10
+
+9/9 DISPATCH
+   dispatch: movie9.mkv — cleaned
+   5 OK, 2 skip, 1 err (8.0s)
+   dispatched movie11
+   ! disk almost full
+
+ UNKNOWN_STEP
+   unknown_step: movie10.mkv — error
+   1 OK (1.0s)
+   handled unknown1
+   FATAL: RuntimeError: boom
+╭───────────────────────────────────────────────── Pipeline OK — 45s ──────────────────────────────────────────────────╮
+│ ┏━━━━━━━━┳━━━━┳━━━━━━┳━━━━━┓                                                                                         │
+│ ┃ Step   ┃ OK ┃ Skip ┃ Err ┃                                                                                         │
+│ ┡━━━━━━━━╇━━━━╇━━━━━━╇━━━━━┩                                                                                         │
+│ │ Ingest │  5 │    0 │   0 │                                                                                         │
+│ └────────┴────┴──────┴─────┘                                                                                         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+PersonalScraper Pipeline LIVE  canonical-live
+╭───────────────────────────────────────────── Pipeline ERRORS — 5min 30s ─────────────────────────────────────────────╮
+│ ┏━━━━━━┳━━━━┳━━━━━━┳━━━━━┓                                                                                           │
+│ ┃ Step ┃ OK ┃ Skip ┃ Err ┃                                                                                           │
+│ ┡━━━━━━╇━━━━╇━━━━━━╇━━━━━┩                                                                                           │
+│ │ Sort │  3 │    1 │   2 │                                                                                           │
+│ └──────┴────┴──────┴─────┘                                                                                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+PersonalScraper Pipeline DRY-RUN  2026-05-11T10:00:00+00:00
+
+1/9 INGEST
+   5 OK, 1 skip (12.3s)
+
+2/9 SORT
+   3 OK, 2 skip (5.0s)
+
+3/9 CLEAN
+   nothing to do (0.1s)
+
+4/9 SCRAPE
+   2 OK, 1 err (7.0s)
+
+5/9 CLEANUP
+   1 OK, 1 skip (3.0s)
+
+6/9 ENFORCE
+   4 OK (4.0s)
+
+7/9 VERIFY
+   2 OK, 1 skip, 1 err (5.0s)
+
+8/9 TRAILERS
+   3 OK, 2 err (6.0s)
+
+9/9 DISPATCH
+   5 OK, 2 skip, 1 err (8.0s)
+
+ UNKNOWN_STEP
+   1 OK (1.0s)
+   FATAL: RuntimeError: boom
+╭───────────────────────────────────────────────── Pipeline OK — 45s ──────────────────────────────────────────────────╮
+│ ┏━━━━━━━━┳━━━━┳━━━━━━┳━━━━━┓                                                                                         │
+│ ┃ Step   ┃ OK ┃ Skip ┃ Err ┃                                                                                         │
+│ ┡━━━━━━━━╇━━━━╇━━━━━━╇━━━━━┩                                                                                         │
+│ │ Ingest │  5 │    0 │   0 │                                                                                         │
+│ └────────┴────┴──────┴─────┘                                                                                         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+PersonalScraper Pipeline DRY-RUN  2026-05-11T10:00:00+00:00
+╭───────────────────────────────────────────── Pipeline ERRORS — 5min 30s ─────────────────────────────────────────────╮
+│ ┏━━━━━━┳━━━━┳━━━━━━┳━━━━━┓                                                                                           │
+│ ┃ Step ┃ OK ┃ Skip ┃ Err ┃                                                                                           │
+│ ┡━━━━━━╇━━━━╇━━━━━━╇━━━━━┩                                                                                           │
+│ │ Sort │  3 │    1 │   2 │                                                                                           │
+│ └──────┴────┴──────┴─────┘                                                                                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯

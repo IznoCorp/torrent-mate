@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 from personalscraper.conf.ids import TV_CATEGORY_IDS
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.library.models import (
     ACTION_ARTWORK_DOWNLOADED,
     ACTION_EPISODES_RENAMED,
@@ -551,6 +552,8 @@ def rescrape_library(
     interactive: bool = False,
     dry_run: bool = True,
     max_items: int | None = None,
+    *,
+    event_bus: EventBus,
 ) -> LibraryRescrapeResult:
     """Rescrape library items that need repair.
 
@@ -571,6 +574,9 @@ def rescrape_library(
         interactive: If True, prompt for low-confidence matches.
         dry_run: If True, preview without modifying files.
         max_items: Maximum items to process. None = unlimited.
+        event_bus: Required :class:`EventBus` propagated to TMDB/TVDB
+            transports so circuit-breaker trips during a long rescrape
+            reach the run's Telegram / RichConsole subscribers.
 
     Returns:
         LibraryRescrapeResult with per-item actions.
@@ -584,10 +590,10 @@ def rescrape_library(
     scraper_config = config.scraper
     tmdb_policy = TMDBClient.policy(settings.tmdb_api_key)
     tmdb_client = TMDBClient(
-        transport=HttpTransport(tmdb_policy),
+        transport=HttpTransport(tmdb_policy, event_bus=event_bus),
         language=scraper_config.language,
     )
-    tvdb_client = TVDBClient(settings.tvdb_api_key)
+    tvdb_client = TVDBClient(settings.tvdb_api_key, event_bus=event_bus)
     # Pass db_path so write-through outbox publishes land in the user-configured
     # DB rather than the default IndexerConfig().db_path (DESIGN §9.4).
     nfo_gen = NFOGenerator(db_path=config.indexer.db_path)

@@ -52,6 +52,14 @@ No event/signal system exists today. The pipeline runs as a linear sequence with
 - Cross-process events (needed later for Watcher Service, but out of scope for v1).
 - Retry/replay semantics.
 
+**In progress** (feat/event-bus, version 0.14.0):
+
+- Codename: `event-bus`
+- SemVer bump: minor (Y+1)
+- Design: `docs/features/event-bus/DESIGN.md`
+- Plan: `docs/features/event-bus/plan/INDEX.md` (5 phases, 42 sub-phases)
+- Activated on: 2026-05-11
+
 ### P1 — Provider Registry (Scraper Orchestrator Decoupling)
 
 `scraper/orchestrator.py` hardcodes `self._tmdb` and `self._tvdb` with ad-hoc fallback logic ("if TMDB circuit open, skip" — line 151; "if both circuits open, skip" — line 224). Adding a new metadata provider (IMDB, SensCritique from the ROADMAP matrix) requires modifying the orchestrator directly.
@@ -166,6 +174,25 @@ Find SXXEXX for episodes missing season/episode numbers via reverse scraping on 
 ---
 
 ## P3 — Stretch (nice to have, lower urgency)
+
+### P3 — LLM Pipeline Assistant (idée, gardée pour la fin)
+
+Connecter un LLM (local et/ou distant) comme assistant d'arbitrage pour les
+points du pipeline qui requièrent aujourd'hui une décision humaine (matches
+ambigus TMDB/TVDB, post-mortem d'erreurs, détection d'incohérences). L'IA
+s'imprègne de la médiathèque existante et apprend des corrections utilisateur
+via RAG — jamais de fine-tuning, jamais autonome, toujours en validation.
+Principe directeur : feature volontairement simple à implémenter.
+
+Vision et questions ouvertes (document vivant, pas de plan technique) :
+`docs/superpowers/roadmap/llm-assistant/brainstorming.md`
+
+**Brainstorming déjà entamé** (2026-05-11/12) : principes directeurs posés,
+cas d'usage cadrés (pipeline + médiathèque), stack pressenti identifié
+(MCP server + sqlite-vec + Ollama + Open WebUI compatible), 3 questions
+ouvertes restantes (log de corrections, indexation initiale, confidentialité
+backend distant). Reprendre la prochaine session via `/brainstorming` sur ce
+document — pas besoin de repartir de zéro.
 
 ### P3 — God-Module Splits (Residual from arch-cleanup)
 

@@ -13,6 +13,7 @@ from pathlib import Path
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, staging_path
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.sorter.file_type import FileType
 from personalscraper.sorter.run import run_sort
 
@@ -70,7 +71,7 @@ def test_sort_routes_by_file_type(staging_tree: Path, integration_config: Config
     (ingest / "Show.S01E01.mp4").write_bytes(b"\x00" * 8)
     (ingest / "readme.txt").write_bytes(b"junk")
 
-    run_sort(_make_settings(), staging_dir=staging_tree, config=integration_config)
+    run_sort(_make_settings(), staging_dir=staging_tree, config=integration_config, event_bus=EventBus())
 
     # Resolve expected destination directories from config — no hardcoding.
     movies_dir = staging_path(integration_config, find_by_file_type(integration_config, FileType.MOVIE))
@@ -128,7 +129,7 @@ def test_sort_reuses_existing_folder_via_fuzzy(staging_tree: Path, integration_c
     ingest = _ingest_dir(staging_tree)
     (ingest / "Shrinking.mkv").write_bytes(b"\x00" * 8)
 
-    run_sort(_make_settings(), staging_dir=staging_tree, config=integration_config)
+    run_sort(_make_settings(), staging_dir=staging_tree, config=integration_config, event_bus=EventBus())
 
     # The file must have landed inside the pre-existing folder.
     moved_file = existing_folder / "Shrinking.mkv"

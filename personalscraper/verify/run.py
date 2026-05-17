@@ -7,10 +7,11 @@ converts VerifyResult lists to StepReport.
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS
-from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
+from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.sorter.file_type import FileType
 from personalscraper.verify.verifier import Verifier, VerifyResult
 
@@ -51,7 +52,8 @@ def run_verify(
     fix: bool = True,
     movies_only: bool = False,
     tvshows_only: bool = False,
-    observers: tuple[PipelineObserver, ...] = (),
+    *,
+    event_bus: EventBus,
 ) -> tuple[StepReport, list[VerifyResult]]:
     """Run the verify pipeline step.
 
@@ -63,7 +65,8 @@ def run_verify(
         fix: If True, attempt automatic corrections.
         movies_only: Process only {movies_dir}/.
         tvshows_only: Process only {tvshows_dir}/.
-        observers: Tuple of pipeline observers for progress and lifecycle notifications.
+        event_bus: Required in-process EventBus. Each per-item
+        lifecycle transition emits an ``ItemProgressed`` event on the bus.
 
     Returns:
         Tuple of (StepReport, dispatchable VerifyResult list).
@@ -95,29 +98,24 @@ def run_verify(
             all_results.extend(verifier.verify_all_tvshows(tvshows_dir))
 
     for r in all_results:
-        notify_progress(
-            observers,
-            StepEvent(step="verify", item=r.media_path.name, status="started"),
-        )
+        event_bus.emit(ItemProgressed(step="verify", item=r.media_path.name, status="started"))
         if r.status in ("valid", "fixed"):
-            notify_progress(
-                observers,
-                StepEvent(
+            event_bus.emit(
+                ItemProgressed(
                     step="verify",
                     item=r.media_path.name,
                     status="ok",
                     details={"status": r.status, "category": r.category or ""},
-                ),
+                )
             )
         elif r.status == "blocked":
-            notify_progress(
-                observers,
-                StepEvent(
+            event_bus.emit(
+                ItemProgressed(
                     step="verify",
                     item=r.media_path.name,
                     status="blocked",
-                    details={"errors": r.errors},
-                ),
+                    details={"errors": list(r.errors)},
+                )
             )
 
     dispatchable = Verifier.get_dispatchable(all_results)

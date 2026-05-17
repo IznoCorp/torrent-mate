@@ -16,6 +16,7 @@ import pytest
 
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.ingest.ingest import run_ingest
 from tests.integration.conftest import FakeQBitClient, FakeTorrent
 
@@ -116,6 +117,7 @@ def test_ingest_filters_completed_and_untracked(
         config=integration_config,
         ingest_dir=ingest_dir,
         staging_dir=staging_tree,
+        event_bus=EventBus(),
     )
 
     # Exactly one folder should appear in 097-TEMP (the completed torrent)
@@ -206,6 +208,7 @@ def test_ingest_ratio_threshold(
         config=_min_ratio_1,
         ingest_dir=ingest_dir,
         staging_dir=staging_tree,
+        event_bus=EventBus(),
     )
 
     ingested_entries = [e for e in ingest_dir.iterdir() if e.is_dir()]

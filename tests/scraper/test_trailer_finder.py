@@ -11,6 +11,7 @@ import pytest
 
 from personalscraper.api.metadata._base import Video
 from personalscraper.core.circuit import CircuitBreaker, CircuitOpenError
+from personalscraper.core.event_bus import EventBus
 from personalscraper.scraper.trailer_finder import TrailerFinder
 from personalscraper.scraper.trailers_cache import TrailersCache
 
@@ -85,7 +86,7 @@ class TestTrailerFinder:
         """find() falls back to YouTube search when TMDB returns no videos."""
         _mock_tmdb(finder)._fetch_videos_strict.return_value = []
         _mock_yt(finder).search.return_value = _YT_URL
-        _mock_yt(finder)._breaker = CircuitBreaker(name="yt-test", failure_threshold=5)
+        _mock_yt(finder)._breaker = CircuitBreaker(name="yt-test", failure_threshold=5, event_bus=EventBus())
         url = finder.find(550, "movie", title="Fight Club", year=1999)
         assert url == _YT_URL
 
@@ -93,7 +94,7 @@ class TestTrailerFinder:
         """find() returns None when TMDB and YouTube both return nothing."""
         _mock_tmdb(finder)._fetch_videos_strict.return_value = []
         _mock_yt(finder).search.return_value = None
-        _mock_yt(finder)._breaker = CircuitBreaker(name="yt-test", failure_threshold=5)
+        _mock_yt(finder)._breaker = CircuitBreaker(name="yt-test", failure_threshold=5, event_bus=EventBus())
         url = finder.find(550, "movie", title="Fight Club", year=1999)
         assert url is None
 
@@ -141,7 +142,7 @@ class TestTrailerFinder:
         )
         _mock_tmdb(finder)._fetch_videos_strict.return_value = [vimeo_video]
         _mock_yt(finder).search.return_value = _YT_URL
-        _mock_yt(finder)._breaker = CircuitBreaker(name="yt-test", failure_threshold=5)
+        _mock_yt(finder)._breaker = CircuitBreaker(name="yt-test", failure_threshold=5, event_bus=EventBus())
         url = finder.find(550, "movie", title="Fight Club", year=1999)
         # Vimeo entry must be ignored; YouTube search fallback should be used.
         assert url == _YT_URL
@@ -178,7 +179,7 @@ class TestSeasonFallbackQuotaConfig:
         # Build a YoutubeSearch with non-default quota values.
         custom_daily = 5000
         custom_cost = 200
-        yt_breaker = CircuitBreaker(name="yt-test", failure_threshold=5)
+        yt_breaker = CircuitBreaker(name="yt-test", failure_threshold=5, event_bus=EventBus())
         quota_cache = JsonTTLCache(tmp_path / "quota.json")
         searcher = YoutubeSearch(
             "{title} {year} trailer",
@@ -253,7 +254,7 @@ class TestCachePoisoningPrevention:
 
         client = MagicMock()
         searcher = MagicMock()
-        searcher._breaker = CircuitBreaker(name="yt-test", failure_threshold=5)
+        searcher._breaker = CircuitBreaker(name="yt-test", failure_threshold=5, event_bus=EventBus())
 
         finder = TrailerFinder(
             tmdb_client=client,
@@ -300,8 +301,10 @@ class TestCachePoisoningPrevention:
         client = MagicMock()
         searcher = MagicMock()
 
-        # Open breaker: guard() will raise CircuitOpenError.
-        yt_breaker = CircuitBreaker(name="youtube-test", failure_threshold=1, cooldown_seconds=9999)
+        # Open breaker: guard() will raise CircuitOpenError. Single-line to
+        # satisfy the Phase 5.1 audit grep (every breaker construction must
+        # carry ``event_bus=`` on the same opening-paren line).
+        yt_breaker = CircuitBreaker(name="youtube-test", failure_threshold=1, cooldown_seconds=9999, event_bus=EventBus())  # noqa: E501  # fmt: skip
         # Manually trip the breaker open.
         yt_breaker._failure_count = 1
         from personalscraper.core.circuit import CircuitState
@@ -365,7 +368,7 @@ class TestCachePoisoningClosure:
         cache_path = tmp_path / "tc.json"
         trailers_cache = TrailersCache(cache_path)
         client = MagicMock()
-        yt_breaker = CircuitBreaker(name="yt-test", failure_threshold=5, cooldown_seconds=60)
+        yt_breaker = CircuitBreaker(name="yt-test", failure_threshold=5, cooldown_seconds=60, event_bus=EventBus())
 
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
 
@@ -431,7 +434,7 @@ class TestCachePoisoningClosure:
         client = MagicMock()
 
         # Use a low threshold so one failure trips the breaker.
-        yt_breaker = CircuitBreaker(name="yt-test", failure_threshold=1, cooldown_seconds=9999)
+        yt_breaker = CircuitBreaker(name="yt-test", failure_threshold=1, cooldown_seconds=9999, event_bus=EventBus())
         real_searcher = YoutubeSearch(
             "{title} {year} trailer",
             api_key="",
@@ -503,7 +506,7 @@ class TestDownloadErrorRegression:
         cache_path = tmp_path / "tc.json"
         trailers_cache = TrailersCache(cache_path)
         client = MagicMock()
-        yt_breaker = CircuitBreaker(name="yt-test", failure_threshold=5, cooldown_seconds=60)
+        yt_breaker = CircuitBreaker(name="yt-test", failure_threshold=5, cooldown_seconds=60, event_bus=EventBus())
 
         real_searcher = YoutubeSearch(
             "{title} {year} trailer",

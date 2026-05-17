@@ -245,7 +245,11 @@ def _stub_pipeline_steps(request, monkeypatch):
     # Pipeline orchestrator used by `personalscraper run`.
     import personalscraper.pipeline as _pipeline_mod
 
-    monkeypatch.setattr(_pipeline_mod.Pipeline, "run", lambda self: _report)
+    # ``Pipeline.run`` accepts run-scope flags as keyword-only kwargs
+    # (``dry_run``, ``interactive``, ``verbose``, ``step_overrides``,
+    # ``skip_trailers``, ``continue_on_trailer_error``). The stub must
+    # accept and discard any of them.
+    monkeypatch.setattr(_pipeline_mod.Pipeline, "run", lambda self, **_kw: _report)
 
     # Notifier + healthcheck helpers called inside the `run` command.
     monkeypatch.setattr(

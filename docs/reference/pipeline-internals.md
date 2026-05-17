@@ -59,3 +59,18 @@ The `Dispatcher` class selects the target disk for new items via `conf.resolver.
 
 - Movie `nfo_ids` check: both TMDB and IMDB required for a pass. Missing one → WARNING (check fails but non-blocking); missing both → ERROR (blocking).
 - TV show `nfo_ids` check: either TVDB or TMDB required for a pass (IMDB not required).
+
+## Event Bus
+
+The pipeline broadcasts lifecycle and per-item activity through an
+in-process typed bus
+(`personalscraper.core.event_bus.EventBus`). The bus is the **sole**
+emit substrate — there is no parallel callback channel.
+
+For the full reference — wiring, the 13-event v1 catalog, subscriber
+recipes, the boundary-only `AppContext` rule, the
+`current_correlation_id` ContextVar convention, the JSON
+serialization contract, performance notes, and the testing-pattern
+catalogue — see [`event-bus.md`](event-bus.md). That document is the
+authoritative source; the per-step emit sites described in
+`Pipeline._run_step` route through the API it documents.

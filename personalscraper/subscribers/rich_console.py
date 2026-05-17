@@ -1,4 +1,9 @@
-"""Rich-console observer — CLI output extracted from the pipeline core."""
+"""Rich-console subscriber for the in-process EventBus.
+
+Self-subscribes to the six pipeline-lifecycle events on construction and
+renders progress to a ``rich.Console``. Output is locked by the canonical
+snapshot ``tests/snapshots/rich_console_canonical.txt``.
+"""
 
 from __future__ import annotations
 
@@ -8,32 +13,44 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from personalscraper.pipeline_observer import StepEvent
+from personalscraper.core.event_bus import EventBus, SubscriptionToken
+from personalscraper.pipeline_events import (
+    ItemProgressed,
+    PipelineEnded,
+    PipelineStarted,
+    StepCompleted,
+    StepErrored,
+    StepStarted,
+)
 
 if TYPE_CHECKING:
     from personalscraper.models import PipelineReport, StepReport
 
 
-class RichConsoleObserver:
-    """Pipeline observer that renders progress to a rich Console.
+class RichConsoleSubscriber:
+    """Pipeline subscriber that renders progress to a rich Console.
 
-    Extracts all console output from ``pipeline.py`` so the pipeline
-    itself has zero dependency on ``rich.Console``.
+    The class self-subscribes to ``PipelineStarted``, ``PipelineEnded``,
+    ``StepStarted``, ``StepCompleted``, ``StepErrored`` and ``ItemProgressed``
+    in ``__init__``. ``close()`` unsubscribes every stored token so test
+    fixtures can dispose of the subscriber cleanly.
     """
 
     name = "rich-console"
 
     def __init__(
         self,
+        bus: EventBus,
         console: Console | None = None,
         *,
         verbose: bool = False,
         dry_run: bool = False,
         run_id: str = "",
     ) -> None:
-        """Initialize the observer.
+        """Initialize the subscriber and register six bus subscriptions.
 
         Args:
+            bus: The :class:`EventBus` instance to subscribe to.
             console: Rich console instance. Created if not provided.
             verbose: If True, emit per-item detail output.
             dry_run: If True, label the banner as DRY-RUN.
@@ -43,6 +60,21 @@ class RichConsoleObserver:
         self._verbose = verbose
         self._dry_run = dry_run
         self._run_id: str | None = run_id if run_id else None
+        self._bus = bus
+        self._tokens: list[SubscriptionToken] = [
+            bus.subscribe(PipelineStarted, self._on_pipeline_started),
+            bus.subscribe(PipelineEnded, self._on_pipeline_ended),
+            bus.subscribe(StepStarted, self._on_step_started),
+            bus.subscribe(StepCompleted, self._on_step_completed),
+            bus.subscribe(StepErrored, self._on_step_errored),
+            bus.subscribe(ItemProgressed, self._on_item_progressed),
+        ]
+
+    def close(self) -> None:
+        """Unsubscribe every stored token. Safe to call multiple times."""
+        for token in self._tokens:
+            self._bus.unsubscribe(token)
+        self._tokens = []
 
     @staticmethod
     def _icon(step: str) -> str:
@@ -67,7 +99,7 @@ class RichConsoleObserver:
         }
         return icons.get(step, "")
 
-    def on_pipeline_start(self, report: PipelineReport) -> None:  # noqa: ARG002
+    def _render_pipeline_start(self, report: PipelineReport) -> None:
         """Print the pipeline banner.
 
         Args:
@@ -80,7 +112,7 @@ class RichConsoleObserver:
             highlight=False,
         )
 
-    def on_pipeline_end(self, report: PipelineReport) -> None:
+    def _render_pipeline_end(self, report: PipelineReport) -> None:
         """Print the final summary table.
 
         Args:
@@ -107,23 +139,13 @@ class RichConsoleObserver:
         status_text = "[green]OK[/green]" if not report.has_errors() else "[red]ERRORS[/red]"
         self.console.print(Panel(table, title=f"Pipeline {status_text} — {dur_str}", border_style="bold"))
 
-    def on_step_start(self, step: str) -> None:
-        """Print step header.
-
-        Args:
-            step: Step name for display.
-        """
+    def _render_step_start(self, step: str) -> None:
+        """Print step header."""
         icon = self._icon(step)
         self.console.print(f"\n{icon} [bold]{step.upper()}[/bold]", highlight=False)
 
-    def on_step_end(self, step: str, report: StepReport, elapsed: float) -> None:  # noqa: ARG002
-        """Print step summary line and verbose details.
-
-        Args:
-            step: Step name.
-            report: The completed ``StepReport``.
-            elapsed: Step duration in seconds.
-        """
+    def _render_step_end(self, step: str, report: StepReport, elapsed: float) -> None:  # noqa: ARG002
+        """Print step summary line and verbose details."""
         elapsed_str = f"{elapsed:.1f}s"
         ok = report.success_count
         skip = report.skip_count
@@ -146,29 +168,41 @@ class RichConsoleObserver:
             for warning in report.warnings:
                 self.console.print(f"   [yellow]! {warning}[/yellow]", highlight=False)
 
-    def on_step_error(self, step: str, error: Exception) -> None:  # noqa: ARG002
-        """Print fatal error message.
+    def _render_step_error(self, error_class: str, error_message: str) -> None:
+        """Print fatal error message."""
+        self.console.print(f"   [red]FATAL: {error_class}: {error_message}[/red]", highlight=False)
 
-        Args:
-            step: Step name.
-            error: The exception that was raised.
-        """
-        error_msg = f"{type(error).__name__}: {error}"
-        self.console.print(f"   [red]FATAL: {error_msg}[/red]", highlight=False)
-
-    def on_progress(self, event: StepEvent) -> None:
-        """Print per-item detail in verbose mode.
-
-        Args:
-            event: The progress event to render.
-        """
+    def _render_item_progress(self, step: str, item: str, status: str) -> None:
+        """Print per-item detail in verbose mode."""
         if not self._verbose:
             return
         self.console.print(
-            f"   [dim]{event.step}: {event.item} — {event.status}[/dim]",
+            f"   [dim]{step}: {item} — {status}[/dim]",
             highlight=False,
         )
 
-    # Interface compliance — these are already covered above.
-    # PipelineObserver is structural (Protocol), not nominal (ABC),
-    # so runtime_checkable works without explicit inheritance.
+    # ----- Bus callbacks --------------------------------------------------
+
+    def _on_pipeline_started(self, event: PipelineStarted) -> None:
+        """Handle :class:`PipelineStarted` — render the banner."""
+        self._render_pipeline_start(event.report)
+
+    def _on_pipeline_ended(self, event: PipelineEnded) -> None:
+        """Handle :class:`PipelineEnded` — render the summary panel."""
+        self._render_pipeline_end(event.report)
+
+    def _on_step_started(self, event: StepStarted) -> None:
+        """Handle :class:`StepStarted` — render the step header."""
+        self._render_step_start(event.step)
+
+    def _on_step_completed(self, event: StepCompleted) -> None:
+        """Handle :class:`StepCompleted` — render the step summary line."""
+        self._render_step_end(event.step, event.report, event.elapsed_s)
+
+    def _on_step_errored(self, event: StepErrored) -> None:
+        """Handle :class:`StepErrored` — render the FATAL line."""
+        self._render_step_error(event.error_class, event.error_message)
+
+    def _on_item_progressed(self, event: ItemProgressed) -> None:
+        """Handle :class:`ItemProgressed` — render per-item progress."""
+        self._render_item_progress(event.step, event.item, event.status)

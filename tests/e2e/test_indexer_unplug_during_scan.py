@@ -50,6 +50,7 @@ from unittest.mock import patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.breaker import DiskCircuitBreaker
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.repos import disk_repo
@@ -253,7 +254,7 @@ class TestUnplugDuringScanning:
         disk1 = _insert_disk(conn, "Disk1", str(mount1))
         disk2 = _insert_disk(conn, "Disk2", str(mount2))
 
-        breaker = DiskCircuitBreaker()
+        breaker = DiskCircuitBreaker(event_bus=EventBus())
         patched_scandir = _make_eio_scandir(str(mount2))
 
         with (
@@ -267,6 +268,7 @@ class TestUnplugDuringScanning:
                 generation=1,
                 conn=conn,
                 disk_breaker=breaker,
+                event_bus=EventBus(),
             )
 
         # --- Scan-level assertions ---
@@ -365,7 +367,7 @@ class TestUnplugDuringScanning:
         conn = _open_db()
         disk1 = _insert_disk(conn, "Disk1Control", str(mount1))
 
-        breaker = DiskCircuitBreaker()
+        breaker = DiskCircuitBreaker(event_bus=EventBus())
         patched_scandir = _make_eio_scandir(fake_disk2_mount)
 
         with (
@@ -378,6 +380,7 @@ class TestUnplugDuringScanning:
                 generation=1,
                 conn=conn,
                 disk_breaker=breaker,
+                event_bus=EventBus(),
             )
 
         assert result.status == "ok"

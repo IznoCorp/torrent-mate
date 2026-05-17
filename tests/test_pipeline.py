@@ -7,8 +7,16 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.core.app_context import AppContext
+from personalscraper.core.event_bus import EventBus
 from personalscraper.models import PipelineReport, StepReport
 from personalscraper.pipeline import Pipeline
+
+
+@pytest.fixture
+def pipeline_app(pipeline_config, pipeline_settings):
+    """Build an :class:`AppContext` from the existing config/settings mocks."""
+    return AppContext(config=pipeline_config, settings=pipeline_settings, event_bus=EventBus())
 
 
 @pytest.fixture
@@ -50,9 +58,9 @@ def pipeline_config(tmp_path):
 class TestRunStep:
     """Tests for Pipeline._run_step method."""
 
-    def test_normal_step_report(self, pipeline_config, pipeline_settings):
+    def test_normal_step_report(self, pipeline_app):
         """Normal step function returning StepReport."""
-        pipeline = Pipeline(pipeline_config, pipeline_settings, observers=[])
+        pipeline = Pipeline(pipeline_app)
         report = PipelineReport(started_at=MagicMock())
         sr = StepReport(name="test", success_count=3)
 
@@ -61,9 +69,9 @@ class TestRunStep:
         assert result is None
         assert report.steps["test"].success_count == 3
 
-    def test_tuple_return_extracts_extra(self, pipeline_config, pipeline_settings):
+    def test_tuple_return_extracts_extra(self, pipeline_app):
         """Step returning (StepReport, extra_data) extracts both."""
-        pipeline = Pipeline(pipeline_config, pipeline_settings, observers=[])
+        pipeline = Pipeline(pipeline_app)
         report = PipelineReport(started_at=MagicMock())
         sr = StepReport(name="verify", success_count=5)
         extra_data = [{"path": "/some/path"}]
@@ -73,9 +81,9 @@ class TestRunStep:
         assert result == extra_data
         assert report.steps["verify"].success_count == 5
 
-    def test_exception_creates_error_report(self, pipeline_config, pipeline_settings):
+    def test_exception_creates_error_report(self, pipeline_app):
         """Fatal exception creates StepReport with error details."""
-        pipeline = Pipeline(pipeline_config, pipeline_settings, observers=[])
+        pipeline = Pipeline(pipeline_app)
         report = PipelineReport(started_at=MagicMock())
 
         def failing_step():
@@ -97,8 +105,7 @@ class TestPipelineRun:
         self,
         mock_ingest,
         mock_sort,
-        pipeline_config,
-        pipeline_settings,
+        pipeline_app,
     ):
         """Pipeline executes ingest→sort→gate→process→enforce→verify→dispatch."""
         mock_ingest.return_value = StepReport(name="ingest", success_count=2)
@@ -121,7 +128,7 @@ class TestPipelineRun:
             )
             mock_dispatch.return_value = StepReport(name="dispatch", success_count=2)
 
-            pipeline = Pipeline(pipeline_config, pipeline_settings, observers=[])
+            pipeline = Pipeline(pipeline_app)
             report = pipeline.run()
 
         assert len(report.steps) == 9
@@ -143,8 +150,7 @@ class TestPipelineRun:
         self,
         mock_ingest,
         mock_sort,
-        pipeline_config,
-        pipeline_settings,
+        pipeline_app,
     ):
         """Dispatch is skipped when verify returns no dispatchable items."""
         mock_ingest.return_value = StepReport(name="ingest")
@@ -167,7 +173,7 @@ class TestPipelineRun:
                 [],  # no dispatchable items
             )
 
-            pipeline = Pipeline(pipeline_config, pipeline_settings, observers=[])
+            pipeline = Pipeline(pipeline_app)
             report = pipeline.run()
 
         assert report.steps["dispatch"].skip_count == 1
@@ -179,8 +185,7 @@ class TestPipelineRun:
         self,
         mock_ingest,
         mock_sort,
-        pipeline_config,
-        pipeline_settings,
+        pipeline_app,
     ):
         """Dispatch is skipped when verify step crashes (returns None)."""
         mock_ingest.return_value = StepReport(name="ingest")
@@ -196,7 +201,7 @@ class TestPipelineRun:
                 return_value=StepReport(name="trailers", status="skipped"),
             ),
         ):
-            pipeline = Pipeline(pipeline_config, pipeline_settings, observers=[])
+            pipeline = Pipeline(pipeline_app)
             report = pipeline.run()
 
         # verify has error, dispatch is skipped
@@ -209,8 +214,7 @@ class TestPipelineRun:
         self,
         mock_ingest,
         mock_sort,
-        pipeline_config,
-        pipeline_settings,
+        pipeline_app,
     ):
         """Gate 097-TEMP not empty logs warning but pipeline continues."""
         mock_ingest.return_value = StepReport(name="ingest")
@@ -228,7 +232,7 @@ class TestPipelineRun:
         ):
             mock_verify.return_value = (StepReport(name="verify"), [])
 
-            pipeline = Pipeline(pipeline_config, pipeline_settings, observers=[])
+            pipeline = Pipeline(pipeline_app)
             report = pipeline.run()
 
         # Pipeline continued despite gate warning
@@ -275,7 +279,7 @@ class TestCrashRecovery:
         (tmp_path / "097-TEMP").mkdir()
         settings = MagicMock()
 
-        pipeline = Pipeline(self._make_config(tmp_path), settings, dry_run=False)
+        pipeline = Pipeline(AppContext(config=self._make_config(tmp_path), settings=settings, event_bus=EventBus()))
         pipeline._recover_from_previous_run(lockout_path=lockout)
 
         assert not lockout.exists()
@@ -289,7 +293,7 @@ class TestCrashRecovery:
         (tmp_path / "097-TEMP").mkdir()
         settings = MagicMock()
 
-        pipeline = Pipeline(self._make_config(tmp_path), settings, dry_run=False)
+        pipeline = Pipeline(AppContext(config=self._make_config(tmp_path), settings=settings, event_bus=EventBus()))
         pipeline._recover_from_previous_run(lockout_path=lockout)
 
         assert lockout.exists()
@@ -311,7 +315,7 @@ class TestCrashRecovery:
 
         config = self._make_config(tmp_path)
         config.disks = [disk_config]  # inject disk with orphan directly
-        pipeline = Pipeline(config, settings, dry_run=False)
+        pipeline = Pipeline(AppContext(config=config, settings=settings, event_bus=EventBus()))
         pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")
 
         assert not orphan.exists()
@@ -326,7 +330,7 @@ class TestCrashRecovery:
 
         settings = MagicMock()
 
-        pipeline = Pipeline(self._make_config(tmp_path), settings, dry_run=False)
+        pipeline = Pipeline(AppContext(config=self._make_config(tmp_path), settings=settings, event_bus=EventBus()))
         pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")
 
         assert not orphan.exists()
@@ -345,7 +349,7 @@ class TestCrashRecovery:
 
         config = self._make_config(tmp_path)
         config.disks = [disk_config]
-        pipeline = Pipeline(config, MagicMock(), dry_run=False)
+        pipeline = Pipeline(AppContext(config=config, settings=MagicMock(), event_bus=EventBus()))
 
         with patch("shutil.rmtree", side_effect=OSError("device busy")):
             cleaned = pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")
@@ -366,7 +370,7 @@ class TestCrashRecovery:
 
         config = self._make_config(tmp_path)
         config.disks = [disk_config]
-        pipeline = Pipeline(config, MagicMock(), dry_run=False)
+        pipeline = Pipeline(AppContext(config=config, settings=MagicMock(), event_bus=EventBus()))
 
         with patch("pathlib.Path.iterdir", side_effect=OSError("io error")):
             cleaned = pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")
@@ -378,7 +382,7 @@ class TestCrashRecovery:
         (tmp_path / "097-TEMP").mkdir()
         # No orphan files, ingest dir absent → total cleaned = 0.
         settings = MagicMock()
-        pipeline = Pipeline(self._make_config(tmp_path), settings, dry_run=False)
+        pipeline = Pipeline(AppContext(config=self._make_config(tmp_path), settings=settings, event_bus=EventBus()))
         cleaned = pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")
         assert cleaned == 0
 
@@ -392,7 +396,7 @@ class TestCrashRecovery:
 
         (tmp_path / "097-TEMP").mkdir()
 
-        pipeline = Pipeline(self._make_config(tmp_path), MagicMock(), dry_run=False)
+        pipeline = Pipeline(AppContext(config=self._make_config(tmp_path), settings=MagicMock(), event_bus=EventBus()))
 
         with patch.object(Path, "unlink", side_effect=OSError("read-only")):
             cleaned = pipeline._recover_from_previous_run(lockout_path=lockout)

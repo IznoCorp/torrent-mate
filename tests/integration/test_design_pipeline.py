@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.naming_patterns import PATTERNS
 from personalscraper.pipeline_steps import DEFAULT_STEPS
 from personalscraper.scraper.run import run_scrape
@@ -91,7 +92,7 @@ class TestScrapeFastSkipContract:
             patch("personalscraper.scraper.run.Scraper") as MockScraper,
             caplog.at_level(logging.INFO, logger="scraper.run"),
         ):
-            report = run_scrape(settings, config=config)
+            report = run_scrape(settings, config=config, event_bus=EventBus())
 
         # Pin 1: no Scraper instance constructed.
         MockScraper.assert_not_called()
@@ -142,7 +143,7 @@ class TestCleanFastSkipContract:
         clean_show.mkdir()
 
         with caplog.at_level(logging.INFO, logger="process.run"):
-            report = run_clean(settings, dry_run=False, config=config)
+            report = run_clean(settings, dry_run=False, config=config, event_bus=EventBus())
 
         # Fast-skip: no polluted folders detected → reclean not called.
         assert not _has_polluted_folders(movies_dir)
@@ -184,7 +185,7 @@ class TestCleanFastSkipContract:
         assert _has_polluted_folders(movies_dir), "polluted folder must be detected BEFORE reclean runs"
 
         with caplog.at_level(logging.INFO, logger="process.run"):
-            report = run_clean(settings, dry_run=False, config=config)
+            report = run_clean(settings, dry_run=False, config=config, event_bus=EventBus())
 
         # After reclean: folder was renamed, pollution is gone.
         assert not _has_polluted_folders(movies_dir), "reclean must clean the polluted folder"
@@ -234,8 +235,8 @@ class TestIdempotenceContract:
             patch("personalscraper.scraper.run.Scraper"),
             caplog.at_level(logging.INFO, logger="scraper.run"),
         ):
-            report1 = run_scrape(settings, config=config)
-            report2 = run_scrape(settings, config=config)
+            report1 = run_scrape(settings, config=config, event_bus=EventBus())
+            report2 = run_scrape(settings, config=config, event_bus=EventBus())
 
         # Both runs must produce the same zero-change outcome.
         assert report1.success_count == 0

@@ -24,18 +24,56 @@ Flags specific to ``download`` and ``purge`` only::
 from __future__ import annotations
 
 import subprocess
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
+from personalscraper.cli_helpers import _build_app_context
+from personalscraper.core.event_bus import current_correlation_id
 from personalscraper.logger import get_logger
 from personalscraper.trailers.orchestrator import TrailersOrchestrator
 from personalscraper.trailers.scanner import ScanItem, Scanner
 from personalscraper.trailers.state import TrailerStateLocked, TrailerStateStore
+
+
+@contextmanager
+def _trailers_boundary(config: Any):  # type: ignore[no-untyped-def]
+    """Build :class:`AppContext` + bind ``current_correlation_id`` for a trailers command.
+
+    Yields the :class:`AppContext` so the command body can pass
+    ``event_bus=app_context.event_bus`` to downstream orchestrators
+    (Sub-phase 2.5 boundary-only rule). The ``current_correlation_id``
+    ContextVar is bound to a fresh ``uuid4()`` for the duration of the
+    body and reset in the ``finally`` clause even on exception, mirroring
+    the lifecycle locked in :meth:`Pipeline.run` (Sub-phase 2.3).
+
+    Args:
+        config: The typed JSON5 ``Config`` loaded by ``cli.main``.
+
+    Yields:
+        The freshly-built :class:`AppContext` carrying ``config``,
+        ``settings``, and a fresh :class:`EventBus`.
+    """
+    # Deferred import to break the circular dependency: ``personalscraper.cli``
+    # mounts ``trailers.cli`` via ``add_typer`` at module-load time, so a
+    # top-level ``from personalscraper import cli`` would fail while ``cli``
+    # is still initialising.
+    from personalscraper import cli as cli_compat  # noqa: PLC0415
+
+    settings = cli_compat.get_settings()
+    app_context = _build_app_context(config, settings)
+    token = current_correlation_id.set(str(uuid4()))
+    try:
+        yield app_context
+    finally:
+        current_correlation_id.reset(token)
+
 
 log = get_logger("trailers.cli")
 
@@ -351,45 +389,46 @@ def scan(
     config = ctx.obj.config
     console = Console()
 
-    seasons_enabled = _seasons_enabled_from_config(config)
-    resolved_level, resolved_season = _resolve_level_and_season(level, season, seasons_enabled)
-    since_dt = _parse_since(since)
+    with _trailers_boundary(config):
+        seasons_enabled = _seasons_enabled_from_config(config)
+        resolved_level, resolved_season = _resolve_level_and_season(level, season, seasons_enabled)
+        since_dt = _parse_since(since)
 
-    scanner = Scanner(
-        min_file_size_bytes=_min_file_size(config),
-        seasons_enabled=seasons_enabled,
-    )
+        scanner = Scanner(
+            min_file_size_bytes=_min_file_size(config),
+            seasons_enabled=seasons_enabled,
+        )
 
-    staging_dir: Path = Path(str(config.paths.staging_dir))
-    items = scanner.scan_staging(staging_dir, config)
-    items = _apply_filters(
-        items,
-        config,
-        disk=disk,
-        category=category,
-        since_dt=since_dt,
-        level=resolved_level,
-        season=resolved_season,
-        limit=limit,
-    )
+        staging_dir: Path = Path(str(config.paths.staging_dir))
+        items = scanner.scan_staging(staging_dir, config)
+        items = _apply_filters(
+            items,
+            config,
+            disk=disk,
+            category=category,
+            since_dt=since_dt,
+            level=resolved_level,
+            season=resolved_season,
+            limit=limit,
+        )
 
-    log.info("trailers_scan_complete", count=len(items), disk=disk, category=category)
+        log.info("trailers_scan_complete", count=len(items), disk=disk, category=category)
 
-    if not items:
-        console.print("[green]No media without trailers found.[/green]")
-        return
+        if not items:
+            console.print("[green]No media without trailers found.[/green]")
+            return
 
-    table = Table(title=f"Media missing trailers ({len(items)} items)", show_header=True)
-    table.add_column("Title")
-    table.add_column("Type")
-    table.add_column("Season", justify="right")
-    table.add_column("Path")
+        table = Table(title=f"Media missing trailers ({len(items)} items)", show_header=True)
+        table.add_column("Title")
+        table.add_column("Type")
+        table.add_column("Season", justify="right")
+        table.add_column("Path")
 
-    for item in items:
-        season_col = str(item.season_number) if item.season_number is not None else "-"
-        table.add_row(item.title, item.media_type, season_col, str(item.path))
+        for item in items:
+            season_col = str(item.season_number) if item.season_number is not None else "-"
+            table.add_row(item.title, item.media_type, season_col, str(item.path))
 
-    console.print(table)
+        console.print(table)
 
 
 # ---------------------------------------------------------------------------
@@ -436,53 +475,58 @@ def download(
     config = ctx.obj.config
     console = Console()
 
-    seasons_enabled = _seasons_enabled_from_config(config)
-    resolved_level, resolved_season = _resolve_level_and_season(level, season, seasons_enabled)
-    since_dt = _parse_since(since)
+    with _trailers_boundary(config) as app_context:
+        seasons_enabled = _seasons_enabled_from_config(config)
+        resolved_level, resolved_season = _resolve_level_and_season(level, season, seasons_enabled)
+        since_dt = _parse_since(since)
 
-    # Build the filtered candidate list ONCE, then either show it (dry-run)
-    # or hand it to the orchestrator (real). Sharing the same _apply_filters
-    # path is the load-bearing invariant: it makes the dry-run faithfully
-    # represent the real run, and prevents the real run from silently
-    # ignoring CLI filters (see commit 28d9f75).
-    scanner = Scanner(
-        min_file_size_bytes=_min_file_size(config),
-        seasons_enabled=seasons_enabled,
-    )
-    staging_dir = Path(str(config.paths.staging_dir))
-    items = scanner.scan_staging(staging_dir, config)
-    items = _apply_filters(
-        items,
-        config,
-        disk=disk,
-        category=category,
-        since_dt=since_dt,
-        level=resolved_level,
-        season=resolved_season,
-        limit=limit,
-    )
+        # Build the filtered candidate list ONCE, then either show it (dry-run)
+        # or hand it to the orchestrator (real). Sharing the same _apply_filters
+        # path is the load-bearing invariant: it makes the dry-run faithfully
+        # represent the real run, and prevents the real run from silently
+        # ignoring CLI filters (see commit 28d9f75).
+        scanner = Scanner(
+            min_file_size_bytes=_min_file_size(config),
+            seasons_enabled=seasons_enabled,
+        )
+        staging_dir = Path(str(config.paths.staging_dir))
+        items = scanner.scan_staging(staging_dir, config)
+        items = _apply_filters(
+            items,
+            config,
+            disk=disk,
+            category=category,
+            since_dt=since_dt,
+            level=resolved_level,
+            season=resolved_season,
+            limit=limit,
+        )
 
-    if dry_run:
-        console.print(f"[yellow]DRY-RUN:[/yellow] Would attempt to download trailers for {len(items)} items.")
-        for item in items:
-            season_col = f" (season {item.season_number})" if item.season_number is not None else ""
-            console.print(f"  - {item.title}{season_col}  [dim]{item.path}[/dim]")
-        return
+        if dry_run:
+            console.print(f"[yellow]DRY-RUN:[/yellow] Would attempt to download trailers for {len(items)} items.")
+            for item in items:
+                season_col = f" (season {item.season_number})" if item.season_number is not None else ""
+                console.print(f"  - {item.title}{season_col}  [dim]{item.path}[/dim]")
+            return
 
-    orchestrator = TrailersOrchestrator(config=config, staging_dir=staging_dir)
-    counts = orchestrator.run(items=items)
+        orchestrator = TrailersOrchestrator(
+            config=config,
+            staging_dir=staging_dir,
+            event_bus=app_context.event_bus,
+        )
+        counts = orchestrator.run(items=items)
 
-    error_count = counts.get("error", 0)
+        error_count = counts.get("error", 0)
 
-    table = Table(title="Trailer download summary", show_header=True)
-    table.add_column("Status")
-    table.add_column("Count", justify="right")
-    for status, count in counts.items():
-        table.add_row(status.replace("_", " ").capitalize(), str(count))
-    console.print(table)
+        table = Table(title="Trailer download summary", show_header=True)
+        table.add_column("Status")
+        table.add_column("Count", justify="right")
+        for status, count in counts.items():
+            table.add_row(status.replace("_", " ").capitalize(), str(count))
+        console.print(table)
 
-    if error_count > 0:
-        raise typer.Exit(code=1)
+        if error_count > 0:
+            raise typer.Exit(code=1)
 
 
 # ---------------------------------------------------------------------------
@@ -540,108 +584,109 @@ def verify(
     config = ctx.obj.config
     console = Console()
 
-    seasons_enabled = _seasons_enabled_from_config(config)
-    resolved_level, resolved_season = _resolve_level_and_season(level, season, seasons_enabled)
-    since_dt = _parse_since(since)
+    with _trailers_boundary(config) as app_context:
+        seasons_enabled = _seasons_enabled_from_config(config)
+        resolved_level, resolved_season = _resolve_level_and_season(level, season, seasons_enabled)
+        since_dt = _parse_since(since)
 
-    min_size = _min_file_size(config)
-    allowed_exts = _allowed_extensions(config)
+        min_size = _min_file_size(config)
+        allowed_exts = _allowed_extensions(config)
 
-    scanner = Scanner(min_file_size_bytes=min_size, seasons_enabled=seasons_enabled)
+        scanner = Scanner(min_file_size_bytes=min_size, seasons_enabled=seasons_enabled)
 
-    # verify operates on the permanent library (scan_library); open the indexer DB
-    # so the scanner can query items without trailer_found attribute.
-    db_path = config.indexer.db_path
-    conn: sqlite3.Connection = open_db(db_path)
-    try:
-        # verify operates on the permanent library (scan_library)
-        items = scanner.scan_library(
-            conn=conn,
-            disk_filter=disk,
-            category_filter=category,
-        )
-    finally:
-        conn.close()
-
-    items = _filter_since(items, since_dt)
-    items = _apply_level_filter(items, resolved_level, resolved_season)
-
-    issues: list[tuple[str, str, str]] = []  # (title, trailer_path_str, issue_category)
-    ffprobe_error = False
-
-    for item in items:
-        media_name = item.path.name
-        if item.season_number is not None:
-            trailer_p = trailer_path_for_season(item.path, item.season_number, "mp4")
-        else:
-            trailer_p = trailer_path_for(item.path, media_name, media_type=item.media_type)
-
-        if not trailer_p.exists():
-            issues.append((item.title, str(trailer_p), "missing"))
-            continue
-
-        actual_size = trailer_p.stat().st_size
-        if actual_size < min_size:
-            issues.append((item.title, str(trailer_p), "undersized"))
-            continue
-
-        ext = trailer_p.suffix.lstrip(".").lower()
-        if ext not in allowed_exts:
-            issues.append((item.title, str(trailer_p), "wrong_extension"))
-            continue
-
-        if deep:
-            # Minimal duration probe via ffprobe. A more thorough playability
-            # check (codec, bitrate, audio track presence) would require parsing
-            # the full ffprobe JSON output and is intentionally out of scope.
-            log.debug(
-                "trailers_verify_deep_probe",
-                trailer_path=str(trailer_p),
+        # verify operates on the permanent library (scan_library); open the indexer DB
+        # so the scanner can query items without trailer_found attribute.
+        db_path = config.indexer.db_path
+        conn: sqlite3.Connection = open_db(db_path, event_bus=app_context.event_bus)
+        try:
+            # verify operates on the permanent library (scan_library)
+            items = scanner.scan_library(
+                conn=conn,
+                disk_filter=disk,
+                category_filter=category,
             )
-            try:
-                result = subprocess.run(
-                    [
-                        "ffprobe",
-                        "-v",
-                        "error",
-                        "-show_entries",
-                        "format=duration",
-                        "-of",
-                        "default=noprint_wrappers=1:nokey=1",
-                        str(trailer_p),
-                    ],
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
+        finally:
+            conn.close()
+
+        items = _filter_since(items, since_dt)
+        items = _apply_level_filter(items, resolved_level, resolved_season)
+
+        issues: list[tuple[str, str, str]] = []  # (title, trailer_path_str, issue_category)
+        ffprobe_error = False
+
+        for item in items:
+            media_name = item.path.name
+            if item.season_number is not None:
+                trailer_p = trailer_path_for_season(item.path, item.season_number, "mp4")
+            else:
+                trailer_p = trailer_path_for(item.path, media_name, media_type=item.media_type)
+
+            if not trailer_p.exists():
+                issues.append((item.title, str(trailer_p), "missing"))
+                continue
+
+            actual_size = trailer_p.stat().st_size
+            if actual_size < min_size:
+                issues.append((item.title, str(trailer_p), "undersized"))
+                continue
+
+            ext = trailer_p.suffix.lstrip(".").lower()
+            if ext not in allowed_exts:
+                issues.append((item.title, str(trailer_p), "wrong_extension"))
+                continue
+
+            if deep:
+                # Minimal duration probe via ffprobe. A more thorough playability
+                # check (codec, bitrate, audio track presence) would require parsing
+                # the full ffprobe JSON output and is intentionally out of scope.
+                log.debug(
+                    "trailers_verify_deep_probe",
+                    trailer_path=str(trailer_p),
                 )
-                # Flag corrupt files (non-zero returncode or empty output) and
-                # zero-duration files (ffprobe parsed a 0.0 or negative value).
-                duration_str = result.stdout.strip()
                 try:
-                    duration_val = float(duration_str) if duration_str else 0.0
-                except ValueError:
-                    duration_val = 0.0
-                if result.returncode != 0 or duration_val <= 0.0:
-                    issues.append((item.title, str(trailer_p), "unplayable"))
-            except (subprocess.SubprocessError, FileNotFoundError, OSError) as exc:
-                log.error("trailers_verify_ffprobe_error", trailer_path=str(trailer_p), error=str(exc))
-                ffprobe_error = True
+                    result = subprocess.run(
+                        [
+                            "ffprobe",
+                            "-v",
+                            "error",
+                            "-show_entries",
+                            "format=duration",
+                            "-of",
+                            "default=noprint_wrappers=1:nokey=1",
+                            str(trailer_p),
+                        ],
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
+                    )
+                    # Flag corrupt files (non-zero returncode or empty output) and
+                    # zero-duration files (ffprobe parsed a 0.0 or negative value).
+                    duration_str = result.stdout.strip()
+                    try:
+                        duration_val = float(duration_str) if duration_str else 0.0
+                    except ValueError:
+                        duration_val = 0.0
+                    if result.returncode != 0 or duration_val <= 0.0:
+                        issues.append((item.title, str(trailer_p), "unplayable"))
+                except (subprocess.SubprocessError, FileNotFoundError, OSError) as exc:
+                    log.error("trailers_verify_ffprobe_error", trailer_path=str(trailer_p), error=str(exc))
+                    ffprobe_error = True
 
-    if ffprobe_error:
-        console.print("[red]ffprobe error: one or more probes failed (exit 4).[/red]")
-        raise typer.Exit(code=4)
+        if ffprobe_error:
+            console.print("[red]ffprobe error: one or more probes failed (exit 4).[/red]")
+            raise typer.Exit(code=4)
 
-    if issues:
-        table = Table(title=f"Trailer issues ({len(issues)} found)", show_header=True)
-        table.add_column("Title")
-        table.add_column("Issue")
-        table.add_column("Path")
-        for title, path, issue in issues:
-            table.add_row(title, issue, path)
-        console.print(table)
-        raise typer.Exit(code=2)
+        if issues:
+            table = Table(title=f"Trailer issues ({len(issues)} found)", show_header=True)
+            table.add_column("Title")
+            table.add_column("Issue")
+            table.add_column("Path")
+            for title, path, issue in issues:
+                table.add_row(title, issue, path)
+            console.print(table)
+            raise typer.Exit(code=2)
 
-    console.print(f"[green]All {len(items)} trailers verified OK.[/green]")
+        console.print(f"[green]All {len(items)} trailers verified OK.[/green]")
 
 
 # ---------------------------------------------------------------------------
@@ -691,62 +736,63 @@ def purge(
     config = ctx.obj.config
     console = Console()
 
-    seasons_enabled = _seasons_enabled_from_config(config)
-    _resolve_level_and_season(level, season, seasons_enabled)  # validate args eagerly
-    _parse_since(since)  # validate date format eagerly
+    with _trailers_boundary(config):
+        seasons_enabled = _seasons_enabled_from_config(config)
+        _resolve_level_and_season(level, season, seasons_enabled)  # validate args eagerly
+        _parse_since(since)  # validate date format eagerly
 
-    state_file = Path(str(config.trailers.state_file))
-    state_store = TrailerStateStore(state_file=state_file)
+        state_file = Path(str(config.trailers.state_file))
+        state_store = TrailerStateStore(state_file=state_file)
 
-    entries = state_store.all_entries()
+        entries = state_store.all_entries()
 
-    # Identify orphan entries: those whose media_path no longer exists on disk
-    orphan_trailer_paths: list[Path] = []
-    for _key, entry_state in entries.items():
-        media_path_str = getattr(entry_state, "media_path", None)
-        if media_path_str and not Path(str(media_path_str)).exists():
-            trailer_path_str = getattr(entry_state, "trailer_path", None)
-            if trailer_path_str:
-                trailer_p = Path(str(trailer_path_str))
-                if trailer_p.exists():
-                    orphan_trailer_paths.append(trailer_p)
+        # Identify orphan entries: those whose media_path no longer exists on disk
+        orphan_trailer_paths: list[Path] = []
+        for _key, entry_state in entries.items():
+            media_path_str = getattr(entry_state, "media_path", None)
+            if media_path_str and not Path(str(media_path_str)).exists():
+                trailer_path_str = getattr(entry_state, "trailer_path", None)
+                if trailer_path_str:
+                    trailer_p = Path(str(trailer_path_str))
+                    if trailer_p.exists():
+                        orphan_trailer_paths.append(trailer_p)
 
-    # Apply --disk filter
-    if disk is not None:
-        disk_paths: list[Path] = []
-        try:
-            for d in config.disks:
-                if d.id == disk:
-                    disk_paths.append(Path(str(d.path)))
-        except (AttributeError, TypeError):
-            pass
-        if disk_paths:
-            orphan_trailer_paths = [
-                p for p in orphan_trailer_paths if any(str(p).startswith(str(dp)) for dp in disk_paths)
-            ]
+        # Apply --disk filter
+        if disk is not None:
+            disk_paths: list[Path] = []
+            try:
+                for d in config.disks:
+                    if d.id == disk:
+                        disk_paths.append(Path(str(d.path)))
+            except (AttributeError, TypeError):
+                pass
+            if disk_paths:
+                orphan_trailer_paths = [
+                    p for p in orphan_trailer_paths if any(str(p).startswith(str(dp)) for dp in disk_paths)
+                ]
 
-    if dry_run:
-        console.print(f"[yellow]DRY-RUN:[/yellow] Would purge {len(orphan_trailer_paths)} orphan trailer(s).")
+        if dry_run:
+            console.print(f"[yellow]DRY-RUN:[/yellow] Would purge {len(orphan_trailer_paths)} orphan trailer(s).")
+            if include_state:
+                console.print("[yellow]DRY-RUN:[/yellow] Would also wipe orphan state entries (--include-state).")
+            return
+
+        deleted = 0
+        for trailer_p in orphan_trailer_paths:
+            try:
+                trailer_p.unlink()
+                deleted += 1
+                log.info("trailers_purge_deleted", path=str(trailer_p))
+            except OSError as exc:
+                log.warning("trailers_purge_delete_failed", path=str(trailer_p), error=str(exc))
+
+        console.print(f"[green]Purged {deleted} orphan trailer(s).[/green]")
+
         if include_state:
-            console.print("[yellow]DRY-RUN:[/yellow] Would also wipe orphan state entries (--include-state).")
-        return
-
-    deleted = 0
-    for trailer_p in orphan_trailer_paths:
-        try:
-            trailer_p.unlink()
-            deleted += 1
-            log.info("trailers_purge_deleted", path=str(trailer_p))
-        except OSError as exc:
-            log.warning("trailers_purge_delete_failed", path=str(trailer_p), error=str(exc))
-
-    console.print(f"[green]Purged {deleted} orphan trailer(s).[/green]")
-
-    if include_state:
-        try:
-            purged_state = state_store.purge_orphans()
-        except TrailerStateLocked:
-            console.print("[red]Another trailers process is running; try again later.[/red]")
-            raise typer.Exit(1)
-        console.print(f"[green]Purged {purged_state} orphan state entries.[/green]")
-        log.info("trailers_purge_state_entries", count=purged_state)
+            try:
+                purged_state = state_store.purge_orphans()
+            except TrailerStateLocked:
+                console.print("[red]Another trailers process is running; try again later.[/red]")
+                raise typer.Exit(1)
+            console.print(f"[green]Purged {purged_state} orphan state entries.[/green]")
+            log.info("trailers_purge_state_entries", count=purged_state)

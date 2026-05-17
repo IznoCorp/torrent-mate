@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from tests.e2e.assertions import (
     assert_ingest_complete,
     assert_scrape_complete,
@@ -87,7 +88,7 @@ class TestMovieFullPipeline:
             # ── 2. V1 Ingest (REAL) ──
             from personalscraper.ingest.ingest import run_ingest
 
-            ingest_report = run_ingest(settings, dry_run=False, config=e2e_config)
+            ingest_report = run_ingest(settings, dry_run=False, config=e2e_config, event_bus=EventBus())
             print(
                 f"  V1 Ingest: {ingest_report.success_count} ingested, "
                 f"{ingest_report.skip_count} skipped, {ingest_report.error_count} errors"
@@ -100,7 +101,9 @@ class TestMovieFullPipeline:
             # ── 3. V2 Sort (REAL) ──
             from personalscraper.sorter.run import run_sort
 
-            sort_report = run_sort(settings, staging_dir=staging, config=e2e_config, dry_run=False)
+            sort_report = run_sort(
+                settings, staging_dir=staging, config=e2e_config, dry_run=False, event_bus=EventBus()
+            )
             print(f"  V2 Sort: {sort_report.success_count} sorted")
             assert_sort_complete(movies_dir, staging / "002-TVSHOWS", expected)
 
@@ -114,7 +117,9 @@ class TestMovieFullPipeline:
             # ── 4. V3 Scrape (REAL — calls TMDB API) ──
             from personalscraper.scraper.run import run_scrape
 
-            scrape_report = run_scrape(settings, config=e2e_config, dry_run=False, movies_only=True)
+            scrape_report = run_scrape(
+                settings, config=e2e_config, dry_run=False, movies_only=True, event_bus=EventBus()
+            )
             print(f"  V3 Scrape: {scrape_report.success_count} scraped")
             assert_scrape_complete(movies_dir, staging / "002-TVSHOWS", expected)
 
@@ -141,7 +146,9 @@ class TestMovieFullPipeline:
             # ── 5. V4 Verify (REAL) ──
             from personalscraper.verify.run import run_verify
 
-            verify_report, verified = run_verify(settings, config=e2e_config, dry_run=False, movies_only=True)
+            verify_report, verified = run_verify(
+                settings, config=e2e_config, dry_run=False, movies_only=True, event_bus=EventBus()
+            )
             print(f"  V4 Verify: {verify_report.success_count} valid, {verify_report.error_count} errors")
             # Filter verified results to test movies only
             test_results = [v for v in verified if any(n.lower() in str(v.media_path).lower() for n in names.values())]
@@ -150,7 +157,9 @@ class TestMovieFullPipeline:
             # ── 6. V5 Dispatch (DRY-RUN — disks are NEVER modified) ──
             from personalscraper.dispatch.run import run_dispatch
 
-            dispatch_report = run_dispatch(settings, config=e2e_config, dry_run=True, verified=verified)
+            dispatch_report = run_dispatch(
+                settings, config=e2e_config, dry_run=True, verified=verified, event_bus=EventBus()
+            )
             print(f"  V5 Dispatch (dry-run): {dispatch_report.success_count} would dispatch")
 
             # Note: golden dispatch assertions require DispatchResult objects,

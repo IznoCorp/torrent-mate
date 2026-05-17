@@ -7,6 +7,7 @@ orchestration of movie + tvshow processing.
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.scraper.run import _to_step_report, run_scrape
 from personalscraper.scraper.scraper import ScrapeResult
 from personalscraper.sorter.file_type import FileType
@@ -119,7 +120,7 @@ class TestRunScrape:
             mock_scraper.process_movies.return_value = []
             mock_scraper.process_tvshows.return_value = []
 
-            report = run_scrape(settings, config=config)
+            report = run_scrape(settings, config=config, event_bus=EventBus())
 
         assert report.name == "scrape"
         mock_scraper.process_movies.assert_called_once()
@@ -145,7 +146,7 @@ class TestRunScrape:
             mock_scraper = MockScraper.return_value
             mock_scraper.process_movies.return_value = []
 
-            run_scrape(settings, config=config, movies_only=True)
+            run_scrape(settings, config=config, movies_only=True, event_bus=EventBus())
 
         mock_scraper.process_movies.assert_called_once()
         mock_scraper.process_tvshows.assert_not_called()
@@ -170,7 +171,7 @@ class TestRunScrape:
             mock_scraper = MockScraper.return_value
             mock_scraper.process_tvshows.return_value = []
 
-            run_scrape(settings, config=config, tvshows_only=True)
+            run_scrape(settings, config=config, tvshows_only=True, event_bus=EventBus())
 
         mock_scraper.process_movies.assert_not_called()
         mock_scraper.process_tvshows.assert_called_once()

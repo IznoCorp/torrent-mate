@@ -20,6 +20,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.models import StepReport
 from personalscraper.process.run import _revert_unmatched_recleans, run_clean, run_process
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
@@ -156,7 +157,7 @@ class TestRunCleanDedupFailures:
         """Failed dedup merges land in error_count and a warning entry."""
         mock_reclean.return_value = StepReport(name="reclean")
         mock_dedup.return_value = (0, 3)  # 0 merged, 3 failed
-        report = run_clean(_make_settings(), _make_config(tmp_path))
+        report = run_clean(_make_settings(), _make_config(tmp_path), event_bus=EventBus())
 
         # 3 failures per category × 2 categories.
         assert report.error_count == 3 + 3
@@ -186,7 +187,7 @@ class TestRunProcessErrorIsolation:
         mock_scrape.return_value = StepReport(name="scrape")
         mock_cleanup.return_value = StepReport(name="cleanup")
 
-        clean, scrape, cleanup = run_process(_make_settings(), config=_make_config(tmp_path))
+        clean, scrape, cleanup = run_process(_make_settings(), config=_make_config(tmp_path), event_bus=EventBus())
 
         assert clean.name == "clean"
         assert clean.error_count == 1
@@ -208,7 +209,7 @@ class TestRunProcessErrorIsolation:
         mock_clean.return_value = StepReport(name="clean")
         mock_cleanup.return_value = StepReport(name="cleanup")
 
-        clean, scrape, cleanup = run_process(_make_settings(), config=_make_config(tmp_path))
+        clean, scrape, cleanup = run_process(_make_settings(), config=_make_config(tmp_path), event_bus=EventBus())
 
         assert scrape.name == "scrape"
         assert scrape.error_count == 1
@@ -229,7 +230,7 @@ class TestRunProcessErrorIsolation:
         mock_clean.return_value = StepReport(name="clean")
         mock_scrape.return_value = StepReport(name="scrape")
 
-        _clean, _scrape, cleanup = run_process(_make_settings(), config=_make_config(tmp_path))
+        _clean, _scrape, cleanup = run_process(_make_settings(), config=_make_config(tmp_path), event_bus=EventBus())
 
         assert cleanup.name == "cleanup"
         assert cleanup.error_count == 1
@@ -258,7 +259,7 @@ class TestRunProcessRevertWiring:
         mock_scrape.return_value = StepReport(name="scrape", unmatched_paths=["Clean Name (2024)"])
         mock_cleanup.return_value = StepReport(name="cleanup")
 
-        run_process(_make_settings(), config=_make_config(tmp_path), dry_run=True)
+        run_process(_make_settings(), config=_make_config(tmp_path), dry_run=True, event_bus=EventBus())
 
         assert mock_revert.called
         # Verify the rename map and unmatched names were forwarded.
@@ -284,6 +285,6 @@ class TestRunProcessRevertWiring:
         mock_scrape.return_value = StepReport(name="scrape", unmatched_paths=["Foo"])
         mock_cleanup.return_value = StepReport(name="cleanup")
 
-        run_process(_make_settings(), config=_make_config(tmp_path))
+        run_process(_make_settings(), config=_make_config(tmp_path), event_bus=EventBus())
 
         assert not mock_revert.called

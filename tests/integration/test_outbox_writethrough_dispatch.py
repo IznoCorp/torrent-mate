@@ -30,6 +30,7 @@ from personalscraper.conf import ids as CID
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.indexer.db import apply_migrations
@@ -253,7 +254,7 @@ def test_dispatch_movie_publishes_outbox_row_and_drains(
 
     # --- Build the MediaIndex (empty — new item, will be moved to disk1) ---
     index_path = tmp_path / "media.db"
-    index = MediaIndex(index_path)
+    index = MediaIndex(index_path, event_bus=EventBus())
 
     # --- Ensure data_dir exists ---
     test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
@@ -266,6 +267,7 @@ def test_dispatch_movie_publishes_outbox_row_and_drains(
         settings=_make_settings(),
         index=index,
         dry_run=False,
+        event_bus=EventBus(),
     )
     result = dispatcher.dispatch_movie(movie_dir, CID.MOVIES)
 
