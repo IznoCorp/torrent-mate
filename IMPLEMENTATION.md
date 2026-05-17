@@ -44,7 +44,7 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 | #   | Phase                                                         | File                                  | Status |
 | --- | ------------------------------------------------------------- | ------------------------------------- | ------ |
 | 1   | Capabilities Protocols (api/\_contracts.py + per-domain)      | phase-01-capabilities-protocols.md    | [x]    |
-| 2   | Fix DEV #2 — IDs propagation (regression tests first)         | phase-02-fix-dev2-ids-propagation.md  | [ ]    |
+| 2   | Fix DEV #2 — IDs propagation (regression tests first)         | phase-02-fix-dev2-ids-propagation.md  | [x]    |
 | 3   | Façades IMDb + RottenTomatoes (sur OMDbAdapter)               | phase-03-imdb-rt-facades.md           | [ ]    |
 | 4   | Drift validator renforcé (canonical uniqueid required)        | phase-04-drift-validator-hardening.md | [ ]    |
 | 5   | Xref enrichment sequential + \_resolve_external_ids           | phase-05-xref-enrichment.md           | [ ]    |
@@ -77,12 +77,12 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 
 ### Phase 2 — Fix DEV #2 IDs Propagation
 
-| Sub | Scope                                                      | SHA | Status |
-| --- | ---------------------------------------------------------- | --- | ------ |
-| 2.1 | Regression tests DEV #2 (RED)                              | -   | [ ]    |
-| 2.2 | Fix `_build_episode_map` payload (TVDB + TMDb episode IDs) | -   | [ ]    |
-| 2.3 | Fix `match_episode_files` passthrough                      | -   | [ ]    |
-| 2.4 | Fix `_generate_episode_nfos` use propagated IDs            | -   | [ ]    |
+| Sub | Scope                                                      | SHA     | Status |
+| --- | ---------------------------------------------------------- | ------- | ------ |
+| 2.1 | Regression tests DEV #2 (RED) + EpisodeInfo.external_ids   | 7ef4994 | [x]    |
+| 2.2 | Fix `_build_episode_map` payload (TVDB + TMDb episode IDs) | afd06b2 | [x]    |
+| 2.3 | Fix `match_episode_files` passthrough                      | 16aa51c | [x]    |
+| 2.4 | Fix `_generate_episode_nfos` use propagated IDs            | 306dfc7 | [x]    |
 
 ### Phase 3 — IMDb + RT Façades
 
