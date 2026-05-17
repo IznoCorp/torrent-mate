@@ -133,9 +133,7 @@ class TestVerifyDriftBranches:
         ep.write_bytes(b"\x00")
         # Phase 4 drift hardening: episode NFO must carry the canonical
         # uniqueid that matches tvshow.nfo (tmdb here).
-        ep.with_suffix(".nfo").write_text(
-            '<episodedetails><uniqueid type="tmdb">42</uniqueid></episodedetails>'
-        )
+        ep.with_suffix(".nfo").write_text('<episodedetails><uniqueid type="tmdb">42</uniqueid></episodedetails>')
 
         valid, reason = verify_tvshow_scrape_drift(show_dir, nfo, patterns)
         assert valid is True
