@@ -279,9 +279,53 @@ L'utilisateur a explicitement demandé un **enchainement automatique** des phase
 3. Update IMPLEMENTATION.md phase row : [x]
 4. Vérifier si découverte de phase N impacte phases N+1..15 (read forward).
    - Si oui : update phase file(s) + commit `docs(provider-ids): adjust plan after phase N`
-5. Si contexte saturé (estimation > 70% utilisé) : `/compact` avant phase suivante.
-6. Lancer immédiatement phase N+1 — pas de pause utilisateur.
+5. Lancer immédiatement phase N+1 — pas de pause utilisateur, pas de /compact manuel.
 ```
+
+### Gestion proactive du contexte (zéro pause /compact)
+
+Le système Claude Code **compresse automatiquement** les messages quand le contexte approche la limite ("your conversation with the user is not limited by the context window"). Pas besoin d'invoquer `/compact` à la main entre les phases.
+
+Pour minimiser la pression sur le contexte au quotidien, appliquer les 5 disciplines suivantes :
+
+1. **Dispatcher en subagent les opérations lourdes** :
+   - `/implement:check` (7 contrôles) → subagent (`general-purpose` ou agent dédié)
+   - Code review d'une grosse diff → subagent (`pr-review-toolkit:code-reviewer`)
+   - Analyse d'output de test long → subagent (`general-purpose`)
+   - Investigation cross-modules (où est utilisé X ?) → `Explore` agent
+   - Le subagent a son propre contexte ; il renvoie un résumé concis.
+
+2. **Lectures minimales en main session** :
+   - `Bash` avec `head -N`, `tail -N`, `grep -c`, `sed -n 'X,Yp'` au lieu de `Read` complet.
+   - Si un fichier dépasse 200 lignes et qu'on veut juste vérifier une chose : `grep` cible direct.
+   - `Read` avec `offset` + `limit` quand on connaît la zone d'intérêt.
+
+3. **Externaliser l'état sur disque immédiatement après chaque sub-phase** :
+   - Commit SHA → update IMPLEMENTATION.md sub-phase tracking row → "oublier" les détails internes.
+   - Si on a besoin du détail plus tard : `git show <SHA>` pour relire.
+   - Toutes les décisions architecturales : DESIGN.md (committed).
+   - Toutes les nouvelles règles : `feedback_*.md` memory (committed à la convention).
+
+4. **Ne pas re-lire les mêmes gros fichiers plusieurs fois** :
+   - DESIGN.md : lu UNE fois en début de session, puis re-grep cible.
+   - INDEX.md : lu UNE fois pour avoir la map, puis on accède directement aux phase files.
+   - Chaque phase file : lu UNE fois au début de la phase, puis on consulte par section si besoin.
+   - Si on doute → `grep "section-name" docs/features/provider-ids/...` pour cibler.
+
+5. **Trust auto-compression** :
+   - Pas de `/compact` manuel pré-emptif. Le système gère.
+   - Pas de "je dois libérer du contexte avant la phase suivante" — on continue.
+   - Si la compression auto retire un détail critique : tout est sur disque committed, on relit.
+
+**Anti-patterns à éviter pour le contexte** :
+
+| Anti-pattern                                                | Alternative                                             |
+| ----------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------ |
+| `Read` du DESIGN.md (600 lignes) après chaque sub-phase     | `grep` ciblé sur la section relevante                   |
+| Coller le contenu de 5 phase files dans une seule analyse   | Subagent qui lit les 5 et renvoie un résumé             |
+| Faire `make test` en main session sur l'output complet      | `make test 2>&1                                         | tail -50` pour ne voir que le résumé |
+| Re-lire IMPLEMENTATION.md complet à chaque sub-phase        | Read avec offset sur la sub-phase tracking row courante |
+| Logger en main session tous les détails de chaque sub-phase | Subagent qui exécute + commit + renvoie SHA + résumé    |
 
 ### Pauses AUTORISÉES uniquement dans ces 6 cas
 
