@@ -278,12 +278,32 @@ def parse_video(raw: dict[str, Any]) -> Video:
 def parse_episode(raw: dict[str, Any]) -> EpisodeInfo:
     """Map a single TMDB episode object → EpisodeInfo.
 
+    Populates :attr:`EpisodeInfo.external_ids` with the canonical TMDB
+    episode ID (``raw["id"]``) plus any IDs the optional
+    ``external_ids`` sub-object exposes (typically ``imdb_id``,
+    ``tvdb_id``) when the caller fetched a per-episode endpoint with
+    ``append_to_response=external_ids``. Season-level fetches do not
+    return the cross-references — :class:`IDCrossRef` (DESIGN §4) and
+    the phase-5 xref enrichment fill them in later.
+
     Args:
         raw: A single item from ``episodes[]`` in a season response.
 
     Returns:
         Populated EpisodeInfo.
     """
+    external_ids: dict[str, str] = {}
+    tmdb_episode_id = raw.get("id")
+    if tmdb_episode_id:
+        external_ids["tmdb"] = str(tmdb_episode_id)
+    ext = raw.get("external_ids")
+    if isinstance(ext, dict):
+        for key in ("imdb_id", "tvdb_id"):
+            value = ext.get(key)
+            if not value:
+                continue
+            short = key.split("_id", maxsplit=1)[0]
+            external_ids.setdefault(short, str(value))
     return EpisodeInfo(
         episode_number=raw["episode_number"],
         title=raw.get("name", "") or "",
@@ -292,6 +312,7 @@ def parse_episode(raw: dict[str, Any]) -> EpisodeInfo:
         runtime_minutes=raw.get("runtime") or None,
         season_number=int(raw.get("season_number") or 0),
         still_url=_build_image_url(raw.get("still_path"), "w300"),
+        external_ids=external_ids,
     )
 
 

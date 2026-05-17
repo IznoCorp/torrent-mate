@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 import requests
 
 from personalscraper.api._contracts import ApiError, MediaType
-from personalscraper.api.metadata._base import MediaDetails
+from personalscraper.api.metadata._base import EpisodeInfo, MediaDetails
 from personalscraper.api.metadata._tvdb_parsers import map_language
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
@@ -38,6 +38,36 @@ if TYPE_CHECKING:
     from personalscraper.scraper.artwork import ArtworkDownloader
 
 log = get_logger("scraper")
+
+
+def _episode_payload(ep: EpisodeInfo, episode_default_name: str) -> dict[str, Any]:
+    """Build the per-episode payload for ``_build_episode_map``.
+
+    Translates an :class:`EpisodeInfo` from the metadata layer into the
+    dict shape consumed downstream by :func:`match_episode_files` and
+    :meth:`TvServiceMixin._generate_episode_nfos`. The provider-side
+    IDs travel under the ``{provider}_episode_id`` keys (DEV #2 root
+    cause — these keys are what reach the NFO writer as ``tvdb_id`` /
+    ``tmdb_id`` / ``imdb_id``).
+
+    Args:
+        ep: Episode parsed from a TVDB / TMDB season response.
+        episode_default_name: Fallback prefix when ``ep.title`` is blank.
+
+    Returns:
+        Dict carrying the display title, the still-image path
+        placeholder, and the per-provider episode IDs surfaced by the
+        parser.
+    """
+    payload: dict[str, Any] = {
+        "title": ep.title or f"{episode_default_name} {ep.episode_number}",
+        "still_path": "",
+    }
+    for provider, value in ep.external_ids.items():
+        if not value:
+            continue
+        payload[f"{provider}_episode_id"] = value
+    return payload
 
 
 def _tvdb_series_to_show_data(
@@ -698,30 +728,12 @@ class TvServiceMixin:
         def _tvdb_fetch(season: int) -> list[tuple[int, dict[str, Any]]]:
             assert tvdb_id is not None
             detail = self._tvdb.get_series_episodes(tvdb_id, season)
-            return [
-                (
-                    ep.episode_number,
-                    {
-                        "title": ep.title or f"{episode_default_name} {ep.episode_number}",
-                        "still_path": "",
-                    },
-                )
-                for ep in detail.episodes
-            ]
+            return [(ep.episode_number, _episode_payload(ep, episode_default_name)) for ep in detail.episodes]
 
         def _tmdb_fetch(season: int) -> list[tuple[int, dict[str, Any]]]:
             assert tmdb_id is not None
             detail = self._tmdb.get_tv_season(tmdb_id, season)
-            return [
-                (
-                    ep.episode_number,
-                    {
-                        "title": ep.title or f"{episode_default_name} {ep.episode_number}",
-                        "still_path": "",
-                    },
-                )
-                for ep in detail.episodes
-            ]
+            return [(ep.episode_number, _episode_payload(ep, episode_default_name)) for ep in detail.episodes]
 
         candidates: list[tuple[str, int, Callable[[int], list[tuple[int, dict[str, Any]]]]]] = []
         if tvdb_id is not None:
