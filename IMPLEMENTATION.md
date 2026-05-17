@@ -248,6 +248,88 @@ Post-merge provider-ids → relancer le dispatch sur cette staging area (accepta
 
 **Mémoires utilisateur à recharger** (la skill `/implement:phase` doit en tenir compte à chaque sub-phase) : voir la section **Active memories** ci-dessus. Les 6 mémoires sont stockées dans `/Users/izno/.claude/projects/-Users-izno-dev-PersonnalScaper/memory/feedback_*.md`.
 
+## Autopilot discipline (mode chaînage automatique des 15 phases)
+
+L'utilisateur a explicitement demandé un **enchainement automatique** des phases sans pause inutile. Règles strictes pour ce mode :
+
+### Boucle d'exécution par sub-phase
+
+```
+1. Lire la sub-phase courante (depuis le phase file)
+2. Re-grep les file:line refs cités contre le codebase actuel (peut avoir bougé)
+3. TDD : écrire les tests RED en premier (cf. memory feedback_regression_test_per_bug)
+4. Implémenter le code pour faire passer les tests
+5. `make test` ciblé sur les tests nouveaux → GREEN
+6. Commit conventional : `<type>(provider-ids): <description>`
+7. Update IMPLEMENTATION.md sub-phase tracking : SHA + status [x]
+8. /implement:check sur la sub-phase → 7 contrôles
+9. Si check pass → sub-phase suivante. Si fail → fix immédiat, pas de defer.
+```
+
+### Boucle d'exécution par phase
+
+```
+1. Toutes sub-phases d'une phase [x] → quality gate :
+   - make lint (ruff + mypy) → 0 erreur
+   - make test → tous tests pass, 0 ERROR/FAILED
+   - make check (lint + test + module-size + typed-api)
+   - residual import grep si modules supprimés
+   - python -c "import personalscraper" smoke
+2. Commit gate : `chore(provider-ids): phase N gate — <résumé>`
+3. Update IMPLEMENTATION.md phase row : [x]
+4. Vérifier si découverte de phase N impacte phases N+1..15 (read forward).
+   - Si oui : update phase file(s) + commit `docs(provider-ids): adjust plan after phase N`
+5. Si contexte saturé (estimation > 70% utilisé) : `/compact` avant phase suivante.
+6. Lancer immédiatement phase N+1 — pas de pause utilisateur.
+```
+
+### Pauses AUTORISÉES uniquement dans ces 6 cas
+
+| Situation                                                   | Action                                               |
+| ----------------------------------------------------------- | ---------------------------------------------------- |
+| Rate-limit TVDB/TMDB/OMDb pendant re-scrape                 | Attendre fenêtre, reprendre                          |
+| API key absente (`OMDB_API_KEY`, etc.)                      | Demander à l'utilisateur, pas inventer               |
+| Cas non couvert par DESIGN §3 (séparation familles ambiguë) | Mini-brainstorm avec l'utilisateur                   |
+| PR review remonte point HORS scope plan                     | Demander : fix maintenant ou queue pour cycle séparé |
+| Test fixture HTTP recorded échoue (API drift)               | Demander : re-record ou mock                         |
+| Conflit entre 2 mémoires utilisateur                        | Demander arbitrage                                   |
+
+**Tout le reste est auto-pilot.** Ne jamais demander :
+
+- "Veux-tu que je passe à la phase suivante ?" — non, je passe.
+- "Devrais-je découper cette sub-phase ?" — oui si > 150 LOC ou > 1 commit logique, je découpe.
+- "Faut-il updater le DESIGN ?" — oui si une découverte le contredit, je update + commit.
+- "Faut-il committer ?" — oui après chaque sub-phase, faut commit.
+
+### Adaptation dynamique des phases suivantes
+
+Si pendant phase N je découvre qu'une décision change le scope de phase N+k :
+
+1. **Update le phase file concerné** (ajout sub-phase, modif acceptance criteria, etc.).
+2. **Update IMPLEMENTATION.md sub-phase tracking** (nouvelles rows).
+3. **Update DESIGN.md** si la décision architecturale change.
+4. Commit unique : `docs(provider-ids): adjust phase N+k after phase N findings`.
+5. Continuer phase N — ne PAS faire phase N+k en avance.
+
+### Découpage sur dépassement (au lieu de défer)
+
+Si sub-phase N.x déborde naturellement :
+
+- **NON** : "je le mets en TODO pour plus tard" ← `feedback_event_bus_no_deferral` interdit.
+- **OUI** : "je découpe en N.x.a + N.x.b" avec acceptance criteria split. Update IMPLEMENTATION.md.
+
+### Recovery post-/compact ou post-/clear
+
+À chaque nouveau démarrage de session :
+
+1. Read `IMPLEMENTATION.md` complet (tu y es).
+2. Identifier la dernière sub-phase `[x]` dans le sub-phase tracking → la suivante = à exécuter.
+3. Read le phase file correspondant.
+4. Re-grep les file:line refs contre le codebase actuel (vérification de sync).
+5. Continuer la boucle d'exécution par sub-phase.
+
+Aucune information critique n'est en mémoire conversationnelle — tout est sur disque committed ou dans `feedback_*.md`.
+
 ## Critical invariants (NE JAMAIS oublier pendant l'implémentation)
 
 Ces 5 règles s'appliquent à TOUTES les phases sans exception :
