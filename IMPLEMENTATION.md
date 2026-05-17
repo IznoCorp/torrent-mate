@@ -43,7 +43,7 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 
 | #   | Phase                                                         | File                                  | Status |
 | --- | ------------------------------------------------------------- | ------------------------------------- | ------ |
-| 1   | Capabilities Protocols (api/\_contracts.py + per-domain)      | phase-01-capabilities-protocols.md    | [ ]    |
+| 1   | Capabilities Protocols (api/\_contracts.py + per-domain)      | phase-01-capabilities-protocols.md    | [x]    |
 | 2   | Fix DEV #2 — IDs propagation (regression tests first)         | phase-02-fix-dev2-ids-propagation.md  | [ ]    |
 | 3   | Façades IMDb + RottenTomatoes (sur OMDbAdapter)               | phase-03-imdb-rt-facades.md           | [ ]    |
 | 4   | Drift validator renforcé (canonical uniqueid required)        | phase-04-drift-validator-hardening.md | [ ]    |
@@ -65,15 +65,15 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 
 ### Phase 1 — Capabilities Protocols
 
-| Sub  | Scope                                                                 | SHA | Status |
-| ---- | --------------------------------------------------------------------- | --- | ------ |
-| 1.1  | Add HasName to existing api/\_contracts.py                            | -   | [ ]    |
-| 1.2  | Metadata capabilities (11 atomiques) + decompose MetadataProvider     | -   | [ ]    |
-| 1.2b | Migration plan for MetadataProvider consumers                         | -   | [ ]    |
-| 1.3  | Tracker capabilities                                                  | -   | [ ]    |
-| 1.4  | Torrent capabilities (5 atomiques pour 7 méthodes)                    | -   | [ ]    |
-| 1.5  | Notify : migrate Notifier+HealthChecker existants vers \_contracts.py | -   | [ ]    |
-| 1.6  | Helpers + ProviderFeatureUnavailable                                  | -   | [ ]    |
+| Sub  | Scope                                                                 | SHA     | Status |
+| ---- | --------------------------------------------------------------------- | ------- | ------ |
+| 1.1  | Add HasName to existing api/\_contracts.py                            | 2e04938 | [x]    |
+| 1.2  | Metadata capabilities (11 atomiques) + decompose MetadataProvider     | bf5b676 | [x]    |
+| 1.2b | Migration plan for MetadataProvider consumers                         | b0b1ed8 | [x]    |
+| 1.3  | Tracker capabilities                                                  | d0f5e94 | [x]    |
+| 1.4  | Torrent capabilities (5 atomiques pour 7 méthodes)                    | 0c75f47 | [x]    |
+| 1.5  | Notify : migrate Notifier+HealthChecker existants vers \_contracts.py | 29f7ca0 | [x]    |
+| 1.6  | Helpers + ProviderFeatureUnavailable                                  | 723ee8f | [x]    |
 
 ### Phase 2 — Fix DEV #2 IDs Propagation
 
@@ -243,8 +243,8 @@ Post-merge provider-ids → relancer le dispatch sur cette staging area (accepta
 1. **Lire ce fichier en entier** (`IMPLEMENTATION.md`) — tu y es.
 2. Lire `docs/features/provider-ids/DESIGN.md` pour le contexte complet de la feature (13 sections, 567 lignes).
 3. Lire `docs/features/provider-ids/plan/INDEX.md` pour la vue d'ensemble des 15 phases.
-4. Lire `docs/features/provider-ids/plan/phase-01-capabilities-protocols.md` (prochaine phase à exécuter).
-5. Lancer `/implement:phase` pour démarrer Phase 1.
+4. Lire `docs/features/provider-ids/plan/phase-02-fix-dev2-ids-propagation.md` (prochaine phase à exécuter — Phase 1 [x] mergée gate 2e04938..723ee8f).
+5. Lancer `/implement:phase` pour démarrer Phase 2.
 
 **Mémoires utilisateur à recharger** (la skill `/implement:phase` doit en tenir compte à chaque sub-phase) : voir la section **Active memories** ci-dessus. Les 6 mémoires sont stockées dans `/Users/izno/.claude/projects/-Users-izno-dev-PersonnalScaper/memory/feedback_*.md`.
 
