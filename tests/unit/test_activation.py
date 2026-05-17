@@ -80,9 +80,14 @@ class TestResolveActive:
 class TestProviderCreds:
     """PROVIDER_CREDS structure tests."""
 
-    def test_has_10_entries(self) -> None:
-        """PROVIDER_CREDS has exactly 10 entries."""
-        assert len(PROVIDER_CREDS) == 10
+    def test_has_12_entries(self) -> None:
+        """PROVIDER_CREDS has exactly 12 entries.
+
+        The two extra entries (``imdb`` and ``rotten_tomatoes``) are
+        façades over the OMDb HTTP backend introduced by the
+        ``provider-ids`` feature ; they share OMDb's credential.
+        """
+        assert len(PROVIDER_CREDS) == 12
 
     def test_known_providers(self) -> None:
         """Expected provider keys are present."""
@@ -90,6 +95,8 @@ class TestProviderCreds:
             "tmdb",
             "tvdb",
             "omdb",
+            "imdb",
+            "rotten_tomatoes",
             "trakt",
             "qbittorrent",
             "transmission",
@@ -99,3 +106,14 @@ class TestProviderCreds:
             "healthchecks",
         }
         assert set(PROVIDER_CREDS) == expected
+
+    def test_imdb_and_rt_share_omdb_key(self) -> None:
+        """The IMDb and Rotten Tomatoes façades share the OMDb credential.
+
+        Both façades go through the same ``OMDbAdapter`` instance at
+        construction time, so the credential mapping must agree —
+        provisioning either is gated on ``OMDB_API_KEY`` alone.
+        """
+        assert PROVIDER_CREDS["imdb"] == ["OMDB_API_KEY"]
+        assert PROVIDER_CREDS["rotten_tomatoes"] == ["OMDB_API_KEY"]
+        assert PROVIDER_CREDS["omdb"] == ["OMDB_API_KEY"]
