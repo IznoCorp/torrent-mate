@@ -22,7 +22,7 @@
 
 ## Codebase sync notes (post contre-analyse 2026-05-17)
 
-Le DESIGN initial référence un snapshot du codebase (HEAD `8ef2c87`) antérieur aux features mergées récemment (api-unify v0.11.0, pipeline-obs v0.13.0, event-bus v0.14.0). Sync vérifiée par grep direct sur HEAD `ec44b3e` :
+Le DESIGN initial référence un snapshot du codebase (HEAD `8ef2c87`) antérieur aux features mergées récemment (api-unify v0.11.0, pipeline-obs v0.13.0, event-bus v0.14.0). **Sync vérifiée par grep direct (tous les file:line refs ci-dessous validés sur `feat/provider-ids` HEAD le plus récent — chaque exécution de phase doit re-vérifier au cas où le code aurait bougé entretemps) :**
 
 - **`_build_episode_map`** def à `tv_service.py:605` ; les 2 inner functions à modifier (phase 2.2) sont `_tvdb_fetch` (`:698-711`) et `_tmdb_fetch` (`:712-725`) — payloads actuels `{"title", "still_path": ""}`.
 - `_generate_episode_nfos` à `tv_service.py:818` (def).
@@ -32,7 +32,7 @@ Le DESIGN initial référence un snapshot du codebase (HEAD `8ef2c87`) antérieu
 - `api/_contracts.py` existe avec 5 classes (`MediaType`, `ProviderName`, `AuthMode`, `ApiError`, `CircuitOpenError`) — phase 1.1 **ajoute** `HasName`.
 - `MetadataProvider` Protocol monolithique à `api/metadata/_base.py:259` avec **8 méthodes publiques** (`search`, `get_details`, `get_artwork_urls`, `get_keywords`, `get_videos`, `get_season`, `get_notations`, `get_recommendations`) — phase 1.2 décompose en **11 capabilities** (8 méthodes + 2 nouveaux `IDValidator`/`IDCrossRef` + 1 split `get_details` → `Movie`/`Tv` DetailsProvider). Décision Option A : capabilities atomiques pour les 4 méthodes "extras" (`ArtworkProvider`, `KeywordProvider`, `VideoProvider`, `RecommendationProvider`).
 - `TrackerClient` Protocol à `api/tracker/_base.py:102` (méthodes `search`, `get_categories`) — phase 11 drop + LaCale/C411 composent les 4 capabilities.
-- `TorrentClient` Protocol à `api/torrent/_base.py:43` avec **7 méthodes** (`get_completed`, `get_all_hashes`, `is_seeding`, `get_content_path`, `pause`, `resume`, `delete`) — phase 13 drop. Note : `is_seeding`, `pause`, `resume`, `delete` ne sont pas couverts par les 3 capabilities initiales (`TorrentLister`, `TorrentInspector`, `AuthenticatedClient`) — à raffiner pendant la phase 13 (probable ajout `TorrentController` / `TorrentStateInspector`).
+- `TorrentClient` Protocol à `api/torrent/_base.py:43` avec **7 méthodes** (`get_completed`, `get_all_hashes`, `is_seeding`, `get_content_path`, `pause`, `resume`, `delete`) — phase 13 drop. Décomposé en **5 capabilities atomiques** (`TorrentLister`, `TorrentInspector`, `AuthenticatedClient`, `TorrentStateInspector`, `TorrentController`) — voir phase 1.4 + phase 13.
 - **`api/notify/_base.py` contient déjà** `Notifier(Protocol)` à `:17` (`send`, `send_report`) ET `HealthChecker(Protocol)` à `:35` (`ping_start`, `ping_success`, `ping_fail`) — pas monolithique, déjà capability-style. **Phase 1.5 + 14 ne créent rien de nouveau** : juste migrent les 2 Protocols vers `_contracts.py`, ajoutent `@runtime_checkable`, rendent la composition explicite sur `TelegramNotifier` (`telegram.py:49`, pas `TelegramClient`) et `HealthcheckClient` (`healthchecks.py:46`). Noms et signatures **inchangés**.
 - `OverrideRule.imdb_id` existe (`conf/models/preferences.py:82`) ; **aucun import de `OverrideRule` hors `conf/models/`** — suppression triviale. Pas de `config/api.json5` (le fichier référencé dans le DESIGN n'existe pas).
 - `Notations` est une dataclass `_base.py:149` avec `provider`, `source`, `score`, `votes_count` — singulière malgré le nom au pluriel. `list[Notations]` = multi-source. Phase 6.1 utilise ce type tel quel.
@@ -238,7 +238,43 @@ Post-merge provider-ids → relancer le dispatch sur cette staging area (accepta
 
 ## Next action
 
-1. Attendre fin des modifs manuelles utilisateur sur les phase files.
-2. Au signal utilisateur : lancer contre-analyse complète (cohérence DESIGN ↔ phases ↔ codebase actuel ↔ memories).
-3. Adapter / corriger les phase files si nécessaire.
-4. Puis `/implement:phase` pour démarrer Phase 1 (Capabilities Protocols).
+**Démarrage de session (fresh `/clear`)** :
+
+1. **Lire ce fichier en entier** (`IMPLEMENTATION.md`) — tu y es.
+2. Lire `docs/features/provider-ids/DESIGN.md` pour le contexte complet de la feature (13 sections, 567 lignes).
+3. Lire `docs/features/provider-ids/plan/INDEX.md` pour la vue d'ensemble des 15 phases.
+4. Lire `docs/features/provider-ids/plan/phase-01-capabilities-protocols.md` (prochaine phase à exécuter).
+5. Lancer `/implement:phase` pour démarrer Phase 1.
+
+**Mémoires utilisateur à recharger** (la skill `/implement:phase` doit en tenir compte à chaque sub-phase) : voir la section **Active memories** ci-dessus. Les 6 mémoires sont stockées dans `/Users/izno/.claude/projects/-Users-izno-dev-PersonnalScaper/memory/feedback_*.md`.
+
+## Critical invariants (NE JAMAIS oublier pendant l'implémentation)
+
+Ces 5 règles s'appliquent à TOUTES les phases sans exception :
+
+1. **Séparation stricte des familles d'IDs** — TVDB / TMDB / IMDb sont 3 familles distinctes. `<uniqueid type="tvdb">` contient un **vrai** ID TVDB ; pas de cross-write. Cf. memory `feedback_multi_provider_ids_separation`.
+2. **Hiérarchie scrape canonique fixe** — TVDB primaire → TMDB info+fallback → IMDb info (jamais primary scrape). Cf. DESIGN §3.
+3. **Idempotence par famille** — chaque step pipeline peut backfill une famille sans écraser les autres. Cf. DESIGN §3 invariants.
+4. **Pre-1.0 : pas de retro-compat, pas de scripts génériques** — toute modif schema/config/NFO appliquée directement à l'unique instance dans le même PR. Cf. memory `feedback_no_backcompat_before_v1`.
+5. **TDD strict pour les bugs** — tests RED qui reproduisent le bug AVANT le fix. Cf. memory `feedback_regression_test_per_bug`.
+
+## Hard gate (interdictions explicites)
+
+- **Ne PAS différer** un item du DESIGN (`feedback_event_bus_no_deferral`). Si une phase déborde → découper en sub-phases additionnelles, jamais "remettre à plus tard".
+- **Ne PAS commiter** sans avoir vérifié les file:line refs cités dans la sub-phase contre le codebase actuel (le code a peut-être bougé depuis la rédaction du plan — re-grep avant de toucher).
+- **Ne PAS ajouter** de capability hors des 11 metadata / 4 tracker / 5 torrent / 2 notify définies. Si un besoin émerge → re-brainstorm.
+- **Ne PAS sauter** le commit `chore({codename}): phase N gate` à la fin d'une phase (cf. `CLAUDE.md` Phase Gate Checklist).
+
+## Session-start cheat sheet
+
+| Question                                       | Réponse                                                                                                   |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Quelle branche ?                               | `feat/provider-ids` (créée par `b980433`)                                                                 |
+| Quelle version ?                               | `0.15.0` (bumpée depuis 0.14.0, minor Y+1)                                                                |
+| Combien de phases ?                            | 15                                                                                                        |
+| Combien de capabilities à créer ?              | 22 Protocols (11 metadata + 4 tracker + 5 torrent + 2 notify migrés) + 1 helper (HasName)                 |
+| Quel est le bug initial ?                      | DEV #2 du pipeline-run 2026-05-17-09h24 — NFOs épisode sans `<uniqueid>` (root cause 5 layers, DESIGN §1) |
+| Quels shows en staging attendent un dispatch ? | 8 (voir Pipeline-run pending ci-dessus)                                                                   |
+| Quelles features sont prerequis ?              | event-bus (mergée v0.14.0), pipeline-obs (v0.13.0), api-unify (v0.11.0) — toutes sur main                 |
+| Quel merge mode ?                              | manual (`gh pr merge --squash` à la fin)                                                                  |
+| Où sont les 6 mémoires utilisateur ?           | `/Users/izno/.claude/projects/-Users-izno-dev-PersonnalScaper/memory/feedback_*.md`                       |

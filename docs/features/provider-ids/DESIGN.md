@@ -570,7 +570,7 @@ Une fois cette feature mergée :
 2. `personalscraper process` sur un nouveau show TV produit des NFOs épisode avec au minimum la famille canonique + IMDb cross-ref.
 3. `personalscraper indexer --backfill-ids` scanne toute la library et comble les gaps IDs et ratings sans toucher les familles canoniques.
 4. La BDD `library.db` ne contient plus les colonnes legacy `tmdb_id`/`imdb_id`/`tvdb_id`. Les requêtes existantes (`library-search`, `library-report`, trailer scan, override rules) fonctionnent via `external_ids_json`.
-5. `OverrideRule.imdb_id` n'existe plus dans `config/api.json5`. La config réelle de l'instance a été migrée dans le même PR.
+5. `OverrideRule.imdb_id` n'existe plus dans `conf/models/preferences.py` (le fichier `config/api.json5` n'a jamais existé ; aucun import de `OverrideRule` hors `conf/models/` → suppression triviale, aucune config réelle à migrer).
 6. `api/metadata/`, `api/tracker/`, `api/torrent/`, `api/notify/` exposent des capabilities `Protocol` composées. Aucun Protocol monolithique restant.
 7. `TrackerRegistry.search_all(query, media_type="movie_french")` utilise `priority_by_media_type` quand présent.
 8. Tests pass à 100%, coverage ≥ 90% sur les lignes touchées.
