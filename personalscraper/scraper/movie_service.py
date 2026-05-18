@@ -9,13 +9,14 @@ from typing import TYPE_CHECKING, Any
 
 import requests
 
-from personalscraper.api.metadata._base import MediaDetails
+from personalscraper.api.metadata._base import MediaDetails, Notations
 from personalscraper.logger import get_logger
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
 from personalscraper.scraper._shared import ScrapeResult, _find_video_file
 from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.confidence import LOW_CONFIDENCE
 from personalscraper.scraper.rename_service import _cleanup_stale_files, _merge_dirs
+from personalscraper.scraper.tv_service import _safe_get_rating
 from personalscraper.text_utils import sanitize_filename
 
 if TYPE_CHECKING:
@@ -179,6 +180,94 @@ class MovieServiceMixin:
     _check_missing_movie_artwork: "Callable[..., list[str]]"
     _recover_movie_artwork: "Callable[..., None]"
     _repair_movie_dir: "Callable[..., bool]"
+
+    def _resolve_external_ids(
+        self,
+        canonical_provider: str,
+        movie_ids: dict[str, str],
+        expected_title: str,
+        expected_year: int | None,
+    ) -> tuple[dict[str, str], list["Notations"]]:
+        """Resolve trusted cross-provider IDs + ratings for a movie.
+
+        Mirror of the TV-side
+        :meth:`personalscraper.scraper.tv_service.TvServiceMixin._resolve_external_ids`.
+        Same Q5=B contract — non-canonical IDs must pass the
+        corresponding façade's ``validate_id`` to be retained. Movies
+        differ in two respects :
+
+        - There are no per-episode IDs to enrich, so the companion
+          ``_xref_enrichment`` step is unnecessary at the movie level.
+        - The canonical provider is virtually always TMDb (TVDB
+          coverage for movies is sparse) ; the canonical branch is
+          still parametrised so the rare TVDB-canonical movie route
+          remains supported.
+
+        Args:
+            canonical_provider: ``"tmdb"`` or ``"tvdb"`` — the family
+                whose ID is *not* re-validated.
+            movie_ids: ``{provider_name: provider_id}`` from the
+                canonical scrape's ``external_ids`` field.
+            expected_title: Movie title to feed each ``validate_id``.
+            expected_year: Release year, or ``None`` to skip the year
+                check.
+
+        Returns:
+            ``(trusted_external_ids, ratings)`` — see the TV docstring
+            for the contract details.
+        """
+        trusted: dict[str, str] = {}
+        ratings: list[Notations] = []
+        for family, provider_id in movie_ids.items():
+            if not provider_id:
+                continue
+            if family == canonical_provider:
+                trusted[family] = provider_id
+                continue
+            client = self._family_to_client(family)
+            if client is None:
+                log.warning("movie_xref_no_client_for_family", family=family)
+                continue
+            try:
+                accepted = client.validate_id(provider_id, expected_title, expected_year)
+            except Exception as exc:  # noqa: BLE001 — fail-soft contract
+                log.warning(
+                    "movie_xref_validate_id_failed",
+                    family=family,
+                    provider_id=provider_id,
+                    error=str(exc),
+                )
+                continue
+            if not accepted:
+                log.info(
+                    "movie_xref_validate_id_rejected",
+                    family=family,
+                    provider_id=provider_id,
+                    expected_title=expected_title,
+                    expected_year=expected_year,
+                )
+                continue
+            trusted[family] = provider_id
+
+        imdb_id = trusted.get("imdb")
+        if imdb_id:
+            imdb_client = getattr(self, "_imdb", None)
+            if imdb_client is not None:
+                ratings.extend(_safe_get_rating(imdb_client, imdb_id))
+            rt_client = getattr(self, "_rotten_tomatoes", None)
+            if rt_client is not None:
+                ratings.extend(_safe_get_rating(rt_client, imdb_id))
+
+        return trusted, ratings
+
+    def _family_to_client(self, family: str) -> Any | None:
+        """Map a provider family to the wired client / façade (or ``None``)."""
+        mapping: dict[str, Any] = {
+            "tvdb": getattr(self, "_tvdb", None),
+            "tmdb": getattr(self, "_tmdb", None),
+            "imdb": getattr(self, "_imdb", None),
+        }
+        return mapping.get(family)
 
     def _match_movie_candidates(
         self,
