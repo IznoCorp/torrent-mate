@@ -118,6 +118,7 @@ def match_episode_files(
     video_files: list[Path],
     api_episodes: dict[tuple[int, int], dict[str, Any]],
     episode_default_name: str = "Episode",
+    allow_synthetic_rename: bool = True,
 ) -> dict[Path, dict[str, Any]]:
     """Match video files to API episode data by season/episode numbers.
 
@@ -132,29 +133,39 @@ def match_episode_files(
        contain ``(max_season_in_catalog, episode)``, the file is remapped
        to that season with the provider's title.
     3. **Synthetic fallback** — no API entry available and no remap worked.
-       The title becomes ``"{episode_default_name} {episode}"`` and the
-       entry is flagged ``fallback=True`` so NFO generation can skip it.
-       The file stays under its labeled season (the release group's
-       numbering is honored even when it doesn't align with the catalog).
+       Behavior depends on ``allow_synthetic_rename``:
 
-    Only files with no extractable S/E are excluded — every parseable file
-    ends up in the returned dict so ``rename_episodes`` can move it under
-    ``Saison XX/``.
+       - ``True`` (legacy): the title becomes ``"{episode_default_name}
+         {episode}"`` and the entry is flagged ``fallback=True`` so NFO
+         generation can skip it. The file is propagated to
+         ``rename_episodes`` and lands under ``Saison NN/``.
+       - ``False`` (default contract per
+         ``metadata.episode_scraping_policy.allow_synthetic_rename_on_unmatched``):
+         the file is EXCLUDED from the result dict — no rename, no
+         ``Saison NN/`` created. The file stays at the show-folder root
+         with its raw filename. ``episode_unmatched_no_rename`` is logged
+         for observability.
 
     Args:
         video_files: List of video file paths.
         api_episodes: Mapping from (season, episode) to episode info dict
             with keys "title" and "still_path".
         episode_default_name: Prefix used to forge a synthetic title when
-            no API entry and no remap are available. Combined with the
-            episode number (e.g. ``"Episode" + " 8"`` → ``"Episode 8"``).
+            no API entry and no remap are available AND
+            ``allow_synthetic_rename=True``. Combined with the episode
+            number (e.g. ``"Episode" + " 8"`` → ``"Episode 8"``).
+        allow_synthetic_rename: When ``True`` (legacy), Pass-3 synthesizes
+            a title and the file is propagated for renaming. When
+            ``False`` (current default contract), Pass-3 excludes the file
+            entirely so it stays at its current location.
 
     Returns:
         Dict mapping video path to match info:
         {path: {"season": int, "episode": int, "api_title": str,
                 "still_path": str, "fallback": bool}}.
         ``fallback=True`` signals synthetic data (no provider record) —
-        downstream NFO generation should skip these entries.
+        downstream NFO generation should skip these entries. Files
+        unmatched while ``allow_synthetic_rename=False`` are absent.
     """
     matched: dict[Path, dict[str, Any]] = {}
     available_seasons = {s for s, _ in api_episodes.keys()}
@@ -205,7 +216,22 @@ def match_episode_files(
                 }
                 continue
 
-        # Pass 3: synthetic fallback — keep the labeled season, synthesize a title.
+        # Pass 3: synthetic fallback OR skip (per allow_synthetic_rename).
+        if not allow_synthetic_rename:
+            # Contract: file stays at the show-folder root with its raw
+            # filename. Nothing is added to ``matched`` so downstream
+            # ``rename_episodes`` never sees it.
+            log.warning(
+                "episode_unmatched_no_rename",
+                filename=video_path.name,
+                season=season,
+                episode=episode,
+                phantom_season=is_phantom_season,
+                available_seasons=sorted(available_seasons),
+            )
+            continue
+
+        # Legacy synthetic-rename branch (allow_synthetic_rename=True).
         if is_phantom_season:
             log.warning(
                 "episode_phantom_season_fallback",

@@ -14,6 +14,7 @@ from personalscraper.conf.models._base import _StrictModel
 __all__ = [
     "MetadataConfig",
     "MetadataDefaults",
+    "MetadataEpisodeScrapingPolicy",
     "MetadataPriorities",
     "MetadataProviderConfig",
     "NotifyConfig",
@@ -70,6 +71,37 @@ class MetadataDefaults(_StrictModel):
     prefer_local_title: bool = True
 
 
+class MetadataEpisodeScrapingPolicy(_StrictModel):
+    """Episode scraping behavior contract (provider lock + rename policy).
+
+    These flags lock the episode-scraping flow against a recurring regression:
+    previously, when a series matched on TVDB but its episodes were missing
+    (empty season payload), the code fell back to TMDB at episode level.
+    This violates the invariant "TVDB-first for series; once matched on a
+    provider, stay on that provider for its episodes".
+
+    Attributes:
+        lock_to_series_provider: When True (default), episodes are fetched
+            ONLY from the provider that matched the series. The
+            ``episode_scraping`` priority list is bypassed in this mode.
+            When False, the legacy behavior is restored: providers are tried
+            in order of ``priorities.episode_scraping`` regardless of which
+            provider matched the series.
+        allow_synthetic_rename_on_unmatched: When False (default), files
+            whose (season, episode) is absent from the locked provider's
+            catalog stay at the show-folder root with their raw filename —
+            no rename, no ``Saison NN/`` directory created. When True,
+            the legacy behavior is restored: file is renamed with a
+            synthetic ``"{episode_default_name} N"`` title.
+            NOTE: this is distinct from the case where the provider returns
+            an episode object with an empty/None ``name`` — that case
+            legitimately produces ``"Episode N"`` and is unaffected.
+    """
+
+    lock_to_series_provider: bool = True
+    allow_synthetic_rename_on_unmatched: bool = False
+
+
 class MetadataConfig(_StrictModel):
     """Top-level metadata.json5 model.
 
@@ -77,11 +109,13 @@ class MetadataConfig(_StrictModel):
         providers: Per-provider enable/disable toggles.
         priorities: Per-use-case priority ordering.
         defaults: Language and title preferences.
+        episode_scraping_policy: Provider-lock and rename-on-unmatched contract.
     """
 
     providers: dict[str, MetadataProviderConfig] = Field(default_factory=dict)
     priorities: MetadataPriorities = Field(default_factory=MetadataPriorities)
     defaults: MetadataDefaults = Field(default_factory=MetadataDefaults)
+    episode_scraping_policy: MetadataEpisodeScrapingPolicy = Field(default_factory=MetadataEpisodeScrapingPolicy)
 
 
 # ---------------------------------------------------------------------------

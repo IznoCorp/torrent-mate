@@ -720,6 +720,37 @@ class TvServiceMixin:
         # cross-reference fetch); the priority loop handles that gracefully by
         # skipping providers whose id is missing.
         tvdb_id = match.api_id if match.source == "tvdb" else None
+
+        # Provider lock contract (DESIGN scraping.md §Episode Provider Lock).
+        # When ``lock_to_series_provider`` is true (default), episodes are
+        # fetched ONLY from the provider that matched the series. We neutralize
+        # the other provider's id so ``_ordered_episode_providers`` won't
+        # build a fallback candidate for it. Pinned by
+        # ``TestEpisodeProviderLockContract`` in
+        # tests/integration/test_design_scraper.py.
+        lock_engaged = self.config is not None and self.config.metadata.episode_scraping_policy.lock_to_series_provider
+        if lock_engaged:
+            if match.source == "tvdb":
+                if tmdb_id is not None:
+                    log.info(
+                        "provider_lock_engaged",
+                        provider="tvdb",
+                        show_id=match.api_id,
+                        suppressed_provider="tmdb",
+                        suppressed_id=tmdb_id,
+                    )
+                tmdb_id = None
+            elif match.source == "tmdb":
+                if tvdb_id is not None:
+                    log.info(
+                        "provider_lock_engaged",
+                        provider="tmdb",
+                        show_id=match.api_id,
+                        suppressed_provider="tvdb",
+                        suppressed_id=tvdb_id,
+                    )
+                tvdb_id = None
+
         providers = self._ordered_episode_providers(tvdb_id, tmdb_id, episode_default_name)
         if not providers:
             return {}
@@ -916,16 +947,22 @@ class TvServiceMixin:
         Returns:
             Number of episodes renamed (0 if no matches).
         """
-        # NOTE: do NOT bail when api_episodes is empty. ``match_episode_files``
-        # has a Pass-3 synthetic fallback that places loose .mkv files into
-        # their labeled ``Saison NN/`` with a "Episode N" title — exactly what
-        # we want when the provider's season catalog is missing or stale
-        # (Top Chef Le Concours Parallèle S17 case). Early-exiting here left
-        # the file at the show root with no signal to verify/dispatch.
+        # Pass the unmatched-episode policy through to ``match_episode_files``.
+        # Default contract (``allow_synthetic_rename_on_unmatched=False``)
+        # excludes files with no API record from the result so they stay at
+        # the show-folder root with their raw filename — the user can
+        # intervene manually. Set to ``True`` to restore the legacy synthetic
+        # "Episode N" rename + Saison NN/ placement.
+        # Pinned by ``TestUnmatchedEpisodeNoRenameContract`` in
+        # tests/integration/test_design_scraper.py.
+        allow_synthetic_rename = (
+            self.config is None or self.config.metadata.episode_scraping_policy.allow_synthetic_rename_on_unmatched
+        )
         matched = match_episode_files(
             video_files,
             api_episodes,
             episode_default_name=episode_default_name,
+            allow_synthetic_rename=allow_synthetic_rename,
         )
         if not matched:
             return 0

@@ -661,6 +661,9 @@ class TestBuildEpisodeMap:
         )
         cfg = MagicMock()
         cfg.metadata.priorities.episode_scraping = {"tmdb": 1, "tvdb": 2}
+        # Explicit lock release — this test exercises the priority-list code path,
+        # which the default provider-lock policy bypasses.
+        cfg.metadata.episode_scraping_policy.lock_to_series_provider = False
         mixin = _make_mixin(tvdb=tvdb, tmdb=tmdb, config=cfg)
         match = MatchResult(api_id=42, api_title="X", api_year=2020, confidence=0.9, source="tvdb")
         out = mixin._build_episode_map(show, match, tmdb_id=100, episode_default_name="Episode")
