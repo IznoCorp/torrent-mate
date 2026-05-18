@@ -48,7 +48,7 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 | 3   | Façades IMDb + RottenTomatoes (sur OMDbAdapter)               | phase-03-imdb-rt-facades.md           | [x]    |
 | 4   | Drift validator renforcé (canonical uniqueid required)        | phase-04-drift-validator-hardening.md | [x]    |
 | 5   | Xref enrichment sequential + \_resolve_external_ids           | phase-05-xref-enrichment.md           | [x]    |
-| 6   | NFO ratings multi-source + uniqueid default canonical         | phase-06-nfo-ratings-multisource.md   | [ ]    |
+| 6   | NFO ratings multi-source + uniqueid default canonical         | phase-06-nfo-ratings-multisource.md   | [x]    |
 | 7   | DB schema — external_ids_json + ratings_json + canonical_prov | phase-07-db-schema-external-ids.md    | [ ]    |
 | 8   | Backfill mode + CLI + auto-trigger post-scrape                | phase-08-backfill-mode.md             | [ ]    |
 | 9   | Verify checker — 3 nouveaux checks                            | phase-09-verify-checker-extensions.md | [ ]    |
@@ -118,12 +118,12 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 
 ### Phase 6 — NFO Ratings Multi-Source
 
-| Sub | Scope                                   | SHA | Status |
-| --- | --------------------------------------- | --- | ------ |
-| 6.1 | `_add_ratings` accepte liste Notations  | -   | [ ]    |
-| 6.2 | Caller side pass multi-source           | -   | [ ]    |
-| 6.3 | `default="true"` selon canonical (Q6=A) | -   | [ ]    |
-| 6.4 | Tests golden NFO format Plex/Kodi       | -   | [ ]    |
+| Sub | Scope                                   | SHA     | Status |
+| --- | --------------------------------------- | ------- | ------ |
+| 6.1 | `_add_ratings` accepte liste Notations  | fc7aa25 | [x]    |
+| 6.2 | Caller side pass multi-source           | bacda30 | [x]    |
+| 6.3 | `default="true"` selon canonical (Q6=A) | 5841d22 | [x]    |
+| 6.4 | Tests golden NFO format Plex/Kodi       | cb61fb0 | [x]    |
 
 ### Phase 7 — DB Schema external_ids_json
 
