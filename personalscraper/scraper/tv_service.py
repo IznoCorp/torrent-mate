@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unicodedata
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -540,6 +541,59 @@ class TvServiceMixin:
         result.episodes_renamed = total_renamed
         result.action = "scraped"
         return result
+
+    def _augment_episode_nfo_with_xref(self, nfo_path: Path, info: dict[str, Any]) -> None:
+        """Append missing xref ``<uniqueid>`` rows to an existing episode NFO.
+
+        The phase-2 fix puts the canonical uniqueid on every NFO written
+        by a fresh scrape. This helper handles the symmetrical recovery
+        case : an NFO already on disk from a previous run may lack the
+        xref rows (TMDb if canonical was TVDB, vice versa) because the
+        xref enrichment pass had not yet landed when it was written.
+
+        The rewrite is strictly additive — every uniqueid family that
+        already exists in the NFO is left untouched, even if the
+        ``info`` dict carries a different value. The canonical row is
+        therefore safe : the NFO drives, the matched dict only fills
+        gaps. The NFO is rewritten only when at least one new tag
+        would be appended ; otherwise no I/O happens.
+
+        Args:
+            nfo_path: Path to an existing episode NFO.
+            info: Matched-dict entry for this episode — may carry
+                ``tvdb_episode_id`` / ``tmdb_episode_id`` /
+                ``imdb_episode_id`` keys.
+        """
+        try:
+            tree = ET.parse(nfo_path)  # noqa: S314 — trusted NFO we wrote earlier
+        except (ET.ParseError, OSError) as exc:
+            log.warning("xref_nfo_augment_parse_failed", path=str(nfo_path), error=str(exc))
+            return
+        root = tree.getroot()
+        existing_families = {(u.get("type") or "").strip().lower() for u in root.findall("uniqueid")}
+
+        candidates = {
+            "tvdb": info.get("tvdb_episode_id"),
+            "tmdb": info.get("tmdb_episode_id"),
+            "imdb": info.get("imdb_episode_id"),
+        }
+        added = False
+        for family, value in candidates.items():
+            if not value:
+                continue
+            if family in existing_families:
+                continue
+            element = ET.SubElement(root, "uniqueid")
+            element.set("type", family)
+            element.text = str(value)
+            added = True
+
+        if not added or self.dry_run:
+            return
+        try:
+            tree.write(nfo_path, encoding="utf-8", xml_declaration=True)
+        except OSError as exc:
+            log.warning("xref_nfo_augment_write_failed", path=str(nfo_path), error=str(exc))
 
     def _download_episode_thumb(
         self,
@@ -1110,6 +1164,13 @@ class TvServiceMixin:
             thumb_path = show_dir / season_dir_name / thumb_name
 
             if nfo_path.exists():
+                # Phase 5.4 : upgrade-in-place. An NFO already on disk
+                # may have been written by an earlier scrape that did
+                # not yet have the xref IDs available — append the
+                # ``<uniqueid type=xref>`` rows now without touching
+                # the existing canonical (and never overwriting an
+                # already-present xref value).
+                self._augment_episode_nfo_with_xref(nfo_path, info)
                 # Still download thumbnail if NFO exists but thumb doesn't
                 self._download_episode_thumb(still_path, thumb_path, season, episode)
                 continue
