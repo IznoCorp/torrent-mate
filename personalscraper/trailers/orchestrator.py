@@ -767,14 +767,23 @@ class TrailersOrchestrator:
         finally:
             if conn is not None:
                 conn.close()
+        import json as _json  # noqa: PLC0415
+
         for db_item, _disk, dispatch_path in rows:
             if not dispatch_path:
                 continue
             entry = _LibraryEntry(path=dispatch_path)
-            if db_item.tmdb_id is not None:
-                index[(db_item.category_id, str(db_item.tmdb_id))] = entry
-            if db_item.imdb_id:
-                index[(db_item.category_id, db_item.imdb_id)] = entry
+            # Migration 005 : IDs now live in ``external_ids_json``.
+            try:
+                external_ids = _json.loads(db_item.external_ids_json or "{}")
+            except _json.JSONDecodeError:
+                external_ids = {}
+            tmdb_series_id = external_ids.get("tmdb", {}).get("series_id")
+            imdb_series_id = external_ids.get("imdb", {}).get("series_id")
+            if tmdb_series_id:
+                index[(db_item.category_id, str(tmdb_series_id))] = entry
+            if imdb_series_id:
+                index[(db_item.category_id, imdb_series_id)] = entry
         log.debug("trailers_library_index_built", entries=len(index))
         return index
 
