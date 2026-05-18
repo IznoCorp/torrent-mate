@@ -414,22 +414,26 @@ class TestBuildLibraryIndex:
         cfg.indexer.db_path = db_path
         orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
 
-        # Build a mock row that mimics MediaItemRow with tmdb_id + imdb_id set.
+        # Build a mock row that mimics MediaItemRow with tmdb_id + imdb_id
+        # encoded in the migration-005 ``external_ids_json`` column.
         row = MagicMock()
-        row.tmdb_id = 550
-        row.imdb_id = "tt0137523"
+        row.external_ids_json = (
+            '{"tmdb": {"series_id": "550", "episode_id": null}, '
+            '"imdb": {"series_id": "tt0137523", "episode_id": null}}'
+        )
         row.category_id = "movies"
 
-        # Also add a row with empty dispatch_path → must be skipped (continue branch).
+        # Also add a row with empty dispatch_path → must be skipped.
         empty_row = MagicMock()
-        empty_row.tmdb_id = 999
-        empty_row.imdb_id = "tt9999999"
+        empty_row.external_ids_json = (
+            '{"tmdb": {"series_id": "999", "episode_id": null}, '
+            '"imdb": {"series_id": "tt9999999", "episode_id": null}}'
+        )
         empty_row.category_id = "movies"
 
-        # And a row with tmdb_id=None, imdb_id present — must add only imdb entry.
+        # And a row with tmdb absent, imdb present — must add only imdb entry.
         imdb_only = MagicMock()
-        imdb_only.tmdb_id = None
-        imdb_only.imdb_id = "tt0000001"
+        imdb_only.external_ids_json = '{"imdb": {"series_id": "tt0000001", "episode_id": null}}'
         imdb_only.category_id = "movies"
 
         rows = [
