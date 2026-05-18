@@ -389,7 +389,7 @@ class TestAnalyze:
                  external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json,
                  date_created, date_modified, date_metadata_refreshed,
                  is_locked, preferred_lang)
-            VALUES ('movie','Scraped','Scraped',NULL,NULL,'movies',NULL,NULL,NULL,'valid',NULL,?,?,?,0,'fr')
+            VALUES ('movie','Scraped','Scraped',NULL,NULL,'movies','{}',NULL,NULL,'valid',NULL,?,?,?,0,'fr')
             """,
             (now, now, now),
         )
