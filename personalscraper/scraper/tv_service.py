@@ -692,6 +692,92 @@ class TvServiceMixin:
             api_episodes.update(self._fetch_season_with_fallback(s_num, providers))
         return api_episodes
 
+    def _xref_enrichment(
+        self,
+        api_episodes: dict[tuple[int, int], dict[str, Any]],
+        canonical_provider: str,
+        tvdb_id: int | None,
+        tmdb_id: int | None,
+    ) -> None:
+        """Backfill the per-episode IDs of the non-canonical provider in place.
+
+        Once the canonical provider has populated ``api_episodes`` with
+        its own per-episode IDs (DEV #2 propagation, phase 2), this
+        sequential pass queries the *other* provider for the same
+        ``(season, episode)`` tuples and copies its ``external_ids``
+        into the payload. The merge is strictly additive — any key
+        already set in the payload is preserved, which keeps the
+        canonical scrape the source of truth (DESIGN §3 invariant —
+        no cross-contamination between provider families).
+
+        The pass is fail-soft. A xref-provider exception is caught
+        and logged ; the canonical scrape proceeds unchanged. Same
+        for the no-op cases :
+
+        - ``api_episodes`` empty (no seasons to enrich).
+        - ``tvdb_id`` / ``tmdb_id`` missing on the xref side (the
+          canonical scrape never resolved the cross-reference).
+        - Canonical provider is neither ``tvdb`` nor ``tmdb`` (defensive).
+
+        Args:
+            api_episodes: Mutable map ``(season, episode) → payload``
+                produced by :meth:`_build_episode_map`.
+            canonical_provider: ``"tvdb"`` or ``"tmdb"`` — the family
+                whose IDs are *not* re-fetched.
+            tvdb_id: Series-level TVDB id (canonical or cross-ref).
+            tmdb_id: Series-level TMDb id (canonical or cross-ref).
+        """
+        if not api_episodes:
+            return
+        season_nums = sorted({s for s, _ in api_episodes.keys()})
+
+        fetcher: Callable[[int, int], dict[int, dict[str, str]]]
+        if canonical_provider == "tvdb":
+            if tmdb_id is None:
+                return
+            fetcher = self._xref_fetch_tmdb_season
+            xref_id = tmdb_id
+        elif canonical_provider == "tmdb":
+            if tvdb_id is None:
+                return
+            fetcher = self._xref_fetch_tvdb_season
+            xref_id = tvdb_id
+        else:
+            log.warning("xref_unknown_canonical_provider", provider=canonical_provider)
+            return
+
+        for s_num in season_nums:
+            try:
+                xref_episodes = fetcher(xref_id, s_num)
+            except Exception as exc:  # noqa: BLE001 — fail-soft contract
+                log.warning(
+                    "xref_enrichment_failed",
+                    canonical=canonical_provider,
+                    xref_series_id=xref_id,
+                    season=s_num,
+                    error=str(exc),
+                )
+                continue
+            for ep_num, external_ids in xref_episodes.items():
+                key = (s_num, ep_num)
+                payload = api_episodes.get(key)
+                if payload is None:
+                    continue
+                for provider_name, value in external_ids.items():
+                    if not value:
+                        continue
+                    payload.setdefault(f"{provider_name}_episode_id", value)
+
+    def _xref_fetch_tmdb_season(self, tmdb_id: int, season: int) -> dict[int, dict[str, str]]:
+        """Return ``{episode_number: external_ids}`` from a TMDb season fetch."""
+        detail = self._tmdb.get_tv_season(tmdb_id, season)
+        return {ep.episode_number: dict(ep.external_ids) for ep in detail.episodes}
+
+    def _xref_fetch_tvdb_season(self, tvdb_id: int, season: int) -> dict[int, dict[str, str]]:
+        """Return ``{episode_number: external_ids}`` from a TVDB season fetch."""
+        detail = self._tvdb.get_series_episodes(tvdb_id, season)
+        return {ep.episode_number: dict(ep.external_ids) for ep in detail.episodes}
+
     def _ordered_episode_providers(
         self,
         tvdb_id: int | None,
