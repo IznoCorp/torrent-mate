@@ -109,18 +109,22 @@ FIELD_REGISTRY: dict[str, FieldSpec] = {
     "year": FieldSpec(column="media_item.year", field_type=FieldType.INT),
     "disk": FieldSpec(column="disk.label", field_type=FieldType.DISK_JOIN),
     "category": FieldSpec(column="media_item.category_id", field_type=FieldType.STR),
-    # provider-ids feature : legacy flat ID columns replaced by JSON path.
+    # provider-ids feature : legacy flat ID columns replaced by JSON path
+    # into ``external_ids_json``. ``CAST(... AS INTEGER)`` is applied for
+    # numeric providers so existing ``tmdb_id:>=N`` / ``tvdb_id:>=N``
+    # comparisons keep working ; IMDb stays STR because its IDs carry the
+    # ``tt`` prefix.
     "tmdb_id": FieldSpec(
-        column="json_extract(media_item.external_ids_json, '$.tmdb.series_id')",
-        field_type=FieldType.STR,
+        column="CAST(json_extract(media_item.external_ids_json, '$.tmdb.series_id') AS INTEGER)",
+        field_type=FieldType.INT,
     ),
     "imdb_id": FieldSpec(
         column="json_extract(media_item.external_ids_json, '$.imdb.series_id')",
         field_type=FieldType.STR,
     ),
     "tvdb_id": FieldSpec(
-        column="json_extract(media_item.external_ids_json, '$.tvdb.series_id')",
-        field_type=FieldType.STR,
+        column="CAST(json_extract(media_item.external_ids_json, '$.tvdb.series_id') AS INTEGER)",
+        field_type=FieldType.INT,
     ),
     "nfo": FieldSpec(
         column="media_item.nfo_status",
