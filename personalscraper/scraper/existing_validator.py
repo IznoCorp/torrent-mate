@@ -610,9 +610,9 @@ class ExistingValidatorMixin:
                 show_data = _coerce_to_show_data(self._tmdb.get_tv(tmdb_id))
                 root_api_episodes = _fetch_season_episodes(self._tmdb, tmdb_id, season_nums)
 
+            _cfg = getattr(self, "config", None)
             allow_synthetic_rename = (
-                getattr(self, "config", None) is None
-                or self.config.metadata.episode_scraping_policy.allow_synthetic_rename_on_unmatched
+                _cfg is None or _cfg.metadata.episode_scraping_policy.allow_synthetic_rename_on_unmatched
             )
             for (s_num, e_num), candidates in root_new.items():
                 if _dedup_and_move_root_episode(
@@ -718,9 +718,9 @@ class ExistingValidatorMixin:
             # otherwise the contract is enforced only on full scrapes and
             # bypassed on the (faster) repair path, leaving the Top Chef Le
             # Concours Parallèle S17 case mis-renamed.
+            _cfg = getattr(self, "config", None)
             allow_synthetic_rename = (
-                getattr(self, "config", None) is None
-                or self.config.metadata.episode_scraping_policy.allow_synthetic_rename_on_unmatched
+                _cfg is None or _cfg.metadata.episode_scraping_policy.allow_synthetic_rename_on_unmatched
             )
             matched = match_episode_files(
                 unorganized,

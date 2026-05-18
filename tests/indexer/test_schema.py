@@ -777,6 +777,94 @@ class TestLogRepo:
         assert fetched.status == "ok"
         assert fetched.finished_at == now + 30
 
+    def test_insert_scan_run_sweeps_stale_running_rows(self, conn: sqlite3.Connection) -> None:
+        """Stale ``running`` scan_run rows are aborted on next insert.
+
+        Regression for the BDD audit (P10): a new ``insert_scan_run``
+        marks any prior ``status='running'`` rows older than the stale
+        threshold as ``aborted``. Without the sweep, killed scans
+        accumulate as perpetually-running rows that confuse
+        ``library-status`` and the resume heuristics.
+        """
+        now = int(time.time())
+        stale_started = now - (7 * 3600)  # 7 hours ago — past the 6h cutoff
+        # Seed a stale row pretending a previous scan was killed.
+        stale_id = log_repo.insert_scan_run(
+            conn,
+            ScanRunRow(
+                id=0,
+                generation=1,
+                mode="quick",
+                disk_filter=None,
+                started_at=stale_started,
+                finished_at=None,
+                last_path=None,
+                status="running",
+                stats_json=None,
+            ),
+        )
+
+        # New scan starts. The sweep should fire as part of insert_scan_run.
+        log_repo.insert_scan_run(
+            conn,
+            ScanRunRow(
+                id=0,
+                generation=2,
+                mode="quick",
+                disk_filter=None,
+                started_at=now,
+                finished_at=None,
+                last_path=None,
+                status="running",
+                stats_json=None,
+            ),
+        )
+
+        stale = log_repo.get_scan_run_by_id(conn, stale_id)
+        assert stale is not None
+        assert stale.status == "aborted"
+        assert stale.finished_at == now
+
+    def test_insert_scan_run_does_not_sweep_recent_running_rows(self, conn: sqlite3.Connection) -> None:
+        """Recent ``status='running'`` rows must NOT be touched.
+
+        Two concurrent scans (legitimate parallel mode + quick) would
+        both be ``running`` ; the sweep must only target rows past the
+        6-hour staleness threshold.
+        """
+        now = int(time.time())
+        recent_id = log_repo.insert_scan_run(
+            conn,
+            ScanRunRow(
+                id=0,
+                generation=1,
+                mode="full",
+                disk_filter=None,
+                started_at=now - 300,  # 5 minutes ago — well within threshold
+                finished_at=None,
+                last_path=None,
+                status="running",
+                stats_json=None,
+            ),
+        )
+        log_repo.insert_scan_run(
+            conn,
+            ScanRunRow(
+                id=0,
+                generation=2,
+                mode="quick",
+                disk_filter=None,
+                started_at=now,
+                finished_at=None,
+                last_path=None,
+                status="running",
+                stats_json=None,
+            ),
+        )
+        recent = log_repo.get_scan_run_by_id(conn, recent_id)
+        assert recent is not None
+        assert recent.status == "running"  # untouched
+
     def test_insert_scan_event(self, conn: sqlite3.Connection) -> None:
         """Inserting a scan event succeeds and returns a positive rowid.
 

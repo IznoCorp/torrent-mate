@@ -114,6 +114,50 @@ def insert_season(conn: sqlite3.Connection, row: SeasonRow, *, ignore_conflict: 
     return rowid
 
 
+def upsert_season(conn: sqlite3.Connection, row: SeasonRow) -> int:
+    """Insert a season row or refresh the denormalized columns on conflict.
+
+    Differs from :func:`insert_season` with ``ignore_conflict=True``: on
+    a UNIQUE(item_id, number) conflict, this variant **updates**
+    ``episode_count``, ``has_poster`` and ``episodes_with_nfo`` from the
+    incoming row instead of silently dropping the new values. This is
+    the right primitive for the library scanner — without it, a season
+    row inserted before its poster / sibling NFOs landed on disk would
+    keep ``has_poster=0`` and ``episodes_with_nfo=0`` forever.
+
+    Args:
+        conn: Open SQLite connection.
+        row: :class:`SeasonRow` carrying the latest counts/flags. ``id``
+            is ignored on the insert path.
+
+    Returns:
+        The PK of the inserted-or-updated row.
+
+    Raises:
+        sqlite3.IntegrityError: If ``item_id`` references a non-show
+            ``media_item`` (trigger ``trg_season_requires_show``).
+    """
+    conn.execute(
+        """
+        INSERT INTO season (item_id, number, episode_count, has_poster, episodes_with_nfo)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(item_id, number) DO UPDATE SET
+            episode_count = excluded.episode_count,
+            has_poster = excluded.has_poster,
+            episodes_with_nfo = excluded.episodes_with_nfo
+        """,
+        (row.item_id, row.number, row.episode_count, row.has_poster, row.episodes_with_nfo),
+    )
+    season_id_row = conn.execute(
+        "SELECT id FROM season WHERE item_id = ? AND number = ?",
+        (row.item_id, row.number),
+    ).fetchone()
+    if season_id_row is None:
+        msg = f"season upsert lost the row (item_id={row.item_id}, number={row.number})"
+        raise RuntimeError(msg)
+    return int(season_id_row[0])
+
+
 def get_season_by_id(conn: sqlite3.Connection, id: int) -> SeasonRow | None:
     """Fetch a season row by its primary key.
 

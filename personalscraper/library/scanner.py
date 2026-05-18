@@ -23,7 +23,7 @@ import sqlite3
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from xml.etree import ElementTree as ET
 
 if TYPE_CHECKING:
@@ -116,8 +116,27 @@ def _dir_size_gb(path: Path) -> float:
     return total / (1024**3)
 
 
+# Inverse map of ``scraper.nfo_generator._NFO_RATING_SOURCE_NAMES`` — the
+# NFO writer translates internal source names to Plex/Kodi-compatible
+# display names ; the indexer reverses the mapping so ``ratings_json``
+# stores the same internal name shape the scraper / backfill produce.
+_NFO_RATING_SOURCE_REVERSE: dict[str, str] = {
+    "imdb": "imdb",
+    "themoviedb": "tmdb",
+    "tmdb": "tmdb",
+    "rottentomatoes": "rotten_tomatoes",
+    "rotten_tomatoes": "rotten_tomatoes",
+    "metacritic": "metacritic",
+    "trakt": "trakt",
+}
+
+
 def extract_nfo_ids(nfo_path: Path) -> tuple[str | None, str | None]:
     """Extract TMDB and IMDB IDs from a valid NFO file.
+
+    Thin compatibility wrapper around :func:`extract_nfo_metadata`. Kept
+    for callers (``trailers/scanner.py``, ``library/rescraper.py``,
+    test fixtures) that only need the legacy two-tuple.
 
     Args:
         nfo_path: Path to .nfo file (must exist and be valid XML).
@@ -125,23 +144,81 @@ def extract_nfo_ids(nfo_path: Path) -> tuple[str | None, str | None]:
     Returns:
         Tuple of (tmdb_id, imdb_id). Either can be None.
     """
+    meta = extract_nfo_metadata(nfo_path)
+    return meta["tmdb_id"], meta["imdb_id"]
+
+
+def extract_nfo_metadata(nfo_path: Path) -> dict[str, Any]:
+    """Extract provider IDs + canonical default + ratings from an NFO.
+
+    Implements the indexer side of the provider-ids contract (DESIGN
+    §3 + ACCEPTANCE #4). The legacy ``extract_nfo_ids`` only read
+    ``tmdb`` / ``imdb`` uniqueids ; this richer extractor also reads
+    ``tvdb``, the ``<uniqueid default="true">`` flag, and the entire
+    ``<ratings>`` block so the indexer can populate
+    ``media_item.external_ids_json``, ``canonical_provider``, and
+    ``ratings_json`` from a single NFO parse.
+
+    Args:
+        nfo_path: Path to .nfo file (must exist and be valid XML).
+
+    Returns:
+        Dict with keys ``tmdb_id``, ``imdb_id``, ``tvdb_id``,
+        ``canonical_provider`` (``"tvdb"`` / ``"tmdb"`` / ``None``),
+        and ``ratings`` (list of ``{source, score, votes}``).
+        All scalar fields default to ``None`` ; ``ratings`` defaults
+        to an empty list. Returned shape is stable even when the
+        parser fails — callers can read any key unconditionally.
+    """
+    blank: dict[str, Any] = {
+        "tmdb_id": None,
+        "imdb_id": None,
+        "tvdb_id": None,
+        "canonical_provider": None,
+        "ratings": [],
+    }
     try:
-        root = ET.parse(nfo_path).getroot()  # noqa: S314
-        tmdb_id = None
-        imdb_id = None
-        for uid in root.iter("uniqueid"):
-            uid_type = uid.get("type", "").lower()
-            text = (uid.text or "").strip()
-            if not text:
-                continue
-            if uid_type == "tmdb":
-                tmdb_id = text
-            elif uid_type == "imdb":
-                imdb_id = text
-        return tmdb_id, imdb_id
+        root = ET.parse(nfo_path).getroot()  # noqa: S314 — trusted NFO we wrote
     except (ET.ParseError, OSError) as exc:
         log.debug("library_scan_nfo_ids_parse_error", nfo=str(nfo_path), exc_info=True, error=str(exc))
-        return None, None
+        return blank
+
+    tmdb_id: str | None = None
+    imdb_id: str | None = None
+    tvdb_id: str | None = None
+    canonical_provider: str | None = None
+    for uid in root.iter("uniqueid"):
+        uid_type = (uid.get("type") or "").lower().strip()
+        text = (uid.text or "").strip()
+        if not text:
+            continue
+        if uid_type == "tmdb":
+            tmdb_id = text
+        elif uid_type == "imdb":
+            imdb_id = text
+        elif uid_type == "tvdb":
+            tvdb_id = text
+        if uid.get("default") == "true" and uid_type in ("tvdb", "tmdb"):
+            canonical_provider = uid_type
+
+    ratings: list[dict[str, Any]] = []
+    for rating in root.iter("rating"):
+        name = (rating.get("name") or "").strip().lower()
+        value = (rating.findtext("value") or "").strip()
+        votes_raw = (rating.findtext("votes") or "").strip()
+        if not name or not value:
+            continue
+        source = _NFO_RATING_SOURCE_REVERSE.get(name, name)
+        votes: int | None = int(votes_raw) if votes_raw.isdigit() else None
+        ratings.append({"source": source, "score": value, "votes": votes})
+
+    return {
+        "tmdb_id": tmdb_id,
+        "imdb_id": imdb_id,
+        "tvdb_id": tvdb_id,
+        "canonical_provider": canonical_provider,
+        "ratings": ratings,
+    }
 
 
 def _check_artwork_movie(movie_dir: Path, title: str) -> ArtworkStatus:
@@ -306,15 +383,24 @@ def scan_movie_dir(movie_dir: Path, disk_id: str, category_id: str) -> LibrarySc
     # NFO check
     nfo_path = movie_dir / f"{title}.nfo"
     nfo_valid = is_nfo_complete(nfo_path)
-    tmdb_id, imdb_id = (None, None)
+    meta: dict[str, Any] = {
+        "tmdb_id": None,
+        "imdb_id": None,
+        "tvdb_id": None,
+        "canonical_provider": None,
+        "ratings": [],
+    }
     if nfo_valid:
-        tmdb_id, imdb_id = extract_nfo_ids(nfo_path)
+        meta = extract_nfo_metadata(nfo_path)
 
     nfo = NfoStatus(
         present=nfo_path.exists(),
         valid=nfo_valid,
-        tmdb_id=tmdb_id,
-        imdb_id=imdb_id,
+        tmdb_id=meta["tmdb_id"],
+        imdb_id=meta["imdb_id"],
+        tvdb_id=meta["tvdb_id"],
+        canonical_provider=meta["canonical_provider"],
+        ratings=meta["ratings"],
     )
 
     artwork = _check_artwork_movie(movie_dir, title)
@@ -354,15 +440,24 @@ def scan_tvshow_dir(show_dir: Path, disk_id: str, category_id: str) -> LibrarySc
     # NFO check (tvshow.nfo is a fixed name)
     nfo_path = show_dir / "tvshow.nfo"
     nfo_valid = is_nfo_complete(nfo_path)
-    tmdb_id, imdb_id = (None, None)
+    meta: dict[str, Any] = {
+        "tmdb_id": None,
+        "imdb_id": None,
+        "tvdb_id": None,
+        "canonical_provider": None,
+        "ratings": [],
+    }
     if nfo_valid:
-        tmdb_id, imdb_id = extract_nfo_ids(nfo_path)
+        meta = extract_nfo_metadata(nfo_path)
 
     nfo = NfoStatus(
         present=nfo_path.exists(),
         valid=nfo_valid,
-        tmdb_id=tmdb_id,
-        imdb_id=imdb_id,
+        tmdb_id=meta["tmdb_id"],
+        imdb_id=meta["imdb_id"],
+        tvdb_id=meta["tvdb_id"],
+        canonical_provider=meta["canonical_provider"],
+        ratings=meta["ratings"],
     )
 
     artwork = _check_artwork_tvshow(show_dir)
@@ -471,11 +566,23 @@ def _upsert_media_item(
     import json as _json  # noqa: PLC0415
 
     eids: dict[str, dict[str, str | None]] = {}
+    if scan_item.nfo.tvdb_id and scan_item.nfo.tvdb_id.isdigit():
+        eids["tvdb"] = {"series_id": scan_item.nfo.tvdb_id, "episode_id": None}
     if scan_item.nfo.tmdb_id and scan_item.nfo.tmdb_id.isdigit():
         eids["tmdb"] = {"series_id": scan_item.nfo.tmdb_id, "episode_id": None}
     if scan_item.nfo.imdb_id:
         eids["imdb"] = {"series_id": scan_item.nfo.imdb_id, "episode_id": None}
     external_ids_json = _json.dumps(eids) if eids else "{}"
+
+    # Ratings + canonical provider — populated from the NFO parse so
+    # post-scrape state (provider-ids feature) lives in the indexer DB
+    # instead of being write-only on the scraper side.
+    ratings_json: str | None
+    if scan_item.nfo.ratings:
+        ratings_json = _json.dumps({"entries": scan_item.nfo.ratings})
+    else:
+        ratings_json = None
+    canonical_provider = scan_item.nfo.canonical_provider
 
     row = MediaItemRow(
         id=0,
@@ -486,8 +593,8 @@ def _upsert_media_item(
         year=scan_item.year,
         category_id=scan_item.category,
         external_ids_json=external_ids_json,
-        ratings_json=None,
-        canonical_provider=None,
+        ratings_json=ratings_json,
+        canonical_provider=canonical_provider,
         nfo_status=nfo_status,
         artwork_json=artwork_json,
         date_created=now_s,
@@ -547,12 +654,12 @@ def _upsert_seasons_and_episodes(
         seasons: Season list from :func:`scan_tvshow_dir`.
     """
     for season_info in seasons:
-        # Idempotent insert: rely on UNIQUE(item_id, number) at the schema
-        # level and follow up with one SELECT to recover the id (works
-        # whether we just inserted or matched an existing row).  Replaces
-        # the previous SELECT-then-INSERT round-trip pair with one INSERT
-        # OR IGNORE + one SELECT — same row count, half the trips on the
-        # already-indexed insert path.
+        # Use ``upsert_season`` so the denormalized columns
+        # (``episode_count``, ``has_poster``, ``episodes_with_nfo``)
+        # refresh on every scan. The previous ``INSERT OR IGNORE``
+        # never updated existing rows — a season inserted before its
+        # poster landed kept ``has_poster=0`` forever, breaking the
+        # library report's "missing season poster" suggestion.
         season_row = SeasonRow(
             id=0,
             item_id=item_id,
@@ -561,24 +668,74 @@ def _upsert_seasons_and_episodes(
             has_poster=int(season_info.has_poster),
             episodes_with_nfo=season_info.episodes_with_nfo,
         )
-        tv_repo.insert_season(conn, season_row, ignore_conflict=True)
-        season_id_row = conn.execute(
-            "SELECT id FROM season WHERE item_id = ? AND number = ?",
-            (item_id, season_info.number),
-        ).fetchone()
-        if season_id_row is None:
-            # Should not happen — INSERT OR IGNORE + UNIQUE guarantees this row exists.
-            continue
-        season_id: int = season_id_row[0]
+        season_id = tv_repo.upsert_season(conn, season_row)
 
-        # Insert episode stubs in a single batched executemany; UNIQUE
-        # (season_id, number) makes INSERT OR IGNORE idempotent across
-        # repeated scans without per-episode SELECTs.
+        # Episode stubs — read the sibling .nfo for each episode video
+        # to populate ``episode.title`` from the NFO ``<title>`` tag.
+        # The previous loop hardcoded NULL titles, leaving 100% of the
+        # ``episode`` table unsearchable by title.
         if season_info.episode_count > 0:
+            episode_titles = _read_episode_titles(Path(season_info.path), season_info.episode_count)
             conn.executemany(
-                "INSERT OR IGNORE INTO episode (season_id, number, title) VALUES (?, ?, NULL)",
-                [(season_id, ep_num) for ep_num in range(1, season_info.episode_count + 1)],
+                """
+                INSERT INTO episode (season_id, number, title) VALUES (?, ?, ?)
+                ON CONFLICT(season_id, number) DO UPDATE SET title = excluded.title
+                """,
+                [(season_id, ep_num, episode_titles.get(ep_num)) for ep_num in range(1, season_info.episode_count + 1)],
             )
+
+
+def _read_episode_titles(season_dir: Path, episode_count: int) -> dict[int, str | None]:
+    r"""Read ``<title>`` from each episode .nfo in a season directory.
+
+    Pairs episode video files with their sibling NFO by stem and parses
+    the ``<title>`` tag. Files without a sibling NFO, with an
+    unparseable NFO, or with an empty title map to ``None``.
+
+    Args:
+        season_dir: Path to the ``Saison NN/`` directory.
+        episode_count: Number of episode video files expected (used to
+            pre-size the result mapping).
+
+    Returns:
+        Mapping ``episode_number → title | None``. Episode numbers
+        absent from the returned dict were not resolvable (no S\dE\d
+        in the filename or no readable NFO).
+    """
+    out: dict[int, str | None] = {}
+    if not season_dir.exists():
+        return out
+    try:
+        files = list(season_dir.iterdir())
+    except OSError:
+        return out
+    nfo_by_stem = {f.stem: f for f in files if f.suffix.lower() == ".nfo"}
+    for video in files:
+        if not video.is_file():
+            continue
+        if video.suffix.lstrip(".").lower() not in _VIDEO_EXTENSIONS:
+            continue
+        match = re.search(r"[sS](\d{1,2})[eE](\d{1,3})", video.name)
+        if match is None:
+            continue
+        ep_num = int(match.group(2))
+        nfo = nfo_by_stem.get(video.stem)
+        if nfo is None:
+            out.setdefault(ep_num, None)
+            continue
+        try:
+            root = ET.parse(nfo).getroot()  # noqa: S314 — trusted NFO we wrote
+        except (ET.ParseError, OSError) as exc:
+            log.debug("library_scan_episode_nfo_parse_error", nfo=str(nfo), exc_info=True, error=str(exc))
+            out.setdefault(ep_num, None)
+            continue
+        title_text = (root.findtext("title") or "").strip()
+        out[ep_num] = title_text or None
+    # Backfill missing episode numbers with None (so callers iterating
+    # ``range(1, episode_count+1)`` always get an entry).
+    for n in range(1, episode_count + 1):
+        out.setdefault(n, None)
+    return out
 
 
 def _build_disk_row(disk_cfg: DiskConfig, now_s: int) -> DiskRow:
