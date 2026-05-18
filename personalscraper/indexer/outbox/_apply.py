@@ -138,6 +138,18 @@ def _apply_nfo_write(conn: sqlite3.Connection, payload: dict[str, Any]) -> None:
         return
 
     now = int(time.time())
+    # Build the JSON patch for ``external_ids_json``. We only merge the
+    # provider sub-objects the payload actually carries — missing IDs
+    # keep their previous value via ``json_patch``'s null-aware merge.
+    patch_obj: dict[str, dict[str, str]] = {}
+    if tmdb_id is not None:
+        patch_obj.setdefault("tmdb", {})["series_id"] = str(tmdb_id)
+    if imdb_id is not None:
+        patch_obj.setdefault("imdb", {})["series_id"] = str(imdb_id)
+    import json as _json  # noqa: PLC0415
+
+    patch_json = _json.dumps(patch_obj) if patch_obj else None
+
     # Primary path: resolve item via media_file → media_release.  Fallback
     # path: resolve via item_attribute(key='dispatch_path') so files still
     # in Stage A (release_id=NULL because enrich / release_linker has not
@@ -147,8 +159,10 @@ def _apply_nfo_write(conn: sqlite3.Connection, payload: dict[str, Any]) -> None:
         """
         UPDATE media_item SET
             nfo_status = 'valid',
-            tmdb_id = COALESCE(?, tmdb_id),
-            imdb_id = COALESCE(?, imdb_id),
+            external_ids_json = CASE
+                WHEN ? IS NULL THEN external_ids_json
+                ELSE json_patch(COALESCE(external_ids_json, '{}'), ?)
+            END,
             date_modified = ?
         WHERE id IN (
             SELECT DISTINCT mr.item_id
@@ -164,7 +178,7 @@ def _apply_nfo_write(conn: sqlite3.Connection, payload: dict[str, Any]) -> None:
              WHERE ia.value = d.mount_path || CASE WHEN p.rel_path = '' THEN '' ELSE '/' || p.rel_path END
         )
         """,
-        (tmdb_id, imdb_id, now, path_id, path_id),
+        (patch_json, patch_json, now, path_id, path_id),
     )
     if cursor.rowcount == 0:
         log.warning(
