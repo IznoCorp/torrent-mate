@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 import requests
 
 from personalscraper.api._contracts import ApiError, MediaType
-from personalscraper.api.metadata._base import EpisodeInfo, MediaDetails
+from personalscraper.api.metadata._base import EpisodeInfo, MediaDetails, Notations
 from personalscraper.api.metadata._tvdb_parsers import map_language
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
@@ -38,6 +38,30 @@ if TYPE_CHECKING:
     from personalscraper.scraper.artwork import ArtworkDownloader
 
 log = get_logger("scraper")
+
+
+def _safe_get_rating(client: Any, provider_id: str) -> list[Notations]:
+    """Call ``client.get_rating`` returning ``[]`` on failure or empty payload.
+
+    Shared by the IMDb / Rotten Tomatoes branches of
+    :meth:`TvServiceMixin._resolve_external_ids`. The contract from
+    DESIGN §4 is fail-soft : a failing rating provider must not abort
+    the scrape — it returns an empty list and the operator sees the
+    NFO without that rating row.
+    """
+    try:
+        result = client.get_rating(provider_id)
+    except Exception as exc:  # noqa: BLE001 — fail-soft per DESIGN §4
+        log.warning(
+            "xref_get_rating_failed",
+            client=type(client).__name__,
+            provider_id=provider_id,
+            error=str(exc),
+        )
+        return []
+    if not result:
+        return []
+    return list(result)
 
 
 def _episode_payload(ep: EpisodeInfo, episode_default_name: str) -> dict[str, Any]:
@@ -777,6 +801,112 @@ class TvServiceMixin:
         """Return ``{episode_number: external_ids}`` from a TVDB season fetch."""
         detail = self._tvdb.get_series_episodes(tvdb_id, season)
         return {ep.episode_number: dict(ep.external_ids) for ep in detail.episodes}
+
+    def _resolve_external_ids(
+        self,
+        canonical_provider: str,
+        series_ids: dict[str, str],
+        expected_title: str,
+        expected_year: int | None,
+    ) -> tuple[dict[str, str], list[Notations]]:
+        """Resolve the trusted cross-provider IDs + ratings for a series.
+
+        Walks every entry of ``series_ids`` and applies the Q5=B
+        contract from DESIGN §3 :
+
+        - The canonical family (``tvdb`` or ``tmdb``, depending on
+          which provider drove the canonical scrape) is kept as-is —
+          the scrape itself already authenticated that ID.
+        - Every non-canonical family is sent through its façade's
+          ``validate_id`` ; only the IDs that pass the re-validation
+          land in the returned mapping. A rejection silently drops the
+          ID rather than failing the whole scrape — the operator sees
+          a NFO without the family-specific ``<uniqueid>`` and a log
+          entry to investigate.
+
+        Ratings are bundled with this pass because IMDb and Rotten
+        Tomatoes both keyed by the IMDb ID : once Q5=B validates the
+        IMDb ID, the two ratings can be fetched in the same place
+        without duplicating the lookup logic at the call site.
+
+        Args:
+            canonical_provider: ``"tvdb"`` or ``"tmdb"``.
+            series_ids: ``{provider_name: provider_id}`` collected from
+                the canonical scrape + xref enrichment.
+            expected_title: Series title to feed each ``validate_id``.
+            expected_year: First-aired year, or ``None`` to skip the
+                year check at the façade level.
+
+        Returns:
+            Tuple ``(trusted_external_ids, ratings)``.
+            ``trusted_external_ids`` is a subset of ``series_ids`` —
+            canonical kept verbatim, non-canonical kept only when the
+            façade re-validation accepted the value. ``ratings`` is the
+            flattened :class:`Notations` list from every façade
+            consulted (empty when no rating could be obtained).
+        """
+        trusted: dict[str, str] = {}
+        ratings: list[Notations] = []
+
+        for family, provider_id in series_ids.items():
+            if not provider_id:
+                continue
+            if family == canonical_provider:
+                trusted[family] = provider_id
+                continue
+            client = self._family_to_client(family)
+            if client is None:
+                # No façade wired for this family in the current mixin.
+                # Conservative default : drop the ID rather than write
+                # an un-validated value to the NFO.
+                log.warning("xref_no_client_for_family", family=family)
+                continue
+            try:
+                accepted = client.validate_id(provider_id, expected_title, expected_year)
+            except Exception as exc:  # noqa: BLE001 — fail-soft contract
+                log.warning(
+                    "xref_validate_id_failed",
+                    family=family,
+                    provider_id=provider_id,
+                    error=str(exc),
+                )
+                continue
+            if not accepted:
+                log.info(
+                    "xref_validate_id_rejected",
+                    family=family,
+                    provider_id=provider_id,
+                    expected_title=expected_title,
+                    expected_year=expected_year,
+                )
+                continue
+            trusted[family] = provider_id
+
+        # Rating bundle — only meaningful when the IMDb ID survived
+        # re-validation. RT is keyed by the same IMDb ID.
+        imdb_id = trusted.get("imdb")
+        if imdb_id:
+            imdb_client = getattr(self, "_imdb", None)
+            if imdb_client is not None:
+                ratings.extend(_safe_get_rating(imdb_client, imdb_id))
+            rt_client = getattr(self, "_rotten_tomatoes", None)
+            if rt_client is not None:
+                ratings.extend(_safe_get_rating(rt_client, imdb_id))
+
+        return trusted, ratings
+
+    def _family_to_client(self, family: str) -> Any | None:
+        """Map a provider family name to the corresponding client / façade.
+
+        Returns ``None`` when no client is wired on the mixin — the
+        caller treats that as "cannot validate, drop the ID".
+        """
+        mapping: dict[str, Any] = {
+            "tvdb": getattr(self, "_tvdb", None),
+            "tmdb": getattr(self, "_tmdb", None),
+            "imdb": getattr(self, "_imdb", None),
+        }
+        return mapping.get(family)
 
     def _ordered_episode_providers(
         self,
