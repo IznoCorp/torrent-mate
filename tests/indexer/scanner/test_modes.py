@@ -91,7 +91,7 @@ def _seed_db(
             date_created, date_modified, date_metadata_refreshed,
             is_locked, preferred_lang
         ) VALUES ('movie','Test Movie','Test Movie',NULL,2024,'movies',
-                  NULL,NULL,NULL,?,?,
+                  '{}',NULL,NULL,?,?,
                   ?,?,NULL,0,'fr')
         """,
         (nfo_status, artwork_json, now, now),
