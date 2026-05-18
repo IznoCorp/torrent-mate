@@ -109,8 +109,19 @@ FIELD_REGISTRY: dict[str, FieldSpec] = {
     "year": FieldSpec(column="media_item.year", field_type=FieldType.INT),
     "disk": FieldSpec(column="disk.label", field_type=FieldType.DISK_JOIN),
     "category": FieldSpec(column="media_item.category_id", field_type=FieldType.STR),
-    "tmdb_id": FieldSpec(column="media_item.tmdb_id", field_type=FieldType.INT),
-    "imdb_id": FieldSpec(column="media_item.imdb_id", field_type=FieldType.STR),
+    # provider-ids feature : legacy flat ID columns replaced by JSON path.
+    "tmdb_id": FieldSpec(
+        column="json_extract(media_item.external_ids_json, '$.tmdb.series_id')",
+        field_type=FieldType.STR,
+    ),
+    "imdb_id": FieldSpec(
+        column="json_extract(media_item.external_ids_json, '$.imdb.series_id')",
+        field_type=FieldType.STR,
+    ),
+    "tvdb_id": FieldSpec(
+        column="json_extract(media_item.external_ids_json, '$.tvdb.series_id')",
+        field_type=FieldType.STR,
+    ),
     "nfo": FieldSpec(
         column="media_item.nfo_status",
         field_type=FieldType.STR,
@@ -299,7 +310,7 @@ _BASE_SELECT = (
     "SELECT DISTINCT "
     "media_item.id, media_item.kind, media_item.title, media_item.title_sort, "
     "media_item.original_title, media_item.year, media_item.category_id, "
-    "media_item.tmdb_id, media_item.imdb_id, media_item.tvdb_id, "
+    "media_item.external_ids_json, media_item.ratings_json, media_item.canonical_provider, "
     "media_item.nfo_status, media_item.artwork_json, "
     "media_item.date_created, media_item.date_modified, "
     "media_item.date_metadata_refreshed, media_item.is_locked, media_item.preferred_lang "
@@ -553,9 +564,9 @@ def _row_to_media_item(row: sqlite3.Row) -> MediaItemRow:
         original_title=row["original_title"],
         year=row["year"],
         category_id=row["category_id"],
-        tmdb_id=row["tmdb_id"],
-        imdb_id=row["imdb_id"],
-        tvdb_id=row["tvdb_id"],
+        external_ids_json=row["external_ids_json"],
+        ratings_json=row["ratings_json"],
+        canonical_provider=row["canonical_provider"],
         nfo_status=row["nfo_status"],
         artwork_json=row["artwork_json"],
         date_created=row["date_created"],
