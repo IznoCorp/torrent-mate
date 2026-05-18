@@ -159,7 +159,7 @@ def test_enrich_caches_nfo_artwork_per_directory(conn: sqlite3.Connection, tmp_p
         "INSERT INTO media_item (kind, title, title_sort, original_title, year, category_id, "
         " external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, date_created, date_modified, "
         " date_metadata_refreshed, is_locked, preferred_lang) "
-        "VALUES ('movie', 'Inception', 'Inception', NULL, 2010, 'movies', NULL, NULL, NULL, "
+        "VALUES ('movie', 'Inception', 'Inception', NULL, 2010, 'movies', '{}', NULL, NULL, "
         "        NULL, NULL, ?, ?, NULL, 0, 'fr')",
         (int(time.time()), int(time.time())),
     )
