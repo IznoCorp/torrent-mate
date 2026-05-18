@@ -106,17 +106,19 @@ def test_every_event_has_factory() -> None:
     )
 
 
-def test_event_registry_has_thirteen_v1_events() -> None:
-    """The v1 catalog is pinned at 13 events (Phase 5 acceptance).
+def test_event_registry_has_seventeen_v1_events() -> None:
+    """The v1 catalog is pinned at 17 events.
 
-    Importing ``personalscraper.events`` triggers eager registration of every
-    production event class. The literal count guards against silent additions
-    that bypass the documented event catalog in ``docs/reference/event-bus.md``.
+    Phase 5 acceptance landed at 13 ; the ``provider-ids`` feature
+    (sub-phase 8.4) added 4 ``Backfill*`` events for the IDs/ratings
+    backfill lifecycle. The literal count guards against silent
+    additions that bypass the documented event catalog in
+    ``docs/reference/event-bus.md``.
     """
     import personalscraper.events  # noqa: F401 — eager-import side effect
 
-    assert len(_EVENT_CLASS_REGISTRY) == 13, (
-        f"Expected 13 v1 events, found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
+    assert len(_EVENT_CLASS_REGISTRY) == 17, (
+        f"Expected 17 v1 events, found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
     )
 
 

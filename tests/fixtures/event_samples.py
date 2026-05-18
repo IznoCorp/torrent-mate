@@ -18,7 +18,10 @@ from personalscraper.core.circuit import (
 )
 from personalscraper.core.event_bus import Event
 from personalscraper.dispatch.events import ItemDispatched
-from personalscraper.indexer.events import DiskFullWarning, LibraryScanCompleted
+from personalscraper.indexer.events import (
+    DiskFullWarning,
+    LibraryScanCompleted,
+)
 from personalscraper.models import FailedItem, PipelineReport, StepReport
 from personalscraper.pipeline_events import (
     ItemProgressed,
@@ -186,6 +189,55 @@ def make_trailer_downloaded() -> TrailerDownloaded:
 def make_library_scan_completed() -> LibraryScanCompleted:
     """Realistic :class:`LibraryScanCompleted` factory."""
     return LibraryScanCompleted(mode="quick", scanned=12_345, errors=2, elapsed_s=187.42)
+
+
+# ---------------------------------------------------------------------------
+# provider-ids feature — sub-phase 8.4 backfill events
+# ---------------------------------------------------------------------------
+
+from personalscraper.indexer.events import (  # noqa: E402, PLC0415
+    BackfillCompleted,
+    BackfillItemCompleted,
+    BackfillSkipped,
+    BackfillStarted,
+)
+
+
+@register_factory(BackfillStarted)
+def make_backfill_started() -> BackfillStarted:
+    """Realistic :class:`BackfillStarted` factory."""
+    return BackfillStarted(scope="library", item_count=42)
+
+
+@register_factory(BackfillItemCompleted)
+def make_backfill_item_completed() -> BackfillItemCompleted:
+    """Realistic :class:`BackfillItemCompleted` factory."""
+    return BackfillItemCompleted(
+        item_id=17,
+        item_title="Inception",
+        ids_added=("imdb",),
+        ratings_added=("imdb", "rotten_tomatoes"),
+    )
+
+
+@register_factory(BackfillSkipped)
+def make_backfill_skipped() -> BackfillSkipped:
+    """Realistic :class:`BackfillSkipped` factory."""
+    return BackfillSkipped(item_id=18, item_title="The Matrix", reason="already_complete")
+
+
+@register_factory(BackfillCompleted)
+def make_backfill_completed() -> BackfillCompleted:
+    """Realistic :class:`BackfillCompleted` factory."""
+    return BackfillCompleted(
+        scope="library",
+        scanned=42,
+        updated=10,
+        skipped=30,
+        failed=2,
+        ids_added_count=15,
+        ratings_added_count=20,
+    )
 
 
 __all__ = ["EVENT_SAMPLE_FACTORIES", "register_factory"]

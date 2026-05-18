@@ -28,11 +28,18 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from personalscraper.api._helpers import ProviderFeatureUnavailable
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.backfill_ids import (
     BackfillGap,
     detect_gaps,
     merge_ids_without_overwrite,
     merge_ratings_without_overwrite,
+)
+from personalscraper.indexer.events import (
+    BackfillCompleted,
+    BackfillItemCompleted,
+    BackfillSkipped,
+    BackfillStarted,
 )
 from personalscraper.logger import get_logger
 
@@ -71,6 +78,7 @@ class BackfillStats:
 def run_backfill_ids(
     conn: sqlite3.Connection,
     *,
+    event_bus: EventBus,
     imdb_client: _RatingClient | None = None,
     rt_client: _RatingClient | None = None,
     show_filter: str | None = None,
@@ -97,16 +105,23 @@ def run_backfill_ids(
         ids_only: When ``True``, do not fetch ratings.
         ratings_only: When ``True``, do not fetch IDs.
         dry_run: When ``True``, every DB write is rolled back.
+        event_bus: Optional :class:`EventBus` used to publish
+            ``BackfillStarted`` / ``BackfillItemCompleted`` /
+            ``BackfillSkipped`` / ``BackfillCompleted`` events. When
+            ``None``, the pass runs silently from a subscriber's
+            perspective.
 
     Returns:
         Aggregated :class:`BackfillStats`.
     """
     stats = BackfillStats()
     rows = _fetch_candidate_rows(conn, show_filter=show_filter)
+    scope = show_filter if show_filter else "library"
+    event_bus.emit(BackfillStarted(scope=scope, item_count=len(rows)))
     for row in rows:
         stats.items_scanned += 1
         try:
-            updated = _backfill_one(
+            updated, ids_added, ratings_added, skip_reason = _backfill_one(
                 conn,
                 row,
                 imdb_client=imdb_client,
@@ -127,18 +142,41 @@ def run_backfill_ids(
             continue
         if updated:
             stats.items_updated += 1
+            event_bus.emit(
+                BackfillItemCompleted(
+                    item_id=row["id"],
+                    item_title=row["title"],
+                    ids_added=tuple(ids_added),
+                    ratings_added=tuple(ratings_added),
+                )
+            )
         else:
             stats.items_skipped += 1
+            event_bus.emit(
+                BackfillSkipped(
+                    item_id=row["id"],
+                    item_title=row["title"],
+                    reason=skip_reason or "already_complete",
+                )
+            )
+    event_bus.emit(
+        BackfillCompleted(
+            scope=scope,
+            scanned=stats.items_scanned,
+            updated=stats.items_updated,
+            skipped=stats.items_skipped,
+            failed=stats.items_failed,
+            ids_added_count=stats.ids_added_count,
+            ratings_added_count=stats.ratings_added_count,
+        )
+    )
     return stats
 
 
 def _fetch_candidate_rows(conn: sqlite3.Connection, *, show_filter: str | None) -> list[sqlite3.Row]:
     """Return the ``media_item`` rows the backfill should consider."""
     conn.row_factory = sqlite3.Row
-    sql = (
-        "SELECT id, title, external_ids_json, ratings_json, canonical_provider "
-        "FROM media_item"
-    )
+    sql = "SELECT id, title, external_ids_json, ratings_json, canonical_provider FROM media_item"
     params: tuple[str, ...] = ()
     if show_filter:
         sql += " WHERE title = ?"
@@ -156,11 +194,12 @@ def _backfill_one(
     ratings_only: bool,
     dry_run: bool,
     stats: BackfillStats,
-) -> bool:
+) -> tuple[bool, list[str], list[str], str | None]:
     """Backfill a single ``media_item`` row in-place.
 
-    Returns ``True`` when at least one field was written, ``False``
-    when the row was already fully populated (no DB write).
+    Returns ``(updated, ids_added, ratings_added, skip_reason)`` —
+    ``updated`` is ``True`` when at least one field was written ;
+    ``skip_reason`` is populated only on the no-op path.
     """
     item_id: int = row["id"]
     external_ids_json: str = row["external_ids_json"] or "{}"
@@ -169,7 +208,7 @@ def _backfill_one(
 
     gap: BackfillGap = detect_gaps(external_ids_json, ratings_json, canonical)
     if gap.is_empty:
-        return False
+        return False, [], [], "already_complete"
 
     new_external_ids = external_ids_json
     new_ratings = ratings_json
@@ -205,7 +244,10 @@ def _backfill_one(
         )
 
     if not ids_added and not ratings_added:
-        return False
+        # ``gap`` reported missing data but the providers returned
+        # nothing usable — typically no IMDb anchor on this row.
+        skip_reason = "no_imdb_anchor" if gap.missing_rating_sources else "already_complete"
+        return False, [], [], skip_reason
 
     stats.ids_added_count += len(ids_added)
     stats.ratings_added_count += len(ratings_added)
@@ -218,7 +260,7 @@ def _backfill_one(
             ids_added=ids_added,
             ratings_added=ratings_added,
         )
-        return True
+        return True, ids_added, ratings_added, None
 
     conn.execute(
         "UPDATE media_item SET external_ids_json = ?, ratings_json = ?, "
@@ -232,7 +274,7 @@ def _backfill_one(
         ids_added=ids_added,
         ratings_added=ratings_added,
     )
-    return True
+    return True, ids_added, ratings_added, None
 
 
 def _fetch_ratings(

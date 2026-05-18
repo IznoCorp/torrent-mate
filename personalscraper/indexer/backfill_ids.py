@@ -124,9 +124,7 @@ def detect_gaps(
             missing_ids.append(family)
 
     ratings_obj = _load_json(ratings_json) or {}
-    existing_sources = {
-        entry.get("source") for entry in ratings_obj.get("entries", []) if isinstance(entry, dict)
-    }
+    existing_sources = {entry.get("source") for entry in ratings_obj.get("entries", []) if isinstance(entry, dict)}
     missing_ratings = tuple(source for source in rating_sources if source not in existing_sources)
 
     return BackfillGap(
@@ -195,9 +193,7 @@ def merge_ratings_without_overwrite(
     """
     payload = _load_json(ratings_json) or {}
     existing_entries = list(payload.get("entries", []))
-    existing_sources = {
-        entry.get("source") for entry in existing_entries if isinstance(entry, dict)
-    }
+    existing_sources = {entry.get("source") for entry in existing_entries if isinstance(entry, dict)}
     added: list[str] = []
     for entry in new_entries:
         source = entry.get("source")

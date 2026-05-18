@@ -20,6 +20,7 @@ import pytest
 
 from personalscraper.api._helpers import ProviderFeatureUnavailable
 from personalscraper.api.metadata._base import Notations
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.scanner._modes.backfill_ids import (
     BackfillStats,
@@ -91,13 +92,11 @@ def test_backfill_appends_missing_imdb_rating(conn: sqlite3.Connection) -> None:
     rt = MagicMock()
     rt.get_rating.return_value = [_rt_notation()]
 
-    stats = run_backfill_ids(conn, imdb_client=imdb, rt_client=rt)
+    stats = run_backfill_ids(conn, event_bus=EventBus(), imdb_client=imdb, rt_client=rt)
 
     assert stats.items_updated == 1
     assert stats.ratings_added_count == 2
-    row = conn.execute(
-        "SELECT ratings_json FROM media_item WHERE id = ?", (item_id,)
-    ).fetchone()
+    row = conn.execute("SELECT ratings_json FROM media_item WHERE id = ?", (item_id,)).fetchone()
     sources = sorted(entry["source"] for entry in json.loads(row[0])["entries"])
     assert sources == ["imdb", "rotten_tomatoes"]
 
@@ -124,7 +123,7 @@ def test_backfill_skips_fully_populated_row(conn: sqlite3.Connection) -> None:
     imdb = MagicMock()
     rt = MagicMock()
 
-    stats = run_backfill_ids(conn, imdb_client=imdb, rt_client=rt)
+    stats = run_backfill_ids(conn, event_bus=EventBus(), imdb_client=imdb, rt_client=rt)
 
     assert stats.items_updated == 0
     assert stats.items_skipped == 1
@@ -140,7 +139,7 @@ def test_backfill_dry_run_does_not_write(conn: sqlite3.Connection) -> None:
     imdb = MagicMock()
     imdb.get_rating.return_value = [_imdb_notation()]
 
-    stats = run_backfill_ids(conn, imdb_client=imdb, rt_client=None, dry_run=True)
+    stats = run_backfill_ids(conn, event_bus=EventBus(), imdb_client=imdb, rt_client=None, dry_run=True)
 
     assert stats.items_updated == 1  # logically updated
     row = conn.execute("SELECT ratings_json FROM media_item WHERE id = ?", (item_id,)).fetchone()
@@ -169,7 +168,7 @@ def test_backfill_fails_soft_on_provider_exception(conn: sqlite3.Connection) -> 
         [_imdb_notation()],
     ]
 
-    stats = run_backfill_ids(conn, imdb_client=imdb_seq, rt_client=None)
+    stats = run_backfill_ids(conn, event_bus=EventBus(), imdb_client=imdb_seq, rt_client=None)
 
     # The failing row counted as "no ratings to add" → skipped, not failed.
     assert stats.items_skipped >= 1
@@ -190,10 +189,63 @@ def test_backfill_respects_show_filter(conn: sqlite3.Connection) -> None:
     imdb = MagicMock()
     imdb.get_rating.return_value = [_imdb_notation()]
 
-    stats = run_backfill_ids(conn, imdb_client=imdb, rt_client=None, show_filter="Target")
+    stats = run_backfill_ids(conn, event_bus=EventBus(), imdb_client=imdb, rt_client=None, show_filter="Target")
 
     assert stats.items_scanned == 1
     assert stats.items_updated == 1
+
+
+def test_backfill_emits_event_bus_lifecycle_events(conn: sqlite3.Connection) -> None:
+    """A full pass emits Started + ItemCompleted/Skipped + Completed on the bus.
+
+    Pins the contract documented in :mod:`personalscraper.indexer.events` :
+    one ``BackfillStarted`` at the top, one per-item event per row, one
+    ``BackfillCompleted`` at the end.
+    """
+    from personalscraper.core.event_bus import EventBus  # noqa: PLC0415
+    from personalscraper.indexer.events import (  # noqa: PLC0415
+        BackfillCompleted,
+        BackfillItemCompleted,
+        BackfillSkipped,
+        BackfillStarted,
+    )
+
+    eids = json.dumps({"imdb": {"series_id": "tt0944947"}})
+    _insert_item(conn, title="WithRatings", external_ids_json=eids, ratings_json=None)
+    fully_done = json.dumps(
+        {
+            "tvdb": {"series_id": "9001"},
+            "tmdb": {"series_id": "5005"},
+            "imdb": {"series_id": "tt0944947"},
+        }
+    )
+    fully_done_ratings = json.dumps(
+        {
+            "entries": [
+                {"source": "imdb", "score": "8.5/10", "votes": 10},
+                {"source": "rotten_tomatoes", "score": "91%", "votes": 0},
+            ]
+        }
+    )
+    _insert_item(conn, title="Skipped", external_ids_json=fully_done, ratings_json=fully_done_ratings)
+
+    imdb = MagicMock()
+    imdb.get_rating.return_value = [_imdb_notation()]
+
+    captured: list[object] = []
+    bus = EventBus()
+    bus.subscribe(BackfillStarted, captured.append)
+    bus.subscribe(BackfillItemCompleted, captured.append)
+    bus.subscribe(BackfillSkipped, captured.append)
+    bus.subscribe(BackfillCompleted, captured.append)
+
+    run_backfill_ids(conn, event_bus=bus, imdb_client=imdb, rt_client=None)
+
+    types = [type(event).__name__ for event in captured]
+    assert types[0] == "BackfillStarted"
+    assert types[-1] == "BackfillCompleted"
+    assert "BackfillItemCompleted" in types
+    assert "BackfillSkipped" in types
 
 
 def test_backfill_no_imdb_id_skips_rating_fetch(conn: sqlite3.Connection) -> None:
@@ -203,7 +255,7 @@ def test_backfill_no_imdb_id_skips_rating_fetch(conn: sqlite3.Connection) -> Non
     imdb = MagicMock()
     rt = MagicMock()
 
-    stats = run_backfill_ids(conn, imdb_client=imdb, rt_client=rt)
+    stats = run_backfill_ids(conn, event_bus=EventBus(), imdb_client=imdb, rt_client=rt)
 
     imdb.get_rating.assert_not_called()
     rt.get_rating.assert_not_called()
