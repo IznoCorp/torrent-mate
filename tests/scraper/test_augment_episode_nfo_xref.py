@@ -44,8 +44,7 @@ def test_augment_adds_missing_xref_uniqueid(tmp_path: Path) -> None:
     """NFO carrying only canonical tvdb gets a tmdb row appended."""
     nfo = tmp_path / "S01E01 - Pilot.nfo"
     nfo.write_text(
-        '<?xml version="1.0"?>'
-        '<episodedetails><uniqueid type="tvdb" default="true">9001</uniqueid></episodedetails>',
+        '<?xml version="1.0"?><episodedetails><uniqueid type="tvdb" default="true">9001</uniqueid></episodedetails>',
         encoding="utf-8",
     )
     mixin = _make_mixin()
@@ -63,10 +62,10 @@ def test_augment_does_not_overwrite_existing_uniqueid(tmp_path: Path) -> None:
     nfo = tmp_path / "S01E01 - Pilot.nfo"
     nfo.write_text(
         '<?xml version="1.0"?>'
-        '<episodedetails>'
+        "<episodedetails>"
         '<uniqueid type="tvdb" default="true">9001</uniqueid>'
         '<uniqueid type="tmdb">5001</uniqueid>'
-        '</episodedetails>',
+        "</episodedetails>",
         encoding="utf-8",
     )
     mixin = _make_mixin()
@@ -82,8 +81,7 @@ def test_augment_noop_when_nothing_to_add(tmp_path: Path) -> None:
     """Empty ``info`` dict → file mtime unchanged, no write happens."""
     nfo = tmp_path / "S01E01 - Pilot.nfo"
     nfo.write_text(
-        '<?xml version="1.0"?>'
-        '<episodedetails><uniqueid type="tvdb">9001</uniqueid></episodedetails>',
+        '<?xml version="1.0"?><episodedetails><uniqueid type="tvdb">9001</uniqueid></episodedetails>',
         encoding="utf-8",
     )
     mtime_before = nfo.stat().st_mtime
