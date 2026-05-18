@@ -203,6 +203,7 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | Trailer discovery, download, state, CLI, Plex-conformant placement (movies flat, TV shows in `Trailers/` subfolder) | `docs/reference/trailers.md`            |
 | Media indexer DB, scanner modes, query parser, outbox, cron setup, failure recovery                                 | `docs/reference/indexer.md`             |
 | JSON column shapes (artwork_json, payload_json, stats_json) — Pydantic model references and examples                | `docs/reference/indexer-json-shapes.md` |
+| Cross-provider IDs flow, ratings JSON, backfill mode, capability protocols (provider-ids feature)                   | `docs/reference/external-ids-flow.md`   |
 | API contracts, HttpTransport, TransportPolicy, family Protocols (`MetadataClient`, `TorrentClient`, …)              | `docs/reference/architecture.md` (api/) |
 | TMDB / TVDB / OMDB / Trakt providers (auth, endpoints, response shape, particularities)                             | `docs/reference/<provider>-api.md`      |
 | qBittorrent / Transmission torrent clients (auth, endpoints, content_path, particularities)                         | `docs/reference/<provider>-api.md`      |
