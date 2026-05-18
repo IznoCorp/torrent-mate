@@ -55,7 +55,7 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 | 10  | Consommateurs library/conf/trailers refactor                  | phase-10-consumers-refactor.md        | [x]    |
 | 11  | Tracker capabilities + LaCale/C411 refactor                   | phase-11-tracker-capabilities.md      | [x]    |
 | 12  | Tracker registry priority-aware par type de média             | phase-12-tracker-registry-priority.md | [x]    |
-| 13  | Torrent capabilities + QBit/Transmission refactor             | phase-13-torrent-capabilities.md      | [ ]    |
+| 13  | Torrent capabilities + QBit/Transmission refactor             | phase-13-torrent-capabilities.md      | [x]    |
 | 14  | Notify capabilities + Telegram/Healthchecks refactor          | phase-14-notify-capabilities.md       | [ ]    |
 | 15  | Integration + E2E + final wire                                | phase-15-integration-e2e.md           | [ ]    |
 
@@ -180,13 +180,9 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 
 ### Phase 13 — Torrent Capabilities
 
-| Sub  | Scope                                                         | SHA | Status |
-| ---- | ------------------------------------------------------------- | --- | ------ |
-| 13.1 | Drop monolithic `TorrentClient` Protocol                      | -   | [ ]    |
-| 13.2 | `QBitClient` composes 5 capabilities (full)                   | -   | [ ]    |
-| 13.3 | `TransmissionClient` composes subset (no AuthenticatedClient) | -   | [ ]    |
-| 13.4 | `_factory.py` type hints                                      | -   | [ ]    |
-| 13.5 | Consommateurs `ingest/` adaptés                               | -   | [ ]    |
+| Sub  | Scope                                                                          | SHA     | Status |
+| ---- | ------------------------------------------------------------------------------ | ------- | ------ |
+| 13.x | Drop TorrentClient + QBit/Transmission composition + TorrentClientFull factory | 5b62bf4 | [x]    |
 
 ### Phase 14 — Notify Capabilities (pas de drop monolithique — Protocols Notifier+HealthChecker existent déjà)
 
