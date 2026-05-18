@@ -418,16 +418,14 @@ class TestBuildLibraryIndex:
         # encoded in the migration-005 ``external_ids_json`` column.
         row = MagicMock()
         row.external_ids_json = (
-            '{"tmdb": {"series_id": "550", "episode_id": null}, '
-            '"imdb": {"series_id": "tt0137523", "episode_id": null}}'
+            '{"tmdb": {"series_id": "550", "episode_id": null}, "imdb": {"series_id": "tt0137523", "episode_id": null}}'
         )
         row.category_id = "movies"
 
         # Also add a row with empty dispatch_path → must be skipped.
         empty_row = MagicMock()
         empty_row.external_ids_json = (
-            '{"tmdb": {"series_id": "999", "episode_id": null}, '
-            '"imdb": {"series_id": "tt9999999", "episode_id": null}}'
+            '{"tmdb": {"series_id": "999", "episode_id": null}, "imdb": {"series_id": "tt9999999", "episode_id": null}}'
         )
         empty_row.category_id = "movies"
 
