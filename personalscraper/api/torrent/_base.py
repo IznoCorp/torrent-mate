@@ -8,7 +8,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import ClassVar, Protocol, runtime_checkable
 
 
 @dataclass
@@ -39,29 +38,10 @@ class TorrentItem:
     ratio: float = 0.0
 
 
-@runtime_checkable
-class TorrentClient(Protocol):
-    """Protocol that all torrent client implementations must satisfy.
-
-    Required members:
-        provider_name: Human-readable provider identifier.
-        REQUIRED_CREDS: List of .env variable names needed by this client.
-        get_completed(): List all completed torrents.
-        get_all_hashes(): Return the set of all torrent info hashes.
-        is_seeding(): Check if a torrent is currently seeding.
-        get_content_path(): Return the content path for a torrent.
-        pause(): Pause a torrent by hash.
-        resume(): Resume a torrent by hash.
-        delete(): Delete a torrent by hash.
-    """
-
-    provider_name: str
-    REQUIRED_CREDS: ClassVar[list[str]]
-
-    def get_completed(self) -> list[TorrentItem]: ...
-    def get_all_hashes(self) -> set[str]: ...
-    def is_seeding(self, torrent: TorrentItem) -> bool: ...
-    def get_content_path(self, torrent: TorrentItem) -> Path: ...
-    def pause(self, hash: str) -> None: ...
-    def resume(self, hash: str) -> None: ...
-    def delete(self, hash: str, *, delete_files: bool = False) -> None: ...
+# NOTE — provider-ids feature, sub-phase 13.1 :
+# The historical monolithic ``TorrentClient(Protocol)`` defined here
+# was dropped in favour of the 5 atomic capability protocols hosted in
+# ``personalscraper.api.torrent._contracts``. The factory now returns
+# the composite ``TorrentClientFull`` Protocol ; callers that need
+# authentication widen with an ``isinstance(..., AuthenticatedClient)``
+# check at the call site (DESIGN §4 — Composition par client).

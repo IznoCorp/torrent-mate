@@ -18,7 +18,7 @@ from typing import ClassVar
 import transmission_rpc
 
 from personalscraper.api._contracts import ApiError, ProviderName
-from personalscraper.api.torrent._base import TorrentClient, TorrentItem
+from personalscraper.api.torrent._base import TorrentItem
 from personalscraper.api.transport._auth import LoginAuth
 from personalscraper.api.transport._http import HttpTransport
 from personalscraper.api.transport._policy import TransportPolicy
@@ -177,7 +177,7 @@ class TransmissionClient:
 # -- Factory entry point -----------------------------------------------------
 
 
-def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -> TorrentClient:
+def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -> "TransmissionClient":
     """Construct a TransmissionClient with pre-check.
 
     Args:

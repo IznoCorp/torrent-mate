@@ -20,7 +20,7 @@ import qbittorrentapi
 import requests
 
 from personalscraper.api._contracts import ApiError, ProviderName
-from personalscraper.api.torrent._base import TorrentClient, TorrentItem
+from personalscraper.api.torrent._base import TorrentItem
 from personalscraper.conf.models.api_config import TorrentClientEntry
 from personalscraper.logger import get_logger
 
@@ -195,7 +195,7 @@ class QBitClient:
 # -- Factory entry point -----------------------------------------------------
 
 
-def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -> TorrentClient:
+def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -> "QBitClient":
     """Construct and authenticate a QBitClient.
 
     Args:

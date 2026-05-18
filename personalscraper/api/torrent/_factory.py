@@ -2,7 +2,7 @@
 
 Implements DESIGN §5.3: build_active_torrent_client() reads cfg.active,
 validates the chosen client is enabled and credentialed, constructs and
-returns the single TorrentClient instance the pipeline uses.
+returns the single TorrentClientFull instance the pipeline uses.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from collections.abc import Mapping
 
 from personalscraper.api._activation import PROVIDER_CREDS
 from personalscraper.api._contracts import ApiError
-from personalscraper.api.torrent._base import TorrentClient
+from personalscraper.api.torrent._contracts import TorrentClientFull
 from personalscraper.conf.models.api_config import TorrentConfig
 
 _CLIENT_IMPL: dict[str, str] = {
@@ -24,15 +24,15 @@ _CLIENT_IMPL: dict[str, str] = {
 def build_active_torrent_client(
     cfg: TorrentConfig,
     env: Mapping[str, str] | None = None,
-) -> TorrentClient:
-    """Read cfg.active, validate creds, return single TorrentClient instance.
+) -> TorrentClientFull:
+    """Read cfg.active, validate creds, return single TorrentClientFull instance.
 
     Args:
         cfg: Parsed torrent.json5 configuration.
         env: Credential source (defaults to os.environ for testability).
 
     Returns:
-        A concrete TorrentClient for the active provider.
+        A concrete TorrentClientFull for the active provider.
 
     Raises:
         ValueError: cfg.active empty, not in cfg.clients, or chosen client disabled.
@@ -69,4 +69,4 @@ def build_active_torrent_client(
     from typing import cast
 
     mod = importlib.import_module(module_path)
-    return cast(TorrentClient, mod.build_client(cfg.active, cfg.clients[cfg.active], env))
+    return cast(TorrentClientFull, mod.build_client(cfg.active, cfg.clients[cfg.active], env))
