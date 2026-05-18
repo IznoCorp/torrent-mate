@@ -146,7 +146,7 @@ def _seed_media_item(
              external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json,
              date_created, date_modified, date_metadata_refreshed,
              is_locked, preferred_lang)
-        VALUES (?, ?, ?, NULL, NULL, ?, NULL, NULL, NULL, ?, ?, ?, ?, NULL, 0, 'fr')
+        VALUES (?, ?, ?, NULL, NULL, ?, '{}', NULL, NULL, ?, ?, ?, ?, NULL, 0, 'fr')
         """,
         (kind, title, title, category_id, nfo_status, artwork_json, now, now),
     )
