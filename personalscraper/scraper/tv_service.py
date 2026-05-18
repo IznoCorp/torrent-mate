@@ -295,6 +295,14 @@ class TvServiceMixin:
 
         # Check for existing valid NFO
         nfo_path = show_dir / self.patterns.tvshow_nfo
+        # ``drift_rescrape_episode_nfo`` flips True when the drift
+        # validator rejects the existing scrape *specifically* because
+        # one or more episode NFOs lack the canonical ``<uniqueid>``
+        # tag added by the provider-ids feature. Without this signal
+        # the full-scrape path below would skip episode-NFO regen for
+        # shows whose episodes are already organized in ``Saison NN/``
+        # — exactly the DEV #2 symptom on a re-scrape pass.
+        drift_rescrape_episode_nfo = False
         if _is_nfo_complete(nfo_path):
             # Fast path only when the previous scrape is still coherent with
             # the current scraper output (folder name, episode naming, NFO
@@ -307,6 +315,8 @@ class TvServiceMixin:
                     directory=show_dir.name,
                     reason=drift_reason,
                 )
+                if drift_reason.startswith("episode_nfo_missing_canonical_uniqueid"):
+                    drift_rescrape_episode_nfo = True
                 if not self.dry_run:
                     try:
                         nfo_path.unlink()
@@ -453,12 +463,22 @@ class TvServiceMixin:
         # exist when ``download_tvshow_artwork`` decides which season posters
         # to fetch: that helper skips seasons whose folder is absent.
         total_renamed = 0
+        # On an episode-NFO drift re-scrape, ALSO include files that
+        # are already organized in ``Saison NN/`` — otherwise
+        # ``_generate_episode_nfos`` never runs and the episode NFOs
+        # stay broken (the very condition that triggered drift in the
+        # first place, producing an infinite drift→rescrape loop with
+        # no fix). ``rename_episodes`` is idempotent (skips files
+        # already at their destination), so the wider sweep is safe.
+        def _is_in_season_dir(path: Path) -> bool:
+            return bool(SEASON_DIR_RE.match(path.parent.name))
+
         video_files = sorted(
             f
             for f in show_dir.rglob("*")
             if f.is_file()
             and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
-            and not SEASON_DIR_RE.match(f.parent.name)
+            and (drift_rescrape_episode_nfo or not _is_in_season_dir(f))
             and "Trailers" not in f.parts
         )
 

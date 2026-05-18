@@ -318,7 +318,53 @@ def rename_episodes(
         # Rename associated subtitle files
         _rename_subtitles(video_path, new_stem, season_dir, dry_run)
 
+        # Cleanup orphan sibling .nfo and ``-thumb.jpg`` left behind by
+        # the rename. ``_generate_episode_nfos`` writes the new NFO and
+        # ``ArtworkDownloader`` writes the new thumb under the new
+        # stem ; the stale siblings with the old stem would otherwise
+        # confuse the drift validator and the verify checker (the
+        # legacy NFO carries an empty ``<uniqueid>`` from before the
+        # provider-ids fix).
+        _cleanup_orphan_episode_siblings(video_path, dry_run)
+
     return renamed_count
+
+
+def _cleanup_orphan_episode_siblings(old_video_path: Path, dry_run: bool) -> None:
+    """Delete the sibling .nfo and -thumb.jpg of a just-renamed video.
+
+    The new video lives at a different stem after the rename, so the
+    old sibling files are no longer linked to any media. ``rename`` on
+    the video file does not propagate to siblings — without this
+    cleanup the old NFO (which carries the broken pre-provider-ids
+    uniqueid shape) stays on disk and re-triggers the drift validator
+    on every subsequent run.
+
+    Args:
+        old_video_path: The source path of the rename (now non-existent).
+        dry_run: When True, log the actions without unlinking.
+    """
+    parent = old_video_path.parent
+    old_stem = old_video_path.stem
+    candidates = [
+        parent / f"{old_stem}.nfo",
+        parent / f"{old_stem}-thumb.jpg",
+    ]
+    for candidate in candidates:
+        if not candidate.exists():
+            continue
+        if dry_run:
+            log.info("episode_sibling_would_delete", path=str(candidate))
+            continue
+        try:
+            candidate.unlink()
+            log.info("episode_sibling_deleted", path=str(candidate))
+        except OSError as exc:
+            log.warning(
+                "episode_sibling_delete_failed",
+                path=str(candidate),
+                error=str(exc),
+            )
 
 
 def _rename_subtitles(
