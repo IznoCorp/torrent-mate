@@ -39,17 +39,37 @@ class TrackerRegistry:
         trackers: dict[str, TorrentSearchable],
         priority: list[str],
         ranking: RankingConfig,
+        priority_by_media_type: dict[str, list[str]] | None = None,
     ) -> None:
         """Initialize the registry.
 
         Args:
             trackers: Map of tracker name → TorrentSearchable instance.
-            priority: Ordered list of tracker names (highest priority first).
+            priority: Ordered list of tracker names (highest priority first)
+                used as the fallback when no per-media-type override
+                applies.
             ranking: Ranking configuration applied to merged results.
+            priority_by_media_type: Optional ``{media_type: [tracker, …]}``
+                overrides keyed by the value passed to
+                :meth:`search_all`. Provider-ids feature, sub-phase 12.1
+                — DESIGN §6.7. ``None`` or ``{}`` falls back to
+                ``priority`` for every call.
         """
         self._trackers = trackers
         self._priority = priority
+        self._priority_by_media_type: dict[str, list[str]] = priority_by_media_type or {}
         self._ranking = ranking
+
+    def _priority_for(self, media_type: str | None) -> list[str]:
+        """Return the tracker order to use for the given ``media_type``.
+
+        Falls back to ``self._priority`` whenever the override map has
+        no matching key — DESIGN §6.7 explicitly allows unlisted media
+        types to use the global default.
+        """
+        if media_type is None:
+            return self._priority
+        return self._priority_by_media_type.get(media_type, self._priority)
 
     def search_all(
         self,
@@ -62,13 +82,17 @@ class TrackerRegistry:
         Args:
             query: Search query string.
             media_type: Either "movie" or "tv" (provider-specific dialects honored downstream).
+                Also used as the lookup key for the optional
+                ``priority_by_media_type`` override map — when present
+                with a matching key, that order replaces the global
+                ``priority`` for this call.
             year: Optional release year to scope the search.
 
         Returns:
             Ranked list of ``(result, score)`` pairs, highest score first.
         """
         results: list[TrackerResult] = []
-        for name in self._priority:
+        for name in self._priority_for(str(media_type)):
             client = self._trackers.get(name)
             if client is None:
                 continue

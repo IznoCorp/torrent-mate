@@ -6,7 +6,7 @@ api/tracker/_ranking.py so config validation and runtime ranking share
 one source of truth.
 """
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from personalscraper.api.tracker._ranking import RankingBonuses, RankingConfig, RankingCriterion, ThresholdEntry
 from personalscraper.conf.models._base import _StrictModel
@@ -136,6 +136,14 @@ class TrackerConfig(_StrictModel):
     Attributes:
         providers: Per-tracker enable/disable toggles.
         priority: Ordered list of tracker names (first = highest priority).
+            Used as the fallback when no ``priority_by_media_type``
+            override applies to the call.
+        priority_by_media_type: Optional ``{media_type: [tracker, …]}``
+            overrides used by :class:`~personalscraper.api.tracker._registry.TrackerRegistry`
+            (provider-ids feature, sub-phase 12.3 — DESIGN §6.7).
+            Every list must be a subset of ``providers.keys()`` —
+            references to unknown trackers are rejected at validation
+            time so the runtime never silently skips a typo.
         max_total_results: Global cap on results across all trackers.
         max_per_tracker: Cap on results from any single tracker.
         timeout_per_tracker: Per-tracker HTTP timeout in seconds.
@@ -143,9 +151,25 @@ class TrackerConfig(_StrictModel):
 
     providers: dict[str, TrackerProviderConfig] = Field(default_factory=dict)
     priority: list[str] = Field(default_factory=list)
+    priority_by_media_type: dict[str, list[str]] = Field(default_factory=dict)
     max_total_results: int = 50
     max_per_tracker: int = 30
     timeout_per_tracker: int = 15
+
+    @model_validator(mode="after")
+    def _validate_priority_by_media_type(self) -> "TrackerConfig":
+        """Reject ``priority_by_media_type`` references to unknown trackers.
+
+        DESIGN §6.7 — every list value must be a subset of
+        ``providers.keys()``. Typos are surfaced at config-load time
+        rather than silently producing an empty search at runtime.
+        """
+        known = set(self.providers)
+        for media_type, order in self.priority_by_media_type.items():
+            unknown = [name for name in order if name not in known]
+            if unknown:
+                raise ValueError(f"priority_by_media_type[{media_type!r}] references unknown trackers: {unknown}")
+        return self
 
 
 # ---------------------------------------------------------------------------
