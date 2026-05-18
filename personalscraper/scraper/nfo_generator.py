@@ -435,25 +435,42 @@ class NFOGenerator:
         _sub(root, "title", episode_data.get("name", ""))
         _sub(root, "showtitle", episode_data.get("showtitle", ""))
 
-        # --- IDs (TVDB default for episodes) ---
+        # --- IDs ---
         # When an id resolves to None/0/"" the tag is omitted rather than
         # written as the literal string "None" (Kodi reads "None" as a real
         # id and tries to look it up, poisoning the scraper cache).
+        #
+        # Provider-ids feature (phase 6.3, Q6=A) : the ``default="true"``
+        # attribute follows ``episode_data["canonical_provider"]`` when set
+        # — "tvdb" → tvdb wins ; "tmdb" → tmdb wins. The pre-feature
+        # default (TVDB-when-present) is preserved when the caller has
+        # not declared a canonical provider, keeping legacy NFO outputs
+        # unchanged.
         raw_tvdb_id = episode_data.get("tvdb_id")
         raw_tmdb_id = episode_data.get("id", episode_data.get("tmdb_id"))
+        raw_imdb_id = episode_data.get("imdb_id")
         tvdb_id = str(raw_tvdb_id) if raw_tvdb_id not in (None, 0, "0", "", "None") else ""
         tmdb_id = str(raw_tmdb_id) if raw_tmdb_id not in (None, 0, "0", "", "None") else ""
+        imdb_id = str(raw_imdb_id) if raw_imdb_id not in (None, 0, "0", "", "None") else ""
 
-        tvdb_is_default = bool(tvdb_id)
-        if tvdb_id:
-            uniqueid_tvdb = _sub(root, "uniqueid", tvdb_id)
-            uniqueid_tvdb.set("default", "true")
-            uniqueid_tvdb.set("type", "tvdb")
-        if tmdb_id:
-            uniqueid_tmdb = _sub(root, "uniqueid", tmdb_id)
-            if not tvdb_is_default:
-                uniqueid_tmdb.set("default", "true")
-            uniqueid_tmdb.set("type", "tmdb")
+        canonical_family = (episode_data.get("canonical_provider") or "").strip().lower()
+        if canonical_family not in ("tvdb", "tmdb"):
+            canonical_family = "tvdb" if tvdb_id else ("tmdb" if tmdb_id else "")
+
+        ordered = (
+            ("tvdb", tvdb_id),
+            ("tmdb", tmdb_id),
+            ("imdb", imdb_id),
+        )
+        default_applied = False
+        for family, value in ordered:
+            if not value:
+                continue
+            element = _sub(root, "uniqueid", value)
+            element.set("type", family)
+            if not default_applied and family == canonical_family:
+                element.set("default", "true")
+                default_applied = True
 
         # --- Ratings (episodes use "tmdb" not "themoviedb") ---
         self._add_ratings(

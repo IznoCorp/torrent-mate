@@ -122,6 +122,82 @@ def test_add_ratings_score_and_votes_serialised() -> None:
     assert row.findtext("votes") == "999"
 
 
+# ---------------------------------------------------------------------------
+# 6.3 — uniqueid default attribute reflects canonical provider
+# ---------------------------------------------------------------------------
+
+
+def _episode_xml(**episode_data) -> ET.Element:  # type: ignore[no-untyped-def]
+    nfo = NFOGenerator()
+    xml = nfo.generate_episode_nfo(
+        {
+            "name": "Pilot",
+            "showtitle": "Show",
+            "season_number": 1,
+            "episode_number": 1,
+            "overview": "",
+            "mpaa": "",
+            "studio": "",
+            "crew": [],
+            "still_path": "",
+            **episode_data,
+        }
+    )
+    return ET.fromstring(xml)
+
+
+def test_generate_episode_nfo_tvdb_canonical_writes_uniqueid_tvdb_default() -> None:
+    """``canonical_provider="tvdb"`` → tvdb gets ``default="true"``."""
+    root = _episode_xml(
+        canonical_provider="tvdb",
+        tvdb_id="9001",
+        tmdb_id="5001",
+        imdb_id="tt0000001",
+    )
+    by_type = {u.get("type"): u for u in root.findall("uniqueid")}
+    assert by_type["tvdb"].get("default") == "true"
+    assert by_type["tmdb"].get("default") is None
+    assert by_type["imdb"].get("default") is None
+
+
+def test_generate_episode_nfo_tmdb_canonical_writes_uniqueid_tmdb_default() -> None:
+    """``canonical_provider="tmdb"`` → tmdb gets ``default="true"``."""
+    root = _episode_xml(
+        canonical_provider="tmdb",
+        tvdb_id="9001",
+        tmdb_id="5001",
+        imdb_id="tt0000001",
+    )
+    by_type = {u.get("type"): u for u in root.findall("uniqueid")}
+    assert by_type["tmdb"].get("default") == "true"
+    assert by_type["tvdb"].get("default") is None
+
+
+def test_generate_episode_nfo_imdb_uniqueid_written_when_id_propagated() -> None:
+    """The ``imdb_id`` row appears in the XML when the matched dict carries it."""
+    root = _episode_xml(
+        canonical_provider="tvdb",
+        tvdb_id="9001",
+        imdb_id="tt0000001",
+    )
+    by_type = {u.get("type"): u.text for u in root.findall("uniqueid")}
+    assert by_type["imdb"] == "tt0000001"
+
+
+def test_generate_episode_nfo_default_falls_back_when_canonical_missing() -> None:
+    """No ``canonical_provider`` → legacy "tvdb default when present" behaviour."""
+    root = _episode_xml(tvdb_id="9001", tmdb_id="5001")
+    by_type = {u.get("type"): u for u in root.findall("uniqueid")}
+    assert by_type["tvdb"].get("default") == "true"
+
+
+def test_generate_episode_nfo_default_falls_back_to_tmdb_when_no_tvdb() -> None:
+    """Canonical absent + no TVDB id → tmdb takes the default."""
+    root = _episode_xml(tmdb_id="5001")
+    by_type = {u.get("type"): u for u in root.findall("uniqueid")}
+    assert by_type["tmdb"].get("default") == "true"
+
+
 def test_add_ratings_deduplicates_same_source() -> None:
     """Two ``Notations`` from the same source surface as one ``<rating>`` row."""
     notations = [
