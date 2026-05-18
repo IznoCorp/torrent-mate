@@ -458,7 +458,7 @@ class TestScanLibrary:
 
         conn.execute(
             "INSERT INTO media_item (id, kind, title, title_sort, year, category_id, "
-            "tmdb_id, imdb_id, tvdb_id, nfo_status, artwork_json, "
+            "external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
             "date_created, date_modified, is_locked, preferred_lang) "
             "VALUES (?, 'movie', ?, ?, 1999, 'movies', ?, NULL, NULL, 'valid', NULL, 0, 0, 0, 'fr')",
             (item_id, title, title, tmdb_id),

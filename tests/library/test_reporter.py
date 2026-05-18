@@ -80,7 +80,7 @@ def _seed_item(
         """
         INSERT INTO media_item
             (kind, title, title_sort, original_title, year, category_id,
-             tmdb_id, imdb_id, tvdb_id, nfo_status, artwork_json,
+             external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json,
              date_created, date_modified, date_metadata_refreshed,
              is_locked, preferred_lang)
         VALUES (?, ?, ?, NULL, NULL, ?, NULL, NULL, NULL, ?, ?, ?, ?, NULL, 0, 'fr')
