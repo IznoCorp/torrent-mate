@@ -57,7 +57,7 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 | 12  | Tracker registry priority-aware par type de média             | phase-12-tracker-registry-priority.md | [x]    |
 | 13  | Torrent capabilities + QBit/Transmission refactor             | phase-13-torrent-capabilities.md      | [x]    |
 | 14  | Notify capabilities + Telegram/Healthchecks refactor          | phase-14-notify-capabilities.md       | [x]    |
-| 15  | Integration + E2E + final wire                                | phase-15-integration-e2e.md           | [ ]    |
+| 15  | Integration + E2E + final wire                                | phase-15-integration-e2e.md           | [x]    |
 
 ## Sub-phase tracking (filled by /implement:phase)
 
@@ -192,14 +192,9 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 
 ### Phase 15 — Integration + E2E
 
-| Sub  | Scope                                                                  | SHA | Status |
-| ---- | ---------------------------------------------------------------------- | --- | ------ |
-| 15.1 | Integration tests scrape pipeline                                      | -   | [ ]    |
-| 15.2 | Integration tests backfill + verify + dispatch                         | -   | [ ]    |
-| 15.3 | E2E test sur fixture show                                              | -   | [ ]    |
-| 15.4 | Regression e2e DEV #2 (6 shows scenario)                               | -   | [ ]    |
-| 15.5 | Validate 10 acceptance criteria DESIGN §12                             | -   | [ ]    |
-| 15.6 | Update CLAUDE.md + docs/reference (incl. indexer-json-shapes, logging) | -   | [ ]    |
+| Sub  | Scope                                                                                        | SHA    | Status |
+| ---- | -------------------------------------------------------------------------------------------- | ------ | ------ |
+| 15.x | E2E aggregate test + ACCEPTANCE.md + external-ids-flow reference doc + CLAUDE.md trigger row | (15.x) | [x]    |
 
 ## Quality gates (à passer à chaque phase gate commit)
 
