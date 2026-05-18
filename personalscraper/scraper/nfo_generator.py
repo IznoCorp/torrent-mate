@@ -16,6 +16,9 @@ from typing import Any, cast
 from personalscraper.api.metadata._base import Notations
 from personalscraper.indexer.outbox._disk import disk_id_for_path
 from personalscraper.indexer.outbox._publish import publish_event
+from personalscraper.logger import get_logger
+
+log = get_logger("scraper.nfo_generator")
 
 # Preview image sizes for inline thumbs
 POSTER_PREVIEW_SIZE = "w342"
@@ -658,12 +661,23 @@ class NFOGenerator:
         rendered row when no match exists.
         """
         rows: list[tuple[str, Notations]] = []
-        seen: set[str] = set()
+        seen: dict[str, float] = {}
         for entry in notations:
             nfo_name = _NFO_RATING_SOURCE_NAMES.get(entry.source, entry.source)
             if nfo_name in seen:
+                # Two Notations from the same NFO source — keep the first
+                # (insertion-order) and drop the rest, but log so an
+                # operator can audit the divergence. Plex/Kodi only read
+                # one <rating> per name, so the silent drop is the right
+                # behaviour ; the log makes it traceable.
+                log.debug(
+                    "nfo_rating_duplicate_dropped",
+                    source=nfo_name,
+                    kept_score=seen[nfo_name],
+                    dropped_score=float(entry.score),
+                )
                 continue
-            seen.add(nfo_name)
+            seen[nfo_name] = float(entry.score)
             rows.append((nfo_name, entry))
 
         canonical_name = canonical_source or (rows[0][0] if rows else None)

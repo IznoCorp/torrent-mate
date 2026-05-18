@@ -47,8 +47,10 @@ def safe_get_rating(client: Any, provider_id: str) -> list[Notations]:
         log.warning(
             "xref_get_rating_failed",
             client=type(client).__name__,
+            source=getattr(client, "provider_name", "?"),
             provider_id=provider_id,
             error=str(exc),
+            error_type=type(exc).__name__,
         )
         return []
     if not result:
