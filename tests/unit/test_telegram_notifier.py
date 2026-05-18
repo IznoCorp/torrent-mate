@@ -165,6 +165,31 @@ class TestChunking:
         assert notifier.send(big) is False
         assert notifier._transport.post.call_count == 2
 
+    def test_send_partial_failure_logs_chunks_sent_and_total(self, caplog: pytest.LogCaptureFixture) -> None:
+        """On mid-send failure, the warning log carries chunks_sent + chunks_total.
+
+        Regression for the post-review observability fix : operators
+        triaging a truncated Telegram report must see how many chunks
+        landed and how many were planned.
+        """
+        import logging  # noqa: PLC0415
+
+        notifier = _make_notifier()
+        notifier._transport.post.side_effect = [
+            None,  # chunk 1 OK
+            None,  # chunk 2 OK
+            ApiError(provider="telegram", http_status=400, message="bad"),  # chunk 3 fails
+        ]
+        big = "x" * 10500  # 3 chunks of 4096 / 4096 / 2308
+
+        with caplog.at_level(logging.WARNING, logger="api.telegram"):
+            assert notifier.send(big) is False
+
+        joined = " ".join(r.message for r in caplog.records if r.levelno == logging.WARNING)
+        assert "telegram_send_failed" in joined
+        assert "'chunks_sent': 2" in joined
+        assert "'chunks_total': 3" in joined
+
 
 # -- send_report() ------------------------------------------------------------
 

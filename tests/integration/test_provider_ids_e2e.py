@@ -224,6 +224,119 @@ def test_e2e_backfill_partial_then_idempotent(conn: sqlite3.Connection) -> None:
     imdb.get_rating.assert_not_called()
 
 
+def test_e2e_backfill_canonical_in_cross_refs_is_safely_ignored(
+    conn: sqlite3.Connection,
+) -> None:
+    """Canonical family in cross-ref payload is skipped by the safe-merge.
+
+    Pins DESIGN §3 cross-contamination guard via the
+    ``merge_ids_without_overwrite`` canonical-family skip clause —
+    proves that a TVDB-canonical row remains untouched even when the
+    TVDB client echoes back a TVDB id in the cross-ref payload.
+    """
+    item_id = _seed_partial_item(conn, title="Breaking Bad")
+
+    tvdb_client = MagicMock()
+    # Echo the canonical family back in the cross-ref payload to assert
+    # the merge skips it (the seeded tvdb id "9001" must stay).
+    tvdb_client.get_tv.return_value = MagicMock(external_ids={"tvdb": "OVERWRITE", "tmdb": "5005"})
+    bus = EventBus()
+
+    stats = run_backfill_ids(conn, event_bus=bus, tvdb_client=tvdb_client, ratings_only=False, ids_only=True)
+
+    assert stats.ids_added_count == 1  # only tmdb added, tvdb echo skipped
+
+    row = conn.execute("SELECT external_ids_json FROM media_item WHERE id = ?", (item_id,)).fetchone()
+    eids = json.loads(row[0])
+    assert eids["tvdb"]["series_id"] == "9001"  # canonical preserved
+    assert eids["tmdb"]["series_id"] == "5005"  # cross-ref added
+
+
+def test_e2e_backfill_no_canonical_client_logs_warning(
+    conn: sqlite3.Connection,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """When no canonical client is wired, the IDs path logs a clear warning per row.
+
+    Pins the silent-failure-hunter finding from the post-review : an
+    operator running ``backfill-ids`` without configuring the TMDB /
+    TVDB clients must see why nothing happened.
+    """
+    _seed_partial_item(conn, title="Breaking Bad")
+    bus = EventBus()
+
+    import logging  # noqa: PLC0415
+
+    with caplog.at_level(logging.WARNING, logger="indexer.backfill_ids"):
+        run_backfill_ids(conn, event_bus=bus, ids_only=True)
+
+    messages = " ".join(record.message for record in caplog.records)
+    assert "backfill_ids_path_disabled_no_canonical_client" in messages
+    assert "backfill_ids_path_no_client" in messages
+
+
+def test_e2e_backfill_canonical_id_missing_logs_warning(
+    conn: sqlite3.Connection,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """When canonical_provider is set but external_ids_json has no series_id, log it.
+
+    This row is a drift candidate — the indexer noted a canonical
+    provider but the JSON column never recorded the id. Without the
+    log the silent skip would mask the drift.
+    """
+    now = int(time.time())
+    # canonical_provider says tmdb but external_ids_json carries nothing under tmdb
+    conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, original_title, year, category_id, "
+        "external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
+        "date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang) "
+        "VALUES (?, ?, ?, NULL, 2008, 'tv_shows', '{}', NULL, 'tmdb', NULL, NULL, ?, ?, NULL, 0, 'fr')",
+        ("show", "Orphan", "Orphan", now, now),
+    )
+    tmdb_client = MagicMock()
+    bus = EventBus()
+
+    import logging  # noqa: PLC0415
+
+    with caplog.at_level(logging.WARNING, logger="indexer.backfill_ids"):
+        run_backfill_ids(conn, event_bus=bus, tmdb_client=tmdb_client, ids_only=True)
+
+    messages = " ".join(record.message for record in caplog.records)
+    assert "backfill_ids_canonical_id_missing" in messages
+    # And we never called the canonical client because we had no anchor.
+    tmdb_client.get_tv.assert_not_called()
+
+
+def test_e2e_backfill_cross_ref_fetch_failure_is_fail_soft(
+    conn: sqlite3.Connection,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A canonical-client exception is logged and the row stays untouched.
+
+    Confirms the fail-soft contract on the new cross-ref path — one
+    bad row never aborts the pass.
+    """
+    item_id = _seed_partial_item(conn, title="Breaking Bad")
+    tvdb_client = MagicMock()
+    tvdb_client.get_tv.side_effect = RuntimeError("simulated TVDB outage")
+    bus = EventBus()
+
+    import logging  # noqa: PLC0415
+
+    with caplog.at_level(logging.WARNING, logger="indexer.backfill_ids"):
+        stats = run_backfill_ids(conn, event_bus=bus, tvdb_client=tvdb_client, ids_only=True)
+
+    assert stats.items_failed == 0  # fail-soft: counted as skip, not failure
+    assert stats.items_updated == 0
+    messages = " ".join(record.message for record in caplog.records)
+    assert "backfill_cross_ref_fetch_failed" in messages
+
+    row = conn.execute("SELECT external_ids_json FROM media_item WHERE id = ?", (item_id,)).fetchone()
+    eids = json.loads(row[0])
+    assert eids == {"tvdb": {"series_id": "9001"}}  # unchanged
+
+
 # ---------------------------------------------------------------------------
 # Capability composition cross-checks (phases 1, 11, 13, 14)
 # ---------------------------------------------------------------------------

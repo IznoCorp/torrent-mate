@@ -1449,7 +1449,16 @@ class TestRepairMovieDir:
 
 
 class TestRepairTvshowDir:
-    """Tests for Scraper._repair_tvshow_dir."""
+    """Tests for Scraper._repair_tvshow_dir.
+
+    The tvshow.nfo fixtures in this class deliberately omit
+    ``default="true"`` on their ``<uniqueid>`` tags. ``_repair_tvshow_dir``
+    does *not* call ``verify_tvshow_scrape_drift`` (which enforces the
+    canonical default attribute under the provider-ids feature) — the
+    repair flow only inspects directory structure, not NFO contents.
+    If a future refactor wires drift-check into the repair path, these
+    fixtures must be updated.
+    """
 
     @pytest.fixture
     def mock_settings(self) -> MagicMock:

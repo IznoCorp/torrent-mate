@@ -23,6 +23,8 @@ from __future__ import annotations
 from typing import Protocol
 from unittest.mock import MagicMock
 
+import pytest
+
 from personalscraper.api.metadata._contracts import (
     ArtworkProvider,
     EpisodeFetcher,
@@ -76,39 +78,21 @@ def _declares(cls: type, protocol: type[Protocol]) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def test_tmdb_client_is_searchable() -> None:
-    """``TMDBClient`` satisfies :class:`Searchable`."""
-    assert isinstance(_tmdb(), Searchable)
-
-
-def test_tmdb_client_is_movie_details_provider() -> None:
-    """``TMDBClient`` satisfies :class:`MovieDetailsProvider`."""
-    assert isinstance(_tmdb(), MovieDetailsProvider)
-
-
-def test_tmdb_client_is_tv_details_provider() -> None:
-    """``TMDBClient`` satisfies :class:`TvDetailsProvider`."""
-    assert isinstance(_tmdb(), TvDetailsProvider)
-
-
-def test_tmdb_client_is_episode_fetcher() -> None:
-    """``TMDBClient`` satisfies :class:`EpisodeFetcher`."""
-    assert isinstance(_tmdb(), EpisodeFetcher)
-
-
-def test_tmdb_client_is_artwork_provider() -> None:
-    """``TMDBClient`` satisfies :class:`ArtworkProvider`."""
-    assert isinstance(_tmdb(), ArtworkProvider)
-
-
-def test_tmdb_client_is_keyword_provider() -> None:
-    """``TMDBClient`` satisfies :class:`KeywordProvider`."""
-    assert isinstance(_tmdb(), KeywordProvider)
-
-
-def test_tmdb_client_is_video_provider() -> None:
-    """``TMDBClient`` satisfies :class:`VideoProvider`."""
-    assert isinstance(_tmdb(), VideoProvider)
+@pytest.mark.parametrize(
+    "protocol",
+    [
+        Searchable,
+        MovieDetailsProvider,
+        TvDetailsProvider,
+        EpisodeFetcher,
+        ArtworkProvider,
+        KeywordProvider,
+        VideoProvider,
+    ],
+)
+def test_tmdb_client_satisfies_capability(protocol: type[Protocol]) -> None:
+    """``TMDBClient`` satisfies each declared capability via runtime_checkable."""
+    assert isinstance(_tmdb(), protocol)
 
 
 def test_tmdb_client_does_not_declare_id_validator() -> None:
