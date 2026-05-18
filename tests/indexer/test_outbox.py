@@ -906,10 +906,14 @@ def test_drain_nfo_write_idempotent(conn: sqlite3.Connection) -> None:
     drain(conn, _make_config())
 
     conn.row_factory = sqlite3.Row
-    item = conn.execute("SELECT nfo_status, tmdb_id FROM media_item WHERE id = ?", (item_id,)).fetchone()
+    item = conn.execute(
+        "SELECT nfo_status, json_extract(external_ids_json, '$.tmdb.series_id') AS tmdb_id "
+        "FROM media_item WHERE id = ?",
+        (item_id,),
+    ).fetchone()
     assert item is not None
     assert item["nfo_status"] == "valid"
-    assert item["tmdb_id"] == 42
+    assert item["tmdb_id"] == "42"
 
 
 def test_drain_artwork_write_idempotent(conn: sqlite3.Connection) -> None:
@@ -1098,11 +1102,16 @@ def test_drain_nfo_write_resolves_path_from_file_path(conn: sqlite3.Connection) 
     assert r is not None
     assert r["status"] == "done", f"Expected 'done', got {r['status']!r}"
 
-    # The media_item must have been updated with nfo_status='valid' and tmdb_id=99.
-    item = conn.execute("SELECT nfo_status, tmdb_id FROM media_item WHERE id = ?", (item_id,)).fetchone()
+    # The media_item must have been updated with nfo_status='valid' and tmdb_id=99
+    # (the latter now lives in ``external_ids_json``).
+    item = conn.execute(
+        "SELECT nfo_status, json_extract(external_ids_json, '$.tmdb.series_id') AS tmdb_id "
+        "FROM media_item WHERE id = ?",
+        (item_id,),
+    ).fetchone()
     assert item is not None
     assert item["nfo_status"] == "valid", f"Expected nfo_status='valid', got {item['nfo_status']!r}"
-    assert item["tmdb_id"] == 99, f"Expected tmdb_id=99, got {item['tmdb_id']!r}"
+    assert item["tmdb_id"] == "99", f"Expected tmdb_id='99', got {item['tmdb_id']!r}"
 
 
 # ---------------------------------------------------------------------------
