@@ -49,7 +49,13 @@ _DEFAULT_RATE = RateLimitPolicy(requests_per_second=1.0)
 class TelegramNotifier:
     """Send pipeline notifications via the Telegram Bot API.
 
-    Implements the `Notifier` Protocol (DESIGN §7.1). Fail-soft by contract:
+    Satisfies the :class:`~personalscraper.api.notify._contracts.Notifier`
+    Protocol via structural subtyping (DESIGN §7.1, sub-phase 14.2 of
+    the ``provider-ids`` feature). ``@runtime_checkable`` on the
+    Protocol keeps ``isinstance(notifier, Notifier)`` working at
+    runtime without forcing explicit inheritance.
+
+    Fail-soft by contract:
     any transport or API error is logged and converted to a `False` return —
     the notifier MUST NEVER raise, so a Telegram outage cannot abort the
     pipeline.
