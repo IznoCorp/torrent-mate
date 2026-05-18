@@ -538,6 +538,10 @@ class MediaChecker:
         for nfo_path in episode_nfos:
             root = self._parse_nfo(nfo_path)
             if root is None:
+                # Unparseable NFO ≡ missing canonical uniqueid for the
+                # purpose of dispatch readiness — we cannot ship a show
+                # whose episode NFOs would crash a downstream reader.
+                missing.append(f"{nfo_path.name} (unparseable)")
                 continue
             ids = self._extract_ids(root)
             if not ids.get(canonical_family):

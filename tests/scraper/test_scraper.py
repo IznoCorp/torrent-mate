@@ -581,7 +581,8 @@ class TestScrapeTvshow:
         show_dir = tmp_path / "Fallout (2024)"
         show_dir.mkdir()
         (show_dir / "tvshow.nfo").write_text(
-            '<tvshow><title>Fallout</title><year>2024</year><uniqueid type="tvdb">123</uniqueid></tvshow>'
+            "<tvshow><title>Fallout</title><year>2024</year>"
+            '<uniqueid type="tvdb" default="true">123</uniqueid></tvshow>'
         )
         (show_dir / "poster.jpg").write_bytes(b"\xff")
         (show_dir / "landscape.jpg").write_bytes(b"\xff")
@@ -606,7 +607,8 @@ class TestScrapeTvshow:
         show_dir = tmp_path / "Fallout (2024)"
         show_dir.mkdir()
         (show_dir / "tvshow.nfo").write_text(
-            ('<tvshow><title>Fallout</title><year>2024</year><uniqueid type="tmdb">106379</uniqueid></tvshow>')
+            "<tvshow><title>Fallout</title><year>2024</year>"
+            '<uniqueid type="tmdb" default="true">106379</uniqueid></tvshow>'
         )
         (show_dir / "poster.jpg").write_bytes(b"\xff")
         (show_dir / "landscape.jpg").write_bytes(b"\xff")
@@ -655,7 +657,8 @@ class TestScrapeTvshow:
         show_dir = tmp_path / folder_name
         show_dir.mkdir()
         (show_dir / "tvshow.nfo").write_text(
-            f'<tvshow><title>{nfo_title}</title><year>{nfo_year}</year><uniqueid type="tvdb">123</uniqueid></tvshow>'
+            f"<tvshow><title>{nfo_title}</title><year>{nfo_year}</year>"
+            '<uniqueid type="tvdb" default="true">123</uniqueid></tvshow>'
         )
         if with_poster:
             (show_dir / "poster.jpg").write_bytes(b"\xff")

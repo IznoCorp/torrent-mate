@@ -68,12 +68,20 @@ def _make_validator(
 
 
 def _write_show_nfo(path: Path, *, tvdb_id: int | None = None, tmdb_id: int | None = None) -> None:
-    """Write a minimal tvshow.nfo with the given uniqueids."""
+    """Write a minimal tvshow.nfo with the given uniqueids.
+
+    The first uniqueid emitted carries ``default="true"`` to match the
+    canonical-default invariant enforced by the drift validator
+    (provider-ids feature, DESIGN §3 Q6).
+    """
     parts = ['<?xml version="1.0"?>', "<tvshow>", "<title>Show</title>", "<year>2020</year>"]
+    default_applied = False
     if tvdb_id is not None:
-        parts.append(f'<uniqueid type="tvdb">{tvdb_id}</uniqueid>')
+        parts.append(f'<uniqueid type="tvdb" default="true">{tvdb_id}</uniqueid>')
+        default_applied = True
     if tmdb_id is not None:
-        parts.append(f'<uniqueid type="tmdb">{tmdb_id}</uniqueid>')
+        default_attr = "" if default_applied else ' default="true"'
+        parts.append(f'<uniqueid type="tmdb"{default_attr}>{tmdb_id}</uniqueid>')
     parts.append("</tvshow>")
     path.write_text("\n".join(parts), encoding="utf-8")
 
@@ -120,7 +128,9 @@ class TestVerifyDriftBranches:
         show_dir = tmp_path / "Show (2020)"
         show_dir.mkdir()
         nfo = show_dir / "tvshow.nfo"
-        nfo.write_text('<tvshow><title>Show</title><year>2020</year><uniqueid type="tmdb">1</uniqueid></tvshow>')
+        nfo.write_text(
+            '<tvshow><title>Show</title><year>2020</year><uniqueid type="tmdb" default="true">1</uniqueid></tvshow>'
+        )
         patterns = NamingPatterns()
         (show_dir / patterns.tvshow_poster).write_bytes(b"\xff\xd8")
         (show_dir / patterns.tvshow_landscape).write_bytes(b"\xff\xd8")

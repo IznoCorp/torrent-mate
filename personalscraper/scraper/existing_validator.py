@@ -200,8 +200,23 @@ def verify_tvshow_scrape_drift(
     has_uniqueid = any((u.text or "").strip() for u in root.findall("uniqueid"))
     if not has_uniqueid:
         return False, "nfo_missing_uniqueid"
+    # Strict canonical check (DESIGN §3 Q6) — at least one
+    # ``<uniqueid default="true">`` with non-empty text. Pre-existing
+    # NFOs that ship a uniqueid without the default attribute trip
+    # this branch and get re-scraped, which is intentional under the
+    # provider-ids feature (no retro-compat before 1.x).
+    # ``_read_canonical_provider`` keeps its tolerant first-uniqueid
+    # fallback for downstream consumers that have already passed
+    # this gate.
+    has_default_uniqueid = any(u.get("default") == "true" and (u.text or "").strip() for u in root.findall("uniqueid"))
+    if not has_default_uniqueid:
+        return False, "nfo_missing_canonical_uniqueid"
     canonical_family = _read_canonical_provider(root)
     if canonical_family is None:
+        # Defensive: _read_canonical_provider is tolerant so this branch
+        # should not be reachable once the two upstream checks passed,
+        # but keep it as a safety net in case the reader is hardened
+        # later without revisiting the drift validator.
         return False, "nfo_missing_canonical_uniqueid"
     trailing_year_pattern = f" ({nfo_year})"
     if nfo_title.endswith(trailing_year_pattern):
