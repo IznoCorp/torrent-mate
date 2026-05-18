@@ -84,7 +84,17 @@ def _parse_rfc2822(value: Any) -> datetime | None:
 
 
 class C411Client:
-    """C411 tracker API client over Torznab XML."""
+    """C411 tracker API client over Torznab XML.
+
+    Composes
+    :class:`~personalscraper.api.tracker._contracts.TorrentSearchable`
+    and
+    :class:`~personalscraper.api.tracker._contracts.CategoryListable`
+    (sub-phase 11.3 — DESIGN §4). Notably *does not* implement
+    :class:`~personalscraper.api.tracker._contracts.FreeleechAware`
+    because the Torznab schema C411 exposes carries no freeleech flag —
+    the field would be a misleading constant ``False``.
+    """
 
     provider_name: str = ProviderName.C411.value
     REQUIRED_CREDS: ClassVar[list[str]] = ["C411_API_KEY"]

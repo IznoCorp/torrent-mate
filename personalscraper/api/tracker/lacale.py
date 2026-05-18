@@ -62,7 +62,16 @@ class LaCaleClient:
     """LaCale tracker API client.
 
     Wraps an HttpTransport pre-configured with the LaCale ``TransportPolicy``.
-    Implements the TrackerClient Protocol from ``api/tracker/_base.py``.
+    Composes the atomic tracker capabilities from
+    :mod:`personalscraper.api.tracker._contracts` :
+    :class:`~personalscraper.api.tracker._contracts.TorrentSearchable`,
+    :class:`~personalscraper.api.tracker._contracts.CategoryListable`
+    (DESIGN §4 — Composition par client, sub-phase 11.2).
+
+    Structural composition rather than explicit inheritance keeps the
+    runtime ``isinstance(..., TorrentSearchable)`` working without
+    adding a multiple-inheritance graph that ``MetadataClient`` /
+    ``HttpTransport`` would have to navigate.
     """
 
     provider_name: str = ProviderName.LACALE.value

@@ -1,7 +1,7 @@
 """TrackerRegistry — query trackers in priority order and rank merged results.
 
 Implements DESIGN §6.4: a multi-tracker orchestrator that calls each
-configured TrackerClient in priority order, collects all TrackerResult
+configured TorrentSearchable in priority order, collects all TrackerResult
 instances, and returns them ranked via ``rank()``. Failures of individual
 trackers are logged and do not abort the search.
 """
@@ -11,7 +11,8 @@ import xml.parsers.expat
 import requests
 
 from personalscraper.api._contracts import ApiError, MediaType
-from personalscraper.api.tracker._base import TrackerClient, TrackerResult
+from personalscraper.api.tracker._base import TrackerResult
+from personalscraper.api.tracker._contracts import TorrentSearchable
 from personalscraper.api.tracker._ranking import RankingConfig, rank
 from personalscraper.logger import get_logger
 
@@ -19,7 +20,7 @@ log = get_logger("api.tracker.registry")
 
 
 class TrackerRegistry:
-    """Coordinates searches across multiple TrackerClient providers.
+    """Coordinates searches across multiple TorrentSearchable providers.
 
     Trackers are queried in the order given by ``priority``. Trackers not
     present in ``trackers`` are silently skipped. Exceptions raised by a
@@ -28,21 +29,21 @@ class TrackerRegistry:
     and returned.
 
     Attributes:
-        _trackers: Map of tracker name → TrackerClient instance.
+        _trackers: Map of tracker name → TorrentSearchable instance.
         _priority: Ordered list of tracker names (highest priority first).
         _ranking: RankingConfig applied to merged results.
     """
 
     def __init__(
         self,
-        trackers: dict[str, TrackerClient],
+        trackers: dict[str, TorrentSearchable],
         priority: list[str],
         ranking: RankingConfig,
     ) -> None:
         """Initialize the registry.
 
         Args:
-            trackers: Map of tracker name → TrackerClient instance.
+            trackers: Map of tracker name → TorrentSearchable instance.
             priority: Ordered list of tracker names (highest priority first).
             ranking: Ranking configuration applied to merged results.
         """
@@ -84,7 +85,7 @@ class TrackerRegistry:
                 # are logged and the surviving trackers' results are still ranked.
                 # Programming errors (KeyError, AttributeError, …) are *not*
                 # caught here — they indicate a code bug that must surface.
-                # See ``TrackerClient`` Protocol docstring for the parse-drift
+                # See ``TorrentSearchable`` Protocol docstring for the parse-drift
                 # wrapping contract that tracker authors must satisfy.
                 log.warning("tracker_search_failed", tracker=name, exc_info=True)
         return rank(results, self._ranking)
