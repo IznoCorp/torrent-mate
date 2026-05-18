@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from typing import Any
 
 # Provider families recognised by ``external_ids_json``. ``imdb`` is
 # included because the IMDb façade lives alongside TVDB and TMDb in
@@ -209,7 +210,7 @@ def merge_ratings_without_overwrite(
     return json.dumps(payload), added
 
 
-def _load_json(raw: str | None) -> dict | None:
+def _load_json(raw: str | None) -> dict[str, Any] | None:
     """Parse a JSON column value, returning ``None`` on empty / malformed input."""
     if not raw:
         return None
