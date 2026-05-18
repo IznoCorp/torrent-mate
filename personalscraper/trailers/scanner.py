@@ -262,8 +262,19 @@ class Scanner:
                 # Trailer file already present (DB not yet updated); skip.
                 continue
 
-            # tmdb_id in the DB is an int; ScanItem expects str | None.
-            tmdb_id_str: str | None = str(db_item.tmdb_id) if db_item.tmdb_id is not None else None
+            # Migration 005 stores IDs in ``external_ids_json`` ; pull
+            # tmdb / imdb out of the JSON column rather than the
+            # now-removed flat columns. ``ScanItem`` keeps the
+            # ``tmdb_id`` / ``imdb_id`` string fields for the
+            # downstream lookup helpers.
+            import json as _json  # noqa: PLC0415
+
+            try:
+                external_ids = _json.loads(db_item.external_ids_json or "{}")
+            except _json.JSONDecodeError:
+                external_ids = {}
+            tmdb_id_str = external_ids.get("tmdb", {}).get("series_id")
+            imdb_id_str = external_ids.get("imdb", {}).get("series_id")
 
             scan_item = ScanItem(
                 path=media_dir,
@@ -271,7 +282,7 @@ class Scanner:
                 title=db_item.title,
                 year=db_item.year,
                 tmdb_id=tmdb_id_str,
-                imdb_id=db_item.imdb_id,
+                imdb_id=imdb_id_str,
                 nfo_path=nfo_path,
                 season_number=None,
             )
