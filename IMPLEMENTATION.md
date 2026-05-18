@@ -51,7 +51,7 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 | 6   | NFO ratings multi-source + uniqueid default canonical         | phase-06-nfo-ratings-multisource.md   | [x]    |
 | 7   | DB schema — external_ids_json + ratings_json + canonical_prov | phase-07-db-schema-external-ids.md    | [x]    |
 | 8   | Backfill mode + CLI + auto-trigger post-scrape                | phase-08-backfill-mode.md             | [x]    |
-| 9   | Verify checker — 3 nouveaux checks                            | phase-09-verify-checker-extensions.md | [ ]    |
+| 9   | Verify checker — 3 nouveaux checks                            | phase-09-verify-checker-extensions.md | [x]    |
 | 10  | Consommateurs library/conf/trailers refactor                  | phase-10-consumers-refactor.md        | [ ]    |
 | 11  | Tracker capabilities + LaCale/C411 refactor                   | phase-11-tracker-capabilities.md      | [ ]    |
 | 12  | Tracker registry priority-aware par type de média             | phase-12-tracker-registry-priority.md | [ ]    |
@@ -152,12 +152,9 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 
 ### Phase 9 — Verify Checker Extensions
 
-| Sub | Scope                                            | SHA | Status |
-| --- | ------------------------------------------------ | --- | ------ |
-| 9.1 | Check `episode_canonical_uniqueid_present` ERROR | -   | [ ]    |
-| 9.2 | Check `episode_xref_secondary_id_present` WARN   | -   | [ ]    |
-| 9.3 | Check `episode_xref_imdb_id_present` WARN        | -   | [ ]    |
-| 9.4 | Update output + checks_total 15→18               | -   | [ ]    |
+| Sub | Scope                                                                 | SHA     | Status |
+| --- | --------------------------------------------------------------------- | ------- | ------ |
+| 9.x | All 3 checks + fixture updates batched: canonical/xref secondary/imdb | 93e2a20 | [x]    |
 
 ### Phase 10 — Consumers Refactor
 
