@@ -874,9 +874,10 @@ class TestAnalyzeFromIndexExtraBranches:
         now = int(time.time())
         cur = conn.execute(
             "INSERT INTO media_item (kind, title, title_sort, original_title, year, category_id, "
-            " external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, date_created, date_modified, "
+            " external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
+            " date_created, date_modified, "
             " date_metadata_refreshed, is_locked, preferred_lang) "
-            "VALUES ('movie', 'A', 'A', NULL, NULL, 'movies', NULL, NULL, NULL, 'valid', NULL, ?, ?, NULL, 0, 'fr')",
+            "VALUES ('movie', 'A', 'A', NULL, NULL, 'movies', '{}', NULL, NULL, 'valid', NULL, ?, ?, NULL, 0, 'fr')",
             (now, now),
         )
         item_id = cur.lastrowid
@@ -918,9 +919,10 @@ class TestAnalyzeFromIndexExtraBranches:
         now = int(time.time())
         conn.execute(
             "INSERT INTO media_item (kind, title, title_sort, original_title, year, category_id, "
-            " external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, date_created, date_modified, "
+            " external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
+            " date_created, date_modified, "
             " date_metadata_refreshed, is_locked, preferred_lang) "
-            "VALUES ('movie', 'Empty', 'Empty', NULL, NULL, 'movies', NULL, NULL, NULL, "
+            "VALUES ('movie', 'Empty', 'Empty', NULL, NULL, 'movies', '{}', NULL, NULL, "
             "'valid', NULL, ?, ?, NULL, 0, 'fr')",
             (now, now),
         )
@@ -953,9 +955,10 @@ class TestAnalyzeFromIndexExtraBranches:
         now = int(time.time())
         cur = conn.execute(
             "INSERT INTO media_item (kind, title, title_sort, original_title, year, category_id, "
-            " external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, date_created, date_modified, "
+            " external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
+            " date_created, date_modified, "
             " date_metadata_refreshed, is_locked, preferred_lang) "
-            "VALUES ('movie', 'A', 'A', NULL, NULL, 'movies', NULL, NULL, NULL, 'valid', NULL, ?, ?, NULL, 0, 'fr')",
+            "VALUES ('movie', 'A', 'A', NULL, NULL, 'movies', '{}', NULL, NULL, 'valid', NULL, ?, ?, NULL, 0, 'fr')",
             (now, now),
         )
         item_id = cur.lastrowid
