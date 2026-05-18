@@ -464,11 +464,18 @@ def _upsert_media_item(
     nfo_status = _nfo_status_string(scan_item.nfo)
     artwork_json = _artwork_inventory(scan_item.artwork).model_dump_json()
 
-    # TMDB IDs from NFO are stored as strings; the schema column is INTEGER.
-    # Convert only when the string is purely numeric.
-    tmdb_id: int | None = None
+    # Migration 005 (provider-ids feature) consolidated the flat
+    # ``tmdb_id`` / ``imdb_id`` / ``tvdb_id`` columns into a single
+    # ``external_ids_json`` column. Build the JSON here from whatever
+    # the NFO surfaced.
+    import json as _json  # noqa: PLC0415
+
+    eids: dict[str, dict[str, str | None]] = {}
     if scan_item.nfo.tmdb_id and scan_item.nfo.tmdb_id.isdigit():
-        tmdb_id = int(scan_item.nfo.tmdb_id)
+        eids["tmdb"] = {"series_id": scan_item.nfo.tmdb_id, "episode_id": None}
+    if scan_item.nfo.imdb_id:
+        eids["imdb"] = {"series_id": scan_item.nfo.imdb_id, "episode_id": None}
+    external_ids_json = _json.dumps(eids) if eids else "{}"
 
     row = MediaItemRow(
         id=0,
@@ -478,9 +485,9 @@ def _upsert_media_item(
         original_title=None,
         year=scan_item.year,
         category_id=scan_item.category,
-        tmdb_id=tmdb_id,
-        imdb_id=scan_item.nfo.imdb_id,
-        tvdb_id=None,
+        external_ids_json=external_ids_json,
+        ratings_json=None,
+        canonical_provider=None,
         nfo_status=nfo_status,
         artwork_json=artwork_json,
         date_created=now_s,
