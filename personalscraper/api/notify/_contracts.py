@@ -30,13 +30,14 @@ class Notifier(Protocol):
     """Protocol for notification providers (Telegram, Slack, …).
 
     Required members:
-        provider_name: Human-readable provider identifier.
+        provider_name: Class-level provider identifier (matches every
+            concrete provider declaring it as ``ClassVar[str]``).
         REQUIRED_CREDS: List of .env variable names needed by this provider.
         send(): Post a free-form message; returns True on success, False on failure.
         send_report(): Serialize and send a PipelineReport; returns success flag.
     """
 
-    provider_name: str
+    provider_name: ClassVar[str]
     REQUIRED_CREDS: ClassVar[list[str]]
 
     def send(self, message: str, parse_mode: str = "HTML") -> bool: ...
@@ -53,14 +54,15 @@ class HealthChecker(Protocol):
     to bracket pipeline runs so external monitoring can detect crashes.
 
     Required members:
-        provider_name: Human-readable provider identifier.
+        provider_name: Class-level provider identifier (matches every
+            concrete provider declaring it as ``ClassVar[str]``).
         REQUIRED_CREDS: List of .env variable names needed by this provider.
         ping_start(): Signal that a pipeline run has started.
         ping_success(): Signal that a pipeline run completed successfully.
         ping_fail(): Signal that a pipeline run failed.
     """
 
-    provider_name: str
+    provider_name: ClassVar[str]
     REQUIRED_CREDS: ClassVar[list[str]]
 
     def ping_start(self) -> None: ...

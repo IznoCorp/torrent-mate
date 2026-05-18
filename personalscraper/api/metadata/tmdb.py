@@ -12,11 +12,21 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from personalscraper.api._contracts import MediaType, ProviderName
 from personalscraper.api.metadata._base import (
     ArtworkItem,
+    EpisodeInfo,
     MediaDetails,
     MetadataClient,
     SearchResult,
     SeasonDetails,
     Video,
+)
+from personalscraper.api.metadata._contracts import (
+    ArtworkProvider,
+    EpisodeFetcher,
+    KeywordProvider,
+    MovieDetailsProvider,
+    Searchable,
+    TvDetailsProvider,
+    VideoProvider,
 )
 from personalscraper.api.metadata._tmdb_parsers import (
     _build_image_url,
@@ -47,15 +57,32 @@ _DEFAULT_RATE = RateLimitPolicy(requests_per_second=40.0)
 _DEFAULT_RETRY = RetryPolicy(max_attempts=4)
 
 
-class TMDBClient(MetadataClient):
+class TMDBClient(
+    MetadataClient,
+    Searchable,
+    MovieDetailsProvider,
+    TvDetailsProvider,
+    EpisodeFetcher,
+    ArtworkProvider,
+    KeywordProvider,
+    VideoProvider,
+):
     """TMDB API v3 metadata provider.
 
     Authentication via Bearer token (API Read Access Token).
     All HTTP calls go through HttpTransport, which enforces retry,
     circuit breaker, and rate limiting uniformly.
 
-    Implements MetadataProvider Protocol: search, get_details,
-    get_artwork_urls, get_keywords, get_videos, get_season.
+    Composes the atomic capability protocols from
+    :mod:`personalscraper.api.metadata._contracts`: :class:`Searchable`,
+    :class:`MovieDetailsProvider`, :class:`TvDetailsProvider`,
+    :class:`EpisodeFetcher`, :class:`ArtworkProvider`,
+    :class:`KeywordProvider`, :class:`VideoProvider`. Does *not* compose
+    :class:`IDValidator` / :class:`IDCrossRef` (cross-provider ID
+    validation flows through :mod:`personalscraper.scraper._xref`, not
+    through Protocol methods on the TMDB façade) nor
+    :class:`RecommendationProvider` (no TMDB recommendations endpoint
+    wired in the client yet).
     """
 
     REQUIRED_CREDS: ClassVar[list[str]] = ["TMDB_API_KEY"]
@@ -154,8 +181,8 @@ class TMDBClient(MetadataClient):
             Populated MediaDetails with artwork, genres, and external IDs.
         """
         if media_type == "tv":
-            return self.get_tv(int(media_id))
-        return self.get_movie(int(media_id))
+            return self.get_tv(media_id)
+        return self.get_movie(media_id)
 
     # -- TMDB-specific: movie search ----------------------------------------
 
@@ -215,11 +242,13 @@ class TMDBClient(MetadataClient):
 
     # -- TMDB-specific: details ---------------------------------------------
 
-    def get_movie(self, movie_id: int) -> MediaDetails:
+    def get_movie(self, movie_id: str | int) -> MediaDetails:
         """Fetch full movie details with artwork, videos, keywords.
 
         Args:
-            movie_id: TMDB movie ID.
+            movie_id: TMDB movie ID (``int`` for direct TMDB calls,
+                ``str`` to satisfy the :class:`MovieDetailsProvider`
+                Protocol signature).
 
         Returns:
             Populated MediaDetails.
@@ -234,11 +263,13 @@ class TMDBClient(MetadataClient):
             raise TypeError(f"Expected dict response, got {type(raw).__name__}")
         return parse_media_details(raw, "tmdb")
 
-    def get_tv(self, tv_id: int) -> MediaDetails:
+    def get_tv(self, tv_id: str | int) -> MediaDetails:
         """Fetch full TV show details with artwork, videos, keywords.
 
         Args:
-            tv_id: TMDB TV show ID.
+            tv_id: TMDB TV show ID (``int`` for direct TMDB calls,
+                ``str`` to satisfy the :class:`TvDetailsProvider`
+                Protocol signature).
 
         Returns:
             Populated MediaDetails.
@@ -416,6 +447,25 @@ class TMDBClient(MetadataClient):
         if not isinstance(raw, dict):
             return []
         return parse_keywords(raw, media_type)
+
+    # -- Protocol: get_episodes ---------------------------------------------
+
+    def get_episodes(self, series_id: str | int, season: int) -> list[EpisodeInfo]:
+        """Fetch the episode list for a season — satisfies :class:`EpisodeFetcher`.
+
+        Delegates to :meth:`get_tv_season` and unwraps the episodes
+        array so consumers iterating capabilities don't need to know
+        about the nominal :class:`SeasonDetails` container.
+
+        Args:
+            series_id: TMDB TV show ID (accepts ``int`` for direct
+                callers and ``str`` for Protocol compatibility).
+            season: Season number (1-indexed; 0 = specials).
+
+        Returns:
+            ``list[EpisodeInfo]`` for the requested season.
+        """
+        return self.get_tv_season(int(series_id), season).episodes
 
     # -- Protocol: get_season -----------------------------------------------
 

@@ -23,6 +23,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar
 
 from personalscraper.api._contracts import ProviderName
+from personalscraper.api.notify._contracts import HealthChecker
 from personalscraper.api.transport._auth import NoAuth
 from personalscraper.api.transport._policy import (
     CircuitPolicy,
@@ -43,10 +44,10 @@ _DEFAULT_CIRCUIT = CircuitPolicy(failure_threshold=10, cooldown_seconds=60.0)
 _DEFAULT_RETRY = RetryPolicy(max_attempts=2)
 
 
-class HealthcheckClient:
+class HealthcheckClient(HealthChecker):
     """Send lifecycle pings to a healthchecks.io-compatible endpoint.
 
-    Implements the `HealthChecker` Protocol (DESIGN §7.1). All three ping_*
+    Composes the `HealthChecker` Protocol (DESIGN §7.1). All three ping_*
     methods are pure side-effects with `-> None` return type. They MUST NEVER
     raise — pipeline runs always finish even if the ping endpoint is down.
 

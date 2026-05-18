@@ -1,7 +1,10 @@
-"""qBittorrent client implementing the TorrentClient Protocol.
+"""qBittorrent client composing the atomic torrent capability protocols.
 
 Wraps qbittorrentapi.Client with anti-ban protection (lockout file, pre-check)
-and maps qBit API responses to TorrentItem dataclasses.
+and maps qBit API responses to TorrentItem dataclasses. Composes
+:class:`TorrentLister`, :class:`TorrentInspector`, :class:`AuthenticatedClient`,
+:class:`TorrentStateInspector` and :class:`TorrentController` from
+:mod:`personalscraper.api.torrent._contracts` (DESIGN §4 — phase 13).
 
 Provider-specific exceptions (QBitAuthLockoutError, LoginFailed, Forbidden403Error,
 APIConnectionError) are preserved — they carry actionable user guidance in the
@@ -21,6 +24,13 @@ import requests
 
 from personalscraper.api._contracts import ApiError, ProviderName
 from personalscraper.api.torrent._base import TorrentItem
+from personalscraper.api.torrent._contracts import (
+    AuthenticatedClient,
+    TorrentController,
+    TorrentInspector,
+    TorrentLister,
+    TorrentStateInspector,
+)
 from personalscraper.conf.models.api_config import TorrentClientEntry
 from personalscraper.logger import get_logger
 
@@ -34,12 +44,20 @@ class QBitAuthLockoutError(Exception):
     """Raised when auth is blocked by a lockout file from a prior failure."""
 
 
-class QBitClient:
+class QBitClient(
+    TorrentLister,
+    TorrentInspector,
+    AuthenticatedClient,
+    TorrentStateInspector,
+    TorrentController,
+):
     """qBittorrent client wrapping qbittorrentapi.Client.
 
-    Implements the TorrentClient Protocol. Login is handled by
-    :func:`build_client` — this class assumes an already-authenticated
-    underlying client.
+    Composes the full set of atomic torrent capabilities
+    (:class:`TorrentLister`, :class:`TorrentInspector`,
+    :class:`AuthenticatedClient`, :class:`TorrentStateInspector`,
+    :class:`TorrentController`). Login is handled by :func:`build_client` —
+    this class assumes an already-authenticated underlying client.
     """
 
     REQUIRED_CREDS: ClassVar[list[str]] = ["QBIT_USERNAME", "QBIT_PASSWORD"]

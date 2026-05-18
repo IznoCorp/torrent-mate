@@ -24,6 +24,12 @@ from personalscraper.api.metadata._base import (
     Recommendation,
     SearchResult,
 )
+from personalscraper.api.metadata._contracts import (
+    MovieDetailsProvider,
+    RecommendationProvider,
+    Searchable,
+    TvDetailsProvider,
+)
 from personalscraper.api.transport._auth import ApiKeyAuth
 from personalscraper.api.transport._policy import (
     CircuitPolicy,
@@ -53,7 +59,13 @@ _IMAGE_TYPE_MAP = {
 }
 
 
-class TraktClient(MetadataClient):
+class TraktClient(
+    MetadataClient,
+    Searchable,
+    MovieDetailsProvider,
+    TvDetailsProvider,
+    RecommendationProvider,
+):
     """Trakt API v2 metadata provider.
 
     App-only auth via two headers (trakt-api-key + trakt-api-version: 2).
@@ -146,6 +158,28 @@ class TraktClient(MetadataClient):
             )
         )
         return _parse_media_details(data, provider=self.provider_name, media_type=media_type)
+
+    def get_movie(self, provider_id: str) -> MediaDetails:
+        """MovieDetailsProvider Protocol alias for :meth:`get_details`.
+
+        Args:
+            provider_id: Trakt numeric ID, slug, or IMDb ID.
+
+        Returns:
+            Populated MediaDetails.
+        """
+        return self.get_details(provider_id, MediaType.MOVIE)
+
+    def get_tv(self, provider_id: str) -> MediaDetails:
+        """TvDetailsProvider Protocol alias for :meth:`get_details`.
+
+        Args:
+            provider_id: Trakt numeric ID, slug, or IMDb ID.
+
+        Returns:
+            Populated MediaDetails.
+        """
+        return self.get_details(provider_id, MediaType.TV)
 
     def get_notations(
         self,

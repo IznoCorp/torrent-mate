@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, ClassVar
 from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api._helpers import ProviderFeatureUnavailable
 from personalscraper.api.metadata._base import MediaDetails, Notations
+from personalscraper.api.metadata._contracts import IDCrossRef, IDValidator, RatingProvider
 
 if TYPE_CHECKING:
     from personalscraper.api.metadata.omdb import OMDbAdapter
@@ -51,7 +52,7 @@ def _normalize_title(value: str) -> str:
     return " ".join(value.lower().split())
 
 
-class IMDbClient:
+class IMDbClient(IDValidator, RatingProvider, IDCrossRef):
     """IMDb business façade — validates IMDb IDs, fetches IMDb ratings.
 
     Composes :class:`IDValidator`, :class:`RatingProvider`,

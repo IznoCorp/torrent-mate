@@ -28,12 +28,13 @@ from typing import TYPE_CHECKING, ClassVar
 from personalscraper.api._contracts import ApiError
 from personalscraper.api._helpers import ProviderFeatureUnavailable
 from personalscraper.api.metadata._base import Notations
+from personalscraper.api.metadata._contracts import RatingProvider
 
 if TYPE_CHECKING:
     from personalscraper.api.metadata.omdb import OMDbAdapter
 
 
-class RottenTomatoesClient:
+class RottenTomatoesClient(RatingProvider):
     """Rotten Tomatoes business façade — extracts the RT row from OMDb payloads.
 
     Composes :class:`RatingProvider` (DESIGN §4). The lookup is
