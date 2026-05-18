@@ -745,11 +745,11 @@ class TestConfigMigrateCategory:
                 None,
                 2020,
                 "old_cat",
-                None,
-                None,
-                None,
-                None,
-                None,
+                "{}",  # external_ids_json (NOT NULL)
+                None,  # ratings_json
+                None,  # canonical_provider
+                None,  # nfo_status
+                None,  # artwork_json
                 now,
                 now,
                 None,
