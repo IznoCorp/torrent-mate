@@ -47,7 +47,7 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 | 2   | Fix DEV #2 — IDs propagation (regression tests first)         | phase-02-fix-dev2-ids-propagation.md  | [x]    |
 | 3   | Façades IMDb + RottenTomatoes (sur OMDbAdapter)               | phase-03-imdb-rt-facades.md           | [x]    |
 | 4   | Drift validator renforcé (canonical uniqueid required)        | phase-04-drift-validator-hardening.md | [x]    |
-| 5   | Xref enrichment sequential + \_resolve_external_ids           | phase-05-xref-enrichment.md           | [ ]    |
+| 5   | Xref enrichment sequential + \_resolve_external_ids           | phase-05-xref-enrichment.md           | [x]    |
 | 6   | NFO ratings multi-source + uniqueid default canonical         | phase-06-nfo-ratings-multisource.md   | [ ]    |
 | 7   | DB schema — external_ids_json + ratings_json + canonical_prov | phase-07-db-schema-external-ids.md    | [ ]    |
 | 8   | Backfill mode + CLI + auto-trigger post-scrape                | phase-08-backfill-mode.md             | [ ]    |
@@ -107,13 +107,14 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 
 ### Phase 5 — Xref Enrichment
 
-| Sub | Scope                                        | SHA | Status |
-| --- | -------------------------------------------- | --- | ------ |
-| 5.1 | `_xref_enrichment` dans tv_service           | -   | [ ]    |
-| 5.2 | `_resolve_external_ids` (Q5=B re-validation) | -   | [ ]    |
-| 5.3 | Wire dans `scrape_tvshow` flow               | -   | [ ]    |
-| 5.4 | Réécriture NFOs xref-add (sans écrasement)   | -   | [ ]    |
-| 5.5 | Symétrique movie_service                     | -   | [ ]    |
+| Sub  | Scope                                            | SHA     | Status |
+| ---- | ------------------------------------------------ | ------- | ------ |
+| 5.1  | `_xref_enrichment` dans tv_service               | c7cb588 | [x]    |
+| 5.2  | `_resolve_external_ids` (Q5=B re-validation)     | 9621cdf | [x]    |
+| 5.3  | Wire dans `scrape_tvshow` flow                   | 905f574 | [x]    |
+| 5.4  | Réécriture NFOs xref-add (sans écrasement)       | 9c70a34 | [x]    |
+| 5.5  | Symétrique movie_service                         | 965a265 | [x]    |
+| 5.5b | Extract xref helpers to `_xref.py` (size budget) | 9aebe50 | [x]    |
 
 ### Phase 6 — NFO Ratings Multi-Source
 
