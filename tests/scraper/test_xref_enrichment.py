@@ -164,6 +164,45 @@ def test_xref_enrichment_skips_when_xref_id_missing() -> None:
     assert api_episodes[(1, 1)] == {"title": "Pilot", "still_path": "", "tmdb_episode_id": "5001"}
 
 
+def test_xref_enrichment_wired_between_build_map_and_match_seasons(tmp_path: Any) -> None:
+    """``scrape_tvshow`` calls ``_xref_enrichment`` after ``_build_episode_map``.
+
+    Inserts spies on the two collaborators and asserts the call
+    order. The check is lightweight — the contract only requires
+    that xref runs against the populated ``api_episodes`` and
+    before ``_match_seasons`` consumes it.
+    """
+    from unittest.mock import patch  # noqa: PLC0415
+
+    from personalscraper.scraper.confidence import MatchResult  # noqa: PLC0415
+
+    show_dir = tmp_path / "Show"
+    show_dir.mkdir()
+    (show_dir / "S01E01.mkv").write_bytes(b"x")
+
+    mixin = _make_mixin()
+    mixin._classify_item = MagicMock(return_value="tv_shows")  # type: ignore[assignment]
+    mixin._resolve_title = MagicMock(side_effect=lambda t, _d, _ty: t)  # type: ignore[assignment]
+    mixin._strip_trailing_year = MagicMock(side_effect=lambda s: s)  # type: ignore[assignment]
+    mixin._verify_existing_scrape = MagicMock(return_value=(True, ""))  # type: ignore[assignment]
+    mixin._check_missing_tvshow_artwork = MagicMock(return_value=[])  # type: ignore[assignment]
+    mixin._recover_tvshow_artwork = MagicMock()  # type: ignore[assignment]
+    mixin._repair_tvshow_dir = MagicMock(return_value=False)  # type: ignore[assignment]
+
+    call_log: list[str] = []
+    mixin._build_episode_map = MagicMock(side_effect=lambda *a, **k: (call_log.append("build") or {(1, 1): {"title": "X", "still_path": "", "tvdb_episode_id": "9001"}}))  # type: ignore[assignment]
+    mixin._xref_enrichment = MagicMock(side_effect=lambda *a, **k: call_log.append("xref"))  # type: ignore[assignment]
+    mixin._match_seasons = MagicMock(side_effect=lambda *a, **k: (call_log.append("match") or 1))  # type: ignore[assignment]
+
+    match = MatchResult(api_id=42, api_title="Show", api_year=2020, confidence=0.9, source="tvdb")
+    mixin._lookup_series = MagicMock(return_value=(match, {"name": "Show"}, 100, "Show"))  # type: ignore[assignment]
+
+    with patch("personalscraper.scraper.tv_service._cleanup_empty_release_dirs"):
+        mixin.scrape_tvshow(show_dir)
+
+    assert call_log == ["build", "xref", "match"]
+
+
 @pytest.mark.parametrize("canonical", ["tvdb", "tmdb"])
 def test_xref_enrichment_empty_api_episodes_is_noop(canonical: str) -> None:
     """Empty input → no provider call, no error."""

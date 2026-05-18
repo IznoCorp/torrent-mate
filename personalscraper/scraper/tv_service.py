@@ -481,6 +481,21 @@ class TvServiceMixin:
             episode_default_name = self.config.scraper.episode_default_name if self.config is not None else "Episode"
             api_episodes = self._build_episode_map(show_dir, match, tmdb_id, episode_default_name)
 
+            # Sequential xref enrichment (phase 5) — backfill the IDs of
+            # the non-canonical provider into ``api_episodes`` so the
+            # NFO writer can emit ``<uniqueid type=canonical>`` AND
+            # ``<uniqueid type=xref>`` on every episode. Fail-soft : a
+            # xref provider exception is logged, the canonical scrape
+            # carries on with what it already has.
+            canonical_provider = match.source
+            tvdb_series_id = match.api_id if canonical_provider == "tvdb" else None
+            self._xref_enrichment(
+                api_episodes,
+                canonical_provider=canonical_provider,
+                tvdb_id=tvdb_series_id,
+                tmdb_id=tmdb_id,
+            )
+
             total_renamed = self._match_seasons(video_files, api_episodes, show_dir, show_data, episode_default_name)
 
             # Clean empty release-group subdirectories left after episode moves
