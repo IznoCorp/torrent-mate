@@ -13,6 +13,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, cast
 
+from personalscraper.api.metadata._base import Notations
 from personalscraper.indexer.outbox._disk import disk_id_for_path
 from personalscraper.indexer.outbox._publish import publish_event
 
@@ -21,6 +22,27 @@ POSTER_PREVIEW_SIZE = "w342"
 BACKDROP_PREVIEW_SIZE = "w780"
 ACTOR_THUMB_SIZE = "original"
 IMAGE_BASE = "https://image.tmdb.org/t/p"
+
+# Translate the internal ``Notations.source`` literal into the NFO /
+# Plex source identifier expected by readers (Plex, Kodi, MediaElch).
+_NFO_RATING_SOURCE_NAMES: dict[str, str] = {
+    "imdb": "imdb",
+    "tmdb": "themoviedb",
+    "rotten_tomatoes": "rottentomatoes",
+    "metacritic": "metacritic",
+    "trakt": "trakt",
+}
+
+# Value range per source. Plex/Kodi readers compute the visible
+# percentage from ``value / max`` ; mismatching the range produces a
+# rating that looks off by an order of magnitude.
+_NFO_RATING_MAX: dict[str, int] = {
+    "imdb": 10,
+    "themoviedb": 10,
+    "trakt": 10,
+    "metacritic": 100,
+    "rottentomatoes": 100,
+}
 
 
 def _image_url(path: str, size: str = "original") -> str:
@@ -536,22 +558,87 @@ class NFOGenerator:
         root: ET.Element,
         data: dict[str, Any],
         rating_name: str = "themoviedb",
+        notations: list[Notations] | None = None,
+        canonical_source: str | None = None,
     ) -> None:
-        """Add <ratings> element with rating data.
+        """Add a ``<ratings>`` element to ``root`` carrying one or more rating rows.
+
+        Backwards-compatible with the legacy single-source signature : when
+        ``notations`` is ``None`` (or empty), the method writes one
+        ``<rating>`` row from ``data["vote_average"]`` / ``data["vote_count"]``
+        using ``rating_name`` as the source — exactly the previous behaviour.
+
+        When ``notations`` is non-empty the method switches to the
+        multi-source mode introduced by the ``provider-ids`` feature
+        (phase 6) : one ``<rating>`` child per :class:`Notations` row,
+        with the source identifier translated to its NFO / Plex
+        equivalent (``imdb``, ``themoviedb``, ``rottentomatoes``, …) and
+        the ``max`` attribute set to the value range matching each
+        source (10 for IMDb / TMDb / Trakt / Metacritic-10, 100 for
+        Rotten Tomatoes and Metacritic-100). The
+        ``canonical_source`` argument (e.g. ``"themoviedb"``,
+        ``"imdb"``) selects which row receives the ``default="true"``
+        attribute — applied to at most one row, exactly as DESIGN §7
+        requires.
 
         Args:
             root: Parent XML element.
-            data: API data with vote_average and vote_count.
-            rating_name: Rating source name. MediaElch uses "themoviedb" for
-                movies/shows and "tmdb" for episodes.
+            data: Legacy API payload (consumed only when ``notations``
+                is empty).
+            rating_name: Source identifier for the legacy single-row
+                path. Defaults to ``"themoviedb"``.
+            notations: Optional list of :class:`Notations` to render
+                in multi-source mode.
+            canonical_source: NFO-name of the canonical source to flag
+                with ``default="true"``. ``None`` falls back to the
+                first row in ``notations``.
         """
         ratings = ET.SubElement(root, "ratings")
+        if notations:
+            self._write_multi_source_ratings(ratings, notations, canonical_source)
+            return
         rating = ET.SubElement(ratings, "rating")
         rating.set("name", rating_name)
         rating.set("default", "true")
         rating.set("max", "10")
         _sub(rating, "value", str(data.get("vote_average", 0)))
         _sub(rating, "votes", str(data.get("vote_count", 0)))
+
+    def _write_multi_source_ratings(
+        self,
+        ratings: ET.Element,
+        notations: list[Notations],
+        canonical_source: str | None,
+    ) -> None:
+        """Emit one ``<rating>`` child per :class:`Notations` row.
+
+        Helper for :meth:`_add_ratings` multi-source branch. Translates
+        each ``Notations.source`` into its NFO name (e.g. ``imdb`` →
+        ``imdb``, ``rotten_tomatoes`` → ``rottentomatoes``) and selects
+        a single row to flag ``default="true"`` — the one whose NFO
+        name matches ``canonical_source``, defaulting to the first
+        rendered row when no match exists.
+        """
+        rows: list[tuple[str, Notations]] = []
+        seen: set[str] = set()
+        for entry in notations:
+            nfo_name = _NFO_RATING_SOURCE_NAMES.get(entry.source, entry.source)
+            if nfo_name in seen:
+                continue
+            seen.add(nfo_name)
+            rows.append((nfo_name, entry))
+
+        canonical_name = canonical_source or (rows[0][0] if rows else None)
+        default_applied = False
+        for nfo_name, entry in rows:
+            rating = ET.SubElement(ratings, "rating")
+            rating.set("name", nfo_name)
+            if not default_applied and nfo_name == canonical_name:
+                rating.set("default", "true")
+                default_applied = True
+            rating.set("max", str(_NFO_RATING_MAX.get(nfo_name, 10)))
+            _sub(rating, "value", str(entry.score))
+            _sub(rating, "votes", str(entry.votes_count))
 
     def _add_inline_images(self, root: ET.Element, data: dict[str, Any]) -> None:
         """Add inline <thumb> and <fanart> elements.
