@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from personalscraper.api._contracts import TVDB_BOOTSTRAP, MediaType, ProviderName
+from personalscraper.api._contracts import TVDB_BOOTSTRAP, ApiError, MediaType, ProviderName
 from personalscraper.api.metadata._base import (
     ArtworkItem,
     EpisodeInfo,
@@ -306,11 +306,26 @@ class TVDBClient(
 
         Args:
             provider_id: TVDB series identifier (``str`` or ``int``).
+                Non-numeric strings are converted to a uniform
+                :class:`ApiError` rather than the bare ``ValueError``
+                that ``int(...)`` would raise — keeps the Protocol
+                contract clean for callers dispatching by capability.
 
         Returns:
             Populated MediaDetails.
+
+        Raises:
+            ApiError: Non-numeric ``provider_id`` (``http_status=0``).
         """
-        return self.get_series(int(provider_id))
+        try:
+            numeric_id = int(provider_id)
+        except (TypeError, ValueError) as exc:
+            raise ApiError(
+                provider="tvdb",
+                http_status=0,
+                message=f"Non-numeric TVDB id rejected: {provider_id!r}",
+            ) from exc
+        return self.get_series(numeric_id)
 
     def get_movie(self, movie_id: str | int) -> MediaDetails:
         """Fetch extended movie details.
@@ -318,12 +333,24 @@ class TVDBClient(
         Args:
             movie_id: TVDB movie ID (``int`` for direct TVDB calls,
                 ``str`` to satisfy the :class:`MovieDetailsProvider`
-                Protocol signature).
+                Protocol signature). Non-numeric strings are converted
+                to a uniform :class:`ApiError`.
 
         Returns:
             Populated MediaDetails.
+
+        Raises:
+            ApiError: Non-numeric ``movie_id`` (``http_status=0``).
         """
-        raw = self._get_dict(f"/movies/{movie_id}/extended")
+        try:
+            numeric_id = int(movie_id)
+        except (TypeError, ValueError) as exc:
+            raise ApiError(
+                provider="tvdb",
+                http_status=0,
+                message=f"Non-numeric TVDB movie id rejected: {movie_id!r}",
+            ) from exc
+        raw = self._get_dict(f"/movies/{numeric_id}/extended")
         return parse_media_details(raw, "tvdb")
 
     # -- Protocol: get_artwork_urls -----------------------------------------

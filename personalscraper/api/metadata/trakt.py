@@ -162,6 +162,11 @@ class TraktClient(
     def get_movie(self, provider_id: str) -> MediaDetails:
         """MovieDetailsProvider Protocol alias for :meth:`get_details`.
 
+        Adapter only — no caching. Callers picking the Protocol-style
+        ``get_movie(id)`` and the legacy ``get_details(id,
+        MediaType.MOVIE)`` for the same row issue two HTTP calls. Pick
+        one style per call site.
+
         Args:
             provider_id: Trakt numeric ID, slug, or IMDb ID.
 
@@ -172,6 +177,8 @@ class TraktClient(
 
     def get_tv(self, provider_id: str) -> MediaDetails:
         """TvDetailsProvider Protocol alias for :meth:`get_details`.
+
+        Adapter only — see :meth:`get_movie` for the no-cache caveat.
 
         Args:
             provider_id: Trakt numeric ID, slug, or IMDb ID.

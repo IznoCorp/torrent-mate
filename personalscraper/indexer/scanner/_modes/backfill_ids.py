@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 from personalscraper.api._helpers import ProviderFeatureUnavailable
 from personalscraper.core.event_bus import EventBus
@@ -46,12 +46,14 @@ from personalscraper.logger import get_logger
 log = get_logger("indexer.backfill_ids")
 
 
+@runtime_checkable
 class _RatingClient(Protocol):
     """Structural type for the IMDb / RT façades the driver consults."""
 
     def get_rating(self, provider_id: str) -> list[Any] | None: ...
 
 
+@runtime_checkable
 class _DetailsClient(Protocol):
     """Structural type for the TMDB / TVDB metadata clients used for ID cross-ref.
 
@@ -354,6 +356,14 @@ def _fetch_cross_provider_ids(
     import json as _json  # noqa: PLC0415
 
     if canonical not in ("tmdb", "tvdb"):
+        # Future-proofing for hypothetical imdb/other canonicals — log
+        # at debug since today's data shape never hits this branch.
+        log.debug(
+            "backfill_ids_canonical_unsupported",
+            canonical=canonical,
+            item_id=row["id"],
+            title=row["title"],
+        )
         return {}
     client: _DetailsClient | None
     if canonical == "tmdb":
@@ -370,10 +380,23 @@ def _fetch_cross_provider_ids(
         return {}
     try:
         eids = _json.loads(row["external_ids_json"] or "{}")
-    except _json.JSONDecodeError:
+    except _json.JSONDecodeError as exc:
+        log.warning(
+            "backfill_ids_json_decode_failed",
+            item_id=row["id"],
+            title=row["title"],
+            error=str(exc),
+        )
         return {}
     canonical_id = (eids.get(canonical) or {}).get("series_id")
     if not canonical_id:
+        log.warning(
+            "backfill_ids_canonical_id_missing",
+            canonical=canonical,
+            item_id=row["id"],
+            title=row["title"],
+            hint="canonical_provider set but external_ids_json carries no series_id — drift candidate",
+        )
         return {}
     try:
         if row["kind"] == "show":
@@ -391,7 +414,19 @@ def _fetch_cross_provider_ids(
         )
         return {}
     external_ids = getattr(details, "external_ids", None) or {}
-    if not isinstance(external_ids, dict):
+    if not isinstance(external_ids, dict) or not external_ids:
+        # Provider call succeeded but returned no cross-refs — log at
+        # debug so an operator triaging "0 IDs added" can distinguish
+        # "library already complete" from "TMDB returned an empty
+        # payload". Distinct from ``backfill_cross_ref_fetch_failed``
+        # which is the hard-error case.
+        log.debug(
+            "backfill_ids_empty_cross_refs",
+            canonical=canonical,
+            canonical_id=canonical_id,
+            item_id=row["id"],
+            title=row["title"],
+        )
         return {}
     return {family: str(value) for family, value in external_ids.items() if value}
 
@@ -416,7 +451,13 @@ def _fetch_ratings(
 
     try:
         eids = _json.loads(external_ids_json or "{}")
-    except _json.JSONDecodeError:
+    except _json.JSONDecodeError as exc:
+        log.warning(
+            "backfill_ratings_json_decode_failed",
+            item_id=row["id"],
+            title=row["title"],
+            error=str(exc),
+        )
         return []
     imdb_id = (eids.get("imdb") or {}).get("series_id")
     if not imdb_id:
