@@ -387,7 +387,7 @@ class TestItemRepo:
             original_title=None,
             year=2020,
             category_id="movies",
-            external_ids_json=\'{"tmdb": {"series_id": "99999", "episode_id": null}}\',
+            external_ids_json='{"tmdb": {"series_id": "99999", "episode_id": null}}',
             ratings_json=None,
             canonical_provider=None,
             nfo_status=None,
