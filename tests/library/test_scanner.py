@@ -218,7 +218,9 @@ class TestScanLibraryPopulatesDB:
         assert row["year"] == 2010
         assert row["category_id"] == CID.MOVIES
         assert row["nfo_status"] == "valid"
-        assert row["tmdb_id"] == 27205
+        import json as _json  # noqa: PLC0415
+
+        assert _json.loads(row["external_ids_json"])["tmdb"]["series_id"] == "27205"
 
     def test_season_fields_populated(self, fs: "FakeFilesystem", scanner_config: Config) -> None:
         """Season rows carry correct item_id, number, episode_count, has_poster."""
