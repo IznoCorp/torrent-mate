@@ -73,9 +73,22 @@ def _make_tvshow_dir(tmp_path: Path, title: str = "Fallout", year: int = 2024) -
     season = d / "Saison 01"
     season.mkdir()
     (season / "S01E01 - La Fin.mkv").write_bytes(b"\x00" * 1024)
-    # Episode NFO
+    # Episode NFO — phase 9 verify hardening requires the canonical
+    # uniqueid (tmdb here, matching the first <uniqueid> on tvshow.nfo)
+    # plus xref + IMDb rows to clear the WARNING checks. The fixture
+    # represents a fully valid TV show ready for dispatch.
     ep_root = ET.Element("episodedetails")
     ET.SubElement(ep_root, "title").text = "La Fin"
+    ep_tmdb = ET.SubElement(ep_root, "uniqueid")
+    ep_tmdb.set("type", "tmdb")
+    ep_tmdb.set("default", "true")
+    ep_tmdb.text = "5001"
+    ep_tvdb = ET.SubElement(ep_root, "uniqueid")
+    ep_tvdb.set("type", "tvdb")
+    ep_tvdb.text = "9001"
+    ep_imdb = ET.SubElement(ep_root, "uniqueid")
+    ep_imdb.set("type", "imdb")
+    ep_imdb.text = "tt0000001"
     ET.ElementTree(ep_root).write(season / "S01E01 - La Fin.nfo", encoding="unicode")
     return d
 

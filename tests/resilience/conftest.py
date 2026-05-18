@@ -133,5 +133,8 @@ def make_valid_tvshow_dir(tvshows_dir: Path, title: str = "Show", year: int = 20
     season = d / "Saison 01"
     season.mkdir()
     (season / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
-    (season / "S01E01 - Pilot.nfo").write_text("<episodedetails/>")
+    # Phase 9 verify hardening: episode NFO must carry canonical uniqueid.
+    (season / "S01E01 - Pilot.nfo").write_text(
+        '<episodedetails><uniqueid type="tvdb" default="true">9001</uniqueid></episodedetails>'
+    )
     return d
