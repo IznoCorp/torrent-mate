@@ -463,6 +463,7 @@ class TvServiceMixin:
         # exist when ``download_tvshow_artwork`` decides which season posters
         # to fetch: that helper skips seasons whose folder is absent.
         total_renamed = 0
+
         # On an episode-NFO drift re-scrape, ALSO include files that
         # are already organized in ``Saison NN/`` — otherwise
         # ``_generate_episode_nfos`` never runs and the episode NFOs
