@@ -353,6 +353,7 @@ def _dedup_and_move_root_episode(
     root_api_episodes: dict[tuple[int, int], dict[str, Any]],
     patterns: NamingPatterns,
     dry_run: bool,
+    allow_synthetic_rename: bool = True,
 ) -> bool:
     """Deduplicate and move a root-level episode into its season directory.
 
@@ -368,10 +369,31 @@ def _dedup_and_move_root_episode(
         root_api_episodes: Dict from ``_fetch_season_episodes()``.
         patterns: NamingPatterns for file and directory naming.
         dry_run: If True, log actions without making changes.
+        allow_synthetic_rename: When ``False`` (default contract per
+            ``metadata.episode_scraping_policy.allow_synthetic_rename_on_unmatched``)
+            AND the provider has no record for ``(s_num, e_num)``, the
+            file is LEFT at the show root with its raw filename
+            instead of being moved with a synthetic ``"Episode N"``
+            title. Pinned by the Top Chef Le Concours Parallèle S17
+            integration case.
 
     Returns:
         True if any repair was applied (file deleted or moved).
     """
+    # Unmatched-episode policy gate (DESIGN scraping.md §Unmatched
+    # Episode Policy). When the provider catalog has no entry for this
+    # (season, episode) AND synthetic rename is disabled, leave the
+    # file at the root and log for observability.
+    if not allow_synthetic_rename and (s_num, e_num) not in root_api_episodes:
+        log.warning(
+            "episode_unmatched_no_rename",
+            filename=candidates[0].name,
+            season=s_num,
+            episode=e_num,
+            available_seasons=sorted({s for s, _ in root_api_episodes}),
+        )
+        return False
+
     repaired = False
 
     # Dedup: keep newest by mtime, delete older ones
@@ -588,6 +610,10 @@ class ExistingValidatorMixin:
                 show_data = _coerce_to_show_data(self._tmdb.get_tv(tmdb_id))
                 root_api_episodes = _fetch_season_episodes(self._tmdb, tmdb_id, season_nums)
 
+            allow_synthetic_rename = (
+                getattr(self, "config", None) is None
+                or self.config.metadata.episode_scraping_policy.allow_synthetic_rename_on_unmatched
+            )
             for (s_num, e_num), candidates in root_new.items():
                 if _dedup_and_move_root_episode(
                     show_dir,
@@ -597,6 +623,7 @@ class ExistingValidatorMixin:
                     root_api_episodes,
                     self.patterns,
                     self.dry_run,
+                    allow_synthetic_rename=allow_synthetic_rename,
                 ):
                     repaired = True
 
@@ -687,7 +714,19 @@ class ExistingValidatorMixin:
             if not api_episodes:
                 return False
 
-            matched = match_episode_files(unorganized, api_episodes)
+            # Honour the unmatched-episode policy in the repair path too —
+            # otherwise the contract is enforced only on full scrapes and
+            # bypassed on the (faster) repair path, leaving the Top Chef Le
+            # Concours Parallèle S17 case mis-renamed.
+            allow_synthetic_rename = (
+                getattr(self, "config", None) is None
+                or self.config.metadata.episode_scraping_policy.allow_synthetic_rename_on_unmatched
+            )
+            matched = match_episode_files(
+                unorganized,
+                api_episodes,
+                allow_synthetic_rename=allow_synthetic_rename,
+            )
             if not matched:
                 return False
 
