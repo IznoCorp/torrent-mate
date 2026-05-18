@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import unicodedata
-import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -42,27 +41,15 @@ log = get_logger("scraper")
 
 
 def _safe_get_rating(client: Any, provider_id: str) -> list[Notations]:
-    """Call ``client.get_rating`` returning ``[]`` on failure or empty payload.
+    """Backward-compat alias for :func:`personalscraper.scraper._xref.safe_get_rating`.
 
-    Shared by the IMDb / Rotten Tomatoes branches of
-    :meth:`TvServiceMixin._resolve_external_ids`. The contract from
-    DESIGN §4 is fail-soft : a failing rating provider must not abort
-    the scrape — it returns an empty list and the operator sees the
-    NFO without that rating row.
+    Kept so the legacy import path (``from .tv_service import
+    _safe_get_rating``) keeps working ; new code should import the
+    function directly from ``personalscraper.scraper._xref``.
     """
-    try:
-        result = client.get_rating(provider_id)
-    except Exception as exc:  # noqa: BLE001 — fail-soft per DESIGN §4
-        log.warning(
-            "xref_get_rating_failed",
-            client=type(client).__name__,
-            provider_id=provider_id,
-            error=str(exc),
-        )
-        return []
-    if not result:
-        return []
-    return list(result)
+    from personalscraper.scraper._xref import safe_get_rating  # noqa: PLC0415
+
+    return safe_get_rating(client, provider_id)
 
 
 def _episode_payload(ep: EpisodeInfo, episode_default_name: str) -> dict[str, Any]:
@@ -545,55 +532,12 @@ class TvServiceMixin:
     def _augment_episode_nfo_with_xref(self, nfo_path: Path, info: dict[str, Any]) -> None:
         """Append missing xref ``<uniqueid>`` rows to an existing episode NFO.
 
-        The phase-2 fix puts the canonical uniqueid on every NFO written
-        by a fresh scrape. This helper handles the symmetrical recovery
-        case : an NFO already on disk from a previous run may lack the
-        xref rows (TMDb if canonical was TVDB, vice versa) because the
-        xref enrichment pass had not yet landed when it was written.
-
-        The rewrite is strictly additive — every uniqueid family that
-        already exists in the NFO is left untouched, even if the
-        ``info`` dict carries a different value. The canonical row is
-        therefore safe : the NFO drives, the matched dict only fills
-        gaps. The NFO is rewritten only when at least one new tag
-        would be appended ; otherwise no I/O happens.
-
-        Args:
-            nfo_path: Path to an existing episode NFO.
-            info: Matched-dict entry for this episode — may carry
-                ``tvdb_episode_id`` / ``tmdb_episode_id`` /
-                ``imdb_episode_id`` keys.
+        Thin delegate to
+        :func:`personalscraper.scraper._xref.augment_episode_nfo_with_xref`.
         """
-        try:
-            tree = ET.parse(nfo_path)  # noqa: S314 — trusted NFO we wrote earlier
-        except (ET.ParseError, OSError) as exc:
-            log.warning("xref_nfo_augment_parse_failed", path=str(nfo_path), error=str(exc))
-            return
-        root = tree.getroot()
-        existing_families = {(u.get("type") or "").strip().lower() for u in root.findall("uniqueid")}
+        from personalscraper.scraper._xref import augment_episode_nfo_with_xref  # noqa: PLC0415
 
-        candidates = {
-            "tvdb": info.get("tvdb_episode_id"),
-            "tmdb": info.get("tmdb_episode_id"),
-            "imdb": info.get("imdb_episode_id"),
-        }
-        added = False
-        for family, value in candidates.items():
-            if not value:
-                continue
-            if family in existing_families:
-                continue
-            element = ET.SubElement(root, "uniqueid")
-            element.set("type", family)
-            element.text = str(value)
-            added = True
-
-        if not added or self.dry_run:
-            return
-        try:
-            tree.write(nfo_path, encoding="utf-8", xml_declaration=True)
-        except OSError as exc:
-            log.warning("xref_nfo_augment_write_failed", path=str(nfo_path), error=str(exc))
+        augment_episode_nfo_with_xref(nfo_path, info, dry_run=self.dry_run)
 
     def _download_episode_thumb(
         self,
@@ -794,72 +738,24 @@ class TvServiceMixin:
     ) -> None:
         """Backfill the per-episode IDs of the non-canonical provider in place.
 
-        Once the canonical provider has populated ``api_episodes`` with
-        its own per-episode IDs (DEV #2 propagation, phase 2), this
-        sequential pass queries the *other* provider for the same
-        ``(season, episode)`` tuples and copies its ``external_ids``
-        into the payload. The merge is strictly additive — any key
-        already set in the payload is preserved, which keeps the
-        canonical scrape the source of truth (DESIGN §3 invariant —
-        no cross-contamination between provider families).
-
-        The pass is fail-soft. A xref-provider exception is caught
-        and logged ; the canonical scrape proceeds unchanged. Same
-        for the no-op cases :
-
-        - ``api_episodes`` empty (no seasons to enrich).
-        - ``tvdb_id`` / ``tmdb_id`` missing on the xref side (the
-          canonical scrape never resolved the cross-reference).
-        - Canonical provider is neither ``tvdb`` nor ``tmdb`` (defensive).
-
-        Args:
-            api_episodes: Mutable map ``(season, episode) → payload``
-                produced by :meth:`_build_episode_map`.
-            canonical_provider: ``"tvdb"`` or ``"tmdb"`` — the family
-                whose IDs are *not* re-fetched.
-            tvdb_id: Series-level TVDB id (canonical or cross-ref).
-            tmdb_id: Series-level TMDb id (canonical or cross-ref).
+        Thin delegate to
+        :func:`personalscraper.scraper._xref.xref_enrichment` — see
+        that function's docstring for the contract. The mixin wrapper
+        exists so callers stay decoupled from the helper module
+        location and so the TV/movie services can override the fetch
+        callables (TVDB / TMDb seasons) without re-implementing the
+        merge logic.
         """
-        if not api_episodes:
-            return
-        season_nums = sorted({s for s, _ in api_episodes.keys()})
+        from personalscraper.scraper._xref import xref_enrichment as _xref  # noqa: PLC0415
 
-        fetcher: Callable[[int, int], dict[int, dict[str, str]]]
-        if canonical_provider == "tvdb":
-            if tmdb_id is None:
-                return
-            fetcher = self._xref_fetch_tmdb_season
-            xref_id = tmdb_id
-        elif canonical_provider == "tmdb":
-            if tvdb_id is None:
-                return
-            fetcher = self._xref_fetch_tvdb_season
-            xref_id = tvdb_id
-        else:
-            log.warning("xref_unknown_canonical_provider", provider=canonical_provider)
-            return
-
-        for s_num in season_nums:
-            try:
-                xref_episodes = fetcher(xref_id, s_num)
-            except Exception as exc:  # noqa: BLE001 — fail-soft contract
-                log.warning(
-                    "xref_enrichment_failed",
-                    canonical=canonical_provider,
-                    xref_series_id=xref_id,
-                    season=s_num,
-                    error=str(exc),
-                )
-                continue
-            for ep_num, external_ids in xref_episodes.items():
-                key = (s_num, ep_num)
-                payload = api_episodes.get(key)
-                if payload is None:
-                    continue
-                for provider_name, value in external_ids.items():
-                    if not value:
-                        continue
-                    payload.setdefault(f"{provider_name}_episode_id", value)
+        _xref(
+            api_episodes,
+            canonical_provider=canonical_provider,
+            tvdb_fetcher=self._xref_fetch_tvdb_season,
+            tmdb_fetcher=self._xref_fetch_tmdb_season,
+            tvdb_id=tvdb_id,
+            tmdb_id=tmdb_id,
+        )
 
     def _xref_fetch_tmdb_season(self, tmdb_id: int, season: int) -> dict[int, dict[str, str]]:
         """Return ``{episode_number: external_ids}`` from a TMDb season fetch."""
@@ -878,98 +774,26 @@ class TvServiceMixin:
         expected_title: str,
         expected_year: int | None,
     ) -> tuple[dict[str, str], list[Notations]]:
-        """Resolve the trusted cross-provider IDs + ratings for a series.
+        """Resolve trusted cross-provider IDs + series-level ratings (Q5=B).
 
-        Walks every entry of ``series_ids`` and applies the Q5=B
-        contract from DESIGN §3 :
-
-        - The canonical family (``tvdb`` or ``tmdb``, depending on
-          which provider drove the canonical scrape) is kept as-is —
-          the scrape itself already authenticated that ID.
-        - Every non-canonical family is sent through its façade's
-          ``validate_id`` ; only the IDs that pass the re-validation
-          land in the returned mapping. A rejection silently drops the
-          ID rather than failing the whole scrape — the operator sees
-          a NFO without the family-specific ``<uniqueid>`` and a log
-          entry to investigate.
-
-        Ratings are bundled with this pass because IMDb and Rotten
-        Tomatoes both keyed by the IMDb ID : once Q5=B validates the
-        IMDb ID, the two ratings can be fetched in the same place
-        without duplicating the lookup logic at the call site.
-
-        Args:
-            canonical_provider: ``"tvdb"`` or ``"tmdb"``.
-            series_ids: ``{provider_name: provider_id}`` collected from
-                the canonical scrape + xref enrichment.
-            expected_title: Series title to feed each ``validate_id``.
-            expected_year: First-aired year, or ``None`` to skip the
-                year check at the façade level.
-
-        Returns:
-            Tuple ``(trusted_external_ids, ratings)``.
-            ``trusted_external_ids`` is a subset of ``series_ids`` —
-            canonical kept verbatim, non-canonical kept only when the
-            façade re-validation accepted the value. ``ratings`` is the
-            flattened :class:`Notations` list from every façade
-            consulted (empty when no rating could be obtained).
+        Thin delegate to
+        :func:`personalscraper.scraper._xref.resolve_external_ids` —
+        see that function for the full contract.
         """
-        trusted: dict[str, str] = {}
-        ratings: list[Notations] = []
+        from personalscraper.scraper._xref import resolve_external_ids as _resolve  # noqa: PLC0415
 
-        for family, provider_id in series_ids.items():
-            if not provider_id:
-                continue
-            if family == canonical_provider:
-                trusted[family] = provider_id
-                continue
-            client = self._family_to_client(family)
-            if client is None:
-                # No façade wired for this family in the current mixin.
-                # Conservative default : drop the ID rather than write
-                # an un-validated value to the NFO.
-                log.warning("xref_no_client_for_family", family=family)
-                continue
-            try:
-                accepted = client.validate_id(provider_id, expected_title, expected_year)
-            except Exception as exc:  # noqa: BLE001 — fail-soft contract
-                log.warning(
-                    "xref_validate_id_failed",
-                    family=family,
-                    provider_id=provider_id,
-                    error=str(exc),
-                )
-                continue
-            if not accepted:
-                log.info(
-                    "xref_validate_id_rejected",
-                    family=family,
-                    provider_id=provider_id,
-                    expected_title=expected_title,
-                    expected_year=expected_year,
-                )
-                continue
-            trusted[family] = provider_id
-
-        # Rating bundle — only meaningful when the IMDb ID survived
-        # re-validation. RT is keyed by the same IMDb ID.
-        imdb_id = trusted.get("imdb")
-        if imdb_id:
-            imdb_client = getattr(self, "_imdb", None)
-            if imdb_client is not None:
-                ratings.extend(_safe_get_rating(imdb_client, imdb_id))
-            rt_client = getattr(self, "_rotten_tomatoes", None)
-            if rt_client is not None:
-                ratings.extend(_safe_get_rating(rt_client, imdb_id))
-
-        return trusted, ratings
+        return _resolve(
+            canonical_provider=canonical_provider,
+            ids=series_ids,
+            expected_title=expected_title,
+            expected_year=expected_year,
+            family_to_client=self._family_to_client,
+            imdb_client=getattr(self, "_imdb", None),
+            rt_client=getattr(self, "_rotten_tomatoes", None),
+        )
 
     def _family_to_client(self, family: str) -> Any | None:
-        """Map a provider family name to the corresponding client / façade.
-
-        Returns ``None`` when no client is wired on the mixin — the
-        caller treats that as "cannot validate, drop the ID".
-        """
+        """Map a provider family name to the wired client / façade (or ``None``)."""
         mapping: dict[str, Any] = {
             "tvdb": getattr(self, "_tvdb", None),
             "tmdb": getattr(self, "_tmdb", None),
