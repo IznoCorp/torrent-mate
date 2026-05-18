@@ -56,7 +56,7 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 | 11  | Tracker capabilities + LaCale/C411 refactor                   | phase-11-tracker-capabilities.md      | [x]    |
 | 12  | Tracker registry priority-aware par type de média             | phase-12-tracker-registry-priority.md | [x]    |
 | 13  | Torrent capabilities + QBit/Transmission refactor             | phase-13-torrent-capabilities.md      | [x]    |
-| 14  | Notify capabilities + Telegram/Healthchecks refactor          | phase-14-notify-capabilities.md       | [ ]    |
+| 14  | Notify capabilities + Telegram/Healthchecks refactor          | phase-14-notify-capabilities.md       | [x]    |
 | 15  | Integration + E2E + final wire                                | phase-15-integration-e2e.md           | [ ]    |
 
 ## Sub-phase tracking (filled by /implement:phase)
@@ -186,12 +186,9 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 
 ### Phase 14 — Notify Capabilities (pas de drop monolithique — Protocols Notifier+HealthChecker existent déjà)
 
-| Sub  | Scope                                                                 | SHA | Status |
-| ---- | --------------------------------------------------------------------- | --- | ------ |
-| 14.1 | Vérif `_base.py` (Notifier+HealthChecker déjà séparés en 2 Protocols) | -   | [ ]    |
-| 14.2 | `TelegramNotifier` (telegram.py:49) déclare `Notifier` explicitement  | -   | [ ]    |
-| 14.3 | `HealthcheckClient` déclare `HealthChecker` (pas HealthBeacon)        | -   | [ ]    |
-| 14.4 | Consommateurs (pipeline, cron) annotations                            | -   | [ ]    |
+| Sub  | Scope                                                                                     | SHA     | Status |
+| ---- | ----------------------------------------------------------------------------------------- | ------- | ------ |
+| 14.x | Structural composition pinned via runtime_checkable + isinstance tests + docstring update | 9f850d6 | [x]    |
 
 ### Phase 15 — Integration + E2E
 
