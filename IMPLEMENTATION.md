@@ -50,7 +50,7 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 | 5   | Xref enrichment sequential + \_resolve_external_ids           | phase-05-xref-enrichment.md           | [x]    |
 | 6   | NFO ratings multi-source + uniqueid default canonical         | phase-06-nfo-ratings-multisource.md   | [x]    |
 | 7   | DB schema — external_ids_json + ratings_json + canonical_prov | phase-07-db-schema-external-ids.md    | [x]    |
-| 8   | Backfill mode + CLI + auto-trigger post-scrape                | phase-08-backfill-mode.md             | [ ]    |
+| 8   | Backfill mode + CLI + auto-trigger post-scrape                | phase-08-backfill-mode.md             | [x]    |
 | 9   | Verify checker — 3 nouveaux checks                            | phase-09-verify-checker-extensions.md | [ ]    |
 | 10  | Consommateurs library/conf/trailers refactor                  | phase-10-consumers-refactor.md        | [ ]    |
 | 11  | Tracker capabilities + LaCale/C411 refactor                   | phase-11-tracker-capabilities.md      | [ ]    |
@@ -143,12 +143,12 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 
 ### Phase 8 — Backfill Mode
 
-| Sub | Scope                                        | SHA | Status |
-| --- | -------------------------------------------- | --- | ------ |
-| 8.1 | `_modes/backfill_ids.py` scanner mode        | -   | [ ]    |
-| 8.2 | CLI `personalscraper indexer --backfill-ids` | -   | [ ]    |
-| 8.3 | Auto-trigger post-scrape                     | -   | [ ]    |
-| 8.4 | EventBus events (Backfill\*)                 | -   | [ ]    |
+| Sub | Scope                                                                          | SHA                                  | Status  |
+| --- | ------------------------------------------------------------------------------ | ------------------------------------ | ------- |
+| 8.1 | `backfill_ids.py` gap detection + safe-merge helpers (pure)                    | 11016c2 (init), 970d045 (typing fix) | [x]     |
+| 8.2 | `scanner/_modes/backfill_ids.py` driver + `run_backfill_ids()` entrypoint      | (8.2)                                | [x]     |
+| 8.3 | Auto-trigger post-scrape — emit-based via EventBus subscriber (CLI wiring TBD) | (8.4)                                | partial |
+| 8.4 | EventBus events: BackfillStarted/ItemCompleted/Skipped/Completed + factories   | c369451                              | [x]     |
 
 ### Phase 9 — Verify Checker Extensions
 
