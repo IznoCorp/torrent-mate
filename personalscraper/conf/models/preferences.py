@@ -65,21 +65,25 @@ class SubtitlePrefs(_StrictModel):
 
 
 class RuleCriteria(_StrictModel):
-    """Critères encoding rule (reprend les champs de l'ancien RuleCriteria).
+    """Critères encoding rule.
 
-    String fields use case-insensitive substring matching.
-    ID fields use exact matching. At least one field must be non-None.
+    String fields use case-insensitive substring matching. ``tmdb_id``
+    uses exact matching. At least one field must be non-None.
+
+    The legacy ``imdb_id`` criterion was removed by the
+    ``provider-ids`` feature (sub-phase 10.3) : IMDb is no longer a
+    primary scrape anchor under DESIGN §3, so user overrides should
+    target the canonical ``tmdb_id`` (or use ``title`` / ``genre``).
+    Pre-1.0 → no retro-compat (memory ``feedback_no_backcompat_before_v1``).
 
     Attributes:
         genre: Genre substring to match (e.g. "Animation").
         title: Title substring to match.
-        imdb_id: Exact IMDB ID (e.g. "tt4154796").
         tmdb_id: Exact TMDB ID (e.g. "12345").
     """
 
     genre: str | None = Field(default=None)
     title: str | None = Field(default=None)
-    imdb_id: str | None = Field(default=None)
     tmdb_id: str | None = Field(default=None)
 
     @model_validator(mode="after")
@@ -92,7 +96,7 @@ class RuleCriteria(_StrictModel):
         Raises:
             ValueError: If all fields are None.
         """
-        if all(v is None for v in (self.genre, self.title, self.imdb_id, self.tmdb_id)):
+        if all(v is None for v in (self.genre, self.title, self.tmdb_id)):
             raise ValueError("RuleCriteria must have at least one non-None field")
         return self
 

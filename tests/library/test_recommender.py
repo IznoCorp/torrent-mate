@@ -157,18 +157,23 @@ class TestRecommendSubtitles:
 class TestEncodingRules:
     """Tests for override rule matching."""
 
-    def test_rule_by_imdb_id(self) -> None:
-        """Rule matching IMDB ID should override target."""
-        items = [_make_movie(codec="hevc", imdb_id="tt4154796")]
+    def test_rule_by_tmdb_id(self) -> None:
+        """Rule matching TMDB ID should override target.
+
+        Replaces the legacy ``test_rule_by_imdb_id`` — provider-ids
+        sub-phase 10.3 dropped the ``imdb_id`` criterion (IMDb is no
+        longer a primary scrape anchor under DESIGN §3).
+        """
+        items = [_make_movie(codec="hevc", tmdb_id="12345")]
         prefs = LibraryPrefs(
             encoding_rules=[
                 EncodingRule(
-                    criteria=RuleCriteria(imdb_id="tt4154796"),
+                    criteria=RuleCriteria(tmdb_id="12345"),
                     resolution="2160p",
                 ),
             ]
         )
-        id_lookup: dict[str, tuple[str | None, str | None]] = {items[0].path: ("1", "tt4154796")}
+        id_lookup: dict[str, tuple[str | None, str | None]] = {items[0].path: ("12345", None)}
         result = generate_recommendations(items, prefs, id_lookup=id_lookup)
         assert result.total_recommendations == 1
         assert result.items[0].target.resolution == "2160p"

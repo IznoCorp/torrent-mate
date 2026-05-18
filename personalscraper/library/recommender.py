@@ -59,14 +59,16 @@ def _evaluate_movie(
 
     vp = prefs.video
 
-    # Check encoding rules first (override defaults)
-    item_tmdb, item_imdb = ids
+    # Check encoding rules first (override defaults). Provider-ids
+    # feature (sub-phase 10.3) dropped the ``imdb_id`` criterion —
+    # encoding rules now key by ``tmdb_id`` / ``title`` / ``genre``.
+    # The legacy ``item_imdb`` slot of the ``ids`` tuple is still
+    # accepted for source compatibility but ignored by the matcher.
+    item_tmdb, _item_imdb = ids
     for i, rule in enumerate(prefs.encoding_rules):
         c = rule.criteria
         match = False
-        if c.imdb_id and item_imdb == c.imdb_id:
-            match = True
-        elif c.tmdb_id and item_tmdb == c.tmdb_id:
+        if c.tmdb_id and item_tmdb == c.tmdb_id:
             match = True
         elif c.title and c.title.lower() in item.title.lower():
             match = True
