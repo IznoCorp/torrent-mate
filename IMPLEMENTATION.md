@@ -49,7 +49,7 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 | 4   | Drift validator renforcé (canonical uniqueid required)        | phase-04-drift-validator-hardening.md | [x]    |
 | 5   | Xref enrichment sequential + \_resolve_external_ids           | phase-05-xref-enrichment.md           | [x]    |
 | 6   | NFO ratings multi-source + uniqueid default canonical         | phase-06-nfo-ratings-multisource.md   | [x]    |
-| 7   | DB schema — external_ids_json + ratings_json + canonical_prov | phase-07-db-schema-external-ids.md    | [ ]    |
+| 7   | DB schema — external_ids_json + ratings_json + canonical_prov | phase-07-db-schema-external-ids.md    | [x]    |
 | 8   | Backfill mode + CLI + auto-trigger post-scrape                | phase-08-backfill-mode.md             | [ ]    |
 | 9   | Verify checker — 3 nouveaux checks                            | phase-09-verify-checker-extensions.md | [ ]    |
 | 10  | Consommateurs library/conf/trailers refactor                  | phase-10-consumers-refactor.md        | [ ]    |
@@ -127,15 +127,17 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 
 ### Phase 7 — DB Schema external_ids_json
 
-| Sub  | Scope                                         | SHA | Status |
-| ---- | --------------------------------------------- | --- | ------ |
-| 7.1  | `indexer/schema.py` new + drop legacy columns | -   | [ ]    |
-| 7.2  | Backup `library.db` avant migration           | -   | [ ]    |
-| 7.2b | (Plan B fallback) SQL one-shot script         | -   | [ ]    |
-| 7.3  | `indexer/query.py` json_extract refactor      | -   | [ ]    |
-| 7.4  | Pydantic models `ExternalIds` + `Ratings`     | -   | [ ]    |
-| 7.5  | `indexer/scanner.py` write side               | -   | [ ]    |
-| 7.6  | Cleanup script one-shot (si Plan B)           | -   | [ ]    |
+| Sub  | Scope                                                         | SHA     | Status |
+| ---- | ------------------------------------------------------------- | ------- | ------ |
+| 7.1  | Migration 005 + MediaItemRow updates                          | 11016c2 | [x]    |
+| 7.1b | item_repo.py + outbox/\_apply.py write to external_ids_json   | fbb9a3d | [x]    |
+| 7.2  | Backup `library.db` avant migration                           | -       | manual |
+| 7.2b | (Plan A retained) no SQL one-shot script — reset+rescrape     | -       | n/a    |
+| 7.3  | `indexer/query.py` FieldSpec via json_extract                 | f6fcc13 | [x]    |
+| 7.4  | Pydantic models `ExternalIds` + `Ratings`                     | (7.4)   | [x]    |
+| 7.5  | dispatch/library scanners write external_ids_json             | f771b53 | [x]    |
+| 7.5b | trailers scanner/orchestrator read ids from external_ids_json | 6c3d6e4 | [x]    |
+| 7.6  | Plan A (Plan B unused — no cleanup script needed)             | -       | n/a    |
 
 **Décision Plan A vs Plan B** : à trancher avant exécution. Library < 100 items → Plan A (reset+rescrape) préféré.
 
