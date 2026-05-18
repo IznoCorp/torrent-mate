@@ -54,7 +54,7 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 | 9   | Verify checker — 3 nouveaux checks                            | phase-09-verify-checker-extensions.md | [x]    |
 | 10  | Consommateurs library/conf/trailers refactor                  | phase-10-consumers-refactor.md        | [x]    |
 | 11  | Tracker capabilities + LaCale/C411 refactor                   | phase-11-tracker-capabilities.md      | [x]    |
-| 12  | Tracker registry priority-aware par type de média             | phase-12-tracker-registry-priority.md | [ ]    |
+| 12  | Tracker registry priority-aware par type de média             | phase-12-tracker-registry-priority.md | [x]    |
 | 13  | Torrent capabilities + QBit/Transmission refactor             | phase-13-torrent-capabilities.md      | [ ]    |
 | 14  | Notify capabilities + Telegram/Healthchecks refactor          | phase-14-notify-capabilities.md       | [ ]    |
 | 15  | Integration + E2E + final wire                                | phase-15-integration-e2e.md           | [ ]    |
@@ -174,13 +174,9 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 
 ### Phase 12 — Tracker Registry Priority-Aware
 
-| Sub  | Scope                                       | SHA | Status |
-| ---- | ------------------------------------------- | --- | ------ |
-| 12.1 | `__init__` accepts `priority_by_media_type` | -   | [ ]    |
-| 12.2 | `search_all(query, media_type=None)`        | -   | [ ]    |
-| 12.3 | Schema `TrackerConfig` field                | -   | [ ]    |
-| 12.4 | `config.example/tracker.json5` update       | -   | [ ]    |
-| 12.5 | `_activation.py` wiring                     | -   | [ ]    |
+| Sub  | Scope                                                                          | SHA    | Status |
+| ---- | ------------------------------------------------------------------------------ | ------ | ------ |
+| 12.x | Registry + TrackerConfig + config.example + activation: priority_by_media_type | (12.x) | [x]    |
 
 ### Phase 13 — Torrent Capabilities
 
