@@ -53,7 +53,7 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 | 8   | Backfill mode + CLI + auto-trigger post-scrape                | phase-08-backfill-mode.md             | [x]    |
 | 9   | Verify checker — 3 nouveaux checks                            | phase-09-verify-checker-extensions.md | [x]    |
 | 10  | Consommateurs library/conf/trailers refactor                  | phase-10-consumers-refactor.md        | [x]    |
-| 11  | Tracker capabilities + LaCale/C411 refactor                   | phase-11-tracker-capabilities.md      | [ ]    |
+| 11  | Tracker capabilities + LaCale/C411 refactor                   | phase-11-tracker-capabilities.md      | [x]    |
 | 12  | Tracker registry priority-aware par type de média             | phase-12-tracker-registry-priority.md | [ ]    |
 | 13  | Torrent capabilities + QBit/Transmission refactor             | phase-13-torrent-capabilities.md      | [ ]    |
 | 14  | Notify capabilities + Telegram/Healthchecks refactor          | phase-14-notify-capabilities.md       | [ ]    |
@@ -168,12 +168,9 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 
 ### Phase 11 — Tracker Capabilities
 
-| Sub  | Scope                                    | SHA | Status |
-| ---- | ---------------------------------------- | --- | ------ |
-| 11.1 | Drop monolithic `TrackerClient` Protocol | -   | [ ]    |
-| 11.2 | `LaCaleClient` composes capabilities     | -   | [ ]    |
-| 11.3 | `C411Client` composes capabilities       | -   | [ ]    |
-| 11.4 | Update `TrackerRegistry` type hints      | -   | [ ]    |
+| Sub  | Scope                                                                              | SHA     | Status |
+| ---- | ---------------------------------------------------------------------------------- | ------- | ------ |
+| 11.x | Drop TrackerClient + LaCale/C411 composition + Registry typed by TorrentSearchable | a1cc268 | [x]    |
 
 ### Phase 12 — Tracker Registry Priority-Aware
 
