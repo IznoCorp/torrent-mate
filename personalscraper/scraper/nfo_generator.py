@@ -166,7 +166,17 @@ class NFOGenerator:
         if year_str and movie_title.endswith(f" ({year_str})"):
             movie_title = movie_title[: -len(f" ({year_str})")]
         _sub(root, "title", movie_title)
-        self._add_ratings(root, movie_data)
+        # Multi-source ratings (phase 6) : forward optional ``notations``
+        # + ``canonical_source`` keys so callers that resolved
+        # IMDb / Rotten Tomatoes ratings via _resolve_external_ids get a
+        # one-row-per-source ``<ratings>`` block. Absent keys fall back
+        # to the legacy single-row TMDb path.
+        self._add_ratings(
+            root,
+            movie_data,
+            notations=movie_data.get("notations"),
+            canonical_source=movie_data.get("canonical_source"),
+        )
         _sub(root, "userrating", "0")
         _sub(root, "top250", "0")
         _sub(root, "outline", movie_data.get("overview", ""))
@@ -328,8 +338,13 @@ class NFOGenerator:
         # add-ons) get the same id Kodi itself would resolve via uniqueid.
         _sub(root, "id", tvdb_id or tmdb_id)
 
-        # --- Ratings ---
-        self._add_ratings(root, show_data)
+        # --- Ratings (multi-source via optional ``notations``) ---
+        self._add_ratings(
+            root,
+            show_data,
+            notations=show_data.get("notations"),
+            canonical_source=show_data.get("canonical_source"),
+        )
         _sub(root, "userrating", "0")
         _sub(root, "top250", "0")
 
@@ -441,7 +456,13 @@ class NFOGenerator:
             uniqueid_tmdb.set("type", "tmdb")
 
         # --- Ratings (episodes use "tmdb" not "themoviedb") ---
-        self._add_ratings(root, episode_data, rating_name="tmdb")
+        self._add_ratings(
+            root,
+            episode_data,
+            rating_name="tmdb",
+            notations=episode_data.get("notations"),
+            canonical_source=episode_data.get("canonical_source"),
+        )
         _sub(root, "userrating", "0")
         _sub(root, "top250", "0")
 
