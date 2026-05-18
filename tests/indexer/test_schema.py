@@ -387,9 +387,9 @@ class TestItemRepo:
             original_title=None,
             year=2020,
             category_id="movies",
-            tmdb_id=99999,
-            imdb_id=None,
-            tvdb_id=None,
+            external_ids_json=\'{"tmdb": {"series_id": "99999", "episode_id": null}}\',
+            ratings_json=None,
+            canonical_provider=None,
             nfo_status=None,
             artwork_json=None,
             date_created=now,
@@ -402,7 +402,8 @@ class TestItemRepo:
         fetched = item_repo.find_by_tmdb_id(conn, 99999)
         assert fetched is not None
         assert fetched.id == item_id
-        assert fetched.tmdb_id == 99999
+        import json as _json  # noqa: PLC0415
+        assert _json.loads(fetched.external_ids_json)["tmdb"]["series_id"] == "99999"
 
     def test_delete(self, conn: sqlite3.Connection) -> None:
         """Deleting a media item makes get_by_id return None.
