@@ -190,9 +190,21 @@ def test_xref_enrichment_wired_between_build_map_and_match_seasons(tmp_path: Any
     mixin._repair_tvshow_dir = MagicMock(return_value=False)  # type: ignore[assignment]
 
     call_log: list[str] = []
-    mixin._build_episode_map = MagicMock(side_effect=lambda *a, **k: (call_log.append("build") or {(1, 1): {"title": "X", "still_path": "", "tvdb_episode_id": "9001"}}))  # type: ignore[assignment]
-    mixin._xref_enrichment = MagicMock(side_effect=lambda *a, **k: call_log.append("xref"))  # type: ignore[assignment]
-    mixin._match_seasons = MagicMock(side_effect=lambda *a, **k: (call_log.append("match") or 1))  # type: ignore[assignment]
+
+    def _build(*_a: Any, **_k: Any) -> dict[tuple[int, int], dict[str, Any]]:
+        call_log.append("build")
+        return {(1, 1): {"title": "X", "still_path": "", "tvdb_episode_id": "9001"}}
+
+    def _xref(*_a: Any, **_k: Any) -> None:
+        call_log.append("xref")
+
+    def _match(*_a: Any, **_k: Any) -> int:
+        call_log.append("match")
+        return 1
+
+    mixin._build_episode_map = MagicMock(side_effect=_build)  # type: ignore[assignment]
+    mixin._xref_enrichment = MagicMock(side_effect=_xref)  # type: ignore[assignment]
+    mixin._match_seasons = MagicMock(side_effect=_match)  # type: ignore[assignment]
 
     match = MatchResult(api_id=42, api_title="Show", api_year=2020, confidence=0.9, source="tvdb")
     mixin._lookup_series = MagicMock(return_value=(match, {"name": "Show"}, 100, "Show"))  # type: ignore[assignment]
