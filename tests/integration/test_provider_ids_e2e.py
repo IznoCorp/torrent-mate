@@ -134,6 +134,96 @@ def test_e2e_backfill_idempotent_on_complete_library(conn: sqlite3.Connection) -
     rt.get_rating.assert_not_called()
 
 
+def _seed_partial_item(conn: sqlite3.Connection, *, title: str) -> int:
+    """Insert a media_item that has only the canonical TVDB id + IMDb rating gap.
+
+    Used by :func:`test_e2e_backfill_partial_then_idempotent` to prove that
+    a partial row gets filled additively (TVDB stays untouched, IMDb id +
+    ratings get added) and that the second pass is a no-op.
+    """
+    now = int(time.time())
+    external_ids = json.dumps({"tvdb": {"series_id": "9001"}})
+    cur = conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, original_title, year, category_id, "
+        "external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
+        "date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang) "
+        "VALUES (?, ?, ?, NULL, 2008, 'tv_shows', ?, NULL, 'tvdb', NULL, NULL, ?, ?, NULL, 0, 'fr')",
+        ("show", title, title, external_ids, now, now),
+    )
+    assert cur.lastrowid is not None
+    return cur.lastrowid
+
+
+def test_e2e_backfill_partial_then_idempotent(conn: sqlite3.Connection) -> None:
+    """A partially-populated row is filled additively and the second pass is a no-op.
+
+    Step 1 — Seed a row whose canonical TVDB id exists but IMDb id +
+    rating sources are missing. Wire a TVDB client whose
+    ``get_tv(...)`` returns ``MediaDetails.external_ids = {"tmdb":
+    "5005", "imdb": "tt0944947"}``, plus an IMDb façade that returns
+    one ``Notations`` row. After the pass, TVDB stays unchanged, IMDb
+    + TMDB get written, and the IMDb rating appears in
+    ``ratings_json``.
+
+    Step 2 — Re-run the same backfill on the now-complete row. The
+    pass must report zero updates ; mocks must observe zero calls.
+    Proves DESIGN §5 idempotence on the partial-fill path.
+    """
+    item_id = _seed_partial_item(conn, title="Breaking Bad")
+
+    tvdb_client = MagicMock()
+    tvdb_client.get_tv.return_value = MagicMock(external_ids={"tmdb": "5005", "imdb": "tt0944947"})
+    imdb = MagicMock(spec=IMDbClient)
+    imdb.get_rating.return_value = [Notations(provider="omdb", source="imdb", score=9.5, votes_count=2_000_000)]
+    rt = MagicMock(spec=RottenTomatoesClient)
+    rt.get_rating.return_value = None
+    bus = EventBus()
+
+    stats = run_backfill_ids(
+        conn,
+        event_bus=bus,
+        imdb_client=imdb,
+        rt_client=rt,
+        tvdb_client=tvdb_client,
+    )
+
+    assert stats.items_updated == 1
+    assert stats.items_skipped == 0
+    assert stats.ids_added_count == 2
+    assert stats.ratings_added_count == 1
+
+    # Reload the row and check the additive merge.
+    row = conn.execute("SELECT external_ids_json, ratings_json FROM media_item WHERE id = ?", (item_id,)).fetchone()
+    eids = json.loads(row[0])
+    assert eids["tvdb"]["series_id"] == "9001"
+    assert eids["tmdb"]["series_id"] == "5005"
+    assert eids["imdb"]["series_id"] == "tt0944947"
+    ratings = json.loads(row[1])
+    sources = {e["source"] for e in ratings["entries"]}
+    assert "imdb" in sources
+
+    # Second pass — idempotence. Reset mock call history so the assertion
+    # below is unambiguous about the new pass.
+    tvdb_client.get_tv.reset_mock()
+    imdb.get_rating.reset_mock()
+    rt.get_rating.reset_mock()
+
+    stats2 = run_backfill_ids(
+        conn,
+        event_bus=bus,
+        imdb_client=imdb,
+        rt_client=rt,
+        tvdb_client=tvdb_client,
+    )
+
+    assert stats2.items_updated == 0
+    assert stats2.items_skipped == 1
+    # No cross-ref refetch — the IDs gap is empty after pass 1.
+    tvdb_client.get_tv.assert_not_called()
+    # No rating refetch — the IMDb source is already present.
+    imdb.get_rating.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # Capability composition cross-checks (phases 1, 11, 13, 14)
 # ---------------------------------------------------------------------------
