@@ -52,7 +52,7 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 | 7   | DB schema — external_ids_json + ratings_json + canonical_prov | phase-07-db-schema-external-ids.md    | [x]    |
 | 8   | Backfill mode + CLI + auto-trigger post-scrape                | phase-08-backfill-mode.md             | [x]    |
 | 9   | Verify checker — 3 nouveaux checks                            | phase-09-verify-checker-extensions.md | [x]    |
-| 10  | Consommateurs library/conf/trailers refactor                  | phase-10-consumers-refactor.md        | [ ]    |
+| 10  | Consommateurs library/conf/trailers refactor                  | phase-10-consumers-refactor.md        | [x]    |
 | 11  | Tracker capabilities + LaCale/C411 refactor                   | phase-11-tracker-capabilities.md      | [ ]    |
 | 12  | Tracker registry priority-aware par type de média             | phase-12-tracker-registry-priority.md | [ ]    |
 | 13  | Torrent capabilities + QBit/Transmission refactor             | phase-13-torrent-capabilities.md      | [ ]    |
@@ -158,13 +158,13 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 
 ### Phase 10 — Consumers Refactor
 
-| Sub  | Scope                                          | SHA | Status |
-| ---- | ---------------------------------------------- | --- | ------ |
-| 10.1 | `library/recommender.py` via external_ids_json | -   | [ ]    |
-| 10.2 | `library/scanner.py` writes                    | -   | [ ]    |
-| 10.3 | Drop `OverrideRule.imdb_id`                    | -   | [ ]    |
-| 10.4 | `trailers/scanner.py` + `orchestrator.py`      | -   | [ ]    |
-| 10.5 | `config.example/` cleanup                      | -   | [ ]    |
+| Sub  | Scope                                                                              | SHA     | Status |
+| ---- | ---------------------------------------------------------------------------------- | ------- | ------ |
+| 10.1 | recommender accepts external_ids tuple unchanged (ids dict already abstracts)      | 5b1cabf | [x]    |
+| 10.2 | `library/scanner.py` writes external_ids_json (done in phase 7.5)                  | f771b53 | [x]    |
+| 10.3 | Drop `RuleCriteria.imdb_id` (pre-1.0 no retro-compat)                              | 5b1cabf | [x]    |
+| 10.4 | `trailers/scanner.py` + `orchestrator.py` read from external_ids_json (phase 7.5b) | 6c3d6e4 | [x]    |
+| 10.5 | `config.example/` had no OverrideRule example — no-op                              | -       | n/a    |
 
 ### Phase 11 — Tracker Capabilities
 
