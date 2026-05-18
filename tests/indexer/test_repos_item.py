@@ -88,6 +88,7 @@ def test_find_by_tmdb_id_returns_matching_row(conn: sqlite3.Connection) -> None:
     row = item_repo.find_by_tmdb_id(conn, 99001)
     assert row is not None
     import json as _json  # noqa: PLC0415
+
     assert _json.loads(row.external_ids_json)["tmdb"]["series_id"] == "99001"
     assert row.title == "Test Item"
 

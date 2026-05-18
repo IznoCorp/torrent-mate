@@ -460,9 +460,7 @@ class TestScanLibrary:
         import json as _json  # noqa: PLC0415
 
         external_ids_json = (
-            _json.dumps({"tmdb": {"series_id": str(tmdb_id), "episode_id": None}})
-            if tmdb_id is not None
-            else "{}"
+            _json.dumps({"tmdb": {"series_id": str(tmdb_id), "episode_id": None}}) if tmdb_id is not None else "{}"
         )
         conn.execute(
             "INSERT INTO media_item (id, kind, title, title_sort, year, category_id, "

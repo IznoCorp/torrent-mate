@@ -403,6 +403,7 @@ class TestItemRepo:
         assert fetched is not None
         assert fetched.id == item_id
         import json as _json  # noqa: PLC0415
+
         assert _json.loads(fetched.external_ids_json)["tmdb"]["series_id"] == "99999"
 
     def test_delete(self, conn: sqlite3.Connection) -> None:
