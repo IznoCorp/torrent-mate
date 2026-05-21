@@ -8,11 +8,16 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/tech-debt/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/tech-debt/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                            | File                              | Status |
+| --- | -------------------------------- | --------------------------------- | ------ |
+| 1   | Critical bug fixes               | phase-01-critical-bugs.md         | [ ]    |
+| 2   | Design vs reality reconciliation | phase-02-design-reconciliation.md | [ ]    |
+| 3   | Cross-feature tech debt          | phase-03-tech-debt.md             | [ ]    |
+| 4   | Polish + final ACCEPTANCE pass   | phase-04-polish.md                | [ ]    |
 
 ## Review cycles
 
@@ -20,4 +25,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start Phase 1.
