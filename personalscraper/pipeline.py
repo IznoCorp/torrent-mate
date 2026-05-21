@@ -12,9 +12,11 @@ independent sub-steps, each with its own error isolation.
 from __future__ import annotations
 
 import dataclasses
+import signal
 import time
 from collections.abc import Callable, Mapping
 from pathlib import Path
+from types import FrameType
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -42,6 +44,16 @@ class _CriticalStepError(Exception):
 
     Used to abort the pipeline early when ingest or sort fail fatally,
     since downstream steps depend on their output.
+    """
+
+
+class _PipelineInterrupted(Exception):
+    """Raised internally when the operator requested graceful shutdown.
+
+    Honored at step boundaries only — the current step's atomic unit
+    finishes before the pipeline aborts. ``PipelineEnded`` is emitted
+    by the normal finally path so subscribers always see a clean
+    lifecycle pair.
     """
 
 
@@ -85,6 +97,10 @@ class Pipeline:
         self.continue_on_trailer_error: bool = False
         # Per-run UUID, regenerated at the start of every ``run`` call.
         self._run_id: UUID = uuid4()
+        # SIGINT / programmatic shutdown signal — checked at each step
+        # boundary in :meth:`_run_step`. Reset at the top of every run.
+        self._shutdown_requested: bool = False
+        self._shutdown_reason: str | None = None
 
     @property
     def config(self) -> Config:
@@ -95,6 +111,72 @@ class Pipeline:
     def settings(self) -> Settings:
         """Return the Pydantic env-var settings bundled in ``app``."""
         return self._app.settings
+
+    def request_shutdown(self, reason: str = "external_request") -> None:
+        """Signal the pipeline to abort at the next step boundary.
+
+        Non-blocking: the current step (if any) keeps running until its
+        atomic unit completes; the abort happens before the next step
+        starts via :meth:`_check_shutdown_requested`.
+
+        Args:
+            reason: Free-form label preserved in the structured log
+                emitted when the shutdown is honored. Defaults to
+                ``"external_request"``; the SIGINT handler installed by
+                :meth:`run` passes ``"signal_SIGINT"``.
+        """
+        self._shutdown_requested = True
+        self._shutdown_reason = reason
+
+    def _check_shutdown_requested(self, boundary: str) -> None:
+        """Raise :class:`_PipelineInterrupted` if a shutdown was signalled.
+
+        Args:
+            boundary: Identifier of the boundary being checked
+                (e.g. ``"before_sort"``). Logged at the abort point.
+
+        Raises:
+            _PipelineInterrupted: When :attr:`_shutdown_requested` is
+                ``True``. The exception travels up to :meth:`run`'s
+                try-block and is caught there for clean PipelineEnded
+                emission via the existing finally path.
+        """
+        if not self._shutdown_requested:
+            return
+        self._log.warning(
+            "pipeline_shutdown_honored",
+            boundary=boundary,
+            reason=self._shutdown_reason,
+        )
+        raise _PipelineInterrupted(self._shutdown_reason or "shutdown_requested")
+
+    def _install_sigint_handler(self) -> Any:
+        """Install a SIGINT handler that calls :meth:`request_shutdown`.
+
+        Returns:
+            The previous handler (so :meth:`run`'s finally can restore
+            it), or ``None`` when signal installation is not possible
+            (non-main thread, embedded interpreter, etc.). The pipeline
+            still works in that case — :meth:`request_shutdown` can be
+            invoked programmatically.
+        """
+
+        def _handler(signum: int, _frame: FrameType | None) -> None:
+            self.request_shutdown(reason=f"signal_{signal.Signals(signum).name}")
+
+        try:
+            return signal.signal(signal.SIGINT, _handler)
+        except (ValueError, OSError):
+            return None
+
+    def _restore_sigint_handler(self, previous: Any) -> None:
+        """Restore a previously captured SIGINT handler. Best-effort."""
+        if previous is None:
+            return
+        try:
+            signal.signal(signal.SIGINT, previous)
+        except (ValueError, OSError):
+            pass
 
     def _recover_from_previous_run(
         self,
@@ -222,6 +304,12 @@ class Pipeline:
         # would leak the binding into the calling task on any of those
         # exception paths.
         self._run_id = uuid4()
+        # Reset shutdown signal at the top of every run; dry-runs are
+        # observational and intentionally skip the SIGINT install so
+        # they never alter process-wide signal state.
+        self._shutdown_requested = False
+        self._shutdown_reason = None
+        previous_sigint = None if self.dry_run else self._install_sigint_handler()
         report = PipelineReport(started_at=datetime.now())
         extras: dict[str, Any] = {
             "skip_trailers": self.skip_trailers,
@@ -352,6 +440,15 @@ class Pipeline:
                     StepCompleted(step="dispatch", report=dispatch_report, elapsed_s=0.0),
                 )
 
+        except _PipelineInterrupted as exc:
+            # Operator-requested shutdown honored at a step boundary.
+            # The remaining steps are skipped; the finally below still
+            # emits ``PipelineEnded`` so subscribers see a clean pair.
+            self._log.warning(
+                "pipeline_interrupted",
+                reason=str(exc),
+                completed_steps=list(report.steps.keys()),
+            )
         finally:
             if report.finished_at is None:
                 report.finished_at = datetime.now()
@@ -369,6 +466,7 @@ class Pipeline:
                     self._log.warning("pipeline_ended_emit_failed", exc_info=True)
             finally:
                 current_correlation_id.reset(token)
+                self._restore_sigint_handler(previous_sigint)
 
         return report
 
@@ -482,7 +580,16 @@ class Pipeline:
 
         Raises:
             _CriticalStepError: If ``critical=True`` and fn raises.
+            _PipelineInterrupted: If the operator signalled shutdown
+                (SIGINT or :meth:`request_shutdown`) before this step
+                started. The check happens before any emit so the
+                interrupted step never appears in the bus history.
         """
+        # Step-boundary shutdown check (sub-phase 4.2): honored BEFORE
+        # any emit or work so the interrupted step never produces an
+        # asymmetric StepStarted/StepCompleted pair.
+        self._check_shutdown_requested(boundary=f"before_{name}")
+
         # Bus is the sole emit path (Phase 3.7b).
         # No companion ``log.info("step_started", step=name)`` — the
         # StepStarted event carries the same ``step`` discriminator; per
