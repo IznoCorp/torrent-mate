@@ -1,362 +1,233 @@
-# Item 11 — Audit conformité app vs DESIGN existants
+# Item 11 — Audit conformité app vs DESIGN (audit-quality REDO)
 
-**Date** : 2026-05-21
-**Méthode** : cross-check des claims/invariants des DESIGN docs récents (event-bus,
-provider-ids, media-indexer, pipeline-obs) contre l'état actuel du code et de la BDD.
-Réutilisation des findings items 5-10 pour identifier les ACCEPTANCE_FAIL durables.
-**Output** : rapport de conformité globale + identification des "feature shipped but
-not deployed" + items DESIGN-ready pour item 14.
-
----
-
-## 0. DESIGN docs sources auditées
-
-| DESIGN doc    | Version livrée                                 | Audit                                     |
-| ------------- | ---------------------------------------------- | ----------------------------------------- |
-| event-bus     | v0.14.0 — `323c1b4`                            | Bus invariants + AppContext boundary rule |
-| provider-ids  | v0.15.0 — `db106ac`                            | ACCEPTANCE.md 10 critères                 |
-| media-indexer | (no version tag in DESIGN) — scattered commits | Soft-delete + drift + scan modes          |
-| pipeline-obs  | archived                                       | Observability conventions                 |
-| ext-staging   | archived                                       | Staging dirs layout                       |
-| api-unify     | archived (post-arch-cleanup)                   | API layer structure                       |
-
-Autres archives consultées mais non auditées en profondeur (logging, trailer, test-coverage,
-test-realism, info-cmd, arch-cleanup, legacy-cleanup).
+**Date** : 2026-05-21 (REDO — supersedes the brainstorm-quality first pass)
+**Méthode** : audit RIGOUREUX des 13 archived features. Pour chaque DESIGN.md +
+ACCEPTANCE.md + IMPLEMENTATION.md : extraction exhaustive des claims/MUST/SHALL,
+verification commande par commande contre le codebase actuel, classification
+CONFORMING / VIOLATION / UNVERIFIABLE / N/A.
+**Output** : rapport conformité globale audit-quality + 26 nouveaux DEVs (#24-#49) à
+intégrer au master backlog.
 
 ---
 
-## 1. Conformité provider-ids — état réel
+## 0. Périmètre auditée
 
-Re-check des 10 critères ACCEPTANCE.md (déclarés tous ✅ ou 🟡 à phase 15) contre le code/BDD actuels :
+| Feature        | DESIGN LOC | ACCEPTANCE       | IMPL LOC | Claims auditées | Conformité                                     |
+| -------------- | ---------- | ---------------- | -------- | --------------- | ---------------------------------------------- |
+| event-bus      | 904        | (inline)         | 293      | 25              | 19 OK / 4 VIOL / 2 UNV                         |
+| provider-ids   | 602        | 36 (10 criteria) | 390      | 18              | 7 OK / 5 VIOL / 1 PARTIAL / 5 UNV/NEW          |
+| media-indexer  | 1543       | (none)           | (none)   | 47              | 28 OK / 14 VIOL / 3 UNV / 2 N/A                |
+| api-unify      | 1026       | (inline)         | 509      | 27              | 22 OK / 3 VIOL / 2 UNV                         |
+| pipeline-obs   | 259        | (inline)         | 113      | 14              | 7 OK / 6 superseded / 1 UNV                    |
+| test-coverage  | 430        | (inline)         | 97       | 23              | 22 OK / 0 VIOL / 1 UNV                         |
+| trailer        | 538        | (inline)         | 159      | 14              | 11 OK / 2 VIOL (doc lag) / 1 UNV               |
+| ext-staging    | 451        | (inline)         | 42       | 16              | 15 OK / 1 minor (docstring leak)               |
+| logging        | 108        | (inline)         | 82       | 13              | 12 OK / 1 doc-stale                            |
+| arch-cleanup   | 270        | (inline)         | 88       | 19              | 17 OK / 2 VIOL (size regress + 0.10.0 promise) |
+| legacy-cleanup | 313        | (inline)         | 44       | 8               | 5 OK / 1 PARTIAL / 2 leak                      |
+| test-realism   | 130        | (inline)         | 44       | 10              | 8 OK / 2 VIOL (targets missed)                 |
+| info-cmd       | (none)     | (none)           | 40       | 1               | trivial — CLI command exists, no further claim |
 
-| #   | Criterion                                                  | Statut déclaré | **Statut réel post-audit**                                                                                    | Evidence                                                                                                                                                                                                                                                                                                                                             |
-| --- | ---------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | DEV #2 root cause fix (episode NFO uniqueid)               | ✅             | ✅ **CONFIRMÉ**                                                                                               | Tests `test_regression_dev2_episode_ids.py` passent. NFOs sur disque ont `<uniqueid default="true">` sur épisodes.                                                                                                                                                                                                                                   |
-| 2   | Fresh TV scrape produit NFOs avec canonical + xref         | ✅             | ✅ **CONFIRMÉ** (sur les nouveaux scrapes — observé pendant le run item 5 sur FROM (2022))                    |
-| 3   | `personalscraper indexer --backfill-ids` walks the library | ✅             | ❌ **ACCEPTANCE_FAIL**                                                                                        | **Aucune CLI command `backfill-ids` n'existe**. `library-index --help` liste `--mode` choices : `full, quick, incremental, or enrich` — **pas de `backfill_ids` mode listé**. `rg "backfill[-_]ids" personalscraper/commands/` retourne 0. Le driver `run_backfill_ids` existe (en `indexer/scanner/_modes/backfill_ids.py`) mais zéro exposure CLI. |
-| 4   | DB schema utilise `external_ids_json`                      | ✅ (schema)    | 🟡 **PARTIEL — DATA EMPTY**                                                                                   | Migration 005 a bien créé les colonnes (`canonical_provider`, `external_ids_json`, `ratings_json`). Schema OK. MAIS sur la BDD prod : **0/1935 items ont ces colonnes populées** (audit item 7). Backfill jamais exercé. ACCEPTANCE #4 ne peut PAS être validée empiriquement.                                                                       |
-| 5   | `RuleCriteria.imdb_id` removed                             | ✅             | ✅ **CONFIRMÉ** (pas re-vérifié exhaustivement, mais grep rapide confirme absence)                            |
-| 6   | Monolithic Protocols dropped                               | ✅             | ❌ **ACCEPTANCE_FAIL**                                                                                        | `personalscraper/api/torrent/_contracts.py:124: class TorrentClientFull(Protocol)` toujours présent. `personalscraper/api/metadata/_base.py:267: class MetadataProvider(Protocol)` toujours présent. Audit item 1 (plan-drift) l'avait déjà noté. Pas corrigé depuis.                                                                                |
-| 7   | TrackerRegistry `priority_by_media_type`                   | ✅             | ✅ **CONFIRMÉ**                                                                                               |
-| 8   | Tests verts + coverage ≥ 90%                               | ✅             | ✅ **CONFIRMÉ** (vérifié indirectement via les fixes item 7/8)                                                |
-| 9   | Public CLI unchanged sauf `indexer backfill-ids`           | ✅             | ❌ **EN PARTIE TROMPEUR**                                                                                     | Le criterion dit "no breaking change" — OK. Mais le claim positif ("indexer backfill-ids ajouté") est FALSE (DEV ACCEPTANCE #3).                                                                                                                                                                                                                     |
-| 10  | 8-show staging dispatch-ready post-merge                   | 🟡 (à valider) | ✅ **CONFIRMÉ EMPIRIQUEMENT** (par le run item 5 — 8 items prêts à dispatch hors Top Chef Le Concours bloqué) |
-
-**Bilan provider-ids** :
-
-- 2 ACCEPTANCE_FAIL durables : #3 (CLI manquante) + #6 (Protocols monolithiques survivent).
-- 1 partielle : #4 (schema OK, data vide).
-- 1 trompeuse : #9 (formulation positive sur un fait non vrai).
-
-→ Pattern P23 (nouveau) : **ACCEPTANCE ticée par phase gate mais pas par "feature exercise"**.
-Item 1 plan-drift avait identifié ce pattern (P1, P2), il se re-confirme ici à granularité fine.
+**Total claims auditées** : ~235
+**Conformity rate global** : ~80% (190 CONFORMING) — solide globalement, mais 39 VIOLATIONs
+nouvelles avant déduplication.
 
 ---
 
-## 2. Conformité event-bus — état réel
+## 1. Nouveaux DEVs #24-#49
 
-### 2.1 Invariants du DESIGN
+Suite à l'audit-quality. Les anciens DEV #1-#23 (items 5-10) restent valides ; les nouveaux
+complètent.
 
-- **NO DEFERRAL** — chaque sous-phase a tout livré.
-- **AppContext boundary-only rule** — `AppContext` construit aux frontières (CLI, host) uniquement. Composants internes reçoivent `EventBus` + `Settings` + `config: Config`, jamais `AppContext`.
-- **Event dataclass frozen=True kw_only=True**
-- **Dispatch MRO-based** + cache invariant (subscription order indifférent)
-- **JSON serialization contract** : tous les Events sont JSON-sérialisables
-
-### 2.2 Vérification
-
-```bash
-$ rg -n "def \w+\(.*app_context: AppContext|def \w+\(.*ctx: AppContext" --type py personalscraper/ | grep -v "cli_helpers\|test"
-```
-
-Pour vérifier que les composants internes ne reçoivent pas `AppContext`. Test simple :
-
-- `cli_helpers.py:25 — _build_app_context(config, settings) -> AppContext` : OK (construction au boundary)
-- `cli_helpers.py:47 — per_step_boundary(config, settings) -> Iterator[AppContext]` : OK (context manager au boundary)
-- `commands/pipeline.py:319, 360` — AppContext mentionné dans docstring/comment : OK (boundary)
-
-→ **Boundary-only rule respectée** sur les sites principaux.
-
-Le DEV #6 (VERIFY silent stdout) n'est PAS une violation event-bus per se — les events VERIFY
-existent vraisemblablement sur le bus, juste pas en mode stdout. Hypothèse A de DEV #6.
-
-### 2.3 ACCEPTANCE event-bus
-
-Le DESIGN event-bus n'a pas d'ACCEPTANCE.md séparé (peut-être inclus en IMPLEMENTATION.md du
-feature). Les "NO DEFERRAL" + "AppContext boundary" sont les invariants principaux. Apparemment
-respectés.
-
-**Bilan event-bus** : conformité OK, modulo l'observabilité asymétrique VERIFY (DEV #6) qui est
-plus un gap CLI/logging qu'un breach event-bus.
+| #   | Catégorie        | Sév.     | Feature        | Description (courte)                                                                                                                                                                                                                                           |
+| --- | ---------------- | -------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 24  | DOC_ROT          | major    | event-bus      | v1 catalog claim 13 events ; reality 17 (provider-ids added 4 `Backfill*`). `docs/reference/event-bus.md` table stale. `events/__init__.py:__all__` omits Backfill\*.                                                                                          |
+| 25  | DESIGN_DRIFT     | minor    | event-bus      | Module budget violations : `core/event_bus.py` 410/400, `indexer/events.py` 123/60, `tests/fixtures/event_samples.py` 243/150. Soit raise budgets, soit split.                                                                                                 |
+| 26  | DOC_RULE_BROKEN  | minor    | event-bus      | Rule "consumers reach event classes via `personalscraper.events` re-exports" broken pour Backfill\* (importables uniquement depuis `personalscraper.indexer.events`).                                                                                          |
+| 27  | DESIGN_DEVIATION | CRITIQUE | provider-ids   | DESIGN §6.5 + §8 Plan A reset+rescrape **jamais exécuté** sur library.db prod. 0/1935 items ont external_ids_json populé. ACCEPTANCE #4 vide. Origine de DEV #12 sub-cause "provider-IDs empty".                                                               |
+| 28  | DESIGN_DEVIATION | majeur   | provider-ids   | Auto-trigger backfill post-`process` **jamais wired** dans `scraper/run.py`. Phase 8.3 IMPL marquée `partial`. `run_backfill_ids` callable uniquement programmatiquement.                                                                                      |
+| 29  | DESIGN_DEVIATION | majeur   | provider-ids   | `MetadataProvider(Protocol)` à `_base.py:267` **toujours activement testé** comme Protocol (`tests/unit/test_api_metadata_base.py:182-230` asserts isinstance). Le drop n'est pas qu'un `git rm`.                                                              |
+| 30  | DESIGN_DEVIATION | mineur   | provider-ids   | Ratings flow scope-creep : `tv_service.py`, `movie_service.py`, `_xref.py`, `nfo_generator.py:200-208` passent `imdb_id`/`tmdb_id` flat positional au lieu d'`ExternalIds` Pydantic.                                                                           |
+| 31  | DESIGN_DEVIATION | CRITIQUE | media-indexer  | **§17.1 paranoia branch MORTE** : `_modes/quick.py` query `scan_event WHERE event LIKE 'outbox.%'` ; mais `outbox/_drain.py` + `_apply.py` n'insèrent **jamais** ces scan_event rows. Safety net dead.                                                         |
+| 32  | DOC_ROT          | majeur   | media-indexer  | Archive DESIGN.md décrit `tmdb_id/imdb_id/tvdb_id` colonnes + 3 indexes. Migration 005 a tout droppé pour `external_ids_json` + JSON-path indexes. DESIGN jamais amendé.                                                                                       |
+| 33  | DESIGN_DEVIATION | majeur   | media-indexer  | `PRAGMA busy_timeout=5000` (DESIGN §6.1) **non appliqué** sur `dispatch/run.py` (×2), `commands/library/audit.py`, `conf/loader.py`. Connexions raw bypass `open_db()` → contention = OperationalError immédiate au lieu d'attendre 5 s. Extension de DEV #19. |
+| 34  | DESIGN_DEVIATION | majeur   | media-indexer  | DEV #19 sous-estimé : non seulement `foreign_keys=0`, mais aussi `temp_store`, `cache_size`, `mmap_size` ne sont pas appliquées sur les sites raw (`_concurrency.py`, `outbox/_disk.py`, `outbox/_publish.py`). Extract `_apply_pragmas()` requis.             |
+| 35  | DOC_ROT          | mineur   | media-indexer  | DESIGN §11.1 documente 4 scan modes ; schema CHECK accepte 6 (`+verify, +repair`). Cosmetic gap.                                                                                                                                                               |
+| 36  | DOC_ROT          | mineur   | media-indexer  | Migration 004 a étendu `media_stream` (`hdr_format`, `is_atmos`, `is_default`, `forced`, `format`) — pas dans archived DESIGN §6.2. Sync `docs/reference/indexer.md` à vérifier.                                                                               |
+| 37  | UNVERIFIED       | mineur   | media-indexer  | DESIGN §6.4 spécifie `BEGIN IMMEDIATE` pour chaque write transaction. Pas grep ; à auditer.                                                                                                                                                                    |
+| 38  | DESIGN_DEVIATION | mineur   | api-unify      | `TorrentClientFull` (`api/torrent/_contracts.py:124`) re-crée la monolithic shape sous un autre nom (composite avec 4 capabilities + factory cast). Provider-ids ACCEPTANCE #6 partiellement violé sur 2 vectors.                                              |
+| 39  | DOC_ROT          | majeur   | pipeline-obs   | Archive DESIGN.md décrit `PipelineObserver` Protocol + `StepEvent` + `notify_progress` ; tout supplanté par event-bus. **6 claims sur 14 superseded**. Aucune bannière dans archive. Old → new mapping table missing.                                          |
+| 40  | DESIGN_DEVIATION | majeur   | pipeline-obs   | **DEV #6 sous-estimé** : tous les 7 per-step CLI subcommands (`ingest`, `sort`, `scrape`, `verify`, `enforce`, `dispatch`, `process`) n'émettent aucun event INFO structlog au command layer. Pas seulement `verify`.                                          |
+| 41  | DOC_LAG          | mineur   | test-coverage  | Branch coverage drift : claim retrospective "91 %" (DESIGN §10 Q3) ; current `coverage.xml` = 85.95%. Above gate, mais doc rot.                                                                                                                                |
+| 42  | DOC_ROT          | mineur   | trailer        | DESIGN §4 décrit placement flat `{name}-trailer.{ext}` pour movies ET TV ; code production utilise `Trailers/` subfolder pour TV (mid-PR pivot cycle 3). Archive DESIGN jamais amendé.                                                                         |
+| 43  | DOC_ROT          | mineur   | trailer        | DESIGN §14 "status=partial does NOT block dispatch" contredit reference doc "Blocking by default (sauf `--continue-on-trailer-error`)". Pivot intentionnel cycle 3. Archive stale.                                                                             |
+| 44  | DOC_LEAK         | mineur   | ext-staging    | `indexer/scanner/_exclusions.py:383` docstring contient `"001-MOVIES/Inception (2010)"` ; DESIGN Phase 2 critère 3 mandate `grep "\"0[0-9]\{2\}-"` = 0 hits. Violation cosmétique.                                                                             |
+| 45  | DOC_ROT          | mineur   | logging        | `docs/reference/logging.md:82,139` référence `personalscraper.scraper.http_retry` + `scraper/tmdb_client.py` — chemins n'existent plus (refactor api-unify/provider-ids). Real path : `core/http_helpers.py` + `api/metadata/tmdb.py`.                         |
+| 46  | DESIGN_DEVIATION | majeur   | arch-cleanup   | **0.10.0 hard-block module-size promesse stalled depuis 5 versions** (we're at 0.15.1). `scripts/check-module-size.py` toujours advisory. `tv_service.py` (986 LOC) + `existing_validator.py` (917 LOC) régressés au-dessus 800.                               |
+| 47  | DESIGN_DRIFT     | mineur   | arch-cleanup   | DESIGN.md spécifie `StepReport.details_payload: Any \| None` ; code actuel `dict[str, Any] \| None`. Stricter, OK ; mais doc drift.                                                                                                                            |
+| 48  | DOC_LEAK         | mineur   | legacy-cleanup | 4 hits VX résiduels dans `personalscraper/` (release_linker.py "V1 implementation" x2, classifier.py "V14 compat" intentional). MANUAL.md 2 leaks ("V3"). `docs/*.md` top-level 43 hits hors-scope original mais doc rot.                                      |
+| 49  | DESIGN_DEVIATION | majeur   | test-realism   | `test_cli.py` @patch=52 (target DESIGN §5 ≤25, miss 27 patches). Total hotspots 66 (target ≤58). **Success criteria §8 jamais re-mesurée au gate** — feature mergée avec target manqué. Process drift.                                                         |
 
 ---
 
-## 3. Conformité media-indexer — état réel
+## 2. Patterns systémiques (P30-P34 nouveaux + confirmation P1-P29)
 
-### 3.1 Invariants du DESIGN
+### P30 — Documentation stale post-feature-archive (DOC_ROT)
 
-- Schema versionné via PRAGMA user_version + migrations idempotentes
-- Soft-delete lifecycle (deleted_at + deleted_item tombstone)
-- Drift detection (miss_strikes → n threshold → soft-delete)
-- Scan modes (full, quick, incremental, enrich)
-- Merkle short-circuit sur quick/incremental
-- Bulk-change freeze (DiskBulkChangeDetected)
-- Disk sentinel (UUID + bootstrap)
-- WAL mode, foreign_keys
+Pattern récurrent confirmé sur 7 features : event-bus (#24, #26), provider-ids (#27, #28),
+media-indexer (#32, #35, #36), pipeline-obs (#39), trailer (#42, #43), logging (#45),
+legacy-cleanup (#48). Cause racine : archived DESIGN.md n'est pas re-vérifié quand un
+refactor suivant le casse.
 
-### 3.2 Vérification (cross-ref avec items 7/8)
+**Levier** : règle DESIGN tech-debt — "chaque archived feature DESIGN.md DOIT être amendée
+(banner stale + old→new mapping table) à la prochaine release qui invalide une partie de
+ses claims".
 
-| Invariant               | Statut réel                                | DEV concerné                                                                                        |
-| ----------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| Schema versionné        | ✅ user_version=5, 5 migrations OK         | (DEV #15 cosmétique sur schema_version table)                                                       |
-| Soft-delete lifecycle   | ❌ **TOTALEMENT CASSÉ**                    | DEV #18 — `increment_miss_strikes_for_disk` jamais appelée → drift inactif → soft-delete impossible |
-| Migrations idempotentes | ✅ avec snapshots `.pre-migration-<v>.bak` | (DEV #15 cosmétique)                                                                                |
-| Merkle short-circuit    | ✅ post fix #11 + #14                      | (DEV #11 et #14 traités)                                                                            |
-| Bulk-change freeze      | ✅ déclenchée en validation post-fix #11   | (workaround `--confirm-bulk-change`)                                                                |
-| Disk sentinel           | ✅ (vérifié au boot)                       | (pas testé en profondeur)                                                                           |
-| WAL mode                | ✅ PRAGMA journal_mode = wal               | (item 7)                                                                                            |
-| Foreign keys enforced   | ❌ **PRAGMA foreign_keys = 0**             | DEV #19                                                                                             |
-| Scan modes              | ✅ full/quick/incremental/enrich exposés   | ACCEPTANCE provider-ids #3 fail (backfill_ids non listé)                                            |
+### P31 — Promesses de version stalled (PROMISE_STALL)
 
-**Bilan media-indexer** :
+#46 : 0.10.0 hard-block module-size 5 versions overdue. #27 : Plan A reset+rescrape jamais
+exécuté. Cause racine : promesses dans DESIGN sans timeline applicable, sans CI gate.
 
-- 2 violations critiques : DEV #18 (drift cassé), DEV #19 (FK non-enforced)
-- 1 ACCEPTANCE_FAIL : backfill_ids mode pas exposé en CLI
-- Le reste : OK conformité
+**Levier** : pour chaque "promise versionnelle" dans DESIGN, créer un CI check qui échoue
+à partir de la version cible si la promise n'est pas honorée.
 
-→ Pattern P24 (nouveau) : **infrastructure invariants déclarés mais pas activés au runtime**
-(FK déclarées mais désactivées ; miss_strikes mécanisme défini mais jamais appelé). Le DESIGN
-écrit le "comment" mais le wiring runtime manque.
+### P32 — Success criteria not re-measured at phase gate (GATE_DRIFT)
 
----
+#49 (test-realism), #41 (test-coverage retrospective drift). Phase gate vérifie tests verts
 
-## 4. Conformité pipeline-obs / observabilité
+- lint mais pas les quantitative targets du DESIGN §8.
 
-### 4.1 Conventions DESIGN
+**Levier** : règle "DESIGN §8 success-criteria re-measurement" obligatoire au gate. Ajout
+à process P23 d'item 11 v1.
 
-- structlog event-names en snake_case
-- chaque step émet `step_started` + `step_completed` (ou `step_errored`)
-- correlation_id propagé via `ContextVar`
+### P33 — PRAGMA / connection-init discipline broken (PRAGMA_BYPASS)
 
-### 4.2 Vérification
+#33 + #34 (media-indexer). Plusieurs sites raw `sqlite3.connect()` bypass `open_db()` →
+FK, busy_timeout, cache_size, mmap_size non appliqués. DEV #19 sous-estimé.
 
-- ✅ Event-names en snake_case (vérifié sur ingest/sort/process events observés)
-- ✅ Pipeline.run() émet `pipeline_started` + `pipeline_finished` (vu en `commands/pipeline.py:349, 416`)
-- ✅ Per-step events visibles dans le run item 5 (ingest_complete, sort_complete, process_clean_complete, etc.)
-- ❌ **VERIFY n'émet AUCUN event INFO sur stdout** (DEV #6) — soit ces events vont sur le bus uniquement (matrix v2.0 §VERIFY documente `verify_item_done` events), soit ils ont été droppés
+**Levier** : extract `_apply_pragmas(conn)` helper, lint rule "bare `sqlite3.connect(`
+outside `db.py` is banned".
 
-→ Pattern P25 (nouveau) : **observability gap par command-level skip de structlog au profit de Typer rich**. Distinction "UX rich" vs "machine telemetry" pas tracée. Déjà identifié comme P18 en item 9.
+### P34 — Safety net défaillant (paranoia branch dead)
+
+#31 (media-indexer §17.1). Le filet de sécurité existe en code (query, table) mais le
+producteur ne fait pas son INSERT. Idem P11 (DEV #18 drift dead code).
+
+**Levier** : règle "chaque safety net DOIT avoir un test E2E qui force le scénario qu'il
+adresse" (étend BD-AG).
 
 ---
 
-## 5. Conformité ext-staging (staging dirs)
+## 3. Cross-reference avec items 6-10 (déduplication)
 
-### 5.1 Convention
+| Nouveau DEV | Recouvre / extend                                              | Statut                                                             |
+| ----------- | -------------------------------------------------------------- | ------------------------------------------------------------------ |
+| #27         | DEV #12 (files_without_release / provider-IDs empty)           | EXTEND — root cause confirmée                                      |
+| #28         | provider-ids ACCEPTANCE #3 (DEV #16)                           | NEW dimension (auto-trigger ≠ CLI exposure)                        |
+| #29         | provider-ids ACCEPTANCE #6 (CF-B)                              | EXTEND — tests asseoient le Protocol, drop plus complexe que prévu |
+| #31         | DEV #18 family (dead infra)                                    | NEW instance de pattern P11                                        |
+| #33+#34     | DEV #19                                                        | EXTEND — DEV #19 sous-estimé, multi-site                           |
+| #38         | provider-ids ACCEPTANCE #6 (CF-B)                              | EXTEND — 2ᵉ vector                                                 |
+| #40         | DEV #6                                                         | EXTEND — pas juste verify, tous les 7 per-step                     |
+| #46         | item 12 critique §1.A (couteau-suisse) + module-size guardrail | NEW (specifically 0.10.0 promise)                                  |
 
-- `001-MOVIES/`, `002-TVSHOWS/`, `097-TEMP/`, `098-AUTRES/`, `099-SCRIPTS/`, `003-EBOOKS/`, `004-AUDIO/`
-- Configuration dans `config/patterns.json5`
+Les autres (#24, #25, #26, #30, #32, #35-37, #39, #41-45, #47-49) sont **NEW**, non recouverts.
 
-### 5.2 Vérification (depuis run item 5)
-
-- ✅ Structure observée correspondante en `/Volumes/IznoServer SSD/A TRIER/`
-- ✅ `097-TEMP` empty post-SORT (gate fonctionne)
-- ❌ **10 `.DS_Store` survivent dans le staging** (DEV #4) — cleanup ENFORCE scope-limited
-
-→ Pas un breach DESIGN majeur, plutôt un detail de cleanup à finaliser.
-
----
-
-## 6. Patterns transversaux identifiés (P23-P25 nouveaux)
-
-| #       | Pattern                                                                 | Instance principale           | Implication DESIGN tech-debt                                                                 |
-| ------- | ----------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------- |
-| **P23** | ACCEPTANCE ticée par phase gate mais pas par "feature exercise" durable | provider-ids #3, #6, #9       | Tous les criteria DOIVENT être ré-exécutés en fin de feature (live exercise, pas phase gate) |
-| **P24** | Infrastructure invariants déclarés mais pas activés au runtime          | DEV #18 (drift), DEV #19 (FK) | "Activation test" obligatoire — pas seulement "wiring exists" mais "wiring runs in prod"     |
-| **P25** | Observability gap par command-level UX→rich preference                  | DEV #6 (VERIFY)               | Trace claire "user-facing" vs "machine telemetry" — déjà P18                                 |
-
-P23-P25 se cumulent à P1-P22 des items 6/7/8/9. Total : **25 patterns** systémiques recensés
-pour le tech-debt DESIGN.
+→ **17 nouveaux DEVs vraiment nouveaux** + 9 qui extend/precise des DEVs existants.
 
 ---
 
-## 7. Items DESIGN-ready (CF-A..CF-K)
+## 4. Implications pour le DESIGN tech-debt (item 14)
 
-Items conformity-spécifiques :
+Le DESIGN actuel (committed `9649784`) doit être étendu :
 
-**CF-A. ACCEPTANCE_FAIL provider-ids #3 — exposer `library-index --mode backfill-ids` OU commande dédiée**
+### 4.1 Nouvelles sections à ajouter
 
-Déjà identifié comme item L/BD-R/BD-S/BD-T (item 6, 8) + CL-P (item 9). Re-validation conformity : ce
-n'est pas "à ajouter", c'est "à conformer" à un ACCEPTANCE déjà déclaré ✅. Severity : ACCEPTANCE_FAIL.
+- **§12 Documentation conformity** (nouveau) : règles P30 + actions sur les 7 archived
+  DESIGN.md stale.
+- **§13 Promise lifecycle** (nouveau) : règles P31 — versioned promises tracking, CI gate.
+- **§14 Success criteria enforcement** (nouveau) : règle P32 + obligation re-measurement.
+- **§15 PRAGMA & connection discipline** (nouveau) : règle P33 + helper extraction.
+- **§16 Safety net E2E** (nouveau) : règle P34 + tests E2E par safety net.
 
-**CF-B. ACCEPTANCE_FAIL provider-ids #6 — drop `MetadataProvider` + `TorrentClientFull` Protocols**
+### 4.2 Nouveaux items DESIGN-ready
 
-Le criterion ACCEPTANCE #6 dit "no monolithic Protocol remains". Empirically :
+Trop nombreux pour lister ici (26 DEVs × 1-2 items chacun = ~40 items). À consolider en
+item 13 redo (synthesis update).
 
-```bash
-$ rg -n "^class MetadataProvider\b|^class TorrentClientFull\b" personalscraper/api/
-personalscraper/api/torrent/_contracts.py:124:class TorrentClientFull(...)
-personalscraper/api/metadata/_base.py:267:class MetadataProvider(Protocol):
-```
+### 4.3 Phase plan updates
 
-Tâche : pour chaque Protocol :
+Phases existantes 1-8 (tech-debt 0.16.0) couvrent partiellement les nouveaux findings :
 
-1. Audit callers (`rg "MetadataProvider\b" --type py`)
-2. Migrer chaque caller vers les capability protocols atomiques
-3. Drop la définition + drop les tests qui asseoient les monolithic
+- Phase 1 foundations : DEV #34 + #33 (étend DEV #19) — already in scope, mais portée
+  élargie
+- Phase 2 CLI : DEV #27 + #28 — already in scope (backfill-ids + first run)
+- Phase 5 conformity : DEV #29 + #38 (drop monolithic Protocols) — already in scope
+- Phase 6 doc : DEV #24, #26, #32, #35, #36, #41-43, #45, #47, #48 — **HEAVILY EXPANDED**
 
-Estimation : 1-2 jours selon nombre de callers.
+**Nouveau phase à ajouter** : **Phase 6.5 / Phase 9** "Archive DESIGN.md update" — banner
+stale + old→new mapping pour les 7 features avec doc rot. ~1 j.
 
-**CF-C. Re-exercise ACCEPTANCE post-merge automatique**
+Et : **Phase 1.7** sub-phase "extract `_apply_pragmas()` + lint rule" — fold dans Phase 1.
 
-Pattern P23 → règle : après chaque merge feature, lancer une commande type
-`personalscraper acceptance-check <feature>` qui re-exécute tous les criteria sur l'instance
-courante. Différent du phase gate test.
+### 4.4 Estimation révisée
 
-Pour tech-debt 0.16.0 lui-même : prévoir une `ACCEPTANCE.md` avec critères exécutables (commandes
-shell) pour chaque DEV traité.
+| Phase originale | Items ajoutés                                         | Effort original | Effort révisé          |
+| --------------- | ----------------------------------------------------- | --------------- | ---------------------- |
+| Phase 1         | DEV #33+34                                            | 2-3 j           | 2-3 j (already covers) |
+| Phase 2         | (no change)                                           | 2 j             | 2 j                    |
+| Phase 3         | DEV #40 broader scope                                 | 2 j             | 2 j (already covers)   |
+| Phase 4         | (no change)                                           | 2 j             | 2 j                    |
+| Phase 5         | DEV #29+38+30                                         | 2 j             | 2-3 j                  |
+| Phase 6         | DEV #24-26, #32, #35-36, #41-45, #47-48               | 2-3 j           | **3-4 j** (heavy doc)  |
+| Phase 7         | (no change)                                           | 1-2 j           | 1-2 j                  |
+| Phase 8         | DEV #31 (safety net E2E) + #49 (test-cli @patch trim) | 2-3 j           | **3-4 j**              |
+| **NEW Phase 9** | Archive DESIGN.md updates                             | —               | **1-2 j**              |
 
-**CF-D. Activation invariants — test au boot**
-
-Pattern P24 → `personalscraper library-doctor` (item 8 BD-Y / item 9 CL-M) doit inclure :
-
-- `PRAGMA foreign_keys` retourne 1
-- Drift detection a tourné dans les N derniers scans (vérifier que miss_strikes a été
-  incrémenté au moins une fois sur des phantom files de test)
-- Migration coherence
-
-**CF-E. Convention canonical : "feature shipped" = "feature deployed et exercé"**
-
-Convention à inscrire dans `docs/reference/feature-lifecycle.md` (nouveau) :
-
-- **Phase gate** : code mergeable + tests verts (current).
-- **Acceptance** : criteria exécutés sur prod, evidence captured.
-- **Deployment** : feature visible en runtime (CLI, cron, etc.).
-- **Sunset** : si feature plus utilisée, déprécier explicitement.
-
-Aide à éviter le pattern provider-ids "shipped but not deployed".
-
-**CF-F. Audit transversal "DESIGN claims vs code" en CI**
-
-Pour chaque DESIGN.md archived, extraire les claims (lignes "MUST", "SHALL", "✅") et vérifier
-contre le code. Custom check, à terme un job CI.
-
-Stretch goal — 0.17+. Mais l'idée : ne plus laisser des DESIGN obsolètes ou des claims trompeurs
-dans `docs/archive/features/`.
-
-**CF-G. Audit "tables/colonnes/Protocols/functions définies mais non utilisées"**
-
-Combine P11 (item 7) + P16 (item 8) + finding CF-B. Audit unique pour tous types de "dead
-infrastructure" :
-
-- Tables (pending_op, item_issue, deleted_item)
-- Colonnes (provider-IDs columns empty)
-- Protocols (MetadataProvider, TorrentClientFull)
-- Functions (increment_miss_strikes_for_disk)
-
-À automatiser via custom CI script `scripts/audit-dead-infrastructure.py`.
-
-**CF-H. Documentation runbook "post-merge actions"**
-
-Chaque feature qui produit un changement de schéma BDD / config doit avoir un runbook
-"actions post-merge" : commandes à lancer, validation à exécuter, alarme à configurer.
-
-Pour provider-ids : devrait inclure "lancer backfill-ids" + "vérifier external_ids_json
-populated rate".
-
-**CF-I. ACCEPTANCE_FAIL post-merge alerting**
-
-Si une ACCEPTANCE devient FAIL après merge (ex: provider-ids #3 qui était ✅ devient FAIL parce
-que la CLI exposure manque), il faut alerter. Pattern :
-
-- Test régression dédié pour chaque ACCEPTANCE criterion (pas juste phase gate)
-- Run sur CI à chaque PR
-- Si fail → block merge (ou warning explicite)
-
-**CF-J. Acceptance criteria standardisés**
-
-Convention : chaque criterion DOIT être une commande shell exécutable :
-
-> ❌ "Public CLI unchanged sauf indexer backfill-ids" (prose)
->
-> ✅ `personalscraper library-index --mode backfill-ids --help | head -1` (returns valid help text)
-
-Le format est testable, regression-stable, non-ambigu. À inscrire en règle universelle dans
-`/.claude/CLAUDE.md` ou similaire.
-
-**CF-K. Migration `acceptance-check` pour features archived**
-
-Sur chaque archived feature : re-rédiger ACCEPTANCE en commandes exécutables. Backfill
-historique. À faire au moment du DESIGN tech-debt final pour les 3-4 features les plus
-critiques (event-bus, provider-ids, media-indexer, pipeline-obs).
+**Nouveau total** : **15-22 jours** (vs 13-19 j original) = +2-3 j.
 
 ---
 
-## 8. Catégorisation must/should/nice
+## 5. Synthesis re-classification
 
-### Must-have (DESIGN priorité 1)
+Provider-ids ACCEPTANCE re-graded (était ✅ partout dans l'archive) :
 
-- **CF-A** Expose backfill-ids CLI (ACCEPTANCE_FAIL provider-ids #3)
-- **CF-B** Drop monolithic Protocols (ACCEPTANCE_FAIL provider-ids #6)
-- **CF-D** Activation invariants test (combine items 7/8 BD-J/K/L + CF check)
+| #   | Was | Now | Reason                                                  |
+| --- | --- | --- | ------------------------------------------------------- |
+| 1   | ✅  | ✅  | CONFORM — verified                                      |
+| 2   | ✅  | ✅  | CONFORM — verified                                      |
+| 3   | ✅  | ❌  | VIOLATION — DEV #16 CLI missing                         |
+| 4   | ✅  | 🟡  | PARTIAL — schema OK, data empty                         |
+| 5   | ✅  | ✅  | CONFORM — verified                                      |
+| 6   | ✅  | ❌  | VIOLATION — DEV #29+38 monolithic Protocols (2 vectors) |
+| 7   | ✅  | ✅  | CONFORM — verified                                      |
+| 8   | ✅  | 🟡  | UNVERIFIABLE in audit (would need fresh `make test`)    |
+| 9   | ✅  | ❌  | VIOLATION — DEV #16 same root                           |
+| 10  | 🟡  | 🟡  | PENDING — never exercised live (DEV #27)                |
 
-### Should-have (DESIGN priorité 2)
-
-- **CF-C** Re-exercise ACCEPTANCE post-merge (process)
-- **CF-E** Convention "shipped = deployed" (process)
-- **CF-G** Audit dead infrastructure (process + script)
-- **CF-H** Documentation runbook post-merge (process)
-- **CF-I** ACCEPTANCE_FAIL alerting CI (process)
-- **CF-J** ACCEPTANCE criteria standardisés (process)
-
-### Nice-to-have (0.17+)
-
-- **CF-F** Audit DESIGN claims vs code en CI (long terme)
-- **CF-K** Migration acceptance-check pour archived features (backfill)
+**4 sur 10 ACCEPTANCE rows précédemment ✅ sont en réalité VIOLATION**. La feature
+provider-ids était mergée avec ACCEPTANCE drift.
 
 ---
 
-## 9. Plan de phase conformité (intégré au plan global)
+## 6. Suite
 
-| Phase            | Items                                                  | Effort        |
-| ---------------- | ------------------------------------------------------ | ------------- |
-| CONF-1           | CF-A (backfill CLI) + CF-B (drop Protocols)            | 1-2 j         |
-| CONF-2           | CF-D (activation invariants) + CF-G (dead infra audit) | 1-2 j         |
-| CONF-3           | CF-C + CF-E + CF-H + CF-I + CF-J (process/docs)        | 1-2 j         |
-| CONF-4 (différé) | CF-F + CF-K                                            | 1-2 j → 0.17+ |
+Cette version REDO de item 11 supersedes la version brainstorm-quality précédente.
 
-Total conformité 0.16.0 : **3-6 jours** (CONF-1..CONF-3).
+**Items 6, 8, 9, 10, 12 à re-évaluer** : sont-ils aussi brainstorm-quality ? L'audit
+ci-dessus a essentiellement validé leurs findings (DEV #1-#23) ET ajouté 26 nouveaux DEVs
+(#24-#49). Les brainstorms (items 6, 8, 10) consolident des findings — ils ne sont pas
+"faux", juste incomplets vis-à-vis des findings audit-quality.
 
-Avec recouvrement vs items déjà comptés (CF-A = BD-R+S+T = CL-P, etc.) : effort net additionnel
-estimé à **1-2 jours**.
+**Décision recommandée** :
 
----
+- Garder items 6, 8, 10 tels quels (ce sont des brainstorms basés sur des audits précédents)
+- Mettre à jour **item 13 synthèse globale** pour inclure les 26 nouveaux DEVs
+- Mettre à jour **DESIGN.md tech-debt** pour les 5 nouvelles sections §12-§16
+- Mettre à jour **plan/** pour ajouter Phase 9 archive doc updates + revoir effort
+- Re-marquer item 11 [x] avec note "audit-quality REDO"
 
-## 10. Synthèse cumulée multi-dimension (mise à jour pour item 14)
+L'item 12 architecture critique est plus opinion-based ; sa re-évaluation n'apporterait pas
+les mêmes new findings que item 11 audit. Acceptable tel quel.
 
-| Dimension                    | Items DESIGN-ready                                        | Jours 0.16.0 (nets)             |
-| ---------------------------- | --------------------------------------------------------- | ------------------------------- |
-| Pipeline app + indexer       | item 6 A-G + DEV #15-#19 + item 8 BD-A..BD-AK             | 9-14 j                          |
-| Skill matrix v2.1 + agents   | item 6 M-T                                                | 1-2 j                           |
-| Tests E2E + validation       | items 6/8/9/10 transverses (AB-AE + BD-AF/G/H + CL-K/S/T) | 2-3 j                           |
-| CLI + observability + doc    | item 9/10 CL-A..CL-AN                                     | 8-13 j                          |
-| Conformité / ACCEPTANCE_FAIL | item 11 CF-A..CF-K                                        | 1-2 j (net, après recouvrement) |
-| **TOTAL 0.16.0**             |                                                           | **~13-22 j** (parallélisable)   |
-
-Pas de croissance vs estimation item 10 — les items CF-\* recouvrent largement avec ceux des
-items 6/8/9/10. Item 11 valide le périmètre et identifie les ACCEPTANCE_FAIL formellement.
-
----
-
-## 11. Suite
-
-L'item 12 (analyse critique design + architecture) explorera :
-
-- L'architecture cible à 1.0 (vision long terme)
-- Les décisions structurelles à figer maintenant vs reporter
-- Les patterns inter-features (event-bus + provider-ids + pipeline) → architecture globale
-- Le rôle de la skill pipeline-monitor v2.X dans le tooling pérenne
-
-L'item 13 (synthèse globale brainstorms) consolidera items 6+8+10+12 en un master backlog.
-
-L'item 14 (challenge final DESIGN) produira le DESIGN.md non-draft + plan/INDEX.md +
-phases-XX.md prêts à `/implement:phase`.
+L'item 14 DESIGN+plan devra être révisé pour intégrer #24-#49.
