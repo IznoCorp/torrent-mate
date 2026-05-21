@@ -324,3 +324,70 @@ Master backlog item 13 :
 
 Cet item 13 = **base directe pour item 14**. Item 14 prend ce master backlog, le valide une
 dernière fois, rédige le DESIGN.md final non-draft + plan/INDEX.md + phases-01..phases-08.md.
+
+---
+
+## 8. POST-REDO ADDENDUM (2026-05-21)
+
+Suite à l'audit-quality REDO d'item 11 (commit `6eb5f31`), **26 nouveaux DEVs #24-#49** sont
+intégrés au master backlog. Cette section consolide leur traitement dans le DESIGN tech-debt.
+
+### 8.1 Master backlog enrichi
+
+| Bloc         | Avant            | Après REDO                                  |
+| ------------ | ---------------- | ------------------------------------------- |
+| MUST         | 15 (11 restants) | 17 (13 restants) — ajout #27, #31 critiques |
+| SHOULD       | 26               | 44 — ajout 18                               |
+| NICE / 0.17+ | ~39              | ~45 — ajout 6                               |
+| Patterns     | P1-P29           | P1-P34 (+5)                                 |
+
+### 8.2 Nouveaux DEVs cartographiés par phase (post-REDO)
+
+| Phase                   | DEVs originaux               | DEVs ajoutés post-REDO                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 Foundations           | DEV #18 #19 + MUST-1/2/16/17 | **DEV #33 + #34** (DEV #19 extended PRAGMA bypass multi-sites) ; **DEV #37** (BEGIN IMMEDIATE audit)                                                                                                                                                                                                                                                      |
+| 2 CLI gaps              | MUST-3/9/11/12/13/19         | **DEV #28** (auto-trigger backfill post-scrape)                                                                                                                                                                                                                                                                                                           |
+| 3 Observability         | MUST-10 + SH-10/11           | **DEV #40** (DEV #6 broadened — 7 per-step subcommands silent)                                                                                                                                                                                                                                                                                            |
+| 4 Path cleanup          | MUST-4/18                    | **DEV #31** (paranoia branch dead — outbox drainer never writes scan_event) — **CRITIQUE NEW**                                                                                                                                                                                                                                                            |
+| 5 Conformity            | MUST-14 (drop monolithic)    | **DEV #29** (MetadataProvider Protocol still tested), **DEV #38** (TorrentClientFull 2nd vector)                                                                                                                                                                                                                                                          |
+| 6 Format + docs         | SH-1/2/12/13/18/19/20        | **DEV #24** (event-bus catalog 13→17), **#26** ($\_\_all\_\_$ omits Backfill), **#32** (media-indexer DESIGN.md stale post-mig 005), **#35** (scan_modes mismatch), **#36** (media_stream undocumented), **#41** (test-coverage branch drift), **#45** (logging.md broken paths), **#47** (details_payload type drift)                                    |
+| 7 Matrix v2.1           | MUST-15 + SH-24              | (no change)                                                                                                                                                                                                                                                                                                                                               |
+| 8 Polish                | SH-3/6/14/17/21/22/25/26/16  | **DEV #25** (event-bus module budgets), **#27** (Plan A reset+rescrape never executed — execute in Phase 8), **#30** (ratings Pydantic boundary), **#44** (ext-staging docstring leak), **#46** (0.10.0 module-size promise — promote check-module-size to hard block), **#48** (legacy VX leaks), **#49** (test_cli @patch trim + success criteria gate) |
+| **9 Archive doc** (NEW) | —                            | **DEV #39** (pipeline-obs superseded banner), **#42** (trailer placement DESIGN stale), **#43** (trailer blocking semantics inverted), banner + old→new mapping pour 7 features (event-bus, provider-ids, media-indexer, pipeline-obs, trailer, logging, legacy-cleanup)                                                                                  |
+
+### 8.3 Phase efforts revised
+
+| Phase     | Original | Post-REDO                                                                              |
+| --------- | -------- | -------------------------------------------------------------------------------------- |
+| 1         | 2-3 j    | 2-3 j (DEV #33+34 fold in DEV #19 work)                                                |
+| 2         | 2 j      | 2 j (DEV #28 within budget)                                                            |
+| 3         | 2 j      | 2 j (DEV #40 fold in DEV #6)                                                           |
+| 4         | 2 j      | **2-3 j** (DEV #31 paranoia branch = new safety net wire + E2E test)                   |
+| 5         | 2 j      | **2-3 j** (DEV #29+38 monolithic Protocol drop is heavier than estimated)              |
+| 6         | 2-3 j    | **3-4 j** (heavy doc rot work : 7 features + 5 reference docs to update)               |
+| 7         | 1-2 j    | 1-2 j                                                                                  |
+| 8         | 2-3 j    | **3-4 j** (DEV #27 Plan A reset is significant ; DEV #46 promote module-size to block) |
+| **9 NEW** | —        | **1-2 j** (archive DESIGN.md banner + mapping for 7 features)                          |
+
+**Nouveau total** : **17-25 jours** (séquentiel), **14-20 jours** (parallélisable). Vs
+13-19 j original = **+3-6 jours**.
+
+### 8.4 5 nouveaux patterns P30-P34
+
+Cf `audit/09-conformity.md` §2. Tous mappés à des leviers existants ou nouveaux :
+
+- **P30 DOC_ROT** → Phase 6+9 (sync archive DESIGN + reference docs)
+- **P31 PROMISE_STALL** → DEV #46 (promote check-module-size to hard block)
+- **P32 GATE_DRIFT** → SH-16 + CF-J extended (re-measure success criteria at gate)
+- **P33 PRAGMA_BYPASS** → Phase 1 DEV #34 (extract `_apply_pragmas()` + lint rule)
+- **P34 SAFETY_NET_DEAD** → Phase 4 DEV #31 + règle "chaque safety net a un E2E"
+
+### 8.5 Decision summary
+
+- **Tous les items 6/8/10/12 conservés tels quels** (validés par REDO)
+- **Item 13 ENRICHED** par cet addendum
+- **DESIGN.md** must add §12-§16 (cf 09-conformity.md §4.1)
+- **plan/** adds Phase 9, expands Phase 6 + 8 efforts
+- **Estimate 0.16.0** : 13-19 j → **17-25 j** (séquentiel), 14-20 j parallélisable
+
+Cet addendum ferme l'audit pré-design tech-debt. Item 14 doit être révisé pour ces points.

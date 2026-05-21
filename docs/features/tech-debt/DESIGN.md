@@ -163,6 +163,81 @@ Règles :
 4. **Anti-décisions 1.0** documentées dans `docs/reference/architecture.md` § "Out of scope
    for 1.0".
 
+### §12 Documentation conformity (P30 — post-REDO)
+
+Pattern observé sur 7 archived features (event-bus #24, provider-ids #27, media-indexer #32,
+pipeline-obs #39, trailer #42+#43, logging #45, legacy-cleanup #48) : DESIGN.md archivé non
+ré-vérifié après refactor suivant qui le casse.
+
+Règles :
+
+1. **Chaque archived feature DESIGN.md DOIT être amendée** au prochain refactor qui invalide
+   une partie de ses claims : banner "STATUS : superseded by feat/X, see docs/reference/Y"
+   - table old→new mapping pour les symboles renommés / supprimés.
+2. **Reference docs `docs/reference/*.md` sont source-of-truth pour le code actuel**.
+   Archive = snapshot historique, jamais authoritative pour l'état présent.
+3. **Phase 9 "Archive doc updates"** matérialise cette règle en 0.16.0 pour les 7 features
+   identifiées.
+
+### §13 Promise lifecycle (P31 — post-REDO)
+
+Pattern observé : promesses versionnelles dans DESIGN sans CI gate (DEV #46 — 0.10.0
+module-size hard-block stalled depuis 5 versions ; DEV #27 — provider-ids Plan A
+reset+rescrape jamais exécuté).
+
+Règles :
+
+1. **Toute "promise versionnelle" dans un DESIGN DOIT avoir un CI check** qui échoue à
+   partir de la version cible si la promise n'est pas honorée.
+2. **Versioned promises tracker** dans `docs/reference/promises.md` (nouveau) — liste
+   toutes les promesses + version cible + statut.
+3. Application immédiate en 0.16.0 : promote `scripts/check-module-size.py` en hard-block
+   (exit 1 sur WARN, pas seulement print).
+
+### §14 Success criteria enforcement (P32 — post-REDO)
+
+Pattern observé (DEV #41 test-coverage drift, DEV #49 test-realism target manqué) : les
+quantitative targets DESIGN §8 ne sont pas re-mesurés au phase gate.
+
+Règles :
+
+1. **Au phase gate final d'une feature, re-mesurer EVERY quantitative target** du DESIGN §8
+   (coverage %, @patch count, LOC, etc.). Si manqué : feature ne merge pas.
+2. **Checklist `phase-gate-checklist.md`** (nouveau) — template avec re-measurement steps.
+3. **Format ACCEPTANCE.md exécutable** déjà inscrit en §6 ; étendre pour TOUTE feature
+   future.
+
+### §15 PRAGMA & connection discipline (P33 — post-REDO)
+
+Pattern observé (DEV #19 sous-estimé + #33 + #34) : multiples sites raw `sqlite3.connect()`
+bypass `open_db()` → `foreign_keys`, `busy_timeout`, `cache_size`, `mmap_size`, `temp_store`
+non appliqués.
+
+Règles :
+
+1. **`personalscraper/indexer/db.py` expose `_apply_pragmas(conn)`** helper consommé par
+   `open_db()` et par TOUT site qui ouvre une connexion SQLite.
+2. **Lint rule custom** : `rg "sqlite3\.connect\(" personalscraper/ --type py | grep -v "db.py"`
+   doit retourner zero. Ajout `scripts/check-pragma-discipline.py` au `make check`.
+3. Sites à migrer (Phase 1) : `dispatch/run.py` (×2), `commands/library/audit.py`,
+   `conf/loader.py`, `_concurrency.py`, `outbox/_disk.py`, `outbox/_publish.py`.
+
+### §16 Safety net E2E (P34 — post-REDO)
+
+Pattern observé (DEV #18 drift dead, DEV #31 paranoia branch dead) : code safety-net présent
+mais producteur jamais wire → filet inactif silencieusement.
+
+Règles :
+
+1. **Chaque safety net DOIT avoir un test E2E** qui force le scénario qu'il adresse + assert
+   que le filet a déclenché. Sans ce test, le filet est considéré "non-shipped".
+2. Application immédiate :
+   - DEV #18 : test miss-strike lifecycle (Phase 1, BD-B / MUST-17)
+   - DEV #31 : test paranoia branch — crash drainer entre FS mutation et BDD insert,
+     vérifier que la quick scan suivante re-walk le path (Phase 4, NEW test)
+3. **Audit `scripts/audit-safety-nets.py`** (nice-to-have 0.17+) — détecte les modules
+   `drift.py` / `recovery.py` / `paranoia*.py` sans test E2E correspondant.
+
 ## 6. ACCEPTANCE (exécutables)
 
 Chaque criterion est une commande shell. Voir `ACCEPTANCE.md` (à créer) pour le format complet.
@@ -188,18 +263,20 @@ Sketch :
 
 ## 7. Phases
 
-Voir `plan/INDEX.md` et `plan/phase-NN-*.md` pour le détail. 8 phases ordonnées par dépendances :
+Voir `plan/INDEX.md` et `plan/phase-NN-*.md` pour le détail. **9 phases** (post-REDO item 11)
+ordonnées par dépendances :
 
-1. Foundations BDD/indexer (drift + FK + tests E2E + schema_version cleanup)
-2. CLI gaps (library-scan, dry-run, run-help, matrix-CLI test)
-3. Observability (VERIFY events, cli.invoke decorator, console+log parity)
-4. Path detection + cleanup (path_missing + 8 shows orphans + flags clarif)
-5. Conformity + monolithic Protocols drop + GC + library-doctor
-6. Format + documentation reference
+1. Foundations BDD/indexer (drift + FK + PRAGMA discipline + tests E2E + schema_version)
+2. CLI gaps (library-scan, dry-run, run-help, matrix-CLI test, backfill-ids auto-trigger)
+3. Observability (VERIFY events + 6 autres per-step + cli.invoke decorator + console+log parity)
+4. Path detection + cleanup (path_missing + 8 shows + flags clarif + paranoia branch wire)
+5. Conformity + monolithic Protocols drop (MetadataProvider tests refactor) + GC + library-doctor
+6. Format + documentation reference (heavy archive doc rot work)
 7. Matrix v2.1 + agents matrix-aware
-8. Polish + nice-to-haves
+8. Polish + Plan A reset+rescrape + module-size hard-block + ACCEPTANCE.md
+9. **Archive DESIGN.md updates** (banner + old→new mapping pour 7 features stale)
 
-Estimation 13-19 jours.
+Estimation : **17-25 jours séquentiel, 14-20 jours parallélisable** (revue post-REDO).
 
 ## 8. References
 
