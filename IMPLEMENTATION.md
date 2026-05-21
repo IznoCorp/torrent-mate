@@ -2,17 +2,21 @@
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Tech-Debt (Global Cross-Feature Fixes) (type: bugfix)
-**Version bump**: 0.15.0 → 0.15.1
-**Branch**: fix/tech-debt
+**Feature**: Tech-Debt (Global Cross-Feature Fixes) (type: minor)
+**Version bump**: 0.15.1 → 0.16.0 (decision item 13 §5)
+**Branch**: fix/tech-debt (conservée — voir item 13 §5)
 **PR merge**: manual
 **PR**: _(created after last phase)_
-**Design**: docs/features/tech-debt/DESIGN.draft.md _(brouillon — version finale après audit pré-design)_
-**Master plan**: docs/features/tech-debt/plan.draft/INDEX.md _(brouillon — version finale après audit pré-design)_
+**Design**: docs/features/tech-debt/DESIGN.md
+**Master plan**: docs/features/tech-debt/plan/INDEX.md
 
 ## Statut actuel
 
-**🔍 Phase audit pré-design en cours.** Le DESIGN + plan actuels sont des brouillons rapides à raffiner ou réécrire selon les résultats de l'audit ci-dessous. Les phases d'implémentation ne démarrent qu'après l'item 14 (challenge final du design + plan).
+**✅ Audit pré-design 14 items COMPLET.** DESIGN.md + plan/ produits. 8 phases ordonnées
+(13-19 jours estimés). Démarrage `/implement:phase` quand prêt.
+
+4 fix commits déjà shipped sur priorité absolue user (DEV #9, #11, #13, #14). 6 phases doc
+audit committed (items 5-13).
 
 ## Audit pré-design (14 items)
 
@@ -33,11 +37,34 @@ Méthode : un par un, validation utilisateur entre chaque, communication en fran
 | 11  | Analyse app + conformité design                        | Analyse        | Rapport conformité globale            | [x] (audit/09-conformity.md — 2 ACCEPTANCE_FAIL provider-ids #3+#6 ; 3 patterns P23-P25 ; 11 items CF-A..CF-K ; net ~1-2 j après recouvrement)                                       |
 | 12  | Analyse critique design + architecture                 | Analyse        | Rapport critique structurel           | [x] (audit/10-architecture-critique.md — 7 critiques structurelles A-G ; 4 patterns P26-P29 ; 7 items AR-A..AR-G ; net 1-2 j 0.16.0)                                                 |
 | 13  | Brainstorm améliorations globales                      | Brainstorm     | Synthèse de tous les brainstorms      | [x] (audit/11-global-synthesis.md — 15 MUST + 26 SHOULD + ~39 NICE déférés ; 29 patterns P1-P29 tous mappés ; plan 8 phases ; 13-19 j estimés)                                       |
-| 14  | Challenge final du design + plan tech-debt             | Validation     | DESIGN.md + plan/ propres (non-draft) | [ ]                                                                                                                                                                                  |
+| 14  | Challenge final du design + plan tech-debt             | Validation     | DESIGN.md + plan/ propres (non-draft) | [x] (DESIGN.md + plan/INDEX.md + 8 phase files ; drafts supprimés ; 15 ACCEPTANCE criteria executables ; bump 0.16.0 MINOR decided)                                                  |
 
 ## Phases d'implémentation
 
-_(à définir en item 14 — la table actuelle dans `plan.draft/INDEX.md` sera réévaluée à la lumière de l'audit)_
+Voir `docs/features/tech-debt/plan/INDEX.md` pour le détail. 8 phases ordonnées par
+dépendances :
+
+| #   | Phase                                   | File                      | Effort | Status |
+| --- | --------------------------------------- | ------------------------- | ------ | ------ |
+| 1   | Foundations BDD/indexer                 | phase-01-foundations.md   | 2-3 j  | [ ]    |
+| 2   | CLI gaps                                | phase-02-cli-gaps.md      | 2 j    | [ ]    |
+| 3   | Observability                           | phase-03-observability.md | 2 j    | [ ]    |
+| 4   | Path detection + cleanup phantoms       | phase-04-path-cleanup.md  | 2 j    | [ ]    |
+| 5   | Conformity (drop Protocols, GC, doctor) | phase-05-conformity.md    | 2 j    | [ ]    |
+| 6   | Format + documentation                  | phase-06-format-docs.md   | 2-3 j  | [ ]    |
+| 7   | Matrix v2.1 + agents matrix-aware       | phase-07-matrix-v21.md    | 1-2 j  | [ ]    |
+| 8   | Polish + nice + ACCEPTANCE.md           | phase-08-polish.md        | 2-3 j  | [ ]    |
+
+**Total** : 15-19 jours séquentiel, 13-17 jours parallélisable.
+
+## Already shipped (priority absolue user, hors-plan)
+
+| SHA       | DEV | Description                                                       |
+| --------- | --- | ----------------------------------------------------------------- |
+| `268cbee` | #9  | repair_root_duplicate inversion fix (data-loss)                   |
+| `29c4953` | #11 | compute_merkle_root sort-key determinism                          |
+| `fc39f77` | #13 | \_recreate_indexes IF NOT EXISTS (C5 race workers)                |
+| `3993487` | #14 | \_build_disk_fingerprints + \_sample_fresh_fingerprints alignment |
 
 ## Item 4 — clos (2026-05-21)
 
@@ -60,4 +87,15 @@ _(rempli par implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Démarrer **item 1 — étude des dérives des plans (cross-feature)**.
+Audit pré-design terminé. **Démarrer `/implement:phase`** pour commencer Phase 1 (Foundations
+BDD/indexer).
+
+Lectures préalables avant Phase 1 :
+
+- `docs/features/tech-debt/DESIGN.md` (sections §9 BDD, §10 CLI, §11 architecture)
+- `docs/features/tech-debt/plan/INDEX.md` (graphe de dépendances)
+- `docs/features/tech-debt/plan/phase-01-foundations.md`
+- `docs/features/tech-debt/audit/11-global-synthesis.md` (master backlog)
+
+Méthode : continuer la validation par phase utilisateur (cohérent avec la méthodologie
+audit). Chaque phase = N sous-phases + phase gate commit + `make check` vert.
