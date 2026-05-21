@@ -156,10 +156,13 @@ class FileFingerprint:
 def compute_merkle_root(files: Iterable[FileFingerprint]) -> str:
     r"""Compute a deterministic xxh3_64 hash over a collection of file fingerprints.
 
-    Files are sorted ascending by ``path_id`` before hashing so the result is
-    independent of iteration order.  Each file contributes one UTF-8 line of the
-    form ``"{path_id}|{size}|{mtime_ns}|{oshash}\n"``.  An empty input returns
-    the hash of zero bytes (still a valid 16-char hex string).
+    Files are sorted by the full fingerprint tuple ``(path_id, size, mtime_ns,
+    oshash)`` before hashing so the result is independent of iteration order
+    even when several files share a ``path_id`` (the schema's ``path`` row
+    refers to a directory, so a directory with N files yields N fingerprints
+    with the same ``path_id`` — DEV #11). Each file contributes one UTF-8
+    line of the form ``"{path_id}|{size}|{mtime_ns}|{oshash}\n"``. An empty
+    input returns the hash of zero bytes (still a valid 16-char hex string).
 
     Args:
         files: Iterable of :class:`FileFingerprint` objects.  May be empty.
@@ -167,7 +170,7 @@ def compute_merkle_root(files: Iterable[FileFingerprint]) -> str:
     Returns:
         A 16-character lowercase hex string (xxh3_64 digest).
     """
-    sorted_files = sorted(files, key=lambda f: f.path_id)
+    sorted_files = sorted(files, key=lambda f: (f.path_id, f.size, f.mtime_ns, f.oshash))
     joined = b"".join(f"{f.path_id}|{f.size}|{f.mtime_ns}|{f.oshash}\n".encode("utf-8") for f in sorted_files)
     return xxhash.xxh3_64(joined).hexdigest()
 
