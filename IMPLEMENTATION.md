@@ -18,22 +18,22 @@
 
 Méthode : un par un, validation utilisateur entre chaque, communication en français, rien hors scope.
 
-| #   | Item                                                   | Type           | Output attendu                        | Status                                                       |
-| --- | ------------------------------------------------------ | -------------- | ------------------------------------- | ------------------------------------------------------------ |
-| 1   | Étude des dérives des plans (cross-feature)            | Analyse        | Rapport patterns + causes racines     | [x] (audit/01-plan-drift.md)                                 |
-| 2   | Étude du pipeline et de son fonctionnement             | Analyse        | Carto pipeline + invariants           | [x] (audit/02-pipeline-cartography.md)                       |
-| 3   | Brainstorm MAJ skill pipeline-monitor                  | Brainstorm     | Liste changements à apporter          | [x] (audit/03-skill-update-brainstorm.md + Q1-Q10 décidées)  |
-| 4   | MAJ skill pipeline-monitor                             | Implémentation | Skill mise à jour committée           | [x] (matrix v2.0 + SIGINT + 4 agents + SKILL.md + host.py)   |
-| 5   | Run pipeline-monitor (avec skill mise à jour)          | Analyse        | DEVIATION LIST + Conformity Check     | [ ]                                                          |
-| 6   | Brainstorm améliorations suite au pipeline-monitor     | Brainstorm     | Liste items pour le design            | [ ]                                                          |
-| 7   | Check BDD (intégrité, conformité, cohérence, améliors) | Analyse        | Rapport BDD                           | [ ]                                                          |
-| 8   | Brainstorm améliorations BDD                           | Brainstorm     | Liste items pour le design            | [ ]                                                          |
-| 9   | Analyse commandes CLI (bugs, design, améliorations)    | Analyse        | Rapport CLI                           | [ ]                                                          |
-| 10  | Brainstorm améliorations CLI                           | Brainstorm     | Liste items pour le design            | [ ]                                                          |
-| 11  | Analyse app + conformité design                        | Analyse        | Rapport conformité globale            | [ ]                                                          |
-| 12  | Analyse critique design + architecture                 | Analyse        | Rapport critique structurel           | [ ]                                                          |
-| 13  | Brainstorm améliorations globales                      | Brainstorm     | Synthèse de tous les brainstorms      | [ ]                                                          |
-| 14  | Challenge final du design + plan tech-debt             | Validation     | DESIGN.md + plan/ propres (non-draft) | [ ]                                                          |
+| #   | Item                                                   | Type           | Output attendu                        | Status                                                                                                                                                                               |
+| --- | ------------------------------------------------------ | -------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Étude des dérives des plans (cross-feature)            | Analyse        | Rapport patterns + causes racines     | [x] (audit/01-plan-drift.md)                                                                                                                                                         |
+| 2   | Étude du pipeline et de son fonctionnement             | Analyse        | Carto pipeline + invariants           | [x] (audit/02-pipeline-cartography.md)                                                                                                                                               |
+| 3   | Brainstorm MAJ skill pipeline-monitor                  | Brainstorm     | Liste changements à apporter          | [x] (audit/03-skill-update-brainstorm.md + Q1-Q10 décidées)                                                                                                                          |
+| 4   | MAJ skill pipeline-monitor                             | Implémentation | Skill mise à jour committée           | [x] (matrix v2.0 + SIGINT + 4 agents + SKILL.md + host.py)                                                                                                                           |
+| 5   | Run pipeline-monitor (avec skill mise à jour)          | Analyse        | DEVIATION LIST + Conformity Check     | [x] (docs/pipeline-runs/2026-05-21-17h16-pipeline-run.md — 12 DEV ; DEV #9 critique data-loss + DEV #11 majeur merkle non-déterministe traités hors-scope sur priorité absolue user) |
+| 6   | Brainstorm améliorations suite au pipeline-monitor     | Brainstorm     | Liste items pour le design            | [ ]                                                                                                                                                                                  |
+| 7   | Check BDD (intégrité, conformité, cohérence, améliors) | Analyse        | Rapport BDD                           | [ ]                                                                                                                                                                                  |
+| 8   | Brainstorm améliorations BDD                           | Brainstorm     | Liste items pour le design            | [ ]                                                                                                                                                                                  |
+| 9   | Analyse commandes CLI (bugs, design, améliorations)    | Analyse        | Rapport CLI                           | [ ]                                                                                                                                                                                  |
+| 10  | Brainstorm améliorations CLI                           | Brainstorm     | Liste items pour le design            | [ ]                                                                                                                                                                                  |
+| 11  | Analyse app + conformité design                        | Analyse        | Rapport conformité globale            | [ ]                                                                                                                                                                                  |
+| 12  | Analyse critique design + architecture                 | Analyse        | Rapport critique structurel           | [ ]                                                                                                                                                                                  |
+| 13  | Brainstorm améliorations globales                      | Brainstorm     | Synthèse de tous les brainstorms      | [ ]                                                                                                                                                                                  |
+| 14  | Challenge final du design + plan tech-debt             | Validation     | DESIGN.md + plan/ propres (non-draft) | [ ]                                                                                                                                                                                  |
 
 ## Phases d'implémentation
 
@@ -44,13 +44,13 @@ _(à définir en item 14 — la table actuelle dans `plan.draft/INDEX.md` sera r
 Réalisé en 5 sous-phases, 2 repos en parallèle. Branches : `.claude/personal-scraper`
 (skill + agents + matrix) et `personalscraper/fix/tech-debt` (pipeline.py).
 
-| Sous-phase | Repo | SHA | Livrable |
-|---|---|---|---|
-| 4.1 | `.claude/personal-scraper` | `110f3ae` | Matrix v2.0 : 9 StepReports, 5 catégories (ACCEPTANCE_FAIL), 19 invariants AD–AV, pré-recovery, connexes |
-| 4.2 | `personalscraper/fix/tech-debt` | `f0208e4` | SIGINT inter-step : `Pipeline.request_shutdown()`, `_PipelineInterrupted`, handler installé en `run()`, restauré en finally. 11 tests de régression. |
-| 4.3 | `.claude/personal-scraper` | `77b7946` | 4 agents : `pipeline-event-monitor`, `pipeline-invariant-checker`, `pipeline-bdd-validator`, `pipeline-matrix-stale-detector` |
-| 4.4 | `.claude/personal-scraper` | `df19183` | SKILL.md v2.0 : `MATRIX_VERSION` assertion, 9 StepReports, 5 catégories, `--remediate` flag (read-only par défaut), wrapping process (Q5), simulation mode (BJ), weird outputs log (BK), library-reconcile cross-correlation (BL), compare précédent run (BM) |
-| 4.5 | `.claude/personal-scraper` | `d0a666b` | `host.py` (wrapping Python + JSONL dump), `CHANGELOG.md`, sync matrix↔skill, doc dans `.claude/CLAUDE.md`. Audits config-health-checker + skill-dependency-checker : HEALTHY. |
+| Sous-phase | Repo                            | SHA       | Livrable                                                                                                                                                                                                                                                      |
+| ---------- | ------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 4.1        | `.claude/personal-scraper`      | `110f3ae` | Matrix v2.0 : 9 StepReports, 5 catégories (ACCEPTANCE_FAIL), 19 invariants AD–AV, pré-recovery, connexes                                                                                                                                                      |
+| 4.2        | `personalscraper/fix/tech-debt` | `f0208e4` | SIGINT inter-step : `Pipeline.request_shutdown()`, `_PipelineInterrupted`, handler installé en `run()`, restauré en finally. 11 tests de régression.                                                                                                          |
+| 4.3        | `.claude/personal-scraper`      | `77b7946` | 4 agents : `pipeline-event-monitor`, `pipeline-invariant-checker`, `pipeline-bdd-validator`, `pipeline-matrix-stale-detector`                                                                                                                                 |
+| 4.4        | `.claude/personal-scraper`      | `df19183` | SKILL.md v2.0 : `MATRIX_VERSION` assertion, 9 StepReports, 5 catégories, `--remediate` flag (read-only par défaut), wrapping process (Q5), simulation mode (BJ), weird outputs log (BK), library-reconcile cross-correlation (BL), compare précédent run (BM) |
+| 4.5        | `.claude/personal-scraper`      | `d0a666b` | `host.py` (wrapping Python + JSONL dump), `CHANGELOG.md`, sync matrix↔skill, doc dans `.claude/CLAUDE.md`. Audits config-health-checker + skill-dependency-checker : HEALTHY.                                                                                 |
 
 Méthode : validation utilisateur entre chaque sous-phase respectée.
 
