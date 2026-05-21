@@ -543,40 +543,88 @@ class TestRecoverArtwork:
 
 
 class TestRepairSeasonDir:
-    """Cover the dry-run preview and unlink failure inside ``_repair_season_dir``."""
+    """Cover the replacement semantics + dry-run + OSError branches.
 
-    def test_dry_run_logs_but_does_not_delete(self, tmp_path: Path) -> None:
-        """Dry-run keeps the duplicate file in place but reports repair."""
-        validator = _make_validator(dry_run=True)
-        show = tmp_path / "Show (2020)"
-        show.mkdir()
-        s01 = show / "Saison 01"
-        s01.mkdir()
-        (s01 / "S01E01 - Ep.mkv").write_bytes(b"\x00")
-        # Root duplicate of S01E01.
-        dup = show / "Show.S01E01.mkv"
-        dup.write_bytes(b"\x00")
+    Semantics (DEV #9 fix, 2026-05-21): a root duplicate of an organised
+    episode is the FRESHER copy and supersedes the organised file. The
+    organised file is removed and the key is dropped from the returned set
+    so the caller's ``_repair_episode_files`` picks up the root copy and
+    moves+renames it into the season directory.
+    """
 
-        organized, repaired = validator._repair_season_dir(show)
-        assert (1, 1) in organized
-        assert repaired is True
-        assert dup.exists()  # Dry-run preserved the file.
+    def test_root_duplicate_replaces_existing_file_real_run(self, tmp_path: Path) -> None:
+        """Real run: the older organised file is removed; the root file survives.
 
-    def test_unlink_oserror_is_logged(self, tmp_path: Path) -> None:
-        """An OSError during deletion is captured without propagating."""
+        Regression test for DEV #9 (data-loss bug). Previously, this method
+        deleted the root file (the fresher copy) and kept the organised file
+        — silently losing the operator's re-download.
+        """
         validator = _make_validator()
         show = tmp_path / "Show (2020)"
         show.mkdir()
         s01 = show / "Saison 01"
         s01.mkdir()
-        (s01 / "S01E01 - Ep.mkv").write_bytes(b"\x00")
-        dup = show / "Show.S01E01.mkv"
-        dup.write_bytes(b"\x00")
+        old_organised = s01 / "S01E01 - Ep.mkv"
+        old_organised.write_bytes(b"\xff")  # marker for "older copy"
+        new_root = show / "Show.S01E01.NEW.RELEASE.mkv"
+        new_root.write_bytes(b"\x00")  # marker for "fresh download"
+
+        organized, repaired = validator._repair_season_dir(show)
+
+        assert repaired is True
+        assert (1, 1) not in organized, "Replaced episode must drop out of organized"
+        assert not old_organised.exists(), "Old organised file must be removed"
+        assert new_root.exists(), "Fresh root download must survive"
+
+    def test_dry_run_logs_but_does_not_delete(self, tmp_path: Path) -> None:
+        """Dry-run reports the replacement but leaves both files in place.
+
+        The returned ``organized`` set still reflects the post-replacement
+        state (key removed) so the caller's ``_repair_episode_files`` would
+        see the root file as a candidate to move/rename.
+        """
+        validator = _make_validator(dry_run=True)
+        show = tmp_path / "Show (2020)"
+        show.mkdir()
+        s01 = show / "Saison 01"
+        s01.mkdir()
+        old_organised = s01 / "S01E01 - Ep.mkv"
+        old_organised.write_bytes(b"\xff")
+        new_root = show / "Show.S01E01.mkv"
+        new_root.write_bytes(b"\x00")
+
+        organized, repaired = validator._repair_season_dir(show)
+
+        assert repaired is True
+        assert (1, 1) not in organized, "Dry-run still simulates the drop"
+        assert old_organised.exists(), "Dry-run preserves the old organised file"
+        assert new_root.exists(), "Dry-run preserves the root duplicate"
+
+    def test_unlink_oserror_is_logged(self, tmp_path: Path) -> None:
+        """An OSError on the organised-file unlink keeps both files and key.
+
+        When the old-file removal fails, the root copy is NOT promoted (the
+        replacement did not complete) and the key remains in ``organized``
+        so the caller's ``_repair_episode_files`` keeps skipping the root
+        duplicate.
+        """
+        validator = _make_validator()
+        show = tmp_path / "Show (2020)"
+        show.mkdir()
+        s01 = show / "Saison 01"
+        s01.mkdir()
+        old_organised = s01 / "S01E01 - Ep.mkv"
+        old_organised.write_bytes(b"\xff")
+        new_root = show / "Show.S01E01.mkv"
+        new_root.write_bytes(b"\x00")
 
         with patch("pathlib.Path.unlink", side_effect=OSError("EACCES")):
             organized, repaired = validator._repair_season_dir(show)
-        assert (1, 1) in organized
-        assert repaired is False  # Unlink failed → not counted as a repair.
+
+        assert repaired is False, "Failed replacement is not a repair"
+        assert (1, 1) in organized, "Failed replacement keeps the key"
+        assert old_organised.exists(), "Failed unlink → file still there"
+        assert new_root.exists(), "Root file was never the unlink target"
 
 
 # ---------------------------------------------------------------------------

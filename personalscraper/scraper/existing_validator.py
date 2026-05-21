@@ -492,49 +492,79 @@ class ExistingValidatorMixin:
     _generate_episode_nfos: Any  # from TvServiceMixin
 
     def _repair_season_dir(self, show_dir: Path) -> tuple[set[tuple[int, int]], bool]:
-        """Collect organised episodes and remove root duplicates.
+        """Collect organised episodes and replace them when a new root duplicate exists.
 
-        Iterates ``Saison XX/`` directories to build a set of already-organised
-        ``(season, episode)`` tuples, then deletes (or logs deletion of) root-level
-        video files that duplicate an already-organised episode.
+        Iterates ``Saison XX/`` directories to build the ``organized`` mapping of
+        already-organised ``(season, episode)`` tuples, then for every root-level
+        video file that targets an already-organised episode, deletes the OLDER
+        organised file and removes its key from ``organized`` so the caller's
+        ``_repair_episode_files`` can move/rename the fresher root file into the
+        season directory.
+
+        Design contract (operator-confirmed 2026-05-21): the latest download
+        ALWAYS supersedes a previously-organised file. A fresh root download is
+        a deliberate operator action — typically a re-fetch to repair a corrupt
+        or unreadable previous copy — so the root file is preserved and the
+        organised file is the one removed. Earlier revisions of this method had
+        the opposite semantics (root duplicate deleted) which silently lost the
+        newer copy.
 
         Args:
             show_dir: Path to the TV show directory.
 
         Returns:
-            Tuple of ``(organized_set, repaired_flag)``. The set contains
-            ``(season, episode)`` for every episode already inside a season
-            directory. The flag is ``True`` when at least one root duplicate
-            was removed.
+            Tuple of ``(organized_set, repaired_flag)``. The set contains the
+            ``(season, episode)`` tuples STILL organised after replacement
+            (i.e. without keys whose organised file was just removed in favour
+            of a root duplicate). The flag is ``True`` when at least one
+            organised file was removed to make room for a fresher root copy.
         """
-        organized: set[tuple[int, int]] = set()
+        organized_files: dict[tuple[int, int], Path] = {}
         for season_dir in show_dir.iterdir():
             if season_dir.is_dir() and SEASON_DIR_RE.match(season_dir.name):
                 for f in season_dir.iterdir():
-                    if f.is_file():
+                    if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS:
                         m = _SXXEXX_RE.search(f.stem)
                         if m:
-                            organized.add((int(m.group(1)), int(m.group(2))))
+                            organized_files[(int(m.group(1)), int(m.group(2)))] = f
 
         repaired = False
-        if organized:
+        if organized_files:
             for f in list(show_dir.iterdir()):
                 if not f.is_file() or f.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
                     continue
                 m = _SXXEXX_RE.search(f.stem)
-                if m and (int(m.group(1)), int(m.group(2))) in organized:
-                    if not self.dry_run:
-                        try:
-                            f.unlink()
-                            log.info("repair_root_duplicate_removed", filename=f.name)
-                            repaired = True
-                        except OSError as exc:
-                            log.warning("repair_root_duplicate_delete_failed", filename=f.name, error=str(exc))
-                    else:
-                        log.info("repair_root_duplicate_would_remove", filename=f.name)
-                        repaired = True
+                if not m:
+                    continue
+                key = (int(m.group(1)), int(m.group(2)))
+                if key not in organized_files:
+                    continue
+                old_file = organized_files[key]
+                if not self.dry_run:
+                    try:
+                        old_file.unlink()
+                        log.info(
+                            "repair_root_duplicate_replaced",
+                            new=f.name,
+                            removed=str(old_file.relative_to(show_dir)),
+                        )
+                    except OSError as exc:
+                        log.warning(
+                            "repair_root_duplicate_replace_failed",
+                            old_file=old_file.name,
+                            error=str(exc),
+                        )
+                        continue
+                else:
+                    log.info(
+                        "repair_root_duplicate_would_replace",
+                        new=f.name,
+                        removed=str(old_file.relative_to(show_dir)),
+                    )
+                del organized_files[key]
+                repaired = True
 
-        return organized, repaired
+        return set(organized_files.keys()), repaired
 
     def _repair_episode_files(
         self,
