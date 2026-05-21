@@ -102,13 +102,23 @@ def _verify_dir_mtime_reliable() -> bool:
 
 
 def _build_disk_fingerprints(conn: sqlite3.Connection, disk_id: int) -> list[FileFingerprint]:
-    """Query all non-deleted ``media_file`` rows for *disk_id* and build fingerprint objects.
+    """Query non-deleted, fingerprinted ``media_file`` rows for *disk_id*.
 
-    Used by the quick-mode Merkle short-circuit: we recompute the Merkle root
-    entirely from the database (zero filesystem reads) and compare it to the
-    stored ``disk.merkle_root``.  If they match, the disk is skipped entirely.
+    Used by the quick-mode Merkle short-circuit and incremental's mid-walk
+    bulk-change guard: we recompute the Merkle root entirely from the
+    database (zero filesystem reads) and compare it to the stored
+    ``disk.merkle_root``. If they match, the disk is skipped entirely.
 
-    The join walks ``media_file → path`` to filter by ``path.disk_id``.
+    Rows with ``oshash IS NULL`` (Stage A — file discovered but not yet
+    enriched) are excluded so the merkle reflects only fully-fingerprinted
+    files. The query mirrors the two consumers that read the same set:
+    :func:`personalscraper.indexer.scanner._finalize_disk_after_walk` (the
+    bootstrap path that writes the first-ever merkle) and
+    :func:`personalscraper.indexer.reconcile.detect_merkle_drift` (the
+    consistency probe). Earlier revisions of this helper omitted the
+    ``oshash IS NOT NULL`` filter, leaving the scanner-stored and detector-
+    computed merkles to drift permanently against each other on every disk
+    that contained any Stage-A row (DEV #14).
 
     Args:
         conn: Open SQLite connection.
@@ -116,7 +126,7 @@ def _build_disk_fingerprints(conn: sqlite3.Connection, disk_id: int) -> list[Fil
 
     Returns:
         List of :class:`~personalscraper.indexer.merkle.FileFingerprint` objects,
-        one per non-deleted ``media_file`` row belonging to the disk.
+        one per non-deleted, fingerprinted ``media_file`` row belonging to the disk.
     """
     conn.row_factory = sqlite3.Row
     rows = conn.execute(
@@ -126,6 +136,7 @@ def _build_disk_fingerprints(conn: sqlite3.Connection, disk_id: int) -> list[Fil
         JOIN path p ON mf.path_id = p.id
         WHERE p.disk_id = ?
           AND mf.deleted_at IS NULL
+          AND mf.oshash IS NOT NULL
         """,
         (disk_id,),
     ).fetchall()
@@ -170,6 +181,7 @@ def _sample_fresh_fingerprints(
         JOIN path p ON mf.path_id = p.id
         WHERE p.disk_id = ?
           AND mf.deleted_at IS NULL
+          AND mf.oshash IS NOT NULL
         """,
         (disk_id,),
     ).fetchall()
