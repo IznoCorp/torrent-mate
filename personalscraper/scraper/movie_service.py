@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import requests
 
-from personalscraper.api.metadata._base import MediaDetails
+from personalscraper.api.metadata._base import MediaDetails, Notations
 from personalscraper.logger import get_logger
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
 from personalscraper.scraper._shared import ScrapeResult, _find_video_file
@@ -179,6 +179,42 @@ class MovieServiceMixin:
     _check_missing_movie_artwork: "Callable[..., list[str]]"
     _recover_movie_artwork: "Callable[..., None]"
     _repair_movie_dir: "Callable[..., bool]"
+
+    def _resolve_external_ids(
+        self,
+        canonical_provider: str,
+        movie_ids: dict[str, str],
+        expected_title: str,
+        expected_year: int | None,
+    ) -> tuple[dict[str, str], list["Notations"]]:
+        """Resolve trusted cross-provider IDs + ratings for a movie (Q5=B).
+
+        Thin delegate to
+        :func:`personalscraper.scraper._xref.resolve_external_ids` —
+        the TV and movie services share one implementation. Movies
+        differ only in that there is no per-episode ``_xref_enrichment``
+        companion step.
+        """
+        from personalscraper.scraper._xref import resolve_external_ids as _resolve  # noqa: PLC0415
+
+        return _resolve(
+            canonical_provider=canonical_provider,
+            ids=movie_ids,
+            expected_title=expected_title,
+            expected_year=expected_year,
+            family_to_client=self._family_to_client,
+            imdb_client=getattr(self, "_imdb", None),
+            rt_client=getattr(self, "_rotten_tomatoes", None),
+        )
+
+    def _family_to_client(self, family: str) -> Any | None:
+        """Map a provider family to the wired client / façade (or ``None``)."""
+        mapping: dict[str, Any] = {
+            "tvdb": getattr(self, "_tvdb", None),
+            "tmdb": getattr(self, "_tmdb", None),
+            "imdb": getattr(self, "_imdb", None),
+        }
+        return mapping.get(family)
 
     def _match_movie_candidates(
         self,

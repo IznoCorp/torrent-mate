@@ -20,6 +20,7 @@ import pytest
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.repos import item_repo
 from personalscraper.indexer.schema import ItemAttributeRow, MediaItemRow
+from tests._legacy_ids import legacy_external_ids_json
 
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations"
 
@@ -56,9 +57,9 @@ def _make_item(tmdb_id: int | None = None, kind: Literal["movie", "show"] = "mov
         original_title=None,
         year=2024,
         category_id="movies",
-        tmdb_id=tmdb_id,
-        imdb_id=None,
-        tvdb_id=None,
+        external_ids_json=legacy_external_ids_json(tmdb_id=tmdb_id),
+        ratings_json=None,
+        canonical_provider=None,
         nfo_status=None,
         artwork_json=None,
         date_created=now,
@@ -86,7 +87,9 @@ def test_find_by_tmdb_id_returns_matching_row(conn: sqlite3.Connection) -> None:
     item_repo.insert(conn, _make_item(tmdb_id=99001))
     row = item_repo.find_by_tmdb_id(conn, 99001)
     assert row is not None
-    assert row.tmdb_id == 99001
+    import json as _json  # noqa: PLC0415
+
+    assert _json.loads(row.external_ids_json)["tmdb"]["series_id"] == "99001"
     assert row.title == "Test Item"
 
 
@@ -234,9 +237,9 @@ def _make_item_with_nfo(
         original_title=None,
         year=2024,
         category_id="movies",
-        tmdb_id=None,
-        imdb_id=None,
-        tvdb_id=None,
+        external_ids_json="{}",
+        ratings_json=None,
+        canonical_provider=None,
         nfo_status=nfo_status,
         artwork_json=None,
         date_created=now,

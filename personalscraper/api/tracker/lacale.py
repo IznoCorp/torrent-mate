@@ -28,6 +28,10 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 from personalscraper.api._contracts import MediaType, ProviderName
 from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult, wrap_parser_drift
+from personalscraper.api.tracker._contracts import (
+    CategoryListable,
+    TorrentSearchable,
+)
 from personalscraper.api.transport._auth import ApiKeyAuth
 from personalscraper.api.transport._policy import (
     CircuitPolicy,
@@ -58,11 +62,18 @@ _TITLE_PATTERNS: dict[str, re.Pattern[str]] = {
 }
 
 
-class LaCaleClient:
+class LaCaleClient(TorrentSearchable, CategoryListable):
     """LaCale tracker API client.
 
     Wraps an HttpTransport pre-configured with the LaCale ``TransportPolicy``.
-    Implements the TrackerClient Protocol from ``api/tracker/_base.py``.
+    Composes the atomic tracker capabilities from
+    :mod:`personalscraper.api.tracker._contracts` :
+    :class:`~personalscraper.api.tracker._contracts.TorrentSearchable`,
+    :class:`~personalscraper.api.tracker._contracts.CategoryListable`
+    (DESIGN §4 — Composition par client, sub-phase 11.2). Does NOT
+    implement :class:`FreeleechAware` (LaCale exposes no freeleech
+    signal at all — see module docstring) nor
+    :class:`TorrentDetailsProvider` (no per-torrent detail endpoint).
     """
 
     provider_name: str = ProviderName.LACALE.value

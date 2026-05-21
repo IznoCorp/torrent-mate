@@ -105,15 +105,15 @@ def _user_version(conn: sqlite3.Connection) -> int:
 class TestApplyMigrations001:
     """apply_migrations applies all migrations to a fresh database correctly.
 
-    With migrations 001-004 present, the final schema version is 4.
+    With migrations 001-005 present, the final schema version is 5.
     """
 
     def test_user_version_matches_latest(self, tmp_path: Path) -> None:
-        """After applying every migration, PRAGMA user_version equals the latest version (4)."""
+        """After applying every migration, PRAGMA user_version equals the latest version (5)."""
         db_path = tmp_path / "lib.db"
         conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)
-        assert _user_version(conn) == 4
+        assert _user_version(conn) == 5
 
     def test_all_17_tables_present(self, tmp_path: Path) -> None:
         """After applying all migrations, all 17 expected tables exist."""
@@ -156,7 +156,7 @@ class TestApplyMigrationsIdempotence:
         conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)
         version_after_first = _user_version(conn)
-        assert version_after_first == 4
+        assert version_after_first == 5
         # Second call must be a no-op.
         apply_migrations(conn, MIGRATIONS_DIR)
         assert _user_version(conn) == version_after_first
@@ -369,13 +369,13 @@ class TestApplyMigrationsFailureRollback:
         Returns:
             A tuple of ``(db_path, conn, mig_dir)`` ready for the rollback scenario.
             ``conn`` is the open connection after applying the full chain.
-            ``mig_dir`` contains both ``005_noop.sql`` and ``999_bad.sql``.
+            ``mig_dir`` contains both ``006_noop.sql`` and ``999_bad.sql``.
         """
         mig_dir = tmp_path / "migrations"
         mig_dir.mkdir()
         # Valid migration: creates `noop` table at version 5.
-        (mig_dir / "005_noop.sql").write_text(
-            "CREATE TABLE noop (id INTEGER PRIMARY KEY);\nPRAGMA user_version = 5;\n",
+        (mig_dir / "006_noop.sql").write_text(
+            "CREATE TABLE noop (id INTEGER PRIMARY KEY);\nPRAGMA user_version = 6;\n",
             encoding="utf-8",
         )
         # Malformed migration: intentionally broken SQL at version 999.
@@ -432,4 +432,4 @@ class TestApplyMigrationsFailureRollback:
         assert "foo" not in tables, "foo table should not exist after rollback"
         # noop was added by the successful 005 migration and should still be present
         # in the restored snapshot (which was taken just before 999).
-        assert "noop" in tables, "noop table from migration 005 should be preserved in snapshot"
+        assert "noop" in tables, "noop table from migration 006 should be preserved in snapshot"

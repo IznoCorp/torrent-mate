@@ -459,10 +459,177 @@ class MediaChecker:
                 )
             )
 
+        # provider-ids feature (phase 9) — three new per-episode-NFO checks
+        # introduced to bridge the gap between phase 4's drift hardening
+        # (which catches missing canonical uniqueid) and the dispatch
+        # gate (which needs the same guarantee). Run them only when the
+        # show has at least one episode NFO ; otherwise they are no-ops
+        # (a freshly scraped show whose episode files have not yet been
+        # written has nothing to inspect).
+        canonical_family = self._canonical_family_from_nfo(nfo_root) if nfo_root is not None else None
+        results.append(self._check_episode_canonical_uniqueid_present(show_dir, canonical_family))
+        results.append(self._check_episode_xref_secondary_id_present(show_dir, canonical_family))
+        results.append(self._check_episode_xref_imdb_id_present(show_dir))
+
         # ntfs_safe_names
         results.append(self._check_ntfs_safe_names(show_dir))
 
         return results
+
+    # --- provider-ids per-episode uniqueid checks (phase 9) -----------
+
+    @staticmethod
+    def _canonical_family_from_nfo(root: ET.Element) -> str | None:
+        """Return the ``type`` attribute of the ``<uniqueid default="true">`` row.
+
+        Falls back to the first ``<uniqueid>`` ``type`` when no default
+        flag is set (legacy NFOs from before the phase-6 canonical
+        annotation). ``None`` only when the NFO has no ``<uniqueid>``
+        at all — that case is already caught by the ``nfo_ids`` check.
+        """
+        default = next((u for u in root.findall("uniqueid") if u.get("default") == "true"), None)
+        if default is not None:
+            kind = (default.get("type") or "").strip().lower()
+            return kind or None
+        first = root.find("uniqueid")
+        if first is not None:
+            kind = (first.get("type") or "").strip().lower()
+            return kind or None
+        return None
+
+    def _episode_nfo_paths(self, show_dir: Path) -> list[Path]:
+        """Return every sibling episode NFO under ``show_dir/Saison NN/``."""
+        return list(show_dir.rglob("S??E??*.nfo"))
+
+    def _check_episode_canonical_uniqueid_present(
+        self,
+        show_dir: Path,
+        canonical_family: str | None,
+    ) -> CheckResult:
+        """ERROR check : every episode NFO must carry the canonical ``<uniqueid>``.
+
+        Mirrors the phase-4 drift hardening but lives in the verify
+        layer so dispatch (which consumes the verify outcome) refuses
+        to ship a show whose episode NFOs would later trigger a
+        drift-driven re-scrape.
+
+        The check passes silently when :
+
+        - no episode NFO is on disk yet (nothing to inspect) ;
+        - the show's ``tvshow.nfo`` has no canonical family to compare
+          against (caught upstream by ``nfo_ids``).
+        """
+        if canonical_family is None:
+            return CheckResult(
+                name="episode_canonical_uniqueid_present",
+                passed=True,
+                severity=Severity.ERROR,
+                message="",
+            )
+        episode_nfos = self._episode_nfo_paths(show_dir)
+        if not episode_nfos:
+            return CheckResult(
+                name="episode_canonical_uniqueid_present",
+                passed=True,
+                severity=Severity.ERROR,
+                message="",
+            )
+        missing: list[str] = []
+        for nfo_path in episode_nfos:
+            root = self._parse_nfo(nfo_path)
+            if root is None:
+                # Unparseable NFO ≡ missing canonical uniqueid for the
+                # purpose of dispatch readiness — we cannot ship a show
+                # whose episode NFOs would crash a downstream reader.
+                missing.append(f"{nfo_path.name} (unparseable)")
+                continue
+            ids = self._extract_ids(root)
+            if not ids.get(canonical_family):
+                missing.append(nfo_path.name)
+        return CheckResult(
+            name="episode_canonical_uniqueid_present",
+            passed=not missing,
+            severity=Severity.ERROR,
+            message=(f'Missing <uniqueid type="{canonical_family}"> on: {", ".join(missing[:3])}' if missing else ""),
+        )
+
+    def _check_episode_xref_secondary_id_present(
+        self,
+        show_dir: Path,
+        canonical_family: str | None,
+    ) -> CheckResult:
+        """WARNING check : episodes should carry the non-canonical xref ID.
+
+        Suggests a ``personalscraper indexer backfill-ids`` re-run when
+        the secondary family (TMDb on TVDB-canonical shows, vice versa)
+        is missing on episode NFOs. Not blocking — dispatch can proceed
+        with canonical-only NFOs, but Plex / Kodi readers benefit from
+        the extra row.
+        """
+        if canonical_family not in ("tvdb", "tmdb"):
+            return CheckResult(
+                name="episode_xref_secondary_id_present",
+                passed=True,
+                severity=Severity.WARNING,
+                message="",
+            )
+        secondary = "tmdb" if canonical_family == "tvdb" else "tvdb"
+        episode_nfos = self._episode_nfo_paths(show_dir)
+        if not episode_nfos:
+            return CheckResult(
+                name="episode_xref_secondary_id_present",
+                passed=True,
+                severity=Severity.WARNING,
+                message="",
+            )
+        missing: list[str] = []
+        for nfo_path in episode_nfos:
+            root = self._parse_nfo(nfo_path)
+            if root is None:
+                continue
+            ids = self._extract_ids(root)
+            if not ids.get(secondary):
+                missing.append(nfo_path.name)
+        return CheckResult(
+            name="episode_xref_secondary_id_present",
+            passed=not missing,
+            severity=Severity.WARNING,
+            message=(
+                f'Missing xref <uniqueid type="{secondary}"> on: {", ".join(missing[:3])}; '
+                "consider 'personalscraper indexer backfill-ids'"
+                if missing
+                else ""
+            ),
+        )
+
+    def _check_episode_xref_imdb_id_present(self, show_dir: Path) -> CheckResult:
+        """WARNING check : episodes should carry an IMDb ``<uniqueid>``.
+
+        IMDb episode IDs feed the future tracker-search flow ; missing
+        them is not blocking but suggests a ``backfill-ids`` re-run.
+        """
+        episode_nfos = self._episode_nfo_paths(show_dir)
+        if not episode_nfos:
+            return CheckResult(
+                name="episode_xref_imdb_id_present",
+                passed=True,
+                severity=Severity.WARNING,
+                message="",
+            )
+        missing: list[str] = []
+        for nfo_path in episode_nfos:
+            root = self._parse_nfo(nfo_path)
+            if root is None:
+                continue
+            ids = self._extract_ids(root)
+            if not ids.get("imdb"):
+                missing.append(nfo_path.name)
+        return CheckResult(
+            name="episode_xref_imdb_id_present",
+            passed=not missing,
+            severity=Severity.WARNING,
+            message=(f"Missing IMDb uniqueid on: {', '.join(missing[:3])}" if missing else ""),
+        )
 
     # --- NTFS safety helpers ---
 

@@ -1,15 +1,24 @@
 {
   // PROVIDER_CREDS hardcoded in api/_activation.py:
-  //   tmdb  → ["TMDB_API_KEY"]
-  //   tvdb  → ["TVDB_API_KEY"]
-  //   omdb  → ["OMDB_API_KEY"]
-  //   trakt → ["TRAKT_CLIENT_ID"]   # OAuth user endpoints (CLIENT_SECRET) are out of scope per DESIGN §1.2
+  //   tmdb            → ["TMDB_API_KEY"]
+  //   tvdb            → ["TVDB_API_KEY"]
+  //   omdb            → ["OMDB_API_KEY"]     # internal HTTP backend
+  //   imdb            → ["OMDB_API_KEY"]     # façade — info-only (no canonical scrape), shares the OMDb credential
+  //   rotten_tomatoes → ["OMDB_API_KEY"]     # façade — RatingProvider only, RT data extracted from OMDb payload
+  //   trakt           → ["TRAKT_CLIENT_ID"]  # OAuth user endpoints (CLIENT_SECRET) are out of scope per DESIGN §1.2
   // Credentials are read from .env — see .env.example for the expected variable names.
+  //
+  // imdb / rotten_tomatoes are *façades* over the shared OMDb HTTP
+  // backend (DESIGN §4). They contribute ratings and ID re-validation
+  // — they never act as the canonical scrape provider for a media
+  // item. Enabling either requires OMDB_API_KEY in .env.
   metadata: {
     providers: {
       tmdb: { enabled: true },
       tvdb: { enabled: true },
       omdb: { enabled: false },
+      imdb: { enabled: false },
+      rotten_tomatoes: { enabled: false },
       trakt: { enabled: false },
     },
     priorities: {
@@ -17,7 +26,9 @@
       series_scraping: { tvdb: 1, tmdb: 2 },
       episode_scraping: { tvdb: 1, tmdb: 2 },
       recommendations: { trakt: 1, omdb: 2 },
-      notations: { omdb: 1, trakt: 2 },
+      // imdb + rotten_tomatoes feed notations as info-only providers
+      // alongside the canonical sources. Lower numbers win on ties.
+      notations: { imdb: 1, rotten_tomatoes: 2, omdb: 3, trakt: 4 },
     },
     defaults: {
       language: "fr-FR",

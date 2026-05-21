@@ -456,12 +456,18 @@ class TestScanLibrary:
         movie_dir = tmp_path / f"{title} (1999)"
         movie_dir.mkdir(exist_ok=True)
 
+        # Build external_ids_json from the legacy tmdb_id kwarg.
+        import json as _json  # noqa: PLC0415
+
+        external_ids_json = (
+            _json.dumps({"tmdb": {"series_id": str(tmdb_id), "episode_id": None}}) if tmdb_id is not None else "{}"
+        )
         conn.execute(
             "INSERT INTO media_item (id, kind, title, title_sort, year, category_id, "
-            "tmdb_id, imdb_id, tvdb_id, nfo_status, artwork_json, "
+            "external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
             "date_created, date_modified, is_locked, preferred_lang) "
             "VALUES (?, 'movie', ?, ?, 1999, 'movies', ?, NULL, NULL, 'valid', NULL, 0, 0, 0, 'fr')",
-            (item_id, title, title, tmdb_id),
+            (item_id, title, title, external_ids_json),
         )
         if with_trailer_attr:
             conn.execute(

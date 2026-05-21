@@ -76,4 +76,81 @@ class LibraryScanCompleted(Event):
     elapsed_s: float
 
 
-__all__ = ["DiskFullWarning", "LibraryScanCompleted"]
+@dataclass(frozen=True, kw_only=True)
+class BackfillStarted(Event):
+    """Emitted at the start of a :func:`run_backfill_ids` pass.
+
+    Attributes:
+        scope: ``"library"`` for an unscoped pass, otherwise the
+            show title passed via ``--show=NAME`` / the post-scrape
+            auto-trigger.
+        item_count: Number of ``media_item`` rows the pass will visit.
+    """
+
+    scope: str
+    item_count: int
+
+
+@dataclass(frozen=True, kw_only=True)
+class BackfillItemCompleted(Event):
+    """Emitted once per row that the backfill writes to.
+
+    Attributes:
+        item_id: ``media_item.id`` of the updated row.
+        item_title: Human-readable title for log / UI consumption.
+        ids_added: Provider families newly written.
+        ratings_added: Rating sources newly written.
+    """
+
+    item_id: int
+    item_title: str
+    ids_added: tuple[str, ...]
+    ratings_added: tuple[str, ...]
+
+
+@dataclass(frozen=True, kw_only=True)
+class BackfillSkipped(Event):
+    """Emitted once per row the backfill leaves untouched.
+
+    Attributes:
+        item_id: ``media_item.id`` of the skipped row.
+        item_title: Title for log / UI consumption.
+        reason: Short slug describing the skip cause.
+    """
+
+    item_id: int
+    item_title: str
+    reason: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class BackfillCompleted(Event):
+    """Emitted once when :func:`run_backfill_ids` returns.
+
+    Attributes:
+        scope: Same as :class:`BackfillStarted.scope`.
+        scanned: Number of rows visited.
+        updated: Rows for which at least one ID or rating was added.
+        skipped: Rows that needed no change.
+        failed: Rows that errored mid-update (logged, not raised).
+        ids_added_count: Total provider IDs newly written.
+        ratings_added_count: Total rating entries newly written.
+    """
+
+    scope: str
+    scanned: int
+    updated: int
+    skipped: int
+    failed: int
+    ids_added_count: int
+    ratings_added_count: int
+
+
+__all__ = [
+    "DiskFullWarning",
+    "LibraryScanCompleted",
+    "BackfillStarted",
+    "BackfillItemCompleted",
+    "BackfillSkipped",
+    "BackfillCompleted",
+]

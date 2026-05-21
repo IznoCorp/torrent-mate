@@ -68,12 +68,20 @@ def _make_validator(
 
 
 def _write_show_nfo(path: Path, *, tvdb_id: int | None = None, tmdb_id: int | None = None) -> None:
-    """Write a minimal tvshow.nfo with the given uniqueids."""
+    """Write a minimal tvshow.nfo with the given uniqueids.
+
+    The first uniqueid emitted carries ``default="true"`` to match the
+    canonical-default invariant enforced by the drift validator
+    (provider-ids feature, DESIGN §3 Q6).
+    """
     parts = ['<?xml version="1.0"?>', "<tvshow>", "<title>Show</title>", "<year>2020</year>"]
+    default_applied = False
     if tvdb_id is not None:
-        parts.append(f'<uniqueid type="tvdb">{tvdb_id}</uniqueid>')
+        parts.append(f'<uniqueid type="tvdb" default="true">{tvdb_id}</uniqueid>')
+        default_applied = True
     if tmdb_id is not None:
-        parts.append(f'<uniqueid type="tmdb">{tmdb_id}</uniqueid>')
+        default_attr = "" if default_applied else ' default="true"'
+        parts.append(f'<uniqueid type="tmdb"{default_attr}>{tmdb_id}</uniqueid>')
     parts.append("</tvshow>")
     path.write_text("\n".join(parts), encoding="utf-8")
 
@@ -114,13 +122,69 @@ class TestVerifyDriftBranches:
         assert valid is False
         assert reason == "nfo_missing_uniqueid"
 
+    def test_drift_when_canonical_uniqueid_missing_default(self, tmp_path: Path) -> None:
+        """A ``<uniqueid>`` without ``default="true"`` triggers drift.
+
+        Regression test for the provider-ids feature : DESIGN §3 Q6
+        requires the canonical family to carry ``default="true"``.
+        Legacy NFOs without it must re-scrape rather than silently
+        pass — the prior implementation had a dead-code branch that
+        accepted them.
+        """
+        show_dir = tmp_path / "Show (2020)"
+        show_dir.mkdir()
+        nfo = show_dir / "tvshow.nfo"
+        nfo.write_text('<tvshow><title>Show</title><year>2020</year><uniqueid type="tvdb">123</uniqueid></tvshow>')
+        valid, reason = verify_tvshow_scrape_drift(show_dir, nfo, NamingPatterns())
+        assert valid is False
+        assert reason == "nfo_missing_canonical_uniqueid"
+
+    def test_drift_when_default_uniqueid_missing_type_attr(self, tmp_path: Path) -> None:
+        """A ``<uniqueid default="true">`` without ``type`` attr triggers drift.
+
+        The strict predicate requires the canonical uniqueid to carry
+        both ``default="true"`` AND a non-empty ``type``. Without the
+        ``type`` check the validator would reach the defensive branch
+        with the same reason code, leaving operators unable to
+        diagnose the actual cause.
+        """
+        show_dir = tmp_path / "Show (2020)"
+        show_dir.mkdir()
+        nfo = show_dir / "tvshow.nfo"
+        nfo.write_text(
+            '<tvshow><title>Show</title><year>2020</year><uniqueid default="true">tt1234</uniqueid></tvshow>'
+        )
+        valid, reason = verify_tvshow_scrape_drift(show_dir, nfo, NamingPatterns())
+        assert valid is False
+        assert reason == "nfo_missing_canonical_uniqueid"
+
+    def test_drift_when_default_uniqueid_text_empty(self, tmp_path: Path) -> None:
+        """A ``<uniqueid default="true" type="tvdb"></uniqueid>`` triggers drift.
+
+        The strict predicate also requires non-empty text — an empty
+        canonical id is not a valid scrape result.
+        """
+        show_dir = tmp_path / "Show (2020)"
+        show_dir.mkdir()
+        nfo = show_dir / "tvshow.nfo"
+        nfo.write_text(
+            '<tvshow><title>Show</title><year>2020</year><uniqueid type="tvdb" default="true"></uniqueid></tvshow>'
+        )
+        valid, reason = verify_tvshow_scrape_drift(show_dir, nfo, NamingPatterns())
+        assert valid is False
+        # The empty-text uniqueid fails the upstream "has_uniqueid" check
+        # since it counts non-empty texts only.
+        assert reason in {"nfo_missing_uniqueid", "nfo_missing_canonical_uniqueid"}
+
     def test_non_file_in_season_dir_is_skipped(self, tmp_path: Path) -> None:
         """Subdirectories nested inside Saison XX/ are silently ignored."""
         # Build a fully-valid show with a sub-subdir under Saison 01/.
         show_dir = tmp_path / "Show (2020)"
         show_dir.mkdir()
         nfo = show_dir / "tvshow.nfo"
-        nfo.write_text('<tvshow><title>Show</title><year>2020</year><uniqueid type="tmdb">1</uniqueid></tvshow>')
+        nfo.write_text(
+            '<tvshow><title>Show</title><year>2020</year><uniqueid type="tmdb" default="true">1</uniqueid></tvshow>'
+        )
         patterns = NamingPatterns()
         (show_dir / patterns.tvshow_poster).write_bytes(b"\xff\xd8")
         (show_dir / patterns.tvshow_landscape).write_bytes(b"\xff\xd8")
@@ -131,7 +195,9 @@ class TestVerifyDriftBranches:
         # And a valid episode + sibling NFO so the drift check passes.
         ep = s01 / "S01E01 - Pilot.mkv"
         ep.write_bytes(b"\x00")
-        ep.with_suffix(".nfo").write_text("<episodedetails/>")
+        # Phase 4 drift hardening: episode NFO must carry the canonical
+        # uniqueid that matches tvshow.nfo (tmdb here).
+        ep.with_suffix(".nfo").write_text('<episodedetails><uniqueid type="tmdb">42</uniqueid></episodedetails>')
 
         valid, reason = verify_tvshow_scrape_drift(show_dir, nfo, patterns)
         assert valid is True

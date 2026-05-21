@@ -218,7 +218,9 @@ class TestScanLibraryPopulatesDB:
         assert row["year"] == 2010
         assert row["category_id"] == CID.MOVIES
         assert row["nfo_status"] == "valid"
-        assert row["tmdb_id"] == 27205
+        import json as _json  # noqa: PLC0415
+
+        assert _json.loads(row["external_ids_json"])["tmdb"]["series_id"] == "27205"
 
     def test_season_fields_populated(self, fs: "FakeFilesystem", scanner_config: Config) -> None:
         """Season rows carry correct item_id, number, episode_count, has_poster."""
@@ -275,6 +277,140 @@ class TestScanLibraryPopulatesDB:
 
         ep_count = conn.execute("SELECT COUNT(*) FROM episode").fetchone()[0]
         assert ep_count == 5
+
+    def test_provider_ids_columns_populated_from_nfo(self, fs: "FakeFilesystem", scanner_config: Config) -> None:
+        """Scanner populates the provider-ids columns from a rich NFO.
+
+        Regression for the BDD audit (P7): the scanner now writes
+        ``external_ids_json`` + ``ratings_json`` + ``canonical_provider``
+        from the NFO. Before the fix, all 1935 items in the live DB
+        carried ``external_ids_json='{}'``, ``ratings_json=NULL``,
+        ``canonical_provider=NULL`` because ``extract_nfo_ids`` only read
+        ``tmdb`` / ``imdb`` and the upsert hardcoded the other two to None.
+        """
+        import json as _json  # noqa: PLC0415
+
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        disk_a = scanner_config.disks[0].path
+        (disk_a / "series").mkdir(parents=True)
+        show = disk_a / "series" / "Breaking Bad (2008)"
+        show.mkdir()
+        (show / "tvshow.nfo").write_text(
+            "<tvshow>"
+            '<uniqueid type="tvdb" default="true">81189</uniqueid>'
+            '<uniqueid type="tmdb">1396</uniqueid>'
+            '<uniqueid type="imdb">tt0903747</uniqueid>'
+            "<ratings>"
+            '<rating name="imdb" max="10"><value>9.5</value><votes>2000000</votes></rating>'
+            '<rating name="themoviedb" max="10"><value>8.9</value><votes>1500</votes></rating>'
+            "</ratings>"
+            "</tvshow>"
+        )
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan_library(scanner_config, conn, event_bus=EventBus())
+
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM media_item WHERE title = 'Breaking Bad'").fetchone()
+        assert row is not None
+        # external_ids_json carries ALL three families now (P7 fix).
+        eids = _json.loads(row["external_ids_json"])
+        assert eids["tvdb"]["series_id"] == "81189"
+        assert eids["tmdb"]["series_id"] == "1396"
+        assert eids["imdb"]["series_id"] == "tt0903747"
+        # canonical_provider inferred from <uniqueid default="true">.
+        assert row["canonical_provider"] == "tvdb"
+        # ratings_json populated with internal source names (themoviedb → tmdb).
+        ratings = _json.loads(row["ratings_json"])
+        sources = {entry["source"] for entry in ratings["entries"]}
+        assert sources == {"imdb", "tmdb"}
+
+    def test_season_columns_refresh_on_rescan(self, fs: "FakeFilesystem", scanner_config: Config) -> None:
+        """Regression for the BDD audit (P8): season columns refresh on every scan.
+
+        Before the fix, the scanner used ``INSERT OR IGNORE`` and a row
+        inserted before its season-poster + sibling NFOs landed on disk
+        kept ``has_poster=0`` AND ``episodes_with_nfo=0`` forever.
+        With ``upsert_season``, the second scan picks up the new
+        artwork + NFO count.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        disk_a = scanner_config.disks[0].path
+        (disk_a / "series").mkdir(parents=True)
+        show = disk_a / "series" / "Fallout (2024)"
+        show.mkdir()
+        (show / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">106379</uniqueid></tvshow>')
+        s01 = show / "Saison 01"
+        s01.mkdir()
+        (s01 / "S01E01 - Pilot.mkv").write_bytes(b"\x00")
+        # First scan: no season poster, no episode NFOs.
+        with patch(_GUARD_PATCH, return_value=None):
+            scan_library(scanner_config, conn, event_bus=EventBus())
+
+        conn.row_factory = sqlite3.Row
+        before = conn.execute("SELECT has_poster, episodes_with_nfo FROM season WHERE number = 1").fetchone()
+        assert before["has_poster"] == 0
+        assert before["episodes_with_nfo"] == 0
+
+        # Operator drops the poster + sibling NFO between scans.
+        (show / "season01-poster.jpg").write_bytes(b"\x00")
+        (s01 / "S01E01 - Pilot.nfo").write_text("<episodedetails><title>Pilot</title></episodedetails>")
+
+        # Second scan: with upsert_season, the columns refresh.
+        with patch(_GUARD_PATCH, return_value=None):
+            scan_library(scanner_config, conn, event_bus=EventBus())
+
+        after = conn.execute("SELECT has_poster, episodes_with_nfo FROM season WHERE number = 1").fetchone()
+        assert after["has_poster"] == 1
+        assert after["episodes_with_nfo"] == 1
+
+    def test_episode_title_persisted_from_nfo(self, fs: "FakeFilesystem", scanner_config: Config) -> None:
+        """Regression for the BDD audit (P9): episode.title is read from the sibling NFO.
+
+        Before the fix, all 25 418 ``episode`` rows in the live DB had
+        ``title=NULL`` because the executemany hardcoded NULL.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        disk_a = scanner_config.disks[0].path
+        (disk_a / "series").mkdir(parents=True)
+        show = disk_a / "series" / "TestShow (2023)"
+        show.mkdir()
+        (show / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">9999</uniqueid></tvshow>')
+        s01 = show / "Saison 01"
+        s01.mkdir()
+        (s01 / "S01E01 - Pilot.mkv").write_bytes(b"\x00")
+        (s01 / "S01E01 - Pilot.nfo").write_text("<episodedetails><title>Pilot</title></episodedetails>")
+        (s01 / "S01E02 - Second.mkv").write_bytes(b"\x00")
+        (s01 / "S01E02 - Second.nfo").write_text("<episodedetails><title>The Second One</title></episodedetails>")
+        # Third episode has no NFO — title should be None.
+        (s01 / "S01E03 - Third.mkv").write_bytes(b"\x00")
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan_library(scanner_config, conn, event_bus=EventBus())
+
+        rows = conn.execute(
+            """
+            SELECT e.number, e.title
+            FROM episode e
+            JOIN season s ON s.id = e.season_id
+            JOIN media_item m ON m.id = s.item_id
+            WHERE m.title = 'TestShow' AND s.number = 1
+            ORDER BY e.number
+            """
+        ).fetchall()
+        titles = {row[0]: row[1] for row in rows}
+        assert titles[1] == "Pilot"
+        assert titles[2] == "The Second One"
+        assert titles[3] is None
 
     def test_unmounted_disk_skipped(self, fs: "FakeFilesystem", scanner_config: Config) -> None:
         """Disks whose path does not exist are skipped; no rows inserted."""
@@ -743,6 +879,161 @@ class TestExtractNfoIds:
         tmdb, imdb = extract_nfo_ids(tmp_path / "missing.nfo")
         assert tmdb is None
         assert imdb is None
+
+
+# ---------------------------------------------------------------------------
+# Unit tests — extract_nfo_metadata (provider-ids feature)
+# ---------------------------------------------------------------------------
+
+
+class TestExtractNfoMetadata:
+    """Regression tests for ``extract_nfo_metadata``.
+
+    Closes the indexer side of the provider-ids contract: the legacy
+    ``extract_nfo_ids`` only saw ``tmdb`` / ``imdb`` uniqueids ;
+    ``extract_nfo_metadata`` must additionally surface ``tvdb``,
+    the canonical-default flag, and the ``<ratings>`` block so the
+    library scanner can populate ``external_ids_json`` /
+    ``canonical_provider`` / ``ratings_json``.
+    """
+
+    def test_extracts_tvdb_id(self, tmp_path: Path) -> None:
+        """Regression: TVDB uniqueid is now read (was silently dropped)."""
+        from personalscraper.library.scanner import extract_nfo_metadata
+
+        nfo = tmp_path / "test.nfo"
+        nfo.write_text('<tvshow><uniqueid type="tvdb">73141</uniqueid></tvshow>')
+
+        meta = extract_nfo_metadata(nfo)
+
+        assert meta["tvdb_id"] == "73141"
+        assert meta["tmdb_id"] is None
+        assert meta["imdb_id"] is None
+
+    def test_canonical_provider_from_default_true(self, tmp_path: Path) -> None:
+        """``<uniqueid default="true" type="tvdb">`` → canonical_provider="tvdb"."""
+        from personalscraper.library.scanner import extract_nfo_metadata
+
+        nfo = tmp_path / "test.nfo"
+        nfo.write_text(
+            '<tvshow><uniqueid type="tvdb" default="true">73141</uniqueid>'
+            '<uniqueid type="tmdb">1433</uniqueid></tvshow>'
+        )
+
+        meta = extract_nfo_metadata(nfo)
+
+        assert meta["canonical_provider"] == "tvdb"
+
+    def test_canonical_provider_default_tmdb(self, tmp_path: Path) -> None:
+        """``<uniqueid default="true" type="tmdb">`` → canonical_provider="tmdb"."""
+        from personalscraper.library.scanner import extract_nfo_metadata
+
+        nfo = tmp_path / "test.nfo"
+        nfo.write_text('<movie><uniqueid type="tmdb" default="true">603</uniqueid></movie>')
+
+        meta = extract_nfo_metadata(nfo)
+
+        assert meta["canonical_provider"] == "tmdb"
+
+    def test_canonical_provider_none_when_no_default(self, tmp_path: Path) -> None:
+        """Legacy NFO without ``default="true"`` → canonical_provider=None."""
+        from personalscraper.library.scanner import extract_nfo_metadata
+
+        nfo = tmp_path / "test.nfo"
+        nfo.write_text('<tvshow><uniqueid type="tvdb">73141</uniqueid></tvshow>')
+
+        meta = extract_nfo_metadata(nfo)
+
+        assert meta["canonical_provider"] is None
+
+    def test_all_three_ids_with_canonical(self, tmp_path: Path) -> None:
+        """NFO with tvdb (canonical) + tmdb + imdb returns all three IDs."""
+        from personalscraper.library.scanner import extract_nfo_metadata
+
+        nfo = tmp_path / "test.nfo"
+        nfo.write_text(
+            '<tvshow><uniqueid type="tvdb" default="true">73141</uniqueid>'
+            '<uniqueid type="tmdb">1433</uniqueid>'
+            '<uniqueid type="imdb">tt0397306</uniqueid></tvshow>'
+        )
+
+        meta = extract_nfo_metadata(nfo)
+
+        assert meta["tvdb_id"] == "73141"
+        assert meta["tmdb_id"] == "1433"
+        assert meta["imdb_id"] == "tt0397306"
+        assert meta["canonical_provider"] == "tvdb"
+
+    def test_ratings_block_extracted_with_source_mapping(self, tmp_path: Path) -> None:
+        """``<rating name="themoviedb">`` is mapped to internal ``"tmdb"`` source.
+
+        Mirrors the inverse of ``nfo_generator._NFO_RATING_SOURCE_NAMES``
+        so ``ratings_json`` carries the same shape the scraper writes.
+        """
+        from personalscraper.library.scanner import extract_nfo_metadata
+
+        nfo = tmp_path / "test.nfo"
+        nfo.write_text(
+            "<movie>"
+            "<ratings>"
+            '<rating name="imdb" max="10"><value>8.5</value><votes>1000000</votes></rating>'
+            '<rating name="themoviedb" max="10"><value>7.2</value><votes>500</votes></rating>'
+            '<rating name="rottentomatoes" max="100"><value>91</value><votes>0</votes></rating>'
+            "</ratings>"
+            "</movie>"
+        )
+
+        meta = extract_nfo_metadata(nfo)
+
+        sources = {r["source"] for r in meta["ratings"]}
+        assert sources == {"imdb", "tmdb", "rotten_tomatoes"}
+        imdb = next(r for r in meta["ratings"] if r["source"] == "imdb")
+        assert imdb["score"] == "8.5"
+        assert imdb["votes"] == 1_000_000
+
+    def test_empty_ratings_when_no_ratings_tag(self, tmp_path: Path) -> None:
+        """NFO without a ``<ratings>`` block returns an empty list."""
+        from personalscraper.library.scanner import extract_nfo_metadata
+
+        nfo = tmp_path / "test.nfo"
+        nfo.write_text('<tvshow><uniqueid type="tvdb">73141</uniqueid></tvshow>')
+
+        meta = extract_nfo_metadata(nfo)
+
+        assert meta["ratings"] == []
+
+    def test_corrupt_xml_returns_blank_dict(self, tmp_path: Path) -> None:
+        """Bad XML returns a blank stable dict (all None / empty list)."""
+        from personalscraper.library.scanner import extract_nfo_metadata
+
+        nfo = tmp_path / "test.nfo"
+        nfo.write_text("<not_xml")
+
+        meta = extract_nfo_metadata(nfo)
+
+        assert meta == {
+            "tmdb_id": None,
+            "imdb_id": None,
+            "tvdb_id": None,
+            "canonical_provider": None,
+            "ratings": [],
+        }
+
+    def test_extract_nfo_ids_remains_backward_compatible(self, tmp_path: Path) -> None:
+        """The legacy ``extract_nfo_ids`` returns the same 2-tuple shape."""
+        nfo = tmp_path / "test.nfo"
+        nfo.write_text(
+            '<movie><uniqueid type="tvdb">99999</uniqueid>'
+            '<uniqueid type="tmdb">603</uniqueid>'
+            '<uniqueid type="imdb">tt0133093</uniqueid></movie>'
+        )
+
+        result = extract_nfo_ids(nfo)
+
+        assert result == ("603", "tt0133093")
+        # tvdb is now also read by extract_nfo_metadata but the legacy
+        # 2-tuple wrapper hides it for compatibility with trailers
+        # /scanner.py + library/rescraper.py.
 
 
 # ---------------------------------------------------------------------------

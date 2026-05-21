@@ -137,20 +137,26 @@ def _insert_item(
         PK of the inserted row.
     """
     now = int(time.time())
+    # Build the external_ids_json JSON column from the legacy flat IDs
+    # (migration 005 — provider-ids feature). The tests still take
+    # ``tmdb_id`` / ``imdb_id`` kwargs for ergonomics ; the helper
+    # materialises the JSON column for them.
+    from tests._legacy_ids import legacy_external_ids_json  # noqa: PLC0415
+
     cursor = conn.execute(
         "INSERT INTO media_item "
-        "(kind, title, title_sort, original_title, year, category_id, tmdb_id, imdb_id, "
-        "tvdb_id, nfo_status, artwork_json, date_created, date_modified, "
+        "(kind, title, title_sort, original_title, year, category_id, "
+        "external_ids_json, ratings_json, canonical_provider, "
+        "nfo_status, artwork_json, date_created, date_modified, "
         "date_metadata_refreshed, is_locked, preferred_lang) "
-        "VALUES (?, ?, ?, NULL, ?, ?, ?, ?, NULL, ?, NULL, ?, ?, NULL, ?, ?)",
+        "VALUES (?, ?, ?, NULL, ?, ?, ?, NULL, NULL, ?, NULL, ?, ?, NULL, ?, ?)",
         (
             kind,
             title,
             title_sort or title,
             year,
             category_id,
-            tmdb_id,
-            imdb_id,
+            legacy_external_ids_json(tmdb_id=tmdb_id, imdb_id=imdb_id),
             nfo_status,
             now,
             now,

@@ -379,12 +379,34 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
 def parse_episode(raw: dict[str, Any]) -> EpisodeInfo:
     """Map a TVDB episode object → EpisodeInfo.
 
+    Populates :attr:`EpisodeInfo.external_ids` with whatever per-episode
+    identifiers the TVDB payload surfaces : the canonical TVDB episode
+    ID (``raw["id"]``) plus any cross-references TVDB ships in the
+    ``remoteIds`` array (``IMDB`` → ``"imdb"``,
+    ``TheMovieDB.com`` / ``TheMovieDB`` → ``"tmdb"``). Empty IDs are
+    omitted so callers can distinguish "absent" from "blank string".
+
     Args:
         raw: A single episode from ``episodes[]``.
 
     Returns:
         Populated EpisodeInfo.
     """
+    external_ids: dict[str, str] = {}
+    tvdb_episode_id = raw.get("id")
+    if tvdb_episode_id:
+        external_ids["tvdb"] = str(tvdb_episode_id)
+    for rid in raw.get("remoteIds", []) or []:
+        if not isinstance(rid, dict):
+            continue
+        source = rid.get("sourceName", "")
+        rid_id = rid.get("id", "")
+        if not rid_id:
+            continue
+        if source == "IMDB":
+            external_ids["imdb"] = str(rid_id)
+        elif source in ("TheMovieDB.com", "TheMovieDB"):
+            external_ids["tmdb"] = str(rid_id)
     return EpisodeInfo(
         episode_number=raw.get("number", 0),
         title=raw.get("name", "") or "",
@@ -393,6 +415,7 @@ def parse_episode(raw: dict[str, Any]) -> EpisodeInfo:
         runtime_minutes=raw.get("runtime") or None,
         season_number=int(raw.get("seasonNumber") or 0),
         still_url=raw.get("image") or "",
+        external_ids=external_ids,
     )
 
 

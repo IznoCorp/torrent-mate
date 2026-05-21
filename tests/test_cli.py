@@ -213,6 +213,36 @@ def test_quiet_mode():
     assert result.exit_code == 0
 
 
+def test_torrents_list_command_help_advertises_command():
+    """Regression for the BDD audit (P1): ``torrents-list`` is registered.
+
+    The pipeline-monitor skill calls ``personalscraper torrents-list`` in
+    its GATE 0 inventory ; without it the skill aborts with
+    "No such command 'torrents-list'".
+    """
+    result = runner.invoke(app, ["--help"])
+    assert result.exit_code == 0
+    assert "torrents-list" in result.output
+
+
+@patch("personalscraper.api.torrent.qbittorrent.QBitClient")
+def test_torrents_list_unreachable_exits_2(mock_qbit_class):
+    """Unreachable qBit → exit code 2 with friendly message.
+
+    Matches the skill's pipeline-monitor expectation for an
+    OPERATIONAL classification (qBit ban / daemon down).
+    """
+    from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError  # noqa: PLC0415
+
+    mock_instance = mock_qbit_class.return_value
+    mock_instance.login.side_effect = QBitAuthLockoutError("auth lockout active")
+
+    result = runner.invoke(app, ["torrents-list"])
+
+    assert result.exit_code == 2
+    assert "Torrent client unavailable" in result.output
+
+
 # ── Pipeline `run` command tests ─────────────────────
 # CLI run() delegates to Pipeline.run() — step-level orchestration
 # is tested in tests/test_pipeline.py. These tests verify CLI wiring.

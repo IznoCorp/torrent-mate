@@ -735,7 +735,7 @@ class TestConfigMigrateCategory:
         conn.execute(
             "INSERT INTO media_item "
             "(kind, title, title_sort, original_title, year, category_id, "
-            "tmdb_id, imdb_id, tvdb_id, nfo_status, artwork_json, "
+            "external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
             "date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
@@ -745,11 +745,11 @@ class TestConfigMigrateCategory:
                 None,
                 2020,
                 "old_cat",
-                None,
-                None,
-                None,
-                None,
-                None,
+                "{}",  # external_ids_json (NOT NULL)
+                None,  # ratings_json
+                None,  # canonical_provider
+                None,  # nfo_status
+                None,  # artwork_json
                 now,
                 now,
                 None,

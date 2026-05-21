@@ -1,293 +1,390 @@
-# Implementation Progress — event-bus
+# Implementation Progress — provider-ids
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Codename**: `event-bus`
-**Feature**: Event Bus (minor)
-**Version bump**: 0.13.0 → 0.14.0
-**Branch**: feat/event-bus
+**Codename**: `provider-ids`
+**Feature**: Multi-Provider IDs Propagation + Capabilities Refactor (type: minor)
+**Version bump**: 0.14.0 → 0.15.0
+**Branch**: feat/provider-ids
 **PR merge**: manual
-**PR**: https://github.com/LounisBou/personal-scraper/pull/22
-**Design**: docs/features/event-bus/DESIGN.md
-**Master plan**: docs/features/event-bus/plan/INDEX.md
+**PR**: _(created after last phase)_
+**Design**: docs/features/provider-ids/DESIGN.md
+**Master plan**: docs/features/provider-ids/plan/INDEX.md
 
-## Scope discipline — see INDEX.md Invariant 1
+## Active memories (à respecter pour TOUTES les phases)
 
-Every step is adapted, every test is written, nothing is skipped, and every
-sub-phase verifies design + plan compliance. The exhaustive enumeration of
-banned vocabulary, the rationale, and the gate-time grep all live in
-[`INDEX.md`](docs/features/event-bus/plan/INDEX.md) Invariant 1 + Invariant
-3 §10 and [`DESIGN.md`](docs/features/event-bus/DESIGN.md). Keeping the
-enumeration there (and out of this file) means the Phase 5.6 gate-time grep
-on IMPLEMENTATION.md returns zero matches without weakening the rule.
+- `feedback_multi_provider_ids_separation` — hiérarchie TVDB primaire → TMDB info+fallback → IMDb info, séparation stricte des familles, idempotence par famille.
+- `feedback_no_backcompat_before_v1` — pas de scripts de migration generic ; modifs schema/config/NFO appliquées directement à l'unique instance dans le même PR (< v1.0.0).
+- `feedback_regression_test_per_bug` — chaque bug code détecté a un test RED qui le reproduit avant le fix.
+- `feedback_event_bus_no_deferral` (appliqué à provider-ids) — aucun item DESIGN différé. Phase qui déborde → découper en sub-phases.
+- `feedback_pipeline_dry_run_first` — pour toute commande pipeline pendant l'implémentation, dry-run d'abord, valider, puis real.
+- `feedback_tooling_diagnostics` — utiliser `command python` / `command rg`, trust `make test`.
 
-Paraphrasing the rule is itself a violation; new evasive vocabulary
-surfaced in review extends the canonical list in the same fix commit (per
-the protocol in INDEX.md Invariant 3 §10).
+## Codebase sync notes (post contre-analyse 2026-05-17)
+
+Le DESIGN initial référence un snapshot du codebase (HEAD `8ef2c87`) antérieur aux features mergées récemment (api-unify v0.11.0, pipeline-obs v0.13.0, event-bus v0.14.0). **Sync vérifiée par grep direct (tous les file:line refs ci-dessous validés sur `feat/provider-ids` HEAD le plus récent — chaque exécution de phase doit re-vérifier au cas où le code aurait bougé entretemps) :**
+
+- **`_build_episode_map`** def à `tv_service.py:605` ; les 2 inner functions à modifier (phase 2.2) sont `_tvdb_fetch` (`:698-711`) et `_tmdb_fetch` (`:712-725`) — payloads actuels `{"title", "still_path": ""}`.
+- `_generate_episode_nfos` à `tv_service.py:818` (def).
+- `match_episode_files` def à `episode_manager.py:97` ; les 3 assignations `matched[video_path] = ...` aux lignes `153, 177, 202`.
+- `nfo_generator.generate_episode_nfo` def à `nfo_generator.py:381` ; bloc uniqueid à `:401-419` ; `_add_ratings` à `:534`.
+- `existing_validator.verify_tvshow_scrape_drift` def à `:94` ; check #4 sibling NFO à `:184-186`.
+- `api/_contracts.py` existe avec 5 classes (`MediaType`, `ProviderName`, `AuthMode`, `ApiError`, `CircuitOpenError`) — phase 1.1 **ajoute** `HasName`.
+- `MetadataProvider` Protocol monolithique à `api/metadata/_base.py:259` avec **8 méthodes publiques** (`search`, `get_details`, `get_artwork_urls`, `get_keywords`, `get_videos`, `get_season`, `get_notations`, `get_recommendations`) — phase 1.2 décompose en **11 capabilities** (8 méthodes + 2 nouveaux `IDValidator`/`IDCrossRef` + 1 split `get_details` → `Movie`/`Tv` DetailsProvider). Décision Option A : capabilities atomiques pour les 4 méthodes "extras" (`ArtworkProvider`, `KeywordProvider`, `VideoProvider`, `RecommendationProvider`).
+- `TrackerClient` Protocol à `api/tracker/_base.py:102` (méthodes `search`, `get_categories`) — phase 11 drop + LaCale/C411 composent les 4 capabilities.
+- `TorrentClient` Protocol à `api/torrent/_base.py:43` avec **7 méthodes** (`get_completed`, `get_all_hashes`, `is_seeding`, `get_content_path`, `pause`, `resume`, `delete`) — phase 13 drop. Décomposé en **5 capabilities atomiques** (`TorrentLister`, `TorrentInspector`, `AuthenticatedClient`, `TorrentStateInspector`, `TorrentController`) — voir phase 1.4 + phase 13.
+- **`api/notify/_base.py` contient déjà** `Notifier(Protocol)` à `:17` (`send`, `send_report`) ET `HealthChecker(Protocol)` à `:35` (`ping_start`, `ping_success`, `ping_fail`) — pas monolithique, déjà capability-style. **Phase 1.5 + 14 ne créent rien de nouveau** : juste migrent les 2 Protocols vers `_contracts.py`, ajoutent `@runtime_checkable`, rendent la composition explicite sur `TelegramNotifier` (`telegram.py:49`, pas `TelegramClient`) et `HealthcheckClient` (`healthchecks.py:46`). Noms et signatures **inchangés**.
+- `OverrideRule.imdb_id` existe (`conf/models/preferences.py:82`) ; **aucun import de `OverrideRule` hors `conf/models/`** — suppression triviale. Pas de `config/api.json5` (le fichier référencé dans le DESIGN n'existe pas).
+- `Notations` est une dataclass `_base.py:149` avec `provider`, `source`, `score`, `votes_count` — singulière malgré le nom au pluriel. `list[Notations]` = multi-source. Phase 6.1 utilise ce type tel quel.
+
+Statut : **contre-analyse appliquée et complète** (corrections inline dans phase-01, phase-02, phase-13, phase-14, DESIGN §4 §6.2). Phase 13 décision tranchée → Option A : 5 capabilities atomiques (`TorrentLister`, `TorrentInspector`, `AuthenticatedClient`, `TorrentStateInspector`, `TorrentController`). Phase 14 corrigée → Protocols existants (`Notifier`+`HealthChecker`) migrés sans rename.
 
 ## Phases
 
-| #   | Phase                                  | Type    | File                                                                                                        | Status |
-| --- | -------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------- | ------ |
-| 1   | Foundation (standalone)                | core    | [phase-01-foundation.md](docs/features/event-bus/plan/phase-01-foundation.md)                               | [x]    |
-| 2   | AppContext + StepContext slim          | core    | [phase-02-app-context-step-context.md](docs/features/event-bus/plan/phase-02-app-context-step-context.md)   | [x]    |
-| 3   | Pipeline event migration + subscribers | migrate | [phase-03-pipeline-events-migration.md](docs/features/event-bus/plan/phase-03-pipeline-events-migration.md) | [x]    |
-| 4   | Cross-cutting events                   | core    | [phase-04-cross-cutting-events.md](docs/features/event-bus/plan/phase-04-cross-cutting-events.md)           | [x]    |
-| 5   | Required-bus tightening + CLI polish   | polish  | [phase-05-required-bus-cli-polish.md](docs/features/event-bus/plan/phase-05-required-bus-cli-polish.md)     | [x]    |
-| 6   | PR review cycle 1 fixes                | fix     | [phase-06-pr-fixes-cycle-1.md](docs/features/event-bus/plan/phase-06-pr-fixes-cycle-1.md)                   | [x]    |
-| 7   | PR review cycle 2 fixes                | fix     | (inline — five reviewer agents; see commit body)                                                            | [x]    |
+| #   | Phase                                                         | File                                  | Status |
+| --- | ------------------------------------------------------------- | ------------------------------------- | ------ |
+| 1   | Capabilities Protocols (api/\_contracts.py + per-domain)      | phase-01-capabilities-protocols.md    | [x]    |
+| 2   | Fix DEV #2 — IDs propagation (regression tests first)         | phase-02-fix-dev2-ids-propagation.md  | [x]    |
+| 3   | Façades IMDb + RottenTomatoes (sur OMDbAdapter)               | phase-03-imdb-rt-facades.md           | [x]    |
+| 4   | Drift validator renforcé (canonical uniqueid required)        | phase-04-drift-validator-hardening.md | [x]    |
+| 5   | Xref enrichment sequential + \_resolve_external_ids           | phase-05-xref-enrichment.md           | [x]    |
+| 6   | NFO ratings multi-source + uniqueid default canonical         | phase-06-nfo-ratings-multisource.md   | [x]    |
+| 7   | DB schema — external_ids_json + ratings_json + canonical_prov | phase-07-db-schema-external-ids.md    | [x]    |
+| 8   | Backfill mode + CLI + auto-trigger post-scrape                | phase-08-backfill-mode.md             | [x]    |
+| 9   | Verify checker — 3 nouveaux checks                            | phase-09-verify-checker-extensions.md | [x]    |
+| 10  | Consommateurs library/conf/trailers refactor                  | phase-10-consumers-refactor.md        | [x]    |
+| 11  | Tracker capabilities + LaCale/C411 refactor                   | phase-11-tracker-capabilities.md      | [x]    |
+| 12  | Tracker registry priority-aware par type de média             | phase-12-tracker-registry-priority.md | [x]    |
+| 13  | Torrent capabilities + QBit/Transmission refactor             | phase-13-torrent-capabilities.md      | [x]    |
+| 14  | Notify capabilities + Telegram/Healthchecks refactor          | phase-14-notify-capabilities.md       | [x]    |
+| 15  | Integration + E2E + final wire                                | phase-15-integration-e2e.md           | [x]    |
 
-Total sub-phases: **42** (per INDEX.md). Estimated commits: **42–49**.
+## Sub-phase tracking (filled by /implement:phase)
 
-## Phase 7 — PR review cycle 2 fixes (W1-W3 + I1-I14)
+> Format par phase : sub-phase number, scope, SHA commit, durée, notes. Filled au fur et à mesure de l'exécution.
 
-Five reviewer agents (code-reviewer, silent-failure-hunter, pr-test-analyzer,
-comment-analyzer, type-design-analyzer) produced findings against PR #22.
-Cycle 2 implements all critical (W1-W3) and important (I1-I14) corrections:
+### Phase 1 — Capabilities Protocols
 
-- **W1 — bus-detached emit sites**: every production command path now threads
-  the AppContext bus (or accepts an explicit `event_bus`). Sites fixed:
-  `trailers/step.py:75`, `library_index_command` (open_db × 2 + scan),
-  `MediaIndex.__init__`, `library_reconcile_command`, the seven per-step
-  Typer subcommands in `commands/pipeline.py`, the indexer command surface
-  (`{diagnose, query, repair}.py`), library tooling (`scan_library`,
-  `rescrape_library`, library-analyze / -recommend / -report / -validate),
-  and `trailers/cli.py verify`. Regression tests pin the pass-through
-  contract (`test_orchestrator_receives_caller_bus`,
-  `test_library_index_command_forwards_bus_to_scan_and_open_db`).
-- **W1/C2 — global disk-breaker rebinding**: `bind_global_disk_breaker_to_bus`
-  added to `indexer/breaker.py` and called from `indexer/scanner/__init__.py`
-  so the import-time singleton's per-disk emits reach the run's bus.
-- **W3 — CircuitBreaker thread safety**: `threading.Lock` added to both
-  `core/circuit.py` (state property + record_success/record_failure) and
-  `indexer/breaker.py` (DiskCircuitBreaker.record_failure direct-mutation
-  path). Regression test pins single emit under 16 concurrent state reads.
-- **W2 / I7 / I6 — `docs/reference/event-bus.md`**: JSON contract rows
-  rewritten to match the fail-loud `TypeError` reality (no `str()` coercion,
-  no `repr` fallback). `Event` base fields described as `default_factory`
-  rather than `__post_init__`. `LibraryScanCompleted` producer location
-  corrected to `scanner.scan` finally block.
-- **I1-I5, I8 — docstring rot**: `--headless` CLI help, `_run_step`
-  docstring, `_disk_guard` "optional", `TelegramSubscriber.close`
-  "both tokens", `DebugLogSubscriber` "envelope", `state` property side
-  effect — all scrubbed.
-- **I9-I12 — error logging context**: scanner OSError warnings gain
-  `errno` + `strerror` + `exc_info=True`; `_disk_guard` secondary checkpoint
-  - DB-path lookup log at DEBUG; `dispatcher` disk iterdir logs structured
-    context; `PipelineEnded` emit failure demoted to WARNING.
-- **I13 — `indexer/scanner/__init__.py` over 1000 LOC**: the file is at
-  1029 non-blank lines but is currently exempted by
-  `scripts/check-module-size.py` (the script excludes every `__init__.py`).
-  Treated as a project-policy decision outside this PR's scope — keep the
-  current exemption. A dedicated refactor to extract the orchestrator body
-  to `scanner/_orchestrator.py` would also touch hot paths and is deferred
-  to a follow-up issue.
-- **I14 — orphan `if TYPE_CHECKING: pass`** in `indexer/breaker.py` removed.
+| Sub  | Scope                                                                 | SHA     | Status |
+| ---- | --------------------------------------------------------------------- | ------- | ------ |
+| 1.1  | Add HasName to existing api/\_contracts.py                            | 2e04938 | [x]    |
+| 1.2  | Metadata capabilities (11 atomiques) + decompose MetadataProvider     | bf5b676 | [x]    |
+| 1.2b | Migration plan for MetadataProvider consumers                         | b0b1ed8 | [x]    |
+| 1.3  | Tracker capabilities                                                  | d0f5e94 | [x]    |
+| 1.4  | Torrent capabilities (5 atomiques pour 7 méthodes)                    | 0c75f47 | [x]    |
+| 1.5  | Notify : migrate Notifier+HealthChecker existants vers \_contracts.py | 29f7ca0 | [x]    |
+| 1.6  | Helpers + ProviderFeatureUnavailable                                  | 723ee8f | [x]    |
 
-## Quality gate (every commit)
+### Phase 2 — Fix DEV #2 IDs Propagation
 
-```bash
-make check
-python3 scripts/check-module-size.py
-python3 scripts/check-typed-api.py
-```
+| Sub | Scope                                                      | SHA     | Status |
+| --- | ---------------------------------------------------------- | ------- | ------ |
+| 2.1 | Regression tests DEV #2 (RED) + EpisodeInfo.external_ids   | 7ef4994 | [x]    |
+| 2.2 | Fix `_build_episode_map` payload (TVDB + TMDb episode IDs) | afd06b2 | [x]    |
+| 2.3 | Fix `match_episode_files` passthrough                      | 16aa51c | [x]    |
+| 2.4 | Fix `_generate_episode_nfos` use propagated IDs            | 306dfc7 | [x]    |
 
-Every milestone commit (`chore(event-bus): phase N gate — <summary>`) must pass:
+### Phase 3 — IMDb + RT Façades
 
-1. `make lint` — ruff + mypy clean.
-2. `make test` — all tests pass.
-3. `make check` — composite gate.
-4. Skip / xfail baseline unchanged (see INDEX.md Pre-flight #9).
-5. Per-phase targeted greps (see each phase file).
-6. Module size budget respected (per DESIGN.md).
-7. Smoke import: `python -c "import personalscraper"`.
+| Sub  | Scope                                                  | SHA     | Status |
+| ---- | ------------------------------------------------------ | ------- | ------ |
+| 3.1  | OMDbAdapter refactor (mark internal, alias OMDBClient) | 0c72d81 | [x]    |
+| 3.2  | IMDbClient façade                                      | 00fd673 | [x]    |
+| 3.3  | RottenTomatoesClient façade                            | 7be760c | [x]    |
+| 3.4  | `_activation.py` wiring (PROVIDER_CREDS)               | dc8f876 | [x]    |
+| 3.4b | `api/metadata/__init__.py` exports                     | c7a0f57 | [x]    |
+| 3.5  | `config.example/metadata.json5` documents IMDb+RT      | 00cd61f | [x]    |
 
-See CLAUDE.md "Phase Gate Checklist (MANDATORY)" and INDEX.md Invariant 3 for the full protocol.
+### Phase 4 — Drift Validator Hardening
 
-## Sub-phase → SHA mapping
+| Sub  | Scope                                                | SHA     | Status |
+| ---- | ---------------------------------------------------- | ------- | ------ |
+| 4.1  | Tests RED drift sans canonical uniqueid              | fb497ea | [x]    |
+| 4.2  | Helper `_read_canonical_provider` + `_episode_nfo_*` | cfd3dd2 | [x]    |
+| 4.3  | Étendre check #4 (drop into the same commit as 4.2)  | cfd3dd2 | [x]    |
+| 4.3b | Update existing scraper test fixtures                | 2c8b3e6 | [x]    |
+| 4.4  | Test intégration drift → re-scrape                   | 4e5dd17 | [x]    |
 
-### Phase 1 — Foundation
+### Phase 5 — Xref Enrichment
 
-| Sub-phase | SHA       | Description                                                           |
-| --------- | --------- | --------------------------------------------------------------------- |
-| pre-1.1   | `505596c` | Pre-flight baselines (tests=3738, skip=6, notify_progress=46/8 files) |
-| 1.1       | `08616a3` | Event base + current_correlation_id ContextVar (10 tests)             |
-| 1.2       | `28e4121` | EventBus.subscribe/unsubscribe + SubscriptionToken (COW) (7 tests)    |
-| 1.3       | `f694070` | EventBus.emit + MRO cache + zero-alloc fast path (10 tests)           |
-| 1.4       | `492ac24` | Error isolation + re-entrant emit safety (6 tests)                    |
-| 1.5       | `6acfa18` | event_to_dict pure-payload JSON encoder (12 tests)                    |
-| 1.6       | `92fad12` | event_to_envelope/from_envelope + class registry (12 tests)           |
-| 1.7       | `a1e7d4c` | correlation_id ContextVar capture semantics (8 tests)                 |
-| 1.8       | `026fda6` | CollectingSubscriber + factories registry mechanism (9 tests)         |
-| 1.9       | `aae849e` | Phase 1 gate (no new code, all 10 verification items green)           |
+| Sub  | Scope                                            | SHA     | Status |
+| ---- | ------------------------------------------------ | ------- | ------ |
+| 5.1  | `_xref_enrichment` dans tv_service               | c7cb588 | [x]    |
+| 5.2  | `_resolve_external_ids` (Q5=B re-validation)     | 9621cdf | [x]    |
+| 5.3  | Wire dans `scrape_tvshow` flow                   | 905f574 | [x]    |
+| 5.4  | Réécriture NFOs xref-add (sans écrasement)       | 9c70a34 | [x]    |
+| 5.5  | Symétrique movie_service                         | 965a265 | [x]    |
+| 5.5b | Extract xref helpers to `_xref.py` (size budget) | 9aebe50 | [x]    |
 
-### Phase 2 — AppContext + StepContext slim
+### Phase 6 — NFO Ratings Multi-Source
 
-| Sub-phase | SHA       | Description                                                              |
-| --------- | --------- | ------------------------------------------------------------------------ |
-| 2.1       | `343001f` | AppContext frozen dataclass at core/app_context.py (3 tests)             |
-| 2.2a      | `fcc68dd` | StepContext gains app + run_id, legacy mirrors via **post_init** (6)     |
-| 2.2b      | `4b90106` | Sweep ctx.config/settings → ctx.app.config/settings (27 sites)           |
-| 2.2c      | `be8a52e` | Drop legacy mirrors from StepContext; final 2.2 shape                    |
-| pre-2.4   | `248f29d` | Pre-flight #7 — canonical Rich Console snapshot baseline                 |
-| 2.3       | `879cda8` | Pipeline.\_\_init\_\_(app), per-run run_id, ContextVar bind (9 tests)    |
-| 2.4       | `e1b4a17` | CLI entry builds AppContext via `_build_app_context` (3 tests)           |
-| 2.5       | `5969555` | launchd scan + 4 trailers commands rewired; bus to orchestrators (12 t.) |
-| 2.6       | `28d4d9a` | tests/architecture/test_app_context_boundary.py (AST allowlist, 5 t.)    |
-| 2.7       | `51a4bae` | Phase 2 gate (10 verification items)                                     |
+| Sub | Scope                                   | SHA     | Status |
+| --- | --------------------------------------- | ------- | ------ |
+| 6.1 | `_add_ratings` accepte liste Notations  | fc7aa25 | [x]    |
+| 6.2 | Caller side pass multi-source           | bacda30 | [x]    |
+| 6.3 | `default="true"` selon canonical (Q6=A) | 5841d22 | [x]    |
+| 6.4 | Tests golden NFO format Plex/Kodi       | cb61fb0 | [x]    |
 
-### Phase 3 — Pipeline event migration + subscribers
+### Phase 7 — DB Schema external_ids_json
 
-| Sub-phase | SHA                                           | Description                                                                                       |
-| --------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| 3.1       | `050bfd0` / `05e2dea` / `0ebf080` / `bfda5f6` | pipeline event catalog + factories + Report JSON-safety (4 commits, see "Notes on 3.1" below)     |
-| 3.2       | `59697ef`                                     | Pipeline emits `PipelineStarted` / `PipelineEnded`                                                |
-| 3.3       | `f3841c6`                                     | Pipeline emits `StepStarted` / `StepCompleted` / `StepErrored` around each of the 9 steps         |
-| 3.4       | `27f85a8`                                     | Step emit migration: 46 sites migrated, `event_bus` kwarg threaded into all 9 `run_*` entries (9) |
-| 3.5       | `16471eb`                                     | `RichConsoleSubscriber` rewrite; baseline byte-identity locked vs canonical snapshot              |
-| 3.6       | `d893d12`                                     | `TelegramSubscriber` rewrite (PipelineEnded + StepErrored); cassette via `responses`              |
-| 3.7a      | `2202364`                                     | Migrate every test off the legacy Observer API; 4 legacy test files deleted                       |
-| 3.7b      | `7cff5db`                                     | Delete legacy infrastructure: `pipeline_observer.py`, `observers/`, `StepContext.observers`       |
-| 3.7c      | `4bdb695`                                     | Docs sweep + new bus reference section in `docs/reference/pipeline-internals.md`                  |
-| 3.8       | `14d530e`                                     | structlog dedup audit at emit sites (1 removed, 5 kept); parametrized AST audit (227 files)       |
-| 3.9       | `e6b8290`                                     | Phase 3 gate                                                                                      |
-| post-3.9  | `dba9ed0` / `4b13497`                         | Post-gate cleanup: scrub residual docstring + pin resumption HEAD                                 |
+| Sub  | Scope                                                         | SHA     | Status |
+| ---- | ------------------------------------------------------------- | ------- | ------ |
+| 7.1  | Migration 005 + MediaItemRow updates                          | 11016c2 | [x]    |
+| 7.1b | item_repo.py + outbox/\_apply.py write to external_ids_json   | fbb9a3d | [x]    |
+| 7.2  | Backup `library.db` avant migration                           | -       | manual |
+| 7.2b | (Plan A retained) no SQL one-shot script — reset+rescrape     | -       | n/a    |
+| 7.3  | `indexer/query.py` FieldSpec via json_extract                 | f6fcc13 | [x]    |
+| 7.4  | Pydantic models `ExternalIds` + `Ratings`                     | (7.4)   | [x]    |
+| 7.5  | dispatch/library scanners write external_ids_json             | f771b53 | [x]    |
+| 7.5b | trailers scanner/orchestrator read ids from external_ids_json | 6c3d6e4 | [x]    |
+| 7.6  | Plan A (Plan B unused — no cleanup script needed)             | -       | n/a    |
 
-**Notes on 3.1**: `bfda5f6` lands the catalog + factories + envelope round-trip; `050bfd0`, `05e2dea`, and `0ebf080` are the three Report JSON-safety coercion fixes surfaced by the round-trip test (StepReport.failed_items, StepReport.details_payload, PEP 604 union decoding).
+**Décision Plan A vs Plan B** : à trancher avant exécution. Library < 100 items → Plan A (reset+rescrape) préféré.
 
-### Phase 4 — Cross-cutting events
+### Phase 8 — Backfill Mode
 
-| Sub-phase | SHA       | Description                                                                                  |
-| --------- | --------- | -------------------------------------------------------------------------------------------- |
-| 4.1       | `ad99051` | `CircuitBreakerOpened` / `Closed` / `HalfOpened`; Telegram subscription #3 (13 tests)        |
-| 4.2a      | `bedb7cc` | Locator probe Case A → extract `handle_disk_full` to `indexer/_disk_guard.py` (2 tests)      |
-| 4.2b      | `f04da92` | `DiskFullWarning` emit (both check_free_space + handle_disk_full); Telegram sub #4 (8 tests) |
-| 4.3       | `1011e41` | `ItemDispatched` emit from `_movie.dispatch_movie` + `_tv.dispatch_tvshow` (9 tests)         |
-| 4.4       | `90ffdec` | `TrailerDownloaded` emit from `TrailersOrchestrator` success branch (8 tests)                |
-| 4.5       | `3420dca` | `LibraryScanCompleted` emit in `scan()` finally block (all 6 modes covered) (10 tests)       |
-| 4.6       | `8ff7014` | Phase 4 gate                                                                                 |
+| Sub | Scope                                                                          | SHA                                  | Status  |
+| --- | ------------------------------------------------------------------------------ | ------------------------------------ | ------- |
+| 8.1 | `backfill_ids.py` gap detection + safe-merge helpers (pure)                    | 11016c2 (init), 970d045 (typing fix) | [x]     |
+| 8.2 | `scanner/_modes/backfill_ids.py` driver + `run_backfill_ids()` entrypoint      | (8.2)                                | [x]     |
+| 8.3 | Auto-trigger post-scrape — emit-based via EventBus subscriber (CLI wiring TBD) | (8.4)                                | partial |
+| 8.4 | EventBus events: BackfillStarted/ItemCompleted/Skipped/Completed + factories   | c369451                              | [x]     |
 
-**Phase 4 audit (recorded in gate commit body for Phase 5.2 baseline)**:
+### Phase 9 — Verify Checker Extensions
 
-```
-event_bus_optional_sites_count: 20
-circuit_breaker_calls_without_event_bus_count: 4
-```
+| Sub | Scope                                                                 | SHA     | Status |
+| --- | --------------------------------------------------------------------- | ------- | ------ |
+| 9.x | All 3 checks + fixture updates batched: canonical/xref secondary/imdb | 93e2a20 | [x]    |
 
-The 4 `CircuitBreaker(` matches without `event_bus=` on the same line are
-all multi-line constructor calls — 3 production sites already pass
-`event_bus=` on a subsequent line (`api/transport/_http.py`,
-`indexer/breaker.py`, `trailers/orchestrator.py`) plus the module-level
-`_GLOBAL_DISK_BREAKER = DiskCircuitBreaker()` singleton init. Phase 5.2
-removes the `| None` from `CircuitBreaker.__init__(event_bus=...)` and
-forces every site to pass `event_bus` explicitly.
+### Phase 10 — Consumers Refactor
 
-### Phase 6 — PR review cycle 1 fixes
+| Sub  | Scope                                                                              | SHA     | Status |
+| ---- | ---------------------------------------------------------------------------------- | ------- | ------ |
+| 10.1 | recommender accepts external_ids tuple unchanged (ids dict already abstracts)      | 5b1cabf | [x]    |
+| 10.2 | `library/scanner.py` writes external_ids_json (done in phase 7.5)                  | f771b53 | [x]    |
+| 10.3 | Drop `RuleCriteria.imdb_id` (pre-1.0 no retro-compat)                              | 5b1cabf | [x]    |
+| 10.4 | `trailers/scanner.py` + `orchestrator.py` read from external_ids_json (phase 7.5b) | 6c3d6e4 | [x]    |
+| 10.5 | `config.example/` had no OverrideRule example — no-op                              | -       | n/a    |
 
-| Sub-phase | SHA       | Description                                                                                                                                                                                             |
-| --------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 6.1       | `6857be7` | Scrub regex-sweep contaminations from docstrings + comments (58 lines across 23 files)                                                                                                                  |
-| 6.2       | `ea1f1a3` | Drop stale `dispatcher._event_bus is not None` compound guards in `dispatch/_movie.py` + `_tv.py`                                                                                                       |
-| 6.3       | `cbcc730` | Sweep stale "Optional" / phase-milestone wording across 19 docstrings (production)                                                                                                                      |
-| 6.4–6.12  | `84ac67d` | Bundle: doc corrections in `event-bus.md` (envelope shape, KeyError, CLI bootstrap, catalog rows, callback order, perf wording, LOC drift), drop `has_event_bus` log field, add CLI exception-path test |
-| 6.13      | _(this)_  | Phase 6 gate                                                                                                                                                                                            |
+### Phase 11 — Tracker Capabilities
 
-### Phase 5 — Required-bus tightening + CLI polish
+| Sub  | Scope                                                                              | SHA     | Status |
+| ---- | ---------------------------------------------------------------------------------- | ------- | ------ |
+| 11.x | Drop TrackerClient + LaCale/C411 composition + Registry typed by TorrentSearchable | a1cc268 | [x]    |
 
-| Sub-phase | SHA       | Description                                                                                  |
-| --------- | --------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| 5.1       | `849b56e` | Make `CircuitBreaker.event_bus` required; drop emit guards; +2 signature tests               |
-| 5.2       | `67b5dc1` | Tighten remaining 20 Phase-4 `                                                               | None` sites; AST signature suite; ~50 emit guards dropped |
-| 5.3       | `15c48bb` | `DebugLogSubscriber` (29 LOC) + 16 tests over all 13 v1 events                               |
-| 5.4       | `d728a16` | Wire `personalscraper run --verbose` to register `DebugLogSubscriber` (2 integration tests)  |
-| 5.5       | `b62f6ab` | `docs/reference/event-bus.md` (11 sections, ≥ 20 LOC each); CLAUDE.md Reference Index update |
-| 5.6       | _(this)_  | Phase 5 gate + feature acceptance audit                                                      |
+### Phase 12 — Tracker Registry Priority-Aware
+
+| Sub  | Scope                                                                          | SHA    | Status |
+| ---- | ------------------------------------------------------------------------------ | ------ | ------ |
+| 12.x | Registry + TrackerConfig + config.example + activation: priority_by_media_type | (12.x) | [x]    |
+
+### Phase 13 — Torrent Capabilities
+
+| Sub  | Scope                                                                          | SHA     | Status |
+| ---- | ------------------------------------------------------------------------------ | ------- | ------ |
+| 13.x | Drop TorrentClient + QBit/Transmission composition + TorrentClientFull factory | 5b62bf4 | [x]    |
+
+### Phase 14 — Notify Capabilities (pas de drop monolithique — Protocols Notifier+HealthChecker existent déjà)
+
+| Sub  | Scope                                                                                     | SHA     | Status |
+| ---- | ----------------------------------------------------------------------------------------- | ------- | ------ |
+| 14.x | Structural composition pinned via runtime_checkable + isinstance tests + docstring update | 9f850d6 | [x]    |
+
+### Phase 15 — Integration + E2E
+
+| Sub  | Scope                                                                                        | SHA    | Status |
+| ---- | -------------------------------------------------------------------------------------------- | ------ | ------ |
+| 15.x | E2E aggregate test + ACCEPTANCE.md + external-ids-flow reference doc + CLAUDE.md trigger row | (15.x) | [x]    |
+
+## Quality gates (à passer à chaque phase gate commit)
+
+Per `CLAUDE.md` Phase Gate Checklist :
+
+1. `make lint` (ruff + mypy) — zéro erreur
+2. `make test` — tous les tests pass, 0 ERROR / 0 FAILED
+3. `make check` — lint + test + module-size + typed-api guardrails
+4. Residual import grep — pour chaque module deleted, `rg "old.module.path" personalscraper/ tests/ --type py` = 0
+5. `command python -c "import personalscraper"` — smoke test
 
 ## Review cycles
 
-### Cycle 1
+_(filled by implement:pr-review — max 3 cycles après création PR)_
 
-- Findings received: 4 agents (code-reviewer, pr-test-analyzer, silent-failure-hunter, comment-analyzer) — 26 raw findings.
-- Retained: 13 (0 critical, 8 major, 4 medium, 1 minor — full classification in `docs/features/event-bus/plan/phase-06-pr-fixes-cycle-1.md`).
-- Ignored: 13 (out of Phase 5 scope, documented decisions, or positive observations). Notably:
-  - `_GLOBAL_DISK_BREAKER` silent drops: pre-existing architectural decision; module docstring acknowledges "effectively dropped" via the AppContext-wired path; scanner restructure is scope-expansion.
-  - Step CLI commands silently drop events: design did not specify per-step subscriber wiring; only `personalscraper run` is the operator-facing entry.
-- Fix phase created: `phase-06-pr-fixes-cycle-1.md`.
-- Status: clean — fix phase executed across SHAs `6857be7`, `ea1f1a3`, `cbcc730`, `84ac67d`; Phase 6 gate at `1567089`. CI green on the fix commits.
+| Cycle | Date | Issues catched | Resolved | Notes |
+| ----- | ---- | -------------- | -------- | ----- |
+| -     | -    | -              | -        | -     |
 
-### Cycle 2
+## Pipeline-run pending
 
-- Findings received: focused verification run (1 `pr-review-toolkit:code-reviewer` agent against the Phase 6 commit range `fe6163e..1567089`).
-- Retained: 0 (zero new findings; all 12 Cycle 1 retained items confirmed resolved with file:line evidence — see agent report).
-- Ignored: 0.
-- Fix phase created: none.
-- Status: **clean — proceeding to merge** (manual mode per IMPLEMENTATION.md header). All audit greps zero; targeted test slices (`tests/dispatch tests/trailers tests/integration tests/indexer tests/ingest`) → 1049 passed, 2 skipped; lint + mypy + format clean on the full repo.
+Staging area du run 2026-05-17-09h24 conservée intacte (8 items dispatch-ready) : I Origins (2014), American Dad! S22, Dexter New Blood S01, FROM (2022), LOL Qui rit sort ! S06, Stranger Things Tales from '85 S01, The Boys S05, Top Chef S17. (Top Chef Le Concours Parallèle S17E10 reste blocked par root_video_files safety net — DESIGN_CONFORM.)
 
-## Resumption snapshot — read FIRST when resuming
+Post-merge provider-ids → relancer le dispatch sur cette staging area (acceptance criterion #10 du DESIGN).
 
-**HEAD SHA**: _(this commit)_ — `chore(event-bus): phase 6 gate — PR review cycle 1 fixes applied`.
-**Branch**: `feat/event-bus` — pushed to origin (CI passing on Phase 5 gate; this Phase 6 gate awaits a re-poll).
-**Working tree**: clean.
-**Last successful gate**: Phase 6 gate (PR review cycle 1 fixes).
+## Next action
 
-- `make lint` clean (ruff + mypy strict + ruff format + logging audit; 231 source files; 548 files formatted).
-- `make test` green: **4232 passed, 3 skipped** under `-n auto` (no coverage; +1 vs Phase 5 for the CLI exception-path `DebugLogSubscriber.close` regression guard).
-- `make check` green: 4074 unit tests at 91.24% coverage; only pre-existing `personalscraper/scraper/tv_service.py: 819 non-blank lines` advisory warning.
-- Module sizes within Phase 5 budgets:
-  - `core/event_bus.py` 376/400
-  - `core/app_context.py` 43/80
-  - `pipeline_events.py` 101/150
-  - `dispatch/events.py` 34/50
-  - `core/circuit.py` 264/350
-  - `indexer/events.py` 60/60
-  - `trailers/events.py` 24/30
-  - `events/__init__.py` 66/100
-  - `subscribers/rich_console.py` 175/200
-  - `subscribers/telegram.py` 117/200
-  - `subscribers/debug_log.py` 29/40
-  - `tests/fixtures/event_bus.py` 66/80
-  - `tests/fixtures/event_samples.py` 147/150
-  - `tests/architecture/test_app_context_boundary.py` 97/100
+**Démarrage de session (fresh `/clear`)** :
 
-**Captured baselines (locked at feature start)**:
+1. **Lire ce fichier en entier** (`IMPLEMENTATION.md`) — tu y es.
+2. Lire `docs/features/provider-ids/DESIGN.md` pour le contexte complet de la feature (13 sections, 567 lignes).
+3. Lire `docs/features/provider-ids/plan/INDEX.md` pour la vue d'ensemble des 15 phases.
+4. Lire `docs/features/provider-ids/plan/phase-02-fix-dev2-ids-propagation.md` (prochaine phase à exécuter — Phase 1 [x] mergée gate 2e04938..723ee8f).
+5. Lancer `/implement:phase` pour démarrer Phase 2.
 
-- `make test` baseline: **3738 passed, 3 skipped** at commit `55f758a` (feature activation).
-- Current `make test`: **4232 passed, 3 skipped** (= **+494 new event-bus tests** vs feature baseline; well above the Phase 5.6 minimum of +175).
-- Skip / xfail decorator count: **6** (matches SKIP_BASELINE locked at Pre-flight #9; no growth — Invariant 1 honored).
+**Mémoires utilisateur à recharger** (la skill `/implement:phase` doit en tenir compte à chaque sub-phase) : voir la section **Active memories** ci-dessus. Les 6 mémoires sont stockées dans `/Users/izno/.claude/projects/-Users-izno-dev-PersonnalScaper/memory/feedback_*.md`.
 
-**Event registry (Phase 4 gate target reached)**: 13 production events.
+## Autopilot discipline (mode chaînage automatique des 15 phases)
+
+L'utilisateur a explicitement demandé un **enchainement automatique** des phases sans pause inutile. Règles strictes pour ce mode :
+
+### Boucle d'exécution par sub-phase
 
 ```
-CircuitBreakerClosed, CircuitBreakerHalfOpened, CircuitBreakerOpened,
-DiskFullWarning, ItemDispatched, ItemProgressed, LibraryScanCompleted,
-PipelineEnded, PipelineStarted, StepCompleted, StepErrored, StepStarted,
-TrailerDownloaded
+1. Lire la sub-phase courante (depuis le phase file)
+2. Re-grep les file:line refs cités contre le codebase actuel (peut avoir bougé)
+3. TDD : écrire les tests RED en premier (cf. memory feedback_regression_test_per_bug)
+4. Implémenter le code pour faire passer les tests
+5. `make test` ciblé sur les tests nouveaux → GREEN
+6. Commit conventional : `<type>(provider-ids): <description>`
+7. Update IMPLEMENTATION.md sub-phase tracking : SHA + status [x]
+8. /implement:check sur la sub-phase → 7 contrôles
+9. Si check pass → sub-phase suivante. Si fail → fix immédiat, pas de defer.
 ```
 
-Eagerly imported by `personalscraper.events` so every class is registered
-before any `event_from_envelope` call. The `Event` base does not register
-itself (Phase 1.6 module-path filter; verified at gate time).
+### Boucle d'exécution par phase
 
-**TelegramSubscriber subscriptions**: 4 (PipelineEnded, StepErrored,
-CircuitBreakerOpened, DiskFullWarning). Pinned by
-`test_telegram_subscriber_has_four_subscriptions_after_phase4`.
+```
+1. Toutes sub-phases d'une phase [x] → quality gate :
+   - make lint (ruff + mypy) → 0 erreur
+   - make test → tous tests pass, 0 ERROR/FAILED
+   - make check (lint + test + module-size + typed-api)
+   - residual import grep si modules supprimés
+   - python -c "import personalscraper" smoke
+2. Commit gate : `chore(provider-ids): phase N gate — <résumé>`
+3. Update IMPLEMENTATION.md phase row : [x]
+4. Vérifier si découverte de phase N impacte phases N+1..15 (read forward).
+   - Si oui : update phase file(s) + commit `docs(provider-ids): adjust plan after phase N`
+5. Lancer immédiatement phase N+1 — pas de pause utilisateur, pas de /compact manuel.
+```
 
-## Next action — concrete resumption protocol
+### Gestion proactive du contexte (zéro pause /compact)
 
-All five phases are complete. Run `/implement:feature-pr` (auto-chained by
-`/implement:phase` after this gate commit): it runs the local quality gate,
-pushes `feat/event-bus`, opens the PR, and polls CI to green. Then
-`/implement:pr-review` runs the toolkit + fix-cycle loop (max 5 cycles) and
-performs the squash merge.
+Le système Claude Code **compresse automatiquement** les messages quand le contexte approche la limite ("your conversation with the user is not limited by the context window"). Pas besoin d'invoquer `/compact` à la main entre les phases.
 
-## Push convention (user-imposed)
+Pour minimiser la pression sur le contexte au quotidien, appliquer les 5 disciplines suivantes :
 
-`git push` to `origin/feat/event-bus` after **each phase-gate commit**
-(`chore(event-bus): phase N gate — …`). Do NOT push between sub-phases.
-The pre-push hook runs ruff + format + logging audit + mypy + pytest before
-allowing the push — keep all 5 green at every phase gate. (Mid-phase pushes
-are allowed only as a backup measure when ending a session.) Phase 1 / 2 / 3
-gates pushed at their respective milestones. Phase 4 gate (`8ff7014`) is
-local-only at HEAD; the push happens at the Phase 5 feature-pr step per the
-chained workflow above (`/implement:feature-pr` invokes `git push` as its
-first action after the local quality gate).
+1. **Dispatcher en subagent les opérations lourdes** :
+   - `/implement:check` (7 contrôles) → subagent (`general-purpose` ou agent dédié)
+   - Code review d'une grosse diff → subagent (`pr-review-toolkit:code-reviewer`)
+   - Analyse d'output de test long → subagent (`general-purpose`)
+   - Investigation cross-modules (où est utilisé X ?) → `Explore` agent
+   - Le subagent a son propre contexte ; il renvoie un résumé concis.
+
+2. **Lectures minimales en main session** :
+   - `Bash` avec `head -N`, `tail -N`, `grep -c`, `sed -n 'X,Yp'` au lieu de `Read` complet.
+   - Si un fichier dépasse 200 lignes et qu'on veut juste vérifier une chose : `grep` cible direct.
+   - `Read` avec `offset` + `limit` quand on connaît la zone d'intérêt.
+
+3. **Externaliser l'état sur disque immédiatement après chaque sub-phase** :
+   - Commit SHA → update IMPLEMENTATION.md sub-phase tracking row → "oublier" les détails internes.
+   - Si on a besoin du détail plus tard : `git show <SHA>` pour relire.
+   - Toutes les décisions architecturales : DESIGN.md (committed).
+   - Toutes les nouvelles règles : `feedback_*.md` memory (committed à la convention).
+
+4. **Ne pas re-lire les mêmes gros fichiers plusieurs fois** :
+   - DESIGN.md : lu UNE fois en début de session, puis re-grep cible.
+   - INDEX.md : lu UNE fois pour avoir la map, puis on accède directement aux phase files.
+   - Chaque phase file : lu UNE fois au début de la phase, puis on consulte par section si besoin.
+   - Si on doute → `grep "section-name" docs/features/provider-ids/...` pour cibler.
+
+5. **Trust auto-compression** :
+   - Pas de `/compact` manuel pré-emptif. Le système gère.
+   - Pas de "je dois libérer du contexte avant la phase suivante" — on continue.
+   - Si la compression auto retire un détail critique : tout est sur disque committed, on relit.
+
+**Anti-patterns à éviter pour le contexte** :
+
+| Anti-pattern                                                | Alternative                                             |
+| ----------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------ |
+| `Read` du DESIGN.md (600 lignes) après chaque sub-phase     | `grep` ciblé sur la section relevante                   |
+| Coller le contenu de 5 phase files dans une seule analyse   | Subagent qui lit les 5 et renvoie un résumé             |
+| Faire `make test` en main session sur l'output complet      | `make test 2>&1                                         | tail -50` pour ne voir que le résumé |
+| Re-lire IMPLEMENTATION.md complet à chaque sub-phase        | Read avec offset sur la sub-phase tracking row courante |
+| Logger en main session tous les détails de chaque sub-phase | Subagent qui exécute + commit + renvoie SHA + résumé    |
+
+### Pauses AUTORISÉES uniquement dans ces 6 cas
+
+| Situation                                                   | Action                                               |
+| ----------------------------------------------------------- | ---------------------------------------------------- |
+| Rate-limit TVDB/TMDB/OMDb pendant re-scrape                 | Attendre fenêtre, reprendre                          |
+| API key absente (`OMDB_API_KEY`, etc.)                      | Demander à l'utilisateur, pas inventer               |
+| Cas non couvert par DESIGN §3 (séparation familles ambiguë) | Mini-brainstorm avec l'utilisateur                   |
+| PR review remonte point HORS scope plan                     | Demander : fix maintenant ou queue pour cycle séparé |
+| Test fixture HTTP recorded échoue (API drift)               | Demander : re-record ou mock                         |
+| Conflit entre 2 mémoires utilisateur                        | Demander arbitrage                                   |
+
+**Tout le reste est auto-pilot.** Ne jamais demander :
+
+- "Veux-tu que je passe à la phase suivante ?" — non, je passe.
+- "Devrais-je découper cette sub-phase ?" — oui si > 150 LOC ou > 1 commit logique, je découpe.
+- "Faut-il updater le DESIGN ?" — oui si une découverte le contredit, je update + commit.
+- "Faut-il committer ?" — oui après chaque sub-phase, faut commit.
+
+### Adaptation dynamique des phases suivantes
+
+Si pendant phase N je découvre qu'une décision change le scope de phase N+k :
+
+1. **Update le phase file concerné** (ajout sub-phase, modif acceptance criteria, etc.).
+2. **Update IMPLEMENTATION.md sub-phase tracking** (nouvelles rows).
+3. **Update DESIGN.md** si la décision architecturale change.
+4. Commit unique : `docs(provider-ids): adjust phase N+k after phase N findings`.
+5. Continuer phase N — ne PAS faire phase N+k en avance.
+
+### Découpage sur dépassement (au lieu de défer)
+
+Si sub-phase N.x déborde naturellement :
+
+- **NON** : "je le mets en TODO pour plus tard" ← `feedback_event_bus_no_deferral` interdit.
+- **OUI** : "je découpe en N.x.a + N.x.b" avec acceptance criteria split. Update IMPLEMENTATION.md.
+
+### Recovery post-/compact ou post-/clear
+
+À chaque nouveau démarrage de session :
+
+1. Read `IMPLEMENTATION.md` complet (tu y es).
+2. Identifier la dernière sub-phase `[x]` dans le sub-phase tracking → la suivante = à exécuter.
+3. Read le phase file correspondant.
+4. Re-grep les file:line refs contre le codebase actuel (vérification de sync).
+5. Continuer la boucle d'exécution par sub-phase.
+
+Aucune information critique n'est en mémoire conversationnelle — tout est sur disque committed ou dans `feedback_*.md`.
+
+## Critical invariants (NE JAMAIS oublier pendant l'implémentation)
+
+Ces 5 règles s'appliquent à TOUTES les phases sans exception :
+
+1. **Séparation stricte des familles d'IDs** — TVDB / TMDB / IMDb sont 3 familles distinctes. `<uniqueid type="tvdb">` contient un **vrai** ID TVDB ; pas de cross-write. Cf. memory `feedback_multi_provider_ids_separation`.
+2. **Hiérarchie scrape canonique fixe** — TVDB primaire → TMDB info+fallback → IMDb info (jamais primary scrape). Cf. DESIGN §3.
+3. **Idempotence par famille** — chaque step pipeline peut backfill une famille sans écraser les autres. Cf. DESIGN §3 invariants.
+4. **Pre-1.0 : pas de retro-compat, pas de scripts génériques** — toute modif schema/config/NFO appliquée directement à l'unique instance dans le même PR. Cf. memory `feedback_no_backcompat_before_v1`.
+5. **TDD strict pour les bugs** — tests RED qui reproduisent le bug AVANT le fix. Cf. memory `feedback_regression_test_per_bug`.
+
+## Hard gate (interdictions explicites)
+
+- **Ne PAS différer** un item du DESIGN (`feedback_event_bus_no_deferral`). Si une phase déborde → découper en sub-phases additionnelles, jamais "remettre à plus tard".
+- **Ne PAS commiter** sans avoir vérifié les file:line refs cités dans la sub-phase contre le codebase actuel (le code a peut-être bougé depuis la rédaction du plan — re-grep avant de toucher).
+- **Ne PAS ajouter** de capability hors des 11 metadata / 4 tracker / 5 torrent / 2 notify définies. Si un besoin émerge → re-brainstorm.
+- **Ne PAS sauter** le commit `chore({codename}): phase N gate` à la fin d'une phase (cf. `CLAUDE.md` Phase Gate Checklist).
+
+## Session-start cheat sheet
+
+| Question                                       | Réponse                                                                                                   |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Quelle branche ?                               | `feat/provider-ids` (créée par `b980433`)                                                                 |
+| Quelle version ?                               | `0.15.0` (bumpée depuis 0.14.0, minor Y+1)                                                                |
+| Combien de phases ?                            | 15                                                                                                        |
+| Combien de capabilities à créer ?              | 22 Protocols (11 metadata + 4 tracker + 5 torrent + 2 notify migrés) + 1 helper (HasName)                 |
+| Quel est le bug initial ?                      | DEV #2 du pipeline-run 2026-05-17-09h24 — NFOs épisode sans `<uniqueid>` (root cause 5 layers, DESIGN §1) |
+| Quels shows en staging attendent un dispatch ? | 8 (voir Pipeline-run pending ci-dessus)                                                                   |
+| Quelles features sont prerequis ?              | event-bus (mergée v0.14.0), pipeline-obs (v0.13.0), api-unify (v0.11.0) — toutes sur main                 |
+| Quel merge mode ?                              | manual (`gh pr merge --squash` à la fin)                                                                  |
+| Où sont les 6 mémoires utilisateur ?           | `/Users/izno/.claude/projects/-Users-izno-dev-PersonnalScaper/memory/feedback_*.md`                       |

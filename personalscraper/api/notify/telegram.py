@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar
 
 from personalscraper.api._contracts import ApiError, ProviderName
+from personalscraper.api.notify._contracts import Notifier
 from personalscraper.api.transport._auth import NoAuth
 from personalscraper.api.transport._policy import (
     CircuitPolicy,
@@ -46,10 +47,13 @@ _DEFAULT_RETRY = RetryPolicy(max_attempts=3)
 _DEFAULT_RATE = RateLimitPolicy(requests_per_second=1.0)
 
 
-class TelegramNotifier:
+class TelegramNotifier(Notifier):
     """Send pipeline notifications via the Telegram Bot API.
 
-    Implements the `Notifier` Protocol (DESIGN §7.1). Fail-soft by contract:
+    Composes the :class:`~personalscraper.api.notify._contracts.Notifier`
+    Protocol (DESIGN §7.1, sub-phase 14.2 of the ``provider-ids`` feature).
+
+    Fail-soft by contract:
     any transport or API error is logged and converted to a `False` return —
     the notifier MUST NEVER raise, so a Telegram outage cannot abort the
     pipeline.
@@ -119,8 +123,11 @@ class TelegramNotifier:
         Returns:
             `True` if every chunk was accepted; `False` on any error.
         """
+        chunks = self._chunk(message, max_len=_MAX_MESSAGE_LEN)
+        chunks_total = len(chunks)
+        chunks_sent = 0
         try:
-            for chunk in self._chunk(message, max_len=_MAX_MESSAGE_LEN):
+            for chunk in chunks:
                 self._transport.post(
                     "/sendMessage",
                     data={
@@ -129,18 +136,26 @@ class TelegramNotifier:
                         "parse_mode": parse_mode,
                     },
                 )
+                chunks_sent += 1
         except ApiError as exc:
             log.warning(
                 "telegram_send_failed",
                 http_status=exc.http_status,
                 message=exc.message,
+                chunks_sent=chunks_sent,
+                chunks_total=chunks_total,
             )
             return False
         except Exception as exc:  # noqa: BLE001 — fail-soft: notifier must never abort the pipeline
-            log.exception("telegram_unexpected_error", error=str(exc))
+            log.exception(
+                "telegram_unexpected_error",
+                error=str(exc),
+                chunks_sent=chunks_sent,
+                chunks_total=chunks_total,
+            )
             return False
 
-        log.info("telegram_sent", chat_id=self._chat_id)
+        log.info("telegram_sent", chat_id=self._chat_id, chunks=chunks_total)
         return True
 
     def send_report(self, report: PipelineReport) -> bool:

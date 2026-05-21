@@ -13,14 +13,39 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, cast
 
+from personalscraper.api.metadata._base import Notations
 from personalscraper.indexer.outbox._disk import disk_id_for_path
 from personalscraper.indexer.outbox._publish import publish_event
+from personalscraper.logger import get_logger
+
+log = get_logger("scraper.nfo_generator")
 
 # Preview image sizes for inline thumbs
 POSTER_PREVIEW_SIZE = "w342"
 BACKDROP_PREVIEW_SIZE = "w780"
 ACTOR_THUMB_SIZE = "original"
 IMAGE_BASE = "https://image.tmdb.org/t/p"
+
+# Translate the internal ``Notations.source`` literal into the NFO /
+# Plex source identifier expected by readers (Plex, Kodi, MediaElch).
+_NFO_RATING_SOURCE_NAMES: dict[str, str] = {
+    "imdb": "imdb",
+    "tmdb": "themoviedb",
+    "rotten_tomatoes": "rottentomatoes",
+    "metacritic": "metacritic",
+    "trakt": "trakt",
+}
+
+# Value range per source. Plex/Kodi readers compute the visible
+# percentage from ``value / max`` ; mismatching the range produces a
+# rating that looks off by an order of magnitude.
+_NFO_RATING_MAX: dict[str, int] = {
+    "imdb": 10,
+    "themoviedb": 10,
+    "trakt": 10,
+    "metacritic": 100,
+    "rottentomatoes": 100,
+}
 
 
 def _image_url(path: str, size: str = "original") -> str:
@@ -144,7 +169,17 @@ class NFOGenerator:
         if year_str and movie_title.endswith(f" ({year_str})"):
             movie_title = movie_title[: -len(f" ({year_str})")]
         _sub(root, "title", movie_title)
-        self._add_ratings(root, movie_data)
+        # Multi-source ratings (phase 6) : forward optional ``notations``
+        # + ``canonical_source`` keys so callers that resolved
+        # IMDb / Rotten Tomatoes ratings via _resolve_external_ids get a
+        # one-row-per-source ``<ratings>`` block. Absent keys fall back
+        # to the legacy single-row TMDb path.
+        self._add_ratings(
+            root,
+            movie_data,
+            notations=movie_data.get("notations"),
+            canonical_source=movie_data.get("canonical_source"),
+        )
         _sub(root, "userrating", "0")
         _sub(root, "top250", "0")
         _sub(root, "outline", movie_data.get("overview", ""))
@@ -306,8 +341,13 @@ class NFOGenerator:
         # add-ons) get the same id Kodi itself would resolve via uniqueid.
         _sub(root, "id", tvdb_id or tmdb_id)
 
-        # --- Ratings ---
-        self._add_ratings(root, show_data)
+        # --- Ratings (multi-source via optional ``notations``) ---
+        self._add_ratings(
+            root,
+            show_data,
+            notations=show_data.get("notations"),
+            canonical_source=show_data.get("canonical_source"),
+        )
         _sub(root, "userrating", "0")
         _sub(root, "top250", "0")
 
@@ -398,28 +438,51 @@ class NFOGenerator:
         _sub(root, "title", episode_data.get("name", ""))
         _sub(root, "showtitle", episode_data.get("showtitle", ""))
 
-        # --- IDs (TVDB default for episodes) ---
+        # --- IDs ---
         # When an id resolves to None/0/"" the tag is omitted rather than
         # written as the literal string "None" (Kodi reads "None" as a real
         # id and tries to look it up, poisoning the scraper cache).
+        #
+        # Provider-ids feature (phase 6.3, Q6=A) : the ``default="true"``
+        # attribute follows ``episode_data["canonical_provider"]`` when set
+        # — "tvdb" → tvdb wins ; "tmdb" → tmdb wins. The pre-feature
+        # default (TVDB-when-present) is preserved when the caller has
+        # not declared a canonical provider, keeping legacy NFO outputs
+        # unchanged.
         raw_tvdb_id = episode_data.get("tvdb_id")
         raw_tmdb_id = episode_data.get("id", episode_data.get("tmdb_id"))
+        raw_imdb_id = episode_data.get("imdb_id")
         tvdb_id = str(raw_tvdb_id) if raw_tvdb_id not in (None, 0, "0", "", "None") else ""
         tmdb_id = str(raw_tmdb_id) if raw_tmdb_id not in (None, 0, "0", "", "None") else ""
+        imdb_id = str(raw_imdb_id) if raw_imdb_id not in (None, 0, "0", "", "None") else ""
 
-        tvdb_is_default = bool(tvdb_id)
-        if tvdb_id:
-            uniqueid_tvdb = _sub(root, "uniqueid", tvdb_id)
-            uniqueid_tvdb.set("default", "true")
-            uniqueid_tvdb.set("type", "tvdb")
-        if tmdb_id:
-            uniqueid_tmdb = _sub(root, "uniqueid", tmdb_id)
-            if not tvdb_is_default:
-                uniqueid_tmdb.set("default", "true")
-            uniqueid_tmdb.set("type", "tmdb")
+        canonical_family = (episode_data.get("canonical_provider") or "").strip().lower()
+        if canonical_family not in ("tvdb", "tmdb"):
+            canonical_family = "tvdb" if tvdb_id else ("tmdb" if tmdb_id else "")
+
+        ordered = (
+            ("tvdb", tvdb_id),
+            ("tmdb", tmdb_id),
+            ("imdb", imdb_id),
+        )
+        default_applied = False
+        for family, value in ordered:
+            if not value:
+                continue
+            element = _sub(root, "uniqueid", value)
+            element.set("type", family)
+            if not default_applied and family == canonical_family:
+                element.set("default", "true")
+                default_applied = True
 
         # --- Ratings (episodes use "tmdb" not "themoviedb") ---
-        self._add_ratings(root, episode_data, rating_name="tmdb")
+        self._add_ratings(
+            root,
+            episode_data,
+            rating_name="tmdb",
+            notations=episode_data.get("notations"),
+            canonical_source=episode_data.get("canonical_source"),
+        )
         _sub(root, "userrating", "0")
         _sub(root, "top250", "0")
 
@@ -536,22 +599,98 @@ class NFOGenerator:
         root: ET.Element,
         data: dict[str, Any],
         rating_name: str = "themoviedb",
+        notations: list[Notations] | None = None,
+        canonical_source: str | None = None,
     ) -> None:
-        """Add <ratings> element with rating data.
+        """Add a ``<ratings>`` element to ``root`` carrying one or more rating rows.
+
+        Backwards-compatible with the legacy single-source signature : when
+        ``notations`` is ``None`` (or empty), the method writes one
+        ``<rating>`` row from ``data["vote_average"]`` / ``data["vote_count"]``
+        using ``rating_name`` as the source — exactly the previous behaviour.
+
+        When ``notations`` is non-empty the method switches to the
+        multi-source mode introduced by the ``provider-ids`` feature
+        (phase 6) : one ``<rating>`` child per :class:`Notations` row,
+        with the source identifier translated to its NFO / Plex
+        equivalent (``imdb``, ``themoviedb``, ``rottentomatoes``, …) and
+        the ``max`` attribute set to the value range matching each
+        source (10 for IMDb / TMDb / Trakt / Metacritic-10, 100 for
+        Rotten Tomatoes and Metacritic-100). The
+        ``canonical_source`` argument (e.g. ``"themoviedb"``,
+        ``"imdb"``) selects which row receives the ``default="true"``
+        attribute — applied to at most one row, exactly as DESIGN §7
+        requires.
 
         Args:
             root: Parent XML element.
-            data: API data with vote_average and vote_count.
-            rating_name: Rating source name. MediaElch uses "themoviedb" for
-                movies/shows and "tmdb" for episodes.
+            data: Legacy API payload (consumed only when ``notations``
+                is empty).
+            rating_name: Source identifier for the legacy single-row
+                path. Defaults to ``"themoviedb"``.
+            notations: Optional list of :class:`Notations` to render
+                in multi-source mode.
+            canonical_source: NFO-name of the canonical source to flag
+                with ``default="true"``. ``None`` falls back to the
+                first row in ``notations``.
         """
         ratings = ET.SubElement(root, "ratings")
+        if notations:
+            self._write_multi_source_ratings(ratings, notations, canonical_source)
+            return
         rating = ET.SubElement(ratings, "rating")
         rating.set("name", rating_name)
         rating.set("default", "true")
         rating.set("max", "10")
         _sub(rating, "value", str(data.get("vote_average", 0)))
         _sub(rating, "votes", str(data.get("vote_count", 0)))
+
+    def _write_multi_source_ratings(
+        self,
+        ratings: ET.Element,
+        notations: list[Notations],
+        canonical_source: str | None,
+    ) -> None:
+        """Emit one ``<rating>`` child per :class:`Notations` row.
+
+        Helper for :meth:`_add_ratings` multi-source branch. Translates
+        each ``Notations.source`` into its NFO name (e.g. ``imdb`` →
+        ``imdb``, ``rotten_tomatoes`` → ``rottentomatoes``) and selects
+        a single row to flag ``default="true"`` — the one whose NFO
+        name matches ``canonical_source``, defaulting to the first
+        rendered row when no match exists.
+        """
+        rows: list[tuple[str, Notations]] = []
+        seen: dict[str, float] = {}
+        for entry in notations:
+            nfo_name = _NFO_RATING_SOURCE_NAMES.get(entry.source, entry.source)
+            if nfo_name in seen:
+                # Two Notations from the same NFO source — keep the first
+                # (insertion-order) and drop the rest, but log so an
+                # operator can audit the divergence. Plex/Kodi only read
+                # one <rating> per name, so the silent drop is the right
+                # behaviour ; the log makes it traceable.
+                log.debug(
+                    "nfo_rating_duplicate_dropped",
+                    source=nfo_name,
+                    kept_score=seen[nfo_name],
+                    dropped_score=float(entry.score),
+                )
+                continue
+            seen[nfo_name] = float(entry.score)
+            rows.append((nfo_name, entry))
+
+        canonical_name = canonical_source or (rows[0][0] if rows else None)
+        default_applied = False
+        for nfo_name, entry in rows:
+            rating = ET.SubElement(ratings, "rating")
+            rating.set("name", nfo_name)
+            if not default_applied and nfo_name == canonical_name:
+                rating.set("default", "true")
+                default_applied = True
+            rating.set("max", str(_NFO_RATING_MAX.get(nfo_name, 10)))
+            _sub(rating, "value", str(entry.score))
+            _sub(rating, "votes", str(entry.votes_count))
 
     def _add_inline_images(self, root: ET.Element, data: dict[str, Any]) -> None:
         """Add inline <thumb> and <fanart> elements.

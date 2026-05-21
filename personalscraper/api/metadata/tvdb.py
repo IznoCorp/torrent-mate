@@ -9,14 +9,23 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from personalscraper.api._contracts import TVDB_BOOTSTRAP, MediaType, ProviderName
+from personalscraper.api._contracts import TVDB_BOOTSTRAP, ApiError, MediaType, ProviderName
 from personalscraper.api.metadata._base import (
     ArtworkItem,
+    EpisodeInfo,
     MediaDetails,
     MetadataClient,
     SearchResult,
     SeasonDetails,
     Video,
+)
+from personalscraper.api.metadata._contracts import (
+    ArtworkProvider,
+    EpisodeFetcher,
+    MovieDetailsProvider,
+    Searchable,
+    TvDetailsProvider,
+    VideoProvider,
 )
 from personalscraper.api.metadata._tvdb_parsers import (
     map_language,
@@ -47,15 +56,30 @@ _DEFAULT_RATE = RateLimitPolicy(requests_per_second=20.0)
 _DEFAULT_RETRY = RetryPolicy(max_attempts=4)
 
 
-class TVDBClient(MetadataClient):
+class TVDBClient(
+    MetadataClient,
+    Searchable,
+    MovieDetailsProvider,
+    TvDetailsProvider,
+    EpisodeFetcher,
+    ArtworkProvider,
+    VideoProvider,
+):
     """TVDB v4 API metadata provider.
 
     Authentication: POST /login with API key → JWT Bearer token (TTL = 30 days).
     Bootstrap done once at __init__ via a one-shot HttpTransport(NoAuth).
     Main transport uses BearerAuth(jwt).
 
-    Implements MetadataProvider Protocol for TV series (primary) and movies (secondary).
-    get_keywords() and get_notations() raise NotImplementedError — TVDB has no equivalent.
+    Composes the atomic capability protocols from
+    :mod:`personalscraper.api.metadata._contracts`: :class:`Searchable`,
+    :class:`MovieDetailsProvider`, :class:`TvDetailsProvider`,
+    :class:`EpisodeFetcher`, :class:`ArtworkProvider`,
+    :class:`VideoProvider`. Does *not* compose :class:`KeywordProvider`
+    (TVDB has no equivalent endpoint — :meth:`get_keywords` raises
+    NotImplementedError), :class:`IDValidator` or :class:`IDCrossRef`
+    (cross-provider ID validation flows through
+    :mod:`personalscraper.scraper._xref`).
     """
 
     REQUIRED_CREDS: ClassVar[list[str]] = ["TVDB_API_KEY"]
@@ -263,7 +287,7 @@ class TVDBClient(MetadataClient):
         """
         if media_type == "tv":
             return self.get_series(int(media_id))
-        return self.get_movie(int(media_id))
+        return self.get_movie(media_id)
 
     def get_series(self, series_id: int) -> MediaDetails:
         """Fetch extended series details.
@@ -277,16 +301,56 @@ class TVDBClient(MetadataClient):
         raw = self._get_dict(f"/series/{series_id}/extended")
         return parse_media_details(raw, "tvdb")
 
-    def get_movie(self, movie_id: int) -> MediaDetails:
-        """Fetch extended movie details.
+    def get_tv(self, provider_id: str | int) -> MediaDetails:
+        """TvDetailsProvider Protocol alias for :meth:`get_series`.
 
         Args:
-            movie_id: TVDB movie ID.
+            provider_id: TVDB series identifier (``str`` or ``int``).
+                Non-numeric strings are converted to a uniform
+                :class:`ApiError` rather than the bare ``ValueError``
+                that ``int(...)`` would raise — keeps the Protocol
+                contract clean for callers dispatching by capability.
 
         Returns:
             Populated MediaDetails.
+
+        Raises:
+            ApiError: Non-numeric ``provider_id`` (``http_status=0``).
         """
-        raw = self._get_dict(f"/movies/{movie_id}/extended")
+        try:
+            numeric_id = int(provider_id)
+        except (TypeError, ValueError) as exc:
+            raise ApiError(
+                provider="tvdb",
+                http_status=0,
+                message=f"Non-numeric TVDB id rejected: {provider_id!r}",
+            ) from exc
+        return self.get_series(numeric_id)
+
+    def get_movie(self, movie_id: str | int) -> MediaDetails:
+        """Fetch extended movie details.
+
+        Args:
+            movie_id: TVDB movie ID (``int`` for direct TVDB calls,
+                ``str`` to satisfy the :class:`MovieDetailsProvider`
+                Protocol signature). Non-numeric strings are converted
+                to a uniform :class:`ApiError`.
+
+        Returns:
+            Populated MediaDetails.
+
+        Raises:
+            ApiError: Non-numeric ``movie_id`` (``http_status=0``).
+        """
+        try:
+            numeric_id = int(movie_id)
+        except (TypeError, ValueError) as exc:
+            raise ApiError(
+                provider="tvdb",
+                http_status=0,
+                message=f"Non-numeric TVDB movie id rejected: {movie_id!r}",
+            ) from exc
+        raw = self._get_dict(f"/movies/{numeric_id}/extended")
         return parse_media_details(raw, "tvdb")
 
     # -- Protocol: get_artwork_urls -----------------------------------------
@@ -306,6 +370,23 @@ class TVDBClient(MetadataClient):
         endpoint = "series" if media_type == "tv" else "movies"
         raw = self._get_dict(f"/{endpoint}/{media_id}/extended")
         return parse_artworks(raw.get("artworks", []) or [])
+
+    # -- Protocol: get_episodes ---------------------------------------------
+
+    def get_episodes(self, series_id: str | int, season: int) -> list[EpisodeInfo]:
+        """Fetch the episode list for a season — satisfies :class:`EpisodeFetcher`.
+
+        Delegates to :meth:`get_series_episodes` and unwraps the
+        episodes array.
+
+        Args:
+            series_id: TVDB series identifier (``str`` or ``int``).
+            season: Season number.
+
+        Returns:
+            ``list[EpisodeInfo]`` for the requested season.
+        """
+        return self.get_series_episodes(int(series_id), season).episodes
 
     # -- Protocol: get_season -----------------------------------------------
 

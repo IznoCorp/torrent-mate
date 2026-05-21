@@ -18,6 +18,13 @@ PROVIDER_CREDS: dict[str, list[str]] = {
     "tmdb": ["TMDB_API_KEY"],
     "tvdb": ["TVDB_API_KEY"],
     "omdb": ["OMDB_API_KEY"],
+    # IMDb + Rotten Tomatoes are *façades* over the OMDb HTTP backend
+    # (DESIGN §4). They share the OMDb credential — provisioning either
+    # façade is gated on a single ``OMDB_API_KEY``. Both façades
+    # consume the same :class:`OMDbAdapter` instance at construction
+    # time so the rate-limit / circuit-breaker budget stays shared.
+    "imdb": ["OMDB_API_KEY"],
+    "rotten_tomatoes": ["OMDB_API_KEY"],
     # Trakt app-only auth (search/details/ratings/related/trending) needs only CLIENT_ID
     # in the trakt-api-key header. CLIENT_SECRET is OAuth-only and out of scope (per
     # DESIGN S1.2): OAuth user endpoints are deliberately not supported here.

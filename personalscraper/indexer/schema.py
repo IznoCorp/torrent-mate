@@ -184,9 +184,16 @@ class MediaItemRow:
         original_title: Original-language title; ``None`` if same as title.
         year: Release year; ``None`` if unknown.
         category_id: Logical category ID from config.
-        tmdb_id: TMDB numeric ID; ``None`` if not scraped.
-        imdb_id: IMDb tt-id string; ``None`` if not scraped.
-        tvdb_id: TVDB numeric ID; ``None`` if not applicable.
+        external_ids_json: JSON string for the hierarchical provider IDs
+            (see :class:`ExternalIds` Pydantic model). Replaces the
+            legacy flat ``tmdb_id`` / ``imdb_id`` / ``tvdb_id`` columns
+            removed by migration 005 (provider-ids feature).
+        ratings_json: JSON string for the per-source ratings collection
+            (see :class:`Ratings` Pydantic model). ``None`` when the
+            scraper has not yet collected any rating.
+        canonical_provider: ``'tvdb'`` or ``'tmdb'`` — the family that
+            drove the canonical scrape. ``None`` for pre-migration rows
+            that never re-scraped under the new flow.
         nfo_status: ``'missing'``, ``'invalid'``, or ``'valid'``; ``None`` if unchecked.
         artwork_json: Raw JSON string (validated by :class:`ArtworkInventory`).
         date_created: Unix epoch seconds of first index entry.
@@ -203,9 +210,9 @@ class MediaItemRow:
     original_title: str | None
     year: int | None
     category_id: str
-    tmdb_id: int | None
-    imdb_id: str | None
-    tvdb_id: int | None
+    external_ids_json: str
+    ratings_json: str | None
+    canonical_provider: str | None
     nfo_status: NfoStatus | None
     artwork_json: str | None
     date_created: int

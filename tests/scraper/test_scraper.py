@@ -581,15 +581,18 @@ class TestScrapeTvshow:
         show_dir = tmp_path / "Fallout (2024)"
         show_dir.mkdir()
         (show_dir / "tvshow.nfo").write_text(
-            '<tvshow><title>Fallout</title><year>2024</year><uniqueid type="tvdb">123</uniqueid></tvshow>'
+            "<tvshow><title>Fallout</title><year>2024</year>"
+            '<uniqueid type="tvdb" default="true">123</uniqueid></tvshow>'
         )
         (show_dir / "poster.jpg").write_bytes(b"\xff")
         (show_dir / "landscape.jpg").write_bytes(b"\xff")
         season_dir = show_dir / "Saison 01"
         season_dir.mkdir()
         (season_dir / "S01E01 - The Beginning.mkv").write_bytes(b"\x00")
+        # Phase 4 drift hardening requires the canonical uniqueid on
+        # the sibling episode NFO — tvshow.nfo above declares tvdb.
         (season_dir / "S01E01 - The Beginning.nfo").write_text(
-            "<episodedetails><title>The Beginning</title></episodedetails>"
+            '<episodedetails><title>The Beginning</title><uniqueid type="tvdb">9001</uniqueid></episodedetails>'
         )
 
         result = scraper.scrape_tvshow(show_dir)
@@ -604,15 +607,17 @@ class TestScrapeTvshow:
         show_dir = tmp_path / "Fallout (2024)"
         show_dir.mkdir()
         (show_dir / "tvshow.nfo").write_text(
-            ('<tvshow><title>Fallout</title><year>2024</year><uniqueid type="tmdb">106379</uniqueid></tvshow>')
+            "<tvshow><title>Fallout</title><year>2024</year>"
+            '<uniqueid type="tmdb" default="true">106379</uniqueid></tvshow>'
         )
         (show_dir / "poster.jpg").write_bytes(b"\xff")
         (show_dir / "landscape.jpg").write_bytes(b"\xff")
         season_dir = show_dir / "Saison 01"
         season_dir.mkdir()
         (season_dir / "S01E01 - The Beginning.mkv").write_bytes(b"\x00")
+        # Show's tvshow.nfo is tmdb-canonical → episode NFO carries tmdb.
         (season_dir / "S01E01 - The Beginning.nfo").write_text(
-            "<episodedetails><title>The Beginning</title></episodedetails>"
+            '<episodedetails><title>The Beginning</title><uniqueid type="tmdb">5005</uniqueid></episodedetails>'
         )
 
         show_data = {
@@ -652,7 +657,8 @@ class TestScrapeTvshow:
         show_dir = tmp_path / folder_name
         show_dir.mkdir()
         (show_dir / "tvshow.nfo").write_text(
-            f'<tvshow><title>{nfo_title}</title><year>{nfo_year}</year><uniqueid type="tvdb">123</uniqueid></tvshow>'
+            f"<tvshow><title>{nfo_title}</title><year>{nfo_year}</year>"
+            '<uniqueid type="tvdb" default="true">123</uniqueid></tvshow>'
         )
         if with_poster:
             (show_dir / "poster.jpg").write_bytes(b"\xff")
@@ -662,8 +668,12 @@ class TestScrapeTvshow:
         season_dir.mkdir()
         (season_dir / f"{episode_name}.mkv").write_bytes(b"\x00")
         if with_episode_nfo:
+            # _build_coherent_show_dir constructs a tvshow.nfo with a
+            # canonical tvdb uniqueid (above), so the episode NFO must
+            # also expose a tvdb uniqueid to clear the phase-4 drift
+            # check.
             (season_dir / f"{episode_name}.nfo").write_text(
-                "<episodedetails><title>The Beginning</title></episodedetails>"
+                '<episodedetails><title>The Beginning</title><uniqueid type="tvdb">9001</uniqueid></episodedetails>'
             )
         return show_dir
 
@@ -1439,7 +1449,16 @@ class TestRepairMovieDir:
 
 
 class TestRepairTvshowDir:
-    """Tests for Scraper._repair_tvshow_dir."""
+    """Tests for Scraper._repair_tvshow_dir.
+
+    The tvshow.nfo fixtures in this class deliberately omit
+    ``default="true"`` on their ``<uniqueid>`` tags. ``_repair_tvshow_dir``
+    does *not* call ``verify_tvshow_scrape_drift`` (which enforces the
+    canonical default attribute under the provider-ids feature) — the
+    repair flow only inspects directory structure, not NFO contents.
+    If a future refactor wires drift-check into the repair path, these
+    fixtures must be updated.
+    """
 
     @pytest.fixture
     def mock_settings(self) -> MagicMock:

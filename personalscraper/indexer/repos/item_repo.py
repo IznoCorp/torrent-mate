@@ -48,9 +48,9 @@ def _row_to_item(row: sqlite3.Row) -> MediaItemRow:
         original_title=row["original_title"],
         year=row["year"],
         category_id=row["category_id"],
-        tmdb_id=row["tmdb_id"],
-        imdb_id=row["imdb_id"],
-        tvdb_id=row["tvdb_id"],
+        external_ids_json=row["external_ids_json"],
+        ratings_json=row["ratings_json"],
+        canonical_provider=row["canonical_provider"],
         nfo_status=row["nfo_status"],
         artwork_json=row["artwork_json"],
         date_created=row["date_created"],
@@ -99,7 +99,8 @@ def insert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
         """
         INSERT INTO media_item (
             kind, title, title_sort, original_title, year, category_id,
-            tmdb_id, imdb_id, tvdb_id, nfo_status, artwork_json,
+            external_ids_json, ratings_json, canonical_provider,
+            nfo_status, artwork_json,
             date_created, date_modified, date_metadata_refreshed,
             is_locked, preferred_lang
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -111,9 +112,9 @@ def insert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
             row.original_title,
             row.year,
             row.category_id,
-            row.tmdb_id,
-            row.imdb_id,
-            row.tvdb_id,
+            row.external_ids_json,
+            row.ratings_json,
+            row.canonical_provider,
             row.nfo_status,
             row.artwork_json,
             row.date_created,
@@ -141,7 +142,7 @@ def get_by_id(conn: sqlite3.Connection, id: int) -> MediaItemRow | None:
     _set_row_factory(conn)
     row = conn.execute(
         "SELECT id, kind, title, title_sort, original_title, year, category_id, "
-        "tmdb_id, imdb_id, tvdb_id, nfo_status, artwork_json, "
+        "external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
         "date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang "
         "FROM media_item WHERE id = ?",
         (id,),
@@ -164,9 +165,10 @@ def find_by_tmdb_id(conn: sqlite3.Connection, tmdb_id: int) -> MediaItemRow | No
     _set_row_factory(conn)
     row = conn.execute(
         "SELECT id, kind, title, title_sort, original_title, year, category_id, "
-        "tmdb_id, imdb_id, tvdb_id, nfo_status, artwork_json, "
+        "external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
         "date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang "
-        "FROM media_item WHERE tmdb_id = ?",
+        "FROM media_item "
+        "WHERE CAST(json_extract(external_ids_json, '$.tmdb.series_id') AS TEXT) = CAST(? AS TEXT)",
         (tmdb_id,),
     ).fetchone()
     if row is None:
@@ -290,7 +292,8 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
         """
         INSERT INTO media_item (
             kind, title, title_sort, original_title, year, category_id,
-            tmdb_id, imdb_id, tvdb_id, nfo_status, artwork_json,
+            external_ids_json, ratings_json, canonical_provider,
+            nfo_status, artwork_json,
             date_created, date_modified, date_metadata_refreshed,
             is_locked, preferred_lang
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -302,9 +305,9 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
             row.original_title,
             row.year,
             row.category_id,
-            row.tmdb_id,
-            row.imdb_id,
-            row.tvdb_id,
+            row.external_ids_json,
+            row.ratings_json,
+            row.canonical_provider,
             row.nfo_status,
             row.artwork_json,
             row.date_created,
@@ -333,7 +336,7 @@ def get_by_title_and_kind(conn: sqlite3.Connection, title: str, kind: str) -> Me
     _set_row_factory(conn)
     row = conn.execute(
         "SELECT id, kind, title, title_sort, original_title, year, category_id, "
-        "tmdb_id, imdb_id, tvdb_id, nfo_status, artwork_json, "
+        "external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
         "date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang "
         "FROM media_item WHERE title = ? AND kind = ?",
         (title, kind),
@@ -374,7 +377,7 @@ def find_by_normalized_name(
     _set_row_factory(conn)
     row = conn.execute(
         "SELECT m.id, m.kind, m.title, m.title_sort, m.original_title, m.year, m.category_id, "
-        "m.tmdb_id, m.imdb_id, m.tvdb_id, m.nfo_status, m.artwork_json, "
+        "m.external_ids_json, m.ratings_json, m.canonical_provider, m.nfo_status, m.artwork_json, "
         "m.date_created, m.date_modified, m.date_metadata_refreshed, m.is_locked, m.preferred_lang, "
         "a1.value AS dispatch_disk, a2.value AS dispatch_path "
         "FROM media_item m "
@@ -420,7 +423,7 @@ def find_on_disk(
     rows = conn.execute(
         "SELECT DISTINCT "
         "m.id, m.kind, m.title, m.title_sort, m.original_title, m.year, m.category_id, "
-        "m.tmdb_id, m.imdb_id, m.tvdb_id, m.nfo_status, m.artwork_json, "
+        "m.external_ids_json, m.ratings_json, m.canonical_provider, m.nfo_status, m.artwork_json, "
         "m.date_created, m.date_modified, m.date_metadata_refreshed, m.is_locked, m.preferred_lang, "
         "d.mount_path AS disk_mount, p.rel_path AS item_rel_path "
         "FROM media_item m "
@@ -459,7 +462,7 @@ def find_items_needing_rescrape(conn: sqlite3.Connection) -> list[tuple[MediaIte
     rows = conn.execute(
         "SELECT DISTINCT "
         "m.id, m.kind, m.title, m.title_sort, m.original_title, m.year, m.category_id, "
-        "m.tmdb_id, m.imdb_id, m.tvdb_id, m.nfo_status, m.artwork_json, "
+        "m.external_ids_json, m.ratings_json, m.canonical_provider, m.nfo_status, m.artwork_json, "
         "m.date_created, m.date_modified, m.date_metadata_refreshed, m.is_locked, m.preferred_lang, "
         "d.mount_path AS disk_mount, p.rel_path AS item_rel_path "
         "FROM media_item m "
@@ -514,7 +517,7 @@ def list_all_dispatch_items(conn: sqlite3.Connection) -> list[tuple[MediaItemRow
     _set_row_factory(conn)
     rows = conn.execute(
         "SELECT m.id, m.kind, m.title, m.title_sort, m.original_title, m.year, m.category_id, "
-        "m.tmdb_id, m.imdb_id, m.tvdb_id, m.nfo_status, m.artwork_json, "
+        "m.external_ids_json, m.ratings_json, m.canonical_provider, m.nfo_status, m.artwork_json, "
         "m.date_created, m.date_modified, m.date_metadata_refreshed, m.is_locked, m.preferred_lang, "
         "a1.value AS dispatch_disk, a2.value AS dispatch_path "
         "FROM media_item m "

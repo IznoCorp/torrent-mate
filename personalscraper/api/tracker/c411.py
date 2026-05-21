@@ -35,6 +35,10 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 from personalscraper.api._contracts import ApiError, MediaType, ProviderName
 from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult, wrap_parser_drift
+from personalscraper.api.tracker._contracts import (
+    CategoryListable,
+    TorrentSearchable,
+)
 from personalscraper.api.tracker.lacale import LaCaleClient
 from personalscraper.api.transport._auth import ApiKeyAuth
 from personalscraper.api.transport._policy import (
@@ -83,8 +87,21 @@ def _parse_rfc2822(value: Any) -> datetime | None:
         return None
 
 
-class C411Client:
-    """C411 tracker API client over Torznab XML."""
+class C411Client(TorrentSearchable, CategoryListable):
+    """C411 tracker API client over Torznab XML.
+
+    Composes
+    :class:`~personalscraper.api.tracker._contracts.TorrentSearchable`
+    and
+    :class:`~personalscraper.api.tracker._contracts.CategoryListable`
+    (sub-phase 11.3 — DESIGN §4). Notably *does not* implement
+    :class:`~personalscraper.api.tracker._contracts.FreeleechAware`
+    because the Torznab schema C411 exposes carries no per-torrent
+    re-check endpoint (the freeleech state is captured at search time
+    on :class:`TrackerResult.is_freeleech`). It also does not implement
+    :class:`~personalscraper.api.tracker._contracts.TorrentDetailsProvider`
+    because Torznab has no per-torrent detail endpoint.
+    """
 
     provider_name: str = ProviderName.C411.value
     REQUIRED_CREDS: ClassVar[list[str]] = ["C411_API_KEY"]

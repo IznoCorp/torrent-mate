@@ -66,9 +66,9 @@ def _seed_movie(conn: sqlite3.Connection, *, title: str, dispatch_path: str | No
             original_title=None,
             year=None,
             category_id="movies",
-            tmdb_id=None,
-            imdb_id=None,
-            tvdb_id=None,
+            external_ids_json="{}",
+            ratings_json=None,
+            canonical_provider=None,
             nfo_status=None,
             artwork_json=None,
             date_created=now,
@@ -99,9 +99,9 @@ def _seed_show(conn: sqlite3.Connection, *, title: str, dispatch_path: str) -> i
             original_title=None,
             year=None,
             category_id="tv_shows",
-            tmdb_id=None,
-            imdb_id=None,
-            tvdb_id=None,
+            external_ids_json="{}",
+            ratings_json=None,
+            canonical_provider=None,
             nfo_status=None,
             artwork_json=None,
             date_created=now,
@@ -266,9 +266,9 @@ def test_find_item_for_path_falls_back_to_title_year_pair(conn: sqlite3.Connecti
     now = int(time.time())
     cur = conn.execute(
         "INSERT INTO media_item (kind, title, title_sort, original_title, year, category_id, "
-        " tmdb_id, imdb_id, tvdb_id, nfo_status, artwork_json, date_created, date_modified, "
+        " external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, date_created, date_modified, "
         " date_metadata_refreshed, is_locked, preferred_lang) "
-        "VALUES ('movie', 'Inception', 'Inception', NULL, 2010, 'movies', NULL, NULL, NULL, "
+        "VALUES ('movie', 'Inception', 'Inception', NULL, 2010, 'movies', '{}', NULL, NULL, "
         "        NULL, NULL, ?, ?, NULL, 0, 'fr')",
         (now, now),
     )

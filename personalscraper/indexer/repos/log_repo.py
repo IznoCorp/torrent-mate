@@ -97,8 +97,51 @@ def _row_to_deleted_item(row: sqlite3.Row) -> DeletedItemRow:
 # ---------------------------------------------------------------------------
 
 
+# A scan that has been ``running`` for more than this many seconds is
+# considered stale (process killed, host rebooted, …). The next scan's
+# pre-insert sweep marks it ``aborted`` so the DB doesn't accumulate
+# perpetually-running rows that confuse ``library-status`` and the
+# resume-from-crash heuristics.
+_SCAN_RUN_STALE_AFTER_S = 6 * 3600  # 6 hours — well past any legitimate full scan
+
+
+def _sweep_stale_scan_runs(conn: sqlite3.Connection, now_s: int) -> int:
+    """Mark abandoned ``status='running'`` scan_run rows as ``aborted``.
+
+    Called from :func:`insert_scan_run` so every new scan startup cleans
+    up after a crashed predecessor. Without this, the DB grows a row
+    per crashed scan that ``library-status`` (and the resume logic)
+    treats as legitimately running.
+
+    Args:
+        conn: Open SQLite connection.
+        now_s: Current unix epoch seconds.
+
+    Returns:
+        Number of stale rows marked aborted.
+    """
+    cutoff = now_s - _SCAN_RUN_STALE_AFTER_S
+    cursor = conn.execute(
+        """
+        UPDATE scan_run
+        SET status = 'aborted', finished_at = ?
+        WHERE status = 'running' AND started_at < ?
+        """,
+        (now_s, cutoff),
+    )
+    swept: int = cursor.rowcount or 0
+    if swept > 0:
+        log.warning("indexer.scan.stale_run_aborted", count=swept, cutoff_at=cutoff)
+    return swept
+
+
 def insert_scan_run(conn: sqlite3.Connection, row: ScanRunRow) -> int:
     """Insert a new scan run row and return the assigned rowid.
+
+    Before inserting, sweeps any stale ``status='running'`` rows
+    (``started_at`` older than 6 hours) to ``aborted`` so the
+    ``library-status`` report and crash-resume heuristics never see
+    perpetually-running ghosts from killed processes.
 
     Args:
         conn: Open SQLite connection.
@@ -107,6 +150,7 @@ def insert_scan_run(conn: sqlite3.Connection, row: ScanRunRow) -> int:
     Returns:
         The ``rowid`` (= ``id``) of the newly inserted row.
     """
+    _sweep_stale_scan_runs(conn, row.started_at)
     cursor = conn.execute(
         """
         INSERT INTO scan_run (generation, mode, disk_filter, started_at, finished_at, last_path, status, stats_json)

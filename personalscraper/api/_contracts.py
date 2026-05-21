@@ -7,7 +7,7 @@ provider-specific error types.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Final
+from typing import Final, Protocol, runtime_checkable
 
 
 class MediaType(str, Enum):
@@ -118,6 +118,25 @@ class ApiError(Exception):
     def __str__(self) -> str:
         code = f" provider_code={self.provider_code}" if self.provider_code else ""
         return f"{self.provider} API {self.http_status}{code}: {self.message}"
+
+
+@runtime_checkable
+class HasName(Protocol):
+    """Capability marker exposing a stable ``provider_name`` identifier.
+
+    Every API client — metadata, tracker, torrent, notify — declares its
+    canonical lowercase name via a class-level ``provider_name`` attribute.
+    This protocol lets helpers (``gather_ratings``, ``gather_cross_refs``)
+    filter heterogeneous provider collections without importing concrete
+    client classes.
+
+    The attribute holds the wire string (e.g. ``"tmdb"``) rather than the
+    :class:`ProviderName` enum member so that ``HasName`` stays agnostic of
+    the enum and remains satisfied by both ``str`` and ``ProviderName``
+    values — ``ProviderName`` inherits from ``str``.
+    """
+
+    provider_name: str
 
 
 class CircuitOpenError(Exception):

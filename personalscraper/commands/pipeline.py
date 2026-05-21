@@ -433,4 +433,56 @@ def run(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
+@app.command("torrents-list")
+@handle_cli_errors
+def torrents_list(ctx: typer.Context) -> None:
+    """List completed torrents from the active qBittorrent client.
+
+    Prints one line per completed torrent (state / progress / size /
+    seeding / name) and a summary count. Exits 2 with a friendly
+    message when the torrent client is unreachable (auth lockout, IP
+    ban, daemon down) so monitoring tools can branch on the exit
+    code. Used by the ``pipeline-monitor`` skill's GATE 0 inventory.
+    """
+    import os  # noqa: PLC0415
+
+    from personalscraper.api.torrent._factory import build_active_torrent_client  # noqa: PLC0415
+    from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError, QBitClient  # noqa: PLC0415
+
+    config = ctx.obj.config
+    assert config is not None
+    console = state["console"]
+    settings = cli_compat.get_settings()
+
+    try:
+        if config.torrent.active:
+            client = build_active_torrent_client(config.torrent, os.environ)
+        else:
+            client = QBitClient(
+                host=settings.qbit_host,
+                port=settings.qbit_port,
+                username=settings.qbit_username,
+                password=settings.qbit_password,
+            )
+            client.login()
+    except (QBitAuthLockoutError, Exception) as exc:  # noqa: BLE001 — operator-facing CLI
+        console.print(f"[yellow]Torrent client unavailable:[/yellow] {exc}")
+        raise typer.Exit(2) from exc
+
+    try:
+        torrents = client.get_completed()
+        active_hashes = client.get_all_hashes()
+    except Exception as exc:  # noqa: BLE001 — operator-facing CLI
+        console.print(f"[yellow]Torrent listing failed:[/yellow] {exc}")
+        raise typer.Exit(2) from exc
+
+    for torrent in torrents:
+        seeding = "seeding" if client.is_seeding(torrent) else "idle"
+        size_gb = torrent.size_bytes / (1024**3)
+        console.print(
+            f"  {torrent.state:<14} {torrent.progress * 100:5.1f}%  {size_gb:7.2f} GB  {seeding:8}  {torrent.name}"
+        )
+    console.print(f"[bold]Total:[/bold] {len(torrents)} completed (of {len(active_hashes)} tracked torrents)")
+
+
 # --- Library maintenance commands ---

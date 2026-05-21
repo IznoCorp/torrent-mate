@@ -92,6 +92,12 @@ def _build_verified_tvshow_dir(
         nfo_name = Path(ep_name).with_suffix(".nfo").name
         ep_nfo = ET.Element("episodedetails")
         ET.SubElement(ep_nfo, "title").text = ep_name.split(" - ", 1)[-1].rsplit(".", 1)[0]
+        # Phase 9 verify hardening requires canonical uniqueid on each
+        # episode NFO (tvdb here, matching tvshow.nfo).
+        ep_uid = ET.SubElement(ep_nfo, "uniqueid")
+        ep_uid.set("type", "tvdb")
+        ep_uid.set("default", "true")
+        ep_uid.text = "9001"
         ET.ElementTree(ep_nfo).write(season_dir / nfo_name, encoding="unicode")
 
     return show_dir

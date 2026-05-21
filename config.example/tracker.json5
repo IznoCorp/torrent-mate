@@ -8,6 +8,17 @@
       c411: { enabled: false },
     },
     priority: ["lacale", "c411"],
+    // priority_by_media_type — optional per-media-type overrides
+    // (provider-ids feature, DESIGN §6.7). The key is the
+    // ``MediaType`` wire value (``"movie"`` / ``"tv"``) ; the value
+    // is an ordered tracker list that replaces ``priority`` for that
+    // media type. Media types without an entry fall back to the
+    // global ``priority``. Every entry must reference declared
+    // ``providers`` — config-load rejects unknown trackers.
+    priority_by_media_type: {
+      // movie: ["c411", "lacale"],
+      // tv:    ["lacale", "c411"],
+    },
     max_total_results: 50,
     max_per_tracker: 30,
     timeout_per_tracker: 15,

@@ -172,6 +172,44 @@ class TestMovieNFOIds:
         assert rating.findtext("value") == "5.878"
         assert rating.findtext("votes") == "94"
 
+    def test_multi_source_ratings_dedup_logs_duplicates(
+        self,
+        generator: NFOGenerator,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Duplicate ``source`` rows are silently kept-first and logged at debug.
+
+        Regression for the post-review observability fix : the dedup
+        was previously invisible. Plex/Kodi only honour one ``<rating
+        name="X">`` per name so the drop is correct ; the log lets an
+        operator audit divergent scores from the same source.
+        """
+        import logging  # noqa: PLC0415
+        import xml.etree.ElementTree as _ET  # noqa: PLC0415
+
+        from personalscraper.api.metadata._base import Notations  # noqa: PLC0415
+
+        ratings_root = _ET.Element("ratings")
+        # Two IMDb rows with diverging scores — the second must be
+        # dropped and the divergence logged.
+        notations = [
+            Notations(provider="omdb", source="imdb", score=8.5, votes_count=1_000),
+            Notations(provider="omdb", source="imdb", score=2.1, votes_count=10),
+        ]
+
+        with caplog.at_level(logging.DEBUG, logger="scraper.nfo_generator"):
+            generator._write_multi_source_ratings(ratings_root, notations, canonical_source="imdb")
+
+        rendered = [r.get("name") for r in ratings_root.findall("rating")]
+        assert rendered == ["imdb"], "second IMDb row must be dropped"
+        # structlog renders kwargs into the message body, not record attrs
+        # — so we substring-match on the rendered message for stability.
+        joined = " ".join(record.message for record in caplog.records if record.levelno == logging.DEBUG)
+        assert "nfo_rating_duplicate_dropped" in joined
+        assert "'source': 'imdb'" in joined
+        assert "'kept_score': 8.5" in joined
+        assert "'dropped_score': 2.1" in joined
+
     def test_mpaa_certification(self, generator: NFOGenerator) -> None:
         """MPAA should contain FR theatrical certification."""
         xml = generator.generate_movie_nfo(SAMPLE_MOVIE_DATA)

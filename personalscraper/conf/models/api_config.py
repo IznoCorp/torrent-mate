@@ -6,7 +6,7 @@ api/tracker/_ranking.py so config validation and runtime ranking share
 one source of truth.
 """
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from personalscraper.api.tracker._ranking import RankingBonuses, RankingConfig, RankingCriterion, ThresholdEntry
 from personalscraper.conf.models._base import _StrictModel
@@ -14,6 +14,7 @@ from personalscraper.conf.models._base import _StrictModel
 __all__ = [
     "MetadataConfig",
     "MetadataDefaults",
+    "MetadataEpisodeScrapingPolicy",
     "MetadataPriorities",
     "MetadataProviderConfig",
     "NotifyConfig",
@@ -70,6 +71,37 @@ class MetadataDefaults(_StrictModel):
     prefer_local_title: bool = True
 
 
+class MetadataEpisodeScrapingPolicy(_StrictModel):
+    """Episode scraping behavior contract (provider lock + rename policy).
+
+    These flags lock the episode-scraping flow against a recurring regression:
+    previously, when a series matched on TVDB but its episodes were missing
+    (empty season payload), the code fell back to TMDB at episode level.
+    This violates the invariant "TVDB-first for series; once matched on a
+    provider, stay on that provider for its episodes".
+
+    Attributes:
+        lock_to_series_provider: When True (default), episodes are fetched
+            ONLY from the provider that matched the series. The
+            ``episode_scraping`` priority list is bypassed in this mode.
+            When False, the legacy behavior is restored: providers are tried
+            in order of ``priorities.episode_scraping`` regardless of which
+            provider matched the series.
+        allow_synthetic_rename_on_unmatched: When False (default), files
+            whose (season, episode) is absent from the locked provider's
+            catalog stay at the show-folder root with their raw filename —
+            no rename, no ``Saison NN/`` directory created. When True,
+            the legacy behavior is restored: file is renamed with a
+            synthetic ``"{episode_default_name} N"`` title.
+            NOTE: this is distinct from the case where the provider returns
+            an episode object with an empty/None ``name`` — that case
+            legitimately produces ``"Episode N"`` and is unaffected.
+    """
+
+    lock_to_series_provider: bool = True
+    allow_synthetic_rename_on_unmatched: bool = False
+
+
 class MetadataConfig(_StrictModel):
     """Top-level metadata.json5 model.
 
@@ -77,11 +109,13 @@ class MetadataConfig(_StrictModel):
         providers: Per-provider enable/disable toggles.
         priorities: Per-use-case priority ordering.
         defaults: Language and title preferences.
+        episode_scraping_policy: Provider-lock and rename-on-unmatched contract.
     """
 
     providers: dict[str, MetadataProviderConfig] = Field(default_factory=dict)
     priorities: MetadataPriorities = Field(default_factory=MetadataPriorities)
     defaults: MetadataDefaults = Field(default_factory=MetadataDefaults)
+    episode_scraping_policy: MetadataEpisodeScrapingPolicy = Field(default_factory=MetadataEpisodeScrapingPolicy)
 
 
 # ---------------------------------------------------------------------------
@@ -136,6 +170,14 @@ class TrackerConfig(_StrictModel):
     Attributes:
         providers: Per-tracker enable/disable toggles.
         priority: Ordered list of tracker names (first = highest priority).
+            Used as the fallback when no ``priority_by_media_type``
+            override applies to the call.
+        priority_by_media_type: Optional ``{media_type: [tracker, …]}``
+            overrides used by :class:`~personalscraper.api.tracker._registry.TrackerRegistry`
+            (provider-ids feature, sub-phase 12.3 — DESIGN §6.7).
+            Every list must be a subset of ``providers.keys()`` —
+            references to unknown trackers are rejected at validation
+            time so the runtime never silently skips a typo.
         max_total_results: Global cap on results across all trackers.
         max_per_tracker: Cap on results from any single tracker.
         timeout_per_tracker: Per-tracker HTTP timeout in seconds.
@@ -143,9 +185,25 @@ class TrackerConfig(_StrictModel):
 
     providers: dict[str, TrackerProviderConfig] = Field(default_factory=dict)
     priority: list[str] = Field(default_factory=list)
+    priority_by_media_type: dict[str, list[str]] = Field(default_factory=dict)
     max_total_results: int = 50
     max_per_tracker: int = 30
     timeout_per_tracker: int = 15
+
+    @model_validator(mode="after")
+    def _validate_priority_by_media_type(self) -> "TrackerConfig":
+        """Reject ``priority_by_media_type`` references to unknown trackers.
+
+        DESIGN §6.7 — every list value must be a subset of
+        ``providers.keys()``. Typos are surfaced at config-load time
+        rather than silently producing an empty search at runtime.
+        """
+        known = set(self.providers)
+        for media_type, order in self.priority_by_media_type.items():
+            unknown = [name for name in order if name not in known]
+            if unknown:
+                raise ValueError(f"priority_by_media_type[{media_type!r}] references unknown trackers: {unknown}")
+        return self
 
 
 # ---------------------------------------------------------------------------

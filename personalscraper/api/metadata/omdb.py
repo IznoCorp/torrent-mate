@@ -1,14 +1,25 @@
-"""OMDB metadata provider.
+"""OMDb metadata HTTP backend (internal — use IMDbClient / RottenTomatoesClient).
 
 Implements MetadataClient + MetadataProvider Protocol. Single-endpoint API
 with query-param auth (apikey=). Returns typed models from _base.py.
 
-OMDB particularities:
+OMDb particularities:
 - Always returns HTTP 200; errors signaled via Response: "False" in body.
 - Ratings[] values are unparsed strings ("8.8/10", "87%", "74/100").
 - Year can be "YYYY", "YYYY–", or "YYYY–YYYY".
 - Runtime is "NNN min" string.
 - "N/A" sentinel used for missing optional fields.
+
+**Scope (provider-ids feature)** — :class:`OMDbAdapter` is the canonical
+name for this client. It is an *internal HTTP backend* shared by the
+:class:`~personalscraper.api.metadata.imdb.IMDbClient` and
+:class:`~personalscraper.api.metadata.rotten_tomatoes.RottenTomatoesClient`
+façades. The scraper layer must not call OMDb directly — it goes
+through the IMDb / RT façades, which expose the business semantics
+(``get_rating``, ``validate_id``, ``get_cross_refs``) while sharing a
+single underlying HTTP client (one rate-limit budget, one circuit
+breaker). ``OMDBClient`` is preserved as a backward-compatible alias
+for existing import sites; new code should import ``OMDbAdapter``.
 """
 
 from __future__ import annotations
@@ -55,11 +66,19 @@ _OMDB_TYPE_MAP: dict[str, MediaType] = {
 }
 
 
-class OMDBClient(MetadataClient):
-    """OMDB metadata provider.
+class OMDbAdapter(MetadataClient):
+    """Internal OMDb HTTP backend shared by the IMDb and Rotten Tomatoes façades.
 
     Authentication via API key as query parameter (apikey=).
     Free tier: 1000 req/day.
+
+    Direct use is discouraged — call sites in the scraper layer
+    must compose
+    :class:`~personalscraper.api.metadata.imdb.IMDbClient` and
+    :class:`~personalscraper.api.metadata.rotten_tomatoes.RottenTomatoesClient`
+    instead (DESIGN §4). A single ``OMDbAdapter`` instance backs both
+    façades so the rate-limit and circuit-breaker budgets stay
+    consolidated.
     """
 
     REQUIRED_CREDS: ClassVar[list[str]] = ["OMDB_API_KEY"]
@@ -166,6 +185,13 @@ class OMDBClient(MetadataClient):
 
 
 # -- Response parsers -------------------------------------------------------
+
+
+# Backward-compatible alias — existing import sites keep working. The
+# canonical name is :class:`OMDbAdapter` (DESIGN §4). New code must
+# import :class:`OMDbAdapter` so the role (internal HTTP backend) is
+# explicit at the call site.
+OMDBClient = OMDbAdapter
 
 
 def _assert_dict(data: dict[str, Any] | str) -> dict[str, Any]:

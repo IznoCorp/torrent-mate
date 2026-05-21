@@ -224,6 +224,13 @@ class EpisodeInfo:
         still_url: Pre-resolved still-frame image URL for the episode,
             when provided. Used by the NFO writer to embed an
             ``<thumb>`` tag.
+        external_ids: Mapping of provider name (``"tvdb"`` / ``"tmdb"`` /
+            ``"imdb"``) to the per-episode provider identifier. Populated
+            by the provider parser when the upstream payload carries the
+            ID and propagated all the way to NFO generation so that
+            ``<uniqueid>`` tags can be written without round-tripping
+            through the show-level identifiers (DEV #2 of the
+            ``provider-ids`` feature).
     """
 
     episode_number: int
@@ -233,6 +240,7 @@ class EpisodeInfo:
     runtime_minutes: int | None = None
     season_number: int = 0
     still_url: str = ""
+    external_ids: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

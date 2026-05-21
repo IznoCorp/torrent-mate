@@ -1,11 +1,17 @@
-"""Transmission client implementing the TorrentClient Protocol.
+"""Transmission client composing the atomic torrent capability protocols.
 
 Wraps transmission-rpc with an HttpTransport pre-check: we issue a cheap
 GET via the unified transport before instantiating transmission-rpc so
 network/auth failures surface as a uniform ApiError instead of leaking the
-library's exception types up the call stack. Transmission itself uses
-JSON-RPC 2.0 over a single POST endpoint with HTTP Basic Auth and the
-CSRF session-id dance handled by the library.
+library's exception types up the call stack. Composes
+:class:`TorrentLister`, :class:`TorrentInspector`,
+:class:`TorrentStateInspector` and :class:`TorrentController` from
+:mod:`personalscraper.api.torrent._contracts`. Deliberately omits
+:class:`AuthenticatedClient` — the transmission-rpc library performs HTTP
+Basic Auth per request without an explicit login step (DESIGN §4 — phase 13).
+
+Transmission itself uses JSON-RPC 2.0 over a single POST endpoint with
+HTTP Basic Auth and the CSRF session-id dance handled by the library.
 """
 
 from __future__ import annotations
@@ -18,7 +24,13 @@ from typing import ClassVar
 import transmission_rpc
 
 from personalscraper.api._contracts import ApiError, ProviderName
-from personalscraper.api.torrent._base import TorrentClient, TorrentItem
+from personalscraper.api.torrent._base import TorrentItem
+from personalscraper.api.torrent._contracts import (
+    TorrentController,
+    TorrentInspector,
+    TorrentLister,
+    TorrentStateInspector,
+)
 from personalscraper.api.transport._auth import LoginAuth
 from personalscraper.api.transport._http import HttpTransport
 from personalscraper.api.transport._policy import TransportPolicy
@@ -32,12 +44,20 @@ log = get_logger("api.torrent.transmission")
 _COMPLETED_STATES = frozenset({transmission_rpc.Status.SEEDING, transmission_rpc.Status.SEED_PENDING})
 
 
-class TransmissionClient:
+class TransmissionClient(
+    TorrentLister,
+    TorrentInspector,
+    TorrentStateInspector,
+    TorrentController,
+):
     """Transmission client wrapping transmission-rpc.
 
-    Implements the TorrentClient Protocol. A pre-check via HttpTransport
-    verifies reachability and credentials before the library client is
-    instantiated.
+    Composes :class:`TorrentLister`, :class:`TorrentInspector`,
+    :class:`TorrentStateInspector` and :class:`TorrentController`.
+    Deliberately omits :class:`AuthenticatedClient` because
+    transmission-rpc has no explicit login step (HTTP Basic Auth runs
+    per-request). A pre-check via HttpTransport verifies reachability
+    and credentials before the library client is instantiated.
     """
 
     REQUIRED_CREDS: ClassVar[list[str]] = ["TRANSMISSION_USERNAME", "TRANSMISSION_PASSWORD"]
@@ -177,7 +197,7 @@ class TransmissionClient:
 # -- Factory entry point -----------------------------------------------------
 
 
-def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -> TorrentClient:
+def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -> "TransmissionClient":
     """Construct a TransmissionClient with pre-check.
 
     Args:

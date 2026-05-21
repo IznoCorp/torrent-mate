@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from personalscraper.api._contracts import ApiError
-from personalscraper.api.torrent._base import TorrentClient
+from personalscraper.api.torrent._contracts import TorrentClientFull as TorrentClient
 from personalscraper.api.torrent._factory import build_active_torrent_client
 from personalscraper.conf.models.api_config import TorrentClientEntry, TorrentConfig
 

@@ -23,12 +23,30 @@ class NfoStatus:
         valid: Whether the NFO is parsable XML with at least one uniqueid.
         tmdb_id: TMDB ID extracted from NFO, if valid.
         imdb_id: IMDB ID extracted from NFO, if valid.
+        tvdb_id: TVDB ID extracted from NFO, if valid. Provider-ids
+            feature: indexer must persist all 3 families separately so
+            queries can resolve a show by any of its uniqueids.
+        canonical_provider: ``"tvdb"`` / ``"tmdb"`` when the NFO has a
+            ``<uniqueid default="true">`` of that family. ``None``
+            otherwise (legacy NFO without default attr or unrecognised
+            family).
+        ratings: List of ``{source, score, votes}`` dicts parsed from
+            the ``<ratings>`` block. Empty when the NFO has no ratings
+            or is invalid. ``source`` uses the canonical
+            internal name (``"imdb"``, ``"tmdb"``,
+            ``"rotten_tomatoes"``, ``"metacritic"``, ``"trakt"``) —
+            the NFO display name (e.g. ``themoviedb``) is mapped back
+            at extraction time so the indexer's ``ratings_json``
+            stays uniform with what the scraper writes.
     """
 
     present: bool
     valid: bool
     tmdb_id: str | None
     imdb_id: str | None
+    tvdb_id: str | None = None
+    canonical_provider: str | None = None
+    ratings: list[dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         """Enforce invariant: absent NFO cannot be valid or have IDs."""
@@ -36,6 +54,9 @@ class NfoStatus:
             self.valid = False
             self.tmdb_id = None
             self.imdb_id = None
+            self.tvdb_id = None
+            self.canonical_provider = None
+            self.ratings = []
 
 
 # --- Issue constants for programmatic filtering ---

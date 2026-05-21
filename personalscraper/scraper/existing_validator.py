@@ -91,6 +91,64 @@ def _infer_year_from_child_names(show_dir: Path, title: str) -> int | None:
     return None
 
 
+def _read_canonical_provider(tvshow_nfo_root: ET.Element) -> str | None:
+    """Return the canonical provider family declared on a parsed ``tvshow.nfo``.
+
+    The canonical family is the ``type`` attribute of the
+    ``<uniqueid default="true">`` element. When no default is set,
+    falls back to the first ``<uniqueid>`` element's ``type`` (legacy
+    NFOs from before the ``provider-ids`` feature did not always mark
+    a default).
+
+    Args:
+        tvshow_nfo_root: Parsed root element of ``tvshow.nfo``.
+
+    Returns:
+        Provider name (``"tvdb"`` / ``"tmdb"`` / …) or ``None`` when
+        the NFO has no ``<uniqueid>`` at all.
+    """
+    default_unique = next(
+        (u for u in tvshow_nfo_root.findall("uniqueid") if u.get("default") == "true"),
+        None,
+    )
+    if default_unique is not None:
+        kind = (default_unique.get("type") or "").strip()
+        return kind or None
+    first = tvshow_nfo_root.find("uniqueid")
+    if first is not None:
+        kind = (first.get("type") or "").strip()
+        return kind or None
+    return None
+
+
+def _episode_nfo_has_canonical_uniqueid(nfo_path: Path, canonical_family: str) -> bool:
+    """Check whether an episode NFO carries a non-empty canonical ``<uniqueid>``.
+
+    Returns ``True`` only when the NFO parses, contains at least one
+    ``<uniqueid type=canonical_family>`` tag (case-insensitive match),
+    and the tag's text is non-empty after stripping.
+
+    Args:
+        nfo_path: Path to the sibling ``.nfo`` file.
+        canonical_family: Family that the show's ``tvshow.nfo``
+            declared canonical (``"tvdb"`` / ``"tmdb"``).
+
+    Returns:
+        ``True`` iff the canonical uniqueid is present and populated.
+    """
+    try:
+        root = ET.parse(nfo_path).getroot()  # noqa: S314 — trusted NFO we just wrote
+    except (ET.ParseError, OSError):
+        return False
+    expected = canonical_family.lower()
+    for unique in root.findall("uniqueid"):
+        kind = (unique.get("type") or "").strip().lower()
+        text = (unique.text or "").strip()
+        if kind == expected and text:
+            return True
+    return False
+
+
 def verify_tvshow_scrape_drift(
     show_dir: Path,
     nfo_path: Path,
@@ -142,6 +200,27 @@ def verify_tvshow_scrape_drift(
     has_uniqueid = any((u.text or "").strip() for u in root.findall("uniqueid"))
     if not has_uniqueid:
         return False, "nfo_missing_uniqueid"
+    # Strict canonical check (DESIGN §3 Q6) — at least one
+    # ``<uniqueid default="true" type="...">`` with non-empty text and
+    # a non-empty ``type`` attribute. Pre-existing NFOs that ship a
+    # uniqueid without the default attribute (or without a type) trip
+    # this branch and get re-scraped, which is intentional under the
+    # provider-ids feature (no retro-compat before 1.x).
+    # ``_read_canonical_provider`` keeps its tolerant first-uniqueid
+    # fallback for downstream consumers that have already passed
+    # this gate.
+    has_default_uniqueid = any(
+        u.get("default") == "true" and (u.get("type") or "").strip() and (u.text or "").strip()
+        for u in root.findall("uniqueid")
+    )
+    if not has_default_uniqueid:
+        return False, "nfo_missing_canonical_uniqueid"
+    canonical_family = _read_canonical_provider(root)
+    if canonical_family is None:
+        # Defensive: with the strict ``type`` requirement above the
+        # tolerant reader cannot return None on the happy path. Kept
+        # as a safety net should the reader be hardened later.
+        return False, "nfo_missing_canonical_uniqueid"
     trailing_year_pattern = f" ({nfo_year})"
     if nfo_title.endswith(trailing_year_pattern):
         return False, "nfo_title_contains_year"
@@ -182,8 +261,18 @@ def verify_tvshow_scrape_drift(
             # rescrape-drift loop on every dry-run.  A subsequent real
             # scrape will pick up the new TMDB data and rename the file.
             sibling_nfo = ep_file.with_suffix(".nfo")
-            if not sibling_nfo.exists() and not _EPISODE_FALLBACK_RE.match(ep_file.name):
-                return False, f"episode_nfo_missing:{sibling_nfo.name}"
+            is_fallback = bool(_EPISODE_FALLBACK_RE.match(ep_file.name))
+            if not sibling_nfo.exists():
+                if not is_fallback:
+                    return False, f"episode_nfo_missing:{sibling_nfo.name}"
+                continue
+            # Drift hardening (provider-ids feature, phase 4) : the sibling
+            # NFO must carry the canonical ``<uniqueid type=...>`` matching
+            # the show's ``tvshow.nfo`` default. Without this, layer-5
+            # drift (NFOs without ``<uniqueid>``) would slip through and
+            # ``scrape_fast_skip`` would perpetuate the broken state.
+            if not _episode_nfo_has_canonical_uniqueid(sibling_nfo, canonical_family):
+                return False, f"episode_nfo_missing_canonical_uniqueid:{sibling_nfo.name}"
 
     return True, "ok"
 
@@ -264,6 +353,7 @@ def _dedup_and_move_root_episode(
     root_api_episodes: dict[tuple[int, int], dict[str, Any]],
     patterns: NamingPatterns,
     dry_run: bool,
+    allow_synthetic_rename: bool = True,
 ) -> bool:
     """Deduplicate and move a root-level episode into its season directory.
 
@@ -279,10 +369,31 @@ def _dedup_and_move_root_episode(
         root_api_episodes: Dict from ``_fetch_season_episodes()``.
         patterns: NamingPatterns for file and directory naming.
         dry_run: If True, log actions without making changes.
+        allow_synthetic_rename: When ``False`` (default contract per
+            ``metadata.episode_scraping_policy.allow_synthetic_rename_on_unmatched``)
+            AND the provider has no record for ``(s_num, e_num)``, the
+            file is LEFT at the show root with its raw filename
+            instead of being moved with a synthetic ``"Episode N"``
+            title. Pinned by the Top Chef Le Concours Parallèle S17
+            integration case.
 
     Returns:
         True if any repair was applied (file deleted or moved).
     """
+    # Unmatched-episode policy gate (DESIGN scraping.md §Unmatched
+    # Episode Policy). When the provider catalog has no entry for this
+    # (season, episode) AND synthetic rename is disabled, leave the
+    # file at the root and log for observability.
+    if not allow_synthetic_rename and (s_num, e_num) not in root_api_episodes:
+        log.warning(
+            "episode_unmatched_no_rename",
+            filename=candidates[0].name,
+            season=s_num,
+            episode=e_num,
+            available_seasons=sorted({s for s, _ in root_api_episodes}),
+        )
+        return False
+
     repaired = False
 
     # Dedup: keep newest by mtime, delete older ones
@@ -499,6 +610,10 @@ class ExistingValidatorMixin:
                 show_data = _coerce_to_show_data(self._tmdb.get_tv(tmdb_id))
                 root_api_episodes = _fetch_season_episodes(self._tmdb, tmdb_id, season_nums)
 
+            _cfg = getattr(self, "config", None)
+            allow_synthetic_rename = (
+                _cfg is None or _cfg.metadata.episode_scraping_policy.allow_synthetic_rename_on_unmatched
+            )
             for (s_num, e_num), candidates in root_new.items():
                 if _dedup_and_move_root_episode(
                     show_dir,
@@ -508,6 +623,7 @@ class ExistingValidatorMixin:
                     root_api_episodes,
                     self.patterns,
                     self.dry_run,
+                    allow_synthetic_rename=allow_synthetic_rename,
                 ):
                     repaired = True
 
@@ -598,7 +714,19 @@ class ExistingValidatorMixin:
             if not api_episodes:
                 return False
 
-            matched = match_episode_files(unorganized, api_episodes)
+            # Honour the unmatched-episode policy in the repair path too —
+            # otherwise the contract is enforced only on full scrapes and
+            # bypassed on the (faster) repair path, leaving the Top Chef Le
+            # Concours Parallèle S17 case mis-renamed.
+            _cfg = getattr(self, "config", None)
+            allow_synthetic_rename = (
+                _cfg is None or _cfg.metadata.episode_scraping_policy.allow_synthetic_rename_on_unmatched
+            )
+            matched = match_episode_files(
+                unorganized,
+                api_episodes,
+                allow_synthetic_rename=allow_synthetic_rename,
+            )
             if not matched:
                 return False
 

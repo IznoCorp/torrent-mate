@@ -6,9 +6,9 @@ Implements DESIGN §6.1: TrackerClient Protocol and TrackerResult dataclass.
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import ClassVar, Protocol, TypeVar
+from typing import TypeVar
 
-from personalscraper.api._contracts import ApiError, MediaType
+from personalscraper.api._contracts import ApiError
 from personalscraper.api._units import ByteSize
 
 T = TypeVar("T")
@@ -99,31 +99,13 @@ class TrackerResult:
     audio: str | None = None
 
 
-class TrackerClient(Protocol):
-    """Protocol for tracker API providers.
-
-    Implementations must provide a ``provider_name`` class attribute, the
-    set of required credentials, and implement ``search()`` and
-    ``get_categories()``.
-
-    Implementor contract for ``search()``:
-        Trackers whose parsers may surface ``KeyError`` / ``IndexError`` /
-        ``TypeError`` / ``AttributeError`` / ``ValueError`` on schema drift
-        MUST wrap their parse code via :func:`wrap_parser_drift` (or raise
-        :class:`ApiError` directly) so the error reaches
-        :class:`TrackerRegistry` as an operational failure. The registry
-        deliberately does NOT swallow bare programming exceptions —
-        unwrapped drift would crash every other tracker's search.
-    """
-
-    provider_name: str
-    REQUIRED_CREDS: ClassVar[list[str]]
-
-    def search(
-        self,
-        query: str,
-        media_type: MediaType = MediaType.MOVIE,
-        year: int | None = None,
-    ) -> list[TrackerResult]: ...
-
-    def get_categories(self) -> dict[str, str]: ...
+# NOTE — provider-ids feature, sub-phase 11.1 :
+# The historical monolithic ``TrackerClient(Protocol)`` defined here
+# was dropped in favour of the atomic capability protocols hosted in
+# ``personalscraper.api.tracker._contracts`` (``TorrentSearchable``,
+# ``CategoryListable``, ``FreeleechAware``, ``TorrentDetailsProvider``).
+# Each concrete client now composes only the capabilities it actually
+# implements (DESIGN §4 — Composition par client). The
+# :class:`TrackerRegistry` is typed with the minimum needed capability
+# (``TorrentSearchable``) and uses ``isinstance`` to widen at the
+# specific call sites where a stricter capability is required.
