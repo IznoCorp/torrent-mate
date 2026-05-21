@@ -231,3 +231,151 @@ L'item 12 architecture critique est plus opinion-based ; sa re-évaluation n'app
 les mêmes new findings que item 11 audit. Acceptable tel quel.
 
 L'item 14 DESIGN+plan devra être révisé pour intégrer #24-#49.
+# Bonus DEVs trouvés pendant reindex BDD (2026-05-21 22h35-22h40)
+
+## DEV #50 — CRITIQUE : library.scanner._ensure_disk_row crée des doubles
+
+**Site** : `personalscraper/library/scanner.py:756,781`
+
+```python
+existing = disk_repo.get_by_uuid(conn, disk_cfg.id)  # disk_cfg.id = "disk_1" string
+if existing is None:
+    row = _build_disk_row(disk_cfg, now_s)  # uuid="disk_1"
+    disk_repo.insert(conn, row)
+```
+
+**Problem** : la fonction lookup par `disk_cfg.id` (config string, e.g. "disk_1") au lieu du
+vrai VolumeUUID (sentinel-derived, e.g. F7E3C03C-...). Donc si la BDD a déjà les disks
+indexés par vrai UUID (via indexer.scanner.bootstrap_disk_identity), `_ensure_disk_row`
+ne les trouve pas → INSERT un duplicate avec uuid="disk_1".
+
+**Reproduit** : run `scan_library()` une fois → la table `disk` passe de 4 rows à 8 rows
+(4 originaux + 4 doublons "disk_1"/"disk_2"/...).
+
+**Conséquence** : sentinel_mismatch skip sur les 4 nouveaux disks, scan_library skip
+l'_indexer_scan() interne, les nouveaux media_item restent sans linkage media_file/release.
+
+**Fix proposé** : `_ensure_disk_row` doit utiliser `verify_disk_mounted(disk_cfg).found_uuid`
+ou `bootstrap_disk_identity()` pour récupérer le vrai VolumeUUID, puis lookup par ça.
+
+## DEV #51 — MAJEUR : enrich mode does not compute oshash
+
+**Site** : `personalscraper/indexer/scanner/_modes/enrich.py:290-430 _enrich_one_file`
+
+`_enrich_one_file` fait 3 enrichments :
+1. Stream extraction (MediaInfoWrapper)
+2. NFO status check
+3. Artwork inventory
+
+**Mais ne (re)calcule jamais oshash**. Si oshash est NULL (calcul a échoué au scan initial),
+enrich ne le retentera jamais. Le file reste avec `oshash IS NULL AND enriched_at IS NOT NULL`
+indéfiniment.
+
+**Reproduit** : 118,414 files dans library.db ont ce profil. Aucune commande CLI ne
+recompute. Seul `library-index --mode full` recompute (au walker step), mais possiblement
+skip si la row existe déjà.
+
+**Fix proposé** : soit ajouter une step "retry oshash if NULL" dans `_enrich_one_file`, soit
+exposer un mode dédié `library-index --mode oshash-retry`.
+
+## DEV #52 — MAJEUR : library-index --mode full ne retry pas oshash sur rows existantes
+
+**Site** : `personalscraper/indexer/scanner/_walker.py:496` + `_db_writes.py:222`
+
+`_compute_oshash` retourne `str | None`. Si return None (read failure), oshash=NULL set
+en INSERT. Sur les runs suivants, le walker traite la row existante mais probablement ne
+re-tente pas oshash. À vérifier dans le code.
+
+**Cas observé** : 118k files ont `oshash IS NULL` après 5+ scans `--mode full`. Pas de retry.
+
+**Fix proposé** : dans le walker, si une row existante a `oshash IS NULL`, retry la compute.
+
+## DEV #53 — CRITIQUE : scan_library._upsert_media_item crée des duplicates
+
+**Site** : `personalscraper/library/scanner.py` (around _upsert_media_item, line ~523)
+
+**Reproduit** : un appel à `scan_library()` sur une BDD avec 1935 media_item existants
+en a créé 1863 doublons (1935 → 3798). Les doublons :
+- ont le même title (sans année dans le champ title)
+- ont le même year
+- mais l'item existant a "(YYYY)" littéralement dans le title (e.g., "13 jours, 13 nuits (2025)")
+- le nouveau n'a que "13 jours, 13 nuits"
+
+Lookup key dans `_upsert_media_item` ne match pas la version `title=cleaned` vs `title=raw_with_year`.
+
+**Conséquence** : 1861 rows fantômes en BDD (1863 doublons - 2 légitimes Monk + Squid Game),
+zero releases linkées vers eux, espace disque BDD gaspillé, queries lentes.
+
+**Fix proposé** : normaliser le lookup key (strip "(YYYY)" du title avant lookup), OU
+utiliser (title_normalized, year) comme key composite.
+
+**Cleanup ad-hoc** : DELETE FROM media_item WHERE id IN (SELECT id FROM media_item m
+LEFT JOIN media_release r ON r.item_id = m.id WHERE m.date_created > <recent> GROUP BY m.id
+HAVING COUNT(r.id) = 0).
+
+## DEV #54 — CRITIQUE : run_backfill_ids skip items WHERE canonical_provider IS NULL
+
+**Site** : `personalscraper/indexer/scanner/_modes/backfill_ids.py` (predicate logic)
+
+**Observé** : sur 1937 items en BDD, tous ont `canonical_provider IS NULL`. Le dry-run
+de `run_backfill_ids` traite 1937 items mais skip 100% avec log
+`backfill_ids_canonical_unsupported canonical=None`.
+
+**Chicken-and-egg** : backfill UTILISE canonical_provider, ne le SET PAS. Pour que backfill
+populate `external_ids_json` + `ratings_json`, il faut d'abord que canonical_provider soit
+set, ce qui ne se fait que via une scrape complète (NFO write avec tag canonical).
+
+**Conséquence** : `library-index --mode backfill-ids` est un no-op sur toute BDD qui n'a
+jamais été rescrapée post-provider-ids. = DEV #27 root cause (Plan A reset+rescrape jamais
+exécuté). Provider-IDs ACCEPTANCE #3 + #4 ne peuvent JAMAIS être validés sans le rescrape.
+
+**Fix proposé** :
+1. Court terme : ajouter un mode `--init-canonical` qui scanne les NFOs et set
+   canonical_provider depuis `<uniqueid default="true" type="X">`.
+2. Long terme : Phase 8 du tech-debt 0.16.0 doit forcément faire le rescrape complet.
+
+
+---
+
+## 9. Reindex BDD attempt 2026-05-21 — outcome
+
+**Sequence run** (post-cascade item 11 REDO) :
+
+1. `scan_library()` via Python (DEV #16 CLI absent) → produced **DEV #50** (duplicate disks
+   id=5-8 with uuid="disk_1"…) AND **DEV #53** (1863 duplicate media_item rows because
+   `_upsert_media_item` lookup key inconsistent with stored title format).
+2. Manual cleanup : DELETE duplicate disks + delete 1861 phantom media_item via
+   cascading season/episode/attr.
+3. `library-index --mode incremental --confirm-bulk-change` → merkle short-circuit OK.
+4. `library-index --mode enrich --budget 540` → **DEV #51** : enrich doesn't compute oshash
+   (no-op on 118k oshash-NULL files).
+5. `library-index --mode full` → ~17 min walk, no new files. Confirms **DEV #52** : full
+   walker doesn't retry oshash on existing rows.
+6. `library-relink --apply` → linked 1815 files (Monk + Squid Game now properly indexed,
+   2 legitimate new items kept).
+7. `run_backfill_ids()` dry-run via Python → **DEV #54** : all 1937 items skipped because
+   `canonical_provider IS NULL` everywhere. Backfill chicken-and-egg : uses canonical,
+   doesn't set it.
+8. `library-reconcile` final : merkle=0, dispatch=0, enrich=0, releases=0, items=0,
+   files_without_release=5,376 (sidecars + 5 phantoms DEV #17), season_count_drift=3
+   (cosmetic Monk + Squid Game post first-link).
+
+**Final BDD state** (clean) :
+- 1,937 media_item (1,935 baseline + Monk + Squid Game truly added)
+- 27,470 media_release (+117 from relink)
+- 149,087 media_file (118,414 still oshash NULL — DEV #51/#52)
+- 0 / 1,937 items have canonical_provider populated (DEV #54)
+- 0 / 1,937 items have external_ids_json populated (chain : DEV #54 → DEV #27)
+- 0 / 1,937 items have ratings_json populated (chain : DEV #54 → DEV #27)
+
+**Conclusion** : full BDD "migrate everything + index everything" is **NOT POSSIBLE** with
+the current codebase. The bottleneck is DEV #54 (backfill chicken-and-egg) which requires
+either a `--init-canonical` mode (new) or a full `library-rescrape` of all 1,937 items
+(API-heavy, hours). DEV #50, #53 made the scan_library invocation actively destructive
+(duplicate creation). DEV #51, #52 leave 80% of files without oshash.
+
+**Tech-debt 0.16.0 scope expansion** : add 5 new CRITIQUE/MAJEUR DEVs (#50-#54). The Plan A
+reset+rescrape (DEV #27, Phase 8) is no longer optional — it's the only path to populate
+provider-IDs on the live BDD.
+
+Revised estimate +1-2 d : **17-25 → 18-27 d sequential, 14-20 → 15-22 d parallelised**.
