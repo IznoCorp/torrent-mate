@@ -766,9 +766,22 @@ def _build_disk_row(disk_cfg: DiskConfig, now_s: int) -> DiskRow:
 def _ensure_disk_row(conn: sqlite3.Connection, disk_cfg: DiskConfig, now_s: int) -> DiskRow:
     """Ensure a ``disk`` row exists for the given config entry and return it.
 
-    Performs a SELECT-then-INSERT pattern: if a disk with the same UUID
-    (i.e. ``DiskConfig.id``) already exists it is returned unchanged; otherwise
-    a new row is inserted.
+    Performs a SELECT-then-INSERT pattern using ``label`` as the lookup key.
+
+    The ``label`` column is always populated with ``DiskConfig.id`` regardless
+    of the code path that created the row:
+
+    * :func:`~personalscraper.indexer.commands._bootstrap._bootstrap_disks_from_config`
+      sets ``label=disk_cfg.id`` with a real macOS VolumeUUID in the ``uuid`` column.
+    * :func:`_build_disk_row` (this module) sets both ``uuid`` and ``label`` to
+      ``disk_cfg.id`` as a fallback when the indexer bootstrap has not run yet.
+
+    Looking up by ``uuid=disk_cfg.id`` was the original approach, but it silently
+    missed rows inserted by the bootstrap path (where ``uuid`` is the real
+    VolumeUUID, not the config string).  The mismatch caused ``scan_library()`` to
+    insert duplicate disk rows (uuid="disk_1" alongside the existing uuid="F7E3C03C-...")
+    and all subsequent indexer operations to skip the duplicates with
+    ``sentinel_mismatch`` (DEV #50, reproduced 2026-05-21 22h35).
 
     Args:
         conn: Open SQLite connection.
@@ -778,10 +791,15 @@ def _ensure_disk_row(conn: sqlite3.Connection, disk_cfg: DiskConfig, now_s: int)
     Returns:
         :class:`DiskRow` with the PK assigned by the DB.
     """
-    existing = disk_repo.get_by_uuid(conn, disk_cfg.id)
+    # Primary lookup: by label (config-stable, set consistently by both insertion paths).
+    existing = disk_repo.get_by_label(conn, disk_cfg.id)
     if existing is not None:
         return existing
 
+    # No row found — insert a new one using disk_cfg.id as a uuid placeholder.
+    # If the indexer bootstrap runs later it will INSERT OR IGNORE (no-op since
+    # label is not UNIQUE), but the uuid column will remain the config-string.
+    # Phase 1.10 PRAGMA discipline will address the full bootstrap ordering.
     row = _build_disk_row(disk_cfg, now_s)
     disk_id = disk_repo.insert(conn, row)
     return DiskRow(

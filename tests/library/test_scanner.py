@@ -1057,3 +1057,117 @@ class TestNtfsUnsafeDetection:
         item = scan_movie_dir(movie, disk_id="drive_a", category_id=CID.MOVIES)
 
         assert ISSUE_NTFS_UNSAFE in item.issues
+
+
+# ---------------------------------------------------------------------------
+# Regression tests — DEV #50: _ensure_disk_row UUID mismatch
+# ---------------------------------------------------------------------------
+
+
+class TestEnsureDiskRowNoDuplicate:
+    """Regression tests for DEV #50: _ensure_disk_row must not insert duplicate rows.
+
+    Bug: _ensure_disk_row used disk_repo.get_by_uuid(conn, disk_cfg.id) where
+    disk_cfg.id is the config string (e.g. "drive_a").  Rows inserted by
+    _bootstrap_disks_from_config carry the real VolumeUUID (e.g. "F7E3C03C-...")
+    in the uuid column, but always use disk_cfg.id as the label.  The uuid lookup
+    never matched, causing scan_library() to insert duplicate disk rows.
+
+    Fix: _ensure_disk_row now looks up by label (disk_cfg.id), which is consistent
+    across both insertion paths.
+    """
+
+    def _make_conn(self, migrations_dir: Path) -> sqlite3.Connection:
+        """Return an in-memory SQLite connection with full schema applied.
+
+        Args:
+            migrations_dir: Absolute path to the indexer migrations directory.
+
+        Returns:
+            Open :class:`sqlite3.Connection` with all migrations applied and FK ON.
+        """
+        conn = sqlite3.connect(":memory:", isolation_level=None, check_same_thread=False)
+        conn.execute("PRAGMA foreign_keys = ON")
+        apply_migrations(conn, migrations_dir)
+        return conn
+
+    def test_ensure_disk_row_no_duplicate_when_row_has_real_uuid(self, tmp_path: Path) -> None:
+        """_ensure_disk_row returns existing row without INSERT when pre-inserted with real UUID.
+
+        Simulates the bootstrap path where uuid is a real VolumeUUID and label=disk_cfg.id.
+        Regression for DEV #50: before the fix, get_by_uuid(conn, "drive_a") returned
+        None because the existing row had uuid="F7E3C03C-..." and label="drive_a",
+        causing a second duplicate disk row to be inserted.
+        """
+        from personalscraper.library.scanner import _ensure_disk_row
+
+        conn = self._make_conn(MIGRATIONS_DIR)
+        disk_cfg = DiskConfig(
+            id="drive_a",
+            path=tmp_path / "drive_a",
+            categories=[CID.MOVIES],
+        )
+
+        # Pre-insert a disk row with a real VolumeUUID (simulating bootstrap path).
+        real_uuid = "F7E3C03C-1234-5678-ABCD-000000000001"
+        conn.execute(
+            "INSERT INTO disk (uuid, label, mount_path, last_seen_at, merkle_root, is_mounted, unreachable_strikes) "
+            "VALUES (?, ?, ?, ?, NULL, 1, 0)",
+            (real_uuid, disk_cfg.id, str(disk_cfg.path), 1000),
+        )
+
+        # Call _ensure_disk_row — must find the existing row, not insert a duplicate.
+        now_s = 2000
+        result = _ensure_disk_row(conn, disk_cfg, now_s)
+
+        # Assert: exactly one disk row in the DB (no duplicate inserted).
+        disk_count = conn.execute("SELECT COUNT(*) FROM disk").fetchone()[0]
+        assert disk_count == 1, (
+            f"Expected 1 disk row after _ensure_disk_row, got {disk_count} "
+            f"(DEV #50 regression: duplicate row was inserted)"
+        )
+
+        # Assert: returned row matches the pre-existing one (by uuid and label).
+        assert result.uuid == real_uuid, f"Expected uuid={real_uuid!r}, got {result.uuid!r}"
+        assert result.label == disk_cfg.id, f"Expected label={disk_cfg.id!r}, got {result.label!r}"
+
+    def test_ensure_disk_row_inserts_when_no_existing_row(self, tmp_path: Path) -> None:
+        """_ensure_disk_row inserts a new disk row when no row exists for the label."""
+        from personalscraper.library.scanner import _ensure_disk_row
+
+        conn = self._make_conn(MIGRATIONS_DIR)
+        disk_cfg = DiskConfig(
+            id="drive_b",
+            path=tmp_path / "drive_b",
+            categories=[CID.TV_SHOWS],
+        )
+
+        # No pre-existing row.
+        result = _ensure_disk_row(conn, disk_cfg, now_s=1000)
+
+        # Assert: exactly one disk row created.
+        disk_count = conn.execute("SELECT COUNT(*) FROM disk").fetchone()[0]
+        assert disk_count == 1, f"Expected 1 disk row after insert, got {disk_count}"
+        assert result.label == disk_cfg.id
+        assert result.id > 0  # PK was assigned
+
+    def test_ensure_disk_row_idempotent_when_row_already_uses_config_id_as_uuid(self, tmp_path: Path) -> None:
+        """_ensure_disk_row is idempotent when the existing row has uuid=disk_cfg.id (library path)."""
+        from personalscraper.library.scanner import _ensure_disk_row
+
+        conn = self._make_conn(MIGRATIONS_DIR)
+        disk_cfg = DiskConfig(
+            id="drive_c",
+            path=tmp_path / "drive_c",
+            categories=[CID.MOVIES],
+        )
+
+        # First call: inserts with uuid=disk_cfg.id (library scanner fallback path).
+        _ensure_disk_row(conn, disk_cfg, now_s=1000)
+        # Second call: must return the existing row without INSERT.
+        _ensure_disk_row(conn, disk_cfg, now_s=2000)
+
+        disk_count = conn.execute("SELECT COUNT(*) FROM disk").fetchone()[0]
+        assert disk_count == 1, (
+            f"Expected 1 disk row after two _ensure_disk_row calls, got {disk_count} (idempotence violation)"
+        )
