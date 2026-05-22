@@ -265,6 +265,27 @@ NFO containing `<uniqueid default="true" type="tvdb">…</uniqueid>`, run init, 
 
 **Commit** : `feat(tech-debt): library init-canonical CLI to bootstrap from NFOs (DEV #54)`
 
+**Post-commit action (Plan A launch — décision opérateur 2026-05-22, option b)** :
+
+Immédiatement après le commit 1.9 et avant de démarrer 1.10, lancer Plan A en arrière-plan :
+
+```bash
+# 1. Bootstrap canonical from NFOs (rapide, ~minutes)
+personalscraper library-init-canonical
+# 2. Plan A : backfill cross-provider IDs + ratings via TMDB/TVDB
+# Run en BACKGROUND avec log fichier — peut tourner pendant Phase 2 + Phase 3
+nohup personalscraper library-index --mode backfill-ids --no-budget \
+  > .data/plan-a-backfill.log 2>&1 &
+echo $! > .data/plan-a-backfill.pid
+```
+
+Estimation : 1-2h API calls TMDB/TVDB. Aucune supervision continue requise — vérifier
+périodiquement `tail -f .data/plan-a-backfill.log` ou attendre `library-doctor` à Phase 5.3.
+
+**Vérification finale en Phase 8.10** : `SELECT COUNT(*) FROM media_item WHERE
+external_ids_json != '{}'` doit dépasser 90% (closure ACCEPTANCE provider-ids #3/#4/#10).
+Si Plan A a échoué (réseau, rate-limit, quota), Phase 8.10 le relance avec budget.
+
 ### 1.10 PRAGMA discipline multi-site (DEV #33 + #34 + audit #37)
 
 **Sites** (raw `sqlite3.connect()` bypass `open_db`) :

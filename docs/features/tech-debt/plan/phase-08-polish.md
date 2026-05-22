@@ -144,31 +144,37 @@ CLI l'invoke en E2E.
 
 **Commit** : `docs(tech-debt): ACCEPTANCE.md executable criteria (CF-J)`
 
-### 8.10 Plan A reset + rescrape — DEV #27 + #54 closure
+### 8.10 Plan A reset + rescrape — VERIFY + retry (DEV #27 + #54 closure)
 
-**One-shot operation** (live BDD).
+**Décision opérateur 2026-05-22 (option b)** : Plan A est lancé **en arrière-plan dès la fin
+de Phase 1.9** (voir `phase-01-foundations.md` § "Post-commit action"). Il tourne pendant
+Phases 2-7. Phase 8.10 devient donc principalement une **étape de vérification + retry si
+nécessaire**.
 
-**Preconditions** : Phase 1.9 `init-canonical` shipped (so backfill-ids becomes useful).
+**Preconditions** : Phase 1.9 init-canonical commit + Plan A background launch effectué.
 
-**Sequence** (each step validated before next) :
+**Sequence** :
 
-1. Backup `library.db` → `library.db.bak.pre-rescrape-0.16.0`
-2. `personalscraper library init-canonical` (Phase 1.9) → populate canonical_provider
-   from NFOs on disk
-3. `personalscraper library-index --mode backfill-ids --no-budget` → fills `external_ids_json`
-   - `ratings_json` from API (1937 items × ~3 API calls ≈ 1-2 h)
-4. Verification :
-   - `SELECT COUNT(*) FROM media_item WHERE external_ids_json = '{}'` → tends to 0
-   - `library-doctor` reports `canonical_provider populated > 90%`
-5. For items still empty (no NFO uniqueid, or API failure) : optional
-   `library-rescrape --apply --filter canonical_provider IS NULL` (full TMDB scrape, slow)
+1. Vérifier la complétion : `cat .data/plan-a-backfill.log | tail -50` — chercher
+   `BackfillCompleted` event final ou exception non-traitée.
+2. Si le PID est encore vivant : `kill -0 $(cat .data/plan-a-backfill.pid)` — attendre la fin.
+3. Mesurer la couverture :
+   - `SELECT COUNT(*) FROM media_item WHERE external_ids_json = '{}';` → doit tendre vers 0
+   - `SELECT COUNT(*) FROM media_item WHERE canonical_provider IS NULL;` → doit tendre vers 0
+   - `personalscraper library-doctor` → reporte `canonical_provider populated > 90%`
+4. **Si couverture < 90% (échec partiel — réseau, rate-limit, API quota)** :
+   - Backup `library.db` → `library.db.bak.plan-a-retry-{date}`
+   - Relancer en foreground avec budget plus généreux :
+     `personalscraper library-index --mode backfill-ids --no-budget --retry-failed`
+5. **Items restants empty (no NFO uniqueid)** : optionnel
+   `library-rescrape --apply --filter "canonical_provider IS NULL"` (full TMDB scrape, slow).
 
 **Resolves** : provider-ids ACCEPTANCE #3 (CLI present via Phase 2), #4 (data populated), #10
 (8-show staging dispatch-ready validation). DEV #12 (provider-IDs empty sub-cause). DEV #27
 (Plan A executed). DEV #54 (chicken-and-egg unblocked by init-canonical).
 
-**Commit** : `chore(tech-debt): Plan A reset + rescrape execution log (DEV #27, #54)`
-(this is a chore, not code change — actions on live BDD; commit only the runbook trace)
+**Commit** : `chore(tech-debt): Plan A backfill verification + closure (DEV #27, #54)`
+(commit du log final + bilan, action principale déjà tournée hors-commit en Phase 1.9 post).
 
 ### 8.11 Promote check-module-size to hard-block (DEV #46)
 
