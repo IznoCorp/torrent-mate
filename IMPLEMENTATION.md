@@ -56,18 +56,18 @@ Méthode : un par un, validation utilisateur entre chaque, communication en fran
 Voir `docs/features/tech-debt/plan/INDEX.md` pour le détail. **10 phases** (Phase 0 ajoutée
 2026-05-22 — DEV #1 promu pré-foundations sur la review opérateur) ordonnées par dépendances :
 
-| #   | Phase                                      | File                      | Effort | Status |
-| --- | ------------------------------------------ | ------------------------- | ------ | ------ |
+| #   | Phase                                      | File                      | Effort | Status                                   |
+| --- | ------------------------------------------ | ------------------------- | ------ | ---------------------------------------- |
 | 0   | Pre-Foundations: skill safety net (DEV #1) | phase-00-skill-safety.md  | 0.5 j  | [x] `66943ce` (.claude/personal-scraper) |
-| 1   | Foundations BDD/indexer + PRAGMA + bonus   | phase-01-foundations.md   | 3-4 j  | [ ]    |
-| 2   | CLI gaps + backfill-ids first run          | phase-02-cli-gaps.md      | 2 j    | [ ]    |
-| 3   | Observability (broadened DEV #6 → 7 cmds)  | phase-03-observability.md | 2 j    | [ ]    |
-| 4   | Path + paranoia branch (DEV #31)           | phase-04-path-cleanup.md  | 2-3 j  | [ ]    |
-| 5   | Conformity (drop Protocols + Pydantic)     | phase-05-conformity.md    | 2-3 j  | [ ]    |
-| 6   | Format + heavy doc work                    | phase-06-format-docs.md   | 3-4 j  | [ ]    |
-| 7   | Matrix v2.1 + agents matrix-aware          | phase-07-matrix-v21.md    | 1-2 j  | [ ]    |
-| 8   | Polish + Plan A reset + size hard-block    | phase-08-polish.md        | 3-4 j  | [ ]    |
-| 9   | Archive DESIGN.md updates (7 features)     | phase-09-archive-docs.md  | 1-2 j  | [ ]    |
+| 1   | Foundations BDD/indexer + PRAGMA + bonus   | phase-01-foundations.md   | 3-4 j  | [ ]                                      |
+| 2   | CLI gaps + backfill-ids first run          | phase-02-cli-gaps.md      | 2 j    | [ ]                                      |
+| 3   | Observability (broadened DEV #6 → 7 cmds)  | phase-03-observability.md | 2 j    | [ ]                                      |
+| 4   | Path + paranoia branch (DEV #31)           | phase-04-path-cleanup.md  | 2-3 j  | [ ]                                      |
+| 5   | Conformity (drop Protocols + Pydantic)     | phase-05-conformity.md    | 2-3 j  | [ ]                                      |
+| 6   | Format + heavy doc work                    | phase-06-format-docs.md   | 3-4 j  | [ ]                                      |
+| 7   | Matrix v2.1 + agents matrix-aware          | phase-07-matrix-v21.md    | 1-2 j  | [ ]                                      |
+| 8   | Polish + Plan A reset + size hard-block    | phase-08-polish.md        | 3-4 j  | [ ]                                      |
+| 9   | Archive DESIGN.md updates (7 features)     | phase-09-archive-docs.md  | 1-2 j  | [ ]                                      |
 
 **Total post coverage-fix** : **19-27 jours séquentiel, 15-22 jours parallélisable**.
 
@@ -86,6 +86,28 @@ Voir `docs/features/tech-debt/plan/INDEX.md` § "DEV coverage matrix" + § "Patt
 | `29c4953` | #11 | compute_merkle_root sort-key determinism                          |
 | `fc39f77` | #13 | \_recreate_indexes IF NOT EXISTS (C5 race workers)                |
 | `3993487` | #14 | \_build_disk_fingerprints + \_sample_fresh_fingerprints alignment |
+
+## Phase 1 sub-phase progress
+
+Phase 1 partially shipped tactically (2026-05-23) before handing off to
+`/implement:phase` :
+
+| Sub-phase | SHA       | DEV | Description                                                  |
+| --------- | --------- | --- | ------------------------------------------------------------ |
+| 1.1       | `38cdcd6` | #18 | wire mark_missed_files into library-index CLI flow           |
+| 1.2       | `1320efc` | #19 | pre-check FK orphans at open_db, raise IndexerFKOrphansError |
+
+Remaining Phase 1 sub-phases to dispatch via `/implement:phase` :
+1.3 (E2E miss-strike lifecycle test), 1.4 (E2E scan→reconcile=clean test),
+1.5 (schema_version row 3 backfill + migration 006), 1.6 (PRAGMA integrity_check
+at boot), 1.7 (\_ensure_disk_row UUID fix, DEV #50), 1.8 (oshash retry,
+DEV #51+#52), 1.9 (init-canonical CLI, DEV #54), 1.10 (PRAGMA discipline
+multi-site, DEV #33+#34).
+
+**Inter-sub-phase action between 1.9 and 1.10** : operator launches Plan A
+backfill in background (see `phase-01-foundations.md` §1.9 post-commit note).
+`/implement:phase` must NOT auto-continue to 1.10 — it will surface to the
+operator as a checkpoint.
 
 ## Item 4 — clos (2026-05-21)
 
