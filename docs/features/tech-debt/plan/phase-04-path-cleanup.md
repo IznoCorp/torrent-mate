@@ -102,7 +102,7 @@ documenter pourquoi hard-delete est nécessaire.
 
 ### 4.6 library-reconcile flags clarif (SH-15 / DEV #10 / CL-C)
 
-**Site** : `personalscraper/indexer/commands/reconcile.py` + `library-reconcile --help`.
+**Site** : `personalscraper/commands/library/audit.py` (où vit la commande `@app.command("library-reconcile")`, ligne 18) + `library-reconcile --help`. Path corrigé R4 — l'audit disait `indexer/commands/reconcile.py` qui n'existe pas.
 
 **Actions** :
 

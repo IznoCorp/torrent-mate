@@ -24,7 +24,8 @@ DESIGN sections impacted : §9 BDD lifecycle invariants, §15 PRAGMA discipline.
 
 ## Gate (prérequis avant cette phase)
 
-- Branch `fix/tech-debt` checkout
+- **Phase 0 committed sur `.claude/` branche `personal-scraper`** (skill v2.0 safety net, DEV #1)
+- Branch `fix/tech-debt` checkout sur personalscraper
 - DESIGN.md + plan/INDEX.md committed
 - 4 fix commits déjà shipped (268cbee, 29c4953, fc39f77, 3993487)
 - `make test` vert (vérifier avant de démarrer)
@@ -293,7 +294,7 @@ Si Plan A a échoué (réseau, rate-limit, quota), Phase 8.10 le relance avec bu
 - `personalscraper/dispatch/run.py` (×2)
 - `personalscraper/commands/library/audit.py`
 - `personalscraper/conf/loader.py`
-- `personalscraper/indexer/_concurrency.py`
+- `personalscraper/indexer/scanner/_concurrency.py` (path corrigé R4 — l'audit disait `indexer/_concurrency.py` qui n'existe pas)
 - `personalscraper/indexer/outbox/_disk.py`
 - `personalscraper/indexer/outbox/_publish.py`
 

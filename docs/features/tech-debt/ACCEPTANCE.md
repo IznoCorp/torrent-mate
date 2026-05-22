@@ -384,11 +384,11 @@ personalscraper trailers verify --help  # deprecation warning visible
 make test -k test_pin_existence_of_every_exposed_command
 ```
 
-### ACC-45 — ACCEPTANCE.md complete with all 45 criteria
+### ACC-45 — ACCEPTANCE.md complete with all criteria
 
 ```bash
 grep -c "^### ACC-" docs/features/tech-debt/ACCEPTANCE.md
-# Expected: 45+
+# Expected: 50+ (ACC-00 + ACC-01..ACC-49 + ACC-final-* = 55 actually)
 ```
 
 ---

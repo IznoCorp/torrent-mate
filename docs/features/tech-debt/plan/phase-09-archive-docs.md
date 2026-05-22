@@ -26,6 +26,7 @@ Note : DEV #9 mentioned in matrix but ALREADY shipped (commit 268cbee, not in sc
 
 - Phase 6 (heavy doc work) commited
 - Phase 7 (matrix v2.1) commited
+- **Phase 8 commited** (Plan A reset+rescrape done — 9.1.b banner cite le SHA Phase 8.10)
 - DEV #24-#49 mapped to leverage items
 
 ## Sub-phases
