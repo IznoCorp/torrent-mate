@@ -9,7 +9,8 @@
 **Branch**: fix/tech-debt
 **PR merge**: manual
 **PR**: _(created after last phase)_
-**Handover**: `docs/features/tech-debt/HANDOVER.md` ← **READ FIRST**
+**Handover**: `docs/features/tech-debt/HANDOVER.md` ← **READ FIRST** (TRANSIENT — sera
+supprimé en Phase 9.4 closure post-implementation, ne PAS y ajouter du contenu pérenne)
 **Design**: `docs/features/tech-debt/DESIGN.md` (9 sections + ACCEPTANCE sketch)
 **Acceptance**: `docs/features/tech-debt/ACCEPTANCE.md` (49 criteria exécutables)
 **Master plan**: `docs/features/tech-debt/plan/INDEX.md` (DEV/Pattern/Section cross-tables)

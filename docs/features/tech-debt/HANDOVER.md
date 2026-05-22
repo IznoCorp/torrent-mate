@@ -4,6 +4,10 @@
 > contient tout le contexte de la feature `tech-debt`, l'historique de l'audit pré-design,
 > les 54 DEVs identifiés, les 34 patterns systémiques, l'état du plan, et les actions
 > suivantes. Date de cet handover : **2026-05-22**.
+>
+> **⚠ Statut TRANSIENT** : ce document est temporaire. Il sera **supprimé en Phase 9.4**
+> (closure post-implementation) car son contexte sera obsolète. Ne PAS y ajouter du contenu
+> pérenne — utiliser `audit/`, `DESIGN.md`, `ACCEPTANCE.md`, ou `plan/` pour la doc durable.
 
 ## TL;DR (90 secondes)
 

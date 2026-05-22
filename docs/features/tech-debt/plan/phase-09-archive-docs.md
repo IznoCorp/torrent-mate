@@ -148,14 +148,41 @@ Commits :
 Commit : `docs(tech-debt): reference docs sync — logging paths, details_payload type,
 event catalog 17 (DEV #45, #47, #24)`
 
-## Phase 9 Gate
+### 9.4 Final cleanup — delete HANDOVER.md (closure)
+
+**Site** : `docs/features/tech-debt/HANDOVER.md`
+
+**Rationale** : `HANDOVER.md` est un document **transient** créé en fin de session
+2026-05-22 pour transférer le contexte à la session suivante d'implémentation. Une fois
+toutes les phases shippées, il est **obsolète** :
+
+- Le contexte historique vit dans les commits + `audit/01..11.md` (permanent)
+- L'état "next actions" est résolu (toutes les phases shipped)
+- Les "user preferences memories" vivent dans `MEMORY.md` (global persistent)
+
+Garder HANDOVER.md post-merge crée de la dette doc (P30 DOC_ROT que ce plan veut éliminer).
+
+**Action** :
+
+```bash
+git rm docs/features/tech-debt/HANDOVER.md
+```
+
+Et update `IMPLEMENTATION.md` pour retirer la mention "READ FIRST HANDOVER.md" (puisqu'elle
+n'existe plus). IMPLEMENTATION.md devient le seul tracker.
+
+**Commit** : `chore(tech-debt): delete transient HANDOVER.md post-implementation closure`
+
+## Phase 9 Gate (= PR final gate)
 
 - [ ] 9.1.a–g : 7 archived DESIGN.md ont banner + mapping
 - [ ] 9.2.a : \_exclusions.py docstring cleaned
 - [ ] 9.2.b : MANUAL.md + docs/\*.md top-level VX-free
 - [ ] 9.3 : reference docs synced
+- [ ] **9.4 : HANDOVER.md deleted + IMPLEMENTATION.md cleaned of HANDOVER references**
 - [ ] `make check` vert
 - [ ] `rg "\bV[0-9]+\b" docs/*.md` returns only docs/archive/ paths
+- [ ] `test ! -f docs/features/tech-debt/HANDOVER.md` (closure ack)
 
-**Phase gate commit** : `chore(tech-debt): phase 9 gate — archive doc updates (P30 DOC_ROT
-resolved for 7 features)`
+**Phase gate commit** : `chore(tech-debt): phase 9 gate — archive doc updates + HANDOVER
+closure (P30 DOC_ROT resolved)`
