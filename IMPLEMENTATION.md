@@ -58,7 +58,7 @@ Voir `docs/features/tech-debt/plan/INDEX.md` pour le détail. **10 phases** (Pha
 
 | #   | Phase                                      | File                      | Effort | Status |
 | --- | ------------------------------------------ | ------------------------- | ------ | ------ |
-| 0   | Pre-Foundations: skill safety net (DEV #1) | phase-00-skill-safety.md  | 0.5 j  | [ ]    |
+| 0   | Pre-Foundations: skill safety net (DEV #1) | phase-00-skill-safety.md  | 0.5 j  | [x] `66943ce` (.claude/personal-scraper) |
 | 1   | Foundations BDD/indexer + PRAGMA + bonus   | phase-01-foundations.md   | 3-4 j  | [ ]    |
 | 2   | CLI gaps + backfill-ids first run          | phase-02-cli-gaps.md      | 2 j    | [ ]    |
 | 3   | Observability (broadened DEV #6 → 7 cmds)  | phase-03-observability.md | 2 j    | [ ]    |

@@ -19,12 +19,15 @@ Or run the criteria one-by-one below. ✅ = passes, ❌ = fails, 🟡 = pending 
 
 ## Pre-Foundations (Phase 0)
 
-### ACC-00 — Skill auto-detect missing agents (DEV #1, promu pré-foundations)
+### ACC-00 — Skill auto-detect missing agents (DEV #1, promu pré-foundations) ✅
 
 ```bash
-grep -E "MATRIX_AGENTS_MISSING|auto-detect missing|matrix agents discoverability" .claude/skills/pipeline-monitor/SKILL.md
-# Expected: PHASE 0 mentions the check + --degraded-mode opt-in
+grep -cE "MATRIX_AGENTS_MISSING|matrix agents discoverability" .claude/skills/pipeline-monitor/SKILL.md
+# Expected: ≥1. Actual: 1 (commit 66943ce on .claude/personal-scraper, 2026-05-23)
 ```
+
+**Status** : SHIPPED — Phase 0.1 implementé STOP-only (no --degraded-mode fallback, decision
+2026-05-23). Voir `.claude/skills/pipeline-monitor/SKILL.md` §0.3.
 
 **Note** : ACC-33 (ancien emplacement Phase 7) supprimé — voir ACC-00 ci-dessus.
 
