@@ -10,8 +10,11 @@
 | MUST-15 / SH-24 / DEV #8 | 7.1       | P6             |
 | (matrix version bump)    | 7.2       | P6             |
 | DEV #2 + DEV #3          | 7.3       | P9             |
-| DEV #1                   | 7.4       | P10            |
-| (CHANGELOG)              | 7.5       | (doc)          |
+| (CHANGELOG)              | 7.4       | (doc)          |
+
+**Note** : DEV #1 (skill auto-detect missing agents, ancien 7.4) a été **promu en Phase 0.1**
+(`phase-00-skill-safety.md`) — il doit être shipped AVANT toutes les autres phases pour que
+le monitoring `pipeline-monitor` v2.0 soit pleinement opérationnel pendant Phases 1-8.
 
 DESIGN sections impacted : §12 doc conformity (matrix is reference doc).
 Note : DEV #10 (library-reconcile --dry-run inexistant) closed dans 7.1 par matrix update.
@@ -104,19 +107,7 @@ gaps + VERIFY events + library-reconcile flag clarif (MUST-15, DEV #6, DEV #8, D
 
 **Commit** : `feat(pipeline-monitor): agents matrix-aware default + state-validator FS-truth (DEV #2, DEV #3)`
 
-### 7.4 Skill auto-detect missing matrix agents (CL-U item 6 alternative à DEV #1)
-
-**Site** : `.claude/skills/pipeline-monitor/SKILL.md` PHASE 0
-
-**Implementation** : au start de la skill, après MATRIX_VERSION assertion, vérifier que les 4
-agents matrix-aware existent dans la liste available agents. Si l'un manque → STOP avec message :
-
-> "Matrix-aware agent <name> not discoverable. Run `/plugins-reload` and re-invoke the skill,
-> or fall back to general-purpose substitution (degraded mode)."
-
-**Commit** : `feat(pipeline-monitor): auto-detect missing matrix agents at boot (DEV #1)`
-
-### 7.5 CHANGELOG v2.1
+### 7.4 CHANGELOG v2.1
 
 **Site** : `.claude/skills/pipeline-monitor/CHANGELOG.md`
 
@@ -136,7 +127,7 @@ Matrix + skill enrichment from tech-debt 0.16.0 audit.
 ### Skill v2.1 changes
 
 - MATRIX_VERSION assertion = "2.1"
-- Auto-detect missing matrix-aware agents (DEV #1)
+- Auto-detect missing matrix-aware agents (DEV #1) — shipped earlier in Phase 0.1
 - Agent prompts default matrix-aware (DEV #2)
 - pipeline-state-validator FS-truth rule (DEV #3)
 ```
@@ -148,8 +139,7 @@ Matrix + skill enrichment from tech-debt 0.16.0 audit.
 - [ ] 7.1 matrix v2.1 commit, 12 events documented
 - [ ] 7.2 skill SKILL.md v2.1 + assertion
 - [ ] 7.3 agents matrix-aware default + state-validator FS-truth
-- [ ] 7.4 auto-detect missing agents
-- [ ] 7.5 CHANGELOG updated
+- [ ] 7.4 CHANGELOG updated (auto-detect DEV #1 already shipped in Phase 0.1)
 - [ ] Skill invocation sur personalscraper post-Phase 6 produit DEVIATION LIST = 0 (modulo
       operational items)
 

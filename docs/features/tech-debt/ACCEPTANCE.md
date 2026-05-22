@@ -17,6 +17,19 @@ Or run the criteria one-by-one below. ✅ = passes, ❌ = fails, 🟡 = pending 
 
 ---
 
+## Pre-Foundations (Phase 0)
+
+### ACC-00 — Skill auto-detect missing agents (DEV #1, promu pré-foundations)
+
+```bash
+grep -E "MATRIX_AGENTS_MISSING|auto-detect missing|matrix agents discoverability" .claude/skills/pipeline-monitor/SKILL.md
+# Expected: PHASE 0 mentions the check + --degraded-mode opt-in
+```
+
+**Note** : ACC-33 (ancien emplacement Phase 7) supprimé — voir ACC-00 ci-dessus.
+
+---
+
 ## Foundations (Phase 1)
 
 ### ACC-01 — Drift mechanism active (DEV #18)
@@ -280,12 +293,11 @@ grep -l "ALWAYS verify FS via Bash" .claude/agents/pipeline-state-validator.md
 # Expected: 1 match
 ```
 
-### ACC-33 — Skill auto-detect missing agents (DEV #1)
+### ACC-33 — (moved to ACC-00 — DEV #1 promu en Phase 0)
 
-```bash
-grep "MATRIX_AGENTS_MISSING\|auto-detect missing" .claude/skills/pipeline-monitor/SKILL.md
-# Expected: PHASE 0 mentions check
-```
+DEV #1 (skill auto-detect missing agents) a été promu pré-foundations le 2026-05-22 — voir
+**ACC-00** dans la section "Pre-Foundations (Phase 0)" en début de fichier. Ce criterion
+reste numéroté ACC-33 pour ne pas casser les références ailleurs, mais re-pointe vers ACC-00.
 
 ---
 

@@ -63,12 +63,16 @@ universellement) ; pas en dry_run.
 
 **Sites** :
 
-- `personalscraper/indexer/db.py — open_db()` ou équivalent
+- `personalscraper/indexer/db.py — open_db()` (ligne ~313, **PRAGMA foreign_keys=ON déjà présent
+  depuis commit `5a6397cd` 2026-04-30** — l'audit DEV #19 a légèrement sous-estimé l'état du
+  code) — la fix réelle est d'ajouter un **pre-check** + **propager `_apply_pragmas()`** aux
+  sites raw (voir 1.10 PRAGMA discipline + DEV #33/#34).
 
 **Implementation** :
 
-Pré-check + activation. **CRITIQUE** : un `PRAGMA foreign_key_check;` doit retourner zero
-AVANT d'activer FK ON, sinon les opérations qui passaient silencieusement vont échouer.
+Pré-check + (re-)activation. **CRITIQUE** : un `PRAGMA foreign_key_check;` doit retourner zero
+AVANT d'activer FK ON, sinon les opérations qui passaient silencieusement vont échouer. Le
+code actuel active FK sans pre-check — c'est ce que cette sub-phase corrige.
 
 ```python
 def open_db(path: Path) -> sqlite3.Connection:

@@ -266,9 +266,13 @@ Sketch des 15 criteria clés (la version complète est en `ACCEPTANCE.md`) :
 
 ## 7. Phases
 
-Voir `plan/INDEX.md` et `plan/phase-NN-*.md` pour le détail. **9 phases** (post-REDO item 11)
-ordonnées par dépendances :
+Voir `plan/INDEX.md` et `plan/phase-NN-*.md` pour le détail. **10 phases** (Phase 0 pré-foundations
+ajoutée 2026-05-22 — DEV #1 promu pour activer le monitoring v2.0 dès le début) ordonnées par
+dépendances :
 
+0. **Pre-Foundations** : skill `pipeline-monitor` v2.0 auto-detect missing agents (DEV #1) —
+   sur repo `.claude/` branche `personal-scraper`. Garantit que Phases 1-8 tournent avec
+   monitoring matrix-aware complet (vs fallback subprocess mode du run 2026-05-21).
 1. Foundations BDD/indexer (drift + FK + PRAGMA discipline + tests E2E + schema_version)
 2. CLI gaps (library-scan, dry-run, run-help, matrix-CLI test, backfill-ids auto-trigger)
 3. Observability (VERIFY events + 6 autres per-step + cli.invoke decorator + console+log parity)

@@ -10,6 +10,7 @@
 
 | #   | Phase                                                   | File                      | Effort | Status |
 | --- | ------------------------------------------------------- | ------------------------- | ------ | ------ |
+| 0   | Pre-Foundations: skill safety net (DEV #1 promu)        | phase-00-skill-safety.md  | 0.5 j  | [ ]    |
 | 1   | Foundations BDD/indexer + PRAGMA + bonus DEVs           | phase-01-foundations.md   | 3-4 j  | [ ]    |
 | 2   | CLI gaps + backfill-ids first run                       | phase-02-cli-gaps.md      | 2 j    | [ ]    |
 | 3   | Observability (broadened DEV #6 → 7 cmds)               | phase-03-observability.md | 2 j    | [ ]    |
@@ -26,62 +27,62 @@ post-REDO 17-25 j = **+2 jours** pour intégrer DEV #50-#54 + 14 DEVs non-cités
 
 ## DEV coverage matrix (54/54 DEVs)
 
-| DEV | Phase        | Description courte                    |
-| --- | ------------ | ------------------------------------- |
-| #1  | 7.4          | Skill auto-detect missing agents      |
-| #2  | 7.3          | Agents matrix-aware prompts           |
-| #3  | 7.3          | state-validator FS-truth rule         |
-| #4  | 6.6          | ENFORCE scope doc                     |
-| #5  | 6.6          | PROCESS counter asymmetry doc         |
-| #6  | 3.1          | VERIFY structured events              |
-| #7  | 2.3          | run --help introspection              |
-| #8  | 7.1          | Matrix v2.1 events catalog            |
-| #9  | -            | SHIPPED commit 268cbee                |
-| #10 | 7.1, 4.6     | matrix flag fix + reconcile clarif    |
-| #11 | -            | SHIPPED commit 29c4953                |
-| #12 | 4.3          | 8 phantom shows cleanup               |
-| #13 | -            | SHIPPED commit fc39f77                |
-| #14 | -            | SHIPPED commit 3993487                |
-| #15 | 1.5          | schema_version row 3 cleanup          |
-| #16 | 2.1          | library-scan CLI                      |
-| #17 | 4.3          | 5 phantom paths cleanup               |
-| #18 | 1.1          | drift mechanism wire                  |
-| #19 | 1.2          | PRAGMA foreign_keys ON                |
-| #20 | 2.4, 8.3     | qbit-restart cmd + matrix-CLI test    |
-| #21 | 2.2          | --dry-run on 4 mutators               |
-| #22 | 6.1          | --format unified                      |
-| #23 | 3.2          | cli_telemetry decorator               |
-| #24 | 8.13, 9.1.a  | event-bus catalog 13→17               |
-| #25 | 8.13         | event-bus module budgets              |
-| #26 | 9.1.a        | events/**init**.py **all**            |
-| #27 | 8.10         | Plan A reset+rescrape                 |
-| #28 | 2.6, 9.1.b   | backfill auto-trigger doc + first run |
-| #29 | 5.6          | Tests Protocol refactor               |
-| #30 | 5.8          | Ratings Pydantic boundary             |
-| #31 | 4.7          | Paranoia branch wire                  |
-| #32 | 9.1.c        | media-indexer archive banner          |
-| #33 | 1.10         | PRAGMA bypass multi-site              |
-| #34 | 1.10         | PRAGMA discipline complete            |
-| #35 | 9.1.c        | scan_modes doc gap                    |
-| #36 | 9.1.c        | media_stream extension doc            |
-| #37 | 1.10         | BEGIN IMMEDIATE audit                 |
-| #38 | 5.7          | TorrentClientFull 2nd vector          |
-| #39 | 9.1.d        | pipeline-obs superseded banner        |
-| #40 | 3.1          | DEV #6 broader (7 per-step cmds)      |
-| #41 | 8.14         | test-coverage branch re-measure       |
-| #42 | 9.1.e        | trailer §4 placement                  |
-| #43 | 9.1.e        | trailer §14 blocking                  |
-| #44 | 9.2.a        | \_exclusions.py docstring             |
-| #45 | 9.1.f, 9.3   | logging.md broken paths               |
-| #46 | 8.11         | check-module-size hard-block          |
-| #47 | 9.3          | details_payload type drift            |
-| #48 | 9.1.g, 9.2.b | VX leaks                              |
-| #49 | 8.15         | test_cli @patch trim                  |
-| #50 | 1.7          | \_ensure_disk_row UUID mismatch       |
-| #51 | 1.8          | Enrich oshash retry                   |
-| #52 | 1.8          | Walker oshash retry                   |
-| #53 | 8.12         | \_upsert_media_item dedup + UNIQUE    |
-| #54 | 1.9          | init-canonical mode                   |
+| DEV | Phase        | Description courte                                       |
+| --- | ------------ | -------------------------------------------------------- |
+| #1  | 0.1          | Skill auto-detect missing agents (promu pré-foundations) |
+| #2  | 7.3          | Agents matrix-aware prompts                              |
+| #3  | 7.3          | state-validator FS-truth rule                            |
+| #4  | 6.6          | ENFORCE scope doc                                        |
+| #5  | 6.6          | PROCESS counter asymmetry doc                            |
+| #6  | 3.1          | VERIFY structured events                                 |
+| #7  | 2.3          | run --help introspection                                 |
+| #8  | 7.1          | Matrix v2.1 events catalog                               |
+| #9  | -            | SHIPPED commit 268cbee                                   |
+| #10 | 7.1, 4.6     | matrix flag fix + reconcile clarif                       |
+| #11 | -            | SHIPPED commit 29c4953                                   |
+| #12 | 4.3          | 8 phantom shows cleanup                                  |
+| #13 | -            | SHIPPED commit fc39f77                                   |
+| #14 | -            | SHIPPED commit 3993487                                   |
+| #15 | 1.5          | schema_version row 3 cleanup                             |
+| #16 | 2.1          | library-scan CLI                                         |
+| #17 | 4.3          | 5 phantom paths cleanup                                  |
+| #18 | 1.1          | drift mechanism wire                                     |
+| #19 | 1.2          | PRAGMA foreign_keys ON                                   |
+| #20 | 2.4, 8.3     | qbit-restart cmd + matrix-CLI test                       |
+| #21 | 2.2          | --dry-run on 4 mutators                                  |
+| #22 | 6.1          | --format unified                                         |
+| #23 | 3.2          | cli_telemetry decorator                                  |
+| #24 | 8.13, 9.1.a  | event-bus catalog 13→17                                  |
+| #25 | 8.13         | event-bus module budgets                                 |
+| #26 | 9.1.a        | events/**init**.py **all**                               |
+| #27 | 8.10         | Plan A reset+rescrape                                    |
+| #28 | 2.6, 9.1.b   | backfill auto-trigger doc + first run                    |
+| #29 | 5.6          | Tests Protocol refactor                                  |
+| #30 | 5.8          | Ratings Pydantic boundary                                |
+| #31 | 4.7          | Paranoia branch wire                                     |
+| #32 | 9.1.c        | media-indexer archive banner                             |
+| #33 | 1.10         | PRAGMA bypass multi-site                                 |
+| #34 | 1.10         | PRAGMA discipline complete                               |
+| #35 | 9.1.c        | scan_modes doc gap                                       |
+| #36 | 9.1.c        | media_stream extension doc                               |
+| #37 | 1.10         | BEGIN IMMEDIATE audit                                    |
+| #38 | 5.7          | TorrentClientFull 2nd vector                             |
+| #39 | 9.1.d        | pipeline-obs superseded banner                           |
+| #40 | 3.1          | DEV #6 broader (7 per-step cmds)                         |
+| #41 | 8.14         | test-coverage branch re-measure                          |
+| #42 | 9.1.e        | trailer §4 placement                                     |
+| #43 | 9.1.e        | trailer §14 blocking                                     |
+| #44 | 9.2.a        | \_exclusions.py docstring                                |
+| #45 | 9.1.f, 9.3   | logging.md broken paths                                  |
+| #46 | 8.11         | check-module-size hard-block                             |
+| #47 | 9.3          | details_payload type drift                               |
+| #48 | 9.1.g, 9.2.b | VX leaks                                                 |
+| #49 | 8.15         | test_cli @patch trim                                     |
+| #50 | 1.7          | \_ensure_disk_row UUID mismatch                          |
+| #51 | 1.8          | Enrich oshash retry                                      |
+| #52 | 1.8          | Walker oshash retry                                      |
+| #53 | 8.12         | \_upsert_media_item dedup + UNIQUE                       |
+| #54 | 1.9          | init-canonical mode                                      |
 
 → **54/54 DEVs couverts par 0.16.0**, 0 différé à 0.17+ (directive opérateur 2026-05-22).
 
@@ -98,7 +99,7 @@ post-REDO 17-25 j = **+2 jours** pour intégrer DEV #50-#54 + 14 DEVs non-cités
 | P7+P25  | 3.1                  | Observability gap                                                   |
 | P8      | 2.3, 6.2             | Doc rot CLI                                                         |
 | P9      | 7.3                  | Agents matrix-aware                                                 |
-| P10     | 7.4                  | Agent discovery                                                     |
+| P10     | 0.1                  | Agent discovery (promu pré-foundations)                             |
 | P11+P34 | 1.1, 4.7, 8.4        | Dead code + dead safety net                                         |
 | P12     | 2.1, 5.2, 5.3, 8.8   | CLI surface                                                         |
 | P13     | 4.1-4.5              | Hard-delete cleanup                                                 |
@@ -154,22 +155,30 @@ Plus 8 commits docs (`b52b592`, `69f60d7`, `29f87e5`, `67d73c0`, `bc3a4a6`, `53e
 ## Dependencies graph
 
 ```
-Phase 1 (foundations) ──┬─→ Phase 2 (CLI gaps)
-                        ├─→ Phase 3 (observability)
-                        └─→ Phase 4 (path cleanup) ──→ Phase 5 (conformity)
-                                                          │
-Phase 6 (format+docs) ───────────────────────────────────┴─→ Phase 7 (matrix v2.1)
-                                                                            │
-                                                                            └─→ Phase 8 (polish)
+Phase 0 (skill safety net) ──→ Phase 1 (foundations) ──┬─→ Phase 2 (CLI gaps)
+                                                       ├─→ Phase 3 (observability)
+                                                       └─→ Phase 4 (path cleanup) ──→ Phase 5 (conformity)
+                                                                                          │
+Phase 6 (format+docs) ───────────────────────────────────────────────────────────────────┴─→ Phase 7 (matrix v2.1)
+                                                                                                            │
+                                                                                                            └─→ Phase 8 (polish) ──→ Phase 9 (archive docs)
 ```
+
+Phase 0 est sur le repo `.claude/` (branche `personal-scraper`), distinct de Phases 1-8 sur
+`personalscraper/fix/tech-debt`. Phase 0 doit être committé AVANT de lancer Phase 1, pour
+que les Phases 1-8 bénéficient d'un monitoring `pipeline-monitor` v2.0 capable de détecter
+sa propre dégradation.
 
 Phases 2/3 peuvent partiellement paralléliser avec Phase 1 (différentes dimensions).
 Phase 6 peut tourner en parallèle de Phase 4/5.
 
 ## ACCEPTANCE
 
-Voir `../DESIGN.md` §6 pour les 15 criteria exécutables. À développer en `ACCEPTANCE.md`
-séparé pendant Phase 8 (consolidation finale).
+Voir `../ACCEPTANCE.md` — **49 criteria exécutables** couvrant 54/54 DEVs, 34/34 patterns,
+8/8 DESIGN sections, Phase 0 + Phases 1-9. Chaque criterion est une commande shell avec
+output attendu. Le sketch des 15 criteria clés est en `../DESIGN.md` §6.
+
+Status par criterion (✅/❌/🟡) à marquer au fil des phases — finalisation au gate Phase 8.9.
 
 ## Implementation conventions
 

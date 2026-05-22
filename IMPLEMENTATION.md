@@ -24,7 +24,7 @@ supprimé en Phase 9.4 closure post-implementation, ne PAS y ajouter du contenu 
 DESIGN.md + ACCEPTANCE.md + plan/ (9 phases) produits et committed. Estimate revised :
 **19-27 jours séquentiel, 15-22 jours parallélisable**.
 
-**Prochaine action** : `/implement:phase` pour démarrer Phase 1 (Foundations BDD/indexer +
+**Prochaine action** : Phase 0 sur `.claude/` (DEV #1 promu), puis `/implement:phase` pour Phase 1 (Foundations BDD/indexer +
 PRAGMA + bonus DEVs #50-#54).
 
 4 fix commits déjà shipped sur priorité absolue user (DEV #9, #11, #13, #14). 6 phases doc
@@ -53,20 +53,21 @@ Méthode : un par un, validation utilisateur entre chaque, communication en fran
 
 ## Phases d'implémentation
 
-Voir `docs/features/tech-debt/plan/INDEX.md` pour le détail. **9 phases** (post-REDO item 11)
-ordonnées par dépendances :
+Voir `docs/features/tech-debt/plan/INDEX.md` pour le détail. **10 phases** (Phase 0 ajoutée
+2026-05-22 — DEV #1 promu pré-foundations sur la review opérateur) ordonnées par dépendances :
 
-| #   | Phase                                     | File                      | Effort | Status |
-| --- | ----------------------------------------- | ------------------------- | ------ | ------ |
-| 1   | Foundations BDD/indexer + PRAGMA + bonus  | phase-01-foundations.md   | 3-4 j  | [ ]    |
-| 2   | CLI gaps + backfill-ids first run         | phase-02-cli-gaps.md      | 2 j    | [ ]    |
-| 3   | Observability (broadened DEV #6 → 7 cmds) | phase-03-observability.md | 2 j    | [ ]    |
-| 4   | Path + paranoia branch (DEV #31)          | phase-04-path-cleanup.md  | 2-3 j  | [ ]    |
-| 5   | Conformity (drop Protocols + Pydantic)    | phase-05-conformity.md    | 2-3 j  | [ ]    |
-| 6   | Format + heavy doc work                   | phase-06-format-docs.md   | 3-4 j  | [ ]    |
-| 7   | Matrix v2.1 + agents matrix-aware         | phase-07-matrix-v21.md    | 1-2 j  | [ ]    |
-| 8   | Polish + Plan A reset + size hard-block   | phase-08-polish.md        | 3-4 j  | [ ]    |
-| 9   | Archive DESIGN.md updates (7 features)    | phase-09-archive-docs.md  | 1-2 j  | [ ]    |
+| #   | Phase                                      | File                      | Effort | Status |
+| --- | ------------------------------------------ | ------------------------- | ------ | ------ |
+| 0   | Pre-Foundations: skill safety net (DEV #1) | phase-00-skill-safety.md  | 0.5 j  | [ ]    |
+| 1   | Foundations BDD/indexer + PRAGMA + bonus   | phase-01-foundations.md   | 3-4 j  | [ ]    |
+| 2   | CLI gaps + backfill-ids first run          | phase-02-cli-gaps.md      | 2 j    | [ ]    |
+| 3   | Observability (broadened DEV #6 → 7 cmds)  | phase-03-observability.md | 2 j    | [ ]    |
+| 4   | Path + paranoia branch (DEV #31)           | phase-04-path-cleanup.md  | 2-3 j  | [ ]    |
+| 5   | Conformity (drop Protocols + Pydantic)     | phase-05-conformity.md    | 2-3 j  | [ ]    |
+| 6   | Format + heavy doc work                    | phase-06-format-docs.md   | 3-4 j  | [ ]    |
+| 7   | Matrix v2.1 + agents matrix-aware          | phase-07-matrix-v21.md    | 1-2 j  | [ ]    |
+| 8   | Polish + Plan A reset + size hard-block    | phase-08-polish.md        | 3-4 j  | [ ]    |
+| 9   | Archive DESIGN.md updates (7 features)     | phase-09-archive-docs.md  | 1-2 j  | [ ]    |
 
 **Total post coverage-fix** : **19-27 jours séquentiel, 15-22 jours parallélisable**.
 
@@ -107,13 +108,15 @@ _(rempli par implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Audit pré-design terminé. **Démarrer `/implement:phase`** pour commencer Phase 1 (Foundations
-BDD/indexer).
+Audit pré-design terminé + review terminée (2026-05-22). **Démarrer Phase 0** (pré-foundations,
+DEV #1 promu) sur le repo `.claude/` branche `personal-scraper` AVANT de lancer
+`/implement:phase` pour Phase 1+.
 
-Lectures préalables avant Phase 1 :
+Lectures préalables avant Phase 0/1 :
 
 - `docs/features/tech-debt/DESIGN.md` (sections §9 BDD, §10 CLI, §11 architecture)
 - `docs/features/tech-debt/plan/INDEX.md` (graphe de dépendances)
+- `docs/features/tech-debt/plan/phase-00-skill-safety.md` (DEV #1 promu)
 - `docs/features/tech-debt/plan/phase-01-foundations.md`
 - `docs/features/tech-debt/audit/11-global-synthesis.md` (master backlog)
 
