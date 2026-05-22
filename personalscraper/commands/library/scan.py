@@ -114,3 +114,89 @@ def library_index(
         current_correlation_id.reset(token)
     if rc != 0:
         raise typer.Exit(rc)
+
+
+@app.command("library-init-canonical")
+@handle_cli_errors
+def library_init_canonical(
+    ctx: typer.Context,
+    dry_run: bool = typer.Option(False, "--dry-run", help="Report counts without writing to DB"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Bootstrap ``canonical_provider`` on library items from their NFO files.
+
+    Walks every ``media_item`` row where ``canonical_provider IS NULL``,
+    resolves its NFO via the ``dispatch_path`` attribute, and reads the
+    ``<uniqueid default="true">`` element's ``type`` attribute.  When
+    found, sets ``canonical_provider`` accordingly so that a subsequent
+    ``library-index --mode backfill-ids`` can use it as the anchor for
+    cross-provider ID and rating enrichment.
+
+    This is the bootstrap step for the chicken-and-egg problem on BDBs
+    that pre-date the provider-ids feature (DEV #54): backfill-ids
+    requires ``canonical_provider`` to be set, but nothing populates it
+    on a DB that was indexed before the scraper wrote the field.
+
+    Items without a ``dispatch_path`` attribute (scanner-only rows that
+    have never been dispatched) or without a readable / valid NFO are
+    silently skipped — the pass is best-effort by design.
+
+    Examples:
+        personalscraper library-init-canonical
+        personalscraper library-init-canonical --dry-run
+    """
+    import json as _json  # noqa: PLC0415
+
+    from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
+    from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
+    from personalscraper.indexer.scanner._modes.backfill_ids import init_canonical_from_nfo  # noqa: PLC0415
+
+    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+
+    # Resolve config — reuse the standard loader used by other library commands.
+    from personalscraper.conf.loader import load_config  # noqa: PLC0415
+
+    cfg = ctx.obj.config if ctx.obj is not None else load_config(effective_config)
+    from pathlib import Path as _Path  # noqa: PLC0415
+
+    if cfg.indexer.db_path is None:
+        typer.echo("indexer.db_path is not configured", err=True)
+        raise typer.Exit(code=1)
+    db_path = _Path(cfg.indexer.db_path)  # narrow Any|Path|None → Path for open_db()
+    migrations_dir = _migrations_pkg.__file__
+    import os as _os  # noqa: PLC0415
+
+    migrations_dir_path = _os.path.dirname(migrations_dir)
+
+    # Open DB in writer mode so we can UPDATE canonical_provider.
+    event_bus = EventBus()
+    conn = open_db(db_path, event_bus=event_bus)
+    apply_migrations(conn, _Path(migrations_dir_path))
+
+    from personalscraper.cli_state import state  # noqa: PLC0415
+
+    console = state["console"]
+
+    if dry_run:
+        # Dry-run: count items with dispatch_path but no canonical_provider and
+        # a readable NFO that carries a default uniqueid. Do not write.
+        import sqlite3 as _sqlite3  # noqa: PLC0415
+
+        conn.row_factory = _sqlite3.Row
+        rows = conn.execute(
+            "SELECT COUNT(*) FROM media_item m "
+            "LEFT JOIN item_attribute ia ON ia.item_id = m.id AND ia.key = 'dispatch_path' "
+            "WHERE m.canonical_provider IS NULL"
+        ).fetchone()
+        null_count = rows[0] if rows else 0
+        conn.close()
+        console.print(_json.dumps({"dry_run": True, "items_without_canonical_provider": null_count}))
+        return
+
+    try:
+        populated = init_canonical_from_nfo(conn)
+        conn.commit()
+    finally:
+        conn.close()
+
+    console.print(_json.dumps({"status": "ok", "canonical_provider_populated": populated}))

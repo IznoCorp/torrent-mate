@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from personalscraper.api._helpers import ProviderFeatureUnavailable
@@ -512,4 +513,146 @@ def _call_rating_client(client: _RatingClient, provider_id: str) -> list[dict[st
     return serialised
 
 
-__all__ = ["BackfillStats", "run_backfill_ids"]
+# ---------------------------------------------------------------------------
+# init_canonical_from_nfo — bootstrap canonical_provider from existing NFOs
+# ---------------------------------------------------------------------------
+
+_INVALID_CANONICAL_VALUES = frozenset({"0", "none", ""})
+
+
+def _resolve_nfo_path(dispatch_path: str, kind: str) -> "Path":
+    """Derive the expected NFO file path from the item's dispatch directory.
+
+    For TV shows the NFO is always ``tvshow.nfo`` at the root of the show
+    directory. For movies the NFO name matches the title stem
+    (``{Title}.nfo``); to avoid needing the exact title string we glob
+    for the first ``.nfo`` file in the directory.
+
+    Args:
+        dispatch_path: Filesystem path of the media item root directory
+            (value of ``item_attribute(key='dispatch_path')``).
+        kind: ``'movie'`` or ``'show'``.
+
+    Returns:
+        Resolved :class:`~pathlib.Path` to the expected NFO file.  The
+        path may not exist — callers must check before reading.
+    """
+    from pathlib import Path  # noqa: PLC0415
+
+    base = Path(dispatch_path)
+    if kind == "show":
+        return base / "tvshow.nfo"
+    # Movie: glob for the first .nfo file in the directory (avoids
+    # needing to reconstruct the exact "{Title}.nfo" stem).
+    nfo_files = sorted(base.glob("*.nfo"))
+    return nfo_files[0] if nfo_files else base / "_missing.nfo"
+
+
+def _parse_canonical_from_nfo(nfo_path: "Path") -> str | None:
+    """Extract the ``type`` attribute of the ``<uniqueid default="true">`` element.
+
+    Reads the NFO XML and returns the value of the ``type`` attribute on
+    the first ``<uniqueid>`` element that has ``default="true"``.  Returns
+    ``None`` when no such element exists, when the XML is malformed, or
+    when the resulting type value is blank / a known placeholder.
+
+    Args:
+        nfo_path: Path to the ``.nfo`` file to parse.
+
+    Returns:
+        Provider family string (e.g. ``'tvdb'``, ``'tmdb'``) normalised
+        to lower-case, or ``None`` when the NFO does not carry a usable
+        canonical hint.
+    """
+    import xml.etree.ElementTree as ET  # noqa: PLC0415
+
+    try:
+        tree = ET.parse(nfo_path)  # noqa: S314
+        root = tree.getroot()
+    except ET.ParseError:
+        log.debug("init_canonical_nfo_parse_error", path=str(nfo_path))
+        return None
+    except OSError as exc:
+        log.warning("init_canonical_nfo_read_error", path=str(nfo_path), error=str(exc))
+        return None
+
+    for uid in root.findall("uniqueid"):
+        default_attr = uid.get("default", "").strip().lower()
+        if default_attr != "true":
+            continue
+        type_attr = uid.get("type", "").strip().lower()
+        if type_attr and type_attr not in _INVALID_CANONICAL_VALUES:
+            return type_attr
+
+    return None
+
+
+def init_canonical_from_nfo(conn: sqlite3.Connection) -> int:
+    """Bootstrap ``canonical_provider`` on items that have an existing NFO.
+
+    Walks every ``media_item`` row where ``canonical_provider IS NULL``,
+    resolves the item's filesystem directory via its
+    ``item_attribute(key='dispatch_path')`` row, reads the NFO, and
+    extracts the ``type`` attribute of ``<uniqueid default="true">``.
+    When found, sets ``canonical_provider`` to that value so that a
+    subsequent :func:`run_backfill_ids` call can use it as the anchor
+    for cross-provider ID and rating enrichment.
+
+    Items without a ``dispatch_path`` attribute (scanner-only rows that
+    have never been dispatched) or without a readable NFO are silently
+    skipped — the pass is best-effort by design.
+
+    Args:
+        conn: Open writer connection on the indexer DB.
+
+    Returns:
+        Count of ``media_item`` rows whose ``canonical_provider`` was
+        populated by this call.
+    """
+    conn.row_factory = sqlite3.Row
+    # Join media_item with item_attribute to fetch dispatch_path in one
+    # query, avoiding N+1 lookups for the common case.
+    sql = (
+        "SELECT m.id, m.kind, ia.value AS dispatch_path "
+        "FROM media_item m "
+        "LEFT JOIN item_attribute ia ON ia.item_id = m.id AND ia.key = 'dispatch_path' "
+        "WHERE m.canonical_provider IS NULL"
+    )
+    rows = list(conn.execute(sql).fetchall())
+
+    count = 0
+    for row in rows:
+        item_id: int = row["id"]
+        kind: str = row["kind"]
+        dispatch_path: str | None = row["dispatch_path"]
+
+        if not dispatch_path:
+            log.debug(
+                "init_canonical_no_dispatch_path",
+                item_id=item_id,
+                hint="scanner-only row, no dispatch_path attribute",
+            )
+            continue
+
+        nfo_path = _resolve_nfo_path(dispatch_path, kind)
+        if not nfo_path.exists():
+            log.debug("init_canonical_nfo_missing", item_id=item_id, nfo_path=str(nfo_path))
+            continue
+
+        canonical = _parse_canonical_from_nfo(nfo_path)
+        if not canonical:
+            log.debug("init_canonical_no_default_uniqueid", item_id=item_id, nfo_path=str(nfo_path))
+            continue
+
+        conn.execute(
+            "UPDATE media_item SET canonical_provider = ?, date_modified = strftime('%s', 'now') WHERE id = ?",
+            (canonical, item_id),
+        )
+        log.info("init_canonical_populated", item_id=item_id, canonical_provider=canonical)
+        count += 1
+
+    log.info("init_canonical_done", populated=count, total_visited=len(rows))
+    return count
+
+
+__all__ = ["BackfillStats", "init_canonical_from_nfo", "run_backfill_ids"]
