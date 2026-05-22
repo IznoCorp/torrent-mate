@@ -170,11 +170,14 @@ def _upsert_file_row(
             )
     else:
         # Update mutable columns on a revisit (size, mtime, oshash, generation, verified).
+        # DEV #52: use COALESCE(?, oshash) so that a freshly-computed oshash fills
+        # NULL rows (retry succeeds), but a failed recomputation (oshash_value=None
+        # due to OSError) never wipes a previously-good hash value.
         conn.execute(
             """
             UPDATE media_file
             SET size_bytes = ?, mtime_ns = ?, ctime_ns = ?,
-                oshash = ?, scan_generation = ?, last_verified_at = ?
+                oshash = COALESCE(?, oshash), scan_generation = ?, last_verified_at = ?
             WHERE id = ?
             """,
             (size_bytes, mtime_ns, ctime_ns, oshash_value, generation, now_s, existing.id),
