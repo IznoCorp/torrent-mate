@@ -18,6 +18,7 @@ DESIGN sections impacted : §10 CLI surface completeness, §13 promise lifecycle
 
 ## Gate
 
+- **READ FIRST** : `docs/features/tech-debt/AGENT_BRIEFING.md`
 - Phase 1 commited + gate vert
 - `library-reconcile` produit `merkle_drift=[]`
 

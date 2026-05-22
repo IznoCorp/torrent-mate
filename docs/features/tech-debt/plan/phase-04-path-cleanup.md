@@ -21,6 +21,7 @@ the second-most critical safety-net-dead instance after DEV #18).
 
 ## Gate
 
+- **READ FIRST** : `docs/features/tech-debt/AGENT_BRIEFING.md`
 - Phase 1 commited (drift mechanism active)
 - Phase 2 commited (`library-scan` exists pour re-créer media_item manquants)
 

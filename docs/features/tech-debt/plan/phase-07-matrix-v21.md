@@ -1,5 +1,19 @@
 # Phase 7 — Matrix v2.1 + agents matrix-aware
 
+> **⚠ MANUAL EXECUTION REQUIRED — NOT for `/implement:phase`** (same as Phase 0)
+>
+> Cette phase commit sur le repo **`.claude/`** (branche `personal-scraper`), DISTINCT du repo
+> `personalscraper/` (branche `fix/tech-debt`) où s'exécutent Phases 1-6 + 8-9. `/implement:phase`
+> ne sait pas faire cross-repo. Procédure manuelle similaire à Phase 0 :
+>
+> ```bash
+> cd /Users/izno/dev/PersonnalScaper/.claude
+> git checkout personal-scraper
+> # Implémenter sub-phases 7.1-7.4 via Edit/Write dans la conversation
+> # Commits avec scope (pipeline-monitor)
+> cd /Users/izno/dev/PersonnalScaper  # retour pour Phase 8
+> ```
+
 **Effort** : 1-2 jours
 **Theme** : sync matrix avec les events réels du pipeline + agents matrix-aware par défaut.
 
@@ -25,8 +39,10 @@ personalscraper directement. Le checkout `.claude/` est un sous-repo séparé.
 
 ## Gate
 
+- **READ FIRST** : `docs/features/tech-debt/AGENT_BRIEFING.md`
 - Phase 6 commited (docs reference comprehensive)
 - Tous les events nouveaux (Phase 1-5) sont stabilisés et observables
+- **Note** : Phase 7 commit sur `.claude/` branche `personal-scraper` (cross-repo, comme Phase 0). Voir AGENT_BRIEFING §3 — `/implement:phase` ne sait pas le faire, exécution manuelle requise
 
 ## Sub-phases
 

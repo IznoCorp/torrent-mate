@@ -19,6 +19,7 @@ verify, enforce, dispatch, process).
 
 ## Gate
 
+- **READ FIRST** : `docs/features/tech-debt/AGENT_BRIEFING.md`
 - Phase 1 commited + gate vert
 - (Phase 2 peut tourner en parallèle ; pas de dépendance directe)
 

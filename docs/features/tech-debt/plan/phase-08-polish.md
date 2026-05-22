@@ -29,6 +29,7 @@ DESIGN sections impacted : §13 promise lifecycle, §14 success criteria, §11 a
 
 ## Gate
 
+- **READ FIRST** : `docs/features/tech-debt/AGENT_BRIEFING.md`
 - Phase 1-7 commited + gates verts
 - Branch prête pour PR / merge
 

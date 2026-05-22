@@ -266,26 +266,45 @@ NFO containing `<uniqueid default="true" type="tvdb">…</uniqueid>`, run init, 
 
 **Commit** : `feat(tech-debt): library init-canonical CLI to bootstrap from NFOs (DEV #54)`
 
-**Post-commit action (Plan A launch — décision opérateur 2026-05-22, option b)** :
-
-Immédiatement après le commit 1.9 et avant de démarrer 1.10, lancer Plan A en arrière-plan :
-
-```bash
-# 1. Bootstrap canonical from NFOs (rapide, ~minutes)
-personalscraper library-init-canonical
-# 2. Plan A : backfill cross-provider IDs + ratings via TMDB/TVDB
-# Run en BACKGROUND avec log fichier — peut tourner pendant Phase 2 + Phase 3
-nohup personalscraper library-index --mode backfill-ids --no-budget \
-  > .data/plan-a-backfill.log 2>&1 &
-echo $! > .data/plan-a-backfill.pid
-```
-
-Estimation : 1-2h API calls TMDB/TVDB. Aucune supervision continue requise — vérifier
-périodiquement `tail -f .data/plan-a-backfill.log` ou attendre `library-doctor` à Phase 5.3.
-
-**Vérification finale en Phase 8.10** : `SELECT COUNT(*) FROM media_item WHERE
-external_ids_json != '{}'` doit dépasser 90% (closure ACCEPTANCE provider-ids #3/#4/#10).
-Si Plan A a échoué (réseau, rate-limit, quota), Phase 8.10 le relance avec budget.
+> **⚠ INTER-SUB-PHASE MANUAL ACTION — Plan A launch (décision opérateur 2026-05-22, option b)**
+>
+> ENTRE le commit 1.9 et le démarrage 1.10, l'opérateur (PAS le sub-agent) lance Plan A en
+> arrière-plan. Cette action est extraite de la sub-phase parce que :
+>
+> 1. Le sub-agent Sonnet a un scope-bound strict (1 sub-phase = 1 commit), pas de spawn de
+>    background process
+> 2. Risque de conflit BDD si Phase 1.10 `make check` tourne pendant que Plan A écrit dans
+>    `.data/library.db`
+>
+> **Procédure opérateur** (à exécuter manuellement entre 1.9 et 1.10) :
+>
+> ```bash
+> # 1. Bootstrap canonical from NFOs (rapide, ~minutes) — FOREGROUND
+> personalscraper library-init-canonical
+>
+> # 2. Vérifier que canonical_provider est populé
+> sqlite3 .data/library.db \
+>   "SELECT COUNT(*), COUNT(canonical_provider) FROM media_item;"
+> # Expected : total ≈ count_non_null (à 100-200 près si NFOs partiellement absents)
+>
+> # 3. Plan A : backfill cross-provider IDs + ratings via TMDB/TVDB — BACKGROUND
+> #    Va tourner 1-2h pendant Phases 2-7. Phase 8.10 fera la vérification finale.
+> nohup personalscraper library-index --mode backfill-ids --no-budget \
+>   > .data/plan-a-backfill.log 2>&1 &
+> echo $! > .data/plan-a-backfill.pid
+> echo "Plan A launched, PID=$(cat .data/plan-a-backfill.pid)"
+>
+> # 4. Smoke check qu'il tourne (10s après launch)
+> sleep 10
+> kill -0 $(cat .data/plan-a-backfill.pid) && echo "Plan A running" || echo "Plan A FAILED to start"
+> tail -5 .data/plan-a-backfill.log
+> ```
+>
+> **Une fois Plan A lancé, reprendre `/implement:phase`** qui démarrera 1.10. NE PAS attendre
+> la fin de Plan A (1-2h). La vérification finale est en Phase 8.10.
+>
+> **Si Plan A FAIL au launch** : ne pas démarrer 1.10. Investiguer (probably init-canonical
+> bug, API key missing, etc.). Replay l'action après fix.
 
 ### 1.10 PRAGMA discipline multi-site (DEV #33 + #34 + audit #37)
 

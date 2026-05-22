@@ -57,8 +57,8 @@ post-REDO 17-25 j = **+2 jours** pour intégrer DEV #50-#54 + 14 DEVs non-cités
 | #26 | 9.1.a        | events/**init**.py **all**                               |
 | #27 | 8.10         | Plan A reset+rescrape                                    |
 | #28 | 2.6, 9.1.b   | backfill auto-trigger doc + first run                    |
-| #29 | 5.6          | Tests Protocol refactor                                  |
-| #30 | 5.8          | Ratings Pydantic boundary                                |
+| #29 | 5.1          | Tests Protocol refactor                                  |
+| #30 | 5.3          | Ratings Pydantic boundary                                |
 | #31 | 4.7          | Paranoia branch wire                                     |
 | #32 | 9.1.c        | media-indexer archive banner                             |
 | #33 | 1.10         | PRAGMA bypass multi-site                                 |
@@ -66,7 +66,7 @@ post-REDO 17-25 j = **+2 jours** pour intégrer DEV #50-#54 + 14 DEVs non-cités
 | #35 | 9.1.c        | scan_modes doc gap                                       |
 | #36 | 9.1.c        | media_stream extension doc                               |
 | #37 | 1.10         | BEGIN IMMEDIATE audit                                    |
-| #38 | 5.7          | TorrentClientFull 2nd vector                             |
+| #38 | 5.2          | TorrentClientFull 2nd vector                             |
 | #39 | 9.1.d        | pipeline-obs superseded banner                           |
 | #40 | 3.1          | DEV #6 broader (7 per-step cmds)                         |
 | #41 | 8.14         | test-coverage branch re-measure                          |
@@ -90,10 +90,10 @@ post-REDO 17-25 j = **+2 jours** pour intégrer DEV #50-#54 + 14 DEVs non-cités
 
 | Pattern | Phase(s)             | Lever                                                               |
 | ------- | -------------------- | ------------------------------------------------------------------- |
-| P1      | 1.10 + 5.6           | DEV #14 shipped + DEV #33+#34                                       |
+| P1      | 1.10 + 5.1           | DEV #14 shipped + DEV #33+#34                                       |
 | P2      | 1.3 + 1.4            | E2E tests MUST-16+17                                                |
 | P3      | shipped + 1.10 audit | DEV #13 shipped + audit autres DDL via PRAGMA lint                  |
-| P4      | shipped + 5.6        | DEV #9 shipped + tests refactor DEV #29                             |
+| P4      | shipped + 5.1        | DEV #9 shipped + tests refactor DEV #29                             |
 | P5      | 1.8                  | hash version-tag effectivement adressé via oshash retry DEV #51/#52 |
 | P6      | 7.1                  | Coverage gap matrix                                                 |
 | P7+P25  | 3.1                  | Observability gap                                                   |
@@ -101,26 +101,26 @@ post-REDO 17-25 j = **+2 jours** pour intégrer DEV #50-#54 + 14 DEVs non-cités
 | P9      | 7.3                  | Agents matrix-aware                                                 |
 | P10     | 0.1                  | Agent discovery (promu pré-foundations)                             |
 | P11+P34 | 1.1, 4.7, 8.4        | Dead code + dead safety net                                         |
-| P12     | 2.1, 5.2, 5.3, 8.8   | CLI surface                                                         |
+| P12     | 2.1, 5.5, 5.6, 8.8   | CLI surface                                                         |
 | P13     | 4.1-4.5              | Hard-delete cleanup                                                 |
 | P14     | 1.5                  | Migration residue                                                   |
 | P15     | 1.2, 1.6             | Schema vs runtime                                                   |
 | P16     | 8.2                  | Empty tables                                                        |
-| P17     | 5.2                  | Outbox GC                                                           |
+| P17     | 5.5                  | Outbox GC                                                           |
 | P18     | 3.1, 3.2, 3.3        | UX rich vs telemetry                                                |
 | P19     | 8.6                  | Naming convention                                                   |
 | P20     | 2.4, 7.1             | Matrix CLI refs                                                     |
 | P21     | 2.2                  | Mutate w/o --dry-run                                                |
 | P22     | 6.1                  | Output format                                                       |
-| P23     | 5.4, 8.10            | ACCEPTANCE phase gate vs exercise                                   |
+| P23     | 5.7, 8.10            | ACCEPTANCE phase gate vs exercise                                   |
 | P24     | 1.1, 1.2, 1.6        | Infra invariants not activated                                      |
 | P26     | 8.5                  | SRP CLI cmd                                                         |
 | P27     | 6.3                  | FS = truth, BDD = projection                                        |
-| P28     | 5.1, 5.6, 5.7        | Composition Protocols                                               |
+| P28     | 5.1, 5.2, 5.4        | Composition Protocols (refactor tests → migrate callers → drop)     |
 | P29     | 6.2                  | CLI = stable API                                                    |
 | P30     | 9.1, 9.2, 9.3        | Documentation stale post-archive                                    |
 | P31     | 8.11                 | Promesses stallées                                                  |
-| P32     | 5.4, 8.9, 8.14, 8.15 | Success criteria                                                    |
+| P32     | 5.7, 8.9, 8.14, 8.15 | Success criteria                                                    |
 | P33     | 1.10                 | PRAGMA discipline                                                   |
 
 → **34/34 patterns mapped to ≥1 leverage phase**.
@@ -130,11 +130,11 @@ post-REDO 17-25 j = **+2 jours** pour intégrer DEV #50-#54 + 14 DEVs non-cités
 | Section                                  | Implementing phase(s)         |
 | ---------------------------------------- | ----------------------------- |
 | §9 BDD lifecycle invariants              | 1.1, 1.2, 1.6, 4.1, 4.7, 8.10 |
-| §10 CLI surface completeness             | 2.1-2.5, 5.3, 6.1, 6.2        |
-| §11 Architecture / state ownership       | 5.1, 5.7, 6.3                 |
+| §10 CLI surface completeness             | 2.1-2.5, 5.6, 6.1, 6.2        |
+| §11 Architecture / state ownership       | 5.4, 5.2, 6.3                 |
 | §12 Documentation conformity (P30)       | 6.2-6.5, 9.1-9.3              |
 | §13 Promise lifecycle (P31)              | 8.11                          |
-| §14 Success criteria enforcement (P32)   | 5.4, 8.9, 8.14, 8.15          |
+| §14 Success criteria enforcement (P32)   | 5.7, 8.9, 8.14, 8.15          |
 | §15 PRAGMA & connection discipline (P33) | 1.10                          |
 | §16 Safety net E2E (P34)                 | 1.1, 1.3, 4.7                 |
 
@@ -182,9 +182,20 @@ Status par criterion (✅/❌/🟡) à marquer au fil des phases — finalisatio
 
 ## Implementation conventions
 
-- Chaque sous-phase = 1 commit avec scope `(tech-debt)`.
+> **Pour les agents indépendants (sub-phase dispatch)** : **READ FIRST** →
+> `../AGENT_BRIEFING.md` (règles transverses + baseline BDD + gotchas + read order). Ce
+> document est la première lecture obligatoire pour tout sub-agent Sonnet dispatché par
+> `/implement:sub-phase`. Sans ça, plusieurs trous critiques peuvent casser l'exécution
+> (cross-repo Phase 0/7, Plan A manual launch entre 1.9 et 1.10, ordre Phase 5 logique
+> aligné numérique, test ERROR vs FAILED, etc.).
+
+- Chaque sous-phase = 1 commit avec scope `(tech-debt)` (ou `(pipeline-monitor)` pour les
+  commits sur `.claude/` — Phase 0 et Phase 7).
 - Commits suivent Conventional Commits : `fix(tech-debt): ...`, `feat(tech-debt): ...`,
   `test(tech-debt): ...`, `docs(tech-debt): ...`.
 - Phase gate = `chore(tech-debt): phase N gate — <description>` après que toutes les
   sous-phases sont vertes.
 - `make check` (lint + test + module-size + typed-api) doit passer à chaque phase gate.
+  Voir AGENT_BRIEFING §6.4 pour l'évolution de `make check` au fil des phases.
+- Cross-repo phases (0 et 7) : exécution **manuelle** par l'opérateur, NOT for
+  `/implement:phase`. Voir banners dans phase-00 et phase-07.

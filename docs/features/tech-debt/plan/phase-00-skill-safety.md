@@ -1,5 +1,34 @@
 # Phase 0 — Pre-Foundations: Skill safety net (DEV #1)
 
+> **⚠ MANUAL EXECUTION REQUIRED — NOT for `/implement:phase`**
+>
+> Cette phase commit sur le repo **`.claude/`** (branche `personal-scraper`), DISTINCT du repo
+> `personalscraper/` (branche `fix/tech-debt`) où s'exécutent Phases 1-9. La skill
+> `/implement:phase` + `/implement:sub-phase` opère sur UN seul repo (le current working dir),
+> ne sait pas faire de cross-repo dispatch. Tenter `/implement:phase` ici échouera ou commitera
+> au mauvais endroit.
+>
+> **Procédure manuelle** (opérateur ou agent inline en main session) :
+>
+> ```bash
+> # 1. Switch context vers .claude/ branche personal-scraper
+> cd /Users/izno/dev/PersonnalScaper/.claude
+> git checkout personal-scraper
+> git status  # doit être clean
+>
+> # 2. Implémenter sub-phase 0.1 ci-dessous (édition SKILL.md PHASE 0 + --degraded-mode)
+> #    via Edit/Write tools dans la conversation
+>
+> # 3. Commit avec scope (pipeline-monitor) — voir convention en 0.1
+> # 4. Vérifier que le grep MATRIX_AGENTS_MISSING retourne ≥1 match dans SKILL.md
+>
+> # 5. Revenir au repo personalscraper pour Phase 1+
+> cd /Users/izno/dev/PersonnalScaper
+> ```
+>
+> **Une fois Phase 0 commitée sur `.claude/`**, retourner sur `personalscraper/fix/tech-debt`
+> et lancer `/implement:phase` qui démarrera Phase 1.
+
 **Effort** : 0.5 jour
 **Theme** : restaurer le filet de sécurité `pipeline-monitor` v2.0 AVANT toute autre phase, afin
 que les Phases 1-8 personalscraper bénéficient du monitoring matrix-aware complet (host.py

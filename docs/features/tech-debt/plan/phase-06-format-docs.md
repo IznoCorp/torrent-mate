@@ -20,6 +20,7 @@ DESIGN sections impacted : §10 CLI, §11 architecture, §12 doc conformity.
 
 ## Gate
 
+- **READ FIRST** : `docs/features/tech-debt/AGENT_BRIEFING.md`
 - Phase 5 commited (library-doctor existant pour valider --format)
 - Phases 3+5 ont introduit les nouveaux events / commands à documenter
 
