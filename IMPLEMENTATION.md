@@ -1,19 +1,30 @@
 # Implementation Progress — tech-debt
 
-> For Claude: read this file at session start. Current feature tracker.
+> **For Claude: read `docs/features/tech-debt/HANDOVER.md` FIRST at session start.** It
+> contains the full context, methodology, 54 DEVs catalog, 34 patterns, current state, next
+> actions, and user feedback memories. This file (IMPLEMENTATION.md) is the phase tracker.
 
 **Feature**: Tech-Debt (Global Cross-Feature Fixes) (type: minor)
 **Version bump**: 0.15.1 → 0.16.0 (decision item 13 §5)
-**Branch**: fix/tech-debt (conservée — voir item 13 §5)
+**Branch**: fix/tech-debt
 **PR merge**: manual
 **PR**: _(created after last phase)_
-**Design**: docs/features/tech-debt/DESIGN.md
-**Master plan**: docs/features/tech-debt/plan/INDEX.md
+**Handover**: `docs/features/tech-debt/HANDOVER.md` ← **READ FIRST**
+**Design**: `docs/features/tech-debt/DESIGN.md` (9 sections + ACCEPTANCE sketch)
+**Acceptance**: `docs/features/tech-debt/ACCEPTANCE.md` (49 criteria exécutables)
+**Master plan**: `docs/features/tech-debt/plan/INDEX.md` (DEV/Pattern/Section cross-tables)
 
 ## Statut actuel
 
-**✅ Audit pré-design 14 items COMPLET.** DESIGN.md + plan/ produits. 8 phases ordonnées
-(13-19 jours estimés). Démarrage `/implement:phase` quand prêt.
+**✅ Audit pré-design 14 items COMPLET** (certains REDO à profondeur audit-quality).
+**✅ Coverage 100% atteinte** : 54/54 DEVs + 34/34 patterns + 8/8 sections DESIGN.
+**✅ 4 fixes critiques déjà shipped** : DEV #9, #11, #13, #14.
+
+DESIGN.md + ACCEPTANCE.md + plan/ (9 phases) produits et committed. Estimate revised :
+**19-27 jours séquentiel, 15-22 jours parallélisable**.
+
+**Prochaine action** : `/implement:phase` pour démarrer Phase 1 (Foundations BDD/indexer +
+PRAGMA + bonus DEVs #50-#54).
 
 4 fix commits déjà shipped sur priorité absolue user (DEV #9, #11, #13, #14). 6 phases doc
 audit committed (items 5-13).
