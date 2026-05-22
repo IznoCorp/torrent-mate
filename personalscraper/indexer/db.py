@@ -331,9 +331,28 @@ def open_db(
         try:
             _probe = sqlite3.connect(str(path))
             try:
-                _probe.execute("PRAGMA integrity_check").fetchone()
+                # Phase 1.6 / SH-9 / BD-L : check the RESULT of integrity_check,
+                # not just whether it raises. Subtle corruptions (B-tree page
+                # damage, index inconsistency) can return strings like
+                # ``* btree page X is broken`` without throwing — the previous
+                # code discarded the result and let those slip through.
+                ic_row = _probe.execute("PRAGMA integrity_check").fetchone()
+                ic_result = ic_row[0] if ic_row else "unknown"
             finally:
                 _probe.close()
+            if ic_result != "ok":
+                ts = int(time.time())
+                quarantine_path = path.parent / f"{path.name}.corrupt-{ts}"
+                path.rename(quarantine_path)
+                log.error(
+                    "indexer.db.integrity_check_failed",
+                    original=str(path),
+                    quarantine=str(quarantine_path),
+                    result=ic_result,
+                )
+                if not rebuild:
+                    raise IndexerCorruptError(path, quarantine_path)
+                # rebuild=True: fall through and create a fresh DB
         except sqlite3.DatabaseError as exc:
             if any(signal in str(exc).lower() for signal in _CORRUPT_SIGNALS):
                 ts = int(time.time())
