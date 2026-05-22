@@ -8,20 +8,134 @@
 
 ## Phases
 
-| #   | Phase                                        | File                      | Effort | Status |
-| --- | -------------------------------------------- | ------------------------- | ------ | ------ |
-| 1   | Foundations BDD/indexer + PRAGMA             | phase-01-foundations.md   | 2-3 j  | [ ]    |
-| 2   | CLI gaps + auto-trigger                      | phase-02-cli-gaps.md      | 2 j    | [ ]    |
-| 3   | Observability (broadened DEV #6 → 7 cmds)    | phase-03-observability.md | 2 j    | [ ]    |
-| 4   | Path detection + paranoia branch + cleanup   | phase-04-path-cleanup.md  | 2-3 j  | [ ]    |
-| 5   | Conformity (drop Protocols + tests refactor) | phase-05-conformity.md    | 2-3 j  | [ ]    |
-| 6   | Format + heavy doc work                      | phase-06-format-docs.md   | 3-4 j  | [ ]    |
-| 7   | Matrix v2.1 + agents matrix-aware            | phase-07-matrix-v21.md    | 1-2 j  | [ ]    |
-| 8   | Polish + Plan A reset + size hard-block      | phase-08-polish.md        | 3-4 j  | [ ]    |
-| 9   | **Archive DESIGN.md updates (NEW)**          | phase-09-archive-docs.md  | 1-2 j  | [ ]    |
+| #   | Phase                                                   | File                      | Effort | Status |
+| --- | ------------------------------------------------------- | ------------------------- | ------ | ------ |
+| 1   | Foundations BDD/indexer + PRAGMA + bonus DEVs           | phase-01-foundations.md   | 3-4 j  | [ ]    |
+| 2   | CLI gaps + backfill-ids first run                       | phase-02-cli-gaps.md      | 2 j    | [ ]    |
+| 3   | Observability (broadened DEV #6 → 7 cmds)               | phase-03-observability.md | 2 j    | [ ]    |
+| 4   | Path detection + paranoia branch (DEV #31)              | phase-04-path-cleanup.md  | 2-3 j  | [ ]    |
+| 5   | Conformity (drop Protocols + tests refactor + Pydantic) | phase-05-conformity.md    | 2-3 j  | [ ]    |
+| 6   | Format + heavy doc work                                 | phase-06-format-docs.md   | 3-4 j  | [ ]    |
+| 7   | Matrix v2.1 + agents matrix-aware                       | phase-07-matrix-v21.md    | 1-2 j  | [ ]    |
+| 8   | Polish + Plan A reset + size hard-block + bonus         | phase-08-polish.md        | 3-4 j  | [ ]    |
+| 9   | Archive DESIGN.md updates (7 features)                  | phase-09-archive-docs.md  | 1-2 j  | [ ]    |
 
-**Total post-REDO** : **17-25 jours séquentiel, 14-20 jours parallélisable**. Vs original
-13-19 j = **+3-6 jours** suite à l'audit-quality REDO item 11 (`6eb5f31`, 26 nouveaux DEVs).
+**Total post coverage-fix** : **19-27 jours séquentiel, 15-22 jours parallélisable**. Vs
+post-REDO 17-25 j = **+2 jours** pour intégrer DEV #50-#54 + 14 DEVs non-cités précédemment
+(#4, #5, #25, #29, #30, #31, #33, #34, #37, #38, #40, #41, #46, #53).
+
+## DEV coverage matrix (54/54 DEVs)
+
+| DEV | Phase        | Description courte                    |
+| --- | ------------ | ------------------------------------- |
+| #1  | 7.4          | Skill auto-detect missing agents      |
+| #2  | 7.3          | Agents matrix-aware prompts           |
+| #3  | 7.3          | state-validator FS-truth rule         |
+| #4  | 6.6          | ENFORCE scope doc                     |
+| #5  | 6.6          | PROCESS counter asymmetry doc         |
+| #6  | 3.1          | VERIFY structured events              |
+| #7  | 2.3          | run --help introspection              |
+| #8  | 7.1          | Matrix v2.1 events catalog            |
+| #9  | -            | SHIPPED commit 268cbee                |
+| #10 | 7.1, 4.6     | matrix flag fix + reconcile clarif    |
+| #11 | -            | SHIPPED commit 29c4953                |
+| #12 | 4.3          | 8 phantom shows cleanup               |
+| #13 | -            | SHIPPED commit fc39f77                |
+| #14 | -            | SHIPPED commit 3993487                |
+| #15 | 1.5          | schema_version row 3 cleanup          |
+| #16 | 2.1          | library-scan CLI                      |
+| #17 | 4.3          | 5 phantom paths cleanup               |
+| #18 | 1.1          | drift mechanism wire                  |
+| #19 | 1.2          | PRAGMA foreign_keys ON                |
+| #20 | 2.4, 8.3     | qbit-restart cmd + matrix-CLI test    |
+| #21 | 2.2          | --dry-run on 4 mutators               |
+| #22 | 6.1          | --format unified                      |
+| #23 | 3.2          | cli_telemetry decorator               |
+| #24 | 8.13, 9.1.a  | event-bus catalog 13→17               |
+| #25 | 8.13         | event-bus module budgets              |
+| #26 | 9.1.a        | events/**init**.py **all**            |
+| #27 | 8.10         | Plan A reset+rescrape                 |
+| #28 | 2.6, 9.1.b   | backfill auto-trigger doc + first run |
+| #29 | 5.6          | Tests Protocol refactor               |
+| #30 | 5.8          | Ratings Pydantic boundary             |
+| #31 | 4.7          | Paranoia branch wire                  |
+| #32 | 9.1.c        | media-indexer archive banner          |
+| #33 | 1.10         | PRAGMA bypass multi-site              |
+| #34 | 1.10         | PRAGMA discipline complete            |
+| #35 | 9.1.c        | scan_modes doc gap                    |
+| #36 | 9.1.c        | media_stream extension doc            |
+| #37 | 1.10         | BEGIN IMMEDIATE audit                 |
+| #38 | 5.7          | TorrentClientFull 2nd vector          |
+| #39 | 9.1.d        | pipeline-obs superseded banner        |
+| #40 | 3.1          | DEV #6 broader (7 per-step cmds)      |
+| #41 | 8.14         | test-coverage branch re-measure       |
+| #42 | 9.1.e        | trailer §4 placement                  |
+| #43 | 9.1.e        | trailer §14 blocking                  |
+| #44 | 9.2.a        | \_exclusions.py docstring             |
+| #45 | 9.1.f, 9.3   | logging.md broken paths               |
+| #46 | 8.11         | check-module-size hard-block          |
+| #47 | 9.3          | details_payload type drift            |
+| #48 | 9.1.g, 9.2.b | VX leaks                              |
+| #49 | 8.15         | test_cli @patch trim                  |
+| #50 | 1.7          | \_ensure_disk_row UUID mismatch       |
+| #51 | 1.8          | Enrich oshash retry                   |
+| #52 | 1.8          | Walker oshash retry                   |
+| #53 | 8.12         | \_upsert_media_item dedup + UNIQUE    |
+| #54 | 1.9          | init-canonical mode                   |
+
+→ **54/54 DEVs couverts par 0.16.0**, 0 différé à 0.17+ (directive opérateur 2026-05-22).
+
+## Patterns P1-P34 → leverage phases
+
+| Pattern | Phase(s)             | Lever                                                               |
+| ------- | -------------------- | ------------------------------------------------------------------- |
+| P1      | 1.10 + 5.6           | DEV #14 shipped + DEV #33+#34                                       |
+| P2      | 1.3 + 1.4            | E2E tests MUST-16+17                                                |
+| P3      | shipped + 1.10 audit | DEV #13 shipped + audit autres DDL via PRAGMA lint                  |
+| P4      | shipped + 5.6        | DEV #9 shipped + tests refactor DEV #29                             |
+| P5      | 1.8                  | hash version-tag effectivement adressé via oshash retry DEV #51/#52 |
+| P6      | 7.1                  | Coverage gap matrix                                                 |
+| P7+P25  | 3.1                  | Observability gap                                                   |
+| P8      | 2.3, 6.2             | Doc rot CLI                                                         |
+| P9      | 7.3                  | Agents matrix-aware                                                 |
+| P10     | 7.4                  | Agent discovery                                                     |
+| P11+P34 | 1.1, 4.7, 8.4        | Dead code + dead safety net                                         |
+| P12     | 2.1, 5.2, 5.3, 8.8   | CLI surface                                                         |
+| P13     | 4.1-4.5              | Hard-delete cleanup                                                 |
+| P14     | 1.5                  | Migration residue                                                   |
+| P15     | 1.2, 1.6             | Schema vs runtime                                                   |
+| P16     | 8.2                  | Empty tables                                                        |
+| P17     | 5.2                  | Outbox GC                                                           |
+| P18     | 3.1, 3.2, 3.3        | UX rich vs telemetry                                                |
+| P19     | 8.6                  | Naming convention                                                   |
+| P20     | 2.4, 7.1             | Matrix CLI refs                                                     |
+| P21     | 2.2                  | Mutate w/o --dry-run                                                |
+| P22     | 6.1                  | Output format                                                       |
+| P23     | 5.4, 8.10            | ACCEPTANCE phase gate vs exercise                                   |
+| P24     | 1.1, 1.2, 1.6        | Infra invariants not activated                                      |
+| P26     | 8.5                  | SRP CLI cmd                                                         |
+| P27     | 6.3                  | FS = truth, BDD = projection                                        |
+| P28     | 5.1, 5.6, 5.7        | Composition Protocols                                               |
+| P29     | 6.2                  | CLI = stable API                                                    |
+| P30     | 9.1, 9.2, 9.3        | Documentation stale post-archive                                    |
+| P31     | 8.11                 | Promesses stallées                                                  |
+| P32     | 5.4, 8.9, 8.14, 8.15 | Success criteria                                                    |
+| P33     | 1.10                 | PRAGMA discipline                                                   |
+
+→ **34/34 patterns mapped to ≥1 leverage phase**.
+
+## DESIGN sections §9-§16 → phases
+
+| Section                                  | Implementing phase(s)         |
+| ---------------------------------------- | ----------------------------- |
+| §9 BDD lifecycle invariants              | 1.1, 1.2, 1.6, 4.1, 4.7, 8.10 |
+| §10 CLI surface completeness             | 2.1-2.5, 5.3, 6.1, 6.2        |
+| §11 Architecture / state ownership       | 5.1, 5.7, 6.3                 |
+| §12 Documentation conformity (P30)       | 6.2-6.5, 9.1-9.3              |
+| §13 Promise lifecycle (P31)              | 8.11                          |
+| §14 Success criteria enforcement (P32)   | 5.4, 8.9, 8.14, 8.15          |
+| §15 PRAGMA & connection discipline (P33) | 1.10                          |
+| §16 Safety net E2E (P34)                 | 1.1, 1.3, 4.7                 |
 
 ## Already shipped (pre-plan, on operator priority demand)
 

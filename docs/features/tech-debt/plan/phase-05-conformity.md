@@ -1,7 +1,24 @@
-# Phase 5 — Conformity + monolithic Protocols drop + GC + library-doctor
+# Phase 5 — Conformity (Protocol drop + tests refactor + ratings Pydantic) + GC + library-doctor
 
-**Effort** : 2 jours
-**Theme** : honorer les ACCEPTANCE_FAIL provider-ids restantes + outillage opérationnel.
+**Effort** : 2-3 jours (revised — DEV #29, #38, #30 added)
+**Theme** : honorer les ACCEPTANCE_FAIL provider-ids restantes + outillage opérationnel +
+fix tests qui asseoient les Protocols à dropper.
+
+## Coverage matrix
+
+| Item                                  | Sub-phase | Source pattern |
+| ------------------------------------- | --------- | -------------- |
+| MUST-14 / CF-B / ACCEPTANCE #6        | 5.1       | P28            |
+| SH-7 / BD-W / CL-N                    | 5.2       | P17            |
+| SH-8 / BD-Y / CL-M                    | 5.3       | P12, P24       |
+| SH-16 / CF-C/E/I/J                    | 5.4       | P23, P32       |
+| SH-2 / BD-R / CF-H                    | 5.5       | P30            |
+| **DEV #29 tests Protocol refactor**   | 5.6 NEW   | P28            |
+| **DEV #38 TorrentClientFull 2nd vec** | 5.7 NEW   | P28            |
+| **DEV #30 ratings Pydantic boundary** | 5.8 NEW   | (scope-creep)  |
+
+DESIGN sections impacted : §10 CLI (library-doctor, library-gc), §11 architecture (Protocol
+discipline), §12 doc, §14 success criteria, §13 promise lifecycle.
 
 ## Gate
 
@@ -114,13 +131,93 @@ Cas concret tech-debt : commands à lancer post-0.16.0 merge.
 
 **Commit** : `docs(tech-debt): runbook post-merge for schema/config/CLI changes (SH-2)`
 
+### 5.6 Refactor tests qui asseoient le monolithic Protocol (DEV #29)
+
+**Site** : `tests/unit/test_api_metadata_base.py:182-230`
+
+**Bug** : `MetadataProvider(Protocol)` (api/metadata/\_base.py:267) ne peut pas être simplement
+`git rm` parce que `tests/unit/test_api_metadata_base.py` fait des assertions `isinstance`
+pinning le contrat. Drop la définition casse ces tests.
+
+**Fix** : migrer les tests vers atomic protocol assertions :
+
+```python
+# Old (to drop)
+def test_metadata_provider_protocol_contract():
+    assert isinstance(client, MetadataProvider)
+
+# New (per capability)
+def test_metadata_client_supports_movie_details():
+    assert isinstance(client, MovieDetailsProvider)
+def test_metadata_client_supports_tv_details():
+    assert isinstance(client, TvDetailsProvider)
+# ... etc per capability used by each client
+```
+
+À faire AVANT 5.1 commit (sinon 5.1 casse).
+
+**Commit** : `test(tech-debt): refactor MetadataProvider Protocol tests to atomic capabilities (DEV #29)`
+
+### 5.7 TorrentClientFull migration (DEV #38)
+
+**Site** : `personalscraper/api/torrent/_contracts.py:124 — class TorrentClientFull(Protocol)`
+
+- `personalscraper/api/torrent/_factory.py:72` (factory cast)
+
+**Bug** : `TorrentClientFull` est un composite Protocol qui re-crée la monolithic shape
+sous un autre nom. provider-ids ACCEPTANCE #6 partiel viol via ce 2ᵉ vector.
+
+**Fix** :
+
+1. Identifier les callers via `rg "TorrentClientFull" --type py`
+2. Pour chaque caller, identifier les capacités réellement utilisées
+3. Remplacer `TorrentClientFull` par `Union[TorrentBasic, TorrentFilesByHash, …]` ou `Protocol`
+   intersection composite explicite avec les capacités utilisées par CE caller
+4. Drop `class TorrentClientFull` une fois tous les callers migrés
+5. `_factory.py:72` retourne désormais le type le plus précis (e.g.
+   `QBitClient | TransmissionClient` direct si applicable)
+
+**Commit** : `refactor(tech-debt): drop TorrentClientFull composite, narrow factory returns (DEV #38)`
+
+### 5.8 Ratings flow Pydantic boundary (DEV #30)
+
+**Sites** :
+
+- `personalscraper/scraper/tv_service.py:90-163`
+- `personalscraper/scraper/movie_service.py`
+- `personalscraper/scraper/_xref.py`
+- `personalscraper/scraper/nfo_generator.py:200-208`
+
+**Bug** : provider-ids feature a créé `ExternalIds` + `ProviderIds` Pydantic models (phase 7.4)
+mais le scraper passe toujours `imdb_id`/`tmdb_id` flat positional. Scope-creep.
+
+**Fix** : remplacer les paramètres flat par Pydantic models au scraper boundary :
+
+```python
+# Old
+def _generate_nfo(title, imdb_id: str, tmdb_id: str, ratings: list[dict]): ...
+
+# New
+from personalscraper.scraper.models import ExternalIds, Ratings
+def _generate_nfo(title, ids: ExternalIds, ratings: Ratings): ...
+```
+
+Migration progressive : pour chaque site, accept both old + new signatures via overload pendant
+1 cycle, puis drop old en 0.17.
+
+**Commit** : `refactor(tech-debt): use ExternalIds + Ratings Pydantic at scraper boundary (DEV #30)`
+
 ## Phase 5 Gate
 
-- [ ] 5.1 `MetadataProvider` + `TorrentClientFull` supprimés, callers migrés, tests verts
-- [ ] 5.2 `library-gc --help` exit 0, GC fonctionne
-- [ ] 5.3 `library-doctor` exit 0 sur DB saine, exit non-0 sur DB cassée (testé via fixture)
-- [ ] 5.4 + 5.5 docs commitées
+- [ ] 5.1 `MetadataProvider` + `TorrentClientFull` supprimés, callers migrés (MUST-14, CF-B, DEV #38)
+- [ ] 5.2 `library-gc --help` exit 0, GC fonctionne (SH-7)
+- [ ] 5.3 `library-doctor` exit 0 sur DB saine (SH-8)
+- [ ] 5.4 + 5.5 docs commitées (SH-2, SH-16)
+- [ ] 5.6 tests Protocol refactorisés en atomic (DEV #29) — précondition de 5.1
+- [ ] 5.7 callers TorrentClientFull migrés (DEV #38)
+- [ ] 5.8 scraper boundary utilise Pydantic models (DEV #30)
 - [ ] `make check` vert
 - [ ] `rg "^class MetadataProvider\b|^class TorrentClientFull\b" personalscraper/` retourne 0
+- [ ] provider-ids ACCEPTANCE #6 re-graded ✅
 
-**Phase gate commit** : `chore(tech-debt): phase 5 gate — conformity + monolithic Protocols drop`
+**Phase gate commit** : `chore(tech-debt): phase 5 gate — conformity (Protocols drop + tests refactor + ratings Pydantic) + GC + doctor`

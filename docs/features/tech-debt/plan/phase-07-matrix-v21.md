@@ -3,6 +3,20 @@
 **Effort** : 1-2 jours
 **Theme** : sync matrix avec les events réels du pipeline + agents matrix-aware par défaut.
 
+## Coverage matrix
+
+| Item                     | Sub-phase | Source pattern |
+| ------------------------ | --------- | -------------- |
+| MUST-15 / SH-24 / DEV #8 | 7.1       | P6             |
+| (matrix version bump)    | 7.2       | P6             |
+| DEV #2 + DEV #3          | 7.3       | P9             |
+| DEV #1                   | 7.4       | P10            |
+| (CHANGELOG)              | 7.5       | (doc)          |
+
+DESIGN sections impacted : §12 doc conformity (matrix is reference doc).
+Note : DEV #10 (library-reconcile --dry-run inexistant) closed dans 7.1 par matrix update.
+DEV #6 (VERIFY events) closed par Phase 3.1 (events désormais émis → matrix peut les documenter).
+
 **Note** : ce travail se fait sur le repo `.claude/` (branche `personal-scraper`), pas sur
 personalscraper directement. Le checkout `.claude/` est un sous-repo séparé.
 

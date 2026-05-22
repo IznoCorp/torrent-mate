@@ -44,20 +44,26 @@ Méthode : un par un, validation utilisateur entre chaque, communication en fran
 Voir `docs/features/tech-debt/plan/INDEX.md` pour le détail. **9 phases** (post-REDO item 11)
 ordonnées par dépendances :
 
-| #   | Phase                                        | File                      | Effort | Status |
-| --- | -------------------------------------------- | ------------------------- | ------ | ------ |
-| 1   | Foundations BDD/indexer + PRAGMA discipline  | phase-01-foundations.md   | 2-3 j  | [ ]    |
-| 2   | CLI gaps + backfill auto-trigger             | phase-02-cli-gaps.md      | 2 j    | [ ]    |
-| 3   | Observability (broadened)                    | phase-03-observability.md | 2 j    | [ ]    |
-| 4   | Path + paranoia branch + cleanup             | phase-04-path-cleanup.md  | 2-3 j  | [ ]    |
-| 5   | Conformity (drop Protocols + tests refactor) | phase-05-conformity.md    | 2-3 j  | [ ]    |
-| 6   | Format + heavy doc work                      | phase-06-format-docs.md   | 3-4 j  | [ ]    |
-| 7   | Matrix v2.1 + agents matrix-aware            | phase-07-matrix-v21.md    | 1-2 j  | [ ]    |
-| 8   | Polish + Plan A reset + size hard-block      | phase-08-polish.md        | 3-4 j  | [ ]    |
-| 9   | **Archive DESIGN.md updates (NEW)**          | phase-09-archive-docs.md  | 1-2 j  | [ ]    |
+| #   | Phase                                     | File                      | Effort | Status |
+| --- | ----------------------------------------- | ------------------------- | ------ | ------ |
+| 1   | Foundations BDD/indexer + PRAGMA + bonus  | phase-01-foundations.md   | 3-4 j  | [ ]    |
+| 2   | CLI gaps + backfill-ids first run         | phase-02-cli-gaps.md      | 2 j    | [ ]    |
+| 3   | Observability (broadened DEV #6 → 7 cmds) | phase-03-observability.md | 2 j    | [ ]    |
+| 4   | Path + paranoia branch (DEV #31)          | phase-04-path-cleanup.md  | 2-3 j  | [ ]    |
+| 5   | Conformity (drop Protocols + Pydantic)    | phase-05-conformity.md    | 2-3 j  | [ ]    |
+| 6   | Format + heavy doc work                   | phase-06-format-docs.md   | 3-4 j  | [ ]    |
+| 7   | Matrix v2.1 + agents matrix-aware         | phase-07-matrix-v21.md    | 1-2 j  | [ ]    |
+| 8   | Polish + Plan A reset + size hard-block   | phase-08-polish.md        | 3-4 j  | [ ]    |
+| 9   | Archive DESIGN.md updates (7 features)    | phase-09-archive-docs.md  | 1-2 j  | [ ]    |
 
-**Total post-REDO** : **17-25 jours séquentiel, 14-20 jours parallélisable**. Vs original
-13-19 j = +3-6 j suite à l'audit-quality REDO item 11 (`6eb5f31`, 26 nouveaux DEVs).
+**Total post coverage-fix** : **19-27 jours séquentiel, 15-22 jours parallélisable**.
+
+Coverage finale : **54/54 DEVs** couverts + **34/34 patterns P1-P34** leveraged + **8/8
+sections DESIGN §9-§16** implémentées. 0 différé à 0.17+ (directive opérateur 2026-05-22).
+
+Voir `docs/features/tech-debt/plan/INDEX.md` § "DEV coverage matrix" + § "Patterns P1-P34
+→ leverage phases" + § "DESIGN sections §9-§16 → phases" pour les cross-tables exhaustives.
+49 ACCEPTANCE criteria exécutables en `docs/features/tech-debt/ACCEPTANCE.md`.
 
 ## Already shipped (priority absolue user, hors-plan)
 

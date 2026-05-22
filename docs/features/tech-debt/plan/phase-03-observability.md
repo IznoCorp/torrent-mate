@@ -1,7 +1,21 @@
-# Phase 3 — Observability
+# Phase 3 — Observability (broadened DEV #6)
 
 **Effort** : 2 jours
-**Theme** : combler le gap "user-facing rich" vs "machine telemetry structurée".
+**Theme** : combler le gap "user-facing rich" vs "machine telemetry structurée" sur les
+7 per-step CLI subcommands (pas seulement VERIFY).
+
+## Coverage matrix
+
+| Item                   | Sub-phase | Source pattern  |
+| ---------------------- | --------- | --------------- |
+| MUST-10 / DEV #6 + #40 | 3.1       | P7, P18, P25    |
+| SH-10 / CL-F / DEV #23 | 3.2       | P18             |
+| SH-11 / CL-H           | 3.3       | P18 enforcement |
+| (doc only)             | 3.4       | P18             |
+
+DESIGN sections impacted : §10 CLI surface (telemetry rule), §14 Success criteria.
+DEV #40 = generalisation of DEV #6 to all 7 per-step subcommands (ingest, sort, scrape,
+verify, enforce, dispatch, process).
 
 ## Gate
 

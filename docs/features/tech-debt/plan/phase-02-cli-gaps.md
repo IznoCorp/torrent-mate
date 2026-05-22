@@ -1,7 +1,20 @@
-# Phase 2 — CLI gaps
+# Phase 2 — CLI gaps + backfill-ids first run
 
 **Effort** : 2 jours
-**Theme** : combler les commandes manquantes + fix bugs CLI critiques.
+**Theme** : combler les commandes manquantes + fix bugs CLI critiques + backfill first run.
+
+## Coverage matrix
+
+| Item                                  | Sub-phase | Source pattern |
+| ------------------------------------- | --------- | -------------- |
+| MUST-3 / DEV #16 / BD-G / CL-L / CF-A | 2.1       | P12            |
+| MUST-9 / DEV #21 / CL-A               | 2.2       | P21            |
+| MUST-11 / DEV #7 / CL-I               | 2.3       | P8             |
+| MUST-12 / CL-T                        | 2.4       | P20            |
+| MUST-13 / CL-K                        | 2.5       | P12            |
+| MUST-19 / BD-T (+DEV #28 partial)     | 2.6       | P23            |
+
+DESIGN sections impacted : §10 CLI surface completeness, §13 promise lifecycle.
 
 ## Gate
 

@@ -240,8 +240,11 @@ Règles :
 
 ## 6. ACCEPTANCE (exécutables)
 
-Chaque criterion est une commande shell. Voir `ACCEPTANCE.md` (à créer) pour le format complet.
-Sketch :
+**Voir `ACCEPTANCE.md`** (créé 2026-05-22) — 49 criteria exécutables couvrant 54/54 DEVs,
+34/34 patterns, 8/8 DESIGN sections, 9 phases. Chaque criterion est une commande shell avec
+output attendu.
+
+Sketch des 15 criteria clés (la version complète est en `ACCEPTANCE.md`) :
 
 | #   | Criterion                 | Commande de validation                                                                                                                          |
 | --- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |

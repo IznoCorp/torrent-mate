@@ -1,7 +1,31 @@
-# Phase 8 — Polish + nice + ACCEPTANCE.md
+# Phase 8 — Polish + Plan A reset + module-size hard-block + ACCEPTANCE.md
 
-**Effort** : 2-3 jours
-**Theme** : completer les should-have restants + produire ACCEPTANCE.md exécutable.
+**Effort** : 3-4 jours (revised — adds DEV #25, #27, #41, #46, #49, #53 cleanup)
+**Theme** : completer les should-have restants + Plan A reset+rescrape (DEV #27) + promote
+module-size to hard-block (DEV #46) + bonus cleanups + produire ACCEPTANCE.md exécutable.
+
+## Coverage matrix
+
+| Item                                        | Sub-phase | Source pattern    |
+| ------------------------------------------- | --------- | ----------------- |
+| SH-3 / BD-S                                 | 8.1       | (cron)            |
+| SH-6 / BD-U + BD-V                          | 8.2       | P16               |
+| SH-14 / CL-B / DEV #20                      | 8.3       | P20               |
+| SH-17 / CF-G / P11                          | 8.4       | P11               |
+| SH-21 / AR-C                                | 8.5       | P26               |
+| SH-22 / AR-D                                | 8.6       | P19               |
+| SH-25 / CL-S                                | 8.7       | (tests)           |
+| SH-26 / BD-H                                | 8.8       | P12               |
+| CF-J / 15 criteria                          | 8.9       | P23, P32          |
+| **DEV #27 Plan A reset+rescrape**           | 8.10 NEW  | P23, P24          |
+| **DEV #46 0.10.0 module-size hard-block**   | 8.11 NEW  | P31 PROMISE_STALL |
+| **DEV #53 \_upsert_media_item dedup logic** | 8.12 NEW  | (bonus)           |
+| **DEV #25 event-bus module budgets**        | 8.13 NEW  | (audit)           |
+| **DEV #41 test-coverage branch re-measure** | 8.14 NEW  | P32               |
+| **DEV #49 test_cli @patch trim**            | 8.15 NEW  | P32               |
+
+DESIGN sections impacted : §13 promise lifecycle, §14 success criteria, §11 architecture,
+§9 BDD lifecycle invariants (post Plan A reset).
 
 ## Gate
 
@@ -120,22 +144,153 @@ CLI l'invoke en E2E.
 
 **Commit** : `docs(tech-debt): ACCEPTANCE.md executable criteria (CF-J)`
 
+### 8.10 Plan A reset + rescrape — DEV #27 + #54 closure
+
+**One-shot operation** (live BDD).
+
+**Preconditions** : Phase 1.9 `init-canonical` shipped (so backfill-ids becomes useful).
+
+**Sequence** (each step validated before next) :
+
+1. Backup `library.db` → `library.db.bak.pre-rescrape-0.16.0`
+2. `personalscraper library init-canonical` (Phase 1.9) → populate canonical_provider
+   from NFOs on disk
+3. `personalscraper library-index --mode backfill-ids --no-budget` → fills `external_ids_json`
+   - `ratings_json` from API (1937 items × ~3 API calls ≈ 1-2 h)
+4. Verification :
+   - `SELECT COUNT(*) FROM media_item WHERE external_ids_json = '{}'` → tends to 0
+   - `library-doctor` reports `canonical_provider populated > 90%`
+5. For items still empty (no NFO uniqueid, or API failure) : optional
+   `library-rescrape --apply --filter canonical_provider IS NULL` (full TMDB scrape, slow)
+
+**Resolves** : provider-ids ACCEPTANCE #3 (CLI present via Phase 2), #4 (data populated), #10
+(8-show staging dispatch-ready validation). DEV #12 (provider-IDs empty sub-cause). DEV #27
+(Plan A executed). DEV #54 (chicken-and-egg unblocked by init-canonical).
+
+**Commit** : `chore(tech-debt): Plan A reset + rescrape execution log (DEV #27, #54)`
+(this is a chore, not code change — actions on live BDD; commit only the runbook trace)
+
+### 8.11 Promote check-module-size to hard-block (DEV #46)
+
+**Site** : `scripts/check-module-size.py` + `Makefile`.
+
+**Bug** : DESIGN arch-cleanup promised hard-block in 0.10.0. We're at 0.15.1, 5 versions
+overdue. Script still prints WARN but exits 0.
+
+**Fix** :
+
+1. Modify `scripts/check-module-size.py` :
+
+   ```python
+   # Change exit logic
+   has_block = any(loc > BLOCK_LOC for loc in module_locs)
+   has_warn = any(WARN_LOC <= loc <= BLOCK_LOC for loc in module_locs)
+   if has_block:
+       sys.exit(1)
+   # WARN no longer blocks but is still printed for visibility
+   ```
+
+   Currently both `existing_validator.py` (917) and `tv_service.py` (986) are WARN (not BLOCK).
+   Hard-block only triggers > 1000.
+
+2. **Decision** : do we want WARN to ALSO block in 0.16.0 ?
+   - Option A : keep WARN advisory, only BLOCK > 1000 → minimal disruption, but the 800 advisory
+     is mostly ignored.
+   - Option B : promote WARN to BLOCK in 0.16.0 → requires splitting `tv_service.py` (986)
+     and `existing_validator.py` (917) RIGHT NOW. Heavy work, +1-2 d.
+
+   **DESIGN tech-debt decision** : Option A for 0.16.0 (BLOCK > 1000 hard). Option B logged
+   in roadmap 0.17+ with explicit "splits required" tag.
+
+3. Add `docs/reference/promises.md` (new) listing the BLOCK threshold + which modules are
+   close (within 100 LOC) — early warning system.
+
+**Commit** : `feat(tech-debt): promote check-module-size to hard-block on >1000 LOC (DEV #46)`
+
+### 8.12 Fix `_upsert_media_item` lookup-key consistency (DEV #53)
+
+**Site** : `personalscraper/library/scanner.py` around `_upsert_media_item`.
+
+**Bug** : `_upsert_media_item` looks up existing item by `(title, year)` but stored `title`
+field contains `"(YYYY)"` literally on some rows (legacy) while new lookups use cleaned title.
+Result : 1863 duplicate rows created on one scan_library() call.
+
+**Fix** :
+
+1. Normalize lookup key : strip `" (\d{4})$"` regex from both stored and lookup title before compare
+2. Migration 007 : one-shot UPDATE to canonicalize title across all existing rows :
+   ```sql
+   UPDATE media_item
+   SET title = REGEXP_REPLACE(title, ' \(\d{4}\)$', '', 1)
+   WHERE title LIKE '% (____)';
+   ```
+3. Add UNIQUE constraint `UNIQUE(title, year, kind)` on `media_item` (post-migration) to
+   prevent future duplicates at DB level.
+4. Regression test : create item with `title="Foo"`, year=2020, then call \_upsert_media_item
+   with same — assert no INSERT.
+
+**Commit** : `fix(tech-debt): \_upsert_media_item canonical title lookup + UNIQUE constraint
+
+- migration 007 (DEV #53)`
+
+### 8.13 Sync event-bus catalog v1 13 → 17 (DEV #25)
+
+**Sites** :
+
+- `personalscraper/events/__init__.py:__all__` — append `BackfillStarted`,
+  `BackfillItemCompleted`, `BackfillSkipped`, `BackfillCompleted`
+- `docs/reference/event-bus.md` catalog table — bump from 13 to 17, add 4 rows
+- DESIGN budget update : `core/event_bus.py` budget 400 → 420 (current 410), document
+  rationale, OR split into `_emit.py` + `_subscribe.py` (more invasive)
+
+**Decision tech-debt 0.16.0** : raise budget to 420 with rationale (provider-ids extension
+is single-feature, not pattern). Split → 0.17+ if more events added.
+
+**Commit** : `docs(tech-debt): event-bus catalog v1 13 → 17 + budgets raised (DEV #25)`
+
+### 8.14 Test-coverage branch re-measure (DEV #41)
+
+**Action** : run `make test-cov`, capture `coverage.xml`, update IMPLEMENTATION.md +
+test-coverage archive note with current branch coverage figure. If drift > 5 % since
+"91 %" claim, file a follow-up issue to recover the lost coverage (likely added by
+provider-ids feature without proportional branch tests).
+
+**Commit** : `docs(tech-debt): test-coverage branch re-measurement post-provider-ids (DEV #41)`
+
+### 8.15 test_cli @patch trim (DEV #49)
+
+**Site** : `tests/test_cli.py`.
+
+**Action** : reduce `@patch` count from 52 → ≤25 (test-realism DESIGN §5 target). Strategies :
+
+- Promote unit-level `@patch` to fixture-level for shared mocks
+- Replace deep mocks with `MagicMock(spec=Class)` (test-realism goal)
+- Extract integration tests to `tests/integration/` (where mocks are looser)
+
+**Commit** : `refactor(tech-debt): trim test_cli @patch count 52 → ≤25 (DEV #49)`
+
 ## Phase 8 Gate (= PR gate)
 
-- [ ] 8.1 cron entry present
-- [ ] 8.2 pending_op + item_issue audit done
-- [ ] 8.3 qbit-restart decided (A or B)
-- [ ] 8.4 dead infrastructure audit report committed
-- [ ] 8.5 `personalscraper clean` + `cleanup` exposed
-- [ ] 8.6 `trailers audit` alias works
-- [ ] 8.7 pin commands test PASS
-- [ ] 8.8 audit-cli-coverage exit 0
-- [ ] 8.9 ACCEPTANCE.md complete with all 15 criteria ✅
+- [ ] 8.1 cron entry present (SH-3)
+- [ ] 8.2 pending_op + item_issue audit done (SH-6, BD-U/V)
+- [ ] 8.3 qbit-restart decided (SH-14, DEV #20)
+- [ ] 8.4 dead infrastructure audit report committed (SH-17)
+- [ ] 8.5 `personalscraper clean` + `cleanup` exposed (SH-21, AR-C)
+- [ ] 8.6 `trailers audit` alias works (SH-22, AR-D)
+- [ ] 8.7 pin commands test PASS (SH-25)
+- [ ] 8.8 audit-cli-coverage exit 0 (SH-26)
+- [ ] 8.9 ACCEPTANCE.md complete with all criteria ✅ (CF-J)
+- [ ] 8.10 Plan A reset+rescrape executed, library-doctor reports canonical_provider > 90% (DEV #27, #54)
+- [ ] 8.11 check-module-size hard-blocks > 1000 (DEV #46)
+- [ ] 8.12 \_upsert_media_item dedup + migration 007 + test (DEV #53)
+- [ ] 8.13 event-bus catalog v1 sync (DEV #25)
+- [ ] 8.14 branch coverage re-measured + IMPLEMENTATION updated (DEV #41)
+- [ ] 8.15 test_cli @patch ≤ 25 (DEV #49)
 - [ ] `make check` vert
 - [ ] `personalscraper library-doctor` exit 0 sur DB prod post-toutes-phases
 - [ ] PR ready
 
-**Phase gate commit** : `chore(tech-debt): phase 8 gate — polish + ACCEPTANCE complete`
+**Phase gate commit** : `chore(tech-debt): phase 8 gate — polish + Plan A reset + module-size hard-block + ACCEPTANCE complete`
 
 **PR creation** : suite Phase 8 gate, lancer `/implement:feature-pr` (auto par
 `/implement:phase` à la last phase) puis `/implement:pr-review`.

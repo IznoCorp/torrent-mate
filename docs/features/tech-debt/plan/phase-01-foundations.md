@@ -1,7 +1,26 @@
-# Phase 1 — Foundations BDD/indexer
+# Phase 1 — Foundations BDD/indexer + PRAGMA discipline
 
-**Effort** : 2-3 jours
-**Theme** : restaurer le drift mechanism, activer les invariants FK, fixture E2E.
+**Effort** : 3-4 jours (revised post coverage-fix)
+**Theme** : restaurer le drift mechanism, activer les invariants FK, PRAGMA discipline
+multi-site, oshash retry, init-canonical bridge, fixture E2E.
+
+## Coverage matrix
+
+| Item             | Sub-phase  | Source pattern    |
+| ---------------- | ---------- | ----------------- |
+| MUST-1 / DEV #18 | 1.1        | P11, P24          |
+| MUST-2 / DEV #19 | 1.2        | P15, P24          |
+| MUST-17 / BD-B   | 1.3        | P2 (test E2E)     |
+| MUST-16 / BD-AG  | 1.4        | P2 (test E2E)     |
+| SH-23 / DEV #15  | 1.5        | P14               |
+| SH-9 / BD-L      | 1.6        | P15               |
+| DEV #50          | 1.7 NEW    | (bonus)           |
+| DEV #51 + #52    | 1.8 NEW    | (bonus)           |
+| DEV #54          | 1.9 NEW    | (bonus)           |
+| DEV #33 + #34    | 1.10 NEW   | P33 PRAGMA_BYPASS |
+| DEV #37          | 1.10 audit | (covered)         |
+
+DESIGN sections impacted : §9 BDD lifecycle invariants, §15 PRAGMA discipline.
 
 ## Gate (prérequis avant cette phase)
 
@@ -125,16 +144,173 @@ if ic != "ok":
 
 **Commit** : `fix(tech-debt): PRAGMA integrity_check at open_db (SH-9)`
 
+### 1.7 Fix library.scanner.\_ensure_disk_row UUID mismatch (DEV #50)
+
+**Site** : `personalscraper/library/scanner.py:756,781 — _ensure_disk_row`
+
+**Bug** : `_ensure_disk_row` looks up `disk` row by `disk_repo.get_by_uuid(conn, disk_cfg.id)`
+where `disk_cfg.id` is the config string ("disk_1"), but rows inserted by
+`indexer.scanner.bootstrap_disk_identity` carry the real VolumeUUID (e.g.
+`F7E3C03C-...`). Result : `scan_library()` inserts 4 duplicate disk rows (uuid="disk_1" etc.)
+and subsequent operations skip them with `sentinel_mismatch`.
+
+**Reproduit empiriquement 2026-05-21 22h35** : `disk` table 4 → 8 rows after one
+`scan_library()` call.
+
+**Fix** :
+
+```python
+# Look up by VolumeUUID via the existing sentinel-verified helper, fall back
+# to label match for legacy rows.
+from personalscraper.indexer.merkle import verify_disk_mounted, DiskMountStatus
+
+def _ensure_disk_row(conn, disk_cfg, now_s):
+    # Try by label first (config-stable across remounts)
+    existing = disk_repo.get_by_label(conn, disk_cfg.id)
+    if existing is not None:
+        return existing
+    # Fall back to VolumeUUID lookup via mount probe
+    real_uuid = _probe_volume_uuid(disk_cfg.path)  # uses bootstrap_disk_identity if needed
+    existing = disk_repo.get_by_uuid(conn, real_uuid)
+    if existing is not None:
+        return existing
+    # Truly new disk : insert with real UUID
+    row = _build_disk_row_with_uuid(disk_cfg, real_uuid, now_s)
+    disk_repo.insert(conn, row)
+    return row
+```
+
+**Test** : add `test_ensure_disk_row_no_duplicate` — pre-populate disk row with real UUID,
+call `_ensure_disk_row` with same config, assert no INSERT.
+
+**Commit** : `fix(tech-debt): _ensure_disk_row uses real VolumeUUID, no duplicates (DEV #50)`
+
+### 1.8 Retry oshash on Stage-A rows (DEV #51 + #52)
+
+**Sites** :
+
+- `personalscraper/indexer/scanner/_modes/enrich.py:290 _enrich_one_file` — add oshash retry step
+- `personalscraper/indexer/scanner/_walker.py:496` — full walker should retry on existing
+  rows with `oshash IS NULL`
+
+**Strategy** :
+
+1. **Enrich path (DEV #51)** : in `_enrich_one_file`, after the existing 3 steps (streams, NFO,
+   artwork), add Step 4 :
+
+   ```python
+   # Step 4 (NEW): retry oshash if NULL
+   current = conn.execute("SELECT oshash FROM media_file WHERE id = ?", (file_id,)).fetchone()
+   if current and current[0] is None:
+       from personalscraper.indexer.fingerprint import oshash as _compute
+       try:
+           new_oshash = _compute(file_path)
+           if new_oshash:
+               conn.execute("UPDATE media_file SET oshash = ? WHERE id = ?", (new_oshash, file_id))
+               log.info("indexer.enrich.oshash_recomputed", file_id=file_id)
+       except OSError as exc:
+           log.warning("indexer.enrich.oshash_retry_failed", file_id=file_id, error=str(exc))
+   ```
+
+2. **Full walker path (DEV #52)** : in `_db_writes._compute_oshash`, when called on existing
+   row with `oshash IS NULL`, attempt re-compute even on UPDATE (not just INSERT).
+
+**Tests** :
+
+- `test_enrich_recomputes_null_oshash` — seed row with oshash=NULL but enriched_at set, run
+  enrich, assert oshash populated.
+- `test_walker_retries_oshash_on_existing_null` — same for walker full mode.
+
+**Commit** : `feat(tech-debt): retry oshash on null-oshash rows in enrich + full walker (DEV #51, #52)`
+
+### 1.9 Init-canonical mode (DEV #54)
+
+**Site** : `personalscraper/indexer/scanner/_modes/backfill_ids.py` (extend) +
+`personalscraper/commands/library/scan.py` (Phase 2.1 will create) — add `--init-canonical`
+flag OR new `library-init-canonical` CLI sub-command.
+
+**Bug** : `run_backfill_ids` skips items where `canonical_provider IS NULL` with log
+`backfill_ids_canonical_unsupported`. But on a BDD pre-provider-ids (or post-scan_library
+without scrape), 100% of items have `canonical_provider IS NULL`. Chicken-and-egg.
+
+**Fix** : add a "canonical-from-NFO" bootstrap step :
+
+```python
+def init_canonical_from_nfo(conn, config) -> int:
+    """Walk all media_item, read their NFO from FS, extract <uniqueid default="true">
+    type, set canonical_provider accordingly. Returns count populated."""
+    count = 0
+    for item in conn.execute("SELECT id, dispatch_path FROM media_item WHERE canonical_provider IS NULL"):
+        nfo_path = _resolve_nfo_path(item.dispatch_path, item.kind)
+        if not nfo_path.exists():
+            continue
+        canonical = _parse_canonical_from_nfo(nfo_path)  # 'tvdb' | 'tmdb' | None
+        if canonical:
+            conn.execute("UPDATE media_item SET canonical_provider = ? WHERE id = ?",
+                         (canonical, item.id))
+            count += 1
+    return count
+```
+
+Then `run_backfill_ids` becomes useful : init-canonical first, then backfill fills the
+rest from API.
+
+**Test** : `test_init_canonical_from_nfo_populates_from_tvdb_default` — seed item with
+NFO containing `<uniqueid default="true" type="tvdb">…</uniqueid>`, run init, assert
+`canonical_provider='tvdb'`.
+
+**Commit** : `feat(tech-debt): library init-canonical CLI to bootstrap from NFOs (DEV #54)`
+
+### 1.10 PRAGMA discipline multi-site (DEV #33 + #34 + audit #37)
+
+**Sites** (raw `sqlite3.connect()` bypass `open_db`) :
+
+- `personalscraper/dispatch/run.py` (×2)
+- `personalscraper/commands/library/audit.py`
+- `personalscraper/conf/loader.py`
+- `personalscraper/indexer/_concurrency.py`
+- `personalscraper/indexer/outbox/_disk.py`
+- `personalscraper/indexer/outbox/_publish.py`
+
+**Fix** :
+
+1. Extract `_apply_pragmas(conn)` helper in `personalscraper/indexer/db.py` (canonical
+   PRAGMA set : `journal_mode=WAL`, `synchronous=NORMAL`, `temp_store=MEMORY`,
+   `cache_size=-65536`, `mmap_size=268435456`, `wal_autocheckpoint=1000`,
+   `busy_timeout=5000`, `foreign_keys=ON`).
+2. Migrate every raw-connect site to call `_apply_pragmas(conn)` after `sqlite3.connect()`.
+3. Add lint guard `scripts/check-pragma-discipline.py` :
+
+   ```python
+   # Fail if any sqlite3.connect( outside indexer/db.py without _apply_pragmas
+   ```
+
+   Wire into `make check`.
+
+**Audit DEV #37 (BEGIN IMMEDIATE)** : run `rg "BEGIN IMMEDIATE\|conn.execute\(.BEGIN"
+personalscraper/indexer/`. If absent in write paths, file a follow-up issue (low priority
+0.17+, not bloquant pour 0.16.0).
+
+**Commit** : `fix(tech-debt): _apply_pragmas helper + migrate raw connect sites + lint
+guard (DEV #33, #34)`
+
 ## Phase 1 Gate
 
-- [ ] 1.1 commit + test
-- [ ] 1.2 commit + test
-- [ ] 1.3 commit + test miss-strike lifecycle PASS
-- [ ] 1.4 commit + test scan→reconcile=clean PASS
-- [ ] 1.5 commit + migration 006 applies cleanly
-- [ ] 1.6 commit
-- [ ] `make check` vert (lint + test + module-size)
-- [ ] `personalscraper library-index --mode full` puis `library-reconcile` → `merkle_drift=[]`,
-      `path_missing=0` (sur DB cleanée si nécessaire)
+- [ ] 1.1 commit + test (DEV #18)
+- [ ] 1.2 commit + test (DEV #19)
+- [ ] 1.3 commit + test miss-strike lifecycle PASS (MUST-17)
+- [ ] 1.4 commit + test scan→reconcile=clean PASS (MUST-16)
+- [ ] 1.5 commit + migration 006 applies cleanly (DEV #15)
+- [ ] 1.6 commit (SH-9)
+- [ ] 1.7 commit + test (DEV #50)
+- [ ] 1.8 commit + 2 tests (DEV #51, #52)
+- [ ] 1.9 commit + test + new CLI command (DEV #54)
+- [ ] 1.10 commit + lint guard pass (DEV #33, #34, #37 audit)
+- [ ] `make check` vert (lint + test + module-size + pragma-discipline)
+- [ ] `personalscraper library-index --mode full` puis `library-reconcile` →
+      `merkle_drift=[]`, `path_missing=0`
+- [ ] `personalscraper library init-canonical` (or equivalent) populates
+      `canonical_provider` on ≥ 50% of items
+- [ ] `rg "sqlite3\.connect\(" personalscraper/ --type py | grep -v "db.py"` returns zero
 
-**Phase gate commit** : `chore(tech-debt): phase 1 gate — foundations BDD/indexer`
+**Phase gate commit** : `chore(tech-debt): phase 1 gate — foundations BDD/indexer + PRAGMA discipline + 5 bonus DEVs`

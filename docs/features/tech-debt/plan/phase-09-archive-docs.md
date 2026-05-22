@@ -4,6 +4,24 @@
 **Theme** : amender les 7 archived DESIGN.md devenus stale post-refactor + cleanups doc rot
 identifiés en REDO item 11 (P30 DOC_ROT pattern).
 
+## Coverage matrix
+
+| Item                                 | Sub-phase | Source pattern |
+| ------------------------------------ | --------- | -------------- |
+| DEV #24 + #26 — event-bus            | 9.1.a     | P30            |
+| DEV #27 + #28 — provider-ids note    | 9.1.b     | P30, P23       |
+| DEV #32 + #35 + #36 — media-indexer  | 9.1.c     | P30            |
+| DEV #39 — pipeline-obs superseded    | 9.1.d     | P30            |
+| DEV #42 + #43 — trailer              | 9.1.e     | P30            |
+| DEV #45 — logging.md broken paths    | 9.1.f     | P30            |
+| DEV #48 — legacy-cleanup VX leaks    | 9.1.g     | P30            |
+| DEV #44 — \_exclusions.py docstring  | 9.2.a     | P30            |
+| DEV #48 — MANUAL.md V3 + docs/\*.md  | 9.2.b     | P30            |
+| DEV #45 + #47 + #24 — reference sync | 9.3       | P30            |
+
+DESIGN sections impacted : §12 documentation conformity (full implementation here).
+Note : DEV #9 mentioned in matrix but ALREADY shipped (commit 268cbee, not in scope).
+
 ## Gate
 
 - Phase 6 (heavy doc work) commited

@@ -1,7 +1,22 @@
-# Phase 6 — Format unification + documentation reference
+# Phase 6 — Format unification + heavy documentation reference
 
-**Effort** : 2-3 jours
-**Theme** : standardiser output formats + docs reference exhaustives.
+**Effort** : 3-4 jours (revised — heavy doc rot work post REDO)
+**Theme** : standardiser output formats + docs reference exhaustives + sync archive
+references avec post-refactor reality.
+
+## Coverage matrix
+
+| Item                               | Sub-phase | Source pattern |
+| ---------------------------------- | --------- | -------------- |
+| SH-13 / DEV #22 / CL-D + CL-E      | 6.1       | P22            |
+| SH-12 / CL-J                       | 6.2       | P8, P29        |
+| SH-18 + SH-19 + AR-A + AR-B + AR-E | 6.3       | P26, P27, P29  |
+| SH-1 / BD-E                        | 6.4       | (doc)          |
+| SH-2 / BD-R / CF-H                 | 6.5       | P30            |
+| **DEV #5 counter asymmetry doc**   | 6.6 NEW   | (audit)        |
+| **DEV #4 ENFORCE scope doc**       | 6.6 NEW   | (audit)        |
+
+DESIGN sections impacted : §10 CLI, §11 architecture, §12 doc conformity.
 
 ## Gate
 
@@ -126,14 +141,42 @@ discovered (oshash=NULL, Stage A)
 
 **Commit** : `docs(tech-debt): runbook backfill-ids ops (SH-2)`
 
+### 6.6 Behavioral nuances doc (DEV #4 + DEV #5)
+
+**DEV #4 — ENFORCE scope-limited `.DS_Store` cleanup**
+
+Document explicitement dans `docs/reference/pipeline-internals.md` ou
+`docs/reference/architecture.md` §ENFORCE :
+
+> "ENFORCE.sanitize_action `deleted_ds_store` scope is **per-item only** (only `.DS_Store`
+> in the show/movie folder being enforced). Disk-wide cleanup is NOT done by ENFORCE.
+> Operator runs `library-clean` for disk-wide sweep (Plex/Kodi compatibility,
+> non-destructive on media files)."
+
+→ Closes DEV #4 as "documented by design" (not a bug, but absence of doc was misleading).
+
+**DEV #5 — Counter asymmetry PROCESS:scrape**
+
+Document dans `docs/reference/pipeline-internals.md` §PROCESS:scrape :
+
+> "Summary line `Scrape: N OK, M skipped, X errors` counts include `nfo_valid action=repaired`
+> as OK. Per-section counters `movies_done/tvshows_done scraped=X` count only `action=scraped`,
+> not `action=repaired`. This is intentional — a repair is not a fresh scrape. To get the
+> total processed, sum (scraped + repaired)."
+
+→ Documents DEV #5 as design intent. Optional follow-up : unify counter naming (0.17+).
+
+**Commit** : `docs(tech-debt): document ENFORCE scope + PROCESS counter semantics (DEV #4, #5)`
+
 ## Phase 6 Gate
 
-- [ ] 6.1 `personalscraper --format json library-doctor` outputs JSON
-- [ ] 6.2 chaque commande a une section dans `commands.md` (test 2.5 enforce)
-- [ ] 6.3 architecture.md a state ownership + module relationships + anti-décisions
-- [ ] 6.4 indexer.md a lifecycle media_file
-- [ ] 6.5 external-ids-flow.md a section runbook
+- [ ] 6.1 `personalscraper --format json library-doctor` outputs JSON (SH-13, DEV #22)
+- [ ] 6.2 chaque commande a une section dans `commands.md` (SH-12)
+- [ ] 6.3 architecture.md a state ownership + module relationships + anti-décisions (SH-18, SH-19, AR-E)
+- [ ] 6.4 indexer.md a lifecycle media_file (SH-1)
+- [ ] 6.5 external-ids-flow.md a section runbook (SH-2)
+- [ ] 6.6 DEV #4 + #5 documented as design intent
 - [ ] `make check` vert
 - [ ] `scripts/audit-cli-coverage.py` exit 0
 
-**Phase gate commit** : `chore(tech-debt): phase 6 gate — format + documentation`
+**Phase gate commit** : `chore(tech-debt): phase 6 gate — format + heavy doc work (DEV #4, #5, #22)`
