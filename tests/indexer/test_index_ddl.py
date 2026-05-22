@@ -146,7 +146,5 @@ class TestRecreateIndexesC5Race:
         """Partial indexes (``WHERE …``) round-trip through capture+recreate."""
         ddl_pairs = _drop_secondary_indexes(conn)
         _recreate_indexes(conn, ddl_pairs)
-        sql = conn.execute(
-            "SELECT sql FROM sqlite_master WHERE name='idx_file_deleted'"
-        ).fetchone()[0]
+        sql = conn.execute("SELECT sql FROM sqlite_master WHERE name='idx_file_deleted'").fetchone()[0]
         assert "WHERE deleted_at IS NOT NULL" in sql
