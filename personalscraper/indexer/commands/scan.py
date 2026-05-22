@@ -284,6 +284,31 @@ def library_index_command(
                         except Exception:  # noqa: BLE001 — best-effort rollback
                             pass
 
+                # --- Mark missed files (DEV #18 — drift mechanism wire) ---
+                # Files on each disk whose ``scan_generation < next_gen`` AND
+                # ``deleted_at IS NULL`` have their ``miss_strikes`` incremented.
+                # Without this call, ``apply_soft_deletes`` below could never
+                # tombstone anything: ``miss_strikes`` would stay at 0 forever.
+                # Restricted to ``full`` mode because quick/incremental do not
+                # walk every file — bumping strikes there would incorrectly
+                # mark visited-but-not-walked files as missed. Skipped on
+                # ``dry_run`` because this is a write that mutates state
+                # outside any rollback boundary (writes happen in their own
+                # implicit transaction here, not in the dry-run savepoint).
+                if not dry_run and scan_mode in (ScanMode.full,):
+                    from personalscraper.indexer.drift import mark_missed_files  # noqa: PLC0415
+
+                    for d in filtered_disks:
+                        try:
+                            mark_missed_files(conn, d.id, next_gen)
+                        except sqlite3.Error as miss_exc:
+                            log.warning(
+                                "indexer.cli.index.mark_missed_failed",
+                                disk_id=d.id,
+                                error=str(miss_exc),
+                                error_type=type(miss_exc).__name__,
+                            )
+
                 # --- Apply soft-deletes (per disk, post-walk) ---
                 # Files that exceeded the miss-strike threshold during the
                 # walk are now finalised: deleted_at is set, a deleted_item
