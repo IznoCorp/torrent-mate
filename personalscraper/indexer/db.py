@@ -111,6 +111,48 @@ class IndexerDiskFullError(OSError):
         )
 
 
+class IndexerFKOrphansError(RuntimeError):
+    """Raised by :func:`open_db` when ``PRAGMA foreign_key_check`` returns rows.
+
+    A foreign-key orphan is a row whose foreign key references a parent row
+    that does not exist. SQLite only enforces FKs at write time when
+    ``PRAGMA foreign_keys=ON`` is active on the connection performing the
+    write — a script bypassing :func:`open_db` (raw ``sqlite3.connect``,
+    sqlite3 CLI, etc.) can therefore insert orphans silently. Phase 1.2 of
+    tech-debt 0.16.0 adds the pre-check at :func:`open_db` to surface those
+    orphans loudly rather than letting downstream queries return inconsistent
+    results.
+
+    Distinct from :class:`IndexerCorruptError` which signals structural
+    corruption (malformed file). Orphans are *data integrity* violations,
+    the file itself is structurally fine.
+
+    Args:
+        db_path: Path of the database whose ``foreign_key_check`` failed.
+        orphan_count: Total number of orphan rows reported by the PRAGMA.
+        sample: First few orphan rows (for diagnostic; truncated to keep the
+            message readable).
+    """
+
+    def __init__(
+        self,
+        db_path: Path,
+        orphan_count: int,
+        sample: list[tuple[object, ...]] | None = None,
+    ) -> None:
+        """Initialize with the db path and orphan diagnostic."""
+        self.db_path = db_path
+        self.orphan_count = orphan_count
+        self.sample = sample or []
+        sample_str = f" Sample: {self.sample}" if self.sample else ""
+        super().__init__(
+            f"Database at {db_path} has {orphan_count} foreign-key orphan(s) "
+            f"(PRAGMA foreign_key_check returned {orphan_count} row(s)).{sample_str} "
+            f"Run `sqlite3 {db_path} 'PRAGMA foreign_key_check;'` to inspect, "
+            f"then clean up the orphan rows before retrying."
+        )
+
+
 class IndexerMigrationError(RuntimeError):
     """Raised when applying a migration script fails.
 
@@ -318,6 +360,29 @@ def open_db(
     conn.execute("PRAGMA mmap_size=268435456")
     conn.execute("PRAGMA wal_autocheckpoint=1000")
     conn.execute("PRAGMA busy_timeout=5000")
+
+    # --- FK orphan pre-check (Phase 1.2 / DEV #19) ---
+    # PRAGMA foreign_key_check works regardless of foreign_keys ON/OFF — it
+    # scans every FK constraint and reports rows that reference non-existent
+    # parents. We run it BEFORE activating FK enforcement: orphans created
+    # by a script bypassing open_db (raw sqlite3.connect, sqlite3 CLI) would
+    # otherwise stay silently invisible until a write triggers a FK error
+    # far from the source.
+    orphans = conn.execute("PRAGMA foreign_key_check").fetchall()
+    if orphans:
+        log.error(
+            "indexer.db.foreign_key_orphans",
+            db_path=str(path),
+            count=len(orphans),
+            sample=[tuple(row) for row in orphans[:5]],
+        )
+        conn.close()
+        raise IndexerFKOrphansError(
+            path,
+            orphan_count=len(orphans),
+            sample=[tuple(row) for row in orphans[:5]],
+        )
+
     conn.execute("PRAGMA foreign_keys=ON")
 
     return conn
