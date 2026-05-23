@@ -141,9 +141,67 @@ def library_show(
     Examples:
         personalscraper library-show 42
     """
+    from personalscraper.cli_helpers.output import emit  # noqa: PLC0415
     from personalscraper.indexer.cli import library_show_command  # noqa: PLC0415
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
-    rc = library_show_command(item_id, config_path=effective_config, event_bus=_resolve_event_bus(ctx))
+    rc, payload = library_show_command(item_id, config_path=effective_config, event_bus=_resolve_event_bus(ctx))
+    emit(payload, rich_renderer=lambda: _print_show_sections(payload))
     if rc != 0:
         raise typer.Exit(rc)
+
+
+def _print_show_sections(payload: dict[str, object]) -> None:
+    """Render a single media item show as rich sections.
+
+    Args:
+        payload: The dict returned by :func:`~personalscraper.indexer.cli.library_show_command`.
+    """
+    if "error" in payload:
+        typer.echo(str(payload["error"]), err=True)
+        return
+
+    item: dict[str, object] = payload.get("item", {})  # type: ignore[assignment]
+    item_id = payload.get("item_id", "?")
+    typer.echo(f"=== media_item id={item_id} ===")
+    for key, value in item.items():
+        typer.echo(f"  {key}: {value}")
+
+    seasons: list[dict[str, object]] = payload.get("seasons", [])  # type: ignore[assignment]
+    if seasons:
+        typer.echo(f"\n=== seasons ({len(seasons)}) ===")
+        for s in seasons:
+            typer.echo(
+                f"  season {s.get('number')}: episodes={s.get('episode_count')}, "
+                f"has_poster={s.get('has_poster')}, nfo_count={s.get('episodes_with_nfo')}"
+            )
+            for ep in s.get("episodes", []):  # type: ignore[assignment]
+                e: dict[str, object] = ep  # type: ignore[assignment]
+                typer.echo(f"    episode {e.get('number')}: {e.get('title')}")
+
+    files: list[dict[str, object]] = payload.get("files", [])  # type: ignore[assignment]
+    if files:
+        typer.echo(f"\n=== media_files ({len(files)}) ===")
+        for f in files:
+            typer.echo(
+                f"  file id={f.get('id')} {f.get('rel_path')}/{f.get('filename')}"
+                f" size={f.get('size_bytes')} mtime_ns={f.get('mtime_ns')}"
+            )
+            for st in f.get("streams", []):  # type: ignore[assignment]
+                stream: dict[str, object] = st  # type: ignore[assignment]
+                typer.echo(
+                    f"    stream idx={stream.get('idx')} kind={stream.get('kind')} "
+                    f"codec={stream.get('codec')} lang={stream.get('lang')}"
+                )
+
+    attributes: list[dict[str, object]] = payload.get("attributes", [])  # type: ignore[assignment]
+    if attributes:
+        typer.echo(f"\n=== item_attributes ({len(attributes)}) ===")
+        for a in attributes:
+            typer.echo(f"  {a.get('key')}: {a.get('value')}")
+
+    deleted: list[dict[str, object]] = payload.get("deleted_history", [])  # type: ignore[assignment]
+    if deleted:
+        typer.echo(f"\n=== deleted_item history ({len(deleted)}) ===")
+        for d in deleted:
+            typer.echo(f"  kind={d.get('kind')} deleted_at={d.get('deleted_at')} reason={d.get('reason')}")

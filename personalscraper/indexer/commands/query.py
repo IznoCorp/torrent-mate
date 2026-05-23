@@ -547,15 +547,12 @@ def library_show_command(
     *,
     config_path: Path | None = None,
     event_bus: EventBus,
-) -> int:
-    """Pretty-print all stored data for a single media item.
+) -> tuple[int, dict[str, object]]:
+    """Return all stored data for a single media item.
 
-    Prints:
-    - ``media_item`` columns.
-    - ``season`` / ``episode`` rows (for shows).
-    - ``media_file`` rows with their ``media_stream`` rows.
-    - ``item_attribute`` rows.
-    - ``deleted_item`` history.
+    Returns a ``(rc, payload)`` tuple where *payload* has keys:
+    ``item`` (dict), ``seasons`` (list), ``files`` (list with ``streams``
+    sub-list), ``attributes`` (list), ``deleted_history`` (list).
 
     Args:
         item_id: PK of the ``media_item`` to display.
@@ -565,8 +562,8 @@ def library_show_command(
             subscriber-wired bus.
 
     Returns:
-        ``0`` on success, ``1`` on infrastructure error, ``2`` if no item with
-        the given id exists.
+        ``(0, payload)`` on success, ``(1, {})`` on infrastructure error,
+        ``(2, {"error": ...})`` if no item with the given id exists.
     """
     from personalscraper.conf.loader import (  # noqa: PLC0415
         ConfigNotFoundError,
@@ -592,7 +589,7 @@ def library_show_command(
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
         typer.echo(f"Config error: {exc}", err=True)
-        return 1
+        return 1, {}
 
     db_path = cfg.indexer.db_path
     assert db_path is not None, "indexer.db_path must be resolved"
@@ -611,7 +608,7 @@ def library_show_command(
         IndexerMigrationError,
     ) as exc:
         typer.echo(str(exc), err=True)
-        return 1
+        return 1, {}
 
     with closing(conn):
         try:
@@ -624,87 +621,78 @@ def library_show_command(
             IndexerMigrationError,
         ) as exc:
             typer.echo(str(exc), err=True)
-            return 1
+            return 1, {}
 
         conn.row_factory = sqlite3.Row
 
         # --- Fetch media_item ---
         item_row = conn.execute("SELECT * FROM media_item WHERE id = ?", (item_id,)).fetchone()
         if item_row is None:
-            typer.echo(f"no item with id {item_id}", err=True)
-            return 2
+            return 2, {"error": f"no item with id {item_id}"}
 
-        # --- Print media_item fields ---
-        typer.echo(f"=== media_item id={item_id} ===")
-        for key in item_row.keys():
-            typer.echo(f"  {key}: {item_row[key]}")
+        item_dict: dict[str, object] = dict(item_row)
 
         # --- Seasons and episodes (shows) ---
-        seasons = conn.execute("SELECT * FROM season WHERE item_id = ? ORDER BY number", (item_id,)).fetchall()
-        if seasons:
-            typer.echo(f"\n=== seasons ({len(seasons)}) ===")
-            for s in seasons:
-                typer.echo(
-                    f"  season {s['number']}: episodes={s['episode_count']}, "
-                    f"has_poster={s['has_poster']}, nfo_count={s['episodes_with_nfo']}"
-                )
-                eps = conn.execute("SELECT * FROM episode WHERE season_id = ? ORDER BY number", (s["id"],)).fetchall()
-                for ep in eps:
-                    typer.echo(f"    episode {ep['number']}: {ep['title']}")
+        seasons_raw = conn.execute("SELECT * FROM season WHERE item_id = ? ORDER BY number", (item_id,)).fetchall()
+        seasons: list[dict[str, object]] = []
+        for s in seasons_raw:
+            sd: dict[str, object] = dict(s)
+            eps_raw = conn.execute(
+                "SELECT * FROM episode WHERE season_id = ? ORDER BY number", (s["id"],)
+            ).fetchall()
+            sd["episodes"] = [dict(ep) for ep in eps_raw]
+            seasons.append(sd)
 
         # --- media_file rows ---
-        files = conn.execute(
+        files_raw = conn.execute(
             "SELECT mf.*, p.rel_path, p.disk_id FROM media_file mf "
             "JOIN media_release mr ON mf.release_id = mr.id "
             "JOIN path p ON mf.path_id = p.id "
             "WHERE mr.item_id = ? ORDER BY mf.id",
             (item_id,),
         ).fetchall()
-        if not files:
-            # Fallback: try via path → disk without requiring a release link
-            files = conn.execute(
+        if not files_raw:
+            files_raw = conn.execute(
                 "SELECT mf.*, p.rel_path, p.disk_id FROM media_file mf "
                 "JOIN path p ON mf.path_id = p.id "
                 "WHERE p.disk_id IN (SELECT id FROM disk) "
                 "AND mf.release_id IS NULL "
-                "LIMIT 0"  # empty fallback — Stage A files may lack release linkage
+                "LIMIT 0"
             ).fetchall()
 
-        if files:
-            typer.echo(f"\n=== media_files ({len(files)}) ===")
-            for f in files:
-                typer.echo(
-                    f"  file id={f['id']} {f['rel_path']}/{f['filename']}"
-                    f" size={f['size_bytes']} mtime_ns={f['mtime_ns']}"
-                )
-                streams = conn.execute(
-                    "SELECT * FROM media_stream WHERE file_id = ? ORDER BY idx",
-                    (f["id"],),
-                ).fetchall()
-                for st in streams:
-                    typer.echo(f"    stream idx={st['idx']} kind={st['kind']} codec={st['codec']} lang={st['lang']}")
+        files: list[dict[str, object]] = []
+        for f in files_raw:
+            fd: dict[str, object] = dict(f)
+            streams_raw = conn.execute(
+                "SELECT * FROM media_stream WHERE file_id = ? ORDER BY idx",
+                (f["id"],),
+            ).fetchall()
+            fd["streams"] = [dict(st) for st in streams_raw]
+            files.append(fd)
 
         # --- item_attribute rows ---
-        attrs = conn.execute(
+        attrs_raw = conn.execute(
             "SELECT key, value FROM item_attribute WHERE item_id = ? ORDER BY key",
             (item_id,),
         ).fetchall()
-        if attrs:
-            typer.echo(f"\n=== item_attributes ({len(attrs)}) ===")
-            for a in attrs:
-                typer.echo(f"  {a['key']}: {a['value']}")
+        attributes: list[dict[str, object]] = [dict(a) for a in attrs_raw]
 
         # --- deleted_item history ---
-        deleted = conn.execute(
+        deleted_raw = conn.execute(
             "SELECT * FROM deleted_item WHERE original_id = ? ORDER BY deleted_at",
             (item_id,),
         ).fetchall()
-        if deleted:
-            typer.echo(f"\n=== deleted_item history ({len(deleted)}) ===")
-            for d in deleted:
-                typer.echo(f"  kind={d['kind']} deleted_at={d['deleted_at']} reason={d['reason']}")
+        deleted_history: list[dict[str, object]] = [dict(d) for d in deleted_raw]
 
-        return 0
+        payload: dict[str, object] = {
+            "item": item_dict,
+            "item_id": item_id,
+            "seasons": seasons,
+            "files": files,
+            "attributes": attributes,
+            "deleted_history": deleted_history,
+        }
+        return 0, payload
 
 
 # ---------------------------------------------------------------------------
