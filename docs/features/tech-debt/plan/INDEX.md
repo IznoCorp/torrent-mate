@@ -18,6 +18,7 @@
 | 5    | Conformity (drop Protocols + tests refactor + Pydantic)              | phase-05-conformity.md    | 2-3 j  | [ ]    |
 | 5.9  | NTFS cache pressure (audit/12 integration)                           | (no formal phase file)    | 1 j    | [x]    |
 | 5.10 | Process Hardening (drift-detect + phase-gate + briefing v2 + drafts) | (no formal phase file)    | 1 j    | [x]    |
+| 5.11 | Corrections (IMPL+ACC+plan sync + ACC-NTFS + drift-detect refine)    | (no formal phase file)    | 0.5 j  | [x]    |
 | 6    | Format + heavy doc work                                              | phase-06-format-docs.md   | 3-4 j  | [ ]    |
 | 7    | Matrix v2.1 + agents matrix-aware                                    | phase-07-matrix-v21.md    | 1-2 j  | [ ]    |
 | 8    | Polish + Plan A reset + size hard-block + bonus                      | phase-08-polish.md        | 3-4 j  | [ ]    |
