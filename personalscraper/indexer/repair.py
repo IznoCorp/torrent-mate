@@ -329,37 +329,54 @@ def get_queue_health(conn: sqlite3.Connection) -> tuple[int | None, int]:
 
 
 def soft_delete_subtree(conn: sqlite3.Connection, path_id: int) -> int:
-    """Soft-delete every ``media_file`` row that belongs to *path_id*.
+    """Soft-delete, then hard-prune a phantom path subtree.
 
-    Sets ``deleted_at = now`` on each live (``deleted_at IS NULL``) file row
-    whose ``path_id`` matches.  This is the repair action consumed by
-    ``library-repair`` when it drains ``scope='path'`` queue entries whose
-    ``payload_json`` carries ``"action": "soft_delete_subtree"`` (BD-D).
+    Three-step cascade so the path row is actually removed (closing the loop
+    against ``detect_path_missing`` which would otherwise re-flag the same row
+    on every subsequent reconcile run):
 
-    The update runs as a single SQL statement so the caller's enclosing
-    transaction covers it atomically.  The caller (``repair_processor``) is
-    responsible for committing.
+    1. Soft-delete every live ``media_file`` row (``deleted_at = now``) so the
+       file count in ``deleted_item`` and the structlog event reflect what
+       this run actually retired (audit trail).
+    2. Hard-DELETE every ``media_file`` row under the path, including those
+       tombstoned by a previous run — the foreign key
+       ``media_file.path_id REFERENCES path(id) ON DELETE RESTRICT`` would
+       otherwise block step 3.
+    3. Hard-DELETE the ``path`` row itself. The detector then stops seeing it.
+
+    Step 2 is destructive on rows whose ``deleted_at`` was already set: those
+    rows belonged to a path that no longer exists on disk anyway, so their
+    audit value is bounded.  The structlog event records the counts.
+
+    The whole sequence runs in the caller's enclosing transaction.
 
     Args:
         conn: Open SQLite connection with an active transaction.
-        path_id: PK of the ``path`` row whose files should be soft-deleted.
+        path_id: PK of the ``path`` row whose subtree should be pruned.
 
     Returns:
-        Number of ``media_file`` rows whose ``deleted_at`` was set.
+        Number of ``media_file`` rows that this call tombstoned (step 1 count
+        only — does NOT include files already tombstoned by a previous run).
     """
     now = int(time.time())
-    cursor = conn.execute(
+    n_soft: int = conn.execute(
         "UPDATE media_file SET deleted_at = ? WHERE path_id = ? AND deleted_at IS NULL",
         (now, path_id),
-    )
-    count: int = cursor.rowcount
+    ).rowcount
+    n_hard: int = conn.execute(
+        "DELETE FROM media_file WHERE path_id = ?",
+        (path_id,),
+    ).rowcount
+    conn.execute("DELETE FROM path WHERE id = ?", (path_id,))
     log.info(
         "indexer.repair.soft_delete_subtree",
         path_id=path_id,
-        files_soft_deleted=count,
+        files_soft_deleted=n_soft,
+        files_hard_deleted=n_hard,
+        path_row_deleted=True,
         deleted_at=now,
     )
-    return count
+    return n_soft
 
 
 # ---------------------------------------------------------------------------

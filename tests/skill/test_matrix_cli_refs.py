@@ -220,13 +220,13 @@ def test_matrix_parses_known_refs() -> None:
     assert "info" in commands, (
         "Parser did not extract 'info' from the matrix. Check the regex patterns — the matrix format may have changed."
     )
-    # library-reconcile --dry-run is referenced without the personalscraper prefix
-    # in the GATE 6 usage note: `library-reconcile --dry-run`
-    dry_run_refs = [(cmd, flag) for cmd, flag in refs if cmd == "library-reconcile" and flag == "--dry-run"]
-    assert dry_run_refs, (
-        "Parser did not extract 'library-reconcile --dry-run' from the matrix. "
-        "The GATE 6 note uses the bare form `library-reconcile --dry-run` — "
-        "check the bare_library_pattern regex."
+    # Matrix v2.1 (Phase 7) replaced `--dry-run` with `--read-only` / `--enqueue-repairs`
+    # aliases (DEV #10 closure). Assert the new flag is parsed instead.
+    reconcile_flags = {flag for cmd, flag in refs if cmd == "library-reconcile"}
+    assert reconcile_flags & {"--read-only", "--enqueue-repairs"}, (
+        f"Parser did not extract --read-only / --enqueue-repairs from library-reconcile "
+        f"references in the matrix. Extracted flags: {reconcile_flags!r}. "
+        "DEV #10 closure (Phase 7 / matrix v2.1) replaced the old --dry-run mention."
     )
 
 

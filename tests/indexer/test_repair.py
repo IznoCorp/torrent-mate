@@ -242,13 +242,13 @@ def _seed_media_file(conn: sqlite3.Connection, path_id: int, filename: str = "ep
     return file_id
 
 
-def test_soft_delete_subtree_sets_deleted_at() -> None:
-    """soft_delete_subtree marks all live media_file rows under path_id (BD-D regression).
+def test_soft_delete_subtree_cascade_deletes_files_and_path() -> None:
+    """soft_delete_subtree tombstones files THEN hard-prunes them + the path row.
 
-    Regression contract: without soft_delete_subtree, files under a missing
-    directory path remain live in the DB despite the path no longer existing
-    on the filesystem.  This test fails if soft_delete_subtree is removed or
-    renamed without updating library-repair dispatch.
+    Regression contract (closure-of-loop, 2026-05-23): without the cascade,
+    detect_path_missing keeps re-flagging the same path row at every reconcile
+    run because the row never goes away.  This test fails if the function
+    reverts to UPDATE-only behavior.
     """
     conn = _open_mem_db()
     _, path_id = _seed_disk_and_path(conn)
@@ -259,29 +259,55 @@ def test_soft_delete_subtree_sets_deleted_at() -> None:
     count = soft_delete_subtree(conn, path_id)
     conn.commit()
 
-    assert count == 2, "Expected both files under the path to be soft-deleted"
+    assert count == 2, "Expected return value to count live files tombstoned (step 1)"
 
+    # Step 2 hard-delete: files are gone from the table.
     for fid in (file_id_1, file_id_2):
-        row = conn.execute("SELECT deleted_at FROM media_file WHERE id = ?", (fid,)).fetchone()
-        assert row is not None
-        assert row[0] is not None, f"media_file id={fid} was NOT soft-deleted — BD-D regression"
+        row = conn.execute("SELECT id FROM media_file WHERE id = ?", (fid,)).fetchone()
+        assert row is None, f"media_file id={fid} was NOT hard-deleted — cascade broken"
+
+    # Step 3 path row deleted: closes the detect_path_missing loop.
+    path_row = conn.execute("SELECT id FROM path WHERE id = ?", (path_id,)).fetchone()
+    assert path_row is None, "path row was NOT deleted — detector will loop forever"
 
 
-def test_repair_processor_soft_delete_subtree_drains_via_library_repair() -> None:
-    """Drain + repair_processor soft-deletes files under a missing path (BD-D integration).
+def test_soft_delete_subtree_idempotent_on_already_pruned_path() -> None:
+    """Calling soft_delete_subtree on an unknown path_id is a no-op (no exception).
 
-    Regression contract: a scope='path'/action='soft_delete_subtree' queue entry
-    produced by library-reconcile --enqueue-repairs must result in deleted_at being
-    set on every media_file under the path when library-repair drains the queue.
-    Without repair_processor being wired, drain uses the noop processor and the
-    files remain live.
+    Defensive: library-repair may re-drain a queue row whose path was already
+    pruned by a previous run.  The function must not raise.
     """
     conn = _open_mem_db()
     _, path_id = _seed_disk_and_path(conn)
+    # Prune once.
+    soft_delete_subtree(conn, path_id)
+    conn.commit()
+    # Prune again on the gone path_id — must not raise, returns 0.
+    count = soft_delete_subtree(conn, path_id)
+    conn.commit()
+    assert count == 0
 
-    file_id = _seed_media_file(conn, path_id, "movie.mkv")
 
-    # Insert a repair_queue row as library-reconcile --enqueue-repairs would.
+def test_repair_processor_drains_path_missing_closes_detector_loop() -> None:
+    """End-to-end: enqueue path_missing → drain → re-detect returns 0.
+
+    Regression contract (2026-05-23 incident): a repair "succeeded" 332/332
+    while detect_path_missing still reported 332 phantom paths immediately
+    after, because the path row was never removed.  This test fails if the
+    pipeline regresses to soft-only behavior.
+    """
+    from personalscraper.indexer.reconcile import detect_path_missing  # noqa: PLC0415
+
+    conn = _open_mem_db()
+    _, path_id = _seed_disk_and_path(conn)
+    _seed_media_file(conn, path_id, "movie.mkv")
+
+    # The seed path does NOT exist on disk (rel_path uses a synthetic name),
+    # so detect_path_missing must flag it before repair.
+    assert path_id in detect_path_missing(conn), (
+        "Pre-condition: synthetic path must be flagged by detect_path_missing"
+    )
+
     payload = json.dumps({"detector": "path_missing", "action": "soft_delete_subtree"})
     conn.execute(
         "INSERT INTO repair_queue (scope, scope_id, reason, payload_json, enqueued_at, status, attempted_at, attempts)"
@@ -291,13 +317,11 @@ def test_repair_processor_soft_delete_subtree_drains_via_library_repair() -> Non
     conn.commit()
 
     stats = drain(conn, budget_seconds=30.0, processor=repair_processor)
+    assert stats.succeeded == 1, f"Expected 1 succeeded, got {stats}"
 
-    assert stats.succeeded == 1, f"Expected 1 repair succeeded, got {stats}"
-    assert stats.failed == 0
-
-    row = conn.execute("SELECT deleted_at FROM media_file WHERE id = ?", (file_id,)).fetchone()
-    assert row is not None
-    assert row[0] is not None, (
-        "media_file was NOT soft-deleted after drain with repair_processor — "
-        "BD-D regression: library-repair did not consume soft_delete_subtree"
+    # The detector must now return 0 — closing the loop the original repair left open.
+    still_missing = detect_path_missing(conn)
+    assert path_id not in still_missing, (
+        f"detect_path_missing still flagged path_id={path_id} after repair drain — "
+        "closure-of-loop regression"
     )
