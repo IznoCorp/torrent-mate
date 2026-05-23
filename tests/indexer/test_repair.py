@@ -14,10 +14,16 @@ Covers:
   ``(None, 0)``.
 - ``test_get_queue_health_with_pending_returns_age_and_depth`` — enqueue a row
   with a historic enqueued_at, assert returned age matches and depth is 1.
+- ``test_soft_delete_subtree_sets_deleted_at`` — soft_delete_subtree marks all
+  live media_file rows under the given path_id (BD-D regression).
+- ``test_repair_processor_soft_delete_subtree_drains_via_library_repair`` —
+  drain with repair_processor on a scope='path'/soft_delete_subtree row
+  soft-deletes all files under the missing path (BD-D integration).
 """
 
 from __future__ import annotations
 
+import json
 import sqlite3
 import time
 from pathlib import Path
@@ -27,6 +33,8 @@ from personalscraper.indexer.repair import (
     drain,
     enqueue_repair,
     get_queue_health,
+    repair_processor,
+    soft_delete_subtree,
 )
 from personalscraper.indexer.schema import RepairQueueRow
 
@@ -191,3 +199,105 @@ def test_get_queue_health_with_pending_returns_age_and_depth() -> None:
     assert oldest is not None
     # Age should be approximately 3600 s — allow ±5 s for test execution.
     assert 3595 <= oldest <= 3605
+
+
+# ---------------------------------------------------------------------------
+# soft_delete_subtree
+# ---------------------------------------------------------------------------
+
+
+def _seed_disk_and_path(conn: sqlite3.Connection) -> tuple[int, int]:
+    """Insert a minimal disk + path row and return (disk_id, path_id)."""
+    now = int(time.time())
+    cursor = conn.execute(
+        "INSERT INTO disk (uuid, label, mount_path, last_seen_at, is_mounted, unreachable_strikes) "
+        "VALUES ('uuid-test', 'TestDisk', '/mnt/test', ?, 1, 0)",
+        (now,),
+    )
+    disk_id: int = cursor.lastrowid  # type: ignore[assignment]
+    cursor2 = conn.execute(
+        "INSERT INTO path (disk_id, rel_path, dir_mtime_ns) VALUES (?, 'shows/Gone', 0)",
+        (disk_id,),
+    )
+    path_id: int = cursor2.lastrowid  # type: ignore[assignment]
+    conn.commit()
+    return disk_id, path_id
+
+
+def _seed_media_file(conn: sqlite3.Connection, path_id: int, filename: str = "ep.mkv") -> int:
+    """Insert a live media_file row under *path_id* and return its id."""
+    now = int(time.time())
+    cursor = conn.execute(
+        """
+        INSERT INTO media_file (
+            release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns,
+            oshash, enriched_at, scan_generation, last_verified_at, deleted_at
+        ) VALUES (NULL, ?, ?, 1000, 1700000000000000000, 1700000000000000000,
+                  NULL, NULL, 1, ?, NULL)
+        """,
+        (path_id, filename, now),
+    )
+    file_id: int = cursor.lastrowid  # type: ignore[assignment]
+    conn.commit()
+    return file_id
+
+
+def test_soft_delete_subtree_sets_deleted_at() -> None:
+    """soft_delete_subtree marks all live media_file rows under path_id (BD-D regression).
+
+    Regression contract: without soft_delete_subtree, files under a missing
+    directory path remain live in the DB despite the path no longer existing
+    on the filesystem.  This test fails if soft_delete_subtree is removed or
+    renamed without updating library-repair dispatch.
+    """
+    conn = _open_mem_db()
+    _, path_id = _seed_disk_and_path(conn)
+
+    file_id_1 = _seed_media_file(conn, path_id, "ep01.mkv")
+    file_id_2 = _seed_media_file(conn, path_id, "ep02.mkv")
+
+    count = soft_delete_subtree(conn, path_id)
+    conn.commit()
+
+    assert count == 2, "Expected both files under the path to be soft-deleted"
+
+    for fid in (file_id_1, file_id_2):
+        row = conn.execute("SELECT deleted_at FROM media_file WHERE id = ?", (fid,)).fetchone()
+        assert row is not None
+        assert row[0] is not None, f"media_file id={fid} was NOT soft-deleted — BD-D regression"
+
+
+def test_repair_processor_soft_delete_subtree_drains_via_library_repair() -> None:
+    """Drain + repair_processor soft-deletes files under a missing path (BD-D integration).
+
+    Regression contract: a scope='path'/action='soft_delete_subtree' queue entry
+    produced by library-reconcile --enqueue-repairs must result in deleted_at being
+    set on every media_file under the path when library-repair drains the queue.
+    Without repair_processor being wired, drain uses the noop processor and the
+    files remain live.
+    """
+    conn = _open_mem_db()
+    _, path_id = _seed_disk_and_path(conn)
+
+    file_id = _seed_media_file(conn, path_id, "movie.mkv")
+
+    # Insert a repair_queue row as library-reconcile --enqueue-repairs would.
+    payload = json.dumps({"detector": "path_missing", "action": "soft_delete_subtree"})
+    conn.execute(
+        "INSERT INTO repair_queue (scope, scope_id, reason, payload_json, enqueued_at, status, attempted_at, attempts)"
+        " VALUES ('path', ?, 'reconcile.path.missing', ?, ?, 'pending', NULL, 0)",
+        (path_id, payload, int(time.time())),
+    )
+    conn.commit()
+
+    stats = drain(conn, budget_seconds=30.0, processor=repair_processor)
+
+    assert stats.succeeded == 1, f"Expected 1 repair succeeded, got {stats}"
+    assert stats.failed == 0
+
+    row = conn.execute("SELECT deleted_at FROM media_file WHERE id = ?", (file_id,)).fetchone()
+    assert row is not None
+    assert row[0] is not None, (
+        "media_file was NOT soft-deleted after drain with repair_processor — "
+        "BD-D regression: library-repair did not consume soft_delete_subtree"
+    )

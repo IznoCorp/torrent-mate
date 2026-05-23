@@ -532,7 +532,9 @@ def reconcile(
                     scope="path",
                     scope_id=path_id,
                     reason="reconcile.path.missing",
-                    payload={"detector": "path_missing"},
+                    # action='soft_delete_subtree' tells library-repair to set
+                    # deleted_at on every media_file row under this path (BD-D).
+                    payload={"detector": "path_missing", "action": "soft_delete_subtree"},
                 )
             )
 

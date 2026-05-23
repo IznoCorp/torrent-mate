@@ -58,7 +58,7 @@ def library_repair_command(
         apply_migrations,
         open_db,
     )
-    from personalscraper.indexer.repair import drain  # noqa: PLC0415
+    from personalscraper.indexer.repair import drain, repair_processor  # noqa: PLC0415
 
     log.info("indexer.cli.repair", budget_seconds=budget_seconds, dry_run=dry_run)
 
@@ -116,7 +116,7 @@ def library_repair_command(
             typer.echo(json.dumps(summary))
             return 0
 
-        stats = drain(conn, budget_seconds=budget_seconds)
+        stats = drain(conn, budget_seconds=budget_seconds, processor=repair_processor)
 
         # Tombstone retention: purge deleted_item rows older than the
         # configured retention window (DESIGN §8.x).  library-repair is

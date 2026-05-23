@@ -409,6 +409,27 @@ class TestPathMissing:
         payload = json.loads(row[3])
         assert payload.get("detector") == "path_missing"
 
+    def test_path_missing_enqueue_carries_soft_delete_subtree_action(self, tmp_path: Path) -> None:
+        """repair_queue rows for missing paths carry action='soft_delete_subtree' (BD-D).
+
+        Regression test: without this payload key, library-repair cannot dispatch
+        the correct handler and the media_file rows under the missing path would
+        remain live despite the directory being gone.
+        """
+        conn = _make_db(tmp_path)
+        disk_id = _seed_disk(conn, mount_path=str(tmp_path))
+        _seed_path(conn, disk_id, "category/Gone Show")
+
+        reconcile(conn, scopes=["path_missing"], enqueue_repairs=True)
+
+        row = conn.execute("SELECT payload_json FROM repair_queue WHERE reason = 'reconcile.path.missing'").fetchone()
+        assert row is not None
+        payload = json.loads(row[0])
+        assert payload.get("action") == "soft_delete_subtree", (
+            "library-repair dispatches on payload['action']; missing or wrong action "
+            "means soft_delete_subtree handler is never triggered (BD-D regression)"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Orchestrator: reconcile()

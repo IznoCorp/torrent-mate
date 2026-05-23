@@ -8,6 +8,10 @@ Functions:
 - :func:`drain` — process pending repair rows in FIFO order within a wall-clock budget.
 - :func:`get_queue_health` — return ``(oldest_pending_age_seconds, pending_depth)``
   for use by ``library-status``.
+- :func:`soft_delete_subtree` — soft-delete every ``media_file`` row under a given
+  ``path.id`` (the ``soft_delete_subtree`` action consumed by ``library-repair``).
+- :func:`repair_processor` — default repair processor wired into ``library-repair``;
+  dispatches on ``scope`` + ``payload_json['action']``.
 """
 
 from __future__ import annotations
@@ -317,3 +321,93 @@ def get_queue_health(conn: sqlite3.Connection) -> tuple[int | None, int]:
 
     age_seconds: int = int(time.time()) - oldest_enqueued_at
     return (age_seconds, depth)
+
+
+# ---------------------------------------------------------------------------
+# soft_delete_subtree
+# ---------------------------------------------------------------------------
+
+
+def soft_delete_subtree(conn: sqlite3.Connection, path_id: int) -> int:
+    """Soft-delete every ``media_file`` row that belongs to *path_id*.
+
+    Sets ``deleted_at = now`` on each live (``deleted_at IS NULL``) file row
+    whose ``path_id`` matches.  This is the repair action consumed by
+    ``library-repair`` when it drains ``scope='path'`` queue entries whose
+    ``payload_json`` carries ``"action": "soft_delete_subtree"`` (BD-D).
+
+    The update runs as a single SQL statement so the caller's enclosing
+    transaction covers it atomically.  The caller (``repair_processor``) is
+    responsible for committing.
+
+    Args:
+        conn: Open SQLite connection with an active transaction.
+        path_id: PK of the ``path`` row whose files should be soft-deleted.
+
+    Returns:
+        Number of ``media_file`` rows whose ``deleted_at`` was set.
+    """
+    now = int(time.time())
+    cursor = conn.execute(
+        "UPDATE media_file SET deleted_at = ? WHERE path_id = ? AND deleted_at IS NULL",
+        (now, path_id),
+    )
+    count: int = cursor.rowcount
+    log.info(
+        "indexer.repair.soft_delete_subtree",
+        path_id=path_id,
+        files_soft_deleted=count,
+        deleted_at=now,
+    )
+    return count
+
+
+# ---------------------------------------------------------------------------
+# repair_processor
+# ---------------------------------------------------------------------------
+
+
+def repair_processor(conn: sqlite3.Connection, row: RepairQueueRow) -> None:
+    """Default repair processor dispatched by ``library-repair``.
+
+    Dispatches on ``scope`` and the ``action`` key inside ``payload_json``.
+    Currently handles:
+
+    - ``scope='path'`` + ``action='soft_delete_subtree'``:
+      soft-delete every ``media_file`` row under the path identified by
+      ``scope_id``.  Enqueued by ``library-reconcile --enqueue-repairs`` when
+      ``detect_path_missing`` detects a missing directory (BD-D).
+
+    Unknown (scope, action) combinations are logged as a warning and treated
+    as a no-op so that future actions added by later phases do not cause
+    existing ``repair_queue`` rows to fail.
+
+    Args:
+        conn: Open SQLite connection.  The drain loop has already set
+            ``attempted_at`` and incremented ``attempts`` before calling this
+            function; the caller commits on success.
+        row: The ``RepairQueueRow`` being processed.
+
+    Raises:
+        ValueError: When ``scope_id`` is ``None`` for a scope that requires it
+            (e.g. ``'path'``), since there is no meaningful repair without a
+            target ID.
+    """
+    payload: dict[str, Any] = json.loads(row.payload_json or "{}")
+    action: str | None = payload.get("action")
+
+    if row.scope == "path" and action == "soft_delete_subtree":
+        if row.scope_id is None:
+            raise ValueError(f"repair_queue row {row.id}: scope='path' requires a non-NULL scope_id")
+        soft_delete_subtree(conn, row.scope_id)
+        return
+
+    # Unknown combination — log and skip rather than fail hard so that rows
+    # enqueued by detectors added in future phases degrade gracefully here.
+    log.warning(
+        "indexer.repair.unknown_action",
+        row_id=row.id,
+        scope=row.scope,
+        action=action,
+        reason=row.reason,
+    )
