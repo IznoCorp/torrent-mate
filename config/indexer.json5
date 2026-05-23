@@ -1,6 +1,5 @@
 {
   // Media indexer configuration.
-  // Copy this file to config/indexer.json5 and adjust as needed.
   // The database must reside on the internal APFS volume (not under /Volumes/).
   // db_path defaults to paths.data_dir / "library.db" when not set.
   indexer: {
