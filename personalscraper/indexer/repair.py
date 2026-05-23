@@ -328,36 +328,100 @@ def get_queue_health(conn: sqlite3.Connection) -> tuple[int | None, int]:
 # ---------------------------------------------------------------------------
 
 
+def _refresh_disk_merkle(conn: sqlite3.Connection, disk_id: int) -> str | None:
+    """Recompute and persist ``disk.merkle_root`` from the current live file set.
+
+    Reads every live (``deleted_at IS NULL``, ``oshash IS NOT NULL``)
+    ``media_file`` row whose path belongs to *disk_id*, recomputes the merkle
+    root via :func:`compute_merkle_root`, and writes it back into the
+    ``disk`` row.  Used after destructive operations (e.g.
+    :func:`soft_delete_subtree`) so the stored root stays coherent with the
+    live file set — without this, ``library-index --mode quick`` later trips
+    the bulk-change protection because the stored vs computed delta is huge.
+
+    Args:
+        conn: Open SQLite connection with an active transaction.
+        disk_id: PK of the ``disk`` row whose ``merkle_root`` should be
+            refreshed. If the disk row has ``merkle_root IS NULL`` (never
+            scanned), this is a no-op.
+
+    Returns:
+        The new merkle root that was written, or ``None`` if the disk had no
+        prior merkle (no-op).
+    """
+    from personalscraper.indexer.merkle import FileFingerprint, compute_merkle_root  # noqa: PLC0415
+
+    row = conn.execute("SELECT merkle_root FROM disk WHERE id = ?", (disk_id,)).fetchone()
+    if row is None or row[0] is None:
+        return None
+    rows = conn.execute(
+        """
+        SELECT mf.path_id, mf.size_bytes, mf.mtime_ns, mf.oshash
+          FROM media_file mf
+          JOIN path p ON p.id = mf.path_id
+         WHERE p.disk_id = ?
+           AND mf.deleted_at IS NULL
+           AND mf.oshash IS NOT NULL
+        """,
+        (disk_id,),
+    ).fetchall()
+    fingerprints = [
+        FileFingerprint(path_id=int(r[0]), size=int(r[1]), mtime_ns=int(r[2]), oshash=str(r[3]))
+        for r in rows
+    ]
+    new_root = compute_merkle_root(fingerprints)
+    conn.execute("UPDATE disk SET merkle_root = ? WHERE id = ?", (new_root, disk_id))
+    log.info(
+        "indexer.repair.merkle_refreshed",
+        disk_id=disk_id,
+        new_root=new_root,
+        files_hashed=len(fingerprints),
+    )
+    return new_root
+
+
 def soft_delete_subtree(conn: sqlite3.Connection, path_id: int) -> int:
     """Soft-delete, then hard-prune a phantom path subtree.
 
-    Three-step cascade so the path row is actually removed (closing the loop
-    against ``detect_path_missing`` which would otherwise re-flag the same row
-    on every subsequent reconcile run):
+    Four-step cascade so the path row is actually removed AND the disk's
+    stored merkle stays coherent with the live file set:
 
-    1. Soft-delete every live ``media_file`` row (``deleted_at = now``) so the
-       file count in ``deleted_item`` and the structlog event reflect what
-       this run actually retired (audit trail).
-    2. Hard-DELETE every ``media_file`` row under the path, including those
-       tombstoned by a previous run — the foreign key
+    1. Soft-delete every live ``media_file`` row (``deleted_at = now``) — the
+       count returned reflects this step (audit trail).
+    2. Hard-DELETE every ``media_file`` row under the path (including any
+       already tombstoned) — the foreign key
        ``media_file.path_id REFERENCES path(id) ON DELETE RESTRICT`` would
        otherwise block step 3.
-    3. Hard-DELETE the ``path`` row itself. The detector then stops seeing it.
+    3. Hard-DELETE the ``path`` row itself. ``detect_path_missing`` then
+       stops seeing it (closes the reconcile loop).
+    4. Refresh ``disk.merkle_root`` for the disk that owned the path so that
+       a subsequent ``library-index --mode quick`` does not trip the
+       bulk-change-detected protection (each pruned subtree shifts the merkle
+       — without this refresh, deleting N paths makes the stored merkle
+       diverge by N×files / total ratio and the next quick scan refuses to
+       commit).  No-op when the disk has no stored merkle.
 
-    Step 2 is destructive on rows whose ``deleted_at`` was already set: those
-    rows belonged to a path that no longer exists on disk anyway, so their
-    audit value is bounded.  The structlog event records the counts.
+    Steps 1-4 run in the caller's enclosing transaction; the caller commits.
 
-    The whole sequence runs in the caller's enclosing transaction.
+    .. note::
+       Step 4 cost is O(files-on-disk).  When called inside a tight loop
+       (e.g. ``library-repair`` draining 300+ pending rows for the same
+       disk), each call re-hashes the whole disk.  Future work: batch the
+       refresh at end-of-drain via a "dirty disks" set in
+       :func:`repair_processor`.
 
     Args:
         conn: Open SQLite connection with an active transaction.
         path_id: PK of the ``path`` row whose subtree should be pruned.
 
     Returns:
-        Number of ``media_file`` rows that this call tombstoned (step 1 count
-        only — does NOT include files already tombstoned by a previous run).
+        Number of ``media_file`` rows that this call tombstoned (step 1 only
+        — does NOT include files already tombstoned by a previous run).
     """
+    # Capture disk_id BEFORE the path row is deleted (step 3).
+    disk_row = conn.execute("SELECT disk_id FROM path WHERE id = ?", (path_id,)).fetchone()
+    disk_id: int | None = int(disk_row[0]) if disk_row else None
+
     now = int(time.time())
     n_soft: int = conn.execute(
         "UPDATE media_file SET deleted_at = ? WHERE path_id = ? AND deleted_at IS NULL",
@@ -368,12 +432,18 @@ def soft_delete_subtree(conn: sqlite3.Connection, path_id: int) -> int:
         (path_id,),
     ).rowcount
     conn.execute("DELETE FROM path WHERE id = ?", (path_id,))
+
+    new_merkle: str | None = None
+    if disk_id is not None:
+        new_merkle = _refresh_disk_merkle(conn, disk_id)
+
     log.info(
         "indexer.repair.soft_delete_subtree",
         path_id=path_id,
         files_soft_deleted=n_soft,
         files_hard_deleted=n_hard,
         path_row_deleted=True,
+        disk_merkle_refreshed=new_merkle is not None,
         deleted_at=now,
     )
     return n_soft

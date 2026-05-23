@@ -288,6 +288,63 @@ def test_soft_delete_subtree_idempotent_on_already_pruned_path() -> None:
     assert count == 0
 
 
+def test_soft_delete_subtree_refreshes_disk_merkle() -> None:
+    """soft_delete_subtree must refresh disk.merkle_root after the cascade.
+
+    Regression contract (2026-05-23 incident #2): the c5e2bbd cascade fix
+    closed the path_missing loop but left disk.merkle_root stale, which
+    caused ``library-index --mode quick`` to trip its bulk-change protection
+    on every prune (4 disks × 80-93% delta in production).  This test fails
+    if soft_delete_subtree reverts to "prune-only without merkle refresh".
+    """
+    from personalscraper.indexer.merkle import FileFingerprint, compute_merkle_root  # noqa: PLC0415
+    from personalscraper.indexer.reconcile import detect_merkle_drift  # noqa: PLC0415
+
+    conn = _open_mem_db()
+    disk_id, path_id = _seed_disk_and_path(conn)
+
+    # Seed 2 live media_file rows under the path with deterministic fingerprints
+    # AND a stored merkle that matches the seed (so the disk starts clean).
+    file_id_1 = _seed_media_file(conn, path_id, "ep01.mkv")
+    file_id_2 = _seed_media_file(conn, path_id, "ep02.mkv")
+    # Give them oshashes so they count for merkle.
+    conn.execute("UPDATE media_file SET oshash = 'aaaa111100002222' WHERE id = ?", (file_id_1,))
+    conn.execute("UPDATE media_file SET oshash = 'bbbb333300004444' WHERE id = ?", (file_id_2,))
+    # Compute initial merkle from current state and store it.
+    initial_fingerprints = [
+        FileFingerprint(path_id=path_id, size=1000, mtime_ns=1700000000000000000, oshash="aaaa111100002222"),
+        FileFingerprint(path_id=path_id, size=1000, mtime_ns=1700000000000000000, oshash="bbbb333300004444"),
+    ]
+    initial_merkle = compute_merkle_root(initial_fingerprints)
+    conn.execute("UPDATE disk SET merkle_root = ? WHERE id = ?", (initial_merkle, disk_id))
+    conn.commit()
+
+    # Pre-condition: detector reports no drift.
+    assert detect_merkle_drift(conn) == [], (
+        "Pre-condition: stored merkle must match computed merkle"
+    )
+
+    # Action: prune the path subtree.
+    soft_delete_subtree(conn, path_id)
+    conn.commit()
+
+    # Post-condition: detector STILL reports no drift, because the cascade
+    # refreshed disk.merkle_root to match the new (empty) live file set.
+    drift = detect_merkle_drift(conn)
+    assert drift == [], (
+        f"detect_merkle_drift returned {drift} after soft_delete_subtree — "
+        "the cascade did not refresh disk.merkle_root, the bulk-change "
+        "protection will trip on the next library-index --mode quick"
+    )
+
+    # Sanity: the new merkle is the hash of the empty fingerprint set.
+    new_root = conn.execute("SELECT merkle_root FROM disk WHERE id = ?", (disk_id,)).fetchone()[0]
+    expected_empty = compute_merkle_root([])
+    assert new_root == expected_empty, (
+        f"Expected merkle_root to be the empty-set hash {expected_empty}, got {new_root}"
+    )
+
+
 def test_repair_processor_drains_path_missing_closes_detector_loop() -> None:
     """End-to-end: enqueue path_missing → drain → re-detect returns 0.
 

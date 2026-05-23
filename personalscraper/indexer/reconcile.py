@@ -205,11 +205,6 @@ def detect_merkle_drift(conn: sqlite3.Connection) -> list[int]:
             """,
             (d["id"],),
         ).fetchall()
-        if not rows:
-            # Disk has a stored merkle but no fingerprinted files anymore —
-            # the stored value is by definition stale.
-            drifted.append(int(d["id"]))
-            continue
         fingerprints = [
             FileFingerprint(
                 path_id=int(r["path_id"]),
@@ -219,6 +214,12 @@ def detect_merkle_drift(conn: sqlite3.Connection) -> list[int]:
             )
             for r in rows
         ]
+        # ``compute_merkle_root`` handles the empty case (yields a fixed
+        # empty-set hash).  A disk with zero live fingerprints whose stored
+        # merkle equals that empty-set hash is COHERENT, not drifted —
+        # treating it as drifted would force ``library-index --mode quick``
+        # to bulk-change-fail forever after every full prune (see the
+        # ``_refresh_disk_merkle`` post-cascade write in ``repair.py``).
         live_root = compute_merkle_root(fingerprints)
         if live_root != d["merkle_root"]:
             drifted.append(int(d["id"]))
