@@ -56,18 +56,20 @@ Méthode : un par un, validation utilisateur entre chaque, communication en fran
 Voir `docs/features/tech-debt/plan/INDEX.md` pour le détail. **10 phases** (Phase 0 ajoutée
 2026-05-22 — DEV #1 promu pré-foundations sur la review opérateur) ordonnées par dépendances :
 
-| #   | Phase                                      | File                      | Effort | Status                                   |
-| --- | ------------------------------------------ | ------------------------- | ------ | ---------------------------------------- |
-| 0   | Pre-Foundations: skill safety net (DEV #1) | phase-00-skill-safety.md  | 0.5 j  | [x] `66943ce` (.claude/personal-scraper) |
-| 1   | Foundations BDD/indexer + PRAGMA + bonus   | phase-01-foundations.md   | 3-4 j  | [x] gate `61427b6`                       |
-| 2   | CLI gaps + backfill-ids first run          | phase-02-cli-gaps.md      | 2 j    | [x] gate `7391529` (next: milestone)     |
-| 3   | Observability (broadened DEV #6 → 7 cmds)  | phase-03-observability.md | 2 j    | [x] gate (next: milestone)               |
-| 4   | Path + paranoia branch (DEV #31)           | phase-04-path-cleanup.md  | 2-3 j  | [x] gate (next: milestone)               |
-| 5   | Conformity (drop Protocols + Pydantic)     | phase-05-conformity.md    | 2-3 j  | [x] gate (next: NTFS audit integration)  |
-| 6   | Format + heavy doc work                    | phase-06-format-docs.md   | 3-4 j  | [ ]                                      |
-| 7   | Matrix v2.1 + agents matrix-aware          | phase-07-matrix-v21.md    | 1-2 j  | [ ]                                      |
-| 8   | Polish + Plan A reset + size hard-block    | phase-08-polish.md        | 3-4 j  | [ ]                                      |
-| 9   | Archive DESIGN.md updates (7 features)     | phase-09-archive-docs.md  | 1-2 j  | [ ]                                      |
+| #    | Phase                                                                | File                      | Effort | Status                                                           |
+| ---- | -------------------------------------------------------------------- | ------------------------- | ------ | ---------------------------------------------------------------- |
+| 0    | Pre-Foundations: skill safety net (DEV #1)                           | phase-00-skill-safety.md  | 0.5 j  | [x] `66943ce` (.claude/personal-scraper)                         |
+| 1    | Foundations BDD/indexer + PRAGMA + bonus                             | phase-01-foundations.md   | 3-4 j  | [x] gate `83446f9`                                               |
+| 2    | CLI gaps + backfill-ids first run                                    | phase-02-cli-gaps.md      | 2 j    | [x] gate `1ccba80`                                               |
+| 3    | Observability (broadened DEV #6 → 7 cmds)                            | phase-03-observability.md | 2 j    | [x] gate `3a5930f`                                               |
+| 4    | Path + paranoia branch (DEV #31)                                     | phase-04-path-cleanup.md  | 2-3 j  | [x] gate `f331252`                                               |
+| 5    | Conformity (drop Protocols + Pydantic)                               | phase-05-conformity.md    | 2-3 j  | [x] gate `0b8b052`                                               |
+| 5.9  | NTFS cache pressure (audit/12 integration)                           | (no formal phase file)    | 1 j    | [x] gate `4787b64`                                               |
+| 5.10 | Process Hardening (drift-detect + phase-gate + briefing v2 + drafts) | (no formal phase file)    | 1 j    | [x] gate `f3e5684`                                               |
+| 6    | Format + heavy doc work                                              | phase-06-format-docs.md   | 3-4 j  | [ ]                                                              |
+| 7    | Matrix v2.1 + agents matrix-aware                                    | phase-07-matrix-v21.md    | 1-2 j  | [ ]                                                              |
+| 8    | Polish + Plan A reset + size hard-block                              | phase-08-polish.md        | 3-4 j  | [ ]                                                              |
+| 9    | Archive DESIGN.md updates (7 features)                               | phase-09-archive-docs.md  | 1-2 j  | [ ] partial (9.1.f shipped `329afbc` DEV #45 via DeepSeek pilot) |
 
 **Total post coverage-fix** : **19-27 jours séquentiel, 15-22 jours parallélisable**.
 
