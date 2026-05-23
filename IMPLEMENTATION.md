@@ -10,9 +10,9 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Handover**: `docs/features/tech-debt/HANDOVER.md` ← **READ FIRST** (TRANSIENT — sera
-supprimé en Phase 9.4 closure post-implementation, ne PAS y ajouter du contenu pérenne)
+supprimé en Phase 10.4 closure post-implementation, ne PAS y ajouter du contenu pérenne)
 **Design**: `docs/features/tech-debt/DESIGN.md` (9 sections + ACCEPTANCE sketch)
-**Acceptance**: `docs/features/tech-debt/ACCEPTANCE.md` (49 criteria exécutables)
+**Acceptance**: `docs/features/tech-debt/ACCEPTANCE.md` (54 criteria exécutables — 49 initiaux + ACC-50..54 Phase 9 CLI coverage)
 **Master plan**: `docs/features/tech-debt/plan/INDEX.md` (DEV/Pattern/Section cross-tables)
 
 ## Statut actuel
@@ -70,16 +70,20 @@ Voir `docs/features/tech-debt/plan/INDEX.md` pour le détail. **10 phases** (Pha
 | 6    | Format + heavy doc work                                              | phase-06-format-docs.md   | 3-4 j  | [x] gate `f1f4fe3` (--format flag + commands.md 39 entries + architecture state ownership + indexer lifecycle + backfill runbook + ENFORCE/PROCESS doc) |
 | 7    | Matrix v2.1 + agents matrix-aware                                    | phase-07-matrix-v21.md    | 1-2 j  | [x] gate `a1eb322` (.claude/personal-scraper — matrix v2.1 + skill v2.1 + 7 agents matrix-aware + CHANGELOG)                                            |
 | 8    | Polish + Plan A reset + size hard-block                              | phase-08-polish.md        | 3-4 j  | [ ]                                                                                                                                                     |
-| 9    | Archive DESIGN.md updates (7 features)                               | phase-09-archive-docs.md  | 1-2 j  | [ ] partial (9.1.f shipped `329afbc` DEV #45 via DeepSeek pilot)                                                                                        |
+| 9    | CLI Test Coverage (NEW — absorbe 8.7 SH-25)                          | phase-09-cli-coverage.md  | 2-3 j  | [ ]                                                                                                                                                     |
+| 10   | Archive DESIGN.md updates (7 features) (ex-Phase 9, renumérotée)     | phase-10-archive-docs.md  | 1-2 j  | [ ] partial (10.1.f shipped `329afbc` DEV #45 via DeepSeek pilot — sub-phases conservent numérotation 10.1.f etc.)                                        |
 
-**Total post coverage-fix** : **19-27 jours séquentiel, 15-22 jours parallélisable**.
+**Total post coverage-fix + Phase 9 CLI Coverage** : **21-30 jours séquentiel,
+17-25 jours parallélisable** (+2-3 j vs estimate précédent pour la nouvelle
+Phase 9 CLI test coverage — 28 critiques matrice 23-points + 8 non-critiques matrice 10-points).
 
 Coverage finale : **54/54 DEVs** couverts + **34/34 patterns P1-P34** leveraged + **8/8
 sections DESIGN §9-§16** implémentées. 0 différé à 0.17+ (directive opérateur 2026-05-22).
 
 Voir `docs/features/tech-debt/plan/INDEX.md` § "DEV coverage matrix" + § "Patterns P1-P34
 → leverage phases" + § "DESIGN sections §9-§16 → phases" pour les cross-tables exhaustives.
-49 ACCEPTANCE criteria exécutables en `docs/features/tech-debt/ACCEPTANCE.md`.
+54 ACCEPTANCE criteria exécutables en `docs/features/tech-debt/ACCEPTANCE.md`
+(49 initiaux + ACC-50..54 Phase 9 CLI coverage).
 
 ## Already shipped (priority absolue user, hors-plan)
 

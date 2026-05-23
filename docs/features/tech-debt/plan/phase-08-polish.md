@@ -6,23 +6,23 @@ module-size to hard-block (DEV #46) + bonus cleanups + produire ACCEPTANCE.md ex
 
 ## Coverage matrix
 
-| Item                                        | Sub-phase | Source pattern    |
-| ------------------------------------------- | --------- | ----------------- |
-| SH-3 / BD-S                                 | 8.1       | (cron)            |
-| SH-6 / BD-U + BD-V                          | 8.2       | P16               |
-| SH-14 / CL-B / DEV #20                      | 8.3       | P20               |
-| SH-17 / CF-G / P11                          | 8.4       | P11               |
-| SH-21 / AR-C                                | 8.5       | P26               |
-| SH-22 / AR-D                                | 8.6       | P19               |
-| SH-25 / CL-S                                | 8.7       | (tests)           |
-| SH-26 / BD-H                                | 8.8       | P12               |
-| CF-J / 15 criteria                          | 8.9       | P23, P32          |
-| **DEV #27 Plan A reset+rescrape**           | 8.10 NEW  | P23, P24          |
-| **DEV #46 0.10.0 module-size hard-block**   | 8.11 NEW  | P31 PROMISE_STALL |
-| **DEV #53 \_upsert_media_item dedup logic** | 8.12 NEW  | (bonus)           |
-| **DEV #25 event-bus module budgets**        | 8.13 NEW  | (audit)           |
-| **DEV #41 test-coverage branch re-measure** | 8.14 NEW  | P32               |
-| **DEV #49 test_cli @patch trim**            | 8.15 NEW  | P32               |
+| Item                                        | Sub-phase     | Source pattern    |
+| ------------------------------------------- | ------------- | ----------------- |
+| SH-3 / BD-S                                 | 8.1           | (cron)            |
+| SH-6 / BD-U + BD-V                          | 8.2           | P16               |
+| SH-14 / CL-B / DEV #20                      | 8.3           | P20               |
+| SH-17 / CF-G / P11                          | 8.4           | P11               |
+| SH-21 / AR-C                                | 8.5           | P26               |
+| SH-22 / AR-D                                | 8.6           | P19               |
+| SH-25 / CL-S (FOLDED → Phase 9.1)           | ~~8.7~~ → 9.1 | (tests)           |
+| SH-26 / BD-H                                | 8.8           | P12               |
+| CF-J / 15 criteria                          | 8.9           | P23, P32          |
+| **DEV #27 Plan A reset+rescrape**           | 8.10 NEW      | P23, P24          |
+| **DEV #46 0.10.0 module-size hard-block**   | 8.11 NEW      | P31 PROMISE_STALL |
+| **DEV #53 \_upsert_media_item dedup logic** | 8.12 NEW      | (bonus)           |
+| **DEV #25 event-bus module budgets**        | 8.13 NEW      | (audit)           |
+| **DEV #41 test-coverage branch re-measure** | 8.14 NEW      | P32               |
+| **DEV #49 test_cli @patch trim**            | 8.15 NEW      | P32               |
 
 DESIGN sections impacted : §13 promise lifecycle, §14 success criteria, §11 architecture,
 §9 BDD lifecycle invariants (post Plan A reset).
@@ -103,16 +103,14 @@ qui print warning + redirige vers `audit`. Retirer dans 0.17+.
 
 **Commit** : `feat(tech-debt): trailers audit alias for trailers verify (AR-D)`
 
-### 8.7 Pin commands tests (SH-25 / CL-S)
+### 8.7 Pin commands tests (SH-25 / CL-S) — **FOLDED into Phase 9.1** (2026-05-23)
 
-**Site** : `tests/cli/test_pinned_commands.py` (nouveau)
+**Status** : déplacé dans la nouvelle **Phase 9 CLI Test Coverage** (sub-phase 9.1).
+Le pin test (`tests/commands/test_pin_existence.py`) sera livré comme partie intégrante
+de l'infrastructure de test CLI. Voir `phase-09-cli-coverage.md` §9.1.
 
-**Scenario** : pour chaque commande exposée (extraite via `personalscraper --help` parse),
-un test pin existence + signature de base (1 param obligatoire / option ; --help exit 0).
-
-Évite régressions silencieuses (commande qui disparaît en refactor).
-
-**Commit** : `test(tech-debt): pin existence + help of every exposed CLI command (SH-25)`
+Cette section est conservée pour traçabilité de la décision mais ne sera pas exécutée
+en Phase 8. Le sub-phase checklist 8.7 ci-dessous est annulé.
 
 ### 8.8 Audit modules sans CLI (SH-26 / BD-H / CL-K extension)
 
@@ -284,7 +282,7 @@ provider-ids feature without proportional branch tests).
 - [ ] 8.4 dead infrastructure audit report committed (SH-17)
 - [ ] 8.5 `personalscraper clean` + `cleanup` exposed (SH-21, AR-C)
 - [ ] 8.6 `trailers audit` alias works (SH-22, AR-D)
-- [ ] 8.7 pin commands test PASS (SH-25)
+- [~] 8.7 FOLDED into Phase 9.1 — pin test livré en Phase 9 CLI Test Coverage (SH-25)
 - [ ] 8.8 audit-cli-coverage exit 0 (SH-26)
 - [ ] 8.9 ACCEPTANCE.md complete with all criteria ✅ (CF-J)
 - [ ] 8.10 Plan A reset+rescrape executed, library-doctor reports canonical_provider > 90% (DEV #27, #54)

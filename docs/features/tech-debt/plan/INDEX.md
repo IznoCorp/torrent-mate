@@ -22,11 +22,12 @@
 | 6    | Format + heavy doc work                                              | phase-06-format-docs.md   | 3-4 j  | [x]    |
 | 7    | Matrix v2.1 + agents matrix-aware                                    | phase-07-matrix-v21.md    | 1-2 j  | [x]    |
 | 8    | Polish + Plan A reset + size hard-block + bonus                      | phase-08-polish.md        | 3-4 j  | [ ]    |
-| 9    | Archive DESIGN.md updates (7 features)                               | phase-09-archive-docs.md  | 1-2 j  | [ ]    |
+| 9    | CLI Test Coverage (NEW — absorbe 8.7 SH-25)                          | phase-09-cli-coverage.md  | 2-3 j  | [ ]    |
+| 10   | Archive DESIGN.md updates (7 features)                               | phase-10-archive-docs.md  | 1-2 j  | [ ]    |
 
-**Total post coverage-fix** : **19-27 jours séquentiel, 15-22 jours parallélisable**. Vs
-post-REDO 17-25 j = **+2 jours** pour intégrer DEV #50-#54 + 14 DEVs non-cités précédemment
-(#4, #5, #25, #29, #30, #31, #33, #34, #37, #38, #40, #41, #46, #53).
+**Total post coverage-fix + Phase 9 CLI Coverage** : **21-30 jours séquentiel,
+17-25 jours parallélisable**. Vs post-REDO 17-25 j = **+4-5 jours** (DEV #50-#54 +
+14 DEVs non-cités précédemment + nouvelle Phase 9 CLI test coverage 2-3 j).
 
 ## DEV coverage matrix (54/54 DEVs)
 
@@ -55,31 +56,31 @@ post-REDO 17-25 j = **+2 jours** pour intégrer DEV #50-#54 + 14 DEVs non-cités
 | #21 | 2.2          | --dry-run on 4 mutators                                  |
 | #22 | 6.1          | --format unified                                         |
 | #23 | 3.2          | cli_telemetry decorator                                  |
-| #24 | 8.13, 9.1.a  | event-bus catalog 13→17                                  |
+| #24 | 8.13, 10.1.a  | event-bus catalog 13→17                                  |
 | #25 | 8.13         | event-bus module budgets                                 |
-| #26 | 9.1.a        | events/**init**.py **all**                               |
+| #26 | 10.1.a        | events/**init**.py **all**                               |
 | #27 | 8.10         | Plan A reset+rescrape                                    |
-| #28 | 2.6, 9.1.b   | backfill auto-trigger doc + first run                    |
+| #28 | 2.6, 10.1.b   | backfill auto-trigger doc + first run                    |
 | #29 | 5.1          | Tests Protocol refactor                                  |
 | #30 | 5.3          | Ratings Pydantic boundary                                |
 | #31 | 4.7          | Paranoia branch wire                                     |
-| #32 | 9.1.c        | media-indexer archive banner                             |
+| #32 | 10.1.c        | media-indexer archive banner                             |
 | #33 | 1.10         | PRAGMA bypass multi-site                                 |
 | #34 | 1.10         | PRAGMA discipline complete                               |
-| #35 | 9.1.c        | scan_modes doc gap                                       |
-| #36 | 9.1.c        | media_stream extension doc                               |
+| #35 | 10.1.c        | scan_modes doc gap                                       |
+| #36 | 10.1.c        | media_stream extension doc                               |
 | #37 | 1.10         | BEGIN IMMEDIATE audit                                    |
 | #38 | 5.2          | TorrentClientFull 2nd vector                             |
-| #39 | 9.1.d        | pipeline-obs superseded banner                           |
+| #39 | 10.1.d        | pipeline-obs superseded banner                           |
 | #40 | 3.1          | DEV #6 broader (7 per-step cmds)                         |
 | #41 | 8.14         | test-coverage branch re-measure                          |
-| #42 | 9.1.e        | trailer §4 placement                                     |
-| #43 | 9.1.e        | trailer §14 blocking                                     |
-| #44 | 9.2.a        | \_exclusions.py docstring                                |
-| #45 | 9.1.f, 9.3   | logging.md broken paths                                  |
+| #42 | 10.1.e        | trailer §4 placement                                     |
+| #43 | 10.1.e        | trailer §14 blocking                                     |
+| #44 | 10.2.a        | \_exclusions.py docstring                                |
+| #45 | 10.1.f, 10.3   | logging.md broken paths                                  |
 | #46 | 8.11         | check-module-size hard-block                             |
-| #47 | 9.3          | details_payload type drift                               |
-| #48 | 9.1.g, 9.2.b | VX leaks                                                 |
+| #47 | 10.3          | details_payload type drift                               |
+| #48 | 10.1.g, 10.2.b | VX leaks                                                 |
 | #49 | 8.15         | test_cli @patch trim                                     |
 | #50 | 1.7          | \_ensure_disk_row UUID mismatch                          |
 | #51 | 1.8          | Enrich oshash retry                                      |
@@ -121,7 +122,7 @@ post-REDO 17-25 j = **+2 jours** pour intégrer DEV #50-#54 + 14 DEVs non-cités
 | P27     | 6.3                  | FS = truth, BDD = projection                                        |
 | P28     | 5.1, 5.2, 5.4        | Composition Protocols (refactor tests → migrate callers → drop)     |
 | P29     | 6.2                  | CLI = stable API                                                    |
-| P30     | 9.1, 9.2, 9.3        | Documentation stale post-archive                                    |
+| P30     | 10.1, 10.2, 10.3        | Documentation stale post-archive                                    |
 | P31     | 8.11                 | Promesses stallées                                                  |
 | P32     | 5.7, 8.9, 8.14, 8.15 | Success criteria                                                    |
 | P33     | 1.10                 | PRAGMA discipline                                                   |
@@ -135,7 +136,7 @@ post-REDO 17-25 j = **+2 jours** pour intégrer DEV #50-#54 + 14 DEVs non-cités
 | §9 BDD lifecycle invariants              | 1.1, 1.2, 1.6, 4.1, 4.7, 8.10 |
 | §10 CLI surface completeness             | 2.1-2.5, 5.6, 6.1, 6.2        |
 | §11 Architecture / state ownership       | 5.4, 5.2, 6.3                 |
-| §12 Documentation conformity (P30)       | 6.2-6.5, 9.1-9.3              |
+| §12 Documentation conformity (P30)       | 6.2-6.5, 10.1-10.3              |
 | §13 Promise lifecycle (P31)              | 8.11                          |
 | §14 Success criteria enforcement (P32)   | 5.7, 8.9, 8.14, 8.15          |
 | §15 PRAGMA & connection discipline (P33) | 1.10                          |
@@ -164,7 +165,7 @@ Phase 0 (skill safety net) ──→ Phase 1 (foundations) ──┬─→ Phase
                                                                                           │
 Phase 6 (format+docs) ───────────────────────────────────────────────────────────────────┴─→ Phase 7 (matrix v2.1)
                                                                                                             │
-                                                                                                            └─→ Phase 8 (polish) ──→ Phase 9 (archive docs)
+                                                                                                            └─→ Phase 8 (polish) ──→ Phase 9 (CLI test coverage) ──→ Phase 10 (archive docs)
 ```
 
 Phase 0 est sur le repo `.claude/` (branche `personal-scraper`), distinct de Phases 1-8 sur
@@ -177,9 +178,10 @@ Phase 6 peut tourner en parallèle de Phase 4/5.
 
 ## ACCEPTANCE
 
-Voir `../ACCEPTANCE.md` — **49 criteria exécutables** couvrant 54/54 DEVs, 34/34 patterns,
-8/8 DESIGN sections, Phase 0 + Phases 1-9. Chaque criterion est une commande shell avec
-output attendu. Le sketch des 15 criteria clés est en `../DESIGN.md` §6.
+Voir `../ACCEPTANCE.md` — **54 criteria exécutables** (49 initiaux + ACC-50..54 Phase 9
+CLI coverage) couvrant 54/54 DEVs, 34/34 patterns, 8/8 DESIGN sections,
+Phase 0 + Phases 1-10. Chaque criterion est une commande shell avec output attendu.
+Le sketch des 15 criteria clés est en `../DESIGN.md` §6.
 
 Status par criterion (✅/❌/🟡) à marquer au fil des phases — finalisation au gate Phase 8.9.
 

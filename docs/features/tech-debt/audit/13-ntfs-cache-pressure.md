@@ -373,7 +373,7 @@ Suggested placement in the tech-debt feature plan:
 
 - **Phase A + B + C** are localised, low-risk, and unblock Plex/n8n co-tenancy issues immediately. Could slot into `phase-03-observability.md` (since they reduce cross-process I/O interference visible in observability metrics) or `phase-04-path-cleanup.md`, or warrant their own sub-phase `phase-03b-cache-discipline`.
 - **Phase D** (config change) is a one-line edit but changes scan timings used elsewhere — coordinate with whichever phase touches launchd scheduling.
-- **Phase E** (docs) goes into `phase-09-archive-docs.md`.
+- **Phase E** (docs) goes into `phase-10-archive-docs.md`.
 - **Phase F** (sudoers + purge wrapper) is gated on post-deployment measurement; do not schedule until P0/P1 results are known.
 
 ### Suggested commit sequence

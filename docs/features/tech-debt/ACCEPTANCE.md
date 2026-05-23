@@ -466,7 +466,58 @@ grep -c "^### ACC-" docs/features/tech-debt/ACCEPTANCE.md
 
 ---
 
-## Archive doc updates (Phase 9)
+## CLI Test Coverage (Phase 9 NEW)
+
+### ACC-50 — CLI coverage report check 🟡
+
+```bash
+python3 scripts/cli-coverage-report.py --check
+# Expected: exit 0 (0 ❌ on critical commands, N/A explicit-and-justified allowed)
+```
+
+### ACC-51 — Tests cli_scenario count threshold 🟡
+
+```bash
+make test -m cli_scenario 2>&1 | tail -1
+# Expected: NNN passed. Minimum threshold: ≥ 420 tests on critiques
+# (28 cmds × ~15 applicable scenarios) + ≥ 56 on non-critiques (8 cmds × ~7 scenarios).
+```
+
+### ACC-52 — Coverage matrix doc committed and synced 🟡
+
+```bash
+python3 scripts/cli-coverage-report.py --write
+git diff --exit-code docs/features/tech-debt/cli-coverage-matrix.md
+# Expected: exit 0 (doc matrix up-to-date with last test run)
+```
+
+### ACC-53 — Each critical command has a mutation test (scenario #16) 🟡
+
+```bash
+for cmd in ingest sort process verify dispatch enforce run \
+           library-repair library-relink library-rescrape library-gc \
+           library-scan library-index library-init-canonical \
+           library-backfill-ids library-reconcile library-clean library-verify \
+           library-doctor library-validate library-analyze library-recommend \
+           library-report library-ghost-audit \
+           trailers-download trailers-cleanup init-config config-migrate-category; do
+  grep -lE "cli_scenario\(16\)" tests/commands/test_${cmd//-/_}*.py > /dev/null \
+    || echo "MISSING: $cmd"
+done
+# Expected: empty output (zero MISSING)
+```
+
+### ACC-54 — Each critical command has a --dry-run no-op test (scenario #15) 🟡
+
+```bash
+# Same list as ACC-53, grep for cli_scenario(15)
+# Expected: empty output (zero MISSING) for commands with --dry-run flag.
+# Cmds without --dry-run (query-only diagnostic) : N/A justified in cli-coverage-matrix.md.
+```
+
+---
+
+## Archive doc updates (Phase 10 — ex-Phase 9, renumérotée)
 
 ### ACC-46 — 7 archived DESIGN.md have banner (P30)
 
@@ -493,7 +544,7 @@ grep -c '{movies_dir}/Inception' personalscraper/indexer/scanner/_exclusions.py
 # Expected: >= 1
 ```
 
-### ACC-49 — Reference docs synced (DEV #45, #47) 🟡 [partial: DEV #45 logging.md SHIPPED commit `329afbc` ; DEV #47 still pending Phase 9.3]
+### ACC-49 — Reference docs synced (DEV #45, #47) 🟡 [partial: DEV #45 logging.md SHIPPED commit `329afbc` ; DEV #47 still pending Phase 10.3]
 
 ```bash
 grep -c "personalscraper.scraper.http_retry\|scraper/tmdb_client.py" docs/reference/logging.md
@@ -547,14 +598,17 @@ git status --short
 
 ## Summary
 
-**Total** : 49 ACCEPTANCE criteria (45 numbered + 4 final). All executable. Each maps to a
-specific phase + DEV(s) + commit.
+**Total** : 54 ACCEPTANCE criteria (50 numbered ACC-00..ACC-54 + 4 final). All executable.
+Each maps to a specific phase + DEV(s) + commit (ACC-50..54 added for Phase 9 CLI test
+coverage, decision opérateur 2026-05-23).
 
 **Coverage** :
 
 - 54/54 DEVs covered by ≥ 1 ACCEPTANCE criterion
 - 34/34 patterns leveraged by ≥ 1 ACCEPTANCE criterion
 - 8/8 DESIGN sections §9-§16 validated by ≥ 1 ACCEPTANCE criterion
-- 9 phases each have ≥ 1 ACCEPTANCE in their gate
+- 10 phases each have ≥ 1 ACCEPTANCE in their gate (Phase 9 = ACC-50..54,
+  Phase 10 ex-Phase 9 = ACC-46..49)
 
-**Status post-tech-debt 0.16.0 merge** : marquer ✅/❌/🟡 next to each ACC- as Phase 8.9 closure.
+**Status post-tech-debt 0.16.0 merge** : marquer ✅/❌/🟡 next to each ACC- as Phase 8.9 closure
+(ACC-00..49) + Phase 9 gate (ACC-50..54).

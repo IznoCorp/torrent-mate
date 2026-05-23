@@ -176,7 +176,7 @@ Règles :
    - table old→new mapping pour les symboles renommés / supprimés.
 2. **Reference docs `docs/reference/*.md` sont source-of-truth pour le code actuel**.
    Archive = snapshot historique, jamais authoritative pour l'état présent.
-3. **Phase 9 "Archive doc updates"** matérialise cette règle en 0.16.0 pour les 7 features
+3. **Phase 10 "Archive doc updates"** matérialise cette règle en 0.16.0 pour les 7 features
    identifiées.
 
 ### §13 Promise lifecycle (P31 — post-REDO)
