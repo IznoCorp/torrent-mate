@@ -14,7 +14,7 @@ from personalscraper.indexer import cli as cli_compat
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
-    pass
+    from typing import Any  # noqa: F401
 
 log = get_logger("indexer.cli")
 
@@ -371,11 +371,11 @@ def library_reconcile_command(
     enqueue_repairs: bool = False,
     config_path: Path | None = None,
     event_bus: "EventBus",
-) -> int:
+) -> tuple[int, dict[str, Any]]:
     """Detect index ↔ filesystem divergences without a full rescan.
 
     Runs the DB-only checks in :mod:`personalscraper.indexer.reconcile`
-    and prints a JSON summary of findings.  When ``enqueue_repairs`` is
+    and returns a ``(rc, summary)`` tuple.  When ``enqueue_repairs`` is
     True, every divergence is also pushed into ``repair_queue`` so that
     ``library-repair`` can drain them with a wall-clock budget.  The
     partial UNIQUE INDEX from migration 003 deduplicates findings the
@@ -393,9 +393,9 @@ def library_reconcile_command(
             are wired to.
 
     Returns:
-        ``0`` on success, ``1`` on infrastructure error.
+        ``(0, summary_dict)`` on success, ``(1, {"error": str})`` on
+        infrastructure error.
     """
-    import json  # noqa: PLC0415
     from typing import cast  # noqa: PLC0415
 
     from personalscraper.conf.loader import (  # noqa: PLC0415
@@ -425,7 +425,7 @@ def library_reconcile_command(
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
         typer.echo(f"Config error: {exc}", err=True)
-        return 1
+        return 1, {"error": str(exc)}
 
     db_path = cfg.indexer.db_path
     assert db_path is not None, "indexer.db_path must be resolved"
@@ -444,7 +444,7 @@ def library_reconcile_command(
         IndexerMigrationError,
     ) as exc:
         typer.echo(str(exc), err=True)
-        return 1
+        return 1, {"error": str(exc)}
 
     with closing(conn):
         try:
@@ -457,7 +457,7 @@ def library_reconcile_command(
             IndexerMigrationError,
         ) as exc:
             typer.echo(str(exc), err=True)
-            return 1
+            return 1, {"error": str(exc)}
 
         # Type cast: typer hands us Sequence[str], reconcile() requires the
         # narrower Literal-typed list.  The detector itself silently ignores
@@ -488,8 +488,7 @@ def library_reconcile_command(
             "total_findings": report.total_findings,
             "enqueued_repairs": report.enqueued_repairs,
         }
-        typer.echo(json.dumps(summary, indent=2))
-        return 0
+        return 0, summary
 
 
 # ---------------------------------------------------------------------------

@@ -35,7 +35,7 @@ class TestLibraryReconcile:
         """Default invocation runs every detector and exits 0."""
         with patch(
             "personalscraper.indexer.cli.library_reconcile_command",
-            return_value=0,
+            return_value=(0, {"total_findings": 0}),
         ) as mock_cmd:
             result = runner.invoke(app, ["library-reconcile"])
         assert result.exit_code == 0
@@ -48,7 +48,7 @@ class TestLibraryReconcile:
         """--scope flags must aggregate into a list and reach the command."""
         with patch(
             "personalscraper.indexer.cli.library_reconcile_command",
-            return_value=0,
+            return_value=(0, {"total_findings": 0}),
         ) as mock_cmd:
             result = runner.invoke(
                 app,
@@ -62,7 +62,7 @@ class TestLibraryReconcile:
         """--enqueue-repairs forwards True."""
         with patch(
             "personalscraper.indexer.cli.library_reconcile_command",
-            return_value=0,
+            return_value=(0, {"total_findings": 0}),
         ) as mock_cmd:
             result = runner.invoke(app, ["library-reconcile", "--enqueue-repairs"])
         assert result.exit_code == 0
@@ -73,7 +73,7 @@ class TestLibraryReconcile:
         """Underlying command returning non-zero must propagate as Typer exit."""
         with patch(
             "personalscraper.indexer.cli.library_reconcile_command",
-            return_value=3,
+            return_value=(3, {"error": "test failure"}),
         ):
             result = runner.invoke(app, ["library-reconcile"])
         assert result.exit_code == 3
@@ -84,7 +84,7 @@ class TestLibraryReconcile:
         """--read-only is the default: enqueue_repairs stays False (DEV #10)."""
         with patch(
             "personalscraper.indexer.cli.library_reconcile_command",
-            return_value=0,
+            return_value=(0, {"total_findings": 0}),
         ) as mock_cmd:
             result = runner.invoke(app, ["library-reconcile", "--read-only"])
         assert result.exit_code == 0
@@ -96,7 +96,7 @@ class TestLibraryReconcile:
         """--dry-run is an alias for --read-only: enqueue_repairs stays False (DEV #10)."""
         with patch(
             "personalscraper.indexer.cli.library_reconcile_command",
-            return_value=0,
+            return_value=(0, {"total_findings": 0}),
         ) as mock_cmd:
             result = runner.invoke(app, ["library-reconcile", "--dry-run"])
         assert result.exit_code == 0
@@ -120,7 +120,7 @@ class TestLibraryReconcile:
         """Default invocation (no flags) never enqueues repairs (DEV #10)."""
         with patch(
             "personalscraper.indexer.cli.library_reconcile_command",
-            return_value=0,
+            return_value=(0, {"total_findings": 0}),
         ) as mock_cmd:
             result = runner.invoke(app, ["library-reconcile"])
         assert result.exit_code == 0

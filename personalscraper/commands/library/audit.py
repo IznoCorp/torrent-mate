@@ -91,6 +91,7 @@ def library_reconcile(
 
     from personalscraper import cli as cli_compat  # noqa: PLC0415
     from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
+    from personalscraper.cli_helpers.output import emit  # noqa: PLC0415
     from personalscraper.core.event_bus import EventBus, current_correlation_id  # noqa: PLC0415
     from personalscraper.indexer.cli import library_reconcile_command  # noqa: PLC0415
 
@@ -119,7 +120,7 @@ def library_reconcile(
 
     token = current_correlation_id.set(str(uuid4()))
     try:
-        rc = library_reconcile_command(
+        rc, payload = library_reconcile_command(
             scopes=scope if scope else None,
             enqueue_repairs=effective_enqueue,
             config_path=effective_config,
@@ -127,8 +128,50 @@ def library_reconcile(
         )
     finally:
         current_correlation_id.reset(token)
+    emit(payload, rich_renderer=lambda: _print_reconcile_rich(payload))
     if rc != 0:
         raise typer.Exit(rc)
+
+
+def _print_reconcile_rich(payload: dict) -> None:
+    """Render a reconcile summary via Rich with severity-coloured counts.
+
+    Args:
+        payload: The summary dict returned by :func:`~personalscraper.indexer.cli.library_reconcile_command`.
+    """
+    from personalscraper.cli_state import state  # noqa: PLC0415
+
+    console = state["console"]
+    if "error" in payload:
+        console.print(f"[red]Error:[/red] {payload['error']}")
+        return
+
+    console.print(f"[bold]total_findings:[/bold] {payload.get('total_findings', 0)}")
+    console.print(f"merkle_drift: {payload.get('merkle_drift', 0)}")
+    console.print(f"dispatch_path_missing_count: {payload.get('dispatch_path_missing_count', 0)}")
+    console.print(f"enrich_stale: {payload.get('enrich_stale', 0)}")
+    console.print(f"release_orphans_count: {payload.get('release_orphans_count', 0)}")
+    console.print(f"files_without_release: {payload.get('files_without_release', 0)}")
+    console.print(f"season_count_drift_count: {payload.get('season_count_drift_count', 0)}")
+    console.print(f"items_without_files_count: {payload.get('items_without_files_count', 0)}")
+    console.print(f"path_missing_count: {payload.get('path_missing_count', 0)}")
+
+    samples: list[tuple[str, str]] = [
+        ("dispatch_path_missing", "dispatch_path_missing_sample"),
+        ("release_orphans", "release_orphans_sample"),
+        ("season_count_drift", "season_count_drift_sample"),
+        ("items_without_files", "items_without_files_sample"),
+        ("path_missing", "path_missing_sample"),
+    ]
+    for label, key in samples:
+        sample = payload.get(key, [])
+        if sample:
+            console.print(f"[yellow]{label} (sample {len(sample)}):[/yellow]")
+            for s in sample[:5]:
+                console.print(f"  {s}")
+
+    if payload.get("enqueued_repairs", 0):
+        console.print(f"[bold green]enqueued_repairs:[/bold green] {payload['enqueued_repairs']}")
 
 
 @app.command("library-ghost-audit")
