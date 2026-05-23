@@ -467,11 +467,14 @@ def torrents_list(ctx: typer.Context) -> None:
     message when the torrent client is unreachable (auth lockout, IP
     ban, daemon down) so monitoring tools can branch on the exit
     code. Used by the ``pipeline-monitor`` skill's GATE 0 inventory.
+
+    Output format respects the global ``--format`` flag.
     """
     import os  # noqa: PLC0415
 
     from personalscraper.api.torrent._factory import build_active_torrent_client  # noqa: PLC0415
     from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError, QBitClient  # noqa: PLC0415
+    from personalscraper.cli_helpers.output import emit  # noqa: PLC0415
 
     config = ctx.obj.config
     assert config is not None
@@ -500,13 +503,41 @@ def torrents_list(ctx: typer.Context) -> None:
         console.print(f"[yellow]Torrent listing failed:[/yellow] {exc}")
         raise typer.Exit(2) from exc
 
-    for torrent in torrents:
-        seeding = "seeding" if client.is_seeding(torrent) else "idle"
-        size_gb = torrent.size_bytes / (1024**3)
+    payload = {
+        "torrents": [
+            {
+                "name": t.name,
+                "state": t.state,
+                "progress": t.progress,
+                "size_gb": t.size_bytes / (1024**3),
+                "seeding": client.is_seeding(t),
+            }
+            for t in torrents
+        ],
+        "completed": len(torrents),
+        "tracked": len(active_hashes),
+    }
+    emit(payload, rich_renderer=lambda: _print_torrents_rich(payload))
+
+
+def _print_torrents_rich(payload: dict) -> None:
+    """Render the torrent list via Rich console.
+
+    Args:
+        payload: Dict with ``torrents`` list and ``completed``/``tracked`` counts.
+    """
+    console = state["console"]
+    torrents = payload.get("torrents", [])
+    for t in torrents:
+        seeding = "seeding" if t.get("seeding") else "idle"
         console.print(
-            f"  {torrent.state:<14} {torrent.progress * 100:5.1f}%  {size_gb:7.2f} GB  {seeding:8}  {torrent.name}"
+            f"  {t['state']:<14} {t['progress'] * 100:5.1f}%  "
+            f"{t['size_gb']:7.2f} GB  {seeding:8}  {t['name']}"
         )
-    console.print(f"[bold]Total:[/bold] {len(torrents)} completed (of {len(active_hashes)} tracked torrents)")
+    console.print(
+        f"[bold]Total:[/bold] {payload['completed']} completed "
+        f"(of {payload['tracked']} tracked torrents)"
+    )
 
 
 # --- Library maintenance commands ---
