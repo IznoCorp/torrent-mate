@@ -7,6 +7,7 @@ Covers:
 - ``OSHASH_EXTENSIONS`` — allowlist completeness check.
 - ``is_racy`` — racy-mtime boundary conditions per DESIGN §7.3.
 - ``sequential_hint`` — no-op on non-Darwin; does not raise on Darwin.
+- ``disable_cache`` — no-op on non-Darwin; does not raise on Darwin.
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ import tempfile
 from pathlib import Path
 from unittest import mock
 
-from personalscraper.indexer._macos_io import sequential_hint
+from personalscraper.indexer._macos_io import disable_cache, sequential_hint
 from personalscraper.indexer.fingerprint import (
     OSHASH_EXTENSIONS,
     fingerprint_tier1,
@@ -312,3 +313,82 @@ class TestSequentialHint:
             sequential_hint(fd, offset=0, length=0)
         finally:
             os.close(fd)
+
+
+# ---------------------------------------------------------------------------
+# disable_cache
+# ---------------------------------------------------------------------------
+
+
+class TestDisableCache:
+    """Tests for ``personalscraper.indexer._macos_io.disable_cache``.
+
+    Mirrors the structure of ``TestSequentialHint``:
+
+    * **Non-Darwin** — must be a genuine no-op: no system calls, no imports,
+      no exceptions.  Verified by patching ``_macos_io._IS_DARWIN`` to ``False``
+      so the test is deterministic on any CI platform.
+
+    * **Darwin (real call)** — when running on macOS, ``F_NOCACHE`` must be
+      accepted by the kernel without raising.  Skipped on non-Darwin.
+
+    * **Invalid fd** — the function must swallow ``OSError`` silently (e.g.
+      when the fd is closed or points to a non-cacheable file type like a
+      socket or pipe).  This exercises the ``except (OSError, ValueError)``
+      guard so that cache-bypass failure never breaks the surrounding read path.
+    """
+
+    def test_disable_cache_noop_on_non_darwin(self, tmp_path: Path) -> None:
+        """``disable_cache`` must be a no-op and not raise on non-Darwin.
+
+        Patching ``_IS_DARWIN`` to ``False`` simulates a Linux or Windows host
+        regardless of where this test actually runs.
+        """
+        f = tmp_path / "cache_test.bin"
+        f.write_bytes(b"\x00" * 1024)
+
+        fd = os.open(f, os.O_RDONLY)
+        try:
+            import personalscraper.indexer._macos_io as _macos_io_mod
+
+            with mock.patch.object(_macos_io_mod, "_IS_DARWIN", False):
+                # Must not raise — on a non-Darwin host the call is a no-op.
+                disable_cache(fd)
+        finally:
+            os.close(fd)
+
+    def test_disable_cache_darwin_does_not_raise(self, tmp_path: Path) -> None:
+        """On Darwin, ``disable_cache`` must not raise for a valid open fd.
+
+        Skipped on non-Darwin so Linux/Windows CI never attempts the syscall.
+        ACC-12.B.1: F_NOCACHE works on arm64 Darwin (operator pre-verified).
+        """
+        if platform.system() != "Darwin":
+            import pytest
+
+            pytest.skip("F_NOCACHE is a macOS-only fcntl — skipping on non-Darwin")
+
+        f = tmp_path / "cache_darwin.bin"
+        f.write_bytes(b"\xcd" * 4096)
+
+        fd = os.open(f, os.O_RDONLY)
+        try:
+            # Real F_NOCACHE call — must complete without OSError on arm64 macOS.
+            disable_cache(fd)
+        finally:
+            os.close(fd)
+
+    def test_disable_cache_swallows_oserror_on_invalid_fd(self) -> None:
+        """``disable_cache`` must not propagate OSError for an invalid fd.
+
+        An already-closed fd produces EBADF; the function must swallow it
+        silently so that cache-bypass failure never breaks the surrounding
+        read path.
+        """
+        import personalscraper.indexer._macos_io as _macos_io_mod
+
+        # Force the Darwin code path so the fcntl call is actually attempted.
+        with mock.patch.object(_macos_io_mod, "_IS_DARWIN", True):
+            # fd -1 is always invalid — the kernel returns EBADF.
+            # Must not raise.
+            disable_cache(-1)
