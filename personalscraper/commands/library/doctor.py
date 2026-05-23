@@ -2,7 +2,8 @@
 
 Runs a suite of targeted checks against the indexer SQLite database and
 reports results in a Rich table (default) or JSON (``--format json``).
-Exits 0 when all checks pass, non-zero otherwise.
+Output format respects the global ``--format`` flag.  Exits 0 when all
+checks pass, non-zero otherwise.
 
 Health checks implemented (SH-8 / BD-Y / CL-M):
 
@@ -24,18 +25,18 @@ Health checks implemented (SH-8 / BD-Y / CL-M):
 
 from __future__ import annotations
 
-import json as _json
 import sqlite3
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Optional
 
 import typer
 
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
+from personalscraper.cli_state import state
 from personalscraper.core.event_bus import EventBus
 
 # ---------------------------------------------------------------------------
@@ -566,18 +567,11 @@ def run_doctor(
 # CLI command
 # ---------------------------------------------------------------------------
 
-_FORMAT_CHOICES = Literal["table", "json"]
-
 
 @app.command("library-doctor")
 @handle_cli_errors
 def library_doctor(
     ctx: typer.Context,
-    format: str = typer.Option(  # noqa: A002  — shadows builtin intentionally (CLI flag name)
-        "table",
-        "--format",
-        help="Output format: 'table' (Rich) or 'json'.",
-    ),
     repair_queue_threshold: int = typer.Option(
         100,
         "--repair-queue-threshold",
@@ -604,28 +598,24 @@ def library_doctor(
 
     Executes a suite of targeted checks covering database integrity, schema
     coherence, scan-run lifecycle, outbox lag, Merkle drift, canonical-provider
-    coverage, and phantom paths.  Results are printed as a Rich table (default)
-    or JSON (``--format json``).
+    coverage, and phantom paths.  Output format respects the global
+    ``--format`` flag (``personalscraper --format json library-doctor``).
 
     Exit code is 0 when all checks pass (status ok or skip), non-zero when any
     check is WARN or FAIL.
 
     Examples:
         personalscraper library-doctor
-        personalscraper library-doctor --format json
+        personalscraper --format json library-doctor
         personalscraper library-doctor --repair-queue-threshold 50
         personalscraper library-doctor --outbox-lag-threshold-s 7200
     """
     import os as _os  # noqa: PLC0415
 
+    from personalscraper.cli_helpers.output import emit  # noqa: PLC0415
     from personalscraper.conf.loader import load_config  # noqa: PLC0415
     from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
     from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
-
-    # Validate --format early.
-    if format not in ("table", "json"):
-        typer.echo(f"Invalid --format '{format}'. Choose 'table' or 'json'.", err=True)
-        raise typer.Exit(code=1)
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
     cfg = ctx.obj.config if ctx.obj is not None else load_config(effective_config)
@@ -652,10 +642,10 @@ def library_doctor(
     finally:
         conn.close()
 
-    if format == "json":
-        typer.echo(_json.dumps(report.as_dict()))
-    else:
-        _print_table(report)
+    emit(
+        report.as_dict(),
+        rich_renderer=lambda: _print_table(report),
+    )
 
     raise typer.Exit(code=report.exit_code)
 
@@ -672,10 +662,9 @@ def _print_table(report: DoctorReport) -> None:
     Args:
         report: The :class:`DoctorReport` to render.
     """
-    from rich.console import Console  # noqa: PLC0415
     from rich.table import Table  # noqa: PLC0415
 
-    console = Console()
+    console = state["console"]
 
     _STATUS_COLORS = {
         CheckStatus.OK: "green",
