@@ -8,8 +8,10 @@ Performs two checks:
    ``docs/reference/commands.md``.
 
 2. **Domain → CLI coverage**: for each business-domain package
-   (``library/``, ``indexer/``, ``scraper/``, ``trailers/``), verifies
-   that at least one CLI command module imports from it.
+   (``library/``, ``indexer/``, ``scraper/``, ``trailers/``,
+   ``ingest/``, ``sorter/``, ``dispatch/``, ``verify/``,
+   ``enforce/``), verifies that at least one CLI command module
+   imports from it.
 
 Both checks emit warnings on failure but **exit 0** (fail-soft).  This is
 intentional for Phase 2.5: ``docs/reference/commands.md`` is known to be
@@ -50,6 +52,11 @@ DOMAIN_IMPORT_PREFIXES: dict[str, str] = {
     "indexer": "personalscraper.indexer",
     "scraper": "personalscraper.scraper",
     "trailers": "personalscraper.trailers",
+    "ingest": "personalscraper.ingest",
+    "sorter": "personalscraper.sorter",
+    "dispatch": "personalscraper.dispatch",
+    "verify": "personalscraper.verify",
+    "enforce": "personalscraper.enforce",
 }
 
 
