@@ -637,9 +637,7 @@ def library_show_command(
         seasons: list[dict[str, object]] = []
         for s in seasons_raw:
             sd: dict[str, object] = dict(s)
-            eps_raw = conn.execute(
-                "SELECT * FROM episode WHERE season_id = ? ORDER BY number", (s["id"],)
-            ).fetchall()
+            eps_raw = conn.execute("SELECT * FROM episode WHERE season_id = ? ORDER BY number", (s["id"],)).fetchall()
             sd["episodes"] = [dict(ep) for ep in eps_raw]
             seasons.append(sd)
 

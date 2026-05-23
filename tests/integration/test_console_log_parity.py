@@ -64,7 +64,6 @@ KNOWN_VIOLATIONS: set[tuple[str, str]] = {
     ("personalscraper/commands/pipeline.py", "verify"),
     ("personalscraper/commands/pipeline.py", "dispatch"),
     ("personalscraper/commands/pipeline.py", "process"),
-    ("personalscraper/commands/pipeline.py", "torrents_list"),
 }
 
 

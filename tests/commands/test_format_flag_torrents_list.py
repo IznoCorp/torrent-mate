@@ -12,7 +12,12 @@ from personalscraper.cli import app
 runner = CliRunner()
 
 
-def _mock_torrent(name: str, state: str = "completed", progress: float = 1.0, size_bytes: int = 1073741824) -> MagicMock:
+def _mock_torrent(
+    name: str,
+    state: str = "completed",
+    progress: float = 1.0,
+    size_bytes: int = 1073741824,
+) -> MagicMock:
     t = MagicMock()
     t.name = name
     t.state = state

@@ -157,17 +157,19 @@ def _print_show_sections(payload: dict[str, object]) -> None:
     Args:
         payload: The dict returned by :func:`~personalscraper.indexer.cli.library_show_command`.
     """
+    from typing import cast  # noqa: PLC0415
+
     if "error" in payload:
         typer.echo(str(payload["error"]), err=True)
         return
 
-    item: dict[str, object] = payload.get("item", {})  # type: ignore[assignment]
+    item = cast("dict[str, object]", payload.get("item", {}))
     item_id = payload.get("item_id", "?")
     typer.echo(f"=== media_item id={item_id} ===")
     for key, value in item.items():
         typer.echo(f"  {key}: {value}")
 
-    seasons: list[dict[str, object]] = payload.get("seasons", [])  # type: ignore[assignment]
+    seasons = cast("list[dict[str, object]]", payload.get("seasons", []))
     if seasons:
         typer.echo(f"\n=== seasons ({len(seasons)}) ===")
         for s in seasons:
@@ -175,11 +177,10 @@ def _print_show_sections(payload: dict[str, object]) -> None:
                 f"  season {s.get('number')}: episodes={s.get('episode_count')}, "
                 f"has_poster={s.get('has_poster')}, nfo_count={s.get('episodes_with_nfo')}"
             )
-            for ep in s.get("episodes", []):  # type: ignore[assignment]
-                e: dict[str, object] = ep  # type: ignore[assignment]
-                typer.echo(f"    episode {e.get('number')}: {e.get('title')}")
+            for ep in cast("list[dict[str, object]]", s.get("episodes", [])):
+                typer.echo(f"    episode {ep.get('number')}: {ep.get('title')}")
 
-    files: list[dict[str, object]] = payload.get("files", [])  # type: ignore[assignment]
+    files = cast("list[dict[str, object]]", payload.get("files", []))
     if files:
         typer.echo(f"\n=== media_files ({len(files)}) ===")
         for f in files:
@@ -187,20 +188,19 @@ def _print_show_sections(payload: dict[str, object]) -> None:
                 f"  file id={f.get('id')} {f.get('rel_path')}/{f.get('filename')}"
                 f" size={f.get('size_bytes')} mtime_ns={f.get('mtime_ns')}"
             )
-            for st in f.get("streams", []):  # type: ignore[assignment]
-                stream: dict[str, object] = st  # type: ignore[assignment]
+            for st in cast("list[dict[str, object]]", f.get("streams", [])):
                 typer.echo(
-                    f"    stream idx={stream.get('idx')} kind={stream.get('kind')} "
-                    f"codec={stream.get('codec')} lang={stream.get('lang')}"
+                    f"    stream idx={st.get('idx')} kind={st.get('kind')} "
+                    f"codec={st.get('codec')} lang={st.get('lang')}"
                 )
 
-    attributes: list[dict[str, object]] = payload.get("attributes", [])  # type: ignore[assignment]
+    attributes = cast("list[dict[str, object]]", payload.get("attributes", []))
     if attributes:
         typer.echo(f"\n=== item_attributes ({len(attributes)}) ===")
         for a in attributes:
             typer.echo(f"  {a.get('key')}: {a.get('value')}")
 
-    deleted: list[dict[str, object]] = payload.get("deleted_history", [])  # type: ignore[assignment]
+    deleted = cast("list[dict[str, object]]", payload.get("deleted_history", []))
     if deleted:
         typer.echo(f"\n=== deleted_item history ({len(deleted)}) ===")
         for d in deleted:

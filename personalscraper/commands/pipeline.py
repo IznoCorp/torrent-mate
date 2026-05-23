@@ -520,24 +520,24 @@ def torrents_list(ctx: typer.Context) -> None:
     emit(payload, rich_renderer=lambda: _print_torrents_rich(payload))
 
 
-def _print_torrents_rich(payload: dict) -> None:
+def _print_torrents_rich(payload: dict[str, object]) -> None:
     """Render the torrent list via Rich console.
 
     Args:
         payload: Dict with ``torrents`` list and ``completed``/``tracked`` counts.
     """
+    from typing import cast  # noqa: PLC0415
+
     console = state["console"]
-    torrents = payload.get("torrents", [])
+    torrents = cast("list[dict[str, object]]", payload.get("torrents", []))
     for t in torrents:
         seeding = "seeding" if t.get("seeding") else "idle"
-        console.print(
-            f"  {t['state']:<14} {t['progress'] * 100:5.1f}%  "
-            f"{t['size_gb']:7.2f} GB  {seeding:8}  {t['name']}"
-        )
-    console.print(
-        f"[bold]Total:[/bold] {payload['completed']} completed "
-        f"(of {payload['tracked']} tracked torrents)"
-    )
+        t_progress = cast(float, t.get("progress", 0))
+        t_size_gb = cast(float, t.get("size_gb", 0))
+        t_name = cast(str, t.get("name", ""))
+        t_state = cast(str, t.get("state", ""))
+        console.print(f"  {t_state:<14} {t_progress * 100:5.1f}%  {t_size_gb:7.2f} GB  {seeding:8}  {t_name}")
+    console.print(f"[bold]Total:[/bold] {payload['completed']} completed (of {payload['tracked']} tracked torrents)")
 
 
 # --- Library maintenance commands ---

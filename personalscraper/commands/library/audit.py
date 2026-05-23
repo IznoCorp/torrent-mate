@@ -133,12 +133,14 @@ def library_reconcile(
         raise typer.Exit(rc)
 
 
-def _print_reconcile_rich(payload: dict) -> None:
+def _print_reconcile_rich(payload: dict[str, object]) -> None:
     """Render a reconcile summary via Rich with severity-coloured counts.
 
     Args:
         payload: The summary dict returned by :func:`~personalscraper.indexer.cli.library_reconcile_command`.
     """
+    from typing import cast  # noqa: PLC0415
+
     from personalscraper.cli_state import state  # noqa: PLC0415
 
     console = state["console"]
@@ -164,7 +166,7 @@ def _print_reconcile_rich(payload: dict) -> None:
         ("path_missing", "path_missing_sample"),
     ]
     for label, key in samples:
-        sample = payload.get(key, [])
+        sample = cast("list[str]", payload.get(key, []))
         if sample:
             console.print(f"[yellow]{label} (sample {len(sample)}):[/yellow]")
             for s in sample[:5]:
