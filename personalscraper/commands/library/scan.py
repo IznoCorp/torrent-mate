@@ -306,3 +306,143 @@ def library_scan(
         cli_compat.release_lock()
 
     console.print(_json.dumps({"status": "ok", "disk_filter": disk}))
+
+
+@app.command("library-backfill-ids")
+@handle_cli_errors
+def library_backfill_ids(
+    ctx: typer.Context,
+    show: Optional[str] = typer.Option(None, "--show", help="Restrict pass to a single show title"),
+    ids_only: bool = typer.Option(False, "--ids-only", help="Only backfill provider IDs, skip ratings"),
+    ratings_only: bool = typer.Option(False, "--ratings-only", help="Only backfill ratings, skip provider IDs"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Simulate without writing to DB"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Backfill missing cross-provider IDs and multi-source ratings on library items.
+
+    Walks every ``media_item`` row (or a single show with ``--show``),
+    detects missing provider IDs and rating sources, fetches the missing
+    data from TMDB, TVDB, IMDb (via OMDb), and Rotten Tomatoes (via OMDb),
+    and merges the results additively — never overwriting the canonical
+    provider anchor or already-present values.
+
+    Prerequisites (in order):
+
+    1. Run ``personalscraper library-init-canonical`` to seed
+       ``canonical_provider`` on rows that pre-date the provider-ids
+       feature.  Backfill cannot resolve cross-provider IDs without a
+       canonical anchor.
+
+    2. Ensure API credentials are set in ``.env``:
+
+       - ``TMDB_API_KEY`` — required for TMDB-canonical rows
+       - ``TVDB_API_KEY`` — required for TVDB-canonical rows
+       - ``OMDB_API_KEY`` — required for IMDb and Rotten Tomatoes ratings
+
+    Use ``--dry-run`` to preview what would be backfilled without touching
+    the database.  Use ``--ids-only`` or ``--ratings-only`` to restrict
+    the pass to one dimension.
+
+    Examples:
+        personalscraper library-backfill-ids --dry-run
+        personalscraper library-backfill-ids --show "Breaking Bad"
+        personalscraper library-backfill-ids --ids-only
+        personalscraper library-backfill-ids --ratings-only
+    """
+    import os as _os  # noqa: PLC0415
+
+    from personalscraper.conf.loader import load_config  # noqa: PLC0415
+    from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
+    from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
+    from personalscraper.indexer.scanner._modes.backfill_ids import run_backfill_ids  # noqa: PLC0415
+
+    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    cfg = ctx.obj.config if ctx.obj is not None else load_config(effective_config)
+
+    if cfg.indexer.db_path is None:
+        typer.echo("indexer.db_path is not configured", err=True)
+        raise typer.Exit(code=1)
+
+    db_path = Path(cfg.indexer.db_path)
+    migrations_dir = _os.path.dirname(_migrations_pkg.__file__)
+
+    # Create a shared EventBus for the duration of the backfill pass.
+    # It is constructed early so provider clients can thread it into their
+    # underlying HttpTransport (circuit-breaker event emission).
+    event_bus = EventBus()
+
+    # Build optional provider clients from environment credentials.
+    # Clients are None when the relevant API key is absent or when
+    # --dry-run is set (no network calls needed for a dry pass).
+    # run_backfill_ids handles None clients gracefully (fail-soft, logs once).
+    tmdb_client = None
+    tvdb_client = None
+    imdb_client = None
+    rt_client = None
+
+    if not ratings_only and not dry_run:
+        tmdb_key = _os.environ.get("TMDB_API_KEY") or ""
+        tvdb_key = _os.environ.get("TVDB_API_KEY") or ""
+
+        if tmdb_key:
+            from personalscraper.api.metadata.tmdb import TMDBClient  # noqa: PLC0415
+            from personalscraper.api.transport._http import HttpTransport  # noqa: PLC0415
+
+            tmdb_client = TMDBClient(transport=HttpTransport(TMDBClient.policy(tmdb_key), event_bus=event_bus))
+
+        if tvdb_key:
+            from personalscraper.api.metadata.tvdb import TVDBClient  # noqa: PLC0415
+
+            tvdb_client = TVDBClient(api_key=tvdb_key, event_bus=event_bus)
+
+    if not ids_only and not dry_run:
+        omdb_key = _os.environ.get("OMDB_API_KEY") or ""
+
+        if omdb_key:
+            from personalscraper.api.metadata.imdb import IMDbClient  # noqa: PLC0415
+            from personalscraper.api.metadata.omdb import OMDbAdapter  # noqa: PLC0415
+            from personalscraper.api.metadata.rotten_tomatoes import RottenTomatoesClient  # noqa: PLC0415
+            from personalscraper.api.transport._http import HttpTransport  # noqa: PLC0415
+
+            omdb_backend = OMDbAdapter(transport=HttpTransport(OMDbAdapter.policy(omdb_key), event_bus=event_bus))
+            imdb_client = IMDbClient(backend=omdb_backend)
+            rt_client = RottenTomatoesClient(backend=omdb_backend)
+
+    # Open DB in writer mode, apply migrations, then run the backfill pass.
+    conn = open_db(db_path, event_bus=event_bus)
+    apply_migrations(conn, Path(migrations_dir))
+
+    try:
+        stats = run_backfill_ids(
+            conn,
+            event_bus=event_bus,
+            imdb_client=imdb_client,
+            rt_client=rt_client,
+            tmdb_client=tmdb_client,
+            tvdb_client=tvdb_client,
+            show_filter=show,
+            ids_only=ids_only,
+            ratings_only=ratings_only,
+            dry_run=dry_run,
+        )
+        if not dry_run:
+            conn.commit()
+    finally:
+        conn.close()
+
+    # Use typer.echo (not console.print) — the JSON payload exceeds the default
+    # Rich terminal width (~80 chars) and would be word-wrapped, breaking
+    # downstream `jq` consumers and the regression test that re-parses it.
+    typer.echo(
+        _json.dumps(
+            {
+                "dry_run": dry_run,
+                "items_scanned": stats.items_scanned,
+                "items_updated": stats.items_updated,
+                "items_skipped": stats.items_skipped,
+                "items_failed": stats.items_failed,
+                "ids_added_count": stats.ids_added_count,
+                "ratings_added_count": stats.ratings_added_count,
+            }
+        )
+    )
