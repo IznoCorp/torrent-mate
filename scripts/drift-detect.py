@@ -103,6 +103,40 @@ COMMIT_DEV_RE = re.compile(r"DEV\s+#(?P<num>\d+)", re.IGNORECASE)
 LEGACY_COMMIT_RE = re.compile(r"^v\d+\.\d+\.\d+:")
 
 
+def _is_in_string_literal(content: str, pos: int) -> bool:
+    """Heuristic: True if *pos* is inside a Python string literal on its line.
+
+    Counts unescaped single/double quotes between the start of the line and
+    *pos*.  An odd count of either flavour means the position is inside a
+    string.  This is a line-scoped approximation (it does not handle
+    triple-quoted strings spanning multiple lines) but is sufficient to
+    suppress xfail-in-fixture false positives in :func:`check_xfail_audit`.
+
+    Args:
+        content: Full file content.
+        pos: Byte offset of the candidate match.
+
+    Returns:
+        ``True`` when the position appears to be inside a string literal.
+    """
+    line_start = content.rfind("\n", 0, pos) + 1
+    prefix = content[line_start:pos]
+    in_single = False
+    in_double = False
+    i = 0
+    while i < len(prefix):
+        ch = prefix[i]
+        if ch == "\\":
+            i += 2
+            continue
+        if ch == '"' and not in_single:
+            in_double = not in_double
+        elif ch == "'" and not in_double:
+            in_single = not in_single
+        i += 1
+    return in_single or in_double
+
+
 def _expand_comma_dev_refs(text: str) -> str:
     """Expand ``DEV #N, #M, #O`` into ``DEV #N, DEV #M, DEV #O``.
 
@@ -738,13 +772,20 @@ def check_xfail_audit(repo: Path) -> list[Finding]:
     if not tests_dir.exists():
         return findings
     xfail_pattern = re.compile(r"@pytest\.mark\.xfail\s*\(\s*(?P<args>[^)]*)\)")
-    reason_pattern = re.compile(r"reason\s*=\s*[\"'](?P<reason>[^\"']+)[\"']")
+    # Tolerate ``reason=( ... )`` multi-line string concatenation by allowing
+    # an optional opening parenthesis between ``=`` and the first quote.
+    reason_pattern = re.compile(r"reason\s*=\s*\(?\s*[\"'](?P<reason>[^\"']+)[\"']")
     for py_file in sorted(tests_dir.rglob("test_*.py")):
         try:
             content = py_file.read_text(encoding="utf-8")
         except OSError:
             continue
         for m in xfail_pattern.finditer(content):
+            # Skip matches that live inside a string literal (test fixtures
+            # often embed sample @pytest.mark.xfail strings — those are not
+            # real xfails in the running suite).
+            if _is_in_string_literal(content, m.start()):
+                continue
             args = m.group("args")
             r = reason_pattern.search(args)
             reason = r.group("reason") if r else "(no reason)"
