@@ -219,6 +219,115 @@ Notes:
 - `rich` — CLI output (progress bars, tables, theming, auto TTY detection, pulled by Typer)
 - `structlog` — structured logging (replaces custom JsonFormatter, context binding, dev/prod auto-switch)
 
+## State ownership
+
+The pipeline distinguishes 4 state domains. Each row names exactly one owner
+(write authority). Multiple readers are allowed.
+
+| State                               | Owned by                                          | Read by                                                                                                                                           | Storage                    |
+| ----------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| Staging FS layout                   | `sort` + `dispatch`                               | `clean`, `scrape`, `cleanup`, `enforce`, `verify`                                                                                                 | `paths.staging_dir`        |
+| Storage FS layout                   | `dispatch`                                        | `library-index`, `library-clean`, `library-reconcile`                                                                                             | `paths.disks[*]`           |
+| Indexer BDD (`media_item`, ...)     | `library-index` (scanner + outbox drain)          | `library-doctor`, `library-search`, `library-show`, `library-reconcile`, `library-report`, `library-clean`, `library-validate`, `library-analyze` | `.data/library.db`         |
+| Provider IDs (`canonical_provider`) | `library-init-canonical` + `library-backfill-ids` | `library-show`, NFO generator (scraper)                                                                                                           | indexer BDD                |
+| Pipeline lock                       | `cli.acquire_lock`                                | all pipeline commands (`ingest`, `sort`, …, `dispatch`)                                                                                           | `pipeline.lock`            |
+| Ingested torrents tracker           | `ingest`                                          | `ingest` only                                                                                                                                     | `ingested_torrents.json`   |
+| EventBus events                     | each emitter                                      | subscribers (logging, Telegram, observability)                                                                                                    | in-process                 |
+| Outbox (drain queue)                | `library-index` (write)                           | `library-repair` (read + drain), `library-doctor`                                                                                                 | indexer BDD `index_outbox` |
+
+**Single-writer invariant (P27).** Every row above has exactly one owner. Two
+writers to the same state is a race condition. The pipeline lock
+(`cli.acquire_lock`) enforces process-level serialization for filesystem writes
+— only one pipeline process may mutate staging or storage at a time. The indexer
+BDD relies on SQLite WAL mode + `BEGIN IMMEDIATE` for transaction serialization
+within a single process; concurrent writer processes are blocked by the pipeline
+lock.
+
+**BDD vs FS truth rule (DEV #3, pattern P26).** For a given assertion, exactly
+one source is authoritative. The filesystem is truth for file existence and
+contents; the BDD is truth for derived metadata (oshash, release_id binding,
+scan_generation). Reconciliation always compares BDD to FS, never the reverse:
+`library-reconcile` detects files that disappeared from disk and soft-deletes
+their BDD rows, but never creates or mutates files based on BDD state.
+
+## Module relationships
+
+The pipeline is composed of 5 major subsystems. They share a thin core
+(EventBus + AppContext + Config) and otherwise communicate via the BDD
+and the filesystem.
+
+```
+[ commands/ ] -----invokes----> [ pipeline phases (ingest/sort/...) ]
+     |                                          |
+     +--invokes--> [ library/ (BDD-backed) ]    +--writes--> FS
+                            |                                |
+                            +--writes--> indexer BDD         |
+                                                             v
+                                                   [ scraper/ (NFO + artwork) ]
+                                                             |
+                                                             +--writes--> FS
+```
+
+- **commands/** (`personalscraper/commands/`) — CLI surface (Typer). Adapters
+  into pipeline / library / scraper / trailers. Stateless; per-invocation state
+  lives in `state` dict + `ctx.obj` (AppContext).
+- **pipeline/** (`ingest`, `sort`, `clean`, `scrape`, `cleanup`, `enforce`,
+  `verify`, `dispatch`, `trailers`, `process`, `run`) — owns staging + storage
+  FS layout. Each step produces a `StepReport`. The `run` orchestrator chains
+  them sequentially.
+- **library/** — indexer BDD layer + maintenance ops (`library-index`,
+  `library-reconcile`, `library-repair`, `library-doctor`, `library-search`,
+  `library-show`, `library-report`, `library-clean`, `library-validate`,
+  `library-analyze`). Owns `.data/library.db` exclusively.
+- **scraper/** (`personalscraper/scraper/`) — metadata (NFO) + artwork + trailer
+  URL discovery. Owns NFO writes. Consumes provider APIs (TMDB / TVDB / OMDB /
+  Trakt) via `api/metadata/`.
+- **trailers/** (`personalscraper/trailers/`) — trailer discovery + download
+  (YouTube via yt-dlp). Plex-conformant placement (movies flat, TV shows in
+  `Trailers/` subfolder). Consumes the indexer BDD via `trailers.scanner`.
+
+Cross-cutting:
+
+- **core/event_bus.py** — pub-sub for events (no business logic). Process-scoped,
+  one `EventBus` per `AppContext`.
+- **core/app_context.py** — per-invocation context (`event_bus` +
+  `correlation_id`).
+- **conf/** — Pydantic config loader (`paths.json5`, `patterns.json5`,
+  `indexer.json5`, `preferences.json5`). Read-only at runtime.
+- **transports/** — `HttpTransport` + `TransportPolicy` (rate limit, retry,
+  circuit breaker). Used by `api/` providers.
+
+**Dependency direction.** Dependencies flow top-down: `commands/` calls into
+`pipeline/`, `library/`, `scraper/`, and `trailers/`. The pipeline composes
+`library/` and `scraper/` — the reverse never happens (library and scraper
+modules never import from pipeline). `core/` and `conf/` are used by everything
+and depend on nothing in the project. `api/` is consumed by `scraper/` and
+`trailers/` but never by `commands/` directly.
+
+## Anti-decisions (out of scope for 1.0)
+
+These were considered and explicitly deferred past 1.0. Re-opening any of these
+requires a new design document. Listed here so future contributors don't waste
+time proposing what was already declined.
+
+- **No microservices.** Single Python process. The pipeline runs end-to-end
+  in-tree; the BDD is local SQLite. Splitting into services trades clarity for
+  operability cost we don't yet have a reason to pay.
+- **No network server / web UI.** CLI is the only interface. No FastAPI, no
+  Flask, no embedded server. (Future: a read-only dashboard MAY be considered
+  in 2.x but is NOT promised.)
+- **No authentication / multi-user.** Single operator on a single machine.
+  Files inherit OS permissions; the BDD is owned by the running user.
+- **No plugin loader.** Scrapers and torrent clients are configured via
+  `config/*.json5`, not loaded from a plugin directory. Adding a provider =
+  editing source.
+- **No cloud / no remote storage.** Storage is local NTFS via macFUSE
+  (Apple Silicon). Backup is the operator's responsibility (rsync, snapshot,
+  Backblaze, ...). No S3 / Glacier / cold-storage tier abstraction.
+- **No web scraping fallback.** Metadata comes from typed provider APIs
+  (TMDB / TVDB / OMDB / Trakt). MediaElch is the manual fallback when API
+  matching fails — there is no HTML scraping codepath.
+
 ## Reference Documentation
 
 - `docs/qbittorrent-api-reference.md` — TorrentState enum, exceptions, patterns pipeline
