@@ -183,7 +183,7 @@ def test_repair_drains_path_missing_then_loop_closed(tmp_path, test_config) -> N
     conn = sqlite3.connect(str(db_path))
     conn.execute("PRAGMA foreign_keys=ON")
     disk_id = seed_disk(conn, "LoopDisk", __import__("pathlib").Path("/tmp"))
-    path_id = seed_phantom_path(conn, disk_id, "loop_dir", n_files=2)
+    seed_phantom_path(conn, disk_id, "loop_dir", n_files=2)
     conn.close()
 
     # Enqueue repairs first.
