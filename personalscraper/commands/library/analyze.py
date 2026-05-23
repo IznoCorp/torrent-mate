@@ -392,7 +392,9 @@ def library_report(
         rescrape_data=rescrape_data,
     )
 
-    emit(
-        dataclasses.asdict(report),
-        rich_renderer=lambda: console.print(format_report_text(report)),
-    )
+    # Defer ``asdict`` evaluation: rich mode never needs the dict and the
+    # report may be a non-dataclass MagicMock in unit tests.
+    if state["format"] == "rich":
+        console.print(format_report_text(report))
+    else:
+        emit(dataclasses.asdict(report))

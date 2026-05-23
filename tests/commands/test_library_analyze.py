@@ -6,6 +6,7 @@ and ``library-report``.
 
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
@@ -349,10 +350,13 @@ class TestLibraryReport:
         assert "LIBRARY REPORT" in result.output
 
     def test_json_format(self, tmp_path) -> None:
-        """JSON format calls write_json and prints output path."""
+        """Global ``--format json`` emits parseable JSON to stdout."""
         from personalscraper.library.analyzer import AnalysisResult
+        from personalscraper.library.reporter import LibraryReport
 
         analysis = AnalysisResult(total_items=0, total_size_gb=0.0)
+        # A real dataclass instance — emit() must call dataclasses.asdict on it.
+        fake_report = LibraryReport(generated_at="2026-05-23T00:00:00Z")
         with (
             patch("pathlib.Path.exists", return_value=True),
             patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
@@ -364,16 +368,17 @@ class TestLibraryReport:
             ),
             patch(
                 "personalscraper.library.reporter.generate_report",
-                return_value=MagicMock(),
+                return_value=fake_report,
             ),
-            patch("personalscraper.library.models.write_json") as mock_write,
         ):
-            result = runner.invoke(app, ["library-report", "--format", "json"])
-        assert result.exit_code == 0
-        mock_write.assert_called_once()
-        # Console output may wrap the path across lines; collapse whitespace.
-        flat = result.output.replace("\n", "")
-        assert "library_report" in flat
+            result = runner.invoke(app, ["--format", "json", "library-report"])
+        assert result.exit_code == 0, result.output
+        raw = result.output.strip()
+        start = raw.find("{")
+        assert start != -1, f"No JSON in output: {raw!r}"
+        data = json.loads(raw[start:])
+        assert data["total_items"] == 0
+        assert data["generated_at"] == "2026-05-23T00:00:00Z"
 
     def test_corrupted_supplementary_data(self, tmp_path) -> None:
         """A corrupt supplementary JSON triggers a warning, not a crash."""

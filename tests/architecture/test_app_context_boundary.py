@@ -15,7 +15,7 @@ APP_CONTEXT_ALLOWED_MODULES: set[str] = {"personalscraper/core/app_context.py"}
 
 APP_CONTEXT_ALLOWED_FUNCS: set[tuple[str, str]] = {
     ("personalscraper/cli.py", "main"),
-    ("personalscraper/cli_helpers.py", "_build_app_context"),
+    ("personalscraper/cli_helpers/__init__.py", "_build_app_context"),
     ("personalscraper/commands/pipeline.py", "run"),
     ("personalscraper/commands/library/scan.py", "library_index"),
     ("personalscraper/trailers/cli.py", "scan"),
