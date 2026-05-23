@@ -337,7 +337,7 @@ grep -E "^## State ownership$|^## Module relationships$|^## Anti-decisions" docs
 
 ## Matrix v2.1 (Phase 7)
 
-### ACC-30 — Matrix v2.1 binding (MUST-15)
+### ACC-30 — Matrix v2.1 binding (MUST-15) ✅ [SHIPPED commits `cd47026` (matrix) + `30360ef` (skill) on `.claude/personal-scraper`]
 
 ```bash
 grep "Matrix version.*2.1" .claude/skills/pipeline-monitor/references/design-conformity-matrix.md
@@ -345,7 +345,10 @@ grep 'matrix_version.*"2.1"' .claude/skills/pipeline-monitor/SKILL.md
 # Both present
 ```
 
-### ACC-31 — 12 coverage gap events in matrix (DEV #8)
+### ACC-31 — 18 coverage gap events in matrix (DEV #8) ✅ [SHIPPED commit `cd47026` on `.claude/personal-scraper`]
+
+> Plan v0.16.0 said "12 events" but the actual matrix v2.0 → v2.1 gap audit
+> identified 18 events (SORT 2 + PROCESS:clean 3 + PROCESS:scrape 9 + ENFORCE 3 + VERIFY 1).
 
 ```bash
 for ev in tracker_dest_path_pruned repair_root_duplicate_replaced enforce.orphan_episode_moved verify_item_done; do
@@ -353,11 +356,12 @@ for ev in tracker_dest_path_pruned repair_root_duplicate_replaced enforce.orphan
 done
 ```
 
-### ACC-32 — Agents matrix-aware (DEV #2, #3)
+### ACC-32 — Agents matrix-aware (DEV #2, #3) ✅ [SHIPPED commit `4f9d598` on `.claude/personal-scraper`]
 
 ```bash
 grep -l "AVANT toute classification" .claude/agents/pipeline-*.md
-# Expected: all pipeline-* agents
+# Expected: 7 pipeline-* agents (orphan-hunter, state-validator, scrape-checker,
+# sort-checker, ingest-checker, dispatch-checker, output-analyzer)
 grep -l "ALWAYS verify FS via Bash" .claude/agents/pipeline-state-validator.md
 # Expected: 1 match
 ```
