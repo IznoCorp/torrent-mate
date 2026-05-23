@@ -430,3 +430,131 @@ a category ID across config files and on-disk paths.
 **Related**: `init-config`, `info`
 
 ---
+
+## Library — indexer & maintenance
+
+## `personalscraper library-index`
+
+**Purpose**: Runs a full or quick media indexer scan. Walks all configured storage
+disks (or a single disk with `--disk`), records every file in the indexer
+database, and prints a JSON summary. Supports multiple scan modes: `full`
+(complete re-index with file hashing), `quick` (fast Merkle + dir-mtime
+short-circuit), `incremental` (only new or modified files), and `enrich`
+(metadata enrichment from NFOs, artwork, and media streams).
+
+**Side effects**: `mutate BDD` (writes media_file, path, scan_run, scan_event rows)
+
+**Pipeline position**: n/a (indexer maintenance, runs independently from the pipeline)
+
+**Args**:
+
+- `--mode TEXT` : Scan mode: `full`, `quick`, `incremental`, or `enrich` [default: full]
+- `--disk TEXT` : Restrict scan to this disk label
+- `--budget INTEGER` : Budget in seconds (overrides config)
+- `--no-budget` : Disable the wall-clock budget for this run. Use for manual full enrich passes that must drain every pending file.
+- `--backfill-streams` : Enrich-only: target already-enriched files whose media_stream rows are missing migration-004 columns (hdr_format / is_atmos / is_default / forced / format) and UPDATE only those columns in place. Much faster than re-running the full enrich.
+- `--dry-run` : Simulate scan without persisting any DB rows
+- `--wait-for-lock INTEGER` : Seconds to wait for the writer lock [default: 0]
+- `--confirm-bulk-change` : Bypass bulk-restore freeze guard (use after `--mode quick` reports a high Merkle delta)
+- `--rebuild` : Quarantine corrupt DB and create a fresh one, then run full Stage-A scan
+
+**Examples**:
+
+    personalscraper library-index
+    personalscraper library-index --mode quick
+    personalscraper library-index --disk MyDisk --mode full
+    personalscraper library-index --dry-run --mode full
+    personalscraper library-index --mode quick --confirm-bulk-change
+    personalscraper library-index --rebuild
+
+**Related**: `library-scan`, `library-status`, `library-reconcile`
+
+---
+
+## `personalscraper library-scan`
+
+**Purpose**: Scans media directories on disks and creates `media_item` rows from
+NFO files. Walks all configured storage disks (or a single disk with `--disk`),
+scans movie / TV show directories, reads NFO files, and writes `media_item`,
+`season`, `episode`, and `item_attribute` rows to the indexer DB. Delegates
+file-level indexing to the underlying indexer scanner so `media_file` / `path`
+rows are also populated.
+
+**Side effects**: `mutate BDD` (writes media_item, season, episode, item_attribute, media_file, path rows)
+
+**Pipeline position**: n/a (NFO-based DB population, runs independently)
+
+**Args**:
+
+- `--disk / -d TEXT` : Restrict scan to this disk label
+- `--mode TEXT` : Scan mode (currently only `full` is supported) [default: full]
+- `--dry-run` : Count media dirs without writing to DB
+
+**Examples**:
+
+    personalscraper library-scan
+    personalscraper library-scan --disk disk_1
+    personalscraper library-scan --dry-run
+    personalscraper library-scan --disk disk_1 --dry-run
+
+**Related**: `library-index`, `library-reconcile`
+
+---
+
+## `personalscraper library-init-canonical`
+
+**Purpose**: Bootstraps the `canonical_provider` column on library items from their
+NFO files. Walks every `media_item` row where `canonical_provider IS NULL`,
+resolves its NFO via the `dispatch_path` attribute, and reads the
+`<uniqueid default="true">` element's `type` attribute. When found, sets
+`canonical_provider` accordingly so that a subsequent
+`library-index --mode enrich` can use it as the anchor for cross-provider ID
+and rating enrichment.
+
+This is the bootstrap step for databases that pre-date the provider-ids feature
+(DEV #54): the enrich pass requires `canonical_provider` to be set, but nothing
+populates it on a DB that was indexed before the scraper wrote the field. Items
+without a `dispatch_path` attribute or without a readable NFO are silently
+skipped — the pass is best-effort by design.
+
+**Side effects**: `mutate BDD` (updates canonical_provider column on media_item rows)
+
+**Pipeline position**: n/a (one-shot bootstrap — run once after upgrading from a pre-provider-ids version)
+
+**Args**:
+
+- `--dry-run` : Report counts without writing to DB
+
+**Examples**:
+
+    personalscraper library-init-canonical
+    personalscraper library-init-canonical --dry-run
+
+**Related**: `library-index --mode enrich`, `library-reconcile`
+
+---
+
+## `personalscraper library-status`
+
+**Purpose**: Shows the latest completed indexer scan run summary. Queries the
+indexer database for the most recently completed scan run and prints a one-line
+summary with mode, generation, elapsed time, and file counts. Prints "no scans
+yet" when the database has no completed scan runs. Output format respects the
+global `--format` flag (`rich` for formatted table, `json` for machine-parseable
+output).
+
+**Side effects**: `read-only`
+
+**Pipeline position**: n/a
+
+**Args**: none beyond global flags
+
+**Examples**:
+
+    personalscraper library-status
+    personalscraper --format json library-status
+    personalscraper library-status --config /path/to/config.json5
+
+**Related**: `library-index`, `library-reconcile`
+
+---
