@@ -468,19 +468,30 @@ grep -c "^### ACC-" docs/features/tech-debt/ACCEPTANCE.md
 
 ## CLI Test Coverage (Phase 9 NEW)
 
+> **Note 2026-05-23** : ACC-50..54 révisés pour aligner sur l'approche **sections
+> thématiques** (pattern observé sur les 11 harnesses E2E déjà shippés par
+> l'agent d'implémentation parallèle), au lieu de markers numériques `cli_scenario(N)`
+> théoriques. Source de vérité = en-têtes `# ── N. <Theme> ──` dans
+> `tests/commands/test_*_e2e.py`. Voir `plan/phase-09-cli-coverage.md` §Sections thématiques.
+
 ### ACC-50 — CLI coverage report check 🟡
 
 ```bash
 python3 scripts/cli-coverage-report.py --check
-# Expected: exit 0 (0 ❌ on critical commands, N/A explicit-and-justified allowed)
+# Expected: exit 0 (0 ❌ on critical commands ; N/A justified in
+# docs/features/tech-debt/cli-coverage-matrix.md footnotes — e.g. Closure-of-loop N/A
+# for query-only diagnostics, Dry-run N/A for read-only cmds).
 ```
 
-### ACC-51 — Tests cli_scenario count threshold 🟡
+### ACC-51 — Section coverage threshold 🟡
 
 ```bash
-make test -m cli_scenario 2>&1 | tail -1
-# Expected: NNN passed. Minimum threshold: ≥ 420 tests on critiques
-# (28 cmds × ~15 applicable scenarios) + ≥ 56 on non-critiques (8 cmds × ~7 scenarios).
+python3 scripts/cli-coverage-report.py --metrics
+# Expected on critiques (28 cmds × 8 sections — minus typical N/A):
+#   ≥ 28 × 6 = 168 sections ✅
+# Expected on non-critiques (8 cmds × 4 sections):
+#   ≥ 8 × 4 = 32 sections ✅
+# Total: ≥ 200 active sections across tests/commands/test_*_e2e.py.
 ```
 
 ### ACC-52 — Coverage matrix doc committed and synced 🟡
@@ -488,31 +499,26 @@ make test -m cli_scenario 2>&1 | tail -1
 ```bash
 python3 scripts/cli-coverage-report.py --write
 git diff --exit-code docs/features/tech-debt/cli-coverage-matrix.md
-# Expected: exit 0 (doc matrix up-to-date with last test run)
+# Expected: exit 0 (matrix doc up-to-date with last test run — regenerable idempotently
+# from `# ── N. <Theme> ──` headers parsed across tests/commands/test_*_e2e.py).
 ```
 
-### ACC-53 — Each critical command has a mutation test (scenario #16) 🟡
+### ACC-53 — Each critical command has a Closure-of-loop section OR explicit N/A 🟡
 
 ```bash
-for cmd in ingest sort process verify dispatch enforce run \
-           library-repair library-relink library-rescrape library-gc \
-           library-scan library-index library-init-canonical \
-           library-backfill-ids library-reconcile library-clean library-verify \
-           library-doctor library-validate library-analyze library-recommend \
-           library-report library-ghost-audit \
-           trailers-download trailers-cleanup init-config config-migrate-category; do
-  grep -lE "cli_scenario\(16\)" tests/commands/test_${cmd//-/_}*.py > /dev/null \
-    || echo "MISSING: $cmd"
-done
-# Expected: empty output (zero MISSING)
+python3 scripts/cli-coverage-report.py --section "Closure-of-loop" --filter critical
+# Expected: zero ❌ (each critical cmd has either a `# ── N. Closure-of-loop ──`
+# section OR an N/A footnote in cli-coverage-matrix.md with rationale —
+# e.g. query-only diagnostic, no BDD ↔ FS cycle).
 ```
 
-### ACC-54 — Each critical command has a --dry-run no-op test (scenario #15) 🟡
+### ACC-54 — Each critical command has an Events section verified against matrix v2.1 🟡
 
 ```bash
-# Same list as ACC-53, grep for cli_scenario(15)
-# Expected: empty output (zero MISSING) for commands with --dry-run flag.
-# Cmds without --dry-run (query-only diagnostic) : N/A justified in cli-coverage-matrix.md.
+python3 scripts/cli-coverage-report.py --section "Events" --filter critical
+# Expected: zero ❌. Each `# ── N. Events ──` section must contain at least one
+# assert_events_emitted() call against the matrix v2.1 source of truth
+# (.claude/skills/pipeline-monitor/references/design-conformity-matrix.md).
 ```
 
 ---
