@@ -333,3 +333,100 @@ Telegram)
 **Related**: `ingest`, `sort`, `scrape`, `enforce`, `verify`, `dispatch`, `process`
 
 ---
+
+## `personalscraper info`
+
+**Purpose**: Displays version information, config directory paths, and disk
+status (mounted volumes, free space, total capacity). Respects the global
+`--format` flag: `rich` (default, with colors and tables), `plain`
+(human-readable text), or `json` (machine-parseable).
+
+**Side effects**: `read-only`
+
+**Pipeline position**: n/a
+
+**Args**: none beyond global flags
+
+**Examples**:
+
+    personalscraper info
+    personalscraper --format json info
+
+**Related**: `init-config`, `config`
+
+---
+
+## `personalscraper init-config`
+
+**Purpose**: Creates a `config/` directory from the `config.example/` template
+shipped with the package. In interactive mode (default), prompts for key values
+like API keys and paths. Use `--yes` to skip prompts and accept all defaults.
+Use `--dry-run` to preview the operation without writing any files.
+
+**Side effects**: `mutate FS` (creates config directory and files)
+
+**Pipeline position**: n/a
+
+**Args**:
+
+- `--example PATH` : path to the example template directory (default: `config.example`)
+- `--output PATH` : destination path for the new config directory (default: `config`)
+- `--yes` : skip interactive prompts, accept all defaults
+- `--force` : overwrite output directory if it already exists (backs up to `.bak`)
+- `--dry-run` : preview what would be created without writing
+
+**Examples**:
+
+    personalscraper init-config
+    personalscraper init-config --yes
+    personalscraper init-config --output /custom/path/config --force
+    personalscraper init-config --dry-run
+
+**Related**: `info`, `config`
+
+---
+
+## `personalscraper torrents-list`
+
+**Purpose**: Lists completed torrents from the configured qBittorrent client.
+Prints one line per torrent (state, progress, size, seeding status, name) and a
+summary count at the end. Exits with code 2 when the torrent client is
+unreachable (auth lockout, IP ban, daemon down), allowing monitoring tools to
+branch on the exit code. Used by the `pipeline-monitor` skill's GATE 0
+inventory check.
+
+**Side effects**: `network` (qBittorrent API)
+
+**Pipeline position**: n/a
+
+**Args**: none beyond global flags
+
+**Examples**:
+
+    personalscraper torrents-list
+
+**Related**: `ingest`, `info`
+
+---
+
+## `personalscraper config`
+
+**Purpose**: Parent command for configuration management subcommands. Does
+nothing on its own — run `personalscraper config --help` to list available
+subcommands. Currently the only subcommand is `migrate-category`, which renames
+a category ID across config files and on-disk paths.
+
+**Side effects**: none (delegates to subcommands)
+
+**Pipeline position**: n/a
+
+**Args**: none beyond global flags (subcommands have their own flags)
+
+**Examples**:
+
+    personalscraper config --help
+    personalscraper config migrate-category --from OLD --to NEW
+
+**Related**: `init-config`, `info`
+
+---
