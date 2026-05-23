@@ -1100,3 +1100,177 @@ dimension.
 `library-reconcile`
 
 ---
+
+## Trailers
+
+## `personalscraper trailers`
+
+**Purpose**: Parent command for trailer acquisition and management. Does nothing
+on its own — run `personalscraper trailers --help` to list the four subcommands.
+Trailers are discovered via TMDB `/videos` then downloaded from YouTube via
+yt-dlp. The trailer pipeline step is disabled by default (`trailers.enabled =
+false` in config); set `YOUTUBE_API_KEY` in `.env` to enable it. Trailer files
+are placed according to Plex conventions: flat in the media folder for movies,
+in a `Trailers/` subfolder for TV shows.
+
+**Side effects**: none (delegates to subcommands)
+
+**Pipeline position**: step 8 (within `run`)
+
+**Args**: none beyond global flags
+
+**Examples**:
+
+    personalscraper trailers --help
+    personalscraper trailers scan
+    personalscraper trailers download
+
+**Related**: `trailers scan`, `trailers download`, `trailers verify`, `trailers
+purge`, `run`
+
+---
+
+## `personalscraper trailers scan`
+
+**Purpose**: Dry-run: list media items missing trailers. Scans the library for
+items that should have trailers but don't, printing a report of candidates
+without downloading anything. Use `--level` to filter by trailer type (`show`,
+`season`, or `both`). Season-level trailers are silently ignored when
+`seasons.enabled` is `false` in config.
+
+**Side effects**: `read-only`
+
+**Pipeline position**: step 8 (within `run` — invoked automatically before download)
+
+**Args**:
+
+- `--disk TEXT` : Restrict to one disk by ID (e.g. `Disk1`)
+- `--category TEXT` : Restrict to one category ID
+- `--since TEXT` : Only items added/modified after `YYYY-MM-DD`
+- `--limit INTEGER` : Max items to scan
+- `--no-refresh` : Use cached library scan even if stale
+- `--level TEXT` : Which trailer levels to list: `show`, `season`, `both`
+  [default: both]
+- `--season INTEGER` : Target a specific season number (1-indexed). Implies
+  `--level=season`.
+
+**Examples**:
+
+    personalscraper trailers scan
+    personalscraper trailers scan --disk Disk1
+    personalscraper trailers scan --limit 20
+    personalscraper trailers scan --level season --season 1
+
+**Related**: `trailers download`, `trailers verify`, `trailers`
+
+---
+
+## `personalscraper trailers download`
+
+**Purpose**: Discover and download missing trailers. Finds media items without
+trailers, searches YouTube for matching trailers via TMDB video metadata
+(two-tier: TMDB `/videos` → YouTube API v3 → yt-dlp fallback), and downloads
+them. Trailer files are placed according to Plex conventions: flat in the media
+folder for movies, in a `Trailers/` subfolder for TV shows. Use `--dry-run` to
+preview candidates without downloading.
+
+**Side effects**: `mutate FS` (writes trailer files), `network` (YouTube API, yt-dlp)
+
+**Pipeline position**: step 8 (within `run`)
+
+**Args**:
+
+- `--disk TEXT` : Restrict to one disk by ID (e.g. `Disk1`)
+- `--category TEXT` : Restrict to one category ID
+- `--since TEXT` : Only items added/modified after `YYYY-MM-DD`
+- `--limit INTEGER` : Max items to process
+- `--dry-run` : Show what would be downloaded without doing it
+- `--no-refresh` : Skip library cache refresh
+- `--level TEXT` : Which trailer levels to process: `show`, `season`, `both`
+  [default: both]
+- `--season INTEGER` : Target a specific season number (1-indexed). Implies
+  `--level=season`.
+
+**Examples**:
+
+    personalscraper trailers download --dry-run
+    personalscraper trailers download --limit 5
+    personalscraper trailers download --disk Disk1
+    personalscraper trailers download --level season --season 2
+
+**Related**: `trailers scan`, `trailers verify`, `trailers`
+
+---
+
+## `personalscraper trailers verify`
+
+**Purpose**: Audit existing trailers. Runs four checks per trailer:
+
+1. **Existence** — trailer file present at the expected placement path.
+2. **Size** — file size >= `config.trailers.filters.min_file_size_bytes`.
+3. **Extension** — file suffix in `config.trailers.filters.allowed_extensions`.
+4. **Playable** (opt-in, `--deep`) — ffprobe returns non-zero duration.
+
+Failure categories: `missing`, `undersized`, `wrong_extension`, `unplayable`.
+Exit codes: 0 if all pass, 2 if any functional check fails, 4 if a `--deep`
+ffprobe call errors out (probe itself broken).
+
+**Side effects**: `read-only` (ffprobe subprocess spawns with `--deep`)
+
+**Pipeline position**: n/a (manual audit — not part of the automated pipeline)
+
+**Args**:
+
+- `--disk TEXT` : Restrict to one disk by ID (e.g. `Disk1`)
+- `--category TEXT` : Restrict to one category ID
+- `--since TEXT` : Only items added/modified after `YYYY-MM-DD`
+- `--deep` : Run ffprobe playability probe (expensive)
+- `--level TEXT` : Which trailer levels to audit: `show`, `season`, `both`
+  [default: both]
+- `--season INTEGER` : Target a specific season number (1-indexed). Implies
+  `--level=season`.
+
+**Examples**:
+
+    personalscraper trailers verify
+    personalscraper trailers verify --disk Disk1
+    personalscraper trailers verify --deep
+    personalscraper trailers verify --level season
+
+**Related**: `trailers scan`, `trailers download`, `trailers purge`, `trailers`
+
+---
+
+## `personalscraper trailers purge`
+
+**Purpose**: Remove orphan trailers whose media parent is absent. Walks storage
+disks and deletes trailer files that no longer have a corresponding media item
+(or whose media folder has been removed). Use `--dry-run` to preview without
+deleting. When `--include-state` is set, also calls `state_store.purge_orphans()`
+to clean orphan entries from the trailer state tracking file.
+
+**Side effects**: `mutate FS` (deletes trailer files), `mutate BDD` (with
+`--include-state` — cleans state store entries)
+
+**Pipeline position**: n/a (maintenance — not part of the automated pipeline)
+
+**Args**:
+
+- `--disk TEXT` : Restrict to one disk by ID (e.g. `Disk1`)
+- `--since TEXT` : Only items added/modified after `YYYY-MM-DD`
+- `--dry-run` : Show what would be purged without doing it
+- `--include-state` : Also wipe orphan state entries via
+  `state_store.purge_orphans()`
+- `--level TEXT` : Which trailer levels to purge: `show`, `season`, `both`
+  [default: both]
+- `--season INTEGER` : Target a specific season number (1-indexed). Implies
+  `--level=season`.
+
+**Examples**:
+
+    personalscraper trailers purge --dry-run
+    personalscraper trailers purge --disk Disk1
+    personalscraper trailers purge --include-state
+    personalscraper trailers purge
+
+**Related**: `trailers verify`, `trailers`
