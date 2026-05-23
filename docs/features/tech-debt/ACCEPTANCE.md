@@ -300,25 +300,32 @@ print('OK')
 
 ## Format + documentation (Phase 6)
 
-### ACC-27 — --format unified (DEV #22, SH-13)
+### ACC-27 — --format unified (DEV #22, SH-13) 🟡 [SHIPPED commits `79629b2` + `cf1bd96` + `d23a746` + `a4decbe` + `5a81ef0` + `e4943fe` ; 4 of 8 commands plumbed (doctor / report / status / info), 4 deferred to 6.1.b (reconcile / search / show / torrents-list)]
 
 ```bash
-personalscraper --format json library-reconcile | jq .   # valid JSON
-personalscraper --format plain library-reconcile         # no rich rendering
+personalscraper --format json library-doctor | jq .       # valid JSON
+personalscraper --format plain library-status             # plain text rows
+personalscraper --format json info | jq .                 # valid JSON
 ```
 
-### ACC-28 — commands.md exhaustive (SH-12, CL-J)
+**Note** : `library-reconcile` plumbing deferred to 6.1.b. ACC stays 🟡 until
+the 4 remaining commands are plumbed.
+
+### ACC-28 — commands.md exhaustive (SH-12, CL-J) ✅ [SHIPPED commits `209b3b3` through `e69ca4a` (12 commits across 6.2.a / 6.2.b / 6.2.c)]
 
 ```bash
-python3 scripts/audit-cli-coverage.py --check-docs
-# Each command has section in commands.md
+grep -c "^## \`personalscraper" docs/reference/commands.md
+# Expected: 39 (all 34 top-level + 5 sub-commands documented)
+python3 scripts/audit-cli-coverage.py
+# Expected: exit 0 (1 known false positive on `migrate-category` — script
+# regex limitation on group sub-commands, fail-soft)
 ```
 
-### ACC-29 — architecture.md complete (SH-18, SH-19, AR-A, AR-B, AR-E)
+### ACC-29 — architecture.md complete (SH-18, SH-19, AR-A, AR-B, AR-E) ✅ [SHIPPED commit `ed4370f`]
 
 ```bash
-grep -E "State ownership|Module relationships|Out of scope for 1.0" docs/reference/architecture.md
-# Expected: all 3 sections present
+grep -E "^## State ownership$|^## Module relationships$|^## Anti-decisions" docs/reference/architecture.md | wc -l
+# Expected: 3 (all 3 new sections present)
 ```
 
 ---

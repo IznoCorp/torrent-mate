@@ -171,13 +171,13 @@ Document dans `docs/reference/pipeline-internals.md` §PROCESS:scrape :
 
 ## Phase 6 Gate
 
-- [ ] 6.1 `personalscraper --format json library-doctor` outputs JSON (SH-13, DEV #22)
-- [ ] 6.2 chaque commande a une section dans `commands.md` (SH-12)
-- [ ] 6.3 architecture.md a state ownership + module relationships + anti-décisions (SH-18, SH-19, AR-E)
-- [ ] 6.4 indexer.md a lifecycle media_file (SH-1)
-- [ ] 6.5 external-ids-flow.md a section runbook (SH-2)
-- [ ] 6.6 DEV #4 + #5 documented as design intent
-- [ ] `make check` vert
-- [ ] `scripts/audit-cli-coverage.py` exit 0
+- [x] 6.1 `personalscraper --format json library-doctor` outputs JSON (SH-13, DEV #22) — 4/8 commands plumbed (doctor / report / status / info) ; 4 deferred to 6.1.b
+- [x] 6.2 chaque commande a une section dans `commands.md` (SH-12) — 39 entries (34 top-level + 5 sub-commands)
+- [x] 6.3 architecture.md a state ownership + module relationships + anti-décisions (SH-18, SH-19, AR-E)
+- [x] 6.4 indexer.md a lifecycle media_file (SH-1)
+- [x] 6.5 external-ids-flow.md a section runbook (SH-2)
+- [x] 6.6 DEV #4 + #5 documented as design intent
+- [x] `make check` vert (4823 passed, 0 failed)
+- [x] `scripts/audit-cli-coverage.py` exit 0 (fail-soft ; 1 known false positive on `config migrate-category` — group sub-command regex limitation, candidate fix in Phase 8)
 
-**Phase gate commit** : `chore(tech-debt): phase 6 gate — format + heavy doc work (DEV #4, #5, #22)`
+**Phase gate commit** : `f1f4fe3` (then `a3c267a` corrected gate SHA after drift-detect feedback)
