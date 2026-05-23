@@ -193,12 +193,32 @@ def library_init_canonical(
         return
 
     try:
-        populated = init_canonical_from_nfo(conn)
+        stats = init_canonical_from_nfo(conn)
         conn.commit()
     finally:
         conn.close()
-
-    console.print(_json.dumps({"status": "ok", "canonical_provider_populated": populated}))
+    # Surface the per-outcome breakdown so the operator can see WHY items
+    # were skipped (silent populated=0 on 1491 items was a real prod incident
+    # 2026-05-23). The JSON-style dict is grepable + machine-readable.
+    console.print(
+        _json.dumps(
+            {
+                "status": "ok",
+                "canonical_provider_populated": stats.populated,
+                "populated_default": stats.populated_default,
+                "populated_fallback": stats.populated_fallback,
+                "total_visited": stats.total_visited,
+                "skipped": {
+                    "no_dispatch_path": stats.no_dispatch_path,
+                    "nfo_missing": stats.nfo_missing,
+                    "nfo_parse_error": stats.nfo_parse_error,
+                    "nfo_read_error": stats.nfo_read_error,
+                    "no_default_uniqueid": stats.no_default_uniqueid,
+                    "unsupported_no_fallback": stats.unsupported_no_fallback,
+                },
+            }
+        )
+    )
 
 
 @app.command("library-scan")

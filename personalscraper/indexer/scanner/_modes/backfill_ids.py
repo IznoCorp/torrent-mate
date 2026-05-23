@@ -557,21 +557,33 @@ def _resolve_nfo_path(dispatch_path: str, kind: str) -> "Path":
     return nfo_files[0] if nfo_files else base / "_missing.nfo"
 
 
-def _parse_canonical_from_nfo(nfo_path: "Path") -> str | None:
-    """Extract the ``type`` attribute of the ``<uniqueid default="true">`` element.
+def _parse_canonical_from_nfo(nfo_path: "Path") -> tuple[str | None, str]:
+    """Extract a supported canonical provider type from an NFO file.
 
-    Reads the NFO XML and returns the value of the ``type`` attribute on
-    the first ``<uniqueid>`` element that has ``default="true"``.  Returns
-    ``None`` when no such element exists, when the XML is malformed, or
-    when the resulting type value is blank / a known placeholder.
+    Reads the NFO XML and looks for a usable canonical anchor in this order:
+
+    1. The ``type`` attribute of the first ``<uniqueid default="true">``
+       element, IF that type is in :data:`_VALID_CANONICAL_PROVIDERS`
+       (``tvdb``/``tmdb``).
+    2. Fallback: when the default uniqueid carries an unsupported type
+       (e.g. ``imdb``, ``anidb``, ``tvmaze``), search the OTHER uniqueid
+       elements for the first one whose type IS supported.  This handles
+       the very common case of movies whose NFO declares ``imdb`` as
+       default but ALSO carries a ``tmdb`` uniqueid (a perfectly valid
+       canonical anchor that pre-fix init_canonical was silently
+       dropping — observed on 92 % of the production movie library in
+       2026-05-23 incident).
 
     Args:
         nfo_path: Path to the ``.nfo`` file to parse.
 
     Returns:
-        Provider family string (e.g. ``'tvdb'``, ``'tmdb'``) normalised
-        to lower-case, or ``None`` when the NFO does not carry a usable
-        canonical hint.
+        A tuple ``(provider, outcome)``. ``provider`` is the resolved
+        provider string (e.g. ``'tvdb'``, ``'tmdb'``) or ``None``.
+        ``outcome`` is a short status code consumed by the caller for
+        observability (one of ``ok_default``, ``ok_fallback``,
+        ``parse_error``, ``read_error``, ``no_default``,
+        ``unsupported_no_fallback``).
     """
     import xml.etree.ElementTree as ET  # noqa: PLC0415
 
@@ -580,11 +592,12 @@ def _parse_canonical_from_nfo(nfo_path: "Path") -> str | None:
         root = tree.getroot()
     except ET.ParseError:
         log.debug("init_canonical_nfo_parse_error", path=str(nfo_path))
-        return None
+        return None, "parse_error"
     except OSError as exc:
         log.warning("init_canonical_nfo_read_error", path=str(nfo_path), error=str(exc))
-        return None
+        return None, "read_error"
 
+    default_unsupported = False
     for uid in root.findall("uniqueid"):
         default_attr = uid.get("default", "").strip().lower()
         if default_attr != "true":
@@ -592,44 +605,92 @@ def _parse_canonical_from_nfo(nfo_path: "Path") -> str | None:
         type_attr = uid.get("type", "").strip().lower()
         if not type_attr or type_attr in _INVALID_CANONICAL_VALUES:
             continue
-        if type_attr not in _VALID_CANONICAL_PROVIDERS:
-            # NFO declares a default uniqueid with a type the DB schema does
-            # not accept as canonical anchor (e.g. imdb, anidb, tvmaze). Cross-
-            # provider IDs are still valuable but live in external_ids_json,
-            # not in canonical_provider. Skip with a debug log so the walker
-            # continues to the next item instead of crashing on the CHECK.
-            log.debug(
-                "init_canonical_unsupported_type",
-                type_attr=type_attr,
-                hint="canonical_provider CHECK constraint allows only tvdb/tmdb",
-            )
-            continue
-        return type_attr
+        if type_attr in _VALID_CANONICAL_PROVIDERS:
+            return type_attr, "ok_default"
+        # Default declares an unsupported type — flag for fallback search.
+        default_unsupported = True
+        log.debug(
+            "init_canonical_default_unsupported_type",
+            type_attr=type_attr,
+            hint="will search other uniqueid elements for a supported fallback",
+        )
+        break
 
-    return None
+    if default_unsupported:
+        # Walk all uniqueid elements (regardless of default attr) and pick the
+        # first one with a supported type.  Order matters only minimally — when
+        # both tvdb and tmdb are present, the first occurrence wins, which is
+        # the conventional NFO ordering.
+        for uid in root.findall("uniqueid"):
+            type_attr = uid.get("type", "").strip().lower()
+            if type_attr in _VALID_CANONICAL_PROVIDERS:
+                value = (uid.text or "").strip()
+                if value and value not in _INVALID_CANONICAL_VALUES:
+                    return type_attr, "ok_fallback"
+        return None, "unsupported_no_fallback"
+
+    return None, "no_default"
 
 
-def init_canonical_from_nfo(conn: sqlite3.Connection) -> int:
+@dataclass
+class InitCanonicalStats:
+    """Per-outcome counts for ``init_canonical_from_nfo``.
+
+    Attributes:
+        total_visited: Number of ``media_item`` rows examined.
+        populated_default: Set from a supported ``default="true"`` uniqueid.
+        populated_fallback: Set from a non-default supported uniqueid after
+            the default declared an unsupported type (imdb/anidb/...).
+        no_dispatch_path: Row had no ``dispatch_path`` attribute.
+        nfo_missing: Resolved NFO path did not exist on the filesystem.
+        nfo_parse_error: NFO existed but XML was malformed.
+        nfo_read_error: NFO existed but read failed (OS error).
+        no_default_uniqueid: NFO had no ``<uniqueid default="true">``.
+        unsupported_no_fallback: Default was unsupported AND no other
+            uniqueid carried a supported type (item is truly un-anchorable).
+    """
+
+    total_visited: int = 0
+    populated_default: int = 0
+    populated_fallback: int = 0
+    no_dispatch_path: int = 0
+    nfo_missing: int = 0
+    nfo_parse_error: int = 0
+    nfo_read_error: int = 0
+    no_default_uniqueid: int = 0
+    unsupported_no_fallback: int = 0
+
+    @property
+    def populated(self) -> int:
+        """Total number of rows whose ``canonical_provider`` was set."""
+        return self.populated_default + self.populated_fallback
+
+
+def init_canonical_from_nfo(conn: sqlite3.Connection) -> InitCanonicalStats:
     """Bootstrap ``canonical_provider`` on items that have an existing NFO.
 
     Walks every ``media_item`` row where ``canonical_provider IS NULL``,
     resolves the item's filesystem directory via its
-    ``item_attribute(key='dispatch_path')`` row, reads the NFO, and
-    extracts the ``type`` attribute of ``<uniqueid default="true">``.
-    When found, sets ``canonical_provider`` to that value so that a
-    subsequent :func:`run_backfill_ids` call can use it as the anchor
-    for cross-provider ID and rating enrichment.
+    ``item_attribute(key='dispatch_path')`` row, reads the NFO, and tries
+    to extract a supported canonical anchor (``tvdb`` or ``tmdb``) from
+    its ``<uniqueid>`` elements.  Falls back to a non-default supported
+    uniqueid when the default declares an unsupported type (e.g. ``imdb``)
+    — this is the common case for movies whose NFO has
+    ``<uniqueid default="true" type="imdb">`` ALSO carrying a ``tmdb``
+    uniqueid as a secondary id (92 % of the production movie library in
+    the 2026-05-23 incident).
 
     Items without a ``dispatch_path`` attribute (scanner-only rows that
-    have never been dispatched) or without a readable NFO are silently
-    skipped — the pass is best-effort by design.
+    have never been dispatched), without a readable NFO, or without any
+    supported canonical anchor are skipped.  Their counts are recorded
+    in the returned :class:`InitCanonicalStats` so the CLI can surface a
+    breakdown instead of opaquely reporting ``populated=0``.
 
     Args:
         conn: Open writer connection on the indexer DB.
 
     Returns:
-        Count of ``media_item`` rows whose ``canonical_provider`` was
-        populated by this call.
+        Populated :class:`InitCanonicalStats` with the per-outcome counts.
     """
     conn.row_factory = sqlite3.Row
     # Join media_item with item_attribute to fetch dispatch_path in one
@@ -642,39 +703,67 @@ def init_canonical_from_nfo(conn: sqlite3.Connection) -> int:
     )
     rows = list(conn.execute(sql).fetchall())
 
-    count = 0
+    stats = InitCanonicalStats(total_visited=len(rows))
     for row in rows:
         item_id: int = row["id"]
         kind: str = row["kind"]
         dispatch_path: str | None = row["dispatch_path"]
 
         if not dispatch_path:
-            log.debug(
-                "init_canonical_no_dispatch_path",
-                item_id=item_id,
-                hint="scanner-only row, no dispatch_path attribute",
-            )
+            stats.no_dispatch_path += 1
+            log.debug("init_canonical_no_dispatch_path", item_id=item_id)
             continue
 
         nfo_path = _resolve_nfo_path(dispatch_path, kind)
         if not nfo_path.exists():
+            stats.nfo_missing += 1
             log.debug("init_canonical_nfo_missing", item_id=item_id, nfo_path=str(nfo_path))
             continue
 
-        canonical = _parse_canonical_from_nfo(nfo_path)
-        if not canonical:
-            log.debug("init_canonical_no_default_uniqueid", item_id=item_id, nfo_path=str(nfo_path))
+        canonical, outcome = _parse_canonical_from_nfo(nfo_path)
+        if outcome == "parse_error":
+            stats.nfo_parse_error += 1
             continue
-
+        if outcome == "read_error":
+            stats.nfo_read_error += 1
+            continue
+        if outcome == "no_default":
+            stats.no_default_uniqueid += 1
+            continue
+        if outcome == "unsupported_no_fallback":
+            stats.unsupported_no_fallback += 1
+            continue
+        # canonical is guaranteed non-None for ok_default / ok_fallback.
+        assert canonical is not None
         conn.execute(
             "UPDATE media_item SET canonical_provider = ?, date_modified = strftime('%s', 'now') WHERE id = ?",
             (canonical, item_id),
         )
-        log.info("init_canonical_populated", item_id=item_id, canonical_provider=canonical)
-        count += 1
+        if outcome == "ok_default":
+            stats.populated_default += 1
+        else:  # ok_fallback
+            stats.populated_fallback += 1
+        log.info(
+            "init_canonical_populated",
+            item_id=item_id,
+            canonical_provider=canonical,
+            outcome=outcome,
+        )
 
-    log.info("init_canonical_done", populated=count, total_visited=len(rows))
-    return count
+    log.info(
+        "init_canonical_done",
+        populated=stats.populated,
+        populated_default=stats.populated_default,
+        populated_fallback=stats.populated_fallback,
+        total_visited=stats.total_visited,
+        no_dispatch_path=stats.no_dispatch_path,
+        nfo_missing=stats.nfo_missing,
+        nfo_parse_error=stats.nfo_parse_error,
+        nfo_read_error=stats.nfo_read_error,
+        no_default_uniqueid=stats.no_default_uniqueid,
+        unsupported_no_fallback=stats.unsupported_no_fallback,
+    )
+    return stats
 
 
-__all__ = ["BackfillStats", "init_canonical_from_nfo", "run_backfill_ids"]
+__all__ = ["BackfillStats", "InitCanonicalStats", "init_canonical_from_nfo", "run_backfill_ids"]
