@@ -702,3 +702,145 @@ sample list of ghost paths.
 **Related**: `library-clean`
 
 ---
+
+## `personalscraper library-relink`
+
+**Purpose**: Relinks `media_file` rows whose `release_id` is NULL. Walks every
+`media_file` row with `release_id IS NULL AND deleted_at IS NULL` and replays
+the release linker against the file's absolute path. The function resolves the
+owning item via the same dispatch_path / title / title-year strategies the
+enrich pass uses, so this is a self-healing recovery for files that were
+inserted before their item was dispatched (cold Stage-A scan) or after a
+release_linker bug left the link behind.
+
+Output is the count of (linked, unmatched, errored) files. Default is dry-run;
+use `--apply` to commit changes to the database.
+
+**Side effects**: `read-only` (default), `mutate BDD` (with `--apply` — sets release_id on media_file rows)
+
+**Pipeline position**: n/a
+
+**Args**:
+
+- `--apply` : Persist link updates (default: dry-run)
+- `--dry-run` : Preview mode (explicit alias for the default behaviour). Report what would be linked without writing to the database. Mutually exclusive with `--apply`.
+
+**Examples**:
+
+    personalscraper library-relink
+    personalscraper library-relink --dry-run
+    personalscraper library-relink --apply
+
+**Related**: `library-scan`, `library-reconcile`
+
+---
+
+## `personalscraper library-clean`
+
+**Purpose**: Removes `.actors/` directories, empty dirs, and junk files from
+storage disks. Dry-run by default — shows what would be deleted without
+deleting. Use `--apply` to execute deletions. Use `--only` to target specific
+cleanup types (`actors`, `empty`, `junk`, `release`, `orphans`).
+
+The `orphans` mode targets stale release directories that no longer contain a
+main video file — typically `.actors/` + trailer + NFO + artwork left behind
+after a manual video delete. It is opt-in (never part of the default "all" run)
+because the deletion granularity is the entire release directory.
+
+**Side effects**: `read-only` (default), `mutate FS` (with `--apply`)
+
+**Pipeline position**: n/a
+
+**Args**:
+
+- `--apply` : Actually delete (default: dry-run)
+- `--dry-run` : Preview mode (explicit alias for the default behaviour). Show what would be deleted without deleting. Mutually exclusive with `--apply`.
+- `--only TEXT` : Only clean: `actors`, `empty`, `junk`, `release`, `orphans`
+- `--disk TEXT` : Clean only this disk (id from config)
+- `--category TEXT` : Clean only this category
+
+**Examples**:
+
+    personalscraper library-clean
+    personalscraper library-clean --dry-run
+    personalscraper library-clean --apply
+    personalscraper library-clean --apply --only actors
+    personalscraper library-clean --only orphans                # dry-run
+    personalscraper library-clean --only orphans --apply        # delete
+    personalscraper library-clean --disk Disk1
+
+**Related**: `library-ghost-audit`, `enforce`
+
+---
+
+## `personalscraper library-validate`
+
+**Purpose**: Validates NFO, artwork, and naming conformity of library items on
+storage disks. Checks each media item against quality rules: NFO presence and
+validity, required artwork (poster + landscape minimum), folder naming
+conventions, and structural integrity. Use `--fix --apply` to attempt automatic
+corrections.
+
+Use `--from-index` for a fast pre-screen that reads NFO + artwork status from
+the indexer DB (NFO presence + poster/landscape only; no structural checks; no
+`--fix` support). See the `validate_from_index` docstring for the full trade-off
+list between filesystem and index-based validation.
+
+**Side effects**: `read-only` (default), `mutate FS` (with `--fix --apply`)
+
+**Pipeline position**: n/a
+
+**Args**:
+
+- `--disk TEXT` : Validate only this disk
+- `--category TEXT` : Validate only this category
+- `--fix` : Attempt automatic fixes
+- `--apply` : Apply fixes (requires `--fix`)
+- `--from-index` : Read NFO + artwork status from the indexer DB instead of walking the filesystem. Skips structural checks (empty dirs, NTFS chars, dir naming) and does not support `--fix`.
+
+**Examples**:
+
+    personalscraper library-validate
+    personalscraper library-validate --disk Disk1
+    personalscraper library-validate --fix --apply
+    personalscraper library-validate --from-index
+
+**Related**: `library-clean`, `enforce`, `verify`
+
+---
+
+## `personalscraper library-gc`
+
+**Purpose**: Garbage-collects old `index_outbox` rows (status=done,
+processed_at < cutoff). Removes stale `index_outbox` rows that have been fully
+processed and whose `processed_at` timestamp is older than `--older-than-days`
+days. These rows accumulate over time as the pipeline emits dispatch / scraper /
+trailer events — without periodic GC the table grows without bound and degrades
+query performance.
+
+The cutoff is computed as `now() - older_than_days * 86400` seconds (UTC). Only
+rows with `status='done'` are targeted — pending, failed, and deferred rows are
+never touched.
+
+With `--dry-run` the command counts matching rows and prints a JSON summary
+without deleting anything. Without `--dry-run` the matching rows are hard-deleted
+and the count is reported.
+
+**Side effects**: `read-only` (with `--dry-run`), `mutate BDD` (default, hard-deletes index_outbox rows)
+
+**Pipeline position**: n/a
+
+**Args**:
+
+- `--older-than-days INTEGER` : Delete `index_outbox` rows with status=done whose `processed_at` timestamp is older than this many days [default: 30]
+- `--dry-run` : Preview mode: count how many rows would be deleted without actually deleting them. No DB writes occur.
+
+**Examples**:
+
+    personalscraper library-gc --dry-run
+    personalscraper library-gc --older-than-days 7
+    personalscraper library-gc
+
+**Related**: `library-reconcile`, `library-repair`
+
+---
