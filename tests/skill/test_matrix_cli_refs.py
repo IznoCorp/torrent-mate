@@ -19,7 +19,11 @@ This test suite:
 
 Known bugs captured by this test (will flip from xfail to pass once fixed):
 
-- DEV #20 — ``qbit-restart`` command does not exist.
+- DEV #20 — ``qbit-restart`` command does not exist.  Phase 8.3 selected
+  Option B (remove the mention from matrix v2.1.1 on ``.claude/personal-scraper``);
+  the xfail entry below stays in place until the cross-repo matrix patch lands,
+  after which the reference disappears from ``_load_params`` naturally (the
+  ``_KNOWN_BAD`` row becomes a no-op).
 
 Would-have-caught history:
 
@@ -27,7 +31,9 @@ Would-have-caught history:
   of the matrix but the flag was never added to the CLI.  Fixed by Phase 4.6 —
   ``--dry-run`` and ``--read-only`` are now first-class flags.
 - DEV #20 (Phase 8.3): ``qbit-restart`` command referenced in INGEST deviation
-  table but the command does not exist in the CLI surface.
+  table but the command does not exist in the CLI surface.  Resolved by
+  removing the matrix reference (operator-driven cross-repo patch on
+  ``.claude/personal-scraper``) — see Phase 8.3 commit body for rationale.
 """
 
 from __future__ import annotations
@@ -66,9 +72,17 @@ _CLI_BIN = shutil.which("personalscraper") or "personalscraper"
 # - Key format for bare commands: ``"<cmd>"``
 # - Key format for commands with flags: ``"<cmd> <flag>"``
 _KNOWN_BAD: dict[str, str] = {
-    # DEV #20 — qbit-restart: command doesn't exist in the CLI surface.
+    # DEV #20 — qbit-restart: command does NOT exist in the CLI surface.
     # Referenced in the INGEST deviation table as a remediation action.
-    "qbit-restart": ("DEV #20 — qbit-restart command does not exist; fixed by Phase 8.3"),
+    # Phase 8.3 (2026-05-23) chose Option B: remove the matrix mention rather
+    # than implement the command, because qBittorrent on the operator's macOS
+    # install ships as `/Applications/qBittorrent.app` (no deterministic
+    # launchd plist), making a portable `launchctl unload/load` wrapper
+    # infeasible.  The xfail stays in place until the matrix patch
+    # (v2.1.1) on `.claude/personal-scraper` removes the reference — at
+    # which point this row becomes a harmless no-op (the parametrize set
+    # no longer includes `qbit-restart`).
+    "qbit-restart": ("DEV #20 — qbit-restart command does not exist; Phase 8.3 chose Option B (matrix removal)"),
 }
 
 
@@ -194,17 +208,25 @@ def test_matrix_file_exists() -> None:
 
 
 def test_matrix_parses_known_refs() -> None:
-    """The parser must extract at least the two known-bad DEV references.
+    """The parser must extract the stable DEV references that anchor matrix v2.1.
 
     This guards against a regression where the parser stops extracting refs
     (e.g. if the matrix format changes) — without this, all the parametrized
     tests below would be vacuous green.
 
-    The matrix (v2.0) is known to reference at minimum:
+    The matrix (v2.1) is known to reference at minimum:
 
-    - ``personalscraper qbit-restart`` (DEV #20, INGEST deviation table)
-    - ``library-reconcile --dry-run`` (DEV #10, GATE 6 usage note)
     - ``personalscraper info`` (invariant AU)
+    - ``library-reconcile --read-only`` / ``--enqueue-repairs`` (DEV #10 closure)
+
+    NOTE on ``qbit-restart`` (DEV #20): the original matrix v2.0 / v2.1 did
+    reference ``personalscraper qbit-restart`` in the INGEST deviation table.
+    Phase 8.3 selected Option B (remove the reference) because qBittorrent
+    ships as a GUI ``.app`` on the operator's install, with no deterministic
+    launchd plist to wrap.  Once matrix v2.1.1 on ``.claude/personal-scraper``
+    drops the mention, this assertion intentionally does NOT require the
+    parser to extract ``qbit-restart`` anymore — the matrix is the source of
+    truth and this test follows it.
     """
     if not _MATRIX_PATH.exists():
         pytest.skip("Matrix file not found — covered by test_matrix_file_exists")
@@ -213,10 +235,6 @@ def test_matrix_parses_known_refs() -> None:
     refs = _parse_cli_refs(matrix_text)
     commands = {cmd for cmd, _ in refs}
 
-    assert "qbit-restart" in commands, (
-        "Parser did not extract 'qbit-restart' from the matrix. "
-        "Check the regex patterns — the matrix format may have changed."
-    )
     assert "info" in commands, (
         "Parser did not extract 'info' from the matrix. Check the regex patterns — the matrix format may have changed."
     )

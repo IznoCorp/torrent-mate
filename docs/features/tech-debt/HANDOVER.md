@@ -206,62 +206,62 @@ Fix :
 
 ### Les 54 DEVs
 
-| DEV     | Sévérité | Domaine        | Description courte                                 | Status                         |
-| ------- | -------- | -------------- | -------------------------------------------------- | ------------------------------ |
-| #1      | critique | skill          | 4 agents matrix v2.0 non-discoverable              | OUVERT — Phase 7.4             |
-| #2      | mineur   | skill          | orphan-hunter false positive 097-TEMP              | OUVERT — Phase 7.3             |
-| #3      | mineur   | skill          | state-validator false claim .DS_Store              | OUVERT — Phase 7.3             |
-| #4      | mineur   | app            | ENFORCE scope-limited .DS_Store                    | OUVERT — Phase 6.6 (doc)       |
-| #5      | mineur   | app            | Counter asymmetry PROCESS:scrape                   | OUVERT — Phase 6.6 (doc)       |
-| #6      | majeur?  | app            | VERIFY silent stdout (events absents)              | OUVERT — Phase 3.1             |
-| #7      | mineur   | CLI            | `run --help` omet ENFORCE+TRAILERS                 | OUVERT — Phase 2.3             |
-| #8      | mineur   | skill          | Coverage gaps matrix v2.0 (~12 events)             | OUVERT — Phase 7.1             |
-| **#9**  | CRITIQUE | app            | `repair_root_duplicate` inversion data-loss        | **SHIPPED `268cbee`**          |
-| #10     | mineur   | skill          | `library-reconcile --dry-run` flag inexistant      | OUVERT — Phase 7.1 + 4.6       |
-| **#11** | majeur   | app            | `compute_merkle_root` sort instability             | **SHIPPED `29c4953`**          |
-| #12     | mineur   | BDD            | 7191 files_without_release (déco)                  | OUVERT — Phase 4.3             |
-| **#13** | CRITIQUE | app            | `_recreate_indexes` C5 race workers                | **SHIPPED `fc39f77`**          |
-| **#14** | majeur   | app            | `_build_disk_fingerprints` filter divergence       | **SHIPPED `3993487`**          |
-| #15     | mineur   | BDD            | `schema_version` row 3 manquante                   | OUVERT — Phase 1.5             |
-| #16     | CRITIQUE | CLI            | `library.scanner.scan_library()` non exposé CLI    | OUVERT — Phase 2.1             |
-| #17     | majeur   | BDD            | 5 phantom shows (FS supprimé)                      | OUVERT — Phase 4.3             |
-| #18     | CRITIQUE | BDD            | `increment_miss_strikes_for_disk` jamais appelée   | OUVERT — Phase 1.1             |
-| #19     | mineur   | BDD            | `PRAGMA foreign_keys = 0` runtime                  | OUVERT — Phase 1.2             |
-| #20     | mineur   | CLI            | `qbit-restart` référencée mais inexistante         | OUVERT — Phase 2.4 + 8.3       |
-| #21     | mineur   | CLI            | `--dry-run` gaps sur 4 mutators                    | OUVERT — Phase 2.2             |
-| #22     | mineur   | CLI            | Output format incohérent                           | OUVERT — Phase 6.1             |
-| #23     | mineur   | CLI            | Aucune `cli.invoke.*` telemetry                    | OUVERT — Phase 3.2             |
-| #24     | majeur   | event-bus      | Catalog 13→17 events drift                         | OUVERT — Phase 8.13 + 10.1.a   |
-| #25     | mineur   | event-bus      | Module budget violations                           | OUVERT — Phase 8.13            |
-| #26     | mineur   | event-bus      | `__all__` omits Backfill\*                         | OUVERT — Phase 10.1.a          |
-| #27     | CRITIQUE | provider-ids   | Plan A reset+rescrape jamais exécuté               | OUVERT — Phase 8.10            |
-| #28     | majeur   | provider-ids   | Auto-trigger backfill post-scrape jamais wired     | OUVERT — Phase 2.6 + 10.1.b    |
-| #29     | majeur   | api            | `MetadataProvider` Protocol toujours testé         | OUVERT — Phase 5.6             |
-| #30     | mineur   | scraper        | Ratings flow Pydantic boundary scope-creep         | OUVERT — Phase 5.8             |
-| #31     | CRITIQUE | indexer        | §17.1 paranoia branch dead                         | OUVERT — Phase 4.7             |
-| #32     | majeur   | media-indexer  | Archive DESIGN stale post-mig 005                  | OUVERT — Phase 10.1.c          |
-| #33     | majeur   | BDD            | PRAGMA busy_timeout bypass multi-site              | OUVERT — Phase 1.10            |
-| #34     | majeur   | BDD            | PRAGMA discipline globale bypass                   | OUVERT — Phase 1.10            |
-| #35     | mineur   | media-indexer  | scan_modes doc gap (4 vs 6)                        | OUVERT — Phase 10.1.c          |
-| #36     | mineur   | media-indexer  | `media_stream` extension undocumented              | OUVERT — Phase 10.1.c          |
-| #37     | mineur   | BDD            | `BEGIN IMMEDIATE` audit                            | OUVERT — Phase 1.10            |
-| #38     | majeur   | api            | `TorrentClientFull` re-creates monolithic          | OUVERT — Phase 5.7             |
-| #39     | majeur   | pipeline-obs   | DESIGN superseded by event-bus                     | OUVERT — Phase 10.1.d          |
-| #40     | majeur   | CLI            | DEV #6 broader — 7 per-step cmds silent            | OUVERT — Phase 3.1             |
-| #41     | mineur   | test-coverage  | Branch coverage drift 91→85.95%                    | OUVERT — Phase 8.14            |
-| #42     | mineur   | trailer        | DESIGN §4 placement stale (TV → Trailers/)         | OUVERT — Phase 10.1.e          |
-| #43     | mineur   | trailer        | DESIGN §14 blocking semantics inverted             | OUVERT — Phase 10.1.e          |
-| #44     | mineur   | ext-staging    | Docstring leak `_exclusions.py:383`                | OUVERT — Phase 10.2.a          |
-| #45     | mineur   | logging        | `docs/reference/logging.md` paths stale            | OUVERT — Phase 10.1.f + 10.3   |
-| #46     | majeur   | arch-cleanup   | 0.10.0 module-size hard-block stalled 5 vers       | OUVERT — Phase 8.11            |
-| #47     | mineur   | arch-cleanup   | `details_payload` type drift                       | OUVERT — Phase 10.3            |
-| #48     | mineur   | legacy-cleanup | 43 VX leaks `docs/*.md` top-level                  | OUVERT — Phase 10.1.g + 10.2.b |
-| #49     | majeur   | test-realism   | `test_cli.py` @patch=52 (target ≤25)               | OUVERT — Phase 8.15            |
-| #50     | CRITIQUE | bonus          | `_ensure_disk_row` UUID mismatch (duplicate disks) | OUVERT — Phase 1.7             |
-| #51     | majeur   | bonus          | Enrich ne calcule pas oshash                       | OUVERT — Phase 1.8             |
-| #52     | majeur   | bonus          | Full walker pas de retry oshash                    | OUVERT — Phase 1.8             |
-| #53     | CRITIQUE | bonus          | `_upsert_media_item` duplicate creation            | OUVERT — Phase 8.12            |
-| #54     | CRITIQUE | bonus          | `run_backfill_ids` chicken-and-egg canonical       | OUVERT — Phase 1.9             |
+| DEV     | Sévérité | Domaine        | Description courte                                 | Status                                                                      |
+| ------- | -------- | -------------- | -------------------------------------------------- | --------------------------------------------------------------------------- |
+| #1      | critique | skill          | 4 agents matrix v2.0 non-discoverable              | OUVERT — Phase 7.4                                                          |
+| #2      | mineur   | skill          | orphan-hunter false positive 097-TEMP              | OUVERT — Phase 7.3                                                          |
+| #3      | mineur   | skill          | state-validator false claim .DS_Store              | OUVERT — Phase 7.3                                                          |
+| #4      | mineur   | app            | ENFORCE scope-limited .DS_Store                    | OUVERT — Phase 6.6 (doc)                                                    |
+| #5      | mineur   | app            | Counter asymmetry PROCESS:scrape                   | OUVERT — Phase 6.6 (doc)                                                    |
+| #6      | majeur?  | app            | VERIFY silent stdout (events absents)              | OUVERT — Phase 3.1                                                          |
+| #7      | mineur   | CLI            | `run --help` omet ENFORCE+TRAILERS                 | OUVERT — Phase 2.3                                                          |
+| #8      | mineur   | skill          | Coverage gaps matrix v2.0 (~12 events)             | OUVERT — Phase 7.1                                                          |
+| **#9**  | CRITIQUE | app            | `repair_root_duplicate` inversion data-loss        | **SHIPPED `268cbee`**                                                       |
+| #10     | mineur   | skill          | `library-reconcile --dry-run` flag inexistant      | OUVERT — Phase 7.1 + 4.6                                                    |
+| **#11** | majeur   | app            | `compute_merkle_root` sort instability             | **SHIPPED `29c4953`**                                                       |
+| #12     | mineur   | BDD            | 7191 files_without_release (déco)                  | OUVERT — Phase 4.3                                                          |
+| **#13** | CRITIQUE | app            | `_recreate_indexes` C5 race workers                | **SHIPPED `fc39f77`**                                                       |
+| **#14** | majeur   | app            | `_build_disk_fingerprints` filter divergence       | **SHIPPED `3993487`**                                                       |
+| #15     | mineur   | BDD            | `schema_version` row 3 manquante                   | OUVERT — Phase 1.5                                                          |
+| #16     | CRITIQUE | CLI            | `library.scanner.scan_library()` non exposé CLI    | OUVERT — Phase 2.1                                                          |
+| #17     | majeur   | BDD            | 5 phantom shows (FS supprimé)                      | OUVERT — Phase 4.3                                                          |
+| #18     | CRITIQUE | BDD            | `increment_miss_strikes_for_disk` jamais appelée   | OUVERT — Phase 1.1                                                          |
+| #19     | mineur   | BDD            | `PRAGMA foreign_keys = 0` runtime                  | OUVERT — Phase 1.2                                                          |
+| #20     | mineur   | CLI            | `qbit-restart` référencée mais inexistante         | **RÉSOLU Phase 8.3 (Option B — matrix doc-only, cross-repo patch pending)** |
+| #21     | mineur   | CLI            | `--dry-run` gaps sur 4 mutators                    | OUVERT — Phase 2.2                                                          |
+| #22     | mineur   | CLI            | Output format incohérent                           | OUVERT — Phase 6.1                                                          |
+| #23     | mineur   | CLI            | Aucune `cli.invoke.*` telemetry                    | OUVERT — Phase 3.2                                                          |
+| #24     | majeur   | event-bus      | Catalog 13→17 events drift                         | OUVERT — Phase 8.13 + 10.1.a                                                |
+| #25     | mineur   | event-bus      | Module budget violations                           | OUVERT — Phase 8.13                                                         |
+| #26     | mineur   | event-bus      | `__all__` omits Backfill\*                         | OUVERT — Phase 10.1.a                                                       |
+| #27     | CRITIQUE | provider-ids   | Plan A reset+rescrape jamais exécuté               | OUVERT — Phase 8.10                                                         |
+| #28     | majeur   | provider-ids   | Auto-trigger backfill post-scrape jamais wired     | OUVERT — Phase 2.6 + 10.1.b                                                 |
+| #29     | majeur   | api            | `MetadataProvider` Protocol toujours testé         | OUVERT — Phase 5.6                                                          |
+| #30     | mineur   | scraper        | Ratings flow Pydantic boundary scope-creep         | OUVERT — Phase 5.8                                                          |
+| #31     | CRITIQUE | indexer        | §17.1 paranoia branch dead                         | OUVERT — Phase 4.7                                                          |
+| #32     | majeur   | media-indexer  | Archive DESIGN stale post-mig 005                  | OUVERT — Phase 10.1.c                                                       |
+| #33     | majeur   | BDD            | PRAGMA busy_timeout bypass multi-site              | OUVERT — Phase 1.10                                                         |
+| #34     | majeur   | BDD            | PRAGMA discipline globale bypass                   | OUVERT — Phase 1.10                                                         |
+| #35     | mineur   | media-indexer  | scan_modes doc gap (4 vs 6)                        | OUVERT — Phase 10.1.c                                                       |
+| #36     | mineur   | media-indexer  | `media_stream` extension undocumented              | OUVERT — Phase 10.1.c                                                       |
+| #37     | mineur   | BDD            | `BEGIN IMMEDIATE` audit                            | OUVERT — Phase 1.10                                                         |
+| #38     | majeur   | api            | `TorrentClientFull` re-creates monolithic          | OUVERT — Phase 5.7                                                          |
+| #39     | majeur   | pipeline-obs   | DESIGN superseded by event-bus                     | OUVERT — Phase 10.1.d                                                       |
+| #40     | majeur   | CLI            | DEV #6 broader — 7 per-step cmds silent            | OUVERT — Phase 3.1                                                          |
+| #41     | mineur   | test-coverage  | Branch coverage drift 91→85.95%                    | OUVERT — Phase 8.14                                                         |
+| #42     | mineur   | trailer        | DESIGN §4 placement stale (TV → Trailers/)         | OUVERT — Phase 10.1.e                                                       |
+| #43     | mineur   | trailer        | DESIGN §14 blocking semantics inverted             | OUVERT — Phase 10.1.e                                                       |
+| #44     | mineur   | ext-staging    | Docstring leak `_exclusions.py:383`                | OUVERT — Phase 10.2.a                                                       |
+| #45     | mineur   | logging        | `docs/reference/logging.md` paths stale            | OUVERT — Phase 10.1.f + 10.3                                                |
+| #46     | majeur   | arch-cleanup   | 0.10.0 module-size hard-block stalled 5 vers       | OUVERT — Phase 8.11                                                         |
+| #47     | mineur   | arch-cleanup   | `details_payload` type drift                       | OUVERT — Phase 10.3                                                         |
+| #48     | mineur   | legacy-cleanup | 43 VX leaks `docs/*.md` top-level                  | OUVERT — Phase 10.1.g + 10.2.b                                              |
+| #49     | majeur   | test-realism   | `test_cli.py` @patch=52 (target ≤25)               | OUVERT — Phase 8.15                                                         |
+| #50     | CRITIQUE | bonus          | `_ensure_disk_row` UUID mismatch (duplicate disks) | OUVERT — Phase 1.7                                                          |
+| #51     | majeur   | bonus          | Enrich ne calcule pas oshash                       | OUVERT — Phase 1.8                                                          |
+| #52     | majeur   | bonus          | Full walker pas de retry oshash                    | OUVERT — Phase 1.8                                                          |
+| #53     | CRITIQUE | bonus          | `_upsert_media_item` duplicate creation            | OUVERT — Phase 8.12                                                         |
+| #54     | CRITIQUE | bonus          | `run_backfill_ids` chicken-and-egg canonical       | OUVERT — Phase 1.9                                                          |
 
 **4 SHIPPED, 50 OUVERTS** distribués sur 9 phases.
 

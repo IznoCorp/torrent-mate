@@ -68,16 +68,45 @@ DESIGN sections impacted : §13 promise lifecycle, §14 success criteria, §11 a
 
 ### 8.3 `qbit-restart` command (SH-14 / CL-B / DEV #20)
 
-**Option A** : implémenter — invoke `launchctl unload + launchctl load
-~/Library/LaunchAgents/com.qbittorrent.plist` (ou équivalent).
+**Décision Phase 8.3 (2026-05-23) : Option B retenue.**
 
-**Option B** : supprimer la mention dans matrix v2.1 § INGEST recovery, remplacer par
-"operator manual qBit restart via launchctl".
+**Rationale** :
 
-Décision pendant Phase 8 selon difficulté A.
+- Sur l'install opérateur (macOS 14.5), qBittorrent est livré en GUI app
+  (`/Applications/qBittorrent.app`) — pas de plist launchd déterministe à
+  `~/Library/LaunchAgents/com.qbittorrent.plist` (vérifié `ls` 2026-05-23).
+- Wrapper portable `launchctl unload/load` infaisable : le mécanisme de
+  lancement (GUI manuel, `brew services`, `open -a`, ou launchd) varie par
+  install et serait fragile à maintenir.
+- L'action de recovery réelle (kill process + relaunch GUI app) reste manuelle
+  côté opérateur. La matrice §INGEST recovery est mise à jour pour le refléter.
 
-**Commit** (option A) : `feat(tech-debt): qbit-restart CLI command (DEV #20)`
-ou (option B) : `docs(pipeline-monitor): matrix v2.1.1 — remove qbit-restart reference (DEV #20)`
+**Action personalscraper (ce commit)** :
+
+- `tests/skill/test_matrix_cli_refs.py` : reformulation du xfail strict
+  `qbit-restart` (devient documentation de la décision Option B) ; assouplit
+  `test_matrix_parses_known_refs` qui exigeait `"qbit-restart" in commands`
+  — la matrice patchée (v2.1.1) ne le mentionnera plus.
+- `HANDOVER.md` : DEV #20 passe à `RÉSOLU Phase 8.3`.
+
+**Action cross-repo (follow-up opérateur)** :
+
+- Sur `.claude/personal-scraper`, patcher
+  `skills/pipeline-monitor/references/design-conformity-matrix.md` ligne 94
+  (DEVIATIONS table INGEST) : remplacer `personalscraper qbit-restart
+recommandé` par `restart manuel qBit (GUI / launchctl selon install)`.
+- Bump matrix version footer à v2.1.1.
+- Une fois ce patch landé, le xfail strict `qbit-restart` devient un no-op
+  (la commande n'apparaît plus dans `_load_params`) ; le `_KNOWN_BAD` row
+  peut être supprimé en cleanup ultérieur sans urgence.
+
+**Pas de nouvelle ACC** : DEV #20 reste couvert par ACC-14 (Test "matrix
+references valid CLI", déjà ✅ SHIPPED `ff0a8d4` + `3b0d582`). L'invariant
+"toute commande référencée matrix existe sur le CLI" reste enforced ; la
+décision 8.3 retire la dette en supprimant la mention plutôt qu'en ajoutant
+la commande.
+
+**Commit** (option B retenue) : `docs(tech-debt): qbit-restart Option B — matrix removal decided (SH-14, DEV #20)`
 
 ### 8.4 Audit dead infrastructure (SH-17 / CF-G / P11)
 
@@ -289,7 +318,7 @@ provider-ids feature without proportional branch tests).
 
 - [ ] 8.1 cron entry present (SH-3)
 - [ ] 8.2 pending_op + item_issue audit done (SH-6, BD-U/V)
-- [ ] 8.3 qbit-restart decided (SH-14, DEV #20)
+- [x] 8.3 qbit-restart decided — Option B (matrix removal), cross-repo patch on `.claude/personal-scraper` is operator follow-up (SH-14, DEV #20)
 - [ ] 8.4 dead infrastructure audit report committed (SH-17)
 - [ ] 8.5 `personalscraper clean` + `cleanup` exposed (SH-21, AR-C)
 - [ ] 8.6 `trailers audit` alias works (SH-22, AR-D)
