@@ -41,54 +41,50 @@ relates to. The canonical source for flag names is `personalscraper <cmd>
 12. [`torrents-list`](#personalscraper-torrents-list) — list completed torrents
 13. [`config`](#personalscraper-config) — configuration management (parent command)
 
-### Library — indexer (→ 6.2.b)
+### Library — indexer & maintenance (→ 6.2.b)
 
-14. `library-index` — scan disks into the indexer DB
-15. `library-status` — latest scan run summary
-16. `library-verify` — re-stat indexed files, enqueue mismatches
-17. `library-search` — flex-attr query
-18. `library-show` — pretty-print one item
-19. `library-repair` — drain repair queue
-20. `library-reconcile` — detect index ↔ FS divergences
-21. `library-ghost-audit` — audit NTFS ghost directory entries
-22. `library-relink` — repair broken release links
-23. `library-clean` — delete junk files from disks
-24. `library-doctor` — health checks on live DB
-25. `library-init-canonical` — bootstrap canonical_provider column
-
-### Library — maintenance (→ 6.2.b)
-
-26. `library-backfill-ids` — backfill provider IDs across releases
-27. `library-gc` — garbage-collect stale DB rows
+14. [`library-index`](#personalscraper-library-index) — scan disks into the indexer DB
+15. [`library-scan`](#personalscraper-library-scan) — NFO-based row creation
+16. [`library-init-canonical`](#personalscraper-library-init-canonical) — bootstrap canonical_provider from NFOs
+17. [`library-status`](#personalscraper-library-status) — latest scan run summary
+18. [`library-verify`](#personalscraper-library-verify) — re-stat indexed files, enqueue mismatches
+19. [`library-repair`](#personalscraper-library-repair) — drain repair queue within budget
+20. [`library-reconcile`](#personalscraper-library-reconcile) — detect index ↔ FS divergences
+21. [`library-ghost-audit`](#personalscraper-library-ghost-audit) — audit NTFS ghost dirents
+22. [`library-relink`](#personalscraper-library-relink) — relink NULL release_id rows
+23. [`library-clean`](#personalscraper-library-clean) — remove .actors/, junk files on storage disks
+24. [`library-validate`](#personalscraper-library-validate) — validate NFO/artwork/naming conformity
+25. [`library-gc`](#personalscraper-library-gc) — GC old index_outbox done rows
 
 ### Library — analysis (→ 6.2.c)
 
-28. `library-validate` — validate NFO/artwork/naming
-29. `library-analyze` — deep ffprobe scan
-30. `library-recommend` — re-download recommendations
-31. `library-rescrape` — targeted re-scraping
-32. `library-report` — health statistics
+26. `library-analyze` — deep ffprobe scan
+27. `library-recommend` — re-download recommendations
+28. `library-rescrape` — targeted re-scraping
+29. `library-report` — health statistics
+30. `library-search` — flex-attr query
+31. `library-show` — pretty-print one item
+32. `library-doctor` — health checks on live DB
+33. `library-backfill-ids` — backfill provider IDs across releases
 
 ### Trailers (→ 6.2.c)
 
-33. `trailers scan` — discover media missing trailers
-34. `trailers download` — download trailers from YouTube
-35. `trailers verify` — audit trailer files on disk
-36. `trailers purge` — remove unwanted trailers
+34. `trailers scan` — discover media missing trailers
+35. `trailers download` — download trailers from YouTube
+36. `trailers verify` — audit trailer files on disk
+37. `trailers purge` — remove unwanted trailers
 
 ### Config subcommands (→ 6.2.c)
 
-37. `config migrate-category` — rename a category across config + paths
+38. `config migrate-category` — rename a category across config + paths
 
 ### Make targets + scheduling (appendix)
 
-38. `make` targets — test, lint, format, install-dev
-39. launchd scheduling — plist install / load / unload
+39. `make` targets — test, lint, format, install-dev
+40. launchd scheduling — plist install / load / unload
 
-> **Note**: Entries 14–39 are placeholders. Full content will be added by
-> dispatch 6.2.b (library indexer/maintenance) and 6.2.c (analysis + trailers
->
-> - config subcommands).
+> **Note**: Entries 26–40 are placeholders. Full content will be added by
+> dispatch 6.2.c (analysis + trailers + config subcommands).
 
 ---
 
