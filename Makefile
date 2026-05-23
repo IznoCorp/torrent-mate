@@ -11,7 +11,7 @@ help:
 	@echo "  make test-cov        - Run tests with branch coverage at fail_under threshold"
 	@echo "  make lint            - Run ruff check + ruff format --check + mypy + logging audit"
 	@echo "  make lint-logging    - Run logging convention audit (fails on errors)"
-	@echo "  make check           - Run lint, tests, and advisory module-size check"
+	@echo "  make check           - Run lint, tests, module-size, typed-api, pragma, CLI-coverage checks"
 	@echo "  make format          - Format code with ruff"
 	@echo "  make install-dev     - Install package in development mode with dev deps"
 	@echo "  make version         - Show current version"
@@ -63,6 +63,7 @@ check: lint test-cov
 	python3 scripts/check-module-size.py
 	python3 scripts/check-typed-api.py
 	python3 scripts/check-pragma-discipline.py
+	python3 scripts/audit-cli-coverage.py
 
 gate: check
 	@echo "Gate: residual import audit..."
