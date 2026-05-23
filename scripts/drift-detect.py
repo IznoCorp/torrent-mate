@@ -97,6 +97,37 @@ COMMIT_PHASE_RE = re.compile(r"\bphase\s+(?P<num>\d+(?:\.\d+)?)\b", re.IGNORECAS
 # DEV reference inside a commit message: "DEV #18" or "(DEV #18)".
 COMMIT_DEV_RE = re.compile(r"DEV\s+#(?P<num>\d+)", re.IGNORECASE)
 
+# Legacy commit subjects from pre-tech-debt history (e.g. "v14.12.4: ...").
+# These pre-date the tech-debt phase taxonomy; their "Phase N" mentions are
+# unrelated to the current plan and must not be flagged as ad-hoc phases.
+LEGACY_COMMIT_RE = re.compile(r"^v\d+\.\d+\.\d+:")
+
+
+def _expand_comma_dev_refs(text: str) -> str:
+    """Expand ``DEV #N, #M, #O`` into ``DEV #N, DEV #M, DEV #O``.
+
+    The compact form is conventional in tech-debt commit subjects but causes
+    :data:`COMMIT_DEV_RE` to miss every ``#M`` past the first.  Rewriting the
+    text before regex scanning keeps the regex itself simple.
+
+    Args:
+        text: Commit subject or body to normalise.
+
+    Returns:
+        Text with every comma-chained ``#M`` after a ``DEV #N`` token
+        prefixed with ``DEV`` so the regex matches it.
+    """
+    # Repeatedly insert "DEV " before "#M" tokens that follow "DEV #N, " or
+    # an already-expanded "DEV #M, ".  re.sub with a callback is sufficient
+    # because each substitution only consumes one ``, #M`` segment.
+    pattern = re.compile(r"(DEV\s+#\d+(?:\s*,\s*DEV\s+#\d+)*)(\s*,\s*)(#\d+)", re.IGNORECASE)
+    prev = None
+    cur = text
+    while prev != cur:
+        prev = cur
+        cur = pattern.sub(lambda m: f"{m.group(1)}{m.group(2)}DEV {m.group(3)}", cur)
+    return cur
+
 
 # ---------------------------------------------------------------------------
 # Result types
@@ -441,8 +472,25 @@ def check_impl_md_shas(
         # another working tree.  Skip the git-presence check, but still
         # surface an info finding so operators can spot stale references.
         cross_repo = ".claude/" in phase.status or "(.claude" in phase.status
+        # Partial-phase rows reference a sub-phase commit shipped early
+        # (status text contains "partial" or "shipped early").  The SHA is
+        # by construction NOT a gate commit yet — skip the gate-shape check.
+        status_lower = phase.status.lower()
+        partial_phase = "partial" in status_lower or "shipped early" in status_lower
         for sha in phase.shas:
             if cross_repo:
+                continue
+            if partial_phase:
+                # Still verify the SHA exists in git, but accept any subject.
+                if not _git_commit_exists(repo, sha):
+                    findings.append(
+                        Finding(
+                            check="IMPL_MD_SHAS",
+                            severity="error",
+                            message=(f"phase {phase.num} references SHA `{sha}` that does not exist in git log"),
+                            context={"phase": phase.num, "sha": sha},
+                        )
+                    )
                 continue
             if not _git_commit_exists(repo, sha):
                 findings.append(
@@ -564,12 +612,12 @@ def check_plan_dev_coverage(
     commits = _git_log_subjects(repo)
     dev_in_commits: set[int] = set()
     for _, subject in commits:
-        for m in COMMIT_DEV_RE.finditer(subject):
+        for m in COMMIT_DEV_RE.finditer(_expand_comma_dev_refs(subject)):
             dev_in_commits.add(int(m.group("num")))
     # Also scan full commit bodies for DEV refs (some commits put DEV ids in body).
     try:
         bodies = _git(repo, "log", "--pretty=format:%B%n---END---")
-        for m in COMMIT_DEV_RE.finditer(bodies):
+        for m in COMMIT_DEV_RE.finditer(_expand_comma_dev_refs(bodies)):
             dev_in_commits.add(int(m.group("num")))
     except subprocess.CalledProcessError:
         pass
@@ -746,6 +794,10 @@ def check_ad_hoc_phases(
 
     seen: set[tuple[str, str]] = set()
     for sha, subject in _git_log_subjects(repo):
+        # Skip pre-tech-debt legacy commits — their "phase N" mentions belong
+        # to a defunct numbering scheme and would always be flagged.
+        if LEGACY_COMMIT_RE.match(subject):
+            continue
         for m in COMMIT_PHASE_RE.finditer(subject):
             num = m.group("num")
             top_level = num.split(".")[0]
