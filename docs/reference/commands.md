@@ -1,144 +1,196 @@
 # Commands Reference
 
-Complete CLI reference for `personalscraper` and related tools.
+Complete CLI reference for `personalscraper`. Each section documents one
+command: its purpose, side effects, arguments, examples, and the commands it
+relates to. The canonical source for flag names is `personalscraper <cmd>
+--help`; this document supersedes the legacy cheat-sheet style.
 
-## PersonalScraper CLI
+**Global flags** (apply to every command):
 
-```bash
-personalscraper ingest              # Ingest completed torrents from qBittorrent
-personalscraper ingest --dry-run    # Preview without moving
-personalscraper sort                # Sort media files into category folders
-personalscraper scrape              # Scrape metadata from TMDB/TVDB
-personalscraper verify              # Quality check before dispatch
-personalscraper dispatch            # Move to storage disks
-personalscraper process             # Reclean + dedup + scrape + cleanup
-personalscraper enforce             # Enforce staging conventions
-personalscraper run                 # Full pipeline
-personalscraper run --dry-run       # Preview full pipeline
-personalscraper run --skip-trailers            # Skip the trailers step
-personalscraper run --continue-on-trailer-error  # Continue to dispatch even on trailer errors
-```
+- `--verbose / -v` — enable DEBUG logging
+- `--quiet / -q` — suppress console output
+- `--version` — print version and exit
+- `--config / -c PATH` — override config directory (must precede the subcommand)
+- `--format / -f rich|plain|json` — output format (default: `rich`) — see DEV #22 / SH-13
 
-## Library Maintenance
+**Side-effect taxonomy**:
 
-### Indexer (DB-backed)
+- `read-only` — touches nothing on disk or in the database
+- `mutate FS` — modifies files / directories under staging or storage
+- `mutate BDD` — writes to the indexer SQLite DB (`.data/library.db`)
+- `network` — calls external APIs (TMDB / TVDB / qBittorrent / Telegram / ...)
 
-```bash
-personalscraper library-index                                # Full indexer scan (all disks)
-personalscraper library-index --mode quick                   # Quick: Merkle short-circuit + dir-mtime
-personalscraper library-index --mode incremental             # Changed-files-only
-personalscraper library-index --mode enrich                  # Mediainfo + NFO + artwork on un-enriched files
-personalscraper library-index --mode enrich --backfill-streams  # Fill only missing migration-004 columns (hdr_format / is_atmos / is_default / forced / format) on already-enriched rows
-personalscraper library-index --disk Disk1 --mode full       # Restrict to one disk
-personalscraper library-index --dry-run                      # Plan only, no DB writes
-personalscraper library-index --rebuild                      # Drop and rebuild from scratch
-personalscraper library-index --confirm-bulk-change          # Confirm large Merkle delta
-personalscraper library-index --budget 1800                  # Wall-clock cap (seconds; default from indexer.scan.budget_seconds)
-personalscraper library-index --no-budget                    # Disable budget for manual full enrich passes
-personalscraper library-index --wait-for-lock 60             # Wait N seconds for the writer lock instead of failing immediately
-personalscraper library-status                               # Latest indexer scan run summary
-personalscraper library-verify                               # Re-stat every indexed file; enqueue mismatches
-personalscraper library-verify --disk Disk1                  # Verify one disk
-personalscraper library-search "<query>"                     # Flex-attr query (e.g. nfo_status:invalid)
-personalscraper library-search "<query>" --limit 200         # Cap result count (default 50)
-personalscraper library-show <item_id>                       # Pretty-print all data for one item
-personalscraper library-repair                               # Drain repair queue (default budget)
-personalscraper library-repair --budget 120                  # Drain with explicit time budget (s)
-personalscraper library-reconcile                            # Detect index ↔ FS divergences (DB-only, no rescan)
-personalscraper library-reconcile --scope enrich             # Restrict to one detector (repeatable)
-personalscraper library-reconcile --enqueue-repairs          # Push findings into repair_queue (drained by library-repair)
-personalscraper library-ghost-audit                           # Audit disks for NTFS-via-macFUSE ghost directory entries
-personalscraper library-ghost-audit --disk Disk1              # Audit only one disk
-personalscraper library-relink                                # Dry-run: show media_file rows with missing release links
-personalscraper library-relink --apply                        # Persist release link updates
-```
+## Table of contents
 
-### Disk-walking commands
+### Pipeline (steps 1–9)
 
-```bash
-personalscraper library-clean                                # Dry-run: show what would be cleaned
-personalscraper library-clean --apply                        # Delete .actors/, empty dirs, junk
-personalscraper library-clean --only actors --apply          # Only .actors/ dirs
-personalscraper library-validate                             # Validate NFO/artwork/naming conformity (FS walk)
-personalscraper library-validate --from-index                # Fast pre-screen from indexer DB (NFO + poster/landscape only, no structural checks)
-personalscraper library-validate --fix --apply               # Auto-fix what's possible
-personalscraper library-analyze                              # Deep ffprobe scan (codec, audio, subs)
-personalscraper library-analyze --from-index                 # Read streams from indexer DB instead of ffprobe (much faster, HDR/Atmos approximated)
-LIBRARY_ANALYZER_MAX_WORKERS=8 personalscraper library-analyze   # Override the 4-worker cap (use on SSD libraries)
-personalscraper library-recommend                            # Run ffprobe analysis inline + generate re-download list
-personalscraper library-recommend --from-index               # Use indexer DB streams instead of ffprobe
-personalscraper library-recommend --export csv               # Export to CSV
-personalscraper library-rescrape --dry-run                   # Preview targeted re-scraping
-personalscraper library-rescrape --only artwork              # Only re-download missing artwork
-personalscraper library-rescrape --only nfo                  # Only regenerate broken/missing NFOs
-personalscraper library-rescrape --only episodes             # Only rename episodes via TMDB/TVDB
-personalscraper library-rescrape --disk Disk1                # Single disk
-personalscraper library-rescrape --max-items 50              # Limit items processed
-personalscraper library-rescrape --interactive               # Confirm low-confidence matches
-personalscraper library-report                               # Library health statistics (DB-backed)
-personalscraper library-report --format json                 # Export as JSON
-```
+1. [`ingest`](#personalscraper-ingest) — copy completed torrents into staging
+2. [`sort`](#personalscraper-sort) — sort media into category folders, clean filenames
+3. [`cleanup`](#personalscraper-cleanup) — pipeline-internal: remove empty dirs + junk after scrape
+4. [`scrape`](#personalscraper-scrape) — fetch metadata + artwork from TMDB/TVDB
+5. [`enforce`](#personalscraper-enforce) — sanitize filenames, validate structure
+6. [`verify`](#personalscraper-verify) — quality gate before dispatch
+7. [`dispatch`](#personalscraper-dispatch) — move media to storage disks
+8. [`process`](#personalscraper-process) — composite: reclean + dedup + scrape + cleanup
+9. [`run`](#personalscraper-run) — full pipeline (ingest → dispatch)
 
-## Trailers
+### Meta / system
 
-personalscraper trailers scan [--disk D] [--category C] [--since YYYY-MM-DD] [--limit N] [--level show|season|both] [--season N] [--no-refresh]
-personalscraper trailers download [--dry-run] [--disk D] [--category C] [--since YYYY-MM-DD] [--limit N] [--level season] [--season N] [--no-refresh]
-personalscraper trailers verify [--disk D] [--category C] [--deep] [--since YYYY-MM-DD] [--level show|season|both] [--season N]
-personalscraper trailers purge [--dry-run] [--disk D] [--since YYYY-MM-DD] [--level show|season|both] [--season N] [--include-state]
+10. [`info`](#personalscraper-info) — version, config paths, disk status
+11. [`init-config`](#personalscraper-init-config) — bootstrap config/ from template
+12. [`torrents-list`](#personalscraper-torrents-list) — list completed torrents
+13. [`config`](#personalscraper-config) — configuration management (parent command)
 
-Exit codes: 0 ok, 1 error, 2 bad argument.
+### Library — indexer (→ 6.2.b)
 
-Common filters: `--disk` and `--category` are accepted by scan, download, and verify.
-`--since`, `--level`, and `--season` are accepted by all four commands.
-`--limit` and `--no-refresh` are only accepted by scan and download.
+14. `library-index` — scan disks into the indexer DB
+15. `library-status` — latest scan run summary
+16. `library-verify` — re-stat indexed files, enqueue mismatches
+17. `library-search` — flex-attr query
+18. `library-show` — pretty-print one item
+19. `library-repair` — drain repair queue
+20. `library-reconcile` — detect index ↔ FS divergences
+21. `library-ghost-audit` — audit NTFS ghost directory entries
+22. `library-relink` — repair broken release links
+23. `library-clean` — delete junk files from disks
+24. `library-doctor` — health checks on live DB
+25. `library-init-canonical` — bootstrap canonical_provider column
 
-## Bootstrap & Inspection
+### Library — maintenance (→ 6.2.b)
 
-```bash
-personalscraper init-config                          # Create config/ directory from the config.example/ template (interactive)
-personalscraper init-config --yes                    # Non-interactive — accept all defaults
-personalscraper init-config --force                  # Overwrite existing config/ directory (backs up to .bak)
-personalscraper info                                 # Display version, config paths, disk status
-```
+26. `library-backfill-ids` — backfill provider IDs across releases
+27. `library-gc` — garbage-collect stale DB rows
 
-## Config Migration
+### Library — analysis (→ 6.2.c)
 
-```bash
-personalscraper config migrate-category --from OLD --to NEW  # Rename a category id across config + on-disk paths
-```
+28. `library-validate` — validate NFO/artwork/naming
+29. `library-analyze` — deep ffprobe scan
+30. `library-recommend` — re-download recommendations
+31. `library-rescrape` — targeted re-scraping
+32. `library-report` — health statistics
 
-## Disk Space Check
+### Trailers (→ 6.2.c)
 
-```bash
-df -h /Volumes/Disk{1,2,3,4}
-```
+33. `trailers scan` — discover media missing trailers
+34. `trailers download` — download trailers from YouTube
+35. `trailers verify` — audit trailer files on disk
+36. `trailers purge` — remove unwanted trailers
 
-## Scheduling (launchd)
+### Config subcommands (→ 6.2.c)
 
-```bash
-# Install
-cp com.personalscraper.pipeline.plist ~/Library/LaunchAgents/
+37. `config migrate-category` — rename a category across config + paths
 
-# Load (register with launchd)
-launchctl load ~/Library/LaunchAgents/com.personalscraper.pipeline.plist
+### Make targets + scheduling (appendix)
 
-# Unload
-launchctl unload ~/Library/LaunchAgents/com.personalscraper.pipeline.plist
+38. `make` targets — test, lint, format, install-dev
+39. launchd scheduling — plist install / load / unload
 
-# Manual trigger
-launchctl start com.personalscraper.pipeline
+> **Note**: Entries 14–39 are placeholders. Full content will be added by
+> dispatch 6.2.b (library indexer/maintenance) and 6.2.c (analysis + trailers
+>
+> - config subcommands).
 
-# Status
-launchctl list | grep personalscraper
-```
+---
 
-Default schedule: daily at 3am (see `com.personalscraper.pipeline.plist`).
+## `personalscraper ingest`
 
-## Make Targets
+**Purpose**: Copies completed torrents from qBittorrent into the staging area.
+Each torrent's content is copied (not moved) into a flat directory under the
+staging root, preserving the source folder name. Already-ingested torrents are
+tracked in `ingested_torrents.json` and skipped on subsequent runs.
 
-```bash
-make test         # Unit tests (~6s)
-make lint         # ruff check
-make format       # ruff format + fix
-make install-dev  # Editable install with dev deps
-```
+**Side effects**: `mutate FS` (writes to staging), `network` (qBittorrent API)
+
+**Pipeline position**: step 1
+
+**Args**:
+
+- `--dry-run` : preview without copying — lists what would be ingested
+
+**Examples**:
+
+    personalscraper ingest
+    personalscraper ingest --dry-run
+
+**Related**: `torrents-list`, `run`
+
+---
+
+## `personalscraper sort`
+
+**Purpose**: Sorts media files from the flat ingest directory into category
+folders under staging (e.g. `001-MOVIES/`, `002-TVSHOWS/`). Identifies each
+item's type (movie vs TV show) using folder-name heuristics and the configured
+`staging_dirs` mapping in `config/patterns.json5`, then moves files into the
+correct category subdirectory. Also performs initial filename sanitization.
+
+**Side effects**: `mutate FS` (reorganizes staging directory)
+
+**Pipeline position**: step 2
+
+**Args**:
+
+- `--dry-run` : preview without moving
+
+**Examples**:
+
+    personalscraper sort
+    personalscraper sort --dry-run
+
+**Related**: `ingest`, `enforce`, `run`
+
+---
+
+## `personalscraper cleanup`
+
+**Purpose**: Removes empty directories and residual junk files left behind after
+the scrape step completes. This is a pipeline-internal step — it is **not**
+invocable as a standalone CLI command. It runs automatically as part of
+`process` (after scrape) and `run` (between scrape and enforce).
+
+**Side effects**: `mutate FS` (deletes empty dirs, `.actors/` folders, and
+transient files under each media item's directory)
+
+**Pipeline position**: step 4 (internal only — runs after scrape, before enforce)
+
+**Args**: none (not a standalone command)
+
+**Examples**:
+
+    # cleanup runs automatically inside these commands:
+    personalscraper process
+    personalscraper run
+
+**Related**: `process`, `run`
+
+---
+
+## `personalscraper scrape`
+
+**Purpose**: Fetches metadata (title, year, genres, cast, ratings, artwork URLs)
+and downloads artwork (poster, fanart, landscape, logo, etc.) from TMDB and
+TVDB for each media item in staging. Writes `.nfo` files (Kodi-compatible XML)
+and downloads artwork into each item's folder. Supports interactive mode for
+ambiguous matches.
+
+**Side effects**: `mutate FS` (writes NFO + artwork files), `network` (TMDB / TVDB APIs)
+
+**Pipeline position**: step 3
+
+**Args**:
+
+- `--dry-run` : preview without writing
+- `--interactive / -i` : prompt for ambiguous matches
+- `--movies-only` : process only movies
+- `--tvshows-only` : process only TV shows
+
+**Examples**:
+
+    personalscraper scrape
+    personalscraper scrape --interactive
+    personalscraper scrape --movies-only --dry-run
+    personalscraper scrape --tvshows-only
+
+**Related**: `enforce`, `verify`, `process`, `run`
+
+---
