@@ -177,6 +177,62 @@ to cap wall-clock time and resume across sessions:
 personalscraper library-index --mode full --disk Disk3 --budget 5400
 ```
 
+## UBC Pressure During Scans
+
+A full-array indexer scan reads tens of thousands of file headers from
+NTFS-via-macFUSE mounts. Even with the cache-bypass mitigations in
+`fingerprint.py` (`F_NOCACHE` on the oshash / xxh3_partial read paths) and
+the removal of the prefetch hint from `mediainfo.py`, residual UBC growth is
+normal — `Activity Monitor` may show several GB under "Cached Files" during
+a cold scan. This is expected and the cache is fully reclaimable.
+
+### Diagnostic commands
+
+```bash
+# Distinguish reclaimable cache from real wired/app memory
+vm_stat
+top -l 1 -o mem | head -20
+memory_pressure
+
+# Identify which NTFS driver is in use
+mount | grep -i ntfs
+kextstat | grep -i ntfs
+brew list | grep -iE 'ntfs|paragon|tuxera|fuse'
+```
+
+If `Activity Monitor` shows the growth under "Cached Files" (yellow), it
+is reclaimable and benign. If the growth appears under "Wired" or against
+the macFUSE process itself, the driver is leaking and a remount is needed.
+
+### Releasing cache
+
+To force release after a scan completes:
+
+```bash
+sudo purge
+```
+
+To bound the vnode cache (defaults to ~260 000 entries on macOS, which is
+oversized for a 4-disk media library):
+
+```bash
+sudo sysctl -w kern.maxvnodes=100000
+```
+
+`kern.maxvnodes` is volatile — to persist, add to `/etc/sysctl.conf`.
+
+### Scan-time tuning
+
+The `config/indexer.json5` settings that directly bound UBC pressure:
+
+| Setting                | Default (post-audit/12) | Effect                                                                                                                                  |
+| ---------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `max_workers_total`    | `2`                     | Limits concurrent disk I/O; 4-way parallel quadruples instantaneous cache ingest without doubling real throughput on a shared USB-3 hub |
+| `read_rate_mb_per_sec` | `80`                    | Token-bucket throttle aligned with USB-3 sequential throughput (~100 MB/s per disk)                                                     |
+
+Both settings are reversible. See `audit/12-ntfs-cache-pressure.md` for the
+full diagnosis and measured impact estimates.
+
 ## Paths
 
 - Paths contain spaces (`/path/to/staging/`) — always quote paths in shell commands.
