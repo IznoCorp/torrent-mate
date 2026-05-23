@@ -13,7 +13,12 @@ from personalscraper.logger import get_logger
 log = get_logger("indexer.cli")
 
 
-def library_status_command(config_path: Path | None = None, *, event_bus: EventBus) -> int:
+def library_status_command(
+    config_path: Path | None = None,
+    *,
+    event_bus: EventBus,
+    output_format: str = "rich",
+) -> int:
     """Print a tabular summary of disk inventory, scan health, and queue depths.
 
     Loads the PersonalScraper config, opens (or creates) the indexer database,
@@ -42,6 +47,9 @@ def library_status_command(config_path: Path | None = None, *, event_bus: EventB
         event_bus: Required :class:`EventBus` forwarded to ``open_db`` so
             the pre-open free-space guard emits ``DiskFullWarning`` on the
             run's subscriber-wired bus.
+        output_format: Output format: ``"rich"`` (default, prints a tabular
+            view), ``"json"`` (prints JSON dict), or ``"plain"`` (prints
+            key: value lines).
 
     Returns:
         ``0`` on success, ``1`` on infrastructure error or unhealthy state.
@@ -135,11 +143,20 @@ def library_status_command(config_path: Path | None = None, *, event_bus: EventB
             "SELECT id, label, is_mounted, last_seen_at, merkle_root FROM disk ORDER BY label"
         ).fetchall()
         typer.echo(f"{'DISK':<20} {'MOUNTED':<10} {'LAST_SEEN':<20} {'MERKLE_ROOT'}")
+        disks_data: list[dict[str, object]] = []
         for d_id, label, is_mounted, last_seen_at, merkle_root in disk_rows:
             mounted_str = "yes" if is_mounted else "no"
             last_seen_str = str(last_seen_at) if last_seen_at is not None else "never"
             root_str = (merkle_root or "")[:12] if merkle_root else ""
             typer.echo(f"  {label:<18} {mounted_str:<10} {last_seen_str:<20} {root_str}")
+            disks_data.append(
+                {
+                    "label": label,
+                    "mounted": is_mounted == 1,
+                    "last_seen": last_seen_str,
+                    "merkle_root_prefix": root_str,
+                }
+            )
 
         # --- Query latest successful scan ---
         row = conn.execute(
@@ -147,6 +164,7 @@ def library_status_command(config_path: Path | None = None, *, event_bus: EventB
             "WHERE status = 'ok' ORDER BY finished_at DESC LIMIT 1"
         ).fetchone()
 
+        latest_scan: dict[str, object] | None = None
         if row is None:
             typer.echo("no scans yet")
         else:
@@ -156,6 +174,13 @@ def library_status_command(config_path: Path | None = None, *, event_bus: EventB
                 f"latest scan: id={run_id}, finished_at={finished_at}, status={status},"
                 f" generation={generation}{disk_scope}"
             )
+            latest_scan = {
+                "id": run_id,
+                "finished_at": str(finished_at),
+                "status": status,
+                "generation": generation,
+                "disk_filter": disk_filter,
+            }
 
         # --- Repair queue health ---
         from personalscraper.indexer import repair  # noqa: PLC0415
@@ -209,6 +234,27 @@ def library_status_command(config_path: Path | None = None, *, event_bus: EventB
                 err=True,
             )
             unhealthy = True
+
+        if output_format == "json":
+            import json  # noqa: PLC0415
+
+            status_dict: dict[str, object] = {
+                "disks": disks_data,
+                "latest_scan": latest_scan,
+                "repair_queue": {
+                    "depth": pending_depth,
+                    "oldest_age_hours": (oldest_pending_age_seconds or 0) // 3600
+                    if oldest_pending_age_seconds
+                    else None,
+                },
+                "outbox_pending": outbox_depth,
+                "deleted_items": deleted_count,
+                "enrich_pending": enrich_pending,
+                "category_orphans": orphan_count,
+                "healthy": not unhealthy,
+            }
+            typer.echo(json.dumps(status_dict, default=str, indent=2))
+            return 0
 
         return 1 if unhealthy else 0
 

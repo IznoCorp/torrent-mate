@@ -54,18 +54,25 @@ def library_status(
 
     Queries the indexer database for the most recently completed scan run
     and prints a one-line summary.  Prints "no scans yet" when the database
-    has no completed scan runs.
+    has no completed scan runs.  Output format respects the global
+    ``--format`` flag.
 
     Examples:
         personalscraper library-status
+        personalscraper --format json library-status
         personalscraper library-status --config /path/to/config.json5
     """
+    from personalscraper.cli_state import state  # noqa: PLC0415
     from personalscraper.indexer.cli import library_status_command  # noqa: PLC0415
 
     # Prefer explicit --config passed to this sub-command; fall back to the
     # global --config stored on the app context.
     effective_config: Path | None = config or (ctx.obj.config_override if ctx.obj else None)
-    rc = library_status_command(effective_config, event_bus=_resolve_event_bus(ctx))
+    rc = library_status_command(
+        effective_config,
+        event_bus=_resolve_event_bus(ctx),
+        output_format=state["format"],
+    )
     raise typer.Exit(rc)
 
 
