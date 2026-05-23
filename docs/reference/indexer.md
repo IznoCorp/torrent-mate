@@ -285,6 +285,51 @@ launchctl bootout gui/$(id -u)/com.personalscraper.index-quick
 
 ---
 
+## State machine: media_file lifecycle
+
+A `media_file` row transitions through 6 states from discovery to tombstoning.
+Each transition is triggered by a specific scanner mode or maintenance command.
+
+    discovered  (oshash=NULL, Stage A — created by walker on first sighting)
+        |
+        | enrich step computes oshash + extracts metadata
+        v
+    enriched    (oshash set, Stage B — full mediainfo + NFO + artwork available)
+        |
+        | release_linker matches file → media_release on oshash + provider IDs
+        v
+    linked      (release_id set; the file is bound to a known release)
+        |
+        | verify / full scan re-stats and bumps last_verified_at
+        v
+    verified    (last_verified_at = current scan epoch)
+        |
+        | (file disappears from FS, but oshash is still in BDD)
+        v
+    missed      (miss_strikes++ each scan where the file is not seen)
+        |
+        | after N strikes (default 3, configurable per-disk)
+        v
+    tombstoned  (deleted_at set; deleted_item row inserted; file row kept for audit)
+
+Sites in code:
+
+- `discovered` → `enriched` : `personalscraper/indexer/scanner/_modes/enrich.py`
+- `enriched` → `linked` : `personalscraper/indexer/release_linker.py`
+- `linked` → `verified` : `personalscraper/indexer/scanner/_walker.py` (mode=full)
+- `verified` → `missed` : `personalscraper/indexer/drift.py::mark_missed_files`
+- `missed` → `tombstoned` : `personalscraper/indexer/drift.py::apply_soft_deletes`
+
+A `library-reconcile` run inspects the entire chain and flags inconsistencies
+(e.g. a `linked` row whose `release_id` no longer exists in `media_release`).
+
+The `media_file.miss_strikes` counter is a soft-delete guard: a single missed
+scan must not tombstone, since macFUSE / NTFS can briefly hide files during a
+remount or directory listing. The counter is reset to 0 the moment the file
+is observed again.
+
+---
+
 ## Failure Recovery
 
 ### Corrupted database
