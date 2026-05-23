@@ -70,16 +70,16 @@ typer.echo("Processing…")
 
 ## Migration recipes
 
-| Pattern (legacy)                                         | Replacement                                                                                                                  |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `logger = logging.getLogger(__name__)`                   | `log = get_logger("<short-tag>")`                                                                                            |
-| `logger.info("moved %s to %s", src, dst)`                | `log.info("moved", source=src, dest=dst)`                                                                                    |
-| `logger.warning("disk low: %s GB free", free)`           | `log.warning("disk_usage_failed", free_gb=free)`                                                                             |
-| `logger.exception("fail")`                               | `log.exception("event_name", **context)` — `exc_info` implicit, never pass it                                                |
-| `logger.error(f"Dispatch failed for {title}")`           | `log.error("replace_swap_failed", title=title)`                                                                              |
-| `print(...)` in CLI commands                             | `state["console"].print(...)`                                                                                                |
-| `print(...)` next to `input(...)`                        | `typer.echo(...)`                                                                                                            |
-| `before_sleep=before_sleep_log(logger, logging.WARNING)` | `build_retry_logger(log, "event_name")` from `personalscraper.scraper.http_retry` (see `scraper/tmdb_client.py` as template) |
+| Pattern (legacy)                                         | Replacement                                                                                                                               |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `logger = logging.getLogger(__name__)`                   | `log = get_logger("<short-tag>")`                                                                                                         |
+| `logger.info("moved %s to %s", src, dst)`                | `log.info("moved", source=src, dest=dst)`                                                                                                 |
+| `logger.warning("disk low: %s GB free", free)`           | `log.warning("disk_usage_failed", free_gb=free)`                                                                                          |
+| `logger.exception("fail")`                               | `log.exception("event_name", **context)` — `exc_info` implicit, never pass it                                                             |
+| `logger.error(f"Dispatch failed for {title}")`           | `log.error("replace_swap_failed", title=title)`                                                                                           |
+| `print(...)` in CLI commands                             | `state["console"].print(...)`                                                                                                             |
+| `print(...)` next to `input(...)`                        | `typer.echo(...)`                                                                                                                         |
+| `before_sleep=before_sleep_log(logger, logging.WARNING)` | `build_retry_logger(log, "event_name")` from `personalscraper.core.http_helpers` (see `personalscraper/api/metadata/tmdb.py` as template) |
 
 ## exc_info rules
 
@@ -136,7 +136,7 @@ Wrong:
 exc_info=True   # sys.exc_info() is empty outside an active except — no traceback will render
 ```
 
-See `personalscraper/scraper/http_retry.py` (`build_retry_logger`) for the canonical implementation.
+See `personalscraper/core/http_helpers.py` (`build_retry_logger`) for the canonical implementation.
 
 ## Enforcement
 
