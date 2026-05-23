@@ -322,22 +322,25 @@ def library_rescrape(
 @handle_cli_errors
 def library_report(
     ctx: typer.Context,
-    format: str = typer.Option("text", "--format", help="Output format: text or json"),
 ) -> None:
     """Display library statistics and health report.
 
     Aggregates data from the indexer DB (totals, NFO / artwork health, disk
     distribution, per-item sizes) and supplementary JSON outputs from
     ``library-validate``, ``library-recommend``, and ``library-rescrape``.
+    Output format respects the global ``--format`` flag.
 
     Examples:
         personalscraper library-report
-        personalscraper library-report --format json
+        personalscraper --format json library-report
     """
+    import dataclasses
+
+    from personalscraper.cli_helpers.output import emit  # noqa: PLC0415
     from personalscraper.dispatch.disk_scanner import get_disk_status
     from personalscraper.indexer.db import open_db
     from personalscraper.library.analyzer import analyze
-    from personalscraper.library.models import read_json, write_json
+    from personalscraper.library.models import read_json
     from personalscraper.library.reporter import format_report_text, generate_report
 
     config = ctx.obj.config
@@ -375,7 +378,7 @@ def library_report(
             console.print(f"[yellow]Warning: indexer DB query failed ({exc}), skipping analysis.[/yellow]")
 
     if not any([analysis_result, validation_data, recommendation_data, rescrape_data]):
-        console.print("[yellow]No library data found. Run library-index first.[/yellow]")
+        emit("No library data found. Run library-index first.")
         raise typer.Exit(1)
 
     # Get live disk free space
@@ -389,9 +392,7 @@ def library_report(
         rescrape_data=rescrape_data,
     )
 
-    if format == "json":
-        output_path = config.paths.data_dir / "library_report.json"
-        write_json(report, output_path)
-        console.print(f"[green]Report written to {output_path}[/green]")
-    else:
-        console.print(format_report_text(report))
+    emit(
+        dataclasses.asdict(report),
+        rich_renderer=lambda: console.print(format_report_text(report)),
+    )
