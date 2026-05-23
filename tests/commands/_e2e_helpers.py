@@ -105,6 +105,142 @@ def seed_media_item_with_release(
     return cursor2.lastrowid  # type: ignore[return-value]
 
 
+def seed_scan_run(
+    conn: sqlite3.Connection,
+    status: str = "ok",
+    mode: str = "full",
+    generation: int = 1,
+    disk_filter: str | None = None,
+    finished_at: int | None = None,
+) -> int:
+    """Insert a completed scan_run row and return its id."""
+    now = int(time.time())
+    conn.execute(
+        "INSERT INTO scan_run (generation, mode, disk_filter, started_at, finished_at, status) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (generation, mode, disk_filter, now - 60, finished_at or now, status),
+    )
+    conn.commit()
+    return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def seed_index_outbox(
+    conn: sqlite3.Connection,
+    status: str = "pending",
+    processed_at: int | None = None,
+    event_type: str = "test.event",
+    source: str = "scanner",
+    op: str = "move",
+) -> int:
+    """Insert an index_outbox row and return its id."""
+    now = int(time.time())
+    conn.execute(
+        "INSERT INTO index_outbox (source, op, payload_json, created_at, processed_at, status) "
+        "VALUES (?, ?, '{}', ?, ?, ?)",
+        (source, op, now, processed_at, status),
+    )
+    conn.commit()
+    return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def seed_repair_queue(
+    conn: sqlite3.Connection,
+    scope: str = "item",
+    scope_id: int = 1,
+    reason: str = "test.reason",
+    status: str = "pending",
+) -> int:
+    """Insert a repair_queue row and return its id."""
+    now = int(time.time())
+    conn.execute(
+        "INSERT INTO repair_queue (scope, scope_id, reason, payload_json, enqueued_at, status) "
+        "VALUES (?, ?, ?, '{}', ?, ?)",
+        (scope, scope_id, reason, now, status),
+    )
+    conn.commit()
+    return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def seed_media_file_on_disk(
+    conn: sqlite3.Connection,
+    disk_id: int,
+    mount_path: Path,
+    rel_path: str,
+    filename: str,
+    size_bytes: int | None = None,
+    mtime_ns: int | None = None,
+    release_id: int | None = None,
+) -> tuple[int, int, int]:
+    """Create a real file on disk and seed matching DB rows.
+
+    Creates the directory structure under *mount_path*, writes a file with
+    deterministic content, stats it, and inserts ``path`` + ``media_file``
+    rows with the actual on-disk values.
+
+    Args:
+        conn: Open SQLite connection.
+        disk_id: FK to ``disk.id``.
+        mount_path: The disk mount path root (must exist).
+        rel_path: Relative directory under mount_path.
+        filename: Name of the file to create.
+        size_bytes: Override stored size (for mismatch tests).  Defaults to
+            actual file size.
+        mtime_ns: Override stored mtime (for mismatch tests).  Defaults to
+            actual file mtime.
+        release_id: FK to ``media_release.id``.  When ``None``, a minimal
+            media_item + media_release pair is auto-created.
+
+    Returns:
+        ``(path_id, file_id, actual_size)`` tuple.
+    """
+    import hashlib as _hashlib
+    import os as _os
+
+    now = int(time.time())
+
+    # Create directory and file.
+    dir_path = mount_path / rel_path
+    dir_path.mkdir(parents=True, exist_ok=True)
+    file_path = dir_path / filename
+    content = f"test content for {filename} at {now}".encode()
+    file_path.write_bytes(content)
+    actual_size = _os.stat(file_path).st_size
+    actual_mtime_ns = _os.stat(file_path).st_mtime_ns
+
+    # Compute oshash.
+    oshash = _hashlib.new("sha1")
+    oshash.update(content)
+    oshash_hex = oshash.hexdigest()[:16]
+
+    stored_size = size_bytes if size_bytes is not None else actual_size
+    stored_mtime = mtime_ns if mtime_ns is not None else actual_mtime_ns
+
+    # Ensure release_id.
+    if release_id is None:
+        release_id = seed_media_item_with_release(conn)
+
+    # Insert path row.
+    cursor = conn.execute(
+        "INSERT INTO path (disk_id, rel_path, dir_mtime_ns) VALUES (?, ?, ?)",
+        (disk_id, rel_path, int(dir_path.stat().st_mtime_ns)),
+    )
+    path_id: int = cursor.lastrowid  # type: ignore[assignment]
+
+    # Insert media_file row.
+    conn.execute(
+        """
+        INSERT INTO media_file (
+            release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns,
+            oshash, scan_generation, last_verified_at, enriched_at, deleted_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, NULL, NULL)
+        """,
+        (release_id, path_id, filename, stored_size, stored_mtime, now, oshash_hex, now),
+    )
+    conn.commit()
+    file_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    return (path_id, file_id, actual_size)
+
+
 def run_cli(args: list[str]) -> Any:
     """Invoke the Typer CLI app via CliRunner and return the result object.
 
