@@ -62,6 +62,7 @@ lint-logging:
 check: lint test-cov
 	python3 scripts/check-module-size.py
 	python3 scripts/check-typed-api.py
+	python3 scripts/check-pragma-discipline.py
 
 gate: check
 	@echo "Gate: residual import audit..."

@@ -20,6 +20,7 @@ from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import NamedTuple
 
+from personalscraper.indexer.db import _apply_pragmas
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.scan")
@@ -46,27 +47,26 @@ class _DiskWorkerResult(NamedTuple):
 def _open_worker_conn(db_path: Path) -> sqlite3.Connection:
     """Open a WAL-mode SQLite connection suitable for a scan worker thread.
 
+    Applies the canonical PRAGMA set via :func:`_apply_pragmas`, then overrides
+    ``busy_timeout`` to 30 s.  The higher timeout is intentional for worker
+    threads: multiple disk workers compete for the single SQLite write lock, and
+    the canonical 5 s can flake on loaded CI runners
+    (``test_split_cold_scan_invariant`` intermittently fired on every Python
+    version with the tighter cap).  30 s comfortably covers any realistic
+    per-statement hold time; SQLite returns immediately once the write lock is
+    free, so the higher cap costs nothing in the happy path.
+
     Args:
         db_path: Filesystem path to the SQLite database.
 
     Returns:
-        Open :class:`sqlite3.Connection` with WAL journal mode, normal synchronous
-        level, and foreign keys enabled.
-
-    Notes:
-        ``busy_timeout=30000`` (30 s) is the retry window applied when a
-        write collides with another worker or the orchestrator's own
-        connection.  The previous 5 s was tight enough to flake on
-        loaded CI runners (``test_split_cold_scan_invariant`` fired
-        intermittently on every Python version).  30 s comfortably
-        covers any realistic per-statement hold time on the indexer
-        DB; SQLite returns immediately as soon as the write lock is
-        free, so the higher cap costs nothing in the happy path.
+        Open :class:`sqlite3.Connection` with the canonical PRAGMA set applied
+        and ``busy_timeout`` overridden to 30 000 ms.
     """
     conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA synchronous=NORMAL")
-    conn.execute("PRAGMA foreign_keys=ON")
+    _apply_pragmas(conn)
+    # Override busy_timeout: worker threads compete for the write lock and need
+    # a wider retry window than the canonical 5 s used by single-writer paths.
     conn.execute("PRAGMA busy_timeout=30000")
     return conn
 

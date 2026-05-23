@@ -6,6 +6,7 @@ import sqlite3
 import time
 from pathlib import Path
 
+from personalscraper.indexer.db import _apply_pragmas
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.outbox")
@@ -109,7 +110,7 @@ def disk_id_for_path(path: Path, db_path: Path) -> tuple[int, str] | None:
 
     try:
         conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
-        conn.execute("PRAGMA busy_timeout=5000")
+        _apply_pragmas(conn)
         try:
             cursor = conn.execute("SELECT id, mount_path FROM disk WHERE is_mounted=1")
             rows = cursor.fetchall()

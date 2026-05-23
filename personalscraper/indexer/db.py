@@ -266,6 +266,47 @@ def check_free_space(
 # See ``personalscraper.indexer._disk_guard.handle_disk_full`` for the
 # disk-full recovery path (PRAGMA wal_checkpoint + DiskFullWarning emit).
 
+
+def _apply_pragmas(conn: sqlite3.Connection) -> None:
+    """Apply the canonical PRAGMA set to an open SQLite connection.
+
+    This is the single source of truth for the DESIGN §6.1 PRAGMA
+    configuration.  Every connection that touches the indexer database MUST
+    call this helper immediately after :func:`sqlite3.connect` — either via
+    :func:`open_db` (the normal code path) or directly when a site needs its
+    own connection (outbox, concurrency workers, best-effort readers).
+
+    The full set applied (in order):
+
+    * ``journal_mode=WAL`` — multi-reader / single-writer, no exclusive lock.
+    * ``synchronous=NORMAL`` — durability without per-commit fsync overhead.
+    * ``temp_store=MEMORY`` — avoid on-disk temp files for sort / hash ops.
+    * ``cache_size=-65536`` — 64 MiB page cache (negative = kilobytes).
+    * ``mmap_size=268435456`` — 256 MiB memory-mapped I/O window.
+    * ``wal_autocheckpoint=1000`` — auto-checkpoint after 1 000 WAL frames.
+    * ``busy_timeout=5000`` — retry writes for up to 5 s before SQLITE_BUSY.
+    * ``foreign_keys=ON`` — enforce referential integrity at write time.
+
+    Args:
+        conn: An open :class:`sqlite3.Connection` on which to apply PRAGMAs.
+            The connection must not be closed before this function returns.
+
+    Notes:
+        ``journal_mode=WAL`` is a persistent DB-level setting; subsequent
+        connections inherit it.  All other PRAGMAs are connection-scoped and
+        reset to defaults on close, so they must be re-applied on every new
+        connection.
+    """
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA temp_store=MEMORY")
+    conn.execute("PRAGMA cache_size=-65536")
+    conn.execute("PRAGMA mmap_size=268435456")
+    conn.execute("PRAGMA wal_autocheckpoint=1000")
+    conn.execute("PRAGMA busy_timeout=5000")
+    conn.execute("PRAGMA foreign_keys=ON")
+
+
 # ---------------------------------------------------------------------------
 # Core API
 # ---------------------------------------------------------------------------
@@ -372,21 +413,16 @@ def open_db(
 
     # --- Open and configure ---
     conn = sqlite3.connect(str(path), isolation_level=None, check_same_thread=False)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA synchronous=NORMAL")
-    conn.execute("PRAGMA temp_store=MEMORY")
-    conn.execute("PRAGMA cache_size=-65536")
-    conn.execute("PRAGMA mmap_size=268435456")
-    conn.execute("PRAGMA wal_autocheckpoint=1000")
-    conn.execute("PRAGMA busy_timeout=5000")
+    _apply_pragmas(conn)
 
     # --- FK orphan pre-check (Phase 1.2 / DEV #19) ---
-    # PRAGMA foreign_key_check works regardless of foreign_keys ON/OFF — it
-    # scans every FK constraint and reports rows that reference non-existent
-    # parents. We run it BEFORE activating FK enforcement: orphans created
-    # by a script bypassing open_db (raw sqlite3.connect, sqlite3 CLI) would
-    # otherwise stay silently invisible until a write triggers a FK error
-    # far from the source.
+    # PRAGMA foreign_key_check is a diagnostic PRAGMA that scans every FK
+    # constraint and reports rows referencing non-existent parents.  It works
+    # regardless of whether foreign_keys is ON or OFF on this connection
+    # (``_apply_pragmas`` already enabled it above).  Orphans created by a
+    # script bypassing open_db (raw sqlite3.connect, sqlite3 CLI) stay silently
+    # invisible until a write triggers a FK error far from the source — surfacing
+    # them here provides a clear diagnostic at connection time.
     orphans = conn.execute("PRAGMA foreign_key_check").fetchall()
     if orphans:
         log.error(
@@ -401,8 +437,6 @@ def open_db(
             orphan_count=len(orphans),
             sample=[tuple(row) for row in orphans[:5]],
         )
-
-    conn.execute("PRAGMA foreign_keys=ON")
 
     return conn
 

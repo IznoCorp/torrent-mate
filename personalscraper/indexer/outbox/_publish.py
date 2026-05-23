@@ -7,6 +7,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from personalscraper.indexer.db import _apply_pragmas
 from personalscraper.indexer.repos import outbox_repo
 from personalscraper.logger import get_logger
 
@@ -77,7 +78,7 @@ def publish_event(
 
     try:
         conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
-        conn.execute("PRAGMA busy_timeout=5000")
+        _apply_pragmas(conn)
         try:
             outbox_repo.insert(conn, source=source, op=op, payload_json=payload_json)
         finally:

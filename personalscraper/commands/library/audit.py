@@ -198,6 +198,7 @@ def library_relink(
     import sqlite3 as _sqlite3  # noqa: PLC0415
     from pathlib import Path as _Path  # noqa: PLC0415
 
+    from personalscraper.indexer.db import _apply_pragmas  # noqa: PLC0415
     from personalscraper.indexer.release_linker import link_file_to_release  # noqa: PLC0415
 
     console = state["console"]
@@ -205,7 +206,8 @@ def library_relink(
     assert cfg is not None
     db_path = cfg.indexer.db_path
 
-    conn = _sqlite3.connect(str(db_path))
+    conn = _sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+    _apply_pragmas(conn)
     try:
         disks = {did: _Path(mp) for did, mp in conn.execute("SELECT id, mount_path FROM disk WHERE is_mounted = 1")}
         if not disks:
