@@ -151,7 +151,9 @@ python3 scripts/audit-cli-coverage.py
 # Expected: exit 0, every command has commands.md entry
 ```
 
-### ACC-16 — backfill-ids first run executed (MUST-19, DEV #28) 🟡 [SHIPPED commit `7391529` (CLI), operator action pending for real run]
+### ACC-16 — backfill-ids first run executed (MUST-19, DEV #28) 🟡
+
+**Status**: 🟡 PENDING operator action — CLI shipped commit `7391529`, real run pending Phase 8.10
 
 ```bash
 # After Phase 8.10 Plan A
@@ -170,7 +172,9 @@ personalscraper verify -v 2>&1 | grep -E "verify_item_done|cli\.invoke\.verify"
 # Expected: both event types present
 ```
 
-### ACC-18 — cli_telemetry decorator (DEV #23) ✅ partial [SHIPPED commit `a378e7a` decorator + ingest ; 6 KNOWN_VIOLATIONS xfail for full rollout]
+### ACC-18 — cli_telemetry decorator (DEV #23) 🟡
+
+**Status**: 🟡 PARTIAL — decorator + ingest shipped commit `a378e7a`, 6 KNOWN_VIOLATIONS xfail for full rollout
 
 ```bash
 personalscraper info 2>&1 | grep "cli.invoke.info"
@@ -194,7 +198,9 @@ personalscraper library-reconcile --scope path_missing
 # Expected: JSON report with path_missing array
 ```
 
-### ACC-21 — 8 phantom shows cleanup (DEV #17, MUST-18, DEV #12 sub-cause) 🟡 [SHIPPED script `d7561d6`, operator action pending (332 path_missing detected)]
+### ACC-21 — 8 phantom shows cleanup (DEV #17, MUST-18, DEV #12 sub-cause) 🟡
+
+**Status**: 🟡 PENDING operator action — cleanup script shipped commit `d7561d6`, 332 path_missing detected (run `scripts/cleanup-2026-05-21-orphan-shows.py`)
 
 ```bash
 sqlite3 .data/library.db "SELECT id, label FROM disk;"  # only 4 (no duplicates)
@@ -229,7 +235,9 @@ make test -k "test_metadata_client_supports"
 # Expected: per-capability assertions pass
 ```
 
-### ACC-25 — Pydantic ratings boundary (DEV #30) 🟡 [SHIPPED commit `28a2c32` (TV path), movie_service/_xref/nfo_generator pending 0.17]
+### ACC-25 — Pydantic ratings boundary (DEV #30) 🟡
+
+**Status**: 🟡 PARTIAL — TV path shipped commit `28a2c32`, movie_service/\_xref/nfo_generator deferred to 0.17+
 
 ```bash
 make test -k test_scraper_uses_externalids_pydantic
@@ -426,7 +434,9 @@ reste numéroté ACC-33 pour ne pas casser les références ailleurs, mais re-po
 
 ## Polish + Plan A + ACCEPTANCE (Phase 8)
 
-### ACC-34 — Plan A reset+rescrape executed (DEV #27, #54 closure)
+### ACC-34 — Plan A reset+rescrape executed (DEV #27, #54 closure) 🟡
+
+**Status**: 🟡 PENDING (Phase 8.10 — operator action: verify Plan A backfill completion + retry if needed)
 
 ```bash
 sqlite3 .data/library.db "SELECT COUNT(*) FROM media_item WHERE external_ids_json != '{}';"
@@ -435,15 +445,18 @@ personalscraper library-doctor | grep "canonical_provider populated"
 # Expected: > 90%
 ```
 
-### ACC-35 — Module-size hard-block (DEV #46)
+### ACC-35 — Module-size hard-block (DEV #46) 🟡
+
+**Status**: 🟡 PENDING (Phase 8.11 — promote check-module-size to hard-block on > 1000 LOC)
 
 ```bash
-# Insert a module > 1000 LOC temporarily
 python3 scripts/check-module-size.py
-# Expected: exit 1 (hard block on > 1000)
+# Expected: exit 1 if any module > 1000 LOC (soft-block on > 800 WARN, hard-block on > 1000 exit 1)
 ```
 
-### ACC-36 — \_upsert_media_item dedup (DEV #53)
+### ACC-36 — \_upsert_media_item dedup (DEV #53) 🟡
+
+**Status**: 🟡 PENDING (Phase 8.12 — canonical title lookup + UNIQUE constraint + migration)
 
 ```bash
 make test -k test_upsert_media_item_no_duplicates
@@ -451,7 +464,9 @@ sqlite3 .data/library.db "SELECT title, year, COUNT(*) FROM media_item GROUP BY 
 # Expected: empty (no dups)
 ```
 
-### ACC-37 — Event-bus catalog sync (DEV #24, #25)
+### ACC-37 — Event-bus catalog sync (DEV #24, #25) 🟡
+
+**Status**: 🟡 PENDING (Phase 8.13 — catalog v1 13 → 17 + budget raise)
 
 ```bash
 grep -c "Backfill" personalscraper/events/__init__.py
@@ -460,21 +475,25 @@ grep -c "BackfillStarted\|BackfillCompleted" docs/reference/event-bus.md
 # Expected: present in catalog table
 ```
 
-### ACC-38 — Test-coverage re-measured (DEV #41)
+### ACC-38 — Test-coverage re-measured (DEV #41) 🟡
+
+**Status**: 🟡 PENDING (Phase 8.14 — branch coverage re-measurement post-provider-ids)
 
 ```bash
 make test-cov 2>&1 | grep "TOTAL" | awk '{print $NF}'
 # Expected: >= 90 (per gate), branch coverage tracked in IMPLEMENTATION.md
 ```
 
-### ACC-39 — test_cli @patch <= 25 (DEV #49)
+### ACC-39 — test_cli @patch <= 25 (DEV #49) 🟡
+
+**Status**: 🟡 PENDING (Phase 8.15 — trim @patch count 52 → ≤ 25)
 
 ```bash
 grep -cE "@patch\(" tests/test_cli.py
 # Expected: <= 25
 ```
 
-### ACC-40 — Cron backfill-ids (SH-3) ✅ [SHIPPED Phase 8.1]
+### ACC-40 — Cron backfill-ids (SH-3) ✅ [SHIPPED commit `5426826` (Phase 8.1)]
 
 ```bash
 ls launchd-plists/ | grep "backfill-ids"
@@ -482,42 +501,44 @@ ls launchd-plists/ | grep "backfill-ids"
 # Actual: com.personalscraper.backfill-ids.plist
 ```
 
-### ACC-41 — pending_op + item_issue audit (SH-6)
+### ACC-41 — pending_op + item_issue audit (SH-6) ✅
 
 ```bash
-# Documented decision in docs/features/tech-debt/audit/14-pending-op-item-issue.md
-# (12-dead-infrastructure.md is reserved for sub-phase 8.4; the next free
-#  audit index after 13-ntfs-cache-pressure.md is 14)
 test -f docs/features/tech-debt/audit/14-pending-op-item-issue.md
+# Expected: exit 0 (audit report exists; decision documented: both tables KEEP —
+# real production wiring found in indexer/outbox/_drain.py, library/scanner.py)
 ```
 
-✅ [SHIPPED sub-phase 8.2] — Both tables KEEP (real production wiring in
+✅ [SHIPPED commit `ba47124` (Phase 8.2)] — Both tables KEEP (real production wiring in
 `indexer/outbox/_drain.py` + `indexer/repos/outbox_repo.py` for `pending_op`,
 and `library/scanner.py` + `library/analyzer.py` for `item_issue`). No DROP,
 no migration 007 entry, no 0.17+ follow-up. The "0 rows" snapshot in
 `audit/05-bdd-audit.md` reflects pristine library state, not dead code.
 
-### ACC-42 — clean + cleanup CLI exposed (SH-21, AR-C)
+### ACC-42 — clean + cleanup CLI exposed (SH-21, AR-C) ✅
 
 ```bash
-personalscraper clean --help && personalscraper cleanup --help
+personalscraper clean --help && echo "clean OK"
+personalscraper cleanup --help && echo "cleanup OK"
+# Expected: both exit 0, "clean OK" + "cleanup OK" printed
 ```
 
-✅ [SHIPPED sub-phase 8.5] — Both standalone Typer subcommands wired in
+✅ [SHIPPED commit `771e630` (Phase 8.5)] — Both standalone Typer subcommands wired in
 `personalscraper/commands/pipeline.py` as thin wrappers around
 `personalscraper.process.run.run_clean` / `run_cleanup`. Both honor
 `--dry-run`, acquire the pipeline lock, and emit StepReport summary lines.
 Coverage: `tests/commands/test_pipeline_commands.py::TestCleanCommand` +
 `::TestCleanupCommand` (12 tests total).
 
-### ACC-43 — trailers audit alias (SH-22, AR-D)
+### ACC-43 — trailers audit alias (SH-22, AR-D) ✅
 
 ```bash
-personalscraper trailers audit --help
-personalscraper trailers verify --help  # deprecation warning visible
+personalscraper trailers audit --help && echo "audit OK"
+personalscraper trailers verify --help 2>&1 | grep -q "DEPRECATED" && echo "deprecation OK"
+# Expected: both exit 0, "audit OK" + "deprecation OK" printed
 ```
 
-✅ [SHIPPED sub-phase 8.6] — `trailers audit` is now the canonical command;
+✅ [SHIPPED commit `0c6886d` (Phase 8.6)] — `trailers audit` is now the canonical command;
 `trailers verify` remains as a thin alias that prints a
 `[DEPRECATED] trailers verify -> trailers audit (will be removed in 0.17+).
 Forwarding...` warning on stderr and delegates to the shared `_audit_impl`
@@ -525,6 +546,29 @@ helper. Alias removal scheduled for 0.17+. Coverage:
 `tests/trailers/test_cli.py::TestTrailersAuditAlias` (6 tests pinning help
 discoverability, deprecation warning presence/absence, and shared-impl
 delegation).
+
+### ACC-SH-17 — Dead infrastructure audit (SH-17, CF-G) ✅
+
+**Status**: ✅ [SHIPPED commit `92c4d11` (Phase 8.4)]
+
+```bash
+test -f scripts/audit-dead-infrastructure.py && echo "script OK"
+test -f docs/features/tech-debt/audit/12-dead-infrastructure.md && echo "report OK"
+# Expected: "script OK" + "report OK" (script + report exist)
+python3 scripts/audit-dead-infrastructure.py
+# Expected: exit 0 (audit script runs, produces report)
+```
+
+### ACC-SH-26 — CLI coverage audit (SH-26, BD-H) ✅
+
+**Status**: ✅ [SHIPPED commit `0376222` (Phase 8.8)]
+
+```bash
+python3 scripts/audit-cli-coverage.py
+# Expected: exit 0 (every business-module has ≥ 1 CLI command; fail-soft on known non-critical gaps)
+test -f scripts/audit-cli-coverage.py && echo "script OK"
+# Expected: "script OK"
+```
 
 ### ACC-44 — Pin commands tests (SH-25) ✅ [SUPERSEDED — absorbed by Phase 9 CLI Coverage]
 
@@ -542,11 +586,13 @@ rg -c "test_.+_help_exits_zero" tests/commands/test_library_*_e2e.py | wc -l
 # Expected: 23 (each harness pins command existence)
 ```
 
-### ACC-45 — ACCEPTANCE.md complete with all criteria
+### ACC-45 — ACCEPTANCE.md complete with all criteria 🟡
+
+**Status**: 🟡 IN PROGRESS (Phase 8.9 — this criterion tracks itself; validates at Phase 8 gate when all 50+ criteria have ✅/🟡/❌ status)
 
 ```bash
 grep -c "^### ACC-" docs/features/tech-debt/ACCEPTANCE.md
-# Expected: 50+ (ACC-00 + ACC-01..ACC-49 + ACC-final-* = 55 actually)
+# Expected: 55+ (ACC-00 + ACC-01..ACC-54 + ACC-final-* + ACC-SH-*)
 ```
 
 ---
@@ -610,7 +656,9 @@ python3 scripts/cli-coverage-report.py --section "Events" --filter critical
 
 ## Archive doc updates (Phase 10 — ex-Phase 9, renumérotée)
 
-### ACC-46 — 7 archived DESIGN.md have banner (P30)
+### ACC-46 — 7 archived DESIGN.md have banner (P30) 🟡
+
+**Status**: 🟡 PENDING (Phase 10 — archive DESIGN.md banner updates)
 
 ```bash
 for f in event-bus provider-ids media-indexer pipeline-obs trailer logging legacy-cleanup; do
@@ -619,14 +667,18 @@ done
 # Expected: 7 OK lines
 ```
 
-### ACC-47 — VX leaks resolved (DEV #48)
+### ACC-47 — VX leaks resolved (DEV #48) 🟡
+
+**Status**: 🟡 PENDING (Phase 10 — remove stale version references from live docs)
 
 ```bash
 rg "\bV[0-9]+\b" docs/*.md MANUAL.md | grep -v "docs/archive/"
 # Expected: zero
 ```
 
-### ACC-48 — \_exclusions.py docstring cleaned (DEV #44)
+### ACC-48 — \_exclusions.py docstring cleaned (DEV #44) 🟡
+
+**Status**: 🟡 PENDING (Phase 10 — replace hardcoded paths with template vars)
 
 ```bash
 grep -c '"001-MOVIES/Inception' personalscraper/indexer/scanner/_exclusions.py
@@ -648,35 +700,45 @@ grep "dict\[str, Any\] | None" docs/reference/architecture.md
 
 ## Final PR gate
 
-### ACC-final-1 — make check vert
+### ACC-final-1 — make check vert 🟡
+
+**Status**: 🟡 PENDING (PR gate — validates when all phases complete)
 
 ```bash
 make check
 # Expected: exit 0 (lint + test + module-size + typed-api + pragma-discipline)
 ```
 
-### ACC-final-2 — library-reconcile clean
+### ACC-final-2 — library-reconcile clean 🟡
+
+**Status**: 🟡 PENDING (PR gate — validates against live DB post all phases)
 
 ```bash
 personalscraper library-reconcile | jq '.total_findings'
 # Expected: <= 5376 sidecars (no merkle_drift, no path_missing, no release_orphans)
 ```
 
-### ACC-final-3 — library-doctor exit 0
+### ACC-final-3 — library-doctor exit 0 🟡
+
+**Status**: 🟡 PENDING (PR gate — validates against live DB post all phases)
 
 ```bash
 personalscraper library-doctor
 # Expected: exit 0, all health checks green
 ```
 
-### ACC-final-4 — No regressions
+### ACC-final-4 — No regressions 🟡
+
+**Status**: 🟡 PENDING (PR gate — validates test count vs baseline)
 
 ```bash
 make test | tail -1
 # Expected: NNNN passed, 0 failed, 0 errors
 ```
 
-### ACC-final-5 — PR ready
+### ACC-final-5 — PR ready 🟡
+
+**Status**: 🟡 PENDING (PR gate — validates branch state before merge)
 
 ```bash
 git log --oneline 882bc6f..HEAD | wc -l
@@ -689,11 +751,11 @@ git status --short
 
 ## Summary
 
-**Total** : 54 ACCEPTANCE criteria (50 numbered ACC-00..ACC-54 + 4 final). All executable.
+**Total**: 70 ACCEPTANCE criteria (55 numbered ACC-00..ACC-54 + 4 ACC-NTFS-_ + 4 ACC-BDD-_ + 2 ACC-SH-_ + 5 ACC-final-_). All executable.
 Each maps to a specific phase + DEV(s) + commit (ACC-50..54 added for Phase 9 CLI test
-coverage, decision opérateur 2026-05-23).
+coverage, ACC-SH-17 + ACC-SH-26 added for Phase 8.4 + 8.8, decision opérateur 2026-05-23).
 
-**Coverage** :
+**Coverage**:
 
 - 54/54 DEVs covered by ≥ 1 ACCEPTANCE criterion
 - 34/34 patterns leveraged by ≥ 1 ACCEPTANCE criterion
@@ -701,5 +763,5 @@ coverage, decision opérateur 2026-05-23).
 - 10 phases each have ≥ 1 ACCEPTANCE in their gate (Phase 9 = ACC-50..54,
   Phase 10 ex-Phase 9 = ACC-46..49)
 
-**Status post-tech-debt 0.16.0 merge** : marquer ✅/❌/🟡 next to each ACC- as Phase 8.9 closure
+**Status post-tech-debt 0.16.0 merge**: mark ✅/❌/🟡 next to each ACC- as Phase 8.9 closure
 (ACC-00..49) + Phase 9 gate (ACC-50..54).
