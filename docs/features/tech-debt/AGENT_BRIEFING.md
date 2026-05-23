@@ -1,5 +1,7 @@
 # Tech-Debt 0.16.0 — Agent Briefing
 
+> **Version**: 2.0 (2026-05-23)
+
 > **READ FIRST** — Ce briefing complète le contexte fourni par `/implement:sub-phase`. Lis-le
 > AVANT d'attaquer la sub-phase qu'on t'a assignée. Il couvre les règles cross-cutting +
 > risques spécifiques à tech-debt 0.16.0 que le template `/implement:sub-phase` ne mentionne
@@ -82,9 +84,32 @@ dans l'orchestration.
 
 ---
 
-## 6. Test discipline (rappels critiques)
+## 6. Anti-Truncation Discipline (Cocktail A — MANDATORY)
 
-### 6.1 — Test ERROR ≠ test FAILED
+8 of ~35 prior dispatches were truncated before commit during Phases 0-5,
+causing rescue work + token waste. Pattern : agents batch all changes then
+commit at the end, losing everything on truncation.
+
+**ORDRE D'OPÉRATIONS OBLIGATOIRE** :
+
+1. Implement MINIMUM viable change, ONE file at a time
+2. After each file : run targeted test (`pytest <single_test>`)
+3. ruff format + ruff check on touched files
+4. git add + git commit IMMEDIATELY (message OK, can refine)
+5. EMIT YOUR REPORT BLOCK NOW (before any further tool calls)
+6. THEN run make check (optional polish)
+7. If make check fails : amend OR fix-up commit + addendum to report
+8. STOP
+
+NEVER batch all changes then commit at the end.
+NEVER wait for "perfect" before committing.
+IF you must truncate : the COMMIT MUST EXIST + the REPORT MUST BE EMITTED.
+
+---
+
+## 7. Test discipline (rappels critiques)
+
+### 7.1 — Test ERROR ≠ test FAILED
 
 `make test` summary line peut ressembler à :
 
@@ -95,7 +120,7 @@ dans l'orchestration.
 
 **Toujours read the summary line + le bloc ERRORS si présent.**
 
-### 6.2 — Regression test per bug (memory rule)
+### 7.2 — Regression test per bug (memory rule)
 
 Chaque DEV fix DOIT avoir un test de régression dédié dans le même commit, qui :
 
@@ -105,7 +130,7 @@ Chaque DEV fix DOIT avoir un test de régression dédié dans le même commit, q
 Si tu fix DEV #18 sans test régression, ton report doit être `DONE_WITH_CONCERNS:
 missing regression test`.
 
-### 6.3 — Cross-caller grep AVANT claim "X supprimé / Y migré"
+### 7.3 — Cross-caller grep AVANT claim "X supprimé / Y migré"
 
 Pattern P2 (chaîne de découverte) : un fix qui passe ses propres tests unitaires n'est
 PAS forcément complet. Pour tout refactor "drop" / "rename" / "migrate" :
@@ -117,7 +142,7 @@ rg -n --type py "<symbole_supprimé>" personalscraper/ tests/
 
 **Joindre la commande + sortie dans le commit message** pour traçabilité.
 
-### 6.4 — `make check` évolue durant les phases
+### 7.4 — `make check` évolue durant les phases
 
 - Avant Phase 1.10 : `make check` = lint + test + module-size + typed-api
 - Après 1.10 : `make check` inclut aussi `check-pragma-discipline.py`
@@ -126,9 +151,18 @@ rg -n --type py "<symbole_supprimé>" personalscraper/ tests/
 Ne pas paniquer si `make check` n'inclut pas un check qui sera ajouté plus tard — ton job
 est de faire passer le `make check` au moment où tu lances.
 
+### 7.5 — Live data variance (lessons from DEV #54 follow-up)
+
+The init_canonical fix shipped clean per agent tests but crashed in
+production on NFOs with type="anidb" (not anticipated by the synthetic
+test). For any fix touching user data (NFO, FS paths, IDs, config),
+include AT LEAST one test case with an "unexpected value" based on
+audit findings or production state. Variance > coverage when the cost
+is recovery from a live crash.
+
 ---
 
-## 7. Hooks et règles dures (rappel CLAUDE.md)
+## 8. Hooks et règles dures (rappel CLAUDE.md)
 
 Le harness Claude Code a des hooks PreToolUse qui bloquent certaines actions :
 
@@ -140,9 +174,25 @@ Le harness Claude Code a des hooks PreToolUse qui bloquent certaines actions :
 **`rg` MUST avoir `--type py` ou `-g '*.py'`** (machine crash safety — `tests/e2e/perf/.fixture/`
 fait 14 GB de binaires, `rg` sans type filter peut consommer toute la RAM).
 
+### Hook formatter strip pattern
+
+The PostToolUse ruff formatter strips imports it considers "unused" —
+including imports added for type-only use that are referenced in the
+SAME file but in lines added in a separate Edit. Pattern observed
+multiple times in Phases 1-5.
+
+**Mitigation** : when adding an import for type-only use (e.g. a class
+referenced only in a type annotation OR in a function body added in a
+later Edit), ALSO use the symbol in the SAME Edit that adds the import.
+The formatter only strips if it sees an orphan import at write-time.
+
+If you need to add an import that will be used in a subsequent edit,
+include a placeholder usage in the import edit itself (e.g. `_ = SymbolName`)
+and remove the placeholder when the real usage lands.
+
 ---
 
-## 8. Memory rules à respecter (préférences user durables)
+## 9. Memory rules à respecter (préférences user durables)
 
 Issues de `~/.claude/projects/-Users-izno-dev-PersonnalScaper/memory/MEMORY.md` :
 
@@ -153,14 +203,27 @@ Issues de `~/.claude/projects/-Users-izno-dev-PersonnalScaper/memory/MEMORY.md` 
   `library-index --mode backfill-ids`** (read-only contre API).
 - **NO DEFERRAL absolu** : aucun DEV / SH / CF item ne peut être différé hors 0.16.0. Si
   tu rencontres un blocker, STOP et report — ne pas marquer "TODO 0.17+".
-- **Test de régression par bug** : déjà couvert §6.2.
+- **Test de régression par bug** : déjà couvert §7.2.
 - **Pas de retro-compat avant v1.x** : 0.16.0 < 1.0 ⇒ pas de scripts de migration, pas
   de feature flags, pas de deprecation alias (sauf cas explicite comme `trailers verify`
   → `trailers audit` Phase 8.6, justifié dans le plan).
 
+### Tools shipped earlier in tech-debt 0.16.0 — use them
+
+- `scripts/drift-detect.py` (5.10.1) — audit IMPL/ACCEPTANCE/plan vs git
+- `scripts/phase-gate.sh` (5.10.2) — orchestrate phase gate commits cleanly
+- `personalscraper library-doctor` (5.6) — health checks on live BDD
+- `personalscraper library-init-canonical` (1.9) — bootstrap canonical_provider
+- `personalscraper library-backfill-ids` (2.6) — Plan A backfill
+- `scripts/audit-fk-orphans.py` (4.4) — FK orphan audit
+- `scripts/check-pragma-discipline.py` (1.10) — PRAGMA discipline lint
+- `scripts/cleanup-2026-05-21-orphan-shows.py` (4.3) — phantom cleanup runbook
+
+Don't re-invent ; if your sub-phase needs to verify state, use these tools.
+
 ---
 
-## 9. Validation post-commit obligatoire
+## 10. Validation post-commit obligatoire
 
 Avant de marquer une sub-phase DONE :
 
@@ -170,13 +233,13 @@ Avant de marquer une sub-phase DONE :
 3. **Si tu as touché un module BDD/scanner/indexer/scraper/dispatch** : run
    `personalscraper library-reconcile` et compare aux baseline (§2). Toute régression =
    `DONE_WITH_CONCERNS` minimum.
-4. **Si tu as supprimé / renommé une API publique** : cross-caller grep §6.3, joindre au commit
+4. **Si tu as supprimé / renommé une API publique** : cross-caller grep §7.3, joindre au commit
 5. **Si tu as ajouté une migration SQL** : check `PRAGMA user_version` bump + `schema_version`
    row insert. Test que `apply_migrations()` peut tourner deux fois sans erreur (idempotence).
 
 ---
 
-## 10. Quand reporter BLOCKED
+## 11. Quand reporter BLOCKED
 
 - Une sub-phase dépend d'une autre non encore committée (orchestration glitch)
 - `make check` échoue après 2 tentatives de fix
@@ -190,7 +253,7 @@ Format : `Status: BLOCKED`, explique précisément l'obstacle, ne JAMAIS forcer 
 
 ---
 
-## 11. Skills disponibles à invoquer si pertinent
+## 12. Skills disponibles à invoquer si pertinent
 
 Si la sub-phase implique :
 
@@ -205,7 +268,7 @@ sub-phase matche leur description.
 
 ---
 
-## 12. Fichiers de référence par domaine (lecture lazy)
+## 13. Fichiers de référence par domaine (lecture lazy)
 
 Charge seulement si pertinent à ta sub-phase :
 
@@ -222,7 +285,27 @@ Charge seulement si pertinent à ta sub-phase :
 
 ---
 
-## 13. TL;DR pour les pressés
+## 14. Plan-drift handling
+
+If you find the plan factually wrong (path doesn't exist, function signature
+different, line count off, command unavailable), DO NOT silently work around
+it. Correct the plan in the SAME commit as the code change so the plan
+evolves with reality. Examples encountered :
+
+- Phase 1.10 path `personalscraper/indexer/_concurrency.py` → real path
+  `personalscraper/indexer/scanner/_concurrency.py`
+- Phase 1.1 function name `increment_miss_strikes_for_disk` → real name
+  `mark_missed_files`
+- Phase 4.3 "8 phantom shows" → actually 7 in the plan body
+- Phase 5.3 module-size BLOCK (1014 > 1000) hit by naive implementation —
+  required refactoring helper out to models.py
+
+Commit message should note the plan correction explicitly so reviewers
+can see what changed.
+
+---
+
+## 15. TL;DR pour les pressés
 
 - Ne pas re-fixer DEV #9/#11/#13/#14 (shipped)
 - Phase 0 = manual cross-repo, refuser si dispatché
@@ -232,4 +315,5 @@ Charge seulement si pertinent à ta sub-phase :
 - Test ERROR = collection cassée, tout après skippé silencieusement → fix imports
 - Cross-caller `rg --type py` AVANT claim "supprimé"
 - Regression test par bug fix, dans le même commit
+- **Commit IMMÉDIATEMENT après chaque fichier — ne PAS batcher** (§6)
 - BLOCKED honnête > DONE faux
