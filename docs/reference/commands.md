@@ -194,3 +194,142 @@ ambiguous matches.
 **Related**: `enforce`, `verify`, `process`, `run`
 
 ---
+
+## `personalscraper enforce`
+
+**Purpose**: Enforces staging conventions on media items before scrape. Sanitizes
+filenames (removes special characters, normalizes spacing), validates directory
+structure, and checks naming coherence against expected patterns. The
+`.DS_Store` cleanup performed by this step is **per-item only** (only within the
+folder being enforced), not disk-wide — use `library-clean` for whole-disk
+sweeps.
+
+**Side effects**: `mutate FS` (renames files/folders, deletes `.DS_Store` per-item)
+
+**Pipeline position**: step 5
+
+**Args**:
+
+- `--dry-run` : preview without modifying
+
+**Examples**:
+
+    personalscraper enforce
+    personalscraper enforce --dry-run
+
+**Related**: `sort`, `scrape`, `verify`, `run`
+
+---
+
+## `personalscraper verify`
+
+**Purpose**: Quality gate before dispatch. Verifies that every scraped item in
+staging has valid NFO files, required artwork (poster + landscape minimum), and
+correct folder naming. Reports errors and warnings for items that fail
+validation. Use `--movies-only` or `--tvshows-only` to scope the check.
+
+**Side effects**: `read-only` (inspects files, does not modify)
+
+**Pipeline position**: step 6
+
+**Args**:
+
+- `--dry-run` : preview without modifying files
+- `--movies-only` : process only movies
+- `--tvshows-only` : process only TV shows
+
+**Examples**:
+
+    personalscraper verify
+    personalscraper verify --dry-run
+    personalscraper verify --movies-only
+
+**Related**: `scrape`, `enforce`, `dispatch`, `run`
+
+---
+
+## `personalscraper dispatch`
+
+**Purpose**: Moves verified media from staging to permanent storage disks.
+Selects the target disk based on free space (new items go to the disk with the
+most available space). Movies replace any existing folder with the same name;
+TV shows merge new episode files into the existing folder. After dispatch, the
+staging directory for that item is removed.
+
+**Side effects**: `mutate FS` (moves media to storage, deletes from staging)
+
+**Pipeline position**: step 7
+
+**Args**:
+
+- `--dry-run` : preview without moving
+
+**Examples**:
+
+    personalscraper dispatch
+    personalscraper dispatch --dry-run
+
+**Related**: `verify`, `process`, `run`
+
+---
+
+## `personalscraper process`
+
+**Purpose**: Composite command that runs the processing phase end-to-end:
+reclean (re-sanitize filenames), dedup (remove duplicate files), scrape
+(metadata + artwork from TMDB/TVDB), and cleanup (remove empty dirs and
+residual junk). Equivalent to running those steps individually but as a single
+operation. Supports `--interactive` for ambiguous scrape matches.
+
+**Side effects**: `mutate FS` (writes NFO + artwork, cleans junk), `network` (TMDB / TVDB APIs)
+
+**Pipeline position**: composite (covers steps 3–4 equivalent)
+
+**Args**:
+
+- `--dry-run` : preview without modifying
+- `--interactive / -i` : prompt for ambiguous matches
+
+**Examples**:
+
+    personalscraper process
+    personalscraper process --dry-run
+    personalscraper process --interactive
+
+**Related**: `scrape`, `cleanup`, `enforce`, `run`
+
+---
+
+## `personalscraper run`
+
+**Purpose**: Runs the full pipeline from start to finish: ingest → sort → clean
+→ scrape → cleanup → enforce → verify → trailers → dispatch. This is the main
+orchestration command for unattended/automated runs (e.g. via launchd). Each
+step reports its own summary, and the pipeline stops on the first fatal error
+unless `--continue-on-trailer-error` is set (for trailer-specific failures).
+
+**Side effects**: `mutate FS` (all staging + storage operations), `mutate BDD`
+(indexer updates during scan), `network` (qBittorrent, TMDB, TVDB, YouTube,
+Telegram)
+
+**Pipeline position**: n/a (runs all steps 1–9)
+
+**Args**:
+
+- `--dry-run` : preview full pipeline without modifying anything
+- `--interactive / -i` : prompt for ambiguous scrape matches
+- `--skip-trailers` : skip the trailers pipeline step for this invocation
+- `--continue-on-trailer-error` : do not abort dispatch when the trailers step crashes
+- `--headless` : run with no subscribers (silent mode for cron / CI) — disables Rich console output and Telegram notifications
+
+**Examples**:
+
+    personalscraper run
+    personalscraper run --dry-run
+    personalscraper run --skip-trailers
+    personalscraper run --continue-on-trailer-error
+    personalscraper run --headless
+
+**Related**: `ingest`, `sort`, `scrape`, `enforce`, `verify`, `dispatch`, `process`
+
+---
