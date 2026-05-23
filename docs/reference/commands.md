@@ -840,3 +840,131 @@ and the count is reported.
 **Related**: `library-reconcile`, `library-repair`
 
 ---
+
+## Library — analysis & query
+
+## `personalscraper library-analyze`
+
+**Purpose**: Deep scan video files with ffprobe (codec, audio, subtitles) and
+print a summary. Most I/O-intensive command — schedule during off-peak hours.
+Use `--from-index` to read enrich-populated streams from the indexer DB instead
+(orders of magnitude faster, with documented HDR/Atmos caveats). The result set
+is not persisted to disk — `library-recommend` runs this scan inline before
+producing recommendations, so there is no need to call `library-analyze` first
+as a side-effect setup step.
+
+**Side effects**: `read-only` (ffprobe subprocess spawns unless `--from-index`)
+
+**Pipeline position**: n/a
+
+**Args**:
+
+- `--disk TEXT` : Analyze only this disk
+- `--category TEXT` : Analyze only this category
+- `--max-items INTEGER` : Limit number of items to analyze
+- `--from-index` : Read codec / audio / subtitle data from the indexer DB
+  instead of running ffprobe per file. Requires a prior `library-index --mode
+enrich` pass; HDR / Atmos detection is approximated (see
+  `analyze_from_index` docstring).
+
+**Examples**:
+
+    personalscraper library-analyze
+    personalscraper library-analyze --disk Disk1 --category movies
+    personalscraper library-analyze --max-items 50
+    personalscraper library-analyze --from-index
+
+**Related**: `library-recommend`, `library-report`, `library-index`
+
+---
+
+## `personalscraper library-recommend`
+
+**Purpose**: Generate re-download recommendations from a fresh ffprobe analysis.
+Runs the ffprobe analysis inline (no on-disk cache) and feeds the in-memory
+result to the recommender. Preferences come from `config.library`. Output is
+written to `library_recommendations.json`. Pass `--from-index` to skip ffprobe
+and read streams from the indexer DB instead (orders of magnitude faster on a
+populated index).
+
+**Side effects**: `mutate FS` (writes `library_recommendations.json`), ffprobe
+subprocess spawns (unless `--from-index`)
+
+**Pipeline position**: n/a
+
+**Args**:
+
+- `--sort TEXT` : Sort by: `priority`, `size`, `codec` [default: priority]
+- `--export TEXT` : Export format: `csv`
+- `--disk TEXT` : Filter to this disk
+- `--category TEXT` : Filter to this category
+- `--from-index` : Read codec / audio / subtitle data from the indexer DB
+  instead of running ffprobe per file. Requires a prior `library-index --mode
+enrich` pass.
+
+**Examples**:
+
+    personalscraper library-recommend
+    personalscraper library-recommend --sort size
+    personalscraper library-recommend --export csv
+    personalscraper library-recommend --from-index
+
+**Related**: `library-analyze`, `library-report`
+
+---
+
+## `personalscraper library-rescrape`
+
+**Purpose**: Targeted re-scrape of library items via TMDB/TVDB. Only repairs
+what is broken per item: missing NFO, missing artwork, unrenamed episodes. Items
+already conforming are skipped. Use `--only` to restrict to specific repair
+types, `--interactive` for ambiguous matches, and `--max-items` to limit the
+batch size.
+
+**Side effects**: `mutate FS` (writes NFO + artwork files), `network` (TMDB / TVDB APIs)
+
+**Pipeline position**: n/a
+
+**Args**:
+
+- `--only TEXT` : Only fix: `nfo`, `artwork`, `episodes`
+- `--disk TEXT` : Rescrape only this disk
+- `--category TEXT` : Rescrape only this category
+- `--interactive` : Confirm low-confidence matches
+- `--dry-run` : Preview without modifying files
+- `--max-items INTEGER` : Limit number of items to process
+
+**Examples**:
+
+    personalscraper library-rescrape --dry-run
+    personalscraper library-rescrape --only artwork
+    personalscraper library-rescrape --disk Disk1 --max-items 50
+    personalscraper library-rescrape --interactive
+
+**Related**: `scrape`, `library-validate`, `library-report`
+
+---
+
+## `personalscraper library-report`
+
+**Purpose**: Display library statistics and health report. Aggregates data from
+the indexer DB (totals, NFO / artwork health, disk distribution, per-item sizes)
+and supplementary JSON outputs from `library-validate`, `library-recommend`, and
+`library-rescrape`. Output format respects the global `--format` flag (`rich` by
+default, `json` for machine-parseable output).
+
+**Side effects**: `read-only`
+
+**Pipeline position**: n/a
+
+**Args**: none beyond global flags
+
+**Examples**:
+
+    personalscraper library-report
+    personalscraper --format json library-report
+
+**Related**: `library-analyze`, `library-recommend`, `library-rescrape`,
+`library-doctor`
+
+---
