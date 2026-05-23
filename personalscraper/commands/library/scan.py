@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json as _json
 from pathlib import Path
 from typing import Optional
 
@@ -145,8 +146,6 @@ def library_init_canonical(
         personalscraper library-init-canonical
         personalscraper library-init-canonical --dry-run
     """
-    import json as _json  # noqa: PLC0415
-
     from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
     from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
     from personalscraper.indexer.scanner._modes.backfill_ids import init_canonical_from_nfo  # noqa: PLC0415
@@ -200,3 +199,110 @@ def library_init_canonical(
         conn.close()
 
     console.print(_json.dumps({"status": "ok", "canonical_provider_populated": populated}))
+
+
+@app.command("library-scan")
+@handle_cli_errors
+def library_scan(
+    ctx: typer.Context,
+    disk: Optional[str] = typer.Option(None, "--disk", "-d", help="Restrict scan to this disk label"),
+    mode: str = typer.Option("full", "--mode", help="Scan mode (currently only 'full' is supported)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Count media dirs without writing to DB"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Scan media directories on disks and create media_item rows from NFOs.
+
+    Walks all configured storage disks (or a single disk with --disk),
+    scans movie / TV show directories, reads NFO files, and writes
+    ``media_item``, ``season``, ``episode``, and ``item_attribute`` rows
+    to the indexer DB.  Delegates file-level indexing to the underlying
+    indexer scanner so ``media_file`` / ``path`` rows are also populated.
+
+    Use ``--dry-run`` to count directories that would be scanned without
+    writing any DB rows.  Use ``--disk`` to restrict the scan to a single
+    disk label (as configured in ``config/paths.json5``).
+
+    Examples:
+        personalscraper library-scan
+        personalscraper library-scan --disk disk_1
+        personalscraper library-scan --dry-run
+        personalscraper library-scan --disk disk_1 --dry-run
+    """
+    import os as _os  # noqa: PLC0415
+
+    from personalscraper import cli as cli_compat  # noqa: PLC0415
+    from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
+    from personalscraper.cli_state import state as _state  # noqa: PLC0415
+    from personalscraper.conf.loader import load_config  # noqa: PLC0415
+    from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
+    from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
+    from personalscraper.library.scanner import scan_library  # noqa: PLC0415
+
+    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    cfg = ctx.obj.config if ctx.obj is not None else load_config(effective_config)
+    console = _state["console"]
+
+    # Validate --disk filter early so the user gets a clear error message
+    # before we open the DB or acquire the writer lock.
+    if disk is not None:
+        disk_ids = {d.id for d in cfg.disks}
+        if disk not in disk_ids:
+            typer.echo(
+                f"Unknown disk '{disk}'. Configured disks: {', '.join(sorted(disk_ids))}",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+    if dry_run:
+        # Dry-run: count media directories that would be scanned.  Walk the
+        # category directories without writing any DB rows.
+        total_dirs = 0
+        for disk_cfg in cfg.disks:
+            if disk is not None and disk_cfg.id != disk:
+                continue
+            if not disk_cfg.path.exists():
+                console.print(f"[yellow]Disk not mounted — skipping: {disk_cfg.id}[/yellow]")
+                continue
+            for category_id in disk_cfg.categories:
+                cat_cfg = cfg.category(category_id)
+                category_dir = disk_cfg.path / cat_cfg.folder_name
+                if not category_dir.is_dir():
+                    continue
+                total_dirs += sum(1 for d in category_dir.iterdir() if d.is_dir() and not d.name.startswith("."))
+        console.print(_json.dumps({"dry_run": True, "media_dirs_to_scan": total_dirs, "disk_filter": disk}))
+        return
+
+    # Live scan — acquire writer lock, open DB, call scan_library.
+    if not cli_compat.acquire_lock():
+        console.print("[red]Another instance is running. Exiting.[/red]")
+        raise typer.Exit(1)
+
+    if cfg.indexer.db_path is None:
+        typer.echo("indexer.db_path is not configured", err=True)
+        raise typer.Exit(code=1)
+    db_path = Path(cfg.indexer.db_path)  # narrow Any|Path|None → Path for mypy strict mode
+
+    migrations_dir = _os.path.dirname(_migrations_pkg.__file__)
+
+    try:
+        settings = cli_compat.get_settings()
+        with per_step_boundary(cfg, settings) as app_context:
+            conn = open_db(db_path, event_bus=app_context.event_bus)
+            apply_migrations(conn, Path(migrations_dir))
+            try:
+                # Apply --disk filter by restricting config.disks to the
+                # requested disk only.  We shadow the attribute rather than
+                # mutating the shared config so other components remain
+                # unaffected.
+                if disk is not None:
+                    filtered_disks = [d for d in cfg.disks if d.id == disk]
+                    cfg = cfg.model_copy(update={"disks": filtered_disks})
+
+                scan_library(cfg, conn, event_bus=app_context.event_bus)
+                conn.commit()
+            finally:
+                conn.close()
+    finally:
+        cli_compat.release_lock()
+
+    console.print(_json.dumps({"status": "ok", "disk_filter": disk}))
