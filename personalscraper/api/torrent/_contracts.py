@@ -32,10 +32,9 @@ only :class:`TorrentLister` + :class:`TorrentStateInspector`) ;
 :class:`AuthenticatedClient` instead of raising
 ``NotImplementedError`` from a forced ``login()`` override.
 
-Phase 1.4 ships only the contracts. Concrete clients (``QBitClient``,
-``TransmissionClient``) continue to satisfy the monolithic
-``TorrentClient`` Protocol ; phase 13 refactors them to compose the
-atomic capabilities declared here.
+The former composite ``TorrentClientFull`` Protocol was dropped in
+0.16.0 (MUST-14, CF-B). Callers that previously used it now type
+their dependency via the atomic protocols they actually consume.
 """
 
 from __future__ import annotations
@@ -120,31 +119,10 @@ class TorrentController(Protocol):
     def delete(self, hash: str, *, delete_files: bool = False) -> None: ...
 
 
-@runtime_checkable
-class TorrentClientFull(
-    TorrentLister,
-    TorrentInspector,
-    TorrentStateInspector,
-    TorrentController,
-    Protocol,
-):
-    """Composite capability — every torrent capability *except* authentication.
-
-    Drop-in replacement for the historical ``TorrentClient`` Protocol,
-    minus :class:`AuthenticatedClient` so :class:`TransmissionClient`
-    (which has no explicit login step) still satisfies the type. The
-    factory in :mod:`personalscraper.api.torrent._factory` returns
-    this Protocol so existing call sites that touch every method keep
-    type-checking ; callers that need authentication assert
-    :class:`AuthenticatedClient` separately via ``isinstance``.
-    """
-
-
 __all__ = [
     "TorrentLister",
     "TorrentInspector",
     "AuthenticatedClient",
     "TorrentStateInspector",
     "TorrentController",
-    "TorrentClientFull",
 ]
