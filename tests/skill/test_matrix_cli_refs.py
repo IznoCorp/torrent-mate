@@ -19,13 +19,13 @@ This test suite:
 
 Known bugs captured by this test (will flip from xfail to pass once fixed):
 
-- DEV #10 — ``library-reconcile --dry-run`` flag does not exist yet.
 - DEV #20 — ``qbit-restart`` command does not exist.
 
 Would-have-caught history:
 
 - DEV #10 (Phase 4.6): ``library-reconcile --dry-run`` referenced in GATE 6
-  of the matrix but the flag was never added to the CLI.
+  of the matrix but the flag was never added to the CLI.  Fixed by Phase 4.6 —
+  ``--dry-run`` and ``--read-only`` are now first-class flags.
 - DEV #20 (Phase 8.3): ``qbit-restart`` command referenced in INGEST deviation
   table but the command does not exist in the CLI surface.
 """
@@ -66,9 +66,6 @@ _CLI_BIN = shutil.which("personalscraper") or "personalscraper"
 # - Key format for bare commands: ``"<cmd>"``
 # - Key format for commands with flags: ``"<cmd> <flag>"``
 _KNOWN_BAD: dict[str, str] = {
-    # DEV #10 — library-reconcile --dry-run: flag doesn't exist on the command.
-    # Referenced at GATE 6 in the matrix but never added to the CLI.
-    "library-reconcile --dry-run": ("DEV #10 — --dry-run flag not yet added to library-reconcile; fixed by Phase 4.6"),
     # DEV #20 — qbit-restart: command doesn't exist in the CLI surface.
     # Referenced in the INGEST deviation table as a remediation action.
     "qbit-restart": ("DEV #20 — qbit-restart command does not exist; fixed by Phase 8.3"),

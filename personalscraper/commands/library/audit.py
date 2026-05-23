@@ -28,20 +28,45 @@ def library_reconcile(
             "Omit to run every detector."
         ),
     ),
+    read_only: bool = typer.Option(
+        False,
+        "--read-only",
+        help=(
+            "Explicit read-only mode (default behaviour). "
+            "No divergence is written to repair_queue. "
+            "Mutually exclusive with --enqueue-repairs."
+        ),
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Alias for --read-only. Preview findings without enqueuing repairs.",
+    ),
     enqueue_repairs: bool = typer.Option(
         False,
         "--enqueue-repairs",
-        help="Push every divergence into repair_queue for library-repair to drain.",
+        help=(
+            "Opt-in: push every divergence into repair_queue for library-repair to drain. "
+            "Mutually exclusive with --read-only / --dry-run."
+        ),
     ),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
 ) -> None:
     """Detect index ↔ filesystem divergences without a full rescan.
 
-    Runs DB-only checks (one ``Path.exists()`` for the dispatch_path
-    detector — every other detector is pure SQL) and prints a JSON
-    report of findings.  Optionally enqueues each finding into
-    ``repair_queue`` so ``library-repair`` can fix them within a
-    bounded budget.
+    Read-only by default — runs DB-only checks (one ``Path.exists()``
+    for the dispatch_path detector — every other detector is pure SQL)
+    and prints a JSON report of findings.  Optionally enqueues each
+    finding into ``repair_queue`` so ``library-repair`` can fix them
+    within a bounded budget (opt-in via ``--enqueue-repairs``).
+
+    Mode summary:
+
+    - Default (no flags) — read-only: report divergences, no writes.
+    - ``--read-only`` — explicit alias for the default read-only mode.
+    - ``--dry-run`` — alias for ``--read-only`` (same behaviour).
+    - ``--enqueue-repairs`` — opt-in write mode; pushes findings into
+      ``repair_queue``.
 
     Detector scopes:
 
@@ -56,6 +81,8 @@ def library_reconcile(
 
     Examples:
         personalscraper library-reconcile
+        personalscraper library-reconcile --read-only
+        personalscraper library-reconcile --dry-run
         personalscraper library-reconcile --scope enrich --scope release
         personalscraper library-reconcile --scope path_missing
         personalscraper library-reconcile --enqueue-repairs
@@ -66,6 +93,16 @@ def library_reconcile(
     from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
     from personalscraper.core.event_bus import EventBus, current_correlation_id  # noqa: PLC0415
     from personalscraper.indexer.cli import library_reconcile_command  # noqa: PLC0415
+
+    # --read-only / --dry-run are mutually exclusive with --enqueue-repairs.
+    # Both flags mean the same thing: stay in the default read-only mode.
+    if enqueue_repairs and (read_only or dry_run):
+        typer.echo("--enqueue-repairs is mutually exclusive with --read-only / --dry-run.", err=True)
+        raise typer.Exit(1)
+
+    # --read-only and --dry-run are aliases for each other; both simply
+    # assert the default mode.  No flag means read-only as well.
+    effective_enqueue = enqueue_repairs
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
 
@@ -84,7 +121,7 @@ def library_reconcile(
     try:
         rc = library_reconcile_command(
             scopes=scope if scope else None,
-            enqueue_repairs=enqueue_repairs,
+            enqueue_repairs=effective_enqueue,
             config_path=effective_config,
             event_bus=event_bus,
         )
