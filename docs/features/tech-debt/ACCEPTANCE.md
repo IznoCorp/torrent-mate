@@ -35,7 +35,7 @@ grep -cE "MATRIX_AGENTS_MISSING|matrix agents discoverability" .claude/skills/pi
 
 ## Foundations (Phase 1)
 
-### ACC-01 — Drift mechanism active (DEV #18)
+### ACC-01 — Drift mechanism active (DEV #18) ✅ [SHIPPED commit `38cdcd6`]
 
 ```bash
 # After Phase 1.1 + 1.3
@@ -45,53 +45,53 @@ make test -k test_miss_strike_lifecycle && echo OK
 
 **Expected** : `media_file.miss_strikes` increments per missed scan ; soft-delete fires at N.
 
-### ACC-02 — FK enforced runtime (DEV #19)
+### ACC-02 — FK enforced runtime (DEV #19) ✅ [SHIPPED commit `1320efc`]
 
 ```bash
 sqlite3 .data/library.db "PRAGMA foreign_keys;"          # returns 1
 sqlite3 .data/library.db "PRAGMA foreign_key_check;"     # returns zero rows
 ```
 
-### ACC-03 — Test E2E miss-strike lifecycle (MUST-17)
+### ACC-03 — Test E2E miss-strike lifecycle (MUST-17) ✅ [SHIPPED commit `e5a79a3`]
 
 ```bash
 make test -k test_miss_strike_lifecycle
 ```
 
-### ACC-04 — Test E2E scan→reconcile=clean (MUST-16)
+### ACC-04 — Test E2E scan→reconcile=clean (MUST-16) ✅ [SHIPPED commit `5389529`]
 
 ```bash
 make test -k test_scan_reconcile_clean
 ```
 
-### ACC-05 — schema_version row 3 backfilled (DEV #15)
+### ACC-05 — schema_version row 3 backfilled (DEV #15) ✅ [SHIPPED commit `36da687`]
 
 ```bash
 sqlite3 .data/library.db "SELECT version FROM schema_version ORDER BY version;"
 # Expected: 1, 2, 3, 4, 5, 6
 ```
 
-### ACC-06 — PRAGMA integrity_check at boot (SH-9)
+### ACC-06 — PRAGMA integrity_check at boot (SH-9) ✅ [SHIPPED commit `c0e7094`]
 
 ```bash
 # Open DB triggers integrity_check; corrupt DB → IndexerCorruptError
 make test -k test_open_db_integrity_check_at_boot
 ```
 
-### ACC-07 — \_ensure_disk_row no duplicates (DEV #50)
+### ACC-07 — \_ensure_disk_row no duplicates (DEV #50) ✅ [SHIPPED commit `1805f9b`]
 
 ```bash
 make test -k test_ensure_disk_row_no_duplicate
 # Pre-condition: 4 disks in BDD, call scan_library, assert disk count unchanged
 ```
 
-### ACC-08 — Enrich + walker retry oshash on NULL (DEV #51, #52)
+### ACC-08 — Enrich + walker retry oshash on NULL (DEV #51, #52) ✅ [SHIPPED commit `b7d98a6`]
 
 ```bash
 make test -k "test_enrich_recomputes_null_oshash or test_walker_retries_oshash"
 ```
 
-### ACC-09 — init-canonical CLI works (DEV #54)
+### ACC-09 — init-canonical CLI works (DEV #54) ✅ [SHIPPED commits `224eaea` + `c83888d`]
 
 ```bash
 personalscraper library init-canonical --help && echo OK
@@ -100,7 +100,7 @@ sqlite3 .data/library.db "SELECT COUNT(*) FROM media_item WHERE canonical_provid
 # Expected post-real-run: > 0 (depends on NFO presence)
 ```
 
-### ACC-10 — PRAGMA discipline multi-site (DEV #33, #34, #37 audit)
+### ACC-10 — PRAGMA discipline multi-site (DEV #33, #34, #37 audit) ✅ [SHIPPED commit `61427b6`]
 
 ```bash
 rg "sqlite3\.connect\(" personalscraper/ --type py | grep -v "indexer/db.py"
@@ -113,14 +113,14 @@ python3 scripts/check-pragma-discipline.py
 
 ## CLI gaps (Phase 2)
 
-### ACC-11 — `library-scan` exists (DEV #16, MUST-3)
+### ACC-11 — `library-scan` exists (DEV #16, MUST-3) ✅ [SHIPPED commit `bcecd21`]
 
 ```bash
 personalscraper library-scan --help
 # Expected: exit 0, lists --disk, --mode, --dry-run flags
 ```
 
-### ACC-12 — --dry-run on 4 mutators (DEV #21, MUST-9)
+### ACC-12 — --dry-run on 4 mutators (DEV #21, MUST-9) ✅ [SHIPPED commit `1e771f2`]
 
 ```bash
 for cmd in library-repair library-relink library-clean init-config; do
@@ -130,28 +130,28 @@ done
 personalscraper library-verify --no-enqueue --help
 ```
 
-### ACC-13 — `run --help` lists 9 steps (DEV #7, MUST-11)
+### ACC-13 — `run --help` lists 9 steps (DEV #7, MUST-11) ✅ [SHIPPED commit `8026b8f`]
 
 ```bash
 personalscraper run --help | grep -E "enforce|trailers"
 # Expected: both present
 ```
 
-### ACC-14 — Test "matrix references valid CLI" (MUST-12, DEV #10, #20)
+### ACC-14 — Test "matrix references valid CLI" (MUST-12, DEV #10, #20) ✅ [SHIPPED commits `ff0a8d4` + `3b0d582`]
 
 ```bash
 make test -k test_matrix_cli_refs
 # All matrix-mentioned CLI commands have --help exit 0
 ```
 
-### ACC-15 — CI coverage CLI check (MUST-13)
+### ACC-15 — CI coverage CLI check (MUST-13) ✅ [SHIPPED commit `ae985ca`]
 
 ```bash
 python3 scripts/audit-cli-coverage.py
 # Expected: exit 0, every command has commands.md entry
 ```
 
-### ACC-16 — backfill-ids first run executed (MUST-19, DEV #28)
+### ACC-16 — backfill-ids first run executed (MUST-19, DEV #28) 🟡 [SHIPPED commit `7391529` (CLI), operator action pending for real run]
 
 ```bash
 # After Phase 8.10 Plan A
@@ -163,21 +163,21 @@ sqlite3 .data/library.db "SELECT COUNT(*) FROM media_item WHERE canonical_provid
 
 ## Observability (Phase 3)
 
-### ACC-17 — VERIFY structured events (MUST-10, DEV #6, #40)
+### ACC-17 — VERIFY structured events (MUST-10, DEV #6, #40) ✅ [SHIPPED commit `a618aaf`]
 
 ```bash
 personalscraper verify -v 2>&1 | grep -E "verify_item_done|cli\.invoke\.verify"
 # Expected: both event types present
 ```
 
-### ACC-18 — cli_telemetry decorator (DEV #23)
+### ACC-18 — cli_telemetry decorator (DEV #23) ✅ partial [SHIPPED commit `a378e7a` decorator + ingest ; 6 KNOWN_VIOLATIONS xfail for full rollout]
 
 ```bash
 personalscraper info 2>&1 | grep "cli.invoke.info"
 # Expected: event present
 ```
 
-### ACC-19 — Console+log parity test (SH-11)
+### ACC-19 — Console+log parity test (SH-11) ✅ [SHIPPED commit `82d7c64`]
 
 ```bash
 make test -k test_console_log_parity
@@ -187,14 +187,14 @@ make test -k test_console_log_parity
 
 ## Path detection + paranoia branch (Phase 4)
 
-### ACC-20 — Path-missing detector (MUST-4)
+### ACC-20 — Path-missing detector (MUST-4) ✅ [SHIPPED commit `c7b4aca`]
 
 ```bash
 personalscraper library-reconcile --scope path_missing
 # Expected: JSON report with path_missing array
 ```
 
-### ACC-21 — 8 phantom shows cleanup (DEV #17, MUST-18, DEV #12 sub-cause)
+### ACC-21 — 8 phantom shows cleanup (DEV #17, MUST-18, DEV #12 sub-cause) 🟡 [SHIPPED script `d7561d6`, operator action pending (332 path_missing detected)]
 
 ```bash
 sqlite3 .data/library.db "SELECT id, label FROM disk;"  # only 4 (no duplicates)
@@ -203,7 +203,7 @@ personalscraper library-reconcile | jq .files_without_release
 # Expected: <= 6655 (legit sidecars only)
 ```
 
-### ACC-22 — Paranoia branch fires (DEV #31)
+### ACC-22 — Paranoia branch fires (DEV #31) ✅ [SHIPPED commit `b70e7a6`]
 
 ```bash
 make test -k test_paranoia_branch_catches_crash_between_fs_and_db
@@ -215,27 +215,27 @@ sqlite3 .data/library.db "SELECT COUNT(*) FROM scan_event WHERE event LIKE 'outb
 
 ## Conformity (Phase 5)
 
-### ACC-23 — Drop monolithic Protocols (MUST-14, DEV #29, #38)
+### ACC-23 — Drop monolithic Protocols (MUST-14, DEV #29, #38) ✅ [SHIPPED commit `4ffdf57`]
 
 ```bash
 rg "^class MetadataProvider\b|^class TorrentClientFull\b" personalscraper/
 # Expected: zero matches
 ```
 
-### ACC-24 — Atomic Protocol tests (DEV #29)
+### ACC-24 — Atomic Protocol tests (DEV #29) ✅ [SHIPPED commit `d87e26d`]
 
 ```bash
 make test -k "test_metadata_client_supports"
 # Expected: per-capability assertions pass
 ```
 
-### ACC-25 — Pydantic ratings boundary (DEV #30)
+### ACC-25 — Pydantic ratings boundary (DEV #30) 🟡 [SHIPPED commit `28a2c32` (TV path), movie_service/_xref/nfo_generator pending 0.17]
 
 ```bash
 make test -k test_scraper_uses_externalids_pydantic
 ```
 
-### ACC-26 — library-gc + library-doctor (SH-7, SH-8)
+### ACC-26 — library-gc + library-doctor (SH-7, SH-8) ✅ [SHIPPED commits `9666516` + `f322957`]
 
 ```bash
 personalscraper library-gc --help && personalscraper library-doctor --help
@@ -423,7 +423,7 @@ grep -c '{movies_dir}/Inception' personalscraper/indexer/scanner/_exclusions.py
 # Expected: >= 1
 ```
 
-### ACC-49 — Reference docs synced (DEV #45, #47)
+### ACC-49 — Reference docs synced (DEV #45, #47) 🟡 [partial: DEV #45 logging.md SHIPPED commit `329afbc` ; DEV #47 still pending Phase 9.3]
 
 ```bash
 grep -c "personalscraper.scraper.http_retry\|scraper/tmdb_client.py" docs/reference/logging.md
