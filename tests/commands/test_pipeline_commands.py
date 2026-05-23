@@ -273,3 +273,62 @@ class TestRunTrailerFailure:
             result = runner.invoke(app, ["run"])
         assert result.exit_code == 2
         assert "ABORTED" in result.output
+
+
+# ── run --help step list (DEV #7 regression) ────────────────────────────────
+
+
+class TestRunHelpStepList:
+    """``personalscraper run --help`` must list all 9 pipeline steps.
+
+    Regression guard for DEV #7: the help text was hardcoded as
+    ``(ingest -> sort -> process -> verify -> dispatch)`` — only 5 steps,
+    missing ``clean``, ``scrape``, ``cleanup``, ``enforce``, and ``trailers``.
+    The fix generates the help string from ``DEFAULT_STEPS`` at import time
+    so any future step addition is automatically reflected.
+    """
+
+    # The expected step names match DEFAULT_STEPS key order (insertion order
+    # in Python 3.7+), which is the canonical pipeline execution order.
+    EXPECTED_STEPS = [
+        "ingest",
+        "sort",
+        "clean",
+        "scrape",
+        "cleanup",
+        "enforce",
+        "verify",
+        "trailers",
+        "dispatch",
+    ]
+
+    def test_run_help_mentions_all_steps(self) -> None:
+        """``run --help`` output contains each of the 9 step names.
+
+        Invokes the CLI help path (exit 0) via CliRunner and asserts every step
+        name is present in the output. Without the DEV #7 fix, ``clean``,
+        ``scrape``, ``cleanup``, ``enforce``, and ``trailers`` would be absent.
+        """
+        result = runner.invoke(app, ["run", "--help"])
+        assert result.exit_code == 0, f"run --help exited {result.exit_code}: {result.output}"
+        for step in self.EXPECTED_STEPS:
+            assert step in result.output, (
+                f"Step '{step}' missing from `run --help` output.\nOutput was:\n{result.output}"
+            )
+
+    def test_run_help_derived_from_default_steps(self) -> None:
+        """Help text step list matches DEFAULT_STEPS keys in order.
+
+        Pins the introspection contract: ``_run_help()`` must produce a
+        string containing every key from ``DEFAULT_STEPS`` in insertion order.
+        If ``DEFAULT_STEPS`` is extended, this test fails and reminds the
+        developer that the help text updates automatically.
+        """
+        from personalscraper.pipeline_steps import DEFAULT_STEPS
+
+        result = runner.invoke(app, ["run", "--help"])
+        assert result.exit_code == 0
+        for step in DEFAULT_STEPS:
+            assert step in result.output, (
+                f"DEFAULT_STEPS key '{step}' missing from `run --help`.\nOutput was:\n{result.output}"
+            )

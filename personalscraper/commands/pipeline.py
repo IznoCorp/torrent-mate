@@ -17,6 +17,23 @@ from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.logger import get_logger
 
 
+def _run_help() -> str:
+    """Build the help string for the ``run`` command from the live step registry.
+
+    Reads :data:`~personalscraper.pipeline_steps.DEFAULT_STEPS` at import time so
+    the help text automatically reflects any future step additions or removals
+    without requiring a manual docstring update.
+
+    Returns:
+        Human-readable one-liner listing every pipeline step in order,
+        e.g. ``"Run full pipeline (ingest → sort → … → dispatch)."``.
+    """
+    from personalscraper.pipeline_steps import DEFAULT_STEPS  # noqa: PLC0415
+
+    steps = " → ".join(DEFAULT_STEPS.keys())
+    return f"Run full pipeline ({steps})."
+
+
 @app.command()
 @handle_cli_errors
 def ingest(
@@ -265,7 +282,7 @@ def process(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@app.command()
+@app.command(help=_run_help())
 @handle_cli_errors
 def run(
     ctx: typer.Context,
@@ -290,7 +307,12 @@ def run(
         ),
     ),
 ) -> None:
-    """Run full pipeline (ingest -> sort -> process -> verify -> dispatch)."""
+    """Execute all pipeline phases via ``Pipeline.run``.
+
+    The step list displayed in ``--help`` is generated from
+    :data:`~personalscraper.pipeline_steps.DEFAULT_STEPS` at import time via
+    :func:`_run_help`, so it always reflects the actual registered steps.
+    """
     from datetime import datetime
 
     import structlog.contextvars
