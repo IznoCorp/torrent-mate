@@ -112,9 +112,9 @@ def test_init_canonical_from_nfo_populates_from_tvdb_default(tmp_path: Path) -> 
     _write_show_nfo(show_dir, uniqueid_lines='<uniqueid default="true" type="tvdb">81189</uniqueid>')
     item_id = _seed_item(conn, title="Breaking Bad", kind="show", year=2008, dispatch_path=str(show_dir))
 
-    populated = init_canonical_from_nfo(conn)
+    stats = init_canonical_from_nfo(conn)
 
-    assert populated == 1, f"Expected 1 item populated, got {populated}"
+    assert stats.populated == 1, f"Expected 1 item populated, got {stats.populated}"
     canonical = conn.execute("SELECT canonical_provider FROM media_item WHERE id = ?", (item_id,)).fetchone()[0]
     assert canonical == "tvdb", f"Expected canonical='tvdb', got {canonical!r}"
 
@@ -128,9 +128,9 @@ def test_init_canonical_from_nfo_populates_from_tmdb_default(tmp_path: Path) -> 
     _write_movie_nfo(movie_dir, "Inception", uniqueid_lines='<uniqueid default="true" type="tmdb">27205</uniqueid>')
     item_id = _seed_item(conn, title="Inception", kind="movie", year=2010, dispatch_path=str(movie_dir))
 
-    populated = init_canonical_from_nfo(conn)
+    stats = init_canonical_from_nfo(conn)
 
-    assert populated == 1, f"Expected 1 item populated, got {populated}"
+    assert stats.populated == 1, f"Expected 1 item populated, got {stats.populated}"
     canonical = conn.execute("SELECT canonical_provider FROM media_item WHERE id = ?", (item_id,)).fetchone()[0]
     assert canonical == "tmdb"
 
@@ -142,9 +142,10 @@ def test_init_canonical_skips_items_without_dispatch_path(tmp_path: Path) -> Non
 
     item_id = _seed_item(conn, title="Orphan", kind="show", year=2024, dispatch_path=None)
 
-    populated = init_canonical_from_nfo(conn)
+    stats = init_canonical_from_nfo(conn)
 
-    assert populated == 0
+    assert stats.populated == 0
+    assert stats.no_dispatch_path == 1
     canonical = conn.execute("SELECT canonical_provider FROM media_item WHERE id = ?", (item_id,)).fetchone()[0]
     assert canonical is None, "canonical must remain NULL when no dispatch_path"
 
@@ -159,9 +160,10 @@ def test_init_canonical_skips_items_without_nfo_file(tmp_path: Path) -> None:
     # NOTE: no tvshow.nfo written
     item_id = _seed_item(conn, title="Phantom", kind="show", year=2024, dispatch_path=str(show_dir))
 
-    populated = init_canonical_from_nfo(conn)
+    stats = init_canonical_from_nfo(conn)
 
-    assert populated == 0
+    assert stats.populated == 0
+    assert stats.nfo_missing == 1
     canonical = conn.execute("SELECT canonical_provider FROM media_item WHERE id = ?", (item_id,)).fetchone()[0]
     assert canonical is None
 
@@ -181,29 +183,35 @@ def test_init_canonical_skips_when_no_default_uniqueid(tmp_path: Path) -> None:
     )
     item_id = _seed_item(conn, title="Legacy Show", kind="show", year=2008, dispatch_path=str(show_dir))
 
-    populated = init_canonical_from_nfo(conn)
+    stats = init_canonical_from_nfo(conn)
 
-    assert populated == 0, "No default uniqueid → must not update"
+    assert stats.populated == 0, "No default uniqueid → must not update"
+    assert stats.no_default_uniqueid == 1
     canonical = conn.execute("SELECT canonical_provider FROM media_item WHERE id = ?", (item_id,)).fetchone()[0]
     assert canonical is None
 
 
-def test_init_canonical_skips_unsupported_type_attr(tmp_path: Path) -> None:
-    """Regression : NFO default uniqueid with non-tvdb/tmdb type is skipped (live prod bug).
+def test_init_canonical_falls_back_from_unsupported_default_to_supported_sibling(
+    tmp_path: Path,
+) -> None:
+    """Regression : NFO default with unsupported type triggers fallback to sibling.
 
-    Discovered 2026-05-23 on live BDD : after 22 items populated successfully,
-    init_canonical_from_nfo crashed with::
+    History:
+      - Phase 1.9 / DEV #54 initial: the parser returned the raw type attr
+        from default uniqueid (e.g. 'imdb', 'anidb') → crashed on
+        canonical_provider CHECK constraint.
+      - c83888d follow-up: the parser FILTERED OUT non-tvdb/tmdb default
+        types and skipped the item silently (populated=0). Test asserted
+        this behavior, so the test FROZE the bug.
+      - 3df78e0 (2026-05-23 prod incident BD-INIT-CANONICAL): 92% of the
+        production movie library was silently skipped because their NFO
+        had default=imdb + tmdb sibling. The parser was throwing away a
+        perfectly usable canonical anchor. Fix: when default is
+        unsupported, walk other uniqueid elements for a supported fallback.
 
-        IntegrityError: CHECK constraint failed: canonical_provider IN ('tvdb', 'tmdb')
-
-    The function returned the raw type attr from the NFO (e.g. 'imdb',
-    'anidb', 'tvmaze'). These ARE valid cross-provider IDs that live in
-    external_ids_json, but the schema CHECK on canonical_provider accepts
-    only tvdb / tmdb because those are the only providers that drive
-    primary scrape orchestration (DESIGN §3).
-
-    Fix : the parser filters out non-tvdb/tmdb types so the walker
-    continues to the next item instead of crashing mid-batch.
+    This test now asserts the NEW correct behavior: default=anidb + tvdb
+    sibling → canonical_provider='tvdb' (fallback). The item is populated,
+    not skipped.
     """
     db_path = tmp_path / "library.db"
     conn = _open_db(db_path)
@@ -215,13 +223,21 @@ def test_init_canonical_skips_unsupported_type_attr(tmp_path: Path) -> None:
     )
     item_id = _seed_item(conn, title="Anime Show", kind="show", year=2024, dispatch_path=str(show_dir))
 
-    # Must not crash. populated count = 0 because the only default uniqueid
-    # has an unsupported type ; tvdb uniqueid lacks default="true".
-    populated = init_canonical_from_nfo(conn)
+    stats = init_canonical_from_nfo(conn)
 
-    assert populated == 0, f"Expected 0 (unsupported type), got {populated}"
-    canonical = conn.execute("SELECT canonical_provider FROM media_item WHERE id = ?", (item_id,)).fetchone()[0]
-    assert canonical is None
+    assert stats.populated == 1, (
+        f"Expected fallback to populate from tvdb sibling, got populated={stats.populated}"
+    )
+    assert stats.populated_fallback == 1
+    assert stats.populated_default == 0
+    canonical = conn.execute(
+        "SELECT canonical_provider FROM media_item WHERE id = ?", (item_id,)
+    ).fetchone()[0]
+    assert canonical == "tvdb", (
+        f"Expected canonical='tvdb' via fallback, got {canonical!r}. "
+        "The fallback enhancement (3df78e0) should pick the first supported "
+        "sibling when default is unsupported."
+    )
 
 
 def test_init_canonical_idempotent(tmp_path: Path) -> None:
@@ -234,11 +250,12 @@ def test_init_canonical_idempotent(tmp_path: Path) -> None:
     _seed_item(conn, title="Show", kind="show", year=2024, dispatch_path=str(show_dir))
 
     first = init_canonical_from_nfo(conn)
-    assert first == 1, f"First run must populate 1 item, got {first}"
+    assert first.populated == 1, f"First run must populate 1 item, got {first.populated}"
 
     # Second run — no rows match WHERE canonical_provider IS NULL anymore
     second = init_canonical_from_nfo(conn)
-    assert second == 0, f"Second run must be a no-op, got {second}"
+    assert second.populated == 0, f"Second run must be a no-op, got {second.populated}"
+    assert second.total_visited == 0
 
 
 def test_library_init_canonical_cli_command_exists() -> None:
