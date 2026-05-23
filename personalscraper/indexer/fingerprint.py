@@ -22,7 +22,7 @@ from pathlib import Path
 
 import xxhash
 
-from personalscraper.indexer._macos_io import sequential_hint
+from personalscraper.indexer._macos_io import disable_cache
 from personalscraper.indexer._throttle import acquire as _acquire_read_tokens
 
 # ---------------------------------------------------------------------------
@@ -147,11 +147,14 @@ def oshash(path: Path) -> str:
         return "0000000000000000"
 
     # --- read head chunk ---
-    # Advise the OS to read the file sequentially before we open it;
-    # reduces seek amplification on spinning disks and macFUSE mounts.
+    # Bypass the UBC for this fd: OSHash reads 128 KiB total (head + tail),
+    # hashes them, and never re-reads the file in this session.  The page
+    # cache contributes nothing after the read — disable it to avoid polluting
+    # the UBC during cold scans of tens of thousands of video files.
+    # See audit/12-ntfs-cache-pressure.md §Cause-2 and §Phase-B.
     fd: int = os.open(path, os.O_RDONLY)
     try:
-        sequential_hint(fd, offset=0, length=0)
+        disable_cache(fd)
         # Throttle: acquire tokens before each read chunk.  In passthrough
         # mode (no active bucket / unlimited rate) these calls are no-ops.
         _acquire_read_tokens(_OSHASH_CHUNK)
@@ -207,11 +210,12 @@ def xxh3_partial(path: Path, partial_bytes: int = 1_048_576) -> str:
     filesize: int = path.stat().st_size
     hasher = xxhash.xxh3_64()
 
-    # Advise the OS to read the file sequentially before we open it;
-    # reduces seek amplification on spinning disks and macFUSE mounts.
+    # Bypass the UBC for this fd: xxh3_partial reads at most 2 MiB (head +
+    # tail), hashes them once, and never re-reads the file in this session.
+    # See audit/12-ntfs-cache-pressure.md §Cause-2 and §Phase-B.
     fd: int = os.open(path, os.O_RDONLY)
     try:
-        sequential_hint(fd, offset=0, length=0)
+        disable_cache(fd)
         if filesize <= 2 * partial_bytes:
             # File fits entirely — hash the whole thing in one pass.
             _acquire_read_tokens(filesize)
