@@ -32,6 +32,7 @@ from personalscraper.pipeline_events import (
     StepStarted,
 )
 from personalscraper.trailers.events import TrailerDownloaded
+from personalscraper.verify.events import VerifyItemDone
 
 #: Public registry — keyed by event class, value is a zero-arg factory.
 EVENT_SAMPLE_FACTORIES: dict[type[Event], Callable[[], Event]] = {}
@@ -237,6 +238,18 @@ def make_backfill_completed() -> BackfillCompleted:
         failed=2,
         ids_added_count=15,
         ratings_added_count=20,
+    )
+
+
+@register_factory(VerifyItemDone)
+def make_verify_item_done() -> VerifyItemDone:
+    """Realistic :class:`VerifyItemDone` factory (tech-debt 0.16.0 sub-phase 3.1, DEV #6/#40)."""
+    return VerifyItemDone(
+        item="Inception (2010)",
+        status="valid",
+        errors=[],
+        checks_passed=12,
+        checks_total=12,
     )
 
 

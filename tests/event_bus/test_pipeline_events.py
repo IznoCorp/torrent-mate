@@ -106,19 +106,23 @@ def test_every_event_has_factory() -> None:
     )
 
 
-def test_event_registry_has_seventeen_v1_events() -> None:
-    """The v1 catalog is pinned at 17 events.
+def test_event_registry_has_eighteen_v1_events() -> None:
+    """The v1 catalog is pinned at 18 events.
 
     Phase 5 acceptance landed at 13 ; the ``provider-ids`` feature
     (sub-phase 8.4) added 4 ``Backfill*`` events for the IDs/ratings
-    backfill lifecycle. The literal count guards against silent
+    backfill lifecycle (→ 17). The ``tech-debt`` 0.16.0 sub-phase 3.1
+    (DEV #6/#40) added ``VerifyItemDone`` for per-item verify
+    telemetry (→ 18). The literal count guards against silent
     additions that bypass the documented event catalog in
-    ``docs/reference/event-bus.md``.
+    ``docs/reference/event-bus.md`` (Phase 8.13 ships the v1.2 catalog
+    sync that bumps the doc table from 17 to 18).
     """
     import personalscraper.events  # noqa: F401 — eager-import side effect
+    import personalscraper.verify.events  # noqa: F401 — eager-import side effect
 
-    assert len(_EVENT_CLASS_REGISTRY) == 17, (
-        f"Expected 17 v1 events, found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
+    assert len(_EVENT_CLASS_REGISTRY) == 18, (
+        f"Expected 18 v1 events, found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
     )
 
 

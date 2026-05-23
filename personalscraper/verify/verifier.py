@@ -32,6 +32,8 @@ class VerifyResult:
         errors: Remaining blocking error messages.
         warnings: Non-blocking warning messages.
         fixes_applied: Descriptions of corrections made.
+        checks_passed: Number of checks that passed (set by ``_classify``).
+        checks_total: Total number of checks run (set by ``_classify``).
     """
 
     media_path: Path
@@ -41,6 +43,8 @@ class VerifyResult:
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     fixes_applied: list[str] = field(default_factory=list)
+    checks_passed: int = 0
+    checks_total: int = 0
 
 
 class Verifier:
@@ -230,6 +234,10 @@ class Verifier:
         """
         result.errors = [c.message for c in checks if not c.passed and c.severity == Severity.ERROR]
         result.warnings = [c.message for c in checks if not c.passed and c.severity == Severity.WARNING]
+
+        # Record check counts for structured telemetry (verify_item_done events).
+        result.checks_total = len(checks)
+        result.checks_passed = sum(1 for c in checks if c.passed)
 
         # Determine category via classifier
         cat_check = next((c for c in checks if c.name == "category"), None)
