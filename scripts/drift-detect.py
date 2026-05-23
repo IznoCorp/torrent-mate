@@ -643,18 +643,25 @@ def check_plan_dev_coverage(
         return findings
     impl_phases = parse_impl_phases(impl_md_path.read_text(encoding="utf-8")) if impl_md_path.exists() else []
     complete_phase_nums: set[str] = {p.num for p in impl_phases if p.complete}
-    commits = _git_log_subjects(repo)
+    # Scan parent repo + every cross-repo sub-repo (e.g. `.claude/` hosts
+    # phase 7 commits on its own branch). Without this, cross-repo DEVs
+    # surface as false-positive coverage gaps.
+    cross_repos: list[Path] = [repo]
+    claude_repo = repo / ".claude"
+    if (claude_repo / ".git").exists():
+        cross_repos.append(claude_repo)
+
     dev_in_commits: set[int] = set()
-    for _, subject in commits:
-        for m in COMMIT_DEV_RE.finditer(_expand_comma_dev_refs(subject)):
-            dev_in_commits.add(int(m.group("num")))
-    # Also scan full commit bodies for DEV refs (some commits put DEV ids in body).
-    try:
-        bodies = _git(repo, "log", "--pretty=format:%B%n---END---")
-        for m in COMMIT_DEV_RE.finditer(_expand_comma_dev_refs(bodies)):
-            dev_in_commits.add(int(m.group("num")))
-    except subprocess.CalledProcessError:
-        pass
+    for r in cross_repos:
+        try:
+            for _, subject in _git_log_subjects(r):
+                for m in COMMIT_DEV_RE.finditer(_expand_comma_dev_refs(subject)):
+                    dev_in_commits.add(int(m.group("num")))
+            bodies = _git(r, "log", "--pretty=format:%B%n---END---")
+            for m in COMMIT_DEV_RE.finditer(_expand_comma_dev_refs(bodies)):
+                dev_in_commits.add(int(m.group("num")))
+        except subprocess.CalledProcessError:
+            pass
     for dev in devs:
         # The phase column may list multiple phases ("8.13, 9.1.a"); extract
         # the leading top-level numbers.
