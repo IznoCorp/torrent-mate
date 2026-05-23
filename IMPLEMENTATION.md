@@ -21,6 +21,33 @@ supprimé en Phase 10.4 closure post-implementation, ne PAS y ajouter du contenu
 **✅ Coverage 100% atteinte** : 54/54 DEVs + 34/34 patterns + 8/8 sections DESIGN.
 **✅ 4 fixes critiques déjà shipped** : DEV #9, #11, #13, #14.
 
+### Known flaky / env-dependent tests (NOT introduced by tech-debt 0.16.0)
+
+Identified on baseline `a5420d8` by parallel worktree run; intermittent on
+HEAD too. None block phase gates — re-run usually clears them. Cited here so
+future sessions don't waste time chasing them as new regressions.
+
+**Env-dependent** (3 — fail under `make test`, pass in isolation; missing
+`_mock_cli_config_load` autouse fixture; failure message "No config.json5
+found"):
+
+- `tests/skill/test_matrix_cli_refs.py::test_matrix_file_exists`
+- `tests/skill/test_matrix_cli_refs.py::test_matrix_cli_ref_valid[info ...]`
+- `tests/indexer/scanner/test_init_canonical.py::test_library_init_canonical_cli_command_exists`
+
+**Test pollution** (2 — pass in isolation, fail in full suite under
+pytest-xdist; ordering / shared module state):
+
+- `tests/unit/test_qbittorrent.py::TestBuildClient::test_returns_authenticated_client`
+- `tests/unit/test_qbittorrent.py::TestQBitClient::test_login_logout`
+
+Mitigations (future polish, not in 0.16.0 scope):
+
+- Env-dependent 3: lift `_mock_cli_config_load` to a shared `conftest.py`
+  ancestor or extend it to the 2 skill test files
+- Test pollution 2: add a `module_reset` fixture that clears the qbittorrent
+  module state between tests, or scope `_get_qbit_client` lazily
+
 DESIGN.md + ACCEPTANCE.md + plan/ (9 phases) produits et committed. Estimate revised :
 **19-27 jours séquentiel, 15-22 jours parallélisable**.
 
