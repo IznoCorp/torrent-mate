@@ -85,7 +85,19 @@ def rsync(source: Path, dest: Path, delete: bool = False) -> bool:
     Returns:
         True if rsync succeeded (returncode 0).
     """
-    # -a minus -pgo: NTFS via macFUSE doesn't support Unix permissions
+    # -a minus -pgo: NTFS via macFUSE doesn't support Unix permissions.
+    # --no-times / --omit-dir-times: macFUSE mounts with noatime; utimes()
+    #   on NTFS-FUSE sometimes warns even when it succeeds — suppressing avoids
+    #   log noise and a small amount of journal write pressure.
+    # --inplace: write directly to the destination fd rather than creating a
+    #   <file>.tmp then renaming.  Halves cache pressure for large files (the
+    #   default double-buffers both the temp copy and the final file briefly).
+    #   Safe for a media library where the source in staging is the reference.
+    # --checksum intentionally omitted: default size+mtime heuristic is correct
+    #   for an immutable library where mutations are full replacements or new
+    #   episodes (never partial in-place updates).  --checksum would read every
+    #   byte of source AND dest before deciding what to transfer — TB-scale
+    #   waste on TV-show merges.  See audit/12-ntfs-cache-pressure.md §Cause-1.
     # Exclude macOS metadata files -- .DS_Store and ._* AppleDouble files
     # cause rsync errors on NTFS targets which don't support them.
     cmd = [
@@ -94,8 +106,10 @@ def rsync(source: Path, dest: Path, delete: bool = False) -> bool:
         "--no-perms",
         "--no-owner",
         "--no-group",
+        "--no-times",
+        "--omit-dir-times",
+        "--inplace",
         "--partial",
-        "--checksum",
         "--exclude=.DS_Store",
         "--exclude=._*",
     ]
@@ -140,15 +154,22 @@ def rsync_merge(
     Returns:
         True if rsync succeeded.
     """
-    # Exclude macOS metadata files -- same rationale as rsync()
+    # Exclude macOS metadata files -- same rationale as rsync().
+    # --checksum intentionally omitted — see rsync() for the full rationale.
+    # --inplace / --no-times / --omit-dir-times applied for the same cache-
+    # pressure and NTFS-FUSE warning reasons.  Note: --inplace is compatible
+    # with --backup; rsync still writes the backup copy to backup_dir before
+    # overwriting the destination in place.
     cmd = [
         "rsync",
         "-a",
         "--no-perms",
         "--no-owner",
         "--no-group",
+        "--no-times",
+        "--omit-dir-times",
+        "--inplace",
         "--partial",
-        "--checksum",
         "--exclude=.DS_Store",
         "--exclude=._*",
         "--backup",
