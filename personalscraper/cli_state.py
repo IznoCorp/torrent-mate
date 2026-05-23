@@ -31,8 +31,9 @@ class State(TypedDict):
     console: Console
     verbose: bool
     quiet: bool
+    format: str
 
 
-state: State = {"console": Console(), "verbose": False, "quiet": False}
+state: State = {"console": Console(), "verbose": False, "quiet": False, "format": "rich"}
 
 __all__ = ["AppCtx", "State", "state"]
