@@ -41,12 +41,19 @@ pytest-xdist; ordering / shared module state):
 - `tests/unit/test_qbittorrent.py::TestBuildClient::test_returns_authenticated_client`
 - `tests/unit/test_qbittorrent.py::TestQBitClient::test_login_logout`
 
-Mitigations (future polish, not in 0.16.0 scope):
+**Mitigations applied 2026-05-23 (commit pending)**:
 
-- Env-dependent 3: lift `_mock_cli_config_load` to a shared `conftest.py`
-  ancestor or extend it to the 2 skill test files
-- Test pollution 2: add a `module_reset` fixture that clears the qbittorrent
-  module state between tests, or scope `_get_qbit_client` lazily
+- Env-dependent 3 **mitigated**: extended `_mock_cli_config_load` autouse
+  fixture in `tests/conftest.py` to also cover `test_matrix_cli_refs.py` +
+  `test_init_canonical.py` (was previously scoped to test_cli.py /
+  test_logger_cli.py only). 4 consecutive `make test` runs post-fix:
+  4969 passed each.
+- Test pollution 2 **NOT yet mitigated** — not reproducible on HEAD in
+  4 consecutive runs. Suspected root cause: xdist worker state leak from
+  a prior test that patches `httpx.Client` or `aiohttp.ClientSession`
+  module-level without proper teardown. Future work (Phase 8 candidate):
+  add a `_qbit_module_reset` autouse fixture in `tests/unit/conftest.py`
+  that re-imports `personalscraper.api.torrent.qbittorrent` between tests.
 
 DESIGN.md + ACCEPTANCE.md + plan/ (9 phases) produits et committed. Estimate revised :
 **19-27 jours séquentiel, 15-22 jours parallélisable**.

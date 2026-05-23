@@ -162,7 +162,17 @@ def _mock_cli_config_load(request, test_config):
         test_config: Synthetic Config fixture from tests/fixtures/config.py.
     """
     # Only intercept in files that drive the CLI via CliRunner.
-    cli_test_files = {"test_cli.py", "test_logger_cli.py"}
+    # The skill + indexer/scanner test files were added to this set on
+    # 2026-05-23 because their cmd-existence smoke tests invoke `--help`
+    # via CliRunner / subprocess and sometimes trip the eager config load
+    # via cross-worker xdist state leak (pre-existing intermittent failures
+    # documented in IMPLEMENTATION.md "Known flaky / env-dependent tests").
+    cli_test_files = {
+        "test_cli.py",
+        "test_logger_cli.py",
+        "test_matrix_cli_refs.py",
+        "test_init_canonical.py",
+    }
     if request.fspath.basename not in cli_test_files:
         yield
         return
