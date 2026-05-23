@@ -1274,3 +1274,33 @@ to clean orphan entries from the trailer state tracking file.
     personalscraper trailers purge
 
 **Related**: `trailers verify`, `trailers`
+
+---
+
+## Config — sub-commands
+
+## `personalscraper config migrate-category`
+
+**Purpose**: Rewrites `media_item.category_id` for renamed categories. Rewrites
+every `media_item` row whose `category_id` equals `--from` to `--to`. Run this
+after renaming a category in `categories.json5` (e.g. splitting or merging
+content types) to clear orphan-tagged rows. The target `--to` must already be a
+declared category ID in the current config — the rename must be applied first.
+The operation is idempotent: running it twice with the same arguments has no
+additional effect.
+
+**Side effects**: `mutate BDD` (updates `category_id` on `media_item` rows)
+
+**Pipeline position**: n/a
+
+**Args**:
+
+- `--from TEXT` _(required)_ : Old `category_id` to replace
+- `--to TEXT` _(required)_ : New `category_id` to write (must be declared in config)
+- `--config / -c PATH` : Path to config.json5 or config dir
+
+**Examples**:
+
+    personalscraper config migrate-category --from old_cat --to new_cat
+
+**Related**: `config`, `init-config`, `library-status`
