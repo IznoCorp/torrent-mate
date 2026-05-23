@@ -310,6 +310,7 @@ def library_relink(
     conn = _sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
     _apply_pragmas(conn)
     try:
+        conn.execute("BEGIN IMMEDIATE")
         disks = {did: _Path(mp) for did, mp in conn.execute("SELECT id, mount_path FROM disk WHERE is_mounted = 1")}
         if not disks:
             console.print("[yellow]No mounted disks — nothing to relink.[/yellow]")

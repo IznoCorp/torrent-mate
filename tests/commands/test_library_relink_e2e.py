@@ -1,0 +1,233 @@
+"""E2E tests for ``personalscraper library-relink`` — CLI-level harness.
+
+Validates release_id rebinding for media_file rows with NULL release_id.
+Dry-run-by-default: the default invocation must NEVER write to the database.
+"""
+
+from __future__ import annotations
+
+import sqlite3
+import time
+from pathlib import Path
+from unittest.mock import patch
+
+from tests.commands._e2e_helpers import (
+    make_synthetic_db,
+    make_test_config_with_db,
+    run_cli,
+)
+
+_PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
+
+
+def _seed_null_release_files(
+    db_path: Path,
+    mount: Path,
+    rel_path: str,
+    filename: str,
+    item_title: str,
+    count: int = 1,
+) -> None:
+    """Seed DB rows + real files so ``link_file_to_release`` can resolve them.
+
+    Creates the directory *mount / rel_path*, writes a dummy file, and inserts
+    a media_item (title match strategy), disk, path, and media_file row(s) with
+    ``release_id=NULL``.
+    """
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    now = int(time.time())
+
+    # Create real directory and file.
+    dir_path = mount / rel_path
+    dir_path.mkdir(parents=True, exist_ok=True)
+    file_path = dir_path / filename
+    file_path.write_bytes(b"fake video content for relink test")
+
+    # Disk row.
+    conn.execute(
+        "INSERT INTO disk (uuid, label, mount_path, last_seen_at, is_mounted, unreachable_strikes) "
+        "VALUES (?, ?, ?, ?, 1, 0)",
+        ("uuid-relink", "RelinkDisk", str(mount), now),
+    )
+    disk_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+    # Media item — title match strategy (strategy 2 in find_item_for_path).
+    conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, category_id, date_created, date_modified) "
+        "VALUES ('movie', ?, ?, 'movies', ?, ?)",
+        (item_title, item_title, now, now),
+    )
+    conn.execute("SELECT last_insert_rowid()").fetchone()  # item_id consumed by release linker later
+
+    # Path row.
+    conn.execute(
+        "INSERT INTO path (disk_id, rel_path, dir_mtime_ns) VALUES (?, ?, ?)",
+        (disk_id, rel_path, int(dir_path.stat().st_mtime_ns)),
+    )
+    path_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+    # media_file rows with NULL release_id.
+    for i in range(count):
+        suffix = f"_{i}" if count > 1 else ""
+        fname = f"{Path(filename).stem}{suffix}{Path(filename).suffix}"
+        fpath = dir_path / fname
+        fpath.write_bytes(b"test content")
+        conn.execute(
+            "INSERT INTO media_file (release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns, "
+            "oshash, scan_generation, last_verified_at, enriched_at, deleted_at) "
+            "VALUES (NULL, ?, ?, ?, ?, ?, NULL, 1, ?, NULL, NULL)",
+            (path_id, fname, fpath.stat().st_size, int(fpath.stat().st_mtime_ns), now, now),
+        )
+
+    conn.commit()
+    conn.close()
+
+
+# ── 1. Smoke ─────────────────────────────────────────────────────────────────────
+
+
+def test_relink_help_exits_zero(test_config) -> None:
+    """``library-relink --help`` exits 0."""
+    result = run_cli(["library-relink", "--help"])
+    assert result.exit_code == 0, result.output
+    assert "library-relink" in result.output
+
+
+# ── 2. Empty DB / zero orphans ──────────────────────────────────────────────────
+
+
+def test_relink_empty_db_zero_files(tmp_path, test_config) -> None:
+    """Empty DB → 'No orphan media_file rows', exit 0."""
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-relink"])
+
+    assert result.exit_code == 0, result.output
+    assert "nothing to relink" in result.output
+
+
+# ── 3. Dry-run safety (CRITICAL) ────────────────────────────────────────────────
+
+
+def test_relink_dry_run_no_writes(tmp_path, test_config) -> None:
+    """Default invocation (no ``--apply``) MUST NOT write release_id to the DB.
+
+    Seeds a single linkable file with ``release_id=NULL``.  Asserts that the
+    DRY-RUN message appears AND that the database row still has NULL after.
+    """
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+
+    mount = tmp_path / "mount"
+    mount.mkdir()
+    _seed_null_release_files(db_path, mount, "TestMovie", "test.mkv", "TestMovie")
+
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-relink"])
+
+    assert result.exit_code == 0, result.output
+    clean = result.output
+    assert "DRY-RUN" in clean, f"Expected DRY-RUN marker, got: {clean}"
+    assert "No orphan" not in clean, f"Should have found orphan files, got: {clean}"
+
+    # Verify release_id is still NULL.
+    conn = sqlite3.connect(str(db_path))
+    row = conn.execute("SELECT release_id FROM media_file LIMIT 1").fetchone()
+    conn.close()
+    assert row is not None and row[0] is None, (
+        f"DRY-RUN leaked write: release_id={row[0]}"
+    )
+
+
+# ── 4. Apply mode ───────────────────────────────────────────────────────────────
+
+
+def test_relink_apply_persists_link_updates(tmp_path, test_config) -> None:
+    """``--apply`` writes non-NULL release_id for linkable files."""
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+
+    mount = tmp_path / "mount"
+    mount.mkdir()
+    _seed_null_release_files(db_path, mount, "TestMovie", "test.mkv", "TestMovie")
+
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-relink", "--apply"])
+
+    assert result.exit_code == 0, result.output
+    assert "Applied:" in result.output, result.output
+
+    conn = sqlite3.connect(str(db_path))
+    row = conn.execute("SELECT release_id FROM media_file LIMIT 1").fetchone()
+    conn.close()
+    assert row is not None and row[0] is not None, (
+        f"--apply did not persist: release_id={row[0]}"
+    )
+
+
+def test_relink_apply_mutually_exclusive_with_dry_run(tmp_path, test_config) -> None:
+    """Passing both ``--apply`` and ``--dry-run`` exits non-zero."""
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-relink", "--apply", "--dry-run"])
+
+    assert result.exit_code != 0, f"Expected non-zero exit, got {result.exit_code}: {result.output}"
+    assert "mutually exclusive" in result.output.lower(), result.output
+
+
+# ── 5. Unmatched files ──────────────────────────────────────────────────────────
+
+
+def test_relink_reports_unmatched_files(tmp_path, test_config) -> None:
+    """File whose parent directory resolves to no item → counted as unmatched.
+
+    The directory name does not match any media_item title, and no
+    dispatch_path / title-year strategy finds a match.
+    """
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+
+    mount = tmp_path / "mount"
+    mount.mkdir()
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    now = int(time.time())
+
+    dir_path = mount / "NoSuchItem"
+    dir_path.mkdir()
+    file_path = dir_path / "orphan.mkv"
+    file_path.write_bytes(b"test content")
+
+    conn.execute(
+        "INSERT INTO disk (uuid, label, mount_path, last_seen_at, is_mounted, unreachable_strikes) "
+        "VALUES ('uuid-unmatched', 'UnmatchedDisk', ?, ?, 1, 0)",
+        (str(mount), now),
+    )
+    conn.execute(
+        "INSERT INTO path (disk_id, rel_path, dir_mtime_ns) VALUES (1, 'NoSuchItem', ?)",
+        (int(dir_path.stat().st_mtime_ns),),
+    )
+    conn.execute(
+        "INSERT INTO media_file (release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns, "
+        "oshash, scan_generation, last_verified_at, enriched_at, deleted_at) "
+        "VALUES (NULL, 1, 'orphan.mkv', ?, ?, ?, NULL, 1, ?, NULL, NULL)",
+        (file_path.stat().st_size, int(file_path.stat().st_mtime_ns), now, now),
+    )
+    conn.commit()
+    conn.close()
+
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-relink"])
+
+    assert result.exit_code == 0, result.output
+    clean = result.output
+    assert "DRY-RUN" in clean, result.output
+    assert "unmatched=1" in clean, (
+        f"Expected unmatched=1, got: {clean}"
+    )
