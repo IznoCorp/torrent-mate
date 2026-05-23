@@ -968,3 +968,135 @@ default, `json` for machine-parseable output).
 `library-doctor`
 
 ---
+
+## `personalscraper library-doctor`
+
+**Purpose**: Run health checks on the library indexer database. Executes a suite
+of targeted checks covering database integrity, schema coherence, scan-run
+lifecycle, outbox lag, Merkle drift, canonical-provider coverage, and phantom
+paths. Output format respects the global `--format` flag. Exit code is 0 when
+all checks pass (status ok or skip), non-zero when any check is WARN or FAIL.
+
+**Side effects**: `read-only`
+
+**Pipeline position**: n/a
+
+**Args**:
+
+- `--repair-queue-threshold INTEGER` : Max pending `repair_queue` rows before
+  WARN [default: 100]
+- `--outbox-lag-threshold-s INTEGER` : Max age in seconds for oldest pending
+  `index_outbox` row before WARN [default: 3600]
+- `--canonical-threshold-pct FLOAT` : Min % of `media_item` rows that must have
+  `canonical_provider` set before WARN [default: 50.0]
+- `--stuck-scan-threshold-s INTEGER` : Seconds after which a running `scan_run`
+  is considered stuck [default: 3600]
+- `--config / -c PATH` : Path to config.json5 or config dir
+
+**Examples**:
+
+    personalscraper library-doctor
+    personalscraper --format json library-doctor
+    personalscraper library-doctor --repair-queue-threshold 50
+    personalscraper library-doctor --outbox-lag-threshold-s 7200
+
+**Related**: `library-report`, `library-reconcile`, `library-status`
+
+---
+
+## `personalscraper library-search`
+
+**Purpose**: Search indexed media items with the flex-attr query language. Field
+syntax: `field:value`, `-field:value` (negation), `year:>=2020`, `title:"Exact
+Title"`. Unknown fields cause an exit code 2 (caller can branch on it). Use
+`--limit` to cap the result set.
+
+**Side effects**: `read-only`
+
+**Pipeline position**: n/a
+
+**Args**:
+
+- `QUERY` _(required)_ : Query string, e.g. `'year:2024 disk:Disk1 -nfo:valid'`
+- `--limit INTEGER` : Maximum number of results to return [default: 50]
+- `--config / -c PATH` : Path to config.json5 or config dir
+
+**Examples**:
+
+    personalscraper library-search "year:2024 disk:Disk1 -nfo:valid"
+    personalscraper library-search "kind:show codec:hevc -trailer"
+    personalscraper library-search 'title:"Lost Highway"'
+
+**Related**: `library-show`, `library-index`
+
+---
+
+## `personalscraper library-show`
+
+**Purpose**: Pretty-print all stored data for a single media item. Prints
+`media_item` fields, season / episode rows, `media_file` rows with streams,
+`item_attribute` rows, and `deleted_item` history. Exits 2 for unknown ids.
+
+**Side effects**: `read-only`
+
+**Pipeline position**: n/a
+
+**Args**:
+
+- `ITEM_ID` _(required)_ : `media_item.id` to display
+- `--config / -c PATH` : Path to config.json5 or config dir
+
+**Examples**:
+
+    personalscraper library-show 42
+
+**Related**: `library-search`, `library-status`
+
+---
+
+## `personalscraper library-backfill-ids`
+
+**Purpose**: Backfill missing cross-provider IDs and multi-source ratings on
+library items. Walks every `media_item` row (or a single show with `--show`),
+detects missing provider IDs and rating sources, fetches the missing data from
+TMDB, TVDB, IMDb (via OMDb), and Rotten Tomatoes (via OMDb), and merges the
+results additively — never overwriting the canonical provider anchor or
+already-present values.
+
+Prerequisites (in order):
+
+1. Run `personalscraper library-init-canonical` to seed `canonical_provider` on
+   rows that pre-date the provider-ids feature. Backfill cannot resolve
+   cross-provider IDs without a canonical anchor.
+2. Ensure API credentials are set in `.env`: `TMDB_API_KEY` (TMDB-canonical
+   rows), `TVDB_API_KEY` (TVDB-canonical rows), `OMDB_API_KEY` (IMDb and
+   Rotten Tomatoes ratings).
+
+Use `--dry-run` to preview what would be backfilled without touching the
+database. Use `--ids-only` or `--ratings-only` to restrict the pass to one
+dimension.
+
+**Side effects**: `mutate BDD` (updates `external_ids_json`, `ratings_json` on
+`media_item` rows), `network` (TMDB, TVDB, OMDb APIs)
+
+**Pipeline position**: n/a
+
+**Args**:
+
+- `--show TEXT` : Restrict pass to a single show title
+- `--ids-only` : Only backfill provider IDs, skip ratings
+- `--ratings-only` : Only backfill ratings, skip provider IDs
+- `--dry-run` : Simulate without writing to DB
+- `--config / -c PATH` : Path to config.json5 or config dir
+
+**Examples**:
+
+    personalscraper library-backfill-ids --dry-run
+    personalscraper library-backfill-ids --show "Breaking Bad"
+    personalscraper library-backfill-ids --ids-only
+    personalscraper library-backfill-ids --ratings-only
+
+**Related**: `library-init-canonical`, `library-index --mode enrich`,
+`library-reconcile`
+
+---
