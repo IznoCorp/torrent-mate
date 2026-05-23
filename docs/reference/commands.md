@@ -72,7 +72,8 @@ relates to. The canonical source for flag names is `personalscraper <cmd>
 34. [`trailers`](#personalscraper-trailers) — trailer management (parent command)
 35. [`trailers scan`](#personalscraper-trailers-scan) — discover media missing trailers
 36. [`trailers download`](#personalscraper-trailers-download) — download trailers from YouTube
-37. [`trailers verify`](#personalscraper-trailers-verify) — audit trailer files on disk
+37. [`trailers audit`](#personalscraper-trailers-audit) — audit trailer files on disk
+    (alias: `trailers verify`, deprecated 0.16.0, removed 0.17+)
 38. [`trailers purge`](#personalscraper-trailers-purge) — remove unwanted trailers
 
 ### Config — sub-commands
@@ -1123,7 +1124,7 @@ in a `Trailers/` subfolder for TV shows.
     personalscraper trailers scan
     personalscraper trailers download
 
-**Related**: `trailers scan`, `trailers download`, `trailers verify`, `trailers
+**Related**: `trailers scan`, `trailers download`, `trailers audit`, `trailers
 purge`, `run`
 
 ---
@@ -1159,7 +1160,7 @@ without downloading anything. Use `--level` to filter by trailer type (`show`,
     personalscraper trailers scan --limit 20
     personalscraper trailers scan --level season --season 1
 
-**Related**: `trailers download`, `trailers verify`, `trailers`
+**Related**: `trailers download`, `trailers audit`, `trailers`
 
 ---
 
@@ -1196,11 +1197,11 @@ preview candidates without downloading.
     personalscraper trailers download --disk Disk1
     personalscraper trailers download --level season --season 2
 
-**Related**: `trailers scan`, `trailers verify`, `trailers`
+**Related**: `trailers scan`, `trailers audit`, `trailers`
 
 ---
 
-## `personalscraper trailers verify`
+## `personalscraper trailers audit`
 
 **Purpose**: Audit existing trailers. Runs four checks per trailer:
 
@@ -1212,6 +1213,12 @@ preview candidates without downloading.
 Failure categories: `missing`, `undersized`, `wrong_extension`, `unplayable`.
 Exit codes: 0 if all pass, 2 if any functional check fails, 4 if a `--deep`
 ffprobe call errors out (probe itself broken).
+
+**Alias**: `trailers verify` is kept as a thin deprecated alias that prints
+`[DEPRECATED] trailers verify -> trailers audit (will be removed in 0.17+).
+Forwarding...` on stderr then delegates to the same implementation. The alias
+is scheduled for removal in 0.17+ (SH-22 / AR-D / sub-phase 8.6) because
+`verify` collides with the top-level `personalscraper verify` command.
 
 **Side effects**: `read-only` (ffprobe subprocess spawns with `--deep`)
 
@@ -1230,10 +1237,11 @@ ffprobe call errors out (probe itself broken).
 
 **Examples**:
 
-    personalscraper trailers verify
-    personalscraper trailers verify --disk Disk1
-    personalscraper trailers verify --deep
-    personalscraper trailers verify --level season
+    personalscraper trailers audit
+    personalscraper trailers audit --disk Disk1
+    personalscraper trailers audit --deep
+    personalscraper trailers audit --level season
+    personalscraper trailers verify       # deprecated alias, same behaviour
 
 **Related**: `trailers scan`, `trailers download`, `trailers purge`, `trailers`
 
@@ -1271,7 +1279,7 @@ to clean orphan entries from the trailer state tracking file.
     personalscraper trailers purge --include-state
     personalscraper trailers purge
 
-**Related**: `trailers verify`, `trailers`
+**Related**: `trailers audit`, `trailers`
 
 ---
 

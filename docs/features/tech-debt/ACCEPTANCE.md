@@ -517,6 +517,15 @@ personalscraper trailers audit --help
 personalscraper trailers verify --help  # deprecation warning visible
 ```
 
+✅ [SHIPPED sub-phase 8.6] — `trailers audit` is now the canonical command;
+`trailers verify` remains as a thin alias that prints a
+`[DEPRECATED] trailers verify -> trailers audit (will be removed in 0.17+).
+Forwarding...` warning on stderr and delegates to the shared `_audit_impl`
+helper. Alias removal scheduled for 0.17+. Coverage:
+`tests/trailers/test_cli.py::TestTrailersAuditAlias` (6 tests pinning help
+discoverability, deprecation warning presence/absence, and shared-impl
+delegation).
+
 ### ACC-44 — Pin commands tests (SH-25) ✅ [SUPERSEDED — absorbed by Phase 9 CLI Coverage]
 
 The SH-25 intent (each CLI command has an existence-proof test) is now

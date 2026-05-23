@@ -826,6 +826,89 @@ class TestTrailersDownloadErrors:
         assert result.exit_code == 2, result.output
 
 
+class TestTrailersAuditAlias:
+    """Tests for the ``trailers audit`` command and its deprecated ``verify`` alias.
+
+    Sub-phase 8.6 (SH-22 / AR-D) renamed ``trailers verify`` to ``trailers audit``
+    because ``verify`` collides with the top-level ``personalscraper verify``.
+    ``verify`` remains as a thin deprecation alias for one minor (0.16.x) so
+    operator muscle memory does not break overnight; the alias must be removed
+    in 0.17+.
+    """
+
+    def test_audit_help_exits_zero(self, tmp_path):
+        """``trailers audit --help`` exits 0 (canonical command discoverable)."""
+        with patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)):
+            result = runner.invoke(app, ["trailers", "audit", "--help"])
+        assert result.exit_code == 0, result.output
+        assert "audit" in result.output.lower()
+
+    def test_verify_help_exits_zero(self, tmp_path):
+        """``trailers verify --help`` still works (alias remains discoverable)."""
+        with patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)):
+            result = runner.invoke(app, ["trailers", "verify", "--help"])
+        assert result.exit_code == 0, result.output
+
+    def test_audit_runs_against_empty_library(self, tmp_path):
+        """``trailers audit`` (no flags) exits 0 on empty library."""
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
+            patch(_PATCH_SCANNER) as MockScanner,
+            patch(_PATCH_OPEN_DB),
+        ):
+            MockScanner.return_value.scan_library.return_value = []
+            result = runner.invoke(app, ["trailers", "audit"])
+        assert result.exit_code == 0, result.output
+
+    def test_verify_alias_prints_deprecation_warning(self, tmp_path):
+        """``trailers verify`` prints a [DEPRECATED] warning forwarding to audit.
+
+        The warning is emitted via ``typer.echo(..., err=True)``. CliRunner
+        merges stderr into ``result.output`` by default on modern typer/click,
+        so we assert on the combined output rather than a separated stream.
+        """
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
+            patch(_PATCH_SCANNER) as MockScanner,
+            patch(_PATCH_OPEN_DB),
+        ):
+            MockScanner.return_value.scan_library.return_value = []
+            result = runner.invoke(app, ["trailers", "verify"])
+        assert result.exit_code == 0, result.output
+        assert "DEPRECATED" in result.output, f"Expected deprecation warning in output, got: {result.output!r}"
+        assert "trailers audit" in result.output
+
+    def test_audit_does_not_print_deprecation_warning(self, tmp_path):
+        """``trailers audit`` (canonical) does NOT print the deprecation warning."""
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
+            patch(_PATCH_SCANNER) as MockScanner,
+            patch(_PATCH_OPEN_DB),
+        ):
+            MockScanner.return_value.scan_library.return_value = []
+            result = runner.invoke(app, ["trailers", "audit"])
+        assert result.exit_code == 0
+        assert "DEPRECATED" not in result.output
+
+    def test_audit_and_verify_share_underlying_impl(self, tmp_path):
+        """Both commands must delegate to ``_audit_impl`` (the shared body).
+
+        Asserted by patching the shared function and verifying it is called
+        exactly once per CLI invocation. This pins the rename invariant: any
+        future change to the audit behaviour must be made in ONE place.
+        """
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
+            patch("personalscraper.trailers.cli._audit_impl") as mock_impl,
+        ):
+            r_audit = runner.invoke(app, ["trailers", "audit"])
+            r_verify = runner.invoke(app, ["trailers", "verify"])
+
+        assert r_audit.exit_code == 0, r_audit.output
+        assert r_verify.exit_code == 0, r_verify.output
+        assert mock_impl.call_count == 2
+
+
 class TestTrailersPurgeCommandLockContention:
     """Tests for TrailerStateLocked handling in the trailers purge subcommand."""
 

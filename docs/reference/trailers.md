@@ -16,13 +16,13 @@ All keys under the trailers block in config/trailers.json5. Most keys have sensi
 
 ### Top-level keys
 
-| Key                                   | Type | Default                        | Description                                               |
-| ------------------------------------- | ---- | ------------------------------ | --------------------------------------------------------- |
-| enabled                               | bool | false                          | Master switch                                             |
-| languages                             | list | ["fr-FR","en-US"]              | TMDB video language codes                                 |
-| search_query_format                   | str  | "{title} {year} bande annonce" | YouTube fallback query                                    |
-| state_file                            | str  | ".data/trailers_state.json"    | State JSON path                                           |
-| retry_after_days                      | list | [1,7,30]                       | Days before retry                                         |
+| Key                 | Type | Default                        | Description               |
+| ------------------- | ---- | ------------------------------ | ------------------------- |
+| enabled             | bool | false                          | Master switch             |
+| languages           | list | ["fr-FR","en-US"]              | TMDB video language codes |
+| search_query_format | str  | "{title} {year} bande annonce" | YouTube fallback query    |
+| state_file          | str  | ".data/trailers_state.json"    | State JSON path           |
+| retry_after_days    | list | [1,7,30]                       | Days before retry         |
 
 ### trailers.filters
 
@@ -30,15 +30,15 @@ All keys under the trailers block in config/trailers.json5. Most keys have sensi
 | ------------------- | ---- | -------------------- | ------------------------------------- |
 | min_file_size_bytes | int  | 102400               | Min bytes for valid trailer (100 KiB) |
 | max_filesize_mb     | int  | 500                  | Hard cap passed to yt-dlp             |
-| allowed_extensions  | list | ["mp4","mkv","webm"] | Extensions for trailers verify        |
+| allowed_extensions  | list | ["mp4","mkv","webm"] | Extensions for trailers audit         |
 
 ### trailers.ytdlp
 
-| Key                | Type | Default                                              | Description                                                                     |
-| ------------------ | ---- | ---------------------------------------------------- | ------------------------------------------------------------------------------- |
-| format             | str  | bestvideo[height<=1080]+bestaudio/best[height<=1080] | yt-dlp format selector                                                          |
-| socket_timeout_sec | int  | 30                                                   | Socket timeout                                                                  |
-| retries            | int  | 3                                                    | Retry count                                                                     |
+| Key                | Type | Default                                              | Description            |
+| ------------------ | ---- | ---------------------------------------------------- | ---------------------- |
+| format             | str  | bestvideo[height<=1080]+bestaudio/best[height<=1080] | yt-dlp format selector |
+| socket_timeout_sec | int  | 30                                                   | Socket timeout         |
+| retries            | int  | 3                                                    | Retry count            |
 
 ### trailers.step
 
@@ -66,9 +66,9 @@ Two independent circuit breakers.
 
 Opt-in per-season discovery. Disabled by default.
 
-| Key                 | Type | Default                                        | Description                                |
-| ------------------- | ---- | ---------------------------------------------- | ------------------------------------------ |
-| enabled             | bool | false                                          | Enable per-season download                 |
+| Key     | Type | Default | Description                |
+| ------- | ---- | ------- | -------------------------- |
+| enabled | bool | false   | Enable per-season download |
 
 ### trailers.library_check
 
@@ -124,12 +124,17 @@ Discover and download missing trailers.
 Options: --dry-run, --disk, --category, --since, --limit, --level, --season, --no-refresh.
 Exit codes: 0 (ok or zero errors), 1 (download error), 2 (bad --since date or invalid --level/--season).
 
-### trailers verify
+### trailers audit (alias: trailers verify, deprecated 0.16.0)
 
 Audit existing trailer files (size, extension, optional ffprobe).
 
 Options: --disk, --category, --deep, --since, --level, --season, --no-refresh.
 Exit codes: 0 (all valid), 2 (functional check failure or bad arg), 4 (ffprobe error).
+
+`trailers verify` is preserved as a thin deprecation alias that prints a
+`[DEPRECATED] trailers verify -> trailers audit (will be removed in 0.17+).
+Forwarding...` warning on stderr before delegating to the same audit
+implementation. Removal scheduled for 0.17+ (SH-22 / AR-D).
 
 ### trailers purge
 
