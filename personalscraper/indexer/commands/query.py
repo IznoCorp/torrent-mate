@@ -437,13 +437,12 @@ def library_search_command(
     limit: int = 50,
     config_path: Path | None = None,
     event_bus: EventBus,
-) -> int:
-    """Execute a flex-attr query and print matching media items.
+) -> tuple[int, list[dict[str, object]]]:
+    """Execute a flex-attr query and return matching media items.
 
     Delegates to :func:`~personalscraper.indexer.query.execute` for tokenisation,
-    SQL compilation, and execution.  Each matching item is printed as one
-    space-padded row with the columns ``id | title | year | nfo``; the header
-    row uses the same widths so columns line up in a fixed-width terminal.
+    SQL compilation, and execution.  Returns a ``(rc, rows)`` tuple where each
+    row is a dict with keys ``id``, ``title``, ``year``, ``kind``, ``nfo_status``.
 
     Args:
         query_str: Query string in the flex-attr syntax, e.g.
@@ -455,8 +454,8 @@ def library_search_command(
             subscriber-wired bus.
 
     Returns:
-        ``0`` on success (even with zero results), ``1`` on infrastructure error,
-        ``2`` on query syntax / unknown-field error.
+        ``(0, rows)`` on success (rows may be empty), ``(1, [])`` on
+        infrastructure error, ``(2, [])`` on query syntax / unknown-field error.
     """
     from personalscraper.conf.loader import (  # noqa: PLC0415
         ConfigNotFoundError,
@@ -483,7 +482,7 @@ def library_search_command(
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
         typer.echo(f"Config error: {exc}", err=True)
-        return 1
+        return 1, []
 
     db_path = cfg.indexer.db_path
     assert db_path is not None, "indexer.db_path must be resolved"
@@ -502,7 +501,7 @@ def library_search_command(
         IndexerMigrationError,
     ) as exc:
         typer.echo(str(exc), err=True)
-        return 1
+        return 1, []
 
     with closing(conn):
         try:
@@ -515,27 +514,27 @@ def library_search_command(
             IndexerMigrationError,
         ) as exc:
             typer.echo(str(exc), err=True)
-            return 1
+            return 1, []
 
         try:
             items = execute(conn, query_str, limit=limit)
         except QueryError as exc:
             typer.echo(str(exc), err=True)
-            return 2
+            return 2, []
 
-        if not items:
-            typer.echo("(no results)")
-            return 0
-
-        # Print header + rows. Widths must match between header and data so
-        # columns align in a fixed-width terminal.
-        typer.echo(f"{'ID':<8}{'TITLE':<40} {'YEAR':<6} {'NFO':<10}")
+        rows: list[dict[str, object]] = []
         for item in items:
-            year_str = str(item.year) if item.year is not None else ""
-            nfo_str = item.nfo_status or ""
-            typer.echo(f"{item.id:<8}{(item.title or '')[:38]:<40} {year_str:<6} {nfo_str:<10}")
+            rows.append(
+                {
+                    "id": item.id,
+                    "title": item.title or "",
+                    "year": item.year,
+                    "kind": item.kind or "",
+                    "nfo_status": item.nfo_status or "",
+                }
+            )
 
-        return 0
+        return 0, rows
 
 
 # ---------------------------------------------------------------------------

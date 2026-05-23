@@ -94,12 +94,36 @@ def library_search(
         personalscraper library-search "kind:show codec:hevc -trailer"
         personalscraper library-search 'title:"Lost Highway"'
     """
+    from personalscraper.cli_helpers.output import emit  # noqa: PLC0415
     from personalscraper.indexer.cli import library_search_command  # noqa: PLC0415
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
-    rc = library_search_command(query, limit=limit, config_path=effective_config, event_bus=_resolve_event_bus(ctx))
+    rc, rows = library_search_command(
+        query, limit=limit, config_path=effective_config, event_bus=_resolve_event_bus(ctx)
+    )
+    emit(
+        {"rows": rows, "count": len(rows), "query": query, "limit": limit},
+        rich_renderer=lambda: _print_search_table(rows),
+    )
     if rc != 0:
         raise typer.Exit(rc)
+
+
+def _print_search_table(rows: list[dict[str, object]]) -> None:
+    """Render search results as a fixed-width table.
+
+    Args:
+        rows: List of row dicts with ``id``, ``title``, ``year``, ``kind``, ``nfo_status`` keys.
+    """
+    if not rows:
+        typer.echo("(no results)")
+        return
+    typer.echo(f"{'ID':<8}{'TITLE':<40} {'YEAR':<6} {'NFO':<10}")
+    for r in rows:
+        year_str = str(r["year"]) if r["year"] is not None else ""
+        nfo_str = str(r["nfo_status"]) or ""
+        title = str(r["title"]) or ""
+        typer.echo(f"{r['id']:<8}{title[:38]:<40} {year_str:<6} {nfo_str:<10}")
 
 
 @app.command("library-show")
