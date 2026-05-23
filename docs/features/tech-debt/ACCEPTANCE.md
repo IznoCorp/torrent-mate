@@ -298,6 +298,56 @@ print('OK')
 
 ---
 
+## Incident response BDD (Phase 5.12 — discovered 2026-05-23, fixed same day)
+
+> Phase 5.12 captures 4 production BDD bugs discovered while exercising
+> `library-doctor` on the live DB. Each bug had a pattern in common:
+> command reported "success" while leaving the underlying state inconsistent
+> (silent failure). All 4 fixes ship with regression tests that exercise
+> the END-TO-END loop — not just the single function — so the same class
+> of bug cannot return.
+
+### ACC-BDD-1 — `soft_delete_subtree` cascade hard-deletes path row (BD-D #1) ✅ [SHIPPED commit `c5e2bbd`]
+
+```bash
+# After enqueue-repair on phantom path → repair drains → re-detect = 0
+make test -k test_soft_delete_subtree_cascade_deletes_files_and_path
+make test -k test_repair_processor_drains_path_missing_closes_detector_loop
+# Both expected: pass (closure-of-loop guarded).
+```
+
+### ACC-BDD-2 — `soft_delete_subtree` refreshes `disk.merkle_root` (BD-D #2) ✅ [SHIPPED commit `00599f8`]
+
+```bash
+make test -k test_soft_delete_subtree_refreshes_disk_merkle
+# Expected: pass. Without this fix, `library-index --mode quick` after a
+# subtree prune trips bulk-change-detected protection on every disk.
+```
+
+### ACC-BDD-3 — `init_canonical` falls back from imdb default to tmdb sibling (BD-INIT-CANONICAL) ✅ [SHIPPED commit `3df78e0`]
+
+```bash
+make test -k test_parse_default_imdb_falls_back_to_tmdb
+make test -k test_init_canonical_populates_fallback_tmdb_on_imdb_default
+make test -k test_init_canonical_stats_breakdown_sums_to_total_visited
+# Production impact: 92 % of movies (1094 / 1236) populated from this fix
+# via fallback; the breakdown CLI output surfaces WHY any remaining items
+# are still un-anchorable (no more silent "populated=0").
+```
+
+### ACC-BDD-4 — `library-relink --dry-run` rollback works (BD-RELINK-TX) ✅ [SHIPPED commit `9997f70`]
+
+```bash
+make test -k test_relink_dry_run_no_writes
+# Pre-fix: isolation_level=None (autocommit) made conn.rollback() a no-op
+# under --dry-run, so the function silently persisted link updates against
+# the operator's explicit dry-run intent.
+# Post-fix: explicit BEGIN IMMEDIATE wraps the link loop so the rollback
+# is honored.
+```
+
+---
+
 ## Format + documentation (Phase 6)
 
 ### ACC-27 — --format unified (DEV #22, SH-13) ✅ [SHIPPED Phase 6.1 (`79629b2` + `cf1bd96` + `d23a746` + `a4decbe` + `5a81ef0` + `e4943fe`) + Phase 6.1.b (`de2b5e3` + `a3ef659` + `323455a` + `8092317` + `c6da905`) — 8/8 commands plumbed]
@@ -451,10 +501,20 @@ personalscraper trailers audit --help
 personalscraper trailers verify --help  # deprecation warning visible
 ```
 
-### ACC-44 — Pin commands tests (SH-25)
+### ACC-44 — Pin commands tests (SH-25) ✅ [SUPERSEDED — absorbed by Phase 9 CLI Coverage]
+
+The SH-25 intent (each CLI command has an existence-proof test) is now
+covered by the 23 `test_library_*_e2e.py` harnesses shipped in Phase 9
+(D1-D6 = commits `b9cb39c` through `1607f87` = 114 E2E tests). Every
+harness includes a `test_<cmd>_help_exits_zero` smoke test that pins
+the command's existence + CliRunner integration. See ACC-50..54 for
+the Phase 9 coverage measurement.
 
 ```bash
-make test -k test_pin_existence_of_every_exposed_command
+ls tests/commands/test_library_*_e2e.py | wc -l
+# Expected: 23 (one per library-* command)
+rg -c "test_.+_help_exits_zero" tests/commands/test_library_*_e2e.py | wc -l
+# Expected: 23 (each harness pins command existence)
 ```
 
 ### ACC-45 — ACCEPTANCE.md complete with all criteria

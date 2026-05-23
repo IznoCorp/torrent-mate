@@ -8,22 +8,23 @@
 
 ## Phases
 
-| #    | Phase                                                                   | File                      | Effort  | Status |
-| ---- | ----------------------------------------------------------------------- | ------------------------- | ------- | ------ |
-| 0    | Pre-Foundations: skill safety net (DEV #1 promu)                        | phase-00-skill-safety.md  | 0.5 j   | [ ]    |
-| 1    | Foundations BDD/indexer + PRAGMA + bonus DEVs                           | phase-01-foundations.md   | 3-4 j   | [ ]    |
-| 2    | CLI gaps + backfill-ids first run                                       | phase-02-cli-gaps.md      | 2 j     | [ ]    |
-| 3    | Observability (broadened DEV #6 → 7 cmds)                               | phase-03-observability.md | 2 j     | [ ]    |
-| 4    | Path detection + paranoia branch (DEV #31)                              | phase-04-path-cleanup.md  | 2-3 j   | [ ]    |
-| 5    | Conformity (drop Protocols + tests refactor + Pydantic)                 | phase-05-conformity.md    | 2-3 j   | [ ]    |
-| 5.9  | NTFS cache pressure (audit/12 integration)                              | (no formal phase file)    | 1 j     | [x]    |
-| 5.10 | Process Hardening (drift-detect + phase-gate + briefing v2 + drafts)    | (no formal phase file)    | 1 j     | [x]    |
-| 5.11 | Corrections (IMPL+ACC+plan sync + ACC-NTFS + drift-detect refine)       | (no formal phase file)    | 0.5 j   | [x]    |
-| 6    | Format + heavy doc work                                                 | phase-06-format-docs.md   | 3-4 j   | [x]    |
-| 7    | Matrix v2.1 + agents matrix-aware                                       | phase-07-matrix-v21.md    | 1-2 j   | [x]    |
-| 8    | Polish + Plan A reset + size hard-block + bonus                         | phase-08-polish.md        | 3-4 j   | [ ]    |
-| 9    | CLI Test Coverage (NEW — absorbe 8.7 SH-25 ; 11 harnesses déjà shippés) | phase-09-cli-coverage.md  | 1.5-2 j | [ ]    |
-| 10   | Archive DESIGN.md updates (7 features)                                  | phase-10-archive-docs.md  | 1-2 j   | [ ]    |
+| #    | Phase                                                                                | File                      | Effort  | Status                                                                                                                                                                    |
+| ---- | ------------------------------------------------------------------------------------ | ------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | Pre-Foundations: skill safety net (DEV #1 promu)                                     | phase-00-skill-safety.md  | 0.5 j   | [x]                                                                                                                                                                       |
+| 1    | Foundations BDD/indexer + PRAGMA + bonus DEVs                                        | phase-01-foundations.md   | 3-4 j   | [x]                                                                                                                                                                       |
+| 2    | CLI gaps + backfill-ids first run                                                    | phase-02-cli-gaps.md      | 2 j     | [x]                                                                                                                                                                       |
+| 3    | Observability (broadened DEV #6 → 7 cmds)                                            | phase-03-observability.md | 2 j     | [x]                                                                                                                                                                       |
+| 4    | Path detection + paranoia branch (DEV #31)                                           | phase-04-path-cleanup.md  | 2-3 j   | [x]                                                                                                                                                                       |
+| 5    | Conformity (drop Protocols + tests refactor + Pydantic)                              | phase-05-conformity.md    | 2-3 j   | [x]                                                                                                                                                                       |
+| 5.9  | NTFS cache pressure (audit/12 integration)                                           | (no formal phase file)    | 1 j     | [x]                                                                                                                                                                       |
+| 5.10 | Process Hardening (drift-detect + phase-gate + briefing v2 + drafts)                 | (no formal phase file)    | 1 j     | [x]                                                                                                                                                                       |
+| 5.11 | Corrections (IMPL+ACC+plan sync + ACC-NTFS + drift-detect refine)                    | (no formal phase file)    | 0.5 j   | [x]                                                                                                                                                                       |
+| 5.12 | Incident response BDD (BD-D #1 + BD-D #2 + BD-INIT-CANONICAL + relink tx rollback)   | (no formal phase file)    | 0.5 j   | [x] 4 fix commits + 22 regression tests (`c5e2bbd` cascade hard-delete path + `00599f8` merkle refresh + `3df78e0` init_canonical fallback + D4 `9997f70` relink tx wrap) |
+| 6    | Format + heavy doc work                                                              | phase-06-format-docs.md   | 3-4 j   | [x]                                                                                                                                                                       |
+| 7    | Matrix v2.1 + agents matrix-aware                                                    | phase-07-matrix-v21.md    | 1-2 j   | [x]                                                                                                                                                                       |
+| 8    | Polish + Plan A reset + size hard-block + bonus                                      | phase-08-polish.md        | 3-4 j   | [ ]                                                                                                                                                                       |
+| 9    | CLI Test Coverage (NEW — absorbe 8.7 SH-25 ; **23/23 library-\* harnesses shippés**) | phase-09-cli-coverage.md  | 1.5-2 j | [x] partial (23 library harnesses shipped D1-D6 ; sections Errors/Output/Events à harmoniser en 9.7.a + 6 non-library cmds à couvrir en 9.7.b)                            |
+| 10   | Archive DESIGN.md updates (7 features)                                               | phase-10-archive-docs.md  | 1-2 j   | [ ] partial (10.1.f shipped `329afbc`)                                                                                                                                    |
 
 **Total post coverage-fix + Phase 9 CLI Coverage** : **20.5-29 jours séquentiel,
 16.5-24 jours parallélisable**. Vs post-REDO 17-25 j = **+3.5-4 jours** (DEV #50-#54 +

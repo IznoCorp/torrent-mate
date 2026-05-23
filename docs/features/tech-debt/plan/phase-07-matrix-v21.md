@@ -152,11 +152,18 @@ Matrix + skill enrichment from tech-debt 0.16.0 audit.
 
 ## Phase 7 Gate
 
-- [ ] 7.1 matrix v2.1 commit, 12 events documented
-- [ ] 7.2 skill SKILL.md v2.1 + assertion
-- [ ] 7.3 agents matrix-aware default + state-validator FS-truth
-- [ ] 7.4 CHANGELOG updated (auto-detect DEV #1 already shipped in Phase 0.1)
-- [ ] Skill invocation sur personalscraper post-Phase 6 produit DEVIATION LIST = 0 (modulo
-      operational items)
+- [x] 7.1 matrix v2.1 commit, **18 events** documented (audit gap audit found 18, not 12 — `cd47026`)
+- [x] 7.2 skill SKILL.md v2.1 + assertion (`30360ef`)
+- [x] 7.3 agents matrix-aware default + state-validator FS-truth (`4f9d598`)
+- [x] 7.4 CHANGELOG updated (auto-detect DEV #1 already shipped in Phase 0.1) (`a1eb322`)
+- [x] Parent repo personalscraper unchanged during cross-repo dispatch (clean separation)
 
-**Phase gate commit** (sur `.claude/`) : `chore(pipeline-monitor): phase 7 gate — matrix v2.1`
+**Phase 7 commits** (sur `.claude/personal-scraper`) :
+
+- `cd47026` matrix v2.1 + 18 events
+- `30360ef` skill v2.1 binding
+- `4f9d598` 7 agents matrix-aware + state-validator FS-truth
+- `a1eb322` CHANGELOG v2.1
+
+**Phase gate commit** (sur le parent personalscraper, marquant le sync) :
+`45b37bf chore(tech-debt): phase 7 gate — matrix v2.1 cross-repo (ACC-30/31/32 ✅)`

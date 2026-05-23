@@ -171,7 +171,7 @@ Document dans `docs/reference/pipeline-internals.md` §PROCESS:scrape :
 
 ## Phase 6 Gate
 
-- [x] 6.1 `personalscraper --format json library-doctor` outputs JSON (SH-13, DEV #22) — 4/8 commands plumbed (doctor / report / status / info) ; 4 deferred to 6.1.b
+- [x] 6.1 + 6.1.b `personalscraper --format json library-doctor` outputs JSON (SH-13, DEV #22) — **8/8 commands plumbed** (doctor / report / status / info via 6.1 ; reconcile / search / show / torrents-list via 6.1.b — commits `de2b5e3` + `a3ef659` + `323455a` + `8092317` + `c6da905` + `163824b`)
 - [x] 6.2 chaque commande a une section dans `commands.md` (SH-12) — 39 entries (34 top-level + 5 sub-commands)
 - [x] 6.3 architecture.md a state ownership + module relationships + anti-décisions (SH-18, SH-19, AR-E)
 - [x] 6.4 indexer.md a lifecycle media_file (SH-1)

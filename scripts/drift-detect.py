@@ -102,6 +102,16 @@ COMMIT_DEV_RE = re.compile(r"DEV\s+#(?P<num>\d+)", re.IGNORECASE)
 # unrelated to the current plan and must not be flagged as ad-hoc phases.
 LEGACY_COMMIT_RE = re.compile(r"^v\d+\.\d+\.\d+:")
 
+# Commits whose "Phase N.M" mention refers to the OLD numbering, before the
+# 2026-05-23 plan renumbering that introduced a new Phase 9 (CLI Coverage)
+# and shifted the original Phase 9 (Archive docs) to Phase 10. The drift
+# detector would otherwise flag these as ad-hoc references.
+# - 329afbc: docs(tech-debt): fix stale paths in logging.md (DEV #45 / Phase 9.1.f)
+#   → now Phase 10.1.f (Archive docs sub-phase, see IMPLEMENTATION.md row 10)
+# - be8fc87: docs(tech-debt): plan HANDOVER.md deletion in Phase 9.4 closure
+#   → now Phase 10.4
+_LEGACY_RENUMBERED_SHAS: frozenset[str] = frozenset({"329afbc", "be8fc87"})
+
 
 def _is_in_string_literal(content: str, pos: int) -> bool:
     """Heuristic: True if *pos* is inside a Python string literal on its line.
@@ -845,6 +855,9 @@ def check_ad_hoc_phases(
         # Skip pre-tech-debt legacy commits — their "phase N" mentions belong
         # to a defunct numbering scheme and would always be flagged.
         if LEGACY_COMMIT_RE.match(subject):
+            continue
+        # Skip commits with known stale phase references (2026-05-23 renumbering).
+        if sha in _LEGACY_RENUMBERED_SHAS:
             continue
         for m in COMMIT_PHASE_RE.finditer(subject):
             num = m.group("num")
