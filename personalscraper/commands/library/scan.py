@@ -128,19 +128,35 @@ def library_init_canonical(
 
     Walks every ``media_item`` row where ``canonical_provider IS NULL``,
     resolves its NFO via the ``dispatch_path`` attribute, and reads the
-    ``<uniqueid default="true">`` element's ``type`` attribute.  When
-    found, sets ``canonical_provider`` accordingly so that a subsequent
-    ``library-index --mode backfill-ids`` can use it as the anchor for
-    cross-provider ID and rating enrichment.
+    ``<uniqueid default="true">`` element's ``type`` attribute.  When the
+    default declares an unsupported type (e.g. ``imdb``), falls back to
+    the first supported sibling uniqueid (``tvdb`` or ``tmdb``).  Sets
+    ``canonical_provider`` accordingly so that a subsequent
+    ``library-backfill-ids`` can use it as the anchor for cross-provider
+    ID and rating enrichment.
 
     This is the bootstrap step for the chicken-and-egg problem on BDBs
     that pre-date the provider-ids feature (DEV #54): backfill-ids
     requires ``canonical_provider`` to be set, but nothing populates it
     on a DB that was indexed before the scraper wrote the field.
 
+    .. note::
+       This command does NOT touch rows whose ``canonical_provider`` is
+       already set — it is a bootstrap, not a migration. To change an
+       item's canonical provider after it has been populated (e.g. move
+       a show from ``tmdb`` to ``tvdb`` to leverage TVDB-primary scrape
+       discipline per DESIGN §3), use the Plan A workflow:
+       ``library-rescrape`` (Phase 8.10) which explicitly resets +
+       re-scrapes + lets the operator approve any rename / restructure
+       of files. TVDB and TMDB can disagree on episode S/E mapping,
+       season grouping, and titles — a silent canonical swap would
+       desync files vs DB.
+
     Items without a ``dispatch_path`` attribute (scanner-only rows that
     have never been dispatched) or without a readable / valid NFO are
-    silently skipped — the pass is best-effort by design.
+    counted in the breakdown (no_dispatch_path, nfo_missing,
+    nfo_parse_error, unsupported_no_fallback) so the operator can see
+    exactly WHY ``populated < total_visited``.
 
     Examples:
         personalscraper library-init-canonical

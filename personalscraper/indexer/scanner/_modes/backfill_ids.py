@@ -574,6 +574,23 @@ def _parse_canonical_from_nfo(nfo_path: "Path") -> tuple[str | None, str]:
        dropping — observed on 92 % of the production movie library in
        2026-05-23 incident).
 
+    .. warning::
+       The fallback returns the FIRST supported uniqueid found in NFO
+       XML order, NOT the kind-preferred provider (TVDB primary for
+       shows, TMDB primary for movies per DESIGN §3 / multi-provider
+       memory feedback). For shows whose NFO orders ``tmdb`` before
+       ``tvdb``, the fallback may pick ``tmdb`` even though ``tvdb``
+       would be the more semantically correct canonical anchor.  This
+       is acceptable for the bootstrap pass (better something than NULL
+       in canonical_provider) but is NOT how you should migrate an
+       already-canonicalized item between providers — that workflow
+       belongs to Plan A (``library-rescrape`` in Phase 8.10), which
+       resets canonical_provider, re-scrapes with the explicit primary
+       provider forced, and lets the operator approve any rename/restructure
+       of files (TVDB and TMDB can disagree on episode S/E mapping,
+       season grouping, and titles — see Sherlock specials, Doctor Who
+       classic-vs-new numbering, etc.).
+
     Args:
         nfo_path: Path to the ``.nfo`` file to parse.
 
