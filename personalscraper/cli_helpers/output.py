@@ -39,7 +39,7 @@ def emit(
         if rich_renderer is not None:
             rich_renderer()
         else:
-            state["console"].print(payload)  # type: ignore[literal-required]
+            state["console"].print(payload)
     else:  # plain
         if isinstance(payload, str):
             print(payload)

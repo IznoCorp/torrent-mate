@@ -3,8 +3,8 @@
 Verifies:
 - ``library-doctor --help`` exits 0 (smoke test, existence proof).
 - On a clean DB: all checks pass, exit 0.
-- ``--format json`` emits parseable JSON with ``overall_status`` key.
-- ``--format table`` renders a Rich table (no JSON parse required).
+- ``--format json`` emits parseable JSON with ``overall_status`` key (global flag).
+- Default ``rich`` format renders a Rich table (no JSON parse required).
 - On a DB with a known issue (orphan repair_queue row):
     the repair_queue_backlog check fires, output reflects it, exit non-0.
 - Missing ``indexer.db_path`` exits non-zero with a clear error.
@@ -70,10 +70,10 @@ class TestLibraryDoctorHelp:
         result = runner.invoke(app, ["library-doctor", "--help"])
         assert result.exit_code == 0, result.output
 
-    def test_help_mentions_format(self) -> None:
-        """``--format`` is documented in the help text."""
+    def test_help_mentions_repair_queue_threshold_block(self) -> None:
+        """``--repair-queue-threshold`` flag is documented (global --format lives at top-level)."""
         result = runner.invoke(app, ["library-doctor", "--help"])
-        assert "--format" in result.output
+        assert "--repair-queue-threshold" in result.output
 
     def test_help_mentions_repair_queue_threshold(self) -> None:
         """``--repair-queue-threshold`` is documented in the help text."""
@@ -98,7 +98,7 @@ class TestLibraryDoctorCleanDb:
             update={"indexer": test_config.indexer.model_copy(update={"db_path": str(db_file)})}
         )
         with patch("personalscraper.conf.loader.load_config", return_value=cfg):
-            result = runner.invoke(app, ["library-doctor", "--format", "json"])
+            result = runner.invoke(app, ["--format", "json", "library-doctor"])
         assert result.exit_code == 0, result.output
 
     def test_clean_db_json_overall_ok(self, tmp_path, test_config) -> None:
@@ -108,12 +108,12 @@ class TestLibraryDoctorCleanDb:
             update={"indexer": test_config.indexer.model_copy(update={"db_path": str(db_file)})}
         )
         with patch("personalscraper.conf.loader.load_config", return_value=cfg):
-            result = runner.invoke(app, ["library-doctor", "--format", "json"])
+            result = runner.invoke(app, ["--format", "json", "library-doctor"])
         assert result.exit_code == 0, result.output
         raw = result.output.strip()
-        json_line = next((ln for ln in raw.splitlines() if ln.strip().startswith("{")), None)
-        assert json_line is not None, f"No JSON in output: {raw!r}"
-        data = json.loads(json_line)
+        start = raw.find("{")
+        assert start != -1, f"No JSON in output: {raw!r}"
+        data = json.loads(raw[start:])
         assert data["overall_status"] in ("ok", "skip"), f"Unexpected overall_status: {data['overall_status']}"
 
     def test_clean_db_json_has_checks_list(self, tmp_path, test_config) -> None:
@@ -123,11 +123,12 @@ class TestLibraryDoctorCleanDb:
             update={"indexer": test_config.indexer.model_copy(update={"db_path": str(db_file)})}
         )
         with patch("personalscraper.conf.loader.load_config", return_value=cfg):
-            result = runner.invoke(app, ["library-doctor", "--format", "json"])
+            result = runner.invoke(app, ["--format", "json", "library-doctor"])
         assert result.exit_code == 0, result.output
         raw = result.output.strip()
-        json_line = next((ln for ln in raw.splitlines() if ln.strip().startswith("{")), None)
-        data = json.loads(json_line)
+        start = raw.find("{")
+        assert start != -1, f"No JSON in output: {raw!r}"
+        data = json.loads(raw[start:])
         assert "checks" in data
         assert len(data["checks"]) >= 1
 
@@ -155,33 +156,33 @@ class TestLibraryDoctorFormat:
             update={"indexer": test_config.indexer.model_copy(update={"db_path": str(db_file)})}
         )
         with patch("personalscraper.conf.loader.load_config", return_value=cfg):
-            result = runner.invoke(app, ["library-doctor", "--format", "json"])
+            result = runner.invoke(app, ["--format", "json", "library-doctor"])
         raw = result.output.strip()
-        json_line = next((ln for ln in raw.splitlines() if ln.strip().startswith("{")), None)
-        assert json_line is not None
-        data = json.loads(json_line)
+        start = raw.find("{")
+        assert start != -1, f"No JSON in output: {raw!r}"
+        data = json.loads(raw[start:])
         assert "overall_status" in data
         assert "checks" in data
         assert "elapsed_s" in data
 
     def test_invalid_format_exits_nonzero(self, tmp_path, test_config) -> None:
-        """Invalid ``--format`` exits non-zero with an error message."""
+        """Invalid global ``--format`` exits non-zero with an error message."""
         db_file = _build_clean_db(tmp_path)
         cfg = test_config.model_copy(
             update={"indexer": test_config.indexer.model_copy(update={"db_path": str(db_file)})}
         )
         with patch("personalscraper.conf.loader.load_config", return_value=cfg):
-            result = runner.invoke(app, ["library-doctor", "--format", "xml"])
+            result = runner.invoke(app, ["--format", "xml", "library-doctor"])
         assert result.exit_code != 0
 
-    def test_table_format_prints_check_names(self, tmp_path, test_config) -> None:
-        """Table format output contains check names."""
+    def test_rich_format_prints_check_names(self, tmp_path, test_config) -> None:
+        """Default rich format output contains check names (rendered as table rows)."""
         db_file = _build_clean_db(tmp_path)
         cfg = test_config.model_copy(
             update={"indexer": test_config.indexer.model_copy(update={"db_path": str(db_file)})}
         )
         with patch("personalscraper.conf.loader.load_config", return_value=cfg):
-            result = runner.invoke(app, ["library-doctor", "--format", "table"])
+            result = runner.invoke(app, ["library-doctor"])
         assert "integrity_check" in result.output
 
 
@@ -231,12 +232,13 @@ class TestLibraryDoctorRepairQueueBacklog:
         with patch("personalscraper.conf.loader.load_config", return_value=cfg):
             result = runner.invoke(
                 app,
-                ["library-doctor", "--format", "json", "--repair-queue-threshold", "1"],
+                ["--format", "json", "library-doctor", "--repair-queue-threshold", "1"],
             )
         assert result.exit_code != 0, "Expected non-zero exit when repair_queue threshold exceeded"
         raw = result.output.strip()
-        json_line = next((ln for ln in raw.splitlines() if ln.strip().startswith("{")), None)
-        data = json.loads(json_line)
+        start = raw.find("{")
+        assert start != -1, f"No JSON in output: {raw!r}"
+        data = json.loads(raw[start:])
         # Find the repair_queue_backlog check result
         rq_check = next((c for c in data["checks"] if c["name"] == "repair_queue_backlog"), None)
         assert rq_check is not None, "repair_queue_backlog check missing from output"
@@ -253,7 +255,7 @@ class TestLibraryDoctorRepairQueueBacklog:
         with patch("personalscraper.conf.loader.load_config", return_value=cfg):
             result = runner.invoke(
                 app,
-                ["library-doctor", "--format", "json", "--repair-queue-threshold", "10"],
+                ["--format", "json", "library-doctor", "--repair-queue-threshold", "10"],
             )
         assert result.exit_code == 0, f"Expected exit 0 below threshold, got {result.exit_code}: {result.output}"
 
