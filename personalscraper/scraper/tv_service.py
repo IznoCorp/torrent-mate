@@ -19,6 +19,7 @@ from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.confidence import LOW_CONFIDENCE
 from personalscraper.scraper.episode_manager import create_season_dirs, match_episode_files, rename_episodes
 from personalscraper.scraper.existing_validator import _infer_year_from_child_names, _local_show_seasons
+from personalscraper.scraper.models import ScraperExternalIds
 from personalscraper.scraper.nfo_generator import NFOGenerator
 from personalscraper.scraper.rename_service import (
     _cleanup_empty_release_dirs,
@@ -90,6 +91,8 @@ def _tvdb_series_to_show_data(
     imdb_id: str = "",
     preferred_language: str = "fr-FR",
     fallback_language: str = "en-US",
+    *,
+    external_ids: "ScraperExternalIds | None" = None,
 ) -> dict[str, Any]:
     """Convert TVDB series data to a TMDB-like show_data dict.
 
@@ -107,6 +110,10 @@ def _tvdb_series_to_show_data(
     rare callers that still hold the unparsed payload. Internally, the
     typed branch derives the same TMDB-flavoured output by reading
     ``MediaDetails`` fields populated by ``_tvdb_parsers.parse_media_details``.
+
+    DEV #30 — prefer ``external_ids`` kwarg (Pydantic model) over flat
+    ``tmdb_id``/``imdb_id`` positional params. Flat params still accepted
+    until 0.17 ; ``external_ids`` wins when both are set.
 
     Lossy fields when the input is ``MediaDetails``:
     - ``status`` (TVDB extended ``status.name``) — not in MediaDetails;
@@ -126,17 +133,24 @@ def _tvdb_series_to_show_data(
         tvdb_client: Optional TVDB client used to fetch artworks. When None, the
             returned dict has empty ``images`` (legacy call sites that don't
             need artwork).
-        tmdb_id: Optional TMDB cross-reference id. Embedded as the default
-            ``uniqueid type="tmdb"`` when non-zero — strictly for Kodi/Jellyfin
-            cross-linking, never used to fetch content.
-        imdb_id: Optional IMDB cross-reference id (same rationale as tmdb_id).
+        tmdb_id: Legacy flat TMDB cross-ref id; 0=absent. Prefer ``external_ids``.
+        imdb_id: Legacy flat IMDB cross-ref id; ""=absent. Prefer ``external_ids``.
         preferred_language: Configured scraping language. Used to select TVDB
             translated titles when available (legacy dict path only).
         fallback_language: Fallback scraping language (legacy dict path only).
+        external_ids: Pydantic ScraperExternalIds (DEV #30 boundary). Wins over
+            flat ``tmdb_id``/``imdb_id`` when set.
 
     Returns:
         Dict with TMDB-compatible fields for NFO/artwork generation.
     """
+    # DEV #30: resolve effective IDs via the shared helper (keeps tv_service.py
+    # under the module-size BLOCK threshold of 1000 LOC — extraction to
+    # models.py avoids inlining the branching logic here).
+    _resolved_tmdb_id, _resolved_imdb_id = ScraperExternalIds.resolve_pair(
+        external_ids, tvdb_id=tvdb_id, tmdb_id=tmdb_id, imdb_id=imdb_id
+    )
+
     if isinstance(tvdb_data, MediaDetails):
         # api-unify path — read the typed model directly.
         display_name = tvdb_data.title
@@ -154,13 +168,13 @@ def _tvdb_series_to_show_data(
         genres = [{"name": g} for g in tvdb_data.genres if g]
         # first_air_date built from MediaDetails.year when present.
         first_air = f"{tvdb_data.year}-01-01" if tvdb_data.year else ""
-        # MediaDetails.external_ids is already the {"imdb": ..., "tmdb": ..., "tvdb": ...} dict.
-        # Override with the explicit tmdb_id / imdb_id args when callers provide them.
+        # Build external_ids dict from the resolved ScraperExternalIds.
+        # tvdb_id is always present (it is the canonical provider here).
         external_ids_typed: dict[str, str | int] = {"tvdb_id": tvdb_id}
-        if tmdb_id:
-            external_ids_typed["tmdb_id"] = tmdb_id
-        if imdb_id:
-            external_ids_typed["imdb_id"] = imdb_id
+        if _resolved_tmdb_id:
+            external_ids_typed["tmdb_id"] = _resolved_tmdb_id
+        if _resolved_imdb_id:
+            external_ids_typed["imdb_id"] = _resolved_imdb_id
     else:
         # Legacy dict path — preserved for tests + rare callers.
         status_raw = tvdb_data.get("status", {})
