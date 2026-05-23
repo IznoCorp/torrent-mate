@@ -80,6 +80,29 @@ The `media_item` and `media_release` rows are **never automatically deleted**;
 only `media_file` rows are soft-deleted. A human-readable `reason` is stored in
 `deleted_item.reason`.
 
+### Hard-delete exceptions (SH-4 audit — 2026-05-23)
+
+The only two `DELETE FROM media_item` sites in production code are both justified:
+
+1. **`item_repo.delete()`** — Test-only utility (zero production callers). Used
+   exclusively by test fixtures that insert rows and must clean them up.
+   `media_item` has no `deleted_at` column, so schema-level soft-delete is not
+   available; adding it purely for tests would add unnecessary complexity.
+
+2. **`item_repo.remove_by_id()`** — Called by `MediaIndex.rebuild()` and
+   `MediaIndex.remove_stale()` in `dispatch/media_index.py`. These operate on
+   **dispatch-attributed** rows that serve as a transient filesystem cache: they
+   carry no independently scraped metadata (no seasons, no episodes, no NFO data)
+   and are fully rebuilt by walking the disk. Hard-delete is correct because:
+   - A clean-slate rebuild (`rebuild()`) requires removing stale entries completely,
+     not tombstoning them — soft-deleted rows would still appear as candidates
+     and require filtering in every dispatch lookup.
+   - `ON DELETE CASCADE` propagates to `item_attribute` child rows automatically.
+
+   Soft-delete would require a schema migration adding `deleted_at` to
+   `media_item` **and** `AND deleted_at IS NULL` guards in every dispatch query,
+   for no benefit on a cache rebuilt on demand from the filesystem.
+
 ### Repair queue
 
 Any tier-2 mismatch, rename ambiguity, or manual `library verify` finding is

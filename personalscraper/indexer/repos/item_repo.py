@@ -179,6 +179,13 @@ def find_by_tmdb_id(conn: sqlite3.Connection, tmdb_id: int) -> MediaItemRow | No
 def delete(conn: sqlite3.Connection, id: int) -> bool:
     """Hard-delete a media item row (cascades to child tables via ON DELETE CASCADE).
 
+    Hard-delete is intentional here: this function is **test-only** and is used
+    exclusively by test fixtures to clean up rows they inserted.  ``media_item``
+    has no ``deleted_at`` column, so soft-delete is not available at the schema
+    level.  Production callers must never use this function — use
+    :func:`remove_by_id` for dispatch-cache eviction (also a hard-delete, but
+    justified separately; see its docstring).
+
     Args:
         conn: Open SQLite connection.
         id: PK of the media item to delete.
@@ -186,6 +193,7 @@ def delete(conn: sqlite3.Connection, id: int) -> bool:
     Returns:
         ``True`` if a row was deleted, ``False`` if no row matched ``id``.
     """
+    # Hard-delete justified: test-only utility — no production callers.
     cursor = conn.execute("DELETE FROM media_item WHERE id = ?", (id,))
     deleted = cursor.rowcount > 0
     if deleted:
@@ -484,15 +492,31 @@ def find_items_needing_rescrape(conn: sqlite3.Connection) -> list[tuple[MediaIte
 
 
 def remove_by_id(conn: sqlite3.Connection, item_id: int) -> bool:
-    """Hard-delete a media item by primary key (cascades to item_attribute).
+    """Hard-delete a dispatch-cache media item by primary key.
+
+    Hard-delete is intentional here: callers (``MediaIndex.rebuild`` and
+    ``MediaIndex.remove_stale``) operate on **dispatch-attributed** rows
+    that act as a transient filesystem cache — they store no independently
+    scraped metadata (no seasons, no episodes, no NFO data).  The entire
+    purpose of ``rebuild()`` is a clean-slate re-walk from disk, so stale
+    rows must be fully removed, not tombstoned.  Soft-delete would require:
+
+    1. A schema migration adding ``deleted_at`` to ``media_item``, and
+    2. Filtering ``deleted_at IS NULL`` in every dispatch lookup query.
+
+    Neither is warranted for a cache that is rebuilt from the filesystem on
+    demand.  ON DELETE CASCADE propagates the removal to ``item_attribute``
+    child rows automatically.
 
     Args:
         conn: Open SQLite connection.
-        item_id: Primary key of the media item to delete.
+        item_id: Primary key of the dispatch-attributed media item to remove.
 
     Returns:
         ``True`` if a row was deleted, ``False`` if no row matched.
     """
+    # Hard-delete justified: dispatch cache eviction — rows are ephemeral
+    # filesystem-cache entries rebuilt from disk via MediaIndex.rebuild().
     cursor = conn.execute("DELETE FROM media_item WHERE id = ?", (item_id,))
     deleted = cursor.rowcount > 0
     if deleted:
