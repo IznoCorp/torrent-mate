@@ -244,6 +244,60 @@ personalscraper library-doctor   # exit 0 on healthy DB
 
 ---
 
+## NTFS cache pressure (Phase 5.9)
+
+Criteria sourced verbatim from `audit/13-ntfs-cache-pressure.md` §Validation.
+
+### ACC-NTFS-A1 — rsync argv no longer contains `--checksum` ✅ [SHIPPED commit `3328924`]
+
+```bash
+rg -n '"--checksum"' personalscraper/dispatch/_transfer.py tests/
+# Expected: zero matches
+```
+
+### ACC-NTFS-B1 — F_NOCACHE does not raise ENOTTY on arm64 ✅ [SHIPPED commit `5a9c38b`]
+
+```bash
+python3 -c "
+import os, fcntl
+fd = os.open('/Volumes/Disk1/medias/films/'+os.listdir('/Volumes/Disk1/medias/films')[0], os.O_RDONLY)
+try:
+    fcntl.fcntl(fd, 48, 1)  # F_NOCACHE
+    print('OK')
+finally:
+    os.close(fd)
+"
+# Expected: single line "OK", no traceback.
+```
+
+### ACC-NTFS-B2 — Cache footprint measurement (qualitative) ✅ [SHIPPED commit `5edd016`]
+
+```bash
+sudo purge
+vm_stat | grep 'File-backed pages'
+personalscraper library-index --mode full --disk Disk1 --budget 600
+vm_stat | grep 'File-backed pages'
+# Expected: post-scan File-backed pages increase by < 500 000 pages
+# (~2 GB at 4 KiB pages) on Disk1 with ~1 000 video files.
+# Pre-fix baseline on the same disk typically shows 1 500 000+ pages.
+```
+
+### ACC-NTFS-D1 — Throttle activated and parallelism capped ✅ [SHIPPED commit `144638b`]
+
+```bash
+python3 -c "
+import json5, pathlib
+cfg = json5.loads(pathlib.Path('config/indexer.json5').read_text())
+scan = cfg['indexer']['scan']
+assert scan['max_workers_total'] == 2, scan['max_workers_total']
+assert scan['read_rate_mb_per_sec'] == 80, scan['read_rate_mb_per_sec']
+print('OK')
+"
+# Expected: single line "OK".
+```
+
+---
+
 ## Format + documentation (Phase 6)
 
 ### ACC-27 — --format unified (DEV #22, SH-13)
