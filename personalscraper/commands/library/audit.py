@@ -24,7 +24,7 @@ def library_reconcile(
         "--scope",
         help=(
             "Restrict to a detector scope (repeatable). "
-            "Choices: merkle, dispatch_path, enrich, release, season, item. "
+            "Choices: merkle, dispatch_path, enrich, release, season, item, path_missing. "
             "Omit to run every detector."
         ),
     ),
@@ -51,10 +51,13 @@ def library_reconcile(
     - ``release`` — orphan media_release rows + null-release files.
     - ``season`` — denormalised season.episode_count drift.
     - ``item`` — media_item rows with no file evidence.
+    - ``path_missing`` — path rows whose resolved absolute path no longer
+      exists on the filesystem (mounted disks only).
 
     Examples:
         personalscraper library-reconcile
         personalscraper library-reconcile --scope enrich --scope release
+        personalscraper library-reconcile --scope path_missing
         personalscraper library-reconcile --enqueue-repairs
     """
     from uuid import uuid4  # noqa: PLC0415

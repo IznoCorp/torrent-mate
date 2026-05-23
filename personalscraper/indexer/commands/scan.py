@@ -483,6 +483,8 @@ def library_reconcile_command(
             "season_count_drift_sample": report.season_count_drift[:10],
             "items_without_files_count": len(report.items_without_files),
             "items_without_files_sample": report.items_without_files[:10],
+            "path_missing_count": len(report.path_missing),
+            "path_missing_sample": report.path_missing[:10],
             "total_findings": report.total_findings,
             "enqueued_repairs": report.enqueued_repairs,
         }

@@ -56,6 +56,7 @@ ReconcileScope = Literal[
     "release",
     "season",
     "item",
+    "path_missing",
 ]
 """Logical detection scopes exposed to callers.
 
@@ -68,6 +69,9 @@ ReconcileScope = Literal[
 - ``season`` — ``season.episode_count`` mismatching the actual episode
   count (counted on the same row).
 - ``item`` — ``media_item`` rows that have no file evidence at all.
+- ``path_missing`` — ``path`` rows whose resolved absolute path
+  (``disk.mount_path + rel_path``) no longer exists on the filesystem.
+  Only evaluated for mounted disks (``disk.is_mounted = 1``).
 """
 
 
@@ -78,6 +82,7 @@ _ALL_SCOPES: tuple[ReconcileScope, ...] = (
     "release",
     "season",
     "item",
+    "path_missing",
 )
 
 
@@ -126,6 +131,9 @@ class ReconcileReport:
             match the count of ``episode`` rows joined to it.
         items_without_files: Item IDs that have no ``media_file`` link
             at all (release-linked or otherwise).
+        path_missing: ``path.id`` values whose resolved absolute path
+            (``disk.mount_path / rel_path``) no longer exists on the
+            filesystem.  Only populated for mounted disks.
         enqueued_repairs: Number of repair_queue rows actually inserted
             (deduped via the partial UNIQUE index from migration 003).
     """
@@ -137,6 +145,7 @@ class ReconcileReport:
     files_without_release: int = 0
     season_count_drift: list[int] = field(default_factory=list)
     items_without_files: list[int] = field(default_factory=list)
+    path_missing: list[int] = field(default_factory=list)
     enqueued_repairs: int = 0
 
     @property
@@ -150,6 +159,7 @@ class ReconcileReport:
             + self.files_without_release
             + len(self.season_count_drift)
             + len(self.items_without_files)
+            + len(self.path_missing)
         )
 
 
@@ -373,6 +383,42 @@ def detect_items_without_files(conn: sqlite3.Connection) -> list[int]:
     return [int(r[0]) for r in rows]
 
 
+def detect_path_missing(conn: sqlite3.Connection) -> list[int]:
+    """Return path.id values whose resolved absolute path no longer exists on FS.
+
+    Resolves the absolute path for each ``path`` row belonging to a mounted
+    disk (``disk.is_mounted = 1``) by joining ``disk.mount_path`` with
+    ``path.rel_path``.  Any row whose resolved path does not exist on the
+    filesystem is returned.
+
+    Unmounted disks are excluded — a path on an offline disk is not
+    "missing", just inaccessible; the correct reconcile action for missing
+    disks is the ``merkle`` or unreachable-strikes detectors, not this one.
+
+    Args:
+        conn: Open SQLite connection on the indexer DB.
+
+    Returns:
+        Sorted list of ``path.id`` values whose absolute path is gone from
+        the filesystem.
+    """
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        """
+        SELECT p.id, p.disk_id, p.rel_path, d.mount_path
+          FROM path p JOIN disk d ON d.id = p.disk_id
+         WHERE d.is_mounted = 1
+         ORDER BY p.id
+        """
+    ).fetchall()
+    missing: list[int] = []
+    for r in rows:
+        abs_path = Path(r["mount_path"]) / r["rel_path"]
+        if not abs_path.exists():
+            missing.append(int(r["id"]))
+    return missing
+
+
 # ---------------------------------------------------------------------------
 # Orchestrator
 # ---------------------------------------------------------------------------
@@ -478,6 +524,18 @@ def reconcile(
                 )
             )
 
+    if "path_missing" in scopes:
+        report.path_missing = detect_path_missing(conn)
+        for path_id in report.path_missing:
+            divergences.append(
+                DivergenceItem(
+                    scope="path",
+                    scope_id=path_id,
+                    reason="reconcile.path.missing",
+                    payload={"detector": "path_missing"},
+                )
+            )
+
     log.info(
         "indexer.reconcile.report",
         merkle_drift=len(report.merkle_drift),
@@ -487,6 +545,7 @@ def reconcile(
         files_without_release=report.files_without_release,
         season_count_drift=len(report.season_count_drift),
         items_without_files=len(report.items_without_files),
+        path_missing=len(report.path_missing),
     )
 
     if enqueue_repairs and divergences:
