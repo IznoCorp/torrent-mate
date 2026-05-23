@@ -517,6 +517,15 @@ def _call_rating_client(client: _RatingClient, provider_id: str) -> list[dict[st
 # init_canonical_from_nfo — bootstrap canonical_provider from existing NFOs
 # ---------------------------------------------------------------------------
 
+# NFOs in the wild carry many uniqueid type values (tvdb, tmdb, imdb, anidb,
+# tvmaze, ...). The DB schema CHECK constraint accepts only tvdb / tmdb because
+# those are the only providers that drive primary scrape orchestration (DESIGN
+# §3 — TVDB primary for TV, TMDb primary for movies). All other type values are
+# valid CROSS-PROVIDER IDs stored in external_ids_json but cannot serve as the
+# canonical anchor — init_canonical_from_nfo must skip them rather than UPDATE
+# with a value that violates the CHECK and crashes mid-walk.
+_VALID_CANONICAL_PROVIDERS = frozenset({"tvdb", "tmdb"})
+
 _INVALID_CANONICAL_VALUES = frozenset({"0", "none", ""})
 
 
@@ -581,8 +590,21 @@ def _parse_canonical_from_nfo(nfo_path: "Path") -> str | None:
         if default_attr != "true":
             continue
         type_attr = uid.get("type", "").strip().lower()
-        if type_attr and type_attr not in _INVALID_CANONICAL_VALUES:
-            return type_attr
+        if not type_attr or type_attr in _INVALID_CANONICAL_VALUES:
+            continue
+        if type_attr not in _VALID_CANONICAL_PROVIDERS:
+            # NFO declares a default uniqueid with a type the DB schema does
+            # not accept as canonical anchor (e.g. imdb, anidb, tvmaze). Cross-
+            # provider IDs are still valuable but live in external_ids_json,
+            # not in canonical_provider. Skip with a debug log so the walker
+            # continues to the next item instead of crashing on the CHECK.
+            log.debug(
+                "init_canonical_unsupported_type",
+                type_attr=type_attr,
+                hint="canonical_provider CHECK constraint allows only tvdb/tmdb",
+            )
+            continue
+        return type_attr
 
     return None
 

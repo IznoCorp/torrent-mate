@@ -188,6 +188,42 @@ def test_init_canonical_skips_when_no_default_uniqueid(tmp_path: Path) -> None:
     assert canonical is None
 
 
+def test_init_canonical_skips_unsupported_type_attr(tmp_path: Path) -> None:
+    """Regression : NFO default uniqueid with non-tvdb/tmdb type is skipped (live prod bug).
+
+    Discovered 2026-05-23 on live BDD : after 22 items populated successfully,
+    init_canonical_from_nfo crashed with::
+
+        IntegrityError: CHECK constraint failed: canonical_provider IN ('tvdb', 'tmdb')
+
+    The function returned the raw type attr from the NFO (e.g. 'imdb',
+    'anidb', 'tvmaze'). These ARE valid cross-provider IDs that live in
+    external_ids_json, but the schema CHECK on canonical_provider accepts
+    only tvdb / tmdb because those are the only providers that drive
+    primary scrape orchestration (DESIGN §3).
+
+    Fix : the parser filters out non-tvdb/tmdb types so the walker
+    continues to the next item instead of crashing mid-batch.
+    """
+    db_path = tmp_path / "library.db"
+    conn = _open_db(db_path)
+
+    show_dir = tmp_path / "shows" / "Anime Show"
+    _write_show_nfo(
+        show_dir,
+        uniqueid_lines='<uniqueid default="true" type="anidb">1234</uniqueid><uniqueid type="tvdb">5678</uniqueid>',
+    )
+    item_id = _seed_item(conn, title="Anime Show", kind="show", year=2024, dispatch_path=str(show_dir))
+
+    # Must not crash. populated count = 0 because the only default uniqueid
+    # has an unsupported type ; tvdb uniqueid lacks default="true".
+    populated = init_canonical_from_nfo(conn)
+
+    assert populated == 0, f"Expected 0 (unsupported type), got {populated}"
+    canonical = conn.execute("SELECT canonical_provider FROM media_item WHERE id = ?", (item_id,)).fetchone()[0]
+    assert canonical is None
+
+
 def test_init_canonical_idempotent(tmp_path: Path) -> None:
     """Second run on a DB whose canonical is already populated returns 0."""
     db_path = tmp_path / "library.db"
