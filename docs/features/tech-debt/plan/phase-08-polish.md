@@ -37,10 +37,21 @@ DESIGN sections impacted : §13 promise lifecycle, §14 success criteria, §11 a
 
 ### 8.1 Cron backfill-ids (SH-3 / BD-S)
 
-**Site** : `launchd-plists/` (existant) — ajouter `com.personalscraper.backfill-ids.plist`
+**Site** : `launchd-plists/` (à créer pendant 8.1 — n'existait pas) — ajouter
+`com.personalscraper.backfill-ids.plist`.
 
-**Contenu** : invocation hebdomadaire `personalscraper library-index --mode backfill-ids
---budget-seconds 1800`. Log dans `~/.cache/personalscraper/backfill-ids.log`.
+**Contenu** : invocation hebdomadaire `personalscraper library-backfill-ids`
+(Sunday 03:00). Log dans `~/.cache/personalscraper/backfill-ids.log`.
+
+> **Plan drift corrigé 8.1 (2026-05-23)** : la version originale du plan disait
+> `personalscraper library-index --mode backfill-ids --budget-seconds 1800`.
+> Ces flags n'existent pas sur le CLI réel : `library-index` n'a pas de mode
+> `backfill-ids` (modes valides : `full`, `quick`, `incremental`, `enrich`) et
+> aucune commande n'expose `--budget-seconds`. La commande dédiée
+> `library-backfill-ids` est la bonne invocation et n'a pas besoin de budget
+> (elle est naturellement bornée par le nombre de rows restantes + rate-limits
+> API). Le log dir `~/.cache/personalscraper/` doit être créé manuellement
+> avant `launchctl bootstrap` (cf. README dans `launchd-plists/`).
 
 **Commit** : `feat(tech-debt): launchd plist for weekly backfill-ids (SH-3)`
 

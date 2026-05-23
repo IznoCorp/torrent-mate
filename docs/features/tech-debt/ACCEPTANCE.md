@@ -474,11 +474,12 @@ grep -cE "@patch\(" tests/test_cli.py
 # Expected: <= 25
 ```
 
-### ACC-40 — Cron backfill-ids (SH-3)
+### ACC-40 — Cron backfill-ids (SH-3) ✅ [SHIPPED Phase 8.1]
 
 ```bash
 ls launchd-plists/ | grep "backfill-ids"
 # Expected: plist file present
+# Actual: com.personalscraper.backfill-ids.plist
 ```
 
 ### ACC-41 — pending_op + item_issue audit (SH-6)
