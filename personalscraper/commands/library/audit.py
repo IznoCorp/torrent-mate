@@ -174,6 +174,15 @@ def library_ghost_audit(
 def library_relink(
     ctx: typer.Context,
     apply: bool = typer.Option(False, "--apply", help="Persist link updates (default: dry-run)"),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help=(
+            "Preview mode (explicit alias for the default behaviour). "
+            "Report what would be linked without writing to the database. "
+            "Mutually exclusive with --apply."
+        ),
+    ),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
 ) -> None:
     """Relink ``media_file`` rows whose ``release_id`` is NULL.
@@ -188,11 +197,12 @@ def library_relink(
     after a release_linker bug left the link behind.
 
     Output is the count of (linked, unmatched, errored) files. Use
-    ``--apply`` to commit; the dry-run mode reports the same numbers
-    without touching the database.
+    ``--apply`` to commit; ``--dry-run`` or the default no-flag mode
+    reports the same numbers without touching the database.
 
     Examples:
         personalscraper library-relink
+        personalscraper library-relink --dry-run
         personalscraper library-relink --apply
     """
     import sqlite3 as _sqlite3  # noqa: PLC0415
@@ -202,6 +212,12 @@ def library_relink(
     from personalscraper.indexer.release_linker import link_file_to_release  # noqa: PLC0415
 
     console = state["console"]
+
+    # --dry-run and --apply are mutually exclusive.
+    if dry_run and apply:
+        console.print("[red]--dry-run and --apply are mutually exclusive.[/red]")
+        raise typer.Exit(1)
+
     cfg = ctx.obj.config
     assert cfg is not None
     db_path = cfg.indexer.db_path

@@ -359,6 +359,7 @@ def scan(
     staging_dir: str | None = None,
     spotlight_enabled: bool = False,
     paranoia_window_seconds: int = 86400,
+    no_enqueue: bool = False,
     event_bus: EventBus,
 ) -> ScanRunResult:
     """Walk all provided disks and record discovered files in the database.
@@ -485,6 +486,10 @@ def scan(
             ``0`` disables the branch.  Sourced from
             ``IndexerScanConfig.paranoia_window_seconds``.  Default ``86400``
             (24 h).
+        no_enqueue: When ``True`` and ``mode == ScanMode.verify``, the verify
+            pass still walks every file but does NOT insert rows into
+            ``repair_queue`` on drift or absence.  Ignored for all other modes.
+            Used by ``library-verify --no-enqueue`` for read-only audit runs.
         event_bus: Required :class:`EventBus`. Exactly one
             :class:`LibraryScanCompleted` event is emitted in the
             ``finally`` block — fires on success, partial failure, and
@@ -808,6 +813,8 @@ def scan(
                 # repair_queue rows for missing files / size+mtime drift.
                 # Non-destructive: never soft-deletes, never recomputes
                 # fingerprints, only bumps last_verified_at on clean rows.
+                # When no_enqueue=True the scan still walks and reports
+                # mismatches but does NOT write repair_queue rows.
                 _scan_disk_verify(
                     worker_conn,
                     disk,
@@ -817,6 +824,7 @@ def scan(
                     _started_at_monotonic,
                     local_exhausted,
                     scan_run_id,
+                    no_enqueue=no_enqueue,
                 )
             else:
                 # Skeleton walk for any future modes not yet implemented.

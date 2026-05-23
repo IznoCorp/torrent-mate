@@ -256,3 +256,32 @@ class TestLibraryRelink:
             result = runner.invoke(app, ["library-relink"])
         assert result.exit_code == 0
         assert "errors=1" in result.output
+
+    def test_explicit_dry_run_flag_recognised(self) -> None:
+        """--dry-run flag is recognised by Typer (help check)."""
+        result = runner.invoke(app, ["library-relink", "--help"])
+        assert result.exit_code == 0
+        assert "--dry-run" in result.output
+
+    def test_explicit_dry_run_is_no_op(self, tmp_path) -> None:
+        """--dry-run is equivalent to the default: rolls back, prints DRY-RUN."""
+        conn = self._build_conn_with_disks(
+            [("drive_a", str(tmp_path))],
+            [(1, "movie.mkv", "drive_a", "Movies/Test")],
+        )
+        with (
+            patch("sqlite3.connect", return_value=conn),
+            patch(
+                "personalscraper.indexer.release_linker.link_file_to_release",
+                return_value={"matched": True},
+            ),
+        ):
+            result = runner.invoke(app, ["library-relink", "--dry-run"])
+        assert result.exit_code == 0
+        assert "DRY-RUN" in result.output
+
+    def test_dry_run_and_apply_mutually_exclusive(self, tmp_path) -> None:
+        """--dry-run and --apply together exit 1 with an error message."""
+        result = runner.invoke(app, ["library-relink", "--dry-run", "--apply"])
+        assert result.exit_code == 1
+        assert "mutually exclusive" in result.output

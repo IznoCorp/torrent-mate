@@ -64,6 +64,34 @@ class TestLibraryVerify:
             result = runner.invoke(app, ["library-verify"])
         assert result.exit_code == 4
 
+    def test_no_enqueue_help_exits_0(self) -> None:
+        """library-verify --no-enqueue flag is recognised by Typer (help check)."""
+        result = runner.invoke(app, ["library-verify", "--help"])
+        assert result.exit_code == 0
+        assert "--no-enqueue" in result.output
+
+    def test_no_enqueue_forwarded_to_command(self) -> None:
+        """--no-enqueue is forwarded as no_enqueue=True to library_verify_command."""
+        with patch(
+            "personalscraper.indexer.cli.library_verify_command",
+            return_value=0,
+        ) as mock_cmd:
+            result = runner.invoke(app, ["library-verify", "--no-enqueue"])
+        assert result.exit_code == 0
+        _, kwargs = mock_cmd.call_args
+        assert kwargs["no_enqueue"] is True
+
+    def test_no_enqueue_false_by_default(self) -> None:
+        """no_enqueue defaults to False when --no-enqueue flag is absent."""
+        with patch(
+            "personalscraper.indexer.cli.library_verify_command",
+            return_value=0,
+        ) as mock_cmd:
+            result = runner.invoke(app, ["library-verify"])
+        assert result.exit_code == 0
+        _, kwargs = mock_cmd.call_args
+        assert kwargs["no_enqueue"] is False
+
 
 # ── library-repair ───────────────────────────────────────────────────────────
 
@@ -107,6 +135,34 @@ class TestLibraryRepair:
         ):
             result = runner.invoke(app, ["library-repair"])
         assert result.exit_code == 2
+
+    def test_dry_run_help_exits_0(self) -> None:
+        """library-repair --dry-run flag is recognised by Typer (help check)."""
+        result = runner.invoke(app, ["library-repair", "--help"])
+        assert result.exit_code == 0
+        assert "--dry-run" in result.output
+
+    def test_dry_run_forwarded_to_command(self) -> None:
+        """--dry-run is forwarded as dry_run=True to library_repair_command."""
+        with patch(
+            "personalscraper.indexer.cli.library_repair_command",
+            return_value=0,
+        ) as mock_cmd:
+            result = runner.invoke(app, ["library-repair", "--dry-run"])
+        assert result.exit_code == 0
+        _, kwargs = mock_cmd.call_args
+        assert kwargs["dry_run"] is True
+
+    def test_dry_run_false_by_default(self) -> None:
+        """dry_run defaults to False when --dry-run flag is absent."""
+        with patch(
+            "personalscraper.indexer.cli.library_repair_command",
+            return_value=0,
+        ) as mock_cmd:
+            result = runner.invoke(app, ["library-repair"])
+        assert result.exit_code == 0
+        _, kwargs = mock_cmd.call_args
+        assert kwargs["dry_run"] is False
 
 
 # ── library-clean ────────────────────────────────────────────────────────────
@@ -187,6 +243,28 @@ class TestLibraryClean:
             result = runner.invoke(app, ["library-clean", "--only", "orphans"])
         assert result.exit_code == 0
         assert "more" in result.output
+
+    def test_dry_run_help_exits_0(self) -> None:
+        """library-clean --dry-run flag is recognised by Typer (help check)."""
+        result = runner.invoke(app, ["library-clean", "--help"])
+        assert result.exit_code == 0
+        assert "--dry-run" in result.output
+
+    def test_dry_run_flag_is_no_op(self) -> None:
+        """--dry-run passes apply=False to clean_library (no mutation)."""
+        cresult = CleanResult(dry_run=True, deleted_count=0, freed_bytes=0)
+        with patch("personalscraper.library.disk_cleaner.clean_library", return_value=cresult) as mock_clean:
+            result = runner.invoke(app, ["library-clean", "--dry-run"])
+        assert result.exit_code == 0
+        # clean_library must have been called with apply=False
+        _, kwargs = mock_clean.call_args
+        assert kwargs["apply"] is False
+
+    def test_dry_run_and_apply_mutually_exclusive(self) -> None:
+        """--dry-run and --apply together exit 1 with an error message."""
+        result = runner.invoke(app, ["library-clean", "--dry-run", "--apply"])
+        assert result.exit_code == 1
+        assert "mutually exclusive" in result.output
 
 
 # ── library-validate ─────────────────────────────────────────────────────────

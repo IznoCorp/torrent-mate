@@ -222,6 +222,7 @@ def library_verify_command(
     *,
     disk: str | None = None,
     budget_seconds: float | None = None,
+    no_enqueue: bool = False,
     config_path: Path | None = None,
     event_bus: EventBus,
 ) -> int:
@@ -231,12 +232,18 @@ def library_verify_command(
     a full rescan, verify mode does NOT soft-delete missing files — it only marks
     them for repair so they can be investigated before any destructive action.
 
+    With ``no_enqueue=True`` the verify pass walks every file and reports
+    mismatches but does NOT insert any rows into ``repair_queue`` (read-only
+    audit mode).
+
     Args:
         disk: Optional disk label to restrict verification to a single disk.
         budget_seconds: Maximum wall-clock seconds for the verify pass. ``None``
             means unlimited.  Per-file commit guarantees partial progress is
             preserved when the budget is exhausted; the next invocation
             resumes from rows whose ``last_verified_at`` is older than this run.
+        no_enqueue: When ``True``, skip inserting rows into ``repair_queue``
+            for detected drift or absent files.
         config_path: Optional explicit path to config.json5 or config directory.
         event_bus: Required :class:`EventBus` forwarded to ``open_db`` + the
             verify-mode scan so disk-circuit and ``DiskFullWarning`` emits
@@ -352,11 +359,13 @@ def library_verify_command(
                     budget_seconds=budget_seconds,
                     merkle_delta_freeze_threshold=cfg.indexer.drift.merkle_delta_freeze_threshold,
                     paranoia_window_seconds=cfg.indexer.scan.paranoia_window_seconds,
+                    no_enqueue=no_enqueue,
                     event_bus=event_bus,
                 )
 
                 summary = {
                     "mode": "verify",
+                    "no_enqueue": no_enqueue,
                     "files_walked": result.files_visited,
                     "dirs_walked": result.dirs_visited,
                     "disks_skipped": result.disks_skipped,
