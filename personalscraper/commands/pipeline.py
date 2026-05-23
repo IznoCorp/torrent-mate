@@ -13,6 +13,7 @@ from personalscraper.cli_helpers import (
     per_step_boundary,
 )
 from personalscraper.cli_state import state
+from personalscraper.cli_telemetry import cli_telemetry
 from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.logger import get_logger
 
@@ -35,6 +36,7 @@ def _run_help() -> str:
 
 
 @app.command()
+@cli_telemetry("ingest")
 @handle_cli_errors
 def ingest(
     ctx: typer.Context,
