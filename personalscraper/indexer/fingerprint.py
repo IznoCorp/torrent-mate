@@ -151,7 +151,7 @@ def oshash(path: Path) -> str:
     # hashes them, and never re-reads the file in this session.  The page
     # cache contributes nothing after the read — disable it to avoid polluting
     # the UBC during cold scans of tens of thousands of video files.
-    # See audit/12-ntfs-cache-pressure.md §Cause-2 and §Phase-B.
+    # See audit/13-ntfs-cache-pressure.md §Cause-2 and §Phase-B.
     fd: int = os.open(path, os.O_RDONLY)
     try:
         disable_cache(fd)
@@ -212,7 +212,7 @@ def xxh3_partial(path: Path, partial_bytes: int = 1_048_576) -> str:
 
     # Bypass the UBC for this fd: xxh3_partial reads at most 2 MiB (head +
     # tail), hashes them once, and never re-reads the file in this session.
-    # See audit/12-ntfs-cache-pressure.md §Cause-2 and §Phase-B.
+    # See audit/13-ntfs-cache-pressure.md §Cause-2 and §Phase-B.
     fd: int = os.open(path, os.O_RDONLY)
     try:
         disable_cache(fd)

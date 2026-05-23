@@ -20,7 +20,7 @@ Key design decisions
   track that carries container-level metadata, not a discrete A/V/subtitle
   stream.  It is intentionally excluded from the returned list.
 - **No prefetch hint** — the previous ``sequential_hint`` call on a separate
-  Python fd was removed (see audit/12-ntfs-cache-pressure.md §Cause-3).
+  Python fd was removed (see audit/13-ntfs-cache-pressure.md §Cause-3).
   libmediainfo opens its own fd internally and reads sequentially, which
   receives natural kernel readahead.  The Python-side hint targeted a
   different fd and polluted the UBC without a reliable prefetch benefit.
@@ -166,7 +166,7 @@ class MediaInfoWrapper:
         # the UBC without a reliable prefetch benefit — the two fds don't
         # coordinate, and for Matroska/WebM files the enzyme fastpath reads
         # only the EBML header, so the prefetched pages are never used by
-        # libmediainfo at all.  See audit/12-ntfs-cache-pressure.md §Cause-3.
+        # libmediainfo at all.  See audit/13-ntfs-cache-pressure.md §Cause-3.
 
         # Throttle: pymediainfo reads container headers and a tail of stream
         # data — empirically a few MiB even for very large files.  We bound

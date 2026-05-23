@@ -1,4 +1,4 @@
-# Audit 12 — NTFS / macFUSE Cache Pressure
+# Audit 13 — NTFS / macFUSE Cache Pressure
 
 **Date**: 2026-05-23
 **Scope**: I/O paths that read files on the 4 NTFS-via-macFUSE storage disks
@@ -219,7 +219,7 @@ def disable_cache(fd: int) -> None:
 +        # and reads sequentially, which gets natural kernel readahead. The
 +        # previous mmap+MADV_SEQUENTIAL hint on a separate Python fd polluted
 +        # the UBC without a reliable prefetch benefit (the two fds don't
-+        # coordinate). See audit/12-ntfs-cache-pressure.md §Cause-3.
++        # coordinate). See audit/13-ntfs-cache-pressure.md §Cause-3.
 ```
 
 **Rationale**: the hint targets a different fd than the one libmediainfo actually uses, so the benefit is unreliable while the cache cost is guaranteed. Removing it strictly reduces RAM with no expected performance regression.
@@ -305,7 +305,7 @@ izno ALL=(ALL) NOPASSWD: /usr/sbin/purge
 
 Before committing Phase B, run an empirical check on a single file to confirm `F_NOCACHE` behaves as expected on the user's macOS 14.5 / arm64 system.
 
-### ACC-12.B.1 — F_NOCACHE does not raise ENOTTY on arm64
+### ACC-NTFS-B1 — F_NOCACHE does not raise ENOTTY on arm64
 
 ```bash
 python3 -c "
@@ -321,7 +321,7 @@ finally:
 
 **Expected output**: `OK` (single line, no traceback). If `OSError: [Errno 25] Inappropriate ioctl for device` appears, the arm64 ABI issue documented for `F_RDADVISE` in `_macos_io.py` also affects `F_NOCACHE` — fall back to `mmap.madvise(MADV_DONTNEED)` issued *after* the read in fingerprint.py.
 
-### ACC-12.B.2 — Cache footprint measurement (qualitative)
+### ACC-NTFS-B2 — Cache footprint measurement (qualitative)
 
 ```bash
 sudo purge
@@ -333,7 +333,7 @@ vm_stat | grep 'File-backed pages'
 
 **Expected outcome**: post-scan `File-backed pages` increase by < 500 000 pages (~2 GB at 4 KiB pages) on a Disk1 with ~1 000 video files. Pre-fix baseline on the same disk typically shows 1 500 000+ pages.
 
-### ACC-12.A.1 — rsync argv no longer contains `--checksum`
+### ACC-NTFS-A1 — rsync argv no longer contains `--checksum`
 
 ```bash
 rg -n '"--checksum"' personalscraper/dispatch/_transfer.py tests/
@@ -341,7 +341,7 @@ rg -n '"--checksum"' personalscraper/dispatch/_transfer.py tests/
 
 **Expected output**: zero matches.
 
-### ACC-12.D.1 — Throttle activated and parallelism capped
+### ACC-NTFS-D1 — Throttle activated and parallelism capped
 
 ```bash
 python3 -c "
@@ -412,4 +412,4 @@ Items the audit considered but is **not** recommending:
 - `personalscraper/indexer/_macos_io.py` — module docstring explains the F_RDADVISE arm64 ABI gotcha (relevant when picking between `fcntl` and `mmap.madvise`)
 - DESIGN §11.6 — read-rate throttle rationale (already implemented, currently inactive)
 - macOS `fcntl(2)` man page — `F_NOCACHE` definition
-- `docs/reference/feature-lifecycle.md` — ACCEPTANCE criterion executable-command convention (used for `ACC-12.*` items in §Validation)
+- `docs/reference/feature-lifecycle.md` — ACCEPTANCE criterion executable-command convention (used for `ACC-NTFS-*` items in §Validation). The `NTFS` prefix is used instead of a numeric index to avoid collision with the existing numeric `ACC-NN` namespace in `docs/features/tech-debt/ACCEPTANCE.md` (where `ACC-12` is already assigned to *"--dry-run on 4 mutators"*, DEV #21 / MUST-9).

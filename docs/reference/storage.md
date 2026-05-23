@@ -225,12 +225,12 @@ sudo sysctl -w kern.maxvnodes=100000
 
 The `config/indexer.json5` settings that directly bound UBC pressure:
 
-| Setting                | Default (post-audit/12) | Effect                                                                                                                                  |
+| Setting                | Default (post-audit/13) | Effect                                                                                                                                  |
 | ---------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `max_workers_total`    | `2`                     | Limits concurrent disk I/O; 4-way parallel quadruples instantaneous cache ingest without doubling real throughput on a shared USB-3 hub |
 | `read_rate_mb_per_sec` | `80`                    | Token-bucket throttle aligned with USB-3 sequential throughput (~100 MB/s per disk)                                                     |
 
-Both settings are reversible. See `audit/12-ntfs-cache-pressure.md` for the
+Both settings are reversible. See `audit/13-ntfs-cache-pressure.md` for the
 full diagnosis and measured impact estimates.
 
 ## Paths

@@ -24,7 +24,7 @@ causing the kernel to reject the call with ``ENOTTY`` (errno 25).
 ``F_NOCACHE`` (decimal 48) takes a single integer argument, not a variadic
 struct pointer.  Python's ``fcntl.fcntl(fd, 48, 1)`` emits a non-variadic
 call that matches the arm64 ABI for single-int arguments — this was confirmed
-empirically on macOS 14.5 / arm64 (see ACC-12.B.1 in audit/12-ntfs-cache-
+empirically on macOS 14.5 / arm64 (see ACC-NTFS-B1 in audit/13-ntfs-cache-
 pressure.md).
 
 Why ``os.posix_fadvise`` is NOT used
@@ -158,7 +158,7 @@ def disable_cache(fd: int) -> None:
     Unlike ``F_RDADVISE`` (which has an arm64 variadic-ABI issue documented in
     the module docstring), ``F_NOCACHE`` takes a single int argument and works
     correctly through Python's ``fcntl`` extension on arm64 Darwin — verified
-    empirically on macOS 14.5 (see ACC-12.B.1 in audit/12-ntfs-cache-
+    empirically on macOS 14.5 (see ACC-NTFS-B1 in audit/13-ntfs-cache-
     pressure.md).
 
     On non-Darwin platforms this function is a **no-op** — it returns

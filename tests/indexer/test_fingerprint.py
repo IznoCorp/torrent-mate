@@ -361,7 +361,7 @@ class TestDisableCache:
         """On Darwin, ``disable_cache`` must not raise for a valid open fd.
 
         Skipped on non-Darwin so Linux/Windows CI never attempts the syscall.
-        ACC-12.B.1: F_NOCACHE works on arm64 Darwin (operator pre-verified).
+        ACC-NTFS-B1: F_NOCACHE works on arm64 Darwin (operator pre-verified).
         """
         if platform.system() != "Darwin":
             import pytest

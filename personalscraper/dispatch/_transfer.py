@@ -97,7 +97,7 @@ def rsync(source: Path, dest: Path, delete: bool = False) -> bool:
     #   for an immutable library where mutations are full replacements or new
     #   episodes (never partial in-place updates).  --checksum would read every
     #   byte of source AND dest before deciding what to transfer — TB-scale
-    #   waste on TV-show merges.  See audit/12-ntfs-cache-pressure.md §Cause-1.
+    #   waste on TV-show merges.  See audit/13-ntfs-cache-pressure.md §Cause-1.
     # Exclude macOS metadata files -- .DS_Store and ._* AppleDouble files
     # cause rsync errors on NTFS targets which don't support them.
     cmd = [
