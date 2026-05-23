@@ -300,16 +300,21 @@ print('OK')
 
 ## Format + documentation (Phase 6)
 
-### ACC-27 — --format unified (DEV #22, SH-13) 🟡 [SHIPPED commits `79629b2` + `cf1bd96` + `d23a746` + `a4decbe` + `5a81ef0` + `e4943fe` ; 4 of 8 commands plumbed (doctor / report / status / info), 4 deferred to 6.1.b (reconcile / search / show / torrents-list)]
+### ACC-27 — --format unified (DEV #22, SH-13) ✅ [SHIPPED Phase 6.1 (`79629b2` + `cf1bd96` + `d23a746` + `a4decbe` + `5a81ef0` + `e4943fe`) + Phase 6.1.b (`de2b5e3` + `a3ef659` + `323455a` + `8092317` + `c6da905`) — 8/8 commands plumbed]
 
 ```bash
+# 6.1 commands
 personalscraper --format json library-doctor | jq .       # valid JSON
 personalscraper --format plain library-status             # plain text rows
 personalscraper --format json info | jq .                 # valid JSON
-```
+personalscraper --format json library-report | jq .       # valid JSON
 
-**Note** : `library-reconcile` plumbing deferred to 6.1.b. ACC stays 🟡 until
-the 4 remaining commands are plumbed.
+# 6.1.b commands
+personalscraper --format json library-reconcile | jq .    # valid JSON
+personalscraper --format json library-search "year:2020" --limit 5 | jq .
+personalscraper --format json library-show 1 | jq .       # any existing item_id
+personalscraper --format json torrents-list | jq .        # valid JSON
+```
 
 ### ACC-28 — commands.md exhaustive (SH-12, CL-J) ✅ [SHIPPED commits `209b3b3` through `e69ca4a` (12 commits across 6.2.a / 6.2.b / 6.2.c)]
 
