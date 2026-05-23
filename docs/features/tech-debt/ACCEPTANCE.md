@@ -503,6 +503,13 @@ no migration 007 entry, no 0.17+ follow-up. The "0 rows" snapshot in
 personalscraper clean --help && personalscraper cleanup --help
 ```
 
+✅ [SHIPPED sub-phase 8.5] — Both standalone Typer subcommands wired in
+`personalscraper/commands/pipeline.py` as thin wrappers around
+`personalscraper.process.run.run_clean` / `run_cleanup`. Both honor
+`--dry-run`, acquire the pipeline lock, and emit StepReport summary lines.
+Coverage: `tests/commands/test_pipeline_commands.py::TestCleanCommand` +
+`::TestCleanupCommand` (12 tests total).
+
 ### ACC-43 — trailers audit alias (SH-22, AR-D)
 
 ```bash

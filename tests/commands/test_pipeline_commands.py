@@ -215,6 +215,137 @@ class TestProcessLockBlocked:
         assert result.exit_code == 1
 
 
+# ── clean / cleanup standalone CLI (SH-21 / AR-C, sub-phase 8.5) ────────────
+
+
+@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.release_lock")
+class TestCleanCommand:
+    """Tests for the standalone ``clean`` Typer subcommand."""
+
+    def test_help_exits_zero(self, _release, _acquire) -> None:
+        """``clean --help`` exits 0 and shows the SH-21 description."""
+        result = runner.invoke(app, ["clean", "--help"])
+        assert result.exit_code == 0
+        assert "reclean" in result.output.lower()
+
+    def test_runs(self, _release, _acquire) -> None:
+        """Clean runs and prints a single summary line."""
+        with patch(
+            "personalscraper.process.run.run_clean",
+            return_value=_step("clean"),
+        ):
+            result = runner.invoke(app, ["clean"])
+        assert result.exit_code == 0
+        assert "Clean" in result.output
+
+    def test_dry_run_flag(self, _release, _acquire) -> None:
+        """--dry-run is forwarded as dry_run=True."""
+        with patch(
+            "personalscraper.process.run.run_clean",
+            return_value=_step("clean"),
+        ) as mock_run:
+            result = runner.invoke(app, ["clean", "--dry-run"])
+        assert result.exit_code == 0
+        _, kwargs = mock_run.call_args
+        assert kwargs["dry_run"] is True
+
+    def test_verbose_prints_details(self, _release, _acquire) -> None:
+        """--verbose prints per-detail lines."""
+        with patch(
+            "personalscraper.process.run.run_clean",
+            return_value=_step("clean"),
+        ):
+            result = runner.invoke(app, ["--verbose", "clean"])
+        assert result.exit_code == 0
+        assert "detail-line" in result.output
+
+    def test_failure_exits_1(self, _release, _acquire) -> None:
+        """Clean exits 1 with friendly message when run_clean raises."""
+        with patch(
+            "personalscraper.process.run.run_clean",
+            side_effect=RuntimeError("boom"),
+        ):
+            result = runner.invoke(app, ["clean"])
+        assert result.exit_code == 1
+        assert "Clean failed" in result.output
+
+
+class TestCleanLockBlocked:
+    """clean exits 1 when the pipeline lock is held."""
+
+    def test_lock_blocked(self) -> None:
+        """Lock contention exits 1."""
+        with patch("personalscraper.cli.acquire_lock", return_value=False):
+            result = runner.invoke(app, ["clean"])
+        assert result.exit_code == 1
+        assert "Another instance" in result.output
+
+
+@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.release_lock")
+class TestCleanupCommand:
+    """Tests for the standalone ``cleanup`` Typer subcommand."""
+
+    def test_help_exits_zero(self, _release, _acquire) -> None:
+        """``cleanup --help`` exits 0 and shows the SH-21 description."""
+        result = runner.invoke(app, ["cleanup", "--help"])
+        assert result.exit_code == 0
+        assert "empty" in result.output.lower()
+
+    def test_runs(self, _release, _acquire) -> None:
+        """Cleanup runs and prints a single summary line."""
+        with patch(
+            "personalscraper.process.run.run_cleanup",
+            return_value=_step("cleanup"),
+        ):
+            result = runner.invoke(app, ["cleanup"])
+        assert result.exit_code == 0
+        assert "Cleanup" in result.output
+
+    def test_dry_run_flag(self, _release, _acquire) -> None:
+        """--dry-run is forwarded as dry_run=True."""
+        with patch(
+            "personalscraper.process.run.run_cleanup",
+            return_value=_step("cleanup"),
+        ) as mock_run:
+            result = runner.invoke(app, ["cleanup", "--dry-run"])
+        assert result.exit_code == 0
+        _, kwargs = mock_run.call_args
+        assert kwargs["dry_run"] is True
+
+    def test_verbose_prints_details(self, _release, _acquire) -> None:
+        """--verbose prints per-detail lines."""
+        with patch(
+            "personalscraper.process.run.run_cleanup",
+            return_value=_step("cleanup"),
+        ):
+            result = runner.invoke(app, ["--verbose", "cleanup"])
+        assert result.exit_code == 0
+        assert "detail-line" in result.output
+
+    def test_failure_exits_1(self, _release, _acquire) -> None:
+        """Cleanup exits 1 with friendly message when run_cleanup raises."""
+        with patch(
+            "personalscraper.process.run.run_cleanup",
+            side_effect=RuntimeError("boom"),
+        ):
+            result = runner.invoke(app, ["cleanup"])
+        assert result.exit_code == 1
+        assert "Cleanup failed" in result.output
+
+
+class TestCleanupLockBlocked:
+    """cleanup exits 1 when the pipeline lock is held."""
+
+    def test_lock_blocked(self) -> None:
+        """Lock contention exits 1."""
+        with patch("personalscraper.cli.acquire_lock", return_value=False):
+            result = runner.invoke(app, ["cleanup"])
+        assert result.exit_code == 1
+        assert "Another instance" in result.output
+
+
 # ── ingest / sort / scrape — verbose branches not covered by test_cli.py ────
 
 

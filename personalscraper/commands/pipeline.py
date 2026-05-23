@@ -242,6 +242,100 @@ def dispatch(
 
 @app.command()
 @handle_cli_errors
+def clean(
+    ctx: typer.Context,
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying"),
+) -> None:
+    """Run reclean + dedup only (process sub-step, SH-21 / AR-C).
+
+    Standalone CLI surface around :func:`personalscraper.process.run.run_clean`.
+    Useful for debugging the clean sub-step in isolation and for composition
+    with other operator workflows (e.g. dry-run a clean pass before launching
+    the full process step). The full pipeline still invokes ``run_clean``
+    internally via ``run_process`` — this command does not alter that flow.
+    """
+    from personalscraper.process.run import run_clean
+
+    config = ctx.obj.config  # Guaranteed non-None by callback.
+    console = state["console"]
+    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
+        console.print("[red]Another instance is running. Exiting.[/red]")
+        raise typer.Exit(1)
+    try:
+        _bootstrap_staging(ctx)
+        settings = cli_compat.get_settings()
+        try:
+            with per_step_boundary(config, settings) as app_context:
+                report = run_clean(
+                    settings,
+                    config=config,
+                    dry_run=dry_run,
+                    event_bus=app_context.event_bus,
+                )
+        except Exception as exc:
+            console.print(f"[red]Clean failed: {type(exc).__name__}: {exc}[/red]")
+            get_logger("pipeline").exception("clean_command_failed", error=str(exc))
+            raise typer.Exit(1) from exc
+
+        console.print(
+            f"[bold]Clean:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
+        )
+        if state["verbose"]:
+            for detail in report.details:
+                console.print(f"  {detail}")
+    finally:
+        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+
+
+@app.command()
+@handle_cli_errors
+def cleanup(
+    ctx: typer.Context,
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without deleting"),
+) -> None:
+    """Run empty-directory cleanup only (process sub-step, SH-21 / AR-C).
+
+    Standalone CLI surface around :func:`personalscraper.process.run.run_cleanup`.
+    Removes empty directories left behind by previous steps. Distinct from
+    ``clean`` (which performs reclean + dedup of polluted folder names); this
+    command only operates on empty directories. Useful for tidying staging
+    between manual operator interventions. The full pipeline still invokes
+    ``run_cleanup`` internally via ``run_process`` — this command does not
+    alter that flow.
+    """
+    from personalscraper.process.run import run_cleanup
+
+    config = ctx.obj.config  # Guaranteed non-None by callback.
+    console = state["console"]
+    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
+        console.print("[red]Another instance is running. Exiting.[/red]")
+        raise typer.Exit(1)
+    try:
+        _bootstrap_staging(ctx)
+        settings = cli_compat.get_settings()
+        try:
+            with per_step_boundary(config, settings) as app_context:
+                report = run_cleanup(
+                    settings,
+                    config=config,
+                    dry_run=dry_run,
+                    event_bus=app_context.event_bus,
+                )
+        except Exception as exc:
+            console.print(f"[red]Cleanup failed: {type(exc).__name__}: {exc}[/red]")
+            get_logger("pipeline").exception("cleanup_command_failed", error=str(exc))
+            raise typer.Exit(1) from exc
+
+        console.print(f"[bold]Cleanup:[/bold] {report.success_count} removed")
+        if state["verbose"]:
+            for detail in report.details:
+                console.print(f"  {detail}")
+    finally:
+        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+
+
+@app.command()
+@handle_cli_errors
 def process(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying"),
