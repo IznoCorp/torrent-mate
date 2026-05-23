@@ -485,9 +485,17 @@ ls launchd-plists/ | grep "backfill-ids"
 ### ACC-41 — pending_op + item_issue audit (SH-6)
 
 ```bash
-# Documented decision in docs/features/tech-debt/audit/12-dead-infrastructure.md
-test -f docs/features/tech-debt/audit/12-dead-infrastructure.md
+# Documented decision in docs/features/tech-debt/audit/14-pending-op-item-issue.md
+# (12-dead-infrastructure.md is reserved for sub-phase 8.4; the next free
+#  audit index after 13-ntfs-cache-pressure.md is 14)
+test -f docs/features/tech-debt/audit/14-pending-op-item-issue.md
 ```
+
+✅ [SHIPPED sub-phase 8.2] — Both tables KEEP (real production wiring in
+`indexer/outbox/_drain.py` + `indexer/repos/outbox_repo.py` for `pending_op`,
+and `library/scanner.py` + `library/analyzer.py` for `item_issue`). No DROP,
+no migration 007 entry, no 0.17+ follow-up. The "0 rows" snapshot in
+`audit/05-bdd-audit.md` reflects pristine library state, not dead code.
 
 ### ACC-42 — clean + cleanup CLI exposed (SH-21, AR-C)
 
