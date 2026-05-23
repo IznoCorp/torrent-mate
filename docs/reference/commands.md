@@ -56,35 +56,33 @@ relates to. The canonical source for flag names is `personalscraper <cmd>
 24. [`library-validate`](#personalscraper-library-validate) — validate NFO/artwork/naming conformity
 25. [`library-gc`](#personalscraper-library-gc) — GC old index_outbox done rows
 
-### Library — analysis (→ 6.2.c)
+### Library — analysis & query
 
-26. `library-analyze` — deep ffprobe scan
-27. `library-recommend` — re-download recommendations
-28. `library-rescrape` — targeted re-scraping
-29. `library-report` — health statistics
-30. `library-search` — flex-attr query
-31. `library-show` — pretty-print one item
-32. `library-doctor` — health checks on live DB
-33. `library-backfill-ids` — backfill provider IDs across releases
+26. [`library-analyze`](#personalscraper-library-analyze) — deep ffprobe scan
+27. [`library-recommend`](#personalscraper-library-recommend) — re-download recommendations
+28. [`library-rescrape`](#personalscraper-library-rescrape) — targeted re-scraping
+29. [`library-report`](#personalscraper-library-report) — health statistics
+30. [`library-doctor`](#personalscraper-library-doctor) — health checks on live DB
+31. [`library-search`](#personalscraper-library-search) — flex-attr query
+32. [`library-show`](#personalscraper-library-show) — pretty-print one item
+33. [`library-backfill-ids`](#personalscraper-library-backfill-ids) — backfill provider IDs across releases
 
-### Trailers (→ 6.2.c)
+### Trailers
 
-34. `trailers scan` — discover media missing trailers
-35. `trailers download` — download trailers from YouTube
-36. `trailers verify` — audit trailer files on disk
-37. `trailers purge` — remove unwanted trailers
+34. [`trailers`](#personalscraper-trailers) — trailer management (parent command)
+35. [`trailers scan`](#personalscraper-trailers-scan) — discover media missing trailers
+36. [`trailers download`](#personalscraper-trailers-download) — download trailers from YouTube
+37. [`trailers verify`](#personalscraper-trailers-verify) — audit trailer files on disk
+38. [`trailers purge`](#personalscraper-trailers-purge) — remove unwanted trailers
 
-### Config subcommands (→ 6.2.c)
+### Config — sub-commands
 
-38. `config migrate-category` — rename a category across config + paths
+39. [`config migrate-category`](#personalscraper-config-migrate-category) — rename a category across config + paths
 
 ### Make targets + scheduling (appendix)
 
-39. `make` targets — test, lint, format, install-dev
-40. launchd scheduling — plist install / load / unload
-
-> **Note**: Entries 26–40 are placeholders. Full content will be added by
-> dispatch 6.2.c (analysis + trailers + config subcommands).
+- `make` targets — test, lint, format, install-dev
+- launchd scheduling — plist install / load / unload
 
 ---
 
