@@ -558,3 +558,147 @@ output).
 **Related**: `library-index`, `library-reconcile`
 
 ---
+
+## `personalscraper library-verify`
+
+**Purpose**: Re-stats every indexed file and marks mismatches for repair. Runs a
+verify-mode scan that re-checks every file's stat metadata `(size_bytes,
+mtime_ns, ctime_ns)` against the stored snapshot. Files that no longer match
+are escalated to the repair queue — they are NOT soft-deleted. Use this command
+to identify drift before deciding whether to accept or revert changes.
+
+With `--budget` the verify pass exits cleanly when the wall-clock limit is
+reached; the next invocation continues from where it stopped (every file commits
+`last_verified_at` individually so partial progress is preserved across runs).
+With `--no-enqueue` the scan reports mismatches but does not insert any rows
+into the repair queue (read-only audit mode).
+
+**Side effects**: `mutate BDD` (updates last_verified_at, optionally writes repair_queue rows)
+
+**Pipeline position**: n/a
+
+**Args**:
+
+- `--disk TEXT` : Restrict verification to this disk label
+- `--budget INTEGER` : Wall-clock budget in seconds; partial verifies are safe to resume
+- `--no-enqueue` : Read-only mode: walk and compare files but do NOT write to repair_queue
+
+**Examples**:
+
+    personalscraper library-verify
+    personalscraper library-verify --disk Disk2
+    personalscraper library-verify --budget 300
+    personalscraper library-verify --no-enqueue
+
+**Related**: `library-repair`, `library-reconcile`, `library-index`
+
+---
+
+## `personalscraper library-repair`
+
+**Purpose**: Drains the repair queue within a time budget. Processes pending
+repair rows in FIFO order, stopping cleanly when the budget is exhausted. Prints
+a JSON summary of processed / succeeded / failed counts.
+
+With `--dry-run` the command inspects the queue depth and reports what would be
+drained without modifying any rows (no-op on the database).
+
+**Side effects**: `mutate BDD` (processes repair_queue rows, updates media_file / path rows)
+
+**Pipeline position**: n/a
+
+**Args**:
+
+- `--budget INTEGER` : Maximum seconds to spend draining the repair queue [default: 60]
+- `--dry-run` : Preview mode: show how many repair_queue rows would be processed without actually draining them. No DB writes occur.
+
+**Examples**:
+
+    personalscraper library-repair
+    personalscraper library-repair --budget 120
+    personalscraper library-repair --dry-run
+
+**Related**: `library-verify`, `library-reconcile`
+
+---
+
+## `personalscraper library-reconcile`
+
+**Purpose**: Detects index ↔ filesystem divergences without a full rescan.
+Read-only by default — runs DB-only checks across multiple detector scopes and
+prints a JSON report of findings. Optionally enqueues each finding into
+`repair_queue` so `library-repair` can fix them within a bounded budget (opt-in
+via `--enqueue-repairs`).
+
+Mode summary:
+
+- Default (no flags) — read-only: report divergences, no writes.
+- `--read-only` — explicit alias for the default read-only mode.
+- `--dry-run` — alias for `--read-only` (same behaviour).
+- `--enqueue-repairs` — opt-in write mode; pushes findings into `repair_queue`.
+
+Detector scopes:
+
+- `merkle` — disk Merkle drift between stored and computed roots.
+- `dispatch_path` — items whose dispatch_path attribute is gone from FS.
+- `enrich` — files whose enriched_at is older than mtime.
+- `release` — orphan media_release rows + null-release files.
+- `season` — denormalised season.episode_count drift.
+- `item` — media_item rows with no file evidence.
+- `path_missing` — path rows whose resolved absolute path no longer exists (mounted disks only).
+
+**Side effects**: `read-only` (default), `mutate BDD` (with `--enqueue-repairs`)
+
+**Pipeline position**: n/a
+
+**Args**:
+
+- `--scope TEXT` : Restrict to a detector scope (repeatable). Choices: `merkle`, `dispatch_path`, `enrich`, `release`, `season`, `item`, `path_missing`. Omit to run every detector.
+- `--read-only` : Explicit read-only mode (default behaviour). Mutually exclusive with `--enqueue-repairs`.
+- `--dry-run` : Alias for `--read-only`. Preview findings without enqueuing repairs.
+- `--enqueue-repairs` : Opt-in: push every divergence into repair_queue. Mutually exclusive with `--read-only` / `--dry-run`.
+
+**Examples**:
+
+    personalscraper library-reconcile
+    personalscraper library-reconcile --read-only
+    personalscraper library-reconcile --dry-run
+    personalscraper library-reconcile --scope enrich --scope release
+    personalscraper library-reconcile --scope path_missing
+    personalscraper library-reconcile --enqueue-repairs
+
+**Related**: `library-verify`, `library-repair`, `library-index`
+
+---
+
+## `personalscraper library-ghost-audit`
+
+**Purpose**: Audits storage disks for NTFS-via-macFUSE ghost directory entries.
+Walks every directory on each storage disk and lists every entry that
+`os.scandir` reports but `os.stat` cannot reach. These "ghost" entries are
+produced by macFUSE-NTFS when the directory listing returns a filename in one
+Unicode normalisation form (NFD) while the kernel inode is keyed under the
+other (NFC). Once a ghost exists, the directory cannot be emptied — neither
+`rm -rf` nor the project's own `_scandir_rmtree` walker can remove it.
+
+The audit is read-only: it only reports the paths. Recovery requires unmounting
+the affected NTFS volume and either running fsck on it or mounting it on a
+Windows host that can repair the directory entry. Output: per-disk count and a
+sample list of ghost paths.
+
+**Side effects**: `read-only`
+
+**Pipeline position**: n/a
+
+**Args**:
+
+- `--disk TEXT` : Audit only this disk (id from config)
+
+**Examples**:
+
+    personalscraper library-ghost-audit
+    personalscraper library-ghost-audit --disk Disk1
+
+**Related**: `library-clean`
+
+---
