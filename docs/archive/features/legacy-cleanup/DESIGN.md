@@ -1,5 +1,16 @@
 # Design — Legacy Cleanup "Goodbye V0-V15"
 
+> **⚠ STATUS** : This DESIGN.md is an archived as-designed snapshot. Some claims are
+> superseded by later features. Original scope was alpha-version cleanup. Doc rot remains in
+> non-scope `docs/*.md` top-level (~43 VX hits). Resolved in tech-debt 10.2.b sweep.
+>
+> **Old → New mapping** :
+>
+> | Old (DESIGN.md)                    | New (current)                                             | Replaced by                    |
+> | ---------------------------------- | --------------------------------------------------------- | ------------------------------ |
+> | Scope = alpha-version cleanup only | Scope extended to all `docs/*.md` top-level VX references | tech-debt 10.2.b (in progress) |
+> | `MANUAL.md` V3 mentions            | Rewritten without VX token                                | tech-debt 10.2.b               |
+
 **Date** : 2026-04-22
 **Codename** : `legacy-cleanup`
 **Type** : minor (feat)
