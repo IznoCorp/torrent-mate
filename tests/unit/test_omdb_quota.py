@@ -1,7 +1,9 @@
 """Tests for OMDB daily-quota tracker — api/metadata/_omdb_quota.py.
 
 Covers: fresh state, safety margin, date reset, mark_exhausted,
-custom limit, atomic persist, and corrupted state recovery.
+custom limit, atomic persist, corrupted state recovery, constructor
+validation, persist failure recovery, and typed API (ReservationOutcome,
+QuotaStatus).
 """
 
 from __future__ import annotations
@@ -10,10 +12,13 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import pytest
+
 from personalscraper.api.metadata._omdb_quota import (
     _DEFAULT_LIMIT,
     _SAFETY_MARGIN,
     OmdbQuotaTracker,
+    QuotaStatus,
 )
 
 
@@ -27,40 +32,50 @@ class TestFreshState:
     """Tracker with no pre-existing state file."""
 
     def test_fresh_state_allows_calls(self, tmp_path: Path) -> None:
-        """New tracker file → reserve_call returns True for first 950 calls."""
+        """New tracker file → reserve_call returns 'allowed' for first 950 calls."""
         tracker = _fresh_tracker(tmp_path)
         for _ in range(_DEFAULT_LIMIT - _SAFETY_MARGIN):
-            assert tracker.reserve_call() is True
+            assert tracker.reserve_call() == "allowed"
 
     def test_safety_margin_blocks_last_50(self, tmp_path: Path) -> None:
-        """After 950 reserves, next reserve returns False (safety margin)."""
+        """After 950 reserves, next reserve returns 'skipped_safety_margin'."""
         tracker = _fresh_tracker(tmp_path)
         for _ in range(_DEFAULT_LIMIT - _SAFETY_MARGIN):
-            assert tracker.reserve_call() is True
+            assert tracker.reserve_call() == "allowed"
         # The 951st call should be blocked
-        assert tracker.reserve_call() is False
-        # Subsequent calls also blocked
-        assert tracker.reserve_call() is False
+        assert tracker.reserve_call() == "skipped_safety_margin"
+        # Subsequent calls also blocked (marked exhausted)
+        assert tracker.reserve_call() == "skipped_marked_exhausted"
 
     def test_status_reflects_state(self, tmp_path: Path) -> None:
-        """status() returns a dict with expected keys and values."""
+        """status() returns a QuotaStatus with expected values."""
         tracker = _fresh_tracker(tmp_path)
         for _ in range(10):
             tracker.reserve_call()
         s = tracker.status()
-        assert s["date"] == datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
-        assert s["count"] == 10
-        assert s["limit"] == _DEFAULT_LIMIT
-        assert s["safety_margin"] == _SAFETY_MARGIN
-        assert s["exhausted"] is False
-        assert s["remaining_before_margin"] == _DEFAULT_LIMIT - _SAFETY_MARGIN - 10
+        assert s.date == datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+        assert s.count == 10
+        assert s.limit == _DEFAULT_LIMIT
+        assert s.safety_margin == _SAFETY_MARGIN
+        assert s.exhausted is False
+        assert s.remaining_before_margin == _DEFAULT_LIMIT - _SAFETY_MARGIN - 10
+
+    def test_status_to_json_dict(self, tmp_path: Path) -> None:
+        """QuotaStatus.to_json_dict() produces a JSON-serializable dict."""
+        tracker = _fresh_tracker(tmp_path)
+        tracker.reserve_call()
+        d = tracker.status().to_json_dict()
+        assert isinstance(d, dict)
+        assert d["count"] == 1
+        assert d["exhausted"] is False
+        json.dumps(d)  # does not raise
 
 
 class TestDateReset:
     """Day-change (UTC midnight) resets the counter."""
 
     def test_date_change_resets(self, tmp_path: Path) -> None:
-        """State from 'yesterday' → reserve_call resets and returns True."""
+        """State from 'yesterday' → reserve_call resets and returns 'allowed'."""
         state_file = tmp_path / ".omdb-quota.json"
         yesterday = (datetime.now(tz=timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
         # Pre-seed a near-exhausted state from yesterday
@@ -76,10 +91,10 @@ class TestDateReset:
         )
         tracker = OmdbQuotaTracker(state_path=state_file)
         # First reserve should reset to today and allow the call
-        assert tracker.reserve_call() is True
+        assert tracker.reserve_call() == "allowed"
         s = tracker.status()
-        assert s["date"] == datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
-        assert s["count"] == 1
+        assert s.date == datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+        assert s.count == 1
 
     def test_date_change_clears_exhausted(self, tmp_path: Path) -> None:
         """Exhausted flag from yesterday is cleared on day change."""
@@ -96,19 +111,19 @@ class TestDateReset:
             )
         )
         tracker = OmdbQuotaTracker(state_path=state_file)
-        assert tracker.reserve_call() is True
-        assert tracker.status()["exhausted"] is False
+        assert tracker.reserve_call() == "allowed"
+        assert tracker.status().exhausted is False
 
 
 class TestMarkExhausted:
     """Force-exhaustion via mark_exhausted()."""
 
     def test_mark_exhausted_forces_skip(self, tmp_path: Path) -> None:
-        """mark_exhausted → next reserve returns False even if count is 0."""
+        """mark_exhausted → next reserve returns 'skipped_marked_exhausted'."""
         tracker = _fresh_tracker(tmp_path)
-        assert tracker.reserve_call() is True  # count goes to 1
+        assert tracker.reserve_call() == "allowed"
         tracker.mark_exhausted("test forced exhaustion")
-        assert tracker.reserve_call() is False
+        assert tracker.reserve_call() == "skipped_marked_exhausted"
 
     def test_mark_exhausted_persists(self, tmp_path: Path) -> None:
         """Exhausted state survives tracker re-creation."""
@@ -117,7 +132,7 @@ class TestMarkExhausted:
         tracker1.mark_exhausted("test")
         # Re-create from the same file
         tracker2 = OmdbQuotaTracker(state_path=state_file)
-        assert tracker2.reserve_call() is False
+        assert tracker2.reserve_call() == "skipped_marked_exhausted"
 
 
 class TestCustomLimit:
@@ -127,15 +142,15 @@ class TestCustomLimit:
         """limit=100 → blocks after 50 (safety margin still 50)."""
         tracker = _fresh_tracker(tmp_path, limit=100)
         for _ in range(50):  # 100 - 50 = 50
-            assert tracker.reserve_call() is True
-        assert tracker.reserve_call() is False
+            assert tracker.reserve_call() == "allowed"
+        assert tracker.reserve_call() == "skipped_safety_margin"
 
     def test_custom_safety_margin(self, tmp_path: Path) -> None:
         """safety_margin=10 with limit=50 → blocks after 40."""
         tracker = _fresh_tracker(tmp_path, limit=50, safety_margin=10)
         for _ in range(40):
-            assert tracker.reserve_call() is True
-        assert tracker.reserve_call() is False
+            assert tracker.reserve_call() == "allowed"
+        assert tracker.reserve_call() == "skipped_safety_margin"
 
 
 class TestAtomicPersist:
@@ -146,12 +161,12 @@ class TestAtomicPersist:
         state_file = tmp_path / ".omdb-quota.json"
         tracker1 = OmdbQuotaTracker(state_path=state_file)
         for _ in range(42):
-            assert tracker1.reserve_call() is True
+            assert tracker1.reserve_call() == "allowed"
         # Re-create from the same file
         tracker2 = OmdbQuotaTracker(state_path=state_file)
         s = tracker2.status()
-        assert s["count"] == 42
-        assert s["exhausted"] is False
+        assert s.count == 42
+        assert s.exhausted is False
 
     def test_no_stale_tmp_file_left(self, tmp_path: Path) -> None:
         """After persist, only the .json file exists (not .json.tmp)."""
@@ -172,19 +187,19 @@ class TestCorruptedState:
         state_file = tmp_path / ".omdb-quota.json"
         state_file.write_text("this is not valid json {{{")
         tracker = OmdbQuotaTracker(state_path=state_file)
-        assert tracker.reserve_call() is True
+        assert tracker.reserve_call() == "allowed"
         s = tracker.status()
-        assert s["date"] == datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
-        assert s["count"] == 1  # the call we just reserved
+        assert s.date == datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+        assert s.count == 1  # the call we just reserved
 
     def test_state_file_wrong_shape_resets(self, tmp_path: Path) -> None:
         """Valid JSON but missing required keys → fresh state."""
         state_file = tmp_path / ".omdb-quota.json"
         state_file.write_text(json.dumps({"foo": "bar"}))
         tracker = OmdbQuotaTracker(state_path=state_file)
-        assert tracker.reserve_call() is True
+        assert tracker.reserve_call() == "allowed"
         s = tracker.status()
-        assert s["count"] == 1
+        assert s.count == 1
 
     def test_state_file_bad_types_resets(self, tmp_path: Path) -> None:
         """Count is a string instead of int → fresh state."""
@@ -200,7 +215,7 @@ class TestCorruptedState:
             )
         )
         tracker = OmdbQuotaTracker(state_path=state_file)
-        assert tracker.reserve_call() is True
+        assert tracker.reserve_call() == "allowed"
 
 
 class TestSameDayPersistence:
@@ -212,11 +227,120 @@ class TestSameDayPersistence:
         # Run 1: make 600 calls
         tracker1 = OmdbQuotaTracker(state_path=state_file)
         for _ in range(600):
-            assert tracker1.reserve_call() is True
+            assert tracker1.reserve_call() == "allowed"
         # Run 2 (same day): should see count=600 and continue
         tracker2 = OmdbQuotaTracker(state_path=state_file)
-        assert tracker2.status()["count"] == 600
+        assert tracker2.status().count == 600
         # Can still make (limit - margin - 600) more calls
         for _ in range(_DEFAULT_LIMIT - _SAFETY_MARGIN - 600):
-            assert tracker2.reserve_call() is True
-        assert tracker2.reserve_call() is False  # margin reached
+            assert tracker2.reserve_call() == "allowed"
+        assert tracker2.reserve_call() == "skipped_safety_margin"
+
+
+class TestConstructorValidation:
+    """Constructor validates safety_margin against limit."""
+
+    def test_safety_margin_zero_is_valid(self, tmp_path: Path) -> None:
+        """safety_margin=0 → valid (no margin, exact limit)."""
+        tracker = _fresh_tracker(tmp_path, limit=10, safety_margin=0)
+        assert tracker.status().safety_margin == 0
+
+    def test_safety_margin_equal_to_limit_raises(self, tmp_path: Path) -> None:
+        """safety_margin == limit → ValueError."""
+        with pytest.raises(ValueError, match="safety_margin"):
+            _fresh_tracker(tmp_path, limit=100, safety_margin=100)
+
+    def test_safety_margin_exceeds_limit_raises(self, tmp_path: Path) -> None:
+        """safety_margin > limit → ValueError."""
+        with pytest.raises(ValueError, match="safety_margin"):
+            _fresh_tracker(tmp_path, limit=100, safety_margin=200)
+
+
+class TestPersistFailure:
+    """OSError during _persist → in-memory state reverts correctly."""
+
+    def test_increment_reverted_on_persist_failure(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Count reverted when _persist raises OSError after increment."""
+        from personalscraper.api.metadata import _omdb_quota as _mod
+
+        tracker = _fresh_tracker(tmp_path)
+        # Make one successful call first (this calls _persist once).
+        assert tracker.reserve_call() == "allowed"
+        assert tracker.status().count == 1
+
+        # Fail the NEXT _persist (i.e. the second overall, first after patching).
+        _real_persist = _mod.OmdbQuotaTracker._persist
+        call_count = 1  # the first reserve_call already called _persist once
+
+        def _failing_persist(self: _mod.OmdbQuotaTracker) -> None:
+            nonlocal call_count
+            call_count += 1
+            if call_count >= 2:
+                raise OSError("Disk full")
+            _real_persist(self)
+
+        monkeypatch.setattr(_mod.OmdbQuotaTracker, "_persist", _failing_persist)
+
+        outcome = tracker.reserve_call()
+        # Should return a skip outcome since persist failed.
+        assert outcome != "allowed"
+        # In-memory count should still be 1 (reverted).
+        assert tracker.status().count == 1
+
+    def test_mark_exhausted_reverted_on_persist_failure(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Exhausted reverted when _persist raises OSError in mark_exhausted."""
+        from personalscraper.api.metadata import _omdb_quota as _mod
+
+        tracker = _fresh_tracker(tmp_path)
+
+        _real_persist = _mod.OmdbQuotaTracker._persist
+        persist_calls = 0
+
+        def _failing_persist(self: _mod.OmdbQuotaTracker) -> None:
+            nonlocal persist_calls
+            persist_calls += 1
+            if persist_calls == 1:
+                raise OSError("Disk full")
+            _real_persist(self)
+
+        monkeypatch.setattr(_mod.OmdbQuotaTracker, "_persist", _failing_persist)
+
+        tracker.mark_exhausted("test")
+        # exhausted should be False (reverted).
+        assert tracker.status().exhausted is False
+        # Should still be able to reserve calls.
+        assert tracker.reserve_call() == "allowed"
+
+
+class TestTypedApi:
+    """ReservationOutcome and QuotaStatus typed contracts."""
+
+    def test_reserve_allowed_return_value(self, tmp_path: Path) -> None:
+        """reserve_call returns 'allowed' string literal when quota available."""
+        tracker = _fresh_tracker(tmp_path)
+        assert tracker.reserve_call() == "allowed"
+
+    def test_reserve_skipped_marked_exhausted(self, tmp_path: Path) -> None:
+        """After mark_exhausted, reserve_call returns 'skipped_marked_exhausted'."""
+        tracker = _fresh_tracker(tmp_path)
+        tracker.mark_exhausted("test")
+        assert tracker.reserve_call() == "skipped_marked_exhausted"
+
+    def test_reserve_skipped_safety_margin(self, tmp_path: Path) -> None:
+        """At safety margin, reserve_call returns 'skipped_safety_margin'."""
+        tracker = _fresh_tracker(tmp_path)
+        for _ in range(_DEFAULT_LIMIT - _SAFETY_MARGIN):
+            assert tracker.reserve_call() == "allowed"
+        assert tracker.reserve_call() == "skipped_safety_margin"
+
+    def test_quota_status_is_namedtuple(self, tmp_path: Path) -> None:
+        """status() returns a QuotaStatus NamedTuple."""
+        tracker = _fresh_tracker(tmp_path)
+        s = tracker.status()
+        assert isinstance(s, QuotaStatus)
+        assert hasattr(s, "date")
+        assert hasattr(s, "count")
+        assert hasattr(s, "limit")
+        assert hasattr(s, "safety_margin")
+        assert hasattr(s, "remaining_before_margin")
+        assert hasattr(s, "exhausted")

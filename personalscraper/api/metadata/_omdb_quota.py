@@ -15,10 +15,11 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 from personalscraper.logger import get_logger
 
@@ -26,6 +27,31 @@ log = get_logger("api.omdb.quota")
 
 _DEFAULT_LIMIT = 1000
 _SAFETY_MARGIN = 50
+
+ReservationOutcome = Literal["allowed", "skipped_safety_margin", "skipped_marked_exhausted"]
+
+
+@dataclass(frozen=True)
+class QuotaStatus:
+    """Immutable snapshot of the current quota state."""
+
+    date: str
+    count: int
+    limit: int
+    safety_margin: int
+    remaining_before_margin: int
+    exhausted: bool
+
+    def to_json_dict(self) -> dict[str, str | int | bool]:
+        """Project to a JSON-serializable dict (same shape as the old status())."""
+        return {
+            "date": self.date,
+            "count": self.count,
+            "limit": self.limit,
+            "safety_margin": self.safety_margin,
+            "remaining_before_margin": self.remaining_before_margin,
+            "exhausted": self.exhausted,
+        }
 
 
 class _QuotaState(TypedDict):
@@ -60,7 +86,12 @@ class OmdbQuotaTracker:
             state_path: Filesystem path for the JSON state file.
             limit: Daily request limit (default 1000, overridable via env).
             safety_margin: Number of calls to reserve BEFORE the hard limit.
+
+        Raises:
+            ValueError: If *safety_margin* is not in ``[0, limit)``.
         """
+        if not 0 <= safety_margin < limit:
+            raise ValueError(f"safety_margin ({safety_margin}) must be >= 0 and < limit ({limit})")
         self._state_path = state_path
         self._limit = limit
         self._safety_margin = safety_margin
@@ -69,30 +100,49 @@ class OmdbQuotaTracker:
 
     # -- Public API ----------------------------------------------------------
 
-    def reserve_call(self) -> bool:
+    def reserve_call(self) -> ReservationOutcome:
         """Try to reserve a quota slot.
 
         Returns:
-            True if the call is allowed, False if quota is exhausted
-            (either via the safety margin or an explicit mark).
+            ``"allowed"`` if the call may proceed, ``"skipped_safety_margin"``
+            if the safety margin was reached, or ``"skipped_marked_exhausted"``
+            if the day was explicitly marked exhausted.
         """
         with self._lock:
             self._maybe_reset_day()
             if self._state["exhausted"]:
-                return False
+                return "skipped_marked_exhausted"
             if self._state["count"] >= self._limit - self._safety_margin:
                 self._state["exhausted"] = True
-                self._persist()
+                try:
+                    self._persist()
+                except OSError:
+                    self._state["exhausted"] = False
+                    log.error(
+                        "omdb_quota_persist_failed",
+                        path=str(self._state_path),
+                        operation="mark_exhausted",
+                    )
+                    return "skipped_safety_margin"
                 log.warning(
                     "omdb_quota_safety_margin_reached",
                     count=self._state["count"],
                     limit=self._limit,
                     safety_margin=self._safety_margin,
                 )
-                return False
+                return "skipped_safety_margin"
             self._state["count"] += 1
-            self._persist()
-            return True
+            try:
+                self._persist()
+            except OSError:
+                self._state["count"] -= 1
+                log.error(
+                    "omdb_quota_persist_failed",
+                    path=str(self._state_path),
+                    operation="increment_count",
+                )
+                return "skipped_safety_margin"
+            return "allowed"
 
     def mark_exhausted(self, reason: str) -> None:
         """Force the day as exhausted.
@@ -105,7 +155,16 @@ class OmdbQuotaTracker:
         """
         with self._lock:
             self._state["exhausted"] = True
-            self._persist()
+            try:
+                self._persist()
+            except OSError:
+                self._state["exhausted"] = False
+                log.error(
+                    "omdb_quota_persist_failed",
+                    path=str(self._state_path),
+                    operation="mark_exhausted",
+                )
+                return
             log.warning(
                 "omdb_quota_marked_exhausted",
                 reason=reason,
@@ -113,18 +172,18 @@ class OmdbQuotaTracker:
                 limit=self._limit,
             )
 
-    def status(self) -> dict[str, str | int | bool]:
+    def status(self) -> QuotaStatus:
         """Read-only snapshot of the current quota state."""
         with self._lock:
             remaining = max(0, self._limit - self._safety_margin - self._state["count"])
-            return {
-                "date": self._state["date"],
-                "count": self._state["count"],
-                "limit": self._limit,
-                "safety_margin": self._safety_margin,
-                "remaining_before_margin": remaining,
-                "exhausted": self._state["exhausted"],
-            }
+            return QuotaStatus(
+                date=self._state["date"],
+                count=self._state["count"],
+                limit=self._limit,
+                safety_margin=self._safety_margin,
+                remaining_before_margin=remaining,
+                exhausted=self._state["exhausted"],
+            )
 
     # -- Internal ------------------------------------------------------------
 

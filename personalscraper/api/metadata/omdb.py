@@ -149,7 +149,7 @@ class OMDbAdapter(MetadataClient):
         Raises:
             ApiError: On transport failure that is NOT quota exhaustion.
         """
-        if self._quota is not None and not self._quota.reserve_call():
+        if self._quota is not None and self._quota.reserve_call() != "allowed":
             log.warning("omdb_quota_skip", method=method, item_id=item_id)
             return None
         try:
@@ -208,7 +208,7 @@ class OMDbAdapter(MetadataClient):
         Raises:
             ApiError: OMDB returned Response: "False" or quota exhausted.
         """
-        if self._quota is not None and not self._quota.reserve_call():
+        if self._quota is not None and self._quota.reserve_call() != "allowed":
             log.warning("omdb_quota_skip", method="get_details", item_id=media_id)
             raise ApiError(
                 provider="omdb",
