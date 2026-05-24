@@ -516,11 +516,18 @@ def _load_matrix_event_names() -> set[str]:
     # "item_xyz_df events" patterns in the matrix text.  Also capture
     # names from backtick-quoted spans like ``ItemProgressed``.
     names: set[str] = set()
-    # Match backtick-quoted PascalCase with optional parenthetical.
+    # Match backtick-quoted PascalCase.
     for m in re.finditer(r"`([A-Z][a-zA-Z]+)`", text):
         names.add(m.group(1))
     # Match plain PascalCase adjacent to "(Event)".
     for m in re.finditer(r"\b([A-Z][a-zA-Z]{2,})\s*\(Event\)", text):
+        names.add(m.group(1))
+    # Match PascalCase followed by parenthesis — captures descriptive
+    # references like ``ItemProgressed(step="ingest", ...)`` that appear
+    # in matrix prose without backticks or "(Event)" suffix.
+    # Uses a negative lookbehind for `(` to avoid matching markdown links
+    # like ``[ItemProgressed](...)``.
+    for m in re.finditer(r"(?<!\()\b([A-Z][a-zA-Z]{2,})\(", text):
         names.add(m.group(1))
     return names
 
