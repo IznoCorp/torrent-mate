@@ -1,5 +1,17 @@
 # Design — Media Indexer + Config Overhaul
 
+> **⚠ STATUS** : This DESIGN.md is an archived as-designed snapshot. Some claims are
+> superseded by later features. See `docs/reference/indexer.md` for the current source-of-truth.
+>
+> **Old → New mapping** :
+>
+> | Old (DESIGN.md)                                                  | New (current)                                                   | Replaced by                            |
+> | ---------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------- |
+> | `media_item.tmdb_id` / `imdb_id` / `tvdb_id` columns             | `external_ids_json` single JSON column                          | `feat/provider-ids` → mig 005 (0.15.0) |
+> | 3 indexes `idx_item_tmdb`/`imdb`/`tvdb`                          | 3 JSON-path indexes on `external_ids_json`                      | `feat/provider-ids` → mig 005          |
+> | scan_run modes documented = 4 (quick, incremental, enrich, full) | Actual CHECK constraint = 6 (+verify, +repair)                  | `feat/media-indexer` iterations        |
+> | `media_stream` extended                                          | +`hdr_format`, +`is_atmos`, +`is_default`, +`forced`, +`format` | `feat/media-indexer` → mig 004         |
+
 **Date**: 2026-04-27
 **Codename**: `media-indexer`
 **Type**: refactor (minor SemVer — pre-1.0)
