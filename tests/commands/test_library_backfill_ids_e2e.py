@@ -418,10 +418,10 @@ def test_backfill_emits_progress_events(tmp_path, test_config, monkeypatch) -> N
         result = run_cli(["--format", "json", "library-backfill-ids"])
 
     assert result.exit_code == 0, result.output
-    assert isinstance(captured, list), f"captured should be a list, got {type(captured)}"
     # Without API keys all clients are None → IDs side is no-op, ratings side
     # skips.  Items are still iterated so BackfillStarted/Completed are emitted.
     event_names = {type(e).__name__ for e in captured}
+    assert len(captured) >= 2, f"Expected >=2 events, got {len(captured)}: {sorted(event_names)}"
     assert "BackfillStarted" in event_names, f"Missing BackfillStarted in {sorted(event_names)}"
     assert "BackfillCompleted" in event_names, f"Missing BackfillCompleted in {sorted(event_names)}"
 

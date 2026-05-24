@@ -260,10 +260,11 @@ def test_rescrape_dry_run_emits_events(tmp_path, test_config, monkeypatch) -> No
         result = run_cli(["--format", "json", "library-rescrape", "--dry-run"])
 
     assert result.exit_code == 0, result.output
-    # Dry-run emits preview/scan events.  Live mode emits ItemProgressed
-    # per item but requires full TMDB/TVDB API mocking (out of scope for
-    # this harness — covered by integration tests).
-    assert isinstance(captured, list), f"captured should be a list, got {type(captured)}"
+    # Pin contract: dry-run with no API keys emits zero domain events.
+    # The isinstance(captured, list) tautology was replaced with a len==0
+    # assertion — if/when the rescraper wires domain events in dry-run
+    # mode, this test must be updated with the expected event classes.
+    assert len(captured) == 0, f"Expected 0 events in dry-run, got: {[type(e).__name__ for e in captured]}"
 
 
 # ── 8. Idempotence ──
