@@ -124,7 +124,7 @@ def library_init_canonical(
     dry_run: bool = typer.Option(False, "--dry-run", help="Report counts without writing to DB"),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
 ) -> None:
-    """Bootstrap ``canonical_provider`` on library items from their NFO files.
+    """Bootstrap ``canonical_provider`` and ``external_ids_json`` from NFO files.
 
     Walks every ``media_item`` row where ``canonical_provider IS NULL``,
     resolves its NFO via the ``dispatch_path`` attribute, and reads the
@@ -135,10 +135,20 @@ def library_init_canonical(
     ``library-backfill-ids`` can use it as the anchor for cross-provider
     ID and rating enrichment.
 
-    This is the bootstrap step for the chicken-and-egg problem on BDBs
-    that pre-date the provider-ids feature (DEV #54): backfill-ids
-    requires ``canonical_provider`` to be set, but nothing populates it
-    on a DB that was indexed before the scraper wrote the field.
+    Simultaneously seeds ``external_ids_json`` from ALL ``<uniqueid>``
+    elements in the NFO (``tvdb``, ``tmdb``, ``imdb`` families).  Uses
+    merge-additive semantics: existing families are never overwritten.
+    This resolves the chicken-and-egg blocker (DEV #27): backfill-ids
+    requires ``external_ids_json[canonical].series_id`` as its anchor,
+    but pre-fix init-canonical only set ``canonical_provider`` — leaving
+    ``external_ids_json`` empty on every item and backfill skipping
+    everything.
+
+    This is the bootstrap step for the provider-ids chicken-and-egg
+    problem on BDBs that pre-date the feature (DEV #54): backfill-ids
+    requires ``canonical_provider`` AND ``external_ids_json[canonical]``
+    to be set, but nothing populates them on a DB that was indexed before
+    the scraper wrote those fields.
 
     .. note::
        This command does NOT touch rows whose ``canonical_provider`` is
@@ -193,19 +203,31 @@ def library_init_canonical(
     console = state["console"]
 
     if dry_run:
-        # Dry-run: count items with dispatch_path but no canonical_provider and
-        # a readable NFO that carries a default uniqueid. Do not write.
-        import sqlite3 as _sqlite3  # noqa: PLC0415
-
-        conn.row_factory = _sqlite3.Row
-        rows = conn.execute(
-            "SELECT COUNT(*) FROM media_item m "
-            "LEFT JOIN item_attribute ia ON ia.item_id = m.id AND ia.key = 'dispatch_path' "
-            "WHERE m.canonical_provider IS NULL"
-        ).fetchone()
-        null_count = rows[0] if rows else 0
+        # Dry-run: parse NFOs and compute full stats (including external_ids
+        # seeding candidates) without writing to DB.
+        stats = init_canonical_from_nfo(conn, dry_run=True)
         conn.close()
-        console.print(_json.dumps({"dry_run": True, "items_without_canonical_provider": null_count}))
+        console.print(
+            _json.dumps(
+                {
+                    "dry_run": True,
+                    "canonical_provider_populated": stats.populated,
+                    "populated_default": stats.populated_default,
+                    "populated_fallback": stats.populated_fallback,
+                    "total_visited": stats.total_visited,
+                    "external_ids_seeded": stats.external_ids_seeded,
+                    "external_ids_already_present": stats.external_ids_already_present,
+                    "skipped": {
+                        "no_dispatch_path": stats.no_dispatch_path,
+                        "nfo_missing": stats.nfo_missing,
+                        "nfo_parse_error": stats.nfo_parse_error,
+                        "nfo_read_error": stats.nfo_read_error,
+                        "no_default_uniqueid": stats.no_default_uniqueid,
+                        "unsupported_no_fallback": stats.unsupported_no_fallback,
+                    },
+                }
+            )
+        )
         return
 
     try:
@@ -224,6 +246,8 @@ def library_init_canonical(
                 "populated_default": stats.populated_default,
                 "populated_fallback": stats.populated_fallback,
                 "total_visited": stats.total_visited,
+                "external_ids_seeded": stats.external_ids_seeded,
+                "external_ids_already_present": stats.external_ids_already_present,
                 "skipped": {
                     "no_dispatch_path": stats.no_dispatch_path,
                     "nfo_missing": stats.nfo_missing,

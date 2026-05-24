@@ -578,6 +578,25 @@ personalscraper library-fix-nfo --help 2>&1 | grep -q "apply" && echo "OK"
 
 ---
 
+### ACC-INIT-CANONICAL-SEEDS — library-init-canonical seeds external_ids_json from NFO uniqueid (Phase 8.10.c)
+
+**Criterion**: library-init-canonical populates BOTH canonical_provider AND
+external_ids_json[<family>].series_id for every <uniqueid> element found in
+the NFO, using merge-additive semantics (no overwrite of already-present families).
+
+**Validation command**:
+
+```bash
+personalscraper library-init-canonical --dry-run
+# Expected JSON includes "external_ids_seeded" and "external_ids_already_present" counters
+personalscraper library-init-canonical --help 2>&1 | grep -q "external_ids_json" && echo "doc OK"
+# Expected: "doc OK" (help text mentions external_ids_json seeding)
+```
+
+**Source items**: DEV #27 + audit/16-plan-a-failure-and-retry.md root cause #3 (chicken-and-egg)
+
+---
+
 ### ACC-SH-17 — Dead infrastructure audit (SH-17, CF-G) ✅
 
 **Status**: ✅ [SHIPPED commit `92c4d11` (Phase 8.4)]

@@ -23,6 +23,7 @@ post-scrape auto-trigger — invoke :func:`run_backfill_ids` directly.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -557,7 +558,7 @@ def _resolve_nfo_path(dispatch_path: str, kind: str) -> "Path":
     return nfo_files[0] if nfo_files else base / "_missing.nfo"
 
 
-def _parse_canonical_from_nfo(nfo_path: "Path") -> tuple[str | None, str]:
+def _parse_canonical_from_nfo(nfo_path: "Path") -> tuple[str | None, str, dict[str, str]]:
     """Extract a supported canonical provider type from an NFO file.
 
     Reads the NFO XML and looks for a usable canonical anchor in this order:
@@ -595,12 +596,16 @@ def _parse_canonical_from_nfo(nfo_path: "Path") -> tuple[str | None, str]:
         nfo_path: Path to the ``.nfo`` file to parse.
 
     Returns:
-        A tuple ``(provider, outcome)``. ``provider`` is the resolved
-        provider string (e.g. ``'tvdb'``, ``'tmdb'``) or ``None``.
-        ``outcome`` is a short status code consumed by the caller for
-        observability (one of ``ok_default``, ``ok_fallback``,
+        A tuple ``(provider, outcome, extracted_ids)``. ``provider`` is
+        the resolved provider string (e.g. ``'tvdb'``, ``'tmdb'``) or
+        ``None``. ``outcome`` is a short status code consumed by the
+        caller for observability (one of ``ok_default``, ``ok_fallback``,
         ``parse_error``, ``read_error``, ``no_default``,
-        ``unsupported_no_fallback``).
+        ``unsupported_no_fallback``). ``extracted_ids`` is a
+        ``dict[str, str]`` mapping supported provider family keys
+        (``tvdb``, ``tmdb``, ``imdb``) to their series_id values from
+        ALL ``<uniqueid>`` elements found in the NFO (regardless of
+        ``default`` attribute). Empty dict on parse/read errors.
     """
     import xml.etree.ElementTree as ET  # noqa: PLC0415
 
@@ -609,10 +614,23 @@ def _parse_canonical_from_nfo(nfo_path: "Path") -> tuple[str | None, str]:
         root = tree.getroot()
     except ET.ParseError:
         log.debug("init_canonical_nfo_parse_error", path=str(nfo_path))
-        return None, "parse_error"
+        return None, "parse_error", {}
     except OSError as exc:
         log.warning("init_canonical_nfo_read_error", path=str(nfo_path), error=str(exc))
-        return None, "read_error"
+        return None, "read_error", {}
+
+    # Extract all known provider IDs from ALL <uniqueid> elements
+    # (tvdb, tmdb, imdb — the 3 families per multi-provider memory).
+    # Independent of the default attribute; the caller uses this to seed
+    # external_ids_json alongside canonical_provider (Phase 8.10.c).
+    extracted_ids: dict[str, str] = {}
+    for uid in root.findall("uniqueid"):
+        type_attr = uid.get("type", "").strip().lower()
+        if type_attr not in {"tvdb", "tmdb", "imdb"}:
+            continue
+        value = (uid.text or "").strip()
+        if value and value not in _INVALID_CANONICAL_VALUES:
+            extracted_ids[type_attr] = value
 
     default_unsupported = False
     for uid in root.findall("uniqueid"):
@@ -623,7 +641,7 @@ def _parse_canonical_from_nfo(nfo_path: "Path") -> tuple[str | None, str]:
         if not type_attr or type_attr in _INVALID_CANONICAL_VALUES:
             continue
         if type_attr in _VALID_CANONICAL_PROVIDERS:
-            return type_attr, "ok_default"
+            return type_attr, "ok_default", extracted_ids
         # Default declares an unsupported type — flag for fallback search.
         default_unsupported = True
         log.debug(
@@ -643,10 +661,10 @@ def _parse_canonical_from_nfo(nfo_path: "Path") -> tuple[str | None, str]:
             if type_attr in _VALID_CANONICAL_PROVIDERS:
                 value = (uid.text or "").strip()
                 if value and value not in _INVALID_CANONICAL_VALUES:
-                    return type_attr, "ok_fallback"
-        return None, "unsupported_no_fallback"
+                    return type_attr, "ok_fallback", extracted_ids
+        return None, "unsupported_no_fallback", extracted_ids
 
-    return None, "no_default"
+    return None, "no_default", extracted_ids
 
 
 @dataclass
@@ -665,6 +683,11 @@ class InitCanonicalStats:
         no_default_uniqueid: NFO had no ``<uniqueid default="true">``.
         unsupported_no_fallback: Default was unsupported AND no other
             uniqueid carried a supported type (item is truly un-anchorable).
+        external_ids_seeded: Items whose ``external_ids_json`` was extended
+            with at least one new provider family from the NFO uniqueids.
+        external_ids_already_present: Items where all extracted families
+            were already present in the existing ``external_ids_json``
+            (no overwrite — merge-additive policy).
     """
 
     total_visited: int = 0
@@ -676,6 +699,8 @@ class InitCanonicalStats:
     nfo_read_error: int = 0
     no_default_uniqueid: int = 0
     unsupported_no_fallback: int = 0
+    external_ids_seeded: int = 0
+    external_ids_already_present: int = 0
 
     @property
     def populated(self) -> int:
@@ -683,8 +708,10 @@ class InitCanonicalStats:
         return self.populated_default + self.populated_fallback
 
 
-def init_canonical_from_nfo(conn: sqlite3.Connection) -> InitCanonicalStats:
-    """Bootstrap ``canonical_provider`` on items that have an existing NFO.
+def init_canonical_from_nfo(
+    conn: sqlite3.Connection, dry_run: bool = False
+) -> InitCanonicalStats:
+    """Bootstrap ``canonical_provider`` and ``external_ids_json`` from NFOs.
 
     Walks every ``media_item`` row where ``canonical_provider IS NULL``,
     resolves the item's filesystem directory via its
@@ -697,6 +724,18 @@ def init_canonical_from_nfo(conn: sqlite3.Connection) -> InitCanonicalStats:
     uniqueid as a secondary id (92 % of the production movie library in
     the 2026-05-23 incident).
 
+    Simultaneously collects ALL ``<uniqueid>`` values for the three
+    supported provider families (``tvdb``, ``tmdb``, ``imdb``) and
+    seeds ``external_ids_json`` with ``{"<family>": {"series_id": "...",
+    "episode_id": null}}`` entries using merge-additive semantics: a
+    family that already exists in the row is NOT overwritten (counted
+    as ``external_ids_already_present`` instead).  This resolves the
+    chicken-and-egg blocker (DEV #27): backfill-ids requires
+    ``external_ids_json[canonical].series_id`` as the anchor for
+    cross-provider lookups, but pre-fix init-canonical only set
+    ``canonical_provider``, leaving ``external_ids_json`` empty and
+    backfill skipping every item.
+
     Items without a ``dispatch_path`` attribute (scanner-only rows that
     have never been dispatched), without a readable NFO, or without any
     supported canonical anchor are skipped.  Their counts are recorded
@@ -705,6 +744,8 @@ def init_canonical_from_nfo(conn: sqlite3.Connection) -> InitCanonicalStats:
 
     Args:
         conn: Open writer connection on the indexer DB.
+        dry_run: When ``True``, compute stats including
+            ``external_ids_seeded`` but do NOT write to the DB.
 
     Returns:
         Populated :class:`InitCanonicalStats` with the per-outcome counts.
@@ -712,8 +753,10 @@ def init_canonical_from_nfo(conn: sqlite3.Connection) -> InitCanonicalStats:
     conn.row_factory = sqlite3.Row
     # Join media_item with item_attribute to fetch dispatch_path in one
     # query, avoiding N+1 lookups for the common case.
+    # Also fetch title (for logging) and external_ids_json (for merge-additive).
     sql = (
-        "SELECT m.id, m.kind, ia.value AS dispatch_path "
+        "SELECT m.id, m.kind, m.title, m.external_ids_json, "
+        "ia.value AS dispatch_path "
         "FROM media_item m "
         "LEFT JOIN item_attribute ia ON ia.item_id = m.id AND ia.key = 'dispatch_path' "
         "WHERE m.canonical_provider IS NULL"
@@ -724,6 +767,7 @@ def init_canonical_from_nfo(conn: sqlite3.Connection) -> InitCanonicalStats:
     for row in rows:
         item_id: int = row["id"]
         kind: str = row["kind"]
+        title: str = row["title"]
         dispatch_path: str | None = row["dispatch_path"]
 
         if not dispatch_path:
@@ -737,7 +781,7 @@ def init_canonical_from_nfo(conn: sqlite3.Connection) -> InitCanonicalStats:
             log.debug("init_canonical_nfo_missing", item_id=item_id, nfo_path=str(nfo_path))
             continue
 
-        canonical, outcome = _parse_canonical_from_nfo(nfo_path)
+        canonical, outcome, extracted_ids = _parse_canonical_from_nfo(nfo_path)
         if outcome == "parse_error":
             stats.nfo_parse_error += 1
             continue
@@ -752,14 +796,53 @@ def init_canonical_from_nfo(conn: sqlite3.Connection) -> InitCanonicalStats:
             continue
         # canonical is guaranteed non-None for ok_default / ok_fallback.
         assert canonical is not None
-        conn.execute(
-            "UPDATE media_item SET canonical_provider = ?, date_modified = strftime('%s', 'now') WHERE id = ?",
-            (canonical, item_id),
-        )
         if outcome == "ok_default":
             stats.populated_default += 1
         else:  # ok_fallback
             stats.populated_fallback += 1
+
+        # Merge-additive external_ids_json from extracted_ids
+        seeded_families: list[str] = []
+        already_families: list[str] = []
+        existing_raw = row["external_ids_json"]
+        existing: dict[str, Any] = json.loads(existing_raw) if existing_raw else {}
+        for family, series_id in extracted_ids.items():
+            if family in existing:
+                already_families.append(family)
+            else:
+                existing[family] = {"series_id": series_id, "episode_id": None}
+                seeded_families.append(family)
+
+        if not dry_run:
+            if extracted_ids:
+                conn.execute(
+                    "UPDATE media_item SET canonical_provider = ?, external_ids_json = ?, "
+                    "date_modified = strftime('%s', 'now') WHERE id = ?",
+                    (canonical, json.dumps(existing, separators=(",", ":")), item_id),
+                )
+            else:
+                conn.execute(
+                    "UPDATE media_item SET canonical_provider = ?, date_modified = strftime('%s', 'now') WHERE id = ?",
+                    (canonical, item_id),
+                )
+
+        if seeded_families:
+            stats.external_ids_seeded += 1
+            log.info(
+                "init_canonical_external_ids_seeded",
+                item_id=item_id,
+                title=title,
+                families=seeded_families,
+            )
+        if already_families:
+            stats.external_ids_already_present += 1
+            log.debug(
+                "init_canonical_external_ids_already_present",
+                item_id=item_id,
+                title=title,
+                existing_families=already_families,
+            )
+
         log.info(
             "init_canonical_populated",
             item_id=item_id,
@@ -779,6 +862,8 @@ def init_canonical_from_nfo(conn: sqlite3.Connection) -> InitCanonicalStats:
         nfo_read_error=stats.nfo_read_error,
         no_default_uniqueid=stats.no_default_uniqueid,
         unsupported_no_fallback=stats.unsupported_no_fallback,
+        external_ids_seeded=stats.external_ids_seeded,
+        external_ids_already_present=stats.external_ids_already_present,
     )
     return stats
 

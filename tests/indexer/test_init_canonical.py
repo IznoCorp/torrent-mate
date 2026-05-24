@@ -82,17 +82,20 @@ def _write_nfo(folder: Path, kind: str, content: str) -> Path:
 
 
 def test_parse_default_tvdb_returns_ok_default(tmp_path: Path) -> None:
-    """``<uniqueid default="true" type="tvdb">`` → ('tvdb', 'ok_default')."""
+    """``<uniqueid default="true" type="tvdb">`` → ('tvdb', 'ok_default', {tvdb: id})."""
     nfo = _write_nfo(
         tmp_path,
         "show",
         '<?xml version="1.0"?><tvshow><uniqueid default="true" type="tvdb">12345</uniqueid></tvshow>',
     )
-    assert _parse_canonical_from_nfo(nfo) == ("tvdb", "ok_default")
+    provider, outcome, ids = _parse_canonical_from_nfo(nfo)
+    assert provider == "tvdb"
+    assert outcome == "ok_default"
+    assert ids == {"tvdb": "12345"}
 
 
 def test_parse_default_imdb_falls_back_to_tmdb(tmp_path: Path) -> None:
-    """The BD-INIT-CANONICAL regression: default=imdb + tmdb sibling → ('tmdb', 'ok_fallback')."""
+    """The BD-INIT-CANONICAL regression: default=imdb + tmdb sibling → ('tmdb', 'ok_fallback', ids)."""
     nfo = _write_nfo(
         tmp_path,
         "movie",
@@ -101,7 +104,10 @@ def test_parse_default_imdb_falls_back_to_tmdb(tmp_path: Path) -> None:
         '<uniqueid type="tmdb">67890</uniqueid>'
         "</movie>",
     )
-    assert _parse_canonical_from_nfo(nfo) == ("tmdb", "ok_fallback")
+    provider, outcome, ids = _parse_canonical_from_nfo(nfo)
+    assert provider == "tmdb"
+    assert outcome == "ok_fallback"
+    assert ids == {"imdb": "tt12345", "tmdb": "67890"}
 
 
 def test_parse_default_imdb_falls_back_to_tvdb(tmp_path: Path) -> None:
@@ -114,7 +120,10 @@ def test_parse_default_imdb_falls_back_to_tvdb(tmp_path: Path) -> None:
         '<uniqueid type="tvdb">42</uniqueid>'
         "</tvshow>",
     )
-    assert _parse_canonical_from_nfo(nfo) == ("tvdb", "ok_fallback")
+    provider, outcome, ids = _parse_canonical_from_nfo(nfo)
+    assert provider == "tvdb"
+    assert outcome == "ok_fallback"
+    assert ids == {"imdb": "tt99999", "tvdb": "42"}
 
 
 def test_parse_default_imdb_no_supported_sibling_returns_unsupported(tmp_path: Path) -> None:
@@ -127,21 +136,28 @@ def test_parse_default_imdb_no_supported_sibling_returns_unsupported(tmp_path: P
         '<uniqueid type="anidb">9999</uniqueid>'
         "</movie>",
     )
-    assert _parse_canonical_from_nfo(nfo) == (None, "unsupported_no_fallback")
+    provider, outcome, ids = _parse_canonical_from_nfo(nfo)
+    assert provider is None
+    assert outcome == "unsupported_no_fallback"
+    # imdb is extracted (it's in the 3-family set) but anidb is not
+    assert ids == {"imdb": "tt12345"}
 
 
 def test_parse_malformed_xml_returns_parse_error(tmp_path: Path) -> None:
-    """The production NFO bug: URL after </tvshow> → ET.ParseError → ('parse_error')."""
+    """The production NFO bug: URL after </tvshow> → ET.ParseError → ('parse_error', {})."""
     nfo = _write_nfo(
         tmp_path,
         "show",
         "<?xml version='1.0'?><tvshow><title>X</title></tvshow>\nhttps://www.thetvdb.com/?id=1\n",
     )
-    assert _parse_canonical_from_nfo(nfo) == (None, "parse_error")
+    provider, outcome, ids = _parse_canonical_from_nfo(nfo)
+    assert provider is None
+    assert outcome == "parse_error"
+    assert ids == {}
 
 
 def test_parse_no_default_uniqueid_returns_no_default(tmp_path: Path) -> None:
-    """NFO without any default=true uniqueid → ('no_default')."""
+    """NFO without any default=true uniqueid → ('no_default', ids)."""
     nfo = _write_nfo(
         tmp_path,
         "show",
@@ -149,7 +165,11 @@ def test_parse_no_default_uniqueid_returns_no_default(tmp_path: Path) -> None:
         '<uniqueid type="tvdb">42</uniqueid>'  # no default attr
         "</tvshow>",
     )
-    assert _parse_canonical_from_nfo(nfo) == (None, "no_default")
+    provider, outcome, ids = _parse_canonical_from_nfo(nfo)
+    assert provider is None
+    assert outcome == "no_default"
+    # tvdb is extracted even without default attr
+    assert ids == {"tvdb": "42"}
 
 
 def test_parse_default_placeholder_value_falls_back_to_no_default(tmp_path: Path) -> None:
@@ -159,7 +179,11 @@ def test_parse_default_placeholder_value_falls_back_to_no_default(tmp_path: Path
         "show",
         '<?xml version="1.0"?><tvshow><uniqueid default="true" type="none">x</uniqueid></tvshow>',
     )
-    assert _parse_canonical_from_nfo(nfo) == (None, "no_default")
+    provider, outcome, ids = _parse_canonical_from_nfo(nfo)
+    assert provider is None
+    assert outcome == "no_default"
+    # type "none" is not in {tvdb, tmdb, imdb} → nothing extracted
+    assert ids == {}
 
 
 # ───────────────────────────────────────────────────────────────────────────
