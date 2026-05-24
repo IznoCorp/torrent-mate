@@ -177,6 +177,12 @@
       "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
       "expires": "2028-05-08"
+    },
+    {
+      "anchor": "trailers-audit-alias-trailers-verify-deprecated-0160",
+      "category": "documentation_only",
+      "reason": "Deprecation alias documentation (trailers verify → trailers audit) — covered by tests/commands/test_trailers_cli.py which validates the alias forwarding and deprecation warning string.",
+      "expires": "2028-05-08"
     }
   ]
 }
