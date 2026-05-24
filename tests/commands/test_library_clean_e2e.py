@@ -257,12 +257,12 @@ def test_clean_error_exits_nonzero() -> None:
 
 # ── 7. Events ──
 
-# Contract verified in ``test_clean_apply_removes_actors_dir``:
-# ``library-clean --apply`` does NOT emit domain events.  Clean operates
+# N/A: ``library-clean`` does not publish domain events — it operates
 # exclusively on the filesystem (pathlib / shutil) and never opens the
-# indexer DB with an EventBus.  The capture_event_bus assertion pins this
-# contract: if someone later wires an event to library-clean, the test
-# will flag the addition.
+# indexer DB with an EventBus.  The contract is verified in
+# ``test_clean_apply_removes_actors_dir`` via ``capture_event_bus``
+# + ``assert len(captured) == 0``.  If an event is wired later, the
+# assertion will flag it.
 
 
 # ── 8. Idempotence ──

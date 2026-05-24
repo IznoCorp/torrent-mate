@@ -353,10 +353,8 @@ def test_validate_error_exits_nonzero(test_config) -> None:
 
 # ── 7. Events ──
 
-# Contract verified in ``test_validate_fix_apply_corrects_issue``:
-# ``library-validate --fix --apply`` does NOT emit domain events.
-# Empty-directory cleanup is a lightweight FS operation with no EventBus
-# interaction.  The capture_event_bus assertion pins this contract: if
-# someone later wires an event to library-validate, the test will flag
-# the addition — at which point the expected event must be added
-# explicitly.
+# N/A: ``library-validate`` is a read-only diagnostic command that does
+# not publish domain events.  The contract is verified in
+# ``test_validate_fix_apply_corrects_issue`` via ``capture_event_bus``
+# + ``assert len(captured) == 0``.  If an event is wired later, the
+# assertion will catch it — update this section with the expected event.
