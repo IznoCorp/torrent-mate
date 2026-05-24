@@ -194,6 +194,11 @@ def _flush_insert_buffer(conn: sqlite3.Connection, buffer: list[Any]) -> None:
     is enabled.  Rows are inserted in one ``executemany`` call, which SQLite
     processes much faster than individual ``INSERT`` statements.
 
+    Uses the same ``INSERT ... ON CONFLICT(path_id, filename) DO UPDATE`` shape
+    as :func:`_upsert_file_row` so that re-scans of already-indexed disks (which
+    still go through the buffered path when ``drop_indexes_during_full_scan`` is
+    enabled) do not crash with a UNIQUE-constraint violation.
+
     Args:
         conn: Open SQLite connection.
         buffer: List of row tuples as produced by :func:`_upsert_file_row`.
@@ -208,6 +213,13 @@ def _flush_insert_buffer(conn: sqlite3.Connection, buffer: list[Any]) -> None:
             oshash, xxh3_partial, xxh3_full, scan_generation,
             last_verified_at, enriched_at, miss_strikes, deleted_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(path_id, filename) DO UPDATE SET
+            size_bytes = excluded.size_bytes,
+            mtime_ns = excluded.mtime_ns,
+            ctime_ns = excluded.ctime_ns,
+            oshash = COALESCE(excluded.oshash, oshash),
+            scan_generation = excluded.scan_generation,
+            last_verified_at = excluded.last_verified_at
         """,
         buffer,
     )
