@@ -694,7 +694,7 @@ grep -c "^### ACC-" docs/features/tech-debt/ACCEPTANCE.md
 > théoriques. Source de vérité = en-têtes `# ── N. <Theme> ──` dans
 > `tests/commands/test_*_e2e.py`. Voir `plan/phase-09-cli-coverage.md` §Sections thématiques.
 
-### ACC-50 — CLI coverage report check 🟡
+### ACC-50 — CLI coverage report check ✅
 
 ```bash
 python3 scripts/cli-coverage-report.py --check
@@ -703,7 +703,7 @@ python3 scripts/cli-coverage-report.py --check
 # for query-only diagnostics, Dry-run N/A for read-only cmds).
 ```
 
-### ACC-51 — Section coverage threshold 🟡
+### ACC-51 — Section coverage threshold ✅
 
 ```bash
 python3 scripts/cli-coverage-report.py --metrics
@@ -714,7 +714,7 @@ python3 scripts/cli-coverage-report.py --metrics
 # Total: ≥ 200 active sections across tests/commands/test_*_e2e.py.
 ```
 
-### ACC-52 — Coverage matrix doc committed and synced 🟡
+### ACC-52 — Coverage matrix doc committed and synced ✅
 
 ```bash
 python3 scripts/cli-coverage-report.py --write
@@ -723,7 +723,7 @@ git diff --exit-code docs/features/tech-debt/cli-coverage-matrix.md
 # from `# ── N. <Theme> ──` headers parsed across tests/commands/test_*_e2e.py).
 ```
 
-### ACC-53 — Each critical command has a Closure-of-loop section OR explicit N/A 🟡
+### ACC-53 — Each critical command has a Closure-of-loop section OR explicit N/A ✅
 
 ```bash
 python3 scripts/cli-coverage-report.py --section "Closure-of-loop" --filter critical
@@ -732,7 +732,7 @@ python3 scripts/cli-coverage-report.py --section "Closure-of-loop" --filter crit
 # e.g. query-only diagnostic, no BDD ↔ FS cycle).
 ```
 
-### ACC-54 — Each critical command has an Events section verified against matrix v2.1 🟡
+### ACC-54 — Each critical command has an Events section verified against matrix v2.1 ✅
 
 ```bash
 python3 scripts/cli-coverage-report.py --section "Events" --filter critical

@@ -64,6 +64,11 @@ check: lint test-cov
 	python3 scripts/check-typed-api.py
 	python3 scripts/check-pragma-discipline.py
 	python3 scripts/audit-cli-coverage.py
+	$(MAKE) cli-coverage-check
+
+cli-coverage-check:
+	@echo "Running CLI coverage check..."
+	python3 scripts/cli-coverage-report.py --check
 
 gate: check
 	@echo "Gate: residual import audit..."
