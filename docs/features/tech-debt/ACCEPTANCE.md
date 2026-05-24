@@ -800,6 +800,121 @@ grep "dict\[str, Any\] | None" docs/reference/architecture.md
 
 ---
 
+## Phase 11 — Aggregated DeepSeek 5-angle review fixes
+
+### ACC-REV-DURABILITY — fsync on atomic writers 🟡
+
+**Status**: 🟡 PENDING (Phase 11.1 gate)
+
+```bash
+# Verify _persist/write_nfo/_save all delegate to io_utils atomic_write_* helpers
+grep -A 3 "def _persist" personalscraper/api/metadata/_omdb_quota.py | grep -E "atomic_write_json|atomic_write_text"
+# Expected: present (line in body)
+grep -A 5 "def write_nfo" personalscraper/scraper/nfo_generator.py | grep -E "atomic_write_text"
+# Expected: present
+grep -A 5 "def _save" personalscraper/trailers/state.py | grep -E "atomic_write_json|atomic_write_text"
+# Expected: present
+# Verify the new helper exists
+grep -n "def atomic_write_text" personalscraper/io_utils.py
+# Expected: 1 match
+# Regression tests pass
+python3 -m pytest tests/unit/test_io_utils.py tests/unit/test_omdb_quota.py -k "fsync or atomic_write" -x
+# Expected: passed
+```
+
+### ACC-REV-STATS — backfill_ids stat counters after DB write 🟡
+
+**Status**: 🟡 PENDING (Phase 11.2 gate)
+
+```bash
+# Regression tests confirm counters reflect actual DB writes on OperationalError
+python3 -m pytest tests/indexer/scanner/test_backfill_ids.py -k "stats_rollback or stats_not_inflated" -x
+# Expected: passed
+# Static check: no `stats.populated_*` or `stats.*_count +=` before `conn.execute` in init_canonical/_backfill_one
+# (manual review — Phase 11 gate verifies this in the per-commit diff)
+```
+
+### ACC-REV-APPLEDOUBLE — shared filter applied across 11 sites 🟡
+
+**Status**: 🟡 PENDING (Phase 11.3 gate)
+
+```bash
+# Only the canonical site (_fs_utils.py or _exclusions.py) and possibly nfo_utils helper should match
+rg 'startswith\("\._"\)' personalscraper/ --type py | wc -l
+# Expected: <= 2 (canonical + glob_nfo_candidates delegation site)
+# Verify 4 NFO globs all use glob_nfo_candidates
+rg 'glob\("\*\.nfo"\)' personalscraper/ --type py | wc -l
+# Expected: 0
+# Regression tests
+python3 -m pytest tests/verify/test_verifier.py tests/enforce/test_coherence_checker.py -k "apple_double" -x
+# Expected: passed
+```
+
+### ACC-REV-PYTEST-RAISES — narrow Exception → specific type 🟡
+
+**Status**: 🟡 PENDING (Phase 11.4 gate)
+
+```bash
+# Zero bare pytest.raises(Exception) in tests/
+rg "pytest\.raises\(Exception\)" tests/ --type py | wc -l
+# Expected: 0
+```
+
+### ACC-REV-REGEX-MISC — canonical regex + 3 small fixes 🟡
+
+**Status**: 🟡 PENDING (Phase 11.5 gate)
+
+```bash
+# Verify regex generalization
+grep '_CANONICAL_RE' personalscraper/indexer/repos/item_repo.py
+# Expected: contains \s* or " ?" (not literal single space)
+# Regression tests for the regex + circuit-breaker narrowing
+python3 -m pytest tests/indexer/repos/test_item_repo.py -k "canonical_title" -x
+# Expected: passed (cases: "Movie  (2020)", "Movie(2020)")
+python3 -m pytest tests/api/test_transport_policy.py -k "circuit_breaker_ignores_internal" -x
+# Expected: passed
+```
+
+### ACC-REV-DECOMPOSITION — scan() and tv_service.py below 850 LOC 🟡
+
+**Status**: 🟡 PENDING (Phase 11.6 gate — Opus 1M dispatch)
+
+```bash
+# Modules at or below 850 non-blank LOC in touched scope
+python3 scripts/check-module-size.py personalscraper/indexer/scanner/__init__.py personalscraper/scraper/tv_service.py
+# Expected: both BELOW 850 non-blank LOC
+# New helper modules exist
+ls personalscraper/indexer/scanner/_scan_orchestrator.py personalscraper/scraper/_tvdb_convert.py
+# Expected: both exist
+# scan() function size sanity (target ~40 LOC orchestration shell)
+awk '/^def scan\(/,/^def [^s]|^class /' personalscraper/indexer/scanner/__init__.py | wc -l
+# Expected: < 80 lines
+# Full test suite still green after refactor
+make test 2>&1 | tail -1
+# Expected: NNNN passed, 0 failed, 0 errors
+```
+
+### ACC-REV-POLISH — test polish + dead code removal 🟡
+
+**Status**: 🟡 PENDING (Phase 11.7 gate)
+
+```bash
+# Dead TYPE_CHECKING block removed
+grep -A 1 "if TYPE_CHECKING:" personalscraper/scraper/models.py | grep -c "pass"
+# Expected: 0
+# @runtime_checkable removed from internal Protocols
+grep -B 1 "class _RatingClient\|class _DetailsClient" personalscraper/indexer/scanner/_modes/backfill_ids.py | grep -c "@runtime_checkable"
+# Expected: 0
+# _upsert_file_row uses ON CONFLICT
+grep "ON CONFLICT" personalscraper/indexer/scanner/_db_writes.py
+# Expected: present
+# Test polish landed (no flaky time, no bare assert mock.called, freezegun used)
+python3 -m pytest tests/test_output_emit.py tests/unit/test_omdb_quota.py tests/library/test_analyzer.py -x
+# Expected: passed
+```
+
+---
+
 ## Final PR gate
 
 ### ACC-final-1 — make check vert 🟡
