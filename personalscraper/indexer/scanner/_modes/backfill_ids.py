@@ -905,6 +905,8 @@ def init_canonical_from_nfo(conn: sqlite3.Connection, dry_run: bool = False) -> 
             # The canonical_provider is already set; we only need the cross-
             # provider IDs from the NFO.  For the canonical cohort these
             # outcomes are terminal (no provider to set → nothing to do).
+            # Classification counters reflect NFO content analysis, not DB
+            # writes — incremented before conn.execute by design (11.2, M2).
             seeding_only = outcome in ("no_default", "unsupported_no_fallback")
             if seeding_only:
                 if outcome == "no_default":
@@ -919,11 +921,8 @@ def init_canonical_from_nfo(conn: sqlite3.Connection, dry_run: bool = False) -> 
             else:
                 # canonical is guaranteed non-None for ok_default / ok_fallback.
                 assert canonical is not None
-                if needs_canonical:
-                    if outcome == "ok_default":
-                        stats.populated_default += 1
-                    else:  # ok_fallback
-                        stats.populated_fallback += 1
+                # populated_default / populated_fallback incremented AFTER
+                # conn.execute below (11.2, M2) — counters reflect actual DB writes.
 
             # Merge-additive external_ids_json from extracted_ids
             seeded_families: list[str] = []
@@ -968,6 +967,15 @@ def init_canonical_from_nfo(conn: sqlite3.Connection, dry_run: bool = False) -> 
                             "date_modified = strftime('%s', 'now') WHERE id = ?",
                             (json.dumps(existing, separators=(",", ":")), item_id),
                         )
+
+            # populated_default / populated_fallback reflect actual DB writes
+            # (or expected effect for dry_run). Incremented AFTER conn.execute
+            # so stats are accurate on OperationalError (11.2, M2).
+            if not seeding_only and needs_canonical:
+                if outcome == "ok_default":
+                    stats.populated_default += 1
+                else:  # ok_fallback
+                    stats.populated_fallback += 1
 
             if seeded_families:
                 if needs_canonical:
