@@ -1,19 +1,18 @@
 # Implementation Progress — tech-debt
 
-> **For Claude: read `docs/features/tech-debt/HANDOVER.md` FIRST at session start.** It
-> contains the full context, methodology, 54 DEVs catalog, 34 patterns, current state, next
-> actions, and user feedback memories. This file (IMPLEMENTATION.md) is the phase tracker.
-
 **Feature**: Tech-Debt (Global Cross-Feature Fixes) (type: minor)
 **Version bump**: 0.15.1 → 0.16.0 (decision item 13 §5)
 **Branch**: fix/tech-debt
 **PR merge**: manual
 **PR**: _(created after last phase)_
-**Handover**: `docs/features/tech-debt/HANDOVER.md` ← **READ FIRST** (TRANSIENT — sera
-supprimé en Phase 10.4 closure post-implementation, ne PAS y ajouter du contenu pérenne)
 **Design**: `docs/features/tech-debt/DESIGN.md` (9 sections + ACCEPTANCE sketch)
-**Acceptance**: `docs/features/tech-debt/ACCEPTANCE.md` (54 criteria exécutables — 49 initiaux + ACC-50..54 Phase 9 CLI coverage)
+**Acceptance**: `docs/features/tech-debt/ACCEPTANCE.md` (73 criteria exécutables — 49 initiaux + ACC-50..54 Phase 9 CLI coverage + ACC-NFO-FIX + ACC-INIT-CANONICAL-SEEDS + ACC-OMDB-QUOTA Phase 8.10.b/c/d + ACC-46..49 Phase 10)
 **Master plan**: `docs/features/tech-debt/plan/INDEX.md` (DEV/Pattern/Section cross-tables)
+
+> **HANDOVER.md deleted in Phase 10.4 closure** (was transient session-context doc, obsolete
+> post-implementation). Historical context lives in: commits + `audit/01..16.md` (permanent)
+>
+> - global `MEMORY.md` (user feedback). This IMPLEMENTATION.md is the single tracker.
 
 ## Statut actuel
 
