@@ -62,11 +62,15 @@ class _QuotaState(TypedDict):
 
 
 class OmdbQuotaTracker:
-    """Persistent daily-quota tracker for OMDB free tier (1000 req/day).
+    """Persistent daily-quota tracker for OMDB (1000 req/day free tier).
 
-    State is persisted as JSON at ``state_path`` and rewritten atomically
-    (temp file + :func:`os.replace`) on every mutation. A :class:`Lock`
-    ensures single-writer safety within a single process.
+    Configurable for paid tiers via ``OMDB_DAILY_LIMIT`` env (Patreon $1
+    = 100k req/day).  State file: ``<indexer.db dir>/.omdb-quota.json``,
+    rewritten atomically (temp file + :func:`os.replace`) on every mutation.
+    The counter resets at midnight UTC — any persisted ``date`` not matching
+    today is replaced with a fresh day.  Concurrency is single-process by
+    design (the backfill pipeline is sequential); a :class:`Lock` ensures
+    single-writer safety within that process.
 
     The *safety margin* (default 50) stops reserving calls before the
     hard limit is reached. This avoids actually hitting the HTTP 401 —
@@ -154,6 +158,7 @@ class OmdbQuotaTracker:
             reason: Human-readable reason logged for diagnostics.
         """
         with self._lock:
+            self._maybe_reset_day()
             self._state["exhausted"] = True
             try:
                 self._persist()
@@ -222,6 +227,11 @@ class OmdbQuotaTracker:
                 "omdb_quota_state_corrupted",
                 path=str(self._state_path),
                 error=str(exc),
+            )
+            log.warning(
+                "omdb_quota_using_default_limit",
+                path=str(self._state_path),
+                limit=self._limit,
             )
         return {
             "date": today,
