@@ -13,6 +13,8 @@ import time
 from unittest.mock import patch
 
 from tests.commands._e2e_helpers import (
+    assert_json_schema,
+    assert_no_python_traceback,
     json_from_result,
     make_synthetic_db,
     make_test_config_with_db,
@@ -228,3 +230,67 @@ def test_doctor_idempotent(tmp_path, test_config) -> None:
     for c1, c2 in zip(d1["checks"], d2["checks"]):
         assert c1["name"] == c2["name"]
         assert c1["status"] == c2["status"], f"Check '{c1['name']}' changed: {c1['status']} → {c2['status']}"
+
+
+# ── 3. Errors ──
+
+
+def test_doctor_invalid_arg_exits_nonzero() -> None:
+    """Unknown flag → non-zero exit, no Python traceback."""
+    result = run_cli(["library-doctor", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_doctor_db_path_none_exits_gracefully(test_config) -> None:
+    """Unconfigured ``indexer.db_path`` → exit 1, friendly message, no traceback."""
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-doctor"])
+    assert result.exit_code != 0
+    assert "not configured" in result.output.lower() or "db_path" in result.output.lower()
+    assert_no_python_traceback(result)
+
+
+def test_doctor_corrupt_db_exits_gracefully(tmp_path, test_config) -> None:
+    """Corrupt (non-SQLite) DB file → graceful exit, no Python traceback."""
+    db_path = tmp_path / "corrupt.db"
+    db_path.write_text("this is not a sqlite database")
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-doctor"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+# ── 6. Output ──
+
+
+def test_doctor_json_schema_valid(tmp_path, test_config) -> None:
+    """``--format json`` output matches expected schema."""
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["--format", "json", "library-doctor"])
+    assert result.exit_code == 0
+    data = assert_json_schema(result, required_keys=["overall_status", "checks", "elapsed_s"])
+    assert isinstance(data["checks"], list)
+    assert len(data["checks"]) == 10
+
+
+def test_doctor_error_exits_nonzero(test_config) -> None:
+    """WARN/FAIL status → non-zero exit code."""
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-doctor"])
+    assert result.exit_code != 0
+
+
+# ── 7. Events ──
+
+# N/A: ``library-doctor`` is a read-only diagnostic command.  It opens the
+# indexer database with a fresh EventBus (solely for the free-space guard's
+# DiskFullWarning infrastructure event) and runs 10 SELECT-only health checks.
+# No domain event is published.  Mutation-based commands like
+# ``library-index`` and ``library-scan`` emit ``LibraryScanCompleted`` as
+# verified in their respective Events sections.
