@@ -11,6 +11,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tests.commands._e2e_helpers import (
+    assert_json_schema,
+    assert_no_python_traceback,
+    capture_event_bus,
     json_from_result,
     make_synthetic_db,
     make_test_config_with_db,
@@ -247,3 +250,80 @@ def test_index_post_soft_delete_subtree_no_bulk_change(tmp_path, test_config) ->
         f"soft_delete_subtree, but files_walked={data['files_walked']}. "
         f"Data: {data}"
     )
+
+
+# ── 5. Errors ──
+
+
+def test_index_invalid_arg_exits_nonzero() -> None:
+    """Unknown flag → non-zero exit, no Python traceback."""
+    result = run_cli(["library-index", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_index_corrupt_db_exits_gracefully(tmp_path, test_config) -> None:
+    """Corrupt (non-SQLite) DB file → graceful exit, no traceback."""
+    db_path = tmp_path / "corrupt.db"
+    db_path.write_text("this is not a sqlite database")
+    cfg = make_test_config_with_db(test_config, db_path)
+    with (
+        patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+        patch(_PATCH_GUARD, return_value=None),
+    ):
+        result = run_cli(["library-index", "--mode", "full"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_index_bogus_mode_exits_gracefully(tmp_path, test_config) -> None:
+    """Invalid ``--mode`` value → friendly error, no traceback."""
+    db_path = make_synthetic_db(tmp_path)
+    result = _run_index(["--mode", "bogus"], test_config, db_path)
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+# ── 6. Output ──
+
+
+def test_index_json_schema_valid(tmp_path, test_config) -> None:
+    """Output is parseable JSON with expected schema."""
+    db_path = make_synthetic_db(tmp_path)
+    mount = tmp_path / "drive_a"
+    _create_disk_with_files(mount, n_files=2)
+    _pre_seed_disk(db_path, "drive_a", mount)
+
+    result = _run_index(["--mode", "full"], test_config, db_path)
+    assert result.exit_code == 0
+    assert_json_schema(
+        result,
+        required_keys=["mode", "files_walked", "dirs_walked", "status", "dry_run"],
+    )
+
+
+def test_index_error_exits_nonzero(tmp_path, test_config) -> None:
+    """Bogus mode → non-zero exit code."""
+    db_path = make_synthetic_db(tmp_path)
+    result = _run_index(["--mode", "bogus"], test_config, db_path)
+    assert result.exit_code != 0
+
+
+# ── 7. Events ──
+
+
+def test_index_emits_library_scan_completed(tmp_path, test_config, monkeypatch) -> None:
+    """Indexer scanner emits ``LibraryScanCompleted`` on the EventBus."""
+    db_path = make_synthetic_db(tmp_path)
+    mount = tmp_path / "drive_a"
+    _create_disk_with_files(mount, n_files=2)
+    _pre_seed_disk(db_path, "drive_a", mount)
+
+    captured = capture_event_bus(monkeypatch)
+
+    result = _run_index(["--mode", "full"], test_config, db_path)
+    assert result.exit_code == 0, result.output
+
+    assert len(captured) >= 1, f"Expected at least 1 event, got {len(captured)}"
+    event_types = {type(e).__name__ for e in captured}
+    assert "LibraryScanCompleted" in event_types, f"LibraryScanCompleted not emitted. Captured: {event_types}"
