@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
     from personalscraper.conf.models.disks import DiskConfig
 
+from personalscraper._fs_utils import is_apple_double
 from personalscraper.conf.ids import AUDIOBOOKS, TV_CATEGORY_IDS
 from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.repos import disk_repo, tv_repo
@@ -294,7 +295,7 @@ def _detect_issues(
             continue
 
         # Junk files (including macOS resource forks "._*")
-        if name in _JUNK_FILES or name.startswith("._"):
+        if name in _JUNK_FILES or is_apple_double(name):
             issues.append(ISSUE_JUNK_FILES)
             continue
 

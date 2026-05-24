@@ -41,6 +41,7 @@ from typing import Literal
 
 import typer
 
+from personalscraper._fs_utils import is_apple_double
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_helpers.output import emit
@@ -269,7 +270,7 @@ def library_fix_nfo(
                 stats.inc("nfo_missing")
             continue
 
-        if nfo_path.name.startswith("._"):
+        if is_apple_double(nfo_path.name):
             stats.inc("skipped_apple_double")
             continue
 

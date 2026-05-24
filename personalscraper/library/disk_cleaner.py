@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
 
+from personalscraper._fs_utils import is_apple_double
 from personalscraper.logger import get_logger
 
 log = get_logger("library.disk_cleaner")
@@ -334,7 +335,7 @@ def _is_effectively_empty(directory: Path) -> bool:
     """Check if a directory is empty or contains only junk files."""
     try:
         for item in directory.iterdir():
-            if item.name not in _JUNK_FILES and not item.name.startswith("._"):
+            if item.name not in _JUNK_FILES and not is_apple_double(item.name):
                 return False
         return True
     except OSError:
@@ -556,7 +557,7 @@ def _clean_media_dir(
             continue
 
         # Junk files (including macOS resource forks "._*")
-        if clean_junk and (name in _JUNK_FILES or name.startswith("._")) and item.is_file():
+        if clean_junk and (name in _JUNK_FILES or is_apple_double(name)) and item.is_file():
             _delete_file(item, result, dry_run, "junk file", db_path)
             continue
 
