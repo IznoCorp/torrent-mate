@@ -13,6 +13,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tests.commands._e2e_helpers import (
+    assert_no_python_traceback,
     make_synthetic_db,
     make_test_config_with_db,
     run_cli,
@@ -253,3 +254,72 @@ def test_recommend_idempotent(tmp_path, test_config) -> None:
         assert rec1["title"] == rec2["title"]
         assert rec1["priority"] == rec2["priority"]
         assert rec1["reasons"] == rec2["reasons"]
+
+
+# ── 3. Errors ──
+
+
+def test_recommend_invalid_arg_exits_nonzero() -> None:
+    """Unknown flag → non-zero exit, no Python traceback."""
+    result = run_cli(["library-recommend", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_recommend_db_path_none_exits_gracefully(test_config) -> None:
+    """Unconfigured ``indexer.db_path`` → exit non-zero, no traceback."""
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-recommend"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_recommend_corrupt_db_exits_gracefully(tmp_path, test_config) -> None:
+    """Corrupt (non-SQLite) DB file → graceful exit, no Python traceback."""
+    db_path = tmp_path / "corrupt.db"
+    db_path.write_text("this is not a sqlite database")
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-recommend"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+# ── 6. Output ──
+
+
+def test_recommend_json_output_schema_valid(tmp_path, test_config) -> None:
+    """Output JSON file matches expected schema."""
+    data_dir = tmp_path / ".data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    disk_id = seed_disk(conn, "drive_a", tmp_path / "drive_a")
+    _seed_recommend_item(conn, disk_id, tmp_path / "drive_a", title="Test (2024)", category_id="movies", kind="movie")
+    conn.close()
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-recommend", "--from-index"])
+    assert result.exit_code == 0
+    json_path = data_dir / "library_recommendations.json"
+    data = json.loads(json_path.read_text())
+    for key in ("total_recommendations", "estimated_total_savings_gb", "items"):
+        assert key in data, f"Missing key '{key}' in recommend output: {sorted(data.keys())}"
+
+
+def test_recommend_error_exits_nonzero(test_config) -> None:
+    """Error condition → non-zero exit code."""
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-recommend"])
+    assert result.exit_code != 0
+
+
+# ── 7. Events ──
+
+# N/A: ``library-recommend`` is a read-only diagnostic command.  It reads
+# ``media_stream`` rows from the indexer database, applies user-configured
+# codec/quality preferences, and writes a static recommendations JSON file.
+# No domain event is published.
