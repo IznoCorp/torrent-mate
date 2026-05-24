@@ -526,16 +526,18 @@ class TestBackupCorruptCopyOSError:
 
 
 class TestSaveOSError:
-    """Cover lines 826-845 — _save os.replace raises OSError."""
+    """Cover _save error propagation through atomic_write_json (S2 refactor)."""
 
-    def test_save_replace_failure_unlinks_tmp_and_raises(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    def test_save_atomic_write_json_failure_propagates(
+        self, tmp_path: Path
     ) -> None:
-        """When os.replace fails, the tmp file is unlinked and the error propagates.
+        """When atomic_write_json raises OSError, the error propagates upward.
+
+        _save delegates to atomic_write_json which handles tmp-file cleanup
+        and fsync internally; the caller only needs to know the save failed.
 
         Args:
             tmp_path: Pytest tmp_path fixture.
-            caplog: Pytest log capture fixture.
         """
         state_file = tmp_path / "trailers_state.json"
         store = TrailerStateStore(state_file=state_file)
@@ -547,34 +549,24 @@ class TestSaveOSError:
         )
 
         with patch(
-            "personalscraper.trailers.state.os.replace",
+            "personalscraper.trailers.state.atomic_write_json",
             side_effect=OSError("read-only fs"),
         ):
-            with caplog.at_level(logging.ERROR):
-                with pytest.raises(OSError, match="read-only fs"):
-                    store.set("movie:tmdb:1", state)
+            with pytest.raises(OSError, match="read-only fs"):
+                store.set("movie:tmdb:1", state)
 
-        # No tmp file should remain after cleanup.
-        leftover_tmps = list(tmp_path.glob("*.tmp"))
-        assert not leftover_tmps, f"expected tmp cleanup, got {leftover_tmps}"
-        # Save-failed log must have been emitted.
-        assert any(
-            (
-                isinstance(getattr(r, "msg", None), dict)
-                and getattr(r, "msg").get("event") == "trailer_state_save_failed"
-            )
-            or "trailer_state_save_failed" in str(getattr(r, "msg", ""))
-            for r in caplog.records
-        )
 
-    def test_save_replace_failure_with_tmp_unlink_failure(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    def test_save_atomic_write_json_raises_on_unexpected_error(
+        self, tmp_path: Path
     ) -> None:
-        """When BOTH os.replace and the tmp unlink fail, both warnings are emitted.
+        """When atomic_write_json raises a non-OSError, it propagates to caller.
+
+        _save no longer has its own try/except handler; the exception
+        propagates unmodified so the caller's error handling can decide
+        what to do (abort, retry, or re-raise).
 
         Args:
             tmp_path: Pytest tmp_path fixture.
-            caplog: Pytest log capture fixture.
         """
         state_file = tmp_path / "trailers_state.json"
         store = TrailerStateStore(state_file=state_file)
@@ -585,29 +577,12 @@ class TestSaveOSError:
             media_path="/x",
         )
 
-        with (
-            patch(
-                "personalscraper.trailers.state.os.replace",
-                side_effect=OSError("replace fail"),
-            ),
-            patch(
-                "personalscraper.trailers.state.os.unlink",
-                side_effect=OSError("unlink fail"),
-            ),
+        with patch(
+            "personalscraper.trailers.state.atomic_write_json",
+            side_effect=RuntimeError("unexpected failure"),
         ):
-            with caplog.at_level(logging.WARNING):
-                with pytest.raises(OSError, match="replace fail"):
-                    store.set("movie:tmdb:1", state)
-
-        # The tmp_cleanup_failed warning must have been emitted alongside the error.
-        assert any(
-            (
-                isinstance(getattr(r, "msg", None), dict)
-                and getattr(r, "msg").get("event") == "trailer_state_tmp_cleanup_failed"
-            )
-            or "trailer_state_tmp_cleanup_failed" in str(getattr(r, "msg", ""))
-            for r in caplog.records
-        )
+            with pytest.raises(RuntimeError, match="unexpected failure"):
+                store.set("movie:tmdb:1", state)
 
 
 class TestRunGCMalformedEntry:
