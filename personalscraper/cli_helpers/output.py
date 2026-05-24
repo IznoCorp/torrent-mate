@@ -13,6 +13,9 @@ from typing import Any, Callable
 import typer
 
 from personalscraper.cli_state import state
+from personalscraper.logger import get_logger
+
+log = get_logger("cli.output")
 
 
 def emit(
@@ -43,7 +46,11 @@ def emit(
         typer.echo(json.dumps(payload, default=str, indent=2))
     elif fmt == "rich":
         if rich_renderer is not None:
-            rich_renderer()
+            try:
+                rich_renderer()
+            except Exception:
+                log.warning("emit_rich_renderer_failed", exc_info=True)
+                state["console"].print(payload)
         else:
             state["console"].print(payload)
     else:  # plain
