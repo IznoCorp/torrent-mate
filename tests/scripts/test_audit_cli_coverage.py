@@ -207,12 +207,24 @@ def test_documented_commands_empty_on_empty_doc() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_domain_cli_coverage_no_warnings_on_current_codebase() -> None:
-    """All four business domains are invoked by at least one CLI command.
+def test_domain_cli_coverage_no_unexpected_warnings_on_current_codebase() -> None:
+    """Business domains either have CLI coverage or are explicitly allowlisted.
 
-    This verifies that ``library``, ``indexer``, ``scraper``, and ``trailers``
-    each have at least one CLI command module that imports from them.  A failure
-    here means a domain has become unreachable from the CLI surface.
+    Verifies that every domain checked by :func:`check_domain_cli_coverage` is
+    invoked by at least one CLI command, EXCEPT for known-unreachable domains
+    surfaced as SH-26 findings (tracked in
+    ``docs/features/tech-debt/plan/phase-08-polish.md`` §8.8 + audit
+    ``docs/features/tech-debt/audit/12-dead-infrastructure.md``).
+
+    The ``ingest`` domain (added to the audit in 0.16.0 sub-phase 8.8) is
+    intentionally allowlisted here: the pipeline step exists but no standalone
+    ``personalscraper <ingest-cmd>`` CLI imports from ``personalscraper.ingest``
+    yet. Adding that CLI is a separate roadmap item.
+
+    Failure here means a new domain has become unreachable from the CLI surface
+    without being explicitly accepted as a SH-26 finding.
     """
+    expected_uncovered_domains = {"ingest"}  # SH-26 finding surfaced by 8.8 audit
     warnings = check_domain_cli_coverage()
-    assert warnings == [], "Domain(s) not covered by any CLI command:\n" + "\n".join(warnings)
+    unexpected = [w for w in warnings if not any(f"domain '{d}'" in w for d in expected_uncovered_domains)]
+    assert unexpected == [], "Unexpected domain(s) not covered by any CLI command:\n" + "\n".join(unexpected)
