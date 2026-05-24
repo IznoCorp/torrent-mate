@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import unicodedata
+from dataclasses import FrozenInstanceError
 from datetime import date
 from pathlib import Path
 
@@ -374,5 +375,5 @@ class TestFindingDataclass:
     def test_finding_is_immutable(self) -> None:
         """Findings are frozen so tests can compare with equality."""
         f = Finding(severity="error", kind="stale-reference", message="x")
-        with pytest.raises(Exception):  # dataclass FrozenInstanceError
+        with pytest.raises(FrozenInstanceError):
             f.severity = "warning"  # type: ignore[misc]
