@@ -13,6 +13,8 @@ import time
 from unittest.mock import patch
 
 from tests.commands._e2e_helpers import (
+    assert_json_schema,
+    assert_no_python_traceback,
     json_from_result,
     make_synthetic_db,
     make_test_config_with_db,
@@ -226,3 +228,76 @@ def test_repair_idempotent_after_drain(tmp_path, test_config) -> None:
     d2 = json_from_result(r2)
     assert d2["processed"] == 0
     assert d2 == d1, f"Output changed between idempotent runs: {d1} vs {d2}"
+
+
+# ── 5. Errors ──
+
+
+def test_repair_invalid_arg_exits_nonzero() -> None:
+    """Unknown flag → non-zero exit, no Python traceback."""
+    result = run_cli(["library-repair", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_repair_config_absent_exits_gracefully(monkeypatch) -> None:
+    """Config absent (load_config raises) → friendly error, no traceback."""
+    from personalscraper.conf.loader import ConfigNotFoundError
+
+    def _raise(*_a, **_kw):
+        raise ConfigNotFoundError("no config found")
+
+    monkeypatch.setattr("personalscraper.conf.loader.load_config", _raise)
+    result = run_cli(["--format", "json", "library-repair"])
+    assert result.exit_code != 0
+    assert "error" in result.output.lower() or "config" in result.output.lower()
+    assert_no_python_traceback(result)
+
+
+def test_repair_corrupt_db_exits_gracefully(tmp_path, test_config) -> None:
+    """Corrupt (non-SQLite) DB file → graceful exit, no Python traceback."""
+    db_path = tmp_path / "corrupt.db"
+    db_path.write_text("this is not a sqlite database")
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["--format", "json", "library-repair"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+# ── 6. Output ──
+
+
+def test_repair_json_schema_valid(tmp_path, test_config) -> None:
+    """``--format json`` output matches expected schema."""
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["--format", "json", "library-repair"])
+    assert result.exit_code == 0
+    assert_json_schema(
+        result,
+        required_keys=["processed", "succeeded", "failed", "pending_depth", "budget_exhausted"],
+    )
+
+
+def test_repair_error_exits_nonzero(monkeypatch) -> None:
+    """Config error → non-zero exit code."""
+    from personalscraper.conf.loader import ConfigNotFoundError
+
+    def _raise(*_a, **_kw):
+        raise ConfigNotFoundError("no config found")
+
+    monkeypatch.setattr("personalscraper.conf.loader.load_config", _raise)
+    result = run_cli(["library-repair"])
+    assert result.exit_code != 0
+
+
+# ── 7. Events ──
+
+# N/A: ``library-repair`` passes an EventBus to ``open_db`` (for the free-space
+# guard's DiskFullWarning infrastructure event) but does not emit any
+# repair-specific domain event.  No ``RepairCompleted`` event class exists in
+# the codebase.  The repair drain operates via direct DB writes; its result is
+# observable through the JSON summary (processed / succeeded / failed /
+# pending_depth).
