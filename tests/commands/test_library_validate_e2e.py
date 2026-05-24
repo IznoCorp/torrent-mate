@@ -17,6 +17,7 @@ from unittest.mock import patch
 
 from tests.commands._e2e_helpers import (
     assert_no_python_traceback,
+    capture_event_bus,
     make_synthetic_db,
     make_test_config_with_db,
     run_cli,
@@ -238,7 +239,7 @@ def test_validate_from_index_skips_structural_checks(tmp_path, test_config) -> N
 # ── 6. --fix --apply closure-of-loop (CRITICAL) ──────────────────────────────────
 
 
-def test_validate_fix_apply_corrects_issue(tmp_path, test_config) -> None:
+def test_validate_fix_apply_corrects_issue(tmp_path, test_config, monkeypatch) -> None:
     """Seed issue (empty subdir) → validate finds it → --fix --apply removes it → re-validate = 0.
 
     Closure-of-loop: the fix must ACTUALLY resolve the issue so a follow-up
@@ -254,6 +255,10 @@ def test_validate_fix_apply_corrects_issue(tmp_path, test_config) -> None:
     movie_dir = _seed_movie_fs(cat_dir, "FixMe (2023)")
     empty_sub = movie_dir / "empty_extra"
     empty_sub.mkdir()
+
+    # Capture events — --fix --apply mutates filesystem but validate
+    # is a read-dominant diagnostic command; no domain events expected.
+    captured = capture_event_bus(monkeypatch)
 
     # ── Phase 1: detect the issue ──
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
@@ -285,6 +290,9 @@ def test_validate_fix_apply_corrects_issue(tmp_path, test_config) -> None:
     d3 = _read_validate_json(tmp_path)
     assert d3["issues_count"] == 0, f"CLOSURE-OF-LOOP BROKEN: {d3['issues_count']} issues remain after fix: {d3}"
     assert d3["valid_count"] >= 1, f"Expected valid_count >= 1 after fix, got: {d3}"
+
+    # Pin contract: no domain events emitted during validate --fix --apply.
+    assert len(captured) == 0, f"Expected 0 events, got: {[type(e).__name__ for e in captured]}"
 
 
 # ── 3. Errors ──
@@ -345,8 +353,10 @@ def test_validate_error_exits_nonzero(test_config) -> None:
 
 # ── 7. Events ──
 
-# N/A: ``library-validate`` is a read-only diagnostic command.  It walks
-# storage disks and checks NFO/artwork/naming conformity, writing results
-# to a JSON file.  The ``--fix --apply`` path performs lightweight FS
-# cleanup (empty directory removal) but does not publish domain events.
-# No ``LibraryScanCompleted`` or ``ItemProgressed`` event is emitted.
+# Contract verified in ``test_validate_fix_apply_corrects_issue``:
+# ``library-validate --fix --apply`` does NOT emit domain events.
+# Empty-directory cleanup is a lightweight FS operation with no EventBus
+# interaction.  The capture_event_bus assertion pins this contract: if
+# someone later wires an event to library-validate, the test will flag
+# the addition — at which point the expected event must be added
+# explicitly.

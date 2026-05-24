@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 from tests.commands._e2e_helpers import (
     assert_no_python_traceback,
+    capture_event_bus,
     make_synthetic_db,
     make_test_config_with_db,
     run_cli,
@@ -94,9 +95,12 @@ def test_clean_dry_run_no_writes_actors_dir(tmp_path, test_config) -> None:
 # ── 4. Apply mode ───────────────────────────────────────────────────────────────
 
 
-def test_clean_apply_removes_actors_dir(tmp_path, test_config) -> None:
+def test_clean_apply_removes_actors_dir(tmp_path, test_config, monkeypatch) -> None:
     """``--apply`` deletes the .actors/ directory."""
     cfg, actors_dir, _ = _setup_movie_with_actors(tmp_path, test_config)
+
+    # Pin contract: clean is a filesystem-only operation, no domain events.
+    captured = capture_event_bus(monkeypatch)
 
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         result = run_cli(["library-clean", "--apply"])
@@ -107,6 +111,8 @@ def test_clean_apply_removes_actors_dir(tmp_path, test_config) -> None:
 
     # The .actors/ dir MUST be gone.
     assert not actors_dir.exists(), f"--apply did not delete .actors/: still exists at {actors_dir}"
+
+    assert len(captured) == 0, f"Expected 0 events, got: {[type(e).__name__ for e in captured]}"
 
 
 # ── 5. --only filter ────────────────────────────────────────────────────────────
@@ -251,11 +257,12 @@ def test_clean_error_exits_nonzero() -> None:
 
 # ── 7. Events ──
 
-# N/A: ``library-clean`` delegates to ``clean_library`` in ``disk_cleaner.py``.
-# That module uses ``pathlib`` / ``shutil`` directly — no :class:`EventBus`
-# wiring, no domain event emission.  Clean is a filesystem-only operation that
-# does not cross the indexer DB boundary (unlike ``library-scan`` or
-# ``library-backfill-ids`` which open the DB with an active EventBus).
+# Contract verified in ``test_clean_apply_removes_actors_dir``:
+# ``library-clean --apply`` does NOT emit domain events.  Clean operates
+# exclusively on the filesystem (pathlib / shutil) and never opens the
+# indexer DB with an EventBus.  The capture_event_bus assertion pins this
+# contract: if someone later wires an event to library-clean, the test
+# will flag the addition.
 
 
 # ── 8. Idempotence ──
