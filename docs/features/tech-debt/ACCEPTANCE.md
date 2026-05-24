@@ -498,13 +498,14 @@ make test-cov 2>&1 | grep "TOTAL" | awk '{print $NF}'
 # Actual: 91.88% combined, 87.09% branch rate from coverage.xml
 ```
 
-### ACC-39 — test_cli @patch <= 25 (DEV #49) 🟡
+### ACC-39 — test_cli @patch <= 25 (DEV #49) ✅
 
-**Status**: 🟡 PENDING (Phase 8.15 — trim @patch count 52 → ≤ 25)
+**Status**: ✅ [SHIPPED commit `df723b5` (Phase 8.15)] — 52 → 18 (target ≤ 25)
 
 ```bash
-grep -cE "@patch\(" tests/test_cli.py
+grep -cE '^@patch' tests/test_cli.py
 # Expected: <= 25
+# Actual: 18
 ```
 
 ### ACC-40 — Cron backfill-ids (SH-3) ✅ [SHIPPED commit `5426826` (Phase 8.1)]
