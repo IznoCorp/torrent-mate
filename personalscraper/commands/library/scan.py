@@ -132,47 +132,28 @@ def library_init_canonical(
       canonical AND external_ids_json from NFO ``<uniqueid>`` elements.
     * **chicken-and-egg cohort**: ``canonical_provider`` is already set but
       ``external_ids_json IS NULL`` or ``='{}'`` — only seeds external IDs
-      without touching the existing canonical provider.  These are items
-      populated by a pre-shard-1 init-canonical run that only wrote
-      ``canonical_provider``.
+      without touching the existing canonical provider.
 
     When the default declares an unsupported type (e.g. ``imdb``), falls
     back to the first supported sibling uniqueid (``tvdb`` or ``tmdb``).
+    Uses merge-additive semantics: existing families are never overwritten.
 
-    Seeds ``external_ids_json`` from ALL ``<uniqueid>`` elements in the
-    NFO (``tvdb``, ``tmdb``, ``imdb`` families).  Uses merge-additive
-    semantics: existing families are never overwritten.  This resolves the
-    chicken-and-egg blocker (DEV #27): backfill-ids requires
-    ``external_ids_json[canonical].series_id`` as its anchor, but
-    pre-fix init-canonical only set ``canonical_provider`` — leaving
-    ``external_ids_json`` empty on every item and backfill skipping
-    everything.
-
-    This is the bootstrap step for the provider-ids chicken-and-egg
-    problem on BDBs that pre-date the feature (DEV #54): backfill-ids
-    requires ``canonical_provider`` AND ``external_ids_json[canonical]``
-    to be set, but nothing populates them on a DB that was indexed before
-    the scraper wrote those fields.
+    This resolves the chicken-and-egg blocker (DEV #27 / #54): backfill-ids
+    requires ``external_ids_json[canonical].series_id`` as its anchor, but
+    neither value is set on databases that pre-date the provider-ids feature.
 
     .. note::
        This command never CHANGES an existing ``canonical_provider`` value.
-       For the chicken-and-egg cohort (canonical already set, external_ids
-       empty), it only seeds ``external_ids_json`` without touching
-       ``canonical_provider``.  To change an
-       item's canonical provider after it has been populated (e.g. move
-       a show from ``tmdb`` to ``tvdb`` to leverage TVDB-primary scrape
-       discipline per DESIGN §3), use the Plan A workflow:
-       ``library-rescrape`` (Phase 8.10) which explicitly resets +
-       re-scrapes + lets the operator approve any rename / restructure
-       of files. TVDB and TMDB can disagree on episode S/E mapping,
-       season grouping, and titles — a silent canonical swap would
-       desync files vs DB.
+       To migrate between canonical providers (e.g. ``tmdb`` → ``tvdb`` for
+       shows to leverage TVDB-primary scrape discipline), use the Plan A
+       workflow (``library-rescrape``) which resets + re-scrapes explicitly.
+       See ``docs/archive/features/provider-ids/DESIGN.md`` §3 for the
+       TVDB-primary-for-shows / TMDB-primary-for-movies design rationale.
 
-    Items without a ``dispatch_path`` attribute (scanner-only rows that
-    have never been dispatched) or without a readable / valid NFO are
-    counted in the breakdown (no_dispatch_path, nfo_missing,
-    nfo_parse_error, unsupported_no_fallback) so the operator can see
-    exactly WHY ``populated < total_visited``.
+    Items without a ``dispatch_path`` or without a readable/valid NFO are
+    counted in the breakdown (no_dispatch_path, nfo_missing, nfo_parse_error,
+    unsupported_no_fallback) so the operator can see WHY
+    ``populated < total_visited``.
 
     Examples:
         personalscraper library-init-canonical
@@ -199,7 +180,8 @@ def library_init_canonical(
 
     migrations_dir_path = _os.path.dirname(migrations_dir)
 
-    # Open DB in writer mode so we can UPDATE canonical_provider.
+    # init_canonical writes to canonical_provider + external_ids_json; ensure DB
+    # is opened read-write (the default — open_db has no mode= parameter).
     event_bus = EventBus()
     conn = open_db(db_path, event_bus=event_bus)
     apply_migrations(conn, _Path(migrations_dir_path))
@@ -209,8 +191,6 @@ def library_init_canonical(
     console = state["console"]
 
     if dry_run:
-        # Dry-run: parse NFOs and compute full stats (including external_ids
-        # seeding candidates) without writing to DB.
         stats = init_canonical_from_nfo(conn, dry_run=True)
         conn.close()
         console.print(
@@ -348,7 +328,7 @@ def library_scan(
     if cfg.indexer.db_path is None:
         typer.echo("indexer.db_path is not configured", err=True)
         raise typer.Exit(code=1)
-    db_path = Path(cfg.indexer.db_path)  # narrow Any|Path|None → Path for mypy strict mode
+    db_path = Path(cfg.indexer.db_path)
 
     migrations_dir = _os.path.dirname(_migrations_pkg.__file__)
 

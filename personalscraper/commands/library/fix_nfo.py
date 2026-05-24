@@ -24,8 +24,7 @@ Prerequisites:
     ``library.db`` must exist and have ``media_item`` rows with
     ``item_attribute(key='dispatch_path')`` populated.
 
-Examples::
-
+Examples:
     personalscraper library-fix-nfo
     personalscraper library-fix-nfo --apply
     personalscraper library-fix-nfo --db /custom/path/library.db --apply
@@ -162,6 +161,12 @@ def _resolve_nfo_path(dispatch_path: str, kind: str) -> tuple[Path | None, Liter
     macOS AppleDouble (``._`` prefix).  When multiple NFO candidates exist
     (e.g. a trailer NFO alongside the main one), the result is ambiguous and
     the file is skipped.
+
+    .. note::
+       Sibling at ``personalscraper/indexer/scanner/_modes/backfill_ids.py``
+       has a ``_resolve_nfo_path`` with the same shape but a different concern:
+       this one detects ambiguous NFOs for repair; the other is read-only path
+       resolution for backfill.
 
     Args:
         dispatch_path: Filesystem path of the media item root directory.

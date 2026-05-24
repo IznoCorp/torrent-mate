@@ -558,6 +558,12 @@ def _resolve_nfo_path(dispatch_path: str, kind: str) -> "Path | None":
     (``{Title}.nfo``); to avoid needing the exact title string we glob
     for the first ``.nfo`` file in the directory.
 
+    .. note::
+       Sibling at ``personalscraper/commands/library/fix_nfo.py`` has a
+       ``_resolve_nfo_path`` with the same shape but a different concern:
+       this is a read-only path resolution for backfill; the sibling
+       detects ambiguous NFOs for repair.
+
     Args:
         dispatch_path: Filesystem path of the media item root directory
             (value of ``item_attribute(key='dispatch_path')``).
