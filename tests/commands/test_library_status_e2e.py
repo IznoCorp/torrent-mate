@@ -12,6 +12,8 @@ import time
 from unittest.mock import patch
 
 from tests.commands._e2e_helpers import (
+    assert_json_schema,
+    assert_no_python_traceback,
     json_from_result,
     make_synthetic_db,
     make_test_config_with_db,
@@ -152,3 +154,82 @@ def test_status_format_json_emits_parseable_json(tmp_path, test_config) -> None:
     assert "enrich_pending" in data
     assert "category_orphans" in data
     assert "healthy" in data
+
+
+# ── 3. Errors ──
+
+
+def test_status_invalid_arg_exits_nonzero() -> None:
+    """Unknown flag → non-zero exit, no Python traceback."""
+    result = run_cli(["library-status", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_status_db_path_none_exits_gracefully(test_config) -> None:
+    """Unconfigured ``indexer.db_path`` → exit 1, friendly message, no traceback."""
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-status"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_status_corrupt_db_exits_gracefully(tmp_path, test_config) -> None:
+    """Corrupt (non-SQLite) DB file → graceful exit, no Python traceback."""
+    db_path = tmp_path / "corrupt.db"
+    db_path.write_text("this is not a sqlite database")
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-status"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+# ── 6. Output ──
+
+
+def test_status_json_schema_valid(tmp_path, test_config) -> None:
+    """``--format json`` output matches expected schema."""
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    now = int(time.time())
+    seed_disk(conn, "SchemaDisk", tmp_path / "SchemaDisk")
+    seed_scan_run(conn, status="ok", mode="full", generation=1, finished_at=now)
+    conn.close()
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["--format", "json", "library-status"])
+    assert result.exit_code == 0
+    data = assert_json_schema(
+        result,
+        required_keys=[
+            "disks",
+            "latest_scan",
+            "repair_queue",
+            "outbox_pending",
+            "deleted_items",
+            "enrich_pending",
+            "category_orphans",
+            "healthy",
+        ],
+    )
+    assert isinstance(data["disks"], list)
+    assert data["latest_scan"] is not None
+    assert data["latest_scan"]["status"] == "ok"
+
+
+def test_status_error_exits_nonzero() -> None:
+    """Invalid flag → non-zero exit code."""
+    result = run_cli(["library-status", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+
+
+# ── 7. Events ──
+
+# N/A: ``library-status`` is a read-only summary command.  It opens the indexer
+# database with a minimal ``EventBus`` (solely for the free-space guard's
+# ``DiskFullWarning`` infrastructure event), runs SELECT-only queries, and
+# returns a status dictionary.  No domain event is published.  Read-only
+# diagnostic commands like ``library-doctor`` follow the same pattern.
