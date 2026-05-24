@@ -9,12 +9,34 @@ Only raw ``sqlite3`` is used — no ORM.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 
 from personalscraper.indexer.schema import ItemAttributeRow, MediaItemRow
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.item")
+
+# Regex matching a trailing " (YYYY)" suffix on a title string.
+# Used by ``_canonical_title`` to normalise lookup keys so that
+# ``"Inception (2010)"`` and ``"Inception"`` map to the same stored row.
+_CANONICAL_RE = re.compile(r" \(\d{4}\)$")
+
+
+def _canonical_title(title: str) -> str:
+    """Strip a trailing `` (YYYY)`` suffix from *title* if present.
+
+    Normalises both the stored title (post-migration 007) and the lookup key
+    so that ``_upsert_media_item`` deduplicates by the base title regardless of
+    whether the caller includes a release year in the title string.
+
+    Args:
+        title: Raw title, which may or may not end with `` (2020)``.
+
+    Returns:
+        The title without the trailing year suffix.
+    """
+    return _CANONICAL_RE.sub("", title)
 
 
 # ---------------------------------------------------------------------------
@@ -276,25 +298,31 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
     """Insert or update a :class:`MediaItemRow` keyed by ``(kind, title)``.
 
     Performs a SELECT-then-UPDATE-or-INSERT to handle the dispatch layer's
-    one-row-per-``(kind, title)`` invariant without requiring a UNIQUE
-    constraint on the underlying table.  When a matching row already exists,
-    ``category_id`` and ``date_modified`` are refreshed.  Otherwise a new
-    row is inserted.
+    one-row-per-``(kind, title)`` invariant.  The title is canonicalised via
+    :func:`_canonical_title` before lookup and insert so that callers passing
+    ``"Inception (2010)"`` match an already-stored row with ``title="Inception"``
+    (DEV #53 dedup fix).
+
+    When a matching row already exists, ``category_id`` and ``date_modified``
+    are refreshed.  Otherwise a new row is inserted with the canonicalised title.
 
     Args:
         conn: Open SQLite connection.
-        row: :class:`MediaItemRow` to upsert.  The ``id`` field is ignored.
+        row: :class:`MediaItemRow` to upsert.  The ``id`` field is ignored;
+            ``title`` may carry a trailing `` (YYYY)`` suffix which will be
+            stripped before storage.
 
     Returns:
         The ``rowid`` (= ``id``) of the inserted or updated row.
     """
-    existing = get_by_title_and_kind(conn, row.title, row.kind)
+    canonical = _canonical_title(row.title)
+    existing = get_by_title_and_kind(conn, canonical, row.kind)
     if existing is not None:
         conn.execute(
             "UPDATE media_item SET category_id = ?, date_modified = ? WHERE id = ?",
             (row.category_id, row.date_modified, existing.id),
         )
-        log.info("indexer.item.upsert_update", title=row.title, kind=row.kind, id=existing.id)
+        log.info("indexer.item.upsert_update", title=canonical, kind=row.kind, id=existing.id)
         return existing.id
     cursor = conn.execute(
         """
@@ -308,7 +336,7 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
         """,
         (
             row.kind,
-            row.title,
+            canonical,
             row.title_sort,
             row.original_title,
             row.year,
@@ -326,28 +354,33 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
         ),
     )
     rowid: int = cursor.lastrowid  # type: ignore[assignment]
-    log.info("indexer.item.upsert_insert", title=row.title, kind=row.kind, rowid=rowid)
+    log.info("indexer.item.upsert_insert", title=canonical, kind=row.kind, rowid=rowid)
     return rowid
 
 
 def get_by_title_and_kind(conn: sqlite3.Connection, title: str, kind: str) -> MediaItemRow | None:
     """Fetch a media item row by its ``(title, kind)`` unique pair.
 
+    Canonicalises *title* via :func:`_canonical_title` before querying so
+    that ``"Inception (2010)"`` and ``"Inception"`` resolve to the same row
+    (DEV #53 dedup fix).
+
     Args:
         conn: Open SQLite connection.
-        title: Exact display title as stored in the DB.
+        title: Display title, possibly with a trailing `` (YYYY)`` suffix.
         kind: ``'movie'`` or ``'show'``.
 
     Returns:
         :class:`MediaItemRow` if found, ``None`` otherwise.
     """
+    canonical = _canonical_title(title)
     _set_row_factory(conn)
     row = conn.execute(
         "SELECT id, kind, title, title_sort, original_title, year, category_id, "
         "external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
         "date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang "
         "FROM media_item WHERE title = ? AND kind = ?",
-        (title, kind),
+        (canonical, kind),
     ).fetchone()
     if row is None:
         return None

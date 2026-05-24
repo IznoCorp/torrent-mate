@@ -51,12 +51,12 @@ def _apply_through_migration(conn: sqlite3.Connection, up_to_version: int) -> No
 
 
 def test_migration_006_backfills_row_3_when_missing(tmp_path: Path) -> None:
-    """A DB in the DEV #15 state (rows {1,2,4,5}) gets row 3 + row 6 after migration 006.
+    """A DB in the DEV #15 state (rows {1,2,4,5}) gets row 3 + rows 6+7 after migrations.
 
     Reproduces the production state observed in the tech-debt audit, then
-    runs the full ``apply_migrations`` chain (which now includes 006). The
-    final state must be a contiguous ``schema_version`` set {1,2,3,4,5,6}
-    with ``user_version=6``.
+    runs the full ``apply_migrations`` chain (which now includes 006 and 007).
+    The final state must be a contiguous ``schema_version`` set {1,2,3,4,5,6,7}
+    with ``user_version=7``.
     """
     db_path = tmp_path / "library.db"
     conn = sqlite3.connect(str(db_path), isolation_level=None)
@@ -72,26 +72,26 @@ def test_migration_006_backfills_row_3_when_missing(tmp_path: Path) -> None:
     versions = [r[0] for r in rows]
     assert versions == [1, 2, 4, 5], f"DEV #15 state must reproduce {{1,2,4,5}}, got {versions}"
 
-    # Phase 2 — apply migration 006 via the real apply_migrations.
+    # Phase 2 — apply migrations 006+007 via the real apply_migrations.
     apply_migrations(conn, _MIGRATIONS_DIR)
 
-    # Phase 3 — verify backfill + new row.
+    # Phase 3 — verify backfill + new rows.
     rows = conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()
     versions = [r[0] for r in rows]
-    assert versions == [1, 2, 3, 4, 5, 6], f"After 006, expected [1,2,3,4,5,6], got {versions}"
+    assert versions == [1, 2, 3, 4, 5, 6, 7], f"After 006+007, expected [1,2,3,4,5,6,7], got {versions}"
 
     user_version = conn.execute("PRAGMA user_version").fetchone()[0]
-    assert user_version == 6, f"user_version must be 6, got {user_version}"
+    assert user_version == 7, f"user_version must be 7, got {user_version}"
 
     conn.close()
 
 
 def test_migration_006_idempotent_on_fresh_db(tmp_path: Path) -> None:
-    """A DB built freshly through 001..005 already has row 3; 006 must not duplicate.
+    """A DB built freshly through all migrations has contiguous schema_version rows.
 
     Validates the ``INSERT OR IGNORE`` semantics in migration 006: when row
     3 is already present, the migration is a no-op for that row but still
-    inserts row 6.
+    inserts row 6 (and now 7 from migration 007).
     """
     db_path = tmp_path / "library.db"
     conn = sqlite3.connect(str(db_path), isolation_level=None)
@@ -101,7 +101,7 @@ def test_migration_006_idempotent_on_fresh_db(tmp_path: Path) -> None:
 
     rows = conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()
     versions = [r[0] for r in rows]
-    assert versions == [1, 2, 3, 4, 5, 6], f"Fresh DB after 006, expected [1,2,3,4,5,6], got {versions}"
+    assert versions == [1, 2, 3, 4, 5, 6, 7], f"Fresh DB, expected [1,2,3,4,5,6,7], got {versions}"
 
     # Run apply_migrations a second time — must be a complete no-op.
     apply_migrations(conn, _MIGRATIONS_DIR)

@@ -464,14 +464,14 @@ make check
 # Expected: exit 0 — check-module-size exits 0 (no module ≥ 1000 LOC).
 ```
 
-### ACC-36 — \_upsert_media_item dedup (DEV #53) 🟡
+### ACC-36 — \_upsert_media_item dedup (DEV #53) ✅
 
-**Status**: 🟡 PENDING (Phase 8.12 — canonical title lookup + UNIQUE constraint + migration)
+**Status**: ✅ SHIPPED (Phase 8.12 — canonical title lookup + UNIQUE constraint + migration 007)
 
 ```bash
-make test -k test_upsert_media_item_no_duplicates
-sqlite3 .data/library.db "SELECT title, year, COUNT(*) FROM media_item GROUP BY title, year HAVING COUNT(*) > 1;"
-# Expected: empty (no dups)
+python -m pytest tests/indexer/test_upsert_media_item_dedup.py -x
+sqlite3 .data/library.db "SELECT title, kind, COUNT(*) FROM media_item GROUP BY title, kind HAVING COUNT(*) > 1;"
+# Expected: 18 passed (regression test); empty (no dups per (title, kind) pair)
 ```
 
 ### ACC-37 — Event-bus catalog sync (DEV #24, #25) 🟡
