@@ -694,6 +694,9 @@ class InitCanonicalStats:
         external_ids_already_present: Items where all extracted families
             were already present in the existing ``external_ids_json``
             (no overwrite — merge-additive policy).
+        parse_unexpected_error: Items where per-row processing raised an
+            unexpected exception (caught by the fail-soft wrapper). The
+            canonical_provider and external_ids_json are left unchanged.
     """
 
     total_visited: int = 0
@@ -708,6 +711,7 @@ class InitCanonicalStats:
     external_ids_seeded_with_canonical: int = 0
     external_ids_seeded_alone: int = 0
     external_ids_already_present: int = 0
+    parse_unexpected_error: int = 0
 
     @property
     def populated(self) -> int:
@@ -799,102 +803,111 @@ def init_canonical_from_nfo(conn: sqlite3.Connection, dry_run: bool = False) -> 
             log.debug("init_canonical_nfo_missing", item_id=item_id, nfo_path=str(nfo_path))
             continue
 
-        canonical, outcome, extracted_ids = _parse_canonical_from_nfo(nfo_path)
-        if outcome == "parse_error":
-            stats.nfo_parse_error += 1
-            continue
-        if outcome == "read_error":
-            stats.nfo_read_error += 1
-            continue
-
-        # Seed external_ids for the chicken-and-egg cohort even when
-        # canonical resolution fails (no_default, unsupported_no_fallback).
-        # The canonical_provider is already set; we only need the cross-
-        # provider IDs from the NFO.  For the canonical cohort these
-        # outcomes are terminal (no provider to set → nothing to do).
-        seeding_only = outcome in ("no_default", "unsupported_no_fallback")
-        if seeding_only:
-            if outcome == "no_default":
-                stats.no_default_uniqueid += 1
-            else:
-                stats.unsupported_no_fallback += 1
-            if needs_canonical or not extracted_ids:
+        try:
+            canonical, outcome, extracted_ids = _parse_canonical_from_nfo(nfo_path)
+            if outcome == "parse_error":
+                stats.nfo_parse_error += 1
                 continue
-            # Fall through — skip canonical settlement + population stats;
-            # only the merge-additive seeding block below runs.
-        else:
-            # canonical is guaranteed non-None for ok_default / ok_fallback.
-            assert canonical is not None
-            if needs_canonical:
-                if outcome == "ok_default":
-                    stats.populated_default += 1
-                else:  # ok_fallback
-                    stats.populated_fallback += 1
+            if outcome == "read_error":
+                stats.nfo_read_error += 1
+                continue
 
-        # Merge-additive external_ids_json from extracted_ids
-        seeded_families: list[str] = []
-        already_families: list[str] = []
-        existing_raw = row["external_ids_json"]
-        existing: dict[str, Any] = json.loads(existing_raw) if existing_raw else {}
-        for family, series_id in extracted_ids.items():
-            if family in existing:
-                already_families.append(family)
-            else:
-                existing[family] = {"series_id": series_id, "episode_id": None}
-                seeded_families.append(family)
-
-        if not dry_run:
-            if needs_canonical:
-                if extracted_ids:
-                    conn.execute(
-                        "UPDATE media_item SET canonical_provider = ?, external_ids_json = ?, "
-                        "date_modified = strftime('%s', 'now') WHERE id = ?",
-                        (canonical, json.dumps(existing, separators=(",", ":")), item_id),
-                    )
+            # Seed external_ids for the chicken-and-egg cohort even when
+            # canonical resolution fails (no_default, unsupported_no_fallback).
+            # The canonical_provider is already set; we only need the cross-
+            # provider IDs from the NFO.  For the canonical cohort these
+            # outcomes are terminal (no provider to set → nothing to do).
+            seeding_only = outcome in ("no_default", "unsupported_no_fallback")
+            if seeding_only:
+                if outcome == "no_default":
+                    stats.no_default_uniqueid += 1
                 else:
-                    conn.execute(
-                        "UPDATE media_item SET canonical_provider = ?, "
-                        "date_modified = strftime('%s', 'now') WHERE id = ?",
-                        (canonical, item_id),
-                    )
+                    stats.unsupported_no_fallback += 1
+                if needs_canonical or not extracted_ids:
+                    continue
+                # Fall through — skip canonical settlement + population stats;
+                # only the merge-additive seeding block below runs.
             else:
-                # Chicken-and-egg cohort: canonical is already set,
-                # only seed external_ids_json when there are new families.
-                if seeded_families:
-                    conn.execute(
-                        "UPDATE media_item SET external_ids_json = ?, "
-                        "date_modified = strftime('%s', 'now') WHERE id = ?",
-                        (json.dumps(existing, separators=(",", ":")), item_id),
-                    )
+                # canonical is guaranteed non-None for ok_default / ok_fallback.
+                assert canonical is not None
+                if needs_canonical:
+                    if outcome == "ok_default":
+                        stats.populated_default += 1
+                    else:  # ok_fallback
+                        stats.populated_fallback += 1
 
-        if seeded_families:
+            # Merge-additive external_ids_json from extracted_ids
+            seeded_families: list[str] = []
+            already_families: list[str] = []
+            existing_raw = row["external_ids_json"]
+            existing: dict[str, Any] = json.loads(existing_raw) if existing_raw else {}
+            for family, series_id in extracted_ids.items():
+                if family in existing:
+                    already_families.append(family)
+                else:
+                    existing[family] = {"series_id": series_id, "episode_id": None}
+                    seeded_families.append(family)
+
+            if not dry_run:
+                if needs_canonical:
+                    if extracted_ids:
+                        conn.execute(
+                            "UPDATE media_item SET canonical_provider = ?, external_ids_json = ?, "
+                            "date_modified = strftime('%s', 'now') WHERE id = ?",
+                            (canonical, json.dumps(existing, separators=(",", ":")), item_id),
+                        )
+                    else:
+                        conn.execute(
+                            "UPDATE media_item SET canonical_provider = ?, "
+                            "date_modified = strftime('%s', 'now') WHERE id = ?",
+                            (canonical, item_id),
+                        )
+                else:
+                    # Chicken-and-egg cohort: canonical is already set,
+                    # only seed external_ids_json when there are new families.
+                    if seeded_families:
+                        conn.execute(
+                            "UPDATE media_item SET external_ids_json = ?, "
+                            "date_modified = strftime('%s', 'now') WHERE id = ?",
+                            (json.dumps(existing, separators=(",", ":")), item_id),
+                        )
+
+            if seeded_families:
+                if needs_canonical:
+                    stats.external_ids_seeded_with_canonical += 1
+                else:
+                    stats.external_ids_seeded_alone += 1
+                log.info(
+                    "init_canonical_external_ids_seeded",
+                    item_id=item_id,
+                    title=title,
+                    families=seeded_families,
+                    needs_canonical=needs_canonical,
+                )
+            if already_families:
+                stats.external_ids_already_present += 1
+                log.debug(
+                    "init_canonical_external_ids_already_present",
+                    item_id=item_id,
+                    title=title,
+                    existing_families=already_families,
+                )
+
             if needs_canonical:
-                stats.external_ids_seeded_with_canonical += 1
-            else:
-                stats.external_ids_seeded_alone += 1
-            log.info(
-                "init_canonical_external_ids_seeded",
+                log.info(
+                    "init_canonical_populated",
+                    item_id=item_id,
+                    canonical_provider=canonical,
+                    outcome=outcome,
+                )
+        except Exception:  # noqa: BLE001 — fail-soft per-row contract
+            log.exception(
+                "init_canonical_unexpected_error",
                 item_id=item_id,
                 title=title,
-                families=seeded_families,
-                needs_canonical=needs_canonical,
             )
-        if already_families:
-            stats.external_ids_already_present += 1
-            log.debug(
-                "init_canonical_external_ids_already_present",
-                item_id=item_id,
-                title=title,
-                existing_families=already_families,
-            )
-
-        if needs_canonical:
-            log.info(
-                "init_canonical_populated",
-                item_id=item_id,
-                canonical_provider=canonical,
-                outcome=outcome,
-            )
+            stats.parse_unexpected_error += 1
+            continue
 
     log.info(
         "init_canonical_done",

@@ -836,6 +836,78 @@ def test_dry_run_does_not_write_external_ids(tmp_path: Path) -> None:
     assert row["external_ids_json"] == "{}"
 
 
+# Group 4b — SF-H3: fail-soft per-row wrapper
+
+
+def test_init_canonical_fail_soft_per_row(monkeypatch, tmp_path: Path) -> None:
+    """SF-H3: unexpected exception in one row does not kill the whole pass.
+
+    One item's NFO triggers a TypeError (not caught by _parse_canonical_from_nfo
+    which only handles ParseError/OSError). The fail-soft wrapper catches it,
+    logs parse_unexpected_error, and continues to the next row.
+    """
+    conn = _open_mem_db()
+
+    # Item A: triggers unexpected error.
+    folder_a = tmp_path / "crash_a"
+    _write_nfo(
+        folder_a,
+        "show",
+        '<?xml version="1.0"?><tvshow><uniqueid default="true" type="tvdb">1</uniqueid></tvshow>',
+    )
+    _seed_item_full(
+        conn,
+        title="CrashItem",
+        canonical_provider=None,
+        external_ids_json="{}",
+        dispatch_path=str(folder_a),
+    )
+
+    # Item B: normal item that must still be processed.
+    folder_b = tmp_path / "ok_b"
+    _write_nfo(
+        folder_b,
+        "show",
+        '<?xml version="1.0"?><tvshow><uniqueid default="true" type="tvdb">42</uniqueid></tvshow>',
+    )
+    _seed_item_full(
+        conn,
+        title="OkItem",
+        canonical_provider=None,
+        external_ids_json="{}",
+        dispatch_path=str(folder_b),
+    )
+    conn.commit()
+
+    # Make the first NFO parse crash with TypeError.
+    original = _parse_canonical_from_nfo
+    call_count = 0
+
+    def crashing_parse(nfo_path):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise TypeError("simulated unexpected parse failure")
+        return original(nfo_path)
+
+    monkeypatch.setattr(
+        "personalscraper.indexer.scanner._modes.backfill_ids._parse_canonical_from_nfo",
+        crashing_parse,
+    )
+
+    stats = init_canonical_from_nfo(conn)
+    conn.commit()
+
+    assert stats.parse_unexpected_error == 1
+    assert stats.total_visited == 2
+    # Item B was still processed.
+    assert stats.populated_default == 1
+
+    # Item A's canonical_provider is unchanged (fail-soft leaves it untouched).
+    row_a = conn.execute("SELECT canonical_provider FROM media_item WHERE title = 'CrashItem'").fetchone()
+    assert row_a["canonical_provider"] is None
+
+
 # Group 5 — CLI output schema contract
 
 
