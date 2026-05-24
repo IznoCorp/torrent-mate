@@ -1,6 +1,6 @@
 # qbittorrent-api — Reference Documentation
 
-> Date : 2026-04-10 | Contexte : V1 INGEST — wrapper qBittorrent pour le pipeline PersonalScraper
+> Date : 2026-04-10 | Contexte : ingest — wrapper qBittorrent pour le pipeline PersonalScraper
 
 ## Qu'est-ce que qbittorrent-api ?
 

@@ -256,8 +256,8 @@ Si l'API ne trouve pas un résultat, MediaElch (application de bureau GUI) peut 
 ---
 
 | Unpack.py.bak | Variante d'unpack seul | Archivé |
-| TVDBNameToNum.py.bak | Matcher les noms d'épisodes via TheTVDB | Archivé → remplacé par V3 |
-| EpisodesTVDBNamer.py.bak | Renommage d'épisodes TVDB | Archivé → remplacé par V3 |
+| TVDBNameToNum.py.bak | Matcher les noms d'épisodes via TheTVDB | Archivé → remplacé par la version actuelle |
+| EpisodesTVDBNamer.py.bak | Renommage d'épisodes TVDB | Archivé → remplacé par la version actuelle |
 | videoCutter.py.bak | Couper des vidéos | Archivé |
 | videoMerger.py.bak | Fusionner des vidéos | Archivé |
 | SensCritiqueScrapper.py.bak | Scraping SensCritique | Archivé |

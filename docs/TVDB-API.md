@@ -1,6 +1,6 @@
 # TVDB API — Documentation de référence
 
-> TheTVDB API v4 — référence complète pour le pipeline PersonalScraper (V3-SCRAPE).
+> TheTVDB API v4 — référence complète pour le pipeline PersonalScraper (scrape step).
 >
 > Dernière mise à jour : 2026-04-10
 
@@ -1330,7 +1330,7 @@ Pas d'endpoint direct. Utiliser TMDB `/find/{tmdb_id}?external_source=tvdb_id` p
 
 ## Stratégie d'appels optimale
 
-### Pour une série TV (pipeline V3-SCRAPE)
+### Pour une série TV (pipeline scrape step)
 
 ```
 1. POST /login

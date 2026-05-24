@@ -763,18 +763,18 @@ done
 # Expected: 7 OK lines
 ```
 
-### ACC-47 — VX leaks resolved (DEV #48) 🟡
+### ACC-47 — VX leaks resolved (DEV #48) ✅
 
-**Status**: 🟡 PENDING (Phase 10 — remove stale version references from live docs)
+**Status**: ✅ SHIPPED (Phase 10.2 — 5 reference docs archived to legacy-alpha/ + 4 inline rewrites)
 
 ```bash
 rg "\bV[0-9]+\b" docs/*.md MANUAL.md | grep -v "docs/archive/"
 # Expected: zero
 ```
 
-### ACC-48 — \_exclusions.py docstring cleaned (DEV #44) 🟡
+### ACC-48 — \_exclusions.py docstring cleaned (DEV #44) ✅
 
-**Status**: 🟡 PENDING (Phase 10 — replace hardcoded paths with template vars)
+**Status**: ✅ SHIPPED (Phase 10.2.a — literal replaced with {movies_dir} placeholder)
 
 ```bash
 grep -c '"001-MOVIES/Inception' personalscraper/indexer/scanner/_exclusions.py
