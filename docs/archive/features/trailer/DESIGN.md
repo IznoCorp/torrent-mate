@@ -1,5 +1,16 @@
 # Design — YoutubeTrailerScraper Integration
 
+> **⚠ STATUS** : This DESIGN.md is an archived as-designed snapshot. Some claims are
+> superseded by later features. Mid-PR pivots cycle 3 changed §4 placement convention and
+> §14 blocking semantics. See `docs/reference/trailers.md` for the current source-of-truth.
+>
+> **Old → New mapping** :
+>
+> | Old (DESIGN.md)                                    | New (current)                                                   | Replaced by                  |
+> | -------------------------------------------------- | --------------------------------------------------------------- | ---------------------------- |
+> | §4 "flat `{name}-trailer.{ext}` for movies AND TV" | movies flat, TV in `Trailers/` subfolder (Plex-conformant)      | `feat/trailer` cycle 3 pivot |
+> | §14 "`status=partial` does NOT block dispatch"     | Blocking by default ; `--continue-on-trailer-error` to override | `feat/trailer` cycle 3 pivot |
+
 **Date**: 2026-04-23
 **Codename**: `trailer`
 **Type**: minor (feat)
