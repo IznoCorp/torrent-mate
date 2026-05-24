@@ -448,13 +448,20 @@ personalscraper library-doctor | grep "canonical_provider populated"
 # Expected: > 90%
 ```
 
-### ACC-35 — Module-size hard-block (DEV #46) 🟡
+### ACC-35 — Module-size hard-block (DEV #46) ✅
 
-**Status**: 🟡 PENDING (Phase 8.11 — promote check-module-size to hard-block on > 1000 LOC)
+**Status**: ✅ [SHIPPED commit `4695eb1` (Phase 8.11)] — Dead `--strict` flag removed (was defined but
+never inspected). Actual hard-block logic already existed: any module ≥ 1000 LOC triggers exit 1
+(via REPORT-level finding). `docs/reference/promises.md` documents the 800 WARN / 1000 BLOCK
+convention, close-to-block modules (tv_service.py 998, existing_validator.py 917), and the 0.17+
+split plan. Module splits deferred to 0.17+ per Phase 8 §8.11 Option B.
 
 ```bash
 python3 scripts/check-module-size.py
-# Expected: exit 1 if any module > 1000 LOC (soft-block on > 800 WARN, hard-block on > 1000 exit 1)
+# Expected: exit 1 if any module > 1000 LOC (REPORT-level), exit 0 for WARN-only.
+# Current (2026-05-24): exit 0 — tv_service.py 998, existing_validator.py 917 (both WARN, not BLOCK).
+make check
+# Expected: exit 0 — check-module-size exits 0 (no module ≥ 1000 LOC).
 ```
 
 ### ACC-36 — \_upsert_media_item dedup (DEV #53) 🟡
