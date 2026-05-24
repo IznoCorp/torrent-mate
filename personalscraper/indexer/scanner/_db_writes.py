@@ -17,8 +17,8 @@ from typing import Any
 
 from personalscraper.indexer import fingerprint
 from personalscraper.indexer.drift import clamp_mtime_ns
-from personalscraper.indexer.repos import disk_repo, file_repo
-from personalscraper.indexer.schema import MediaFileRow, PathRow
+from personalscraper.indexer.repos import disk_repo
+from personalscraper.indexer.schema import PathRow
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.scan")
@@ -127,61 +127,59 @@ def _upsert_file_row(
             provided, new rows are appended rather than inserted individually.
     """
     now_s = int(time.time())
-    existing = file_repo.find_by_path_and_filename(conn, path_id, filename)
-    if existing is None:
-        row_tuple = (
-            None,  # release_id — NULL during Stage A; release linkage in scrape phase
-            path_id,
-            filename,
-            size_bytes,
-            mtime_ns,
-            ctime_ns,
-            oshash_value,  # NULL for non-video/symlink files (Stage A); hex string for video
-            None,  # xxh3_partial
-            None,  # xxh3_full
-            generation,
-            now_s,  # last_verified_at
-            None,  # enriched_at — mediainfo extraction is in a later sub-phase
-            0,  # miss_strikes
-            None,  # deleted_at
-        )
-        if insert_buffer is not None:
-            insert_buffer.append(row_tuple)
-        else:
-            file_repo.insert(
-                conn,
-                MediaFileRow(
-                    id=0,
-                    release_id=row_tuple[0],
-                    path_id=row_tuple[1],
-                    filename=row_tuple[2],
-                    size_bytes=row_tuple[3],
-                    mtime_ns=row_tuple[4],
-                    ctime_ns=row_tuple[5],
-                    oshash=row_tuple[6],
-                    xxh3_partial=row_tuple[7],
-                    xxh3_full=row_tuple[8],
-                    scan_generation=row_tuple[9],
-                    last_verified_at=row_tuple[10],
-                    enriched_at=row_tuple[11],
-                    miss_strikes=row_tuple[12],
-                    deleted_at=row_tuple[13],
-                ),
-            )
-    else:
-        # Update mutable columns on a revisit (size, mtime, oshash, generation, verified).
-        # DEV #52: use COALESCE(?, oshash) so that a freshly-computed oshash fills
-        # NULL rows (retry succeeds), but a failed recomputation (oshash_value=None
-        # due to OSError) never wipes a previously-good hash value.
-        conn.execute(
-            """
-            UPDATE media_file
-            SET size_bytes = ?, mtime_ns = ?, ctime_ns = ?,
-                oshash = COALESCE(?, oshash), scan_generation = ?, last_verified_at = ?
-            WHERE id = ?
-            """,
-            (size_bytes, mtime_ns, ctime_ns, oshash_value, generation, now_s, existing.id),
-        )
+    row_tuple = (
+        None,  # release_id — NULL during Stage A; release linkage in scrape phase
+        path_id,
+        filename,
+        size_bytes,
+        mtime_ns,
+        ctime_ns,
+        oshash_value,  # NULL for non-video/symlink files (Stage A); hex string for video
+        None,  # xxh3_partial
+        None,  # xxh3_full
+        generation,
+        now_s,  # last_verified_at
+        None,  # enriched_at — mediainfo extraction is in a later sub-phase
+        0,  # miss_strikes
+        None,  # deleted_at
+    )
+    if insert_buffer is not None:
+        # Buffered new-row path — caller flushes via _flush_insert_buffer.
+        # Used only during cold full-scan when no row collisions are expected.
+        insert_buffer.append(row_tuple)
+        return
+
+    # Atomic INSERT-OR-UPDATE: relies on UNIQUE(path_id, filename) constraint
+    # added by migration 002. Eliminates the SELECT-then-INSERT/UPDATE TOCTOU
+    # window where two concurrent walkers (or a walker + enrich pass) could
+    # both observe "row missing" and race a duplicate INSERT.
+    #
+    # DEV #52 (preserved): oshash uses COALESCE(excluded.oshash, oshash) so a
+    # freshly-computed oshash fills NULL rows (retry succeeds), but a failed
+    # recomputation (oshash_value=None due to OSError) never wipes a previously
+    # -good hash value.
+    #
+    # On conflict, we update only the columns the previous UPDATE branch did
+    # (size_bytes, mtime_ns, ctime_ns, oshash, scan_generation, last_verified_at).
+    # Untouched columns (release_id, xxh3_*, enriched_at, miss_strikes,
+    # deleted_at) are intentionally preserved.
+    conn.execute(
+        """
+        INSERT INTO media_file (
+            release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns,
+            oshash, xxh3_partial, xxh3_full, scan_generation,
+            last_verified_at, enriched_at, miss_strikes, deleted_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(path_id, filename) DO UPDATE SET
+            size_bytes = excluded.size_bytes,
+            mtime_ns = excluded.mtime_ns,
+            ctime_ns = excluded.ctime_ns,
+            oshash = COALESCE(excluded.oshash, oshash),
+            scan_generation = excluded.scan_generation,
+            last_verified_at = excluded.last_verified_at
+        """,
+        row_tuple,
+    )
 
 
 # ---------------------------------------------------------------------------

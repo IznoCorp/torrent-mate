@@ -27,7 +27,7 @@ import json
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Protocol
 
 from personalscraper.api._helpers import ProviderFeatureUnavailable
 from personalscraper.core.event_bus import EventBus
@@ -48,14 +48,12 @@ from personalscraper.logger import get_logger
 log = get_logger("indexer.backfill_ids")
 
 
-@runtime_checkable
 class _RatingClient(Protocol):
     """Structural type for the IMDb / RT façades the driver consults."""
 
     def get_rating(self, provider_id: str) -> list[Any] | None: ...
 
 
-@runtime_checkable
 class _DetailsClient(Protocol):
     """Structural type for the TMDB / TVDB metadata clients used for ID cross-ref.
 
