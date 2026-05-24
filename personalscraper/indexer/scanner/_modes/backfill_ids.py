@@ -354,10 +354,8 @@ def _backfill_one(
         skip_reason = "no_imdb_anchor" if gap.missing_rating_sources else "already_complete"
         return False, [], [], skip_reason
 
-    stats.ids_added_count += len(ids_added)
-    stats.ratings_added_count += len(ratings_added)
-
     if dry_run:
+        # dry_run reports expected effect without actual DB write.
         log.info(
             "backfill_dry_run_would_update",
             item_id=item_id,
@@ -365,6 +363,8 @@ def _backfill_one(
             ids_added=ids_added,
             ratings_added=ratings_added,
         )
+        stats.ids_added_count += len(ids_added)
+        stats.ratings_added_count += len(ratings_added)
         return True, ids_added, ratings_added, None
 
     conn.execute(
@@ -372,6 +372,10 @@ def _backfill_one(
         "date_modified = strftime('%s', 'now') WHERE id = ?",
         (new_external_ids, new_ratings, item_id),
     )
+    # Counters reflect actual DB writes — incremented AFTER conn.execute
+    # so stats are accurate on OperationalError (11.2, M3).
+    stats.ids_added_count += len(ids_added)
+    stats.ratings_added_count += len(ratings_added)
     log.info(
         "backfill_item_updated",
         item_id=item_id,
