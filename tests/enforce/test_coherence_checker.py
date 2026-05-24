@@ -80,6 +80,35 @@ def test_clean_items_no_warnings(tmp_path, settings, test_config_at_tmp):
     assert len(warns) == 0
 
 
+def test_coherence_checker_skips_apple_double_in_movie_dir(tmp_path, settings, test_config_at_tmp):
+    """Regression: ``_check_movie`` must use ``glob_nfo_candidates``.
+
+    Before commit c296e41 (phase 11.3) ``_check_movie`` used a raw
+    ``movie_dir.glob("*.nfo")``.  On NTFS / SMB shares macOS creates
+    ``._<name>.nfo`` AppleDouble sidecars that sort BEFORE the real NFO
+    alphabetically, so ``nfos[0]`` was the binary blob and ``_check_nfo_ids``
+    silently parsed garbage — masking ID problems and emitting spurious
+    "missing IDs" warnings.
+
+    With the fix, the real NFO is selected and the IDs are correctly
+    validated → no spurious "missing" warning.
+    """
+    movie = tmp_path / "001-MOVIES" / "Inception (2010)"
+    movie.mkdir(parents=True)
+    # Binary AppleDouble sidecar that would shadow the real NFO under raw glob.
+    (movie / "._Inception (2010).nfo").write_bytes(b"\x00\x05\x16\x07\x00\x02\x00\x00Mac OS X        ")
+    # Real NFO with both required IDs — must be picked up by the checker.
+    (movie / "Inception (2010).nfo").write_text(
+        '<movie><uniqueid type="tmdb">27205</uniqueid><uniqueid type="imdb">tt1375666</uniqueid></movie>',
+        encoding="utf-8",
+    )
+
+    results = check_coherence(settings, test_config_at_tmp, dry_run=False)
+    missing_id_warns = [w for r in results for w in r.warnings if "missing" in w.lower() and "id" in w.lower()]
+
+    assert missing_id_warns == [], f"expected no missing-ID warnings, got {missing_id_warns}"
+
+
 def test_genre_emission_in_series_warns(tmp_path, settings, test_config_at_tmp):
     """NFO with French TMDB genre 'Émission' in 002-TVSHOWS → warning about tv_programs.
 
