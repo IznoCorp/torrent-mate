@@ -15,6 +15,9 @@ from unittest.mock import patch
 
 from personalscraper.indexer.scanner._modes.backfill_ids import BackfillStats
 from tests.commands._e2e_helpers import (
+    assert_json_schema,
+    assert_no_python_traceback,
+    capture_event_bus,
     json_from_result,
     make_synthetic_db,
     make_test_config_with_db,
@@ -328,3 +331,96 @@ def test_backfill_idempotent_on_already_complete_items(tmp_path, test_config) ->
     assert ratings_after == ratings_before, (
         f"Already-complete item's ratings_json was modified!\n  before: {ratings_before}\n  after:  {ratings_after}"
     )
+
+
+# ── 3. Errors ──
+
+
+def test_backfill_invalid_arg_exits_nonzero() -> None:
+    """Unknown flag → non-zero exit, no Python traceback."""
+    result = run_cli(["library-backfill-ids", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_backfill_db_path_none_exits_gracefully(test_config) -> None:
+    """Unconfigured ``indexer.db_path`` → exit 1, friendly message, no traceback."""
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-backfill-ids"])
+    assert result.exit_code != 0
+    assert "not configured" in result.output.lower() or "db_path" in result.output.lower()
+    assert_no_python_traceback(result)
+
+
+def test_backfill_corrupt_db_exits_gracefully(tmp_path, test_config) -> None:
+    """Corrupt (non-SQLite) DB file → graceful exit, no Python traceback."""
+    db_path = tmp_path / "corrupt.db"
+    db_path.write_text("this is not a sqlite database")
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-backfill-ids"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+# ── 6. Output ──
+
+
+def test_backfill_json_schema_valid(tmp_path, test_config) -> None:
+    """Output JSON matches expected schema for the backfill stats payload."""
+    db_path = make_synthetic_db(tmp_path)
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    _seed_backfill_items(conn)
+    conn.close()
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["--format", "json", "library-backfill-ids"])
+    assert result.exit_code == 0
+    data = assert_json_schema(
+        result,
+        required_keys=[
+            "dry_run",
+            "items_scanned",
+            "items_updated",
+            "items_skipped",
+            "items_failed",
+            "ids_added_count",
+            "ratings_added_count",
+        ],
+    )
+    assert isinstance(data["items_scanned"], int)
+    assert data["dry_run"] is False
+
+
+def test_backfill_error_exits_nonzero() -> None:
+    """Invalid flag → non-zero exit code."""
+    result = run_cli(["library-backfill-ids", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+
+
+# ── 7. Events ──
+
+
+def test_backfill_emits_progress_events(tmp_path, test_config, monkeypatch) -> None:
+    """Backfill pass emits BackfillStarted → per-item → BackfillCompleted events."""
+    db_path = make_synthetic_db(tmp_path)
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    _seed_backfill_items(conn)
+    conn.close()
+
+    captured = capture_event_bus(monkeypatch)
+    cfg = make_test_config_with_db(test_config, db_path)
+
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["--format", "json", "library-backfill-ids"])
+
+    assert result.exit_code == 0, result.output
+    assert isinstance(captured, list), f"captured should be a list, got {type(captured)}"
+    # Without API keys all clients are None → IDs side is no-op, ratings side
+    # skips.  Items are still iterated so BackfillStarted/Completed are emitted.
+    event_names = {type(e).__name__ for e in captured}
+    assert "BackfillStarted" in event_names, f"Missing BackfillStarted in {sorted(event_names)}"
+    assert "BackfillCompleted" in event_names, f"Missing BackfillCompleted in {sorted(event_names)}"
