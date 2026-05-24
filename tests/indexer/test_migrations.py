@@ -24,7 +24,7 @@ from personalscraper.indexer.db import IndexerMigrationError, apply_migrations, 
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations"
 FIXTURES_DIR = Path(__file__).parent / "migration_fixtures"
 
-# Expected tables created by migration 001.
+# Expected tables after all migrations are applied.
 _EXPECTED_TABLES_V1 = {
     "disk",
     "path",
@@ -43,6 +43,7 @@ _EXPECTED_TABLES_V1 = {
     "scan_event",
     "deleted_item",
     "schema_version",
+    "_migration_007_changes",
 }
 
 
@@ -115,8 +116,8 @@ class TestApplyMigrations001:
         apply_migrations(conn, MIGRATIONS_DIR)
         assert _user_version(conn) == 7
 
-    def test_all_17_tables_present(self, tmp_path: Path) -> None:
-        """After applying all migrations, all 17 expected tables exist."""
+    def test_all_tables_present(self, tmp_path: Path) -> None:
+        """After applying all migrations, all expected tables exist."""
         db_path = tmp_path / "lib.db"
         conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)
