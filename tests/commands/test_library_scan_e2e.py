@@ -11,6 +11,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tests.commands._e2e_helpers import (
+    assert_json_schema,
+    assert_no_python_traceback,
+    capture_event_bus,
     json_from_result,
     make_synthetic_db,
     make_test_config_with_db,
@@ -228,3 +231,79 @@ def test_scan_skips_hidden_dirs(tmp_path, test_config) -> None:
     titles = [r[0] for r in conn.execute("SELECT title FROM media_item").fetchall()]
     conn.close()
     assert len(titles) == 1, f"Expected only 1 media_item (hidden .Trashes skipped), got {titles}"
+
+
+# ── 6. Errors ──
+
+
+def test_scan_invalid_arg_exits_nonzero() -> None:
+    """Unknown flag → non-zero exit, no Python traceback."""
+    result = run_cli(["library-scan", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_scan_corrupt_db_exits_gracefully(tmp_path, test_config) -> None:
+    """Corrupt (non-SQLite) DB file → graceful exit, no traceback."""
+    db_path = tmp_path / "corrupt.db"
+    db_path.write_text("this is not a sqlite database")
+    cfg = make_test_config_with_db(test_config, db_path)
+    with (
+        patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+        patch(_PATCH_GUARD, return_value=None),
+    ):
+        result = run_cli(["library-scan"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_scan_nonexistent_disk_exits_gracefully(tmp_path, test_config) -> None:
+    """``--disk`` pointing to a non-existent disk → friendly error, no traceback."""
+    db_path = make_synthetic_db(tmp_path)
+    result = _run_scan(["--disk", "nonexistent_disk_xyz123"], test_config, db_path)
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+# ── 7. Output ──
+
+
+def test_scan_json_schema_valid(tmp_path, test_config) -> None:
+    """``--format json`` output matches expected schema (live mode)."""
+    db_path = make_synthetic_db(tmp_path)
+    mount = tmp_path / "drive_a"
+    _pre_seed_disk(db_path, "drive_a", mount)
+    cat_dir = mount / "cat_tv_shows"
+    _create_tvshow_on_disk(cat_dir, "Test Show (2022)")
+
+    result = _run_scan([], test_config, db_path)
+    assert result.exit_code == 0
+    assert_json_schema(result, required_keys=["status", "disk_filter"])
+
+
+def test_scan_error_exits_nonzero(tmp_path, test_config) -> None:
+    """Non-existent disk → non-zero exit code."""
+    db_path = make_synthetic_db(tmp_path)
+    result = _run_scan(["--disk", "nonexistent_disk_xyz123"], test_config, db_path)
+    assert result.exit_code != 0
+
+
+# ── 8. Events ──
+
+
+def test_scan_emits_library_scan_completed(tmp_path, test_config, monkeypatch) -> None:
+    """Scanner emits ``LibraryScanCompleted`` on the EventBus."""
+    db_path = make_synthetic_db(tmp_path)
+    mount = tmp_path / "drive_a"
+    _pre_seed_disk(db_path, "drive_a", mount)
+    cat_dir = mount / "cat_tv_shows"
+    _create_tvshow_on_disk(cat_dir, "Test Show (2022)")
+
+    captured = capture_event_bus(monkeypatch)
+
+    result = _run_scan([], test_config, db_path)
+    assert result.exit_code == 0, result.output
+
+    assert len(captured) >= 1, f"Expected at least 1 event, got {len(captured)}"
+    event_types = {type(e).__name__ for e in captured}
+    assert "LibraryScanCompleted" in event_types, f"LibraryScanCompleted not emitted. Captured: {event_types}"
