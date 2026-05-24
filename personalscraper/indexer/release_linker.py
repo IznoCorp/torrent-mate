@@ -105,8 +105,10 @@ def find_item_for_path(conn: sqlite3.Connection, abs_dir: str) -> tuple[int, str
     1. ``item_attribute.dispatch_path`` exact match — fastest and
        primary; works for items registered via dispatch.
     2. ``media_item.title`` exact match against the folder name —
-       catches items where dispatch indexed the folder as the title
-       (e.g. ``"Inception (2010)"``).
+       catches items where dispatch indexed the folder as the title.
+       Post-migration 007 the lookup uses ``_canonical_title()`` so
+       on-disk ``"Inception (2010)"`` matches stored ``"Inception"``
+       (year suffix stripped).
     3. ``media_item.(title, year)`` match after parsing ``Title (Year)``
        from the folder name — catches items registered via the
        library scanner (``parse_title_year`` strips the year suffix).

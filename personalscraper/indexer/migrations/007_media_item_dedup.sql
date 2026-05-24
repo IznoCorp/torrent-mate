@@ -100,10 +100,16 @@ SELECT m.id AS dup_id,
 
 -- 3a. media_release.item_id → FK with UNIQUE(item_id, episode_id, quality,
 --     edition, primary_lang).  Only reparent releases that do NOT collide
---     with a release the keeper already has for the same signature (IS
---     operator handles NULL-safe comparison matching SQLite UNIQUE semantics
---     where NULLs are distinct).  Colliding releases stay with the duplicate
---     and get CASCADE-deleted (keeper's version already covers that tuple).
+--     with a release the keeper already has for the same signature.
+--     NOTE: IS operator is stricter than SQLite UNIQUE — UNIQUE treats
+--     NULLs as distinct, IS treats them as equal.  This guard is therefore
+--     over-conservative on NULL-NULL pairs (releases with all-NULL
+--     signatures on both duplicate AND keeper get marked as conflict →
+--     duplicate's release gets CASCADE-deleted at step 5 instead of
+--     reparented).  Acceptable: prefers data deletion over UNIQUE-violation
+--     abort.
+--     Colliding releases stay with the duplicate and get CASCADE-deleted
+--     (keeper's version already covers that tuple).
 UPDATE media_release
    SET item_id = (
          SELECT keeper_id FROM _dedup_map WHERE dup_id = media_release.item_id

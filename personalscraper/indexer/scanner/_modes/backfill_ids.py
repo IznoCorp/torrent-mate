@@ -131,6 +131,9 @@ def run_backfill_ids(
             whose canonical provider is ``"tvdb"``.
         show_filter: Restrict the pass to the show whose title equals
             this string. Useful for the post-scrape auto-trigger.
+            After SF-H4 (PR #24), the filter is normalised via
+            ``_canonical_title`` (trailing `` (YYYY)`` suffix stripped)
+            to match post-migration-007 stored titles.
         ids_only: When ``True``, do not fetch ratings.
         ratings_only: When ``True``, do not fetch IDs.
         dry_run: When ``True``, every DB write is rolled back.

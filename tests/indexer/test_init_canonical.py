@@ -694,6 +694,11 @@ def test_no_default_skips_canonical_cohort_with_extracted_ids(tmp_path: Path) ->
     assert stats.external_ids_seeded_alone == 0
     assert stats.external_ids_seeded_with_canonical == 0
 
+    # Verify DB was not mutated (external_ids_json stays empty).
+    row = conn.execute("SELECT external_ids_json FROM media_item WHERE title = 'CR2_CanonCohort'").fetchone()
+    assert row is not None
+    assert json.loads(row["external_ids_json"]) == {}
+
 
 # Group 3 — broadened cohort routing (chicken-and-egg fix)
 

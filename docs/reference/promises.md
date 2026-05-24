@@ -25,7 +25,7 @@ the hard-block is auditable and the promise is closed.
 ## Close-to-block modules (2026-05-24)
 
 Last refreshed 2026-05-24 — regenerate via:
-`python3 scripts/check-module-size.py --report`.
+`python3 scripts/check-module-size.py`.
 
 Modules within 100 LOC of the 1000 BLOCK ceiling:
 
