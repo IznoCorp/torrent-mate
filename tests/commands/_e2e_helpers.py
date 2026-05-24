@@ -324,7 +324,7 @@ def _make_minimal_show_details() -> Any:
         title="Breaking Bad",
         original_title="Breaking Bad",
         year=2008,
-        overview="A high school chemistry teacher diagnosed with inoperable lung cancer turns to manufacturing methamphetamine.",
+        overview="A chemistry teacher diagnosed with cancer turns to manufacturing methamphetamine.",
         genres=["Drama", "Crime"],
         runtime_minutes=47,
         rating=9.5,
