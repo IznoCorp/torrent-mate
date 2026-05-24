@@ -12,6 +12,8 @@ import time
 from unittest.mock import patch
 
 from tests.commands._e2e_helpers import (
+    assert_json_schema,
+    assert_no_python_traceback,
     json_from_result,
     make_synthetic_db,
     make_test_config_with_db,
@@ -166,3 +168,68 @@ def test_search_unknown_field_exits_two(tmp_path, test_config) -> None:
     assert result.exit_code == 2, (
         f"Expected exit 2 for invalid operator on flex attr, got {result.exit_code}: {result.output}"
     )
+
+
+# ── 3. Errors ──
+
+
+def test_search_invalid_arg_exits_nonzero() -> None:
+    """Unknown flag → non-zero exit, no Python traceback."""
+    result = run_cli(["library-search", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_search_db_path_none_exits_gracefully(test_config) -> None:
+    """Unconfigured ``indexer.db_path`` → exit non-zero, no traceback."""
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-search", "year:2020"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_search_corrupt_db_exits_gracefully(tmp_path, test_config) -> None:
+    """Corrupt (non-SQLite) DB file → graceful exit, no Python traceback."""
+    db_path = tmp_path / "corrupt.db"
+    db_path.write_text("this is not a sqlite database")
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-search", "year:2020"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+# ── 6. Output ──
+
+
+def test_search_json_schema_valid(tmp_path, test_config) -> None:
+    """``--format json`` output matches expected schema."""
+    db_path = make_synthetic_db(tmp_path)
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    _seed_items(conn, [{"title": "Test Movie", "year": 2020, "nfo_status": "valid"}])
+    conn.close()
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["--format", "json", "library-search", "year:2020"])
+    assert result.exit_code == 0
+    data = assert_json_schema(result, required_keys=["rows", "count", "query", "limit"])
+    assert isinstance(data["rows"], list)
+    assert data["count"] == 1
+    assert data["query"] == "year:2020"
+
+
+def test_search_error_exits_nonzero() -> None:
+    """Invalid flag → non-zero exit code."""
+    result = run_cli(["library-search", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+
+
+# ── 7. Events ──
+
+# N/A: ``library-search`` is a read-only query command.  It opens the indexer
+# database with a minimal ``EventBus`` (solely for the free-space guard's
+# ``DiskFullWarning`` infrastructure event), runs a SELECT query, and returns
+# rows.  No domain event is published.  Read-only diagnostic commands like
+# ``library-doctor`` and ``library-status`` follow the same pattern.
