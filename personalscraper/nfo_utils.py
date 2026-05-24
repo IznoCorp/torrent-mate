@@ -8,6 +8,7 @@ scraper/scraper.py to enable cross-module access.
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
+from personalscraper._fs_utils import is_apple_double
 from personalscraper.logger import get_logger
 
 log = get_logger("nfo_utils")
@@ -28,13 +29,16 @@ def glob_nfo_candidates(base: Path) -> list[Path]:
     them to :class:`xml.etree.ElementTree` produces a ``ParseError``
     and masks the legitimate sibling NFO.
 
+    Delegates to :func:`personalscraper._fs_utils.is_apple_double` so the
+    AppleDouble convention has a single source of truth across the codebase.
+
     Args:
         base: Directory to glob (typically a media item's dispatch dir).
 
     Returns:
         Sorted list of real ``.nfo`` paths (zero or more).
     """
-    return sorted(f for f in base.glob("*.nfo") if not f.name.startswith("._"))
+    return sorted(f for f in base.glob("*.nfo") if not is_apple_double(f.name))
 
 
 def is_nfo_complete(nfo_path: Path) -> bool:

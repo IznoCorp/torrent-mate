@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import os
 
+from personalscraper._fs_utils import is_apple_double
+
 # ---------------------------------------------------------------------------
 # Excluded names
 # ---------------------------------------------------------------------------
@@ -44,7 +46,8 @@ def _should_exclude(name: str) -> bool:
     """Return True if a filesystem entry should be skipped during the walk.
 
     An entry is excluded if its bare name is in :data:`EXCLUDED_NAMES` or if it
-    starts with the ``"._"`` prefix used by macOS for resource-fork shadow files.
+    is a macOS AppleDouble metadata file (delegates to
+    :func:`personalscraper._fs_utils.is_apple_double` — single source of truth).
 
     Args:
         name: The bare entry name (no directory component).
@@ -52,7 +55,7 @@ def _should_exclude(name: str) -> bool:
     Returns:
         ``True`` if the entry must be skipped; ``False`` if it should be walked.
     """
-    return name in EXCLUDED_NAMES or name.startswith("._")
+    return name in EXCLUDED_NAMES or is_apple_double(name)
 
 
 # ---------------------------------------------------------------------------
