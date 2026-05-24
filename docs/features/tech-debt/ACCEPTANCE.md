@@ -613,6 +613,29 @@ personalscraper library-init-canonical --help 2>&1 | grep -q "external_ids_json"
 
 ---
 
+### ACC-OMDB-QUOTA — OMDB free-tier daily quota tracker (Phase 8.10.d)
+
+**Criterion**: OMDb adapter respects a persistent daily quota tracker;
+prevents HTTP 401 spam by gracefully skipping calls when within safety
+margin of the daily limit; recognizes runtime quota-exhaustion payload
+(401 with "Request limit reached!") and immediately marks day as
+exhausted to skip remaining calls.
+
+**Validation command**:
+
+```bash
+python -m pytest tests/unit/test_omdb_quota.py -v
+# Expected: 15 tests pass (fresh state, safety margin, date reset,
+# mark_exhausted, custom limit, atomic persist, corrupted state recovery)
+```
+
+**Source items**: Plan A backfill 2026-05-24 generated 2301 OMDB 401 warnings in log;
+user-requested fix to "limiter les requêtes IMDb pour éviter les 401"
+
+✅ [SHIPPED commits `c5b7332` + `807187e`]
+
+---
+
 ### ACC-SH-17 — Dead infrastructure audit (SH-17, CF-G) ✅
 
 **Status**: ✅ [SHIPPED commit `92c4d11` (Phase 8.4)]
