@@ -12,6 +12,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tests.commands._e2e_helpers import (
+    assert_json_schema,
+    assert_no_python_traceback,
     json_from_result,
     make_synthetic_db,
     make_test_config_with_db,
@@ -218,3 +220,77 @@ def test_report_format_json(tmp_path, test_config) -> None:
     assert "nfo_valid_count" in data
     assert "nfo_invalid_count" in data
     assert isinstance(data["total_items"], int)
+
+
+# ── 3. Errors ──
+
+
+def test_report_invalid_arg_exits_nonzero() -> None:
+    """Unknown flag → non-zero exit, no Python traceback."""
+    result = run_cli(["library-report", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_report_db_path_none_exits_gracefully(test_config) -> None:
+    """Unconfigured ``indexer.db_path`` → exit non-zero, no traceback."""
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-report"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_report_corrupt_db_exits_gracefully(tmp_path, test_config) -> None:
+    """Corrupt (non-SQLite) DB file → graceful exit, no Python traceback."""
+    db_path = tmp_path / "corrupt.db"
+    db_path.write_text("this is not a sqlite database")
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-report"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+# ── 6. Output ──
+
+
+def test_report_json_schema_valid(tmp_path, test_config) -> None:
+    """``--format json`` output matches expected schema."""
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    disk_id = seed_disk(conn, "drive_a", tmp_path / "drive_a")
+    _seed_report_item(conn, disk_id, tmp_path / "drive_a", title="Test (2024)", category_id="movies", kind="movie")
+    conn.close()
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["--format", "json", "library-report"])
+    assert result.exit_code == 0
+    data = assert_json_schema(
+        result,
+        required_keys=[
+            "generated_at",
+            "total_items",
+            "total_size_gb",
+            "items_per_disk",
+            "items_per_category",
+        ],
+    )
+    assert isinstance(data["total_items"], int)
+
+
+def test_report_error_exits_nonzero(test_config) -> None:
+    """Error condition → non-zero exit code."""
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-report"])
+    assert result.exit_code != 0
+
+
+# ── 7. Events ──
+
+# N/A: ``library-report`` is a read-only aggregate diagnostic command.  It
+# queries the indexer database for totals/sizes/distributions and optionally
+# merges supplementary JSON files (library_validation.json,
+# library_recommendations.json).  No domain event is published.
