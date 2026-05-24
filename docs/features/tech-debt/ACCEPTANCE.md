@@ -752,9 +752,9 @@ python3 scripts/cli-coverage-report.py --section "Events" --filter critical
 
 ## Archive doc updates (Phase 10 — ex-Phase 9, renumérotée)
 
-### ACC-46 — 7 archived DESIGN.md have banner (P30) 🟡
+### ACC-46 — 7 archived DESIGN.md have banner (P30) ✅
 
-**Status**: 🟡 PARTIAL (4/7 shipped: logging in 10.1.f, event-bus+provider-ids+media-indexer in 10.1/1; remaining pipeline-obs+trailer+legacy-cleanup in 10.1/2)
+**Status**: ✅ SHIPPED — 7/7 banners done (event-bus+provider-ids+media-indexer in 10.1/1; pipeline-obs+trailer+logging+legacy-cleanup in 10.1/2)
 
 ```bash
 for f in event-bus provider-ids media-indexer pipeline-obs trailer logging legacy-cleanup; do
