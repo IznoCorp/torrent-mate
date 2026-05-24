@@ -575,6 +575,126 @@ def test_merge_empty_starts_with_nfo_ids(tmp_path: Path) -> None:
     assert stats.external_ids_already_present == 0
 
 
+# Group 2b — CR-2: no_default / unsupported_no_fallback still seed external_ids
+# for the chicken-and-egg cohort
+
+
+def test_no_default_still_seeds_external_ids_for_chicken_egg(tmp_path: Path) -> None:
+    """CR-2: canonical='tvdb' + NFO with no default uniqueid → external_ids seeded.
+
+    The NFO has uniqueid elements without default="true" (outcome=no_default).
+    The canonical_provider is already set, so the item is in the chicken-and-egg
+    cohort. Pre-fix: the early-continue prevented seeding. Post-fix: extracted_ids
+    are merge-added to external_ids_json.
+    """
+    conn = _open_mem_db()
+    folder = tmp_path / "cr2_no_default"
+    _write_nfo(
+        folder,
+        "show",
+        '<?xml version="1.0"?><tvshow>'
+        '<uniqueid type="tvdb">42</uniqueid>'  # no default attr
+        '<uniqueid type="tmdb">99</uniqueid>'
+        "</tvshow>",
+    )
+    item_id = _seed_item_full(
+        conn,
+        title="CR2_NoDefault",
+        canonical_provider="tvdb",
+        external_ids_json="{}",
+        dispatch_path=str(folder),
+    )
+    conn.commit()
+
+    stats = init_canonical_from_nfo(conn)
+    conn.commit()
+
+    row = conn.execute(
+        "SELECT canonical_provider, external_ids_json FROM media_item WHERE id = ?",
+        (item_id,),
+    ).fetchone()
+    assert row["canonical_provider"] == "tvdb"  # unchanged
+    eids = json.loads(row["external_ids_json"])
+    assert eids["tvdb"] == {"series_id": "42", "episode_id": None}
+    assert eids["tmdb"] == {"series_id": "99", "episode_id": None}
+    assert stats.no_default_uniqueid == 1
+    assert stats.populated == 0  # canonical was already set
+    assert stats.external_ids_seeded_alone == 1
+
+
+def test_unsupported_no_fallback_still_seeds_external_ids_for_chicken_egg(
+    tmp_path: Path,
+) -> None:
+    """CR-2: canonical='tvdb' + NFO with only unsupported IDs → external_ids seeded.
+
+    NFO has default=imdb with no tvdb/tmdb sibling (outcome=unsupported_no_fallback).
+    The imdb ID is still extracted and should be seeded for the chicken-and-egg cohort.
+    """
+    conn = _open_mem_db()
+    folder = tmp_path / "cr2_unsupported"
+    _write_nfo(
+        folder,
+        "show",
+        '<?xml version="1.0"?><tvshow>'
+        '<uniqueid default="true" type="imdb">tt12345</uniqueid>'
+        '<uniqueid type="anidb">999</uniqueid>'  # excluded from the 3-family set
+        "</tvshow>",
+    )
+    item_id = _seed_item_full(
+        conn,
+        title="CR2_Unsupported",
+        canonical_provider="tvdb",
+        external_ids_json="{}",
+        dispatch_path=str(folder),
+    )
+    conn.commit()
+
+    stats = init_canonical_from_nfo(conn)
+    conn.commit()
+
+    row = conn.execute(
+        "SELECT canonical_provider, external_ids_json FROM media_item WHERE id = ?",
+        (item_id,),
+    ).fetchone()
+    assert row["canonical_provider"] == "tvdb"  # unchanged
+    eids = json.loads(row["external_ids_json"])
+    # imdb IS in the 3-family set; anidb is not.
+    assert eids["imdb"] == {"series_id": "tt12345", "episode_id": None}
+    assert stats.unsupported_no_fallback == 1
+    assert stats.populated == 0  # canonical was already set
+    assert stats.external_ids_seeded_alone == 1
+
+
+def test_no_default_skips_canonical_cohort_with_extracted_ids(tmp_path: Path) -> None:
+    """CR-2: needs_canonical=True + no_default → skipped (no provider to set)."""
+    conn = _open_mem_db()
+    folder = tmp_path / "cr2_canonical_cohort"
+    _write_nfo(
+        folder,
+        "show",
+        '<?xml version="1.0"?><tvshow>'
+        '<uniqueid type="tvdb">42</uniqueid>'  # no default attr
+        "</tvshow>",
+    )
+    _seed_item_full(
+        conn,
+        title="CR2_CanonCohort",
+        canonical_provider=None,  # ← needs_canonical=True
+        external_ids_json="{}",
+        dispatch_path=str(folder),
+    )
+    conn.commit()
+
+    stats = init_canonical_from_nfo(conn)
+    conn.commit()
+
+    # Should NOT seed external_ids because canonical_provider is still NULL.
+    assert stats.no_default_uniqueid == 1
+    assert stats.populated == 0
+    assert stats.external_ids_seeded_alone == 0
+    assert stats.external_ids_seeded_with_canonical == 0
+
+
 # Group 3 — broadened cohort routing (chicken-and-egg fix)
 
 

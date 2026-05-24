@@ -806,19 +806,30 @@ def init_canonical_from_nfo(conn: sqlite3.Connection, dry_run: bool = False) -> 
         if outcome == "read_error":
             stats.nfo_read_error += 1
             continue
-        if outcome == "no_default":
-            stats.no_default_uniqueid += 1
-            continue
-        if outcome == "unsupported_no_fallback":
-            stats.unsupported_no_fallback += 1
-            continue
-        # canonical is guaranteed non-None for ok_default / ok_fallback.
-        assert canonical is not None
-        if needs_canonical:
-            if outcome == "ok_default":
-                stats.populated_default += 1
-            else:  # ok_fallback
-                stats.populated_fallback += 1
+
+        # Seed external_ids for the chicken-and-egg cohort even when
+        # canonical resolution fails (no_default, unsupported_no_fallback).
+        # The canonical_provider is already set; we only need the cross-
+        # provider IDs from the NFO.  For the canonical cohort these
+        # outcomes are terminal (no provider to set → nothing to do).
+        seeding_only = outcome in ("no_default", "unsupported_no_fallback")
+        if seeding_only:
+            if outcome == "no_default":
+                stats.no_default_uniqueid += 1
+            else:
+                stats.unsupported_no_fallback += 1
+            if needs_canonical or not extracted_ids:
+                continue
+            # Fall through — skip canonical settlement + population stats;
+            # only the merge-additive seeding block below runs.
+        else:
+            # canonical is guaranteed non-None for ok_default / ok_fallback.
+            assert canonical is not None
+            if needs_canonical:
+                if outcome == "ok_default":
+                    stats.populated_default += 1
+                else:  # ok_fallback
+                    stats.populated_fallback += 1
 
         # Merge-additive external_ids_json from extracted_ids
         seeded_families: list[str] = []
