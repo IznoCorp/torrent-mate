@@ -87,6 +87,7 @@ TEST_FUNC_RE = re.compile(r"^\s*def\s+test_\w+")
 NON_CRITICAL_COMMANDS: set[str] = {
     "torrents-list",
     "trailers-list",
+    "trailers-scan",
     "trailers-verify",
     "info",
     "library-search",

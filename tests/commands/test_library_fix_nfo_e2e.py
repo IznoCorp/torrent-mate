@@ -497,6 +497,15 @@ def test_fix_nfo_does_not_mutate_db(tmp_path: Path, test_config) -> None:
     assert before_hash == after_hash, "DB was mutated by library-fix-nfo"
 
 
+# ── 9. Events ──
+
+# N/A: ``library-fix-nfo`` operates on NFO files directly via filesystem I/O
+# (pathlib / xml.etree).  It never creates an EventBus or emits any domain
+# event — no ``FixNfoCompleted`` event class exists in the codebase.  The
+# command's result is fully observable through its JSON output counters
+# (apply / items_scanned / fixed / already_ok / unsafe_trailing / ...).
+
+
 def _db_sha256(db_path: Path) -> str:
     """Return SHA-256 hex digest of the DB file."""
     import hashlib
