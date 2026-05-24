@@ -1,5 +1,18 @@
 # Design — Provider-IDs (Multi-Provider IDs Propagation + Capabilities Refactor)
 
+> **⚠ STATUS** : This DESIGN.md is an archived as-designed snapshot. Some claims are
+> superseded by later features. See `docs/reference/external-ids-flow.md` for the current source-of-truth.
+>
+> **Old → New mapping** :
+>
+> | Old (DESIGN.md)                                                     | New (current)                                                                                  | Replaced by                                                                                                                       |
+> | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+> | Plan A reset+rescrape mentioned in DESIGN as future op              | Executed in tech-debt 8.10 cycle                                                               | tech-debt 8.10.b/c/d (`173d529`, `82b32de`, `3a971f1`, `3cfffbb`, `c5b7332`, `807187e`, `52ad7ae`) + operator backfill 2026-05-24 |
+> | ACCEPTANCE #3 (init-canonical CLI present)                          | Shipped as `library-init-canonical`                                                            | 0.15.1 + tech-debt 8.10.c chicken-and-egg fix                                                                                     |
+> | ACCEPTANCE #6 (backfill-ids CLI present)                            | Shipped as `library-backfill-ids`                                                              | 0.15.1                                                                                                                            |
+> | ACCEPTANCE #9 (canonical_provider > 90% post-backfill)              | 91.3% achieved                                                                                 | operator Plan A retry 2026-05-24 (after 8.10.b/c/d unlock)                                                                        |
+> | Implicit: `external_ids_json` populated by init-canonical OR scrape | Bug — chicken-and-egg, init-canonical wrote `canonical_provider` only, not `external_ids_json` | tech-debt 8.10.c (`82b32de`+`3a971f1`+`3cfffbb`) fixes init-canonical to seed both                                                |
+
 **Codename**: `provider-ids`
 **SemVer**: minor (0.14.0 → 0.15.0)
 **Branch target**: `feat/provider-ids`
