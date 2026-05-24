@@ -82,12 +82,24 @@ def seed_phantom_path(
     return path_id
 
 
+_SEED_TITLE_COUNTER = 0
+
+
 def seed_media_item_with_release(
     conn: sqlite3.Connection,
-    title: str = "Test Movie",
+    title: str | None = None,
     category_id: str = "movies",
 ) -> int:
-    """Insert a minimal media_item + media_release pair and return the release_id."""
+    """Insert a minimal media_item + media_release pair and return the release_id.
+
+    When ``title`` is ``None`` (default), generates a unique title via a global
+    monotonic counter to satisfy migration 007's ``UNIQUE(title, kind)`` constraint
+    when called multiple times from the same test.
+    """
+    global _SEED_TITLE_COUNTER
+    if title is None:
+        _SEED_TITLE_COUNTER += 1
+        title = f"Test Movie {_SEED_TITLE_COUNTER}"
     now = int(time.time())
     cursor = conn.execute(
         "INSERT INTO media_item (kind, title, title_sort, category_id, date_created, date_modified) "

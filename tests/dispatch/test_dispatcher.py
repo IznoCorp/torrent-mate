@@ -1509,7 +1509,10 @@ class TestResolveExistingOnFilesystem:
 
         result = d._resolve_existing_on_filesystem("Movie (2024)", "movie")
         assert result is not None
-        assert result.name == "Movie (2024)"
+        # Title is canonicalized at storage (tech-debt 8.12 _upsert_media_item
+        # strips " (YYYY)" suffix to dedup rows): "Movie (2024)" → "Movie".
+        # The on-disk dispatch_path attribute preserves the full original folder name.
+        assert result.name == "Movie"
         assert result.disk == "disk"
 
     def test_entry_stale_path_moved_to_another_disk(
