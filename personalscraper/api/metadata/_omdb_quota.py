@@ -151,9 +151,7 @@ class OmdbQuotaTracker:
         try:
             if self._state_path.exists():
                 raw = json.loads(self._state_path.read_text(encoding="utf-8"))
-                if isinstance(raw, dict) and all(
-                    k in raw for k in ("date", "count", "limit", "exhausted")
-                ):
+                if isinstance(raw, dict) and all(k in raw for k in ("date", "count", "limit", "exhausted")):
                     return {
                         "date": str(raw["date"]),
                         "count": int(raw["count"]),

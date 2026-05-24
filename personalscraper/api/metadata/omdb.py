@@ -133,14 +133,9 @@ class OMDbAdapter(MetadataClient):
         Distinguished from a genuine auth failure (invalid API key) by
         the substring in the error body.
         """
-        return (
-            exc.http_status == 401
-            and "request limit reached" in exc.message.lower()
-        )
+        return exc.http_status == 401 and "request limit reached" in exc.message.lower()
 
-    def _quota_aware_get(
-        self, params: dict[str, Any], *, method: str, item_id: str
-    ) -> dict[str, Any] | None:
+    def _quota_aware_get(self, params: dict[str, Any], *, method: str, item_id: str) -> dict[str, Any] | None:
         """GET with quota gating. Returns None when quota blocks the call.
 
         Args:
@@ -161,9 +156,7 @@ class OMDbAdapter(MetadataClient):
             return _assert_dict(self._transport.get(params=params))
         except ApiError as exc:
             if self._quota is not None and self._is_quota_exhaustion(exc):
-                self._quota.mark_exhausted(
-                    f"HTTP 401 during {method}({item_id})"
-                )
+                self._quota.mark_exhausted(f"HTTP 401 during {method}({item_id})")
                 log.warning(
                     "omdb_quota_exhausted_runtime",
                     method=method,
@@ -226,9 +219,7 @@ class OMDbAdapter(MetadataClient):
             data = _assert_dict(self._transport.get(params={"i": media_id}))
         except ApiError as exc:
             if self._quota is not None and self._is_quota_exhaustion(exc):
-                self._quota.mark_exhausted(
-                    f"HTTP 401 during get_details({media_id})"
-                )
+                self._quota.mark_exhausted(f"HTTP 401 during get_details({media_id})")
                 log.warning(
                     "omdb_quota_exhausted_runtime",
                     method="get_details",
@@ -257,9 +248,7 @@ class OMDbAdapter(MetadataClient):
             List of Notations (one per source), or None if no ratings
             or quota exhausted.
         """
-        data = self._quota_aware_get(
-            {"i": media_id}, method="get_notations", item_id=media_id
-        )
+        data = self._quota_aware_get({"i": media_id}, method="get_notations", item_id=media_id)
         if data is None:
             return None
         return _parse_notations(data, provider=self.provider_name)

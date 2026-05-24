@@ -405,7 +405,8 @@ def test_init_canonical_stats_dataclass_populated_property() -> None:
 def test_extracted_ids_tvdb_only(tmp_path: Path) -> None:
     """NFO with single tvdb uniqueid → extracted_ids == {"tvdb": "12345"}."""
     nfo = _write_nfo(
-        tmp_path, "show",
+        tmp_path,
+        "show",
         '<?xml version="1.0"?><tvshow><uniqueid default="true" type="tvdb">12345</uniqueid></tvshow>',
     )
     _provider, _outcome, ids = _parse_canonical_from_nfo(nfo)
@@ -415,7 +416,8 @@ def test_extracted_ids_tvdb_only(tmp_path: Path) -> None:
 def test_extracted_ids_all_three_families(tmp_path: Path) -> None:
     """NFO with tvdb + tmdb + imdb → extracted_ids includes all three regardless of default attr."""
     nfo = _write_nfo(
-        tmp_path, "show",
+        tmp_path,
+        "show",
         '<?xml version="1.0"?><tvshow>'
         '<uniqueid default="true" type="tvdb">1</uniqueid>'
         '<uniqueid type="tmdb">2</uniqueid>'
@@ -429,12 +431,13 @@ def test_extracted_ids_all_three_families(tmp_path: Path) -> None:
 def test_extracted_ids_invalid_values_skipped(tmp_path: Path) -> None:
     """Values '0', 'none', and empty string are excluded from extracted_ids."""
     nfo = _write_nfo(
-        tmp_path, "show",
+        tmp_path,
+        "show",
         '<?xml version="1.0"?><tvshow>'
         '<uniqueid default="true" type="tvdb">42</uniqueid>'
         '<uniqueid type="tvdb">0</uniqueid>'
         '<uniqueid type="tvdb">none</uniqueid>'
-        "<uniqueid type=\"tvdb\"></uniqueid>"
+        '<uniqueid type="tvdb"></uniqueid>'
         "</tvshow>",
     )
     _provider, _outcome, ids = _parse_canonical_from_nfo(nfo)
@@ -444,11 +447,12 @@ def test_extracted_ids_invalid_values_skipped(tmp_path: Path) -> None:
 def test_extracted_ids_unsupported_type_excluded(tmp_path: Path) -> None:
     """Anidb and tvmaze types are excluded; only tvdb/tmdb/imdb are supported."""
     nfo = _write_nfo(
-        tmp_path, "show",
+        tmp_path,
+        "show",
         '<?xml version="1.0"?><tvshow>'
         '<uniqueid default="true" type="tvdb">1</uniqueid>'
         '<uniqueid type="anidb">567</uniqueid>'
-        "<uniqueid type=\"tvmaze\">99</uniqueid>"
+        '<uniqueid type="tvmaze">99</uniqueid>'
         "</tvshow>",
     )
     _provider, _outcome, ids = _parse_canonical_from_nfo(nfo)
@@ -470,14 +474,16 @@ def test_merge_does_not_overwrite_existing(tmp_path: Path) -> None:
     conn = _open_mem_db()
     folder = tmp_path / "merge_no_overwrite"
     _write_nfo(
-        folder, "show",
+        folder,
+        "show",
         '<?xml version="1.0"?><tvshow>'
         '<uniqueid default="true" type="tvdb">12345</uniqueid>'
         '<uniqueid type="tmdb">67890</uniqueid>'
         "</tvshow>",
     )
     item_id = _seed_item_full(
-        conn, title="MergeNoOverwrite",
+        conn,
+        title="MergeNoOverwrite",
         canonical_provider=None,
         external_ids_json='{"tmdb": {"series_id": "OLD_TMDB", "episode_id": null}}',
         dispatch_path=str(folder),
@@ -504,14 +510,16 @@ def test_merge_adds_missing_families(tmp_path: Path) -> None:
     conn = _open_mem_db()
     folder = tmp_path / "merge_add_missing"
     _write_nfo(
-        folder, "show",
+        folder,
+        "show",
         '<?xml version="1.0"?><tvshow>'
         '<uniqueid default="true" type="tvdb">1</uniqueid>'
         '<uniqueid type="tmdb">2</uniqueid>'
         "</tvshow>",
     )
     item_id = _seed_item_full(
-        conn, title="MergeAddMissing",
+        conn,
+        title="MergeAddMissing",
         canonical_provider=None,
         external_ids_json='{"tvdb": {"series_id": "1", "episode_id": null}}',
         dispatch_path=str(folder),
@@ -522,7 +530,8 @@ def test_merge_adds_missing_families(tmp_path: Path) -> None:
     conn.commit()
 
     row = conn.execute(
-        "SELECT external_ids_json FROM media_item WHERE id = ?", (item_id,),
+        "SELECT external_ids_json FROM media_item WHERE id = ?",
+        (item_id,),
     ).fetchone()
     eids = json.loads(row["external_ids_json"])
     assert eids["tvdb"] == {"series_id": "1", "episode_id": None}
@@ -536,14 +545,16 @@ def test_merge_empty_starts_with_nfo_ids(tmp_path: Path) -> None:
     conn = _open_mem_db()
     folder = tmp_path / "merge_empty"
     _write_nfo(
-        folder, "show",
+        folder,
+        "show",
         '<?xml version="1.0"?><tvshow>'
         '<uniqueid default="true" type="tvdb">1</uniqueid>'
         '<uniqueid type="tmdb">2</uniqueid>'
         "</tvshow>",
     )
     item_id = _seed_item_full(
-        conn, title="MergeEmpty",
+        conn,
+        title="MergeEmpty",
         canonical_provider=None,
         external_ids_json="{}",
         dispatch_path=str(folder),
@@ -554,7 +565,8 @@ def test_merge_empty_starts_with_nfo_ids(tmp_path: Path) -> None:
     conn.commit()
 
     row = conn.execute(
-        "SELECT external_ids_json FROM media_item WHERE id = ?", (item_id,),
+        "SELECT external_ids_json FROM media_item WHERE id = ?",
+        (item_id,),
     ).fetchone()
     eids = json.loads(row["external_ids_json"])
     assert eids["tvdb"] == {"series_id": "1", "episode_id": None}
@@ -577,14 +589,16 @@ def test_chicken_and_egg_seeded_alone(tmp_path: Path) -> None:
     conn = _open_mem_db()
     folder = tmp_path / "chicken_egg"
     _write_nfo(
-        folder, "show",
+        folder,
+        "show",
         '<?xml version="1.0"?><tvshow>'
         '<uniqueid default="true" type="tvdb">12345</uniqueid>'
         '<uniqueid type="tmdb">67890</uniqueid>'
         "</tvshow>",
     )
     item_id = _seed_item_full(
-        conn, title="ChickenEgg",
+        conn,
+        title="ChickenEgg",
         canonical_provider="tvdb",
         external_ids_json="{}",
         dispatch_path=str(folder),
@@ -612,14 +626,16 @@ def test_null_canonical_seeded_with_canonical(tmp_path: Path) -> None:
     conn = _open_mem_db()
     folder = tmp_path / "null_canonical"
     _write_nfo(
-        folder, "show",
+        folder,
+        "show",
         '<?xml version="1.0"?><tvshow>'
         '<uniqueid default="true" type="tvdb">12345</uniqueid>'
         '<uniqueid type="tmdb">67890</uniqueid>'
         "</tvshow>",
     )
     item_id = _seed_item_full(
-        conn, title="NullCanonical",
+        conn,
+        title="NullCanonical",
         canonical_provider=None,
         external_ids_json="{}",
         dispatch_path=str(folder),
@@ -647,11 +663,13 @@ def test_items_with_canonical_and_external_ids_not_visited(tmp_path: Path) -> No
     conn = _open_mem_db()
     folder = tmp_path / "not_visited"
     _write_nfo(
-        folder, "show",
+        folder,
+        "show",
         '<?xml version="1.0"?><tvshow><uniqueid default="true" type="tvdb">1</uniqueid></tvshow>',
     )
     _seed_item_full(
-        conn, title="NotVisited",
+        conn,
+        title="NotVisited",
         canonical_provider="tvdb",
         external_ids_json='{"tvdb": {"series_id": "X", "episode_id": null}}',
         dispatch_path=str(folder),
@@ -670,14 +688,16 @@ def test_dry_run_does_not_write_external_ids(tmp_path: Path) -> None:
     conn = _open_mem_db()
     folder = tmp_path / "dry_run"
     _write_nfo(
-        folder, "show",
+        folder,
+        "show",
         '<?xml version="1.0"?><tvshow>'
         '<uniqueid default="true" type="tvdb">12345</uniqueid>'
         '<uniqueid type="tmdb">67890</uniqueid>'
         "</tvshow>",
     )
     item_id = _seed_item_full(
-        conn, title="DryRun",
+        conn,
+        title="DryRun",
         canonical_provider="tvdb",
         external_ids_json="{}",
         dispatch_path=str(folder),

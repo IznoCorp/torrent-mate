@@ -65,12 +65,14 @@ class TestDateReset:
         yesterday = (datetime.now(tz=timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
         # Pre-seed a near-exhausted state from yesterday
         state_file.write_text(
-            json.dumps({
-                "date": yesterday,
-                "count": 998,
-                "limit": _DEFAULT_LIMIT,
-                "exhausted": False,
-            })
+            json.dumps(
+                {
+                    "date": yesterday,
+                    "count": 998,
+                    "limit": _DEFAULT_LIMIT,
+                    "exhausted": False,
+                }
+            )
         )
         tracker = OmdbQuotaTracker(state_path=state_file)
         # First reserve should reset to today and allow the call
@@ -84,12 +86,14 @@ class TestDateReset:
         state_file = tmp_path / ".omdb-quota.json"
         yesterday = (datetime.now(tz=timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
         state_file.write_text(
-            json.dumps({
-                "date": yesterday,
-                "count": 1000,
-                "limit": _DEFAULT_LIMIT,
-                "exhausted": True,
-            })
+            json.dumps(
+                {
+                    "date": yesterday,
+                    "count": 1000,
+                    "limit": _DEFAULT_LIMIT,
+                    "exhausted": True,
+                }
+            )
         )
         tracker = OmdbQuotaTracker(state_path=state_file)
         assert tracker.reserve_call() is True
@@ -185,12 +189,16 @@ class TestCorruptedState:
     def test_state_file_bad_types_resets(self, tmp_path: Path) -> None:
         """Count is a string instead of int → fresh state."""
         state_file = tmp_path / ".omdb-quota.json"
-        state_file.write_text(json.dumps({
-            "date": "2026-01-01",
-            "count": "not_a_number",
-            "limit": 1000,
-            "exhausted": False,
-        }))
+        state_file.write_text(
+            json.dumps(
+                {
+                    "date": "2026-01-01",
+                    "count": "not_a_number",
+                    "limit": 1000,
+                    "exhausted": False,
+                }
+            )
+        )
         tracker = OmdbQuotaTracker(state_path=state_file)
         assert tracker.reserve_call() is True
 
