@@ -623,3 +623,34 @@ def _db_sha256(db_path: Path) -> str:
     import hashlib
 
     return hashlib.sha256(db_path.read_bytes()).hexdigest()
+
+
+# ── 11. NEW-5 accumulator ↔ Literal coupling regression test ────────────────────
+
+
+def test_outcome_literal_matches_accumulator_fields() -> None:
+    """_Outcome Literal members match _FixNfoAccumulator incrementable fields.
+
+    4-way coupling: _Outcome ↔ _FixNfoAccumulator ↔ FixNfoStats ↔ to_stats().
+    Adding a new outcome must update all four; this test catches drift.
+
+    ``items_scanned`` is excluded — it is set once at init (never via ``.inc()``).
+    """
+    import typing
+    from dataclasses import fields
+
+    from personalscraper.commands.library.fix_nfo import (
+        _FixNfoAccumulator,
+        _Outcome,
+    )
+
+    accum_fields = {f.name for f in fields(_FixNfoAccumulator)}
+    outcome_members = set(typing.get_args(_Outcome))
+    # items_scanned is init-only, not incremented via .inc().
+    inc_fields = accum_fields - {"items_scanned"}
+    assert inc_fields == outcome_members, (
+        f"Drift detected between _FixNfoAccumulator incrementable fields "
+        f"({sorted(inc_fields)}) and _Outcome Literal members "
+        f"({sorted(outcome_members)}). "
+        f"Symmetric diff: {inc_fields ^ outcome_members}"
+    )
