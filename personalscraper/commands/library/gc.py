@@ -107,6 +107,9 @@ def library_gc(
             "DELETE FROM index_outbox WHERE status='done' AND processed_at < ?",
             (cutoff_ts,),
         )
+        # open_db uses isolation_level=None (autocommit); the DELETE above
+        # auto-commits. This call is kept as defensive scaffolding in case
+        # open_db ever switches to transactional mode.
         conn.commit()
     finally:
         conn.close()
