@@ -158,6 +158,8 @@ def run_backfill_ids(
             "backfill_ids_path_disabled_no_canonical_client",
             hint="Pass tmdb_client and/or tvdb_client to enable cross-provider ID backfill.",
         )
+    from personalscraper.api.metadata.omdb import OmdbQuotaExhausted  # noqa: PLC0415
+
     for row in rows:
         stats.items_scanned += 1
         try:
@@ -173,6 +175,29 @@ def run_backfill_ids(
                 dry_run=dry_run,
                 stats=stats,
             )
+        except OmdbQuotaExhausted as exc:
+            # OMDB daily budget gone — every subsequent row would hit
+            # the same exception (one wasted HTTP per row for the
+            # runtime-detected branch). Disable both façades for the
+            # remainder of the pass; the IDs side keeps going since it
+            # uses TMDB/TVDB, not OMDB.
+            log.warning(
+                "backfill_ratings_disabled_quota_exhausted",
+                pre_call=exc.pre_call,
+                item_id=row["id"],
+                title=row["title"],
+            )
+            imdb_client = None
+            rt_client = None
+            stats.items_skipped += 1
+            event_bus.emit(
+                BackfillSkipped(
+                    item_id=row["id"],
+                    item_title=row["title"],
+                    reason="omdb_quota_exhausted",
+                )
+            )
+            continue
         except Exception as exc:  # noqa: BLE001 — fail-soft contract
             log.exception(
                 "backfill_item_failed",
@@ -493,10 +518,20 @@ def _fetch_ratings(
 
 
 def _call_rating_client(client: _RatingClient, provider_id: str) -> list[dict[str, Any]]:
-    """Call ``client.get_rating`` returning serialisable dicts or an empty list."""
+    """Call ``client.get_rating`` returning serialisable dicts or an empty list.
+
+    Raises:
+        OmdbQuotaExhausted: Propagated unchanged so the outer loop can
+            disable the rating side for the remainder of the pass
+            instead of swallowing one-quota-error-per-remaining-row.
+    """
+    from personalscraper.api.metadata.omdb import OmdbQuotaExhausted  # noqa: PLC0415
+
     source = getattr(client, "provider_name", type(client).__name__)
     try:
         ratings = client.get_rating(provider_id)
+    except OmdbQuotaExhausted:
+        raise
     except ProviderFeatureUnavailable as exc:
         log.warning(
             "backfill_rating_unavailable",

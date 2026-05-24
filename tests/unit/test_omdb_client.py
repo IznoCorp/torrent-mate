@@ -376,27 +376,50 @@ class TestOmdbQuotaIntegration:
     """Call-site integration: quota tracker ↔ OMDbAdapter."""
 
     def test_get_details_raises_OmdbQuotaExhausted_when_tracker_skips(self, tmp_path: Path) -> None:
-        """get_details raises OmdbQuotaExhausted when tracker blocks the call."""
+        """get_details raises OmdbQuotaExhausted(pre_call=True) when tracker blocks the call."""
         transport = MagicMock()
         tracker = OmdbQuotaTracker(state_path=tmp_path / ".quota.json")
         tracker.mark_exhausted("test")
         client = OMDBClient(transport, quota_tracker=tracker)
 
-        with pytest.raises(OmdbQuotaExhausted):
+        with pytest.raises(OmdbQuotaExhausted) as excinfo:
             client.get_details("tt1375666")
+        assert excinfo.value.pre_call is True
+        assert excinfo.value.http_status == 0
 
-    def test_quota_aware_get_returns_none_when_tracker_skips(self, tmp_path: Path) -> None:
-        """_quota_aware_get returns None when tracker blocks the call (fail-soft)."""
+    def test_get_notations_raises_OmdbQuotaExhausted_when_tracker_skips(self, tmp_path: Path) -> None:
+        """get_notations propagates OmdbQuotaExhausted so façades can discriminate."""
         transport = MagicMock()
         tracker = OmdbQuotaTracker(state_path=tmp_path / ".quota.json")
         tracker.mark_exhausted("test")
         client = OMDBClient(transport, quota_tracker=tracker)
 
-        result = client._quota_aware_get({"i": "tt1375666"}, method="get_notations", item_id="tt1375666")
-        assert result is None
+        with pytest.raises(OmdbQuotaExhausted) as excinfo:
+            client.get_notations("tt1375666")
+        assert excinfo.value.pre_call is True
+
+    def test_search_returns_empty_when_tracker_skips(self, tmp_path: Path) -> None:
+        """Search swallows OmdbQuotaExhausted into [] (legacy soft contract)."""
+        transport = MagicMock()
+        tracker = OmdbQuotaTracker(state_path=tmp_path / ".quota.json")
+        tracker.mark_exhausted("test")
+        client = OMDBClient(transport, quota_tracker=tracker)
+
+        assert client.search("Inception") == []
+
+    def test_quota_aware_get_raises_when_tracker_marked_exhausted(self, tmp_path: Path) -> None:
+        """_quota_aware_get raises OmdbQuotaExhausted(pre_call=True) when blocked."""
+        transport = MagicMock()
+        tracker = OmdbQuotaTracker(state_path=tmp_path / ".quota.json")
+        tracker.mark_exhausted("test")
+        client = OMDBClient(transport, quota_tracker=tracker)
+
+        with pytest.raises(OmdbQuotaExhausted) as excinfo:
+            client._quota_aware_get({"i": "tt1375666"}, method="get_notations", item_id="tt1375666")
+        assert excinfo.value.pre_call is True
 
     def test_quota_aware_get_marks_exhausted_on_real_apierror(self, tmp_path: Path) -> None:
-        """_quota_aware_get marks tracker exhausted when transport raises real 401."""
+        """Real upstream 401 → tracker marked exhausted AND OmdbQuotaExhausted raised (pre_call=False)."""
         transport = MagicMock()
         transport.get.side_effect = ApiError(
             provider="omdb",
@@ -406,6 +429,98 @@ class TestOmdbQuotaIntegration:
         tracker = OmdbQuotaTracker(state_path=tmp_path / ".quota.json")
         client = OMDBClient(transport, quota_tracker=tracker)
 
-        result = client._quota_aware_get({"i": "tt1375666"}, method="get_notations", item_id="tt1375666")
-        assert result is None
+        with pytest.raises(OmdbQuotaExhausted) as excinfo:
+            client._quota_aware_get({"i": "tt1375666"}, method="get_notations", item_id="tt1375666")
+        assert excinfo.value.pre_call is False
+        assert excinfo.value.http_status == 401
         assert tracker.status().exhausted is True
+
+    def test_non_quota_apierror_propagates_unchanged(self, tmp_path: Path) -> None:
+        """Non-quota ApiError (e.g. 500) is NOT swallowed as OmdbQuotaExhausted."""
+        transport = MagicMock()
+        transport.get.side_effect = ApiError(
+            provider="omdb",
+            http_status=500,
+            message="Internal Server Error",
+        )
+        tracker = OmdbQuotaTracker(state_path=tmp_path / ".quota.json")
+        client = OMDBClient(transport, quota_tracker=tracker)
+
+        with pytest.raises(ApiError) as excinfo:
+            client._quota_aware_get({"i": "tt1375666"}, method="get_notations", item_id="tt1375666")
+        assert not isinstance(excinfo.value, OmdbQuotaExhausted)
+        assert tracker.status().exhausted is False
+
+
+class TestImdbFacadeQuotaPropagation:
+    """Façade re-raise discipline: IMDb-side OmdbQuotaExhausted bypasses except ApiError."""
+
+    def _build(self, tmp_path: Path, *, mark_exhausted: bool):
+        """Build (façade, tracker) pair with the tracker optionally pre-exhausted."""
+        from personalscraper.api.metadata.imdb import IMDbClient
+
+        transport = MagicMock()
+        tracker = OmdbQuotaTracker(state_path=tmp_path / ".quota.json")
+        if mark_exhausted:
+            tracker.mark_exhausted("test")
+        backend = OMDBClient(transport, quota_tracker=tracker)
+        return IMDbClient(backend), transport
+
+    def test_validate_id_propagates_OmdbQuotaExhausted(self, tmp_path: Path) -> None:
+        """IMDbClient.validate_id re-raises OmdbQuotaExhausted (no ApiError swallow)."""
+        client, _ = self._build(tmp_path, mark_exhausted=True)
+        with pytest.raises(OmdbQuotaExhausted):
+            client.validate_id("tt1375666", "Inception", 2010)
+
+    def test_get_rating_propagates_OmdbQuotaExhausted(self, tmp_path: Path) -> None:
+        """IMDbClient.get_rating re-raises OmdbQuotaExhausted (no ProviderFeatureUnavailable wrap)."""
+        client, _ = self._build(tmp_path, mark_exhausted=True)
+        with pytest.raises(OmdbQuotaExhausted):
+            client.get_rating("tt1375666")
+
+    def test_get_rating_returns_none_on_non_quota_ApiError(self, tmp_path: Path) -> None:
+        """IMDbClient.get_rating still wraps non-quota ApiError as ProviderFeatureUnavailable."""
+        from personalscraper.api._helpers import ProviderFeatureUnavailable
+
+        client, transport = self._build(tmp_path, mark_exhausted=False)
+        transport.get.side_effect = ApiError(
+            provider="omdb",
+            http_status=500,
+            message="Internal Server Error",
+        )
+        with pytest.raises(ProviderFeatureUnavailable):
+            client.get_rating("tt1375666")
+
+
+class TestRtFacadeQuotaPropagation:
+    """Façade re-raise discipline: RT-side OmdbQuotaExhausted bypasses except ApiError."""
+
+    def _build(self, tmp_path: Path, *, mark_exhausted: bool):
+        """Build (façade, tracker) pair with the tracker optionally pre-exhausted."""
+        from personalscraper.api.metadata.rotten_tomatoes import RottenTomatoesClient
+
+        transport = MagicMock()
+        tracker = OmdbQuotaTracker(state_path=tmp_path / ".quota.json")
+        if mark_exhausted:
+            tracker.mark_exhausted("test")
+        backend = OMDBClient(transport, quota_tracker=tracker)
+        return RottenTomatoesClient(backend), transport
+
+    def test_get_rating_propagates_OmdbQuotaExhausted(self, tmp_path: Path) -> None:
+        """RottenTomatoesClient.get_rating re-raises OmdbQuotaExhausted (no ProviderFeatureUnavailable wrap)."""
+        client, _ = self._build(tmp_path, mark_exhausted=True)
+        with pytest.raises(OmdbQuotaExhausted):
+            client.get_rating("tt1375666")
+
+    def test_get_rating_returns_none_on_non_quota_ApiError(self, tmp_path: Path) -> None:
+        """RottenTomatoesClient.get_rating still wraps non-quota ApiError as ProviderFeatureUnavailable."""
+        from personalscraper.api._helpers import ProviderFeatureUnavailable
+
+        client, transport = self._build(tmp_path, mark_exhausted=False)
+        transport.get.side_effect = ApiError(
+            provider="omdb",
+            http_status=500,
+            message="Internal Server Error",
+        )
+        with pytest.raises(ProviderFeatureUnavailable):
+            client.get_rating("tt1375666")

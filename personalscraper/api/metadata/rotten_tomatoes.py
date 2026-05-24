@@ -88,8 +88,12 @@ class RottenTomatoesClient(RatingProvider):
             entries, or ``None`` when no RT rating is available.
 
         Raises:
+            OmdbQuotaExhausted: OMDb daily quota exhausted (pre-call or
+                runtime). Propagated so the consumer can stop the
+                rating pass rather than treat quota-gone as "no
+                Rotten Tomatoes data available".
             ProviderFeatureUnavailable: OMDb returned an
-                :class:`ApiError`.
+                :class:`ApiError` (non-quota transport failure).
         """
         try:
             notations = self._backend.get_notations(provider_id)

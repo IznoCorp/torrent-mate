@@ -43,7 +43,7 @@ class QuotaStatus:
     exhausted: bool
 
     def to_json_dict(self) -> dict[str, str | int | bool]:
-        """Project to a JSON-serializable dict (same shape as the old status())."""
+        """Project to a JSON-serializable dict consumed by CLI / structlog stats."""
         return {
             "date": self.date,
             "count": self.count,
@@ -107,10 +107,16 @@ class OmdbQuotaTracker:
     def reserve_call(self) -> ReservationOutcome:
         """Try to reserve a quota slot.
 
+        On persistence failure (OS error during the atomic file write)
+        the in-memory state is rolled back and the call is reported as
+        ``"skipped_safety_margin"`` — fail-soft, the upstream request is
+        NOT sent. The next reservation attempt will retry.
+
         Returns:
             ``"allowed"`` if the call may proceed, ``"skipped_safety_margin"``
-            if the safety margin was reached, or ``"skipped_marked_exhausted"``
-            if the day was explicitly marked exhausted.
+            if the safety margin was reached OR persistence failed, or
+            ``"skipped_marked_exhausted"`` if the day was explicitly
+            marked exhausted.
         """
         with self._lock:
             self._maybe_reset_day()
@@ -126,6 +132,7 @@ class OmdbQuotaTracker:
                         "omdb_quota_persist_failed",
                         path=str(self._state_path),
                         operation="mark_exhausted",
+                        exc_info=True,
                     )
                     return "skipped_safety_margin"
                 log.warning(
@@ -144,6 +151,7 @@ class OmdbQuotaTracker:
                     "omdb_quota_persist_failed",
                     path=str(self._state_path),
                     operation="increment_count",
+                    exc_info=True,
                 )
                 return "skipped_safety_margin"
             return "allowed"
@@ -153,6 +161,12 @@ class OmdbQuotaTracker:
 
         Call when the server returns a quota-exhaustion payload so
         remaining calls are skipped without wasting HTTP round-trips.
+
+        If persistence fails the in-memory ``exhausted`` flag is rolled
+        back so the tracker's invariant (in-memory matches what was
+        durably written) is preserved. The trade-off is real: a known-
+        exhausted day will allow another upstream call until the next
+        runtime detection re-trips this branch.
 
         Args:
             reason: Human-readable reason logged for diagnostics.
@@ -168,6 +182,7 @@ class OmdbQuotaTracker:
                     "omdb_quota_persist_failed",
                     path=str(self._state_path),
                     operation="mark_exhausted",
+                    exc_info=True,
                 )
                 return
             log.warning(
@@ -210,7 +225,15 @@ class OmdbQuotaTracker:
             log.info("omdb_quota_day_reset", date=today)
 
     def _load_state(self) -> _QuotaState:
-        """Load persisted state or return a fresh default for today."""
+        """Load persisted state or return a fresh default for today.
+
+        On a corrupted state file (invalid JSON, missing keys, type
+        errors) the corrupt file is renamed to
+        ``<path>.corrupt-<YYYYMMDD-HHMMSS>`` before the in-memory
+        state falls back to a fresh day. Preserving the original lets
+        operators inspect a quota anomaly post-hoc — otherwise the next
+        :meth:`_persist` would overwrite the only evidence.
+        """
         today = self._today_utc()
         try:
             if self._state_path.exists():
@@ -222,12 +245,15 @@ class OmdbQuotaTracker:
                         "limit": int(raw.get("limit", self._limit)),
                         "exhausted": bool(raw["exhausted"]),
                     }
+                self._archive_corrupt_state("schema_mismatch")
         except (json.JSONDecodeError, ValueError, TypeError, KeyError) as exc:
             log.warning(
                 "omdb_quota_state_corrupted",
                 path=str(self._state_path),
                 error=str(exc),
+                error_type=type(exc).__name__,
             )
+            self._archive_corrupt_state(type(exc).__name__)
             log.warning(
                 "omdb_quota_using_default_limit",
                 path=str(self._state_path),
@@ -239,6 +265,28 @@ class OmdbQuotaTracker:
             "limit": self._limit,
             "exhausted": False,
         }
+
+    def _archive_corrupt_state(self, reason: str) -> None:
+        """Rename the corrupt state file so it survives the next ``_persist``."""
+        ts = datetime.now(tz=timezone.utc).strftime("%Y%m%d-%H%M%S")
+        corrupt_path = self._state_path.with_suffix(self._state_path.suffix + f".corrupt-{ts}")
+        try:
+            os.replace(self._state_path, corrupt_path)
+        except OSError as exc:
+            log.warning(
+                "omdb_quota_corrupt_archive_failed",
+                path=str(self._state_path),
+                target=str(corrupt_path),
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+            return
+        log.warning(
+            "omdb_quota_corrupt_archived",
+            original=str(self._state_path),
+            archived=str(corrupt_path),
+            reason=reason,
+        )
 
     def _persist(self) -> None:
         """Atomically write current state via temp + rename."""

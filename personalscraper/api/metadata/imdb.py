@@ -103,6 +103,12 @@ class IMDbClient(IDValidator, RatingProvider, IDCrossRef):
 
         Returns:
             ``True`` iff the OMDb payload matches both inputs.
+
+        Raises:
+            OmdbQuotaExhausted: OMDb daily quota exhausted (pre-call or
+                runtime). Propagated so the caller can stop the
+                validation pass instead of treating quota-gone as a
+                title mismatch.
         """
         try:
             details = self._backend.get_details(provider_id)
@@ -137,8 +143,12 @@ class IMDbClient(IDValidator, RatingProvider, IDCrossRef):
             or ``None`` when no IMDb rating is available.
 
         Raises:
+            OmdbQuotaExhausted: OMDb daily quota exhausted (pre-call or
+                runtime). Propagated so retry-with-discrimination loops
+                can stop the rating pass without conflating
+                "quota gone" with "no rating available".
             ProviderFeatureUnavailable: OMDb returned an
-                :class:`ApiError`.
+                :class:`ApiError` (non-quota transport failure).
         """
         try:
             notations = self._backend.get_notations(provider_id)
