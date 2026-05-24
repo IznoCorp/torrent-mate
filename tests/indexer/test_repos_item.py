@@ -406,3 +406,18 @@ class TestFindItemsNeedingRescrape:
         _, mount, rel = results[0]
         assert mount == "/Volumes/Disk1"
         assert "MOVIES" in rel
+
+
+# ---------------------------------------------------------------------------
+# _canonical_title whitespace handling (11.5 S3)
+# ---------------------------------------------------------------------------
+
+
+def test_canonical_title_strips_double_space_year() -> None:
+    """``"Movie  (2020)"`` (double space) canonicalises to ``"Movie"``."""
+    assert item_repo._canonical_title("Movie  (2020)") == "Movie"
+
+
+def test_canonical_title_strips_no_space_year() -> None:
+    """``"Movie(2020)"`` (no space) canonicalises to ``"Movie"``."""
+    assert item_repo._canonical_title("Movie(2020)") == "Movie"

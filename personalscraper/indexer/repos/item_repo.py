@@ -18,9 +18,10 @@ from personalscraper.logger import get_logger
 log = get_logger("indexer.item")
 
 # Regex matching a trailing " (YYYY)" suffix on a title string.
-# Used by ``_canonical_title`` to normalise lookup keys so that
-# ``"Inception (2010)"`` and ``"Inception"`` map to the same stored row.
-_CANONICAL_RE = re.compile(r" \(\d{4}\)$")
+# Accepts 0+ whitespace before the opening paren so that ``"Movie  (2020)"``,
+# ``"Movie (2020)"``, and ``"Movie(2020)"`` all canonicalise to ``"Movie"``.
+# Used by ``_canonical_title`` to normalise lookup keys.
+_CANONICAL_RE = re.compile(r"\s*\(\d{4}\)$")
 
 
 def _canonical_title(title: str) -> str:
