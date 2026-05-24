@@ -8,7 +8,7 @@ Persisted state file: ``<indexer.db dir>/.omdb-quota.json``::
     {"date": "YYYY-MM-DD", "count": N, "limit": N, "exhausted": bool}
 
 Concurrency: single-process by design (the backfill is sequential).
-File is rewritten atomically via temp + os.replace.
+File is written with fsync durability via :func:`atomic_write_json`.
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Literal, TypedDict
 
+from personalscraper.io_utils import atomic_write_json
 from personalscraper.logger import get_logger
 
 log = get_logger("api.omdb.quota")
@@ -66,7 +67,7 @@ class OmdbQuotaTracker:
 
     Configurable for paid tiers via ``OMDB_DAILY_LIMIT`` env (Patreon $1
     = 100k req/day).  State file: ``<indexer.db dir>/.omdb-quota.json``,
-    rewritten atomically (temp file + :func:`os.replace`) on every mutation.
+    rewritten with directory fsync (via :func:`atomic_write_json`) on every mutation.
     The counter resets at midnight UTC — any persisted ``date`` not matching
     today is replaced with a fresh day.  Concurrency is single-process by
     design (the backfill pipeline is sequential); a :class:`Lock` ensures
@@ -304,10 +305,10 @@ class OmdbQuotaTracker:
         )
 
     def _persist(self) -> None:
-        """Atomically write current state via temp + rename."""
-        tmp_path = self._state_path.with_suffix(self._state_path.suffix + ".tmp")
-        tmp_path.write_text(
-            json.dumps(self._state, ensure_ascii=False),
-            encoding="utf-8",
-        )
-        os.replace(tmp_path, self._state_path)
+        """Persist state with fsync durability via :func:`atomic_write_json`.
+
+        The atomic-write helper fsyncs the file *and* the parent directory
+        so the rename survives a machine crash (ext4 / macFUSE-mounted NTFS
+        safety).
+        """
+        atomic_write_json(self._state_path, dict(self._state))
