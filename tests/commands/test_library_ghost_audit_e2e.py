@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from personalscraper.conf.models.disks import DiskConfig
 from tests.commands._e2e_helpers import (
+    assert_no_python_traceback,
     make_synthetic_db,
     make_test_config_with_db,
     run_cli,
@@ -125,3 +126,62 @@ def test_ghost_audit_skips_unmounted_disk(tmp_path, test_config) -> None:
     clean = _clean(result.output)
     assert "not mounted, skipped" in clean, f"Expected 'not mounted, skipped' for nonexistent path: {clean}"
     assert "ghostdisk" in clean, f"Disk label should appear: {clean}"
+
+
+# ── 3. Errors ──
+
+
+def test_ghost_audit_invalid_arg_exits_nonzero() -> None:
+    """Unknown flag → non-zero exit, no Python traceback."""
+    result = run_cli(["library-ghost-audit", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_ghost_audit_config_absent_exits_gracefully(monkeypatch) -> None:
+    """load_config raises ConfigNotFoundError → friendly error, no traceback."""
+    from personalscraper.conf.loader import ConfigNotFoundError
+
+    def _raise(*_a, **_kw):
+        raise ConfigNotFoundError("no config found")
+
+    monkeypatch.setattr("personalscraper.conf.loader.load_config", _raise)
+    result = run_cli(["library-ghost-audit"])
+    assert result.exit_code != 0
+    assert "error" in result.output.lower() or "config" in result.output.lower()
+    assert_no_python_traceback(result)
+
+
+# ── 6. Output ──
+
+
+def test_ghost_audit_output_no_traceback(tmp_path, test_config) -> None:
+    """Output is Rich-formatted, never a Python traceback."""
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    cfg = cfg.model_copy(update={"disks": []})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-ghost-audit"])
+    assert result.exit_code == 0
+    assert_no_python_traceback(result)
+    assert "no ghost dirents" in _clean(result.output)
+
+
+def test_ghost_audit_error_exits_nonzero(monkeypatch) -> None:
+    """Config error → non-zero exit code."""
+    from personalscraper.conf.loader import ConfigNotFoundError
+
+    def _raise(*_a, **_kw):
+        raise ConfigNotFoundError("no config found")
+
+    monkeypatch.setattr("personalscraper.conf.loader.load_config", _raise)
+    result = run_cli(["library-ghost-audit"])
+    assert result.exit_code != 0
+
+
+# ── 7. Events ──
+
+# N/A: ``library-ghost-audit`` is a read-only diagnostic command.  It opens no
+# database connection (uses ``os.walk`` directly against storage disks) and
+# creates no EventBus.  Output is Rich console text via ``console.print``.
+# No domain event is published.

@@ -14,6 +14,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tests.commands._e2e_helpers import (
+    assert_json_schema,
+    assert_no_python_traceback,
     json_from_result,
     make_synthetic_db,
     make_test_config_with_db,
@@ -207,3 +209,73 @@ def test_reconcile_enqueue_idempotent(tmp_path, test_config) -> None:
     assert d2["enqueued_repairs"] == 0, f"Second enqueue should be a no-op, got {d2['enqueued_repairs']}"
     # The first run enqueued something.
     assert d1["enqueued_repairs"] >= 1
+
+
+# ── 5. Errors ──
+
+
+def test_reconcile_invalid_arg_exits_nonzero() -> None:
+    """Unknown flag → non-zero exit, no Python traceback."""
+    result = run_cli(["library-reconcile", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_reconcile_db_path_none_exits_gracefully(test_config) -> None:
+    """Unconfigured ``indexer.db_path`` → exit 1, no traceback.
+
+    The reconcile command uses ``assert db_path is not None`` (not
+    ``typer.echo``), so the message lands in ``result.exception`` rather
+    than ``result.output``.  We assert the exit code and absence of a
+    raw Python traceback.
+    """
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["--format", "json", "library-reconcile"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_reconcile_corrupt_db_exits_gracefully(tmp_path, test_config) -> None:
+    """Corrupt (non-SQLite) DB file → graceful exit, no Python traceback."""
+    db_path = tmp_path / "corrupt.db"
+    db_path.write_text("this is not a sqlite database")
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["--format", "json", "library-reconcile"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+# ── 6. Output ──
+
+
+def test_reconcile_json_schema_valid(tmp_path, test_config) -> None:
+    """``--format json`` output matches expected schema."""
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["--format", "json", "library-reconcile"])
+    assert result.exit_code == 0
+    assert_json_schema(
+        result,
+        required_keys=["merkle_drift", "total_findings", "path_missing_count"],
+    )
+
+
+def test_reconcile_error_exits_nonzero(test_config) -> None:
+    """Unconfigured DB → non-zero exit."""
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-reconcile"])
+    assert result.exit_code != 0
+
+
+# ── 7. Events ──
+
+# N/A: ``library-reconcile`` passes an EventBus to ``open_db`` (for the free-space
+# guard's DiskFullWarning infrastructure event) but the reconcile logic itself
+# (``reconcile()``, pure DB/SELECT-based detectors) does not emit any
+# domain event.  No ``ReconcileCompleted`` event class exists in the codebase.
+# The reconcile result is observable through the JSON summary
+# (total_findings / path_missing_count / merkle_drift / ...).

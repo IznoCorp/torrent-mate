@@ -11,6 +11,9 @@ import sqlite3
 from unittest.mock import patch
 
 from tests.commands._e2e_helpers import (
+    assert_json_schema,
+    assert_no_python_traceback,
+    capture_event_bus,
     json_from_result,
     make_synthetic_db,
     make_test_config_with_db,
@@ -277,3 +280,104 @@ def test_verify_idempotent_on_clean_files(tmp_path, test_config) -> None:
     d2 = json_from_result(r2)
     assert d1["files_walked"] == d2["files_walked"], f"files_walked changed between idempotent runs: {d1} vs {d2}"
     assert d1["status"] == d2["status"]
+
+
+# ── 5. Errors ──
+
+
+def test_verify_invalid_arg_exits_nonzero() -> None:
+    """Unknown flag → non-zero exit, no Python traceback."""
+    result = run_cli(["library-verify", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_verify_db_path_none_exits_gracefully(test_config) -> None:
+    """Unconfigured ``indexer.db_path`` → exit 1, no traceback.
+
+    The verify command uses ``assert db_path is not None`` (not
+    ``typer.echo``), so the message lands in ``result.exception`` rather
+    than ``result.output``.  We assert the exit code and absence of a
+    raw Python traceback.
+    """
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-verify"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_verify_corrupt_db_exits_gracefully(tmp_path, test_config) -> None:
+    """Corrupt (non-SQLite) DB file → graceful exit, no Python traceback."""
+    db_path = tmp_path / "corrupt.db"
+    db_path.write_text("this is not a sqlite database")
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(_PATCH_GUARD, return_value=None):
+        result = run_cli(["library-verify"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_verify_nonexistent_disk_exits_gracefully(tmp_path, test_config) -> None:
+    """``--disk`` pointing to a non-existent disk → friendly error, no traceback."""
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(_PATCH_GUARD, return_value=None):
+        result = run_cli(["library-verify", "--disk", "nonexistent_disk_xyz123"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+# ── 6. Output ──
+
+
+def test_verify_json_schema_valid(tmp_path, test_config) -> None:
+    """``--format json`` output matches expected schema."""
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    mount = tmp_path / "OutputDisk"
+    mount.mkdir()
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    disk_id = seed_disk(conn, "OutputDisk", mount)
+    seed_media_file_on_disk(conn, disk_id, mount, "media", "test.mkv")
+    conn.close()
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(_PATCH_GUARD, return_value=None):
+        result = run_cli(["--format", "json", "library-verify"])
+    assert result.exit_code == 0
+    assert_json_schema(result, required_keys=["status", "files_walked"])
+
+
+def test_verify_error_exits_nonzero(tmp_path, test_config) -> None:
+    """Non-existent disk → non-zero exit code."""
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(_PATCH_GUARD, return_value=None):
+        result = run_cli(["library-verify", "--disk", "nonexistent_disk_xyz123"])
+    assert result.exit_code != 0
+
+
+# ── 7. Events ──
+
+
+def test_verify_emits_library_scan_completed(tmp_path, test_config, monkeypatch) -> None:
+    """Verify-mode scan emits ``LibraryScanCompleted`` on the EventBus."""
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    mount = tmp_path / "EventDisk"
+    mount.mkdir()
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    disk_id = seed_disk(conn, "EventDisk", mount)
+    seed_media_file_on_disk(conn, disk_id, mount, "media", "test.mkv")
+    conn.close()
+
+    captured = capture_event_bus(monkeypatch)
+
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(_PATCH_GUARD, return_value=None):
+        result = run_cli(["library-verify"])
+
+    assert result.exit_code == 0, result.output
+    assert len(captured) >= 1, f"Expected at least 1 event, got {len(captured)}"
+    event_types = {type(e).__name__ for e in captured}
+    assert "LibraryScanCompleted" in event_types, f"LibraryScanCompleted not emitted. Captured: {event_types}"

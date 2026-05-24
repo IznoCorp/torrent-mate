@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tests.commands._e2e_helpers import (
+    assert_no_python_traceback,
     make_synthetic_db,
     make_test_config_with_db,
     run_cli,
@@ -225,3 +226,70 @@ def test_relink_reports_unmatched_files(tmp_path, test_config) -> None:
     clean = result.output
     assert "DRY-RUN" in clean, result.output
     assert "unmatched=1" in clean, f"Expected unmatched=1, got: {clean}"
+
+
+# ── 6. Errors ──
+
+
+def test_relink_invalid_arg_exits_nonzero() -> None:
+    """Unknown flag → non-zero exit, no Python traceback."""
+    result = run_cli(["library-relink", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_relink_config_absent_exits_gracefully(monkeypatch) -> None:
+    """load_config raises ConfigNotFoundError → friendly error, no traceback."""
+    from personalscraper.conf.loader import ConfigNotFoundError
+
+    def _raise(*_a, **_kw):
+        raise ConfigNotFoundError("no config found")
+
+    monkeypatch.setattr("personalscraper.conf.loader.load_config", _raise)
+    result = run_cli(["library-relink"])
+    assert result.exit_code != 0
+    assert "error" in result.output.lower() or "config" in result.output.lower()
+    assert_no_python_traceback(result)
+
+
+def test_relink_corrupt_db_exits_gracefully(tmp_path, test_config) -> None:
+    """Corrupt (non-SQLite) DB file → graceful exit, no Python traceback."""
+    db_path = tmp_path / "corrupt.db"
+    db_path.write_text("this is not a sqlite database")
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-relink"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+# ── 7. Output ──
+
+
+def test_relink_output_no_traceback(tmp_path, test_config) -> None:
+    """Output is Rich-formatted, never a Python traceback."""
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-relink"])
+    assert result.exit_code == 0
+    assert_no_python_traceback(result)
+
+
+def test_relink_error_exits_nonzero(monkeypatch) -> None:
+    """Config error → non-zero exit code."""
+    from personalscraper.conf.loader import ConfigNotFoundError
+
+    def _raise(*_a, **_kw):
+        raise ConfigNotFoundError("no config found")
+
+    monkeypatch.setattr("personalscraper.conf.loader.load_config", _raise)
+    result = run_cli(["library-relink"])
+    assert result.exit_code != 0
+
+
+# ── 8. Events ──
+
+# N/A: ``library-relink`` uses a raw ``sqlite3.connect`` call directly — no
+# EventBus is created or injected.  Output is Rich console text via
+# ``console.print``.  No domain event is published.

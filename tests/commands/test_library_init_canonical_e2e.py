@@ -10,6 +10,8 @@ import sqlite3
 from unittest.mock import patch
 
 from tests.commands._e2e_helpers import (
+    assert_json_schema,
+    assert_no_python_traceback,
     make_synthetic_db,
     make_test_config_with_db,
     run_cli,
@@ -217,3 +219,74 @@ def test_init_canonical_unsupported_provider_filtered(tmp_path, test_config) -> 
     cp = conn.execute("SELECT canonical_provider FROM media_item WHERE id = ?", (item_id,)).fetchone()[0]
     conn.close()
     assert cp is None, f"Item with anidb default should be skipped (cp still NULL), got {cp}"
+
+
+# ── 6. Errors ──
+
+
+def test_init_canonical_invalid_arg_exits_nonzero() -> None:
+    """Unknown flag → non-zero exit, no Python traceback."""
+    result = run_cli(["library-init-canonical", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_init_canonical_db_path_none_exits_gracefully(test_config) -> None:
+    """Unconfigured ``indexer.db_path`` → exit 1, friendly error, no traceback."""
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["--format", "json", "library-init-canonical"])
+    assert result.exit_code != 0
+    assert "not configured" in result.output.lower() or "db_path" in result.output.lower()
+    assert_no_python_traceback(result)
+
+
+def test_init_canonical_corrupt_db_exits_gracefully(tmp_path, test_config) -> None:
+    """Corrupt (non-SQLite) DB file → graceful exit, no Python traceback."""
+    db_path = tmp_path / "corrupt.db"
+    db_path.write_text("this is not a sqlite database")
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["--format", "json", "library-init-canonical"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+# ── 7. Output ──
+
+
+def test_init_canonical_json_schema_valid(tmp_path, test_config) -> None:
+    """``--format json`` output matches expected schema."""
+    db_path = make_synthetic_db(tmp_path)
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    item_id = _insert_media_item(conn, canonical_provider=None)
+    show_dir = tmp_path / "TestShow"
+    show_dir.mkdir()
+    (show_dir / "tvshow.nfo").write_text(_tvshow_nfo_with_canonical("12345", "tvdb"))
+    _set_dispatch_path(conn, item_id, str(show_dir))
+    conn.close()
+    result = _run_init_canonical([], test_config, db_path)
+    assert result.exit_code == 0
+    assert_json_schema(
+        result,
+        required_keys=["status", "canonical_provider_populated"],
+    )
+
+
+def test_init_canonical_error_exits_nonzero(test_config) -> None:
+    """Unconfigured DB → non-zero exit."""
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-init-canonical"])
+    assert result.exit_code != 0
+
+
+# ── 8. Events ──
+
+# N/A: ``library-init-canonical`` creates a fresh EventBus solely for the
+# ``open_db`` call (free-space guard / DiskFullWarning infrastructure event).
+# The init_canonical_from_nfo logic itself operates via direct DB writes
+# (UPDATE media_item SET canonical_provider=...) without emitting any
+# domain event.  No ``InitCanonicalCompleted`` event class exists in the
+# codebase.
