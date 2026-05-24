@@ -56,10 +56,17 @@ CREATE TABLE _migration_007_changes (
     new_title TEXT NOT NULL
 );
 
+-- LENGTH(title) > 7 guards against a degenerate case where the title is
+-- literally ' (YYYY)' (8 chars: space + paren + 4 digits + paren) or a
+-- 7-char ' (YYY)' that would slip through GLOB but produce an empty
+-- title after SUBSTR(title, 1, LENGTH(title) - 7). The GLOB itself
+-- already forces the trailing ' (NNNN)' shape; the SUBSTR offset checks
+-- are redundant once that's true but kept for defence-in-depth.
 INSERT INTO _migration_007_changes (old_title, new_title)
 SELECT title, TRIM(SUBSTR(title, 1, LENGTH(title) - 7))
   FROM media_item
  WHERE title GLOB '* ([0-9][0-9][0-9][0-9])'
+   AND LENGTH(title) > 7
    AND SUBSTR(title, -6, 1) = '('
    AND SUBSTR(title, -1, 1) = ')';
 
@@ -70,6 +77,7 @@ SELECT title, TRIM(SUBSTR(title, 1, LENGTH(title) - 7))
 UPDATE media_item
 SET title = TRIM(SUBSTR(title, 1, LENGTH(title) - 7))
 WHERE title GLOB '* ([0-9][0-9][0-9][0-9])'
+  AND LENGTH(title) > 7
   AND SUBSTR(title, -6, 1) = '('
   AND SUBSTR(title, -1, 1) = ')';
 

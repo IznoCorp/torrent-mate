@@ -575,12 +575,12 @@ def test_merge_empty_starts_with_nfo_ids(tmp_path: Path) -> None:
     assert stats.external_ids_already_present == 0
 
 
-# Group 2b — CR-2: no_default / unsupported_no_fallback still seed external_ids
-# for the chicken-and-egg cohort
+# no_default / unsupported_no_fallback paths still seed external_ids for the
+# chicken-and-egg cohort (canonical already set but external_ids empty).
 
 
 def test_no_default_still_seeds_external_ids_for_chicken_egg(tmp_path: Path) -> None:
-    """CR-2: canonical='tvdb' + NFO with no default uniqueid → external_ids seeded.
+    """canonical='tvdb' + NFO with no default uniqueid → external_ids seeded.
 
     The NFO has uniqueid elements without default="true" (outcome=no_default).
     The canonical_provider is already set, so the item is in the chicken-and-egg
@@ -841,11 +841,12 @@ def test_dry_run_does_not_write_external_ids(tmp_path: Path) -> None:
     assert row["external_ids_json"] == "{}"
 
 
-# Group 4b — SF-H3: fail-soft per-row wrapper
+# Fail-soft per-row wrapper — an unexpected exception on one row must
+# not abort the whole pass.
 
 
 def test_init_canonical_fail_soft_per_row(monkeypatch, tmp_path: Path) -> None:
-    """SF-H3: unexpected exception in one row does not kill the whole pass.
+    """Unexpected exception in one row does not kill the whole pass.
 
     One item's NFO triggers a TypeError (not caught by _parse_canonical_from_nfo
     which only handles ParseError/OSError). The fail-soft wrapper catches it,

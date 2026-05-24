@@ -566,9 +566,27 @@ def torrents_list(ctx: typer.Context) -> None:
     """
     import os  # noqa: PLC0415
 
+    import qbittorrentapi  # noqa: PLC0415
+    import requests  # noqa: PLC0415
+
+    from personalscraper.api._contracts import ApiError  # noqa: PLC0415
     from personalscraper.api.torrent._factory import build_active_torrent_client  # noqa: PLC0415
     from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError, QBitClient  # noqa: PLC0415
     from personalscraper.cli_helpers.output import emit  # noqa: PLC0415
+
+    # Connection-class errors we expect from the torrent transport.
+    # Programmer-class errors (TypeError on settings shape, AttributeError
+    # on a refactored client) are deliberately NOT caught here — they
+    # should surface as bugs via handle_cli_errors, not get masked as
+    # "Torrent client unavailable".
+    _TRANSPORT_ERRORS = (
+        QBitAuthLockoutError,
+        ApiError,
+        ConnectionError,
+        OSError,
+        requests.RequestException,
+        qbittorrentapi.exceptions.APIError,
+    )
 
     config = ctx.obj.config
     assert config is not None
@@ -586,14 +604,14 @@ def torrents_list(ctx: typer.Context) -> None:
                 password=settings.qbit_password,
             )
             client.login()
-    except (QBitAuthLockoutError, Exception) as exc:  # noqa: BLE001 — operator-facing CLI
+    except _TRANSPORT_ERRORS as exc:
         console.print(f"[yellow]Torrent client unavailable:[/yellow] {exc}")
         raise typer.Exit(2) from exc
 
     try:
         torrents = client.get_completed()
         active_hashes = client.get_all_hashes()
-    except Exception as exc:  # noqa: BLE001 — operator-facing CLI
+    except _TRANSPORT_ERRORS as exc:
         console.print(f"[yellow]Torrent listing failed:[/yellow] {exc}")
         raise typer.Exit(2) from exc
 

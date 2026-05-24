@@ -347,3 +347,41 @@ def test_rescrape_dry_run_partial_payload_no_crash(tmp_path, test_config, monkey
 
     assert result.exit_code == 0, result.output
     assert "Traceback" not in result.output, result.output
+
+
+def test_rescrape_partial_payload_nfo_renderer_handles_none_fields(tmp_path: Path) -> None:
+    """The NFO renderer (write path) survives a partial MediaDetails payload.
+
+    Exercises the production write-path code that ``rescrape_library``
+    actually invokes for a "needs NFO" item:
+    ``_coerce_to_movie_data`` → ``NFOGenerator.generate_movie_nfo`` →
+    ``NFOGenerator.write_nfo``. The previous coverage
+    (``test_rescrape_dry_run_partial_payload_no_crash``) ran the CLI in
+    ``--dry-run`` mode, which short-circuits before the renderer is
+    invoked. This test feeds the partial fixture (runtime=None,
+    images=[], rating=None, external_ids={}) through the actual
+    renderer + writer and asserts (a) no exception, (b) the file is
+    well-formed XML, (c) the title survives.
+    """
+    import xml.etree.ElementTree as ET  # noqa: PLC0415
+
+    from personalscraper.scraper.movie_service import _coerce_to_movie_data  # noqa: PLC0415
+    from personalscraper.scraper.nfo_generator import NFOGenerator  # noqa: PLC0415
+    from tests.commands._e2e_helpers import _make_partial_movie_details  # noqa: PLC0415
+
+    partial = _make_partial_movie_details()
+    movie_data = _coerce_to_movie_data(partial)
+
+    gen = NFOGenerator()
+    xml = gen.generate_movie_nfo(movie_data, stream_info=None)
+
+    nfo_path = tmp_path / "Incomplete Movie.nfo"
+    gen.write_nfo(xml, nfo_path)
+
+    # Re-parse to prove the renderer emitted well-formed XML.
+    assert nfo_path.exists()
+    tree = ET.parse(str(nfo_path))  # noqa: S314
+    root = tree.getroot()
+    title_el = root.find("title")
+    assert title_el is not None, f"NFO missing <title>; xml head: {nfo_path.read_text()[:200]}"
+    assert title_el.text == "Incomplete Movie"

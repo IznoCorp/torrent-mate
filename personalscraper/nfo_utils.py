@@ -19,6 +19,24 @@ log = get_logger("nfo_utils")
 _INVALID_UNIQUEID_VALUES = frozenset({"0", "none"})
 
 
+def glob_nfo_candidates(base: Path) -> list[Path]:
+    """Return ``base/*.nfo`` sorted, skipping macOS AppleDouble metadata files.
+
+    AppleDouble files (``._<name>``) are binary metadata sidecars
+    created by macOS on NTFS / SMB volumes. They share the ``.nfo``
+    suffix but contain extended-attribute blobs, not XML — feeding
+    them to :class:`xml.etree.ElementTree` produces a ``ParseError``
+    and masks the legitimate sibling NFO.
+
+    Args:
+        base: Directory to glob (typically a media item's dispatch dir).
+
+    Returns:
+        Sorted list of real ``.nfo`` paths (zero or more).
+    """
+    return sorted(f for f in base.glob("*.nfo") if not f.name.startswith("._"))
+
+
 def is_nfo_complete(nfo_path: Path) -> bool:
     """Check if an NFO file is complete and valid.
 

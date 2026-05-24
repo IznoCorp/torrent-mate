@@ -258,7 +258,7 @@ def test_find_item_for_path_falls_back_to_title_match(conn: sqlite3.Connection) 
 
 
 def test_find_item_for_path_title_canonicalised(conn: sqlite3.Connection) -> None:
-    """SF-H4: folder ``Inception (2010)`` matches stored canonical title ``Inception``.
+    """Folder ``Inception (2010)`` matches stored canonical title ``Inception``.
 
     After migration 007, stored titles are canonicalised (no `` (YYYY)`` suffix).
     A folder name like ``Inception (2010)`` must still match via _canonical_title.

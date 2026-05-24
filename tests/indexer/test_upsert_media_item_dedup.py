@@ -203,6 +203,43 @@ def test_migration_007_glob_rejects_non_digit_suffix(tmp_path: Path) -> None:
     conn.close()
 
 
+def test_migration_007_length_guard_rejects_degenerate_title(tmp_path: Path) -> None:
+    """LENGTH(title) > 7 guard prevents an empty title for ``' (2024)'`` (8 chars).
+
+    Without the guard, GLOB matches and ``SUBSTR(title, 1, LENGTH(title) - 7)``
+    yields ``" "`` (the leading space) which TRIMs to ``""``. The
+    UNIQUE(title, kind) index added by step 6 would then conflict on
+    subsequent empty rows, but more importantly the row would be
+    orphaned semantically.
+    """
+    db_path = tmp_path / "library.db"
+    conn = sqlite3.connect(str(db_path), isolation_level=None)
+    conn.execute("PRAGMA foreign_keys=ON")
+
+    _apply_through_migration(conn, up_to_version=6)
+
+    # Seed a degenerate title that would canonicalise to "" without the guard.
+    conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, year, category_id, "
+        "date_created, date_modified, is_locked, preferred_lang) "
+        "VALUES ('movie', ' (2024)', ' (2024)', 2024, 'movies', 1, 1, 0, 'fr')"
+    )
+    conn.commit()
+
+    apply_migrations(conn, _MIGRATIONS_DIR)
+
+    row = conn.execute("SELECT title FROM media_item WHERE id = 1").fetchone()
+    assert row is not None
+    assert row[0] == " (2024)", f"Expected unchanged ' (2024)', got {row[0]!r}"
+
+    # Migration changes log must NOT contain the degenerate canonicalisation.
+    counts = conn.execute("SELECT COUNT(*) FROM _migration_007_changes").fetchone()
+    assert counts is not None
+    assert counts[0] == 0, "LENGTH guard must skip degenerate titles"
+
+    conn.close()
+
+
 def test_migration_007_glob_matches_digit_suffix(tmp_path: Path) -> None:
     """CR-1: GLOB with [0-9] character class correctly matches year suffixes."""
     db_path = tmp_path / "library.db"

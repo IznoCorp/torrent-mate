@@ -280,7 +280,10 @@ def json_from_result(result: Any) -> dict[str, Any]:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Realistic payload fixtures (3.7)
+# Realistic payload fixtures — Mock MediaDetails for scrape/rescrape e2e tests.
+# Covers full / partial / show / movie shapes so callers can exercise
+# graceful-degradation paths against payloads that look like real provider
+# responses (not toy stubs).
 # ══════════════════════════════════════════════════════════════════════════════
 
 

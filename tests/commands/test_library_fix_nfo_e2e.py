@@ -517,7 +517,7 @@ def test_fix_nfo_does_not_mutate_db(tmp_path: Path, test_config) -> None:
 # (apply / items_scanned / fixed / already_ok / unsafe_trailing / ...).
 
 
-# ── 10. New counters (SF-2, SF-H1, SF-H2) ───────────────────────────────────────
+# ── 10. New counters — backup_failed / nfo_unreadable / ambiguous_nfo ──────────
 
 
 def test_fix_nfo_ambiguous_movie_nfo(tmp_path: Path, test_config) -> None:
@@ -662,14 +662,12 @@ def test_outcome_literal_matches_stats_fields_and_cli_projection() -> None:
     dry_projection = stats.to_cli_json(apply=False)
     expected_dry = (outcome_members - {"fixed"}) | {"would_fix", "items_scanned", "apply", "errors"}
     assert set(dry_projection) == expected_dry, (
-        f"to_cli_json(apply=False) projection drift. "
-        f"Symmetric diff: {set(dry_projection) ^ expected_dry}"
+        f"to_cli_json(apply=False) projection drift. Symmetric diff: {set(dry_projection) ^ expected_dry}"
     )
     apply_projection = stats.to_cli_json(apply=True)
     expected_apply = outcome_members | {"items_scanned", "apply", "errors"}
     assert set(apply_projection) == expected_apply, (
-        f"to_cli_json(apply=True) projection drift. "
-        f"Symmetric diff: {set(apply_projection) ^ expected_apply}"
+        f"to_cli_json(apply=True) projection drift. Symmetric diff: {set(apply_projection) ^ expected_apply}"
     )
 
     # inc() correctly mutates every outcome counter.

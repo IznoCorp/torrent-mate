@@ -166,17 +166,12 @@ def _is_trailing_safe(trailing: bytes) -> bool:
 def _resolve_nfo_path(dispatch_path: str, kind: str) -> tuple[Path | None, Literal["ok", "missing", "ambiguous"]]:
     """Derive the expected NFO file path from a media item's dispatch directory.
 
-    For TV shows the NFO is always ``tvshow.nfo`` at the root.  For movies the
-    NFO name matches the title stem — we glob for ``*.nfo`` files, skipping
-    macOS AppleDouble (``._`` prefix).  When multiple NFO candidates exist
+    For TV shows the NFO is always ``tvshow.nfo`` at the root. For movies the
+    NFO name matches the title stem — we glob via
+    :func:`personalscraper.nfo_utils.glob_nfo_candidates` (which skips macOS
+    AppleDouble ``._`` sidecars). When multiple NFO candidates exist
     (e.g. a trailer NFO alongside the main one), the result is ambiguous and
     the file is skipped.
-
-    .. note::
-       Sibling at ``personalscraper/indexer/scanner/_modes/backfill_ids.py``
-       has a ``_resolve_nfo_path`` with the same shape but a different concern:
-       this one detects ambiguous NFOs for repair; the other is read-only path
-       resolution for backfill.
 
     Args:
         dispatch_path: Filesystem path of the media item root directory.
@@ -187,13 +182,15 @@ def _resolve_nfo_path(dispatch_path: str, kind: str) -> tuple[Path | None, Liter
         ready to use), ``"missing"`` (no NFO found), or ``"ambiguous"``
         (multiple NFO candidates — cannot safely pick one).
     """
+    from personalscraper.nfo_utils import glob_nfo_candidates  # noqa: PLC0415
+
     base = Path(dispatch_path)
     if kind == "show":
         nfo = base / "tvshow.nfo"
         if nfo.exists():
             return nfo, "ok"
         return base / "tvshow.nfo", "missing"
-    nfo_files = sorted(f for f in base.glob("*.nfo") if not f.name.startswith("._"))
+    nfo_files = glob_nfo_candidates(base)
     if not nfo_files:
         return None, "missing"
     if len(nfo_files) > 1:

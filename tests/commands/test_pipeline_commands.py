@@ -204,6 +204,34 @@ class TestProcessCommand:
         assert result.exit_code == 1
         assert "Process failed" in result.output
 
+    def test_failure_chains_traceback_via_from_exc(self, _release, _acquire) -> None:
+        """The process command's exception-handler uses ``raise ... from exc``.
+
+        Pins the ``raise typer.Exit(1) from exc`` discipline at
+        commands/pipeline.py — without ``from exc``, ``rich``'s
+        ``--verbose`` traceback formatting loses the upstream context.
+
+        Source-level check rather than runtime: the typer ``CliRunner``
+        loses the cause chain when wrapping ``typer.Exit`` as
+        ``SystemExit``, and invoking the command callback directly
+        would require a substantial mock stack (config, lock,
+        per_step_boundary, settings) just to reach the inner except
+        block. A regex on the source is the most direct way to pin
+        the discipline.
+        """
+        import inspect  # noqa: PLC0415
+        import re  # noqa: PLC0415
+
+        from personalscraper.commands import pipeline  # noqa: PLC0415
+
+        source = inspect.getsource(pipeline.process)
+        # The handler MUST chain the cause; a bare `raise typer.Exit(1)`
+        # would silently lose the upstream RuntimeError.
+        assert re.search(
+            r"raise typer\.Exit\(1\)\s+from\s+exc",
+            source,
+        ), f"process() must use 'raise typer.Exit(1) from exc' to preserve cause chain. Source:\n{source}"
+
 
 class TestProcessLockBlocked:
     """process exits 1 when the lock is held."""

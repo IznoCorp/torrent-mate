@@ -131,9 +131,9 @@ def run_backfill_ids(
             whose canonical provider is ``"tvdb"``.
         show_filter: Restrict the pass to the show whose title equals
             this string. Useful for the post-scrape auto-trigger.
-            After SF-H4 (PR #24), the filter is normalised via
-            ``_canonical_title`` (trailing `` (YYYY)`` suffix stripped)
-            to match post-migration-007 stored titles.
+            The filter is normalised via ``_canonical_title`` (trailing
+            `` (YYYY)`` suffix stripped) so it matches the canonical
+            titles stored after migration 007.
         ids_only: When ``True``, do not fetch ratings.
         ratings_only: When ``True``, do not fetch IDs.
         dry_run: When ``True``, every DB write is rolled back.
@@ -593,14 +593,11 @@ def _resolve_nfo_path(dispatch_path: str, kind: str) -> "Path | None":
 
     For TV shows the NFO is always ``tvshow.nfo`` at the root of the show
     directory. For movies the NFO name matches the title stem
-    (``{Title}.nfo``); to avoid needing the exact title string we glob
-    for the first ``.nfo`` file in the directory.
-
-    .. note::
-       Sibling at ``personalscraper/commands/library/fix_nfo.py`` has a
-       ``_resolve_nfo_path`` with the same shape but a different concern:
-       this is a read-only path resolution for backfill; the sibling
-       detects ambiguous NFOs for repair.
+    (``{Title}.nfo``); we glob via
+    :func:`personalscraper.nfo_utils.glob_nfo_candidates` (which skips
+    macOS AppleDouble ``._`` sidecars — without that filter the resolver
+    could pick a stale ``._<title>.nfo`` binary blob on NTFS volumes and
+    fail every downstream XML parse).
 
     Args:
         dispatch_path: Filesystem path of the media item root directory
@@ -614,12 +611,12 @@ def _resolve_nfo_path(dispatch_path: str, kind: str) -> "Path | None":
     """
     from pathlib import Path  # noqa: PLC0415
 
+    from personalscraper.nfo_utils import glob_nfo_candidates  # noqa: PLC0415
+
     base = Path(dispatch_path)
     if kind == "show":
         return base / "tvshow.nfo"
-    # Movie: glob for the first .nfo file in the directory (avoids
-    # needing to reconstruct the exact "{Title}.nfo" stem).
-    nfo_files = sorted(base.glob("*.nfo"))
+    nfo_files = glob_nfo_candidates(base)
     return nfo_files[0] if nfo_files else None
 
 
@@ -891,8 +888,9 @@ def init_canonical_from_nfo(conn: sqlite3.Connection, dry_run: bool = False) -> 
                     stats.unsupported_no_fallback += 1
                 if needs_canonical or not extracted_ids:
                     continue
-                # Fall through — skip canonical settlement + population stats;
-                # only the merge-additive seeding block below runs.
+                # Skip the else-branch (canonical settlement + population
+                # stats) and proceed straight to the merge-additive
+                # seeding block below.
             else:
                 # canonical is guaranteed non-None for ok_default / ok_fallback.
                 assert canonical is not None
@@ -998,6 +996,7 @@ def init_canonical_from_nfo(conn: sqlite3.Connection, dry_run: bool = False) -> 
         external_ids_seeded_with_canonical=stats.external_ids_seeded_with_canonical,
         external_ids_seeded_alone=stats.external_ids_seeded_alone,
         external_ids_already_present=stats.external_ids_already_present,
+        parse_unexpected_error=stats.parse_unexpected_error,
     )
     return stats
 
