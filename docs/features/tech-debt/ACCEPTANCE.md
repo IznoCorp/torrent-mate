@@ -436,7 +436,10 @@ reste numéroté ACC-33 pour ne pas casser les références ailleurs, mais re-po
 
 ### ACC-34 — Plan A reset+rescrape executed (DEV #27, #54 closure) 🟡
 
-**Status**: 🟡 PENDING (Phase 8.10 — operator action: verify Plan A backfill completion + retry if needed)
+**Status**: 🟡 PARTIAL (was: pending Phase 8.10). Plan A initial launch (`a1eb322` post-Phase 7)
+FAILED — invalid CLI flag (`library-index --mode backfill-ids` instead of `library-backfill-ids`).
+Audit at `audit/16-plan-a-failure-and-retry.md`. Operator retry runbook ready;
+ACC-34 closes when `canonical_provider > 90%` after retry.
 
 ```bash
 sqlite3 .data/library.db "SELECT COUNT(*) FROM media_item WHERE external_ids_json != '{}';"
