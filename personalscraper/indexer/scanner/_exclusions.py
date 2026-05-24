@@ -68,7 +68,7 @@ def _relpath(mount_path: str, abs_path: str) -> str:
         abs_path: Absolute path of the entry on the same disk.
 
     Returns:
-        Relative path string, e.g. ``"001-MOVIES/Inception (2010)"``.
+        Relative path string, e.g. ``"{movies_dir}/Inception (2010)"``.
     """
     rel = os.path.relpath(abs_path, mount_path)
     # os.path.relpath never starts with '/' but may start with '.'; keep it clean.
