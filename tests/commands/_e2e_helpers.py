@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -82,9 +83,6 @@ def seed_phantom_path(
     return path_id
 
 
-_SEED_TITLE_COUNTER = 0
-
-
 def seed_media_item_with_release(
     conn: sqlite3.Connection,
     title: str | None = None,
@@ -92,14 +90,12 @@ def seed_media_item_with_release(
 ) -> int:
     """Insert a minimal media_item + media_release pair and return the release_id.
 
-    When ``title`` is ``None`` (default), generates a unique title via a global
-    monotonic counter to satisfy migration 007's ``UNIQUE(title, kind)`` constraint
-    when called multiple times from the same test.
+    When ``title`` is ``None`` (default), generates a unique title via
+    ``uuid4().hex[:8]`` to satisfy migration 007's ``UNIQUE(title, kind)``
+    constraint without relying on global mutable state.
     """
-    global _SEED_TITLE_COUNTER
     if title is None:
-        _SEED_TITLE_COUNTER += 1
-        title = f"Test Movie {_SEED_TITLE_COUNTER}"
+        title = f"Test Movie {uuid.uuid4().hex[:8]}"
     now = int(time.time())
     cursor = conn.execute(
         "INSERT INTO media_item (kind, title, title_sort, category_id, date_created, date_modified) "
@@ -284,6 +280,79 @@ def json_from_result(result: Any) -> dict[str, Any]:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Realistic payload fixtures (3.7)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def _make_minimal_movie_details() -> Any:
+    """Return a minimal :class:`MediaDetails` for a movie.
+
+    Covers the "API returns complete data" path with all mandatory fields
+    plus one poster and one landscape image.
+    """
+    from personalscraper.api.metadata._base import ArtworkItem, MediaDetails  # noqa: PLC0415
+
+    return MediaDetails(
+        provider="tmdb",
+        provider_id="550",
+        title="Fight Club",
+        original_title="Fight Club",
+        year=1999,
+        overview="An insomniac office worker and a devil-may-care soap maker form an underground fight club.",
+        genres=["Drama", "Thriller"],
+        runtime_minutes=139,
+        rating=8.4,
+        images=[
+            ArtworkItem(type="poster", url="https://image.tmdb.org/t/p/w500/fight_club_poster.jpg"),
+            ArtworkItem(type="landscape", url="https://image.tmdb.org/t/p/w500/fight_club_landscape.jpg"),
+        ],
+        external_ids={"imdb": "tt0137523"},
+    )
+
+
+def _make_minimal_show_details() -> Any:
+    """Return a minimal :class:`MediaDetails` for a TV show.
+
+    Includes one season summary so season-aware callers can verify
+    season_number → episode_count linkage.
+    """
+    from personalscraper.api.metadata._base import MediaDetails, SeasonInfo  # noqa: PLC0415
+
+    return MediaDetails(
+        provider="tvdb",
+        provider_id="121361",
+        title="Breaking Bad",
+        original_title="Breaking Bad",
+        year=2008,
+        overview="A high school chemistry teacher diagnosed with inoperable lung cancer turns to manufacturing methamphetamine.",
+        genres=["Drama", "Crime"],
+        runtime_minutes=47,
+        rating=9.5,
+        seasons=[
+            SeasonInfo(season_number=1, episode_count=7),
+            SeasonInfo(season_number=2, episode_count=13),
+        ],
+        external_ids={"imdb": "tt0903747"},
+    )
+
+
+def _make_partial_movie_details() -> Any:
+    """Return a :class:`MediaDetails` with several optional fields missing.
+
+    Covers the "API returns partial data" path — no runtime, no genres,
+    no images, no external IDs, no rating.  Callers must degrade gracefully.
+    """
+    from personalscraper.api.metadata._base import MediaDetails  # noqa: PLC0415
+
+    return MediaDetails(
+        provider="tmdb",
+        provider_id="99999",
+        title="Incomplete Movie",
+        year=2020,
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Mock clients (6 helpers — 9.1)
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -331,14 +400,16 @@ def mock_transmission_client(monkeypatch: Any) -> Any:
 
 
 def mock_tmdb_client(monkeypatch: Any) -> Any:
-    """Mock TMDB API client returning canonical (empty) payloads.
+    """Mock TMDB API client returning realistic payloads by default.
+
+    Returns a minimal movie for ``get_movie`` and a minimal search result
+    list for ``search_movie`` / ``search_show``.  Callers can override
+    ``get_movie.return_value``, ``get_show.return_value``, etc. for
+    scenario-specific tests (e.g. partial data, error paths).
 
     Also mocks ``TMDBClient.policy`` to return a safe no-op
     :class:`TransportPolicy` so the rescraper's ``HttpTransport``
     wrapper does not choke on a ``MagicMock`` inside ``RateLimiter``.
-
-    Returns the mock instance; callers configure ``get_movie.return_value``,
-    ``get_show.return_value``, etc. for realistic scenarios.
     """
     from unittest.mock import MagicMock  # noqa: PLC0415
 
@@ -351,8 +422,8 @@ def mock_tmdb_client(monkeypatch: Any) -> Any:
     )
 
     mock = MagicMock()
-    mock.get_movie.return_value = None
-    mock.get_show.return_value = None
+    mock.get_movie.return_value = _make_minimal_movie_details()
+    mock.get_show.return_value = _make_minimal_show_details()
     mock.get_season.return_value = None
     mock.search_movie.return_value = []
     mock.search_show.return_value = []
@@ -378,11 +449,16 @@ def mock_tmdb_client(monkeypatch: Any) -> Any:
 
 
 def mock_tvdb_client(monkeypatch: Any) -> Any:
-    """Mock TVDB API client returning canonical (empty) payloads."""
+    """Mock TVDB API client returning realistic payloads by default.
+
+    Returns a minimal show for ``get_show``.  Callers can override
+    ``get_show.return_value``, ``get_season.return_value``, etc. for
+    scenario-specific tests.
+    """
     from unittest.mock import MagicMock  # noqa: PLC0415
 
     mock = MagicMock()
-    mock.get_show.return_value = None
+    mock.get_show.return_value = _make_minimal_show_details()
     mock.get_season.return_value = None
     mock.search_show.return_value = []
 
