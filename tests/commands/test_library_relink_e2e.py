@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 from tests.commands._e2e_helpers import (
     assert_no_python_traceback,
+    json_from_result,
     make_synthetic_db,
     make_test_config_with_db,
     run_cli,
@@ -333,11 +334,32 @@ def test_relink_idempotent_second_run_noop(tmp_path, test_config) -> None:
 
 # ── 10. Closure-of-loop ──
 
-# N/A: ``library-relink`` performs a one-shot UPDATE on media_file.release_id
-# for rows where release_id IS NULL.  Once linked, the update is atomic and
-# idempotent — there is no ongoing BDD ↔ FS drift to close.  The link
-# correctness is verified by ``test_relink_apply_persists_link_updates``
-# (asserts release_id is non-NULL after --apply) and the idempotence test
-# above (second run is a no-op).  The broader "files are properly linked to
-# releases" invariant is covered by reconcile's
-# ``detect_files_without_release`` detector.
+
+def test_relink_apply_then_reconcile_zero_orphans(tmp_path, test_config) -> None:
+    """After ``relink --apply``, ``reconcile --enqueue-repairs`` reports 0 orphan files.
+
+    Cross-command closure: relink binds NULL release_id rows, and reconcile's
+    ``detect_files_without_release`` must confirm the binding is complete.
+    Verifies the broader "no file left behind" invariant end-to-end.
+    """
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+
+    mount = tmp_path / "mount"
+    mount.mkdir()
+    _seed_null_release_files(db_path, mount, "TestMovie", "test.mkv", "TestMovie")
+
+    # Step 1: link the orphan files.
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        r1 = run_cli(["library-relink", "--apply"])
+    assert r1.exit_code == 0, r1.output
+    assert "Applied:" in r1.output, r1.output
+
+    # Step 2: reconcile must report zero files_without_release.
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        r2 = run_cli(["--format", "json", "library-reconcile", "--enqueue-repairs"])
+    assert r2.exit_code == 0, r2.output
+    payload = json_from_result(r2)
+    assert payload["files_without_release"] == 0, (
+        f"Cross-command closure broken: {payload['files_without_release']} files still without release after relink"
+    )
