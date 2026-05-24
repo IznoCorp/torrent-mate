@@ -151,9 +151,9 @@ python3 scripts/audit-cli-coverage.py
 # Expected: exit 0, every command has commands.md entry
 ```
 
-### ACC-16 — backfill-ids first run executed (MUST-19, DEV #28) 🟡
+### ACC-16 — backfill-ids first run executed (MUST-19, DEV #28) ✅
 
-**Status**: 🟡 PENDING operator action — CLI shipped commit `7391529`, real run pending Phase 8.10
+**Status**: ✅ SHIPPED — CLI shipped commit `7391529` (Phase 2), real run executed by operator 2026-05-24 post-Plan-A-retry (Phase 8.10.b/c/d). Backfill stats: 1924 scanned, 1450 updated, 2398 cross-provider IDs added, 953 ratings added, 0 failures. Final coverage: 91.3% external_ids, 75.5% ratings (the remaining ratings deferred to next-day rerun after OMDB free-tier 1000/day quota reset; 8.10.d quota tracker prevents future 401 spam).
 
 ```bash
 # After Phase 8.10 Plan A
@@ -434,12 +434,17 @@ reste numéroté ACC-33 pour ne pas casser les références ailleurs, mais re-po
 
 ## Polish + Plan A + ACCEPTANCE (Phase 8)
 
-### ACC-34 — Plan A reset+rescrape executed (DEV #27, #54 closure) 🟡
+### ACC-34 — Plan A reset+rescrape executed (DEV #27, #54 closure) ✅
 
-**Status**: 🟡 PARTIAL (was: pending Phase 8.10). Plan A initial launch (`a1eb322` post-Phase 7)
-FAILED — invalid CLI flag (`library-index --mode backfill-ids` instead of `library-backfill-ids`).
-Audit at `audit/16-plan-a-failure-and-retry.md`. Operator retry runbook ready;
-ACC-34 closes when `canonical_provider > 90%` after retry.
+**Status**: ✅ SHIPPED — Plan A retry executed by operator 2026-05-24, post fixes:
+
+- 8.10.b (`173d529`+`e68c484`) — `library-fix-nfo` CLI repaired 228 NFOs with trailing TVDB URLs
+- 8.10.c (`82b32de`+`3a971f1`+`3cfffbb`) — `library-init-canonical` chicken-and-egg fix: seeds external_ids_json from NFO uniqueid for 1755 items
+- 8.10.d (`c5b7332`+`807187e`+`52ad7ae`) — OMDB daily-quota tracker (15 tests + 26 regression)
+- Backfill ran on 1924 items → 1450 updated, 2398 IDs added, 953 ratings added, 0 failures
+- Final: 91.3% external_ids populated (1757/1924), 75.5% ratings populated (1452/1924)
+- 167 items remain `canonical=None` (60 nfo_missing + 10 nfo_parse_error + 89 no_default_uniqueid + 8 unsupported_no_fallback)
+- 24.5% ratings rerun pending (OMDB free-tier 1000/day quota was exhausted mid-run; rerun `--ratings-only` after midnight UTC quota reset, with 8.10.d quota tracker now in place to prevent the 2301 spam 401s observed)
 
 ```bash
 sqlite3 .data/library.db "SELECT COUNT(*) FROM media_item WHERE external_ids_json != '{}';"
@@ -562,9 +567,9 @@ helper. Alias removal scheduled for 0.17+. Coverage:
 discoverability, deprecation warning presence/absence, and shared-impl
 delegation).
 
-### ACC-NFO-FIX — library-fix-nfo command repairs trailing-URL NFOs (Phase 8.10.b)
+### ACC-NFO-FIX — library-fix-nfo command repairs trailing-URL NFOs (Phase 8.10.b) ✅
 
-**Status**: 🟡 AWAITING COMMIT (shard 2 — tests + docs pending)
+**Status**: ✅ SHIPPED — shard 1 `173d529` (CLI + register + ACC), shard 2 `e68c484` (12 E2E tests + commands.md doc + audit script tracked). Used by operator on prod 2026-05-24: `--apply` truncated 228 NFOs (would_fix dry-run = fixed apply, 0 unsafe_trailing, 0 still_malformed).
 
 **Criterion**: New CLI `personalscraper library-fix-nfo` exists, dry-run by default,
 safely truncates trailing URL content from NFO files broken by legacy scrapers.
@@ -578,7 +583,9 @@ personalscraper library-fix-nfo --help 2>&1 | grep -q "apply" && echo "OK"
 
 ---
 
-### ACC-INIT-CANONICAL-SEEDS — library-init-canonical seeds external_ids_json from NFO uniqueid (Phase 8.10.c)
+### ACC-INIT-CANONICAL-SEEDS — library-init-canonical seeds external_ids_json from NFO uniqueid (Phase 8.10.c) ✅
+
+**Status**: ✅ SHIPPED — shard 1 `82b32de` (3-tuple return + InitCanonicalStats extension), shard 1b `3a971f1` (broadened WHERE for chicken-and-egg cohort), shard 2 `3cfffbb` (12 regression tests). Operator ran on prod 2026-05-24: 1755 chicken-and-egg items seeded via `external_ids_seeded_alone`.
 
 **Criterion**: library-init-canonical populates BOTH `canonical_provider` AND
 `external_ids_json[<family>].series_id` for every `<uniqueid>` element found in

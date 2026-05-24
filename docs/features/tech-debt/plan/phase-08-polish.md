@@ -314,26 +314,26 @@ provider-ids feature without proportional branch tests).
 
 **Commit** : `refactor(tech-debt): trim test_cli @patch count 52 → ≤25 (DEV #49)`
 
-## Phase 8 Gate (= PR gate)
+## Phase 8 Gate (= PR gate) — GATE COMMIT `c8f20dd` (2026-05-24)
 
-- [ ] 8.1 cron entry present (SH-3)
-- [ ] 8.2 pending_op + item_issue audit done (SH-6, BD-U/V)
-- [x] 8.3 qbit-restart decided — Option B (matrix removal), cross-repo patch on `.claude/personal-scraper` is operator follow-up (SH-14, DEV #20)
-- [ ] 8.4 dead infrastructure audit report committed (SH-17)
-- [ ] 8.5 `personalscraper clean` + `cleanup` exposed (SH-21, AR-C)
-- [ ] 8.6 `trailers audit` alias works (SH-22, AR-D)
-- [~] 8.7 FOLDED into Phase 9.1 — pin test livré en Phase 9 CLI Test Coverage (SH-25)
-- [ ] 8.8 audit-cli-coverage exit 0 (SH-26)
-- [ ] 8.9 ACCEPTANCE.md complete with all criteria ✅ (CF-J)
-- [ ] 8.10 Plan A reset+rescrape executed, library-doctor reports canonical_provider > 90% (DEV #27, #54)
-- [ ] 8.11 check-module-size hard-blocks > 1000 (DEV #46)
-- [ ] 8.12 \_upsert_media_item dedup + migration 007 + test (DEV #53)
-- [ ] 8.13 event-bus catalog v1 sync (DEV #25)
-- [ ] 8.14 branch coverage re-measured + IMPLEMENTATION updated (DEV #41)
-- [ ] 8.15 test_cli @patch ≤ 25 (DEV #49)
-- [ ] `make check` vert
-- [ ] `personalscraper library-doctor` exit 0 sur DB prod post-toutes-phases
-- [ ] PR ready
+- [x] 8.1 cron entry present (SH-3) — `5426826`
+- [x] 8.2 pending_op + item_issue audit done (SH-6, BD-U/V) — `ba47124` (both KEEP, full production wiring)
+- [x] 8.3 qbit-restart decided — Option B (matrix removal), cross-repo patch on `.claude/personal-scraper` is operator follow-up (SH-14, DEV #20) — `017ea7b`
+- [x] 8.4 dead infrastructure audit report committed (SH-17) — `92c4d11` (261 dead-function candidates surfaced)
+- [x] 8.5 `personalscraper clean` + `cleanup` exposed (SH-21, AR-C) — `771e630` (33 new tests)
+- [x] 8.6 `trailers audit` alias works (SH-22, AR-D) — `0c6886d` (46 tests)
+- [~] 8.7 FOLDED into Phase 9.1 — pin test livré en Phase 9 CLI Test Coverage (SH-25) — see `a66c411` (40 pin tests)
+- [x] 8.8 audit-cli-coverage exit 0 (SH-26) — `0376222` (5 new domains; 1 SH-26 finding `ingest`)
+- [x] 8.9 ACCEPTANCE.md complete with all criteria ✅ (CF-J) — `addab31` (70 criteria reconciled)
+- [x] 8.10 Plan A reset+rescrape — PARTIAL at gate `0da47b1` (audit + runbook), COMPLETED post-gate via **8.10.b** (`173d529`+`e68c484` — library-fix-nfo CLI), **8.10.c** (`82b32de`+`3a971f1`+`3cfffbb` — init-canonical chicken-and-egg fix), **8.10.d** (`c5b7332`+`807187e`+`52ad7ae` — OMDB quota tracker). Operator ran backfill 2026-05-24, library-doctor reports **91.3% external_ids populated** (DEV #27, #54 closed). Ratings rerun (next OMDB quota window) deferred — quota tracker now in place.
+- [x] 8.11 check-module-size hard-blocks > 1000 (DEV #46) — `58c63d3`
+- [x] 8.12 \_upsert_media_item dedup + migration 007 + test (DEV #53) — `bcb2065` (18 dedicated tests + 661 indexer regression)
+- [x] 8.13 event-bus catalog v1 sync (DEV #25) — `fb96adb` (13→17 events re-exported; budget split deferred to 0.17+)
+- [x] 8.14 branch coverage re-measured + IMPLEMENTATION updated (DEV #41) — `15a5a2e`+`b27de8b`+`0c3bc33` (87.09% branch / 91.88% combined, Δ -3.91pp vs 91% historical, within ±5pp band, no follow-up)
+- [x] 8.15 test_cli @patch ≤ 25 (DEV #49) — `60d910d`+`df723b5`+`1cd653a` (52→20, target met)
+- [x] `make check` vert (post pre-gate hygiene `5e4e183` for format + `3876636` cleared 3 pre-existing no-print ERRORs on `cli_helpers/output.py` via `typer.echo` migration + PRAGMA discipline fix on `library-fix-nfo`)
+- [x] `personalscraper library-doctor` exit 0 sur DB prod post-toutes-phases — operator confirmed via Plan A retry audit 2026-05-24
+- [ ] PR ready — at end of Phase 10
 
 **Phase gate commit** : `chore(tech-debt): phase 8 gate — polish + Plan A reset + module-size hard-block + ACCEPTANCE complete`
 
