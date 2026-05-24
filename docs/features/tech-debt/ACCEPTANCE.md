@@ -562,6 +562,22 @@ helper. Alias removal scheduled for 0.17+. Coverage:
 discoverability, deprecation warning presence/absence, and shared-impl
 delegation).
 
+### ACC-NFO-FIX — library-fix-nfo command repairs trailing-URL NFOs (Phase 8.10.b)
+
+**Status**: 🟡 AWAITING COMMIT (shard 2 — tests + docs pending)
+
+**Criterion**: New CLI `personalscraper library-fix-nfo` exists, dry-run by default,
+safely truncates trailing URL content from NFO files broken by legacy scrapers.
+
+```bash
+personalscraper library-fix-nfo --help 2>&1 | grep -q "apply" && echo "OK"
+# Expected: "OK" (help text mentions --apply flag and dry-run-by-default safety)
+```
+
+**Source items**: DEV #27 (Plan A unblocker), audit/16-plan-a-failure-and-retry.md
+
+---
+
 ### ACC-SH-17 — Dead infrastructure audit (SH-17, CF-G) ✅
 
 **Status**: ✅ [SHIPPED commit `92c4d11` (Phase 8.4)]
@@ -766,7 +782,7 @@ git status --short
 
 ## Summary
 
-**Total**: 70 ACCEPTANCE criteria (55 numbered ACC-00..ACC-54 + 4 ACC-NTFS-_ + 4 ACC-BDD-_ + 2 ACC-SH-_ + 5 ACC-final-_). All executable.
+**Total**: 71 ACCEPTANCE criteria (55 numbered ACC-00..ACC-54 + 4 ACC-NTFS-_ + 4 ACC-BDD-_ + 2 ACC-SH-_ + 1 ACC-NFO-FIX + 5 ACC-final-_). All executable.
 Each maps to a specific phase + DEV(s) + commit (ACC-50..54 added for Phase 9 CLI test
 coverage, ACC-SH-17 + ACC-SH-26 added for Phase 8.4 + 8.8, decision opérateur 2026-05-23).
 
