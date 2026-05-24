@@ -1,5 +1,16 @@
 # DESIGN — Logging Convention Unification
 
+> **⚠ STATUS** : This DESIGN.md is an archived as-designed snapshot. Some claims are
+> superseded by later features. Module paths in this archive reference pre-`api-unify` layout.
+> See `docs/reference/logging.md` for current paths (already fixed via `329afbc`).
+>
+> **Old → New mapping** :
+>
+> | Old (DESIGN.md)                                         | New (current)                                          | Replaced by              |
+> | ------------------------------------------------------- | ------------------------------------------------------ | ------------------------ |
+> | `personalscraper.scraper.http_retry.build_retry_logger` | `personalscraper.core.http_helpers.build_retry_logger` | `feat/api-unify` v0.11.0 |
+> | `scraper/tmdb_client.py` (canonical template)           | `personalscraper/api/metadata/tmdb.py`                 | `feat/api-unify` v0.11.0 |
+
 **Codename**: `logging`
 **Type**: refactor (minor SemVer bump)
 **Status**: preparation — not yet implemented
