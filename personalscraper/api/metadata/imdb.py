@@ -30,6 +30,7 @@ from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api._helpers import ProviderFeatureUnavailable
 from personalscraper.api.metadata._base import MediaDetails, Notations
 from personalscraper.api.metadata._contracts import IDCrossRef, IDValidator, RatingProvider
+from personalscraper.api.metadata.omdb import OmdbQuotaExhausted
 
 if TYPE_CHECKING:
     from personalscraper.api.metadata.omdb import OMDbAdapter
@@ -105,6 +106,8 @@ class IMDbClient(IDValidator, RatingProvider, IDCrossRef):
         """
         try:
             details = self._backend.get_details(provider_id)
+        except OmdbQuotaExhausted:
+            raise
         except ApiError:
             return False
         if _normalize_title(details.title) != _normalize_title(expected_title):
@@ -139,6 +142,8 @@ class IMDbClient(IDValidator, RatingProvider, IDCrossRef):
         """
         try:
             notations = self._backend.get_notations(provider_id)
+        except OmdbQuotaExhausted:
+            raise
         except ApiError as exc:
             raise ProviderFeatureUnavailable("imdb", "get_rating", str(exc)) from exc
         if not notations:
