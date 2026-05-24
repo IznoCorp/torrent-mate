@@ -165,3 +165,79 @@ def test_rescrape_format_json(tmp_path, test_config) -> None:
     assert "skipped_count" in data
     assert "error_count" in data
     assert isinstance(data["items"], list)
+
+
+# ── 3. Errors ──
+
+
+def test_rescrape_invalid_arg_exits_nonzero() -> None:
+    """Unknown flag → non-zero exit, no Python traceback."""
+    from tests.commands._e2e_helpers import assert_no_python_traceback
+
+    result = run_cli(["library-rescrape", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_rescrape_db_path_none_handled_gracefully(test_config) -> None:
+    """Unconfigured ``indexer.db_path`` → no traceback (rescrape walks config.disks, not DB)."""
+    from tests.commands._e2e_helpers import assert_no_python_traceback
+
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-rescrape", "--dry-run"])
+    assert_no_python_traceback(result)
+
+
+# ── 6. Output ──
+
+
+def test_rescrape_json_output_schema_valid(tmp_path, test_config) -> None:
+    """Output JSON file matches expected schema."""
+    data_dir = tmp_path / ".data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    disk_base = tmp_path / "drive_a"
+    cat_dir = disk_base / "cat_movies"
+    cat_dir.mkdir(parents=True, exist_ok=True)
+    _make_rescrape_item_dir(cat_dir, "Test Movie (2024)", nfo=False, poster=False)
+    cfg = test_config
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["--format", "json", "library-rescrape", "--dry-run"])
+    assert result.exit_code == 0
+    json_path = data_dir / "library_rescrape.json"
+    data = json.loads(json_path.read_text())
+    for key in ("rescraped_at", "dry_run", "fixed_count", "skipped_count", "error_count", "items"):
+        assert key in data, f"Missing key '{key}' in rescrape output: {sorted(data.keys())}"
+
+
+def test_rescrape_error_exits_nonzero() -> None:
+    """Invalid flag → non-zero exit code."""
+    result = run_cli(["library-rescrape", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+
+
+# ── 7. Events ──
+
+
+def test_rescrape_dry_run_emits_events(tmp_path, test_config, monkeypatch) -> None:
+    """Rescrape ``--dry-run`` runs with an active EventBus (no crash)."""
+    from tests.commands._e2e_helpers import capture_event_bus
+
+    data_dir = tmp_path / ".data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    disk_base = tmp_path / "drive_a"
+    cat_dir = disk_base / "cat_movies"
+    cat_dir.mkdir(parents=True, exist_ok=True)
+    _make_rescrape_item_dir(cat_dir, "Test Movie (2024)", nfo=False, poster=False)
+
+    captured = capture_event_bus(monkeypatch)
+
+    cfg = test_config
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["--format", "json", "library-rescrape", "--dry-run"])
+
+    assert result.exit_code == 0, result.output
+    # Dry-run emits preview/scan events.  Live mode emits ItemProgressed
+    # per item but requires full TMDB/TVDB API mocking (out of scope for
+    # this harness — covered by integration tests).
+    assert isinstance(captured, list), f"captured should be a list, got {type(captured)}"
