@@ -283,6 +283,9 @@ class OmdbQuotaTracker:
         evidence. The log carries that warning explicitly so operators
         investigating quota anomalies know to check the archive immediately.
         """
+        if not self._state_path.exists():
+            log.info("omdb_quota_corrupt_already_removed", path=str(self._state_path), reason=reason)
+            return
         ts = datetime.now(tz=timezone.utc).strftime("%Y%m%d-%H%M%S")
         corrupt_path = self._state_path.with_suffix(self._state_path.suffix + f".corrupt-{ts}")
         try:
