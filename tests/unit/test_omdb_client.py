@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
 from personalscraper.api._contracts import ApiError
 from personalscraper.api.metadata._base import MediaDetails, SearchResult
+from personalscraper.api.metadata._omdb_quota import OmdbQuotaTracker
 from personalscraper.api.metadata.omdb import (
     OMDBClient,
+    OmdbQuotaExhausted,
     _parse_rating_value,
     _parse_runtime,
     _parse_year,
@@ -345,3 +349,63 @@ class TestSentinel:
     def test_normal_value(self) -> None:
         """Returns the original string."""
         assert _sentinel("Inception") == "Inception"
+
+
+class TestQuotaExhaustionCanaryFixture:
+    """Pinned byte-level payload fixture so substring detection stays anchored.
+
+    If OMDB rewords the quota-exhaustion error, the fixture must be
+    deliberately updated (making the change visible in code review).
+    """
+
+    def test_recorded_fixture_matches(self) -> None:
+        """Parses recorded OMDB 401 response and asserts _is_quota_exhaustion matches."""
+        fixture = Path(__file__).parent / "fixtures" / "omdb_quota_exhausted_response.json"
+        payload = json.loads(fixture.read_text())
+
+        client = _make_client()
+        exc = ApiError(
+            provider="omdb",
+            http_status=401,
+            message=payload["Error"],
+        )
+        assert client._is_quota_exhaustion(exc) is True
+
+
+class TestOmdbQuotaIntegration:
+    """Call-site integration: quota tracker ↔ OMDbAdapter."""
+
+    def test_get_details_raises_OmdbQuotaExhausted_when_tracker_skips(self, tmp_path: Path) -> None:
+        """get_details raises OmdbQuotaExhausted when tracker blocks the call."""
+        transport = MagicMock()
+        tracker = OmdbQuotaTracker(state_path=tmp_path / ".quota.json")
+        tracker.mark_exhausted("test")
+        client = OMDBClient(transport, quota_tracker=tracker)
+
+        with pytest.raises(OmdbQuotaExhausted):
+            client.get_details("tt1375666")
+
+    def test_quota_aware_get_returns_none_when_tracker_skips(self, tmp_path: Path) -> None:
+        """_quota_aware_get returns None when tracker blocks the call (fail-soft)."""
+        transport = MagicMock()
+        tracker = OmdbQuotaTracker(state_path=tmp_path / ".quota.json")
+        tracker.mark_exhausted("test")
+        client = OMDBClient(transport, quota_tracker=tracker)
+
+        result = client._quota_aware_get({"i": "tt1375666"}, method="get_notations", item_id="tt1375666")
+        assert result is None
+
+    def test_quota_aware_get_marks_exhausted_on_real_apierror(self, tmp_path: Path) -> None:
+        """_quota_aware_get marks tracker exhausted when transport raises real 401."""
+        transport = MagicMock()
+        transport.get.side_effect = ApiError(
+            provider="omdb",
+            http_status=401,
+            message="Request limit reached!",
+        )
+        tracker = OmdbQuotaTracker(state_path=tmp_path / ".quota.json")
+        client = OMDBClient(transport, quota_tracker=tracker)
+
+        result = client._quota_aware_get({"i": "tt1375666"}, method="get_notations", item_id="tt1375666")
+        assert result is None
+        assert tracker.status().exhausted is True
