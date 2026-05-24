@@ -178,6 +178,35 @@ class TestAtomicPersist:
         assert len(files) == 1
         assert files[0].suffix == ".json"
 
+    def test_persist_delegates_to_atomic_write_json(self, tmp_path: Path) -> None:
+        """_persist delegates the actual write to atomic_write_json.
+
+        Regression test for 11.1 M1: the whole point of the fix is that
+        _persist no longer does write_text + os.replace itself. Pinning
+        the delegation prevents future inlining.
+        """
+        from unittest.mock import MagicMock, patch
+
+        tracker = _fresh_tracker(tmp_path)
+        # Trigger _persist via reserve_call so state has real data.
+        tracker.reserve_call()
+
+        with patch(
+            "personalscraper.api.metadata._omdb_quota.atomic_write_json",
+            MagicMock(),
+        ) as mock_write:
+            tracker._persist()
+
+        mock_write.assert_called_once()
+        args, _ = mock_write.call_args
+        assert args[0] == tracker._state_path
+        data = args[1]
+        assert isinstance(data, dict)
+        assert "date" in data
+        assert "count" in data
+        assert "limit" in data
+        assert "exhausted" in data
+
 
 class TestCorruptedState:
     """Corrupted JSON in state file → trackers resets gracefully + warns."""
