@@ -29,6 +29,8 @@ def _canonical_title(title: str) -> str:
     Normalises both the stored title (post-migration 007) and the lookup key
     so that ``_upsert_media_item`` deduplicates by the base title regardless of
     whether the caller includes a release year in the title string.
+    See migration 007 (``007_media_item_dedup.sql``) and DEV #53 for the
+    dedup rationale.
 
     Args:
         title: Raw title, which may or may not end with `` (2020)``.
@@ -215,7 +217,6 @@ def delete(conn: sqlite3.Connection, id: int) -> bool:
     Returns:
         ``True`` if a row was deleted, ``False`` if no row matched ``id``.
     """
-    # Hard-delete justified: test-only utility — no production callers.
     cursor = conn.execute("DELETE FROM media_item WHERE id = ?", (id,))
     deleted = cursor.rowcount > 0
     if deleted:
