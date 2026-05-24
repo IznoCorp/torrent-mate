@@ -179,7 +179,8 @@ def run_backfill_ids(
                 error_type=type(exc).__name__,
             )
             stats.items_failed += 1
-            stats.items_failed_titles.append(row["title"])
+            if len(stats.items_failed_titles) < _MAX_FAILED_TITLES:
+                stats.items_failed_titles.append(row["title"])
             continue
         if updated:
             stats.items_updated += 1
@@ -542,7 +543,11 @@ def _call_rating_client(client: _RatingClient, provider_id: str) -> list[dict[st
 # with a value that violates the CHECK and crashes mid-walk.
 _VALID_CANONICAL_PROVIDERS = frozenset({"tvdb", "tmdb"})
 
+# Sentinel "null" tokens used in BOTH <uniqueid> text ("0", "none", "") and
+# type attribute (e.g. <uniqueid type="none">) — treat as missing in either position.
 _INVALID_CANONICAL_VALUES = frozenset({"0", "none", ""})
+
+_MAX_FAILED_TITLES = 100  # Truncate BackfillStats.items_failed_titles to bound memory.
 
 
 def _resolve_nfo_path(dispatch_path: str, kind: str) -> "Path | None":
@@ -594,9 +599,10 @@ def _parse_canonical_from_nfo(nfo_path: "Path") -> tuple[str | None, str, dict[s
     .. warning::
        The fallback returns the FIRST supported uniqueid found in NFO
        XML order, NOT the kind-preferred provider (TVDB primary for
-       shows, TMDB primary for movies per DESIGN §3 / multi-provider
-       memory feedback). For shows whose NFO orders ``tmdb`` before
-       ``tvdb``, the fallback may pick ``tmdb`` even though ``tvdb``
+       shows, TMDB primary for movies per
+       ``docs/archive/features/provider-ids/DESIGN.md`` §3). For shows
+       whose NFO orders ``tmdb`` before ``tvdb``, the fallback may pick
+       ``tmdb`` even though ``tvdb``
        would be the more semantically correct canonical anchor.  This
        is acceptable for the bootstrap pass (better something than NULL
        in canonical_provider) but is NOT how you should migrate an
@@ -856,7 +862,15 @@ def init_canonical_from_nfo(conn: sqlite3.Connection, dry_run: bool = False) -> 
             seeded_families: list[str] = []
             already_families: list[str] = []
             existing_raw = row["external_ids_json"]
-            existing: dict[str, Any] = json.loads(existing_raw) if existing_raw else {}
+            try:
+                existing: dict[str, Any] = json.loads(existing_raw) if existing_raw else {}
+            except json.JSONDecodeError:
+                log.warning(
+                    "init_canonical_external_ids_json_decode_failed",
+                    item_id=item_id,
+                    title=row["title"],
+                )
+                existing = {}
             for family, series_id in extracted_ids.items():
                 if family in existing:
                     already_families.append(family)
