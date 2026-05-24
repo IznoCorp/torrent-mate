@@ -272,6 +272,16 @@ def _stub_pipeline_steps(request, monkeypatch):
         staticmethod(lambda *a, **kw: False),
     )
 
+    # TelegramSubscriber.close is only called when the subscriber was constructed
+    # (i.e. __init__ ran, not patched to return None).  Patching close here as a
+    # no-op means tests that patch __init__ → None (the common case) no longer
+    # need a redundant @patch for close — the ``is not None`` guard in the CLI
+    # ``finally`` block (commands/pipeline.py:518) already skips it.
+    monkeypatch.setattr(
+        "personalscraper.subscribers.telegram.TelegramSubscriber.close",
+        lambda self, *a, **kw: None,
+    )
+
     yield
 
 
