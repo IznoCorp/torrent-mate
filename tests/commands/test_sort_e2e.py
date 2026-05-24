@@ -41,7 +41,10 @@ def test_sort_help_exits_zero() -> None:
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 @patch("personalscraper.sorter.run.run_sort")
 def test_sort_fast_skip_no_items(
-    mock_run, mock_lock, mock_release, mock_settings,
+    mock_run,
+    mock_lock,
+    mock_release,
+    mock_settings,
 ) -> None:
     """Empty ingest dir → fast-skip, zero ops, exit 0."""
     mock_run.return_value = StepReport(name="sort")
@@ -59,7 +62,10 @@ def test_sort_fast_skip_no_items(
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 @patch("personalscraper.sorter.run.run_sort")
 def test_sort_with_items(
-    mock_run, mock_lock, mock_release, mock_settings,
+    mock_run,
+    mock_lock,
+    mock_release,
+    mock_settings,
 ) -> None:
     """Items in ingest dir → moved to category dirs, summary printed."""
     mock_run.return_value = StepReport(
@@ -89,7 +95,9 @@ def test_sort_with_items(
 @patch("personalscraper.cli.release_lock")
 @patch("personalscraper.cli.acquire_lock", return_value=False)
 def test_sort_lock_contention(
-    mock_lock, mock_release, mock_settings,
+    mock_lock,
+    mock_release,
+    mock_settings,
 ) -> None:
     """Lock held → exit 1, friendly message, no traceback."""
     mock_settings.return_value = MagicMock()
@@ -106,12 +114,13 @@ def test_sort_lock_contention(
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 @patch("personalscraper.sorter.run.run_sort")
 def test_sort_with_errors(
-    mock_run, mock_lock, mock_release, mock_settings,
+    mock_run,
+    mock_lock,
+    mock_release,
+    mock_settings,
 ) -> None:
     """run_sort reports errors → exit 0, errors in summary."""
-    mock_run.return_value = StepReport(
-        name="sort", error_count=2, warnings=["ERROR bad_file: permission denied"]
-    )
+    mock_run.return_value = StepReport(name="sort", error_count=2, warnings=["ERROR bad_file: permission denied"])
     mock_settings.return_value = MagicMock()
 
     result = run_cli(["sort"])
@@ -128,7 +137,10 @@ def test_sort_with_errors(
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 @patch("personalscraper.sorter.run.run_sort")
 def test_sort_idempotent(
-    mock_run, mock_lock, mock_release, mock_settings,
+    mock_run,
+    mock_lock,
+    mock_release,
+    mock_settings,
 ) -> None:
     """Two consecutive sort calls exit 0, mock called twice."""
     mock_run.return_value = StepReport(name="sort", skip_count=5)
@@ -151,7 +163,10 @@ def test_sort_idempotent(
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 @patch("personalscraper.sorter.run.run_sort")
 def test_sort_dry_run_forwards_flag(
-    mock_run, mock_lock, mock_release, mock_settings,
+    mock_run,
+    mock_lock,
+    mock_release,
+    mock_settings,
 ) -> None:
     """--dry-run flag is forwarded to run_sort."""
     mock_run.return_value = StepReport(name="sort")
@@ -172,7 +187,10 @@ def test_sort_dry_run_forwards_flag(
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 @patch("personalscraper.sorter.run.run_sort")
 def test_sort_output_no_traceback(
-    mock_run, mock_lock, mock_release, mock_settings,
+    mock_run,
+    mock_lock,
+    mock_release,
+    mock_settings,
 ) -> None:
     """Output is Rich-formatted, never a raw Python traceback."""
     mock_run.return_value = StepReport(name="sort", success_count=1)
@@ -189,7 +207,10 @@ def test_sort_output_no_traceback(
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 @patch("personalscraper.sorter.run.run_sort")
 def test_sort_verbose_prints_details(
-    mock_run, mock_lock, mock_release, mock_settings,
+    mock_run,
+    mock_lock,
+    mock_release,
+    mock_settings,
 ) -> None:
     """--verbose prints per-item detail lines from the report."""
     mock_run.return_value = StepReport(
@@ -212,7 +233,10 @@ def test_sort_verbose_prints_details(
 @patch("personalscraper.cli.release_lock")
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 def test_sort_emits_item_progressed_events(
-    mock_lock, mock_release, mock_settings, monkeypatch,
+    mock_lock,
+    mock_release,
+    mock_settings,
+    monkeypatch,
 ) -> None:
     """run_sort emits ItemProgressed events on the shared EventBus."""
     from personalscraper.pipeline_events import ItemProgressed

@@ -50,7 +50,10 @@ def test_process_help_exits_zero() -> None:
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 @patch("personalscraper.process.run.run_process")
 def test_process_empty_staging_noop(
-    mock_run, mock_lock, mock_release, mock_settings,
+    mock_run,
+    mock_lock,
+    mock_release,
+    mock_settings,
 ) -> None:
     """Empty staging → all three sub-reports show zero operations."""
     mock_run.return_value = (
@@ -74,7 +77,10 @@ def test_process_empty_staging_noop(
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 @patch("personalscraper.process.run.run_process")
 def test_process_with_operations(
-    mock_run, mock_lock, mock_release, mock_settings,
+    mock_run,
+    mock_lock,
+    mock_release,
+    mock_settings,
 ) -> None:
     """Staging with items → each sub-step reports its counts."""
     mock_run.return_value = (
@@ -99,7 +105,9 @@ def test_process_with_operations(
 @patch("personalscraper.cli.release_lock")
 @patch("personalscraper.cli.acquire_lock", return_value=False)
 def test_process_lock_contention(
-    mock_lock, mock_release, mock_settings,
+    mock_lock,
+    mock_release,
+    mock_settings,
 ) -> None:
     """Lock held → exit 1, friendly message, no traceback."""
     mock_settings.return_value = MagicMock()
@@ -116,7 +124,10 @@ def test_process_lock_contention(
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 @patch("personalscraper.process.run.run_process")
 def test_process_runtime_error(
-    mock_run, mock_lock, mock_release, mock_settings,
+    mock_run,
+    mock_lock,
+    mock_release,
+    mock_settings,
 ) -> None:
     """run_process raises RuntimeError → exit 1, friendly message."""
     mock_run.side_effect = RuntimeError("disk full")
@@ -137,7 +148,10 @@ def test_process_runtime_error(
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 @patch("personalscraper.process.run.run_process")
 def test_process_idempotent(
-    mock_run, mock_lock, mock_release, mock_settings,
+    mock_run,
+    mock_lock,
+    mock_release,
+    mock_settings,
 ) -> None:
     """Two consecutive process calls exit 0, mock called twice."""
     mock_run.return_value = (
@@ -166,7 +180,10 @@ def test_process_idempotent(
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 @patch("personalscraper.process.run.run_process")
 def test_process_dry_run_forwards_flag(
-    mock_run, mock_lock, mock_release, mock_settings,
+    mock_run,
+    mock_lock,
+    mock_release,
+    mock_settings,
 ) -> None:
     """--dry-run flag is forwarded to run_process."""
     mock_run.return_value = (_clean_report(), _scrape_report(), _cleanup_report())
@@ -187,7 +204,10 @@ def test_process_dry_run_forwards_flag(
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 @patch("personalscraper.process.run.run_process")
 def test_process_output_no_traceback(
-    mock_run, mock_lock, mock_release, mock_settings,
+    mock_run,
+    mock_lock,
+    mock_release,
+    mock_settings,
 ) -> None:
     """Output is Rich-formatted, never a raw Python traceback."""
     mock_run.return_value = (_clean_report(), _scrape_report(), _cleanup_report())
@@ -204,7 +224,10 @@ def test_process_output_no_traceback(
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 @patch("personalscraper.process.run.run_process")
 def test_process_error_exit_code_nonzero(
-    mock_run, mock_lock, mock_release, mock_settings,
+    mock_run,
+    mock_lock,
+    mock_release,
+    mock_settings,
 ) -> None:
     """run_process raises → exit code non-zero."""
     mock_run.side_effect = RuntimeError("boom")
@@ -222,7 +245,10 @@ def test_process_error_exit_code_nonzero(
 @patch("personalscraper.cli.release_lock")
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 def test_process_emits_item_progressed_events(
-    mock_lock, mock_release, mock_settings, monkeypatch,
+    mock_lock,
+    mock_release,
+    mock_settings,
+    monkeypatch,
 ) -> None:
     """run_process emits ItemProgressed events on the shared EventBus."""
     from personalscraper.pipeline_events import ItemProgressed
