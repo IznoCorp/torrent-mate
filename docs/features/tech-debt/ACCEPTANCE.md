@@ -783,7 +783,13 @@ grep -c '{movies_dir}/Inception' personalscraper/indexer/scanner/_exclusions.py
 # Expected: >= 1
 ```
 
-### ACC-49 — Reference docs synced (DEV #45, #47) 🟡 [partial: DEV #45 logging.md SHIPPED commit `329afbc` ; DEV #47 still pending Phase 10.3]
+### ACC-49 — Reference docs synced (DEV #45, #47, #24) ✅
+
+**Status**: ✅ SHIPPED — all 3 spec items resolved:
+
+- DEV #45 (logging.md paths) — shipped `329afbc` (Phase 9.1.f)
+- DEV #47 (details_payload type drift) — fixed via arch-cleanup banner (this commit, 10.3)
+- DEV #24 (event-bus catalog 13→17) — shipped `fb96adb` (Phase 8.13)
 
 ```bash
 grep -c "personalscraper.scraper.http_retry\|scraper/tmdb_client.py" docs/reference/logging.md
