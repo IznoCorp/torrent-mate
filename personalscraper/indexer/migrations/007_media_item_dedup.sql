@@ -37,6 +37,31 @@
 -- SUBSTR), leaving ``"Year (2020)"``.  This is acceptable: the title genuinely
 -- contains a year-like phrase and further stripping would be destructive.
 -- In real data this pattern is extremely unlikely (no instance observed).
+--
+-- Edge case: ``"1984 (1984)"`` — a movie whose base title IS a year AND its
+-- directory carries the release year suffix.  Canonicalisation strips the
+-- suffix leaving ``"1984"``, which is correct (the official title is "1984").
+-- ``"2001 (2001)"`` (2001: A Space Odyssey) is similar.  These titles are
+-- logged in ``_migration_007_changes`` for operator review.
+
+-- ---------------------------------------------------------------------------
+-- Step 0 — log canonicalised titles for operator review (SF-M6).
+-- Kept as a persistent real table so the operator can inspect it after
+-- the migration completes.  Drop it manually once reviewed.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE _migration_007_changes (
+    id INTEGER PRIMARY KEY,
+    old_title TEXT NOT NULL,
+    new_title TEXT NOT NULL
+);
+
+INSERT INTO _migration_007_changes (old_title, new_title)
+SELECT title, TRIM(SUBSTR(title, 1, LENGTH(title) - 7))
+  FROM media_item
+ WHERE title GLOB '* ([0-9][0-9][0-9][0-9])'
+   AND SUBSTR(title, -6, 1) = '('
+   AND SUBSTR(title, -1, 1) = ')';
 
 -- ---------------------------------------------------------------------------
 -- Step 1 — canonicalise stored titles
@@ -44,7 +69,7 @@
 
 UPDATE media_item
 SET title = TRIM(SUBSTR(title, 1, LENGTH(title) - 7))
-WHERE title GLOB '* (????)'
+WHERE title GLOB '* ([0-9][0-9][0-9][0-9])'
   AND SUBSTR(title, -6, 1) = '('
   AND SUBSTR(title, -1, 1) = ')';
 
@@ -73,12 +98,28 @@ SELECT m.id AS dup_id,
 -- data.  We process the simplest FKs first (no composite-key risks).
 -- ---------------------------------------------------------------------------
 
--- 3a. media_release.item_id → simple FK, no UNIQUE on (item_id, …).
+-- 3a. media_release.item_id → FK with UNIQUE(item_id, episode_id, quality,
+--     edition, primary_lang).  Only reparent releases that do NOT collide
+--     with a release the keeper already has for the same signature (IS
+--     operator handles NULL-safe comparison matching SQLite UNIQUE semantics
+--     where NULLs are distinct).  Colliding releases stay with the duplicate
+--     and get CASCADE-deleted (keeper's version already covers that tuple).
 UPDATE media_release
    SET item_id = (
          SELECT keeper_id FROM _dedup_map WHERE dup_id = media_release.item_id
        )
- WHERE item_id IN (SELECT dup_id FROM _dedup_map);
+ WHERE item_id IN (SELECT dup_id FROM _dedup_map)
+   AND NOT EXISTS (
+         SELECT 1
+           FROM media_release mr2
+          WHERE mr2.item_id = (
+                  SELECT keeper_id FROM _dedup_map WHERE dup_id = media_release.item_id
+                )
+            AND mr2.episode_id IS media_release.episode_id
+            AND mr2.quality IS media_release.quality
+            AND mr2.edition IS media_release.edition
+            AND mr2.primary_lang IS media_release.primary_lang
+       );
 
 -- 3b. item_issue has composite PK (item_id, type) but the (type) alone is not
 --     UNIQUE — a direct UPDATE is safe.

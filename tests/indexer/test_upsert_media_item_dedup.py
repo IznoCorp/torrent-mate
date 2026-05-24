@@ -173,6 +173,147 @@ def test_upsert_same_title_different_kind_no_collision(conn: sqlite3.Connection)
 # ---------------------------------------------------------------------------
 
 
+def test_migration_007_glob_rejects_non_digit_suffix(tmp_path: Path) -> None:
+    """CR-1: GLOB '* ([0-9][0-9][0-9][0-9])' must NOT match ``Movie (abcd)``."""
+    db_path = tmp_path / "library.db"
+    conn = sqlite3.connect(str(db_path), isolation_level=None)
+    conn.execute("PRAGMA foreign_keys=ON")
+
+    _apply_through_migration(conn, up_to_version=6)
+
+    # Seed a row with a non-digit 4-char suffix — must NOT be canonicalised.
+    conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, year, category_id, "
+        "date_created, date_modified, is_locked, preferred_lang) "
+        "VALUES ('movie', 'Movie (abcd)', 'Movie (abcd)', 2020, 'movies', 1, 1, 0, 'fr')"
+    )
+    conn.commit()
+
+    apply_migrations(conn, _MIGRATIONS_DIR)
+
+    row = conn.execute("SELECT title FROM media_item WHERE id = 1").fetchone()
+    assert row is not None
+    assert row[0] == "Movie (abcd)", f"Expected unchanged 'Movie (abcd)', got {row[0]!r}"
+
+    # Verify the changes log has zero rows (nothing was canonicalised).
+    counts = conn.execute("SELECT COUNT(*) FROM _migration_007_changes").fetchone()
+    assert counts is not None
+    assert counts[0] == 0
+
+    conn.close()
+
+
+def test_migration_007_glob_matches_digit_suffix(tmp_path: Path) -> None:
+    """CR-1: GLOB with [0-9] character class correctly matches year suffixes."""
+    db_path = tmp_path / "library.db"
+    conn = sqlite3.connect(str(db_path), isolation_level=None)
+    conn.execute("PRAGMA foreign_keys=ON")
+
+    _apply_through_migration(conn, up_to_version=6)
+
+    conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, year, category_id, "
+        "date_created, date_modified, is_locked, preferred_lang) "
+        "VALUES ('movie', 'Inception (2010)', 'Inception (2010)', 2010, 'movies', 1, 1, 0, 'fr')"
+    )
+    conn.commit()
+
+    apply_migrations(conn, _MIGRATIONS_DIR)
+
+    row = conn.execute("SELECT title FROM media_item WHERE id = 1").fetchone()
+    assert row is not None
+    assert row[0] == "Inception"
+
+    # Verify logged in changes table.
+    changes = conn.execute("SELECT old_title, new_title FROM _migration_007_changes").fetchall()
+    assert len(changes) == 1
+    assert changes[0][0] == "Inception (2010)"
+    assert changes[0][1] == "Inception"
+
+    conn.close()
+
+
+def test_migration_007_media_release_not_exists_guard(tmp_path: Path) -> None:
+    """SF-1: conflicting media_release rows stay with duplicate, NOT reparented."""
+    db_path = tmp_path / "library.db"
+    conn = sqlite3.connect(str(db_path), isolation_level=None)
+    conn.execute("PRAGMA foreign_keys=ON")
+
+    _apply_through_migration(conn, up_to_version=6)
+
+    now = 1000
+    # Seed two duplicate movie items (after canonicalisation both = "Foo").
+    conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, year, category_id, "
+        "date_created, date_modified, is_locked, preferred_lang) "
+        "VALUES ('movie', 'Foo', 'Foo', 2020, 'movies', ?, ?, 0, 'fr')",
+        (now, now),
+    )
+    conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, year, category_id, "
+        "date_created, date_modified, is_locked, preferred_lang) "
+        "VALUES ('movie', 'Foo (2020)', 'Foo (2020)', 2020, 'movies', ?, ?, 0, 'fr')",
+        (now + 1, now + 1),
+    )
+
+    # Both have a release with the same non-NULL signature → collision.
+    conn.execute(
+        "INSERT INTO media_release (item_id, episode_id, quality, edition, primary_lang) "
+        "VALUES (1, NULL, '1080p', 'Director Cut', 'en')"
+    )
+    conn.execute(
+        "INSERT INTO media_release (item_id, episode_id, quality, edition, primary_lang) "
+        "VALUES (2, NULL, '1080p', 'Director Cut', 'en')"
+    )
+    conn.commit()
+
+    # Apply migration 007 — the duplicate's release must NOT be reparented
+    # (would violate UNIQUE) and instead gets CASCADE-deleted.
+    apply_migrations(conn, _MIGRATIONS_DIR)
+
+    # Verify: only 1 media_item survives (the keeper).
+    items = conn.execute("SELECT id, title FROM media_item").fetchall()
+    assert len(items) == 1
+    assert items[0][1] == "Foo"
+
+    # Verify: only 1 media_release survives (the keeper's).
+    releases = conn.execute("SELECT id, item_id FROM media_release").fetchall()
+    assert len(releases) == 1
+    assert releases[0][1] == items[0][0]
+
+    conn.close()
+
+
+def test_migration_007_changes_table_populated(tmp_path: Path) -> None:
+    """SF-M6: _migration_007_changes table logs every canonicalised title."""
+    db_path = tmp_path / "library.db"
+    conn = sqlite3.connect(str(db_path), isolation_level=None)
+    conn.execute("PRAGMA foreign_keys=ON")
+
+    _apply_through_migration(conn, up_to_version=6)
+
+    conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, year, category_id, "
+        "date_created, date_modified, is_locked, preferred_lang) "
+        "VALUES ('movie', 'Alpha (2015)', 'Alpha (2015)', 2015, 'movies', 1, 1, 0, 'fr')"
+    )
+    conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, year, category_id, "
+        "date_created, date_modified, is_locked, preferred_lang) "
+        "VALUES ('movie', '1984 (1984)', '1984 (1984)', 1984, 'movies', 2, 2, 0, 'fr')"
+    )
+    conn.commit()
+
+    apply_migrations(conn, _MIGRATIONS_DIR)
+
+    changes = conn.execute("SELECT old_title, new_title FROM _migration_007_changes ORDER BY id").fetchall()
+    assert len(changes) == 2
+    assert changes[0] == ("Alpha (2015)", "Alpha")
+    assert changes[1] == ("1984 (1984)", "1984")
+
+    conn.close()
+
+
 def test_unique_title_kind_rejects_duplicate_insert(conn: sqlite3.Connection) -> None:
     """Direct INSERT of same (title, kind) must raise IntegrityError."""
     item_repo.insert(conn, _make_item(title="UniqueMovie"))
