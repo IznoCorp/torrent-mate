@@ -11,6 +11,7 @@ Safety guarantees:
 
 - **Dry-run by default**: no mutation without ``--apply``.
 - **Backup**: writes ``.nfo.bak`` alongside the NFO before mutation.
+  Backup write failure → skip mutation (no overwrite without safety net).
 - **Whitelist gate**: only trims trailing content that consists exclusively of
   HTTP(S) URLs pointing to ``thetvdb.com``, ``themoviedb.org``, ``imdb.com``,
   ``omdbapi.com``, or ``trakt.tv``.  Any other trailing content (XML fragments,
@@ -32,16 +33,17 @@ Examples::
 
 from __future__ import annotations
 
-import json as _json
 import re as _re
 import xml.etree.ElementTree as _ET
+from dataclasses import dataclass
 from pathlib import Path
-from typing import NamedTuple
+from typing import Literal, NamedTuple
 
 import typer
 
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
+from personalscraper.cli_helpers.output import emit
 from personalscraper.logger import get_logger
 
 log = get_logger("cli")
@@ -49,6 +51,20 @@ log = get_logger("cli")
 _ROOT_CLOSE_RE = _re.compile(rb"</(tvshow|movie)>", _re.IGNORECASE)
 _SAFE_TRAILING_DOMAINS = frozenset({"thetvdb.com", "themoviedb.org", "imdb.com", "omdbapi.com", "trakt.tv"})
 _URL_RE = _re.compile(rb"https?://[^\s]+")
+
+_Outcome = Literal[
+    "nfo_missing",
+    "nfo_resolved",
+    "already_ok",
+    "no_root_close",
+    "unsafe_trailing",
+    "still_malformed",
+    "fixed",
+    "skipped_apple_double",
+    "backup_failed",
+    "nfo_unreadable",
+    "ambiguous_nfo",
+]
 
 
 class FixNfoStats(NamedTuple):
@@ -63,6 +79,48 @@ class FixNfoStats(NamedTuple):
     still_malformed: int
     fixed: int
     skipped_apple_double: int
+    backup_failed: int
+    nfo_unreadable: int
+    ambiguous_nfo: int
+
+
+@dataclass
+class _FixNfoAccumulator:
+    """Mutable internal counter accumulator (not part of public API)."""
+
+    items_scanned: int = 0
+    nfo_resolved: int = 0
+    nfo_missing: int = 0
+    already_ok: int = 0
+    no_root_close: int = 0
+    unsafe_trailing: int = 0
+    still_malformed: int = 0
+    fixed: int = 0
+    skipped_apple_double: int = 0
+    backup_failed: int = 0
+    nfo_unreadable: int = 0
+    ambiguous_nfo: int = 0
+
+    def inc(self, outcome: _Outcome) -> None:
+        """Increment the counter for *outcome* by 1."""
+        setattr(self, outcome, getattr(self, outcome) + 1)
+
+    def to_stats(self) -> FixNfoStats:
+        """Build an immutable snapshot."""
+        return FixNfoStats(
+            items_scanned=self.items_scanned,
+            nfo_resolved=self.nfo_resolved,
+            nfo_missing=self.nfo_missing,
+            already_ok=self.already_ok,
+            no_root_close=self.no_root_close,
+            unsafe_trailing=self.unsafe_trailing,
+            still_malformed=self.still_malformed,
+            fixed=self.fixed,
+            skipped_apple_double=self.skipped_apple_double,
+            backup_failed=self.backup_failed,
+            nfo_unreadable=self.nfo_unreadable,
+            ambiguous_nfo=self.ambiguous_nfo,
+        )
 
 
 def _is_trailing_safe(trailing: bytes) -> bool:
@@ -96,25 +154,41 @@ def _is_trailing_safe(trailing: bytes) -> bool:
     return True
 
 
-def _resolve_nfo_path(dispatch_path: str, kind: str) -> Path | None:
+def _resolve_nfo_path(dispatch_path: str, kind: str) -> tuple[Path | None, Literal["ok", "missing", "ambiguous"]]:
     """Derive the expected NFO file path from a media item's dispatch directory.
 
     For TV shows the NFO is always ``tvshow.nfo`` at the root.  For movies the
-    NFO name matches the title stem — we glob for the first ``*.nfo`` file,
-    skipping macOS AppleDouble (``._`` prefix).
+    NFO name matches the title stem — we glob for ``*.nfo`` files, skipping
+    macOS AppleDouble (``._`` prefix).  When multiple NFO candidates exist
+    (e.g. a trailer NFO alongside the main one), the result is ambiguous and
+    the file is skipped.
 
     Args:
         dispatch_path: Filesystem path of the media item root directory.
         kind: ``'movie'`` or ``'show'``.
 
     Returns:
-        Resolved Path, or None if no NFO candidate exists.
+        Tuple of ``(resolved_path, reason)`` where *reason* is ``"ok"`` (path
+        ready to use), ``"missing"`` (no NFO found), or ``"ambiguous"``
+        (multiple NFO candidates — cannot safely pick one).
     """
     base = Path(dispatch_path)
     if kind == "show":
-        return base / "tvshow.nfo"
+        nfo = base / "tvshow.nfo"
+        if nfo.exists():
+            return nfo, "ok"
+        return base / "tvshow.nfo", "missing"
     nfo_files = sorted(f for f in base.glob("*.nfo") if not f.name.startswith("._"))
-    return nfo_files[0] if nfo_files else None
+    if not nfo_files:
+        return None, "missing"
+    if len(nfo_files) > 1:
+        log.warning(
+            "nfo_fix_ambiguous_nfo",
+            dispatch_path=dispatch_path,
+            candidates=[str(f.name) for f in nfo_files],
+        )
+        return None, "ambiguous"
+    return nfo_files[0], "ok"
 
 
 @app.command("library-fix-nfo")
@@ -165,17 +239,7 @@ def library_fix_nfo(
     finally:
         conn.close()
 
-    stats: dict[str, int] = {
-        "items_scanned": len(rows),
-        "nfo_resolved": 0,
-        "nfo_missing": 0,
-        "already_ok": 0,
-        "no_root_close": 0,
-        "unsafe_trailing": 0,
-        "still_malformed": 0,
-        "fixed": 0,
-        "skipped_apple_double": 0,
-    }
+    stats = _FixNfoAccumulator(items_scanned=len(rows))
 
     log.info("nfo_fix_scan_started", items_count=len(rows))
 
@@ -185,42 +249,52 @@ def library_fix_nfo(
         title: str = row["title"]
         dispatch_path: str = row["dispatch_path"]
 
-        nfo_path = _resolve_nfo_path(dispatch_path, kind)
+        nfo_path, reason = _resolve_nfo_path(dispatch_path, kind)
         if nfo_path is None:
-            stats["nfo_missing"] += 1
+            if reason == "ambiguous":
+                stats.inc("ambiguous_nfo")
+            else:
+                stats.inc("nfo_missing")
             continue
 
         if nfo_path.name.startswith("._"):
-            stats["skipped_apple_double"] += 1
+            stats.inc("skipped_apple_double")
             continue
 
         if not nfo_path.exists():
-            stats["nfo_missing"] += 1
+            stats.inc("nfo_missing")
             continue
 
-        stats["nfo_resolved"] += 1
+        stats.inc("nfo_resolved")
 
-        # Fast path: already well-formed.
+        # Fast path: already well-formed.  NFO files are local and trusted —
+        # the XXE risk from xml.etree.ElementTree does not apply.
         try:
-            _ET.parse(str(nfo_path))
-            stats["already_ok"] += 1
+            _ET.parse(str(nfo_path))  # noqa: S314
+            stats.inc("already_ok")
             continue
         except _ET.ParseError:
             pass
         except OSError:
-            stats["nfo_missing"] += 1
+            stats.inc("nfo_unreadable")
+            log.warning(
+                "nfo_fix_read_failed",
+                item_id=item_id,
+                title=title,
+                nfo=str(nfo_path),
+            )
             continue
 
         # Read raw bytes for regex-based root-close-tag detection.
         try:
             data = nfo_path.read_bytes()
         except OSError:
-            stats["nfo_missing"] += 1
+            stats.inc("nfo_missing")
             continue
 
         matches = list(_ROOT_CLOSE_RE.finditer(data))
         if not matches:
-            stats["no_root_close"] += 1
+            stats.inc("no_root_close")
             log.warning(
                 "nfo_fix_no_root_close",
                 item_id=item_id,
@@ -236,11 +310,11 @@ def library_fix_nfo(
         if not trailing.strip():
             # Trailing whitespace only but XML still failed to parse — the
             # problem is inside the body, not trailing.  Nothing to truncate.
-            stats["already_ok"] += 1
+            stats.inc("already_ok")
             continue
 
         if not _is_trailing_safe(trailing):
-            stats["unsafe_trailing"] += 1
+            stats.inc("unsafe_trailing")
             log.warning(
                 "nfo_fix_unsafe_trailing",
                 item_id=item_id,
@@ -253,10 +327,11 @@ def library_fix_nfo(
         truncated = data[:cutoff]
         if not truncated.endswith(b"\n"):
             truncated += b"\n"
+        # Post-truncation re-parse — local trusted NFO, XXE not applicable.
         try:
-            _ET.fromstring(truncated)
+            _ET.fromstring(truncated)  # noqa: S314
         except _ET.ParseError as exc:
-            stats["still_malformed"] += 1
+            stats.inc("still_malformed")
             log.warning(
                 "nfo_fix_still_malformed",
                 item_id=item_id,
@@ -273,7 +348,15 @@ def library_fix_nfo(
             try:
                 bak_path.write_bytes(data)
             except OSError:
-                pass
+                stats.inc("backup_failed")
+                log.warning(
+                    "nfo_fix_backup_failed",
+                    item_id=item_id,
+                    title=title,
+                    nfo=str(nfo_path),
+                    bak=str(bak_path),
+                )
+                continue
 
             nfo_path.write_bytes(truncated)
             log.info(
@@ -284,24 +367,13 @@ def library_fix_nfo(
                 bytes_trimmed=bytes_trimmed,
             )
 
-        stats["fixed"] += 1
+        stats.inc("fixed")
 
-    log.info("nfo_fix_done", stats=stats)
+    log.info("nfo_fix_done", stats=stats.to_stats()._asdict())
 
-    key = "would_fix" if not apply else "fixed"
-    typer.echo(
-        _json.dumps(
-            {
-                "apply": apply,
-                "items_scanned": stats["items_scanned"],
-                "nfo_resolved": stats["nfo_resolved"],
-                "nfo_missing": stats["nfo_missing"],
-                "already_ok": stats["already_ok"],
-                "no_root_close": stats["no_root_close"],
-                "unsafe_trailing": stats["unsafe_trailing"],
-                "still_malformed": stats["still_malformed"],
-                key: stats["fixed"],
-                "skipped_apple_double": stats["skipped_apple_double"],
-            }
-        )
-    )
+    final = dict(stats.to_stats()._asdict())
+    apply_key = "would_fix" if not apply else "fixed"
+    final[apply_key] = final.pop("fixed")
+    final["apply"] = apply
+    final["errors"] = []
+    emit(final)

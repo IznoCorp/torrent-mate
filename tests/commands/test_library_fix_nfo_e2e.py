@@ -65,8 +65,12 @@ def _set_dispatch_path(conn: sqlite3.Connection, item_id: int, path: str) -> Non
 
 
 def _run_fix_nfo(args: list[str], db_path: Path) -> "Any":  # noqa: F821
-    """Run library-fix-nfo with --db pointing at the synthetic DB."""
-    return run_cli(["library-fix-nfo", "--db", str(db_path), *args])
+    """Run library-fix-nfo with --db pointing at the synthetic DB.
+
+    --format json is always passed so the emit() helper produces
+    machine-parseable output regardless of the global format default.
+    """
+    return run_cli(["--format", "json", "library-fix-nfo", "--db", str(db_path), *args])
 
 
 def _well_formed_tvshow_nfo(title: str = "My Show") -> str:
@@ -456,12 +460,19 @@ def test_fix_nfo_output_schema_all_keys_present(tmp_path: Path, test_config) -> 
         "still_malformed",
         "fixed",
         "skipped_apple_double",
+        "backup_failed",
+        "nfo_unreadable",
+        "ambiguous_nfo",
+        "errors",
     ]
     for key in required_keys:
         assert key in data, f"Missing key: {key}"
-        assert isinstance(data[key], int) or isinstance(data[key], bool), (
-            f"Key {key} has unexpected type: {type(data[key])}"
-        )
+        if key == "errors":
+            assert isinstance(data[key], list), f"Key {key} has unexpected type: {type(data[key])}"
+        elif key == "apply":
+            assert isinstance(data[key], bool), f"Key {key} has unexpected type: {type(data[key])}"
+        else:
+            assert isinstance(data[key], int), f"Key {key} has unexpected type: {type(data[key])}"
 
     assert data["items_scanned"] == 4
     assert data["nfo_resolved"] == 3
@@ -469,6 +480,10 @@ def test_fix_nfo_output_schema_all_keys_present(tmp_path: Path, test_config) -> 
     assert data["already_ok"] == 1
     assert data["fixed"] == 1
     assert data["unsafe_trailing"] == 1
+    assert data["backup_failed"] == 0
+    assert data["nfo_unreadable"] == 0
+    assert data["ambiguous_nfo"] == 0
+    assert data["errors"] == []
 
 
 # ── 8. Closure-of-loop — BDD unchanged ───────────────────────────────────────────
@@ -504,6 +519,103 @@ def test_fix_nfo_does_not_mutate_db(tmp_path: Path, test_config) -> None:
 # event — no ``FixNfoCompleted`` event class exists in the codebase.  The
 # command's result is fully observable through its JSON output counters
 # (apply / items_scanned / fixed / already_ok / unsafe_trailing / ...).
+
+
+# ── 10. New counters (SF-2, SF-H1, SF-H2) ───────────────────────────────────────
+
+
+def test_fix_nfo_ambiguous_movie_nfo(tmp_path: Path, test_config) -> None:
+    """Movie dir with multiple .nfo files → ambiguous_nfo counter incremented."""
+    db_path = make_synthetic_db(tmp_path)
+
+    movie_dir = tmp_path / "MultiNfoMovie"
+    movie_dir.mkdir()
+    (movie_dir / "movie.nfo").write_text(_trailing_url_movie_nfo("Multi NFO"))
+    (movie_dir / "trailer.nfo").write_text(_trailing_url_movie_nfo("Trailer"))
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    item_id = _insert_media_item(conn, title="Multi NFO", kind="movie", category_id="movies")
+    _set_dispatch_path(conn, item_id, str(movie_dir))
+    conn.close()
+
+    result = _run_fix_nfo([], db_path)
+    assert result.exit_code == 0, result.output
+
+    data = _json_from_result(result)
+    assert data["items_scanned"] == 1
+    assert data["ambiguous_nfo"] == 1
+    assert data["nfo_missing"] == 0
+    assert data["nfo_resolved"] == 0
+
+
+def test_fix_nfo_backup_failed_skip_mutation(tmp_path: Path, test_config, monkeypatch) -> None:
+    """OSError on backup write → backup_failed counter + mutation skipped."""
+    db_path = make_synthetic_db(tmp_path)
+
+    show_dir = tmp_path / "ShowBakFail"
+    show_dir.mkdir()
+    original = _trailing_url_tvshow_nfo("Bak Fail")
+    (show_dir / "tvshow.nfo").write_text(original)
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    item_id = _insert_media_item(conn, title="Bak Fail")
+    _set_dispatch_path(conn, item_id, str(show_dir))
+    conn.close()
+
+    _real_write_bytes = Path.write_bytes
+
+    def _failing_write_bytes(self: Path, data: bytes) -> int:
+        if self.suffix == ".bak":
+            raise OSError("Disk full — backup failed")
+        return _real_write_bytes(self, data)
+
+    monkeypatch.setattr(Path, "write_bytes", _failing_write_bytes)
+
+    result = _run_fix_nfo(["--apply"], db_path)
+    assert result.exit_code == 0, result.output
+
+    data = _json_from_result(result)
+    assert data["backup_failed"] == 1
+    assert data["fixed"] == 0
+
+    # Original NFO unchanged (mutation was skipped).
+    assert (show_dir / "tvshow.nfo").read_text() == original
+
+
+def test_fix_nfo_nfo_unreadable_counted(tmp_path: Path, test_config, monkeypatch) -> None:
+    """OSError on ET.parse → nfo_unreadable counter, not nfo_missing."""
+    db_path = make_synthetic_db(tmp_path)
+
+    show_dir = tmp_path / "UnreadableShow"
+    show_dir.mkdir()
+    (show_dir / "tvshow.nfo").write_text(_trailing_url_tvshow_nfo("Unreadable"))
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    item_id = _insert_media_item(conn, title="Unreadable")
+    _set_dispatch_path(conn, item_id, str(show_dir))
+    conn.close()
+
+    import xml.etree.ElementTree as _ET
+
+    _real_parse = _ET.parse
+
+    def _failing_parse(source: str) -> object:
+        if "UnreadableShow" in str(source):
+            raise OSError("Permission denied")
+        return _real_parse(source)
+
+    monkeypatch.setattr(_ET, "parse", _failing_parse)
+
+    result = _run_fix_nfo([], db_path)
+    assert result.exit_code == 0, result.output
+
+    data = _json_from_result(result)
+    assert data["nfo_unreadable"] == 1
+    assert data["nfo_missing"] == 0
+    assert data["nfo_resolved"] == 1
 
 
 def _db_sha256(db_path: Path) -> str:
