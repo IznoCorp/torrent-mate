@@ -53,32 +53,33 @@ relates to. The canonical source for flag names is `personalscraper <cmd>
 21. [`library-ghost-audit`](#personalscraper-library-ghost-audit) — audit NTFS ghost dirents
 22. [`library-relink`](#personalscraper-library-relink) — relink NULL release_id rows
 23. [`library-clean`](#personalscraper-library-clean) — remove .actors/, junk files on storage disks
-24. [`library-validate`](#personalscraper-library-validate) — validate NFO/artwork/naming conformity
-25. [`library-gc`](#personalscraper-library-gc) — GC old index_outbox done rows
+24. [`library-fix-nfo`](#personalscraper-library-fix-nfo) — repair malformed NFO files with trailing URLs
+25. [`library-validate`](#personalscraper-library-validate) — validate NFO/artwork/naming conformity
+26. [`library-gc`](#personalscraper-library-gc) — GC old index_outbox done rows
 
 ### Library — analysis & query
 
-26. [`library-analyze`](#personalscraper-library-analyze) — deep ffprobe scan
-27. [`library-recommend`](#personalscraper-library-recommend) — re-download recommendations
-28. [`library-rescrape`](#personalscraper-library-rescrape) — targeted re-scraping
-29. [`library-report`](#personalscraper-library-report) — health statistics
-30. [`library-doctor`](#personalscraper-library-doctor) — health checks on live DB
-31. [`library-search`](#personalscraper-library-search) — flex-attr query
-32. [`library-show`](#personalscraper-library-show) — pretty-print one item
-33. [`library-backfill-ids`](#personalscraper-library-backfill-ids) — backfill provider IDs across releases
+27. [`library-analyze`](#personalscraper-library-analyze) — deep ffprobe scan
+28. [`library-recommend`](#personalscraper-library-recommend) — re-download recommendations
+29. [`library-rescrape`](#personalscraper-library-rescrape) — targeted re-scraping
+30. [`library-report`](#personalscraper-library-report) — health statistics
+31. [`library-doctor`](#personalscraper-library-doctor) — health checks on live DB
+32. [`library-search`](#personalscraper-library-search) — flex-attr query
+33. [`library-show`](#personalscraper-library-show) — pretty-print one item
+34. [`library-backfill-ids`](#personalscraper-library-backfill-ids) — backfill provider IDs across releases
 
 ### Trailers
 
-34. [`trailers`](#personalscraper-trailers) — trailer management (parent command)
-35. [`trailers scan`](#personalscraper-trailers-scan) — discover media missing trailers
-36. [`trailers download`](#personalscraper-trailers-download) — download trailers from YouTube
-37. [`trailers audit`](#personalscraper-trailers-audit) — audit trailer files on disk
+35. [`trailers`](#personalscraper-trailers) — trailer management (parent command)
+36. [`trailers scan`](#personalscraper-trailers-scan) — discover media missing trailers
+37. [`trailers download`](#personalscraper-trailers-download) — download trailers from YouTube
+38. [`trailers audit`](#personalscraper-trailers-audit) — audit trailer files on disk
     (alias: `trailers verify`, deprecated 0.16.0, removed 0.17+)
-38. [`trailers purge`](#personalscraper-trailers-purge) — remove unwanted trailers
+39. [`trailers purge`](#personalscraper-trailers-purge) — remove unwanted trailers
 
 ### Config — sub-commands
 
-39. [`config migrate-category`](#personalscraper-config-migrate-category) — rename a category across config + paths
+40. [`config migrate-category`](#personalscraper-config-migrate-category) — rename a category across config + paths
 
 ### Make targets + scheduling (appendix)
 
@@ -765,6 +766,53 @@ because the deletion granularity is the entire release directory.
     personalscraper library-clean --disk Disk1
 
 **Related**: `library-ghost-audit`, `enforce`
+
+---
+
+## `personalscraper library-fix-nfo`
+
+**Purpose**: Repairs NFO files that have trailing content after the XML root close
+tag (`</tvshow>` or `</movie>`). When legacy scrapers (MediaElch, older
+Emby/Jellyfin versions, or manually-authored NFOs) appended metadata URLs after
+the root close tag, the resulting NFO becomes XML-ill-formed. `library-fix-nfo`
+detects these cases, validates that the trailing content is safe to truncate
+(whitelisted media-domain URLs only — typically redundant TVDB series-page links),
+and truncates the file after the last root close tag.
+
+Dry-run by default — use `--apply` to mutate files. When `--apply` is active,
+the original file is preserved as `.nfo.bak` alongside the fixed NFO.
+
+**Safety guarantees**:
+
+- Trailing content is only removed when it consists exclusively of HTTP(S) URLs
+  pointing to `thetvdb.com`, `themoviedb.org`, `imdb.com`, `omdbapi.com`,
+  or `trakt.tv`. Any other trailing content (XML fragments, comments, arbitrary
+  text) is skipped with an `unsafe_trailing` count.
+- After truncation, the remaining content is re-parsed with
+  `xml.etree.ElementTree`; if it still fails, the file is skipped
+  (`still_malformed`).
+- AppleDouble files (`._` prefix) are skipped.
+
+Prerequisites: `library.db` must exist and have `media_item` rows with
+`item_attribute(key='dispatch_path')` populated.
+
+**Side effects**: `read-only` (default), `mutate FS` (with `--apply`)
+
+**Pipeline position**: n/a (utility — run on-demand when NFO parse errors are detected)
+
+**Args**:
+
+- `--apply` : Actually truncate (default: dry-run preview)
+- `--config / -c PATH` : Path to config.json5 or config dir
+- `--db PATH` : Path to library.db (overrides config)
+
+**Examples**:
+
+    personalscraper library-fix-nfo
+    personalscraper library-fix-nfo --apply
+    personalscraper library-fix-nfo --db /custom/path/library.db --apply
+
+**Related**: `library-init-canonical`, `library-backfill-ids`, `library-rescrape`
 
 ---
 
