@@ -15,6 +15,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.logger import get_logger
+from personalscraper.nfo_utils import glob_nfo_candidates
 from personalscraper.sorter.file_type import FileType
 
 log = get_logger("enforce.coherence")
@@ -92,7 +93,7 @@ def _check_movie(movie_dir: Path) -> CoherenceResult:
         result.warnings.append(f"Wrong category: {movie_dir.name} has tvshow.nfo but is in MOVIES")
     result.checks.append("sort_process_coherence")
 
-    nfos = list(movie_dir.glob("*.nfo"))
+    nfos = glob_nfo_candidates(movie_dir)
     if nfos:
         _check_nfo_ids(nfos[0], result)
 
@@ -117,7 +118,7 @@ def _check_tvshow(show_dir: Path, config: Config) -> CoherenceResult:
     nfo_path = show_dir / "tvshow.nfo"
     if not nfo_path.exists():
         # A movie-style NFO in TVSHOWS indicates a mis-sorted movie
-        movie_nfos = [f for f in show_dir.glob("*.nfo") if f.name != "tvshow.nfo"]
+        movie_nfos = [f for f in glob_nfo_candidates(show_dir) if f.name != "tvshow.nfo"]
         if movie_nfos:
             result.warnings.append(f"Wrong category: {show_dir.name} has movie NFO but is in TVSHOWS")
     else:

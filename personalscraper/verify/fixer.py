@@ -14,6 +14,7 @@ from pathlib import Path
 
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
+from personalscraper.nfo_utils import glob_nfo_candidates
 from personalscraper.verify.checker import CheckResult
 
 log = get_logger("verify.fixer")
@@ -116,9 +117,9 @@ class MediaFixer:
         Returns:
             FixAction if renamed, None if NFO not found or parse fails.
         """
-        # Find NFO file
+        # Find NFO file (AppleDouble-safe glob for movies)
         if media_type == "movie":
-            nfo_files = list(media_dir.glob("*.nfo"))
+            nfo_files = glob_nfo_candidates(media_dir)
         else:
             nfo_files = [media_dir / "tvshow.nfo"]
 

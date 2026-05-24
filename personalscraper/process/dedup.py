@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from personalscraper.logger import get_logger
+from personalscraper.nfo_utils import glob_nfo_candidates
 from personalscraper.text_utils import fuzzy_match_score
 
 if TYPE_CHECKING:
@@ -49,7 +50,7 @@ def _completeness_score(folder: Path) -> tuple[int, int, int]:
     Returns:
         Tuple of (has_nfo, file_count, has_poster) for comparison.
     """
-    has_nfo = 1 if any(folder.glob("*.nfo")) else 0
+    has_nfo = 1 if glob_nfo_candidates(folder) else 0
     file_count = sum(1 for _ in folder.rglob("*") if _.is_file())
     has_poster = 1 if any(folder.glob("*poster*")) else 0
     return (has_nfo, file_count, has_poster)

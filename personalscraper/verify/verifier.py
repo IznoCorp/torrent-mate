@@ -13,6 +13,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
+from personalscraper.nfo_utils import glob_nfo_candidates
 from personalscraper.verify.checker import CheckResult, MediaChecker, Severity
 from personalscraper.verify.fixer import MediaFixer
 
@@ -269,6 +270,6 @@ class Verifier:
         if media_type == "tvshow":
             nfo = media_dir / "tvshow.nfo"
             return nfo if nfo.exists() else None
-        # Movie: find first .nfo file
-        nfo_files = list(media_dir.glob("*.nfo"))
+        # Movie: find first .nfo file (deterministic sort, AppleDouble-safe)
+        nfo_files = glob_nfo_candidates(media_dir)
         return nfo_files[0] if nfo_files else None
