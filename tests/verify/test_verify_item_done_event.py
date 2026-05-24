@@ -55,15 +55,23 @@ def test_verify_result_records_check_counts() -> None:
     assert result.checks_total == 12
 
 
-def test_run_verify_module_imports_verify_item_done() -> None:
-    """personalscraper.verify.run module imports VerifyItemDone (Phase 3.1 wiring pin).
+def test_run_verify_module_imports_verify_item_done_class() -> None:
+    """personalscraper.verify.run imports the VerifyItemDone symbol — lightweight import-gate.
 
-    Pre-fix : verify.run does NOT import VerifyItemDone (the class doesn't exist
-    yet, the emission code doesn't exist either). Post-fix : the import IS
-    present at module-load time, signaling that the emit loop uses it.
+    This is a **syntactic** check (a `hasattr` would also pass on a dead import).
+    It exists to fail loudly if a refactor accidentally drops the import line on
+    `personalscraper.verify.run` while leaving the emission code intact — which
+    would compile but silently break event emission.
+
+    Behavior (the event actually being emitted with the correct payload) is
+    covered end-to-end by ``tests/integration/test_verify.py`` against real
+    fixtures. This test is intentionally minimal: an import-gate per the
+    Phase 3.1 (DEV #6/#40) wiring pin.
     """
     from personalscraper.verify import run as run_module
 
+    # Lightweight import-gate per Phase 3.1 wiring pin; behavior is tested
+    # elsewhere via the end-to-end pipeline integration suite.
     assert hasattr(run_module, "VerifyItemDone"), (
         "personalscraper.verify.run must import VerifyItemDone — the per-item "
         "emit loop relies on it. Phase 3.1 (DEV #6/#40) added this import."
