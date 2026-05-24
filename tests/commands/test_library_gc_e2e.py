@@ -12,6 +12,8 @@ import time
 from unittest.mock import patch
 
 from tests.commands._e2e_helpers import (
+    assert_json_schema,
+    assert_no_python_traceback,
     json_from_result,
     make_synthetic_db,
     make_test_config_with_db,
@@ -184,3 +186,63 @@ def test_gc_idempotent_on_clean_outbox(tmp_path, test_config) -> None:
     d2 = json_from_result(r2)
     assert d1["rows_deleted"] == 3, f"First run should delete 3, got {d1}"
     assert d2["rows_deleted"] == 0, f"Second run should delete 0, got {d2}"
+
+
+# ── 3. Errors ──
+
+
+def test_gc_invalid_arg_exits_nonzero() -> None:
+    """Unknown flag → non-zero exit, no Python traceback."""
+    result = run_cli(["library-gc", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_gc_db_path_none_exits_gracefully(test_config) -> None:
+    """Unconfigured ``indexer.db_path`` → exit 1, friendly message, no traceback."""
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-gc"])
+    assert result.exit_code != 0
+    assert "not configured" in result.output.lower() or "db_path" in result.output.lower()
+    assert_no_python_traceback(result)
+
+
+def test_gc_corrupt_db_exits_gracefully(tmp_path, test_config) -> None:
+    """Corrupt (non-SQLite) DB file → graceful exit, no Python traceback."""
+    db_path = tmp_path / "corrupt.db"
+    db_path.write_text("this is not a sqlite database")
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-gc", "--older-than-days", "30"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+# ── 6. Output ──
+
+
+def test_gc_json_schema_valid(tmp_path, test_config) -> None:
+    """Output is parseable JSON with expected schema."""
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-gc", "--older-than-days", "30"])
+    assert result.exit_code == 0
+    assert_json_schema(result, required_keys=["dry_run", "older_than_days", "rows_deleted"])
+
+
+def test_gc_error_exits_nonzero(test_config) -> None:
+    """Unconfigured DB → non-zero exit."""
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-gc"])
+    assert result.exit_code != 0
+
+
+# ── 7. Events ──
+
+# N/A: ``library-gc`` creates a fresh EventBus solely for the ``open_db`` call
+# (free-space guard / DiskFullWarning infrastructure event).  The GC logic
+# itself (DELETE FROM index_outbox) emits no domain events.  No GcCompleted
+# event class exists in the codebase.
