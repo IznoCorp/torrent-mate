@@ -70,18 +70,19 @@ _OMDB_TYPE_MAP: dict[str, MediaType] = {
 class OmdbQuotaExhausted(ApiError):
     """Raised when the OMDB daily quota is exhausted (pre- or post-call).
 
-    Distinct from a generic ``ApiError(http_status=429)`` so that retry
-    loops can discriminate between real upstream 429s (rate-limit, handled
-    by tenacity) and OMDB's quota-exhaustion sentinel (which should NOT
-    be retried — the budget is gone for the day).
+    Distinct from a generic ``ApiError(http_status=401)`` so that retry
+    loops can discriminate between real upstream 401s (auth failure /
+    invalid key) and OMDB's quota-exhaustion sentinel (which should NOT
+    be retried — the budget is gone for the day). OMDB returns HTTP 401
+    with ``{"Error": "Request limit reached!"}`` on quota exhaustion
+    (free tier 1000 req/day), hence ``http_status=401``.
 
-    Always carries ``http_status=429`` for compatibility with existing
-    ``except ApiError`` handlers.
+    Always carries ``http_status=401`` — the real upstream status.
     """
 
     def __init__(self, message: str = "Daily quota limit reached") -> None:
         """Initialize with a fixed provider and HTTP status."""
-        super().__init__(provider="omdb", http_status=429, message=message)
+        super().__init__(provider="omdb", http_status=401, message=message)
 
 
 class OMDbAdapter(MetadataClient):
@@ -286,7 +287,8 @@ def _assert_dict(data: dict[str, Any] | str) -> dict[str, Any]:
 
     Transport SHOULD guarantee a parsed JSON dict, but legacy adapter paths
     may return a raw string when JSON parse failed silently upstream.
-    See ``AdapterPolicy.expected_content_type`` for the contract.
+    See ``TransportPolicy.response_format``
+    (``personalscraper/api/transport/_policy.py``) for the contract.
     """
     if isinstance(data, str):
         raise ApiError(
