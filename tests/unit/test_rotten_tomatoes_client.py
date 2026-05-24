@@ -98,3 +98,22 @@ def test_rt_client_get_rating_wraps_backend_error_as_unavailable() -> None:
         client.get_rating("tt0468569")
     assert exc_info.value.provider == "rotten_tomatoes"
     assert exc_info.value.feature == "get_rating"
+
+
+def test_rt_client_get_rating_propagates_omdb_quota_exhausted() -> None:
+    """``OmdbQuotaExhausted`` from the backend bypasses ``ApiError`` wrapping.
+
+    Same contract as IMDb: the typed quota exception must reach the
+    caller un-wrapped so the rating pass can stop on quota signals
+    instead of degrading into generic ProviderFeatureUnavailable.
+    """
+    from personalscraper.api.metadata.omdb import OmdbQuotaExhausted  # noqa: PLC0415
+
+    backend = MagicMock()
+    backend.get_notations.side_effect = OmdbQuotaExhausted(pre_call=True)
+    client = RottenTomatoesClient(backend=backend)
+
+    with pytest.raises(OmdbQuotaExhausted) as exc_info:
+        client.get_rating("tt0468569")
+    assert exc_info.value.pre_call is True
+    assert not isinstance(exc_info.value, ProviderFeatureUnavailable)

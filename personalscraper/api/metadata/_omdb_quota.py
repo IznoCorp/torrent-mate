@@ -246,7 +246,12 @@ class OmdbQuotaTracker:
                         "exhausted": bool(raw["exhausted"]),
                     }
                 self._archive_corrupt_state("schema_mismatch")
-        except (json.JSONDecodeError, ValueError, TypeError, KeyError) as exc:
+        # OSError covers the TOCTOU window between exists() and read_text()
+        # (an external process — `mkdir -p`, cleanup cron, operator
+        # rm — could delete the file mid-load). Treat a vanished or
+        # unreadable file the same as invalid JSON: fall back to today's
+        # default state.
+        except (json.JSONDecodeError, ValueError, TypeError, KeyError, OSError) as exc:
             log.warning(
                 "omdb_quota_state_corrupted",
                 path=str(self._state_path),
@@ -267,7 +272,16 @@ class OmdbQuotaTracker:
         }
 
     def _archive_corrupt_state(self, reason: str) -> None:
-        """Rename the corrupt state file so it survives the next ``_persist``."""
+        """Rename the corrupt state file so it survives the next ``_persist``.
+
+        ``os.replace`` is atomic but only on the SAME filesystem — if
+        ``self._state_path`` and the suffixed target end up on different
+        mounts (rare, but possible when the data dir is a bind-mount), the
+        rename raises ``OSError`` and the corrupt file stays where it is.
+        The next ``_persist`` will then overwrite it, losing the forensic
+        evidence. The log carries that warning explicitly so operators
+        investigating quota anomalies know to check the archive immediately.
+        """
         ts = datetime.now(tz=timezone.utc).strftime("%Y%m%d-%H%M%S")
         corrupt_path = self._state_path.with_suffix(self._state_path.suffix + f".corrupt-{ts}")
         try:
@@ -279,6 +293,7 @@ class OmdbQuotaTracker:
                 target=str(corrupt_path),
                 error=str(exc),
                 error_type=type(exc).__name__,
+                hint="rename failed (cross-mount?) — corrupt file NOT archived, may be overwritten by next persist",
             )
             return
         log.warning(

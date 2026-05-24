@@ -201,6 +201,32 @@ class TestCorruptedState:
         s = tracker.status()
         assert s.count == 1
 
+    def test_state_file_disappears_between_exists_and_read(self, tmp_path: Path, monkeypatch) -> None:
+        """TOCTOU: file vanishes after exists() but before read_text() → fall back to fresh state.
+
+        Without OSError in the except tuple, OmdbQuotaTracker(...) would
+        crash at construction time if an external process (cleanup cron,
+        operator rm) raced with _load_state. The recovery path treats a
+        vanished file the same as invalid JSON.
+        """
+        state_file = tmp_path / ".omdb-quota.json"
+        state_file.write_text(json.dumps({"date": "2026-01-01", "count": 10, "limit": 1000, "exhausted": False}))
+
+        _real_read_text = Path.read_text
+
+        def _vanishing_read_text(self: Path, *args, **kwargs):
+            if self == state_file:
+                raise FileNotFoundError(f"vanished: {self}")
+            return _real_read_text(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "read_text", _vanishing_read_text)
+
+        # Must not raise — fall back to fresh state for today.
+        tracker = OmdbQuotaTracker(state_path=state_file)
+        s = tracker.status()
+        assert s.date == datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+        assert s.count == 0
+
     def test_state_file_bad_types_resets(self, tmp_path: Path) -> None:
         """Count is a string instead of int → fresh state."""
         state_file = tmp_path / ".omdb-quota.json"

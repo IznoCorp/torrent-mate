@@ -248,6 +248,53 @@ def test_backfill_emits_event_bus_lifecycle_events(conn: sqlite3.Connection) -> 
     assert "BackfillSkipped" in types
 
 
+def test_backfill_propagates_programmer_class_exceptions(conn: sqlite3.Connection) -> None:
+    """TypeError / AttributeError / KeyError from a façade must escape the loop.
+
+    The DESIGN §4 fail-soft contract is for transport-class errors. A
+    refactor regression (renamed field, deleted column, signature drift)
+    should surface as a bug — burying it as one warning per row would
+    leave the operator with a thousand log lines and a backfill that
+    "completes" with bogus data.
+    """
+    _insert_item(conn, title="WillCrash", external_ids_json='{"imdb": {"series_id": "tt1"}}', ratings_json=None)
+
+    imdb = MagicMock()
+    imdb.get_rating.side_effect = TypeError("renamed parameter foo")
+
+    with pytest.raises(TypeError, match="renamed parameter foo"):
+        run_backfill_ids(conn, event_bus=EventBus(), imdb_client=imdb, rt_client=None)
+
+
+def test_backfill_quota_short_circuit_preserves_caller_args(conn: sqlite3.Connection) -> None:
+    """OmdbQuotaExhausted disables ratings via local flag (not arg reassignment).
+
+    Before this fix, the loop would set imdb_client = None / rt_client = None,
+    mutating bindings owned by the caller. The local-flag refactor leaves the
+    references intact so a caller that re-uses them (e.g. for diagnostic
+    inspection after run_backfill_ids returns) still sees the original
+    object — even though no subsequent row called .get_rating() on it.
+    """
+    from personalscraper.api.metadata.omdb import OmdbQuotaExhausted  # noqa: PLC0415
+
+    _insert_item(conn, title="First", external_ids_json='{"imdb": {"series_id": "tt1"}}', ratings_json=None)
+    _insert_item(conn, title="Second", external_ids_json='{"imdb": {"series_id": "tt2"}}', ratings_json=None)
+
+    imdb = MagicMock()
+    # First call raises quota; subsequent calls must NOT happen.
+    imdb.get_rating.side_effect = [OmdbQuotaExhausted(pre_call=True)]
+    rt = MagicMock()
+
+    stats = run_backfill_ids(conn, event_bus=EventBus(), imdb_client=imdb, rt_client=rt)
+
+    # imdb.get_rating called exactly once (the first row); the second row's
+    # rating attempt was short-circuited by the ratings_disabled flag.
+    assert imdb.get_rating.call_count == 1
+    rt.get_rating.assert_not_called()  # disabled after first quota signal
+    # Both rows accounted for in stats (one skipped via quota, one via no-op or skip).
+    assert stats.items_scanned == 2
+
+
 def test_backfill_no_imdb_id_skips_rating_fetch(conn: sqlite3.Connection) -> None:
     """Without an IMDb anchor, the IMDb / RT façades are not called."""
     _insert_item(conn, title="NoAnchor", external_ids_json="{}", ratings_json=None)

@@ -204,13 +204,14 @@ def test_migration_007_glob_rejects_non_digit_suffix(tmp_path: Path) -> None:
 
 
 def test_migration_007_length_guard_rejects_degenerate_title(tmp_path: Path) -> None:
-    """LENGTH(title) > 7 guard prevents an empty title for ``' (2024)'`` (8 chars).
+    """LENGTH(title) > 7 guard skips ``' (2024)'`` (exactly 7 chars — boundary case).
 
     Without the guard, GLOB matches and ``SUBSTR(title, 1, LENGTH(title) - 7)``
-    yields ``" "`` (the leading space) which TRIMs to ``""``. The
-    UNIQUE(title, kind) index added by step 6 would then conflict on
-    subsequent empty rows, but more importantly the row would be
-    orphaned semantically.
+    yields ``""`` (empty after TRIM). The UNIQUE(title, kind) index added by
+    step 6 would then conflict on subsequent empty rows, but more importantly
+    the row would be orphaned semantically. ``LENGTH > 7`` is the right bound:
+    a real canonical title needs at least one character BEFORE the trailing
+    `` (YYYY)`` suffix (which is 7 chars: space + paren + 4 digits + paren).
     """
     db_path = tmp_path / "library.db"
     conn = sqlite3.connect(str(db_path), isolation_level=None)
@@ -218,7 +219,7 @@ def test_migration_007_length_guard_rejects_degenerate_title(tmp_path: Path) -> 
 
     _apply_through_migration(conn, up_to_version=6)
 
-    # Seed a degenerate title that would canonicalise to "" without the guard.
+    # Seed a degenerate title (LENGTH == 7) — exactly at the boundary, must be skipped.
     conn.execute(
         "INSERT INTO media_item (kind, title, title_sort, year, category_id, "
         "date_created, date_modified, is_locked, preferred_lang) "
@@ -236,6 +237,42 @@ def test_migration_007_length_guard_rejects_degenerate_title(tmp_path: Path) -> 
     counts = conn.execute("SELECT COUNT(*) FROM _migration_007_changes").fetchone()
     assert counts is not None
     assert counts[0] == 0, "LENGTH guard must skip degenerate titles"
+
+    conn.close()
+
+
+def test_migration_007_length_guard_admits_normal_title(tmp_path: Path) -> None:
+    """LENGTH(title) > 7 guard ADMITS a normal-length title (positive path).
+
+    Complements the boundary test above: a real title like ``'Foo (2024)'``
+    (LENGTH == 10) should still be canonicalised to ``'Foo'``. Without this
+    test the boundary guard could be silently mis-set (e.g. ``LENGTH > 100``
+    would skip everything) and the suffix-stripping behaviour would be lost.
+    """
+    db_path = tmp_path / "library.db"
+    conn = sqlite3.connect(str(db_path), isolation_level=None)
+    conn.execute("PRAGMA foreign_keys=ON")
+
+    _apply_through_migration(conn, up_to_version=6)
+
+    # LENGTH("Foo (2024)") == 10 > 7 — must canonicalise to "Foo".
+    conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, year, category_id, "
+        "date_created, date_modified, is_locked, preferred_lang) "
+        "VALUES ('movie', 'Foo (2024)', 'Foo (2024)', 2024, 'movies', 1, 1, 0, 'fr')"
+    )
+    conn.commit()
+
+    apply_migrations(conn, _MIGRATIONS_DIR)
+
+    row = conn.execute("SELECT title FROM media_item WHERE id = 1").fetchone()
+    assert row is not None
+    assert row[0] == "Foo", f"Expected canonicalised 'Foo', got {row[0]!r}"
+
+    # _migration_007_changes must record the canonicalisation.
+    changes = conn.execute("SELECT old_title, new_title FROM _migration_007_changes").fetchall()
+    assert len(changes) == 1
+    assert changes[0] == ("Foo (2024)", "Foo")
 
     conn.close()
 

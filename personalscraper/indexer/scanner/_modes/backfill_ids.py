@@ -160,14 +160,19 @@ def run_backfill_ids(
         )
     from personalscraper.api.metadata.omdb import OmdbQuotaExhausted  # noqa: PLC0415
 
+    # Local flag, not mutation of the function arguments — once OMDB
+    # quota signals exhaustion, every subsequent row's rating fetch is
+    # skipped without changing the caller-passed client references.
+    ratings_disabled = False
+
     for row in rows:
         stats.items_scanned += 1
         try:
             updated, ids_added, ratings_added, skip_reason = _backfill_one(
                 conn,
                 row,
-                imdb_client=imdb_client,
-                rt_client=rt_client,
+                imdb_client=None if ratings_disabled else imdb_client,
+                rt_client=None if ratings_disabled else rt_client,
                 tmdb_client=tmdb_client,
                 tvdb_client=tvdb_client,
                 ids_only=ids_only,
@@ -178,7 +183,7 @@ def run_backfill_ids(
         except OmdbQuotaExhausted as exc:
             # OMDB daily budget gone — every subsequent row would hit
             # the same exception (one wasted HTTP per row for the
-            # runtime-detected branch). Disable both façades for the
+            # runtime-detected branch). Disable the rating side for the
             # remainder of the pass; the IDs side keeps going since it
             # uses TMDB/TVDB, not OMDB.
             log.warning(
@@ -187,8 +192,7 @@ def run_backfill_ids(
                 item_id=row["id"],
                 title=row["title"],
             )
-            imdb_client = None
-            rt_client = None
+            ratings_disabled = True
             stats.items_skipped += 1
             event_bus.emit(
                 BackfillSkipped(
@@ -198,7 +202,13 @@ def run_backfill_ids(
                 )
             )
             continue
-        except Exception as exc:  # noqa: BLE001 — fail-soft contract
+        except (TypeError, AttributeError, KeyError):
+            # Programmer-class exceptions indicate a refactor regression
+            # (renamed dataclass field, deleted column, signature drift).
+            # Fail-soft would mask the bug behind a per-row warning — let
+            # it surface to handle_cli_errors instead.
+            raise
+        except Exception as exc:  # noqa: BLE001 — fail-soft contract per DESIGN §4
             log.exception(
                 "backfill_item_failed",
                 title=row["title"],
@@ -449,6 +459,11 @@ def _fetch_cross_provider_ids(
             details = client.get_tv(canonical_id)
         else:
             details = client.get_movie(canonical_id)
+    except (TypeError, AttributeError, KeyError):
+        # Programmer-class — let it surface (signature drift, renamed
+        # field on the response model). The fail-soft handler below is
+        # for transport / parse failures, not refactor regressions.
+        raise
     except Exception as exc:  # noqa: BLE001 — fail-soft contract
         log.warning(
             "backfill_cross_ref_fetch_failed",
@@ -541,11 +556,17 @@ def _call_rating_client(client: _RatingClient, provider_id: str) -> list[dict[st
             reason=exc.reason,
         )
         return []
+    except (TypeError, AttributeError):
+        # Programmer-class — let signature drift / refactor regressions
+        # surface. KeyError is intentionally NOT in this list because a
+        # malformed OMDb payload can produce one and that IS the
+        # transport-shape failure the broad except is for.
+        raise
     except Exception as exc:  # noqa: BLE001 — fail-soft per DESIGN §4
-        # Anything beyond ProviderFeatureUnavailable (network, parser
-        # drift, KeyError on a malformed OMDb row) is logged with full
-        # provider context here so the outer ``backfill_item_failed``
-        # entry stays a structured one-liner.
+        # Anything beyond ProviderFeatureUnavailable / programmer bugs
+        # (network, parser drift, KeyError on a malformed OMDb row) is
+        # logged with full provider context here so the outer
+        # ``backfill_item_failed`` entry stays a structured one-liner.
         log.warning(
             "backfill_rating_call_failed",
             source=source,
