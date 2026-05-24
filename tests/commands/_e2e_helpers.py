@@ -333,10 +333,22 @@ def mock_transmission_client(monkeypatch: Any) -> Any:
 def mock_tmdb_client(monkeypatch: Any) -> Any:
     """Mock TMDB API client returning canonical (empty) payloads.
 
+    Also mocks ``TMDBClient.policy`` to return a safe no-op
+    :class:`TransportPolicy` so the rescraper's ``HttpTransport``
+    wrapper does not choke on a ``MagicMock`` inside ``RateLimiter``.
+
     Returns the mock instance; callers configure ``get_movie.return_value``,
     ``get_show.return_value``, etc. for realistic scenarios.
     """
     from unittest.mock import MagicMock  # noqa: PLC0415
+
+    from personalscraper.api.transport._auth import NoAuth  # noqa: PLC0415
+    from personalscraper.api.transport._policy import (  # noqa: PLC0415
+        CircuitPolicy,
+        RateLimitPolicy,
+        RetryPolicy,
+        TransportPolicy,
+    )
 
     mock = MagicMock()
     mock.get_movie.return_value = None
@@ -345,9 +357,22 @@ def mock_tmdb_client(monkeypatch: Any) -> Any:
     mock.search_movie.return_value = []
     mock.search_show.return_value = []
 
+    safe_policy = TransportPolicy(
+        provider_name="mock-tmdb",
+        base_url="https://localhost",
+        auth=NoAuth(),
+        timeout_seconds=1.0,
+        retry=RetryPolicy(max_attempts=0),
+        circuit=CircuitPolicy(failure_threshold=100, cooldown_seconds=0.0),
+        rate_limit=RateLimitPolicy(requests_per_second=0.0),
+    )
+
+    cls_mock = MagicMock(return_value=mock)
+    cls_mock.policy = lambda api_key: safe_policy  # type: ignore[attr-defined]
+
     monkeypatch.setattr(
         "personalscraper.api.metadata.tmdb.TMDBClient",
-        MagicMock(return_value=mock),
+        cls_mock,
     )
     return mock
 

@@ -56,8 +56,13 @@ def test_rescrape_help_exits_zero() -> None:
 # ── 2. Dry-run safety ───────────────────────────────────────────────────────────
 
 
-def test_rescrape_dry_run_no_writes(tmp_path, test_config) -> None:
+def test_rescrape_dry_run_no_writes(tmp_path, test_config, monkeypatch) -> None:
     """--dry-run previews items needing rescrape without modifying filesystem."""
+    from tests.commands._e2e_helpers import mock_tmdb_client, mock_tvdb_client
+
+    mock_tmdb_client(monkeypatch)
+    mock_tvdb_client(monkeypatch)
+
     data_dir = tmp_path / ".data"
     data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -103,8 +108,13 @@ def test_rescrape_dry_run_no_writes(tmp_path, test_config) -> None:
 # ── 3. Skip already conforming ──────────────────────────────────────────────────
 
 
-def test_rescrape_skips_already_conforming_items(tmp_path, test_config) -> None:
+def test_rescrape_skips_already_conforming_items(tmp_path, test_config, monkeypatch) -> None:
     """Item with valid NFO + poster is skipped without API calls."""
+    from tests.commands._e2e_helpers import mock_tmdb_client, mock_tvdb_client
+
+    mock_tmdb_client(monkeypatch)
+    mock_tvdb_client(monkeypatch)
+
     data_dir = tmp_path / ".data"
     data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -135,8 +145,13 @@ def test_rescrape_skips_already_conforming_items(tmp_path, test_config) -> None:
 # ── 4. Format JSON ──────────────────────────────────────────────────────────────
 
 
-def test_rescrape_format_json(tmp_path, test_config) -> None:
+def test_rescrape_format_json(tmp_path, test_config, monkeypatch) -> None:
     """--format json produces readable JSON in library_rescrape.json."""
+    from tests.commands._e2e_helpers import mock_tmdb_client, mock_tvdb_client
+
+    mock_tmdb_client(monkeypatch)
+    mock_tvdb_client(monkeypatch)
+
     data_dir = tmp_path / ".data"
     data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -192,8 +207,13 @@ def test_rescrape_db_path_none_handled_gracefully(test_config) -> None:
 # ── 6. Output ──
 
 
-def test_rescrape_json_output_schema_valid(tmp_path, test_config) -> None:
+def test_rescrape_json_output_schema_valid(tmp_path, test_config, monkeypatch) -> None:
     """Output JSON file matches expected schema."""
+    from tests.commands._e2e_helpers import mock_tmdb_client, mock_tvdb_client
+
+    mock_tmdb_client(monkeypatch)
+    mock_tvdb_client(monkeypatch)
+
     data_dir = tmp_path / ".data"
     data_dir.mkdir(parents=True, exist_ok=True)
     disk_base = tmp_path / "drive_a"
@@ -221,7 +241,10 @@ def test_rescrape_error_exits_nonzero() -> None:
 
 def test_rescrape_dry_run_emits_events(tmp_path, test_config, monkeypatch) -> None:
     """Rescrape ``--dry-run`` runs with an active EventBus (no crash)."""
-    from tests.commands._e2e_helpers import capture_event_bus
+    from tests.commands._e2e_helpers import capture_event_bus, mock_tmdb_client, mock_tvdb_client
+
+    mock_tmdb_client(monkeypatch)
+    mock_tvdb_client(monkeypatch)
 
     data_dir = tmp_path / ".data"
     data_dir.mkdir(parents=True, exist_ok=True)
