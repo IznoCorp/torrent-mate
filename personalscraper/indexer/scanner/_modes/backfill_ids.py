@@ -545,7 +545,7 @@ _VALID_CANONICAL_PROVIDERS = frozenset({"tvdb", "tmdb"})
 _INVALID_CANONICAL_VALUES = frozenset({"0", "none", ""})
 
 
-def _resolve_nfo_path(dispatch_path: str, kind: str) -> "Path":
+def _resolve_nfo_path(dispatch_path: str, kind: str) -> "Path | None":
     """Derive the expected NFO file path from the item's dispatch directory.
 
     For TV shows the NFO is always ``tvshow.nfo`` at the root of the show
@@ -559,8 +559,9 @@ def _resolve_nfo_path(dispatch_path: str, kind: str) -> "Path":
         kind: ``'movie'`` or ``'show'``.
 
     Returns:
-        Resolved :class:`~pathlib.Path` to the expected NFO file.  The
-        path may not exist — callers must check before reading.
+        Resolved :class:`~pathlib.Path` to the expected NFO file, or
+        ``None`` if no NFO candidate exists (movie dir with zero ``.nfo``
+        files).  Callers must check for ``None`` before reading.
     """
     from pathlib import Path  # noqa: PLC0415
 
@@ -570,7 +571,7 @@ def _resolve_nfo_path(dispatch_path: str, kind: str) -> "Path":
     # Movie: glob for the first .nfo file in the directory (avoids
     # needing to reconstruct the exact "{Title}.nfo" stem).
     nfo_files = sorted(base.glob("*.nfo"))
-    return nfo_files[0] if nfo_files else base / "_missing.nfo"
+    return nfo_files[0] if nfo_files else None
 
 
 def _parse_canonical_from_nfo(nfo_path: "Path") -> tuple[str | None, str, dict[str, str]]:
@@ -813,7 +814,7 @@ def init_canonical_from_nfo(conn: sqlite3.Connection, dry_run: bool = False) -> 
             continue
 
         nfo_path = _resolve_nfo_path(dispatch_path, kind)
-        if not nfo_path.exists():
+        if nfo_path is None or not nfo_path.exists():
             stats.nfo_missing += 1
             log.debug("init_canonical_nfo_missing", item_id=item_id, nfo_path=str(nfo_path))
             continue
