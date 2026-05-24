@@ -461,18 +461,13 @@ def test_fix_nfo_output_schema_all_keys_present(tmp_path: Path, test_config) -> 
         "fixed",
         "skipped_apple_double",
         "backup_failed",
+        "truncate_failed",
         "nfo_unreadable",
         "ambiguous_nfo",
         "errors",
     ]
     for key in required_keys:
         assert key in data, f"Missing key: {key}"
-        if key == "errors":
-            assert isinstance(data[key], list), f"Key {key} has unexpected type: {type(data[key])}"
-        elif key == "apply":
-            assert isinstance(data[key], bool), f"Key {key} has unexpected type: {type(data[key])}"
-        else:
-            assert isinstance(data[key], int), f"Key {key} has unexpected type: {type(data[key])}"
 
     assert data["items_scanned"] == 4
     assert data["nfo_resolved"] == 3
@@ -481,6 +476,7 @@ def test_fix_nfo_output_schema_all_keys_present(tmp_path: Path, test_config) -> 
     assert data["fixed"] == 1
     assert data["unsafe_trailing"] == 1
     assert data["backup_failed"] == 0
+    assert data["truncate_failed"] == 0
     assert data["nfo_unreadable"] == 0
     assert data["ambiguous_nfo"] == 0
     assert data["errors"] == []
@@ -625,32 +621,112 @@ def _db_sha256(db_path: Path) -> str:
     return hashlib.sha256(db_path.read_bytes()).hexdigest()
 
 
-# ── 11. NEW-5 accumulator ↔ Literal coupling regression test ────────────────────
+# ── 11. Outcome ↔ FixNfoStats ↔ to_cli_json coupling regression test ───────────
 
 
-def test_outcome_literal_matches_accumulator_fields() -> None:
-    """_Outcome Literal members match _FixNfoAccumulator incrementable fields.
+def test_outcome_literal_matches_stats_fields_and_cli_projection() -> None:
+    """_Outcome Literal ↔ FixNfoStats fields ↔ to_cli_json output stay aligned.
 
-    4-way coupling: _Outcome ↔ _FixNfoAccumulator ↔ FixNfoStats ↔ to_stats().
-    Adding a new outcome must update all four; this test catches drift.
+    3-way coupling that previously took 4 hand-edits per new outcome:
+      1. _Outcome Literal member added.
+      2. FixNfoStats field added.
+      3. .inc() call site at the right loop branch.
+      4. to_cli_json projection updated.
 
-    ``items_scanned`` is excluded — it is set once at init (never via ``.inc()``).
+    The refactor collapsed (2)+(4) via dataclass iteration, so this test
+    pins what remains: every outcome HAS a counter field, and every
+    counter is projected through to_cli_json (with the ``fixed`` →
+    ``would_fix`` rename in dry-run mode).
     """
     import typing
     from dataclasses import fields
 
     from personalscraper.commands.library.fix_nfo import (
-        _FixNfoAccumulator,
+        FixNfoStats,
         _Outcome,
     )
 
-    accum_fields = {f.name for f in fields(_FixNfoAccumulator)}
+    stats_fields = {f.name for f in fields(FixNfoStats)}
     outcome_members = set(typing.get_args(_Outcome))
-    # items_scanned is init-only, not incremented via .inc().
-    inc_fields = accum_fields - {"items_scanned"}
+    # items_scanned is init-only, not part of _Outcome.
+    inc_fields = stats_fields - {"items_scanned"}
     assert inc_fields == outcome_members, (
-        f"Drift detected between _FixNfoAccumulator incrementable fields "
-        f"({sorted(inc_fields)}) and _Outcome Literal members "
-        f"({sorted(outcome_members)}). "
+        f"Drift between FixNfoStats incrementable fields ({sorted(inc_fields)}) "
+        f"and _Outcome Literal members ({sorted(outcome_members)}). "
         f"Symmetric diff: {inc_fields ^ outcome_members}"
     )
+
+    # Projection side: every outcome appears in to_cli_json (with ``fixed``
+    # rewritten to ``would_fix`` in dry-run).
+    stats = FixNfoStats(items_scanned=0)
+    dry_projection = stats.to_cli_json(apply=False)
+    expected_dry = (outcome_members - {"fixed"}) | {"would_fix", "items_scanned", "apply", "errors"}
+    assert set(dry_projection) == expected_dry, (
+        f"to_cli_json(apply=False) projection drift. "
+        f"Symmetric diff: {set(dry_projection) ^ expected_dry}"
+    )
+    apply_projection = stats.to_cli_json(apply=True)
+    expected_apply = outcome_members | {"items_scanned", "apply", "errors"}
+    assert set(apply_projection) == expected_apply, (
+        f"to_cli_json(apply=True) projection drift. "
+        f"Symmetric diff: {set(apply_projection) ^ expected_apply}"
+    )
+
+    # inc() correctly mutates every outcome counter.
+    for outcome in outcome_members:
+        s = FixNfoStats(items_scanned=0)
+        s.inc(outcome)  # type: ignore[arg-type]
+        assert getattr(s, outcome) == 1, f"FixNfoStats.inc({outcome!r}) did not mutate the field"
+
+
+# ── 12. truncate_failed regression — write_bytes OSError after successful backup ─
+
+
+def test_fix_nfo_truncate_failed_increments_counter_and_cleans_bak(
+    tmp_path: Path,
+    test_config,
+    monkeypatch,
+) -> None:
+    """OSError during the truncation write → truncate_failed + .bak unlinked + loop continues.
+
+    Pins the C2 regression: prior to the wrapper an OSError on
+    ``nfo_path.write_bytes(truncated)`` aborted the entire scan loop
+    mid-pass, losing all accumulated stats and orphaning the .bak.
+    """
+    db_path = make_synthetic_db(tmp_path)
+
+    # Two shows: first one's write_bytes throws, second one must still be processed.
+    show_a = tmp_path / "ShowTruncateFail"
+    show_a.mkdir()
+    (show_a / "tvshow.nfo").write_text(_trailing_url_tvshow_nfo("Trunc Fail"))
+
+    show_b = tmp_path / "ShowAfterFail"
+    show_b.mkdir()
+    (show_b / "tvshow.nfo").write_text(_trailing_url_tvshow_nfo("After Fail"))
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    _set_dispatch_path(conn, _insert_media_item(conn, title="Trunc Fail"), str(show_a))
+    _set_dispatch_path(conn, _insert_media_item(conn, title="After Fail"), str(show_b))
+    conn.close()
+
+    _real_write_bytes = Path.write_bytes
+
+    def _selective_failing_write_bytes(self: Path, data: bytes) -> int:
+        if "ShowTruncateFail" in str(self) and self.suffix == ".nfo":
+            raise OSError("Disk full — truncate failed")
+        return _real_write_bytes(self, data)
+
+    monkeypatch.setattr(Path, "write_bytes", _selective_failing_write_bytes)
+
+    result = _run_fix_nfo(["--apply"], db_path)
+    assert result.exit_code == 0, result.output
+
+    data = _json_from_result(result)
+    assert data["truncate_failed"] == 1, "truncate_failed should be 1 for the failing show"
+    assert data["fixed"] == 1, "loop must continue after truncate_failed (second show should fix)"
+    assert data["backup_failed"] == 0
+    assert data["items_scanned"] == 2
+
+    # .bak from the failing show should be removed (orphan cleanup).
+    assert not (show_a / "tvshow.nfo.bak").exists(), "orphan .bak must be cleaned"

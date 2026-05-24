@@ -33,10 +33,11 @@ Examples:
 from __future__ import annotations
 
 import re as _re
+import typing
 import xml.etree.ElementTree as _ET
-from dataclasses import dataclass
+from dataclasses import dataclass, fields, replace
 from pathlib import Path
-from typing import Literal, NamedTuple
+from typing import Literal
 
 import typer
 
@@ -61,47 +62,22 @@ _Outcome = Literal[
     "fixed",
     "skipped_apple_double",
     "backup_failed",
+    "truncate_failed",
     "nfo_unreadable",
     "ambiguous_nfo",
 ]
 
 
-class FixNfoStats(NamedTuple):
-    """Per-outcome counts for ``library_fix_nfo``."""
-
-    items_scanned: int
-    nfo_resolved: int
-    nfo_missing: int
-    already_ok: int
-    no_root_close: int
-    unsafe_trailing: int
-    still_malformed: int
-    fixed: int
-    skipped_apple_double: int
-    backup_failed: int
-    nfo_unreadable: int
-    ambiguous_nfo: int
-
-    def to_cli_json(self, *, apply: bool) -> dict[str, int | bool | list[str]]:
-        """Project to the CLI JSON output shape.
-
-        Args:
-            apply: Whether ``--apply`` was passed. Controls the key used
-                for the ``fixed`` count (``"would_fix"`` vs ``"fixed"``).
-
-        Returns:
-            Dict ready for :func:`emit`.
-        """
-        d = self._asdict()
-        d["would_fix" if not apply else "fixed"] = d.pop("fixed")
-        d["apply"] = apply
-        d["errors"] = []
-        return d
-
-
 @dataclass
-class _FixNfoAccumulator:
-    """Mutable internal counter accumulator (not part of public API)."""
+class FixNfoStats:
+    """Per-outcome counts for ``library_fix_nfo``.
+
+    Mutable during the scan loop (counters updated via :meth:`inc`) and
+    converted to an immutable snapshot via :meth:`frozen` once the loop
+    terminates. ``items_scanned`` is set once at init time; every other
+    field tracks a member of :data:`_Outcome` and is incremented via
+    ``stats.inc(outcome)``.
+    """
 
     items_scanned: int = 0
     nfo_resolved: int = 0
@@ -113,6 +89,7 @@ class _FixNfoAccumulator:
     fixed: int = 0
     skipped_apple_double: int = 0
     backup_failed: int = 0
+    truncate_failed: int = 0
     nfo_unreadable: int = 0
     ambiguous_nfo: int = 0
 
@@ -120,22 +97,39 @@ class _FixNfoAccumulator:
         """Increment the counter for *outcome* by 1."""
         setattr(self, outcome, getattr(self, outcome) + 1)
 
-    def to_stats(self) -> FixNfoStats:
-        """Build an immutable snapshot."""
-        return FixNfoStats(
-            items_scanned=self.items_scanned,
-            nfo_resolved=self.nfo_resolved,
-            nfo_missing=self.nfo_missing,
-            already_ok=self.already_ok,
-            no_root_close=self.no_root_close,
-            unsafe_trailing=self.unsafe_trailing,
-            still_malformed=self.still_malformed,
-            fixed=self.fixed,
-            skipped_apple_double=self.skipped_apple_double,
-            backup_failed=self.backup_failed,
-            nfo_unreadable=self.nfo_unreadable,
-            ambiguous_nfo=self.ambiguous_nfo,
-        )
+    def frozen(self) -> "FixNfoStats":
+        """Return an independent copy (defensive for downstream emitters)."""
+        return replace(self)
+
+    def to_cli_json(self, *, apply: bool) -> dict[str, int | bool | list[str]]:
+        """Project to the CLI JSON output shape.
+
+        Iterates :data:`_Outcome` so a new outcome added to the Literal
+        automatically appears in the output without a parallel edit
+        here. The ``fixed`` counter is renamed to ``would_fix`` in
+        dry-run mode (without ``--apply``) for operator clarity.
+
+        Args:
+            apply: Whether ``--apply`` was passed. Controls the key used
+                for the ``fixed`` count (``"would_fix"`` vs ``"fixed"``).
+
+        Returns:
+            Dict ready for :func:`emit`.
+        """
+        result: dict[str, int | bool | list[str]] = {"items_scanned": self.items_scanned}
+        for outcome in typing.get_args(_Outcome):
+            value: int = getattr(self, outcome)
+            if outcome == "fixed":
+                result["would_fix" if not apply else "fixed"] = value
+            else:
+                result[outcome] = value
+        result["apply"] = apply
+        result["errors"] = []
+        return result
+
+    def to_log_dict(self) -> dict[str, int]:
+        """Project to a ``dict[str, int]`` suitable for structlog ``stats=``."""
+        return {f.name: getattr(self, f.name) for f in fields(self)}
 
 
 def _is_trailing_safe(trailing: bytes) -> bool:
@@ -260,7 +254,7 @@ def library_fix_nfo(
     finally:
         conn.close()
 
-    stats = _FixNfoAccumulator(items_scanned=len(rows))
+    stats = FixNfoStats(items_scanned=len(rows))
 
     log.info("nfo_fix_scan_started", items_count=len(rows))
 
@@ -385,7 +379,33 @@ def library_fix_nfo(
                 )
                 continue
 
-            nfo_path.write_bytes(truncated)
+            try:
+                nfo_path.write_bytes(truncated)
+            except OSError as exc:
+                # Truncation write failed AFTER backup succeeded — without
+                # the wrapper an OSError here would abort the entire loop
+                # mid-pass, losing every accumulated stat and leaving the
+                # .bak as an orphan. Count it, clean the orphan, continue.
+                stats.inc("truncate_failed")
+                log.warning(
+                    "nfo_fix_truncate_failed",
+                    item_id=item_id,
+                    title=title,
+                    nfo=str(nfo_path),
+                    bak=str(bak_path),
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
+                try:
+                    bak_path.unlink()
+                except OSError as unlink_exc:
+                    log.warning(
+                        "nfo_fix_truncate_bak_orphan",
+                        bak=str(bak_path),
+                        error=str(unlink_exc),
+                        error_type=type(unlink_exc).__name__,
+                    )
+                continue
             log.info(
                 "nfo_fix_truncate",
                 item_id=item_id,
@@ -396,6 +416,6 @@ def library_fix_nfo(
 
         stats.inc("fixed")
 
-    log.info("nfo_fix_done", stats=stats.to_stats()._asdict())
+    log.info("nfo_fix_done", stats=stats.to_log_dict())
 
-    emit(stats.to_stats().to_cli_json(apply=apply))
+    emit(stats.frozen().to_cli_json(apply=apply))
