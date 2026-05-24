@@ -150,7 +150,10 @@ def library_fix_nfo(
         typer.echo("indexer.db_path is not configured", err=True)
         raise typer.Exit(code=1)
 
+    from personalscraper.indexer.db import _apply_pragmas as _db_apply_pragmas  # noqa: PLC0415
+
     conn = _sqlite3.connect(str(db_path))
+    _db_apply_pragmas(conn)
     conn.row_factory = _sqlite3.Row
     try:
         rows = conn.execute(

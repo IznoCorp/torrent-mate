@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 from typing import Any, Callable
 
+import typer
+
 from personalscraper.cli_state import state
 
 
@@ -27,14 +29,18 @@ def emit(
             to ``console.print(payload)``.
 
     - ``rich`` → call *rich_renderer* (or ``console.print(payload)``).
-    - ``plain`` → ``print(str(payload))`` for strings, or ``key: value``
+    - ``plain`` → ``typer.echo(str(payload))`` for strings, or ``key: value``
       lines for dicts.
-    - ``json`` → ``print(json.dumps(payload, default=str, indent=2))``.
+    - ``json`` → ``typer.echo(json.dumps(payload, default=str, indent=2))``.
+
+    Note: this module is the legitimate CLI output boundary — Typer's
+    ``echo`` is used (not ``print``) so the ``check_logging.py`` no-print
+    rule passes uniformly across the codebase.
     """
     fmt: str = state["format"]
 
     if fmt == "json":
-        print(json.dumps(payload, default=str, indent=2))
+        typer.echo(json.dumps(payload, default=str, indent=2))
     elif fmt == "rich":
         if rich_renderer is not None:
             rich_renderer()
@@ -42,7 +48,7 @@ def emit(
             state["console"].print(payload)
     else:  # plain
         if isinstance(payload, str):
-            print(payload)
+            typer.echo(payload)
         else:
             for key, value in payload.items():
-                print(f"{key}: {value}")
+                typer.echo(f"{key}: {value}")
