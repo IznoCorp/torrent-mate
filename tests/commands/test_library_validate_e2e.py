@@ -16,6 +16,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tests.commands._e2e_helpers import (
+    assert_no_python_traceback,
     make_synthetic_db,
     make_test_config_with_db,
     run_cli,
@@ -284,3 +285,68 @@ def test_validate_fix_apply_corrects_issue(tmp_path, test_config) -> None:
     d3 = _read_validate_json(tmp_path)
     assert d3["issues_count"] == 0, f"CLOSURE-OF-LOOP BROKEN: {d3['issues_count']} issues remain after fix: {d3}"
     assert d3["valid_count"] >= 1, f"Expected valid_count >= 1 after fix, got: {d3}"
+
+
+# ── 3. Errors ──
+
+
+def test_validate_invalid_arg_exits_nonzero() -> None:
+    """Unknown flag → non-zero exit, no Python traceback."""
+    result = run_cli(["library-validate", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_validate_db_path_none_exits_gracefully(test_config) -> None:
+    """Unconfigured ``indexer.db_path`` → exit non-zero, no traceback."""
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-validate"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_validate_corrupt_db_exits_gracefully(tmp_path, test_config) -> None:
+    """Corrupt (non-SQLite) DB file → graceful exit, no Python traceback."""
+    db_path = tmp_path / "corrupt.db"
+    db_path.write_text("this is not a sqlite database")
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-validate"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+# ── 6. Output ──
+
+
+def test_validate_json_output_schema_valid(tmp_path, test_config) -> None:
+    """Output JSON file matches expected schema."""
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    (tmp_path / ".data").mkdir(exist_ok=True)
+    cat_dir = tmp_path / "drive_a" / "cat_movies"
+    _seed_movie_fs(cat_dir, "TestMovie (2020)")
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-validate"])
+    assert result.exit_code == 0
+    data = _read_validate_json(tmp_path)
+    for key in ("valid_count", "issues_count", "fixed_count", "items"):
+        assert key in data, f"Missing key '{key}' in validation output: {sorted(data.keys())}"
+
+
+def test_validate_error_exits_nonzero(test_config) -> None:
+    """Error condition → non-zero exit code."""
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-validate"])
+    assert result.exit_code != 0
+
+
+# ── 7. Events ──
+
+# N/A: ``library-validate`` is a read-only diagnostic command.  It walks
+# storage disks and checks NFO/artwork/naming conformity, writing results
+# to a JSON file.  The ``--fix --apply`` path performs lightweight FS
+# cleanup (empty directory removal) but does not publish domain events.
+# No ``LibraryScanCompleted`` or ``ItemProgressed`` event is emitted.
