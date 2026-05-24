@@ -137,9 +137,7 @@ def test_relink_dry_run_no_writes(tmp_path, test_config) -> None:
     conn = sqlite3.connect(str(db_path))
     row = conn.execute("SELECT release_id FROM media_file LIMIT 1").fetchone()
     conn.close()
-    assert row is not None and row[0] is None, (
-        f"DRY-RUN leaked write: release_id={row[0]}"
-    )
+    assert row is not None and row[0] is None, f"DRY-RUN leaked write: release_id={row[0]}"
 
 
 # ── 4. Apply mode ───────────────────────────────────────────────────────────────
@@ -163,9 +161,7 @@ def test_relink_apply_persists_link_updates(tmp_path, test_config) -> None:
     conn = sqlite3.connect(str(db_path))
     row = conn.execute("SELECT release_id FROM media_file LIMIT 1").fetchone()
     conn.close()
-    assert row is not None and row[0] is not None, (
-        f"--apply did not persist: release_id={row[0]}"
-    )
+    assert row is not None and row[0] is not None, f"--apply did not persist: release_id={row[0]}"
 
 
 def test_relink_apply_mutually_exclusive_with_dry_run(tmp_path, test_config) -> None:
@@ -228,6 +224,4 @@ def test_relink_reports_unmatched_files(tmp_path, test_config) -> None:
     assert result.exit_code == 0, result.output
     clean = result.output
     assert "DRY-RUN" in clean, result.output
-    assert "unmatched=1" in clean, (
-        f"Expected unmatched=1, got: {clean}"
-    )
+    assert "unmatched=1" in clean, f"Expected unmatched=1, got: {clean}"

@@ -48,9 +48,7 @@ def test_doctor_clean_db_overall_ok(tmp_path, test_config) -> None:
 
     assert result.exit_code == 0, result.output
     data = json_from_result(result)
-    assert data["overall_status"] in ("ok", "skip"), (
-        f"Unexpected overall_status on clean DB: {data}"
-    )
+    assert data["overall_status"] in ("ok", "skip"), f"Unexpected overall_status on clean DB: {data}"
 
     # Verify every expected check is present and not FAIL.
     check_names = {c["name"] for c in data["checks"]}
@@ -70,17 +68,13 @@ def test_doctor_clean_db_overall_ok(tmp_path, test_config) -> None:
         assert name in check_names, f"Check '{name}' missing from doctor output"
         chk = _get_check(data, name)
         assert chk is not None
-        assert chk["status"] != "fail", (
-            f"Check '{name}' FAIL on clean DB: {chk}"
-        )
+        assert chk["status"] != "fail", f"Check '{name}' FAIL on clean DB: {chk}"
 
 
 # ── 2. Realistic scenarios ────────────────────────────────────────────────────
 
 
-def test_doctor_reports_canonical_provider_warn_below_threshold(
-    tmp_path, test_config
-) -> None:
+def test_doctor_reports_canonical_provider_warn_below_threshold(tmp_path, test_config) -> None:
     """50% canonical_provider coverage + threshold=80% → WARN."""
     db_path = make_synthetic_db(tmp_path)
     # Seed 2 items: 1 with canonical_provider, 1 without → 50% coverage.
@@ -103,28 +97,23 @@ def test_doctor_reports_canonical_provider_warn_below_threshold(
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         result = run_cli(
             [
-                "--format", "json", "library-doctor",
-                "--canonical-threshold-pct", "80",
+                "--format",
+                "json",
+                "library-doctor",
+                "--canonical-threshold-pct",
+                "80",
             ]
         )
 
-    assert result.exit_code != 0, (
-        f"Expected non-zero exit for WARN, got {result.exit_code}: {result.output}"
-    )
+    assert result.exit_code != 0, f"Expected non-zero exit for WARN, got {result.exit_code}: {result.output}"
     data = json_from_result(result)
-    assert data["overall_status"] == "warn", (
-        f"Expected overall_status='warn' for 50% < 80%, got {data}"
-    )
+    assert data["overall_status"] == "warn", f"Expected overall_status='warn' for 50% < 80%, got {data}"
     chk = _get_check(data, "canonical_provider_populated")
     assert chk is not None, "canonical_provider_populated check missing"
-    assert chk["status"] == "warn", (
-        f"Expected warn status, got {chk}"
-    )
+    assert chk["status"] == "warn", f"Expected warn status, got {chk}"
 
 
-def test_doctor_reports_repair_queue_backlog_above_threshold(
-    tmp_path, test_config
-) -> None:
+def test_doctor_reports_repair_queue_backlog_above_threshold(tmp_path, test_config) -> None:
     """3 pending repair rows + threshold=1 → WARN."""
     db_path = make_synthetic_db(tmp_path)
     conn = sqlite3.connect(str(db_path))
@@ -143,29 +132,26 @@ def test_doctor_reports_repair_queue_backlog_above_threshold(
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         result = run_cli(
             [
-                "--format", "json", "library-doctor",
-                "--repair-queue-threshold", "1",
+                "--format",
+                "json",
+                "library-doctor",
+                "--repair-queue-threshold",
+                "1",
             ]
         )
 
     assert result.exit_code != 0, result.output
     data = json_from_result(result)
-    assert data["overall_status"] in ("warn", "fail"), (
-        f"Expected warn/fail for backlog, got {data}"
-    )
+    assert data["overall_status"] in ("warn", "fail"), f"Expected warn/fail for backlog, got {data}"
     chk = _get_check(data, "repair_queue_backlog")
     assert chk is not None
-    assert chk["status"] == "warn", (
-        f"Expected warn for repair_queue_backlog at count=3 threshold=1, got {chk}"
-    )
+    assert chk["status"] == "warn", f"Expected warn for repair_queue_backlog at count=3 threshold=1, got {chk}"
 
 
 # ── 3. Closure-of-loop (THE BD-D PATTERN) ─────────────────────────────────────
 
 
-def test_doctor_after_phantom_paths_then_repair_closes_warning(
-    tmp_path, test_config
-) -> None:
+def test_doctor_after_phantom_paths_then_repair_closes_warning(tmp_path, test_config) -> None:
     """Seed phantom → doctor WARNs → reconcile+repair → doctor OK.
 
     This is the BD-D regression at the doctor level: phantom_paths check
@@ -185,21 +171,15 @@ def test_doctor_after_phantom_paths_then_repair_closes_warning(
     # Step 1: doctor should WARN about phantom_paths.
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         r1 = run_cli(["--format", "json", "library-doctor"])
-    assert r1.exit_code != 0, (
-        f"Expected non-zero exit when phantom paths present: {r1.output}"
-    )
+    assert r1.exit_code != 0, f"Expected non-zero exit when phantom paths present: {r1.output}"
     d1 = json_from_result(r1)
     phantom1 = _get_check(d1, "phantom_paths")
     assert phantom1 is not None, "phantom_paths check missing"
-    assert phantom1["status"] == "warn", (
-        f"Pre-condition: expected phantom_paths=warn, got {phantom1}"
-    )
+    assert phantom1["status"] == "warn", f"Pre-condition: expected phantom_paths=warn, got {phantom1}"
 
     # Step 2: reconcile + enqueue the phantom paths.
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
-        r2 = run_cli(
-            ["--format", "json", "library-reconcile", "--enqueue-repairs"]
-        )
+        r2 = run_cli(["--format", "json", "library-reconcile", "--enqueue-repairs"])
     assert r2.exit_code == 0, r2.output
 
     # Step 3: repair drain.
@@ -212,15 +192,12 @@ def test_doctor_after_phantom_paths_then_repair_closes_warning(
     # Step 4: doctor must now be OK (phantom_paths check transitions to ok).
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         r4 = run_cli(["--format", "json", "library-doctor"])
-    assert r4.exit_code == 0, (
-        f"CLOSURE-OF-LOOP BROKEN: doctor still non-zero after repair: {r4.output}"
-    )
+    assert r4.exit_code == 0, f"CLOSURE-OF-LOOP BROKEN: doctor still non-zero after repair: {r4.output}"
     d4 = json_from_result(r4)
     phantom4 = _get_check(d4, "phantom_paths")
     assert phantom4 is not None, "phantom_paths check missing after repair"
     assert phantom4["status"] == "ok", (
-        f"CLOSURE-OF-LOOP BROKEN: phantom_paths still {phantom4['status']} "
-        f"after repair drain: {phantom4}"
+        f"CLOSURE-OF-LOOP BROKEN: phantom_paths still {phantom4['status']} after repair drain: {phantom4}"
     )
     assert d4["overall_status"] in ("ok", "skip"), (
         f"CLOSURE-OF-LOOP BROKEN: overall_status={d4['overall_status']} after repair: {d4}"
@@ -250,6 +227,4 @@ def test_doctor_idempotent(tmp_path, test_config) -> None:
     )
     for c1, c2 in zip(d1["checks"], d2["checks"]):
         assert c1["name"] == c2["name"]
-        assert c1["status"] == c2["status"], (
-            f"Check '{c1['name']}' changed: {c1['status']} → {c2['status']}"
-        )
+        assert c1["status"] == c2["status"], f"Check '{c1['name']}' changed: {c1['status']} → {c2['status']}"

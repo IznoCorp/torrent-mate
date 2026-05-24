@@ -21,9 +21,7 @@ from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.repos import item_repo
 from personalscraper.indexer.schema import MediaItemKind, MediaItemRow
 
-_MIGRATIONS_DIR = (
-    Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations"
-)
+_MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations"
 
 
 # ---------------------------------------------------------------------------
@@ -98,9 +96,7 @@ def test_upsert_with_year_suffix_matches_clean_title(conn: sqlite3.Connection) -
     item_id = item_repo.upsert(conn, row)
 
     # Must be the SAME row (updated), not a new one.
-    count = conn.execute(
-        "SELECT COUNT(*) FROM media_item WHERE kind = 'movie'"
-    ).fetchone()[0]
+    count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'movie'").fetchone()[0]
     assert count == 1, f"Expected 1 row, got {count} (duplicate created)"
     assert item_id == 1
 
@@ -144,9 +140,7 @@ def test_upsert_with_clean_title_matches_year_suffix_stored(tmp_path: Path) -> N
     result_id = item_repo.upsert(conn, item)
     assert result_id == 1  # the existing row, not a new one
 
-    count = conn.execute(
-        "SELECT COUNT(*) FROM media_item WHERE kind = 'movie'"
-    ).fetchone()[0]
+    count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'movie'").fetchone()[0]
     assert count == 1, f"Expected 1 row, got {count} (duplicate created)"
 
     conn.close()
@@ -159,9 +153,7 @@ def test_upsert_different_titles_with_different_years_no_collision(
     item_repo.insert(conn, _make_item(title="Alpha (2020)", year=2020))
     item_repo.insert(conn, _make_item(title="Beta (2020)", year=2020))
 
-    count = conn.execute(
-        "SELECT COUNT(*) FROM media_item WHERE kind = 'movie'"
-    ).fetchone()[0]
+    count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'movie'").fetchone()[0]
     assert count == 2, f"Expected 2 distinct rows, got {count}"
 
 
@@ -170,12 +162,8 @@ def test_upsert_same_title_different_kind_no_collision(conn: sqlite3.Connection)
     item_repo.insert(conn, _make_item(title="Foo", kind="movie"))
     item_repo.insert(conn, _make_item(title="Foo", kind="show"))
 
-    count_movies = conn.execute(
-        "SELECT COUNT(*) FROM media_item WHERE kind = 'movie'"
-    ).fetchone()[0]
-    count_shows = conn.execute(
-        "SELECT COUNT(*) FROM media_item WHERE kind = 'show'"
-    ).fetchone()[0]
+    count_movies = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'movie'").fetchone()[0]
+    count_shows = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'show'").fetchone()[0]
     assert count_movies == 1
     assert count_shows == 1
 
@@ -222,9 +210,7 @@ def test_migration_007_canonicalises_existing_titles(tmp_path: Path) -> None:
     # Apply migration 007.
     apply_migrations(conn, _MIGRATIONS_DIR)
 
-    row = conn.execute(
-        "SELECT title FROM media_item WHERE id = 1"
-    ).fetchone()
+    row = conn.execute("SELECT title FROM media_item WHERE id = 1").fetchone()
     assert row is not None
     assert row[0] == "Test", f"Expected canonicalised 'Test', got {row[0]!r}"
 
@@ -259,9 +245,7 @@ def test_migration_007_dedups_post_canonicalisation(tmp_path: Path) -> None:
     # Apply migration 007.
     apply_migrations(conn, _MIGRATIONS_DIR)
 
-    rows = conn.execute(
-        "SELECT id, title, date_modified FROM media_item"
-    ).fetchall()
+    rows = conn.execute("SELECT id, title, date_modified FROM media_item").fetchall()
     assert len(rows) == 1, f"Expected 1 row after dedup, got {len(rows)}: {rows}"
     row = rows[0]
     assert row[1] == "Test"  # canonicalised
@@ -289,12 +273,7 @@ def test_migration_007_idempotent(tmp_path: Path) -> None:
     user_v2 = conn.execute("PRAGMA user_version").fetchone()[0]
     assert user_v2 == 7
 
-    versions = [
-        r[0]
-        for r in conn.execute(
-            "SELECT version FROM schema_version ORDER BY version"
-        ).fetchall()
-    ]
+    versions = [r[0] for r in conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()]
     assert versions == [1, 2, 3, 4, 5, 6, 7], f"Got {versions}"
 
     conn.close()

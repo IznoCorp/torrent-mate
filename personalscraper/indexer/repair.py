@@ -366,8 +366,7 @@ def _refresh_disk_merkle(conn: sqlite3.Connection, disk_id: int) -> str | None:
         (disk_id,),
     ).fetchall()
     fingerprints = [
-        FileFingerprint(path_id=int(r[0]), size=int(r[1]), mtime_ns=int(r[2]), oshash=str(r[3]))
-        for r in rows
+        FileFingerprint(path_id=int(r[0]), size=int(r[1]), mtime_ns=int(r[2]), oshash=str(r[3])) for r in rows
     ]
     new_root = compute_merkle_root(fingerprints)
     conn.execute("UPDATE disk SET merkle_root = ? WHERE id = ?", (new_root, disk_id))

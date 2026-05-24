@@ -55,9 +55,7 @@ def test_ghost_audit_no_disks_exits_clean(tmp_path, test_config) -> None:
 
     assert result.exit_code == 0, result.output
     clean = _clean(result.output)
-    assert "no ghost dirents" in clean, (
-        f"Expected 'no ghost dirents' for zero disks, got: {clean}"
-    )
+    assert "no ghost dirents" in clean, f"Expected 'no ghost dirents' for zero disks, got: {clean}"
 
 
 def test_ghost_audit_clean_disk_exits_clean(tmp_path, test_config) -> None:
@@ -69,9 +67,7 @@ def test_ghost_audit_clean_disk_exits_clean(tmp_path, test_config) -> None:
     disk_dir.mkdir()
     (disk_dir / "real_file.mkv").write_text("test content")
 
-    cfg = cfg.model_copy(
-        update={"disks": [_make_disk_config("cleandisk", disk_dir)]}
-    )
+    cfg = cfg.model_copy(update={"disks": [_make_disk_config("cleandisk", disk_dir)]})
 
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         result = run_cli(["library-ghost-audit"])
@@ -109,9 +105,7 @@ def test_ghost_audit_disk_filter_restricts_scope(tmp_path, test_config) -> None:
     assert result.exit_code == 0, result.output
     clean = _clean(result.output)
     assert "diska" in clean, f"Filtered disk 'diska' should appear: {clean}"
-    assert "diskb" not in clean, (
-        f"Unfiltered disk 'diskb' must not appear: {clean}"
-    )
+    assert "diskb" not in clean, f"Unfiltered disk 'diskb' must not appear: {clean}"
 
 
 def test_ghost_audit_skips_unmounted_disk(tmp_path, test_config) -> None:
@@ -122,16 +116,12 @@ def test_ghost_audit_skips_unmounted_disk(tmp_path, test_config) -> None:
     nonexistent = tmp_path / "nonexistent_disk"
     # Do NOT create the directory.
 
-    cfg = cfg.model_copy(
-        update={"disks": [_make_disk_config("ghostdisk", nonexistent)]}
-    )
+    cfg = cfg.model_copy(update={"disks": [_make_disk_config("ghostdisk", nonexistent)]})
 
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         result = run_cli(["library-ghost-audit"])
 
     assert result.exit_code == 0, result.output
     clean = _clean(result.output)
-    assert "not mounted, skipped" in clean, (
-        f"Expected 'not mounted, skipped' for nonexistent path: {clean}"
-    )
+    assert "not mounted, skipped" in clean, f"Expected 'not mounted, skipped' for nonexistent path: {clean}"
     assert "ghostdisk" in clean, f"Disk label should appear: {clean}"

@@ -225,14 +225,10 @@ def test_init_canonical_falls_back_from_unsupported_default_to_supported_sibling
 
     stats = init_canonical_from_nfo(conn)
 
-    assert stats.populated == 1, (
-        f"Expected fallback to populate from tvdb sibling, got populated={stats.populated}"
-    )
+    assert stats.populated == 1, f"Expected fallback to populate from tvdb sibling, got populated={stats.populated}"
     assert stats.populated_fallback == 1
     assert stats.populated_default == 0
-    canonical = conn.execute(
-        "SELECT canonical_provider FROM media_item WHERE id = ?", (item_id,)
-    ).fetchone()[0]
+    canonical = conn.execute("SELECT canonical_provider FROM media_item WHERE id = ?", (item_id,)).fetchone()[0]
     assert canonical == "tvdb", (
         f"Expected canonical='tvdb' via fallback, got {canonical!r}. "
         "The fallback enhancement (3df78e0) should pick the first supported "

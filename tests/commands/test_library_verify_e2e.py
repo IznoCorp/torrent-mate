@@ -26,9 +26,7 @@ _PATCH_GUARD = "personalscraper.indexer.scanner.guard_disk_mounted"
 
 def _pending_repair_count(db_path: str) -> int:
     conn = sqlite3.connect(db_path)
-    count = conn.execute(
-        "SELECT COUNT(*) FROM repair_queue WHERE status='pending'"
-    ).fetchone()[0]
+    count = conn.execute("SELECT COUNT(*) FROM repair_queue WHERE status='pending'").fetchone()[0]
     conn.close()
     return count
 
@@ -74,9 +72,7 @@ def test_verify_clean_file_no_mismatch_no_enqueue(tmp_path, test_config) -> None
     seed_media_file_on_disk(conn, disk_id, mount, "media", "test.mkv")
     conn.close()
 
-    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(
-        _PATCH_GUARD, return_value=None
-    ):
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(_PATCH_GUARD, return_value=None):
         result = run_cli(["library-verify"])
 
     assert result.exit_code == 0, result.output
@@ -104,9 +100,7 @@ def test_verify_size_mismatch_enqueues_repair(tmp_path, test_config) -> None:
     seed_media_file_on_disk(conn, disk_id, mount, "media", "test.mkv", size_bytes=1)
     conn.close()
 
-    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(
-        _PATCH_GUARD, return_value=None
-    ):
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(_PATCH_GUARD, return_value=None):
         result = run_cli(["library-verify"])
 
     assert result.exit_code == 0, result.output
@@ -133,9 +127,7 @@ def test_verify_mtime_mismatch_enqueues_repair(tmp_path, test_config) -> None:
     seed_media_file_on_disk(conn, disk_id, mount, "media", "test.mkv", mtime_ns=1)
     conn.close()
 
-    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(
-        _PATCH_GUARD, return_value=None
-    ):
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(_PATCH_GUARD, return_value=None):
         result = run_cli(["library-verify"])
 
     assert result.exit_code == 0, result.output
@@ -166,17 +158,13 @@ def test_verify_disk_filter_restricts_scope(tmp_path, test_config) -> None:
     conn.close()
 
     # Verify only DiskA.
-    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(
-        _PATCH_GUARD, return_value=None
-    ):
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(_PATCH_GUARD, return_value=None):
         result = run_cli(["library-verify", "--disk", "DiskA"])
 
     assert result.exit_code == 0, result.output
     data = json_from_result(result)
     # Only 1 file should be walked (the one on DiskA).
-    assert data["files_walked"] == 1, (
-        f"Expected exactly 1 file walked (DiskA only), got {data}"
-    )
+    assert data["files_walked"] == 1, f"Expected exactly 1 file walked (DiskA only), got {data}"
 
 
 def test_verify_no_enqueue_flag_no_writes(tmp_path, test_config) -> None:
@@ -193,9 +181,7 @@ def test_verify_no_enqueue_flag_no_writes(tmp_path, test_config) -> None:
     seed_media_file_on_disk(conn, disk_id, mount, "media", "test.mkv", size_bytes=1)
     conn.close()
 
-    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(
-        _PATCH_GUARD, return_value=None
-    ):
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(_PATCH_GUARD, return_value=None):
         result = run_cli(["library-verify", "--no-enqueue"])
 
     assert result.exit_code == 0, result.output
@@ -205,9 +191,7 @@ def test_verify_no_enqueue_flag_no_writes(tmp_path, test_config) -> None:
 
     # No repair rows should be inserted.
     pending = _pending_repair_count(str(db_path))
-    assert pending == 0, (
-        f"--no-enqueue must not insert repair rows, got {pending}"
-    )
+    assert pending == 0, f"--no-enqueue must not insert repair rows, got {pending}"
 
 
 # ── 3. Closure-of-loop (THE BD-D PATTERN) ─────────────────────────────────────
@@ -237,20 +221,14 @@ def test_verify_closes_loop_with_repair(tmp_path, test_config) -> None:
     conn.close()
 
     # Step 1: Reconcile detects the phantom path and enqueues repair.
-    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(
-        _PATCH_GUARD, return_value=None
-    ):
-        r1 = run_cli(
-            ["--format", "json", "library-reconcile", "--enqueue-repairs"]
-        )
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(_PATCH_GUARD, return_value=None):
+        r1 = run_cli(["--format", "json", "library-reconcile", "--enqueue-repairs"])
     assert r1.exit_code == 0, r1.output
     d1 = json_from_result(r1)
     assert d1["enqueued_repairs"] >= 1, f"No repairs enqueued: {d1}"
 
     # Step 2: Repair drains the queue (hard-deletes files + path).
-    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(
-        _PATCH_GUARD, return_value=None
-    ):
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(_PATCH_GUARD, return_value=None):
         r2 = run_cli(["--format", "json", "library-repair"])
     assert r2.exit_code == 0, r2.output
     d2 = json_from_result(r2)
@@ -258,19 +236,14 @@ def test_verify_closes_loop_with_repair(tmp_path, test_config) -> None:
     assert d2["pending_depth"] == 0, f"Queue not empty after repair: {d2}"
 
     # Step 3: Verify must find 0 files for the cleaned disk.
-    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(
-        _PATCH_GUARD, return_value=None
-    ):
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(_PATCH_GUARD, return_value=None):
         r3 = run_cli(["library-verify"])
     assert r3.exit_code == 0, r3.output
     d3 = json_from_result(r3)
     assert d3["files_walked"] == 0, (
-        f"CLOSURE-OF-LOOP BROKEN: files_walked={d3['files_walked']} "
-        f"after repair (expected 0): {d3}"
+        f"CLOSURE-OF-LOOP BROKEN: files_walked={d3['files_walked']} after repair (expected 0): {d3}"
     )
-    assert d3["status"] == "ok", (
-        f"CLOSURE-OF-LOOP BROKEN: status={d3['status']} after repair: {d3}"
-    )
+    assert d3["status"] == "ok", f"CLOSURE-OF-LOOP BROKEN: status={d3['status']} after repair: {d3}"
 
     # Queue must still be empty.
     pending = _pending_repair_count(str(db_path))
@@ -294,9 +267,7 @@ def test_verify_idempotent_on_clean_files(tmp_path, test_config) -> None:
     seed_media_file_on_disk(conn, disk_id, mount, "media", "test.mkv")
     conn.close()
 
-    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(
-        _PATCH_GUARD, return_value=None
-    ):
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(_PATCH_GUARD, return_value=None):
         r1 = run_cli(["library-verify"])
         r2 = run_cli(["library-verify"])
 
@@ -304,7 +275,5 @@ def test_verify_idempotent_on_clean_files(tmp_path, test_config) -> None:
     assert r2.exit_code == 0, r2.output
     d1 = json_from_result(r1)
     d2 = json_from_result(r2)
-    assert d1["files_walked"] == d2["files_walked"], (
-        f"files_walked changed between idempotent runs: {d1} vs {d2}"
-    )
+    assert d1["files_walked"] == d2["files_walked"], f"files_walked changed between idempotent runs: {d1} vs {d2}"
     assert d1["status"] == d2["status"]

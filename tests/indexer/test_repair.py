@@ -320,9 +320,7 @@ def test_soft_delete_subtree_refreshes_disk_merkle() -> None:
     conn.commit()
 
     # Pre-condition: detector reports no drift.
-    assert detect_merkle_drift(conn) == [], (
-        "Pre-condition: stored merkle must match computed merkle"
-    )
+    assert detect_merkle_drift(conn) == [], "Pre-condition: stored merkle must match computed merkle"
 
     # Action: prune the path subtree.
     soft_delete_subtree(conn, path_id)
@@ -340,9 +338,7 @@ def test_soft_delete_subtree_refreshes_disk_merkle() -> None:
     # Sanity: the new merkle is the hash of the empty fingerprint set.
     new_root = conn.execute("SELECT merkle_root FROM disk WHERE id = ?", (disk_id,)).fetchone()[0]
     expected_empty = compute_merkle_root([])
-    assert new_root == expected_empty, (
-        f"Expected merkle_root to be the empty-set hash {expected_empty}, got {new_root}"
-    )
+    assert new_root == expected_empty, f"Expected merkle_root to be the empty-set hash {expected_empty}, got {new_root}"
 
 
 def test_repair_processor_drains_path_missing_closes_detector_loop() -> None:
@@ -361,9 +357,7 @@ def test_repair_processor_drains_path_missing_closes_detector_loop() -> None:
 
     # The seed path does NOT exist on disk (rel_path uses a synthetic name),
     # so detect_path_missing must flag it before repair.
-    assert path_id in detect_path_missing(conn), (
-        "Pre-condition: synthetic path must be flagged by detect_path_missing"
-    )
+    assert path_id in detect_path_missing(conn), "Pre-condition: synthetic path must be flagged by detect_path_missing"
 
     payload = json.dumps({"detector": "path_missing", "action": "soft_delete_subtree"})
     conn.execute(
@@ -379,6 +373,5 @@ def test_repair_processor_drains_path_missing_closes_detector_loop() -> None:
     # The detector must now return 0 — closing the loop the original repair left open.
     still_missing = detect_path_missing(conn)
     assert path_id not in still_missing, (
-        f"detect_path_missing still flagged path_id={path_id} after repair drain — "
-        "closure-of-loop regression"
+        f"detect_path_missing still flagged path_id={path_id} after repair drain — closure-of-loop regression"
     )

@@ -94,9 +94,7 @@ def test_reconcile_scope_filter_limits_detection(tmp_path, test_config) -> None:
     cfg = make_test_config_with_db(test_config, db_path)
 
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
-        result = run_cli(
-            ["--format", "json", "library-reconcile", "--scope", "path_missing"]
-        )
+        result = run_cli(["--format", "json", "library-reconcile", "--scope", "path_missing"])
 
     assert result.exit_code == 0, result.output
     data = json_from_result(result)
@@ -129,9 +127,7 @@ def test_reconcile_release_orphans_finds_orphan_release(tmp_path, test_config) -
 # ── 3. Closure-of-loop (THE BD-D PATTERN) ─────────────────────────────────────
 
 
-def test_reconcile_path_missing_enqueue_then_repair_closes_loop(
-    tmp_path, test_config
-) -> None:
+def test_reconcile_path_missing_enqueue_then_repair_closes_loop(tmp_path, test_config) -> None:
     """Seed phantom → enqueue → repair → re-detect = 0.
 
     This is the BD-D regression test at the CLI level (2026-05-23 incident):
@@ -145,26 +141,18 @@ def test_reconcile_path_missing_enqueue_then_repair_closes_loop(
 
     # Step 1: reconcile with enqueue → repair_queue gets a row.
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
-        r1 = run_cli(
-            ["--format", "json", "library-reconcile", "--enqueue-repairs"]
-        )
+        r1 = run_cli(["--format", "json", "library-reconcile", "--enqueue-repairs"])
     assert r1.exit_code == 0, r1.output
     d1 = json_from_result(r1)
-    assert d1["path_missing_count"] >= 1, (
-        f"Pre-condition: expected phantom paths before repair, got {d1}"
-    )
-    assert d1["enqueued_repairs"] >= 1, (
-        f"Expected repair enqueued, got enqueued_repairs={d1['enqueued_repairs']}"
-    )
+    assert d1["path_missing_count"] >= 1, f"Pre-condition: expected phantom paths before repair, got {d1}"
+    assert d1["enqueued_repairs"] >= 1, f"Expected repair enqueued, got enqueued_repairs={d1['enqueued_repairs']}"
 
     # Step 2: drain the repair queue.
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         r2 = run_cli(["--format", "json", "library-repair"])
     assert r2.exit_code == 0, r2.output
     d2 = json_from_result(r2)
-    assert d2["succeeded"] >= 1, (
-        f"Repair should have succeeded at least 1 row, got {d2}"
-    )
+    assert d2["succeeded"] >= 1, f"Repair should have succeeded at least 1 row, got {d2}"
     assert d2["pending_depth"] == 0, (
         f"Repair queue should be empty after drain, got pending_depth={d2.get('pending_depth')}"
     )
@@ -210,18 +198,12 @@ def test_reconcile_enqueue_idempotent(tmp_path, test_config) -> None:
     cfg = make_test_config_with_db(test_config, db_path)
 
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
-        r1 = run_cli(
-            ["--format", "json", "library-reconcile", "--enqueue-repairs"]
-        )
-        r2 = run_cli(
-            ["--format", "json", "library-reconcile", "--enqueue-repairs"]
-        )
+        r1 = run_cli(["--format", "json", "library-reconcile", "--enqueue-repairs"])
+        r2 = run_cli(["--format", "json", "library-reconcile", "--enqueue-repairs"])
 
     d1 = json_from_result(r1)
     d2 = json_from_result(r2)
     # Second enqueue should find no new rows to insert (deduped).
-    assert d2["enqueued_repairs"] == 0, (
-        f"Second enqueue should be a no-op, got {d2['enqueued_repairs']}"
-    )
+    assert d2["enqueued_repairs"] == 0, f"Second enqueue should be a no-op, got {d2['enqueued_repairs']}"
     # The first run enqueued something.
     assert d1["enqueued_repairs"] >= 1

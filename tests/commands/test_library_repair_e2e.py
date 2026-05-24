@@ -122,9 +122,7 @@ def test_repair_respects_budget(tmp_path, test_config) -> None:
     cfg = make_test_config_with_db(test_config, db_path)
 
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
-        result = run_cli(
-            ["--format", "json", "library-repair", "--budget", "0"]
-        )
+        result = run_cli(["--format", "json", "library-repair", "--budget", "0"])
 
     assert result.exit_code == 0, result.output
     data = json_from_result(result)
@@ -132,9 +130,7 @@ def test_repair_respects_budget(tmp_path, test_config) -> None:
     # Either the budget is exhausted OR all 200 rows happened to be in a
     # single batch (limit=100 per batch).  In the latter case all rows are
     # processed without the budget check firing between batches.
-    assert (
-        data["budget_exhausted"] is True or data["processed"] == 200
-    ), (
+    assert data["budget_exhausted"] is True or data["processed"] == 200, (
         f"Expected budget_exhausted=True or all processed, got {data}"
     )
 
@@ -146,22 +142,16 @@ def test_repair_dry_run_no_writes(tmp_path, test_config) -> None:
     cfg = make_test_config_with_db(test_config, db_path)
 
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
-        result = run_cli(
-            ["--format", "json", "library-repair", "--dry-run"]
-        )
+        result = run_cli(["--format", "json", "library-repair", "--dry-run"])
 
     assert result.exit_code == 0, result.output
     data = json_from_result(result)
     assert data["dry_run"] is True
-    assert data["repair_would_drain"] == 5, (
-        f"Dry-run should see 5 pending rows, got {data}"
-    )
+    assert data["repair_would_drain"] == 5, f"Dry-run should see 5 pending rows, got {data}"
 
     # Verify no rows were actually drained.
     conn = sqlite3.connect(str(db_path))
-    count = conn.execute(
-        "SELECT COUNT(*) FROM repair_queue WHERE status='pending'"
-    ).fetchone()[0]
+    count = conn.execute("SELECT COUNT(*) FROM repair_queue WHERE status='pending'").fetchone()[0]
     conn.close()
     assert count == 5, f"Dry-run should not modify rows, but {count} are no longer pending"
 
@@ -188,9 +178,7 @@ def test_repair_drains_path_missing_then_loop_closed(tmp_path, test_config) -> N
 
     # Enqueue repairs first.
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
-        r1 = run_cli(
-            ["--format", "json", "library-reconcile", "--enqueue-repairs"]
-        )
+        r1 = run_cli(["--format", "json", "library-reconcile", "--enqueue-repairs"])
     assert r1.exit_code == 0, r1.output
     d1 = json_from_result(r1)
     assert d1["enqueued_repairs"] >= 1, f"No repairs enqueued: {d1}"

@@ -153,9 +153,7 @@ def test_validate_missing_nfo_reported(tmp_path, test_config) -> None:
     data = _read_validate_json(tmp_path)
     assert data["issues_count"] >= 1, f"Expected >=1 issue, got: {data}"
     item = data["items"][0]
-    assert "nfo_present" in item["errors"], (
-        f"Expected nfo_present error, got: {item['errors']}"
-    )
+    assert "nfo_present" in item["errors"], f"Expected nfo_present error, got: {item['errors']}"
 
 
 # ── 4. Missing poster ────────────────────────────────────────────────────────────
@@ -179,9 +177,7 @@ def test_validate_missing_poster_reported(tmp_path, test_config) -> None:
     data = _read_validate_json(tmp_path)
     assert data["issues_count"] >= 1, f"Expected >=1 issue, got: {data}"
     item = data["items"][0]
-    assert "poster_present" in item["errors"], (
-        f"Expected poster_present error, got: {item['errors']}"
-    )
+    assert "poster_present" in item["errors"], f"Expected poster_present error, got: {item['errors']}"
 
 
 # ── 5. --from-index ──────────────────────────────────────────────────────────────
@@ -234,12 +230,8 @@ def test_validate_from_index_skips_structural_checks(tmp_path, test_config) -> N
 
     assert result.exit_code == 0, result.output
     data = _read_validate_json(tmp_path)
-    assert data["valid_count"] >= 1, (
-        f"Expected valid item via --from-index, got: {data}"
-    )
-    assert data["issues_count"] == 0, (
-        f"Expected 0 issues via --from-index, got: {data}"
-    )
+    assert data["valid_count"] >= 1, f"Expected valid item via --from-index, got: {data}"
+    assert data["issues_count"] == 0, f"Expected 0 issues via --from-index, got: {data}"
 
 
 # ── 6. --fix --apply closure-of-loop (CRITICAL) ──────────────────────────────────
@@ -268,9 +260,7 @@ def test_validate_fix_apply_corrects_issue(tmp_path, test_config) -> None:
 
     assert r1.exit_code == 0, r1.output
     d1 = _read_validate_json(tmp_path)
-    assert d1["issues_count"] >= 1, (
-        f"Expected >=1 issue (empty dir) before fix, got: {d1}"
-    )
+    assert d1["issues_count"] >= 1, f"Expected >=1 issue (empty dir) before fix, got: {d1}"
 
     # ── Phase 2: fix it ──
     # Remove the previous JSON output so we read the new one.
@@ -281,12 +271,8 @@ def test_validate_fix_apply_corrects_issue(tmp_path, test_config) -> None:
 
     assert r2.exit_code == 0, r2.output
     d2 = _read_validate_json(tmp_path)
-    assert d2["fixed_count"] >= 1, (
-        f"Expected >=1 fixed, got: {d2}"
-    )
-    assert not empty_sub.exists(), (
-        f"Fix did not remove empty dir: {empty_sub}"
-    )
+    assert d2["fixed_count"] >= 1, f"Expected >=1 fixed, got: {d2}"
+    assert not empty_sub.exists(), f"Fix did not remove empty dir: {empty_sub}"
 
     # ── Phase 3: closure-of-loop — re-validate finds zero ──
     (tmp_path / ".data" / "library_validation.json").unlink()
@@ -296,9 +282,5 @@ def test_validate_fix_apply_corrects_issue(tmp_path, test_config) -> None:
 
     assert r3.exit_code == 0, r3.output
     d3 = _read_validate_json(tmp_path)
-    assert d3["issues_count"] == 0, (
-        f"CLOSURE-OF-LOOP BROKEN: {d3['issues_count']} issues remain after fix: {d3}"
-    )
-    assert d3["valid_count"] >= 1, (
-        f"Expected valid_count >= 1 after fix, got: {d3}"
-    )
+    assert d3["issues_count"] == 0, f"CLOSURE-OF-LOOP BROKEN: {d3['issues_count']} issues remain after fix: {d3}"
+    assert d3["valid_count"] >= 1, f"Expected valid_count >= 1 after fix, got: {d3}"

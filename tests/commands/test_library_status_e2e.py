@@ -90,9 +90,7 @@ def test_status_shows_repair_queue_pending_count(tmp_path, test_config) -> None:
         result = run_cli(["library-status"])
 
     assert result.exit_code == 0, result.output
-    assert "repair queue: depth=3" in result.output, (
-        f"Expected depth=3, got: {result.output}"
-    )
+    assert "repair queue: depth=3" in result.output, f"Expected depth=3, got: {result.output}"
 
 
 def test_status_shows_outbox_pending_count(tmp_path, test_config) -> None:
@@ -110,9 +108,7 @@ def test_status_shows_outbox_pending_count(tmp_path, test_config) -> None:
         result = run_cli(["library-status"])
 
     assert result.exit_code == 0, result.output
-    assert "outbox pending: 5" in result.output, (
-        f"Expected outbox pending=5, got: {result.output}"
-    )
+    assert "outbox pending: 5" in result.output, f"Expected outbox pending=5, got: {result.output}"
 
 
 # ── 3. Format flag ─────────────────────────────────────────────────────────────

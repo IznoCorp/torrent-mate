@@ -35,9 +35,7 @@ def make_synthetic_db(tmp_path: Path) -> Path:
 
 def make_test_config_with_db(test_config: Config, db_path: Path) -> Config:
     """Return a copy of *test_config* with ``indexer.db_path`` pointed at *db_path*."""
-    return test_config.model_copy(
-        update={"indexer": test_config.indexer.model_copy(update={"db_path": db_path})}
-    )
+    return test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": db_path})})
 
 
 def seed_disk(conn: sqlite3.Connection, label: str, mount_path: Path) -> int:

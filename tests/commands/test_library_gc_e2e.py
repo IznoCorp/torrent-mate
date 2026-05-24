@@ -31,9 +31,7 @@ def _count_outbox_rows(db_path: str) -> int:
 
 def _count_outbox_by_status(db_path: str, status: str) -> int:
     conn = sqlite3.connect(db_path)
-    count = conn.execute(
-        "SELECT COUNT(*) FROM index_outbox WHERE status = ?", (status,)
-    ).fetchone()[0]
+    count = conn.execute("SELECT COUNT(*) FROM index_outbox WHERE status = ?", (status,)).fetchone()[0]
     conn.close()
     return count
 
@@ -107,9 +105,7 @@ def test_gc_preserves_done_rows_within_threshold(tmp_path, test_config) -> None:
 
     assert result.exit_code == 0, result.output
     data = json_from_result(result)
-    assert data["rows_deleted"] == 0, (
-        f"Expected 0 deleted (rows are recent), got {data}"
-    )
+    assert data["rows_deleted"] == 0, f"Expected 0 deleted (rows are recent), got {data}"
 
     remaining = _count_outbox_rows(str(db_path))
     assert remaining == 3, f"Rows should be preserved, got {remaining}"
@@ -135,9 +131,7 @@ def test_gc_preserves_pending_rows(tmp_path, test_config) -> None:
     assert result.exit_code == 0, result.output
     data = json_from_result(result)
     # Only the 1 done row should be deleted.
-    assert data["rows_deleted"] == 1, (
-        f"Expected 1 deleted (only done row), got {data}"
-    )
+    assert data["rows_deleted"] == 1, f"Expected 1 deleted (only done row), got {data}"
 
     pending = _count_outbox_by_status(str(db_path), "pending")
     assert pending == 3, f"Pending rows must be preserved, got {pending}"

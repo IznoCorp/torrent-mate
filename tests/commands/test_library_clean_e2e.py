@@ -67,9 +67,7 @@ def test_clean_empty_storage_zero_actions(tmp_path, test_config) -> None:
 
     assert result.exit_code == 0, result.output
     clean = _ansi_clean(result.output)
-    assert "Would delete 0 items" in clean, (
-        f"Expected 0 items deleted, got: {clean}"
-    )
+    assert "Would delete 0 items" in clean, f"Expected 0 items deleted, got: {clean}"
 
 
 # ── 3. Dry-run safety (CRITICAL) ────────────────────────────────────────────────
@@ -88,12 +86,8 @@ def test_clean_dry_run_no_writes_actors_dir(tmp_path, test_config) -> None:
     assert "Would delete" in clean, f"Expected 'Would delete', got: {clean}"
 
     # The .actors/ dir MUST still exist.
-    assert actors_dir.exists(), (
-        f"DRY-RUN leaked deletion: {actors_dir} no longer exists"
-    )
-    assert (actors_dir / "dummy.txt").exists(), (
-        "DRY-RUN leaked deletion of file inside .actors/"
-    )
+    assert actors_dir.exists(), f"DRY-RUN leaked deletion: {actors_dir} no longer exists"
+    assert (actors_dir / "dummy.txt").exists(), "DRY-RUN leaked deletion of file inside .actors/"
 
 
 # ── 4. Apply mode ───────────────────────────────────────────────────────────────
@@ -111,9 +105,7 @@ def test_clean_apply_removes_actors_dir(tmp_path, test_config) -> None:
     assert "Deleted:" in clean, result.output
 
     # The .actors/ dir MUST be gone.
-    assert not actors_dir.exists(), (
-        f"--apply did not delete .actors/: still exists at {actors_dir}"
-    )
+    assert not actors_dir.exists(), f"--apply did not delete .actors/: still exists at {actors_dir}"
 
 
 # ── 5. --only filter ────────────────────────────────────────────────────────────
@@ -146,14 +138,10 @@ def test_clean_only_filter_restricts_scope(tmp_path, test_config) -> None:
     assert not actors_dir.exists(), f".actors/ should be removed, but exists at {actors_dir}"
 
     # Empty dir NOT removed.
-    assert empty_subdir.exists(), (
-        f"--only actors leaked to empty dirs: {empty_subdir} was removed"
-    )
+    assert empty_subdir.exists(), f"--only actors leaked to empty dirs: {empty_subdir} was removed"
 
     # Junk file NOT removed.
-    assert junk_file.exists(), (
-        f"--only actors leaked to junk files: {junk_file} was removed"
-    )
+    assert junk_file.exists(), f"--only actors leaked to junk files: {junk_file} was removed"
 
 
 # ── 6. --disk filter ────────────────────────────────────────────────────────────
@@ -185,9 +173,7 @@ def test_clean_disk_filter_restricts_scope(tmp_path, test_config) -> None:
     assert not actors_a.exists(), f"drive_a .actors/ should be removed, but exists at {actors_a}"
 
     # drive_b actors NOT removed.
-    assert actors_b.exists(), (
-        f"--disk drive_a leaked to drive_b: {actors_b} was removed"
-    )
+    assert actors_b.exists(), f"--disk drive_a leaked to drive_b: {actors_b} was removed"
 
 
 # ── 7. Mutual exclusion ─────────────────────────────────────────────────────────

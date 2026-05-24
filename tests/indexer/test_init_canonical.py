@@ -157,9 +157,7 @@ def test_parse_default_placeholder_value_falls_back_to_no_default(tmp_path: Path
     nfo = _write_nfo(
         tmp_path,
         "show",
-        '<?xml version="1.0"?><tvshow>'
-        '<uniqueid default="true" type="none">x</uniqueid>'
-        "</tvshow>",
+        '<?xml version="1.0"?><tvshow><uniqueid default="true" type="none">x</uniqueid></tvshow>',
     )
     assert _parse_canonical_from_nfo(nfo) == (None, "no_default")
 
