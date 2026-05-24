@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
 from typing import ClassVar
 
 import pytest
@@ -87,7 +88,7 @@ class TestTypedModels:
     def test_models_are_frozen(self) -> None:
         """All models are frozen dataclasses — mutation raises an error."""
         sr = SearchResult(provider="tmdb", provider_id="123", title="Test")
-        with pytest.raises(Exception):
+        with pytest.raises(FrozenInstanceError):
             sr.title = "New Title"  # type: ignore[misc]
 
 
