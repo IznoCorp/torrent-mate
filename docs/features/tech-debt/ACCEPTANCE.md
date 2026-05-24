@@ -474,9 +474,9 @@ sqlite3 .data/library.db "SELECT title, kind, COUNT(*) FROM media_item GROUP BY 
 # Expected: 18 passed (regression test); empty (no dups per (title, kind) pair)
 ```
 
-### ACC-37 — Event-bus catalog sync (DEV #24, #25) 🟡
+### ACC-37 — Event-bus catalog sync (DEV #24, #25) ✅
 
-**Status**: 🟡 PENDING (Phase 8.13 — catalog v1 13 → 17 + budget raise)
+**Status**: ✅ SHIPPED (Phase 8.13 — catalog v1 13 → 17 + 4 Backfill\* re-exports)
 
 ```bash
 grep -c "Backfill" personalscraper/events/__init__.py
