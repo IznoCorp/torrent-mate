@@ -282,7 +282,12 @@ OMDBClient = OMDbAdapter
 
 
 def _assert_dict(data: dict[str, Any] | str) -> dict[str, Any]:
-    """Cast HttpTransport response to dict; transport guarantees JSON parse."""
+    """Cast HttpTransport response to dict.
+
+    Transport SHOULD guarantee a parsed JSON dict, but legacy adapter paths
+    may return a raw string when JSON parse failed silently upstream.
+    See ``AdapterPolicy.expected_content_type`` for the contract.
+    """
     if isinstance(data, str):
         raise ApiError(
             provider="omdb",

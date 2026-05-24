@@ -277,6 +277,64 @@ class TestParseRatingValue:
         assert _parse_rating_value("8.0") == 8.0
 
 
+class TestQuotaExhaustionDetection:
+    """_is_quota_exhaustion() pins the upstream error string for canary detection."""
+
+    def test_exact_upstream_payload_matches(self) -> None:
+        """Matches the exact error message OMDB returns for quota exhaustion.
+
+        Canary: if OMDB rewords this error, this test fails and alerts us
+        that the substring match in _is_quota_exhaustion needs updating.
+        """
+        client = _make_client()
+        exc = ApiError(
+            provider="omdb",
+            http_status=401,
+            message="Request limit reached!",
+        )
+        assert client._is_quota_exhaustion(exc) is True
+
+    def test_case_insensitive_match(self) -> None:
+        """Substring match is case-insensitive (exc.message.lower())."""
+        client = _make_client()
+        exc = ApiError(
+            provider="omdb",
+            http_status=401,
+            message="REQUEST LIMIT REACHED!",
+        )
+        assert client._is_quota_exhaustion(exc) is True
+
+    def test_wrong_status_not_matched(self) -> None:
+        """Does NOT match when HTTP status is not 401."""
+        client = _make_client()
+        exc = ApiError(
+            provider="omdb",
+            http_status=429,
+            message="Request limit reached!",
+        )
+        assert client._is_quota_exhaustion(exc) is False
+
+    def test_wrong_message_not_matched(self) -> None:
+        """Does NOT match when error message is unrelated."""
+        client = _make_client()
+        exc = ApiError(
+            provider="omdb",
+            http_status=401,
+            message="Invalid API key!",
+        )
+        assert client._is_quota_exhaustion(exc) is False
+
+    def test_unexpected_message_not_matched(self) -> None:
+        """Does NOT match when message differs (catches OMDB rewording)."""
+        client = _make_client()
+        exc = ApiError(
+            provider="omdb",
+            http_status=401,
+            message="Daily quota exceeded!",
+        )
+        assert client._is_quota_exhaustion(exc) is False
+
+
 class TestSentinel:
     """'N/A' sentinel handling."""
 
