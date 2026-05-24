@@ -467,12 +467,20 @@ def library_backfill_ids(
         omdb_key = _os.environ.get("OMDB_API_KEY") or ""
 
         if omdb_key:
+            from personalscraper.api.metadata._omdb_quota import OmdbQuotaTracker  # noqa: PLC0415
             from personalscraper.api.metadata.imdb import IMDbClient  # noqa: PLC0415
             from personalscraper.api.metadata.omdb import OMDbAdapter  # noqa: PLC0415
             from personalscraper.api.metadata.rotten_tomatoes import RottenTomatoesClient  # noqa: PLC0415
             from personalscraper.api.transport._http import HttpTransport  # noqa: PLC0415
 
-            omdb_backend = OMDbAdapter(transport=HttpTransport(OMDbAdapter.policy(omdb_key), event_bus=event_bus))
+            quota_tracker = OmdbQuotaTracker(
+                state_path=db_path.parent / ".omdb-quota.json",
+                limit=int(_os.environ.get("OMDB_DAILY_LIMIT", "1000")),
+            )
+            omdb_backend = OMDbAdapter(
+                transport=HttpTransport(OMDbAdapter.policy(omdb_key), event_bus=event_bus),
+                quota_tracker=quota_tracker,
+            )
             imdb_client = IMDbClient(backend=omdb_backend)
             rt_client = RottenTomatoesClient(backend=omdb_backend)
 
