@@ -67,6 +67,23 @@ _OMDB_TYPE_MAP: dict[str, MediaType] = {
 }
 
 
+class OmdbQuotaExhausted(ApiError):
+    """Raised when the OMDB daily quota is exhausted (pre- or post-call).
+
+    Distinct from a generic ``ApiError(http_status=429)`` so that retry
+    loops can discriminate between real upstream 429s (rate-limit, handled
+    by tenacity) and OMDB's quota-exhaustion sentinel (which should NOT
+    be retried — the budget is gone for the day).
+
+    Always carries ``http_status=429`` for compatibility with existing
+    ``except ApiError`` handlers.
+    """
+
+    def __init__(self, message: str = "Daily quota limit reached") -> None:
+        """Initialize with a fixed provider and HTTP status."""
+        super().__init__(provider="omdb", http_status=429, message=message)
+
+
 class OMDbAdapter(MetadataClient):
     """Internal OMDb HTTP backend shared by the IMDb and Rotten Tomatoes façades.
 
@@ -210,11 +227,7 @@ class OMDbAdapter(MetadataClient):
         """
         if self._quota is not None and self._quota.reserve_call() != "allowed":
             log.warning("omdb_quota_skip", method="get_details", item_id=media_id)
-            raise ApiError(
-                provider="omdb",
-                http_status=429,
-                message="Daily quota limit reached",
-            )
+            raise OmdbQuotaExhausted()
         try:
             data = _assert_dict(self._transport.get(params={"i": media_id}))
         except ApiError as exc:
@@ -225,11 +238,7 @@ class OMDbAdapter(MetadataClient):
                     method="get_details",
                     item_id=media_id,
                 )
-                raise ApiError(
-                    provider="omdb",
-                    http_status=429,
-                    message="Daily quota limit reached",
-                )
+                raise OmdbQuotaExhausted()
             raise
         return _parse_media_details(data, provider=self.provider_name, media_type=media_type)
 
