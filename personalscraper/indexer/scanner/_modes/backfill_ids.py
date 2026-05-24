@@ -683,8 +683,14 @@ class InitCanonicalStats:
         no_default_uniqueid: NFO had no ``<uniqueid default="true">``.
         unsupported_no_fallback: Default was unsupported AND no other
             uniqueid carried a supported type (item is truly un-anchorable).
-        external_ids_seeded: Items whose ``external_ids_json`` was extended
-            with at least one new provider family from the NFO uniqueids.
+        external_ids_seeded_with_canonical: Items where BOTH
+            ``canonical_provider`` AND ``external_ids_json`` were written
+            in this pass (the canonical was previously NULL).
+        external_ids_seeded_alone: Items where only ``external_ids_json``
+            was written — ``canonical_provider`` was already set (the
+            chicken-and-egg cohort: items whose canonical was populated
+            by a pre-shard-1 init-canonical run but whose
+            ``external_ids_json`` remained empty).
         external_ids_already_present: Items where all extracted families
             were already present in the existing ``external_ids_json``
             (no overwrite — merge-additive policy).
@@ -699,7 +705,8 @@ class InitCanonicalStats:
     nfo_read_error: int = 0
     no_default_uniqueid: int = 0
     unsupported_no_fallback: int = 0
-    external_ids_seeded: int = 0
+    external_ids_seeded_with_canonical: int = 0
+    external_ids_seeded_alone: int = 0
     external_ids_already_present: int = 0
 
     @property
@@ -708,13 +715,20 @@ class InitCanonicalStats:
         return self.populated_default + self.populated_fallback
 
 
-def init_canonical_from_nfo(
-    conn: sqlite3.Connection, dry_run: bool = False
-) -> InitCanonicalStats:
-    """Bootstrap ``canonical_provider`` and ``external_ids_json`` from NFOs.
+def init_canonical_from_nfo(conn: sqlite3.Connection, dry_run: bool = False) -> InitCanonicalStats:
+    """Bootstrap ``canonical_provider`` and seed ``external_ids_json`` from NFOs.
 
-    Walks every ``media_item`` row where ``canonical_provider IS NULL``,
-    resolves the item's filesystem directory via its
+    Walks every ``media_item`` row that could benefit from NFO data:
+
+    * **canonical cohort** (``canonical_provider IS NULL``): canonical was
+      never set — extract it from the NFO AND seed ``external_ids_json``.
+    * **chicken-and-egg cohort** (``canonical_provider IS NOT NULL`` but
+      ``external_ids_json IS NULL`` or ``='{}'``): canonical was already
+      populated by a pre-shard-1 init-canonical run, but
+      ``external_ids_json`` remained empty — only seed the external IDs
+      without touching the existing canonical provider.
+
+    For each row, resolves the item's filesystem directory via its
     ``item_attribute(key='dispatch_path')`` row, reads the NFO, and tries
     to extract a supported canonical anchor (``tvdb`` or ``tmdb``) from
     its ``<uniqueid>`` elements.  Falls back to a non-default supported
@@ -753,13 +767,16 @@ def init_canonical_from_nfo(
     conn.row_factory = sqlite3.Row
     # Join media_item with item_attribute to fetch dispatch_path in one
     # query, avoiding N+1 lookups for the common case.
-    # Also fetch title (for logging) and external_ids_json (for merge-additive).
+    # Also fetch canonical_provider to distinguish the two cohorts:
+    # canonical cohort (needs_canonical=True) vs chicken-and-egg cohort.
     sql = (
-        "SELECT m.id, m.kind, m.title, m.external_ids_json, "
+        "SELECT m.id, m.kind, m.title, m.canonical_provider, m.external_ids_json, "
         "ia.value AS dispatch_path "
         "FROM media_item m "
         "LEFT JOIN item_attribute ia ON ia.item_id = m.id AND ia.key = 'dispatch_path' "
-        "WHERE m.canonical_provider IS NULL"
+        "WHERE m.canonical_provider IS NULL "
+        "   OR m.external_ids_json IS NULL "
+        "   OR m.external_ids_json = '{}'"
     )
     rows = list(conn.execute(sql).fetchall())
 
@@ -768,6 +785,7 @@ def init_canonical_from_nfo(
         item_id: int = row["id"]
         kind: str = row["kind"]
         title: str = row["title"]
+        needs_canonical = row["canonical_provider"] is None
         dispatch_path: str | None = row["dispatch_path"]
 
         if not dispatch_path:
@@ -796,10 +814,11 @@ def init_canonical_from_nfo(
             continue
         # canonical is guaranteed non-None for ok_default / ok_fallback.
         assert canonical is not None
-        if outcome == "ok_default":
-            stats.populated_default += 1
-        else:  # ok_fallback
-            stats.populated_fallback += 1
+        if needs_canonical:
+            if outcome == "ok_default":
+                stats.populated_default += 1
+            else:  # ok_fallback
+                stats.populated_fallback += 1
 
         # Merge-additive external_ids_json from extracted_ids
         seeded_families: list[str] = []
@@ -814,25 +833,40 @@ def init_canonical_from_nfo(
                 seeded_families.append(family)
 
         if not dry_run:
-            if extracted_ids:
-                conn.execute(
-                    "UPDATE media_item SET canonical_provider = ?, external_ids_json = ?, "
-                    "date_modified = strftime('%s', 'now') WHERE id = ?",
-                    (canonical, json.dumps(existing, separators=(",", ":")), item_id),
-                )
+            if needs_canonical:
+                if extracted_ids:
+                    conn.execute(
+                        "UPDATE media_item SET canonical_provider = ?, external_ids_json = ?, "
+                        "date_modified = strftime('%s', 'now') WHERE id = ?",
+                        (canonical, json.dumps(existing, separators=(",", ":")), item_id),
+                    )
+                else:
+                    conn.execute(
+                        "UPDATE media_item SET canonical_provider = ?, "
+                        "date_modified = strftime('%s', 'now') WHERE id = ?",
+                        (canonical, item_id),
+                    )
             else:
-                conn.execute(
-                    "UPDATE media_item SET canonical_provider = ?, date_modified = strftime('%s', 'now') WHERE id = ?",
-                    (canonical, item_id),
-                )
+                # Chicken-and-egg cohort: canonical is already set,
+                # only seed external_ids_json when there are new families.
+                if seeded_families:
+                    conn.execute(
+                        "UPDATE media_item SET external_ids_json = ?, "
+                        "date_modified = strftime('%s', 'now') WHERE id = ?",
+                        (json.dumps(existing, separators=(",", ":")), item_id),
+                    )
 
         if seeded_families:
-            stats.external_ids_seeded += 1
+            if needs_canonical:
+                stats.external_ids_seeded_with_canonical += 1
+            else:
+                stats.external_ids_seeded_alone += 1
             log.info(
                 "init_canonical_external_ids_seeded",
                 item_id=item_id,
                 title=title,
                 families=seeded_families,
+                needs_canonical=needs_canonical,
             )
         if already_families:
             stats.external_ids_already_present += 1
@@ -843,12 +877,13 @@ def init_canonical_from_nfo(
                 existing_families=already_families,
             )
 
-        log.info(
-            "init_canonical_populated",
-            item_id=item_id,
-            canonical_provider=canonical,
-            outcome=outcome,
-        )
+        if needs_canonical:
+            log.info(
+                "init_canonical_populated",
+                item_id=item_id,
+                canonical_provider=canonical,
+                outcome=outcome,
+            )
 
     log.info(
         "init_canonical_done",
@@ -862,7 +897,8 @@ def init_canonical_from_nfo(
         nfo_read_error=stats.nfo_read_error,
         no_default_uniqueid=stats.no_default_uniqueid,
         unsupported_no_fallback=stats.unsupported_no_fallback,
-        external_ids_seeded=stats.external_ids_seeded,
+        external_ids_seeded_with_canonical=stats.external_ids_seeded_with_canonical,
+        external_ids_seeded_alone=stats.external_ids_seeded_alone,
         external_ids_already_present=stats.external_ids_already_present,
     )
     return stats

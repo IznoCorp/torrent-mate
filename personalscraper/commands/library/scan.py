@@ -124,23 +124,27 @@ def library_init_canonical(
     dry_run: bool = typer.Option(False, "--dry-run", help="Report counts without writing to DB"),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
 ) -> None:
-    """Bootstrap ``canonical_provider`` and ``external_ids_json`` from NFO files.
+    """Bootstrap ``canonical_provider`` and seed ``external_ids_json`` from NFO files.
 
-    Walks every ``media_item`` row where ``canonical_provider IS NULL``,
-    resolves its NFO via the ``dispatch_path`` attribute, and reads the
-    ``<uniqueid default="true">`` element's ``type`` attribute.  When the
-    default declares an unsupported type (e.g. ``imdb``), falls back to
-    the first supported sibling uniqueid (``tvdb`` or ``tmdb``).  Sets
-    ``canonical_provider`` accordingly so that a subsequent
-    ``library-backfill-ids`` can use it as the anchor for cross-provider
-    ID and rating enrichment.
+    Walks ``media_item`` rows in two cohorts:
 
-    Simultaneously seeds ``external_ids_json`` from ALL ``<uniqueid>``
-    elements in the NFO (``tvdb``, ``tmdb``, ``imdb`` families).  Uses
-    merge-additive semantics: existing families are never overwritten.
-    This resolves the chicken-and-egg blocker (DEV #27): backfill-ids
-    requires ``external_ids_json[canonical].series_id`` as its anchor,
-    but pre-fix init-canonical only set ``canonical_provider`` — leaving
+    * **canonical cohort**: ``canonical_provider IS NULL`` — sets both
+      canonical AND external_ids_json from NFO ``<uniqueid>`` elements.
+    * **chicken-and-egg cohort**: ``canonical_provider`` is already set but
+      ``external_ids_json IS NULL`` or ``='{}'`` — only seeds external IDs
+      without touching the existing canonical provider.  These are items
+      populated by a pre-shard-1 init-canonical run that only wrote
+      ``canonical_provider``.
+
+    When the default declares an unsupported type (e.g. ``imdb``), falls
+    back to the first supported sibling uniqueid (``tvdb`` or ``tmdb``).
+
+    Seeds ``external_ids_json`` from ALL ``<uniqueid>`` elements in the
+    NFO (``tvdb``, ``tmdb``, ``imdb`` families).  Uses merge-additive
+    semantics: existing families are never overwritten.  This resolves the
+    chicken-and-egg blocker (DEV #27): backfill-ids requires
+    ``external_ids_json[canonical].series_id`` as its anchor, but
+    pre-fix init-canonical only set ``canonical_provider`` — leaving
     ``external_ids_json`` empty on every item and backfill skipping
     everything.
 
@@ -151,8 +155,10 @@ def library_init_canonical(
     the scraper wrote those fields.
 
     .. note::
-       This command does NOT touch rows whose ``canonical_provider`` is
-       already set — it is a bootstrap, not a migration. To change an
+       This command never CHANGES an existing ``canonical_provider`` value.
+       For the chicken-and-egg cohort (canonical already set, external_ids
+       empty), it only seeds ``external_ids_json`` without touching
+       ``canonical_provider``.  To change an
        item's canonical provider after it has been populated (e.g. move
        a show from ``tmdb`` to ``tvdb`` to leverage TVDB-primary scrape
        discipline per DESIGN §3), use the Plan A workflow:
@@ -215,7 +221,8 @@ def library_init_canonical(
                     "populated_default": stats.populated_default,
                     "populated_fallback": stats.populated_fallback,
                     "total_visited": stats.total_visited,
-                    "external_ids_seeded": stats.external_ids_seeded,
+                    "external_ids_seeded_with_canonical": stats.external_ids_seeded_with_canonical,
+                    "external_ids_seeded_alone": stats.external_ids_seeded_alone,
                     "external_ids_already_present": stats.external_ids_already_present,
                     "skipped": {
                         "no_dispatch_path": stats.no_dispatch_path,
@@ -246,7 +253,8 @@ def library_init_canonical(
                 "populated_default": stats.populated_default,
                 "populated_fallback": stats.populated_fallback,
                 "total_visited": stats.total_visited,
-                "external_ids_seeded": stats.external_ids_seeded,
+                "external_ids_seeded_with_canonical": stats.external_ids_seeded_with_canonical,
+                "external_ids_seeded_alone": stats.external_ids_seeded_alone,
                 "external_ids_already_present": stats.external_ids_already_present,
                 "skipped": {
                     "no_dispatch_path": stats.no_dispatch_path,

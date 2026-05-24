@@ -580,15 +580,31 @@ personalscraper library-fix-nfo --help 2>&1 | grep -q "apply" && echo "OK"
 
 ### ACC-INIT-CANONICAL-SEEDS — library-init-canonical seeds external_ids_json from NFO uniqueid (Phase 8.10.c)
 
-**Criterion**: library-init-canonical populates BOTH canonical_provider AND
-external_ids_json[<family>].series_id for every <uniqueid> element found in
+**Criterion**: library-init-canonical populates BOTH `canonical_provider` AND
+`external_ids_json[<family>].series_id` for every `<uniqueid>` element found in
 the NFO, using merge-additive semantics (no overwrite of already-present families).
+
+**shard 1 (82b32de)**: Seeded `external_ids_json` alongside `canonical_provider`
+for items where `canonical_provider IS NULL`. Stats: `external_ids_seeded` and
+`external_ids_already_present`.
+
+**shard 1b (this commit)**: Broadened the WHERE clause to also visit the
+**chicken-and-egg cohort** — items whose `canonical_provider` was populated by a
+pre-shard-1 init-canonical run but whose `external_ids_json` remained `'{}'`
+(the 1755 items blocking Plan A backfill-ids). For these, the command seeds
+`external_ids_json` without touching the existing `canonical_provider`.
+
+New stat keys distinguish the two cohorts:
+
+- `external_ids_seeded_with_canonical` — BOTH were written (canonical was NULL)
+- `external_ids_seeded_alone` — only external_ids was written (canonical already set)
 
 **Validation command**:
 
 ```bash
 personalscraper library-init-canonical --dry-run
-# Expected JSON includes "external_ids_seeded" and "external_ids_already_present" counters
+# Expected JSON includes "external_ids_seeded_with_canonical", "external_ids_seeded_alone",
+# and "external_ids_already_present" counters
 personalscraper library-init-canonical --help 2>&1 | grep -q "external_ids_json" && echo "doc OK"
 # Expected: "doc OK" (help text mentions external_ids_json seeding)
 ```
