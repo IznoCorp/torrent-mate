@@ -187,3 +187,25 @@ Lectures préalables avant Phase 0/1 :
 
 Méthode : continuer la validation par phase utilisateur (cohérent avec la méthodologie
 audit). Chaque phase = N sous-phases + phase gate commit + `make check` vert.
+
+## Branch coverage re-measured (2026-05-24, Phase 8.14, DEV #41)
+
+**Measured**: `make test-cov` on `fix/tech-debt` at baseline `fb96adb`.
+Coverage XML `branch-rate`: **87.09 %** (4809 covered / 5522 valid branches).
+Line coverage: 93.26 % (17891 / 19184). Combined metric (what `--cov-fail-under=90`
+checks): 91.88 % — gate passes. Total: 4843 passed, 4 failed (pre-existing, see below),
+4 skipped, 2 xfailed.
+
+**Historical reference**: 91 % branch coverage claimed at test-coverage Phase 1
+final gate (`71c8926`). Delta: **-3.91 pp** → within the ±5 pp acceptable drift
+band. No follow-up audit triggered.
+
+**4 pre-existing test failures** (all reproduce in isolation, not introduced by
+tech-debt 0.16.0):
+
+- `tests/dispatch/test_dispatcher.py::TestResolveExistingOnFilesystem::test_entry_exists_and_path_valid_returns_entry`
+- `tests/dispatch/test_media_index.py::TestFuzzyGuards::test_jumanji_matches_jumanji`
+- `tests/commands/test_library_verify_e2e.py::test_verify_disk_filter_restricts_scope`
+- `tests/scripts/test_audit_cli_coverage.py::test_domain_cli_coverage_no_warnings_on_current_codebase`
+
+**fail_under**: 90 (verified via `python3 scripts/get_coverage_threshold.py`).
