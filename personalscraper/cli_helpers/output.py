@@ -36,6 +36,10 @@ def emit(
       lines for dicts.
     - ``json`` → ``typer.echo(json.dumps(payload, default=str, indent=2))``.
 
+    If *rich_renderer* raises, the exception is logged as
+    ``emit_rich_renderer_failed`` and output falls back to
+    ``console.print(payload)``.
+
     Note: this module is the legitimate CLI output boundary — Typer's
     ``echo`` is used (not ``print``) so the ``check_logging.py`` no-print
     rule passes uniformly across the codebase.
@@ -49,7 +53,7 @@ def emit(
             try:
                 rich_renderer()
             except Exception:
-                log.warning("emit_rich_renderer_failed", exc_info=True)
+                log.error("emit_rich_renderer_failed", exc_info=True)
                 state["console"].print(payload)
         else:
             state["console"].print(payload)
