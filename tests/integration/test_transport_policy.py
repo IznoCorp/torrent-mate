@@ -95,6 +95,22 @@ class TestCircuitBreaker:
 
         transport.close()
 
+    def test_circuit_breaker_ignores_internal_typeerror(self) -> None:
+        """TypeError (internal bug) propagates WITHOUT tripping the circuit breaker."""
+        transport = HttpTransport(_make_policy(), event_bus=EventBus())
+
+        def _raise_typeerror(*_args: Any, **_kwargs: Any) -> Any:
+            raise TypeError("internal bug")
+
+        transport._do_request = _raise_typeerror  # type: ignore[method-assign]
+        failure_before = transport._circuit._failure_count
+
+        with pytest.raises(TypeError, match="internal bug"):
+            transport.get("/bug")
+
+        assert transport._circuit._failure_count == failure_before
+        transport.close()
+
 
 class TestResponseFormats:
     """response_format controls body parsing."""

@@ -134,7 +134,7 @@ class HttpTransport:
 
         try:
             result = _attempt()
-        except Exception as exc:
+        except (ApiError, requests.RequestException) as exc:
             if not self._policy.circuit.count_retries:
                 self._circuit.record_failure(exc)
             raise
