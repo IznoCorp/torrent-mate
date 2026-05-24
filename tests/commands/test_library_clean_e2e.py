@@ -11,6 +11,7 @@ import re
 from unittest.mock import patch
 
 from tests.commands._e2e_helpers import (
+    assert_no_python_traceback,
     make_synthetic_db,
     make_test_config_with_db,
     run_cli,
@@ -189,3 +190,69 @@ def test_clean_apply_mutually_exclusive_with_dry_run(tmp_path, test_config) -> N
 
     assert result.exit_code != 0, f"Expected non-zero exit, got {result.exit_code}: {result.output}"
     assert "mutually exclusive" in result.output.lower(), result.output
+
+
+# ── 3. Errors ──
+
+
+def test_clean_invalid_arg_exits_nonzero() -> None:
+    """Unknown flag → non-zero exit, no Python traceback."""
+    result = run_cli(["library-clean", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+    assert_no_python_traceback(result)
+
+
+def test_clean_db_path_none_handled_gracefully(test_config) -> None:
+    """Unconfigured ``indexer.db_path`` → clean does not validate at startup.
+
+    ``clean_library`` walks config.disks and only accesses ``db_path`` when it
+    actually deletes something (to publish an outbox event).  With no media
+    directories on the test disks, it never reaches that code path, so exit 0
+    is correct — no crash, no traceback.
+    """
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": None})})
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-clean"])
+    # Clean does not open the DB at startup — exit 0 is OK when nothing to clean.
+    assert_no_python_traceback(result)
+
+
+def test_clean_corrupt_db_handled_gracefully(tmp_path, test_config) -> None:
+    """Corrupt DB → clean does not open it at startup, no traceback."""
+    db_path = tmp_path / "corrupt.db"
+    db_path.write_text("this is not a sqlite database")
+    cfg = make_test_config_with_db(test_config, db_path)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-clean"])
+    # Clean does not open the DB at startup — exit 0 is OK.
+    assert_no_python_traceback(result)
+
+
+# ── 6. Output ──
+
+
+def test_clean_text_output_well_formed(tmp_path, test_config) -> None:
+    """Default invocation produces readable text with dry-run marker and counts."""
+    cfg, _, _ = _setup_movie_with_actors(tmp_path, test_config)
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-clean"])
+    assert result.exit_code == 0, result.output
+    clean = _ansi_clean(result.output)
+    assert "DRY-RUN" in clean, f"DRY-RUN marker missing: {clean}"
+    assert "Would delete" in clean, f"delete count missing: {clean}"
+    assert "Cleaning library" in clean, f"header missing: {clean}"
+
+
+def test_clean_error_exits_nonzero() -> None:
+    """Invalid flag → non-zero exit code."""
+    result = run_cli(["library-clean", "--not-a-real-flag-xyz123"])
+    assert result.exit_code != 0
+
+
+# ── 7. Events ──
+
+# N/A: ``library-clean`` delegates to ``clean_library`` in ``disk_cleaner.py``.
+# That module uses ``pathlib`` / ``shutil`` directly — no :class:`EventBus`
+# wiring, no domain event emission.  Clean is a filesystem-only operation that
+# does not cross the indexer DB boundary (unlike ``library-scan`` or
+# ``library-backfill-ids`` which open the DB with an active EventBus).
