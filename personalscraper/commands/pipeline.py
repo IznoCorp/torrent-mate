@@ -364,7 +364,7 @@ def process(
         except Exception as exc:
             console.print(f"[red]Process failed: {type(exc).__name__}: {exc}[/red]")
             get_logger("pipeline").exception("process_command_failed", error=str(exc))
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
 
         for label, report in [("Clean", clean), ("Scrape", scrape), ("Cleanup", cleanup)]:
             console.print(
