@@ -220,9 +220,24 @@ def _fetch_candidate_rows(conn: sqlite3.Connection, *, show_filter: str | None) 
     sql = "SELECT id, kind, title, external_ids_json, ratings_json, canonical_provider FROM media_item"
     params: tuple[str, ...] = ()
     if show_filter:
+        from personalscraper.indexer.repos.item_repo import _canonical_title  # noqa: PLC0415
+
+        canonical = _canonical_title(show_filter)
         sql += " WHERE title = ?"
-        params = (show_filter,)
-    return list(conn.execute(sql, params).fetchall())
+        params = (canonical,)
+        if canonical != show_filter:
+            log.info(
+                "backfill_show_filter_canonicalised",
+                raw=show_filter,
+                canonical=canonical,
+            )
+    rows = list(conn.execute(sql, params).fetchall())
+    if show_filter and not rows:
+        log.warning(
+            "backfill_show_filter_no_match",
+            raw=show_filter,
+        )
+    return rows
 
 
 def _backfill_one(
