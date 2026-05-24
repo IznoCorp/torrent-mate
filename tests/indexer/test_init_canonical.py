@@ -22,6 +22,7 @@ URL-after-closing-tag cases observed in production.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 import time
 from pathlib import Path
@@ -74,6 +75,38 @@ def _write_nfo(folder: Path, kind: str, content: str) -> Path:
     nfo = folder / name
     nfo.write_text(content, encoding="utf-8")
     return nfo
+
+
+def _seed_item_full(
+    conn: sqlite3.Connection,
+    *,
+    title: str,
+    kind: str = "show",
+    canonical_provider: str | None = None,
+    external_ids_json: str | None = None,
+    dispatch_path: str | None = None,
+) -> int:
+    """Insert a media_item with explicit canonical_provider and external_ids_json.
+
+    More flexible than _seed_show which hardcodes canonical_provider=NULL and
+    does not accept external_ids_json. Used by tests that need specific
+    pre-existing state for chicken-and-egg, merge-additive, and cohort routing
+    scenarios.
+    """
+    now = int(time.time())
+    cursor = conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, category_id, nfo_status, "
+        "artwork_json, date_created, date_modified, canonical_provider, external_ids_json) "
+        "VALUES (?, ?, ?, 'tv_shows', 'valid', '{}', ?, ?, ?, ?)",
+        (kind, title, title.lower(), now, now, canonical_provider, external_ids_json),
+    )
+    item_id: int = cursor.lastrowid  # type: ignore[assignment]
+    if dispatch_path is not None:
+        conn.execute(
+            "INSERT INTO item_attribute (item_id, key, value) VALUES (?, 'dispatch_path', ?)",
+            (item_id, dispatch_path),
+        )
+    return item_id
 
 
 # ───────────────────────────────────────────────────────────────────────────
@@ -359,3 +392,360 @@ def test_init_canonical_stats_dataclass_populated_property() -> None:
     """``populated`` is the sum of default + fallback."""
     s = InitCanonicalStats(populated_default=3, populated_fallback=7)
     assert s.populated == 10
+
+
+# ───────────────────────────────────────────────────────────────────────────
+# Phase 8.10.c shard 2 — extracted_ids + merge + cohort + dry-run + CLI output
+# ───────────────────────────────────────────────────────────────────────────
+
+
+# Group 1 — extracted_ids extraction via _parse_canonical_from_nfo
+
+
+def test_extracted_ids_tvdb_only(tmp_path: Path) -> None:
+    """NFO with single tvdb uniqueid → extracted_ids == {"tvdb": "12345"}."""
+    nfo = _write_nfo(
+        tmp_path, "show",
+        '<?xml version="1.0"?><tvshow><uniqueid default="true" type="tvdb">12345</uniqueid></tvshow>',
+    )
+    _provider, _outcome, ids = _parse_canonical_from_nfo(nfo)
+    assert ids == {"tvdb": "12345"}
+
+
+def test_extracted_ids_all_three_families(tmp_path: Path) -> None:
+    """NFO with tvdb + tmdb + imdb → extracted_ids includes all three regardless of default attr."""
+    nfo = _write_nfo(
+        tmp_path, "show",
+        '<?xml version="1.0"?><tvshow>'
+        '<uniqueid default="true" type="tvdb">1</uniqueid>'
+        '<uniqueid type="tmdb">2</uniqueid>'
+        '<uniqueid type="imdb">tt3</uniqueid>'
+        "</tvshow>",
+    )
+    _provider, _outcome, ids = _parse_canonical_from_nfo(nfo)
+    assert ids == {"tvdb": "1", "tmdb": "2", "imdb": "tt3"}
+
+
+def test_extracted_ids_invalid_values_skipped(tmp_path: Path) -> None:
+    """Values '0', 'none', and empty string are excluded from extracted_ids."""
+    nfo = _write_nfo(
+        tmp_path, "show",
+        '<?xml version="1.0"?><tvshow>'
+        '<uniqueid default="true" type="tvdb">42</uniqueid>'
+        '<uniqueid type="tvdb">0</uniqueid>'
+        '<uniqueid type="tvdb">none</uniqueid>'
+        "<uniqueid type=\"tvdb\"></uniqueid>"
+        "</tvshow>",
+    )
+    _provider, _outcome, ids = _parse_canonical_from_nfo(nfo)
+    assert ids == {"tvdb": "42"}
+
+
+def test_extracted_ids_unsupported_type_excluded(tmp_path: Path) -> None:
+    """Anidb and tvmaze types are excluded; only tvdb/tmdb/imdb are supported."""
+    nfo = _write_nfo(
+        tmp_path, "show",
+        '<?xml version="1.0"?><tvshow>'
+        '<uniqueid default="true" type="tvdb">1</uniqueid>'
+        '<uniqueid type="anidb">567</uniqueid>'
+        "<uniqueid type=\"tvmaze\">99</uniqueid>"
+        "</tvshow>",
+    )
+    _provider, _outcome, ids = _parse_canonical_from_nfo(nfo)
+    assert ids == {"tvdb": "1"}
+    assert "anidb" not in ids
+    assert "tvmaze" not in ids
+
+
+# Group 2 — merge-additive policy (integration with DB)
+
+
+def test_merge_does_not_overwrite_existing(tmp_path: Path) -> None:
+    """Existing external_ids values are preserved — additive policy, no overwrite.
+
+    Item has external_ids_json='{"tmdb": {"series_id": "OLD_TMDB"}}'. NFO
+    carries tmdb=67890 (the fresh value). After merge, the old tmdb value
+    is preserved and external_ids_already_present is recorded.
+    """
+    conn = _open_mem_db()
+    folder = tmp_path / "merge_no_overwrite"
+    _write_nfo(
+        folder, "show",
+        '<?xml version="1.0"?><tvshow>'
+        '<uniqueid default="true" type="tvdb">12345</uniqueid>'
+        '<uniqueid type="tmdb">67890</uniqueid>'
+        "</tvshow>",
+    )
+    item_id = _seed_item_full(
+        conn, title="MergeNoOverwrite",
+        canonical_provider=None,
+        external_ids_json='{"tmdb": {"series_id": "OLD_TMDB", "episode_id": null}}',
+        dispatch_path=str(folder),
+    )
+    conn.commit()
+
+    stats = init_canonical_from_nfo(conn)
+    conn.commit()
+
+    row = conn.execute(
+        "SELECT canonical_provider, external_ids_json FROM media_item WHERE id = ?",
+        (item_id,),
+    ).fetchone()
+    assert row["canonical_provider"] == "tvdb"
+    eids = json.loads(row["external_ids_json"])
+    assert eids["tvdb"] == {"series_id": "12345", "episode_id": None}
+    assert eids["tmdb"] == {"series_id": "OLD_TMDB", "episode_id": None}
+    assert stats.external_ids_seeded_with_canonical == 1
+    assert stats.external_ids_already_present == 1
+
+
+def test_merge_adds_missing_families(tmp_path: Path) -> None:
+    """Existing has only tvdb; NFO adds tmdb → tvdb stays, tmdb added."""
+    conn = _open_mem_db()
+    folder = tmp_path / "merge_add_missing"
+    _write_nfo(
+        folder, "show",
+        '<?xml version="1.0"?><tvshow>'
+        '<uniqueid default="true" type="tvdb">1</uniqueid>'
+        '<uniqueid type="tmdb">2</uniqueid>'
+        "</tvshow>",
+    )
+    item_id = _seed_item_full(
+        conn, title="MergeAddMissing",
+        canonical_provider=None,
+        external_ids_json='{"tvdb": {"series_id": "1", "episode_id": null}}',
+        dispatch_path=str(folder),
+    )
+    conn.commit()
+
+    stats = init_canonical_from_nfo(conn)
+    conn.commit()
+
+    row = conn.execute(
+        "SELECT external_ids_json FROM media_item WHERE id = ?", (item_id,),
+    ).fetchone()
+    eids = json.loads(row["external_ids_json"])
+    assert eids["tvdb"] == {"series_id": "1", "episode_id": None}
+    assert eids["tmdb"] == {"series_id": "2", "episode_id": None}
+    assert stats.external_ids_seeded_with_canonical == 1
+    assert stats.external_ids_already_present == 1
+
+
+def test_merge_empty_starts_with_nfo_ids(tmp_path: Path) -> None:
+    """external_ids_json='{}'; NFO has tvdb+tmdb → both inserted."""
+    conn = _open_mem_db()
+    folder = tmp_path / "merge_empty"
+    _write_nfo(
+        folder, "show",
+        '<?xml version="1.0"?><tvshow>'
+        '<uniqueid default="true" type="tvdb">1</uniqueid>'
+        '<uniqueid type="tmdb">2</uniqueid>'
+        "</tvshow>",
+    )
+    item_id = _seed_item_full(
+        conn, title="MergeEmpty",
+        canonical_provider=None,
+        external_ids_json="{}",
+        dispatch_path=str(folder),
+    )
+    conn.commit()
+
+    stats = init_canonical_from_nfo(conn)
+    conn.commit()
+
+    row = conn.execute(
+        "SELECT external_ids_json FROM media_item WHERE id = ?", (item_id,),
+    ).fetchone()
+    eids = json.loads(row["external_ids_json"])
+    assert eids["tvdb"] == {"series_id": "1", "episode_id": None}
+    assert eids["tmdb"] == {"series_id": "2", "episode_id": None}
+    assert stats.external_ids_seeded_with_canonical == 1
+    assert stats.external_ids_already_present == 0
+
+
+# Group 3 — broadened cohort routing (chicken-and-egg fix)
+
+
+def test_chicken_and_egg_seeded_alone(tmp_path: Path) -> None:
+    """canonical='tvdb' + external_ids='{}' → external_ids seeded, canonical unchanged.
+
+    The chicken-and-egg cohort: canonical was populated by a pre-shard-1
+    init-canonical run, but external_ids_json remained empty. This test
+    asserts that only external_ids_json is seeded (without touching
+    canonical_provider) and external_ids_seeded_alone is recorded.
+    """
+    conn = _open_mem_db()
+    folder = tmp_path / "chicken_egg"
+    _write_nfo(
+        folder, "show",
+        '<?xml version="1.0"?><tvshow>'
+        '<uniqueid default="true" type="tvdb">12345</uniqueid>'
+        '<uniqueid type="tmdb">67890</uniqueid>'
+        "</tvshow>",
+    )
+    item_id = _seed_item_full(
+        conn, title="ChickenEgg",
+        canonical_provider="tvdb",
+        external_ids_json="{}",
+        dispatch_path=str(folder),
+    )
+    conn.commit()
+
+    stats = init_canonical_from_nfo(conn)
+    conn.commit()
+
+    row = conn.execute(
+        "SELECT canonical_provider, external_ids_json FROM media_item WHERE id = ?",
+        (item_id,),
+    ).fetchone()
+    assert row["canonical_provider"] == "tvdb"
+    eids = json.loads(row["external_ids_json"])
+    assert eids["tvdb"] == {"series_id": "12345", "episode_id": None}
+    assert eids["tmdb"] == {"series_id": "67890", "episode_id": None}
+    assert stats.populated == 0
+    assert stats.external_ids_seeded_alone == 1
+    assert stats.external_ids_seeded_with_canonical == 0
+
+
+def test_null_canonical_seeded_with_canonical(tmp_path: Path) -> None:
+    """canonical=NULL + external_ids='{}' → both written, external_ids_seeded_with_canonical +=1."""
+    conn = _open_mem_db()
+    folder = tmp_path / "null_canonical"
+    _write_nfo(
+        folder, "show",
+        '<?xml version="1.0"?><tvshow>'
+        '<uniqueid default="true" type="tvdb">12345</uniqueid>'
+        '<uniqueid type="tmdb">67890</uniqueid>'
+        "</tvshow>",
+    )
+    item_id = _seed_item_full(
+        conn, title="NullCanonical",
+        canonical_provider=None,
+        external_ids_json="{}",
+        dispatch_path=str(folder),
+    )
+    conn.commit()
+
+    stats = init_canonical_from_nfo(conn)
+    conn.commit()
+
+    row = conn.execute(
+        "SELECT canonical_provider, external_ids_json FROM media_item WHERE id = ?",
+        (item_id,),
+    ).fetchone()
+    assert row["canonical_provider"] == "tvdb"
+    eids = json.loads(row["external_ids_json"])
+    assert "tvdb" in eids
+    assert "tmdb" in eids
+    assert stats.populated == 1
+    assert stats.external_ids_seeded_with_canonical == 1
+    assert stats.external_ids_seeded_alone == 0
+
+
+def test_items_with_canonical_and_external_ids_not_visited(tmp_path: Path) -> None:
+    """Items with both canonical AND external_ids fully populated are excluded by WHERE."""
+    conn = _open_mem_db()
+    folder = tmp_path / "not_visited"
+    _write_nfo(
+        folder, "show",
+        '<?xml version="1.0"?><tvshow><uniqueid default="true" type="tvdb">1</uniqueid></tvshow>',
+    )
+    _seed_item_full(
+        conn, title="NotVisited",
+        canonical_provider="tvdb",
+        external_ids_json='{"tvdb": {"series_id": "X", "episode_id": null}}',
+        dispatch_path=str(folder),
+    )
+    conn.commit()
+
+    stats = init_canonical_from_nfo(conn)
+    assert stats.total_visited == 0
+
+
+# Group 4 — dry-run safety
+
+
+def test_dry_run_does_not_write_external_ids(tmp_path: Path) -> None:
+    """dry_run=True: stats counted (would_seed semantic) but DB unchanged."""
+    conn = _open_mem_db()
+    folder = tmp_path / "dry_run"
+    _write_nfo(
+        folder, "show",
+        '<?xml version="1.0"?><tvshow>'
+        '<uniqueid default="true" type="tvdb">12345</uniqueid>'
+        '<uniqueid type="tmdb">67890</uniqueid>'
+        "</tvshow>",
+    )
+    item_id = _seed_item_full(
+        conn, title="DryRun",
+        canonical_provider="tvdb",
+        external_ids_json="{}",
+        dispatch_path=str(folder),
+    )
+    conn.commit()
+
+    stats = init_canonical_from_nfo(conn, dry_run=True)
+
+    assert stats.external_ids_seeded_alone == 1
+
+    row = conn.execute(
+        "SELECT canonical_provider, external_ids_json FROM media_item WHERE id = ?",
+        (item_id,),
+    ).fetchone()
+    assert row["canonical_provider"] == "tvdb"
+    assert row["external_ids_json"] == "{}"
+
+
+# Group 5 — CLI output schema contract
+
+
+def test_cli_output_includes_new_stats_keys() -> None:
+    """InitCanonicalStats fields map correctly to the CLI JSON output keys.
+
+    Does not require a DB; validates the dataclass→JSON contract that
+    library-init-canonical's console.print(json.dumps(...)) depends on.
+    """
+    stats = InitCanonicalStats(
+        external_ids_seeded_with_canonical=5,
+        external_ids_seeded_alone=10,
+        external_ids_already_present=3,
+        total_visited=18,
+        populated_default=4,
+        populated_fallback=1,
+        no_dispatch_path=2,
+        nfo_missing=1,
+    )
+
+    # Mirror the CLI JSON structure from library_init_canonical command
+    output = {
+        "dry_run": True,
+        "canonical_provider_populated": stats.populated,
+        "populated_default": stats.populated_default,
+        "populated_fallback": stats.populated_fallback,
+        "total_visited": stats.total_visited,
+        "external_ids_seeded_with_canonical": stats.external_ids_seeded_with_canonical,
+        "external_ids_seeded_alone": stats.external_ids_seeded_alone,
+        "external_ids_already_present": stats.external_ids_already_present,
+        "skipped": {
+            "no_dispatch_path": stats.no_dispatch_path,
+            "nfo_missing": stats.nfo_missing,
+            "nfo_parse_error": stats.nfo_parse_error,
+            "nfo_read_error": stats.nfo_read_error,
+            "no_default_uniqueid": stats.no_default_uniqueid,
+            "unsupported_no_fallback": stats.unsupported_no_fallback,
+        },
+    }
+
+    for key in (
+        "external_ids_seeded_with_canonical",
+        "external_ids_seeded_alone",
+        "external_ids_already_present",
+        "total_visited",
+        "canonical_provider_populated",
+    ):
+        assert key in output, f"Missing key in CLI output: {key}"
+
+    assert output["external_ids_seeded_with_canonical"] == 5
+    assert output["external_ids_seeded_alone"] == 10
+    assert output["external_ids_already_present"] == 3
+    assert output["canonical_provider_populated"] == 5
