@@ -82,6 +82,22 @@ class FixNfoStats(NamedTuple):
     nfo_unreadable: int
     ambiguous_nfo: int
 
+    def to_cli_json(self, *, apply: bool) -> dict[str, int | bool | list[str]]:
+        """Project to the CLI JSON output shape.
+
+        Args:
+            apply: Whether ``--apply`` was passed. Controls the key used
+                for the ``fixed`` count (``"would_fix"`` vs ``"fixed"``).
+
+        Returns:
+            Dict ready for :func:`emit`.
+        """
+        d = self._asdict()
+        d["would_fix" if not apply else "fixed"] = d.pop("fixed")
+        d["apply"] = apply
+        d["errors"] = []
+        return d
+
 
 @dataclass
 class _FixNfoAccumulator:
@@ -294,7 +310,13 @@ def library_fix_nfo(
         try:
             data = nfo_path.read_bytes()
         except OSError:
-            stats.inc("nfo_missing")
+            stats.inc("nfo_unreadable")
+            log.warning(
+                "nfo_fix_read_bytes_failed",
+                item_id=item_id,
+                title=title,
+                nfo=str(nfo_path),
+            )
             continue
 
         matches = list(_ROOT_CLOSE_RE.finditer(data))
@@ -376,9 +398,4 @@ def library_fix_nfo(
 
     log.info("nfo_fix_done", stats=stats.to_stats()._asdict())
 
-    final = dict(stats.to_stats()._asdict())
-    apply_key = "would_fix" if not apply else "fixed"
-    final[apply_key] = final.pop("fixed")
-    final["apply"] = apply
-    final["errors"] = []
-    emit(final)
+    emit(stats.to_stats().to_cli_json(apply=apply))
