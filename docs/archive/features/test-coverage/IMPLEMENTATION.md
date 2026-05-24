@@ -95,3 +95,22 @@ at the final gate is 91 %.
 
 - DESIGN + plan were prepared in advance (PR #19 final commit) per `/implement:prepare-feature`. `/implement:feature` skipped brainstorm + plan generation.
 - Previous feature `api-unify` (PR #19, merged 2026-05-08) archived to `docs/archive/features/api-unify/` in the same commit that bumps version to 0.12.0.
+
+## Re-measurement 2026-05-24 (tech-debt 0.16.0, Phase 8.14, DEV #41)
+
+**Context**: post-provider-ids re-measurement on `fix/tech-debt` (baseline `fb96adb`).
+`make test-cov` run with `fail_under=90`, `--cov-branch`. 4843 passed, 4 failed
+(pre-existing, not introduced by tech-debt), 4 skipped, 2 xfailed.
+
+**Results** (from `coverage.xml`):
+
+| Metric      | Value                            |
+| ----------- | -------------------------------- |
+| Branch rate | **87.09 %** (4809 / 5522)        |
+| Line rate   | 93.26 % (17891 / 19184)          |
+| Combined    | 91.88 % (passes `fail_under=90`) |
+
+**Delta vs Phase 1 final gate** (`71c8926`, claimed 91 %): **-3.91 pp** — within the
+±5 pp acceptable drift band defined by test-coverage DESIGN. No recovery action
+triggered. The 4 pre-existing test failures are tracked in the root
+`IMPLEMENTATION.md` § "Branch coverage re-measured".
