@@ -269,3 +269,435 @@ def json_from_result(result: Any) -> dict[str, Any]:
     if start == -1:
         raise ValueError(f"No JSON object found in output: {raw!r}")
     return json.loads(clean[start:])  # type: ignore[no-any-return]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Mock clients (6 helpers — 9.1)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def mock_qbit_client(monkeypatch: Any) -> Any:
+    """Mock qBittorrent client returning a canned empty torrent list.
+
+    Patches both ``build_active_torrent_client`` (factory path) and
+    ``QBitClient`` (direct construction path in ingest).  Returns the
+    mock instance so callers can configure ``.return_value`` on its
+    methods (e.g. ``mock.list_torrents.return_value = [...]``).
+    """
+    from unittest.mock import MagicMock  # noqa: PLC0415
+
+    mock = MagicMock()
+    mock.list_torrents.return_value = []
+    mock.get_torrent_properties.return_value = {}
+
+    monkeypatch.setattr(
+        "personalscraper.api.torrent._factory.build_active_torrent_client",
+        lambda *a, **kw: mock,
+    )
+    monkeypatch.setattr(
+        "personalscraper.api.torrent.qbittorrent.QBitClient",
+        MagicMock(return_value=mock),
+    )
+    return mock
+
+
+def mock_transmission_client(monkeypatch: Any) -> Any:
+    """Mock Transmission client.
+
+    Returns the mock instance for caller customization.
+    """
+    from unittest.mock import MagicMock  # noqa: PLC0415
+
+    mock = MagicMock()
+    mock.list_torrents.return_value = []
+
+    monkeypatch.setattr(
+        "personalscraper.api.torrent.transmission.TransmissionClient",
+        MagicMock(return_value=mock),
+    )
+    return mock
+
+
+def mock_tmdb_client(monkeypatch: Any) -> Any:
+    """Mock TMDB API client returning canonical (empty) payloads.
+
+    Returns the mock instance; callers configure ``get_movie.return_value``,
+    ``get_show.return_value``, etc. for realistic scenarios.
+    """
+    from unittest.mock import MagicMock  # noqa: PLC0415
+
+    mock = MagicMock()
+    mock.get_movie.return_value = None
+    mock.get_show.return_value = None
+    mock.get_season.return_value = None
+    mock.search_movie.return_value = []
+    mock.search_show.return_value = []
+
+    monkeypatch.setattr(
+        "personalscraper.api.metadata.tmdb.TMDBClient",
+        MagicMock(return_value=mock),
+    )
+    return mock
+
+
+def mock_tvdb_client(monkeypatch: Any) -> Any:
+    """Mock TVDB API client returning canonical (empty) payloads."""
+    from unittest.mock import MagicMock  # noqa: PLC0415
+
+    mock = MagicMock()
+    mock.get_show.return_value = None
+    mock.get_season.return_value = None
+    mock.search_show.return_value = []
+
+    monkeypatch.setattr(
+        "personalscraper.api.metadata.tvdb.TVDBClient",
+        MagicMock(return_value=mock),
+    )
+    return mock
+
+
+def mock_omdb_client(monkeypatch: Any) -> Any:
+    """Mock OMDB API client returning canonical (empty) payloads."""
+    from unittest.mock import MagicMock  # noqa: PLC0415
+
+    mock = MagicMock()
+    mock.get.return_value = None
+
+    monkeypatch.setattr(
+        "personalscraper.api.metadata.omdb.OMDbAdapter",
+        MagicMock(return_value=mock),
+    )
+    return mock
+
+
+def mock_trakt_client(monkeypatch: Any) -> Any:
+    """Mock Trakt API client returning canonical (empty) payloads."""
+    from unittest.mock import MagicMock  # noqa: PLC0415
+
+    mock = MagicMock()
+    mock.get_ratings.return_value = {}
+
+    monkeypatch.setattr(
+        "personalscraper.api.metadata.trakt.TraktClient",
+        MagicMock(return_value=mock),
+    )
+    return mock
+
+
+def mock_yt_dlp(monkeypatch: Any) -> Any:
+    """Mock yt-dlp YoutubeDL for trailer download tests.
+
+    Returns the mock instance; callers configure ``download.return_value``
+    or ``extract_info.return_value`` for realistic scenarios.
+    """
+    from unittest.mock import MagicMock  # noqa: PLC0415
+
+    mock = MagicMock()
+    mock.extract_info.return_value = {"title": "Test Trailer", "id": "test123"}
+    mock.prepare_filename.return_value = "/tmp/test-trailer.mp4"
+
+    monkeypatch.setattr("yt_dlp.YoutubeDL", MagicMock(return_value=mock))
+    return mock
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# FS / staging seeders (2 helpers — 9.1)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def seed_pipeline_lock(staging_dir: Path) -> Path:
+    """Create a ``pipeline.lock`` file to test concurrent-lock behavior.
+
+    Args:
+        staging_dir: The directory where ``pipeline.lock`` should be created.
+
+    Returns:
+        Path to the created lock file.
+    """
+    lock_path = staging_dir / "pipeline.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path.write_text(f"pid={99999}\nstarted_at=9999999999\n")
+    return lock_path
+
+
+def seed_staging_layout(tmp_path: Path, config: Any) -> dict[str, Path]:
+    """Create staging subdirectories from config's ``staging_dirs`` mapping.
+
+    Creates directories like ``001-MOVIES/``, ``002-TVSHOWS/``, etc. under
+    ``tmp_path``.  Returns a ``{category_id: path}`` mapping.
+    """
+    dirs: dict[str, Path] = {}
+    for key, value in config.staging_dirs.items():
+        dir_path = tmp_path / value
+        dir_path.mkdir(parents=True, exist_ok=True)
+        dirs[key] = dir_path
+    # Ensure 097-TEMP exists (the ingest landing zone).
+    temp_dir = tmp_path / "097-TEMP"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    dirs["097-TEMP"] = temp_dir
+    return dirs
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Assertion helpers (3 helpers — 9.1)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def assert_no_python_traceback(result: Any) -> None:
+    """Assert that result output contains no raw Python traceback.
+
+    A non-zero exit is acceptable; this asserts the error message is
+    user-friendly (no ``Traceback (most recent call last):``).
+    """
+    output = getattr(result, "output", "")
+    if isinstance(output, bytes):
+        output = output.decode("utf-8", errors="replace")
+    assert "Traceback (most recent call last):" not in output, f"Raw traceback found in output:\n{output}"
+
+
+def assert_json_schema(
+    result: Any,
+    required_keys: list[str] | None = None,
+    optional_keys: list[str] | None = None,
+) -> dict[str, Any]:
+    """Parse JSON from result and validate top-level key schema.
+
+    Args:
+        result: CliRunner result object.
+        required_keys: Keys that MUST be present (fails if missing).
+        optional_keys: Keys that MAY be present (logged but not enforced).
+
+    Returns:
+        Parsed JSON dict (for further assertions by the caller).
+    """
+    data = json_from_result(result)
+    if required_keys:
+        missing = [k for k in required_keys if k not in data]
+        assert not missing, f"Missing required keys in JSON output: {missing}. Got keys: {sorted(data.keys())}"
+    if optional_keys:
+        present = [k for k in optional_keys if k in data]
+        absent = [k for k in optional_keys if k not in data]
+        if absent:
+            import logging  # noqa: PLC0415
+
+            _log = logging.getLogger(__name__)
+            _log.info("Optional keys absent (non-blocking): %s / present: %s", absent, present)
+    return data
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Events assertion (2 helpers — 9.1)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def _load_matrix_event_names() -> set[str]:
+    """Parse the design-conformity matrix for declared PascalCase event class names.
+
+    Returns:
+        Set of event class names (e.g. ``{"ItemProgressed", "StepStarted"}``).
+        Empty set if the matrix file is unreadable.
+    """
+    import re  # noqa: PLC0415
+
+    matrix_path = (
+        Path(__file__).resolve().parents[2]
+        / ".claude"
+        / "skills"
+        / "pipeline-monitor"
+        / "references"
+        / "design-conformity-matrix.md"
+    )
+    try:
+        text = matrix_path.read_text(encoding="utf-8")
+    except (OSError, FileNotFoundError):
+        return set()
+
+    # PascalCase identifiers that follow "(Event)" pattern or are cited as
+    # "item_xyz_df events" patterns in the matrix text.  Also capture
+    # names from backtick-quoted spans like ``ItemProgressed``.
+    names: set[str] = set()
+    # Match backtick-quoted PascalCase with optional parenthetical.
+    for m in re.finditer(r"`([A-Z][a-zA-Z]+)`", text):
+        names.add(m.group(1))
+    # Match plain PascalCase adjacent to "(Event)".
+    for m in re.finditer(r"\b([A-Z][a-zA-Z]{2,})\s*\(Event\)", text):
+        names.add(m.group(1))
+    return names
+
+
+def assert_events_emitted(
+    captured: list[Any],
+    expected_classes: list[type],
+) -> None:
+    """Verify emitted events against the design-conformity matrix.
+
+    Cross-checks that every expected Event subclass was captured and
+    that every captured event is known to the design-conformity matrix
+    as ground truth (anti-drift).
+    Falls back to a logged warning if the matrix file is unreadable.
+
+    Args:
+        captured: List of :class:`Event` instances captured by
+            :func:`capture_event_bus`.
+        expected_classes: Event subclasses that SHOULD appear in
+            *captured* (each at least once).
+    """
+    matrix_names = _load_matrix_event_names()
+
+    captured_names = {type(e).__name__ for e in captured}
+    expected_names = {cls.__name__ for cls in expected_classes}
+
+    # Check expected classes were emitted.
+    missing = expected_names - captured_names
+    assert not missing, f"Expected events not emitted: {sorted(missing)}. Captured: {sorted(captured_names)}"
+
+    # Anti-drift check: every captured event should be known to the matrix.
+    if matrix_names:
+        unknown = captured_names - matrix_names
+        assert not unknown, (
+            f"Events captured but NOT found in design-conformity matrix (drift): "
+            f"{sorted(unknown)}. Matrix names: {sorted(matrix_names)}"
+        )
+    else:
+        import logging  # noqa: PLC0415
+
+        _log = logging.getLogger(__name__)
+        _log.warning(
+            "matrix unreadable — skipping anti-drift check. "
+            "TODO: verify %s against design-conformity-matrix.md manually.",
+            sorted(captured_names),
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Snapshot / diff utilities (3 helpers — 9.1)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def fs_snapshot(path: Path) -> dict[str, str]:
+    """Compute a recursive content hash of *path* for ``--dry-run`` assertions.
+
+    Returns a ``{rel_path: hex_hash}`` mapping.  Directories are represented
+    by a synthetic ``<dir>`` hash derived from their children.  Snapshots
+    taken before and after ``--dry-run`` must be identical.
+
+    Args:
+        path: Root directory to snapshot.
+
+    Returns:
+        Flat dictionary mapping relative paths to SHA-256 hex digests.
+    """
+    import hashlib as _hashlib  # noqa: PLC0415
+
+    snapshot: dict[str, str] = {}
+
+    if not path.exists():
+        return snapshot
+
+    for entry in sorted(path.rglob("*")):
+        rel = entry.relative_to(path).as_posix()
+        if entry.is_file():
+            content = entry.read_bytes()
+            snapshot[rel] = _hashlib.sha256(content).hexdigest()
+        elif entry.is_dir():
+            # Represent a directory by hashing its children's names.
+            children = sorted(p.name for p in entry.iterdir())
+            snapshot[f"{rel}/<dir>"] = _hashlib.sha256("\n".join(children).encode()).hexdigest()
+    return snapshot
+
+
+def bdd_diff_ignoring(
+    conn: Any,
+    before_snapshot: dict[str, list[dict[str, Any]]],
+    ignore_cols: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Compare current DB state against *before_snapshot*.
+
+    Excludes time-sensitive columns so idempotence can be verified.
+    An empty diff list means no meaningful change.
+
+    Args:
+        conn: Open SQLite connection.
+        before_snapshot: Dict mapping table name → list of row dicts
+            captured before the operation.
+        ignore_cols: Column names to exclude from comparison (defaults
+            to ``["updated_at", "last_seen", "last_seen_at", "last_verified_at",
+            "enriched_at", "date_modified", "processed_at", "enqueued_at",
+            "started_at", "finished_at", "created_at"]``).
+
+    Returns:
+        List of diff entries, each ``{"table": str, "row_idx": int, "before": dict, "after": dict}``.
+    """
+    if ignore_cols is None:
+        ignore_cols = [
+            "updated_at",
+            "last_seen",
+            "last_seen_at",
+            "last_verified_at",
+            "enriched_at",
+            "date_modified",
+            "processed_at",
+            "enqueued_at",
+            "started_at",
+            "finished_at",
+            "created_at",
+            "date_created",
+            "ctime_ns",
+            "last_inserted_at",
+            "last_updated_at",
+        ]
+
+    ignore_set = set(ignore_cols)
+    diffs: list[dict[str, Any]] = []
+
+    for table, before_rows in before_snapshot.items():
+        cursor = conn.execute(f"SELECT * FROM [{table}]")
+        col_names = [d[0] for d in cursor.description]
+        after_rows = [dict(zip(col_names, row)) for row in cursor.fetchall()]
+
+        for idx, (before_row, after_row) in enumerate(zip(before_rows, after_rows)):
+            before_filtered = {k: v for k, v in before_row.items() if k not in ignore_set}
+            after_filtered = {k: v for k, v in after_row.items() if k not in ignore_set}
+            if before_filtered != after_filtered:
+                diffs.append(
+                    {
+                        "table": table,
+                        "row_idx": idx,
+                        "before": before_filtered,
+                        "after": after_filtered,
+                    }
+                )
+    return diffs
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Event bus capture (1 helper — 9.1)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def capture_event_bus(monkeypatch: Any) -> list[Any]:
+    """Intercept ``EventBus.emit`` calls and record every emitted event.
+
+    Returns a mutable list that the caller can inspect after the CLI
+    invocation.  The original ``emit`` is still called so subscribers
+    are not disrupted.
+
+    Args:
+        monkeypatch: Pytest ``monkeypatch`` fixture.
+
+    Returns:
+        List of captured :class:`Event` instances (in emit order).
+    """
+    captured: list[Any] = []
+
+    def _capture_and_forward(self: Any, event: Any) -> None:
+        captured.append(event)
+        # Forward to the original emit so subscribers still fire.
+        _orig_emit(self, event)
+
+    # Lazy-import to avoid pulling the EventBus at module scope.
+    from personalscraper.core.event_bus import EventBus  # noqa: PLC0415
+
+    _orig_emit = EventBus.emit  # type: ignore[assignment]
+    monkeypatch.setattr(EventBus, "emit", _capture_and_forward)
+    return captured
