@@ -290,3 +290,15 @@ def test_init_canonical_error_exits_nonzero(test_config) -> None:
 # (UPDATE media_item SET canonical_provider=...) without emitting any
 # domain event.  No ``InitCanonicalCompleted`` event class exists in the
 # codebase.
+
+
+# ── 9. Closure-of-loop ──
+
+# N/A: init-canonical is a bootstrap operation — it sets canonical_provider
+# from NFO files exactly once per item.  Once canonical_provider is non-NULL,
+# subsequent runs skip that item (verified by
+# ``test_init_canonical_skips_items_with_existing_canonical``).  There is no
+# ongoing BDD ↔ FS drift to close; the operation is a one-shot migration.
+# Closure-of-loop is implicitly satisfied: after a successful run, all
+# items with valid NFOs have canonical_provider populated, and a reconcile
+# (--scope enrich_stale) would find zero divergence.

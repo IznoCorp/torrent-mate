@@ -381,3 +381,15 @@ def test_verify_emits_library_scan_completed(tmp_path, test_config, monkeypatch)
     assert len(captured) >= 1, f"Expected at least 1 event, got {len(captured)}"
     event_types = {type(e).__name__ for e in captured}
     assert "LibraryScanCompleted" in event_types, f"LibraryScanCompleted not emitted. Captured: {event_types}"
+
+
+# ── 8. Dry-run ──
+
+# N/A: ``library-verify`` is inherently read-only — it walks media_file rows,
+# re-stats the corresponding files on disk, and compares size/mtime.  It only
+# writes when ``--no-enqueue`` is NOT passed (inserts repair_queue rows for
+# mismatches), and that write path is guarded by the ``--no-enqueue`` flag
+# (tested by ``test_verify_no_enqueue_flag_no_writes``).  There is no
+# ``--dry-run`` flag because the default mode without ``--no-enqueue`` is the
+# closest equivalent: detect + enqueue.  The read-only stability is verified
+# by ``test_verify_idempotent_on_clean_files``.

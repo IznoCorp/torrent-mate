@@ -293,3 +293,51 @@ def test_relink_error_exits_nonzero(monkeypatch) -> None:
 # N/A: ``library-relink`` uses a raw ``sqlite3.connect`` call directly — no
 # EventBus is created or injected.  Output is Rich console text via
 # ``console.print``.  No domain event is published.
+
+
+# ── 9. Idempotence ──
+
+
+def test_relink_idempotent_second_run_noop(tmp_path, test_config) -> None:
+    """Running ``--apply`` twice: second run finds nothing to link.
+
+    After the first --apply, all linkable media_file rows have non-NULL
+    release_id.  A second --apply must report "nothing to relink" with
+    exit code 0.
+    """
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+
+    mount = tmp_path / "mount"
+    mount.mkdir()
+    _seed_null_release_files(db_path, mount, "TestMovie", "test.mkv", "TestMovie")
+
+    # First run: apply the link.
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        r1 = run_cli(["library-relink", "--apply"])
+    assert r1.exit_code == 0, r1.output
+    assert "Applied:" in r1.output, r1.output
+
+    # Verify release_id is now non-NULL.
+    conn = sqlite3.connect(str(db_path))
+    release_id = conn.execute("SELECT release_id FROM media_file LIMIT 1").fetchone()[0]
+    conn.close()
+    assert release_id is not None, f"release_id should be set after first --apply, got {release_id}"
+
+    # Second run: nothing left to link.
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        r2 = run_cli(["library-relink", "--apply"])
+    assert r2.exit_code == 0, r2.output
+    assert "No orphan" in r2.output, f"Second run should find nothing: {r2.output}"
+
+
+# ── 10. Closure-of-loop ──
+
+# N/A: ``library-relink`` performs a one-shot UPDATE on media_file.release_id
+# for rows where release_id IS NULL.  Once linked, the update is atomic and
+# idempotent — there is no ongoing BDD ↔ FS drift to close.  The link
+# correctness is verified by ``test_relink_apply_persists_link_updates``
+# (asserts release_id is non-NULL after --apply) and the idempotence test
+# above (second run is a no-op).  The broader "files are properly linked to
+# releases" invariant is covered by reconcile's
+# ``detect_files_without_release`` detector.

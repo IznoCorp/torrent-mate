@@ -256,3 +256,32 @@ def test_clean_error_exits_nonzero() -> None:
 # wiring, no domain event emission.  Clean is a filesystem-only operation that
 # does not cross the indexer DB boundary (unlike ``library-scan`` or
 # ``library-backfill-ids`` which open the DB with an active EventBus).
+
+
+# ── 8. Idempotence ──
+
+
+def test_clean_idempotent_second_run_noop(tmp_path, test_config) -> None:
+    """Running ``--apply`` twice: second run finds nothing to clean."""
+    cfg, actors_dir, _ = _setup_movie_with_actors(tmp_path, test_config)
+
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        r1 = run_cli(["library-clean", "--apply"])
+    assert r1.exit_code == 0, r1.output
+    assert not actors_dir.exists(), f".actors/ should be deleted after first run: {actors_dir}"
+
+    # Second run: nothing left to clean.
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        r2 = run_cli(["library-clean", "--apply"])
+    assert r2.exit_code == 0, r2.output
+    clean = _ansi_clean(r2.output)
+    assert "0 items" in clean.lower(), f"Second run should find 0 items, got: {clean}"
+
+
+# ── 9. Closure-of-loop ──
+
+# N/A: ``library-clean`` is a filesystem-only operation (actors dirs, empty dirs,
+# junk files).  It does not touch the indexer DB — no ``open_db`` call, no BDD
+# reads or writes.  Closure-of-loop is a BDD ↔ FS coherence pattern; with no
+# BDD interaction there is no loop to close.  The dry-run safety test already
+# proves the command observes and respects the filesystem state.

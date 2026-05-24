@@ -424,3 +424,14 @@ def test_backfill_emits_progress_events(tmp_path, test_config, monkeypatch) -> N
     event_names = {type(e).__name__ for e in captured}
     assert "BackfillStarted" in event_names, f"Missing BackfillStarted in {sorted(event_names)}"
     assert "BackfillCompleted" in event_names, f"Missing BackfillCompleted in {sorted(event_names)}"
+
+
+# ── 8. Closure-of-loop ──
+
+# N/A: backfill-ids BDD ↔ API closure-of-loop requires a live TMDB/TVDB provider
+# chain (network calls, API responses, JSON deserialization).  The synthetic
+# mock tests (--ids-only, --ratings-only, idempotence) verify the write path
+# in isolation, but the full detect → enrich → verify loop belongs to the
+# integration test suite (tests/integration/).  The idempotence test on
+# already-complete items already proves that the command does not corrupt
+# existing state — the loop-closure property is tested at the provider level.

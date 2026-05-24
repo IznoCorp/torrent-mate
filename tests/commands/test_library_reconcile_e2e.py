@@ -279,3 +279,14 @@ def test_reconcile_error_exits_nonzero(test_config) -> None:
 # domain event.  No ``ReconcileCompleted`` event class exists in the codebase.
 # The reconcile result is observable through the JSON summary
 # (total_findings / path_missing_count / merkle_drift / ...).
+
+
+# ── 8. Dry-run ──
+
+# N/A: ``library-reconcile`` is inherently read-only — it runs pure SELECT
+# queries (detect_path_missing, detect_merkle_drift, detect_dispatch_path_missing,
+# detect_enrich_stale, detect_release_orphans, detect_files_without_release,
+# detect_season_count_drift, detect_items_without_files).  There is no
+# ``--dry-run`` flag because the command never writes without an explicit
+# ``--enqueue-repairs`` opt-in.  The idempotence test
+# (test_reconcile_idempotent_when_clean) already proves read-only stability.

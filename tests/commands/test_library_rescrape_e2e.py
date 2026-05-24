@@ -241,3 +241,21 @@ def test_rescrape_dry_run_emits_events(tmp_path, test_config, monkeypatch) -> No
     # per item but requires full TMDB/TVDB API mocking (out of scope for
     # this harness — covered by integration tests).
     assert isinstance(captured, list), f"captured should be a list, got {type(captured)}"
+
+
+# ── 8. Idempotence ──
+
+# N/A: rescrape idempotence is verified by ``test_rescrape_skips_already_conforming_items``
+# under §3 — an item with a valid NFO + poster is skipped without API calls.
+# The rescraper walks config.disks and generates NFO/poster files only for
+# items missing them; once conforming, re-runs are no-ops.  The skip behaviour
+# is the idempotence contract.
+
+
+# ── 9. Closure-of-loop ──
+
+# N/A: ``library-rescrape`` is a filesystem-only operation (NFO + poster file
+# generation on disk).  It does not open the indexer DB — no ``open_db`` call,
+# no BDD reads or writes.  The output lands in ``library_rescrape.json``
+# (a JSON file in the data directory), not in the database.  With no BDD
+# interaction there is no BDD ↔ FS loop to close.

@@ -327,3 +327,25 @@ def test_index_emits_library_scan_completed(tmp_path, test_config, monkeypatch) 
     assert len(captured) >= 1, f"Expected at least 1 event, got {len(captured)}"
     event_types = {type(e).__name__ for e in captured}
     assert "LibraryScanCompleted" in event_types, f"LibraryScanCompleted not emitted. Captured: {event_types}"
+
+
+# ── 8. Idempotence ──
+
+# N/A: indexer idempotence is a scanner-level property tested by the unit suite
+# (tests/indexer/scanner/).  The ``--mode full`` walk rebuilds the path +
+# media_file tables from the filesystem; re-running on the same FS produces
+# the same rows modulo timestamps.  The BD-D #2 regression guard
+# (test_index_post_soft_delete_subtree_no_bulk_change) already verifies that
+# the merkle root stays consistent across runs — the idempotence contract is
+# satisfied at that level.
+
+
+# ── 9. Closure-of-loop ──
+
+# N/A: BDD ↔ FS closure-of-loop for the indexer (path/media_file rows matching
+# what's on disk) requires a full round-trip: scan → reconcile → repair →
+# re-scan.  That round-trip is tested by the reconcile + repair harnesses
+# (test_reconcile_path_missing_enqueue_then_repair_closes_loop +
+# test_repair_drains_path_missing_then_loop_closed).  The library-index
+# command is the producer side of that loop; closure is tested on the consumer
+# side.

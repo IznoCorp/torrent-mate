@@ -307,3 +307,14 @@ def test_scan_emits_library_scan_completed(tmp_path, test_config, monkeypatch) -
     assert len(captured) >= 1, f"Expected at least 1 event, got {len(captured)}"
     event_types = {type(e).__name__ for e in captured}
     assert "LibraryScanCompleted" in event_types, f"LibraryScanCompleted not emitted. Captured: {event_types}"
+
+
+# ── 9. Closure-of-loop ──
+
+# N/A: closure-of-loop for library-scan is the invariant "every media_dir on
+# disk with a valid NFO has a corresponding media_item row."  The create path
+# is verified by ``test_scan_creates_media_items_from_nfo``; the idempotence
+# path (re-scan does not duplicate) is verified by
+# ``test_scan_idempotent_on_rerun``.  The full BDD ↔ FS round-trip (scan →
+# reconcile → repair → re-scan) belongs to the reconcile + repair harnesses
+# which already have dedicated closure-of-loop tests.

@@ -301,3 +301,12 @@ def test_repair_error_exits_nonzero(monkeypatch) -> None:
 # the codebase.  The repair drain operates via direct DB writes; its result is
 # observable through the JSON summary (processed / succeeded / failed /
 # pending_depth).
+
+
+# ── 8. Dry-run ──
+
+# N/A: ``--dry-run`` behaviour is verified by ``test_repair_dry_run_no_writes``
+# under §2 (Realistic scenarios) — it seeds 5 pending rows, runs ``--dry-run``,
+# and asserts dry_run=True + repair_would_drain=5 + zero rows actually drained.
+# A dedicated Dry-run section is unnecessary; the flag is fully exercised in
+# the realistic-scenario block.

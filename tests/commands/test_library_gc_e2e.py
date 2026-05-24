@@ -246,3 +246,28 @@ def test_gc_error_exits_nonzero(test_config) -> None:
 # (free-space guard / DiskFullWarning infrastructure event).  The GC logic
 # itself (DELETE FROM index_outbox) emits no domain events.  No GcCompleted
 # event class exists in the codebase.
+
+
+# ── 8. Idempotence ──
+
+# N/A: idempotence is verified by ``test_gc_idempotent_on_clean_outbox`` under
+# §2 (Realistic scenarios) — it seeds 3 done rows, runs gc twice, and asserts
+# rows_deleted=3 then 0.  The idempotence property (DELETE WHERE processed_at
+# < threshold) holds at the SQL level and does not warrant a dedicated section.
+
+
+# ── 9. Dry-run ──
+
+# N/A: ``--dry-run`` behaviour is verified by ``test_gc_dry_run_no_writes``
+# under §2 (Realistic scenarios) — it seeds 5 done rows, runs ``--dry-run``,
+# and asserts dry_run=True + rows_to_delete=5 + zero rows actually deleted.
+# The ``--dry-run`` flag is exercised; a dedicated section is unnecessary.
+
+
+# ── 10. Closure-of-loop ──
+
+# N/A: closure-of-loop for gc is the invariant "after gc, all outbox rows with
+# processed_at < threshold are gone."  This is verified by
+# ``test_gc_purges_done_rows_older_than_threshold`` (seeds → purges → asserts
+# COUNT(*)=0) and ``test_gc_preserves_done_rows_within_threshold`` (asserts
+# recent rows survive).  No separate closure test is needed.
