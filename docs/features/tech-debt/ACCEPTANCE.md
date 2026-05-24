@@ -485,13 +485,17 @@ grep -c "BackfillStarted\|BackfillCompleted" docs/reference/event-bus.md
 # Expected: present in catalog table
 ```
 
-### ACC-38 — Test-coverage re-measured (DEV #41) 🟡
+### ACC-38 — Test-coverage re-measured (DEV #41) ✅
 
-**Status**: 🟡 PENDING (Phase 8.14 — branch coverage re-measurement post-provider-ids)
+**Status**: ✅ [SHIPPED commits `15a5a2e` + `b27de8b` (Phase 8.14)] — Branch rate 87.09 %
+(4809/5522) from coverage.xml, combined 91.88 % (passes fail_under=90). Delta
+-3.91 pp vs historical 91 % — within ±5 pp acceptable drift. Re-measurement
+notes in IMPLEMENTATION.md + docs/archive/features/test-coverage/IMPLEMENTATION.md.
 
 ```bash
 make test-cov 2>&1 | grep "TOTAL" | awk '{print $NF}'
 # Expected: >= 90 (per gate), branch coverage tracked in IMPLEMENTATION.md
+# Actual: 91.88% combined, 87.09% branch rate from coverage.xml
 ```
 
 ### ACC-39 — test_cli @patch <= 25 (DEV #49) 🟡
