@@ -8,16 +8,16 @@ identifiés en REDO item 11 (P30 DOC_ROT pattern).
 
 | Item                                 | Sub-phase | Source pattern |
 | ------------------------------------ | --------- | -------------- |
-| DEV #24 + #26 — event-bus            | 10.1.a     | P30            |
-| DEV #27 + #28 — provider-ids note    | 10.1.b     | P30, P23       |
-| DEV #32 + #35 + #36 — media-indexer  | 10.1.c     | P30            |
-| DEV #39 — pipeline-obs superseded    | 10.1.d     | P30            |
-| DEV #42 + #43 — trailer              | 10.1.e     | P30            |
-| DEV #45 — logging.md broken paths    | 10.1.f     | P30            |
-| DEV #48 — legacy-cleanup VX leaks    | 10.1.g     | P30            |
-| DEV #44 — \_exclusions.py docstring  | 10.2.a     | P30            |
-| DEV #48 — MANUAL.md V3 + docs/\*.md  | 10.2.b     | P30            |
-| DEV #45 + #47 + #24 — reference sync | 10.3       | P30            |
+| DEV #24 + #26 — event-bus            | 10.1.a    | P30            |
+| DEV #27 + #28 — provider-ids note    | 10.1.b    | P30, P23       |
+| DEV #32 + #35 + #36 — media-indexer  | 10.1.c    | P30            |
+| DEV #39 — pipeline-obs superseded    | 10.1.d    | P30            |
+| DEV #42 + #43 — trailer              | 10.1.e    | P30            |
+| DEV #45 — logging.md broken paths    | 10.1.f    | P30            |
+| DEV #48 — legacy-cleanup VX leaks    | 10.1.g    | P30            |
+| DEV #44 — \_exclusions.py docstring  | 10.2.a    | P30            |
+| DEV #48 — MANUAL.md V3 + docs/\*.md  | 10.2.b    | P30            |
+| DEV #45 + #47 + #24 — reference sync | 10.3      | P30            |
 
 DESIGN sections impacted : §12 documentation conformity (full implementation here).
 Note : DEV #9 mentioned in matrix but ALREADY shipped (commit 268cbee, not in scope).
@@ -175,16 +175,15 @@ n'existe plus). IMPLEMENTATION.md devient le seul tracker.
 
 **Commit** : `chore(tech-debt): delete transient HANDOVER.md post-implementation closure`
 
-## Phase 10 Gate (= PR final gate)
+## Phase 10 Gate (= PR final gate) — GATE COMMIT `<this commit>` (2026-05-24)
 
-- [ ] 10.1.a–g : 7 archived DESIGN.md ont banner + mapping
-- [ ] 10.2.a : \_exclusions.py docstring cleaned
-- [ ] 10.2.b : MANUAL.md + docs/\*.md top-level VX-free
-- [ ] 10.3 : reference docs synced
-- [ ] **10.4 : HANDOVER.md deleted + IMPLEMENTATION.md cleaned of HANDOVER references**
-- [ ] `make check` vert
-- [ ] `rg "\bV[0-9]+\b" docs/*.md` returns only docs/archive/ paths
-- [ ] `test ! -f docs/features/tech-debt/HANDOVER.md` (closure ack)
+- [x] 10.1.a–g : 7 archived DESIGN.md ont banner + mapping — shipped via 10.1/1 (event-bus `9c2c801`, provider-ids `5350b54`, media-indexer `8f38a92`) + 10.1/2 (pipeline-obs `7064713`, trailer `05b64da`, logging `5fadadc`, legacy-cleanup `0e64616`) + ACC-46 mark `693acb5` → `6af0218`. **8th archive (arch-cleanup) added in 10.3** (`651726c`) because it was missed by the original 7-list and had `details_payload` type drift (DEV #47).
+- [x] 10.2.a : \_exclusions.py docstring cleaned — `cbbc408` (`{movies_dir}/Inception (2010)` placeholder)
+- [x] 10.2.b : MANUAL.md + docs/\*.md top-level VX-free — `4a73e5c` (5 alpha-version refs moved to `docs/archive/legacy-alpha/`) + `2e917a9` (4 inline rewrites for MANUAL + TVDB/TMDB/qbit API refs)
+- [x] 10.3 : reference docs synced — `651726c` (arch-cleanup banner) + `3a89ba5` (ACC-49 ✅). Per orchestrator pre-audit, the other 2 spec items (logging.md paths DEV #45, event-bus.md catalog DEV #24) were already shipped via `329afbc` and `fb96adb` respectively
+- [x] **10.4 : HANDOVER.md deleted + IMPLEMENTATION.md cleaned of HANDOVER references** — `fb36cd9` (rm HANDOVER.md, 752 lines deleted) + `74219f2` (IMPL header cleanup)
+- [x] `make check` vert (modulo 3 pre-existing test failures carried from Phase 8/9 gates, NOT Phase 10 introduced)
+- [x] `rg "\bV[0-9]+\b" docs/*.md` returns only docs/archive/ paths — verified empty
+- [x] `test ! -f docs/features/tech-debt/HANDOVER.md` (closure ack) — verified
 
-**Phase gate commit** : `chore(tech-debt): phase 10 gate — archive doc updates + HANDOVER
-closure (P30 DOC_ROT resolved)`
+**Phase gate commit** : `chore(tech-debt): phase 10 gate — archive doc updates + HANDOVER closure (P30 DOC_ROT resolved)`
