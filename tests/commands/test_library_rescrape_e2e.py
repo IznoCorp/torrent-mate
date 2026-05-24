@@ -282,3 +282,67 @@ def test_rescrape_dry_run_emits_events(tmp_path, test_config, monkeypatch) -> No
 # no BDD reads or writes.  The output lands in ``library_rescrape.json``
 # (a JSON file in the data directory), not in the database.  With no BDD
 # interaction there is no BDD ↔ FS loop to close.
+
+
+# ── 10. Realistic scenarios (mock payload coverage) ───────────────────────────────
+
+
+def test_rescrape_realistic_movie_payload_well_formed() -> None:
+    """The minimal movie fixture is a valid MediaDetails with all mandatory fields."""
+    from tests.commands._e2e_helpers import _make_minimal_movie_details  # noqa: PLC0415
+
+    details = _make_minimal_movie_details()
+    assert details.provider == "tmdb"
+    assert details.provider_id == "550"
+    assert details.title == "Fight Club"
+    assert details.year == 1999
+    assert details.runtime_minutes == 139
+    assert isinstance(details.rating, float)
+    assert len(details.genres) > 0
+    assert len(details.images) >= 2
+    assert "imdb" in details.external_ids
+
+
+def test_rescrape_partial_payload_has_expected_gaps() -> None:
+    """The partial fixture mirrors an API response with missing optional fields."""
+    from tests.commands._e2e_helpers import _make_partial_movie_details  # noqa: PLC0415
+
+    details = _make_partial_movie_details()
+    assert details.title == "Incomplete Movie"
+    assert details.genres == []
+    assert details.images == []
+    assert details.runtime_minutes is None
+    assert details.rating is None
+    assert details.external_ids == {}
+
+
+def test_rescrape_dry_run_partial_payload_no_crash(tmp_path, test_config, monkeypatch) -> None:
+    """Rescrape ``--dry-run`` with partial API payload does not crash.
+
+    Overrides the minimal-movie default with the partial fixture to
+    exercise the "API returns incomplete data" code path.
+    """
+    from tests.commands._e2e_helpers import (  # noqa: PLC0415
+        _make_partial_movie_details,
+        mock_tmdb_client,
+        mock_tvdb_client,
+    )
+
+    tmdb_mock = mock_tmdb_client(monkeypatch)
+    tmdb_mock.get_movie.return_value = _make_partial_movie_details()
+    mock_tvdb_client(monkeypatch)
+
+    data_dir = tmp_path / ".data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    disk_base = tmp_path / "drive_a"
+    cat_dir = disk_base / "cat_movies"
+    cat_dir.mkdir(parents=True, exist_ok=True)
+    _make_rescrape_item_dir(cat_dir, "PartialMovie (2020)", nfo=False, poster=False)
+
+    cfg = test_config
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["--format", "json", "library-rescrape", "--dry-run"])
+
+    assert result.exit_code == 0, result.output
+    assert "Traceback" not in result.output, result.output
