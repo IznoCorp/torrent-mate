@@ -29,6 +29,7 @@ from personalscraper.api._contracts import ApiError
 from personalscraper.api._helpers import ProviderFeatureUnavailable
 from personalscraper.api.metadata._base import Notations
 from personalscraper.api.metadata._contracts import RatingProvider
+from personalscraper.api.metadata.omdb import OmdbQuotaExhausted
 
 if TYPE_CHECKING:
     from personalscraper.api.metadata.omdb import OMDbAdapter
@@ -92,6 +93,8 @@ class RottenTomatoesClient(RatingProvider):
         """
         try:
             notations = self._backend.get_notations(provider_id)
+        except OmdbQuotaExhausted:
+            raise
         except ApiError as exc:
             raise ProviderFeatureUnavailable(
                 "rotten_tomatoes",
