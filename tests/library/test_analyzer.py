@@ -732,7 +732,10 @@ class TestAnalyzeLibrary:
         ):
             result = analyze_library(config, incremental=True, existing_sizes=existing)
 
-        assert mock_extract.called
+        # Stronger than ``mock_extract.called``: pin the exact arg + call count
+        # so a future regression that skips the file silently (e.g. swallowing
+        # the OSError and continuing) is caught.
+        mock_extract.assert_called_once_with(video)
         assert result.file_count == 1
 
     def test_thread_pool_path_used_for_multiple_files(

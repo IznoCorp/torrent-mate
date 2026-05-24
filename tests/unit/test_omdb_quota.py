@@ -53,7 +53,12 @@ class TestFreshState:
         for _ in range(10):
             tracker.reserve_call()
         s = tracker.status()
-        assert s.date == datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+        # freezegun is not in dev-deps (checked pyproject.toml). Fall back to a
+        # ±1 day tolerance to avoid flakiness if the test straddles UTC midnight
+        # between the tracker writes and the assertion read.
+        today = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+        yesterday = (datetime.now(tz=timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+        assert s.date in {today, yesterday}
         assert s.count == 10
         assert s.limit == _DEFAULT_LIMIT
         assert s.safety_margin == _SAFETY_MARGIN

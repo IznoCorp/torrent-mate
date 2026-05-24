@@ -67,54 +67,37 @@ class TestEmitRichRendererFailSoft:
             observed = [(r.levelname, r.getMessage()) for r in caplog.records]
             raise AssertionError(f"Expected an ERROR-level emit_rich_renderer_failed log; got: {observed}")
 
-    def test_renderer_exception_falls_back_to_console_print(self) -> None:
+    def test_renderer_exception_falls_back_to_console_print(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """When renderer raises, console.print(payload) is invoked as fallback."""
         # Use a MagicMock console so we can assert call args without parsing Rich output.
         mock_console = MagicMock()
         payload = {"answer": 42}
 
-        from personalscraper.cli_state import state
+        # monkeypatch.setitem cleanly restores prior state (including absence) via
+        # pytest's finalizer — manual save/restore leaked when the key did not pre-exist.
+        monkeypatch.setitem(state, "format", "rich")
+        monkeypatch.setitem(state, "console", mock_console)
 
-        original_format = state.get("format")
-        original_console = state.get("console")
-        try:
-            state["format"] = "rich"
-            state["console"] = mock_console
+        def renderer() -> None:
+            raise RuntimeError("renderer blew up")
 
-            def renderer() -> None:
-                raise RuntimeError("renderer blew up")
-
-            emit(payload, rich_renderer=renderer)
-        finally:
-            if original_format is not None:
-                state["format"] = original_format
-            if original_console is not None:
-                state["console"] = original_console
+        emit(payload, rich_renderer=renderer)
 
         mock_console.print.assert_called_once_with(payload)
 
-    def test_successful_renderer_does_not_trigger_fallback(self) -> None:
+    def test_successful_renderer_does_not_trigger_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """When renderer succeeds, console.print(payload) is NOT called."""
         mock_console = MagicMock()
-        from personalscraper.cli_state import state
 
-        original_format = state.get("format")
-        original_console = state.get("console")
-        try:
-            state["format"] = "rich"
-            state["console"] = mock_console
+        monkeypatch.setitem(state, "format", "rich")
+        monkeypatch.setitem(state, "console", mock_console)
 
-            renderer_called: list[bool] = []
+        renderer_called: list[bool] = []
 
-            def renderer() -> None:
-                renderer_called.append(True)
+        def renderer() -> None:
+            renderer_called.append(True)
 
-            emit({"k": "v"}, rich_renderer=renderer)
-        finally:
-            if original_format is not None:
-                state["format"] = original_format
-            if original_console is not None:
-                state["console"] = original_console
+        emit({"k": "v"}, rich_renderer=renderer)
 
         assert renderer_called == [True], "renderer should have been invoked"
         mock_console.print.assert_not_called()
