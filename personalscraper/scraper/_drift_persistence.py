@@ -47,8 +47,8 @@ class DriftIssueStore:
         - config is None → skip (logged)
         - config.indexer.db_path is None → skip (logged)
         - db_path is not str/Path (MagicMock test stub) → skip (logged)
-        - db_file does not exist on disk → skip (no log; legitimate
-          unconfigured state for fresh staging)
+        - db_file does not exist on disk → skip (logged so operators can
+          tell a fresh-staging "no DB yet" from a misconfigured/missing one)
         """
         if config is None:
             log.info("drift_store_unavailable", reason="config_is_none")
@@ -70,6 +70,11 @@ class DriftIssueStore:
         if not db_file.is_absolute():
             db_file = Path.cwd() / db_file
         if not db_file.is_file():
+            log.info(
+                "drift_store_unavailable",
+                reason="db_file_missing",
+                path=str(db_file),
+            )
             return None
         return cls(db_file)
 

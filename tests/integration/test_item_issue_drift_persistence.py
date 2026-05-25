@@ -192,3 +192,24 @@ class TestItemIssueDriftPersistence:
         conn2.close()
 
         assert len(rows) == 0
+
+
+class TestFromConfigMissingDbLogs:
+    """The ``from_config`` factory must log when the configured DB file is absent.
+
+    Operators rely on this log to tell apart a fresh-staging "no DB yet"
+    setup from a misconfigured path (typo, unmounted volume).
+    """
+
+    def test_missing_db_file_emits_unavailable_log(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """from_config returns None AND logs ``db_file_missing`` when the path is absent."""
+        missing_db = tmp_path / "does_not_exist.db"
+        config = _make_config(missing_db)
+
+        with caplog.at_level(logging.INFO, logger="scraper.drift_persistence"):
+            store = DriftIssueStore.from_config(config)
+
+        assert store is None
+        assert any(
+            "drift_store_unavailable" in rec.message and "db_file_missing" in rec.message for rec in caplog.records
+        )
