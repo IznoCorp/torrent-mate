@@ -275,11 +275,18 @@ class TestSeasonCountDrift:
         assert detect_season_count_drift(conn) == []
 
     def test_count_drift_flagged(self, tmp_path: Path) -> None:
-        """A season whose stored count is wrong IS flagged."""
+        """A season whose stored count is wrong IS flagged.
+
+        With the recompute trigger (migration 008), inserting an episode
+        auto-corrects episode_count. Drift must be introduced by inserting
+        the episode first, then directly UPDATING season.episode_count
+        to the wrong value (the trigger only fires on episode-table changes).
+        """
         conn = _make_db(tmp_path)
         item_id = _seed_item(conn, kind="show")
-        season_id = _seed_season(conn, item_id, episode_count=5)  # claims 5
-        _seed_episode(conn, season_id, 1)  # but only 1 exists
+        season_id = _seed_season(conn, item_id, episode_count=0)
+        _seed_episode(conn, season_id, 1)  # trigger recomputes to 1
+        conn.execute("UPDATE season SET episode_count = 5 WHERE id = ?", (season_id,))
         assert detect_season_count_drift(conn) == [season_id]
 
 
