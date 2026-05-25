@@ -30,6 +30,7 @@ import typer
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_helpers.output import emit
+from personalscraper.commands.library._fix_stats_base import CliFixStatsMixin
 from personalscraper.logger import get_logger
 
 log = get_logger("cli")
@@ -51,7 +52,7 @@ WHERE episode_count != (SELECT COUNT(*) FROM episode WHERE episode.season_id = s
 
 
 @dataclass
-class FixSeasonCountsStats:
+class FixSeasonCountsStats(CliFixStatsMixin):
     """Counters for ``library_fix_season_counts``.
 
     ``seasons_scanned`` is the total number of rows in the ``season`` table.

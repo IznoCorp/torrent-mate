@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import re as _re
 import sqlite3 as _sqlite3
-from dataclasses import dataclass, fields, replace
+from dataclasses import dataclass
 from pathlib import Path
 
 import typer
@@ -34,6 +34,7 @@ import typer
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_helpers.output import emit
+from personalscraper.commands.library._fix_stats_base import CliFixStatsMixin
 from personalscraper.indexer.release_linker import parse_episode_number
 from personalscraper.logger import get_logger
 
@@ -80,7 +81,7 @@ _SEASON_EPISODE_RE = _re.compile(r"[sS](\d{1,2})[eE](\d{1,3})|(\d{1,2})x(\d{1,3}
 
 
 @dataclass
-class FixOrphanFilesStats:
+class FixOrphanFilesStats(CliFixStatsMixin):
     """Counters for ``library_fix_orphan_files``.
 
     ``items_scanned`` is the total number of orphan ``media_file`` rows
@@ -99,10 +100,6 @@ class FixOrphanFilesStats:
     item_level_fixed: int = 0
     no_release: int = 0
     ambiguous: int = 0
-
-    def snapshot(self) -> "FixOrphanFilesStats":
-        """Return an independent (non-aliased) copy — safe to hand to log emitters that may mutate."""
-        return replace(self)
 
     def to_cli_json(self, *, apply: bool) -> dict[str, int | bool]:
         """Project to the CLI JSON output shape.
@@ -124,10 +121,6 @@ class FixOrphanFilesStats:
         }
         base["fixed" if apply else "would_fix"] = self.fixed
         return base
-
-    def to_log_dict(self) -> dict[str, int]:
-        """Project to a ``dict[str, int]`` suitable for structlog ``stats=``."""
-        return {f.name: getattr(self, f.name) for f in fields(self)}
 
 
 def _find_item_for_orphan(conn: _sqlite3.Connection, rel_path: str, disk_id: int) -> tuple[int, str] | None:

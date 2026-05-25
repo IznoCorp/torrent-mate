@@ -35,7 +35,7 @@ from __future__ import annotations
 import re as _re
 import typing
 import xml.etree.ElementTree as _ET
-from dataclasses import dataclass, fields, replace
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
@@ -45,6 +45,7 @@ from personalscraper._fs_utils import is_apple_double
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_helpers.output import emit
+from personalscraper.commands.library._fix_stats_base import CliFixStatsMixin
 from personalscraper.logger import get_logger
 
 log = get_logger("cli")
@@ -70,7 +71,7 @@ _Outcome = Literal[
 
 
 @dataclass
-class FixNfoStats:
+class FixNfoStats(CliFixStatsMixin):
     """Per-outcome counts for ``library_fix_nfo``.
 
     Mutable during the scan loop (counters updated via :meth:`inc`) and
@@ -98,10 +99,6 @@ class FixNfoStats:
         """Increment the counter for *outcome* by 1."""
         setattr(self, outcome, getattr(self, outcome) + 1)
 
-    def snapshot(self) -> "FixNfoStats":
-        """Return an independent (non-aliased) copy — safe to hand to log emitters that may mutate."""
-        return replace(self)
-
     def to_cli_json(self, *, apply: bool) -> dict[str, int | bool | list[str]]:
         """Project to the CLI JSON output shape.
 
@@ -127,10 +124,6 @@ class FixNfoStats:
         result["apply"] = apply
         result["errors"] = []
         return result
-
-    def to_log_dict(self) -> dict[str, int]:
-        """Project to a ``dict[str, int]`` suitable for structlog ``stats=``."""
-        return {f.name: getattr(self, f.name) for f in fields(self)}
 
 
 def _is_trailing_safe(trailing: bytes) -> bool:

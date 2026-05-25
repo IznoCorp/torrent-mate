@@ -21,7 +21,7 @@ Examples:
 from __future__ import annotations
 
 import sqlite3 as _sqlite3
-from dataclasses import dataclass, fields, replace
+from dataclasses import dataclass
 from pathlib import Path
 
 import typer
@@ -29,6 +29,7 @@ import typer
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_helpers.output import emit
+from personalscraper.commands.library._fix_stats_base import CliFixStatsMixin
 from personalscraper.logger import get_logger
 
 log = get_logger("cli")
@@ -59,7 +60,7 @@ WHERE kind='movie' AND canonical_provider IS NULL
 
 
 @dataclass
-class FixCanonicalProviderStats:
+class FixCanonicalProviderStats(CliFixStatsMixin):
     """Counters for ``library_fix_canonical_provider``.
 
     ``shows_fixed`` tracks ``kind='show'`` rows repaired (canonical_provider
@@ -70,10 +71,6 @@ class FixCanonicalProviderStats:
 
     shows_fixed: int = 0
     movies_fixed: int = 0
-
-    def snapshot(self) -> "FixCanonicalProviderStats":
-        """Return an independent (non-aliased) copy — safe to hand to log emitters that may mutate."""
-        return replace(self)
 
     def to_cli_json(self, *, apply: bool) -> dict[str, int | bool]:
         """Project to the CLI JSON output shape.
@@ -96,10 +93,6 @@ class FixCanonicalProviderStats:
             "would_fix_shows": self.shows_fixed,
             "would_fix_movies": self.movies_fixed,
         }
-
-    def to_log_dict(self) -> dict[str, int]:
-        """Project to a ``dict[str, int]`` suitable for structlog ``stats=``."""
-        return {f.name: getattr(self, f.name) for f in fields(self)}
 
 
 @app.command("library-fix-canonical-provider")
