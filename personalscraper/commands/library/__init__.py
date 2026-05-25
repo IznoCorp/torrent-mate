@@ -11,6 +11,7 @@ from personalscraper.commands.library.analyze import (
 )
 from personalscraper.commands.library.audit import library_ghost_audit, library_reconcile, library_relink
 from personalscraper.commands.library.doctor import library_doctor
+from personalscraper.commands.library.fix_canonical_provider import library_fix_canonical_provider
 from personalscraper.commands.library.fix_nfo import library_fix_nfo
 from personalscraper.commands.library.gc import library_gc
 from personalscraper.commands.library.maintenance import library_clean, library_repair, library_validate, library_verify
@@ -20,6 +21,7 @@ from personalscraper.commands.library.scan import library_index, library_init_ca
 __all__ = [
     "library_analyze",
     "library_clean",
+    "library_fix_canonical_provider",
     "library_fix_nfo",
     "library_doctor",
     "library_gc",
