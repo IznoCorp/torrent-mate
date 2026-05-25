@@ -561,7 +561,9 @@ def run(
 
 
 @app.command("torrents-list")
-@cli_telemetry("torrents-list")
+# NOTE: cli_telemetry omitted intentionally — this command emits JSON to
+# stdout and the telemetry decorator writes to the same channel (see #12.fix1).
+# Reroute pending.
 @handle_cli_errors
 def torrents_list(ctx: typer.Context) -> None:
     """List completed torrents from the active qBittorrent client.
