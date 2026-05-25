@@ -154,7 +154,7 @@ def _parse_cli_refs(matrix_text: str) -> list[tuple[str, str | None]]:
     # ── Pattern 3: trailers sub-commands ──────────────────────────────────
     # The matrix section on ``trailers sub-commands`` lists them as
     # ``trailers scan``, ``trailers download``, … inside backtick literals.
-    trailer_pattern = re.compile(r"`trailers\s+(?P<sub>scan|download|verify|purge)`")
+    trailer_pattern = re.compile(r"`trailers\s+(?P<sub>scan|download|audit|purge)`")
     for m in trailer_pattern.finditer(matrix_text):
         # Map to ("trailers", "<sub>") so the test invokes
         # ``personalscraper trailers <sub> --help``.

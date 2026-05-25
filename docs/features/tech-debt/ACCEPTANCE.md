@@ -550,22 +550,20 @@ personalscraper cleanup --help && echo "cleanup OK"
 Coverage: `tests/commands/test_pipeline_commands.py::TestCleanCommand` +
 `::TestCleanupCommand` (12 tests total).
 
-### ACC-43 — trailers audit alias (SH-22, AR-D) ✅
+### ACC-43 — trailers audit rename (SH-22, AR-D) ✅
 
 ```bash
 personalscraper trailers audit --help && echo "audit OK"
-personalscraper trailers verify --help 2>&1 | grep -q "DEPRECATED" && echo "deprecation OK"
-# Expected: both exit 0, "audit OK" + "deprecation OK" printed
+personalscraper trailers verify --help 2>&1 | grep -q "No such command" && echo "alias gone OK"
+# Expected: both exit 0, "audit OK" + "alias gone OK" printed
 ```
 
-✅ [SHIPPED commit `0c6886d` (Phase 8.6)] — `trailers audit` is now the canonical command;
-`trailers verify` remains as a thin alias that prints a
-`[DEPRECATED] trailers verify -> trailers audit (will be removed in 0.17+).
-Forwarding...` warning on stderr and delegates to the shared `_audit_impl`
-helper. Alias removal scheduled for 0.17+. Coverage:
-`tests/trailers/test_cli.py::TestTrailersAuditAlias` (6 tests pinning help
-discoverability, deprecation warning presence/absence, and shared-impl
-delegation).
+✅ [SHIPPED commit `0c6886d` (Phase 8.6) + follow-up cleanup] — `trailers audit`
+is the canonical command. The deprecated `trailers verify` alias that shipped
+in 0.16.0 was deleted in the same PR's clean-up pass (no rétro-compat shims
+before v1.0, per project memory rule). Coverage:
+`tests/trailers/test_cli.py::TestTrailersAuditCommand` +
+`::TestTrailersAuditHelp` pin behaviour + discoverability.
 
 ### ACC-NFO-FIX — library-fix-nfo command repairs trailing-URL NFOs (Phase 8.10.b) ✅
 

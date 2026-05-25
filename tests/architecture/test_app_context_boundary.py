@@ -20,7 +20,6 @@ APP_CONTEXT_ALLOWED_FUNCS: set[tuple[str, str]] = {
     ("personalscraper/commands/library/scan.py", "library_index"),
     ("personalscraper/trailers/cli.py", "scan"),
     ("personalscraper/trailers/cli.py", "download"),
-    ("personalscraper/trailers/cli.py", "verify"),
     ("personalscraper/trailers/cli.py", "purge"),
     ("personalscraper/pipeline.py", "Pipeline.__init__"),
 }

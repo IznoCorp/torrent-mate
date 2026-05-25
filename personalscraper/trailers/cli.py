@@ -6,7 +6,6 @@ Subcommands:
     scan      - Dry-run: list media missing trailers
     download  - Discover and download missing trailers
     audit     - Audit existing trailers (size, extension)
-    verify    - Deprecated alias of ``audit`` (will be removed in 0.17+)
     purge     - Remove orphan trailers (media parent absent)
 
 Common filters (scan, download, verify, purge)::
@@ -531,7 +530,7 @@ def download(
 
 
 # ---------------------------------------------------------------------------
-# audit (+ deprecated `verify` alias)
+# audit
 # ---------------------------------------------------------------------------
 
 
@@ -545,12 +544,11 @@ def _audit_impl(
     level: str,
     season: int | None,
 ) -> None:
-    """Shared body for ``trailers audit`` and the deprecated ``trailers verify``.
+    """Shared body for the ``trailers audit`` command.
 
-    Both CLI commands delegate here so behaviour stays identical while only the
-    alias name differs (sub-phase 8.6 / SH-22 / AR-D — ``verify`` is overloaded
-    with the top-level ``personalscraper verify``; ``audit`` is the new
-    canonical name).
+    Extracted from the typer entrypoint so the implementation can be reused
+    by direct callers (tests, future scripted access) without going through
+    the typer wrapper.
 
     Args:
         ctx: Typer context carrying AppCtx (config available via ``ctx.obj.config``).
@@ -716,58 +714,6 @@ def audit(
         level: Trailer level filter (show / season / both).
         season: Specific season number; implies --level=season.
     """
-    _audit_impl(
-        ctx,
-        disk=disk,
-        category=category,
-        since=since,
-        deep=deep,
-        level=level,
-        season=season,
-    )
-
-
-@app.command("verify")
-def verify(
-    ctx: typer.Context,
-    disk: str | None = typer.Option(None, "--disk", help="Restrict to one disk by ID (e.g. Disk1)."),
-    category: str | None = typer.Option(None, "--category", help="Restrict to one category ID."),
-    since: str | None = typer.Option(None, "--since", help="Only items added/modified after YYYY-MM-DD."),
-    deep: bool = typer.Option(False, "--deep", help="Run ffprobe playability probe (expensive)."),
-    level: str = typer.Option(
-        "both",
-        "--level",
-        help=(
-            "Which trailer levels to audit: show | season | both. "
-            "Season-level is silently ignored when seasons.enabled is False."
-        ),
-    ),
-    season: int | None = typer.Option(
-        None,
-        "--season",
-        help="Target a specific season number (1-indexed). Implies --level=season.",
-    ),
-) -> None:
-    """Deprecated alias for ``trailers audit`` (will be removed in 0.17+).
-
-    Prints a deprecation warning on stderr then forwards every argument to
-    :func:`_audit_impl`. Kept for one minor version (0.16.x) so operator
-    muscle memory does not break overnight; remove the shim entirely in
-    0.17.
-
-    Args:
-        ctx: Typer context carrying AppCtx (config available via ctx.obj.config).
-        disk: Optional disk ID filter.
-        category: Optional category ID filter.
-        since: Optional ISO date lower bound for item age.
-        deep: When True, run ffprobe playability check (expensive).
-        level: Trailer level filter (show / season / both).
-        season: Specific season number; implies --level=season.
-    """
-    typer.echo(
-        "[DEPRECATED] trailers verify -> trailers audit (will be removed in 0.17+). Forwarding...",
-        err=True,
-    )
     _audit_impl(
         ctx,
         disk=disk,

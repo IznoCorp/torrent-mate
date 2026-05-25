@@ -88,7 +88,7 @@ NON_CRITICAL_COMMANDS: set[str] = {
     "torrents-list",
     "trailers-list",
     "trailers-scan",
-    "trailers-verify",
+    "trailers-audit",
     "info",
     "library-search",
     "library-show",

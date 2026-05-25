@@ -124,17 +124,12 @@ Discover and download missing trailers.
 Options: --dry-run, --disk, --category, --since, --limit, --level, --season, --no-refresh.
 Exit codes: 0 (ok or zero errors), 1 (download error), 2 (bad --since date or invalid --level/--season).
 
-### trailers audit (alias: trailers verify, deprecated 0.16.0)
+### trailers audit
 
 Audit existing trailer files (size, extension, optional ffprobe).
 
 Options: --disk, --category, --deep, --since, --level, --season, --no-refresh.
 Exit codes: 0 (all valid), 2 (functional check failure or bad arg), 4 (ffprobe error).
-
-`trailers verify` is preserved as a thin deprecation alias that prints a
-`[DEPRECATED] trailers verify -> trailers audit (will be removed in 0.17+).
-Forwarding...` warning on stderr before delegating to the same audit
-implementation. Removal scheduled for 0.17+ (SH-22 / AR-D).
 
 ### trailers purge
 

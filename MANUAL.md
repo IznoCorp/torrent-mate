@@ -104,7 +104,7 @@ personalscraper library-relink --apply           # Corriger les liens release ma
 ```bash
 personalscraper trailers scan                    # Scanner la bibliothèque pour les BA manquantes
 personalscraper trailers download                # Télécharger les BA (yt-dlp)
-personalscraper trailers verify                  # Vérifier les BA existantes
+personalscraper trailers audit                   # Auditer les BA existantes
 personalscraper trailers purge                   # Purger les BA selon critères
 ```
 
