@@ -477,29 +477,46 @@ def test_link_file_to_release_tv_no_episode_marker_falls_back(conn: sqlite3.Conn
 
 
 def test_recompute_season_episode_counts_resyncs_stale_counter(conn: sqlite3.Connection) -> None:
-    """``recompute_season_episode_counts`` resyncs the cached counter to actual episodes."""
+    """``recompute_season_episode_counts`` resyncs the cached counter to actual episodes.
+
+    With migration 008 triggers, episode_count is auto-maintained on INSERT —
+    no drift exists after normal operations.  To test the recompute path we
+    manually force a stale counter.
+    """
     item_id = _seed_show(conn, title="Show", dispatch_path="/x")
     season_id = get_or_create_season(conn, item_id, 1)
 
-    # Seed three episodes — linker leaves season.episode_count at 0.
     for ep in (1, 2, 3):
         get_or_create_episode(conn, season_id, ep)
 
+    # Trigger auto-maintains: count should already be 3.
+    fresh = conn.execute("SELECT episode_count FROM season WHERE id = ?", (season_id,)).fetchone()
+    assert fresh[0] == 3
+
+    # Force staleness by writing an incorrect value directly.
+    conn.execute("UPDATE season SET episode_count = 0 WHERE id = ?", (season_id,))
     stale = conn.execute("SELECT episode_count FROM season WHERE id = ?", (season_id,)).fetchone()
     assert stale[0] == 0
 
     updated = recompute_season_episode_counts(conn)
     assert updated == 1
 
-    fresh = conn.execute("SELECT episode_count FROM season WHERE id = ?", (season_id,)).fetchone()
-    assert fresh[0] == 3
+    fresh2 = conn.execute("SELECT episode_count FROM season WHERE id = ?", (season_id,)).fetchone()
+    assert fresh2[0] == 3
 
 
 def test_recompute_season_episode_counts_idempotent(conn: sqlite3.Connection) -> None:
-    """Running the recompute twice returns 0 the second time."""
+    """Running the recompute twice returns 0 the second time.
+
+    With migration 008 triggers, episode_count is already correct after
+    get_or_create_episode — force staleness first, then verify idempotence.
+    """
     item_id = _seed_show(conn, title="Show", dispatch_path="/x")
     season_id = get_or_create_season(conn, item_id, 1)
     get_or_create_episode(conn, season_id, 1)
+
+    # Force staleness.
+    conn.execute("UPDATE season SET episode_count = 99 WHERE id = ?", (season_id,))
 
     assert recompute_season_episode_counts(conn) == 1
     assert recompute_season_episode_counts(conn) == 0

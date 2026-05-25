@@ -262,10 +262,14 @@ class TestSeasonCountDrift:
     """Detector returns seasons whose episode_count != actual count."""
 
     def test_count_matches_not_flagged(self, tmp_path: Path) -> None:
-        """A season whose stored count matches actual episodes is NOT flagged."""
+        """A season whose stored count matches actual episodes is NOT flagged.
+
+        With migration 008 triggers, episode_count is auto-maintained on INSERT.
+        Seed with episode_count=0; after 2 inserts the trigger will have set it to 2.
+        """
         conn = _make_db(tmp_path)
         item_id = _seed_item(conn, kind="show")
-        season_id = _seed_season(conn, item_id, episode_count=2)
+        season_id = _seed_season(conn, item_id, episode_count=0)
         _seed_episode(conn, season_id, 1)
         _seed_episode(conn, season_id, 2)
         assert detect_season_count_drift(conn) == []
