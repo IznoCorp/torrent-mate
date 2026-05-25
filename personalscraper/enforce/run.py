@@ -32,6 +32,10 @@ def run_enforce(
 
     Executes sanitize → structure → coherence in order.
 
+    Emits structlog ``enforce_start`` / ``enforce_complete`` events bracketing
+    the step; per-component ``enforce_sanitize_filename``, ``enforce_structure_ok``,
+    ``enforce_coherence_ok`` events fire inside the loops.
+
     Args:
         settings: Pipeline configuration.
         config: Config passed to the coherence checker for classifier rules.

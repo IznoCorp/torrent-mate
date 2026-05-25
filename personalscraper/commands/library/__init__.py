@@ -1,6 +1,6 @@
 """Library CLI commands package.
 
-Re-exports all 18 Typer command functions from the domain submodules.
+Re-exports the Typer command functions from the domain submodules.
 """
 
 from personalscraper.commands.library.analyze import (
