@@ -108,27 +108,35 @@ class _PipelineCommandVisitor(ast.NodeVisitor):
     # Detection helpers
     # ------------------------------------------------------------------
 
+    #: Set of decorator names that count as telemetry coverage: standalone
+    #: ``@cli_telemetry`` or the composite ``@command_with_telemetry`` wrapper.
+    _TELEMETRY_DECORATOR_NAMES: set[str] = {"cli_telemetry", "command_with_telemetry"}
+
     @staticmethod
     def _detect_telemetry(node: ast.FunctionDef) -> bool:
-        """Return True iff the function has a ``@cli_telemetry(...)`` decorator.
+        """Return True iff the function has a telemetry decorator.
+
+        Recognises both ``@cli_telemetry(...)`` (standalone) and
+        ``@command_with_telemetry(...)`` (composite wrapper that internally
+        applies ``cli_telemetry``).
 
         Args:
             node: The AST FunctionDef to inspect.
 
         Returns:
-            True when a decorator whose base/name is ``cli_telemetry`` is found.
+            True when a qualifying telemetry decorator is found.
         """
         for deco in node.decorator_list:
-            # Handles both @cli_telemetry("cmd") (Call) and bare @cli_telemetry.
+            # Handles both @name("arg") (Call) and bare @name.
             if isinstance(deco, ast.Call):
                 func = deco.func
-                if isinstance(func, ast.Name) and func.id == "cli_telemetry":
+                if isinstance(func, ast.Name) and func.id in _PipelineCommandVisitor._TELEMETRY_DECORATOR_NAMES:
                     return True
-                if isinstance(func, ast.Attribute) and func.attr == "cli_telemetry":
+                if isinstance(func, ast.Attribute) and func.attr in _PipelineCommandVisitor._TELEMETRY_DECORATOR_NAMES:
                     return True
-            elif isinstance(deco, ast.Name) and deco.id == "cli_telemetry":
+            elif isinstance(deco, ast.Name) and deco.id in _PipelineCommandVisitor._TELEMETRY_DECORATOR_NAMES:
                 return True
-            elif isinstance(deco, ast.Attribute) and deco.attr == "cli_telemetry":
+            elif isinstance(deco, ast.Attribute) and deco.attr in _PipelineCommandVisitor._TELEMETRY_DECORATOR_NAMES:
                 return True
         return False
 

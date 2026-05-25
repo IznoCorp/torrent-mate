@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 
 from personalscraper import cli as cli_compat
-from personalscraper.cli_app import app
+from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import (
     _bootstrap_staging,
     _build_app_context,
@@ -13,7 +13,6 @@ from personalscraper.cli_helpers import (
     per_step_boundary,
 )
 from personalscraper.cli_state import state
-from personalscraper.cli_telemetry import cli_telemetry
 from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.logger import get_logger
 
@@ -35,8 +34,7 @@ def _run_help() -> str:
     return f"Run full pipeline ({steps})."
 
 
-@app.command()
-@cli_telemetry("ingest")
+@command_with_telemetry()
 @handle_cli_errors
 def ingest(
     ctx: typer.Context,
@@ -70,8 +68,7 @@ def ingest(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@app.command()
-@cli_telemetry("sort")
+@command_with_telemetry()
 @handle_cli_errors
 def sort(
     ctx: typer.Context,
@@ -106,8 +103,7 @@ def sort(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@app.command()
-@cli_telemetry("scrape")
+@command_with_telemetry()
 @handle_cli_errors
 def scrape(
     ctx: typer.Context,
@@ -148,8 +144,7 @@ def scrape(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@app.command()
-@cli_telemetry("verify")
+@command_with_telemetry()
 @handle_cli_errors
 def verify(
     ctx: typer.Context,
@@ -186,8 +181,7 @@ def verify(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@app.command()
-@cli_telemetry("enforce")
+@command_with_telemetry()
 @handle_cli_errors
 def enforce(
     ctx: typer.Context,
@@ -214,8 +208,7 @@ def enforce(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@app.command()
-@cli_telemetry("dispatch")
+@command_with_telemetry()
 @handle_cli_errors
 def dispatch(
     ctx: typer.Context,
@@ -245,8 +238,7 @@ def dispatch(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@app.command()
-@cli_telemetry("clean")
+@command_with_telemetry()
 @handle_cli_errors
 def clean(
     ctx: typer.Context,
@@ -293,8 +285,7 @@ def clean(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@app.command()
-@cli_telemetry("cleanup")
+@command_with_telemetry()
 @handle_cli_errors
 def cleanup(
     ctx: typer.Context,
@@ -341,8 +332,7 @@ def cleanup(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@app.command()
-@cli_telemetry("process")
+@command_with_telemetry()
 @handle_cli_errors
 def process(
     ctx: typer.Context,
@@ -386,8 +376,7 @@ def process(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@app.command(help=_run_help())
-@cli_telemetry("run")
+@command_with_telemetry("run", help=_run_help())
 @handle_cli_errors
 def run(
     ctx: typer.Context,
@@ -560,8 +549,7 @@ def run(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@app.command("torrents-list")
-@cli_telemetry("torrents-list")
+@command_with_telemetry("torrents-list")
 @handle_cli_errors
 def torrents_list(ctx: typer.Context) -> None:
     """List completed torrents from the active qBittorrent client.
