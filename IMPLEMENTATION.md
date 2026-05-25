@@ -181,24 +181,40 @@ _(rempli par implement:pr-review — max 3 cycles)_
 Post-merge: re-run `/pipeline-monitor` to confirm the 12 deviations from the
 2026-05-25 run pass to TRAITÉ or disappear, per phase-12 gate contract.
 
-Known doc-hygiene follow-ups (non-blocking, fail-soft WARN in `audit-cli-coverage.py`):
+All 5 phase-12 follow-up items resolved in `12.10`–`12.14` + `12.12.fix`:
 
-- `library-fix-canonical-provider` (12.1) lacks `docs/reference/commands.md` entry.
-- `library-fix-orphan-files` (12.7) lacks `docs/reference/commands.md` entry.
-- `library-fix-season-counts` (12.8) lacks `docs/reference/commands.md` entry.
+- **12.10** (`81519e7`) — added `docs/reference/commands.md` entries for
+  `library-fix-canonical-provider`, `library-fix-orphan-files`, and
+  `library-fix-season-counts`. `audit-cli-coverage.py` WARNs dropped from 6 → 3
+  (3 remaining are pre-existing, not introduced by phase 12).
+- **12.11** (`9130811`+`96f2b07`) — `library-fix-orphan-files` now also tries
+  episode-level releases: parses `SxxEyy` from the orphan filename, looks up
+  `episode_id` via the matched `season` + episode `number`, then attempts the
+  same 1/0/>1 candidate-release logic. 4 new parametric tests added.
+- **12.12** (`3371f90`) + **12.12.fix** (`dde7003`+`b61741d`+`7b81a3e`) —
+  migration `008_season_episode_count_triggers.sql` adds idempotent recompute
+  triggers on `episode` (AFTER INSERT / AFTER DELETE / AFTER UPDATE OF
+  season_id) plus a one-shot backfill of pre-trigger drift. The recompute
+  semantics (single UPDATE … SET episode_count = COUNT(\*)) avoids the
+  inc/dec double-count that surfaced when the scanner pre-populated the
+  cached value before episode rows landed. `library-fix-season-counts` CLI
+  retained for one-shot repair of pre-migration databases.
+- **12.13** (`346d451`) — `@cli_telemetry("torrents-list")` restored. Root cause
+  of the original regression was test-helper-side, not production: CliRunner
+  in `tests/commands/_e2e_helpers.py` merged stderr into `result.output`,
+  polluting JSON parsing. Fix: tests now read `result.stdout` directly (always
+  stdout-only in CliRunner regardless of mode). Production was already correct
+  — `logging.StreamHandler` defaults to `sys.stderr`, so piping
+  `personalscraper torrents-list --format json | jq …` was never broken.
+- **12.14** (`485d6bc`) — variance-sourced regression for
+  `canonical_provider` repair: seeds the BDD with ~30 rows using real titles
+  from `docs/pipeline-runs/2026-05-25-09h57-pipeline-run.md` (Top Chef
+  Le Concours Parallèle, Mikado, Stranger Things Tales from '85, etc.)
+  with mixed `external_ids_json` shapes including the 5 edge cases that the
+  predicate must NOT flip (no tvdb id, malformed json, etc.). 3 new
+  parametric test functions.
 
-Known deferrals (not regressions; surfaced for transparency):
-
-- 12.7 repair only matches item-level `media_release`; episode-level releases not
-  considered (file inside `Saison NN/` linked only via item, not via episode).
-- 12.8 auto-coherence trigger/hook deferred — CLI-only repair is sufficient for
-  ACCEPTANCE; INSERT/DELETE on episodes do NOT auto-update `season.episode_count`.
-- 12.fix1 `cli_telemetry` writes to stdout; JSON-emitting commands (torrents-list)
-  had to be EXCLUDED from the decorator. Global stdout → stderr reroute is a
-  follow-up cross-cutting refactor.
-- 12.1 regression tests are purely synthetic (no real-world variance from the
-  2026-05-25 pipeline-run 209 shows + 142 movies). Variance-sourced test is a
-  follow-up candidate.
+Final state: `make test` 5499 passed, 0 failed, 0 errors. `make check` exit 0.
 
 ## Branch coverage re-measured (2026-05-24, Phase 8.14, DEV #41)
 
