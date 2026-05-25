@@ -14,7 +14,7 @@ from types import SimpleNamespace
 import pytest
 
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.scraper._drift_persistence import clear_drift_issue, persist_drift_issue
+from personalscraper.scraper._drift_persistence import DriftIssueStore
 
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations"
 
@@ -61,7 +61,9 @@ class TestItemIssueDriftPersistence:
         conn.close()
 
         config = _make_config(db_path)
-        persist_drift_issue(config, show_dir, "episode_naming_drift:test.mkv")
+        store = DriftIssueStore.from_config(config)
+        assert store is not None
+        store.persist(show_dir, "episode_naming_drift:test.mkv")
 
         conn2 = sqlite3.connect(str(db_path))
         conn2.row_factory = sqlite3.Row
@@ -93,7 +95,9 @@ class TestItemIssueDriftPersistence:
         conn.close()
 
         config = _make_config(db_path)
-        clear_drift_issue(config, show_dir)
+        store = DriftIssueStore.from_config(config)
+        assert store is not None
+        store.clear(show_dir)
 
         conn2 = sqlite3.connect(str(db_path))
         conn2.row_factory = sqlite3.Row
@@ -119,8 +123,11 @@ class TestItemIssueDriftPersistence:
 
         config = _make_config(db_path)
 
+        store = DriftIssueStore.from_config(config)
+        assert store is not None
+
         with caplog.at_level(logging.INFO, logger="scraper"):
-            persist_drift_issue(config, show_dir, "episode_naming_drift:test.mkv")
+            store.persist(show_dir, "episode_naming_drift:test.mkv")
 
         conn2 = sqlite3.connect(str(db_path))
         conn2.row_factory = sqlite3.Row
@@ -147,10 +154,12 @@ class TestItemIssueDriftPersistence:
         )
 
         config = _make_config(db_path)
+        store = DriftIssueStore.from_config(config)
+        assert store is not None
         with caplog.at_level(logging.WARNING, logger="scraper"):
-            clear_drift_issue(config, show_dir)
+            store.clear(show_dir)
 
-        assert any("item_issue_clear_db_connect_failed" in r.message for r in caplog.records)
+        assert any("item_issue_db_connect_failed" in r.message for r in caplog.records)
 
     def test_clear_with_str_db_path_succeeds(self, tmp_path: Path) -> None:
         """db_path passed as str (not Path) is converted and clear works correctly."""
@@ -170,7 +179,9 @@ class TestItemIssueDriftPersistence:
         conn.close()
 
         config = _make_config(str(db_path))  # str, not Path
-        clear_drift_issue(config, show_dir)
+        store = DriftIssueStore.from_config(config)
+        assert store is not None
+        store.clear(show_dir)
 
         conn2 = sqlite3.connect(str(db_path))
         conn2.row_factory = sqlite3.Row

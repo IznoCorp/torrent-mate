@@ -14,7 +14,7 @@ from personalscraper.api.metadata._tvdb_parsers import map_language
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
-from personalscraper.scraper._drift_persistence import clear_drift_issue, persist_drift_issue
+from personalscraper.scraper._drift_persistence import DriftIssueStore
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper._tvdb_convert import (
     _tvdb_series_to_show_data as _tvdb_series_to_show_data,
@@ -152,7 +152,9 @@ class TvServiceMixin:
                     directory=show_dir.name,
                     reason=drift_reason,
                 )
-                persist_drift_issue(self.config, show_dir, drift_reason)
+                store = DriftIssueStore.from_config(self.config)
+                if store is not None:
+                    store.persist(show_dir, drift_reason)
                 # Any episode-level drift reason requires sweeping into
                 # ``Saison NN/`` so the rescrape path can regenerate
                 # NFOs, rename episodes, or both.  The three reasons
@@ -394,7 +396,9 @@ class TvServiceMixin:
             log.warning("show_artwork_failed", api_title=match.api_title, exc_info=True, error=str(e))
             result.warnings.append(f"Artwork failed: {e}")
 
-        clear_drift_issue(self.config, show_dir)
+        store = DriftIssueStore.from_config(self.config)
+        if store is not None:
+            store.clear(show_dir)
         result.episodes_renamed = total_renamed
         result.action = "scraped"
         return result
