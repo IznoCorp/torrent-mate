@@ -130,12 +130,14 @@ class TvServiceMixin:
         # Check for existing valid NFO
         nfo_path = show_dir / self.patterns.tvshow_nfo
         # ``drift_rescrape_episode_nfo`` flips True when the drift
-        # validator rejects the existing scrape *specifically* because
-        # one or more episode NFOs lack the canonical ``<uniqueid>``
-        # tag added by the provider-ids feature. Without this signal
-        # the full-scrape path below would skip episode-NFO regen for
-        # shows whose episodes are already organized in ``Saison NN/``
-        # — exactly the DEV #2 symptom on a re-scrape pass.
+        # validator rejects the existing scrape because of ANY
+        # episode-level issue — missing canonical ``<uniqueid>`` tag
+        # (provider-ids feature), non-conformant episode filename, or
+        # a missing sibling episode NFO. Without this signal the full-
+        # scrape path below would skip files already organized in
+        # ``Saison NN/`` — exactly the DEV #2 symptom on a re-scrape
+        # pass where only tvshow.nfo was regenerated but episode files
+        # kept their raw release names.
         drift_rescrape_episode_nfo = False
         if _is_nfo_complete(nfo_path):
             # Fast path only when the previous scrape is still coherent with
@@ -149,7 +151,17 @@ class TvServiceMixin:
                     directory=show_dir.name,
                     reason=drift_reason,
                 )
-                if drift_reason.startswith("episode_nfo_missing_canonical_uniqueid"):
+                # Any episode-level drift reason requires sweeping into
+                # ``Saison NN/`` so the rescrape path can regenerate
+                # NFOs, rename episodes, or both.  The three reasons
+                # match the ``verify_tvshow_scrape_drift`` return slugs.
+                if drift_reason.startswith(
+                    (
+                        "episode_nfo_missing_canonical_uniqueid",
+                        "episode_naming_drift",
+                        "episode_nfo_missing",
+                    )
+                ):
                     drift_rescrape_episode_nfo = True
                 if not self.dry_run:
                     try:
