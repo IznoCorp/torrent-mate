@@ -528,9 +528,7 @@ class TestBackupCorruptCopyOSError:
 class TestSaveOSError:
     """Cover _save error propagation through atomic_write_json (S2 refactor)."""
 
-    def test_save_atomic_write_json_failure_propagates(
-        self, tmp_path: Path
-    ) -> None:
+    def test_save_atomic_write_json_failure_propagates(self, tmp_path: Path) -> None:
         """When atomic_write_json raises OSError, the error propagates upward.
 
         _save delegates to atomic_write_json which handles tmp-file cleanup
@@ -555,10 +553,7 @@ class TestSaveOSError:
             with pytest.raises(OSError, match="read-only fs"):
                 store.set("movie:tmdb:1", state)
 
-
-    def test_save_atomic_write_json_raises_on_unexpected_error(
-        self, tmp_path: Path
-    ) -> None:
+    def test_save_atomic_write_json_raises_on_unexpected_error(self, tmp_path: Path) -> None:
         """When atomic_write_json raises a non-OSError, it propagates to caller.
 
         _save no longer has its own try/except handler; the exception
