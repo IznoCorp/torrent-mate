@@ -53,33 +53,36 @@ relates to. The canonical source for flag names is `personalscraper <cmd>
 21. [`library-ghost-audit`](#personalscraper-library-ghost-audit) — audit NTFS ghost dirents
 22. [`library-relink`](#personalscraper-library-relink) — relink NULL release_id rows
 23. [`library-clean`](#personalscraper-library-clean) — remove .actors/, junk files on storage disks
-24. [`library-fix-nfo`](#personalscraper-library-fix-nfo) — repair malformed NFO files with trailing URLs
-25. [`library-validate`](#personalscraper-library-validate) — validate NFO/artwork/naming conformity
-26. [`library-gc`](#personalscraper-library-gc) — GC old index_outbox done rows
+24. [`library-fix-canonical-provider`](#personalscraper-library-fix-canonical-provider) — repair `canonical_provider` drift in `media_item` rows (DEVIATION #7, ACC #4)
+25. [`library-fix-nfo`](#personalscraper-library-fix-nfo) — repair malformed NFO files with trailing URLs
+26. [`library-fix-orphan-files`](#personalscraper-library-fix-orphan-files) — repair `media_file` rows with `release_id IS NULL` (DEVIATION #8, invariant AO)
+27. [`library-fix-season-counts`](#personalscraper-library-fix-season-counts) — repair `season.episode_count` drift (DEVIATION #9, invariant AP)
+28. [`library-validate`](#personalscraper-library-validate) — validate NFO/artwork/naming conformity
+29. [`library-gc`](#personalscraper-library-gc) — GC old index_outbox done rows
 
 ### Library — analysis & query
 
-27. [`library-analyze`](#personalscraper-library-analyze) — deep ffprobe scan
-28. [`library-recommend`](#personalscraper-library-recommend) — re-download recommendations
-29. [`library-rescrape`](#personalscraper-library-rescrape) — targeted re-scraping
-30. [`library-report`](#personalscraper-library-report) — health statistics
-31. [`library-doctor`](#personalscraper-library-doctor) — health checks on live DB
-32. [`library-search`](#personalscraper-library-search) — flex-attr query
-33. [`library-show`](#personalscraper-library-show) — pretty-print one item
-34. [`library-backfill-ids`](#personalscraper-library-backfill-ids) — backfill provider IDs across releases
+30. [`library-analyze`](#personalscraper-library-analyze) — deep ffprobe scan
+31. [`library-recommend`](#personalscraper-library-recommend) — re-download recommendations
+32. [`library-rescrape`](#personalscraper-library-rescrape) — targeted re-scraping
+33. [`library-report`](#personalscraper-library-report) — health statistics
+34. [`library-doctor`](#personalscraper-library-doctor) — health checks on live DB
+35. [`library-search`](#personalscraper-library-search) — flex-attr query
+36. [`library-show`](#personalscraper-library-show) — pretty-print one item
+37. [`library-backfill-ids`](#personalscraper-library-backfill-ids) — backfill provider IDs across releases
 
 ### Trailers
 
-35. [`trailers`](#personalscraper-trailers) — trailer management (parent command)
-36. [`trailers scan`](#personalscraper-trailers-scan) — discover media missing trailers
-37. [`trailers download`](#personalscraper-trailers-download) — download trailers from YouTube
-38. [`trailers audit`](#personalscraper-trailers-audit) — audit trailer files on disk
+38. [`trailers`](#personalscraper-trailers) — trailer management (parent command)
+39. [`trailers scan`](#personalscraper-trailers-scan) — discover media missing trailers
+40. [`trailers download`](#personalscraper-trailers-download) — download trailers from YouTube
+41. [`trailers audit`](#personalscraper-trailers-audit) — audit trailer files on disk
     (alias: `trailers verify`, deprecated 0.16.0, removed 0.17+)
-39. [`trailers purge`](#personalscraper-trailers-purge) — remove unwanted trailers
+42. [`trailers purge`](#personalscraper-trailers-purge) — remove unwanted trailers
 
 ### Config — sub-commands
 
-40. [`config migrate-category`](#personalscraper-config-migrate-category) — rename a category across config + paths
+43. [`config migrate-category`](#personalscraper-config-migrate-category) — rename a category across config + paths
 
 ### Make targets + scheduling (appendix)
 
@@ -767,6 +770,42 @@ because the deletion granularity is the entire release directory.
 
 **Related**: `library-ghost-audit`, `enforce`
 
+## `personalscraper library-fix-canonical-provider`
+
+**Purpose**: Repairs incorrect `canonical_provider` values in `media_item` rows.
+Two corruption patterns are addressed: TV shows wrongly marked
+`canonical_provider='tmdb'` when a valid `tvdb.series_id` exists in
+`external_ids_json`, and movies with `canonical_provider IS NULL` when a valid
+`tmdb.id` exists. The command runs two idempotent SQL UPDATE statements inside a
+single transaction — re-running produces zero additional fixes because the WHERE
+clauses only target rows still in the wrong state.
+
+Dry-run by default — use `--apply` to execute the UPDATE.
+
+**Side effects**: `read-only` (default), `mutate DB` (with `--apply`)
+
+**Pipeline position**: n/a (utility — run on-demand when DEVIATION #7 is detected)
+
+**Args**:
+
+- `--apply` : Execute UPDATE statements (default: dry-run preview)
+- `--config / -c PATH` : Path to config.json5 or config dir
+- `--db PATH` : Path to library.db (overrides config)
+
+**JSON output keys**:
+
+- `apply` (bool)
+- `would_fix_shows` / `fixed_shows` (int) — TV show rows with canonical_provider corrected
+- `would_fix_movies` / `fixed_movies` (int) — movie rows with canonical_provider corrected
+
+**Examples**:
+
+    personalscraper library-fix-canonical-provider
+    personalscraper library-fix-canonical-provider --apply
+    personalscraper library-fix-canonical-provider --db /custom/path/library.db --apply
+
+**Related**: `library-init-canonical`, `library-backfill-ids`, DEVIATION #7, ACC #4
+
 ---
 
 ## `personalscraper library-fix-nfo`
@@ -813,6 +852,84 @@ Prerequisites: `library.db` must exist and have `media_item` rows with
     personalscraper library-fix-nfo --db /custom/path/library.db --apply
 
 **Related**: `library-init-canonical`, `library-backfill-ids`, `library-rescrape`
+
+## `personalscraper library-fix-orphan-files`
+
+**Purpose**: Repairs `media_file` rows with `release_id IS NULL` caused by
+incomplete ingest/dispatch or DB recovery. For each orphan file, resolves the
+owning `media_item` via the `item_attribute.dispatch_path` registry by
+reconstructing the absolute path from `disk.mount_path` and `path.rel_path`, then
+walks up parent directories (up to 6 levels) to handle files inside `Saison NN`
+subdirectories. Links the orphan to its `media_release` when exactly one candidate
+exists; files with zero or multiple candidate releases are counted but not repaired.
+
+Dry-run by default — use `--apply` to execute the UPDATE statements.
+
+**Side effects**: `read-only` (default), `mutate DB` (with `--apply`)
+
+**Pipeline position**: n/a (utility — run on-demand when DEVIATION #8 or invariant AO is detected)
+
+**Args**:
+
+- `--apply` : Execute UPDATE statements (default: dry-run preview)
+- `--config / -c PATH` : Path to config.json5 or config dir
+- `--db PATH` : Path to library.db (overrides config)
+
+**JSON output keys**:
+
+- `apply` (bool)
+- `items_scanned` (int) — total orphan `media_file` rows examined
+- `would_fix` / `fixed` (int) — files successfully linked
+- `no_release` (int) — files where no owning item or release was found
+- `ambiguous` (int) — files with multiple candidate releases
+
+**Examples**:
+
+    personalscraper library-fix-orphan-files
+    personalscraper library-fix-orphan-files --apply
+    personalscraper library-fix-orphan-files --db /custom/path/library.db --apply
+
+**Related**: `library-relink`, DEVIATION #8, invariant AO
+
+---
+
+## `personalscraper library-fix-season-counts`
+
+**Purpose**: Repairs `season.episode_count` drift where the cached count in the
+`season` table does not match the actual `COUNT(*)` of rows in the `episode` table.
+This drift can occur after manual DB edits, incomplete ingests, or edge cases in
+the indexing code paths. The UPDATE statement is predicate-guarded (`WHERE
+episode_count != actual`) so re-running the command is a no-op — it only touches
+seasons where a mismatch exists.
+
+Dry-run by default — use `--apply` to execute the UPDATE. In dry-run mode, a
+`details` list with per-season drift data (item_id, season number, old vs actual
+count) is emitted for operator inspection.
+
+**Side effects**: `read-only` (default), `mutate DB` (with `--apply`)
+
+**Pipeline position**: n/a (utility — run on-demand when DEVIATION #9 or invariant AP is detected)
+
+**Args**:
+
+- `--apply` : Execute UPDATE statement (default: dry-run preview)
+- `--config / -c PATH` : Path to config.json5 or config dir
+- `--db PATH` : Path to library.db (overrides config)
+
+**JSON output keys**:
+
+- `apply` (bool)
+- `seasons_scanned` (int) — total rows in `season` table
+- `would_fix` / `fixed` (int) — seasons corrected
+- `details` (list[dict]) — per-season drift data, dry-run only
+
+**Examples**:
+
+    personalscraper library-fix-season-counts
+    personalscraper library-fix-season-counts --apply
+    personalscraper library-fix-season-counts --db /custom/path/library.db --apply
+
+**Related**: DEVIATION #9, invariant AP
 
 ---
 
