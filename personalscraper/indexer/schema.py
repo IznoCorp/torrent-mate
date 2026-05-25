@@ -247,7 +247,7 @@ class SeasonRow:
             (enforced by trigger ``trg_season_requires_show``).
         number: Season number (0 = specials).
         episode_count: Cached count of episodes in this season. Maintained by
-            triggers ``trg_season_episode_count_{inc,dec,move}`` (migration 008) —
+            triggers ``trg_season_episode_count_after_{insert,delete,update}`` (migration 008) —
             INSERT/DELETE/season_id-UPDATE on ``episode`` auto-updates this column.
         has_poster: 1 if a season poster file exists, 0 otherwise.
         episodes_with_nfo: Cached count of episodes with a valid NFO.

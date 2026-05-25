@@ -966,7 +966,9 @@ def _persist_drift_issue(config: "Config | None", show_dir: Path, drift_reason: 
     if db_path is None:
         log.info("item_issue_persist_skipped_no_db", reason="db_path_is_none")
         return
-    if not isinstance(db_path, (str, Path)):
+    if isinstance(db_path, str):
+        db_path = Path(db_path)
+    if not isinstance(db_path, Path):
         log.info(
             "item_issue_persist_skipped_db_path_not_path",
             reason="config.indexer.db_path is not a string or Path (likely MagicMock test stub)",
@@ -1032,7 +1034,9 @@ def _clear_drift_issue(config: "Config | None", show_dir: Path) -> None:
     db_path = config.indexer.db_path
     if db_path is None:
         return
-    if not isinstance(db_path, (str, Path)):
+    if isinstance(db_path, str):
+        db_path = Path(db_path)
+    if not isinstance(db_path, Path):
         log.info(
             "item_issue_clear_skipped_db_path_not_path",
             reason="config.indexer.db_path is not a string or Path (likely MagicMock test stub)",
@@ -1054,6 +1058,7 @@ def _clear_drift_issue(config: "Config | None", show_dir: Path) -> None:
         _apply_pragmas(conn)
         conn.row_factory = sqlite3.Row
     except Exception:
+        log.warning("item_issue_clear_db_connect_failed", path=str(show_dir), exc_info=True)
         return
     try:
         row = conn.execute(
@@ -1070,7 +1075,7 @@ def _clear_drift_issue(config: "Config | None", show_dir: Path) -> None:
             )
             conn.commit()
     except Exception:
-        pass
+        log.warning("item_issue_clear_failed", path=str(show_dir), exc_info=True)
     finally:
         try:
             conn.close()

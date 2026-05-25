@@ -5,9 +5,9 @@ match the actual ``COUNT(*)`` of rows in the ``episode`` table. This command
 recalculates and repairs those incorrect counts.
 
 As of migration 008, ``season.episode_count`` is auto-maintained by triggers
-(``trg_season_episode_count_{inc,dec,move}``). This CLI remains available
-for one-shot repair of pre-migration drift or in case the triggers are
-bypassed (e.g. direct sqlite3 manipulation outside the application).
+(``trg_season_episode_count_after_{insert,delete,update}``). This CLI remains
+available as a safety net for trigger-bypass paths (manual sqlite3 writes,
+partially-applied migrations), not a pre-migration tool.
 
 Dry-run by default — use ``--apply`` to execute the UPDATE.
 Re-running is a no-op because the WHERE clause only targets drifting rows.

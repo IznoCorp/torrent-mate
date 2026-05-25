@@ -195,7 +195,9 @@ def _restore_from_db(
     db_path = config.indexer.db_path
     if db_path is None:
         return False
-    if not isinstance(db_path, (str, Path)):
+    if isinstance(db_path, str):
+        db_path = Path(db_path)
+    if not isinstance(db_path, Path):
         log.info(
             "movie_db_restore_skipped_db_path_not_path",
             reason="config.indexer.db_path is not a string or Path (likely MagicMock test stub)",
@@ -220,6 +222,7 @@ def _restore_from_db(
         log.warning("movie_db_restore_connect_failed", db_path=str(db_file), exc_info=True)
         return False
 
+    copied_files: list[Path] = []
     try:
         # 3. Look up a valid BDD entry by title
         row = conn.execute(
@@ -293,10 +296,9 @@ def _restore_from_db(
 
         import shutil
 
-        files_copied = 0
         dest_nfo = movie_dir / dispatch_nfo.name
         shutil.copy2(dispatch_nfo, dest_nfo)
-        files_copied += 1
+        copied_files.append(dest_nfo)
         log.info(
             "movie_db_restore_copied_nfo",
             src=str(dispatch_nfo),
@@ -306,7 +308,7 @@ def _restore_from_db(
         for art_file in artwork_files:
             dest_art = movie_dir / art_file.name
             shutil.copy2(art_file, dest_art)
-            files_copied += 1
+            copied_files.append(dest_art)
             log.info(
                 "movie_db_restore_copied_artwork",
                 src=str(art_file),
@@ -319,12 +321,26 @@ def _restore_from_db(
             title=title,
             item_id=item_id,
             dispatch_path=str(dispatch_dir),
-            files_copied=files_copied,
+            files_copied=len(copied_files),
         )
         return True
 
     except Exception:
-        log.warning("movie_db_restore_failed", title=title, exc_info=True)
+        log.warning(
+            "movie_db_restore_failed",
+            title=title,
+            files_to_rollback=len(copied_files),
+            exc_info=True,
+        )
+        for f in copied_files:
+            try:
+                f.unlink(missing_ok=True)
+            except OSError as unlink_exc:
+                log.warning(
+                    "movie_db_restore_rollback_failed",
+                    path=str(f),
+                    error=str(unlink_exc),
+                )
         return False
     finally:
         try:
@@ -522,6 +538,7 @@ class MovieServiceMixin:
         if not self._select_best_candidate(match, title, year, result):
             if _restore_from_db(self.config, self.dry_run, movie_dir, title, year, result):
                 return result
+            result.action = result.action or "skipped_low_confidence"
             return result
         assert match is not None  # narrowed by _select_best_candidate returning True
 
