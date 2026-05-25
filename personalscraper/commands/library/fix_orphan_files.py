@@ -5,6 +5,15 @@ ingest/dispatch or DB recovery. This command locates each orphan, resolves
 the owning ``media_item`` via ``item_attribute.dispatch_path``, and links
 the file to its ``media_release``.
 
+Matching is attempted in two tiers:
+
+1. **Item-level** — find ``media_release`` rows where ``item_id`` matches
+   the resolved item.  This covers movies and show-level releases.
+2. **Episode-level** — when no item-level release is found AND the filename
+   matches an ``SxxEyy`` / ``xxXyy`` pattern, the command looks up the
+   season and episode rows, then searches for ``media_release`` rows keyed
+   on ``episode_id``.
+
 Dry-run by default — use ``--apply`` to execute the UPDATE.
 
 Examples:
@@ -15,6 +24,7 @@ Examples:
 
 from __future__ import annotations
 
+import re as _re
 import sqlite3 as _sqlite3
 from dataclasses import dataclass, fields, replace
 from pathlib import Path
@@ -24,6 +34,7 @@ import typer
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_helpers.output import emit
+from personalscraper.indexer.release_linker import parse_episode_number
 from personalscraper.logger import get_logger
 
 log = get_logger("cli")
@@ -47,9 +58,25 @@ _CANDIDATE_RELEASES_QUERY = """
 SELECT id, quality FROM media_release WHERE item_id = ?
 """
 
+_FIND_SEASON_SQL = """
+SELECT id FROM season WHERE item_id = ? AND number = ?
+"""
+
+_FIND_EPISODE_SQL = """
+SELECT id FROM episode WHERE season_id = ? AND number = ?
+"""
+
+_CANDIDATE_EPISODE_RELEASES_SQL = """
+SELECT id, quality FROM media_release WHERE episode_id = ?
+"""
+
 _UPDATE_RELEASE_SQL = """
 UPDATE media_file SET release_id = ? WHERE id = ?
 """
+
+# Regex mirroring _EPISODE_RE in release_linker.py — extracts season number
+# from SxxEyy (group 1) or xxXyy (group 3) markers.
+_SEASON_EPISODE_RE = _re.compile(r"[sS](\d{1,2})[eE](\d{1,3})|(\d{1,2})x(\d{1,3})")
 
 
 @dataclass
@@ -58,13 +85,18 @@ class FixOrphanFilesStats:
 
     ``items_scanned`` is the total number of orphan ``media_file`` rows
     examined.  ``fixed`` tracks files successfully linked to a single
-    candidate ``media_release``.  ``no_release`` counts files where no
-    owning item or no release was found.  ``ambiguous`` counts files
-    with multiple candidate releases that require manual review.
+    candidate ``media_release``.  ``episode_level_fixed`` is the subset
+    of ``fixed`` matched via episode-level lookups.  ``item_level_fixed``
+    is the complementary subset matched via item-level lookups.
+    ``no_release`` counts files where no owning item or no release was
+    found.  ``ambiguous`` counts files with multiple candidate releases
+    that require manual review.
     """
 
     items_scanned: int = 0
     fixed: int = 0
+    episode_level_fixed: int = 0
+    item_level_fixed: int = 0
     no_release: int = 0
     ambiguous: int = 0
 
@@ -85,6 +117,8 @@ class FixOrphanFilesStats:
         base: dict[str, int | bool] = {
             "apply": apply,
             "items_scanned": self.items_scanned,
+            "episode_level_fixed": self.episode_level_fixed,
+            "item_level_fixed": self.item_level_fixed,
             "no_release": self.no_release,
             "ambiguous": self.ambiguous,
         }
@@ -139,6 +173,77 @@ def _find_candidate_releases(conn: _sqlite3.Connection, item_id: int) -> list[tu
     return [(int(r[0]), r[1]) for r in rows]
 
 
+def _parse_season_number(filename: str) -> int | None:
+    """Extract the season number from a filename using ``SxxEyy`` / ``xxXyy``.
+
+    Mirrors ``_EPISODE_RE`` in ``release_linker.py`` — group 1 or 3 carries
+    the season number.
+
+    Args:
+        filename: Bare filename (no directory component).
+
+    Returns:
+        Season number as int, or ``None`` when no marker is found.
+    """
+    match = _SEASON_EPISODE_RE.search(filename)
+    if match is None:
+        return None
+    season = match.group(1) or match.group(3)
+    return int(season) if season is not None else None
+
+
+def _try_episode_level_link(
+    conn: _sqlite3.Connection,
+    item_id: int,
+    filename: str,
+) -> list[tuple[int, str | None]]:
+    """Find episode-level ``media_release`` candidates for an orphan file.
+
+    Parses season + episode numbers from *filename*, looks up the matching
+    ``season`` and ``episode`` rows under *item_id*, then returns every
+    ``media_release`` keyed on ``episode_id``.
+
+    Args:
+        conn: Open SQLite connection.
+        item_id: The resolved ``media_item.id`` for the orphan.
+        filename: Bare filename (to extract ``SxxEyy`` / ``xxXyy``).
+
+    Returns:
+        ``(release_id, quality)`` tuples, or an empty list when the filename
+        doesn't match an episode pattern, no season row exists, no episode
+        row exists, or no episode-level releases exist.
+    """
+    episode_num = parse_episode_number(filename)
+    if episode_num is None:
+        return []
+
+    season_num = _parse_season_number(filename)
+    if season_num is None:
+        return []
+
+    season_row = conn.execute(_FIND_SEASON_SQL, (item_id, season_num)).fetchone()
+    if season_row is None:
+        log.info("episode_no_season", item_id=item_id, filename=filename, season_num=season_num)
+        return []
+
+    season_id = int(season_row["id"])
+
+    episode_row = conn.execute(_FIND_EPISODE_SQL, (season_id, episode_num)).fetchone()
+    if episode_row is None:
+        log.info(
+            "episode_not_in_db",
+            item_id=item_id,
+            filename=filename,
+            season_num=season_num,
+            episode_num=episode_num,
+        )
+        return []
+
+    episode_id = int(episode_row["id"])
+    rows = conn.execute(_CANDIDATE_EPISODE_RELEASES_SQL, (episode_id,)).fetchall()
+    return [(int(r[0]), r[1]) for r in rows]
+
+
 @app.command("library-fix-orphan-files")
 @handle_cli_errors
 def library_fix_orphan_files(
@@ -150,8 +255,13 @@ def library_fix_orphan_files(
     """Repair ``media_file`` rows with ``release_id IS NULL``.
 
     For each orphan file, resolves the owning ``media_item`` via the
-    ``item_attribute.dispatch_path`` registry, then links to the item's
-    ``media_release`` when exactly one candidate exists.
+    ``item_attribute.dispatch_path`` registry, then attempts to link to a
+    ``media_release`` in two tiers:
+
+    1. **Item-level** — match ``media_release.item_id``.
+    2. **Episode-level** — when no item-level match is found and the
+       filename contains an ``SxxEyy`` / ``xxXyy`` marker, look up the
+       season + episode rows and match ``media_release.episode_id``.
 
     Dry-run by default — use ``--apply`` to execute the UPDATE statements.
     """
@@ -193,14 +303,25 @@ def library_fix_orphan_files(
             continue
 
         item_id, _kind = resolved
+        filename = str(orphan["filename"])
         releases = _find_candidate_releases(conn, item_id)
 
         if len(releases) == 0:
-            stats.no_release += 1
+            episode_releases = _try_episode_level_link(conn, item_id, filename)
+            if len(episode_releases) == 1:
+                if apply:
+                    updates.append((episode_releases[0][0], file_id))
+                stats.fixed += 1
+                stats.episode_level_fixed += 1
+            elif len(episode_releases) == 0:
+                stats.no_release += 1
+            else:
+                stats.ambiguous += 1
         elif len(releases) == 1:
             if apply:
                 updates.append((releases[0][0], file_id))
             stats.fixed += 1
+            stats.item_level_fixed += 1
         else:
             stats.ambiguous += 1
 
