@@ -254,7 +254,10 @@ def run_cli(args: list[str]) -> Any:
         args: CLI arguments as a list of strings (e.g. ``['library-reconcile', '--format', 'json']``).
 
     Returns:
-        The ``Result`` object from ``CliRunner.invoke``.
+        The ``Result`` object from ``CliRunner.invoke``.  For tests that parse
+        machine-readable stdout (e.g. JSON), use ``result.stdout`` instead of
+        ``result.output`` — ``result.output`` mixes stdout + stderr while
+        ``result.stdout`` is always stdout-only.
     """
     from personalscraper.cli import app  # noqa: PLC0415
 
@@ -262,13 +265,18 @@ def run_cli(args: list[str]) -> Any:
     return runner.invoke(app, args)
 
 
-def json_from_result(result: Any) -> dict[str, Any]:
-    """Extract a JSON dict from CliRunner result output.
+def json_from_result(result: Any, *, source_attr: str = "output") -> dict[str, Any]:
+    """Extract a JSON dict from a CliRunner result.
 
     Handles Rich-formatted output where JSON may be interleaved with
     escape codes.  Returns the first JSON object found.
+
+    Args:
+        result: CliRunner result object.
+        source_attr: ``"output"`` (default, mixed stdout+stderr) or
+            ``"stdout"`` (stdout-only, for machine-readable output like JSON).
     """
-    raw: str = result.output.strip()
+    raw: str = getattr(result, source_attr).strip()
     # Strip Rich ANSI escape codes.
     import re
 
@@ -575,6 +583,8 @@ def assert_json_schema(
     result: Any,
     required_keys: list[str] | None = None,
     optional_keys: list[str] | None = None,
+    *,
+    source_attr: str = "output",
 ) -> dict[str, Any]:
     """Parse JSON from result and validate top-level key schema.
 
@@ -582,11 +592,12 @@ def assert_json_schema(
         result: CliRunner result object.
         required_keys: Keys that MUST be present (fails if missing).
         optional_keys: Keys that MAY be present (logged but not enforced).
+        source_attr: ``"output"`` (default) or ``"stdout"`` (for JSON commands).
 
     Returns:
         Parsed JSON dict (for further assertions by the caller).
     """
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr=source_attr)
     if required_keys:
         missing = [k for k in required_keys if k not in data]
         assert not missing, f"Missing required keys in JSON output: {missing}. Got keys: {sorted(data.keys())}"

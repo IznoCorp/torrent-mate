@@ -30,6 +30,7 @@ PIPELINE_COMMAND_NAMES: list[str] = [
     "cleanup",
     "process",
     "run",
+    "torrents_list",
 ]
 
 

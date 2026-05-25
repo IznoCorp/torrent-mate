@@ -45,7 +45,7 @@ class TestFormatFlagTorrentsList:
         ):
             result = runner.invoke(app, ["--format", "json", "torrents-list"])
         assert result.exit_code == 0
-        parsed = json.loads(result.output)
+        parsed = json.loads(result.stdout)
         assert "torrents" in parsed
         assert "completed" in parsed
         assert parsed["completed"] == 2

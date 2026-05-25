@@ -111,10 +111,11 @@ def test_torrents_list_format_json_schema(monkeypatch) -> None:
 
     result = run_cli(["--format", "json", "torrents-list"])
 
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 0, result.stdout
     data = assert_json_schema(
         result,
         required_keys=["torrents", "completed", "tracked"],
+        source_attr="stdout",
     )
     assert isinstance(data["torrents"], list)
     assert len(data["torrents"]) == 1
