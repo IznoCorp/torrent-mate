@@ -398,14 +398,20 @@ class TestOmdbQuotaIntegration:
             client.get_notations("tt1375666")
         assert excinfo.value.pre_call is True
 
-    def test_search_returns_empty_when_tracker_skips(self, tmp_path: Path) -> None:
-        """Search swallows OmdbQuotaExhausted into [] (legacy soft contract)."""
+    def test_search_raises_OmdbQuotaExhausted_when_tracker_skips(self, tmp_path: Path) -> None:
+        """Search propagates OmdbQuotaExhausted (aligned with get_details/get_notations).
+
+        Returning an empty list would conflate "no match found" with "provider
+        blocked"; callers need the distinction to drive failover / retry logic.
+        """
         transport = MagicMock()
         tracker = OmdbQuotaTracker(state_path=tmp_path / ".quota.json")
         tracker.mark_exhausted("test")
         client = OMDBClient(transport, quota_tracker=tracker)
 
-        assert client.search("Inception") == []
+        with pytest.raises(OmdbQuotaExhausted) as excinfo:
+            client.search("Inception")
+        assert excinfo.value.pre_call is True
 
     def test_quota_aware_get_raises_when_tracker_marked_exhausted(self, tmp_path: Path) -> None:
         """_quota_aware_get raises OmdbQuotaExhausted(pre_call=True) when blocked."""

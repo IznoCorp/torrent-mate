@@ -223,10 +223,9 @@ class OMDbAdapter(MetadataClient):
     ) -> list[SearchResult]:
         """Search OMDB by title.
 
-        Quota exhaustion is treated as a soft outcome here: the method
-        returns an empty list. Callers reaching for typed propagation
-        (retry-with-discrimination loops) should use :meth:`get_details`
-        or :meth:`get_notations` instead.
+        Quota exhaustion propagates as :class:`OmdbQuotaExhausted` so callers
+        can distinguish "no result" (empty list) from "provider blocked"
+        (exception), aligning with :meth:`get_details` / :meth:`get_notations`.
 
         Args:
             title: Title string to search for.
@@ -234,17 +233,21 @@ class OMDbAdapter(MetadataClient):
             media_type: "movie" or "tv" (OMDB uses "series").
 
         Returns:
-            List of SearchResult objects (empty when quota exhausted).
+            List of SearchResult objects. Empty list means "no match",
+            never "quota exhausted".
+
+        Raises:
+            OmdbQuotaExhausted: Daily quota exhausted (pre-call or runtime
+                detection). Subclass of :class:`ApiError`; check
+                ``exc.pre_call`` to distinguish branches.
+            ApiError: Other transport / response-shape failure.
         """
         omdb_type = "series" if media_type == "tv" else "movie"
         params: dict[str, Any] = {"s": title, "type": omdb_type}
         if year is not None:
             params["y"] = str(year)
 
-        try:
-            data = self._quota_aware_get(params, method="search", item_id=title)
-        except OmdbQuotaExhausted:
-            return []
+        data = self._quota_aware_get(params, method="search", item_id=title)
         return _parse_search_results(data, provider=self.provider_name)
 
     def get_details(
