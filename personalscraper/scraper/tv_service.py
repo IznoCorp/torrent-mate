@@ -15,7 +15,9 @@ from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
 from personalscraper.scraper._shared import ScrapeResult
-from personalscraper.scraper._tvdb_convert import _tvdb_series_to_show_data
+from personalscraper.scraper._tvdb_convert import (
+    _tvdb_series_to_show_data as _tvdb_series_to_show_data,
+)
 from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.confidence import LOW_CONFIDENCE
 from personalscraper.scraper.episode_manager import create_season_dirs, match_episode_files, rename_episodes
