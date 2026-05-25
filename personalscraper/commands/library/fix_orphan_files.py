@@ -100,8 +100,8 @@ class FixOrphanFilesStats:
     no_release: int = 0
     ambiguous: int = 0
 
-    def frozen(self) -> "FixOrphanFilesStats":
-        """Return an independent copy (defensive for downstream emitters)."""
+    def snapshot(self) -> "FixOrphanFilesStats":
+        """Return an independent (non-aliased) copy — safe to hand to log emitters that may mutate."""
         return replace(self)
 
     def to_cli_json(self, *, apply: bool) -> dict[str, int | bool]:
@@ -283,62 +283,79 @@ def library_fix_orphan_files(
     _db_apply_pragmas(conn)
     conn.row_factory = _sqlite3.Row
 
-    stats = FixOrphanFilesStats()
+    try:
+        stats = FixOrphanFilesStats()
 
-    log.info("orphan_files_scan_started")
+        log.info("orphan_files_scan_started")
 
-    orphans = conn.execute(_ORPHANS_QUERY).fetchall()
-    stats.items_scanned = len(orphans)
+        orphans = conn.execute(_ORPHANS_QUERY).fetchall()
+        stats.items_scanned = len(orphans)
 
-    updates: list[tuple[int, int]] = []
+        updates: list[tuple[int, int]] = []
 
-    for orphan in orphans:
-        file_id = int(orphan["id"])
-        rel_path = str(orphan["rel_path"])
-        disk_id = int(orphan["disk_id"])
+        for orphan in orphans:
+            file_id = int(orphan["id"])
+            rel_path = str(orphan["rel_path"])
+            disk_id = int(orphan["disk_id"])
 
-        resolved = _find_item_for_orphan(conn, rel_path, disk_id)
-        if resolved is None:
-            stats.no_release += 1
-            continue
-
-        item_id, _kind = resolved
-        filename = str(orphan["filename"])
-        releases = _find_candidate_releases(conn, item_id)
-
-        if len(releases) == 0:
-            episode_releases = _try_episode_level_link(conn, item_id, filename)
-            if len(episode_releases) == 1:
-                if apply:
-                    updates.append((episode_releases[0][0], file_id))
-                stats.fixed += 1
-                stats.episode_level_fixed += 1
-            elif len(episode_releases) == 0:
+            resolved = _find_item_for_orphan(conn, rel_path, disk_id)
+            if resolved is None:
                 stats.no_release += 1
+                continue
+
+            item_id, _kind = resolved
+            filename = str(orphan["filename"])
+            releases = _find_candidate_releases(conn, item_id)
+
+            if len(releases) == 0:
+                episode_releases = _try_episode_level_link(conn, item_id, filename)
+                if len(episode_releases) == 1:
+                    if apply:
+                        updates.append((episode_releases[0][0], file_id))
+                    stats.fixed += 1
+                    stats.episode_level_fixed += 1
+                elif len(episode_releases) == 0:
+                    stats.no_release += 1
+                else:
+                    log.warning(
+                        "orphan_file_ambiguous_releases",
+                        file_id=file_id,
+                        filename=filename,
+                        item_id=item_id,
+                        candidate_release_ids=[r[0] for r in episode_releases],
+                        candidate_count=len(episode_releases),
+                        level="episode_level",
+                    )
+                    stats.ambiguous += 1
+            elif len(releases) == 1:
+                if apply:
+                    updates.append((releases[0][0], file_id))
+                stats.fixed += 1
+                stats.item_level_fixed += 1
             else:
+                log.warning(
+                    "orphan_file_ambiguous_releases",
+                    file_id=file_id,
+                    filename=filename,
+                    item_id=item_id,
+                    candidate_release_ids=[r[0] for r in releases],
+                    candidate_count=len(releases),
+                    level="item_level",
+                )
                 stats.ambiguous += 1
-        elif len(releases) == 1:
-            if apply:
-                updates.append((releases[0][0], file_id))
-            stats.fixed += 1
-            stats.item_level_fixed += 1
-        else:
-            stats.ambiguous += 1
 
-    if apply and updates:
-        conn.execute("BEGIN IMMEDIATE")
-        try:
-            for release_id, file_id in updates:
-                conn.execute(_UPDATE_RELEASE_SQL, (release_id, file_id))
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
-    else:
+        if apply and updates:
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                for release_id, file_id in updates:
+                    conn.execute(_UPDATE_RELEASE_SQL, (release_id, file_id))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+
+        log.info("orphan_files_done", stats=stats.to_log_dict())
+
+        emit(stats.snapshot().to_cli_json(apply=apply))
+    finally:
         conn.close()
-
-    log.info("orphan_files_done", stats=stats.to_log_dict())
-
-    emit(stats.frozen().to_cli_json(apply=apply))
