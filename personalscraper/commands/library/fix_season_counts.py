@@ -64,8 +64,8 @@ class FixSeasonCountsStats:
     fixed: int = 0
     details: list[dict[str, int]] = field(default_factory=list)
 
-    def frozen(self) -> "FixSeasonCountsStats":
-        """Return an independent copy (defensive for downstream emitters)."""
+    def snapshot(self) -> "FixSeasonCountsStats":
+        """Return an independent (non-aliased) copy — safe to hand to log emitters that may mutate."""
         return replace(self, details=list(self.details))
 
     def to_cli_json(self, *, apply: bool) -> dict[str, Any]:
@@ -162,4 +162,4 @@ def library_fix_season_counts(
 
     log.info("season_count_fix_done", stats=stats.to_log_dict())
 
-    emit(stats.frozen().to_cli_json(apply=apply))
+    emit(stats.snapshot().to_cli_json(apply=apply))

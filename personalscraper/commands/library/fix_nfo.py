@@ -74,7 +74,7 @@ class FixNfoStats:
     """Per-outcome counts for ``library_fix_nfo``.
 
     Mutable during the scan loop (counters updated via :meth:`inc`) and
-    converted to an immutable snapshot via :meth:`frozen` once the loop
+    converted to an immutable snapshot via :meth:`snapshot` once the loop
     terminates. ``items_scanned`` is set once at init time; every other
     field tracks a member of :data:`_Outcome` and is incremented via
     ``stats.inc(outcome)``.
@@ -98,8 +98,8 @@ class FixNfoStats:
         """Increment the counter for *outcome* by 1."""
         setattr(self, outcome, getattr(self, outcome) + 1)
 
-    def frozen(self) -> "FixNfoStats":
-        """Return an independent copy (defensive for downstream emitters)."""
+    def snapshot(self) -> "FixNfoStats":
+        """Return an independent (non-aliased) copy — safe to hand to log emitters that may mutate."""
         return replace(self)
 
     def to_cli_json(self, *, apply: bool) -> dict[str, int | bool | list[str]]:
@@ -416,4 +416,4 @@ def library_fix_nfo(
 
     log.info("nfo_fix_done", stats=stats.to_log_dict())
 
-    emit(stats.frozen().to_cli_json(apply=apply))
+    emit(stats.snapshot().to_cli_json(apply=apply))

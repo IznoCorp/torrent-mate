@@ -71,8 +71,8 @@ class FixCanonicalProviderStats:
     shows_fixed: int = 0
     movies_fixed: int = 0
 
-    def frozen(self) -> "FixCanonicalProviderStats":
-        """Return an independent copy (defensive for downstream emitters)."""
+    def snapshot(self) -> "FixCanonicalProviderStats":
+        """Return an independent (non-aliased) copy — safe to hand to log emitters that may mutate."""
         return replace(self)
 
     def to_cli_json(self, *, apply: bool) -> dict[str, int | bool]:
@@ -167,4 +167,4 @@ def library_fix_canonical_provider(
 
     log.info("canonical_provider_fix_done", stats=stats.to_log_dict())
 
-    emit(stats.frozen().to_cli_json(apply=apply))
+    emit(stats.snapshot().to_cli_json(apply=apply))

@@ -175,3 +175,27 @@ class TestSeasonCountTrigger:
             "trg_season_episode_count_after_insert",
             "trg_season_episode_count_after_update",
         ]
+
+    def test_trigger_handles_pre_populated_episode_count(self, tmp_path: Path) -> None:
+        """Recompute trigger converges when scanner pre-populates episode_count.
+
+        Pre-12.12.fix (inc/dec design): seeding episode_count=3 and inserting
+        3 episode rows produced final episode_count=6 (double count).
+        Post-12.12.fix (recompute): the AFTER INSERT trigger recomputes
+        ``SELECT COUNT(*) FROM episode WHERE season_id = ?`` regardless of the
+        cached value, so final episode_count is always 3.
+        """
+        db_path = tmp_path / "lib.db"
+        conn = open_db(db_path, event_bus=EventBus())
+        apply_migrations(conn, _MIGRATIONS_DIR)
+
+        _show_id, season_id = _seed_show_and_season(conn, episode_count=3)
+
+        for ep_num in range(1, 4):
+            conn.execute(
+                "INSERT INTO episode (season_id, number) VALUES (?, ?)",
+                (season_id, ep_num),
+            )
+
+        final_count = conn.execute("SELECT episode_count FROM season WHERE id = ?", (season_id,)).fetchone()[0]
+        assert final_count == 3
