@@ -42,6 +42,8 @@ def run_enforce(
     Returns:
         StepReport with enforce counts and details.
     """
+    log.info("enforce_start", dry_run=dry_run)
+
     sanitize_results = sanitize_files(settings, config, dry_run)
     structure_results = validate_structure(settings, config, dry_run)
     coherence_results = check_coherence(settings, config, dry_run)
@@ -76,6 +78,13 @@ def run_enforce(
                 old_name=sanitize_result.old_name,
                 new_name=sanitize_result.new_name,
             )
+            if sanitize_result.action in ("renamed", "deleted_duplicate"):
+                log.info(
+                    "enforce_sanitize_filename",
+                    action=sanitize_result.action,
+                    old_name=sanitize_result.old_name,
+                    new_name=sanitize_result.new_name,
+                )
         else:
             event_bus.emit(ItemProgressed(step="enforce", item=sanitize_result.old_name or "", status="skipped"))
 
@@ -100,6 +109,7 @@ def run_enforce(
                     details={"component": "structure", "action": structure_result.action},
                 )
             )
+            log.info("enforce_structure_ok", item=item_name)
         for w in structure_result.warnings:
             warnings_list.append(f"{item_name}: {w}")
             log.warning("enforce_structure_warning", item=item_name, warning=w)
@@ -121,6 +131,7 @@ def run_enforce(
             event_bus.emit(
                 ItemProgressed(step="enforce", item=item_name, status="skipped", details={"component": "coherence"})
             )
+            log.info("enforce_coherence_ok", item=item_name)
         for w in coherence_result.warnings:
             warnings_list.append(f"[coherence] {item_name}: {w}")
             log.warning("enforce_coherence_warning", item=item_name, warning=w)
@@ -131,6 +142,14 @@ def run_enforce(
 
     error_count = sum(1 for sr in sanitize_results if sr.action == "error") + sum(
         1 for sr in structure_results if sr.action == "error"
+    )
+
+    log.info(
+        "enforce_complete",
+        success=success,
+        skip=skip_count,
+        error=error_count,
+        warnings=len(warnings_list),
     )
 
     return StepReport(
