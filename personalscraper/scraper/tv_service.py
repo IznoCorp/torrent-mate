@@ -966,6 +966,13 @@ def _persist_drift_issue(config: "Config | None", show_dir: Path, drift_reason: 
     if db_path is None:
         log.info("item_issue_persist_skipped_no_db", reason="db_path_is_none")
         return
+    if not isinstance(db_path, (str, Path)):
+        log.info(
+            "item_issue_persist_skipped_db_path_not_path",
+            reason="config.indexer.db_path is not a string or Path (likely MagicMock test stub)",
+            type=type(db_path).__name__,
+        )
+        return
     db_file = db_path.expanduser()
     if not db_file.is_absolute():
         from pathlib import Path as _Path
@@ -1024,6 +1031,13 @@ def _clear_drift_issue(config: "Config | None", show_dir: Path) -> None:
         return
     db_path = config.indexer.db_path
     if db_path is None:
+        return
+    if not isinstance(db_path, (str, Path)):
+        log.info(
+            "item_issue_clear_skipped_db_path_not_path",
+            reason="config.indexer.db_path is not a string or Path (likely MagicMock test stub)",
+            type=type(db_path).__name__,
+        )
         return
     db_file = db_path.expanduser()
     if not db_file.is_absolute():
