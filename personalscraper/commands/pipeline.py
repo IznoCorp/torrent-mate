@@ -71,6 +71,7 @@ def ingest(
 
 
 @app.command()
+@cli_telemetry("sort")
 @handle_cli_errors
 def sort(
     ctx: typer.Context,
@@ -106,6 +107,7 @@ def sort(
 
 
 @app.command()
+@cli_telemetry("scrape")
 @handle_cli_errors
 def scrape(
     ctx: typer.Context,
@@ -147,6 +149,7 @@ def scrape(
 
 
 @app.command()
+@cli_telemetry("verify")
 @handle_cli_errors
 def verify(
     ctx: typer.Context,
@@ -184,6 +187,7 @@ def verify(
 
 
 @app.command()
+@cli_telemetry("enforce")
 @handle_cli_errors
 def enforce(
     ctx: typer.Context,
@@ -211,6 +215,7 @@ def enforce(
 
 
 @app.command()
+@cli_telemetry("dispatch")
 @handle_cli_errors
 def dispatch(
     ctx: typer.Context,
@@ -241,6 +246,7 @@ def dispatch(
 
 
 @app.command()
+@cli_telemetry("clean")
 @handle_cli_errors
 def clean(
     ctx: typer.Context,
@@ -288,6 +294,7 @@ def clean(
 
 
 @app.command()
+@cli_telemetry("cleanup")
 @handle_cli_errors
 def cleanup(
     ctx: typer.Context,
@@ -335,6 +342,7 @@ def cleanup(
 
 
 @app.command()
+@cli_telemetry("process")
 @handle_cli_errors
 def process(
     ctx: typer.Context,
@@ -379,6 +387,7 @@ def process(
 
 
 @app.command(help=_run_help())
+@cli_telemetry("run")
 @handle_cli_errors
 def run(
     ctx: typer.Context,
@@ -552,6 +561,7 @@ def run(
 
 
 @app.command("torrents-list")
+@cli_telemetry("torrents-list")
 @handle_cli_errors
 def torrents_list(ctx: typer.Context) -> None:
     """List completed torrents from the active qBittorrent client.
