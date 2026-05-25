@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import sqlite3
 from itertools import zip_longest
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -156,6 +157,180 @@ def _coerce_to_show_data(data: MediaDetails | dict[str, Any]) -> dict[str, Any]:
     if isinstance(data, MediaDetails):
         return _media_details_to_show_data(data)
     return data
+
+
+def _restore_from_db(
+    config: "Config | None",
+    dry_run: bool,
+    movie_dir: Path,
+    title: str,
+    year: int | None,
+    result: ScrapeResult,
+) -> bool:
+    """Restore NFO and artwork from BDD when a re-ingested movie has a valid DB entry.
+
+    When a movie in staging produces no confident TMDB match but already
+    has a valid ``media_item`` row (from a previous successful
+    scrape+dispatch), this copies the NFO and artwork files back from
+    the original dispatch location to the staging directory.
+
+    Fail-soft — every early return is a logged ``False`` without
+    touching ``result``.
+
+    Args:
+        config: Application config (may be None or test stub).
+        dry_run: If True, log what would be copied without copying.
+        movie_dir: Path to the staging movie directory.
+        title: Parsed movie title for the DB lookup.
+        year: Optional release year (informational for logging).
+        result: ScrapeResult mutated on success (action set to
+            ``"restored_from_db"``).
+
+    Returns:
+        True if restoration succeeded, False otherwise.
+    """
+    # 1. Guard: no config or no db_path
+    if config is None:
+        return False
+    db_path = config.indexer.db_path
+    if db_path is None:
+        return False
+    if not isinstance(db_path, (str, Path)):
+        log.info(
+            "movie_db_restore_skipped_db_path_not_path",
+            reason="config.indexer.db_path is not a string or Path (likely MagicMock test stub)",
+            type=type(db_path).__name__,
+        )
+        return False
+
+    db_file = db_path.expanduser()
+    if not db_file.is_absolute():
+        db_file = Path.cwd() / db_file
+    if not db_file.is_file():
+        return False
+
+    # 2. Open connection with canonical PRAGMA
+    try:
+        from personalscraper.indexer.db import _apply_pragmas  # noqa: PLC0415
+
+        conn = sqlite3.connect(str(db_file))
+        _apply_pragmas(conn)
+        conn.row_factory = sqlite3.Row
+    except Exception:
+        log.warning("movie_db_restore_connect_failed", db_path=str(db_file), exc_info=True)
+        return False
+
+    try:
+        # 3. Look up a valid BDD entry by title
+        row = conn.execute(
+            "SELECT mi.id, mi.year AS media_year, ia.value AS dispatch_path "
+            "FROM media_item mi "
+            "LEFT JOIN item_attribute ia ON ia.item_id = mi.id AND ia.key = 'dispatch_path' "
+            "WHERE mi.kind = 'movie' AND mi.title = ? AND mi.nfo_status = 'valid' "
+            "ORDER BY mi.date_modified DESC LIMIT 1",
+            (title,),
+        ).fetchone()
+
+        if row is None:
+            log.info("movie_db_restore_skipped_no_match", title=title, year=year)
+            return False
+
+        item_id = row["id"]
+        dispatch_path_str = row["dispatch_path"]
+
+        if dispatch_path_str is None:
+            log.info("movie_db_restore_skipped_no_dispatch_path", title=title, item_id=item_id)
+            return False
+
+        dispatch_dir = Path(dispatch_path_str)
+        if not dispatch_dir.is_dir():
+            log.info(
+                "movie_db_restore_skipped_dispatch_path_missing",
+                title=title,
+                dispatch_path=str(dispatch_dir),
+            )
+            return False
+
+        # 4. Locate NFO file at dispatch location
+        from personalscraper.nfo_utils import glob_nfo_candidates  # noqa: PLC0415
+
+        nfo_files = glob_nfo_candidates(dispatch_dir)
+        if not nfo_files:
+            log.info(
+                "movie_db_restore_skipped_no_nfo_at_dispatch",
+                title=title,
+                dispatch_path=str(dispatch_dir),
+            )
+            return False
+        if len(nfo_files) > 1:
+            log.info(
+                "movie_db_restore_skipped_ambiguous_nfo",
+                title=title,
+                dispatch_path=str(dispatch_dir),
+                candidates=[f.name for f in nfo_files],
+            )
+            return False
+
+        dispatch_nfo = nfo_files[0]
+
+        # 5. Locate artwork files (any image at the dispatch root)
+        artwork_files: list[Path] = []
+        for ext in (".jpg", ".png", ".jpeg"):
+            artwork_files.extend(sorted(dispatch_dir.glob(f"*{ext}")))
+
+        # 6. Copy (or log in dry-run mode)
+        if dry_run:
+            log.info(
+                "movie_db_restore_would_copy",
+                title=title,
+                item_id=item_id,
+                dispatch_path=str(dispatch_dir),
+                nfo=dispatch_nfo.name,
+                artwork=[f.name for f in artwork_files],
+            )
+            result.action = "restored_from_db"
+            return True
+
+        import shutil
+
+        files_copied = 0
+        dest_nfo = movie_dir / dispatch_nfo.name
+        shutil.copy2(dispatch_nfo, dest_nfo)
+        files_copied += 1
+        log.info(
+            "movie_db_restore_copied_nfo",
+            src=str(dispatch_nfo),
+            dst=str(dest_nfo),
+        )
+
+        for art_file in artwork_files:
+            dest_art = movie_dir / art_file.name
+            shutil.copy2(art_file, dest_art)
+            files_copied += 1
+            log.info(
+                "movie_db_restore_copied_artwork",
+                src=str(art_file),
+                dst=str(dest_art),
+            )
+
+        result.action = "restored_from_db"
+        log.info(
+            "movie_db_restore_success",
+            title=title,
+            item_id=item_id,
+            dispatch_path=str(dispatch_dir),
+            files_copied=files_copied,
+        )
+        return True
+
+    except Exception:
+        log.warning("movie_db_restore_failed", title=title, exc_info=True)
+        return False
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 _FOLDER_PATTERN = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
@@ -345,6 +520,8 @@ class MovieServiceMixin:
         if result.error:
             return result
         if not self._select_best_candidate(match, title, year, result):
+            if _restore_from_db(self.config, self.dry_run, movie_dir, title, year, result):
+                return result
             return result
         assert match is not None  # narrowed by _select_best_candidate returning True
 
