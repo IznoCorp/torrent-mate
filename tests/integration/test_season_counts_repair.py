@@ -40,7 +40,7 @@ def _json_from_result(result: Any) -> dict[str, Any]:
         pos = clean.rfind("{")
     if pos == -1:
         raise ValueError(f"No JSON object found in output: {raw!r}")
-    return json.loads(clean[pos + 1:] if clean[pos] == "\n" else clean[pos:])
+    return json.loads(clean[pos + 1 :] if clean[pos] == "\n" else clean[pos:])
 
 
 def _seed_show_with_seasons(conn: sqlite3.Connection) -> None:
