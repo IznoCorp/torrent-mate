@@ -14,7 +14,7 @@ from types import SimpleNamespace
 import pytest
 
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.scraper.tv_service import _clear_drift_issue, _persist_drift_issue
+from personalscraper.scraper._drift_persistence import clear_drift_issue, persist_drift_issue
 
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations"
 
@@ -61,7 +61,7 @@ class TestItemIssueDriftPersistence:
         conn.close()
 
         config = _make_config(db_path)
-        _persist_drift_issue(config, show_dir, "episode_naming_drift:test.mkv")
+        persist_drift_issue(config, show_dir, "episode_naming_drift:test.mkv")
 
         conn2 = sqlite3.connect(str(db_path))
         conn2.row_factory = sqlite3.Row
@@ -93,7 +93,7 @@ class TestItemIssueDriftPersistence:
         conn.close()
 
         config = _make_config(db_path)
-        _clear_drift_issue(config, show_dir)
+        clear_drift_issue(config, show_dir)
 
         conn2 = sqlite3.connect(str(db_path))
         conn2.row_factory = sqlite3.Row
@@ -120,7 +120,7 @@ class TestItemIssueDriftPersistence:
         config = _make_config(db_path)
 
         with caplog.at_level(logging.INFO, logger="scraper"):
-            _persist_drift_issue(config, show_dir, "episode_naming_drift:test.mkv")
+            persist_drift_issue(config, show_dir, "episode_naming_drift:test.mkv")
 
         conn2 = sqlite3.connect(str(db_path))
         conn2.row_factory = sqlite3.Row
@@ -133,7 +133,7 @@ class TestItemIssueDriftPersistence:
     def test_clear_db_connect_failure_is_logged(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Connect failure in _clear_drift_issue is logged (not swallowed silently)."""
+        """Connect failure in clear_drift_issue is logged (not swallowed silently)."""
         db_path = tmp_path / "library.db"
         db_path.write_text("")  # passes is_file() check
         show_dir = tmp_path / "test_show"
@@ -148,7 +148,7 @@ class TestItemIssueDriftPersistence:
 
         config = _make_config(db_path)
         with caplog.at_level(logging.WARNING, logger="scraper"):
-            _clear_drift_issue(config, show_dir)
+            clear_drift_issue(config, show_dir)
 
         assert any("item_issue_clear_db_connect_failed" in r.message for r in caplog.records)
 
@@ -170,7 +170,7 @@ class TestItemIssueDriftPersistence:
         conn.close()
 
         config = _make_config(str(db_path))  # str, not Path
-        _clear_drift_issue(config, show_dir)
+        clear_drift_issue(config, show_dir)
 
         conn2 = sqlite3.connect(str(db_path))
         conn2.row_factory = sqlite3.Row
