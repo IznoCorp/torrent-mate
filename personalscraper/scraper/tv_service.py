@@ -23,6 +23,7 @@ from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.confidence import LOW_CONFIDENCE
 from personalscraper.scraper.episode_manager import create_season_dirs, match_episode_files, rename_episodes
 from personalscraper.scraper.existing_validator import _infer_year_from_child_names, _local_show_seasons
+from personalscraper.scraper.models import ScraperExternalIds
 from personalscraper.scraper.nfo_generator import NFOGenerator
 from personalscraper.scraper.rename_service import (
     _cleanup_empty_release_dirs,
@@ -518,10 +519,9 @@ class TvServiceMixin:
                     tvdb_data,
                     match.api_id,
                     self._tvdb,
-                    tmdb_id=tmdb_id or 0,
-                    imdb_id=imdb_id,
                     preferred_language=self._scraper_language,
                     fallback_language=self._scraper_fallback_language,
+                    external_ids=ScraperExternalIds(tmdb_id=tmdb_id, imdb_id=imdb_id),
                 )
             else:
                 # Local import: avoids the movie_service ↔ tv_service circular

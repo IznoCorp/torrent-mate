@@ -15,6 +15,7 @@ typed branch must populate the phase-27 fields the parser fills
 from __future__ import annotations
 
 from personalscraper.api.metadata._base import MediaDetails, SeasonInfo
+from personalscraper.scraper.models import ScraperExternalIds
 from personalscraper.scraper.tv_service import _tvdb_series_to_show_data
 
 
@@ -62,9 +63,13 @@ class TestTypedBranch:
         assert s1["poster_path"] == "http://x/s1.jpg"
 
     def test_external_ids_built_from_args(self) -> None:
-        """tmdb_id and imdb_id args populate external_ids."""
+        """external_ids kwarg populates the external_ids dict."""
         md = MediaDetails(provider="tvdb", provider_id="123")
-        out = _tvdb_series_to_show_data(md, tvdb_id=123, tmdb_id=456, imdb_id="tt0001")
+        out = _tvdb_series_to_show_data(
+            md,
+            tvdb_id=123,
+            external_ids=ScraperExternalIds(tmdb_id=456, imdb_id="tt0001"),
+        )
         assert out["external_ids"]["tvdb_id"] == 123
         assert out["external_ids"]["tmdb_id"] == 456
         assert out["external_ids"]["imdb_id"] == "tt0001"

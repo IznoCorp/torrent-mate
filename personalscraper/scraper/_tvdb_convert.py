@@ -29,8 +29,6 @@ def _tvdb_series_to_show_data(
     tvdb_data: "MediaDetails | dict[str, Any]",
     tvdb_id: int,
     tvdb_client: Any = None,
-    tmdb_id: int = 0,
-    imdb_id: str = "",
     preferred_language: str = "fr-FR",
     fallback_language: str = "en-US",
     *,
@@ -53,10 +51,6 @@ def _tvdb_series_to_show_data(
     typed branch derives the same TMDB-flavoured output by reading
     ``MediaDetails`` fields populated by ``_tvdb_parsers.parse_media_details``.
 
-    DEV #30 — prefer ``external_ids`` kwarg (Pydantic model) over flat
-    ``tmdb_id``/``imdb_id`` positional params. Flat params still accepted
-    until 0.17 ; ``external_ids`` wins when both are set.
-
     Lossy fields when the input is ``MediaDetails``:
     - ``status`` (TVDB extended ``status.name``) — not in MediaDetails;
       empty string in the output. Affects only the NFO ``<status>`` tag.
@@ -75,23 +69,19 @@ def _tvdb_series_to_show_data(
         tvdb_client: Optional TVDB client used to fetch artworks. When None, the
             returned dict has empty ``images`` (legacy call sites that don't
             need artwork).
-        tmdb_id: Legacy flat TMDB cross-ref id; 0=absent. Prefer ``external_ids``.
-        imdb_id: Legacy flat IMDB cross-ref id; ""=absent. Prefer ``external_ids``.
         preferred_language: Configured scraping language. Used to select TVDB
             translated titles when available (legacy dict path only).
         fallback_language: Fallback scraping language (legacy dict path only).
-        external_ids: Pydantic ScraperExternalIds (DEV #30 boundary). Wins over
-            flat ``tmdb_id``/``imdb_id`` when set.
+        external_ids: Optional Pydantic ScraperExternalIds carrying TMDB/IMDB
+            cross-references. When ``None`` an empty instance is used (no
+            cross-refs).
 
     Returns:
         Dict with TMDB-compatible fields for NFO/artwork generation.
     """
-    # DEV #30: resolve effective IDs via the shared helper (keeps tv_service.py
-    # under the module-size BLOCK threshold of 1000 LOC — extraction to
-    # models.py avoids inlining the branching logic here).
-    _resolved_tmdb_id, _resolved_imdb_id = ScraperExternalIds.resolve_pair(
-        external_ids, tvdb_id=tvdb_id, tmdb_id=tmdb_id, imdb_id=imdb_id
-    )
+    eff_ids = external_ids if external_ids is not None else ScraperExternalIds()
+    _resolved_tmdb_id = eff_ids.tmdb_id or 0
+    _resolved_imdb_id = eff_ids.imdb_id
 
     if isinstance(tvdb_data, MediaDetails):
         # api-unify path — read the typed model directly.
@@ -165,7 +155,11 @@ def _tvdb_series_to_show_data(
         display_name = translated_name or raw_name
         original_name = tvdb_data.get("originalName") or raw_name
         overview_text = translated_overview or tvdb_data.get("overview", "")
-        external_ids_typed = {"tvdb_id": tvdb_id, "imdb_id": imdb_id}
+        external_ids_typed = {"tvdb_id": tvdb_id}
+        if _resolved_tmdb_id:
+            external_ids_typed["tmdb_id"] = _resolved_tmdb_id
+        if _resolved_imdb_id:
+            external_ids_typed["imdb_id"] = _resolved_imdb_id
 
     # Fetch TVDB artworks via the typed API when a client is provided.
     posters: list[dict[str, Any]] = []
@@ -187,7 +181,7 @@ def _tvdb_series_to_show_data(
             log.warning("tvdb_artwork_fetch_failed", tvdb_id=tvdb_id, error=str(exc))
 
     return {
-        "id": tmdb_id,  # Cross-ref TMDB id (0 when none) — NFO-only, never queried
+        "id": _resolved_tmdb_id,  # Cross-ref TMDB id (0 when none) — NFO-only, never queried
         "name": display_name,
         "original_name": original_name,
         "overview": overview_text,

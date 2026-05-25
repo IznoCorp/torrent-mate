@@ -618,7 +618,8 @@ class ExistingValidatorMixin:
                 # Lazy import: tv_service imports from this module, so a top-level
                 # import would be circular. The conversion is needed because
                 # ``_generate_episode_nfos`` consumes show_data as a dict.
-                from personalscraper.scraper.tv_service import _tvdb_series_to_show_data
+                from personalscraper.scraper.models import ScraperExternalIds  # noqa: PLC0415
+                from personalscraper.scraper.tv_service import _tvdb_series_to_show_data  # noqa: PLC0415
 
                 tvdb_data = self._tvdb.get_series(tvdb_id)
                 external_ids = tvdb_data.external_ids if hasattr(tvdb_data, "external_ids") else {}
@@ -627,10 +628,9 @@ class ExistingValidatorMixin:
                     tvdb_data,
                     tvdb_id,
                     self._tvdb,
-                    tmdb_id=tmdb_id or 0,
-                    imdb_id=imdb_id,
                     preferred_language="fr-FR",
                     fallback_language="en-US",
+                    external_ids=ScraperExternalIds(tmdb_id=tmdb_id, imdb_id=imdb_id),
                 )
                 root_api_episodes = _fetch_season_episodes_tvdb(self._tvdb, tvdb_id, season_nums)
             else:
@@ -719,7 +719,8 @@ class ExistingValidatorMixin:
                     {s for s in (_extract_season_episode(f.name)[0] for f in unorganized) if s is not None and s > 0}
                 )
             if tvdb_id:
-                from personalscraper.scraper.tv_service import _tvdb_series_to_show_data
+                from personalscraper.scraper.models import ScraperExternalIds  # noqa: PLC0415
+                from personalscraper.scraper.tv_service import _tvdb_series_to_show_data  # noqa: PLC0415
 
                 tvdb_data = self._tvdb.get_series(tvdb_id)
                 external_ids = tvdb_data.external_ids if hasattr(tvdb_data, "external_ids") else {}
@@ -728,10 +729,9 @@ class ExistingValidatorMixin:
                     tvdb_data,
                     tvdb_id,
                     self._tvdb,
-                    tmdb_id=tmdb_id or 0,
-                    imdb_id=imdb_id,
                     preferred_language="fr-FR",
                     fallback_language="en-US",
+                    external_ids=ScraperExternalIds(tmdb_id=tmdb_id, imdb_id=imdb_id),
                 )
                 api_episodes = _fetch_season_episodes_tvdb(self._tvdb, tvdb_id, season_nums)
             else:

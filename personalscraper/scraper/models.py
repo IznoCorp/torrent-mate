@@ -15,11 +15,6 @@ Two models are exported:
   :class:`~personalscraper.api.metadata._base.Notations` rating rows,
   used as the typed counterpart of the legacy ``list[dict]`` that was
   threaded through service methods.
-
-Migration note (DEV #30): the old ``imdb_id: str``/``tmdb_id: int``
-flat positional parameters in :func:`~personalscraper.scraper.tv_service._tvdb_series_to_show_data`
-are superseded by :class:`ScraperExternalIds`. Both signatures are
-accepted for one release cycle; the flat params will be dropped in 0.17.
 """
 
 from __future__ import annotations
@@ -46,58 +41,6 @@ class ScraperExternalIds(BaseModel):
     tvdb_id: int | None = None
     tmdb_id: int | None = None
     imdb_id: str = ""
-
-    @classmethod
-    def from_flat_params(cls, tvdb_id: int = 0, tmdb_id: int = 0, imdb_id: str = "") -> "ScraperExternalIds":
-        """Build a :class:`ScraperExternalIds` from legacy flat keyword arguments.
-
-        Converts the zero-sentinel (``tmdb_id=0``) to ``None`` so the
-        model's semantics ("None = not resolved") are preserved when
-        wrapping callers that still use the old signature.
-
-        Args:
-            tvdb_id: TVDB integer ID; 0 is converted to ``None``.
-            tmdb_id: TMDB integer ID; 0 is converted to ``None``.
-            imdb_id: IMDb string ID.
-
-        Returns:
-            ScraperExternalIds with sentinel zeros mapped to None.
-        """
-        return cls(
-            tvdb_id=tvdb_id or None,
-            tmdb_id=tmdb_id or None,
-            imdb_id=imdb_id,
-        )
-
-    @classmethod
-    def resolve_pair(
-        cls,
-        external_ids: "ScraperExternalIds | None",
-        *,
-        tvdb_id: int = 0,
-        tmdb_id: int = 0,
-        imdb_id: str = "",
-    ) -> tuple[int, str]:
-        """Resolve ``(tmdb_id, imdb_id)`` from either a Pydantic model or flat params.
-
-        Helper used by scraper services that accept both the new
-        :class:`ScraperExternalIds` keyword and the legacy flat positional
-        ``tmdb_id`` / ``imdb_id`` for backwards compatibility (DEV #30,
-        migration window). ``external_ids`` wins when provided.
-
-        Args:
-            external_ids: Optional Pydantic model. When ``None``, flat params
-                are used.
-            tvdb_id: Legacy flat TVDB id (forwarded into from_flat_params).
-            tmdb_id: Legacy flat TMDB id; ignored when external_ids is set.
-            imdb_id: Legacy flat IMDb id; ignored when external_ids is set.
-
-        Returns:
-            Tuple ``(resolved_tmdb_id, resolved_imdb_id)`` ready for
-            embedding in NFO output. ``0`` / ``""`` mean absent.
-        """
-        eff = external_ids or cls.from_flat_params(tvdb_id=tvdb_id, tmdb_id=tmdb_id, imdb_id=imdb_id)
-        return eff.tmdb_id or 0, eff.imdb_id
 
     def to_external_ids_dict(self) -> dict[str, int | str]:
         """Return the legacy ``external_ids``-shaped dict for NFO consumers.
