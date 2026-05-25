@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
+from dataclasses import dataclass
 from itertools import zip_longest
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -159,14 +160,73 @@ def _coerce_to_show_data(data: MediaDetails | dict[str, Any]) -> dict[str, Any]:
     return data
 
 
+@dataclass(frozen=True)
+class RestoreOutcome:
+    """Base for the ``_restore_from_db`` outcome sum type."""
+
+    pass
+
+
+@dataclass(frozen=True)
+class Restored(RestoreOutcome):
+    """Restore succeeded — caller sets ``result.action = 'restored_from_db'``."""
+
+    files_copied: int
+    nfo_path: Path
+
+
+@dataclass(frozen=True)
+class NoDb(RestoreOutcome):
+    """Restoration unavailable — config/db_path missing or non-file."""
+
+    reason: str  # e.g. "config_is_none" | "db_path_is_none" | "db_path_not_path" | "db_file_missing" | "connect_failed"
+
+
+@dataclass(frozen=True)
+class NoMatch(RestoreOutcome):
+    """No ``media_item`` row matches the staging title."""
+
+    title: str
+
+
+@dataclass(frozen=True)
+class NoDispatchPath(RestoreOutcome):
+    """Matched item has no ``dispatch_path`` attribute or it points to a missing dir."""
+
+    item_id: int
+
+
+@dataclass(frozen=True)
+class NoNfoAtDispatch(RestoreOutcome):
+    """Dispatch directory exists but contains no NFO files."""
+
+    item_id: int
+    dispatch_path: str
+
+
+@dataclass(frozen=True)
+class AmbiguousNfo(RestoreOutcome):
+    """Multiple NFO candidates at dispatch — manual review required."""
+
+    item_id: int
+    candidates: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class CopyFailed(RestoreOutcome):
+    """Filesystem copy failed mid-way; rollback executed."""
+
+    files_rolled_back: int
+    error: str
+
+
 def _restore_from_db(
     config: "Config | None",
     dry_run: bool,
     movie_dir: Path,
     title: str,
     year: int | None,
-    result: ScrapeResult,
-) -> bool:
+) -> RestoreOutcome:
     """Restore NFO and artwork from BDD when a re-ingested movie has a valid DB entry.
 
     When a movie in staging produces no confident TMDB match but already
@@ -174,8 +234,8 @@ def _restore_from_db(
     scrape+dispatch), this copies the NFO and artwork files back from
     the original dispatch location to the staging directory.
 
-    Fail-soft — every early return is a logged ``False`` without
-    touching ``result``.
+    Fail-soft — every early return produces a typed ``RestoreOutcome``
+    variant instead of mutating a ``ScrapeResult``.
 
     Args:
         config: Application config (may be None or test stub).
@@ -183,18 +243,17 @@ def _restore_from_db(
         movie_dir: Path to the staging movie directory.
         title: Parsed movie title for the DB lookup.
         year: Optional release year (informational for logging).
-        result: ScrapeResult mutated on success (action set to
-            ``"restored_from_db"``).
 
     Returns:
-        True if restoration succeeded, False otherwise.
+        A ``RestoreOutcome`` variant (``Restored`` on success, or a
+        skip/failure variant describing why restoration didn't happen).
     """
     # 1. Guard: no config or no db_path
     if config is None:
-        return False
+        return NoDb(reason="config_is_none")
     db_path = config.indexer.db_path
     if db_path is None:
-        return False
+        return NoDb(reason="db_path_is_none")
     if isinstance(db_path, str):
         db_path = Path(db_path)
     if not isinstance(db_path, Path):
@@ -203,13 +262,13 @@ def _restore_from_db(
             reason="config.indexer.db_path is not a string or Path (likely MagicMock test stub)",
             type=type(db_path).__name__,
         )
-        return False
+        return NoDb(reason="db_path_not_path")
 
     db_file = db_path.expanduser()
     if not db_file.is_absolute():
         db_file = Path.cwd() / db_file
     if not db_file.is_file():
-        return False
+        return NoDb(reason="db_file_missing")
 
     # 2. Open connection with canonical PRAGMA
     try:
@@ -220,7 +279,7 @@ def _restore_from_db(
         conn.row_factory = sqlite3.Row
     except Exception:
         log.warning("movie_db_restore_connect_failed", db_path=str(db_file), exc_info=True)
-        return False
+        return NoDb(reason="connect_failed")
 
     copied_files: list[Path] = []
     try:
@@ -236,14 +295,14 @@ def _restore_from_db(
 
         if row is None:
             log.info("movie_db_restore_skipped_no_match", title=title, year=year)
-            return False
+            return NoMatch(title=title)
 
         item_id = row["id"]
         dispatch_path_str = row["dispatch_path"]
 
         if dispatch_path_str is None:
             log.info("movie_db_restore_skipped_no_dispatch_path", title=title, item_id=item_id)
-            return False
+            return NoDispatchPath(item_id=item_id)
 
         dispatch_dir = Path(dispatch_path_str)
         if not dispatch_dir.is_dir():
@@ -252,7 +311,7 @@ def _restore_from_db(
                 title=title,
                 dispatch_path=str(dispatch_dir),
             )
-            return False
+            return NoDispatchPath(item_id=item_id)
 
         # 4. Locate NFO file at dispatch location
         from personalscraper.nfo_utils import glob_nfo_candidates  # noqa: PLC0415
@@ -264,7 +323,7 @@ def _restore_from_db(
                 title=title,
                 dispatch_path=str(dispatch_dir),
             )
-            return False
+            return NoNfoAtDispatch(item_id=item_id, dispatch_path=str(dispatch_dir))
         if len(nfo_files) > 1:
             log.info(
                 "movie_db_restore_skipped_ambiguous_nfo",
@@ -272,9 +331,13 @@ def _restore_from_db(
                 dispatch_path=str(dispatch_dir),
                 candidates=[f.name for f in nfo_files],
             )
-            return False
+            return AmbiguousNfo(
+                item_id=item_id,
+                candidates=tuple(f.name for f in nfo_files),
+            )
 
         dispatch_nfo = nfo_files[0]
+        dest_nfo = movie_dir / dispatch_nfo.name
 
         # 5. Locate artwork files (any image at the dispatch root)
         artwork_files: list[Path] = []
@@ -291,12 +354,10 @@ def _restore_from_db(
                 nfo=dispatch_nfo.name,
                 artwork=[f.name for f in artwork_files],
             )
-            result.action = "restored_from_db"
-            return True
+            return Restored(files_copied=0, nfo_path=dest_nfo)
 
         import shutil
 
-        dest_nfo = movie_dir / dispatch_nfo.name
         shutil.copy2(dispatch_nfo, dest_nfo)
         copied_files.append(dest_nfo)
         log.info(
@@ -315,7 +376,6 @@ def _restore_from_db(
                 dst=str(dest_art),
             )
 
-        result.action = "restored_from_db"
         log.info(
             "movie_db_restore_success",
             title=title,
@@ -323,9 +383,9 @@ def _restore_from_db(
             dispatch_path=str(dispatch_dir),
             files_copied=len(copied_files),
         )
-        return True
+        return Restored(files_copied=len(copied_files), nfo_path=dest_nfo)
 
-    except Exception:
+    except Exception as exc:
         log.warning(
             "movie_db_restore_failed",
             title=title,
@@ -341,7 +401,7 @@ def _restore_from_db(
                     path=str(f),
                     error=str(unlink_exc),
                 )
-        return False
+        return CopyFailed(files_rolled_back=len(copied_files), error=str(exc))
     finally:
         try:
             conn.close()
@@ -536,9 +596,11 @@ class MovieServiceMixin:
         if result.error:
             return result
         if not self._select_best_candidate(match, title, year, result):
-            if _restore_from_db(self.config, self.dry_run, movie_dir, title, year, result):
-                return result
-            result.action = "skipped_low_confidence"
+            outcome = _restore_from_db(self.config, self.dry_run, movie_dir, title, year)
+            if isinstance(outcome, Restored):
+                result.action = "restored_from_db"
+            else:
+                result.action = "skipped_low_confidence"
             return result
         assert match is not None  # narrowed by _select_best_candidate returning True
 
