@@ -58,13 +58,11 @@ _COMMANDS_ROOT = _REPO_ROOT / "personalscraper" / "commands"
 #: Set of ``(relative_module_path, function_name)`` tuples that currently
 #: violate the console+log parity rule.  Kept separate from the test logic so
 #: the list is easy to audit and update without touching the detection code.
-KNOWN_VIOLATIONS: set[tuple[str, str]] = {
-    ("personalscraper/commands/pipeline.py", "sort"),
-    ("personalscraper/commands/pipeline.py", "scrape"),
-    ("personalscraper/commands/pipeline.py", "verify"),
-    ("personalscraper/commands/pipeline.py", "dispatch"),
-    ("personalscraper/commands/pipeline.py", "process"),
-}
+#:
+#: The cli_telemetry rollout completed in Phase 12.5 (tech-debt 0.16.0) — all
+#: pipeline commands are now bracketed by @cli_telemetry, so the set is empty.
+#: The test remains as a hard regression guard against new violators.
+KNOWN_VIOLATIONS: set[tuple[str, str]] = set()
 
 
 # ---------------------------------------------------------------------------
