@@ -329,3 +329,237 @@ def test_idempotent_re_run(tmp_path: Path, test_config: Any) -> None:
         assert d2["fixed"] == 0
         assert d2["no_release"] == 0
         assert d2["ambiguous"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Helpers for episode-level tests
+# ---------------------------------------------------------------------------
+
+
+def _seed_season(conn: sqlite3.Connection, item_id: int, number: int) -> int:
+    """Seed a season row and return season_id."""
+    cursor = conn.execute(
+        "INSERT INTO season (item_id, number, episode_count, has_poster, episodes_with_nfo) VALUES (?, ?, 0, 0, 0)",
+        (item_id, number),
+    )
+    conn.commit()
+    return cursor.lastrowid  # type: ignore[return-value]
+
+
+def _seed_episode(conn: sqlite3.Connection, season_id: int, number: int, title: str = "Test Episode") -> int:
+    """Seed an episode row and return episode_id."""
+    cursor = conn.execute(
+        "INSERT INTO episode (season_id, number, title) VALUES (?, ?, ?)",
+        (season_id, number, title),
+    )
+    conn.commit()
+    return cursor.lastrowid  # type: ignore[return-value]
+
+
+def _seed_episode_release(conn: sqlite3.Connection, episode_id: int, quality: str = "1080p") -> int:
+    """Seed an episode-level media_release and return release_id."""
+    cursor = conn.execute(
+        "INSERT INTO media_release (episode_id, quality) VALUES (?, ?)",
+        (episode_id, quality),
+    )
+    conn.commit()
+    return cursor.lastrowid  # type: ignore[return-value]
+
+
+# ---------------------------------------------------------------------------
+# Episode-level matching — single episode release → linked
+# ---------------------------------------------------------------------------
+
+
+def test_orphan_episode_file_with_single_episode_release_is_linked(tmp_path: Path, test_config: Any) -> None:
+    """Orphan TV episode file with one episode-level release → linked at episode tier."""
+    db_path = make_synthetic_db(tmp_path)
+    mount = str(tmp_path / "mount")
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+
+    disk_id, path_id = _seed_disk_and_path(conn, mount, "tvshows/Test Show")
+    item_id = _seed_item_with_dispatch(
+        conn, "Test Show", f"{mount}/tvshows/Test Show", kind="show", category_id="tv_shows"
+    )
+    season_id = _seed_season(conn, item_id, 1)
+    episode_id = _seed_episode(conn, season_id, 3)
+    release_id = _seed_episode_release(conn, episode_id)
+    file_id = _seed_orphan_file(conn, path_id, filename="Test.Show.S01E03.1080p.mkv")
+    conn.close()
+
+    with patch("personalscraper.conf.loader.load_config", return_value=test_config):
+        result = run_cli(
+            [
+                "--format",
+                "json",
+                "library-fix-orphan-files",
+                "--db",
+                str(db_path),
+                "--apply",
+            ]
+        )
+
+    assert result.exit_code == 0, result.output
+    data = _json_from_result(result)
+    assert data["apply"] is True
+    assert data["items_scanned"] == 1
+    assert data["fixed"] == 1
+    assert data["episode_level_fixed"] >= 1
+    assert data["item_level_fixed"] == 0
+    assert data["no_release"] == 0
+    assert data["ambiguous"] == 0
+
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    assert _get_release_id(conn, file_id) == release_id
+    conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Episode-level — no season row → falls through
+# ---------------------------------------------------------------------------
+
+
+def test_orphan_episode_file_with_no_season_falls_through(tmp_path: Path, test_config: Any) -> None:
+    """Orphan with episode pattern but no matching season → no_release fallthrough."""
+    db_path = make_synthetic_db(tmp_path)
+    mount = str(tmp_path / "mount")
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+
+    disk_id, path_id = _seed_disk_and_path(conn, mount, "tvshows/No Season Show")
+    _seed_item_with_dispatch(
+        conn, "No Season Show", f"{mount}/tvshows/No Season Show", kind="show", category_id="tv_shows"
+    )
+    # No season row seeded.
+    file_id = _seed_orphan_file(conn, path_id, filename="No.Season.Show.S01E03.mkv")
+    conn.close()
+
+    with patch("personalscraper.conf.loader.load_config", return_value=test_config):
+        result = run_cli(
+            [
+                "--format",
+                "json",
+                "library-fix-orphan-files",
+                "--db",
+                str(db_path),
+                "--apply",
+            ]
+        )
+
+    assert result.exit_code == 0, result.output
+    data = _json_from_result(result)
+    assert data["apply"] is True
+    assert data["items_scanned"] == 1
+    assert data["fixed"] == 0
+    assert data["episode_level_fixed"] == 0
+    assert data["no_release"] == 1
+    assert data["ambiguous"] == 0
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    assert _get_release_id(conn, file_id) is None
+    conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Episode-level — no episode row → falls through
+# ---------------------------------------------------------------------------
+
+
+def test_orphan_episode_file_with_no_episode_falls_through(tmp_path: Path, test_config: Any) -> None:
+    """Season exists but no matching episode → no_release fallthrough."""
+    db_path = make_synthetic_db(tmp_path)
+    mount = str(tmp_path / "mount")
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+
+    disk_id, path_id = _seed_disk_and_path(conn, mount, "tvshows/Missing Ep Show")
+    item_id = _seed_item_with_dispatch(
+        conn, "Missing Ep Show", f"{mount}/tvshows/Missing Ep Show", kind="show", category_id="tv_shows"
+    )
+    _seed_season(conn, item_id, 1)
+    # No episode row for S01E03.
+    file_id = _seed_orphan_file(conn, path_id, filename="Missing.Ep.S01E03.mkv")
+    conn.close()
+
+    with patch("personalscraper.conf.loader.load_config", return_value=test_config):
+        result = run_cli(
+            [
+                "--format",
+                "json",
+                "library-fix-orphan-files",
+                "--db",
+                str(db_path),
+                "--apply",
+            ]
+        )
+
+    assert result.exit_code == 0, result.output
+    data = _json_from_result(result)
+    assert data["apply"] is True
+    assert data["items_scanned"] == 1
+    assert data["fixed"] == 0
+    assert data["episode_level_fixed"] == 0
+    assert data["no_release"] == 1
+    assert data["ambiguous"] == 0
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    assert _get_release_id(conn, file_id) is None
+    conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Episode-level — multiple releases → ambiguous
+# ---------------------------------------------------------------------------
+
+
+def test_orphan_episode_file_with_multiple_releases_is_ambiguous(tmp_path: Path, test_config: Any) -> None:
+    """Multiple episode-level releases for same episode → ambiguous."""
+    db_path = make_synthetic_db(tmp_path)
+    mount = str(tmp_path / "mount")
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+
+    disk_id, path_id = _seed_disk_and_path(conn, mount, "tvshows/Ambiguous Ep Show")
+    item_id = _seed_item_with_dispatch(
+        conn, "Ambiguous Ep Show", f"{mount}/tvshows/Ambiguous Ep Show", kind="show", category_id="tv_shows"
+    )
+    season_id = _seed_season(conn, item_id, 1)
+    episode_id = _seed_episode(conn, season_id, 3)
+    _seed_episode_release(conn, episode_id, quality="1080p")
+    _seed_episode_release(conn, episode_id, quality="2160p")
+    file_id = _seed_orphan_file(conn, path_id, filename="Ambiguous.Ep.S01E03.mkv")
+    conn.close()
+
+    with patch("personalscraper.conf.loader.load_config", return_value=test_config):
+        result = run_cli(
+            [
+                "--format",
+                "json",
+                "library-fix-orphan-files",
+                "--db",
+                str(db_path),
+                "--apply",
+            ]
+        )
+
+    assert result.exit_code == 0, result.output
+    data = _json_from_result(result)
+    assert data["apply"] is True
+    assert data["items_scanned"] == 1
+    assert data["fixed"] == 0
+    assert data["episode_level_fixed"] == 0
+    assert data["ambiguous"] == 1
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    assert _get_release_id(conn, file_id) is None
+    conn.close()
