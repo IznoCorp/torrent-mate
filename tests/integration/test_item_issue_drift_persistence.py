@@ -129,3 +129,55 @@ class TestItemIssueDriftPersistence:
 
         assert len(rows) == 0
         assert any("item_issue_persist_skipped_no_item" in r.message for r in caplog.records)
+
+    def test_clear_db_connect_failure_is_logged(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Connect failure in _clear_drift_issue is logged (not swallowed silently)."""
+        db_path = tmp_path / "library.db"
+        db_path.write_text("")  # passes is_file() check
+        show_dir = tmp_path / "test_show"
+        show_dir.mkdir()
+
+        # Make sqlite3.connect raise to simulate a connection failure
+        monkeypatch.setattr(
+            sqlite3,
+            "connect",
+            lambda *a, **kw: (_ for _ in ()).throw(OSError("Permission denied")),
+        )
+
+        config = _make_config(db_path)
+        with caplog.at_level(logging.WARNING, logger="scraper"):
+            _clear_drift_issue(config, show_dir)
+
+        assert any("item_issue_clear_db_connect_failed" in r.message for r in caplog.records)
+
+    def test_clear_with_str_db_path_succeeds(self, tmp_path: Path) -> None:
+        """db_path passed as str (not Path) is converted and clear works correctly."""
+        db_path = tmp_path / "library.db"
+        show_dir = tmp_path / "test_show_str"
+        show_dir.mkdir()
+
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+        item_id = _seed_show(conn, show_dir, "Test Show Str", art=True)
+        now_s = int(time.time())
+        conn.execute(
+            "INSERT INTO item_issue (item_id, type, detail, detected_at) VALUES (?, 'episode_naming_drift', ?, ?)",
+            (item_id, "episode_naming_drift:test.mkv", now_s),
+        )
+        conn.commit()
+        conn.close()
+
+        config = _make_config(str(db_path))  # str, not Path
+        _clear_drift_issue(config, show_dir)
+
+        conn2 = sqlite3.connect(str(db_path))
+        conn2.row_factory = sqlite3.Row
+        rows = conn2.execute(
+            "SELECT * FROM item_issue WHERE item_id = ? AND type = 'episode_naming_drift'",
+            (item_id,),
+        ).fetchall()
+        conn2.close()
+
+        assert len(rows) == 0

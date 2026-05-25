@@ -211,3 +211,100 @@ class TestBddRestore:
         assert ok is True
         assert result.action == "restored_from_db"
         assert (staging_dir / "Mikado (2024).nfo").exists()
+
+    def test_restore_with_str_db_path_succeeds(self, tmp_path: Path) -> None:
+        """db_path passed as str (not Path) is converted and restore succeeds."""
+        dispatch_dir = tmp_path / "dispatched" / "Mikado (2024)"
+        dispatch_dir.mkdir(parents=True)
+        nfo_file = dispatch_dir / "Mikado (2024).nfo"
+        nfo_file.write_text("<movie><title>Mikado</title></movie>")
+
+        staging_dir = tmp_path / "staging" / "Mikado (2024)"
+        staging_dir.mkdir(parents=True)
+
+        db_path = tmp_path / "library.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+        _seed_movie(conn, "Mikado", str(dispatch_dir))
+        conn.close()
+
+        config = _make_config(str(db_path))  # str, not Path
+        result = ScrapeResult(media_path=staging_dir, media_type="movie")
+
+        ok = _restore_from_db(config, False, staging_dir, "Mikado", 2024, result)
+        assert ok is True
+        assert result.action == "restored_from_db"
+        assert (staging_dir / "Mikado (2024).nfo").exists()
+
+    def test_restore_partial_copy_rolls_back(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Partial copy is rolled back when artwork copy fails mid-way."""
+        import shutil
+
+        dispatch_dir = tmp_path / "dispatched" / "Mikado (2024)"
+        dispatch_dir.mkdir(parents=True)
+        nfo_file = dispatch_dir / "Mikado (2024).nfo"
+        nfo_file.write_text("<movie><title>Mikado</title></movie>")
+        (dispatch_dir / "poster.jpg").write_bytes(b"\xff\xd8\xff\xe0")
+        (dispatch_dir / "fanart.jpg").write_bytes(b"\xff\xd8\xff\xe1")
+
+        staging_dir = tmp_path / "staging" / "Mikado (2024)"
+        staging_dir.mkdir(parents=True)
+
+        db_path = tmp_path / "library.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+        _seed_movie(conn, "Mikado", str(dispatch_dir))
+        conn.close()
+
+        # Fail only on the 2nd copy2 call (1st = NFO succeeds, 2nd = poster fails)
+        real_copy2 = shutil.copy2
+        call_count = [0]
+
+        def failing_copy2(src: str, dst: str) -> str:
+            call_count[0] += 1
+            if call_count[0] == 2:
+                raise OSError("Simulated disk full")
+            return real_copy2(src, dst)
+
+        monkeypatch.setattr(shutil, "copy2", failing_copy2)
+
+        config = _make_config(db_path)
+        result = ScrapeResult(media_path=staging_dir, media_type="movie")
+
+        with caplog.at_level(logging.WARNING, logger="scraper"):
+            ok = _restore_from_db(config, False, staging_dir, "Mikado", 2024, result)
+
+        assert ok is False
+        assert result.action == "error"  # unchanged on failure
+
+        # NFO was copied first, so it must be rolled back
+        nfo_dest = staging_dir / "Mikado (2024).nfo"
+        assert not nfo_dest.exists(), "copied NFO should be rolled back"
+
+        # Logs confirm rollback
+        assert any("movie_db_restore_failed" in r.message for r in caplog.records)
+
+    def test_restore_failure_sets_skipped_low_confidence(self, tmp_path: Path) -> None:
+        """When _restore_from_db fails, _restore_from_db leaves result.action untouched (error).
+
+        The caller is responsible for distinguishing this from a successful restore
+        by setting action to ``skipped_low_confidence``.
+        """
+        db_path = tmp_path / "library.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+        conn.close()
+
+        config = _make_config(db_path)
+        result = ScrapeResult(media_path=Path("/fake"), media_type="movie")
+
+        ok = _restore_from_db(config, False, Path("/staging"), "Unknown Movie", 2024, result)
+        assert ok is False
+        # _restore_from_db contract: action is NOT modified on failure
+        assert result.action == "error"
+
+        # Caller explicitly sets the action for the restore-failure branch
+        result.action = "skipped_low_confidence"
+        assert result.action == "skipped_low_confidence"

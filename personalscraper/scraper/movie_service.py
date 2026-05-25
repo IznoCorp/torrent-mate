@@ -538,7 +538,7 @@ class MovieServiceMixin:
         if not self._select_best_candidate(match, title, year, result):
             if _restore_from_db(self.config, self.dry_run, movie_dir, title, year, result):
                 return result
-            result.action = result.action or "skipped_low_confidence"
+            result.action = "skipped_low_confidence"
             return result
         assert match is not None  # narrowed by _select_best_candidate returning True
 
