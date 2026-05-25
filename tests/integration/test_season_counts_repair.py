@@ -51,6 +51,13 @@ def _seed_show_with_seasons(conn: sqlite3.Connection) -> None:
     - Season 1: episode_count=2 but actually 3 episodes (drifted).
     - Season 2: episode_count=5, 5 episodes (coherent).
     - Season 3: episode_count=5 but 0 episodes (drifted).
+
+    With the recompute triggers from migration 008, drift must be introduced by
+    inserting the episode rows first (trigger fires → correct count), then using
+    a direct UPDATE on ``season.episode_count`` to set the wrong value. The
+    trigger only fires on episode-table changes, so direct season-UPDATEs bypass
+    it. Season 3 needs no override: no episodes → no trigger fires → initial
+    value 5 persists as drift.
     """
     now = 1700000000
 
@@ -62,9 +69,11 @@ def _seed_show_with_seasons(conn: sqlite3.Connection) -> None:
     )
     item_id = cur.lastrowid
 
-    # Season 1: drifted — says 2, actually 3 episodes.
+    # Season 1: insert season (episode_count=0), insert 3 episodes
+    # (trigger recomputes to 3), then force-drift to 2 via direct UPDATE.
     cur = conn.execute(
-        "INSERT INTO season (item_id, number, episode_count, has_poster, episodes_with_nfo) VALUES (?, 1, 2, 0, 0)",
+        "INSERT INTO season (item_id, number, episode_count, has_poster, episodes_with_nfo) "
+        "VALUES (?, 1, 0, 0, 0)",
         (item_id,),
     )
     s1_id = cur.lastrowid
@@ -73,10 +82,13 @@ def _seed_show_with_seasons(conn: sqlite3.Connection) -> None:
             "INSERT INTO episode (season_id, number, title) VALUES (?, ?, ?)",
             (s1_id, ep_num, f"Episode {ep_num}"),
         )
+    conn.execute("UPDATE season SET episode_count = 2 WHERE id = ?", (s1_id,))
 
-    # Season 2: coherent — 5 episodes, episode_count=5.
+    # Season 2: coherent — insert season (episode_count=0), insert 5 episodes
+    # (trigger recomputes to 5). No drift override.
     cur = conn.execute(
-        "INSERT INTO season (item_id, number, episode_count, has_poster, episodes_with_nfo) VALUES (?, 2, 5, 0, 0)",
+        "INSERT INTO season (item_id, number, episode_count, has_poster, episodes_with_nfo) "
+        "VALUES (?, 2, 0, 0, 0)",
         (item_id,),
     )
     s2_id = cur.lastrowid
@@ -86,9 +98,11 @@ def _seed_show_with_seasons(conn: sqlite3.Connection) -> None:
             (s2_id, ep_num, f"Episode {ep_num}"),
         )
 
-    # Season 3: drifted — says 5, actually 0 episodes.
+    # Season 3: drifted — insert season with episode_count=5, no episodes.
+    # No trigger fires (no episode changes), so episode_count stays 5.
     conn.execute(
-        "INSERT INTO season (item_id, number, episode_count, has_poster, episodes_with_nfo) VALUES (?, 3, 5, 0, 0)",
+        "INSERT INTO season (item_id, number, episode_count, has_poster, episodes_with_nfo) "
+        "VALUES (?, 3, 5, 0, 0)",
         (item_id,),
     )
 

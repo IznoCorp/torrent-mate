@@ -171,7 +171,7 @@ class TestSeasonCountTrigger:
         ).fetchall()
         assert len(triggers) == 3
         assert [t[0] for t in triggers] == [
-            "trg_season_episode_count_dec",
-            "trg_season_episode_count_inc",
-            "trg_season_episode_count_move",
+            "trg_season_episode_count_after_delete",
+            "trg_season_episode_count_after_insert",
+            "trg_season_episode_count_after_update",
         ]
