@@ -25,7 +25,9 @@ from personalscraper.api.metadata._contracts import (
 from personalscraper.api.metadata.registry._errors import WrongSemanticBug
 
 if TYPE_CHECKING:
-    from personalscraper.api.metadata.registry import Mode
+    from personalscraper.api.metadata.registry import (  # type: ignore[attr-defined]  # forward-ref: defined in sub-phase 0.2
+        Mode,
+    )
 
 # Frozen sets — one place to update when adding a new Protocol.
 CHAIN_CAPABILITIES: frozenset[type] = frozenset(
@@ -79,7 +81,9 @@ def mode_for(capability: type) -> Mode:
     Raises:
         WrongSemanticBug: If the capability is not a known registry capability.
     """
-    from personalscraper.api.metadata.registry import Mode  # lazy — defined in 0.2
+    from personalscraper.api.metadata.registry import (  # type: ignore[attr-defined]  # forward-ref: defined in sub-phase 0.2
+        Mode,
+    )
 
     if capability in CHAIN_CAPABILITIES:
         return Mode.CHAIN
