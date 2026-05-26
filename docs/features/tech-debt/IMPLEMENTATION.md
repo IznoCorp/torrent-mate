@@ -5,6 +5,7 @@
 **SemVer bump**: MINOR (0.15.1 → 0.16.0)
 **DESIGN**: docs/features/tech-debt/DESIGN.md
 **Plan INDEX**: docs/features/tech-debt/plan/INDEX.md
+**PR**: https://github.com/LounisBou/personal-scraper/pull/24
 
 ## Phases
 
