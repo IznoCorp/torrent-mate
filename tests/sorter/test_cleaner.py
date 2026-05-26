@@ -256,9 +256,7 @@ class TestFakeYearFallback:
 
     def test_vof_ad_stripped(self, cleaner):
         """VOF and AD absorbed into title without year are stripped."""
-        result = cleaner.clean(
-            "Le.Bus.Les.Bleus.En.Greve.VOF.AD.1080p.WEB.NF.DV.HDR.H265.EAC3.5.1-Amen.mkv"
-        )
+        result = cleaner.clean("Le.Bus.Les.Bleus.En.Greve.VOF.AD.1080p.WEB.NF.DV.HDR.H265.EAC3.5.1-Amen.mkv")
         assert result == "Le Bus Les Bleus En Greve"
 
     def test_nost_stripped(self, cleaner):
@@ -268,9 +266,7 @@ class TestFakeYearFallback:
 
     def test_already_has_year_no_change(self, cleaner):
         """When year is already present, title is left untouched."""
-        result = cleaner.clean(
-            "De.Si.Remarquables.Créatures.2026.MULTi.VFF.1080p.WEBRip.x264.mkv"
-        )
+        result = cleaner.clean("De.Si.Remarquables.Créatures.2026.MULTi.VFF.1080p.WEBRip.x264.mkv")
         assert result == "De Si Remarquables Créatures"
 
     def test_no_metadata_tokens_keeps_title(self, cleaner):
@@ -280,7 +276,5 @@ class TestFakeYearFallback:
 
     def test_clean_for_folder_also_fixed(self, cleaner):
         """clean_for_folder also benefits from the fake-year fallback."""
-        result = cleaner.clean_for_folder(
-            "Le.Bus.Les.Bleus.En.Greve.VOF.AD.1080p.WEB.mkv"
-        )
+        result = cleaner.clean_for_folder("Le.Bus.Les.Bleus.En.Greve.VOF.AD.1080p.WEB.mkv")
         assert result == "Le Bus Les Bleus En Greve"

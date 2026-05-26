@@ -349,6 +349,7 @@ class FakeTMDB:
         Args:
             title: Movie title query (unused by stub).
             year: Optional release year filter (unused by stub).
+            language: Optional language override (unused by stub).
 
         Returns:
             List of ``SearchResult`` instances built from canned dicts.

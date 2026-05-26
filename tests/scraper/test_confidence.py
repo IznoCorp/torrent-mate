@@ -331,7 +331,9 @@ class TestMatchMovie:
             if y == 2026 and language == "fr-FR":
                 return []
             if y is None and language == "fr-FR":
-                return [_sr_tmdb_movie({"id": 42, "title": "De Si Remarquables Créatures", "release_date": "2024-06-01"})]
+                return [
+                    _sr_tmdb_movie({"id": 42, "title": "De Si Remarquables Créatures", "release_date": "2024-06-01"})
+                ]
             return []
 
         client.search_movie.side_effect = search_side
@@ -459,11 +461,7 @@ class TestMatchMovie:
             result = match_movie(client, "Test", 2026)
 
         assert result is not None
-        events = [
-            r.msg.get("event")
-            for r in caplog.records
-            if isinstance(r.msg, dict)
-        ]
+        events = [r.msg.get("event") for r in caplog.records if isinstance(r.msg, dict)]
         assert "movie_match_year_fallback" in events
 
     def test_language_fallback_logs_event(self, caplog: pytest.LogCaptureFixture) -> None:
@@ -485,11 +483,7 @@ class TestMatchMovie:
             result = match_movie(client, "Test", 2024)
 
         assert result is not None
-        events = [
-            r.msg.get("event")
-            for r in caplog.records
-            if isinstance(r.msg, dict)
-        ]
+        events = [r.msg.get("event") for r in caplog.records if isinstance(r.msg, dict)]
         assert "movie_match_language_fallback" in events
 
     def test_year_language_fallback_logs_event(self, caplog: pytest.LogCaptureFixture) -> None:
@@ -513,11 +507,7 @@ class TestMatchMovie:
             result = match_movie(client, "Test", 2026)
 
         assert result is not None
-        events = [
-            r.msg.get("event")
-            for r in caplog.records
-            if isinstance(r.msg, dict)
-        ]
+        events = [r.msg.get("event") for r in caplog.records if isinstance(r.msg, dict)]
         assert "movie_match_year_language_fallback" in events
 
 
