@@ -8,11 +8,17 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/registry/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/registry/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                     | File                                      | Status |
+| --- | ----------------------------------------- | ----------------------------------------- | ------ |
+| 0   | New types, shells, characterization tests | phase-00-types-shells-characterization.md | [ ]    |
+| 1   | Boot wiring + chain migration             | phase-01-boot-wiring-chain.md             | [ ]    |
+| 2   | Scraper locked migration                  | phase-02-scraper-locked.md                | [ ]    |
+| 3   | Out-of-scraper consumers                  | phase-03-out-of-scraper.md                | [ ]    |
+| 4   | Cleanup, observability, docs              | phase-04-cleanup-obs-docs.md              | [ ]    |
 
 ## Review cycles
 
@@ -20,4 +26,4 @@ _(filled by /implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start Phase 0.
