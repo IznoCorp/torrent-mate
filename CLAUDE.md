@@ -214,7 +214,7 @@ Also check archived alpha versions under `docs/archive/legacy-alpha/` and archiv
 
 ## Current Feature
 
-**Feature**: event-bus
-**Branch**: feat/event-bus
-**Design**: docs/features/event-bus/DESIGN.md
-**Plan**: docs/features/event-bus/plan/
+**Feature**: _(awaiting /implement:feature)_
+**Branch**: _(to be defined)_
+**Design**: _(to be defined)_
+**Plan**: _(to be defined)_

@@ -4,10 +4,10 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - "*.md"
+    # No paths-ignore: doc-only PRs (archive, README updates, plan files) would
+    # otherwise skip the workflow entirely. Required-status-check rules on main
+    # then leave the PR stuck in "expected" state forever (no run = no result).
+    # Running CI on every PR (~3-5 min) is cheaper than diagnosing stuck PRs.
 
 permissions:
   contents: read
