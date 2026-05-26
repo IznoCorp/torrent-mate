@@ -333,7 +333,13 @@ class FakeTMDB:
 
     # Minimal protocol surface so callers of search/get_movie/get_tv work.
 
-    def search_movie(self, title: str, year: int | None = None) -> list[SearchResult]:
+    def search_movie(
+        self,
+        title: str,
+        year: int | None = None,
+        *,
+        language: str | None = None,
+    ) -> list[SearchResult]:
         """Return canned movie search results as typed SearchResult instances.
 
         Reshapes the legacy ``{"id", "title", "release_date"}`` dicts the canned
