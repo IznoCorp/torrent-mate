@@ -117,16 +117,14 @@ jobs:
       # by the coverage-merge job via `coverage report --fail-under=<threshold>`
       # on the combined .coverage.unit + .coverage.integ data.
       - run: python -m pytest tests/unit/ -q --no-header -n auto --cov=personalscraper --cov-branch --cov-fail-under=0
-      - run: mv .coverage .coverage.unit
+      # Rename to non-dotfile so upload-artifact@v4 picks it up
+      # (v4 silently skips dotfiles by default; we avoid that whole issue
+      # by working with a normal filename).
+      - run: mv .coverage coverage_unit.dat
       - uses: actions/upload-artifact@v4
         with:
           name: coverage-unit
-          path: .coverage.unit
-          # `.coverage.unit` is a dotfile; upload-artifact@v4 silently skips
-          # hidden files by default since the v4 breaking change. Explicitly
-          # opt in or the artifact becomes an empty upload (which coverage-merge
-          # then fails to find at download time).
-          include-hidden-files: true
+          path: coverage_unit.dat
 
   test-integration:
     name: test-integration
@@ -146,13 +144,12 @@ jobs:
       # See test-unit comment: --cov-fail-under=0 disables per-shard threshold;
       # the merged 90% gate is enforced by coverage-merge.
       - run: python -m pytest tests/integration/ -q --no-header -n auto --cov=personalscraper --cov-branch --cov-fail-under=0
-      - run: mv .coverage .coverage.integ
+      # See test-unit: rename to non-dotfile.
+      - run: mv .coverage coverage_integ.dat
       - uses: actions/upload-artifact@v4
         with:
           name: coverage-integration
-          path: .coverage.integ
-          # See test-unit upload — dotfile, v4 needs explicit opt-in.
-          include-hidden-files: true
+          path: coverage_integ.dat
 
   security:
     name: security
@@ -201,6 +198,11 @@ jobs:
       - name: Combine and check coverage
         run: |
           set -euo pipefail
+          # coverage combine expects the .coverage.<suffix> convention; rename
+          # the downloaded artifact files (which are now non-dotfile) back
+          # before combining.
+          mv coverage_unit.dat .coverage.unit
+          mv coverage_integ.dat .coverage.integ
           coverage combine .coverage.unit .coverage.integ
           THRESHOLD=$(python3 scripts/get_coverage_threshold.py)
           coverage report --fail-under="${THRESHOLD}"
