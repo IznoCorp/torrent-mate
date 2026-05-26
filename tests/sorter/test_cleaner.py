@@ -278,3 +278,22 @@ class TestFakeYearFallback:
         """clean_for_folder also benefits from the fake-year fallback."""
         result = cleaner.clean_for_folder("Le.Bus.Les.Bleus.En.Greve.VOF.AD.1080p.WEB.mkv")
         assert result == "Le Bus Les Bleus En Greve"
+
+
+# --- Unicode normalization ---
+
+
+class TestUnicodeNormalization:
+    """NFD filenames from macOS are normalized to NFC."""
+
+    def test_nfd_filename_normalized_to_nfc(self, cleaner):
+        """MacOS NFD decomposed accents are normalized to NFC."""
+        nfd_name = b"De Si Remarquables Cre\xcc\x81atures (2026)".decode("utf-8")
+        result = cleaner.clean(nfd_name)
+        assert "Créatures" in result
+        assert "Créatures" not in result
+
+    def test_nfc_title_passes_through(self, cleaner):
+        """Already-NFC title is unchanged."""
+        result = cleaner.clean("De Si Remarquables Créatures (2026)")
+        assert "Créatures" in result

@@ -8,6 +8,7 @@ and season packs natively.
 See docs/guessit-evaluation.md for the full evaluation.
 """
 
+import unicodedata
 from datetime import datetime
 from functools import lru_cache
 from typing import Any
@@ -102,6 +103,7 @@ def _guess_cached(name: str) -> dict[str, Any]:
         Dictionary of guessit results (title, year, season, episode, type, etc.).
     """
     result = dict(guess(name))
+    result["title"] = unicodedata.normalize("NFC", str(result.get("title", "")))
 
     if result.get("year") is not None:
         return result
@@ -119,7 +121,7 @@ def _guess_cached(name: str) -> dict[str, Any]:
     fake_year = str(datetime.now().year)
     modified = ".".join(parts[:boundary] + [fake_year] + parts[boundary:])
     recovered = dict(guess(modified))
-    result["title"] = recovered.get("title", result["title"])
+    result["title"] = unicodedata.normalize("NFC", str(recovered.get("title", result["title"])))
 
     return result
 
