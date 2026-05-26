@@ -14,7 +14,7 @@ from personalscraper.indexer import cli as cli_compat
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
-    pass
+    from typing import Any  # noqa: F401
 
 log = get_logger("indexer.cli")
 
@@ -284,6 +284,31 @@ def library_index_command(
                         except Exception:  # noqa: BLE001 — best-effort rollback
                             pass
 
+                # --- Mark missed files (DEV #18 — drift mechanism wire) ---
+                # Files on each disk whose ``scan_generation < next_gen`` AND
+                # ``deleted_at IS NULL`` have their ``miss_strikes`` incremented.
+                # Without this call, ``apply_soft_deletes`` below could never
+                # tombstone anything: ``miss_strikes`` would stay at 0 forever.
+                # Restricted to ``full`` mode because quick/incremental do not
+                # walk every file — bumping strikes there would incorrectly
+                # mark visited-but-not-walked files as missed. Skipped on
+                # ``dry_run`` because this is a write that mutates state
+                # outside any rollback boundary (writes happen in their own
+                # implicit transaction here, not in the dry-run savepoint).
+                if not dry_run and scan_mode in (ScanMode.full,):
+                    from personalscraper.indexer.drift import mark_missed_files  # noqa: PLC0415
+
+                    for d in filtered_disks:
+                        try:
+                            mark_missed_files(conn, d.id, next_gen)
+                        except sqlite3.Error as miss_exc:
+                            log.warning(
+                                "indexer.cli.index.mark_missed_failed",
+                                disk_id=d.id,
+                                error=str(miss_exc),
+                                error_type=type(miss_exc).__name__,
+                            )
+
                 # --- Apply soft-deletes (per disk, post-walk) ---
                 # Files that exceeded the miss-strike threshold during the
                 # walk are now finalised: deleted_at is set, a deleted_item
@@ -346,11 +371,11 @@ def library_reconcile_command(
     enqueue_repairs: bool = False,
     config_path: Path | None = None,
     event_bus: "EventBus",
-) -> int:
+) -> tuple[int, dict[str, Any]]:
     """Detect index ↔ filesystem divergences without a full rescan.
 
     Runs the DB-only checks in :mod:`personalscraper.indexer.reconcile`
-    and prints a JSON summary of findings.  When ``enqueue_repairs`` is
+    and returns a ``(rc, summary)`` tuple.  When ``enqueue_repairs`` is
     True, every divergence is also pushed into ``repair_queue`` so that
     ``library-repair`` can drain them with a wall-clock budget.  The
     partial UNIQUE INDEX from migration 003 deduplicates findings the
@@ -368,9 +393,9 @@ def library_reconcile_command(
             are wired to.
 
     Returns:
-        ``0`` on success, ``1`` on infrastructure error.
+        ``(0, summary_dict)`` on success, ``(1, {"error": str})`` on
+        infrastructure error.
     """
-    import json  # noqa: PLC0415
     from typing import cast  # noqa: PLC0415
 
     from personalscraper.conf.loader import (  # noqa: PLC0415
@@ -400,7 +425,7 @@ def library_reconcile_command(
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
         typer.echo(f"Config error: {exc}", err=True)
-        return 1
+        return 1, {"error": str(exc)}
 
     db_path = cfg.indexer.db_path
     assert db_path is not None, "indexer.db_path must be resolved"
@@ -419,7 +444,7 @@ def library_reconcile_command(
         IndexerMigrationError,
     ) as exc:
         typer.echo(str(exc), err=True)
-        return 1
+        return 1, {"error": str(exc)}
 
     with closing(conn):
         try:
@@ -432,7 +457,7 @@ def library_reconcile_command(
             IndexerMigrationError,
         ) as exc:
             typer.echo(str(exc), err=True)
-            return 1
+            return 1, {"error": str(exc)}
 
         # Type cast: typer hands us Sequence[str], reconcile() requires the
         # narrower Literal-typed list.  The detector itself silently ignores
@@ -458,11 +483,12 @@ def library_reconcile_command(
             "season_count_drift_sample": report.season_count_drift[:10],
             "items_without_files_count": len(report.items_without_files),
             "items_without_files_sample": report.items_without_files[:10],
+            "path_missing_count": len(report.path_missing),
+            "path_missing_sample": report.path_missing[:10],
             "total_findings": report.total_findings,
             "enqueued_repairs": report.enqueued_repairs,
         }
-        typer.echo(json.dumps(summary, indent=2))
-        return 0
+        return 0, summary
 
 
 # ---------------------------------------------------------------------------

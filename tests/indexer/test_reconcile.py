@@ -1,6 +1,6 @@
 """Tests for personalscraper.indexer.reconcile.
 
-Six detectors + an orchestrator covered with focused unit tests:
+Seven detectors + an orchestrator covered with focused unit tests:
 each detector gets one positive (divergence present, expected count)
 and one negative (clean DB, zero count) scenario, plus an integration
 test that asserts the orchestrator enqueues into ``repair_queue`` and
@@ -20,6 +20,7 @@ from personalscraper.indexer.reconcile import (
     detect_dispatch_path_missing,
     detect_enrich_stale,
     detect_items_without_files,
+    detect_path_missing,
     detect_release_orphans,
     detect_season_count_drift,
     reconcile,
@@ -261,20 +262,31 @@ class TestSeasonCountDrift:
     """Detector returns seasons whose episode_count != actual count."""
 
     def test_count_matches_not_flagged(self, tmp_path: Path) -> None:
-        """A season whose stored count matches actual episodes is NOT flagged."""
+        """A season whose stored count matches actual episodes is NOT flagged.
+
+        With migration 008 triggers, episode_count is auto-maintained on INSERT.
+        Seed with episode_count=0; after 2 inserts the trigger will have set it to 2.
+        """
         conn = _make_db(tmp_path)
         item_id = _seed_item(conn, kind="show")
-        season_id = _seed_season(conn, item_id, episode_count=2)
+        season_id = _seed_season(conn, item_id, episode_count=0)
         _seed_episode(conn, season_id, 1)
         _seed_episode(conn, season_id, 2)
         assert detect_season_count_drift(conn) == []
 
     def test_count_drift_flagged(self, tmp_path: Path) -> None:
-        """A season whose stored count is wrong IS flagged."""
+        """A season whose stored count is wrong IS flagged.
+
+        With the recompute trigger (migration 008), inserting an episode
+        auto-corrects episode_count. Drift must be introduced by inserting
+        the episode first, then directly UPDATING season.episode_count
+        to the wrong value (the trigger only fires on episode-table changes).
+        """
         conn = _make_db(tmp_path)
         item_id = _seed_item(conn, kind="show")
-        season_id = _seed_season(conn, item_id, episode_count=5)  # claims 5
-        _seed_episode(conn, season_id, 1)  # but only 1 exists
+        season_id = _seed_season(conn, item_id, episode_count=0)
+        _seed_episode(conn, season_id, 1)  # trigger recomputes to 1
+        conn.execute("UPDATE season SET episode_count = 5 WHERE id = ?", (season_id,))
         assert detect_season_count_drift(conn) == [season_id]
 
 
@@ -301,6 +313,133 @@ class TestItemsWithoutFiles:
         conn = _make_db(tmp_path)
         item_id = _seed_item(conn)
         assert detect_items_without_files(conn) == [item_id]
+
+
+# ---------------------------------------------------------------------------
+# detect_path_missing
+# ---------------------------------------------------------------------------
+
+
+class TestPathMissing:
+    """Detector returns path.id values whose absolute path is gone from disk.
+
+    Regression test for MUST-4 / BD-C: paths whose disk.mount_path +
+    rel_path no longer exists on the filesystem must be detected so that
+    repair_queue can soft-delete their associated media_file rows.
+    """
+
+    def test_existing_path_not_flagged(self, tmp_path: Path) -> None:
+        """A path row whose resolved absolute path exists is NOT flagged."""
+        conn = _make_db(tmp_path)
+        # The path directory must exist on disk.
+        present_dir = tmp_path / "category" / "Movie Title"
+        present_dir.mkdir(parents=True)
+
+        disk_id = _seed_disk(conn, mount_path=str(tmp_path))
+        _seed_path(conn, disk_id, "category/Movie Title")
+
+        assert detect_path_missing(conn) == []
+
+    def test_missing_path_flagged(self, tmp_path: Path) -> None:
+        """A path row whose resolved absolute path is gone IS flagged.
+
+        Reproduces MUST-4: without detect_path_missing, deleted directories
+        accumulate as phantom path rows with no repair trigger.
+        """
+        conn = _make_db(tmp_path)
+        disk_id = _seed_disk(conn, mount_path=str(tmp_path))
+        path_id = _seed_path(conn, disk_id, "category/Deleted Show")
+        # Deliberately do NOT create the directory — it is missing from FS.
+
+        result = detect_path_missing(conn)
+        assert result == [path_id]
+
+    def test_mixed_paths_returns_only_missing(self, tmp_path: Path) -> None:
+        """Only missing paths are returned; present paths are excluded."""
+        conn = _make_db(tmp_path)
+        present_dir = tmp_path / "present"
+        present_dir.mkdir()
+
+        disk_id = _seed_disk(conn, mount_path=str(tmp_path))
+        present_id = _seed_path(conn, disk_id, "present")
+        missing_id = _seed_path(conn, disk_id, "absent")
+
+        result = detect_path_missing(conn)
+        assert present_id not in result
+        assert missing_id in result
+
+    def test_unmounted_disk_excluded(self, tmp_path: Path) -> None:
+        """Paths on unmounted disks are NOT evaluated — offline ≠ missing.
+
+        The disk schema requires mount_path IS NULL when is_mounted = 0
+        (CHECK constraint). The detector must skip such disks entirely.
+        """
+        conn = _make_db(tmp_path)
+        # Insert disk with is_mounted=0 (offline); mount_path must be NULL per CHECK.
+        cursor = conn.execute(
+            "INSERT INTO disk (uuid, label, mount_path, last_seen_at, is_mounted, unreachable_strikes) "
+            "VALUES (?, ?, NULL, ?, 0, 0)",
+            ("offline_uuid", "offline_disk", int(time.time())),
+        )
+        disk_id = cursor.lastrowid
+        assert disk_id is not None
+        # Path directory does NOT exist on FS — but disk is offline, so ignored.
+        _seed_path(conn, disk_id, "category/Phantom Show")
+
+        # Because the disk is unmounted, detect_path_missing should ignore it.
+        assert detect_path_missing(conn) == []
+
+    def test_path_missing_scope_in_orchestrator(self, tmp_path: Path) -> None:
+        """``reconcile(scopes=['path_missing'])`` populates report.path_missing."""
+        conn = _make_db(tmp_path)
+        disk_id = _seed_disk(conn, mount_path=str(tmp_path))
+        path_id = _seed_path(conn, disk_id, "category/Gone Show")
+        # Directory intentionally absent from FS.
+
+        report = reconcile(conn, scopes=["path_missing"])
+        assert path_id in report.path_missing
+        assert report.total_findings == 1
+
+    def test_path_missing_enqueues_repair(self, tmp_path: Path) -> None:
+        """Missing paths are enqueued into repair_queue with scope='path'."""
+        conn = _make_db(tmp_path)
+        disk_id = _seed_disk(conn, mount_path=str(tmp_path))
+        path_id = _seed_path(conn, disk_id, "category/Gone Show")
+
+        report = reconcile(conn, scopes=["path_missing"], enqueue_repairs=True)
+        assert report.enqueued_repairs >= 1
+
+        row = conn.execute(
+            "SELECT scope, scope_id, reason, payload_json FROM repair_queue WHERE reason = 'reconcile.path.missing'"
+        ).fetchone()
+        assert row is not None
+        assert row[0] == "path"
+        assert row[1] == path_id
+        import json
+
+        payload = json.loads(row[3])
+        assert payload.get("detector") == "path_missing"
+
+    def test_path_missing_enqueue_carries_soft_delete_subtree_action(self, tmp_path: Path) -> None:
+        """repair_queue rows for missing paths carry action='soft_delete_subtree' (BD-D).
+
+        Regression test: without this payload key, library-repair cannot dispatch
+        the correct handler and the media_file rows under the missing path would
+        remain live despite the directory being gone.
+        """
+        conn = _make_db(tmp_path)
+        disk_id = _seed_disk(conn, mount_path=str(tmp_path))
+        _seed_path(conn, disk_id, "category/Gone Show")
+
+        reconcile(conn, scopes=["path_missing"], enqueue_repairs=True)
+
+        row = conn.execute("SELECT payload_json FROM repair_queue WHERE reason = 'reconcile.path.missing'").fetchone()
+        assert row is not None
+        payload = json.loads(row[0])
+        assert payload.get("action") == "soft_delete_subtree", (
+            "library-repair dispatches on payload['action']; missing or wrong action "
+            "means soft_delete_subtree handler is never triggered (BD-D regression)"
+        )
 
 
 # ---------------------------------------------------------------------------

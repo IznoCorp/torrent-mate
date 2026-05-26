@@ -569,3 +569,26 @@ class TestVerifierEdgeCases:
             v._classify(result, [cat], tmp_path, "movie")
         assert result.category is None
         assert result.status == "valid"
+
+
+class TestFindNfoAppleDouble:
+    """Regression: ``Verifier._find_nfo`` must skip macOS AppleDouble shadows.
+
+    Before commit c296e41 (phase 11.3) ``_find_nfo`` used a raw
+    ``media_dir.glob("*.nfo")``.  On NTFS / SMB shares macOS creates
+    ``._<name>.nfo`` extended-attribute sidecars that sort BEFORE the real
+    ``<name>.nfo`` alphabetically, so ``nfo_files[0]`` returned the binary
+    AppleDouble instead of the legitimate NFO — every downstream XML parse
+    then failed with ``ParseError`` and the item was misclassified.
+    """
+
+    def test_find_nfo_skips_apple_double_shadow(self, tmp_path: Path) -> None:
+        """A binary ``._Title (2010).nfo`` sidecar must NOT shadow the real NFO."""
+        # Binary AppleDouble blob — would fail ET.parse with a ParseError.
+        (tmp_path / "._Title (2010).nfo").write_bytes(b"\x00\x05\x16\x07\x00\x02\x00\x00Mac OS X        ")
+        real_nfo = tmp_path / "Title (2010).nfo"
+        real_nfo.write_text("<movie><title>Title</title></movie>", encoding="utf-8")
+
+        result = Verifier._find_nfo(tmp_path, "movie")
+
+        assert result == real_nfo, f"expected real NFO, got {result}"

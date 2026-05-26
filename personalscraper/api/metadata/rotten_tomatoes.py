@@ -29,6 +29,7 @@ from personalscraper.api._contracts import ApiError
 from personalscraper.api._helpers import ProviderFeatureUnavailable
 from personalscraper.api.metadata._base import Notations
 from personalscraper.api.metadata._contracts import RatingProvider
+from personalscraper.api.metadata.omdb import OmdbQuotaExhausted
 
 if TYPE_CHECKING:
     from personalscraper.api.metadata.omdb import OMDbAdapter
@@ -87,11 +88,17 @@ class RottenTomatoesClient(RatingProvider):
             entries, or ``None`` when no RT rating is available.
 
         Raises:
+            OmdbQuotaExhausted: OMDb daily quota exhausted (pre-call or
+                runtime). Propagated so the consumer can stop the
+                rating pass rather than treat quota-gone as "no
+                Rotten Tomatoes data available".
             ProviderFeatureUnavailable: OMDb returned an
-                :class:`ApiError`.
+                :class:`ApiError` (non-quota transport failure).
         """
         try:
             notations = self._backend.get_notations(provider_id)
+        except OmdbQuotaExhausted:
+            raise
         except ApiError as exc:
             raise ProviderFeatureUnavailable(
                 "rotten_tomatoes",

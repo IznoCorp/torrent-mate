@@ -13,7 +13,12 @@ from personalscraper.logger import get_logger
 log = get_logger("indexer.cli")
 
 
-def library_status_command(config_path: Path | None = None, *, event_bus: EventBus) -> int:
+def library_status_command(
+    config_path: Path | None = None,
+    *,
+    event_bus: EventBus,
+    output_format: str = "rich",
+) -> int:
     """Print a tabular summary of disk inventory, scan health, and queue depths.
 
     Loads the PersonalScraper config, opens (or creates) the indexer database,
@@ -42,6 +47,9 @@ def library_status_command(config_path: Path | None = None, *, event_bus: EventB
         event_bus: Required :class:`EventBus` forwarded to ``open_db`` so
             the pre-open free-space guard emits ``DiskFullWarning`` on the
             run's subscriber-wired bus.
+        output_format: Output format: ``"rich"`` (default, prints a tabular
+            view), ``"json"`` (prints JSON dict), or ``"plain"`` (prints
+            key: value lines).
 
     Returns:
         ``0`` on success, ``1`` on infrastructure error or unhealthy state.
@@ -135,11 +143,20 @@ def library_status_command(config_path: Path | None = None, *, event_bus: EventB
             "SELECT id, label, is_mounted, last_seen_at, merkle_root FROM disk ORDER BY label"
         ).fetchall()
         typer.echo(f"{'DISK':<20} {'MOUNTED':<10} {'LAST_SEEN':<20} {'MERKLE_ROOT'}")
+        disks_data: list[dict[str, object]] = []
         for d_id, label, is_mounted, last_seen_at, merkle_root in disk_rows:
             mounted_str = "yes" if is_mounted else "no"
             last_seen_str = str(last_seen_at) if last_seen_at is not None else "never"
             root_str = (merkle_root or "")[:12] if merkle_root else ""
             typer.echo(f"  {label:<18} {mounted_str:<10} {last_seen_str:<20} {root_str}")
+            disks_data.append(
+                {
+                    "label": label,
+                    "mounted": is_mounted == 1,
+                    "last_seen": last_seen_str,
+                    "merkle_root_prefix": root_str,
+                }
+            )
 
         # --- Query latest successful scan ---
         row = conn.execute(
@@ -147,6 +164,7 @@ def library_status_command(config_path: Path | None = None, *, event_bus: EventB
             "WHERE status = 'ok' ORDER BY finished_at DESC LIMIT 1"
         ).fetchone()
 
+        latest_scan: dict[str, object] | None = None
         if row is None:
             typer.echo("no scans yet")
         else:
@@ -156,6 +174,13 @@ def library_status_command(config_path: Path | None = None, *, event_bus: EventB
                 f"latest scan: id={run_id}, finished_at={finished_at}, status={status},"
                 f" generation={generation}{disk_scope}"
             )
+            latest_scan = {
+                "id": run_id,
+                "finished_at": str(finished_at),
+                "status": status,
+                "generation": generation,
+                "disk_filter": disk_filter,
+            }
 
         # --- Repair queue health ---
         from personalscraper.indexer import repair  # noqa: PLC0415
@@ -210,6 +235,27 @@ def library_status_command(config_path: Path | None = None, *, event_bus: EventB
             )
             unhealthy = True
 
+        if output_format == "json":
+            import json  # noqa: PLC0415
+
+            status_dict: dict[str, object] = {
+                "disks": disks_data,
+                "latest_scan": latest_scan,
+                "repair_queue": {
+                    "depth": pending_depth,
+                    "oldest_age_hours": (oldest_pending_age_seconds or 0) // 3600
+                    if oldest_pending_age_seconds
+                    else None,
+                },
+                "outbox_pending": outbox_depth,
+                "deleted_items": deleted_count,
+                "enrich_pending": enrich_pending,
+                "category_orphans": orphan_count,
+                "healthy": not unhealthy,
+            }
+            typer.echo(json.dumps(status_dict, default=str, indent=2))
+            return 0
+
         return 1 if unhealthy else 0
 
 
@@ -222,6 +268,7 @@ def library_verify_command(
     *,
     disk: str | None = None,
     budget_seconds: float | None = None,
+    no_enqueue: bool = False,
     config_path: Path | None = None,
     event_bus: EventBus,
 ) -> int:
@@ -231,12 +278,18 @@ def library_verify_command(
     a full rescan, verify mode does NOT soft-delete missing files — it only marks
     them for repair so they can be investigated before any destructive action.
 
+    With ``no_enqueue=True`` the verify pass walks every file and reports
+    mismatches but does NOT insert any rows into ``repair_queue`` (read-only
+    audit mode).
+
     Args:
         disk: Optional disk label to restrict verification to a single disk.
         budget_seconds: Maximum wall-clock seconds for the verify pass. ``None``
             means unlimited.  Per-file commit guarantees partial progress is
             preserved when the budget is exhausted; the next invocation
             resumes from rows whose ``last_verified_at`` is older than this run.
+        no_enqueue: When ``True``, skip inserting rows into ``repair_queue``
+            for detected drift or absent files.
         config_path: Optional explicit path to config.json5 or config directory.
         event_bus: Required :class:`EventBus` forwarded to ``open_db`` + the
             verify-mode scan so disk-circuit and ``DiskFullWarning`` emits
@@ -352,11 +405,13 @@ def library_verify_command(
                     budget_seconds=budget_seconds,
                     merkle_delta_freeze_threshold=cfg.indexer.drift.merkle_delta_freeze_threshold,
                     paranoia_window_seconds=cfg.indexer.scan.paranoia_window_seconds,
+                    no_enqueue=no_enqueue,
                     event_bus=event_bus,
                 )
 
                 summary = {
                     "mode": "verify",
+                    "no_enqueue": no_enqueue,
                     "files_walked": result.files_visited,
                     "dirs_walked": result.dirs_visited,
                     "disks_skipped": result.disks_skipped,
@@ -382,13 +437,12 @@ def library_search_command(
     limit: int = 50,
     config_path: Path | None = None,
     event_bus: EventBus,
-) -> int:
-    """Execute a flex-attr query and print matching media items.
+) -> tuple[int, list[dict[str, object]]]:
+    """Execute a flex-attr query and return matching media items.
 
     Delegates to :func:`~personalscraper.indexer.query.execute` for tokenisation,
-    SQL compilation, and execution.  Each matching item is printed as one
-    space-padded row with the columns ``id | title | year | nfo``; the header
-    row uses the same widths so columns line up in a fixed-width terminal.
+    SQL compilation, and execution.  Returns a ``(rc, rows)`` tuple where each
+    row is a dict with keys ``id``, ``title``, ``year``, ``kind``, ``nfo_status``.
 
     Args:
         query_str: Query string in the flex-attr syntax, e.g.
@@ -400,8 +454,8 @@ def library_search_command(
             subscriber-wired bus.
 
     Returns:
-        ``0`` on success (even with zero results), ``1`` on infrastructure error,
-        ``2`` on query syntax / unknown-field error.
+        ``(0, rows)`` on success (rows may be empty), ``(1, [])`` on
+        infrastructure error, ``(2, [])`` on query syntax / unknown-field error.
     """
     from personalscraper.conf.loader import (  # noqa: PLC0415
         ConfigNotFoundError,
@@ -428,7 +482,7 @@ def library_search_command(
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
         typer.echo(f"Config error: {exc}", err=True)
-        return 1
+        return 1, []
 
     db_path = cfg.indexer.db_path
     assert db_path is not None, "indexer.db_path must be resolved"
@@ -447,7 +501,7 @@ def library_search_command(
         IndexerMigrationError,
     ) as exc:
         typer.echo(str(exc), err=True)
-        return 1
+        return 1, []
 
     with closing(conn):
         try:
@@ -460,27 +514,27 @@ def library_search_command(
             IndexerMigrationError,
         ) as exc:
             typer.echo(str(exc), err=True)
-            return 1
+            return 1, []
 
         try:
             items = execute(conn, query_str, limit=limit)
         except QueryError as exc:
             typer.echo(str(exc), err=True)
-            return 2
+            return 2, []
 
-        if not items:
-            typer.echo("(no results)")
-            return 0
-
-        # Print header + rows. Widths must match between header and data so
-        # columns align in a fixed-width terminal.
-        typer.echo(f"{'ID':<8}{'TITLE':<40} {'YEAR':<6} {'NFO':<10}")
+        rows: list[dict[str, object]] = []
         for item in items:
-            year_str = str(item.year) if item.year is not None else ""
-            nfo_str = item.nfo_status or ""
-            typer.echo(f"{item.id:<8}{(item.title or '')[:38]:<40} {year_str:<6} {nfo_str:<10}")
+            rows.append(
+                {
+                    "id": item.id,
+                    "title": item.title or "",
+                    "year": item.year,
+                    "kind": item.kind or "",
+                    "nfo_status": item.nfo_status or "",
+                }
+            )
 
-        return 0
+        return 0, rows
 
 
 # ---------------------------------------------------------------------------
@@ -493,15 +547,12 @@ def library_show_command(
     *,
     config_path: Path | None = None,
     event_bus: EventBus,
-) -> int:
-    """Pretty-print all stored data for a single media item.
+) -> tuple[int, dict[str, object]]:
+    """Return all stored data for a single media item.
 
-    Prints:
-    - ``media_item`` columns.
-    - ``season`` / ``episode`` rows (for shows).
-    - ``media_file`` rows with their ``media_stream`` rows.
-    - ``item_attribute`` rows.
-    - ``deleted_item`` history.
+    Returns a ``(rc, payload)`` tuple where *payload* has keys:
+    ``item`` (dict), ``seasons`` (list), ``files`` (list with ``streams``
+    sub-list), ``attributes`` (list), ``deleted_history`` (list).
 
     Args:
         item_id: PK of the ``media_item`` to display.
@@ -511,8 +562,8 @@ def library_show_command(
             subscriber-wired bus.
 
     Returns:
-        ``0`` on success, ``1`` on infrastructure error, ``2`` if no item with
-        the given id exists.
+        ``(0, payload)`` on success, ``(1, {})`` on infrastructure error,
+        ``(2, {"error": ...})`` if no item with the given id exists.
     """
     from personalscraper.conf.loader import (  # noqa: PLC0415
         ConfigNotFoundError,
@@ -538,7 +589,7 @@ def library_show_command(
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
         typer.echo(f"Config error: {exc}", err=True)
-        return 1
+        return 1, {}
 
     db_path = cfg.indexer.db_path
     assert db_path is not None, "indexer.db_path must be resolved"
@@ -557,7 +608,7 @@ def library_show_command(
         IndexerMigrationError,
     ) as exc:
         typer.echo(str(exc), err=True)
-        return 1
+        return 1, {}
 
     with closing(conn):
         try:
@@ -570,87 +621,76 @@ def library_show_command(
             IndexerMigrationError,
         ) as exc:
             typer.echo(str(exc), err=True)
-            return 1
+            return 1, {}
 
         conn.row_factory = sqlite3.Row
 
         # --- Fetch media_item ---
         item_row = conn.execute("SELECT * FROM media_item WHERE id = ?", (item_id,)).fetchone()
         if item_row is None:
-            typer.echo(f"no item with id {item_id}", err=True)
-            return 2
+            return 2, {"error": f"no item with id {item_id}"}
 
-        # --- Print media_item fields ---
-        typer.echo(f"=== media_item id={item_id} ===")
-        for key in item_row.keys():
-            typer.echo(f"  {key}: {item_row[key]}")
+        item_dict: dict[str, object] = dict(item_row)
 
         # --- Seasons and episodes (shows) ---
-        seasons = conn.execute("SELECT * FROM season WHERE item_id = ? ORDER BY number", (item_id,)).fetchall()
-        if seasons:
-            typer.echo(f"\n=== seasons ({len(seasons)}) ===")
-            for s in seasons:
-                typer.echo(
-                    f"  season {s['number']}: episodes={s['episode_count']}, "
-                    f"has_poster={s['has_poster']}, nfo_count={s['episodes_with_nfo']}"
-                )
-                eps = conn.execute("SELECT * FROM episode WHERE season_id = ? ORDER BY number", (s["id"],)).fetchall()
-                for ep in eps:
-                    typer.echo(f"    episode {ep['number']}: {ep['title']}")
+        seasons_raw = conn.execute("SELECT * FROM season WHERE item_id = ? ORDER BY number", (item_id,)).fetchall()
+        seasons: list[dict[str, object]] = []
+        for s in seasons_raw:
+            sd: dict[str, object] = dict(s)
+            eps_raw = conn.execute("SELECT * FROM episode WHERE season_id = ? ORDER BY number", (s["id"],)).fetchall()
+            sd["episodes"] = [dict(ep) for ep in eps_raw]
+            seasons.append(sd)
 
         # --- media_file rows ---
-        files = conn.execute(
+        files_raw = conn.execute(
             "SELECT mf.*, p.rel_path, p.disk_id FROM media_file mf "
             "JOIN media_release mr ON mf.release_id = mr.id "
             "JOIN path p ON mf.path_id = p.id "
             "WHERE mr.item_id = ? ORDER BY mf.id",
             (item_id,),
         ).fetchall()
-        if not files:
-            # Fallback: try via path → disk without requiring a release link
-            files = conn.execute(
+        if not files_raw:
+            files_raw = conn.execute(
                 "SELECT mf.*, p.rel_path, p.disk_id FROM media_file mf "
                 "JOIN path p ON mf.path_id = p.id "
                 "WHERE p.disk_id IN (SELECT id FROM disk) "
                 "AND mf.release_id IS NULL "
-                "LIMIT 0"  # empty fallback — Stage A files may lack release linkage
+                "LIMIT 0"
             ).fetchall()
 
-        if files:
-            typer.echo(f"\n=== media_files ({len(files)}) ===")
-            for f in files:
-                typer.echo(
-                    f"  file id={f['id']} {f['rel_path']}/{f['filename']}"
-                    f" size={f['size_bytes']} mtime_ns={f['mtime_ns']}"
-                )
-                streams = conn.execute(
-                    "SELECT * FROM media_stream WHERE file_id = ? ORDER BY idx",
-                    (f["id"],),
-                ).fetchall()
-                for st in streams:
-                    typer.echo(f"    stream idx={st['idx']} kind={st['kind']} codec={st['codec']} lang={st['lang']}")
+        files: list[dict[str, object]] = []
+        for f in files_raw:
+            fd: dict[str, object] = dict(f)
+            streams_raw = conn.execute(
+                "SELECT * FROM media_stream WHERE file_id = ? ORDER BY idx",
+                (f["id"],),
+            ).fetchall()
+            fd["streams"] = [dict(st) for st in streams_raw]
+            files.append(fd)
 
         # --- item_attribute rows ---
-        attrs = conn.execute(
+        attrs_raw = conn.execute(
             "SELECT key, value FROM item_attribute WHERE item_id = ? ORDER BY key",
             (item_id,),
         ).fetchall()
-        if attrs:
-            typer.echo(f"\n=== item_attributes ({len(attrs)}) ===")
-            for a in attrs:
-                typer.echo(f"  {a['key']}: {a['value']}")
+        attributes: list[dict[str, object]] = [dict(a) for a in attrs_raw]
 
         # --- deleted_item history ---
-        deleted = conn.execute(
+        deleted_raw = conn.execute(
             "SELECT * FROM deleted_item WHERE original_id = ? ORDER BY deleted_at",
             (item_id,),
         ).fetchall()
-        if deleted:
-            typer.echo(f"\n=== deleted_item history ({len(deleted)}) ===")
-            for d in deleted:
-                typer.echo(f"  kind={d['kind']} deleted_at={d['deleted_at']} reason={d['reason']}")
+        deleted_history: list[dict[str, object]] = [dict(d) for d in deleted_raw]
 
-        return 0
+        payload: dict[str, object] = {
+            "item": item_dict,
+            "item_id": item_id,
+            "seasons": seasons,
+            "files": files,
+            "attributes": attributes,
+            "deleted_history": deleted_history,
+        }
+        return 0, payload
 
 
 # ---------------------------------------------------------------------------

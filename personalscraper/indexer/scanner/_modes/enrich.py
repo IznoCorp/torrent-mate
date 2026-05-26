@@ -295,9 +295,9 @@ def _enrich_one_file(
     wrapper: MediaInfoWrapper | None,
     nfo_artwork_cache: dict[str, tuple[str | None, ArtworkInventory | None]] | None = None,
 ) -> None:
-    """Enrich a single ``media_file`` row with streams, NFO status, and artwork.
+    """Enrich a single ``media_file`` row with streams, NFO status, artwork, and oshash.
 
-    Performs three enrichment steps in order:
+    Performs four enrichment steps in order:
 
     1. **Stream extraction** — if *wrapper* is not ``None`` and the file is large
        enough, call :meth:`~personalscraper.indexer.mediainfo.MediaInfoWrapper.extract_streams`
@@ -307,6 +307,11 @@ def _enrich_one_file(
        update ``media_item.nfo_status`` when *item_id* is not ``None``.
     3. **Artwork inventory** — scan the parent directory for known artwork filenames
        and update ``media_item.artwork_json`` when *item_id* is not ``None``.
+    4. **OSHash retry** — if the current ``media_file.oshash`` is ``NULL`` and the
+       file extension is eligible (see
+       :data:`~personalscraper.indexer.fingerprint.OSHASH_EXTENSIONS`), attempt to
+       compute and persist the hash.  Fail-soft: an :exc:`OSError` is logged at
+       WARNING and swallowed so ``enriched_at`` is still updated.
 
     Finally, set ``media_file.enriched_at`` to the current epoch seconds.
 
@@ -422,6 +427,40 @@ def _enrich_one_file(
                 "UPDATE media_item SET artwork_json = ? WHERE id = ?",
                 (artwork.model_dump_json(), item_id),
             )
+
+    # --- Step 4: OSHash retry (DEV #51) ---
+    # Stage-A rows and rows where a previous hash attempt failed carry
+    # oshash=NULL.  Retry here so the enrich pass can heal NULL rows
+    # without waiting for a full re-scan.  Only eligible video extensions
+    # are attempted; non-video files are skipped (oshash is not applicable).
+    # Fail-soft: OSError is logged at WARNING and oshash stays NULL so that
+    # enriched_at is still updated and the file is not re-queued infinitely.
+    current_row = conn.execute("SELECT oshash FROM media_file WHERE id = ?", (file_id,)).fetchone()
+    if current_row is not None and current_row[0] is None:
+        suffix = file_path.suffix.lstrip(".").lower()
+        from personalscraper.indexer import fingerprint as _fp  # noqa: PLC0415
+
+        if suffix in _fp.OSHASH_EXTENSIONS:
+            try:
+                new_oshash = _fp.oshash(file_path)
+                if new_oshash:
+                    conn.execute(
+                        "UPDATE media_file SET oshash = ? WHERE id = ?",
+                        (new_oshash, file_id),
+                    )
+                    log.info(
+                        "indexer.enrich.oshash_recomputed",
+                        file_id=file_id,
+                        oshash=new_oshash,
+                    )
+            except OSError as exc:
+                log.warning(
+                    "indexer.enrich.oshash_retry_failed",
+                    file_id=file_id,
+                    path=str(file_path),
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
 
     # --- Set enriched_at ---
     conn.execute(

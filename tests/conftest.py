@@ -162,7 +162,17 @@ def _mock_cli_config_load(request, test_config):
         test_config: Synthetic Config fixture from tests/fixtures/config.py.
     """
     # Only intercept in files that drive the CLI via CliRunner.
-    cli_test_files = {"test_cli.py", "test_logger_cli.py"}
+    # The skill + indexer/scanner test files were added to this set on
+    # 2026-05-23 because their cmd-existence smoke tests invoke `--help`
+    # via CliRunner / subprocess and sometimes trip the eager config load
+    # via cross-worker xdist state leak (pre-existing intermittent failures
+    # documented in IMPLEMENTATION.md "Known flaky / env-dependent tests").
+    cli_test_files = {
+        "test_cli.py",
+        "test_logger_cli.py",
+        "test_matrix_cli_refs.py",
+        "test_init_canonical.py",
+    }
     if request.fspath.basename not in cli_test_files:
         yield
         return
@@ -260,6 +270,16 @@ def _stub_pipeline_steps(request, monkeypatch):
     monkeypatch.setattr(
         "personalscraper.api.notify.telegram.TelegramNotifier.is_configured",
         staticmethod(lambda *a, **kw: False),
+    )
+
+    # TelegramSubscriber.close is only called when the subscriber was constructed
+    # (i.e. __init__ ran, not patched to return None).  Patching close here as a
+    # no-op means tests that patch __init__ → None (the common case) no longer
+    # need a redundant @patch for close — the ``is not None`` guard in the CLI
+    # ``finally`` block (commands/pipeline.py:518) already skips it.
+    monkeypatch.setattr(
+        "personalscraper.subscribers.telegram.TelegramSubscriber.close",
+        lambda self, *a, **kw: None,
     )
 
     yield

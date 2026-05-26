@@ -35,6 +35,8 @@ class TestRegistry:
         torrent_hashes: qBittorrent info hashes added by the test.
     """
 
+    __test__ = False
+
     session_id: str
     base_dir: Path = field(default_factory=_default_registry_dir)
     created_paths: list[str] = field(default_factory=list)

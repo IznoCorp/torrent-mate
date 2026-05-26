@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
 
+from personalscraper._fs_utils import is_apple_double
 from personalscraper.conf.ids import TV_CATEGORY_IDS
 from personalscraper.library.models import (
     AudioTrack,
@@ -749,7 +750,7 @@ def analyze_library(
                 video_files = [
                     f
                     for f in media_dir.rglob("*")
-                    if f.is_file() and f.suffix.lstrip(".").lower() in _VIDEO_EXTENSIONS and not f.name.startswith("._")
+                    if f.is_file() and f.suffix.lstrip(".").lower() in _VIDEO_EXTENSIONS and not is_apple_double(f.name)
                 ]
 
                 if not video_files:

@@ -111,6 +111,48 @@ class IndexerDiskFullError(OSError):
         )
 
 
+class IndexerFKOrphansError(RuntimeError):
+    """Raised by :func:`open_db` when ``PRAGMA foreign_key_check`` returns rows.
+
+    A foreign-key orphan is a row whose foreign key references a parent row
+    that does not exist. SQLite only enforces FKs at write time when
+    ``PRAGMA foreign_keys=ON`` is active on the connection performing the
+    write — a script bypassing :func:`open_db` (raw ``sqlite3.connect``,
+    sqlite3 CLI, etc.) can therefore insert orphans silently. Phase 1.2 of
+    tech-debt 0.16.0 adds the pre-check at :func:`open_db` to surface those
+    orphans loudly rather than letting downstream queries return inconsistent
+    results.
+
+    Distinct from :class:`IndexerCorruptError` which signals structural
+    corruption (malformed file). Orphans are *data integrity* violations,
+    the file itself is structurally fine.
+
+    Args:
+        db_path: Path of the database whose ``foreign_key_check`` failed.
+        orphan_count: Total number of orphan rows reported by the PRAGMA.
+        sample: First few orphan rows (for diagnostic; truncated to keep the
+            message readable).
+    """
+
+    def __init__(
+        self,
+        db_path: Path,
+        orphan_count: int,
+        sample: list[tuple[object, ...]] | None = None,
+    ) -> None:
+        """Initialize with the db path and orphan diagnostic."""
+        self.db_path = db_path
+        self.orphan_count = orphan_count
+        self.sample = sample or []
+        sample_str = f" Sample: {self.sample}" if self.sample else ""
+        super().__init__(
+            f"Database at {db_path} has {orphan_count} foreign-key orphan(s) "
+            f"(PRAGMA foreign_key_check returned {orphan_count} row(s)).{sample_str} "
+            f"Run `sqlite3 {db_path} 'PRAGMA foreign_key_check;'` to inspect, "
+            f"then clean up the orphan rows before retrying."
+        )
+
+
 class IndexerMigrationError(RuntimeError):
     """Raised when applying a migration script fails.
 
@@ -224,6 +266,47 @@ def check_free_space(
 # See ``personalscraper.indexer._disk_guard.handle_disk_full`` for the
 # disk-full recovery path (PRAGMA wal_checkpoint + DiskFullWarning emit).
 
+
+def _apply_pragmas(conn: sqlite3.Connection) -> None:
+    """Apply the canonical PRAGMA set to an open SQLite connection.
+
+    This is the single source of truth for the DESIGN §6.1 PRAGMA
+    configuration.  Every connection that touches the indexer database MUST
+    call this helper immediately after :func:`sqlite3.connect` — either via
+    :func:`open_db` (the normal code path) or directly when a site needs its
+    own connection (outbox, concurrency workers, best-effort readers).
+
+    The full set applied (in order):
+
+    * ``journal_mode=WAL`` — multi-reader / single-writer, no exclusive lock.
+    * ``synchronous=NORMAL`` — durability without per-commit fsync overhead.
+    * ``temp_store=MEMORY`` — avoid on-disk temp files for sort / hash ops.
+    * ``cache_size=-65536`` — 64 MiB page cache (negative = kilobytes).
+    * ``mmap_size=268435456`` — 256 MiB memory-mapped I/O window.
+    * ``wal_autocheckpoint=1000`` — auto-checkpoint after 1 000 WAL frames.
+    * ``busy_timeout=5000`` — retry writes for up to 5 s before SQLITE_BUSY.
+    * ``foreign_keys=ON`` — enforce referential integrity at write time.
+
+    Args:
+        conn: An open :class:`sqlite3.Connection` on which to apply PRAGMAs.
+            The connection must not be closed before this function returns.
+
+    Notes:
+        ``journal_mode=WAL`` is a persistent DB-level setting; subsequent
+        connections inherit it.  All other PRAGMAs are connection-scoped and
+        reset to defaults on close, so they must be re-applied on every new
+        connection.
+    """
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA temp_store=MEMORY")
+    conn.execute("PRAGMA cache_size=-65536")
+    conn.execute("PRAGMA mmap_size=268435456")
+    conn.execute("PRAGMA wal_autocheckpoint=1000")
+    conn.execute("PRAGMA busy_timeout=5000")
+    conn.execute("PRAGMA foreign_keys=ON")
+
+
 # ---------------------------------------------------------------------------
 # Core API
 # ---------------------------------------------------------------------------
@@ -289,9 +372,28 @@ def open_db(
         try:
             _probe = sqlite3.connect(str(path))
             try:
-                _probe.execute("PRAGMA integrity_check").fetchone()
+                # Phase 1.6 / SH-9 / BD-L : check the RESULT of integrity_check,
+                # not just whether it raises. Subtle corruptions (B-tree page
+                # damage, index inconsistency) can return strings like
+                # ``* btree page X is broken`` without throwing — the previous
+                # code discarded the result and let those slip through.
+                ic_row = _probe.execute("PRAGMA integrity_check").fetchone()
+                ic_result = ic_row[0] if ic_row else "unknown"
             finally:
                 _probe.close()
+            if ic_result != "ok":
+                ts = int(time.time())
+                quarantine_path = path.parent / f"{path.name}.corrupt-{ts}"
+                path.rename(quarantine_path)
+                log.error(
+                    "indexer.db.integrity_check_failed",
+                    original=str(path),
+                    quarantine=str(quarantine_path),
+                    result=ic_result,
+                )
+                if not rebuild:
+                    raise IndexerCorruptError(path, quarantine_path)
+                # rebuild=True: fall through and create a fresh DB
         except sqlite3.DatabaseError as exc:
             if any(signal in str(exc).lower() for signal in _CORRUPT_SIGNALS):
                 ts = int(time.time())
@@ -311,14 +413,30 @@ def open_db(
 
     # --- Open and configure ---
     conn = sqlite3.connect(str(path), isolation_level=None, check_same_thread=False)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA synchronous=NORMAL")
-    conn.execute("PRAGMA temp_store=MEMORY")
-    conn.execute("PRAGMA cache_size=-65536")
-    conn.execute("PRAGMA mmap_size=268435456")
-    conn.execute("PRAGMA wal_autocheckpoint=1000")
-    conn.execute("PRAGMA busy_timeout=5000")
-    conn.execute("PRAGMA foreign_keys=ON")
+    _apply_pragmas(conn)
+
+    # --- FK orphan pre-check (Phase 1.2 / DEV #19) ---
+    # PRAGMA foreign_key_check is a diagnostic PRAGMA that scans every FK
+    # constraint and reports rows referencing non-existent parents.  It works
+    # regardless of whether foreign_keys is ON or OFF on this connection
+    # (``_apply_pragmas`` already enabled it above).  Orphans created by a
+    # script bypassing open_db (raw sqlite3.connect, sqlite3 CLI) stay silently
+    # invisible until a write triggers a FK error far from the source — surfacing
+    # them here provides a clear diagnostic at connection time.
+    orphans = conn.execute("PRAGMA foreign_key_check").fetchall()
+    if orphans:
+        log.error(
+            "indexer.db.foreign_key_orphans",
+            db_path=str(path),
+            count=len(orphans),
+            sample=[tuple(row) for row in orphans[:5]],
+        )
+        conn.close()
+        raise IndexerFKOrphansError(
+            path,
+            orphan_count=len(orphans),
+            sample=[tuple(row) for row in orphans[:5]],
+        )
 
     return conn
 

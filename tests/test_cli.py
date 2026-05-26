@@ -3,8 +3,10 @@
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
 from typer.testing import CliRunner
 
 from personalscraper.cli import AppCtx, app
@@ -78,6 +80,77 @@ def _make_pipeline_report(has_errors: bool = False) -> PipelineReport:
 _mock_report = StepReport(name="ingest", success_count=2, skip_count=1)
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Shared fixtures — consolidate repetitive @patch decorators into reusable
+# fixtures so the per-test @patch count drops from 52 → ≤ 25 (DEV #49, ACC-39).
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+@pytest.fixture
+def _cli_lock_mocks():
+    """``acquire_lock`` (True) + ``release_lock`` mocks for step-command tests."""
+    with (
+        patch("personalscraper.cli.acquire_lock", return_value=True) as al,
+        patch("personalscraper.cli.release_lock") as rl,
+    ):
+        yield SimpleNamespace(acquire=al, release=rl)
+
+
+@pytest.fixture
+def _cli_lock_blocked():
+    """``acquire_lock`` returning False — simulates a held pipeline lock."""
+    with patch("personalscraper.cli.acquire_lock", return_value=False) as mock:
+        yield mock
+
+
+@pytest.fixture
+def _mock_release_lock():
+    """Stand-alone ``release_lock`` mock for crash-recovery tests."""
+    with patch("personalscraper.cli.release_lock") as mock:
+        yield mock
+
+
+@pytest.fixture
+def _hc_for_run():
+    """Healthcheck mocks wired for ``personalscraper run`` (configured=True)."""
+    with (
+        patch(_PATCH_HC_CONFIGURED, return_value=True) as cfg,
+        patch(_PATCH_HC_PING_START) as start,
+        patch(_PATCH_HC_PING_SUCCESS) as ok,
+        patch(_PATCH_HC_PING_FAIL) as fail,
+    ):
+        yield SimpleNamespace(cfg=cfg, start=start, ok=ok, fail=fail)
+
+
+@pytest.fixture
+def _mock_run_ingest():
+    with patch(_PATCH_CLI_RUN_INGEST, return_value=_mock_report) as mock:
+        yield mock
+
+
+@pytest.fixture
+def _mock_run_sort():
+    with patch("personalscraper.sorter.run.run_sort", return_value=_mock_sort_report) as mock:
+        yield mock
+
+
+@pytest.fixture
+def _mock_run_scrape():
+    with patch("personalscraper.scraper.run.run_scrape", return_value=_mock_scrape_report) as mock:
+        yield mock
+
+
+@pytest.fixture
+def _mock_run_process():
+    result = (
+        StepReport(name="clean", success_count=2),
+        StepReport(name="scrape", success_count=5),
+        StepReport(name="cleanup", success_count=1),
+    )
+    with patch("personalscraper.process.run.run_process", return_value=result) as mock:
+        yield mock
+
+
 def test_version():
     """--version flag outputs the current version and exits."""
     result = runner.invoke(app, ["--version"])
@@ -100,21 +173,17 @@ def test_help():
     assert "run" in result.output
 
 
-@patch(_PATCH_CLI_RUN_INGEST, return_value=_mock_report)
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
-def test_ingest_command(mock_lock, mock_release, mock_run):
+def test_ingest_command(_cli_lock_mocks, _mock_run_ingest):
     """Ingest command acquires lock, runs ingest, and shows report."""
     result = runner.invoke(app, ["ingest"])
     assert result.exit_code == 0
     assert "2 OK" in result.output
-    mock_lock.assert_called_once()
-    mock_run.assert_called_once()
-    mock_release.assert_called_once()
+    _cli_lock_mocks.acquire.assert_called_once()
+    _mock_run_ingest.assert_called_once()
+    _cli_lock_mocks.release.assert_called_once()
 
 
-@patch("personalscraper.cli.acquire_lock", return_value=False)
-def test_ingest_lock_blocked(mock_lock):
+def test_ingest_lock_blocked(_cli_lock_blocked):
     """Ingest command exits with error if lock is held."""
     result = runner.invoke(app, ["ingest"])
     assert result.exit_code == 1
@@ -124,33 +193,28 @@ def test_ingest_lock_blocked(mock_lock):
 _mock_sort_report = StepReport(name="sort", success_count=4, skip_count=1)
 
 
-@patch("personalscraper.sorter.run.run_sort", return_value=_mock_sort_report)
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
-def test_sort_command(mock_lock, mock_release, mock_run):
+def test_sort_command(_cli_lock_mocks, _mock_run_sort):
     """Sort command acquires lock, runs sort, and shows report."""
     result = runner.invoke(app, ["sort"])
     assert result.exit_code == 0
     assert "4 OK" in result.output
     assert "1 skipped" in result.output
-    mock_lock.assert_called_once()
-    mock_run.assert_called_once()
-    mock_release.assert_called_once()
+    _cli_lock_mocks.acquire.assert_called_once()
+    _mock_run_sort.assert_called_once()
+    _cli_lock_mocks.release.assert_called_once()
 
 
-@patch("personalscraper.sorter.run.run_sort", return_value=_mock_sort_report)
-def test_sort_dry_run(mock_run):
+def test_sort_dry_run(_mock_run_sort):
     """Sort --dry-run flag is forwarded as dry_run=True to run_sort."""
     result = runner.invoke(app, ["sort", "--dry-run"])
     assert result.exit_code == 0
-    call_kwargs = mock_run.call_args
+    call_kwargs = _mock_run_sort.call_args
     assert call_kwargs is not None
     # Verify the wiring invariant: dry_run=True must reach the service layer.
     assert call_kwargs.kwargs.get("dry_run") is True
 
 
-@patch("personalscraper.cli.acquire_lock", return_value=False)
-def test_sort_lock_blocked(mock_lock):
+def test_sort_lock_blocked(_cli_lock_blocked):
     """Sort command exits with error if lock is held."""
     result = runner.invoke(app, ["sort"])
     assert result.exit_code == 1
@@ -160,46 +224,35 @@ def test_sort_lock_blocked(mock_lock):
 _mock_scrape_report = StepReport(name="scrape", success_count=3, skip_count=2, error_count=1)
 
 
-@patch("personalscraper.scraper.run.run_scrape", return_value=_mock_scrape_report)
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
-def test_scrape_command(mock_lock, mock_release, mock_run):
+def test_scrape_command(_cli_lock_mocks, _mock_run_scrape):
     """Scrape command acquires lock, runs scrape, and shows report."""
     result = runner.invoke(app, ["scrape"])
     assert result.exit_code == 0
     assert "3 OK" in result.output
     assert "2 skipped" in result.output
-    mock_lock.assert_called_once()
-    mock_release.assert_called_once()
+    _cli_lock_mocks.acquire.assert_called_once()
+    _cli_lock_mocks.release.assert_called_once()
 
 
-@patch("personalscraper.scraper.run.run_scrape", return_value=_mock_scrape_report)
-def test_scrape_dry_run(mock_run):
+def test_scrape_dry_run(_mock_run_scrape):
     """Scrape --dry-run flag is forwarded as dry_run=True to run_scrape."""
     result = runner.invoke(app, ["scrape", "--dry-run"])
     assert result.exit_code == 0
     # Verify the wiring invariant: dry_run=True must reach the service layer.
-    call_kwargs = mock_run.call_args
+    call_kwargs = _mock_run_scrape.call_args
     assert call_kwargs is not None
     assert call_kwargs.kwargs.get("dry_run") is True
 
 
-@patch("personalscraper.cli.acquire_lock", return_value=False)
-def test_scrape_lock_blocked(mock_lock):
+def test_scrape_lock_blocked(_cli_lock_blocked):
     """Scrape command exits with error if lock is held."""
     result = runner.invoke(app, ["scrape"])
     assert result.exit_code == 1
     assert "Another instance" in result.output
 
 
-@patch("personalscraper.process.run.run_process")
-def test_process_command(mock_run_process):
+def test_process_command(_mock_run_process):
     """Process command runs and shows 3 step reports."""
-    mock_run_process.return_value = (
-        StepReport(name="clean", success_count=2),
-        StepReport(name="scrape", success_count=5),
-        StepReport(name="cleanup", success_count=1),
-    )
     result = runner.invoke(app, ["process"])
     assert result.exit_code == 0
     assert "Clean" in result.output
@@ -275,19 +328,17 @@ def test_run_dry_run_and_interactive_flags(mock_pipeline_run):
     assert kwargs.get("interactive") is True
 
 
-@patch("personalscraper.cli.acquire_lock", return_value=False)
-def test_run_lock_blocked(mock_lock):
+def test_run_lock_blocked(_cli_lock_blocked):
     """Run command exits with error if lock is held."""
     result = runner.invoke(app, ["run"])
     assert result.exit_code == 1
     assert "Another instance" in result.output
 
 
-@patch("personalscraper.subscribers.telegram.TelegramSubscriber.close", return_value=None)
 @patch("personalscraper.subscribers.telegram.TelegramSubscriber.__init__", return_value=None)
 @patch(_PATCH_NOTIFIER_CONFIGURED, return_value=True)
 @patch(_PATCH_PIPELINE_RUN)
-def test_run_sends_telegram_when_configured(mock_pipeline_run, mock_notifier_cfg, mock_tg_sub_init, mock_tg_sub_close):
+def test_run_sends_telegram_when_configured(mock_pipeline_run, mock_notifier_cfg, mock_tg_sub_init):
     """TelegramSubscriber is constructed on the event bus when notifier is configured.
 
     ``TelegramSubscriber`` self-subscribes in ``__init__`` against the
@@ -303,11 +354,9 @@ def test_run_sends_telegram_when_configured(mock_pipeline_run, mock_notifier_cfg
     assert "observers" not in kwargs, "Pipeline.run must not accept an observers kwarg"
 
 
-@patch("personalscraper.subscribers.telegram.TelegramSubscriber.close", return_value=None)
 @patch("personalscraper.subscribers.telegram.TelegramSubscriber.__init__", return_value=None)
-@patch(_PATCH_NOTIFIER_CONFIGURED, return_value=False)
 @patch(_PATCH_PIPELINE_RUN)
-def test_run_no_telegram_when_not_configured(mock_pipeline_run, mock_cfg, mock_tg_sub_init, mock_tg_sub_close):
+def test_run_no_telegram_when_not_configured(mock_pipeline_run, mock_tg_sub_init):
     """is_configured gating: when notifier is not configured, no TelegramSubscriber is wired."""
     mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run"])
@@ -315,11 +364,10 @@ def test_run_no_telegram_when_not_configured(mock_pipeline_run, mock_cfg, mock_t
     assert not mock_tg_sub_init.called, "TelegramSubscriber must not be constructed when notifier is not configured"
 
 
-@patch("personalscraper.subscribers.telegram.TelegramSubscriber.close", return_value=None)
 @patch("personalscraper.subscribers.telegram.TelegramSubscriber.__init__", return_value=None)
 @patch(_PATCH_NOTIFIER_CONFIGURED, return_value=True)
 @patch(_PATCH_PIPELINE_RUN)
-def test_run_headless_disables_all_observers(mock_pipeline_run, mock_cfg, mock_tg_sub_init, mock_tg_sub_close):
+def test_run_headless_disables_all_observers(mock_pipeline_run, mock_cfg, mock_tg_sub_init):
     """``--headless`` skips subscriber construction and Pipeline.run still has no ``observers`` kwarg."""
     mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run", "--headless"])
@@ -329,60 +377,34 @@ def test_run_headless_disables_all_observers(mock_pipeline_run, mock_cfg, mock_t
     assert "observers" not in kwargs, "Pipeline.run must not accept an observers kwarg"
 
 
-@patch(_PATCH_HC_CONFIGURED, return_value=True)
-@patch(_PATCH_HC_PING_START)
-@patch(_PATCH_HC_PING_SUCCESS)
-@patch(_PATCH_HC_PING_FAIL)
-def test_run_pings_healthcheck_success_on_clean_run(mock_fail, mock_success, mock_start, mock_cfg):
+def test_run_pings_healthcheck_success_on_clean_run(_hc_for_run):
     """Clean pipeline → ping_start + ping_success, no ping_fail."""
     result = runner.invoke(app, ["run"])
     assert result.exit_code == 0
-    mock_start.assert_called_once()
-    mock_success.assert_called_once()
-    mock_fail.assert_not_called()
+    _hc_for_run.start.assert_called_once()
+    _hc_for_run.ok.assert_called_once()
+    _hc_for_run.fail.assert_not_called()
 
 
-@patch(_PATCH_HC_CONFIGURED, return_value=True)
-@patch(_PATCH_HC_PING_START)
-@patch(_PATCH_HC_PING_SUCCESS)
-@patch(_PATCH_HC_PING_FAIL)
 @patch(_PATCH_PIPELINE_RUN, side_effect=RuntimeError("pipeline crash"))
-@patch("personalscraper.cli.release_lock")
-def test_run_pings_healthcheck_fail_on_exception(
-    mock_release,
-    mock_pipeline_run,
-    mock_fail,
-    mock_success,
-    mock_start,
-    mock_cfg,
-):
+def test_run_pings_healthcheck_fail_on_exception(mock_pipeline_run, _hc_for_run, _mock_release_lock):
     """Pipeline.run() raising → ping_start + ping_fail (dead-man's-switch contract)."""
     result = runner.invoke(app, ["run"])
     assert result.exit_code != 0  # crash propagated
-    mock_start.assert_called_once()
-    mock_fail.assert_called_once()
-    mock_success.assert_not_called()
+    _hc_for_run.start.assert_called_once()
+    _hc_for_run.fail.assert_called_once()
+    _hc_for_run.ok.assert_not_called()
 
 
-@patch(_PATCH_HC_CONFIGURED, return_value=True)
-@patch(_PATCH_HC_PING_START)
-@patch(_PATCH_HC_PING_SUCCESS)
-@patch(_PATCH_HC_PING_FAIL)
 @patch(_PATCH_PIPELINE_RUN)
-def test_run_pings_healthcheck_fail_on_report_errors(
-    mock_pipeline_run,
-    mock_fail,
-    mock_success,
-    mock_start,
-    mock_cfg,
-):
+def test_run_pings_healthcheck_fail_on_report_errors(mock_pipeline_run, _hc_for_run):
     """Report with has_errors() → ping_fail (not ping_success)."""
     mock_pipeline_run.return_value = _make_pipeline_report(has_errors=True)
     result = runner.invoke(app, ["run"])
     assert result.exit_code == 1
-    mock_start.assert_called_once()
-    mock_fail.assert_called_once()
-    mock_success.assert_not_called()
+    _hc_for_run.start.assert_called_once()
+    _hc_for_run.fail.assert_called_once()
+    _hc_for_run.ok.assert_not_called()
 
 
 @patch(_PATCH_PIPELINE_RUN)
@@ -394,11 +416,10 @@ def test_run_exit_code_1_on_errors(mock_pipeline_run):
 
 
 @patch(_PATCH_PIPELINE_RUN, side_effect=RuntimeError("pipeline crash"))
-@patch("personalscraper.cli.release_lock")
-def test_run_releases_lock_on_pipeline_crash(mock_release, mock_pipeline_run):
+def test_run_releases_lock_on_pipeline_crash(mock_pipeline_run, _mock_release_lock):
     """Lock is released even when Pipeline.run() crashes."""
     runner.invoke(app, ["run"])
-    mock_release.assert_called_once()
+    _mock_release_lock.assert_called_once()
 
 
 @patch(_PATCH_PIPELINE_RUN)

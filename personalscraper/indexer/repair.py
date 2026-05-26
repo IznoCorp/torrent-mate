@@ -8,6 +8,10 @@ Functions:
 - :func:`drain` — process pending repair rows in FIFO order within a wall-clock budget.
 - :func:`get_queue_health` — return ``(oldest_pending_age_seconds, pending_depth)``
   for use by ``library-status``.
+- :func:`soft_delete_subtree` — soft-delete every ``media_file`` row under a given
+  ``path.id`` (the ``soft_delete_subtree`` action consumed by ``library-repair``).
+- :func:`repair_processor` — default repair processor wired into ``library-repair``;
+  dispatches on ``scope`` + ``payload_json['action']``.
 """
 
 from __future__ import annotations
@@ -317,3 +321,179 @@ def get_queue_health(conn: sqlite3.Connection) -> tuple[int | None, int]:
 
     age_seconds: int = int(time.time()) - oldest_enqueued_at
     return (age_seconds, depth)
+
+
+# ---------------------------------------------------------------------------
+# soft_delete_subtree
+# ---------------------------------------------------------------------------
+
+
+def _refresh_disk_merkle(conn: sqlite3.Connection, disk_id: int) -> str | None:
+    """Recompute and persist ``disk.merkle_root`` from the current live file set.
+
+    Reads every live (``deleted_at IS NULL``, ``oshash IS NOT NULL``)
+    ``media_file`` row whose path belongs to *disk_id*, recomputes the merkle
+    root via :func:`compute_merkle_root`, and writes it back into the
+    ``disk`` row.  Used after destructive operations (e.g.
+    :func:`soft_delete_subtree`) so the stored root stays coherent with the
+    live file set — without this, ``library-index --mode quick`` later trips
+    the bulk-change protection because the stored vs computed delta is huge.
+
+    Args:
+        conn: Open SQLite connection with an active transaction.
+        disk_id: PK of the ``disk`` row whose ``merkle_root`` should be
+            refreshed. If the disk row has ``merkle_root IS NULL`` (never
+            scanned), this is a no-op.
+
+    Returns:
+        The new merkle root that was written, or ``None`` if the disk had no
+        prior merkle (no-op).
+    """
+    from personalscraper.indexer.merkle import FileFingerprint, compute_merkle_root  # noqa: PLC0415
+
+    row = conn.execute("SELECT merkle_root FROM disk WHERE id = ?", (disk_id,)).fetchone()
+    if row is None or row[0] is None:
+        return None
+    rows = conn.execute(
+        """
+        SELECT mf.path_id, mf.size_bytes, mf.mtime_ns, mf.oshash
+          FROM media_file mf
+          JOIN path p ON p.id = mf.path_id
+         WHERE p.disk_id = ?
+           AND mf.deleted_at IS NULL
+           AND mf.oshash IS NOT NULL
+        """,
+        (disk_id,),
+    ).fetchall()
+    fingerprints = [
+        FileFingerprint(path_id=int(r[0]), size=int(r[1]), mtime_ns=int(r[2]), oshash=str(r[3])) for r in rows
+    ]
+    new_root = compute_merkle_root(fingerprints)
+    conn.execute("UPDATE disk SET merkle_root = ? WHERE id = ?", (new_root, disk_id))
+    log.info(
+        "indexer.repair.merkle_refreshed",
+        disk_id=disk_id,
+        new_root=new_root,
+        files_hashed=len(fingerprints),
+    )
+    return new_root
+
+
+def soft_delete_subtree(conn: sqlite3.Connection, path_id: int) -> int:
+    """Soft-delete, then hard-prune a phantom path subtree.
+
+    Four-step cascade so the path row is actually removed AND the disk's
+    stored merkle stays coherent with the live file set:
+
+    1. Soft-delete every live ``media_file`` row (``deleted_at = now``) — the
+       count returned reflects this step (audit trail).
+    2. Hard-DELETE every ``media_file`` row under the path (including any
+       already tombstoned) — the foreign key
+       ``media_file.path_id REFERENCES path(id) ON DELETE RESTRICT`` would
+       otherwise block step 3.
+    3. Hard-DELETE the ``path`` row itself. ``detect_path_missing`` then
+       stops seeing it (closes the reconcile loop).
+    4. Refresh ``disk.merkle_root`` for the disk that owned the path so that
+       a subsequent ``library-index --mode quick`` does not trip the
+       bulk-change-detected protection (each pruned subtree shifts the merkle
+       — without this refresh, deleting N paths makes the stored merkle
+       diverge by N×files / total ratio and the next quick scan refuses to
+       commit).  No-op when the disk has no stored merkle.
+
+    Steps 1-4 run in the caller's enclosing transaction; the caller commits.
+
+    .. note::
+       Step 4 cost is O(files-on-disk).  When called inside a tight loop
+       (e.g. ``library-repair`` draining 300+ pending rows for the same
+       disk), each call re-hashes the whole disk.  Future work: batch the
+       refresh at end-of-drain via a "dirty disks" set in
+       :func:`repair_processor`.
+
+    Args:
+        conn: Open SQLite connection with an active transaction.
+        path_id: PK of the ``path`` row whose subtree should be pruned.
+
+    Returns:
+        Number of ``media_file`` rows that this call tombstoned (step 1 only
+        — does NOT include files already tombstoned by a previous run).
+    """
+    # Capture disk_id BEFORE the path row is deleted (step 3).
+    disk_row = conn.execute("SELECT disk_id FROM path WHERE id = ?", (path_id,)).fetchone()
+    disk_id: int | None = int(disk_row[0]) if disk_row else None
+
+    now = int(time.time())
+    n_soft: int = conn.execute(
+        "UPDATE media_file SET deleted_at = ? WHERE path_id = ? AND deleted_at IS NULL",
+        (now, path_id),
+    ).rowcount
+    n_hard: int = conn.execute(
+        "DELETE FROM media_file WHERE path_id = ?",
+        (path_id,),
+    ).rowcount
+    conn.execute("DELETE FROM path WHERE id = ?", (path_id,))
+
+    new_merkle: str | None = None
+    if disk_id is not None:
+        new_merkle = _refresh_disk_merkle(conn, disk_id)
+
+    log.info(
+        "indexer.repair.soft_delete_subtree",
+        path_id=path_id,
+        files_soft_deleted=n_soft,
+        files_hard_deleted=n_hard,
+        path_row_deleted=True,
+        disk_merkle_refreshed=new_merkle is not None,
+        deleted_at=now,
+    )
+    return n_soft
+
+
+# ---------------------------------------------------------------------------
+# repair_processor
+# ---------------------------------------------------------------------------
+
+
+def repair_processor(conn: sqlite3.Connection, row: RepairQueueRow) -> None:
+    """Default repair processor dispatched by ``library-repair``.
+
+    Dispatches on ``scope`` and the ``action`` key inside ``payload_json``.
+    Currently handles:
+
+    - ``scope='path'`` + ``action='soft_delete_subtree'``:
+      soft-delete every ``media_file`` row under the path identified by
+      ``scope_id``.  Enqueued by ``library-reconcile --enqueue-repairs`` when
+      ``detect_path_missing`` detects a missing directory (BD-D).
+
+    Unknown (scope, action) combinations are logged as a warning and treated
+    as a no-op so that future actions added by later phases do not cause
+    existing ``repair_queue`` rows to fail.
+
+    Args:
+        conn: Open SQLite connection.  The drain loop has already set
+            ``attempted_at`` and incremented ``attempts`` before calling this
+            function; the caller commits on success.
+        row: The ``RepairQueueRow`` being processed.
+
+    Raises:
+        ValueError: When ``scope_id`` is ``None`` for a scope that requires it
+            (e.g. ``'path'``), since there is no meaningful repair without a
+            target ID.
+    """
+    payload: dict[str, Any] = json.loads(row.payload_json or "{}")
+    action: str | None = payload.get("action")
+
+    if row.scope == "path" and action == "soft_delete_subtree":
+        if row.scope_id is None:
+            raise ValueError(f"repair_queue row {row.id}: scope='path' requires a non-NULL scope_id")
+        soft_delete_subtree(conn, row.scope_id)
+        return
+
+    # Unknown combination — log and skip rather than fail hard so that rows
+    # enqueued by detectors added in future phases degrade gracefully here.
+    log.warning(
+        "indexer.repair.unknown_action",
+        row_id=row.id,
+        scope=row.scope,
+        action=action,
+        reason=row.reason,
+    )

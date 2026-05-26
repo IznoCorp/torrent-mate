@@ -190,22 +190,22 @@ class TestTrailersDownloadCommand:
         assert [i.title for i in forwarded] == ["Breaking Bad"]
 
 
-class TestTrailersVerifyCommand:
-    """Tests for trailers verify CLI subcommand."""
+class TestTrailersAuditCommand:
+    """Tests for trailers audit CLI subcommand."""
 
-    def test_verify_exits_zero(self, tmp_path):
-        """Trailers verify exits 0."""
+    def test_audit_exits_zero(self, tmp_path):
+        """Trailers audit exits 0."""
         with (
             patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
             patch(_PATCH_SCANNER) as MockScanner,
             patch(_PATCH_OPEN_DB),
         ):
             MockScanner.return_value.scan_library.return_value = []
-            result = runner.invoke(app, ["trailers", "verify"])
+            result = runner.invoke(app, ["trailers", "audit"])
         assert result.exit_code == 0
 
-    def test_verify_flags_missing_trailer(self, tmp_path):
-        """Trailers verify exits 2 when trailer file does not exist."""
+    def test_audit_flags_missing_trailer(self, tmp_path):
+        """Trailers audit exits 2 when trailer file does not exist."""
         from personalscraper.trailers.scanner import ScanItem
 
         item = ScanItem(
@@ -226,11 +226,11 @@ class TestTrailersVerifyCommand:
             MockScanner.return_value.scan_library.return_value = [item]
             missing_p = tmp_path / "ShowA (2020)" / "ShowA-trailer.mp4"
             mock_tp.return_value = missing_p  # does not exist
-            result = runner.invoke(app, ["trailers", "verify"])
+            result = runner.invoke(app, ["trailers", "audit"])
         assert result.exit_code == 2, result.output
 
-    def test_verify_flags_undersized_trailer(self, tmp_path):
-        """Trailers verify exits 2 when trailer file is below min_file_size."""
+    def test_audit_flags_undersized_trailer(self, tmp_path):
+        """Trailers audit exits 2 when trailer file is below min_file_size."""
         from personalscraper.trailers.scanner import ScanItem
 
         show_dir = tmp_path / "ShowB (2021)"
@@ -248,11 +248,11 @@ class TestTrailersVerifyCommand:
         ):
             MockScanner.return_value.scan_library.return_value = [item]
             mock_tp.return_value = trailer_file
-            result = runner.invoke(app, ["trailers", "verify"])
+            result = runner.invoke(app, ["trailers", "audit"])
         assert result.exit_code == 2, result.output
 
-    def test_verify_flags_wrong_extension(self, tmp_path):
-        """Trailers verify exits 2 when trailer file has wrong extension."""
+    def test_audit_flags_wrong_extension(self, tmp_path):
+        """Trailers audit exits 2 when trailer file has wrong extension."""
         from personalscraper.trailers.scanner import ScanItem
 
         show_dir = tmp_path / "ShowC (2022)"
@@ -270,10 +270,10 @@ class TestTrailersVerifyCommand:
         ):
             MockScanner.return_value.scan_library.return_value = [item]
             mock_tp.return_value = trailer_file
-            result = runner.invoke(app, ["trailers", "verify"])
+            result = runner.invoke(app, ["trailers", "audit"])
         assert result.exit_code == 2, result.output
 
-    def test_verify_deep_flag_invokes_ffprobe(self, tmp_path):
+    def test_audit_deep_flag_invokes_ffprobe(self, tmp_path):
         """--deep calls a mocked ffprobe; non-zero duration returned => exit 0."""
         from personalscraper.trailers.scanner import ScanItem
 
@@ -297,10 +297,10 @@ class TestTrailersVerifyCommand:
         ):
             MockScanner.return_value.scan_library.return_value = [item]
             mock_tp.return_value = trailer_file
-            result = runner.invoke(app, ["trailers", "verify", "--deep"])
+            result = runner.invoke(app, ["trailers", "audit", "--deep"])
         assert result.exit_code == 0, result.output
 
-    def test_verify_deep_flags_corrupt_trailer(self, tmp_path):
+    def test_audit_deep_flags_corrupt_trailer(self, tmp_path):
         """--deep exits 4 (ffprobe error) when ffprobe returns non-zero returncode.
 
         When ffprobe itself indicates failure (returncode != 0), the CLI must
@@ -336,11 +336,11 @@ class TestTrailersVerifyCommand:
         ):
             MockScanner.return_value.scan_library.return_value = [item]
             mock_tp.return_value = trailer_file
-            result = runner.invoke(app, ["trailers", "verify", "--deep"])
+            result = runner.invoke(app, ["trailers", "audit", "--deep"])
         # Non-zero returncode → appends "unplayable" issue → exit 2
         assert result.exit_code == 2, result.output
 
-    def test_verify_deep_flags_zero_duration_trailer(self, tmp_path):
+    def test_audit_deep_flags_zero_duration_trailer(self, tmp_path):
         """--deep exits 2 when ffprobe returns stdout '0.0' (zero-duration file).
 
         A trailer with zero reported duration is considered unplayable (corrupt
@@ -376,10 +376,10 @@ class TestTrailersVerifyCommand:
         ):
             MockScanner.return_value.scan_library.return_value = [item]
             mock_tp.return_value = trailer_file
-            result = runner.invoke(app, ["trailers", "verify", "--deep"])
+            result = runner.invoke(app, ["trailers", "audit", "--deep"])
         assert result.exit_code == 2, result.output
 
-    def test_verify_deep_handles_missing_ffprobe(self, tmp_path):
+    def test_audit_deep_handles_missing_ffprobe(self, tmp_path):
         """--deep exits 4 when ffprobe binary is not found (FileNotFoundError).
 
         A missing ffprobe installation is a probe-infrastructure failure, not a
@@ -407,7 +407,7 @@ class TestTrailersVerifyCommand:
         ):
             MockScanner.return_value.scan_library.return_value = [item]
             mock_tp.return_value = trailer_file
-            result = runner.invoke(app, ["trailers", "verify", "--deep"])
+            result = runner.invoke(app, ["trailers", "audit", "--deep"])
         # FileNotFoundError is caught → ffprobe_error=True → exit 4
         assert result.exit_code == 4, result.output
 
@@ -824,6 +824,38 @@ class TestTrailersDownloadErrors:
             MockScanner.return_value.scan_staging.return_value = []
             result = runner.invoke(app, ["trailers", "scan", "--since", "not-a-date"])
         assert result.exit_code == 2, result.output
+
+
+class TestTrailersAuditHelp:
+    """Tests for the ``trailers audit`` command discoverability."""
+
+    def test_audit_help_exits_zero(self, tmp_path):
+        """``trailers audit --help`` exits 0 (canonical command discoverable)."""
+        with patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)):
+            result = runner.invoke(app, ["trailers", "audit", "--help"])
+        assert result.exit_code == 0, result.output
+        assert "audit" in result.output.lower()
+
+    def test_audit_runs_against_empty_library(self, tmp_path):
+        """``trailers audit`` (no flags) exits 0 on empty library."""
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
+            patch(_PATCH_SCANNER) as MockScanner,
+            patch(_PATCH_OPEN_DB),
+        ):
+            MockScanner.return_value.scan_library.return_value = []
+            result = runner.invoke(app, ["trailers", "audit"])
+        assert result.exit_code == 0, result.output
+
+    def test_audit_delegates_to_audit_impl(self, tmp_path):
+        """The typer entrypoint must delegate to the shared ``_audit_impl`` body."""
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
+            patch("personalscraper.trailers.cli._audit_impl") as mock_impl,
+        ):
+            result = runner.invoke(app, ["trailers", "audit"])
+        assert result.exit_code == 0, result.output
+        assert mock_impl.call_count == 1
 
 
 class TestTrailersPurgeCommandLockContention:

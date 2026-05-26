@@ -13,52 +13,10 @@
 
 ## P1 — High Priority (next after P0, unblocks major features)
 
-### P1 — Pipeline Observer Protocol (Headless Mode)
-
-`pipeline.py` is directly coupled to `rich.Console` — it creates a console internally and passes it to every step via `StepContext`. This makes the pipeline impossible to drive from anything other than a TTY: no Web UI, no watcher service, no headless cron mode with programmatic status polling.
-
-**Blocked by this refactor**: Web Management UI (needs headless pipeline), Watcher Service (needs programmatic trigger), Auto-Download (needs pipeline status from a non-interactive context).
-
-**Goals**
-
-- Define a `PipelineObserver` Protocol with callbacks: `on_step_start(step_name)`, `on_step_end(step_name, report)`, `on_error(step_name, error)`, `on_progress(step_name, item, status)`.
-- The `rich.Console` rendering becomes **one** observer among others (the default when running interactively).
-- Web UI registers a WebSocket observer; the watcher registers a minimal logging observer; tests register a collecting observer.
-- `Pipeline.__init__` accepts `observers: Sequence[PipelineObserver] | None`, keeping backward compatibility.
-- `StepContext` drops the `console: Console` field in favor of `observers` — steps notify observers instead of printing.
-
-**Non-goals**
-
-- Async pipeline execution (deferred to Watcher Service).
-- Real-time step output streaming for the CLI (already works via rich, stays unchanged).
-
-### P1 — Event Bus
-
-No event/signal system exists today. The pipeline runs as a linear sequence with zero hooks for external code to react to: step transitions, item completion, errors, circuit-breaker trips, disk-full conditions, dispatch decisions — all are invisible outside the pipeline process.
-
-**Blocked by this refactor**: Watcher Service (needs "download complete" → trigger), Web UI (needs real-time progress streaming), Auto-Download (needs "recommendation list updated" → search).
-
-**Goals**
-
-- Minimal pub/sub event bus (`EventBus` class with `subscribe(event_type, callback)` and `emit(event)`).
-- Typed event dataclasses: `StepStarted`, `StepCompleted`, `StepErrored`, `ItemDispatched`, `CircuitBreakerOpened`, `DiskFullWarning`, `TrailerDownloaded`, `LibraryScanCompleted`.
-- Events are fire-and-forget (synchronous by default, async variant deferred).
-- CLI `--verbose` flag subscribes a debug event logger.
-- Zero overhead when no subscribers are registered (fast-path).
-
-**Non-goals**
-
-- Persistent event log / event sourcing.
-- Cross-process events (needed later for Watcher Service, but out of scope for v1).
-- Retry/replay semantics.
-
-**In progress** (feat/event-bus, version 0.14.0):
-
-- Codename: `event-bus`
-- SemVer bump: minor (Y+1)
-- Design: `docs/features/event-bus/DESIGN.md`
-- Plan: `docs/features/event-bus/plan/INDEX.md` (5 phases, 42 sub-phases)
-- Activated on: 2026-05-11
+> _Pipeline Observer Protocol (v0.13.0), Event Bus (v0.14.0), Multi-Provider IDs
+> Propagation (v0.15.1) all shipped — see "Completed" section. **Tech-debt
+> (0.16.0)** is currently in progress on `fix/tech-debt` (Phases 0-7 + 5.9-5.12 done,
+> Phases 8/9/10 remaining)._
 
 ### P1 — Provider Registry (Scraper Orchestrator Decoupling)
 
@@ -77,35 +35,6 @@ No event/signal system exists today. The pipeline runs as a linear sequence with
 
 - Runtime provider hot-swap.
 - Provider health scoring beyond the existing circuit breaker.
-
-### P1 — Multi-Provider IDs Propagation (provider-ids)
-
-Le scraper TV n'écrit aucun `<uniqueid>` épisode pour la majorité des shows (root cause tracée pendant le pipeline-monitor 2026-05-17-09h24 : `_tvdb_fetch` / `_tmdb_fetch` jettent les IDs côté fetcher, `match_episode_files` ne propage rien, `_generate_episode_nfos` hardcode des `""`, et `verify_tvshow_scrape_drift` check #4 ne valide que l'existence du sibling NFO sans regarder son contenu). Conséquence : `scrape_fast_skip` se perpétue indéfiniment et les IDs ne seront jamais écrits sans intervention.
-
-**Bloqué par cette feature** : indexer backfill ID-aware, recherches tracker par IMDB ID, déduplication cross-disque par ID stable, future fédération de providers (SensCritique, AllocineFR).
-
-**Goals**
-
-- Trois familles d'IDs **séparées** par scraper : TVDB, TMDB, IMDB — pour la série et pour chaque épisode. Aucune cross-contamination (`<uniqueid type="tvdb">` contient un VRAI ID TVDB).
-- Hiérarchie de scrape : TVDB primaire, TMDB additionnel **info seulement** (cross-ref, pas de re-scrape si TVDB OK), TMDB fallback si TVDB échoue, IMDB toujours collecté pour usages externes.
-- Chaque étape du pipeline (sort / clean / scrape / verify / dispatch / indexer) peut **reprendre / créer / corriger** les IDs manquants d'une famille **sans écraser** la famille déjà présente (idempotence par famille).
-- Drift validator renforcé : exiger au moins un `<uniqueid>` canonique sur les sibling NFOs épisode.
-- Mode `indexer --backfill-ids` pour enrichir les NFOs et la DB existants sans destruction.
-- Migration non-destructive des 6 shows actuellement en staging avec NFOs sans uniqueid (re-scrape déclenché par le drift renforcé).
-
-**Non-goals**
-
-- Provider SensCritique / AllocineFR (autre roadmap item).
-- Configuration utilisateur de la priorité des familles (hiérarchie figée TVDB→TMDB→IMDB).
-- Sync bi-directionnel temps réel avec les providers.
-
-**In progress** (feat/provider-ids, version 0.15.0):
-
-- Codename: `provider-ids`
-- SemVer bump: minor (Y+1)
-- Design: `docs/features/provider-ids/DESIGN.md`
-- Plan: `docs/features/provider-ids/plan/INDEX.md` (à générer par `/implement:plan`)
-- Activated on: 2026-05-17
 
 ### P1 — Library / Indexer Consolidation
 
@@ -302,6 +231,42 @@ implement using the unified `HttpTransport` infrastructure.
 ---
 
 ## ✅ Completed
+
+### Multi-Provider IDs Propagation (v0.15.1 — provider-ids)
+
+Three separate ID families per scraper (TVDB / TMDB / IMDB), no cross-contamination, idempotent backfill across every pipeline step. Replaces the silent `<uniqueid>` drop that left most TV shows with empty IDs.
+
+- **Three families separated**: `<uniqueid type="tvdb">` contains a real TVDB ID, same for `tmdb` / `imdb` — verified by drift validator.
+- **Scrape hierarchy**: TVDB primary, TMDB info-only cross-ref when TVDB OK, TMDB fallback when TVDB fails, IMDB always collected.
+- **Per-family idempotence**: each step (sort / clean / scrape / verify / dispatch / indexer) can resume / create / correct missing IDs of one family without overwriting another.
+- **Drift validator strengthened**: requires at least one canonical `<uniqueid>` on sibling episode NFOs.
+- **`library-backfill-ids` CLI**: enriches existing NFOs + DB non-destructively.
+- **Capability protocols**: atomic per-feature provider capabilities (search / details / images / ratings).
+- **Migration**: 6 staging shows with empty `<uniqueid>` re-scraped via the strengthened drift check.
+- PR #23 merged 2026-05-17. Archived: `docs/archive/features/provider-ids/`.
+
+### Event Bus (v0.14.0 — event-bus)
+
+Application-wide in-process pub/sub bus with typed event dataclasses. Replaces the `PipelineObserver` Protocol (superseded — see archived `pipeline-obs`).
+
+- **`EventBus`** with `subscribe(event_type, callback)` and `emit(event)` — fire-and-forget, synchronous.
+- **13 typed events v1** (catalog `docs/reference/event-bus.md`), extended to **17 in v1.1** by provider-ids (4 `Backfill*` events).
+- **CLI `--verbose`** wires a debug subscriber.
+- **Zero-overhead fast-path** when no subscribers registered.
+- **`AppContext` boundary rule** + **ContextVar pattern** for thread-safe subscription scoping.
+- **No persistent event log, no cross-process** (deferred — see Watcher Service P2).
+- Archived: `docs/archive/features/event-bus/`.
+
+### Pipeline Observer Protocol — Headless Mode (v0.13.0 — pipeline-obs)
+
+Decoupled `pipeline.py` from `rich.Console`. The pipeline now drives **observers** instead of printing directly — enabling headless cron, Web UI, watcher service, and tests with collecting observers. Superseded shortly after by `event-bus` (observer → subscriber).
+
+- **`PipelineObserver` Protocol** with lifecycle + per-item progress callbacks.
+- **`RichConsoleObserver`** = default TTY rendering; **`TelegramObserver`** = headless notifications.
+- **`StepContext.console` removed** — steps notify observers via `notify_progress(StepEvent(...))`.
+- **All 9 pipeline steps** integrated (ingest, sort, process, scrape, enforce, verify, trailers, dispatch, final gate).
+- PR #21 merged 2026-05-11. Archived: `docs/archive/features/pipeline-obs/`.
+- **Note**: observer model superseded by event-bus in v0.14.0 — see archived `pipeline-obs/DESIGN.md` for the old → new mapping (Observer → Subscriber, `StepEvent` → `StepProgress`, etc.).
 
 ### YoutubeTrailerScraper Integration (v0.5.0)
 

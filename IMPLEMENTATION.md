@@ -1,390 +1,221 @@
-# Implementation Progress — provider-ids
+# Implementation Progress — tech-debt
 
-> For Claude: read this file at session start. Current feature tracker.
-
-**Codename**: `provider-ids`
-**Feature**: Multi-Provider IDs Propagation + Capabilities Refactor (type: minor)
-**Version bump**: 0.14.0 → 0.15.0
-**Branch**: feat/provider-ids
+**Feature**: Tech-Debt (Global Cross-Feature Fixes) (type: minor)
+**Version bump**: 0.15.1 → 0.16.0 (decision item 13 §5)
+**Branch**: fix/tech-debt
 **PR merge**: manual
-**PR**: _(created after last phase)_
-**Design**: docs/features/provider-ids/DESIGN.md
-**Master plan**: docs/features/provider-ids/plan/INDEX.md
+**PR**: https://github.com/LounisBou/personal-scraper/pull/24
+**Design**: `docs/features/tech-debt/DESIGN.md` (9 sections + ACCEPTANCE sketch)
+**Acceptance**: `docs/features/tech-debt/ACCEPTANCE.md` (73 criteria exécutables — 49 initiaux + ACC-50..54 Phase 9 CLI coverage + ACC-NFO-FIX + ACC-INIT-CANONICAL-SEEDS + ACC-OMDB-QUOTA Phase 8.10.b/c/d + ACC-46..49 Phase 10)
+**Master plan**: `docs/features/tech-debt/plan/INDEX.md` (DEV/Pattern/Section cross-tables)
 
-## Active memories (à respecter pour TOUTES les phases)
+> **HANDOVER.md deleted in Phase 10.4 closure** (was transient session-context doc, obsolete
+> post-implementation). Historical context lives in: commits + `audit/01..16.md` (permanent)
+>
+> - global `MEMORY.md` (user feedback). This IMPLEMENTATION.md is the single tracker.
 
-- `feedback_multi_provider_ids_separation` — hiérarchie TVDB primaire → TMDB info+fallback → IMDb info, séparation stricte des familles, idempotence par famille.
-- `feedback_no_backcompat_before_v1` — pas de scripts de migration generic ; modifs schema/config/NFO appliquées directement à l'unique instance dans le même PR (< v1.0.0).
-- `feedback_regression_test_per_bug` — chaque bug code détecté a un test RED qui le reproduit avant le fix.
-- `feedback_event_bus_no_deferral` (appliqué à provider-ids) — aucun item DESIGN différé. Phase qui déborde → découper en sub-phases.
-- `feedback_pipeline_dry_run_first` — pour toute commande pipeline pendant l'implémentation, dry-run d'abord, valider, puis real.
-- `feedback_tooling_diagnostics` — utiliser `command python` / `command rg`, trust `make test`.
+## Statut actuel
 
-## Codebase sync notes (post contre-analyse 2026-05-17)
+**✅ Audit pré-design 14 items COMPLET** (certains REDO à profondeur audit-quality).
+**✅ Coverage 100% atteinte** : 54/54 DEVs + 34/34 patterns + 8/8 sections DESIGN.
+**✅ 4 fixes critiques déjà shipped** : DEV #9, #11, #13, #14.
 
-Le DESIGN initial référence un snapshot du codebase (HEAD `8ef2c87`) antérieur aux features mergées récemment (api-unify v0.11.0, pipeline-obs v0.13.0, event-bus v0.14.0). **Sync vérifiée par grep direct (tous les file:line refs ci-dessous validés sur `feat/provider-ids` HEAD le plus récent — chaque exécution de phase doit re-vérifier au cas où le code aurait bougé entretemps) :**
+### Known flaky / env-dependent tests (NOT introduced by tech-debt 0.16.0)
 
-- **`_build_episode_map`** def à `tv_service.py:605` ; les 2 inner functions à modifier (phase 2.2) sont `_tvdb_fetch` (`:698-711`) et `_tmdb_fetch` (`:712-725`) — payloads actuels `{"title", "still_path": ""}`.
-- `_generate_episode_nfos` à `tv_service.py:818` (def).
-- `match_episode_files` def à `episode_manager.py:97` ; les 3 assignations `matched[video_path] = ...` aux lignes `153, 177, 202`.
-- `nfo_generator.generate_episode_nfo` def à `nfo_generator.py:381` ; bloc uniqueid à `:401-419` ; `_add_ratings` à `:534`.
-- `existing_validator.verify_tvshow_scrape_drift` def à `:94` ; check #4 sibling NFO à `:184-186`.
-- `api/_contracts.py` existe avec 5 classes (`MediaType`, `ProviderName`, `AuthMode`, `ApiError`, `CircuitOpenError`) — phase 1.1 **ajoute** `HasName`.
-- `MetadataProvider` Protocol monolithique à `api/metadata/_base.py:259` avec **8 méthodes publiques** (`search`, `get_details`, `get_artwork_urls`, `get_keywords`, `get_videos`, `get_season`, `get_notations`, `get_recommendations`) — phase 1.2 décompose en **11 capabilities** (8 méthodes + 2 nouveaux `IDValidator`/`IDCrossRef` + 1 split `get_details` → `Movie`/`Tv` DetailsProvider). Décision Option A : capabilities atomiques pour les 4 méthodes "extras" (`ArtworkProvider`, `KeywordProvider`, `VideoProvider`, `RecommendationProvider`).
-- `TrackerClient` Protocol à `api/tracker/_base.py:102` (méthodes `search`, `get_categories`) — phase 11 drop + LaCale/C411 composent les 4 capabilities.
-- `TorrentClient` Protocol à `api/torrent/_base.py:43` avec **7 méthodes** (`get_completed`, `get_all_hashes`, `is_seeding`, `get_content_path`, `pause`, `resume`, `delete`) — phase 13 drop. Décomposé en **5 capabilities atomiques** (`TorrentLister`, `TorrentInspector`, `AuthenticatedClient`, `TorrentStateInspector`, `TorrentController`) — voir phase 1.4 + phase 13.
-- **`api/notify/_base.py` contient déjà** `Notifier(Protocol)` à `:17` (`send`, `send_report`) ET `HealthChecker(Protocol)` à `:35` (`ping_start`, `ping_success`, `ping_fail`) — pas monolithique, déjà capability-style. **Phase 1.5 + 14 ne créent rien de nouveau** : juste migrent les 2 Protocols vers `_contracts.py`, ajoutent `@runtime_checkable`, rendent la composition explicite sur `TelegramNotifier` (`telegram.py:49`, pas `TelegramClient`) et `HealthcheckClient` (`healthchecks.py:46`). Noms et signatures **inchangés**.
-- `OverrideRule.imdb_id` existe (`conf/models/preferences.py:82`) ; **aucun import de `OverrideRule` hors `conf/models/`** — suppression triviale. Pas de `config/api.json5` (le fichier référencé dans le DESIGN n'existe pas).
-- `Notations` est une dataclass `_base.py:149` avec `provider`, `source`, `score`, `votes_count` — singulière malgré le nom au pluriel. `list[Notations]` = multi-source. Phase 6.1 utilise ce type tel quel.
+Identified on baseline `a5420d8` by parallel worktree run; intermittent on
+HEAD too. None block phase gates — re-run usually clears them. Cited here so
+future sessions don't waste time chasing them as new regressions.
 
-Statut : **contre-analyse appliquée et complète** (corrections inline dans phase-01, phase-02, phase-13, phase-14, DESIGN §4 §6.2). Phase 13 décision tranchée → Option A : 5 capabilities atomiques (`TorrentLister`, `TorrentInspector`, `AuthenticatedClient`, `TorrentStateInspector`, `TorrentController`). Phase 14 corrigée → Protocols existants (`Notifier`+`HealthChecker`) migrés sans rename.
+**Env-dependent** (3 — fail under `make test`, pass in isolation; missing
+`_mock_cli_config_load` autouse fixture; failure message "No config.json5
+found"):
 
-## Phases
+- `tests/skill/test_matrix_cli_refs.py::test_matrix_file_exists`
+- `tests/skill/test_matrix_cli_refs.py::test_matrix_cli_ref_valid[info ...]`
+- `tests/indexer/scanner/test_init_canonical.py::test_library_init_canonical_cli_command_exists`
 
-| #   | Phase                                                         | File                                  | Status |
-| --- | ------------------------------------------------------------- | ------------------------------------- | ------ |
-| 1   | Capabilities Protocols (api/\_contracts.py + per-domain)      | phase-01-capabilities-protocols.md    | [x]    |
-| 2   | Fix DEV #2 — IDs propagation (regression tests first)         | phase-02-fix-dev2-ids-propagation.md  | [x]    |
-| 3   | Façades IMDb + RottenTomatoes (sur OMDbAdapter)               | phase-03-imdb-rt-facades.md           | [x]    |
-| 4   | Drift validator renforcé (canonical uniqueid required)        | phase-04-drift-validator-hardening.md | [x]    |
-| 5   | Xref enrichment sequential + \_resolve_external_ids           | phase-05-xref-enrichment.md           | [x]    |
-| 6   | NFO ratings multi-source + uniqueid default canonical         | phase-06-nfo-ratings-multisource.md   | [x]    |
-| 7   | DB schema — external_ids_json + ratings_json + canonical_prov | phase-07-db-schema-external-ids.md    | [x]    |
-| 8   | Backfill mode + CLI + auto-trigger post-scrape                | phase-08-backfill-mode.md             | [x]    |
-| 9   | Verify checker — 3 nouveaux checks                            | phase-09-verify-checker-extensions.md | [x]    |
-| 10  | Consommateurs library/conf/trailers refactor                  | phase-10-consumers-refactor.md        | [x]    |
-| 11  | Tracker capabilities + LaCale/C411 refactor                   | phase-11-tracker-capabilities.md      | [x]    |
-| 12  | Tracker registry priority-aware par type de média             | phase-12-tracker-registry-priority.md | [x]    |
-| 13  | Torrent capabilities + QBit/Transmission refactor             | phase-13-torrent-capabilities.md      | [x]    |
-| 14  | Notify capabilities + Telegram/Healthchecks refactor          | phase-14-notify-capabilities.md       | [x]    |
-| 15  | Integration + E2E + final wire                                | phase-15-integration-e2e.md           | [x]    |
+**Test pollution** (2 — pass in isolation, fail in full suite under
+pytest-xdist; ordering / shared module state):
 
-## Sub-phase tracking (filled by /implement:phase)
+- `tests/unit/test_qbittorrent.py::TestBuildClient::test_returns_authenticated_client`
+- `tests/unit/test_qbittorrent.py::TestQBitClient::test_login_logout`
 
-> Format par phase : sub-phase number, scope, SHA commit, durée, notes. Filled au fur et à mesure de l'exécution.
+**Mitigations applied 2026-05-23 (commit pending)**:
 
-### Phase 1 — Capabilities Protocols
+- Env-dependent 3 **mitigated**: extended `_mock_cli_config_load` autouse
+  fixture in `tests/conftest.py` to also cover `test_matrix_cli_refs.py` +
+  `test_init_canonical.py` (was previously scoped to test_cli.py /
+  test_logger_cli.py only). 4 consecutive `make test` runs post-fix:
+  4969 passed each.
+- Test pollution 2 **NOT yet mitigated** — not reproducible on HEAD in
+  4 consecutive runs. Suspected root cause: xdist worker state leak from
+  a prior test that patches `httpx.Client` or `aiohttp.ClientSession`
+  module-level without proper teardown. Future work (Phase 8 candidate):
+  add a `_qbit_module_reset` autouse fixture in `tests/unit/conftest.py`
+  that re-imports `personalscraper.api.torrent.qbittorrent` between tests.
 
-| Sub  | Scope                                                                 | SHA     | Status |
-| ---- | --------------------------------------------------------------------- | ------- | ------ |
-| 1.1  | Add HasName to existing api/\_contracts.py                            | 2e04938 | [x]    |
-| 1.2  | Metadata capabilities (11 atomiques) + decompose MetadataProvider     | bf5b676 | [x]    |
-| 1.2b | Migration plan for MetadataProvider consumers                         | b0b1ed8 | [x]    |
-| 1.3  | Tracker capabilities                                                  | d0f5e94 | [x]    |
-| 1.4  | Torrent capabilities (5 atomiques pour 7 méthodes)                    | 0c75f47 | [x]    |
-| 1.5  | Notify : migrate Notifier+HealthChecker existants vers \_contracts.py | 29f7ca0 | [x]    |
-| 1.6  | Helpers + ProviderFeatureUnavailable                                  | 723ee8f | [x]    |
+DESIGN.md + ACCEPTANCE.md + plan/ (9 phases) produits et committed. Estimate revised :
+**19-27 jours séquentiel, 15-22 jours parallélisable**.
 
-### Phase 2 — Fix DEV #2 IDs Propagation
+\*\*4 fix commits déjà shipped sur priorité absolue user (DEV #9, #11, #13, #14). 6 phases doc
+audit committed (items 5-13).
 
-| Sub | Scope                                                      | SHA     | Status |
-| --- | ---------------------------------------------------------- | ------- | ------ |
-| 2.1 | Regression tests DEV #2 (RED) + EpisodeInfo.external_ids   | 7ef4994 | [x]    |
-| 2.2 | Fix `_build_episode_map` payload (TVDB + TMDb episode IDs) | afd06b2 | [x]    |
-| 2.3 | Fix `match_episode_files` passthrough                      | 16aa51c | [x]    |
-| 2.4 | Fix `_generate_episode_nfos` use propagated IDs            | 306dfc7 | [x]    |
+## Audit pré-design (14 items)
 
-### Phase 3 — IMDb + RT Façades
+Méthode : un par un, validation utilisateur entre chaque, communication en français, rien hors scope.
 
-| Sub  | Scope                                                  | SHA     | Status |
-| ---- | ------------------------------------------------------ | ------- | ------ |
-| 3.1  | OMDbAdapter refactor (mark internal, alias OMDBClient) | 0c72d81 | [x]    |
-| 3.2  | IMDbClient façade                                      | 00fd673 | [x]    |
-| 3.3  | RottenTomatoesClient façade                            | 7be760c | [x]    |
-| 3.4  | `_activation.py` wiring (PROVIDER_CREDS)               | dc8f876 | [x]    |
-| 3.4b | `api/metadata/__init__.py` exports                     | c7a0f57 | [x]    |
-| 3.5  | `config.example/metadata.json5` documents IMDb+RT      | 00cd61f | [x]    |
+| #   | Item                                                   | Type           | Output attendu                        | Status                                                                                                                                                                                                                                                                                                        |
+| --- | ------------------------------------------------------ | -------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Étude des dérives des plans (cross-feature)            | Analyse        | Rapport patterns + causes racines     | [x] (audit/01-plan-drift.md)                                                                                                                                                                                                                                                                                  |
+| 2   | Étude du pipeline et de son fonctionnement             | Analyse        | Carto pipeline + invariants           | [x] (audit/02-pipeline-cartography.md)                                                                                                                                                                                                                                                                        |
+| 3   | Brainstorm MAJ skill pipeline-monitor                  | Brainstorm     | Liste changements à apporter          | [x] (audit/03-skill-update-brainstorm.md + Q1-Q10 décidées)                                                                                                                                                                                                                                                   |
+| 4   | MAJ skill pipeline-monitor                             | Implémentation | Skill mise à jour committée           | [x] (matrix v2.0 + SIGINT + 4 agents + SKILL.md + host.py)                                                                                                                                                                                                                                                    |
+| 5   | Run pipeline-monitor (avec skill mise à jour)          | Analyse        | DEVIATION LIST + Conformity Check     | [x] (docs/pipeline-runs/2026-05-21-17h16-pipeline-run.md — 12 DEV ; DEV #9 critique data-loss + DEV #11 majeur merkle non-déterministe traités hors-scope sur priorité absolue user)                                                                                                                          |
+| 6   | Brainstorm améliorations suite au pipeline-monitor     | Brainstorm     | Liste items pour le design            | [x] (audit/04-pipeline-monitor-brainstorm.md — 10 patterns P1-P10 + 33 items A-AG triés must/should/nice)                                                                                                                                                                                                     |
+| 7   | Check BDD (intégrité, conformité, cohérence, améliors) | Analyse        | Rapport BDD                           | [x] (audit/05-bdd-audit.md — DEV #15-#19 nouveaux ; cause racine décomposée pour DEV #12 ; 4 nouveaux patterns P11-P14)                                                                                                                                                                                       |
+| 8   | Brainstorm améliorations BDD                           | Brainstorm     | Liste items pour le design            | [x] (audit/06-bdd-brainstorm.md — 37 items BD-A..BD-AK + 3 nouveaux patterns P15-P17 + plan 5 phases BDD 9-14j)                                                                                                                                                                                               |
+| 9   | Analyse commandes CLI (bugs, design, améliorations)    | Analyse        | Rapport CLI                           | [x] (audit/07-cli-audit.md — 31 entry points inventoriés ; 4 DEV #20-#23 ; 3 patterns P20-P22 ; 20 items CL-A..CL-T)                                                                                                                                                                                          |
+| 10  | Brainstorm améliorations CLI                           | Brainstorm     | Liste items pour le design            | [x] (audit/08-cli-brainstorm.md — 14 items exploratoires CL-U..CL-AN ajoutés ; plan 7 phases CLI ; tableau global multi-dim 13-22j)                                                                                                                                                                           |
+| 11  | Analyse app + conformité design                        | Analyse        | Rapport conformité globale            | [x] **REDO audit-quality** (audit/09-conformity.md — 13 features audités exhaustivement ; 235 claims vérifiées ; 26 DEVs #24-#49 + 5 BONUS DEVs #50-#54 trouvés en reindex BDD attempt 2026-05-21 ; 5 patterns P30-P34 ; provider-ids ACCEPTANCE re-grade 4/10 ✅→❌🟡 ; +2-3 j → +3-4 j sur estimate 0.16.0) |
+| 12  | Analyse critique design + architecture                 | Analyse        | Rapport critique structurel           | [x] (audit/10-architecture-critique.md — 7 critiques structurelles A-G ; 4 patterns P26-P29 ; 7 items AR-A..AR-G ; net 1-2 j 0.16.0)                                                                                                                                                                          |
+| 13  | Brainstorm améliorations globales                      | Brainstorm     | Synthèse de tous les brainstorms      | [x] (audit/11-global-synthesis.md — 15 MUST + 26 SHOULD + ~39 NICE déférés ; 29 patterns P1-P29 tous mappés ; plan 8 phases ; 13-19 j estimés)                                                                                                                                                                |
+| 14  | Challenge final du design + plan tech-debt             | Validation     | DESIGN.md + plan/ propres (non-draft) | [x] (DESIGN.md + plan/INDEX.md + 8 phase files ; drafts supprimés ; 15 ACCEPTANCE criteria executables ; bump 0.16.0 MINOR decided)                                                                                                                                                                           |
 
-### Phase 4 — Drift Validator Hardening
+## Phases d'implémentation
 
-| Sub  | Scope                                                | SHA     | Status |
-| ---- | ---------------------------------------------------- | ------- | ------ |
-| 4.1  | Tests RED drift sans canonical uniqueid              | fb497ea | [x]    |
-| 4.2  | Helper `_read_canonical_provider` + `_episode_nfo_*` | cfd3dd2 | [x]    |
-| 4.3  | Étendre check #4 (drop into the same commit as 4.2)  | cfd3dd2 | [x]    |
-| 4.3b | Update existing scraper test fixtures                | 2c8b3e6 | [x]    |
-| 4.4  | Test intégration drift → re-scrape                   | 4e5dd17 | [x]    |
+Voir `docs/features/tech-debt/plan/INDEX.md` pour le détail. **16 phases** (Phase 0 ajoutée
+2026-05-22 — DEV #1 promu pré-foundations sur la review opérateur) ordonnées par dépendances :
 
-### Phase 5 — Xref Enrichment
+| #    | Phase                                                                                                                                     | File                                | Effort  | Status                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | Pre-Foundations: skill safety net (DEV #1)                                                                                                | phase-00-skill-safety.md            | 0.5 j   | [x] `66943ce` (.claude/personal-scraper)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 1    | Foundations BDD/indexer + PRAGMA + bonus                                                                                                  | phase-01-foundations.md             | 3-4 j   | [x] gate `83446f9`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 2    | CLI gaps + backfill-ids first run                                                                                                         | phase-02-cli-gaps.md                | 2 j     | [x] gate `1ccba80`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 3    | Observability (broadened DEV #6 → 7 cmds)                                                                                                 | phase-03-observability.md           | 2 j     | [x] gate `3a5930f`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 4    | Path + paranoia branch (DEV #31)                                                                                                          | phase-04-path-cleanup.md            | 2-3 j   | [x] gate `f331252`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 5    | Conformity (drop Protocols + Pydantic)                                                                                                    | phase-05-conformity.md              | 2-3 j   | [x] gate `0b8b052`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 5.9  | NTFS cache pressure (audit/12 integration)                                                                                                | (no formal phase file)              | 1 j     | [x] gate `4787b64`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 5.10 | Process Hardening (drift-detect + phase-gate + briefing v2 + drafts)                                                                      | (no formal phase file)              | 1 j     | [x] gate `f3e5684`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 5.11 | Corrections (IMPL+ACC+plan sync + ACC-NTFS + drift-detect refine)                                                                         | (no formal phase file)              | 0.5 j   | [x] gate `3ae51c3`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 5.12 | Incident response BDD (BD-D #1 + #2 + BD-INIT-CANONICAL + relink tx rollback)                                                             | (no formal phase file)              | 0.5 j   | [x] 4 fix commits + 22 regression tests : `c5e2bbd` cascade hard-delete path / `00599f8` merkle refresh + detector empty-set / `3df78e0` init_canonical fallback imdb→tmdb + observability / `9997f70` relink BEGIN IMMEDIATE wrap for dry-run rollback                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 6    | Format + heavy doc work                                                                                                                   | phase-06-format-docs.md             | 3-4 j   | [x] gate `f1f4fe3` (--format flag + commands.md 39 entries + architecture state ownership + indexer lifecycle + backfill runbook + ENFORCE/PROCESS doc)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 7    | Matrix v2.1 + agents matrix-aware                                                                                                         | phase-07-matrix-v21.md              | 1-2 j   | [x] gate `a1eb322` (.claude/personal-scraper — matrix v2.1 + skill v2.1 + 7 agents matrix-aware + CHANGELOG)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 8    | Polish + Plan A reset + size hard-block                                                                                                   | phase-08-polish.md                  | 3-4 j   | [x] 14/15 sub-phases DONE + 1 PARTIAL (8.10 Plan A retry = operator action, runbook ready at `audit/16`). Sub-phase commits: 8.1 `5426826` / 8.2 `ba47124` / 8.3 `017ea7b` / 8.4 `92c4d11` / 8.5 `771e630` / 8.6 `0c6886d` / 8.8 `0376222` / 8.9 `addab31` / 8.10 `0da47b1` (PARTIAL) / 8.11 `58c63d3` / 8.12 `bcb2065` / 8.13 `fb96adb` / 8.14 `15a5a2e`+`b27de8b`+`0c3bc33` / 8.15 `60d910d`+`df723b5`+`1cd653a`. Pre-gate: format pass `5e4e183` + test allowlist fix-up `<pending>`. Known: 3 pre-existing lint-logging ERRORs in `cli_helpers/output.py` (legit user-facing prints — needs `check_logging.py` exception mechanism, Phase 10 candidate); 3 pre-existing test failures (#1 `test_entry_exists`, #2 `test_jumanji`, #3 `test_verify_disk_filter` — none Phase 8 introduced).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 9    | CLI Test Coverage (NEW — absorbe 8.7 SH-25 ; **20/20 library + 7/7 pipeline + 4/4 trailers/config + 4/4 non-library + 20/20 harmonized**) | phase-09-cli-coverage.md            | 1.5-2 j | [x] all sub-phases DONE. 9.1 helpers+pin (`f32848b`+`a66c411`, 40 pin tests, 26 helpers); 9.2.a (`dfd3d64`+`f80a0a4`+`8d0ba32`, 31 tests); 9.2.b (`fb28464`+`cb30da8`+`300520a`, 36 tests); 9.2.c (`c2b39da`, 18 tests); 9.5 (`d66c048`+`e877902`+`42f1a5c`+`efce0fe`, 47 tests); 9.6 (`a8549be`+`804bb19`+`5d5c30b`+`294cf76`, 17 tests); 9.7.a/1 5 commits c3d8b07..e39cbca +27 tests; 9.7.a/2 `5c52e2a` +27 tests; 9.7.a/3 5 commits c99f169..96dcbe8 +24 tests; 9.7.a/4 5 commits d902f34..bc56856 +26 tests; 9.7.b script+matrix+Makefile (`ea6a04d`+`eeb4745`); 9.7.b/fix close 22 gaps (`0c0e737`+`274fb20`+`265b21d`). Pre-gate: format pass `640845a` + cli_helpers/output.py typer.echo + fix_nfo PRAGMA `3876636`. Total Phase 9 = +261 new tests + cli-coverage-report tool. ACC-50..54 all ✅. Known: 3 pre-existing test failures from Phase 8 still present (test_entry_exists, test_jumanji, test_verify_disk_filter — none Phase 9 introduced).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 10   | Archive DESIGN.md updates (**8 features** — arch-cleanup added)                                                                           | phase-10-archive-docs.md            | 1-2 j   | [x] all DONE. Sub-phase commits: 10.1/1 (`9c2c801`+`5350b54`+`8f38a92`+`693acb5`) event-bus/provider-ids/media-indexer; 10.1/2 (`7064713`+`05b64da`+`5fadadc`+`0e64616`+`6af0218`) pipeline-obs/trailer/logging(MISSED-in-329afbc)/legacy-cleanup + ACC-46 ✅; 10.2 (`cbbc408`+`4a73e5c`+`2e917a9`) `_exclusions.py` placeholder + 5 alpha refs archived to `docs/archive/legacy-alpha/` + 4 inline rewrites; 10.3 (`651726c`+`3a89ba5`) arch-cleanup 8th banner + ACC-49 ✅ (DEV #45+#47+#24 closed); 10.4 (`fb36cd9`+`74219f2`) HANDOVER.md deleted + IMPL header cleaned. Gate: `<this commit>`. 8/8 archive banners, 0 VX leaks outside `docs/archive/`, ACC-46..49 all ✅.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 11   | Aggregated DeepSeek 5-angle review fixes (18 findings)                                                                                    | phase-11-review-fixes.md            | 2-3 j   | [x] gate `<this commit>` — all 7 sub-phases DONE. Commits: 11.1 (5 — `17efd80`+`fac97de`+`8a776d2`+`5ee201d`+`d3f05f7` durability fsync), 11.2 (3 — `3aa22f0`+`97bf590`+`193807e` stats ordering), 11.3 (4 — `f202d81`+`ddea570`+`c296e41`+`c768783` AppleDouble shared), 11.4 (3 — `8a2df4f`+`2193f7d`+`79daee2` pytest.raises narrow), 11.5 (4 — `a7a0f8b`+`2501133`+`2e7169d`+`e7102fd` regex+small fixes), 11.6 (2 Opus — `63b7f5f`+`a3d53fb` module decomposition; scan() 776→313 LOC, tv*service.py 998→832 non-blank LOC), 11.7 (3+1 fix-up — `e3de1af`+`2e04b8a`+`8b94ea2`+`9bd6f00` polish + N9 follow-up). Sanity sweeps: 0 `pytest.raises(Exception)` left, 1 inline `startswith(".*")`(canonical).`make test`: 5432 passed, 0 failed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 12   | Pipeline-monitor findings fixes (12 deviations from 2026-05-25 run)                                                                       | phase-12-pipeline-monitor-fixes.md  | 2-3 j   | [x] gate `<this commit>` — all 9 sub-phases DONE + 1 fix-up. Sub-phase commits: 12.1 (`7a010ee`+`1009285` canonical_provider repair CLI + tests, 7 tests); 12.2 (`a2e3287`+`5986025` .env.example + check_env_keys.py + 2 regression tests); 12.3 (`4ae69c9`+`a33a516` rescrape_drift episode_naming sweep + 3 parametric tests); 12.4 (`d6feb57`+`04e402f` enforce bracket events + 5 regression tests); 12.5 (`0523a32`+`4d3875d` cli_telemetry on 10 pipeline commands + 11-cmd parametric test); 12.6 (`dbec95b`+`a46fa09` item_issue drift persistence + 3 tests); 12.fix1 (`dac13f8`+`c68c3fd`+`2f17f32` regressions repair: KNOWN_VIOLATIONS empty + torrents-list @cli_telemetry removed + isinstance defensive guard); 12.7 (`008f4d1`+`6735275` media_file orphan repair CLI + 5 tests); 12.8 (`c3e5f76`+`057e1a7` season episode_count repair CLI + 5 tests + format fixup); 12.9 (`e099026`+`6cb32b6` BDD-backed NFO restore + 8 tests). Final `make test`: 5486 passed, 0 failed, 0 errors. Concerns folded into gate body.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 13   | Design-smell cleanups from PR review (5 deferred + 4 post-gate follow-ups)                                                                | (no formal phase file)              | 0.5 j   | [x] gate `4c9ef59` — all 9 sub-phases DONE. Sub-phase commits: 13.1 (`0e6d052` extract drift helpers to `_drift_persistence.py` — tv_service.py 1083→947 raw LOC); 13.2 (`64ccd4b` `DriftIssueStore` class encapsulates the helpers with `from_config` factory + shared conn lifecycle); 13.3 (`a58b64d` `CliFixStatsMixin` base for snapshot/to_log_dict across 4 Fix\*Stats dataclasses); 13.4 (`cedbe16` `RestoreOutcome` sum type — Restored / NoDb / NoMatch / NoDispatchPath / AmbiguousNfo / NoNfoAtDispatch / CopyFailed — replaces bool+mutation in `_restore_from_db`); 13.5 (`67e5bf0` `command_with_telemetry` wrapper in `cli_app.py` — single source of truth for command name, no more duplicated string between `@app.command` and `@cli_telemetry`). Post-gate follow-ups: 13.6 (`a714f23` drop `ScraperExternalIds` flat-param shims + fix 2 latent bugs — `tmdb_id` always 0 + IMDB id ignored); 13.7 (`f8185b4` drop deprecated `trailers verify` alias + E2E test migration + ACC-43 update); 13.8 (`0916232` `DriftIssueStore.from_config` log missing DB + regression test); 13.9 (`ae9f10a` propagate `OmdbQuotaExhausted` from `OMDbAdapter.search` + test rewrite). Final `make test`: 5510 passed, 0 failed, 0 errors.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 14   | Pipeline-monitor reopen + CI cleanup + disk residue (re-run 2026-05-25 23h49 findings — 11 sub-phases)                                    | phase-14-pipeline-monitor-reopen.md | 2-3 j   | [x] 11/11 DONE. Sub-phase commits: 14.1 (`0514c76`+`8f3b441` canonical*provider source-block + 194 inversions repaired + insertion-path regression); 14.2 NO_OP (`check_env_keys.py` 0 missing); 14.3 NO_OP (matrix v2.1 §PROCESS:scrape already documents Unmatched Episode Policy as DESIGN_CONFORM); 14.4 (`b6c476f`+`c5dcb75`+`e5d7b49` ON DELETE CASCADE migration 009 + 102 orphans purged + 4 regression tests); 14.5 NO_OP (`library-reconcile season_count_drift=0`); **14.6 DONE 2026-05-26** (disk residue cleanup via /tmp/audit_nfo_orphans.py + cleanup_disk_residue.py + cleanup_empty_dirs.py + run_full_cleanup_batched.py — validated via 3 sample tests v1+v2+v3 cumulative 233 deletions/0 regression; full run 1614 items deleted in 16 batches × 100/115 in 98s, 19 empty dirs walk-up cleaned, 65-item smoke pool intact 16/16 checks, 1 transient .actors/ skipped due to NTFS zombie file `Zoë_Renee.jpg` on `Hunger Games La Ballade (2023)` — known macFUSE corruption needing chkdsk from Windows; audit trail at `/tmp/full_cleanup_20260526-115807.log`. **Scope cleaned**: 109/109 `.*_.nfo`AppleDouble + 9/9 SAFE_TORRENT_LEFTOVER + 1729/1730`.actors/` dirs + 19 empty dirs); 14.7 NO_OP (`repair*queue.enqueued_at` already serves as creation timestamp — invariant AR expectation corrected to use the actual column name); 14.8 (`f2fb712`+`d524ff0`library-fix-orphan-files`--purge-release-orphans` flag + 172 episode-level orphans purged + 3 regression tests); 14.9 + 14.10 (`58d5d0d`in`.claude/`repo — agent prompts clarified + matrix v2.2 bump with`item_issue_persist_skipped_no_item` + VERIFY checks_total per type); 14.11 (`b7da1a8`CI test job name static + matrix dropped to Python 3.12 only + pyproject/README aligned). Total: 7 commits in personalscraper repo + 1 commit in`.claude/`repo. **Post-merge manual actions**: (a) GitHub Settings → Branches → branch protection rule on`main`→ update required status checks to new`test`name (drop old matrix entries); (b) Future: chkdsk`Hunger Games La Ballade (2023)/.actors/Zoë_Renee.jpg`NTFS zombie from Windows + cleanup of 5166`.*_.mkv` AppleDouble pseudo-videos (out of scope 14.6). |
 
-| Sub  | Scope                                            | SHA     | Status |
-| ---- | ------------------------------------------------ | ------- | ------ |
-| 5.1  | `_xref_enrichment` dans tv_service               | c7cb588 | [x]    |
-| 5.2  | `_resolve_external_ids` (Q5=B re-validation)     | 9621cdf | [x]    |
-| 5.3  | Wire dans `scrape_tvshow` flow                   | 905f574 | [x]    |
-| 5.4  | Réécriture NFOs xref-add (sans écrasement)       | 9c70a34 | [x]    |
-| 5.5  | Symétrique movie_service                         | 965a265 | [x]    |
-| 5.5b | Extract xref helpers to `_xref.py` (size budget) | 9aebe50 | [x]    |
+**Total post coverage-fix + Phase 9 CLI Coverage** : **20.5-29 jours séquentiel,
+16.5-24 jours parallélisable** (Phase 9 révisée 2026-05-23 — 1.5-2 j au lieu de 2-3 j
+après audit révélant 11 harnesses library E2E déjà shippés par l'agent d'implémentation
+parallèle ; scope restant = 17 critiques + 6 non-critiques + harmonisation 11 existants).
 
-### Phase 6 — NFO Ratings Multi-Source
+Coverage finale : **54/54 DEVs** couverts + **34/34 patterns P1-P34** leveraged + **8/8
+sections DESIGN §9-§16** implémentées. 0 différé à 0.17+ (directive opérateur 2026-05-22).
 
-| Sub | Scope                                   | SHA     | Status |
-| --- | --------------------------------------- | ------- | ------ |
-| 6.1 | `_add_ratings` accepte liste Notations  | fc7aa25 | [x]    |
-| 6.2 | Caller side pass multi-source           | bacda30 | [x]    |
-| 6.3 | `default="true"` selon canonical (Q6=A) | 5841d22 | [x]    |
-| 6.4 | Tests golden NFO format Plex/Kodi       | cb61fb0 | [x]    |
+Voir `docs/features/tech-debt/plan/INDEX.md` § "DEV coverage matrix" + § "Patterns P1-P34
+→ leverage phases" + § "DESIGN sections §9-§16 → phases" pour les cross-tables exhaustives.
+54 ACCEPTANCE criteria exécutables en `docs/features/tech-debt/ACCEPTANCE.md`
+(49 initiaux + ACC-50..54 Phase 9 CLI coverage).
 
-### Phase 7 — DB Schema external_ids_json
+## Already shipped (priority absolue user, hors-plan)
 
-| Sub  | Scope                                                         | SHA     | Status |
-| ---- | ------------------------------------------------------------- | ------- | ------ |
-| 7.1  | Migration 005 + MediaItemRow updates                          | 11016c2 | [x]    |
-| 7.1b | item_repo.py + outbox/\_apply.py write to external_ids_json   | fbb9a3d | [x]    |
-| 7.2  | Backup `library.db` avant migration                           | -       | manual |
-| 7.2b | (Plan A retained) no SQL one-shot script — reset+rescrape     | -       | n/a    |
-| 7.3  | `indexer/query.py` FieldSpec via json_extract                 | f6fcc13 | [x]    |
-| 7.4  | Pydantic models `ExternalIds` + `Ratings`                     | (7.4)   | [x]    |
-| 7.5  | dispatch/library scanners write external_ids_json             | f771b53 | [x]    |
-| 7.5b | trailers scanner/orchestrator read ids from external_ids_json | 6c3d6e4 | [x]    |
-| 7.6  | Plan A (Plan B unused — no cleanup script needed)             | -       | n/a    |
+| SHA       | DEV | Description                                                       |
+| --------- | --- | ----------------------------------------------------------------- |
+| `268cbee` | #9  | repair_root_duplicate inversion fix (data-loss)                   |
+| `29c4953` | #11 | compute_merkle_root sort-key determinism                          |
+| `fc39f77` | #13 | \_recreate_indexes IF NOT EXISTS (C5 race workers)                |
+| `3993487` | #14 | \_build_disk_fingerprints + \_sample_fresh_fingerprints alignment |
 
-**Décision Plan A vs Plan B** : à trancher avant exécution. Library < 100 items → Plan A (reset+rescrape) préféré.
+## Item 4 — clos (2026-05-21)
 
-### Phase 8 — Backfill Mode
+Réalisé en 5 sous-phases, 2 repos en parallèle. Branches : `.claude/personal-scraper`
+(skill + agents + matrix) et `personalscraper/fix/tech-debt` (pipeline.py).
 
-| Sub | Scope                                                                          | SHA                                  | Status  |
-| --- | ------------------------------------------------------------------------------ | ------------------------------------ | ------- |
-| 8.1 | `backfill_ids.py` gap detection + safe-merge helpers (pure)                    | 11016c2 (init), 970d045 (typing fix) | [x]     |
-| 8.2 | `scanner/_modes/backfill_ids.py` driver + `run_backfill_ids()` entrypoint      | (8.2)                                | [x]     |
-| 8.3 | Auto-trigger post-scrape — emit-based via EventBus subscriber (CLI wiring TBD) | (8.4)                                | partial |
-| 8.4 | EventBus events: BackfillStarted/ItemCompleted/Skipped/Completed + factories   | c369451                              | [x]     |
+| Sous-phase | Repo                            | SHA       | Livrable                                                                                                                                                                                                                                                      |
+| ---------- | ------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 4.1        | `.claude/personal-scraper`      | `110f3ae` | Matrix v2.0 : 9 StepReports, 5 catégories (ACCEPTANCE_FAIL), 19 invariants AD–AV, pré-recovery, connexes                                                                                                                                                      |
+| 4.2        | `personalscraper/fix/tech-debt` | `f0208e4` | SIGINT inter-step : `Pipeline.request_shutdown()`, `_PipelineInterrupted`, handler installé en `run()`, restauré en finally. 11 tests de régression.                                                                                                          |
+| 4.3        | `.claude/personal-scraper`      | `77b7946` | 4 agents : `pipeline-event-monitor`, `pipeline-invariant-checker`, `pipeline-bdd-validator`, `pipeline-matrix-stale-detector`                                                                                                                                 |
+| 4.4        | `.claude/personal-scraper`      | `df19183` | SKILL.md v2.0 : `MATRIX_VERSION` assertion, 9 StepReports, 5 catégories, `--remediate` flag (read-only par défaut), wrapping process (Q5), simulation mode (BJ), weird outputs log (BK), library-reconcile cross-correlation (BL), compare précédent run (BM) |
+| 4.5        | `.claude/personal-scraper`      | `d0a666b` | `host.py` (wrapping Python + JSONL dump), `CHANGELOG.md`, sync matrix↔skill, doc dans `.claude/CLAUDE.md`. Audits config-health-checker + skill-dependency-checker : HEALTHY.                                                                                 |
 
-### Phase 9 — Verify Checker Extensions
-
-| Sub | Scope                                                                 | SHA     | Status |
-| --- | --------------------------------------------------------------------- | ------- | ------ |
-| 9.x | All 3 checks + fixture updates batched: canonical/xref secondary/imdb | 93e2a20 | [x]    |
-
-### Phase 10 — Consumers Refactor
-
-| Sub  | Scope                                                                              | SHA     | Status |
-| ---- | ---------------------------------------------------------------------------------- | ------- | ------ |
-| 10.1 | recommender accepts external_ids tuple unchanged (ids dict already abstracts)      | 5b1cabf | [x]    |
-| 10.2 | `library/scanner.py` writes external_ids_json (done in phase 7.5)                  | f771b53 | [x]    |
-| 10.3 | Drop `RuleCriteria.imdb_id` (pre-1.0 no retro-compat)                              | 5b1cabf | [x]    |
-| 10.4 | `trailers/scanner.py` + `orchestrator.py` read from external_ids_json (phase 7.5b) | 6c3d6e4 | [x]    |
-| 10.5 | `config.example/` had no OverrideRule example — no-op                              | -       | n/a    |
-
-### Phase 11 — Tracker Capabilities
-
-| Sub  | Scope                                                                              | SHA     | Status |
-| ---- | ---------------------------------------------------------------------------------- | ------- | ------ |
-| 11.x | Drop TrackerClient + LaCale/C411 composition + Registry typed by TorrentSearchable | a1cc268 | [x]    |
-
-### Phase 12 — Tracker Registry Priority-Aware
-
-| Sub  | Scope                                                                          | SHA    | Status |
-| ---- | ------------------------------------------------------------------------------ | ------ | ------ |
-| 12.x | Registry + TrackerConfig + config.example + activation: priority_by_media_type | (12.x) | [x]    |
-
-### Phase 13 — Torrent Capabilities
-
-| Sub  | Scope                                                                          | SHA     | Status |
-| ---- | ------------------------------------------------------------------------------ | ------- | ------ |
-| 13.x | Drop TorrentClient + QBit/Transmission composition + TorrentClientFull factory | 5b62bf4 | [x]    |
-
-### Phase 14 — Notify Capabilities (pas de drop monolithique — Protocols Notifier+HealthChecker existent déjà)
-
-| Sub  | Scope                                                                                     | SHA     | Status |
-| ---- | ----------------------------------------------------------------------------------------- | ------- | ------ |
-| 14.x | Structural composition pinned via runtime_checkable + isinstance tests + docstring update | 9f850d6 | [x]    |
-
-### Phase 15 — Integration + E2E
-
-| Sub  | Scope                                                                                        | SHA    | Status |
-| ---- | -------------------------------------------------------------------------------------------- | ------ | ------ |
-| 15.x | E2E aggregate test + ACCEPTANCE.md + external-ids-flow reference doc + CLAUDE.md trigger row | (15.x) | [x]    |
-
-## Quality gates (à passer à chaque phase gate commit)
-
-Per `CLAUDE.md` Phase Gate Checklist :
-
-1. `make lint` (ruff + mypy) — zéro erreur
-2. `make test` — tous les tests pass, 0 ERROR / 0 FAILED
-3. `make check` — lint + test + module-size + typed-api guardrails
-4. Residual import grep — pour chaque module deleted, `rg "old.module.path" personalscraper/ tests/ --type py` = 0
-5. `command python -c "import personalscraper"` — smoke test
+Méthode : validation utilisateur entre chaque sous-phase respectée.
 
 ## Review cycles
 
-_(filled by implement:pr-review — max 3 cycles après création PR)_
-
-| Cycle | Date | Issues catched | Resolved | Notes |
-| ----- | ---- | -------------- | -------- | ----- |
-| -     | -    | -              | -        | -     |
-
-## Pipeline-run pending
-
-Staging area du run 2026-05-17-09h24 conservée intacte (8 items dispatch-ready) : I Origins (2014), American Dad! S22, Dexter New Blood S01, FROM (2022), LOL Qui rit sort ! S06, Stranger Things Tales from '85 S01, The Boys S05, Top Chef S17. (Top Chef Le Concours Parallèle S17E10 reste blocked par root_video_files safety net — DESIGN_CONFORM.)
-
-Post-merge provider-ids → relancer le dispatch sur cette staging area (acceptance criterion #10 du DESIGN).
+_(rempli par implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-**Démarrage de session (fresh `/clear`)** :
+**All 14 phases complete (2026-05-26).** Run `/implement:feature-pr` to: local gate
+(`make check` green at HEAD — 5515 passed, 0 failed), push branch, create/update PR,
+poll CI to green; then `/implement:pr-review` for review cycles + squash merge.
 
-1. **Lire ce fichier en entier** (`IMPLEMENTATION.md`) — tu y es.
-2. Lire `docs/features/provider-ids/DESIGN.md` pour le contexte complet de la feature (13 sections, 567 lignes).
-3. Lire `docs/features/provider-ids/plan/INDEX.md` pour la vue d'ensemble des 15 phases.
-4. Lire `docs/features/provider-ids/plan/phase-02-fix-dev2-ids-propagation.md` (prochaine phase à exécuter — Phase 1 [x] mergée gate 2e04938..723ee8f).
-5. Lancer `/implement:phase` pour démarrer Phase 2.
+Post-merge: re-run `/pipeline-monitor` to confirm all deviations TRAITÉ or DESIGN_CONFORM.
 
-**Mémoires utilisateur à recharger** (la skill `/implement:phase` doit en tenir compte à chaque sub-phase) : voir la section **Active memories** ci-dessus. Les 6 mémoires sont stockées dans `/Users/izno/.claude/projects/-Users-izno-dev-PersonnalScaper/memory/feedback_*.md`.
+**Post-merge manual action**: GitHub Settings → Branches → branch protection rule on
+`main` → update required status checks to new `test` name (drop old matrix entries
+`test (3.10)` / `test (3.11)` / `test (3.12)` / `test (3.13) [experimental]`).
 
-## Autopilot discipline (mode chaînage automatique des 15 phases)
+14.6 (disk residue cleanup — 1730 `.actors/` dirs) deferred to dedicated ops session.
 
-L'utilisateur a explicitement demandé un **enchainement automatique** des phases sans pause inutile. Règles strictes pour ce mode :
+All 5 phase-12 follow-up items resolved in `12.10`–`12.14` + `12.12.fix`:
 
-### Boucle d'exécution par sub-phase
+- **12.10** (`81519e7`) — added `docs/reference/commands.md` entries for
+  `library-fix-canonical-provider`, `library-fix-orphan-files`, and
+  `library-fix-season-counts`. `audit-cli-coverage.py` WARNs dropped from 6 → 3
+  (3 remaining are pre-existing, not introduced by phase 12).
+- **12.11** (`9130811`+`96f2b07`) — `library-fix-orphan-files` now also tries
+  episode-level releases: parses `SxxEyy` from the orphan filename, looks up
+  `episode_id` via the matched `season` + episode `number`, then attempts the
+  same 1/0/>1 candidate-release logic. 4 new parametric tests added.
+- **12.12** (`3371f90`) + **12.12.fix** (`dde7003`+`b61741d`+`7b81a3e`) —
+  migration `008_season_episode_count_triggers.sql` adds idempotent recompute
+  triggers on `episode` (AFTER INSERT / AFTER DELETE / AFTER UPDATE OF
+  season_id) plus a one-shot backfill of pre-trigger drift. The recompute
+  semantics (single UPDATE … SET episode_count = COUNT(\*)) avoids the
+  inc/dec double-count that surfaced when the scanner pre-populated the
+  cached value before episode rows landed. `library-fix-season-counts` CLI
+  retained for one-shot repair of pre-migration databases.
+- **12.13** (`346d451`) — `@cli_telemetry("torrents-list")` restored. Root cause
+  of the original regression was test-helper-side, not production: CliRunner
+  in `tests/commands/_e2e_helpers.py` merged stderr into `result.output`,
+  polluting JSON parsing. Fix: tests now read `result.stdout` directly (always
+  stdout-only in CliRunner regardless of mode). Production was already correct
+  — `logging.StreamHandler` defaults to `sys.stderr`, so piping
+  `personalscraper torrents-list --format json | jq …` was never broken.
+- **12.14** (`485d6bc`) — variance-sourced regression for
+  `canonical_provider` repair: seeds the BDD with ~30 rows using real titles
+  from `docs/pipeline-runs/2026-05-25-09h57-pipeline-run.md` (Top Chef
+  Le Concours Parallèle, Mikado, Stranger Things Tales from '85, etc.)
+  with mixed `external_ids_json` shapes including the 5 edge cases that the
+  predicate must NOT flip (no tvdb id, malformed json, etc.). 3 new
+  parametric test functions.
 
-```
-1. Lire la sub-phase courante (depuis le phase file)
-2. Re-grep les file:line refs cités contre le codebase actuel (peut avoir bougé)
-3. TDD : écrire les tests RED en premier (cf. memory feedback_regression_test_per_bug)
-4. Implémenter le code pour faire passer les tests
-5. `make test` ciblé sur les tests nouveaux → GREEN
-6. Commit conventional : `<type>(provider-ids): <description>`
-7. Update IMPLEMENTATION.md sub-phase tracking : SHA + status [x]
-8. /implement:check sur la sub-phase → 7 contrôles
-9. Si check pass → sub-phase suivante. Si fail → fix immédiat, pas de defer.
-```
+Final state: `make test` 5499 passed, 0 failed, 0 errors. `make check` exit 0.
 
-### Boucle d'exécution par phase
+## Branch coverage re-measured (2026-05-24, Phase 8.14, DEV #41)
 
-```
-1. Toutes sub-phases d'une phase [x] → quality gate :
-   - make lint (ruff + mypy) → 0 erreur
-   - make test → tous tests pass, 0 ERROR/FAILED
-   - make check (lint + test + module-size + typed-api)
-   - residual import grep si modules supprimés
-   - python -c "import personalscraper" smoke
-2. Commit gate : `chore(provider-ids): phase N gate — <résumé>`
-3. Update IMPLEMENTATION.md phase row : [x]
-4. Vérifier si découverte de phase N impacte phases N+1..15 (read forward).
-   - Si oui : update phase file(s) + commit `docs(provider-ids): adjust plan after phase N`
-5. Lancer immédiatement phase N+1 — pas de pause utilisateur, pas de /compact manuel.
-```
+**Measured**: `make test-cov` on `fix/tech-debt` at baseline `fb96adb`.
+Coverage XML `branch-rate`: **87.09 %** (4809 covered / 5522 valid branches).
+Line coverage: 93.26 % (17891 / 19184). Combined metric (what `--cov-fail-under=90`
+checks): 91.88 % — gate passes. Total: 4843 passed, 4 failed (pre-existing, see below),
+4 skipped, 2 xfailed.
 
-### Gestion proactive du contexte (zéro pause /compact)
+**Historical reference**: 91 % branch coverage claimed at test-coverage Phase 1
+final gate (`71c8926`). Delta: **-3.91 pp** → within the ±5 pp acceptable drift
+band. No follow-up audit triggered.
 
-Le système Claude Code **compresse automatiquement** les messages quand le contexte approche la limite ("your conversation with the user is not limited by the context window"). Pas besoin d'invoquer `/compact` à la main entre les phases.
+**4 pre-existing test failures** (all reproduce in isolation, not introduced by
+tech-debt 0.16.0):
 
-Pour minimiser la pression sur le contexte au quotidien, appliquer les 5 disciplines suivantes :
+- `tests/dispatch/test_dispatcher.py::TestResolveExistingOnFilesystem::test_entry_exists_and_path_valid_returns_entry`
+- `tests/dispatch/test_media_index.py::TestFuzzyGuards::test_jumanji_matches_jumanji`
+- `tests/commands/test_library_verify_e2e.py::test_verify_disk_filter_restricts_scope`
+- `tests/scripts/test_audit_cli_coverage.py::test_domain_cli_coverage_no_warnings_on_current_codebase`
 
-1. **Dispatcher en subagent les opérations lourdes** :
-   - `/implement:check` (7 contrôles) → subagent (`general-purpose` ou agent dédié)
-   - Code review d'une grosse diff → subagent (`pr-review-toolkit:code-reviewer`)
-   - Analyse d'output de test long → subagent (`general-purpose`)
-   - Investigation cross-modules (où est utilisé X ?) → `Explore` agent
-   - Le subagent a son propre contexte ; il renvoie un résumé concis.
-
-2. **Lectures minimales en main session** :
-   - `Bash` avec `head -N`, `tail -N`, `grep -c`, `sed -n 'X,Yp'` au lieu de `Read` complet.
-   - Si un fichier dépasse 200 lignes et qu'on veut juste vérifier une chose : `grep` cible direct.
-   - `Read` avec `offset` + `limit` quand on connaît la zone d'intérêt.
-
-3. **Externaliser l'état sur disque immédiatement après chaque sub-phase** :
-   - Commit SHA → update IMPLEMENTATION.md sub-phase tracking row → "oublier" les détails internes.
-   - Si on a besoin du détail plus tard : `git show <SHA>` pour relire.
-   - Toutes les décisions architecturales : DESIGN.md (committed).
-   - Toutes les nouvelles règles : `feedback_*.md` memory (committed à la convention).
-
-4. **Ne pas re-lire les mêmes gros fichiers plusieurs fois** :
-   - DESIGN.md : lu UNE fois en début de session, puis re-grep cible.
-   - INDEX.md : lu UNE fois pour avoir la map, puis on accède directement aux phase files.
-   - Chaque phase file : lu UNE fois au début de la phase, puis on consulte par section si besoin.
-   - Si on doute → `grep "section-name" docs/features/provider-ids/...` pour cibler.
-
-5. **Trust auto-compression** :
-   - Pas de `/compact` manuel pré-emptif. Le système gère.
-   - Pas de "je dois libérer du contexte avant la phase suivante" — on continue.
-   - Si la compression auto retire un détail critique : tout est sur disque committed, on relit.
-
-**Anti-patterns à éviter pour le contexte** :
-
-| Anti-pattern                                                | Alternative                                             |
-| ----------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------ |
-| `Read` du DESIGN.md (600 lignes) après chaque sub-phase     | `grep` ciblé sur la section relevante                   |
-| Coller le contenu de 5 phase files dans une seule analyse   | Subagent qui lit les 5 et renvoie un résumé             |
-| Faire `make test` en main session sur l'output complet      | `make test 2>&1                                         | tail -50` pour ne voir que le résumé |
-| Re-lire IMPLEMENTATION.md complet à chaque sub-phase        | Read avec offset sur la sub-phase tracking row courante |
-| Logger en main session tous les détails de chaque sub-phase | Subagent qui exécute + commit + renvoie SHA + résumé    |
-
-### Pauses AUTORISÉES uniquement dans ces 6 cas
-
-| Situation                                                   | Action                                               |
-| ----------------------------------------------------------- | ---------------------------------------------------- |
-| Rate-limit TVDB/TMDB/OMDb pendant re-scrape                 | Attendre fenêtre, reprendre                          |
-| API key absente (`OMDB_API_KEY`, etc.)                      | Demander à l'utilisateur, pas inventer               |
-| Cas non couvert par DESIGN §3 (séparation familles ambiguë) | Mini-brainstorm avec l'utilisateur                   |
-| PR review remonte point HORS scope plan                     | Demander : fix maintenant ou queue pour cycle séparé |
-| Test fixture HTTP recorded échoue (API drift)               | Demander : re-record ou mock                         |
-| Conflit entre 2 mémoires utilisateur                        | Demander arbitrage                                   |
-
-**Tout le reste est auto-pilot.** Ne jamais demander :
-
-- "Veux-tu que je passe à la phase suivante ?" — non, je passe.
-- "Devrais-je découper cette sub-phase ?" — oui si > 150 LOC ou > 1 commit logique, je découpe.
-- "Faut-il updater le DESIGN ?" — oui si une découverte le contredit, je update + commit.
-- "Faut-il committer ?" — oui après chaque sub-phase, faut commit.
-
-### Adaptation dynamique des phases suivantes
-
-Si pendant phase N je découvre qu'une décision change le scope de phase N+k :
-
-1. **Update le phase file concerné** (ajout sub-phase, modif acceptance criteria, etc.).
-2. **Update IMPLEMENTATION.md sub-phase tracking** (nouvelles rows).
-3. **Update DESIGN.md** si la décision architecturale change.
-4. Commit unique : `docs(provider-ids): adjust phase N+k after phase N findings`.
-5. Continuer phase N — ne PAS faire phase N+k en avance.
-
-### Découpage sur dépassement (au lieu de défer)
-
-Si sub-phase N.x déborde naturellement :
-
-- **NON** : "je le mets en TODO pour plus tard" ← `feedback_event_bus_no_deferral` interdit.
-- **OUI** : "je découpe en N.x.a + N.x.b" avec acceptance criteria split. Update IMPLEMENTATION.md.
-
-### Recovery post-/compact ou post-/clear
-
-À chaque nouveau démarrage de session :
-
-1. Read `IMPLEMENTATION.md` complet (tu y es).
-2. Identifier la dernière sub-phase `[x]` dans le sub-phase tracking → la suivante = à exécuter.
-3. Read le phase file correspondant.
-4. Re-grep les file:line refs contre le codebase actuel (vérification de sync).
-5. Continuer la boucle d'exécution par sub-phase.
-
-Aucune information critique n'est en mémoire conversationnelle — tout est sur disque committed ou dans `feedback_*.md`.
-
-## Critical invariants (NE JAMAIS oublier pendant l'implémentation)
-
-Ces 5 règles s'appliquent à TOUTES les phases sans exception :
-
-1. **Séparation stricte des familles d'IDs** — TVDB / TMDB / IMDb sont 3 familles distinctes. `<uniqueid type="tvdb">` contient un **vrai** ID TVDB ; pas de cross-write. Cf. memory `feedback_multi_provider_ids_separation`.
-2. **Hiérarchie scrape canonique fixe** — TVDB primaire → TMDB info+fallback → IMDb info (jamais primary scrape). Cf. DESIGN §3.
-3. **Idempotence par famille** — chaque step pipeline peut backfill une famille sans écraser les autres. Cf. DESIGN §3 invariants.
-4. **Pre-1.0 : pas de retro-compat, pas de scripts génériques** — toute modif schema/config/NFO appliquée directement à l'unique instance dans le même PR. Cf. memory `feedback_no_backcompat_before_v1`.
-5. **TDD strict pour les bugs** — tests RED qui reproduisent le bug AVANT le fix. Cf. memory `feedback_regression_test_per_bug`.
-
-## Hard gate (interdictions explicites)
-
-- **Ne PAS différer** un item du DESIGN (`feedback_event_bus_no_deferral`). Si une phase déborde → découper en sub-phases additionnelles, jamais "remettre à plus tard".
-- **Ne PAS commiter** sans avoir vérifié les file:line refs cités dans la sub-phase contre le codebase actuel (le code a peut-être bougé depuis la rédaction du plan — re-grep avant de toucher).
-- **Ne PAS ajouter** de capability hors des 11 metadata / 4 tracker / 5 torrent / 2 notify définies. Si un besoin émerge → re-brainstorm.
-- **Ne PAS sauter** le commit `chore({codename}): phase N gate` à la fin d'une phase (cf. `CLAUDE.md` Phase Gate Checklist).
-
-## Session-start cheat sheet
-
-| Question                                       | Réponse                                                                                                   |
-| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Quelle branche ?                               | `feat/provider-ids` (créée par `b980433`)                                                                 |
-| Quelle version ?                               | `0.15.0` (bumpée depuis 0.14.0, minor Y+1)                                                                |
-| Combien de phases ?                            | 15                                                                                                        |
-| Combien de capabilities à créer ?              | 22 Protocols (11 metadata + 4 tracker + 5 torrent + 2 notify migrés) + 1 helper (HasName)                 |
-| Quel est le bug initial ?                      | DEV #2 du pipeline-run 2026-05-17-09h24 — NFOs épisode sans `<uniqueid>` (root cause 5 layers, DESIGN §1) |
-| Quels shows en staging attendent un dispatch ? | 8 (voir Pipeline-run pending ci-dessus)                                                                   |
-| Quelles features sont prerequis ?              | event-bus (mergée v0.14.0), pipeline-obs (v0.13.0), api-unify (v0.11.0) — toutes sur main                 |
-| Quel merge mode ?                              | manual (`gh pr merge --squash` à la fin)                                                                  |
-| Où sont les 6 mémoires utilisateur ?           | `/Users/izno/.claude/projects/-Users-izno-dev-PersonnalScaper/memory/feedback_*.md`                       |
+**fail_under**: 90 (verified via `python3 scripts/get_coverage_threshold.py`).

@@ -90,6 +90,27 @@ class TestComputeMerkleRoot:
         shuffled = list(reversed(fps))
         assert compute_merkle_root(fps) == compute_merkle_root(shuffled)
 
+    def test_merkle_determinism_shared_path_id(self) -> None:
+        """Same files shuffled, multiple sharing one path_id → same root (DEV #11 regression).
+
+        ``path`` rows refer to directories, so a directory with N files yields
+        N fingerprints sharing the same ``path_id``. Earlier ``sorted`` calls
+        keyed only on ``path_id`` left within-directory ordering up to Python's
+        stable-sort + input order, which caused the live merkle to drift from
+        the stored value whenever SQLite returned the rows in a different
+        physical order between two queries. The full-tuple sort key fixes that.
+        """
+        fps_in_order = [
+            FileFingerprint(path_id=711, size=66391197, mtime_ns=1, oshash="b6aca54faaea3bb0"),
+            FileFingerprint(path_id=711, size=660918650, mtime_ns=2, oshash="eeb66bdae1749564"),
+            FileFingerprint(path_id=711, size=856778982, mtime_ns=3, oshash="624cf22902a1e618"),
+            FileFingerprint(path_id=711, size=740536906, mtime_ns=4, oshash="336d5032e6ac7ece"),
+        ]
+        fps_shuffled = list(reversed(fps_in_order))
+        assert compute_merkle_root(fps_in_order) == compute_merkle_root(fps_shuffled), (
+            "Files sharing path_id must produce a stable merkle regardless of input order"
+        )
+
     def test_merkle_distinct_files_distinct_root(self) -> None:
         """Changing one field in one fingerprint must produce a different root."""
         fps = _make_fps()

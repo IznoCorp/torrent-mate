@@ -10,6 +10,10 @@ are independently evolvable. The guard below enforces this at collection time.
 
 import sys
 
+import pytest
+
+pytest.register_assert_rewrite("tests.integration.fixtures.seeded_library_fs")
+
 # Snapshot sys.modules before any further imports so we can detect whether
 # *this conftest's* import chain pulls in tests.e2e.  Only `sys` is needed
 # here; the rest of the imports follow below.  This must stay above all other

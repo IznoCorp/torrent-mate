@@ -1079,6 +1079,38 @@ class TestBuildDiskFingerprints:
         fps = _build_disk_fingerprints(conn, disk.id)
         assert len(fps) == 1, f"Expected 1 fingerprint (alive only), got {len(fps)}"
 
+    def test_excludes_rows_with_null_oshash(self, fs: "FakeFilesystem") -> None:
+        """Rows with ``oshash IS NULL`` (Stage A) are excluded (DEV #14 regression).
+
+        The scanner stores the merkle from this helper's output; the reconcile
+        detector ``detect_merkle_drift`` recomputes the live merkle with an
+        ``AND mf.oshash IS NOT NULL`` filter. Before this fix the helper had no
+        such filter, so the two callers operated on different row sets and the
+        detector flagged every disk that contained any Stage-A row as drifted,
+        forever.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/NullOshashDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        Path(f"{mount}/enriched.mkv").write_text("enriched-content")
+        Path(f"{mount}/stage_a.mkv").write_text("stage-a-content")
+
+        disk = _insert_disk(conn, mount)
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
+
+        # Simulate a Stage-A row by clearing the oshash on one file. The scan
+        # above fingerprints both; this mimics what the walker would persist
+        # if it discovered a new file mid-enrich.
+        conn.execute("UPDATE media_file SET oshash = NULL WHERE filename = 'stage_a.mkv'")
+
+        fps = _build_disk_fingerprints(conn, disk.id)
+        assert len(fps) == 1, f"Expected 1 fingerprint (enriched only), got {len(fps)}"
+        assert all(f.oshash is not None for f in fps), "Null-oshash rows must be filtered out"
+
 
 # Suppress unused-import warning: PathRow is used as a type in helper signatures
 # that may be referenced from future tests; keep it imported for forward compatibility.
@@ -2829,3 +2861,69 @@ class TestVerifyMode:
         deleted_at = conn.execute("SELECT deleted_at FROM media_file WHERE filename = 'movie.mkv'").fetchone()
         assert deleted_at is not None
         assert deleted_at[0] is None
+
+    def test_verify_no_enqueue_skips_repair_queue_on_missing(self, fs: "FakeFilesystem") -> None:
+        """no_enqueue=True: missing file detected but NO repair_queue row is written.
+
+        Regression for DEV #21 / MUST-9: library-verify --no-enqueue must be a
+        no-op on the repair_queue table even when drift is detected.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/VerifyNoEnqueueDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        movie = Path(f"{mount}/movie.mkv")
+        movie.write_bytes(b"V" * 300)
+
+        disk = _insert_disk(conn, mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
+
+        # Delete the file so verify would normally enqueue a "file missing" repair.
+        movie.unlink()
+
+        queue_before = conn.execute("SELECT COUNT(*) FROM repair_queue").fetchone()[0]
+
+        # Run verify with no_enqueue=True: drift found but nothing written to queue.
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.verify, generation=2, conn=conn, event_bus=EventBus(), no_enqueue=True)
+
+        queue_after = conn.execute("SELECT COUNT(*) FROM repair_queue").fetchone()[0]
+        assert queue_after == queue_before, (
+            f"no_enqueue=True must not add repair_queue rows; before={queue_before}, after={queue_after}"
+        )
+
+    def test_verify_no_enqueue_skips_repair_queue_on_drift(self, fs: "FakeFilesystem") -> None:
+        """no_enqueue=True: size drift detected but NO repair_queue row is written.
+
+        Regression for DEV #21 / MUST-9 (complementary to missing-file case).
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/VerifyNoEnqueueDriftDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        movie = Path(f"{mount}/movie.mkv")
+        movie.write_bytes(b"V" * 300)
+
+        disk = _insert_disk(conn, mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
+
+        # Mutate file so verify would detect size drift.
+        movie.write_bytes(b"V" * 600)
+
+        queue_before = conn.execute("SELECT COUNT(*) FROM repair_queue").fetchone()[0]
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.verify, generation=2, conn=conn, event_bus=EventBus(), no_enqueue=True)
+
+        queue_after = conn.execute("SELECT COUNT(*) FROM repair_queue").fetchone()[0]
+        assert queue_after == queue_before, (
+            f"no_enqueue=True must not add repair_queue rows on drift; before={queue_before}, after={queue_after}"
+        )

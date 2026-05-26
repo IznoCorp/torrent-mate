@@ -463,7 +463,10 @@ class TestFuzzyGuards:
 
         result = idx.find("Jumanji (1995)", "movie")
         assert result is not None
-        assert result.name == "Jumanji (1995)"
+        # Title is canonicalized at storage (tech-debt 8.12 _upsert_media_item
+        # strips " (YYYY)" suffix to dedup rows). dispatch_path preserves the
+        # original full name on disk for FS operations.
+        assert result.name == "Jumanji"
 
 
 # ---------------------------------------------------------------------------

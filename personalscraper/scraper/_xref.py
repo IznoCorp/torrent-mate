@@ -40,9 +40,20 @@ log = get_logger("scraper")
 
 
 def safe_get_rating(client: Any, provider_id: str) -> list[Notations]:
-    """Call ``client.get_rating`` returning ``[]`` on failure or empty payload."""
+    """Call ``client.get_rating`` returning ``[]`` on failure or empty payload.
+
+    Raises:
+        OmdbQuotaExhausted: Propagated unchanged so the caller can stop
+            the rating pass entirely. Swallowing it here would defeat
+            the OMDB façade re-raise discipline — every subsequent row
+            would burn another HTTP round-trip on a known-dead quota.
+    """
+    from personalscraper.api.metadata.omdb import OmdbQuotaExhausted  # noqa: PLC0415
+
     try:
         result = client.get_rating(provider_id)
+    except OmdbQuotaExhausted:
+        raise
     except Exception as exc:  # noqa: BLE001 — fail-soft per DESIGN §4
         log.warning(
             "xref_get_rating_failed",
@@ -128,7 +139,16 @@ def resolve_external_ids(
     Shared body for both the TV and movie service mixins. The mixin
     methods supply the family→client mapping and the IMDb / RT clients
     (or ``None`` when the façade is not wired in the current setup).
+
+    Raises:
+        OmdbQuotaExhausted: Propagated from :meth:`validate_id` or
+            :func:`safe_get_rating` when the OMDb daily quota is gone.
+            The scrape loop is the right level to disable the IMDb / RT
+            façades for the remainder of the run — silently swallowing
+            here would waste an HTTP round-trip per remaining family.
     """
+    from personalscraper.api.metadata.omdb import OmdbQuotaExhausted  # noqa: PLC0415
+
     trusted: dict[str, str] = {}
     ratings: list[Notations] = []
 
@@ -144,6 +164,8 @@ def resolve_external_ids(
             continue
         try:
             accepted = client.validate_id(provider_id, expected_title, expected_year)
+        except OmdbQuotaExhausted:
+            raise
         except Exception as exc:  # noqa: BLE001 — fail-soft contract
             log.warning(
                 "xref_validate_id_failed",

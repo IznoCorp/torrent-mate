@@ -27,6 +27,8 @@ def _scan_disk_verify(
     started_at_monotonic: float,
     budget_exhausted: list[bool],
     scan_run_id: int,
+    *,
+    no_enqueue: bool = False,
 ) -> None:
     """Re-stat every indexed file on a disk and enqueue repair on mismatch.
 
@@ -56,6 +58,11 @@ def _scan_disk_verify(
             is reached.
         scan_run_id: PK of the active ``scan_run`` row for stats updates on
             budget exhaustion.
+        no_enqueue: When ``True``, skip inserting rows into ``repair_queue``
+            even when drift or absence is detected.  The scan still walks every
+            file and bumps ``last_verified_at`` on clean rows (read-only audit
+            mode for the queue, but ``last_verified_at`` / ``scan_generation``
+            writes still happen).
     """
     if disk.mount_path is None:
         log.warning("indexer.verify.disk_no_mount", disk_id=disk.id, label=disk.label)
@@ -132,20 +139,28 @@ def _scan_disk_verify(
         try:
             st = os.stat(file_path, follow_symlinks=False)
         except FileNotFoundError:
-            _outbox_repo.insert_repair_queue(
-                conn,
-                RepairQueueRow(
-                    id=0,
-                    scope="file",
-                    scope_id=file_id,
-                    reason="verify: file missing on disk",
-                    payload_json=None,
-                    enqueued_at=now_s,
-                    status="pending",
-                    attempted_at=None,
-                    attempts=0,
-                ),
-            )
+            if not no_enqueue:
+                _outbox_repo.insert_repair_queue(
+                    conn,
+                    RepairQueueRow(
+                        id=0,
+                        scope="file",
+                        scope_id=file_id,
+                        reason="verify: file missing on disk",
+                        payload_json=None,
+                        enqueued_at=now_s,
+                        status="pending",
+                        attempted_at=None,
+                        attempts=0,
+                    ),
+                )
+            else:
+                log.debug(
+                    "indexer.verify.verify_would_enqueue",
+                    file_id=file_id,
+                    path=str(file_path),
+                    reason="file missing on disk",
+                )
             missing += 1
             files_visited[0] += 1
             files_verified += 1
@@ -172,27 +187,35 @@ def _scan_disk_verify(
                 (now_s, generation, file_id),
             )
         else:
-            _outbox_repo.insert_repair_queue(
-                conn,
-                RepairQueueRow(
-                    id=0,
-                    scope="file",
-                    scope_id=file_id,
-                    reason=(f"verify: drift detected (size_match={size_match}, mtime_match={mtime_match})"),
-                    payload_json=json.dumps(
-                        {
-                            "expected_size": row["size_bytes"],
-                            "actual_size": st.st_size,
-                            "expected_mtime_ns": row["mtime_ns"],
-                            "actual_mtime_ns": st.st_mtime_ns,
-                        }
+            if not no_enqueue:
+                _outbox_repo.insert_repair_queue(
+                    conn,
+                    RepairQueueRow(
+                        id=0,
+                        scope="file",
+                        scope_id=file_id,
+                        reason=(f"verify: drift detected (size_match={size_match}, mtime_match={mtime_match})"),
+                        payload_json=json.dumps(
+                            {
+                                "expected_size": row["size_bytes"],
+                                "actual_size": st.st_size,
+                                "expected_mtime_ns": row["mtime_ns"],
+                                "actual_mtime_ns": st.st_mtime_ns,
+                            }
+                        ),
+                        enqueued_at=now_s,
+                        status="pending",
+                        attempted_at=None,
+                        attempts=0,
                     ),
-                    enqueued_at=now_s,
-                    status="pending",
-                    attempted_at=None,
-                    attempts=0,
-                ),
-            )
+                )
+            else:
+                log.debug(
+                    "indexer.verify.verify_would_enqueue",
+                    file_id=file_id,
+                    path=str(file_path),
+                    reason=f"drift detected (size_match={size_match}, mtime_match={mtime_match})",
+                )
             mismatches += 1
             # Still bump scan_generation so the row is reachable in this run.
             conn.execute(

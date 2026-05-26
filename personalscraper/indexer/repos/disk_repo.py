@@ -142,6 +142,31 @@ def get_by_id(conn: sqlite3.Connection, id: int) -> DiskRow | None:
     return _row_to_disk(row)
 
 
+def get_by_label(conn: sqlite3.Connection, label: str) -> DiskRow | None:
+    """Fetch a disk row by its human-readable label.
+
+    The ``label`` column stores the config-stable disk identifier (e.g. ``"disk_a"``).
+    Unlike ``uuid`` — which may be the real macOS VolumeUUID set by
+    :func:`~personalscraper.indexer.commands._bootstrap._bootstrap_disks_from_config`
+    or the config-string fallback set by ``library.scanner._build_disk_row`` — the
+    ``label`` is always set to ``DiskConfig.id`` regardless of the code path that
+    inserted the row.  It is therefore the stable key to use when correlating an
+    in-flight ``DiskConfig`` to an existing DB row.
+
+    Args:
+        conn: Open SQLite connection.
+        label: Disk label string to look up (must match ``disk.label`` exactly).
+
+    Returns:
+        :class:`DiskRow` if found, ``None`` otherwise.
+    """
+    _set_row_factory(conn)
+    row = conn.execute("SELECT * FROM disk WHERE label = ?", (label,)).fetchone()
+    if row is None:
+        return None
+    return _row_to_disk(row)
+
+
 def update_mount_path(conn: sqlite3.Connection, id: int, mount_path: str | None) -> bool:
     """Update the ``mount_path`` column for a disk row.
 

@@ -5,7 +5,7 @@ Sub-app mounted at ``personalscraper trailers`` via typer.
 Subcommands:
     scan      - Dry-run: list media missing trailers
     download  - Discover and download missing trailers
-    verify    - Audit existing trailers (size, extension)
+    audit     - Audit existing trailers (size, extension)
     purge     - Remove orphan trailers (media parent absent)
 
 Common filters (scan, download, verify, purge)::
@@ -530,51 +530,34 @@ def download(
 
 
 # ---------------------------------------------------------------------------
-# verify
+# audit
 # ---------------------------------------------------------------------------
 
 
-@app.command()
-def verify(
+def _audit_impl(
     ctx: typer.Context,
-    disk: str | None = typer.Option(None, "--disk", help="Restrict to one disk by ID (e.g. Disk1)."),
-    category: str | None = typer.Option(None, "--category", help="Restrict to one category ID."),
-    since: str | None = typer.Option(None, "--since", help="Only items added/modified after YYYY-MM-DD."),
-    deep: bool = typer.Option(False, "--deep", help="Run ffprobe playability probe (expensive)."),
-    level: str = typer.Option(
-        "both",
-        "--level",
-        help=(
-            "Which trailer levels to audit: show | season | both. "
-            "Season-level is silently ignored when seasons.enabled is False."
-        ),
-    ),
-    season: int | None = typer.Option(
-        None,
-        "--season",
-        help="Target a specific season number (1-indexed). Implies --level=season.",
-    ),
+    *,
+    disk: str | None,
+    category: str | None,
+    since: str | None,
+    deep: bool,
+    level: str,
+    season: int | None,
 ) -> None:
-    """Audit existing trailers.
+    """Shared body for the ``trailers audit`` command.
 
-    Runs four checks per trailer:
-    1. Existence - trailer file present at the expected placement path.
-    2. Size - file size >= config.trailers.filters.min_file_size_bytes.
-    3. Extension - file suffix in config.trailers.filters.allowed_extensions.
-    4. Playable (opt-in, --deep) - ffprobe returns non-zero duration.
-
-    Failures report a category: missing, undersized, wrong_extension, unplayable.
-    Exit codes: 0 if all pass, 2 if any functional check fails,
-    4 if a --deep ffprobe call errors out (probe itself broken).
+    Extracted from the typer entrypoint so the implementation can be reused
+    by direct callers (tests, future scripted access) without going through
+    the typer wrapper.
 
     Args:
-        ctx: Typer context carrying AppCtx (config available via ctx.obj.config).
+        ctx: Typer context carrying AppCtx (config available via ``ctx.obj.config``).
         disk: Optional disk ID filter.
         category: Optional category ID filter.
         since: Optional ISO date lower bound for item age.
         deep: When True, run ffprobe playability check (expensive).
-        level: Trailer level filter (show / season / both).
-        season: Specific season number; implies --level=season.
+        level: Trailer level filter (``show`` / ``season`` / ``both``).
+        season: Specific season number; implies ``--level=season``.
     """
     import sqlite3  # noqa: PLC0415 — deferred to avoid top-level import cost
 
@@ -687,6 +670,59 @@ def verify(
             raise typer.Exit(code=2)
 
         console.print(f"[green]All {len(items)} trailers verified OK.[/green]")
+
+
+@app.command("audit")
+def audit(
+    ctx: typer.Context,
+    disk: str | None = typer.Option(None, "--disk", help="Restrict to one disk by ID (e.g. Disk1)."),
+    category: str | None = typer.Option(None, "--category", help="Restrict to one category ID."),
+    since: str | None = typer.Option(None, "--since", help="Only items added/modified after YYYY-MM-DD."),
+    deep: bool = typer.Option(False, "--deep", help="Run ffprobe playability probe (expensive)."),
+    level: str = typer.Option(
+        "both",
+        "--level",
+        help=(
+            "Which trailer levels to audit: show | season | both. "
+            "Season-level is silently ignored when seasons.enabled is False."
+        ),
+    ),
+    season: int | None = typer.Option(
+        None,
+        "--season",
+        help="Target a specific season number (1-indexed). Implies --level=season.",
+    ),
+) -> None:
+    """Audit existing trailers (canonical command).
+
+    Runs four checks per trailer:
+    1. Existence - trailer file present at the expected placement path.
+    2. Size - file size >= config.trailers.filters.min_file_size_bytes.
+    3. Extension - file suffix in config.trailers.filters.allowed_extensions.
+    4. Playable (opt-in, --deep) - ffprobe returns non-zero duration.
+
+    Failures report a category: missing, undersized, wrong_extension, unplayable.
+    Exit codes: 0 if all pass, 2 if any functional check fails,
+    4 if a --deep ffprobe call errors out (probe itself broken).
+
+    Args:
+        ctx: Typer context carrying AppCtx (config available via ctx.obj.config).
+        disk: Optional disk ID filter.
+        category: Optional category ID filter.
+        since: Optional ISO date lower bound for item age.
+        deep: When True, run ffprobe playability check (expensive).
+        level: Trailer level filter (show / season / both).
+        season: Specific season number; implies --level=season.
+    """
+    _audit_impl(
+        ctx,
+        disk=disk,
+        category=category,
+        since=since,
+        deep=deep,
+        level=level,
+        season=season,
+    )
 
 
 # ---------------------------------------------------------------------------

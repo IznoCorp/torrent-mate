@@ -41,7 +41,9 @@ class TorrentItem:
 # NOTE — provider-ids feature, sub-phase 13.1 :
 # The historical monolithic ``TorrentClient(Protocol)`` defined here
 # was dropped in favour of the 5 atomic capability protocols hosted in
-# ``personalscraper.api.torrent._contracts``. The factory now returns
-# the composite ``TorrentClientFull`` Protocol ; callers that need
-# authentication widen with an ``isinstance(..., AuthenticatedClient)``
-# check at the call site (DESIGN §4 — Composition par client).
+# ``personalscraper.api.torrent._contracts``. The factory returns
+# ``QBitClient | TransmissionClient`` directly ; callers type their
+# dependency via the atomic protocol they actually consume, and those
+# that need authentication assert ``AuthenticatedClient`` via isinstance
+# (DESIGN §4 — Composition par client). The former composite
+# ``TorrentClientFull`` was also dropped in 0.16.0 (MUST-14, CF-B).

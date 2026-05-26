@@ -16,6 +16,7 @@ log = get_logger("indexer.cli")
 def library_repair_command(
     *,
     budget_seconds: float = 60.0,
+    dry_run: bool = False,
     config_path: Path | None = None,
     event_bus: EventBus,
 ) -> int:
@@ -24,9 +25,13 @@ def library_repair_command(
     Delegates to :func:`~personalscraper.indexer.repair.drain`.  The noop
     processor is used by default (real handlers wired in later phases).
 
+    With ``dry_run=True`` the command opens the DB read-only, inspects the
+    queue depth, and prints a preview JSON without modifying any rows.
+
     Args:
         budget_seconds: Maximum wall-clock seconds to spend draining.
             Default ``60.0`` seconds.
+        dry_run: When ``True``, report queue depth without draining (no writes).
         config_path: Optional explicit path to config.json5 or config directory.
         event_bus: Required :class:`EventBus` forwarded to ``open_db`` so the
             pre-open free-space guard emits ``DiskFullWarning`` on the run's
@@ -53,9 +58,9 @@ def library_repair_command(
         apply_migrations,
         open_db,
     )
-    from personalscraper.indexer.repair import drain  # noqa: PLC0415
+    from personalscraper.indexer.repair import drain, repair_processor  # noqa: PLC0415
 
-    log.info("indexer.cli.repair", budget_seconds=budget_seconds)
+    log.info("indexer.cli.repair", budget_seconds=budget_seconds, dry_run=dry_run)
 
     # --- Load config ---
     try:
@@ -96,7 +101,22 @@ def library_repair_command(
             typer.echo(str(exc), err=True)
             return 1
 
-        stats = drain(conn, budget_seconds=budget_seconds)
+        if dry_run:
+            # Read-only preview: count pending rows without draining any.
+            from personalscraper.indexer.repair import get_queue_health  # noqa: PLC0415
+
+            oldest, depth = get_queue_health(conn)
+            summary = {
+                "dry_run": True,
+                "repair_would_drain": depth,
+                "oldest_pending_age_seconds": oldest,
+                "budget_seconds": budget_seconds,
+            }
+            log.info("indexer.cli.repair_would_drain", pending_depth=depth, budget_seconds=budget_seconds)
+            typer.echo(json.dumps(summary))
+            return 0
+
+        stats = drain(conn, budget_seconds=budget_seconds, processor=repair_processor)
 
         # Tombstone retention: purge deleted_item rows older than the
         # configured retention window (DESIGN §8.x).  library-repair is

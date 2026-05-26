@@ -1,5 +1,20 @@
 # Pipeline Observer Protocol — Design
 
+> **⚠ STATUS** : This DESIGN.md is an archived as-designed snapshot. **The entire
+> Observer Protocol architecture is superseded by feat/event-bus** (shipped v0.14.0).
+> See `docs/reference/event-bus.md` for the current source-of-truth.
+>
+> **Old → New mapping** :
+>
+> | Old (DESIGN.md)               | New (current)                          | Replaced by              |
+> | ----------------------------- | -------------------------------------- | ------------------------ |
+> | `PipelineObserver` Protocol   | `EventBus` subscriber pattern          | `feat/event-bus` v0.14.0 |
+> | `StepEvent`                   | `StepProgress` event (typed dataclass) | `feat/event-bus`         |
+> | `notify_progress()`           | `event_bus.emit(...)`                  | `feat/event-bus`         |
+> | `CollectorObserver` (testing) | `RecordingSubscriber` (testing)        | `feat/event-bus`         |
+> | `RichConsoleObserver`         | `RichConsoleSubscriber`                | `feat/event-bus`         |
+> | `TelegramObserver`            | `TelegramSubscriber`                   | `feat/event-bus`         |
+
 **Feature**: Pipeline Observer Protocol (Headless Mode)
 **Type**: minor
 **Status**: spec

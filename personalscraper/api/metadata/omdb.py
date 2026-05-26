@@ -45,6 +45,7 @@ from personalscraper.api.transport._policy import (
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
+    from personalscraper.api.metadata._omdb_quota import OmdbQuotaTracker
     from personalscraper.api.transport._http import HttpTransport
 
 log = get_logger("api.omdb")
@@ -64,6 +65,51 @@ _OMDB_TYPE_MAP: dict[str, MediaType] = {
     "movie": MediaType.MOVIE,
     "series": MediaType.TV,
 }
+
+
+class OmdbQuotaExhausted(ApiError):
+    """Raised when the OMDB daily quota is exhausted (pre- or post-call).
+
+    Distinct from a generic ``ApiError(http_status=401)`` so that retry
+    loops can discriminate between real upstream 401s (auth failure /
+    invalid key) and OMDB's quota-exhaustion sentinel (which should NOT
+    be retried — the budget is gone for the day). OMDB returns HTTP 401
+    with ``{"Error": "Request limit reached!"}`` on quota exhaustion
+    (free tier 1000 req/day).
+
+    Two distinct branches are kept observable via ``pre_call``:
+
+    - ``pre_call=False`` (default): the HTTP call was sent and the
+      upstream responded with the real 401. ``http_status=401``.
+    - ``pre_call=True``: the tracker short-circuited the call before
+      reaching the wire (safety margin or already-marked exhausted).
+      ``http_status=0`` — there was no upstream response.
+
+    Consumers that need to discriminate (e.g. logging real-upstream
+    vs prevented requests) can read ``pre_call``; consumers that only
+    care about the quota-exhausted outcome can ignore it.
+    """
+
+    def __init__(
+        self,
+        message: str = "Daily quota limit reached",
+        *,
+        pre_call: bool = False,
+    ) -> None:
+        """Initialize with a fixed provider; status depends on pre_call.
+
+        Args:
+            message: Human-readable diagnostic.
+            pre_call: True when raised before the HTTP request was sent
+                (tracker short-circuit). False when raised after a real
+                upstream 401 was received.
+        """
+        super().__init__(
+            provider="omdb",
+            http_status=0 if pre_call else 401,
+            message=message,
+        )
+        self.pre_call = pre_call
 
 
 class OMDbAdapter(MetadataClient):
@@ -103,16 +149,71 @@ class OMDbAdapter(MetadataClient):
             circuit=_DEFAULT_CIRCUIT,
         )
 
-    def __init__(self, transport: HttpTransport, *, language: str = "fr-FR") -> None:
+    def __init__(
+        self,
+        transport: HttpTransport,
+        *,
+        language: str = "fr-FR",
+        quota_tracker: OmdbQuotaTracker | None = None,
+    ) -> None:
         """Initialize OMDB client.
 
         Args:
             transport: HttpTransport pre-configured with OMDB policy.
             language: Language code (unused by OMDB, accepted for Protocol compat).
+            quota_tracker: Optional :class:`OmdbQuotaTracker` for OMDB free-tier
+                daily quota enforcement. When provided, calls are skipped
+                (fail-soft) before the daily limit is reached.
         """
         super().__init__(transport, language=language)
+        self._quota = quota_tracker
 
     # -- MetadataProvider Protocol ------------------------------------------
+
+    def _is_quota_exhaustion(self, exc: ApiError) -> bool:
+        """Return True if ``exc`` signals an OMDB quota-exhaustion response.
+
+        OMDB returns HTTP 401 with ``{"Error": "Request limit reached!"}``
+        when the daily quota is exhausted (free tier 1000 req/day).
+        Distinguished from a genuine auth failure (invalid API key) by
+        the substring in the error body.
+        """
+        return exc.http_status == 401 and "request limit reached" in exc.message.lower()
+
+    def _quota_aware_get(self, params: dict[str, Any], *, method: str, item_id: str) -> dict[str, Any]:
+        """GET with quota gating; raises :class:`OmdbQuotaExhausted` on quota.
+
+        Args:
+            params: Query parameters for the OMDB request.
+            method: Calling method name for log context.
+            item_id: Media/item identifier for log context.
+
+        Returns:
+            Parsed JSON dict.
+
+        Raises:
+            OmdbQuotaExhausted: Tracker blocked the call (``pre_call=True``)
+                or the upstream returned a quota-exhaustion response
+                (``pre_call=False``). Callers that prefer a soft outcome
+                (e.g. :meth:`search` returning an empty list) must catch
+                explicitly.
+            ApiError: On transport failure that is NOT quota exhaustion.
+        """
+        if self._quota is not None and self._quota.reserve_call() != "allowed":
+            log.warning("omdb_quota_skip", method=method, item_id=item_id)
+            raise OmdbQuotaExhausted(pre_call=True)
+        try:
+            return _assert_dict(self._transport.get(params=params))
+        except ApiError as exc:
+            if self._quota is not None and self._is_quota_exhaustion(exc):
+                self._quota.mark_exhausted(f"HTTP 401 during {method}({item_id})")
+                log.warning(
+                    "omdb_quota_exhausted_runtime",
+                    method=method,
+                    item_id=item_id,
+                )
+                raise OmdbQuotaExhausted() from exc
+            raise
 
     def search(
         self,
@@ -122,20 +223,31 @@ class OMDbAdapter(MetadataClient):
     ) -> list[SearchResult]:
         """Search OMDB by title.
 
+        Quota exhaustion propagates as :class:`OmdbQuotaExhausted` so callers
+        can distinguish "no result" (empty list) from "provider blocked"
+        (exception), aligning with :meth:`get_details` / :meth:`get_notations`.
+
         Args:
             title: Title string to search for.
             year: Optional release year filter.
             media_type: "movie" or "tv" (OMDB uses "series").
 
         Returns:
-            List of SearchResult objects.
+            List of SearchResult objects. Empty list means "no match",
+            never "quota exhausted".
+
+        Raises:
+            OmdbQuotaExhausted: Daily quota exhausted (pre-call or runtime
+                detection). Subclass of :class:`ApiError`; check
+                ``exc.pre_call`` to distinguish branches.
+            ApiError: Other transport / response-shape failure.
         """
         omdb_type = "series" if media_type == "tv" else "movie"
         params: dict[str, Any] = {"s": title, "type": omdb_type}
         if year is not None:
             params["y"] = str(year)
 
-        data = _assert_dict(self._transport.get(params=params))
+        data = self._quota_aware_get(params, method="search", item_id=title)
         return _parse_search_results(data, provider=self.provider_name)
 
     def get_details(
@@ -153,9 +265,13 @@ class OMDbAdapter(MetadataClient):
             MediaDetails with parsed fields.
 
         Raises:
-            ApiError: OMDB returned Response: "False".
+            OmdbQuotaExhausted: Daily quota exhausted (pre-call or
+                runtime detection). Subclass of :class:`ApiError`; check
+                ``exc.pre_call`` to distinguish branches.
+            ApiError: OMDB returned ``Response: "False"`` or any other
+                transport failure.
         """
-        data = _assert_dict(self._transport.get(params={"i": media_id}))
+        data = self._quota_aware_get({"i": media_id}, method="get_details", item_id=media_id)
         return _parse_media_details(data, provider=self.provider_name, media_type=media_type)
 
     def get_notations(
@@ -170,9 +286,18 @@ class OMDbAdapter(MetadataClient):
             media_type: "movie" or "tv".
 
         Returns:
-            List of Notations (one per source), or None if no ratings.
+            List of Notations (one per source), or None when OMDB has
+            no ratings for this ID.
+
+        Raises:
+            OmdbQuotaExhausted: Daily quota exhausted (pre-call or
+                runtime detection). Subclass of :class:`ApiError`. The
+                IMDb and Rotten Tomatoes façades both depend on this
+                propagation to discriminate "quota gone" from
+                "no rating available" in their ``get_rating`` paths.
+            ApiError: Other OMDB / transport failure.
         """
-        data = _assert_dict(self._transport.get(params={"i": media_id}))
+        data = self._quota_aware_get({"i": media_id}, method="get_notations", item_id=media_id)
         return _parse_notations(data, provider=self.provider_name)
 
     def get_recommendations(
@@ -195,7 +320,13 @@ OMDBClient = OMDbAdapter
 
 
 def _assert_dict(data: dict[str, Any] | str) -> dict[str, Any]:
-    """Cast HttpTransport response to dict; transport guarantees JSON parse."""
+    """Cast HttpTransport response to dict.
+
+    Transport SHOULD guarantee a parsed JSON dict, but legacy adapter paths
+    may return a raw string when JSON parse failed silently upstream.
+    See ``TransportPolicy.response_format``
+    (``personalscraper/api/transport/_policy.py``) for the contract.
+    """
     if isinstance(data, str):
         raise ApiError(
             provider="omdb",

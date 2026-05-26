@@ -62,11 +62,20 @@ def _drop_secondary_indexes(conn: sqlite3.Connection) -> list[tuple[str, str]]:
 def _recreate_indexes(conn: sqlite3.Connection, ddl_pairs: list[tuple[str, str]]) -> None:
     """Recreate indexes from previously captured CREATE INDEX statements.
 
+    The captured DDL comes verbatim from ``sqlite_master.sql``, which omits
+    the ``IF NOT EXISTS`` clause. When several disk workers run the full
+    scan concurrently they each drop + recreate the same set of indexes
+    against the shared database; the first worker to recreate wins and the
+    others raise ``index <name> already exists`` (DEV #13, C5 race in
+    matrix v2.0 invariants). Injecting ``IF NOT EXISTS`` makes the
+    recreate idempotent so concurrent workers cannot race each other.
+
     Args:
         conn: Open SQLite connection.
         ddl_pairs: List of ``(index_name, create_sql)`` tuples as returned by
             :func:`_drop_secondary_indexes`.
     """
     for name, sql in ddl_pairs:
-        conn.execute(sql)
+        idempotent_sql = sql.replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ", 1)
+        conn.execute(idempotent_sql)
         log.debug("indexer.scan.index_recreated", index_name=name)

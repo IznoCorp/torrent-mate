@@ -215,12 +215,14 @@ def _drain_dispatch_outbox(config: Config) -> None:
     """
     import sqlite3
 
+    from personalscraper.indexer.db import _apply_pragmas
     from personalscraper.indexer.outbox._drain import drain_if_present
     from personalscraper.indexer.repos.disk_repo import update_merkle_root
 
     db_path = config.indexer.db_path
     assert db_path is not None, "indexer.db_path must be resolved"
-    conn = sqlite3.connect(str(db_path))
+    conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+    _apply_pragmas(conn)
     try:
         applied = drain_if_present(conn, config.indexer)
         if applied:
@@ -257,6 +259,7 @@ def _enrich_after_dispatch(config: Config, results: list[DispatchResult], *, eve
     """
     import sqlite3
 
+    from personalscraper.indexer.db import _apply_pragmas
     from personalscraper.indexer.repos import disk_repo
     from personalscraper.indexer.scanner import scan as _indexer_scan
     from personalscraper.indexer.schema import DiskRow
@@ -267,7 +270,8 @@ def _enrich_after_dispatch(config: Config, results: list[DispatchResult], *, eve
 
     db_path = config.indexer.db_path
     assert db_path is not None, "indexer.db_path must be resolved"
-    conn = sqlite3.connect(str(db_path))
+    conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+    _apply_pragmas(conn)
     try:
         disk_rows: list[DiskRow] = []
         for disk_id in affected_ids:

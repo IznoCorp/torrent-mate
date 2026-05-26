@@ -73,17 +73,37 @@ def init_config_cmd(
         "--force",
         help="Overwrite output directory if it already exists.",
     ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help=(
+            "Preview mode: show what would be created without writing any files. "
+            "Checks that config.example/ exists and reports the target path."
+        ),
+    ),
 ) -> None:
     """Create ./config/ from the config.example/ template directory.
 
     Run without arguments for interactive mode (prompts for key values).
     Use --yes to skip all prompts and accept defaults.
+    Use --dry-run to preview what would be created without writing anything.
 
     Examples:
         personalscraper init-config
         personalscraper init-config --yes
         personalscraper init-config --output /custom/path/config --force
+        personalscraper init-config --dry-run
     """
     from personalscraper.commands.init_config import init_config
+
+    if dry_run:
+        typer.echo(f"[DRY-RUN] Would copy {example} → {output}")
+        if not example.is_dir():
+            typer.echo(f"[DRY-RUN] WARNING: example directory not found: {example}", err=True)
+        elif output.exists() and not force:
+            typer.echo(f"[DRY-RUN] WARNING: {output} already exists; use --force to overwrite.", err=True)
+        else:
+            typer.echo("[DRY-RUN] No files written.")
+        return
 
     init_config(example, output, interactive=not non_interactive, force=force)

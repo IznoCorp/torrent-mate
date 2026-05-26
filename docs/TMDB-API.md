@@ -1,6 +1,6 @@
 # TMDB API — Documentation de référence
 
-> The Movie Database API v3 — référence complète pour le pipeline PersonalScraper (V3-SCRAPE).
+> The Movie Database API v3 — référence complète pour le pipeline PersonalScraper (scrape step).
 >
 > Dernière mise à jour : 2026-04-10
 

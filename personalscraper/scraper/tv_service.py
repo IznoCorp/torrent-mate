@@ -9,16 +9,21 @@ from typing import TYPE_CHECKING, Any
 import requests
 
 from personalscraper.api._contracts import ApiError, MediaType
-from personalscraper.api.metadata._base import EpisodeInfo, MediaDetails, Notations
+from personalscraper.api.metadata._base import EpisodeInfo, Notations
 from personalscraper.api.metadata._tvdb_parsers import map_language
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
+from personalscraper.scraper._drift_persistence import DriftIssueStore
 from personalscraper.scraper._shared import ScrapeResult
+from personalscraper.scraper._tvdb_convert import (
+    _tvdb_series_to_show_data as _tvdb_series_to_show_data,
+)
 from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.confidence import LOW_CONFIDENCE
 from personalscraper.scraper.episode_manager import create_season_dirs, match_episode_files, rename_episodes
 from personalscraper.scraper.existing_validator import _infer_year_from_child_names, _local_show_seasons
+from personalscraper.scraper.models import ScraperExternalIds
 from personalscraper.scraper.nfo_generator import NFOGenerator
 from personalscraper.scraper.rename_service import (
     _cleanup_empty_release_dirs,
@@ -82,175 +87,6 @@ def _episode_payload(ep: EpisodeInfo, episode_default_name: str) -> dict[str, An
     return payload
 
 
-def _tvdb_series_to_show_data(
-    tvdb_data: "MediaDetails | dict[str, Any]",
-    tvdb_id: int,
-    tvdb_client: Any = None,
-    tmdb_id: int = 0,
-    imdb_id: str = "",
-    preferred_language: str = "fr-FR",
-    fallback_language: str = "en-US",
-) -> dict[str, Any]:
-    """Convert TVDB series data to a TMDB-like show_data dict.
-
-    Builds a show_data compatible with generate_tvshow_nfo() and
-    download_tvshow_artwork() using TVDB fields. Whenever a TV show is
-    matched via TVDB, this is the source of truth for folder naming,
-    NFO content, artwork, and episode lookups — the TMDB id is only
-    embedded as a secondary uniqueid cross-reference and never queried
-    for content.
-
-    Phase 27: ``tvdb_data`` is now ``MediaDetails`` in production
-    (api-unify ``TVDBClient.get_series`` returns the typed model). The
-    function preserves backward compatibility by also accepting the raw
-    TVDB extended dict — useful for tests that have not migrated and for
-    rare callers that still hold the unparsed payload. Internally, the
-    typed branch derives the same TMDB-flavoured output by reading
-    ``MediaDetails`` fields populated by ``_tvdb_parsers.parse_media_details``.
-
-    Lossy fields when the input is ``MediaDetails``:
-    - ``status`` (TVDB extended ``status.name``) — not in MediaDetails;
-      empty string in the output. Affects only the NFO ``<status>`` tag.
-    - ``contentRatings`` — not in MediaDetails; empty list in the output.
-      Affects only the NFO ``<mpaa>`` tag.
-    - language-specific translations — MediaDetails carries the
-      provider-default name + ``original_title``; per-locale translations
-      are not preserved. ``preferred_language`` / ``fallback_language``
-      become no-ops in the typed branch.
-
-    Args:
-        tvdb_data: Either the typed ``MediaDetails`` from
-            ``TVDBClient.get_series`` (api-unify) or the raw TVDB extended
-            series dict (legacy callers / fixtures).
-        tvdb_id: TVDB series ID (embedded in external_ids for NFO generation).
-        tvdb_client: Optional TVDB client used to fetch artworks. When None, the
-            returned dict has empty ``images`` (legacy call sites that don't
-            need artwork).
-        tmdb_id: Optional TMDB cross-reference id. Embedded as the default
-            ``uniqueid type="tmdb"`` when non-zero — strictly for Kodi/Jellyfin
-            cross-linking, never used to fetch content.
-        imdb_id: Optional IMDB cross-reference id (same rationale as tmdb_id).
-        preferred_language: Configured scraping language. Used to select TVDB
-            translated titles when available (legacy dict path only).
-        fallback_language: Fallback scraping language (legacy dict path only).
-
-    Returns:
-        Dict with TMDB-compatible fields for NFO/artwork generation.
-    """
-    if isinstance(tvdb_data, MediaDetails):
-        # api-unify path — read the typed model directly.
-        display_name = tvdb_data.title
-        original_name = tvdb_data.original_title or tvdb_data.title
-        overview_text = tvdb_data.overview
-        status_name = ""  # MediaDetails does not preserve TVDB ``status.name``.
-        content_ratings_results: list[dict[str, str]] = []
-        seasons = [
-            {"season_number": s.season_number, "poster_path": s.poster_url}
-            for s in tvdb_data.seasons
-            if s.season_number > 0
-        ]
-        # Genre names are available; IDs are dropped at this boundary because
-        # the legacy dict shape only exposes ``[{"name": ...}]``.
-        genres = [{"name": g} for g in tvdb_data.genres if g]
-        # first_air_date built from MediaDetails.year when present.
-        first_air = f"{tvdb_data.year}-01-01" if tvdb_data.year else ""
-        # MediaDetails.external_ids is already the {"imdb": ..., "tmdb": ..., "tvdb": ...} dict.
-        # Override with the explicit tmdb_id / imdb_id args when callers provide them.
-        external_ids_typed: dict[str, str | int] = {"tvdb_id": tvdb_id}
-        if tmdb_id:
-            external_ids_typed["tmdb_id"] = tmdb_id
-        if imdb_id:
-            external_ids_typed["imdb_id"] = imdb_id
-    else:
-        # Legacy dict path — preserved for tests + rare callers.
-        status_raw = tvdb_data.get("status", {})
-        status_name = status_raw.get("name", "") if isinstance(status_raw, dict) else str(status_raw)
-
-        # Build content_ratings in TMDB format: {results: [{rating, iso_3166_1}]}
-        content_ratings_results = []
-        for cr in tvdb_data.get("contentRatings", []) or []:
-            rating = cr.get("name", "")
-            country = cr.get("country", "")
-            if rating:
-                content_ratings_results.append({"rating": rating, "iso_3166_1": country})
-
-        # Build seasons list in TMDB format: [{season_number, poster_path}]
-        seasons = []
-        for s in tvdb_data.get("seasons", []) or []:
-            s_num = s.get("number", s.get("season_number", 0))
-            if s_num and s_num > 0:
-                seasons.append({"season_number": s_num, "poster_path": ""})
-
-        # Genres in legacy dict shape (already TVDB-style)
-        genres = [{"name": g.get("name", "")} for g in (tvdb_data.get("genres") or [])]
-
-        # first_air_date: TVDB uses firstAired ("YYYY-MM-DD"); fallback to year field.
-        first_air = tvdb_data.get("firstAired") or ""
-        if not first_air:
-            year_val = tvdb_data.get("year")
-            if isinstance(year_val, int) and year_val > 0:
-                first_air = f"{year_val}-01-01"
-            elif isinstance(year_val, str) and year_val.isdigit():
-                first_air = f"{year_val}-01-01"
-
-        raw_name = tvdb_data.get("name", "")
-        lang_code = preferred_language.split("-", 1)[0].lower()
-        tvdb_lang_code = map_language(lang_code)
-        translations = tvdb_data.get("translations") or {}
-        translated_overview: str | None = None
-        translated_name = None
-        if isinstance(translations, dict):
-            translated_name = translations.get(lang_code) or translations.get(tvdb_lang_code)
-        if not translated_name:
-            fallback_code = fallback_language.split("-", 1)[0].lower()
-            fallback_tvdb_code = map_language(fallback_code)
-            if isinstance(translations, dict):
-                translated_name = translations.get(fallback_code) or translations.get(fallback_tvdb_code)
-        display_name = translated_name or raw_name
-        original_name = tvdb_data.get("originalName") or raw_name
-        overview_text = translated_overview or tvdb_data.get("overview", "")
-        external_ids_typed = {"tvdb_id": tvdb_id, "imdb_id": imdb_id}
-
-    # Fetch TVDB artworks via the typed API when a client is provided.
-    posters: list[dict[str, Any]] = []
-    backdrops: list[dict[str, Any]] = []
-    if tvdb_client is not None:
-        try:
-            all_artworks = tvdb_client.get_artwork_urls(str(tvdb_id), media_type=MediaType.TV)
-            posters = [
-                {"file_path": a.url, "iso_639_1": a.language or ""}
-                for a in all_artworks
-                if a.type == "poster" and a.url
-            ]
-            backdrops = [
-                {"file_path": a.url, "iso_639_1": a.language or ""}
-                for a in all_artworks
-                if a.type == "backdrop" and a.url
-            ]
-        except Exception as exc:  # noqa: BLE001 — artwork fetch is best-effort
-            log.warning("tvdb_artwork_fetch_failed", tvdb_id=tvdb_id, error=str(exc))
-
-    return {
-        "id": tmdb_id,  # Cross-ref TMDB id (0 when none) — NFO-only, never queried
-        "name": display_name,
-        "original_name": original_name,
-        "overview": overview_text,
-        "status": status_name,
-        "genres": genres,
-        "networks": [],
-        "first_air_date": first_air,
-        "vote_average": 0.0,
-        "vote_count": 0,
-        "number_of_episodes": 0,
-        "number_of_seasons": len(seasons),
-        "external_ids": external_ids_typed,
-        "content_ratings": {"results": content_ratings_results},
-        "seasons": seasons,
-        "images": {"posters": posters, "backdrops": backdrops},
-        "aggregate_credits": {"cast": []},
-    }
-
-
 class TvServiceMixin:
     """TV show scrape service methods."""
 
@@ -296,12 +132,14 @@ class TvServiceMixin:
         # Check for existing valid NFO
         nfo_path = show_dir / self.patterns.tvshow_nfo
         # ``drift_rescrape_episode_nfo`` flips True when the drift
-        # validator rejects the existing scrape *specifically* because
-        # one or more episode NFOs lack the canonical ``<uniqueid>``
-        # tag added by the provider-ids feature. Without this signal
-        # the full-scrape path below would skip episode-NFO regen for
-        # shows whose episodes are already organized in ``Saison NN/``
-        # — exactly the DEV #2 symptom on a re-scrape pass.
+        # validator rejects the existing scrape because of ANY
+        # episode-level issue — missing canonical ``<uniqueid>`` tag
+        # (provider-ids feature), non-conformant episode filename, or
+        # a missing sibling episode NFO. Without this signal the full-
+        # scrape path below would skip files already organized in
+        # ``Saison NN/`` — exactly the DEV #2 symptom on a re-scrape
+        # pass where only tvshow.nfo was regenerated but episode files
+        # kept their raw release names.
         drift_rescrape_episode_nfo = False
         if _is_nfo_complete(nfo_path):
             # Fast path only when the previous scrape is still coherent with
@@ -315,7 +153,20 @@ class TvServiceMixin:
                     directory=show_dir.name,
                     reason=drift_reason,
                 )
-                if drift_reason.startswith("episode_nfo_missing_canonical_uniqueid"):
+                store = DriftIssueStore.from_config(self.config)
+                if store is not None:
+                    store.persist(show_dir, drift_reason)
+                # Any episode-level drift reason requires sweeping into
+                # ``Saison NN/`` so the rescrape path can regenerate
+                # NFOs, rename episodes, or both.  The three reasons
+                # match the ``verify_tvshow_scrape_drift`` return slugs.
+                if drift_reason.startswith(
+                    (
+                        "episode_nfo_missing_canonical_uniqueid",
+                        "episode_naming_drift",
+                        "episode_nfo_missing",
+                    )
+                ):
                     drift_rescrape_episode_nfo = True
                 if not self.dry_run:
                     try:
@@ -546,6 +397,9 @@ class TvServiceMixin:
             log.warning("show_artwork_failed", api_title=match.api_title, exc_info=True, error=str(e))
             result.warnings.append(f"Artwork failed: {e}")
 
+        store = DriftIssueStore.from_config(self.config)
+        if store is not None:
+            store.clear(show_dir)
         result.episodes_renamed = total_renamed
         result.action = "scraped"
         return result
@@ -665,10 +519,9 @@ class TvServiceMixin:
                     tvdb_data,
                     match.api_id,
                     self._tvdb,
-                    tmdb_id=tmdb_id or 0,
-                    imdb_id=imdb_id,
                     preferred_language=self._scraper_language,
                     fallback_language=self._scraper_fallback_language,
+                    external_ids=ScraperExternalIds(tmdb_id=tmdb_id, imdb_id=imdb_id),
                 )
             else:
                 # Local import: avoids the movie_service ↔ tv_service circular

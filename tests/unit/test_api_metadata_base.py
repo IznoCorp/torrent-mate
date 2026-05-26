@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
 from typing import ClassVar
 
 import pytest
@@ -11,12 +12,22 @@ from personalscraper.api.metadata._base import (
     EpisodeInfo,
     MediaDetails,
     MetadataClient,
-    MetadataProvider,
     Notations,
     Recommendation,
     SearchResult,
     SeasonDetails,
     Video,
+)
+from personalscraper.api.metadata._contracts import (
+    ArtworkProvider,
+    EpisodeFetcher,
+    KeywordProvider,
+    MovieDetailsProvider,
+    RatingProvider,
+    RecommendationProvider,
+    Searchable,
+    TvDetailsProvider,
+    VideoProvider,
 )
 
 
@@ -77,7 +88,7 @@ class TestTypedModels:
     def test_models_are_frozen(self) -> None:
         """All models are frozen dataclasses — mutation raises an error."""
         sr = SearchResult(provider="tmdb", provider_id="123", title="Test")
-        with pytest.raises(Exception):
+        with pytest.raises(FrozenInstanceError):
             sr.title = "New Title"  # type: ignore[misc]
 
 
@@ -179,55 +190,195 @@ class TestProviderNameClassVarValues:
         )
 
 
-class TestMetadataProviderProtocol:
-    """MetadataProvider Protocol tests."""
+class TestAtomicCapabilityProtocols:
+    """Atomic capability Protocol isinstance checks (DEV #29).
 
-    def test_runtime_checkable(self) -> None:
-        """A full provider passes isinstance(..., MetadataProvider)."""
+    Each test pins the contract that a class satisfying a single atomic
+    capability passes ``isinstance`` against that Protocol — and that a
+    class missing the required method does NOT. This replaces the former
+    monolithic ``MetadataProvider`` isinstance assertions, whose removal
+    is gated on these tests being in place first (sub-phase 5.1 before 5.4).
+    """
 
-        class FullProvider:
-            provider_name = "test"
-            REQUIRED_CREDS: list[str] = []
+    # -- Searchable -----------------------------------------------------------
 
-            def search(self, title: str, year: int | None = None, media_type: str = "movie") -> list[SearchResult]:
+    def test_searchable_passes(self) -> None:
+        """A class exposing ``search`` satisfies the Searchable Protocol."""
+
+        class Impl:
+            def search(
+                self,
+                title: str,
+                year: int | None = None,
+                media_type: str = "movie",
+            ) -> list[SearchResult]:
                 return []
 
-            def get_details(self, media_id: str, media_type: str = "movie") -> MediaDetails:
-                return MediaDetails(provider="test", provider_id=media_id)
+        assert isinstance(Impl(), Searchable)
 
-            def get_artwork_urls(self, media_id: str, media_type: str = "movie") -> list[ArtworkItem]:
+    def test_searchable_fails_without_search(self) -> None:
+        """A class without ``search`` does NOT satisfy Searchable."""
+
+        class Impl:
+            pass
+
+        assert not isinstance(Impl(), Searchable)
+
+    # -- MovieDetailsProvider -------------------------------------------------
+
+    def test_movie_details_provider_passes(self) -> None:
+        """A class exposing ``get_movie`` satisfies MovieDetailsProvider."""
+
+        class Impl:
+            def get_movie(self, provider_id: str) -> MediaDetails:
+                return MediaDetails(provider="test", provider_id=provider_id)
+
+        assert isinstance(Impl(), MovieDetailsProvider)
+
+    def test_movie_details_provider_fails_without_get_movie(self) -> None:
+        """A class without ``get_movie`` does NOT satisfy MovieDetailsProvider."""
+
+        class Impl:
+            def get_tv(self, provider_id: str) -> MediaDetails:
+                return MediaDetails(provider="test", provider_id=provider_id)
+
+        assert not isinstance(Impl(), MovieDetailsProvider)
+
+    # -- TvDetailsProvider ----------------------------------------------------
+
+    def test_tv_details_provider_passes(self) -> None:
+        """A class exposing ``get_tv`` satisfies TvDetailsProvider."""
+
+        class Impl:
+            def get_tv(self, provider_id: str) -> MediaDetails:
+                return MediaDetails(provider="test", provider_id=provider_id)
+
+        assert isinstance(Impl(), TvDetailsProvider)
+
+    def test_tv_details_provider_fails_without_get_tv(self) -> None:
+        """A class without ``get_tv`` does NOT satisfy TvDetailsProvider."""
+
+        class Impl:
+            def get_movie(self, provider_id: str) -> MediaDetails:
+                return MediaDetails(provider="test", provider_id=provider_id)
+
+        assert not isinstance(Impl(), TvDetailsProvider)
+
+    # -- EpisodeFetcher -------------------------------------------------------
+
+    def test_episode_fetcher_passes(self) -> None:
+        """A class exposing ``get_episodes`` satisfies EpisodeFetcher."""
+
+        class Impl:
+            def get_episodes(self, series_id: str, season: int) -> list[EpisodeInfo]:
                 return []
 
-            def get_keywords(self, media_id: str, media_type: str) -> list[str]:
-                return []
+        assert isinstance(Impl(), EpisodeFetcher)
 
-            def get_videos(self, media_id: str, media_type: str, language: str) -> list[Video]:
-                return []
+    def test_episode_fetcher_fails_without_get_episodes(self) -> None:
+        """A class without ``get_episodes`` does NOT satisfy EpisodeFetcher."""
 
+        class Impl:
             def get_season(self, tv_id: str, season: int) -> SeasonDetails:
                 return SeasonDetails(provider="test", tv_id=tv_id, season_number=season)
 
+        assert not isinstance(Impl(), EpisodeFetcher)
+
+    # -- RatingProvider -------------------------------------------------------
+
+    def test_rating_provider_passes(self) -> None:
+        """A class exposing ``get_rating`` satisfies RatingProvider."""
+
+        class Impl:
+            def get_rating(self, provider_id: str) -> list[Notations] | None:
+                return None
+
+        assert isinstance(Impl(), RatingProvider)
+
+    def test_rating_provider_fails_without_get_rating(self) -> None:
+        """A class without ``get_rating`` does NOT satisfy RatingProvider."""
+
+        class Impl:
             def get_notations(self, media_id: str, media_type: str) -> Notations | None:
                 return None
 
+        assert not isinstance(Impl(), RatingProvider)
+
+    # -- ArtworkProvider ------------------------------------------------------
+
+    def test_artwork_provider_passes(self) -> None:
+        """A class exposing ``get_artwork_urls`` satisfies ArtworkProvider."""
+
+        class Impl:
+            def get_artwork_urls(self, media_id: str, media_type: str = "movie") -> list[ArtworkItem]:
+                return []
+
+        assert isinstance(Impl(), ArtworkProvider)
+
+    def test_artwork_provider_fails_without_get_artwork_urls(self) -> None:
+        """A class without ``get_artwork_urls`` does NOT satisfy ArtworkProvider."""
+
+        class Impl:
+            pass
+
+        assert not isinstance(Impl(), ArtworkProvider)
+
+    # -- KeywordProvider ------------------------------------------------------
+
+    def test_keyword_provider_passes(self) -> None:
+        """A class exposing ``get_keywords`` satisfies KeywordProvider."""
+
+        class Impl:
+            def get_keywords(self, media_id: str, media_type: str) -> list[str]:
+                return []
+
+        assert isinstance(Impl(), KeywordProvider)
+
+    def test_keyword_provider_fails_without_get_keywords(self) -> None:
+        """A class without ``get_keywords`` does NOT satisfy KeywordProvider."""
+
+        class Impl:
+            pass
+
+        assert not isinstance(Impl(), KeywordProvider)
+
+    # -- VideoProvider --------------------------------------------------------
+
+    def test_video_provider_passes(self) -> None:
+        """A class exposing ``get_videos`` satisfies VideoProvider."""
+
+        class Impl:
+            def get_videos(self, media_id: str, media_type: str, language: str) -> list[Video]:
+                return []
+
+        assert isinstance(Impl(), VideoProvider)
+
+    def test_video_provider_fails_without_get_videos(self) -> None:
+        """A class without ``get_videos`` does NOT satisfy VideoProvider."""
+
+        class Impl:
+            pass
+
+        assert not isinstance(Impl(), VideoProvider)
+
+    # -- RecommendationProvider -----------------------------------------------
+
+    def test_recommendation_provider_passes(self) -> None:
+        """A class exposing ``get_recommendations`` satisfies RecommendationProvider."""
+
+        class Impl:
             def get_recommendations(self, media_id: str, media_type: str) -> list[Recommendation]:
                 return []
 
-        provider = FullProvider()
-        assert isinstance(provider, MetadataProvider)
+        assert isinstance(Impl(), RecommendationProvider)
 
-    def test_missing_method_fails(self) -> None:
-        """A class missing get_details does NOT pass isinstance check."""
+    def test_recommendation_provider_fails_without_get_recommendations(self) -> None:
+        """A class without ``get_recommendations`` does NOT satisfy RecommendationProvider."""
 
-        class BadProvider:
-            provider_name = "test"
-            REQUIRED_CREDS: list[str] = []
+        class Impl:
+            pass
 
-            def search(self, title: str, year: int | None = None, media_type: str = "movie") -> list[SearchResult]:
-                return []
-
-        provider = BadProvider()
-        assert not isinstance(provider, MetadataProvider)
+        assert not isinstance(Impl(), RecommendationProvider)
 
 
 class TMDBFakeClient(MetadataClient):

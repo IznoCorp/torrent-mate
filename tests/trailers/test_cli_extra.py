@@ -3,8 +3,8 @@
 Targets the missing line ranges identified during coverage analysis:
   * 246-247, 251-257 — _resolve_category_token edge cases
   * 300-301         — _apply_filters disk loop AttributeError
-  * 575             — verify season trailer_path_for_season branch
-  * 622-623         — verify --deep ffprobe stdout ValueError fallback
+  * 575             — audit season trailer_path_for_season branch
+  * 622-623         — audit --deep ffprobe stdout ValueError fallback
   * 706-712         — purge orphan trailer detection
   * 716-724         — purge --disk filtering
   * 736-741         — purge actual file deletion + OSError
@@ -148,10 +148,10 @@ class TestApplyFiltersDiskAttributeError:
         assert result == [item]
 
 
-class TestVerifyDeepStdoutValueError:
+class TestAuditDeepStdoutValueError:
     """Cover lines 622-623 — ffprobe stdout that cannot be parsed as float."""
 
-    def test_verify_deep_handles_non_numeric_ffprobe_output(self, tmp_path: Path) -> None:
+    def test_audit_deep_handles_non_numeric_ffprobe_output(self, tmp_path: Path) -> None:
         """A non-numeric duration string is treated as 0.0 → flagged unplayable (exit 2).
 
         Args:
@@ -190,15 +190,15 @@ class TestVerifyDeepStdoutValueError:
         ):
             MockScanner.return_value.scan_library.return_value = [item]
             mock_tp.return_value = trailer_file
-            result = runner.invoke(app, ["trailers", "verify", "--deep"])
+            result = runner.invoke(app, ["trailers", "audit", "--deep"])
         # ValueError → duration_val=0.0 → unplayable issue → exit 2.
         assert result.exit_code == 2, result.output
 
 
-class TestVerifySeasonTrailerPath:
-    """Cover line 575 — verify uses trailer_path_for_season for season-level items."""
+class TestAuditSeasonTrailerPath:
+    """Cover line 575 — audit uses trailer_path_for_season for season-level items."""
 
-    def test_verify_season_item_uses_seasonal_path(self, tmp_path: Path) -> None:
+    def test_audit_season_item_uses_seasonal_path(self, tmp_path: Path) -> None:
         """A ScanItem with season_number=N goes through trailer_path_for_season.
 
         Args:
@@ -232,7 +232,7 @@ class TestVerifySeasonTrailerPath:
         ):
             MockScanner.return_value.scan_library.return_value = [item]
             mock_tps.return_value = missing_seasonal
-            result = runner.invoke(app, ["trailers", "verify"])
+            result = runner.invoke(app, ["trailers", "audit"])
 
         assert result.exit_code == 2, result.output
         mock_tps.assert_called()

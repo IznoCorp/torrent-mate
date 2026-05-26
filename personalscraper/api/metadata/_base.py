@@ -1,15 +1,17 @@
-"""Metadata family base — typed models, Protocol, and MetadataClient.
+"""Metadata family base — typed models and MetadataClient.
 
 Implements DESIGN SS4.1-S4.3: SearchResult, MediaDetails, ArtworkItem,
 Notations, Recommendation, Video, EpisodeInfo, SeasonDetails models,
-the MetadataProvider Protocol, and the MetadataClient base class with
-NotImplementedError-raising defaults for optional capabilities.
+and the MetadataClient base class with NotImplementedError-raising
+defaults for optional capabilities. The former monolithic MetadataProvider
+Protocol was dropped in 0.16.0 (MUST-14, CF-B) — use the atomic capability
+Protocols in ``personalscraper.api.metadata._contracts`` instead.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, ClassVar, Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, ClassVar, Literal
 
 from personalscraper.api._contracts import MediaType
 
@@ -79,7 +81,7 @@ class SeasonInfo:
     present seasons) and season-poster selection.
 
     Episode-level details still come from
-    :class:`SeasonDetails` via :meth:`MetadataProvider.get_season`.
+    :class:`SeasonDetails` via :meth:`MetadataClient.get_season`.
 
     Attributes:
         season_number: Season number (1-based; 0 for specials).
@@ -258,77 +260,6 @@ class SeasonDetails:
     tv_id: str
     season_number: int
     episodes: list[EpisodeInfo] = field(default_factory=list)
-
-
-# -- MetadataProvider Protocol (DESIGN S4.1) --------------------------------
-
-
-@runtime_checkable
-class MetadataProvider(Protocol):
-    """Protocol that all metadata providers must satisfy.
-
-    Required members:
-        provider_name: Human-readable provider identifier.
-        REQUIRED_CREDS: List of .env variable names needed by this provider.
-        search(): Find media by title + optional year.
-        get_details(): Fetch full details for a known media ID.
-
-    Optional capability methods (raise NotImplementedError by default
-    via MetadataClient; providers override the ones they support).
-    """
-
-    provider_name: str
-    REQUIRED_CREDS: ClassVar[list[str]]
-
-    def search(
-        self,
-        title: str,
-        year: int | None = None,
-        media_type: MediaType = MediaType.MOVIE,
-    ) -> list[SearchResult]: ...
-
-    def get_details(
-        self,
-        media_id: str,
-        media_type: MediaType = MediaType.MOVIE,
-    ) -> MediaDetails: ...
-
-    def get_artwork_urls(
-        self,
-        media_id: str,
-        media_type: MediaType = MediaType.MOVIE,
-    ) -> list[ArtworkItem]: ...
-
-    def get_keywords(
-        self,
-        media_id: str,
-        media_type: MediaType,
-    ) -> list[str]: ...
-
-    def get_videos(
-        self,
-        media_id: str,
-        media_type: MediaType,
-        language: str,
-    ) -> list[Video]: ...
-
-    def get_season(
-        self,
-        tv_id: str,
-        season: int,
-    ) -> SeasonDetails: ...
-
-    def get_notations(
-        self,
-        media_id: str,
-        media_type: MediaType,
-    ) -> list[Notations] | None: ...
-
-    def get_recommendations(
-        self,
-        media_id: str,
-        media_type: MediaType,
-    ) -> list[Recommendation]: ...
 
 
 # -- MetadataClient base (DESIGN S4.1) ---------------------------------------

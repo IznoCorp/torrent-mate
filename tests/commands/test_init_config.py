@@ -259,3 +259,55 @@ class TestInitConfigCliCommand:
         assert result.exit_code == 0
         _, kwargs = mock_init.call_args
         assert kwargs["interactive"] is True
+
+    def test_dry_run_help_exits_0(self) -> None:
+        """--dry-run flag is recognised by Typer (help check)."""
+        from typer.testing import CliRunner
+
+        from personalscraper.cli import app
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["init-config", "--help"])
+        assert result.exit_code == 0
+        assert "--dry-run" in result.output
+
+    def test_dry_run_does_not_write_files(self, tmp_path: Path) -> None:
+        """--dry-run exits 0 and does NOT create any files at the output path."""
+        from typer.testing import CliRunner
+
+        from personalscraper.cli import app
+
+        runner = CliRunner()
+        output_path = tmp_path / "cfg"
+        # Point --example at the real config.example/ so the check passes.
+        example = Path(__file__).parent.parent.parent / "config.example"
+        result = runner.invoke(
+            app,
+            ["init-config", "--dry-run", "--output", str(output_path), "--example", str(example)],
+        )
+        assert result.exit_code == 0
+        # The output directory must NOT have been created.
+        assert not output_path.exists(), f"--dry-run must not create {output_path}"
+        assert "DRY-RUN" in result.output
+
+    def test_dry_run_warns_when_example_missing(self, tmp_path: Path) -> None:
+        """--dry-run with missing example dir prints a WARNING but still exits 0."""
+        from typer.testing import CliRunner
+
+        from personalscraper.cli import app
+
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            [
+                "init-config",
+                "--dry-run",
+                "--example",
+                str(tmp_path / "nonexistent"),
+                "--output",
+                str(tmp_path / "cfg"),
+            ],
+        )
+        # The dry-run path never calls sys.exit(2) — it only prints a warning.
+        assert result.exit_code == 0
+        assert "WARNING" in result.output

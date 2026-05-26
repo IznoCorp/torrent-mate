@@ -29,6 +29,8 @@ class TestCleanup:
             If empty, cleanup_disks() skips every path.
     """
 
+    __test__ = False
+
     def __init__(
         self,
         registry: TestRegistry,

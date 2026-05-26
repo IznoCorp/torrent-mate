@@ -1,0 +1,730 @@
+"""E2E tests for ``personalscraper library-fix-nfo`` — CLI-level harness.
+
+Covers smoke, dry-run preview, apply mode, idempotence, safety gate,
+error handling, output schema, and BDD closure-of-loop.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import sqlite3
+import xml.etree.ElementTree as ET
+from pathlib import Path
+from typing import Any
+
+from tests.commands._e2e_helpers import (
+    make_synthetic_db,
+    run_cli,
+)
+
+
+def _json_from_result(result: Any) -> dict[str, Any]:
+    """Extract the JSON dict from CliRunner output.
+
+    The command emits structlog lines (Python repr) before the final
+    ``typer.echo(json.dumps(...))``.  Find the *last* JSON object so the
+    structlog ``{...}`` reprs don't confuse the parser.
+    """
+    raw: str = result.output.strip()
+    clean = re.sub(r"\x1b\[[0-9;]*m", "", raw)
+    start = clean.rfind("{")
+    if start == -1:
+        raise ValueError(f"No JSON object found in output: {raw!r}")
+    return json.loads(clean[start:])  # type: ignore[no-any-return]
+
+
+def _insert_media_item(
+    conn: sqlite3.Connection,
+    title: str = "Test Show",
+    kind: str = "show",
+    category_id: str = "tv_shows",
+) -> int:
+    """Insert a minimal media_item row and return its id."""
+    now = 1700000000
+    cursor = conn.execute(
+        """
+        INSERT INTO media_item (kind, title, title_sort, category_id, date_created, date_modified)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (kind, title, title, category_id, now, now),
+    )
+    conn.commit()
+    rowid = cursor.lastrowid
+    assert rowid is not None
+    return rowid
+
+
+def _set_dispatch_path(conn: sqlite3.Connection, item_id: int, path: str) -> None:
+    """Set the dispatch_path attribute on a media_item."""
+    conn.execute(
+        "INSERT INTO item_attribute (item_id, key, value) VALUES (?, 'dispatch_path', ?)",
+        (item_id, path),
+    )
+    conn.commit()
+
+
+def _run_fix_nfo(args: list[str], db_path: Path) -> "Any":  # noqa: F821
+    """Run library-fix-nfo with --db pointing at the synthetic DB.
+
+    --format json is always passed so the emit() helper produces
+    machine-parseable output regardless of the global format default.
+    """
+    return run_cli(["--format", "json", "library-fix-nfo", "--db", str(db_path), *args])
+
+
+def _well_formed_tvshow_nfo(title: str = "My Show") -> str:
+    """Return a well-formed tvshow.nfo XML string."""
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        "<tvshow>\n"
+        f"  <title>{title}</title>\n"
+        '  <uniqueid type="tvdb" default="true">12345</uniqueid>\n'
+        "</tvshow>\n"
+    )
+
+
+def _trailing_url_tvshow_nfo(title: str = "Show With Trailing URL") -> str:
+    """Return a tvshow.nfo with a trailing TVDB URL after the root close tag."""
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        "<tvshow>\n"
+        f"  <title>{title}</title>\n"
+        "</tvshow>\n"
+        "https://thetvdb.com/series/12345\n"
+    )
+
+
+def _trailing_url_movie_nfo(title: str = "Movie With Trailing URL") -> str:
+    """Return a movie.nfo with a trailing TMDB URL after the root close tag."""
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        "<movie>\n"
+        f"  <title>{title}</title>\n"
+        "</movie>\n"
+        "https://www.themoviedb.org/movie/12345\n"
+    )
+
+
+def _trailing_arbitrary_tvshow_nfo(title: str = "Show With Unsafe Trailing") -> str:
+    """Return a tvshow.nfo with arbitrary XML after the root close tag."""
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        "<tvshow>\n"
+        f"  <title>{title}</title>\n"
+        "</tvshow>\n"
+        "<comment>arbitrary XML fragment</comment>\n"
+    )
+
+
+def _malformed_body_tvshow_nfo(title: str = "Broken Show") -> str:
+    """Return a tvshow.nfo whose body is malformed + trailing URL."""
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        "<tvshow>\n"
+        f"  <title>{title}</title>\n"
+        "  <unclosed>\n"
+        "</tvshow>\n"
+        "https://thetvdb.com/series/99999\n"
+    )
+
+
+def _no_root_close_tvshow_nfo(title: str = "Incomplete Show") -> str:
+    """Return a tvshow.nfo with NO root close tag."""
+    return f'<?xml version="1.0" encoding="UTF-8"?>\n<tvshow>\n  <title>{title}</title>\n'
+
+
+# ── 1. Smoke ─────────────────────────────────────────────────────────────────────
+
+
+def test_fix_nfo_help_exits_zero() -> None:
+    """``library-fix-nfo --help`` exits 0."""
+    result = run_cli(["library-fix-nfo", "--help"])
+    assert result.exit_code == 0
+
+
+# ── 2. Realistic dry-run preview ─────────────────────────────────────────────────
+
+
+def test_fix_nfo_dry_run_preview_counts(tmp_path: Path, test_config) -> None:
+    """Dry-run reports correct counters without mutating files."""
+    db_path = make_synthetic_db(tmp_path)
+
+    # Show A: well-formed.
+    show_a = tmp_path / "ShowA"
+    show_a.mkdir()
+    (show_a / "tvshow.nfo").write_text(_well_formed_tvshow_nfo("Show A"))
+
+    # Show B: trailing TVDB URL (would fix).
+    show_b = tmp_path / "ShowB"
+    show_b.mkdir()
+    (show_b / "tvshow.nfo").write_text(_trailing_url_tvshow_nfo("Show B"))
+
+    # Show C: trailing arbitrary text (unsafe).
+    show_c = tmp_path / "ShowC"
+    show_c.mkdir()
+    (show_c / "tvshow.nfo").write_text(_trailing_arbitrary_tvshow_nfo("Show C"))
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    for title, d in [("Show A", show_a), ("Show B", show_b), ("Show C", show_c)]:
+        item_id = _insert_media_item(conn, title=title)
+        _set_dispatch_path(conn, item_id, str(d))
+    conn.close()
+
+    result = _run_fix_nfo([], db_path)
+    assert result.exit_code == 0, result.output
+
+    data = _json_from_result(result)
+    assert data["apply"] is False
+    assert data["items_scanned"] == 3
+    assert data["nfo_resolved"] == 3
+    assert data["nfo_missing"] == 0
+    assert data["already_ok"] == 1
+    assert data["unsafe_trailing"] == 1
+    assert data["would_fix"] == 1
+    assert "fixed" not in data
+
+    # No .nfo.bak files created in dry-run.
+    assert not list(tmp_path.rglob("*.nfo.bak"))
+
+    # NFO file contents unchanged.
+    assert "https://thetvdb.com/series/12345" in (show_b / "tvshow.nfo").read_text()
+    assert "<comment>arbitrary XML fragment</comment>" in (show_c / "tvshow.nfo").read_text()
+
+
+# ── 3. Apply mode ────────────────────────────────────────────────────────────────
+
+
+def test_fix_nfo_apply_fixes_trailing_url(tmp_path: Path, test_config) -> None:
+    """--apply truncates trailing URL and creates .bak backup."""
+    db_path = make_synthetic_db(tmp_path)
+
+    show_dir = tmp_path / "ShowB"
+    show_dir.mkdir()
+    original = _trailing_url_tvshow_nfo("Show B")
+    (show_dir / "tvshow.nfo").write_text(original)
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    item_id = _insert_media_item(conn, title="Show B")
+    _set_dispatch_path(conn, item_id, str(show_dir))
+    conn.close()
+
+    result = _run_fix_nfo(["--apply"], db_path)
+    assert result.exit_code == 0, result.output
+
+    data = _json_from_result(result)
+    assert data["apply"] is True
+    assert data["fixed"] == 1
+
+    # .bak file exists with original content.
+    bak_path = show_dir / "tvshow.nfo.bak"
+    assert bak_path.exists()
+    assert bak_path.read_text() == original
+
+    # Fixed NFO no longer has trailing URL and parses OK.
+    fixed_content = (show_dir / "tvshow.nfo").read_bytes()
+    assert b"https://thetvdb.com" not in fixed_content
+    ET.parse(str(show_dir / "tvshow.nfo"))  # does not raise
+
+
+def test_fix_nfo_apply_fixes_trailing_url_movie(tmp_path: Path, test_config) -> None:
+    """--apply truncates trailing TMDB URL on a movie NFO."""
+    db_path = make_synthetic_db(tmp_path)
+
+    movie_dir = tmp_path / "MovieTest"
+    movie_dir.mkdir()
+    original = _trailing_url_movie_nfo("Movie Test")
+    (movie_dir / "movie.nfo").write_text(original)
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    item_id = _insert_media_item(conn, title="Movie Test", kind="movie", category_id="movies")
+    _set_dispatch_path(conn, item_id, str(movie_dir))
+    conn.close()
+
+    result = _run_fix_nfo(["--apply"], db_path)
+    assert result.exit_code == 0, result.output
+
+    data = _json_from_result(result)
+    assert data["fixed"] == 1
+
+    fixed_content = (movie_dir / "movie.nfo").read_bytes()
+    assert b"themoviedb.org" not in fixed_content
+    ET.parse(str(movie_dir / "movie.nfo"))  # does not raise
+
+
+# ── 4. Idempotence ───────────────────────────────────────────────────────────────
+
+
+def test_fix_nfo_idempotent_after_fix(tmp_path: Path, test_config) -> None:
+    """Re-running --apply on an already-fixed item reports already_ok."""
+    db_path = make_synthetic_db(tmp_path)
+
+    show_dir = tmp_path / "ShowB"
+    show_dir.mkdir()
+    (show_dir / "tvshow.nfo").write_text(_trailing_url_tvshow_nfo("Show B"))
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    item_id = _insert_media_item(conn, title="Show B")
+    _set_dispatch_path(conn, item_id, str(show_dir))
+    conn.close()
+
+    # First run: fix.
+    result1 = _run_fix_nfo(["--apply"], db_path)
+    assert result1.exit_code == 0
+    data1 = _json_from_result(result1)
+    assert data1["fixed"] == 1
+
+    # Second run: already ok.
+    result2 = _run_fix_nfo(["--apply"], db_path)
+    assert result2.exit_code == 0
+    data2 = _json_from_result(result2)
+    assert data2["fixed"] == 0
+    assert data2["already_ok"] == 1
+
+
+# ── 5. Safety gate — unsafe trailing skipped ─────────────────────────────────────
+
+
+def test_fix_nfo_unsafe_trailing_skipped(tmp_path: Path, test_config) -> None:
+    """Trailing XML comments (not whitelisted URLs) are NOT truncated."""
+    db_path = make_synthetic_db(tmp_path)
+
+    show_dir = tmp_path / "ShowC"
+    show_dir.mkdir()
+    original = _trailing_arbitrary_tvshow_nfo("Show C")
+    (show_dir / "tvshow.nfo").write_text(original)
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    item_id = _insert_media_item(conn, title="Show C")
+    _set_dispatch_path(conn, item_id, str(show_dir))
+    conn.close()
+
+    result = _run_fix_nfo(["--apply"], db_path)
+    assert result.exit_code == 0, result.output
+
+    data = _json_from_result(result)
+    assert data["unsafe_trailing"] == 1
+    assert data["fixed"] == 0
+
+    # Original NFO unchanged.
+    assert (show_dir / "tvshow.nfo").read_text() == original
+
+    # No .bak written.
+    assert not (show_dir / "tvshow.nfo.bak").exists()
+
+
+# ── 6. Errors ────────────────────────────────────────────────────────────────────
+
+
+def test_fix_nfo_nfo_missing_file_not_on_disk(tmp_path: Path, test_config) -> None:
+    """Item with dispatch_path but no NFO file on disk → nfo_missing."""
+    db_path = make_synthetic_db(tmp_path)
+
+    show_dir = tmp_path / "MissingNfo"
+    show_dir.mkdir()
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    item_id = _insert_media_item(conn, title="Missing NFO")
+    _set_dispatch_path(conn, item_id, str(show_dir))
+    conn.close()
+
+    result = _run_fix_nfo([], db_path)
+    assert result.exit_code == 0, result.output
+
+    data = _json_from_result(result)
+    assert data["items_scanned"] == 1
+    assert data["nfo_missing"] == 1
+    assert data["nfo_resolved"] == 0
+
+
+def test_fix_nfo_still_malformed_counted(tmp_path: Path, test_config) -> None:
+    """Trailing URL is safe but NFO body is itself broken → still_malformed."""
+    db_path = make_synthetic_db(tmp_path)
+
+    show_dir = tmp_path / "BrokenShow"
+    show_dir.mkdir()
+    original = _malformed_body_tvshow_nfo("Broken Show")
+    (show_dir / "tvshow.nfo").write_text(original)
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    item_id = _insert_media_item(conn, title="Broken Show")
+    _set_dispatch_path(conn, item_id, str(show_dir))
+    conn.close()
+
+    result = _run_fix_nfo(["--apply"], db_path)
+    assert result.exit_code == 0, result.output
+
+    data = _json_from_result(result)
+    assert data["still_malformed"] == 1
+    assert data["fixed"] == 0
+
+
+def test_fix_nfo_no_root_close_counted(tmp_path: Path, test_config) -> None:
+    """NFO with no root close tag → no_root_close."""
+    db_path = make_synthetic_db(tmp_path)
+
+    show_dir = tmp_path / "IncompleteShow"
+    show_dir.mkdir()
+    original = _no_root_close_tvshow_nfo("Incomplete Show")
+    (show_dir / "tvshow.nfo").write_text(original)
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    item_id = _insert_media_item(conn, title="Incomplete Show")
+    _set_dispatch_path(conn, item_id, str(show_dir))
+    conn.close()
+
+    result = _run_fix_nfo([], db_path)
+    assert result.exit_code == 0, result.output
+
+    data = _json_from_result(result)
+    assert data["no_root_close"] == 1
+    assert data["would_fix"] == 0
+
+
+def test_fix_nfo_apple_double_counter_present(tmp_path: Path, test_config) -> None:
+    """skipped_apple_double counter is present in output (belt-and-suspenders guard)."""
+    db_path = make_synthetic_db(tmp_path)
+
+    show_dir = tmp_path / "ShowA"
+    show_dir.mkdir()
+    (show_dir / "tvshow.nfo").write_text(_well_formed_tvshow_nfo("Show A"))
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    item_id = _insert_media_item(conn, title="Show A")
+    _set_dispatch_path(conn, item_id, str(show_dir))
+    conn.close()
+
+    result = _run_fix_nfo(["--apply"], db_path)
+    assert result.exit_code == 0, result.output
+
+    data = _json_from_result(result)
+    assert "skipped_apple_double" in data
+    assert data["skipped_apple_double"] == 0
+
+
+# ── 7. Output schema ─────────────────────────────────────────────────────────────
+
+
+def test_fix_nfo_output_schema_all_keys_present(tmp_path: Path, test_config) -> None:
+    """JSON output contains all expected keys with correct types."""
+    db_path = make_synthetic_db(tmp_path)
+
+    show_ok = tmp_path / "ShowOK"
+    show_ok.mkdir()
+    (show_ok / "tvshow.nfo").write_text(_well_formed_tvshow_nfo("OK"))
+
+    show_url = tmp_path / "ShowURL"
+    show_url.mkdir()
+    (show_url / "tvshow.nfo").write_text(_trailing_url_tvshow_nfo("URL"))
+
+    show_unsafe = tmp_path / "ShowUnsafe"
+    show_unsafe.mkdir()
+    (show_unsafe / "tvshow.nfo").write_text(_trailing_arbitrary_tvshow_nfo("Unsafe"))
+
+    show_missing = tmp_path / "ShowMissing"
+    show_missing.mkdir()
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    for title, d in [
+        ("OK", show_ok),
+        ("URL", show_url),
+        ("Unsafe", show_unsafe),
+        ("Missing", show_missing),
+    ]:
+        item_id = _insert_media_item(conn, title=title)
+        _set_dispatch_path(conn, item_id, str(d))
+    conn.close()
+
+    result = _run_fix_nfo(["--apply"], db_path)
+    assert result.exit_code == 0, result.output
+
+    data = _json_from_result(result)
+    required_keys = [
+        "apply",
+        "items_scanned",
+        "nfo_resolved",
+        "nfo_missing",
+        "already_ok",
+        "no_root_close",
+        "unsafe_trailing",
+        "still_malformed",
+        "fixed",
+        "skipped_apple_double",
+        "backup_failed",
+        "truncate_failed",
+        "nfo_unreadable",
+        "ambiguous_nfo",
+        "errors",
+    ]
+    for key in required_keys:
+        assert key in data, f"Missing key: {key}"
+
+    assert data["items_scanned"] == 4
+    assert data["nfo_resolved"] == 3
+    assert data["nfo_missing"] == 1
+    assert data["already_ok"] == 1
+    assert data["fixed"] == 1
+    assert data["unsafe_trailing"] == 1
+    assert data["backup_failed"] == 0
+    assert data["truncate_failed"] == 0
+    assert data["nfo_unreadable"] == 0
+    assert data["ambiguous_nfo"] == 0
+    assert data["errors"] == []
+
+
+# ── 8. Closure-of-loop — BDD unchanged ───────────────────────────────────────────
+
+
+def test_fix_nfo_does_not_mutate_db(tmp_path: Path, test_config) -> None:
+    """The fix command does not touch the indexer DB."""
+    db_path = make_synthetic_db(tmp_path)
+
+    show_dir = tmp_path / "ShowB"
+    show_dir.mkdir()
+    (show_dir / "tvshow.nfo").write_text(_trailing_url_tvshow_nfo("Show B"))
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    item_id = _insert_media_item(conn, title="Show B")
+    _set_dispatch_path(conn, item_id, str(show_dir))
+    conn.close()
+
+    before_hash = _db_sha256(db_path)
+
+    result = _run_fix_nfo(["--apply"], db_path)
+    assert result.exit_code == 0, result.output
+
+    after_hash = _db_sha256(db_path)
+    assert before_hash == after_hash, "DB was mutated by library-fix-nfo"
+
+
+# ── 9. Events ──
+
+# N/A: ``library-fix-nfo`` operates on NFO files directly via filesystem I/O
+# (pathlib / xml.etree).  It never creates an EventBus or emits any domain
+# event — no ``FixNfoCompleted`` event class exists in the codebase.  The
+# command's result is fully observable through its JSON output counters
+# (apply / items_scanned / fixed / already_ok / unsafe_trailing / ...).
+
+
+# ── 10. New counters — backup_failed / nfo_unreadable / ambiguous_nfo ──────────
+
+
+def test_fix_nfo_ambiguous_movie_nfo(tmp_path: Path, test_config) -> None:
+    """Movie dir with multiple .nfo files → ambiguous_nfo counter incremented."""
+    db_path = make_synthetic_db(tmp_path)
+
+    movie_dir = tmp_path / "MultiNfoMovie"
+    movie_dir.mkdir()
+    (movie_dir / "movie.nfo").write_text(_trailing_url_movie_nfo("Multi NFO"))
+    (movie_dir / "trailer.nfo").write_text(_trailing_url_movie_nfo("Trailer"))
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    item_id = _insert_media_item(conn, title="Multi NFO", kind="movie", category_id="movies")
+    _set_dispatch_path(conn, item_id, str(movie_dir))
+    conn.close()
+
+    result = _run_fix_nfo([], db_path)
+    assert result.exit_code == 0, result.output
+
+    data = _json_from_result(result)
+    assert data["items_scanned"] == 1
+    assert data["ambiguous_nfo"] == 1
+    assert data["nfo_missing"] == 0
+    assert data["nfo_resolved"] == 0
+
+
+def test_fix_nfo_backup_failed_skip_mutation(tmp_path: Path, test_config, monkeypatch) -> None:
+    """OSError on backup write → backup_failed counter + mutation skipped."""
+    db_path = make_synthetic_db(tmp_path)
+
+    show_dir = tmp_path / "ShowBakFail"
+    show_dir.mkdir()
+    original = _trailing_url_tvshow_nfo("Bak Fail")
+    (show_dir / "tvshow.nfo").write_text(original)
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    item_id = _insert_media_item(conn, title="Bak Fail")
+    _set_dispatch_path(conn, item_id, str(show_dir))
+    conn.close()
+
+    _real_write_bytes = Path.write_bytes
+
+    def _failing_write_bytes(self: Path, data: bytes) -> int:
+        if self.suffix == ".bak":
+            raise OSError("Disk full — backup failed")
+        return _real_write_bytes(self, data)
+
+    monkeypatch.setattr(Path, "write_bytes", _failing_write_bytes)
+
+    result = _run_fix_nfo(["--apply"], db_path)
+    assert result.exit_code == 0, result.output
+
+    data = _json_from_result(result)
+    assert data["backup_failed"] == 1
+    assert data["fixed"] == 0
+
+    # Original NFO unchanged (mutation was skipped).
+    assert (show_dir / "tvshow.nfo").read_text() == original
+
+
+def test_fix_nfo_nfo_unreadable_counted(tmp_path: Path, test_config, monkeypatch) -> None:
+    """OSError on ET.parse → nfo_unreadable counter, not nfo_missing."""
+    db_path = make_synthetic_db(tmp_path)
+
+    show_dir = tmp_path / "UnreadableShow"
+    show_dir.mkdir()
+    (show_dir / "tvshow.nfo").write_text(_trailing_url_tvshow_nfo("Unreadable"))
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    item_id = _insert_media_item(conn, title="Unreadable")
+    _set_dispatch_path(conn, item_id, str(show_dir))
+    conn.close()
+
+    import xml.etree.ElementTree as _ET
+
+    _real_parse = _ET.parse
+
+    def _failing_parse(source: str) -> object:
+        if "UnreadableShow" in str(source):
+            raise OSError("Permission denied")
+        return _real_parse(source)
+
+    monkeypatch.setattr(_ET, "parse", _failing_parse)
+
+    result = _run_fix_nfo([], db_path)
+    assert result.exit_code == 0, result.output
+
+    data = _json_from_result(result)
+    assert data["nfo_unreadable"] == 1
+    assert data["nfo_missing"] == 0
+    assert data["nfo_resolved"] == 1
+
+
+def _db_sha256(db_path: Path) -> str:
+    """Return SHA-256 hex digest of the DB file."""
+    import hashlib
+
+    return hashlib.sha256(db_path.read_bytes()).hexdigest()
+
+
+# ── 11. Outcome ↔ FixNfoStats ↔ to_cli_json coupling regression test ───────────
+
+
+def test_outcome_literal_matches_stats_fields_and_cli_projection() -> None:
+    """_Outcome Literal ↔ FixNfoStats fields ↔ to_cli_json output stay aligned.
+
+    3-way coupling that previously took 4 hand-edits per new outcome:
+      1. _Outcome Literal member added.
+      2. FixNfoStats field added.
+      3. .inc() call site at the right loop branch.
+      4. to_cli_json projection updated.
+
+    The refactor collapsed (2)+(4) via dataclass iteration, so this test
+    pins what remains: every outcome HAS a counter field, and every
+    counter is projected through to_cli_json (with the ``fixed`` →
+    ``would_fix`` rename in dry-run mode).
+    """
+    import typing
+    from dataclasses import fields
+
+    from personalscraper.commands.library.fix_nfo import (
+        FixNfoStats,
+        _Outcome,
+    )
+
+    stats_fields = {f.name for f in fields(FixNfoStats)}
+    outcome_members = set(typing.get_args(_Outcome))
+    # items_scanned is init-only, not part of _Outcome.
+    inc_fields = stats_fields - {"items_scanned"}
+    assert inc_fields == outcome_members, (
+        f"Drift between FixNfoStats incrementable fields ({sorted(inc_fields)}) "
+        f"and _Outcome Literal members ({sorted(outcome_members)}). "
+        f"Symmetric diff: {inc_fields ^ outcome_members}"
+    )
+
+    # Projection side: every outcome appears in to_cli_json (with ``fixed``
+    # rewritten to ``would_fix`` in dry-run).
+    stats = FixNfoStats(items_scanned=0)
+    dry_projection = stats.to_cli_json(apply=False)
+    expected_dry = (outcome_members - {"fixed"}) | {"would_fix", "items_scanned", "apply", "errors"}
+    assert set(dry_projection) == expected_dry, (
+        f"to_cli_json(apply=False) projection drift. Symmetric diff: {set(dry_projection) ^ expected_dry}"
+    )
+    apply_projection = stats.to_cli_json(apply=True)
+    expected_apply = outcome_members | {"items_scanned", "apply", "errors"}
+    assert set(apply_projection) == expected_apply, (
+        f"to_cli_json(apply=True) projection drift. Symmetric diff: {set(apply_projection) ^ expected_apply}"
+    )
+
+    # inc() correctly mutates every outcome counter.
+    for outcome in outcome_members:
+        s = FixNfoStats(items_scanned=0)
+        s.inc(outcome)  # type: ignore[arg-type]
+        assert getattr(s, outcome) == 1, f"FixNfoStats.inc({outcome!r}) did not mutate the field"
+
+
+# ── 12. truncate_failed regression — write_bytes OSError after successful backup ─
+
+
+def test_fix_nfo_truncate_failed_increments_counter_and_cleans_bak(
+    tmp_path: Path,
+    test_config,
+    monkeypatch,
+) -> None:
+    """OSError during the truncation write → truncate_failed + .bak unlinked + loop continues.
+
+    Pins the C2 regression: prior to the wrapper an OSError on
+    ``nfo_path.write_bytes(truncated)`` aborted the entire scan loop
+    mid-pass, losing all accumulated stats and orphaning the .bak.
+    """
+    db_path = make_synthetic_db(tmp_path)
+
+    # Two shows: first one's write_bytes throws, second one must still be processed.
+    show_a = tmp_path / "ShowTruncateFail"
+    show_a.mkdir()
+    (show_a / "tvshow.nfo").write_text(_trailing_url_tvshow_nfo("Trunc Fail"))
+
+    show_b = tmp_path / "ShowAfterFail"
+    show_b.mkdir()
+    (show_b / "tvshow.nfo").write_text(_trailing_url_tvshow_nfo("After Fail"))
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    _set_dispatch_path(conn, _insert_media_item(conn, title="Trunc Fail"), str(show_a))
+    _set_dispatch_path(conn, _insert_media_item(conn, title="After Fail"), str(show_b))
+    conn.close()
+
+    _real_write_bytes = Path.write_bytes
+
+    def _selective_failing_write_bytes(self: Path, data: bytes) -> int:
+        if "ShowTruncateFail" in str(self) and self.suffix == ".nfo":
+            raise OSError("Disk full — truncate failed")
+        return _real_write_bytes(self, data)
+
+    monkeypatch.setattr(Path, "write_bytes", _selective_failing_write_bytes)
+
+    result = _run_fix_nfo(["--apply"], db_path)
+    assert result.exit_code == 0, result.output
+
+    data = _json_from_result(result)
+    assert data["truncate_failed"] == 1, "truncate_failed should be 1 for the failing show"
+    assert data["fixed"] == 1, "loop must continue after truncate_failed (second show should fix)"
+    assert data["backup_failed"] == 0
+    assert data["items_scanned"] == 2
+
+    # .bak from the failing show should be removed (orphan cleanup).
+    assert not (show_a / "tvshow.nfo.bak").exists(), "orphan .bak must be cleaned"

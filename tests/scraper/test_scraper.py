@@ -1496,25 +1496,40 @@ class TestRepairTvshowDir:
         assert tvshow_nfo.exists()
         assert not residual.exists()
 
-    def test_removes_root_mkv_duplicates(
+    def test_root_mkv_duplicate_replaces_organised_episode(
         self,
         tmp_path: Path,
         scraper: Scraper,
     ) -> None:
-        """MKV at root matching SxxExx in Saison XX/ is deleted."""
+        """A root MKV matching an organised SxxExx replaces it (DEV #9 fix).
+
+        Design contract: the latest download (root copy) always supersedes
+        a previously-organised file. ``_repair_season_dir`` removes the old
+        organised file, then ``_repair_episode_files`` moves and renames the
+        root copy into the season directory (using TMDB metadata for the
+        canonical title).
+        """
         show_dir = tmp_path / "Show (2025)"
         show_dir.mkdir()
         (show_dir / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>')
         s02 = show_dir / "Saison 02"
         s02.mkdir()
-        (s02 / "S02E01 - Episode Title.mkv").write_bytes(b"\x00" * 100)
+        old_organised = s02 / "S02E01 - Episode Title.mkv"
+        old_organised.write_bytes(b"\xff" * 100)
         root_dup = show_dir / "Show.S02E01.1080p.mkv"
         root_dup.write_bytes(b"\x00" * 50)
 
         repaired = scraper._repair_tvshow_dir(show_dir)
+
         assert repaired is True
-        assert not root_dup.exists()
-        assert (s02 / "S02E01 - Episode Title.mkv").exists()
+        assert not root_dup.exists(), "Root copy is moved into the season dir"
+        assert not old_organised.exists(), "Old organised file is replaced"
+        # `_repair_episode_files` renames using the TMDB-fetched episode title;
+        # exact name varies with the mocked TMDB payload — assert a single
+        # SxxExx file remains under Saison 02/ instead.
+        remaining = [p for p in s02.iterdir() if p.suffix.lower() == ".mkv"]
+        assert len(remaining) == 1, f"Exactly one episode in Saison 02/: {remaining}"
+        assert "S02E01" in remaining[0].name
 
     def test_noop_when_clean(
         self,

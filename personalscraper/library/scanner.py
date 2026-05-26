@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
     from personalscraper.conf.models.disks import DiskConfig
 
+from personalscraper._fs_utils import is_apple_double
 from personalscraper.conf.ids import AUDIOBOOKS, TV_CATEGORY_IDS
 from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.repos import disk_repo, tv_repo
@@ -63,6 +64,82 @@ from personalscraper.naming_patterns import SEASON_DIR_RE
 from personalscraper.nfo_utils import is_nfo_complete
 
 log = get_logger("library.scanner")
+
+
+def _normalize_canonical_provider(
+    kind: MediaItemKind,
+    tvdb_id: str | None,
+    tmdb_id: str | None,
+    nfo_declared: str | None,
+) -> str | None:
+    """Compute the canonical_provider value enforced at the indexer DB insertion source.
+
+    The NFO files on disk may carry a ``<uniqueid default="true">`` flag whose
+    family disagrees with the SSOT rule the codebase enforces elsewhere
+    (TV shows → TVDB primary, movies → TMDB primary, see
+    ``feedback_multi_provider_ids_separation`` memory rule). Honouring the NFO's
+    declared default blindly let inverted values leak into ``media_item.canonical_provider``
+    every time the library scanner re-walked the disks (Phase 14.1, reopen 12.1 —
+    194 shows wrongly tagged ``'tmdb'`` despite a valid ``tvdb.series_id`` because
+    the historical NFO from an old TMDB-first scrape still flagged tmdb as default).
+
+    This helper short-circuits that path: regardless of the NFO's ``default``
+    attribute, the canonical_provider written to the DB is derived from
+    ``kind`` + available external IDs.
+
+    Args:
+        kind: ``'movie'`` or ``'show'`` — the row's category.
+        tvdb_id: TVDB series-id surfaced from the NFO (``None`` when absent).
+        tmdb_id: TMDB id surfaced from the NFO (``None`` when absent).
+        nfo_declared: The ``canonical_provider`` value extracted from
+            ``<uniqueid default="true">`` (``'tvdb'``, ``'tmdb'``, or ``None``).
+            Used only for the structlog warning when the NFO disagrees with
+            the deterministic rule.
+
+    Returns:
+        ``'tvdb'`` for shows with a valid tvdb_id, ``'tmdb'`` for movies with a
+        valid tmdb_id or shows with only tmdb_id, ``None`` when no provider id
+        is available at all (in which case the row stays NULL — the CLI
+        ``library-fix-canonical-provider`` can repair it once a provider id
+        lands later).
+    """
+    computed: str | None
+    if kind == "show":
+        # TVDB is the canonical provider for shows whenever available.
+        if tvdb_id:
+            computed = "tvdb"
+        elif tmdb_id:
+            # Show with only a TMDB id — accepted, but flag at WARN level so
+            # operators notice the provider gap when looking at logs.
+            computed = "tmdb"
+        else:
+            computed = None
+    else:
+        # Movies: TMDB is canonical.
+        if tmdb_id:
+            computed = "tmdb"
+        elif tvdb_id:
+            # Movies tagged with a TVDB id only — anomaly (TVDB is shows-first).
+            # Keep NULL so the CLI repair can pick it up rather than persisting
+            # an inverted value the rest of the pipeline would treat as canonical.
+            computed = None
+        else:
+            computed = None
+
+    # Warn whenever the NFO's declared default disagrees with the deterministic
+    # computation. This is the trail we want when auditing post-Phase 14.1 logs.
+    if nfo_declared and nfo_declared != computed and computed is not None:
+        log.warning(
+            "library_canonical_provider_overridden",
+            kind=kind,
+            nfo_declared=nfo_declared,
+            computed=computed,
+            tvdb_id=tvdb_id,
+            tmdb_id=tmdb_id,
+        )
+
+    return computed
+
 
 # Title (Year) pattern — same as _parse_folder_name in scraper
 _TITLE_YEAR_RE = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
@@ -294,7 +371,7 @@ def _detect_issues(
             continue
 
         # Junk files (including macOS resource forks "._*")
-        if name in _JUNK_FILES or name.startswith("._"):
+        if name in _JUNK_FILES or is_apple_double(name):
             issues.append(ISSUE_JUNK_FILES)
             continue
 
@@ -582,7 +659,15 @@ def _upsert_media_item(
         ratings_json = _json.dumps({"entries": scan_item.nfo.ratings})
     else:
         ratings_json = None
-    canonical_provider = scan_item.nfo.canonical_provider
+    # Phase 14.1 (reopen 12.1) — block the canonical_provider regression at the
+    # insertion source. Older NFOs on disk may flag tmdb as default even for
+    # shows with a valid tvdb_id; recompute deterministically from kind + IDs.
+    canonical_provider = _normalize_canonical_provider(
+        kind=kind,
+        tvdb_id=scan_item.nfo.tvdb_id,
+        tmdb_id=scan_item.nfo.tmdb_id,
+        nfo_declared=scan_item.nfo.canonical_provider,
+    )
 
     row = MediaItemRow(
         id=0,
@@ -766,9 +851,22 @@ def _build_disk_row(disk_cfg: DiskConfig, now_s: int) -> DiskRow:
 def _ensure_disk_row(conn: sqlite3.Connection, disk_cfg: DiskConfig, now_s: int) -> DiskRow:
     """Ensure a ``disk`` row exists for the given config entry and return it.
 
-    Performs a SELECT-then-INSERT pattern: if a disk with the same UUID
-    (i.e. ``DiskConfig.id``) already exists it is returned unchanged; otherwise
-    a new row is inserted.
+    Performs a SELECT-then-INSERT pattern using ``label`` as the lookup key.
+
+    The ``label`` column is always populated with ``DiskConfig.id`` regardless
+    of the code path that created the row:
+
+    * :func:`~personalscraper.indexer.commands._bootstrap._bootstrap_disks_from_config`
+      sets ``label=disk_cfg.id`` with a real macOS VolumeUUID in the ``uuid`` column.
+    * :func:`_build_disk_row` (this module) sets both ``uuid`` and ``label`` to
+      ``disk_cfg.id`` as a fallback when the indexer bootstrap has not run yet.
+
+    Looking up by ``uuid=disk_cfg.id`` was the original approach, but it silently
+    missed rows inserted by the bootstrap path (where ``uuid`` is the real
+    VolumeUUID, not the config string).  The mismatch caused ``scan_library()`` to
+    insert duplicate disk rows (uuid="disk_1" alongside the existing uuid="F7E3C03C-...")
+    and all subsequent indexer operations to skip the duplicates with
+    ``sentinel_mismatch`` (DEV #50, reproduced 2026-05-21 22h35).
 
     Args:
         conn: Open SQLite connection.
@@ -778,10 +876,15 @@ def _ensure_disk_row(conn: sqlite3.Connection, disk_cfg: DiskConfig, now_s: int)
     Returns:
         :class:`DiskRow` with the PK assigned by the DB.
     """
-    existing = disk_repo.get_by_uuid(conn, disk_cfg.id)
+    # Primary lookup: by label (config-stable, set consistently by both insertion paths).
+    existing = disk_repo.get_by_label(conn, disk_cfg.id)
     if existing is not None:
         return existing
 
+    # No row found — insert a new one using disk_cfg.id as a uuid placeholder.
+    # If the indexer bootstrap runs later it will INSERT OR IGNORE (no-op since
+    # label is not UNIQUE), but the uuid column will remain the config-string.
+    # Phase 1.10 PRAGMA discipline will address the full bootstrap ordering.
     row = _build_disk_row(disk_cfg, now_s)
     disk_id = disk_repo.insert(conn, row)
     return DiskRow(

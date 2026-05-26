@@ -217,6 +217,7 @@ def _make_item_with_nfo(
     nfo_status: Literal["valid", "invalid", "missing"] | None = None,
     date_metadata_refreshed: int | None = None,
     is_locked: int = 0,
+    title: str = "Test Movie",
 ) -> MediaItemRow:
     """Return a MediaItemRow with configurable NFO status and refresh date.
 
@@ -224,6 +225,7 @@ def _make_item_with_nfo(
         nfo_status: One of ``'valid'``, ``'invalid'``, ``'missing'``, or ``None``.
         date_metadata_refreshed: Unix epoch seconds, or ``None``.
         is_locked: 0 (default) or 1.
+        title: Display title to store (default ``'Test Movie'``).
 
     Returns:
         Populated :class:`MediaItemRow` ready for insertion.
@@ -232,8 +234,8 @@ def _make_item_with_nfo(
     return MediaItemRow(
         id=0,
         kind="movie",
-        title="Test Movie",
-        title_sort="Test Movie",
+        title=title,
+        title_sort=title,
         original_title=None,
         year=2024,
         category_id="movies",
@@ -279,8 +281,8 @@ class TestFindOnDisk:
         disk2_id = _insert_disk(conn, "/Volumes/Disk2", uuid="uuid-2")
         path1_id = _insert_path(conn, disk1_id, "MOVIES/Movie A (2024)")
         path2_id = _insert_path(conn, disk2_id, "MOVIES/Movie B (2023)")
-        item_a = item_repo.insert(conn, _make_item_with_nfo(nfo_status="valid"))
-        item_b = item_repo.insert(conn, _make_item_with_nfo(nfo_status="valid"))
+        item_a = item_repo.insert(conn, _make_item_with_nfo(nfo_status="valid", title="Movie A"))
+        item_b = item_repo.insert(conn, _make_item_with_nfo(nfo_status="valid", title="Movie B"))
         _insert_release_and_file(conn, item_a, path1_id)
         _insert_release_and_file(conn, item_b, path2_id)
 
@@ -404,3 +406,18 @@ class TestFindItemsNeedingRescrape:
         _, mount, rel = results[0]
         assert mount == "/Volumes/Disk1"
         assert "MOVIES" in rel
+
+
+# ---------------------------------------------------------------------------
+# _canonical_title whitespace handling (11.5 S3)
+# ---------------------------------------------------------------------------
+
+
+def test_canonical_title_strips_double_space_year() -> None:
+    """``"Movie  (2020)"`` (double space) canonicalises to ``"Movie"``."""
+    assert item_repo._canonical_title("Movie  (2020)") == "Movie"
+
+
+def test_canonical_title_strips_no_space_year() -> None:
+    """``"Movie(2020)"`` (no space) canonicalises to ``"Movie"``."""
+    assert item_repo._canonical_title("Movie(2020)") == "Movie"

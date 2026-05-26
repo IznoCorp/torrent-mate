@@ -78,6 +78,24 @@
       "category": "documentation_only",
       "reason": "Pointer section. The authoritative reference is docs/reference/event-bus.md, whose contracts are pinned by tests/event_bus/, tests/architecture/test_event_bus_required_signatures.py, tests/architecture/test_app_context_boundary.py, tests/subscribers/, and tests/fixtures/test_factories_registry.py.",
       "expires": "2026-11-08"
+    },
+    {
+      "anchor": "behavioral-nuances",
+      "category": "documentation_only",
+      "reason": "Intentional design quirks index (counter asymmetry, DS_Store scope) — parent section serving as a table of contents for the two DEV sub-sections below.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "enforce-ds_store-cleanup-scope-dev-4",
+      "category": "documentation_only",
+      "reason": "Design rationale for ENFORCE vs library-clean DS_Store scope split — enforce behavior is covered by enforce unit tests; the design nuance is this reference.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "processscrape-counter-asymmetry-dev-5",
+      "category": "documentation_only",
+      "reason": "Design rationale for scrape counter asymmetry (summary N != per-section scraped=Y) — upstream scrape tests cover actual counting behavior; this section documents the why.",
+      "expires": "2028-05-08"
     }
   ]
 }

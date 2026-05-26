@@ -328,6 +328,94 @@ class TestScanLibraryPopulatesDB:
         sources = {entry["source"] for entry in ratings["entries"]}
         assert sources == {"imdb", "tmdb"}
 
+    def test_canonical_provider_insertion_path_normalizes_show_tmdb_default(
+        self, fs: "FakeFilesystem", scanner_config: Config
+    ) -> None:
+        """Phase 14.1 (reopen 12.1) — block canonical_provider regression at insertion source.
+
+        A TV show NFO on disk may carry ``<uniqueid default="true" type="tmdb">``
+        for historical reasons (e.g. an old TMDB-first scrape) while also
+        listing a valid ``<uniqueid type="tvdb">`` element. Before this fix the
+        scanner honoured the NFO's declared default and wrote
+        ``canonical_provider='tmdb'`` to the indexer DB, contradicting the
+        codebase-wide SSOT rule (shows → TVDB primary). The CLI repair only
+        cleaned up existing rows; rescans kept re-introducing the bug.
+
+        This regression test inserts the show via the actual scanner code-path
+        (``scan_library``) and asserts the DB row carries the deterministic
+        value ``canonical_provider='tvdb'``. It fails on pre-fix code.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        disk_a = scanner_config.disks[0].path
+        (disk_a / "series").mkdir(parents=True)
+        show = disk_a / "series" / "12 Monkeys (2015)"
+        show.mkdir()
+        # NFO carries default="true" on tmdb (legacy shape) but tvdb is also
+        # present — the deterministic rule must override the NFO declaration.
+        (show / "tvshow.nfo").write_text(
+            "<tvshow>"
+            '<uniqueid default="true" type="tmdb">60948</uniqueid>'
+            '<uniqueid type="tvdb">272644</uniqueid>'
+            '<uniqueid type="imdb">tt3148266</uniqueid>'
+            "</tvshow>"
+        )
+        s01 = show / "Saison 01"
+        s01.mkdir()
+        (s01 / "S01E01.mkv").write_bytes(b"\x00")
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan_library(scanner_config, conn, event_bus=EventBus())
+
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT canonical_provider FROM media_item WHERE title = '12 Monkeys'").fetchone()
+        assert row is not None
+        # Deterministic rule: show with tvdb_id → canonical_provider='tvdb'
+        # regardless of the NFO's declared default attribute.
+        assert row["canonical_provider"] == "tvdb", (
+            f"Show with tvdb_id must yield canonical_provider='tvdb', got {row['canonical_provider']!r}"
+        )
+
+    def test_canonical_provider_insertion_path_normalizes_movie_tvdb_default(
+        self, fs: "FakeFilesystem", scanner_config: Config
+    ) -> None:
+        """Phase 14.1 — movies with NFO-declared tvdb default must still resolve to 'tmdb'.
+
+        Symmetric case for movies: an NFO on disk that mistakenly flags
+        ``<uniqueid default="true" type="tvdb">`` while also carrying a valid
+        ``<uniqueid type="tmdb">`` element must produce
+        ``canonical_provider='tmdb'`` in the DB (movies → TMDB primary).
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        disk_a = scanner_config.disks[0].path
+        (disk_a / "films").mkdir(parents=True)
+        movie = disk_a / "films" / "Inception (2010)"
+        movie.mkdir()
+        (movie / "Inception.nfo").write_text(
+            "<movie>"
+            '<uniqueid default="true" type="tvdb">99999</uniqueid>'
+            '<uniqueid type="tmdb">27205</uniqueid>'
+            '<uniqueid type="imdb">tt1375666</uniqueid>'
+            "</movie>"
+        )
+        (movie / "Inception.mkv").write_bytes(b"\x00")
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan_library(scanner_config, conn, event_bus=EventBus())
+
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT canonical_provider FROM media_item WHERE title = 'Inception'").fetchone()
+        assert row is not None
+        # Deterministic rule: movie with tmdb_id → canonical_provider='tmdb'.
+        assert row["canonical_provider"] == "tmdb", (
+            f"Movie with tmdb_id must yield canonical_provider='tmdb', got {row['canonical_provider']!r}"
+        )
+
     def test_season_columns_refresh_on_rescan(self, fs: "FakeFilesystem", scanner_config: Config) -> None:
         """Regression for the BDD audit (P8): season columns refresh on every scan.
 
@@ -1057,3 +1145,117 @@ class TestNtfsUnsafeDetection:
         item = scan_movie_dir(movie, disk_id="drive_a", category_id=CID.MOVIES)
 
         assert ISSUE_NTFS_UNSAFE in item.issues
+
+
+# ---------------------------------------------------------------------------
+# Regression tests — DEV #50: _ensure_disk_row UUID mismatch
+# ---------------------------------------------------------------------------
+
+
+class TestEnsureDiskRowNoDuplicate:
+    """Regression tests for DEV #50: _ensure_disk_row must not insert duplicate rows.
+
+    Bug: _ensure_disk_row used disk_repo.get_by_uuid(conn, disk_cfg.id) where
+    disk_cfg.id is the config string (e.g. "drive_a").  Rows inserted by
+    _bootstrap_disks_from_config carry the real VolumeUUID (e.g. "F7E3C03C-...")
+    in the uuid column, but always use disk_cfg.id as the label.  The uuid lookup
+    never matched, causing scan_library() to insert duplicate disk rows.
+
+    Fix: _ensure_disk_row now looks up by label (disk_cfg.id), which is consistent
+    across both insertion paths.
+    """
+
+    def _make_conn(self, migrations_dir: Path) -> sqlite3.Connection:
+        """Return an in-memory SQLite connection with full schema applied.
+
+        Args:
+            migrations_dir: Absolute path to the indexer migrations directory.
+
+        Returns:
+            Open :class:`sqlite3.Connection` with all migrations applied and FK ON.
+        """
+        conn = sqlite3.connect(":memory:", isolation_level=None, check_same_thread=False)
+        conn.execute("PRAGMA foreign_keys = ON")
+        apply_migrations(conn, migrations_dir)
+        return conn
+
+    def test_ensure_disk_row_no_duplicate_when_row_has_real_uuid(self, tmp_path: Path) -> None:
+        """_ensure_disk_row returns existing row without INSERT when pre-inserted with real UUID.
+
+        Simulates the bootstrap path where uuid is a real VolumeUUID and label=disk_cfg.id.
+        Regression for DEV #50: before the fix, get_by_uuid(conn, "drive_a") returned
+        None because the existing row had uuid="F7E3C03C-..." and label="drive_a",
+        causing a second duplicate disk row to be inserted.
+        """
+        from personalscraper.library.scanner import _ensure_disk_row
+
+        conn = self._make_conn(MIGRATIONS_DIR)
+        disk_cfg = DiskConfig(
+            id="drive_a",
+            path=tmp_path / "drive_a",
+            categories=[CID.MOVIES],
+        )
+
+        # Pre-insert a disk row with a real VolumeUUID (simulating bootstrap path).
+        real_uuid = "F7E3C03C-1234-5678-ABCD-000000000001"
+        conn.execute(
+            "INSERT INTO disk (uuid, label, mount_path, last_seen_at, merkle_root, is_mounted, unreachable_strikes) "
+            "VALUES (?, ?, ?, ?, NULL, 1, 0)",
+            (real_uuid, disk_cfg.id, str(disk_cfg.path), 1000),
+        )
+
+        # Call _ensure_disk_row — must find the existing row, not insert a duplicate.
+        now_s = 2000
+        result = _ensure_disk_row(conn, disk_cfg, now_s)
+
+        # Assert: exactly one disk row in the DB (no duplicate inserted).
+        disk_count = conn.execute("SELECT COUNT(*) FROM disk").fetchone()[0]
+        assert disk_count == 1, (
+            f"Expected 1 disk row after _ensure_disk_row, got {disk_count} "
+            f"(DEV #50 regression: duplicate row was inserted)"
+        )
+
+        # Assert: returned row matches the pre-existing one (by uuid and label).
+        assert result.uuid == real_uuid, f"Expected uuid={real_uuid!r}, got {result.uuid!r}"
+        assert result.label == disk_cfg.id, f"Expected label={disk_cfg.id!r}, got {result.label!r}"
+
+    def test_ensure_disk_row_inserts_when_no_existing_row(self, tmp_path: Path) -> None:
+        """_ensure_disk_row inserts a new disk row when no row exists for the label."""
+        from personalscraper.library.scanner import _ensure_disk_row
+
+        conn = self._make_conn(MIGRATIONS_DIR)
+        disk_cfg = DiskConfig(
+            id="drive_b",
+            path=tmp_path / "drive_b",
+            categories=[CID.TV_SHOWS],
+        )
+
+        # No pre-existing row.
+        result = _ensure_disk_row(conn, disk_cfg, now_s=1000)
+
+        # Assert: exactly one disk row created.
+        disk_count = conn.execute("SELECT COUNT(*) FROM disk").fetchone()[0]
+        assert disk_count == 1, f"Expected 1 disk row after insert, got {disk_count}"
+        assert result.label == disk_cfg.id
+        assert result.id > 0  # PK was assigned
+
+    def test_ensure_disk_row_idempotent_when_row_already_uses_config_id_as_uuid(self, tmp_path: Path) -> None:
+        """_ensure_disk_row is idempotent when the existing row has uuid=disk_cfg.id (library path)."""
+        from personalscraper.library.scanner import _ensure_disk_row
+
+        conn = self._make_conn(MIGRATIONS_DIR)
+        disk_cfg = DiskConfig(
+            id="drive_c",
+            path=tmp_path / "drive_c",
+            categories=[CID.MOVIES],
+        )
+
+        # First call: inserts with uuid=disk_cfg.id (library scanner fallback path).
+        _ensure_disk_row(conn, disk_cfg, now_s=1000)
+        # Second call: must return the existing row without INSERT.
+        _ensure_disk_row(conn, disk_cfg, now_s=2000)
+
+        disk_count = conn.execute("SELECT COUNT(*) FROM disk").fetchone()[0]
+        assert disk_count == 1, (
+            f"Expected 1 disk row after two _ensure_disk_row calls, got {disk_count} (idempotence violation)"
+        )

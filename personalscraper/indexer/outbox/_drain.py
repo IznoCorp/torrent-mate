@@ -1,4 +1,4 @@
-"""Drain logic: dedup, apply with retry, pending-op replay, and the public drain() / drain_if_present()."""
+"""Drain logic: dedup, apply with retry, pending-op replay, and the public drain() / drain_if_present."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ from personalscraper.indexer.config import IndexerConfig
 from personalscraper.indexer.outbox._apply import _OP_HANDLERS
 from personalscraper.indexer.outbox._disk import _disk_is_mounted
 from personalscraper.indexer.outbox._types import DrainStats
-from personalscraper.indexer.repos import outbox_repo
-from personalscraper.indexer.schema import IndexOutboxRow, OutboxOp
+from personalscraper.indexer.repos import log_repo, outbox_repo
+from personalscraper.indexer.schema import IndexOutboxRow, OutboxOp, ScanEventRow, ScanRunRow
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.outbox")
@@ -65,11 +65,176 @@ def _dedup_key(row: IndexOutboxRow) -> tuple[int, str, str] | None:
 
 
 # ---------------------------------------------------------------------------
+# Paranoia-branch scan_event helpers (DEV #31)
+# ---------------------------------------------------------------------------
+
+
+def _rel_path_for_paranoia(op: str, payload: dict[str, Any]) -> str | None:
+    """Extract the canonical ``rel_path`` for the paranoia-branch scan_event payload.
+
+    The quick-mode paranoia branch (DESIGN §17.1) queries ``scan_event`` rows
+    with ``event LIKE 'outbox.%'`` and resolves their ``rel_path`` field.
+    Different ops store the relevant path under different payload keys:
+
+    - ``move``: uses ``dst_rel_path`` (destination of the move)
+    - all others: uses ``rel_path``
+
+    Args:
+        op: Outbox operation type (e.g. ``'move'``, ``'nfo_write'``).
+        payload: Parsed JSON payload dict for the outbox row.
+
+    Returns:
+        The resolved relative path string, or ``None`` if the field is absent.
+    """
+    if op == "move":
+        raw = payload.get("dst_rel_path")
+    else:
+        raw = payload.get("rel_path")
+    return str(raw) if raw is not None else None
+
+
+def _insert_outbox_scan_event(
+    conn: sqlite3.Connection,
+    drain_scan_run_id: int,
+    op: str,
+    payload: dict[str, Any],
+) -> None:
+    """Insert a ``scan_event`` row recording a successful outbox drain step.
+
+    Called inside the same ``BEGIN IMMEDIATE`` transaction as the handler and
+    ``mark_done`` so the event is atomic with the drain effect.  The
+    ``quick-mode`` paranoia branch (DESIGN §17.1) queries these rows
+    (``event LIKE 'outbox.%'``) to detect FS mutations that the dir-mtime
+    walk would miss.
+
+    Failures are logged at ``warning`` level and silently swallowed — the
+    scan_event row is audit-trail only and must not roll back the drain.
+
+    Args:
+        conn: Open SQLite connection inside an active transaction.
+        drain_scan_run_id: PK of the ``scan_run`` row created for this drain
+            session (satisfies the NOT NULL FK constraint on ``scan_event``).
+        op: Outbox operation type (e.g. ``'move'``, ``'nfo_write'``).
+        payload: Parsed JSON payload dict for the outbox row.
+    """
+    now = int(time.time())
+    rel_path = _rel_path_for_paranoia(op, payload)
+    disk_id = payload.get("disk_id")
+
+    # Build a minimal payload for the paranoia branch: rel_path is mandatory
+    # (the branch skips rows without it).  disk_id and filename are included
+    # for additional context and to support future per-disk filtering.
+    event_payload: dict[str, Any] = {}
+    if disk_id is not None:
+        event_payload["disk_id"] = disk_id
+    if rel_path is not None:
+        event_payload["rel_path"] = rel_path
+    filename = payload.get("filename")
+    if filename is not None:
+        event_payload["filename"] = filename
+
+    try:
+        log_repo.insert_scan_event(
+            conn,
+            ScanEventRow(
+                id=0,
+                scan_id=drain_scan_run_id,
+                ts=now,
+                item_id=None,
+                file_id=None,
+                event=f"outbox.{op}",
+                payload_json=json.dumps(event_payload),
+            ),
+        )
+    except sqlite3.Error as exc:
+        # Audit-trail failure must not abort the drain — log and continue.
+        log.warning(
+            "indexer.outbox.scan_event_insert_failed",
+            op=op,
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Drain session scan_run lifecycle
+# ---------------------------------------------------------------------------
+
+
+def _create_drain_scan_run(conn: sqlite3.Connection) -> int:
+    """Insert a ``scan_run`` row representing this outbox drain session.
+
+    The ``scan_event.scan_id`` column has a NOT NULL FK to ``scan_run``, so
+    every outbox scan_event must reference a real scan_run row.  We create a
+    dedicated row per drain() call (mode=``'outbox_drain'``) so the outbox
+    events are distinguishable from scanner-initiated events in the audit log.
+
+    Args:
+        conn: Open SQLite connection.
+
+    Returns:
+        The ``rowid`` of the newly inserted ``scan_run`` row.
+    """
+    # The drain creates a scan_run row to anchor the paranoia-branch
+    # scan_event rows (DEV #31). Mode 'repair' is reused since outbox
+    # drain is semantically a repair pass (reconciling FS state with
+    # DB state). The schema's CHECK constraint accepts 'repair' (cf.
+    # migration 001 line 250). A dedicated 'outbox_drain' mode would
+    # require a migration which is heavier than this naming choice
+    # justifies — 'repair' captures the intent adequately.
+    now = int(time.time())
+    return log_repo.insert_scan_run(
+        conn,
+        ScanRunRow(
+            id=0,
+            generation=0,
+            mode="repair",
+            disk_filter=None,
+            started_at=now,
+            finished_at=None,
+            last_path=None,
+            status="running",
+            stats_json=None,
+        ),
+    )
+
+
+def _finish_drain_scan_run(conn: sqlite3.Connection, drain_scan_run_id: int) -> None:
+    """Mark the drain session ``scan_run`` row as ``'ok'``.
+
+    Best-effort: failures are silently ignored since the drain itself has
+    already completed.
+
+    Args:
+        conn: Open SQLite connection.
+        drain_scan_run_id: PK of the drain ``scan_run`` row to finalise.
+    """
+    try:
+        log_repo.update_scan_run_status(
+            conn,
+            id=drain_scan_run_id,
+            status="ok",
+            finished_at=int(time.time()),
+        )
+    except sqlite3.Error as exc:
+        log.warning(
+            "indexer.outbox.drain_run_finish_failed",
+            drain_scan_run_id=drain_scan_run_id,
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+
+
+# ---------------------------------------------------------------------------
 # Single-row apply with retry
 # ---------------------------------------------------------------------------
 
 
-def _apply_row_with_retry(conn: sqlite3.Connection, row: IndexOutboxRow) -> str:
+def _apply_row_with_retry(
+    conn: sqlite3.Connection,
+    row: IndexOutboxRow,
+    drain_scan_run_id: int | None = None,
+) -> str:
     """Attempt to apply a single outbox row with lock-retry semantics.
 
     Processes the row in its own short transaction.  On
@@ -77,9 +242,15 @@ def _apply_row_with_retry(conn: sqlite3.Connection, row: IndexOutboxRow) -> str:
     times with backoff.  After exhaustion, the row is left to the caller to
     mark as ``'failed'``.
 
+    On success, a ``scan_event`` row is inserted within the same transaction
+    (``event='outbox.<op>'``) so the quick-mode paranoia branch (DESIGN §17.1)
+    can detect FS mutations without a full dir-mtime walk.
+
     Args:
         conn: Open SQLite connection (WAL mode, ``isolation_level=None``).
         row: The outbox row to apply.
+        drain_scan_run_id: PK of the ``scan_run`` row for this drain session,
+            used as the FK on the ``scan_event`` insert.
 
     Returns:
         ``'done'`` on success, ``'failed'`` after retry exhaustion,
@@ -102,6 +273,14 @@ def _apply_row_with_retry(conn: sqlite3.Connection, row: IndexOutboxRow) -> str:
             try:
                 handler(conn, payload)
                 outbox_repo.mark_done(conn, row.id)
+                # Insert the paranoia-branch scan_event inside the same
+                # transaction so the event is atomic with the drain effect
+                # (DESIGN §17.1, DEV #31 fix). Skipped when no
+                # drain_scan_run_id was provided (test contexts that
+                # exercise the lock-retry logic without setting up a
+                # scan_run row).
+                if drain_scan_run_id is not None:
+                    _insert_outbox_scan_event(conn, drain_scan_run_id, row.op, payload)
                 conn.execute("COMMIT")
                 return "done"
             except Exception:
@@ -270,6 +449,9 @@ def drain(conn: sqlite3.Connection, config: IndexerConfig) -> DrainStats:
       ``replayed_at IS NULL`` and whose ``is_mounted=1``, those rows are
       replayed first.
     - TTL purge of ``pending_op`` rows older than 30 days is run at the end.
+    - On each successful row application, a ``scan_event`` row with
+      ``event='outbox.<op>'`` is inserted atomically so the quick-mode
+      paranoia branch (DESIGN §17.1) can detect FS mutations (DEV #31 fix).
 
     Args:
         conn: Open SQLite connection to ``library.db``.
@@ -281,6 +463,11 @@ def drain(conn: sqlite3.Connection, config: IndexerConfig) -> DrainStats:
         failed, and replayed rows.
     """
     stats = DrainStats()
+
+    # --- Create a scan_run row for this drain session (DEV #31) ---
+    # scan_event.scan_id is NOT NULL → every outbox scan_event must reference
+    # a real scan_run row.  We create one per drain() call with mode='outbox_drain'.
+    drain_scan_run_id = _create_drain_scan_run(conn)
 
     # --- Replay pending_op for newly-mounted disks ---
     conn.row_factory = sqlite3.Row
@@ -378,7 +565,7 @@ def drain(conn: sqlite3.Connection, config: IndexerConfig) -> DrainStats:
                 continue
 
             # Apply the row with retry.
-            outcome = _apply_row_with_retry(conn, row)
+            outcome = _apply_row_with_retry(conn, row, drain_scan_run_id)
             if outcome == "done":
                 stats.applied += 1
             elif outcome == "failed":
@@ -410,6 +597,9 @@ def drain(conn: sqlite3.Connection, config: IndexerConfig) -> DrainStats:
 
     # --- TTL purge of stale pending_op rows ---
     outbox_repo.purge_expired(conn, ttl_days=30)
+
+    # --- Finalise the drain scan_run row ---
+    _finish_drain_scan_run(conn, drain_scan_run_id)
 
     log.info(
         "indexer.outbox.drain_complete",

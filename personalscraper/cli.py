@@ -51,6 +51,12 @@ def main(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable DEBUG logging"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress console output"),
     version: bool = typer.Option(False, "--version", help="Show version and exit"),
+    output_format: str = typer.Option(
+        "rich",
+        "--format",
+        "-f",
+        help="Output format: rich (default), plain, or json.",
+    ),
     config: Path | None = typer.Option(
         None,
         "--config",
@@ -73,9 +79,15 @@ def main(
     if version:
         typer.echo(__version__)
         raise typer.Exit()
+
+    if output_format not in ("rich", "plain", "json"):
+        typer.echo(f"Invalid --format '{output_format}'. Choose rich, plain, or json.", err=True)
+        raise typer.Exit(code=2)
+
     state["console"] = Console(quiet=quiet)
     state["verbose"] = verbose
     state["quiet"] = quiet
+    state["format"] = output_format
     configure_logging(verbose=verbose, quiet=quiet)
 
     # init-config and config sub-app bypass eager load: config/ may not exist

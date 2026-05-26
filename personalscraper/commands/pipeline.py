@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 
 from personalscraper import cli as cli_compat
-from personalscraper.cli_app import app
+from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import (
     _bootstrap_staging,
     _build_app_context,
@@ -17,7 +17,24 @@ from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.logger import get_logger
 
 
-@app.command()
+def _run_help() -> str:
+    """Build the help string for the ``run`` command from the live step registry.
+
+    Reads :data:`~personalscraper.pipeline_steps.DEFAULT_STEPS` at import time so
+    the help text automatically reflects any future step additions or removals
+    without requiring a manual docstring update.
+
+    Returns:
+        Human-readable one-liner listing every pipeline step in order,
+        e.g. ``"Run full pipeline (ingest → sort → … → dispatch)."``.
+    """
+    from personalscraper.pipeline_steps import DEFAULT_STEPS  # noqa: PLC0415
+
+    steps = " → ".join(DEFAULT_STEPS.keys())
+    return f"Run full pipeline ({steps})."
+
+
+@command_with_telemetry()
 @handle_cli_errors
 def ingest(
     ctx: typer.Context,
@@ -51,7 +68,7 @@ def ingest(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@app.command()
+@command_with_telemetry()
 @handle_cli_errors
 def sort(
     ctx: typer.Context,
@@ -86,7 +103,7 @@ def sort(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@app.command()
+@command_with_telemetry()
 @handle_cli_errors
 def scrape(
     ctx: typer.Context,
@@ -127,7 +144,7 @@ def scrape(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@app.command()
+@command_with_telemetry()
 @handle_cli_errors
 def verify(
     ctx: typer.Context,
@@ -164,7 +181,7 @@ def verify(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@app.command()
+@command_with_telemetry()
 @handle_cli_errors
 def enforce(
     ctx: typer.Context,
@@ -191,7 +208,7 @@ def enforce(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@app.command()
+@command_with_telemetry()
 @handle_cli_errors
 def dispatch(
     ctx: typer.Context,
@@ -221,7 +238,101 @@ def dispatch(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@app.command()
+@command_with_telemetry()
+@handle_cli_errors
+def clean(
+    ctx: typer.Context,
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying"),
+) -> None:
+    """Run reclean + dedup only (process sub-step, SH-21 / AR-C).
+
+    Standalone CLI surface around :func:`personalscraper.process.run.run_clean`.
+    Useful for debugging the clean sub-step in isolation and for composition
+    with other operator workflows (e.g. dry-run a clean pass before launching
+    the full process step). The full pipeline still invokes ``run_clean``
+    internally via ``run_process`` — this command does not alter that flow.
+    """
+    from personalscraper.process.run import run_clean
+
+    config = ctx.obj.config  # Guaranteed non-None by callback.
+    console = state["console"]
+    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
+        console.print("[red]Another instance is running. Exiting.[/red]")
+        raise typer.Exit(1)
+    try:
+        _bootstrap_staging(ctx)
+        settings = cli_compat.get_settings()
+        try:
+            with per_step_boundary(config, settings) as app_context:
+                report = run_clean(
+                    settings,
+                    config=config,
+                    dry_run=dry_run,
+                    event_bus=app_context.event_bus,
+                )
+        except Exception as exc:
+            console.print(f"[red]Clean failed: {type(exc).__name__}: {exc}[/red]")
+            get_logger("pipeline").exception("clean_command_failed", error=str(exc))
+            raise typer.Exit(1) from exc
+
+        console.print(
+            f"[bold]Clean:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
+        )
+        if state["verbose"]:
+            for detail in report.details:
+                console.print(f"  {detail}")
+    finally:
+        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+
+
+@command_with_telemetry()
+@handle_cli_errors
+def cleanup(
+    ctx: typer.Context,
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without deleting"),
+) -> None:
+    """Run empty-directory cleanup only (process sub-step, SH-21 / AR-C).
+
+    Standalone CLI surface around :func:`personalscraper.process.run.run_cleanup`.
+    Removes empty directories left behind by previous steps. Distinct from
+    ``clean`` (which performs reclean + dedup of polluted folder names); this
+    command only operates on empty directories. Useful for tidying staging
+    between manual operator interventions. The full pipeline still invokes
+    ``run_cleanup`` internally via ``run_process`` — this command does not
+    alter that flow.
+    """
+    from personalscraper.process.run import run_cleanup
+
+    config = ctx.obj.config  # Guaranteed non-None by callback.
+    console = state["console"]
+    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
+        console.print("[red]Another instance is running. Exiting.[/red]")
+        raise typer.Exit(1)
+    try:
+        _bootstrap_staging(ctx)
+        settings = cli_compat.get_settings()
+        try:
+            with per_step_boundary(config, settings) as app_context:
+                report = run_cleanup(
+                    settings,
+                    config=config,
+                    dry_run=dry_run,
+                    event_bus=app_context.event_bus,
+                )
+        except Exception as exc:
+            console.print(f"[red]Cleanup failed: {type(exc).__name__}: {exc}[/red]")
+            get_logger("pipeline").exception("cleanup_command_failed", error=str(exc))
+            raise typer.Exit(1) from exc
+
+        console.print(f"[bold]Cleanup:[/bold] {report.success_count} removed")
+        if state["verbose"]:
+            for detail in report.details:
+                console.print(f"  {detail}")
+    finally:
+        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+
+
+@command_with_telemetry()
 @handle_cli_errors
 def process(
     ctx: typer.Context,
@@ -251,7 +362,7 @@ def process(
         except Exception as exc:
             console.print(f"[red]Process failed: {type(exc).__name__}: {exc}[/red]")
             get_logger("pipeline").exception("process_command_failed", error=str(exc))
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
 
         for label, report in [("Clean", clean), ("Scrape", scrape), ("Cleanup", cleanup)]:
             console.print(
@@ -265,7 +376,7 @@ def process(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@app.command()
+@command_with_telemetry("run", help=_run_help())
 @handle_cli_errors
 def run(
     ctx: typer.Context,
@@ -290,7 +401,12 @@ def run(
         ),
     ),
 ) -> None:
-    """Run full pipeline (ingest -> sort -> process -> verify -> dispatch)."""
+    """Execute all pipeline phases via ``Pipeline.run``.
+
+    The step list displayed in ``--help`` is generated from
+    :data:`~personalscraper.pipeline_steps.DEFAULT_STEPS` at import time via
+    :func:`_run_help`, so it always reflects the actual registered steps.
+    """
     from datetime import datetime
 
     import structlog.contextvars
@@ -433,7 +549,7 @@ def run(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@app.command("torrents-list")
+@command_with_telemetry("torrents-list")
 @handle_cli_errors
 def torrents_list(ctx: typer.Context) -> None:
     """List completed torrents from the active qBittorrent client.
@@ -443,11 +559,18 @@ def torrents_list(ctx: typer.Context) -> None:
     message when the torrent client is unreachable (auth lockout, IP
     ban, daemon down) so monitoring tools can branch on the exit
     code. Used by the ``pipeline-monitor`` skill's GATE 0 inventory.
+
+    Output format respects the global ``--format`` flag.
     """
     import os  # noqa: PLC0415
 
+    from personalscraper.api.torrent._errors import (  # noqa: PLC0415
+        TORRENT_CONNECT_ERRORS,
+        TORRENT_LISTING_ERRORS,
+    )
     from personalscraper.api.torrent._factory import build_active_torrent_client  # noqa: PLC0415
-    from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError, QBitClient  # noqa: PLC0415
+    from personalscraper.api.torrent.qbittorrent import QBitClient  # noqa: PLC0415
+    from personalscraper.cli_helpers.output import emit  # noqa: PLC0415
 
     config = ctx.obj.config
     assert config is not None
@@ -465,24 +588,52 @@ def torrents_list(ctx: typer.Context) -> None:
                 password=settings.qbit_password,
             )
             client.login()
-    except (QBitAuthLockoutError, Exception) as exc:  # noqa: BLE001 — operator-facing CLI
+    except TORRENT_CONNECT_ERRORS as exc:
         console.print(f"[yellow]Torrent client unavailable:[/yellow] {exc}")
         raise typer.Exit(2) from exc
 
     try:
         torrents = client.get_completed()
         active_hashes = client.get_all_hashes()
-    except Exception as exc:  # noqa: BLE001 — operator-facing CLI
+    except TORRENT_LISTING_ERRORS as exc:
         console.print(f"[yellow]Torrent listing failed:[/yellow] {exc}")
         raise typer.Exit(2) from exc
 
-    for torrent in torrents:
-        seeding = "seeding" if client.is_seeding(torrent) else "idle"
-        size_gb = torrent.size_bytes / (1024**3)
-        console.print(
-            f"  {torrent.state:<14} {torrent.progress * 100:5.1f}%  {size_gb:7.2f} GB  {seeding:8}  {torrent.name}"
-        )
-    console.print(f"[bold]Total:[/bold] {len(torrents)} completed (of {len(active_hashes)} tracked torrents)")
+    payload = {
+        "torrents": [
+            {
+                "name": t.name,
+                "state": t.state,
+                "progress": t.progress,
+                "size_gb": t.size_bytes / (1024**3),
+                "seeding": client.is_seeding(t),
+            }
+            for t in torrents
+        ],
+        "completed": len(torrents),
+        "tracked": len(active_hashes),
+    }
+    emit(payload, rich_renderer=lambda: _print_torrents_rich(payload))
+
+
+def _print_torrents_rich(payload: dict[str, object]) -> None:
+    """Render the torrent list via Rich console.
+
+    Args:
+        payload: Dict with ``torrents`` list and ``completed``/``tracked`` counts.
+    """
+    from typing import cast  # noqa: PLC0415
+
+    console = state["console"]
+    torrents = cast("list[dict[str, object]]", payload.get("torrents", []))
+    for t in torrents:
+        seeding = "seeding" if t.get("seeding") else "idle"
+        t_progress = cast(float, t.get("progress", 0))
+        t_size_gb = cast(float, t.get("size_gb", 0))
+        t_name = cast(str, t.get("name", ""))
+        t_state = cast(str, t.get("state", ""))
+        console.print(f"  {t_state:<14} {t_progress * 100:5.1f}%  {t_size_gb:7.2f} GB  {seeding:8}  {t_name}")
+    console.print(f"[bold]Total:[/bold] {payload['completed']} completed (of {payload['tracked']} tracked torrents)")
 
 
 # --- Library maintenance commands ---

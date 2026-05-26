@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 import responses
 
-from personalscraper.api._contracts import CircuitOpenError
+from personalscraper.api._contracts import ApiError, CircuitOpenError
 from personalscraper.api.transport._auth import ApiKeyAuth, NoAuth
 from personalscraper.api.transport._http import HttpTransport
 from personalscraper.api.transport._policy import CircuitPolicy, RetryPolicy, TransportPolicy
@@ -84,15 +84,31 @@ class TestCircuitBreaker:
         transport = HttpTransport(_make_policy(), event_bus=EventBus())
 
         # Call 1 — fails, circuit records 1 final failure
-        with pytest.raises(Exception):
+        with pytest.raises(ApiError):
             transport.get("/down")
         # Call 2 — fails, circuit records 2nd final failure -> opens
-        with pytest.raises(Exception):
+        with pytest.raises(ApiError):
             transport.get("/down")
         # Call 3 — circuit is open
         with pytest.raises(CircuitOpenError, match="Circuit breaker OPEN"):
             transport.get("/down")
 
+        transport.close()
+
+    def test_circuit_breaker_ignores_internal_typeerror(self) -> None:
+        """TypeError (internal bug) propagates WITHOUT tripping the circuit breaker."""
+        transport = HttpTransport(_make_policy(), event_bus=EventBus())
+
+        def _raise_typeerror(*_args: Any, **_kwargs: Any) -> Any:
+            raise TypeError("internal bug")
+
+        transport._do_request = _raise_typeerror  # type: ignore[method-assign]
+        failure_before = transport._circuit._failure_count
+
+        with pytest.raises(TypeError, match="internal bug"):
+            transport.get("/bug")
+
+        assert transport._circuit._failure_count == failure_before
         transport.close()
 
 

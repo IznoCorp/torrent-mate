@@ -358,7 +358,10 @@ def _check_category_orphans(config: Config) -> None:
         return
 
     try:
-        conn = sqlite3.connect(str(db_path))
+        from personalscraper.indexer.db import _apply_pragmas  # noqa: PLC0415
+
+        conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+        _apply_pragmas(conn)
         try:
             cursor = conn.execute("SELECT DISTINCT category_id FROM media_item")
             db_category_ids: set[str] = {row[0] for row in cursor.fetchall()}

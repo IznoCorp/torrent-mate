@@ -246,11 +246,34 @@ def test_find_item_for_path_no_match(conn: sqlite3.Connection) -> None:
 def test_find_item_for_path_falls_back_to_title_match(conn: sqlite3.Connection) -> None:
     """When dispatch_path is absent, the linker matches the folder name to media_item.title.
 
-    Catches dispatch-style items where ``title = "Folder (Year)"`` and the
-    dispatch_path attribute was never recorded (e.g. items inserted through
-    a path other than ``dispatch.MediaIndex``).
+    Post-migration 007, stored titles are canonicalised (no year suffix),
+    so the folder ``Inception (2010)`` matches stored title ``Inception``
+    via ``_canonical_title``.  Dispatch-style items inserted through a path
+    other than ``dispatch.MediaIndex`` are still found.
     """
-    item_id = _seed_movie(conn, title="Inception (2010)", dispatch_path=None)
+    item_id = _seed_movie(conn, title="Inception", dispatch_path=None)
+
+    result = find_item_for_path(conn, "/Volumes/D/films/Inception (2010)")
+    assert result == (item_id, "movie", None)
+
+
+def test_find_item_for_path_title_canonicalised(conn: sqlite3.Connection) -> None:
+    """Folder ``Inception (2010)`` matches stored canonical title ``Inception``.
+
+    After migration 007, stored titles are canonicalised (no `` (YYYY)`` suffix).
+    A folder name like ``Inception (2010)`` must still match via _canonical_title.
+    Pre-fix: ``WHERE title = 'Inception (2010)'`` returned 0 rows silently.
+    """
+    now = int(time.time())
+    cur = conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, original_title, year, category_id, "
+        " external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
+        " date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang) "
+        "VALUES ('movie', 'Inception', 'Inception', NULL, 2010, 'movies', '{}', NULL, NULL, "
+        "        NULL, NULL, ?, ?, NULL, 0, 'fr')",
+        (now, now),
+    )
+    item_id = cur.lastrowid
 
     result = find_item_for_path(conn, "/Volumes/D/films/Inception (2010)")
     assert result == (item_id, "movie", None)
@@ -454,29 +477,46 @@ def test_link_file_to_release_tv_no_episode_marker_falls_back(conn: sqlite3.Conn
 
 
 def test_recompute_season_episode_counts_resyncs_stale_counter(conn: sqlite3.Connection) -> None:
-    """``recompute_season_episode_counts`` resyncs the cached counter to actual episodes."""
+    """``recompute_season_episode_counts`` resyncs the cached counter to actual episodes.
+
+    With migration 008 triggers, episode_count is auto-maintained on INSERT —
+    no drift exists after normal operations.  To test the recompute path we
+    manually force a stale counter.
+    """
     item_id = _seed_show(conn, title="Show", dispatch_path="/x")
     season_id = get_or_create_season(conn, item_id, 1)
 
-    # Seed three episodes — linker leaves season.episode_count at 0.
     for ep in (1, 2, 3):
         get_or_create_episode(conn, season_id, ep)
 
+    # Trigger auto-maintains: count should already be 3.
+    fresh = conn.execute("SELECT episode_count FROM season WHERE id = ?", (season_id,)).fetchone()
+    assert fresh[0] == 3
+
+    # Force staleness by writing an incorrect value directly.
+    conn.execute("UPDATE season SET episode_count = 0 WHERE id = ?", (season_id,))
     stale = conn.execute("SELECT episode_count FROM season WHERE id = ?", (season_id,)).fetchone()
     assert stale[0] == 0
 
     updated = recompute_season_episode_counts(conn)
     assert updated == 1
 
-    fresh = conn.execute("SELECT episode_count FROM season WHERE id = ?", (season_id,)).fetchone()
-    assert fresh[0] == 3
+    fresh2 = conn.execute("SELECT episode_count FROM season WHERE id = ?", (season_id,)).fetchone()
+    assert fresh2[0] == 3
 
 
 def test_recompute_season_episode_counts_idempotent(conn: sqlite3.Connection) -> None:
-    """Running the recompute twice returns 0 the second time."""
+    """Running the recompute twice returns 0 the second time.
+
+    With migration 008 triggers, episode_count is already correct after
+    get_or_create_episode — force staleness first, then verify idempotence.
+    """
     item_id = _seed_show(conn, title="Show", dispatch_path="/x")
     season_id = get_or_create_season(conn, item_id, 1)
     get_or_create_episode(conn, season_id, 1)
+
+    # Force staleness.
+    conn.execute("UPDATE season SET episode_count = 99 WHERE id = ?", (season_id,))
 
     assert recompute_season_episode_counts(conn) == 1
     assert recompute_season_episode_counts(conn) == 0

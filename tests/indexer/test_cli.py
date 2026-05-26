@@ -591,6 +591,43 @@ class TestLibraryRepair:
         assert summary["processed"] == 0
         assert summary["budget_exhausted"] is False
 
+    def test_dry_run_does_not_drain_queue(self, tmp_path: Path) -> None:
+        """--dry-run reports queue depth without draining any rows.
+
+        Regression test for DEV #21 / MUST-9: library-repair --dry-run must be a
+        no-op on the DB. We seed a repair_queue row, invoke with --dry-run, then
+        assert the row is still pending (row count unchanged).
+        """
+        from personalscraper.indexer.repair import enqueue_repair
+
+        cfg = _make_config(tmp_path)
+        conn = _make_conn(cfg.indexer.db_path)
+        # Seed one pending repair row.
+        enqueue_repair(conn, scope="file", scope_id=99, reason="test_dry_run_seed")
+        conn.commit()
+
+        before_count = conn.execute("SELECT COUNT(*) FROM repair_queue WHERE status = 'pending'").fetchone()[0]
+        conn.close()
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+        ):
+            result = runner.invoke(app, ["library-repair", "--dry-run"])
+
+        assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
+        summary = json.loads(result.stdout.strip())
+        assert summary["dry_run"] is True
+        assert summary["repair_would_drain"] == before_count
+
+        # Verify no rows were consumed from the queue.
+        verify_conn = sqlite3.connect(str(cfg.indexer.db_path), isolation_level=None)
+        after_count = verify_conn.execute("SELECT COUNT(*) FROM repair_queue WHERE status = 'pending'").fetchone()[0]
+        verify_conn.close()
+        assert after_count == before_count, (
+            f"--dry-run must not drain the queue: before={before_count}, after={after_count}"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Case 13: library verify --disk Disk2 → exit 0
@@ -634,6 +671,52 @@ class TestLibraryVerify:
         summary = json.loads(result.stdout.strip())
         assert summary["mode"] == "verify"
         assert summary["status"] == "ok"
+
+    def test_no_enqueue_forwarded_to_scan(self, tmp_path: Path) -> None:
+        """--no-enqueue passes no_enqueue=True to scan() and appears in JSON summary.
+
+        Regression test for DEV #21 / MUST-9: library-verify --no-enqueue must not
+        write repair_queue rows.  We verify the flag is threaded through the CLI →
+        library_verify_command → scan() boundary.
+        """
+        cfg = _make_config(tmp_path)
+        db_path: Path = cfg.indexer.db_path
+        conn = _make_conn(db_path)
+        conn.execute(
+            "INSERT INTO disk (uuid, label, mount_path, last_seen_at, merkle_root, "
+            "is_mounted, unreachable_strikes) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("disk2-uuid", "Disk2", None, int(time.time()), None, 0, 0),
+        )
+        conn.close()
+
+        fake_result = ScanRunResult(
+            scan_run_id=6,
+            files_visited=0,
+            dirs_visited=0,
+            status="ok",
+        )
+
+        captured_kwargs: dict = {}
+
+        def _capture_scan(*args: Any, **kwargs: Any) -> ScanRunResult:
+            captured_kwargs.update(kwargs)
+            return fake_result
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+            patch(_PATCH_SCAN, side_effect=_capture_scan),
+        ):
+            result = runner.invoke(app, ["library-verify", "--no-enqueue", "--disk", "Disk2"])
+
+        assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
+        # The no_enqueue kwarg must have reached scan().
+        assert captured_kwargs.get("no_enqueue") is True, (
+            f"no_enqueue not forwarded to scan(); captured kwargs: {captured_kwargs}"
+        )
+        # The JSON summary must include no_enqueue=True.
+        summary = json.loads(result.stdout.strip())
+        assert summary.get("no_enqueue") is True
 
 
 # ---------------------------------------------------------------------------

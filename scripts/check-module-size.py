@@ -43,11 +43,6 @@ def main() -> int:
     """Run the module-size advisory check."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default=DEFAULT_ROOT, type=Path)
-    parser.add_argument(
-        "--strict",
-        action="store_true",
-        help="Exit 1 on REPORT-level findings (post-0.10.0 mode).",
-    )
     args = parser.parse_args()
 
     root: Path = args.root

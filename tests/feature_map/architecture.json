@@ -63,6 +63,24 @@
       "category": "documentation_only",
       "reason": "Reference rules for SemVer bump triggers — enforced by the implement:* lifecycle and CI version-monotonic checks, not by an architecture-level contract.",
       "expires": "2026-11-08"
+    },
+    {
+      "anchor": "anti-decisions-out-of-scope-for-10",
+      "category": "documentation_only",
+      "reason": "Deferred features rationale (no microservices, no web UI, no plugin loader, etc.) — design record, not a behavior contract.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "module-relationships",
+      "category": "documentation_only",
+      "reason": "Module dependency diagram and direction rules — structural reference enforced by code review and the residual-import grep checklist, not an automated contract.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "state-ownership",
+      "category": "documentation_only",
+      "reason": "State ownership table — design principle enforced by the pipeline lock and single-writer discipline in code review, not a standalone automated contract.",
+      "expires": "2028-05-08"
     }
   ]
 }

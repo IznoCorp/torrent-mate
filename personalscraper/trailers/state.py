@@ -7,7 +7,7 @@ via ``config.trailers.state_file``); callers pass the absolute path to
 ``TrailerStateStore.__init__``.
 
 Key design decisions:
-- Atomic writes via ``tempfile.NamedTemporaryFile`` + ``os.replace``.
+- Atomic writes with fsync durability via :func:`atomic_write_json`.
 - ``fcntl.flock(LOCK_EX)`` on a sibling ``.lock`` file prevents torn writes
   when multiple ``personalscraper trailers download`` processes run concurrently.
   Falls back to best-effort write on non-Unix platforms where ``fcntl`` is absent.
@@ -23,10 +23,8 @@ from __future__ import annotations
 import errno as _errno_mod
 import hashlib
 import json
-import os
 import shutil
 import subprocess
-import tempfile
 import time
 import unicodedata
 import warnings
@@ -36,6 +34,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from personalscraper.io_utils import atomic_write_json
 from personalscraper.logger import get_logger
 
 log = get_logger(__name__)
@@ -397,8 +396,8 @@ class TrailerStateStore:
 
         {"version": 1, "entries": {"movie:tmdb:550": {...}}}
 
-    Writes are atomic: a temporary file is written, then ``os.replace()``
-    swaps it onto the real path. Under Unix, ``fcntl.flock(LOCK_EX)`` on a
+    Writes use :func:`atomic_write_json` with directory fsync for crash
+    durability. Under Unix, ``fcntl.flock(LOCK_EX)`` on a
     sibling ``.lock`` file serialises concurrent read-modify-write cycles so
     that two simultaneous ``personalscraper trailers`` processes cannot corrupt
     the state file.
@@ -804,45 +803,17 @@ class TrailerStateStore:
             self._recovering_from_corrupt = False
 
     def _save(self, entries: dict[str, Any]) -> None:
-        """Write ``entries`` to the state file atomically via temp + os.replace.
+        """Persist entries with fsync durability via :func:`atomic_write_json`.
+
+        The atomic-write helper creates the parent directory, fsyncs the file
+        *and* the parent directory so the save survives a machine crash (ext4 /
+        macFUSE-mounted NTFS safety).
 
         Args:
             entries: Dict mapping state keys to serialised entry dicts.
         """
-        parent = self._state_file.parent
-        parent.mkdir(parents=True, exist_ok=True)
         payload: dict[str, Any] = {"version": _STATE_VERSION, "entries": entries}
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            dir=parent,
-            suffix=".tmp",
-            delete=False,
-        ) as tmp:
-            json.dump(payload, tmp, ensure_ascii=False, indent=2)
-            tmp_path = tmp.name
-        try:
-            os.replace(tmp_path, self._state_file)
-        except OSError as replace_exc:
-            try:
-                os.unlink(tmp_path)
-            except OSError as exc:
-                # tmp file leak is an operational symptom (read-only fs, inode exhaustion).
-                log.warning(
-                    "trailer_state_tmp_cleanup_failed",
-                    tmp_path=tmp_path,
-                    error=str(exc),
-                    error_type=type(exc).__name__,
-                    exc_info=True,
-                )
-            log.error(
-                "trailer_state_save_failed",
-                path=str(self._state_file),
-                error=str(replace_exc),
-                error_type=type(replace_exc).__name__,
-                exc_info=True,
-            )
-            raise
+        atomic_write_json(self._state_file, payload, indent=2)
 
     @staticmethod
     def _serialize(state: TrailerState) -> dict[str, Any]:

@@ -13,6 +13,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
+from personalscraper.nfo_utils import glob_nfo_candidates
 from personalscraper.verify.checker import CheckResult, MediaChecker, Severity
 from personalscraper.verify.fixer import MediaFixer
 
@@ -32,6 +33,8 @@ class VerifyResult:
         errors: Remaining blocking error messages.
         warnings: Non-blocking warning messages.
         fixes_applied: Descriptions of corrections made.
+        checks_passed: Number of checks that passed (set by ``_classify``).
+        checks_total: Total number of checks run (set by ``_classify``).
     """
 
     media_path: Path
@@ -41,6 +44,8 @@ class VerifyResult:
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     fixes_applied: list[str] = field(default_factory=list)
+    checks_passed: int = 0
+    checks_total: int = 0
 
 
 class Verifier:
@@ -231,6 +236,10 @@ class Verifier:
         result.errors = [c.message for c in checks if not c.passed and c.severity == Severity.ERROR]
         result.warnings = [c.message for c in checks if not c.passed and c.severity == Severity.WARNING]
 
+        # Record check counts for structured telemetry (verify_item_done events).
+        result.checks_total = len(checks)
+        result.checks_passed = sum(1 for c in checks if c.passed)
+
         # Determine category via classifier
         cat_check = next((c for c in checks if c.name == "category"), None)
         if cat_check and cat_check.passed:
@@ -261,6 +270,6 @@ class Verifier:
         if media_type == "tvshow":
             nfo = media_dir / "tvshow.nfo"
             return nfo if nfo.exists() else None
-        # Movie: find first .nfo file
-        nfo_files = list(media_dir.glob("*.nfo"))
+        # Movie: find first .nfo file (deterministic sort, AppleDouble-safe)
+        nfo_files = glob_nfo_candidates(media_dir)
         return nfo_files[0] if nfo_files else None

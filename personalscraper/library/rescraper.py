@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from personalscraper.scraper.artwork import ArtworkDownloader
     from personalscraper.scraper.nfo_generator import NFOGenerator
 
+from personalscraper._fs_utils import is_apple_double
 from personalscraper.conf.ids import TV_CATEGORY_IDS
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
@@ -182,7 +183,7 @@ def _find_largest_video(media_dir: Path) -> Path | None:
     largest = None
     largest_size = 0
     for f in media_dir.rglob("*"):
-        if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS and not f.name.startswith("._"):
+        if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS and not is_apple_double(f.name):
             try:
                 size = f.stat().st_size
                 if size > largest_size:
@@ -438,7 +439,7 @@ def _rescrape_episodes(
     video_files = [
         f
         for f in show_dir.rglob("*")
-        if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS and not f.name.startswith("._")
+        if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS and not is_apple_double(f.name)
     ]
 
     # Only create season directories for seasons that actually receive

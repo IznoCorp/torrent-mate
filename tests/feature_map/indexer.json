@@ -176,6 +176,18 @@
       "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
       "expires": "2028-05-08"
+    },
+    {
+      "anchor": "hard-delete-exceptions-sh-4-audit--2026-05-23",
+      "category": "documentation_only",
+      "reason": "Audit justification for hard-delete sites (item_repo.delete + remove_by_id) — design rationale, not a behavior contract.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "state-machine-media_file-lifecycle",
+      "category": "documentation_only",
+      "reason": "State machine diagram for media_file lifecycle — reference documentation, not a standalone automated contract.",
+      "expires": "2028-05-08"
     }
   ]
 }

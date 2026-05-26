@@ -27,7 +27,14 @@ from personalscraper.core.circuit import (
 from personalscraper.dispatch import events as _dispatch_events  # noqa: F401
 from personalscraper.dispatch.events import ItemDispatched
 from personalscraper.indexer import events as _indexer_events  # noqa: F401
-from personalscraper.indexer.events import DiskFullWarning, LibraryScanCompleted
+from personalscraper.indexer.events import (
+    BackfillCompleted,
+    BackfillItemCompleted,
+    BackfillSkipped,
+    BackfillStarted,
+    DiskFullWarning,
+    LibraryScanCompleted,
+)
 from personalscraper.pipeline_events import (
     ItemProgressed,
     PipelineEnded,
@@ -40,6 +47,10 @@ from personalscraper.trailers import events as _trailers_events  # noqa: F401
 from personalscraper.trailers.events import TrailerDownloaded
 
 __all__ = [
+    "BackfillCompleted",
+    "BackfillItemCompleted",
+    "BackfillSkipped",
+    "BackfillStarted",
     "CircuitBreakerClosed",
     "CircuitBreakerHalfOpened",
     "CircuitBreakerOpened",

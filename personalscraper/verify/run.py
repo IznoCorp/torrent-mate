@@ -13,6 +13,7 @@ from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS
 from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.sorter.file_type import FileType
+from personalscraper.verify.events import VerifyItemDone
 from personalscraper.verify.verifier import Verifier, VerifyResult
 
 log = get_logger("verify.run")
@@ -65,8 +66,10 @@ def run_verify(
         fix: If True, attempt automatic corrections.
         movies_only: Process only {movies_dir}/.
         tvshows_only: Process only {tvshows_dir}/.
-        event_bus: Required in-process EventBus. Each per-item
-        lifecycle transition emits an ``ItemProgressed`` event on the bus.
+        event_bus: Required in-process EventBus. Each per-item lifecycle
+            transition emits an ``ItemProgressed`` event and a
+            ``VerifyItemDone`` event on the bus, plus a structured
+            ``verify_item_done`` log line (machine telemetry).
 
     Returns:
         Tuple of (StepReport, dispatchable VerifyResult list).
@@ -98,6 +101,31 @@ def run_verify(
             all_results.extend(verifier.verify_all_tvshows(tvshows_dir))
 
     for r in all_results:
+        # Structured machine-telemetry log — one line per item regardless of
+        # whether the caller subscribed to the EventBus. This is the primary
+        # observability channel for verify (MUST-10 / DEV #6).
+        log.info(
+            "verify_item_done",
+            item=r.media_path.name,
+            status=r.status,
+            errors=list(r.errors),
+            checks_passed=r.checks_passed,
+            checks_total=r.checks_total,
+        )
+        # Domain event on the bus — allows pipeline-monitor and other
+        # subscribers to capture structured verify outcomes (DEV #6 / DEV #40).
+        event_bus.emit(
+            VerifyItemDone(
+                item=r.media_path.name,
+                status=r.status,
+                errors=list(r.errors),
+                checks_passed=r.checks_passed,
+                checks_total=r.checks_total,
+            )
+        )
+        # Legacy ItemProgressed events — kept for backwards compat with
+        # existing pipeline-lifecycle subscribers (StepStarted / StepCompleted
+        # consumers expect started + terminal per item).
         event_bus.emit(ItemProgressed(step="verify", item=r.media_path.name, status="started"))
         if r.status in ("valid", "fixed"):
             event_bus.emit(

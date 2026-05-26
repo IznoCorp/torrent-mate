@@ -134,7 +134,7 @@ class HttpTransport:
 
         try:
             result = _attempt()
-        except Exception as exc:
+        except (ApiError, requests.RequestException) as exc:
             if not self._policy.circuit.count_retries:
                 self._circuit.record_failure(exc)
             raise
@@ -201,7 +201,7 @@ class HttpTransport:
                 provider=self._policy.provider_name,
                 http_status=resp.status_code,
                 provider_code=err.get("status_code", err.get("code", 0)),
-                message=err.get("status_message", err.get("message", resp.reason)),
+                message=err.get("status_message", err.get("message", err.get("Error", resp.reason))),
             )
 
         if self._policy.response_format == "json":

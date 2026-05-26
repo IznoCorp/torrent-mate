@@ -27,12 +27,15 @@ class TestLibraryReconcile:
         assert result.exit_code == 0
         assert "--scope" in result.output
         assert "--enqueue-repairs" in result.output
+        # DEV #10 — --read-only and --dry-run must appear in help output.
+        assert "--read-only" in result.output
+        assert "--dry-run" in result.output
 
     def test_default_invocation(self) -> None:
         """Default invocation runs every detector and exits 0."""
         with patch(
             "personalscraper.indexer.cli.library_reconcile_command",
-            return_value=0,
+            return_value=(0, {"total_findings": 0}),
         ) as mock_cmd:
             result = runner.invoke(app, ["library-reconcile"])
         assert result.exit_code == 0
@@ -45,7 +48,7 @@ class TestLibraryReconcile:
         """--scope flags must aggregate into a list and reach the command."""
         with patch(
             "personalscraper.indexer.cli.library_reconcile_command",
-            return_value=0,
+            return_value=(0, {"total_findings": 0}),
         ) as mock_cmd:
             result = runner.invoke(
                 app,
@@ -59,7 +62,7 @@ class TestLibraryReconcile:
         """--enqueue-repairs forwards True."""
         with patch(
             "personalscraper.indexer.cli.library_reconcile_command",
-            return_value=0,
+            return_value=(0, {"total_findings": 0}),
         ) as mock_cmd:
             result = runner.invoke(app, ["library-reconcile", "--enqueue-repairs"])
         assert result.exit_code == 0
@@ -70,10 +73,60 @@ class TestLibraryReconcile:
         """Underlying command returning non-zero must propagate as Typer exit."""
         with patch(
             "personalscraper.indexer.cli.library_reconcile_command",
-            return_value=3,
+            return_value=(3, {"error": "test failure"}),
         ):
             result = runner.invoke(app, ["library-reconcile"])
         assert result.exit_code == 3
+
+    # DEV #10 — --read-only / --dry-run regression tests.
+
+    def test_read_only_flag_is_default_mode(self) -> None:
+        """--read-only is the default: enqueue_repairs stays False (DEV #10)."""
+        with patch(
+            "personalscraper.indexer.cli.library_reconcile_command",
+            return_value=(0, {"total_findings": 0}),
+        ) as mock_cmd:
+            result = runner.invoke(app, ["library-reconcile", "--read-only"])
+        assert result.exit_code == 0
+        _, kwargs = mock_cmd.call_args
+        # --read-only is the explicit form of the default: no repairs enqueued.
+        assert kwargs["enqueue_repairs"] is False
+
+    def test_dry_run_alias_is_read_only(self) -> None:
+        """--dry-run is an alias for --read-only: enqueue_repairs stays False (DEV #10)."""
+        with patch(
+            "personalscraper.indexer.cli.library_reconcile_command",
+            return_value=(0, {"total_findings": 0}),
+        ) as mock_cmd:
+            result = runner.invoke(app, ["library-reconcile", "--dry-run"])
+        assert result.exit_code == 0
+        _, kwargs = mock_cmd.call_args
+        # --dry-run must not trigger any repair enqueue.
+        assert kwargs["enqueue_repairs"] is False
+
+    def test_enqueue_repairs_mutually_exclusive_with_read_only(self) -> None:
+        """--enqueue-repairs and --read-only together must exit 1 (DEV #10)."""
+        result = runner.invoke(app, ["library-reconcile", "--enqueue-repairs", "--read-only"])
+        assert result.exit_code == 1
+        assert "mutually exclusive" in result.output
+
+    def test_enqueue_repairs_mutually_exclusive_with_dry_run(self) -> None:
+        """--enqueue-repairs and --dry-run together must exit 1 (DEV #10)."""
+        result = runner.invoke(app, ["library-reconcile", "--enqueue-repairs", "--dry-run"])
+        assert result.exit_code == 1
+        assert "mutually exclusive" in result.output
+
+    def test_default_is_read_only_no_writes(self) -> None:
+        """Default invocation (no flags) never enqueues repairs (DEV #10)."""
+        with patch(
+            "personalscraper.indexer.cli.library_reconcile_command",
+            return_value=(0, {"total_findings": 0}),
+        ) as mock_cmd:
+            result = runner.invoke(app, ["library-reconcile"])
+        assert result.exit_code == 0
+        _, kwargs = mock_cmd.call_args
+        # Baseline: the command is read-only by default.
+        assert kwargs["enqueue_repairs"] is False
 
 
 # ── library-ghost-audit ──────────────────────────────────────────────────────
@@ -256,3 +309,32 @@ class TestLibraryRelink:
             result = runner.invoke(app, ["library-relink"])
         assert result.exit_code == 0
         assert "errors=1" in result.output
+
+    def test_explicit_dry_run_flag_recognised(self) -> None:
+        """--dry-run flag is recognised by Typer (help check)."""
+        result = runner.invoke(app, ["library-relink", "--help"])
+        assert result.exit_code == 0
+        assert "--dry-run" in result.output
+
+    def test_explicit_dry_run_is_no_op(self, tmp_path) -> None:
+        """--dry-run is equivalent to the default: rolls back, prints DRY-RUN."""
+        conn = self._build_conn_with_disks(
+            [("drive_a", str(tmp_path))],
+            [(1, "movie.mkv", "drive_a", "Movies/Test")],
+        )
+        with (
+            patch("sqlite3.connect", return_value=conn),
+            patch(
+                "personalscraper.indexer.release_linker.link_file_to_release",
+                return_value={"matched": True},
+            ),
+        ):
+            result = runner.invoke(app, ["library-relink", "--dry-run"])
+        assert result.exit_code == 0
+        assert "DRY-RUN" in result.output
+
+    def test_dry_run_and_apply_mutually_exclusive(self, tmp_path) -> None:
+        """--dry-run and --apply together exit 1 with an error message."""
+        result = runner.invoke(app, ["library-relink", "--dry-run", "--apply"])
+        assert result.exit_code == 1
+        assert "mutually exclusive" in result.output

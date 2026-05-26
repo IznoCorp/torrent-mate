@@ -1,5 +1,14 @@
 # Architectural Consolidation — Design (`arch-cleanup`)
 
+> **⚠ STATUS** : This DESIGN.md is an archived as-designed snapshot. Some claims are
+> superseded by later features. See `docs/reference/architecture.md` for the current source-of-truth.
+>
+> **Old → New mapping** :
+>
+> | Old (DESIGN.md)                                            | New (current)                                             | Replaced by                                                                                                                           |
+> | ---------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+> | `StepReport.details_payload: Any \| None` (DESIGN §2.3(c)) | `dict[str, Any] \| None` (post-feature, code is stricter) | `feat/arch-cleanup` Tier B + later: DEV #47 — runtime check in `models.py` converts dataclass to dict via `_dc.asdict` before storing |
+
 **Status**: Fully implemented (all 8 phases complete). Version bumped to 0.9.0. Merged on branch `refactor/arch-cleanup`.
 **Codename**: `arch-cleanup`
 **Version bump**: 0.8.0 → 0.9.0 (minor)

@@ -8,6 +8,7 @@ bottom-up to handle nested renames correctly.
 from dataclasses import dataclass
 from pathlib import Path
 
+from personalscraper._fs_utils import is_apple_double
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
@@ -116,7 +117,7 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
             results.append(SanitizeResult(path=f, action="deleted_ds_store", old_name=f.name))
             continue
 
-        if f.name.startswith("._"):
+        if is_apple_double(f.name):
             if not dry_run:
                 try:
                     f.unlink()

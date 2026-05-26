@@ -8,9 +8,9 @@
     scan: {
       budget_seconds: 1800,               // hard cap per scan run
       checkpoint_every_n_files: 100,      // crash-resume granularity
-      max_workers_total: 4,               // capped at len(mounted_disks) at runtime
+      max_workers_total: 2,               // capped at len(mounted_disks) at runtime; 2 to bound UBC ingest (audit/12)
       n_strikes_for_softdelete: 3,        // missed scans before deleted_at is set
-      read_rate_mb_per_sec: null,         // null = unlimited; e.g. 80 for spinning rust
+      read_rate_mb_per_sec: 80,           // 80 MB/s cap aligns with USB-3 bus throughput; null = unlimited
       drop_indexes_during_full_scan: true,// faster bulk inserts on cold scan
       paranoia_window_seconds: 86400,     // quick-mode recent outbox recheck window
     },

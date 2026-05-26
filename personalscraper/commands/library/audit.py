@@ -24,24 +24,49 @@ def library_reconcile(
         "--scope",
         help=(
             "Restrict to a detector scope (repeatable). "
-            "Choices: merkle, dispatch_path, enrich, release, season, item. "
+            "Choices: merkle, dispatch_path, enrich, release, season, item, path_missing. "
             "Omit to run every detector."
         ),
+    ),
+    read_only: bool = typer.Option(
+        False,
+        "--read-only",
+        help=(
+            "Explicit read-only mode (default behaviour). "
+            "No divergence is written to repair_queue. "
+            "Mutually exclusive with --enqueue-repairs."
+        ),
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Alias for --read-only. Preview findings without enqueuing repairs.",
     ),
     enqueue_repairs: bool = typer.Option(
         False,
         "--enqueue-repairs",
-        help="Push every divergence into repair_queue for library-repair to drain.",
+        help=(
+            "Opt-in: push every divergence into repair_queue for library-repair to drain. "
+            "Mutually exclusive with --read-only / --dry-run."
+        ),
     ),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
 ) -> None:
     """Detect index ↔ filesystem divergences without a full rescan.
 
-    Runs DB-only checks (one ``Path.exists()`` for the dispatch_path
-    detector — every other detector is pure SQL) and prints a JSON
-    report of findings.  Optionally enqueues each finding into
-    ``repair_queue`` so ``library-repair`` can fix them within a
-    bounded budget.
+    Read-only by default — runs DB-only checks (one ``Path.exists()``
+    for the dispatch_path detector — every other detector is pure SQL)
+    and prints a JSON report of findings.  Optionally enqueues each
+    finding into ``repair_queue`` so ``library-repair`` can fix them
+    within a bounded budget (opt-in via ``--enqueue-repairs``).
+
+    Mode summary:
+
+    - Default (no flags) — read-only: report divergences, no writes.
+    - ``--read-only`` — explicit alias for the default read-only mode.
+    - ``--dry-run`` — alias for ``--read-only`` (same behaviour).
+    - ``--enqueue-repairs`` — opt-in write mode; pushes findings into
+      ``repair_queue``.
 
     Detector scopes:
 
@@ -51,18 +76,34 @@ def library_reconcile(
     - ``release`` — orphan media_release rows + null-release files.
     - ``season`` — denormalised season.episode_count drift.
     - ``item`` — media_item rows with no file evidence.
+    - ``path_missing`` — path rows whose resolved absolute path no longer
+      exists on the filesystem (mounted disks only).
 
     Examples:
         personalscraper library-reconcile
+        personalscraper library-reconcile --read-only
+        personalscraper library-reconcile --dry-run
         personalscraper library-reconcile --scope enrich --scope release
+        personalscraper library-reconcile --scope path_missing
         personalscraper library-reconcile --enqueue-repairs
     """
     from uuid import uuid4  # noqa: PLC0415
 
     from personalscraper import cli as cli_compat  # noqa: PLC0415
     from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
+    from personalscraper.cli_helpers.output import emit  # noqa: PLC0415
     from personalscraper.core.event_bus import EventBus, current_correlation_id  # noqa: PLC0415
     from personalscraper.indexer.cli import library_reconcile_command  # noqa: PLC0415
+
+    # --read-only / --dry-run are mutually exclusive with --enqueue-repairs.
+    # Both flags mean the same thing: stay in the default read-only mode.
+    if enqueue_repairs and (read_only or dry_run):
+        typer.echo("--enqueue-repairs is mutually exclusive with --read-only / --dry-run.", err=True)
+        raise typer.Exit(1)
+
+    # --read-only and --dry-run are aliases for each other; both simply
+    # assert the default mode.  No flag means read-only as well.
+    effective_enqueue = enqueue_repairs
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
 
@@ -79,16 +120,60 @@ def library_reconcile(
 
     token = current_correlation_id.set(str(uuid4()))
     try:
-        rc = library_reconcile_command(
+        rc, payload = library_reconcile_command(
             scopes=scope if scope else None,
-            enqueue_repairs=enqueue_repairs,
+            enqueue_repairs=effective_enqueue,
             config_path=effective_config,
             event_bus=event_bus,
         )
     finally:
         current_correlation_id.reset(token)
+    emit(payload, rich_renderer=lambda: _print_reconcile_rich(payload))
     if rc != 0:
         raise typer.Exit(rc)
+
+
+def _print_reconcile_rich(payload: dict[str, object]) -> None:
+    """Render a reconcile summary via Rich with severity-coloured counts.
+
+    Args:
+        payload: The summary dict returned by :func:`~personalscraper.indexer.cli.library_reconcile_command`.
+    """
+    from typing import cast  # noqa: PLC0415
+
+    from personalscraper.cli_state import state  # noqa: PLC0415
+
+    console = state["console"]
+    if "error" in payload:
+        console.print(f"[red]Error:[/red] {payload['error']}")
+        return
+
+    console.print(f"[bold]total_findings:[/bold] {payload.get('total_findings', 0)}")
+    console.print(f"merkle_drift: {payload.get('merkle_drift', 0)}")
+    console.print(f"dispatch_path_missing_count: {payload.get('dispatch_path_missing_count', 0)}")
+    console.print(f"enrich_stale: {payload.get('enrich_stale', 0)}")
+    console.print(f"release_orphans_count: {payload.get('release_orphans_count', 0)}")
+    console.print(f"files_without_release: {payload.get('files_without_release', 0)}")
+    console.print(f"season_count_drift_count: {payload.get('season_count_drift_count', 0)}")
+    console.print(f"items_without_files_count: {payload.get('items_without_files_count', 0)}")
+    console.print(f"path_missing_count: {payload.get('path_missing_count', 0)}")
+
+    samples: list[tuple[str, str]] = [
+        ("dispatch_path_missing", "dispatch_path_missing_sample"),
+        ("release_orphans", "release_orphans_sample"),
+        ("season_count_drift", "season_count_drift_sample"),
+        ("items_without_files", "items_without_files_sample"),
+        ("path_missing", "path_missing_sample"),
+    ]
+    for label, key in samples:
+        sample = cast("list[str]", payload.get(key, []))
+        if sample:
+            console.print(f"[yellow]{label} (sample {len(sample)}):[/yellow]")
+            for s in sample[:5]:
+                console.print(f"  {s}")
+
+    if payload.get("enqueued_repairs", 0):
+        console.print(f"[bold green]enqueued_repairs:[/bold green] {payload['enqueued_repairs']}")
 
 
 @app.command("library-ghost-audit")
@@ -174,6 +259,15 @@ def library_ghost_audit(
 def library_relink(
     ctx: typer.Context,
     apply: bool = typer.Option(False, "--apply", help="Persist link updates (default: dry-run)"),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help=(
+            "Preview mode (explicit alias for the default behaviour). "
+            "Report what would be linked without writing to the database. "
+            "Mutually exclusive with --apply."
+        ),
+    ),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
 ) -> None:
     """Relink ``media_file`` rows whose ``release_id`` is NULL.
@@ -188,25 +282,35 @@ def library_relink(
     after a release_linker bug left the link behind.
 
     Output is the count of (linked, unmatched, errored) files. Use
-    ``--apply`` to commit; the dry-run mode reports the same numbers
-    without touching the database.
+    ``--apply`` to commit; ``--dry-run`` or the default no-flag mode
+    reports the same numbers without touching the database.
 
     Examples:
         personalscraper library-relink
+        personalscraper library-relink --dry-run
         personalscraper library-relink --apply
     """
     import sqlite3 as _sqlite3  # noqa: PLC0415
     from pathlib import Path as _Path  # noqa: PLC0415
 
+    from personalscraper.indexer.db import _apply_pragmas  # noqa: PLC0415
     from personalscraper.indexer.release_linker import link_file_to_release  # noqa: PLC0415
 
     console = state["console"]
+
+    # --dry-run and --apply are mutually exclusive.
+    if dry_run and apply:
+        console.print("[red]--dry-run and --apply are mutually exclusive.[/red]")
+        raise typer.Exit(1)
+
     cfg = ctx.obj.config
     assert cfg is not None
     db_path = cfg.indexer.db_path
 
-    conn = _sqlite3.connect(str(db_path))
+    conn = _sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+    _apply_pragmas(conn)
     try:
+        conn.execute("BEGIN IMMEDIATE")
         disks = {did: _Path(mp) for did, mp in conn.execute("SELECT id, mount_path FROM disk WHERE is_mounted = 1")}
         if not disks:
             console.print("[yellow]No mounted disks — nothing to relink.[/yellow]")

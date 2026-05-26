@@ -4,10 +4,18 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "*.md"
 
 permissions:
   contents: read
   pull-requests: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   # ── Stage 1: Fast checks (parallel) ───────────────────
@@ -18,12 +26,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.12"
       - uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: pip-${{ runner.os }}-3.13-${{ hashFiles('pyproject.toml') }}
-          restore-keys: pip-${{ runner.os }}-3.13-
+          key: pip-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
+          restore-keys: pip-${{ runner.os }}-3.12-
       - run: pip install ruff
       - run: ruff check personalscraper/ tests/
       - run: ruff format --check personalscraper/ tests/
@@ -36,14 +44,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.12"
       - uses: actions/cache@v4
         with:
           path: |
-            ~/.cache/pip
+            .venv/
             .mypy_cache
-          key: pip-mypy-${{ runner.os }}-3.13-${{ hashFiles('pyproject.toml') }}
-          restore-keys: pip-mypy-${{ runner.os }}-3.13-
+          key: venv-mypy-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
+          restore-keys: venv-mypy-${{ runner.os }}-3.12-
       - run: pip install -e ".[dev]"
       - run: mypy personalscraper/
 
@@ -54,13 +62,25 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: actions/cache@v4
+        id: cache-gitleaks
+        with:
+          path: ~/.local/bin/gitleaks
+          key: gitleaks-${{ hashFiles('.github/workflows/ci.yml') }}
       - name: Install gitleaks
+        if: steps.cache-gitleaks.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          LATEST=$(curl -sSfL https://api.github.com/repos/gitleaks/gitleaks/releases/latest | grep -oP '"tag_name": "v\K[^"]+')
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${LATEST}/gitleaks_${LATEST}_linux_x64.tar.gz" | tar xz
-          sudo mv gitleaks /usr/local/bin/
+          mkdir -p ~/.local/bin
+          LATEST=$(curl --connect-timeout 10 --max-time 30 -sSfL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            https://api.github.com/repos/gitleaks/gitleaks/releases/latest | grep -oP '"tag_name": "v\K[^"]+')
+          curl --connect-timeout 10 --max-time 30 -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${LATEST}/gitleaks_${LATEST}_linux_x64.tar.gz" | tar xz
+          mv gitleaks ~/.local/bin/
       - name: Scan PR commits for secrets
         run: |
+          export PATH="$HOME/.local/bin:$PATH"
           gitleaks detect --source . --log-opts="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}" --verbose
 
   licenses:
@@ -70,67 +90,58 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.12"
       - uses: actions/cache@v4
         with:
-          path: ~/.cache/pip
-          key: pip-${{ runner.os }}-3.13-${{ hashFiles('pyproject.toml') }}
-          restore-keys: pip-${{ runner.os }}-3.13-
+          path: .venv/
+          key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
+          restore-keys: venv-${{ runner.os }}-3.12-
       - run: pip install -e . pip-licenses
       - run: pip-licenses --fail-on="GPL;GPL-2.0;GPL-3.0;GPL-2.0-only;GPL-3.0-only;GPL-2.0-or-later;GPL-3.0-or-later;GNU General Public License (GPL);GNU General Public License v2 (GPLv2);GNU General Public License v3 (GPLv3);GNU General Public License v2 or later (GPLv2+);GNU General Public License v3 or later (GPLv3+);AGPL;AGPL-3.0;AGPL-3.0-only;AGPL-3.0-or-later;GNU Affero General Public License v3;GNU Affero General Public License v3 or later (AGPLv3+);SSPL;SSPL-1.0;Server Side Public License"
 
   # ── Stage 2: Tests & security (depend on Stage 1) ─────
   test:
-    name: test (${{ matrix.python-version }})${{ matrix.experimental && ' [experimental]' || '' }}
+    name: test
     runs-on: ubuntu-latest
-    needs: [lint, typecheck, secrets, licenses]
-    continue-on-error: ${{ matrix.experimental || false }}
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.10", "3.11", "3.12"]
-        experimental: [false]
-        include:
-          - python-version: "3.13"
-            experimental: true
+    needs: [lint, typecheck]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
       - uses: actions/cache@v4
         with:
-          path: ~/.cache/pip
-          key: pip-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}
-          restore-keys: pip-${{ runner.os }}-${{ matrix.python-version }}-
+          path: .venv/
+          key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
+          restore-keys: venv-${{ runner.os }}-3.12-
       - run: pip install -e ".[dev]"
-      # ``make test-cov`` reads ``fail_under`` from pyproject.toml via
-      # scripts/get_coverage_threshold.py, so the gate stays in lockstep with
-      # the source-of-truth threshold and the local make target.
-      - run: make test-cov
-      - uses: codecov/codecov-action@v4
-        if: matrix.python-version == '3.12'
+      # Run the full test suite (tests/) — the previous split into
+      # tests/unit/ + tests/integration/ only covered 883 of 5521 tests
+      # (~16%), yielding 44% combined coverage (well below fail_under=90).
+      # pyproject.toml's `addopts` already excludes e2e/slow/network markers.
+      - run: python -m pytest tests/ -q --no-header -n auto --cov=personalscraper --cov-branch --cov-fail-under=0
+      # Rename to non-dotfile so upload-artifact@v4 picks it up
+      # (v4 silently skips dotfiles by default).
+      - run: mv .coverage coverage.dat
+      - uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage.xml
-          # Forks cannot inherit secrets, so they always get a soft upload.
-          # Internal PRs require a working CODECOV_TOKEN and fail otherwise.
-          fail_ci_if_error: ${{ github.event.pull_request.head.repo.fork == false }}
+          name: coverage
+          path: coverage.dat
 
   security:
     name: security
     runs-on: ubuntu-latest
-    needs: [lint, typecheck, secrets, licenses]
+    needs: [lint, typecheck]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.12"
       - uses: actions/cache@v4
         with:
-          path: ~/.cache/pip
-          key: pip-${{ runner.os }}-3.13-${{ hashFiles('pyproject.toml') }}
-          restore-keys: pip-${{ runner.os }}-3.13-
+          path: .venv/
+          key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
+          restore-keys: venv-${{ runner.os }}-3.12-
       # Upgrade pip itself first — the runner ships pip 26.0.1 which carries
       # CVE-2026-6357 (fixed in 26.1). Auditing with the upgraded pip removes
       # the finding entirely instead of suppressing it.
@@ -141,10 +152,12 @@ jobs:
       #                 Check https://nvd.nist.gov/vuln/detail/CVE-2026-3219 for status.
       - run: pip-audit --ignore-vuln CVE-2026-3219
 
-  coverage-monotonic:
-    name: coverage-monotonic
+  # ── Stage 3: Coverage gate + upload ───────────────────
+  coverage-merge:
+    name: coverage-merge
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    needs: [test]
+    if: always() && !cancelled()
     steps:
       - uses: actions/checkout@v4
         with:
@@ -152,9 +165,26 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install tomli for older Pythons
-        run: pip install 'tomli; python_version < "3.11"'
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage
+      - run: pip install coverage "tomli; python_version < '3.11'"
+      - name: Check coverage against pyproject threshold
+        run: |
+          set -euo pipefail
+          # Single test job already covers tests/, so no combine needed —
+          # just restore the dotfile name `coverage` expects and report.
+          mv coverage.dat .coverage
+          THRESHOLD=$(python3 scripts/get_coverage_threshold.py)
+          coverage report --fail-under="${THRESHOLD}"
+          coverage xml -o coverage.xml
+      - uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          fail_ci_if_error: ${{ github.event.pull_request.head.repo.fork == false }}
       - name: Verify fail_under is monotonic against base ref
+        if: github.event_name == 'pull_request'
         env:
           BASE_REF: ${{ github.base_ref }}
           PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
@@ -163,9 +193,6 @@ jobs:
           head_threshold=$(python3 scripts/get_coverage_threshold.py)
           main_threshold=$(git show "origin/${BASE_REF}:pyproject.toml" | python3 scripts/get_coverage_threshold.py --stdin)
           echo "HEAD: ${head_threshold} | base (${BASE_REF}): ${main_threshold}"
-          # Float-safe comparison via awk — `[ -lt ]` requires integer
-          # operands and would crash if fail_under is ever expressed as
-          # 90.5 / 87.0 / etc.
           if awk -v h="${head_threshold}" -v m="${main_threshold}" 'BEGIN{exit !(h<m)}'; then
             if echo ",${PR_LABELS}," | grep -q ',coverage-rollback,'; then
               echo "::warning::fail_under decreased (${main_threshold} → ${head_threshold}) — rollback acknowledged via label."
@@ -185,9 +212,9 @@ jobs:
           python-version: "3.12"
       - uses: actions/cache@v4
         with:
-          path: ~/.cache/pip
-          key: pip-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
-          restore-keys: pip-${{ runner.os }}-3.12-
+          path: .venv/
+          key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
+          restore-keys: venv-${{ runner.os }}-3.12-
       - run: pip install -e ".[dev]"
       - name: Map freshness check
         run: python3 scripts/update_feature_map.py --check

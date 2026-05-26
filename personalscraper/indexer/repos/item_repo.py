@@ -9,12 +9,37 @@ Only raw ``sqlite3`` is used — no ORM.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 
 from personalscraper.indexer.schema import ItemAttributeRow, MediaItemRow
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.item")
+
+# Regex matching a trailing " (YYYY)" suffix on a title string.
+# Accepts 0+ whitespace before the opening paren so that ``"Movie  (2020)"``,
+# ``"Movie (2020)"``, and ``"Movie(2020)"`` all canonicalise to ``"Movie"``.
+# Used by ``_canonical_title`` to normalise lookup keys.
+_CANONICAL_RE = re.compile(r"\s*\(\d{4}\)$")
+
+
+def _canonical_title(title: str) -> str:
+    """Strip a trailing `` (YYYY)`` suffix from *title* if present.
+
+    Normalises both the stored title (post-migration 007) and the lookup key
+    so that ``_upsert_media_item`` deduplicates by the base title regardless of
+    whether the caller includes a release year in the title string.
+    See migration 007 (``007_media_item_dedup.sql``) and DEV #53 for the
+    dedup rationale.
+
+    Args:
+        title: Raw title, which may or may not end with `` (2020)``.
+
+    Returns:
+        The title without the trailing year suffix.
+    """
+    return _CANONICAL_RE.sub("", title)
 
 
 # ---------------------------------------------------------------------------
@@ -179,6 +204,13 @@ def find_by_tmdb_id(conn: sqlite3.Connection, tmdb_id: int) -> MediaItemRow | No
 def delete(conn: sqlite3.Connection, id: int) -> bool:
     """Hard-delete a media item row (cascades to child tables via ON DELETE CASCADE).
 
+    Hard-delete is intentional here: this function is **test-only** and is used
+    exclusively by test fixtures to clean up rows they inserted.  ``media_item``
+    has no ``deleted_at`` column, so soft-delete is not available at the schema
+    level.  Production callers must never use this function — use
+    :func:`remove_by_id` for dispatch-cache eviction (also a hard-delete, but
+    justified separately; see its docstring).
+
     Args:
         conn: Open SQLite connection.
         id: PK of the media item to delete.
@@ -268,25 +300,31 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
     """Insert or update a :class:`MediaItemRow` keyed by ``(kind, title)``.
 
     Performs a SELECT-then-UPDATE-or-INSERT to handle the dispatch layer's
-    one-row-per-``(kind, title)`` invariant without requiring a UNIQUE
-    constraint on the underlying table.  When a matching row already exists,
-    ``category_id`` and ``date_modified`` are refreshed.  Otherwise a new
-    row is inserted.
+    one-row-per-``(kind, title)`` invariant.  The title is canonicalised via
+    :func:`_canonical_title` before lookup and insert so that callers passing
+    ``"Inception (2010)"`` match an already-stored row with ``title="Inception"``
+    (DEV #53 dedup fix).
+
+    When a matching row already exists, ``category_id`` and ``date_modified``
+    are refreshed.  Otherwise a new row is inserted with the canonicalised title.
 
     Args:
         conn: Open SQLite connection.
-        row: :class:`MediaItemRow` to upsert.  The ``id`` field is ignored.
+        row: :class:`MediaItemRow` to upsert.  The ``id`` field is ignored;
+            ``title`` may carry a trailing `` (YYYY)`` suffix which will be
+            stripped before storage.
 
     Returns:
         The ``rowid`` (= ``id``) of the inserted or updated row.
     """
-    existing = get_by_title_and_kind(conn, row.title, row.kind)
+    canonical = _canonical_title(row.title)
+    existing = get_by_title_and_kind(conn, canonical, row.kind)
     if existing is not None:
         conn.execute(
             "UPDATE media_item SET category_id = ?, date_modified = ? WHERE id = ?",
             (row.category_id, row.date_modified, existing.id),
         )
-        log.info("indexer.item.upsert_update", title=row.title, kind=row.kind, id=existing.id)
+        log.info("indexer.item.upsert_update", title=canonical, kind=row.kind, id=existing.id)
         return existing.id
     cursor = conn.execute(
         """
@@ -300,7 +338,7 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
         """,
         (
             row.kind,
-            row.title,
+            canonical,
             row.title_sort,
             row.original_title,
             row.year,
@@ -318,28 +356,33 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
         ),
     )
     rowid: int = cursor.lastrowid  # type: ignore[assignment]
-    log.info("indexer.item.upsert_insert", title=row.title, kind=row.kind, rowid=rowid)
+    log.info("indexer.item.upsert_insert", title=canonical, kind=row.kind, rowid=rowid)
     return rowid
 
 
 def get_by_title_and_kind(conn: sqlite3.Connection, title: str, kind: str) -> MediaItemRow | None:
     """Fetch a media item row by its ``(title, kind)`` unique pair.
 
+    Canonicalises *title* via :func:`_canonical_title` before querying so
+    that ``"Inception (2010)"`` and ``"Inception"`` resolve to the same row
+    (DEV #53 dedup fix).
+
     Args:
         conn: Open SQLite connection.
-        title: Exact display title as stored in the DB.
+        title: Display title, possibly with a trailing `` (YYYY)`` suffix.
         kind: ``'movie'`` or ``'show'``.
 
     Returns:
         :class:`MediaItemRow` if found, ``None`` otherwise.
     """
+    canonical = _canonical_title(title)
     _set_row_factory(conn)
     row = conn.execute(
         "SELECT id, kind, title, title_sort, original_title, year, category_id, "
         "external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
         "date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang "
         "FROM media_item WHERE title = ? AND kind = ?",
-        (title, kind),
+        (canonical, kind),
     ).fetchone()
     if row is None:
         return None
@@ -484,15 +527,31 @@ def find_items_needing_rescrape(conn: sqlite3.Connection) -> list[tuple[MediaIte
 
 
 def remove_by_id(conn: sqlite3.Connection, item_id: int) -> bool:
-    """Hard-delete a media item by primary key (cascades to item_attribute).
+    """Hard-delete a dispatch-cache media item by primary key.
+
+    Hard-delete is intentional here: callers (``MediaIndex.rebuild`` and
+    ``MediaIndex.remove_stale``) operate on **dispatch-attributed** rows
+    that act as a transient filesystem cache — they store no independently
+    scraped metadata (no seasons, no episodes, no NFO data).  The entire
+    purpose of ``rebuild()`` is a clean-slate re-walk from disk, so stale
+    rows must be fully removed, not tombstoned.  Soft-delete would require:
+
+    1. A schema migration adding ``deleted_at`` to ``media_item``, and
+    2. Filtering ``deleted_at IS NULL`` in every dispatch lookup query.
+
+    Neither is warranted for a cache that is rebuilt from the filesystem on
+    demand.  ON DELETE CASCADE propagates the removal to ``item_attribute``
+    child rows automatically.
 
     Args:
         conn: Open SQLite connection.
-        item_id: Primary key of the media item to delete.
+        item_id: Primary key of the dispatch-attributed media item to remove.
 
     Returns:
         ``True`` if a row was deleted, ``False`` if no row matched.
     """
+    # Hard-delete justified: dispatch cache eviction — rows are ephemeral
+    # filesystem-cache entries rebuilt from disk via MediaIndex.rebuild().
     cursor = conn.execute("DELETE FROM media_item WHERE id = ?", (item_id,))
     deleted = cursor.rowcount > 0
     if deleted:

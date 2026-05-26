@@ -24,7 +24,7 @@ import re
 import sqlite3
 from pathlib import Path
 
-from personalscraper.indexer.repos.item_repo import _ATTR_DISPATCH_PATH
+from personalscraper.indexer.repos.item_repo import _ATTR_DISPATCH_PATH, _canonical_title
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.release_linker")
@@ -105,8 +105,10 @@ def find_item_for_path(conn: sqlite3.Connection, abs_dir: str) -> tuple[int, str
     1. ``item_attribute.dispatch_path`` exact match — fastest and
        primary; works for items registered via dispatch.
     2. ``media_item.title`` exact match against the folder name —
-       catches items where dispatch indexed the folder as the title
-       (e.g. ``"Inception (2010)"``).
+       catches items where dispatch indexed the folder as the title.
+       Post-migration 007 the lookup uses ``_canonical_title()`` so
+       on-disk ``"Inception (2010)"`` matches stored ``"Inception"``
+       (year suffix stripped).
     3. ``media_item.(title, year)`` match after parsing ``Title (Year)``
        from the folder name — catches items registered via the
        library scanner (``parse_title_year`` strips the year suffix).
@@ -152,9 +154,14 @@ def find_item_for_path(conn: sqlite3.Connection, abs_dir: str) -> tuple[int, str
         # title with different casing (``Les Griffes de la Nuit`` vs
         # ``Les Griffes de la nuit``) without us renaming the on-disk
         # folder. Without NOCASE the linker leaves every file orphan.
+        #
+        # After migration 007 stored titles are canonicalised (no year
+        # suffix), so "Inception (2010)" on disk won't match stored
+        # "Inception".  Canonicalise before lookup.
+        canonical = _canonical_title(current.name)
         row = conn.execute(
             "SELECT id, kind FROM media_item WHERE title = ? COLLATE NOCASE LIMIT 1",
-            (current.name,),
+            (canonical,),
         ).fetchone()
         if row is not None:
             return int(row[0]), str(row[1]), season_num

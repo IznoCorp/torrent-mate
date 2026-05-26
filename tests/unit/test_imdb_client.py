@@ -186,6 +186,38 @@ def test_imdb_client_get_rating_wraps_backend_error_as_unavailable() -> None:
     assert exc_info.value.feature == "get_rating"
 
 
+def test_imdb_client_get_rating_propagates_omdb_quota_exhausted() -> None:
+    """``OmdbQuotaExhausted`` from the backend bypasses ``ApiError`` wrapping.
+
+    The typed subclass must reach the caller un-wrapped so retry-with-
+    discrimination loops (backfill_ids, scraper) can stop the rating
+    pass instead of treating quota-gone as a generic transport failure.
+    """
+    from personalscraper.api.metadata.omdb import OmdbQuotaExhausted  # noqa: PLC0415
+
+    backend = MagicMock()
+    backend.get_notations.side_effect = OmdbQuotaExhausted(pre_call=True)
+    client = IMDbClient(backend=backend)
+
+    with pytest.raises(OmdbQuotaExhausted) as exc_info:
+        client.get_rating("tt0468569")
+    assert exc_info.value.pre_call is True
+    # Not wrapped — distinct type from ProviderFeatureUnavailable.
+    assert not isinstance(exc_info.value, ProviderFeatureUnavailable)
+
+
+def test_imdb_client_validate_id_propagates_omdb_quota_exhausted() -> None:
+    """``validate_id`` propagates the typed quota exception (not False)."""
+    from personalscraper.api.metadata.omdb import OmdbQuotaExhausted  # noqa: PLC0415
+
+    backend = MagicMock()
+    backend.get_details.side_effect = OmdbQuotaExhausted()
+    client = IMDbClient(backend=backend)
+
+    with pytest.raises(OmdbQuotaExhausted):
+        client.validate_id("tt0468569", "Some Title", 2020)
+
+
 # ---------------------------------------------------------------------------
 # get_cross_refs
 # ---------------------------------------------------------------------------

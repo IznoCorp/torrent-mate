@@ -24,6 +24,14 @@ def library_verify(
         "--budget",
         help="Wall-clock budget in seconds; partial verifies are safe to resume.",
     ),
+    no_enqueue: bool = typer.Option(
+        False,
+        "--no-enqueue",
+        help=(
+            "Read-only mode: walk and compare files but do NOT write to repair_queue. "
+            "Useful for a dry audit where writing repair rows is undesirable."
+        ),
+    ),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
 ) -> None:
     """Re-stat every indexed file and mark mismatches for repair.
@@ -38,10 +46,14 @@ def library_verify(
     file commits ``last_verified_at`` individually so partial progress is
     preserved across runs).
 
+    With ``--no-enqueue`` the scan reports mismatches but does not insert any
+    rows into the repair queue (read-only audit mode).
+
     Examples:
         personalscraper library-verify
         personalscraper library-verify --disk Disk2
         personalscraper library-verify --budget 300
+        personalscraper library-verify --no-enqueue
     """
     from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
     from personalscraper.indexer.cli import library_verify_command  # noqa: PLC0415
@@ -54,6 +66,7 @@ def library_verify(
             rc = library_verify_command(
                 disk=disk,
                 budget_seconds=float(budget) if budget is not None else None,
+                no_enqueue=no_enqueue,
                 config_path=effective_config,
                 event_bus=app_context.event_bus,
             )
@@ -64,6 +77,7 @@ def library_verify(
         rc = library_verify_command(
             disk=disk,
             budget_seconds=float(budget) if budget is not None else None,
+            no_enqueue=no_enqueue,
             config_path=effective_config,
             event_bus=EventBus(),
         )
@@ -76,6 +90,14 @@ def library_verify(
 def library_repair(
     ctx: typer.Context,
     budget: int = typer.Option(60, "--budget", help="Maximum seconds to spend draining the repair queue"),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help=(
+            "Preview mode: show how many repair_queue rows would be processed "
+            "without actually draining them.  No DB writes occur."
+        ),
+    ),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
 ) -> None:
     """Drain the repair queue within a time budget.
@@ -83,9 +105,13 @@ def library_repair(
     Processes pending repair rows in FIFO order.  Stops cleanly when the budget
     is exhausted.  Prints a JSON summary of processed / succeeded / failed counts.
 
+    With ``--dry-run`` the command inspects the queue depth and reports what
+    would be drained without modifying any rows (no-op on the database).
+
     Examples:
         personalscraper library-repair
         personalscraper library-repair --budget 120
+        personalscraper library-repair --dry-run
     """
     from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
     from personalscraper.indexer.cli import library_repair_command  # noqa: PLC0415
@@ -97,6 +123,7 @@ def library_repair(
         with per_step_boundary(loaded_config, settings) as app_context:
             rc = library_repair_command(
                 budget_seconds=float(budget),
+                dry_run=dry_run,
                 config_path=effective_config,
                 event_bus=app_context.event_bus,
             )
@@ -105,6 +132,7 @@ def library_repair(
         # keeps the required-bus contract local to this CLI entry point.
         rc = library_repair_command(
             budget_seconds=float(budget),
+            dry_run=dry_run,
             config_path=effective_config,
             event_bus=EventBus(),
         )
@@ -117,6 +145,15 @@ def library_repair(
 def library_clean(
     ctx: typer.Context,
     apply: bool = typer.Option(False, "--apply", help="Actually delete (default: dry-run)"),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help=(
+            "Preview mode (explicit alias for the default behaviour). "
+            "Show what would be deleted without deleting. "
+            "Mutually exclusive with --apply."
+        ),
+    ),
     only: str = typer.Option(
         None,
         "--only",
@@ -128,8 +165,10 @@ def library_clean(
     """Remove .actors/, empty dirs, junk files from storage disks.
 
     Dry-run by default — shows what would be deleted without deleting.
-    Use --apply to actually execute deletions.
-    Use --only to target specific cleanup types.
+    Use ``--apply`` to actually execute deletions.
+    Use ``--dry-run`` to make the read-only intent explicit (equivalent to
+    the default when ``--apply`` is not given).
+    Use ``--only`` to target specific cleanup types.
 
     The ``orphans`` mode targets stale release directories that no longer
     contain a main video file — typically ``.actors/`` + trailer + NFO + artwork
@@ -139,6 +178,7 @@ def library_clean(
 
     Examples:
         personalscraper library-clean
+        personalscraper library-clean --dry-run
         personalscraper library-clean --apply
         personalscraper library-clean --apply --only actors
         personalscraper library-clean --only orphans                # dry-run
@@ -150,6 +190,12 @@ def library_clean(
     category_id = _resolve_category(ctx, category)
     console = state["console"]
     config = ctx.obj.config
+
+    # --dry-run and --apply are mutually exclusive: dry-run wins if both given
+    # (belt-and-suspenders guard — Typer does not enforce XOR automatically).
+    if dry_run and apply:
+        console.print("[red]--dry-run and --apply are mutually exclusive.[/red]")
+        raise typer.Exit(1)
 
     # Validate --only parameter
     valid_only = {"actors", "empty", "junk", "release", "orphans"}

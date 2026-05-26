@@ -26,7 +26,7 @@ from personalscraper.core.event_bus import EventBus, current_correlation_id
 
 runner = CliRunner()
 
-_ALL_COMMANDS = ("scan", "download", "verify", "purge")
+_ALL_COMMANDS = ("scan", "download", "audit", "purge")
 
 
 @pytest.fixture(autouse=True)

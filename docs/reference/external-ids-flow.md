@@ -105,3 +105,84 @@ canonical family or already-populated values. Emits
 - `docs/reference/scraping.md` — TMDB / TVDB / OMDb invariants.
 - `docs/reference/event-bus.md` — event catalog including the four
   `Backfill*` events.
+
+---
+
+## Runbook: library-backfill-ids
+
+The `library-backfill-ids` command fills missing cross-provider IDs (TMDB ↔
+TVDB ↔ IMDB ↔ TheTVDB-legacy) and multi-source ratings on items that have
+at least one resolvable starting ID. It is idempotent and resumable.
+
+### When to run
+
+- **First-time bootstrap (Plan A)** : after `library-init-canonical` has populated
+  `canonical_provider`, run `library-backfill-ids` to enrich every item with the
+  IDs from the OTHER providers (TVDB items get TMDB + IMDB IDs; TMDB items get
+  TVDB + IMDB IDs).
+- **After a fresh `library-scan`** : new NFOs may carry IDs not present in the
+  BDD. Re-running closes the gap.
+- **After a provider outage** : items that errored during a previous run are
+  retried (TMDB / TVDB 5xx + 429 are transient).
+- **Recommended cadence** : weekly, off-peak. Each run consumes ~1 API call
+  per item per provider.
+
+### How to verify the result
+
+After a run:
+
+```bash
+# Count items still missing a canonical provider (target: 0)
+sqlite3 .data/library.db "SELECT COUNT(*) FROM media_item WHERE canonical_provider IS NULL;"
+
+# Count items with at least 2 provider IDs (TMDB + TVDB cross-fill working)
+sqlite3 .data/library.db \
+  "SELECT COUNT(*) FROM media_item WHERE json_array_length(external_ids_json) >= 2;"
+
+# library-doctor includes a canonical coverage check
+personalscraper library-doctor | grep canonical_provider_coverage
+```
+
+A `library-doctor` run after backfill should show `canonical_provider_coverage`
+status = OK (>= 50% by default, configurable via `--canonical-threshold-pct`).
+
+### API quota / backoff
+
+- **TMDB** : 40 req/s default cap, the transport rate-limiter spaces calls.
+- **TVDB** : 100 req/s soft cap; transport throttle keeps us at 30/s sustained.
+- **OMDB** : 1000 req/day on the free tier; the backfill skips OMDB once the
+  daily quota is exhausted (logged, not fatal).
+- **Trakt** : optional, only if `config/trakt.json5` is present. Used for
+  ratings cross-check.
+
+The HttpTransport (`personalscraper/transports/http_transport.py`) applies
+exponential backoff (factor 2, max 60s) on 429 + 5xx and retries up to 5 times
+before surfacing the error.
+
+### Scheduling
+
+A launchd entry example for weekly off-peak runs:
+
+```xml
+<plist version="1.0">
+  <dict>
+    <key>Label</key><string>com.personalscraper.backfill-ids</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>/usr/local/bin/personalscraper</string>
+      <string>library-backfill-ids</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+      <key>Weekday</key><integer>3</integer> <!-- Wednesday -->
+      <key>Hour</key><integer>3</integer>
+      <key>Minute</key><integer>15</integer>
+    </dict>
+    <key>StandardOutPath</key><string>/var/log/personalscraper-backfill.log</string>
+    <key>StandardErrorPath</key><string>/var/log/personalscraper-backfill.err</string>
+  </dict>
+</plist>
+```
+
+Save as `~/Library/LaunchAgents/com.personalscraper.backfill-ids.plist` and
+`launchctl load` it.

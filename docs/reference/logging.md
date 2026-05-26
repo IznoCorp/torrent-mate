@@ -70,16 +70,16 @@ typer.echo("Processing…")
 
 ## Migration recipes
 
-| Pattern (legacy)                                         | Replacement                                                                                                                  |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `logger = logging.getLogger(__name__)`                   | `log = get_logger("<short-tag>")`                                                                                            |
-| `logger.info("moved %s to %s", src, dst)`                | `log.info("moved", source=src, dest=dst)`                                                                                    |
-| `logger.warning("disk low: %s GB free", free)`           | `log.warning("disk_usage_failed", free_gb=free)`                                                                             |
-| `logger.exception("fail")`                               | `log.exception("event_name", **context)` — `exc_info` implicit, never pass it                                                |
-| `logger.error(f"Dispatch failed for {title}")`           | `log.error("replace_swap_failed", title=title)`                                                                              |
-| `print(...)` in CLI commands                             | `state["console"].print(...)`                                                                                                |
-| `print(...)` next to `input(...)`                        | `typer.echo(...)`                                                                                                            |
-| `before_sleep=before_sleep_log(logger, logging.WARNING)` | `build_retry_logger(log, "event_name")` from `personalscraper.scraper.http_retry` (see `scraper/tmdb_client.py` as template) |
+| Pattern (legacy)                                         | Replacement                                                                                                                               |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `logger = logging.getLogger(__name__)`                   | `log = get_logger("<short-tag>")`                                                                                                         |
+| `logger.info("moved %s to %s", src, dst)`                | `log.info("moved", source=src, dest=dst)`                                                                                                 |
+| `logger.warning("disk low: %s GB free", free)`           | `log.warning("disk_usage_failed", free_gb=free)`                                                                                          |
+| `logger.exception("fail")`                               | `log.exception("event_name", **context)` — `exc_info` implicit, never pass it                                                             |
+| `logger.error(f"Dispatch failed for {title}")`           | `log.error("replace_swap_failed", title=title)`                                                                                           |
+| `print(...)` in CLI commands                             | `state["console"].print(...)`                                                                                                             |
+| `print(...)` next to `input(...)`                        | `typer.echo(...)`                                                                                                                         |
+| `before_sleep=before_sleep_log(logger, logging.WARNING)` | `build_retry_logger(log, "event_name")` from `personalscraper.core.http_helpers` (see `personalscraper/api/metadata/tmdb.py` as template) |
 
 ## exc_info rules
 
@@ -136,7 +136,7 @@ Wrong:
 exc_info=True   # sys.exc_info() is empty outside an active except — no traceback will render
 ```
 
-See `personalscraper/scraper/http_retry.py` (`build_retry_logger`) for the canonical implementation.
+See `personalscraper/core/http_helpers.py` (`build_retry_logger`) for the canonical implementation.
 
 ## Enforcement
 
@@ -182,8 +182,116 @@ Reference templates: `personalscraper/notifier.py:73`, `personalscraper/scraper/
 **Scope**: this is mandatory for **new code** added during review. A sweep of the 20+ pre-existing
 broad-except sites is out of scope per DESIGN §2 (only new/touched code is in scope).
 
+## Observability frontier
+
+### User-facing vs machine telemetry
+
+The pipeline has two distinct output audiences with different contracts:
+
+| Audience           | Channel        | API                        | Reaches                       |
+| ------------------ | -------------- | -------------------------- | ----------------------------- |
+| **Human operator** | CLI UI (Rich)  | `state["console"].print()` | TTY only                      |
+| **Machine / ops**  | Structured log | `log.info("event", **kw)`  | JSON log file + TTY (colored) |
+
+**Rule**: every pipeline command that emits a Rich summary (e.g. `[bold]Verify:[/bold] 3
+valid, 1 blocked`) MUST also emit a corresponding structlog event at the same call site.
+Rich-only summaries are invisible to log aggregation and to the pipeline-monitor host
+process. The parity test in `tests/integration/test_console_log_parity.py` enforces this
+contract automatically.
+
+**Correct pattern** (dual emission):
+
+```python
+console.print(f"[bold]Verify:[/bold] {valid} valid, {blocked} blocked")
+log.info("verify_summary", valid=valid, blocked=blocked)
+```
+
+**Wrong** (silent to machine):
+
+```python
+console.print(f"[bold]Verify:[/bold] {valid} valid, {blocked} blocked")
+# no structlog call — ops blind
+```
+
+### Domain event names: `<step>_<action>_<state>`
+
+Domain events (emitted inside pipeline steps — not CLI layer) follow the three-segment
+template:
+
+```
+<step>_<action>_<state>
+```
+
+| Segment    | Meaning                                | Examples                                          |
+| ---------- | -------------------------------------- | ------------------------------------------------- |
+| `<step>`   | pipeline step or subsystem             | `verify`, `dispatch`, `scrape`, `ingest`          |
+| `<action>` | what happened at the item/object level | `item`, `file`, `disk`, `nfo`                     |
+| `<state>`  | outcome or lifecycle position          | `done`, `failed`, `skipped`, `started`, `missing` |
+
+Canonical examples shipped in 0.16.0:
+
+| Event name           | Emitted by                        | Meaning                               |
+| -------------------- | --------------------------------- | ------------------------------------- |
+| `verify_item_done`   | `personalscraper/verify/run.py`   | one item checked (valid or blocked)   |
+| `dispatch_move_done` | `personalscraper/dispatch/run.py` | one item moved to permanent storage   |
+| `scrape_nfo_done`    | `personalscraper/scraper/`        | NFO generation completed for one item |
+
+Abbreviated or legacy names (e.g. `moved`, `rsync_start`) are tolerated in pre-existing
+code but new events MUST follow the three-segment template.
+
+### Standard keyword arguments for domain events
+
+The following keyword names are reserved and MUST carry consistent semantics wherever
+they appear across all domain events:
+
+| Keyword         | Type        | Meaning                                                            |
+| --------------- | ----------- | ------------------------------------------------------------------ |
+| `item`          | `str`       | Human-readable item name (folder name or title)                    |
+| `item_id`       | `int`       | Database primary key of the item                                   |
+| `disk_id`       | `str`       | Disk identifier as defined in `config/storage.json5`               |
+| `status`        | `str`       | Outcome of the action — `"valid"`, `"blocked"`, `"ok"`, `"failed"` |
+| `errors`        | `list[str]` | Validation errors or failure reasons (empty list = success)        |
+| `checks_passed` | `int`       | Number of checks that passed (verify context)                      |
+| `checks_total`  | `int`       | Total checks attempted (verify context)                            |
+| `path`          | `str`       | Filesystem path (always `str(path)`, never a `Path` object)        |
+| `error`         | `str`       | Exception message — `str(exc)` (always alongside `exc_info`)       |
+| `exit_code`     | `int`       | Process / command exit code (CLI telemetry context)                |
+
+Do not reuse these names with different semantics. Do not use positional string
+formatting to embed these values in the event name itself.
+
+### CLI telemetry decorator (`cli_telemetry`)
+
+Every Typer command function MUST be wrapped with `@cli_telemetry("<cmd-name>")` from
+`personalscraper.cli_telemetry`. The decorator emits three events per invocation:
+
+| Event                     | When         | Extra kwargs                             |
+| ------------------------- | ------------ | ---------------------------------------- |
+| `cli.invoke.<cmd-name>`   | on entry     | all command kwargs (ctx excluded)        |
+| `cli.complete.<cmd-name>` | clean return | `exit_code=<int>`                        |
+| `cli.failed.<cmd-name>`   | on exception | `error=<str>`, `error_type=<class name>` |
+
+The decorator is placed **between** `@app.command()` and `@handle_cli_errors` so that
+`cli.failed` fires before the error formatter swallows the exception:
+
+```python
+@app.command()
+@cli_telemetry("verify")          # fires cli.invoke / cli.complete / cli.failed
+@handle_cli_errors                # formats and swallows exceptions for the user
+def verify(ctx: typer.Context, dry_run: bool = False) -> None:
+    ...
+```
+
+The event key uses dot notation (`cli.invoke.verify`) so that log aggregation tools can
+filter all CLI-layer events with a single prefix query (`cli.*`). This namespace is
+distinct from domain events (`verify_item_done`) — do not conflate the two.
+
+Source: `personalscraper/cli_telemetry.py`.
+
 ## Pointers
 
 - `personalscraper/logger.py` — structlog factory, `configure_logging()`, `get_logger()`.
+- `personalscraper/cli_telemetry.py` — `cli_telemetry` decorator for CLI-layer events.
 - `scripts/check_logging.py` — AST walker enforcing the convention above.
+- `tests/integration/test_console_log_parity.py` — parity test enforcing dual emission.
 - `docs/archive/features/logging/DESIGN.md` — original design document (archived).

@@ -1,11 +1,17 @@
-"""Tests for api/torrent/_factory.py."""
+"""Tests for api/torrent/_factory.py.
+
+Regression test for DEV #38: factory return type narrowed from the monolithic
+``TorrentClientFull`` composite Protocol to the union of concrete implementations
+(``QBitClient | TransmissionClient``). Each mock now uses the atomic capability
+Protocol that the tested scenario exercises, rather than the composite.
+"""
 
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from personalscraper.api._contracts import ApiError
-from personalscraper.api.torrent._contracts import TorrentClientFull as TorrentClient
+from personalscraper.api.torrent._contracts import TorrentLister, TorrentStateInspector
 from personalscraper.api.torrent._factory import build_active_torrent_client
 from personalscraper.conf.models.api_config import TorrentClientEntry, TorrentConfig
 
@@ -60,13 +66,19 @@ class TestBuildActiveTorrentClient:
             build_active_torrent_client(cfg, env=_make_env())
 
     def test_transmission_returns_client(self) -> None:
-        """cfg.active="transmission" + creds → returns TorrentClient instance."""
+        """cfg.active="transmission" + creds → returns a TorrentLister instance.
+
+        The mock uses TorrentLister as spec — the narrowest capability
+        the factory guarantees for all implementations (DEV #38).
+        """
         cfg = TorrentConfig(
             active="transmission",
             clients={"transmission": TorrentClientEntry(enabled=True)},
         )
         env = {"TRANSMISSION_USERNAME": "u", "TRANSMISSION_PASSWORD": "p"}
-        mock_client = MagicMock(spec=TorrentClient)
+        # Spec narrowed to TorrentLister: shared read capability present on
+        # both TransmissionClient and QBitClient (DEV #38 migration).
+        mock_client = MagicMock(spec=TorrentLister)
         mock_mod = MagicMock()
         mock_mod.build_client.return_value = mock_client
 
@@ -75,9 +87,15 @@ class TestBuildActiveTorrentClient:
         assert result is mock_client
 
     def test_qbittorrent_returns_client(self) -> None:
-        """cfg.active="qbittorrent" + creds → returns TorrentClient instance."""
+        """cfg.active="qbittorrent" + creds → returns a TorrentLister instance.
+
+        The mock uses TorrentLister as spec — the narrowest shared capability
+        guaranteed by the factory union return type (DEV #38 migration).
+        """
         cfg = _make_cfg()
-        mock_client = MagicMock(spec=TorrentClient)
+        # Spec narrowed to TorrentLister (shared read capability) instead
+        # of the monolithic TorrentClientFull (DEV #38 migration).
+        mock_client = MagicMock(spec=TorrentLister)
         mock_mod = MagicMock()
         mock_mod.build_client.return_value = mock_client
 
@@ -86,3 +104,19 @@ class TestBuildActiveTorrentClient:
 
         assert result is mock_client
         mock_mod.build_client.assert_called_once()
+
+    def test_factory_return_satisfies_torrent_lister(self) -> None:
+        """Factory mock result satisfies TorrentLister — narrowest shared capability.
+
+        Regression: before DEV #38, tests asserted isinstance(result, TorrentClientFull).
+        Post-migration the factory returns QBitClient | TransmissionClient; both
+        implement TorrentLister so isinstance(result, TorrentLister) is the correct
+        structural assertion for the shared read surface.
+        """
+        from personalscraper.api.torrent.qbittorrent import QBitClient
+
+        # QBitClient is a concrete class, so isinstance works at runtime
+        # via @runtime_checkable TorrentLister.
+        # We verify the protocol has not regressed by checking the concrete class.
+        assert issubclass(QBitClient, TorrentLister)
+        assert issubclass(QBitClient, TorrentStateInspector)

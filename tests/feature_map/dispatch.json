@@ -97,6 +97,30 @@
       "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
       "expires": "2028-05-08"
+    },
+    {
+      "anchor": "diagnostic-commands",
+      "category": "documentation_only",
+      "reason": "Ops reference (vm_stat, mount, kextstat diagnostic commands) — operator-facing prose, no behavior to test.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "releasing-cache",
+      "category": "documentation_only",
+      "reason": "Ops reference (sudo purge, kern.maxvnodes tuning) — operator runbook, no behavior to test.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "scan-time-tuning",
+      "category": "documentation_only",
+      "reason": "Config reference table (max_workers_total, read_rate_mb_per_sec) — configuration surface rather than a behavior contract.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "ubc-pressure-during-scans",
+      "category": "documentation_only",
+      "reason": "Operator advisory about UBC pressure during scans — prose reference, no behavior to test.",
+      "expires": "2028-05-08"
     }
   ]
 }

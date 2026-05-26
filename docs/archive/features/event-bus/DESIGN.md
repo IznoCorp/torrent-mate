@@ -1,5 +1,15 @@
 # Event Bus — Design
 
+> **⚠ STATUS** : This DESIGN.md is an archived as-designed snapshot. Some claims are
+> superseded by later features. See `docs/reference/event-bus.md` for the current source-of-truth.
+>
+> **Old → New mapping** :
+>
+> | Old (DESIGN.md)                    | New (current)                                                                                 | Replaced by                                                                                    |
+> | ---------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+> | v1 catalog 13 events               | v1.1 catalog 17 events (+4 `Backfill*`)                                                       | `feat/provider-ids` → 0.15.0; re-export in `events/__init__.py` via tech-debt 8.13 (`fb96adb`) |
+> | `core/event_bus.py` budget 400 LOC | actual current near budget (split deferred to 0.17+, tracked in `docs/reference/promises.md`) | tech-debt 8.13 — budget split deferred to 0.17+                                                |
+
 **Feature**: Event Bus
 **Codename**: event-bus
 **Type**: minor (SemVer Y+1)
