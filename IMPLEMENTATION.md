@@ -151,15 +151,17 @@ _(rempli par implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-**Phases 0-13 complete (2026-05-25). Phase 14 in progress (2026-05-26).**
-
-Phase 14 sub-phases shipped so far: 14.1 (`0514c76` block canonical_provider regression at insertion source + `8f3b441` aggressive repair for movies inverted to tvdb); 14.4 (`b6c476f` CASCADE media_file on release delete + `c5dcb75` apply cascade migration + purge 102 unrecoverable orphans).
-
-Remaining: 14.2-14.3, 14.5-14.11 (see `docs/features/tech-debt/plan/phase-14-pipeline-monitor-reopen.md`).
-
-After Phase 14 gate: run `/implement:feature-pr` to local gate, push, create PR, poll CI; then `/implement:pr-review` for review cycles + squash merge.
+**All 14 phases complete (2026-05-26).** Run `/implement:feature-pr` to: local gate
+(`make check` green at HEAD — 5515 passed, 0 failed), push branch, create/update PR,
+poll CI to green; then `/implement:pr-review` for review cycles + squash merge.
 
 Post-merge: re-run `/pipeline-monitor` to confirm all deviations TRAITÉ or DESIGN_CONFORM.
+
+**Post-merge manual action**: GitHub Settings → Branches → branch protection rule on
+`main` → update required status checks to new `test` name (drop old matrix entries
+`test (3.10)` / `test (3.11)` / `test (3.12)` / `test (3.13) [experimental]`).
+
+14.6 (disk residue cleanup — 1730 `.actors/` dirs) deferred to dedicated ops session.
 
 All 5 phase-12 follow-up items resolved in `12.10`–`12.14` + `12.12.fix`:
 
