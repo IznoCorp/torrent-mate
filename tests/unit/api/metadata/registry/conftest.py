@@ -562,6 +562,11 @@ def build_registry(monkeypatch: pytest.MonkeyPatch) -> Any:
         settings: object | None = None,
         cb_policy: object | None = None,
     ) -> Any:
+        # Default to MockEventBus per project architectural contract
+        # (event-bus 0.14.0). Callers can pass a FailingEventBus to
+        # test bus-failure behavior without propagation.
+        if event_bus is None:
+            event_bus = MockEventBus()
         from personalscraper.api.metadata.registry import ProviderRegistry
 
         # Patch build_providers to return fakes verbatim.

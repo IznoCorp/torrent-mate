@@ -157,7 +157,7 @@ class ProviderRegistry:
         self,
         *,
         settings: Settings,
-        event_bus: EventBus | None,           # None permitted for unit tests
+        event_bus: EventBus,
         cb_policy: CircuitPolicy,
         providers_config: ProvidersConfig,
     ) -> None:
@@ -808,8 +808,9 @@ from the underlying `HttpTransport`; the registry does not re-emit them.
 
 **EventBus failure mode**: all emissions go through `_event_bus_safe_emit` which
 catches any exception from `bus.emit()` and logs `registry_event_emit_failed` at
-WARNING. A broken bus never crashes the registry. When `event_bus=None` (test
-context), `_event_bus_safe_emit` is a no-op.
+WARNING. A broken bus never crashes the registry. The bus is always a real
+EventBus per the project architectural contract (event-bus 0.14.0); tests pass a
+MockEventBus or FailingEventBus rather than None.
 
 ### 7.5 Logging conventions
 

@@ -62,13 +62,12 @@ def resolve_provider_class(name: str) -> type:
 def _build_tmdb(
     settings: Settings,
     cb_policy: CircuitPolicy,
-    event_bus: EventBus | None,
+    event_bus: EventBus,
     **_kwargs: Any,
 ) -> object:
     from personalscraper.api.metadata.tmdb import TMDBClient
     from personalscraper.api.transport._http import HttpTransport
 
-    assert event_bus is not None  # required by HttpTransport at runtime
     tmdb_policy = TMDBClient.policy(settings.tmdb_api_key, circuit=cb_policy)
     tmdb_transport = HttpTransport(tmdb_policy, event_bus=event_bus)
     return TMDBClient(tmdb_transport, language="fr-FR")
@@ -77,12 +76,11 @@ def _build_tmdb(
 def _build_tvdb(
     settings: Settings,
     cb_policy: CircuitPolicy,
-    event_bus: EventBus | None,
+    event_bus: EventBus,
     **_kwargs: Any,
 ) -> object:
     from personalscraper.api.metadata.tvdb import TVDBClient
 
-    assert event_bus is not None  # required by TVDBClient at runtime
     return TVDBClient(
         settings.tvdb_api_key,
         language="fr-FR",
@@ -94,13 +92,12 @@ def _build_tvdb(
 def _build_omdb(
     settings: Settings,
     cb_policy: CircuitPolicy,
-    event_bus: EventBus | None,
+    event_bus: EventBus,
     **_kwargs: Any,
 ) -> object:
     from personalscraper.api.metadata.omdb import OMDbAdapter
     from personalscraper.api.transport._http import HttpTransport
 
-    assert event_bus is not None  # required by HttpTransport at runtime
     key = os.environ.get("OMDB_API_KEY", "")
     policy = OMDbAdapter.policy(key)
     transport = HttpTransport(policy, event_bus=event_bus)
@@ -110,7 +107,7 @@ def _build_omdb(
 def _build_imdb(
     settings: Settings,
     cb_policy: CircuitPolicy,
-    event_bus: EventBus | None,
+    event_bus: EventBus,
     *,
     _cache: dict[str, object] | None = None,
     **_kwargs: Any,
@@ -130,7 +127,7 @@ def _build_imdb(
 def _build_rotten_tomatoes(
     settings: Settings,
     cb_policy: CircuitPolicy,
-    event_bus: EventBus | None,
+    event_bus: EventBus,
     *,
     _cache: dict[str, object] | None = None,
     **_kwargs: Any,
@@ -150,13 +147,12 @@ def _build_rotten_tomatoes(
 def _build_trakt(
     settings: Settings,
     cb_policy: CircuitPolicy,
-    event_bus: EventBus | None,
+    event_bus: EventBus,
     **_kwargs: Any,
 ) -> object:
     from personalscraper.api.metadata.trakt import TraktClient
     from personalscraper.api.transport._http import HttpTransport
 
-    assert event_bus is not None  # required by HttpTransport at runtime
     key = os.environ.get("TRAKT_CLIENT_ID", "")
     policy = TraktClient.policy(key)
     transport = HttpTransport(policy, event_bus=event_bus)
@@ -181,7 +177,7 @@ def build_providers(
     provider_names: list[str],
     settings: Settings,
     cb_policy: CircuitPolicy,
-    event_bus: EventBus | None,
+    event_bus: EventBus,
 ) -> dict[str, object]:
     """Instantiate each named provider once. Returns ``name → instance`` dict.
 
@@ -195,7 +191,7 @@ def build_providers(
         provider_names: Provider names to instantiate.
         settings: The pipeline ``Settings`` for credentials.
         cb_policy: Shared ``CircuitPolicy`` for non-TMDB providers.
-        event_bus: Optional ``EventBus`` for transport instrumentation.
+        event_bus: ``EventBus`` for transport instrumentation.
 
     Returns:
         Dict mapping ``{name: instance}`` for each requested provider.

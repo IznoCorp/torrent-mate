@@ -4,32 +4,43 @@
 propagate and must log failures at WARNING. The constructor emits
 ``RegistryBootValidated`` through the wrapper, so these tests exercise it
 via construction rather than via ``locked()`` (which lands in sub-phase 0.5b).
+
+The project architectural contract (event-bus 0.14.0) requires ``event_bus:
+EventBus`` on every public site — no ``| None`` permitted. Tests pass a
+MockEventBus or FailingEventBus, never None.
 """
 
 from __future__ import annotations
 
+import inspect
+
 import pytest
 
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.conf.models.providers import ProvidersConfig
 
 from .conftest import FailingEventBus, FakeMultiCapability
 
 # ---------------------------------------------------------------------------
-# event_bus=None — no-op
+# event_bus is required, never None
 # ---------------------------------------------------------------------------
 
 
-def test_event_bus_none_accepted_no_op(build_registry: object) -> None:
-    """``ProviderRegistry`` accepts ``event_bus=None`` — emissions become no-op."""
-    fakes = {"tmdb": FakeMultiCapability(name="tmdb")}
-    config = ProvidersConfig(Searchable={"tmdb": 1})
-    registry = build_registry(  # type: ignore[operator]
-        fakes=fakes,
-        providers_config=config,
-        event_bus=None,
-    )
-    # Construction succeeded without error — _event_bus_safe_emit was a no-op.
-    assert registry is not None
+def test_event_bus_required_param_no_none_default() -> None:
+    """``ProviderRegistry.__init__`` requires ``event_bus: EventBus`` — no ``| None``."""
+    sig = inspect.signature(ProviderRegistry.__init__)
+    param = sig.parameters["event_bus"]
+
+    # The annotation must not include None.
+    annot = param.annotation
+    # When ``from __future__ import annotations`` is active, annotations are
+    # strings. Check for the union operator in the string form.
+    annot_str = str(annot)
+    assert "| None" not in annot_str, f"event_bus annotation must not accept None: got {annot_str!r}"
+    assert "None" not in annot_str, f"event_bus annotation must not mention None at all: got {annot_str!r}"
+
+    # The default is inspect.Parameter.empty (required parameter).
+    assert param.default is inspect.Parameter.empty, "event_bus must be a required parameter (no default)"
 
 
 # ---------------------------------------------------------------------------

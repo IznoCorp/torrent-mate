@@ -260,7 +260,7 @@ class ProviderRegistry:
         self,
         *,
         settings: Settings,
-        event_bus: EventBus | None,
+        event_bus: EventBus,
         cb_policy: CircuitPolicy,
         providers_config: ProvidersConfig,
     ) -> None:
@@ -268,7 +268,8 @@ class ProviderRegistry:
 
         Args:
             settings: Project settings (for credentials).
-            event_bus: EventBus or None (None for unit tests).
+            event_bus: EventBus for transport instrumentation (required per
+                project architectural contract — event-bus 0.14.0).
             cb_policy: CircuitPolicy applied to all provider transports.
             providers_config: Parsed ProvidersConfig from config/providers.json5.
 
@@ -467,10 +468,9 @@ class ProviderRegistry:
     def _event_bus_safe_emit(self, event: object) -> None:
         """Emit event safely; catch and log any bus failure (never propagates).
 
-        When event_bus is None (test context), this is a no-op.
+        The bus is always a real EventBus per project architectural contract
+        (event-bus 0.14.0): no None permitted. Tests pass a MockEventBus.
         """
-        if self._event_bus is None:
-            return
         try:
             self._event_bus.emit(event)  # type: ignore[arg-type]
         except Exception as exc:
