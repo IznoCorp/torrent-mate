@@ -20,10 +20,20 @@
 | 3   | Out-of-scraper consumers                  | phase-03-out-of-scraper.md                | [ ]    |
 | 4   | Cleanup, observability, docs              | phase-04-cleanup-obs-docs.md              | [ ]    |
 
+## Baseline measurements (Phase 0 sub-phase 0.6)
+
+Pinned values for ACC criteria in `docs/features/registry/ACCEPTANCE.md`:
+
+- `REGISTRY_UNIT_TEST_COUNT` = **40** (registry unit-test count via `pytest tests/unit/api/metadata/registry/ --collect-only`)
+- `BASELINE_PASS_COUNT` = **315** (full `pytest tests/e2e/ tests/integration/` baseline pass count before Phase 1 migration)
+- `TMDB_TVDB_TEST_FILE_COUNT` = **30** (number of test files referencing `TMDBClient | TVDBClient | self._tmdb | self._tvdb`; informs Phase 1+3 migration scope)
+
+These integers MUST replace the `${...}` placeholders in `ACCEPTANCE.md` (SH-16 deterministic-output rule). Re-measure if Phase 1 migration changes the unit-test count.
+
 ## Review cycles
 
 _(filled by /implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 0.
+Run `/implement:phase` to continue Phase 0 (sub-phase 0.7 complete) or proceed to Phase 1.

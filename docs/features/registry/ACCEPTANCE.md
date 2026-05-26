@@ -1,0 +1,32 @@
+# Acceptance Criteria — Provider Registry
+
+> Concrete executable acceptance criteria for the `registry` feature.
+> Source spec: `docs/features/registry/DESIGN.md` §10.
+> Baseline integers pinned from Phase 0 sub-phase 0.6 measurements (see `IMPLEMENTATION.md`).
+> SH-16 rule: every criterion below is an executable shell command with deterministic expected output.
+
+## Pinned baseline values
+
+- `REGISTRY_UNIT_TEST_COUNT` = **40**
+- `BASELINE_PASS_COUNT` = **315**
+- `N_PROVIDERS` = **TBD** (set in Phase 4 sub-phase 4.3 when `personalscraper info providers` CLI lands)
+
+## Criteria
+
+| #       | Criterion                                             | Command                                                                                                            | Expected                                                                             |
+| ------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| ACC-01  | `make check` green                                    | `make check`                                                                                                       | exit 0                                                                               |
+| ACC-02  | No direct TMDB/TVDB client outside `api/metadata/`    | `rg -e TMDBClient -e TVDBClient -t py personalscraper/ -l \| grep -v api/metadata/`                                | exit non-zero (grep finds nothing) AND empty stdout                                  |
+| ACC-03  | No `self._tmdb` / `self._tvdb` in `scraper/`          | `rg -e "self\._tmdb" -e "self\._tvdb" -t py personalscraper/scraper/`                                              | exit non-zero AND empty stdout                                                       |
+| ACC-04a | Boot positive control with TMDB credentials present   | `TMDB_API_KEY=dummy_key personalscraper info providers >/dev/null 2>&1`                                            | exit 0                                                                               |
+| ACC-04b | Boot crashes when TMDB credentials missing            | `env -u TMDB_API_KEY personalscraper info providers 2>&1 \| grep -c "RegistryConfigError.*tmdb"`                   | command exit non-zero; grep stdout `1` (exactly one matching line)                   |
+| ACC-05a | Synthetic broken config fixture exists                | `test -f tests/fixtures/bad_providers.json5`                                                                       | exit 0                                                                               |
+| ACC-05b | Broken config triggers aggregated RegistryConfigError | `personalscraper info providers --config tests/fixtures/bad_providers.json5 2>&1 \| grep -c "RegistryConfigError"` | exit non-zero; grep stdout `1`                                                       |
+| ACC-06  | `info providers` lists every configured provider      | `personalscraper info providers \| grep -cE "^(tmdb\|tvdb\|imdb\|omdb\|trakt\|rotten_tomatoes)\s"`                 | exit 0; stdout pinned from `config.example/providers.json5` provider count (Phase 4) |
+| ACC-07  | Registry unit tests count                             | `pytest tests/unit/api/metadata/registry/ --collect-only -q \| tail -1 \| grep -oE "^[0-9]+"`                      | exit 0; stdout `40`                                                                  |
+| ACC-08  | EventBus snapshot test passes                         | `pytest tests/integration/api/metadata/registry/test_events.py -q`                                                 | exit 0                                                                               |
+| ACC-09  | E2E behavior preserved (count anchor)                 | `pytest tests/e2e/ tests/integration/ -q 2>&1 \| tail -1 \| grep -oE "[0-9]+ passed" \| awk '{print $1}'`          | exit 0; stdout `315`                                                                 |
+| ACC-10  | Version bump                                          | `cat VERSION`                                                                                                      | exit 0; stdout `0.16.0`                                                              |
+| ACC-11  | CHANGELOG entry                                       | `grep -c "^## \[0.16.0\]" CHANGELOG.md`                                                                            | exit 0; stdout `1`                                                                   |
+| ACC-12  | Module-size guardrail                                 | `python3 scripts/check-module-size.py`                                                                             | exit 0                                                                               |
+| ACC-13  | Characterization tests pass against refactored code   | `pytest tests/integration/scraper/test_legacy_fallback_snapshot.py -q`                                             | exit 0 (equivalence anchor preserved through Phase 1+2)                              |
