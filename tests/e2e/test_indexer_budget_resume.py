@@ -148,17 +148,16 @@ class TestBudgetResume:
         # Phase 1: budget-limited scan
         # ------------------------------------------------------------------
 
-        # time.monotonic() call order inside scan():
-        #   call 0  → _started_at_monotonic capture   → 0.0
-        #   call 1  → first  _maybe_checkpoint check  → 1.0  (elapsed 1.0 < 5.0)
-        #   call 2  → second _maybe_checkpoint check  → 2.0  (elapsed 2.0 < 5.0)
-        #   call 3  → third  _maybe_checkpoint check  → 3.0  (elapsed 3.0 < 5.0)
-        #   call 4  → fourth _maybe_checkpoint check  → 4.0  (elapsed 4.0 < 5.0)
-        #   call 5  → fifth  _maybe_checkpoint check  → 5.0  (elapsed 5.0 >= 5.0 → stop)
+        # The fake clock only advances for _maybe_checkpoint / scan.  Other
+        # callers (circuit breaker, rate limiter) keep the real clock and do
+        # not consume budget seconds, making the test deterministic on both
+        # macOS and Linux CI.
         #
-        # Budget is 5 s (instead of 3) to tolerate up to 2 extra monotonic
-        # calls from unrelated subsystems (circuit breaker, rate limiter) on
-        # CI runners where these callers fire more often than on macOS.
+        # Clock timeline:
+        #   call 0  → scan starts (started_at capture)    → 0.0
+        #   call 1  → first  _maybe_checkpoint check      → 1.0  (elapsed 1.0 < 3.0)
+        #   call 2  → second _maybe_checkpoint check      → 2.0  (elapsed 2.0 < 3.0)
+        #   call 3  → third  _maybe_checkpoint check      → 3.0  (elapsed 3.0 >= 3.0 → stop)
         # Override time.monotonic globally but only advance the clock for
         # calls originating from the scanner package.  Other modules (circuit
         # breaker, rate limiter, structured logging) may call time.monotonic
@@ -167,13 +166,17 @@ class TestBudgetResume:
         _mono_counter: list[float] = [0.0]
 
         def _fake_monotonic() -> float:
-            """Advance monotonic clock by 1.0 s on each call."""
-            _mono_counter[0] += 1.0
+            import traceback  # noqa: PLC0415
+
+            for frame in traceback.extract_stack():
+                if frame.name in ("_maybe_checkpoint", "scan"):
+                    _mono_counter[0] += 1.0
+                    break
             return _mono_counter[0]
 
         with (
             patch(_GUARD_PATCH, return_value=None),
-            patch("personalscraper.indexer.scanner.time.monotonic", side_effect=_fake_monotonic),
+            patch("time.monotonic", side_effect=_fake_monotonic),
         ):
             result1 = scan(
                 [disk],
@@ -181,17 +184,17 @@ class TestBudgetResume:
                 generation=1,
                 conn=conn,
                 drop_indexes=False,
-                budget_seconds=5.0,
+                budget_seconds=3.0,
                 db_path=db_path,
                 checkpoint_every_n_files=1,
                 event_bus=EventBus(),
             )
 
         assert result1.budget_exhausted is True, f"Expected budget_exhausted=True, got {result1.budget_exhausted}"
-        # With checkpoint_every=1, budget=5.0s, 1.0s/call, the walk stops
-        # after 4 checkpoints (4 files). Allow up to 6 to tolerate extra
-        # monotonic calls from unrelated subsystems on CI.
-        assert result1.files_visited <= 6, (
+        # With checkpoint_every=1 and budget=3.0s advancing 1.0s/call, the walk
+        # stops after 3 checkpoints.  Allow up to 4 to tolerate off-by-one in
+        # the counter reset logic.
+        assert result1.files_visited <= 4, (
             f"Expected at most 4 files visited on budget run, got {result1.files_visited}"
         )
 
