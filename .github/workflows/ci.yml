@@ -96,8 +96,8 @@ jobs:
       - run: pip-licenses --fail-on="GPL;GPL-2.0;GPL-3.0;GPL-2.0-only;GPL-3.0-only;GPL-2.0-or-later;GPL-3.0-or-later;GNU General Public License (GPL);GNU General Public License v2 (GPLv2);GNU General Public License v3 (GPLv3);GNU General Public License v2 or later (GPLv2+);GNU General Public License v3 or later (GPLv3+);AGPL;AGPL-3.0;AGPL-3.0-only;AGPL-3.0-or-later;GNU Affero General Public License v3;GNU Affero General Public License v3 or later (AGPLv3+);SSPL;SSPL-1.0;Server Side Public License"
 
   # ── Stage 2: Tests & security (depend on Stage 1) ─────
-  test:
-    name: test
+  test-unit:
+    name: test-unit
     runs-on: ubuntu-latest
     needs: [lint, typecheck]
     steps:
@@ -111,17 +111,34 @@ jobs:
           key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
           restore-keys: venv-${{ runner.os }}-3.12-
       - run: pip install -e ".[dev]"
-      # ``make test-cov`` reads ``fail_under`` from pyproject.toml via
-      # scripts/get_coverage_threshold.py, so the gate stays in lockstep with
-      # the source-of-truth threshold and the local make target.
-      - run: make test-cov
-      - uses: codecov/codecov-action@v4
+      - run: python -m pytest tests/unit/ -q --no-header -n auto --cov=personalscraper --cov-branch
+      - run: mv .coverage .coverage.unit
+      - uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage.xml
-          # Forks cannot inherit secrets, so they always get a soft upload.
-          # Internal PRs require a working CODECOV_TOKEN and fail otherwise.
-          fail_ci_if_error: ${{ github.event.pull_request.head.repo.fork == false }}
+          name: coverage-unit
+          path: .coverage.unit
+
+  test-integration:
+    name: test-integration
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: .venv/
+          key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
+          restore-keys: venv-${{ runner.os }}-3.12-
+      - run: pip install -e ".[dev]"
+      - run: python -m pytest tests/integration/ -q --no-header -n auto --cov=personalscraper --cov-branch
+      - run: mv .coverage .coverage.integ
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-integration
+          path: .coverage.integ
 
   security:
     name: security
@@ -147,10 +164,12 @@ jobs:
       #                 Check https://nvd.nist.gov/vuln/detail/CVE-2026-3219 for status.
       - run: pip-audit --ignore-vuln CVE-2026-3219
 
-  coverage-monotonic:
-    name: coverage-monotonic
+  # ── Stage 3: Coverage combine + upload ────────────────
+  coverage-merge:
+    name: coverage-merge
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    needs: [test-unit, test-integration]
+    if: always() && !cancelled()
     steps:
       - uses: actions/checkout@v4
         with:
@@ -158,9 +177,27 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install tomli for older Pythons
-        run: pip install 'tomli; python_version < "3.11"'
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage-unit
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage-integration
+      - run: pip install coverage "tomli; python_version < '3.11'"
+      - name: Combine and check coverage
+        run: |
+          set -euo pipefail
+          coverage combine .coverage.unit .coverage.integ
+          THRESHOLD=$(python3 scripts/get_coverage_threshold.py)
+          coverage report --fail-under="${THRESHOLD}"
+          coverage xml -o coverage.xml
+      - uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          fail_ci_if_error: ${{ github.event.pull_request.head.repo.fork == false }}
       - name: Verify fail_under is monotonic against base ref
+        if: github.event_name == 'pull_request'
         env:
           BASE_REF: ${{ github.base_ref }}
           PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
@@ -169,9 +206,6 @@ jobs:
           head_threshold=$(python3 scripts/get_coverage_threshold.py)
           main_threshold=$(git show "origin/${BASE_REF}:pyproject.toml" | python3 scripts/get_coverage_threshold.py --stdin)
           echo "HEAD: ${head_threshold} | base (${BASE_REF}): ${main_threshold}"
-          # Float-safe comparison via awk — `[ -lt ]` requires integer
-          # operands and would crash if fail_under is ever expressed as
-          # 90.5 / 87.0 / etc.
           if awk -v h="${head_threshold}" -v m="${main_threshold}" 'BEGIN{exit !(h<m)}'; then
             if echo ",${PR_LABELS}," | grep -q ',coverage-rollback,'; then
               echo "::warning::fail_under decreased (${main_threshold} → ${head_threshold}) — rollback acknowledged via label."
