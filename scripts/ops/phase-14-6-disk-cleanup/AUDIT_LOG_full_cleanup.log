@@ -1,0 +1,1715 @@
+# Full cleanup — 20260526-115807
+# Targets: 1615
+# Batches: 16
+# Smoke pool: 65 items
+
+
+=== BATCH 1/16 (100 items) ===
+  FILE 1056b /Volumes/Disk2/medias/series animes/Tom-Tom & Nana (2019)/Saison 01/._S01E24 - Le chouchou de la classe.nfo
+  FILE 4096b /Volumes/Disk2/medias/series animes/Les Animaniacs (1993)/Season 01/._S01E05 - Cookies for Einstein.nfo
+  FILE 4096b /Volumes/Disk2/medias/series animes/Les Animaniacs (1993)/Season 01/._S01E09 - Yakko's Universe.nfo
+  FILE 4096b /Volumes/Disk2/medias/series animes/Les Animaniacs (1993)/Season 01/._S01E10 - Hooked on a Ceiling.nfo
+  FILE 4096b /Volumes/Disk2/medias/series animes/Les Animaniacs (1993)/Season 01/._S01E13 - Temporary Insanity.nfo
+  FILE 4096b /Volumes/Disk2/medias/series animes/Les Animaniacs (1993)/Season 01/._S01E14 - Operation - Lollipop.nfo
+  FILE 4096b /Volumes/Disk2/medias/series animes/Les Animaniacs (1993)/Season 01/._S01E17 - Quant Rita rencontre Spot.nfo
+  FILE 4096b /Volumes/Disk2/medias/series animes/Les Animaniacs (1993)/Season 01/._S01E07 - H.M.S. Yakko.nfo
+  FILE 4096b /Volumes/Disk2/medias/series animes/Les Animaniacs (1993)/Season 01/._S01E24 - Les Miseranimals.nfo
+  FILE 4096b /Volumes/Disk2/medias/series animes/Les Animaniacs (1993)/Season 01/._S01E25 - Garage Sale of the Century.nfo
+  FILE 4096b /Volumes/Disk2/medias/series animes/Les Animaniacs (1993)/Season 01/._S01E26 - West Side Pigeons.nfo
+  FILE 4096b /Volumes/Disk2/medias/series animes/Les Animaniacs (1993)/Season 01/._S01E33 - Battle for the Planet.nfo
+  FILE 4096b /Volumes/Disk2/medias/series animes/Les Animaniacs (1993)/Season 01/._S01E36 - The Great Wakkorotti - The Master and his Music.nfo
+  FILE 4096b /Volumes/Disk2/medias/series animes/Les Animaniacs (1993)/Season 01/._S01E40 - Chicken Boo-Ryshnikov.nfo
+  FILE 4096b /Volumes/Disk2/medias/series animes/Les Animaniacs (1993)/Season 01/._S01E41 - Nothing but the Tooth.nfo
+  FILE 4096b /Volumes/Disk2/medias/series animes/Les Animaniacs (1993)/Season 01/._S01E43 - A Moving Experience.nfo
+  FILE 4096b /Volumes/Disk2/medias/series animes/Les Animaniacs (1993)/Season 01/._S01E44 - Four Score and Seven Migraines Ago.nfo
+  FILE 4096b /Volumes/Disk2/medias/series animes/Les Animaniacs (1993)/Season 01/._S01E45 - Wakko's America.nfo
+  ACTORS 22files 1204251b /Volumes/Disk1/medias/emissions/Top Chef (2010)/.actors
+  ACTORS 2files 77583b /Volumes/Disk1/medias/emissions/Top Chef La brigade Cachée (2023)/.actors
+  ACTORS 2files 97580b /Volumes/Disk1/medias/emissions/Top Chef Le Concours Parallèle (2026)/.actors
+  ACTORS 20files 2004648b /Volumes/Disk1/medias/films/13 jours, 13 nuits (2025)/.actors
+  ACTORS 24files 3063909b /Volumes/Disk1/medias/films/2001 L'Odyssée de l'espace (1968)/.actors
+  ACTORS 22files 2284000b /Volumes/Disk1/medias/films/2010 L'Année du premier contact (1984)/.actors
+  ACTORS 14files 1782634b /Volumes/Disk1/medias/films/27 nuits (2025)/.actors
+  ACTORS 22files 5282037b /Volumes/Disk1/medias/films/28 Ans plus tard (2025)/.actors
+  ACTORS 28files 3911244b /Volumes/Disk1/medias/films/28 Jours plus tard (2002)/.actors
+  ACTORS 32files 5606802b /Volumes/Disk1/medias/films/28 Semaines plus tard (2007)/.actors
+  ACTORS 49files 6843084b /Volumes/Disk1/medias/films/300 (2007)/.actors
+  ACTORS 46files 7028172b /Volumes/Disk1/medias/films/300  La Naissance d’un Empire (2014)/.actors
+  ACTORS 41files 2702567b /Volumes/Disk1/medias/films/48 heures (1982)/.actors
+  ACTORS 34files 3434070b /Volumes/Disk1/medias/films/48 heures de plus (1990)/.actors
+  ACTORS 45files 9178456b /Volumes/Disk1/medias/films/58 minutes pour vivre (1990)/.actors
+  ACTORS 12files 1101762b /Volumes/Disk1/medias/films/84 m² (2025)/.actors
+  ACTORS 65files 12992670b /Volumes/Disk1/medias/films/A House of Dynamite (2025)/.actors
+  ACTORS 25files 2520174b /Volumes/Disk1/medias/films/Ace Ventura en Afrique (1995)/.actors
+  ACTORS 34files 2791509b /Volumes/Disk1/medias/films/Ace Ventura, détective chiens et chats (1994)/.actors
+  ACTORS 11files 1020261b /Volumes/Disk1/medias/films/Adieu, Jean-Pat (2025)/.actors
+  ACTORS 11files 2850614b /Volumes/Disk1/medias/films/After the Hunt (2025)/.actors
+  ACTORS 10files 1812288b /Volumes/Disk1/medias/films/Alien Romulus (2024)/.actors
+  ACTORS 32files 4719922b /Volumes/Disk1/medias/films/Alien, la résurrection (1997)/.actors
+  ACTORS 9files 1359961b /Volumes/Disk1/medias/films/Alien, le huitième passager (1979)/.actors
+  ACTORS 45files 5592323b /Volumes/Disk1/medias/films/Aliens vs. Predator Requiem (2007)/.actors
+  ACTORS 21files 2426621b /Volumes/Disk1/medias/films/Alien  Covenant (2017)/.actors
+  ACTORS 24files 3928590b /Volumes/Disk1/medias/films/Alien³ (1992)/.actors
+  ACTORS 42files 5966987b /Volumes/Disk1/medias/films/American Pie (1999)/.actors
+  ACTORS 59files 7755233b /Volumes/Disk1/medias/films/American Pie 2 (2001)/.actors
+  ACTORS 27files 3496810b /Volumes/Disk1/medias/films/American Pie 3 Marions-les ! (2003)/.actors
+  ACTORS 43files 7143399b /Volumes/Disk1/medias/films/American Pie 4 (2012)/.actors
+  ACTORS 30files 3784929b /Volumes/Disk1/medias/films/American Psycho (2000)/.actors
+  ACTORS 9files 1934924b /Volumes/Disk1/medias/films/Amityville Maison des horreurs (2023)/.actors
+  ACTORS 43files 5781802b /Volumes/Disk1/medias/films/Amsterdam (2022)/.actors
+  ACTORS 17files 1652810b /Volumes/Disk1/medias/films/Anatomie d'une chute (2023)/.actors
+  ACTORS 12files 1655470b /Volumes/Disk1/medias/films/Aniara L'Odyssée stellaire (2019)/.actors
+  ACTORS 14files 1422347b /Volumes/Disk1/medias/films/Annabelle (2014)/.actors
+  ACTORS 23files 3333494b /Volumes/Disk1/medias/films/Annabelle 2 La Création du Mal (2017)/.actors
+  ACTORS 22files 3459969b /Volumes/Disk1/medias/films/Annabelle La Maison du Mal (2019)/.actors
+  ACTORS 11files 3418030b /Volumes/Disk1/medias/films/Anniversary (2025)/.actors
+  ACTORS 69files 5750912b /Volumes/Disk1/medias/films/Ant-Man (2015)/.actors
+  ACTORS 75files 10782018b /Volumes/Disk1/medias/films/Ant-Man et la Guêpe (2018)/.actors
+  ACTORS 45files 5749402b /Volumes/Disk1/medias/films/Ant-Man et la Guêpe Quantumania (2023)/.actors
+  ACTORS 48files 8045534b /Volumes/Disk1/medias/films/Aquaman (2018)/.actors
+  ACTORS 25files 7469797b /Volumes/Disk1/medias/films/Aquaman et le Royaume perdu (2023)/.actors
+  ACTORS 30files 6840366b /Volumes/Disk1/medias/films/Argylle (2024)/.actors
+  ACTORS 6files 935365b /Volumes/Disk1/medias/films/Ash (2025)/.actors
+  ACTORS 24files 3315860b /Volumes/Disk1/medias/films/Astérix & Obélix Au service de Sa Majesté (2012)/.actors
+  ACTORS 41files 6025510b /Volumes/Disk1/medias/films/Astérix & Obélix L'Empire du Milieu (2023)/.actors
+  ACTORS 23files 3706540b /Volumes/Disk1/medias/films/Astérix & Obélix contre César (1999)/.actors
+  ACTORS 36files 4339456b /Volumes/Disk1/medias/films/Astérix aux Jeux olympiques (2008)/.actors
+  ACTORS 11files 2532558b /Volumes/Disk1/medias/films/Astérix et Obélix Mission Cléopâtre, le comankonafé (2002)/.actors
+  ACTORS 41files 3436582b /Volumes/Disk1/medias/films/Avatar (2009)/.actors
+  ACTORS 78files 8708117b /Volumes/Disk1/medias/films/Avengers (2012)/.actors
+  ACTORS 101files 22418923b /Volumes/Disk1/medias/films/Avengers Endgame (2019)/.actors
+  ACTORS 68files 14254430b /Volumes/Disk1/medias/films/Avengers Infinity War (2018)/.actors
+  ACTORS 62files 10486660b /Volumes/Disk1/medias/films/Avengers L'Ère d'Ultron (2015)/.actors
+  ACTORS 12files 1967962b /Volumes/Disk1/medias/films/Avignon (2025)/.actors
+  ACTORS 14files 2556444b /Volumes/Disk1/medias/films/À bord du Darjeeling Limited (2007)/.actors
+  ACTORS 31files 5271154b /Volumes/Disk1/medias/films/À couteaux tirés (2019)/.actors
+  ACTORS 40files 4139456b /Volumes/Disk1/medias/films/À l'aube du 6ème jour (2000)/.actors
+  ACTORS 37files 3303138b /Volumes/Disk1/medias/films/À l'ouest rien de nouveau (2022)/.actors
+  ACTORS 58files 6662713b /Volumes/Disk1/medias/films/À la poursuite de demain (2015)/.actors
+  ACTORS 29files 2221037b /Volumes/Disk1/medias/films/À la recherche du bonheur (2006)/.actors
+  ACTORS 34files 4707507b /Volumes/Disk1/medias/films/Bad Boys (1995)/.actors
+  ACTORS 76files 6360439b /Volumes/Disk1/medias/films/Bad Boys 2 (2003)/.actors
+  ACTORS 78files 7991374b /Volumes/Disk1/medias/films/Bad Boys for Life (2020)/.actors
+  ACTORS 17files 3451914b /Volumes/Disk1/medias/films/Bad Man (2025)/.actors
+  ACTORS 10files 1526207b /Volumes/Disk1/medias/films/Ballad of a Small Player (2025)/.actors
+  ACTORS 17files 3046956b /Volumes/Disk1/medias/films/Banger (2025)/.actors
+  ACTORS 56files 9027301b /Volumes/Disk1/medias/films/Batman & Robin (1997)/.actors
+  ACTORS 37files 3306988b /Volumes/Disk1/medias/films/Batman (1989)/.actors
+  ACTORS 79files 11623277b /Volumes/Disk1/medias/films/Batman Begins (2005)/.actors
+  ACTORS 57files 6777252b /Volumes/Disk1/medias/films/Batman Forever (1995)/.actors
+  ACTORS 35files 4167218b /Volumes/Disk1/medias/films/Batman Le Défi (1992)/.actors
+  ACTORS 106files 16360761b /Volumes/Disk1/medias/films/Batman v Superman  L'Aube de la Justice (2016)/.actors
+  ACTORS 45files 7127109b /Volumes/Disk1/medias/films/Beetlejuice Beetlejuice (2024)/.actors
+  ACTORS 4files 811706b /Volumes/Disk1/medias/films/Beyond Jurassic Park (2001)/.actors
+  ACTORS 94files 12676328b /Volumes/Disk1/medias/films/Birds of Prey et la fantabuleuse histoire de Harley Quinn (2020)/.actors
+  ACTORS 46files 9697361b /Volumes/Disk1/medias/films/Black Adam (2022)/.actors
+  ACTORS 58files 11757763b /Volumes/Disk1/medias/films/Black Panther (2018)/.actors
+  ACTORS 17files 6584947b /Volumes/Disk1/medias/films/Black Phone 2 (2025)/.actors
+--- empty-dir walk-up (batch 1) ---
+# batch_1: deleted=100, skipped=0, empty=0, time=6.1s
+# smoke_check_ok: 65 items
+
+=== BATCH 2/16 (100 items) ===
+  ACTORS 66files 11937655b /Volumes/Disk1/medias/films/Black Widow (2021)/.actors
+  ACTORS 23files 2515822b /Volumes/Disk1/medias/films/Blade Runner (1982)/.actors
+  ACTORS 29files 4007868b /Volumes/Disk1/medias/films/Blade Runner 2049 (2017)/.actors
+  ACTORS 35files 5166861b /Volumes/Disk1/medias/films/Blanche Neige (2025)/.actors
+  ACTORS 9files 1686866b /Volumes/Disk1/medias/films/Breakfast Club (1985)/.actors
+  ACTORS 10files 953328b /Volumes/Disk1/medias/films/Brick (2025)/.actors
+  ACTORS 64files 9177922b /Volumes/Disk1/medias/films/Captain America Civil War (2016)/.actors
+  ACTORS 61files 10218007b /Volumes/Disk1/medias/films/Captain America First Avenger (2011)/.actors
+  ACTORS 63files 9496285b /Volumes/Disk1/medias/films/Captain America Le Soldat de l'hiver (2014)/.actors
+  ACTORS 42files 4738728b /Volumes/Disk1/medias/films/Captain America  Brave New World (2025)/.actors
+  ACTORS 49files 8739108b /Volumes/Disk1/medias/films/Captain Marvel (2019)/.actors
+  ACTORS 44files 7838615b /Volumes/Disk1/medias/films/Catwoman (2004)/.actors
+  ACTORS 20files 3227557b /Volumes/Disk1/medias/films/Chien 51 (2025)/.actors
+  ACTORS 21files 4999638b /Volumes/Disk1/medias/films/Christy (2025)/.actors
+  ACTORS 8files 622260b /Volumes/Disk1/medias/films/Classe moyenne (2025)/.actors
+  ACTORS 25files 4539433b /Volumes/Disk1/medias/films/Cleaner (2025)/.actors
+  ACTORS 8files 848756b /Volumes/Disk1/medias/films/Coka Chicas (2025)/.actors
+  ACTORS 25files 5675070b /Volumes/Disk1/medias/films/Conjuring 2 Le Cas Enfield (2016)/.actors
+  ACTORS 31files 8423849b /Volumes/Disk1/medias/films/Conjuring L'Heure du jugement (2025)/.actors
+  ACTORS 28files 3658225b /Volumes/Disk1/medias/films/Conjuring Les Dossiers Warren (2013)/.actors
+  ACTORS 30files 5351732b /Volumes/Disk1/medias/films/Conjuring Sous l'emprise du Diable (2021)/.actors
+  ACTORS 28files 4163517b /Volumes/Disk1/medias/films/Constantine (2005)/.actors
+  ACTORS 53files 5273801b /Volumes/Disk1/medias/films/Creed L'héritage de Rocky Balboa (2015)/.actors
+  ACTORS 7files 948996b /Volumes/Disk1/medias/films/Cube (1998)/.actors
+  ACTORS 13files 2114857b /Volumes/Disk1/medias/films/Cube Zero (2004)/.actors
+  ACTORS 73files 10469139b /Volumes/Disk1/medias/films/Ça Chapitre 2 (2019)/.actors
+  ACTORS 14files 3969190b /Volumes/Disk1/medias/films/Dans le noir (2016)/.actors
+  ACTORS 50files 4739978b /Volumes/Disk1/medias/films/Deadpool (2016)/.actors
+  ACTORS 64files 9248858b /Volumes/Disk1/medias/films/Deadpool 2 (2018)/.actors
+  ACTORS 29files 7574096b /Volumes/Disk1/medias/films/Deep Cover (2025)/.actors
+  ACTORS 26files 3450146b /Volumes/Disk1/medias/films/Destination finale (2000)/.actors
+  ACTORS 36files 5612339b /Volumes/Disk1/medias/films/Destination finale 2 (2003)/.actors
+  ACTORS 64files 9461343b /Volumes/Disk1/medias/films/Destination finale 3 (2006)/.actors
+  ACTORS 28files 4367512b /Volumes/Disk1/medias/films/Destination finale 4 (2009)/.actors
+  ACTORS 30files 3061836b /Volumes/Disk1/medias/films/Destination finale 5 (2011)/.actors
+  ACTORS 32files 5171256b /Volumes/Disk1/medias/films/Destination finale Bloodlines (2025)/.actors
+  ACTORS 48files 8392422b /Volumes/Disk1/medias/films/Die Hard 4 Retour en enfer (2007)/.actors
+  ACTORS 40files 6460952b /Volumes/Disk1/medias/films/Die Hard Belle journée pour mourir (2013)/.actors
+  ACTORS 16files 2998134b /Volumes/Disk1/medias/films/Die Hart (2023)/.actors
+  ACTORS 5files 628867b /Volumes/Disk1/medias/films/Dis-moi juste que tu m'aimes (2025)/.actors
+  ACTORS 42files 8167422b /Volumes/Disk1/medias/films/Doctor Strange (2016)/.actors
+  ACTORS 33files 7100036b /Volumes/Disk1/medias/films/Dogma (1999)/.actors
+  ACTORS 37files 10166729b /Volumes/Disk1/medias/films/Downton Abbey III Le Grand Final (2025)/.actors
+  ACTORS 27files 5142964b /Volumes/Disk1/medias/films/Dracula (2025)/.actors
+  ACTORS 24files 3788344b /Volumes/Disk1/medias/films/Du sang dans la neige (2024)/.actors
+  ACTORS 39files 5227408b /Volumes/Disk1/medias/films/Dumb & Dumber (1994)/.actors
+  ACTORS 48files 6848845b /Volumes/Disk1/medias/films/Dumb & Dumber De (2014)/.actors
+  ACTORS 46files 6930874b /Volumes/Disk1/medias/films/Dune Première partie (2021)/.actors
+  ACTORS 11files 2756579b /Volumes/Disk1/medias/films/Dust Bunny (2025)/.actors
+  ACTORS 29files 4818511b /Volumes/Disk1/medias/films/Elysium (2013)/.actors
+  ACTORS 8files 1828681b /Volumes/Disk1/medias/films/En première ligne (2025)/.actors
+  ACTORS 32files 6131359b /Volumes/Disk1/medias/films/Everybody's Fine (2009)/.actors
+  ACTORS 31files 6697497b /Volumes/Disk1/medias/films/Everything's Going to Be Great (2025)/.actors
+  ACTORS 11files 1901985b /Volumes/Disk1/medias/films/Ex_Machina (2015)/.actors
+  ACTORS 10files 1607037b /Volumes/Disk1/medias/films/Exit 8 (2025)/.actors
+  ACTORS 2files 65205b /Volumes/Disk1/medias/films/Énorme (2020)/.actors
+  ACTORS 31files 3141096b /Volumes/Disk1/medias/films/Évasion (2013)/.actors
+  ACTORS 11files 768482b /Volumes/Disk1/medias/films/Fanon (2025)/.actors
+  ACTORS 4files 2834208b /Volumes/Disk1/medias/films/Fckin' Fred Comme un Léopard (2025)/.actors
+  ACTORS 10files 2279534b /Volumes/Disk1/medias/films/FolleMente (2025)/.actors
+  ACTORS 17files 2947943b /Volumes/Disk1/medias/films/Fountain of Youth (2025)/.actors
+  ACTORS 29files 5119820b /Volumes/Disk1/medias/films/Frankenstein (2025)/.actors
+  ACTORS 14files 3052042b /Volumes/Disk1/medias/films/Freddy Les Griffes de la nuit (2010)/.actors
+  ACTORS 32files 6072608b /Volumes/Disk1/medias/films/Freddy contre Jason (2003)/.actors
+  ACTORS 24files 2911247b /Volumes/Disk1/medias/films/Freddy sort de la nuit (1994)/.actors
+  ACTORS 8files 1083749b /Volumes/Disk1/medias/films/French Lover (2025)/.actors
+  ACTORS 55files 5489528b /Volumes/Disk1/medias/films/Furiosa Une saga Mad Max (2024)/.actors
+  ACTORS 9files 1784633b /Volumes/Disk1/medias/films/Gérald le Conquérant (2025)/.actors
+  ACTORS 37files 8371011b /Volumes/Disk1/medias/films/Gladiator II (2024)/.actors
+  ACTORS 44files 3557081b /Volumes/Disk1/medias/films/Good News (2025)/.actors
+  ACTORS 27files 5702934b /Volumes/Disk1/medias/films/Green Lantern (2011)/.actors
+  ACTORS 42files 5401741b /Volumes/Disk1/medias/films/Gremlins (1984)/.actors
+  ACTORS 49files 7900309b /Volumes/Disk1/medias/films/Gremlins 2 La Nouvelle Génération (1990)/.actors
+  ACTORS 6files 706355b /Volumes/Disk1/medias/films/Hallow Road (2025)/.actors
+  ACTORS 33files 9610924b /Volumes/Disk1/medias/films/Hamnet (2025)/.actors
+  ACTORS 60files 8043068b /Volumes/Disk1/medias/films/Harry Potter à l'école des sorciers (2001)/.actors
+  ACTORS 83files 11579823b /Volumes/Disk1/medias/films/Harry Potter et l'Ordre du Phénix (2007)/.actors
+  ACTORS 64files 9015229b /Volumes/Disk1/medias/films/Harry Potter et la Chambre des secrets (2002)/.actors
+  ACTORS 59files 9832767b /Volumes/Disk1/medias/films/Harry Potter et la Coupe de feu (2005)/.actors
+  ACTORS 57files 11263336b /Volumes/Disk1/medias/films/Harry Potter et le Prince de sang-mêlé (2009)/.actors
+  ACTORS 49files 6570109b /Volumes/Disk1/medias/films/Harry Potter et le Prisonnier d'Azkaban (2004)/.actors
+  ACTORS 92files 18427058b /Volumes/Disk1/medias/films/Harry Potter et les Reliques de la mort - 1ère partie (2010)/.actors
+  ACTORS 77files 12437825b /Volumes/Disk1/medias/films/Harry Potter et les Reliques de la mort - 2ème partie (2011)/.actors
+  ACTORS 43files 5618707b /Volumes/Disk1/medias/films/Heads of State (2025)/.actors
+  ACTORS 32files 7693733b /Volumes/Disk1/medias/films/Highest 2 Lowest (2025)/.actors
+  ACTORS 23files 6797784b /Volumes/Disk1/medias/films/Holland (2025)/.actors
+  ACTORS 42files 8788361b /Volumes/Disk1/medias/films/Hot Fuzz (2007)/.actors
+  ACTORS 16files 1620697b /Volumes/Disk1/medias/films/Hot Shots ! (1991)/.actors
+  ACTORS 17files 1501215b /Volumes/Disk1/medias/films/Hot Shots ! 2 (1993)/.actors
+  ACTORS 42files 4205475b /Volumes/Disk1/medias/films/Hunger Games (2012)/.actors
+  ERROR: [Errno 2] No such file or directory: 'Zoë_Renee.jpg' /Volumes/Disk1/medias/films/Hunger Games La Ballade du serpent et de l'oiseau chanteur (2023)/.actors
+  ACTORS 47files 4768000b /Volumes/Disk1/medias/films/Hunger Games  L'Embrasement (2013)/.actors
+  ACTORS 40files 5254283b /Volumes/Disk1/medias/films/Hunger Games  La Révolte, 1ère Partie (2014)/.actors
+  ACTORS 46files 6729177b /Volumes/Disk1/medias/films/Hunger Games  La Révolte, 2ème Partie (2015)/.actors
+  ACTORS 18files 4915956b /Volumes/Disk1/medias/films/I Love Peru (2025)/.actors
+  ACTORS 25files 3323069b /Volumes/Disk1/medias/films/I Love You Phillip Morris (2009)/.actors
+  ACTORS 23files 5449257b /Volumes/Disk1/medias/films/Ick (2025)/.actors
+  ACTORS 18files 2344232b /Volumes/Disk1/medias/films/Identity (2003)/.actors
+  ACTORS 32files 3993601b /Volumes/Disk1/medias/films/Idiocracy (2006)/.actors
+  ACTORS 37files 3354428b /Volumes/Disk1/medias/films/In the Shadow of the Moon (2019)/.actors
+--- empty-dir walk-up (batch 2) ---
+# batch_2: deleted=99, skipped=1, empty=0, time=7.1s
+# smoke_check_ok: 65 items
+
+=== BATCH 3/16 (100 items) ===
+  ACTORS 35files 3120739b /Volumes/Disk1/medias/films/Incassable (2000)/.actors
+  ACTORS 14files 1380173b /Volumes/Disk1/medias/films/Incendies (2010)/.actors
+  ACTORS 41files 3992739b /Volumes/Disk1/medias/films/Indiana Jones et la dernière croisade (1989)/.actors
+  ACTORS 38files 4170590b /Volumes/Disk1/medias/films/Indiana Jones et le Temple maudit (1984)/.actors
+  ACTORS 63files 7128395b /Volumes/Disk1/medias/films/Indiana Jones et le royaume du crâne de cristal (2008)/.actors
+  ACTORS 4files 420611b /Volumes/Disk1/medias/films/Indomptables (2025)/.actors
+  ACTORS 42files 7278961b /Volumes/Disk1/medias/films/Insaisissables (2013)/.actors
+  ACTORS 31files 4014480b /Volumes/Disk1/medias/films/Insaisissables 2 (2016)/.actors
+  ACTORS 21files 5013059b /Volumes/Disk1/medias/films/Insaisissables 3 (2025)/.actors
+  ACTORS 17files 1788129b /Volumes/Disk1/medias/films/Insidious (2011)/.actors
+  ACTORS 31files 4313841b /Volumes/Disk1/medias/films/Insidious Chapitre 2 (2013)/.actors
+  ACTORS 28files 2880659b /Volumes/Disk1/medias/films/Insidious Chapitre 3 (2015)/.actors
+  ACTORS 17files 2576776b /Volumes/Disk1/medias/films/Insidious The Red Door (2023)/.actors
+  ACTORS 28files 3734214b /Volumes/Disk1/medias/films/Interstellar (2014)/.actors
+  ACTORS 20files 2643016b /Volumes/Disk1/medias/films/Into the Wild (2007)/.actors
+  ACTORS 34files 2168656b /Volumes/Disk1/medias/films/Intouchables (2011)/.actors
+  ACTORS 26files 2041047b /Volumes/Disk1/medias/films/Invasion Los Angeles (1988)/.actors
+  ACTORS 50files 6442337b /Volumes/Disk1/medias/films/Iron Man (2008)/.actors
+  ACTORS 68files 9234969b /Volumes/Disk1/medias/films/Iron Man 2 (2010)/.actors
+  ACTORS 80files 11526006b /Volumes/Disk1/medias/films/Iron Man 3 (2013)/.actors
+  ACTORS 1files 25297b /Volumes/Disk1/medias/films/J'veux du soleil (2019)/.actors
+  ACTORS 12files 2633445b /Volumes/Disk1/medias/films/Jack (1996)/.actors
+  ACTORS 24files 2409840b /Volumes/Disk1/medias/films/Jackie Brown (1997)/.actors
+  ACTORS 12files 2567001b /Volumes/Disk1/medias/films/Jakob le menteur (1999)/.actors
+  ACTORS 29files 2198700b /Volumes/Disk1/medias/films/Jamais plus jamais (1983)/.actors
+  ACTORS 113files 10233471b /Volumes/Disk1/medias/films/Jason Bourne (2016)/.actors
+  ACTORS 78files 10554345b /Volumes/Disk1/medias/films/Jason Bourne l'héritage (2012)/.actors
+  ACTORS 79files 15771166b /Volumes/Disk1/medias/films/Jay Kelly (2025)/.actors
+  ACTORS 17files 1052276b /Volumes/Disk1/medias/films/John Rambo (2008)/.actors
+  ACTORS 40files 6633587b /Volumes/Disk1/medias/films/John Wick (2014)/.actors
+  ACTORS 61files 8253371b /Volumes/Disk1/medias/films/John Wick 2 (2017)/.actors
+  ACTORS 26files 2808411b /Volumes/Disk1/medias/films/John Wick Chapitre 4 (2023)/.actors
+  ACTORS 34files 6278072b /Volumes/Disk1/medias/films/John Wick Parabellum (2019)/.actors
+  ACTORS 70files 11134689b /Volumes/Disk1/medias/films/Joker (2019)/.actors
+  ACTORS 38files 7828766b /Volumes/Disk1/medias/films/Jumanji Bienvenue dans la jungle (2017)/.actors
+  ACTORS 43files 6785705b /Volumes/Disk1/medias/films/Jumanji Next Level (2019)/.actors
+  ACTORS 19files 3533657b /Volumes/Disk1/medias/films/Jurassic Park (1993)/.actors
+  ACTORS 48files 7265636b /Volumes/Disk1/medias/films/Jurassic World (2015)/.actors
+  ACTORS 37files 5189516b /Volumes/Disk1/medias/films/Jurassic World Fallen Kingdom (2018)/.actors
+  ACTORS 17files 3394426b /Volumes/Disk1/medias/films/Jurassic World Renaissance (2025)/.actors
+  ACTORS 78files 14484488b /Volumes/Disk1/medias/films/Justice League (2017)/.actors
+  ACTORS 57files 7058429b /Volumes/Disk1/medias/films/Kaamelott - Premier volet (2021)/.actors
+  ACTORS 50files 8398147b /Volumes/Disk1/medias/films/Kaamelott Deuxième Volet, partie 1 (2025)/.actors
+  ACTORS 35files 4285639b /Volumes/Disk1/medias/films/Karaté Kid (1984)/.actors
+  ACTORS 28files 2797224b /Volumes/Disk1/medias/films/Karaté Kid II (1986)/.actors
+  ACTORS 19files 2235848b /Volumes/Disk1/medias/films/Karaté Kid III (1989)/.actors
+  ACTORS 36files 4020116b /Volumes/Disk1/medias/films/Kill Bill Volume 1 (2003)/.actors
+  ACTORS 44files 5906486b /Volumes/Disk1/medias/films/Kill Bill Volume 2 (2004)/.actors
+  ACTORS 46files 10360046b /Volumes/Disk1/medias/films/Kingsman Le Cercle d'or (2017)/.actors
+  ACTORS 42files 11505934b /Volumes/Disk1/medias/films/Kingsman Services secrets (2015)/.actors
+  ACTORS 21files 2231898b /Volumes/Disk1/medias/films/Knock (2017)/.actors
+  ACTORS 46files 8387515b /Volumes/Disk1/medias/films/L'Abominable Vérité (2009)/.actors
+  ACTORS 12files 1862355b /Volumes/Disk1/medias/films/L'Accident de piano (2025)/.actors
+  ACTORS 32files 2486145b /Volumes/Disk1/medias/films/L'Aile ou la Cuisse (1976)/.actors
+  ACTORS 45files 5305232b /Volumes/Disk1/medias/films/L'Amour ouf (2024)/.actors
+  ACTORS 18files 4919605b /Volumes/Disk1/medias/films/L'Appartement 7A (2024)/.actors
+  ACTORS 38files 3542103b /Volumes/Disk1/medias/films/L'Arme fatale (1987)/.actors
+  ACTORS 28files 2728377b /Volumes/Disk1/medias/films/L'Arme fatale 2 (1989)/.actors
+  ACTORS 30files 2557119b /Volumes/Disk1/medias/films/L'Arme fatale 3 (1992)/.actors
+  ACTORS 41files 3593585b /Volumes/Disk1/medias/films/L'Arme fatale 4 (1998)/.actors
+  ACTORS 24files 2378221b /Volumes/Disk1/medias/films/L'Armée des 12 singes (1995)/.actors
+  ACTORS 34files 3446505b /Volumes/Disk1/medias/films/L'Ascension (2017)/.actors
+  ACTORS 12files 1027083b /Volumes/Disk1/medias/films/L'Attachement (2025)/.actors
+  ACTORS 31files 3749781b /Volumes/Disk1/medias/films/L'Aventure Intérieure (1987)/.actors
+  ACTORS 33files 1507337b /Volumes/Disk1/medias/films/L'Aventure c'est l'aventure (1972)/.actors
+  ACTORS 55files 7416258b /Volumes/Disk1/medias/films/L'Effaceur (1996)/.actors
+  ACTORS 57files 5047598b /Volumes/Disk1/medias/films/L'Empire contre-attaque (1980)/.actors
+  ACTORS 18files 2218276b /Volumes/Disk1/medias/films/L'Enfant du cauchemar (1989)/.actors
+  ACTORS 13files 3688719b /Volumes/Disk1/medias/films/L'Évaluation (2025)/.actors
+  ACTORS 7files 661516b /Volumes/Disk1/medias/films/L'Homme qui rétrécit (2025)/.actors
+  ACTORS 11files 1312199b /Volumes/Disk1/medias/films/L'Inconnu de la Grande Arche (2025)/.actors
+  ACTORS 16files 1250168b /Volumes/Disk1/medias/films/L'affaire de la mutinerie du Caine (2023)/.actors
+  ACTORS 16files 2302721b /Volumes/Disk1/medias/films/L'amour, c'est surcoté (2025)/.actors
+  ACTORS 10files 1475103b /Volumes/Disk1/medias/films/La Cache (2025)/.actors
+  ACTORS 39files 5417128b /Volumes/Disk1/medias/films/La Cité de Dieu (2002)/.actors
+  ACTORS 13files 2152785b /Volumes/Disk1/medias/films/La Cité des hommes (2007)/.actors
+  ACTORS 21files 4875310b /Volumes/Disk1/medias/films/La Disparue de la cabine 10 (2025)/.actors
+  ACTORS 29files 7955809b /Volumes/Disk1/medias/films/La Femme de ménage (2025)/.actors
+  ACTORS 19files 2506689b /Volumes/Disk1/medias/films/La Fin de Freddy L'Ultime cauchemar (1991)/.actors
+  ACTORS 73files 5572408b /Volumes/Disk1/medias/films/La Guerre des étoiles (1977)/.actors
+  ACTORS 31files 3416254b /Volumes/Disk1/medias/films/La Mémoire dans la peau (2002)/.actors
+  ACTORS 33files 3785477b /Volumes/Disk1/medias/films/La Mort dans la peau (2004)/.actors
+  ACTORS 43files 6262204b /Volumes/Disk1/medias/films/La Planète des singes L'Affrontement (2014)/.actors
+  ACTORS 25files 4606027b /Volumes/Disk1/medias/films/La Planète des singes Le Nouveau Royaume (2024)/.actors
+  ACTORS 54files 5378086b /Volumes/Disk1/medias/films/La Planète des singes Les Origines (2011)/.actors
+  ACTORS 32files 4866505b /Volumes/Disk1/medias/films/La Planète des singes Suprématie (2017)/.actors
+  ACTORS 17files 2593356b /Volumes/Disk1/medias/films/La Revanche de Freddy (1985)/.actors
+  ACTORS 48files 4692269b /Volumes/Disk1/medias/films/La Vengeance dans la peau (2007)/.actors
+  ACTORS 15files 3833945b /Volumes/Disk1/medias/films/Le Cauchemar de Freddy (1988)/.actors
+  ACTORS 40files 8416355b /Volumes/Disk1/medias/films/Le Dernier Pub avant la fin du monde (2013)/.actors
+  ACTORS 35files 6437646b /Volumes/Disk1/medias/films/Le Flic de Beverly Hills (1984)/.actors
+  ACTORS 47files 6170743b /Volumes/Disk1/medias/films/Le Flic de Beverly Hills 2 (1987)/.actors
+  ACTORS 71files 11116856b /Volumes/Disk1/medias/films/Le Flic de Beverly Hills Axel F. (2024)/.actors
+  ACTORS 23files 2018918b /Volumes/Disk1/medias/films/Le Gendarme à New-York (1965)/.actors
+  ACTORS 25files 2453730b /Volumes/Disk1/medias/films/Le Gendarme de Saint-Tropez (1964)/.actors
+  ACTORS 25files 2228627b /Volumes/Disk1/medias/films/Le Gendarme en balade (1970)/.actors
+  ACTORS 25files 2113172b /Volumes/Disk1/medias/films/Le Gendarme et les Gendarmettes (1982)/.actors
+  ACTORS 23files 2264991b /Volumes/Disk1/medias/films/Le Gendarme se marie (1968)/.actors
+  ACTORS 17files 2325738b /Volumes/Disk1/medias/films/Le Grand Déplacement (2025)/.actors
+  ACTORS 58files 8749774b /Volumes/Disk1/medias/films/Le Hobbit La Bataille des cinq armées (2014)/.actors
+--- empty-dir walk-up (batch 3) ---
+# batch_3: deleted=100, skipped=0, empty=0, time=5.6s
+# smoke_check_ok: 65 items
+
+=== BATCH 4/16 (100 items) ===
+  ACTORS 55files 7125894b /Volumes/Disk1/medias/films/Le Hobbit La Désolation de Smaug (2013)/.actors
+  ACTORS 44files 6876744b /Volumes/Disk1/medias/films/Le Hobbit Un voyage inattendu (2012)/.actors
+  ACTORS 13files 1727031b /Volumes/Disk1/medias/films/Le Jeu (2018)/.actors
+  ACTORS 22files 3275597b /Volumes/Disk1/medias/films/Le Labyrinthe (2014)/.actors
+  ACTORS 39files 4208856b /Volumes/Disk1/medias/films/Le Labyrinthe La Terre Brûlée (2015)/.actors
+  ACTORS 28files 6312368b /Volumes/Disk1/medias/films/Le Labyrinthe Le Remède mortel (2018)/.actors
+  ACTORS 9files 1198706b /Volumes/Disk1/medias/films/Le Livre des solutions (2023)/.actors
+  ACTORS 92files 15009095b /Volumes/Disk1/medias/films/Le Loup de Wall Street (2013)/.actors
+  ACTORS 16files 979583b /Volumes/Disk1/medias/films/Le Magasin des suicides (2012)/.actors
+  ACTORS 34files 5689947b /Volumes/Disk1/medias/films/Le Menu (2022)/.actors
+  ACTORS 21files 2854835b /Volumes/Disk1/medias/films/Le Mélange des genres (2025)/.actors
+  ACTORS 23files 5035475b /Volumes/Disk1/medias/films/Le Murder Club du jeudi (2025)/.actors
+  ACTORS 45files 4241381b /Volumes/Disk1/medias/films/Le Parrain (1972)/.actors
+  ACTORS 50files 5528587b /Volumes/Disk1/medias/films/Le Parrain, 2e partie (1974)/.actors
+  ACTORS 75files 6406955b /Volumes/Disk1/medias/films/Le Parrain, 3e partie (1990)/.actors
+  ACTORS 13files 1767627b /Volumes/Disk1/medias/films/Le Retour de l'incroyable Hulk (1988)/.actors
+  ACTORS 84files 7164624b /Volumes/Disk1/medias/films/Le Retour du Jedi (1983)/.actors
+  ACTORS 19files 2052071b /Volumes/Disk1/medias/films/Le Répondeur (2025)/.actors
+  ACTORS 69files 9285774b /Volumes/Disk1/medias/films/Le Seigneur des anneaux La Communauté de l'anneau (2001)/.actors
+  ACTORS 68files 10210581b /Volumes/Disk1/medias/films/Le Seigneur des anneaux Le Retour du roi (2003)/.actors
+  ACTORS 79files 10505337b /Volumes/Disk1/medias/films/Le Seigneur des anneaux Les Deux Tours (2002)/.actors
+  ACTORS 8files 671238b /Volumes/Disk1/medias/films/Le jouet (1976)/.actors
+  ACTORS 50files 6028449b /Volumes/Disk1/medias/films/Le monde perdu Jurassic Park (1997)/.actors
+  ACTORS 10files 1574851b /Volumes/Disk1/medias/films/Le roman de Jim (2024)/.actors
+  ACTORS 36files 5936509b /Volumes/Disk1/medias/films/Les 4 Fantastiques Premiers pas (2025)/.actors
+  ACTORS 75files 12262305b /Volumes/Disk1/medias/films/Les Animaux Fantastiques (2016)/.actors
+  ACTORS 76files 8286214b /Volumes/Disk1/medias/films/Les Animaux Fantastiques Les Crimes de Grindelwald (2018)/.actors
+  ACTORS 36files 4770618b /Volumes/Disk1/medias/films/Les Animaux fantastiques Les Secrets de Dumbledore (2022)/.actors
+  ACTORS 30files 3160598b /Volumes/Disk1/medias/films/Les Aventuriers de l'arche perdue (1981)/.actors
+  ACTORS 15files 1862671b /Volumes/Disk1/medias/films/Les Bronzés (1978)/.actors
+  ACTORS 23files 2587312b /Volumes/Disk1/medias/films/Les Bronzés 3 Amis pour la vie (2006)/.actors
+  ACTORS 17files 2884520b /Volumes/Disk1/medias/films/Les Bronzés font du ski (1979)/.actors
+  ACTORS 28files 4534028b /Volumes/Disk1/medias/films/Les Chroniques de Riddick (2004)/.actors
+  ACTORS 27files 5729229b /Volumes/Disk1/medias/films/Les Enquêtes du Département V Délivrance (2016)/.actors
+  ACTORS 38files 5184856b /Volumes/Disk1/medias/films/Les Enquêtes du Département V Dossier 64 (2018)/.actors
+  ACTORS 38files 4351354b /Volumes/Disk1/medias/films/Les Enquêtes du Département V Miséricorde (2013)/.actors
+  ACTORS 40files 3785866b /Volumes/Disk1/medias/films/Les Enquêtes du Département V Profanation (2014)/.actors
+  ACTORS 19files 3336699b /Volumes/Disk1/medias/films/Les Enquêtes du département V L'Effet Papillon (2021)/.actors
+  ACTORS 18files 3546563b /Volumes/Disk1/medias/films/Les Enquêtes du département V Promesse (2024)/.actors
+  ACTORS 38files 8826749b /Volumes/Disk1/medias/films/Les Éternels (2021)/.actors
+  ACTORS 30files 1573618b /Volumes/Disk1/medias/films/Les Fugitifs (1986)/.actors
+  ACTORS 13files 1092444b /Volumes/Disk1/medias/films/Les Garçons et Guillaume, à Table ! (2013)/.actors
+  ACTORS 65files 9678133b /Volumes/Disk1/medias/films/Les Gardiens de la Galaxie (2014)/.actors
+  ACTORS 59files 8619488b /Volumes/Disk1/medias/films/Les Gardiens de la Galaxie Vol. 2 (2017)/.actors
+  ACTORS 61files 9264792b /Volumes/Disk1/medias/films/Les Gardiens de la Galaxie Volume 3 (2023)/.actors
+  ACTORS 26files 3708317b /Volumes/Disk1/medias/films/Les Goonies (1985)/.actors
+  ACTORS 17files 1653882b /Volumes/Disk1/medias/films/Les Griffes de la Nuit (1984)/.actors
+  ACTORS 18files 2011720b /Volumes/Disk1/medias/films/Les Griffes de la nuit (1984)/.actors
+  ACTORS 13files 2572538b /Volumes/Disk1/medias/films/Les Griffes de la nuit (2010)/.actors
+  ACTORS 21files 3580815b /Volumes/Disk1/medias/films/Les Griffes du cauchemar (1987)/.actors
+  ACTORS 16files 4295256b /Volumes/Disk1/medias/films/Les Huit Salopards (2015)/.actors
+  ACTORS 58files 4915431b /Volumes/Disk1/medias/films/Les Infiltrés (2006)/.actors
+  ACTORS 12files 2741337b /Volumes/Disk1/medias/films/Les Intrus Chapitre 2 (2025)/.actors
+  ACTORS 21files 3391287b /Volumes/Disk1/medias/films/Les Méchants (2021)/.actors
+  ACTORS 9files 1214556b /Volumes/Disk1/medias/films/Les femmes au balcon (2024)/.actors
+  ACTORS 76files 11315742b /Volumes/Disk1/medias/films/Love Actually (2003)/.actors
+  ACTORS 3files 982751b /Volumes/Disk1/medias/films/MAD CATS (2023)/.actors
+  ACTORS 24files 1753389b /Volumes/Disk1/medias/films/Mad Max (1979)/.actors
+  ACTORS 17files 1991964b /Volumes/Disk1/medias/films/Mad Max 2 Le Défi (1981)/.actors
+  ACTORS 17files 1358584b /Volumes/Disk1/medias/films/Mad Max Au-delà du dôme du tonnerre (1985)/.actors
+  ACTORS 35files 4813444b /Volumes/Disk1/medias/films/Mad Max Fury Road (2015)/.actors
+  ACTORS 48files 5062504b /Volumes/Disk1/medias/films/Maman, j'ai encore raté l'avion ! (1992)/.actors
+  ACTORS 43files 4812164b /Volumes/Disk1/medias/films/Maman, j'ai raté l'avion ! (1990)/.actors
+  ACTORS 47files 10619914b /Volumes/Disk1/medias/films/Marche ou crève (2025)/.actors
+  ACTORS 22files 4240236b /Volumes/Disk1/medias/films/Matrix (1999)/.actors
+  ACTORS 65files 7746445b /Volumes/Disk1/medias/films/Matrix Reloaded (2003)/.actors
+  ACTORS 56files 9882578b /Volumes/Disk1/medias/films/Matrix Resurrections (2021)/.actors
+  ACTORS 20files 4426895b /Volumes/Disk1/medias/films/McWalter (2025)/.actors
+  ACTORS 52files 6012894b /Volumes/Disk1/medias/films/Men in Black (1997)/.actors
+  ACTORS 67files 7316825b /Volumes/Disk1/medias/films/Men in Black II (2002)/.actors
+  ACTORS 51files 7522620b /Volumes/Disk1/medias/films/Men in Black International (2019)/.actors
+  ACTORS 2files 432575b /Volumes/Disk1/medias/films/Merci Patron ! (2016)/.actors
+  ACTORS 36files 5244754b /Volumes/Disk1/medias/films/Meurs un autre jour (2002)/.actors
+  ACTORS 35files 9595771b /Volumes/Disk1/medias/films/Mickey 17 (2025)/.actors
+  ACTORS 4files 363684b /Volumes/Disk1/medias/films/Mikado (2025)/.actors
+  ACTORS 13files 845329b /Volumes/Disk1/medias/films/Misery (1990)/.actors
+  ACTORS 38files 2910283b /Volumes/Disk1/medias/films/Mission Impossible (1996)/.actors
+  ACTORS 45files 5533588b /Volumes/Disk1/medias/films/Mission Impossible - Dead Reckoning Partie 1 (2023)/.actors
+  ACTORS 40files 5812250b /Volumes/Disk1/medias/films/Mission Impossible - Fallout (2018)/.actors
+  ACTORS 47files 3809155b /Volumes/Disk1/medias/films/Mission Impossible - Protocole Fantôme (2011)/.actors
+  ACTORS 60files 4235978b /Volumes/Disk1/medias/films/Mission Impossible - Rogue Nation (2015)/.actors
+  ACTORS 80files 11544208b /Volumes/Disk1/medias/films/Mission Impossible - The Final Reckoning (2025)/.actors
+  ACTORS 26files 3107846b /Volumes/Disk1/medias/films/Mission Impossible 2 (2000)/.actors
+  ACTORS 5files 486825b /Volumes/Disk1/medias/films/Moi qui t'aimais (2025)/.actors
+  ACTORS 10files 2791224b /Volumes/Disk1/medias/films/Muganga Celui qui soigne (2025)/.actors
+  ACTORS 22files 3226360b /Volumes/Disk1/medias/films/Natacha, (presque) hôtesse de l'air (2025)/.actors
+  ACTORS 26files 1273795b /Volumes/Disk1/medias/films/Ni vu… Ni connu… (1958)/.actors
+  ACTORS 21files 2676883b /Volumes/Disk1/medias/films/Ninja Kids 2 Les 3 Ninjas contre-attaquent (1994)/.actors
+  ACTORS 17files 1999431b /Volumes/Disk1/medias/films/Ninja Kids 3 Les 3 Ninjas se révoltent (1995)/.actors
+  ACTORS 13files 872213b /Volumes/Disk1/medias/films/Ninja Kids 4 Les 3 Ninjas se déchaînent (1998)/.actors
+  ACTORS 15files 924277b /Volumes/Disk1/medias/films/Ninja Kids Les 3 Ninjas (1992)/.actors
+  ACTORS 43files 8941312b /Volumes/Disk1/medias/films/Nobody (2021)/.actors
+  ACTORS 54files 11758213b /Volumes/Disk1/medias/films/Nobody 2 (2025)/.actors
+  ACTORS 23files 2838880b /Volumes/Disk1/medias/films/Novocaïne (2025)/.actors
+  ACTORS 20files 3254632b /Volumes/Disk1/medias/films/OSS 117 Alerte rouge en Afrique noire (2021)/.actors
+  ACTORS 15files 1296709b /Volumes/Disk1/medias/films/OSS 117 Le Caire, nid d'espions (2006)/.actors
+  ACTORS 21files 1769233b /Volumes/Disk1/medias/films/OSS 117 Rio ne répond plus (2009)/.actors
+  ACTORS 75files 9879387b /Volumes/Disk1/medias/films/Ocean's 13 (2007)/.actors
+  ACTORS 59files 7741535b /Volumes/Disk1/medias/films/Ocean's Eleven (2001)/.actors
+  ACTORS 59files 8252614b /Volumes/Disk1/medias/films/Ocean's Twelve (2004)/.actors
+--- empty-dir walk-up (batch 4) ---
+# batch_4: deleted=100, skipped=0, empty=0, time=6.8s
+# smoke_check_ok: 65 items
+
+=== BATCH 5/16 (100 items) ===
+  ACTORS 27files 4027663b /Volumes/Disk1/medias/films/Opus (2025)/.actors
+  ACTORS 40files 5116380b /Volumes/Disk1/medias/films/Piège de cristal (1988)/.actors
+  ACTORS 57files 9861037b /Volumes/Disk1/medias/films/Pirates des Caraïbes Jusqu'au bout du monde (2007)/.actors
+  ACTORS 69files 10766185b /Volumes/Disk1/medias/films/Pirates des Caraïbes La Vengeance de Salazar (2017)/.actors
+  ACTORS 64files 7934986b /Volumes/Disk1/medias/films/Pirates des Caraïbes  La Fontaine de jouvence (2011)/.actors
+  ACTORS 46files 5639826b /Volumes/Disk1/medias/films/Pirates des Caraïbes  La Malédiction du Black Pearl (2003)/.actors
+  ACTORS 50files 8377701b /Volumes/Disk1/medias/films/Pirates des Caraïbes  Le Secret du coffre maudit (2006)/.actors
+  ACTORS 11files 987375b /Volumes/Disk1/medias/films/Pitch Black (2000)/.actors
+  ACTORS 15files 2330744b /Volumes/Disk1/medias/films/Planète B (2024)/.actors
+  ACTORS 15files 2535630b /Volumes/Disk1/medias/films/Play Dirty (2025)/.actors
+  ACTORS 37files 2724059b /Volumes/Disk1/medias/films/Police Academy (1984)/.actors
+  ACTORS 30files 2526356b /Volumes/Disk1/medias/films/Police Academy 2 Au boulot ! (1985)/.actors
+  ACTORS 31files 2476821b /Volumes/Disk1/medias/films/Police Academy 3 Instructeurs de choc (1986)/.actors
+  ACTORS 35files 3500054b /Volumes/Disk1/medias/films/Police Academy 4 Aux armes citoyens (1987)/.actors
+  ACTORS 21files 1897069b /Volumes/Disk1/medias/films/Police Academy 5 Débarquement à Miami Beach (1988)/.actors
+  ACTORS 30files 1891487b /Volumes/Disk1/medias/films/Police Academy 6 S.O.S. Ville en état de choc (1989)/.actors
+  ACTORS 26files 3173410b /Volumes/Disk1/medias/films/Police Academy Mission à Moscou (1994)/.actors
+  ACTORS 10files 1060728b /Volumes/Disk1/medias/films/Predator Badlands (2025)/.actors
+  ACTORS 3files 499520b /Volumes/Disk1/medias/films/Predators (2025)/.actors
+  ACTORS 9files 1483792b /Volumes/Disk1/medias/films/Première année (2018)/.actors
+  ACTORS 5files 710949b /Volumes/Disk1/medias/films/Primer (2004)/.actors
+  ACTORS 4files 693324b /Volumes/Disk1/medias/films/Primitifs (2024)/.actors
+  ACTORS 31files 1555063b /Volumes/Disk1/medias/films/Rambo (1982)/.actors
+  ACTORS 12files 544920b /Volumes/Disk1/medias/films/Rambo III (1988)/.actors
+  ACTORS 17files 1543364b /Volumes/Disk1/medias/films/Rambo II  La Mission (1985)/.actors
+  ACTORS 28files 4665763b /Volumes/Disk1/medias/films/Rambo Last Blood (2019)/.actors
+  ACTORS 20files 2520694b /Volumes/Disk1/medias/films/Rapaces (2025)/.actors
+  ACTORS 25files 4763460b /Volumes/Disk1/medias/films/Reconnu coupable (2026)/.actors
+  ACTORS 17files 5402076b /Volumes/Disk1/medias/films/Redux Redux (2026)/.actors
+  ACTORS 11files 1275762b /Volumes/Disk1/medias/films/Reflet dans un diamant mort (2025)/.actors
+  ACTORS 14files 1861382b /Volumes/Disk1/medias/films/Rental Family (2025)/.actors
+  ACTORS 48files 4285570b /Volumes/Disk1/medias/films/Retour vers le futur (1985)/.actors
+  ACTORS 39files 3263222b /Volumes/Disk1/medias/films/Retour vers le futur II (1989)/.actors
+  ACTORS 27files 2616456b /Volumes/Disk1/medias/films/Retour vers le futur III (1990)/.actors
+  ACTORS 19files 2761581b /Volumes/Disk1/medias/films/Riddick (2013)/.actors
+  ACTORS 48files 7791027b /Volumes/Disk1/medias/films/RoboCop (1987)/.actors
+  ACTORS 51files 5811019b /Volumes/Disk1/medias/films/RoboCop (2014)/.actors
+  ACTORS 44files 5032066b /Volumes/Disk1/medias/films/RoboCop 2 (1990)/.actors
+  ACTORS 41files 4945192b /Volumes/Disk1/medias/films/RoboCop 3 (1993)/.actors
+  ACTORS 34files 2350920b /Volumes/Disk1/medias/films/Rocky (1976)/.actors
+  ACTORS 39files 3442564b /Volumes/Disk1/medias/films/Rocky Balboa (2006)/.actors
+  ACTORS 37files 2138562b /Volumes/Disk1/medias/films/Rocky II La Revanche (1979)/.actors
+  ACTORS 27files 2265049b /Volumes/Disk1/medias/films/Rocky III L'Œil du tigre (1982)/.actors
+  ACTORS 22files 3114227b /Volumes/Disk1/medias/films/Rocky IV (1985)/.actors
+  ACTORS 36files 3621658b /Volumes/Disk1/medias/films/Rocky V (1990)/.actors
+  ACTORS 144files 16702230b /Volumes/Disk1/medias/films/Rogue One A Star Wars Story (2016)/.actors
+  ACTORS 23files 7741739b /Volumes/Disk1/medias/films/Roofman (2025)/.actors
+  ACTORS 54files 11620433b /Volumes/Disk1/medias/films/Running Man (2025)/.actors
+  ACTORS 47files 5590913b /Volumes/Disk1/medias/films/Rush Hour (1998)/.actors
+  ACTORS 35files 3937867b /Volumes/Disk1/medias/films/Rush Hour 2 (2001)/.actors
+  ACTORS 38files 4402807b /Volumes/Disk1/medias/films/Rush Hour 3 (2007)/.actors
+  ACTORS 50files 6108545b /Volumes/Disk1/medias/films/S.O.S. Fantômes (1984)/.actors
+  ACTORS 48files 7040690b /Volumes/Disk1/medias/films/S.O.S. Fantômes II (1989)/.actors
+  ACTORS 39files 8267249b /Volumes/Disk1/medias/films/S.O.S. Fantômes L'Héritage (2021)/.actors
+  ACTORS 51files 10476043b /Volumes/Disk1/medias/films/S.O.S. Fantômes La Menace de Glace (2024)/.actors
+  ACTORS 43files 5869542b /Volumes/Disk1/medias/films/Scary Movie (2000)/.actors
+  ACTORS 21files 3101222b /Volumes/Disk1/medias/films/Scary Movie 2 (2001)/.actors
+  ACTORS 49files 7868253b /Volumes/Disk1/medias/films/Scary Movie 3 (2003)/.actors
+  ACTORS 75files 7977133b /Volumes/Disk1/medias/films/Scary Movie 4 (2006)/.actors
+  ACTORS 50files 10184702b /Volumes/Disk1/medias/films/Scary Movie 5 (2013)/.actors
+  ACTORS 43files 7484515b /Volumes/Disk1/medias/films/Shang-Chi et la Légende des Dix Anneaux (2021)/.actors
+  ACTORS 45files 6426996b /Volumes/Disk1/medias/films/Shaun of the Dead (2004)/.actors
+  ACTORS 47files 8940036b /Volumes/Disk1/medias/films/Shazam! La Rage des Dieux (2023)/.actors
+  ACTORS 55files 9766890b /Volumes/Disk1/medias/films/Sin City (2005)/.actors
+  ACTORS 39files 9399395b /Volumes/Disk1/medias/films/Sin City J'ai tué pour elle (2014)/.actors
+  ACTORS 9files 1709126b /Volumes/Disk1/medias/films/Sing Sing (2024)/.actors
+  ACTORS 29files 5956161b /Volumes/Disk1/medias/films/Sinners (2025)/.actors
+  ACTORS 29files 2712445b /Volumes/Disk1/medias/films/Sister Act (1992)/.actors
+  ACTORS 38files 3773385b /Volumes/Disk1/medias/films/Sister Act Acte 2 (1993)/.actors
+  ACTORS 10files 726094b /Volumes/Disk1/medias/films/Six jours (2025)/.actors
+  ACTORS 2files 73995b /Volumes/Disk1/medias/films/Sorcières chronique d'un massacre (2025)/.actors
+  ACTORS 23files 3755112b /Volumes/Disk1/medias/films/Souviens-toi… l'été dernier (2025)/.actors
+  ACTORS 78files 11707879b /Volumes/Disk1/medias/films/Spider-Man (2002)/.actors
+  ACTORS 87files 13335844b /Volumes/Disk1/medias/films/Spider-Man 2 (2004)/.actors
+  ACTORS 79files 10413732b /Volumes/Disk1/medias/films/Spider-Man 3 (2007)/.actors
+  ACTORS 111files 15296704b /Volumes/Disk1/medias/films/Spider-Man Far From Home (2019)/.actors
+  ACTORS 80files 16019135b /Volumes/Disk1/medias/films/Spider-Man Homecoming (2017)/.actors
+  ACTORS 57files 12629392b /Volumes/Disk1/medias/films/Spider-Man No Way Home (2021)/.actors
+  ACTORS 27files 3040779b /Volumes/Disk1/medias/films/Split (2017)/.actors
+  ACTORS 37files 6536114b /Volumes/Disk1/medias/films/Spoof movie (1996)/.actors
+  ACTORS 131files 18469420b /Volumes/Disk1/medias/films/Star Trek (2009)/.actors
+  ACTORS 28files 4683717b /Volumes/Disk1/medias/films/Star Trek Générations (1994)/.actors
+  ACTORS 24files 1964698b /Volumes/Disk1/medias/films/Star Trek II La colère de Khan (1982)/.actors
+  ACTORS 26files 2139148b /Volumes/Disk1/medias/films/Star Trek III À la recherche de Spock (1984)/.actors
+  ACTORS 35files 5360074b /Volumes/Disk1/medias/films/Star Trek IV Retour sur Terre (1986)/.actors
+  ACTORS 32files 3032940b /Volumes/Disk1/medias/films/Star Trek Insurrection (1998)/.actors
+  ACTORS 73files 11162522b /Volumes/Disk1/medias/films/Star Trek Into Darkness (2013)/.actors
+  ACTORS 19files 3139726b /Volumes/Disk1/medias/films/Star Trek Nemesis (2002)/.actors
+  ACTORS 27files 4137681b /Volumes/Disk1/medias/films/Star Trek Premier contact (1996)/.actors
+  ACTORS 46files 8333629b /Volumes/Disk1/medias/films/Star Trek Sans limites (2016)/.actors
+  ACTORS 21files 3182506b /Volumes/Disk1/medias/films/Star Trek Section 31 (2025)/.actors
+  ACTORS 18files 1956328b /Volumes/Disk1/medias/films/Star Trek V L'ultime frontière (1989)/.actors
+  ACTORS 31files 3226965b /Volumes/Disk1/medias/films/Star Trek VI Terre inconnue (1991)/.actors
+  ACTORS 19files 2958439b /Volumes/Disk1/medias/films/Star Trek, le film (1979)/.actors
+  ACTORS 103files 13743958b /Volumes/Disk1/medias/films/Star Wars L'Ascension de Skywalker (2019)/.actors
+  ACTORS 78files 10828206b /Volumes/Disk1/medias/films/Star Wars, épisode I - La Menace fantôme (1999)/.actors
+  ACTORS 65files 6704383b /Volumes/Disk1/medias/films/Star Wars, épisode II - L'Attaque des clones (2002)/.actors
+  ACTORS 64files 7458055b /Volumes/Disk1/medias/films/Star Wars, épisode III - La Revanche des Sith (2005)/.actors
+  ACTORS 135files 15705426b /Volumes/Disk1/medias/films/Star Wars  Le Réveil de la Force (2015)/.actors
+  ACTORS 93files 15097126b /Volumes/Disk1/medias/films/Star Wars  Les Derniers Jedi (2017)/.actors
+--- empty-dir walk-up (batch 5) ---
+# batch_5: deleted=100, skipped=0, empty=0, time=7.4s
+# smoke_check_ok: 65 items
+
+=== BATCH 6/16 (100 items) ===
+  ACTORS 55files 13620395b /Volumes/Disk1/medias/films/Starship Troopers (1997)/.actors
+  ACTORS 21files 3780587b /Volumes/Disk1/medias/films/Starship Troopers 2 Héros de la Fédération (2004)/.actors
+  ACTORS 32files 4003367b /Volumes/Disk1/medias/films/Starship Troopers 3 Marauder (2008)/.actors
+  ACTORS 1files 49684b /Volumes/Disk1/medias/films/Strip-Tease intégral (2025)/.actors
+  ACTORS 77files 13062564b /Volumes/Disk1/medias/films/Suicide Squad (2016)/.actors
+  ACTORS 11files 2713211b /Volumes/Disk1/medias/films/Sunshine (2007)/.actors
+  ACTORS 28files 4683280b /Volumes/Disk1/medias/films/Super 8 (2011)/.actors
+  ACTORS 31files 5118557b /Volumes/Disk1/medias/films/Super Mario Bros. le film (2023)/.actors
+  ACTORS 5files 934378b /Volumes/Disk1/medias/films/Super Papa (2024)/.actors
+  ACTORS 52files 4337724b /Volumes/Disk1/medias/films/Superman (1978)/.actors
+  ACTORS 75files 21402540b /Volumes/Disk1/medias/films/Superman (2025)/.actors
+  ACTORS 37files 3133809b /Volumes/Disk1/medias/films/Superman II (1980)/.actors
+  ACTORS 33files 2400679b /Volumes/Disk1/medias/films/Superman III (1983)/.actors
+  ACTORS 33files 2797626b /Volumes/Disk1/medias/films/Superman IV  Le Face‐à‐face (1987)/.actors
+  ACTORS 30files 2047021b /Volumes/Disk1/medias/films/Superman Returns (2006)/.actors
+  ACTORS 5files 203782b /Volumes/Disk1/medias/films/Sur la route de papa (2025)/.actors
+  ACTORS 14files 1532170b /Volumes/Disk1/medias/films/Sweeney Todd Le Diabolique Barbier de Fleet Street (2007)/.actors
+  ACTORS 32files 2485225b /Volumes/Disk1/medias/films/T2 Trainspotting (2017)/.actors
+  ACTORS 33files 3215714b /Volumes/Disk1/medias/films/Taken (2008)/.actors
+  ACTORS 30files 2924413b /Volumes/Disk1/medias/films/Taken 2 (2012)/.actors
+  ACTORS 40files 4867171b /Volumes/Disk1/medias/films/Taken 3 (2014)/.actors
+  ACTORS 23files 6973365b /Volumes/Disk1/medias/films/Témoin sous tension (2025)/.actors
+  ACTORS 12files 2426512b /Volumes/Disk1/medias/films/The Accidental Getaway Driver (2025)/.actors
+  ACTORS 48files 8810912b /Volumes/Disk1/medias/films/The Alto Knights (2025)/.actors
+  ACTORS 29files 4707778b /Volumes/Disk1/medias/films/The Amateur (2025)/.actors
+  ACTORS 52files 8190019b /Volumes/Disk1/medias/films/The Amazing Spider-Man (2012)/.actors
+  ACTORS 65files 17302233b /Volumes/Disk1/medias/films/The Amazing Spider-Man Le Destin d'un héros (2014)/.actors
+  ACTORS 7files 1941131b /Volumes/Disk1/medias/films/The Astronaut (2025)/.actors
+  ACTORS 72files 12733562b /Volumes/Disk1/medias/films/The Batman (2022)/.actors
+  ACTORS 93files 14527553b /Volumes/Disk1/medias/films/The Dark Knight Le Chevalier noir (2008)/.actors
+  ACTORS 123files 19304768b /Volumes/Disk1/medias/films/The Dark Knight Rises (2012)/.actors
+  ACTORS 13files 1846095b /Volumes/Disk1/medias/films/The Endless (2017)/.actors
+  ACTORS 43files 8963623b /Volumes/Disk1/medias/films/The Flash (2023)/.actors
+  ACTORS 10files 2281712b /Volumes/Disk1/medias/films/The Gorge (2025)/.actors
+  ACTORS 8files 1024784b /Volumes/Disk1/medias/films/The Man from Earth (2007)/.actors
+  ACTORS 37files 3384019b /Volumes/Disk1/medias/films/The Man from Toronto (2022)/.actors
+  ACTORS 23files 4220563b /Volumes/Disk1/medias/films/The Marvels (2023)/.actors
+  ACTORS 35files 5190890b /Volumes/Disk1/medias/films/The Mask (1994)/.actors
+  ACTORS 25files 2441715b /Volumes/Disk1/medias/films/The Moon (2023)/.actors
+  ACTORS 22files 6944911b /Volumes/Disk1/medias/films/The Piano Lesson (2024)/.actors
+  ACTORS 41files 4333215b /Volumes/Disk1/medias/films/The Predator (2018)/.actors
+  ACTORS 16files 4013965b /Volumes/Disk1/medias/films/The Rip (2026)/.actors
+  ACTORS 13files 3877148b /Volumes/Disk1/medias/films/The Ritual – L’Exorcisme d’Emma Schmidt (2025)/.actors
+  ACTORS 7files 1486886b /Volumes/Disk1/medias/films/The Signal (2014)/.actors
+  ACTORS 58files 5623370b /Volumes/Disk1/medias/films/The Substance (2024)/.actors
+  ACTORS 52files 12072874b /Volumes/Disk1/medias/films/The Suicide Squad (2021)/.actors
+  ACTORS 20files 2891191b /Volumes/Disk1/medias/films/The Swedish Connection (2026)/.actors
+  ACTORS 17files 1963309b /Volumes/Disk1/medias/films/The Thing (1982)/.actors
+  ACTORS 41files 3895502b /Volumes/Disk1/medias/films/The Truman Show (1998)/.actors
+  ACTORS 47files 6415704b /Volumes/Disk1/medias/films/The Wandering Earth (2019)/.actors
+  ACTORS 28files 4333498b /Volumes/Disk1/medias/films/The Wandering Earth 2 (2023)/.actors
+  ACTORS 33files 3186383b /Volumes/Disk1/medias/films/The Wrong Missy (2020)/.actors
+  ACTORS 54files 9118278b /Volumes/Disk1/medias/films/Thor (2011)/.actors
+  ACTORS 38files 6090022b /Volumes/Disk1/medias/films/Thor Le Monde des ténèbres (2013)/.actors
+  ACTORS 95files 11724764b /Volumes/Disk1/medias/films/Thor Love and Thunder (2022)/.actors
+  ACTORS 54files 6819609b /Volumes/Disk1/medias/films/Thor Ragnarok (2017)/.actors
+  ACTORS 35files 2334780b /Volumes/Disk1/medias/films/Tuer n'est pas jouer (1987)/.actors
+  ACTORS 12files 1926590b /Volumes/Disk1/medias/films/Un Espion ordinaire (2021)/.actors
+  ACTORS 19files 1042807b /Volumes/Disk1/medias/films/Un Indien dans la ville (1994)/.actors
+  ACTORS 16files 1600677b /Volumes/Disk1/medias/films/Un Métier sérieux (2023)/.actors
+  ACTORS 20files 2003669b /Volumes/Disk1/medias/films/Un Noël sous hypnose (2024)/.actors
+  ACTORS 26files 3141313b /Volumes/Disk1/medias/films/Un Ours dans le Jura (2025)/.actors
+  ACTORS 41files 2981777b /Volumes/Disk1/medias/films/Un flic à la maternelle (1990)/.actors
+  ACTORS 37files 5901853b /Volumes/Disk1/medias/films/Un homme en colère (2021)/.actors
+  ACTORS 22files 3321986b /Volumes/Disk1/medias/films/Un jour sans fin (1993)/.actors
+  ACTORS 11files 1301765b /Volumes/Disk1/medias/films/Un monde merveilleux (2024)/.actors
+  ACTORS 31files 4893527b /Volumes/Disk1/medias/films/Un prince à New York (1988)/.actors
+  ACTORS 9files 2619247b /Volumes/Disk1/medias/films/Un week-end en enfer (2025)/.actors
+  ACTORS 55files 10546218b /Volumes/Disk1/medias/films/Under the Silver Lake (2018)/.actors
+  ACTORS 25files 2891883b /Volumes/Disk1/medias/films/Une Journée Incontrôlable (2025)/.actors
+  ACTORS 43files 4217572b /Volumes/Disk1/medias/films/Une Journée en enfer (1995)/.actors
+  ACTORS 12files 3782417b /Volumes/Disk1/medias/films/Until Dawn La Mort sans fin (2025)/.actors
+  ACTORS 27files 2877444b /Volumes/Disk1/medias/films/Upgrade (2018)/.actors
+  ACTORS 52files 9155401b /Volumes/Disk1/medias/films/V pour Vendetta (2006)/.actors
+  ACTORS 45files 7752096b /Volumes/Disk1/medias/films/Very Bad Trip (2009)/.actors
+  ACTORS 33files 5792134b /Volumes/Disk1/medias/films/Very Bad Trip 2 (2011)/.actors
+  ACTORS 32files 5466911b /Volumes/Disk1/medias/films/Very Bad Trip 3 (2013)/.actors
+  ACTORS 10files 869444b /Volumes/Disk1/medias/films/Vidal (2025)/.actors
+  ACTORS 30files 8184759b /Volumes/Disk1/medias/films/Wake Up Dead Man Une histoire à couteaux tirés (2025)/.actors
+  ACTORS 100files 9210281b /Volumes/Disk1/medias/films/Watchmen Les Gardiens (2009)/.actors
+  ACTORS 24files 5932066b /Volumes/Disk1/medias/films/Wedding Nightmare (2019)/.actors
+  ACTORS 91files 16063956b /Volumes/Disk1/medias/films/Wicked Partie II (2025)/.actors
+  ACTORS 71files 9347219b /Volumes/Disk1/medias/films/Wonder Woman (2017)/.actors
+  ACTORS 136files 13772326b /Volumes/Disk1/medias/films/Wonder Woman 1984 (2020)/.actors
+  ACTORS 59files 8255701b /Volumes/Disk1/medias/films/X-Men Le Commencement (2011)/.actors
+  ACTORS 44files 5692165b /Volumes/Disk1/medias/films/X-Men Origins Wolverine (2009)/.actors
+  ACTORS 72files 8659973b /Volumes/Disk1/medias/films/X-Men  Apocalypse (2016)/.actors
+  ACTORS 71files 7512380b /Volumes/Disk1/medias/films/X‐Men Days of Future Past (2014)/.actors
+  ACTORS 48files 10011379b /Volumes/Disk1/medias/films/Y a-t-il un flic pour sauver le monde (2025)/.actors
+  ACTORS 4files 402293b /Volumes/Disk1/medias/films/Yao (2019)/.actors
+  ACTORS 45files 5828467b /Volumes/Disk1/medias/films/Yes Man (2008)/.actors
+  ACTORS 10files 1592824b /Volumes/Disk1/medias/films/Yoroï (2025)/.actors
+  ACTORS 8files 882059b /Volumes/Disk1/medias/films/Youssef Salem a du succès (2023)/.actors
+  ACTORS 86files 11527028b /Volumes/Disk1/medias/films/Zack Snyder's Justice League (2021)/.actors
+  ACTORS 8files 553254b /Volumes/Disk1/medias/films/Zero Contact (2022)/.actors
+  ACTORS 61files 7606433b /Volumes/Disk1/medias/films/Zodiac (2007)/.actors
+  ACTORS 24files 3904971b /Volumes/Disk1/medias/films/iHostage (2025)/.actors
+  ACTORS 21files 1043772b /Volumes/Disk1/medias/films animations/Aladdin (1992)/.actors
+  ACTORS 13files 680442b /Volumes/Disk1/medias/films animations/Alice au pays des merveilles (1951)/.actors
+  ACTORS 12files 839894b /Volumes/Disk1/medias/films animations/Asterix et les Vikings (2006)/.actors
+--- empty-dir walk-up (batch 6) ---
+# batch_6: deleted=100, skipped=0, empty=0, time=8.3s
+# smoke_check_ok: 65 items
+
+=== BATCH 7/16 (100 items) ===
+  ACTORS 15files 1407930b /Volumes/Disk1/medias/films animations/Astérix  Le Domaine des dieux (2014)/.actors
+  ACTORS 66files 2289948b /Volumes/Disk1/medias/films animations/Astérix - Le Secret de la Potion Magique (2018)/.actors
+  ACTORS 12files 794970b /Volumes/Disk1/medias/films animations/Astérix chez les Bretons (1986)/.actors
+  ACTORS 11files 679566b /Volumes/Disk1/medias/films animations/Astérix et Cléopâtre (1968)/.actors
+  ACTORS 10files 507355b /Volumes/Disk1/medias/films animations/Astérix et la surprise de César (1985)/.actors
+  ACTORS 12files 825325b /Volumes/Disk1/medias/films animations/Astérix et le coup du menhir (1989)/.actors
+  ACTORS 11files 522696b /Volumes/Disk1/medias/films animations/Astérix et les Indiens (1994)/.actors
+  ACTORS 9files 610306b /Volumes/Disk1/medias/films animations/Astérix le Gaulois (1967)/.actors
+  ACTORS 9files 542127b /Volumes/Disk1/medias/films animations/Bambi (1942)/.actors
+  ACTORS 10files 1906888b /Volumes/Disk1/medias/films animations/Bambi 2 (2006)/.actors
+  ACTORS 4files 166985b /Volumes/Disk1/medias/films animations/Bao (2018)/.actors
+  ACTORS 12files 641499b /Volumes/Disk1/medias/films animations/Blanche-Neige et les sept nains (1937)/.actors
+  ACTORS 22files 3116021b /Volumes/Disk1/medias/films animations/Bob l'éponge - Le film (2004)/.actors
+  ACTORS 19files 3861085b /Volumes/Disk1/medias/films animations/Bob l'éponge, le film Éponge en eaux troubles (2020)/.actors
+  ACTORS 9files 336119b /Volumes/Disk1/medias/films animations/Cendrillon (1950)/.actors
+  ACTORS 20files 2744270b /Volumes/Disk1/medias/films animations/Chicken Little (2005)/.actors
+  ACTORS 57files 6077314b /Volumes/Disk1/medias/films animations/Coco (2017)/.actors
+  ACTORS 4files 203408b /Volumes/Disk1/medias/films animations/Constructeurs de Bateau (1938)/.actors
+  ACTORS 35files 5853587b /Volumes/Disk1/medias/films animations/Couic ! (2025)/.actors
+  ACTORS 19files 3941817b /Volumes/Disk1/medias/films animations/Dans tes rêves (2025)/.actors
+  ACTORS 4files 187454b /Volumes/Disk1/medias/films animations/De l'Autre Côté du Miroir (1936)/.actors
+  ACTORS 1files 49435b /Volumes/Disk1/medias/films animations/Donald Bagarreur (1942)/.actors
+  ACTORS 1files 49435b /Volumes/Disk1/medias/films animations/Donald Forestier (1949)/.actors
+  ACTORS 1files 49435b /Volumes/Disk1/medias/films animations/Donald et son Arbre de Noël (1949)/.actors
+  ACTORS 5files 397893b /Volumes/Disk1/medias/films animations/Doug en mission spéciale (2009)/.actors
+  ACTORS 19files 4040887b /Volumes/Disk1/medias/films animations/Elio (2025)/.actors
+  ACTORS 18files 3973937b /Volumes/Disk1/medias/films animations/Ellian et le sortilège (2024)/.actors
+  ACTORS 19files 1949015b /Volumes/Disk1/medias/films animations/Encanto, la fantastique famille Madrigal (2021)/.actors
+  ACTORS 13files 1332054b /Volumes/Disk1/medias/films animations/Élémentaire (2023)/.actors
+  ACTORS 7files 723299b /Volumes/Disk1/medias/films animations/Falcon Express (2025)/.actors
+  ACTORS 4files 181358b /Volumes/Disk1/medias/films animations/Fantasia (1940)/.actors
+  ACTORS 11files 1820477b /Volumes/Disk1/medias/films animations/Fantasia 2000 (1999)/.actors
+  ACTORS 22files 4308339b /Volumes/Disk1/medias/films animations/Fantastic Mr. Fox (2009)/.actors
+  ACTORS 6files 748478b /Volumes/Disk1/medias/films animations/Futurama - La grande aventure de Bender (2007)/.actors
+  ACTORS 9files 1252873b /Volumes/Disk1/medias/films animations/Futurama - Le monstre au milliard de tentacules (2008)/.actors
+  ACTORS 6files 631357b /Volumes/Disk1/medias/films animations/Futurama - Prenez garde au seigneur des robots ! (2008)/.actors
+  ACTORS 14files 1378667b /Volumes/Disk1/medias/films animations/Futurama - Vous prendrez bien un dernier vert (2009)/.actors
+  ACTORS 11files 471661b /Volumes/Disk1/medias/films animations/Ghost in the Shell (1995)/.actors
+  ACTORS 7files 653634b /Volumes/Disk1/medias/films animations/Hilda et le roi de la montagne (2021)/.actors
+  ACTORS 6files 573443b /Volumes/Disk1/medias/films animations/Interviews à l'Institut de Biologie Marine (2017)/.actors
+  ACTORS 1files 151431b /Volumes/Disk1/medias/films animations/Jour ⁄ Nuit (2010)/.actors
+  ACTORS 42files 7780581b /Volumes/Disk1/medias/films animations/KPop Demon Hunters (2025)/.actors
+  ACTORS 11files 2227236b /Volumes/Disk1/medias/films animations/Katak le Brave Béluga (2023)/.actors
+  ACTORS 9files 572853b /Volumes/Disk1/medias/films animations/Kirikou et les bêtes sauvages (2005)/.actors
+  ACTORS 4files 338144b /Volumes/Disk1/medias/films animations/Kirikou et les hommes et les femmes (2012)/.actors
+  ACTORS 3files 174206b /Volumes/Disk1/medias/films animations/L'Anniversaire de Mickey (1942)/.actors
+  ACTORS 3files 235729b /Volumes/Disk1/medias/films animations/L'Arbre de Noël de Pluto (1952)/.actors
+  ACTORS 32files 6572709b /Volumes/Disk1/medias/films animations/L'Âge de glace 4  La dérive des continents (2012)/.actors
+  ACTORS 9files 892003b /Volumes/Disk1/medias/films animations/L'Âge de glace Les Aventures de Buck Wild (2022)/.actors
+  ACTORS 3files 271529b /Volumes/Disk1/medias/films animations/L'Étoile mystérieuse (1992)/.actors
+  ACTORS 2files 55222b /Volumes/Disk1/medias/films animations/L'Odyssée de Choum (2020)/.actors
+  ACTORS 6files 329678b /Volumes/Disk1/medias/films animations/L'Oreille cassée (1992)/.actors
+  ACTORS 17files 3917102b /Volumes/Disk1/medias/films animations/L'âge de glace (2002)/.actors
+  ACTORS 24files 4022570b /Volumes/Disk1/medias/films animations/L'âge de glace 2 (2006)/.actors
+  ACTORS 22files 4435299b /Volumes/Disk1/medias/films animations/L'âge de glace 3 Le temps des dinosaures (2009)/.actors
+  ACTORS 5files 466527b /Volumes/Disk1/medias/films animations/L'école de pilotage de Miss Fritter (2017)/.actors
+  ACTORS 14files 1482993b /Volumes/Disk1/medias/films animations/La Bande à Picsou, le film  Le Trésor de la lampe perdue (1990)/.actors
+  ACTORS 5files 263151b /Volumes/Disk1/medias/films animations/La Belle Lisse Poire du Prince de Motordu (2005)/.actors
+  ACTORS 8files 307405b /Volumes/Disk1/medias/films animations/La Belle au bois dormant (1959)/.actors
+  ACTORS 18files 891047b /Volumes/Disk1/medias/films animations/La Belle et la Bête (1991)/.actors
+  ACTORS 12files 355311b /Volumes/Disk1/medias/films animations/La Belle et le Clochard (1955)/.actors
+  ACTORS 1files 45606b /Volumes/Disk1/medias/films animations/La Cigale et la Fourmi (1934)/.actors
+  ACTORS 23files 2346723b /Volumes/Disk1/medias/films animations/La Famille Delajungle, le film (2002)/.actors
+  ACTORS 1files 28878b /Volumes/Disk1/medias/films animations/La Ferme des Animaux (1954)/.actors
+  ACTORS 1files 45606b /Volumes/Disk1/medias/films animations/La Fête de Pluto (1952)/.actors
+  ACTORS 22files 3980881b /Volumes/Disk1/medias/films animations/La Nuit d'Orion (2024)/.actors
+  ACTORS 29files 3787043b /Volumes/Disk1/medias/films animations/La Petite Sirène (2023)/.actors
+  ACTORS 52files 9153888b /Volumes/Disk1/medias/films animations/La Reine des neiges (2013)/.actors
+  ACTORS 3files 174206b /Volumes/Disk1/medias/films animations/La Remorque de Mickey (1938)/.actors
+  ACTORS 2files 64511b /Volumes/Disk1/medias/films animations/La Souris Volante (1934)/.actors
+  ACTORS 16files 2162568b /Volumes/Disk1/medias/films animations/La ferme se rebelle (2004)/.actors
+  ACTORS 25files 1820973b /Volumes/Disk1/medias/films animations/La planète au trésor, un nouvel univers (2002)/.actors
+  ACTORS 26files 2850902b /Volumes/Disk1/medias/films animations/Là-haut (2009)/.actors
+  ACTORS 16files 1801110b /Volumes/Disk1/medias/films animations/Le Bossu de Notre-Dame (1996)/.actors
+  ACTORS 2files 108367b /Volumes/Disk1/medias/films animations/Le Brave Petit Tailleur (1938)/.actors
+  ACTORS 11files 484068b /Volumes/Disk1/medias/films animations/Le Château ambulant (2004)/.actors
+  ACTORS 12files 639510b /Volumes/Disk1/medias/films animations/Le Château dans le ciel (1986)/.actors
+  ACTORS 5files 306795b /Volumes/Disk1/medias/films animations/Le Crabe aux pinces d'or (1991)/.actors
+  ACTORS 14files 866913b /Volumes/Disk1/medias/films animations/Le Garçon et la Bête (2015)/.actors
+  ACTORS 2files 412141b /Volumes/Disk1/medias/films animations/Le Garçon et le Monde (2014)/.actors
+  ACTORS 28files 3123816b /Volumes/Disk1/medias/films animations/Le Géant de fer (1999)/.actors
+  ACTORS 11files 291914b /Volumes/Disk1/medias/films animations/Le Grand Méchant Renard et autres contes... (2017)/.actors
+  ACTORS 14files 635823b /Volumes/Disk1/medias/films animations/Le Livre de la jungle (1967)/.actors
+  ACTORS 9files 1285489b /Volumes/Disk1/medias/films animations/Le Livre de la jungle 2 (2003)/.actors
+  ACTORS 22files 3440000b /Volumes/Disk1/medias/films animations/Le Monde de Nemo (2003)/.actors
+  ACTORS 7files 1106976b /Volumes/Disk1/medias/films animations/Le Noël des Looney Tunes (2006)/.actors
+  ACTORS 1files 336726b /Volumes/Disk1/medias/films animations/Le Parapluie bleu (2013)/.actors
+  ACTORS 1files 45606b /Volumes/Disk1/medias/films animations/Le Petit Frère de Pluto (1946)/.actors
+  ACTORS 5files 1368629b /Volumes/Disk1/medias/films animations/Le Plusanniversary des Simpson (2021)/.actors
+  ACTORS 3files 174206b /Volumes/Disk1/medias/films animations/Le Remorqueur de Mickey (1940)/.actors
+  ACTORS 2files 108367b /Volumes/Disk1/medias/films animations/Le Rival de Mickey (1936)/.actors
+  ACTORS 20files 3021812b /Volumes/Disk1/medias/films animations/Le Robot sauvage (2024)/.actors
+  ACTORS 20files 3344617b /Volumes/Disk1/medias/films animations/Le Roi Lion (2019)/.actors
+  ACTORS 24files 2252128b /Volumes/Disk1/medias/films animations/Le Roi lion (1994)/.actors
+  ACTORS 5files 306795b /Volumes/Disk1/medias/films animations/Le Secret de la Licorne (1991)/.actors
+  ACTORS 28files 3055029b /Volumes/Disk1/medias/films animations/Le Seigneur des Anneaux La Guerre des Rohirrim (2024)/.actors
+  ACTORS 15files 566349b /Volumes/Disk1/medias/films animations/Le Temple du Soleil (1969)/.actors
+  ACTORS 6files 329678b /Volumes/Disk1/medias/films animations/Le Temple du Soleil (1992)/.actors
+  ACTORS 1files 79165b /Volumes/Disk1/medias/films animations/Le Tourbillon (1941)/.actors
+  ACTORS 6files 329678b /Volumes/Disk1/medias/films animations/Le Trésor de Rackham le Rouge (1991)/.actors
+--- empty-dir walk-up (batch 7) ---
+# batch_7: deleted=100, skipped=0, empty=0, time=2.4s
+# smoke_check_ok: 65 items
+
+=== BATCH 8/16 (100 items) ===
+  ACTORS 1files 49435b /Volumes/Disk1/medias/films animations/Le Vieux Moulin (1937)/.actors
+  ACTORS 19files 640527b /Volumes/Disk1/medias/films animations/Le Voyage de Chihiro (2001)/.actors
+  ACTORS 52files 7142646b /Volumes/Disk1/medias/films animations/Leo (2023)/.actors
+  ACTORS 15files 628203b /Volumes/Disk1/medias/films animations/Les 101 Dalmatiens (1961)/.actors
+  ACTORS 15files 802868b /Volumes/Disk1/medias/films animations/Les 12 travaux d'Astérix (1976)/.actors
+  ACTORS 8files 419351b /Volumes/Disk1/medias/films animations/Les 7 Boules de cristal (1992)/.actors
+  ACTORS 3files 174206b /Volumes/Disk1/medias/films animations/Les Alpinistes (1936)/.actors
+  ACTORS 15files 919190b /Volumes/Disk1/medias/films animations/Les Aristochats (1970)/.actors
+  ACTORS 14files 528439b /Volumes/Disk1/medias/films animations/Les Aventures de Bernard et Bianca (1977)/.actors
+  ACTORS 6files 455650b /Volumes/Disk1/medias/films animations/Les Aventures de Tigrou (2000)/.actors
+  ACTORS 10files 454395b /Volumes/Disk1/medias/films animations/Les Aventures de Winnie l'ourson (1977)/.actors
+  ACTORS 30files 7299069b /Volumes/Disk1/medias/films animations/Les Bad Guys 2 (2025)/.actors
+  ACTORS 1files 49435b /Volumes/Disk1/medias/films animations/Les Cacahuètes de Donald (1953)/.actors
+  ACTORS 4files 245856b /Volumes/Disk1/medias/films animations/Les Cigares du Pharaon (1991)/.actors
+  ACTORS 7files 779583b /Volumes/Disk1/medias/films animations/Les Décalés du cosmos, Ze Movie (2008)/.actors
+  ACTORS 51files 4496023b /Volumes/Disk1/medias/films animations/Les Mondes de Ralph (2012)/.actors
+  ACTORS 14files 1976575b /Volumes/Disk1/medias/films animations/Les Razmoket rencontrent Les Delajungle (2003)/.actors
+  ACTORS 37files 5052715b /Volumes/Disk1/medias/films animations/Les Razmoket, le film (1998)/.actors
+  ACTORS 45files 6472373b /Volumes/Disk1/medias/films animations/Les Schtroumpfs (2011)/.actors
+  ACTORS 30files 7312758b /Volumes/Disk1/medias/films animations/Les Schtroumpfs (2025)/.actors
+  ACTORS 31files 3783523b /Volumes/Disk1/medias/films animations/Les Schtroumpfs 2 (2013)/.actors
+  ACTORS 11files 1331184b /Volumes/Disk1/medias/films animations/Les Schtroumpfs et La Légende du Cavalier sans Tête (2013)/.actors
+  ACTORS 16files 3296911b /Volumes/Disk1/medias/films animations/Les Schtroumpfs et le village perdu (2017)/.actors
+  ACTORS 19files 2858570b /Volumes/Disk1/medias/films animations/Les Simpson - Le film (2007)/.actors
+  ACTORS 6files 1773058b /Volumes/Disk1/medias/films animations/Les Simpson Le Bon, le Bart et le Loki (2021)/.actors
+  ACTORS 13files 1537791b /Volumes/Disk1/medias/films animations/Les aventures de la ligue des justiciers - Piège temporel (2014)/.actors
+  ACTORS 10files 1121987b /Volumes/Disk1/medias/films animations/Lilo & Stitch (2002)/.actors
+  ACTORS 25files 6180242b /Volumes/Disk1/medias/films animations/Lilo & Stitch (2025)/.actors
+  ACTORS 13files 2093952b /Volumes/Disk1/medias/films animations/Looney Tunes Daffy et Porky sauvent le monde (2024)/.actors
+  ACTORS 20files 2756443b /Volumes/Disk1/medias/films animations/Madagascar (2005)/.actors
+  ACTORS 35files 4029000b /Volumes/Disk1/medias/films animations/Madagascar 2 (2008)/.actors
+  ACTORS 22files 4137845b /Volumes/Disk1/medias/films animations/Madagascar 3  Bons baisers d'Europe (2012)/.actors
+  ACTORS 9files 296252b /Volumes/Disk1/medias/films animations/Merlin l'enchanteur (1963)/.actors
+  ACTORS 18files 2351285b /Volumes/Disk1/medias/films animations/Mickey Il était deux fois Noël (2004)/.actors
+  ACTORS 16files 2541620b /Volumes/Disk1/medias/films animations/Mickey Il était une fois Noël (1999)/.actors
+  ACTORS 4files 203408b /Volumes/Disk1/medias/films animations/Mickey Patine (1935)/.actors
+  ACTORS 3files 153973b /Volumes/Disk1/medias/films animations/Mickey au Moyen Âge (1933)/.actors
+  ACTORS 1files 45606b /Volumes/Disk1/medias/films animations/Mickey à la plage (1953)/.actors
+  ACTORS 34files 5051635b /Volumes/Disk1/medias/films animations/Migration (2023)/.actors
+  ACTORS 21files 2001367b /Volumes/Disk1/medias/films animations/Mini Buzz (2011)/.actors
+  ACTORS 27files 3867834b /Volumes/Disk1/medias/films animations/Moi, moche et méchant (2010)/.actors
+  ACTORS 36files 6696573b /Volumes/Disk1/medias/films animations/Moi, moche et méchant 2 (2013)/.actors
+  ACTORS 35files 6372011b /Volumes/Disk1/medias/films animations/Moi, moche et méchant 3 (2017)/.actors
+  ACTORS 10files 235366b /Volumes/Disk1/medias/films animations/Mon voisin Totoro (1988)/.actors
+  ACTORS 13files 1723086b /Volumes/Disk1/medias/films animations/Mononoke, le film Chapitre II - Les cendres de la rage (2025)/.actors
+  ACTORS 49files 4719482b /Volumes/Disk1/medias/films animations/Monstres & Cie (2001)/.actors
+  ACTORS 76files 7019289b /Volumes/Disk1/medias/films animations/Monstres Academy (2013)/.actors
+  ACTORS 29files 7105521b /Volumes/Disk1/medias/films animations/Mufasa Le Roi Lion (2024)/.actors
+  ACTORS 21files 2299950b /Volumes/Disk1/medias/films animations/Mulan (1998)/.actors
+  ACTORS 18files 1050958b /Volumes/Disk1/medias/films animations/Nausicaä de la vallée du vent (1984)/.actors
+  ACTORS 26files 1289337b /Volumes/Disk1/medias/films animations/Ni vu… Ni connu… (1958)/.actors
+  ACTORS 18files 1560042b /Volumes/Disk1/medias/films animations/Oliver & Compagnie (1988)/.actors
+  ACTORS 6files 329678b /Volumes/Disk1/medias/films animations/On a marché sur la Lune (1992)/.actors
+  ACTORS 42files 3637580b /Volumes/Disk1/medias/films animations/Paddington (2014)/.actors
+  ACTORS 50files 6111771b /Volumes/Disk1/medias/films animations/Paddington 2 (2017)/.actors
+  ACTORS 1files 75624b /Volumes/Disk1/medias/films animations/Passages nuageux (2009)/.actors
+  ACTORS 9files 588073b /Volumes/Disk1/medias/films animations/Peter Pan (1953)/.actors
+  ACTORS 10files 551443b /Volumes/Disk1/medias/films animations/Peter Pan 2  Retour au Pays Imaginaire (2002)/.actors
+  ACTORS 6files 2097342b /Volumes/Disk1/medias/films animations/Petit Panda en Afrique (2024)/.actors
+  ACTORS 10files 307780b /Volumes/Disk1/medias/films animations/Pil (2021)/.actors
+  ACTORS 10files 356137b /Volumes/Disk1/medias/films animations/Pinocchio (1940)/.actors
+  ACTORS 14files 4261634b /Volumes/Disk1/medias/films animations/Plankton Le film (2025)/.actors
+  ACTORS 2files 124771b /Volumes/Disk1/medias/films animations/Pluto jongleur (1934)/.actors
+  ACTORS 1files 45606b /Volumes/Disk1/medias/films animations/Pluto, Chien de secours (1947)/.actors
+  ACTORS 15files 1958115b /Volumes/Disk1/medias/films animations/Pocahontas (1995)/.actors
+  ACTORS 1files 49435b /Volumes/Disk1/medias/films animations/Pop Corn à tout va ! (1951)/.actors
+  ACTORS 12files 328614b /Volumes/Disk1/medias/films animations/Porco Rosso (1992)/.actors
+  ACTORS 20files 3584943b /Volumes/Disk1/medias/films animations/Premier Rendez-Vous (2015)/.actors
+  ACTORS 1files 168851b /Volumes/Disk1/medias/films animations/Presto (2008)/.actors
+  ACTORS 11files 939362b /Volumes/Disk1/medias/films animations/Princesse Mononoké (1997)/.actors
+  ACTORS 11files 1040518b /Volumes/Disk1/medias/films animations/Q.G. de soirée (2014)/.actors
+  ACTORS 12files 1941245b /Volumes/Disk1/medias/films animations/Raiponce (2010)/.actors
+  ACTORS 33files 5987100b /Volumes/Disk1/medias/films animations/Rango (2011)/.actors
+  ACTORS 21files 2316583b /Volumes/Disk1/medias/films animations/Ratatouille (2007)/.actors
+  ACTORS 13files 1846396b /Volumes/Disk1/medias/films animations/Rebelle (2012)/.actors
+  ACTORS 18files 3104316b /Volumes/Disk1/medias/films animations/Retour au bercail (2021)/.actors
+  ACTORS 13files 1321176b /Volumes/Disk1/medias/films animations/Rox et Rouky (1981)/.actors
+  ACTORS 4files 707974b /Volumes/Disk1/medias/films animations/Ruby tombée du nid (2021)/.actors
+  ACTORS 9files 1786368b /Volumes/Disk1/medias/films animations/Sacrées Momies (2023)/.actors
+  ACTORS 15files 1799190b /Volumes/Disk1/medias/films animations/Short Circuit (1986)/.actors
+  ACTORS 36files 4495030b /Volumes/Disk1/medias/films animations/Shrek (2001)/.actors
+  ACTORS 20files 3173598b /Volumes/Disk1/medias/films animations/Shrek 2 (2004)/.actors
+  ACTORS 26files 5022520b /Volumes/Disk1/medias/films animations/Shrek 4, il était une fin (2010)/.actors
+  ACTORS 31files 6099264b /Volumes/Disk1/medias/films animations/Shrek le troisième (2007)/.actors
+  ACTORS 25files 3821170b /Volumes/Disk1/medias/films animations/Soul (2020)/.actors
+  ACTORS 5files 377371b /Volumes/Disk1/medias/films animations/South Park The Streaming Wars (2022)/.actors
+  ACTORS 12files 1701616b /Volumes/Disk1/medias/films animations/South Park, le film (1999)/.actors
+  ACTORS 33files 3918196b /Volumes/Disk1/medias/films animations/Space Jam Nouvelle ère (2021)/.actors
+  ACTORS 20files 3743176b /Volumes/Disk1/medias/films animations/Spermageddon (2025)/.actors
+  ACTORS 84files 10289682b /Volumes/Disk1/medias/films animations/Spider-Man Across the Spider-Verse (2023)/.actors
+  ACTORS 68files 7172568b /Volumes/Disk1/medias/films animations/Spider-Man New Generation (2018)/.actors
+  ACTORS 10files 2115657b /Volumes/Disk1/medias/films animations/Tarzan (1999)/.actors
+  ACTORS 19files 2021825b /Volumes/Disk1/medias/films animations/The Wild (2006)/.actors
+  ACTORS 4files 294412b /Volumes/Disk1/medias/films animations/Tintin au Tibet (1992)/.actors
+  ACTORS 5files 298460b /Volumes/Disk1/medias/films animations/Tintin et le lac aux requins (1972)/.actors
+  ACTORS 7files 397457b /Volumes/Disk1/medias/films animations/Tintin et les Picaros (1992)/.actors
+  ACTORS 5files 205667b /Volumes/Disk1/medias/films animations/Tintin et les oranges bleues (1964)/.actors
+  ACTORS 38files 5358755b /Volumes/Disk1/medias/films animations/Tom & Jerry (2021)/.actors
+  ACTORS 10files 783250b /Volumes/Disk1/medias/films animations/Tom & Jerry au Far West (2022)/.actors
+  ACTORS 28files 2136498b /Volumes/Disk1/medias/films animations/Toy Story (1995)/.actors
+--- empty-dir walk-up (batch 8) ---
+# batch_8: deleted=100, skipped=0, empty=0, time=3.1s
+# smoke_check_ok: 65 items
+
+=== BATCH 9/16 (100 items) ===
+  ACTORS 40files 4122099b /Volumes/Disk1/medias/films animations/Toy Story 2 (1999)/.actors
+  ACTORS 47files 6979797b /Volumes/Disk1/medias/films animations/Toy Story 3 (2010)/.actors
+  ACTORS 18files 3812955b /Volumes/Disk1/medias/films animations/Toy Story Angoisse au motel (2013)/.actors
+  ACTORS 20files 3716989b /Volumes/Disk1/medias/films animations/Vacances à Hawaï (2011)/.actors
+  ACTORS 15files 2152049b /Volumes/Disk1/medias/films animations/Vaiana 2 (2024)/.actors
+  ACTORS 52files 8692434b /Volumes/Disk1/medias/films animations/Vice-versa (2015)/.actors
+  ACTORS 27files 2567898b /Volumes/Disk1/medias/films animations/WALL·E (2008)/.actors
+  ACTORS 13files 2135493b /Volumes/Disk1/medias/films animations/Wallace & Gromit Le mystère du lapin-garou (2005)/.actors
+  ACTORS 4files 162349b /Volumes/Disk1/medias/films animations/Wallace & Gromit Rasé de près (1995)/.actors
+  ACTORS 2files 46971b /Volumes/Disk1/medias/films animations/Wallace & Gromit Un mauvais pantalon (1993)/.actors
+  ACTORS 4files 340644b /Volumes/Disk1/medias/films animations/Wallace & Gromit Un sacré pétrin (2008)/.actors
+  ACTORS 2files 46971b /Volumes/Disk1/medias/films animations/Wallace & Gromit Une grande excursion (1990)/.actors
+  ACTORS 19files 5397691b /Volumes/Disk1/medias/films animations/Watchmen Chapter I (2024)/.actors
+  ACTORS 5files 866850b /Volumes/Disk1/medias/films animations/Wendy (2020)/.actors
+  ACTORS 1files 79165b /Volumes/Disk1/medias/films animations/Willie, le bateau à vapeur (1928)/.actors
+  ACTORS 21files 2825717b /Volumes/Disk1/medias/films animations/Wish, Asha et la bonne étoile (2023)/.actors
+  ACTORS 39files 5046728b /Volumes/Disk1/medias/films animations/Zootopie (2016)/.actors
+  ACTORS 2files 150145b /Volumes/Disk1/medias/films documentaires/Au boulot ! (2024)/.actors
+  ACTORS 14files 5104198b /Volumes/Disk1/medias/films documentaires/À la recherche de Harry L'art derrière la magie (2026)/.actors
+  ACTORS 11files 1209889b /Volumes/Disk1/medias/films documentaires/Bref. De bons amis (2025)/.actors
+  ACTORS 25files 5721263b /Volumes/Disk1/medias/films documentaires/Harry Potter fête ses 20 ans Retour à Poudlard (2022)/.actors
+  ACTORS 41files 10376314b /Volumes/Disk1/medias/films documentaires/La Dernière Aventure Le making-of de Stranger Things 5 (2026)/.actors
+  ACTORS 2files 89773b /Volumes/Disk1/medias/films documentaires/La Reine des échecs (2026)/.actors
+  ACTORS 7files 941491b /Volumes/Disk1/medias/films documentaires/Les nombreux visages de Jim Carrey (2023)/.actors
+  ACTORS 5files 526840b /Volumes/Disk1/medias/films documentaires/Libre antenne (2026)/.actors
+  ACTORS 2files 715001b /Volumes/Disk1/medias/films documentaires/Mister Nobody contre Poutine (2025)/.actors
+  ACTORS 1files 17421b /Volumes/Disk1/medias/films documentaires/Mommy Dead and Dearest (2017)/.actors
+  ACTORS 22files 4639388b /Volumes/Disk1/medias/films documentaires/Orwell 2+2=5 (2025)/.actors
+  ACTORS 20files 3766429b /Volumes/Disk1/medias/films documentaires/Personne n'y comprend rien (2025)/.actors
+  ACTORS 1files 18898b /Volumes/Disk1/medias/films documentaires/Trois étrangers identiques (2018)/.actors
+  ACTORS 54files 2307136b /Volumes/Disk1/medias/series/24 Heures chrono (2001)/.actors
+  ACTORS 2files 199284b /Volumes/Disk1/medias/series/A Knight of the Seven Kingdoms (2026)/.actors
+  ACTORS 41files 7295537b /Volumes/Disk1/medias/series/A l'aube de l'Amérique (2025)/.actors
+  ACTORS 7files 230125b /Volumes/Disk1/medias/series/Acharnés (2023)/.actors
+  ACTORS 11files 3219541b /Volumes/Disk1/medias/series/Ahsoka (2023)/.actors
+  ACTORS 2files 122645b /Volumes/Disk1/medias/series/Alice in Borderland (2020)/.actors
+  ACTORS 41files 9500051b /Volumes/Disk1/medias/series/Alien Earth (2025)/.actors
+  ACTORS 14files 885407b /Volumes/Disk1/medias/series/Another Life (2019)/.actors
+  ACTORS 14files 964427b /Volumes/Disk1/medias/series/Ascension (2014)/.actors
+  ACTORS 17files 595225b /Volumes/Disk1/medias/series/Atypique (2017)/.actors
+  ACTORS 8files 243706b /Volumes/Disk1/medias/series/Away (2020)/.actors
+  ACTORS 25files 1598782b /Volumes/Disk1/medias/series/Babylon 5 (1993)/.actors
+  ACTORS 33files 4220086b /Volumes/Disk1/medias/series/Bad Sisters (2022)/.actors
+  ACTORS 16files 2264306b /Volumes/Disk1/medias/series/Before (2024)/.actors
+  ACTORS 16files 2264306b /Volumes/Disk1/medias/series/Before (2024)/Saison 01/.actors
+  ACTORS 56files 6950456b /Volumes/Disk1/medias/series/Berlin (2023)/.actors
+  ACTORS 2files 39645b /Volumes/Disk1/medias/series/Black Rabbit (2025)/.actors
+  ACTORS 15files 598558b /Volumes/Disk1/medias/series/Black Sails (2013)/.actors
+  ACTORS 15files 1449522b /Volumes/Disk1/medias/series/Black Snow (2023)/.actors
+  ACTORS 12files 886757b /Volumes/Disk1/medias/series/Bloodline (2015)/.actors
+  ACTORS 53files 4182242b /Volumes/Disk1/medias/series/Blue Lights (2023)/.actors
+  ACTORS 6files 364074b /Volumes/Disk1/medias/series/Bodies (2023)/.actors
+  ACTORS 5files 228028b /Volumes/Disk1/medias/series/Boglands, enquête en terre noire (2024)/.actors
+  ACTORS 19files 4957621b /Volumes/Disk1/medias/series/Boots (2025)/.actors
+  ACTORS 9files 1479814b /Volumes/Disk1/medias/series/Cassandra (2025)/.actors
+  ACTORS 9files 1832969b /Volumes/Disk1/medias/series/Casting(s) (2013)/.actors
+  ACTORS 15files 1767196b /Volumes/Disk1/medias/series/Cent ans de solitude (2024)/.actors
+  ACTORS 80files 8323045b /Volumes/Disk1/medias/series/Chacal (2024)/.actors
+  ACTORS 9files 1219507b /Volumes/Disk1/medias/series/Chère petite (2023)/.actors
+  ACTORS 11files 316449b /Volumes/Disk1/medias/series/Chief of War (2025)/.actors
+  ACTORS 15files 1059743b /Volumes/Disk1/medias/series/Citoyens clandestins (2024)/.actors
+  ACTORS 10files 232169b /Volumes/Disk1/medias/series/City on Fire (2023)/.actors
+  ACTORS 8files 1219424b /Volumes/Disk1/medias/series/Constellation (2024)/.actors
+  ACTORS 21files 1508142b /Volumes/Disk1/medias/series/Criminal Record (2024)/.actors
+  ACTORS 72files 9768423b /Volumes/Disk1/medias/series/Cross (2024)/.actors
+  ACTORS 13files 4498149b /Volumes/Disk1/medias/series/Ça Bienvenue à Derry (2025)/.actors
+  ACTORS 16files 1878756b /Volumes/Disk1/medias/series/D'argent et de sang (2023)/.actors
+  ACTORS 97files 13449682b /Volumes/Disk1/medias/series/Dark Matter (2015)/.actors
+  ACTORS 2files 60308b /Volumes/Disk1/medias/series/De grâce (2024)/.actors
+  ACTORS 3files 101766b /Volumes/Disk1/medias/series/Deadloch (2023)/.actors
+  ACTORS 2files 333274b /Volumes/Disk1/medias/series/Death in Denmark (2025)/.actors
+  ACTORS 5files 739358b /Volumes/Disk1/medias/series/Demain à la Une (1996)/.actors
+  ACTORS 15files 1299278b /Volumes/Disk1/medias/series/Dernière Nuit à Tremor (2024)/.actors
+  ACTORS 13files 2986165b /Volumes/Disk1/medias/series/Derrière la façade (2024)/.actors
+  ACTORS 17files 1204370b /Volumes/Disk1/medias/series/Des vivants (2025)/.actors
+  ACTORS 8files 1594834b /Volumes/Disk1/medias/series/Dexter (2006)/.actors
+  ACTORS 58files 8060451b /Volumes/Disk1/medias/series/Dexter Les Origines (2024)/.actors
+  ACTORS 10files 1224342b /Volumes/Disk1/medias/series/Dexter Resurrection (2025)/.actors
+  ACTORS 9files 1742916b /Volumes/Disk1/medias/series/Défendre Jacob (2020)/.actors
+  ACTORS 11files 1803742b /Volumes/Disk1/medias/series/Dope Girls (2025)/.actors
+  ACTORS 6files 147489b /Volumes/Disk1/medias/series/Dope Thief (2025)/.actors
+  ACTORS 62files 10893485b /Volumes/Disk1/medias/series/Dope Thief (2025)/Saison 01/.actors
+  ACTORS 6files 847244b /Volumes/Disk1/medias/series/Douglas Is Cancelled (2024)/.actors
+  ACTORS 12files 1957001b /Volumes/Disk1/medias/series/Down Cemetery Road (2025)/.actors
+  ACTORS 56files 9645169b /Volumes/Disk1/medias/series/Dune Prophecy (2024)/.actors
+  ACTORS 6files 2298641b /Volumes/Disk1/medias/series/Earl (2005)/.actors
+  ACTORS 9files 569460b /Volumes/Disk1/medias/series/Engrenages (2005)/.actors
+  ACTORS 9files 977614b /Volumes/Disk1/medias/series/Enterrement de vie de garçon (2024)/.actors
+  ACTORS 28files 941430b /Volumes/Disk1/medias/series/Espion à l'ancienne (2024)/.actors
+  ACTORS 10files 305440b /Volumes/Disk1/medias/series/Esterno Notte (2022)/.actors
+  ACTORS 7files 194479b /Volumes/Disk1/medias/series/Extrapolations (2023)/.actors
+  ACTORS 10files 700958b /Volumes/Disk1/medias/series/Flashback (2025)/.actors
+  ACTORS 10files 315245b /Volumes/Disk1/medias/series/Florida Man (2023)/.actors
+  ACTORS 12files 4528896b /Volumes/Disk1/medias/series/Fonction Juré présente Le Séminaire d'Entreprise (2026)/.actors
+  ACTORS 14files 729978b /Volumes/Disk1/medias/series/For All Mankind (2019)/.actors
+  ACTORS 16files 449196b /Volumes/Disk1/medias/series/Foundation (2021)/.actors
+  ACTORS 6files 1914420b /Volumes/Disk1/medias/series/Friends (1994)/.actors
+  ACTORS 4files 213661b /Volumes/Disk1/medias/series/GHOUL (2018)/.actors
+  ACTORS 18files 875397b /Volumes/Disk1/medias/series/Gangs of London (2020)/.actors
+  ACTORS 8files 2738393b /Volumes/Disk1/medias/series/Gen V (2023)/.actors
+--- empty-dir walk-up (batch 9) ---
+# batch_9: deleted=100, skipped=0, empty=0, time=4.4s
+# smoke_check_ok: 65 items
+
+=== BATCH 10/16 (100 items) ===
+  ACTORS 10files 2673933b /Volumes/Disk1/medias/series/Girl Taken (2026)/.actors
+  ACTORS 12files 3268715b /Volumes/Disk1/medias/series/Good Omens (2018)/.actors
+  ACTORS 57files 2228968b /Volumes/Disk1/medias/series/Grey's Anatomy (2005)/.actors
+  ACTORS 6files 213672b /Volumes/Disk1/medias/series/H (1998)/.actors
+  ACTORS 6files 1951236b /Volumes/Disk1/medias/series/HIS & HERS (2026)/.actors
+  ACTORS 7files 215779b /Volumes/Disk1/medias/series/Happy Face (2025)/.actors
+  ACTORS 12files 1275841b /Volumes/Disk1/medias/series/Happy! (2017)/.actors
+  ACTORS 9files 3531123b /Volumes/Disk1/medias/series/Harlan Coben's Lazarus (2025)/.actors
+  ACTORS 3files 138632b /Volumes/Disk1/medias/series/Harry Potter Les Sorciers de la pâtisserie (2024)/.actors
+  ACTORS 9files 1018553b /Volumes/Disk1/medias/series/Helix (2014)/.actors
+  ACTORS 5files 162538b /Volumes/Disk1/medias/series/Hippocrate (2018)/.actors
+  ACTORS 10files 798786b /Volumes/Disk1/medias/series/Home Before Dark (2020)/.actors
+  ACTORS 12files 670418b /Volumes/Disk1/medias/series/Homecoming (2018)/.actors
+  ACTORS 6files 313245b /Volumes/Disk1/medias/series/How I Met Your Mother (2005)/.actors
+  ACTORS 13files 1997358b /Volumes/Disk1/medias/series/I Know This Much Is True (2020)/.actors
+  ACTORS 14files 3541211b /Volumes/Disk1/medias/series/Industry (2020)/.actors
+  ACTORS 2files 74364b /Volumes/Disk1/medias/series/Infiniti (2022)/.actors
+  ACTORS 9files 303808b /Volumes/Disk1/medias/series/Invasion (2021)/.actors
+  ACTORS 5files 293956b /Volumes/Disk1/medias/series/John Doe (2002)/.actors
+  ACTORS 23files 761238b /Volumes/Disk1/medias/series/Kaamelott (2003)/.actors
+  ACTORS 15files 557752b /Volumes/Disk1/medias/series/L'Absente (2021)/.actors
+  ACTORS 14files 1550096b /Volumes/Disk1/medias/series/L'Éternaute (2025)/.actors
+  ACTORS 5files 196687b /Volumes/Disk1/medias/series/L'Heure zéro (2025)/.actors
+  ACTORS 19files 2963677b /Volumes/Disk1/medias/series/La Chute de la maison Usher (2023)/.actors
+  ACTORS 11files 322528b /Volumes/Disk1/medias/series/La Diplomate (2023)/.actors
+  ACTORS 5files 166527b /Volumes/Disk1/medias/series/La Réalité en face (2021)/.actors
+  ACTORS 30files 2117013b /Volumes/Disk1/medias/series/La casa de papel (2017)/.actors
+  ACTORS 7files 244198b /Volumes/Disk1/medias/series/La femme qui habitait en face de la fille à la fenêtre (2022)/.actors
+  ACTORS 5files 176472b /Volumes/Disk1/medias/series/La mer de la Tranquillité (2021)/.actors
+  ACTORS 12files 401766b /Volumes/Disk1/medias/series/Landman (2024)/.actors
+  ACTORS 7files 745665b /Volumes/Disk1/medias/series/Le Crime à la racine (2025)/.actors
+  ACTORS 22files 4958116b /Volumes/Disk1/medias/series/Le Garçon et l'Univers (2024)/.actors
+  ACTORS 2files 112955b /Volumes/Disk1/medias/series/Le Livre de Boba Fett (2021)/.actors
+  ACTORS 7files 1060601b /Volumes/Disk1/medias/series/Le Maître du Haut Château (2015)/.actors
+  ACTORS 8files 210630b /Volumes/Disk1/medias/series/Le Président foudroyé (2025)/.actors
+  ACTORS 13files 326064b /Volumes/Disk1/medias/series/Le Problème à 3 corps (2024)/.actors
+  ACTORS 35files 2850611b /Volumes/Disk1/medias/series/Les 100 (2014)/.actors
+  ACTORS 13files 1240081b /Volumes/Disk1/medias/series/Les Demoiselles du téléphone (2017)/.actors
+  ACTORS 5files 135042b /Volumes/Disk1/medias/series/Les Derniers Jours de Ptolemy Grey (2022)/.actors
+  ACTORS 7files 1247648b /Volumes/Disk1/medias/series/Les Disparues de la gare (2025)/.actors
+  ACTORS 9files 392457b /Volumes/Disk1/medias/series/Les Dossiers oubliés (2025)/.actors
+  ACTORS 10files 2196810b /Volumes/Disk1/medias/series/Les Fleurs sauvages (2023)/.actors
+  ACTORS 5files 1277889b /Volumes/Disk1/medias/series/Les Frères Sun (2024)/.actors
+  ACTORS 23files 5614370b /Volumes/Disk1/medias/series/Les Quatre Saisons (2025)/.actors
+  ACTORS 6files 883418b /Volumes/Disk1/medias/series/Les Sept Cadrans d'Agatha Christie (2026)/.actors
+  ACTORS 37files 2021222b /Volumes/Disk1/medias/series/Les Soprano (1999)/.actors
+  ACTORS 7files 986225b /Volumes/Disk1/medias/series/Les aventures imaginaires de Dick Turpin (2024)/.actors
+  ACTORS 5files 1422432b /Volumes/Disk1/medias/series/Lessons in Chemistry (2023)/.actors
+  ACTORS 9files 493631b /Volumes/Disk1/medias/series/Loïs et Clark Les nouvelles aventures de Superman (1993)/.actors
+  ACTORS 2files 49286b /Volumes/Disk1/medias/series/Los años nuevos (2024)/.actors
+  ACTORS 13files 1686621b /Volumes/Disk1/medias/series/Lost Media (2026)/.actors
+  ACTORS 7files 238134b /Volumes/Disk1/medias/series/Love & Death (2023)/.actors
+  ACTORS 7files 1441100b /Volumes/Disk1/medias/series/Lucky Hank (2023)/.actors
+  ACTORS 10files 2197325b /Volumes/Disk1/medias/series/Malcolm Rien n'a changé (2026)/.actors
+  ACTORS 4files 116062b /Volumes/Disk1/medias/series/Malpractice (2023)/.actors
+  ACTORS 11files 1963709b /Volumes/Disk1/medias/series/Mangeterre (2025)/.actors
+  ACTORS 146files 19845711b /Volumes/Disk1/medias/series/Masters of the Air (2024)/.actors
+  ACTORS 8files 587842b /Volumes/Disk1/medias/series/Matlock (2024) (2024)/.actors
+  ACTORS 9files 297982b /Volumes/Disk1/medias/series/Mayor of Kingstown (2021)/.actors
+  ACTORS 4files 172492b /Volumes/Disk1/medias/series/Meurtres à Åre (2025)/.actors
+  ACTORS 45files 6869949b /Volumes/Disk1/medias/series/Meurtres et autres complications (2024)/.actors
+  ACTORS 796files 99278145b /Volumes/Disk1/medias/series/Médium (2005)/.actors
+  ACTORS 10files 264345b /Volumes/Disk1/medias/series/MobLand (2025)/.actors
+  ACTORS 14files 1165493b /Volumes/Disk1/medias/series/Mon oncle Charlie (2003)/.actors
+  ACTORS 1110files 125924608b /Volumes/Disk1/medias/series/Monk (2002)/.actors
+  ACTORS 10files 2329849b /Volumes/Disk1/medias/series/Monstre L'Histoire d'Ed Gein (2025)/.actors
+  ACTORS 7files 206744b /Volumes/Disk1/medias/series/Moonhaven (2022)/.actors
+  ACTORS 9files 305891b /Volumes/Disk1/medias/series/Mr Bates vs The Post Office (2024)/.actors
+  ACTORS 6files 281416b /Volumes/Disk1/medias/series/Mr Inbetween (2005)/.actors
+  ACTORS 1files 33352b /Volumes/Disk1/medias/series/Mr. Corman (2021)/.actors
+  ACTORS 11files 745585b /Volumes/Disk1/medias/series/Mr. Robot (2015)/.actors
+  ACTORS 2files 63538b /Volumes/Disk1/medias/series/Mrs Playmen (2025)/.actors
+  ACTORS 78files 11533580b /Volumes/Disk1/medias/series/Mrs. Davis (2023)/.actors
+  ACTORS 10files 2587874b /Volumes/Disk1/medias/series/Murdaugh Murders (2025)/.actors
+  ACTORS 7files 200622b /Volumes/Disk1/medias/series/Murderbot – Journal d’un AssaSynth (2025)/.actors
+  ACTORS 20files 1955216b /Volumes/Disk1/medias/series/Narcos Mexico (2018)/.actors
+  ACTORS 1files 176701b /Volumes/Disk1/medias/series/Narvalo (2020)/.actors
+  ACTORS 4files 487669b /Volumes/Disk1/medias/series/Niebo (2025)/.actors
+  ACTORS 12files 309055b /Volumes/Disk1/medias/series/Nine Perfect Strangers (2021)/.actors
+  ACTORS 5files 225616b /Volumes/Disk1/medias/series/Obi-Wan Kenobi (2022)/.actors
+  ACTORS 10files 2444053b /Volumes/Disk1/medias/series/One Piece (2023)/.actors
+  ACTORS 5files 322526b /Volumes/Disk1/medias/series/Or de lui (2021)/.actors
+  ACTORS 5files 322526b /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e01 tina/.actors
+  ACTORS 5files 322526b /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e02 tina/.actors
+  ACTORS 5files 322526b /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e03 tina/.actors
+  ACTORS 5files 322526b /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e04 tina/.actors
+  ACTORS 5files 322526b /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e05 tina/.actors
+  ACTORS 5files 322526b /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e06 tina/.actors
+  ACTORS 5files 322526b /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e07 tina/.actors
+  ACTORS 5files 322526b /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e08 tina/.actors
+  ACTORS 5files 322526b /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e09 tina/.actors
+  ACTORS 5files 322526b /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e10 final tina/.actors
+  ACTORS 62files 3485111b /Volumes/Disk1/medias/series/Orange Is the New Black (2013)/.actors
+  ACTORS 11files 283095b /Volumes/Disk1/medias/series/Outer Range (2022)/.actors
+  ACTORS 5files 456804b /Volumes/Disk1/medias/series/Ovni(s) (2021)/.actors
+  ACTORS 34files 3162656b /Volumes/Disk1/medias/series/Oz (1997)/.actors
+  ACTORS 14files 1481934b /Volumes/Disk1/medias/series/Painkiller (2023)/.actors
+  ACTORS 9files 276558b /Volumes/Disk1/medias/series/Paradise (2025)/.actors
+  ACTORS 26files 1694053b /Volumes/Disk1/medias/series/Peaky Blinders (2013)/.actors
+  ACTORS 20files 1287228b /Volumes/Disk1/medias/series/Penny Dreadful (2014)/.actors
+--- empty-dir walk-up (batch 10) ---
+  RMDIR: /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e01 tina
+  RMDIR: /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e02 tina
+  RMDIR: /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e03 tina
+  RMDIR: /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e04 tina
+  RMDIR: /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e05 tina
+  RMDIR: /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e06 tina
+  RMDIR: /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e07 tina
+  RMDIR: /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e08 tina
+  RMDIR: /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e09 tina
+  RMDIR: /Volumes/Disk1/medias/series/Or de lui (2021)/or de lui s01e10 final tina
+# batch_10: deleted=100, skipped=0, empty=10, time=5.7s
+# smoke_check_ok: 65 items
+
+=== BATCH 11/16 (100 items) ===
+  ACTORS 13files 2000333b /Volumes/Disk1/medias/series/People of Earth (2016)/.actors
+  ACTORS 6files 171777b /Volumes/Disk1/medias/series/Platonic (2023) (2023)/.actors
+  ACTORS 2files 63106b /Volumes/Disk1/medias/series/Pluribus (2025)/.actors
+  ACTORS 15files 1826471b /Volumes/Disk1/medias/series/Polar Park (2023)/.actors
+  ACTORS 5files 348979b /Volumes/Disk1/medias/series/Poupée russe (2019)/.actors
+  ACTORS 5files 141753b /Volumes/Disk1/medias/series/Querer (2024)/.actors
+  ACTORS 6files 162509b /Volumes/Disk1/medias/series/Rabbit Hole (2023)/.actors
+  ACTORS 13files 607896b /Volumes/Disk1/medias/series/Raised by wolves (2020)/.actors
+  ACTORS 157files 18865179b /Volumes/Disk1/medias/series/Reacher (2022)/.actors
+  ACTORS 15files 528504b /Volumes/Disk1/medias/series/Resident Alien (2021)/.actors
+  ACTORS 4files 130574b /Volumes/Disk1/medias/series/Reyka (2021)/.actors
+  ACTORS 13files 1568576b /Volumes/Disk1/medias/series/Rictus (2023)/.actors
+  ACTORS 6files 1550844b /Volumes/Disk1/medias/series/Rooster (2026)/.actors
+  ACTORS 7files 909431b /Volumes/Disk1/medias/series/Rosemary's Baby (2014)/.actors
+  ACTORS 9files 2673514b /Volumes/Disk1/medias/series/Salvador (2026)/.actors
+  ACTORS 19files 924397b /Volumes/Disk1/medias/series/Sambre (2023)/.actors
+  ACTORS 11files 930725b /Volumes/Disk1/medias/series/Say Nothing (2024)/.actors
+  ACTORS 3files 807234b /Volumes/Disk1/medias/series/Scrubs (2026)/.actors
+  ACTORS 9files 638193b /Volumes/Disk1/medias/series/Secret Invasion (2023)/.actors
+  ACTORS 13files 865297b /Volumes/Disk1/medias/series/See (2019)/.actors
+  ACTORS 11files 313273b /Volumes/Disk1/medias/series/Sense8 (2015)/.actors
+  ACTORS 4files 99799b /Volumes/Disk1/medias/series/Serge Le Mytho (2016)/.actors
+  ACTORS 1files 26730b /Volumes/Disk1/medias/series/Seul face au bébé (2025)/.actors
+  ACTORS 28files 3647494b /Volumes/Disk1/medias/series/Severance (2022)/.actors
+  ACTORS 28files 3370081b /Volumes/Disk1/medias/series/Severance (2022)/Saison 01/.actors
+  ACTORS 27files 5256074b /Volumes/Disk1/medias/series/Severance (2022)/Saison 02/.actors
+  ACTORS 7files 1486391b /Volumes/Disk1/medias/series/Shining Girls (2022)/.actors
+  ACTORS 60files 5670043b /Volumes/Disk1/medias/series/Shōgun (2024)/.actors
+  ACTORS 17files 387322b /Volumes/Disk1/medias/series/Silo (2023)/.actors
+  ACTORS 36files 5388735b /Volumes/Disk1/medias/series/Silo (2023)/Saison 02/.actors
+  ACTORS 8files 510555b /Volumes/Disk1/medias/series/Sliders (1995)/.actors
+  ACTORS 4files 89424b /Volumes/Disk1/medias/series/Smoke (2025)/.actors
+  ACTORS 16files 2427604b /Volumes/Disk1/medias/series/Snowpiercer (2020)/.actors
+  ACTORS 38files 1912933b /Volumes/Disk1/medias/series/Sons of Anarchy (2008)/.actors
+  ACTORS 6files 2121940b /Volumes/Disk1/medias/series/Spin City (1996)/.actors
+  ACTORS 189files 9907556b /Volumes/Disk1/medias/series/Squid Game (2021)/.actors
+  ACTORS 13files 4009847b /Volumes/Disk1/medias/series/Star Trek Starfleet Academy (2026)/.actors
+  ACTORS 27files 4308368b /Volumes/Disk1/medias/series/Star Wars Skeleton Crew (2024)/.actors
+  ACTORS 33files 6389254b /Volumes/Disk1/medias/series/Star Wars Skeleton Crew (2024)/Saison 01/.actors
+  ACTORS 4files 110059b /Volumes/Disk1/medias/series/Stick (2025)/.actors
+  ACTORS 11files 580571b /Volumes/Disk1/medias/series/Still Up (2023)/.actors
+  ACTORS 9files 2153386b /Volumes/Disk1/medias/series/Stranger Things (2016)/.actors
+  ACTORS 17files 1363539b /Volumes/Disk1/medias/series/Succession (2018)/.actors
+  ACTORS 9files 956506b /Volumes/Disk1/medias/series/Super Mâles (2025)/.actors
+  ACTORS 15files 3566533b /Volumes/Disk1/medias/series/Superman & Lois (2021)/.actors
+  ACTORS 29files 1411749b /Volumes/Disk1/medias/series/Sur écoute (2002)/.actors
+  ACTORS 9files 207223b /Volumes/Disk1/medias/series/Suspicion (2022)/.actors
+  ACTORS 15files 1581936b /Volumes/Disk1/medias/series/Tapie (2023)/.actors
+  ACTORS 13files 5183415b /Volumes/Disk1/medias/series/Task (2025)/.actors
+  ACTORS 11files 556287b /Volumes/Disk1/medias/series/Ted Lasso (2020)/.actors
+  ACTORS 14files 334673b /Volumes/Disk1/medias/series/That Dirty Black Bag (2022)/.actors
+  ACTORS 5files 185272b /Volumes/Disk1/medias/series/The Act (2019)/.actors
+  ACTORS 8files 257690b /Volumes/Disk1/medias/series/The Agency (2024)/.actors
+  ACTORS 68files 13828019b /Volumes/Disk1/medias/series/The Bear sur place ou à emporter (2022)/.actors
+  ACTORS 8files 1368531b /Volumes/Disk1/medias/series/The Big Bang Theory (2007)/.actors
+  ACTORS 10files 313399b /Volumes/Disk1/medias/series/The Big Door Prize (2023)/.actors
+  ACTORS 18files 1657132b /Volumes/Disk1/medias/series/The Bridge (2011) (2011)/.actors
+  ACTORS 8files 248972b /Volumes/Disk1/medias/series/The Crowded Room (2023)/.actors
+  ACTORS 6files 1876986b /Volumes/Disk1/medias/series/The Deal (2025)/.actors
+  ACTORS 11files 957533b /Volumes/Disk1/medias/series/The Fall (2013)/.actors
+  ACTORS 13files 900775b /Volumes/Disk1/medias/series/The Flight Attendant (2020)/.actors
+  ACTORS 6files 158008b /Volumes/Disk1/medias/series/The Inbetweeners (2008)/.actors
+  ACTORS 4files 601306b /Volumes/Disk1/medias/series/The Island (2025)/.actors
+  ACTORS 14files 1345895b /Volumes/Disk1/medias/series/The Killing (2011) (2010)/.actors
+  ACTORS 7files 1052721b /Volumes/Disk1/medias/series/The Last Frontier (2025)/.actors
+  ACTORS 7files 203643b /Volumes/Disk1/medias/series/The Lazarus Project (2022)/.actors
+  ACTORS 10files 1779207b /Volumes/Disk1/medias/series/The Morning Show (2019)/.actors
+  ACTORS 4files 101431b /Volumes/Disk1/medias/series/The North Water (2021)/.actors
+  ACTORS 79files 10108267b /Volumes/Disk1/medias/series/The Penguin (2024)/.actors
+  ACTORS 79files 9562022b /Volumes/Disk1/medias/series/The Penguin (2024)/Saison 01/.actors
+  ACTORS 98files 18135244b /Volumes/Disk1/medias/series/The Pitt (2025)/.actors
+  ACTORS 7files 237055b /Volumes/Disk1/medias/series/The Resort (2022)/.actors
+  ACTORS 10files 274698b /Volumes/Disk1/medias/series/The Rig - Dans le brouillard des abysses (2023)/.actors
+  ACTORS 9files 1292242b /Volumes/Disk1/medias/series/The River (2012)/.actors
+  ACTORS 26files 2251341b /Volumes/Disk1/medias/series/The Signal (2024)/.actors
+  ACTORS 8files 1990169b /Volumes/Disk1/medias/series/The Stolen Girl (2025)/.actors
+  ACTORS 6files 195754b /Volumes/Disk1/medias/series/The Studio (2025)/.actors
+  ACTORS 47files 2429075b /Volumes/Disk1/medias/series/The Walking Dead (2010)/.actors
+  ACTORS 13files 397307b /Volumes/Disk1/medias/series/The White Lotus (2021)/.actors
+  ACTORS 30files 2956671b /Volumes/Disk1/medias/series/The Woman in the Wall (2023)/.actors
+  ACTORS 11files 1872463b /Volumes/Disk1/medias/series/To Cook a Bear (2025)/.actors
+  ACTORS 6files 189583b /Volumes/Disk1/medias/series/Top of the Lake (2013)/.actors
+  ACTORS 196files 19569582b /Volumes/Disk1/medias/series/Tout le monde aime Raymond (1996)/.actors
+  ACTORS 10files 469297b /Volumes/Disk1/medias/series/Trapped (2015)/.actors
+  ACTORS 22files 2548595b /Volumes/Disk1/medias/series/True Detective (2014)/.actors
+  ACTORS 43files 4474806b /Volumes/Disk1/medias/series/Tu ferais pareil (2023)/.actors
+  ACTORS 8files 2511966b /Volumes/Disk1/medias/series/Un très mauvais pressentiment (2026)/.actors
+  ACTORS 8files 213482b /Volumes/Disk1/medias/series/Under the Bridge (2024)/.actors
+  ACTORS 6files 914177b /Volumes/Disk1/medias/series/Une famille presque normale (2023)/.actors
+  ACTORS 9files 221714b /Volumes/Disk1/medias/series/Vigil (2021)/.actors
+  ACTORS 6files 270791b /Volumes/Disk1/medias/series/Vikings Valhalla (2022)/.actors
+  ACTORS 11files 809570b /Volumes/Disk1/medias/series/Visitors (2022)/.actors
+  ACTORS 12files 848555b /Volumes/Disk1/medias/series/Vortex (2023)/.actors
+  ACTORS 9files 214579b /Volumes/Disk1/medias/series/Vrais voisins, faux amis (2025)/.actors
+  ACTORS 9files 3708174b /Volumes/Disk1/medias/series/Wayward (2025)/.actors
+  ACTORS 9files 199051b /Volumes/Disk1/medias/series/Weeds (2005)/.actors
+  ACTORS 286files 41010828b /Volumes/Disk1/medias/series/What We Do in the Shadows (2019)/.actors
+  ACTORS 4files 1499768b /Volumes/Disk1/medias/series/Wonder Man (2026)/.actors
+  ACTORS 11files 1115885b /Volumes/Disk1/medias/series/Years and Years (2019)/.actors
+  ACTORS 5files 1510205b /Volumes/Disk1/medias/series/Young Sherlock (2026)/.actors
+--- empty-dir walk-up (batch 11) ---
+# batch_11: deleted=100, skipped=0, empty=0, time=6.2s
+# smoke_check_ok: 65 items
+
+=== BATCH 12/16 (100 items) ===
+  ACTORS 12files 406014b /Volumes/Disk1/medias/series/Zero Day (2025)/.actors
+  ACTORS 17files 1116613b /Volumes/Disk1/medias/series/bref. (2011)/.actors
+  ACTORS 9files 277930b /Volumes/Disk1/medias/series animations/Arcane (2021)/.actors
+  ACTORS 21files 2980119b /Volumes/Disk1/medias/series animations/Astérix & Obélix Le Combat des chefs (2025)/.actors
+  ACTORS 2files 51027b /Volumes/Disk1/medias/series animations/À découper suivant les pointillés (2021)/.actors
+  ACTORS 17files 1357391b /Volumes/Disk1/medias/series animations/Babar (1968)/.actors
+  ACTORS 15files 1159016b /Volumes/Disk1/medias/series animations/Bluey (2016)/Saison 01/.actors
+  ACTORS 17files 1514227b /Volumes/Disk1/medias/series animations/Bluey (2016)/Saison 02/.actors
+  ACTORS 24files 2436895b /Volumes/Disk1/medias/series animations/Bluey (2016)/Saison 03/.actors
+  ACTORS 9files 1048096b /Volumes/Disk1/medias/series animations/Caillou (1998)/.actors
+  ACTORS 7files 874317b /Volumes/Disk1/medias/series animations/Captain Fall (2023)/.actors
+  ACTORS 1files 33742b /Volumes/Disk1/medias/series animations/Ce monde ne m'aura pas (2023)/.actors
+  ACTORS 7files 862463b /Volumes/Disk1/medias/series animations/Cédric (2001)/.actors
+  ACTORS 7files 359098b /Volumes/Disk1/medias/series animations/Close Enough (2020)/.actors
+  ACTORS 14files 1073945b /Volumes/Disk1/medias/series animations/Common Side Effects (2025)/.actors
+  ACTORS 14files 1073945b /Volumes/Disk1/medias/series animations/Common Side Effects (2025)/Saison 01/.actors
+  ACTORS 15files 1199074b /Volumes/Disk1/medias/series animations/Couacs en vrac (1996)/.actors
+  ACTORS 10files 246621b /Volumes/Disk1/medias/series animations/Dora l'exploratrice (2000)/.actors
+  ACTORS 3files 72814b /Volumes/Disk1/medias/series animations/Eden (2021)/.actors
+  ACTORS 4files 125345b /Volumes/Disk1/medias/series animations/Famille Pirate (1999)/.actors
+  ACTORS 10files 616966b /Volumes/Disk1/medias/series animations/Franklin (1997)/.actors
+  ACTORS 1files 35608b /Volumes/Disk1/medias/series animations/Goldorak (1973)/.actors
+  ACTORS 5files 1192839b /Volumes/Disk1/medias/series animations/Hé, oua-oua (2014)/.actors
+  ACTORS 6files 475382b /Volumes/Disk1/medias/series animations/Hoops (2020)/.actors
+  ACTORS 18files 556933b /Volumes/Disk1/medias/series animations/Human Resources (2022)/.actors
+  ACTORS 9files 312103b /Volumes/Disk1/medias/series animations/Inside Job (2021)/.actors
+  ACTORS 10files 276226b /Volumes/Disk1/medias/series animations/Invincible (2021)/.actors
+  ACTORS 5files 864685b /Volumes/Disk1/medias/series animations/Krapopolis (2023)/.actors
+  ACTORS 9files 340095b /Volumes/Disk1/medias/series animations/La Petite Mort (2017)/.actors
+  ACTORS 3files 205193b /Volumes/Disk1/medias/series animations/La Quête d'Ewilan (2026)/.actors
+  ACTORS 6files 465685b /Volumes/Disk1/medias/series animations/Le Monde Merveilleux de Mickey (2020)/.actors
+  ACTORS 15files 588578b /Volumes/Disk1/medias/series animations/Les Nouvelles Aventures de Winnie l'Ourson (1968)/.actors
+  ACTORS 10files 366578b /Volumes/Disk1/medias/series animations/Les Schtroumpfs (2021)/.actors
+  ACTORS 10files 337896b /Volumes/Disk1/medias/series animations/Les aventures de Jimmy Neutron (1995)/.actors
+  ACTORS 5files 207036b /Volumes/Disk1/medias/series animations/Les décalés du cosmos (1998)/.actors
+  ACTORS 7files 159098b /Volumes/Disk1/medias/series animations/Les petites histoires de Bluey (2024)/.actors
+  ACTORS 7files 214219b /Volumes/Disk1/medias/series animations/Long Story Short (2025)/.actors
+  ACTORS 5files 376517b /Volumes/Disk1/medias/series animations/Looney Tunes Cartoons (2020)/.actors
+  ACTORS 2files 46128b /Volumes/Disk1/medias/series animations/L’Âge de glace Les aventures de Scrat (2022)/.actors
+  ACTORS 7files 653031b /Volumes/Disk1/medias/series animations/Michat-Michien (1997)/.actors
+  ACTORS 7files 739741b /Volumes/Disk1/medias/series animations/Myster Mask (1991)/.actors
+  ACTORS 8files 555077b /Volumes/Disk1/medias/series animations/Oggy et les cafards (1998)/.actors
+  ACTORS 18files 1539910b /Volumes/Disk1/medias/series animations/Pixar Popcorn (2021)/.actors
+  ACTORS 16files 483314b /Volumes/Disk1/medias/series animations/Pluto (2023)/.actors
+  ACTORS 7files 1346164b /Volumes/Disk1/medias/series animations/Regular Show (2010)/.actors
+  ACTORS 13files 653612b /Volumes/Disk1/medias/series animations/Rick et Morty (2006)/.actors
+  ACTORS 5files 668198b /Volumes/Disk1/medias/series animations/Rick et Morty L'anime (2020)/.actors
+  ACTORS 75files 9960802b /Volumes/Disk1/medias/series animations/Secret Level (2024)/.actors
+  ACTORS 4files 507624b /Volumes/Disk1/medias/series animations/Star Wars Maul - Seigneur de l'ombre (2026)/.actors
+  ACTORS 10files 934602b /Volumes/Disk1/medias/series animations/Super Baloo/.actors
+  ACTORS 9files 655699b /Volumes/Disk1/medias/series animations/T'choupi et Doudou (1999)/.actors
+  ACTORS 4files 114015b /Volumes/Disk1/medias/series animations/Tic et Tac, les rangers du risque (1989)/.actors
+  ACTORS 11files 3703120b /Volumes/Disk1/medias/series animations/Undone (2019)/.actors
+  ACTORS 5files 147662b /Volumes/Disk1/medias/series animations/WondLa (2024)/.actors
+  ACTORS 4files 686274b /Volumes/Disk1/medias/series documentaires/FAKE YOU! Une vraie histoire de faux (2026)/.actors
+  ACTORS 2files 194669b /Volumes/Disk1/medias/series documentaires/Jinx la vie et les morts de Robert Durst (2015)/.actors
+  ACTORS 1files 605338b /Volumes/Disk1/medias/series documentaires/John Lennon Murder Without a Trial (2024)/.actors
+  ACTORS 1files 728279b /Volumes/Disk1/medias/series documentaires/La Vie sur notre planète (2023)/.actors
+  ACTORS 14files 669690b /Volumes/Disk1/medias/series documentaires/Making a Murderer (2015)/.actors
+  ACTORS 5files 127558b /Volumes/Disk1/medias/series documentaires/Tant qu'ils ne retrouvent pas le corps (2023)/.actors
+  ACTORS 1files 349724b /Volumes/Disk1/medias/spectacles/Ahmed Sylla - Origami (2025)/.actors
+  ACTORS 1files 73521b /Volumes/Disk1/medias/spectacles/Arnaud Tsamere 2 mariages & 1 enterrement (2024)/.actors
+  ACTORS 1files 73521b /Volumes/Disk1/medias/spectacles/Arnaud Tsamère - Chose Promise (2013)/.actors
+  ACTORS 1files 73521b /Volumes/Disk1/medias/spectacles/Arnaud Tsamère - Confidences sur pas mal de trucs plus ou moins confidentiels (2016)/.actors
+  ACTORS 1files 81609b /Volumes/Disk1/medias/spectacles/Artus - Saignant à point (2015)/.actors
+  ACTORS 1files 161143b /Volumes/Disk1/medias/spectacles/Baptiste Lecaplain - Origines (2017)/.actors
+  ACTORS 1files 161143b /Volumes/Disk1/medias/spectacles/Baptiste Lecaplain - Se tape l'affiche (2013)/.actors
+  ACTORS 1files 161143b /Volumes/Disk1/medias/spectacles/Baptiste Lecaplain - Voir les gens (2023)/.actors
+  ACTORS 8files 825132b /Volumes/Disk1/medias/spectacles/Baptiste Lecaplain et ses potes (2017)/.actors
+  ACTORS 1files 29089b /Volumes/Disk1/medias/spectacles/Ben - Éco-responsable (2017)/.actors
+  ACTORS 1files 62609b /Volumes/Disk1/medias/spectacles/Bérangère Krief (2016)/.actors
+  ACTORS 1files 47935b /Volumes/Disk1/medias/spectacles/Bruno Salomone - Au Bataclan (2003)/.actors
+  ACTORS 1files 47935b /Volumes/Disk1/medias/spectacles/Bruno Salomone N'est pas cochon d'Inde qui veut ! (2000)/.actors
+  ACTORS 1files 243840b /Volumes/Disk1/medias/spectacles/Coluche - Ses plus grands sketches (2002)/.actors
+  ACTORS 2files 117385b /Volumes/Disk1/medias/spectacles/Éric ké Ramzy - Nouveau spectacle (2005)/.actors
+  ACTORS 1files 34900b /Volumes/Disk1/medias/spectacles/Fabrice Éboué - Adieu Hier (2023)/.actors
+  ACTORS 1files 115322b /Volumes/Disk1/medias/spectacles/Fellag - Djurdjurassique bled (1997)/.actors
+  ACTORS 3files 974293b /Volumes/Disk1/medias/spectacles/Ferrari, Tsamere, Lecaplain La Tournée du Trio (2025)/.actors
+  ACTORS 1files 111240b /Volumes/Disk1/medias/spectacles/Guillaume Bats Hors cadre (2018)/.actors
+  ACTORS 1files 845902b /Volumes/Disk1/medias/spectacles/Guillermo Guiz Ozzy (2024)/.actors
+  ACTORS 1files 23903b /Volumes/Disk1/medias/spectacles/Hakim Jemili Super (2022)/.actors
+  ACTORS 1files 18769b /Volumes/Disk1/medias/spectacles/Jamel Debbouze - 100% Debbouze (2004)/.actors
+  ACTORS 1files 18769b /Volumes/Disk1/medias/spectacles/Jamel Debbouze - Jamel en scène (2000)/.actors
+  ACTORS 5files 1542260b /Volumes/Disk1/medias/spectacles/Jamel Debbouze - Le très très bien de Jamel (2000)/.actors
+  ACTORS 1files 18150b /Volumes/Disk1/medias/spectacles/Jérémy Ferrari - Anesthésie Générale (2024)/.actors
+  ACTORS 1files 18150b /Volumes/Disk1/medias/spectacles/Jérémy Ferrari - Hallelujah Bordel ! (2013)/.actors
+  ACTORS 1files 18150b /Volumes/Disk1/medias/spectacles/Jérémy Ferrari - Vends 2 pièces à Beyrouth (2018)/.actors
+  ACTORS 1files 18150b /Volumes/Disk1/medias/spectacles/Jérémy Ferrari Emporté par la Fougue (2018)/.actors
+  ACTORS 1files 169282b /Volumes/Disk1/medias/spectacles/Jérôme Commandeur - Toujours en douceur (2022)/.actors
+  ACTORS 1files 182566b /Volumes/Disk1/medias/spectacles/Kyan Khojandi Pulsions (2019)/.actors
+  ACTORS 1files 182566b /Volumes/Disk1/medias/spectacles/Kyan Khojandi Une bonne soirée (2023)/.actors
+  ACTORS 1files 29499b /Volumes/Disk1/medias/spectacles/L'Exoconference (2014)/.actors
+  ACTORS 4files 498958b /Volumes/Disk1/medias/spectacles/L'heureux élu (2018)/.actors
+  ACTORS 3files 175907b /Volumes/Disk1/medias/spectacles/La Haine jusqu'ici rien n'a changé (2025)/.actors
+  ACTORS 4files 712592b /Volumes/Disk1/medias/spectacles/Le Système Ribadier (2008)/.actors
+  ACTORS 4files 194187b /Volumes/Disk1/medias/spectacles/Le début de la fin (2012)/.actors
+  ACTORS 11files 1088006b /Volumes/Disk1/medias/spectacles/Les duos impossibles de Jérémy Ferrari 10ème édition (2024)/.actors
+  ACTORS 9files 1616691b /Volumes/Disk1/medias/spectacles/Les duos impossibles de Jérémy Ferrari 5ème édition (2018)/.actors
+  ACTORS 1files 18150b /Volumes/Disk1/medias/spectacles/Les duos impossibles de Jérémy Ferrari 6ème édition (2019)/.actors
+  ACTORS 6files 546086b /Volumes/Disk1/medias/spectacles/Les duos impossibles de Jérémy Ferrari 7ème édition (2020)/.actors
+--- empty-dir walk-up (batch 12) ---
+# batch_12: deleted=100, skipped=0, empty=0, time=3.0s
+# smoke_check_ok: 65 items
+
+=== BATCH 13/16 (100 items) ===
+  ACTORS 10files 687275b /Volumes/Disk1/medias/spectacles/Les duos impossibles de Jérémy Ferrari 8ème édition (2021)/.actors
+  ACTORS 1files 65949b /Volumes/Disk1/medias/spectacles/Michel Muller Pas tout blanc, pas tout noir (2003)/.actors
+  ACTORS 6files 633880b /Volumes/Disk1/medias/spectacles/Monsieur Poulpe Nombril (2025)/.actors
+  ACTORS 1files 40967b /Volumes/Disk1/medias/spectacles/Pablo Mira Passé simple (2025)/.actors
+  ACTORS 4files 456719b /Volumes/Disk1/medias/spectacles/Pfff… Une conférence de Pierre-Emmanuel Barré & Guests (2023)/.actors
+  ACTORS 1files 68680b /Volumes/Disk1/medias/spectacles/Pierre-Emmanuel Barré - Nouveau Spectacle au Grand Rex (2019)/.actors
+  ACTORS 1files 61301b /Volumes/Disk1/medias/spectacles/Roman Frayssinet - Alors (2022)/.actors
+  ACTORS 1files 140143b /Volumes/Disk1/medias/spectacles/Roman Frayssinet Ô dedans (2024)/.actors
+  ACTORS 4files 1408059b /Volumes/Disk1/medias/spectacles/TVN 595, la télévision des nuls (1988)/.actors
+  ACTORS 1files 125139b /Volumes/Disk1/medias/spectacles/Thomas Ngijol L'Œil du tigre (2023)/.actors
+  ACTORS 1files 115322b /Volumes/Disk1/medias/spectacles/Un bateau pour l’Australie (1991)/.actors
+  ACTORS 1files 57386b /Volumes/Disk1/medias/spectacles/Yacine Belhousse 2024 (2025)/.actors
+  ACTORS 1files 50611b /Volumes/Disk1/medias/theatres/Le Discours (2025)/.actors
+  ACTORS 5files 826766b /Volumes/Disk1/medias/theatres/Les Bonobos (2012)/.actors
+  ACTORS 4files 307174b /Volumes/Disk1/medias/theatres/L’effet miroir (2024)/.actors
+  ACTORS 5files 304063b /Volumes/Disk1/medias/theatres/Sans filtre (2015)/.actors
+  ACTORS 5files 363063b /Volumes/Disk1/medias/theatres/Sexe, magouilles et culture générale (2001)/.actors
+  ACTORS 5files 214366b /Volumes/Disk1/medias/theatres/TOC TOC (2005)/.actors
+  ACTORS 6files 330567b /Volumes/Disk1/medias/theatres/Un point c'est tout ! (2009)/.actors
+  ACTORS 9files 1684238b /Volumes/Disk2/medias/series/Brooklyn Nine-Nine (2013)/.actors
+  ACTORS 16files 499762b /Volumes/Disk2/medias/series/Calls (2017)/.actors
+  ACTORS 62files 4995980b /Volumes/Disk2/medias/series/Dark (2017)/.actors
+  ACTORS 7files 695889b /Volumes/Disk2/medias/series/Devs (2020)/.actors
+  ACTORS 14files 676107b /Volumes/Disk2/medias/series/Dr House (2004)/.actors
+  ACTORS 6files 844821b /Volumes/Disk2/medias/series/Emily in Paris (2020)/.actors
+  ACTORS 8files 275243b /Volumes/Disk2/medias/series/Episodes (2011)/.actors
+  ACTORS 28files 1620390b /Volumes/Disk2/medias/series/Fear the Walking Dead (2015)/.actors
+  ACTORS 6files 1932276b /Volumes/Disk2/medias/series/Friends [UNCUT] (1994)/.actors
+  ACTORS 865files 88217886b /Volumes/Disk2/medias/series/Fringe (2008)/.actors
+  ACTORS 188files 25362381b /Volumes/Disk2/medias/series/Fringe (2008)/fringe s01/.actors
+  ACTORS 231files 23659714b /Volumes/Disk2/medias/series/Fringe (2008)/fringe s02/.actors
+  ACTORS 236files 20930141b /Volumes/Disk2/medias/series/Fringe (2008)/fringe s03/.actors
+  ACTORS 206files 20975111b /Volumes/Disk2/medias/series/Fringe (2008)/fringe s04/.actors
+  ACTORS 105files 10055403b /Volumes/Disk2/medias/series/Fringe (2008)/fringe s05/.actors
+  ACTORS 168files 24268219b /Volumes/Disk2/medias/series/Future Man (2017)/.actors
+  ACTORS 10files 325662b /Volumes/Disk2/medias/series/Jupiter's Legacy (2021)/.actors
+  ACTORS 8files 1066659b /Volumes/Disk2/medias/series/Kidding (2018)/.actors
+  ACTORS 9files 365615b /Volumes/Disk2/medias/series/L'Effondrement (2019)/.actors
+  ACTORS 23files 2756667b /Volumes/Disk2/medias/series/La Flamme (2020)/.actors
+  ACTORS 10files 1290899b /Volumes/Disk2/medias/series/Le Jeu de la dame (2020)/.actors
+  ACTORS 14files 1522344b /Volumes/Disk2/medias/series/Le bureau des légendes (2015)/Saison 05/.actors
+  ACTORS 13files 1795377b /Volumes/Disk2/medias/series/Legion (2017)/.actors
+  ACTORS 5files 1432980b /Volumes/Disk2/medias/series/Les Envoyés d'Ailleurs (2020)/.actors
+  ACTORS 13files 635219b /Volumes/Disk2/medias/series/Lupin (2021)/.actors
+  ACTORS 5files 1551567b /Volumes/Disk2/medias/series/Miracle Workers (2019)/.actors
+  ACTORS 5files 544119b /Volumes/Disk2/medias/series/ORELSAN Montre jamais ça à personne (2021)/.actors
+  ACTORS 15files 1020499b /Volumes/Disk2/medias/series/Perdus dans l'espace (2018) (2018)/.actors
+  ACTORS 4files 264345b /Volumes/Disk2/medias/series/Roadkill (2020)/.actors
+  ACTORS 18files 2465089b /Volumes/Disk2/medias/series/Scrubs (2001)/.actors
+  ACTORS 97files 13771855b /Volumes/Disk2/medias/series/Space Force (2020)/.actors
+  ACTORS 13files 983652b /Volumes/Disk2/medias/series/Star Trek Discovery (2017)/.actors
+  ACTORS 9files 927516b /Volumes/Disk2/medias/series/Star Trek Picard (2020)/.actors
+  ACTORS 20files 724836b /Volumes/Disk2/medias/series/Survivant désigné (2016)/.actors
+  ACTORS 1files 0b /Volumes/Disk2/medias/series/Tales from the Loop (2020)/.actors
+  ACTORS 14files 467566b /Volumes/Disk2/medias/series/The Boys (2019)/.actors
+  ACTORS 10files 2519813b /Volumes/Disk2/medias/series/The Crown (2016)/.actors
+  ACTORS 24files 1512154b /Volumes/Disk2/medias/series/The Expanse (2015)/.actors
+  ACTORS 6files 637518b /Volumes/Disk2/medias/series/The Mandalorian (2019)/.actors
+  ACTORS 6files 187738b /Volumes/Disk2/medias/series/The Night of (2016)/.actors
+  ACTORS 9files 905402b /Volumes/Disk2/medias/series/The Rookie Le Flic de Los Angeles (2018)/.actors
+  ACTORS 2files 1364104b /Volumes/Disk2/medias/series/The Staircase (2018)/.actors
+  ACTORS 3files 351255b /Volumes/Disk2/medias/series/Un gars, une fille (1999)/.actors
+  ACTORS 258files 32301876b /Volumes/Disk2/medias/series/Vikings (2013)/.actors
+  ACTORS 7files 821528b /Volumes/Disk2/medias/series animes/American Dad! (2005)/.actors
+  ACTORS 20files 2382547b /Volumes/Disk2/medias/series animes/Batman, la série animée (1992)/.actors
+  ACTORS 40files 1818017b /Volumes/Disk2/medias/series animes/BoJack Horseman (2014)/.actors
+  ACTORS 13files 675794b /Volumes/Disk2/medias/series animes/Bob l'éponge (1999)/.actors
+  ACTORS 5files 150424b /Volumes/Disk2/medias/series animes/City Hunter (1985)/.actors
+  ACTORS 20files 615004b /Volumes/Disk2/medias/series animes/Death Note (2006)/.actors
+  ACTORS 6files 366417b /Volumes/Disk2/medias/series animes/Disney, les courts-métrages d'animation (1921)/.actors
+  ACTORS 18files 1149333b /Volumes/Disk2/medias/series animes/Dragon Ball (1986)/.actors
+  ACTORS 17files 365826b /Volumes/Disk2/medias/series animes/Dragon Ball Z (1986)/.actors
+  ACTORS 4files 125345b /Volumes/Disk2/medias/series animes/Famille Pirate (1999)/.actors
+  ACTORS 22files 1545936b /Volumes/Disk2/medias/series animes/Final Space (2016)/.actors
+  ACTORS 8files 1085111b /Volumes/Disk2/medias/series animes/Futurama (1999)/.actors
+  ACTORS 5files 393424b /Volumes/Disk2/medias/series animes/La bande à Picsou (1987)/.actors
+  ACTORS 14files 540238b /Volumes/Disk2/medias/series animes/Lastman (2016)/.actors
+  ACTORS 10files 573048b /Volumes/Disk2/medias/series animes/Les Animaniacs (1993)/.actors
+  ACTORS 10files 891715b /Volumes/Disk2/medias/series animes/Les Kassos (2013)/.actors
+  ACTORS 11files 1711182b /Volumes/Disk2/medias/series animes/Les Razmoket (1991)/.actors
+  ACTORS 7files 479651b /Volumes/Disk2/medias/series animes/Les aventures de Tintin (1991)/.actors
+  ACTORS 2files 171835b /Volumes/Disk2/medias/series animes/Les castors allumés (1997)/.actors
+  ACTORS 10files 733605b /Volumes/Disk2/medias/series animes/Looney Tunes (1929)/.actors
+  ACTORS 2files 196807b /Volumes/Disk2/medias/series animes/Lucky Luke (1984)/.actors
+  ACTORS 8files 659569b /Volumes/Disk2/medias/series animes/Peepoodo (2018)/.actors
+  ACTORS 5files 306504b /Volumes/Disk2/medias/series animes/Ratz (2003)/.actors
+  ACTORS 34files 1085426b /Volumes/Disk2/medias/series animes/Titeuf (2001)/.actors
+  ACTORS 5files 320271b /Volumes/Disk2/medias/series animes/Vermin (2018)/.actors
+  ACTORS 45files 5463491b /Volumes/Disk3/medias/films/Bad Boys Ride or Die (2024)/.actors
+  ACTORS 17files 2088931b /Volumes/Disk3/medias/films/Beetlejuice (1988)/.actors
+  ACTORS 36files 5573868b /Volumes/Disk3/medias/films/Beetlejuice Beetlejuice (2024)/.actors
+  ACTORS 50files 6311291b /Volumes/Disk3/medias/films/Black Panther Wakanda Forever (2022)/.actors
+  ACTORS 14files 993065b /Volumes/Disk3/medias/films/Blasted Les aliens ou nous ! (2022)/.actors
+  ACTORS 22files 4020985b /Volumes/Disk3/medias/films/Blink Twice (2024)/.actors
+  ACTORS 28files 3459625b /Volumes/Disk3/medias/films/Brooklyn Affairs (2019)/.actors
+  ACTORS 44files 6707003b /Volumes/Disk3/medias/films/Bullet Train (2022)/.actors
+  ACTORS 17files 889701b /Volumes/Disk3/medias/films/Burn Out (2018)/.actors
+  ACTORS 10files 1620343b /Volumes/Disk3/medias/films/Captives (2024)/.actors
+  ACTORS 25files 4974515b /Volumes/Disk3/medias/films/Casper (1995)/.actors
+  ACTORS 15files 1779020b /Volumes/Disk3/medias/films/Cluedo (1985)/.actors
+--- empty-dir walk-up (batch 13) ---
+  RMDIR: /Volumes/Disk2/medias/series/Fringe (2008)/fringe s01
+  RMDIR: /Volumes/Disk2/medias/series/Fringe (2008)/fringe s02
+  RMDIR: /Volumes/Disk2/medias/series/Fringe (2008)/fringe s03
+  RMDIR: /Volumes/Disk2/medias/series/Fringe (2008)/fringe s04
+  RMDIR: /Volumes/Disk2/medias/series/Fringe (2008)/fringe s05
+# batch_13: deleted=100, skipped=0, empty=5, time=8.4s
+# smoke_check_ok: 65 items
+
+=== BATCH 14/16 (100 items) ===
+  ACTORS 13files 669030b /Volumes/Disk3/medias/films/Comment c'est loin (2015)/.actors
+  ACTORS 22files 1531259b /Volumes/Disk3/medias/films/Coup de théâtre (2022)/.actors
+  ACTORS 12files 1048237b /Volumes/Disk3/medias/films/Damaged (2024)/.actors
+  ACTORS 25files 1022091b /Volumes/Disk3/medias/films/Dirty Dancing (1987)/.actors
+  ACTORS 31files 3836581b /Volumes/Disk3/medias/films/Doctor Strange in the Multiverse of Madness (2022)/.actors
+  ACTORS 37files 4845665b /Volumes/Disk3/medias/films/Elvis (2022)/.actors
+  ACTORS 12files 2485080b /Volumes/Disk3/medias/films/Emancipation (2022)/.actors
+  ACTORS 30files 5481439b /Volumes/Disk3/medias/films/En plein vol (2024)/.actors
+  ACTORS 19files 3270187b /Volumes/Disk3/medias/films/Equilibrium (2002)/.actors
+  ACTORS 9files 1221775b /Volumes/Disk3/medias/films/Europa Report (2013)/.actors
+  ACTORS 26files 2269925b /Volumes/Disk3/medias/films/Everything Everywhere All at Once (2022)/.actors
+  ACTORS 33files 1797337b /Volumes/Disk3/medias/films/Five (2016)/.actors
+  ACTORS 32files 3483441b /Volumes/Disk3/medias/films/Flamin' Hot (2023)/.actors
+  ACTORS 26files 5235733b /Volumes/Disk3/medias/films/French Girl (2024)/.actors
+  ACTORS 6files 1885398b /Volumes/Disk3/medias/films/Frères (2024)/.actors
+  ACTORS 33files 3606693b /Volumes/Disk3/medias/films/Glass (2019)/.actors
+  ACTORS 25files 6730293b /Volumes/Disk3/medias/films/Glass Onion Une histoire à couteaux tirés (2022)/.actors
+  ACTORS 19files 3728599b /Volumes/Disk3/medias/films/Greedy People (2024)/.actors
+  ACTORS 54files 5871769b /Volumes/Disk3/medias/films/Green Book Sur les routes du Sud (2018)/.actors
+  ACTORS 10files 948796b /Volumes/Disk3/medias/films/HLM Pussy (2024)/.actors
+  ACTORS 36files 6402784b /Volumes/Disk3/medias/films/Harold et le crayon magique (2024)/.actors
+  ACTORS 13files 1032624b /Volumes/Disk3/medias/films/Il reste encore demain (2023)/.actors
+  ACTORS 7files 1015164b /Volumes/Disk3/medias/films/Jack Mimoun et les secrets de Val Verde (2022)/.actors
+  ACTORS 48files 9686833b /Volumes/Disk3/medias/films/Joker Folie à deux (2024)/.actors
+  ACTORS 29files 2829974b /Volumes/Disk3/medias/films/Joyeux Noël (2005)/.actors
+  ACTORS 15files 1201210b /Volumes/Disk3/medias/films/Kompromat (2022)/.actors
+  ACTORS 18files 2912677b /Volumes/Disk3/medias/films/L' Appartement 7A (2024)/.actors
+  ACTORS 43files 7091644b /Volumes/Disk3/medias/films/L'Affaire Roman J. (2017)/.actors
+  ACTORS 21files 2434075b /Volumes/Disk3/medias/films/L'Auberge espagnole (2002)/.actors
+  ACTORS 19files 1715208b /Volumes/Disk3/medias/films/L'Étrange Noël de monsieur Jack (1993)/.actors
+  ACTORS 18files 1158127b /Volumes/Disk3/medias/films/L'école des espions (2024)/.actors
+  ACTORS 49files 6602007b /Volumes/Disk3/medias/films/L'étrangleur de Boston (2023)/.actors
+  ACTORS 44files 6726867b /Volumes/Disk3/medias/films/La Folle Histoire du monde (1981)/.actors
+  ACTORS 7files 332482b /Volumes/Disk3/medias/films/La Gardav (2024)/.actors
+  ACTORS 109files 8194801b /Volumes/Disk3/medias/films/La La Land (2016)/.actors
+  ACTORS 22files 3258070b /Volumes/Disk3/medias/films/La Planète des singes Le Nouveau Royaume (2024)/.actors
+  ACTORS 22files 2172194b /Volumes/Disk3/medias/films/La Plateforme 2 (2024)/.actors
+  ACTORS 13files 1472256b /Volumes/Disk3/medias/films/La Salle des profs (2023)/.actors
+  ACTORS 12files 1148234b /Volumes/Disk3/medias/films/La prochaine fois je viserai le cœur (2014)/.actors
+  ACTORS 3files 223543b /Volumes/Disk3/medias/films/Le Journal (2024)/.actors
+  ACTORS 38files 3338515b /Volumes/Disk3/medias/films/Le Journal de Bridget Jones (2001)/.actors
+  ACTORS 27files 5264051b /Volumes/Disk3/medias/films/Le Ministère de la Sale Guerre (2024)/.actors
+  ACTORS 19files 1832804b /Volumes/Disk3/medias/films/Le Pire voisin au monde (2022)/.actors
+  ACTORS 15files 2355109b /Volumes/Disk3/medias/films/Le Samaritain (2022)/.actors
+  ACTORS 19files 3460284b /Volumes/Disk3/medias/films/Le livre de Clarence (2024)/.actors
+  ACTORS 37files 4878005b /Volumes/Disk3/medias/films/Les Blues Brothers (1980)/.actors
+  ACTORS 26files 3239777b /Volumes/Disk3/medias/films/Les Chèvres du Pentagone (2009)/.actors
+  ACTORS 31files 2480948b /Volumes/Disk3/medias/films/Les Couloirs du Temps Les Visiteurs II (1998)/.actors
+  ACTORS 24files 2766357b /Volumes/Disk3/medias/films/Les Gardiens de la Galaxie Joyeuses Fêtes (2022)/.actors
+  ACTORS 17files 3984083b /Volumes/Disk3/medias/films/Les Guetteurs (2024)/.actors
+  ACTORS 22files 2587329b /Volumes/Disk3/medias/films/Les Intrus (2024)/.actors
+  ACTORS 23files 1122424b /Volumes/Disk3/medias/films/Les Petits Mouchoirs (2010)/.actors
+  ACTORS 38files 3928825b /Volumes/Disk3/medias/films/Les Poupées Russes (2005)/.actors
+  ACTORS 6files 840556b /Volumes/Disk3/medias/films/Les folies fermières (2022)/.actors
+  ACTORS 25files 2408612b /Volumes/Disk3/medias/films/Longlegs (2024)/.actors
+  ACTORS 13files 1107174b /Volumes/Disk3/medias/films/Loups-Garous (2024)/.actors
+  ACTORS 32files 4819583b /Volumes/Disk3/medias/films/MaXXXine (2024)/.actors
+  ACTORS 22files 3096120b /Volumes/Disk3/medias/films/Man Up (2015)/.actors
+  ACTORS 14files 1658636b /Volumes/Disk3/medias/films/Marlowe (2023)/.actors
+  ACTORS 37files 4722518b /Volumes/Disk3/medias/films/Mary à tout prix (1998)/.actors
+  ACTORS 39files 7635334b /Volumes/Disk3/medias/films/Moi, moche et méchant 4 (2024)/.actors
+  ACTORS 41files 3735035b /Volumes/Disk3/medias/films/Mr. Nobody (2009)/.actors
+  ACTORS 8files 971143b /Volumes/Disk3/medias/films/Murder Party (2022)/.actors
+  ACTORS 28files 3125259b /Volumes/Disk3/medias/films/Muriel (1994)/.actors
+  ACTORS 19files 2700276b /Volumes/Disk3/medias/films/Nous, les Leroy (2024)/.actors
+  ACTORS 24files 1283724b /Volumes/Disk3/medias/films/Novembre (2022)/.actors
+  ACTORS 9files 1635610b /Volumes/Disk3/medias/films/Oblivion (2013)/.actors
+  ACTORS 11files 665407b /Volumes/Disk3/medias/films/Petaouchnok (2022)/.actors
+  ACTORS 8files 591422b /Volumes/Disk3/medias/films/Première affaire (2024)/.actors
+  ACTORS 19files 2469080b /Volumes/Disk3/medias/films/Prey (2022)/.actors
+  ACTORS 4files 242856b /Volumes/Disk3/medias/films/Rendez-vous avec Pol Pot (2024)/.actors
+  ACTORS 14files 3669578b /Volumes/Disk3/medias/films/Réunion (2024)/.actors
+  ACTORS 13files 1235126b /Volumes/Disk3/medias/films/Roqya (2024)/.actors
+  ACTORS 4files 636057b /Volumes/Disk3/medias/films/Rubikon (2022)/.actors
+  ACTORS 14files 2133058b /Volumes/Disk3/medias/films/Running on Empty (2024)/.actors
+  ACTORS 17files 2834074b /Volumes/Disk3/medias/films/Sans un bruit Jour 1 (2024)/.actors
+  ACTORS 13files 2269854b /Volumes/Disk3/medias/films/Sharper (2023)/.actors
+  ACTORS 39files 4205408b /Volumes/Disk3/medias/films/Sherlock Holmes (2009)/.actors
+  ACTORS 46files 6631978b /Volumes/Disk3/medias/films/Sherlock Holmes  Jeu d'ombres (2011)/.actors
+  ACTORS 5files 502731b /Volumes/Disk3/medias/films/South Park The Streaming Wars, deuxième partie (2022)/.actors
+  ACTORS 15files 1576909b /Volumes/Disk3/medias/films/Space Command Redemption (2024)/.actors
+  ACTORS 8files 2577567b /Volumes/Disk3/medias/films/Speak No Evil (2024)/.actors
+  ACTORS 42files 4970733b /Volumes/Disk3/medias/films/Speed (1994)/.actors
+  ACTORS 32files 3008505b /Volumes/Disk3/medias/films/Speed 2 Cap sur le danger (1997)/.actors
+  ACTORS 34files 4976473b /Volumes/Disk3/medias/films/Spirited, l'esprit de Noël (2022)/.actors
+  ACTORS 18files 1594716b /Volumes/Disk3/medias/films/Tetris (2023)/.actors
+  ACTORS 34files 4032267b /Volumes/Disk3/medias/films/The Big Lebowski (1998)/.actors
+  ACTORS 75files 8800099b /Volumes/Disk3/medias/films/The Big Short  Le Casse du Siècle (2015)/.actors
+  ACTORS 31files 4382560b /Volumes/Disk3/medias/films/The Instigators (2024)/.actors
+  ACTORS 37files 3199028b /Volumes/Disk3/medias/films/The Killer (2024)/.actors
+  ACTORS 34files 4595691b /Volumes/Disk3/medias/films/The Lost City of Z (2017)/.actors
+  ACTORS 28files 1470797b /Volumes/Disk3/medias/films/The Spy Gone North (2018)/.actors
+  ACTORS 15files 1452796b /Volumes/Disk3/medias/films/The Square (2017)/.actors
+  ACTORS 10files 1855044b /Volumes/Disk3/medias/films/The Visit (2015)/.actors
+  ACTORS 9files 1346418b /Volumes/Disk3/medias/films/The chalk line (2022)/.actors
+  ACTORS 57files 7866360b /Volumes/Disk3/medias/films/Thor Love and Thunder (2022)/.actors
+  ACTORS 58files 7286320b /Volumes/Disk3/medias/films/Titanic (1997)/.actors
+  ACTORS 35files 6386742b /Volumes/Disk3/medias/films/Top gun Maverick (2022)/.actors
+  ACTORS 29files 5269210b /Volumes/Disk3/medias/films/Transcendance (2014)/.actors
+  ACTORS 33files 4062579b /Volumes/Disk3/medias/films/Trap (2024)/.actors
+--- empty-dir walk-up (batch 14) ---
+# batch_14: deleted=100, skipped=0, empty=0, time=4.7s
+# smoke_check_ok: 65 items
+
+=== BATCH 15/16 (100 items) ===
+  ACTORS 9files 807249b /Volumes/Disk3/medias/films/Un p'tit truc en plus (2024)/.actors
+  ACTORS 14files 2210823b /Volumes/Disk3/medias/films/Une affaire de principe (2024)/.actors
+  ACTORS 17files 2031837b /Volumes/Disk3/medias/films/Us (2019)/.actors
+  ACTORS 32files 5739684b /Volumes/Disk3/medias/films/Vice-versa 2 (2024)/.actors
+  ACTORS 26files 2750145b /Volumes/Disk3/medias/films/Vicious Fun (2021)/.actors
+  ACTORS 15files 1425455b /Volumes/Disk3/medias/films/Yannick (2023)/.actors
+  ACTORS 31files 6382708b /Volumes/Disk3/medias/films animations/Blue & Compagnie (2024)/.actors
+  ACTORS 26files 3368810b /Volumes/Disk3/medias/films animations/Buzz l'Éclair (2022)/.actors
+  ACTORS 2files 106576b /Volumes/Disk3/medias/films animations/Flee (2021)/.actors
+  ACTORS 19files 3170442b /Volumes/Disk3/medias/films animations/Garfield, héros malgré lui (2024)/.actors
+  ACTORS 14files 798266b /Volumes/Disk3/medias/films animations/L'Imaginaire (2023)/.actors
+  ACTORS 20files 2732166b /Volumes/Disk3/medias/films animations/Le Chat Potté (2011)/.actors
+  ACTORS 23files 3937674b /Volumes/Disk3/medias/films animations/Le Chat Potté 2 la dernière quête (2022)/.actors
+  ACTORS 40files 6626553b /Volumes/Disk3/medias/films animations/Le Grinch (2018)/.actors
+  ACTORS 3files 1172334b /Volumes/Disk3/medias/films animations/Le Petit Nicolas Qu’est-ce qu’on attend pour être heureux (2022)/.actors
+  ACTORS 8files 956624b /Volumes/Disk3/medias/films animations/Le royaume des abysses (2023)/.actors
+  ACTORS 39files 7778923b /Volumes/Disk3/medias/films animations/Les Minions (2015)/.actors
+  ACTORS 44files 6710132b /Volumes/Disk3/medias/films animations/Les Minions 2 - Il était une fois Gru (2022)/.actors
+  ACTORS 16files 2519725b /Volumes/Disk3/medias/films animations/Luck (2022)/.actors
+  ACTORS 14files 822216b /Volumes/Disk3/medias/films animations/Mars Express (2023)/.actors
+  ACTORS 15files 2902016b /Volumes/Disk3/medias/films animations/Pinocchio (2022)/.actors
+  ACTORS 20files 3834922b /Volumes/Disk3/medias/films animations/Pinocchio par Guillermo del Toro (2022)/.actors
+  ACTORS 19files 3076345b /Volumes/Disk3/medias/films animations/S.O.S. Bikini Bottom Une mission pour Sandy Écureuil (2024)/.actors
+  ACTORS 6files 231447b /Volumes/Disk3/medias/films animations/Sirocco et le Royaume des courants d’air (2023)/.actors
+  ACTORS 5files 421239b /Volumes/Disk3/medias/films animations/South Park (Ne convient pas aux enfants) (2023)/.actors
+  ACTORS 9files 1180915b /Volumes/Disk3/medias/films animations/South Park Joining the Panderverse (2023)/.actors
+  ACTORS 10files 1139876b /Volumes/Disk3/medias/films animations/South Park La Fin de l'obésité (2024)/.actors
+  ACTORS 8files 1366010b /Volumes/Disk3/medias/films animations/Tom et Jerry au pays des Neiges (2022)/.actors
+  ACTORS 2files 516076b /Volumes/Disk3/medias/films documentaires/La Famille Suricate (2008)/.actors
+  ACTORS 3files 123260b /Volumes/Disk3/medias/films documentaires/La Marche de l'empereur (2005)/.actors
+  ACTORS 3files 630864b /Volumes/Disk3/medias/films documentaires/Le Jeu de la mort (2010)/.actors
+  ACTORS 1files 174436b /Volumes/Disk3/medias/films documentaires/Matthew Perry Not just Friends (2023)/.actors
+  ACTORS 30files 2921820b /Volumes/Disk3/medias/films documentaires/STILL la vie de Michael J. Fox (2023)/.actors
+  ACTORS 214files 22550382b /Volumes/Disk3/medias/series/12 Monkeys (2015)/.actors
+  ACTORS 18files 866006b /Volumes/Disk3/medias/series/1899 (2022)/.actors
+  ACTORS 7files 444222b /Volumes/Disk3/medias/series/A Gentleman in Moscow (2024)/.actors
+  ACTORS 30files 2098546b /Volumes/Disk3/medias/series/American Crime Story (2016)/.actors
+  ACTORS 74files 5222093b /Volumes/Disk3/medias/series/American Horror Story (2011)/.actors
+  ACTORS 5files 125504b /Volumes/Disk3/medias/series/Black Bird (2022)/.actors
+  ACTORS 7files 200680b /Volumes/Disk3/medias/series/Candy meurtre au Texas (2022)/.actors
+  ACTORS 30files 4331091b /Volumes/Disk3/medias/series/Carl Hiaasen’s Bad Monkey (2024)/.actors
+  ACTORS 11files 624507b /Volumes/Disk3/medias/series/Engrenages (2005)/.actors
+  ACTORS 15files 495223b /Volumes/Disk3/medias/series/From (2022)/.actors
+  ACTORS 82files 10081713b /Volumes/Disk3/medias/series/Ghosts (2019)/.actors
+  ACTORS 355files 54904651b /Volumes/Disk3/medias/series/Gossip Girl (2007)/.actors
+  ACTORS 21files 959045b /Volumes/Disk3/medias/series/House of the Dragon (2022)/.actors
+  ACTORS 52files 6624880b /Volumes/Disk3/medias/series/How to Die Alone (2024)/.actors
+  ACTORS 1files 109375b /Volumes/Disk3/medias/series/Intelligence (2020) (2020)/.actors
+  ACTORS 23files 1142310b /Volumes/Disk3/medias/series/Justified (2010)/.actors
+  ACTORS 8files 2550050b /Volumes/Disk3/medias/series/Las azules (2024)/.actors
+  ACTORS 1files 27123b /Volumes/Disk3/medias/series/Le Cabinet de curiosités de Guillermo del Toro (2022)/.actors
+  ACTORS 31files 4621803b /Volumes/Disk3/medias/series/Le Décaméron (2024)/.actors
+  ACTORS 37files 6963528b /Volumes/Disk3/medias/series/Le Seigneur des anneaux Les Anneaux de pouvoir (2022)/.actors
+  ACTORS 4files 829401b /Volumes/Disk3/medias/series/Le Voisin (2019)/.actors
+  ACTORS 5files 124491b /Volumes/Disk3/medias/series/Liaison (2023)/.actors
+  ACTORS 2files 107438b /Volumes/Disk3/medias/series/Man vs Bee (2022)/.actors
+  ACTORS 15files 585067b /Volumes/Disk3/medias/series/Mercredi (2022)/.actors
+  ACTORS 35files 2533841b /Volumes/Disk3/medias/series/Mocro Maffia (2018)/.actors
+  ACTORS 12files 309055b /Volumes/Disk3/medias/series/Nine Perfect Strangers (2021)/.actors
+  ACTORS 35files 1634118b /Volumes/Disk3/medias/series/Orphan Black (2013)/.actors
+  ACTORS 11files 667441b /Volumes/Disk3/medias/series/Parks and Recreation (2009)/.actors
+  ACTORS 9files 249603b /Volumes/Disk3/medias/series/Périphériques, les mondes de Flynne (2022)/.actors
+  ACTORS 27files 3435589b /Volumes/Disk3/medias/series/Présumé innocent (2024)/.actors
+  ACTORS 13files 607896b /Volumes/Disk3/medias/series/Raised by wolves (2020)/.actors
+  ACTORS 37files 3337896b /Volumes/Disk3/medias/series/Real Humans (2012)/.actors
+  ACTORS 13files 417236b /Volumes/Disk3/medias/series/Rogue Heroes (2022)/.actors
+  ACTORS 25files 1073063b /Volumes/Disk3/medias/series/Shameless (US) (2011)/.actors
+  ACTORS 8files 1427299b /Volumes/Disk3/medias/series/Sherlock (2010)/.actors
+  ACTORS 9files 1392229b /Volumes/Disk3/medias/series/Shrinking (2023)/.actors
+  ACTORS 9files 344421b /Volumes/Disk3/medias/series/Star Trek Strange New Worlds (2022)/.actors
+  ACTORS 210files 35874970b /Volumes/Disk3/medias/series/Star Wars Andor (2022)/.actors
+  ACTORS 68files 10316337b /Volumes/Disk3/medias/series/Star Wars Andor (2022)/Saison 01/.actors
+  ACTORS 8files 227450b /Volumes/Disk3/medias/series/Station Eleven (2021)/.actors
+  ACTORS 14files 443391b /Volumes/Disk3/medias/series/Sur ordre de Dieu (2022)/.actors
+  ACTORS 14files 334673b /Volumes/Disk3/medias/series/That Dirty Black Bag (2022)/.actors
+  ACTORS 31files 1066699b /Volumes/Disk3/medias/series/The Deuce (2017)/.actors
+  ACTORS 15files 1841258b /Volumes/Disk3/medias/series/The Handmaid’s Tale La Servante écarlate (2017)/.actors
+  ACTORS 2files 72022b /Volumes/Disk3/medias/series/The Last of Us (2023)/.actors
+  ACTORS 12files 358704b /Volumes/Disk3/medias/series/The Midnight Club (2022)/.actors
+  ACTORS 14files 1129617b /Volumes/Disk3/medias/series/The Morning Show (2019)/.actors
+  ACTORS 6files 174636b /Volumes/Disk3/medias/series/The Patient (2022)/.actors
+  ACTORS 59files 7225793b /Volumes/Disk3/medias/series/The Penguin (2024)/.actors
+  ACTORS 9files 439971b /Volumes/Disk3/medias/series/The Tick (2016)/.actors
+  ACTORS 21files 1541656b /Volumes/Disk3/medias/series/Those About to Die (2024)/.actors
+  ACTORS 11files 631287b /Volumes/Disk3/medias/series/Tout le monde aime Raymond (1996)/.actors
+  ACTORS 141files 17682848b /Volumes/Disk3/medias/series/Truth Be Told (2019)/.actors
+  ACTORS 12files 376247b /Volumes/Disk3/medias/series/Tulsa King (2022)/.actors
+  ACTORS 21files 2788613b /Volumes/Disk3/medias/series/Vaka les Éveillés (2026)/.actors
+  ACTORS 29files 2159006b /Volumes/Disk3/medias/series/Where's Wanda (2024)/.actors
+  ACTORS 7files 236126b /Volumes/Disk3/medias/series/Willow (2022)/.actors
+  ACTORS 7files 695560b /Volumes/Disk3/medias/series/Zorro (2024)/.actors
+  ACTORS 15files 2287369b /Volumes/Disk3/medias/series animations/Exploding Kittens (2024)/.actors
+  ACTORS 9files 697154b /Volumes/Disk3/medias/series animations/Les Monsieur Madame (2008)/.actors
+  ACTORS 12files 340409b /Volumes/Disk3/medias/series animations/Parasite La Maxime (2014)/.actors
+  ACTORS 2files 41829b /Volumes/Disk3/medias/series animations/Primal (2019)/.actors
+  ACTORS 31files 4206881b /Volumes/Disk3/medias/series animations/Saucisse Party Bouff'land (2024)/.actors
+  ACTORS 8files 1722044b /Volumes/Disk3/medias/series animations/Star Trek Lower Decks (2020)/.actors
+  ACTORS 25files 5463882b /Volumes/Disk3/medias/series animations/Star Trek Lower Decks (2020)/Saison 05/.actors
+  ACTORS 7files 241778b /Volumes/Disk3/medias/series animations/Star Trek Prodigy (2021)/.actors
+  ACTORS 13files 436288b /Volumes/Disk3/medias/series animations/Star Wars Rebels (2014)/.actors
+--- empty-dir walk-up (batch 15) ---
+# batch_15: deleted=100, skipped=0, empty=0, time=5.4s
+# smoke_check_ok: 65 items
+
+=== BATCH 16/16 (115 items) ===
+  ACTORS 7files 152638b /Volumes/Disk3/medias/series animations/Star Wars Tales of the Jedi (2022)/.actors
+  ACTORS 2files 90092b /Volumes/Disk3/medias/series animations/Star Wars The Bad Batch (2021)/.actors
+  ACTORS 19files 714151b /Volumes/Disk3/medias/series animations/Star Wars The Clone Wars (2008)/.actors
+  ACTORS 41files 2936247b /Volumes/Disk3/medias/series animations/Terminator Zero (2024)/.actors
+  ACTORS 1files 29045b /Volumes/Disk3/medias/series documentaires/Les Dossiers de l'inexplicable (2024)/.actors
+  ACTORS 2files 233393b /Volumes/Disk3/medias/series documentaires/The Killing Season (2016)/.actors
+  ACTORS 2files 128653b /Volumes/Disk3/medias/series documentaires/Twin Flames Un troublant univers de rencontres (2023)/.actors
+  ACTORS 1files 120278b /Volumes/Disk3/medias/spectacles/Fary Aime-moi si tu peux (2024)/.actors
+  ACTORS 1files 120278b /Volumes/Disk3/medias/spectacles/Fary Hexagone (2020)/.actors
+  ACTORS 1files 120278b /Volumes/Disk3/medias/spectacles/Fary Is the New Black (2018)/.actors
+  ACTORS 1files 80536b /Volumes/Disk3/medias/spectacles/Florence Foresti - Boys Boys Boys (2024)/.actors
+  ACTORS 2files 68873b /Volumes/Disk3/medias/spectacles/Laura Felpin Ça passe (2024)/.actors
+  ACTORS 8files 611209b /Volumes/Disk3/medias/spectacles/Les duos impossibles de Jérémy Ferrari 1ère édition (2014)/.actors
+  ACTORS 14files 1381320b /Volumes/Disk3/medias/spectacles/Les duos impossibles de Jérémy Ferrari 2ème édition (2015)/.actors
+  ACTORS 8files 795644b /Volumes/Disk3/medias/spectacles/Les duos impossibles de Jérémy Ferrari 3ème édition (2016)/.actors
+  ACTORS 11files 873990b /Volumes/Disk3/medias/spectacles/Les duos impossibles de Jérémy Ferrari 4ème édition (2017)/.actors
+  ACTORS 1files 18150b /Volumes/Disk3/medias/spectacles/Les duos impossibles de Jérémy Ferrari 9ème édition (2022)/.actors
+  ACTORS 7files 497628b /Volumes/Disk3/medias/spectacles/Montreux Comedy Festival 2017 - Gala Fary-Wiesel (2017)/.actors
+  ACTORS 1files 22145b /Volumes/Disk3/medias/spectacles/Pablo Mira dit des choses contre de l'argent (2022)/.actors
+  ACTORS 42files 5909876b /Volumes/Disk3/medias/spectacles/Soixante 9 (2024)/.actors
+  ACTORS 1files 35195b /Volumes/Disk3/medias/spectacles/Yacine Belhousse 2021 (2022)/.actors
+  ACTORS 1files 35195b /Volumes/Disk3/medias/spectacles/Yacine Belhousse 2022 (2022)/.actors
+  ACTORS 1files 35195b /Volumes/Disk3/medias/spectacles/Yacine Belhousse 2023 (2024)/.actors
+  ACTORS 4files 516785b /Volumes/Disk3/medias/theatres/Mon voisin nu (2024)/.actors
+  ACTORS 8files 776430b /Volumes/Disk4/medias/films/Breathe (2024)/.actors
+  ACTORS 10files 1620343b /Volumes/Disk4/medias/films/Captives (2024)/.actors
+  ACTORS 20files 1887014b /Volumes/Disk4/medias/films/Chérie, j'ai agrandi le bébé (1992)/.actors
+  ACTORS 12files 872687b /Volumes/Disk4/medias/films/Chérie, j'ai rétréci les gosses (1989)/.actors
+  ACTORS 9files 984472b /Volumes/Disk4/medias/films/Comme un prince (2024)/.actors
+  ACTORS 20files 1423194b /Volumes/Disk4/medias/films/Daaaaaalí ! (2024)/.actors
+  ACTORS 19files 2712329b /Volumes/Disk4/medias/films/Die Hart Die Harter (2024)/.actors
+  ACTORS 13files 1988885b /Volumes/Disk4/medias/films/Enemy (2014)/.actors
+  ACTORS 23files 4938548b /Volumes/Disk4/medias/films/Humane (2024)/.actors
+  ACTORS 26files 2388364b /Volumes/Disk4/medias/films/I Saw the TV Glow (2024)/.actors
+  ACTORS 27files 4459848b /Volumes/Disk4/medias/films/Il n'est jamais trop tard (2011)/.actors
+  ACTORS 39files 5636854b /Volumes/Disk4/medias/films/La Défense Lincoln (2011)/.actors
+  ACTORS 26files 4801663b /Volumes/Disk4/medias/films/La Malédiction L'Origine (2024)/.actors
+  ACTORS 12files 1148234b /Volumes/Disk4/medias/films/La prochaine fois je viserai le cœur (2014)/.actors
+  ACTORS 9files 360945b /Volumes/Disk4/medias/films/Le tableau (2011)/.actors
+  ACTORS 13files 3474081b /Volumes/Disk4/medias/films/Les Cartes du Mal (2024)/.actors
+  ACTORS 41files 4401066b /Volumes/Disk4/medias/films/Les Cerveaux (2016)/.actors
+  ACTORS 11files 1027078b /Volumes/Disk4/medias/films/Mothers' Instinct (2024)/.actors
+  ACTORS 27files 3756898b /Volumes/Disk4/medias/films/Scoop (2024)/.actors
+  ACTORS 8files 582867b /Volumes/Disk4/medias/films/Sentinel (2023)/.actors
+  ACTORS 11files 1889236b /Volumes/Disk4/medias/films/Strictly Confidential (2024)/.actors
+  ACTORS 57files 7576162b /Volumes/Disk4/medias/films/Super-Héros Movie (2008)/.actors
+  ACTORS 26files 1704726b /Volumes/Disk4/medias/films/The Boys in the Boat (2023)/.actors
+  ACTORS 18files 1807288b /Volumes/Disk4/medias/films/The Deliverance (2024)/.actors
+  ACTORS 10files 1480542b /Volumes/Disk4/medias/films/Un Coup de dés (2024)/.actors
+  ACTORS 14files 2234199b /Volumes/Disk4/medias/films/Une vie (2023)/.actors
+  ACTORS 11files 1060010b /Volumes/Disk4/medias/films/Vermines (2023)/.actors
+  ACTORS 15files 2943645b /Volumes/Disk4/medias/films animations/Ultraman Rising (2024)/.actors
+  ACTORS 15files 2152049b /Volumes/Disk4/medias/films animations/Vaiana 2 (2024)/.actors
+  ACTORS 10files 585643b /Volumes/Disk4/medias/series/22.11.63 (2016)/.actors
+  ACTORS 14files 898166b /Volumes/Disk4/medias/series/Anger Management (2012)/.actors
+  ACTORS 10files 1183630b /Volumes/Disk4/medias/series/Battlestar Galactica (2004)/.actors
+  ACTORS 2files 42136b /Volumes/Disk4/medias/series/Beacon 23 (2023)/.actors
+  ACTORS 9files 752532b /Volumes/Disk4/medias/series/Better Call Saul (2014)/.actors
+  ACTORS 5files 143212b /Volumes/Disk4/medias/series/Bodkin (2024)/.actors
+  ACTORS 37files 2937983b /Volumes/Disk4/medias/series/Broadchurch (2013)/.actors
+  ACTORS 8files 433366b /Volumes/Disk4/medias/series/Caïn (2012)/.actors
+  ACTORS 17files 511904b /Volumes/Disk4/medias/series/Caméra Café (2001)/.actors
+  ACTORS 17files 3521029b /Volumes/Disk4/medias/series/Chernobyl (2019)/.actors
+  ACTORS 69files 8329227b /Volumes/Disk4/medias/series/Chernobyl (2019)/Saison 01/.actors
+  ACTORS 9files 251327b /Volumes/Disk4/medias/series/Childhood's End (2015)/.actors
+  ACTORS 7files 360529b /Volumes/Disk4/medias/series/Coupling - Six Sexy (2000)/.actors
+  ACTORS 6files 126570b /Volumes/Disk4/medias/series/Dark Matter (2024) (2024)/.actors
+  ACTORS 29files 1799481b /Volumes/Disk4/medias/series/Doctor Who (2005) (2005)/.actors
+  ACTORS 2files 84431b /Volumes/Disk4/medias/series/Doctor Who (2023) (2023)/.actors
+  ACTORS 6files 191956b /Volumes/Disk4/medias/series/Eric (2024)/.actors
+  ACTORS 8files 436121b /Volumes/Disk4/medias/series/Eux (2021)/.actors
+  ACTORS 4files 1007883b /Volumes/Disk4/medias/series/Fallout (2024)/.actors
+  ACTORS 10files 442383b /Volumes/Disk4/medias/series/Family Business (2019)/.actors
+  ACTORS 15files 916754b /Volumes/Disk4/medias/series/Farscape (1999)/.actors
+  ACTORS 6files 262064b /Volumes/Disk4/medias/series/Fiasco (2024) (2024)/.actors
+  ACTORS 8files 249658b /Volumes/Disk4/medias/series/Furies (2024)/.actors
+  ACTORS 9files 364454b /Volumes/Disk4/medias/series/Hero Corp (2008)/.actors
+  ACTORS 11files 557858b /Volumes/Disk4/medias/series/Kaboul Kitchen (2012)/.actors
+  ACTORS 16files 535982b /Volumes/Disk4/medias/series/La Brea (2021)/.actors
+  ACTORS 4files 550271b /Volumes/Disk4/medias/series/La Vie de famille (1989)/.actors
+  ACTORS 5files 367397b /Volumes/Disk4/medias/series/Le Caméléon (1996)/.actors
+  ACTORS 6files 137024b /Volumes/Disk4/medias/series/Le Régime (2024)/.actors
+  ACTORS 12files 563500b /Volumes/Disk4/medias/series/Le Visiteur du Futur (2009)/.actors
+  ACTORS 7files 206316b /Volumes/Disk4/medias/series/Les Papillons noirs (2022)/.actors
+  ACTORS 8files 770249b /Volumes/Disk4/medias/series/Man With A Plan (2016)/.actors
+  ACTORS 10files 223978b /Volumes/Disk4/medias/series/Manhunt (2024) (2024)/.actors
+  ACTORS 12files 972799b /Volumes/Disk4/medias/series/Misfits (2009)/.actors
+  ACTORS 3files 111204b /Volumes/Disk4/medias/series/Mon petit renne (2024)/.actors
+  ACTORS 2files 78609b /Volumes/Disk4/medias/series/Mr. & Mrs. Smith (2024)/.actors
+  ACTORS 7files 220964b /Volumes/Disk4/medias/series/Only Murders in the Building (2021)/.actors
+  ACTORS 4files 113828b /Volumes/Disk4/medias/series/Rapa (2022)/.actors
+  ACTORS 7files 245135b /Volumes/Disk4/medias/series/Reine rouge (2024)/.actors
+  ACTORS 50files 4887772b /Volumes/Disk4/medias/series/Shameless (2004)/.actors
+  ACTORS 13files 643248b /Volumes/Disk4/medias/series/Six Feet Under (2001)/.actors
+  ACTORS 19files 1372430b /Volumes/Disk4/medias/series/Stargate Atlantis (2004)/.actors
+  ACTORS 685files 64141587b /Volumes/Disk4/medias/series/Stargate SG-1 (1997)/.actors
+  ACTORS 18files 520018b /Volumes/Disk4/medias/series/Stargate Universe (2009)/.actors
+  ACTORS 9files 212654b /Volumes/Disk4/medias/series/Sugar (2024)/.actors
+  ACTORS 6files 171708b /Volumes/Disk4/medias/series/Terminal (2024)/.actors
+  ACTORS 13files 863698b /Volumes/Disk4/medias/series/That '70s Show (1998)/.actors
+  ACTORS 29files 5633824b /Volumes/Disk4/medias/series/The Acolyte (2024)/.actors
+  ACTORS 12files 895463b /Volumes/Disk4/medias/series/The King of Queens (1998)/.actors
+  ACTORS 9files 728417b /Volumes/Disk4/medias/series/The Last Man on Earth (2015)/.actors
+  ACTORS 6files 458622b /Volumes/Disk4/medias/series/The Lost Room (2006)/.actors
+  ACTORS 7files 994375b /Volumes/Disk4/medias/series/The Michael J. Fox Show (2013)/.actors
+  ACTORS 13files 1633713b /Volumes/Disk4/medias/series/The OA (2016)/.actors
+  ACTORS 6files 286400b /Volumes/Disk4/medias/series/The Odd Couple (2015) (2015)/.actors
+  ACTORS 4files 136103b /Volumes/Disk4/medias/series/The Wrong Mans (2013)/.actors
+  ACTORS 2files 89471b /Volumes/Disk4/medias/series/Time Traveling Bong (2016)/.actors
+  ACTORS 34files 2285400b /Volumes/Disk4/medias/series/Twin Peaks (1990)/.actors
+  ACTORS 12files 2175617b /Volumes/Disk4/medias/series/Un meurtre est-il facile (2023)/.actors
+  ACTORS 15files 1379172b /Volumes/Disk4/medias/series/Unbelievable (2019)/.actors
+  ACTORS 12files 158891b /Volumes/Disk4/medias/series/United States of Tara (2009)/.actors
+  ACTORS 5files 175259b /Volumes/Disk4/medias/series/Voilà (1997)/.actors
+  ACTORS 12files 609367b /Volumes/Disk4/medias/series/X-Files  Aux frontières du réel (1993)/.actors
+--- empty-dir walk-up (batch 16) ---
+# batch_16: deleted=115, skipped=0, empty=0, time=13.4s
+# smoke_check_ok: 65 items
