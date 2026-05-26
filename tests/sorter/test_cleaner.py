@@ -246,3 +246,41 @@ class TestEdgeCases:
         """Calling clean() twice with same input returns same result (cache test)."""
         name = "Shrinking.S03.MULTi.1080p.WEBRiP.DDP5.1.x265-R3MiX"
         assert cleaner.clean(name) == cleaner.clean(name)
+
+
+# --- Fake year fallback ---
+
+
+class TestFakeYearFallback:
+    """Fake-year injection recovers clean titles when guessit lacks a year anchor."""
+
+    def test_vof_ad_stripped(self, cleaner):
+        """VOF and AD absorbed into title without year are stripped."""
+        result = cleaner.clean(
+            "Le.Bus.Les.Bleus.En.Greve.VOF.AD.1080p.WEB.NF.DV.HDR.H265.EAC3.5.1-Amen.mkv"
+        )
+        assert result == "Le Bus Les Bleus En Greve"
+
+    def test_nost_stripped(self, cleaner):
+        """NOST absorbed into title without year is stripped."""
+        result = cleaner.clean("Movie.Title.NOST.1080p.WEB.mkv")
+        assert result == "Movie Title"
+
+    def test_already_has_year_no_change(self, cleaner):
+        """When year is already present, title is left untouched."""
+        result = cleaner.clean(
+            "De.Si.Remarquables.Créatures.2026.MULTi.VFF.1080p.WEBRip.x264.mkv"
+        )
+        assert result == "De Si Remarquables Créatures"
+
+    def test_no_metadata_tokens_keeps_title(self, cleaner):
+        """When no metadata tokens are found, original title is kept."""
+        result = cleaner.clean("Some.Clean.Movie.Title.mkv")
+        assert "Some Clean Movie Title" in result
+
+    def test_clean_for_folder_also_fixed(self, cleaner):
+        """clean_for_folder also benefits from the fake-year fallback."""
+        result = cleaner.clean_for_folder(
+            "Le.Bus.Les.Bleus.En.Greve.VOF.AD.1080p.WEB.mkv"
+        )
+        assert result == "Le Bus Les Bleus En Greve"
