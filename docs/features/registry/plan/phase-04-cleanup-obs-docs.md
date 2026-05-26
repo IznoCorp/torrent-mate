@@ -19,10 +19,12 @@ Phase 3 must have produced:
 
 ## Goal
 
-Wire all five EventBus events with full payloads (DESIGN §7.4), complete structured
-logging at the levels documented in §7.5, deliver the minimal `personalscraper info
-providers` CLI command, update reference docs, bump VERSION to 0.16.0, and add
-the CHANGELOG entry. After this phase all ACC criteria pass.
+Wire all five EventBus events with full payloads at the remaining emission sites
+(DESIGN §7.4), complete structured logging at the levels documented in §7.5, deliver
+the minimal `personalscraper info providers` CLI command (with `--config` flag per
+ACC-05b), update reference docs, bump VERSION to 0.16.0, add the CHANGELOG entry,
+and add the lint rule forbidding broad `except` around registry call sites. After
+this phase all ACC criteria pass.
 
 ---
 
@@ -30,9 +32,9 @@ the CHANGELOG entry. After this phase all ACC criteria pass.
 
 **Modified:**
 
-- `personalscraper/api/metadata/registry/__init__.py` — wire `_event_bus_safe_emit` calls for all five events in `chain`, `fan_out`, `locked`, and `__init__`
-- `personalscraper/api/metadata/registry/_errors.py` — add EventBus event dataclasses if not already in a dedicated module
-- `personalscraper/commands/info.py` (or `personalscraper/commands/providers.py`) — add `personalscraper info providers` sub-command
+- `personalscraper/api/metadata/registry/__init__.py` — wire remaining `_event_bus_safe_emit` calls for all five events in `chain`, `fan_out`, `locked`, and `__init__` (event classes and `_event_bus_safe_emit` already defined in Phase 0)
+- `personalscraper/commands/info.py` (or `personalscraper/commands/providers.py`) — add `personalscraper info providers` sub-command with `--config Path` option
+- `Makefile` — wire `check-no-broad-registry-catch` lint rule into `check` target
 - `docs/reference/architecture.md` — Provider Registry section
 - `docs/reference/scraping.md` — three semantics (chain/fan_out/locked) documented
 - `CHANGELOG.md` — 0.16.0 entry
@@ -40,72 +42,34 @@ the CHANGELOG entry. After this phase all ACC criteria pass.
 
 **Created:**
 
-- `personalscraper/api/metadata/registry/_events.py` — five EventBus event dataclasses (if not already defined in `__init__.py`)
+- `scripts/check-no-broad-registry-catch.py` — AST-based lint rule (sub-phase 4.6)
 - `tests/integration/api/metadata/registry/test_events.py` — ACC-08 EventBus snapshot test
+
+**Note on event class definitions**: `_events.py` and `_event_bus_safe_emit` were
+defined in Phase 0 sub-phase 0.1 and 0.5a respectively. Phase 4 sub-phase 4.1
+wires the REMAINING emission sites (those in `chain()`, `fan_out()`, `__init__`)
+that were deferred from Phase 0 to avoid implementing complex logic before the
+unit tests existed. The class definitions themselves are NOT re-created here.
 
 ---
 
 ## Sub-phases
 
-### 4.1 — EventBus event dataclasses + full payload wiring
+### 4.1 — Wire remaining EventBus emission sites
 
-**Files:** `personalscraper/api/metadata/registry/_events.py`, `personalscraper/api/metadata/registry/__init__.py`
+**Files:** `personalscraper/api/metadata/registry/__init__.py`
 
-Define all five event classes from DESIGN §7.4 with their exact payload fields:
-
-```python
-# personalscraper/api/metadata/registry/_events.py
-from __future__ import annotations
-from dataclasses import dataclass
-from typing import Any, Literal
-from personalscraper.api.metadata.registry import AttemptOutcome, ProviderMatch
-
-@dataclass(frozen=True)
-class ProviderFallbackTriggered:
-    """Emitted when a chain moves from one provider to the next."""
-    capability: str
-    from_provider: str
-    to_provider: str
-    reason: Literal["circuit_open", "network", "empty_result"]
-    exc_type: str | None
-    item: dict[str, Any]
-
-@dataclass(frozen=True)
-class ProviderExhaustedEvent:
-    """Emitted when all providers in a chain failed for an item."""
-    capability: str
-    attempted: list[AttemptOutcome]
-    item: dict[str, Any]
-
-@dataclass(frozen=True)
-class LockedCapabilityUnresolved:
-    """Emitted when locked() cannot bind a provider via IDCrossRef."""
-    capability: str
-    match: ProviderMatch
-    chain_tried: list[str]
-
-@dataclass(frozen=True)
-class RegistryFanOutCompleted:
-    """Always emitted after fan_out returns (even on full success)."""
-    capability: str
-    attempted: list[AttemptOutcome]
-    succeeded: int
-
-@dataclass(frozen=True)
-class RegistryBootValidated:
-    """Emitted when boot completed successfully."""
-    providers: list[str]
-    capabilities: dict[str, list[str]]
-```
-
-Wire `_event_bus_safe_emit` calls in `ProviderRegistry`:
+The event dataclasses (`_events.py`) and `_event_bus_safe_emit` were already defined
+in Phase 0. This sub-phase wires the remaining `_event_bus_safe_emit` calls at the
+correct call points within `chain()`, `fan_out()`, `locked()`, and `__init__()`:
 
 - `chain()`: emit `ProviderFallbackTriggered` on each skip; emit `ProviderExhaustedEvent` before raising `ProviderExhausted`.
 - `fan_out()`: emit `RegistryFanOutCompleted` always at end (even when `values` is empty).
-- `locked()`: emit `LockedCapabilityUnresolved` when returning `None` (already present in Phase 0 implementation — verify and complete payload).
+- `locked()`: emit `LockedCapabilityUnresolved` when returning `None` (verify payload is complete per §7.4).
 - `__init__`: emit `RegistryBootValidated` after successful construction.
 
-`_event_bus_safe_emit` implementation (must be in `__init__.py`):
+Reminder of the `_event_bus_safe_emit` contract (already implemented in Phase 0
+sub-phase 0.5a):
 
 ```python
 def _event_bus_safe_emit(self, event: object) -> None:
@@ -122,7 +86,7 @@ def _event_bus_safe_emit(self, event: object) -> None:
         )
 ```
 
-Commit: `feat(registry): EventBus event dataclasses + full payload wiring`
+Commit: `feat(registry): wire remaining EventBus emission sites with full payloads`
 
 ---
 
@@ -192,23 +156,42 @@ def test_event_bus_failure_does_not_crash_registry(registry, broken_bus):
     assert isinstance(result, list)  # registry returned normally
 ```
 
-Add the minimal `personalscraper info providers` CLI command:
+Add the minimal `personalscraper info providers` CLI command with `--config` flag
+(ACC-04a/b and ACC-05b are verified via this command — see INDEX.md):
 
 ```python
 # personalscraper/commands/info.py (add sub-command or extend existing)
 import typer
+from pathlib import Path
 from personalscraper.api.metadata.registry import ProviderRegistry
 
 info_app = typer.Typer()
 
 @info_app.command("providers")
-def info_providers(ctx: typer.Context) -> None:
-    """Print per-provider circuit state (registry.status() snapshot)."""
+def info_providers(
+    ctx: typer.Context,
+    config: Path | None = typer.Option(
+        None,
+        "--config",
+        help="Override the default config/providers.json5 location for boot validation.",
+    ),
+) -> None:
+    """Print per-provider circuit state (registry.status() snapshot).
+
+    If --config is given, the specified providers.json5 path is used instead of
+    the default. This enables ACC-05b: passing a broken config file triggers
+    aggregated RegistryConfigError output.
+    """
     registry: ProviderRegistry = ctx.obj["registry"]
     status = registry.status()
     for name, s in status.items():
         typer.echo(f"{name:<20} circuit={s.circuit_state}  failures={s.failure_count_recent}")
 ```
+
+The `--config Path` option overrides the default `config/providers.json5` location
+for the boot validation pass (DESIGN §10 ACC-05b requirement). When a broken config
+is passed, `RegistryConfigError` is raised and printed before the command exits
+non-zero.
 
 The command must print at least one line per configured provider (ACC-06).
 
@@ -219,7 +202,8 @@ pytest tests/integration/api/metadata/registry/test_events.py -q
 personalscraper info providers | grep -cE "^(tmdb|tvdb|imdb|omdb|trakt|rotten_tomatoes)\s"
 ```
 
-Expected: tests pass; grep count matches `${N_PROVIDERS}` from `config.example/providers.json5`.
+Expected: tests pass; grep count matches the number of providers in
+`config.example/providers.json5`.
 
 Commit: `feat(registry): EventBus integration test (ACC-08) + info providers CLI`
 
@@ -305,11 +289,105 @@ personalscraper info providers | grep -cE "^(tmdb|tvdb)\s"                      
 grep -c "^## \[0.16.0\]" CHANGELOG.md                                              # ACC-11 = 1
 cat VERSION                                                                          # ACC-10 = 0.16.0
 python3 scripts/check-module-size.py                                                # ACC-12
+# ACC-04a: boot positive control
+TMDB_API_KEY=dummy_key personalscraper info providers >/dev/null 2>&1              # expect exit 0
+# ACC-04b: boot crashes when credentials missing
+env -u TMDB_API_KEY personalscraper info providers 2>&1 | grep -c "RegistryConfigError.*tmdb"  # expect 1
+# ACC-05b: broken config triggers aggregated RegistryConfigError
+personalscraper info providers --config tests/fixtures/bad_providers.json5 2>&1 | grep -c "RegistryConfigError"  # expect 1
 ```
 
 All expected outputs must match before committing.
 
 Commit: `chore(registry): phase 4 gate — 0.16.0 bump, CHANGELOG, docs, all ACC pass`
+
+---
+
+### 4.6 — Lint rule: forbid broad `except` around registry call sites
+
+**Files:** `scripts/check-no-broad-registry-catch.py`, `Makefile`
+
+DESIGN §7.1 promises a project-level lint rule forbidding `except WrongSemanticBug`
+and `except RegistryError` around `registry.*` call sites (programmer bugs that must
+never be caught). Implement as an AST-based script:
+
+```python
+#!/usr/bin/env python3
+"""check-no-broad-registry-catch.py
+
+AST-walks personalscraper/ and finds Try nodes where an ExceptHandler.type
+matches RegistryError or WrongSemanticBug. Exits 1 with file:line listing if any
+are found, exits 0 if none.
+
+Usage: python3 scripts/check-no-broad-registry-catch.py
+"""
+import ast
+import sys
+from pathlib import Path
+
+FORBIDDEN_CATCHES = {"RegistryError", "WrongSemanticBug"}
+
+def check_file(path: Path) -> list[str]:
+    violations = []
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Try):
+            for handler in node.handlers:
+                if handler.type is None:
+                    continue  # bare except — not a registry-specific catch
+                names = (
+                    [handler.type.id]
+                    if isinstance(handler.type, ast.Name)
+                    else []
+                )
+                for name in names:
+                    if name in FORBIDDEN_CATCHES:
+                        violations.append(
+                            f"{path}:{handler.lineno}: forbidden `except {name}` around registry call site"
+                        )
+    return violations
+
+def main() -> int:
+    root = Path("personalscraper")
+    all_violations: list[str] = []
+    for py_file in sorted(root.rglob("*.py")):
+        all_violations.extend(check_file(py_file))
+    if all_violations:
+        print("\\n".join(all_violations), file=sys.stderr)
+        return 1
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+Wire into `Makefile` `check` target:
+
+```makefile
+check: lint test module-size check-no-broad-registry-catch
+
+check-no-broad-registry-catch:
+	python3 scripts/check-no-broad-registry-catch.py
+```
+
+Run:
+
+```bash
+python3 scripts/check-no-broad-registry-catch.py
+```
+
+Expected: exit 0 (no violations in the codebase).
+
+Commit: `chore(registry): add lint rule forbidding broad except around registry calls`
+
+---
+
+## On gate failure
+
+If `## Phase gate` fails, do NOT proceed to the next phase. Revert the failing
+sub-phase's commit (`git revert <sha>` for the most recent commit, or
+`git reset --hard HEAD~N` for multiple) and re-invoke `/implement:phase` to retry
+the sub-phase. The phase gate must be green before any cross-phase work continues.
 
 ---
 
@@ -324,6 +402,10 @@ From DESIGN §9 Phase 4:
 ## ACC criteria touched
 
 - **ACC-01** — `make check` green (sub-phase 4.5)
+- **ACC-04a** — boot positive control: `ProviderRegistry` constructed with credentials → exit 0 (sub-phase 4.3 CLI + 4.5 checklist)
+- **ACC-04b** — boot crashes when credentials missing → `RegistryConfigError` (sub-phase 4.3 CLI + 4.5 checklist)
+- **ACC-05a** — `tests/fixtures/bad_providers.json5` exists (created in Phase 0 sub-phase 0.6; verified here)
+- **ACC-05b** — broken config triggers aggregated `RegistryConfigError` via `--config` flag (sub-phase 4.3)
 - **ACC-06** — `info providers` lists every configured provider (sub-phase 4.3)
 - **ACC-08** — EventBus snapshot test passes (sub-phase 4.3)
 - **ACC-10** — VERSION = 0.16.0 (sub-phase 4.5)

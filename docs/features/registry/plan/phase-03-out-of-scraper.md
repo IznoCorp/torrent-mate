@@ -177,6 +177,15 @@ Commit: `feat(registry): commands/library/scan migrated — ACC-02 verified`
 
 ---
 
+## On gate failure
+
+If `## Phase gate` fails, do NOT proceed to the next phase. Revert the failing
+sub-phase's commit (`git revert <sha>` for the most recent commit, or
+`git reset --hard HEAD~N` for multiple) and re-invoke `/implement:phase` to retry
+the sub-phase. The phase gate must be green before any cross-phase work continues.
+
+---
+
 ## Phase gate
 
 From DESIGN §9 Phase 3:
