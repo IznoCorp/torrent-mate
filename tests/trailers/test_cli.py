@@ -6,8 +6,8 @@ Uses typer.testing.CliRunner. All orchestrator/scanner calls are mocked.
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import click
 import pytest
+import typer
 from typer.testing import CliRunner
 
 from personalscraper.cli import app
@@ -443,7 +443,7 @@ class TestHelpers:
         """_resolve_level_and_season raises SystemExit for invalid level."""
         from personalscraper.trailers.cli import _resolve_level_and_season
 
-        with pytest.raises(click.exceptions.Exit) as exc_info:
+        with pytest.raises(typer.Exit) as exc_info:
             _resolve_level_and_season("invalid", None, True)
         assert exc_info.value.exit_code == 2
 
@@ -548,7 +548,7 @@ class TestHelpers:
         """_parse_since raises SystemExit(2) for invalid date."""
         from personalscraper.trailers.cli import _parse_since
 
-        with pytest.raises(click.exceptions.Exit) as exc_info:
+        with pytest.raises(typer.Exit) as exc_info:
             _parse_since("not-a-date")
         assert exc_info.value.exit_code == 2
 
