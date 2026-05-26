@@ -14,7 +14,7 @@
 
 | #   | Phase                                     | File                                      | Status |
 | --- | ----------------------------------------- | ----------------------------------------- | ------ |
-| 0   | New types, shells, characterization tests | phase-00-types-shells-characterization.md | [ ]    |
+| 0   | New types, shells, characterization tests | phase-00-types-shells-characterization.md | [x]    |
 | 1   | Boot wiring + chain migration             | phase-01-boot-wiring-chain.md             | [ ]    |
 | 2   | Scraper locked migration                  | phase-02-scraper-locked.md                | [ ]    |
 | 3   | Out-of-scraper consumers                  | phase-03-out-of-scraper.md                | [ ]    |
@@ -36,4 +36,4 @@ _(filled by /implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to continue Phase 0 (sub-phase 0.7 complete) or proceed to Phase 1.
+Run `/implement:phase` to start Phase 1 (Boot wiring + chain migration).
