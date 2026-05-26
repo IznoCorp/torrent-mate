@@ -156,28 +156,68 @@ grep -E "episode_unmatched_no_rename.*DESIGN_CONFORM|show_season_empty" /Users/i
 
 **Scope** : Phase 12.7 (commits `008f4d1` + `6735275`) a livré "media_file orphan repair CLI + 5 tests". Le re-run 23h49 rapporte toujours **102 media_file sans release_id** (invariant AO inchangé). Phase 12.7 a fourni l'outillage mais n'a pas été exécutée OU le bug se ré-introduit.
 
-**Tâches** :
+**Plan correction (Phase 14.4, in-commit)** : la formulation initiale "block media_file
+INSERT without release_id" était incorrecte. Le schéma autorise déjà
+`release_id IS NULL` (migration 002) — l'INSERT n'est pas la source. L'investigation
+montre que les 102 orphans proviennent de la **CASCADE FK** : la table
+`media_file.release_id` était définie en `ON DELETE SET NULL`. Quand un
+`media_release` parent est supprimé (suite à un dispatch écrasant un ancien
+release, ou un cleanup de library), les `media_file` enfants se retrouvent avec
+`release_id=NULL` sans aucun moyen de re-lier (le parent n'existe plus). La CLI
+`library-fix-orphan-files` rapporte `items_scanned=102, fixed=0, no_release=102`
+— elle ne peut pas réparer puisque le parent est manquant.
 
-1. Vérifier si la CLI `personalscraper library-fix-orphan-files` a été exécutée post-Phase 12.7 sur la BDD prod. Si non → l'exécuter avec backup BDD préalable.
-2. Si OUI et le bug persiste → audit source : quel code-path crée des media_file sans release_id ?
-   - Candidates : ingest interrompu, dispatch_path écriture incomplète, library-scan partiel.
-3. Patch source : refuser silencieusement les INSERT de media_file sans release_id (transaction wrapping), OU créer le release fantôme automatiquement.
-4. **Test de régression** complémentaire (au-dessus des 5 de 12.7) : simuler un ingest interrompu → assert pas de media_file sans release_id, ou auto-création du release.
+**Fix correct** :
+
+1. **Migration 009** (`personalscraper/indexer/migrations/009_media_file_cascade_release.sql`) :
+   recrée `media_file` avec FK `release_id → media_release(id) ON DELETE CASCADE`.
+   Idempotent au niveau du version-gate (skip si `PRAGMA user_version >= 9`).
+   Les orphans existants (NULL) sont préservés verbatim — la migration ne nettoie
+   pas les données, juste le schéma.
+
+2. **CLI extension** (`personalscraper/commands/library/fix_orphan_files.py`) : ajout
+   du flag `--purge-unrecoverable`. Quand combiné avec `--apply`, supprime les
+   `media_file` qui restent en `release_id IS NULL` après la passe de repair.
+   Dry-run par défaut (rapporte `would_purge`).
+
+3. **Cleanup BDD prod** : backup mandatoire puis
+   `personalscraper library-fix-orphan-files --apply --purge-unrecoverable`
+   contre `.data/library.db`. Run de la migration au prochain `open_db` (auto).
+
+4. **Test de régression** (`tests/integration/test_release_cascade.py`) :
+   - `test_media_file_release_fk_is_cascade_after_migration` : `PRAGMA foreign_key_list`
+     montre `on_delete = CASCADE` post-migration.
+   - `test_deleting_release_cascades_to_media_file` : seed media_item + release + file,
+     DELETE le release → assert le file row est supprimé (cascade), pas laissé NULL.
+   - `test_purge_unrecoverable_dry_run_reports_only` : `--purge-unrecoverable` sans
+     `--apply` rapporte `would_purge` mais ne supprime rien.
+   - `test_purge_unrecoverable_apply_deletes_orphans` : `--purge-unrecoverable --apply`
+     supprime tous les rows avec `release_id IS NULL`.
 
 **ACCEPTANCE** :
 
 ```bash
+# Schéma : CASCADE en place
+sqlite3 /Users/izno/dev/PersonnalScaper/.data/library.db ".schema media_file" | grep -i "ON DELETE CASCADE"
+# Expected: 1 match (FK on release_id)
+
+# Cleanup : 0 orphan restant
 sqlite3 /Users/izno/dev/PersonnalScaper/.data/library.db "SELECT COUNT(*) FROM media_file WHERE release_id IS NULL"
 # Expected: 0
 
-pytest tests/ -k "test_media_file_orphan" -v
-# Expected: all pass including new source-blocking test
+# Tests de régression passent
+pytest tests/integration/test_release_cascade.py -v
+# Expected: 4 passed
 ```
+
+**Safety** : `cp .data/library.db .data/library.db.bak-phase14.4-$(date +%Y%m%d-%H%M%S)`
+avant le purge. La migration elle-même prend son propre snapshot
+`library.db.pre-migration-9.bak` via `apply_migrations`.
 
 **Commits** :
 
-- `fix(library): block media_file INSERT without release_id (source fix, reopen 12.7)`
-- `test(library): regression for media_file orphan source-blocking`
+- `fix(tech-debt): CASCADE media_file on release delete + purge unrecoverable orphans (reopen 12.7)`
+- `chore(tech-debt): apply media_file cascade migration + purge 102 unrecoverable orphans`
 
 **SHA** : `<pending>`
 
@@ -465,4 +505,4 @@ Tous les sub-phases DONE + `make check` vert + post-Phase 14 re-run `/pipeline-m
 - Re-run report committé dans `docs/pipeline-runs/`
 - CI green sur la PR avec nom de check `test` statique (pas de template literal)
 
-**Phase gate commit** : `chore(tech-debt): phase 13 gate — pipeline-monitor reopen (10 sub-phases, re-run 23h49)`
+**Phase gate commit** : `chore(tech-debt): phase 14 gate — pipeline-monitor reopen (11 sub-phases, re-run 23h49)`

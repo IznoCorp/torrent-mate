@@ -16,9 +16,15 @@ Matching is attempted in two tiers:
 
 Dry-run by default — use ``--apply`` to execute the UPDATE.
 
+When called with ``--purge-unrecoverable`` (in addition to ``--apply``), any
+``media_file`` rows still with ``release_id IS NULL`` after the repair pass
+are DELETED. These rows have no parent ``media_release`` to link to (the
+parent was deleted before the file row) and are otherwise unrecoverable.
+
 Examples:
     personalscraper library-fix-orphan-files
     personalscraper library-fix-orphan-files --apply
+    personalscraper library-fix-orphan-files --apply --purge-unrecoverable
     personalscraper library-fix-orphan-files --db /custom/path/library.db --apply
 """
 
@@ -75,6 +81,10 @@ _UPDATE_RELEASE_SQL = """
 UPDATE media_file SET release_id = ? WHERE id = ?
 """
 
+_PURGE_UNRECOVERABLE_SQL = """
+DELETE FROM media_file WHERE release_id IS NULL
+"""
+
 # Regex mirroring _EPISODE_RE in release_linker.py — extracts season number
 # from SxxEyy (group 1) or xxXyy (group 3) markers.
 _SEASON_EPISODE_RE = _re.compile(r"[sS](\d{1,2})[eE](\d{1,3})|(\d{1,2})x(\d{1,3})")
@@ -100,13 +110,17 @@ class FixOrphanFilesStats(CliFixStatsMixin):
     item_level_fixed: int = 0
     no_release: int = 0
     ambiguous: int = 0
+    purged: int = 0
 
-    def to_cli_json(self, *, apply: bool) -> dict[str, int | bool]:
+    def to_cli_json(self, *, apply: bool, purge_unrecoverable: bool = False) -> dict[str, int | bool]:
         """Project to the CLI JSON output shape.
 
         Args:
             apply: Whether ``--apply`` was passed. Controls the key name for
                 fixed rows (``"fixed"`` vs ``"would_fix"``).
+            purge_unrecoverable: Whether ``--purge-unrecoverable`` was passed.
+                When true, also emits the ``"purged"`` (or ``"would_purge"``)
+                count for files deleted because no parent release exists.
 
         Returns:
             Dict with ``apply`` flag and the relevant count keys.
@@ -120,6 +134,9 @@ class FixOrphanFilesStats(CliFixStatsMixin):
             "ambiguous": self.ambiguous,
         }
         base["fixed" if apply else "would_fix"] = self.fixed
+        if purge_unrecoverable:
+            base["purge_unrecoverable"] = True
+            base["purged" if apply else "would_purge"] = self.purged
         return base
 
 
@@ -242,6 +259,15 @@ def _try_episode_level_link(
 def library_fix_orphan_files(
     ctx: typer.Context,
     apply: bool = typer.Option(False, "--apply", help="Apply fixes (default: dry-run preview)."),
+    purge_unrecoverable: bool = typer.Option(
+        False,
+        "--purge-unrecoverable",
+        help=(
+            "After the repair pass, DELETE media_file rows still with release_id "
+            "IS NULL. These have no parent release to link to and are unrecoverable. "
+            "Requires --apply to take effect (otherwise reported as would_purge)."
+        ),
+    ),
     config: Path | None = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir."),
     db: Path | None = typer.Option(None, "--db", help="Path to library.db (overrides config)."),
 ) -> None:
@@ -257,6 +283,8 @@ def library_fix_orphan_files(
        season + episode rows and match ``media_release.episode_id``.
 
     Dry-run by default — use ``--apply`` to execute the UPDATE statements.
+    Use ``--purge-unrecoverable`` (combined with ``--apply``) to additionally
+    delete rows whose parent release no longer exists.
     """
     from personalscraper.conf.loader import load_config  # noqa: PLC0415
 
@@ -347,8 +375,29 @@ def library_fix_orphan_files(
                 conn.rollback()
                 raise
 
+        # --- Optional purge: delete rows still with release_id IS NULL ---
+        # Count first so dry-run can report would_purge accurately. When
+        # --apply is set, run the DELETE in a separate transaction; when
+        # dry-run, only the count is recorded.
+        if purge_unrecoverable:
+            remaining = conn.execute("SELECT COUNT(*) FROM media_file WHERE release_id IS NULL").fetchone()[0]
+            stats.purged = int(remaining)
+            if apply and remaining > 0:
+                conn.execute("BEGIN IMMEDIATE")
+                try:
+                    conn.execute(_PURGE_UNRECOVERABLE_SQL)
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+                    raise
+                log.info("orphan_files_purged", count=int(remaining))
+
         log.info("orphan_files_done", stats=stats.to_log_dict())
 
-        emit(stats.snapshot().to_cli_json(apply=apply))
+        # ``snapshot()`` returns the base CliFixStatsMixin type for reuse; cast
+        # back to FixOrphanFilesStats so its ``purge_unrecoverable`` kwarg is
+        # visible to mypy. The actual returned object is the same dataclass.
+        snap: FixOrphanFilesStats = stats.snapshot()  # type: ignore[assignment]
+        emit(snap.to_cli_json(apply=apply, purge_unrecoverable=purge_unrecoverable))
     finally:
         conn.close()
