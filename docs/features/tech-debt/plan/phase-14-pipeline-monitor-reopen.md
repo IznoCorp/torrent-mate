@@ -246,7 +246,31 @@ personalscraper library-reconcile --read-only 2>&1 | grep "season_count_drift"
 
 ---
 
-## 14.6 — Disk residue cleanup (P2 mineur, NEW — invariants AG + AJ)
+## 14.6 — Disk residue cleanup (P2 mineur, NEW — invariants AG + AJ) — **[DONE 2026-05-26]**
+
+**Status** : Completed via 3 sample tests (v1: 13 / v2: 74 / v3: 150, cumulative 233 deletions, 0 regression) + batched full run (16 batches × 100/115 items in 98s, 65-item smoke pool intact across 16 inter-batch checks). Audit trail: `/tmp/full_cleanup_20260526-115807.log`.
+
+**Scope cleaned** :
+
+- 109/109 `._*.nfo` AppleDouble (macOS resource forks)
+- 9/9 SAFE_TORRENT_LEFTOVER NFOs (orphans in nested torrent-name subdirs)
+- 1729/1730 `.actors/` MediaElch cast image directories
+- 19 empty dirs walked-up (kernel `rmdir` + anchor-protected)
+
+**Residual** :
+
+- 1 `.actors/` (`Hunger Games La Ballade du serpent et de l'oiseau chanteur (2023)/.actors/Zoë_Renee.jpg`) — NTFS zombie file with corrupted metadata (`-?????????` permissions, `?` size); resists `rm -f` due to macFUSE NTFS limitation. Resolvable only with `chkdsk /F` from Windows. No functional impact.
+
+**Tooling** (all in `/tmp/`, not committed — operator-only scripts) :
+
+- `audit_nfo_orphans.py` — classifier (KEEP_HAS_SIBLING / KEEP_TVSHOW_ROOT / KEEP_SEASON_HAS_VIDEOS / DELETE_APPLEDOUBLE / DELETE_NO_VIDEO_SIBLING / REVIEW)
+- `refine_orphans.py` — splits DELETE into SAFE_TORRENT_LEFTOVER vs REVIEW_SHOW_ROOT
+- `cleanup_disk_residue.py` — NFO + `.actors/` deletion
+- `cleanup_empty_dirs.py` — kernel-enforced empty-dir cleanup with anchor protection
+- `run_full_cleanup_batched.py` — orchestrator with inter-batch smoke checks
+- `sample_test_v1/v2/v3.py` — exhaustive sample validation (1804 neighbors + 65/160 smoke pools verified)
+
+**Original scope (preserved for traceability)** :
 
 **Scope** : `pipeline-invariant-checker` (PHASE 3 du re-run) rapporte :
 
