@@ -153,9 +153,9 @@ _(rempli par implement:pr-review — max 3 cycles)_
 
 **Phases 0-13 complete (2026-05-25). Phase 14 in progress (2026-05-26).**
 
-Phase 14 sub-phases shipped so far: 14.1 (`0514c76` block canonical_provider regression at insertion source), 14.1 cont (`8f3b441` aggressive repair for movies inverted to tvdb).
+Phase 14 sub-phases shipped so far: 14.1 (`0514c76` block canonical_provider regression at insertion source + `8f3b441` aggressive repair for movies inverted to tvdb); 14.4 (`b6c476f` CASCADE media_file on release delete + `c5dcb75` apply cascade migration + purge 102 unrecoverable orphans).
 
-Remaining: 14.2-14.11 (see `docs/features/tech-debt/plan/phase-14-pipeline-monitor-reopen.md`).
+Remaining: 14.2-14.3, 14.5-14.11 (see `docs/features/tech-debt/plan/phase-14-pipeline-monitor-reopen.md`).
 
 After Phase 14 gate: run `/implement:feature-pr` to local gate, push, create PR, poll CI; then `/implement:pr-review` for review cycles + squash merge.
 
