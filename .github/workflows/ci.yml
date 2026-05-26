@@ -122,6 +122,11 @@ jobs:
         with:
           name: coverage-unit
           path: .coverage.unit
+          # `.coverage.unit` is a dotfile; upload-artifact@v4 silently skips
+          # hidden files by default since the v4 breaking change. Explicitly
+          # opt in or the artifact becomes an empty upload (which coverage-merge
+          # then fails to find at download time).
+          include-hidden-files: true
 
   test-integration:
     name: test-integration
@@ -146,6 +151,8 @@ jobs:
         with:
           name: coverage-integration
           path: .coverage.integ
+          # See test-unit upload — dotfile, v4 needs explicit opt-in.
+          include-hidden-files: true
 
   security:
     name: security
