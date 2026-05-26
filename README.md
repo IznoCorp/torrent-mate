@@ -110,7 +110,7 @@ brew install media-info   # pymediainfo backend (stream extraction for the index
 
 ## Technologies
 
-- **Python 3.10+** avec [Typer](https://typer.tiangolo.com/) (CLI) et [Pydantic Settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) (config)
+- **Python 3.12+** avec [Typer](https://typer.tiangolo.com/) (CLI) et [Pydantic Settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) (config)
 - **guessit** — Parsing intelligent des noms de fichiers media
 - **TMDB / TVDB APIs** — Métadonnées, artwork, noms d'épisodes
 - **rapidfuzz** — Matching flou pour les titres (5-100x plus rapide que thefuzz)

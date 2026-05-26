@@ -7,7 +7,7 @@ name = "personalscraper"
 dynamic = ["version"]
 description = "Media pipeline automation — ingest, sort, scrape, verify, dispatch."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = "MIT"
 authors = [
     {name = "LounisBou", email = "LounisBou@users.noreply.github.com"}
@@ -15,10 +15,7 @@ authors = [
 keywords = ["media", "plex", "kodi", "nfo", "scraper", "automation", "pipeline"]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Operating System :: MacOS",
     "Intended Audience :: End Users/Desktop",
     "Topic :: Multimedia :: Video",
