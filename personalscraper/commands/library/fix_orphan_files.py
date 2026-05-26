@@ -21,10 +21,18 @@ When called with ``--purge-unrecoverable`` (in addition to ``--apply``), any
 are DELETED. These rows have no parent ``media_release`` to link to (the
 parent was deleted before the file row) and are otherwise unrecoverable.
 
+When called with ``--purge-release-orphans`` (in addition to ``--apply``), any
+``media_release`` rows that have no surviving (non-soft-deleted) ``media_file``
+pointing at them are DELETED. These releases were created during scrape but
+never linked to a physical file (or all their files have been soft-deleted)
+and dangle in the schema. Mirrors ``detect_release_orphans`` from the
+reconcile module (Phase 14.8).
+
 Examples:
     personalscraper library-fix-orphan-files
     personalscraper library-fix-orphan-files --apply
     personalscraper library-fix-orphan-files --apply --purge-unrecoverable
+    personalscraper library-fix-orphan-files --apply --purge-release-orphans
     personalscraper library-fix-orphan-files --db /custom/path/library.db --apply
 """
 
@@ -85,6 +93,29 @@ _PURGE_UNRECOVERABLE_SQL = """
 DELETE FROM media_file WHERE release_id IS NULL
 """
 
+# Mirrors detect_release_orphans() in personalscraper/indexer/reconcile.py — a
+# media_release is orphan when NO media_file with deleted_at IS NULL points at it.
+_RELEASE_ORPHANS_COUNT_SQL = """
+SELECT COUNT(*) FROM media_release mr
+WHERE NOT EXISTS (
+    SELECT 1 FROM media_file mf
+     WHERE mf.release_id = mr.id
+       AND mf.deleted_at IS NULL
+)
+"""
+
+_PURGE_RELEASE_ORPHANS_SQL = """
+DELETE FROM media_release
+ WHERE id IN (
+     SELECT mr.id FROM media_release mr
+      WHERE NOT EXISTS (
+          SELECT 1 FROM media_file mf
+           WHERE mf.release_id = mr.id
+             AND mf.deleted_at IS NULL
+      )
+ )
+"""
+
 # Regex mirroring _EPISODE_RE in release_linker.py — extracts season number
 # from SxxEyy (group 1) or xxXyy (group 3) markers.
 _SEASON_EPISODE_RE = _re.compile(r"[sS](\d{1,2})[eE](\d{1,3})|(\d{1,2})x(\d{1,3})")
@@ -111,8 +142,15 @@ class FixOrphanFilesStats(CliFixStatsMixin):
     no_release: int = 0
     ambiguous: int = 0
     purged: int = 0
+    release_orphans_purged: int = 0
 
-    def to_cli_json(self, *, apply: bool, purge_unrecoverable: bool = False) -> dict[str, int | bool]:
+    def to_cli_json(
+        self,
+        *,
+        apply: bool,
+        purge_unrecoverable: bool = False,
+        purge_release_orphans: bool = False,
+    ) -> dict[str, int | bool]:
         """Project to the CLI JSON output shape.
 
         Args:
@@ -121,6 +159,10 @@ class FixOrphanFilesStats(CliFixStatsMixin):
             purge_unrecoverable: Whether ``--purge-unrecoverable`` was passed.
                 When true, also emits the ``"purged"`` (or ``"would_purge"``)
                 count for files deleted because no parent release exists.
+            purge_release_orphans: Whether ``--purge-release-orphans`` was
+                passed. When true, also emits the ``"release_orphans_purged"``
+                (or ``"would_purge_release_orphans"``) count for releases
+                deleted because no surviving media_file points at them.
 
         Returns:
             Dict with ``apply`` flag and the relevant count keys.
@@ -137,6 +179,10 @@ class FixOrphanFilesStats(CliFixStatsMixin):
         if purge_unrecoverable:
             base["purge_unrecoverable"] = True
             base["purged" if apply else "would_purge"] = self.purged
+        if purge_release_orphans:
+            base["purge_release_orphans"] = True
+            key = "release_orphans_purged" if apply else "would_purge_release_orphans"
+            base[key] = self.release_orphans_purged
         return base
 
 
@@ -268,6 +314,16 @@ def library_fix_orphan_files(
             "Requires --apply to take effect (otherwise reported as would_purge)."
         ),
     ),
+    purge_release_orphans: bool = typer.Option(
+        False,
+        "--purge-release-orphans",
+        help=(
+            "After the repair pass, DELETE media_release rows with no surviving "
+            "(non-soft-deleted) media_file pointing at them. Mirrors "
+            "detect_release_orphans from reconcile.py (Phase 14.8). Requires "
+            "--apply to take effect (otherwise reported as would_purge_release_orphans)."
+        ),
+    ),
     config: Path | None = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir."),
     db: Path | None = typer.Option(None, "--db", help="Path to library.db (overrides config)."),
 ) -> None:
@@ -284,7 +340,10 @@ def library_fix_orphan_files(
 
     Dry-run by default — use ``--apply`` to execute the UPDATE statements.
     Use ``--purge-unrecoverable`` (combined with ``--apply``) to additionally
-    delete rows whose parent release no longer exists.
+    delete rows whose parent release no longer exists. Use
+    ``--purge-release-orphans`` (combined with ``--apply``) to delete
+    ``media_release`` rows that have no surviving (non-soft-deleted)
+    ``media_file`` pointing at them.
     """
     from personalscraper.conf.loader import load_config  # noqa: PLC0415
 
@@ -392,12 +451,35 @@ def library_fix_orphan_files(
                     raise
                 log.info("orphan_files_purged", count=int(remaining))
 
+        # --- Optional purge: delete media_release rows with no live media_file ---
+        # Count via the same predicate as detect_release_orphans() so the CLI
+        # is the canonical fix for the library-reconcile release_orphans signal.
+        # Idempotent: re-running on a clean DB reports 0 and performs no DELETE.
+        if purge_release_orphans:
+            release_orphan_count = conn.execute(_RELEASE_ORPHANS_COUNT_SQL).fetchone()[0]
+            stats.release_orphans_purged = int(release_orphan_count)
+            if apply and release_orphan_count > 0:
+                conn.execute("BEGIN IMMEDIATE")
+                try:
+                    conn.execute(_PURGE_RELEASE_ORPHANS_SQL)
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+                    raise
+                log.info("release_orphans_purged", count=int(release_orphan_count))
+
         log.info("orphan_files_done", stats=stats.to_log_dict())
 
         # ``snapshot()`` returns the base CliFixStatsMixin type for reuse; cast
         # back to FixOrphanFilesStats so its ``purge_unrecoverable`` kwarg is
         # visible to mypy. The actual returned object is the same dataclass.
         snap: FixOrphanFilesStats = stats.snapshot()  # type: ignore[assignment]
-        emit(snap.to_cli_json(apply=apply, purge_unrecoverable=purge_unrecoverable))
+        emit(
+            snap.to_cli_json(
+                apply=apply,
+                purge_unrecoverable=purge_unrecoverable,
+                purge_release_orphans=purge_release_orphans,
+            )
+        )
     finally:
         conn.close()

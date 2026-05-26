@@ -312,29 +312,67 @@ sqlite3 /Users/izno/dev/PersonnalScaper/.data/library.db ".schema repair_queue" 
 
 ## 14.8 — release_orphans cleanup (P2 mineur, NEW)
 
-**Scope** : `library-reconcile --read-only` du re-run rapporte 172 `release_orphans` (releases sans `media_item` parent). Signal nouveau, non couvert par les invariants AD-AV.
+**Scope** : `library-reconcile --read-only` du re-run rapporte 172 `release_orphans`.
 
-**Tâches** :
+**Plan correction (Phase 14.8, in-commit)** : la formulation initiale supposait
+des "releases sans `media_item` parent" — mais l'audit prouve que ce n'est PAS
+le cas. La FK `media_release.item_id → media_item(id) ON DELETE CASCADE` est
+déjà en place (migration 001), donc une suppression de `media_item` cascade
+correctement. Le predicate réel utilisé par `detect_release_orphans` dans
+`personalscraper/indexer/reconcile.py` est :
 
-1. SQL audit : `SELECT id, media_item_id, release_kind, created_at FROM media_release WHERE media_item_id NOT IN (SELECT id FROM media_item)`. Identifier l'origine.
-2. Vérifier le cascade FK media_release → media_item. Si pas de `ON DELETE CASCADE`, c'est la cause.
-3. Script `scripts/migrations/cleanup_release_orphans.py` :
-   - DELETE chaque `media_release` sans `media_item` parent.
-   - Idempotent. Logs structlog.
-4. Si root cause = FK manquante → migration pour wirer `ON DELETE CASCADE`.
-5. **Test de régression** : `tests/integration/library/test_release_orphans.py` — insérer item+release, supprimer item, asserter release supprimé (cascade) OU détecté par `library-reconcile`.
+> `media_release` rows where NO `media_file` with `deleted_at IS NULL`
+> points at them.
+
+L'audit des 172 orphans en prod montre : **toutes** sont des releases
+épisode-level (`episode_id` non-NULL), avec parent épisode vivant, et
+**aucun** `media_file` n'a jamais existé (la release a été créée pendant le
+scrape mais le lien `media_file` n'a jamais été persisté, ou tous les files
+ont été soft-deleted lors d'un dispatch écrasant). Distribution : New Girl
+(124), Monk (33), From (15). Ce sont des releases solo (pas de sibling
+release vivante pour leur épisode), donc safe à supprimer.
+
+**Fix correct** :
+
+1. **Extension CLI** (`personalscraper/commands/library/fix_orphan_files.py`) :
+   ajout du flag `--purge-release-orphans`. Quand combiné avec `--apply`,
+   supprime les `media_release` détectées par le même predicate que
+   `detect_release_orphans` (rows sans `media_file` survivant non
+   soft-deleted). Dry-run par défaut (rapporte `would_purge_release_orphans`).
+   Idempotent (re-run sur DB nettoyée rapporte 0).
+
+2. **Cleanup BDD prod** : backup mandatoire puis
+   `personalscraper library-fix-orphan-files --apply --purge-release-orphans`
+   contre `.data/library.db`.
+
+3. **Test de régression** (`tests/integration/test_release_orphans_purge.py`) :
+   - `test_detect_release_orphans_includes_softdeleted_file_case` : seed item
+     - release + media_file soft-deleted → assert release dans la sortie de
+       `detect_release_orphans` (pin l'alignement CLI ↔ reconcile).
+   - `test_purge_release_orphans_dry_run_reports_only` :
+     `--purge-release-orphans` sans `--apply` rapporte
+     `would_purge_release_orphans=1` mais ne supprime rien.
+   - `test_purge_release_orphans_apply_deletes_and_is_idempotent` :
+     `--purge-release-orphans --apply` supprime tous les orphans, re-run
+     immédiat rapporte 0 (idempotence).
 
 **ACCEPTANCE** :
 
 ```bash
 personalscraper library-reconcile --read-only 2>&1 | grep "release_orphans_count"
 # Expected: release_orphans_count=0
+
+pytest tests/integration/test_release_orphans_purge.py -v
+# Expected: 3 passed
 ```
+
+**Safety** : `cp .data/library.db .data/library.db.bak-phase14.8-$(date +%Y%m%d-%H%M%S)`
+avant le purge.
 
 **Commits** :
 
-- `fix(library): cleanup release_orphans + wire ON DELETE CASCADE`
-- `test(library): regression for media_release cascade integrity`
+- `fix(tech-debt): purge release_orphans CLI + regression (14.8)`
+- `chore(tech-debt): purge 172 release_orphans from library.db`
 
 **SHA** : `<pending>`
 
