@@ -980,3 +980,61 @@ coverage, ACC-SH-17 + ACC-SH-26 added for Phase 8.4 + 8.8, decision opérateur 2
 
 **Status post-tech-debt 0.16.0 merge**: mark ✅/❌/🟡 next to each ACC- as Phase 8.9 closure
 (ACC-00..49) + Phase 9 gate (ACC-50..54).
+
+---
+
+## CI Speed Optimization (Phase 15)
+
+### ACC-55 — concurrency cancel-in-progress
+
+```bash
+grep -c 'concurrency:' .github/workflows/ci.yml && grep -c 'cancel-in-progress' .github/workflows/ci.yml
+# Expected: ≥1, ≥1. Actual: runtime check.
+```
+
+**Status**: SHIPPED — Phase 15.1.
+
+### ACC-56 — paths-ignore docs
+
+```bash
+grep -c 'paths-ignore' .github/workflows/ci.yml
+# Expected: ≥1. Actual: runtime check.
+```
+
+**Status**: SHIPPED — Phase 15.1.
+
+### ACC-57 — Cache .venv present
+
+```bash
+grep -c '\.venv' .github/workflows/ci.yml
+# Expected: ≥1. Actual: runtime check.
+```
+
+**Status**: SHIPPED — Phase 15.2.
+
+### ACC-58 — Lint job sans .[dev]
+
+```bash
+grep -A 20 'name: lint' .github/workflows/ci.yml | grep -c '\.\[dev\]'
+# Expected: 0. Actual: runtime check.
+```
+
+**Status**: SHIPPED — Phase 15.2.
+
+### ACC-59 — Gitleaks cached
+
+```bash
+grep -B 2 -A 5 'cache-gitleaks' .github/workflows/ci.yml | grep -c 'cache-hit'
+# Expected: ≥1. Actual: runtime check.
+```
+
+**Status**: SHIPPED — Phase 15.3.
+
+### ACC-60 — test split + coverage merge
+
+```bash
+grep -cE 'test-unit|test-integ|coverage-merge' .github/workflows/ci.yml
+# Expected: 3. Actual: runtime check.
+```
+
+**Status**: SHIPPED — Phase 15.4.
