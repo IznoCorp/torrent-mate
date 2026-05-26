@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from personalscraper.api.metadata.registry import (  # type: ignore[attr-defined]  # forward-ref: defined in sub-phase 0.2
+    from personalscraper.api.metadata.registry import (
         AttemptOutcome,
         ConfigIssue,
     )

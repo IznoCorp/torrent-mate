@@ -25,7 +25,7 @@ from personalscraper.api.metadata._contracts import (
 from personalscraper.api.metadata.registry._errors import WrongSemanticBug
 
 if TYPE_CHECKING:
-    from personalscraper.api.metadata.registry import (  # type: ignore[attr-defined]  # forward-ref: defined in sub-phase 0.2
+    from personalscraper.api.metadata.registry import (
         Mode,
     )
 
@@ -81,7 +81,7 @@ def mode_for(capability: type) -> Mode:
     Raises:
         WrongSemanticBug: If the capability is not a known registry capability.
     """
-    from personalscraper.api.metadata.registry import (  # type: ignore[attr-defined]  # forward-ref: defined in sub-phase 0.2
+    from personalscraper.api.metadata.registry import (
         Mode,
     )
 
