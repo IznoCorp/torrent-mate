@@ -204,7 +204,6 @@ def test_all_six_issue_families_in_one_error() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="TDD — registry __init__ pending sub-phase 0.5c", raises=NotImplementedError, strict=True)
 def test_partial_boot_no_operation_callable(build_registry: object) -> None:
     """When boot validation fails, no operation can be called on the registry.
 
@@ -218,7 +217,6 @@ def test_partial_boot_no_operation_callable(build_registry: object) -> None:
         build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
 
 
-@pytest.mark.xfail(reason="TDD — registry __init__ pending sub-phase 0.5c", raises=NotImplementedError, strict=True)
 def test_boot_cleanup_on_validation_failure(build_registry: object) -> None:
     """Providers built before validation fails must have ``.close()`` called (DESIGN §6.1.f).
 
