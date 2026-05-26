@@ -328,6 +328,94 @@ class TestScanLibraryPopulatesDB:
         sources = {entry["source"] for entry in ratings["entries"]}
         assert sources == {"imdb", "tmdb"}
 
+    def test_canonical_provider_insertion_path_normalizes_show_tmdb_default(
+        self, fs: "FakeFilesystem", scanner_config: Config
+    ) -> None:
+        """Phase 14.1 (reopen 12.1) — block canonical_provider regression at insertion source.
+
+        A TV show NFO on disk may carry ``<uniqueid default="true" type="tmdb">``
+        for historical reasons (e.g. an old TMDB-first scrape) while also
+        listing a valid ``<uniqueid type="tvdb">`` element. Before this fix the
+        scanner honoured the NFO's declared default and wrote
+        ``canonical_provider='tmdb'`` to the indexer DB, contradicting the
+        codebase-wide SSOT rule (shows → TVDB primary). The CLI repair only
+        cleaned up existing rows; rescans kept re-introducing the bug.
+
+        This regression test inserts the show via the actual scanner code-path
+        (``scan_library``) and asserts the DB row carries the deterministic
+        value ``canonical_provider='tvdb'``. It fails on pre-fix code.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        disk_a = scanner_config.disks[0].path
+        (disk_a / "series").mkdir(parents=True)
+        show = disk_a / "series" / "12 Monkeys (2015)"
+        show.mkdir()
+        # NFO carries default="true" on tmdb (legacy shape) but tvdb is also
+        # present — the deterministic rule must override the NFO declaration.
+        (show / "tvshow.nfo").write_text(
+            "<tvshow>"
+            '<uniqueid default="true" type="tmdb">60948</uniqueid>'
+            '<uniqueid type="tvdb">272644</uniqueid>'
+            '<uniqueid type="imdb">tt3148266</uniqueid>'
+            "</tvshow>"
+        )
+        s01 = show / "Saison 01"
+        s01.mkdir()
+        (s01 / "S01E01.mkv").write_bytes(b"\x00")
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan_library(scanner_config, conn, event_bus=EventBus())
+
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT canonical_provider FROM media_item WHERE title = '12 Monkeys'").fetchone()
+        assert row is not None
+        # Deterministic rule: show with tvdb_id → canonical_provider='tvdb'
+        # regardless of the NFO's declared default attribute.
+        assert row["canonical_provider"] == "tvdb", (
+            f"Show with tvdb_id must yield canonical_provider='tvdb', got {row['canonical_provider']!r}"
+        )
+
+    def test_canonical_provider_insertion_path_normalizes_movie_tvdb_default(
+        self, fs: "FakeFilesystem", scanner_config: Config
+    ) -> None:
+        """Phase 14.1 — movies with NFO-declared tvdb default must still resolve to 'tmdb'.
+
+        Symmetric case for movies: an NFO on disk that mistakenly flags
+        ``<uniqueid default="true" type="tvdb">`` while also carrying a valid
+        ``<uniqueid type="tmdb">`` element must produce
+        ``canonical_provider='tmdb'`` in the DB (movies → TMDB primary).
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        disk_a = scanner_config.disks[0].path
+        (disk_a / "films").mkdir(parents=True)
+        movie = disk_a / "films" / "Inception (2010)"
+        movie.mkdir()
+        (movie / "Inception.nfo").write_text(
+            "<movie>"
+            '<uniqueid default="true" type="tvdb">99999</uniqueid>'
+            '<uniqueid type="tmdb">27205</uniqueid>'
+            '<uniqueid type="imdb">tt1375666</uniqueid>'
+            "</movie>"
+        )
+        (movie / "Inception.mkv").write_bytes(b"\x00")
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan_library(scanner_config, conn, event_bus=EventBus())
+
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT canonical_provider FROM media_item WHERE title = 'Inception'").fetchone()
+        assert row is not None
+        # Deterministic rule: movie with tmdb_id → canonical_provider='tmdb'.
+        assert row["canonical_provider"] == "tmdb", (
+            f"Movie with tmdb_id must yield canonical_provider='tmdb', got {row['canonical_provider']!r}"
+        )
+
     def test_season_columns_refresh_on_rescan(self, fs: "FakeFilesystem", scanner_config: Config) -> None:
         """Regression for the BDD audit (P8): season columns refresh on every scan.
 

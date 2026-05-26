@@ -5,10 +5,14 @@ Some ``media_item`` rows have an incorrect ``canonical_provider`` column:
   valid ``tvdb.series_id`` in ``external_ids_json``.
 - ``kind='movie'`` rows with ``canonical_provider IS NULL`` that actually have
   a valid ``tmdb.id`` in ``external_ids_json``.
+- ``kind='movie'`` rows with ``canonical_provider='tvdb'`` (inverted) that
+  actually have a valid ``tmdb.id`` in ``external_ids_json``. *Phase 14.1
+  reopen 12.1 — the re-run on 2026-05-25 23h49 surfaced this third class which
+  the original migration did not cover.*
 
-The command runs two idempotent SQL UPDATE statements inside a single transaction.
-Re-running the command produces 0 additional fixes because the WHERE clauses only
-target rows that are still in the wrong state.
+The command runs three idempotent SQL UPDATE statements inside a single
+transaction. Re-running the command produces 0 additional fixes because the
+WHERE clauses only target rows that are still in the wrong state.
 
 Dry-run by default — use ``--apply`` to execute the UPDATE.
 
@@ -55,6 +59,21 @@ WHERE kind='movie' AND canonical_provider IS NULL
 _MOVIES_COUNT_SQL = """
 SELECT COUNT(*) FROM media_item
 WHERE kind='movie' AND canonical_provider IS NULL
+  AND json_extract(external_ids_json, '$.tmdb.id') IS NOT NULL
+"""
+
+# Phase 14.1 reopen 12.1 — third class observed on the 2026-05-25 23h49 re-run:
+# movies with ``canonical_provider='tvdb'`` (inverted) despite a valid tmdb.id.
+# The original Phase 12.1 migration only handled the NULL case for movies.
+_MOVIES_INVERTED_REPAIR_SQL = """
+UPDATE media_item SET canonical_provider='tmdb'
+WHERE kind='movie' AND canonical_provider='tvdb'
+  AND json_extract(external_ids_json, '$.tmdb.id') IS NOT NULL
+"""
+
+_MOVIES_INVERTED_COUNT_SQL = """
+SELECT COUNT(*) FROM media_item
+WHERE kind='movie' AND canonical_provider='tvdb'
   AND json_extract(external_ids_json, '$.tmdb.id') IS NOT NULL
 """
 
@@ -136,13 +155,16 @@ def library_fix_canonical_provider(
     log.info("canonical_provider_fix_scan_started")
 
     if apply:
-        # Execute both UPDATE statements in a single transaction.
+        # Execute all three UPDATE statements in a single transaction.
         conn.execute("BEGIN IMMEDIATE")
         try:
             cur = conn.execute(_SHOWS_REPAIR_SQL)
             stats.shows_fixed = cur.rowcount if cur.rowcount >= 0 else 0
             cur = conn.execute(_MOVIES_REPAIR_SQL)
-            stats.movies_fixed = cur.rowcount if cur.rowcount >= 0 else 0
+            movies_null_fixed = cur.rowcount if cur.rowcount >= 0 else 0
+            cur = conn.execute(_MOVIES_INVERTED_REPAIR_SQL)
+            movies_inverted_fixed = cur.rowcount if cur.rowcount >= 0 else 0
+            stats.movies_fixed = movies_null_fixed + movies_inverted_fixed
             conn.commit()
         except Exception:
             conn.rollback()
@@ -154,7 +176,10 @@ def library_fix_canonical_provider(
             row = conn.execute(_SHOWS_COUNT_SQL).fetchone()
             stats.shows_fixed = row[0] if row is not None else 0
             row = conn.execute(_MOVIES_COUNT_SQL).fetchone()
-            stats.movies_fixed = row[0] if row is not None else 0
+            movies_null_count = row[0] if row is not None else 0
+            row = conn.execute(_MOVIES_INVERTED_COUNT_SQL).fetchone()
+            movies_inverted_count = row[0] if row is not None else 0
+            stats.movies_fixed = movies_null_count + movies_inverted_count
         finally:
             conn.close()
 

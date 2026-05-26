@@ -36,7 +36,13 @@ def _json_from_result(result: Any) -> dict[str, Any]:
 
 
 def _seed_repair_data(conn: sqlite3.Connection) -> None:
-    """Seed 5 broken shows + 3 broken movies + 2 control rows."""
+    """Seed 5 broken shows + 3 NULL-broken movies + 2 inverted-broken movies + 2 control rows.
+
+    Phase 14.1 extension: the third class (movies with ``canonical_provider='tvdb'``
+    despite a valid ``tmdb.id``) is now seeded alongside the original two classes so
+    that ``test_repair_fixes_canonical_provider`` exercises the new
+    ``_MOVIES_INVERTED_REPAIR_SQL`` clause.
+    """
     now = 1700000000
 
     # 5 shows: kind='show', canonical_provider='tmdb', with tvdb.series_id
@@ -57,6 +63,17 @@ def _seed_repair_data(conn: sqlite3.Connection) -> None:
             "external_ids_json, canonical_provider, date_created, date_modified) "
             "VALUES ('movie', ?, ?, 'movies', ?, NULL, ?, ?)",
             (f"Movie {i}", f"Movie {i}", eids, now, now),
+        )
+
+    # Phase 14.1 — 2 movies inverted to 'tvdb' (third class observed at the
+    # 2026-05-25 23h49 re-run). Must be repaired by the new clause.
+    for i in range(1, 3):
+        eids = json.dumps({"tmdb": {"id": f"400{i}"}})
+        conn.execute(
+            "INSERT INTO media_item (kind, title, title_sort, category_id, "
+            "external_ids_json, canonical_provider, date_created, date_modified) "
+            "VALUES ('movie', ?, ?, 'movies', ?, 'tvdb', ?, ?)",
+            (f"Inverted Movie {i}", f"Inverted Movie {i}", eids, now, now),
         )
 
     # Control: movie already with canonical_provider='tmdb' — must stay unchanged.
@@ -86,7 +103,11 @@ def _seed_repair_data(conn: sqlite3.Connection) -> None:
 
 
 def test_repair_fixes_canonical_provider(tmp_path: Path, test_config: Any) -> None:
-    """--apply corrects 5 shows + 3 movies, leaves 2 control rows untouched."""
+    """--apply corrects 5 shows + 5 movies (3 NULL + 2 inverted), control rows untouched.
+
+    Phase 14.1 update: the seed now includes 2 movies inverted to ``'tvdb'``, so
+    ``fixed_movies`` is 5 (3 NULL-class + 2 inverted-class).
+    """
     db_path = make_synthetic_db(tmp_path)
 
     conn = sqlite3.connect(str(db_path))
@@ -101,7 +122,7 @@ def test_repair_fixes_canonical_provider(tmp_path: Path, test_config: Any) -> No
     data = _json_from_result(result)
     assert data["apply"] is True
     assert data["fixed_shows"] == 5, f"Expected 5 fixed_shows, got {data}"
-    assert data["fixed_movies"] == 3, f"Expected 3 fixed_movies, got {data}"
+    assert data["fixed_movies"] == 5, f"Expected 5 fixed_movies (3 NULL + 2 inverted), got {data}"
 
     # Verify DB state.
     conn = sqlite3.connect(str(db_path))
@@ -148,7 +169,7 @@ def test_repair_idempotent_after_fix(tmp_path: Path, test_config: Any) -> None:
         assert result1.exit_code == 0, result1.output
         data1 = _json_from_result(result1)
         assert data1["fixed_shows"] == 5
-        assert data1["fixed_movies"] == 3
+        assert data1["fixed_movies"] == 5
 
         # Second pass — idempotent.
         result2 = run_cli(["--format", "json", "library-fix-canonical-provider", "--db", str(db_path), "--apply"])
@@ -194,7 +215,7 @@ def test_repair_dry_run_reports_counts_without_mutation(tmp_path: Path, test_con
     data = _json_from_result(result)
     assert data["apply"] is False
     assert data["would_fix_shows"] == 5, f"Expected 5 would_fix_shows, got {data}"
-    assert data["would_fix_movies"] == 3, f"Expected 3 would_fix_movies, got {data}"
+    assert data["would_fix_movies"] == 5, f"Expected 5 would_fix_movies (3 NULL + 2 inverted), got {data}"
 
     # DB must be unchanged.
     conn = sqlite3.connect(str(db_path))

@@ -65,6 +65,82 @@ from personalscraper.nfo_utils import is_nfo_complete
 
 log = get_logger("library.scanner")
 
+
+def _normalize_canonical_provider(
+    kind: MediaItemKind,
+    tvdb_id: str | None,
+    tmdb_id: str | None,
+    nfo_declared: str | None,
+) -> str | None:
+    """Compute the canonical_provider value enforced at the indexer DB insertion source.
+
+    The NFO files on disk may carry a ``<uniqueid default="true">`` flag whose
+    family disagrees with the SSOT rule the codebase enforces elsewhere
+    (TV shows → TVDB primary, movies → TMDB primary, see
+    ``feedback_multi_provider_ids_separation`` memory rule). Honouring the NFO's
+    declared default blindly let inverted values leak into ``media_item.canonical_provider``
+    every time the library scanner re-walked the disks (Phase 14.1, reopen 12.1 —
+    194 shows wrongly tagged ``'tmdb'`` despite a valid ``tvdb.series_id`` because
+    the historical NFO from an old TMDB-first scrape still flagged tmdb as default).
+
+    This helper short-circuits that path: regardless of the NFO's ``default``
+    attribute, the canonical_provider written to the DB is derived from
+    ``kind`` + available external IDs.
+
+    Args:
+        kind: ``'movie'`` or ``'show'`` — the row's category.
+        tvdb_id: TVDB series-id surfaced from the NFO (``None`` when absent).
+        tmdb_id: TMDB id surfaced from the NFO (``None`` when absent).
+        nfo_declared: The ``canonical_provider`` value extracted from
+            ``<uniqueid default="true">`` (``'tvdb'``, ``'tmdb'``, or ``None``).
+            Used only for the structlog warning when the NFO disagrees with
+            the deterministic rule.
+
+    Returns:
+        ``'tvdb'`` for shows with a valid tvdb_id, ``'tmdb'`` for movies with a
+        valid tmdb_id or shows with only tmdb_id, ``None`` when no provider id
+        is available at all (in which case the row stays NULL — the CLI
+        ``library-fix-canonical-provider`` can repair it once a provider id
+        lands later).
+    """
+    computed: str | None
+    if kind == "show":
+        # TVDB is the canonical provider for shows whenever available.
+        if tvdb_id:
+            computed = "tvdb"
+        elif tmdb_id:
+            # Show with only a TMDB id — accepted, but flag at WARN level so
+            # operators notice the provider gap when looking at logs.
+            computed = "tmdb"
+        else:
+            computed = None
+    else:
+        # Movies: TMDB is canonical.
+        if tmdb_id:
+            computed = "tmdb"
+        elif tvdb_id:
+            # Movies tagged with a TVDB id only — anomaly (TVDB is shows-first).
+            # Keep NULL so the CLI repair can pick it up rather than persisting
+            # an inverted value the rest of the pipeline would treat as canonical.
+            computed = None
+        else:
+            computed = None
+
+    # Warn whenever the NFO's declared default disagrees with the deterministic
+    # computation. This is the trail we want when auditing post-Phase 14.1 logs.
+    if nfo_declared and nfo_declared != computed and computed is not None:
+        log.warning(
+            "library_canonical_provider_overridden",
+            kind=kind,
+            nfo_declared=nfo_declared,
+            computed=computed,
+            tvdb_id=tvdb_id,
+            tmdb_id=tmdb_id,
+        )
+
+    return computed
+
+
 # Title (Year) pattern — same as _parse_folder_name in scraper
 _TITLE_YEAR_RE = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
 
@@ -583,7 +659,15 @@ def _upsert_media_item(
         ratings_json = _json.dumps({"entries": scan_item.nfo.ratings})
     else:
         ratings_json = None
-    canonical_provider = scan_item.nfo.canonical_provider
+    # Phase 14.1 (reopen 12.1) — block the canonical_provider regression at the
+    # insertion source. Older NFOs on disk may flag tmdb as default even for
+    # shows with a valid tvdb_id; recompute deterministically from kind + IDs.
+    canonical_provider = _normalize_canonical_provider(
+        kind=kind,
+        tvdb_id=scan_item.nfo.tvdb_id,
+        tmdb_id=scan_item.nfo.tmdb_id,
+        nfo_declared=scan_item.nfo.canonical_provider,
+    )
 
     row = MediaItemRow(
         id=0,
