@@ -59,15 +59,27 @@
 ```bash
 sqlite3 /Users/izno/dev/PersonnalScaper/.data/library.db "
 SELECT
-  SUM(CASE WHEN kind='show' AND canonical_provider != 'tvdb' THEN 1 ELSE 0 END) AS tv_bad,
-  SUM(CASE WHEN kind='movie' AND canonical_provider != 'tmdb' THEN 1 ELSE 0 END) AS mv_bad
+  SUM(CASE WHEN kind='show' AND canonical_provider='tmdb'
+            AND json_extract(external_ids_json, '\$.tvdb.series_id') IS NOT NULL THEN 1 ELSE 0 END) AS tv_inverted,
+  SUM(CASE WHEN kind='movie' AND canonical_provider='tvdb'
+            AND json_extract(external_ids_json, '\$.tmdb.id') IS NOT NULL THEN 1 ELSE 0 END) AS mv_inverted,
+  SUM(CASE WHEN kind='movie' AND canonical_provider IS NULL
+            AND json_extract(external_ids_json, '\$.tmdb.id') IS NOT NULL THEN 1 ELSE 0 END) AS mv_null
 FROM media_item
 WHERE external_ids_json IS NOT NULL AND external_ids_json != '{}';
 "
-# Expected: tv_bad=0, mv_bad=0
+# Expected: tv_inverted=0, mv_inverted=0, mv_null=0
+# Note (plan correction, Phase 14.1) : the original ACCEPTANCE criterion
+# (``kind='show' AND canonical_provider != 'tvdb' → 0``) was too strict —
+# it flagged the legitimate "tmdb-only show" class (15 shows that have a
+# valid tmdb_id but no tvdb_id, for which ``canonical_provider='tmdb'``
+# is the correct deterministic value per ``_normalize_canonical_provider``
+# and matches the ``test_invariant_tmdb_only_show_excluded`` Phase 12.1
+# invariant test). The refined criterion above only counts genuine
+# inversions, mirroring the WHERE clauses of the three repair SQL statements.
 
-pytest tests/ -k "test_canonical_provider" -v
-# Expected: all pass, including the new insertion-path normalization test
+pytest tests/ -k "canonical_provider" -v
+# Expected: all pass, including the new insertion-path normalization tests
 ```
 
 **Commits** :
