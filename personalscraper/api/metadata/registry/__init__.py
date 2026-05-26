@@ -41,10 +41,16 @@ from personalscraper.api.metadata.registry._errors import (
     UnknownProviderError,
     WrongSemanticBug,
 )
-from personalscraper.api.metadata.registry._events import RegistryBootValidated
+from personalscraper.api.metadata.registry._events import (
+    LockedCapabilityUnresolved,
+    RegistryBootValidated,
+    RegistryFanOutCompleted,
+)
 from personalscraper.api.metadata.registry._semantics import (
     CAPABILITY_KEYS,
     CHAIN_CAPABILITIES,
+    FAN_OUT_CAPABILITIES,
+    LOCKED_CAPABILITIES,
     mode_for,
 )
 from personalscraper.logger import get_logger
@@ -362,10 +368,27 @@ class ProviderRegistry:
     def fan_out(self, capability: type[RatingProvider]) -> list[RatingProvider]:
         """All eligible providers for fan-out capabilities. May return [].
 
+        Emits ``RegistryFanOutCompleted`` after every call (DESIGN §7.4, §7.5).
+
         Raises:
             WrongSemanticBug: if capability is not a fan_out capability.
         """
-        raise NotImplementedError
+        from personalscraper.api.metadata.registry._factory import _eligible
+
+        if capability not in FAN_OUT_CAPABILITIES:
+            raise WrongSemanticBug(
+                f"{capability.__name__} is not a fan_out capability — use the correct registry operation."
+            )
+        names = self._index.get(capability, [])
+        eligible = [self._providers[n] for n in names if n in self._providers and _eligible(self._providers[n])]
+        self._event_bus_safe_emit(
+            RegistryFanOutCompleted(
+                capability=capability.__name__,
+                attempted=[],
+                succeeded=len(eligible),
+            )
+        )
+        return eligible  # type: ignore[return-value]
 
     @overload
     def locked(
@@ -394,12 +417,70 @@ class ProviderRegistry:
     def locked(self, capability: type, match: ProviderMatch) -> LockedProvider[Any] | None:
         """Provider bound to match's id (IDCrossRef escape if needed).
 
-        Algorithm: see DESIGN §6.4.
+        Algorithm (DESIGN §6.4):
+            1. Try match's own provider.
+            2. Walk capability's index translating IDs via cross_ref.
+            3. Return None + emit LockedCapabilityUnresolved if nothing found.
 
         Raises:
             WrongSemanticBug: if capability is not a locked capability.
         """
-        raise NotImplementedError
+        from personalscraper.api.metadata.registry._factory import _eligible
+
+        if capability not in LOCKED_CAPABILITIES:
+            raise WrongSemanticBug(
+                f"{capability.__name__} is not a locked capability — use the correct registry operation."
+            )
+
+        # 1. Match's own provider
+        own = self._providers.get(match.provider)
+        if own is not None and isinstance(own, capability) and _eligible(own):
+            return _make_locked(
+                provider=own,
+                bound_id=match.id,
+                source_match=match,
+                translated_via=None,
+            )
+
+        # 2. Chain fallback with IDCrossRef
+        for candidate_name in self._index.get(capability, []):
+            if candidate_name == match.provider:
+                continue  # already tried in step 1
+            candidate = self._providers.get(candidate_name)
+            if candidate is None or not isinstance(candidate, capability):
+                continue
+            if not _eligible(candidate):
+                continue
+            xref_id = self.cross_ref(match, target=candidate_name)
+            if xref_id is None:
+                continue
+            log.debug(
+                "registry_locked_xref",
+                source_provider=match.provider,
+                target_provider=candidate_name,
+                xref_id=xref_id,
+            )
+            return _make_locked(
+                provider=candidate,
+                bound_id=xref_id,
+                source_match=match,
+                translated_via=match.provider,
+            )
+
+        # 3. Nothing found
+        self._event_bus_safe_emit(
+            LockedCapabilityUnresolved(
+                capability=capability.__name__,
+                match=match,
+                chain_tried=list(self._index.get(capability, [])),
+            )
+        )
+        log.warning(
+            "registry_locked_unresolved",
+            capability=capability.__name__,
+            match=str(match),
+        )
+        return None
 
     # --- Direct dispatch ---
 
@@ -421,9 +502,24 @@ class ProviderRegistry:
     ) -> str | None:
         """Translate match's id to target provider's id space via IDCrossRef.
 
-        Returns target-provider id, or None if no translation path exists.
+        Returns target-provider id, or None if no translation path exists:
+        - target not in IDCrossRef section
+        - match.provider has no IDCrossRef implementation
+        - IDCrossRef call returns no entry for target / raises
         """
-        raise NotImplementedError
+        if target == match.provider:
+            return match.id
+
+        source_provider = self._providers.get(match.provider)
+        if source_provider is None:
+            return None
+        if not isinstance(source_provider, IDCrossRef):
+            return None
+        try:
+            xref_dict = source_provider.get_cross_refs(match.id)
+            return xref_dict.get(target)
+        except Exception:
+            return None
 
     # --- Introspection ---
 

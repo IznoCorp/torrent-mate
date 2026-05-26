@@ -27,7 +27,6 @@ from .conftest import FakeArtwork, FakeIDCrossRef, FakeMultiCapability, FakeSear
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5b", raises=NotImplementedError, strict=True)
 def test_locked_match_provider_path_no_xref(build_registry: object) -> None:
     """If match's provider already implements the capability, ``locked()`` returns it directly."""
     multi = FakeMultiCapability(name="multi", circuit_state="CLOSED")
@@ -50,7 +49,6 @@ def test_locked_match_provider_path_no_xref(build_registry: object) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5b", raises=NotImplementedError, strict=True)
 def test_locked_idcrossref_escape_xref_succeeds(build_registry: object) -> None:
     """If match's provider lacks the capability, IDCrossRef translates to one that has it."""
     # match's provider implements IDCrossRef but NOT ArtworkProvider.
@@ -79,7 +77,6 @@ def test_locked_idcrossref_escape_xref_succeeds(build_registry: object) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5b", raises=NotImplementedError, strict=True)
 def test_locked_circuit_open_along_xref_chain(build_registry: object) -> None:
     """OPEN-circuit providers along the xref chain are skipped; first eligible wins."""
     xref_provider = FakeIDCrossRef(
@@ -108,7 +105,6 @@ def test_locked_circuit_open_along_xref_chain(build_registry: object) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5b", raises=NotImplementedError, strict=True)
 def test_locked_returns_none_when_all_paths_blocked(build_registry: object) -> None:
     """``locked()`` returns ``None`` when no eligible provider can be bound."""
     xref_provider = FakeIDCrossRef(
@@ -128,7 +124,6 @@ def test_locked_returns_none_when_all_paths_blocked(build_registry: object) -> N
     assert registry.locked(ArtworkProvider, match) is None
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5b", raises=NotImplementedError, strict=True)
 def test_locked_returns_none_emits_LockedCapabilityUnresolved_event(
     build_registry: object,
     mock_event_bus: object,

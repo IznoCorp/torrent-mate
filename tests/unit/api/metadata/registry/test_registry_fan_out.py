@@ -20,7 +20,6 @@ from .conftest import FakeRating, FakeSearchable
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5b", raises=NotImplementedError, strict=True)
 def test_fan_out_all_eligible_iteration(build_registry: object) -> None:
     """Every CLOSED/HALF_OPEN RatingProvider must appear in ``fan_out()``."""
     fakes = {
@@ -39,7 +38,6 @@ def test_fan_out_all_eligible_iteration(build_registry: object) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5b", raises=NotImplementedError, strict=True)
 def test_fan_out_excludes_open_circuit(build_registry: object) -> None:
     """OPEN-circuit providers are filtered out of ``fan_out()``."""
     fakes = {
@@ -58,7 +56,6 @@ def test_fan_out_excludes_open_circuit(build_registry: object) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5b", raises=NotImplementedError, strict=True)
 def test_fan_out_empty_when_no_eligible(build_registry: object) -> None:
     """``fan_out()`` returns ``[]`` when no provider is eligible — no error."""
     fakes = {
@@ -70,7 +67,6 @@ def test_fan_out_empty_when_no_eligible(build_registry: object) -> None:
     assert registry.fan_out(RatingProvider) == []
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5b", raises=NotImplementedError, strict=True)
 def test_fan_out_empty_when_all_capability_filtered(build_registry: object) -> None:
     """``fan_out()`` returns ``[]`` when no provider is configured under the section."""
     fakes = {"x": FakeSearchable(name="x")}
@@ -85,11 +81,6 @@ def test_fan_out_empty_when_all_capability_filtered(build_registry: object) -> N
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason="TDD — impl pending sub-phase 0.5b (registry construction not yet wired)",
-    raises=NotImplementedError,
-    strict=True,
-)
 def test_fan_out_wrong_semantic_raises(build_registry: object) -> None:
     """``fan_out(Searchable)`` must raise ``WrongSemanticBug`` (Searchable is chain, not fan_out)."""
     fakes = {"x": FakeSearchable(name="x")}
@@ -104,7 +95,6 @@ def test_fan_out_wrong_semantic_raises(build_registry: object) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5b", raises=NotImplementedError, strict=True)
 def test_RegistryFanOutCompleted_always_emitted_even_on_success(
     build_registry: object,
     mock_event_bus: object,
