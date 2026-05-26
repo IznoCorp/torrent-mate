@@ -22,7 +22,6 @@ from .conftest import FakeSearchable
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5a", raises=NotImplementedError, strict=True)
 def test_chain_ordering_is_stable_across_calls(build_registry: object) -> None:
     """``chain()`` must return the same order across repeated calls (DESIGN §5.2)."""
     fakes = {
@@ -42,7 +41,6 @@ def test_chain_ordering_is_stable_across_calls(build_registry: object) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5a", raises=NotImplementedError, strict=True)
 def test_chain_skips_open_circuit(build_registry: object) -> None:
     """A provider whose circuit is OPEN must be filtered out of ``chain()``."""
     fakes = {
@@ -57,7 +55,6 @@ def test_chain_skips_open_circuit(build_registry: object) -> None:
     assert "closed_one" in names
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5a", raises=NotImplementedError, strict=True)
 def test_chain_includes_half_open_providers(build_registry: object) -> None:
     """HALF_OPEN providers are eligible (probe semantics — DESIGN §7.6)."""
     fakes = {
@@ -77,11 +74,6 @@ def test_chain_includes_half_open_providers(build_registry: object) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason="TDD — impl pending sub-phase 0.5a (registry construction not yet wired)",
-    raises=NotImplementedError,
-    strict=True,
-)
 def test_chain_wrong_semantic_raises(build_registry: object) -> None:
     """``chain(RatingProvider)`` must raise ``WrongSemanticBug`` (RatingProvider is fan_out)."""
     fakes = {"x": FakeSearchable(name="x")}
@@ -96,7 +88,6 @@ def test_chain_wrong_semantic_raises(build_registry: object) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5a", raises=NotImplementedError, strict=True)
 def test_chain_provider_flips_to_open_mid_iteration(build_registry: object) -> None:
     """A provider that flips CLOSED→OPEN between two ``chain()`` calls is excluded thereafter."""
     fake_a = FakeSearchable(name="a", circuit_state="CLOSED")
@@ -113,7 +104,6 @@ def test_chain_provider_flips_to_open_mid_iteration(build_registry: object) -> N
     assert second == ["b"]
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5a", raises=NotImplementedError, strict=True)
 def test_chain_empty_when_all_open(build_registry: object) -> None:
     """If every provider has circuit OPEN, ``chain()`` returns an empty list."""
     fakes = {
@@ -135,7 +125,6 @@ def test_chain_empty_when_all_open(build_registry: object) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5a", raises=NotImplementedError, strict=True)
 def test_chain_half_open_raises_network_error_falls_to_next(build_registry: object) -> None:
     """When a HALF_OPEN provider raises NetworkError mid-iteration, fallback to next.
 
@@ -155,7 +144,6 @@ def test_chain_half_open_raises_network_error_falls_to_next(build_registry: obje
     assert [p.name for p in providers] == ["ho", "cl"]
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5a", raises=NotImplementedError, strict=True)
 def test_chain_network_exception_skip(build_registry: object) -> None:
     """The registry must keep the ordered list intact so callers can skip on NetworkError.
 
@@ -172,7 +160,6 @@ def test_chain_network_exception_skip(build_registry: object) -> None:
     assert [p.name for p in providers] == ["a", "b"]
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5a", raises=NotImplementedError, strict=True)
 def test_chain_empty_result_skip(build_registry: object) -> None:
     """Empty-result is a caller-side skip — chain() still returns the provider.
 

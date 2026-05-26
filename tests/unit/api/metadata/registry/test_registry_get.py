@@ -19,7 +19,6 @@ from .conftest import FakeSearchable
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5a", raises=NotImplementedError, strict=True)
 def test_get_known_name_returns_provider(build_registry: object) -> None:
     """``get('tmdb')`` returns the TMDB provider instance."""
     fakes = {"tmdb": FakeSearchable(name="tmdb")}
@@ -35,7 +34,6 @@ def test_get_known_name_returns_provider(build_registry: object) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5a", raises=NotImplementedError, strict=True)
 def test_get_unknown_name_raises_UnknownProviderError(build_registry: object) -> None:
     """``get('nonexistent')`` raises ``UnknownProviderError`` (NOT bare ``KeyError``)."""
     fakes = {"tmdb": FakeSearchable(name="tmdb")}

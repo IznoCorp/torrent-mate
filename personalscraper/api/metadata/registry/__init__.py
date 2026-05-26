@@ -36,6 +36,20 @@ from personalscraper.api.metadata._contracts import (
     TvDetailsProvider,
     VideoProvider,
 )
+from personalscraper.api.metadata.registry._errors import (
+    RegistryConfigError,
+    UnknownProviderError,
+    WrongSemanticBug,
+)
+from personalscraper.api.metadata.registry._events import RegistryBootValidated
+from personalscraper.api.metadata.registry._semantics import (
+    CAPABILITY_KEYS,
+    CHAIN_CAPABILITIES,
+    mode_for,
+)
+from personalscraper.logger import get_logger
+
+log = get_logger("registry")
 
 if TYPE_CHECKING:
     from personalscraper.api.transport._policy import CircuitPolicy
@@ -250,8 +264,72 @@ class ProviderRegistry:
         cb_policy: CircuitPolicy,
         providers_config: ProvidersConfig,
     ) -> None:
-        """Initialise registry with settings, event bus, and provider config."""
-        raise NotImplementedError
+        """Initialize the registry by instantiating providers and validating config.
+
+        Args:
+            settings: Project settings (for credentials).
+            event_bus: EventBus or None (None for unit tests).
+            cb_policy: CircuitPolicy applied to all provider transports.
+            providers_config: Parsed ProvidersConfig from config/providers.json5.
+
+        Raises:
+            RegistryConfigError: Aggregated config issues from validation.
+        """
+        from personalscraper.api.metadata.registry._factory import build_providers
+        from personalscraper.api.metadata.registry._validation import validate_config
+
+        self._event_bus = event_bus
+        self._settings = settings
+        self._cb_policy = cb_policy
+        self._providers_config = providers_config
+
+        # Collect all unique provider names from any section
+        provider_names_set: set[str] = set()
+        for section_name in CAPABILITY_KEYS:
+            section = getattr(providers_config, section_name, {})
+            provider_names_set.update(section.keys())
+        provider_names = sorted(provider_names_set)
+
+        # Instantiate providers with cleanup on failure
+        instantiated: list[object] = []
+        try:
+            self._providers: dict[str, object] = build_providers(provider_names, settings, cb_policy, event_bus)
+            instantiated.extend(self._providers.values())
+
+            # Validate config — aggregated, never fail-fast
+            issues = validate_config(providers_config, self._providers, settings)
+            if issues:
+                raise RegistryConfigError(issues)
+        except BaseException:
+            # Cleanup on failure (DESIGN §6.1.f)
+            for p in instantiated:
+                try:
+                    close = getattr(p, "close", None)
+                    if callable(close):
+                        close()
+                except Exception as e:
+                    log.debug(
+                        "registry_boot_cleanup_failed",
+                        provider=getattr(p, "name", "?"),
+                        exc_type=type(e).__name__,
+                    )
+            raise
+
+        # Build raw ordered index: capability → list of provider names (sorted by priority)
+        self._index: dict[type, list[str]] = {}
+        for section_key, capability_class in CAPABILITY_KEYS.items():
+            section = getattr(providers_config, section_key, {})
+            # Sort by priority (lower priority value = higher precedence)
+            ordered = sorted(section.items(), key=lambda kv: kv[1])
+            self._index[capability_class] = [name for name, _ in ordered]
+
+        # Emit boot-validated event
+        self._event_bus_safe_emit(
+            RegistryBootValidated(
+                providers=list(self._providers),
+                capabilities={cap.__name__: list(names) for cap, names in self._index.items()},
+            )
+        )
 
     # --- The three semantic operations ---
 
@@ -271,7 +349,14 @@ class ProviderRegistry:
         Raises:
             WrongSemanticBug: if capability is not a chain capability.
         """
-        raise NotImplementedError
+        from personalscraper.api.metadata.registry._factory import _eligible
+
+        if capability not in CHAIN_CAPABILITIES:
+            raise WrongSemanticBug(
+                f"{capability.__name__} is not a chain capability — use the correct registry operation."
+            )
+        names = self._index.get(capability, [])
+        return [self._providers[n] for n in names if n in self._providers and _eligible(self._providers[n])]
 
     def fan_out(self, capability: type[RatingProvider]) -> list[RatingProvider]:
         """All eligible providers for fan-out capabilities. May return [].
@@ -323,7 +408,9 @@ class ProviderRegistry:
         Raises:
             UnknownProviderError: if name is not registered.
         """
-        raise NotImplementedError
+        if provider_name not in self._providers:
+            raise UnknownProviderError(provider_name)
+        return self._providers[provider_name]  # type: ignore[return-value]
 
     def cross_ref(
         self,
@@ -341,16 +428,54 @@ class ProviderRegistry:
 
     def operations(self) -> dict[type, Mode]:
         """Capability → Mode map. Includes Mode.DIRECT for IDValidator/IDCrossRef."""
-        raise NotImplementedError
+        return {capability: mode_for(capability) for capability in CAPABILITY_KEYS.values()}
 
     def status(self) -> dict[str, ProviderStatus]:
         """Per-provider circuit state snapshot."""
-        raise NotImplementedError
+        result: dict[str, ProviderStatus] = {}
+        for name, provider in self._providers.items():
+            circuit = getattr(provider, "circuit", None)
+            state = getattr(circuit, "state", "CLOSED") if circuit else "CLOSED"
+            result[name] = ProviderStatus(
+                name=ProviderName(name),
+                circuit_state=state,  # type: ignore[arg-type]  # Literal validated by fuzzing
+                failure_count_recent=(getattr(circuit, "failure_count_recent", 0) if circuit else 0),
+                last_success_at=(getattr(circuit, "last_success_at", None) if circuit else None),
+                last_failure_at=(getattr(circuit, "last_failure_at", None) if circuit else None),
+            )
+        return result
 
     def providers_for(self, capability: type) -> list[Named]:
         """Raw ordered list (no circuit filtering). For introspection only."""
-        raise NotImplementedError
+        names = self._index.get(capability, [])
+        return [self._providers[n] for n in names if n in self._providers]  # type: ignore[misc]
 
     def close(self) -> None:
         """Release per-provider resources. Safe to call multiple times."""
-        raise NotImplementedError
+        for name, provider in list(self._providers.items()):
+            try:
+                close = getattr(provider, "close", None)
+                if callable(close):
+                    close()
+            except Exception as e:
+                log.debug(
+                    "registry_provider_close_failed",
+                    provider=name,
+                    exc_type=type(e).__name__,
+                )
+
+    def _event_bus_safe_emit(self, event: object) -> None:
+        """Emit event safely; catch and log any bus failure (never propagates).
+
+        When event_bus is None (test context), this is a no-op.
+        """
+        if self._event_bus is None:
+            return
+        try:
+            self._event_bus.emit(event)  # type: ignore[arg-type]
+        except Exception as exc:
+            log.warning(
+                "registry_event_emit_failed",
+                event_class=type(event).__name__,
+                exc_type=type(exc).__name__,
+            )

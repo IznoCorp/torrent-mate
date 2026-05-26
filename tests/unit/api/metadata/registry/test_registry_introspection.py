@@ -6,8 +6,6 @@ with ``@pytest.mark.xfail`` until sub-phase 0.5a lands their method bodies.
 
 from __future__ import annotations
 
-import pytest
-
 from personalscraper.api.metadata._contracts import (
     IDCrossRef,
     IDValidator,
@@ -23,7 +21,6 @@ from .conftest import FakeMultiCapability
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5a", raises=NotImplementedError, strict=True)
 def test_operations_returns_expected_shape(build_registry: object) -> None:
     """``operations()`` returns ``dict[type[Protocol], Mode]`` with all 11 capabilities mapped."""
     fakes = {"tmdb": FakeMultiCapability(name="tmdb")}
@@ -48,7 +45,6 @@ def test_operations_returns_expected_shape(build_registry: object) -> None:
     assert all(isinstance(v, Mode) for v in ops.values())
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5a", raises=NotImplementedError, strict=True)
 def test_operations_includes_mode_direct_entries(build_registry: object) -> None:
     """``IDValidator`` and ``IDCrossRef`` both map to ``Mode.DIRECT``."""
     fakes = {"tmdb": FakeMultiCapability(name="tmdb")}
@@ -68,7 +64,6 @@ def test_operations_includes_mode_direct_entries(build_registry: object) -> None
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5a", raises=NotImplementedError, strict=True)
 def test_status_returns_expected_shape(build_registry: object) -> None:
     """``status()`` returns ``dict[provider_name, ProviderStatus]`` for every configured provider."""
     fakes = {"tmdb": FakeMultiCapability(name="tmdb")}
@@ -84,7 +79,6 @@ def test_status_returns_expected_shape(build_registry: object) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="TDD — impl pending sub-phase 0.5a", raises=NotImplementedError, strict=True)
 def test_providers_for_returns_raw_ordered_list(build_registry: object) -> None:
     """``providers_for(capability)`` returns ordered list, NO circuit filtering."""
     fakes = {"tmdb": FakeMultiCapability(name="tmdb")}

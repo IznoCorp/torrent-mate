@@ -383,6 +383,10 @@ class FakeMultiCapability:
         """Stub — never called in current tests."""
         raise RuntimeError("not configured")
 
+    def get_episodes(self, series_id: str, season: int) -> list[EpisodeInfo]:
+        """Return an empty episode list."""
+        return []
+
     def get_artwork_urls(
         self,
         media_id: str,
@@ -574,6 +578,10 @@ def build_registry(monkeypatch: pytest.MonkeyPatch) -> Any:
         monkeypatch.setattr(_factory, "build_providers", fake_build_providers)
         # Empty credentials map → no missing_credentials issues from fakes.
         monkeypatch.setattr(_validation, "_CRED_MAP", {})
+        # Bypass empty-chain check — test configs only specify a subset of sections.
+        monkeypatch.setattr(_validation, "_check_empty_chain_sections", lambda _: [])
+        # Bypass protocol-mismatch check — test fakes don't implement all protocols.
+        monkeypatch.setattr(_validation, "_check_protocol_mismatch", lambda *a: [])
 
         return ProviderRegistry(
             settings=settings if settings is not None else SimpleNamespace(),
