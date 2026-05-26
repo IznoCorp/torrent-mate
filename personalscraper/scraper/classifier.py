@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from itertools import zip_longest
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -90,7 +91,7 @@ def _parse_folder_name(name: str) -> tuple[str, int | None]:
     # Try clean format first: "Title (Year)"
     m = _FOLDER_PATTERN.match(name)
     if m:
-        return m.group(1).strip(), int(m.group(2))
+        return unicodedata.normalize("NFC", m.group(1).strip()), int(m.group(2))
 
     # Fall back to guessit for raw release names
     try:

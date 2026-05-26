@@ -193,14 +193,27 @@ class TestScoreMatch:
 class TestMatchMovie:
     """Tests for match_movie() with mocked TMDB client."""
 
-    def _make_tmdb_client(self, search_results: list[dict[str, Any]]) -> MagicMock:
+    def _make_tmdb_client(
+        self,
+        search_results: list[dict[str, Any]],
+        *,
+        language: str = "fr-FR",
+        fallback_language: str = "en-US",
+    ) -> MagicMock:
         """Create a mock TMDBClient with preset search results.
 
         Accepts legacy dict shapes for ergonomic test bodies and converts
         them to typed SearchResult instances — matching what the real
         api-unify TMDBClient now emits.
+
+        Args:
+            search_results: Legacy TMDB search result dicts.
+            language: Primary search language (default "fr-FR").
+            fallback_language: Fallback search language (default "en-US").
         """
         client = MagicMock()
+        client._language = language
+        client._fallback_language = fallback_language
         client.search_movie.return_value = [_sr_tmdb_movie(r) for r in search_results]
         return client
 
@@ -301,10 +314,201 @@ class TestMatchMovie:
         assert result.api_year is None
 
     def test_search_called_with_params(self) -> None:
-        """search_movie should be called with title and year."""
+        """Initial search uses primary language with title and year."""
         client = self._make_tmdb_client([])
         match_movie(client, "Inception", 2010)
-        client.search_movie.assert_called_once_with("Inception", 2010)
+        client.search_movie.assert_any_call("Inception", 2010, language="fr-FR")
+
+    # -- year fallback --
+
+    def test_year_fallback_triggers_when_no_results_with_year(self) -> None:
+        """Initial search returns 0, fallback without year finds match in window."""
+        client = MagicMock()
+        client._language = "fr-FR"
+        client._fallback_language = "en-US"
+
+        def search_side(t: str, y: int | None, *, language: str = "fr-FR") -> list[object]:
+            if y == 2026 and language == "fr-FR":
+                return []
+            if y is None and language == "fr-FR":
+                return [
+                    _sr_tmdb_movie({"id": 42, "title": "De Si Remarquables Créatures", "release_date": "2024-06-01"})
+                ]
+            return []
+
+        client.search_movie.side_effect = search_side
+        result = match_movie(client, "De Si Remarquables Créatures", 2026)
+
+        assert result is not None
+        assert result.api_id == 42
+        assert result.api_year == 2024
+        assert result.confidence >= LOW_CONFIDENCE
+
+    def test_year_fallback_filters_outside_window(self) -> None:
+        """Fallback results outside ±5 year window are filtered out."""
+        client = MagicMock()
+        client._language = "fr-FR"
+        client._fallback_language = "en-US"
+
+        def search_side(t: str, y: int | None, *, language: str = "fr-FR") -> list[object]:
+            if y == 2010 and language == "fr-FR":
+                return []
+            if y is None:
+                return [_sr_tmdb_movie({"id": 99, "title": "Test Movie", "release_date": "2000-01-01"})]
+            return []
+
+        client.search_movie.side_effect = search_side
+        result = match_movie(client, "Test Movie", 2010)
+        # 2000 is 10 years from 2010, outside ±5 window
+        assert result is None
+
+    def test_year_fallback_not_triggered_when_results_exist(self) -> None:
+        """Initial search returns results — fallback is not triggered."""
+        client = MagicMock()
+        client._language = "fr-FR"
+        client._fallback_language = "en-US"
+
+        def search_side(t: str, y: int | None, *, language: str = "fr-FR") -> list[object]:
+            return [_sr_tmdb_movie({"id": 603, "title": "The Matrix", "release_date": "1999-03-31"})]
+
+        client.search_movie.side_effect = search_side
+        result = match_movie(client, "The Matrix", 1999)
+
+        assert result is not None
+        assert result.api_id == 603
+        # search_movie called exactly once (no fallback needed)
+        assert client.search_movie.call_count == 1
+
+    # -- language fallback --
+
+    def test_language_fallback_triggers_after_year_fallback_fails(self) -> None:
+        """Year fallback finds nothing, language fallback succeeds."""
+        client = MagicMock()
+        client._language = "fr-FR"
+        client._fallback_language = "en-US"
+
+        def search_side(t: str, y: int | None, *, language: str = "fr-FR") -> list[object]:
+            if language == "fr-FR":
+                return []
+            # en-US with year finds a match
+            return [_sr_tmdb_movie({"id": 77, "title": "Some Movie", "release_date": "2024-01-01"})]
+
+        client.search_movie.side_effect = search_side
+        result = match_movie(client, "Some Movie", 2024)
+
+        assert result is not None
+        assert result.api_id == 77
+
+    def test_year_language_fallback_triggers_when_all_previous_fail(self) -> None:
+        """All prior searches fail, year+language fallback succeeds."""
+        client = MagicMock()
+        client._language = "fr-FR"
+        client._fallback_language = "en-US"
+
+        def search_side(t: str, y: int | None, *, language: str = "fr-FR") -> list[object]:
+            if language == "fr-FR":
+                return []
+            if y == 2026 and language == "en-US":
+                return []
+            # en-US without year
+            return [_sr_tmdb_movie({"id": 88, "title": "Le Film", "release_date": "2024-05-01"})]
+
+        client.search_movie.side_effect = search_side
+        result = match_movie(client, "Le Film", 2026)
+
+        assert result is not None
+        assert result.api_id == 88
+        assert result.api_year == 2024
+
+    def test_language_fallback_not_triggered_when_year_fallback_succeeds(self) -> None:
+        """Year fallback succeeds — language fallback is never reached."""
+        client = MagicMock()
+        client._language = "fr-FR"
+        client._fallback_language = "en-US"
+
+        def search_side(t: str, y: int | None, *, language: str = "fr-FR") -> list[object]:
+            if y == 2026 and language == "fr-FR":
+                return []
+            if y is None and language == "fr-FR":
+                return [_sr_tmdb_movie({"id": 42, "title": "Test", "release_date": "2024-01-01"})]
+            # en-US should not be called
+            return [_sr_tmdb_movie({"id": 999, "title": "Wrong", "release_date": "2024-01-01"})]
+
+        client.search_movie.side_effect = search_side
+        result = match_movie(client, "Test", 2026)
+
+        assert result is not None
+        assert result.api_id == 42  # fr-FR fallback wins, en-US never consulted
+
+    # -- logging --
+
+    def test_year_fallback_logs_event(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Year fallback emits movie_match_year_fallback."""
+        import logging
+
+        client = MagicMock()
+        client._language = "fr-FR"
+        client._fallback_language = "en-US"
+
+        def search_side(t: str, y: int | None, *, language: str = "fr-FR") -> list[object]:
+            if y == 2026 and language == "fr-FR":
+                return []
+            return [_sr_tmdb_movie({"id": 42, "title": "Test", "release_date": "2024-01-01"})]
+
+        client.search_movie.side_effect = search_side
+
+        with caplog.at_level(logging.INFO, logger="confidence"):
+            result = match_movie(client, "Test", 2026)
+
+        assert result is not None
+        events = [r.msg.get("event") for r in caplog.records if isinstance(r.msg, dict)]
+        assert "movie_match_year_fallback" in events
+
+    def test_language_fallback_logs_event(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Language fallback emits movie_match_language_fallback."""
+        import logging
+
+        client = MagicMock()
+        client._language = "fr-FR"
+        client._fallback_language = "en-US"
+
+        def search_side(t: str, y: int | None, *, language: str = "fr-FR") -> list[object]:
+            if language == "fr-FR":
+                return []
+            return [_sr_tmdb_movie({"id": 55, "title": "Test", "release_date": "2024-01-01"})]
+
+        client.search_movie.side_effect = search_side
+
+        with caplog.at_level(logging.INFO, logger="confidence"):
+            result = match_movie(client, "Test", 2024)
+
+        assert result is not None
+        events = [r.msg.get("event") for r in caplog.records if isinstance(r.msg, dict)]
+        assert "movie_match_language_fallback" in events
+
+    def test_year_language_fallback_logs_event(self, caplog: pytest.LogCaptureFixture) -> None:
+        """year+language fallback emits movie_match_year_language_fallback."""
+        import logging
+
+        client = MagicMock()
+        client._language = "fr-FR"
+        client._fallback_language = "en-US"
+
+        def search_side(t: str, y: int | None, *, language: str = "fr-FR") -> list[object]:
+            if language == "fr-FR":
+                return []
+            if y == 2026 and language == "en-US":
+                return []
+            return [_sr_tmdb_movie({"id": 99, "title": "Test", "release_date": "2024-01-01"})]
+
+        client.search_movie.side_effect = search_side
+
+        with caplog.at_level(logging.INFO, logger="confidence"):
+            result = match_movie(client, "Test", 2026)
+
+        assert result is not None
+        events = [r.msg.get("event") for r in caplog.records if isinstance(r.msg, dict)]
+        assert "movie_match_year_language_fallback" in events
 
 
 # ---------------------------------------------------------------------------

@@ -8,19 +8,93 @@ and season packs natively.
 See docs/guessit-evaluation.md for the full evaluation.
 """
 
+import unicodedata
+from datetime import datetime
 from functools import lru_cache
 from typing import Any
 
 from guessit import guessit as guess
+
+# Fields whose values can appear as tokens in the filename AFTER the title.
+# Used to locate the title/metadata boundary when no year anchor is present.
+_METADATA_FIELDS = (
+    "screen_size",
+    "source",
+    "video_codec",
+    "audio_codec",
+    "release_group",
+    "language",
+    "subtitle_language",
+    "alternative_title",
+    "other",
+    "audio_channels",
+    "streaming_service",
+    "container",
+)
+
+
+# Tokens guessit only classifies as alternative_title when a year anchor is
+# present. Without a year, they leak into the title. We supplement the
+# metadata extraction so the boundary detector can see them.
+_ALT_TITLE_TOKENS = frozenset({"VOF", "VO", "AD", "NOST", "VF2", "VFI"})
+
+
+def _extract_metadata_values(result: dict[str, Any]) -> set[str]:
+    """Extract and normalize metadata values from a guessit result.
+
+    Collects string representations of all non-title metadata fields,
+    normalizing them for token matching: uppercase, no dots/hyphens/underscores.
+
+    Args:
+        result: Raw guessit result dictionary.
+
+    Returns:
+        Set of normalized metadata strings.
+    """
+    tokens: set[str] = set()
+    for field in _METADATA_FIELDS:
+        value = result.get(field)
+        if value is None:
+            continue
+        items = value if isinstance(value, list) else [value]
+        for item in items:
+            raw = str(item).upper()
+            # Normalize: strip dots/hyphens/underscores (H.265 → H265, DTS-HD → DTSHD)
+            clean = raw.replace(".", "").replace("-", "").replace("_", "")
+            tokens.add(clean)
+            if " " in clean:
+                tokens.add(clean.replace(" ", ""))
+    tokens.update(_ALT_TITLE_TOKENS)
+    return tokens
+
+
+def _find_boundary_index(parts: list[str], metadata: set[str]) -> int | None:
+    """Locate the first metadata token in a dot-split filename.
+
+    Scans left to right; the first token that matches a known metadata
+    value marks the end of the title portion.
+
+    Args:
+        parts: Filename split on dots.
+        metadata: Normalized metadata tokens from guessit.
+
+    Returns:
+        Index of the first metadata token, or None if no boundary found.
+    """
+    for i, part in enumerate(parts):
+        clean = part.upper().replace(".", "").replace("-", "").replace("_", "")
+        if clean in metadata:
+            return i
+    return None
 
 
 @lru_cache(maxsize=512)
 def _guess_cached(name: str) -> dict[str, Any]:
     """Run guessit on a name, caching the result.
 
-    guessit does significant work (regex chains, rebulk matching),
-    so we cache to avoid calling it multiple times for the same name
-    across different NameCleaner methods.
+    When no year is detected, inserts a synthetic year at the title/metadata
+    boundary and re-runs guessit so the parser can separate title from noise
+    tokens (VOF, AD, NOST, etc.) that would otherwise be absorbed.
 
     Args:
         name: Raw media filename or directory name.
@@ -28,7 +102,28 @@ def _guess_cached(name: str) -> dict[str, Any]:
     Returns:
         Dictionary of guessit results (title, year, season, episode, type, etc.).
     """
-    return dict(guess(name))
+    result = dict(guess(name))
+    result["title"] = unicodedata.normalize("NFC", str(result.get("title", "")))
+
+    if result.get("year") is not None:
+        return result
+
+    # No year → title may be polluted. Locate boundary via metadata fields.
+    metadata = _extract_metadata_values(result)
+    if not metadata:
+        return result
+
+    parts = name.replace(" ", ".").split(".")
+    boundary = _find_boundary_index(parts, metadata)
+    if boundary is None or boundary == 0:
+        return result
+
+    fake_year = str(datetime.now().year)
+    modified = ".".join(parts[:boundary] + [fake_year] + parts[boundary:])
+    recovered = dict(guess(modified))
+    result["title"] = unicodedata.normalize("NFC", str(recovered.get("title", result["title"])))
+
+    return result
 
 
 class NameCleaner:

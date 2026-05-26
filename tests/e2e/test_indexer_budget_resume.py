@@ -148,21 +148,35 @@ class TestBudgetResume:
         # Phase 1: budget-limited scan
         # ------------------------------------------------------------------
 
-        # time.monotonic() call order inside scan():
-        #   call 0  → _started_at_monotonic capture   → 0.0
-        #   call 1  → first  _maybe_checkpoint check  → 1.0  (elapsed 1.0 < 3.0)
-        #   call 2  → second _maybe_checkpoint check  → 2.0  (elapsed 2.0 < 3.0)
-        #   call 3  → third  _maybe_checkpoint check  → 3.0  (elapsed 3.0 >= 3.0 → stop)
+        # The fake clock only advances for _maybe_checkpoint / scan.  Other
+        # callers (circuit breaker, rate limiter) keep the real clock and do
+        # not consume budget seconds, making the test deterministic on both
+        # macOS and Linux CI.
+        #
+        # Clock timeline:
+        #   call 0  → scan starts (started_at capture)    → 0.0
+        #   call 1  → first  _maybe_checkpoint check      → 1.0  (elapsed 1.0 < 3.0)
+        #   call 2  → second _maybe_checkpoint check      → 2.0  (elapsed 2.0 < 3.0)
+        #   call 3  → third  _maybe_checkpoint check      → 3.0  (elapsed 3.0 >= 3.0 → stop)
+        # Override time.monotonic globally but only advance the clock for
+        # calls originating from the scanner package.  Other modules (circuit
+        # breaker, rate limiter, structured logging) may call time.monotonic
+        # with different frequencies on Linux vs macOS — those calls must not
+        # consume budget seconds, otherwise the test is environment-dependent.
         _mono_counter: list[float] = [0.0]
 
         def _fake_monotonic() -> float:
-            """Advance monotonic clock by 1.0 s on each call."""
-            _mono_counter[0] += 1.0
+            import traceback  # noqa: PLC0415
+
+            for frame in traceback.extract_stack():
+                if frame.name in ("_maybe_checkpoint", "scan"):
+                    _mono_counter[0] += 1.0
+                    break
             return _mono_counter[0]
 
         with (
             patch(_GUARD_PATCH, return_value=None),
-            patch("personalscraper.indexer.scanner.time.monotonic", side_effect=_fake_monotonic),
+            patch("time.monotonic", side_effect=_fake_monotonic),
         ):
             result1 = scan(
                 [disk],

@@ -43,6 +43,11 @@ LOW_CONFIDENCE = 0.5  # Skip in automatic mode (no match)
 # its own S01..S04 catalog).
 SEASON_VETO_BYPASS = 0.95
 
+# Maximum year difference for fallback matching when the initial search
+# with year filter returns zero results. Remakes are typically 10-20+
+# years apart, so a 5-year window is safe against false positives.
+YEAR_FALLBACK_WINDOW = 5
+
 _FRENCH_DOCUMENTARY_SUBJECT_RE = re.compile(
     r"^les?\s+secrets?\s+(?:du|de la|de l'|des|de)\s+(.+)$",
     re.IGNORECASE,
@@ -127,6 +132,46 @@ def score_match(
     return max(0.0, min(1.0, title_score + year_bonus))
 
 
+def _search_with_language(
+    tmdb_client: object,
+    title: str,
+    year: int | None,
+    language: str,
+) -> list:  # type: ignore[type-arg]
+    """Search TMDB with an explicit language override.
+
+    Args:
+        tmdb_client: TMDBClient instance.
+        title: Movie title.
+        year: Optional release year.
+        language: Language code (e.g. "fr-FR", "en-US").
+
+    Returns:
+        List of SearchResult items.
+    """
+    return tmdb_client.search_movie(  # type: ignore[attr-defined,no-any-return]
+        title, year, language=language
+    )
+
+
+def _filter_by_year_window(
+    results: list,  # type: ignore[type-arg]
+    year: int,
+    window: int = YEAR_FALLBACK_WINDOW,
+) -> list:  # type: ignore[type-arg]
+    """Filter search results to those within a year window of the expected year.
+
+    Args:
+        results: Raw TMDB search results.
+        year: Expected release year.
+        window: Maximum allowed year difference.
+
+    Returns:
+        Filtered results where abs(result.year - year) <= window.
+    """
+    return [r for r in results if r.year is not None and abs(r.year - year) <= window]
+
+
 def match_movie(
     tmdb_client: object,
     title: str,
@@ -134,9 +179,13 @@ def match_movie(
 ) -> MatchResult | None:
     """Match a local movie against TMDB search results.
 
-    Searches TMDB, scores each result, and returns the best match.
-    The year parameter boosts TMDB relevance but does NOT filter strictly —
-    client-side scoring validates the year.
+    Applies a chain of fallbacks when the initial search returns no results:
+    1. fr-FR with year
+    2. fr-FR without year (year window filter)
+    3. en-US with year
+    4. en-US without year (year window filter)
+
+    Languages are read from the TMDB client configuration.
 
     Args:
         tmdb_client: TMDBClient instance (typed as object to avoid circular import).
@@ -147,7 +196,40 @@ def match_movie(
         Best MatchResult, or None if no results found.
         Confidence threshold evaluation is left to the caller.
     """
-    results = tmdb_client.search_movie(title, year)  # type: ignore[attr-defined]
+    # Read languages from the TMDB client config
+    fr = getattr(tmdb_client, "_language", "fr-FR")
+    en = getattr(tmdb_client, "_fallback_language", "en-US")
+
+    results: list = []  # type: ignore[type-arg]
+    fallback_event: str | None = None
+    fallback_meta: dict = {}  # type: ignore[type-arg]
+
+    # 1. Initial search: configured language + year
+    results = _search_with_language(tmdb_client, title, year, fr)
+
+    # 2. Year fallback: same language, no year filter
+    if not results and year is not None:
+        candidates = _search_with_language(tmdb_client, title, None, fr)
+        results = _filter_by_year_window(candidates, year)
+        if results:
+            fallback_event = "movie_match_year_fallback"
+            fallback_meta = {"original_year": year}
+
+    # 3. Language fallback: fallback language + year
+    if not results and en != fr:
+        results = _search_with_language(tmdb_client, title, year, en)
+        if results:
+            fallback_event = "movie_match_language_fallback"
+            fallback_meta = {"language": en}
+
+    # 4. Year + language fallback: fallback language, no year filter
+    if not results and year is not None and en != fr:
+        candidates = _search_with_language(tmdb_client, title, None, en)
+        results = _filter_by_year_window(candidates, year)
+        if results:
+            fallback_event = "movie_match_year_language_fallback"
+            fallback_meta = {"original_year": year, "language": en}
+
     if not results:
         log.info("movie_no_tmdb_results", title=title, year=year)
         return None
@@ -156,9 +238,6 @@ def match_movie(
     best_score = -1.0
 
     for result in results:
-        # api-unify: TMDB/TVDB clients now return typed SearchResult instances.
-        # Title/year are pre-normalized; provider_id is a str that we coerce to int
-        # for MatchResult.api_id (legacy contract — both providers expose numeric ids).
         api_title = result.title
         api_year = result.year
         api_id = int(result.provider_id) if result.provider_id.isdigit() else 0
@@ -176,6 +255,14 @@ def match_movie(
             )
 
     if best_match:
+        if fallback_event:
+            log.info(
+                fallback_event,
+                title=title,
+                confidence=round(best_match.confidence, 2),
+                candidates_count=len(results),
+                **fallback_meta,
+            )
         log.info(
             "movie_tmdb_match",
             title=title,
@@ -183,9 +270,6 @@ def match_movie(
             api_year=best_match.api_year,
             confidence=round(best_match.confidence, 2),
         )
-        # Warn early when the best candidate is below the acceptance threshold —
-        # the caller will ultimately skip the item, but logging here captures
-        # the candidates_count that the caller cannot see.
         if best_match.confidence < LOW_CONFIDENCE:
             log.warning(
                 "scraper.match.below_threshold",
