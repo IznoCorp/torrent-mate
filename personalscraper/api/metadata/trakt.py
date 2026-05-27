@@ -159,7 +159,7 @@ class TraktClient(
         )
         return _parse_media_details(data, provider=self.provider_name, media_type=media_type)
 
-    def get_movie(self, provider_id: str) -> MediaDetails:
+    def get_movie(self, provider_id: int | str) -> MediaDetails:
         """MovieDetailsProvider Protocol alias for :meth:`get_details`.
 
         Adapter only — no caching. Callers picking the Protocol-style
@@ -168,25 +168,31 @@ class TraktClient(
         one style per call site.
 
         Args:
-            provider_id: Trakt numeric ID, slug, or IMDb ID.
+            provider_id: Trakt numeric ID, slug, or IMDb ID. Accepts
+                ``int`` (NFO-parsed) or ``str`` per the
+                :class:`MovieDetailsProvider` Protocol; coerced to ``str``
+                for URL interpolation.
 
         Returns:
             Populated MediaDetails.
         """
-        return self.get_details(provider_id, MediaType.MOVIE)
+        return self.get_details(str(provider_id), MediaType.MOVIE)
 
-    def get_tv(self, provider_id: str) -> MediaDetails:
+    def get_tv(self, provider_id: int | str) -> MediaDetails:
         """TvDetailsProvider Protocol alias for :meth:`get_details`.
 
         Adapter only — see :meth:`get_movie` for the no-cache caveat.
 
         Args:
-            provider_id: Trakt numeric ID, slug, or IMDb ID.
+            provider_id: Trakt numeric ID, slug, or IMDb ID. Accepts
+                ``int`` (NFO-parsed) or ``str`` per the
+                :class:`TvDetailsProvider` Protocol; coerced to ``str``
+                for URL interpolation.
 
         Returns:
             Populated MediaDetails.
         """
-        return self.get_details(provider_id, MediaType.TV)
+        return self.get_details(str(provider_id), MediaType.TV)
 
     def get_notations(
         self,
