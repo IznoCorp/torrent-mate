@@ -28,6 +28,7 @@ from personalscraper import __version__
 from personalscraper.cli_app import app, config_app
 from personalscraper.cli_helpers import _bootstrap_staging, _format_validation, _resolve_category, handle_cli_errors
 from personalscraper.cli_state import AppCtx, State, state
+from personalscraper.commands.info import info_app
 from personalscraper.config import get_settings
 from personalscraper.ingest.ingest import run_ingest
 from personalscraper.lock import acquire_lock, release_lock
@@ -43,6 +44,7 @@ from personalscraper.trailers.cli import app as trailers_app  # noqa: E402
 
 app.add_typer(trailers_app, name="trailers")
 app.add_typer(config_app, name="config")
+app.add_typer(info_app, name="info")
 
 
 @app.callback()
@@ -107,7 +109,6 @@ def main(
 # Import command modules after the callback is registered.  Import side effects
 # attach commands to the shared Typer app.
 import personalscraper.commands.config  # noqa: E402,F401
-import personalscraper.commands.info  # noqa: E402,F401
 import personalscraper.commands.library  # noqa: E402,F401 — re-exports from library/{scan,query,maintenance,audit,analyze}
 import personalscraper.commands.pipeline  # noqa: E402,F401
 
