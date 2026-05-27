@@ -25,12 +25,12 @@ def test_get_known_name_returns_provider(build_registry: object) -> None:
     Design: docs/reference/architecture.md#provider-registry
     Contract: provider registry get() resolves known names to provider instances.
     """
-    fakes = {"tmdb": FakeSearchable(name="tmdb")}
+    fakes = {"tmdb": FakeSearchable(provider_name="tmdb")}
     config = ProvidersConfig(Searchable={"tmdb": 1})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
     provider = registry.get("tmdb")
     assert provider is not None
-    assert getattr(provider, "name", None) == "tmdb"
+    assert getattr(provider, "provider_name", None) == "tmdb"
 
 
 # ---------------------------------------------------------------------------
@@ -40,7 +40,7 @@ def test_get_known_name_returns_provider(build_registry: object) -> None:
 
 def test_get_unknown_name_raises_UnknownProviderError(build_registry: object) -> None:
     """``get('nonexistent')`` raises ``UnknownProviderError`` (NOT bare ``KeyError``)."""
-    fakes = {"tmdb": FakeSearchable(name="tmdb")}
+    fakes = {"tmdb": FakeSearchable(provider_name="tmdb")}
     config = ProvidersConfig(Searchable={"tmdb": 1})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
     with pytest.raises(UnknownProviderError):

@@ -14,14 +14,14 @@ def test_info_providers_lists_configured_providers(monkeypatch):
     mock_instance = MagicMock()
     mock_instance.status.return_value = {
         "tmdb": ProviderStatus(
-            name=ProviderName("tmdb"),
+            provider_name=ProviderName("tmdb"),
             circuit_state="CLOSED",
             failure_count_recent=0,
             last_success_at=None,
             last_failure_at=None,
         ),
         "tvdb": ProviderStatus(
-            name=ProviderName("tvdb"),
+            provider_name=ProviderName("tvdb"),
             circuit_state="CLOSED",
             failure_count_recent=0,
             last_success_at=None,

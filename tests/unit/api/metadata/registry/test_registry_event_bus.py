@@ -50,7 +50,7 @@ def test_event_bus_required_param_no_none_default() -> None:
 
 def test_event_bus_emit_failure_does_not_propagate(build_registry: object) -> None:
     """If ``event_bus.emit()`` raises, the registry catches it — caller never sees the exception."""
-    fakes = {"tmdb": FakeMultiCapability(name="tmdb")}
+    fakes = {"tmdb": FakeMultiCapability(provider_name="tmdb")}
     config = ProvidersConfig(Searchable={"tmdb": 1})
     registry = build_registry(  # type: ignore[operator]
         fakes=fakes,
@@ -71,7 +71,7 @@ def test_event_bus_emit_failure_logs_warning(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """When ``bus.emit()`` raises, ``registry_event_emit_failed`` is logged at WARNING."""
-    fakes = {"tmdb": FakeMultiCapability(name="tmdb")}
+    fakes = {"tmdb": FakeMultiCapability(provider_name="tmdb")}
     config = ProvidersConfig(Searchable={"tmdb": 1})
     with caplog.at_level("WARNING"):
         build_registry(  # type: ignore[operator]

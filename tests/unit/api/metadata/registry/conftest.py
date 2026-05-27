@@ -106,23 +106,23 @@ class FakeSearchable:
     """Fake provider implementing Searchable.
 
     Attributes:
-        name: Stable provider name used in config keys and events.
+        provider_name: Stable provider name used in config keys and events.
         circuit: Controllable circuit-breaker surface.
         closed: Flag set by ``close()`` for cleanup-test assertions.
     """
 
-    name: ClassVar[str] = "fake_searchable"
+    provider_name: ClassVar[str] = "fake_searchable"
 
     def __init__(
         self,
         *,
-        name: str | None = None,
+        provider_name: str | None = None,
         results: list[SearchResult] | None = None,
         circuit_state: str = "CLOSED",
     ) -> None:
         """Build a FakeSearchable with optional canned results and circuit state."""
-        if name is not None:
-            self.name = name
+        if provider_name is not None:
+            self.provider_name = provider_name
         self._results = results or []
         self.circuit = _make_circuit(circuit_state)
         self.closed = False
@@ -153,18 +153,18 @@ class FakeSearchable:
 class FakeMovieDetails:
     """Fake provider implementing Searchable + MovieDetailsProvider."""
 
-    name: ClassVar[str] = "fake_movie_details"
+    provider_name: ClassVar[str] = "fake_movie_details"
 
     def __init__(
         self,
         *,
-        name: str | None = None,
+        provider_name: str | None = None,
         circuit_state: str = "CLOSED",
         movie: MediaDetails | None = None,
     ) -> None:
         """Build the fake with optional canned details and circuit state."""
-        if name is not None:
-            self.name = name
+        if provider_name is not None:
+            self.provider_name = provider_name
         self.circuit = _make_circuit(circuit_state)
         self._movie = movie
         self.closed = False
@@ -192,17 +192,17 @@ class FakeMovieDetails:
 class FakeTvDetails:
     """Fake provider implementing Searchable + TvDetailsProvider + EpisodeFetcher."""
 
-    name: ClassVar[str] = "fake_tv_details"
+    provider_name: ClassVar[str] = "fake_tv_details"
 
     def __init__(
         self,
         *,
-        name: str | None = None,
+        provider_name: str | None = None,
         circuit_state: str = "CLOSED",
     ) -> None:
         """Build the fake with controllable circuit state."""
-        if name is not None:
-            self.name = name
+        if provider_name is not None:
+            self.provider_name = provider_name
         self.circuit = _make_circuit(circuit_state)
         self.closed = False
 
@@ -231,18 +231,18 @@ class FakeTvDetails:
 class FakeRating:
     """Fake provider implementing RatingProvider."""
 
-    name: ClassVar[str] = "fake_rating"
+    provider_name: ClassVar[str] = "fake_rating"
 
     def __init__(
         self,
         *,
-        name: str | None = None,
+        provider_name: str | None = None,
         circuit_state: str = "CLOSED",
         notations: list[Notations] | None = None,
     ) -> None:
         """Build the fake with optional canned notations."""
-        if name is not None:
-            self.name = name
+        if provider_name is not None:
+            self.provider_name = provider_name
         self.circuit = _make_circuit(circuit_state)
         self._notations = notations
         self.closed = False
@@ -259,17 +259,17 @@ class FakeRating:
 class FakeArtwork:
     """Fake provider implementing ArtworkProvider."""
 
-    name: ClassVar[str] = "fake_artwork"
+    provider_name: ClassVar[str] = "fake_artwork"
 
     def __init__(
         self,
         *,
-        name: str | None = None,
+        provider_name: str | None = None,
         circuit_state: str = "CLOSED",
     ) -> None:
         """Build the fake with controllable circuit state."""
-        if name is not None:
-            self.name = name
+        if provider_name is not None:
+            self.provider_name = provider_name
         self.circuit = _make_circuit(circuit_state)
         self.closed = False
 
@@ -289,17 +289,17 @@ class FakeArtwork:
 class FakeKeyword:
     """Fake provider implementing KeywordProvider."""
 
-    name: ClassVar[str] = "fake_keyword"
+    provider_name: ClassVar[str] = "fake_keyword"
 
     def __init__(
         self,
         *,
-        name: str | None = None,
+        provider_name: str | None = None,
         circuit_state: str = "CLOSED",
     ) -> None:
         """Build the fake with controllable circuit state."""
-        if name is not None:
-            self.name = name
+        if provider_name is not None:
+            self.provider_name = provider_name
         self.circuit = _make_circuit(circuit_state)
         self.closed = False
 
@@ -318,18 +318,18 @@ class FakeIDCrossRef:
     Cross-reference table is fully configurable per instance.
     """
 
-    name: ClassVar[str] = "fake_idcrossref"
+    provider_name: ClassVar[str] = "fake_idcrossref"
 
     def __init__(
         self,
         *,
-        name: str | None = None,
+        provider_name: str | None = None,
         circuit_state: str = "CLOSED",
         xref_table: dict[str, dict[str, str]] | None = None,
     ) -> None:
         """Build the fake with optional xref table {source_id: {target_provider: target_id}}."""
-        if name is not None:
-            self.name = name
+        if provider_name is not None:
+            self.provider_name = provider_name
         self.circuit = _make_circuit(circuit_state)
         self._table = xref_table or {}
         self.closed = False
@@ -350,18 +350,18 @@ class FakeMultiCapability:
     (e.g. own-provider-path in ``locked()``).
     """
 
-    name: ClassVar[str] = "fake_multi"
+    provider_name: ClassVar[str] = "fake_multi"
 
     def __init__(
         self,
         *,
-        name: str | None = None,
+        provider_name: str | None = None,
         circuit_state: str = "CLOSED",
         xref_table: dict[str, dict[str, str]] | None = None,
     ) -> None:
         """Build the fake — all method bodies are stubs that return empty data."""
-        if name is not None:
-            self.name = name
+        if provider_name is not None:
+            self.provider_name = provider_name
         self.circuit = _make_circuit(circuit_state)
         self._xref = xref_table or {}
         self.closed = False

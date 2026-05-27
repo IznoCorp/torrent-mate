@@ -30,7 +30,7 @@ def test_boot_emits_registry_boot_validated(build_registry_fakes):
     """RegistryBootValidated fires once after successful __init__."""
     bus = MockEventBus()
     _registry = build_registry_fakes(
-        fakes={"p1": FakeSearchable(name="p1")},
+        fakes={"p1": FakeSearchable(provider_name="p1")},
         providers_config=ProvidersConfig(Searchable={"p1": 1}),
         event_bus=bus,
     )
@@ -45,7 +45,7 @@ def test_fan_out_always_emits_completed(build_registry_fakes):
     """RegistryFanOutCompleted fires on every fan_out() call (always, even on success)."""
     bus = MockEventBus()
     registry = build_registry_fakes(
-        fakes={"r1": FakeRating(name="r1", circuit_state="CLOSED")},
+        fakes={"r1": FakeRating(provider_name="r1", circuit_state="CLOSED")},
         providers_config=ProvidersConfig(RatingProvider={"r1": 1}),
         event_bus=bus,
     )
@@ -62,7 +62,7 @@ def test_locked_unresolved_emits_event(build_registry_fakes):
     # locked-orphan validation passes, but cross_ref fails at runtime because
     # FakeSearchable doesn't implement IDCrossRef → locked() returns None.
     registry = build_registry_fakes(
-        fakes={"tmdb": FakeSearchable(name="tmdb"), "tvdb": FakeArtwork(name="tvdb")},
+        fakes={"tmdb": FakeSearchable(provider_name="tmdb"), "tvdb": FakeArtwork(provider_name="tvdb")},
         providers_config=ProvidersConfig(
             Searchable={"tmdb": 1, "tvdb": 2},
             ArtworkProvider={"tvdb": 1},
@@ -83,7 +83,7 @@ def test_locked_unresolved_emits_event(build_registry_fakes):
 def test_event_bus_failure_does_not_crash_registry(build_registry_fakes):
     """If bus.emit() raises, registry catches it via _event_bus_safe_emit (no propagation)."""
     registry = build_registry_fakes(
-        fakes={"p1": FakeSearchable(name="p1")},
+        fakes={"p1": FakeSearchable(provider_name="p1")},
         providers_config=ProvidersConfig(Searchable={"p1": 1}),
         event_bus=FailingEventBus(),
     )
@@ -98,7 +98,7 @@ def test_registry_event_emit_failed_logged_on_bus_failure(
     """When bus.emit() raises, registry_event_emit_failed is logged at WARNING."""
     with caplog.at_level("WARNING"):
         build_registry_fakes(
-            fakes={"p1": FakeSearchable(name="p1")},
+            fakes={"p1": FakeSearchable(provider_name="p1")},
             providers_config=ProvidersConfig(Searchable={"p1": 1}),
             event_bus=FailingEventBus(),
         )

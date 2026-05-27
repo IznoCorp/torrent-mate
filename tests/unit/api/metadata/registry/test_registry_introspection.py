@@ -27,7 +27,7 @@ def test_operations_returns_expected_shape(build_registry: object) -> None:
     Design: docs/reference/architecture.md#introspection
     Contract: introspection operations() returns the expected shape documenting all capability-to-mode mappings.
     """
-    fakes = {"tmdb": FakeMultiCapability(name="tmdb")}
+    fakes = {"tmdb": FakeMultiCapability(provider_name="tmdb")}
     config = ProvidersConfig(
         Searchable={"tmdb": 1},
         MovieDetailsProvider={"tmdb": 1},
@@ -51,7 +51,7 @@ def test_operations_returns_expected_shape(build_registry: object) -> None:
 
 def test_operations_includes_mode_direct_entries(build_registry: object) -> None:
     """``IDValidator`` and ``IDCrossRef`` both map to ``Mode.DIRECT``."""
-    fakes = {"tmdb": FakeMultiCapability(name="tmdb")}
+    fakes = {"tmdb": FakeMultiCapability(provider_name="tmdb")}
     config = ProvidersConfig(
         Searchable={"tmdb": 1},
         IDValidator={"tmdb": 1},
@@ -74,7 +74,7 @@ def test_status_returns_expected_shape(build_registry: object) -> None:
     Design: docs/reference/architecture.md#introspection
     Contract: introspection status() returns circuit and provider health for every configured provider.
     """
-    fakes = {"tmdb": FakeMultiCapability(name="tmdb")}
+    fakes = {"tmdb": FakeMultiCapability(provider_name="tmdb")}
     config = ProvidersConfig(Searchable={"tmdb": 1})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
     status = registry.status()
@@ -89,7 +89,7 @@ def test_status_returns_expected_shape(build_registry: object) -> None:
 
 def test_providers_for_returns_raw_ordered_list(build_registry: object) -> None:
     """``providers_for(capability)`` returns ordered list, NO circuit filtering."""
-    fakes = {"tmdb": FakeMultiCapability(name="tmdb")}
+    fakes = {"tmdb": FakeMultiCapability(provider_name="tmdb")}
     config = ProvidersConfig(Searchable={"tmdb": 1})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
     providers = registry.providers_for(Searchable)

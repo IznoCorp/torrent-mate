@@ -54,7 +54,7 @@ def _settings_without_tmdb() -> Any:
 def test_missing_credentials_issue() -> None:
     """A provider listed in config but lacking its credential produces ``missing_credentials``."""
     config = ProvidersConfig(Searchable={"tmdb": 1})
-    providers = {"tmdb": FakeSearchable(name="tmdb")}
+    providers = {"tmdb": FakeSearchable(provider_name="tmdb")}
     issues = validate_config(config, providers, _settings_without_tmdb())
     codes = {i.code for i in issues}
     assert "missing_credentials" in codes
@@ -69,7 +69,7 @@ def test_protocol_mismatch_issue() -> None:
     """A provider listed in a section it doesn't implement produces ``protocol_mismatch``."""
     # FakeSearchable implements Searchable but NOT MovieDetailsProvider.
     config = ProvidersConfig(MovieDetailsProvider={"x": 1})
-    providers = {"x": FakeSearchable(name="x")}
+    providers = {"x": FakeSearchable(provider_name="x")}
     issues = validate_config(config, providers, _settings_with_keys())
     codes = {i.code for i in issues}
     assert "protocol_mismatch" in codes
@@ -84,7 +84,7 @@ def test_unknown_provider_issue() -> None:
     """A provider name in config that wasn't instantiated produces ``unknown_provider``."""
     config = config_with_unknown_provider()
     # Only "tmdb" is instantiated; "tmdbb" is the typo.
-    providers = {"tmdb": FakeSearchable(name="tmdb")}
+    providers = {"tmdb": FakeSearchable(provider_name="tmdb")}
     issues = validate_config(config, providers, _settings_with_keys())
     codes = {i.code for i in issues}
     assert "unknown_provider" in codes
@@ -93,7 +93,7 @@ def test_unknown_provider_issue() -> None:
 def test_unknown_provider_includes_did_you_mean_suggestion() -> None:
     """The ``unknown_provider`` message contains a ``difflib.get_close_matches`` suggestion."""
     config = config_with_unknown_provider()
-    providers = {"tmdb": FakeSearchable(name="tmdb")}
+    providers = {"tmdb": FakeSearchable(provider_name="tmdb")}
     issues = validate_config(config, providers, _settings_with_keys())
     typo_issues = [i for i in issues if i.code == "unknown_provider" and i.provider == "tmdbb"]
     assert typo_issues, "expected an unknown_provider issue for 'tmdbb'"
@@ -108,7 +108,7 @@ def test_unknown_provider_includes_did_you_mean_suggestion() -> None:
 def test_empty_chain_section_issue() -> None:
     """An empty chain capability section produces ``empty_chain_section``."""
     config = config_with_empty_chain_section()
-    providers = {"tmdb": FakeSearchable(name="tmdb")}
+    providers = {"tmdb": FakeSearchable(provider_name="tmdb")}
     issues = validate_config(config, providers, _settings_with_keys())
     codes = {i.code for i in issues}
     assert "empty_chain_section" in codes
@@ -124,8 +124,8 @@ def test_locked_capability_orphan_issue() -> None:
     config = config_with_locked_orphan()
     # tvdb is in chain but not in artwork nor idcrossref.
     providers = {
-        "tvdb": FakeSearchable(name="tvdb"),
-        "tmdb": FakeSearchable(name="tmdb"),
+        "tvdb": FakeSearchable(provider_name="tvdb"),
+        "tmdb": FakeSearchable(provider_name="tmdb"),
     }
     issues = validate_config(config, providers, _settings_with_keys())
     codes = {i.code for i in issues}
@@ -144,9 +144,9 @@ def test_idcrossref_cycle_detected_and_reported() -> None:
     """
     config = config_with_idcrossref_cycle()
     providers = {
-        "tmdb": FakeIDCrossRef(name="tmdb"),
-        "tvdb": FakeIDCrossRef(name="tvdb"),
-        "imdb": FakeIDCrossRef(name="imdb"),
+        "tmdb": FakeIDCrossRef(provider_name="tmdb"),
+        "tvdb": FakeIDCrossRef(provider_name="tvdb"),
+        "imdb": FakeIDCrossRef(provider_name="imdb"),
     }
     issues = validate_config(config, providers, _settings_with_keys())
     codes = {i.code for i in issues}
@@ -171,9 +171,9 @@ def test_all_six_issue_families_in_one_error() -> None:
     # we instead route "tmdb" through a FakeSearchable that has no
     # MovieDetailsProvider/EpisodeFetcher methods.
     providers = {
-        "tmdb": FakeSearchable(name="tmdb"),  # lacks get_episodes → protocol_mismatch under EpisodeFetcher
-        "tvdb": FakeMultiCapability(name="tvdb"),
-        "imdb": FakeIDCrossRef(name="imdb"),
+        "tmdb": FakeSearchable(provider_name="tmdb"),  # lacks get_episodes → protocol_mismatch under EpisodeFetcher
+        "tvdb": FakeMultiCapability(provider_name="tvdb"),
+        "imdb": FakeIDCrossRef(provider_name="imdb"),
     }
     # Strip credentials for tmdb to trigger missing_credentials too.
     settings = SimpleNamespace(tmdb_api_key="", tvdb_api_key="y")
@@ -212,7 +212,7 @@ def test_partial_boot_no_operation_callable(build_registry: object) -> None:
     has no live instance to invoke.
     """
     config = config_with_unknown_provider()
-    fakes = {"tmdb": FakeSearchable(name="tmdb")}
+    fakes = {"tmdb": FakeSearchable(provider_name="tmdb")}
     with pytest.raises(RegistryConfigError):
         build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
 
@@ -226,7 +226,7 @@ def test_boot_cleanup_on_validation_failure(build_registry: object) -> None:
     Contract: boot sequence cleanup runs on validation failure to prevent resource leaks.
     """
     # A config that will pass instantiation but fail validation (unknown provider).
-    fake_a = FakeSearchable(name="tmdb")
+    fake_a = FakeSearchable(provider_name="tmdb")
     fakes = {"tmdb": fake_a}
     config = config_with_unknown_provider()  # references "tmdbb" → unknown_provider issue
     with pytest.raises(RegistryConfigError):

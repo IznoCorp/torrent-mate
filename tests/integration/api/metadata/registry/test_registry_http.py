@@ -169,16 +169,16 @@ def _fake_circuit(state: str = "CLOSED") -> Any:
 class FakeRatingForTest:
     """Implements RatingProvider."""
 
-    def __init__(self, *, name: str, circuit_state: str = "CLOSED"):
-        self.name = name
+    def __init__(self, *, provider_name: str, circuit_state: str = "CLOSED"):
+        self.provider_name = provider_name
         self.circuit = _fake_circuit(circuit_state)
         self._should_fail: bool = False
         self.closed = False
 
     def get_rating(self, provider_id: str) -> list[Notations] | None:
         if self._should_fail:
-            raise ApiError(provider=self.name, http_status=503, provider_code=0, message="fake 503")
-        source: Any = self.name
+            raise ApiError(provider=self.provider_name, http_status=503, provider_code=0, message="fake 503")
+        source: Any = self.provider_name
         return [Notations(provider=str(source), source="imdb", score=7.5)]
 
     def close(self) -> None:
@@ -188,8 +188,8 @@ class FakeRatingForTest:
 class FakeArtworkForTest:
     """Implements ArtworkProvider."""
 
-    def __init__(self, *, name: str, circuit_state: str = "CLOSED"):
-        self.name = name
+    def __init__(self, *, provider_name: str, circuit_state: str = "CLOSED"):
+        self.provider_name = provider_name
         self.circuit = _fake_circuit(circuit_state)
         self.closed = False
 
@@ -203,8 +203,8 @@ class FakeArtworkForTest:
 class FakeIDCrossRefProviderForTest:
     """Implements IDCrossRef only (no ArtworkProvider) for locked cross_ref tests."""
 
-    def __init__(self, *, name: str, xref_table: dict[str, dict[str, str]] | None = None):
-        self.name = name
+    def __init__(self, *, provider_name: str, xref_table: dict[str, dict[str, str]] | None = None):
+        self.provider_name = provider_name
         self.circuit = _fake_circuit("CLOSED")
         self._xref = xref_table or {}
         self.closed = False
@@ -623,10 +623,10 @@ class TestLockedCrossRef:
         """Match has tmdb id, locked(ArtworkProvider); TVDB has artwork via xref translation."""
         fakes = {
             "tmdb": FakeIDCrossRefProviderForTest(
-                name="tmdb",
+                provider_name="tmdb",
                 xref_table={"tmdb-123": {"tvdb": "tvdb-456"}},
             ),
-            "tvdb": FakeArtworkForTest(name="tvdb"),
+            "tvdb": FakeArtworkForTest(provider_name="tvdb"),
         }
         config = ProvidersConfig(
             Searchable={"tmdb": 1, "tvdb": 2},
@@ -650,8 +650,8 @@ class TestLockedCrossRef:
     def test_locked_cross_ref_returns_none_when_xref_empty(self, build_registry_fakes: Any) -> None:
         """IDCrossRef returns empty dict; locked() returns None; LockedCapabilityUnresolved emitted."""
         fakes = {
-            "tmdb": FakeIDCrossRefProviderForTest(name="tmdb", xref_table={}),
-            "tvdb": FakeArtworkForTest(name="tvdb"),
+            "tmdb": FakeIDCrossRefProviderForTest(provider_name="tmdb", xref_table={}),
+            "tvdb": FakeArtworkForTest(provider_name="tvdb"),
         }
         config = ProvidersConfig(
             Searchable={"tmdb": 1},
@@ -711,8 +711,8 @@ class TestFanOutPartial:
 
     def test_fan_out_partial_one_failure_one_success(self, build_registry_fakes: Any) -> None:
         """One provider 5xx, one 200; FanOutResult composed correctly."""
-        r1 = FakeRatingForTest(name="r1", circuit_state="CLOSED")
-        r2 = FakeRatingForTest(name="r2", circuit_state="CLOSED")
+        r1 = FakeRatingForTest(provider_name="r1", circuit_state="CLOSED")
+        r2 = FakeRatingForTest(provider_name="r2", circuit_state="CLOSED")
         r2._should_fail = True
 
         fakes = {"r1": r1, "r2": r2}
@@ -733,14 +733,14 @@ class TestFanOutPartial:
                     values.append(result)
                 attempted.append(
                     AttemptOutcome(
-                        provider=ProviderName(p.name),
+                        provider=ProviderName(p.provider_name),
                         reason="empty_result" if not result else "empty_result",
                     )
                 )
             except ApiError:
                 attempted.append(
                     AttemptOutcome(
-                        provider=ProviderName(p.name),
+                        provider=ProviderName(p.provider_name),
                         reason="network",
                         detail="5xx",
                     )

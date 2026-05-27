@@ -19,6 +19,7 @@ from typing import (
     NewType,
     Protocol,
     TypeVar,
+    cast,
     overload,
 )
 
@@ -83,11 +84,15 @@ ProviderName = NewType("ProviderName", str)
 class Named(Protocol):
     """Every concrete provider exposes a stable string identifier.
 
-    ``name`` matches the config key (e.g. ``"tmdb"``, ``"tvdb"``) and is used
-    in diagnostic events, logs, and the introspection API.
+    ``provider_name`` matches the config key (e.g. ``"tmdb"``, ``"tvdb"``) and is used
+    in diagnostic events, logs, and the introspection API. The attribute name
+    mirrors the ``provider_name: ClassVar[str]`` declared on the concrete
+    ``MetadataClient`` family (see ``personalscraper/api/metadata/_base.py``)
+    so the structural Protocol matches at type-check time without ``cast``s
+    or ``type: ignore`` escape hatches.
     """
 
-    name: ClassVar[str]
+    provider_name: ClassVar[str]
 
 
 # ---------------------------------------------------------------------------
@@ -157,9 +162,15 @@ class AttemptOutcome:
 
 @dataclass(frozen=True)
 class ProviderStatus:
-    """Per-provider runtime status snapshot."""
+    """Per-provider runtime status snapshot.
 
-    name: ProviderName
+    The ``provider_name`` field carries the same identifier that the
+    concrete provider classes declare under ``provider_name: ClassVar[str]``
+    (cf. ``MetadataClient`` family). It is intentionally named to mirror
+    the Protocol attribute introduced by ``Named``.
+    """
+
+    provider_name: ProviderName
     circuit_state: Literal["CLOSED", "OPEN", "HALF_OPEN"]
     failure_count_recent: int
     last_success_at: datetime | None
@@ -317,7 +328,7 @@ class ProviderRegistry:
                 except Exception as e:
                     log.debug(
                         "registry_boot_cleanup_failed",
-                        provider=getattr(p, "name", "?"),
+                        provider=getattr(p, "provider_name", "?"),
                         exc_type=type(e).__name__,
                     )
             raise
@@ -532,7 +543,7 @@ class ProviderRegistry:
         """
         if provider_name not in self._providers:
             raise UnknownProviderError(provider_name)
-        return self._providers[provider_name]  # type: ignore[return-value]
+        return cast(Named, self._providers[provider_name])
 
     def cross_ref(
         self,
@@ -574,7 +585,7 @@ class ProviderRegistry:
             circuit = getattr(provider, "circuit", None)
             state = getattr(circuit, "state", "CLOSED") if circuit else "CLOSED"
             result[name] = ProviderStatus(
-                name=ProviderName(name),
+                provider_name=ProviderName(name),
                 circuit_state=state,  # type: ignore[arg-type]  # Literal validated by fuzzing
                 failure_count_recent=(getattr(circuit, "failure_count_recent", 0) if circuit else 0),
                 last_success_at=(getattr(circuit, "last_success_at", None) if circuit else None),
@@ -585,7 +596,7 @@ class ProviderRegistry:
     def providers_for(self, capability: type) -> list[Named]:
         """Raw ordered list (no circuit filtering). For introspection only."""
         names = self._index.get(capability, [])
-        return [self._providers[n] for n in names if n in self._providers]  # type: ignore[misc]
+        return [cast(Named, self._providers[n]) for n in names if n in self._providers]
 
     def close(self) -> None:
         """Release per-provider resources. Safe to call multiple times."""
