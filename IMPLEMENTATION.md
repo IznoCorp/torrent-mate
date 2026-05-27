@@ -20,6 +20,7 @@
 | 3   | Out-of-scraper consumers                  | phase-03-out-of-scraper.md                | [x]    |
 | 4   | Cleanup, observability, docs              | phase-04-cleanup-obs-docs.md              | [x]    |
 | 5   | PR fixes cycle 1                          | phase-05-pr-fixes-cycle-1.md              | [x]    |
+| 6   | PR fixes cycle 2                          | phase-06-pr-fixes-cycle-2.md              | [ ]    |
 
 ## Baseline measurements (Phase 0 sub-phase 0.6)
 
@@ -68,6 +69,23 @@ Run by `/implement:pr-review` on PR #27 after CI green at `31c6516`.
 
 **Decision**: fix the 10 retained findings in a new Phase 5 (`phase-05-pr-fixes-cycle-1.md`). Loop continues to cycle 2 if CI still red after fix push.
 
+### Cycle 2 — 2026-05-27
+
+Re-review on `feat/registry @ 6177193` (CI green after Phase 5 push).
+
+**Verdicts**: 3 of 4 reviewers MERGE; pr-test-analyzer blocked on missing regression tests for 3 cycle-1 fixes (memory `feedback_regression_test_per_bug.md` is absolute) + ACC-07 baseline drift (40 → 45 after cycle 1 added 5 tests).
+
+**Critical findings** (blocking — must fix in cycle 2):
+
+1. `_eligible` strict allowlist (commit `29f74ce`) — no regression test.
+2. `per_step_boundary` close-on-exit (commit `4104f9d`) — no regression test.
+3. `library_backfill_provider_unavailable` log emission (commit `359e9eb`) — no regression test.
+4. ACC-07 expected count = `40` but actual = `45` (added 5 tests in cycle 1) — re-pin.
+
+**Important** (should fix): 5. `scan.py` function-local `_log` deviates from project convention (module-level `log = get_logger("cli")`). 6. `fan_out` AttemptOutcome schema misuse — eligible providers should not synthesize `reason="other", detail="eligible"` rows; `succeeded` counter already conveys this.
+
+**Decision**: cycle 3 phase — `phase-06-pr-fixes-cycle-2.md` with 5 sub-phases (3 tests + ACC-07 + nits).
+
 ## Next action
 
-Phase 5 complete. Push fix commits → CI re-poll → `/implement:pr-review` cycle 2 (or merge if no findings).
+Run `/implement:phase` to execute Phase 6 (PR fixes cycle 2).
