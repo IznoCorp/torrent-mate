@@ -195,18 +195,28 @@ class TestLibraryIndexCommandBusPassThrough:
         )
 
 
-class TestLibraryBackfillIdsProviderUnavailable:
-    """Fail-soft: unknown provider logs WARNING, exits 0 (sub-phase 6.3)."""
+class TestLibraryBackfillIdsRegistryWiring:
+    """Phase 11 migration: CLI passes the shared registry to ``run_backfill_ids``.
 
-    def test_library_backfill_logs_warning_on_missing_provider(self, tmp_path):
-        """When registry.get() raises UnknownProviderError, WARNING is logged per provider."""
-        import re
+    Before Phase 11 the CLI extracted four typed clients via
+    ``registry.get("tmdb")`` / ``"tvdb"`` / ``"imdb"`` / ``"rotten_tomatoes"``,
+    each wrapped in ``try/except UnknownProviderError`` that logged a
+    ``library_backfill_provider_unavailable`` warning per missing provider.
+    Sub-phase 11.5 dropped that scaffolding — provider eligibility is now
+    handled inside the registry's ``chain()`` / ``fan_out()`` semantics, and
+    the CLI simply forwards ``app_context.provider_registry``.
+
+    The pre-Phase-11 test (``test_library_backfill_logs_warning_on_missing_provider``)
+    asserted on the now-removed log line; replaced with an assertion that
+    pins the new wiring contract: the registry instance passed to
+    ``run_backfill_ids`` is the same one carried by the AppContext.
+    """
+
+    def test_library_backfill_forwards_registry_from_app_context(self, tmp_path):
+        """``library-backfill-ids`` passes ``app_context.provider_registry`` to the driver."""
         from pathlib import Path
 
-        from personalscraper.api.metadata.registry._errors import UnknownProviderError
-
         mock_registry = MagicMock(spec=ProviderRegistry)
-        mock_registry.get.side_effect = UnknownProviderError("tmdb")
 
         mock_app_ctx = MagicMock(spec=AppContext)
         mock_app_ctx.event_bus = EventBus()
@@ -223,6 +233,12 @@ class TestLibraryBackfillIdsProviderUnavailable:
         mock_stats.ids_added_count = 0
         mock_stats.ratings_added_count = 0
 
+        captured: list[dict] = []
+
+        def _spy(conn, **kwargs):
+            captured.append(kwargs)
+            return mock_stats
+
         with (
             patch("personalscraper.logger.configure_logging"),
             patch("personalscraper.conf.loader.load_config", return_value=mock_cfg),
@@ -233,15 +249,64 @@ class TestLibraryBackfillIdsProviderUnavailable:
             patch("personalscraper.indexer.db.apply_migrations"),
             patch(
                 "personalscraper.indexer.scanner._modes.backfill_ids.run_backfill_ids",
-                return_value=mock_stats,
+                side_effect=_spy,
             ),
         ):
             result = runner.invoke(app, ["library-backfill-ids", "--ids-only"])
 
-        # Fail-soft: exit 0 even when providers are unavailable.
         assert result.exit_code == 0, result.output
-        # Strip ANSI escape codes to assert on the structured log content.
-        plain = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
-        assert "library_backfill_provider_unavailable" in plain
-        assert "provider=tmdb" in plain
-        assert "provider=tvdb" in plain
+        assert len(captured) == 1
+        # The CLI must hand the AppContext's registry to the driver verbatim —
+        # not a copy, not a re-extracted typed-client tuple.
+        assert captured[0]["registry"] is mock_registry
+        # The four legacy typed-client kwargs no longer exist on the driver
+        # signature; pin that no caller silently re-adds them.
+        assert "tmdb_client" not in captured[0]
+        assert "tvdb_client" not in captured[0]
+        assert "imdb_client" not in captured[0]
+        assert "rt_client" not in captured[0]
+
+    def test_library_backfill_dry_run_passes_none_registry(self, tmp_path):
+        """``--dry-run`` short-circuits the registry path with ``registry=None``."""
+        from pathlib import Path
+
+        mock_registry = MagicMock(spec=ProviderRegistry)
+
+        mock_app_ctx = MagicMock(spec=AppContext)
+        mock_app_ctx.event_bus = EventBus()
+        mock_app_ctx.provider_registry = mock_registry
+
+        mock_cfg = MagicMock()
+        mock_cfg.indexer.db_path = tmp_path / "library.db"
+
+        mock_stats = MagicMock()
+        mock_stats.items_scanned = 0
+        mock_stats.items_updated = 0
+        mock_stats.items_skipped = 0
+        mock_stats.items_failed = 0
+        mock_stats.ids_added_count = 0
+        mock_stats.ratings_added_count = 0
+
+        captured: list[dict] = []
+
+        def _spy(conn, **kwargs):
+            captured.append(kwargs)
+            return mock_stats
+
+        with (
+            patch("personalscraper.logger.configure_logging"),
+            patch("personalscraper.conf.loader.load_config", return_value=mock_cfg),
+            patch("personalscraper.conf.loader.resolve_config_path", return_value=Path("/tmp/cfg.json5")),
+            patch("personalscraper.cli_helpers._build_app_context", return_value=mock_app_ctx),
+            patch("personalscraper.cli.get_settings", return_value=MagicMock()),
+            patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
+            patch("personalscraper.indexer.db.apply_migrations"),
+            patch(
+                "personalscraper.indexer.scanner._modes.backfill_ids.run_backfill_ids",
+                side_effect=_spy,
+            ),
+        ):
+            result = runner.invoke(app, ["library-backfill-ids", "--dry-run"])
+
+        assert result.exit_code == 0, result.output
+        assert captured[0]["registry"] is None
