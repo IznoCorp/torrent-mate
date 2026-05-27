@@ -17,9 +17,10 @@ if TYPE_CHECKING:
     from personalscraper.api.metadata.tvdb import TVDBClient
     from personalscraper.scraper.artwork import ArtworkDownloader
 
-# Transitional access via ``self._registry.get("tmdb")`` / ``get("tvdb")``
-# (DESIGN §5.2) — Phase 2 migrates to ``registry.locked()`` for proper
-# identity-locked semantics on Artwork/Keyword/Video capabilities.
+# DIRECT-mode capabilities (IDValidator, IDCrossRef) use ``registry.get("name")``
+# (DESIGN §5.2) — this is the public API for ``Mode.DIRECT``. The return type is
+# ``Named`` Protocol, so ``cast("TMDBClient", ...)`` unwraps to the concrete client
+# when the caller needs provider-specific methods outside the capability Protocol.
 
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper.classifier import _parse_folder_name
@@ -625,7 +626,6 @@ class ExistingValidatorMixin:
                 from personalscraper.scraper.models import ScraperExternalIds  # noqa: PLC0415
                 from personalscraper.scraper.tv_service import _tvdb_series_to_show_data  # noqa: PLC0415
 
-                # Transitional registry-direct access (Phase 1 — DESIGN §5.2).
                 tvdb_client = cast("TVDBClient", self._registry.get("tvdb"))
                 tvdb_data = tvdb_client.get_series(tvdb_id)
                 external_ids = tvdb_data.external_ids if hasattr(tvdb_data, "external_ids") else {}
@@ -729,7 +729,6 @@ class ExistingValidatorMixin:
                 from personalscraper.scraper.models import ScraperExternalIds  # noqa: PLC0415
                 from personalscraper.scraper.tv_service import _tvdb_series_to_show_data  # noqa: PLC0415
 
-                # Transitional registry-direct access (Phase 1 — DESIGN §5.2).
                 tvdb_client = cast("TVDBClient", self._registry.get("tvdb"))
                 tvdb_data = tvdb_client.get_series(tvdb_id)
                 external_ids = tvdb_data.external_ids if hasattr(tvdb_data, "external_ids") else {}
@@ -912,7 +911,6 @@ class ExistingValidatorMixin:
         try:
             from personalscraper.scraper.movie_service import _coerce_to_movie_data
 
-            # Transitional registry-direct access (Phase 1 — DESIGN §5.2).
             tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
             movie_data = tmdb_client.get_movie(tmdb_id)
             downloaded = self._artwork.download_movie_artwork(
@@ -953,7 +951,6 @@ class ExistingValidatorMixin:
         try:
             from personalscraper.scraper.movie_service import _coerce_to_show_data
 
-            # Transitional registry-direct access (Phase 1 — DESIGN §5.2).
             tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
             show_data = tmdb_client.get_tv(tmdb_id)
             downloaded = self._artwork.download_tvshow_artwork(
