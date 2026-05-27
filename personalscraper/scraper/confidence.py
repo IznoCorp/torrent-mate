@@ -137,7 +137,7 @@ def _search_with_language(
     title: str,
     year: int | None,
     language: str,
-) -> list:  # type: ignore[type-arg]
+) -> list[SearchResult]:
     """Search TMDB with an explicit language override.
 
     Args:
@@ -155,10 +155,10 @@ def _search_with_language(
 
 
 def _filter_by_year_window(
-    results: list,  # type: ignore[type-arg]
+    results: list[SearchResult],
     year: int,
     window: int = YEAR_FALLBACK_WINDOW,
-) -> list:  # type: ignore[type-arg]
+) -> list[SearchResult]:
     """Filter search results to those within a year window of the expected year.
 
     Args:
@@ -200,9 +200,9 @@ def match_movie(
     fr = getattr(tmdb_client, "_language", "fr-FR")
     en = getattr(tmdb_client, "_fallback_language", "en-US")
 
-    results: list = []  # type: ignore[type-arg]
+    results: list[SearchResult] = []
     fallback_event: str | None = None
-    fallback_meta: dict = {}  # type: ignore[type-arg]
+    fallback_meta: dict[str, int | str] = {}
 
     # 1. Initial search: configured language + year
     results = _search_with_language(tmdb_client, title, year, fr)
