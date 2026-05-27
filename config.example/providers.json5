@@ -33,7 +33,16 @@
 
     // ── Locked capabilities (identity-bound, IDCrossRef escape hatch) ──────
     ArtworkProvider:       { tmdb: 1, tvdb: 2 },
-    KeywordProvider:       { tmdb: 1 },
+
+    // KeywordProvider intentionally empty in this template: tvdb appears in
+    // chain sections but does not implement KeywordProvider, so a non-empty
+    // locked entry without an IDCrossRef bridge triggers
+    // ``locked_capability_orphan``. To enable keyword fetch, also configure
+    // IDCrossRef (requires OMDB_API_KEY + imdb) so the registry can translate
+    // tvdb→tmdb at the locked boundary. Out-of-the-box, leaving KeywordProvider
+    // empty keeps the template booting cleanly with only TMDB + TVDB creds.
+    KeywordProvider: {},
+
     VideoProvider:         { tmdb: 1, tvdb: 2 },
 
     // Only Trakt implements RecommendationProvider.
