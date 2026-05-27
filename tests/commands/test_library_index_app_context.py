@@ -193,3 +193,55 @@ class TestLibraryIndexCommandBusPassThrough:
         assert scan_kwargs["event_bus"] is caller_bus, (
             "scan must receive the bus passed to library_index_command, not a fresh EventBus() with no subscribers."
         )
+
+
+class TestLibraryBackfillIdsProviderUnavailable:
+    """Fail-soft: unknown provider logs WARNING, exits 0 (sub-phase 6.3)."""
+
+    def test_library_backfill_logs_warning_on_missing_provider(self, tmp_path):
+        """When registry.get() raises UnknownProviderError, WARNING is logged per provider."""
+        import re
+        from pathlib import Path
+
+        from personalscraper.api.metadata.registry._errors import UnknownProviderError
+
+        mock_registry = MagicMock(spec=ProviderRegistry)
+        mock_registry.get.side_effect = UnknownProviderError("tmdb")
+
+        mock_app_ctx = MagicMock(spec=AppContext)
+        mock_app_ctx.event_bus = EventBus()
+        mock_app_ctx.provider_registry = mock_registry
+
+        mock_cfg = MagicMock()
+        mock_cfg.indexer.db_path = tmp_path / "library.db"
+
+        mock_stats = MagicMock()
+        mock_stats.items_scanned = 0
+        mock_stats.items_updated = 0
+        mock_stats.items_skipped = 0
+        mock_stats.items_failed = 0
+        mock_stats.ids_added_count = 0
+        mock_stats.ratings_added_count = 0
+
+        with (
+            patch("personalscraper.logger.configure_logging"),
+            patch("personalscraper.conf.loader.load_config", return_value=mock_cfg),
+            patch("personalscraper.conf.loader.resolve_config_path", return_value=Path("/tmp/cfg.json5")),
+            patch("personalscraper.cli_helpers._build_app_context", return_value=mock_app_ctx),
+            patch("personalscraper.cli.get_settings", return_value=MagicMock()),
+            patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
+            patch("personalscraper.indexer.db.apply_migrations"),
+            patch(
+                "personalscraper.indexer.scanner._modes.backfill_ids.run_backfill_ids",
+                return_value=mock_stats,
+            ),
+        ):
+            result = runner.invoke(app, ["library-backfill-ids", "--ids-only"])
+
+        # Fail-soft: exit 0 even when providers are unavailable.
+        assert result.exit_code == 0, result.output
+        # Strip ANSI escape codes to assert on the structured log content.
+        plain = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+        assert "library_backfill_provider_unavailable" in plain
+        assert "provider=tmdb" in plain
+        assert "provider=tvdb" in plain
