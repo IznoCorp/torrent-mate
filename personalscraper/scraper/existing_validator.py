@@ -21,6 +21,31 @@ if TYPE_CHECKING:
 # (DESIGN §5.2) — this is the public API for ``Mode.DIRECT``. The return type is
 # ``Named`` Protocol, so ``cast("TMDBClient", ...)`` unwraps to the concrete client
 # when the caller needs provider-specific methods outside the capability Protocol.
+#
+# Sub-phase 7.4 audit (registry feature): every ``cast(...)`` site in this module
+# is intentionally direct-dispatch — see the per-site rationale comments. All six
+# sites fell into a single family after audit: ID-bound canonical-provider refetch
+# where the ID was minted by a specific provider (recorded in the NFO at scrape
+# time) and any chain fallback would silently switch the canonical data source.
+#
+# Two sub-families exist:
+#
+# * Multi-method provider-specific sequences (``_repair_episode_files``,
+#   ``_repair_artwork``): combine ``get_series`` / ``get_tv`` with
+#   ``get_tv_season`` / ``get_series_episodes`` and helpers that consume the
+#   concrete client (``_fetch_season_episodes_tvdb``,
+#   ``_tvdb_series_to_show_data``). The Protocols in ``_contracts.py`` do not
+#   cover these methods.
+# * Single-call artwork refetch (``_recover_movie_artwork``,
+#   ``_recover_tvshow_artwork``): the Protocol-shaped signatures
+#   (``MovieDetailsProvider.get_movie(provider_id: str)`` /
+#   ``TvDetailsProvider.get_tv(provider_id: str)``) narrow the ID type to ``str``
+#   while the concrete clients accept ``int`` directly, which is what the NFO
+#   parser returns.
+#
+# Net outcome: 0 of 6 sites migrated to chain/fan_out/locked; 6 of 6 keep
+# ``cast("TMDBClient"|"TVDBClient", ...)`` with inline rationale. This is the
+# expected outcome for ID-bound refetch paths per DESIGN §5.2 (``Mode.DIRECT``).
 
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper.classifier import _parse_folder_name
@@ -626,6 +651,12 @@ class ExistingValidatorMixin:
                 from personalscraper.scraper.models import ScraperExternalIds  # noqa: PLC0415
                 from personalscraper.scraper.tv_service import _tvdb_series_to_show_data  # noqa: PLC0415
 
+                # Direct-dispatch (sub-phase 7.4 audit): the NFO-stored TVDB id was
+                # minted by TVDB, and this sequence calls ``get_series`` +
+                # ``_fetch_season_episodes_tvdb`` (uses ``get_series_episodes``) which
+                # are TVDB-specific and not covered by any capability Protocol in
+                # ``_contracts.py``. Chain fallback would silently swap the canonical
+                # data source — forbidden for ID-bound refetch.
                 tvdb_client = cast("TVDBClient", self._registry.get("tvdb"))
                 tvdb_data = tvdb_client.get_series(tvdb_id)
                 external_ids = tvdb_data.external_ids if hasattr(tvdb_data, "external_ids") else {}
@@ -643,6 +674,10 @@ class ExistingValidatorMixin:
                 assert tmdb_id is not None
                 from personalscraper.scraper.movie_service import _coerce_to_show_data
 
+                # Direct-dispatch (sub-phase 7.4 audit): the NFO-stored TMDB id was
+                # minted by TMDB, and ``_fetch_season_episodes`` calls TMDB-specific
+                # ``get_tv_season`` — not in any capability Protocol. ID-bound
+                # canonical refetch, chain fallback forbidden.
                 tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
                 show_data = _coerce_to_show_data(tmdb_client.get_tv(tmdb_id))
                 root_api_episodes = _fetch_season_episodes(tmdb_client, tmdb_id, season_nums)
@@ -729,6 +764,11 @@ class ExistingValidatorMixin:
                 from personalscraper.scraper.models import ScraperExternalIds  # noqa: PLC0415
                 from personalscraper.scraper.tv_service import _tvdb_series_to_show_data  # noqa: PLC0415
 
+                # Direct-dispatch (sub-phase 7.4 audit): mirror of
+                # ``_repair_episode_files`` TVDB branch — TVDB-specific
+                # ``get_series`` + ``_fetch_season_episodes_tvdb``
+                # (``get_series_episodes``) not covered by any Protocol.
+                # ID-bound canonical refetch, chain fallback forbidden.
                 tvdb_client = cast("TVDBClient", self._registry.get("tvdb"))
                 tvdb_data = tvdb_client.get_series(tvdb_id)
                 external_ids = tvdb_data.external_ids if hasattr(tvdb_data, "external_ids") else {}
@@ -746,6 +786,11 @@ class ExistingValidatorMixin:
                 assert tmdb_id is not None
                 from personalscraper.scraper.movie_service import _coerce_to_show_data
 
+                # Direct-dispatch (sub-phase 7.4 audit): mirror of
+                # ``_repair_episode_files`` TMDB branch — TMDB-specific
+                # ``get_tv_season`` via ``_fetch_season_episodes`` not covered
+                # by any Protocol. ID-bound canonical refetch, chain
+                # fallback forbidden.
                 tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
                 show_data = _coerce_to_show_data(tmdb_client.get_tv(tmdb_id))
                 api_episodes = _fetch_season_episodes(tmdb_client, tmdb_id, season_nums)
@@ -911,6 +956,12 @@ class ExistingValidatorMixin:
         try:
             from personalscraper.scraper.movie_service import _coerce_to_movie_data
 
+            # Direct-dispatch (sub-phase 7.4 audit): the TMDB id was minted by
+            # TMDB when the NFO was written, and artwork must be re-pulled from
+            # the same canonical source. Chain fallback would silently switch
+            # the provider mid-refetch. ``MovieDetailsProvider.get_movie``
+            # requires ``provider_id: str``; the concrete TMDB client accepts
+            # ``int`` directly, so we keep the concrete cast.
             tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
             movie_data = tmdb_client.get_movie(tmdb_id)
             downloaded = self._artwork.download_movie_artwork(
@@ -951,6 +1002,11 @@ class ExistingValidatorMixin:
         try:
             from personalscraper.scraper.movie_service import _coerce_to_show_data
 
+            # Direct-dispatch (sub-phase 7.4 audit): mirror of
+            # ``_recover_movie_artwork`` — TMDB-minted id, canonical refetch
+            # for artwork, chain fallback forbidden. ``TvDetailsProvider.get_tv``
+            # narrows ``provider_id`` to ``str`` but the concrete client accepts
+            # ``int``, so we keep the concrete cast.
             tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
             show_data = tmdb_client.get_tv(tmdb_id)
             downloaded = self._artwork.download_tvshow_artwork(
