@@ -358,6 +358,17 @@ sections rejected at boot.
 `registry.status()` returns per-provider circuit state. Exposed via
 `personalscraper info providers`.
 
+### See also
+
+- `docs/reference/scraping.md#capability-cookbook` — six worked examples,
+  one per call shape (chain Searchable, chain MovieDetailsProvider,
+  fan_out RatingProvider, locked, cross_ref, direct get).
+- `docs/reference/indexer.md#registry-integration` — how `backfill_ids`
+  composes `fan_out(RatingProvider)` with `chain(MovieDetailsProvider |
+TvDetailsProvider)`.
+- `docs/reference/external-ids-flow.md` — cross-provider id flow at the
+  pipeline level.
+
 ## Anti-decisions (out of scope for 1.0)
 
 These were considered and explicitly deferred past 1.0. Re-opening any of these
