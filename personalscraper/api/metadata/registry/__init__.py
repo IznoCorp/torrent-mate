@@ -247,6 +247,13 @@ class LockedProvider(Generic[C]):
 
     Construction is package-private: only ``_make_locked()`` builds instances.
     Calling ``LockedProvider(...)`` directly raises ``TypeError``.
+
+    Note:
+        The ``_token`` field is a runtime sentinel — it should never be
+        referenced by external code. The underscore prefix is the only
+        convention enforcement; a stricter ``__new__``-based hide would
+        clutter the dataclass without materially improving safety.
+        Trade-off accepted at design time (cycle 1 review, 2026-05-27).
     """
 
     provider: C
