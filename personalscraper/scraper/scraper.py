@@ -6,8 +6,6 @@ historic import and monkeypatch surface used by callers and tests.
 
 from __future__ import annotations
 
-from personalscraper.api.metadata.tmdb import TMDBClient
-from personalscraper.api.metadata.tvdb import TVDBClient
 from personalscraper.conf import classifier as _classifier
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
 from personalscraper.scraper._shared import ScrapeResult, _find_video_file
@@ -33,8 +31,6 @@ __all__ = [
     "MatchResult",
     "ScrapeResult",
     "Scraper",
-    "TMDBClient",
-    "TVDBClient",
     "_cleanup_empty_release_dirs",
     "_cleanup_stale_files",
     "_classifier",
