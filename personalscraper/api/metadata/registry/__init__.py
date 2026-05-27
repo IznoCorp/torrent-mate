@@ -646,10 +646,12 @@ class ProviderRegistry:
         result: dict[str, ProviderStatus] = {}
         for name, provider in self._providers.items():
             circuit = getattr(provider, "circuit", None)
-            state = getattr(circuit, "state", "CLOSED") if circuit else "CLOSED"
+            state_str = getattr(circuit, "state", "CLOSED") if circuit else "CLOSED"
+            if state_str not in {"CLOSED", "OPEN", "HALF_OPEN"}:
+                state_str = "CLOSED"  # defensive normalization
             result[name] = ProviderStatus(
                 provider_name=RegistryProviderName(name),
-                circuit_state=state,  # type: ignore[arg-type]  # Literal validated by fuzzing
+                circuit_state=cast(Literal["CLOSED", "OPEN", "HALF_OPEN"], state_str),
                 failure_count_recent=(getattr(circuit, "failure_count_recent", 0) if circuit else 0),
                 last_success_at=(getattr(circuit, "last_success_at", None) if circuit else None),
                 last_failure_at=(getattr(circuit, "last_failure_at", None) if circuit else None),
