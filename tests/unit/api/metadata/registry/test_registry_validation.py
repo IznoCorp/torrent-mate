@@ -153,6 +153,26 @@ def test_idcrossref_cycle_detected_and_reported() -> None:
     assert "idcrossref_cycle" in codes
 
 
+def test_idcrossref_two_providers_no_false_cycle() -> None:
+    """IDCrossRef with exactly 2 providers (bidirectional implicit edges) is NOT a cycle.
+
+    DFS must track parent and skip the immediate-parent edge so that
+    ``A → B → A`` is recognized as bidirectional, not cyclical.
+    """
+    cfg = ProvidersConfig(
+        Searchable={"tmdb": 1},
+        MovieDetailsProvider={"tmdb": 1},
+        IDCrossRef={"tmdb": 1, "tvdb": 2},
+    )
+    providers = {
+        "tmdb": FakeIDCrossRef(provider_name="tmdb"),
+        "tvdb": FakeIDCrossRef(provider_name="tvdb"),
+    }
+    issues = validate_config(cfg, providers, _settings_with_keys())
+    cycle_issues = [i for i in issues if i.code == "idcrossref_cycle"]
+    assert cycle_issues == [], f"Expected no cycle for 2-provider config, got: {cycle_issues}"
+
+
 # ---------------------------------------------------------------------------
 # Aggregation — fail-fast is FORBIDDEN (DESIGN §7.2 / C11)
 # ---------------------------------------------------------------------------

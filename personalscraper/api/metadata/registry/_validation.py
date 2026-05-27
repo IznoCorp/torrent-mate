@@ -297,8 +297,12 @@ def _check_idcrossref_cycles(
 
     visited_all: set[str] = set()
 
-    def _dfs(current: str, path: list[str]) -> list[str] | None:
-        """Return the cycle path if one is found, else None."""
+    def _dfs(current: str, parent: str | None, path: list[str]) -> list[str] | None:
+        """Return the cycle path if one is found, else None.
+
+        ``parent`` is tracked so the immediate-parent edge (bidirectional
+        implicit edge between two providers) is not flagged as a cycle.
+        """
         if current in path:
             idx = path.index(current)
             return path[idx:] + [current]
@@ -307,7 +311,9 @@ def _check_idcrossref_cycles(
         visited_all.add(current)
         path.append(current)
         for neighbor in sorted(adj.get(current, set())):
-            result = _dfs(neighbor, path)
+            if neighbor == parent:
+                continue
+            result = _dfs(neighbor, current, path)
             if result is not None:
                 return result
         path.pop()
@@ -316,7 +322,7 @@ def _check_idcrossref_cycles(
     for start in sorted(nodes):
         if start in visited_all:
             continue
-        cycle = _dfs(start, [])
+        cycle = _dfs(start, None, [])
         if cycle is not None:
             cycle_str = " → ".join(cycle)
             issues.append(
