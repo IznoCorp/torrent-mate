@@ -719,7 +719,7 @@ class ProviderRegistry:
         *,
         capability: str,
         from_provider: str,
-        reason: Literal["circuit_open", "network", "empty_result"],
+        reason: Literal["circuit_open", "network", "empty_result", "other"],
         item: dict[str, Any],
         to_provider: str | None = None,
         exc_type: str | None = None,
@@ -730,11 +730,14 @@ class ProviderRegistry:
             capability: Capability Protocol name (e.g. ``"MovieDetailsProvider"``).
             from_provider: The provider being skipped.
             reason: Closed enum — must match ``ProviderFallbackTriggered.reason``.
+                ``"other"`` covers unclassified Exception (Phase 21, DESIGN §6.2
+                fallback-on-unknown-failure semantics).
             item: Item context for diagnostics (title/year/media_type).
             to_provider: Next provider in the chain, if known at emit time.
                 The chain iterator typically does not know ``to_provider`` ahead
                 of the next iteration; leave empty when unknown.
-            exc_type: Exception class name when ``reason="network"``.
+            exc_type: Exception class name when ``reason`` is ``"network"`` or
+                ``"other"``.
         """
         self._event_bus_safe_emit(
             ProviderFallbackTriggered(

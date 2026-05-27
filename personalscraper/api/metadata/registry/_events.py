@@ -17,15 +17,21 @@ class ProviderFallbackTriggered:
         capability: The capability being chained (Protocol name).
         from_provider: Name of the provider that failed.
         to_provider: Name of the provider being tried next.
-        reason: Why the fallback occurred (circuit_open, network, empty_result).
-        exc_type: Exception type name if a network error caused the fallback.
+        reason: Why the fallback occurred — closed enum:
+            ``circuit_open`` (provider tripped),
+            ``network`` (ApiError / requests / OSError),
+            ``empty_result`` (provider returned None / empty payload),
+            ``other`` (unclassified Exception — DESIGN §6.2 fallback on
+            unknown failure, Phase 21).
+        exc_type: Exception type name if an error caused the fallback
+            (populated for ``network`` and ``other`` reasons).
         item: Dict with item context (title, year, media_type, etc.).
     """
 
     capability: str
     from_provider: str
     to_provider: str
-    reason: Literal["circuit_open", "network", "empty_result"]
+    reason: Literal["circuit_open", "network", "empty_result", "other"]
     exc_type: str | None
     item: dict[str, Any]
 

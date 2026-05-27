@@ -596,13 +596,36 @@ class MovieServiceMixin:
                     item=item_context,
                 )
                 continue
-            except Exception as exc:
-                # Unclassified provider failure — preserve legacy fail-soft
-                # contract (orchestrator surfaces ``result.error`` as an
-                # ``action="error"`` ScrapeResult).
-                result.error = f"Match failed: {exc}"
-                log.error("movie_match_failed", title=title, error=str(exc), exc_info=True)
-                return None
+            except Exception as exc:  # noqa: BLE001 — DESIGN §6.2 fallback on unclassified
+                # Unclassified provider failure — DESIGN §6.2 promises chain
+                # fallback ("first provider that returns a usable result wins"),
+                # so we record the attempt, emit a ``reason="other"`` fallback
+                # event for observers, and continue to the next provider.
+                # Phase 21 (C2): restored chain semantics that previous code
+                # broke by short-circuiting here with ``result.error`` /
+                # ``return None``.
+                last_exception = exc
+                attempted.append(
+                    AttemptOutcome(
+                        provider=RegistryProviderName(provider_name),
+                        reason="other",
+                        detail=type(exc).__name__,
+                    )
+                )
+                log.warning(
+                    "registry_provider_fail",
+                    provider=provider_name,
+                    capability="MovieDetailsProvider",
+                    exc_type=type(exc).__name__,
+                )
+                self._registry._emit_provider_fallback(
+                    capability="MovieDetailsProvider",
+                    from_provider=provider_name,
+                    reason="other",
+                    exc_type=type(exc).__name__,
+                    item=item_context,
+                )
+                continue
 
             if match is None:
                 attempted.append(AttemptOutcome(provider=RegistryProviderName(provider_name), reason="empty_result"))
@@ -623,7 +646,7 @@ class MovieServiceMixin:
             return match
 
         # All providers attempted and none produced a match.
-        if attempted and any(a.reason in {"circuit_open", "network"} for a in attempted):
+        if attempted and any(a.reason in {"circuit_open", "network", "other"} for a in attempted):
             # At least one attempt errored (chain actually broken). Emit
             # the exhausted event for observers, then RAISE
             # ``ProviderExhausted`` per DESIGN §6.2. The caller
@@ -831,14 +854,35 @@ class MovieServiceMixin:
                     item=details_item_context,
                 )
                 continue
-            except Exception as exc:
-                # Unclassified failure — preserve legacy contract: populate
-                # ``result.error`` and return. Chain iteration stops here
-                # rather than rolling on, because the legacy code path also
-                # short-circuited on the first exception.
-                result.error = f"Get details failed: {exc}"
-                log.error("movie_details_failed", api_title=match.api_title, error=str(exc), exc_info=True)
-                return result
+            except Exception as exc:  # noqa: BLE001 — DESIGN §6.2 fallback on unclassified
+                # Unclassified failure — Phase 21 (C2) restores DESIGN §6.2
+                # fallback semantics: record the attempt with reason="other",
+                # emit ProviderFallbackTriggered for observers, and continue
+                # to the next eligible provider in the chain. If every
+                # candidate fails the post-loop exhausted branch surfaces
+                # ``result.error`` (ACC-13 legacy shape).
+                details_attempted.append(
+                    AttemptOutcome(
+                        provider=RegistryProviderName(provider_name),
+                        reason="other",
+                        detail=type(exc).__name__,
+                    )
+                )
+                self._registry._emit_provider_fallback(
+                    capability="MovieDetailsProvider",
+                    from_provider=provider_name,
+                    reason="other",
+                    exc_type=type(exc).__name__,
+                    item=details_item_context,
+                )
+                log.warning(
+                    "movie_details_failed",
+                    api_title=match.api_title,
+                    provider=provider_name,
+                    exc_type=type(exc).__name__,
+                    error=str(exc),
+                )
+                continue
 
         if movie_data is None:
             # Either no provider matched ``match.source`` or every attempt
