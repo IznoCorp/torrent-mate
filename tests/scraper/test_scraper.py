@@ -1229,8 +1229,9 @@ class TestCircuitBreakerFallback:
         (movies_dir / "Movie A (2024)").mkdir()
         (movies_dir / "Movie B (2024)").mkdir()
 
-        # All circuits open → empty chain
-        mock_registry.chain.return_value = []
+        # All circuits open → empty chain. ``side_effect`` takes precedence
+        # over the conftest's default capability-aware side_effect.
+        mock_registry.chain.side_effect = lambda capability: []
 
         results = scraper.process_movies(movies_dir)
 
@@ -1272,8 +1273,9 @@ class TestCircuitBreakerFallback:
         tvshows_dir.mkdir()
         (tvshows_dir / "Show A (2024)").mkdir()
 
-        # All circuits open → empty chain
-        mock_registry.chain.return_value = []
+        # All circuits open → empty chain. ``side_effect`` takes precedence
+        # over the conftest's default capability-aware side_effect.
+        mock_registry.chain.side_effect = lambda capability: []
 
         results = scraper.process_tvshows(tvshows_dir)
 

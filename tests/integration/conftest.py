@@ -298,11 +298,18 @@ class FakeTMDB:
         _default: Fallback response returned when no key matches.
         circuit: Always-closed circuit breaker stub so process_movies/process_tvshows
             never short-circuits on ``self._tmdb.circuit.can_proceed()``.
+        provider_name: Stable identifier matching the production
+            ``MetadataClient.provider_name`` ClassVar — required by the
+            chain-iteration filter in
+            ``MovieServiceMixin._match_movie_candidates`` (sub-phase 7.1)
+            so the fake is recognised as the matched provider when
+            ``MatchResult.source == "tmdb"``.
     """
 
     _responses: dict[str, Any] = field(default_factory=dict)
     _default: dict[str, Any] = field(default_factory=lambda: {"results": []})
     circuit: FakeCircuit = field(default_factory=FakeCircuit)
+    provider_name: str = "tmdb"
 
     def seed(self, endpoint_fragment: str, payload: dict[str, Any]) -> None:
         """Register a canned JSON response for a given endpoint fragment.
@@ -432,11 +439,15 @@ class FakeTVDB:
         _default: Fallback response when no fragment matches.
         circuit: Always-closed circuit breaker stub so process_tvshows never
             short-circuits on ``self._tvdb.circuit.can_proceed()``.
+        provider_name: Stable identifier matching the production
+            ``MetadataClient.provider_name`` ClassVar — used by the
+            chain-iteration filter in the scraper services (sub-phase 7.1).
     """
 
     _responses: dict[str, Any] = field(default_factory=dict)
     _default: dict[str, Any] = field(default_factory=lambda: {"data": {}})
     circuit: FakeCircuit = field(default_factory=FakeCircuit)
+    provider_name: str = "tvdb"
 
     def seed(self, endpoint_fragment: str, payload: dict[str, Any]) -> None:
         """Register a canned response for a TVDB endpoint fragment.
