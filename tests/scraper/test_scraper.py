@@ -848,7 +848,7 @@ class TestScrapeTvshow:
         show_dir = tmp_path / "Unknown Show (2024)"
         show_dir.mkdir()
 
-        with patch("personalscraper.scraper.scraper.match_tvshow", return_value=None):
+        with patch("personalscraper.scraper.scraper.match_tvshow_single", return_value=None):
             result = scraper.scrape_tvshow(show_dir)
 
         assert result.action == "skipped_low_confidence"
@@ -891,7 +891,7 @@ class TestScrapeTvshow:
         }
 
         with (
-            patch("personalscraper.scraper.scraper.match_tvshow", return_value=match),
+            patch("personalscraper.scraper.scraper.match_tvshow_single", return_value=match),
             patch.object(scraper._registry.get("tmdb"), "get_tv", return_value=show_data),
             patch.object(scraper._artwork, "download_tvshow_artwork", return_value=[]),
         ):
@@ -936,7 +936,7 @@ class TestScrapeTvshow:
         }
 
         with (
-            patch("personalscraper.scraper.scraper.match_tvshow", return_value=match),
+            patch("personalscraper.scraper.scraper.match_tvshow_single", return_value=match),
             patch.object(scraper._registry.get("tvdb"), "get_series", return_value=tvdb_series_data),
             patch.object(scraper._registry.get("tvdb"), "get_remote_ids", return_value={}),  # No tmdb_id
             patch.object(scraper._artwork, "download_tvshow_artwork", return_value=[]),
@@ -982,7 +982,7 @@ class TestScrapeTvshow:
         }
 
         with (
-            patch("personalscraper.scraper.scraper.match_tvshow", return_value=match),
+            patch("personalscraper.scraper.scraper.match_tvshow_single", return_value=match),
             patch.object(scraper._registry.get("tvdb"), "get_series", return_value=tvdb_series_data),
             patch.object(scraper._registry.get("tvdb"), "get_remote_ids", return_value={"tmdb_id": "777"}),
             patch.object(
@@ -1162,7 +1162,7 @@ class TestScrapeTvshowExtra:
         show_dir.mkdir()
 
         with patch(
-            "personalscraper.scraper.scraper.match_tvshow",
+            "personalscraper.scraper.scraper.match_tvshow_single",
             side_effect=ConnectionError("TVDB unreachable"),
         ):
             result = scraper.scrape_tvshow(show_dir)
@@ -1827,7 +1827,7 @@ class TestMediaPathUpdatedAfterRename:
         }
 
         with (
-            patch("personalscraper.scraper.scraper.match_tvshow", return_value=match),
+            patch("personalscraper.scraper.scraper.match_tvshow_single", return_value=match),
             patch.object(scraper._registry.get("tmdb"), "get_tv", return_value=show_data),
             patch.object(scraper._artwork, "download_tvshow_artwork", return_value=[]),
         ):
@@ -2002,7 +2002,7 @@ class TestClassifierIntegration:
         }
 
         with (
-            patch("personalscraper.scraper.scraper.match_tvshow", return_value=match),
+            patch("personalscraper.scraper.scraper.match_tvshow_single", return_value=match),
             patch.object(scraper._registry.get("tmdb"), "get_tv", return_value=show_data),
             patch.object(scraper._artwork, "download_tvshow_artwork", return_value=[]),
         ):
@@ -2588,7 +2588,7 @@ class TestShowArtworkFailedNarrowedExceptions:
         }
 
         with (
-            patch("personalscraper.scraper.scraper.match_tvshow", return_value=match),
+            patch("personalscraper.scraper.scraper.match_tvshow_single", return_value=match),
             patch.object(scraper._registry.get("tmdb"), "get_tv", return_value=show_data),
             patch.object(
                 scraper._artwork,
@@ -2660,7 +2660,7 @@ class TestShowArtworkFailedNarrowedExceptions:
         }
 
         with (
-            patch("personalscraper.scraper.scraper.match_tvshow", return_value=match),
+            patch("personalscraper.scraper.scraper.match_tvshow_single", return_value=match),
             patch.object(scraper._registry.get("tmdb"), "get_tv", return_value=show_data),
             patch.object(
                 scraper._artwork,

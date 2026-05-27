@@ -246,7 +246,7 @@ class TestLegacyFallbackSnapshot:
         NOTE: This is a characterization of CURRENT behavior, not a
         design target. The Phase 2 chain rewrite will change this outcome.
         """
-        with patch("personalscraper.scraper.scraper.match_tvshow", return_value=None):
+        with patch("personalscraper.scraper.scraper.match_tvshow_single", return_value=None):
             results = scraper.process_tvshows(tvshows_dir)
 
         assert len(results) == 1

@@ -80,6 +80,13 @@ def _make_mixin(
 
     _tvdb_client = tvdb if tvdb is not None else MagicMock()
     _tmdb_client = tmdb if tmdb is not None else MagicMock()
+    # The chain-iteration path introduced by sub-phase 7.2 reads
+    # ``provider.provider_name`` to dispatch per-provider matching and
+    # filter the details fetch by ``match.source``. The pre-existing
+    # tests construct bare MagicMocks for the clients; we wire the
+    # attribute here so the chain helpers route correctly.
+    _tvdb_client.provider_name = "tvdb"
+    _tmdb_client.provider_name = "tmdb"
     _registry = MagicMock()
     _registry.get.side_effect = (
         lambda name,
@@ -88,6 +95,16 @@ def _make_mixin(
             "tvdb": _tvdb_client,
         }: _cache.get(name, MagicMock())
     )
+    # ``chain(TvDetailsProvider)`` / ``chain(EpisodeFetcher)`` return the
+    # TV providers in (TVDB, TMDB) priority order — the default rank
+    # declared in ``config.metadata.priorities.tv_match``.
+    _registry.chain.return_value = [_tvdb_client, _tmdb_client]
+    # ``_emit_provider_fallback`` / ``_emit_provider_exhausted`` are
+    # no-ops on the MagicMock (the events themselves are exercised by
+    # registry unit tests; here we just make sure the call site does
+    # not blow up).
+    _registry._emit_provider_fallback = MagicMock()
+    _registry._emit_provider_exhausted = MagicMock()
     mixin._registry = _registry  # type: ignore[assignment]
     # Keep backward-compat attrs for test code that reads them directly.
     mixin._tvdb = _tvdb_client  # type: ignore[assignment]
@@ -286,7 +303,7 @@ class TestLookupSeries:
         mixin = _make_mixin()
         result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
         with patch(
-            "personalscraper.scraper.scraper.match_tvshow",
+            "personalscraper.scraper.scraper.match_tvshow_single",
             side_effect=RuntimeError("boom"),
         ):
             out = mixin._lookup_series("X", None, set(), result)
@@ -299,7 +316,7 @@ class TestLookupSeries:
         mixin = _make_mixin()
         result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
         with patch(
-            "personalscraper.scraper.scraper.match_tvshow",
+            "personalscraper.scraper.scraper.match_tvshow_single",
             return_value=None,
         ):
             out = mixin._lookup_series("X", None, set(), result)
@@ -312,7 +329,7 @@ class TestLookupSeries:
         result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
         match = MatchResult(api_id=1, api_title="X", api_year=2020, confidence=0.0, source="tmdb")
         with patch(
-            "personalscraper.scraper.scraper.match_tvshow",
+            "personalscraper.scraper.scraper.match_tvshow_single",
             return_value=match,
         ):
             out = mixin._lookup_series("X", None, set(), result)
@@ -334,7 +351,7 @@ class TestLookupSeries:
         result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
         match = MatchResult(api_id=42, api_title="Show", api_year=2020, confidence=0.95, source="tvdb")
         with patch(
-            "personalscraper.scraper.scraper.match_tvshow",
+            "personalscraper.scraper.scraper.match_tvshow_single",
             return_value=match,
         ):
             out = mixin._lookup_series("Show", 2020, {1}, result)
@@ -354,7 +371,7 @@ class TestLookupSeries:
         result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
         match = MatchResult(api_id=42, api_title="Show", api_year=2020, confidence=0.95, source="tvdb")
         with patch(
-            "personalscraper.scraper.scraper.match_tvshow",
+            "personalscraper.scraper.scraper.match_tvshow_single",
             return_value=match,
         ):
             out = mixin._lookup_series("Show", 2020, {1}, result)
@@ -381,7 +398,7 @@ class TestLookupSeries:
             source="tmdb",
         )
         with patch(
-            "personalscraper.scraper.scraper.match_tvshow",
+            "personalscraper.scraper.scraper.match_tvshow_single",
             return_value=match,
         ):
             out = mixin._lookup_series("TmdbShow", 2021, {1}, result)
@@ -404,7 +421,7 @@ class TestLookupSeries:
             source="tmdb",
         )
         with patch(
-            "personalscraper.scraper.scraper.match_tvshow",
+            "personalscraper.scraper.scraper.match_tvshow_single",
             return_value=match,
         ):
             out = mixin._lookup_series("X", 2021, set(), result)
@@ -1051,7 +1068,7 @@ class TestScrapeTvshowDriftAndFastPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow",
+                "personalscraper.scraper.scraper.match_tvshow_single",
                 return_value=None,
             ),
         ):
@@ -1105,7 +1122,7 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow",
+                "personalscraper.scraper.scraper.match_tvshow_single",
                 return_value=None,
             ),
         ):
@@ -1129,7 +1146,7 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow",
+                "personalscraper.scraper.scraper.match_tvshow_single",
                 return_value=match,
             ),
         ):
@@ -1154,7 +1171,7 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow",
+                "personalscraper.scraper.scraper.match_tvshow_single",
                 return_value=match,
             ),
         ):
@@ -1179,7 +1196,7 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow",
+                "personalscraper.scraper.scraper.match_tvshow_single",
                 return_value=match,
             ),
         ):
@@ -1204,7 +1221,7 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow",
+                "personalscraper.scraper.scraper.match_tvshow_single",
                 return_value=match,
             ),
         ):
@@ -1230,7 +1247,7 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow",
+                "personalscraper.scraper.scraper.match_tvshow_single",
                 return_value=match,
             ),
         ):
@@ -1255,7 +1272,7 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow",
+                "personalscraper.scraper.scraper.match_tvshow_single",
                 return_value=match,
             ),
         ):
@@ -1280,7 +1297,7 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow",
+                "personalscraper.scraper.scraper.match_tvshow_single",
                 return_value=match,
             ),
             patch(
@@ -1337,7 +1354,7 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow",
+                "personalscraper.scraper.scraper.match_tvshow_single",
                 return_value=match,
             ),
         ):
@@ -1390,7 +1407,7 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow",
+                "personalscraper.scraper.scraper.match_tvshow_single",
                 return_value=match,
             ),
             caplog.at_level("WARNING"),
@@ -1426,7 +1443,7 @@ def test_lookup_series_emits_match_attribute(tmp_path: Path, source: str) -> Non
     result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
     match = MatchResult(api_id=1, api_title="X", api_year=2020, confidence=0.9, source=source)
     with patch(
-        "personalscraper.scraper.scraper.match_tvshow",
+        "personalscraper.scraper.scraper.match_tvshow_single",
         return_value=match,
     ):
         out = mixin._lookup_series("X", 2020, set(), result)
