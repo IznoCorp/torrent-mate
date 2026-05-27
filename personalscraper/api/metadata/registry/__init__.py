@@ -376,7 +376,7 @@ class ProviderRegistry:
     def chain(self, capability: type[TvDetailsProvider]) -> list[TvDetailsProvider]: ...
     @overload
     def chain(self, capability: type[EpisodeFetcher]) -> list[EpisodeFetcher]: ...
-    def chain(self, capability: type) -> list[Any]:
+    def chain(self, capability):  # type: ignore[no-untyped-def]
         """Ordered list of eligible providers for chain capabilities.
 
         Eligible = circuit CLOSED or HALF_OPEN (HALF_OPEN is probe — see DESIGN §7.6).
@@ -488,7 +488,7 @@ class ProviderRegistry:
         capability: type[RecommendationProvider],
         match: ProviderMatch,
     ) -> LockedProvider[RecommendationProvider] | None: ...
-    def locked(self, capability: type, match: ProviderMatch) -> LockedProvider[Any] | None:
+    def locked(self, capability, match):  # type: ignore[no-untyped-def]
         """Provider bound to match's id (IDCrossRef escape if needed).
 
         Algorithm (DESIGN §6.4):
