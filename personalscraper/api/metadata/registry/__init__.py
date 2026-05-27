@@ -338,6 +338,12 @@ class ProviderRegistry:
             )
         )
 
+        log.info(
+            "registry_boot_loaded",
+            providers_count=len(self._providers),
+            capabilities_count=len(self._index),
+        )
+
     # --- The three semantic operations ---
 
     @overload
@@ -363,7 +369,21 @@ class ProviderRegistry:
                 f"{capability.__name__} is not a chain capability — use the correct registry operation."
             )
         names = self._index.get(capability, [])
-        return [self._providers[n] for n in names if n in self._providers and _eligible(self._providers[n])]
+        result: list[Any] = []
+        for n in names:
+            if n not in self._providers:
+                continue
+            provider = self._providers[n]
+            if not _eligible(provider):
+                log.debug(
+                    "registry_provider_skip",
+                    provider=n,
+                    capability=capability.__name__,
+                    reason="circuit_open",
+                )
+                continue
+            result.append(provider)
+        return result
 
     def fan_out(self, capability: type[RatingProvider]) -> list[RatingProvider]:
         """All eligible providers for fan-out capabilities. May return [].
@@ -380,7 +400,27 @@ class ProviderRegistry:
                 f"{capability.__name__} is not a fan_out capability — use the correct registry operation."
             )
         names = self._index.get(capability, [])
-        eligible = [self._providers[n] for n in names if n in self._providers and _eligible(self._providers[n])]
+        eligible: list[Any] = []
+        for n in names:
+            if n not in self._providers:
+                continue
+            provider = self._providers[n]
+            if not _eligible(provider):
+                log.debug(
+                    "registry_provider_skip",
+                    provider=n,
+                    capability=capability.__name__,
+                    reason="circuit_open",
+                )
+                continue
+            eligible.append(provider)
+
+        log.info(
+            "registry_fan_out_partial",
+            capability=capability.__name__,
+            providers_tried=len(names),
+            providers_succeeded=len(eligible),
+        )
         self._event_bus_safe_emit(
             RegistryFanOutCompleted(
                 capability=capability.__name__,
@@ -388,7 +428,7 @@ class ProviderRegistry:
                 succeeded=len(eligible),
             )
         )
-        return eligible  # type: ignore[return-value]
+        return eligible
 
     @overload
     def locked(
