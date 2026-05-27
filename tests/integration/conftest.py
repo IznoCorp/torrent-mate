@@ -692,7 +692,7 @@ def fake_tmdb(monkeypatch: pytest.MonkeyPatch) -> FakeTMDB:
         mock_cls,
     )
     monkeypatch.setattr(
-        "personalscraper.scraper.scraper.TMDBClient",
+        "personalscraper.api.metadata.tmdb.TMDBClient",
         mock_cls,
     )
     # Mock HttpTransport so Scraper.__init__ doesn't build real sessions.
@@ -735,9 +735,9 @@ def fake_tvdb(monkeypatch: pytest.MonkeyPatch) -> FakeTVDB:
         "personalscraper.api.metadata.tvdb.TVDBClient",
         lambda *args, **kwargs: stub,
     )
-    # Also patch the already-imported name in scraper.py (same rationale as fake_tmdb).
+    # Patch the canonical TVDBClient location (registry-era — no scraper.scraper re-export).
     monkeypatch.setattr(
-        "personalscraper.scraper.scraper.TVDBClient",
+        "personalscraper.api.metadata.tvdb.TVDBClient",
         lambda *args, **kwargs: stub,
     )
     return stub

@@ -177,6 +177,9 @@ def _patch_provider_registry_for_cli_tests(request, monkeypatch):
         "tests/integration/api/metadata/registry",
         "tests/integration/scraper/test_legacy_fallback_snapshot.py",
         "tests/event_bus/test_step_item_progressed_emit.py",
+        # Tests that need the real ProviderRegistry class for MagicMock(spec=...) shaping.
+        "tests/integration/test_scrape.py",
+        "tests/integration/test_full_pipeline.py",
     )
     if any(skip in fspath_str for skip in skip_paths):
         yield
