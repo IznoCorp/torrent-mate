@@ -3,7 +3,7 @@
 Verifies the three no-circuit eligibility categories:
 
 1. **Documented no-circuit providers** (IMDb / RottenTomatoes façades) — allowed.
-2. **Test fakes** (``Fake*`` / ``_Fake*`` class names) — allowed.
+2. **Test fakes** (classes with ``_registry_test_fake: ClassVar[bool] = True``) — allowed.
 3. **Unknown real provider without circuit** — rejected with a warning.
 """
 
@@ -38,9 +38,10 @@ def test_eligible_imdb_facade_no_circuit_allowed():
 
 
 def test_eligible_fake_class_no_circuit_allowed():
-    """Test fake class (Fake* prefix, no circuit) → eligible heuristic."""
+    """Test fake class (_registry_test_fake marker, no circuit) → eligible."""
 
     class FakeProvider:
         provider_name: ClassVar[str] = "fake_test"
+        _registry_test_fake: ClassVar[bool] = True  # explicit opt-in marker
 
     assert _eligible(FakeProvider()) is True

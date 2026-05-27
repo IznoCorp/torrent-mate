@@ -238,7 +238,7 @@ def _eligible(provider: object) -> bool:
 
     1. **Documented no-circuit providers** (IMDb / RottenTomatoes façades
        whose circuit lives on the shared OMDbAdapter backend) — allowed.
-    2. **Test fakes** (classes named ``Fake*`` or ``_Fake*``) — allowed.
+    2. **Test fakes** (classes with ``_registry_test_fake: ClassVar[bool] = True``) — allowed.
     3. **Unknown real provider without circuit** — rejected with a warning,
        catching refactor regressions where ``.circuit`` was accidentally
        dropped.
@@ -252,10 +252,10 @@ def _eligible(provider: object) -> bool:
     if name in _NO_CIRCUIT_ALLOWLIST:
         return True
 
-    cls_name = type(provider).__name__
-    if cls_name.startswith(("Fake", "_Fake")):
+    if getattr(provider, "_registry_test_fake", False) is True:
         return True
 
+    cls_name = type(provider).__name__
     log.warning(
         "registry_provider_no_circuit",
         provider=name or "<unknown>",
