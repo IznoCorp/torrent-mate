@@ -11,6 +11,7 @@ from typer.testing import CliRunner
 
 from personalscraper.cli import AppCtx, app
 from personalscraper.models import PipelineReport, StepReport
+from tests.fixtures.settings_stub import make_typed_settings_stub
 
 runner = CliRunner()
 
@@ -565,7 +566,7 @@ class TestLibraryValidate:
             patch("personalscraper.cli.get_settings") as mock_settings,
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
         ):
-            mock_settings.return_value = MagicMock()
+            mock_settings.return_value = make_typed_settings_stub()
             result = runner.invoke(app, ["library-validate", "--apply"])
         assert result.exit_code == 1
 
@@ -705,7 +706,7 @@ class TestLibraryRescrape:
             patch("personalscraper.cli.get_settings") as mock_settings,
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
         ):
-            mock_settings.return_value = MagicMock()
+            mock_settings.return_value = make_typed_settings_stub()
             result = runner.invoke(app, ["library-rescrape", "--only", "invalid"])
         assert result.exit_code == 1
 

@@ -7,7 +7,7 @@ Follows the 8-section pattern.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from personalscraper.models import StepReport
 from tests.commands._e2e_helpers import (
@@ -16,6 +16,7 @@ from tests.commands._e2e_helpers import (
     capture_event_bus,
     run_cli,
 )
+from tests.fixtures.settings_stub import make_typed_settings_stub
 
 
 def _sort_report(**kw: int) -> StepReport:
@@ -48,7 +49,7 @@ def test_sort_fast_skip_no_items(
 ) -> None:
     """Empty ingest dir → fast-skip, zero ops, exit 0."""
     mock_run.return_value = StepReport(name="sort")
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["sort"])
 
@@ -78,7 +79,7 @@ def test_sort_with_items(
             "Another.Movie -> 001-MOVIES/Another Movie (2023)",
         ],
     )
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["sort"])
 
@@ -100,7 +101,7 @@ def test_sort_lock_contention(
     mock_settings,
 ) -> None:
     """Lock held → exit 1, friendly message, no traceback."""
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["sort"])
 
@@ -121,7 +122,7 @@ def test_sort_with_errors(
 ) -> None:
     """run_sort reports errors → exit 0, errors in summary."""
     mock_run.return_value = StepReport(name="sort", error_count=2, warnings=["ERROR bad_file: permission denied"])
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["sort"])
 
@@ -144,7 +145,7 @@ def test_sort_idempotent(
 ) -> None:
     """Two consecutive sort calls exit 0, mock called twice."""
     mock_run.return_value = StepReport(name="sort", skip_count=5)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     r1 = run_cli(["sort"])
     r2 = run_cli(["sort"])
@@ -170,7 +171,7 @@ def test_sort_dry_run_forwards_flag(
 ) -> None:
     """--dry-run flag is forwarded to run_sort."""
     mock_run.return_value = StepReport(name="sort")
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["sort", "--dry-run"])
 
@@ -194,7 +195,7 @@ def test_sort_output_no_traceback(
 ) -> None:
     """Output is Rich-formatted, never a raw Python traceback."""
     mock_run.return_value = StepReport(name="sort", success_count=1)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["sort"])
 
@@ -218,7 +219,7 @@ def test_sort_verbose_prints_details(
         success_count=1,
         details=["My.Movie.2024.1080p -> 001-MOVIES/My Movie (2024)"],
     )
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["--verbose", "sort"])
 
@@ -241,7 +242,7 @@ def test_sort_emits_item_progressed_events(
     """run_sort emits ItemProgressed events on the shared EventBus."""
     from personalscraper.pipeline_events import ItemProgressed
 
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
     captured = capture_event_bus(monkeypatch)
 
     def _emit_and_return(*args, **kwargs):
