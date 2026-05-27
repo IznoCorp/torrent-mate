@@ -55,10 +55,18 @@ class UnknownProviderError(RegistryError):
 class ProviderExhausted(RegistryError):
     """All chain providers failed for an item.
 
+    Carries the last underlying exception so the immediate caller can
+    surface the original error message in legacy fail-soft contracts
+    (DESIGN §6.2 + §10) — ACC-13 requires that ``"<original detail>"``
+    appears in ``result.error`` after the chain raises.
+
     Attributes:
         capability: The capability Protocol type that was exhausted.
         attempted: The list of ``AttemptOutcome`` for each tried provider.
         item_context: Optional dict with item details for diagnostics.
+        last_exception: The last exception raised by a chain provider
+            (``CircuitOpenError`` / ``ApiError`` / ``OSError`` …) — used
+            by callers to preserve the original error message.
     """
 
     def __init__(
@@ -66,11 +74,17 @@ class ProviderExhausted(RegistryError):
         capability: type,
         attempted: list[AttemptOutcome],
         item_context: dict[str, Any] | None = None,
+        last_exception: Exception | None = None,
     ) -> None:
         self.capability = capability
         self.attempted = attempted
         self.item_context = item_context
-        super().__init__(f"All providers exhausted for {capability.__name__}: {[a.provider for a in attempted]}")
+        self.last_exception = last_exception
+        last_msg = f": {last_exception}" if last_exception is not None else ""
+        super().__init__(
+            f"Chain exhausted for {capability.__name__}{last_msg} "
+            f"(attempted: {[a.provider for a in attempted]})"
+        )
 
 
 class WrongSemanticBug(RegistryError):
