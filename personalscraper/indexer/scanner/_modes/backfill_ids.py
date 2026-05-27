@@ -19,6 +19,15 @@ per-item (not per-disk) so it does not benefit from the
 disk-iteration scaffolding the other modes share. Callers — the CLI
 ``personalscraper indexer backfill-ids`` sub-command and the
 post-scrape auto-trigger — invoke :func:`run_backfill_ids` directly.
+
+Provider dispatch is delegated to the :class:`ProviderRegistry`
+(registry feature, DESIGN §6). The driver no longer accepts individual
+typed clients: cross-provider ID lookups iterate
+``registry.chain(MovieDetailsProvider | TvDetailsProvider)`` filtered
+to the canonical provider name (DESIGN §3 — the canonical scrape owns
+authority over its family; non-canonical chain peers cannot stand in
+for the canonical provider here), and rating aggregation uses
+``registry.fan_out(RatingProvider)`` (DESIGN §6.3).
 """
 
 from __future__ import annotations
@@ -27,9 +36,17 @@ import json
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any
 
+import requests
+
+from personalscraper.api._contracts import ApiError, CircuitOpenError
 from personalscraper.api._helpers import ProviderFeatureUnavailable
+from personalscraper.api.metadata._contracts import (
+    MovieDetailsProvider,
+    RatingProvider,
+    TvDetailsProvider,
+)
 from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.backfill_ids import (
     BackfillGap,
@@ -45,28 +62,10 @@ from personalscraper.indexer.events import (
 )
 from personalscraper.logger import get_logger
 
+if TYPE_CHECKING:
+    from personalscraper.api.metadata.registry import ProviderRegistry
+
 log = get_logger("indexer.backfill_ids")
-
-
-class _RatingClient(Protocol):
-    """Structural type for the IMDb / RT façades the driver consults."""
-
-    def get_rating(self, provider_id: str) -> list[Any] | None: ...
-
-
-class _DetailsClient(Protocol):
-    """Structural type for the TMDB / TVDB metadata clients used for ID cross-ref.
-
-    Both :meth:`get_movie` and :meth:`get_tv` are required because a
-    backfill pass dispatches on ``media_item.kind`` ("movie" vs
-    "show"). The return type carries an ``external_ids`` mapping
-    (``dict[str, str]`` keyed by provider family) which the driver
-    feeds to :func:`merge_ids_without_overwrite`.
-    """
-
-    def get_movie(self, provider_id: str | int) -> Any: ...
-
-    def get_tv(self, provider_id: str | int) -> Any: ...
 
 
 @dataclass
@@ -96,10 +95,7 @@ def run_backfill_ids(
     conn: sqlite3.Connection,
     *,
     event_bus: EventBus,
-    imdb_client: _RatingClient | None = None,
-    rt_client: _RatingClient | None = None,
-    tmdb_client: _DetailsClient | None = None,
-    tvdb_client: _DetailsClient | None = None,
+    registry: ProviderRegistry | None = None,
     show_filter: str | None = None,
     ids_only: bool = False,
     ratings_only: bool = False,
@@ -115,18 +111,16 @@ def run_backfill_ids(
 
     Args:
         conn: Open writer connection on the indexer DB.
-        imdb_client: IMDb façade used to fetch IMDb ratings (DESIGN
-            §4). ``None`` skips IMDb rating backfill.
-        rt_client: Rotten Tomatoes façade. ``None`` skips RT rating
-            backfill.
-        tmdb_client: TMDB metadata client used to read cross-provider
-            IDs from the canonical TMDB payload (``external_ids``
-            field on :class:`MediaDetails`). Required when any row is
-            canonical-tmdb AND missing TVDB / IMDb IDs ; without it
-            the IDs side becomes a no-op and emits one
-            ``backfill_ids_path_no_client`` log per affected row.
-        tvdb_client: TVDB metadata client — symmetric role for rows
-            whose canonical provider is ``"tvdb"``.
+        event_bus: :class:`EventBus` used to publish
+            ``BackfillStarted`` / ``BackfillItemCompleted`` /
+            ``BackfillSkipped`` / ``BackfillCompleted`` events.
+        registry: :class:`ProviderRegistry` from which the driver
+            obtains rating providers (``fan_out(RatingProvider)``) and
+            canonical details providers (``chain(MovieDetailsProvider)``
+            / ``chain(TvDetailsProvider)``). ``None`` is accepted only
+            for ``dry_run=True`` smoke paths where no provider call
+            occurs; otherwise the IDs side becomes a no-op and the
+            ratings side returns an empty list.
         show_filter: Restrict the pass to the show whose title equals
             this string. Useful for the post-scrape auto-trigger.
             The filter is normalised via ``_canonical_title`` (trailing
@@ -135,11 +129,6 @@ def run_backfill_ids(
         ids_only: When ``True``, do not fetch ratings.
         ratings_only: When ``True``, do not fetch IDs.
         dry_run: When ``True``, every DB write is rolled back.
-        event_bus: Optional :class:`EventBus` used to publish
-            ``BackfillStarted`` / ``BackfillItemCompleted`` /
-            ``BackfillSkipped`` / ``BackfillCompleted`` events. When
-            ``None``, the pass runs silently from a subscriber's
-            perspective.
 
     Returns:
         Aggregated :class:`BackfillStats`.
@@ -148,19 +137,19 @@ def run_backfill_ids(
     rows = _fetch_candidate_rows(conn, show_filter=show_filter)
     scope = show_filter if show_filter else "library"
     event_bus.emit(BackfillStarted(scope=scope, item_count=len(rows)))
-    if not ratings_only and tmdb_client is None and tvdb_client is None:
-        # Without a canonical metadata client the IDs side cannot do
-        # anything beyond the per-row warning below. Log once up-front
-        # so operators see the cause without grepping the per-row noise.
+    if not ratings_only and registry is None:
+        # Without a registry the IDs side cannot do anything beyond the
+        # per-row warning below. Log once up-front so operators see the
+        # cause without grepping the per-row noise.
         log.warning(
-            "backfill_ids_path_disabled_no_canonical_client",
-            hint="Pass tmdb_client and/or tvdb_client to enable cross-provider ID backfill.",
+            "backfill_ids_path_disabled_no_registry",
+            hint="Pass registry=<ProviderRegistry> to enable cross-provider ID + rating backfill.",
         )
     from personalscraper.api.metadata.omdb import OmdbQuotaExhausted  # noqa: PLC0415
 
     # Local flag, not mutation of the function arguments — once OMDB
     # quota signals exhaustion, every subsequent row's rating fetch is
-    # skipped without changing the caller-passed client references.
+    # skipped without forcing the caller to reconstruct a registry.
     ratings_disabled = False
 
     for row in rows:
@@ -169,10 +158,8 @@ def run_backfill_ids(
             updated, ids_added, ratings_added, skip_reason = _backfill_one(
                 conn,
                 row,
-                imdb_client=None if ratings_disabled else imdb_client,
-                rt_client=None if ratings_disabled else rt_client,
-                tmdb_client=tmdb_client,
-                tvdb_client=tvdb_client,
+                registry=registry,
+                ratings_disabled=ratings_disabled,
                 ids_only=ids_only,
                 ratings_only=ratings_only,
                 dry_run=dry_run,
@@ -281,10 +268,8 @@ def _backfill_one(
     conn: sqlite3.Connection,
     row: sqlite3.Row,
     *,
-    imdb_client: _RatingClient | None,
-    rt_client: _RatingClient | None,
-    tmdb_client: _DetailsClient | None,
-    tvdb_client: _DetailsClient | None,
+    registry: ProviderRegistry | None,
+    ratings_disabled: bool,
     ids_only: bool,
     ratings_only: bool,
     dry_run: bool,
@@ -319,8 +304,7 @@ def _backfill_one(
         cross_ids = _fetch_cross_provider_ids(
             row,
             canonical=canonical,
-            tmdb_client=tmdb_client,
-            tvdb_client=tvdb_client,
+            registry=registry,
         )
         new_external_ids, ids_added = merge_ids_without_overwrite(
             external_ids_json,
@@ -338,8 +322,7 @@ def _backfill_one(
             row,
             external_ids_json=new_external_ids,
             gap=gap,
-            imdb_client=imdb_client,
-            rt_client=rt_client,
+            registry=None if ratings_disabled else registry,
         )
         new_ratings, ratings_added = merge_ratings_without_overwrite(
             ratings_json,
@@ -388,31 +371,40 @@ def _fetch_cross_provider_ids(
     row: sqlite3.Row,
     *,
     canonical: str | None,
-    tmdb_client: _DetailsClient | None,
-    tvdb_client: _DetailsClient | None,
+    registry: ProviderRegistry | None,
 ) -> dict[str, str]:
     """Return the cross-provider IDs reachable from the canonical anchor.
 
     Reads the canonical provider's series ID from ``external_ids_json``
-    and dispatches to the matching client's ``get_tv`` / ``get_movie``
-    method (based on ``media_item.kind``). The returned
+    and routes the lookup through ``registry.chain()``: iterates the
+    movie / TV details chain (depending on ``media_item.kind``),
+    selects the provider whose ``provider_name`` matches ``canonical``,
+    and calls its ``get_tv`` / ``get_movie`` method. The returned
     :class:`MediaDetails.external_ids` carries TVDB / TMDB / IMDb IDs
     when the provider knows them ; the dict is suitable for direct
     use with :func:`merge_ids_without_overwrite`.
 
-    Returns ``{}`` (and logs once) when no client matches the
-    canonical provider, when no canonical anchor is recorded yet, or
-    when the upstream call fails. The caller stays fail-soft.
+    The canonical-name filter preserves DESIGN §3 "canonical's
+    authority is absolute": non-canonical chain peers cannot stand in
+    for the canonical provider here — falling back to a peer would
+    create cross-contamination. Per-provider failures
+    (CircuitOpenError, network) emit ``ProviderFallbackTriggered`` and
+    return ``{}``; full chain exhaustion (the canonical provider not
+    eligible) emits ``ProviderExhaustedEvent``.
+
+    Returns ``{}`` (and logs once) when no chain provider matches the
+    canonical, when no canonical anchor is recorded yet, or when the
+    upstream call fails. The caller stays fail-soft.
 
     Args:
         row: ``media_item`` row carrying ``kind`` + ``external_ids_json``.
         canonical: ``media_item.canonical_provider`` value
             (``"tmdb"`` / ``"tvdb"`` / ``None``).
-        tmdb_client: TMDB client used when ``canonical == "tmdb"``.
-        tvdb_client: TVDB client used when ``canonical == "tvdb"``.
+        registry: Provider registry to source the canonical details
+            client from. ``None`` short-circuits to ``{}`` after a
+            single warning (mirrors the legacy "no client passed"
+            branch).
     """
-    import json as _json  # noqa: PLC0415
-
     if canonical not in ("tmdb", "tvdb"):
         # Future-proofing for hypothetical imdb/other canonicals — log
         # at debug since today's data shape never hits this branch.
@@ -423,22 +415,17 @@ def _fetch_cross_provider_ids(
             title=row["title"],
         )
         return {}
-    client: _DetailsClient | None
-    if canonical == "tmdb":
-        client = tmdb_client
-    else:
-        client = tvdb_client
-    if client is None:
+    if registry is None:
         log.warning(
-            "backfill_ids_path_no_client",
+            "backfill_ids_path_no_registry",
             canonical=canonical,
             item_id=row["id"],
             title=row["title"],
         )
         return {}
     try:
-        eids = _json.loads(row["external_ids_json"] or "{}")
-    except _json.JSONDecodeError as exc:
+        eids = json.loads(row["external_ids_json"] or "{}")
+    except json.JSONDecodeError as exc:
         log.warning(
             "backfill_ids_json_decode_failed",
             item_id=row["id"],
@@ -456,14 +443,95 @@ def _fetch_cross_provider_ids(
             hint="canonical_provider set but external_ids_json carries no series_id — drift candidate",
         )
         return {}
+
+    # Resolve the chain capability based on the row's kind. The
+    # canonical-name filter preserves DESIGN §3: only the canonical
+    # provider's details are authoritative for the cross-refs lookup.
+    is_show = row["kind"] == "show"
+    capability_name: str
+    providers: list[Any]
+    if is_show:
+        providers = list(registry.chain(TvDetailsProvider))  # type: ignore[type-abstract]
+        capability_name = "TvDetailsProvider"
+    else:
+        providers = list(registry.chain(MovieDetailsProvider))  # type: ignore[type-abstract]
+        capability_name = "MovieDetailsProvider"
+
+    item_context: dict[str, Any] = {
+        "title": row["title"],
+        "kind": row["kind"],
+        "item_id": row["id"],
+    }
+    canonical_match: Any = None
+    for provider in providers:
+        if getattr(provider, "provider_name", None) == canonical:
+            canonical_match = provider
+            break
+
+    if canonical_match is None:
+        # The canonical provider is either absent from the chain
+        # (registry config doesn't list it under this capability) or
+        # filtered out by the circuit breaker (CIRCUIT_OPEN). The
+        # legacy "client is None" branch logged a warning — match
+        # that behaviour and emit an exhausted event for observers.
+        log.warning(
+            "backfill_ids_canonical_not_in_chain",
+            canonical=canonical,
+            capability=capability_name,
+            item_id=row["id"],
+            title=row["title"],
+        )
+        registry._emit_provider_exhausted(  # noqa: SLF001 — chain-iteration site
+            capability=capability_name,
+            attempted=[],
+            item=item_context,
+        )
+        return {}
+
     try:
-        if row["kind"] == "show":
-            details = client.get_tv(canonical_id)
+        if is_show:
+            details = canonical_match.get_tv(canonical_id)
         else:
-            details = client.get_movie(canonical_id)
+            details = canonical_match.get_movie(canonical_id)
+    except CircuitOpenError:
+        registry._emit_provider_fallback(  # noqa: SLF001
+            capability=capability_name,
+            from_provider=canonical,
+            reason="circuit_open",
+            item=item_context,
+        )
+        log.debug(
+            "registry_provider_skip",
+            provider=canonical,
+            capability=capability_name,
+            reason="circuit_open",
+        )
+        registry._emit_provider_exhausted(  # noqa: SLF001
+            capability=capability_name,
+            attempted=[],
+            item=item_context,
+        )
+        return {}
+    except (ApiError, requests.RequestException, OSError) as exc:
+        registry._emit_provider_fallback(  # noqa: SLF001
+            capability=capability_name,
+            from_provider=canonical,
+            reason="network",
+            exc_type=type(exc).__name__,
+            item=item_context,
+        )
+        log.warning(
+            "backfill_cross_ref_fetch_failed",
+            canonical=canonical,
+            item_id=row["id"],
+            title=row["title"],
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+        return {}
     except (TypeError, AttributeError, KeyError):
         # Programmer-class — let it surface (signature drift, renamed
-        # field on the response model). The fail-soft handler below is
+        # field on the response model). The fail-soft handler above is
         # for transport / parse failures, not refactor regressions.
         raise
     except Exception as exc:  # noqa: BLE001 — fail-soft contract
@@ -490,6 +558,12 @@ def _fetch_cross_provider_ids(
             item_id=row["id"],
             title=row["title"],
         )
+        registry._emit_provider_fallback(  # noqa: SLF001
+            capability=capability_name,
+            from_provider=canonical,
+            reason="empty_result",
+            item=item_context,
+        )
         return {}
     return {family: str(value) for family, value in external_ids.items() if value}
 
@@ -499,22 +573,45 @@ def _fetch_ratings(
     *,
     external_ids_json: str,
     gap: BackfillGap,
-    imdb_client: _RatingClient | None,
-    rt_client: _RatingClient | None,
+    registry: ProviderRegistry | None,
 ) -> list[dict[str, Any]]:
-    """Query the IMDb / RT façades for the missing rating sources.
+    """Query rating providers via ``registry.fan_out`` for missing sources.
 
     Returns an empty list when the row has no IMDb ID to anchor the
-    OMDb-backed lookups — IMDb and Rotten Tomatoes both key by the
-    IMDb tt-ID, so without it neither façade can answer. Callers pass
-    the post-IDs-merge ``external_ids_json`` so a freshly-fetched IMDb
+    rating lookups — IMDb and Rotten Tomatoes both key by the IMDb
+    tt-ID, so without it neither façade can answer. Callers pass the
+    post-IDs-merge ``external_ids_json`` so a freshly-fetched IMDb
     anchor is visible in the same pass.
-    """
-    import json as _json  # noqa: PLC0415
 
+    Iterates ``registry.fan_out(RatingProvider).values`` (DESIGN §6.3)
+    in priority order. Each provider whose ``provider_name`` matches a
+    source in ``gap.missing_rating_sources`` is queried with the IMDb
+    anchor; the returned :class:`Notations` rows are serialised to
+    dicts suitable for :func:`merge_ratings_without_overwrite`. The
+    merge layer dedupes by ``source`` so providers that surface
+    multiple sources (the OMDb façades each surface their own source)
+    compose without duplication.
+
+    Args:
+        row: ``media_item`` row used only for log context.
+        external_ids_json: Post-IDs-merge external IDs payload — read
+            to extract the IMDb anchor.
+        gap: Detected gap; used to filter eligible providers by
+            ``source`` and to short-circuit when no rating source is
+            missing.
+        registry: :class:`ProviderRegistry`. ``None`` (when
+            ``ratings_disabled`` is set or no registry was passed)
+            short-circuits to ``[]``.
+
+    Returns:
+        Serialised rating entries (dicts), one per provider call that
+        returned at least one notation.
+    """
+    if registry is None:
+        return []
     try:
-        eids = _json.loads(external_ids_json or "{}")
-    except _json.JSONDecodeError as exc:
+        eids = json.loads(external_ids_json or "{}")
+    except json.JSONDecodeError as exc:
         log.warning(
             "backfill_ratings_json_decode_failed",
             item_id=row["id"],
@@ -526,16 +623,26 @@ def _fetch_ratings(
     if not imdb_id:
         return []
 
+    fan_out_result = registry.fan_out(RatingProvider)  # type: ignore[type-abstract]
     entries: list[dict[str, Any]] = []
-    if "imdb" in gap.missing_rating_sources and imdb_client is not None:
-        entries.extend(_call_rating_client(imdb_client, imdb_id))
-    if "rotten_tomatoes" in gap.missing_rating_sources and rt_client is not None:
-        entries.extend(_call_rating_client(rt_client, imdb_id))
+    for provider in fan_out_result.values:
+        source = getattr(provider, "provider_name", type(provider).__name__)
+        if source not in gap.missing_rating_sources:
+            continue
+        entries.extend(_call_rating_provider(provider, imdb_id, source))
     return entries
 
 
-def _call_rating_client(client: _RatingClient, provider_id: str) -> list[dict[str, Any]]:
-    """Call ``client.get_rating`` returning serialisable dicts or an empty list.
+def _call_rating_provider(provider: RatingProvider, provider_id: str, source: str) -> list[dict[str, Any]]:
+    """Call ``provider.get_rating`` returning serialisable dicts or an empty list.
+
+    Args:
+        provider: A :class:`RatingProvider` instance obtained from
+            ``registry.fan_out(RatingProvider)``.
+        provider_id: The IMDb tt-ID used as anchor for OMDb-backed
+            façades.
+        source: The provider's ``provider_name`` (cached by the caller
+            to avoid the attribute lookup twice).
 
     Raises:
         OmdbQuotaExhausted: Propagated unchanged so the outer loop can
@@ -544,9 +651,8 @@ def _call_rating_client(client: _RatingClient, provider_id: str) -> list[dict[st
     """
     from personalscraper.api.metadata.omdb import OmdbQuotaExhausted  # noqa: PLC0415
 
-    source = getattr(client, "provider_name", type(client).__name__)
     try:
-        ratings = client.get_rating(provider_id)
+        ratings = provider.get_rating(provider_id)
     except OmdbQuotaExhausted:
         raise
     except ProviderFeatureUnavailable as exc:
@@ -556,6 +662,15 @@ def _call_rating_client(client: _RatingClient, provider_id: str) -> list[dict[st
             source=source,
             provider_id=provider_id,
             reason=exc.reason,
+        )
+        return []
+    except CircuitOpenError:
+        # Circuit breaker tripped between fan_out eligibility check
+        # and call — count as an empty rating contribution, no raise.
+        log.debug(
+            "backfill_rating_circuit_open",
+            source=source,
+            provider_id=provider_id,
         )
         return []
     except (TypeError, AttributeError):
