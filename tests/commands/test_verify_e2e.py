@@ -330,7 +330,10 @@ def test_verify_emits_item_progressed_events(
         result = run_cli(["verify"])
 
     assert result.exit_code == 0
-    assert len(captured) == 2
+    # Filter by domain event type — the bus may also carry a
+    # ``RegistryBootValidated`` infra event since Phase 15 removed the autouse stub.
+    item_events = [e for e in captured if isinstance(e, ItemProgressed)]
+    assert len(item_events) == 2
     assert_events_emitted(captured, [ItemProgressed])
 
 

@@ -370,10 +370,15 @@ def test_run_emits_pipeline_lifecycle_events(
     result = run_cli(["run"])
 
     assert result.exit_code == 0, result.output
-    # 9 steps × 2 events each = 18 events
-    assert len(captured) == 18, f"Expected 18 events, got {len(captured)}"
+    # 9 steps × 2 events each = 18 lifecycle events. The bus may also carry a
+    # ``RegistryBootValidated`` event emitted by the real ``ProviderRegistry``
+    # at CLI boot (since feat/registry Phase 15 removed the autouse stub) —
+    # filter by relevant event type rather than asserting on the total count.
     started = [e for e in captured if isinstance(e, StepStarted)]
     completed = [e for e in captured if isinstance(e, StepCompleted)]
+    assert len(started) + len(completed) == 18, (
+        f"Expected 18 lifecycle events, got {len(started) + len(completed)} (total bus captures: {len(captured)})"
+    )
     assert len(started) == 9
     assert len(completed) == 9
     # Verify step order: every started step also completed

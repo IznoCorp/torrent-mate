@@ -260,11 +260,16 @@ def test_rescrape_dry_run_emits_events(tmp_path, test_config, monkeypatch) -> No
         result = run_cli(["--format", "json", "library-rescrape", "--dry-run"])
 
     assert result.exit_code == 0, result.output
-    # Pin contract: dry-run with no API keys emits zero domain events.
-    # The isinstance(captured, list) tautology was replaced with a len==0
-    # assertion — if/when the rescraper wires domain events in dry-run
-    # mode, this test must be updated with the expected event classes.
-    assert len(captured) == 0, f"Expected 0 events in dry-run, got: {[type(e).__name__ for e in captured]}"
+    # Pin contract: dry-run with no API keys emits zero *domain* events.
+    # ``ProviderRegistry`` itself emits a ``RegistryBootValidated`` infra
+    # event at CLI boot (Phase 15 removed the autouse stub that swallowed
+    # it) — filter it out so the assertion stays focused on domain events.
+    from personalscraper.api.metadata.registry._events import RegistryBootValidated  # noqa: PLC0415
+
+    domain_events = [e for e in captured if not isinstance(e, RegistryBootValidated)]
+    assert len(domain_events) == 0, (
+        f"Expected 0 domain events in dry-run, got: {[type(e).__name__ for e in domain_events]}"
+    )
 
 
 # ── 8. Idempotence ──

@@ -5,11 +5,13 @@ from __future__ import annotations
 import json
 from unittest.mock import patch
 
-from typer.testing import CliRunner
-
 from personalscraper.cli import app
+from tests.conftest import make_cli_runner
 
-runner = CliRunner()
+# ``make_cli_runner`` separates stdout from stderr so JSON parsing on
+# ``result.stdout`` is not polluted by structlog log lines emitted to stderr
+# (e.g. ``registry_boot_loaded`` since Phase 15 removed the autouse stub).
+runner = make_cli_runner()
 
 MOCK_SUMMARY = {
     "merkle_drift": 0,
@@ -41,7 +43,7 @@ class TestFormatFlagLibraryReconcile:
         ):
             result = runner.invoke(app, ["--format", "json", "library-reconcile"])
         assert result.exit_code == 0
-        parsed = json.loads(result.output)
+        parsed = json.loads(result.stdout)
         assert "total_findings" in parsed
         assert parsed["total_findings"] == 12
 
