@@ -19,29 +19,31 @@
 // Enabling OMDB_API_KEY adds ratings (IMDb / RT) and cross-provider ID validation.
 // Enabling TRAKT_CLIENT_ID adds recommendations and an additional search/details source.
 {
-  // ── Chain capabilities (ordered fallback) ──────────────────────────────
-  Searchable:            { tvdb: 1, tmdb: 2 },
-  MovieDetailsProvider:  { tmdb: 1, tvdb: 2 },
-  TvDetailsProvider:     { tvdb: 1, tmdb: 2 },
-  EpisodeFetcher:        { tvdb: 1, tmdb: 2 },
+  providers: {
+    // ── Chain capabilities (ordered fallback) ──────────────────────────────
+    Searchable:            { tvdb: 1, tmdb: 2 },
+    MovieDetailsProvider:  { tmdb: 1, tvdb: 2 },
+    TvDetailsProvider:     { tvdb: 1, tmdb: 2 },
+    EpisodeFetcher:        { tvdb: 1, tmdb: 2 },
 
-  // ── Fan-out capability (aggregation) ───────────────────────────────────
-  // Neither TMDB nor TVDB implements RatingProvider.
-  // Enable OMDB_API_KEY and add imdb / rotten_tomatoes here to collect ratings.
-  RatingProvider: {},
+    // ── Fan-out capability (aggregation) ───────────────────────────────────
+    // Neither TMDB nor TVDB implements RatingProvider.
+    // Enable OMDB_API_KEY and add imdb / rotten_tomatoes here to collect ratings.
+    RatingProvider: {},
 
-  // ── Locked capabilities (identity-bound, IDCrossRef escape hatch) ──────
-  ArtworkProvider:       { tmdb: 1, tvdb: 2 },
-  KeywordProvider:       { tmdb: 1 },
-  VideoProvider:         { tmdb: 1, tvdb: 2 },
+    // ── Locked capabilities (identity-bound, IDCrossRef escape hatch) ──────
+    ArtworkProvider:       { tmdb: 1, tvdb: 2 },
+    KeywordProvider:       { tmdb: 1 },
+    VideoProvider:         { tmdb: 1, tvdb: 2 },
 
-  // Only Trakt implements RecommendationProvider.
-  // Enable TRAKT_CLIENT_ID and add trakt here to get recommendations.
-  RecommendationProvider: {},
+    // Only Trakt implements RecommendationProvider.
+    // Enable TRAKT_CLIENT_ID and add trakt here to get recommendations.
+    RecommendationProvider: {},
 
-  // ── Direct capabilities (no semantic, dispatched by provider name) ─────
-  // Only IMDbClient implements IDValidator and IDCrossRef.
-  // Enable OMDB_API_KEY and add imdb here to validate/cross-ref IMDb IDs.
-  IDValidator: {},
-  IDCrossRef: {},
+    // ── Direct capabilities (no semantic, dispatched by provider name) ─────
+    // Only IMDbClient implements IDValidator and IDCrossRef.
+    // Enable OMDB_API_KEY and add imdb here to validate/cross-ref IMDb IDs.
+    IDValidator: {},
+    IDCrossRef: {},
+  }
 }

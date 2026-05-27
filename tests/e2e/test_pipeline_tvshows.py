@@ -109,7 +109,7 @@ class TestTVShowFullPipeline:
             from personalscraper.scraper.run import run_scrape
 
             scrape_report = run_scrape(
-                settings, config=e2e_config, dry_run=False, tvshows_only=True, event_bus=EventBus()
+                settings, config=e2e_config, dry_run=False, tvshows_only=True, event_bus=EventBus(), registry=MagicMock()
             )
             print(f"  V3 Scrape: {scrape_report.success_count} scraped")
             assert_scrape_complete(staging / "001-MOVIES", tvshows_dir, expected)

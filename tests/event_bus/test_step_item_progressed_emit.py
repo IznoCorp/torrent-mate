@@ -285,7 +285,7 @@ def test_run_scrape_emits_item_progressed_with_provider_and_confidence(
     config.paths.staging_dir = tmp_path
     (tmp_path / "M").mkdir(parents=True, exist_ok=True)
 
-    run_scrape(MagicMock(), config, dry_run=True, event_bus=bus)
+    run_scrape(MagicMock(), config, dry_run=True, event_bus=bus, registry=MagicMock())
 
     assert sub.received, "scrape emitted no ItemProgressed"
     assert all(e.step == "scrape" for e in sub.received)
