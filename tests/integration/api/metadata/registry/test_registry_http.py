@@ -530,8 +530,15 @@ class TestHalfOpenProbe:
             with pytest.raises(ApiError):
                 tmdb.search("test", media_type=MediaType.MOVIE)
 
-        # Wait for HALF_OPEN
-        time.sleep(0.05)
+        # Wait for HALF_OPEN — poll the cooldown deterministically rather
+        # than relying on a fixed sleep margin, which is brittle under
+        # parallel xdist load (cooldown = 0.01 s; we poll up to 2 s in
+        # 20 ms increments).
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline:
+            time.sleep(0.02)
+            if registry.status()["tmdb"].circuit_state == CircuitState.HALF_OPEN:
+                break
         assert registry.status()["tmdb"].circuit_state == CircuitState.HALF_OPEN
 
         # Probe succeeds
@@ -562,8 +569,15 @@ class TestHalfOpenProbe:
             with pytest.raises(ApiError):
                 tmdb.search("test", media_type=MediaType.MOVIE)
 
-        # Wait for HALF_OPEN
-        time.sleep(0.05)
+        # Wait for HALF_OPEN — poll the cooldown deterministically rather
+        # than relying on a fixed sleep margin, which is brittle under
+        # parallel xdist load (cooldown = 0.01 s; we poll up to 2 s in
+        # 20 ms increments).
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline:
+            time.sleep(0.02)
+            if registry.status()["tmdb"].circuit_state == CircuitState.HALF_OPEN:
+                break
         assert registry.status()["tmdb"].circuit_state == CircuitState.HALF_OPEN
 
         # Probe fails — mock 503 for TMDB, success for TVDB
