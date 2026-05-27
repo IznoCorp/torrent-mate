@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -111,7 +111,7 @@ class Named(Protocol):
 # ---------------------------------------------------------------------------
 
 
-class Mode(str, Enum):
+class Mode(StrEnum):
     """Capability dispatch mode. Source of truth: ``_semantics.py``."""
 
     CHAIN = "chain"
