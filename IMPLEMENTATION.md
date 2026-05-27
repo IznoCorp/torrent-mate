@@ -20,7 +20,7 @@
 | 3   | Out-of-scraper consumers                  | phase-03-out-of-scraper.md                | [x]    |
 | 4   | Cleanup, observability, docs              | phase-04-cleanup-obs-docs.md              | [x]    |
 | 5   | PR fixes cycle 1                          | phase-05-pr-fixes-cycle-1.md              | [x]    |
-| 6   | PR fixes cycle 2                          | phase-06-pr-fixes-cycle-2.md              | [ ]    |
+| 6   | PR fixes cycle 2                          | phase-06-pr-fixes-cycle-2.md              | [x]    |
 
 ## Baseline measurements (Phase 0 sub-phase 0.6)
 
@@ -88,4 +88,4 @@ Re-review on `feat/registry @ 6177193` (CI green after Phase 5 push).
 
 ## Next action
 
-Run `/implement:phase` to execute Phase 6 (PR fixes cycle 2).
+Phase 6 complete. Push → CI re-poll → cycle 3 review (or merge if no findings).
