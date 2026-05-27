@@ -35,7 +35,7 @@
 | 18  | Module size hard ceiling fixes            | phase-18-module-size-hard-ceiling.md          | [x]    |
 | 19  | Fix config.example/providers.json5        | phase-19-fix-config-template.md               | [ ]    |
 | 20  | Re-pin ACC criteria                       | phase-20-repin-acc-criteria.md                | [ ]    |
-| 21  | Chain semantics unclassified (C2/C3)      | phase-21-chain-semantics-unclassified.md      | [ ]    |
+| 21  | Chain semantics unclassified (C2/C3)      | phase-21-chain-semantics-unclassified.md      | [x]    |
 | 22  | Public emit helpers + circuit cache       | phase-22-public-emit-helpers-circuit-cache.md | [ ]    |
 | 23  | Type design polish                        | phase-23-type-design-polish.md                | [x]    |
 | 24  | Documentation completion                  | phase-24-documentation-completion.md          | [x]    |
