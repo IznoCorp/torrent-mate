@@ -18,6 +18,7 @@
     "indexer.json5",
     "thresholds.json5",
     "metadata.json5",
+    "providers.json5",
     "torrent.json5",
     "tracker.json5",
     "ranking.json5",
