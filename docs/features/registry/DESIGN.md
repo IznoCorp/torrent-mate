@@ -377,6 +377,33 @@ registry-owned state (`operations()` introspection); `Literal[...]` is reserved
 for snapshot/serialization views (e.g. `circuit_state` mirrors the underlying
 HttpTransport string wire-format, not a registry-owned enum).
 
+**Provider name dual surface** (per type-design sub-phase 8.4, Option B): the
+project uses TWO distinct provider-name types at different architectural layers:
+
+- `personalscraper.api._contracts.ProviderName` — a **closed `str`-Enum** of the
+  real providers known to the transport-config layer (TMDB, TVDB, OMDB, TRAKT,
+  QBITTORRENT, TRANSMISSION, LACALE, C411, TELEGRAM, HEALTHCHECKS). Code that
+  builds `Settings`, constructs `HttpTransport`, or dispatches on a fixed
+  provider family uses this Enum.
+
+- `personalscraper.api.metadata.registry.RegistryProviderName` — an **open
+  `NewType` over `str`** for the registry layer. The registry is a capability-
+  keyed dispatch framework that accepts any provider name supplied by user
+  config (`config/providers.json5`), including names that do not correspond to
+  a transport-layer provider (e.g. synthetic test fixtures using `"multi"` /
+  `"xref"`). A closed Enum would be too restrictive here — the registry does
+  not own the set of valid provider names; user config does.
+
+The boundary is explicit: code in `personalscraper/api/` (transport contracts,
+settings, HTTP policy) uses the Enum; code in `personalscraper/api/metadata/
+registry/` (capability dispatch, provider iteration, introspection) uses the
+NewType. The two coexist by design — the registry is layered above transport.
+Cycle 1 review caught a single-name conflict (both were called `ProviderName`
+at one point, causing silent type aliasing because Enum subclasses `str`).
+Option A (unify all names on the Enum) was rejected because it would pollute the
+production Enum with test-only synthetic members. Option B retains both types
+with the explicit layering boundary documented here.
+
 ### 5.4 Config shape
 
 `config/providers.json5` — per capability Protocol, integer priority (lower = higher priority):

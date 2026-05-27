@@ -73,16 +73,39 @@ if TYPE_CHECKING:
 _INTERNAL_TOKEN = object()
 
 # ---------------------------------------------------------------------------
-# RegistryProviderName alias
+# RegistryProviderName — open-string provider identity for the registry layer
+# ---------------------------------------------------------------------------
 #
-# Open-string identifier for any provider name encountered by the registry.
-# Intentionally distinct from ``personalscraper.api._contracts.ProviderName``
-# (a closed ``str``-Enum of known providers). The registry accepts arbitrary
-# names supplied by user config — including test-only synthetics — so a
-# closed Enum would be too restrictive here. The previous shared name
-# (``ProviderName`` was defined twice, once as Enum, once as NewType) caused
-# silent type aliasing because Enum subclasses ``str``. See sub-phase 5.2
-# of the registry tech-debt sweep.
+# The project uses TWO distinct provider-name types at different architectural
+# layers.  This is intentional — see DESIGN §5.3 "Provider name dual surface"
+# (Option B, sub-phase 8.4) for the full rationale.
+#
+# ``personalscraper.api._contracts.ProviderName``
+#     A closed ``str``-Enum of the real providers known to the transport-config
+#     world: TMDB, TVDB, OMDB, TRAKT, QBITTORRENT, TRANSMISSION, LACALE, C411,
+#     TELEGRAM, HEALTHCHECKS.  Code that builds ``Settings``, constructs an
+#     ``HttpTransport``, or dispatches on a fixed provider family uses this Enum.
+#
+# ``RegistryProviderName`` (defined below)
+#     An open ``NewType`` over ``str`` for the registry layer.  The registry is a
+#     capability-keyed dispatch framework that accepts **any** provider name
+#     appearing in user config (``config/providers.json5``) — including names
+#     that do not correspond to a transport-layer provider, such as synthetic
+#     test fixtures (``"multi"``, ``"xref"``).  A closed Enum would be too
+#     restrictive here: the registry does not own the valid-name set; user
+#     config does.
+#
+# Boundary rule:
+#     - Transport contracts, settings, HTTP policy → ``_contracts.ProviderName`` Enum.
+#     - Registry dispatch, provider iteration, introspection → ``RegistryProviderName`` NewType.
+#
+# The two coexist by design — the registry is layered *above* transport.
+#
+# Historical note: sub-phase 5.2 of the registry tech-debt sweep discovered
+# that both types were originally named ``ProviderName`` (once as Enum, once as
+# NewType), causing silent type aliasing because ``str``-Enum subclasses
+# ``str``.  After a cycle-1 review, the types were separated and the comment
+# block expanded here (sub-phase 8.4, Option B).
 # ---------------------------------------------------------------------------
 
 RegistryProviderName = NewType("RegistryProviderName", str)
