@@ -2140,10 +2140,19 @@ class TestClassifierIntegration:
         with (
             patch("personalscraper.scraper.scraper.match_movie", return_value=match),
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
-            patch.object(scraper._registry.get("tmdb"), "get_keywords", side_effect=fake_get_keywords),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
         ):
+            # Mock locked() to return a LockedProvider-like object whose
+            # provider carries the keyword fetch side effect.
+            def _make_locked(capability: object, match: object) -> MagicMock:
+                lm = MagicMock()
+                lm.provider = MagicMock()
+                lm.provider.get_keywords.side_effect = fake_get_keywords
+                lm.bound_id = getattr(match, "id", str(match))
+                return lm
+
+            scraper._registry.locked.side_effect = _make_locked
             result = scraper.scrape_movie(movie_dir)
 
         assert get_keywords_called == [("999", "movie")], "get_keywords() should be called once"

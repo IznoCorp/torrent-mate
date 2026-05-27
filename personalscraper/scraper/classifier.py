@@ -6,23 +6,20 @@ import re
 import unicodedata
 from itertools import zip_longest
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from guessit.api import GuessitException
 
 from personalscraper.api._contracts import MediaType
 from personalscraper.api.metadata._base import MediaDetails
+from personalscraper.api.metadata._contracts import KeywordProvider
+from personalscraper.api.metadata.registry import ProviderMatch, ProviderName
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.api.metadata.registry import ProviderRegistry
-    from personalscraper.api.metadata.tmdb import TMDBClient
     from personalscraper.conf.models.config import Config
     from personalscraper.scraper.keywords_cache import KeywordsCache
-
-# Transitional access via ``self._registry.get("tmdb")`` (DESIGN §5.2) — Phase 2
-# will migrate to ``registry.locked(KeywordProvider, match)`` for proper
-# identity-locked semantics on Artwork/Keyword/Video capabilities.
 
 
 def _media_details_to_classifier_dict(details: MediaDetails) -> dict[str, Any]:
@@ -165,14 +162,22 @@ class ClassifierMixin:
         tmdb_keywords: list[str] = []
         if self._needs_keywords and tmdb_id is not None and self._keywords_cache is not None:
             cached = self._keywords_cache.get(tmdb_id, media_type)
-            if cached is None:
-                # Transitional registry-direct access (Phase 1 — DESIGN §5.2).
-                tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
-                fetched = tmdb_client.get_keywords(str(tmdb_id), media_type)
+            if cached is not None:
+                tmdb_keywords = cached
+            else:
+                match = ProviderMatch(
+                    provider=ProviderName("tmdb"),
+                    id=str(tmdb_id),
+                    media_type=media_type,
+                )
+                locked = self._registry.locked(KeywordProvider, match)  # type: ignore[type-abstract]
+                if locked is None:
+                    log.warning("classifier_keywords_unresolved", tmdb_id=tmdb_id, media_type=media_type)
+                    fetched: list[str] = []
+                else:
+                    fetched = locked.provider.get_keywords(locked.bound_id, media_type)  # type: ignore[attr-defined]
                 self._keywords_cache.set(tmdb_id, media_type, fetched)
                 tmdb_keywords = fetched
-            else:
-                tmdb_keywords = cached
 
         # api-unify: api_data may arrive as a typed MediaDetails. Coerce to
         # the legacy dict shape so the rest of this method keeps using the

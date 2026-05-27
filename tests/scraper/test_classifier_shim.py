@@ -206,14 +206,15 @@ def _make_classifier(
 
     _tmdb_client = tmdb if tmdb is not None else MagicMock()
     _registry = MagicMock()
-    _registry.get.side_effect = (
-        lambda name,
-        _cache={  # type: ignore[misc]
-            "tmdb": _tmdb_client,
-        }: _cache.get(name, MagicMock())
-    )
+
+    def _locked_side_effect(capability: object, match: object) -> MagicMock:
+        locked = MagicMock()
+        locked.provider = _tmdb_client
+        locked.bound_id = getattr(match, "id", str(match))
+        return locked
+
+    _registry.locked.side_effect = _locked_side_effect
     instance._registry = _registry  # type: ignore[assignment]
-    instance._tmdb = _tmdb_client  # type: ignore[assignment]
     return instance
 
 
