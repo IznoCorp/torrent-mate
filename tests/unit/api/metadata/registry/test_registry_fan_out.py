@@ -92,7 +92,7 @@ def test_fan_out_wrong_semantic_raises(build_registry: object) -> None:
     config = ProvidersConfig(Searchable={"x": 1})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
     with pytest.raises(WrongSemanticBug):
-        registry.fan_out(Searchable)  # type: ignore[arg-type]
+        registry.fan_out(Searchable)
 
 
 # ---------------------------------------------------------------------------
@@ -118,3 +118,51 @@ def test_RegistryFanOutCompleted_always_emitted_even_on_success(
     )
     registry.fan_out(RatingProvider)
     assert any(isinstance(e, RegistryFanOutCompleted) for e in mock_event_bus.emitted)  # type: ignore[attr-defined]
+
+
+# ---------------------------------------------------------------------------
+# AttemptOutcome population (sub-phase 5.4)
+# ---------------------------------------------------------------------------
+
+
+def test_fan_out_populates_attempted_with_circuit_open_skips(
+    build_registry: object,
+    mock_event_bus: object,
+) -> None:
+    """RegistryFanOutCompleted.attempted carries reason='circuit_open' for filtered providers."""
+    fakes = {
+        "r1": FakeRating(provider_name="r1", circuit_state="OPEN"),
+        "r2": FakeRating(provider_name="r2", circuit_state="CLOSED"),
+    }
+    config = ProvidersConfig(RatingProvider={"r1": 1, "r2": 2})
+    registry = build_registry(  # type: ignore[operator]
+        fakes=fakes,
+        providers_config=config,
+        event_bus=mock_event_bus,
+    )
+    registry.fan_out(RatingProvider)
+    event = next(e for e in mock_event_bus.emitted if isinstance(e, RegistryFanOutCompleted))  # type: ignore[attr-defined]
+    assert len(event.attempted) == 2
+    open_entry = next(a for a in event.attempted if a.reason == "circuit_open")
+    assert open_entry.provider == "r1"
+    eligible_entry = next(a for a in event.attempted if a.reason == "other")
+    assert eligible_entry.provider == "r2"
+    assert eligible_entry.detail == "eligible"
+    assert event.succeeded == 1
+
+
+def test_fan_out_attempted_empty_when_no_providers_configured(
+    build_registry: object,
+    mock_event_bus: object,
+) -> None:
+    """When the index has no providers for capability, attempted list is empty (not an error)."""
+    config = ProvidersConfig(RatingProvider={})
+    registry = build_registry(  # type: ignore[operator]
+        fakes={},
+        providers_config=config,
+        event_bus=mock_event_bus,
+    )
+    registry.fan_out(RatingProvider)
+    event = next(e for e in mock_event_bus.emitted if isinstance(e, RegistryFanOutCompleted))  # type: ignore[attr-defined]
+    assert event.attempted == []
+    assert event.succeeded == 0

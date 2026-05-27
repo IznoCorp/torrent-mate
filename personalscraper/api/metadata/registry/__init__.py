@@ -421,9 +421,11 @@ class ProviderRegistry:
             )
         names = self._index.get(capability, [])
         eligible: list[Any] = []
+        attempted: list[AttemptOutcome] = []
         for n in names:
             if n not in self._providers:
                 continue
+            provider_name = RegistryProviderName(n)
             provider = self._providers[n]
             if not _eligible(provider):
                 log.debug(
@@ -432,7 +434,9 @@ class ProviderRegistry:
                     capability=capability.__name__,
                     reason="circuit_open",
                 )
+                attempted.append(AttemptOutcome(provider=provider_name, reason="circuit_open"))
                 continue
+            attempted.append(AttemptOutcome(provider=provider_name, reason="other", detail="eligible"))
             eligible.append(provider)
 
         log.info(
@@ -444,7 +448,7 @@ class ProviderRegistry:
         self._event_bus_safe_emit(
             RegistryFanOutCompleted(
                 capability=capability.__name__,
-                attempted=[],
+                attempted=attempted,
                 succeeded=len(eligible),
             )
         )
