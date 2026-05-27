@@ -12,31 +12,38 @@
 
 ## Phases
 
-| #   | Phase                                     | File                                        | Status |
-| --- | ----------------------------------------- | ------------------------------------------- | ------ |
-| 0   | New types, shells, characterization tests | phase-00-types-shells-characterization.md   | [x]    |
-| 1   | Boot wiring + chain migration             | phase-01-boot-wiring-chain.md               | [x]    |
-| 2   | Scraper locked migration                  | phase-02-scraper-locked.md                  | [x]    |
-| 3   | Out-of-scraper consumers                  | phase-03-out-of-scraper.md                  | [x]    |
-| 4   | Cleanup, observability, docs              | phase-04-cleanup-obs-docs.md                | [x]    |
-| 5   | PR fixes cycle 1                          | phase-05-pr-fixes-cycle-1.md                | [x]    |
-| 6   | PR fixes cycle 2                          | phase-06-pr-fixes-cycle-2.md                | [x]    |
-| 7   | Chain semantics in production             | phase-07-chain-semantics-production.md      | [x]    |
-| 8   | Type design hardening                     | phase-08-type-design-hardening.md           | [x]    |
-| 9   | Test infrastructure cleanup               | phase-09-test-infrastructure-cleanup.md     | [x]    |
-| 10  | Module size extraction                    | phase-10-module-size-extraction.md          | [x]    |
-| 11  | Indexer migration                         | phase-11-indexer-migration.md               | [x]    |
-| 12  | ROADMAP entries for deferrals             | phase-12-roadmap-entries.md                 | [x]    |
-| 13  | Pre-existing fixes (flaky test)           | phase-13-pre-existing-fixes.md              | [x]    |
-| 14  | TVDB client bootstrap deferral            | phase-14-tvdb-bootstrap-defer.md            | [x]    |
-| 15  | Remove autouse CLI fixture                | phase-15-remove-autouse-cli-fixture.md      | [x]    |
-| 16  | Scraper chain exhaustion raise            | phase-16-chain-exhaustion-raise.md          | [x]    |
-| 17  | Protocol provider_id str\|int             | phase-17-protocol-provider-id-str-or-int.md | [x]    |
-| 18  | Module size hard ceiling fixes            | phase-18-module-size-hard-ceiling.md        | [x]    |
+| #   | Phase                                     | File                                          | Status |
+| --- | ----------------------------------------- | --------------------------------------------- | ------ |
+| 0   | New types, shells, characterization tests | phase-00-types-shells-characterization.md     | [x]    |
+| 1   | Boot wiring + chain migration             | phase-01-boot-wiring-chain.md                 | [x]    |
+| 2   | Scraper locked migration                  | phase-02-scraper-locked.md                    | [x]    |
+| 3   | Out-of-scraper consumers                  | phase-03-out-of-scraper.md                    | [x]    |
+| 4   | Cleanup, observability, docs              | phase-04-cleanup-obs-docs.md                  | [x]    |
+| 5   | PR fixes cycle 1                          | phase-05-pr-fixes-cycle-1.md                  | [x]    |
+| 6   | PR fixes cycle 2                          | phase-06-pr-fixes-cycle-2.md                  | [x]    |
+| 7   | Chain semantics in production             | phase-07-chain-semantics-production.md        | [x]    |
+| 8   | Type design hardening                     | phase-08-type-design-hardening.md             | [x]    |
+| 9   | Test infrastructure cleanup               | phase-09-test-infrastructure-cleanup.md       | [x]    |
+| 10  | Module size extraction                    | phase-10-module-size-extraction.md            | [x]    |
+| 11  | Indexer migration                         | phase-11-indexer-migration.md                 | [x]    |
+| 12  | ROADMAP entries for deferrals             | phase-12-roadmap-entries.md                   | [x]    |
+| 13  | Pre-existing fixes (flaky test)           | phase-13-pre-existing-fixes.md                | [x]    |
+| 14  | TVDB client bootstrap deferral            | phase-14-tvdb-bootstrap-defer.md              | [x]    |
+| 15  | Remove autouse CLI fixture                | phase-15-remove-autouse-cli-fixture.md        | [x]    |
+| 16  | Scraper chain exhaustion raise            | phase-16-chain-exhaustion-raise.md            | [x]    |
+| 17  | Protocol provider_id str\|int             | phase-17-protocol-provider-id-str-or-int.md   | [x]    |
+| 18  | Module size hard ceiling fixes            | phase-18-module-size-hard-ceiling.md          | [x]    |
+| 19  | Fix config.example/providers.json5        | phase-19-fix-config-template.md               | [ ]    |
+| 20  | Re-pin ACC criteria                       | phase-20-repin-acc-criteria.md                | [ ]    |
+| 21  | Chain semantics unclassified (C2/C3)      | phase-21-chain-semantics-unclassified.md      | [ ]    |
+| 22  | Public emit helpers + circuit cache       | phase-22-public-emit-helpers-circuit-cache.md | [ ]    |
+| 23  | Type design polish                        | phase-23-type-design-polish.md                | [ ]    |
+| 24  | Documentation completion                  | phase-24-documentation-completion.md          | [ ]    |
+| 25  | Test coverage gaps                        | phase-25-test-coverage-gaps.md                | [ ]    |
 
 **Post-merge remediation phases (7-13)**: generated by the 2026-05-27 retrospective after PR #27 merged. Address the 30-point audit findings. See `docs/features/registry/RETROSPECTIVE.md` for the full inventory + 9 process items not actionable as code phases.
 
-**Next action**: All phases complete. Push branch + create PR via `/implement:feature-pr`.
+**Next action**: Execute Phases 19-25 (PR-review remediation cycle from 2026-05-27 audit). See each plan file for details.
 
 ## Baseline measurements (Phase 0 sub-phase 0.6)
 
