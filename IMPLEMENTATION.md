@@ -27,7 +27,7 @@
 | 10  | Module size extraction                    | phase-10-module-size-extraction.md          | [x]    |
 | 11  | Indexer migration                         | phase-11-indexer-migration.md               | [ ]    |
 | 12  | ROADMAP entries for deferrals             | phase-12-roadmap-entries.md                 | [x]    |
-| 13  | Pre-existing fixes (flaky test)           | phase-13-pre-existing-fixes.md              | [ ]    |
+| 13  | Pre-existing fixes (flaky test)           | phase-13-pre-existing-fixes.md              | [x]    |
 | 14  | TVDB client bootstrap deferral            | phase-14-tvdb-bootstrap-defer.md            | [ ]    |
 | 15  | Remove autouse CLI fixture                | phase-15-remove-autouse-cli-fixture.md      | [ ]    |
 | 16  | Scraper chain exhaustion raise            | phase-16-chain-exhaustion-raise.md          | [ ]    |
