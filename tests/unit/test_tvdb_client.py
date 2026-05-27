@@ -481,3 +481,32 @@ class TestCircuitPropertyIsHttpFree:
         client._transport = transport  # type: ignore[attr-defined]
 
         assert client.circuit is sentinel_breaker
+
+    def test_tvdb_eligibility_is_http_free(self) -> None:
+        """``_eligible(TVDBClient)`` must not trigger the JWT bootstrap.
+
+        The registry boots providers eagerly; the first
+        ``registry.chain(...)`` or ``registry.status()`` call iterates
+        the chain and calls :func:`_eligible` on every provider. Before
+        Phase 22, that triggered the TVDB JWT exchange via the
+        ``circuit`` property. The ``_registry_lazy_circuit = True``
+        marker now flags TVDB as eligible pre-bootstrap without reading
+        the live breaker.
+        """
+        from personalscraper.api.metadata.registry._factory import _eligible
+
+        bus = EventBus()
+        client = TVDBClient(api_key="bogus", event_bus=bus)
+
+        bootstrap_calls: list[None] = []
+        original_ensure = TVDBClient._ensure_transport
+
+        def spy(self_: TVDBClient) -> Any:
+            bootstrap_calls.append(None)
+            return original_ensure(self_)
+
+        with patch.object(TVDBClient, "_ensure_transport", spy):
+            result = _eligible(client)
+
+        assert result is True
+        assert bootstrap_calls == [], "Eligibility check triggered TVDB bootstrap."
