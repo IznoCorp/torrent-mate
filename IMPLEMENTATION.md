@@ -69,6 +69,20 @@ Run by `/implement:pr-review` on PR #27 after CI green at `31c6516`.
 
 **Decision**: fix the 10 retained findings in a new Phase 5 (`phase-05-pr-fixes-cycle-1.md`). Loop continues to cycle 2 if CI still red after fix push.
 
+### Cycle 3 — 2026-05-27 (MERGE — loop exit)
+
+Verification on `feat/registry @ 11dbf2d0` (CI green after re-run on flaky `test_indexer_budget_resume`).
+
+**Verdict**: MERGE. All 6 cycle-2 fixes closed cleanly, no new critical/major findings, gates green:
+
+- 3 regression tests pass: `_eligible` allowlist (3), `per_step_boundary` close (2), `library_backfill_provider_unavailable` log (5).
+- `_log` hoisted to module-level in `scan.py:14-16`.
+- `fan_out` AttemptOutcome schema: only SKIPPED providers (`reason="circuit_open"`) populate `attempted`; eligible providers retained via `succeeded` counter only.
+- ACC-07 pinned at `48` (matches actual `pytest --collect-only`).
+- `make check` exit 0.
+
+**Loop exit per Step 5 Case A**: no remaining critical/major/medium findings. MERGE_MODE=manual → user merges via GitHub UI.
+
 ### Cycle 2 — 2026-05-27
 
 Re-review on `feat/registry @ 6177193` (CI green after Phase 5 push).
@@ -88,4 +102,4 @@ Re-review on `feat/registry @ 6177193` (CI green after Phase 5 push).
 
 ## Next action
 
-Phase 6 complete. Push → CI re-poll → cycle 3 review (or merge if no findings).
+All review cycles closed. CI green. **MERGE READY** — squash-merge PR #27 via GitHub UI (manual mode chosen at /implement:feature time). After merge: `/implement:archive` will move docs/features/registry/ to docs/archive/features/.
