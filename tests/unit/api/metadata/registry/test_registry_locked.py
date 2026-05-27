@@ -28,7 +28,12 @@ from .conftest import FakeArtwork, FakeIDCrossRef, FakeMultiCapability, FakeSear
 
 
 def test_locked_match_provider_path_no_xref(build_registry: object) -> None:
-    """If match's provider already implements the capability, ``locked()`` returns it directly."""
+    """If match's provider already implements the capability, ``locked()`` returns it directly.
+
+    Design: docs/reference/architecture.md#three-operations
+    Design: docs/reference/scraping.md#three-semantics-provider-registry
+    Contract: locked operation respects capability boundaries, validating the three operation modes.
+    """
     multi = FakeMultiCapability(name="multi", circuit_state="CLOSED")
     fakes = {"multi": multi}
     config = ProvidersConfig(

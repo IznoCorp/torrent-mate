@@ -8,6 +8,17 @@
         "tests/integration/test_design_architecture.py::TestAutomatedPipelineContract::test_pipeline_steps_are_coherent_with_cli_commands"
       ]
     },
+    "boot-sequence-design-61": {
+      "tests": [
+        "tests/integration/api/metadata/registry/test_registry_boot.py::test_boot_raises_registry_config_error_when_tmdb_key_missing",
+        "tests/unit/api/metadata/registry/test_registry_validation.py::test_boot_cleanup_on_validation_failure"
+      ]
+    },
+    "configuration": {
+      "tests": [
+        "tests/conf/test_example_config.py::TestExampleConfig::test_example_parses_and_validates"
+      ]
+    },
     "directory-structure": {
       "tests": [
         "tests/integration/test_design_architecture.py::TestDirectoryStructureContract::test_key_pipeline_modules_exist",
@@ -15,10 +26,34 @@
         "tests/test_config.py::test_repr_masks_secret_fields"
       ]
     },
+    "introspection": {
+      "tests": [
+        "tests/unit/api/metadata/registry/test_registry_introspection.py::test_operations_returns_expected_shape",
+        "tests/unit/api/metadata/registry/test_registry_introspection.py::test_status_returns_expected_shape"
+      ]
+    },
+    "module-layout": {
+      "tests": [
+        "tests/unit/api/metadata/registry/test_registry_chain.py::test_chain_ordering_is_stable_across_calls"
+      ]
+    },
     "package": {
       "tests": [
         "tests/integration/test_design_architecture.py::TestPackageContract::test_cli_entry_point_importable",
         "tests/integration/test_design_architecture.py::TestPackageContract::test_package_name_and_version_exposed"
+      ]
+    },
+    "provider-registry": {
+      "tests": [
+        "tests/unit/api/metadata/registry/test_registry_chain.py::test_chain_ordering_is_stable_across_calls",
+        "tests/unit/api/metadata/registry/test_registry_get.py::test_get_known_name_returns_provider"
+      ]
+    },
+    "three-operations": {
+      "tests": [
+        "tests/unit/api/metadata/registry/test_registry_chain.py::test_chain_wrong_semantic_raises",
+        "tests/unit/api/metadata/registry/test_registry_fan_out.py::test_fan_out_wrong_semantic_raises",
+        "tests/unit/api/metadata/registry/test_registry_locked.py::test_locked_match_provider_path_no_xref"
       ]
     },
     "workflow-pipeline": {

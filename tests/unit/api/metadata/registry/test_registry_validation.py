@@ -221,6 +221,9 @@ def test_boot_cleanup_on_validation_failure(build_registry: object) -> None:
     """Providers built before validation fails must have ``.close()`` called (DESIGN §6.1.f).
 
     The cleanup discipline prevents leaking HTTP sessions on boot retries.
+
+    Design: docs/reference/architecture.md#boot-sequence-design-61
+    Contract: boot sequence cleanup runs on validation failure to prevent resource leaks.
     """
     # A config that will pass instantiation but fail validation (unknown provider).
     fake_a = FakeSearchable(name="tmdb")

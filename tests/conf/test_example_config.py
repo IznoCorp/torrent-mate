@@ -18,7 +18,12 @@ class TestExampleConfig:
         assert (EXAMPLE_DIR / "config.json5").is_file(), "config.example/config.json5 missing"
 
     def test_example_parses_and_validates(self):
-        """config.example/ must load and pass full Pydantic validation."""
+        """config.example/ must load and pass full Pydantic validation.
+
+        Design: docs/reference/architecture.md#configuration
+        Design: docs/reference/scraping.md#configuration-reference
+        Contract: example config parses and validates, covering both architecture and scraping config reference docs.
+        """
         config = load_config_dir(EXAMPLE_DIR)
         assert isinstance(config, Config)
 

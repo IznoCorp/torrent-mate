@@ -427,7 +427,11 @@ class TestChainFallback:
 
     @responses.activate
     def test_chain_falls_back_on_5xx_to_next_provider(self) -> None:
-        """Tmdb returns 5xx; tvdb succeeds — chain fallback works."""
+        """Tmdb returns 5xx; tvdb succeeds — chain fallback works.
+
+        Design: docs/reference/scraping.md#fallback-triggers-chain
+        Contract: chain triggers fallback on 5xx response to the next eligible provider.
+        """
         mock_tmdb_503_regex()
         mock_tvdb_bootstrap()
         mock_tvdb_search_success()
@@ -448,7 +452,11 @@ class TestChainFallback:
 
     @responses.activate
     def test_chain_falls_back_on_timeout(self) -> None:
-        """Tmdb raises ConnectionError (timeout); tvdb succeeds."""
+        """Tmdb raises ConnectionError (timeout); tvdb succeeds.
+
+        Design: docs/reference/scraping.md#fallback-triggers-chain
+        Contract: chain triggers fallback on timeout to the next eligible provider.
+        """
         mock_tmdb_conn_err_regex()
         mock_tvdb_bootstrap()
         mock_tvdb_search_success()
@@ -469,7 +477,11 @@ class TestChainFallback:
 
     @responses.activate
     def test_chain_falls_back_on_empty_body(self) -> None:
-        """Tmdb returns 200 but empty results; tvdb succeeds."""
+        """Tmdb returns 200 but empty results; tvdb succeeds.
+
+        Design: docs/reference/scraping.md#fallback-triggers-chain
+        Contract: chain triggers fallback on empty body to the next eligible provider.
+        """
         mock_tmdb_search_empty()
         mock_tvdb_bootstrap()
         mock_tvdb_search_success()
@@ -500,7 +512,11 @@ class TestHalfOpenProbe:
 
     @responses.activate
     def test_half_open_probe_success_transitions_to_closed(self) -> None:
-        """Probe succeeds in HALF_OPEN → circuit transitions to CLOSED."""
+        """Probe succeeds in HALF_OPEN → circuit transitions to CLOSED.
+
+        Design: docs/reference/scraping.md#half-open-eligibility
+        Contract: half-open probe success transitions circuit to closed, validating eligibility rules.
+        """
         mock_tmdb_503_regex()
         bus = EventBus()
         registry = _build_chain_registry(
@@ -528,7 +544,11 @@ class TestHalfOpenProbe:
 
     @responses.activate
     def test_half_open_probe_failure_returns_to_open_and_chain_falls_through(self) -> None:
-        """Probe fails in HALF_OPEN → circuit reopens; next provider receives call."""
+        """Probe fails in HALF_OPEN → circuit reopens; next provider receives call.
+
+        Design: docs/reference/scraping.md#half-open-eligibility
+        Contract: half-open probe failure returns to open state, validating eligibility re-entry rules.
+        """
         mock_tmdb_503_regex()
         bus = EventBus()
         registry = _build_chain_registry(

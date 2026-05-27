@@ -2,11 +2,36 @@
   "feature": "scraper",
   "design": "docs/reference/scraping.md",
   "sections": {
+    "configuration-reference": {
+      "tests": [
+        "tests/conf/test_example_config.py::TestExampleConfig::test_example_parses_and_validates"
+      ]
+    },
+    "fallback-triggers-chain": {
+      "tests": [
+        "tests/integration/api/metadata/registry/test_registry_http.py::TestChainFallback::test_chain_falls_back_on_5xx_to_next_provider",
+        "tests/integration/api/metadata/registry/test_registry_http.py::TestChainFallback::test_chain_falls_back_on_empty_body",
+        "tests/integration/api/metadata/registry/test_registry_http.py::TestChainFallback::test_chain_falls_back_on_timeout"
+      ]
+    },
+    "half-open-eligibility": {
+      "tests": [
+        "tests/integration/api/metadata/registry/test_registry_http.py::TestHalfOpenProbe::test_half_open_probe_failure_returns_to_open_and_chain_falls_through",
+        "tests/integration/api/metadata/registry/test_registry_http.py::TestHalfOpenProbe::test_half_open_probe_success_transitions_to_closed"
+      ]
+    },
     "nfo-invariants": {
       "tests": [
         "tests/integration/test_design_scraper.py::TestNfoInvariantsContract::test_complete_nfo_with_uniqueid_returns_true",
         "tests/integration/test_design_scraper.py::TestNfoInvariantsContract::test_corrupt_nfo_returns_false",
         "tests/integration/test_design_scraper.py::TestNfoInvariantsContract::test_nfo_missing_uniqueid_returns_false"
+      ]
+    },
+    "three-semantics-provider-registry": {
+      "tests": [
+        "tests/unit/api/metadata/registry/test_registry_chain.py::test_chain_wrong_semantic_raises",
+        "tests/unit/api/metadata/registry/test_registry_fan_out.py::test_fan_out_wrong_semantic_raises",
+        "tests/unit/api/metadata/registry/test_registry_locked.py::test_locked_match_provider_path_no_xref"
       ]
     }
   },
