@@ -18,7 +18,7 @@
 | 1   | Boot wiring + chain migration             | phase-01-boot-wiring-chain.md             | [x]    |
 | 2   | Scraper locked migration                  | phase-02-scraper-locked.md                | [x]    |
 | 3   | Out-of-scraper consumers                  | phase-03-out-of-scraper.md                | [x]    |
-| 4   | Cleanup, observability, docs              | phase-04-cleanup-obs-docs.md              | [ ]    |
+| 4   | Cleanup, observability, docs              | phase-04-cleanup-obs-docs.md              | [x]    |
 
 ## Baseline measurements (Phase 0 sub-phase 0.6)
 
@@ -36,4 +36,4 @@ _(filled by /implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 4 (Cleanup, observability, docs).
+All phases complete — run `/implement:feature-pr` to create the pull request.
