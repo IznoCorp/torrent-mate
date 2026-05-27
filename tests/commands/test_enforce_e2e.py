@@ -7,7 +7,7 @@ Follows the 8-section pattern.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from personalscraper.models import StepReport
 from tests.commands._e2e_helpers import (
@@ -16,6 +16,7 @@ from tests.commands._e2e_helpers import (
     capture_event_bus,
     run_cli,
 )
+from tests.fixtures.settings_stub import make_typed_settings_stub
 
 
 def _enforce_report(**kw: int) -> StepReport:
@@ -48,7 +49,7 @@ def test_enforce_no_issues_noop(
 ) -> None:
     """No violations found → zero fixes, exit 0."""
     mock_run.return_value = StepReport(name="enforce")
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["enforce"])
 
@@ -81,7 +82,7 @@ def test_enforce_with_fixes(
             "[structure:fix] Show.S01: created Season 01/",
         ],
     )
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["enforce"])
 
@@ -109,7 +110,7 @@ def test_enforce_with_errors(
         error_count=1,
         warnings=["unfixable.mkv: permission denied"],
     )
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["enforce"])
 
@@ -130,7 +131,7 @@ def test_enforce_lock_contention(
     mock_settings,
 ) -> None:
     """Lock held → exit 1, friendly message, no traceback."""
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["enforce"])
 
@@ -154,7 +155,7 @@ def test_enforce_idempotent(
 ) -> None:
     """Two consecutive enforce calls exit 0, mock called twice."""
     mock_run.return_value = StepReport(name="enforce", skip_count=5)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     r1 = run_cli(["enforce"])
     r2 = run_cli(["enforce"])
@@ -180,7 +181,7 @@ def test_enforce_dry_run_forwards_flag(
 ) -> None:
     """--dry-run flag is forwarded to run_enforce."""
     mock_run.return_value = StepReport(name="enforce")
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["enforce", "--dry-run"])
 
@@ -204,7 +205,7 @@ def test_enforce_output_no_traceback(
 ) -> None:
     """Output is Rich-formatted, never a raw Python traceback."""
     mock_run.return_value = StepReport(name="enforce", success_count=1)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["enforce"])
 
@@ -224,7 +225,7 @@ def test_enforce_summary_always_printed(
 ) -> None:
     """Even on errors, the summary line is always printed."""
     mock_run.return_value = StepReport(name="enforce", error_count=3)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["enforce"])
 
@@ -249,7 +250,7 @@ def test_enforce_verbose_prints_details(
         success_count=2,
         details=["[sanitize:renamed] bad name.mkv → bad_name.mkv", "[structure:fix] Show: created Saison 01/"],
     )
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["--verbose", "enforce"])
 
@@ -272,7 +273,7 @@ def test_enforce_emits_item_progressed_events(
     """run_enforce emits ItemProgressed events on the shared EventBus."""
     from personalscraper.pipeline_events import ItemProgressed
 
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
     captured = capture_event_bus(monkeypatch)
 
     def _emit_and_return(*args, **kwargs):

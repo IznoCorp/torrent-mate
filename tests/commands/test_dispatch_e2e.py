@@ -7,7 +7,7 @@ Follows the 8-section pattern.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from personalscraper.models import StepReport
 from tests.commands._e2e_helpers import (
@@ -16,6 +16,7 @@ from tests.commands._e2e_helpers import (
     capture_event_bus,
     run_cli,
 )
+from tests.fixtures.settings_stub import make_typed_settings_stub
 
 
 def _dispatch_report(**kw: int) -> StepReport:
@@ -48,7 +49,7 @@ def test_dispatch_no_items_noop(
 ) -> None:
     """No verified items → zero ops, exit 0."""
     mock_run.return_value = StepReport(name="dispatch")
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["dispatch"])
 
@@ -80,7 +81,7 @@ def test_dispatch_mixed_results(
             "action=error     Bad.Item: no space",
         ],
     )
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["dispatch"])
 
@@ -103,7 +104,7 @@ def test_dispatch_all_skipped(
 ) -> None:
     """All items skipped (e.g., all duplicates) → zero dispatch, exit 0."""
     mock_run.return_value = StepReport(name="dispatch", skip_count=3, details=["action=skipped  dup: already on disk"])
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["dispatch"])
 
@@ -124,7 +125,7 @@ def test_dispatch_lock_contention(
     mock_settings,
 ) -> None:
     """Lock held → exit 1, friendly message, no traceback."""
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["dispatch"])
 
@@ -149,7 +150,7 @@ def test_dispatch_all_errors(
         error_count=2,
         details=["action=error    item_1: disk full", "action=error    item_2: permission denied"],
     )
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["dispatch"])
 
@@ -172,7 +173,7 @@ def test_dispatch_idempotent(
 ) -> None:
     """Two consecutive dispatch calls exit 0, mock called twice."""
     mock_run.return_value = StepReport(name="dispatch", skip_count=5)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     r1 = run_cli(["dispatch"])
     r2 = run_cli(["dispatch"])
@@ -198,7 +199,7 @@ def test_dispatch_dry_run_forwards_flag(
 ) -> None:
     """--dry-run flag is forwarded to run_dispatch."""
     mock_run.return_value = StepReport(name="dispatch")
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["dispatch", "--dry-run"])
 
@@ -222,7 +223,7 @@ def test_dispatch_output_no_traceback(
 ) -> None:
     """Output is Rich-formatted, never a raw Python traceback."""
     mock_run.return_value = StepReport(name="dispatch", success_count=1)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["dispatch"])
 
@@ -242,7 +243,7 @@ def test_dispatch_summary_always_printed(
 ) -> None:
     """Even on errors, the summary line is always printed."""
     mock_run.return_value = StepReport(name="dispatch", error_count=3)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["dispatch"])
 
@@ -267,7 +268,7 @@ def test_dispatch_verbose_prints_details(
         success_count=1,
         details=["action=moved     Inception (2010) → Disk1"],
     )
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["--verbose", "dispatch"])
 
@@ -290,7 +291,7 @@ def test_dispatch_emits_item_progressed_events(
     """run_dispatch emits ItemProgressed events on the shared EventBus."""
     from personalscraper.pipeline_events import ItemProgressed
 
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
     captured = capture_event_bus(monkeypatch)
 
     def _emit_and_return(*args, **kwargs):
