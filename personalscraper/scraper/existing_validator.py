@@ -18,14 +18,16 @@ if TYPE_CHECKING:
 
 # DIRECT-mode capabilities (IDValidator, IDCrossRef) use ``registry.get("name")``
 # (DESIGN §5.2) — this is the public API for ``Mode.DIRECT``. The return type is
-# ``Named`` Protocol, so ``cast("TMDBClient", ...)`` unwraps to the concrete client
-# when the caller needs provider-specific methods outside the capability Protocol.
+# ``Named`` Protocol, so ``cast(...)`` unwraps either to a capability Protocol
+# (preferred) or to the concrete client when the caller needs provider-specific
+# methods outside the capability Protocol.
 #
-# Sub-phase 7.4 audit (registry feature): every ``cast(...)`` site in this module
-# is intentionally direct-dispatch — see the per-site rationale comments. All six
-# sites fell into a single family after audit: ID-bound canonical-provider refetch
-# where the ID was minted by a specific provider (recorded in the NFO at scrape
-# time) and any chain fallback would silently switch the canonical data source.
+# Sub-phase 7.4 audit + sub-phase 17.3 migration (registry feature): every
+# ``cast(...)`` site in this module is intentionally direct-dispatch — see the
+# per-site rationale comments. All six sites fall into a single family:
+# ID-bound canonical-provider refetch where the ID was minted by a specific
+# provider (recorded in the NFO at scrape time) and any chain fallback would
+# silently switch the canonical data source.
 #
 # Two sub-families exist:
 #
@@ -34,17 +36,19 @@ if TYPE_CHECKING:
 #   ``get_tv_season`` / ``get_series_episodes`` and helpers that consume the
 #   concrete client (``_fetch_season_episodes_tvdb``,
 #   ``_tvdb_series_to_show_data``). The Protocols in ``_contracts.py`` do not
-#   cover these methods.
+#   cover these methods → 4 sites keep ``cast("TMDBClient"|"TVDBClient", ...)``
+#   (lines 237, 258, 349, 371).
 # * Single-call artwork refetch (``_recover_movie_artwork``,
-#   ``_recover_tvshow_artwork``): the Protocol-shaped signatures
-#   (``MovieDetailsProvider.get_movie(provider_id: str)`` /
-#   ``TvDetailsProvider.get_tv(provider_id: str)``) narrow the ID type to ``str``
-#   while the concrete clients accept ``int`` directly, which is what the NFO
-#   parser returns.
+#   ``_recover_tvshow_artwork``): the Protocol signatures
+#   (``MovieDetailsProvider.get_movie`` / ``TvDetailsProvider.get_tv``) now
+#   accept ``int | str`` (sub-phase 17.2 widening), so the cast targets the
+#   capability Protocol → 2 sites use ``cast("MovieDetailsProvider"|
+#   "TvDetailsProvider", ...)`` (lines 544, 590).
 #
-# Net outcome: 0 of 6 sites migrated to chain/fan_out/locked; 6 of 6 keep
-# ``cast("TMDBClient"|"TVDBClient", ...)`` with inline rationale. This is the
-# expected outcome for ID-bound refetch paths per DESIGN §5.2 (``Mode.DIRECT``).
+# Net outcome: 4 of 6 sites keep concrete-client cast (episode-fetching methods
+# outside any Protocol); 2 of 6 migrated to Protocol-typed cast. The remaining
+# 4 are the expected residual per DESIGN §5.2 (``Mode.DIRECT`` for methods
+# without a capability Protocol).
 
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper.episode_manager import (
@@ -531,16 +535,18 @@ class ExistingValidatorMixin:
         # exceptions; download_movie_artwork() adds OSError. CircuitOpenError needs
         # a lazy import — narrowing this mixed path is not worthwhile here.
         try:
+            from personalscraper.api.metadata._contracts import MovieDetailsProvider  # noqa: PLC0415
             from personalscraper.scraper.movie_service import _coerce_to_movie_data
 
-            # Direct-dispatch (sub-phase 7.4 audit): the TMDB id was minted by
-            # TMDB when the NFO was written, and artwork must be re-pulled from
-            # the same canonical source. Chain fallback would silently switch
-            # the provider mid-refetch. ``MovieDetailsProvider.get_movie``
-            # requires ``provider_id: str``; the concrete TMDB client accepts
-            # ``int`` directly, so we keep the concrete cast.
-            tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
-            movie_data = tmdb_client.get_movie(tmdb_id)
+            # Protocol-typed direct-dispatch (sub-phase 17.3): the TMDB id
+            # was minted by TMDB when the NFO was written, and artwork must
+            # be re-pulled from the same canonical source. Chain fallback
+            # would silently switch the provider mid-refetch — forbidden
+            # for ID-bound canonical refetch. Now that the Protocol accepts
+            # ``int | str`` (sub-phase 17.2), the cast can target the
+            # capability Protocol instead of the concrete ``TMDBClient``.
+            provider = cast("MovieDetailsProvider", self._registry.get("tmdb"))
+            movie_data = provider.get_movie(tmdb_id)
             downloaded = self._artwork.download_movie_artwork(
                 _coerce_to_movie_data(movie_data),
                 movie_dir,
@@ -577,15 +583,16 @@ class ExistingValidatorMixin:
         # exceptions; download_tvshow_artwork() adds OSError. CircuitOpenError needs
         # a lazy import — narrowing this mixed path is not worthwhile here.
         try:
+            from personalscraper.api.metadata._contracts import TvDetailsProvider  # noqa: PLC0415
             from personalscraper.scraper.movie_service import _coerce_to_show_data
 
-            # Direct-dispatch (sub-phase 7.4 audit): mirror of
+            # Protocol-typed direct-dispatch (sub-phase 17.3): mirror of
             # ``_recover_movie_artwork`` — TMDB-minted id, canonical refetch
-            # for artwork, chain fallback forbidden. ``TvDetailsProvider.get_tv``
-            # narrows ``provider_id`` to ``str`` but the concrete client accepts
-            # ``int``, so we keep the concrete cast.
-            tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
-            show_data = tmdb_client.get_tv(tmdb_id)
+            # for artwork, chain fallback forbidden. The Protocol now accepts
+            # ``int | str`` (sub-phase 17.2), so the cast targets the
+            # capability instead of the concrete ``TMDBClient``.
+            provider = cast("TvDetailsProvider", self._registry.get("tmdb"))
+            show_data = provider.get_tv(tmdb_id)
             downloaded = self._artwork.download_tvshow_artwork(
                 _coerce_to_show_data(show_data),
                 show_dir,
