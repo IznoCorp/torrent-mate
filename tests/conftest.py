@@ -73,7 +73,7 @@ def make_cli_runner() -> _RawCliRunner:
 
 
 # Expose shared fixtures from the fixtures package
-pytest_plugins = ["tests.fixtures.config"]
+pytest_plugins = ["tests.fixtures.config", "tests.fixtures.settings_stub"]
 
 # Disable Rich/Typer color output so help-text assertions (e.g. "--disk" in output)
 # match the rendered text without ANSI escape codes splitting option names.
