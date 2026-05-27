@@ -389,6 +389,75 @@ personalscraper library-index --mode full --disk Disk2 --confirm-bulk-change
 
 ---
 
+## Registry integration
+
+The indexer's `backfill_ids` driver is the indexer's main consumer of the
+`ProviderRegistry`. Since 0.16.0 Phase 11 the driver receives a
+`ProviderRegistry` instance directly — it no longer extracts typed
+`TMDBClient` / `TVDBClient` / `OmdbClient` instances via `try/except
+UnknownProviderError`.
+
+### What `backfill_ids` does with the registry
+
+`personalscraper/indexer/backfill_ids.py` resolves two distinct needs through
+two distinct registry operations:
+
+1. **Ratings aggregation — `ProviderRegistry.fan_out(RatingProvider)`**
+
+   Every rating-capable provider contributes its own notations (e.g. IMDb +
+   OMDb + RottenTomatoes), so the only correct semantic is `fan_out`. The
+   driver iterates `registry.fan_out(RatingProvider).values`, filters by
+   `gap.missing_rating_sources` (skip providers whose source the row already
+   has), and serialises each provider call into the
+   `media_item.ratings_json` payload (`backfill_ids.py:625`).
+
+2. **Canonical details lookup — `ProviderRegistry.chain(MovieDetailsProvider |
+TvDetailsProvider)`**
+
+   When the row is missing the canonical id for a media type, the driver
+   iterates the appropriate chain capability and filters to the canonical
+   provider name (TVDB for shows, TMDB for movies). This preserves the
+   per-family canonical-source invariant while still benefiting from the
+   chain's circuit-eligibility filtering and fallback-event emission
+   (`backfill_ids.py:453` and `:456`).
+
+### CLI wiring
+
+`personalscraper library backfill-ids` (driver in
+`personalscraper/indexer/scanner/_modes/backfill_ids.py`) constructs its
+runtime context from `AppContext.provider_registry` and passes the
+`ProviderRegistry` to `run_backfill_ids()`. The old code path that extracted
+typed clients via `registry.get("tmdb")` + `isinstance(..., TMDBClient)`
+checks has been removed — the registry is the only consumer-visible
+metadata-dispatch entry point.
+
+### Failure semantics
+
+- `fan_out` returns an empty `FanOutResult.values` when every rating provider
+  is circuit-OPEN — this is treated as **partial success** (no error,
+  `attempted` carries the `circuit_open` reasons for telemetry). The
+  registry's `RegistryFanOutCompleted` event fires unconditionally.
+- `chain` raises `ProviderExhausted` when every chain provider failed for a
+  classified reason (`circuit_open` / `network`). The driver catches this
+  and records the row as a partial backfill, preserving the
+  `last_exception` message in the audit trail.
+- Per-call `CircuitOpenError` raised between the `fan_out` eligibility check
+  and the actual provider call is caught locally and treated as an empty
+  contribution — see `_call_rating_provider` in `backfill_ids.py:635`.
+
+### See also
+
+- `docs/reference/scraping.md#capability-cookbook` — Examples 2 and 3 give
+  minimal snippets of the `chain(MovieDetailsProvider)` and
+  `fan_out(RatingProvider)` shapes used here.
+- `docs/reference/external-ids-flow.md` — cross-provider id flow at the
+  pipeline level (the source of truth for which provider is canonical per
+  media type).
+- `docs/reference/architecture.md#provider-registry` — registry module
+  layout and boot sequence.
+
+---
+
 ## CLI Reference Summary
 
 Full option documentation is in `docs/reference/commands.md`.
