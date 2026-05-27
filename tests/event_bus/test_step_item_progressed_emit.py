@@ -29,6 +29,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.event_bus import EventBus, event_to_envelope
 from personalscraper.pipeline_events import ItemProgressed
 from tests.fixtures.event_bus import CollectingSubscriber
@@ -307,7 +308,14 @@ def test_run_trailers_emits_item_progressed_on_skip(
     config = MagicMock()
     config.trailers.enabled = True
 
-    run_trailers(config=config, staging_dir=tmp_path, verified=[], skip_trailers=True, event_bus=bus)
+    run_trailers(
+        config=config,
+        staging_dir=tmp_path,
+        verified=[],
+        skip_trailers=True,
+        event_bus=bus,
+        registry=MagicMock(spec=ProviderRegistry),
+    )
 
     assert len(sub.received) == 1
     assert sub.received[0].step == "trailers"

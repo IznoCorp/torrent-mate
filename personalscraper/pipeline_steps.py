@@ -208,7 +208,12 @@ class VerifyStep:
 
 
 class TrailersStep:
-    """Adapter for the trailers step (``personalscraper.trailers.step.run_trailers``)."""
+    """Adapter for the trailers step (``personalscraper.trailers.step.run_trailers``).
+
+    The :class:`ProviderRegistry` is forwarded from ``ctx.app.provider_registry``
+    so the orchestrator's ``VideoProvider`` resolution shares the
+    process-scoped registry (feat/registry §5.2 / sub-phase 3.1).
+    """
 
     name = "trailers"
 
@@ -230,6 +235,7 @@ class TrailersStep:
             verified=ctx.extras.get("verified", []),
             skip_trailers=bool(ctx.extras.get("skip_trailers", False)),
             event_bus=ctx.app.event_bus,
+            registry=ctx.app.provider_registry,
         )
 
 
@@ -339,6 +345,7 @@ class LegacyCallableStep:
                 verified=ctx.extras.get("verified", []),
                 skip_trailers=bool(ctx.extras.get("skip_trailers", False)),
                 event_bus=ctx.app.event_bus,
+                registry=ctx.app.provider_registry,
             )
         if self.name == "dispatch":
             return self._fn(

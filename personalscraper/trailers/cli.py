@@ -513,6 +513,7 @@ def download(
             config=config,
             staging_dir=staging_dir,
             event_bus=app_context.event_bus,
+            registry=app_context.provider_registry,
         )
         counts = orchestrator.run(items=items)
 

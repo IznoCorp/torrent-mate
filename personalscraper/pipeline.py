@@ -80,28 +80,18 @@ class Pipeline:
 
         Args:
             app: Process-scoped service bundle (``config``, ``settings``,
-                ``event_bus``). All other knobs are run-scope and live on
-                :meth:`run` as keyword-only parameters.
+                ``event_bus``, ``provider_registry``). All other knobs are
+                run-scope and live on :meth:`run` as keyword-only
+                parameters.
         """
-        from personalscraper.api.metadata.registry import ProviderRegistry
-        from personalscraper.api.transport._policy import CircuitPolicy
-
         self._app: AppContext = app
         self._log = get_logger("pipeline")
 
-        # Provider registry: instantiated once per process at boot (DESIGN §6.1).
-        # Circuit breaker thresholds come from config/thresholds.json5.
-        thresholds_config = app.config.thresholds
-        cb_policy = CircuitPolicy(
-            failure_threshold=thresholds_config.circuit_breaker_threshold,
-            cooldown_seconds=thresholds_config.circuit_breaker_cooldown,
-        )
-        self._registry = ProviderRegistry(
-            settings=app.settings,
-            event_bus=app.event_bus,
-            cb_policy=cb_policy,
-            providers_config=app.config.providers,
-        )
+        # Provider registry: instantiated once per process at boot
+        # (DESIGN §6.1) by ``_build_app_context``. The pipeline reads it
+        # from the bundle rather than constructing its own — feat/registry
+        # §5.2 / sub-phase 3.1.
+        self._registry = app.provider_registry
         # Run-scope state below is (re)assigned at the start of every
         # ``run`` call so existing helper methods can read it via ``self``.
         # Defaults are conservative no-op values used only if a helper

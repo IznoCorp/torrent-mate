@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus
 from personalscraper.models import PipelineReport, StepReport
@@ -28,7 +29,12 @@ def _stub_app() -> AppContext:
     config.trailers.pipeline.continue_on_error = True
     config.trailers.enabled = False
     settings = MagicMock()
-    return AppContext(config=config, settings=settings, event_bus=EventBus())
+    return AppContext(
+        config=config,
+        settings=settings,
+        event_bus=EventBus(),
+        provider_registry=MagicMock(spec=ProviderRegistry),
+    )
 
 
 def _make_step_registry() -> dict[str, object]:

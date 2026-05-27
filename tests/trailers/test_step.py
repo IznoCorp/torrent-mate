@@ -8,9 +8,15 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.event_bus import EventBus
 from personalscraper.models import PipelineReport, StepReport
 from personalscraper.trailers.step import run_trailers
+
+
+def _mk_registry():
+    """Return a MagicMock standing in for a ProviderRegistry."""
+    return MagicMock(spec=ProviderRegistry)
 
 
 @pytest.fixture()
@@ -40,20 +46,34 @@ class TestRunTrailers:
                 "skipped_by_state": 0,
             }
             mock_orch.failed_items = []
-            result = run_trailers(config, staging_dir=tmp_path, verified=[], event_bus=EventBus())
+            result = run_trailers(
+                config,
+                staging_dir=tmp_path,
+                verified=[],
+                event_bus=EventBus(),
+                registry=_mk_registry(),
+            )
         assert isinstance(result, StepReport)
         assert result.name == "trailers"
 
     def test_skipped_when_disabled(self, config, tmp_path):
         """run_trailers() returns a skipped report when config.trailers.enabled=False."""
         config.trailers.enabled = False
-        result = run_trailers(config, staging_dir=tmp_path, verified=[], event_bus=EventBus())
+        result = run_trailers(
+            config,
+            staging_dir=tmp_path,
+            verified=[],
+            event_bus=EventBus(),
+            registry=_mk_registry(),
+        )
         assert result.name == "trailers"
         assert result.status == "skipped"
 
     def test_skip_trailers_flag_skips(self, config, tmp_path):
         """run_trailers() respects the skip_trailers flag."""
-        result = run_trailers(config, staging_dir=tmp_path, verified=[], skip_trailers=True, event_bus=EventBus())
+        result = run_trailers(
+            config, staging_dir=tmp_path, verified=[], skip_trailers=True, event_bus=EventBus(), registry=_mk_registry()
+        )
         assert result.status == "skipped"
 
     def test_counts_in_step_report(self, config, tmp_path):
@@ -69,7 +89,13 @@ class TestRunTrailers:
                 "skipped_by_state": 2,
             }
             mock_orch.failed_items = []
-            result = run_trailers(config, staging_dir=tmp_path, verified=[], event_bus=EventBus())
+            result = run_trailers(
+                config,
+                staging_dir=tmp_path,
+                verified=[],
+                event_bus=EventBus(),
+                registry=_mk_registry(),
+            )
         assert result.success_count == 3
         assert result.skip_count == 5 + 2
         assert result.counts.get("downloaded") == 3
@@ -87,7 +113,13 @@ class TestRunTrailers:
                 "skipped_by_state": 0,
             }
             mock_orch.failed_items = [("movie:tmdb:1", "bot_detected", "sign in")]
-            result = run_trailers(config, staging_dir=tmp_path, verified=[], event_bus=EventBus())
+            result = run_trailers(
+                config,
+                staging_dir=tmp_path,
+                verified=[],
+                event_bus=EventBus(),
+                registry=_mk_registry(),
+            )
         assert result.status == "partial"
 
     def test_success_status_when_no_failures(self, config, tmp_path):
@@ -103,7 +135,13 @@ class TestRunTrailers:
                 "skipped_by_state": 0,
             }
             mock_orch.failed_items = []
-            result = run_trailers(config, staging_dir=tmp_path, verified=[], event_bus=EventBus())
+            result = run_trailers(
+                config,
+                staging_dir=tmp_path,
+                verified=[],
+                event_bus=EventBus(),
+                registry=_mk_registry(),
+            )
         assert result.status == "success"
 
 
@@ -173,7 +211,13 @@ class TestRunTrailersVerifiedFiltering:
             }
             mock_orch.failed_items = []
 
-            run_trailers(config, staging_dir=tmp_path, verified=[verified_item], event_bus=EventBus())
+            run_trailers(
+                config,
+                staging_dir=tmp_path,
+                verified=[verified_item],
+                event_bus=EventBus(),
+                registry=_mk_registry(),
+            )
 
         # orchestrator.run() must have been called with only item_a
         mock_orch.run.assert_called_once()
@@ -206,7 +250,13 @@ class TestRunTrailersVerifiedFiltering:
             }
             mock_orch.failed_items = []
 
-            run_trailers(config, staging_dir=tmp_path, verified=[], event_bus=EventBus())
+            run_trailers(
+                config,
+                staging_dir=tmp_path,
+                verified=[],
+                event_bus=EventBus(),
+                registry=_mk_registry(),
+            )
 
         mock_orch.run.assert_called_once_with(items=None)
 
@@ -267,7 +317,13 @@ class TestStateWriteFailure:
             mock_orch.run.side_effect = no_space_error
 
             with caplog.at_level(logging.ERROR):
-                result = run_trailers(config, staging_dir=tmp_path, verified=[], event_bus=EventBus())
+                result = run_trailers(
+                    config,
+                    staging_dir=tmp_path,
+                    verified=[],
+                    event_bus=EventBus(),
+                    registry=_mk_registry(),
+                )
 
         assert result.status == "error", f"expected status='error', got {result.status!r}"
         assert result.error_count == 1
@@ -323,7 +379,7 @@ class TestRunTrailersBusPassThrough:
                 "skipped_by_state": 0,
             }
             mock_orch.failed_items = []
-            run_trailers(config, staging_dir=tmp_path, verified=[], event_bus=caller_bus)
+            run_trailers(config, staging_dir=tmp_path, verified=[], event_bus=caller_bus, registry=_mk_registry())
 
         MockOrch.assert_called_once()
         kwargs = MockOrch.call_args.kwargs

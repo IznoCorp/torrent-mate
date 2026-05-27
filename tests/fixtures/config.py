@@ -18,6 +18,7 @@ from personalscraper.conf.models.categories import (
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.paths import PathConfig
+from personalscraper.conf.models.providers import ProvidersConfig
 from personalscraper.conf.models.staging import StagingDirConfig
 
 # ---------------------------------------------------------------------------
@@ -201,4 +202,18 @@ def test_config(tmp_path: Path) -> Config:
             applies_to="tv",
         ),
         staging_dirs=CANONICAL_STAGING_DIRS,
+        # Minimal valid ProvidersConfig so ``ProviderRegistry`` (built at the
+        # CLI boundary by ``_build_app_context`` since feat/registry sub-phase
+        # 3.1) does not raise ``RegistryConfigError`` for empty chain
+        # capabilities. Tests that need finer control over provider chains
+        # can build their own Config and override ``providers=`` explicitly.
+        providers=ProvidersConfig(
+            Searchable={"tvdb": 1, "tmdb": 2},
+            MovieDetailsProvider={"tmdb": 1, "tvdb": 2},
+            TvDetailsProvider={"tvdb": 1, "tmdb": 2},
+            EpisodeFetcher={"tvdb": 1, "tmdb": 2},
+            ArtworkProvider={"tmdb": 1, "tvdb": 2},
+            KeywordProvider={"tmdb": 1},
+            VideoProvider={"tmdb": 1, "tvdb": 2},
+        ),
     )

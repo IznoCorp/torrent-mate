@@ -45,7 +45,7 @@ from personalscraper.trailers.state import (
 )
 
 if TYPE_CHECKING:
-    from personalscraper.api.metadata.registry import ProviderRegistry  # noqa: F811
+    from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.core.event_bus import EventBus
     from personalscraper.scraper.trailer_finder import TrailerFinder
 
@@ -127,7 +127,8 @@ class TrailersOrchestrator:
         _failed_items: Per-item failure list populated by run().
         _library_index: Lazily built index mapping (category_id, id_value) to
             :class:`_LibraryEntry`.  Populated on first need during run().
-        _registry: Optional ProviderRegistry (Phase 3 will make this required).
+        _registry: The process-scoped :class:`ProviderRegistry` from
+            :class:`AppContext` (required, threaded by the boundary).
     """
 
     def __init__(
@@ -136,7 +137,7 @@ class TrailersOrchestrator:
         staging_dir: Path | None,
         *,
         event_bus: "EventBus",
-        registry: "ProviderRegistry | None" = None,  # noqa: F821
+        registry: "ProviderRegistry",
     ) -> None:
         """Wire up Scanner, TrailerFinder, YtdlpDownloader, TrailerStateStore.
 
@@ -149,9 +150,12 @@ class TrailersOrchestrator:
                 ``TrailerDownloaded`` events on it and forwards it to the
                 transports + YouTube ``CircuitBreaker``. Tests that don't care
                 about emit can pass a fresh ``EventBus()`` with no subscribers.
-            registry: Optional ProviderRegistry for resolving the VideoProvider
-                capability. When None (legacy callers), a registry is built
-                inline from config. Phase 3 will make this required.
+            registry: Required :class:`ProviderRegistry` used by
+                :class:`TrailerFinder` to resolve the ``VideoProvider``
+                capability. Threaded from
+                :class:`~personalscraper.core.app_context.AppContext` —
+                feat/registry §5.2 (sub-phase 3.1 made this required and
+                removed the transitional inline-construction fallback).
         """
         self._config = config
         self._staging_dir = staging_dir
@@ -651,23 +655,19 @@ class TrailersOrchestrator:
     def _build_finder(self) -> "TrailerFinder | None":
         """Construct a fully wired TrailerFinder from config values.
 
-        Uses the ProviderRegistry (provided or built inline) to resolve the
-        VideoProvider capability. Wires the YouTube circuit breaker from
-        ``config.trailers.circuit_breakers``, the YouTube quota cache (sidecar
-        ``JsonTTLCache``), and the YouTube API key from ``YOUTUBE_API_KEY`` env.
-        Returns None only on import-time failure (developer error); other
-        misconfigurations log loudly with exc_info so users see them.
-
-        When ``self._registry`` is None (legacy callers), a ProviderRegistry is
-        built inline from config.  Phase 3 will make ``registry`` required and
-        remove the inline construction.
+        Uses ``self._registry`` (threaded from :class:`AppContext` —
+        feat/registry §5.2) to resolve the ``VideoProvider`` capability.
+        Wires the YouTube circuit breaker from
+        ``config.trailers.circuit_breakers``, the YouTube quota cache
+        (sidecar ``JsonTTLCache``), and the YouTube API key from
+        ``YOUTUBE_API_KEY`` env. Returns None only on import-time failure
+        (developer error); other misconfigurations log loudly with
+        exc_info so users see them.
 
         Returns:
             A TrailerFinder instance, or None when import fails.
         """
         try:
-            from personalscraper.api.metadata.registry import ProviderRegistry  # noqa: PLC0415
-            from personalscraper.api.transport._policy import CircuitPolicy  # noqa: PLC0415
             from personalscraper.config import get_settings  # noqa: PLC0415
             from personalscraper.core.circuit import CircuitBreaker  # noqa: PLC0415
             from personalscraper.scraper.json_ttl_cache import JsonTTLCache  # noqa: PLC0415
@@ -687,16 +687,10 @@ class TrailersOrchestrator:
             cache_dir.mkdir(parents=True, exist_ok=True)
             cache = TrailersCache(cache_dir / "trailers_cache.json")
 
-            # Resolve registry: use the one passed in, or build inline from config
-            # (transitional — Phase 3 will make registry required).
+            # Registry comes from AppContext via the constructor (sub-phase
+            # 3.1 made it required and removed the transitional inline
+            # construction).
             registry = self._registry
-            if registry is None:
-                registry = ProviderRegistry(
-                    settings=settings,
-                    event_bus=self._event_bus,
-                    cb_policy=CircuitPolicy(),
-                    providers_config=self._config.providers,
-                )
 
             cb_cfg = self._config.trailers.circuit_breakers
             youtube_breaker = CircuitBreaker(name="trailers_youtube", failure_threshold=int(cb_cfg.youtube.errors_threshold), cooldown_seconds=float(cb_cfg.youtube.cooldown_sec), event_bus=self._event_bus)  # noqa: E501  # fmt: skip

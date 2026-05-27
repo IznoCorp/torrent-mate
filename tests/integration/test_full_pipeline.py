@@ -8,7 +8,9 @@ Catalogue items covered:
 """
 
 from pathlib import Path
+from unittest.mock import MagicMock
 
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.core.app_context import AppContext
@@ -177,6 +179,7 @@ def test_dry_run_three_torrents(
             config=integration_config,
             settings=_make_settings(),
             event_bus=EventBus(),
+            provider_registry=MagicMock(spec=ProviderRegistry),
         )
     )
     report: PipelineReport = pipeline.run(

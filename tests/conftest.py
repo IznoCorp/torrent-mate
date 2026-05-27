@@ -149,6 +149,52 @@ def _replace_console_renderer_for_tests() -> None:
 
 
 @pytest.fixture(autouse=True)
+def _patch_provider_registry_for_cli_tests(request, monkeypatch):
+    """Patch ProviderRegistry construction inside the CLI ``_build_app_context``.
+
+    Since feat/registry sub-phase 3.1, ``_build_app_context`` instantiates
+    a :class:`ProviderRegistry` at the CLI boundary. Most CLI E2E tests
+    inject a ``MagicMock`` :class:`Settings` (``mock_settings.return_value =
+    MagicMock()``) which then propagates into the provider builders
+    (TMDBClient, TVDBClient, …) where ``policy(settings.<key>, …)`` fails
+    because a ``MagicMock`` is not JSON-serialisable inside
+    :class:`TransportPolicy`. We side-step that whole chain by stubbing
+    :class:`ProviderRegistry` at the import site used by
+    ``_build_app_context`` so tests focus on the CLI surface they actually
+    exercise.
+
+    Scoped to test files that drive the Typer CLI or rely on
+    ``_build_app_context``. Tests that exercise the registry directly
+    (``tests/unit/api/metadata/registry/``,
+    ``tests/integration/api/metadata/registry/``,
+    ``tests/integration/scraper/``) are not patched.
+    """
+    fspath_str = str(request.fspath)
+    # Skip the patch for registry tests + scraper integration tests that
+    # need the real ProviderRegistry to verify boot validation.
+    skip_paths = (
+        "tests/unit/api/metadata/registry",
+        "tests/integration/api/metadata/registry",
+        "tests/integration/scraper/test_legacy_fallback_snapshot.py",
+        "tests/event_bus/test_step_item_progressed_emit.py",
+    )
+    if any(skip in fspath_str for skip in skip_paths):
+        yield
+        return
+
+    from unittest.mock import MagicMock as _MagicMock
+
+    # The registry import inside ``_build_app_context`` is lazy
+    # (``from personalscraper.api.metadata.registry import ProviderRegistry``),
+    # so the patch target is the symbol resolved at call time.
+    monkeypatch.setattr(
+        "personalscraper.api.metadata.registry.ProviderRegistry",
+        _MagicMock,
+    )
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _mock_cli_config_load(request, test_config):
     """Patch the eager config load in the CLI callback for CLI test files only.
 

@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.event_bus import EventBus
 from personalscraper.trailers.orchestrator import TrailersOrchestrator, _LibraryEntry
 from personalscraper.trailers.scanner import ScanItem
@@ -71,7 +72,12 @@ class TestCookieErrorBranch:
             "personalscraper.trailers.orchestrator.CookieConfig.from_env",
             side_effect=CookieError("invalid path"),
         ):
-            orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+            orch = TrailersOrchestrator(
+                config=cfg,
+                staging_dir=tmp_path,
+                event_bus=EventBus(),
+                registry=MagicMock(spec=ProviderRegistry),
+            )
         # Construction must succeed and produce a working orchestrator instance.
         assert orch is not None
 
@@ -86,7 +92,12 @@ class TestKeyErrorBranch:
             tmp_path: Pytest tmp_path fixture.
         """
         cfg = _make_config(tmp_path)
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
         item = ScanItem(
             path=Path("/fake/Movie (2020)"),
             media_type="movie",
@@ -124,7 +135,12 @@ class TestSeasonalLibraryAwareCheck:
         cfg = _make_config(tmp_path)
         cfg.trailers.seasons.enabled = True
         cfg.trailers.library_check.tv_shows = True
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         # Library directory + seasonal trailer file
         lib_dir = tmp_path / "lib" / "Show (2020)"
@@ -177,7 +193,12 @@ class TestDiskUsageOSError:
         from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
 
         cfg = _make_config(tmp_path)
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         media_dir = tmp_path / "M (2020)"
         media_dir.mkdir()
@@ -221,7 +242,12 @@ class TestNfoWriteFailureWarning:
         from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
 
         cfg = _make_config(tmp_path)
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         media_dir = tmp_path / "Movie (1999)"
         media_dir.mkdir()
@@ -266,7 +292,12 @@ class TestFailedItemsProperty:
             tmp_path: Pytest tmp_path fixture.
         """
         cfg = _make_config(tmp_path)
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
         orch._failed_items = [("k1", "no_trailer", ""), ("k2", "error", "boom")]
         result = orch.failed_items
         assert result == [("k1", "no_trailer", ""), ("k2", "error", "boom")]
@@ -288,7 +319,12 @@ class TestBuildFinderImportError:
             tmp_path: Pytest tmp_path fixture.
         """
         cfg = _make_config(tmp_path)
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         # Simulate ImportError by patching one of the modules imported inside
         # _build_finder. The function uses `from ... import` so we monkey-patch
@@ -318,7 +354,12 @@ class TestBuildFinderGenericException:
             tmp_path: Pytest tmp_path fixture.
         """
         cfg = _make_config(tmp_path)
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         # Cause `get_settings()` to raise a non-Import exception.
         with patch(
@@ -340,7 +381,12 @@ class TestBuildFinderYoutubeKeyMissing:
             tmp_path: Pytest tmp_path fixture.
         """
         cfg = _make_config(tmp_path)
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         fake_settings = MagicMock()
         fake_settings.tmdb_api_key = "tmdb-key-123"
@@ -371,7 +417,12 @@ class TestBuildLibraryIndex:
         cfg = _make_config(tmp_path)
         # Ensure indexer.db_path points to a non-existent file.
         cfg.indexer.db_path = tmp_path / "missing.db"
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         result = orch._build_library_index()
         assert result == {}
@@ -386,7 +437,12 @@ class TestBuildLibraryIndex:
         db_path.write_text("not a real sqlite file")
         cfg = _make_config(tmp_path)
         cfg.indexer.db_path = db_path
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         with (
             patch(
@@ -412,7 +468,12 @@ class TestBuildLibraryIndex:
         db_path.write_text("sentinel")
         cfg = _make_config(tmp_path)
         cfg.indexer.db_path = db_path
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         # Build a mock row that mimics MediaItemRow with tmdb_id + imdb_id
         # encoded in the migration-005 ``external_ids_json`` column.
@@ -471,7 +532,12 @@ class TestLookupLibraryItemNoneIndex:
             tmp_path: Pytest tmp_path fixture.
         """
         cfg = _make_config(tmp_path)
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
         orch._library_index = None
         item = ScanItem(
             path=tmp_path / "x",
@@ -489,7 +555,12 @@ class TestLookupLibraryItemNoneIndex:
             tmp_path: Pytest tmp_path fixture.
         """
         cfg = _make_config(tmp_path)
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
         orch._library_index = {("movies", "550"): _LibraryEntry(path="/x")}
         item = ScanItem(
             path=tmp_path / "x",

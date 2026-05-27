@@ -5,18 +5,21 @@ failures produce ``status='partial'`` and dispatch proceeds. Uses structlog
 (the project-wide logger) — not the stdlib ``logging``.
 
 Public entry point:
-``run_trailers(config, staging_dir, verified, skip_trailers=False) -> StepReport``.
+``run_trailers(config, staging_dir, verified, skip_trailers=False, *, event_bus, registry) -> StepReport``.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.pipeline_events import ItemProgressed
+
+if TYPE_CHECKING:
+    from personalscraper.api.metadata.registry import ProviderRegistry
 
 logger = get_logger(__name__)
 
@@ -28,6 +31,7 @@ def run_trailers(
     skip_trailers: bool = False,
     *,
     event_bus: EventBus,
+    registry: "ProviderRegistry",
 ) -> StepReport:
     """Run the trailers pipeline step for all staged media items.
 
@@ -44,6 +48,9 @@ def run_trailers(
         skip_trailers: If True, return a skipped StepReport immediately.
         event_bus: Required in-process EventBus. Each per-item
             lifecycle transition emits an ``ItemProgressed`` event on the bus.
+        registry: Required :class:`ProviderRegistry` threaded from
+            :class:`AppContext` — used by the :class:`TrailersOrchestrator`
+            to resolve the ``VideoProvider`` capability (feat/registry §5.2).
 
     Returns:
         StepReport with name="trailers", status in
@@ -72,7 +79,12 @@ def run_trailers(
     from personalscraper.trailers.state import TrailerStateLocked  # noqa: PLC0415
 
     try:
-        orchestrator = TrailersOrchestrator(config=config, staging_dir=staging_dir, event_bus=event_bus)
+        orchestrator = TrailersOrchestrator(
+            config=config,
+            staging_dir=staging_dir,
+            event_bus=event_bus,
+            registry=registry,
+        )
 
         # Build the items list to pass to the orchestrator.
         #

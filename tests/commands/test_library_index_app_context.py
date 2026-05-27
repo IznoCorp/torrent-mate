@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.cli import app
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus, current_correlation_id
@@ -35,7 +36,12 @@ def _patches():
     # infinitely, because the ``library_index`` command body re-imports the
     # name on every call.
     def _capturing_build(config, settings):  # type: ignore[no-untyped-def]
-        ctx = AppContext(config=config, settings=settings, event_bus=EventBus())
+        ctx = AppContext(
+            config=config,
+            settings=settings,
+            event_bus=EventBus(),
+            provider_registry=MagicMock(spec=ProviderRegistry),
+        )
         real_app.append(ctx)
         return ctx
 
@@ -64,14 +70,18 @@ class TestLibraryIndexCommandAppContext:
     def test_library_index_command_binds_correlation_id(self) -> None:
         """``current_correlation_id`` is set during the scan and reset on exit."""
         observed: list[str | None] = []
+        capturing, _captured = _patches()
 
         def _spy_orchestrator(**kwargs) -> int:  # type: ignore[no-untyped-def]  # noqa: ANN003
             observed.append(current_correlation_id.get())
             return 0
 
-        with patch(
-            "personalscraper.indexer.cli.library_index_command",
-            side_effect=_spy_orchestrator,
+        with (
+            patch("personalscraper.cli_helpers._build_app_context", side_effect=capturing),
+            patch(
+                "personalscraper.indexer.cli.library_index_command",
+                side_effect=_spy_orchestrator,
+            ),
         ):
             assert current_correlation_id.get() is None
             result = runner.invoke(app, ["library-index", "--dry-run"])
@@ -86,14 +96,18 @@ class TestLibraryIndexCommandAppContext:
     def test_library_index_command_passes_event_bus_to_orchestrator(self) -> None:
         """``library_index_command`` receives ``event_bus`` (NOT the full AppContext)."""
         captured_kwargs: dict = {}
+        capturing, _captured = _patches()
 
         def _spy(**kwargs) -> int:  # type: ignore[no-untyped-def]  # noqa: ANN003
             captured_kwargs.update(kwargs)
             return 0
 
-        with patch(
-            "personalscraper.indexer.cli.library_index_command",
-            side_effect=_spy,
+        with (
+            patch("personalscraper.cli_helpers._build_app_context", side_effect=capturing),
+            patch(
+                "personalscraper.indexer.cli.library_index_command",
+                side_effect=_spy,
+            ),
         ):
             result = runner.invoke(app, ["library-index", "--dry-run"])
         assert result.exit_code == 0, result.output

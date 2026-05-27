@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     # and ``Settings`` may transitively import modules that reach back here.
     # The frozen dataclass stores them by reference; the runtime never
     # inspects their types.
+    from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
     from personalscraper.core.event_bus import EventBus
@@ -43,14 +44,19 @@ class AppContext:
         config: The typed JSON5 configuration loaded at boundary.
         settings: The Pydantic env-var settings (API keys, paths).
         event_bus: The in-process ``EventBus`` for cross-component events.
-
-    Future v2 additions (NOT in scope for the event-bus feature):
-        provider_registry, service_container — see ROADMAP.md.
+        provider_registry: The configured :class:`ProviderRegistry`
+            instantiated at boot (DESIGN §5.2 / feat/registry §6.1). Bundles
+            every metadata provider (TMDB, TVDB, OMDB, …) with circuit
+            policy + event-bus instrumentation. Boundary modules read it to
+            hand the registry (or specific capabilities) down to the
+            components that need them — see the boundary allowlist in
+            ``tests/architecture/test_app_context_boundary.py``.
     """
 
     config: Config
     settings: Settings
     event_bus: EventBus
+    provider_registry: ProviderRegistry
 
 
 __all__ = ["AppContext"]

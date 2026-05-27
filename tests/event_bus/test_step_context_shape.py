@@ -9,6 +9,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 from uuid import uuid4
 
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus
 from personalscraper.pipeline_protocol import StepContext
@@ -16,7 +17,12 @@ from personalscraper.pipeline_protocol import StepContext
 
 def _make_step_context() -> StepContext:
     """Build a minimal :class:`StepContext` for shape assertions."""
-    app = AppContext(config=MagicMock(), settings=MagicMock(), event_bus=EventBus())
+    app = AppContext(
+        config=MagicMock(),
+        settings=MagicMock(),
+        event_bus=EventBus(),
+        provider_registry=MagicMock(spec=ProviderRegistry),
+    )
     return StepContext(
         app=app,
         run_id=uuid4(),
