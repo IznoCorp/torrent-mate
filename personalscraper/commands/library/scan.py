@@ -399,6 +399,9 @@ def library_backfill_ids(
     """
     import os as _os  # noqa: PLC0415
 
+    from personalscraper import cli as cli_compat  # noqa: PLC0415
+    from personalscraper.api.metadata.registry._errors import UnknownProviderError  # noqa: PLC0415
+    from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
     from personalscraper.conf.loader import load_config  # noqa: PLC0415
     from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
     from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
@@ -414,68 +417,53 @@ def library_backfill_ids(
     db_path = Path(cfg.indexer.db_path)
     migrations_dir = _os.path.dirname(_migrations_pkg.__file__)
 
-    # Create a shared EventBus for the duration of the backfill pass.
-    # It is constructed early so provider clients can thread it into their
-    # underlying HttpTransport (circuit-breaker event emission).
-    event_bus = EventBus()
+    # Build AppContext at the CLI boundary to get the shared ProviderRegistry
+    # (sub-phase 3.3 — DESIGN §11: indexer migration is out of scope).
+    settings = cli_compat.get_settings()
+    app_context = _build_app_context(cfg, settings)
 
-    # Build optional provider clients from environment credentials.
-    # Clients are None when the relevant API key is absent or when
-    # --dry-run is set (no network calls needed for a dry pass).
-    # run_backfill_ids handles None clients gracefully (fail-soft, logs once).
+    # Extract typed clients from the registry without directly constructing
+    # TMDBClient / TVDBClient / IMDbClient / RottenTomatoesClient in this
+    # command (ACC-02).  run_backfill_ids (indexer/) still expects typed
+    # client params — the registry acts as the factory while keeping the
+    # indexer's API unchanged (DESIGN §11).
     tmdb_client = None
     tvdb_client = None
     imdb_client = None
     rt_client = None
 
     if not ratings_only and not dry_run:
-        tmdb_key = _os.environ.get("TMDB_API_KEY") or ""
-        tvdb_key = _os.environ.get("TVDB_API_KEY") or ""
-
-        if tmdb_key:
-            from personalscraper.api.metadata.tmdb import TMDBClient  # noqa: PLC0415
-            from personalscraper.api.transport._http import HttpTransport  # noqa: PLC0415
-
-            tmdb_client = TMDBClient(transport=HttpTransport(TMDBClient.policy(tmdb_key), event_bus=event_bus))
-
-        if tvdb_key:
-            from personalscraper.api.metadata.tvdb import TVDBClient  # noqa: PLC0415
-
-            tvdb_client = TVDBClient(api_key=tvdb_key, event_bus=event_bus)
+        try:
+            tmdb_client = app_context.provider_registry.get("tmdb")
+        except UnknownProviderError:
+            tmdb_client = None
+        try:
+            tvdb_client = app_context.provider_registry.get("tvdb")
+        except UnknownProviderError:
+            tvdb_client = None
 
     if not ids_only and not dry_run:
-        omdb_key = _os.environ.get("OMDB_API_KEY") or ""
-
-        if omdb_key:
-            from personalscraper.api.metadata._omdb_quota import OmdbQuotaTracker  # noqa: PLC0415
-            from personalscraper.api.metadata.imdb import IMDbClient  # noqa: PLC0415
-            from personalscraper.api.metadata.omdb import OMDbAdapter  # noqa: PLC0415
-            from personalscraper.api.metadata.rotten_tomatoes import RottenTomatoesClient  # noqa: PLC0415
-            from personalscraper.api.transport._http import HttpTransport  # noqa: PLC0415
-
-            quota_tracker = OmdbQuotaTracker(
-                state_path=db_path.parent / ".omdb-quota.json",
-                limit=int(_os.environ.get("OMDB_DAILY_LIMIT", "1000")),
-            )
-            omdb_backend = OMDbAdapter(
-                transport=HttpTransport(OMDbAdapter.policy(omdb_key), event_bus=event_bus),
-                quota_tracker=quota_tracker,
-            )
-            imdb_client = IMDbClient(backend=omdb_backend)
-            rt_client = RottenTomatoesClient(backend=omdb_backend)
+        try:
+            imdb_client = app_context.provider_registry.get("imdb")
+        except UnknownProviderError:
+            imdb_client = None
+        try:
+            rt_client = app_context.provider_registry.get("rotten_tomatoes")
+        except UnknownProviderError:
+            rt_client = None
 
     # Open DB in writer mode, apply migrations, then run the backfill pass.
-    conn = open_db(db_path, event_bus=event_bus)
+    conn = open_db(db_path, event_bus=app_context.event_bus)
     apply_migrations(conn, Path(migrations_dir))
 
     try:
         stats = run_backfill_ids(
             conn,
-            event_bus=event_bus,
-            imdb_client=imdb_client,
-            rt_client=rt_client,
-            tmdb_client=tmdb_client,
-            tvdb_client=tvdb_client,
+            event_bus=app_context.event_bus,
+            imdb_client=imdb_client,  # type: ignore[arg-type]
+            rt_client=rt_client,  # type: ignore[arg-type]
+            tmdb_client=tmdb_client,  # type: ignore[arg-type]
+            tvdb_client=tvdb_client,  # type: ignore[arg-type]
             show_filter=show,
             ids_only=ids_only,
             ratings_only=ratings_only,

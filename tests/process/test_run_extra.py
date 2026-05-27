@@ -187,7 +187,9 @@ class TestRunProcessErrorIsolation:
         mock_scrape.return_value = StepReport(name="scrape")
         mock_cleanup.return_value = StepReport(name="cleanup")
 
-        clean, scrape, cleanup = run_process(_make_settings(), config=_make_config(tmp_path), event_bus=EventBus())
+        clean, scrape, cleanup = run_process(
+            _make_settings(), config=_make_config(tmp_path), event_bus=EventBus(), registry=MagicMock()
+        )
 
         assert clean.name == "clean"
         assert clean.error_count == 1
@@ -209,7 +211,9 @@ class TestRunProcessErrorIsolation:
         mock_clean.return_value = StepReport(name="clean")
         mock_cleanup.return_value = StepReport(name="cleanup")
 
-        clean, scrape, cleanup = run_process(_make_settings(), config=_make_config(tmp_path), event_bus=EventBus())
+        clean, scrape, cleanup = run_process(
+            _make_settings(), config=_make_config(tmp_path), event_bus=EventBus(), registry=MagicMock()
+        )
 
         assert scrape.name == "scrape"
         assert scrape.error_count == 1
@@ -230,7 +234,9 @@ class TestRunProcessErrorIsolation:
         mock_clean.return_value = StepReport(name="clean")
         mock_scrape.return_value = StepReport(name="scrape")
 
-        _clean, _scrape, cleanup = run_process(_make_settings(), config=_make_config(tmp_path), event_bus=EventBus())
+        _clean, _scrape, cleanup = run_process(
+            _make_settings(), config=_make_config(tmp_path), event_bus=EventBus(), registry=MagicMock()
+        )
 
         assert cleanup.name == "cleanup"
         assert cleanup.error_count == 1
@@ -259,7 +265,9 @@ class TestRunProcessRevertWiring:
         mock_scrape.return_value = StepReport(name="scrape", unmatched_paths=["Clean Name (2024)"])
         mock_cleanup.return_value = StepReport(name="cleanup")
 
-        run_process(_make_settings(), config=_make_config(tmp_path), dry_run=True, event_bus=EventBus())
+        run_process(
+            _make_settings(), config=_make_config(tmp_path), dry_run=True, event_bus=EventBus(), registry=MagicMock()
+        )
 
         assert mock_revert.called
         # Verify the rename map and unmatched names were forwarded.
@@ -285,6 +293,6 @@ class TestRunProcessRevertWiring:
         mock_scrape.return_value = StepReport(name="scrape", unmatched_paths=["Foo"])
         mock_cleanup.return_value = StepReport(name="cleanup")
 
-        run_process(_make_settings(), config=_make_config(tmp_path), event_bus=EventBus())
+        run_process(_make_settings(), config=_make_config(tmp_path), event_bus=EventBus(), registry=MagicMock())
 
         assert not mock_revert.called

@@ -7,7 +7,10 @@ clean (reclean+dedup), scrape, cleanup.
 Each sub-step can be called independently for error isolation.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
@@ -17,6 +20,9 @@ from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.sorter.file_type import FileType
+
+if TYPE_CHECKING:
+    from personalscraper.api.metadata.registry import ProviderRegistry
 
 log = get_logger("process.run")
 
@@ -241,6 +247,7 @@ def run_process(
     interactive: bool = False,
     *,
     event_bus: EventBus,
+    registry: "ProviderRegistry",
 ) -> tuple[StepReport, StepReport, StepReport]:
     """Run Phase 3: reclean + dedup + scrape + cleanup.
 
@@ -254,7 +261,10 @@ def run_process(
         config: Loaded Config passed through to run_clean and run_cleanup
             for staging dir name resolution.
         event_bus: Required in-process EventBus. Each per-item
-        lifecycle transition emits an ``ItemProgressed`` event on the bus.
+            lifecycle transition emits an ``ItemProgressed`` event on the bus.
+        registry: Required :class:`ProviderRegistry` from the pipeline boot
+            sequence. Owns provider instantiation for the scrape sub-step
+            (DESIGN §6.1).
 
     Returns:
         Tuple of (clean_report, scrape_report, cleanup_report).
@@ -279,6 +289,7 @@ def run_process(
             dry_run=dry_run,
             interactive=interactive,
             event_bus=event_bus,
+            registry=registry,
         )
     except Exception as exc:
         log.exception("process_scrape_fatal", error=str(exc))

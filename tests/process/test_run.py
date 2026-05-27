@@ -50,7 +50,9 @@ class TestRunProcess:
         mock_cleanup.return_value = StepReport(name="cleanup")
 
         settings = _make_settings()
-        clean, scrape, cleanup = run_process(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        clean, scrape, cleanup = run_process(
+            settings, config=_make_config(tmp_path), event_bus=EventBus(), registry=MagicMock()
+        )
 
         assert clean.name == "clean"
         assert scrape.name == "scrape"
@@ -78,7 +80,7 @@ class TestRunProcess:
         mock_cleanup.return_value = StepReport(name="cleanup")
 
         settings = _make_settings()
-        run_process(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        run_process(settings, config=_make_config(tmp_path), event_bus=EventBus(), registry=MagicMock())
 
         assert mock_reclean.call_count == 2
         movies_call = mock_reclean.call_args_list[0]
@@ -107,7 +109,7 @@ class TestRunProcess:
         mock_cleanup.return_value = StepReport(name="cleanup")
 
         settings = _make_settings()
-        clean, _, _ = run_process(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        clean, _, _ = run_process(settings, config=_make_config(tmp_path), event_bus=EventBus(), registry=MagicMock())
 
         # 1 reclean (movies) + 2 dedup (movies) + 1 reclean (tvshows) + 2 dedup (tvshows)
         assert clean.success_count == 1 + 2 + 1 + 2
@@ -131,7 +133,7 @@ class TestRunProcess:
         mock_cleanup.return_value = StepReport(name="cleanup")
 
         settings = _make_settings()
-        run_process(settings, config=_make_config(tmp_path), dry_run=True, event_bus=EventBus())
+        run_process(settings, config=_make_config(tmp_path), dry_run=True, event_bus=EventBus(), registry=MagicMock())
 
         for mock_call in mock_reclean.call_args_list:
             assert mock_call.kwargs.get("dry_run") is True
@@ -160,7 +162,13 @@ class TestRunProcess:
         mock_cleanup.return_value = StepReport(name="cleanup")
 
         settings = _make_settings()
-        run_process(settings, config=_make_config(tmp_path), interactive=True, event_bus=EventBus())
+        run_process(
+            settings,
+            config=_make_config(tmp_path),
+            interactive=True,
+            event_bus=EventBus(),
+            registry=MagicMock(),
+        )
 
         assert mock_scrape.call_args.kwargs.get("interactive") is True
 
