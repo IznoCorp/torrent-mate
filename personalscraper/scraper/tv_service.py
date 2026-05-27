@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING, Any
 import requests
 
 from personalscraper.api._contracts import ApiError, CircuitOpenError, MediaType
-from personalscraper.api.metadata._base import EpisodeInfo, Notations
-from personalscraper.api.metadata._contracts import EpisodeFetcher, TvDetailsProvider
+from personalscraper.api.metadata._base import Notations
+from personalscraper.api.metadata._contracts import TvDetailsProvider
 from personalscraper.api.metadata._tvdb_parsers import map_language
 from personalscraper.api.metadata.registry import AttemptOutcome, RegistryProviderName
 from personalscraper.api.metadata.registry._errors import ProviderExhausted
@@ -33,6 +33,9 @@ from personalscraper.scraper.rename_service import (
     _cleanup_stale_files,
     _merge_dirs,
     _rename_dir_case_safe,
+)
+from personalscraper.scraper.tv_service_episodes import (
+    _episode_payload as _episode_payload,
 )
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 
@@ -57,36 +60,6 @@ def _safe_get_rating(client: Any, provider_id: str) -> list[Notations]:
     from personalscraper.scraper._xref import safe_get_rating  # noqa: PLC0415
 
     return safe_get_rating(client, provider_id)
-
-
-def _episode_payload(ep: EpisodeInfo, episode_default_name: str) -> dict[str, Any]:
-    """Build the per-episode payload for ``_build_episode_map``.
-
-    Translates an :class:`EpisodeInfo` from the metadata layer into the
-    dict shape consumed downstream by :func:`match_episode_files` and
-    :meth:`TvServiceMixin._generate_episode_nfos`. The provider-side
-    IDs travel under the ``{provider}_episode_id`` keys (DEV #2 root
-    cause — these keys are what reach the NFO writer as ``tvdb_id`` /
-    ``tmdb_id`` / ``imdb_id``).
-
-    Args:
-        ep: Episode parsed from a TVDB / TMDB season response.
-        episode_default_name: Fallback prefix when ``ep.title`` is blank.
-
-    Returns:
-        Dict carrying the display title, the still-image path
-        placeholder, and the per-provider episode IDs surfaced by the
-        parser.
-    """
-    payload: dict[str, Any] = {
-        "title": ep.title or f"{episode_default_name} {ep.episode_number}",
-        "still_path": "",
-    }
-    for provider, value in ep.external_ids.items():
-        if not value:
-            continue
-        payload[f"{provider}_episode_id"] = value
-    return payload
 
 
 class TvServiceMixin:
@@ -456,164 +429,13 @@ class TvServiceMixin:
     ) -> Any | None:
         """Search the configured TV chain for candidates matching title + year.
 
-        Iterates ``self._registry.chain(TvDetailsProvider)`` per DESIGN §6.2
-        and tries each eligible provider in priority order. Per-provider
-        failures emit :class:`ProviderFallbackTriggered`; full chain
-        exhaustion (every attempt errored) emits
-        :class:`ProviderExhaustedEvent` and populates ``result.error``
-        with the last exception's message. The legacy fail-soft contract
-        is preserved: callers receive ``None`` and inspect
-        ``result.error`` rather than catching a registry exception.
-
-        Branch semantics (closed list — DESIGN §6.2):
-
-        - ``circuit_open`` — :class:`CircuitOpenError` raised by the
-          provider; record outcome, emit fallback, continue.
-        - ``network`` — :class:`ApiError`, :class:`requests.RequestException`,
-          or :class:`OSError`; record outcome with ``exc_type``, emit
-          fallback, continue.
-        - ``empty_result`` — provider returned ``None`` (no candidates);
-          emit fallback, continue.
-        - Any other exception — set ``result.error``, log, return ``None``
-          (preserves the legacy fail-soft contract used by orchestrator).
-
-        Returns the **first** provider's :class:`MatchResult` (even if
-        low-confidence — the confidence threshold is the caller's
-        responsibility, see ``_lookup_series``). Replaces the historical
-        hardcoded TVDB→TMDB fallback inside :func:`match_tvshow`; the
-        chain order is now declared in
-        ``config.metadata.priorities.tv_match`` (default: TVDB then
-        TMDB) and honoured by the registry.
-
-        Phase 16 restores the DESIGN §6.2 line 79 contract: the chain
-        now **raises** :class:`ProviderExhausted` on full failure (every
-        attempt errored with ``circuit_open`` or ``network``) so the
-        immediate caller (:meth:`_lookup_series`) can surface the
-        original exception detail via
-        :attr:`ProviderExhausted.last_exception`. The ACC-13 contract
-        (``"<detail>" in result.error``) is preserved end-to-end.
-
-        Args:
-            title: Show title to search for.
-            year: Optional first air date year.
-            local_seasons: Season numbers observed in the folder (forwarded
-                to TVDB content-aware disambiguation).
-            result: ScrapeResult for error tracking.
-
-        Returns:
-            :class:`MatchResult` on the first successful provider call,
-            or ``None`` when ``result.error`` was populated (unclassified
-            exception) or every chain provider returned an empty result.
-
-        Raises:
-            ProviderExhausted: When at least one chain provider raised
-                a classified failure (``circuit_open`` / ``network``) and
-                no provider returned a match. The caller is responsible
-                for catching and surfacing the error in ``result.error``.
+        Thin delegate to
+        :func:`personalscraper.scraper.tv_service_episodes.match_tvshow_candidates`
+        — see that function for the full chain-iteration / fallback contract.
         """
-        from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
+        from personalscraper.scraper.tv_service_episodes import match_tvshow_candidates  # noqa: PLC0415
 
-        item_context: dict[str, Any] = {"title": title, "year": year, "media_type": "tvshow"}
-        providers = self._registry.chain(TvDetailsProvider)  # type: ignore[type-abstract]
-        attempted: list[AttemptOutcome] = []
-        last_exception: Exception | None = None
-
-        for provider in providers:
-            provider_name = getattr(provider, "provider_name", "?")
-            try:
-                match = scraper_api.match_tvshow_single(provider, title, year, local_seasons=local_seasons)
-            except CircuitOpenError as exc:
-                last_exception = exc
-                attempted.append(AttemptOutcome(provider=RegistryProviderName(provider_name), reason="circuit_open"))
-                log.debug(
-                    "registry_provider_skip",
-                    provider=provider_name,
-                    capability="TvDetailsProvider",
-                    reason="circuit_open",
-                )
-                self._registry._emit_provider_fallback(
-                    capability="TvDetailsProvider",
-                    from_provider=provider_name,
-                    reason="circuit_open",
-                    item=item_context,
-                )
-                continue
-            except (ApiError, requests.RequestException, OSError) as exc:
-                last_exception = exc
-                attempted.append(
-                    AttemptOutcome(
-                        provider=RegistryProviderName(provider_name),
-                        reason="network",
-                        detail=type(exc).__name__,
-                    )
-                )
-                log.warning(
-                    "registry_provider_fail",
-                    provider=provider_name,
-                    capability="TvDetailsProvider",
-                    exc_type=type(exc).__name__,
-                )
-                self._registry._emit_provider_fallback(
-                    capability="TvDetailsProvider",
-                    from_provider=provider_name,
-                    reason="network",
-                    exc_type=type(exc).__name__,
-                    item=item_context,
-                )
-                continue
-            except Exception as exc:
-                # Unclassified provider failure — preserve legacy fail-soft
-                # contract (orchestrator surfaces ``result.error`` as an
-                # ``action="error"`` ScrapeResult).
-                result.error = f"Match failed: {exc}"
-                log.error("show_match_failed", title=title, error=str(exc), exc_info=True)
-                return None
-
-            if match is None:
-                attempted.append(AttemptOutcome(provider=RegistryProviderName(provider_name), reason="empty_result"))
-                log.debug(
-                    "registry_provider_skip",
-                    provider=provider_name,
-                    capability="TvDetailsProvider",
-                    reason="empty_result",
-                )
-                self._registry._emit_provider_fallback(
-                    capability="TvDetailsProvider",
-                    from_provider=provider_name,
-                    reason="empty_result",
-                    item=item_context,
-                )
-                continue
-
-            return match
-
-        # All providers attempted and none produced a match.
-        if attempted and any(a.reason in {"circuit_open", "network"} for a in attempted):
-            # At least one attempt errored. Emit the exhausted event for
-            # observers, then RAISE ``ProviderExhausted`` per DESIGN §6.2.
-            # The caller (:meth:`_lookup_series`) catches and surfaces a
-            # legacy-shape ``result.error`` carrying the original
-            # exception's detail (ACC-13 contract).
-            self._registry._emit_provider_exhausted(
-                capability="TvDetailsProvider",
-                attempted=attempted,
-                item=item_context,
-            )
-            log.error(
-                "registry_chain_exhausted",
-                capability="TvDetailsProvider",
-                attempted=[(a.provider, a.reason) for a in attempted],
-                item=item_context,
-            )
-            raise ProviderExhausted(
-                capability=TvDetailsProvider,
-                attempted=attempted,
-                item_context=item_context,
-                last_exception=last_exception,
-            )
-        # Empty chain or all empty_result → legacy "no confident match"
-        # path (caller branches on the None return).
-        return None
+        return match_tvshow_candidates(self._registry, title, year, local_seasons, result)
 
     def _lookup_series(
         self,
@@ -920,31 +742,22 @@ class TvServiceMixin:
     def _xref_fetch_tmdb_season(self, tmdb_id: int, season: int) -> dict[int, dict[str, str]]:
         """Return ``{episode_number: external_ids}`` from a TMDb season fetch.
 
-        Legitimately direct dispatch (sub-phase 7.4 carve-out): the caller
-        (:func:`personalscraper.scraper._xref.xref_enrichment`) already
-        knows it wants the **non-canonical** provider for the cross-
-        reference backfill — there is no fallback contract here. Going
-        through ``chain(EpisodeFetcher)`` would force a name filter for
-        a single provider, which is exactly what direct dispatch
-        already expresses. The legacy method name
-        (``get_tv_season``) is retained because the
-        :class:`EpisodeFetcher` Protocol surfaces ``list[EpisodeInfo]``
-        while this helper consumes :class:`SeasonDetails` to keep the
-        per-episode external_ids accessible without restructuring the
-        xref helper API.
+        Thin delegate to
+        :func:`personalscraper.scraper.tv_service_episodes.xref_fetch_tmdb_season`.
         """
-        tmdb_client = self._registry.get("tmdb")
-        detail = tmdb_client.get_tv_season(tmdb_id, season)  # type: ignore[attr-defined]
-        return {ep.episode_number: dict(ep.external_ids) for ep in detail.episodes}
+        from personalscraper.scraper.tv_service_episodes import xref_fetch_tmdb_season  # noqa: PLC0415
+
+        return xref_fetch_tmdb_season(self._registry, tmdb_id, season)
 
     def _xref_fetch_tvdb_season(self, tvdb_id: int, season: int) -> dict[int, dict[str, str]]:
         """Return ``{episode_number: external_ids}`` from a TVDB season fetch.
 
-        Legitimately direct dispatch — see :meth:`_xref_fetch_tmdb_season`.
+        Thin delegate to
+        :func:`personalscraper.scraper.tv_service_episodes.xref_fetch_tvdb_season`.
         """
-        tvdb_client = self._registry.get("tvdb")
-        detail = tvdb_client.get_series_episodes(tvdb_id, season)  # type: ignore[attr-defined]
-        return {ep.episode_number: dict(ep.external_ids) for ep in detail.episodes}
+        from personalscraper.scraper.tv_service_episodes import xref_fetch_tvdb_season  # noqa: PLC0415
+
+        return xref_fetch_tvdb_season(self._registry, tvdb_id, season)
 
     def _resolve_external_ids(
         self,
@@ -998,91 +811,13 @@ class TvServiceMixin:
     ) -> list[tuple[str, Callable[[int], list[tuple[int, dict[str, Any]]]]]]:
         """Build the per-season fetch list, ordered by ``episode_scraping`` priority.
 
-        Iterates ``self._registry.chain(EpisodeFetcher)`` to enumerate the
-        eligible providers (circuit CLOSED / HALF_OPEN, per DESIGN §6.2).
-        Each provider is paired with the cross-reference id resolved
-        upstream — providers whose id is missing (or zeroed by the
-        provider-lock contract) are dropped before iteration. The
-        resulting list is re-sorted by
-        ``config.metadata.priorities.episode_scraping`` so the operator-
-        declared priority always wins over the registry's structural
-        order.
-
-        Each entry is ``(provider_name, fetch_callable)`` where
-        ``fetch_callable`` takes a season number and returns
-        ``[(episode_number, payload), ...]``. Closures capture the
-        provider reference directly so the chain iteration order is
-        baked in at call time — no second registry lookup at fetch
-        time.
-
-        Args:
-            tvdb_id: Resolved TVDB id (``None`` if unavailable).
-            tmdb_id: Resolved TMDB id (``None`` if unavailable).
-            episode_default_name: Title prefix for episodes whose provider
-                title is empty.
-
-        Returns:
-            List of ``(name, fetch)`` pairs, lowest priority number first.
+        Thin delegate to
+        :func:`personalscraper.scraper.tv_service_episodes.ordered_episode_providers`.
         """
+        from personalscraper.scraper.tv_service_episodes import ordered_episode_providers  # noqa: PLC0415
+
         priority: dict[str, int] = self.config.metadata.priorities.episode_scraping if self.config is not None else {}
-
-        def _rank(name: str) -> int:
-            """Pull a provider rank, falling back to a sentinel for unknowns.
-
-            Providers absent from ``episode_scraping`` are sorted last so they
-            only fire when everything higher-priority is unavailable.
-            """
-            return priority.get(name, 99)
-
-        # Pre-resolve the cross-reference id for each canonical name —
-        # the chain iteration below filters on ``provider_name`` to
-        # pair each registry-eligible provider with its resolved id.
-        provider_ids: dict[str, int] = {}
-        if tvdb_id is not None:
-            provider_ids["tvdb"] = tvdb_id
-        if tmdb_id is not None:
-            provider_ids["tmdb"] = tmdb_id
-
-        def _make_fetch(provider: Any, provider_id: int) -> Callable[[int], list[tuple[int, dict[str, Any]]]]:
-            """Build a season-fetch closure bound to ``provider`` + its id.
-
-            The closure dispatches to the per-client legacy method
-            (``get_series_episodes`` on TVDB, ``get_tv_season`` on TMDB)
-            so existing mock test surfaces keep working. Both legacy
-            methods return :class:`SeasonDetails`, whose ``episodes``
-            field carries the :class:`EpisodeInfo` payload the
-            :class:`EpisodeFetcher` Protocol surfaces directly — they
-            are wire-compatible. Episode payloads are rendered through
-            :func:`_episode_payload` so downstream NFO + match code
-            stays decoupled from the provider-specific dataclasses.
-            """
-            name = getattr(provider, "provider_name", "")
-
-            def _fetch(season: int) -> list[tuple[int, dict[str, Any]]]:
-                if name == "tvdb":
-                    detail = provider.get_series_episodes(provider_id, season)
-                elif name == "tmdb":
-                    detail = provider.get_tv_season(provider_id, season)
-                else:
-                    # Future TV providers should be added explicitly here
-                    # so the operator notices the integration gap.
-                    log.warning("show_episode_provider_unknown", provider=name)
-                    return []
-                return [(ep.episode_number, _episode_payload(ep, episode_default_name)) for ep in detail.episodes]
-
-            return _fetch
-
-        candidates: list[tuple[str, int, Callable[[int], list[tuple[int, dict[str, Any]]]]]] = []
-        for provider in self._registry.chain(EpisodeFetcher):  # type: ignore[type-abstract]
-            name = getattr(provider, "provider_name", "")
-            provider_id = provider_ids.get(name)
-            if provider_id is None:
-                # Either the provider has no resolved cross-reference id
-                # for this show, or the lock contract neutralized it.
-                continue
-            candidates.append((name, _rank(name), _make_fetch(provider, provider_id)))
-        candidates.sort(key=lambda c: c[1])
-        return [(name, fetch) for name, _, fetch in candidates]
+        return ordered_episode_providers(self._registry, priority, tvdb_id, tmdb_id, episode_default_name)
 
     def _fetch_season_with_fallback(
         self,
@@ -1091,38 +826,12 @@ class TvServiceMixin:
     ) -> dict[tuple[int, int], dict[str, Any]]:
         """Iterate providers in priority order, return the first non-empty result.
 
-        A provider is considered "successful" only when it returns at least
-        one episode for the requested season. Empty responses and exceptions
-        both fall through to the next provider so a stale catalog on the
-        primary source does not silently lose downstream data.
-
-        Args:
-            season: Season number to fetch.
-            providers: Ordered ``(name, fetch)`` list from
-                :meth:`_ordered_episode_providers`.
-
-        Returns:
-            ``{(season, episode): payload}`` mapping. Empty when all
-            providers came back empty or raised.
+        Thin delegate to
+        :func:`personalscraper.scraper.tv_service_episodes.fetch_season_with_fallback`.
         """
-        for name, fetch in providers:
-            try:
-                items = fetch(season)
-            except Exception as e:  # noqa: BLE001 — provider clients raise a wide variety
-                log.warning(
-                    "show_season_fetch_failed",
-                    provider=name,
-                    season=season,
-                    exc_info=True,
-                    error=str(e),
-                )
-                continue
-            if not items:
-                log.warning("show_season_empty", provider=name, season=season)
-                continue
-            log.info("show_season_fetched", provider=name, season=season, count=len(items))
-            return {(season, e_num): payload for e_num, payload in items}
-        return {}
+        from personalscraper.scraper.tv_service_episodes import fetch_season_with_fallback  # noqa: PLC0415
+
+        return fetch_season_with_fallback(season, providers)
 
     def _match_seasons(
         self,
