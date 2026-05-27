@@ -99,9 +99,7 @@ def test_info_providers_exits_nonzero_on_missing_creds_real_validation(
     assert "missing_credentials" in result.stderr, (
         f"expected missing_credentials issue code in stderr; got: {result.stderr!r}"
     )
-    assert "TMDB_API_KEY" in result.stderr, (
-        f"expected TMDB_API_KEY env-var name in stderr; got: {result.stderr!r}"
-    )
+    assert "TMDB_API_KEY" in result.stderr, f"expected TMDB_API_KEY env-var name in stderr; got: {result.stderr!r}"
 
 
 def test_info_providers_uses_config_override_with_real_bad_config(tmp_path: Path) -> None:
