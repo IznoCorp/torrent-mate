@@ -403,7 +403,6 @@ def library_backfill_ids(
     import os as _os  # noqa: PLC0415
 
     from personalscraper import cli as cli_compat  # noqa: PLC0415
-    from personalscraper.api.metadata.registry._errors import UnknownProviderError  # noqa: PLC0415
     from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
     from personalscraper.conf.loader import load_config  # noqa: PLC0415
     from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
@@ -420,44 +419,14 @@ def library_backfill_ids(
     db_path = Path(cfg.indexer.db_path)
     migrations_dir = _os.path.dirname(_migrations_pkg.__file__)
 
-    # Build AppContext at the CLI boundary to get the shared ProviderRegistry
-    # (sub-phase 3.3 — DESIGN §11: indexer migration is out of scope).
+    # Build AppContext at the CLI boundary to get the shared ProviderRegistry.
+    # The indexer driver (sub-phase 11.5) now consumes the registry directly —
+    # the four typed-client extractions (TMDB/TVDB/IMDb/RT) that previously
+    # lived here are gone, and the registry handles chain/fan_out semantics
+    # internally per DESIGN §6.
     settings = cli_compat.get_settings()
     app_context = _build_app_context(cfg, settings)
-
-    # Extract typed clients from the registry without directly constructing
-    # TMDBClient / TVDBClient / IMDbClient / RottenTomatoesClient in this
-    # command (ACC-02).  run_backfill_ids (indexer/) still expects typed
-    # client params — the registry acts as the factory while keeping the
-    # indexer's API unchanged (DESIGN §11).
-    tmdb_client = None
-    tvdb_client = None
-    imdb_client = None
-    rt_client = None
-
-    if not ratings_only and not dry_run:
-        try:
-            tmdb_client = app_context.provider_registry.get("tmdb")
-        except UnknownProviderError:
-            _log.warning("library_backfill_provider_unavailable", provider="tmdb")
-            tmdb_client = None
-        try:
-            tvdb_client = app_context.provider_registry.get("tvdb")
-        except UnknownProviderError:
-            _log.warning("library_backfill_provider_unavailable", provider="tvdb")
-            tvdb_client = None
-
-    if not ids_only and not dry_run:
-        try:
-            imdb_client = app_context.provider_registry.get("imdb")
-        except UnknownProviderError:
-            _log.warning("library_backfill_provider_unavailable", provider="imdb")
-            imdb_client = None
-        try:
-            rt_client = app_context.provider_registry.get("rotten_tomatoes")
-        except UnknownProviderError:
-            _log.warning("library_backfill_provider_unavailable", provider="rotten_tomatoes")
-            rt_client = None
+    registry = app_context.provider_registry if not dry_run else None
 
     # Open DB in writer mode, apply migrations, then run the backfill pass.
     conn = open_db(db_path, event_bus=app_context.event_bus)
@@ -467,10 +436,7 @@ def library_backfill_ids(
         stats = run_backfill_ids(
             conn,
             event_bus=app_context.event_bus,
-            imdb_client=imdb_client,  # type: ignore[arg-type]
-            rt_client=rt_client,  # type: ignore[arg-type]
-            tmdb_client=tmdb_client,  # type: ignore[arg-type]
-            tvdb_client=tvdb_client,  # type: ignore[arg-type]
+            registry=registry,
             show_filter=show,
             ids_only=ids_only,
             ratings_only=ratings_only,
