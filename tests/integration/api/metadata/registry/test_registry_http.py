@@ -278,17 +278,25 @@ def _build_chain_registry(
     """
     from personalscraper.api.metadata.registry import _validation
 
-    _validation._check_empty_chain_sections = lambda _: []  # type: ignore[assignment]
-    _validation._check_protocol_mismatch = lambda *a: []  # type: ignore[assignment]
-    _validation._CRED_MAP = {}  # type: ignore[assignment]
+    _orig_empty_chain = _validation._check_empty_chain_sections
+    _orig_protocol_mismatch = _validation._check_protocol_mismatch
+    _orig_cred_map = _validation._CRED_MAP
+    try:
+        _validation._check_empty_chain_sections = lambda _: []  # type: ignore[assignment]
+        _validation._check_protocol_mismatch = lambda *a: []  # type: ignore[assignment]
+        _validation._CRED_MAP = {}  # type: ignore[assignment]
 
-    mock_tvdb_bootstrap()
-    return ProviderRegistry(
-        settings=_make_settings(),
-        event_bus=event_bus,
-        cb_policy=cb_policy or _make_cb_policy(),
-        providers_config=providers_config,
-    )
+        mock_tvdb_bootstrap()
+        return ProviderRegistry(
+            settings=_make_settings(),
+            event_bus=event_bus,
+            cb_policy=cb_policy or _make_cb_policy(),
+            providers_config=providers_config,
+        )
+    finally:
+        _validation._check_empty_chain_sections = _orig_empty_chain
+        _validation._check_protocol_mismatch = _orig_protocol_mismatch
+        _validation._CRED_MAP = _orig_cred_map
 
 
 def _attempt_chain(
