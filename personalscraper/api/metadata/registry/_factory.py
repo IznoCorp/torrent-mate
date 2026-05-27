@@ -12,6 +12,9 @@ import os
 from typing import TYPE_CHECKING, Any, Callable, cast
 
 from personalscraper.api.metadata.registry._errors import UnknownProviderError
+from personalscraper.logger import get_logger
+
+log = get_logger("registry.factory")
 
 if TYPE_CHECKING:
     from personalscraper.api.transport._policy import CircuitPolicy
@@ -209,21 +212,51 @@ def build_providers(
     return providers
 
 
+# ---------------------------------------------------------------------------
+# Eligibility gate
+# ---------------------------------------------------------------------------
+
+_NO_CIRCUIT_ALLOWLIST: frozenset[str] = frozenset({
+    "imdb",            # façade over shared OMDbAdapter circuit
+    "rotten_tomatoes", # façade over shared OMDbAdapter circuit
+})
+
+
 def _eligible(provider: object) -> bool:
     """Return ``True`` if the provider's circuit is CLOSED or HALF_OPEN.
 
     HALF_OPEN eligibility (DESIGN §7.6): a provider is eligible if its
-    circuit is CLOSED OR HALF_OPEN. The HALF_OPEN state acts as a probe
+    circuit is CLOSED OR HALF_OPEN.  The HALF_OPEN state acts as a probe
     — the underlying HttpTransport lets one request through; if it fails,
     the transport raises NetworkError which the registry catches and falls
     through to the next provider in the same iteration.
 
-    Providers without a ``.circuit`` attribute (e.g. fake providers, or
-    the IMDb / RottenTomatoes façades whose circuit lives on their shared
-    OMDbAdapter backend) are always eligible.
+    Providers without a ``.circuit`` attribute fall into three categories,
+    only two of which are accepted:
+
+    1. **Documented no-circuit providers** (IMDb / RottenTomatoes façades
+       whose circuit lives on the shared OMDbAdapter backend) — allowed.
+    2. **Test fakes** (classes named ``Fake*`` or ``_Fake*``) — allowed.
+    3. **Unknown real provider without circuit** — rejected with a warning,
+       catching refactor regressions where ``.circuit`` was accidentally
+       dropped.
     """
     circuit = getattr(provider, "circuit", None)
-    if circuit is None:
+    if circuit is not None:
+        state = getattr(circuit, "state", None)
+        return state != "OPEN"
+
+    name = getattr(provider, "provider_name", None)
+    if name in _NO_CIRCUIT_ALLOWLIST:
         return True
-    state = getattr(circuit, "state", None)
-    return state != "OPEN"
+
+    cls_name = type(provider).__name__
+    if cls_name.startswith(("Fake", "_Fake")):
+        return True
+
+    log.warning(
+        "registry_provider_no_circuit",
+        provider=name or "<unknown>",
+        cls=cls_name,
+    )
+    return False
