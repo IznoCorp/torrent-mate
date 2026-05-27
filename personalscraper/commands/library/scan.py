@@ -11,6 +11,9 @@ import typer
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.core.event_bus import EventBus
+from personalscraper.logger import get_logger
+
+_log = get_logger("library_backfill_ids")
 
 
 @app.command("library-index")
@@ -431,10 +434,6 @@ def library_backfill_ids(
     tvdb_client = None
     imdb_client = None
     rt_client = None
-
-    from personalscraper.logger import get_logger  # noqa: PLC0415
-
-    _log = get_logger("library_backfill_ids")
 
     if not ratings_only and not dry_run:
         try:

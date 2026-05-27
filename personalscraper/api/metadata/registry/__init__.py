@@ -436,7 +436,6 @@ class ProviderRegistry:
                 )
                 attempted.append(AttemptOutcome(provider=provider_name, reason="circuit_open"))
                 continue
-            attempted.append(AttemptOutcome(provider=provider_name, reason="other", detail="eligible"))
             eligible.append(provider)
 
         log.info(

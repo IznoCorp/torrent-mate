@@ -142,12 +142,9 @@ def test_fan_out_populates_attempted_with_circuit_open_skips(
     )
     registry.fan_out(RatingProvider)
     event = next(e for e in mock_event_bus.emitted if isinstance(e, RegistryFanOutCompleted))  # type: ignore[attr-defined]
-    assert len(event.attempted) == 2
+    assert len(event.attempted) == 1
     open_entry = next(a for a in event.attempted if a.reason == "circuit_open")
     assert open_entry.provider == "r1"
-    eligible_entry = next(a for a in event.attempted if a.reason == "other")
-    assert eligible_entry.provider == "r2"
-    assert eligible_entry.detail == "eligible"
     assert event.succeeded == 1
 
 
