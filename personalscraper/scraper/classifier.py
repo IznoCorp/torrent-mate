@@ -170,12 +170,12 @@ class ClassifierMixin:
                     id=str(tmdb_id),
                     media_type=media_type,
                 )
-                locked = self._registry.locked(KeywordProvider, match)  # type: ignore[type-abstract]
+                locked = self._registry.locked(KeywordProvider, match)  # type: ignore[type-abstract, type-var]
                 if locked is None:
                     log.warning("classifier_keywords_unresolved", tmdb_id=tmdb_id, media_type=media_type)
                     fetched: list[str] = []
                 else:
-                    fetched = locked.provider.get_keywords(locked.bound_id, media_type)  # type: ignore[attr-defined]
+                    fetched = locked.provider.get_keywords(locked.bound_id, media_type)
                 self._keywords_cache.set(tmdb_id, media_type, fetched)
                 tmdb_keywords = fetched
 

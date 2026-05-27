@@ -134,6 +134,10 @@ DirectCapability = IDValidator | IDCrossRef
 # ---------------------------------------------------------------------------
 
 C = TypeVar("C")
+_A = TypeVar("_A", bound=ArtworkProvider)
+_K = TypeVar("_K", bound=KeywordProvider)
+_V = TypeVar("_V", bound=VideoProvider)
+_R = TypeVar("_R", bound=RecommendationProvider)
 
 
 @dataclass(frozen=True)
@@ -467,27 +471,27 @@ class ProviderRegistry:
     @overload
     def locked(
         self,
-        capability: type[ArtworkProvider],
+        capability: type[_A],
         match: ProviderMatch,
-    ) -> LockedProvider[ArtworkProvider] | None: ...
+    ) -> LockedProvider[_A] | None: ...
     @overload
     def locked(
         self,
-        capability: type[KeywordProvider],
+        capability: type[_K],
         match: ProviderMatch,
-    ) -> LockedProvider[KeywordProvider] | None: ...
+    ) -> LockedProvider[_K] | None: ...
     @overload
     def locked(
         self,
-        capability: type[VideoProvider],
+        capability: type[_V],
         match: ProviderMatch,
-    ) -> LockedProvider[VideoProvider] | None: ...
+    ) -> LockedProvider[_V] | None: ...
     @overload
     def locked(
         self,
-        capability: type[RecommendationProvider],
+        capability: type[_R],
         match: ProviderMatch,
-    ) -> LockedProvider[RecommendationProvider] | None: ...
+    ) -> LockedProvider[_R] | None: ...
     def locked(self, capability, match):  # type: ignore[no-untyped-def]
         """Provider bound to match's id (IDCrossRef escape if needed).
 

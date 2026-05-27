@@ -357,7 +357,7 @@ class TrailerFinder:
             id=str(tmdb_id),
             media_type=mt,
         )
-        locked = self._registry.locked(VideoProvider, match)  # type: ignore[type-abstract]
+        locked = self._registry.locked(VideoProvider, match)  # type: ignore[type-abstract, type-var]
         if locked is None:
             logger.warning(
                 "trailer_video_provider_unresolved",
@@ -379,11 +379,11 @@ class TrailerFinder:
                     provider=locked.bound_id,
                     note="provider lacks _fetch_videos_strict; falling back to root TV videos",
                 )
-                return locked.provider.get_videos(locked.bound_id, mt, language)  # type: ignore[no-any-return,attr-defined]
+                return locked.provider.get_videos(locked.bound_id, mt, language)
             return fetch_strict(endpoint, language)  # type: ignore[no-any-return]
 
         # Movies + main TV — provider-agnostic Protocol path
-        return locked.provider.get_videos(locked.bound_id, mt, language)  # type: ignore[no-any-return,attr-defined]
+        return locked.provider.get_videos(locked.bound_id, mt, language)
 
     def _youtube_fallback_strict(
         self,
