@@ -61,6 +61,11 @@ def _make_mixin(
 
     _tvdb_client = tvdb if tvdb is not None else MagicMock()
     _tmdb_client = tmdb if tmdb is not None else MagicMock()
+    # Sub-phase 7.2 — the chain iteration path reads ``provider_name`` to
+    # dispatch per-provider matching and episode fetching. Set the
+    # attribute here so the chain helpers route correctly.
+    _tvdb_client.provider_name = "tvdb"
+    _tmdb_client.provider_name = "tmdb"
     _registry = MagicMock()
     _registry.get.side_effect = (
         lambda name,
@@ -69,6 +74,9 @@ def _make_mixin(
             "tvdb": _tvdb_client,
         }: _cache.get(name, MagicMock())
     )
+    _registry.chain.return_value = [_tvdb_client, _tmdb_client]
+    _registry._emit_provider_fallback = MagicMock()
+    _registry._emit_provider_exhausted = MagicMock()
     mixin._registry = _registry  # type: ignore[assignment]
     mixin._tvdb = _tvdb_client  # type: ignore[assignment]
     mixin._tmdb = _tmdb_client  # type: ignore[assignment]

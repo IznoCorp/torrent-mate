@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import unicodedata
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import requests
 
 from personalscraper.api._contracts import ApiError, CircuitOpenError, MediaType
 from personalscraper.api.metadata._base import EpisodeInfo, Notations
-from personalscraper.api.metadata._contracts import TvDetailsProvider
+from personalscraper.api.metadata._contracts import EpisodeFetcher, TvDetailsProvider
 from personalscraper.api.metadata._tvdb_parsers import map_language
 from personalscraper.api.metadata.registry import AttemptOutcome, RegistryProviderName
 from personalscraper.api.metadata.registry._errors import ProviderExhausted
@@ -40,8 +40,6 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from personalscraper.api.metadata.registry import ProviderRegistry
-    from personalscraper.api.metadata.tmdb import TMDBClient
-    from personalscraper.api.metadata.tvdb import TVDBClient
     from personalscraper.conf.models.config import Config
     from personalscraper.naming_patterns import NamingPatterns
     from personalscraper.scraper.artwork import ArtworkDownloader
@@ -901,15 +899,32 @@ class TvServiceMixin:
         )
 
     def _xref_fetch_tmdb_season(self, tmdb_id: int, season: int) -> dict[int, dict[str, str]]:
-        """Return ``{episode_number: external_ids}`` from a TMDb season fetch."""
-        tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
-        detail = tmdb_client.get_tv_season(tmdb_id, season)
+        """Return ``{episode_number: external_ids}`` from a TMDb season fetch.
+
+        Legitimately direct dispatch (sub-phase 7.4 carve-out): the caller
+        (:func:`personalscraper.scraper._xref.xref_enrichment`) already
+        knows it wants the **non-canonical** provider for the cross-
+        reference backfill — there is no fallback contract here. Going
+        through ``chain(EpisodeFetcher)`` would force a name filter for
+        a single provider, which is exactly what direct dispatch
+        already expresses. The legacy method name
+        (``get_tv_season``) is retained because the
+        :class:`EpisodeFetcher` Protocol surfaces ``list[EpisodeInfo]``
+        while this helper consumes :class:`SeasonDetails` to keep the
+        per-episode external_ids accessible without restructuring the
+        xref helper API.
+        """
+        tmdb_client = self._registry.get("tmdb")
+        detail = tmdb_client.get_tv_season(tmdb_id, season)  # type: ignore[attr-defined]
         return {ep.episode_number: dict(ep.external_ids) for ep in detail.episodes}
 
     def _xref_fetch_tvdb_season(self, tvdb_id: int, season: int) -> dict[int, dict[str, str]]:
-        """Return ``{episode_number: external_ids}`` from a TVDB season fetch."""
-        tvdb_client = cast("TVDBClient", self._registry.get("tvdb"))
-        detail = tvdb_client.get_series_episodes(tvdb_id, season)
+        """Return ``{episode_number: external_ids}`` from a TVDB season fetch.
+
+        Legitimately direct dispatch — see :meth:`_xref_fetch_tmdb_season`.
+        """
+        tvdb_client = self._registry.get("tvdb")
+        detail = tvdb_client.get_series_episodes(tvdb_id, season)  # type: ignore[attr-defined]
         return {ep.episode_number: dict(ep.external_ids) for ep in detail.episodes}
 
     def _resolve_external_ids(
@@ -964,11 +979,22 @@ class TvServiceMixin:
     ) -> list[tuple[str, Callable[[int], list[tuple[int, dict[str, Any]]]]]]:
         """Build the per-season fetch list, ordered by ``episode_scraping`` priority.
 
-        Each entry is ``(provider_name, fetch_callable)`` where ``fetch_callable``
-        takes a season number and returns ``[(episode_number, payload), ...]``.
-        Providers whose cross-reference id is missing are dropped. The
-        ordering reads from ``config.metadata.priorities.episode_scraping``
-        with a sane default (``tvdb`` then ``tmdb``) when config is absent.
+        Iterates ``self._registry.chain(EpisodeFetcher)`` to enumerate the
+        eligible providers (circuit CLOSED / HALF_OPEN, per DESIGN §6.2).
+        Each provider is paired with the cross-reference id resolved
+        upstream — providers whose id is missing (or zeroed by the
+        provider-lock contract) are dropped before iteration. The
+        resulting list is re-sorted by
+        ``config.metadata.priorities.episode_scraping`` so the operator-
+        declared priority always wins over the registry's structural
+        order.
+
+        Each entry is ``(provider_name, fetch_callable)`` where
+        ``fetch_callable`` takes a season number and returns
+        ``[(episode_number, payload), ...]``. Closures capture the
+        provider reference directly so the chain iteration order is
+        baked in at call time — no second registry lookup at fetch
+        time.
 
         Args:
             tvdb_id: Resolved TVDB id (``None`` if unavailable).
@@ -989,25 +1015,53 @@ class TvServiceMixin:
             """
             return priority.get(name, 99)
 
-        def _tvdb_fetch(season: int) -> list[tuple[int, dict[str, Any]]]:
-            assert tvdb_id is not None
-            # Transitional registry-direct access (Phase 1 — DESIGN §5.2).
-            tvdb_client = cast("TVDBClient", self._registry.get("tvdb"))
-            detail = tvdb_client.get_series_episodes(tvdb_id, season)
-            return [(ep.episode_number, _episode_payload(ep, episode_default_name)) for ep in detail.episodes]
+        # Pre-resolve the cross-reference id for each canonical name —
+        # the chain iteration below filters on ``provider_name`` to
+        # pair each registry-eligible provider with its resolved id.
+        provider_ids: dict[str, int] = {}
+        if tvdb_id is not None:
+            provider_ids["tvdb"] = tvdb_id
+        if tmdb_id is not None:
+            provider_ids["tmdb"] = tmdb_id
 
-        def _tmdb_fetch(season: int) -> list[tuple[int, dict[str, Any]]]:
-            assert tmdb_id is not None
-            # Transitional registry-direct access (Phase 1 — DESIGN §5.2).
-            tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
-            detail = tmdb_client.get_tv_season(tmdb_id, season)
-            return [(ep.episode_number, _episode_payload(ep, episode_default_name)) for ep in detail.episodes]
+        def _make_fetch(provider: Any, provider_id: int) -> Callable[[int], list[tuple[int, dict[str, Any]]]]:
+            """Build a season-fetch closure bound to ``provider`` + its id.
+
+            The closure dispatches to the per-client legacy method
+            (``get_series_episodes`` on TVDB, ``get_tv_season`` on TMDB)
+            so existing mock test surfaces keep working. Both legacy
+            methods return :class:`SeasonDetails`, whose ``episodes``
+            field carries the :class:`EpisodeInfo` payload the
+            :class:`EpisodeFetcher` Protocol surfaces directly — they
+            are wire-compatible. Episode payloads are rendered through
+            :func:`_episode_payload` so downstream NFO + match code
+            stays decoupled from the provider-specific dataclasses.
+            """
+            name = getattr(provider, "provider_name", "")
+
+            def _fetch(season: int) -> list[tuple[int, dict[str, Any]]]:
+                if name == "tvdb":
+                    detail = provider.get_series_episodes(provider_id, season)
+                elif name == "tmdb":
+                    detail = provider.get_tv_season(provider_id, season)
+                else:
+                    # Future TV providers should be added explicitly here
+                    # so the operator notices the integration gap.
+                    log.warning("show_episode_provider_unknown", provider=name)
+                    return []
+                return [(ep.episode_number, _episode_payload(ep, episode_default_name)) for ep in detail.episodes]
+
+            return _fetch
 
         candidates: list[tuple[str, int, Callable[[int], list[tuple[int, dict[str, Any]]]]]] = []
-        if tvdb_id is not None:
-            candidates.append(("tvdb", _rank("tvdb"), _tvdb_fetch))
-        if tmdb_id is not None:
-            candidates.append(("tmdb", _rank("tmdb"), _tmdb_fetch))
+        for provider in self._registry.chain(EpisodeFetcher):  # type: ignore[type-abstract]
+            name = getattr(provider, "provider_name", "")
+            provider_id = provider_ids.get(name)
+            if provider_id is None:
+                # Either the provider has no resolved cross-reference id
+                # for this show, or the lock contract neutralized it.
+                continue
+            candidates.append((name, _rank(name), _make_fetch(provider, provider_id)))
         candidates.sort(key=lambda c: c[1])
         return [(name, fetch) for name, _, fetch in candidates]
 
