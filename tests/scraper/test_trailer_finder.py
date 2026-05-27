@@ -1,6 +1,6 @@
-"""Unit tests for TrailerFinder — TMDB-first / YouTube-fallback discovery.
+"""Unit tests for TrailerFinder — provider-agnostic / YouTube-fallback discovery.
 
-All external dependencies (TMDBClient, YoutubeSearch, TrailersCache) are mocked.
+All external dependencies (ProviderRegistry, YoutubeSearch, TrailersCache) are mocked.
 """
 
 from pathlib import Path
@@ -9,22 +9,30 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from personalscraper.api._contracts import MediaType
 from personalscraper.api.metadata._base import Video
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.circuit import CircuitBreaker, CircuitOpenError
 from personalscraper.core.event_bus import EventBus
 from personalscraper.scraper.trailer_finder import TrailerFinder
 from personalscraper.scraper.trailers_cache import TrailersCache
 
 
-def _mock_tmdb(finder: TrailerFinder) -> MagicMock:
-    """Type-narrow ``finder._tmdb_client`` to its real MagicMock at runtime.
+def _mock_registry(finder: TrailerFinder) -> MagicMock:
+    """Type-narrow ``finder._registry`` to its real MagicMock at runtime.
 
-    The fixture installs a MagicMock under the typed ``TMDBClient`` slot so
+    The fixture installs a MagicMock under the typed ``ProviderRegistry`` slot so
     individual tests can reach into ``return_value`` / ``side_effect`` /
     ``call_count`` without Pyright complaining about attributes that don't
     exist on the real class.
     """
-    return cast(MagicMock, finder._tmdb_client)
+    return cast(MagicMock, finder._registry)
+
+
+def _mock_provider(finder: TrailerFinder) -> MagicMock:
+    """Type-narrow the mock provider inside ``finder._registry.locked().provider``."""
+    reg = _mock_registry(finder)
+    return cast(MagicMock, reg.locked.return_value.provider)
 
 
 def _mock_yt(finder: TrailerFinder) -> MagicMock:
@@ -55,12 +63,17 @@ _YT_URL = "https://www.youtube.com/watch?v=TRAILER_KEY"
 
 @pytest.fixture()
 def finder(tmp_path: Path) -> TrailerFinder:
-    """Build a TrailerFinder with mocked TMDBClient and YoutubeSearch."""
-    client = MagicMock()
+    """Build a TrailerFinder with mocked ProviderRegistry and YoutubeSearch."""
+    mock_registry = MagicMock(spec=ProviderRegistry)
+    mock_locked = MagicMock()
+    mock_locked.provider = MagicMock()
+    mock_locked.bound_id = "12345"
+    mock_registry.locked.return_value = mock_locked
+
     searcher = MagicMock()
     cache = TrailersCache(tmp_path / "tc.json")
     return TrailerFinder(
-        tmdb_client=client,
+        registry=mock_registry,
         youtube_search=searcher,
         cache=cache,
         languages=["fr-FR", "en-US"],
@@ -71,28 +84,28 @@ class TestTrailerFinder:
     """Tests for TrailerFinder two-tier discovery strategy."""
 
     def test_returns_tmdb_trailer_url(self, finder: TrailerFinder) -> None:
-        """find() returns YouTube URL for first Trailer type from TMDB."""
-        _mock_tmdb(finder)._fetch_videos_strict.return_value = [_TRAILER_VIDEO]
+        """find() returns YouTube URL for first Trailer type from provider."""
+        _mock_provider(finder).get_videos.return_value = [_TRAILER_VIDEO]
         url = finder.find(550, "movie", title="Fight Club", year=1999)
         assert url == _YT_URL
 
     def test_tmdb_teaser_used_when_no_trailer(self, finder: TrailerFinder) -> None:
-        """find() falls back to Teaser if no Trailer type exists in TMDB results."""
-        _mock_tmdb(finder)._fetch_videos_strict.return_value = [_TEASER_VIDEO]
+        """find() falls back to Teaser if no Trailer type exists in provider results."""
+        _mock_provider(finder).get_videos.return_value = [_TEASER_VIDEO]
         url = finder.find(550, "movie", title="Fight Club", year=1999)
         assert url == "https://www.youtube.com/watch?v=TEASER_KEY"
 
-    def test_youtube_fallback_on_empty_tmdb(self, finder: TrailerFinder) -> None:
-        """find() falls back to YouTube search when TMDB returns no videos."""
-        _mock_tmdb(finder)._fetch_videos_strict.return_value = []
+    def test_youtube_fallback_on_empty_provider(self, finder: TrailerFinder) -> None:
+        """find() falls back to YouTube search when provider returns no videos."""
+        _mock_provider(finder).get_videos.return_value = []
         _mock_yt(finder).search.return_value = _YT_URL
         _mock_yt(finder)._breaker = CircuitBreaker(name="yt-test", failure_threshold=5, event_bus=EventBus())
         url = finder.find(550, "movie", title="Fight Club", year=1999)
         assert url == _YT_URL
 
     def test_returns_none_when_both_fail(self, finder: TrailerFinder) -> None:
-        """find() returns None when TMDB and YouTube both return nothing."""
-        _mock_tmdb(finder)._fetch_videos_strict.return_value = []
+        """find() returns None when provider and YouTube both return nothing."""
+        _mock_provider(finder).get_videos.return_value = []
         _mock_yt(finder).search.return_value = None
         _mock_yt(finder)._breaker = CircuitBreaker(name="yt-test", failure_threshold=5, event_bus=EventBus())
         url = finder.find(550, "movie", title="Fight Club", year=1999)
@@ -101,33 +114,32 @@ class TestTrailerFinder:
     def test_language_priority_fr_before_en(self, finder: TrailerFinder) -> None:
         """find() queries fr-FR before en-US and returns on first hit."""
 
-        def fetch_side_effect(endpoint: str, language: str) -> list[Video]:
+        def fetch_side_effect(media_id: str, media_type: MediaType, language: str) -> list[Video]:
             if language == "fr-FR":
                 return [_TRAILER_VIDEO]
             return []
 
-        _mock_tmdb(finder)._fetch_videos_strict.side_effect = fetch_side_effect
+        _mock_provider(finder).get_videos.side_effect = fetch_side_effect
         url = finder.find(550, "movie", title="Fight Club", year=1999)
         assert url == _YT_URL
         # Only one call (fr-FR) because it already found a result
-        assert _mock_tmdb(finder)._fetch_videos_strict.call_count == 1
+        assert _mock_provider(finder).get_videos.call_count == 1
 
-    def test_tv_show_uses_fetch_tv_videos(self, finder: TrailerFinder) -> None:
-        """find() calls _fetch_videos_strict with the tv endpoint for media_type='tv'."""
-        _mock_tmdb(finder)._fetch_videos_strict.return_value = [_TRAILER_VIDEO]
+    def test_tv_show_uses_get_videos(self, finder: TrailerFinder) -> None:
+        """find() calls get_videos() with MediaType.TV for media_type='tv'."""
+        _mock_provider(finder).get_videos.return_value = [_TRAILER_VIDEO]
         url = finder.find(1399, "tv", title="Game of Thrones", year=2011)
         assert url == _YT_URL
-        # Verify it was called with the TV endpoint
-        call_args = _mock_tmdb(finder)._fetch_videos_strict.call_args
-        assert "/tv/1399/videos" in call_args[0][0]
+        call_args = _mock_provider(finder).get_videos.call_args
+        assert call_args[0][1] == MediaType.TV
 
     def test_cache_hit_skips_network(self, finder: TrailerFinder) -> None:
-        """find() returns cached URL without calling TMDBClient or YoutubeSearch."""
+        """find() returns cached URL without calling provider or YoutubeSearch."""
         # Prime the cache directly
         finder._cache.set_tmdb_videos(550, "movie", "fr-FR", [_TRAILER_VIDEO])
         url = finder.find(550, "movie", title="Fight Club", year=1999)
         assert url == _YT_URL
-        _mock_tmdb(finder)._fetch_videos_strict.assert_not_called()
+        _mock_provider(finder).get_videos.assert_not_called()
 
     def test_non_youtube_videos_filtered_out(self, finder: TrailerFinder) -> None:
         """find() ignores non-YouTube videos even when they are Trailers."""
@@ -140,7 +152,7 @@ class TestTrailerFinder:
             size=1080,
             iso_639_1="en",
         )
-        _mock_tmdb(finder)._fetch_videos_strict.return_value = [vimeo_video]
+        _mock_provider(finder).get_videos.return_value = [vimeo_video]
         _mock_yt(finder).search.return_value = _YT_URL
         _mock_yt(finder)._breaker = CircuitBreaker(name="yt-test", failure_threshold=5, event_bus=EventBus())
         url = finder.find(550, "movie", title="Fight Club", year=1999)
@@ -148,12 +160,12 @@ class TestTrailerFinder:
         assert url == _YT_URL
         _mock_yt(finder).search.assert_called_once()
 
-    def test_season_uses_fetch_tv_season_videos(self, finder: TrailerFinder) -> None:
+    def test_season_uses_fetch_videos_strict(self, finder: TrailerFinder) -> None:
         """find() calls _fetch_videos_strict with the season endpoint."""
-        _mock_tmdb(finder)._fetch_videos_strict.return_value = [_TRAILER_VIDEO]
+        _mock_provider(finder)._fetch_videos_strict.return_value = [_TRAILER_VIDEO]
         url = finder.find(1399, "tv", title="Game of Thrones", year=2011, season_number=1)
         assert url == _YT_URL
-        call_args = _mock_tmdb(finder)._fetch_videos_strict.call_args
+        call_args = _mock_provider(finder)._fetch_videos_strict.call_args
         assert "/tv/1399/season/1/videos" in call_args[0][0]
 
 
@@ -197,8 +209,14 @@ class TestSeasonFallbackQuotaConfig:
         # Build a finder using this searcher and assert the passthrough searcher
         # for a season query inherits the quota parameters.
         cache = TrailersCache(tmp_path / "tc.json")
-        client = MagicMock()
-        client._fetch_videos_strict.return_value = []  # Force YouTube fallback
+
+        # Mock registry with a provider that returns empty videos (forces YouTube fallback).
+        mock_registry = MagicMock(spec=ProviderRegistry)
+        mock_locked = MagicMock()
+        mock_provider = MagicMock()
+        mock_provider._fetch_videos_strict.return_value = []  # force YouTube fallback
+        mock_locked.provider = mock_provider
+        mock_registry.locked.return_value = mock_locked
 
         constructed_searchers: list[YoutubeSearch] = []
         _original_init = YoutubeSearch.__init__
@@ -208,7 +226,7 @@ class TestSeasonFallbackQuotaConfig:
             constructed_searchers.append(self_inner)
 
         finder = TrailerFinder(
-            tmdb_client=client,
+            registry=mock_registry,
             youtube_search=searcher,
             cache=cache,
             languages=["en-US"],
@@ -239,56 +257,61 @@ class TestSeasonFallbackQuotaConfig:
 class TestCachePoisoningPrevention:
     """Tests for C5/C6 — outage errors must NOT poison the cache."""
 
-    def test_tmdb_outage_does_not_cache_empty_for_a_week(self, tmp_path: Path) -> None:
-        """A TMDB CircuitOpenError must not write an empty entry to TrailersCache.
+    def test_provider_outage_does_not_cache_empty_for_a_week(self, tmp_path: Path) -> None:
+        """A provider CircuitOpenError must not write an empty entry to TrailersCache.
 
         Scenario:
-          1. TMDB circuit is open → _fetch_videos_strict raises CircuitOpenError.
+          1. Provider raises CircuitOpenError via get_videos() side_effect.
           2. find() re-raises CircuitOpenError (propagates to orchestrator counter).
           3. Assert: no entry written to the cache (the key is absent).
-          4. Next call with TMDB returning a real movie → trailer is found
+          4. Next call with provider returning a real movie → trailer is found
              (not blocked by a cached empty list from step 1).
         """
         cache_path = tmp_path / "tc.json"
         trailers_cache = TrailersCache(cache_path)
 
-        client = MagicMock()
+        mock_registry = MagicMock(spec=ProviderRegistry)
+        mock_locked = MagicMock()
+        mock_provider = MagicMock()
+        mock_locked.provider = mock_provider
+        mock_registry.locked.return_value = mock_locked
+
         searcher = MagicMock()
         searcher._breaker = CircuitBreaker(name="yt-test", failure_threshold=5, event_bus=EventBus())
 
         finder = TrailerFinder(
-            tmdb_client=client,
+            registry=mock_registry,
             youtube_search=searcher,
             cache=trailers_cache,
             languages=["en-US"],
         )
 
-        # Step 1: TMDB raises CircuitOpenError on every call.
-        client._fetch_videos_strict.side_effect = CircuitOpenError("TMDB", 9999.0)
+        # Step 1: Provider raises CircuitOpenError on every call.
+        mock_provider.get_videos.side_effect = CircuitOpenError("TMDB", 9999.0)
 
         # After the fix find() re-raises CircuitOpenError so the orchestrator can
         # tally counts["circuit_open"]; it must NOT return None and swallow it.
         with pytest.raises(CircuitOpenError):
             finder.find(550, "movie", title="Fight Club", year=1999)
 
-        # Step 2: The cache must NOT have stored an empty entry for the TMDB key.
+        # Step 2: The cache must NOT have stored an empty entry for the provider key.
         # (The exception unwinds the stack before the cache write site.)
         assert trailers_cache.get_tmdb_videos(550, "movie", "en-US") is None, (
             "CircuitOpenError must not cache an empty video list"
         )
 
-        # Step 3: Next call — TMDB is back up and returns a real trailer.
-        client._fetch_videos_strict.side_effect = None
-        client._fetch_videos_strict.return_value = [_TRAILER_VIDEO]
+        # Step 3: Next call — provider is back up and returns a real trailer.
+        mock_provider.get_videos.side_effect = None
+        mock_provider.get_videos.return_value = [_TRAILER_VIDEO]
 
         result2 = finder.find(550, "movie", title="Fight Club", year=1999)
-        assert result2 == _YT_URL, "After TMDB recovery, the trailer should be found (not blocked by cached [])"
+        assert result2 == _YT_URL, "After provider recovery, the trailer should be found (not blocked by cached [])"
 
     def test_youtube_fallback_transport_error_does_not_cache_no_result(self, tmp_path: Path) -> None:
         """A YouTube CircuitOpenError must not write __no_result__ sentinel.
 
         Scenario:
-          1. TMDB returns empty (no videos for this movie).
+          1. Provider returns empty (no videos for this movie).
           2. YouTube breaker is open → _call_youtube_search raises CircuitOpenError.
           3. find() re-raises CircuitOpenError (propagates to orchestrator counter).
           4. Assert: no __no_result__ sentinel written to the cache.
@@ -298,7 +321,12 @@ class TestCachePoisoningPrevention:
         cache_path = tmp_path / "tc.json"
         trailers_cache = TrailersCache(cache_path)
 
-        client = MagicMock()
+        mock_registry = MagicMock(spec=ProviderRegistry)
+        mock_locked = MagicMock()
+        mock_provider = MagicMock()
+        mock_locked.provider = mock_provider
+        mock_registry.locked.return_value = mock_locked
+
         searcher = MagicMock()
 
         # Open breaker: guard() will raise CircuitOpenError. Single-line to
@@ -316,14 +344,14 @@ class TestCachePoisoningPrevention:
         searcher._breaker = yt_breaker
 
         finder = TrailerFinder(
-            tmdb_client=client,
+            registry=mock_registry,
             youtube_search=searcher,
             cache=trailers_cache,
             languages=["en-US"],
         )
 
-        # TMDB: no videos (genuine empty, but no trailer found).
-        client._fetch_videos_strict.return_value = []
+        # Provider: no videos (genuine empty, but no trailer found).
+        mock_provider.get_videos.return_value = []
 
         # After the fix find() re-raises CircuitOpenError so the orchestrator can
         # tally counts["circuit_open"]; it must NOT return None and swallow it.
@@ -352,7 +380,7 @@ class TestCachePoisoningClosure:
         """A TypeError from _fallback_search must not write __no_result__ to the cache.
 
         Scenario:
-          1. TMDB returns empty for all languages.
+          1. Provider returns empty for all languages.
           2. _fallback_search raises TypeError (yt-dlp parser drift).
           3. find() catches it and returns None WITHOUT caching __no_result__.
           4. On the next call (yt-dlp fixed), YouTube returns a real URL.
@@ -367,7 +395,13 @@ class TestCachePoisoningClosure:
 
         cache_path = tmp_path / "tc.json"
         trailers_cache = TrailersCache(cache_path)
-        client = MagicMock()
+
+        mock_registry = MagicMock(spec=ProviderRegistry)
+        mock_locked = MagicMock()
+        mock_provider = MagicMock()
+        mock_locked.provider = mock_provider
+        mock_registry.locked.return_value = mock_locked
+
         yt_breaker = CircuitBreaker(name="yt-test", failure_threshold=5, cooldown_seconds=60, event_bus=EventBus())
 
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
@@ -380,14 +414,14 @@ class TestCachePoisoningClosure:
         )
 
         finder = TrailerFinder(
-            tmdb_client=client,
+            registry=mock_registry,
             youtube_search=real_searcher,
             cache=trailers_cache,
             languages=["en-US"],
         )
 
-        # TMDB: no videos (genuine empty for the language).
-        client._fetch_videos_strict.return_value = []
+        # Provider: no videos (genuine empty for the language).
+        mock_provider.get_videos.return_value = []
 
         # Step 1: _fallback_search raises TypeError (yt-dlp parser drift).
         with patch.object(real_searcher, "_fallback_search", side_effect=TypeError("unexpected type")):
@@ -410,7 +444,7 @@ class TestCachePoisoningClosure:
         """When the breaker transitions closed→open during a call, __no_result__ is NOT cached.
 
         Scenario:
-          1. TMDB returns empty.
+          1. Provider returns empty.
           2. The breaker is CLOSED before the YouTube call, but transitions OPEN
              during it (a fresh transport failure trips the threshold).
           3. _call_youtube_search detects the transition and raises CircuitOpenError.
@@ -431,7 +465,12 @@ class TestCachePoisoningClosure:
 
         cache_path = tmp_path / "tc.json"
         trailers_cache = TrailersCache(cache_path)
-        client = MagicMock()
+
+        mock_registry = MagicMock(spec=ProviderRegistry)
+        mock_locked = MagicMock()
+        mock_provider = MagicMock()
+        mock_locked.provider = mock_provider
+        mock_registry.locked.return_value = mock_locked
 
         # Use a low threshold so one failure trips the breaker.
         yt_breaker = CircuitBreaker(name="yt-test", failure_threshold=1, cooldown_seconds=9999, event_bus=EventBus())
@@ -443,14 +482,14 @@ class TestCachePoisoningClosure:
         )
 
         finder = TrailerFinder(
-            tmdb_client=client,
+            registry=mock_registry,
             youtube_search=real_searcher,
             cache=trailers_cache,
             languages=["en-US"],
         )
 
-        # TMDB: no videos.
-        client._fetch_videos_strict.return_value = []
+        # Provider: no videos.
+        mock_provider.get_videos.return_value = []
 
         # _fallback_search trips the breaker via record_failure and returns None.
         # We simulate this by patching search() to record a failure and return None.
@@ -487,7 +526,7 @@ class TestDownloadErrorRegression:
         """find() returns None and skips __no_result__ cache when _fallback_search raises DownloadError.
 
         Scenario:
-          1. TMDB returns empty for all languages (forces YouTube fallback).
+          1. Provider returns empty for all languages (forces YouTube fallback).
           2. _fallback_search raises yt_dlp.utils.DownloadError (re-raised by
              _youtube_fallback_strict, regression from sub-phase 11.2).
           3. find() must catch it, return None, and NOT write __no_result__ to
@@ -505,7 +544,13 @@ class TestDownloadErrorRegression:
 
         cache_path = tmp_path / "tc.json"
         trailers_cache = TrailersCache(cache_path)
-        client = MagicMock()
+
+        mock_registry = MagicMock(spec=ProviderRegistry)
+        mock_locked = MagicMock()
+        mock_provider = MagicMock()
+        mock_locked.provider = mock_provider
+        mock_registry.locked.return_value = mock_locked
+
         yt_breaker = CircuitBreaker(name="yt-test", failure_threshold=5, cooldown_seconds=60, event_bus=EventBus())
 
         real_searcher = YoutubeSearch(
@@ -516,14 +561,14 @@ class TestDownloadErrorRegression:
         )
 
         finder = TrailerFinder(
-            tmdb_client=client,
+            registry=mock_registry,
             youtube_search=real_searcher,
             cache=trailers_cache,
             languages=["en-US"],
         )
 
-        # TMDB returns empty — forces YouTube fallback path.
-        client._fetch_videos_strict.return_value = []
+        # Provider returns empty — forces YouTube fallback path.
+        mock_provider.get_videos.return_value = []
 
         # _fallback_search raises DownloadError (the regression scenario).
         with patch.object(

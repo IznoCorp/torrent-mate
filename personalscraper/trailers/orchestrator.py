@@ -45,6 +45,7 @@ from personalscraper.trailers.state import (
 )
 
 if TYPE_CHECKING:
+    from personalscraper.api.metadata.registry import ProviderRegistry  # noqa: F811
     from personalscraper.core.event_bus import EventBus
     from personalscraper.scraper.trailer_finder import TrailerFinder
 
@@ -126,6 +127,7 @@ class TrailersOrchestrator:
         _failed_items: Per-item failure list populated by run().
         _library_index: Lazily built index mapping (category_id, id_value) to
             :class:`_LibraryEntry`.  Populated on first need during run().
+        _registry: Optional ProviderRegistry (Phase 3 will make this required).
     """
 
     def __init__(
@@ -134,6 +136,7 @@ class TrailersOrchestrator:
         staging_dir: Path | None,
         *,
         event_bus: "EventBus",
+        registry: "ProviderRegistry | None" = None,  # noqa: F821
     ) -> None:
         """Wire up Scanner, TrailerFinder, YtdlpDownloader, TrailerStateStore.
 
@@ -144,13 +147,16 @@ class TrailersOrchestrator:
                 threaded from the trailers CLI command boundary or from the
                 pipeline ``trailers`` step. The orchestrator emits
                 ``TrailerDownloaded`` events on it and forwards it to the
-                TMDB/YouTube transports + YouTube ``CircuitBreaker``. Tests
-                that don't care about emit can pass a fresh ``EventBus()``
-                with no subscribers.
+                transports + YouTube ``CircuitBreaker``. Tests that don't care
+                about emit can pass a fresh ``EventBus()`` with no subscribers.
+            registry: Optional ProviderRegistry for resolving the VideoProvider
+                capability. When None (legacy callers), a registry is built
+                inline from config. Phase 3 will make this required.
         """
         self._config = config
         self._staging_dir = staging_dir
         self._event_bus = event_bus
+        self._registry = registry
         self._failed_items: list[tuple[str, str, str]] = []
         self._item_results: list[tuple[str, str, str | None]] = []
 
@@ -645,18 +651,22 @@ class TrailersOrchestrator:
     def _build_finder(self) -> "TrailerFinder | None":
         """Construct a fully wired TrailerFinder from config values.
 
-        Wires the TMDB and YouTube circuit breakers from
+        Uses the ProviderRegistry (provided or built inline) to resolve the
+        VideoProvider capability. Wires the YouTube circuit breaker from
         ``config.trailers.circuit_breakers``, the YouTube quota cache (sidecar
         ``JsonTTLCache``), and the YouTube API key from ``YOUTUBE_API_KEY`` env.
         Returns None only on import-time failure (developer error); other
         misconfigurations log loudly with exc_info so users see them.
 
+        When ``self._registry`` is None (legacy callers), a ProviderRegistry is
+        built inline from config.  Phase 3 will make ``registry`` required and
+        remove the inline construction.
+
         Returns:
             A TrailerFinder instance, or None when import fails.
         """
         try:
-            from personalscraper.api.metadata.tmdb import TMDBClient  # noqa: PLC0415
-            from personalscraper.api.transport._http import HttpTransport  # noqa: PLC0415
+            from personalscraper.api.metadata.registry import ProviderRegistry  # noqa: PLC0415
             from personalscraper.api.transport._policy import CircuitPolicy  # noqa: PLC0415
             from personalscraper.config import get_settings  # noqa: PLC0415
             from personalscraper.core.circuit import CircuitBreaker  # noqa: PLC0415
@@ -673,23 +683,22 @@ class TrailersOrchestrator:
 
         try:
             settings = get_settings()
-            tmdb_key = settings.tmdb_api_key
             cache_dir = Path(str(self._config.trailers.state_file)).parent
             cache_dir.mkdir(parents=True, exist_ok=True)
             cache = TrailersCache(cache_dir / "trailers_cache.json")
 
+            # Resolve registry: use the one passed in, or build inline from config
+            # (transitional — Phase 3 will make registry required).
+            registry = self._registry
+            if registry is None:
+                registry = ProviderRegistry(
+                    settings=settings,
+                    event_bus=self._event_bus,
+                    cb_policy=CircuitPolicy(),
+                    providers_config=self._config.providers,
+                )
+
             cb_cfg = self._config.trailers.circuit_breakers
-            # TMDBClient builds its own breaker internally; pass the trailers-specific
-            # threshold/cooldown so a YouTube outage does not trip the main TMDB breaker
-            # used elsewhere in the scraper.
-            tmdb_policy = TMDBClient.policy(
-                tmdb_key,
-                circuit=CircuitPolicy(
-                    failure_threshold=int(cb_cfg.tmdb_videos.errors_threshold),
-                    cooldown_seconds=int(cb_cfg.tmdb_videos.cooldown_sec),
-                ),
-            )
-            tmdb_client = TMDBClient(transport=HttpTransport(tmdb_policy, event_bus=self._event_bus))
             youtube_breaker = CircuitBreaker(name="trailers_youtube", failure_threshold=int(cb_cfg.youtube.errors_threshold), cooldown_seconds=float(cb_cfg.youtube.cooldown_sec), event_bus=self._event_bus)  # noqa: E501  # fmt: skip
 
             quota_cache = JsonTTLCache(cache_dir / "youtube_quota.json")
@@ -713,7 +722,7 @@ class TrailersOrchestrator:
             )
             languages: list[str] = list(self._config.trailers.languages)
             return TrailerFinder(
-                tmdb_client=tmdb_client,
+                registry=registry,
                 youtube_search=youtube_search,
                 cache=cache,
                 languages=languages,

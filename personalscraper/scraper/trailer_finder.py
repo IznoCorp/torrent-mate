@@ -1,8 +1,9 @@
-"""TMDB-first / YouTube-fallback trailer discovery orchestrator.
+"""Provider-agnostic / YouTube-fallback trailer discovery orchestrator.
 
 Implements a two-tier strategy (DESIGN §4):
-  1. Try TMDB video endpoints per language (fr-FR before en-US, etc.).
-  2. Fall back to ``YoutubeSearch`` when TMDB returns no usable videos.
+  1. Try the configured VideoProvider via ``registry.locked(VideoProvider, match)``
+     for each language (fr-FR before en-US, etc.).
+  2. Fall back to ``YoutubeSearch`` when the provider returns no usable videos.
 
 Results are cached via ``TrailersCache`` (backed by ``JsonTTLCache``)
 so repeated calls for the same media are answered from disk.
@@ -11,10 +12,11 @@ No downloading happens here — this module returns a YouTube URL string
 or ``None``.
 
 Cache-poisoning protection (C5/C6):
-- ``_fetch_tmdb_videos`` now calls ``_fetch_videos_strict`` on the TMDB client,
-  which raises on transport/circuit-open/JSON errors.  ``find()`` catches those
-  exceptions and skips the cache write so a 30-second TMDB blip does not pin an
-  empty result for 7 days.
+- ``_fetch_videos_via_registry`` uses ``registry.locked(VideoProvider, match)``
+  to obtain a provider.  The provider's ``get_videos()`` is used for the
+  Protocol path; for TV seasons the TMDB-specific ``_fetch_videos_strict`` is
+  accessed via duck-typing as a transitional measure (no season support in the
+  VideoProvider Protocol).
 - ``_youtube_fallback`` re-raises transport / breaker-open / yt-dlp parser errors
   so ``find()`` can skip caching the ``__no_result__`` sentinel on outage.  Only a
   successful query with genuinely no results is cached as ``__no_result__``.
@@ -37,7 +39,7 @@ from personalscraper.scraper.trailers_cache import TrailersCache
 
 if TYPE_CHECKING:
     from personalscraper.api.metadata._base import Video
-    from personalscraper.api.metadata.tmdb import TMDBClient
+    from personalscraper.api.metadata.registry import ProviderRegistry  # noqa: F811
     from personalscraper.scraper.youtube_search import YoutubeSearch
 
 logger = get_logger(__name__)
@@ -102,27 +104,29 @@ def _video_to_url(video: Video) -> str:
 
 
 class TrailerFinder:
-    """Orchestrates TMDB-first / YouTube-fallback trailer discovery.
+    """Orchestrates provider-agnostic / YouTube-fallback trailer discovery.
 
-    For each configured language the finder queries the TMDB video endpoint
-    (cache-first), picks the best YouTube-hosted video, and returns early on
-    the first hit. If TMDB yields nothing, it falls back to ``YoutubeSearch``
-    and caches the result.
+    For each configured language the finder queries the VideoProvider via
+    ``registry.locked(VideoProvider, match)`` (cache-first), picks the best
+    YouTube-hosted video, and returns early on the first hit. If the provider
+    yields nothing, it falls back to ``YoutubeSearch`` and caches the result.
 
     Supports season-level discovery: when ``season_number`` is provided to
     ``find()``, the TMDB season-specific endpoint is used instead of the
-    show-level one, and the YouTube fallback query uses the season format.
+    show-level one (via duck-typing on the locked provider, since the
+    VideoProvider Protocol does not expose season-level lookups), and the
+    YouTube fallback query uses the season format.
 
     Attributes:
-        _tmdb_client: TMDBClient instance for TMDB API calls.
+        _registry: ProviderRegistry for resolving VideoProvider per match.
         _youtube_search: YoutubeSearch instance for fallback queries.
-        _cache: TrailersCache for TMDB video lists and YouTube results.
+        _cache: TrailersCache for video lists and YouTube results.
         _languages: Ordered list of BCP-47 language tags (tried in order).
     """
 
     def __init__(
         self,
-        tmdb_client: TMDBClient,
+        registry: "ProviderRegistry",  # noqa: F821
         youtube_search: YoutubeSearch,
         cache: TrailersCache,
         languages: list[str],
@@ -130,14 +134,15 @@ class TrailerFinder:
         """Initialize TrailerFinder with its dependencies.
 
         Args:
-            tmdb_client: Authenticated TMDB API client.
+            registry: ProviderRegistry for resolving the VideoProvider
+                      capability per match via ``registry.locked()``.
             youtube_search: YouTube search layer (primary API + yt-dlp fallback).
-            cache: File-backed cache for TMDB video lists and search results.
-            languages: Ordered list of BCP-47 language tags to query TMDB with.
-                       Queried in order; the first language that returns a
-                       usable video wins.
+            cache: File-backed cache for video lists and search results.
+            languages: Ordered list of BCP-47 language tags to query the
+                       provider with.  Queried in order; the first language
+                       that returns a usable video wins.
         """
-        self._tmdb_client = tmdb_client
+        self._registry = registry
         self._youtube_search = youtube_search
         self._cache = cache
         self._languages = languages
@@ -155,12 +160,13 @@ class TrailerFinder:
 
         Strategy (DESIGN §4):
           1. For each language in ``self._languages``:
-             a. Check ``TrailersCache`` for a cached TMDB video list.
-             b. On miss, call the appropriate TMDBClient strict fetch method.
+             a. Check ``TrailersCache`` for a cached video list.
+             b. On miss, call ``_fetch_videos_via_registry()`` which resolves
+                the VideoProvider via ``registry.locked(VideoProvider, match)``.
                 Store the result only when no transport/circuit error occurred.
              c. Run ``_best_video()`` on the (cached) list.
              d. Return immediately on the first hit.
-          2. If TMDB yields nothing across all languages:
+          2. If the provider yields nothing across all languages:
              a. Check ``TrailersCache`` for a cached YouTube search result
                 (TTL-aware via ``contains_search``).
              b. On miss, call ``_youtube_fallback_strict()`` and cache the result
@@ -170,9 +176,11 @@ class TrailerFinder:
              c. Return the URL or None.
 
         Season-level behaviour (``season_number is not None``):
-          - Uses ``fetch_tv_season_videos`` instead of ``fetch_tv_videos``.
-          - TMDB cache keys include the season number automatically via the
-            ``media_type`` suffix written by ``_tmdb_season_media_type()``.
+          - Uses the TMDB season-specific endpoint via duck-typing on the locked
+            provider (``_fetch_videos_strict``), since the VideoProvider Protocol
+            does not expose season-level lookups.
+          - Cache keys include the season number automatically via the
+            ``media_type`` suffix written by ``_cache_media_type()``.
           - YouTube fallback uses a season-specific query format.
 
         Args:
@@ -180,7 +188,7 @@ class TrailerFinder:
             media_type: ``"movie"`` or ``"tv"``.
             title: Human-readable title (used for YouTube fallback query).
             year: Release year, or None.  Used in YouTube fallback query.
-            season_number: When provided, targets season-specific TMDB videos
+            season_number: When provided, targets season-specific videos
                            and a season-aware YouTube query.
 
         Returns:
@@ -188,7 +196,7 @@ class TrailerFinder:
             no trailer could be found via either tier.
         """
         # ------------------------------------------------------------------
-        # Tier 1: TMDB video lookup (per language, cache-first)
+        # Tier 1: Provider video lookup (per language, cache-first)
         # ------------------------------------------------------------------
         # The cache key for seasons uses a synthetic media_type like
         # "tv-season-3" so season-level results don't collide with show-level.
@@ -197,10 +205,15 @@ class TrailerFinder:
         for language in self._languages:
             cached = self._cache.get_tmdb_videos(tmdb_id, cache_media_type, language)
             if cached is None:
-                # Cache miss — fetch from TMDB via the strict variant so we can
-                # distinguish a genuine empty result from an outage error.
+                # Cache miss — fetch via registry.locked(VideoProvider, match)
+                # so we can distinguish a genuine empty result from an outage error.
                 try:
-                    videos = self._fetch_tmdb_videos(tmdb_id, media_type, language, season_number)
+                    videos = self._fetch_videos_via_registry(
+                        media_type=media_type,
+                        tmdb_id=tmdb_id,
+                        season_number=season_number,
+                        language=language,
+                    )
                 except CircuitOpenError:
                     # Circuit breaker is OPEN — re-raise so the orchestrator can
                     # tally circuit_open and skip the cache write.  Swallowing it
@@ -208,11 +221,11 @@ class TrailerFinder:
                     # (dead observability counter).
                     raise
                 except (ApiError, requests.RequestException, json.JSONDecodeError) as exc:
-                    # TMDB transport / HTTP / decode error — do NOT cache the
+                    # Provider transport / HTTP / decode error — do NOT cache the
                     # empty list.  Log and continue to the next language or fall
                     # through to the YouTube fallback.
                     logger.warning(
-                        "trailer_tmdb_fetch_error_skip_cache",
+                        "trailer_provider_fetch_error_skip_cache",
                         tmdb_id=tmdb_id,
                         media_type=cache_media_type,
                         language=language,
@@ -306,39 +319,71 @@ class TrailerFinder:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _fetch_tmdb_videos(
+    def _fetch_videos_via_registry(
         self,
-        tmdb_id: int,
+        *,
         media_type: str,
-        language: str,
+        tmdb_id: int,
         season_number: int | None,
+        language: str,
     ) -> list[Video]:
-        """Dispatch to the correct TMDBClient strict fetch method.
+        """Fetch videos via ``registry.locked(VideoProvider, match)``.
 
-        Calls ``_fetch_videos_strict`` on the TMDB client so the caller
-        (``find()``) receives transport / circuit-open / API errors instead
-        of a silent empty list.
+        The Protocol method ``get_videos(media_id, media_type, language)`` is
+        provider-agnostic. For TV seasons the season_number is encoded in the
+        endpoint by duck-typing ``_fetch_videos_strict`` on the locked provider
+        (the VideoProvider Protocol does not expose season-level lookups).
 
         Args:
-            tmdb_id: TMDB ID.
             media_type: ``"movie"`` or ``"tv"``.
-            language: BCP-47 language tag.
+            tmdb_id: TMDB numeric identifier.
             season_number: Season number, or None for show-level.
+            language: BCP-47 language tag.
 
         Returns:
             List of Video instances (may be empty for a genuine no-result).
 
         Raises:
-            ApiError: On non-404 TMDB HTTP errors.
-            CircuitOpenError: If the TMDB circuit breaker is OPEN.
+            ApiError: On non-404 provider HTTP errors.
+            CircuitOpenError: If the provider circuit breaker is OPEN.
         """
-        if media_type == "movie":
-            endpoint = f"/movie/{tmdb_id}/videos"
-        elif season_number is not None:
+        from personalscraper.api._contracts import MediaType
+        from personalscraper.api.metadata._contracts import VideoProvider
+        from personalscraper.api.metadata.registry import ProviderMatch, ProviderName
+
+        mt = MediaType(media_type)
+        match = ProviderMatch(
+            provider=ProviderName("tmdb"),
+            id=str(tmdb_id),
+            media_type=mt,
+        )
+        locked = self._registry.locked(VideoProvider, match)  # type: ignore[type-abstract]
+        if locked is None:
+            logger.warning(
+                "trailer_video_provider_unresolved",
+                tmdb_id=tmdb_id,
+                media_type=str(mt),
+            )
+            return []
+
+        if season_number is not None:
+            # TV season trailers — TMDB-specific endpoint not in Protocol.
+            # Use duck-typing to call the private method on TMDB only.
             endpoint = f"/tv/{tmdb_id}/season/{season_number}/videos"
-        else:
-            endpoint = f"/tv/{tmdb_id}/videos"
-        return self._tmdb_client._fetch_videos_strict(endpoint, language)
+            fetch_strict = getattr(locked.provider, "_fetch_videos_strict", None)
+            if fetch_strict is None:
+                logger.info(
+                    "trailer_season_videos_protocol_only",
+                    tmdb_id=tmdb_id,
+                    season=season_number,
+                    provider=locked.bound_id,
+                    note="provider lacks _fetch_videos_strict; falling back to root TV videos",
+                )
+                return locked.provider.get_videos(locked.bound_id, mt, language)  # type: ignore[no-any-return,attr-defined]
+            return fetch_strict(endpoint, language)  # type: ignore[no-any-return]
+
+        # Movies + main TV — provider-agnostic Protocol path
+        return locked.provider.get_videos(locked.bound_id, mt, language)  # type: ignore[no-any-return,attr-defined]
 
     def _youtube_fallback_strict(
         self,
