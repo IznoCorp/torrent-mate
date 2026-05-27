@@ -9,19 +9,19 @@ from tests.commands._e2e_helpers import run_cli
 
 def test_info_providers_lists_configured_providers(monkeypatch):
     """``info providers`` exits 0 and prints circuit state for each provider."""
-    from personalscraper.api.metadata.registry import ProviderName, ProviderStatus
+    from personalscraper.api.metadata.registry import ProviderStatus, RegistryProviderName
 
     mock_instance = MagicMock()
     mock_instance.status.return_value = {
         "tmdb": ProviderStatus(
-            provider_name=ProviderName("tmdb"),
+            provider_name=RegistryProviderName("tmdb"),
             circuit_state="CLOSED",
             failure_count_recent=0,
             last_success_at=None,
             last_failure_at=None,
         ),
         "tvdb": ProviderStatus(
-            provider_name=ProviderName("tvdb"),
+            provider_name=RegistryProviderName("tvdb"),
             circuit_state="CLOSED",
             failure_count_recent=0,
             last_success_at=None,

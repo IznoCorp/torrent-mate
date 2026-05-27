@@ -15,7 +15,7 @@ from personalscraper.api.metadata._contracts import ArtworkProvider
 from personalscraper.api.metadata.registry import (
     LockedProvider,
     ProviderMatch,
-    ProviderName,
+    RegistryProviderName,
 )
 from personalscraper.api.metadata.registry._events import LockedCapabilityUnresolved
 from personalscraper.conf.models.providers import ProvidersConfig
@@ -41,7 +41,7 @@ def test_locked_match_provider_path_no_xref(build_registry: object) -> None:
         ArtworkProvider={"multi": 1},
     )
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
-    match = ProviderMatch(provider=ProviderName("multi"), id="123", media_type=MediaType.MOVIE)
+    match = ProviderMatch(provider=RegistryProviderName("multi"), id="123", media_type=MediaType.MOVIE)
     locked = registry.locked(ArtworkProvider, match)
     assert locked is not None
     assert isinstance(locked, LockedProvider)
@@ -70,7 +70,7 @@ def test_locked_idcrossref_escape_xref_succeeds(build_registry: object) -> None:
         IDCrossRef={"xref": 1},
     )
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
-    match = ProviderMatch(provider=ProviderName("xref"), id="123", media_type=MediaType.MOVIE)
+    match = ProviderMatch(provider=RegistryProviderName("xref"), id="123", media_type=MediaType.MOVIE)
     locked = registry.locked(ArtworkProvider, match)
     assert locked is not None
     assert locked.bound_id == "456"
@@ -98,7 +98,7 @@ def test_locked_circuit_open_along_xref_chain(build_registry: object) -> None:
         IDCrossRef={"xref": 1},
     )
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
-    match = ProviderMatch(provider=ProviderName("xref"), id="123", media_type=MediaType.MOVIE)
+    match = ProviderMatch(provider=RegistryProviderName("xref"), id="123", media_type=MediaType.MOVIE)
     locked = registry.locked(ArtworkProvider, match)
     assert locked is not None
     # art_open is OPEN → must skip; art_closed wins with its xref id.
@@ -125,7 +125,7 @@ def test_locked_returns_none_when_all_paths_blocked(build_registry: object) -> N
         IDCrossRef={"xref": 1},
     )
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
-    match = ProviderMatch(provider=ProviderName("xref"), id="123", media_type=MediaType.MOVIE)
+    match = ProviderMatch(provider=RegistryProviderName("xref"), id="123", media_type=MediaType.MOVIE)
     assert registry.locked(ArtworkProvider, match) is None
 
 
@@ -147,7 +147,7 @@ def test_locked_returns_none_emits_LockedCapabilityUnresolved_event(
         providers_config=config,
         event_bus=mock_event_bus,
     )
-    match = ProviderMatch(provider=ProviderName("xref"), id="123", media_type=MediaType.MOVIE)
+    match = ProviderMatch(provider=RegistryProviderName("xref"), id="123", media_type=MediaType.MOVIE)
     result = registry.locked(ArtworkProvider, match)
     assert result is None
     assert any(isinstance(e, LockedCapabilityUnresolved) for e in mock_event_bus.emitted)  # type: ignore[attr-defined]
@@ -164,7 +164,7 @@ def test_LockedProvider_construction_outside_registry_module_raises() -> None:
     The sentinel mechanism (DESIGN §6.4 / I3) guarantees that only the
     registry's internal ``_make_locked()`` helper can build instances.
     """
-    match = ProviderMatch(provider=ProviderName("p"), id="x", media_type=MediaType.MOVIE)
+    match = ProviderMatch(provider=RegistryProviderName("p"), id="x", media_type=MediaType.MOVIE)
     fake = FakeSearchable(provider_name="p")
     with pytest.raises(TypeError):
         LockedProvider(

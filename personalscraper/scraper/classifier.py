@@ -13,7 +13,7 @@ from guessit.api import GuessitException
 from personalscraper.api._contracts import MediaType
 from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.api.metadata._contracts import KeywordProvider
-from personalscraper.api.metadata.registry import ProviderMatch, ProviderName
+from personalscraper.api.metadata.registry import ProviderMatch, RegistryProviderName
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -166,7 +166,7 @@ class ClassifierMixin:
                 tmdb_keywords = cached
             else:
                 match = ProviderMatch(
-                    provider=ProviderName("tmdb"),
+                    provider=RegistryProviderName("tmdb"),
                     id=str(tmdb_id),
                     media_type=media_type,
                 )

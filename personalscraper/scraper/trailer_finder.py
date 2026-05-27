@@ -349,11 +349,11 @@ class TrailerFinder:
         """
         from personalscraper.api._contracts import MediaType
         from personalscraper.api.metadata._contracts import VideoProvider
-        from personalscraper.api.metadata.registry import ProviderMatch, ProviderName
+        from personalscraper.api.metadata.registry import ProviderMatch, RegistryProviderName
 
         mt = MediaType(media_type)
         match = ProviderMatch(
-            provider=ProviderName("tmdb"),
+            provider=RegistryProviderName("tmdb"),
             id=str(tmdb_id),
             media_type=mt,
         )

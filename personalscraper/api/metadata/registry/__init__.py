@@ -71,10 +71,19 @@ if TYPE_CHECKING:
 _INTERNAL_TOKEN = object()
 
 # ---------------------------------------------------------------------------
-# ProviderName alias
+# RegistryProviderName alias
+#
+# Open-string identifier for any provider name encountered by the registry.
+# Intentionally distinct from ``personalscraper.api._contracts.ProviderName``
+# (a closed ``str``-Enum of known providers). The registry accepts arbitrary
+# names supplied by user config — including test-only synthetics — so a
+# closed Enum would be too restrictive here. The previous shared name
+# (``ProviderName`` was defined twice, once as Enum, once as NewType) caused
+# silent type aliasing because Enum subclasses ``str``. See sub-phase 5.2
+# of the registry tech-debt sweep.
 # ---------------------------------------------------------------------------
 
-ProviderName = NewType("ProviderName", str)
+RegistryProviderName = NewType("RegistryProviderName", str)
 
 # ---------------------------------------------------------------------------
 # Named Protocol
@@ -134,7 +143,7 @@ class ProviderMatch:
     configured provider at every call site that accepts a ``ProviderMatch``.
     """
 
-    provider: ProviderName
+    provider: RegistryProviderName
     id: str
     media_type: MediaType
 
@@ -155,7 +164,7 @@ class AttemptOutcome:
     free-form strings.
     """
 
-    provider: ProviderName
+    provider: RegistryProviderName
     reason: Literal["circuit_open", "network", "empty_result", "other"]
     detail: str | None = None
 
@@ -170,7 +179,7 @@ class ProviderStatus:
     the Protocol attribute introduced by ``Named``.
     """
 
-    provider_name: ProviderName
+    provider_name: RegistryProviderName
     circuit_state: Literal["CLOSED", "OPEN", "HALF_OPEN"]
     failure_count_recent: int
     last_success_at: datetime | None
@@ -199,7 +208,7 @@ class ConfigIssue:
         "idcrossref_cycle",
     ]
     section: str
-    provider: ProviderName | None
+    provider: RegistryProviderName | None
     message: str
 
 
@@ -585,7 +594,7 @@ class ProviderRegistry:
             circuit = getattr(provider, "circuit", None)
             state = getattr(circuit, "state", "CLOSED") if circuit else "CLOSED"
             result[name] = ProviderStatus(
-                provider_name=ProviderName(name),
+                provider_name=RegistryProviderName(name),
                 circuit_state=state,  # type: ignore[arg-type]  # Literal validated by fuzzing
                 failure_count_recent=(getattr(circuit, "failure_count_recent", 0) if circuit else 0),
                 last_success_at=(getattr(circuit, "last_success_at", None) if circuit else None),

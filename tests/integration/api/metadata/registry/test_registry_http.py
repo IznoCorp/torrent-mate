@@ -27,8 +27,8 @@ from personalscraper.api.metadata.registry import (
     AttemptOutcome,
     FanOutResult,
     ProviderMatch,
-    ProviderName,
     ProviderRegistry,
+    RegistryProviderName,
 )
 from personalscraper.api.metadata.registry._errors import ProviderExhausted
 from personalscraper.api.metadata.registry._events import (
@@ -314,7 +314,7 @@ def _attempt_chain(
         except ApiError as exc:
             attempted.append(
                 AttemptOutcome(
-                    provider=ProviderName(p_name),
+                    provider=RegistryProviderName(p_name),
                     reason="network",
                     detail=str(exc),
                 )
@@ -322,7 +322,7 @@ def _attempt_chain(
         except requests.ConnectionError as exc:
             attempted.append(
                 AttemptOutcome(
-                    provider=ProviderName(p_name),
+                    provider=RegistryProviderName(p_name),
                     reason="network",
                     detail=str(exc),
                 )
@@ -330,7 +330,7 @@ def _attempt_chain(
         except Exception as exc:
             attempted.append(
                 AttemptOutcome(
-                    provider=ProviderName(p_name),
+                    provider=RegistryProviderName(p_name),
                     reason="other",
                     detail=type(exc).__name__,
                 )
@@ -637,7 +637,7 @@ class TestLockedCrossRef:
         registry = build_registry_fakes(fakes=fakes, providers_config=config, event_bus=bus)
 
         match = ProviderMatch(
-            provider=ProviderName("tmdb"),
+            provider=RegistryProviderName("tmdb"),
             id="tmdb-123",
             media_type=MediaType.MOVIE,
         )
@@ -662,7 +662,7 @@ class TestLockedCrossRef:
         registry = build_registry_fakes(fakes=fakes, providers_config=config, event_bus=bus)
 
         match = ProviderMatch(
-            provider=ProviderName("tmdb"),
+            provider=RegistryProviderName("tmdb"),
             id="tmdb-unknown",
             media_type=MediaType.MOVIE,
         )
@@ -733,14 +733,14 @@ class TestFanOutPartial:
                     values.append(result)
                 attempted.append(
                     AttemptOutcome(
-                        provider=ProviderName(p.provider_name),
+                        provider=RegistryProviderName(p.provider_name),
                         reason="empty_result" if not result else "empty_result",
                     )
                 )
             except ApiError:
                 attempted.append(
                     AttemptOutcome(
-                        provider=ProviderName(p.provider_name),
+                        provider=RegistryProviderName(p.provider_name),
                         reason="network",
                         detail="5xx",
                     )

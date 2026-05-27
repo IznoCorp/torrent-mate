@@ -11,7 +11,7 @@ import difflib
 import os
 from typing import TYPE_CHECKING
 
-from personalscraper.api.metadata.registry import ConfigIssue, ProviderName
+from personalscraper.api.metadata.registry import ConfigIssue, RegistryProviderName
 from personalscraper.api.metadata.registry._semantics import (
     CAPABILITY_KEYS,
     CHAIN_CAPABILITIES,
@@ -87,7 +87,7 @@ def _check_missing_credentials(
                     ConfigIssue(
                         code="missing_credentials",
                         section=section_name,
-                        provider=ProviderName(name),
+                        provider=RegistryProviderName(name),
                         message=f"Required credential {env} is not set",
                     )
                 )
@@ -123,7 +123,7 @@ def _check_protocol_mismatch(
                     ConfigIssue(
                         code="protocol_mismatch",
                         section=section_name,
-                        provider=ProviderName(name),
+                        provider=RegistryProviderName(name),
                         message=f"{class_name} does not implement {section_name}",
                     )
                 )
@@ -162,7 +162,7 @@ def _check_unknown_providers(
                 ConfigIssue(
                     code="unknown_provider",
                     section=first_section,
-                    provider=ProviderName(name),
+                    provider=RegistryProviderName(name),
                     message=f"Provider {name!r} is not configured{suggestion}",
                 )
             )
@@ -246,7 +246,7 @@ def _check_locked_capability_orphans(
                 ConfigIssue(
                     code="locked_capability_orphan",
                     section=section_name,
-                    provider=ProviderName(p_name),
+                    provider=RegistryProviderName(p_name),
                     message=(
                         f"Provider {p_name!r} appears in a chain section but is "
                         f"neither in locked section {section_name!r} nor in "
@@ -323,7 +323,7 @@ def _check_idcrossref_cycles(
                 ConfigIssue(
                     code="idcrossref_cycle",
                     section="IDCrossRef",
-                    provider=ProviderName(start),
+                    provider=RegistryProviderName(start),
                     message=f"IDCrossRef cycle detected: {cycle_str}",
                 )
             )

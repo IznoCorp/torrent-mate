@@ -10,7 +10,7 @@ import pytest
 
 from personalscraper.api._contracts import MediaType
 from personalscraper.api.metadata._contracts import ArtworkProvider, RatingProvider, Searchable
-from personalscraper.api.metadata.registry import ProviderMatch, ProviderName
+from personalscraper.api.metadata.registry import ProviderMatch, RegistryProviderName
 from personalscraper.api.metadata.registry._events import (
     LockedCapabilityUnresolved,
     RegistryBootValidated,
@@ -71,7 +71,7 @@ def test_locked_unresolved_emits_event(build_registry_fakes):
         event_bus=bus,
     )
     match = ProviderMatch(
-        provider=ProviderName("tmdb"),
+        provider=RegistryProviderName("tmdb"),
         id="tmdb-123",
         media_type=MediaType.MOVIE,
     )
