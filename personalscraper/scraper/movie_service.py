@@ -504,10 +504,14 @@ class MovieServiceMixin:
         and tries each eligible provider in priority order. Per-provider
         failures emit :class:`ProviderFallbackTriggered`; full chain
         exhaustion (every attempt errored) emits
-        :class:`ProviderExhaustedEvent` and populates ``result.error`` with
-        the last exception's message. The legacy fail-soft contract is
-        preserved: callers receive ``None`` and inspect ``result.error``
-        rather than catching a registry exception.
+        :class:`ProviderExhaustedEvent` **and raises**
+        :class:`ProviderExhausted` (DESIGN §6.2 line 79, restored in
+        Phase 16). The immediate caller (:meth:`scrape_movie`) catches
+        and surfaces a legacy fail-soft ``result.error`` containing the
+        original exception's message — the ACC-13 contract
+        (``"API down" in result.error``) is preserved because
+        :attr:`ProviderExhausted.last_exception` carries the underlying
+        :class:`ApiError` / :class:`OSError`.
 
         Branch semantics (closed list — DESIGN §6.2):
 
@@ -525,18 +529,6 @@ class MovieServiceMixin:
         — the confidence threshold is the caller's responsibility, see
         ``_select_best_candidate``).
 
-        Deviation from plan §7.1: the plan called for ``raise
-        ProviderExhausted`` on full chain failure. Production tests
-        (``test_error_on_match_failure`` and friends) assert the legacy
-        ``result.action == "error"`` + ``"API down" in result.error``
-        contract, which a raise would have eroded by replacing the
-        exception's detail message with the generic ``ProviderExhausted``
-        wording. ``result.error`` is populated instead while the exhausted
-        event still fires on the bus for observers / metrics. The
-        ``ProviderExhausted`` exception type is imported here for parity
-        with the DESIGN snippet and to keep sub-phase 7.4 (existing
-        validator) re-use trivial.
-
         Args:
             title: Movie title to search for.
             year: Optional release year to narrow the search.
@@ -544,14 +536,17 @@ class MovieServiceMixin:
 
         Returns:
             MatchResult on the first successful provider call, or ``None``
-            when ``result.error`` was populated or every chain provider
-            returned an empty result (legacy ``skipped_low_confidence``
-            path).
+            when ``result.error`` was populated (unclassified exception)
+            or every chain provider returned an empty result (legacy
+            ``skipped_low_confidence`` path).
+
+        Raises:
+            ProviderExhausted: When at least one chain provider raised
+                a classified failure (``circuit_open`` / ``network``) and
+                no provider returned a match. The caller is responsible
+                for catching and surfacing the error in ``result.error``.
         """
         from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
-
-        # ProviderExhausted intentionally imported (sub-phase 7.4 re-use).
-        _ = ProviderExhausted
 
         item_context: dict[str, Any] = {"title": title, "year": year, "media_type": "movie"}
         providers = self._registry.chain(MovieDetailsProvider)  # type: ignore[type-abstract]
@@ -629,11 +624,12 @@ class MovieServiceMixin:
 
         # All providers attempted and none produced a match.
         if attempted and any(a.reason in {"circuit_open", "network"} for a in attempted):
-            # At least one attempt errored (chain actually broken). Emit the
-            # exhausted event for observers, then surface a legacy-shape
-            # ``result.error`` carrying the last exception's detail so the
-            # orchestrator records ``action="error"`` with the original
-            # error message (test contract ACC-13).
+            # At least one attempt errored (chain actually broken). Emit
+            # the exhausted event for observers, then RAISE
+            # ``ProviderExhausted`` per DESIGN §6.2. The caller
+            # (:meth:`scrape_movie`) catches and surfaces a
+            # legacy-shape ``result.error`` carrying the original
+            # exception's detail (ACC-13 contract).
             self._registry._emit_provider_exhausted(
                 capability="MovieDetailsProvider",
                 attempted=attempted,
@@ -645,9 +641,12 @@ class MovieServiceMixin:
                 attempted=[(a.provider, a.reason) for a in attempted],
                 item=item_context,
             )
-            detail = str(last_exception) if last_exception is not None else "chain exhausted"
-            result.error = f"Match failed: {detail}"
-            return None
+            raise ProviderExhausted(
+                capability=MovieDetailsProvider,
+                attempted=attempted,
+                item_context=item_context,
+                last_exception=last_exception,
+            )
         # Empty chain or all empty_result → legacy "no confident match"
         # path (caller branches on the None return to set
         # ``skipped_low_confidence`` and try ``_restore_from_db``).
@@ -750,8 +749,18 @@ class MovieServiceMixin:
                     log.error("nfo_corrupt_delete_failed", path=str(nfo_path), error=str(exc))
                     return result
 
-        # Match against TMDB
-        match = self._match_movie_candidates(title, year, result)
+        # Match against TMDB. The chain raises ``ProviderExhausted`` when
+        # every eligible provider failed with a classified error
+        # (``circuit_open`` / ``network``) — DESIGN §6.2 line 79. Catch
+        # and surface the original exception detail in ``result.error``
+        # to preserve the ACC-13 legacy contract.
+        try:
+            match = self._match_movie_candidates(title, year, result)
+        except ProviderExhausted as exc:
+            detail = exc.last_exception if exc.last_exception is not None else exc
+            result.error = f"Match failed: {detail}"
+            result.action = "error"
+            return result
         if result.error:
             return result
         if not self._select_best_candidate(match, title, year, result):
