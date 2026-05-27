@@ -24,7 +24,7 @@
 | 7   | Chain semantics in production             | phase-07-chain-semantics-production.md      | [x]    |
 | 8   | Type design hardening                     | phase-08-type-design-hardening.md           | [x]    |
 | 9   | Test infrastructure cleanup               | phase-09-test-infrastructure-cleanup.md     | [x]    |
-| 10  | Module size extraction                    | phase-10-module-size-extraction.md          | [ ]    |
+| 10  | Module size extraction                    | phase-10-module-size-extraction.md          | [x]    |
 | 11  | Indexer migration                         | phase-11-indexer-migration.md               | [ ]    |
 | 12  | ROADMAP entries for deferrals             | phase-12-roadmap-entries.md                 | [ ]    |
 | 13  | Pre-existing fixes (flaky test)           | phase-13-pre-existing-fixes.md              | [ ]    |
