@@ -1,8 +1,17 @@
 """TVDB v4 metadata provider.
 
-Bootstrap login at init: one-shot HttpTransport(NoAuth) → POST /login → JWT.
-Main client uses BearerAuth(jwt). All responses unwrapped via _tvdb_parsers.unwrap().
-Returns typed models from _base.py. Zero untyped dicts in public signatures.
+Bootstrap login is **deferred**: `__init__` only records credentials; the
+one-shot ``HttpTransport(NoAuth) → POST /login → JWT`` exchange runs on first
+real HTTP call via the lazy ``_transport`` property. The main client then uses
+``BearerAuth(jwt)``. All responses unwrapped via ``_tvdb_parsers.unwrap()``.
+Returns typed models from ``_base.py``. Zero untyped dicts in public signatures.
+
+Rationale (Phase 14, ``feat/registry``): the original synchronous bootstrap
+forced every ``TVDBClient(...)`` construction — including registry boot,
+test-suite collection, and CLI smoke paths — to hit the live TVDB API. By
+moving the call to first use, the registry can be constructed (and exercised
+in unit tests) without network access; only callers that actually invoke an
+API method incur the bootstrap.
 """
 
 from __future__ import annotations
@@ -93,7 +102,13 @@ class TVDBClient(
         circuit: CircuitPolicy | None = None,
         event_bus: EventBus,
     ) -> None:
-        """Initialize TVDB client with bootstrap login.
+        """Initialize TVDB client *without* contacting the API.
+
+        The bootstrap ``POST /login`` exchange is **deferred** to the first
+        real HTTP call; see :meth:`_ensure_transport`. Construction is pure
+        Python: it stores credentials, language, circuit policy and the
+        event bus, then leaves ``self._transport`` unset until first access
+        on the lazy property.
 
         Args:
             api_key: TVDB API key (Negotiated Contract type, no PIN needed).
@@ -106,31 +121,86 @@ class TVDBClient(
         """
         self._api_key = api_key
         self._tvdb_lang = map_language(language)
-        _cb = circuit or _DEFAULT_CIRCUIT
+        self._language = language
+        self._circuit_policy = circuit or _DEFAULT_CIRCUIT
+        self._event_bus = event_bus
+        # Lazy: built on first access via the _transport property.
+        self.__transport: HttpTransport | None = None
 
-        # Bootstrap login with NoAuth
+    def _ensure_transport(self) -> HttpTransport:
+        """Run the bootstrap login and build the main transport (idempotent).
+
+        On first invocation, opens a one-shot bootstrap ``HttpTransport``
+        with ``NoAuth``, exchanges the API key for a JWT via ``POST /login``,
+        then builds and caches the main ``HttpTransport`` configured with
+        ``BearerAuth(jwt)``. Subsequent calls return the cached instance.
+
+        Returns:
+            The fully wired main transport.
+
+        Raises:
+            TypeError: If the ``/login`` response is not a dict (provider
+                contract violation).
+            ApiError: Propagated from the underlying transport when the
+                bootstrap HTTP call fails (e.g. invalid credentials → 401).
+        """
+        if self.__transport is not None:
+            return self.__transport
+
+        # Bootstrap login with NoAuth — one-shot transport, closed via ctxmgr.
         bootstrap_policy = TransportPolicy(
             provider_name=TVDB_BOOTSTRAP,
             base_url="https://api4.thetvdb.com/v4",
             auth=NoAuth(),
             timeout_seconds=15.0,
             retry=_DEFAULT_RETRY,
-            circuit=_cb,
+            circuit=self._circuit_policy,
             rate_limit=_DEFAULT_RATE,
         )
-        with HttpTransport(bootstrap_policy, event_bus=event_bus) as bootstrap:
-            resp = bootstrap.post("/login", data={"apikey": api_key})
+        with HttpTransport(bootstrap_policy, event_bus=self._event_bus) as bootstrap:
+            resp = bootstrap.post("/login", data={"apikey": self._api_key})
         if not isinstance(resp, dict):
             raise TypeError(f"Expected dict response from TVDB login, got {type(resp).__name__}")
         jwt = resp["data"]["token"]
 
-        # Main transport with JWT
-        main_policy = TVDBClient.policy(jwt, circuit=_cb)
-        super().__init__(transport=HttpTransport(main_policy, event_bus=event_bus), language=language)
+        # Main transport with JWT.
+        main_policy = TVDBClient.policy(jwt, circuit=self._circuit_policy)
+        self.__transport = HttpTransport(main_policy, event_bus=self._event_bus)
+        return self.__transport
+
+    @property
+    def _transport(self) -> HttpTransport:
+        """Lazy accessor for the main HTTP transport.
+
+        Triggers :meth:`_ensure_transport` on first access; subsequent reads
+        return the cached transport. Defined as a property (rather than an
+        attribute set in ``__init__``) so that construction stays
+        network-free — see module docstring for the registry-boot
+        rationale.
+        """
+        return self._ensure_transport()
+
+    @_transport.setter
+    def _transport(self, value: HttpTransport) -> None:
+        """Setter preserved for test fixtures that inject a mock transport.
+
+        Several unit tests bypass the bootstrap entirely by constructing
+        the client via ``__new__`` and assigning ``client._transport =
+        mock``. The setter writes to the cached backing field so those
+        assignments still short-circuit :meth:`_ensure_transport`.
+
+        Args:
+            value: The transport (real or mock) to use directly.
+        """
+        self.__transport = value
 
     @property
     def circuit(self) -> Any:
-        """Expose the underlying circuit breaker for external consumers."""
+        """Expose the underlying circuit breaker for external consumers.
+
+        Triggers bootstrap on first access — the circuit breaker lives on
+        the main transport, which only exists after the JWT exchange.
+        """
         return self._transport._circuit
 
     @classmethod

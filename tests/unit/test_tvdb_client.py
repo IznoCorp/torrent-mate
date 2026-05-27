@@ -1,9 +1,15 @@
 """Unit tests for TVDBClient method bodies (search, get_*, helpers).
 
-The bootstrap login (POST /login) is bypassed by constructing the client
-via ``__new__`` and injecting a MagicMock transport. This avoids a real
-HTTP call while still exercising the per-method endpoint, params and
-parser-glue paths.
+The bootstrap login (POST /login) is **deferred** since Phase 14 of
+``feat/registry``: construction is network-free and the JWT exchange
+fires on the first real HTTP call. For per-method unit tests we still
+bypass it by constructing the client via ``__new__`` and injecting a
+MagicMock transport (the lazy ``_transport`` property has a setter that
+preserves this pattern).
+
+The bootstrap path itself is exercised below via a full ``TVDBClient(...)``
+construction followed by a first method call — that's what now triggers
+the ``POST /login``.
 """
 
 from __future__ import annotations
@@ -66,10 +72,22 @@ def client(transport: MagicMock) -> TVDBClient:
 
 
 class TestBootstrapLogin:
-    """Cover the __init__ path: POST /login, JWT extraction, type guard."""
+    """Cover the deferred bootstrap path: POST /login, JWT extraction, type guard.
 
-    def test_init_logs_in_and_stores_jwt(self) -> None:
-        """A successful /login response yields a fully wired client."""
+    Since Phase 14, ``TVDBClient(...)`` is pure-Python — no HTTP fires.
+    The bootstrap exchange happens on first real HTTP call. These tests
+    construct the client, then exercise a method to trigger ``/login``.
+    """
+
+    def test_init_does_not_fire_http(self) -> None:
+        """Construction itself MUST NOT call HttpTransport (deferred bootstrap)."""
+        with patch("personalscraper.api.metadata.tvdb.HttpTransport") as MockTransport:
+            TVDBClient("fake-api-key", event_bus=EventBus())
+            # Zero HTTP transport instantiations at construction time.
+            MockTransport.assert_not_called()
+
+    def test_first_call_logs_in_and_stores_jwt(self) -> None:
+        """A successful /login response yields a fully wired client on first call."""
         login_resp = {"status": "success", "data": {"token": "jwt-token"}}
         with patch("personalscraper.api.metadata.tvdb.HttpTransport") as MockTransport:
             bootstrap = MagicMock()
@@ -81,12 +99,15 @@ class TestBootstrapLogin:
             MockTransport.side_effect = [bootstrap, main]
 
             c = TVDBClient("fake-api-key", event_bus=EventBus())
+            # No HTTP yet.
+            MockTransport.assert_not_called()
+            # Touching the lazy transport triggers bootstrap.
+            assert c._transport is main
 
-        assert c._transport is main
         bootstrap.post.assert_called_once_with("/login", data={"apikey": "fake-api-key"})
 
-    def test_init_non_dict_login_response_raises(self) -> None:
-        """A non-dict /login response raises TypeError."""
+    def test_first_call_non_dict_login_response_raises(self) -> None:
+        """A non-dict /login response raises TypeError on first method call."""
         with patch("personalscraper.api.metadata.tvdb.HttpTransport") as MockTransport:
             bootstrap = MagicMock()
             bootstrap.__enter__.return_value = bootstrap
@@ -94,8 +115,29 @@ class TestBootstrapLogin:
             bootstrap.post.return_value = ["unexpected"]
             MockTransport.return_value = bootstrap
 
+            # Construction MUST succeed even with a malformed /login response —
+            # the bogus payload is only inspected on first transport access.
+            c = TVDBClient("fake-api-key", event_bus=EventBus())
             with pytest.raises(TypeError, match="Expected dict"):
-                TVDBClient("fake-api-key", event_bus=EventBus())
+                _ = c._transport
+
+    def test_bootstrap_is_idempotent(self) -> None:
+        """Second access to _transport reuses the cached main transport."""
+        login_resp = {"status": "success", "data": {"token": "jwt-token"}}
+        with patch("personalscraper.api.metadata.tvdb.HttpTransport") as MockTransport:
+            bootstrap = MagicMock()
+            bootstrap.__enter__.return_value = bootstrap
+            bootstrap.__exit__.return_value = None
+            bootstrap.post.return_value = login_resp
+            main = MagicMock()
+            MockTransport.side_effect = [bootstrap, main]
+
+            c = TVDBClient("fake-api-key", event_bus=EventBus())
+            first = c._transport
+            second = c._transport
+            assert first is second is main
+            # Only the bootstrap + main pair were ever built (two calls total).
+            assert MockTransport.call_count == 2
 
 
 # ── policy + circuit property ─────────────────────────────────────────
