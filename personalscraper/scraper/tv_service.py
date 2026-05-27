@@ -485,14 +485,13 @@ class TvServiceMixin:
         ``config.metadata.priorities.tv_match`` (default: TVDB then
         TMDB) and honoured by the registry.
 
-        Deviation from plan §7.2: same as ``_match_movie_candidates`` —
-        we do NOT raise :class:`ProviderExhausted` on full chain
-        failure. ACC-13 characterization tests assert the legacy
-        ``result.action == "error"`` + ``"<detail>" in result.error``
-        contract; raising would have replaced the original exception
-        detail with the generic ``ProviderExhausted`` wording.
-        ``result.error`` is populated instead while the exhausted event
-        still fires on the bus.
+        Phase 16 restores the DESIGN §6.2 line 79 contract: the chain
+        now **raises** :class:`ProviderExhausted` on full failure (every
+        attempt errored with ``circuit_open`` or ``network``) so the
+        immediate caller (:meth:`_lookup_series`) can surface the
+        original exception detail via
+        :attr:`ProviderExhausted.last_exception`. The ACC-13 contract
+        (``"<detail>" in result.error``) is preserved end-to-end.
 
         Args:
             title: Show title to search for.
@@ -503,14 +502,16 @@ class TvServiceMixin:
 
         Returns:
             :class:`MatchResult` on the first successful provider call,
-            or ``None`` when ``result.error`` was populated or every
-            chain provider returned an empty result.
+            or ``None`` when ``result.error`` was populated (unclassified
+            exception) or every chain provider returned an empty result.
+
+        Raises:
+            ProviderExhausted: When at least one chain provider raised
+                a classified failure (``circuit_open`` / ``network``) and
+                no provider returned a match. The caller is responsible
+                for catching and surfacing the error in ``result.error``.
         """
         from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
-
-        # ProviderExhausted intentionally imported for parity with
-        # ``_match_movie_candidates``; sub-phase 7.4 re-uses it.
-        _ = ProviderExhausted
 
         item_context: dict[str, Any] = {"title": title, "year": year, "media_type": "tvshow"}
         providers = self._registry.chain(TvDetailsProvider)  # type: ignore[type-abstract]
@@ -588,6 +589,11 @@ class TvServiceMixin:
 
         # All providers attempted and none produced a match.
         if attempted and any(a.reason in {"circuit_open", "network"} for a in attempted):
+            # At least one attempt errored. Emit the exhausted event for
+            # observers, then RAISE ``ProviderExhausted`` per DESIGN §6.2.
+            # The caller (:meth:`_lookup_series`) catches and surfaces a
+            # legacy-shape ``result.error`` carrying the original
+            # exception's detail (ACC-13 contract).
             self._registry._emit_provider_exhausted(
                 capability="TvDetailsProvider",
                 attempted=attempted,
@@ -599,9 +605,12 @@ class TvServiceMixin:
                 attempted=[(a.provider, a.reason) for a in attempted],
                 item=item_context,
             )
-            detail = str(last_exception) if last_exception is not None else "chain exhausted"
-            result.error = f"Match failed: {detail}"
-            return None
+            raise ProviderExhausted(
+                capability=TvDetailsProvider,
+                attempted=attempted,
+                item_context=item_context,
+                last_exception=last_exception,
+            )
         # Empty chain or all empty_result → legacy "no confident match"
         # path (caller branches on the None return).
         return None
@@ -645,7 +654,17 @@ class TvServiceMixin:
         Returns:
             Success tuple or ``None``.
         """
-        match = self._match_tvshow_candidates(title, year, local_seasons, result)
+        # The chain raises ``ProviderExhausted`` when every eligible
+        # provider failed with a classified error (DESIGN §6.2 line 79).
+        # Catch and surface the original exception detail to preserve
+        # the ACC-13 legacy contract.
+        try:
+            match = self._match_tvshow_candidates(title, year, local_seasons, result)
+        except ProviderExhausted as exc:
+            detail = exc.last_exception if exc.last_exception is not None else exc
+            result.error = f"Match failed: {detail}"
+            result.action = "error"
+            return None
         if result.error:
             return None
         if match is None or match.confidence < LOW_CONFIDENCE:
