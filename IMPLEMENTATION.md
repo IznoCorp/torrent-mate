@@ -51,6 +51,7 @@ Pinned values for ACC criteria in `docs/features/registry/ACCEPTANCE.md`:
 
 - `REGISTRY_UNIT_TEST_COUNT` = **40** (registry unit-test count via `pytest tests/unit/api/metadata/registry/ --collect-only`)
 - `BASELINE_PASS_COUNT` = **315** (full `pytest tests/e2e/ tests/integration/` baseline pass count before Phase 1 migration)
+- `N_PROVIDERS` = **2** (tmdb + tvdb, the two providers with credentials in config.example/providers.json5)
 - `TMDB_TVDB_TEST_FILE_COUNT` = **30** (number of test files referencing `TMDBClient | TVDBClient | self._tmdb | self._tvdb`; informs Phase 1+3 migration scope)
 
 These integers MUST replace the `${...}` placeholders in `ACCEPTANCE.md` (SH-16 deterministic-output rule). Re-measure if Phase 1 migration changes the unit-test count.
