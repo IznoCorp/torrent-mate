@@ -7,7 +7,7 @@ Follows the 8-section pattern.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from personalscraper.models import StepReport
 from tests.commands._e2e_helpers import (
@@ -16,6 +16,7 @@ from tests.commands._e2e_helpers import (
     capture_event_bus,
     run_cli,
 )
+from tests.fixtures.settings_stub import make_typed_settings_stub
 
 
 def _ingest_report(**kw: int) -> StepReport:
@@ -48,7 +49,7 @@ def test_ingest_no_torrents(
 ) -> None:
     """No completed torrents → zero ops, exit 0."""
     mock_run.return_value = StepReport(name="ingest")
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["ingest"])
 
@@ -77,7 +78,7 @@ def test_ingest_two_torrents_copied(
             "Test.Show.S01 → copied",
         ],
     )
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["ingest"])
 
@@ -99,7 +100,7 @@ def test_ingest_lock_contention(
     mock_settings,
 ) -> None:
     """Lock held → exit 1, friendly message, no traceback."""
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["ingest"])
 
@@ -124,7 +125,7 @@ def test_ingest_qbit_unreachable(
         error_count=1,
         details=["qBittorrent unreachable: Connection refused. Fix: verify qBit is running and Web UI is enabled."],
     )
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["ingest"])
 
@@ -150,7 +151,7 @@ def test_ingest_all_content_missing(
         warnings=["torrent_A: content path missing (/fake/path/A)"],
         details=["ALL 3 torrents have missing content. Check: is the source volume mounted?"],
     )
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["ingest"])
 
@@ -174,7 +175,7 @@ def test_ingest_idempotent(
 ) -> None:
     """Two consecutive ingest calls exit 0, run_ingest called twice."""
     mock_run.return_value = StepReport(name="ingest", skip_count=3)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     r1 = run_cli(["ingest"])
     r2 = run_cli(["ingest"])
@@ -200,7 +201,7 @@ def test_ingest_dry_run_forwards_flag(
 ) -> None:
     """--dry-run flag is forwarded to run_ingest."""
     mock_run.return_value = StepReport(name="ingest")
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["ingest", "--dry-run"])
 
@@ -224,7 +225,7 @@ def test_ingest_output_no_traceback(
 ) -> None:
     """Output is Rich-formatted, never a raw Python traceback."""
     mock_run.return_value = StepReport(name="ingest", success_count=1)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["ingest"])
 
@@ -244,7 +245,7 @@ def test_ingest_summary_always_printed(
 ) -> None:
     """Even on errors, the summary line is always printed (finally block)."""
     mock_run.return_value = StepReport(name="ingest", error_count=5)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["ingest"])
 
@@ -268,7 +269,7 @@ def test_ingest_emits_item_progressed_events(
     """run_ingest emits ItemProgressed events on the shared EventBus."""
     from personalscraper.pipeline_events import ItemProgressed
 
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
     captured = capture_event_bus(monkeypatch)
 
     def _emit_and_return(*args, **kwargs):
