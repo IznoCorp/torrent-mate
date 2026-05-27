@@ -82,8 +82,7 @@ class ProviderExhausted(RegistryError):
         self.last_exception = last_exception
         last_msg = f": {last_exception}" if last_exception is not None else ""
         super().__init__(
-            f"Chain exhausted for {capability.__name__}{last_msg} "
-            f"(attempted: {[a.provider for a in attempted]})"
+            f"Chain exhausted for {capability.__name__}{last_msg} (attempted: {[a.provider for a in attempted]})"
         )
 
 
