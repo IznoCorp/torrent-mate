@@ -227,9 +227,7 @@ def test_cross_ref_propagates_non_transport_exception(build_registry: object) ->
         registry.cross_ref(match, target="tmdb")
 
 
-def test_cross_ref_returns_none_on_api_error_and_logs(
-    build_registry: object, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_cross_ref_returns_none_on_api_error_and_logs(build_registry: object, caplog: pytest.LogCaptureFixture) -> None:
     """ApiError in get_cross_refs() → returns None + logs at WARNING."""
     import logging
 
@@ -244,6 +242,6 @@ def test_cross_ref_returns_none_on_api_error_and_logs(
     match = ProviderMatch(provider=RegistryProviderName("failing"), id="x", media_type=MediaType.MOVIE)
     result = registry.cross_ref(match, target="tmdb")
     assert result is None
-    assert any(
-        "registry_cross_ref_failed" in rec.message for rec in caplog.records
-    ), f"Expected registry_cross_ref_failed in log, got: {[r.message for r in caplog.records]}"
+    assert any("registry_cross_ref_failed" in rec.message for rec in caplog.records), (
+        f"Expected registry_cross_ref_failed in log, got: {[r.message for r in caplog.records]}"
+    )

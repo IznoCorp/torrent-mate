@@ -216,10 +216,12 @@ def build_providers(
 # Eligibility gate
 # ---------------------------------------------------------------------------
 
-_NO_CIRCUIT_ALLOWLIST: frozenset[str] = frozenset({
-    "imdb",            # façade over shared OMDbAdapter circuit
-    "rotten_tomatoes", # façade over shared OMDbAdapter circuit
-})
+_NO_CIRCUIT_ALLOWLIST: frozenset[str] = frozenset(
+    {
+        "imdb",  # façade over shared OMDbAdapter circuit
+        "rotten_tomatoes",  # façade over shared OMDbAdapter circuit
+    }
+)
 
 
 def _eligible(provider: object) -> bool:
