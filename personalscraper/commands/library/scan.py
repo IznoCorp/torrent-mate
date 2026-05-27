@@ -432,24 +432,32 @@ def library_backfill_ids(
     imdb_client = None
     rt_client = None
 
+    from personalscraper.logger import get_logger  # noqa: PLC0415
+
+    _log = get_logger("library_backfill_ids")
+
     if not ratings_only and not dry_run:
         try:
             tmdb_client = app_context.provider_registry.get("tmdb")
         except UnknownProviderError:
+            _log.warning("library_backfill_provider_unavailable", provider="tmdb")
             tmdb_client = None
         try:
             tvdb_client = app_context.provider_registry.get("tvdb")
         except UnknownProviderError:
+            _log.warning("library_backfill_provider_unavailable", provider="tvdb")
             tvdb_client = None
 
     if not ids_only and not dry_run:
         try:
             imdb_client = app_context.provider_registry.get("imdb")
         except UnknownProviderError:
+            _log.warning("library_backfill_provider_unavailable", provider="imdb")
             imdb_client = None
         try:
             rt_client = app_context.provider_registry.get("rotten_tomatoes")
         except UnknownProviderError:
+            _log.warning("library_backfill_provider_unavailable", provider="rotten_tomatoes")
             rt_client = None
 
     # Open DB in writer mode, apply migrations, then run the backfill pass.
