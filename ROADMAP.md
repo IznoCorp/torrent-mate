@@ -129,6 +129,31 @@ Find SXXEXX for episodes missing season/episode numbers via reverse scraping on 
 
 **Depends on:** Provider Registry (P1) for clean provider fallback.
 
+### P2 — Web UI Registry Consumer
+
+**Source**: registry feature DESIGN §11 deferral (recorded in Phase 12 of the registry feature).
+
+**Goal**: Expose ProviderRegistry status + operations to the Web Management UI (P2 above). Surface live provider eligibility, circuit state, fallback history, fan_out attempted lists.
+
+**Dependencies**:
+
+- Web Management UI scaffolding (P2 above).
+- `registry.status()` + `registry.operations()` (shipped in 0.16.0 — Provider Registry feature).
+
+**Scope**:
+
+- WebSocket subscription to `ProviderFallbackTriggered`, `ProviderExhaustedEvent`, `LockedCapabilityUnresolved`, `RegistryFanOutCompleted`, `RegistryBootValidated` events.
+- REST endpoint `GET /api/registry/status` returning the dict from `registry.status()`.
+- REST endpoint `GET /api/registry/operations` returning the dict from `registry.operations()`.
+- UI panel: per-provider circuit state, per-capability priority chain, fan_out latency aggregates.
+
+**Non-goals**:
+
+- Hot-swap (separate ROADMAP entry — see P3 Hot-Swap).
+- Provider configuration editing via UI (config file is source-of-truth; UI is read-only).
+
+**Estimated effort**: 1 sprint (5 days) after Web Management UI scaffolding lands.
+
 ---
 
 ## P3 — Stretch (nice to have, lower urgency)
@@ -227,6 +252,61 @@ implement using the unified `HttpTransport` infrastructure.
 - Auto-Download System integration — that lands in its own P2 feature.
 
 **Depends on**: Third-Party API Consumer Unification (P0) — completed in 0.11.0.
+
+### P3 — Active Health Scoring (Registry)
+
+**Source**: registry feature DESIGN §11 deferral (recorded in Phase 12 of the registry feature).
+
+**Goal**: Move from passive circuit breaker (per-call failure threshold) to active health scoring (periodic ping + rolling window + provider de-prioritization).
+
+**Dependencies**:
+
+- Provider Registry framework (shipped 0.16.0).
+- ProviderObserver protocol (already defined for circuit transitions).
+
+**Scope**:
+
+- New `ProviderHealthMonitor` running as a background AppContext-scoped task.
+- Each provider exposes `health_check() -> bool` (cheap synthetic call).
+- Rolling window of last N health checks, exponentially-weighted moving average.
+- `chain()` consults health score: providers below threshold are skipped (not removed — re-attempted on next health window).
+- `registry.status()` includes per-provider health score.
+
+**Non-goals**:
+
+- Active load balancing.
+- Per-region provider routing.
+
+**Risk**: health_check budget for each provider must be defined to avoid quota burn.
+
+**Estimated effort**: 1 sprint (5 days).
+
+### P3 — Hot-Swap Provider Configuration
+
+**Source**: registry feature DESIGN §11 deferral (recorded in Phase 12 of the registry feature).
+
+**Goal**: Reload `ProvidersConfig` on SIGHUP or config-file change without restarting the process. Currently registry is constructed once at AppContext init; config changes require restart.
+
+**Dependencies**:
+
+- Provider Registry framework (shipped 0.16.0).
+- `validate_config()` (shipped 0.16.0, used at boot — re-usable for hot reload).
+
+**Scope**:
+
+- File-watcher on `config/providers.json5` (using `watchdog` or polling).
+- On change: call `validate_config()` → if PASS, atomically swap `ProviderRegistry._index` + `_priority_for_chain` + `_circuit_breakers`.
+- Drain in-flight calls before swap (5 s grace period).
+- Emit new event `RegistryHotSwapped(...)` with diff summary.
+
+**Non-goals**:
+
+- Hot-swap of provider IMPLEMENTATIONS (only config). Adding a new provider class still requires restart.
+- Distributed config (single-process only).
+
+**Risk**: Race conditions on circuit breaker state during swap. Mitigate with explicit drain protocol.
+
+**Estimated effort**: 2 sprints (10 days).
 
 ---
 

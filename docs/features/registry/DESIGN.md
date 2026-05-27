@@ -1084,11 +1084,15 @@ at Phase 0 measurement time (see §8.5).
 
 ## 11. Out-of-scope explicit (and where they could land later)
 
-- **Indexer migration to the registry** (notably `indexer/backfill_ids.py`, the only current consumer of `RatingProvider.get_notations`). The registry's `fan_out` semantics are wired and unit-tested here, but the indexer keeps its current code path until a follow-up feature dedicated to indexer consolidation (logical pairing with the P1 Library/Indexer Consolidation roadmap item).
-- **Runtime hot-swap** (signal-driven or watcher-driven config reload). Future feature when a long-running daemon (Watcher Service P2) needs it.
-- **Active health scoring / adaptive ordering**. Future feature once empirical data justifies it.
-- **Passive health metrics for user-driven reordering** (counters / avg latency per provider). Could land as small follow-up feature; not bundled here.
-- **Web UI integration**. The introspection API (`status()`, `operations()`) is shipped here as a foundation; the UI is the P2 feature that consumes it.
+> Each item below is now tracked outside this feature. See `ROADMAP.md` for the
+> follow-up entries, or the registry feature's own Phases 11–17 for the deferrals
+> that surfaced during implementation.
+
+- **Indexer migration to the registry** (notably `indexer/backfill_ids.py`, the only current consumer of `RatingProvider.get_notations`). The registry's `fan_out` semantics are wired and unit-tested here. Indexer migration is delivered in **Phase 11 of this feature plan** (`docs/features/registry/plan/phase-11-indexer-migration.md`), pairing logically with the P1 Library/Indexer Consolidation roadmap item.
+- **Runtime hot-swap** (signal-driven or watcher-driven config reload). Tracked at [ROADMAP P3 — Hot-Swap Provider Configuration](../../../ROADMAP.md#p3--hot-swap-provider-configuration).
+- **Active health scoring / adaptive ordering**. Tracked at [ROADMAP P3 — Active Health Scoring (Registry)](../../../ROADMAP.md#p3--active-health-scoring-registry).
+- **Passive health metrics for user-driven reordering** (counters / avg latency per provider). Folded into the Active Health Scoring entry above.
+- **Web UI integration**. The introspection API (`status()`, `operations()`) is shipped here as a foundation; the UI consumer is tracked at [ROADMAP P2 — Web UI Registry Consumer](../../../ROADMAP.md#p2--web-ui-registry-consumer) (sibling to the broader P2 Web Management UI).
 
 ---
 
