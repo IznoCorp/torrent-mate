@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
-    pass
+    from personalscraper.api.metadata.registry import AttemptOutcome, ProviderMatch
 
 
 @dataclass(frozen=True)
@@ -41,7 +41,7 @@ class ProviderExhaustedEvent:
     """
 
     capability: str
-    attempted: list  # type: ignore[type-arg]  # list[AttemptOutcome] — avoid circular import at runtime
+    attempted: list[AttemptOutcome]
     item: dict[str, Any]
 
 
@@ -56,7 +56,7 @@ class LockedCapabilityUnresolved:
     """
 
     capability: str
-    match: object  # ProviderMatch — avoid circular import at runtime
+    match: ProviderMatch
     chain_tried: list[str]
 
 
@@ -71,7 +71,7 @@ class RegistryFanOutCompleted:
     """
 
     capability: str
-    attempted: list  # type: ignore[type-arg]  # list[AttemptOutcome] — avoid circular import at runtime
+    attempted: list[AttemptOutcome]
     succeeded: int
 
 
