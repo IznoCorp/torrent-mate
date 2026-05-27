@@ -9,7 +9,6 @@ RatingProvider) use monkeypatched fake providers.
 from __future__ import annotations
 
 import re
-import time
 from typing import Any
 
 import pytest
@@ -382,8 +381,9 @@ class TestCircuitBreakerStatusPropagation:
 
         assert registry.status()["tmdb"].circuit_state == CircuitState.OPEN
 
-        # Wait past cooldown (0.01s) — then accessing state auto-transitions
-        time.sleep(0.05)
+        # Force cooldown elapsed deterministically (time injection, not sleep).
+        breaker = tmdb.circuit
+        breaker._opened_at -= breaker.cooldown_seconds + 1.0
 
         status = registry.status()
         assert status["tmdb"].circuit_state == CircuitState.HALF_OPEN
@@ -404,8 +404,9 @@ class TestCircuitBreakerStatusPropagation:
             with pytest.raises(ApiError):
                 tmdb.search("test", media_type=MediaType.MOVIE)
 
-        # Wait for HALF_OPEN
-        time.sleep(0.05)
+        # Force cooldown elapsed deterministically.
+        breaker = tmdb.circuit
+        breaker._opened_at -= breaker.cooldown_seconds + 1.0
         assert registry.status()["tmdb"].circuit_state == CircuitState.HALF_OPEN
 
         # Probe succeeds
@@ -530,15 +531,12 @@ class TestHalfOpenProbe:
             with pytest.raises(ApiError):
                 tmdb.search("test", media_type=MediaType.MOVIE)
 
-        # Wait for HALF_OPEN — poll the cooldown deterministically rather
-        # than relying on a fixed sleep margin, which is brittle under
-        # parallel xdist load (cooldown = 0.01 s; we poll up to 2 s in
-        # 20 ms increments).
-        deadline = time.monotonic() + 2.0
-        while time.monotonic() < deadline:
-            time.sleep(0.02)
-            if registry.status()["tmdb"].circuit_state == CircuitState.HALF_OPEN:
-                break
+        # Force cooldown elapsed deterministically — backdate the breaker's
+        # `_opened_at` instead of waiting on wall-clock + polling. Polling
+        # was brittle under xdist + coverage load (~1/5 flake rate); time
+        # injection is timing-independent.
+        breaker = tmdb.circuit
+        breaker._opened_at -= breaker.cooldown_seconds + 1.0
         assert registry.status()["tmdb"].circuit_state == CircuitState.HALF_OPEN
 
         # Probe succeeds
@@ -569,15 +567,12 @@ class TestHalfOpenProbe:
             with pytest.raises(ApiError):
                 tmdb.search("test", media_type=MediaType.MOVIE)
 
-        # Wait for HALF_OPEN — poll the cooldown deterministically rather
-        # than relying on a fixed sleep margin, which is brittle under
-        # parallel xdist load (cooldown = 0.01 s; we poll up to 2 s in
-        # 20 ms increments).
-        deadline = time.monotonic() + 2.0
-        while time.monotonic() < deadline:
-            time.sleep(0.02)
-            if registry.status()["tmdb"].circuit_state == CircuitState.HALF_OPEN:
-                break
+        # Force cooldown elapsed deterministically — backdate the breaker's
+        # `_opened_at` instead of waiting on wall-clock + polling. Polling
+        # was brittle under xdist + coverage load (~1/5 flake rate); time
+        # injection is timing-independent.
+        breaker = tmdb.circuit
+        breaker._opened_at -= breaker.cooldown_seconds + 1.0
         assert registry.status()["tmdb"].circuit_state == CircuitState.HALF_OPEN
 
         # Probe fails — mock 503 for TMDB, success for TVDB.
