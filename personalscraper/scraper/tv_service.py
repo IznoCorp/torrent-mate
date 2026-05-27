@@ -592,11 +592,33 @@ class TvServiceMixin:
                 )
                 continue
             except (ValueError, TypeError, KeyError, AttributeError) as e:
-                # Payload-shape / parser failures preserve the legacy
-                # ``result.error`` contract — bail out without rolling on.
-                result.error = f"Get details failed: {e}"
-                log.error("show_details_failed", error=str(e), exc_info=True)
-                return None
+                # Phase 21 (C2): payload-shape / parser failures are
+                # unclassified errors per DESIGN §6.2. Record the attempt
+                # with reason="other", emit a ProviderFallbackTriggered for
+                # observers, and roll on. If every candidate fails the
+                # exhausted-branch below surfaces ``result.error`` in the
+                # ACC-13 legacy shape (carrying the last exception detail).
+                details_attempted.append(
+                    AttemptOutcome(
+                        provider=RegistryProviderName(provider_name),
+                        reason="other",
+                        detail=type(e).__name__,
+                    )
+                )
+                self._registry._emit_provider_fallback(
+                    capability="TvDetailsProvider",
+                    from_provider=provider_name,
+                    reason="other",
+                    exc_type=type(e).__name__,
+                    item=details_item_context,
+                )
+                log.warning(
+                    "show_details_failed",
+                    provider=provider_name,
+                    exc_type=type(e).__name__,
+                    error=str(e),
+                )
+                continue
 
         if show_data is None:
             if details_attempted:

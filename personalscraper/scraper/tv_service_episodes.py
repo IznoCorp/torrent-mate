@@ -185,13 +185,36 @@ def match_tvshow_candidates(
                 item=item_context,
             )
             continue
-        except Exception as exc:
-            # Unclassified provider failure — preserve legacy fail-soft
-            # contract (orchestrator surfaces ``result.error`` as an
-            # ``action="error"`` ScrapeResult).
-            result.error = f"Match failed: {exc}"
-            log.error("show_match_failed", title=title, error=str(exc), exc_info=True)
-            return None
+        except Exception as exc:  # noqa: BLE001 — DESIGN §6.2 fallback on unclassified
+            # Unclassified provider failure — DESIGN §6.2 promises chain
+            # fallback. Phase 21 (C2): record the attempt, emit a
+            # ``reason="other"`` fallback for observers, and continue to
+            # the next provider rather than short-circuiting on the first
+            # exception. If every provider fails the post-loop branch
+            # raises ``ProviderExhausted`` and the caller preserves the
+            # ACC-13 fail-soft contract.
+            last_exception = exc
+            attempted.append(
+                AttemptOutcome(
+                    provider=RegistryProviderName(provider_name),
+                    reason="other",
+                    detail=type(exc).__name__,
+                )
+            )
+            log.warning(
+                "registry_provider_fail",
+                provider=provider_name,
+                capability="TvDetailsProvider",
+                exc_type=type(exc).__name__,
+            )
+            registry._emit_provider_fallback(
+                capability="TvDetailsProvider",
+                from_provider=provider_name,
+                reason="other",
+                exc_type=type(exc).__name__,
+                item=item_context,
+            )
+            continue
 
         if match is None:
             attempted.append(AttemptOutcome(provider=RegistryProviderName(provider_name), reason="empty_result"))
@@ -212,7 +235,7 @@ def match_tvshow_candidates(
         return match
 
     # All providers attempted and none produced a match.
-    if attempted and any(a.reason in {"circuit_open", "network"} for a in attempted):
+    if attempted and any(a.reason in {"circuit_open", "network", "other"} for a in attempted):
         # At least one attempt errored. Emit the exhausted event for
         # observers, then RAISE ``ProviderExhausted`` per DESIGN §6.2.
         # The caller (:meth:`_lookup_series`) catches and surfaces a
