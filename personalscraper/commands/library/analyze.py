@@ -293,7 +293,6 @@ def library_rescrape(
         with per_step_boundary(config, settings) as app_context:
             result = rescrape_library(
                 config,
-                settings,
                 disk_filter=disk,
                 category_filter=category_id,
                 only=only,
@@ -301,6 +300,7 @@ def library_rescrape(
                 dry_run=dry_run,
                 max_items=max_items,
                 event_bus=app_context.event_bus,
+                registry=app_context.provider_registry,
             )
 
         output_path = config.paths.data_dir / "library_rescrape.json"

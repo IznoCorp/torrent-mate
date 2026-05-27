@@ -919,9 +919,15 @@ class TestCircuitOpenCounter:
         )
 
         # Build a real TrailerFinder with a mocked TMDB client that raises
-        # CircuitOpenError on every _fetch_videos_strict call.
+        # CircuitOpenError on every get_videos call (the Protocol path for movies).
         tmdb_client = MagicMock()
-        tmdb_client._fetch_videos_strict.side_effect = CircuitOpenError("tmdb-videos", 9999.0)
+        tmdb_client.get_videos.side_effect = CircuitOpenError("tmdb-videos", 9999.0)
+
+        mock_provider_registry = MagicMock(spec=ProviderRegistry)
+        mock_locked = MagicMock()
+        mock_locked.provider = tmdb_client
+        mock_locked.bound_id = "12345"
+        mock_provider_registry.locked.return_value = mock_locked
 
         yt_breaker = CircuitBreaker(name="yt-integration", failure_threshold=5, event_bus=EventBus())
         yt_searcher = YoutubeSearch(
@@ -932,7 +938,7 @@ class TestCircuitOpenCounter:
         )
         cache = TrailersCache(tmp_path / "tc_int.json")
         real_finder = TrailerFinder(
-            tmdb_client=tmdb_client,
+            registry=mock_provider_registry,
             youtube_search=yt_searcher,
             cache=cache,
             languages=["en-US"],

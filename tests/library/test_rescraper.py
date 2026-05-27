@@ -3,6 +3,7 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.conf.models.categories import CategoryConfig
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
@@ -10,6 +11,18 @@ from personalscraper.conf.models.paths import PathConfig
 from personalscraper.conf.models.scraper import ScraperConfig
 from personalscraper.core.event_bus import EventBus
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
+
+
+def _mock_registry(tmdb=None, tvdb=None):
+    """Build a MagicMock ProviderRegistry that returns the given clients from get()."""
+    registry = MagicMock(spec=ProviderRegistry)
+    clients = {}
+    if tmdb is not None:
+        clients["tmdb"] = tmdb
+    if tvdb is not None:
+        clients["tvdb"] = tvdb
+    registry.get.side_effect = lambda name: clients[name]
+    return registry
 
 
 class TestDetectNeeds:
@@ -83,8 +96,7 @@ class TestResolveId:
             "movie",
             "Movie",
             2024,
-            tmdb_client=MagicMock(),
-            tvdb_client=MagicMock(),
+            registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
             interactive=False,
         )
 
@@ -108,8 +120,7 @@ class TestResolveId:
                 "movie",
                 "Movie",
                 2024,
-                tmdb_client=MagicMock(),
-                tvdb_client=MagicMock(),
+                registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
                 interactive=False,
             )
 
@@ -133,8 +144,7 @@ class TestResolveId:
                 "movie",
                 "Movie",
                 2024,
-                tmdb_client=MagicMock(),
-                tvdb_client=MagicMock(),
+                registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
                 interactive=False,
             )
 
@@ -153,8 +163,7 @@ class TestResolveId:
                 "movie",
                 "Movie",
                 2024,
-                tmdb_client=MagicMock(),
-                tvdb_client=MagicMock(),
+                registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
                 interactive=False,
             )
 
@@ -183,8 +192,7 @@ class TestRescrapeItem:
             category="films",
             title="Movie",
             year=2024,
-            tmdb_client=MagicMock(),
-            tvdb_client=MagicMock(),
+            registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
             nfo_gen=MagicMock(),
             artwork_dl=MagicMock(),
             patterns=NamingPatterns(),
@@ -213,8 +221,7 @@ class TestRescrapeItem:
                 category="films",
                 title="Movie",
                 year=2024,
-                tmdb_client=MagicMock(),
-                tvdb_client=MagicMock(),
+                registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
                 nfo_gen=MagicMock(),
                 artwork_dl=MagicMock(),
                 patterns=NamingPatterns(),
@@ -248,8 +255,7 @@ class TestRescrapeItem:
             category="films",
             title="Movie",
             year=2024,
-            tmdb_client=MagicMock(),
-            tvdb_client=MagicMock(),
+            registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
             nfo_gen=MagicMock(),
             artwork_dl=mock_artwork,
             patterns=NamingPatterns(),
@@ -271,8 +277,8 @@ class TestRescrapeItem:
 class TestRescrapeLibraryConfig:
     """Tests for config-backed library rescraper wiring."""
 
-    def test_uses_configured_scraper_language_for_tmdb(self, tmp_path: Path) -> None:
-        """library-rescrape must not read scraper language from .env settings."""
+    def test_registry_accepted_and_returns_empty(self, tmp_path: Path) -> None:
+        """library-rescrape should accept a ProviderRegistry and return empty result."""
         from personalscraper.library.rescraper import rescrape_library
 
         config = Config(
@@ -286,24 +292,20 @@ class TestRescrapeLibraryConfig:
             staging_dirs=CANONICAL_STAGING_DIRS,
             scraper=ScraperConfig(language="fr-FR", fallback_language="en-US", prefer_local_title=True),
         )
-        settings = MagicMock()
-        settings.tmdb_api_key = "tmdb-key"
-        settings.tvdb_api_key = "tvdb-key"
-        settings.artwork_language = "en"
 
         with (
             patch("personalscraper.library.rescraper._collect_rescrape_candidates", return_value=[]),
-            patch("personalscraper.api.transport._http.HttpTransport"),
-            patch("personalscraper.api.metadata.tmdb.TMDBClient") as tmdb_client_cls,
-            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
             patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
             patch("personalscraper.scraper.artwork.ArtworkDownloader"),
         ):
-            result = rescrape_library(config, settings, dry_run=True, event_bus=EventBus())
+            result = rescrape_library(
+                config,
+                dry_run=True,
+                event_bus=EventBus(),
+                registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
+            )
 
         assert result.items == []
-        assert tmdb_client_cls.call_count == 1
-        assert tmdb_client_cls.call_args[1]["language"] == "fr-FR"
 
 
 # ---------------------------------------------------------------------------
@@ -404,8 +406,7 @@ class TestResolveIdAdditional:
                 "movie",
                 "Movie",
                 2024,
-                tmdb_client=MagicMock(),
-                tvdb_client=MagicMock(),
+                registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
                 interactive=False,
             )
 
@@ -428,8 +429,7 @@ class TestResolveIdAdditional:
                 "tvshow",
                 "Show",
                 2024,
-                tmdb_client=MagicMock(),
-                tvdb_client=MagicMock(),
+                registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
                 interactive=False,
             )
         assert tmdb_id == "4242"
@@ -455,8 +455,7 @@ class TestResolveIdAdditional:
                 "movie",
                 "Movie",
                 2024,
-                tmdb_client=MagicMock(),
-                tvdb_client=MagicMock(),
+                registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
                 interactive=True,
             )
 
@@ -482,8 +481,7 @@ class TestResolveIdAdditional:
                 "movie",
                 "Movie",
                 2024,
-                tmdb_client=MagicMock(),
-                tvdb_client=MagicMock(),
+                registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
                 interactive=True,
             )
 
@@ -508,8 +506,7 @@ class TestResolveIdAdditional:
                 "movie",
                 "Movie",
                 2024,
-                tmdb_client=MagicMock(),
-                tvdb_client=MagicMock(),
+                registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
                 interactive=False,
             )
         assert tmdb_id == "33"
@@ -606,8 +603,7 @@ class TestRescrapeItemErrors:
             category="films",
             title="Movie",
             year=2024,
-            tmdb_client=tmdb,
-            tvdb_client=MagicMock(),
+            registry=_mock_registry(tmdb=tmdb, tvdb=MagicMock()),
             nfo_gen=MagicMock(),
             artwork_dl=MagicMock(),
             patterns=NamingPatterns(),
@@ -652,8 +648,7 @@ class TestRescrapeItemErrors:
                 category="films",
                 title="Movie",
                 year=2024,
-                tmdb_client=tmdb,
-                tvdb_client=MagicMock(),
+                registry=_mock_registry(tmdb=tmdb, tvdb=MagicMock()),
                 nfo_gen=nfo_gen,
                 artwork_dl=MagicMock(),
                 patterns=NamingPatterns(),
@@ -684,8 +679,7 @@ class TestRescrapeItemErrors:
             category="films",
             title="Movie",
             year=2024,
-            tmdb_client=tmdb,
-            tvdb_client=MagicMock(),
+            registry=_mock_registry(tmdb=tmdb, tvdb=MagicMock()),
             nfo_gen=MagicMock(),
             artwork_dl=artwork_dl,
             patterns=NamingPatterns(),
@@ -716,8 +710,7 @@ class TestRescrapeItemErrors:
             category="films",
             title="Movie",
             year=2024,
-            tmdb_client=tmdb,
-            tvdb_client=MagicMock(),
+            registry=_mock_registry(tmdb=tmdb, tvdb=MagicMock()),
             nfo_gen=MagicMock(),
             artwork_dl=artwork_dl,
             patterns=NamingPatterns(),
@@ -756,8 +749,7 @@ class TestRescrapeItemErrors:
             category="series",
             title="Show",
             year=2024,
-            tmdb_client=tmdb,
-            tvdb_client=MagicMock(),
+            registry=_mock_registry(tmdb=tmdb, tvdb=MagicMock()),
             nfo_gen=MagicMock(),
             artwork_dl=artwork_dl,
             patterns=NamingPatterns(),
@@ -1128,18 +1120,6 @@ class TestCollectRescrapeCandidates:
 class TestRescrapeLibraryOrchestrator:
     """End-to-end orchestrator tests for rescrape_library, using mocked components."""
 
-    def _settings(self) -> MagicMock:
-        """Build a minimal mocked Settings with API keys.
-
-        Returns:
-            A MagicMock acting as a Settings instance.
-        """
-        settings = MagicMock()
-        settings.tmdb_api_key = "tmdb-key"
-        settings.tvdb_api_key = "tvdb-key"
-        settings.artwork_language = "en"
-        return settings
-
     def _config(self, tmp_path: Path) -> Config:
         """Build a Config used across orchestrator tests."""
         return Config(
@@ -1174,18 +1154,15 @@ class TestRescrapeLibraryOrchestrator:
                 return_value=cands,
             ),
             patch("personalscraper.library.rescraper._rescrape_item", return_value=None) as ri,
-            patch("personalscraper.api.transport._http.HttpTransport"),
-            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
-            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
             patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
             patch("personalscraper.scraper.artwork.ArtworkDownloader"),
         ):
             result = rescrape_library(
                 self._config(tmp_path),
-                self._settings(),
                 max_items=1,
                 dry_run=True,
                 event_bus=EventBus(),
+                registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
             )
 
         assert ri.call_count == 1
@@ -1220,13 +1197,15 @@ class TestRescrapeLibraryOrchestrator:
                 return_value=cands,
             ),
             patch("personalscraper.library.rescraper._rescrape_item", return_value=action),
-            patch("personalscraper.api.transport._http.HttpTransport"),
-            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
-            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
             patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
             patch("personalscraper.scraper.artwork.ArtworkDownloader"),
         ):
-            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True, event_bus=EventBus())
+            result = rescrape_library(
+                self._config(tmp_path),
+                dry_run=True,
+                event_bus=EventBus(),
+                registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
+            )
 
         assert result.error_count == 1
         assert result.fixed_count == 0
@@ -1260,13 +1239,15 @@ class TestRescrapeLibraryOrchestrator:
                 return_value=cands,
             ),
             patch("personalscraper.library.rescraper._rescrape_item", return_value=action),
-            patch("personalscraper.api.transport._http.HttpTransport"),
-            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
-            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
             patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
             patch("personalscraper.scraper.artwork.ArtworkDownloader"),
         ):
-            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True, event_bus=EventBus())
+            result = rescrape_library(
+                self._config(tmp_path),
+                dry_run=True,
+                event_bus=EventBus(),
+                registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
+            )
 
         assert result.skipped_count == 1
 
@@ -1299,13 +1280,15 @@ class TestRescrapeLibraryOrchestrator:
                 return_value=cands,
             ),
             patch("personalscraper.library.rescraper._rescrape_item", return_value=action),
-            patch("personalscraper.api.transport._http.HttpTransport"),
-            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
-            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
             patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
             patch("personalscraper.scraper.artwork.ArtworkDownloader"),
         ):
-            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True, event_bus=EventBus())
+            result = rescrape_library(
+                self._config(tmp_path),
+                dry_run=True,
+                event_bus=EventBus(),
+                registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
+            )
 
         assert result.fixed_count == 1
         assert result.error_count == 0
@@ -1329,13 +1312,15 @@ class TestRescrapeLibraryOrchestrator:
                 "personalscraper.library.rescraper._rescrape_item",
                 side_effect=RuntimeError("crash"),
             ),
-            patch("personalscraper.api.transport._http.HttpTransport"),
-            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
-            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
             patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
             patch("personalscraper.scraper.artwork.ArtworkDownloader"),
         ):
-            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True, event_bus=EventBus())
+            result = rescrape_library(
+                self._config(tmp_path),
+                dry_run=True,
+                event_bus=EventBus(),
+                registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
+            )
 
         assert result.error_count == 1
         assert len(result.items) == 1
@@ -1355,13 +1340,15 @@ class TestRescrapeLibraryOrchestrator:
                 return_value=cands,
             ),
             patch("personalscraper.library.rescraper._rescrape_item", return_value=None),
-            patch("personalscraper.api.transport._http.HttpTransport"),
-            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
-            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
             patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
             patch("personalscraper.scraper.artwork.ArtworkDownloader"),
         ):
-            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True, event_bus=EventBus())
+            result = rescrape_library(
+                self._config(tmp_path),
+                dry_run=True,
+                event_bus=EventBus(),
+                registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
+            )
 
         assert result.fixed_count == 0
         assert result.skipped_count == 0
