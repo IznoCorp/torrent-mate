@@ -44,6 +44,8 @@ from personalscraper.api.metadata.registry._errors import (
 )
 from personalscraper.api.metadata.registry._events import (
     LockedCapabilityUnresolved,
+    ProviderExhaustedEvent,
+    ProviderFallbackTriggered,
     RegistryBootValidated,
     RegistryFanOutCompleted,
 )
@@ -644,3 +646,78 @@ class ProviderRegistry:
                 event_class=type(event).__name__,
                 exc_type=type(exc).__name__,
             )
+
+    # --- Chain iteration emit helpers (DESIGN §6.2 / §7.4) ---
+    #
+    # These two helpers centralise event construction for chain-iteration
+    # call sites (movie_service, tv_service, existing_validator). Callers
+    # iterate ``self._registry.chain(Capability)`` themselves; on each
+    # per-provider skip they call ``_emit_provider_fallback`` with the
+    # appropriate reason, and on full exhaustion they call
+    # ``_emit_provider_exhausted`` before raising
+    # :class:`ProviderExhausted`.
+    #
+    # Originally scheduled for sub-phase 7.3 of the registry plan, but
+    # absorbed into 7.1 because the first chain-iteration site
+    # (``MovieServiceMixin._match_movie_candidates``) depends on these
+    # helpers. See commit body for the plan-ordering correction.
+
+    def _emit_provider_fallback(
+        self,
+        *,
+        capability: str,
+        from_provider: str,
+        reason: Literal["circuit_open", "network", "empty_result"],
+        item: dict[str, Any],
+        to_provider: str | None = None,
+        exc_type: str | None = None,
+    ) -> None:
+        """Emit :class:`ProviderFallbackTriggered` from a chain iteration site.
+
+        Args:
+            capability: Capability Protocol name (e.g. ``"MovieDetailsProvider"``).
+            from_provider: The provider being skipped.
+            reason: Closed enum — must match ``ProviderFallbackTriggered.reason``.
+            item: Item context for diagnostics (title/year/media_type).
+            to_provider: Next provider in the chain, if known at emit time.
+                The chain iterator typically does not know ``to_provider`` ahead
+                of the next iteration; leave empty when unknown.
+            exc_type: Exception class name when ``reason="network"``.
+        """
+        self._event_bus_safe_emit(
+            ProviderFallbackTriggered(
+                capability=capability,
+                from_provider=from_provider,
+                to_provider=to_provider or "",
+                reason=reason,
+                exc_type=exc_type,
+                item=item,
+            )
+        )
+
+    def _emit_provider_exhausted(
+        self,
+        *,
+        capability: str,
+        attempted: list[AttemptOutcome],
+        item: dict[str, Any],
+    ) -> None:
+        """Emit :class:`ProviderExhaustedEvent` after all chain providers failed.
+
+        Caller is responsible for raising
+        :class:`personalscraper.api.metadata.registry._errors.ProviderExhausted`
+        after this emission — the event is for observers, the exception is
+        for control flow.
+
+        Args:
+            capability: Capability Protocol name.
+            attempted: One row per attempted provider with its outcome.
+            item: Item context (title/year/media_type) for diagnostics.
+        """
+        self._event_bus_safe_emit(
+            ProviderExhaustedEvent(
+                capability=capability,
+                attempted=attempted,
+                item=item,
+            )
+        )
