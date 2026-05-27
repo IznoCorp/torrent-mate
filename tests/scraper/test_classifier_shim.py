@@ -203,7 +203,17 @@ def _make_classifier(
     instance._needs_keywords = needs_keywords  # type: ignore[assignment]
     instance._keywords_cache = keywords_cache  # type: ignore[assignment]
     instance._prefer_local_title = prefer_local  # type: ignore[assignment]
-    instance._tmdb = tmdb if tmdb is not None else MagicMock()  # type: ignore[assignment]
+
+    _tmdb_client = tmdb if tmdb is not None else MagicMock()
+    _registry = MagicMock()
+    _registry.get.side_effect = (
+        lambda name,
+        _cache={  # type: ignore[misc]
+            "tmdb": _tmdb_client,
+        }: _cache.get(name, MagicMock())
+    )
+    instance._registry = _registry  # type: ignore[assignment]
+    instance._tmdb = _tmdb_client  # type: ignore[assignment]
     return instance
 
 

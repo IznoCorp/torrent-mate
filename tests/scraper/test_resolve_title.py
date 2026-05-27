@@ -16,6 +16,8 @@ from personalscraper.scraper.scraper import Scraper
 
 def _make_scraper(prefer_local: bool = True) -> Scraper:
     """Create a Scraper with mocked settings for title resolution tests."""
+    from personalscraper.api.metadata.registry import ProviderRegistry
+
     settings = MagicMock()
     settings.tmdb_api_key = "fake"
     settings.tvdb_api_key = "fake"
@@ -36,7 +38,15 @@ def _make_scraper(prefer_local: bool = True) -> Scraper:
         patch("personalscraper.api.metadata.tmdb.TMDBClient"),
         patch("personalscraper.api.metadata.tvdb.TVDBClient"),
     ):
-        return Scraper(settings, MagicMock(), dry_run=True, config=config, interactive=False, event_bus=EventBus())
+        return Scraper(
+            settings,
+            MagicMock(),
+            dry_run=True,
+            config=config,
+            interactive=False,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
 
 class TestResolveTitleDictShape:

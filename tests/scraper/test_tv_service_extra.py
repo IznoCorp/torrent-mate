@@ -77,8 +77,22 @@ def _make_mixin(
     """
     mixin = TvServiceMixin.__new__(TvServiceMixin)
     mixin.dry_run = dry_run
-    mixin._tvdb = tvdb if tvdb is not None else MagicMock()  # type: ignore[assignment]
-    mixin._tmdb = tmdb if tmdb is not None else MagicMock()  # type: ignore[assignment]
+
+    _tvdb_client = tvdb if tvdb is not None else MagicMock()
+    _tmdb_client = tmdb if tmdb is not None else MagicMock()
+    _registry = MagicMock()
+    _registry.get.side_effect = (
+        lambda name,
+        _cache={  # type: ignore[misc]
+            "tmdb": _tmdb_client,
+            "tvdb": _tvdb_client,
+        }: _cache.get(name, MagicMock())
+    )
+    mixin._registry = _registry  # type: ignore[assignment]
+    # Keep backward-compat attrs for test code that reads them directly.
+    mixin._tvdb = _tvdb_client  # type: ignore[assignment]
+    mixin._tmdb = _tmdb_client  # type: ignore[assignment]
+
     mixin._nfo = nfo if nfo is not None else MagicMock()  # type: ignore[assignment]
     mixin._artwork = artwork if artwork is not None else MagicMock()  # type: ignore[assignment]
     mixin.config = config  # type: ignore[assignment]

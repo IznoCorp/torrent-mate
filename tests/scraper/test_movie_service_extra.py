@@ -56,10 +56,10 @@ def settings() -> MagicMock:
 
 
 @pytest.fixture
-def scraper(settings: MagicMock) -> Scraper:
+def scraper(settings: MagicMock, mock_registry: MagicMock) -> Scraper:
     """Return a Scraper with mocked TMDB client."""
     with patch("personalscraper.api.metadata.tmdb.TMDBClient"):
-        return Scraper(settings, NamingPatterns(), event_bus=EventBus())
+        return Scraper(settings, NamingPatterns(), event_bus=EventBus(), registry=mock_registry)
 
 
 @pytest.fixture
@@ -222,7 +222,7 @@ class TestGetMovieException:
 
         with (
             patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
-            patch.object(scraper._tmdb, "get_movie", side_effect=ConnectionError("API down")),
+            patch.object(scraper._registry.get("tmdb"), "get_movie", side_effect=ConnectionError("API down")),
         ):
             result = scraper.scrape_movie(movie_dir)
 
@@ -248,7 +248,7 @@ class TestFolderRenameBranches:
 
         with (
             patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
-            patch.object(scraper._tmdb, "get_movie", return_value=movie_data),
+            patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
         ):
@@ -271,7 +271,7 @@ class TestFolderRenameBranches:
 
         with (
             patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
-            patch.object(scraper._tmdb, "get_movie", return_value=movie_data),
+            patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
             patch(
@@ -295,7 +295,7 @@ class TestFolderRenameBranches:
 
         with (
             patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
-            patch.object(scraper._tmdb, "get_movie", return_value=movie_data),
+            patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
             patch(
@@ -315,7 +315,7 @@ class TestFolderRenameBranches:
 
         with (
             patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
-            patch.object(scraper._tmdb, "get_movie", return_value=movie_data),
+            patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
         ):
@@ -336,7 +336,7 @@ class TestFolderRenameBranches:
 
         with (
             patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
-            patch.object(scraper._tmdb, "get_movie", return_value=movie_data),
+            patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
         ):
@@ -350,7 +350,7 @@ class TestFolderRenameBranches:
 
         with (
             patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
-            patch.object(scraper._tmdb, "get_movie", return_value=movie_data),
+            patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("pathlib.Path.rename", side_effect=OSError("EACCES")),
         ):
             result = scraper.scrape_movie(movie_dir)
@@ -365,7 +365,7 @@ class TestFolderRenameBranches:
 
         with (
             patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
-            patch.object(scraper._tmdb, "get_movie", return_value=movie_data),
+            patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
             patch(
@@ -395,7 +395,7 @@ class TestVideoRenameBranches:
 
         with (
             patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
-            patch.object(scraper._tmdb, "get_movie", return_value=movie_data),
+            patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
             patch("pathlib.Path.rename", side_effect=OSError("video EACCES")),
@@ -415,7 +415,7 @@ class TestVideoRenameBranches:
 
         with (
             patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
-            patch.object(scraper._tmdb, "get_movie", return_value=movie_data),
+            patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
         ):
@@ -441,7 +441,7 @@ class TestNfoGenerationException:
 
         with (
             patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
-            patch.object(scraper._tmdb, "get_movie", return_value=movie_data),
+            patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(
                 scraper._nfo,

@@ -244,7 +244,7 @@ class TestRunScrapeRepairCheckOsError:
         ):
             MockScraper.return_value.process_movies.return_value = []
             MockScraper.return_value.process_tvshows.return_value = []
-            report = run_scrape(settings, config=config, event_bus=EventBus())
+            report = run_scrape(settings, config=config, event_bus=EventBus(), registry=MagicMock())
 
         # The fast-skip was bypassed because needs_movie_repair=True.
         MockScraper.assert_called_once()
@@ -267,7 +267,7 @@ class TestRunScrapeRepairCheckOsError:
         ):
             MockScraper.return_value.process_movies.return_value = []
             MockScraper.return_value.process_tvshows.return_value = []
-            run_scrape(settings, config=config, event_bus=EventBus())
+            run_scrape(settings, config=config, event_bus=EventBus(), registry=MagicMock())
 
         MockScraper.assert_called_once()
 
@@ -287,7 +287,7 @@ class TestRunScrapeMissingDirBranches:
             patch("personalscraper.scraper.run.Scraper") as MockScraper,
         ):
             MockScraper.return_value.process_tvshows.return_value = []
-            run_scrape(settings, config=config, event_bus=EventBus())
+            run_scrape(settings, config=config, event_bus=EventBus(), registry=MagicMock())
 
         MockScraper.return_value.process_movies.assert_not_called()
         MockScraper.return_value.process_tvshows.assert_called_once()
@@ -304,7 +304,7 @@ class TestRunScrapeMissingDirBranches:
             patch("personalscraper.scraper.run.Scraper") as MockScraper,
         ):
             MockScraper.return_value.process_movies.return_value = []
-            run_scrape(settings, config=config, event_bus=EventBus())
+            run_scrape(settings, config=config, event_bus=EventBus(), registry=MagicMock())
 
         MockScraper.return_value.process_movies.assert_called_once()
         MockScraper.return_value.process_tvshows.assert_not_called()
