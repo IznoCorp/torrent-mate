@@ -566,7 +566,7 @@ class MovieServiceMixin:
                     capability="MovieDetailsProvider",
                     reason="circuit_open",
                 )
-                self._registry._emit_provider_fallback(
+                self._registry.emit_provider_fallback(
                     capability="MovieDetailsProvider",
                     from_provider=provider_name,
                     reason="circuit_open",
@@ -588,7 +588,7 @@ class MovieServiceMixin:
                     capability="MovieDetailsProvider",
                     exc_type=type(exc).__name__,
                 )
-                self._registry._emit_provider_fallback(
+                self._registry.emit_provider_fallback(
                     capability="MovieDetailsProvider",
                     from_provider=provider_name,
                     reason="network",
@@ -618,7 +618,7 @@ class MovieServiceMixin:
                     capability="MovieDetailsProvider",
                     exc_type=type(exc).__name__,
                 )
-                self._registry._emit_provider_fallback(
+                self._registry.emit_provider_fallback(
                     capability="MovieDetailsProvider",
                     from_provider=provider_name,
                     reason="other",
@@ -635,7 +635,7 @@ class MovieServiceMixin:
                     capability="MovieDetailsProvider",
                     reason="empty_result",
                 )
-                self._registry._emit_provider_fallback(
+                self._registry.emit_provider_fallback(
                     capability="MovieDetailsProvider",
                     from_provider=provider_name,
                     reason="empty_result",
@@ -653,7 +653,7 @@ class MovieServiceMixin:
             # (:meth:`scrape_movie`) catches and surfaces a
             # legacy-shape ``result.error`` carrying the original
             # exception's detail (ACC-13 contract).
-            self._registry._emit_provider_exhausted(
+            self._registry.emit_provider_exhausted(
                 capability="MovieDetailsProvider",
                 attempted=attempted,
                 item=item_context,
@@ -831,7 +831,7 @@ class MovieServiceMixin:
                 details_attempted.append(
                     AttemptOutcome(provider=RegistryProviderName(provider_name), reason="circuit_open")
                 )
-                self._registry._emit_provider_fallback(
+                self._registry.emit_provider_fallback(
                     capability="MovieDetailsProvider",
                     from_provider=provider_name,
                     reason="circuit_open",
@@ -846,7 +846,7 @@ class MovieServiceMixin:
                         detail=type(exc).__name__,
                     )
                 )
-                self._registry._emit_provider_fallback(
+                self._registry.emit_provider_fallback(
                     capability="MovieDetailsProvider",
                     from_provider=provider_name,
                     reason="network",
@@ -868,7 +868,7 @@ class MovieServiceMixin:
                         detail=type(exc).__name__,
                     )
                 )
-                self._registry._emit_provider_fallback(
+                self._registry.emit_provider_fallback(
                     capability="MovieDetailsProvider",
                     from_provider=provider_name,
                     reason="other",
@@ -890,7 +890,7 @@ class MovieServiceMixin:
             # the legacy ``result.error`` path so the orchestrator records
             # ``action="error"``.
             if details_attempted:
-                self._registry._emit_provider_exhausted(
+                self._registry.emit_provider_exhausted(
                     capability="MovieDetailsProvider",
                     attempted=details_attempted,
                     item=details_item_context,

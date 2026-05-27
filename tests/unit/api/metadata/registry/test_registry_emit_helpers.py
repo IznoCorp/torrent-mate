@@ -1,17 +1,17 @@
 """Unit tests for the chain-iteration emit helpers (DESIGN §6.2 / §7.4).
 
-``ProviderRegistry._emit_provider_fallback`` and
-``ProviderRegistry._emit_provider_exhausted`` are the centralised emission
+``ProviderRegistry.emit_provider_fallback`` and
+``ProviderRegistry.emit_provider_exhausted`` are the centralised emission
 sites used by every chain iteration call site (movie_service, tv_service,
 existing_validator). Production code never re-implements the dataclass
 construction — these helpers are the only authorised path.
 
 Test plan:
 
-- ``_emit_provider_fallback`` builds a :class:`ProviderFallbackTriggered`
+- ``emit_provider_fallback`` builds a :class:`ProviderFallbackTriggered`
   with the right capability, from/to provider, reason, exc_type, and item
   payload, then routes it through ``_event_bus_safe_emit``.
-- ``_emit_provider_exhausted`` builds a :class:`ProviderExhaustedEvent`
+- ``emit_provider_exhausted`` builds a :class:`ProviderExhaustedEvent`
   with the right capability, attempted list, and item payload, then routes
   it through ``_event_bus_safe_emit``.
 - Both helpers are safe in the face of a failing bus (delegated to
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
 
 def test_emit_provider_fallback_constructs_expected_event(build_registry: object) -> None:
-    """``_emit_provider_fallback`` emits a fully populated ProviderFallbackTriggered."""
+    """``emit_provider_fallback`` emits a fully populated ProviderFallbackTriggered."""
     bus = MockEventBus()
     fakes = {"tmdb": FakeMultiCapability(provider_name="tmdb")}
     config = ProvidersConfig(Searchable={"tmdb": 1})
@@ -50,7 +50,7 @@ def test_emit_provider_fallback_constructs_expected_event(build_registry: object
     )
     bus.emitted.clear()  # Drop the boot-validated event for clarity.
 
-    registry._emit_provider_fallback(
+    registry.emit_provider_fallback(
         capability="MovieDetailsProvider",
         from_provider="tmdb",
         reason="empty_result",
@@ -80,7 +80,7 @@ def test_emit_provider_fallback_network_reason_carries_exc_type(build_registry: 
     )
     bus.emitted.clear()
 
-    registry._emit_provider_fallback(
+    registry.emit_provider_fallback(
         capability="MovieDetailsProvider",
         from_provider="tmdb",
         to_provider="tvdb",
@@ -99,7 +99,7 @@ def test_emit_provider_fallback_network_reason_carries_exc_type(build_registry: 
 
 
 def test_emit_provider_exhausted_constructs_expected_event(build_registry: object) -> None:
-    """``_emit_provider_exhausted`` emits a ProviderExhaustedEvent with the attempted list."""
+    """``emit_provider_exhausted`` emits a ProviderExhaustedEvent with the attempted list."""
     bus = MockEventBus()
     fakes = {"tmdb": FakeMultiCapability(provider_name="tmdb")}
     config = ProvidersConfig(Searchable={"tmdb": 1})
@@ -114,7 +114,7 @@ def test_emit_provider_exhausted_constructs_expected_event(build_registry: objec
         AttemptOutcome(provider=RegistryProviderName("tmdb"), reason="empty_result"),
         AttemptOutcome(provider=RegistryProviderName("tvdb"), reason="circuit_open"),
     ]
-    registry._emit_provider_exhausted(
+    registry.emit_provider_exhausted(
         capability="MovieDetailsProvider",
         attempted=attempted,
         item={"title": "Unknown Film", "year": None},
@@ -139,13 +139,13 @@ def test_emit_helpers_swallow_failing_bus(build_registry: object) -> None:
     )
 
     # Neither call should raise — _event_bus_safe_emit swallows.
-    registry._emit_provider_fallback(
+    registry.emit_provider_fallback(
         capability="MovieDetailsProvider",
         from_provider="tmdb",
         reason="empty_result",
         item={"title": "X", "year": None},
     )
-    registry._emit_provider_exhausted(
+    registry.emit_provider_exhausted(
         capability="MovieDetailsProvider",
         attempted=[
             AttemptOutcome(provider=RegistryProviderName("tmdb"), reason="empty_result"),

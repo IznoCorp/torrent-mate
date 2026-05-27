@@ -75,8 +75,8 @@ def _make_mixin(
         }: _cache.get(name, MagicMock())
     )
     _registry.chain.return_value = [_tvdb_client, _tmdb_client]
-    _registry._emit_provider_fallback = MagicMock()
-    _registry._emit_provider_exhausted = MagicMock()
+    _registry.emit_provider_fallback = MagicMock()
+    _registry.emit_provider_exhausted = MagicMock()
     mixin._registry = _registry  # type: ignore[assignment]
     mixin._tvdb = _tvdb_client  # type: ignore[assignment]
     mixin._tmdb = _tmdb_client  # type: ignore[assignment]

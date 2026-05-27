@@ -99,12 +99,12 @@ def _make_mixin(
     # TV providers in (TVDB, TMDB) priority order — the default rank
     # declared in ``config.metadata.priorities.tv_match``.
     _registry.chain.return_value = [_tvdb_client, _tmdb_client]
-    # ``_emit_provider_fallback`` / ``_emit_provider_exhausted`` are
+    # ``emit_provider_fallback`` / ``emit_provider_exhausted`` are
     # no-ops on the MagicMock (the events themselves are exercised by
     # registry unit tests; here we just make sure the call site does
     # not blow up).
-    _registry._emit_provider_fallback = MagicMock()
-    _registry._emit_provider_exhausted = MagicMock()
+    _registry.emit_provider_fallback = MagicMock()
+    _registry.emit_provider_exhausted = MagicMock()
     mixin._registry = _registry  # type: ignore[assignment]
     # Keep backward-compat attrs for test code that reads them directly.
     mixin._tvdb = _tvdb_client  # type: ignore[assignment]

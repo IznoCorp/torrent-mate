@@ -155,7 +155,7 @@ def match_tvshow_candidates(
                 capability="TvDetailsProvider",
                 reason="circuit_open",
             )
-            registry._emit_provider_fallback(
+            registry.emit_provider_fallback(
                 capability="TvDetailsProvider",
                 from_provider=provider_name,
                 reason="circuit_open",
@@ -177,7 +177,7 @@ def match_tvshow_candidates(
                 capability="TvDetailsProvider",
                 exc_type=type(exc).__name__,
             )
-            registry._emit_provider_fallback(
+            registry.emit_provider_fallback(
                 capability="TvDetailsProvider",
                 from_provider=provider_name,
                 reason="network",
@@ -207,7 +207,7 @@ def match_tvshow_candidates(
                 capability="TvDetailsProvider",
                 exc_type=type(exc).__name__,
             )
-            registry._emit_provider_fallback(
+            registry.emit_provider_fallback(
                 capability="TvDetailsProvider",
                 from_provider=provider_name,
                 reason="other",
@@ -224,7 +224,7 @@ def match_tvshow_candidates(
                 capability="TvDetailsProvider",
                 reason="empty_result",
             )
-            registry._emit_provider_fallback(
+            registry.emit_provider_fallback(
                 capability="TvDetailsProvider",
                 from_provider=provider_name,
                 reason="empty_result",
@@ -241,7 +241,7 @@ def match_tvshow_candidates(
         # The caller (:meth:`_lookup_series`) catches and surfaces a
         # legacy-shape ``result.error`` carrying the original
         # exception's detail (ACC-13 contract).
-        registry._emit_provider_exhausted(
+        registry.emit_provider_exhausted(
             capability="TvDetailsProvider",
             attempted=attempted,
             item=item_context,

@@ -55,7 +55,7 @@ class _RecordingBus:
 def _make_registry(providers_by_capability: dict[type, list[Any]], bus: _RecordingBus) -> MagicMock:
     """Build a MagicMock(spec=ProviderRegistry) wired to capture chain emissions.
 
-    ``_emit_provider_fallback`` and ``_emit_provider_exhausted`` are wired
+    ``emit_provider_fallback`` and ``emit_provider_exhausted`` are wired
     through to the bus so callers can assert on the emitted dataclasses.
     """
     registry = MagicMock(spec=ProviderRegistry)
@@ -90,8 +90,8 @@ def _make_registry(providers_by_capability: dict[type, list[Any]], bus: _Recordi
             )
         )
 
-    registry._emit_provider_fallback.side_effect = _emit_fallback
-    registry._emit_provider_exhausted.side_effect = _emit_exhausted
+    registry.emit_provider_fallback.side_effect = _emit_fallback
+    registry.emit_provider_exhausted.side_effect = _emit_exhausted
     return registry
 
 

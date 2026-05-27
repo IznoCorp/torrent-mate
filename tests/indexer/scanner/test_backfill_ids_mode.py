@@ -130,11 +130,12 @@ def _build_registry_mock(
     reg = MagicMock(spec=ProviderRegistry)
     reg.fan_out.return_value = FanOutResult(values=rating_providers, attempted=[])
     reg.chain.return_value = details_providers
-    # _emit_provider_fallback / _emit_provider_exhausted are private but
-    # called from chain-iteration sites; MagicMock accepts attribute
-    # access on private names by default.
-    reg._emit_provider_fallback = MagicMock()
-    reg._emit_provider_exhausted = MagicMock()
+    # emit_provider_fallback / emit_provider_exhausted are the public
+    # chain-iteration emit helpers (Phase 22 promoted them from leading
+    # underscore). Provide explicit MagicMock attributes so call_args_list
+    # works against the spec'd mock.
+    reg.emit_provider_fallback = MagicMock()
+    reg.emit_provider_exhausted = MagicMock()
     return reg
 
 
@@ -259,10 +260,10 @@ def test_backfill_emits_fallback_on_unclassified_provider_exception(conn: sqlite
     stats = run_backfill_ids(conn, event_bus=EventBus(), registry=registry)
     assert isinstance(stats, BackfillStats)
 
-    # The registry's _emit_provider_fallback helper was called with
+    # The registry's emit_provider_fallback helper was called with
     # reason="other" + exc_type="ValueError" for the rating provider.
     other_calls = [
-        call for call in registry._emit_provider_fallback.call_args_list if call.kwargs.get("reason") == "other"
+        call for call in registry.emit_provider_fallback.call_args_list if call.kwargs.get("reason") == "other"
     ]
     assert other_calls, "Expected ProviderFallbackTriggered(reason='other') emission"
     matching = [c for c in other_calls if c.kwargs.get("exc_type") == "ValueError"]

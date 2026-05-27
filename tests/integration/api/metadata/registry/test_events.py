@@ -30,7 +30,7 @@ from tests.unit.api.metadata.registry.conftest import (
 def test_provider_fallback_triggered_emitted_with_other_reason(build_registry_fakes):
     """``reason='other'`` fallback dispatches through the bus (Phase 21).
 
-    Drives ``_emit_provider_fallback`` directly with ``reason='other'``
+    Drives ``emit_provider_fallback`` directly with ``reason='other'``
     — the production chain sites in ``movie_service`` / ``tv_service`` /
     ``tv_service_episodes`` / ``backfill_ids`` all go through this
     helper, so this test pins the bus contract that downstream observers
@@ -42,7 +42,7 @@ def test_provider_fallback_triggered_emitted_with_other_reason(build_registry_fa
         providers_config=ProvidersConfig(Searchable={"p1": 1}),
         event_bus=bus,
     )
-    registry._emit_provider_fallback(
+    registry.emit_provider_fallback(
         capability="MovieDetailsProvider",
         from_provider="p1",
         reason="other",

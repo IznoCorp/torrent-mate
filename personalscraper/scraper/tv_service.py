@@ -561,7 +561,7 @@ class TvServiceMixin:
                 details_attempted.append(
                     AttemptOutcome(provider=RegistryProviderName(provider_name), reason="circuit_open")
                 )
-                self._registry._emit_provider_fallback(
+                self._registry.emit_provider_fallback(
                     capability="TvDetailsProvider",
                     from_provider=provider_name,
                     reason="circuit_open",
@@ -577,7 +577,7 @@ class TvServiceMixin:
                         detail=type(exc).__name__,
                     )
                 )
-                self._registry._emit_provider_fallback(
+                self._registry.emit_provider_fallback(
                     capability="TvDetailsProvider",
                     from_provider=provider_name,
                     reason="network",
@@ -605,7 +605,7 @@ class TvServiceMixin:
                         detail=type(e).__name__,
                     )
                 )
-                self._registry._emit_provider_fallback(
+                self._registry.emit_provider_fallback(
                     capability="TvDetailsProvider",
                     from_provider=provider_name,
                     reason="other",
@@ -622,7 +622,7 @@ class TvServiceMixin:
 
         if show_data is None:
             if details_attempted:
-                self._registry._emit_provider_exhausted(
+                self._registry.emit_provider_exhausted(
                     capability="TvDetailsProvider",
                     attempted=details_attempted,
                     item=details_item_context,

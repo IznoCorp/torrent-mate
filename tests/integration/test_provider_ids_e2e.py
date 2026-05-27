@@ -81,8 +81,8 @@ def _registry_mock(
     reg = MagicMock(spec=ProviderRegistry)
     reg.fan_out.return_value = FanOutResult(values=ratings or [], attempted=[])
     reg.chain.return_value = details or []
-    reg._emit_provider_fallback = MagicMock()
-    reg._emit_provider_exhausted = MagicMock()
+    reg.emit_provider_fallback = MagicMock()
+    reg.emit_provider_exhausted = MagicMock()
     return reg
 
 

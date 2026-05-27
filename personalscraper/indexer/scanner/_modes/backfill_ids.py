@@ -480,7 +480,7 @@ def _fetch_cross_provider_ids(
             item_id=row["id"],
             title=row["title"],
         )
-        registry._emit_provider_exhausted(  # noqa: SLF001 — chain-iteration site
+        registry.emit_provider_exhausted(
             capability=capability_name,
             attempted=[],
             item=item_context,
@@ -493,7 +493,7 @@ def _fetch_cross_provider_ids(
         else:
             details = canonical_match.get_movie(canonical_id)
     except CircuitOpenError:
-        registry._emit_provider_fallback(  # noqa: SLF001
+        registry.emit_provider_fallback(
             capability=capability_name,
             from_provider=canonical,
             reason="circuit_open",
@@ -505,14 +505,14 @@ def _fetch_cross_provider_ids(
             capability=capability_name,
             reason="circuit_open",
         )
-        registry._emit_provider_exhausted(  # noqa: SLF001
+        registry.emit_provider_exhausted(
             capability=capability_name,
             attempted=[],
             item=item_context,
         )
         return {}
     except (ApiError, requests.RequestException, OSError) as exc:
-        registry._emit_provider_fallback(  # noqa: SLF001
+        registry.emit_provider_fallback(
             capability=capability_name,
             from_provider=canonical,
             reason="network",
@@ -539,7 +539,7 @@ def _fetch_cross_provider_ids(
         # observe the bypass on the EventBus instead of having to scrape
         # logs. AttemptOutcome("other") is not threaded into a chain here
         # because backfill iterates the canonical provider only.
-        registry._emit_provider_fallback(  # noqa: SLF001 — chain-iteration site
+        registry.emit_provider_fallback(
             capability=capability_name,
             from_provider=canonical,
             reason="other",
@@ -569,7 +569,7 @@ def _fetch_cross_provider_ids(
             item_id=row["id"],
             title=row["title"],
         )
-        registry._emit_provider_fallback(  # noqa: SLF001
+        registry.emit_provider_fallback(
             capability=capability_name,
             from_provider=canonical,
             reason="empty_result",
@@ -727,7 +727,7 @@ def _call_rating_provider(
         # so the EventBus signals the bypass, matching the chain-site
         # parity goal. Fail-soft return semantics preserved.
         if registry is not None:
-            registry._emit_provider_fallback(  # noqa: SLF001 — chain-iteration site
+            registry.emit_provider_fallback(
                 capability="RatingProvider",
                 from_provider=source,
                 reason="other",

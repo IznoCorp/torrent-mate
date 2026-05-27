@@ -702,19 +702,23 @@ class ProviderRegistry:
     # --- Chain iteration emit helpers (DESIGN §6.2 / §7.4) ---
     #
     # These two helpers centralise event construction for chain-iteration
-    # call sites (movie_service, tv_service, existing_validator). Callers
-    # iterate ``self._registry.chain(Capability)`` themselves; on each
-    # per-provider skip they call ``_emit_provider_fallback`` with the
-    # appropriate reason, and on full exhaustion they call
-    # ``_emit_provider_exhausted`` before raising
+    # call sites (movie_service, tv_service, existing_validator, indexer
+    # backfill_ids). Callers iterate ``self._registry.chain(Capability)``
+    # themselves; on each per-provider skip they call
+    # ``emit_provider_fallback`` with the appropriate reason, and on full
+    # exhaustion they call ``emit_provider_exhausted`` before raising
     # :class:`ProviderExhausted`.
     #
     # Originally scheduled for sub-phase 7.3 of the registry plan, but
     # absorbed into 7.1 because the first chain-iteration site
     # (``MovieServiceMixin._match_movie_candidates``) depends on these
     # helpers. See commit body for the plan-ordering correction.
+    #
+    # Promoted from leading-underscore to public names in Phase 22
+    # (DESIGN §7.4): 11+ external call sites consume these — they are
+    # de-facto public API.
 
-    def _emit_provider_fallback(
+    def emit_provider_fallback(
         self,
         *,
         capability: str,
@@ -750,7 +754,7 @@ class ProviderRegistry:
             )
         )
 
-    def _emit_provider_exhausted(
+    def emit_provider_exhausted(
         self,
         *,
         capability: str,
