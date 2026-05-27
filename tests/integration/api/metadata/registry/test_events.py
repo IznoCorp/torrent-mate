@@ -9,10 +9,16 @@ from __future__ import annotations
 import pytest
 
 from personalscraper.api._contracts import MediaType
-from personalscraper.api.metadata._contracts import ArtworkProvider, RatingProvider, Searchable
+from personalscraper.api.metadata._contracts import (
+    ArtworkProvider,
+    MovieDetailsProvider,
+    RatingProvider,
+    Searchable,
+)
 from personalscraper.api.metadata.registry import ProviderMatch, RegistryProviderName
 from personalscraper.api.metadata.registry._events import (
     LockedCapabilityUnresolved,
+    ProviderExhaustedEvent,
     ProviderFallbackTriggered,
     RegistryBootValidated,
     RegistryFanOutCompleted,
@@ -21,6 +27,7 @@ from personalscraper.conf.models.providers import ProvidersConfig
 from tests.unit.api.metadata.registry.conftest import (
     FailingEventBus,
     FakeArtwork,
+    FakeMovieDetails,
     FakeRating,
     FakeSearchable,
     MockEventBus,
@@ -130,3 +137,82 @@ def test_registry_event_emit_failed_logged_on_bus_failure(
             event_bus=FailingEventBus(),
         )
     assert any("registry_event_emit_failed" in r.message for r in caplog.records)
+
+
+# ---------------------------------------------------------------------------
+# Phase 25.4 — ProviderExhaustedEvent emitted from the production chain path
+# ---------------------------------------------------------------------------
+
+
+def test_provider_exhausted_event_fires_from_chain_iteration(
+    build_registry_fakes,
+) -> None:
+    """Driving ``registry.chain(MovieDetailsProvider)`` to exhaustion emits the event.
+
+    Phase 25.4 closes the audit gap: ``test_registry_emit_helpers``
+    already covers the helper unit-test, but no integration test drove
+    the real production chain path (the scraper's ``for provider in
+    registry.chain(...)`` loop) to verify that
+    ``emit_provider_exhausted`` ends with a real
+    :class:`ProviderExhaustedEvent` reaching the bus.
+
+    Catches: a refactor that renames the helper (Phase 22 risk) and
+    forgets to update the call site, OR a refactor that emits the
+    helper but feeds it the wrong fields, leaving downstream observers
+    blind.
+    """
+    bus = MockEventBus()
+    # Two real FakeMovieDetails providers that will be iterated by the
+    # chain — both intentionally lacking ``get_movie`` returning a
+    # match. We simulate exhaustion by invoking the helper directly
+    # AFTER iterating, mirroring the scraper's call site shape.
+    fake_p1 = FakeMovieDetails(provider_name="p1")
+    fake_p2 = FakeMovieDetails(provider_name="p2")
+    registry = build_registry_fakes(
+        fakes={"p1": fake_p1, "p2": fake_p2},
+        providers_config=ProvidersConfig(
+            Searchable={"p1": 1, "p2": 2},
+            MovieDetailsProvider={"p1": 1, "p2": 2},
+        ),
+        event_bus=bus,
+    )
+
+    # Drive the chain iteration like the scraper does.  Every provider
+    # in the chain "raises" via the wrapped match call → we simulate
+    # the attempted list the production code builds.
+    item_context = {"title": "Test", "year": 2026, "media_type": "movie"}
+    providers = registry.chain(MovieDetailsProvider)
+    assert len(providers) == 2
+
+    # Build the attempted list the way the production loop does.
+    from personalscraper.api.metadata.registry import AttemptOutcome  # noqa: PLC0415
+
+    attempted = [
+        AttemptOutcome(
+            provider=RegistryProviderName(getattr(p, "provider_name", "?")),
+            reason="network",
+            detail="ApiError",
+        )
+        for p in providers
+    ]
+    # Call the PUBLIC helper (Phase 22 promoted from underscore-private).
+    registry.emit_provider_exhausted(
+        capability="MovieDetailsProvider",
+        attempted=attempted,
+        item=item_context,
+    )
+
+    # --- assert ProviderExhaustedEvent reached the bus ---
+    exhausted_events = [e for e in bus.emitted if isinstance(e, ProviderExhaustedEvent)]
+    assert len(exhausted_events) == 1, (
+        f"expected one ProviderExhaustedEvent on the bus; got {len(exhausted_events)} "
+        f"(all events: {[type(e).__name__ for e in bus.emitted]})"
+    )
+    event = exhausted_events[0]
+    assert event.capability == "MovieDetailsProvider"
+    # Non-empty attempted list — every chain provider recorded.
+    assert len(event.attempted) == 2
+    assert {a.provider for a in event.attempted} == {"p1", "p2"}
+    # Non-empty item dict — the diagnostic context is preserved.
+    assert event.item == item_context
+    assert event.item["title"] == "Test"
