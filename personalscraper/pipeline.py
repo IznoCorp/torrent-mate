@@ -330,6 +330,10 @@ class Pipeline:
         report = PipelineReport(started_at=datetime.now())
         extras: dict[str, Any] = {
             "skip_trailers": self.skip_trailers,
+            # Step adapters that need the registry (currently ``ScrapeStep``)
+            # pick it up via ``ctx.extras["registry"]``. Keeping it here avoids
+            # widening ``AppContext`` (boundary-only rule, DESIGN §Architecture).
+            "registry": self._registry,
         }
 
         token = current_correlation_id.set(str(self._run_id))

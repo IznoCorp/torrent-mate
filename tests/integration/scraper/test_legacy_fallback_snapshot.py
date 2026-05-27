@@ -9,8 +9,11 @@ The 6 scenarios match DESIGN §8.4 verbatim, adapted to the actual orchestrator 
 - process_movies(movies_dir) → list[ScrapeResult]
 - process_tvshows(tvshows_dir) → list[ScrapeResult]
 
-Each test uses the real Scraper class with mocked TMDB/TVDB clients and
-asserts on ScrapeResult.action and ScrapeResult.error as they are TODAY.
+Each test uses the real Scraper class with a mocked :class:`ProviderRegistry`
+and asserts on ScrapeResult.action and ScrapeResult.error as they were before
+the registry migration. The mocks moved from ``self._tmdb``/``self._tvdb``
+direct attributes to ``self._registry.chain(...)`` / ``self._registry.get(...)``,
+but the behavioral assertions are identical (ACC-13 equivalence proof).
 """
 
 from pathlib import Path
@@ -19,25 +22,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from personalscraper.api._contracts import CircuitOpenError
+from personalscraper.api.metadata._contracts import MovieDetailsProvider, TvDetailsProvider
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.event_bus import EventBus
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper.orchestrator import Scraper
-
-
-@pytest.fixture(autouse=True)
-def _patch_transport():
-    """Patch HttpTransport so Scraper init + TVDB bootstrap don't build real ones."""
-    mock_instance = MagicMock()
-    mock_instance.__enter__.return_value = mock_instance
-    mock_instance.post.return_value = {"data": {"token": "mock-jwt"}}
-    mock_instance.get.return_value = {}
-
-    with (
-        patch("personalscraper.api.transport._http.HttpTransport", return_value=mock_instance),
-        patch("personalscraper.api.metadata.tvdb.HttpTransport", return_value=mock_instance),
-    ):
-        yield
 
 
 @pytest.fixture
@@ -71,34 +61,69 @@ class TestLegacyFallbackSnapshot:
     """Characterization tests locking in current orchestrator circuit-check behavior."""
 
     @pytest.fixture
-    def scraper(self, mock_settings):
-        """Create a Scraper with both TMDB and TVDB clients fully mocked.
+    def mock_tmdb(self) -> MagicMock:
+        """Build a MagicMock standing in for the TMDB client.
 
-        Patches both client classes so self._tmdb / self._tvdb are MagicMock
-        instances.  Their .circuit.can_proceed() returns True by default
-        (MagicMock is truthy), representing CLOSED circuits.
+        Used as the value returned by ``registry.get("tmdb")`` and as the
+        sole entry in ``registry.chain(MovieDetailsProvider)`` /
+        ``registry.chain(TvDetailsProvider)`` for tests that mirror the
+        pre-registry single-provider scenarios.
         """
-        with (
-            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
-            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
-        ):
-            s = Scraper(mock_settings, NamingPatterns(), event_bus=EventBus())
-        s._tmdb.circuit.can_proceed.return_value = True
-        s._tvdb.circuit.can_proceed.return_value = True
-        return s
+        return MagicMock(name="MockTMDBClient")
+
+    @pytest.fixture
+    def mock_tvdb(self) -> MagicMock:
+        """Build a MagicMock standing in for the TVDB client."""
+        return MagicMock(name="MockTVDBClient")
+
+    @pytest.fixture
+    def mock_registry(self, mock_tmdb: MagicMock, mock_tvdb: MagicMock) -> MagicMock:
+        """Build a mock :class:`ProviderRegistry`.
+
+        Defaults to both TMDB and TVDB being eligible for any chain
+        capability — tests override ``chain.side_effect`` to model
+        per-capability emptiness when simulating circuit-open scenarios.
+        """
+        reg = MagicMock(spec=ProviderRegistry)
+        reg.get.side_effect = lambda name: {"tmdb": mock_tmdb, "tvdb": mock_tvdb}[name]
+
+        # Default chain behaviour: both providers eligible for any capability.
+        # Tests that need an empty chain (== legacy "circuit OPEN") override
+        # this with ``chain.side_effect``.
+        def _default_chain(capability):
+            if capability is MovieDetailsProvider:
+                return [mock_tmdb]
+            if capability is TvDetailsProvider:
+                return [mock_tvdb, mock_tmdb]
+            return []
+
+        reg.chain.side_effect = _default_chain
+        return reg
+
+    @pytest.fixture
+    def scraper(self, mock_settings, mock_registry):
+        """Create a Scraper wired to the mock registry."""
+        return Scraper(mock_settings, NamingPatterns(), event_bus=EventBus(), registry=mock_registry)
 
     # ------------------------------------------------------------------
     # Test 1 — DESIGN §8.4 scenario 1
     # ------------------------------------------------------------------
 
-    def test_movies_tmdb_circuit_open_produces_error(self, scraper, movies_dir):
-        """TMDB circuit OPEN → process_movies gate skips item with error.
+    def test_movies_tmdb_circuit_open_produces_error(self, scraper, movies_dir, mock_registry):
+        """No eligible MovieDetailsProvider → process_movies skips with error.
 
-        Verifies the gate at orchestrator.py:150 — when
-        self._tmdb.circuit.can_proceed() returns False, the item is
-        skipped immediately (no fallback for movies).
+        Verifies the registry-driven gate in :meth:`Scraper.process_movies`
+        — when ``registry.chain(MovieDetailsProvider)`` returns an empty
+        list (all circuits OPEN), the item is skipped immediately.
+        Preserves the legacy "TMDB circuit breaker OPEN" error wording.
         """
-        scraper._tmdb.circuit.can_proceed.return_value = False
+
+        def _empty_movies(capability):
+            if capability is MovieDetailsProvider:
+                return []
+            return [MagicMock()]
+
+        mock_registry.chain.side_effect = _empty_movies
 
         results = scraper.process_movies(movies_dir)
 
@@ -113,10 +138,10 @@ class TestLegacyFallbackSnapshot:
     def test_movies_tmdb_circuit_open_mid_item_produces_error(self, scraper, movies_dir):
         """CircuitOpenError raised during scrape_movie → caught and recorded.
 
-        Verifies the except CircuitOpenError arm at orchestrator.py:165
-        produces action="error" with the exception message in .error.
+        Verifies the ``except CircuitOpenError`` arm in
+        :meth:`Scraper.process_movies` produces ``action="error"`` with the
+        exception message in ``.error``.
         """
-        scraper._tmdb.circuit.can_proceed.return_value = True
         scraper.scrape_movie = MagicMock(side_effect=CircuitOpenError("tmdb", 60.0))
 
         results = scraper.process_movies(movies_dir)
@@ -129,21 +154,23 @@ class TestLegacyFallbackSnapshot:
     # Test 3 — DESIGN §8.4 scenario 3
     # ------------------------------------------------------------------
 
-    def test_tvshows_tvdb_open_tmdb_available_uses_tmdb(self, scraper, tvshows_dir):
-        """TVDB circuit OPEN but TMDB CLOSED → orchestrator proceeds.
+    def test_tvshows_tvdb_open_tmdb_available_uses_tmdb(self, scraper, tvshows_dir, mock_registry, mock_tmdb):
+        """One eligible TvDetailsProvider remains → orchestrator proceeds.
 
-        Verifies the gate at orchestrator.py:223 — when TVDB is OPEN
-        but TMDB is still CLOSED, the condition
-        ``not self._tvdb.can_proceed() and not self._tmdb.can_proceed()``
-        is False, so the item is NOT skipped.  scrape_tvshow is called
-        and the internal fallback logic (match_tvshow in confidence.py)
-        handles the actual provider selection.
-
-        We mock scrape_tvshow to return success — the test covers the
-        orchestrator-level gate, not the full scrape path.
+        Mirrors the legacy "TVDB circuit OPEN but TMDB CLOSED" scenario:
+        the chain shrinks but is non-empty, so the gate at
+        :meth:`Scraper.process_tvshows` does NOT skip the item.
+        ``scrape_tvshow`` is mocked to confirm the gate let the item
+        through.
         """
-        scraper._tvdb.circuit.can_proceed.return_value = False
-        scraper._tmdb.circuit.can_proceed.return_value = True
+
+        def _tmdb_only(capability):
+            if capability is TvDetailsProvider:
+                return [mock_tmdb]
+            return [mock_tmdb]
+
+        mock_registry.chain.side_effect = _tmdb_only
+
         scraper.scrape_tvshow = MagicMock(
             return_value=ScrapeResult(
                 media_path=tvshows_dir / "Breaking Bad (2008)",
@@ -161,15 +188,21 @@ class TestLegacyFallbackSnapshot:
     # Test 4 — DESIGN §8.4 scenario 4
     # ------------------------------------------------------------------
 
-    def test_tvshows_both_circuits_open_produces_error(self, scraper, tvshows_dir):
-        """Both TVDB and TMDB circuits OPEN → skip with error.
+    def test_tvshows_both_circuits_open_produces_error(self, scraper, tvshows_dir, mock_registry):
+        """No eligible TvDetailsProvider → skip with error.
 
-        Verifies the gate at orchestrator.py:223 — when both providers
-        are unavailable the item is skipped with the "Both TVDB and TMDB
-        circuit breakers OPEN" message.
+        Verifies the registry-driven gate at
+        :meth:`Scraper.process_tvshows` — an empty chain is the registry
+        equivalent of "both TVDB and TMDB circuits OPEN". The legacy
+        error wording is preserved verbatim.
         """
-        scraper._tvdb.circuit.can_proceed.return_value = False
-        scraper._tmdb.circuit.can_proceed.return_value = False
+
+        def _empty_tv(capability):
+            if capability is TvDetailsProvider:
+                return []
+            return [MagicMock()]
+
+        mock_registry.chain.side_effect = _empty_tv
 
         results = scraper.process_tvshows(tvshows_dir)
 
@@ -184,11 +217,10 @@ class TestLegacyFallbackSnapshot:
     def test_movies_network_error_during_scrape_produces_error(self, scraper, movies_dir):
         """Network error during scrape_movie → caught by generic except.
 
-        Verifies the generic except Exception arm at orchestrator.py:176
-        catches non-circuit errors (network, transport, etc.) and
-        produces action="error".
+        Verifies the generic ``except Exception`` arm in
+        :meth:`Scraper.process_movies` catches non-circuit errors
+        (network, transport, etc.) and produces ``action="error"``.
         """
-        scraper._tmdb.circuit.can_proceed.return_value = True
         scraper.scrape_movie = MagicMock(side_effect=ConnectionError("Network unreachable"))
 
         results = scraper.process_movies(movies_dir)
@@ -204,18 +236,16 @@ class TestLegacyFallbackSnapshot:
     def test_tvshows_tvdb_empty_search_no_fallback_currently(self, scraper, tvshows_dir):
         """TVDB returns empty search results → "skipped_low_confidence" today.
 
-        When match_tvshow returns None (no confident match from TVDB,
-        e.g. empty search results), _lookup_series in tv_service.py:478
-        sets result.action = "skipped_low_confidence".  There is no
-        cross-provider fallback at this level — the registry (Phase 2)
-        will add chain fallback to try TMDB when TVDB comes back empty.
+        When ``match_tvshow`` returns None (no confident match from TVDB,
+        e.g. empty search results), ``_lookup_series`` in
+        ``tv_service.py`` sets ``result.action = "skipped_low_confidence"``.
+        There is no cross-provider fallback at this level — the registry
+        chain rewrite (Phase 2) will add chain fallback to try TMDB when
+        TVDB comes back empty.
 
         NOTE: This is a characterization of CURRENT behavior, not a
-        design target.  The registry will change this outcome.
+        design target. The Phase 2 chain rewrite will change this outcome.
         """
-        scraper._tvdb.circuit.can_proceed.return_value = True
-        scraper._tmdb.circuit.can_proceed.return_value = True
-
         with patch("personalscraper.scraper.scraper.match_tvshow", return_value=None):
             results = scraper.process_tvshows(tvshows_dir)
 

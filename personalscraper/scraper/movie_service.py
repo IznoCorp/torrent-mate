@@ -7,7 +7,7 @@ import sqlite3
 from dataclasses import dataclass
 from itertools import zip_longest
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import requests
 
@@ -23,6 +23,7 @@ from personalscraper.text_utils import sanitize_filename
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.api.metadata.tmdb import TMDBClient
     from personalscraper.conf.models.config import Config
     from personalscraper.naming_patterns import NamingPatterns
@@ -416,11 +417,17 @@ _EPISODE_FALLBACK_RE = re.compile(r"^S\d{2}E0*(\d+) - Episode 0*\1\.\w+$", re.IG
 
 
 class MovieServiceMixin:
-    """Movie scrape service methods."""
+    """Movie scrape service methods.
+
+    Provider access goes through ``self._registry`` (DESIGN §5.2). Phase 1 uses
+    ``self._registry.get("tmdb")`` / ``get("tvdb")`` as transitional direct
+    access; Phase 2 will migrate Movie/TV matching to ``registry.chain()`` and
+    Artwork/Keyword/Video to ``registry.locked()`` (identity-locked semantics).
+    """
 
     patterns: "NamingPatterns"
     dry_run: bool
-    _tmdb: "TMDBClient"
+    _registry: "ProviderRegistry"
     _artwork: "ArtworkDownloader"
     config: "Config | None"
     _nfo: "NFOGenerator"
@@ -459,10 +466,25 @@ class MovieServiceMixin:
         )
 
     def _family_to_client(self, family: str) -> Any | None:
-        """Map a provider family to the wired client / façade (or ``None``)."""
+        """Map a provider family to the wired client / façade (or ``None``).
+
+        Transitional access via the registry (Phase 1 — DESIGN §5.2). The
+        registry raises ``UnknownProviderError`` for names it does not know;
+        we treat that as ``None`` to preserve the legacy fail-soft contract
+        of this helper (xref enrichment and ratings resolution both consume
+        the ``None`` branch).
+        """
+        from personalscraper.api.metadata.registry._errors import UnknownProviderError  # noqa: PLC0415
+
+        # ``imdb`` / ``rotten_tomatoes`` remain optional companion façades
+        # injected by other call sites; the registry currently only owns the
+        # canonical "tmdb"/"tvdb" providers (Phase 1 scope).
+        if family in {"tmdb", "tvdb"}:
+            try:
+                return self._registry.get(family)
+            except UnknownProviderError:
+                return None
         mapping: dict[str, Any] = {
-            "tvdb": getattr(self, "_tvdb", None),
-            "tmdb": getattr(self, "_tmdb", None),
             "imdb": getattr(self, "_imdb", None),
         }
         return mapping.get(family)
@@ -488,7 +510,11 @@ class MovieServiceMixin:
         try:
             from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
 
-            return scraper_api.match_movie(self._tmdb, title, year)
+            # Transitional registry-direct access (Phase 1 — DESIGN §5.2). The
+            # full chain pattern over ``MovieDetailsProvider`` lands in Phase 2
+            # when ``match_movie`` itself is moved into the orchestrator.
+            tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
+            return scraper_api.match_movie(tmdb_client, title, year)
         except Exception as e:
             result.error = f"Match failed: {e}"
             log.error("movie_match_failed", title=title, error=str(e), exc_info=True)
@@ -604,9 +630,12 @@ class MovieServiceMixin:
             return result
         assert match is not None  # narrowed by _select_best_candidate returning True
 
-        # Get full movie details (needed for local title resolution)
+        # Get full movie details (needed for local title resolution).
+        # Transitional registry-direct access (DESIGN §5.2) — Phase 2 will
+        # rebuild this around ``registry.chain(MovieDetailsProvider)``.
         try:
-            movie_data = self._tmdb.get_movie(match.api_id)
+            tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
+            movie_data = tmdb_client.get_movie(match.api_id)
         except Exception as e:
             result.error = f"Get details failed: {e}"
             log.error("movie_details_failed", api_title=match.api_title, error=str(e), exc_info=True)
@@ -709,7 +738,7 @@ class MovieServiceMixin:
             return result
 
         # api-unify phase 27: movie_data arrives as MediaDetails from
-        # ``self._tmdb.get_movie``. Adapt to the legacy raw-dict shape the
+        # ``self._registry.get("tmdb").get_movie``. Adapt to the legacy raw-dict shape the
         # NFO generator + artwork downloader still consume. Once those two
         # consumers migrate to MediaDetails, this conversion can be deleted.
         movie_data_dict = _coerce_to_movie_data(movie_data)

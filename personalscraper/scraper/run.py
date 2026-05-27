@@ -8,6 +8,7 @@ Lock is acquired at the CLI level, not here.
 """
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
@@ -20,6 +21,9 @@ from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
 from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.scraper.scraper import Scraper, ScrapeResult, verify_tvshow_scrape_drift
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS, FileType
+
+if TYPE_CHECKING:
+    from personalscraper.api.metadata.registry import ProviderRegistry
 
 log = get_logger("run")
 
@@ -146,11 +150,14 @@ def run_scrape(
     tvshows_only: bool = False,
     *,
     event_bus: EventBus,
+    registry: "ProviderRegistry",
 ) -> StepReport:
     """Run the scrape pipeline step.
 
-    Instantiates API clients and Scraper, then processes movies and/or
-    TV shows from the staging directory.
+    Instantiates the Scraper orchestrator using the registry injected at
+    pipeline boot (sub-phase 1.1) and processes movies and/or TV shows
+    from the staging directory. Provider clients (TMDB / TVDB) are owned
+    by the registry — this function no longer constructs them.
 
     Args:
         settings: Pipeline configuration with API keys and thresholds.
@@ -163,7 +170,10 @@ def run_scrape(
         movies_only: If True, process only {movies_dir}/.
         tvshows_only: If True, process only {tvshows_dir}/.
         event_bus: Required in-process EventBus. Each per-item
-        lifecycle transition emits an ``ItemProgressed`` event on the bus.
+            lifecycle transition emits an ``ItemProgressed`` event on the bus.
+        registry: Required :class:`ProviderRegistry` from the pipeline boot
+            sequence. Owns provider instantiation and exposes capability-
+            keyed access (DESIGN §6.1 / §6.2).
 
     Returns:
         StepReport with success/skip/error counts and details.
@@ -194,6 +204,7 @@ def run_scrape(
         interactive=interactive,
         config=config,
         event_bus=event_bus,
+        registry=registry,
     )
 
     all_results: list[ScrapeResult] = []

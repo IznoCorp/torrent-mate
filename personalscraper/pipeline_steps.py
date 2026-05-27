@@ -89,7 +89,14 @@ class CleanStep:
 
 
 class ScrapeStep:
-    """Adapter for the scrape step (``personalscraper.scraper.run.run_scrape``)."""
+    """Adapter for the scrape step (``personalscraper.scraper.run.run_scrape``).
+
+    The pipeline boot sequence (sub-phase 1.1) parks the
+    :class:`ProviderRegistry` instance under ``ctx.extras["registry"]`` so each
+    step adapter that needs it can pick it up without widening
+    :class:`AppContext` (the boundary-only rule keeps the bundle minimal —
+    DESIGN §Architecture).
+    """
 
     name = "scrape"
 
@@ -101,8 +108,21 @@ class ScrapeStep:
 
         Returns:
             A ``StepReport`` with per-item scrape outcomes and confidence scores.
+
+        Raises:
+            RuntimeError: If ``ctx.extras["registry"]`` is missing. The
+                Pipeline always seeds it (see ``Pipeline.run``); a missing
+                entry is a wiring bug, not a recoverable runtime condition.
         """
         from personalscraper.scraper.run import run_scrape
+
+        registry = ctx.extras.get("registry")
+        if registry is None:
+            raise RuntimeError(
+                "ScrapeStep requires a ProviderRegistry in ctx.extras['registry']. "
+                "Pipeline.run seeds it at boot; running the step adapter outside the "
+                "Pipeline must provide it explicitly."
+            )
 
         return run_scrape(
             ctx.app.settings,
@@ -110,6 +130,7 @@ class ScrapeStep:
             dry_run=ctx.dry_run,
             interactive=ctx.interactive,
             event_bus=ctx.app.event_bus,
+            registry=registry,
         )
 
 

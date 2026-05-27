@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unicodedata
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import requests
 
@@ -36,6 +36,7 @@ from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.api.metadata.tmdb import TMDBClient
     from personalscraper.api.metadata.tvdb import TVDBClient
     from personalscraper.conf.models.config import Config
@@ -88,12 +89,17 @@ def _episode_payload(ep: EpisodeInfo, episode_default_name: str) -> dict[str, An
 
 
 class TvServiceMixin:
-    """TV show scrape service methods."""
+    """TV show scrape service methods.
+
+    Provider access routes through ``self._registry`` (DESIGN §5.2). Phase 1
+    uses ``self._registry.get("tmdb")`` / ``get("tvdb")`` for transitional
+    direct access; Phase 2 migrates the matching path to
+    ``registry.chain(Searchable | TvDetailsProvider | EpisodeFetcher)``.
+    """
 
     patterns: "NamingPatterns"
     dry_run: bool
-    _tvdb: "TVDBClient"
-    _tmdb: "TMDBClient"
+    _registry: "ProviderRegistry"
     _scraper_language: str
     _scraper_fallback_language: str
     _tvdb_language: str
@@ -464,9 +470,14 @@ class TvServiceMixin:
         try:
             from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
 
+            # Transitional registry-direct access (Phase 1 — DESIGN §5.2). The
+            # full ``registry.chain(Searchable + TvDetailsProvider)`` rewrite
+            # of ``match_tvshow`` lands in Phase 2.
+            tvdb_client = cast("TVDBClient", self._registry.get("tvdb"))
+            tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
             match = scraper_api.match_tvshow(
-                self._tvdb,
-                self._tmdb,
+                tvdb_client,
+                tmdb_client,
                 title,
                 year,
                 local_seasons=local_seasons,
@@ -496,7 +507,8 @@ class TvServiceMixin:
         show_data: dict[str, Any] = {}
         try:
             if match.source == "tvdb":
-                tvdb_data = self._tvdb.get_series(match.api_id)
+                tvdb_client = cast("TVDBClient", self._registry.get("tvdb"))
+                tvdb_data = tvdb_client.get_series(match.api_id)
                 # Use MediaDetails.external_ids (replaces get_remote_ids).
                 # Handle both typed models and legacy dict mocks in tests.
                 if hasattr(tvdb_data, "external_ids"):
@@ -518,7 +530,7 @@ class TvServiceMixin:
                 show_data = _tvdb_series_to_show_data(
                     tvdb_data,
                     match.api_id,
-                    self._tvdb,
+                    tvdb_client,
                     preferred_language=self._scraper_language,
                     fallback_language=self._scraper_fallback_language,
                     external_ids=ScraperExternalIds(tmdb_id=tmdb_id, imdb_id=imdb_id),
@@ -530,7 +542,8 @@ class TvServiceMixin:
                 from personalscraper.scraper.movie_service import _coerce_to_show_data  # noqa: PLC0415
 
                 tmdb_id = match.api_id
-                show_data = _coerce_to_show_data(self._tmdb.get_tv(tmdb_id))
+                tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
+                show_data = _coerce_to_show_data(tmdb_client.get_tv(tmdb_id))
         except (ApiError, requests.RequestException, ValueError, TypeError, KeyError, AttributeError) as e:
             # Operational + payload-shape failures from the metadata path
             # (network, HTTP, JSON-decode, response-shape drift, missing
@@ -664,12 +677,14 @@ class TvServiceMixin:
 
     def _xref_fetch_tmdb_season(self, tmdb_id: int, season: int) -> dict[int, dict[str, str]]:
         """Return ``{episode_number: external_ids}`` from a TMDb season fetch."""
-        detail = self._tmdb.get_tv_season(tmdb_id, season)
+        tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
+        detail = tmdb_client.get_tv_season(tmdb_id, season)
         return {ep.episode_number: dict(ep.external_ids) for ep in detail.episodes}
 
     def _xref_fetch_tvdb_season(self, tvdb_id: int, season: int) -> dict[int, dict[str, str]]:
         """Return ``{episode_number: external_ids}`` from a TVDB season fetch."""
-        detail = self._tvdb.get_series_episodes(tvdb_id, season)
+        tvdb_client = cast("TVDBClient", self._registry.get("tvdb"))
+        detail = tvdb_client.get_series_episodes(tvdb_id, season)
         return {ep.episode_number: dict(ep.external_ids) for ep in detail.episodes}
 
     def _resolve_external_ids(
@@ -698,10 +713,20 @@ class TvServiceMixin:
         )
 
     def _family_to_client(self, family: str) -> Any | None:
-        """Map a provider family name to the wired client / façade (or ``None``)."""
+        """Map a provider family name to the wired client / façade (or ``None``).
+
+        Transitional access via the registry (Phase 1 — DESIGN §5.2). The
+        registry raises ``UnknownProviderError`` for names it does not know;
+        we treat that as ``None`` to preserve the legacy fail-soft contract.
+        """
+        from personalscraper.api.metadata.registry._errors import UnknownProviderError  # noqa: PLC0415
+
+        if family in {"tmdb", "tvdb"}:
+            try:
+                return self._registry.get(family)
+            except UnknownProviderError:
+                return None
         mapping: dict[str, Any] = {
-            "tvdb": getattr(self, "_tvdb", None),
-            "tmdb": getattr(self, "_tmdb", None),
             "imdb": getattr(self, "_imdb", None),
         }
         return mapping.get(family)
@@ -741,12 +766,16 @@ class TvServiceMixin:
 
         def _tvdb_fetch(season: int) -> list[tuple[int, dict[str, Any]]]:
             assert tvdb_id is not None
-            detail = self._tvdb.get_series_episodes(tvdb_id, season)
+            # Transitional registry-direct access (Phase 1 — DESIGN §5.2).
+            tvdb_client = cast("TVDBClient", self._registry.get("tvdb"))
+            detail = tvdb_client.get_series_episodes(tvdb_id, season)
             return [(ep.episode_number, _episode_payload(ep, episode_default_name)) for ep in detail.episodes]
 
         def _tmdb_fetch(season: int) -> list[tuple[int, dict[str, Any]]]:
             assert tmdb_id is not None
-            detail = self._tmdb.get_tv_season(tmdb_id, season)
+            # Transitional registry-direct access (Phase 1 — DESIGN §5.2).
+            tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
+            detail = tmdb_client.get_tv_season(tmdb_id, season)
             return [(ep.episode_number, _episode_payload(ep, episode_default_name)) for ep in detail.episodes]
 
         candidates: list[tuple[str, int, Callable[[int], list[tuple[int, dict[str, Any]]]]]] = []

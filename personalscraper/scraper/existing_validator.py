@@ -6,15 +6,20 @@ import re
 import unicodedata
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
 
 if TYPE_CHECKING:
+    from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.api.metadata.tmdb import TMDBClient
     from personalscraper.api.metadata.tvdb import TVDBClient
     from personalscraper.scraper.artwork import ArtworkDownloader
+
+# Transitional access via ``self._registry.get("tmdb")`` / ``get("tvdb")``
+# (DESIGN §5.2) — Phase 2 migrates to ``registry.locked()`` for proper
+# identity-locked semantics on Artwork/Keyword/Video capabilities.
 
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper.classifier import _parse_folder_name
@@ -486,8 +491,7 @@ class ExistingValidatorMixin:
 
     patterns: "NamingPatterns"
     dry_run: bool
-    _tmdb: "TMDBClient"
-    _tvdb: "TVDBClient"
+    _registry: "ProviderRegistry"
     _artwork: "ArtworkDownloader"
     _generate_episode_nfos: Any  # from TvServiceMixin
 
@@ -621,24 +625,27 @@ class ExistingValidatorMixin:
                 from personalscraper.scraper.models import ScraperExternalIds  # noqa: PLC0415
                 from personalscraper.scraper.tv_service import _tvdb_series_to_show_data  # noqa: PLC0415
 
-                tvdb_data = self._tvdb.get_series(tvdb_id)
+                # Transitional registry-direct access (Phase 1 — DESIGN §5.2).
+                tvdb_client = cast("TVDBClient", self._registry.get("tvdb"))
+                tvdb_data = tvdb_client.get_series(tvdb_id)
                 external_ids = tvdb_data.external_ids if hasattr(tvdb_data, "external_ids") else {}
                 imdb_id = external_ids.get("imdb") or ""
                 show_data = _tvdb_series_to_show_data(
                     tvdb_data,
                     tvdb_id,
-                    self._tvdb,
+                    tvdb_client,
                     preferred_language="fr-FR",
                     fallback_language="en-US",
                     external_ids=ScraperExternalIds(tmdb_id=tmdb_id, imdb_id=imdb_id),
                 )
-                root_api_episodes = _fetch_season_episodes_tvdb(self._tvdb, tvdb_id, season_nums)
+                root_api_episodes = _fetch_season_episodes_tvdb(tvdb_client, tvdb_id, season_nums)
             else:
                 assert tmdb_id is not None
                 from personalscraper.scraper.movie_service import _coerce_to_show_data
 
-                show_data = _coerce_to_show_data(self._tmdb.get_tv(tmdb_id))
-                root_api_episodes = _fetch_season_episodes(self._tmdb, tmdb_id, season_nums)
+                tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
+                show_data = _coerce_to_show_data(tmdb_client.get_tv(tmdb_id))
+                root_api_episodes = _fetch_season_episodes(tmdb_client, tmdb_id, season_nums)
 
             _cfg = getattr(self, "config", None)
             allow_synthetic_rename = (
@@ -722,24 +729,27 @@ class ExistingValidatorMixin:
                 from personalscraper.scraper.models import ScraperExternalIds  # noqa: PLC0415
                 from personalscraper.scraper.tv_service import _tvdb_series_to_show_data  # noqa: PLC0415
 
-                tvdb_data = self._tvdb.get_series(tvdb_id)
+                # Transitional registry-direct access (Phase 1 — DESIGN §5.2).
+                tvdb_client = cast("TVDBClient", self._registry.get("tvdb"))
+                tvdb_data = tvdb_client.get_series(tvdb_id)
                 external_ids = tvdb_data.external_ids if hasattr(tvdb_data, "external_ids") else {}
                 imdb_id = external_ids.get("imdb") or ""
                 show_data = _tvdb_series_to_show_data(
                     tvdb_data,
                     tvdb_id,
-                    self._tvdb,
+                    tvdb_client,
                     preferred_language="fr-FR",
                     fallback_language="en-US",
                     external_ids=ScraperExternalIds(tmdb_id=tmdb_id, imdb_id=imdb_id),
                 )
-                api_episodes = _fetch_season_episodes_tvdb(self._tvdb, tvdb_id, season_nums)
+                api_episodes = _fetch_season_episodes_tvdb(tvdb_client, tvdb_id, season_nums)
             else:
                 assert tmdb_id is not None
                 from personalscraper.scraper.movie_service import _coerce_to_show_data
 
-                show_data = _coerce_to_show_data(self._tmdb.get_tv(tmdb_id))
-                api_episodes = _fetch_season_episodes(self._tmdb, tmdb_id, season_nums)
+                tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
+                show_data = _coerce_to_show_data(tmdb_client.get_tv(tmdb_id))
+                api_episodes = _fetch_season_episodes(tmdb_client, tmdb_id, season_nums)
 
             if not api_episodes:
                 return False
@@ -902,7 +912,9 @@ class ExistingValidatorMixin:
         try:
             from personalscraper.scraper.movie_service import _coerce_to_movie_data
 
-            movie_data = self._tmdb.get_movie(tmdb_id)
+            # Transitional registry-direct access (Phase 1 — DESIGN §5.2).
+            tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
+            movie_data = tmdb_client.get_movie(tmdb_id)
             downloaded = self._artwork.download_movie_artwork(
                 _coerce_to_movie_data(movie_data),
                 movie_dir,
@@ -941,7 +953,9 @@ class ExistingValidatorMixin:
         try:
             from personalscraper.scraper.movie_service import _coerce_to_show_data
 
-            show_data = self._tmdb.get_tv(tmdb_id)
+            # Transitional registry-direct access (Phase 1 — DESIGN §5.2).
+            tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
+            show_data = tmdb_client.get_tv(tmdb_id)
             downloaded = self._artwork.download_tvshow_artwork(
                 _coerce_to_show_data(show_data),
                 show_dir,

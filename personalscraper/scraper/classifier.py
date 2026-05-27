@@ -6,7 +6,7 @@ import re
 import unicodedata
 from itertools import zip_longest
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from guessit.api import GuessitException
 
@@ -15,9 +15,14 @@ from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
+    from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.api.metadata.tmdb import TMDBClient
     from personalscraper.conf.models.config import Config
     from personalscraper.scraper.keywords_cache import KeywordsCache
+
+# Transitional access via ``self._registry.get("tmdb")`` (DESIGN §5.2) — Phase 2
+# will migrate to ``registry.locked(KeywordProvider, match)`` for proper
+# identity-locked semantics on Artwork/Keyword/Video capabilities.
 
 
 def _media_details_to_classifier_dict(details: MediaDetails) -> dict[str, Any]:
@@ -118,7 +123,7 @@ class ClassifierMixin:
     _needs_keywords: bool
     _keywords_cache: "KeywordsCache | None"
     _prefer_local_title: bool
-    _tmdb: "TMDBClient"
+    _registry: "ProviderRegistry"
 
     def _classify_item(
         self,
@@ -161,7 +166,9 @@ class ClassifierMixin:
         if self._needs_keywords and tmdb_id is not None and self._keywords_cache is not None:
             cached = self._keywords_cache.get(tmdb_id, media_type)
             if cached is None:
-                fetched = self._tmdb.get_keywords(str(tmdb_id), media_type)
+                # Transitional registry-direct access (Phase 1 — DESIGN §5.2).
+                tmdb_client = cast("TMDBClient", self._registry.get("tmdb"))
+                fetched = tmdb_client.get_keywords(str(tmdb_id), media_type)
                 self._keywords_cache.set(tmdb_id, media_type, fetched)
                 tmdb_keywords = fetched
             else:
