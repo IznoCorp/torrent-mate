@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from personalscraper.api._contracts import MediaType
+from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api.metadata._contracts import ArtworkProvider
 from personalscraper.api.metadata.registry import (
     LockedProvider,
@@ -182,3 +182,68 @@ def test_LockedProvider_construction_outside_registry_module_raises() -> None:
             source_match=match,
             translated_via=None,
         )
+
+
+# ---------------------------------------------------------------------------
+# cross_ref exception narrowing (sub-phase 5.5)
+# ---------------------------------------------------------------------------
+
+
+class _BrokenIDCrossRef:
+    """IDCrossRef-like provider that raises KeyError from ``get_cross_refs()``."""
+
+    provider_name: str = "broken"
+
+    def get_cross_refs(self, _id: str) -> dict[str, str]:
+        raise KeyError("oops")
+
+    def close(self) -> None:
+        pass
+
+
+class _FailingTransportIDCrossRef:
+    """IDCrossRef-like provider that raises ApiError from ``get_cross_refs()``."""
+
+    provider_name: str = "failing"
+
+    def get_cross_refs(self, _id: str) -> dict[str, str]:
+        raise ApiError(provider="failing", http_status=502, message="upstream unreachable")
+
+    def close(self) -> None:
+        pass
+
+
+def test_cross_ref_propagates_non_transport_exception(build_registry: object) -> None:
+    """A KeyError in get_cross_refs() propagates — it is NOT silently None'd."""
+    broken = _BrokenIDCrossRef()
+    fakes = {"broken": broken}
+    config = ProvidersConfig(
+        Searchable={"broken": 1},
+        IDCrossRef={"broken": 1},
+    )
+    registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
+    match = ProviderMatch(provider=RegistryProviderName("broken"), id="x", media_type=MediaType.MOVIE)
+    with pytest.raises(KeyError, match="oops"):
+        registry.cross_ref(match, target="tmdb")
+
+
+def test_cross_ref_returns_none_on_api_error_and_logs(
+    build_registry: object, caplog: pytest.LogCaptureFixture
+) -> None:
+    """ApiError in get_cross_refs() → returns None + logs at WARNING."""
+    import logging
+
+    caplog.set_level(logging.WARNING)
+    failing = _FailingTransportIDCrossRef()
+    fakes = {"failing": failing}
+    config = ProvidersConfig(
+        Searchable={"failing": 1},
+        IDCrossRef={"failing": 1},
+    )
+    registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
+    match = ProviderMatch(provider=RegistryProviderName("failing"), id="x", media_type=MediaType.MOVIE)
+    result = registry.cross_ref(match, target="tmdb")
+    assert result is None
+    assert any(
+        "registry_cross_ref_failed" in rec.message for rec in caplog.records
+    ), f"Expected registry_cross_ref_failed in log, got: {[r.message for r in caplog.records]}"

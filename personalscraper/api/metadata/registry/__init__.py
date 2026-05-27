@@ -23,7 +23,7 @@ from typing import (
     overload,
 )
 
-from personalscraper.api._contracts import MediaType
+from personalscraper.api._contracts import ApiError, CircuitOpenError, MediaType
 from personalscraper.api.metadata._contracts import (
     ArtworkProvider,
     EpisodeFetcher,
@@ -582,7 +582,13 @@ class ProviderRegistry:
         try:
             xref_dict = source_provider.get_cross_refs(match.id)
             return xref_dict.get(target)
-        except Exception:
+        except (ApiError, CircuitOpenError) as e:
+            log.warning(
+                "registry_cross_ref_failed",
+                source_provider=match.provider,
+                target_provider=target,
+                exc_type=type(e).__name__,
+            )
             return None
 
     # --- Introspection ---
