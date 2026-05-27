@@ -6,7 +6,7 @@
 **Version bump**: 0.15.1 → 0.16.0
 **Branch**: feat/registry
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/LounisBou/personal-scraper/pull/27
 **Design**: docs/features/registry/DESIGN.md
 **Master plan**: docs/features/registry/plan/INDEX.md
 
