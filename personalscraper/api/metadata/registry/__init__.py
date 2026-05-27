@@ -56,6 +56,7 @@ from personalscraper.api.metadata.registry._semantics import (
     LOCKED_CAPABILITIES,
     mode_for,
 )
+from personalscraper.core.circuit import CircuitState
 from personalscraper.logger import get_logger
 
 log = get_logger("registry")
@@ -209,7 +210,7 @@ class ProviderStatus:
     """
 
     provider_name: RegistryProviderName
-    circuit_state: Literal["CLOSED", "OPEN", "HALF_OPEN"]
+    circuit_state: CircuitState
     failure_count_recent: int
     last_success_at: datetime | None
     last_failure_at: datetime | None
@@ -646,12 +647,18 @@ class ProviderRegistry:
         result: dict[str, ProviderStatus] = {}
         for name, provider in self._providers.items():
             circuit = getattr(provider, "circuit", None)
-            state_str = getattr(circuit, "state", "CLOSED") if circuit else "CLOSED"
-            if state_str not in {"CLOSED", "OPEN", "HALF_OPEN"}:
-                state_str = "CLOSED"  # defensive normalization
+            # ``circuit.state`` is a :class:`CircuitState` enum; tests compare
+            # `status[name].circuit_state == CircuitState.HALF_OPEN` directly,
+            # so we keep the enum identity end-to-end instead of stringifying
+            # (the Phase 23 stringify attempt broke the propagation tests).
+            state_obj = getattr(circuit, "state", None) if circuit else None
+            if isinstance(state_obj, CircuitState):
+                state_value = state_obj
+            else:
+                state_value = CircuitState.CLOSED  # defensive normalization
             result[name] = ProviderStatus(
                 provider_name=RegistryProviderName(name),
-                circuit_state=cast(Literal["CLOSED", "OPEN", "HALF_OPEN"], state_str),
+                circuit_state=state_value,
                 failure_count_recent=(getattr(circuit, "failure_count_recent", 0) if circuit else 0),
                 last_success_at=(getattr(circuit, "last_success_at", None) if circuit else None),
                 last_failure_at=(getattr(circuit, "last_failure_at", None) if circuit else None),
