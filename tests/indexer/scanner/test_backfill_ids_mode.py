@@ -240,6 +240,37 @@ def test_backfill_fails_soft_on_provider_exception(conn: sqlite3.Connection) -> 
     assert stats.items_updated == 1
 
 
+def test_backfill_emits_fallback_on_unclassified_provider_exception(conn: sqlite3.Connection) -> None:
+    """Phase 21 (C3) — unclassified Exception in _call_rating_provider emits fallback.
+
+    The broad-except in _call_rating_provider preserves fail-soft return
+    semantics ([]). Phase 21 also routes the bypass through the EventBus
+    so observers see ``ProviderFallbackTriggered(reason='other')`` for
+    parity with the chain-iteration sites in scraper/.
+    """
+    eids = json.dumps({"imdb": {"series_id": "tt0944947"}})
+    _insert_item(conn, title="ValueErrorRow", external_ids_json=eids, ratings_json=None)
+
+    imdb = _named_provider("imdb")
+    imdb.get_rating.side_effect = ValueError("parser drift in OMDb payload")
+    registry = _build_registry_mock(rating_providers=[imdb])
+
+    # Fail-soft contract preserved (no exception, loop completes).
+    stats = run_backfill_ids(conn, event_bus=EventBus(), registry=registry)
+    assert isinstance(stats, BackfillStats)
+
+    # The registry's _emit_provider_fallback helper was called with
+    # reason="other" + exc_type="ValueError" for the rating provider.
+    other_calls = [
+        call for call in registry._emit_provider_fallback.call_args_list if call.kwargs.get("reason") == "other"
+    ]
+    assert other_calls, "Expected ProviderFallbackTriggered(reason='other') emission"
+    matching = [c for c in other_calls if c.kwargs.get("exc_type") == "ValueError"]
+    assert matching, "Expected exc_type='ValueError' in fallback emission"
+    assert matching[0].kwargs.get("capability") == "RatingProvider"
+    assert matching[0].kwargs.get("from_provider") == "imdb"
+
+
 def test_backfill_respects_show_filter(conn: sqlite3.Connection) -> None:
     """``show_filter`` restricts the pass to the matching ``title``."""
     eids = json.dumps({"imdb": {"series_id": "tt0944947"}})

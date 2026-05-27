@@ -13,6 +13,7 @@ from personalscraper.api.metadata._contracts import ArtworkProvider, RatingProvi
 from personalscraper.api.metadata.registry import ProviderMatch, RegistryProviderName
 from personalscraper.api.metadata.registry._events import (
     LockedCapabilityUnresolved,
+    ProviderFallbackTriggered,
     RegistryBootValidated,
     RegistryFanOutCompleted,
 )
@@ -24,6 +25,32 @@ from tests.unit.api.metadata.registry.conftest import (
     FakeSearchable,
     MockEventBus,
 )
+
+
+def test_provider_fallback_triggered_emitted_with_other_reason(build_registry_fakes):
+    """``reason='other'`` fallback dispatches through the bus (Phase 21).
+
+    Drives ``_emit_provider_fallback`` directly with ``reason='other'``
+    — the production chain sites in ``movie_service`` / ``tv_service`` /
+    ``tv_service_episodes`` / ``backfill_ids`` all go through this
+    helper, so this test pins the bus contract that downstream observers
+    rely on (DESIGN §6.2 / §7.4 fallback-on-unclassified semantics).
+    """
+    bus = MockEventBus()
+    registry = build_registry_fakes(
+        fakes={"p1": FakeSearchable(provider_name="p1")},
+        providers_config=ProvidersConfig(Searchable={"p1": 1}),
+        event_bus=bus,
+    )
+    registry._emit_provider_fallback(
+        capability="MovieDetailsProvider",
+        from_provider="p1",
+        reason="other",
+        exc_type="ValueError",
+        item={"title": "x", "year": 2026, "media_type": "movie"},
+    )
+    events = [e for e in bus.emitted if isinstance(e, ProviderFallbackTriggered)]
+    assert any(e.reason == "other" and e.exc_type == "ValueError" for e in events)
 
 
 def test_boot_emits_registry_boot_validated(build_registry_fakes):
