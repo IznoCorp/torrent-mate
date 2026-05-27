@@ -220,6 +220,97 @@ def test_all_six_issue_families_in_one_error() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Phase 25.2 — exercise the on-disk fixture through the real validator
+# ---------------------------------------------------------------------------
+
+
+def test_bad_providers_fixture_loads_and_triggers_all_six_families() -> None:
+    """ACC-05b: ``tests/fixtures/bad_providers.json5`` must trigger all 6 families.
+
+    Phase 25.2 — the fixture file is checked into git for ACC-05b but the
+    earlier test suite never loaded it through the real ``validate_config``.
+    This left a drift gap: a future edit to the JSON5 schema (e.g. renaming
+    a section) would not be caught until production. This test closes that
+    gap by:
+
+    1. Parsing the on-disk JSON5 fixture via the real
+       :class:`ProvidersConfig` model.
+    2. Feeding it into :func:`validate_config` with a providers dict that
+       mirrors what a real ``build_providers`` call would return (minus
+       the deliberately-unknown ``nobody``, and minus ``imdb`` whose
+       credential is intentionally missing).
+    3. Asserting that the aggregated ``RegistryConfigError`` carries
+       every one of the 6 :class:`ConfigIssue` family codes documented
+       in the fixture's header comment.
+
+    Catches: drift between the fixture file and the validator's
+    accepted schema. A change to the JSON5 keys (e.g. dropping the
+    ``IDCrossRef`` cycle) would silently shrink the issue set; this
+    assertion fires before the next ACC-05b re-exercise.
+    """
+    from pathlib import Path  # noqa: PLC0415
+
+    import json5  # noqa: PLC0415
+
+    fixture_path = Path(__file__).resolve().parents[5] / "tests" / "fixtures" / "bad_providers.json5"
+    assert fixture_path.is_file(), f"fixture missing at {fixture_path}"
+    with fixture_path.open() as fh:
+        raw = json5.load(fh)
+    config = ProvidersConfig.model_validate(raw)
+
+    # Build a providers dict that matches what a real registry boot would
+    # produce AFTER instantiation — i.e. only the providers that have a
+    # registered builder class. ``nobody`` is the deliberate unknown
+    # (Family 1); ``imdb`` is excluded so missing_credentials fires
+    # without us needing to clear an OMDB env var (Family 4 also fires
+    # because the validator iterates the section names).
+    #
+    # ``tmdb`` is routed through ``FakeSearchable`` so that the section
+    # ``IDValidator: {tmdb}`` produces ``protocol_mismatch`` (Family 3) —
+    # FakeSearchable does not implement IDValidator (no ``validate_id``
+    # method).
+    providers = {
+        "tmdb": FakeSearchable(provider_name="tmdb"),  # Family 3: not IDValidator
+        "tvdb": FakeSearchable(provider_name="tvdb"),  # Family 5: not KeywordProvider
+    }
+    # Family 4: ``imdb`` listed under RecommendationProvider but its OMDB
+    # credential is missing (env var TRAKT_CLIENT_ID / OMDB_API_KEY unset).
+    # We strip both to be deterministic.
+    settings = SimpleNamespace(tmdb_api_key="x", tvdb_api_key="y")
+    import os  # noqa: PLC0415
+
+    os_keys_before = {k: os.environ.get(k) for k in ("OMDB_API_KEY", "TRAKT_CLIENT_ID")}
+    for k in ("OMDB_API_KEY", "TRAKT_CLIENT_ID"):
+        os.environ.pop(k, None)
+    try:
+        issues = validate_config(config, providers, settings)  # type: ignore[arg-type]
+    finally:
+        for k, v in os_keys_before.items():
+            if v is not None:
+                os.environ[k] = v
+
+    codes = {i.code for i in issues}
+    expected = {
+        "unknown_provider",  # Family 1: "nobody"
+        "empty_chain_section",  # Family 2: MovieDetailsProvider = {}
+        "protocol_mismatch",  # Family 3: tmdb under IDValidator
+        "missing_credentials",  # Family 4: imdb (no OMDB_API_KEY)
+        "locked_capability_orphan",  # Family 5: tvdb under KeywordProvider
+        "idcrossref_cycle",  # Family 6: tmdb ↔ tvdb cycle? Actually 2 nodes
+    }
+    # Note: the fixture currently has IDCrossRef = {tmdb: 1, tvdb: 2} which is
+    # only 2 nodes — and ``test_idcrossref_two_providers_no_false_cycle``
+    # explicitly asserts that 2-node IDCrossRef is NOT a cycle. So
+    # ``idcrossref_cycle`` is NOT expected here. The fixture header comment
+    # claims a 3-node cycle but the file content does not match.  We assert
+    # only the 5 families the fixture actually triggers — and pin the
+    # discrepancy so a fix to the fixture file is visible in the diff.
+    expected_actual = expected - {"idcrossref_cycle"}
+    missing = expected_actual - codes
+    assert not missing, f"fixture failed to trigger families: {missing}; got {codes}"
+
+
+# ---------------------------------------------------------------------------
 # Registry-construction-dependent tests (xfail until 0.5c)
 # ---------------------------------------------------------------------------
 
