@@ -19,6 +19,7 @@
 | 2   | Scraper locked migration                  | phase-02-scraper-locked.md                | [x]    |
 | 3   | Out-of-scraper consumers                  | phase-03-out-of-scraper.md                | [x]    |
 | 4   | Cleanup, observability, docs              | phase-04-cleanup-obs-docs.md              | [x]    |
+| 5   | PR fixes cycle 1                          | phase-05-pr-fixes-cycle-1.md              | [ ]    |
 
 ## Baseline measurements (Phase 0 sub-phase 0.6)
 
@@ -32,8 +33,41 @@ These integers MUST replace the `${...}` placeholders in `ACCEPTANCE.md` (SH-16 
 
 ## Review cycles
 
-_(filled by /implement:pr-review — max 3 cycles)_
+### Cycle 1 — 2026-05-27
+
+Run by `/implement:pr-review` on PR #27 after CI green at `31c6516`.
+
+**Reviewers dispatched (4 parallel agents)**:
+
+- `pr-review-toolkit:code-reviewer` — general quality + CLAUDE.md compliance
+- `pr-review-toolkit:pr-test-analyzer` — coverage of 11 capability Protocols, ACC mappings
+- `pr-review-toolkit:silent-failure-hunter` — fail-loud discipline + EventBus contract
+- `pr-review-toolkit:type-design-analyzer` — frozen dataclasses + Generic + sentinel guard
+
+**Findings retained after DESIGN.md filtering**: 6 critical + 4 major + several deferred minor.
+
+**Critical (must fix)**:
+
+1. `Named.name` Protocol declares `name: ClassVar[str]` but every concrete provider exposes `provider_name` → contract mismatched, `# type: ignore[return-value]` on `get()` hiding the fiction.
+2. `ProviderName` defined twice (Enum in `api/_contracts.py:62` vs NewType in `registry/__init__.py:76`) — incompatible types same name.
+3. `_check_idcrossref_cycles` DFS false-positive on 2-provider config (reports `A→B→A` as cycle from bidirectional implicit edges) — real misconfig-reporting bug.
+4. `fan_out()` always emits `RegistryFanOutCompleted(attempted=[], ...)` regardless of outcome — defeats ACC-08 observability claim.
+5. `cross_ref()` swallows all exceptions silently (broad `except Exception`) — masks real provider errors.
+6. `per_step_boundary` in `cli_helpers/__init__.py` doesn't close ProviderRegistry on exit → HTTP session leak in every standalone CLI step.
+
+**Major (should fix)**: 7. `_eligible(provider)` returns True for providers without `.circuit` (intentional for IMDb/RT façades but the rule is implicit and would also accept a malformed provider with dropped circuit). 8. `commands/library/scan.py` silently skips on `UnknownProviderError` without logging — user gets zero-rows result with no clue. 9. ACC-02 verbatim grep is too broad (catches TYPE_CHECKING + cast() + docstrings). DESIGN §2 goal 7 says "instantiation". Tighten the grep to `rg -e 'TMDBClient\(' -e 'TVDBClient\('` to match design intent. 10. `tests/commands/test_info_providers.py:61-77` — `--config <bad_config>` test mocks `ProviderRegistry` with `side_effect=RegistryConfigError` before file reading, so the bad-config payload is never actually parsed.
+
+**Minor (deferred follow-up — recorded for future fix)**:
+
+- `Mode(str, Enum)` should upgrade to `StrEnum` (Python 3.12+ available, the 3.10 compat shim is stale).
+- `@overload` for `chain()` non-exhaustive (mypy fallback type allows wrong capabilities silently; runtime `WrongSemanticBug` still catches them).
+- `LockedProvider[Any]` loses generic param at `_make_locked` site → `# type: ignore[attr-defined]` at every consumer (`classifier.py:178`, `trailer_finder.py:382`).
+- Autouse fixture `_patch_provider_registry_for_cli_tests` uses substring matching in `skip_paths` — fragile.
+- `ProviderFallbackTriggered` and `ProviderExhaustedEvent` defined in `_events.py` but never emitted in production hot paths (consumers use transitional `registry.get()` not chain iteration in match flows). Document as known limitation; consumer adoption is incremental.
+- `confidence.py` has 5 `list:  # type: ignore[type-arg]` annotations — should be `list[SearchResult]`.
+
+**Decision**: fix the 10 retained findings in a new Phase 5 (`phase-05-pr-fixes-cycle-1.md`). Loop continues to cycle 2 if CI still red after fix push.
 
 ## Next action
 
-All phases complete — run `/implement:feature-pr` to create the pull request.
+Run `/implement:phase` to execute Phase 5 (PR fixes cycle 1).
