@@ -19,7 +19,7 @@
 | 2   | Scraper locked migration                  | phase-02-scraper-locked.md                | [x]    |
 | 3   | Out-of-scraper consumers                  | phase-03-out-of-scraper.md                | [x]    |
 | 4   | Cleanup, observability, docs              | phase-04-cleanup-obs-docs.md              | [x]    |
-| 5   | PR fixes cycle 1                          | phase-05-pr-fixes-cycle-1.md              | [ ]    |
+| 5   | PR fixes cycle 1                          | phase-05-pr-fixes-cycle-1.md              | [x]    |
 
 ## Baseline measurements (Phase 0 sub-phase 0.6)
 
@@ -70,4 +70,4 @@ Run by `/implement:pr-review` on PR #27 after CI green at `31c6516`.
 
 ## Next action
 
-Run `/implement:phase` to execute Phase 5 (PR fixes cycle 1).
+Phase 5 complete. Push fix commits → CI re-poll → `/implement:pr-review` cycle 2 (or merge if no findings).
