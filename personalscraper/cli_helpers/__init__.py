@@ -96,6 +96,7 @@ def per_step_boundary(config: "Config", settings: "Settings") -> Iterator[AppCon
         yield app_context
     finally:
         current_correlation_id.reset(token)
+        app_context.provider_registry.close()
 
 
 def _format_validation(exc: ValidationError) -> str:
