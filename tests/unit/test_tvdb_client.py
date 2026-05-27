@@ -436,3 +436,48 @@ class TestUnsupportedCapabilities:
         """get_notations raises NotImplementedError."""
         with pytest.raises(NotImplementedError, match="notations"):
             client.get_notations("1", "movie")
+
+
+class TestCircuitPropertyIsHttpFree:
+    """Phase 22 / DESIGN §7.6: reading ``TVDBClient.circuit`` is HTTP-free.
+
+    Pre-bootstrap, the breaker doesn't exist yet (it's constructed by
+    :meth:`_ensure_transport` together with the main HttpTransport), so
+    the property returns ``None``. Post-bootstrap, the property returns
+    the same instance the transport uses — no extra HTTP, no extra
+    instantiation.
+    """
+
+    def test_tvdb_circuit_property_no_bootstrap_on_first_access(self) -> None:
+        """Reading ``.circuit`` on a fresh TVDBClient must not call ``_ensure_transport``."""
+        bus = EventBus()
+        client = TVDBClient(api_key="bogus", event_bus=bus)
+
+        bootstrap_calls: list[None] = []
+        original_ensure = TVDBClient._ensure_transport
+
+        def spy(self_: TVDBClient) -> Any:
+            bootstrap_calls.append(None)
+            return original_ensure(self_)
+
+        with patch.object(TVDBClient, "_ensure_transport", spy):
+            result = client.circuit
+
+        assert result is None, "Pre-bootstrap, circuit must be None (lazy breaker)."
+        assert bootstrap_calls == [], "Reading .circuit must not invoke _ensure_transport."
+
+    def test_tvdb_circuit_property_returns_breaker_post_bootstrap(self) -> None:
+        """After ``_ensure_transport`` runs, ``.circuit`` returns the transport's breaker."""
+        client = TVDBClient.__new__(TVDBClient)
+        client._api_key = "fake"  # type: ignore[attr-defined]
+        client._tvdb_lang = "fra"  # type: ignore[attr-defined]
+        client._language = "fr-FR"  # type: ignore[attr-defined]
+        client._circuit_breaker = None  # type: ignore[attr-defined]
+        # Inject a transport carrying a sentinel breaker; the setter mirrors
+        # it into the cache.
+        sentinel_breaker = object()
+        transport = MagicMock()
+        transport._circuit = sentinel_breaker
+        client._transport = transport  # type: ignore[attr-defined]
+
+        assert client.circuit is sentinel_breaker

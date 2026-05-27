@@ -233,13 +233,25 @@ def _eligible(provider: object) -> bool:
     the transport raises NetworkError which the registry catches and falls
     through to the next provider in the same iteration.
 
-    Providers without a ``.circuit`` attribute fall into three categories,
-    only two of which are accepted:
+    **HTTP-free contract (Phase 22)**: reading ``provider.circuit`` MUST
+    NOT trigger network I/O. Providers that defer their CircuitBreaker
+    construction to first HTTP call (e.g. :class:`TVDBClient`, whose
+    breaker is built by the JWT-bootstrap transport) MUST expose
+    ``circuit = None`` pre-bootstrap and mark the class with
+    ``_registry_lazy_circuit: ClassVar[bool] = True`` so this gate treats
+    them as eligible.
+
+    Providers without a ``.circuit`` attribute fall into four categories,
+    only three of which are accepted:
 
     1. **Documented no-circuit providers** (IMDb / RottenTomatoes façades
        whose circuit lives on the shared OMDbAdapter backend) — allowed.
-    2. **Test fakes** (classes with ``_registry_test_fake: ClassVar[bool] = True``) — allowed.
-    3. **Unknown real provider without circuit** — rejected with a warning,
+    2. **Lazy-circuit providers** (classes with
+       ``_registry_lazy_circuit: ClassVar[bool] = True``) — allowed
+       pre-bootstrap; once their transport is built, ``.circuit`` returns
+       the real breaker and the state check applies.
+    3. **Test fakes** (classes with ``_registry_test_fake: ClassVar[bool] = True``) — allowed.
+    4. **Unknown real provider without circuit** — rejected with a warning,
        catching refactor regressions where ``.circuit`` was accidentally
        dropped.
     """
@@ -250,6 +262,9 @@ def _eligible(provider: object) -> bool:
 
     name = getattr(provider, "provider_name", None)
     if name in _NO_CIRCUIT_ALLOWLIST:
+        return True
+
+    if getattr(provider, "_registry_lazy_circuit", False) is True:
         return True
 
     if getattr(provider, "_registry_test_fake", False) is True:

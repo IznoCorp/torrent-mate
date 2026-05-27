@@ -56,6 +56,7 @@ from personalscraper.api.transport._policy import (
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
+    from personalscraper.core.circuit import CircuitBreaker
     from personalscraper.core.event_bus import EventBus
 
 log = get_logger("api.tvdb")
@@ -93,6 +94,12 @@ class TVDBClient(
 
     REQUIRED_CREDS: ClassVar[list[str]] = ["TVDB_API_KEY"]
     provider_name: ClassVar[str] = "tvdb"
+    # Phase 22 (DESIGN §7.6): TVDB defers JWT bootstrap to first HTTP call,
+    # so the CircuitBreaker (which lives on the main HttpTransport) does
+    # not exist before bootstrap. Mark the class so the registry
+    # eligibility gate treats a pre-bootstrap ``circuit is None`` as
+    # eligible rather than warning + rejecting.
+    _registry_lazy_circuit: ClassVar[bool] = True
 
     def __init__(
         self,
@@ -126,6 +133,14 @@ class TVDBClient(
         self._event_bus = event_bus
         # Lazy: built on first access via the _transport property.
         self.__transport: HttpTransport | None = None
+        # Cached reference to the main transport's CircuitBreaker. ``None``
+        # until ``_ensure_transport`` runs the JWT bootstrap and constructs
+        # the main transport (Phase 22 / DESIGN §7.6). Reading
+        # :attr:`circuit` pre-bootstrap returns ``None``, which the
+        # registry eligibility gate treats as eligible via the
+        # ``_registry_lazy_circuit`` marker — eligibility checks never
+        # trigger HTTP.
+        self._circuit_breaker: CircuitBreaker | None = None
 
     def _ensure_transport(self) -> HttpTransport:
         """Run the bootstrap login and build the main transport (idempotent).
@@ -166,6 +181,10 @@ class TVDBClient(
         # Main transport with JWT.
         main_policy = TVDBClient.policy(jwt, circuit=self._circuit_policy)
         self.__transport = HttpTransport(main_policy, event_bus=self._event_bus)
+        # Cache the CircuitBreaker reference so :attr:`circuit` reads it
+        # directly without re-triggering :meth:`_ensure_transport` — see
+        # the ``circuit`` property and DESIGN §7.6 (Phase 22).
+        self._circuit_breaker = self.__transport._circuit
         return self.__transport
 
     @property
@@ -187,21 +206,39 @@ class TVDBClient(
         Several unit tests bypass the bootstrap entirely by constructing
         the client via ``__new__`` and assigning ``client._transport =
         mock``. The setter writes to the cached backing field so those
-        assignments still short-circuit :meth:`_ensure_transport`.
+        assignments still short-circuit :meth:`_ensure_transport`. It also
+        mirrors the cached :attr:`_circuit_breaker` from the new
+        transport (when the mock exposes ``_circuit``) so that
+        :attr:`circuit` reads the injected breaker instead of ``None``.
 
         Args:
             value: The transport (real or mock) to use directly.
         """
         self.__transport = value
+        # Mirror the breaker cache when the injected transport carries one.
+        # Plain MagicMocks return another MagicMock for any attribute, which
+        # is fine — production code paths only assert eligibility on the
+        # CircuitBreaker.state, and tests can override as needed.
+        circuit_ref = getattr(value, "_circuit", None)
+        if circuit_ref is not None:
+            self._circuit_breaker = circuit_ref
 
     @property
-    def circuit(self) -> Any:
+    def circuit(self) -> CircuitBreaker | None:
         """Expose the underlying circuit breaker for external consumers.
 
-        Triggers bootstrap on first access — the circuit breaker lives on
-        the main transport, which only exists after the JWT exchange.
+        Returns ``None`` before the JWT bootstrap has run — the
+        CircuitBreaker is constructed lazily by :meth:`_ensure_transport`
+        on first HTTP access. Reading this property is **HTTP-free**: it
+        only consults the cached reference set by
+        :meth:`_ensure_transport` and never triggers a bootstrap (Phase
+        22, DESIGN §7.6).
+
+        Registry eligibility checks (:func:`_eligible` in
+        ``api.metadata.registry._factory``) treat a ``None`` return from
+        a class marked ``_registry_lazy_circuit = True`` as eligible.
         """
-        return self._transport._circuit
+        return self._circuit_breaker
 
     @classmethod
     def policy(

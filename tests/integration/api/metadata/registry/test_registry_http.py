@@ -580,9 +580,13 @@ class TestHalfOpenProbe:
                 break
         assert registry.status()["tmdb"].circuit_state == CircuitState.HALF_OPEN
 
-        # Probe fails — mock 503 for TMDB, success for TVDB
+        # Probe fails — mock 503 for TMDB, success for TVDB.
+        # Re-register the TVDB bootstrap mock after ``responses.reset()``:
+        # the chain fall-through below is the first TVDB HTTP call, so the
+        # deferred JWT exchange fires here.
         responses.reset()
         mock_tmdb_503_regex()
+        mock_tvdb_bootstrap()
         mock_tvdb_search_success()
 
         providers = registry.chain(Searchable)
