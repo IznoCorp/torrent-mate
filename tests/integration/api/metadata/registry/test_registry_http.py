@@ -720,10 +720,15 @@ class TestFanOutPartial:
         bus = MockEventBusForTest()
         registry = build_registry_fakes(fakes=fakes, providers_config=config, event_bus=bus)
 
-        eligible = registry.fan_out(RatingProvider)
+        registry_result = registry.fan_out(RatingProvider)
+        eligible = registry_result.values
         assert len(eligible) == 2
+        # fan_out itself returns a FanOutResult; the test below additionally
+        # composes a caller-side FanOutResult after exercising the providers
+        # to demonstrate provenance composition over HTTP failures.
+        assert registry_result.attempted == []
 
-        # Caller iterates fan_out, composing FanOutResult
+        # Caller iterates fan_out, composing its own FanOutResult per-call outcomes.
         values: list[Any] = []
         attempted: list[AttemptOutcome] = []
         for p in eligible:

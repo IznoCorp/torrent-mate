@@ -21,16 +21,18 @@ from .conftest import FakeRating, FakeSearchable
 
 
 def test_fan_out_all_eligible_iteration(build_registry: object) -> None:
-    """Every CLOSED/HALF_OPEN RatingProvider must appear in ``fan_out()``."""
+    """Every CLOSED/HALF_OPEN RatingProvider must appear in ``fan_out().values``."""
     fakes = {
         "r1": FakeRating(provider_name="r1", circuit_state="CLOSED"),
         "r2": FakeRating(provider_name="r2", circuit_state="HALF_OPEN"),
     }
     config = ProvidersConfig(RatingProvider={"r1": 1, "r2": 2})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
-    providers = registry.fan_out(RatingProvider)
-    names = [p.provider_name for p in providers]
+    result = registry.fan_out(RatingProvider)
+    names = [p.provider_name for p in result.values]
     assert set(names) == {"r1", "r2"}
+    # No filtered providers => attempted is empty.
+    assert result.attempted == []
 
 
 # ---------------------------------------------------------------------------
@@ -46,9 +48,12 @@ def test_fan_out_excludes_open_circuit(build_registry: object) -> None:
     }
     config = ProvidersConfig(RatingProvider={"r1": 1, "r2": 2})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
-    providers = registry.fan_out(RatingProvider)
-    names = [p.provider_name for p in providers]
+    result = registry.fan_out(RatingProvider)
+    names = [p.provider_name for p in result.values]
     assert names == ["r2"]
+    # r1 was OPEN — recorded in attempted with circuit_open reason.
+    assert [a.provider for a in result.attempted] == ["r1"]
+    assert result.attempted[0].reason == "circuit_open"
 
 
 # ---------------------------------------------------------------------------
@@ -57,23 +62,29 @@ def test_fan_out_excludes_open_circuit(build_registry: object) -> None:
 
 
 def test_fan_out_empty_when_no_eligible(build_registry: object) -> None:
-    """``fan_out()`` returns ``[]`` when no provider is eligible — no error."""
+    """``fan_out().values`` is ``[]`` when no provider is eligible — no error."""
     fakes = {
         "r1": FakeRating(provider_name="r1", circuit_state="OPEN"),
         "r2": FakeRating(provider_name="r2", circuit_state="OPEN"),
     }
     config = ProvidersConfig(RatingProvider={"r1": 1, "r2": 2})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
-    assert registry.fan_out(RatingProvider) == []
+    result = registry.fan_out(RatingProvider)
+    assert result.values == []
+    # Both providers attempted but filtered.
+    assert [a.provider for a in result.attempted] == ["r1", "r2"]
+    assert all(a.reason == "circuit_open" for a in result.attempted)
 
 
 def test_fan_out_empty_when_all_capability_filtered(build_registry: object) -> None:
-    """``fan_out()`` returns ``[]`` when no provider is configured under the section."""
+    """``fan_out().values`` is ``[]`` when no provider is configured under the section."""
     fakes = {"x": FakeSearchable(provider_name="x")}
     # RatingProvider section is empty — no providers under fan_out at all.
     config = ProvidersConfig(Searchable={"x": 1}, RatingProvider={})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
-    assert registry.fan_out(RatingProvider) == []
+    result = registry.fan_out(RatingProvider)
+    assert result.values == []
+    assert result.attempted == []
 
 
 # ---------------------------------------------------------------------------

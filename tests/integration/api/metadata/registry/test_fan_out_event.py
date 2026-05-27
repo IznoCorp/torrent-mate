@@ -61,8 +61,8 @@ def test_fan_out_emits_completed_event_on_success(monkeypatch: pytest.MonkeyPatc
     bus = MockEventBus()
     registry = _build_registry(monkeypatch, fakes=fakes, providers_config=config, event_bus=bus)
 
-    eligible = registry.fan_out(RatingProvider)
-    assert len(eligible) >= 1
+    result = registry.fan_out(RatingProvider)
+    assert len(result.values) >= 1
     assert any(isinstance(e, RegistryFanOutCompleted) for e in bus.emitted)
 
 
@@ -73,6 +73,6 @@ def test_fan_out_emits_completed_event_even_when_empty(monkeypatch: pytest.Monke
     bus = MockEventBus()
     registry = _build_registry(monkeypatch, fakes=fakes, providers_config=config, event_bus=bus)
 
-    eligible = registry.fan_out(RatingProvider)
-    assert eligible == []
+    result = registry.fan_out(RatingProvider)
+    assert result.values == []
     assert any(isinstance(e, RegistryFanOutCompleted) and e.succeeded == 0 for e in bus.emitted)

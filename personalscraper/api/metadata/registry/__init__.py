@@ -407,10 +407,19 @@ class ProviderRegistry:
             result.append(provider)
         return result
 
-    def fan_out(self, capability: type[RatingProvider]) -> list[RatingProvider]:
-        """All eligible providers for fan-out capabilities. May return [].
+    def fan_out(self, capability: type[RatingProvider]) -> FanOutResult[RatingProvider]:
+        """All eligible providers for fan-out capabilities, with provenance.
+
+        Returns a :class:`FanOutResult` carrying:
+
+        * ``values`` — the eligible providers (circuit CLOSED or HALF_OPEN),
+          in config order. May be empty — ``[]`` is not an error.
+        * ``attempted`` — one :class:`AttemptOutcome` per provider that was
+          configured but filtered out (currently only ``reason="circuit_open"``).
 
         Emits ``RegistryFanOutCompleted`` after every call (DESIGN §7.4, §7.5).
+        The bus event continues to fire identically — the dataclass return is
+        for synchronous callers wanting provenance without subscribing.
 
         Raises:
             WrongSemanticBug: if capability is not a fan_out capability.
@@ -453,7 +462,7 @@ class ProviderRegistry:
                 succeeded=len(eligible),
             )
         )
-        return eligible
+        return FanOutResult(values=eligible, attempted=attempted)
 
     @overload
     def locked(
