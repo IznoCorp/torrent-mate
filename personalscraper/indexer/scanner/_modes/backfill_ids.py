@@ -534,6 +534,18 @@ def _fetch_cross_provider_ids(
         # for transport / parse failures, not refactor regressions.
         raise
     except Exception as exc:  # noqa: BLE001 — fail-soft contract
+        # Phase 21 (C3): fail-soft semantics preserved (return {}), but
+        # emit ProviderFallbackTriggered(reason="other") so operators can
+        # observe the bypass on the EventBus instead of having to scrape
+        # logs. AttemptOutcome("other") is not threaded into a chain here
+        # because backfill iterates the canonical provider only.
+        registry._emit_provider_fallback(  # noqa: SLF001 — chain-iteration site
+            capability=capability_name,
+            from_provider=canonical,
+            reason="other",
+            exc_type=type(exc).__name__,
+            item=item_context,
+        )
         log.warning(
             "backfill_cross_ref_fetch_failed",
             canonical=canonical,
@@ -624,15 +636,36 @@ def _fetch_ratings(
 
     fan_out_result = registry.fan_out(RatingProvider)  # type: ignore[type-abstract]
     entries: list[dict[str, Any]] = []
+    rating_item_context: dict[str, Any] = {
+        "title": row["title"],
+        "kind": row["kind"],
+        "item_id": row["id"],
+        "imdb_id": imdb_id,
+    }
     for provider in fan_out_result.values:
         source = getattr(provider, "provider_name", type(provider).__name__)
         if source not in gap.missing_rating_sources:
             continue
-        entries.extend(_call_rating_provider(provider, imdb_id, source))
+        entries.extend(
+            _call_rating_provider(
+                provider,
+                imdb_id,
+                source,
+                registry=registry,
+                item_context=rating_item_context,
+            )
+        )
     return entries
 
 
-def _call_rating_provider(provider: RatingProvider, provider_id: str, source: str) -> list[dict[str, Any]]:
+def _call_rating_provider(
+    provider: RatingProvider,
+    provider_id: str,
+    source: str,
+    *,
+    registry: ProviderRegistry | None = None,
+    item_context: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     """Call ``provider.get_rating`` returning serialisable dicts or an empty list.
 
     Args:
@@ -642,6 +675,13 @@ def _call_rating_provider(provider: RatingProvider, provider_id: str, source: st
             façades.
         source: The provider's ``provider_name`` (cached by the caller
             to avoid the attribute lookup twice).
+        registry: Registry handle used to emit
+            :class:`ProviderFallbackTriggered` when the provider raises
+            an unclassified exception (Phase 21 C3). Optional to keep
+            legacy unit-test call sites that pass positional args only
+            working unchanged.
+        item_context: Item context (title / kind / item_id / imdb_id)
+            attached to the fallback event for observers.
 
     Raises:
         OmdbQuotaExhausted: Propagated unchanged so the outer loop can
@@ -683,6 +723,17 @@ def _call_rating_provider(provider: RatingProvider, provider_id: str, source: st
         # (network, parser drift, KeyError on a malformed OMDb row) is
         # logged with full provider context here so the outer
         # ``backfill_item_failed`` entry stays a structured one-liner.
+        # Phase 21 (C3): also emit ProviderFallbackTriggered(reason="other")
+        # so the EventBus signals the bypass, matching the chain-site
+        # parity goal. Fail-soft return semantics preserved.
+        if registry is not None:
+            registry._emit_provider_fallback(  # noqa: SLF001 — chain-iteration site
+                capability="RatingProvider",
+                from_provider=source,
+                reason="other",
+                exc_type=type(exc).__name__,
+                item=item_context or {"provider_id": provider_id},
+            )
         log.warning(
             "backfill_rating_call_failed",
             source=source,
