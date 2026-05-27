@@ -304,6 +304,60 @@ modules never import from pipeline). `core/` and `conf/` are used by everything
 and depend on nothing in the project. `api/` is consumed by `scraper/` and
 `trailers/` but never by `commands/` directly.
 
+## Provider Registry
+
+Capability-keyed, circuit-aware metadata provider dispatch. Introduced in 0.16.0
+(feat/registry). Replaces the historical hard-coded `self._tmdb` / `self._tvdb`
+pattern with a configurable ordered registry per capability Protocol.
+
+### Module layout
+
+`personalscraper/api/metadata/registry/`:
+
+- `__init__.py` — public `ProviderRegistry` class (chain / fan_out / locked / get / cross_ref / status / operations / providers_for / close) + data structures (Mode, ProviderMatch, LockedProvider, AttemptOutcome, ProviderStatus, ConfigIssue, FanOutResult, Named).
+- `_errors.py` — exception hierarchy (RegistryError, RegistryConfigError, UnknownProviderError, ProviderExhausted, WrongSemanticBug).
+- `_events.py` — five EventBus event dataclasses (ProviderFallbackTriggered, ProviderExhaustedEvent, LockedCapabilityUnresolved, RegistryFanOutCompleted, RegistryBootValidated).
+- `_semantics.py` — capability→Mode mapping (CHAIN / FAN_OUT / LOCKED / DIRECT capability sets, CAPABILITY_KEYS, mode_for()).
+- `_factory.py` — provider builders (TMDB, TVDB, IMDb, OMDb, Trakt, RottenTomatoes), `build_providers()`, `_eligible()`.
+- `_validation.py` — boot validation: 6 ConfigIssue families aggregated (missing_credentials, protocol_mismatch, unknown_provider, empty_chain_section, locked_capability_orphan, idcrossref_cycle).
+
+### Boot sequence (DESIGN §6.1)
+
+`AppContext._build_app_context()` constructs the registry at the CLI/pipeline boundary:
+
+1. Instantiate each provider listed in any `providers.json5` section.
+2. Validate (aggregated): all 6 issue families collected; on any failure, `RegistryConfigError` raised AFTER cleanup of partially-built providers.
+3. Build the per-capability index from the priority-ordered config.
+4. Emit `RegistryBootValidated` on success.
+
+### Three operations
+
+- `chain(capability)` — ordered list of eligible providers (CLOSED or HALF_OPEN). For chain capabilities (Searchable, MovieDetailsProvider, TvDetailsProvider, EpisodeFetcher).
+- `fan_out(capability)` — all eligible providers, in config order. For aggregation capabilities (RatingProvider). Always emits `RegistryFanOutCompleted`.
+- `locked(capability, match)` — provider bound to the match's id, with `IDCrossRef` escape for cross-provider id translation. For identity-locked capabilities (ArtworkProvider, KeywordProvider, VideoProvider, RecommendationProvider).
+
+### Configuration
+
+`config/providers.json5` (one overlay file in the Config bundle):
+
+```json5
+{
+  providers: {
+    Searchable: { tvdb: 1, tmdb: 2 },
+    MovieDetailsProvider: { tmdb: 1, tvdb: 2 },
+    // ... 11 capability sections total
+  },
+}
+```
+
+Lower priority number = higher precedence. `extra="forbid"` strict — unknown
+sections rejected at boot.
+
+### Introspection
+
+`registry.status()` returns per-provider circuit state. Exposed via
+`personalscraper info providers`.
+
 ## Anti-decisions (out of scope for 1.0)
 
 These were considered and explicitly deferred past 1.0. Re-opening any of these

@@ -50,3 +50,40 @@ If NFO is valid but artwork is missing, scraper extracts TMDB ID from the NFO an
 ## MediaElch
 
 External metadata scraper — used as manual fallback. Claude does not interact with it directly.
+
+## Three semantics (Provider Registry)
+
+The provider registry imposes the correct semantic per capability — a user CANNOT
+change a capability's mode through config, only the ordered provider list.
+
+| Mode    | Protocols                                                                       | Behavior                                                                                                                  | Return on exhaustion         |
+| ------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| chain   | `Searchable`, `MovieDetailsProvider`, `TvDetailsProvider`, `EpisodeFetcher`     | Try providers in config order; first usable result wins.                                                                  | `raise ProviderExhausted`    |
+| fan_out | `RatingProvider`                                                                | Call all eligible providers; aggregate results.                                                                           | Return empty list (no error) |
+| locked  | `ArtworkProvider`, `KeywordProvider`, `VideoProvider`, `RecommendationProvider` | Use the provider that produced the original match. If it lacks the capability, translate the match's id via `IDCrossRef`. | Return `None`                |
+| direct  | `IDValidator`, `IDCrossRef`                                                     | No semantic — dispatched by explicit provider name (`registry.get("tmdb").validate(id)`).                                 | N/A                          |
+
+### Fallback triggers (chain)
+
+A provider is skipped in `chain` iteration when:
+
+1. **Circuit OPEN** — circuit breaker for the provider is open (logged DEBUG `registry_provider_skip` reason="circuit_open").
+2. **Network exception** — timeout, 5xx, refused connection (logged WARNING `registry_provider_fail`).
+3. **Empty result** — provider returns 200 with no candidates (logged DEBUG `registry_provider_skip` reason="empty_result").
+
+Fuzzy-score-below-threshold and incomplete-field handling stay in the scrape layer
+(domain logic), NOT at the registry. The registry's fallback triggers are
+deterministic.
+
+### Half-open eligibility
+
+`HALF_OPEN` circuit state is treated as **eligible** by `chain` and `fan_out` (probe
+semantics). The underlying `HttpTransport` lets exactly one request through; if it
+fails, the transport raises `NetworkError`, the registry catches it and falls
+through to the next provider in the same iteration. Do NOT exclude HALF_OPEN
+providers — that defeats the probe.
+
+### Configuration reference
+
+See `docs/reference/architecture.md#provider-registry` for the module layout and
+`config.example/providers.json5` for the user-facing config shape.
