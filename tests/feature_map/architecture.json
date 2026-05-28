@@ -116,6 +116,12 @@
       "category": "documentation_only",
       "reason": "State ownership table — design principle enforced by the pipeline lock and single-writer discipline in code review, not a standalone automated contract.",
       "expires": "2028-05-08"
+    },
+    {
+      "anchor": "see-also",
+      "category": "documentation_only",
+      "reason": "Phase 24 (registry docs rollout) — reference section linking to related docs. Not a behavior reachable from a single public function. Promote to a contract test if regressions surface.",
+      "expires": "2028-05-28"
     }
   ]
 }

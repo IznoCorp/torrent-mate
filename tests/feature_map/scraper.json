@@ -83,6 +83,54 @@
       "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 6 — section is documentation/reference (auth invariant tables, response shapes) rather than a behavior reachable from the public scraper API. Promote to a contract test if a regression surfaces.",
       "expires": "2028-05-08"
+    },
+    {
+      "anchor": "capability-cookbook",
+      "category": "documentation_only",
+      "reason": "Phase 24 (registry docs rollout) — reference section covering capability cookbook for registry providers. Examples are illustrative; each capability is tested independently through integration tests. Promote to a contract test if regressions surface.",
+      "expires": "2028-05-28"
+    },
+    {
+      "anchor": "example-1--chainsearchable-search-a-title-across-providers",
+      "category": "documentation_only",
+      "reason": "Phase 24 (registry docs rollout) — illustrative example of ChainSearchable. Behavior covered by test_registry_chain.py integration tests. Promote to a contract test if regressions surface.",
+      "expires": "2028-05-28"
+    },
+    {
+      "anchor": "example-2--chainmoviedetailsprovider-fetch-details-with-fallback",
+      "category": "documentation_only",
+      "reason": "Phase 24 (registry docs rollout) — illustrative example of ChainMovieDetailsProvider. Behavior covered by test_registry_chain.py integration tests. Promote to a contract test if regressions surface.",
+      "expires": "2028-05-28"
+    },
+    {
+      "anchor": "example-3--fan_outratingprovider-aggregate-ratings",
+      "category": "documentation_only",
+      "reason": "Phase 24 (registry docs rollout) — illustrative example of FanOutRatingProvider. Behavior covered by test_registry_fan_out.py integration tests. Promote to a contract test if regressions surface.",
+      "expires": "2028-05-28"
+    },
+    {
+      "anchor": "example-4--lockedartworkprovider-match-identity-locked-fetch",
+      "category": "documentation_only",
+      "reason": "Phase 24 (registry docs rollout) — illustrative example of LockedArtworkProvider. Behavior covered by test_registry_locked.py integration tests. Promote to a contract test if regressions surface.",
+      "expires": "2028-05-28"
+    },
+    {
+      "anchor": "example-5--cross_refmatch-targettvdb-translate-provider-ids",
+      "category": "documentation_only",
+      "reason": "Phase 24 (registry docs rollout) — illustrative example of CrossRefMatch. Behavior covered by test_registry_locked.py and test_registry_chain.py integration tests. Promote to a contract test if regressions surface.",
+      "expires": "2028-05-28"
+    },
+    {
+      "anchor": "example-6--gettmdb-direct-dispatch-for-unscoped-capabilities",
+      "category": "documentation_only",
+      "reason": "Phase 24 (registry docs rollout) — illustrative example of GetTMDb direct dispatch. Behavior covered by test_registry_get.py unit tests. Promote to a contract test if regressions surface.",
+      "expires": "2028-05-28"
+    },
+    {
+      "anchor": "see-also",
+      "category": "documentation_only",
+      "reason": "Phase 24 (registry docs rollout) — reference section linking to related docs. Not a behavior reachable from a single public function. Promote to a contract test if regressions surface.",
+      "expires": "2028-05-28"
     }
   ]
 }

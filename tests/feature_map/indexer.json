@@ -188,6 +188,36 @@
       "category": "documentation_only",
       "reason": "State machine diagram for media_file lifecycle — reference documentation, not a standalone automated contract.",
       "expires": "2028-05-08"
+    },
+    {
+      "anchor": "cli-wiring",
+      "category": "documentation_only",
+      "reason": "Phase 24 (registry docs rollout) — reference section covering CLI wiring for the indexer. Not a behavior reachable from a single public function. Promote to a contract test if regressions surface.",
+      "expires": "2028-05-28"
+    },
+    {
+      "anchor": "failure-semantics",
+      "category": "documentation_only",
+      "reason": "Phase 24 (registry docs rollout) — reference section covering failure semantics. Promote to a contract test if regressions surface.",
+      "expires": "2028-05-28"
+    },
+    {
+      "anchor": "registry-integration",
+      "category": "documentation_only",
+      "reason": "Phase 24 (registry docs rollout) — reference section covering registry integration. Promote to a contract test if regressions surface.",
+      "expires": "2028-05-28"
+    },
+    {
+      "anchor": "see-also",
+      "category": "documentation_only",
+      "reason": "Phase 24 (registry docs rollout) — reference section linking to related docs. Not a behavior reachable from a single public function. Promote to a contract test if regressions surface.",
+      "expires": "2028-05-28"
+    },
+    {
+      "anchor": "what-backfill_ids-does-with-the-registry",
+      "category": "documentation_only",
+      "reason": "Phase 24 (registry docs rollout) — reference section covering what backfill_ids does with the registry. Promote to a contract test if regressions surface.",
+      "expires": "2028-05-28"
     }
   ]
 }
