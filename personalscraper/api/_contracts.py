@@ -121,22 +121,36 @@ class ApiError(Exception):
 
 
 @runtime_checkable
-class HasName(Protocol):
+class Named(Protocol):
     """Capability marker exposing a stable ``provider_name`` identifier.
 
     Every API client — metadata, tracker, torrent, notify — declares its
     canonical lowercase name via a class-level ``provider_name`` attribute.
-    This protocol lets helpers (``gather_ratings``, ``gather_cross_refs``)
-    filter heterogeneous provider collections without importing concrete
-    client classes.
+    This protocol lets helpers (``gather_ratings``, ``gather_cross_refs``,
+    ``ProviderRegistry.get`` / ``providers_for``) filter heterogeneous
+    provider collections without importing concrete client classes.
 
     The attribute holds the wire string (e.g. ``"tmdb"``) rather than the
-    :class:`ProviderName` enum member so that ``HasName`` stays agnostic of
+    :class:`ProviderName` enum member so that ``Named`` stays agnostic of
     the enum and remains satisfied by both ``str`` and ``ProviderName``
     values — ``ProviderName`` inherits from ``str``.
+
+    History: this Protocol was introduced twice — once here (originally
+    ``HasName``) for the api/ layer, once in ``api/metadata/registry/``
+    (as ``Named`` with ``ClassVar[str]``). PR review cycle 4 (finding I6)
+    consolidated the two into this single ``@runtime_checkable`` Protocol
+    living in the api/ contract layer; the registry now re-imports it.
+    Declaring ``provider_name: str`` (not ``ClassVar[str]``) matches both
+    instance-attribute and class-attribute providers — class attributes
+    structurally satisfy a Protocol that declares an instance attribute.
     """
 
     provider_name: str
+
+
+# Backward-compatibility alias for any external caller that still imports
+# the pre-cycle-4 name. The canonical name is :class:`Named`.
+HasName = Named
 
 
 class CircuitOpenError(Exception):

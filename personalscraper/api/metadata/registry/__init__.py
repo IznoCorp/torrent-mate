@@ -14,17 +14,15 @@ from enum import StrEnum
 from typing import (
     TYPE_CHECKING,
     Any,
-    ClassVar,
     Generic,
     Literal,
     NewType,
-    Protocol,
     TypeVar,
     cast,
     overload,
 )
 
-from personalscraper.api._contracts import ApiError, CircuitOpenError, MediaType
+from personalscraper.api._contracts import ApiError, CircuitOpenError, MediaType, Named
 from personalscraper.api.metadata._contracts import (
     ArtworkProvider,
     EpisodeFetcher,
@@ -113,22 +111,19 @@ _INTERNAL_TOKEN = object()
 RegistryProviderName = NewType("RegistryProviderName", str)
 
 # ---------------------------------------------------------------------------
-# Named Protocol
+# Named Protocol — re-exported from ``api._contracts``
 # ---------------------------------------------------------------------------
-
-
-class Named(Protocol):
-    """Every concrete provider exposes a stable string identifier.
-
-    ``provider_name`` matches the config key (e.g. ``"tmdb"``, ``"tvdb"``) and is used
-    in diagnostic events, logs, and the introspection API. The attribute name
-    mirrors the ``provider_name: ClassVar[str]`` declared on the concrete
-    ``MetadataClient`` family (see ``personalscraper/api/metadata/_base.py``)
-    so the structural Protocol matches at type-check time without ``cast``s
-    or ``type: ignore`` escape hatches.
-    """
-
-    provider_name: ClassVar[str]
+#
+# The ``Named`` Protocol was originally declared here as a registry-local
+# duplicate of the api/-layer ``HasName`` Protocol. PR review cycle 4
+# (finding I6) consolidated the two into one ``@runtime_checkable`` Protocol
+# in :mod:`personalscraper.api._contracts`. ``Named`` is re-exported above
+# (via the ``from ... import Named`` at the top of this module) so that
+# registry callers keep their existing import path; type narrowing in
+# ``get()`` / ``providers_for()`` still uses ``cast(Named, ...)`` because
+# ``self._providers`` is typed as ``dict[str, object]`` and the runtime
+# structural check is unnecessary — boot validation guarantees every
+# registered provider declares ``provider_name``.
 
 
 # ---------------------------------------------------------------------------
