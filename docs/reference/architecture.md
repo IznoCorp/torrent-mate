@@ -300,8 +300,13 @@ Cross-cutting:
 **Dependency direction.** Dependencies flow top-down: `commands/` calls into
 `pipeline/`, `library/`, `scraper/`, and `trailers/`. The pipeline composes
 `library/` and `scraper/` — the reverse never happens (library and scraper
-modules never import from pipeline). `core/` and `conf/` are used by everything
-and depend on nothing in the project. `api/` is consumed by `scraper/` and
+modules never import from pipeline). `core/` and `conf/` are meant to be
+foundational, but the rule currently leaks (verified 2026-05-28):
+`core/circuit.py` imports `api._contracts` (`CircuitOpenError`, `ApiError`),
+`conf/classifier.py` and `conf/models/api_config.py` import `api/`, and
+`conf/loader.py` imports `indexer.db._apply_pragmas` — upward dependencies that
+invert the documented direction. Closing these leaks is tracked as
+`arch-cleanup-2` (see `ROADMAP.md` P1). `api/` is consumed by `scraper/` and
 `trailers/` but never by `commands/` directly.
 
 ## Provider Registry
@@ -378,17 +383,21 @@ time proposing what was already declined.
 - **No microservices.** Single Python process. The pipeline runs end-to-end
   in-tree; the BDD is local SQLite. Splitting into services trades clarity for
   operability cost we don't yet have a reason to pay.
-- **No network server / web UI.** CLI is the only interface. No FastAPI, no
-  Flask, no embedded server. (Future: a read-only dashboard MAY be considered
-  in 2.x but is NOT promised.)
+- **No network server / web UI _in 1.0_.** The CLI is the only interface for
+  1.0 — no FastAPI, no Flask, no embedded server in-tree today. A Web Management
+  UI is now a planned post-1.0 feature (see `ROADMAP.md` P2 — Web Management UI),
+  with `arch-cleanup-2` landing the event-contract prerequisites first.
 - **No authentication / multi-user.** Single operator on a single machine.
   Files inherit OS permissions; the BDD is owned by the running user.
 - **No plugin loader.** Scrapers and torrent clients are configured via
   `config/*.json5`, not loaded from a plugin directory. Adding a provider =
   editing source.
-- **No cloud / no remote storage.** Storage is local NTFS via macFUSE
-  (Apple Silicon). Backup is the operator's responsibility (rsync, snapshot,
-  Backblaze, ...). No S3 / Glacier / cold-storage tier abstraction.
+- **No cloud / no remote storage.** Storage is local, directly-attached disks.
+  Today that is NTFS via macFUSE (Apple Silicon); multi-filesystem support
+  (APFS / HFS+ on AppleRAID / ext4 / exFAT) is a planned feature (see
+  `ROADMAP.md` P2 — Multi-Filesystem Support). Backup is the operator's
+  responsibility (rsync, snapshot, Backblaze, ...). No S3 / Glacier /
+  cold-storage tier abstraction, and no network filesystems (NFS/SMB).
 - **No web scraping fallback.** Metadata comes from typed provider APIs
   (TMDB / TVDB / OMDB / Trakt). MediaElch is the manual fallback when API
   matching fails — there is no HTML scraping codepath.

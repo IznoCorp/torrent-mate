@@ -1,59 +1,63 @@
 # ROADMAP — PersonalScraper
 
 > Future ideas. Each item gets its own brainstorming session before implementation.
-> Priority scale: **P0** (critical — blocks other items & must be next) → **P3** (stretch — nice to have, no urgency).
+> Priority scale: **P1** (high — unblocks major features, do next) → **P3** (stretch — nice to have, no urgency).
+> Shipped work is **not** tracked here — see `CHANGELOG.md` and `docs/archive/features/`.
 
 ---
 
-## P0 — Critical Path (do next, unblocks multiple downstream items)
+## P1 — High Priority (do next, unblocks major features)
 
-> _All P0 items completed in 0.11.0. See "Completed" section for the api-unify summary._
+### P1 — Architecture Cleanup Round 2 (`arch-cleanup-2`)
 
----
+> Design: `docs/features/arch-cleanup-2/DESIGN.md` _(to be written)_. Source analysis: `docs/analysis/05-architecture-improvement-roadmap.md`.
 
-## P1 — High Priority (next after P0, unblocks major features)
-
-> _Pipeline Observer Protocol (v0.13.0), Event Bus (v0.14.0), Multi-Provider IDs
-> Propagation (v0.15.1) all shipped — see "Completed" section. **Tech-debt
-> (0.16.0)** is currently in progress on `fix/tech-debt` (Phases 0-7 + 5.9-5.12 done,
-> Phases 8/9/10 remaining)._
-
-### P1 — Provider Registry (Scraper Orchestrator Decoupling)
-
-`scraper/orchestrator.py` hardcodes `self._tmdb` and `self._tvdb` with ad-hoc fallback logic ("if TMDB circuit open, skip" — line 151; "if both circuits open, skip" — line 224). Adding a new metadata provider (IMDB, SensCritique from the ROADMAP matrix) requires modifying the orchestrator directly.
-
-**Blocked by this refactor**: Third-Party API Consumer Unification (the unified clients need a registry to plug into), provider matrix expansion.
+The original `arch-cleanup` (v0.9.0) decomposed the god-modules. This second round fixes the
+architectural defects that block the web-facing roadmap (Web UI / Watcher / Auto-Download) and
+collapses residual horizontal coupling. The code is structurally healthier than the older
+ROADMAP/`architecture.md` claimed — these are targeted, low-risk enablers, not a rewrite.
 
 **Goals**
 
-- `ProviderRegistry` class mapping provider name → `MetadataProvider` instance, ordered by per-use-case priority from config.
-- Orchestrator iterates over the ordered registry instead of referencing `self._tmdb` / `self._tvdb` directly.
-- Circuit-breaker awareness: the registry skips providers whose circuit is open, tries next in priority order.
-- Config-driven: `series_scraping: { tvdb: 1, tmdb: 2, imdb: 3 }` → orchestrator picks TVDB first, falls back to TMDB, then IMDB.
+- Bring the 5 registry events (`ProviderFallbackTriggered`, `ProviderExhaustedEvent`, `LockedCapabilityUnresolved`, `RegistryFanOutCompleted`, `RegistryBootValidated`) onto the base `Event` contract so they round-trip through envelope serialization and reach base-`Event` subscribers.
+- Add a `schema_version` field to the `Event` envelope before the first cross-process consumer (Web UI / Watcher) exists.
+- Fix the dependency-direction leak: `core/` and `conf/` import upward into `api/` + the logger, inverting the documented acyclic direction.
+- Promote `sorter.file_type.VIDEO_EXTENSIONS` / `FileType` to a neutral home — it is imported by 11 non-`sorter` subpackages across 23 import lines; this turns `sorter` back into a pure pipeline step.
 
 **Non-goals**
 
-- Runtime provider hot-swap.
-- Provider health scoring beyond the existing circuit breaker.
+- The heavy library/indexer fold (separate `lib-fold` entry).
+- A full DI framework (see P3 DI Container).
 
-### P1 — Library / Indexer Consolidation
+### P1 — Library / Indexer Consolidation (`lib-fold`)
 
-Two scanner subsystems coexist: `library/scanner.py` (726 LOC) and `indexer/scanner/` (4000+ LOC). The library scanner walks disks and writes results to the indexer DB — duplicating walk logic that the indexer scanner already has. The `library/` module totals 4565 LOC with significant overlap against `indexer/` (scanner, analyzer vs enrich mode, validator vs verify, cleaner vs dedup).
+> Design: `docs/features/lib-fold/DESIGN.md` _(to be written)_. Source analysis: `docs/analysis/01-library-indexer-consolidation.md`.
 
-This is the largest remaining source of architectural dual-mental-model complexity, a direct remnant noted in the arch-cleanup DESIGN (§4 — "dual mental models that have accumulated: library-scan, media_index.json").
+**Premise correction (verified 2026-05-28):** `library/scanner.py` does **not** duplicate the
+indexer walk — `scan_library()` walks only at media-directory granularity, then delegates the
+recursive file walk to `indexer.scanner.scan(mode=ScanMode.full)` (`library/scanner.py:38-39,997`).
+The real consolidation problem is narrower and concrete:
+
+- **Two `media_item` writers** that must be reconciled: `library/scanner.py:691` (`_item_repo.upsert` — rich rows with seasons/episodes/`canonical_provider`) and `dispatch/media_index.py` (`MediaIndex.rebuild` — minimal cache rows, `canonical_provider=None`, auto-rebuilt on empty DB).
+- **Two MediaInfo backends**: ffprobe in `library/analyzer.py` vs pymediainfo in `indexer/scanner/_modes/enrich.py`, both persisting to `media_stream` (a documented HDR/Atmos fidelity gap exists between them).
+- **Divergent season-directory regexes** duplicated across `indexer/` + `trailers/` instead of a single `naming_patterns` SSOT.
+- **`canonical_provider` extraction** duplicated between `library/scanner.py` and the indexer backfill path (guards the 194-show regression).
+
+Actual `library/` package (8 modules): `analyzer.py`, `disk_cleaner.py`, `models.py`,
+`recommender.py`, `reporter.py`, `rescraper.py`, `scanner.py`, `validator.py`.
 
 **Goals**
 
-- Deprecate `library/scanner.py` — its functionality is subsumed by `indexer/scanner` (full mode + quick mode).
-- Merge `library/analyzer.py` (ffprobe deep scan) into `indexer/scanner/_modes/enrich.py` as an optional enrich sub-step.
-- Move `library/recommender.py` and `library/reporter.py` to a new `insights/` package — a read-only query layer on top of the indexer DB.
-- Move `library/validator.py` checks into `verify/checker.py` or the verify check plugin system (see P2).
-- Move `library/disk_cleaner.py` into `process/` or `indexer/repair.py`.
-- Remove the `library/` package entirely once all consumers are migrated.
+- Fold rich `media_item`/`season`/`episode` creation into a unified indexer scan stage; reconcile the `dispatch/media_index.py` minimal-row writer.
+- Merge `library/analyzer.py` (ffprobe) into `enrich.py` — resolve the HDR/Atmos gap or accept it explicitly (no migration script; evolve in place).
+- Move `library/recommender.py` + `library/reporter.py` into a read-only `insights/` package over the indexer DB.
+- Re-home `library/validator.py` as a `verify/` check plugin — **not inline** into `verify/checker.py` (already 713 non-blank LOC, near the 800 advisory ceiling).
+- Re-home `library/disk_cleaner.py` (filesystem `rmtree`) into a new `maintenance/` module — **not** `indexer/repair.py` (which is DB-only).
+- Remove the `library/` package once all consumers are migrated (residual-import grep gate).
 
 **Non-goals**
 
-- Removing any CLI commands — `library-index`, `library-search`, `library-report`, etc. keep working, they just import from the new locations.
+- Removing any CLI commands — `library-index`, `library-search`, `library-report`, etc. keep working from new locations.
 - Changing the indexer schema.
 
 ---
@@ -76,7 +80,7 @@ Web-based graphical interface to pilot and supervise the whole project from a br
 - **Architecture pointers** (to decide during brainstorm): FastAPI / Flask + HTMX vs. SPA (Vue/React) + REST/WebSocket; auth (local-only vs. basic auth); reverse-proxy friendly (sub-path deploy behind `iznogoudatall.xyz`).
 - **Out of scope (v1)**: multi-user, remote-agent control, mobile-specific UX.
 
-**Depends on:** Pipeline Observer Protocol (P1), Event Bus (P1), Third-Party API Consumer Unification (P0).
+**Depends on:** Pipeline Observer Protocol (shipped v0.13.0), Event Bus (shipped v0.14.0), Third-Party API Consumer Unification (shipped v0.11.0). Prerequisite: `arch-cleanup-2` (Event contract + envelope `schema_version`).
 
 ### P2 — Auto-Download System
 
@@ -88,7 +92,7 @@ Automatic torrent download pipeline with tracker API integration.
 - Connect the library recommendation list to auto-download for library renewal.
 - Override rules by criteria: studio, director, franchise, title, IMDB ID.
 
-**Depends on:** Third-Party API Consumer Unification (P0), Provider Registry (P1).
+**Depends on:** Third-Party API Consumer Unification (shipped v0.11.0), Provider Registry (shipped v0.16.0).
 
 ### P2 — Watcher Service
 
@@ -98,17 +102,17 @@ Replace cron-based pipeline trigger with a real-time watcher service.
 - Triggers `personalscraper run` automatically on new downloads.
 - More responsive than the current 3am daily cron.
 
-**Depends on:** Event Bus (P1), Pipeline Observer Protocol (P1).
+**Depends on:** Event Bus (shipped v0.14.0), Pipeline Observer Protocol (shipped v0.13.0). Prerequisite: `arch-cleanup-2` (cross-process event envelope).
 
 ### P2 — Verify Checker Plugin System
 
-`verify/checker.py` (621 LOC) is a monolithic file containing all pre-dispatch validation checks. Adding a new check (e.g., a new media type, a new quality rule) requires modifying the file directly. A plugin architecture makes checks independently testable, extensible, and discoverable by the Web UI.
+`verify/checker.py` (822 LOC, 713 non-blank) is a monolithic file containing all pre-dispatch validation checks. Adding a new check (e.g., a new media type, a new quality rule) requires modifying the file directly. A plugin architecture makes checks independently testable, extensible, and discoverable by the Web UI. This is also the landing zone for `library/validator.py` (see `lib-fold`).
 
 **Goals**
 
 - `Check` Protocol: `severity: Severity`, `category: str`, `check(item: Path, config: Config) -> CheckResult`.
 - `CheckRegistry` — checks auto-register via a decorator or entry point.
-- Each existing check group (NFO validity, artwork presence, naming conventions, stream details, genre categorization, file size) becomes its own plugin file under `verify/checks/`.
+- Each existing check group (NFO validity, artwork presence, naming conventions, stream details, genre categorization, file size, the Phase 30 `no_duplicate_videos` movie check) becomes its own plugin file under `verify/checks/`.
 - Web UI can list available checks, run them individually, and display per-check results.
 - CLI gets `personalscraper verify --check nfo_validity` granular invocation.
 
@@ -127,7 +131,28 @@ Find SXXEXX for episodes missing season/episode numbers via reverse scraping on 
 - **CLI**: `personalscraper resolve-episodes <path>` — standalone, not integrated into the automated pipeline.
 - **Codebase**: inspired by the `TVDBNameToNum.py.bak` script (interactive TVDB v3 interface, name cleaning/normalization, fuzzy matching).
 
-**Depends on:** Provider Registry (P1) for clean provider fallback.
+**Depends on:** Provider Registry (shipped v0.16.0) for clean provider fallback.
+
+### P2 — Multi-Filesystem Support (`multi-filesystem`)
+
+> Design: `docs/features/multi-filesystem/DESIGN.md` _(to be written)_. Source analysis: `docs/analysis/04-filesystem-decoupling-macfuse-ntfs.md`.
+
+Today NTFS-via-macFUSE behaviour is hardcoded in the transfer layer and filesystem-type
+detection is duplicated across three independent `mount`-parsers. The next storage target is
+**HFS+ on AppleRAID** (native macOS, full POSIX perms, no macFUSE), and the goal is to support
+every mainstream filesystem (APFS, HFS+, ext4, exFAT, NTFS) without losing current behaviour.
+
+**Goals**
+
+- Consolidate the three `mount`-parsers (`indexer/db.py`, `indexer/scanner/_spotlight.py`, `indexer/scanner/__init__.py`) into one cached `FsProbe`.
+- Introduce a `FilesystemCapability` table (rsync flags, atomic-rename support, mtime/ctime reliability, case-sensitivity, xattr/AppleDouble handling) keyed off detected FS type; the NTFS entry stays byte-identical to today.
+- Make `dispatch/_transfer.py` (`rsync()` + `rsync_merge()` currently share byte-identical hardcoded NTFS flags) and the indexer tier-1 drift detector consume the capability table.
+- Fix the latent dead-branch bug in `_spotlight.try_attach` (`fs_type == "macfuse"` never matches real `ufsd_NTFS` mounts; `db.py` uses substring matching and is correct — the asymmetry is the root cause).
+
+**Non-goals**
+
+- Changing the indexer schema beyond additive capability metadata.
+- Network filesystems (NFS/SMB).
 
 ### P2 — Web UI Registry Consumer
 
@@ -138,7 +163,8 @@ Find SXXEXX for episodes missing season/episode numbers via reverse scraping on 
 **Dependencies**:
 
 - Web Management UI scaffolding (P2 above).
-- `registry.status()` + `registry.operations()` (shipped in 0.16.0 — Provider Registry feature).
+- `registry.status()` + `registry.operations()` (shipped v0.16.0 — Provider Registry feature).
+- Prerequisite: `arch-cleanup-2` (registry events on the base `Event` contract for WebSocket streaming).
 
 **Scope**:
 
@@ -157,6 +183,34 @@ Find SXXEXX for episodes missing season/episode numbers via reverse scraping on 
 ---
 
 ## P3 — Stretch (nice to have, lower urgency)
+
+### P3 — Tech-Debt Round 2 (`tech-debt-2`)
+
+> Design: `docs/features/tech-debt-2/DESIGN.md` _(to be written)_. Source analysis: `docs/analysis/03-god-modules-debt-audit.md` + a forthcoming broad debt sweep.
+
+**Status correction (verified 2026-05-28, HEAD `79b345d8`):** the god-module "crisis" the older
+ROADMAP described **no longer exists**. `python3 scripts/check-module-size.py` exits **0** (no
+hard-block breach); only **two** files exceed the 800 non-blank soft-warn ceiling:
+`scraper/movie_service.py` (**954** non-blank — grew from 927 via the Phase 30 orphan-unlink fix,
+now 46 lines from the 1000 hard ceiling) and `library/scanner.py` (**855** non-blank, removed by
+`lib-fold`). The previously-listed offenders are all under ceiling now: `indexer/scanner/__init__.py`
+621, `trailers/state.py` 767, `trailers/cli.py` 698, `indexer/db.py` 588. `scraper/tmdb_client.py`
+no longer exists (split into `api/metadata/tmdb.py` + `api/metadata/_tmdb_parsers.py`).
+
+**Real blind spot:** `check-module-size.py` excludes **all** `__init__.py` files (line 22/37),
+hiding two facade modules carrying heavy logic: `api/metadata/registry/__init__.py` (689 non-blank —
+the largest module by this metric) and `indexer/scanner/__init__.py` (621). The guardrail policy is
+the decision to make.
+
+**Goals**
+
+- Extract `scraper/movie_service.py` along its dedup/rename/orphan-unlink seam to get it back under 800 and away from the hard ceiling.
+- Decide and implement the `__init__.py` guardrail policy (count facade modules, or enforce re-exports-only).
+- Run a broad debt sweep (dead code, `TODO`/`FIXME`/`HACK`, `type: ignore` / `pragma: no cover` debt, broad `except`, magic values, test skips / `xfail` / `skip_audit` expiries) and fold the actionable items into the design.
+
+**Non-goals**
+
+- Behaviour changes during extraction — structural moves only.
 
 ### P3 — LLM Pipeline Assistant (idée, gardée pour la fin)
 
@@ -177,45 +231,9 @@ ouvertes restantes (log de corrections, indexation initiale, confidentialité
 backend distant). Reprendre la prochaine session via `/brainstorming` sur ce
 document — pas besoin de repartir de zéro.
 
-### P3 — God-Module Splits (Residual from arch-cleanup)
-
-The arch-cleanup feature completed major decomposition (CLI, scraper, indexer CLI, config models, dispatch), but four modules remain above the 800 LOC advisory ceiling:
-
-| Module                        | LOC  | Issue                                                                                                                                          |
-| ----------------------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `indexer/scanner/__init__.py` | 1056 | `scan()`, `filter_disks()`, `_finalize_disk_after_walk()` + 15 helpers in one file. `_modes/` split was done but the orchestrator core wasn't. |
-| `trailers/state.py`           | 950  | JSON state store mixing CRUD, `fcntl` locking, retry policy, GC, atomic writes, and composite-key queries in a single module.                  |
-| `trailers/cli.py`             | 752  | Trailer CLI commands live outside the `commands/` pattern adopted by the rest of the project.                                                  |
-| `indexer/db.py`               | 604  | Connection management, WAL PRAGMAs, file locking, migration runner, disk-full guard, and corrupt DB recovery — 6 concerns in one file.         |
-
-**Goals**
-
-- `indexer/scanner/__init__.py` → extract `_orchestrator.py` (scan + filter_disks) + `_finalize.py` (post-walk helpers). Target: `__init__.py` ≤ 300 LOC (re-exports only).
-- `trailers/state.py` → split into `trailers/state/_store.py` (CRUD), `trailers/state/_lock.py` (fcntl), `trailers/state/_policy.py` (retry rules), `trailers/state/_gc.py` (orphan purge). Target: no file ≥ 500 LOC.
-- `trailers/cli.py` → move to `commands/trailers/` following the `commands/library/` pattern (scan.py, download.py, verify.py, purge.py).
-- `indexer/db.py` → extract `_migrations.py` (apply + snapshot), `_disk_guard.py` (disk-full detection + corrupt DB quarantine). Target: db.py ≤ 250 LOC (connection + lock only).
-
-**Non-goals**
-
-- Logic changes during extraction — behaviour-preserving moves only (same approach as arch-cleanup phases 2–5).
-- No new abstractions — these are purely structural splits.
-
-**Also monitor (700–800 LOC, below advisory ceiling but above DESIGN target of 700):**
-
-| Module                          | LOC | Risk                                                                                         |
-| ------------------------------- | --- | -------------------------------------------------------------------------------------------- |
-| `scraper/tmdb_client.py`        | 770 | API client with retry, pagination, circuit breaker — natural growth as TMDB surface expands. |
-| `scraper/existing_validator.py` | 765 | Re-validation of already-scraped folders — 7 check categories with nested helpers.           |
-| `scraper/tv_service.py`         | 735 | TVDB season/episode resolution — multi-season loop + episode-level NFO logic.                |
-| `scraper/nfo_generator.py`      | 718 | NFO XML generation for movies + TV shows — template per media type + artwork references.     |
-
-These modules are below the 0.9.0 advisory ceiling (800 LOC) but above the
-decomposition target (≤700 LOC). They will need attention before the 0.10.0
-hard block if the ceiling is lowered.
-
 ### P3 — Dependency Injection Container
 
-Components directly instantiate their dependencies (e.g., `Scraper.__init__` creates its own `TMDBClient`, `TVDBClient`, `NFOGenerator`, `ArtworkDownloader`). This makes testing harder (requires monkeypatching) and blocks the Web UI from swapping real implementations for mocks.
+Components directly instantiate their dependencies (e.g., `Scraper.__init__` creates its own `TMDBClient`, `TVDBClient`, `NFOGenerator`, `ArtworkDownloader`). This makes testing harder (requires monkeypatching) and blocks the Web UI from swapping real implementations for mocks. May be partly absorbed by `arch-cleanup-2` if a `ServiceContainer` lands there first.
 
 **Goals**
 
@@ -251,7 +269,7 @@ implement using the unified `HttpTransport` infrastructure.
   arbitrary providers).
 - Auto-Download System integration — that lands in its own P2 feature.
 
-**Depends on**: Third-Party API Consumer Unification (P0) — completed in 0.11.0.
+**Depends on**: Third-Party API Consumer Unification (shipped v0.11.0).
 
 ### P3 — Active Health Scoring (Registry)
 
@@ -261,7 +279,7 @@ implement using the unified `HttpTransport` infrastructure.
 
 **Dependencies**:
 
-- Provider Registry framework (shipped 0.16.0).
+- Provider Registry framework (shipped v0.16.0).
 - ProviderObserver protocol (already defined for circuit transitions).
 
 **Scope**:
@@ -289,8 +307,8 @@ implement using the unified `HttpTransport` infrastructure.
 
 **Dependencies**:
 
-- Provider Registry framework (shipped 0.16.0).
-- `validate_config()` (shipped 0.16.0, used at boot — re-usable for hot reload).
+- Provider Registry framework (shipped v0.16.0).
+- `validate_config()` (shipped v0.16.0, used at boot — re-usable for hot reload).
 
 **Scope**:
 
@@ -307,121 +325,3 @@ implement using the unified `HttpTransport` infrastructure.
 **Risk**: Race conditions on circuit breaker state during swap. Mitigate with explicit drain protocol.
 
 **Estimated effort**: 2 sprints (10 days).
-
----
-
-## ✅ Completed
-
-### Multi-Provider IDs Propagation (v0.15.1 — provider-ids)
-
-Three separate ID families per scraper (TVDB / TMDB / IMDB), no cross-contamination, idempotent backfill across every pipeline step. Replaces the silent `<uniqueid>` drop that left most TV shows with empty IDs.
-
-- **Three families separated**: `<uniqueid type="tvdb">` contains a real TVDB ID, same for `tmdb` / `imdb` — verified by drift validator.
-- **Scrape hierarchy**: TVDB primary, TMDB info-only cross-ref when TVDB OK, TMDB fallback when TVDB fails, IMDB always collected.
-- **Per-family idempotence**: each step (sort / clean / scrape / verify / dispatch / indexer) can resume / create / correct missing IDs of one family without overwriting another.
-- **Drift validator strengthened**: requires at least one canonical `<uniqueid>` on sibling episode NFOs.
-- **`library-backfill-ids` CLI**: enriches existing NFOs + DB non-destructively.
-- **Capability protocols**: atomic per-feature provider capabilities (search / details / images / ratings).
-- **Migration**: 6 staging shows with empty `<uniqueid>` re-scraped via the strengthened drift check.
-- PR #23 merged 2026-05-17. Archived: `docs/archive/features/provider-ids/`.
-
-### Event Bus (v0.14.0 — event-bus)
-
-Application-wide in-process pub/sub bus with typed event dataclasses. Replaces the `PipelineObserver` Protocol (superseded — see archived `pipeline-obs`).
-
-- **`EventBus`** with `subscribe(event_type, callback)` and `emit(event)` — fire-and-forget, synchronous.
-- **13 typed events v1** (catalog `docs/reference/event-bus.md`), extended to **17 in v1.1** by provider-ids (4 `Backfill*` events).
-- **CLI `--verbose`** wires a debug subscriber.
-- **Zero-overhead fast-path** when no subscribers registered.
-- **`AppContext` boundary rule** + **ContextVar pattern** for thread-safe subscription scoping.
-- **No persistent event log, no cross-process** (deferred — see Watcher Service P2).
-- Archived: `docs/archive/features/event-bus/`.
-
-### Pipeline Observer Protocol — Headless Mode (v0.13.0 — pipeline-obs)
-
-Decoupled `pipeline.py` from `rich.Console`. The pipeline now drives **observers** instead of printing directly — enabling headless cron, Web UI, watcher service, and tests with collecting observers. Superseded shortly after by `event-bus` (observer → subscriber).
-
-- **`PipelineObserver` Protocol** with lifecycle + per-item progress callbacks.
-- **`RichConsoleObserver`** = default TTY rendering; **`TelegramObserver`** = headless notifications.
-- **`StepContext.console` removed** — steps notify observers via `notify_progress(StepEvent(...))`.
-- **All 9 pipeline steps** integrated (ingest, sort, process, scrape, enforce, verify, trailers, dispatch, final gate).
-- PR #21 merged 2026-05-11. Archived: `docs/archive/features/pipeline-obs/`.
-- **Note**: observer model superseded by event-bus in v0.14.0 — see archived `pipeline-obs/DESIGN.md` for the old → new mapping (Observer → Subscriber, `StepEvent` → `StepProgress`, etc.).
-
-### YoutubeTrailerScraper Integration (v0.5.0)
-
-Trailer scraping is integrated into the pipeline as step 8 (trailers).
-
-- yt-dlp based download with configurable format selectors
-- State tracking per media item (pending/downloaded/skipped)
-- CLI: `personalscraper trailers scan|download|verify|purge`
-- Pipeline integration: `personalscraper run` (trailers step, skippable via `--skip-trailers`)
-- Archived feature docs: `docs/archive/features/trailer/`
-
-### Config System Overhaul (v0.9.0)
-
-Config is now a directory of JSON5 files with overlay merge.
-
-- Split layout: `config.json5` (master + overlays) + per-topic files (paths, disks, categories, patterns, encoding, scraper, trailers, indexer, thresholds)
-- `personalscraper init-config` creates `config/` from `config.example/` template
-- Optional `local.json5` for machine-specific overrides with last-wins semantics
-- All paths, staging layout, thresholds, and preferences live in `config/` — `.env` is credentials only
-
-### Library Indexer (v0.7.0+)
-
-SQLite-based media index with scanner, query engine, and drift reconciliation.
-
-- SQLite database at `config/indexer.db_path` (default `.data/library.db`)
-- Scanner modes: `quick`, `incremental`, `enrich`, `full`, `verify` + `backfill`
-- CLI: `personalscraper library-index|library-search|library-verify|library-repair|library-reconcile`
-- Outbox writethrough for dispatch, trailer state tracking, repair queue
-- Launchd agents for nightly quick scan + periodic enrich
-- Replaced ad-hoc `library_scan.json` / `library_analysis.json` files
-- Archived feature docs: `docs/archive/features/media-indexer/`
-
-### Third-Party API Consumer Unification (v0.11.0 — api-unify)
-
-All external API consumers run on a unified HttpTransport with declarative
-TransportPolicy, bringing retry, circuit breaker, rate limiting, auth, and
-typed responses under one contract.
-
-- **Family Protocols**: `MetadataClient`, `TorrentClient`, `TrackerClient`,
-  `Notifier`, `HealthChecker` (in `api/{metadata,torrent,tracker,notify}/_base.py`).
-- **Shared transport**: `HttpTransport` consumes a `TransportPolicy` —
-  every provider declares its retry, circuit, rate-limit, and auth strategy
-  via dataclass; transport enforces them uniformly.
-- **Reusable infrastructure**: `core/circuit.py` (CircuitBreaker reused by
-  indexer disk breaker), `core/http_helpers.py` (tenacity retry helpers).
-- **10 providers migrated**: TMDB, TVDB, OMDB, Trakt (metadata);
-  qBittorrent, Transmission (torrent client); LaCale, C411 (trackers);
-  Telegram (notify); healthchecks.io (health).
-- **7 modules deleted**: `tmdb_client.py`, `tvdb_client.py`,
-  `circuit_breaker.py`, `http_retry.py`, `qbit_client.py`, `notifier.py`,
-  `scraper/providers.py`.
-- **10 reference docs** with real captured samples in
-  `docs/reference/_samples/<provider>/`.
-- **5 new config files**: `metadata.json5`, `torrent.json5`, `tracker.json5`,
-  `ranking.json5`, `notify.json5`.
-- **Activation via creds**: each provider declares `REQUIRED_CREDS`;
-  presence in `.env` enables the provider, absence disables it silently.
-- **Per-use-case provider priority + tracker ranking engine** with
-  `ThresholdEntry` config models.
-- **Phase gate hygiene**: full `make check` (lint+test+module-size+typed-api)
-  - secret scan + residual-import audit codified in CLAUDE.md.
-- Design doc: `docs/features/api-unify/DESIGN.md`
-
-### Architectural Cleanup (v0.9.0 — arch-cleanup)
-
-Decomposition of 4 god modules, `PipelineStep` Protocol, typed `StepReport` payloads, legacy deprecation, and complexity guardrail.
-
-- **CLI decomposition**: `cli.py` 1648 → 106 LOC; commands split into `commands/pipeline.py`, `commands/library/`, `commands/config.py`, `commands/info.py`
-- **Indexer CLI decomposition**: `indexer/cli.py` 1389 → 30 LOC; commands split into `indexer/commands/scan.py`, `query.py`, `repair.py`, `diagnose.py`
-- **Scanner modes split**: `_modes.py` 1900 → `_modes/` package (full, quick, incremental, enrich, verify, backfill — each ≤ 700 LOC)
-- **Scraper decomposition**: `scraper.py` 2159 → orchestrator (267 LOC) + 5 services (movie, tv, rename, existing_validator, classifier)
-- **Config models split**: `conf/models.py` 1451 → `conf/models/` package (config, categories, disks, paths, staging, scraper, trailers, indexer, fuzzy, preferences)
-- **Dispatch decomposition**: `dispatcher.py` 797 → `_movie.py`, `_tv.py`, `_transfer.py`, `_types.py`
-- **PipelineStep Protocol**: declared in `pipeline_protocol.py`; all 9 steps adapted; `DEFAULT_STEPS` registry in `pipeline_steps.py`
-- **StepReport Tier A**: typed `*Details` dataclasses for all 9 steps in `reports/`; `STEP_REPORT_CONTRACT` registry
-- **Complexity guardrail**: `scripts/check-module-size.py` wired into `make check` (advisory in 0.9.0, hard block in 0.10.0)
-- **Module size ceiling**: soft warning at 800 LOC, hard ceiling 1000 LOC
-- Design doc: `docs/features/arch-cleanup/DESIGN.md`
