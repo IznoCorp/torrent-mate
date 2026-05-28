@@ -1001,28 +1001,45 @@ class MovieServiceMixin:
             # the merged source and must go. Iterate non-recursively so videos in
             # Trailers/ or Extras/ sub-folders are never touched (movies are flat
             # at the root).
-            for entry in sorted(movie_dir.iterdir()):
-                if not entry.is_file() or entry.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
-                    continue
-                # A flat movie trailer ({name}-trailer.{ext}) legitimately lives
-                # at the movie root (Plex Local Media Assets) — never unlink it.
-                if is_trailer_filename(entry.name):
-                    continue
-                if entry.name == video_file.name:
-                    continue
-                if self.dry_run:
-                    log.info("movie_video_orphan_would_remove", filename=entry.name, parent=movie_dir.name)
-                    continue
-                try:
-                    entry.unlink()
-                    log.info("movie_video_orphan_removed", filename=entry.name, parent=movie_dir.name)
-                except OSError as exc:
-                    log.warning(
-                        "movie_video_orphan_remove_failed",
-                        filename=entry.name,
-                        parent=movie_dir.name,
-                        error=str(exc),
-                    )
+            #
+            # Scope-consistency guard: _find_video_file selects RECURSIVELY
+            # (rglob), so the canonical may legitimately live in a sub-dir (e.g.
+            # an Extras/ video that was the newest). The cleanup below is
+            # root-only and skips by-name comparison against the canonical; if
+            # the canonical is NOT itself at the root, that name-based skip
+            # cannot protect it and the loop would delete every root video.
+            # Only run the cleanup when selection and cleanup share the same
+            # scope — i.e. the canonical sits at the movie root. Otherwise skip;
+            # VERIFY's no_duplicate_videos check still backstops residual roots.
+            if video_file.parent == movie_dir:
+                for entry in sorted(movie_dir.iterdir()):
+                    if not entry.is_file() or entry.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
+                        continue
+                    # A flat movie trailer ({name}-trailer.{ext}) legitimately lives
+                    # at the movie root (Plex Local Media Assets) — never unlink it.
+                    if is_trailer_filename(entry.name):
+                        continue
+                    if entry.name == video_file.name:
+                        continue
+                    if self.dry_run:
+                        log.info("movie_video_orphan_would_remove", filename=entry.name, parent=movie_dir.name)
+                        continue
+                    try:
+                        entry.unlink()
+                        log.info("movie_video_orphan_removed", filename=entry.name, parent=movie_dir.name)
+                    except OSError as exc:
+                        log.warning(
+                            "movie_video_orphan_remove_failed",
+                            filename=entry.name,
+                            parent=movie_dir.name,
+                            error=str(exc),
+                        )
+                        # Surface the residual duplicate so the scrape result does
+                        # not self-report clean success while an orphan persists
+                        # (mirrors the rename-failure branch above). Fail-soft: the
+                        # ``continue`` semantics are preserved — one failing orphan
+                        # must not abort cleanup of the others.
+                        result.warnings.append(f"Orphan video not removed: {entry.name}: {exc}")
 
             from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
 

@@ -582,6 +582,166 @@ class TestFlatTrailerNotUnlinked:
 
 
 # ---------------------------------------------------------------------------
+# Orphan-loop robustness: non-destructive skips, surfaced failure, root guard
+# ---------------------------------------------------------------------------
+
+
+class TestOrphanLoopRobustness:
+    """Cover the orphan-loop's destructive-guard, warning surface, and root guard.
+
+    Three concerns from the phase-31 review:
+
+    * D1 — the loop only unlinks root-level *video* files; non-video siblings
+      (``.nfo``, poster ``.jpg``) and any sub-directory video (``Extras/``) must
+      survive (non-recursive ``iterdir`` + the ``VIDEO_EXTENSIONS`` skip).
+    * B — an ``OSError`` on the orphan unlink is surfaced to ``result.warnings``
+      (``"Orphan video not removed"``) without aborting the scrape.
+    * C — when ``_find_video_file`` selects a canonical from a sub-dir (recursive
+      ``rglob`` selection), the root-only cleanup is skipped so it never deletes a
+      legitimate root video whose name simply differs from the nested canonical.
+    """
+
+    @staticmethod
+    def _make_canonical_with_orphan(tmp_path: Path) -> tuple[Path, Path, Path]:
+        """Build a flat movie dir: newest canonical + an older orphan video.
+
+        Returns:
+            Tuple of (movie_dir, canonical_path, orphan_path).
+        """
+        import os
+
+        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir.mkdir()
+        canonical = movie_dir / "The Matrix.mkv"
+        canonical.write_text("newest-canonical-payload")
+        orphan = movie_dir / "The.Matrix.1080p.mkv"
+        orphan.write_text("older-orphan-payload")
+        os.utime(orphan, (1_000_000, 1_000_000))
+        os.utime(canonical, (2_000_000, 2_000_000))
+        return movie_dir, canonical, orphan
+
+    def test_non_video_and_subdir_files_survive(self, scraper: Scraper, tmp_path: Path, movie_data: dict) -> None:
+        """D1: orphan video is removed; NFO, poster, and Extras/bonus.mkv survive.
+
+        The root canonical (newest mtime) drives the C guard, so the root cleanup
+        runs. It must remove ONLY the root orphan video — the non-video siblings
+        are skipped by the ``VIDEO_EXTENSIONS`` test, and the ``Extras/`` video is
+        never reached because the loop iterates non-recursively.
+        """
+        movie_dir, canonical, orphan = self._make_canonical_with_orphan(tmp_path)
+        # Non-video siblings at the root — must be skipped by the loop.
+        sibling_nfo = movie_dir / "The Matrix.nfo"
+        sibling_nfo.write_text("<movie></movie>")
+        poster = movie_dir / "poster.jpg"
+        poster.write_bytes(b"\xff\xd8\xff")
+        # A sub-dir video — must survive (non-recursive iterdir never descends).
+        # Give it an OLDER mtime so the ROOT canonical still wins `_find_video_file`
+        # (rglob also sees Extras/) and the C guard runs the root cleanup.
+        import os
+
+        extras = movie_dir / "Extras"
+        extras.mkdir()
+        bonus = extras / "bonus.mkv"
+        bonus.write_text("bonus-payload")
+        os.utime(bonus, (500_000, 500_000))
+
+        with (
+            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
+            patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
+            patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
+        ):
+            result = scraper.scrape_movie(movie_dir)
+
+        assert result.action == "scraped"
+        # Only the root orphan video is gone.
+        assert canonical.exists()
+        assert not orphan.exists()
+        # Non-video siblings and the sub-dir video all survive.
+        assert sibling_nfo.exists()
+        assert poster.exists()
+        assert bonus.exists()
+
+    def test_orphan_unlink_oserror_surfaces_warning(self, scraper: Scraper, tmp_path: Path, movie_data: dict) -> None:
+        """B: a patched orphan ``unlink`` OSError lands in ``result.warnings``.
+
+        The canonical is never targeted, the scrape still succeeds (fail-soft),
+        and the residual duplicate is visible to the operator.
+        """
+        movie_dir, canonical, orphan = self._make_canonical_with_orphan(tmp_path)
+
+        real_unlink = Path.unlink
+
+        def _failing_unlink(self: Path, *args: object, **kwargs: object) -> None:
+            # Raise only for the orphan; any other unlink proceeds normally.
+            if self.name == orphan.name:
+                raise OSError("EACCES on orphan")
+            real_unlink(self, *args, **kwargs)  # type: ignore[arg-type]
+
+        with (
+            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
+            patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
+            patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
+            patch("pathlib.Path.unlink", _failing_unlink),
+        ):
+            # Must NOT raise despite the failing orphan unlink.
+            result = scraper.scrape_movie(movie_dir)
+
+        assert result.action == "scraped"
+        # The failure is surfaced to the operator.
+        assert any("Orphan video not removed" in w for w in result.warnings)
+        # The canonical is never targeted by the unlink, so it stays.
+        assert canonical.exists()
+        # The orphan persists because its unlink failed — the scrape survived.
+        assert orphan.exists()
+
+    def test_nested_canonical_skips_root_cleanup(self, scraper: Scraper, tmp_path: Path, movie_data: dict) -> None:
+        """C: a nested canonical (newest in Extras/) skips the root cleanup.
+
+        Deviation from a pure "different-named nested canonical" setup: the nested
+        canonical is given the already-clean name (``The Matrix.mkv``) so the video
+        rename branch is a no-op and the canonical STAYS in ``Extras/``. Were it
+        renamed to ``movie_dir / clean_video_name`` (the normal flat case), its
+        parent would become the root and the guard would no longer skip — which is
+        correct, but would not exercise the nested-skip path. Keeping the canonical
+        nested makes ``video_file.parent != movie_dir`` hold, so the root cleanup is
+        skipped and the differently-named root ``feature.mkv`` survives instead of
+        being deleted by the name-based orphan skip it cannot satisfy.
+        """
+        import os
+
+        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir.mkdir()
+        # Root feature video, OLDER mtime — must survive (cleanup is skipped).
+        root_feature = movie_dir / "feature.mkv"
+        root_feature.write_text("root-feature-payload")
+        # Nested canonical with the clean name + NEWEST mtime → selected by
+        # `_find_video_file` (rglob); the rename branch is a no-op (name matches),
+        # so it stays under Extras/ and the C guard skips the root cleanup.
+        extras = movie_dir / "Extras"
+        extras.mkdir()
+        nested_canonical = extras / "The Matrix.mkv"
+        nested_canonical.write_text("nested-newest-payload")
+        os.utime(root_feature, (1_000_000, 1_000_000))
+        os.utime(nested_canonical, (2_000_000, 2_000_000))
+
+        with (
+            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
+            patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
+            patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
+        ):
+            result = scraper.scrape_movie(movie_dir)
+
+        assert result.action == "scraped"
+        # Root cleanup was skipped (canonical is nested), so the root video lives.
+        assert root_feature.exists()
+        # The nested canonical was never moved out of Extras/.
+        assert nested_canonical.exists()
+
+
+# ---------------------------------------------------------------------------
 # NFO generation exception (lines 433-437)
 # ---------------------------------------------------------------------------
 
