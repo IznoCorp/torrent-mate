@@ -60,12 +60,12 @@ class LockedCapabilityUnresolved:
     Attributes:
         capability: The locked capability being resolved (Protocol name).
         match: The ``ProviderMatch`` that could not be resolved.
-        chain_tried: Names of providers tried for IDCrossRef translation.
+        chain_tried: Tuple of providers tried for IDCrossRef translation.
     """
 
     capability: str
     match: ProviderMatch
-    chain_tried: list[str]
+    chain_tried: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -91,9 +91,9 @@ class RegistryBootValidated:
     """Emitted when boot completed successfully.
 
     Attributes:
-        providers: Sorted list of registered provider names.
-        capabilities: Map of capability name → list of provider names.
+        providers: Sorted tuple of registered provider names.
+        capabilities: Map of capability name → tuple of provider names.
     """
 
-    providers: list[str]
-    capabilities: dict[str, list[str]]
+    providers: tuple[str, ...]
+    capabilities: dict[str, tuple[str, ...]]

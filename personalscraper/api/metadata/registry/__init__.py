@@ -392,8 +392,8 @@ class ProviderRegistry:
         # Emit boot-validated event
         self._event_bus_safe_emit(
             RegistryBootValidated(
-                providers=list(self._providers),
-                capabilities={cap.__name__: list(names) for cap, names in self._index.items()},
+                providers=tuple(self._providers),
+                capabilities={cap.__name__: tuple(names) for cap, names in self._index.items()},
             )
         )
 
@@ -583,7 +583,7 @@ class ProviderRegistry:
             LockedCapabilityUnresolved(
                 capability=capability.__name__,
                 match=match,
-                chain_tried=list(self._index.get(capability, [])),
+                chain_tried=tuple(self._index.get(capability, [])),
             )
         )
         log.warning(
