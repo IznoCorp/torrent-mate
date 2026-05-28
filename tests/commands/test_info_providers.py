@@ -16,19 +16,20 @@ if TYPE_CHECKING:
 def test_info_providers_lists_configured_providers(monkeypatch):
     """``info providers`` exits 0 and prints circuit state for each provider."""
     from personalscraper.api.metadata.registry import ProviderStatus, RegistryProviderName
+    from personalscraper.core.circuit import CircuitState
 
     mock_instance = MagicMock()
     mock_instance.status.return_value = {
         "tmdb": ProviderStatus(
             provider_name=RegistryProviderName("tmdb"),
-            circuit_state="CLOSED",
+            circuit_state=CircuitState.CLOSED,
             failure_count_recent=0,
             last_success_at=None,
             last_failure_at=None,
         ),
         "tvdb": ProviderStatus(
             provider_name=RegistryProviderName("tvdb"),
-            circuit_state="CLOSED",
+            circuit_state=CircuitState.CLOSED,
             failure_count_recent=0,
             last_success_at=None,
             last_failure_at=None,

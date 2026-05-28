@@ -24,6 +24,7 @@ from personalscraper.api.metadata.registry._events import (
     RegistryFanOutCompleted,
 )
 from personalscraper.conf.models.providers import ProvidersConfig
+from personalscraper.core.circuit import CircuitState
 from tests.unit.api.metadata.registry.conftest import (
     FailingEventBus,
     FakeArtwork,
@@ -79,7 +80,7 @@ def test_fan_out_always_emits_completed(build_registry_fakes):
     """RegistryFanOutCompleted fires on every fan_out() call (always, even on success)."""
     bus = MockEventBus()
     registry = build_registry_fakes(
-        fakes={"r1": FakeRating(provider_name="r1", circuit_state="CLOSED")},
+        fakes={"r1": FakeRating(provider_name="r1", circuit_state=CircuitState.CLOSED)},
         providers_config=ProvidersConfig(RatingProvider={"r1": 1}),
         event_bus=bus,
     )

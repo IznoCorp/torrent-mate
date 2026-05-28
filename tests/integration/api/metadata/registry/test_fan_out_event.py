@@ -13,6 +13,7 @@ import pytest
 from personalscraper.api.metadata._contracts import RatingProvider
 from personalscraper.api.metadata.registry._events import RegistryFanOutCompleted
 from personalscraper.conf.models.providers import ProvidersConfig
+from personalscraper.core.circuit import CircuitState
 from tests.unit.api.metadata.registry.conftest import FakeRating, MockEventBus
 
 
@@ -56,7 +57,7 @@ def _build_registry(
 
 def test_fan_out_emits_completed_event_on_success(monkeypatch: pytest.MonkeyPatch) -> None:
     """RegistryFanOutCompleted is emitted when fan_out returns eligible providers."""
-    fakes = {"r1": FakeRating(provider_name="r1", circuit_state="CLOSED")}
+    fakes = {"r1": FakeRating(provider_name="r1", circuit_state=CircuitState.CLOSED)}
     config = ProvidersConfig(RatingProvider={"r1": 1})
     bus = MockEventBus()
     registry = _build_registry(monkeypatch, fakes=fakes, providers_config=config, event_bus=bus)
@@ -68,7 +69,7 @@ def test_fan_out_emits_completed_event_on_success(monkeypatch: pytest.MonkeyPatc
 
 def test_fan_out_emits_completed_event_even_when_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     """RegistryFanOutCompleted is emitted even when fan_out returns empty list."""
-    fakes = {"r1": FakeRating(provider_name="r1", circuit_state="OPEN")}
+    fakes = {"r1": FakeRating(provider_name="r1", circuit_state=CircuitState.OPEN)}
     config = ProvidersConfig(RatingProvider={"r1": 1})
     bus = MockEventBus()
     registry = _build_registry(monkeypatch, fakes=fakes, providers_config=config, event_bus=bus)

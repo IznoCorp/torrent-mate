@@ -724,8 +724,8 @@ class TestFanOutPartial:
 
     def test_fan_out_partial_one_failure_one_success(self, build_registry_fakes: Any) -> None:
         """One provider 5xx, one 200; FanOutResult composed correctly."""
-        r1 = FakeRatingForTest(provider_name="r1", circuit_state="CLOSED")
-        r2 = FakeRatingForTest(provider_name="r2", circuit_state="CLOSED")
+        r1 = FakeRatingForTest(provider_name="r1", circuit_state=CircuitState.CLOSED)
+        r2 = FakeRatingForTest(provider_name="r2", circuit_state=CircuitState.CLOSED)
         r2._should_fail = True
 
         fakes = {"r1": r1, "r2": r2}
