@@ -22,6 +22,7 @@ from personalscraper.scraper._shared import ScrapeResult, _find_video_file
 from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.confidence import LOW_CONFIDENCE
 from personalscraper.scraper.rename_service import _cleanup_stale_files, _merge_dirs
+from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 from personalscraper.text_utils import sanitize_filename
 
 if TYPE_CHECKING:
@@ -991,6 +992,34 @@ class MovieServiceMixin:
                         result.warnings.append(f"Video rename failed: {video_file.name}: {exc}")
                 else:
                     log.info("movie_video_would_rename", source=video_file.name, dest=clean_video_name)
+
+            # Remove non-canonical video files left at the movie root. When two
+            # distinct staged folders resolve to the same TMDB id, _merge_dirs
+            # folds both into one folder, so several video files can coexist at
+            # the root. _find_video_file picked the most-recently-modified one as
+            # canonical (above); every other root-level video is an orphan from
+            # the merged source and must go. Iterate non-recursively so videos in
+            # Trailers/ or Extras/ sub-folders are never touched (movies are flat
+            # at the root).
+            for entry in sorted(movie_dir.iterdir()):
+                if not entry.is_file() or entry.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
+                    continue
+                if entry.name == video_file.name:
+                    continue
+                if self.dry_run:
+                    log.info("movie_video_orphan_would_remove", filename=entry.name, parent=movie_dir.name)
+                    continue
+                try:
+                    entry.unlink()
+                    log.info("movie_video_orphan_removed", filename=entry.name, parent=movie_dir.name)
+                except OSError as exc:
+                    log.warning(
+                        "movie_video_orphan_remove_failed",
+                        filename=entry.name,
+                        parent=movie_dir.name,
+                        error=str(exc),
+                    )
+
             from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
 
             stream_info = scraper_api.extract_stream_info(video_file)

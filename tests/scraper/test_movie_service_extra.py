@@ -426,6 +426,112 @@ class TestVideoRenameBranches:
 
 
 # ---------------------------------------------------------------------------
+# Post-rename orphan video cleanup (same-TMDB multi-source dedup)
+# ---------------------------------------------------------------------------
+
+
+class TestVideoOrphanCleanup:
+    """Cover the non-canonical video unlink loop after the movie rename.
+
+    When two distinct staged folders resolve to the same TMDB id, an earlier
+    merge step folds both into one folder, leaving multiple video files at the
+    movie root. ``_find_video_file`` picks the most-recently-modified one as
+    canonical; the loop must remove every other root-level video.
+    """
+
+    @staticmethod
+    def _make_movie_dir_with_orphan(tmp_path: Path) -> tuple[Path, Path, Path]:
+        """Build a canonical movie dir holding the canonical video + an orphan.
+
+        The canonical-named file (``The Matrix.mkv``) is given the newest mtime
+        so ``_find_video_file`` selects it; its name already matches the clean
+        target, so the rename branch is a no-op and the orphan loop is exercised
+        on a stable canonical file.
+
+        Returns:
+            Tuple of (movie_dir, canonical_path, orphan_path).
+        """
+        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir.mkdir()
+        canonical = movie_dir / "The Matrix.mkv"
+        canonical.write_text("newest-canonical-payload")
+        orphan = movie_dir / "The.Matrix.1080p.mkv"
+        orphan.write_text("older-orphan-payload")
+        # Make the canonical file strictly newer so mtime-latest selection picks
+        # it, leaving the differently-named file as the orphan to remove.
+        import os
+
+        os.utime(orphan, (1_000_000, 1_000_000))
+        os.utime(canonical, (2_000_000, 2_000_000))
+        return movie_dir, canonical, orphan
+
+    def test_orphan_removed_in_real_run(self, scraper: Scraper, tmp_path: Path, movie_data: dict) -> None:
+        """Non-dry-run with two root videos → only the canonical survives."""
+        movie_dir, canonical, orphan = self._make_movie_dir_with_orphan(tmp_path)
+
+        with (
+            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
+            patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
+            patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
+        ):
+            result = scraper.scrape_movie(movie_dir)
+
+        assert result.action == "scraped"
+        # Filesystem state is authoritative: canonical kept, orphan gone.
+        assert canonical.exists()
+        assert not orphan.exists()
+        # Exactly one root-level video remains.
+        remaining = sorted(p.name for p in movie_dir.iterdir() if p.suffix == ".mkv")
+        assert remaining == ["The Matrix.mkv"]
+
+    def test_orphan_kept_in_dry_run(self, scraper: Scraper, tmp_path: Path, movie_data: dict) -> None:
+        """Dry-run keeps BOTH videos on disk; nothing is unlinked."""
+        scraper.dry_run = True
+        movie_dir, canonical, orphan = self._make_movie_dir_with_orphan(tmp_path)
+
+        with (
+            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
+            patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
+            patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
+        ):
+            scraper.scrape_movie(movie_dir)
+
+        # Both files survive the dry-run preview.
+        assert canonical.exists()
+        assert orphan.exists()
+
+    def test_orphan_unlink_oserror_does_not_raise(self, scraper: Scraper, tmp_path: Path, movie_data: dict) -> None:
+        """An OSError on the orphan unlink is swallowed; canonical untouched."""
+        movie_dir, canonical, orphan = self._make_movie_dir_with_orphan(tmp_path)
+
+        real_unlink = Path.unlink
+
+        def _failing_unlink(self: Path, *args: object, **kwargs: object) -> None:
+            # Raise only for the orphan; let any other unlink proceed normally.
+            if self.name == orphan.name:
+                raise OSError("EACCES on orphan")
+            real_unlink(self, *args, **kwargs)  # type: ignore[arg-type]
+
+        with (
+            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
+            patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
+            patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
+            patch("pathlib.Path.unlink", _failing_unlink),
+        ):
+            # Must NOT raise despite the failing orphan unlink.
+            result = scraper.scrape_movie(movie_dir)
+
+        assert result.action == "scraped"
+        # Canonical file is never targeted by the unlink, so it stays.
+        assert canonical.exists()
+        # The orphan remains because its unlink failed — but the scrape survived.
+        assert orphan.exists()
+
+
+# ---------------------------------------------------------------------------
 # NFO generation exception (lines 433-437)
 # ---------------------------------------------------------------------------
 
