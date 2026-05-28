@@ -119,7 +119,17 @@ jobs:
       # tests/unit/ + tests/integration/ only covered 883 of 5521 tests
       # (~16%), yielding 44% combined coverage (well below fail_under=90).
       # pyproject.toml's `addopts` already excludes e2e/slow/network markers.
-      - run: python -m pytest tests/ -q --no-header -n auto --cov=personalscraper --cov-branch --cov-fail-under=0
+      #
+      # Dummy provider credentials are required because Phase 15 of
+      # feat/registry removed the autouse `_patch_provider_registry_for_cli_tests`
+      # fixture; the real ProviderRegistry now boots in every CliRunner-driven
+      # test, and its boot validation rejects empty TMDB_API_KEY / TVDB_API_KEY
+      # with [missing_credentials]. Locally `.env` provides these via
+      # `load_dotenv()` at `personalscraper.__init__`; CI has no .env file.
+      - env:
+          TMDB_API_KEY: dummy
+          TVDB_API_KEY: dummy
+        run: python -m pytest tests/ -q --no-header -n auto --cov=personalscraper --cov-branch --cov-fail-under=0
       # Rename to non-dotfile so upload-artifact@v4 picks it up
       # (v4 silently skips dotfiles by default).
       - run: mv .coverage coverage.dat
