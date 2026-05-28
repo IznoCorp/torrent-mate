@@ -93,6 +93,6 @@ def info_providers(
     try:
         status = registry.status()
         for name, s in status.items():
-            typer.echo(f"{name:<20} circuit={s.circuit_state}  failures={s.failure_count_recent}")
+            typer.echo(f"{name:<20} circuit={s.circuit_state.value}  failures={s.failure_count_recent}")
     finally:
         registry.close()
