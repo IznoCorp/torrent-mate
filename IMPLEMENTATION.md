@@ -127,6 +127,52 @@ Re-review on `feat/registry @ 6177193` (CI green after Phase 5 push).
 
 **Decision**: cycle 3 phase — `phase-06-pr-fixes-cycle-2.md` with 5 sub-phases (3 tests + ACC-07 + nits).
 
+### Cycle 4 — 2026-05-28
+
+Post-merge-reopened re-review on `feat/registry @ e1f93832` (PR #27 reopened after retrospective). Operator-driven 4-agent re-review (`pr-review-toolkit:code-reviewer`, `silent-failure-hunter`, `pr-test-analyzer`, `type-design-analyzer`) ran in parallel.
+
+**Critical findings** (independently converged by code-reviewer + silent-failure-hunter):
+
+1. **C1** `_factory.py:262` — `_eligible` compares `CircuitState` enum to string literal `"OPEN"` (enum value is `"open"`, so the gate is a no-op in production). Hidden by conftest fakes using string state.
+2. **C2** `_validation.py:265` — `_check_idcrossref_cycles` DFS walks the fully-connected ≥3-node graph and reports an inherent cycle as `idcrossref_cycle` config error. Blocks valid `{tmdb, tvdb, imdb}` configs at boot.
+
+**Important findings** (8): I1 `RegistryFanOutCompleted.succeeded` field mismeasures, I2 nested did-you-mean hint, I3 `info providers` prints enum repr, I4 `existing_validator` swallows `UnknownProviderError`, I5 `list[...]` on frozen dataclasses, I6 `Named`/`HasName` Protocol duplication, I7 silent `_family_to_client` on `UnknownProviderError`, I8 narrow exception catch in `tv_service.py:594`, I9 episode NFO failure not surfaced, I10 missing event emission on `cross_ref` network failure.
+
+**Housekeeping**: H1 local `config/providers.json5` sync, H2 ACC-07/ACC-09 baseline drift after Phase 25 test additions, H3 missing `info providers` entry in `docs/reference/commands.md`.
+
+**Decision**: cycle 4 phase — `phase-26-pr-review-cycle-4-fixes.md` with 6 sub-phases (26.1–26.6) + 1 follow-up (26.7 audit-design orphan-section gap) + 2 CI-fix commits (H1 revert + dummy API keys for CI test job).
+
+### Cycle 5 — 2026-05-28 (MERGE — loop exit)
+
+Verification on `feat/registry @ 32d491ef` (CI green after dummy API keys env injection in CI workflow).
+
+**Reviewers dispatched (2 parallel)**: `code-reviewer`, `silent-failure-hunter`. Skipped `pr-test-analyzer` (cycle 4 audit) and `type-design-analyzer` (cycle 4 audit).
+
+**Verdict**: MERGE. All 12 cycle-4 findings verified CLOSED with paired regression tests:
+
+- C1 — `_factory.py:262` `state is not CircuitState.OPEN` enum identity (regression: real `CircuitBreaker` driven to OPEN).
+- C2 — `_validation.py:294-295` short-circuit before DFS (regression: 3 IDCrossRef providers do not produce cycle).
+- I1 — field renamed `succeeded` → `eligible`; emission site `__init__.py:499`; tests asserts `event.eligible`.
+- I2 — `_format()` reduced to single-line, no nested re-quoting (regression: `test_format_does_not_nest_did_you_mean`).
+- I3 — `commands/info.py:96` uses `.value`.
+- I4 — `existing_validator.py:557-560` + `:613-616` typed `try/except UnknownProviderError` with debug log (regression: `test_recover_movie_artwork_skipped_when_tmdb_not_configured`).
+- I5 — explicit targets (`FanOutResult`, `ProviderExhausted`, `ProviderExhaustedEvent`, `RegistryFanOutCompleted` `attempted`) are `tuple[..., ...]` with boundary freeze. 3 sister-dataclass leftovers (`LockedCapabilityUnresolved.chain_tried`, `RegistryBootValidated.providers/capabilities`) noted as S1 follow-up.
+- I6 — `Named` consolidated in `api/_contracts.py:124` (`@runtime_checkable`, `provider_name: str`). `HasName = Named` alias kept for back-compat.
+- I7 — `xref_family_unwired` warning logged on `UnknownProviderError` in `_family_to_client` (symmetric movie + tv).
+- I8 — `tv_service.py:597` broadened to `except Exception` (DESIGN §6.2 alignment with `movie_service.py:857`).
+- I9 — `_match_seasons` signature returns `tuple[int, list[str]]`; `_process_show:339-342` extends `result.warnings`.
+- I10 — `cross_ref()` emits `ProviderFallbackTriggered(reason="network")` before returning None.
+
+**New findings introduced by Phase 26**: none critical/major.
+
+**Suggestions (minor, non-blocking)**:
+
+- **S1** 3 leftover `list[str]` types on frozen events (`LockedCapabilityUnresolved.chain_tried`, `RegistryBootValidated.providers/capabilities`) — same I5 rationale applies, one-token tuple pivot.
+- **S2** `registry/__init__.py:493` log key `providers_succeeded=` drifts from renamed event field `eligible=` — rename for docstring-truth.
+- **S3** `tv_service.py` at 922 LOC after I8 broadening — soft warning, hard ceiling 1000. Refactor before next phase that adds to this module.
+
+**Loop exit per Step 5 Case A**: no remaining critical/major/medium findings. MERGE_MODE=manual → user merges via GitHub UI.
+
 ## Next action
 
-All review cycles closed. CI green. **MERGE READY** — squash-merge PR #27 via GitHub UI (manual mode chosen at /implement:feature time). After merge: `/implement:archive` will move docs/features/registry/ to docs/archive/features/.
+All review cycles closed (5 cycles total, max allowed). CI green. **MERGE READY** — squash-merge PR #27 via GitHub UI (manual mode chosen at /implement:feature time). After merge: `/implement:archive` will move docs/features/registry/ to docs/archive/features/.
