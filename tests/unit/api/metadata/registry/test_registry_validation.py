@@ -154,9 +154,7 @@ def test_no_cycle_with_3_idcrossref_providers() -> None:
     }
     issues = validate_config(config, providers, _settings_with_keys())
     codes = {i.code for i in issues}
-    assert "idcrossref_cycle" not in codes, (
-        f"3+ IDCrossRef providers must not produce a cycle issue, got: {codes}"
-    )
+    assert "idcrossref_cycle" not in codes, f"3+ IDCrossRef providers must not produce a cycle issue, got: {codes}"
 
 
 def test_idcrossref_two_providers_no_false_cycle() -> None:
@@ -224,9 +222,7 @@ def test_all_five_issue_families_in_one_error() -> None:
         }
         missing = expected - codes
         assert not missing, f"missing issue codes: {missing}; got {codes}"
-        assert "idcrossref_cycle" not in codes, (
-            f"idcrossref_cycle must not fire for 3+ providers, got: {codes}"
-        )
+        assert "idcrossref_cycle" not in codes, f"idcrossref_cycle must not fire for 3+ providers, got: {codes}"
     assert raised, "expected RegistryConfigError once issues collected"
 
 
