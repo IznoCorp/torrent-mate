@@ -534,6 +534,14 @@ class ExistingValidatorMixin:
         # Broad catch: get_movie() can raise ApiError, CircuitOpenError, or requests
         # exceptions; download_movie_artwork() adds OSError. CircuitOpenError needs
         # a lazy import — narrowing this mixed path is not worthwhile here.
+        # Pre-check (I4, PR review cycle 4): ``registry.get("tmdb")`` raises
+        # ``UnknownProviderError`` when tmdb is not configured, which the
+        # broad ``except Exception`` below would swallow silently. Detect
+        # the missing-provider case explicitly so the operator sees a
+        # debug-level forensic anchor instead of a generic
+        # "Artwork recovery failed: Unknown provider 'tmdb'" warning.
+        from personalscraper.api.metadata.registry._errors import UnknownProviderError  # noqa: PLC0415
+
         try:
             from personalscraper.api.metadata._contracts import MovieDetailsProvider  # noqa: PLC0415
             from personalscraper.scraper.movie_service import _coerce_to_movie_data
@@ -545,7 +553,11 @@ class ExistingValidatorMixin:
             # for ID-bound canonical refetch. Now that the Protocol accepts
             # ``int | str`` (sub-phase 17.2), the cast can target the
             # capability Protocol instead of the concrete ``TMDBClient``.
-            provider = cast("MovieDetailsProvider", self._registry.get("tmdb"))
+            try:
+                provider = cast("MovieDetailsProvider", self._registry.get("tmdb"))
+            except UnknownProviderError:
+                log.debug("artwork_recovery_skipped_no_tmdb", directory=movie_dir.name)
+                return
             movie_data = provider.get_movie(tmdb_id)
             downloaded = self._artwork.download_movie_artwork(
                 _coerce_to_movie_data(movie_data),
@@ -582,6 +594,12 @@ class ExistingValidatorMixin:
         # Broad catch: get_tv() can raise ApiError, CircuitOpenError, or requests
         # exceptions; download_tvshow_artwork() adds OSError. CircuitOpenError needs
         # a lazy import — narrowing this mixed path is not worthwhile here.
+        # Pre-check (I4, PR review cycle 4): symmetric to
+        # ``_recover_movie_artwork`` — guard against tmdb not being
+        # configured so the missing-provider case surfaces as a debug log
+        # rather than getting swallowed by the broad ``except Exception``.
+        from personalscraper.api.metadata.registry._errors import UnknownProviderError  # noqa: PLC0415
+
         try:
             from personalscraper.api.metadata._contracts import TvDetailsProvider  # noqa: PLC0415
             from personalscraper.scraper.movie_service import _coerce_to_show_data
@@ -591,7 +609,11 @@ class ExistingValidatorMixin:
             # for artwork, chain fallback forbidden. The Protocol now accepts
             # ``int | str`` (sub-phase 17.2), so the cast targets the
             # capability instead of the concrete ``TMDBClient``.
-            provider = cast("TvDetailsProvider", self._registry.get("tmdb"))
+            try:
+                provider = cast("TvDetailsProvider", self._registry.get("tmdb"))
+            except UnknownProviderError:
+                log.debug("artwork_recovery_skipped_no_tmdb", directory=show_dir.name)
+                return
             show_data = provider.get_tv(tmdb_id)
             downloaded = self._artwork.download_tvshow_artwork(
                 _coerce_to_show_data(show_data),
