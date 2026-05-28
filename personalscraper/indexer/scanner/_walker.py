@@ -271,7 +271,7 @@ def _walk_dir(
 
     try:
         with os.scandir(dir_abs) as it:
-            entries = list(it)
+            entries = sorted(it, key=lambda e: e.name)
     except PermissionError:
         log.warning("indexer.scan.dir_permission_denied", path=dir_abs)
         return
@@ -431,7 +431,7 @@ def _walk_dir_full(
 
     try:
         with os.scandir(dir_abs) as it:
-            entries = list(it)
+            entries = sorted(it, key=lambda e: e.name)
     except PermissionError:
         log.warning("indexer.scan.dir_permission_denied", path=dir_abs)
         return
@@ -671,7 +671,7 @@ def _walk_dir_quick(
 
     try:
         with os.scandir(dir_abs) as it:
-            entries = list(it)
+            entries = sorted(it, key=lambda e: e.name)
     except PermissionError:
         log.warning("indexer.scan.dir_permission_denied", path=dir_abs)
         return
