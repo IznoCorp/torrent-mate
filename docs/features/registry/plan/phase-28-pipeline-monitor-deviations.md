@@ -380,9 +380,7 @@ enumeration. Inline rmdir/rm-rf removed all three:
 - `/Volumes/Disk1/medias/emissions/Cauchemar en cuisine/Saison 12`.
 - `/Volumes/Disk1/medias/emissions/Objectif Nul/Saison 1`.
 
-The agent's AI over-counting is fixed in the batch above (per-show timeout
-
-- `coverage_partial` reporting instead of inflating totals).
+The agent's AI over-counting is fixed in the batch above (per-show timeout + `coverage_partial` reporting instead of inflating totals).
 
 ### 28.7 — AJ : `.actors` dir on Disk1
 
