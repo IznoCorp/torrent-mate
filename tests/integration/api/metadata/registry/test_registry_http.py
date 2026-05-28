@@ -350,9 +350,15 @@ class TestCircuitBreakerStatusPropagation:
         """Trigger 5xx until breaker opens; assert status reflects OPEN."""
         mock_tmdb_503_regex()
         bus = EventBus()
+        # cooldown_seconds=300: status() reads the *time-derived* circuit.state,
+        # which auto-transitions OPEN→HALF_OPEN once cooldown elapses. With the
+        # default 0.01s cooldown the post-trip OPEN assertion below flakes under
+        # xdist+coverage load (a gap > 10ms re-elapses the cooldown). A generous
+        # cooldown keeps the just-tripped circuit observably OPEN.
         registry = _build_chain_registry(
             bus,
             ProvidersConfig(Searchable={"tmdb": 1}),
+            cb_policy=_make_cb_policy(cooldown_seconds=300.0),
         )
         tmdb = registry.get("tmdb")
 
@@ -368,9 +374,14 @@ class TestCircuitBreakerStatusPropagation:
         """After cooldown, circuit transitions HALF_OPEN; status() reflects it."""
         mock_tmdb_503_regex()
         bus = EventBus()
+        # cooldown_seconds=300: keeps the post-trip OPEN assertion stable under
+        # load (see test_circuit_breaker_opened_propagates_to_status). The
+        # HALF_OPEN assertion still works — _opened_at is backdated by
+        # cooldown_seconds+1 below to force that transition deterministically.
         registry = _build_chain_registry(
             bus,
             ProvidersConfig(Searchable={"tmdb": 1}),
+            cb_policy=_make_cb_policy(cooldown_seconds=300.0),
         )
         tmdb = registry.get("tmdb")
 
@@ -556,9 +567,17 @@ class TestHalfOpenProbe:
         """
         mock_tmdb_503_regex()
         bus = EventBus()
+        # cooldown_seconds=300: after the HALF_OPEN probe fails and reopens the
+        # circuit (record_failure sets _opened_at=now), the OPEN assertion below
+        # reads the time-derived circuit.state. With the default 0.01s cooldown
+        # the circuit re-elapses OPEN→HALF_OPEN within ~10ms under xdist+coverage
+        # load, flaking the assertion. A generous cooldown keeps it observably
+        # OPEN (the backdating below subtracts cooldown_seconds, so forcing the
+        # *first* HALF_OPEN still works).
         registry = _build_chain_registry(
             bus,
             ProvidersConfig(Searchable={"tmdb": 1, "tvdb": 2}),
+            cb_policy=_make_cb_policy(cooldown_seconds=300.0),
         )
         tmdb = registry.get("tmdb")
 
