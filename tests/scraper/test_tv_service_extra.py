@@ -1449,3 +1449,109 @@ def test_lookup_series_emits_match_attribute(tmp_path: Path, source: str) -> Non
         out = mixin._lookup_series("X", 2020, set(), result)
     assert out is not None
     assert result.match is match
+
+
+# ---------------------------------------------------------------------------
+# I8 — chain continues on RuntimeError (regression for PR review cycle 4)
+# ---------------------------------------------------------------------------
+
+
+def test_tv_chain_details_continues_on_runtime_error(tmp_path: Path) -> None:
+    """Regression for I8: chain must continue on RuntimeError (unclassified Exception).
+
+    Per DESIGN §6.2, matching movie_service behavior.
+    """
+    good_provider = MagicMock()
+    good_provider.provider_name = "tmdb"
+    good_provider.get_tv.return_value = {
+        "id": 100,
+        "name": "Show",
+        "overview": "",
+        "first_air_date": "2020-01-01",
+        "genres": [],
+        "networks": [],
+    }
+
+    bad_provider = MagicMock()
+    bad_provider.provider_name = "tmdb"
+    bad_provider.get_tv.side_effect = RuntimeError("boom")
+
+    mixin = _make_mixin(tmdb=good_provider)
+    mixin._registry.chain.return_value = [bad_provider, good_provider]
+
+    result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
+    match = MatchResult(api_id=100, api_title="Show", api_year=2020, confidence=0.95, source="tmdb")
+    with patch(
+        "personalscraper.scraper.scraper.match_tvshow_single",
+        return_value=match,
+    ):
+        out = mixin._lookup_series("Show", 2020, set(), result)
+
+    assert out is not None
+    # First provider triggered fallback with reason="other" for the RuntimeError
+    mixin._registry.emit_provider_fallback.assert_any_call(
+        capability="TvDetailsProvider",
+        from_provider="tmdb",
+        reason="other",
+        exc_type="RuntimeError",
+        item=mixin._registry.emit_provider_fallback.call_args_list[0].kwargs["item"],
+    )
+
+
+# ---------------------------------------------------------------------------
+# I7 — _family_to_client logs forensic warning (regression for PR review cycle 4)
+# ---------------------------------------------------------------------------
+
+
+def test_family_to_client_logs_warning_on_unknown_provider(caplog: Any) -> None:
+    """Regression for I7: _family_to_client logs forensic warning.
+
+    Triggered when the registry returns UnknownProviderError.
+    """
+    from personalscraper.api.metadata.registry._errors import UnknownProviderError
+
+    mixin = _make_mixin()
+    mixin._registry.get.side_effect = UnknownProviderError("tmdb")
+
+    with caplog.at_level("WARNING"):
+        client = mixin._family_to_client("tmdb")
+
+    assert client is None
+    assert "xref_family_unwired" in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# I9 — episode NFO failure surfaces in result.warnings (regression for PR review cycle 4)
+# ---------------------------------------------------------------------------
+
+
+def test_episode_nfo_failure_appended_to_result_warnings(tmp_path: Path) -> None:
+    """Regression for I9: episode NFO write failure must surface in warnings.
+
+    Mirroring _recover_movie_artwork behavior.
+    """
+    show = tmp_path / "Show"
+    show.mkdir()
+    v = show / "Show.S01E01.mkv"
+    v.write_bytes(b"x")
+
+    mixin = _make_mixin()
+    mixin._nfo.generate_episode_nfo.side_effect = RuntimeError("nfo boom")
+    matched = {
+        v: {
+            "season": 1,
+            "episode": 1,
+            "api_title": "Pilot",
+            "still_path": "",
+            "fallback": False,
+        }
+    }
+    with patch(
+        "personalscraper.scraper.scraper.extract_stream_info",
+        return_value=None,
+    ):
+        warnings = mixin._generate_episode_nfos(matched, show, {"name": "Show"})
+
+    assert len(warnings) >= 1
+    assert any("episode_nfo_failed:" in w for w in warnings)
+    assert any("nfo boom" in w for w in warnings)
