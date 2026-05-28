@@ -12,39 +12,40 @@
 
 ## Phases
 
-| #   | Phase                                      | File                                          | Status |
-| --- | ------------------------------------------ | --------------------------------------------- | ------ |
-| 0   | New types, shells, characterization tests  | phase-00-types-shells-characterization.md     | [x]    |
-| 1   | Boot wiring + chain migration              | phase-01-boot-wiring-chain.md                 | [x]    |
-| 2   | Scraper locked migration                   | phase-02-scraper-locked.md                    | [x]    |
-| 3   | Out-of-scraper consumers                   | phase-03-out-of-scraper.md                    | [x]    |
-| 4   | Cleanup, observability, docs               | phase-04-cleanup-obs-docs.md                  | [x]    |
-| 5   | PR fixes cycle 1                           | phase-05-pr-fixes-cycle-1.md                  | [x]    |
-| 6   | PR fixes cycle 2                           | phase-06-pr-fixes-cycle-2.md                  | [x]    |
-| 7   | Chain semantics in production              | phase-07-chain-semantics-production.md        | [x]    |
-| 8   | Type design hardening                      | phase-08-type-design-hardening.md             | [x]    |
-| 9   | Test infrastructure cleanup                | phase-09-test-infrastructure-cleanup.md       | [x]    |
-| 10  | Module size extraction                     | phase-10-module-size-extraction.md            | [x]    |
-| 11  | Indexer migration                          | phase-11-indexer-migration.md                 | [x]    |
-| 12  | ROADMAP entries for deferrals              | phase-12-roadmap-entries.md                   | [x]    |
-| 13  | Pre-existing fixes (flaky test)            | phase-13-pre-existing-fixes.md                | [x]    |
-| 14  | TVDB client bootstrap deferral             | phase-14-tvdb-bootstrap-defer.md              | [x]    |
-| 15  | Remove autouse CLI fixture                 | phase-15-remove-autouse-cli-fixture.md        | [x]    |
-| 16  | Scraper chain exhaustion raise             | phase-16-chain-exhaustion-raise.md            | [x]    |
-| 17  | Protocol provider_id str\|int              | phase-17-protocol-provider-id-str-or-int.md   | [x]    |
-| 18  | Module size hard ceiling fixes             | phase-18-module-size-hard-ceiling.md          | [x]    |
-| 19  | Fix config.example/providers.json5         | phase-19-fix-config-template.md               | [x]    |
-| 20  | Re-pin ACC criteria                        | phase-20-repin-acc-criteria.md                | [x]    |
-| 21  | Chain semantics unclassified (C2/C3)       | phase-21-chain-semantics-unclassified.md      | [x]    |
-| 22  | Public emit helpers + circuit cache        | phase-22-public-emit-helpers-circuit-cache.md | [x]    |
-| 23  | Type design polish                         | phase-23-type-design-polish.md                | [x]    |
-| 24  | Documentation completion                   | phase-24-documentation-completion.md          | [x]    |
-| 25  | Test coverage gaps                         | phase-25-test-coverage-gaps.md                | [x]    |
-| 26  | PR review cycle 4 fixes                    | phase-26-pr-review-cycle-4-fixes.md           | [x]    |
-| 27  | Cycle 5 polish + flaky test fix            | phase-27-cycle-5-polish.md                    | [x]    |
-| 28  | Pipeline-monitor v2.2 deviations follow-up | phase-28-pipeline-monitor-deviations.md       | [x]    |
-| 29  | PR fixes cycle 5                           | phase-29-pr-fixes-cycle-5.md                  | [x]    |
-| 30  | Scraper same-TMDB multi-source dedup fix   | phase-30-scrape-dedup-gap-fix.md              | [x]    |
+| #   | Phase                                         | File                                             | Status |
+| --- | --------------------------------------------- | ------------------------------------------------ | ------ |
+| 0   | New types, shells, characterization tests     | phase-00-types-shells-characterization.md        | [x]    |
+| 1   | Boot wiring + chain migration                 | phase-01-boot-wiring-chain.md                    | [x]    |
+| 2   | Scraper locked migration                      | phase-02-scraper-locked.md                       | [x]    |
+| 3   | Out-of-scraper consumers                      | phase-03-out-of-scraper.md                       | [x]    |
+| 4   | Cleanup, observability, docs                  | phase-04-cleanup-obs-docs.md                     | [x]    |
+| 5   | PR fixes cycle 1                              | phase-05-pr-fixes-cycle-1.md                     | [x]    |
+| 6   | PR fixes cycle 2                              | phase-06-pr-fixes-cycle-2.md                     | [x]    |
+| 7   | Chain semantics in production                 | phase-07-chain-semantics-production.md           | [x]    |
+| 8   | Type design hardening                         | phase-08-type-design-hardening.md                | [x]    |
+| 9   | Test infrastructure cleanup                   | phase-09-test-infrastructure-cleanup.md          | [x]    |
+| 10  | Module size extraction                        | phase-10-module-size-extraction.md               | [x]    |
+| 11  | Indexer migration                             | phase-11-indexer-migration.md                    | [x]    |
+| 12  | ROADMAP entries for deferrals                 | phase-12-roadmap-entries.md                      | [x]    |
+| 13  | Pre-existing fixes (flaky test)               | phase-13-pre-existing-fixes.md                   | [x]    |
+| 14  | TVDB client bootstrap deferral                | phase-14-tvdb-bootstrap-defer.md                 | [x]    |
+| 15  | Remove autouse CLI fixture                    | phase-15-remove-autouse-cli-fixture.md           | [x]    |
+| 16  | Scraper chain exhaustion raise                | phase-16-chain-exhaustion-raise.md               | [x]    |
+| 17  | Protocol provider_id str\|int                 | phase-17-protocol-provider-id-str-or-int.md      | [x]    |
+| 18  | Module size hard ceiling fixes                | phase-18-module-size-hard-ceiling.md             | [x]    |
+| 19  | Fix config.example/providers.json5            | phase-19-fix-config-template.md                  | [x]    |
+| 20  | Re-pin ACC criteria                           | phase-20-repin-acc-criteria.md                   | [x]    |
+| 21  | Chain semantics unclassified (C2/C3)          | phase-21-chain-semantics-unclassified.md         | [x]    |
+| 22  | Public emit helpers + circuit cache           | phase-22-public-emit-helpers-circuit-cache.md    | [x]    |
+| 23  | Type design polish                            | phase-23-type-design-polish.md                   | [x]    |
+| 24  | Documentation completion                      | phase-24-documentation-completion.md             | [x]    |
+| 25  | Test coverage gaps                            | phase-25-test-coverage-gaps.md                   | [x]    |
+| 26  | PR review cycle 4 fixes                       | phase-26-pr-review-cycle-4-fixes.md              | [x]    |
+| 27  | Cycle 5 polish + flaky test fix               | phase-27-cycle-5-polish.md                       | [x]    |
+| 28  | Pipeline-monitor v2.2 deviations follow-up    | phase-28-pipeline-monitor-deviations.md          | [x]    |
+| 29  | PR fixes cycle 5                              | phase-29-pr-fixes-cycle-5.md                     | [x]    |
+| 30  | Scraper same-TMDB multi-source dedup fix      | phase-30-scrape-dedup-gap-fix.md                 | [x]    |
+| 31  | PR review cycle 6 — trailer-aware dedup fixes | phase-31-pr-review-cycle6-trailer-dedup-fixes.md | [ ]    |
 
 **Post-merge remediation phases (7-13)**: generated by the 2026-05-27 retrospective after PR #27 merged. Address the 30-point audit findings. See `docs/features/registry/RETROSPECTIVE.md` for the full inventory + 9 process items not actionable as code phases.
 
@@ -54,7 +55,7 @@
 
 **Phase 30**: generated 2026-05-28 after running `/pipeline-monitor` v2.4 on the merge-ready HEAD (post-phase-29). Surfaced 1 new MAJEUR DEVIATION: scraper merges same-TMDB multi-source movie folders but leaves orphan `.mkv` files behind, and no pipeline step catches it. Gourou test scenario (2 sources matching TMDB Gourou (2026), 22 GB HDR + 2.9 GB 1080p) reproduced the bug. Operator elected to ship the fix in this PR. 5 sub-phases: 30.1 mtime preference in `_find_video_file`, 30.2 post-rename orphan unlink in `movie_service`, 30.3 verify safety-net check, 30.4 E2E regression reproducing Gourou, 30.5 matrix v2.4 → v2.5 bump.
 
-**Next action**: All 30 phases complete — run `/implement:feature-pr` (push `feat/registry`, verify CI green), then `merge_mode=manual` squash-merge PR #27. Phase 30 closed via `/implement:phase` (5 sub-phases): 30.1 mtime selection in `_find_video_file`, 30.2 post-rename orphan unlink, 30.3 VERIFY `no_duplicate_videos` check (movie denominator 12→13), 30.4 regression test (placed in `tests/scraper/`, not the CI-excluded `tests/e2e/`), 30.5 pipeline-monitor matrix v2.5 (committed in the separate `.claude` repo @ `e4b4c0d`). One auto-fix cycle: 2 dispatch integration tests switched to non-video marker files (the new check correctly blocked their artificial 2-video staging fixtures). Post-merge: re-run `/pipeline-monitor` (now matrix v2.5) with the 2 Gourou torrents re-ingested to validate end-to-end. Optionally `/implement:archive` after merge.
+**Next action**: Execute phase 31 (PR review cycle 6 — trailer-aware dedup fixes, 3 sub-phases) via `/implement:phase`. Phase 30 pushed (`79b345d8`) and CI green; a focused cycle-6 review of the phase-30 code then found 1 MAJEUR (the new `no_duplicate_videos` check + orphan unlink treat a flat movie trailer `{name}-trailer.{ext}` as a duplicate → false-positive dispatch block / trailer deletion) + 2 MEDIUM (orphan OSError not surfaced; recursive-select vs root-only-cleanup scope) + test gaps. Operator elected "fix everything before merge". After phase 31 closes: re-push `feat/registry`, verify CI green, then `merge_mode=manual` squash-merge PR #27. Post-merge: re-run `/pipeline-monitor` (matrix v2.5) + optional `/implement:archive`.
 
 ### Cycle 5 (of reset log) — 2026-05-28
 
@@ -78,6 +79,22 @@ Triggered by `/implement:pr-review` after phase 28 push. 3 reviewers dispatched 
 - ACCEPTANCE "iff" → IGNORED (stylistic).
 
 **Decision** : Case B — 1 Major + 2 Medium → generate phase 29 with 2 sub-phases (29.1 = test pin + edge cases, 29.2 = doc bullet). max 5 cycles → cycle 5 is the LAST review ; after phase 29 fixes are applied + pushed + CI green, loop exits without cycle 6.
+
+### Cycle 6 (of reset log) — 2026-05-28
+
+Triggered after phase 30 push (CI green on `79b345d8`). A focused 3-reviewer adversarial review (`code-reviewer`, `silent-failure-hunter`, `pr-test-analyzer`) of ONLY the phase-30 diff (`0baf0a7f..HEAD`) — the prior 5 cycles predate phase 30. The formal 5-cycle budget is exhausted, so the auto-fix loop did not self-trigger; the operator explicitly elected "fix everything before merge", authorising phase 31.
+
+**Reviewer convergence**:
+
+- All 3 confirm the core Gourou dedup fix is sound and well-tested (filesystem-authoritative, non-vacuous regression test, correctly placed in `tests/scraper/` not the CI-excluded `tests/e2e/`).
+- **MAJEUR (code-reviewer, conf 88)**: the new `no_duplicate_videos` VERIFY check + the orphan-unlink loop have NO exemption for the flat movie trailer `{media_name}-trailer.{ext}` (Plex flat placement, ext ∈ `VIDEO_EXTENSIONS`; `verify/checker.py` has zero trailer handling — confirmed via `trailers/placement.py:71` + `docs/reference/trailers.md:184-186`). Any movie with a trailer → check ERROR → dispatch blocked, and the orphan loop could unlink the trailer. Breaks `library-verify` on stored movies + idempotent re-runs.
+- **MEDIUM (silent-failure-hunter)**: orphan-unlink `OSError` logged but not appended to `result.warnings` (asymmetric with the rename branch) — scrape self-reports clean while a duplicate persists (VERIFY backstops, no storage leak).
+- **MEDIUM (both)**: `_find_video_file` selects recursively (`rglob`) but the orphan loop is root-only (`iterdir`) — scope inconsistency; latent root-deletion footgun if the canonical is ever nested.
+- **Test gaps (pr-test-analyzer)**: the destructive orphan-loop's non-video/subdir skip guard is untested; `_find_video_file`'s `OSError` fallback + `Trailers/`-skip are untested.
+
+**Opus filter vs DESIGN/plan**: all retained (none out-of-scope; none a DESIGN contradiction — the trailers feature predates phase 30, so this is an unconsidered cross-feature interaction, fixable within phase-30's own deliverable).
+
+**Decision**: generate phase 31 (3 sub-phases — 31.1 shared `is_trailer_filename` predicate + VERIFY exemption, 31.2 scraper select/unlink exemption + D2/D3 tests, 31.3 orphan-loop robustness B+C+D1). Operator-directed fix overrides the cycle-budget guard.
 
 ## Baseline measurements (Phase 0 sub-phase 0.6)
 
