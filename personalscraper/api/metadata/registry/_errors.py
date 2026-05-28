@@ -33,9 +33,8 @@ class RegistryConfigError(RegistryError):
     def _format(issues: list[ConfigIssue]) -> str:
         lines = ["RegistryConfigError — provider config is invalid:"]
         for issue in issues:
-            suggestion = f" (did you mean {issue.message!r}?)" if "did you mean" in issue.message else ""
             lines.append(
-                f"  [{issue.code}] section={issue.section} provider={issue.provider}: {issue.message}{suggestion}"
+                f"  [{issue.code}] section={issue.section} provider={issue.provider}: {issue.message}"
             )
         return "\n".join(lines)
 
