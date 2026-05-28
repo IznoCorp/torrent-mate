@@ -157,7 +157,7 @@ def test_fan_out_populates_attempted_with_circuit_open_skips(
     assert len(event.attempted) == 1
     open_entry = next(a for a in event.attempted if a.reason == "circuit_open")
     assert open_entry.provider == "r1"
-    assert event.succeeded == 1
+    assert event.eligible == 1
 
 
 def test_fan_out_attempted_empty_when_no_providers_configured(
@@ -174,4 +174,4 @@ def test_fan_out_attempted_empty_when_no_providers_configured(
     registry.fan_out(RatingProvider)
     event = next(e for e in mock_event_bus.emitted if isinstance(e, RegistryFanOutCompleted))  # type: ignore[attr-defined]
     assert event.attempted == []
-    assert event.succeeded == 0
+    assert event.eligible == 0

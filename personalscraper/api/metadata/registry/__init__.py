@@ -494,7 +494,7 @@ class ProviderRegistry:
             RegistryFanOutCompleted(
                 capability=capability.__name__,
                 attempted=attempted,
-                succeeded=len(eligible),
+                eligible=len(eligible),
             )
         )
         return FanOutResult(values=eligible, attempted=attempted)

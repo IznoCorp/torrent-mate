@@ -76,4 +76,4 @@ def test_fan_out_emits_completed_event_even_when_empty(monkeypatch: pytest.Monke
 
     result = registry.fan_out(RatingProvider)
     assert result.values == []
-    assert any(isinstance(e, RegistryFanOutCompleted) and e.succeeded == 0 for e in bus.emitted)
+    assert any(isinstance(e, RegistryFanOutCompleted) and e.eligible == 0 for e in bus.emitted)

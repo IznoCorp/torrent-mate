@@ -73,12 +73,13 @@ class RegistryFanOutCompleted:
     Attributes:
         capability: The capability that was fanned out (Protocol name).
         attempted: List of ``AttemptOutcome`` for each tried provider.
-        succeeded: Number of providers that returned a non-empty result.
+        eligible: Number of providers that survived eligibility filtering
+            (circuit CLOSED or HALF_OPEN), before the caller fans out.
     """
 
     capability: str
     attempted: list[AttemptOutcome]
-    succeeded: int
+    eligible: int
 
 
 @dataclass(frozen=True)
