@@ -42,12 +42,14 @@ class ProviderExhaustedEvent:
 
     Attributes:
         capability: The capability being chained (Protocol name).
-        attempted: List of ``AttemptOutcome`` for each tried provider.
+        attempted: Per-provider outcomes for the exhausted chain, stored
+            as a ``tuple`` so the frozen-dataclass invariant is honoured
+            (PR review cycle 4, finding I5).
         item: Dict with item context (title, year, media_type, etc.).
     """
 
     capability: str
-    attempted: list[AttemptOutcome]
+    attempted: tuple[AttemptOutcome, ...]
     item: dict[str, Any]
 
 
@@ -72,13 +74,15 @@ class RegistryFanOutCompleted:
 
     Attributes:
         capability: The capability that was fanned out (Protocol name).
-        attempted: List of ``AttemptOutcome`` for each tried provider.
+        attempted: Per-provider outcomes for the fan-out, stored as a
+            ``tuple`` so the frozen-dataclass invariant is honoured
+            (PR review cycle 4, finding I5).
         eligible: Number of providers that survived eligibility filtering
             (circuit CLOSED or HALF_OPEN), before the caller fans out.
     """
 
     capability: str
-    attempted: list[AttemptOutcome]
+    attempted: tuple[AttemptOutcome, ...]
     eligible: int
 
 

@@ -79,7 +79,7 @@ def _registry_mock(
             and ``chain(TvDetailsProvider)``.
     """
     reg = MagicMock(spec=ProviderRegistry)
-    reg.fan_out.return_value = FanOutResult(values=ratings or [], attempted=[])
+    reg.fan_out.return_value = FanOutResult(values=tuple(ratings or ()), attempted=())
     reg.chain.return_value = details or []
     reg.emit_provider_fallback = MagicMock()
     reg.emit_provider_exhausted = MagicMock()

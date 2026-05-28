@@ -30,7 +30,10 @@ def test_provider_exhausted_default_last_exception_is_none() -> None:
 
     assert exc.last_exception is None
     assert exc.capability is Searchable
-    assert exc.attempted == attempted
+    # Frozen-payload invariant (I5): ``attempted`` is normalised to a tuple
+    # at the constructor boundary.
+    assert exc.attempted == tuple(attempted)
+    assert isinstance(exc.attempted, tuple)
     assert exc.item_context is None
 
 

@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from personalscraper.api.metadata.registry import (
         AttemptOutcome,
         ConfigIssue,
@@ -59,27 +61,34 @@ class ProviderExhausted(RegistryError):
 
     Attributes:
         capability: The capability Protocol type that was exhausted.
-        attempted: The list of ``AttemptOutcome`` for each tried provider.
+        attempted: Per-provider outcomes for the exhausted chain, stored
+            as a ``tuple`` so the exception payload is immutable (PR
+            review cycle 4, finding I5).
         item_context: Optional dict with item details for diagnostics.
         last_exception: The last exception raised by a chain provider
             (``CircuitOpenError`` / ``ApiError`` / ``OSError`` …) — used
             by callers to preserve the original error message.
     """
 
+    attempted: tuple[AttemptOutcome, ...]
+
     def __init__(
         self,
         capability: type,
-        attempted: list[AttemptOutcome],
+        attempted: Sequence[AttemptOutcome],
         item_context: dict[str, Any] | None = None,
         last_exception: Exception | None = None,
     ) -> None:
         self.capability = capability
-        self.attempted = attempted
+        # Freeze at the constructor boundary so callers can keep
+        # accumulating into a mutable ``list`` while the exception
+        # payload itself remains immutable.
+        self.attempted = tuple(attempted)
         self.item_context = item_context
         self.last_exception = last_exception
         last_msg = f": {last_exception}" if last_exception is not None else ""
         super().__init__(
-            f"Chain exhausted for {capability.__name__}{last_msg} (attempted: {[a.provider for a in attempted]})"
+            f"Chain exhausted for {capability.__name__}{last_msg} (attempted: {[a.provider for a in self.attempted]})"
         )
 
 

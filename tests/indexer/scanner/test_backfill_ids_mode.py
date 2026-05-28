@@ -128,7 +128,7 @@ def _build_registry_mock(
     rating_providers = rating_providers or []
     details_providers = details_providers or []
     reg = MagicMock(spec=ProviderRegistry)
-    reg.fan_out.return_value = FanOutResult(values=rating_providers, attempted=[])
+    reg.fan_out.return_value = FanOutResult(values=tuple(rating_providers), attempted=())
     reg.chain.return_value = details_providers
     # emit_provider_fallback / emit_provider_exhausted are the public
     # chain-iteration emit helpers (Phase 22 promoted them from leading

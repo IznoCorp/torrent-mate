@@ -739,7 +739,7 @@ class TestFanOutPartial:
         # fan_out itself returns a FanOutResult; the test below additionally
         # composes a caller-side FanOutResult after exercising the providers
         # to demonstrate provenance composition over HTTP failures.
-        assert registry_result.attempted == []
+        assert registry_result.attempted == ()
 
         # Caller iterates fan_out, composing its own FanOutResult per-call outcomes.
         values: list[Any] = []
@@ -764,7 +764,7 @@ class TestFanOutPartial:
                     )
                 )
 
-        fan_out_result = FanOutResult(values=values, attempted=attempted)
+        fan_out_result = FanOutResult(values=tuple(values), attempted=tuple(attempted))
         assert len(fan_out_result.values) == 1
         assert len(fan_out_result.attempted) == 2
 

@@ -33,7 +33,8 @@ def test_fan_out_all_eligible_iteration(build_registry: object) -> None:
     names = [p.provider_name for p in result.values]
     assert set(names) == {"r1", "r2"}
     # No filtered providers => attempted is empty.
-    assert result.attempted == []
+    # Frozen-dataclass invariant (I5): ``attempted`` is a ``tuple``.
+    assert result.attempted == ()
 
 
 # ---------------------------------------------------------------------------
@@ -71,7 +72,7 @@ def test_fan_out_empty_when_no_eligible(build_registry: object) -> None:
     config = ProvidersConfig(RatingProvider={"r1": 1, "r2": 2})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
     result = registry.fan_out(RatingProvider)
-    assert result.values == []
+    assert result.values == ()
     # Both providers attempted but filtered.
     assert [a.provider for a in result.attempted] == ["r1", "r2"]
     assert all(a.reason == "circuit_open" for a in result.attempted)
@@ -84,8 +85,8 @@ def test_fan_out_empty_when_all_capability_filtered(build_registry: object) -> N
     config = ProvidersConfig(Searchable={"x": 1}, RatingProvider={})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
     result = registry.fan_out(RatingProvider)
-    assert result.values == []
-    assert result.attempted == []
+    assert result.values == ()
+    assert result.attempted == ()
 
 
 # ---------------------------------------------------------------------------
@@ -173,5 +174,5 @@ def test_fan_out_attempted_empty_when_no_providers_configured(
     )
     registry.fan_out(RatingProvider)
     event = next(e for e in mock_event_bus.emitted if isinstance(e, RegistryFanOutCompleted))  # type: ignore[attr-defined]
-    assert event.attempted == []
+    assert event.attempted == ()
     assert event.eligible == 0

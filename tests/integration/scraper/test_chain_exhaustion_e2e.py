@@ -89,7 +89,7 @@ def _make_chain_exhausted_registry(bus: _RecordingBus) -> MagicMock:
         bus.emit(
             ProviderExhaustedEvent(
                 capability=capability,
-                attempted=attempted,
+                attempted=tuple(attempted),
                 item=item,
             )
         )

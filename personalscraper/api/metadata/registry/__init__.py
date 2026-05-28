@@ -7,6 +7,7 @@ pattern across all consumers (DESIGN §1.1, §5.2).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
@@ -275,10 +276,16 @@ class FanOutResult(Generic[C]):
 
     Empty ``values`` is not an error; caller may inspect ``attempted`` to
     distinguish "0 providers eligible" from "N tried, none returned data".
+
+    The fields are :class:`tuple` (not ``list``) so the frozen-dataclass
+    invariant is honoured: a ``list`` on a frozen dataclass is mutable
+    in place, which contradicts the immutability contract the registry
+    relies on for event-bus payloads and cross-thread provenance
+    (PR review cycle 4, finding I5).
     """
 
-    values: list[C]
-    attempted: list[AttemptOutcome]
+    values: tuple[C, ...]
+    attempted: tuple[AttemptOutcome, ...]
 
 
 # ---------------------------------------------------------------------------
@@ -493,11 +500,11 @@ class ProviderRegistry:
         self._event_bus_safe_emit(
             RegistryFanOutCompleted(
                 capability=capability.__name__,
-                attempted=attempted,
+                attempted=tuple(attempted),
                 eligible=len(eligible),
             )
         )
-        return FanOutResult(values=eligible, attempted=attempted)
+        return FanOutResult(values=tuple(eligible), attempted=tuple(attempted))
 
     @overload
     def locked(
@@ -768,7 +775,7 @@ class ProviderRegistry:
         self,
         *,
         capability: str,
-        attempted: list[AttemptOutcome],
+        attempted: Sequence[AttemptOutcome],
         item: dict[str, Any],
     ) -> None:
         """Emit :class:`ProviderExhaustedEvent` after all chain providers failed.
@@ -780,13 +787,16 @@ class ProviderRegistry:
 
         Args:
             capability: Capability Protocol name.
-            attempted: One row per attempted provider with its outcome.
+            attempted: Per-provider outcomes for the exhausted chain. Accepts
+                any :class:`Sequence` so chain iterators can pass the mutable
+                ``list`` they accumulated; the emit boundary freezes it into
+                a ``tuple`` (PR review cycle 4, finding I5).
             item: Item context (title/year/media_type) for diagnostics.
         """
         self._event_bus_safe_emit(
             ProviderExhaustedEvent(
                 capability=capability,
-                attempted=attempted,
+                attempted=tuple(attempted),
                 item=item,
             )
         )

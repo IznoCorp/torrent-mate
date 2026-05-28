@@ -85,7 +85,7 @@ def _make_registry(providers_by_capability: dict[type, list[Any]], bus: _Recordi
         bus.emit(
             ProviderExhaustedEvent(
                 capability=capability,
-                attempted=attempted,
+                attempted=tuple(attempted),
                 item=item,
             )
         )
