@@ -34,3 +34,28 @@ Status as of phase 15 gate. Each row maps to DESIGN §12.
 | 13    | `64beb6b` | Torrent capability composition (QBit + Transmission)                  |
 | 14    | `981908e` | Notify capability composition (Telegram + Healthchecks)               |
 | 15    | _(this)_  | E2E aggregate + acceptance report                                     |
+
+## Canonical provider rule (clarification — 2026-05-28)
+
+For `media_item` rows with `kind='show'`, `canonical_provider='tvdb'`
+applies **iff** the show is resolvable on TVDB (i.e. an entry with a real
+`series_id` is returned for the requested title/year). When TVDB has no
+match, the registry chain falls back to TMDB and `canonical_provider='tmdb'`
+is the **design-conforming** outcome — not a regression.
+
+This was implicit in the original phase 7 design but never written down.
+Surfaced by `/pipeline-monitor` v2.2 run on 2026-05-28, which flagged 15
+shows with `canonical_provider='tmdb'`. Inspection confirmed each had NO
+`tvdb` entry in `external_ids_json` — TVDB simply does not know these
+shows (e.g. id 1107 "Death in Denmark" tmdb=309677, no tvdb).
+
+Operationally:
+
+- `kind='show'` AND `canonical_provider='tvdb'` → primary
+- `kind='show'` AND `canonical_provider='tmdb'` AND no `tvdb` in
+  `external_ids_json` → fallback, DESIGN_CONFORM
+- `kind='show'` AND `canonical_provider='tmdb'` AND `tvdb` IS present in
+  `external_ids_json` → DESIGN_DEVIATION (TVDB was available, registry should
+  have preferred it) — this is what `pipeline-bdd-validator` flags
+- `kind='movie'` AND `canonical_provider='tmdb'` → primary; `'tvdb'` not
+  applicable for movies
