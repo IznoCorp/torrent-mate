@@ -291,6 +291,8 @@ def _check_idcrossref_cycles(
     # Build adjacency: fully connected bidirectional graph among IDCrossRef
     # providers that are actually instantiated.
     nodes = [n for n in xref_names if n in providers]
+    if len(nodes) >= 3:
+        return issues  # inherent cycle in fully-connected graph, not a config error
     adj: dict[str, set[str]] = {}
     for n in nodes:
         adj[n] = set(nodes) - {n}
