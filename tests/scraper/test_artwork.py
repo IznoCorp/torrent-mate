@@ -272,6 +272,45 @@ class TestDownloadMovieArtwork:
         # Only landscape succeeded
         assert len(result) == 1
 
+    def test_movie_artwork_url_not_double_prefixed_when_path_is_absolute(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Absolute movie image URLs must pass through unchanged.
+
+        Regression (DEV #4, 2026-05-28 pipeline-monitor run): the registry
+        provider layer may return already-absolute image URLs for movies
+        (e.g. ``https://image.tmdb.org/t/p/w780/...``). The movie path must
+        pass them through unchanged instead of prepending the TMDB CDN base
+        again — mirroring the ``startswith("http")`` guard the TV path already
+        has. The bug produced ``.../originalhttps://...`` (a 404), leaving the
+        movie with no poster/landscape.
+        """
+        downloader = ArtworkDownloader()
+        patterns = NamingPatterns()
+        absolute_poster = "https://image.tmdb.org/t/p/w780/oy9SBxmzL6.jpg"
+        absolute_backdrop = "https://image.tmdb.org/t/p/w1280/n1uqytxd.jpg"
+        data = {
+            "title": "Gourou",
+            "images": {
+                "posters": [
+                    {"file_path": absolute_poster, "iso_639_1": "fr", "vote_average": 7.0},
+                ],
+                "backdrops": [
+                    {"file_path": absolute_backdrop, "iso_639_1": None, "vote_average": 8.0},
+                ],
+            },
+        }
+
+        with patch.object(downloader, "download_image", return_value=True) as mock_dl:
+            downloader.download_movie_artwork(data, tmp_path, patterns)
+
+        urls = [call.args[0] for call in mock_dl.call_args_list]
+        assert urls == [absolute_poster, absolute_backdrop]
+        # Guard against the specific double-prefix regression.
+        assert not any("originalhttps://" in url for url in urls)
+        assert not any(url.count("https://") > 1 for url in urls)
+
 
 # ---------------------------------------------------------------------------
 # TV show artwork tests
