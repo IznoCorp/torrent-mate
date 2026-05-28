@@ -8,7 +8,7 @@ from pathlib import Path
 
 from personalscraper.logger import get_logger
 from personalscraper.scraper.confidence import MatchResult
-from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
+from personalscraper.sorter.file_type import VIDEO_EXTENSIONS, is_trailer_filename
 
 log = get_logger("scraper")
 
@@ -58,6 +58,9 @@ def _find_video_file(directory: Path) -> Path | None:
     File size (``st_size``) is the tie-breaker when modification times are
     identical, so the larger file wins on equal mtime.
     Skips hidden files, ``.actors/`` directories, and ``Trailers/`` directories.
+    Flat movie trailers (``{name}-trailer.{ext}``, Plex Local Media Assets
+    convention) are excluded so a trailer downloaded after the feature can
+    never win on mtime and be mistaken for the canonical feature video.
 
     Args:
         directory: Root directory to search.
@@ -74,6 +77,7 @@ def _find_video_file(directory: Path) -> Path | None:
         and not f.name.startswith(".")
         and ".actors" not in f.parts
         and "Trailers" not in f.parts
+        and not is_trailer_filename(f.name)
     ]
     if not candidates:
         return None

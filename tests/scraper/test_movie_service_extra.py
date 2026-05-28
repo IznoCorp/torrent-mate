@@ -532,6 +532,56 @@ class TestVideoOrphanCleanup:
 
 
 # ---------------------------------------------------------------------------
+# Flat movie trailer is spared by the orphan-unlink loop
+# ---------------------------------------------------------------------------
+
+
+class TestFlatTrailerNotUnlinked:
+    """The orphan loop must never unlink a flat `{name}-trailer.{ext}` at root.
+
+    Movies place their trailer FLAT at the movie root (Plex Local Media Assets
+    convention). After the same-TMDB dedup orphan loop runs, the trailer must
+    survive alongside the canonical feature, and ``movie_video_orphan_removed``
+    must NOT be emitted for it.
+    """
+
+    def test_flat_trailer_survives_orphan_loop(
+        self, scraper: Scraper, tmp_path: Path, movie_data: dict, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A flat trailer at root is kept while a true orphan video is removed."""
+        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir.mkdir()
+        # Canonical feature: clean name (rename no-op) + newest mtime so it is
+        # selected by `_find_video_file`.
+        canonical = movie_dir / "The Matrix.mkv"
+        canonical.write_text("canonical-payload")
+        # Flat Plex trailer at the movie root — must be spared by the orphan loop.
+        trailer = movie_dir / "The Matrix-trailer.mp4"
+        trailer.write_text("trailer-payload")
+
+        import os
+
+        os.utime(trailer, (1_000_000, 1_000_000))
+        os.utime(canonical, (2_000_000, 2_000_000))
+
+        with (
+            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
+            patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
+            patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
+            caplog.at_level("INFO"),
+        ):
+            result = scraper.scrape_movie(movie_dir)
+
+        assert result.action == "scraped"
+        # Both the canonical and the flat trailer survive the orphan loop.
+        assert canonical.exists()
+        assert trailer.exists()
+        # The trailer was never targeted by the orphan-removal log.
+        assert "movie_video_orphan_removed" not in caplog.text
+
+
+# ---------------------------------------------------------------------------
 # NFO generation exception (lines 433-437)
 # ---------------------------------------------------------------------------
 

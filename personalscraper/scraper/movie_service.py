@@ -22,7 +22,7 @@ from personalscraper.scraper._shared import ScrapeResult, _find_video_file
 from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.confidence import LOW_CONFIDENCE
 from personalscraper.scraper.rename_service import _cleanup_stale_files, _merge_dirs
-from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
+from personalscraper.sorter.file_type import VIDEO_EXTENSIONS, is_trailer_filename
 from personalscraper.text_utils import sanitize_filename
 
 if TYPE_CHECKING:
@@ -1003,6 +1003,10 @@ class MovieServiceMixin:
             # at the root).
             for entry in sorted(movie_dir.iterdir()):
                 if not entry.is_file() or entry.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
+                    continue
+                # A flat movie trailer ({name}-trailer.{ext}) legitimately lives
+                # at the movie root (Plex Local Media Assets) — never unlink it.
+                if is_trailer_filename(entry.name):
                     continue
                 if entry.name == video_file.name:
                     continue
