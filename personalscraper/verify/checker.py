@@ -96,7 +96,7 @@ class MediaChecker:
 
         Checks: video_present, not_sample, dir_naming, nfo_present,
         nfo_valid, nfo_ids, poster_present, artwork_landscape,
-        streamdetails, no_empty_dirs, category.
+        streamdetails, no_empty_dirs, category, no_duplicate_videos.
 
         Args:
             movie_dir: Path to the movie directory.
@@ -250,6 +250,9 @@ class MediaChecker:
                     message="" if category else "Cannot determine category from genres",
                 )
             )
+
+        # no_duplicate_videos (movie-only — TV shows have multi-file seasons)
+        results.append(self._check_no_duplicate_videos(movie_dir))
 
         # ntfs_safe_names
         results.append(self._check_ntfs_safe_names(movie_dir))
@@ -701,6 +704,37 @@ class MediaChecker:
             if uid_type and uid_text:
                 ids[uid_type] = uid_text
         return ids
+
+    def _check_no_duplicate_videos(self, movie_dir: Path) -> CheckResult:
+        """Verify a movie directory holds at most one video file at its root.
+
+        Movies are flat: a movie folder must contain exactly one feature video
+        at its root. More than one root-level video means the same-TMDB merge
+        dedup contract was violated (two distinct staged folders resolving to
+        the same TMDB id were merged but an orphan video was left behind). If
+        that happens, DISPATCH would copy duplicate videos to storage, so this
+        check blocks the movie. TV shows are EXEMPT — they hold multi-file
+        seasons by design — hence this check is wired into check_movie only.
+
+        The scan is non-recursive (root only): videos inside sub-dirs such as
+        ``Extras/`` are legitimate and ignored.
+
+        Args:
+            movie_dir: Path to the movie directory.
+
+        Returns:
+            CheckResult named "no_duplicate_videos" with ERROR severity;
+            passed when at most one video file lives at the root.
+        """
+        video_files = self._find_video_files(movie_dir)
+        passed = len(video_files) <= 1
+        filenames = sorted(f.name for f in video_files)
+        return CheckResult(
+            name="no_duplicate_videos",
+            passed=passed,
+            severity=Severity.ERROR,
+            message="" if passed else f"Multiple video files at root: {filenames}",
+        )
 
     @staticmethod
     def _find_video_files(directory: Path) -> list[Path]:
