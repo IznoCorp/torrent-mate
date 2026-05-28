@@ -43,10 +43,15 @@ from personalscraper.scraper.tv_service import (
     TvServiceMixin,
     _tvdb_series_to_show_data,
 )
+from personalscraper.scraper.tv_service_nfo import TvServiceNfoMixin
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+class _TestTvMixin(TvServiceMixin, TvServiceNfoMixin):
+    """Combined mixin for tests — mirrors ``Scraper`` MRO."""
 
 
 def _make_mixin(
@@ -59,7 +64,7 @@ def _make_mixin(
     config: Any | None = None,
     patterns: NamingPatterns | None = None,
     classify_return: str | None = "tv_shows",
-) -> TvServiceMixin:
+) -> _TestTvMixin:
     """Build a ``TvServiceMixin`` with the minimum attributes the methods touch.
 
     Args:
@@ -73,9 +78,9 @@ def _make_mixin(
         classify_return: What ``_classify_item`` returns.
 
     Returns:
-        A ready-to-use TvServiceMixin instance.
+        A ready-to-use _TestTvMixin instance.
     """
-    mixin = TvServiceMixin.__new__(TvServiceMixin)
+    mixin = _TestTvMixin.__new__(_TestTvMixin)
     mixin.dry_run = dry_run
 
     _tvdb_client = tvdb if tvdb is not None else MagicMock()

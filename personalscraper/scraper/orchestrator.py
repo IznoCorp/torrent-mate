@@ -22,6 +22,7 @@ from personalscraper.scraper.keywords_cache import KeywordsCache
 from personalscraper.scraper.movie_service import MovieServiceMixin
 from personalscraper.scraper.nfo_generator import NFOGenerator
 from personalscraper.scraper.tv_service import TvServiceMixin
+from personalscraper.scraper.tv_service_nfo import TvServiceNfoMixin
 
 log = get_logger("scraper")
 
@@ -31,7 +32,7 @@ _EPISODE_STRICT_RE = re.compile(r"^S\d{2}E\d{2} - .+\.\w+$")
 _EPISODE_FALLBACK_RE = re.compile(r"^S\d{2}E0*(\d+) - Episode 0*\1\.\w+$", re.IGNORECASE)
 
 
-class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServiceMixin):
+class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServiceMixin, TvServiceNfoMixin):
     """Main scraping orchestrator.
 
     Coordinates TMDB/TVDB matching, NFO generation, artwork download,

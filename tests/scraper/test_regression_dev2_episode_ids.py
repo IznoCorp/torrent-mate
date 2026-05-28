@@ -36,10 +36,15 @@ from personalscraper.scraper.confidence import MatchResult
 from personalscraper.scraper.episode_manager import match_episode_files
 from personalscraper.scraper.nfo_generator import NFOGenerator
 from personalscraper.scraper.tv_service import TvServiceMixin
+from personalscraper.scraper.tv_service_nfo import TvServiceNfoMixin
 
 # ---------------------------------------------------------------------------
 # Helpers (mirror tests/scraper/test_tv_service_extra.py)
 # ---------------------------------------------------------------------------
+
+
+class _TestTvMixin(TvServiceMixin, TvServiceNfoMixin):
+    """Combined mixin for tests — mirrors ``Scraper`` MRO."""
 
 
 def _make_mixin(
@@ -47,7 +52,7 @@ def _make_mixin(
     tvdb: Any = None,
     tmdb: Any = None,
     patterns: NamingPatterns | None = None,
-) -> TvServiceMixin:
+) -> _TestTvMixin:
     """Build a :class:`TvServiceMixin` with the minimum attributes the methods touch.
 
     The mixin instance is constructed via ``__new__`` to skip the
@@ -56,7 +61,7 @@ def _make_mixin(
     suite are exercised, so the missing attributes never come into
     play.
     """
-    mixin = TvServiceMixin.__new__(TvServiceMixin)
+    mixin = _TestTvMixin.__new__(_TestTvMixin)
     mixin.dry_run = False
 
     _tvdb_client = tvdb if tvdb is not None else MagicMock()

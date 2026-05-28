@@ -21,10 +21,15 @@ from unittest.mock import MagicMock
 
 from personalscraper.naming_patterns import PATTERNS, NamingPatterns
 from personalscraper.scraper.tv_service import TvServiceMixin
+from personalscraper.scraper.tv_service_nfo import TvServiceNfoMixin
 
 
-def _make_mixin(*, dry_run: bool = False, patterns: NamingPatterns | None = None) -> TvServiceMixin:
-    mixin = TvServiceMixin.__new__(TvServiceMixin)
+class _TestTvMixin(TvServiceMixin, TvServiceNfoMixin):
+    """Combined mixin for tests — mirrors ``Scraper`` MRO."""
+
+
+def _make_mixin(*, dry_run: bool = False, patterns: NamingPatterns | None = None) -> _TestTvMixin:
+    mixin = _TestTvMixin.__new__(_TestTvMixin)
     mixin.dry_run = dry_run
     mixin._tvdb = MagicMock()  # type: ignore[assignment]
     mixin._tmdb = MagicMock()  # type: ignore[assignment]
