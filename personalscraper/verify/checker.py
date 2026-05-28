@@ -20,7 +20,7 @@ from personalscraper.conf.classifier import classify_from_nfo
 from personalscraper.conf.models.config import Config
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
-from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
+from personalscraper.sorter.file_type import VIDEO_EXTENSIONS, is_trailer_filename
 from personalscraper.text_utils import _NTFS_ILLEGAL
 
 log = get_logger("verify.checker")
@@ -717,18 +717,21 @@ class MediaChecker:
         seasons by design — hence this check is wired into check_movie only.
 
         The scan is non-recursive (root only): videos inside sub-dirs such as
-        ``Extras/`` are legitimate and ignored.
+        ``Extras/`` are legitimate and ignored. The flat Plex movie trailer
+        ``{media_name}-trailer.{ext}`` (placed at the movie root by the trailers
+        step) is also EXEMPT — it is filtered out before the count so a movie
+        with its trailer is not wrongly flagged as holding two feature videos.
 
         Args:
             movie_dir: Path to the movie directory.
 
         Returns:
             CheckResult named "no_duplicate_videos" with ERROR severity;
-            passed when at most one video file lives at the root.
+            passed when at most one non-trailer video file lives at the root.
         """
-        video_files = self._find_video_files(movie_dir)
-        passed = len(video_files) <= 1
-        filenames = sorted(f.name for f in video_files)
+        videos = [f for f in self._find_video_files(movie_dir) if not is_trailer_filename(f.name)]
+        passed = len(videos) <= 1
+        filenames = sorted(f.name for f in videos)
         return CheckResult(
             name="no_duplicate_videos",
             passed=passed,

@@ -53,6 +53,33 @@ def test_two_root_videos_fails(checker: MediaChecker, tmp_path: Path) -> None:
     assert "orphan.mkv" in result.message
 
 
+def test_flat_trailer_exempt_passes(checker: MediaChecker, tmp_path: Path) -> None:
+    """Root feature video plus a flat ``-trailer`` video → passes (trailer exempt).
+
+    Movies place their trailer FLAT at the root as ``{media_name}-trailer.{ext}``
+    (Plex convention). That trailer must not count as a duplicate feature video.
+    """
+    movie_dir = _make_movie_dir(tmp_path, title="Film", year=2020)
+    (movie_dir / "Film (2020)-trailer.mp4").write_bytes(b"\x00" * 1024)
+
+    result = checker._check_no_duplicate_videos(movie_dir)
+
+    assert result.passed is True
+    assert result.message == ""
+
+
+def test_orphan_video_still_fails(checker: MediaChecker, tmp_path: Path) -> None:
+    """Root feature video plus a non-trailer orphan video → still fails (regression intact)."""
+    movie_dir = _make_movie_dir(tmp_path, title="Film", year=2020)
+    (movie_dir / "orphan.mkv").write_bytes(b"\x00" * 1024)
+
+    result = checker._check_no_duplicate_videos(movie_dir)
+
+    assert result.passed is False
+    assert "Multiple video files at root" in result.message
+    assert "orphan.mkv" in result.message
+
+
 def test_video_in_subdir_ignored(checker: MediaChecker, tmp_path: Path) -> None:
     """One root video plus one in an Extras/ sub-dir → passes (non-recursive)."""
     movie_dir = _make_movie_dir(tmp_path)

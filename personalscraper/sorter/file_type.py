@@ -125,6 +125,28 @@ def _extension_of(path: Path) -> str:
     return path.suffix.lstrip(".").lower()
 
 
+def is_trailer_filename(name: str) -> bool:
+    """Check if a filename is a flat Plex movie trailer (filename-only check).
+
+    Movies place their trailer FLAT at the movie root following the Plex Local
+    Media Assets convention: ``{media_name}-trailer.{ext}`` (ext in
+    ``VIDEO_EXTENSIONS``). This predicate lets dedup logic exempt that trailer
+    from duplicate-video detection so a movie with its trailer is not wrongly
+    flagged as holding two feature videos at its root.
+
+    The match is purely on the filename stem: it is True only when the stem
+    ends with the ``-trailer`` suffix. A movie literally named "The Trailer"
+    has stem "The Trailer" (no hyphen before "trailer") and is NOT matched.
+
+    Args:
+        name: Filename (basename only; any directory part is ignored).
+
+    Returns:
+        True if the filename stem ends with ``-trailer`` (case-insensitive).
+    """
+    return Path(name).stem.casefold().endswith("-trailer")
+
+
 def _has_tvshow_markers(name: str) -> bool:
     """Check if a filename contains TV show markers (S01E04, Saison, etc.).
 
