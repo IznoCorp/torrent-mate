@@ -52,15 +52,19 @@ class ScrapeResult:
 def _find_video_file(directory: Path) -> Path | None:
     """Find the main video file in a directory tree.
 
-    Searches recursively for video files. When multiple are found,
-    returns the largest one (main feature, not sample/extra).
-    Skips hidden files and .actors/ directories.
+    Searches recursively for video files. When multiple are found, returns the
+    most recently modified one (largest ``st_mtime``) — i.e. the last
+    downloaded version, per the operator's same-TMDB multi-source dedup spec.
+    File size (``st_size``) is the tie-breaker when modification times are
+    identical, so the larger file wins on equal mtime.
+    Skips hidden files, ``.actors/`` directories, and ``Trailers/`` directories.
 
     Args:
         directory: Root directory to search.
 
     Returns:
-        Path to the largest video file, or None if no video found.
+        Path to the most recently modified video file (size as tie-breaker),
+        or None if no video found.
     """
     candidates = [
         f
@@ -74,7 +78,8 @@ def _find_video_file(directory: Path) -> Path | None:
     if not candidates:
         return None
     try:
-        return max(candidates, key=lambda f: f.stat().st_size)
+        # Newest wins (st_mtime); on identical mtime the larger file wins.
+        return max(candidates, key=lambda f: (f.stat().st_mtime, f.stat().st_size))
     except OSError:
         # stat() failed on a candidate (broken symlink, NTFS metadata issue)
         # — fall back to first candidate rather than crashing the scrape

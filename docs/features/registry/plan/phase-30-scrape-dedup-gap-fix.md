@@ -53,9 +53,9 @@ match the last downloaded by coincidence (HDR 22 GB ingested at 19:47:14 >
    - Keep the existing recursion, hidden-file skip, and `.actors/` skip.
    - Update the docstring to document the mtime-first semantics.
 
-2. Add unit tests in `tests/unit/scraper/test_find_video_file.py`
+2. Add unit tests in `tests/scraper/test_find_video_file.py`
    (create the file if missing — check the project's existing scraper test
-   layout in `tests/unit/scraper/` first to match the established pattern):
+   layout in `tests/scraper/` first to match the established pattern):
    - 2 candidates, different mtimes, same size → newest wins.
    - 2 candidates, same mtime, different sizes → largest wins (tie-break).
    - 1 candidate → returned as-is.
@@ -63,7 +63,7 @@ match the last downloaded by coincidence (HDR 22 GB ingested at 19:47:14 >
    - Recursion: candidate in `Saison 01/` sub-dir → picked up.
    - Skip: hidden file `.foo.mkv` → ignored.
 
-3. Run `make test` scoped: `pytest tests/unit/scraper/test_find_video_file.py
+3. Run `make test` scoped: `pytest tests/scraper/test_find_video_file.py
 -xvs`. Must be green.
 
 **Commit** : `fix(scraper): _find_video_file prefers last-modified over largest`.
