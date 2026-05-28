@@ -130,6 +130,33 @@ Re-review on `feat/registry @ 6177193` (CI green after Phase 5 push).
 
 > **Note (reset 2026-05-28)**: 2 additional cycles (4 + 5) were recorded after PR-#27 was reopened. The user elected to reset the review log and run a fresh cycle 4 after Phase 27 closes the cycle-5-emitted minor suggestions S1/S2/S3 + the flaky `test_indexer_budget_resume`. Phase 26 stays committed (closes the 11 cycle-4-original findings); Phase 27 polishes the suggestions; the next review re-numbers as cycle 4.
 
+### Cycle 4 (of reset log) — 2026-05-28 (MERGE — loop exit)
+
+Verification on `feat/registry @ ccb8ba9b` (CI green: 9/9 checks, test 5m37s incl. ex-flaky `test_indexer_budget_resume` now deterministic).
+
+**Reviewers dispatched (2 parallel)**: `code-reviewer`, `silent-failure-hunter`. Skipped `pr-test-analyzer` + `type-design-analyzer` (cycle 4-original + cycle 5 exhausted).
+
+**Verdict**: MERGE. All 4 Phase 27 findings verified CLOSED:
+
+- **S1** — `_events.py:68` `chain_tried: tuple[str, ...]`; `:98` `providers: tuple[str, ...]`; `:99` `capabilities: dict[str, tuple[str, ...]]`. Construction sites at `registry/__init__.py:395-396` + `:586` wrap with `tuple(...)`. Regression test `tests/integration/api/metadata/registry/test_events.py:79-96` (boot) + `:137` (locked) asserts `isinstance(..., tuple)`. Zero downstream mutation calls (`.append/.extend/.insert/.pop` grep returns 0).
+- **S2** — `registry/__init__.py:493` emits `providers_eligible=`. `rg providers_succeeded --type py` returns 0 matches in code.
+- **S3** — `tv_service.py` = 797 LOC (under 800 soft ceiling — `check-module-size.py` no longer warns). New `tv_service_nfo.py` (186 LOC) houses `TvServiceNfoMixin` with 3 verbatim-extracted methods. `Scraper` MRO at `orchestrator.py:35` clean (no method shadow). Phase 26 I9 warning-propagation preserved (`tv_service_nfo.py:179-181` broad except + log + warnings.append).
+- **F1** — `_walker.py:274,434,674` all 3 `os.scandir()` sites wrapped with `sorted(it, key=lambda e: e.name)`. Root-cause fix (ext4 hash-order vs lexicographic `<=` comparison in resume) — NOT a `@pytest.mark.flaky` mask. 10/10 local repeated runs pass + CI green.
+
+**Minor (no action required for merge)**:
+
+- **M1** Commit `34c538d8` message body claims `tv_service.py: 922 → 675 LOC`, actual is 797. Audit-trail inaccuracy, no functional impact.
+- **M2** `docs/features/registry/DESIGN.md:852` + `docs/features/registry/plan/phase-04-cleanup-obs-docs.md:113` still reference old log key `providers_succeeded`. Pure docs — production code emits `providers_eligible`. Worth a follow-up doc commit, non-blocking.
+- **M3** `existing_validator.py:103` comment `_generate_episode_nfos: Any  # from TvServiceMixin` is stale (method moved to `TvServiceNfoMixin`). Cosmetic; mypy unaffected.
+
+**Pre-existing (not Phase 27)**:
+
+- Test count `tests/scraper/` 811 → 800 — baseline drift unrelated to Phase 27 commits (which only touch 3 test files for import/fixture pivots). Full suite still at 5657.
+- `tv_service_nfo.py:75-76` `_download_episode_thumb` catches `RequestException` and doesn't surface to `result.warnings` — verbatim moved from old `tv_service.py`, pre-Phase 27 behavior.
+- `existing_validator.py` discards `_generate_episode_nfos` warnings return — pre-Phase 27.
+
+**Loop exit per Step 5 Case A**: no remaining critical/major/medium findings. MERGE_MODE=manual → user merges via GitHub UI.
+
 ## Next action
 
-Phase 27 complete (S1+S2+S3 closed + F1 fixed in 3 lines via deterministic directory iteration in `_walker.py`). Chain to `/implement:feature-pr` (push + CI poll) then `/implement:pr-review` (cycle 4 of reset log — verifies the polish + flaky fix).
+All review cycles closed (3 original + 1 reset-log cycle 4 = 4 effective). CI green on `ccb8ba9b`. **MERGE READY** — squash-merge PR #27 via GitHub UI (manual mode chosen at /implement:feature time). After merge: `/implement:archive` will move docs/features/registry/ to docs/archive/features/.
