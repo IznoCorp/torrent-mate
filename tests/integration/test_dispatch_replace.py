@@ -141,8 +141,10 @@ def test_dispatch_replaces_existing_movie(
     movies_staging = staging_tree / folder_name(find_by_file_type(config, FileType.MOVIE))
     new_movie_dir = _build_verified_movie_dir(movies_staging, title=title, year=year)
 
-    # The new file is bigger (50 bytes here; the .mkv is _MIN_VIDEO_BYTES).
-    (new_movie_dir / "new_big_file.mkv").write_bytes(b"y" * 50)
+    # A non-video marker proves the replacement folder moved (the single root
+    # video is {title}.mkv; a second root video would trip the no_duplicate_videos
+    # verify check, so the marker uses a .txt extension).
+    (new_movie_dir / "new_big_file.txt").write_bytes(b"y" * 50)
 
     report = run_dispatch(_make_settings(), config, dry_run=False, verified=None, event_bus=EventBus())
 
@@ -155,8 +157,8 @@ def test_dispatch_replaces_existing_movie(
     # Old file must be gone — replaced by the new version.
     assert not old_file.exists(), f"Old file should have been removed by replace. Still at: {old_file}"
 
-    # New file must be present on Disk1.
-    new_file = dest_dir / "new_big_file.mkv"
+    # New marker file must be present on Disk1.
+    new_file = dest_dir / "new_big_file.txt"
     assert new_file.exists(), (
         f"New file should be present on Disk1 after replace. Expected: {new_file}. Dispatch details: {report.details}"
     )
