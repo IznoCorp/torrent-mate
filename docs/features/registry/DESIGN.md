@@ -601,11 +601,11 @@ level. See §7.6.
 
 ### 6.3 Runtime — `fan_out` (ratings — illustrative shape)
 
-The only current consumer of `get_notations` is `indexer/backfill_ids.py`, which lives
-in the indexer package and is **outside the Big Bang scope** of this feature (see §11).
-The registry ships fan_out semantics fully wired and unit-tested with fake consumers;
-migrating `indexer/backfill_ids.py` to `registry.fan_out(RatingProvider)` is a deliberate
-follow-up feature. The example below is illustrative of the intended usage shape.
+The consumer of `get_notations` is `indexer/scanner/_modes/backfill_ids.py`. The registry
+ships fan_out semantics fully wired and unit-tested with fake consumers, and **Phase 11 of
+this feature migrated that real consumer** to `registry.fan_out(RatingProvider)`
+(`indexer/scanner/_modes/backfill_ids.py:637`). The example below is illustrative of the
+usage shape; the shipped implementation lives in that module.
 
 ```python
 # Illustrative — not a file created by this feature.
@@ -1010,12 +1010,12 @@ the collapse.
 
 **Phase gate**: `make check`; scraper E2E green; characterization tests still green (equivalence proven); `rg "self\._tmdb|self\._tvdb" personalscraper/scraper/ -t py` returns zero.
 
-### Phase 2 — Scraper locked migration (fan_out semantics shipped but not connected)
+### Phase 2 — Scraper locked migration (fan_out semantics shipped here; consumer connected in Phase 11)
 
 - `artwork.py`, `keywords_cache.py`, `trailer_finder.py`: `registry.locked(...)`.
 - `classifier.py`: keywords via `registry.locked(KeywordProvider, match)`.
 - `existing_validator.py`, `confidence.py`, `_tvdb_convert.py`, `scraper.py`: cleanup of remaining direct client references.
-- `fan_out(RatingProvider)`: code path EXISTS (semantics from §5.2 + unit tests from §8.2). No real consumer is migrated here — the only candidate (`indexer/backfill_ids.py`) stays on its current code path and is queued for a follow-up (§11). This is justified scope: a Web UI in P2 will introspect `operations()` and expose `RatingProvider` as a future entry; shipping the semantics now avoids retro-fit later.
+- `fan_out(RatingProvider)`: code path EXISTS (semantics from §5.2 + unit tests from §8.2). No real consumer is migrated **in Phase 2** — the only candidate (`indexer/scanner/_modes/backfill_ids.py`) stays on its current code path here and is migrated later **in Phase 11 of this feature** (not an external follow-up). Shipping the semantics in Phase 2 avoids retro-fit when Phase 11 connects the consumer; a Web UI in P2 introspects `operations()` and exposes `RatingProvider` as a future entry.
 
 **Phase gate**: `make check`; `rg "TMDBClient|TVDBClient|self\._tmdb|self\._tvdb" personalscraper/scraper/ -t py` returns zero hits.
 
@@ -1088,7 +1088,7 @@ at Phase 0 measurement time (see §8.5).
 > follow-up entries, or the registry feature's own Phases 11–17 for the deferrals
 > that surfaced during implementation.
 
-- **Indexer migration to the registry** (notably `indexer/backfill_ids.py`, the only current consumer of `RatingProvider.get_notations`). The registry's `fan_out` semantics are wired and unit-tested here. Indexer migration is delivered in **Phase 11 of this feature plan** (`docs/features/registry/plan/phase-11-indexer-migration.md`), pairing logically with the P1 Library/Indexer Consolidation roadmap item.
+- **Indexer migration to the registry** (`indexer/scanner/_modes/backfill_ids.py`, the consumer of `RatingProvider.get_notations`). ✅ **Delivered in Phase 11 of this feature** (`docs/features/registry/plan/phase-11-indexer-migration.md`) — the consumer now calls `registry.fan_out(RatingProvider)` (`backfill_ids.py:637`). Listed here for historical traceability; no longer out-of-scope. Pairs logically with the P1 Library/Indexer Consolidation roadmap item.
 - **Runtime hot-swap** (signal-driven or watcher-driven config reload). Tracked at [ROADMAP P3 — Hot-Swap Provider Configuration](../../../ROADMAP.md#p3--hot-swap-provider-configuration).
 - **Active health scoring / adaptive ordering**. Tracked at [ROADMAP P3 — Active Health Scoring (Registry)](../../../ROADMAP.md#p3--active-health-scoring-registry).
 - **Passive health metrics for user-driven reordering** (counters / avg latency per provider). Folded into the Active Health Scoring entry above.

@@ -1,0 +1,23 @@
+// Synthetic providers config with NO providers configured in any chain section.
+//
+// Used as a deterministic, environment-independent control for ACC-04b
+// ("boot crashes when no providers config exists"): pointing the registry at
+// this file makes boot validation raise RegistryConfigError via the
+// `empty_chain_section` family (the chain capabilities have zero providers),
+// regardless of whether a real `config/` directory exists in the checkout.
+//
+// Distinct from `bad_providers.json5` (which triggers all 6 ConfigIssue
+// families including `unknown_provider`, used by ACC-05b).
+{
+  Searchable: {},
+  MovieDetailsProvider: {},
+  TvDetailsProvider: {},
+  EpisodeFetcher: {},
+  RatingProvider: {},
+  ArtworkProvider: {},
+  KeywordProvider: {},
+  VideoProvider: {},
+  RecommendationProvider: {},
+  IDValidator: {},
+  IDCrossRef: {},
+}
