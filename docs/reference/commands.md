@@ -354,6 +354,37 @@ status (mounted volumes, free space, total capacity). Respects the global
 
 ---
 
+## `personalscraper info providers`
+
+**Purpose**: Prints a per-provider circuit-state snapshot from the provider
+registry. Each configured provider is listed on its own line with its current
+circuit-breaker state and recent failure count.
+
+**Side effects**: `read-only`
+
+**Pipeline position**: n/a
+
+**Args**:
+
+- `--config PATH` : Override default `config/providers.json5` for boot validation
+
+**Expected output sample**:
+
+    tmdb  circuit=closed  failures=0
+    tvdb  circuit=closed  failures=0
+
+**Exit codes**: 0 on success, 1 on `RegistryConfigError` (missing credentials or
+broken config).
+
+**Examples**:
+
+    personalscraper info providers
+    personalscraper info providers --config config.example/providers.json5
+
+**Related**: `info`, `init-config`
+
+---
+
 ## `personalscraper init-config`
 
 **Purpose**: Creates a `config/` directory from the `config.example/` template
