@@ -37,6 +37,7 @@ from personalscraper.api.metadata._base import (
     Video,
 )
 from personalscraper.conf.models.providers import ProvidersConfig
+from personalscraper.core.circuit import CircuitState
 
 # ---------------------------------------------------------------------------
 # Mock EventBus
@@ -87,18 +88,19 @@ class FailingEventBus:
 # ---------------------------------------------------------------------------
 
 
-def _make_circuit(state: str = "CLOSED") -> SimpleNamespace:
+def _make_circuit(state: CircuitState = CircuitState.CLOSED) -> SimpleNamespace:
     """Build a fake circuit object with controllable ``state`` and ``can_proceed``.
 
     Args:
-        state: Initial circuit state ("CLOSED", "OPEN", "HALF_OPEN").
+        state: Initial circuit state (CircuitState.CLOSED, CircuitState.OPEN,
+            CircuitState.HALF_OPEN).
 
     Returns:
         A ``SimpleNamespace`` exposing ``state`` and ``can_proceed()``.
     """
     return SimpleNamespace(
         state=state,
-        can_proceed=lambda: state != "OPEN",
+        can_proceed=lambda: state is not CircuitState.OPEN,
     )
 
 
@@ -118,7 +120,7 @@ class FakeSearchable:
         *,
         provider_name: str | None = None,
         results: list[SearchResult] | None = None,
-        circuit_state: str = "CLOSED",
+        circuit_state: CircuitState = CircuitState.CLOSED,
     ) -> None:
         """Build a FakeSearchable with optional canned results and circuit state."""
         if provider_name is not None:
@@ -159,7 +161,7 @@ class FakeMovieDetails:
         self,
         *,
         provider_name: str | None = None,
-        circuit_state: str = "CLOSED",
+        circuit_state: CircuitState = CircuitState.CLOSED,
         movie: MediaDetails | None = None,
     ) -> None:
         """Build the fake with optional canned details and circuit state."""
@@ -198,7 +200,7 @@ class FakeTvDetails:
         self,
         *,
         provider_name: str | None = None,
-        circuit_state: str = "CLOSED",
+        circuit_state: CircuitState = CircuitState.CLOSED,
     ) -> None:
         """Build the fake with controllable circuit state."""
         if provider_name is not None:
@@ -237,7 +239,7 @@ class FakeRating:
         self,
         *,
         provider_name: str | None = None,
-        circuit_state: str = "CLOSED",
+        circuit_state: CircuitState = CircuitState.CLOSED,
         notations: list[Notations] | None = None,
     ) -> None:
         """Build the fake with optional canned notations."""
@@ -265,7 +267,7 @@ class FakeArtwork:
         self,
         *,
         provider_name: str | None = None,
-        circuit_state: str = "CLOSED",
+        circuit_state: CircuitState = CircuitState.CLOSED,
     ) -> None:
         """Build the fake with controllable circuit state."""
         if provider_name is not None:
@@ -295,7 +297,7 @@ class FakeKeyword:
         self,
         *,
         provider_name: str | None = None,
-        circuit_state: str = "CLOSED",
+        circuit_state: CircuitState = CircuitState.CLOSED,
     ) -> None:
         """Build the fake with controllable circuit state."""
         if provider_name is not None:
@@ -324,7 +326,7 @@ class FakeIDCrossRef:
         self,
         *,
         provider_name: str | None = None,
-        circuit_state: str = "CLOSED",
+        circuit_state: CircuitState = CircuitState.CLOSED,
         xref_table: dict[str, dict[str, str]] | None = None,
     ) -> None:
         """Build the fake with optional xref table {source_id: {target_provider: target_id}}."""
@@ -356,7 +358,7 @@ class FakeMultiCapability:
         self,
         *,
         provider_name: str | None = None,
-        circuit_state: str = "CLOSED",
+        circuit_state: CircuitState = CircuitState.CLOSED,
         xref_table: dict[str, dict[str, str]] | None = None,
     ) -> None:
         """Build the fake — all method bodies are stubs that return empty data."""

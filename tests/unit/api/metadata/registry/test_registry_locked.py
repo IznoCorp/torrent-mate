@@ -19,6 +19,7 @@ from personalscraper.api.metadata.registry import (
 )
 from personalscraper.api.metadata.registry._events import LockedCapabilityUnresolved
 from personalscraper.conf.models.providers import ProvidersConfig
+from personalscraper.core.circuit import CircuitState
 
 from .conftest import FakeArtwork, FakeIDCrossRef, FakeMultiCapability, FakeSearchable
 
@@ -34,7 +35,7 @@ def test_locked_match_provider_path_no_xref(build_registry: object) -> None:
     Design: docs/reference/scraping.md#three-semantics-provider-registry
     Contract: locked operation respects capability boundaries, validating the three operation modes.
     """
-    multi = FakeMultiCapability(provider_name="multi", circuit_state="CLOSED")
+    multi = FakeMultiCapability(provider_name="multi", circuit_state=CircuitState.CLOSED)
     fakes = {"multi": multi}
     config = ProvidersConfig(
         Searchable={"multi": 1},
@@ -59,10 +60,10 @@ def test_locked_idcrossref_escape_xref_succeeds(build_registry: object) -> None:
     # match's provider implements IDCrossRef but NOT ArtworkProvider.
     xref_provider = FakeIDCrossRef(
         provider_name="xref",
-        circuit_state="CLOSED",
+        circuit_state=CircuitState.CLOSED,
         xref_table={"123": {"art": "456"}},
     )
-    art_provider = FakeArtwork(provider_name="art", circuit_state="CLOSED")
+    art_provider = FakeArtwork(provider_name="art", circuit_state=CircuitState.CLOSED)
     fakes = {"xref": xref_provider, "art": art_provider}
     config = ProvidersConfig(
         Searchable={"xref": 1},
@@ -86,11 +87,11 @@ def test_locked_circuit_open_along_xref_chain(build_registry: object) -> None:
     """OPEN-circuit providers along the xref chain are skipped; first eligible wins."""
     xref_provider = FakeIDCrossRef(
         provider_name="xref",
-        circuit_state="CLOSED",
+        circuit_state=CircuitState.CLOSED,
         xref_table={"123": {"art_open": "x", "art_closed": "y"}},
     )
-    art_open = FakeArtwork(provider_name="art_open", circuit_state="OPEN")
-    art_closed = FakeArtwork(provider_name="art_closed", circuit_state="CLOSED")
+    art_open = FakeArtwork(provider_name="art_open", circuit_state=CircuitState.OPEN)
+    art_closed = FakeArtwork(provider_name="art_closed", circuit_state=CircuitState.CLOSED)
     fakes = {"xref": xref_provider, "art_open": art_open, "art_closed": art_closed}
     config = ProvidersConfig(
         Searchable={"xref": 1},
@@ -114,10 +115,10 @@ def test_locked_returns_none_when_all_paths_blocked(build_registry: object) -> N
     """``locked()`` returns ``None`` when no eligible provider can be bound."""
     xref_provider = FakeIDCrossRef(
         provider_name="xref",
-        circuit_state="CLOSED",
+        circuit_state=CircuitState.CLOSED,
         xref_table={},  # no translation paths
     )
-    art_open = FakeArtwork(provider_name="art_open", circuit_state="OPEN")
+    art_open = FakeArtwork(provider_name="art_open", circuit_state=CircuitState.OPEN)
     fakes = {"xref": xref_provider, "art_open": art_open}
     config = ProvidersConfig(
         Searchable={"xref": 1},
@@ -134,8 +135,8 @@ def test_locked_returns_none_emits_LockedCapabilityUnresolved_event(
     mock_event_bus: object,
 ) -> None:
     """When ``locked()`` returns ``None``, ``LockedCapabilityUnresolved`` is emitted."""
-    xref_provider = FakeIDCrossRef(provider_name="xref", circuit_state="CLOSED", xref_table={})
-    art_open = FakeArtwork(provider_name="art_open", circuit_state="OPEN")
+    xref_provider = FakeIDCrossRef(provider_name="xref", circuit_state=CircuitState.CLOSED, xref_table={})
+    art_open = FakeArtwork(provider_name="art_open", circuit_state=CircuitState.OPEN)
     fakes = {"xref": xref_provider, "art_open": art_open}
     config = ProvidersConfig(
         Searchable={"xref": 1},

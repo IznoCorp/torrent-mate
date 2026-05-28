@@ -14,6 +14,7 @@ import pytest
 from personalscraper.api.metadata._contracts import RatingProvider, Searchable
 from personalscraper.api.metadata.registry._errors import WrongSemanticBug
 from personalscraper.conf.models.providers import ProvidersConfig
+from personalscraper.core.circuit import CircuitState
 
 from .conftest import FakeSearchable
 
@@ -49,8 +50,8 @@ def test_chain_ordering_is_stable_across_calls(build_registry: object) -> None:
 def test_chain_skips_open_circuit(build_registry: object) -> None:
     """A provider whose circuit is OPEN must be filtered out of ``chain()``."""
     fakes = {
-        "open_one": FakeSearchable(provider_name="open_one", circuit_state="OPEN"),
-        "closed_one": FakeSearchable(provider_name="closed_one", circuit_state="CLOSED"),
+        "open_one": FakeSearchable(provider_name="open_one", circuit_state=CircuitState.OPEN),
+        "closed_one": FakeSearchable(provider_name="closed_one", circuit_state=CircuitState.CLOSED),
     }
     config = ProvidersConfig(Searchable={"open_one": 1, "closed_one": 2})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
@@ -63,8 +64,8 @@ def test_chain_skips_open_circuit(build_registry: object) -> None:
 def test_chain_includes_half_open_providers(build_registry: object) -> None:
     """HALF_OPEN providers are eligible (probe semantics — DESIGN §7.6)."""
     fakes = {
-        "ho": FakeSearchable(provider_name="ho", circuit_state="HALF_OPEN"),
-        "cl": FakeSearchable(provider_name="cl", circuit_state="CLOSED"),
+        "ho": FakeSearchable(provider_name="ho", circuit_state=CircuitState.HALF_OPEN),
+        "cl": FakeSearchable(provider_name="cl", circuit_state=CircuitState.CLOSED),
     }
     config = ProvidersConfig(Searchable={"ho": 1, "cl": 2})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
@@ -100,8 +101,8 @@ def test_chain_wrong_semantic_raises(build_registry: object) -> None:
 
 def test_chain_provider_flips_to_open_mid_iteration(build_registry: object) -> None:
     """A provider that flips CLOSED→OPEN between two ``chain()`` calls is excluded thereafter."""
-    fake_a = FakeSearchable(provider_name="a", circuit_state="CLOSED")
-    fake_b = FakeSearchable(provider_name="b", circuit_state="CLOSED")
+    fake_a = FakeSearchable(provider_name="a", circuit_state=CircuitState.CLOSED)
+    fake_b = FakeSearchable(provider_name="b", circuit_state=CircuitState.CLOSED)
     fakes = {"a": fake_a, "b": fake_b}
     config = ProvidersConfig(Searchable={"a": 1, "b": 2})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
@@ -109,7 +110,7 @@ def test_chain_provider_flips_to_open_mid_iteration(build_registry: object) -> N
     first = [p.provider_name for p in registry.chain(Searchable)]
     assert first == ["a", "b"]
     # Flip "a" to OPEN — the next chain() must exclude it.
-    fake_a.circuit.state = "OPEN"
+    fake_a.circuit.state = CircuitState.OPEN
     second = [p.provider_name for p in registry.chain(Searchable)]
     assert second == ["b"]
 
@@ -117,8 +118,8 @@ def test_chain_provider_flips_to_open_mid_iteration(build_registry: object) -> N
 def test_chain_empty_when_all_open(build_registry: object) -> None:
     """If every provider has circuit OPEN, ``chain()`` returns an empty list."""
     fakes = {
-        "x": FakeSearchable(provider_name="x", circuit_state="OPEN"),
-        "y": FakeSearchable(provider_name="y", circuit_state="OPEN"),
+        "x": FakeSearchable(provider_name="x", circuit_state=CircuitState.OPEN),
+        "y": FakeSearchable(provider_name="y", circuit_state=CircuitState.OPEN),
     }
     config = ProvidersConfig(Searchable={"x": 1, "y": 2})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
@@ -144,8 +145,8 @@ def test_chain_half_open_raises_network_error_falls_to_next(build_registry: obje
     HALF_OPEN providers are included so the fallback path can fire.
     """
     fakes = {
-        "ho": FakeSearchable(provider_name="ho", circuit_state="HALF_OPEN"),
-        "cl": FakeSearchable(provider_name="cl", circuit_state="CLOSED"),
+        "ho": FakeSearchable(provider_name="ho", circuit_state=CircuitState.HALF_OPEN),
+        "cl": FakeSearchable(provider_name="cl", circuit_state=CircuitState.CLOSED),
     }
     config = ProvidersConfig(Searchable={"ho": 1, "cl": 2})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
@@ -161,8 +162,8 @@ def test_chain_network_exception_skip(build_registry: object) -> None:
     caller is responsible for catching the network exception and moving on.
     """
     fakes = {
-        "a": FakeSearchable(provider_name="a", circuit_state="CLOSED"),
-        "b": FakeSearchable(provider_name="b", circuit_state="CLOSED"),
+        "a": FakeSearchable(provider_name="a", circuit_state=CircuitState.CLOSED),
+        "b": FakeSearchable(provider_name="b", circuit_state=CircuitState.CLOSED),
     }
     config = ProvidersConfig(Searchable={"a": 1, "b": 2})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
@@ -178,8 +179,8 @@ def test_chain_empty_result_skip(build_registry: object) -> None:
     list (DESIGN §6.2 / §7.3).
     """
     fakes = {
-        "empty": FakeSearchable(provider_name="empty", results=[], circuit_state="CLOSED"),
-        "next": FakeSearchable(provider_name="next", results=[], circuit_state="CLOSED"),
+        "empty": FakeSearchable(provider_name="empty", results=[], circuit_state=CircuitState.CLOSED),
+        "next": FakeSearchable(provider_name="next", results=[], circuit_state=CircuitState.CLOSED),
     }
     config = ProvidersConfig(Searchable={"empty": 1, "next": 2})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]

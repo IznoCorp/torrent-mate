@@ -137,10 +137,12 @@ def test_locked_capability_orphan_issue() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_idcrossref_cycle_detected_and_reported() -> None:
-    """A fully-connected IDCrossRef section with ≥ 3 nodes is reported as a cycle.
+def test_no_cycle_with_3_idcrossref_providers() -> None:
+    """A fully-connected IDCrossRef section with ≥ 3 nodes must NOT be reported as a cycle.
 
-    The validator must terminate (no infinite loop) and emit the issue.
+    The DFS short-circuits when len(nodes) >= 3 because the inherent cycle is
+    not a config error (C2 fix). The validator must terminate (no infinite
+    loop) and emit NO idcrossref_cycle issue.
     """
     config = config_with_idcrossref_cycle()
     providers = {
@@ -150,7 +152,9 @@ def test_idcrossref_cycle_detected_and_reported() -> None:
     }
     issues = validate_config(config, providers, _settings_with_keys())
     codes = {i.code for i in issues}
-    assert "idcrossref_cycle" in codes
+    assert "idcrossref_cycle" not in codes, (
+        f"3+ IDCrossRef providers must not produce a cycle issue, got: {codes}"
+    )
 
 
 def test_idcrossref_two_providers_no_false_cycle() -> None:
@@ -178,11 +182,15 @@ def test_idcrossref_two_providers_no_false_cycle() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_all_six_issue_families_in_one_error() -> None:
+def test_all_five_issue_families_in_one_error() -> None:
     """Validation must aggregate ALL issues — never raise on the first one.
 
     The user must learn every problem in one shot (DESIGN §7.2 / C11).
     A fail-fast implementation will fail this test.
+
+    After C2 fix, idcrossref_cycle no longer fires for 3+ IDCrossRef providers
+    (the inherent cycle is not a config error). This test now verifies the
+    remaining 5 families aggregate correctly.
     """
     config = config_with_all_six_families()
     # FakeMultiCapability implements many capabilities but NOT EpisodeFetcher
@@ -205,17 +213,18 @@ def test_all_six_issue_families_in_one_error() -> None:
     except RegistryConfigError as exc:
         raised = True
         codes = {i.code for i in exc.issues}
-        # All six families must be present in the aggregated issue list.
         expected = {
             "missing_credentials",
             "protocol_mismatch",
             "unknown_provider",
             "empty_chain_section",
             "locked_capability_orphan",
-            "idcrossref_cycle",
         }
         missing = expected - codes
         assert not missing, f"missing issue codes: {missing}; got {codes}"
+        assert "idcrossref_cycle" not in codes, (
+            f"idcrossref_cycle must not fire for 3+ providers, got: {codes}"
+        )
     assert raised, "expected RegistryConfigError once issues collected"
 
 

@@ -12,6 +12,7 @@ from personalscraper.api.metadata._contracts import RatingProvider, Searchable
 from personalscraper.api.metadata.registry._errors import WrongSemanticBug
 from personalscraper.api.metadata.registry._events import RegistryFanOutCompleted
 from personalscraper.conf.models.providers import ProvidersConfig
+from personalscraper.core.circuit import CircuitState
 
 from .conftest import FakeRating, FakeSearchable
 
@@ -23,8 +24,8 @@ from .conftest import FakeRating, FakeSearchable
 def test_fan_out_all_eligible_iteration(build_registry: object) -> None:
     """Every CLOSED/HALF_OPEN RatingProvider must appear in ``fan_out().values``."""
     fakes = {
-        "r1": FakeRating(provider_name="r1", circuit_state="CLOSED"),
-        "r2": FakeRating(provider_name="r2", circuit_state="HALF_OPEN"),
+        "r1": FakeRating(provider_name="r1", circuit_state=CircuitState.CLOSED),
+        "r2": FakeRating(provider_name="r2", circuit_state=CircuitState.HALF_OPEN),
     }
     config = ProvidersConfig(RatingProvider={"r1": 1, "r2": 2})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
@@ -43,8 +44,8 @@ def test_fan_out_all_eligible_iteration(build_registry: object) -> None:
 def test_fan_out_excludes_open_circuit(build_registry: object) -> None:
     """OPEN-circuit providers are filtered out of ``fan_out()``."""
     fakes = {
-        "r1": FakeRating(provider_name="r1", circuit_state="OPEN"),
-        "r2": FakeRating(provider_name="r2", circuit_state="CLOSED"),
+        "r1": FakeRating(provider_name="r1", circuit_state=CircuitState.OPEN),
+        "r2": FakeRating(provider_name="r2", circuit_state=CircuitState.CLOSED),
     }
     config = ProvidersConfig(RatingProvider={"r1": 1, "r2": 2})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
@@ -64,8 +65,8 @@ def test_fan_out_excludes_open_circuit(build_registry: object) -> None:
 def test_fan_out_empty_when_no_eligible(build_registry: object) -> None:
     """``fan_out().values`` is ``[]`` when no provider is eligible — no error."""
     fakes = {
-        "r1": FakeRating(provider_name="r1", circuit_state="OPEN"),
-        "r2": FakeRating(provider_name="r2", circuit_state="OPEN"),
+        "r1": FakeRating(provider_name="r1", circuit_state=CircuitState.OPEN),
+        "r2": FakeRating(provider_name="r2", circuit_state=CircuitState.OPEN),
     }
     config = ProvidersConfig(RatingProvider={"r1": 1, "r2": 2})
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
@@ -120,7 +121,7 @@ def test_RegistryFanOutCompleted_always_emitted_even_on_success(
     Even on full success the event must fire — provenance must be observable
     without log-scraping.
     """
-    fakes = {"r1": FakeRating(provider_name="r1", circuit_state="CLOSED")}
+    fakes = {"r1": FakeRating(provider_name="r1", circuit_state=CircuitState.CLOSED)}
     config = ProvidersConfig(RatingProvider={"r1": 1})
     registry = build_registry(  # type: ignore[operator]
         fakes=fakes,
@@ -142,8 +143,8 @@ def test_fan_out_populates_attempted_with_circuit_open_skips(
 ) -> None:
     """RegistryFanOutCompleted.attempted carries reason='circuit_open' for filtered providers."""
     fakes = {
-        "r1": FakeRating(provider_name="r1", circuit_state="OPEN"),
-        "r2": FakeRating(provider_name="r2", circuit_state="CLOSED"),
+        "r1": FakeRating(provider_name="r1", circuit_state=CircuitState.OPEN),
+        "r2": FakeRating(provider_name="r2", circuit_state=CircuitState.CLOSED),
     }
     config = ProvidersConfig(RatingProvider={"r1": 1, "r2": 2})
     registry = build_registry(  # type: ignore[operator]
