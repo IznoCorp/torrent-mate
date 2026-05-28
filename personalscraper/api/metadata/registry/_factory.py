@@ -12,6 +12,7 @@ import os
 from typing import TYPE_CHECKING, Any, Callable, cast
 
 from personalscraper.api.metadata.registry._errors import UnknownProviderError
+from personalscraper.core.circuit import CircuitState
 from personalscraper.logger import get_logger
 
 log = get_logger("registry.factory")
@@ -258,7 +259,7 @@ def _eligible(provider: object) -> bool:
     circuit = getattr(provider, "circuit", None)
     if circuit is not None:
         state = getattr(circuit, "state", None)
-        return state != "OPEN"
+        return state is not CircuitState.OPEN
 
     name = getattr(provider, "provider_name", None)
     if name in _NO_CIRCUIT_ALLOWLIST:
