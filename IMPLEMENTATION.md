@@ -143,7 +143,7 @@ Verification on `feat/registry @ ccb8ba9b` (CI green: 9/9 checks, test 5m37s inc
 - **S3** — `tv_service.py` = 797 LOC (under 800 soft ceiling — `check-module-size.py` no longer warns). New `tv_service_nfo.py` (186 LOC) houses `TvServiceNfoMixin` with 3 verbatim-extracted methods. `Scraper` MRO at `orchestrator.py:35` clean (no method shadow). Phase 26 I9 warning-propagation preserved (`tv_service_nfo.py:179-181` broad except + log + warnings.append). NB: commit `34c538d8` message body says `922 → 675 LOC` — the dispatcher under-counted non-blank lines. Actual final LOC is 797 (still well under the 800 soft ceiling). The discrepancy is audit-trail only, no functional impact.
 - **F1** — `_walker.py:274,434,674` all 3 `os.scandir()` sites wrapped with `sorted(it, key=lambda e: e.name)`. Root-cause fix (ext4 hash-order vs lexicographic `<=` comparison in resume) — NOT a `@pytest.mark.flaky` mask. 10/10 local repeated runs pass + CI green.
 
-**Minor (closed by follow-up commit `<m1m2m3-sha>`)**:
+**Minor (closed by follow-up commit `74c90bf8`)**:
 
 - **M1** Commit `34c538d8` message body claims `tv_service.py: 922 → 675 LOC`, actual is 797. Audit-trail inaccuracy — note added in the cycle-4 record above (commit message itself cannot be rewritten without force-push).
 - **M2** ~~DESIGN.md:852 + phase-04-plan:113 still reference old log key `providers_succeeded`~~ → renamed to `providers_eligible` in both files.
