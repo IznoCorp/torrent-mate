@@ -29,13 +29,12 @@ fixture is built with the shared ``mock_registry`` fixture, and the TMDB
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-import structlog
-from structlog.testing import capture_logs
 
 from personalscraper.conf.models.config import Config
 from personalscraper.core.event_bus import EventBus
@@ -190,6 +189,7 @@ class TestScrapeSameTmdbMultiSource:
         tmp_path: Path,
         gourou_movie_data: dict,
         test_config: Config,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Scraping the older folder merges into the newer one and dedups.
 
@@ -213,11 +213,14 @@ class TestScrapeSameTmdbMultiSource:
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=gourou_movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
-            capture_logs() as cap_logs,
         ):
             # Scrape the OLDER folder — its clean name is "Gourou (2026)" which
-            # already exists, forcing the merge-into-existing dedup path.
-            scraper.scrape_movie(older_dir)
+            # already exists, forcing the merge-into-existing dedup path. The
+            # scraper events (movie_folder_merged / movie_video_renamed /
+            # movie_video_orphan_removed) are emitted at INFO via the "scraper"
+            # logger, so capture at INFO under that logger name.
+            with caplog.at_level(logging.INFO, logger="scraper"):
+                scraper.scrape_movie(older_dir)
 
         # --- Filesystem assertions (authoritative) ---------------------------
         # (1) The older source folder is merged away.
@@ -235,7 +238,10 @@ class TestScrapeSameTmdbMultiSource:
         assert all(p.read_bytes() != OLD_CONTENT for p in root_videos), "the orphan A.mkv must be removed"
 
         # --- Log-capture assertions ------------------------------------------
-        events = {entry.get("event") for entry in cap_logs}
+        # The project bridges structlog → stdlib, so each emitted event becomes a
+        # stdlib record whose ``.msg`` is the event dict (captured deterministically
+        # by caplog, independent of logger caching / xdist distribution).
+        events = {r.msg.get("event") for r in caplog.records if isinstance(r.msg, dict)}
         assert "movie_folder_merged" in events, f"missing movie_folder_merged in {sorted(events)}"
         assert "movie_video_renamed" in events, f"missing movie_video_renamed in {sorted(events)}"
         assert "movie_video_orphan_removed" in events, f"missing movie_video_orphan_removed in {sorted(events)}"
@@ -249,15 +255,23 @@ class TestScrapeSameTmdbMultiSource:
         dup_check = next(r for r in results if r.name == "no_duplicate_videos")
         assert dup_check.passed is True, f"no_duplicate_videos must pass, got message={dup_check.message!r}"
 
-    def test_capture_logs_records_event_dicts(self) -> None:
-        """Document the capture_logs contract this regression relies on.
+    def test_caplog_records_structlog_event_dicts(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Pin the caplog contract this regression relies on.
 
-        ``capture_logs`` records each emitted log as a dict with an ``event`` key;
-        the assertions above key off ``entry["event"]``. This guard pins that
-        contract so a structlog upgrade that changes the capture shape fails here
-        with a clear message rather than silently weakening the regression.
+        The project bridges structlog → stdlib (see ``personalscraper/logger.py``
+        and ``tests/conftest.py``), so each emitted scraper event becomes a stdlib
+        record whose ``.msg`` is the event dict with an ``event`` key; the
+        assertions above key off ``r.msg.get("event")``. This guard pins that
+        contract so a structlog/logging change that alters the captured record
+        shape fails here with a clear message rather than silently weakening the
+        regression. caplog also captures the cached ``scraper`` logger
+        deterministically under xdist, which ``capture_logs`` cannot.
         """
-        log = structlog.get_logger("scraper")
-        with capture_logs() as cap_logs:
+        from personalscraper.logger import get_logger
+
+        log = get_logger("scraper")
+        with caplog.at_level(logging.INFO, logger="scraper"):
             log.info("movie_video_orphan_removed", filename="A.mkv", parent="Gourou (2026)")
-        assert any(entry.get("event") == "movie_video_orphan_removed" for entry in cap_logs)
+        assert any(
+            isinstance(r.msg, dict) and r.msg.get("event") == "movie_video_orphan_removed" for r in caplog.records
+        )
