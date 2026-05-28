@@ -52,8 +52,8 @@
 
 Pinned values for ACC criteria in `docs/features/registry/ACCEPTANCE.md`:
 
-- `REGISTRY_UNIT_TEST_COUNT` = **55** (registry unit-test count via `pytest tests/unit/api/metadata/registry/ --collect-only`)
-- `BASELINE_PASS_COUNT` = **339** (full `pytest tests/e2e/ tests/integration/` baseline pass count, re-pinned Phase 20)
+- `REGISTRY_UNIT_TEST_COUNT` = **59** (registry unit-test count via `pytest tests/unit/api/metadata/registry/ --collect-only`, re-pinned Phase 26)
+- `BASELINE_PASS_COUNT` = **342** (full `pytest tests/e2e/ tests/integration/` baseline pass count, re-pinned Phase 26)
 - `N_PROVIDERS` = **2** (tmdb + tvdb, the two providers with credentials in config.example/providers.json5)
 - `TMDB_TVDB_TEST_FILE_COUNT` = **30** (number of test files referencing `TMDBClient | TVDBClient | self._tmdb | self._tvdb`; informs Phase 1+3 migration scope)
 
