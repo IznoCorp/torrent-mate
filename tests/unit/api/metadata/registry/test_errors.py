@@ -11,8 +11,11 @@ the original provider exception message and surface it in
 from __future__ import annotations
 
 from personalscraper.api.metadata._contracts import Searchable
-from personalscraper.api.metadata.registry import AttemptOutcome, RegistryProviderName
-from personalscraper.api.metadata.registry._errors import ProviderExhausted
+from personalscraper.api.metadata.registry import AttemptOutcome, ConfigIssue, RegistryProviderName
+from personalscraper.api.metadata.registry._errors import (
+    ProviderExhausted,
+    RegistryConfigError,
+)
 
 
 def test_provider_exhausted_default_last_exception_is_none() -> None:
@@ -67,3 +70,23 @@ def test_provider_exhausted_item_context_preserved() -> None:
     )
 
     assert exc.item_context == ctx
+
+
+def test_format_does_not_nest_did_you_mean_hint() -> None:
+    """``_format()`` does not re-quote the "did you mean" hint already in the message.
+
+    PR review cycle 4 found that ``_format()`` extracted the hint from
+    ``issue.message`` and appended it a second time, producing nested
+    quotes like ``(did you mean "...(did you mean 'tmdb'?)"?)``.
+    """
+    issue = ConfigIssue(
+        code="unknown_provider",
+        section="providers",
+        provider="tmbd",
+        message="Unknown provider 'tmbd' (did you mean 'tmdb'?)",
+    )
+    error = RegistryConfigError([issue])
+    output = str(error)
+
+    assert output.count("(did you mean") == 1
+    assert "Unknown provider 'tmbd' (did you mean 'tmdb'?)" in output
