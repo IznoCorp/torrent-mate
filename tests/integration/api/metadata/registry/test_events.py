@@ -76,6 +76,26 @@ def test_boot_emits_registry_boot_validated(build_registry_fakes):
     assert "Searchable" in event.capabilities
 
 
+def test_registry_boot_validated_uses_tuples(build_registry_fakes):
+    """RegistryBootValidated fields use tuples — regression for Phase 27 S1.
+
+    ``.providers`` and ``.capabilities`` values must be tuples (immutable
+    invariant on frozen dataclass).
+    """
+    bus = MockEventBus()
+    _registry = build_registry_fakes(
+        fakes={"p1": FakeSearchable(provider_name="p1")},
+        providers_config=ProvidersConfig(Searchable={"p1": 1}),
+        event_bus=bus,
+    )
+    events = [e for e in bus.emitted if isinstance(e, RegistryBootValidated)]
+    assert len(events) == 1
+    event = events[0]
+    assert isinstance(event.providers, tuple)
+    assert isinstance(event.capabilities, dict)
+    assert isinstance(event.capabilities["Searchable"], tuple)
+
+
 def test_fan_out_always_emits_completed(build_registry_fakes):
     """RegistryFanOutCompleted fires on every fan_out() call (always, even on success)."""
     bus = MockEventBus()
@@ -112,7 +132,9 @@ def test_locked_unresolved_emits_event(build_registry_fakes):
     )
     result = registry.locked(ArtworkProvider, match)
     assert result is None
-    assert any(isinstance(e, LockedCapabilityUnresolved) for e in bus.emitted)
+    unresolved = [e for e in bus.emitted if isinstance(e, LockedCapabilityUnresolved)]
+    assert len(unresolved) == 1
+    assert isinstance(unresolved[0].chain_tried, tuple)
 
 
 def test_event_bus_failure_does_not_crash_registry(build_registry_fakes):
