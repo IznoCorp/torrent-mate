@@ -485,7 +485,15 @@ class MovieServiceMixin:
         if family in {"tmdb", "tvdb"}:
             try:
                 return self._registry.get(family)
-            except UnknownProviderError:
+            except UnknownProviderError as e:
+                # If boot validation passed but we reach here, this is a runtime
+                # contract violation worth a forensic anchor (the registry's
+                # config should already have caught an unwired family).
+                log.warning(
+                    "xref_family_unwired",
+                    family=family,
+                    exc_type=type(e).__name__,
+                )
                 return None
         mapping: dict[str, Any] = {
             "imdb": getattr(self, "_imdb", None),

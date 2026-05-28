@@ -336,7 +336,10 @@ class TvServiceMixin:
                 tmdb_id=tmdb_id,
             )
 
-            total_renamed = self._match_seasons(video_files, api_episodes, show_dir, show_data, episode_default_name)
+            total_renamed, nfo_warnings = self._match_seasons(
+                video_files, api_episodes, show_dir, show_data, episode_default_name
+            )
+            result.warnings.extend(nfo_warnings)
 
             # Clean empty release-group subdirectories left after episode moves
             if not self.dry_run:
@@ -591,13 +594,11 @@ class TvServiceMixin:
                     error=str(exc),
                 )
                 continue
-            except (ValueError, TypeError, KeyError, AttributeError) as e:
-                # Phase 21 (C2): payload-shape / parser failures are
-                # unclassified errors per DESIGN §6.2. Record the attempt
-                # with reason="other", emit a ProviderFallbackTriggered for
-                # observers, and roll on. If every candidate fails the
-                # exhausted-branch below surfaces ``result.error`` in the
-                # ACC-13 legacy shape (carrying the last exception detail).
+            except Exception as e:
+                # Phase 21 + 26.2: ANY unclassified exception during details
+                # fetch is treated as a chain fallback per DESIGN §6.2.
+                # Aligns with the broader ``except Exception`` already used
+                # by movie_service.py:857.
                 details_attempted.append(
                     AttemptOutcome(
                         provider=RegistryProviderName(provider_name),
@@ -818,7 +819,15 @@ class TvServiceMixin:
         if family in {"tmdb", "tvdb"}:
             try:
                 return self._registry.get(family)
-            except UnknownProviderError:
+            except UnknownProviderError as e:
+                # If boot validation passed but we reach here, this is a runtime
+                # contract violation worth a forensic anchor (the registry's
+                # config should already have caught an unwired family).
+                log.warning(
+                    "xref_family_unwired",
+                    family=family,
+                    exc_type=type(e).__name__,
+                )
                 return None
         mapping: dict[str, Any] = {
             "imdb": getattr(self, "_imdb", None),
@@ -862,7 +871,7 @@ class TvServiceMixin:
         show_dir: Path,
         show_data: dict[str, Any],
         episode_default_name: str,
-    ) -> int:
+    ) -> tuple[int, list[str]]:
         """Match local video files to API episodes and organise into season dirs.
 
         Uses ``match_episode_files`` to pair local files with API episode data,
@@ -877,7 +886,7 @@ class TvServiceMixin:
             episode_default_name: Fallback title prefix for unnamed episodes.
 
         Returns:
-            Number of episodes renamed (0 if no matches).
+            Tuple of (count of episodes renamed, list of NFO write failure warnings).
         """
         # Pass the unmatched-episode policy through to ``match_episode_files``.
         # Default contract (``allow_synthetic_rename_on_unmatched=False``)
@@ -897,20 +906,20 @@ class TvServiceMixin:
             allow_synthetic_rename=allow_synthetic_rename,
         )
         if not matched:
-            return 0
+            return 0, []
         needed_seasons = sorted({info["season"] for info in matched.values()})
         ep_list = [{"season_number": s, "episode_number": 0} for s in needed_seasons]
         create_season_dirs(show_dir, ep_list, self.patterns, self.dry_run)
         total = rename_episodes(matched, show_dir, self.patterns, self.dry_run)
-        self._generate_episode_nfos(matched, show_dir, show_data)
-        return total
+        nfo_warnings = self._generate_episode_nfos(matched, show_dir, show_data)
+        return total, nfo_warnings
 
     def _generate_episode_nfos(
         self,
         matched: dict[Path, dict[str, Any]],
         show_dir: Path,
         show_data: dict[str, Any],
-    ) -> None:
+    ) -> list[str]:
         """Generate NFO files and download episode thumbnails.
 
         For each matched episode, creates an NFO file with metadata and
@@ -921,7 +930,11 @@ class TvServiceMixin:
             matched: Dict from match_episode_files().
             show_dir: Path to the TV show directory.
             show_data: Full TMDB show details.
+
+        Returns:
+            List of warning strings for any episode NFO write failures.
         """
+        warnings: list[str] = []
         show_title = show_data.get("name", "")
         mpaa = NFOGenerator._extract_content_rating_fr(show_data)
         networks = show_data.get("networks", [])
@@ -1004,6 +1017,9 @@ class TvServiceMixin:
                     self._nfo.write_nfo(xml, nfo_path)
             except Exception as e:
                 log.warning("episode_nfo_failed", season=season, episode=episode, error=str(e), exc_info=True)
+                warnings.append(f"episode_nfo_failed: season={season} episode={episode} reason={e}")
 
             # Download episode thumbnail
             self._download_episode_thumb(still_path, thumb_path, season, episode)
+
+        return warnings

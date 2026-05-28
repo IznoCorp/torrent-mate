@@ -210,9 +210,9 @@ def test_xref_enrichment_wired_between_build_map_and_match_seasons(tmp_path: Any
     def _xref(*_a: Any, **_k: Any) -> None:
         call_log.append("xref")
 
-    def _match(*_a: Any, **_k: Any) -> int:
+    def _match(*_a: Any, **_k: Any) -> tuple[int, list[str]]:
         call_log.append("match")
-        return 1
+        return 1, []
 
     mixin._build_episode_map = MagicMock(side_effect=_build)  # type: ignore[assignment]
     mixin._xref_enrichment = MagicMock(side_effect=_xref)  # type: ignore[assignment]

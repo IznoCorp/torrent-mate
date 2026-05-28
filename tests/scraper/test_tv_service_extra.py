@@ -738,7 +738,7 @@ class TestMatchSeasons:
     def test_returns_zero_when_no_video_files(self, tmp_path: Path) -> None:
         """No video files → 0 even when api_episodes is non-empty."""
         mixin = _make_mixin()
-        n = mixin._match_seasons([], {(1, 1): {"title": "x", "still_path": ""}}, tmp_path, {}, "Episode")
+        n, _w = mixin._match_seasons([], {(1, 1): {"title": "x", "still_path": ""}}, tmp_path, {}, "Episode")
         assert n == 0
 
     def test_empty_api_still_falls_back_to_synthetic_for_video_files(self, tmp_path: Path) -> None:
@@ -765,7 +765,7 @@ class TestMatchSeasons:
                 return_value=1,
             ) as ren,
         ):
-            n = mixin._match_seasons([v], {}, show, {"name": "Show"}, "Episode")
+            n, _w = mixin._match_seasons([v], {}, show, {"name": "Show"}, "Episode")
         assert n == 1
         csd.assert_called_once()
         # Season 17 must be in the list of dirs to create.
@@ -781,7 +781,7 @@ class TestMatchSeasons:
             "personalscraper.scraper.tv_service.match_episode_files",
             return_value={},
         ):
-            n = mixin._match_seasons(
+            n, _w = mixin._match_seasons(
                 [tmp_path / "v.mkv"],
                 {(1, 1): {"title": "x", "still_path": ""}},
                 tmp_path,
@@ -817,7 +817,7 @@ class TestMatchSeasons:
                 return_value=1,
             ),
         ):
-            n = mixin._match_seasons(
+            n, _w = mixin._match_seasons(
                 [v],
                 {(1, 1): {"title": "Pilot", "still_path": ""}},
                 show,
