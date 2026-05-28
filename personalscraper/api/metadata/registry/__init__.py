@@ -634,6 +634,16 @@ class ProviderRegistry:
                 target_provider=target,
                 exc_type=type(e).__name__,
             )
+            self._event_bus_safe_emit(
+                ProviderFallbackTriggered(
+                    capability="IDCrossRef",
+                    from_provider=match.provider,
+                    to_provider="",
+                    reason="network",
+                    exc_type=type(e).__name__,
+                    item={},
+                )
+            )
             return None
 
     # --- Introspection ---
