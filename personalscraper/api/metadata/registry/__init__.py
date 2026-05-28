@@ -490,7 +490,7 @@ class ProviderRegistry:
             "registry_fan_out_partial",
             capability=capability.__name__,
             providers_tried=len(names),
-            providers_succeeded=len(eligible),
+            providers_eligible=len(eligible),
         )
         self._event_bus_safe_emit(
             RegistryFanOutCompleted(
