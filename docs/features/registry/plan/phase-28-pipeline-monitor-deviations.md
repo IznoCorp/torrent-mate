@@ -296,3 +296,123 @@ Run **after all 8 sub-phases** :
 After phase 28 closes : re-run `/pipeline-monitor` for verification, then
 `/implement:feature-pr` to push and trigger CI. Then `/implement:pr-review`
 for the final review cycle (cycle 5 of reset log).
+
+## Execution outcomes (2026-05-28)
+
+The 8 sub-phases planned above mapped to the following actual work after
+evidence review. Several "real deviations" turned out to be TOOLING_BUGs in
+`pipeline-invariant-checker` (the agent queried non-existent DB columns or
+expected schema fields that don't exist in the tracker). They were therefore
+consolidated into a single batch fix to the agent rather than each receiving
+an app-side fix.
+
+### 28.1 — Provider-IDs ACCEPTANCE clarification + bdd-validator nuance
+
+**Status**: DONE.
+
+- Main repo: `f733765a docs(provider-ids): clarify canonical_provider TVDB-fallback rule`.
+- Main repo: `f8b2156b fix(pipeline-monitor): bdd-validator respects TVDB-unknown fallback (matrix v2.3)`.
+- `.claude` repo: `ce1c773 fix(pipeline-monitor): bdd-validator respects TVDB-unknown fallback (matrix v2.3)`.
+- Matrix v2.2 → v2.3. Regression test added on the canonical provider rule.
+
+### 28.2 — `pipeline-invariant-checker` env-vars grep (AV)
+
+**Status**: DONE.
+
+- `.claude` repo: `36622d4 fix(pipeline-monitor): invariant-checker delegates env-vars completeness to check_env_keys.py`.
+- AV now subprocesses `python3 scripts/check_env_keys.py` and trusts its exit
+  code + stdout summary — no inline re-implementation that misses commented
+  defaults.
+
+### 28.3 / 28.4 / 28.5 / 28.8 — CONSOLIDATED into a single agent fix batch
+
+**Status**: DONE (batched).
+
+The four sub-phases originally planned as separate code/data fixes turned out
+to be the same root cause: `pipeline-invariant-checker` itself was wrong in
+its query / walk assumptions. Codebase, library DB, and tracker are all
+healthy. One commit on `.claude`:
+
+- `fix(pipeline-monitor): invariant-checker — AO/AS/AG/AI/AM corrections (matrix v2.4)`
+
+Per-invariant resolution:
+
+- **28.3 (AO — 17 media_file with `release_id IS NULL`)** : invariant-checker
+  was querying `media_file.item_id` and `media_file.path` which don't exist
+  in the schema. Real schema (`id, release_id, path_id, filename,
+scan_generation, last_verified_at, deleted_at`) reveals the 17 rows are
+  pending-link entries whose `filename` is a directory name (e.g. "American
+  Dad! (2005)") with `scan_generation=0`. They are DESIGN_CONFORM, will be
+  linked by the next library-reconcile pass. AO refined: split results into
+  `pending_link` (CONFORM) and `real_orphan` (mineur) using the media-extension
+  heuristic.
+- **28.4 (AS — 13 tracker entries `dest_path=null`)** : invariant-checker
+  expected a `dest_path` field in `ingested_torrents.json`. That field does
+  not exist in the schema (`{<hash>: {name, action, date}}`). The 13 entries
+  are healthy minimal records, not deviations. AS now validates schema
+  sanity (40-hex hash key, `name` non-empty, `action` string, ISO-8601 `date`)
+  rather than `dest_path` presence.
+- **28.5 (AG — orphan `tvshow.nfo` on Disk1)** : the show
+  `/Volumes/Disk1/medias/emissions/Au bout c'est la mer (2018)/` has
+  `Saison 01/02/03/` subdirs with actual video files. AG's previous "video
+  adjacent to NFO" check missed the nested layout — `tvshow.nfo` lives at
+  the show root, not next to the videos. AG now recurses into the whole
+  show tree (5 s per-show timeout, `find ... -iname '*.mp4|*.mkv|...'`).
+- **28.8 (AM — Disk1 walk I/O timeout)** : root cause is the macFUSE/NTFS
+  slow-path on Disk1. Rather than re-architecting access, the agent now
+  shards Disk1 walks by category top-level dir (60 s per shard) and reports
+  per-shard coverage. Partial coverage is acceptable and documented. NTFS
+  ghost-inode caveat (entries that appear in `ls` but `stat()` ENOENT) is
+  documented as OPERATIONAL with hint `requires offline umount + ntfsfix`,
+  not severity escalation.
+
+Matrix v2.3 → v2.4.
+
+### 28.6 — AI : 11 empty `Saison*` dirs on Disk1
+
+**Status**: DONE inline by main session + agent fix.
+
+The main session re-walked Disk1 inline and found **3** empty Saison dirs
+(not 11). The over-count came from the I/O timeout truncating the agent's
+enumeration. Inline rmdir/rm-rf removed all three:
+
+- `/Volumes/Disk1/medias/emissions/Au bout c'est la mer (2018)/Saison 24` (sic — bogus).
+- `/Volumes/Disk1/medias/emissions/Cauchemar en cuisine/Saison 12`.
+- `/Volumes/Disk1/medias/emissions/Objectif Nul/Saison 1`.
+
+The agent's AI over-counting is fixed in the batch above (per-show timeout
+
+- `coverage_partial` reporting instead of inflating totals).
+
+### 28.7 — AJ : `.actors` dir on Disk1
+
+**Status**: PARTIAL (documented as CONNU).
+
+The `.actors` artifact under
+`/Volumes/Disk1/medias/films/Hunger Games (2023)/.actors/` contains
+`Zoë_Renee.jpg` which is an NTFS-via-macFUSE ghost-inode: the entry is
+listed by `ls` but `rm` / `rmdir` returns `ENOENT` while the volume is
+mounted. This CANNOT be cleaned online and requires an offline maintenance
+window (`umount /Volumes/Disk1 && ntfsfix /dev/diskN`).
+
+- Status: CONNU. Documented in the agent so AJ no longer escalates severity
+  on ghost-inodes — they are OPERATIONAL with the offline-ntfsfix hint.
+- Operator action: schedule an offline pass when convenient.
+
+### Final state of the 2026-05-28 12h07 DEVIATION LIST
+
+| #   | Code         | Final status                | Disposition                                                                |
+| --- | ------------ | --------------------------- | -------------------------------------------------------------------------- |
+| 1   | (boot)       | TRAITÉ                      | Config-local fix, no commit.                                               |
+| 2   | (15 shows)   | RECLASSIFIÉ                 | DESIGN_CONFORM after ACCEPTANCE clarification; matrix v2.3.                |
+| 3   | (AV)         | RECLASSIFIÉ + TRAITÉ        | TOOLING_BUG; agent now delegates to check_env_keys.py.                     |
+| 4   | (AO 17)      | RECLASSIFIÉ + TRAITÉ        | TOOLING_BUG; agent uses real schema; rows are pending_link DESIGN_CONFORM. |
+| 5   | (AS 13)      | RECLASSIFIÉ + TRAITÉ        | TOOLING_BUG; agent uses real tracker schema; entries DESIGN_CONFORM.       |
+| 6   | (AG NFO)     | RECLASSIFIÉ + TRAITÉ        | TOOLING_BUG; agent recurses; show has videos in Saison NN/.                |
+| 7   | (AI 11)      | TRAITÉ inline + RECLASSIFIÉ | 3 real empty dirs deleted; agent over-counted, now fixed.                  |
+| 8   | (AJ .actors) | CONNU                       | NTFS ghost-inode; requires offline ntfsfix.                                |
+| 9   | (AM timeout) | RECLASSIFIÉ + TRAITÉ        | TOOLING_BUG; agent now shards Disk1 walks.                                 |
+
+Net: zero DEVIATIONS remain in `À TRAITER` / `À INVESTIGUER` status. The
+single CONNU (AJ .actors / NTFS ghost-inode) is an operator-scheduled
+offline maintenance item, not a code or pipeline issue.
