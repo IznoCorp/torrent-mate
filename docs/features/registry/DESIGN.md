@@ -843,16 +843,16 @@ MockEventBus or FailingEventBus rather than None.
 
 Per `docs/reference/logging.md`:
 
-| Event name                   | Level   | Context fields                                                                                  |
-| ---------------------------- | ------- | ----------------------------------------------------------------------------------------------- |
-| `registry_boot_loaded`       | INFO    | providers_count, capabilities_count                                                             |
-| `registry_provider_skip`     | DEBUG   | provider, capability, reason (Literal: circuit_open/empty_result)                               |
-| `registry_provider_fail`     | WARNING | provider, capability, exc_type, item                                                            |
-| `registry_chain_exhausted`   | ERROR   | capability, attempted (structured), item                                                        |
-| `registry_fan_out_partial`   | INFO    | capability, providers_tried, providers_succeeded (emitted on EVERY fan_out, success or partial) |
-| `registry_locked_xref`       | DEBUG   | source_provider, target_provider, xref_id                                                       |
-| `registry_locked_unresolved` | WARNING | capability, match, chain_tried                                                                  |
-| `registry_event_emit_failed` | WARNING | event_class, exc_type — emitted when the EventBus fails to deliver                              |
+| Event name                   | Level   | Context fields                                                                                 |
+| ---------------------------- | ------- | ---------------------------------------------------------------------------------------------- |
+| `registry_boot_loaded`       | INFO    | providers_count, capabilities_count                                                            |
+| `registry_provider_skip`     | DEBUG   | provider, capability, reason (Literal: circuit_open/empty_result)                              |
+| `registry_provider_fail`     | WARNING | provider, capability, exc_type, item                                                           |
+| `registry_chain_exhausted`   | ERROR   | capability, attempted (structured), item                                                       |
+| `registry_fan_out_partial`   | INFO    | capability, providers_tried, providers_eligible (emitted on EVERY fan_out, success or partial) |
+| `registry_locked_xref`       | DEBUG   | source_provider, target_provider, xref_id                                                      |
+| `registry_locked_unresolved` | WARNING | capability, match, chain_tried                                                                 |
+| `registry_event_emit_failed` | WARNING | event_class, exc_type — emitted when the EventBus fails to deliver                             |
 
 ### 7.6 Circuit state — chain/fan_out/locked eligibility rule
 

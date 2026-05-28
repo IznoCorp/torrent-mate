@@ -140,14 +140,14 @@ Verification on `feat/registry @ ccb8ba9b` (CI green: 9/9 checks, test 5m37s inc
 
 - **S1** — `_events.py:68` `chain_tried: tuple[str, ...]`; `:98` `providers: tuple[str, ...]`; `:99` `capabilities: dict[str, tuple[str, ...]]`. Construction sites at `registry/__init__.py:395-396` + `:586` wrap with `tuple(...)`. Regression test `tests/integration/api/metadata/registry/test_events.py:79-96` (boot) + `:137` (locked) asserts `isinstance(..., tuple)`. Zero downstream mutation calls (`.append/.extend/.insert/.pop` grep returns 0).
 - **S2** — `registry/__init__.py:493` emits `providers_eligible=`. `rg providers_succeeded --type py` returns 0 matches in code.
-- **S3** — `tv_service.py` = 797 LOC (under 800 soft ceiling — `check-module-size.py` no longer warns). New `tv_service_nfo.py` (186 LOC) houses `TvServiceNfoMixin` with 3 verbatim-extracted methods. `Scraper` MRO at `orchestrator.py:35` clean (no method shadow). Phase 26 I9 warning-propagation preserved (`tv_service_nfo.py:179-181` broad except + log + warnings.append).
+- **S3** — `tv_service.py` = 797 LOC (under 800 soft ceiling — `check-module-size.py` no longer warns). New `tv_service_nfo.py` (186 LOC) houses `TvServiceNfoMixin` with 3 verbatim-extracted methods. `Scraper` MRO at `orchestrator.py:35` clean (no method shadow). Phase 26 I9 warning-propagation preserved (`tv_service_nfo.py:179-181` broad except + log + warnings.append). NB: commit `34c538d8` message body says `922 → 675 LOC` — the dispatcher under-counted non-blank lines. Actual final LOC is 797 (still well under the 800 soft ceiling). The discrepancy is audit-trail only, no functional impact.
 - **F1** — `_walker.py:274,434,674` all 3 `os.scandir()` sites wrapped with `sorted(it, key=lambda e: e.name)`. Root-cause fix (ext4 hash-order vs lexicographic `<=` comparison in resume) — NOT a `@pytest.mark.flaky` mask. 10/10 local repeated runs pass + CI green.
 
-**Minor (no action required for merge)**:
+**Minor (closed by follow-up commit `<m1m2m3-sha>`)**:
 
-- **M1** Commit `34c538d8` message body claims `tv_service.py: 922 → 675 LOC`, actual is 797. Audit-trail inaccuracy, no functional impact.
-- **M2** `docs/features/registry/DESIGN.md:852` + `docs/features/registry/plan/phase-04-cleanup-obs-docs.md:113` still reference old log key `providers_succeeded`. Pure docs — production code emits `providers_eligible`. Worth a follow-up doc commit, non-blocking.
-- **M3** `existing_validator.py:103` comment `_generate_episode_nfos: Any  # from TvServiceMixin` is stale (method moved to `TvServiceNfoMixin`). Cosmetic; mypy unaffected.
+- **M1** Commit `34c538d8` message body claims `tv_service.py: 922 → 675 LOC`, actual is 797. Audit-trail inaccuracy — note added in the cycle-4 record above (commit message itself cannot be rewritten without force-push).
+- **M2** ~~DESIGN.md:852 + phase-04-plan:113 still reference old log key `providers_succeeded`~~ → renamed to `providers_eligible` in both files.
+- **M3** ~~`existing_validator.py:103` comment refers to `TvServiceMixin`~~ → updated to `TvServiceNfoMixin (Phase 27.2 S3 extraction)`.
 
 **Pre-existing (not Phase 27)**:
 

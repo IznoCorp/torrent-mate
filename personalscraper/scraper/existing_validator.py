@@ -100,7 +100,7 @@ class ExistingValidatorMixin:
     dry_run: bool
     _registry: "ProviderRegistry"
     _artwork: "ArtworkDownloader"
-    _generate_episode_nfos: Any  # from TvServiceMixin
+    _generate_episode_nfos: Any  # from TvServiceNfoMixin (Phase 27.2 S3 extraction)
 
     def _repair_season_dir(self, show_dir: Path) -> tuple[set[tuple[int, int]], bool]:
         """Collect organised episodes and replace them when a new root duplicate exists.

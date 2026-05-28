@@ -104,16 +104,16 @@ log = structlog.get_logger(__name__)
 
 Ensure each call site uses the exact event name and context fields from DESIGN §7.5:
 
-| Call site         | Event name                   | Level   | Fields                                                 |
-| ----------------- | ---------------------------- | ------- | ------------------------------------------------------ |
-| boot success      | `registry_boot_loaded`       | INFO    | `providers_count`, `capabilities_count`                |
-| circuit skip      | `registry_provider_skip`     | DEBUG   | `provider`, `capability`, `reason`                     |
-| network fail      | `registry_provider_fail`     | WARNING | `provider`, `capability`, `exc_type`, `item`           |
-| chain exhausted   | `registry_chain_exhausted`   | ERROR   | `capability`, `attempted`, `item`                      |
-| fan_out partial   | `registry_fan_out_partial`   | INFO    | `capability`, `providers_tried`, `providers_succeeded` |
-| locked xref       | `registry_locked_xref`       | DEBUG   | `source_provider`, `target_provider`, `xref_id`        |
-| locked unresolved | `registry_locked_unresolved` | WARNING | `capability`, `match`, `chain_tried`                   |
-| event emit failed | `registry_event_emit_failed` | WARNING | `event_class`, `exc_type`                              |
+| Call site         | Event name                   | Level   | Fields                                                |
+| ----------------- | ---------------------------- | ------- | ----------------------------------------------------- |
+| boot success      | `registry_boot_loaded`       | INFO    | `providers_count`, `capabilities_count`               |
+| circuit skip      | `registry_provider_skip`     | DEBUG   | `provider`, `capability`, `reason`                    |
+| network fail      | `registry_provider_fail`     | WARNING | `provider`, `capability`, `exc_type`, `item`          |
+| chain exhausted   | `registry_chain_exhausted`   | ERROR   | `capability`, `attempted`, `item`                     |
+| fan_out partial   | `registry_fan_out_partial`   | INFO    | `capability`, `providers_tried`, `providers_eligible` |
+| locked xref       | `registry_locked_xref`       | DEBUG   | `source_provider`, `target_provider`, `xref_id`       |
+| locked unresolved | `registry_locked_unresolved` | WARNING | `capability`, `match`, `chain_tried`                  |
+| event emit failed | `registry_event_emit_failed` | WARNING | `event_class`, `exc_type`                             |
 
 Run: `pytest tests/unit/api/metadata/registry/ -q`
 Expected: all pass (logging assertions are covered by existing event-bus unit tests).
