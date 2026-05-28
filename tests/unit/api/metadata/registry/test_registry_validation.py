@@ -15,7 +15,9 @@ from typing import Any
 import pytest
 
 from personalscraper.api.metadata.registry._errors import RegistryConfigError
-from personalscraper.api.metadata.registry._validation import validate_config
+from personalscraper.api.metadata.registry._validation import (
+    validate_config,
+)
 from personalscraper.conf.models.providers import ProvidersConfig
 
 from .conftest import (
@@ -352,3 +354,18 @@ def test_boot_cleanup_on_validation_failure(build_registry: object) -> None:
     with pytest.raises(RegistryConfigError):
         build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
     assert fake_a.closed is True, "fake_a should have been closed during boot cleanup"
+
+
+def test_no_cycle_false_positive_with_3_idcrossref_providers() -> None:
+    """Regression for C2: 3+ IDCrossRef providers must NOT trigger a cycle issue.
+
+    Before the fix, _check_idcrossref_cycles walked a fully-connected graph and
+    flagged the inherent cycle as a config error, breaking valid configs with
+    tmdb + tvdb + imdb.
+    """
+    from personalscraper.api.metadata.registry._validation import _check_idcrossref_cycles
+
+    cfg = ProvidersConfig(IDCrossRef={"tmdb": 1, "tvdb": 2, "imdb": 3})
+    providers: dict[str, object] = {"tmdb": object(), "tvdb": object(), "imdb": object()}
+    issues = _check_idcrossref_cycles(cfg, providers)
+    assert issues == [], f"3 IDCrossRef providers must not produce a cycle issue: {issues}"
