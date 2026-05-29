@@ -39,7 +39,11 @@ def test_registry_event_subclasses_event(name: str) -> None:
 
 @pytest.mark.parametrize("name", _REGISTRY_EVENT_NAMES)
 def test_registry_event_in_catalog(name: str) -> None:
-    """Each registry event is registered in _EVENT_CLASS_REGISTRY."""
+    """Each registry event is registered in _EVENT_CLASS_REGISTRY.
+
+    Design: docs/reference/architecture.md#registry-events-on-the-event-contract
+    Contract: the five provider-registry events are full Event subclasses, auto-registered in _EVENT_CLASS_REGISTRY so base-Event subscribers receive them.
+    """
     assert name in _EVENT_CLASS_REGISTRY, (
         f"{name} missing from _EVENT_CLASS_REGISTRY. Registered: {sorted(_EVENT_CLASS_REGISTRY)}"
     )
