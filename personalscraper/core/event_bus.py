@@ -219,6 +219,9 @@ class Event:
         correlation_id: Snapshot of ``current_correlation_id`` at construction
             time. ``None`` when constructed outside any bound region. An explicit
             argument (including explicit ``None``) wins over the ContextVar.
+        schema_version: Envelope schema version for this event payload. Defaults
+            to ``1`` and is serialized inside the envelope ``data`` so consumers
+            can branch on contract revisions when the shape evolves.
     """
 
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -227,6 +230,7 @@ class Event:
     correlation_id: str | None = field(
         default_factory=lambda: current_correlation_id.get(),
     )
+    schema_version: int = 1
 
     def __post_init__(self) -> None:
         """Auto-derive ``source`` when empty.
