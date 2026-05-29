@@ -294,23 +294,109 @@ git commit -m "test(multi-filesystem): integration tests for FS-aware incrementa
 
 ---
 
-## Task 5 — Phase gate (milestone commit reserved for orchestrator)
+## Task 5 — Consistency: honor `DiskConfig.fs_type` override in the scanner (one resolver everywhere)
 
-- [ ] **Step 5.1: Branch coverage on new helpers + branches.**
+**Why:** Phase 4 made the **transfer** path (Dispatcher) honor the
+`DiskConfig.fs_type` operator override, but the scanner (Task 2 above) resolves
+capability via `probe_mount` auto-detect only. That is an inconsistency — one
+knob, two behaviours. The override MUST be authoritative across the whole
+pipeline (transfer **and** scan), via a single shared resolver so the two
+layers can never diverge.
+
+**Files:**
+
+- Modify: `personalscraper/indexer/_fs_capability.py`
+- Modify: `personalscraper/dispatch/dispatcher.py`
+- Modify: `personalscraper/indexer/scanner/_scan_orchestrator.py`
+- Modify: `personalscraper/indexer/scanner/__init__.py`
+- Modify: `personalscraper/indexer/commands/scan.py`
+- Create/extend tests covering both layers.
+
+- [ ] **Step 5.1: Add the single shared resolver** in `_fs_capability.py`:
+
+```python
+def resolve_capability(path: str, fs_type_override: str | None = None) -> FilesystemCapability:
+    """Resolve a disk's capability: explicit override beats FsProbe auto-detect.
+
+    Single source of truth for BOTH the dispatch (transfer) layer and the
+    indexer scanner, so ``DiskConfig.fs_type`` is honoured uniformly.
+
+    Args:
+        path: Disk mount/scan-root path to probe when no override is given.
+        fs_type_override: Canonical fs-type string from ``DiskConfig.fs_type``;
+            when not ``None`` it wins and the probe is skipped entirely.
+
+    Returns:
+        The resolved capability (override → auto-detect → NTFS-safe ``unknown``).
+    """
+    if fs_type_override is not None:
+        return capability_for(fs_type_override)
+    from personalscraper.indexer._fs_probe import probe_mount  # local: avoid import cost at module load
+    info = probe_mount(path)
+    return capability_for(info.fs_type if info is not None else "unknown")
+```
+
+- [ ] **Step 5.2: Dispatcher delegates to it.** Replace the body of
+      `_resolve_disk_capability(disk)` with `return resolve_capability(str(disk.path), disk.fs_type)`.
+      Behaviour is identical (Phase 4 tests must still pass) — this removes the
+      duplicate resolution logic.
+
+- [ ] **Step 5.3: Scanner honors the override.** Add `fs_type_overrides: dict[str, str]`
+      to `_DiskWalkContext` (run-wide; default empty dict). In `_scan_one_disk`,
+      replace the Task-2 `probe_mount(...)` call with:
+
+```python
+disk_capability = resolve_capability(
+    disk.mount_path, ctx.fs_type_overrides.get(disk.mount_path)
+)
+```
+
+- [ ] **Step 5.4: Plumb the map from `scan()`.** Add a keyword-only
+      `fs_type_overrides: dict[str, str] | None = None` parameter to `scan()`; pass
+      `fs_type_overrides or {}` into the `_DiskWalkContext` build. Default `None`
+      preserves current behaviour for every other caller/test.
+
+- [ ] **Step 5.5: Build the map in the CLI command.** In
+      `personalscraper/indexer/commands/scan.py`, where `scan(...)` is invoked (it
+      already has `cfg`), build and pass:
+
+```python
+fs_type_overrides={str(d.path): d.fs_type for d in cfg.disks if d.fs_type is not None}
+```
+
+(`DiskRow.mount_path == str(DiskConfig.path)`, so the keys match the scanner's lookup.)
+
+- [ ] **Step 5.6: Tests.**
+  - Unit `resolve_capability`: override beats probe; `None` → probe; unprobeable → `unknown`; an override of `"exfat"` on a path that probes NTFS returns `EXFAT`.
+  - Dispatcher: existing Phase 4 override test still green (delegation preserves behaviour).
+  - Scanner end-to-end: a disk whose `probe_mount` returns **NTFS** but with `fs_type_overrides={mount_path: "exfat"}` must scan with EXFAT semantics (mtime within 2 s → no spurious drift) — proving the override reaches the scanner.
+
+- [ ] **Step 5.7: Commit.**
+
+```bash
+git add personalscraper/indexer/_fs_capability.py personalscraper/dispatch/dispatcher.py personalscraper/indexer/scanner/_scan_orchestrator.py personalscraper/indexer/scanner/__init__.py personalscraper/indexer/commands/scan.py tests/
+git commit -m "feat(multi-filesystem): unify capability resolution — scanner honors DiskConfig.fs_type override (one resolver, transfer+scan consistent)"
+```
+
+---
+
+## Task 6 — Phase gate (milestone commit reserved for orchestrator)
+
+- [ ] **Step 6.1: Branch coverage on new helpers + branches.**
 
 ```bash
 pytest tests/indexer/test_tier1_fs_aware.py tests/indexer/test_scan_fs_aware.py --cov=personalscraper/indexer/fingerprint --cov-report=term-missing
 ```
 
-- [ ] **Step 5.2: Full quality gate.**
+- [ ] **Step 6.2: Full quality gate.**
 
 ```bash
 make lint && make test && make check
 # expected: exit 0
 ```
 
-- [ ] **Step 5.3:** Do NOT make the milestone commit — the orchestrator owns it.
-      Leave the tree clean after the Task 4 commit.
+- [ ] **Step 6.3:** Do NOT make the milestone commit — the orchestrator owns it.
+      Leave the tree clean after the Task 5 commit.
 
 ---
 
@@ -328,6 +414,10 @@ python -c "from personalscraper.indexer.fingerprint import normalize_tier1; from
 # AC-NEW-2: exFAT drops ctime + buckets mtime
 python -c "from personalscraper.indexer.fingerprint import normalize_tier1; from personalscraper.indexer._fs_capability import EXFAT; print(normalize_tier1(10, 1_700_000_001_000_000_000, 999, EXFAT))"
 # expected: (10, 1700000000000000000)
+
+# AC-NEW-3: shared resolver — override beats auto-detect (one resolver for transfer + scan)
+python -c "from personalscraper.indexer._fs_capability import resolve_capability, EXFAT; print(resolve_capability('/Volumes/Disk1', 'exfat') is EXFAT)"
+# expected: True
 
 # AC-14: full gate
 make check
