@@ -57,7 +57,7 @@ class StagingDirConfig(_StrictModel):
         """
         if v is None:
             return v
-        from personalscraper.sorter.file_type import FileType  # local import avoids circular
+        from personalscraper.core.media_types import FileType  # local import avoids circular
 
         valid = {ft.value for ft in FileType}
         if v not in valid:

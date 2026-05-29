@@ -7,11 +7,11 @@ import unicodedata
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from personalscraper.core.media_types import VIDEO_EXTENSIONS
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
 from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.episode_manager import _extract_season_episode
-from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 from personalscraper.text_utils import media_processor
 
 log = get_logger("scraper")

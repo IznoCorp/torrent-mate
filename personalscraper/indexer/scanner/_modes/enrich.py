@@ -10,11 +10,11 @@ import time
 from pathlib import Path
 from typing import Literal
 
+from personalscraper.core.media_types import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 from personalscraper.indexer.mediainfo import MediaInfoUnavailableError, MediaInfoWrapper
 from personalscraper.indexer.release_linker import link_file_to_release
 from personalscraper.indexer.schema import ArtworkInventory, DiskRow, MediaStreamRow
 from personalscraper.logger import get_logger
-from personalscraper.sorter.file_type import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 
 log = get_logger("indexer.scan")
 

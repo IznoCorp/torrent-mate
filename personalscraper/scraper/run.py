@@ -14,13 +14,13 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
+from personalscraper.core.media_types import VIDEO_EXTENSIONS, FileType
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS, SEASON_DIR_RE
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
 from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.scraper.scraper import Scraper, ScrapeResult, verify_tvshow_scrape_drift
-from personalscraper.sorter.file_type import VIDEO_EXTENSIONS, FileType
 
 if TYPE_CHECKING:
     from personalscraper.api.metadata.registry import ProviderRegistry

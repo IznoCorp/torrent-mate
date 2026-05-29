@@ -14,9 +14,9 @@ from personalscraper.conf.classifier import classify_from_nfo
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.core.media_types import FileType
 from personalscraper.logger import get_logger
 from personalscraper.nfo_utils import glob_nfo_candidates
-from personalscraper.sorter.file_type import FileType
 
 log = get_logger("enforce.coherence")
 

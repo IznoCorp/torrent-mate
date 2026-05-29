@@ -16,13 +16,13 @@ from personalscraper.api.metadata._base import MediaDetails, Notations
 from personalscraper.api.metadata._contracts import MovieDetailsProvider
 from personalscraper.api.metadata.registry import AttemptOutcome, RegistryProviderName
 from personalscraper.api.metadata.registry._errors import ProviderExhausted
+from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_trailer_filename
 from personalscraper.logger import get_logger
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
 from personalscraper.scraper._shared import ScrapeResult, _find_video_file
 from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.confidence import LOW_CONFIDENCE
 from personalscraper.scraper.rename_service import _cleanup_stale_files, _merge_dirs
-from personalscraper.sorter.file_type import VIDEO_EXTENSIONS, is_trailer_filename
 from personalscraper.text_utils import sanitize_filename
 
 if TYPE_CHECKING:

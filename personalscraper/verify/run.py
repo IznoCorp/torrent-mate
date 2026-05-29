@@ -8,11 +8,11 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
+from personalscraper.core.media_types import FileType
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS
 from personalscraper.pipeline_events import ItemProgressed
-from personalscraper.sorter.file_type import FileType
 from personalscraper.verify.events import VerifyItemDone
 from personalscraper.verify.verifier import Verifier, VerifyResult
 

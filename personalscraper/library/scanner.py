@@ -152,7 +152,7 @@ _NTFS_ILLEGAL = re.compile(r'[<>:"/\\|?*]')
 # Video extensions: re-exported from sorter.file_type so the library
 # scanner and the sorter share the single source of truth for what counts
 # as a video file across the pipeline.
-from personalscraper.sorter.file_type import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS  # noqa: E402
+from personalscraper.core.media_types import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS  # noqa: E402
 from personalscraper.text_utils import JUNK_FILE_NAMES as _JUNK_FILES  # noqa: E402
 
 

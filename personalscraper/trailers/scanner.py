@@ -161,7 +161,7 @@ class Scanner:
         # Lazy import to avoid a hard dependency on conf/sorter from tests
         # that mock Scanner with stub configs.
         from personalscraper.conf.staging import find_by_file_type, folder_name
-        from personalscraper.sorter.file_type import FileType
+        from personalscraper.core.media_types import FileType
 
         specs: list[tuple[Path, MediaTypeLiteral | None]] = []
         for ft, media_type in ((FileType.MOVIE, "movie"), (FileType.TVSHOW, "tvshow")):

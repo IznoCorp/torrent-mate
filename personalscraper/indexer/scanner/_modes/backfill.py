@@ -7,10 +7,10 @@ import sqlite3
 import time
 from pathlib import Path
 
+from personalscraper.core.media_types import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 from personalscraper.indexer.mediainfo import MediaInfoUnavailableError, MediaInfoWrapper
 from personalscraper.indexer.schema import DiskRow
 from personalscraper.logger import get_logger
-from personalscraper.sorter.file_type import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 
 log = get_logger("indexer.scan")
 

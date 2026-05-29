@@ -50,6 +50,7 @@ if TYPE_CHECKING:
 # 4 are the expected residual per DESIGN §5.2 (``Mode.DIRECT`` for methods
 # without a capability Protocol).
 
+from personalscraper.core.media_types import VIDEO_EXTENSIONS
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper.episode_manager import (
     _extract_season_episode,
@@ -71,7 +72,6 @@ from personalscraper.scraper.existing_validator_repair import (
     _fetch_season_episodes_tvdb,
 )
 from personalscraper.scraper.rename_service import _cleanup_empty_release_dirs
-from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 from personalscraper.text_utils import sanitize_filename
 
 log = get_logger("scraper")
