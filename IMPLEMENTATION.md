@@ -6,7 +6,7 @@
 **Version bump**: 0.16.0 → 0.17.0
 **Branch**: feat/arch-cleanup-2
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/LounisBou/personal-scraper/pull/28
 **Design**: docs/features/arch-cleanup-2/DESIGN.md
 **Master plan**: docs/features/arch-cleanup-2/plan/INDEX.md
 
