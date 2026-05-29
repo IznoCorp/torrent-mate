@@ -20,6 +20,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import personalscraper.dispatch._transfer as _transfer
+from personalscraper.indexer._fs_capability import APFS, NTFS_MACFUSE
 
 NTFS_FLAGS_PREFIX = [
     "-a",
@@ -138,3 +139,67 @@ class TestRsyncMergeArgvNtfs:
             str(dest),
         ]
         assert called_cmd == expected
+
+
+class TestRsyncArgvApfs:
+    """APFS capability drops NTFS-only flags."""
+
+    def test_rsync_apfs_no_no_perms(self, tmp_path: Path) -> None:
+        """rsync(capability=APFS) drops perms/metadata/AppleDouble flags."""
+        source = tmp_path / "source"
+        source.mkdir()
+        dest = tmp_path / "dest"
+
+        with patch("personalscraper.dispatch._transfer.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stderr="")
+            _transfer.rsync(source, dest, capability=APFS)
+
+        called_cmd = mock_run.call_args[0][0]
+        assert "--no-perms" not in called_cmd
+        assert "--no-owner" not in called_cmd
+        assert "--no-group" not in called_cmd
+        assert "--no-times" not in called_cmd
+        assert "--omit-dir-times" not in called_cmd
+        assert "--exclude=.DS_Store" not in called_cmd
+        assert "--exclude=._*" not in called_cmd
+        # Core FS-agnostic flags still present.
+        assert "-a" in called_cmd
+        assert "--inplace" in called_cmd
+        assert "--partial" in called_cmd
+
+    def test_rsync_apfs_full_equivalence(self, tmp_path: Path) -> None:
+        """The full APFS argv equals the POSIX flag prefix plus paths."""
+        source = tmp_path / "source"
+        source.mkdir()
+        dest = tmp_path / "dest"
+
+        with patch("personalscraper.dispatch._transfer.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stderr="")
+            _transfer.rsync(source, dest, capability=APFS)
+
+        called_cmd = mock_run.call_args[0][0]
+        expected = ["rsync", *APFS_FLAGS_PREFIX, f"{source}/", str(dest)]
+        assert called_cmd == expected
+
+
+class TestHasNtfsIllegalNamesPosix:
+    """On a POSIX-capable FS (illegal_name_regex=None), colon names are allowed."""
+
+    def test_colon_name_not_flagged_on_apfs(self, tmp_path: Path) -> None:
+        """APFS has no illegal-name regex — a colon filename is not flagged."""
+        colon_dir = tmp_path / "show"
+        colon_dir.mkdir()
+        (colon_dir / "Episode S01E01: Pilot.mkv").touch()
+
+        # APFS has no illegal-name regex — must return False.
+        result = _transfer.has_ntfs_illegal_names(colon_dir, pattern=APFS.illegal_name_regex)
+        assert result is False
+
+    def test_colon_name_flagged_on_ntfs(self, tmp_path: Path) -> None:
+        """NTFS regex flags a colon filename (the default restrictive set)."""
+        colon_dir = tmp_path / "show"
+        colon_dir.mkdir()
+        (colon_dir / "Episode S01E01: Pilot.mkv").touch()
+
+        result = _transfer.has_ntfs_illegal_names(colon_dir, pattern=NTFS_MACFUSE.illegal_name_regex)
+        assert result is True
