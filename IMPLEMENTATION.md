@@ -24,11 +24,27 @@
 
 ## Review cycles
 
-_(filled by implement:pr-review)_
+### Cycle 1 (2026-05-29)
+
+Reviewers: code-reviewer (no critical/major; re-verified NTFS byte-identical vs `main`), silent-failure-hunter, type-design-analyzer, pr-test-analyzer.
+
+Retained + fixed:
+
+- **MAJOR** — `DiskConfig.fs_type` had no validation; a typo (`"ntfs"`, `"APFS"`, `"apfs "`) silently degraded to NTFS-safe `unknown`. Fixed: `Literal[...] | None` → fails loud at config load (enforces the documented "must be a canonical key"). `[24367636]`
+- **MEDIUM** — `_run_mount` swallowed all exceptions at DEBUG + `lru_cache`-poisoned a hung `mount`. Fixed: narrow to `(TimeoutExpired, OSError)`, WARNING on timeout/failure; unexpected errors propagate. `[24367636]`
+- **MEDIUM (regression net)** — pinned the missed-drift coarse-FS limitation (same-size within-bucket content change), quick-mode paranoia coarse-FS coverage, size-trips-bucket unit, exFAT real-drift→repair, two-disk per-disk override, hash/set-collapse intent. `[4f4ae92b]`
+
+Declined (with reason): `open_db` defense-in-depth no-op (pre-existing, not introduced here; conf validator is the real gate and covers it; FIX-2's WARNING now surfaces the probe failure); redundant boolean fields (over-engineering); `_NTFS_ILLEGAL` duplication (no defect); Optional-style cosmetics.
+
+### Cycle 2 (2026-05-29) — CONVERGED
+
+Adversarial verification of `24367636` + `4f4ae92b`: all fixes correct, complete, no regression. Missed-drift pin confirmed a true pin (real content change, real oshash, mtime truly in-bucket); per-disk override confirmed truly per-disk. No remaining critical/major/medium → loop exits.
+
+Gate after fixes: `make check` exit 0 (5893 passed), `pytest -m multifs` 134 passed.
 
 ## Next action
 
-Run `/implement:phase` to start Phase 7 (Feature PR + review) — chains to /implement:feature-pr then /implement:pr-review.
+Review converged (2 cycles). **Merge is BLOCKED only by GitHub Actions billing** (spending limit): the `test`/`security`/`coverage-merge` jobs cannot start. Static CI (lint, typecheck, design-gaps, licenses, secrets) is green. Action for the operator: fix Settings → Billing & plans, then re-run CI (`gh run rerun <id> --failed`) → green → manual squash-merge of PR #29.
 
 > Phase 2 note (for Phases 3–5): `FilesystemCapability.fs_type` is `field(compare=False)`
 > so `capability_for("unknown") == capability_for("ntfs_macfuse")` is `True` (behavioral
