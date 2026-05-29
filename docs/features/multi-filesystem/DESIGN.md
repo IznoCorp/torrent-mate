@@ -5,8 +5,41 @@
 > **Roadmap item**: P2 — Multi-Filesystem Support (`multi-filesystem`)
 > **Codename**: `multi-filesystem`
 > **Branch**: `feat/multi-filesystem`
-> **Version bump target**: 0.16.0 → 0.17.0 (minor — purely additive, no breaking config/DB change)
+> **Version bump target**: 0.17.0 → 0.18.0 (minor — purely additive, no breaking config/DB change). 0.17.0 was consumed by a different feature (arch-cleanup-2); this feature shipped as **0.18.0**.
 > **Source analysis**: `docs/analysis/04-filesystem-decoupling-macfuse-ntfs.md`
+
+> **Re-scope + retrospective note (2026-05-29).** This design was authored
+> before implementation and §3.4 / §4.5 / §5 / §7 originally described the
+> Phase-5 FS-aware drift work as a modification to `drift.py::reconcile_file`.
+> **That is not what shipped.** `reconcile_file` is dead, test-only code (no
+> production caller; flagged for tech-debt-2 removal) and was left UNTOUCHED —
+> it does **not** take a `FilesystemCapability`. The FS-aware tier-1 drift work
+> instead landed as two new helpers in `personalscraper/indexer/fingerprint.py`
+> — `normalize_tier1` and `round_mtime_ns` — consumed by the live scan modes
+> `scanner/_modes/incremental.py` and `scanner/_modes/quick.py`.
+>
+> The **phase-8 adversarial-retrospective fixes** (post-PR-#29) then closed the
+> remaining gaps, all documented inline below where they touch a section:
+>
+> 1. **FS-aware gating layer.** `normalize_tier1` only covered the per-file
+>    compare; the gates that run _first_ (the Merkle root short-circuit, the
+>    `compute_merkle_delta` bulk-change freeze guard, and the dir-mtime subtree
+>    skip) still compared raw mtime. They are now FS-aware too:
+>    `_walker.py::_build_disk_fingerprints` / `_sample_fresh_fingerprints` bucket
+>    mtime via the disk capability, and the dir-mtime compare in incremental /
+>    quick buckets both sides. NTFS / APFS / ext4 (granularity 1) stay
+>    byte-identical.
+> 2. **AC-05 delivered end-to-end.** The illegal-name gate now runs _after_
+>    destination resolution in `dispatch/_movie.py` / `_tv.py`, using the
+>    resolved `capability.illegal_name_regex` (POSIX dest → colon names allowed;
+>    NTFS dest → skipped).
+> 3. **Override keyed on the stable disk label.** The scanner `fs_type_overrides`
+>    map is keyed on `DiskConfig.id` (== the immutable `DiskRow.label`), not on
+>    the mutable `mount_path`, so a runtime remount can no longer drop the
+>    operator override.
+> 4. **`forbids_*` are derived.** `forbids_unix_perms` / `forbids_apple_metadata`
+>    are now read-only `@property` derived from `rsync_flags` (see §4.3), not
+>    stored fields that "drive" the flags.
 
 ---
 
@@ -158,6 +191,14 @@ stat.st_ctime_ns)` (`fingerprint.py:68-81`).
 - `clamp_mtime_ns` (`drift.py:68`) clamps only future/negative values — **not**
   low-precision/coarse mtimes.
 
+> **Shipped reality (see the 2026-05-29 re-scope note).** The above analysed
+> `reconcile_file` because it was, at design time, the assumed home of the
+> tier-1 comparison. It is in fact dead/test-only code with no production caller
+> and was **left untouched** — the FS-aware tier-1 comparison shipped as
+> `fingerprint.normalize_tier1` (built on `round_mtime_ns`), consumed by the
+> **live** scan modes `scanner/_modes/incremental.py` (per-file `existing` vs
+> `current` compare) and `scanner/_modes/quick.py` (paranoia branch). See §4.5.
+
 ### 3.5 Existing per-FS adaptation (the generalisation template)
 
 - `_verify_dir_mtime_reliable()` (`_walker.py:61-96`): writes a probe child,
@@ -282,14 +323,23 @@ Pure data + lookup — the heart of the abstraction. Target < 250 LOC.
 @dataclass(frozen=True)
 class FilesystemCapability:
     """Per-filesystem behaviour strategy. Pure data; fully unit-testable."""
-    fs_type: str                              # canonical key this entry serves
-    rsync_flags: tuple[str, ...]              # full prefix, excluding source/dest
-    forbids_unix_perms: bool                  # drives --no-perms/--no-owner/--no-group
-    forbids_apple_metadata: bool              # drives .DS_Store/._* excludes
+    fs_type: str                              # canonical key this entry serves (compare=False)
+    rsync_flags: tuple[str, ...]              # full prefix, excluding source/dest — SINGLE SOURCE OF TRUTH
     illegal_name_regex: re.Pattern[str] | None  # None = no name restriction
     tier1_uses_ctime: bool                    # include ctime in tier-1 comparison
     mtime_granularity_ns: int                 # round mtime to this before compare (1 = exact)
     dir_mtime_reliable_default: bool | None   # None = probe at runtime (_walker template)
+
+    # forbids_* are DERIVED read-only properties, not stored fields — they read
+    # straight off rsync_flags so they can never desync from the flags actually
+    # passed to rsync (phase-8 retro fix; see the 2026-05-29 re-scope note):
+    @property
+    def forbids_unix_perms(self) -> bool:
+        return "--no-perms" in self.rsync_flags
+
+    @property
+    def forbids_apple_metadata(self) -> bool:
+        return "--exclude=.DS_Store" in self.rsync_flags
 
 
 def capability_for(fs_type: str) -> FilesystemCapability:
@@ -300,14 +350,18 @@ def capability_for(fs_type: str) -> FilesystemCapability:
 
 Capability entries (decisions + rationale):
 
-| fs_type        | rsync_flags (beyond `-a --inplace --partial`)                                                    | forbids_unix_perms | forbids_apple_metadata | illegal_name_regex | tier1_uses_ctime | mtime_granularity_ns | dir_mtime_reliable_default |
-| -------------- | ------------------------------------------------------------------------------------------------ | ------------------ | ---------------------- | ------------------ | ---------------- | -------------------- | -------------------------- |
-| `ntfs_macfuse` | `--no-perms --no-owner --no-group --no-times --omit-dir-times --exclude=.DS_Store --exclude=._*` | True               | True                   | `_NTFS_ILLEGAL`    | True             | 1                    | None (probe)               |
-| `unknown`      | **== `ntfs_macfuse`**                                                                            | True               | True                   | `_NTFS_ILLEGAL`    | True             | 1                    | None                       |
-| `apfs`         | (none)                                                                                           | False              | False                  | None               | True             | 1                    | True                       |
-| `hfsplus`      | (none)                                                                                           | False              | False                  | None               | True             | 1_000_000_000        | True                       |
-| `exfat`        | `--exclude=.DS_Store --exclude=._*`                                                              | False              | True                   | None               | False            | 2_000_000_000        | None                       |
-| `ext4`         | (none)                                                                                           | False              | False                  | None               | True             | 1                    | None                       |
+(`forbids_unix_perms` / `forbids_apple_metadata` below are **derived** read-only
+properties, not stored fields — the table lists the value each derives from
+`rsync_flags`, not an independent knob.)
+
+| fs_type        | rsync_flags (beyond `-a --inplace --partial`)                                                    | forbids_unix_perms (derived) | forbids_apple_metadata (derived) | illegal_name_regex | tier1_uses_ctime | mtime_granularity_ns | dir_mtime_reliable_default |
+| -------------- | ------------------------------------------------------------------------------------------------ | ---------------------------- | -------------------------------- | ------------------ | ---------------- | -------------------- | -------------------------- |
+| `ntfs_macfuse` | `--no-perms --no-owner --no-group --no-times --omit-dir-times --exclude=.DS_Store --exclude=._*` | True                         | True                             | `_NTFS_ILLEGAL`    | True             | 1                    | None (probe)               |
+| `unknown`      | **== `ntfs_macfuse`**                                                                            | True                         | True                             | `_NTFS_ILLEGAL`    | True             | 1                    | None                       |
+| `apfs`         | (none)                                                                                           | False                        | False                            | None               | True             | 1                    | True                       |
+| `hfsplus`      | (none)                                                                                           | False                        | False                            | None               | True             | 1_000_000_000        | True                       |
+| `exfat`        | `--exclude=.DS_Store --exclude=._*`                                                              | False                        | True                             | None               | False            | 2_000_000_000        | None                       |
+| `ext4`         | (none)                                                                                           | False                        | False                            | None               | True             | 1                    | None                       |
 
 Notes:
 
@@ -349,29 +403,63 @@ path `personalscraper.dispatch._transfer` and all function names stay stable.**
 and threads it through `_rsync`/`_move_new`, `_movie.py:203`, `_tv.py:198`, and the
 `_movie.py:43`/`_tv.py:43` pre-scans.
 
-### 4.5 Drift integration
+### 4.5 Drift integration (AS SHIPPED — not `reconcile_file`)
 
-`reconcile_file` accepts the dest disk's `FilesystemCapability` (threaded from the
-scanner per disk). The tier-1 comparison becomes capability-aware:
+> This section originally proposed threading the capability into
+> `drift.py::reconcile_file`. **That did not ship.** `reconcile_file` has no
+> production caller (dead/test-only; tech-debt-2 removal candidate) and was left
+> untouched — it takes **no** `FilesystemCapability`. The FS-aware tier-1 work
+> instead landed as the two pure helpers below, consumed by the **live** scan
+> modes that actually run during `personalscraper scan`.
 
-- When `capability.tier1_uses_ctime is False`: drop ctime from the live tuple
-  build (the stored side already tolerates NULL via `ctime_ns or 0`, so only the
-  live side needs the conditional).
-- When `capability.mtime_granularity_ns > 1`: round **both** stored and live
-  mtime to the granularity before comparing.
-- `_verify_dir_mtime_reliable` is consulted only when
-  `capability.dir_mtime_reliable_default is None`; otherwise the capability value
-  is used directly.
+Two new helpers in `personalscraper/indexer/fingerprint.py`:
+
+- `round_mtime_ns(mtime_ns, capability)` — floors an mtime to
+  `capability.mtime_granularity_ns` (identity when granularity == 1).
+- `normalize_tier1(size, mtime_ns, ctime_ns, capability)` — returns the
+  capability-aware tier-1 tuple: `(size, round_mtime_ns(mtime), ctime_ns)` when
+  `capability.tier1_uses_ctime`, else the 2-tuple `(size, round_mtime_ns(mtime))`.
+
+Both default `capability=NTFS_MACFUSE` (granularity 1, ctime kept), so any
+un-threaded caller is byte-identical to the legacy `(size, mtime_ns, ctime_ns)`
+tuple.
+
+These are consumed at the **per-file compare** by:
+
+- `scanner/_modes/incremental.py::_walk_dir_incremental` — `existing` vs
+  `current` tier-1 compare via `normalize_tier1(..., capability)`.
+- `scanner/_modes/quick.py::_run_paranoia_branch` — bucketed mtime compare via
+  `round_mtime_ns(..., capability)`.
+
+**Phase-8 retro addition — the gating layer is FS-aware too.** `normalize_tier1`
+only covered the per-file compare. The gates that run _first_ and decide whether
+a walk happens now bucket mtime through the disk capability as well, so coarse
+filesystems are consistent end-to-end:
+
+- The **Merkle root short-circuit** and the **`compute_merkle_delta` bulk-change
+  freeze guard** (`DiskBulkChangeDetected`): `_walker.py::_build_disk_fingerprints`
+  buckets the DB-side `mtime_ns` and `_walker.py::_sample_fresh_fingerprints`
+  buckets the FS-side `st_mtime_ns`, both via `round_mtime_ns(..., capability)`.
+  Because both sides bucket with the same capability, `compute_merkle_root` and
+  `compute_merkle_delta` need no internal change.
+- The **dir-mtime subtree skip** in incremental and quick mode buckets **both**
+  the stored `path.dir_mtime_ns` and the live FS value before comparing.
+
+`_verify_dir_mtime_reliable` is consulted only when
+`capability.dir_mtime_reliable_default is None`; otherwise the hard-wired
+capability value is used directly (resolved once per disk in
+`scanner/_scan_orchestrator.py`).
 
 The `ntfs_macfuse`/`unknown`/`apfs`/`ext4` paths (ctime=True, granularity=1) are
-**unchanged vs current** — byte-identical drift behaviour.
+**byte-identical** to the legacy behaviour — bucketing is the identity transform,
+so the Merkle root, the delta, and the dir-mtime compare are all unchanged.
 
 ---
 
 ## 5. Phasing
 
 Lifecycle: `/implement:feature` → branch `feat/multi-filesystem`, Conventional
-Commits scope `(multi-filesystem)`, SemVer **minor** (0.16.0 → 0.17.0). Every
+Commits scope `(multi-filesystem)`, SemVer **minor** (0.17.0 → 0.18.0). Every
 phase gate runs `make lint && make test && make check` (all green) and ends in a
 `chore(multi-filesystem): phase N gate — …` milestone commit. No migration
 scripts. Module-size ceiling respected (new modules < 800). Each fixed bug gets a
@@ -458,15 +546,20 @@ regression test.
 ### Phase 5 — Make indexer tier-1 drift FS-aware (HIGHER RISK — defer-able)
 
 - **Objective**: stop exFAT/ext4 perpetual re-hashing; keep NTFS byte-identical.
-- **Modify**: `drift.py::reconcile_file` — thread the dest disk's capability; when
-  `tier1_uses_ctime is False` drop ctime from the live tuple build (stored side
-  already NULL-tolerant at `drift.py:194`); when `mtime_granularity_ns > 1` round
-  both sides before comparing. Consult `_verify_dir_mtime_reliable` only when
-  `dir_mtime_reliable_default is None`.
-- **Tests**: simulate an exFAT `os.stat_result` (no ctime, 2s mtime) → assert NO
-  spurious `tier1_drift`; assert the NTFS path (`tier1_uses_ctime=True`,
-  granularity 1) is **unchanged** vs current. Branch coverage ≥ 90% on the new
-  branches (`make check` gate).
+- **As shipped (NOT `reconcile_file`)**: add `fingerprint.round_mtime_ns` +
+  `fingerprint.normalize_tier1` (both defaulting to `NTFS_MACFUSE`) and consume
+  them at the live per-file compare in `scanner/_modes/incremental.py` and the
+  paranoia branch of `scanner/_modes/quick.py`. `drift.py::reconcile_file` is
+  dead/test-only code and was **left untouched** (tech-debt-2 removal candidate).
+  Phase-8 then extended the FS-awareness to the gating layer (Merkle root/delta +
+  dir-mtime subtree skip) by bucketing mtime in
+  `_walker.py::_build_disk_fingerprints` / `_sample_fresh_fingerprints` and in the
+  dir-mtime compares — see §4.5.
+- **Tests**: `tests/indexer/test_tier1_fs_aware.py` (exFAT no-ctime / 2 s bucket →
+  no spurious drift; NTFS byte-identical), `tests/indexer/test_merkle_fs_aware.py`
+  (NTFS merkle root byte-identical; coarse-FS jitter does not trip the freeze),
+  `tests/indexer/test_scan_fs_aware.py` (override reaches the scan side). Branch
+  coverage ≥ 90% on the new branches (`make check` gate).
 - **Effort**: L · **Risk**: **high** (hottest correctness path) · **Deps**:
   Phase 2.
 - **Defer option**: if no current disk is non-NTFS (open question §8), this phase
@@ -484,7 +577,7 @@ regression test.
   tests with `@pytest.mark.multifs`.
 - **Docs**: add a "Filesystem capability" section to `docs/reference/storage.md`
   (capability table + the 5s→10s probe note); cross-reference from
-  `docs/reference/indexer.md`. Add a `0.17.0` `CHANGELOG.md` entry.
+  `docs/reference/indexer.md`. Add a `0.18.0` `CHANGELOG.md` entry.
 - **Author** `docs/features/multi-filesystem/ACCEPTANCE.md` (§6 criteria).
 - **Effort**: M · **Risk**: low · **Deps**: Phases 1-5.
 - **Phase gate**: `make lint && make test && make check`; all ACCEPTANCE criteria
@@ -568,12 +661,14 @@ python -c "from personalscraper.conf.models.disks import DiskConfig; d=DiskConfi
 make check
 # expected: ruff/mypy/logging OK; "NNNN passed" with 0 failed/0 errors; coverage >=90%; module-size + typed-api + cli-coverage all PASS   (exit 0)
 
-# AC-15 — version bump landed
-grep -m1 '^version' pyproject.toml 2>/dev/null || cat VERSION
-# expected stdout contains: 0.17.0
+# AC-15 — version bump landed (VERSION is the single source of truth; pyproject
+# uses version = {attr = "personalscraper.__version__"}, so grepping pyproject
+# would print the attr line, not the number).
+cat VERSION
+# expected stdout contains: 0.18.0
 
 # AC-16 — CHANGELOG entry
-grep -c "0.17.0" CHANGELOG.md
+grep -c "0.18.0" CHANGELOG.md
 # expected stdout: >=1
 
 # AC-17 — package still imports (smoke)
@@ -585,16 +680,16 @@ python -c "import personalscraper; print('ok')"
 
 ## 7. Risks & mitigations
 
-| Sev      | Risk                                                                                                             | Mitigation                                                                                                                                                                          |
-| -------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **High** | Phase 5 alters the hottest correctness path (`reconcile_file`); a regression silently corrupts drift detection.  | Capability-gated: NTFS/APFS/ext4 keep ctime=True & granularity=1 → byte-identical. Branch coverage ≥ 90% on new branches. Defer-able (ship inert) until a non-NTFS disk exists.     |
-| **High** | Phase 3 changes the live `rsync` argv; an error breaks every move.                                               | Golden-argv test authored **first** against current code; `ntfs_macfuse` argv pinned byte-for-byte. AC-03/AC-10 enforce.                                                            |
-| Medium   | Consolidating onto one 10s probe relaxes `db.py`'s former 5s pre-open guard.                                     | Intentional, documented in the Phase 1 commit body and `docs/reference/storage.md`; module-level cache means a single shell-out per process.                                        |
-| Medium   | Real `mount` tokens for the installed NTFS driver (Tuxera/Paragon/fuse-t) may differ from `ufsd_NTFS`.           | `canonical_fs_type` is substring-aware over a known token set; `unknown` → NTFS-safe superset (never silently permissive). Open question §8.1 asks the user to confirm host tokens. |
-| Medium   | `unknown` mis-detection on a real native disk would apply NTFS-restrictive flags (lose Unix perms).              | Acceptable trade-off: restrictive default never _corrupts_, only over-suppresses. `DiskConfig.fs_type` override (Phase 4) is the escape hatch.                                      |
-| Low      | Cross-FS `os.rename` (staging on a different FS than the disk) raises EXDEV and would silently fail `_move_new`. | Out of scope; documented as open question §8.3. A future `assert st_dev` guard is the fix if such a config ever appears.                                                            |
-| Low      | ext4 ctime mutates on metadata ops → re-hashing even with the table.                                             | ext4 ships data-only; granularity-widening deferred until a real ext4 target (§8.4).                                                                                                |
-| Low      | macFUSE-NTFS ghost-inode `?`-perms dirents remain unremovable online.                                            | Pre-existing; demoted to DEBUG (`_walker.py:50-51`). Surfacing as a health warning is open question §8.5, not committed scope.                                                      |
+| Sev      | Risk                                                                                                                                                                                                                                                         | Mitigation                                                                                                                                                                                                                                                                    |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **High** | Phase 5 alters the hottest correctness path (the live tier-1 compare in `scanner/_modes/incremental.py` + `quick.py`, and — phase-8 — the Merkle/dir-mtime gating layer; **not** the dead `reconcile_file`); a regression silently corrupts drift detection. | Capability-gated via `normalize_tier1`/`round_mtime_ns`: NTFS/APFS/ext4 keep ctime=True & granularity=1 → byte-identical (NTFS merkle root pinned by `test_merkle_fs_aware.py`). Branch coverage ≥ 90% on new branches. Defer-able (ship inert) until a non-NTFS disk exists. |
+| **High** | Phase 3 changes the live `rsync` argv; an error breaks every move.                                                                                                                                                                                           | Golden-argv test authored **first** against current code; `ntfs_macfuse` argv pinned byte-for-byte. AC-03/AC-10 enforce.                                                                                                                                                      |
+| Medium   | Consolidating onto one 10s probe relaxes `db.py`'s former 5s pre-open guard.                                                                                                                                                                                 | Intentional, documented in the Phase 1 commit body and `docs/reference/storage.md`; module-level cache means a single shell-out per process.                                                                                                                                  |
+| Medium   | Real `mount` tokens for the installed NTFS driver (Tuxera/Paragon/fuse-t) may differ from `ufsd_NTFS`.                                                                                                                                                       | `canonical_fs_type` is substring-aware over a known token set; `unknown` → NTFS-safe superset (never silently permissive). Open question §8.1 asks the user to confirm host tokens.                                                                                           |
+| Medium   | `unknown` mis-detection on a real native disk would apply NTFS-restrictive flags (lose Unix perms).                                                                                                                                                          | Acceptable trade-off: restrictive default never _corrupts_, only over-suppresses. `DiskConfig.fs_type` override (Phase 4) is the escape hatch.                                                                                                                                |
+| Low      | Cross-FS `os.rename` (staging on a different FS than the disk) raises EXDEV and would silently fail `_move_new`.                                                                                                                                             | Out of scope; documented as open question §8.3. A future `assert st_dev` guard is the fix if such a config ever appears.                                                                                                                                                      |
+| Low      | ext4 ctime mutates on metadata ops → re-hashing even with the table.                                                                                                                                                                                         | ext4 ships data-only; granularity-widening deferred until a real ext4 target (§8.4).                                                                                                                                                                                          |
+| Low      | macFUSE-NTFS ghost-inode `?`-perms dirents remain unremovable online.                                                                                                                                                                                        | Pre-existing; demoted to DEBUG (`_walker.py:50-51`). Surfacing as a health warning is open question §8.5, not committed scope.                                                                                                                                                |
 
 ---
 
