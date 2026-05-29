@@ -32,9 +32,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exFAT, ctime is dropped from the tier-1 tuple and mtime is floored to a
   2-second bucket; on HFS+, mtime is floored to a 1-second bucket. NTFS / APFS
   / ext4 keep the legacy `(size, mtime_ns, ctime_ns)` 3-tuple unchanged.
+- FS-aware Merkle and dir-mtime **gating** layer: the Merkle root short-circuit,
+  the `compute_merkle_delta` bulk-change freeze guard, and the dir-mtime subtree
+  skip now bucket mtime per the disk capability
+  (`_walker.py::_build_disk_fingerprints` / `_sample_fresh_fingerprints` and the
+  dir-mtime compares in incremental / quick). On a coarse filesystem (HFS+ 1 s,
+  exFAT 2 s) sub-bucket mtime jitter can no longer defeat the Merkle
+  short-circuit nor spuriously trip the bulk-change freeze on a healthy disk;
+  NTFS / APFS / ext4 (granularity 1) keep a byte-identical Merkle root.
 - `DiskConfig.fs_type` optional override: escape hatch for unrecognised
   macFUSE driver tokens; falls back to the NTFS-safe `unknown` capability for
-  any unrecognised value.
+  any unrecognised value. The scanner override map is keyed on the **stable**
+  `DiskConfig.id` (== the immutable `DiskRow.label`), not on the mutable
+  `mount_path`, so a runtime remount can no longer drop the operator override.
+
+### Changed (per-FS dispatch)
+
+- Per-FS illegal-filename relaxation now applies **end-to-end**: the
+  illegal-name gate in `dispatch/_movie.py` / `_tv.py` runs **after** the
+  destination disk is resolved and uses that disk's
+  `capability.illegal_name_regex`. A `:`-titled item is no longer skipped when
+  the destination is a POSIX filesystem (APFS / HFS+ / exFAT / ext4, where the
+  regex is `None`); on an NTFS / `unknown` destination it is still skipped.
 - `multifs` pytest marker: capability / probe / argv / tier-1 / scan /
   diskconfig tests tagged; no real disks required (faked mount/stat fixtures).
 
