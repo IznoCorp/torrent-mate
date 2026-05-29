@@ -40,16 +40,6 @@ def dispatch_movie(
     """
     result = DispatchResult(source=movie_dir)
 
-    # Pre-scan for filesystem-illegal filenames before any rsync operation.
-    # The destination disk is not yet chosen here, so use the NTFS-safe default
-    # pattern (the restrictive superset) — the same behaviour as before this
-    # phase.  A per-disk capability is resolved below for the transfer itself.
-    if _transfer.has_ntfs_illegal_names(movie_dir, pattern=NTFS_MACFUSE.illegal_name_regex):
-        result.action = "skipped"
-        result.reason = f"NTFS-illegal filenames in {movie_dir.name}. Run 'personalscraper process' to sanitize."
-        log.error("dispatch_ntfs_illegal", path=str(movie_dir))
-        return result
-
     # Get disk statuses keyed by disk ID for resolver
     disk_statuses = [get_disk_status(c) for c in dispatcher._disk_configs]
     free_space_by_id = {s.config.id: s.free_space_gb if s.is_mounted else 0.0 for s in disk_statuses}
@@ -78,12 +68,18 @@ def dispatch_movie(
             result.reason = f"Disk {existing.disk} full, cannot replace"
             return result
 
+        # Resolve the destination disk's capability (NTFS-safe default), then
+        # gate illegal filenames against THAT capability's regex (None on POSIX
+        # filesystems → no restriction → not skipped). Resolving before the
+        # dry-run branch keeps dry-run a faithful preview of the real run.
+        cap = dispatcher._disk_capabilities.get(existing.disk, NTFS_MACFUSE)
+        if _is_skipped_for_illegal_names(result, movie_dir, cap):
+            return result
+
         if dispatcher.dry_run:
             result.action = "replaced"
             result.reason = f"[DRY RUN] Would replace on {existing.disk}"
             return result
-        # Resolve the destination disk's capability (NTFS-safe default).
-        cap = dispatcher._disk_capabilities.get(existing.disk, NTFS_MACFUSE)
         success = replace(movie_dir, dest, capability=cap)
         result.action = "replaced" if success else "error"
     else:
@@ -103,12 +99,19 @@ def dispatch_movie(
         dest = resolver.folder_for(dispatcher.config, target_disk, category_id) / movie_dir.name
         result.disk = target_disk.id
         result.destination = dest
+
+        # Resolve the target disk's capability (NTFS-safe default), then gate
+        # illegal filenames against THAT capability's regex (None on POSIX
+        # filesystems → no restriction → not skipped). Resolving before the
+        # dry-run branch keeps dry-run a faithful preview of the real run.
+        cap = dispatcher._disk_capabilities.get(target_disk.id, NTFS_MACFUSE)
+        if _is_skipped_for_illegal_names(result, movie_dir, cap):
+            return result
+
         if dispatcher.dry_run:
             result.action = "moved"
             result.reason = f"[DRY RUN] Would move to {target_disk.id}"
             return result
-        # Resolve the target disk's capability (NTFS-safe default).
-        cap = dispatcher._disk_capabilities.get(target_disk.id, NTFS_MACFUSE)
         success = dispatcher._move_new(movie_dir, dest, capability=cap)
         result.action = "moved" if success else "error"
 
@@ -168,6 +171,45 @@ def dispatch_movie(
         )
 
     return result
+
+
+def _is_skipped_for_illegal_names(
+    result: DispatchResult,
+    source_dir: Path,
+    capability: FilesystemCapability,
+) -> bool:
+    """Gate a transfer on filesystem-illegal filenames for the resolved dest.
+
+    Run AFTER the destination disk (and thus its capability) is chosen, so the
+    gate honours the per-disk ``illegal_name_regex``: ``None`` on POSIX
+    filesystems (APFS/HFS+/exFAT/ext4) means no restriction, so a ``:``-titled
+    item proceeds; on NTFS/unknown the restrictive regex still skips it exactly
+    as before this phase. Disk selection is read-only (index lookup +
+    free-space), so it is safe to resolve the capability before this gate and
+    before any file transfer.
+
+    On a hit, mutates *result* in place with the same ``skipped`` action and
+    NTFS-illegal reason the legacy pre-resolution gate set, logs the event, and
+    returns ``True`` so the caller returns the skipped result without
+    dispatching. Returns ``False`` (no mutation) when the resolved capability
+    imposes no name restriction or no illegal name is present.
+
+    Args:
+        result: DispatchResult to mutate on a skip (action/reason set in place).
+        source_dir: Source media directory whose filenames are scanned.
+        capability: Resolved destination-disk capability; its
+            ``illegal_name_regex`` drives the gate (``None`` → never skips).
+
+    Returns:
+        True if the item is skipped (illegal name on a restricted dest FS);
+        False otherwise.
+    """
+    if _transfer.has_ntfs_illegal_names(source_dir, pattern=capability.illegal_name_regex):
+        result.action = "skipped"
+        result.reason = f"NTFS-illegal filenames in {source_dir.name}. Run 'personalscraper process' to sanitize."
+        log.error("dispatch_ntfs_illegal", path=str(source_dir))
+        return True
+    return False
 
 
 def _disk_root_for(dispatcher: Dispatcher, disk_id: str | None) -> Path:

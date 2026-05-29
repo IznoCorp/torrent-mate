@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from personalscraper.conf import resolver
 from personalscraper.dispatch import _transfer
-from personalscraper.dispatch._movie import _disk_root_for
+from personalscraper.dispatch._movie import _disk_root_for, _is_skipped_for_illegal_names
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.disk_scanner import get_disk_status
 from personalscraper.dispatch.events import ItemDispatched
@@ -40,16 +40,6 @@ def dispatch_tvshow(
     """
     result = DispatchResult(source=show_dir)
 
-    # Pre-scan for filesystem-illegal filenames before any rsync operation.
-    # The destination disk is not yet chosen here, so use the NTFS-safe default
-    # pattern (the restrictive superset) — the same behaviour as before this
-    # phase.  A per-disk capability is resolved below for the transfer itself.
-    if _transfer.has_ntfs_illegal_names(show_dir, pattern=NTFS_MACFUSE.illegal_name_regex):
-        result.action = "skipped"
-        result.reason = f"NTFS-illegal filenames in {show_dir.name}. Run 'personalscraper process' to sanitize."
-        log.error("dispatch_ntfs_illegal", path=str(show_dir))
-        return result
-
     disk_statuses = [get_disk_status(c) for c in dispatcher._disk_configs]
     free_space_by_id = {s.config.id: s.free_space_gb if s.is_mounted else 0.0 for s in disk_statuses}
     item_size_gb = _transfer.dir_size_gb(show_dir)
@@ -74,12 +64,18 @@ def dispatch_tvshow(
             result.reason = f"Disk {existing.disk} full, cannot merge"
             return result
 
+        # Resolve the destination disk's capability (NTFS-safe default), then
+        # gate illegal filenames against THAT capability's regex (None on POSIX
+        # filesystems → no restriction → not skipped). Resolving before the
+        # dry-run branch keeps dry-run a faithful preview of the real run.
+        cap = dispatcher._disk_capabilities.get(existing.disk, NTFS_MACFUSE)
+        if _is_skipped_for_illegal_names(result, show_dir, cap):
+            return result
+
         if dispatcher.dry_run:
             result.action = "merged"
             result.reason = f"[DRY RUN] Would merge on {existing.disk}"
             return result
-        # Resolve the destination disk's capability (NTFS-safe default).
-        cap = dispatcher._disk_capabilities.get(existing.disk, NTFS_MACFUSE)
         success = merge(show_dir, dest, capability=cap)
         result.action = "merged" if success else "error"
     else:
@@ -99,12 +95,19 @@ def dispatch_tvshow(
         dest = resolver.folder_for(dispatcher.config, target_disk, category_id) / show_dir.name
         result.disk = target_disk.id
         result.destination = dest
+
+        # Resolve the target disk's capability (NTFS-safe default), then gate
+        # illegal filenames against THAT capability's regex (None on POSIX
+        # filesystems → no restriction → not skipped). Resolving before the
+        # dry-run branch keeps dry-run a faithful preview of the real run.
+        cap = dispatcher._disk_capabilities.get(target_disk.id, NTFS_MACFUSE)
+        if _is_skipped_for_illegal_names(result, show_dir, cap):
+            return result
+
         if dispatcher.dry_run:
             result.action = "moved"
             result.reason = f"[DRY RUN] Would move to {target_disk.id}"
             return result
-        # Resolve the target disk's capability (NTFS-safe default).
-        cap = dispatcher._disk_capabilities.get(target_disk.id, NTFS_MACFUSE)
         success = dispatcher._move_new(show_dir, dest, capability=cap)
         result.action = "moved" if success else "error"
 

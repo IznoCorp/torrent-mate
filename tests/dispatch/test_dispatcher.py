@@ -1020,37 +1020,69 @@ class TestNtfsIllegalAtDispatch:
     def test_movie_with_ntfs_illegal_name_skipped_at_dispatch(
         self, test_config, mock_settings: MagicMock, tmp_path: Path
     ) -> None:
-        """dispatch_movie returns skipped when _transfer.has_ntfs_illegal_names is True."""
+        """dispatch_movie skips a colon name when the resolved dest is NTFS-restricted.
+
+        AC-05: the illegal-name gate now runs AFTER the destination disk is
+        chosen and uses the resolved capability's regex. Pinning the resolved
+        capability to NTFS (regex present) makes the skip deterministic
+        regardless of the host's real filesystem under ``tmp_path``.
+        """
         from personalscraper.dispatch._movie import dispatch_movie
+        from personalscraper.dispatch.disk_scanner import DiskStatus
+        from personalscraper.indexer._fs_capability import NTFS_MACFUSE
 
         idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
+        # Pin the dest capability to NTFS so the colon name is rejected.
+        d._disk_capabilities["drive_a"] = NTFS_MACFUSE
 
         movie_dir = tmp_path / "Bad Movie"
         movie_dir.mkdir()
         # NTFS check scans file NAMES, not directory names — colon in filename triggers it.
         (movie_dir / "file : illegal.mkv").write_bytes(b"\x00" * 1024)
 
-        # The NTFS check runs before any disk I/O — no need to mock disks.
-        result = dispatch_movie(d, movie_dir, "movies")
+        # Disk must resolve (free space) so dispatch reaches the post-resolution
+        # gate; the resolved (NTFS) capability then drives the skip.
+        with patch("personalscraper.dispatch._movie.get_disk_status") as mock_status:
+            mock_status.return_value = DiskStatus(
+                config=DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=["movies"]),
+                free_space_gb=500.0,
+                is_mounted=True,
+            )
+            result = dispatch_movie(d, movie_dir, "movies")
         assert result.action == "skipped"
         assert "NTFS" in (result.reason or "")
 
     def test_tvshow_with_ntfs_illegal_name_skipped_at_dispatch(
         self, test_config, mock_settings: MagicMock, tmp_path: Path
     ) -> None:
-        """dispatch_tvshow returns skipped when _transfer.has_ntfs_illegal_names is True."""
+        """dispatch_tvshow skips a colon name when the resolved dest is NTFS-restricted.
+
+        AC-05 mirror of the movie case: the gate runs after dest resolution and
+        the dest capability is pinned to NTFS (regex present), so the colon
+        filename is still skipped deterministically.
+        """
         from personalscraper.dispatch._tv import dispatch_tvshow
+        from personalscraper.dispatch.disk_scanner import DiskStatus
+        from personalscraper.indexer._fs_capability import NTFS_MACFUSE
 
         idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
+        # Pin the dest capability to NTFS so the colon name is rejected.
+        d._disk_capabilities["drive_a"] = NTFS_MACFUSE
 
         show_dir = tmp_path / "Bad Show"
         show_dir.mkdir()
         # NTFS check scans file NAMES — colon in filename triggers it.
         (show_dir / "S01E01 : bad.mkv").write_bytes(b"\x00" * 1024)
 
-        result = dispatch_tvshow(d, show_dir, "tv_shows")
+        with patch("personalscraper.dispatch._tv.get_disk_status") as mock_status:
+            mock_status.return_value = DiskStatus(
+                config=DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=["tv_shows"]),
+                free_space_gb=500.0,
+                is_mounted=True,
+            )
+            result = dispatch_tvshow(d, show_dir, "tv_shows")
         assert result.action == "skipped"
         assert "NTFS" in (result.reason or "")
 
