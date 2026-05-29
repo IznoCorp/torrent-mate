@@ -58,8 +58,11 @@ class TestDispatcherCapabilityOverride:
         )
 
         # Even if probe_mount would say "unknown", the override wins and the
-        # probe is never invoked.
-        with patch("personalscraper.dispatch.dispatcher.probe_mount") as mock_probe:
+        # probe is never invoked.  The single real call site is the lazy import
+        # inside ``resolve_capability`` (``_fs_probe.probe_mount``); when an
+        # override is set ``resolve_capability`` returns before that import, so
+        # ``assert_not_called`` still holds after the consistency refactor.
+        with patch("personalscraper.indexer._fs_probe.probe_mount") as mock_probe:
             mock_probe.return_value = None  # probe would say "unknown"
             cap = _resolve_disk_capability(disk)
 
@@ -77,7 +80,10 @@ class TestDispatcherCapabilityOverride:
             raw_fs_type="ufsd_ntfs",
             flags=frozenset({"local", "noatime"}),
         )
-        monkeypatch.setattr(mod, "probe_mount", lambda _: fake_info)
+        # The single real call site is the lazy import inside
+        # ``resolve_capability`` — patch ``_fs_probe.probe_mount`` (not the
+        # dispatcher namespace, which no longer imports the symbol).
+        monkeypatch.setattr("personalscraper.indexer._fs_probe.probe_mount", lambda _: fake_info)
 
         disk = DiskConfig(id="disk1", path=Path("/Volumes/Disk1"), categories=["movies"])
         cap = mod._resolve_disk_capability(disk)

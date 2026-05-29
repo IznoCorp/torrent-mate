@@ -29,8 +29,7 @@ from personalscraper.dispatch import _movie, _transfer, _tv
 from personalscraper.dispatch._types import DispatchError, DispatchResult
 from personalscraper.dispatch.disk_scanner import get_disk_configs
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
-from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability, capability_for
-from personalscraper.indexer._fs_probe import probe_mount
+from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability, resolve_capability
 from personalscraper.logger import get_logger
 from personalscraper.text_utils import _NTFS_ILLEGAL
 from personalscraper.verify.verifier import VerifyResult
@@ -44,20 +43,13 @@ log = get_logger("dispatcher")
 def _resolve_disk_capability(disk: DiskConfig) -> FilesystemCapability:
     """Resolve the :class:`FilesystemCapability` for a disk.
 
-    Resolution order:
-
-    1. **Explicit override.**  When ``disk.fs_type`` is set, it beats
-       auto-detection: the probe is skipped entirely and the capability is
-       looked up directly.  An unrecognised override value falls back to the
-       NTFS-safe ``"unknown"`` capability via ``capability_for`` (escape hatch
-       for driver tokens such as ``fuse-t`` variants or Paragon NTFS).
-    2. **Auto-detection.**  When ``disk.fs_type`` is ``None``, probe the mount
-       table for ``disk.path`` and look up the capability by the
-       already-canonical fs-type.  ``probe_mount`` returns a ``MountInfo`` whose
-       ``.fs_type`` is canonicalised by ``_parse_mount_line`` — it must NOT be
-       re-run through ``canonical_fs_type``.  When the path is not mounted (or
-       on non-Darwin platforms) ``probe_mount`` returns ``None`` and we fall
-       back to the ``"unknown"`` capability, the NTFS-safe restrictive superset.
+    Thin delegate to the shared
+    :func:`personalscraper.indexer._fs_capability.resolve_capability` resolver,
+    which is the single source of truth used by BOTH the dispatch (transfer)
+    layer and the indexer scanner.  Behaviour is identical to the historical
+    inline logic — an explicit ``disk.fs_type`` override beats auto-detection,
+    otherwise the mount table is probed, and an unmounted / unrecognised disk
+    falls back to the NTFS-safe ``"unknown"`` capability.
 
     Args:
         disk: The :class:`DiskConfig` whose capability is needed.
@@ -67,12 +59,7 @@ def _resolve_disk_capability(disk: DiskConfig) -> FilesystemCapability:
         fs-type, or the ``"unknown"`` (NTFS-safe) capability when detection
         fails.
     """
-    # Explicit operator override beats auto-detection.
-    if disk.fs_type is not None:
-        return capability_for(disk.fs_type)
-    # Auto-detect via FsProbe (cached mount shell-out).
-    info = probe_mount(str(disk.path))
-    return capability_for(info.fs_type if info is not None else "unknown")
+    return resolve_capability(str(disk.path), disk.fs_type)
 
 
 class Dispatcher:

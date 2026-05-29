@@ -15,6 +15,7 @@ from personalscraper.indexer._fs_capability import (
     UNKNOWN,
     FilesystemCapability,
     capability_for,
+    resolve_capability,
 )
 
 # ---------------------------------------------------------------------------
@@ -260,3 +261,74 @@ def test_capability_for_all_keys(fs_type: str) -> None:
     cap = capability_for(fs_type)
     assert isinstance(cap, FilesystemCapability)
     assert cap.fs_type == fs_type
+
+
+# ---------------------------------------------------------------------------
+# resolve_capability: the single shared resolver (transfer + scan consistency)
+# ---------------------------------------------------------------------------
+
+
+class TestResolveCapability:
+    """``resolve_capability`` — override beats probe; probe drives auto-detect."""
+
+    def test_override_beats_probe_and_skips_it(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """An explicit override returns its capability and never invokes the probe."""
+        from unittest.mock import MagicMock
+
+        probe = MagicMock()
+        monkeypatch.setattr("personalscraper.indexer._fs_probe.probe_mount", probe)
+
+        cap = resolve_capability("/Volumes/Disk1", "apfs")
+
+        assert cap is APFS
+        probe.assert_not_called()  # override short-circuits before the lazy import
+
+    def test_override_exfat_on_path_that_probes_ntfs_returns_exfat(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """AC-NEW-3 shape: override 'exfat' wins even when the path probes NTFS."""
+        from personalscraper.indexer._fs_probe import MountInfo
+
+        ntfs_info = MountInfo(
+            mount_point="/Volumes/Disk1",
+            fs_type="ntfs_macfuse",
+            raw_fs_type="ufsd_ntfs",
+            flags=frozenset(),
+        )
+        # Even with a probe that would return NTFS, the override must win — and
+        # since the override short-circuits, the probe is never consulted at all.
+        monkeypatch.setattr("personalscraper.indexer._fs_probe.probe_mount", lambda _: ntfs_info)
+
+        cap = resolve_capability("/Volumes/Disk1", "exfat")
+
+        assert cap is EXFAT
+
+    def test_no_override_uses_probe_result(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """With no override, the FsProbe-detected fs-type drives the capability."""
+        from personalscraper.indexer._fs_probe import MountInfo
+
+        exfat_info = MountInfo(
+            mount_point="/Volumes/Card",
+            fs_type="exfat",
+            raw_fs_type="exfat",
+            flags=frozenset(),
+        )
+        monkeypatch.setattr("personalscraper.indexer._fs_probe.probe_mount", lambda _: exfat_info)
+
+        cap = resolve_capability("/Volumes/Card", None)
+
+        assert cap is EXFAT
+
+    def test_unprobeable_path_falls_back_to_ntfs_safe_unknown(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A ``None`` probe result (unmounted / non-Darwin) yields the NTFS-safe unknown."""
+        monkeypatch.setattr("personalscraper.indexer._fs_probe.probe_mount", lambda _: None)
+
+        cap = resolve_capability("/Volumes/Gone", None)
+
+        # UNKNOWN behaviourally equals NTFS_MACFUSE (restrictive superset).
+        assert cap is UNKNOWN
+        assert cap == NTFS_MACFUSE
+
+    def test_unrecognised_override_falls_back_to_unknown(self) -> None:
+        """An unrecognised override token falls back to the NTFS-safe unknown."""
+        cap = resolve_capability("/Volumes/Paragon", "some_driver_token")
+
+        assert cap == NTFS_MACFUSE

@@ -7,8 +7,9 @@ small in-memory DB plus pyfakefs-backed files, injecting a per-disk
 - directly, via the ``capability=`` argument of
   :func:`~personalscraper.indexer.scanner._modes.incremental._scan_disk_incremental`
   (focused tier-1 assertions), or
-- end-to-end, by monkeypatching
-  ``personalscraper.indexer.scanner._scan_orchestrator.probe_mount`` so the
+- end-to-end, by monkeypatching ``personalscraper.indexer._fs_probe.probe_mount``
+  (the single real call site, reached via the lazy import inside
+  :func:`~personalscraper.indexer._fs_capability.resolve_capability`) so the
   orchestrator resolves and threads the capability itself (proves the wiring).
 
 The core proof obligations:
@@ -49,7 +50,7 @@ MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "inde
 
 _GUARD_PATCH = "personalscraper.indexer.scanner.guard_disk_mounted"
 _OSHASH_PATCH = "personalscraper.indexer.scanner._modes.incremental._compute_oshash"
-_PROBE_PATCH = "personalscraper.indexer.scanner._scan_orchestrator.probe_mount"
+_PROBE_PATCH = "personalscraper.indexer._fs_probe.probe_mount"
 
 _ONE_SECOND_NS = 1_000_000_000
 _THREE_SECONDS_NS = 3_000_000_000
@@ -452,3 +453,107 @@ class TestOrchestratorThreadsCapability:
 
         assert result.status == "ok"
         assert mock_oshash.call_count >= 1, "NTFS ctime change must still force a recompute end-to-end"
+
+
+# ---------------------------------------------------------------------------
+# Consistency (Phase 5 Task 5): the DiskConfig.fs_type override reaches the
+# scanner — a disk that PROBES NTFS but is OVERRIDDEN to exFAT must scan with
+# exFAT semantics (one shared resolver for transfer + scan).
+# ---------------------------------------------------------------------------
+
+
+class TestScannerHonorsFsTypeOverride:
+    """``scan(fs_type_overrides=...)`` must beat the auto-detected probe result."""
+
+    def test_override_exfat_beats_ntfs_probe_no_spurious_drift(self, fs: "FakeFilesystem") -> None:
+        """Probe → NTFS, override → exFAT: a within-2 s mtime gap must NOT drift.
+
+        Proves the operator override threads from ``scan()`` all the way to the
+        per-file tier-1 compare via the SHARED ``resolve_capability`` resolver.
+        Under the (ignored) NTFS probe, the zeroed stored ctime would force a
+        tier-1 mismatch + OSHash recompute; under the exFAT override, ctime is
+        dropped and the 1 s mtime gap is absorbed by the 2 s bucket → no
+        recompute. ``probe_mount`` returning NTFS makes the override the only
+        thing that can produce exFAT semantics.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/OverrideExfat"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        disk, file_id, on_disk_mtime = _seed_one_video(conn, mount)
+
+        # +1 s mtime (same 2 s exFAT bucket) and a clobbered ctime: on NTFS this
+        # is a drift; on exFAT it is a no-op.
+        _set_stored_tier1(conn, file_id, mtime_ns=on_disk_mtime + _ONE_SECOND_NS, ctime_ns=0)
+        disk_repo.update_merkle_root(conn, disk.id, None)
+        fresh = disk_repo.get_by_id(conn, disk.id)
+        assert fresh is not None
+
+        # Probe reports NTFS; the override map says exFAT for this exact mount.
+        ntfs_info = MountInfo(mount_point=mount, fs_type="ntfs_macfuse", raw_fs_type="ufsd_ntfs", flags=frozenset())
+
+        with patch(_OSHASH_PATCH) as mock_oshash:
+            with patch(_PROBE_PATCH, return_value=ntfs_info):
+                with patch(_GUARD_PATCH, return_value=None):
+                    with patch(
+                        "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
+                        return_value=False,
+                    ):
+                        result = scan(
+                            [fresh],
+                            ScanMode.incremental,
+                            generation=2,
+                            conn=conn,
+                            fs_type_overrides={mount: "exfat"},
+                            event_bus=EventBus(),
+                        )
+
+        assert result.status == "ok"
+        assert mock_oshash.call_count == 0, (
+            "override must reach the scanner: exFAT semantics absorb the within-bucket gap "
+            "despite the NTFS probe result"
+        )
+
+    def test_no_override_falls_back_to_ntfs_probe_drift(self, fs: "FakeFilesystem") -> None:
+        """Same fixture, but WITHOUT the override → NTFS probe wins → ctime drift.
+
+        The control case for ``test_override_exfat_beats_ntfs_probe...``: with an
+        empty override map the probe-detected NTFS capability governs, ctime
+        participates, and the zeroed stored ctime forces an OSHash recompute.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/NoOverrideNtfs"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        disk, file_id, on_disk_mtime = _seed_one_video(conn, mount)
+
+        _set_stored_tier1(conn, file_id, mtime_ns=on_disk_mtime + _ONE_SECOND_NS, ctime_ns=0)
+        disk_repo.update_merkle_root(conn, disk.id, None)
+        fresh = disk_repo.get_by_id(conn, disk.id)
+        assert fresh is not None
+
+        ntfs_info = MountInfo(mount_point=mount, fs_type="ntfs_macfuse", raw_fs_type="ufsd_ntfs", flags=frozenset())
+
+        with patch(_OSHASH_PATCH, wraps=_real_compute_oshash) as mock_oshash:
+            with patch(_PROBE_PATCH, return_value=ntfs_info):
+                with patch(_GUARD_PATCH, return_value=None):
+                    with patch(
+                        "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
+                        return_value=False,
+                    ):
+                        result = scan(
+                            [fresh],
+                            ScanMode.incremental,
+                            generation=2,
+                            conn=conn,
+                            event_bus=EventBus(),
+                        )
+
+        assert result.status == "ok"
+        assert mock_oshash.call_count >= 1, (
+            "without the override the NTFS probe governs: the zeroed ctime forces a recompute"
+        )

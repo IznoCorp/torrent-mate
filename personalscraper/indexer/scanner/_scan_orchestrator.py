@@ -32,8 +32,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from personalscraper.indexer._fs_capability import capability_for
-from personalscraper.indexer._fs_probe import probe_mount
+from personalscraper.indexer._fs_capability import resolve_capability
 from personalscraper.indexer.breaker import (
     DiskCircuitBreaker,
     bind_global_disk_breaker_to_bus,
@@ -101,6 +100,14 @@ class _DiskWalkContext:
     timestamp captured before any disk is walked; the per-disk mode helpers
     consult it together with ``budget_seconds`` to detect time-budget
     exhaustion.
+
+    ``fs_type_overrides`` maps a disk ``mount_path`` to the canonical
+    ``DiskConfig.fs_type`` override for that disk.  It threads the operator
+    override into the scanner so capability resolution is consistent with the
+    dispatch (transfer) layer — both route through
+    :func:`~personalscraper.indexer._fs_capability.resolve_capability`.  An
+    empty dict (the default) means no overrides → pure auto-detection,
+    preserving the historical scanner behaviour.
     """
 
     mode: ScanMode
@@ -118,6 +125,7 @@ class _DiskWalkContext:
     no_enqueue: bool
     breaker: DiskCircuitBreaker
     started_at_monotonic: float = 0.0
+    fs_type_overrides: dict[str, str] = field(default_factory=dict)
 
 
 # Mapping reused by :func:`_scan_one_disk` when classifying mount-guard
@@ -329,12 +337,14 @@ def _scan_one_disk(
     mount = disk.mount_path
     log.info("indexer.scan.disk_start", disk_id=disk.id, label=disk.label, mount_path=mount)
 
-    # Resolve the per-disk FilesystemCapability from the read-time mount probe
-    # (authoritative for drift comparison). An unrecognised / unprobeable mount
+    # Resolve the per-disk FilesystemCapability via the SHARED resolver so the
+    # scanner honours the ``DiskConfig.fs_type`` operator override exactly like
+    # the dispatch (transfer) layer — one knob, one behaviour. When no override
+    # is supplied for this mount the resolver auto-detects via the read-time
+    # mount probe (authoritative for drift); an unrecognised / unprobeable mount
     # falls back to the NTFS-safe "unknown" superset (full ctime + exact mtime),
     # which is byte-identical to the legacy behaviour.
-    _mount_info = probe_mount(mount)
-    disk_capability = capability_for(_mount_info.fs_type if _mount_info is not None else "unknown")
+    disk_capability = resolve_capability(mount, ctx.fs_type_overrides.get(mount))
 
     # The capability may hard-wire dir-mtime reliability (APFS/HFS+ default True);
     # otherwise fall back to the session-wide runtime probe. NTFS leaves this at

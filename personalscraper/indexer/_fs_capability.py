@@ -241,3 +241,40 @@ def capability_for(fs_type: str) -> FilesystemCapability:
         when *fs_type* is not in the table.
     """
     return _CAPABILITY_TABLE.get(fs_type, UNKNOWN)
+
+
+def resolve_capability(path: str, fs_type_override: str | None = None) -> FilesystemCapability:
+    """Resolve a disk's capability: explicit override beats FsProbe auto-detect.
+
+    Single source of truth for BOTH the dispatch (transfer) layer and the
+    indexer scanner, so ``DiskConfig.fs_type`` is honoured uniformly across the
+    whole pipeline (transfer **and** scan can never diverge).
+
+    Resolution order:
+
+    1. **Explicit override.** When *fs_type_override* is not ``None`` it wins and
+       the mount probe is skipped entirely (``capability_for`` falls back to the
+       NTFS-safe ``"unknown"`` capability for an unrecognised token).
+    2. **Auto-detection.** When *fs_type_override* is ``None``, probe the mount
+       table for *path* and look up the capability by the already-canonical
+       fs-type. When the path is not mounted (or on non-Darwin platforms)
+       ``probe_mount`` returns ``None`` and we fall back to the ``"unknown"``
+       capability — the NTFS-safe restrictive superset.
+
+    Args:
+        path: Disk mount/scan-root path to probe when no override is given.
+        fs_type_override: Canonical fs-type string from ``DiskConfig.fs_type``;
+            when not ``None`` it wins and the probe is skipped entirely.
+
+    Returns:
+        The resolved capability (override → auto-detect → NTFS-safe ``unknown``).
+    """
+    if fs_type_override is not None:
+        return capability_for(fs_type_override)
+    # Local import to avoid the module-load-time cost of the probe machinery and
+    # keep ``_fs_capability`` a pure-data module (``_fs_probe`` does NOT import
+    # ``_fs_capability`` — no import cycle).
+    from personalscraper.indexer._fs_probe import probe_mount  # noqa: PLC0415
+
+    info = probe_mount(path)
+    return capability_for(info.fs_type if info is not None else "unknown")

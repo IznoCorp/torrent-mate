@@ -956,7 +956,7 @@ class TestQuickMode:
         # override the patched ``False``).
         ntfs_info = MountInfo(mount_point=mount, fs_type="ntfs_macfuse", raw_fs_type="ufsd_ntfs", flags=frozenset())
         with patch(_GUARD_PATCH, return_value=None):
-            with patch("personalscraper.indexer.scanner._scan_orchestrator.probe_mount", return_value=ntfs_info):
+            with patch("personalscraper.indexer._fs_probe.probe_mount", return_value=ntfs_info):
                 with patch(
                     "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
                     return_value=False,

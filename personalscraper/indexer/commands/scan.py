@@ -256,6 +256,12 @@ def library_index_command(
                         staging_dir=str(cfg.paths.staging_dir),
                         spotlight_enabled=cfg.indexer.spotlight.use_when_available,
                         paranoia_window_seconds=cfg.indexer.scan.paranoia_window_seconds,
+                        # Thread the operator ``DiskConfig.fs_type`` overrides into
+                        # the scanner so capability resolution is consistent with
+                        # the dispatch (transfer) layer. ``DiskRow.mount_path ==
+                        # str(DiskConfig.path)``, so the keys match the scanner's
+                        # per-disk lookup.
+                        fs_type_overrides={str(d.path): d.fs_type for d in cfg.disks if d.fs_type is not None},
                         event_bus=event_bus,
                     )
                 except DiskBulkChangeDetected as bulk_exc:

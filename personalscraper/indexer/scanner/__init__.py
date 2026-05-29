@@ -338,6 +338,7 @@ def scan(
     spotlight_enabled: bool = False,
     paranoia_window_seconds: int = 86400,
     no_enqueue: bool = False,
+    fs_type_overrides: dict[str, str] | None = None,
     event_bus: EventBus,
 ) -> ScanRunResult:
     """Walk all provided disks and record discovered files in the database.
@@ -468,6 +469,14 @@ def scan(
             pass still walks every file but does NOT insert rows into
             ``repair_queue`` on drift or absence.  Ignored for all other modes.
             Used by ``library-verify --no-enqueue`` for read-only audit runs.
+        fs_type_overrides: Optional mapping of disk ``mount_path`` →
+            canonical ``DiskConfig.fs_type`` override.  Threaded into the
+            per-disk capability resolution so the scanner honours the operator
+            override identically to the dispatch (transfer) layer (both route
+            through :func:`~personalscraper.indexer._fs_capability.resolve_capability`).
+            ``None`` (the default) means no overrides → pure auto-detection,
+            preserving the historical scanner behaviour for every caller that
+            does not pass the map.
         event_bus: Required :class:`EventBus`. Exactly one
             :class:`LibraryScanCompleted` event is emitted in the
             ``finally`` block — fires on success, partial failure, and
@@ -552,6 +561,7 @@ def scan(
         no_enqueue=no_enqueue,
         breaker=breaker,
         started_at_monotonic=state.started_at_monotonic,
+        fs_type_overrides=fs_type_overrides or {},
     )
 
     # Decide worker count.  DESIGN §11.8: ``--full --disk D`` (single-disk
