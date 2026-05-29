@@ -358,7 +358,10 @@ def _check_category_orphans(config: Config) -> None:
         return
 
     try:
-        from personalscraper.indexer.db import _apply_pragmas  # noqa: PLC0415
+        # Deferred local import (non-blocking startup orphan-check). Intentional,
+        # documented upward dependency on indexer/ — guarded against import cycles
+        # by being function-local; pre-existing boundary, see arch-cleanup-2 Phase 2.
+        from personalscraper.indexer.db import _apply_pragmas  # noqa: PLC0415  # layering: allow
 
         conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
         _apply_pragmas(conn)

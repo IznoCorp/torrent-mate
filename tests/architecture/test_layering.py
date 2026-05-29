@@ -8,6 +8,11 @@ Allow-listed exceptions (documented boundaries):
 - personalscraper.logger — leaf utility, allow-listed in core/ and conf/
 - core/app_context.py importing personalscraper.api.metadata.registry
   under TYPE_CHECKING — the AppContext boundary, already tested separately
+- Per-line ``# layering: allow`` markers — a single import line may opt out of
+  the guard when the upward dependency is a documented, intentional boundary
+  (see the two markers in conf/models/_ranking.py and conf/loader.py). This is
+  finer-grained than whole-module allow-listing so the rest of the file stays
+  guarded. Each marked line MUST carry a justification comment.
 """
 
 from __future__ import annotations
@@ -52,12 +57,19 @@ def _is_type_checking_block(node: ast.AST, tree: ast.Module) -> bool:
     return False
 
 
+# Inline marker that exempts a single import line from the layering guard.
+# Use sparingly, only for documented, intentional upward boundaries, and always
+# alongside a justification comment on the same line.
+_ALLOW_MARKER = "# layering: allow"
+
+
 def _collect_violations(py_file: Path) -> list[str]:
     """Return list of violation strings for ``py_file``."""
     rel = py_file.relative_to(_REPO_ROOT).as_posix()
     if rel in _ALLOWED_MODULES:
         return []
     source = py_file.read_text(encoding="utf-8")
+    source_lines = source.splitlines()
     tree = ast.parse(source, filename=str(py_file))
     violations: list[str] = []
     for node in ast.walk(tree):
@@ -80,6 +92,10 @@ def _collect_violations(py_file: Path) -> list[str]:
                 if module == prefix or module.startswith(prefix + "."):
                     # Allow if guarded by TYPE_CHECKING.
                     if _is_type_checking_block(node, tree):
+                        break
+                    # Allow if the import line carries an inline opt-out marker.
+                    line_idx = node.lineno - 1
+                    if 0 <= line_idx < len(source_lines) and _ALLOW_MARKER in source_lines[line_idx]:
                         break
                     violations.append(f"{rel}:{node.lineno}: imports {module!r}")
                     break

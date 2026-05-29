@@ -1,15 +1,21 @@
 """Pydantic models for the 5 API config files.
 
 Implements DESIGN SS8.2-S8.6: MetadataConfig, TorrentConfig, TrackerConfig,
-RankingConfig, and NotifyConfig. RankingConfig is re-exported from
-api/tracker/_ranking.py so config validation and runtime ranking share
-one source of truth.
+RankingConfig, and NotifyConfig. RankingConfig and friends are sourced from
+their config-layer home conf/models/_ranking.py (arch-cleanup-2 Phase 2) and
+re-exported by api/tracker/_ranking.py so config validation and runtime
+ranking share one source of truth.
 """
 
 from pydantic import Field, model_validator
 
-from personalscraper.api.tracker._ranking import RankingBonuses, RankingConfig, RankingCriterion, ThresholdEntry
 from personalscraper.conf.models._base import _StrictModel
+from personalscraper.conf.models._ranking import (
+    RankingBonuses,
+    RankingConfig,
+    RankingCriterion,
+    ThresholdEntry,
+)
 
 __all__ = [
     "MetadataConfig",
