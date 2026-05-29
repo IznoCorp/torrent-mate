@@ -52,6 +52,19 @@ On each scan the walker calls `os.stat()` on every media file and compares
 the file is unchanged; the `scan_generation` counter is bumped and the row is
 left alone.
 
+> **Filesystem-aware tier-1 (v0.18.0+):** the tier-1 comparison is
+> capability-gated. The walker resolves the disk's `FilesystemCapability` once
+> (via the shared `resolve_capability(path, override)` resolver — the **same**
+> resolver the transfer layer uses, so scan and dispatch never diverge) and
+> threads it into `fingerprint.normalize_tier1`. On exFAT, ctime is dropped from
+> the tuple and mtime is floored to a 2-second bucket; on HFS+, mtime is floored
+> to a 1-second bucket; NTFS / APFS / ext4 keep the exact
+> `(size, mtime_ns, ctime_ns)` 3-tuple unchanged. The live scanner modes
+> `scanner/_modes/incremental.py` and `scanner/_modes/quick.py` consume
+> `normalize_tier1` / `round_mtime_ns`. See
+> [`docs/reference/storage.md`](storage.md) — "Filesystem capability layer" for
+> the full table.
+
 ### Tier 2 — racy-mtime escalation
 
 A file whose `mtime_ns` changed within the last two seconds of the scan start is
