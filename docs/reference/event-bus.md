@@ -14,9 +14,14 @@ duck-typed registry with a typed dataclass-event bus organised around
 five primitives:
 
 - **`Event`** — frozen, keyword-only dataclass base in
-  `personalscraper.core.event_bus`. Carries four
+  `personalscraper.core.event_bus`. Carries five
   framework-managed fields (`timestamp`, `event_id`, `source`,
-  `correlation_id`). Concrete events subclass it.
+  `correlation_id`, `schema_version`). Concrete events subclass it.
+
+  | Field            | Type  | Default | Notes                                                                                                                                          |
+  | ---------------- | ----- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `schema_version` | `int` | `1`     | Schema version — bumped on the first breaking event-shape change after a cross-process consumer exists. Default `1` for all events in v0.17.0. |
+
 - **`EventBus`** — the multicast dispatcher. Each emit walks the
   event's MRO; every registered callback for an ancestor type is
   invoked. Subscriber registration uses a copy-on-write tuple per
@@ -152,29 +157,36 @@ long-lived breakers / orchestrators that pre-existed the run.
 
 ## Event catalog (v1)
 
-The v1 catalog defines exactly 17 production event classes, all
-imported eagerly by `personalscraper.events` so they self-register
-before any envelope round-trip.
+The v1 catalog defines exactly 23 production event classes, all
+imported eagerly by `personalscraper.events` (plus the registry events
+re-exported via `personalscraper.api.metadata.registry`) so they
+self-register before any envelope round-trip. The count is pinned by
+`tests/event_bus/test_pipeline_events.py` (`len(_EVENT_CLASS_REGISTRY) == 23`).
 
-| Class                      | Module                            | Payload fields                                                                                                                  | Producer                                                                                           |
-| -------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `PipelineStarted`          | `personalscraper.pipeline_events` | `report: PipelineReport`                                                                                                        | `Pipeline.run` at entry                                                                            |
-| `PipelineEnded`            | `personalscraper.pipeline_events` | `report: PipelineReport`                                                                                                        | `Pipeline.run` at exit                                                                             |
-| `StepStarted`              | `personalscraper.pipeline_events` | `step: str`                                                                                                                     | `Pipeline._run_step` around each step                                                              |
-| `StepCompleted`            | `personalscraper.pipeline_events` | `step: str`, `report: StepReport`, `elapsed_s: float`                                                                           | `Pipeline._run_step` on success                                                                    |
-| `StepErrored`              | `personalscraper.pipeline_events` | `step: str`, `error_class: str`, `error_message: str`                                                                           | `Pipeline._run_step` on exception                                                                  |
-| `ItemProgressed`           | `personalscraper.pipeline_events` | `step: str`, `item: str`, `status: str`, `details: dict`                                                                        | Every step's per-item lifecycle (ingest, sort, dispatch…)                                          |
-| `ItemDispatched`           | `personalscraper.dispatch.events` | `item: str`, `target_disk: Path`, `category_id: str`, `action: Literal["moved","merged","replaced"]`                            | `dispatch._movie.dispatch_movie` + `dispatch._tv.dispatch_tvshow` after a successful real transfer |
-| `CircuitBreakerOpened`     | `personalscraper.core.circuit`    | `breaker: str`, `failure_count: int`, `last_error_class: str`, `last_error_message: str`                                        | `CircuitBreaker.record_failure` on transition                                                      |
-| `CircuitBreakerClosed`     | `personalscraper.core.circuit`    | `breaker: str`                                                                                                                  | `CircuitBreaker.record_success` after recovery                                                     |
-| `CircuitBreakerHalfOpened` | `personalscraper.core.circuit`    | `breaker: str`                                                                                                                  | `CircuitBreaker.state` getter after cooldown elapses                                               |
-| `DiskFullWarning`          | `personalscraper.indexer.events`  | `disk_path: Path`, `free_bytes: int`, `threshold_bytes: int`                                                                    | `check_free_space` and `handle_disk_full`                                                          |
-| `TrailerDownloaded`        | `personalscraper.trailers.events` | `media_path: Path`, `trailer_path: Path`, `source_url: str`                                                                     | `TrailersOrchestrator.run` success branch                                                          |
-| `LibraryScanCompleted`     | `personalscraper.indexer.events`  | `mode: str`, `scanned: int`, `errors: int`, `elapsed_s: float`                                                                  | `indexer.scanner.scan` emit inside the function's outer `finally` block                            |
-| `BackfillStarted`          | `personalscraper.indexer.events`  | `scope: str`, `item_count: int`                                                                                                 | `run_backfill_ids` at entry                                                                        |
-| `BackfillItemCompleted`    | `personalscraper.indexer.events`  | `item_id: int`, `item_title: str`, `ids_added: tuple[str, ...]`, `ratings_added: tuple[str, ...]`                               | `run_backfill_ids` per row written                                                                 |
-| `BackfillSkipped`          | `personalscraper.indexer.events`  | `item_id: int`, `item_title: str`, `reason: str`                                                                                | `run_backfill_ids` per row left untouched                                                          |
-| `BackfillCompleted`        | `personalscraper.indexer.events`  | `scope: str`, `scanned: int`, `updated: int`, `skipped: int`, `failed: int`, `ids_added_count: int`, `ratings_added_count: int` | `run_backfill_ids` at return                                                                       |
+| Class                        | Module                                          | Payload fields                                                                                                                  | Producer                                                                                           |
+| ---------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `PipelineStarted`            | `personalscraper.pipeline_events`               | `report: PipelineReport`                                                                                                        | `Pipeline.run` at entry                                                                            |
+| `PipelineEnded`              | `personalscraper.pipeline_events`               | `report: PipelineReport`                                                                                                        | `Pipeline.run` at exit                                                                             |
+| `StepStarted`                | `personalscraper.pipeline_events`               | `step: str`                                                                                                                     | `Pipeline._run_step` around each step                                                              |
+| `StepCompleted`              | `personalscraper.pipeline_events`               | `step: str`, `report: StepReport`, `elapsed_s: float`                                                                           | `Pipeline._run_step` on success                                                                    |
+| `StepErrored`                | `personalscraper.pipeline_events`               | `step: str`, `error_class: str`, `error_message: str`                                                                           | `Pipeline._run_step` on exception                                                                  |
+| `ItemProgressed`             | `personalscraper.pipeline_events`               | `step: str`, `item: str`, `status: str`, `details: dict`                                                                        | Every step's per-item lifecycle (ingest, sort, dispatch…)                                          |
+| `ItemDispatched`             | `personalscraper.dispatch.events`               | `item: str`, `target_disk: Path`, `category_id: str`, `action: Literal["moved","merged","replaced"]`                            | `dispatch._movie.dispatch_movie` + `dispatch._tv.dispatch_tvshow` after a successful real transfer |
+| `CircuitBreakerOpened`       | `personalscraper.core.circuit`                  | `breaker: str`, `failure_count: int`, `last_error_class: str`, `last_error_message: str`                                        | `CircuitBreaker.record_failure` on transition                                                      |
+| `CircuitBreakerClosed`       | `personalscraper.core.circuit`                  | `breaker: str`                                                                                                                  | `CircuitBreaker.record_success` after recovery                                                     |
+| `CircuitBreakerHalfOpened`   | `personalscraper.core.circuit`                  | `breaker: str`                                                                                                                  | `CircuitBreaker.state` getter after cooldown elapses                                               |
+| `DiskFullWarning`            | `personalscraper.indexer.events`                | `disk_path: Path`, `free_bytes: int`, `threshold_bytes: int`                                                                    | `check_free_space` and `handle_disk_full`                                                          |
+| `TrailerDownloaded`          | `personalscraper.trailers.events`               | `media_path: Path`, `trailer_path: Path`, `source_url: str`                                                                     | `TrailersOrchestrator.run` success branch                                                          |
+| `LibraryScanCompleted`       | `personalscraper.indexer.events`                | `mode: str`, `scanned: int`, `errors: int`, `elapsed_s: float`                                                                  | `indexer.scanner.scan` emit inside the function's outer `finally` block                            |
+| `BackfillStarted`            | `personalscraper.indexer.events`                | `scope: str`, `item_count: int`                                                                                                 | `run_backfill_ids` at entry                                                                        |
+| `BackfillItemCompleted`      | `personalscraper.indexer.events`                | `item_id: int`, `item_title: str`, `ids_added: tuple[str, ...]`, `ratings_added: tuple[str, ...]`                               | `run_backfill_ids` per row written                                                                 |
+| `BackfillSkipped`            | `personalscraper.indexer.events`                | `item_id: int`, `item_title: str`, `reason: str`                                                                                | `run_backfill_ids` per row left untouched                                                          |
+| `BackfillCompleted`          | `personalscraper.indexer.events`                | `scope: str`, `scanned: int`, `updated: int`, `skipped: int`, `failed: int`, `ids_added_count: int`, `ratings_added_count: int` | `run_backfill_ids` at return                                                                       |
+| `ProviderFallbackTriggered`  | `personalscraper.api.metadata.registry._events` | Chain moved to next provider                                                                                                    | registry `chain` dispatch fallback                                                                 |
+| `ProviderExhaustedEvent`     | `personalscraper.api.metadata.registry._events` | All chain providers failed                                                                                                      | registry `chain` dispatch exhaustion                                                               |
+| `LockedCapabilityUnresolved` | `personalscraper.api.metadata.registry._events` | `locked()` cannot bind via IDCrossRef                                                                                           | registry `locked` dispatch                                                                         |
+| `RegistryFanOutCompleted`    | `personalscraper.api.metadata.registry._events` | `fan_out` returned (success or failure)                                                                                         | registry `fan_out` dispatch                                                                        |
+| `RegistryBootValidated`      | `personalscraper.api.metadata.registry._events` | Registry boot completed successfully                                                                                            | `AppContext._build_app_context`                                                                    |
 
 The set is pinned by `test_every_event_has_factory` in `tests/fixtures/test_factories_registry.py`; adding a new event requires extending both the registry and the factories in the same commit.
 
@@ -509,9 +521,12 @@ NOT in scope for the v1 catalog:
 - **Outbox persistence.** The indexer already has a write-through
   outbox; extending it to a generic event-store would let the future
   Web UI replay events on reconnection. Not started.
-- **Event versioning.** When the v1 catalog grows beyond 20 events
-  the registry should grow a `_version` field on envelopes; today
-  every consumer is in-tree so version skew is impossible.
+- **Event versioning.** Partially realized in v0.17.0 (arch-cleanup-2): the
+  `Event` base now carries a `schema_version: int = 1` field that threads
+  through `event_to_envelope` / `event_from_envelope`. It is bumped on the
+  first breaking event-shape change once a cross-process consumer exists;
+  today every consumer is in-tree so version skew is impossible and all
+  events stay at `1`.
 
 For the rationale and decision log, see
 [`docs/features/event-bus/DESIGN.md`](../features/event-bus/DESIGN.md)
