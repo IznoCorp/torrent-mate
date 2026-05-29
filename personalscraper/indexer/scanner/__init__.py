@@ -20,12 +20,12 @@ import json
 import os
 import platform
 import sqlite3
-import subprocess
 import tempfile  # noqa: F401 — imported so tests can patch scanner.tempfile.*
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from personalscraper.indexer._fs_probe import _build_mount_table, _run_mount
 from personalscraper.indexer._throttle import TokenBucket, set_active_bucket
 from personalscraper.indexer.breaker import DiskCircuitBreaker
 
@@ -248,36 +248,17 @@ def _check_mount_flags(disks: list[DiskRow]) -> None:
     if platform.system() != "Darwin":
         return
 
-    try:
-        result = subprocess.run(
-            ["mount"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        mount_output = result.stdout
-    except Exception as exc:
-        # Non-fatal — subprocess failure must not block scanning.
-        log.debug("indexer.disk.mount_check_failed", error=str(exc))
+    # Delegate the mount shell-out + line parsing to the shared FsProbe module
+    # (single cached ``mount`` call).  The recommendation logic (which flags to
+    # check) stays here.
+    mount_output = _run_mount()
+    if not mount_output:
         return
 
-    # Parse mount output into a mapping of mount-point → flag set.
-    # Each line has the form:
-    #   <device> on <mount_point> (<flag1>, <flag2>, ...)
-    mount_flags: dict[str, frozenset[str]] = {}
-    for line in mount_output.splitlines():
-        # Locate the parenthesised flags block at the end of the line.
-        paren_open = line.rfind("(")
-        paren_close = line.rfind(")")
-        on_idx = line.find(" on ")
-        if paren_open == -1 or paren_close == -1 or on_idx == -1:
-            # Line doesn't match expected format — skip gracefully.
-            continue
-        # Extract the mount point: text between " on " and " (".
-        mount_point = line[on_idx + 4 : paren_open].strip()
-        flags_str = line[paren_open + 1 : paren_close]
-        flags = frozenset(f.strip() for f in flags_str.split(",") if f.strip())
-        mount_flags[mount_point] = flags
+    mount_table = _build_mount_table(mount_output)
+    # MountInfo.flags holds the option tokens after the fs-type token, which is
+    # exactly the set the recommended-flag check needs (noatime, allow_other, …).
+    mount_flags: dict[str, frozenset[str]] = {mp: info.flags for mp, info in mount_table.items()}
 
     # Warn once per disk for each missing recommended flag.
     for disk in disks:
