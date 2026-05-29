@@ -18,7 +18,7 @@
 | 2   | Layering: relocate shared primitives down        | phase-02-layering.md         | [x]    |
 | 3   | media_types promotion                            | phase-03-media-types.md      | [x]    |
 | 4   | Docs + feature PR                                | phase-04-docs-pr.md          | [x]    |
-| 5   | PR fixes cycle 1                                 | phase-05-pr-fixes-cycle-1.md | [ ]    |
+| 5   | PR fixes cycle 1                                 | phase-05-pr-fixes-cycle-1.md | [x]    |
 
 ## Review cycles
 
@@ -39,4 +39,4 @@
 
 ## Next action
 
-Execute fix phase 5 (PR fixes cycle 1) — see `docs/features/arch-cleanup-2/plan/phase-05-pr-fixes-cycle-1.md`.
+Phase 5 (PR fixes cycle 1) complete — push, re-run CI, re-review (cycle 2).
