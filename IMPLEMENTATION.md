@@ -14,7 +14,7 @@
 
 | #   | Phase                                            | File                       | Status |
 | --- | ------------------------------------------------ | -------------------------- | ------ |
-| 1   | Event contract: schema_version + registry events | phase-01-event-contract.md | [ ]    |
+| 1   | Event contract: schema_version + registry events | phase-01-event-contract.md | [x]    |
 | 2   | Layering: relocate shared primitives down        | phase-02-layering.md       | [ ]    |
 | 3   | media_types promotion                            | phase-03-media-types.md    | [ ]    |
 | 4   | Docs + feature PR                                | phase-04-docs-pr.md        | [ ]    |
@@ -25,4 +25,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1.
+Run `/implement:phase` to start Phase 2 (Layering: relocate shared primitives down).
