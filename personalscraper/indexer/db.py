@@ -19,7 +19,6 @@ import json
 import os
 import socket
 import sqlite3
-import subprocess
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -27,6 +26,7 @@ from typing import TYPE_CHECKING, Generator
 
 from filelock import FileLock, Timeout
 
+from personalscraper.indexer._fs_probe import probe_mount as _probe_mount
 from personalscraper.indexer.events import DiskFullWarning
 from personalscraper.logger import get_logger
 
@@ -173,15 +173,12 @@ class IndexerMigrationError(RuntimeError):
 # Helpers
 # ---------------------------------------------------------------------------
 
-_MACFUSE_FSTYPES = frozenset({"fuse_osxfuse", "osxfuse", "macfuse", "ntfs", "fuse-t"})
-
-
 def _find_ntfs_mount(path: Path) -> str | None:
     """Return the macFUSE-NTFS mount point that contains *path*, or ``None``.
 
-    Parses the output of the macOS ``mount`` command to find the most specific
-    (longest) mount point that is a prefix of *path* and whose filesystem type
-    is one of the known macFUSE/NTFS types.
+    Delegates to :func:`personalscraper.indexer._fs_probe.probe_mount` which
+    uses a single cached ``mount`` shell-out (10s timeout — up from the former
+    5s budget; intentional, documented change).
 
     Args:
         path: Filesystem path to check.
@@ -190,42 +187,10 @@ def _find_ntfs_mount(path: Path) -> str | None:
         The matching mount-point string, or ``None`` if the path is not on a
         macFUSE-NTFS volume.
     """
-    try:
-        result = subprocess.run(["mount"], capture_output=True, text=True, timeout=5)
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    info = _probe_mount(str(path.resolve()))
+    if info is None:
         return None
-
-    resolved = str(path.resolve())
-    best: str | None = None
-
-    for line in result.stdout.splitlines():
-        # macOS mount line format:
-        #   /dev/disk2s1 on /Volumes/Disk1 (ufsd_NTFS, local, noatime)
-        #   map auto_home on /home (autofs, automounted, nobrowse)
-        parts = line.split(" on ", 1)
-        if len(parts) != 2:
-            continue
-        rest = parts[1]
-        # Split mount point from options: "/Volumes/Disk1 (ufsd_NTFS, ...)"
-        paren_idx = rest.find(" (")
-        if paren_idx == -1:
-            continue
-        mount_point = rest[:paren_idx].strip()
-        options_str = rest[paren_idx + 2 :].rstrip(")")
-        fstype_raw = options_str.split(",")[0].strip().lower()
-
-        # Check if any known macFUSE/NTFS token appears in fstype_raw
-        is_ntfs = any(t in fstype_raw for t in _MACFUSE_FSTYPES)
-        if not is_ntfs:
-            continue
-
-        # Check if this mount point is a prefix of our resolved path
-        if resolved == mount_point or resolved.startswith(mount_point.rstrip("/") + "/"):
-            # Pick the most specific (longest) match
-            if best is None or len(mount_point) > len(best):
-                best = mount_point
-
-    return best
+    return info.mount_point if info.fs_type == "ntfs_macfuse" else None
 
 
 def check_free_space(
