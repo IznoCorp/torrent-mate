@@ -312,8 +312,12 @@ This invariant is enforced by `tests/architecture/test_layering.py`
 (arch-cleanup-2, Phase 2): the prior upward leaks — `core/circuit.py` importing
 `api._contracts`, `conf/classifier.py` and `conf/models/api_config.py` importing
 `api/` — were closed by promoting those contracts to `core/_contracts.py` and
-`conf/models/_ranking.py`. `api/` is consumed by `scraper/` and `trailers/` but
-never by `commands/` directly.
+`conf/models/_ranking.py`. Two upward imports survive as documented exceptions,
+each carried by an inline `# layering: allow` marker honoured by the AST guard:
+`conf/models/_ranking.py → api._units.ByteSize` (config-model byte-size parse)
+and `conf/loader.py → indexer.db._apply_pragmas` (function-local orphan-check
+import). `api/` is consumed by `scraper/` and `trailers/` but never by
+`commands/` directly.
 
 ## Provider Registry
 
@@ -334,12 +338,15 @@ pattern with a configurable ordered registry per capability Protocol.
 
 ### Boot sequence (DESIGN §6.1)
 
-`AppContext._build_app_context()` constructs the registry at the CLI/pipeline boundary:
+`AppContext._build_app_context()` constructs the registry at the CLI/pipeline
+boundary; the steps below all run inside `ProviderRegistry.__init__`
+(`api/metadata/registry/__init__.py`), which `_build_app_context` triggers by
+instantiating the registry:
 
 1. Instantiate each provider listed in any `providers.json5` section.
 2. Validate (aggregated): all 6 issue families collected; on any failure, `RegistryConfigError` raised AFTER cleanup of partially-built providers.
 3. Build the per-capability index from the priority-ordered config.
-4. Emit `RegistryBootValidated` on success.
+4. Emit `RegistryBootValidated` on success (emitted from `ProviderRegistry.__init__`, not `_build_app_context`).
 
 ### Three operations
 

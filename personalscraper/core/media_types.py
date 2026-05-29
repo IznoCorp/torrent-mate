@@ -7,8 +7,10 @@ can import them without taking a dependency on the sorter pipeline step
 
 The detection *functions* (``detect_file_type``, ``detect_dir_type``) remain
 in ``sorter/file_type.py`` because they contain sorter-specific pipeline
-heuristics. This module holds only the shared *constants* and the
-cross-package filename predicate ``is_trailer_filename``.
+heuristics. This module holds the shared *constants*, the ``FileType`` enum
+(the sorter filesystem category — distinct from
+``core._contracts.MediaType``, the API/metadata kind), and the cross-package
+filename predicate ``is_trailer_filename``.
 """
 
 from __future__ import annotations
@@ -84,6 +86,10 @@ EBOOK_EXTENSIONS: frozenset[str] = frozenset(
 
 class FileType(Enum):
     """Media type categories matching staging subdirectories.
+
+    Distinct from :class:`personalscraper.core._contracts.MediaType`:
+    ``MediaType`` is the API/metadata kind (2 values — ``tv`` / ``movie``);
+    ``FileType`` is the sorter filesystem category (6 values below).
 
     Attributes:
         MOVIE: Films — sorted to the movies staging dir.

@@ -17,6 +17,11 @@ from enum import Enum
 class MediaType(str, Enum):
     """Canonical media type used across all metadata- and tracker-family APIs.
 
+    Distinct from :class:`personalscraper.core.media_types.FileType`: ``MediaType``
+    is the API/metadata kind (2 values — ``tv`` / ``movie``); ``FileType`` is the
+    sorter filesystem category (6 values — movie / tvshow / ebook / audio / app /
+    other).
+
     Inherits from ``str`` so existing equality checks (``media_type == "tv"``),
     dict keys, and JSON serialization keep working unchanged — ``MediaType.TV``
     *is* the string ``"tv"``. New code should prefer the enum members for

@@ -237,7 +237,8 @@ class Event:
             argument (including explicit ``None``) wins over the ContextVar.
         schema_version: Envelope schema version for this event payload. Defaults
             to ``1`` and is serialized inside the envelope ``data`` so consumers
-            can branch on contract revisions when the shape evolves.
+            can branch on contract revisions when the shape evolves. Per-class
+            serialization constant — do not override at call sites.
     """
 
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
