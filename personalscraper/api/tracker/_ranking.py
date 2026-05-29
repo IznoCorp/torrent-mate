@@ -16,11 +16,17 @@ from personalscraper.api.tracker._base import TrackerResult
 # Re-export Ranking* config models from their canonical config-layer home
 # (arch-cleanup-2 Phase 2, Option A). Runtime callers of
 # personalscraper.api.tracker._ranking keep working unchanged.
-from personalscraper.conf.models._ranking import (  # noqa: F401
-    RankingBonuses,
-    RankingConfig,
-    RankingCriterion,
-    ThresholdEntry,
+from personalscraper.conf.models._ranking import (
+    RankingBonuses as RankingBonuses,
+)
+from personalscraper.conf.models._ranking import (
+    RankingConfig as RankingConfig,
+)
+from personalscraper.conf.models._ranking import (
+    RankingCriterion as RankingCriterion,
+)
+from personalscraper.conf.models._ranking import (
+    ThresholdEntry as ThresholdEntry,
 )
 
 

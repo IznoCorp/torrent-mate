@@ -19,10 +19,14 @@ from typing import Final, Protocol, runtime_checkable
 # ``CircuitOpenError`` and ``MediaType`` are now defined in core/_contracts.py
 # (the lowest layer, no upward dependencies). Identity is preserved: the class
 # objects imported here are the *same* objects as in core._contracts.
-from personalscraper.core._contracts import (  # noqa: F401
-    ApiError,
-    CircuitOpenError,
-    MediaType,
+from personalscraper.core._contracts import (
+    ApiError as ApiError,
+)
+from personalscraper.core._contracts import (
+    CircuitOpenError as CircuitOpenError,
+)
+from personalscraper.core._contracts import (
+    MediaType as MediaType,
 )
 
 
