@@ -79,7 +79,11 @@ def _decode_field_value(value: Any, annotation: Any) -> Any:
         if origin is tuple and len(args) > 1:
             # Heterogeneous fixed-length tuple ``tuple[X, Y, ...]``: decode each
             # position with its own declared type (positional pairing).
-            return tuple(_decode_field_value(item, arg) for item, arg in zip(value, args))
+            # ``strict=True`` fails loud (``ValueError``) on a length mismatch
+            # between the decoded value and the declared positions, rather than
+            # silently truncating to the shorter sequence — a malformed envelope
+            # must surface, not be partially reconstructed.
+            return tuple(_decode_field_value(item, arg) for item, arg in zip(value, args, strict=True))
         # ``list[X]`` or single-element ``tuple[X]`` — one item type for all.
         (item_type,) = args or (Any,)
         decoded = [_decode_field_value(item, item_type) for item in value]
