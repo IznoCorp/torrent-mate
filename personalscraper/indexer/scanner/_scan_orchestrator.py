@@ -101,13 +101,16 @@ class _DiskWalkContext:
     consult it together with ``budget_seconds`` to detect time-budget
     exhaustion.
 
-    ``fs_type_overrides`` maps a disk ``mount_path`` to the canonical
+    ``fs_type_overrides`` maps the STABLE disk identity (``DiskConfig.id``,
+    persisted as the immutable ``DiskRow.label``) to the canonical
     ``DiskConfig.fs_type`` override for that disk.  It threads the operator
     override into the scanner so capability resolution is consistent with the
     dispatch (transfer) layer — both route through
-    :func:`~personalscraper.indexer._fs_capability.resolve_capability`.  An
-    empty dict (the default) means no overrides → pure auto-detection,
-    preserving the historical scanner behaviour.
+    :func:`~personalscraper.indexer._fs_capability.resolve_capability`.  Keying
+    on ``label`` rather than the mutable ``mount_path`` (rewritten on remount,
+    NULL on unmount) guarantees scan and transfer never diverge.  An empty dict
+    (the default) means no overrides → pure auto-detection, preserving the
+    historical scanner behaviour.
     """
 
     mode: ScanMode
@@ -344,7 +347,13 @@ def _scan_one_disk(
     # mount probe (authoritative for drift); an unrecognised / unprobeable mount
     # falls back to the NTFS-safe "unknown" superset (full ctime + exact mtime),
     # which is byte-identical to the legacy behaviour.
-    disk_capability = resolve_capability(mount, ctx.fs_type_overrides.get(mount))
+    # Look the override up by the STABLE ``DiskRow.label`` (== ``DiskConfig.id``),
+    # NOT the mutable ``mount`` path: ``mount_path`` is rewritten on remount and
+    # NULL on unmount, so keying on it would silently drop the operator override
+    # while the transfer layer (which resolves from the DiskConfig directly) kept
+    # it. The label is set once at bootstrap and never changes, so the scan and
+    # transfer capability resolutions stay in lock-step.
+    disk_capability = resolve_capability(mount, ctx.fs_type_overrides.get(disk.label))
 
     # The capability may hard-wire dir-mtime reliability (APFS/HFS+ default True);
     # otherwise fall back to the session-wide runtime probe. NTFS leaves this at

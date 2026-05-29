@@ -6,7 +6,10 @@ module keeps the historic import paths stable for CLI wiring and tests.
 
 from __future__ import annotations
 
-from personalscraper.indexer.commands._bootstrap import _bootstrap_disks_from_config
+from personalscraper.indexer.commands._bootstrap import (
+    _bootstrap_disks_from_config,
+    build_fs_type_overrides,
+)
 from personalscraper.indexer.commands.diagnose import config_migrate_category_command
 from personalscraper.indexer.commands.query import (
     library_search_command,
@@ -19,6 +22,7 @@ from personalscraper.indexer.commands.scan import library_index_command, library
 
 __all__ = [
     "_bootstrap_disks_from_config",
+    "build_fs_type_overrides",
     "config_migrate_category_command",
     "library_index_command",
     "library_reconcile_command",

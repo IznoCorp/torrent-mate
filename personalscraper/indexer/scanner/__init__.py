@@ -462,11 +462,16 @@ def scan(
             pass still walks every file but does NOT insert rows into
             ``repair_queue`` on drift or absence.  Ignored for all other modes.
             Used by ``library-verify --no-enqueue`` for read-only audit runs.
-        fs_type_overrides: Optional mapping of disk ``mount_path`` →
-            canonical ``DiskConfig.fs_type`` override.  Threaded into the
-            per-disk capability resolution so the scanner honours the operator
-            override identically to the dispatch (transfer) layer (both route
-            through :func:`~personalscraper.indexer._fs_capability.resolve_capability`).
+        fs_type_overrides: Optional mapping of the STABLE disk identity
+            (``DiskConfig.id`` == ``DiskRow.label``) → canonical
+            ``DiskConfig.fs_type`` override.  Threaded into the per-disk
+            capability resolution so the scanner honours the operator override
+            identically to the dispatch (transfer) layer (both route through
+            :func:`~personalscraper.indexer._fs_capability.resolve_capability`).
+            The map is keyed on ``label`` (not the mutable ``mount_path``) so a
+            remount that rewrites ``mount_path`` cannot silently drop the
+            override on the scan side.  Build it via
+            :func:`~personalscraper.indexer.commands._bootstrap.build_fs_type_overrides`.
             ``None`` (the default) means no overrides → pure auto-detection,
             preserving the historical scanner behaviour for every caller that
             does not pass the map.

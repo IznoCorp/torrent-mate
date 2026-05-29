@@ -632,7 +632,9 @@ class TestScannerHonorsFsTypeOverride:
                             ScanMode.incremental,
                             generation=2,
                             conn=conn,
-                            fs_type_overrides={mount: "exfat"},
+                            # Keyed on the STABLE DiskRow.label (== DiskConfig.id),
+                            # not the mount path — matches the orchestrator lookup.
+                            fs_type_overrides={fresh.label: "exfat"},
                             event_bus=EventBus(),
                         )
 
@@ -748,7 +750,9 @@ class TestPerDiskOverrideMapTwoDisks:
                             ScanMode.incremental,
                             generation=2,
                             conn=conn,
-                            fs_type_overrides={mount_a: "exfat"},
+                            # Keyed on the STABLE DiskRow.label (== DiskConfig.id):
+                            # only disk A is overridden, by its label.
+                            fs_type_overrides={fresh_a.label: "exfat"},
                             event_bus=EventBus(),
                         )
 
@@ -762,6 +766,97 @@ class TestPerDiskOverrideMapTwoDisks:
         assert a_recomputes == [], "disk A (override → exfat) must absorb the within-bucket gap: no OSHash recompute"
         assert len(b_recomputes) >= 1, (
             "disk B (auto-detected → ntfs) keeps ctime: the zeroed ctime forces an OSHash recompute"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Phase 8 Task 3: the override map keys on the STABLE DiskRow.label
+# (== DiskConfig.id), NOT the mutable DiskRow.mount_path. A remount that
+# rewrites mount_path (so DiskRow.mount_path != str(DiskConfig.path)) must STILL
+# apply the operator override on the scan side. The map is built via the REAL
+# CLI key-builder (build_fs_type_overrides), so a regression that re-keyed on
+# the mount path would make this test fail.
+# ---------------------------------------------------------------------------
+
+
+class TestOverrideSurvivesMountPathDivergence:
+    """A remounted disk (mount_path != config path) still gets its override."""
+
+    def test_override_applies_when_mount_path_diverges_from_config_path(self, fs: "FakeFilesystem") -> None:
+        """Override survives a mount_path that no longer equals the config path.
+
+        Simulates a remount: the ``DiskRow.mount_path`` is the NEW location while
+        the ``DiskConfig.path`` still records the ORIGINAL one. They differ, but
+        ``DiskConfig.id == DiskRow.label`` is unchanged. The override map is built
+        by the production :func:`build_fs_type_overrides` (keyed on ``id``), so the
+        orchestrator's ``ctx.fs_type_overrides.get(disk.label)`` lookup still hits.
+
+        The proof: probe reports NTFS, override says exFAT. Under NTFS the zeroed
+        stored ctime + within-bucket mtime would force an OSHash recompute; under
+        the exFAT override it is absorbed. ``_compute_oshash`` is never called ⇒
+        the exFAT override reached the scanner DESPITE mount_path != config path.
+
+        A regression that keyed the map on ``str(DiskConfig.path)`` (the old code)
+        would build ``{config_path: "exfat"}`` while the orchestrator looked up
+        ``mount_path`` — a miss — so the NTFS probe would win and the recompute
+        would fire, failing this test.
+        """
+        from personalscraper.conf.models.disks import DiskConfig  # noqa: PLC0415
+        from personalscraper.indexer.commands._bootstrap import build_fs_type_overrides  # noqa: PLC0415
+
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        # The disk's CURRENT mount (where the files actually live after remount).
+        # The basename becomes the DiskRow.label, which doubles as the
+        # DiskConfig.id below — so it must satisfy the ``^[a-z][a-z0-9_]*$`` id
+        # pattern (lowercase).
+        mount = "/mnt/remounted_new"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        disk, file_id, on_disk_mtime = _seed_one_video(conn, mount)
+
+        # Same within-bucket mtime + zeroed ctime mutation as the sibling tests:
+        # a drift under NTFS, a no-op under exFAT.
+        _set_stored_tier1(conn, file_id, mtime_ns=on_disk_mtime + _ONE_SECOND_NS, ctime_ns=0)
+        disk_repo.update_merkle_root(conn, disk.id, None)
+        fresh = disk_repo.get_by_id(conn, disk.id)
+        assert fresh is not None
+
+        # The config still records the ORIGINAL (pre-remount) path. Its ``id``
+        # matches the DiskRow.label (set by bootstrap from DiskConfig.id), but its
+        # ``path`` deliberately DIFFERS from the current mount_path.
+        original_config_path = Path("/mnt/OriginalBeforeRemount")
+        assert str(original_config_path) != fresh.mount_path, "fixture must exercise a path divergence"
+        disk_cfg = DiskConfig(id=fresh.label, path=original_config_path, fs_type="exfat", categories=["movies"])
+
+        # Build the override map with the PRODUCTION key-builder, not a hand-seeded
+        # literal — so the test exercises the real CLI→scan key contract.
+        overrides = build_fs_type_overrides([disk_cfg])
+        assert overrides == {fresh.label: "exfat"}, "key-builder must key on the stable DiskConfig.id"
+
+        ntfs_info = MountInfo(mount_point=mount, fs_type="ntfs_macfuse", raw_fs_type="ufsd_ntfs", flags=frozenset())
+
+        with patch(_OSHASH_PATCH, wraps=_real_compute_oshash) as mock_oshash:
+            with patch(_PROBE_PATCH, return_value=ntfs_info):
+                with patch(_GUARD_PATCH, return_value=None):
+                    with patch(
+                        "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
+                        return_value=False,
+                    ):
+                        result = scan(
+                            [fresh],
+                            ScanMode.incremental,
+                            generation=2,
+                            conn=conn,
+                            fs_type_overrides=overrides,
+                            event_bus=EventBus(),
+                        )
+
+        assert result.status == "ok"
+        assert mock_oshash.call_count == 0, (
+            "override keyed on DiskConfig.id must still reach the scanner even though "
+            "mount_path != str(DiskConfig.path): exFAT semantics absorb the within-bucket gap"
         )
 
 
