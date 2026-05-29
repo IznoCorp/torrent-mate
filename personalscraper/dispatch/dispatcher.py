@@ -17,6 +17,7 @@ for backward-compatible calls from ``_move_new`` and tests.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -27,13 +28,37 @@ from personalscraper.dispatch import _movie, _transfer, _tv
 from personalscraper.dispatch._types import DispatchError, DispatchResult
 from personalscraper.dispatch.disk_scanner import get_disk_configs
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
+from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability, capability_for
+from personalscraper.indexer._fs_probe import probe_mount
 from personalscraper.logger import get_logger
+from personalscraper.text_utils import _NTFS_ILLEGAL
 from personalscraper.verify.verifier import VerifyResult
 
 if TYPE_CHECKING:
     from personalscraper.core.event_bus import EventBus
 
 log = get_logger("dispatcher")
+
+
+def _resolve_capability(disk_path: str) -> FilesystemCapability:
+    """Resolve the :class:`FilesystemCapability` for a disk mount path.
+
+    Probes the mount table for *disk_path* and looks up the capability by the
+    already-canonical fs-type.  ``probe_mount`` returns a ``MountInfo`` whose
+    ``.fs_type`` is canonicalised by ``_parse_mount_line`` — it must NOT be
+    re-run through ``canonical_fs_type``.  When the path is not mounted (or on
+    non-Darwin platforms) ``probe_mount`` returns ``None`` and we fall back to
+    the ``"unknown"`` capability, which is the NTFS-safe restrictive superset.
+
+    Args:
+        disk_path: Absolute mount path of the destination disk.
+
+    Returns:
+        The resolved capability, or the ``"unknown"`` (NTFS-safe) capability
+        when the mount cannot be probed.
+    """
+    info = probe_mount(disk_path)
+    return capability_for(info.fs_type if info is not None else "unknown")
 
 
 class Dispatcher:
@@ -79,6 +104,14 @@ class Dispatcher:
         self.dry_run = dry_run
         self._event_bus = event_bus
         self._disk_configs = get_disk_configs(config)
+
+        # Resolve the filesystem capability per dest disk once (not per file).
+        # Each disk auto-detects its fs-type via the mount-table probe; an
+        # unmounted/unrecognised disk falls back to the NTFS-safe "unknown"
+        # capability (see _resolve_capability).
+        self._disk_capabilities: dict[str, FilesystemCapability] = {
+            disk.id: _resolve_capability(str(disk.path)) for disk in self._disk_configs
+        }
 
         # Verify rsync is available
         if not shutil.which("rsync"):
@@ -319,18 +352,24 @@ class Dispatcher:
         _tv.purge_episode_conflicts(source, dest, backup_dir)
 
     @staticmethod
-    def _rsync(source: Path, dest: Path, delete: bool = False) -> bool:
-        """Delegate to ``_transfer.rsync``."""
-        return _transfer.rsync(source, dest, delete=delete)
+    def _rsync(
+        source: Path,
+        dest: Path,
+        delete: bool = False,
+        capability: FilesystemCapability = NTFS_MACFUSE,
+    ) -> bool:
+        """Delegate to ``_transfer.rsync`` (capability defaults to NTFS-safe)."""
+        return _transfer.rsync(source, dest, delete=delete, capability=capability)
 
     @staticmethod
     def _rsync_merge(
         source: Path,
         dest: Path,
         backup_dir: Path,
+        capability: FilesystemCapability = NTFS_MACFUSE,
     ) -> bool:
-        """Delegate to ``_transfer.rsync_merge``."""
-        return _transfer.rsync_merge(source, dest, backup_dir)
+        """Delegate to ``_transfer.rsync_merge`` (capability defaults to NTFS-safe)."""
+        return _transfer.rsync_merge(source, dest, backup_dir, capability)
 
     @staticmethod
     def _restore_merge_backup(dest: Path, backup_dir: Path) -> int:
@@ -343,9 +382,12 @@ class Dispatcher:
         return _transfer.verify_transfer(source, dest)
 
     @staticmethod
-    def _has_ntfs_illegal_names(directory: Path) -> bool:
-        """Delegate to ``_transfer.has_ntfs_illegal_names``."""
-        return _transfer.has_ntfs_illegal_names(directory)
+    def _has_ntfs_illegal_names(
+        directory: Path,
+        pattern: re.Pattern[str] | None = _NTFS_ILLEGAL,
+    ) -> bool:
+        """Delegate to ``_transfer.has_ntfs_illegal_names`` (pattern defaults to NTFS set)."""
+        return _transfer.has_ntfs_illegal_names(directory, pattern=pattern)
 
     @staticmethod
     def _dir_size_gb(directory: Path) -> float:
@@ -361,7 +403,12 @@ class Dispatcher:
     # Move-new (kept inline -- calls delegator methods above)
     # ------------------------------------------------------------------
 
-    def _move_new(self, source: Path, dest: Path) -> bool:
+    def _move_new(
+        self,
+        source: Path,
+        dest: Path,
+        capability: FilesystemCapability = NTFS_MACFUSE,
+    ) -> bool:
         """Move a new media item to disk via staging->commit pattern.
 
         Writes to a temporary directory first (_tmp_dispatch_{name}),
@@ -372,6 +419,9 @@ class Dispatcher:
         Args:
             source: Source directory.
             dest: Destination directory (should not exist).
+            capability: Filesystem capability for the destination volume.
+                Defaults to ``NTFS_MACFUSE`` (NTFS-safe) so callers that do not
+                resolve a capability are byte-identical to the legacy behaviour.
 
         Returns:
             True if successful.
@@ -387,7 +437,7 @@ class Dispatcher:
                 _transfer.force_rmtree(tmp_dir)
 
             # Stage: rsync to temporary directory
-            if not self._rsync(source, tmp_dir):
+            if not self._rsync(source, tmp_dir, capability=capability):
                 if tmp_dir.exists():
                     _transfer.force_rmtree(tmp_dir)
                 return False

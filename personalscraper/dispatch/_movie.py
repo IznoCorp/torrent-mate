@@ -12,6 +12,7 @@ from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.disk_scanner import get_disk_status
 from personalscraper.dispatch.events import ItemDispatched
 from personalscraper.dispatch.media_index import IndexEntry
+from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
 from personalscraper.indexer.outbox._disk import disk_id_for_path
 from personalscraper.indexer.outbox._publish import publish_event
 from personalscraper.logger import get_logger
@@ -39,8 +40,11 @@ def dispatch_movie(
     """
     result = DispatchResult(source=movie_dir)
 
-    # Pre-scan for NTFS-illegal filenames before any rsync operation
-    if _transfer.has_ntfs_illegal_names(movie_dir):
+    # Pre-scan for filesystem-illegal filenames before any rsync operation.
+    # The destination disk is not yet chosen here, so use the NTFS-safe default
+    # pattern (the restrictive superset) — the same behaviour as before this
+    # phase.  A per-disk capability is resolved below for the transfer itself.
+    if _transfer.has_ntfs_illegal_names(movie_dir, pattern=NTFS_MACFUSE.illegal_name_regex):
         result.action = "skipped"
         result.reason = f"NTFS-illegal filenames in {movie_dir.name}. Run 'personalscraper process' to sanitize."
         log.error("dispatch_ntfs_illegal", path=str(movie_dir))
@@ -78,7 +82,9 @@ def dispatch_movie(
             result.action = "replaced"
             result.reason = f"[DRY RUN] Would replace on {existing.disk}"
             return result
-        success = replace(movie_dir, dest)
+        # Resolve the destination disk's capability (NTFS-safe default).
+        cap = dispatcher._disk_capabilities.get(existing.disk, NTFS_MACFUSE)
+        success = replace(movie_dir, dest, capability=cap)
         result.action = "replaced" if success else "error"
     else:
         # Move to best disk via resolver
@@ -101,7 +107,9 @@ def dispatch_movie(
             result.action = "moved"
             result.reason = f"[DRY RUN] Would move to {target_disk.id}"
             return result
-        success = dispatcher._move_new(movie_dir, dest)
+        # Resolve the target disk's capability (NTFS-safe default).
+        cap = dispatcher._disk_capabilities.get(target_disk.id, NTFS_MACFUSE)
+        success = dispatcher._move_new(movie_dir, dest, capability=cap)
         result.action = "moved" if success else "error"
 
     # Update index with current IDs
@@ -178,7 +186,11 @@ def _disk_root_for(dispatcher: Dispatcher, disk_id: str | None) -> Path:
     return Path("")
 
 
-def replace(source: Path, dest: Path) -> bool:
+def replace(
+    source: Path,
+    dest: Path,
+    capability: FilesystemCapability = NTFS_MACFUSE,
+) -> bool:
     """Crash-safe cross-filesystem replace via rsync.
 
     Phase 1 (Transfer): rsync source → dest.new.tmp/
@@ -192,6 +204,9 @@ def replace(source: Path, dest: Path) -> bool:
     Args:
         source: Source directory.
         dest: Destination directory to replace.
+        capability: Filesystem capability for the destination volume.
+            Defaults to ``NTFS_MACFUSE`` (NTFS-safe) so existing callers are
+            byte-identical to the legacy behaviour.
 
     Returns:
         True if successful.
@@ -200,7 +215,7 @@ def replace(source: Path, dest: Path) -> bool:
     tmp_old = dest.parent / f"{dest.name}.old.tmp"
 
     # Phase 1: Transfer (critical — must succeed)
-    if not _transfer.rsync(source, tmp_new):
+    if not _transfer.rsync(source, tmp_new, capability=capability):
         try:
             if tmp_new.exists():
                 _transfer.force_rmtree(tmp_new)

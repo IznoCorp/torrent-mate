@@ -397,7 +397,7 @@ class TestReplace:
         dest.mkdir()
         (dest / "original.mkv").write_bytes(b"\x00" * 512)
 
-        def fake_rsync(src: Path, dst: Path, delete: bool = False) -> bool:
+        def fake_rsync(src: Path, dst: Path, delete: bool = False, **_kwargs: object) -> bool:
             dst.mkdir(parents=True, exist_ok=True)
             (dst / "new.mkv").write_bytes(b"\x00" * 1024)
             return True
@@ -436,7 +436,7 @@ class TestReplace:
         (source / "file.mkv").write_bytes(b"\x00" * 1024)
         (dest / "old.mkv").write_bytes(b"\x00" * 512)
 
-        def fake_rsync(src: Path, dst: Path, delete: bool = False) -> bool:
+        def fake_rsync(src: Path, dst: Path, delete: bool = False, **_kwargs: object) -> bool:
             dst.mkdir(parents=True, exist_ok=True)
             (dst / "file.mkv").write_bytes(b"\x00" * 1024)
             return True
