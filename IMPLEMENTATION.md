@@ -15,7 +15,7 @@
 | #   | Phase                                                       | File                            | Status |
 | --- | ----------------------------------------------------------- | ------------------------------- | ------ |
 | 1   | Consolidate 3 mount-parsers into one cached FsProbe         | phase-01-fs-probe.md            | [x]    |
-| 2   | Define the FilesystemCapability strategy table              | phase-02-fs-capability.md       | [ ]    |
+| 2   | Define the FilesystemCapability strategy table              | phase-02-fs-capability.md       | [x]    |
 | 3   | Make \_transfer rsync/rsync_merge consume the capability    | phase-03-transfer-capability.md | [ ]    |
 | 4   | Optional DiskConfig.fs_type override + plumb capabilities   | phase-04-diskconfig-override.md | [ ]    |
 | 5   | Make indexer tier-1 drift FS-aware (higher risk, deferable) | phase-05-drift-fs-aware.md      | [ ]    |
@@ -28,4 +28,9 @@ _(filled by implement:pr-review)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 2 (Define the FilesystemCapability strategy table).
+Run `/implement:phase` to start Phase 3 (Make \_transfer rsync/rsync_merge consume the capability).
+
+> Phase 2 note (for Phases 3–5): `FilesystemCapability.fs_type` is `field(compare=False)`
+> so `capability_for("unknown") == capability_for("ntfs_macfuse")` is `True` (behavioral
+> equality — the restrictive-superset invariant). Capabilities are looked up by string key,
+> never by object identity. Other fs-types remain distinct.
