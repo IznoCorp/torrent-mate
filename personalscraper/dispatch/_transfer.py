@@ -18,6 +18,7 @@ Functions:
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -26,10 +27,52 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
 from personalscraper.logger import get_logger
 from personalscraper.text_utils import _NTFS_ILLEGAL
 
 log = get_logger("dispatcher.transfer")
+
+
+def _build_rsync_cmd(
+    source: Path,
+    dest: Path,
+    capability: FilesystemCapability,
+    *,
+    delete: bool = False,
+    backup_dir: Path | None = None,
+) -> list[str]:
+    """Build the rsync argv from a :class:`FilesystemCapability`.
+
+    Single source of truth for both :func:`rsync` and :func:`rsync_merge` —
+    replaces the two previously hardcoded literal flag lists.  The capability
+    provides the full rsync flag prefix; the ``"rsync"`` binary name and the
+    source/dest paths are added here.
+
+    Argv layout (matches the legacy ordering byte-for-byte for ``ntfs_macfuse``)::
+
+        ["rsync", *capability.rsync_flags, (--delete?),
+         (--backup, --backup-dir=<dir>?), f"{source}/", str(dest)]
+
+    Args:
+        source: Source directory.
+        dest: Destination directory.
+        capability: Filesystem capability for the destination volume.
+        delete: When True, append ``--delete`` (used by :func:`rsync`).
+        backup_dir: When set, append ``--backup --backup-dir=<path>`` (used by
+            :func:`rsync_merge`).
+
+    Returns:
+        Complete rsync argv list (including the leading ``"rsync"`` binary name).
+    """
+    cmd = ["rsync", *capability.rsync_flags]
+    if delete:
+        cmd.append("--delete")
+    if backup_dir is not None:
+        cmd.append("--backup")
+        cmd.append(f"--backup-dir={backup_dir}")
+    cmd.extend([f"{source}/", str(dest)])
+    return cmd
 
 
 def force_rmtree(path: Path) -> None:
@@ -74,48 +117,36 @@ def force_rmtree(path: Path) -> None:
         raise OSError(f"force_rmtree incomplete for {path}: {len(errors)} file(s) could not be removed")
 
 
-def rsync(source: Path, dest: Path, delete: bool = False) -> bool:
+def rsync(
+    source: Path,
+    dest: Path,
+    delete: bool = False,
+    capability: FilesystemCapability = NTFS_MACFUSE,
+) -> bool:
     """Execute rsync for cross-filesystem transfer.
+
+    The rsync flag prefix is provided by *capability*.  For the default
+    ``NTFS_MACFUSE`` capability the flags are byte-identical to the legacy
+    hardcoded list (``-a --no-perms --no-owner --no-group --no-times
+    --omit-dir-times --inplace --partial --exclude=.DS_Store --exclude=._*``).
+    The rationale for each NTFS flag is documented on
+    :data:`personalscraper.indexer._fs_capability.NTFS_MACFUSE` and in
+    ``audit/13-ntfs-cache-pressure.md``; ``--checksum`` is intentionally
+    omitted (the size+mtime heuristic is correct for an immutable library).
 
     Args:
         source: Source path (trailing / added for contents).
         dest: Destination path.
         delete: If True, delete extraneous files in dest.
+        capability: Filesystem capability for the destination volume.
+            Defaults to ``NTFS_MACFUSE`` (byte-identical to the legacy
+            hardcoded flags) so every existing caller that does not pass a
+            capability is unaffected.
 
     Returns:
         True if rsync succeeded (returncode 0).
     """
-    # -a minus -pgo: NTFS via macFUSE doesn't support Unix permissions.
-    # --no-times / --omit-dir-times: macFUSE mounts with noatime; utimes()
-    #   on NTFS-FUSE sometimes warns even when it succeeds — suppressing avoids
-    #   log noise and a small amount of journal write pressure.
-    # --inplace: write directly to the destination fd rather than creating a
-    #   <file>.tmp then renaming.  Halves cache pressure for large files (the
-    #   default double-buffers both the temp copy and the final file briefly).
-    #   Safe for a media library where the source in staging is the reference.
-    # --checksum intentionally omitted: default size+mtime heuristic is correct
-    #   for an immutable library where mutations are full replacements or new
-    #   episodes (never partial in-place updates).  --checksum would read every
-    #   byte of source AND dest before deciding what to transfer — TB-scale
-    #   waste on TV-show merges.  See audit/13-ntfs-cache-pressure.md §Cause-1.
-    # Exclude macOS metadata files -- .DS_Store and ._* AppleDouble files
-    # cause rsync errors on NTFS targets which don't support them.
-    cmd = [
-        "rsync",
-        "-a",
-        "--no-perms",
-        "--no-owner",
-        "--no-group",
-        "--no-times",
-        "--omit-dir-times",
-        "--inplace",
-        "--partial",
-        "--exclude=.DS_Store",
-        "--exclude=._*",
-    ]
-    if delete:
-        cmd.append("--delete")
-    cmd.extend([f"{source}/", str(dest)])
+    cmd = _build_rsync_cmd(source, dest, capability, delete=delete)
 
     log.info("rsync_start", source=source.name, dest=str(dest))
     try:
@@ -140,43 +171,28 @@ def rsync_merge(
     source: Path,
     dest: Path,
     backup_dir: Path,
+    capability: FilesystemCapability = NTFS_MACFUSE,
 ) -> bool:
     """Execute rsync with backup for merge operations.
 
     Backs up any overwritten files to backup_dir so they can
-    be restored on failure.
+    be restored on failure.  The rsync flag prefix is provided by
+    *capability* (same flags as :func:`rsync`); ``--backup`` /
+    ``--backup-dir`` are appended by :func:`_build_rsync_cmd`.  Note that
+    ``--inplace`` is compatible with ``--backup``: rsync still writes the
+    backup copy to ``backup_dir`` before overwriting the destination in place.
 
     Args:
         source: Source directory.
         dest: Destination directory.
         backup_dir: Directory to store backups of overwritten files.
+        capability: Filesystem capability for the destination volume.
+            Defaults to ``NTFS_MACFUSE`` (byte-identical to the legacy flags).
 
     Returns:
         True if rsync succeeded.
     """
-    # Exclude macOS metadata files -- same rationale as rsync().
-    # --checksum intentionally omitted — see rsync() for the full rationale.
-    # --inplace / --no-times / --omit-dir-times applied for the same cache-
-    # pressure and NTFS-FUSE warning reasons.  Note: --inplace is compatible
-    # with --backup; rsync still writes the backup copy to backup_dir before
-    # overwriting the destination in place.
-    cmd = [
-        "rsync",
-        "-a",
-        "--no-perms",
-        "--no-owner",
-        "--no-group",
-        "--no-times",
-        "--omit-dir-times",
-        "--inplace",
-        "--partial",
-        "--exclude=.DS_Store",
-        "--exclude=._*",
-        "--backup",
-        f"--backup-dir={backup_dir}",
-        f"{source}/",
-        str(dest),
-    ]
+    cmd = _build_rsync_cmd(source, dest, capability, backup_dir=backup_dir)
 
     log.info("rsync_merge_start", source=source.name, dest=str(dest), backup=str(backup_dir))
     try:
@@ -272,19 +288,29 @@ def verify_transfer(source: Path, dest: Path) -> bool:
     return True
 
 
-def has_ntfs_illegal_names(directory: Path) -> bool:
-    r"""Check if any file in directory has NTFS-illegal characters.
+def has_ntfs_illegal_names(
+    directory: Path,
+    pattern: re.Pattern[str] | None = _NTFS_ILLEGAL,
+) -> bool:
+    r"""Check if any file in directory has filesystem-illegal characters.
 
-    Scans recursively for filenames containing <>:"/\|?*.
-    Used as a pre-check before rsync to NTFS disks.
+    Scans recursively for filenames matching *pattern*.  Used as a pre-check
+    before rsync to filesystems with naming restrictions.
 
     Args:
         directory: Directory to scan.
+        pattern: Compiled regex for illegal characters.  Defaults to the NTFS
+            illegal-character set (``<>:"/\|?*``) so every existing caller is
+            unaffected.  Pass ``None`` to skip the check entirely (POSIX
+            filesystems with no naming restrictions, e.g. APFS/HFS+).
 
     Returns:
-        True if any file has illegal characters.
+        True if any file has illegal characters (always False when *pattern*
+        is ``None``).
     """
-    illegal = [f for f in directory.rglob("*") if f.is_file() and _NTFS_ILLEGAL.search(f.name)]
+    if pattern is None:
+        return False
+    illegal = [f for f in directory.rglob("*") if f.is_file() and pattern.search(f.name)]
     for f in illegal:
         log.warning("ntfs_illegal_filename", path=str(f))
     return len(illegal) > 0
