@@ -7,6 +7,8 @@ import re
 import sqlite3
 
 from personalscraper.indexer import drift as _drift
+from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
+from personalscraper.indexer.fingerprint import normalize_tier1
 from personalscraper.indexer.merkle import (
     DiskBulkChangeDetected,
     compute_merkle_delta,
@@ -53,6 +55,7 @@ def _scan_disk_incremental(
     checkpoint_every: int = 100,
     confirm_bulk_change: bool = False,
     merkle_delta_freeze_threshold: float = 0.50,
+    capability: FilesystemCapability = NTFS_MACFUSE,
 ) -> None:
     """Run the incremental-mode walk for a single disk.
 
@@ -105,6 +108,10 @@ def _scan_disk_incremental(
             *merkle_delta_freeze_threshold*.
         merkle_delta_freeze_threshold: Halt if the Merkle delta exceeds this
             fraction (0.0–1.0).
+        capability: Per-disk :class:`FilesystemCapability` governing tier-1
+            normalisation at the comparison site (ctime drop / mtime bucketing).
+            Defaults to ``NTFS_MACFUSE`` so an un-threaded caller is byte-identical
+            to the legacy behaviour.
 
     Raises:
         DiskBulkChangeDetected: When the Merkle delta exceeds
@@ -162,6 +169,7 @@ def _scan_disk_incremental(
         budget_seconds,
         scan_run_id,
         checkpoint_every,
+        capability,
     )
 
     # Skip post-walk bookkeeping if the budget was exhausted — partial state is
@@ -199,6 +207,7 @@ def _walk_dir_incremental(
     budget_seconds: float | None = None,
     scan_run_id: int = 0,
     checkpoint_every: int = 100,
+    capability: FilesystemCapability = NTFS_MACFUSE,
 ) -> None:
     """Recursively walk *dir_abs* in incremental mode.
 
@@ -242,6 +251,9 @@ def _walk_dir_incremental(
         budget_seconds: Maximum wall-clock seconds; ``None`` = unlimited.
         scan_run_id: PK of the active ``scan_run`` row.
         checkpoint_every: How many files to process between checkpoint writes.
+        capability: Per-disk :class:`FilesystemCapability` used to normalise the
+            tier-1 fingerprints before comparison.  Defaults to ``NTFS_MACFUSE``
+            (legacy behaviour: ctime kept, mtime unrounded).
     """
     from personalscraper.indexer.scanner._checkpoint import _maybe_checkpoint  # noqa: PLC0415
 
@@ -299,6 +311,7 @@ def _walk_dir_incremental(
                 budget_seconds,
                 scan_run_id,
                 checkpoint_every,
+                capability,
             )
 
             if budget_exhausted is not None and budget_exhausted[0]:
@@ -442,9 +455,13 @@ def _walk_dir_incremental(
                         oshash_value=None,
                     )
             else:
-                # Existing file — compare tier-1 fingerprint.
-                t1_stored = (existing.size_bytes, existing.mtime_ns, existing.ctime_ns or 0)
-                t1_current = (st.st_size, mtime_ns_val, ctime_ns_val or 0)
+                # Existing file — compare tier-1 fingerprint (FS-aware).  The
+                # capability decides whether ctime participates and whether the
+                # mtime is bucketed; for NTFS this is byte-identical to the
+                # legacy ``(size, mtime_ns, ctime_ns)`` tuples.  Storage of the
+                # tier-1 fields below stays raw — only the comparison normalises.
+                t1_stored = normalize_tier1(existing.size_bytes, existing.mtime_ns, existing.ctime_ns or 0, capability)
+                t1_current = normalize_tier1(st.st_size, mtime_ns_val, ctime_ns_val or 0, capability)
 
                 if t1_current == t1_stored:
                     # Tier-1 unchanged — bump generation only (cheap skip).

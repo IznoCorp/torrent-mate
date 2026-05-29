@@ -32,6 +32,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from personalscraper.indexer._fs_capability import capability_for
+from personalscraper.indexer._fs_probe import probe_mount
 from personalscraper.indexer.breaker import (
     DiskCircuitBreaker,
     bind_global_disk_breaker_to_bus,
@@ -327,6 +329,22 @@ def _scan_one_disk(
     mount = disk.mount_path
     log.info("indexer.scan.disk_start", disk_id=disk.id, label=disk.label, mount_path=mount)
 
+    # Resolve the per-disk FilesystemCapability from the read-time mount probe
+    # (authoritative for drift comparison). An unrecognised / unprobeable mount
+    # falls back to the NTFS-safe "unknown" superset (full ctime + exact mtime),
+    # which is byte-identical to the legacy behaviour.
+    _mount_info = probe_mount(mount)
+    disk_capability = capability_for(_mount_info.fs_type if _mount_info is not None else "unknown")
+
+    # The capability may hard-wire dir-mtime reliability (APFS/HFS+ default True);
+    # otherwise fall back to the session-wide runtime probe. NTFS leaves this at
+    # None → effective value equals the session probe (ctx.dir_mtime_reliable),
+    # so the NTFS path is unchanged.
+    if disk_capability.dir_mtime_reliable_default is not None:
+        effective_dir_mtime_reliable = disk_capability.dir_mtime_reliable_default
+    else:
+        effective_dir_mtime_reliable = ctx.dir_mtime_reliable
+
     try:
         if ctx.mode == ScanMode.full:
             _scanner_pkg._scan_disk_full(
@@ -367,7 +385,7 @@ def _scan_one_disk(
                 local_dirs,
                 ctx.generation,
                 local_skipped,
-                ctx.dir_mtime_reliable,
+                effective_dir_mtime_reliable,
                 local_resume_from,
                 local_files_since_ckpt,
                 local_exhausted,
@@ -378,6 +396,7 @@ def _scan_one_disk(
                 confirm_bulk_change=ctx.confirm_bulk_change,
                 merkle_delta_freeze_threshold=ctx.merkle_delta_freeze_threshold,
                 paranoia_window_seconds=ctx.paranoia_window_seconds,
+                capability=disk_capability,
             )
         elif ctx.mode == ScanMode.incremental:
             _scanner_pkg._scan_disk_incremental(
@@ -388,7 +407,7 @@ def _scan_one_disk(
                 local_dirs,
                 ctx.generation,
                 local_skipped,
-                ctx.dir_mtime_reliable,
+                effective_dir_mtime_reliable,
                 local_resume_from,
                 local_files_since_ckpt,
                 local_exhausted,
@@ -398,6 +417,7 @@ def _scan_one_disk(
                 ctx.checkpoint_every_n_files,
                 confirm_bulk_change=ctx.confirm_bulk_change,
                 merkle_delta_freeze_threshold=ctx.merkle_delta_freeze_threshold,
+                capability=disk_capability,
             )
         elif ctx.mode == ScanMode.enrich:
             if ctx.backfill_streams:

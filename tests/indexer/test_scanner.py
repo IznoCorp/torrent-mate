@@ -69,6 +69,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from personalscraper.core.event_bus import EventBus
+from personalscraper.indexer._fs_probe import MountInfo
 from personalscraper.indexer._throttle import (
     TokenBucket,
     get_active_bucket,
@@ -948,12 +949,19 @@ class TestQuickMode:
         disk_repo.update_merkle_root(conn, disk.id, "wrongroot")
 
         # Quick scan with dir-mtime UNRELIABLE → skip optimisation disabled.
+        # Probe the disk as NTFS (``dir_mtime_reliable_default=None``) so the
+        # per-disk capability defers to the session-wide runtime probe — the
+        # exact path this test exercises.  Without this, the host's real ``/``
+        # APFS mount would be matched (its hard-wired default ``True`` would
+        # override the patched ``False``).
+        ntfs_info = MountInfo(mount_point=mount, fs_type="ntfs_macfuse", raw_fs_type="ufsd_ntfs", flags=frozenset())
         with patch(_GUARD_PATCH, return_value=None):
-            with patch(
-                "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
-                return_value=False,
-            ):
-                result = scan([disk], ScanMode.quick, generation=2, conn=conn, event_bus=EventBus())
+            with patch("personalscraper.indexer.scanner._scan_orchestrator.probe_mount", return_value=ntfs_info):
+                with patch(
+                    "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
+                    return_value=False,
+                ):
+                    result = scan([disk], ScanMode.quick, generation=2, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
 

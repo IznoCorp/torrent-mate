@@ -8,6 +8,8 @@ import sqlite3
 import time
 from pathlib import Path
 
+from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
+from personalscraper.indexer.fingerprint import round_mtime_ns
 from personalscraper.indexer.merkle import (
     DiskBulkChangeDetected,
     compute_merkle_delta,
@@ -38,6 +40,7 @@ def _run_paranoia_branch(
     disk: DiskRow,
     mount: str,
     paranoia_window_seconds: int,
+    capability: FilesystemCapability = NTFS_MACFUSE,
 ) -> None:
     """Check recent outbox events and log paths that may need re-fingerprinting.
 
@@ -60,6 +63,10 @@ def _run_paranoia_branch(
         mount: Absolute mount point path for the disk.
         paranoia_window_seconds: How far back (in seconds) to look for outbox
             events.  Must be positive (caller already guards against 0).
+        capability: Per-disk :class:`FilesystemCapability`.  The mtime
+            comparison is bucketed via :func:`round_mtime_ns` so coarse-grained
+            filesystems (HFS+ 1 s, exFAT 2 s) do not flag sub-bucket jitter as a
+            mismatch.  Defaults to ``NTFS_MACFUSE`` (granularity 1 → identity).
     """
     cutoff_ts = int(time.time()) - paranoia_window_seconds
     mount_path = Path(mount)
@@ -139,7 +146,9 @@ def _run_paranoia_branch(
         stored_size: int = stored["size_bytes"] or 0
         stored_mtime_ns: int = stored["mtime_ns"] or 0
 
-        if st.st_size != stored_size or st.st_mtime_ns != stored_mtime_ns:
+        if st.st_size != stored_size or round_mtime_ns(st.st_mtime_ns, capability) != round_mtime_ns(
+            stored_mtime_ns, capability
+        ):
             # Tier-1 mismatch detected via paranoia branch: dir-mtime was stale
             # or unupdated, but the file has actually changed.  Log the event so
             # operators and metrics pipelines can track detection coverage.
@@ -183,6 +192,7 @@ def _scan_disk_quick(
     confirm_bulk_change: bool = False,
     merkle_delta_freeze_threshold: float = 0.50,
     paranoia_window_seconds: int = 86400,
+    capability: FilesystemCapability = NTFS_MACFUSE,
 ) -> None:
     """Run the quick-mode walk for a single disk.
 
@@ -241,6 +251,10 @@ def _scan_disk_quick(
             created within this many seconds of now are re-checked against
             on-disk state regardless of dir-mtime status.  ``0`` disables the
             branch.  Sourced from ``IndexerScanConfig.paranoia_window_seconds``.
+        capability: Per-disk :class:`FilesystemCapability` forwarded to
+            :func:`_run_paranoia_branch` so the tier-1 mtime comparison is
+            granularity-aware.  Defaults to ``NTFS_MACFUSE`` (granularity 1 →
+            identity, byte-identical to the legacy compare).
 
     Raises:
         DiskBulkChangeDetected: When the Merkle delta exceeds
@@ -279,7 +293,7 @@ def _scan_disk_quick(
     # Full re-fingerprinting integration deferred to a later sub-phase;
     # for now we log ``indexer.scan.paranoia_recheck`` for each detected path.
     if paranoia_window_seconds > 0:
-        _run_paranoia_branch(conn, disk, mount, paranoia_window_seconds)
+        _run_paranoia_branch(conn, disk, mount, paranoia_window_seconds, capability)
 
     # --- Bulk-change guard (quick-mode only, on Merkle miss) ---
     # Sample fresh tier-1 fingerprints by doing a shallow scandir for all
