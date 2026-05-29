@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from personalscraper.conf.models.config import Config
+from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.config import Settings
 from personalscraper.dispatch import _movie, _transfer, _tv
 from personalscraper.dispatch._types import DispatchError, DispatchResult
@@ -40,24 +41,37 @@ if TYPE_CHECKING:
 log = get_logger("dispatcher")
 
 
-def _resolve_capability(disk_path: str) -> FilesystemCapability:
-    """Resolve the :class:`FilesystemCapability` for a disk mount path.
+def _resolve_disk_capability(disk: DiskConfig) -> FilesystemCapability:
+    """Resolve the :class:`FilesystemCapability` for a disk.
 
-    Probes the mount table for *disk_path* and looks up the capability by the
-    already-canonical fs-type.  ``probe_mount`` returns a ``MountInfo`` whose
-    ``.fs_type`` is canonicalised by ``_parse_mount_line`` — it must NOT be
-    re-run through ``canonical_fs_type``.  When the path is not mounted (or on
-    non-Darwin platforms) ``probe_mount`` returns ``None`` and we fall back to
-    the ``"unknown"`` capability, which is the NTFS-safe restrictive superset.
+    Resolution order:
+
+    1. **Explicit override.**  When ``disk.fs_type`` is set, it beats
+       auto-detection: the probe is skipped entirely and the capability is
+       looked up directly.  An unrecognised override value falls back to the
+       NTFS-safe ``"unknown"`` capability via ``capability_for`` (escape hatch
+       for driver tokens such as ``fuse-t`` variants or Paragon NTFS).
+    2. **Auto-detection.**  When ``disk.fs_type`` is ``None``, probe the mount
+       table for ``disk.path`` and look up the capability by the
+       already-canonical fs-type.  ``probe_mount`` returns a ``MountInfo`` whose
+       ``.fs_type`` is canonicalised by ``_parse_mount_line`` — it must NOT be
+       re-run through ``canonical_fs_type``.  When the path is not mounted (or
+       on non-Darwin platforms) ``probe_mount`` returns ``None`` and we fall
+       back to the ``"unknown"`` capability, the NTFS-safe restrictive superset.
 
     Args:
-        disk_path: Absolute mount path of the destination disk.
+        disk: The :class:`DiskConfig` whose capability is needed.
 
     Returns:
-        The resolved capability, or the ``"unknown"`` (NTFS-safe) capability
-        when the mount cannot be probed.
+        The capability from the explicit override, the auto-detected mount
+        fs-type, or the ``"unknown"`` (NTFS-safe) capability when detection
+        fails.
     """
-    info = probe_mount(disk_path)
+    # Explicit operator override beats auto-detection.
+    if disk.fs_type is not None:
+        return capability_for(disk.fs_type)
+    # Auto-detect via FsProbe (cached mount shell-out).
+    info = probe_mount(str(disk.path))
     return capability_for(info.fs_type if info is not None else "unknown")
 
 
@@ -106,11 +120,12 @@ class Dispatcher:
         self._disk_configs = get_disk_configs(config)
 
         # Resolve the filesystem capability per dest disk once (not per file).
-        # Each disk auto-detects its fs-type via the mount-table probe; an
+        # An explicit ``disk.fs_type`` override beats auto-detection; otherwise
+        # each disk auto-detects its fs-type via the mount-table probe. An
         # unmounted/unrecognised disk falls back to the NTFS-safe "unknown"
-        # capability (see _resolve_capability).
+        # capability (see _resolve_disk_capability).
         self._disk_capabilities: dict[str, FilesystemCapability] = {
-            disk.id: _resolve_capability(str(disk.path)) for disk in self._disk_configs
+            disk.id: _resolve_disk_capability(disk) for disk in self._disk_configs
         }
 
         # Verify rsync is available

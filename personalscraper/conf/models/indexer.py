@@ -148,21 +148,40 @@ class IndexerConfig(_StrictModel):
     @field_validator("db_path", mode="after")
     @classmethod
     def _reject_external_mount(cls, v: Path | None) -> Path | None:
-        """Resolve ``db_path`` to an absolute path and reject macFUSE / external mounts.
+        """Resolve ``db_path`` and reject WAL-unsafe filesystem types.
 
         When ``db_path`` is ``None``, the Config-level ``_resolve_db_path``
         validator will fill it from ``paths.data_dir``.
 
-        Two invariants enforced here:
+        Invariants enforced here:
 
         1. **Absolute path.** Relative ``db_path`` values are resolved against
            the project root (config_dir.parent) at load-time so every consumer
            sees the same path regardless of where ``personalscraper`` is invoked
            from.
-        2. **No external mount.** SQLite WAL mode is unreliable on macFUSE-NTFS
-           and network mounts. The database must live on the internal APFS
-           volume. Detection heuristic: the resolved path starts with
-           ``/Volumes/`` (macOS convention for all external mounts).
+        2. **No WAL-unsafe mount.** SQLite WAL mode is unreliable on macFUSE-NTFS
+           and network mounts. Detection is capability-aware: probe the mount
+           point and reject only ``ntfs_macfuse`` (and ``unknown`` as a
+           conservative fallback). A legitimate APFS / HFS+ / exFAT / ext4
+           volume — even when mounted under ``/Volumes/`` — is accepted. This
+           replaces the former blunt ``/Volumes/`` prefix check, which wrongly
+           rejected an APFS database at e.g. ``/Volumes/Data/library.db``.
+
+           **Effective fs-type.** ``probe_mount`` returns the *longest-prefix*
+           mount for a path. A fake or unmounted ``/Volumes/X/...`` path on a
+           real Darwin host therefore falls back to the root ``/`` (apfs) mount
+           — there is no actual external volume there. To honour the legacy
+           safety net (and keep the pre-existing ``/Volumes/`` rejection tests
+           green on Darwin), a probe is only *trusted* for a ``/Volumes/`` path
+           when the matched mount point is itself under ``/Volumes/`` (i.e. a
+           real external volume is mounted there). Otherwise the fs-type is
+           treated as undetectable.
+
+           When the effective fs-type is undetectable (non-Darwin CI, an
+           unmounted/fake path, or a root-fallback under ``/Volumes/``) AND the
+           resolved path is under ``/Volumes/``, the legacy safety net applies:
+           conservatively reject. Undetectable *local* paths (relative,
+           ``/Users/...``, ``/tmp/...``) are accepted.
 
         Args:
             v: Raw Path value for db_path (may be relative, may be None).
@@ -171,7 +190,9 @@ class IndexerConfig(_StrictModel):
             Absolute Path with ``~`` expanded, or None if not set.
 
         Raises:
-            ValueError: If the resolved path is under ``/Volumes/``.
+            ValueError: If the resolved path is on a WAL-unsafe filesystem
+                (detected ``ntfs_macfuse``/``unknown``, or an undetectable
+                mount under ``/Volumes/``).
         """
         if v is None:
             return v
@@ -184,10 +205,55 @@ class IndexerConfig(_StrictModel):
             project_root = _paths_model._PROJECT_ROOT
             base = project_root if project_root is not None else Path.cwd()
             resolved = (base / resolved).resolve()
-        if str(resolved).startswith("/Volumes/"):
-            raise ValueError(
-                f"db_path '{v}' resolves under /Volumes/ which indicates an external or macFUSE mount. "
-                "SQLite WAL mode is unreliable on such filesystems. "
-                "Move the database to the internal APFS volume (e.g. ~/.data/library.db)."
-            )
+
+        # Capability-aware WAL-safety check. Import here (not at module level)
+        # to avoid a circular import: conf → indexer → conf. This lazy,
+        # in-validator upward import is a documented, intentional boundary
+        # (DESIGN: db_path WAL-safety needs FsProbe); the per-line marker below
+        # opts it out of the conf/ layering guard while keeping the rest of the
+        # module guarded.
+        try:
+            from personalscraper.indexer._fs_probe import probe_mount  # layering: allow — lazy WAL-safety probe
+
+            info = probe_mount(str(resolved))
+            fs_type = info.fs_type if info is not None else None
+
+            # A /Volumes/ path whose probe fell back to a NON-/Volumes/ mount
+            # point (typically the root "/" apfs mount) is not actually backed
+            # by an external volume — treat its fs-type as undetectable so the
+            # legacy /Volumes/ safety net below still fires.
+            if (
+                info is not None
+                and str(resolved).startswith("/Volumes/")
+                and not info.mount_point.startswith("/Volumes/")
+            ):
+                fs_type = None
+
+            # Reject known WAL-unsafe filesystem types outright.
+            wal_unsafe = {"ntfs_macfuse", "unknown"}
+            if fs_type in wal_unsafe:
+                raise ValueError(
+                    f"db_path '{v}' resolves to a '{fs_type}' mount, which is WAL-unsafe. "
+                    "SQLite WAL mode is unreliable on macFUSE-NTFS filesystems. "
+                    "Move the database to an APFS or HFS+ volume."
+                )
+            # Undetectable filesystem under the macOS external-mount convention:
+            # conservative reject (preserves the legacy /Volumes/ safety net).
+            # Detected-safe types (apfs/hfsplus/exfat/ext4) and undetectable
+            # *local* paths fall through and are accepted.
+            if fs_type is None and str(resolved).startswith("/Volumes/"):
+                raise ValueError(
+                    f"db_path '{v}' resolves under /Volumes/ which indicates an external or macFUSE mount, "
+                    "and its filesystem type could not be detected. SQLite WAL mode is unreliable on such "
+                    "filesystems. Move the database to the internal APFS volume (e.g. ~/.data/library.db)."
+                )
+        except ImportError:
+            # FsProbe not yet available (bootstrap scenario) — fall back to the
+            # legacy /Volumes/ heuristic as defence-in-depth.
+            if str(resolved).startswith("/Volumes/"):
+                raise ValueError(
+                    f"db_path '{v}' resolves under /Volumes/ which may indicate an external or macFUSE mount. "
+                    "SQLite WAL mode is unreliable on such filesystems."
+                )
+
         return resolved

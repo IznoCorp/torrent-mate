@@ -3,17 +3,22 @@
   // id: free-form identifier used in CLI --disk and logs.
   // path: absolute mounted path.
   // categories: IDs accepted on this disk (builtin + custom_categories).
+  // fs_type (optional): canonical filesystem-type override. Omit for auto-detection.
+  //   Valid values: "ntfs_macfuse", "apfs", "hfsplus", "exfat", "ext4", "unknown".
+  //   Use when the driver token is not auto-recognised (e.g. Paragon NTFS, fuse-t variants).
   disks: [
     {
       id: "drive_a",
       path: "/path/to/drive_a",
       categories: ["movies", "tv_shows", "anime", "audiobooks"],
+      // fs_type: "ntfs_macfuse",  // uncomment to force NTFS-safe flags
     },
     // Example second disk:
     // {
     //   id: "drive_b",
     //   path: "/path/to/drive_b",
     //   categories: ["movies_animation", "tv_shows_animation", "movies_documentary", "tv_shows_documentary"],
+    //   // fs_type: "hfsplus",  // HFS+ on AppleRAID — unlocks Unix perms
     // },
   ],
 }
