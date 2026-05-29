@@ -15,9 +15,9 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
+from personalscraper.core.media_types import FileType
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
 from personalscraper.dispatch.run import run_dispatch
-from personalscraper.sorter.file_type import FileType
 
 # Small but non-zero bytes for episode files in this test.
 # The TV show checker warns about sample-sized files (< 100 MB) but does NOT

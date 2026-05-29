@@ -19,6 +19,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from personalscraper.core.event_bus import EventBus
+from personalscraper.core.media_types import FileType
 from personalscraper.naming_patterns import PATTERNS
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper.run import (
@@ -27,7 +28,6 @@ from personalscraper.scraper.run import (
     _to_step_report,
     run_scrape,
 )
-from personalscraper.sorter.file_type import FileType
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 

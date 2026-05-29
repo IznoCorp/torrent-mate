@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
+from personalscraper.core.media_types import FileType
 from personalscraper.sorter.file_type import (
-    FileType,
     _has_tvshow_markers,
     detect_dir_type,
     detect_file_type,

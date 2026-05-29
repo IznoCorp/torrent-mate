@@ -8,9 +8,9 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from personalscraper.core.event_bus import EventBus
+from personalscraper.core.media_types import FileType
 from personalscraper.scraper.run import _to_step_report, run_scrape
 from personalscraper.scraper.scraper import ScrapeResult
-from personalscraper.sorter.file_type import FileType
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 # ---------------------------------------------------------------------------

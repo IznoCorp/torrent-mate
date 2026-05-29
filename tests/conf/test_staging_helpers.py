@@ -5,7 +5,7 @@ import pytest
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.staging import StagingDirConfig
 from personalscraper.conf.staging import find_by_file_type, find_ingest_dir, folder_name, staging_path
-from personalscraper.sorter.file_type import FileType
+from personalscraper.core.media_types import FileType
 
 
 def _make_config(staging_dirs: list[dict]) -> Config:

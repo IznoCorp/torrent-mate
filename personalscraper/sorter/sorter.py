@@ -12,10 +12,11 @@ from pathlib import Path
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import folder_name
+from personalscraper.core.media_types import FileType
 from personalscraper.logger import get_logger
 from personalscraper.models import SortResult
 from personalscraper.sorter.cleaner import NameCleaner
-from personalscraper.sorter.file_type import FileType, detect_dir_type, detect_file_type
+from personalscraper.sorter.file_type import detect_dir_type, detect_file_type
 from personalscraper.sorter.strategies import (
     DefaultStrategy,
     MovieStrategy,

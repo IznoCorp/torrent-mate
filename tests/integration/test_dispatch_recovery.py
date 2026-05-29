@@ -16,9 +16,9 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
+from personalscraper.core.media_types import FileType
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.dispatch.run import run_dispatch
-from personalscraper.sorter.file_type import FileType
 
 # Minimum video size (bytes) to pass the verify "sample" size check (100 MB).
 _MIN_VIDEO_BYTES = 100 * 1024 * 1024 + 1

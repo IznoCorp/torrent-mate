@@ -12,29 +12,17 @@ to the 6 types relevant to the PersonalScraper staging directories.
 import re
 from pathlib import Path
 
-# Shared constants and predicate are canonical in core.media_types.
-# Imported here so sorter-internal detection functions can use them,
-# and so any legacy `from personalscraper.sorter.file_type import …`
-# call sites still resolve during the transition window (arch-cleanup-2 Phase 3).
-# The re-export is intentional and will be dropped once all 23 call sites
-# are rewritten to import from core.media_types directly (end of this phase).
-# Explicit redundant-alias form (`X as X`) makes the re-export explicit under
-# mypy strict (no_implicit_reexport); a bare import would be an implicit
-# re-export and break downstream `from sorter.file_type import …` callers.
+# Shared constants and the FileType enum are canonical in core.media_types.
+# Imported here as a plain (non-re-exported) dependency so the sorter-internal
+# detection functions (detect_file_type / detect_dir_type) can use them. The
+# transitional re-export for legacy `from personalscraper.sorter.file_type import …`
+# call sites was dropped at the end of arch-cleanup-2 Phase 3 — every external
+# caller now imports these symbols from core.media_types directly.
 from personalscraper.core.media_types import (
-    AUDIO_EXTENSIONS as AUDIO_EXTENSIONS,
-)
-from personalscraper.core.media_types import (
-    EBOOK_EXTENSIONS as EBOOK_EXTENSIONS,
-)
-from personalscraper.core.media_types import (
-    VIDEO_EXTENSIONS as VIDEO_EXTENSIONS,
-)
-from personalscraper.core.media_types import (
-    FileType as FileType,
-)
-from personalscraper.core.media_types import (
-    is_trailer_filename as is_trailer_filename,
+    AUDIO_EXTENSIONS,
+    EBOOK_EXTENSIONS,
+    VIDEO_EXTENSIONS,
+    FileType,
 )
 
 APP_EXTENSIONS: frozenset[str] = frozenset(

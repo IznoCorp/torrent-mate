@@ -8,8 +8,8 @@ from unittest.mock import MagicMock
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
+from personalscraper.core.media_types import FileType
 from personalscraper.enforce.structure_validator import validate_structure
-from personalscraper.sorter.file_type import FileType
 
 
 def test_enforce_creates_missing_season_dir(staging_tree: Path, integration_config: Config) -> None:
