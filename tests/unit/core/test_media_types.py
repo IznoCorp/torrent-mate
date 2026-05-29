@@ -44,6 +44,29 @@ def test_is_trailer_filename_non_trailer() -> None:
     assert is_trailer_filename("The.Movie.mkv") is False
 
 
+def test_is_trailer_filename_is_case_insensitive() -> None:
+    """The ``-trailer`` suffix match is case-insensitive (docstring promise via casefold).
+
+    The docstring promises case-insensitivity but only the lowercase form was
+    tested. An uppercase ``-TRAILER`` suffix must still match.
+    """
+    assert is_trailer_filename("Movie-TRAILER.mkv") is True
+
+
+def test_is_trailer_filename_bare_trailer_stem_is_false() -> None:
+    """A stem of exactly ``"trailer"`` (no ``-`` separator) is NOT a flat trailer.
+
+    The predicate matches the ``-trailer`` *suffix*, not a bare ``trailer`` stem,
+    so a file literally named ``trailer.mkv`` is not treated as a movie trailer.
+    """
+    assert is_trailer_filename("trailer.mkv") is False
+
+
+def test_is_trailer_filename_trailer_not_at_end_is_false() -> None:
+    """``-trailer`` must be the suffix: ``Movie-trailer-2`` ends with ``-2``, not ``-trailer``."""
+    assert is_trailer_filename("Movie-trailer-2.mkv") is False
+
+
 def test_video_extensions_same_object_as_sorter() -> None:
     """After Phase 3, sorter.file_type.VIDEO_EXTENSIONS IS core.media_types.VIDEO_EXTENSIONS.
 
@@ -56,4 +79,32 @@ def test_video_extensions_same_object_as_sorter() -> None:
         "sorter.file_type.VIDEO_EXTENSIONS and core.media_types.VIDEO_EXTENSIONS "
         "are different objects — sorter/file_type.py must import from core.media_types, "
         "not re-define the set."
+    )
+
+
+def test_contracts_reexport_identity() -> None:
+    """api._contracts.{ApiError,CircuitOpenError,MediaType} ARE the core._contracts objects.
+
+    ``api/_contracts.py`` re-exports these three symbols from
+    ``core/_contracts.py`` (arch-cleanup-2 Phase 2). They MUST be the exact same
+    class objects — identity, not just equality. ``core/circuit.py`` relies on
+    this: it catches ``core._contracts.ApiError`` while providers raise the
+    ``api._contracts.ApiError`` name, so ``isinstance(exc, ApiError)`` only holds
+    if both names resolve to one class object. Mirrors
+    ``test_video_extensions_same_object_as_sorter``.
+    """
+    from personalscraper.api import _contracts as api_contracts
+    from personalscraper.core import _contracts as core_contracts
+
+    assert api_contracts.ApiError is core_contracts.ApiError, (
+        "api._contracts.ApiError and core._contracts.ApiError are different class "
+        "objects — api/_contracts.py must re-export from core, not re-define."
+    )
+    assert api_contracts.CircuitOpenError is core_contracts.CircuitOpenError, (
+        "api._contracts.CircuitOpenError and core._contracts.CircuitOpenError are "
+        "different class objects — api/_contracts.py must re-export from core."
+    )
+    assert api_contracts.MediaType is core_contracts.MediaType, (
+        "api._contracts.MediaType and core._contracts.MediaType are different "
+        "class objects — api/_contracts.py must re-export from core."
     )
