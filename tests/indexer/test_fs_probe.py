@@ -32,45 +32,59 @@ class TestCanonicalFsType:
         assert canonical_fs_type("ufsd_NTFS") == "ntfs_macfuse"
 
     def test_ufsd_ntfs_lowercase(self) -> None:
+        """The lowercase ``ufsd_ntfs`` token also maps to ntfs_macfuse."""
         assert canonical_fs_type("ufsd_ntfs") == "ntfs_macfuse"
 
     def test_macfuse_token(self) -> None:
+        """The bare ``macfuse`` driver token maps to ntfs_macfuse."""
         assert canonical_fs_type("macfuse") == "ntfs_macfuse"
 
     def test_fuse_osxfuse_token(self) -> None:
+        """The ``fuse_osxfuse`` driver token maps to ntfs_macfuse."""
         assert canonical_fs_type("fuse_osxfuse") == "ntfs_macfuse"
 
     def test_osxfuse_token(self) -> None:
+        """The ``osxfuse`` driver token maps to ntfs_macfuse."""
         assert canonical_fs_type("osxfuse") == "ntfs_macfuse"
 
     def test_ntfs_bare_token(self) -> None:
+        """The bare ``ntfs`` token maps to ntfs_macfuse."""
         assert canonical_fs_type("ntfs") == "ntfs_macfuse"
 
     def test_fuse_t_token(self) -> None:
+        """The ``fuse-t`` driver token maps to ntfs_macfuse."""
         assert canonical_fs_type("fuse-t") == "ntfs_macfuse"
 
     def test_apfs(self) -> None:
+        """An ``apfs`` token maps to the apfs canonical key."""
         assert canonical_fs_type("apfs") == "apfs"
 
     def test_apfs_uppercase(self) -> None:
+        """Canonicalisation is case-insensitive for apfs."""
         assert canonical_fs_type("APFS") == "apfs"
 
     def test_hfs(self) -> None:
+        """The legacy ``hfs`` token maps to hfsplus."""
         assert canonical_fs_type("hfs") == "hfsplus"
 
     def test_hfsplus(self) -> None:
+        """An ``hfsplus`` token maps to hfsplus."""
         assert canonical_fs_type("hfsplus") == "hfsplus"
 
     def test_exfat(self) -> None:
+        """An ``exfat`` token maps to the exfat canonical key."""
         assert canonical_fs_type("exfat") == "exfat"
 
     def test_ext4(self) -> None:
+        """An ``ext4`` token maps to the ext4 canonical key."""
         assert canonical_fs_type("ext4") == "ext4"
 
     def test_unknown_token(self) -> None:
+        """An unrecognised token falls back to unknown."""
         assert canonical_fs_type("tmpfs") == "unknown"
 
     def test_empty_string(self) -> None:
+        """An empty fs-type token falls back to unknown."""
         assert canonical_fs_type("") == "unknown"
 
 
@@ -94,6 +108,7 @@ class TestParseMountLine:
         assert "noatime" in info.flags
 
     def test_apfs_line(self) -> None:
+        """Parse a root APFS mount line."""
         line = "/dev/disk1s1 on / (apfs, local, journaled)"
         info = _parse_mount_line(line)
         assert info is not None
@@ -101,6 +116,7 @@ class TestParseMountLine:
         assert info.fs_type == "apfs"
 
     def test_auto_home_line(self) -> None:
+        """An autofs map line parses with an unknown canonical fs-type."""
         line = "map auto_home on /home (autofs, automounted, nobrowse)"
         info = _parse_mount_line(line)
         assert info is not None
@@ -108,9 +124,11 @@ class TestParseMountLine:
         assert info.fs_type == "unknown"
 
     def test_malformed_line_returns_none(self) -> None:
+        """A line without the expected structure returns None."""
         assert _parse_mount_line("not a mount line") is None
 
     def test_trailing_slash_stripped(self) -> None:
+        """A non-root mount point has its trailing slash stripped."""
         line = "/dev/disk3s1 on /Volumes/HFS/ (hfs, local)"
         info = _parse_mount_line(line)
         assert info is not None
@@ -144,16 +162,19 @@ map auto_home on /home (autofs, automounted, nobrowse)
 """
 
     def test_parses_all_lines(self) -> None:
+        """Every well-formed mount line is keyed into the table."""
         table = _build_mount_table(self.SAMPLE_MOUNT)
         assert "/" in table
         assert "/Volumes/Disk1" in table
         assert "/home" in table
 
     def test_ntfs_entry_canonical(self) -> None:
+        """The NTFS entry carries the ntfs_macfuse canonical fs-type."""
         table = _build_mount_table(self.SAMPLE_MOUNT)
         assert table["/Volumes/Disk1"].fs_type == "ntfs_macfuse"
 
     def test_apfs_entry(self) -> None:
+        """The root entry carries the apfs canonical fs-type."""
         table = _build_mount_table(self.SAMPLE_MOUNT)
         assert table["/"].fs_type == "apfs"
 
@@ -172,6 +193,7 @@ class TestProbeMount:
 """
 
     def test_probe_ntfs_volume(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A path under an NTFS volume probes to that volume's MountInfo."""
         import personalscraper.indexer._fs_probe as mod
 
         monkeypatch.setattr(mod, "_run_mount", lambda: self.SAMPLE_MOUNT)
@@ -181,6 +203,7 @@ class TestProbeMount:
         assert info.mount_point == "/Volumes/Disk1"
 
     def test_probe_returns_most_specific_mount(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The longest matching mount point wins over a shorter prefix."""
         mount_out = """\
 /dev/disk1s1 on / (apfs, local)
 /dev/disk2s1 on /Volumes/Disk1 (ufsd_NTFS, local)
@@ -208,6 +231,7 @@ class TestProbeMount:
         assert info is None
 
     def test_probe_returns_none_on_empty_mount_output(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Empty mount output (FsProbe failure signal) probes to None."""
         import personalscraper.indexer._fs_probe as mod
 
         monkeypatch.setattr(mod, "_run_mount", lambda: "")

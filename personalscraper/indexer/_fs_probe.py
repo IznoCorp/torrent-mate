@@ -27,9 +27,7 @@ log = get_logger("indexer.fs_probe")
 # Known macFUSE/NTFS driver tokens (substring match — see canonical_fs_type).
 # ---------------------------------------------------------------------------
 
-_NTFS_TOKENS: frozenset[str] = frozenset(
-    {"ufsd_ntfs", "fuse_osxfuse", "osxfuse", "macfuse", "ntfs", "fuse-t"}
-)
+_NTFS_TOKENS: frozenset[str] = frozenset({"ufsd_ntfs", "fuse_osxfuse", "osxfuse", "macfuse", "ntfs", "fuse-t"})
 
 
 @dataclass(frozen=True)

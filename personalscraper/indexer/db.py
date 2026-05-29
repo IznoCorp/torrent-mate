@@ -173,6 +173,7 @@ class IndexerMigrationError(RuntimeError):
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _find_ntfs_mount(path: Path) -> str | None:
     """Return the macFUSE-NTFS mount point that contains *path*, or ``None``.
 
