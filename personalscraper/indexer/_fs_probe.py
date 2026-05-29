@@ -144,7 +144,11 @@ def _run_mount() -> str:
     """Run ``mount`` and return raw stdout, cached for the process lifetime.
 
     Returns:
-        Raw stdout from ``mount``, or empty string on any error.
+        Raw stdout from ``mount``, or an empty string on a subprocess timeout
+        (``subprocess.TimeoutExpired``) or an OS-level failure to spawn the
+        binary (``OSError`` — e.g. ``FileNotFoundError``/``PermissionError``).
+        Any other, unexpected exception is **not** swallowed: it propagates so a
+        genuine bug surfaces instead of masquerading as "no mounts detected".
 
     Note:
         Result is cached via :func:`functools.lru_cache`.  Mounts do not
@@ -162,8 +166,15 @@ def _run_mount() -> str:
             timeout=10,
         )
         return proc.stdout
-    except Exception as exc:
-        log.debug("indexer.fs_probe.mount_failed", error=str(exc))
+    except subprocess.TimeoutExpired as exc:
+        # The ``mount`` binary hung past the 10 s budget — surface as a warning
+        # (the prior code logged at DEBUG, masking a stuck mount table).
+        log.warning("indexer.fs_probe.mount_timeout", timeout_s=10, error=str(exc))
+        return ""
+    except OSError as exc:
+        # Binary missing / not executable / permission denied. Degrade to "no
+        # mounts" but warn so the operator sees the probe could not run.
+        log.warning("indexer.fs_probe.mount_failed", error=str(exc))
         return ""
 
 

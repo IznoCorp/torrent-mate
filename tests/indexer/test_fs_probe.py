@@ -239,3 +239,83 @@ class TestProbeMount:
         monkeypatch.setattr(mod, "_run_mount", lambda: "")
         info = probe_mount("/Volumes/Disk1/foo")
         assert info is None
+
+
+# ---------------------------------------------------------------------------
+# FIX-2: _run_mount() narrowed exception handling
+# ---------------------------------------------------------------------------
+
+
+class TestRunMountErrorHandling:
+    """``_run_mount`` swallows timeout/OS errors but propagates the unexpected.
+
+    Pins the FIX-2 contract: ``subprocess.TimeoutExpired`` (a hung ``mount``
+    binary) and ``OSError`` (binary missing / not executable / permission
+    denied) degrade to an empty string with a *warning* log, while any other,
+    unexpected exception propagates so a genuine bug surfaces instead of
+    masquerading as "no mounts detected".
+    """
+
+    @staticmethod
+    def _force_darwin(monkeypatch: pytest.MonkeyPatch) -> object:
+        """Pretend we are on Darwin and return the (cache-cleared) module.
+
+        ``_run_mount`` early-returns "" off Darwin, so the exception branches
+        are only reachable when ``platform.system()`` reports ``"Darwin"``.
+        The ``lru_cache`` is cleared so each test triggers a fresh shell-out.
+        """
+        import personalscraper.indexer._fs_probe as mod
+
+        monkeypatch.setattr(mod.platform, "system", lambda: "Darwin")
+        mod._run_mount.cache_clear()
+        return mod
+
+    def test_timeout_returns_empty_and_warns(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A ``subprocess.TimeoutExpired`` degrades to "" and logs a warning."""
+        import logging
+        import subprocess
+
+        mod = self._force_darwin(monkeypatch)
+
+        def _raise_timeout(*_a: object, **_k: object) -> None:
+            raise subprocess.TimeoutExpired(cmd=["mount"], timeout=10)
+
+        monkeypatch.setattr(mod.subprocess, "run", _raise_timeout)
+
+        with caplog.at_level(logging.WARNING):
+            assert mod._run_mount() == ""
+        assert any("indexer.fs_probe.mount_timeout" in r.getMessage() for r in caplog.records)
+        mod._run_mount.cache_clear()
+
+    def test_oserror_returns_empty_and_warns(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """An ``OSError`` (e.g. binary missing) degrades to "" and logs a warning."""
+        import logging
+
+        mod = self._force_darwin(monkeypatch)
+
+        def _raise_oserror(*_a: object, **_k: object) -> None:
+            raise FileNotFoundError("mount: command not found")
+
+        monkeypatch.setattr(mod.subprocess, "run", _raise_oserror)
+
+        with caplog.at_level(logging.WARNING):
+            assert mod._run_mount() == ""
+        assert any("indexer.fs_probe.mount_failed" in r.getMessage() for r in caplog.records)
+        mod._run_mount.cache_clear()
+
+    def test_unexpected_exception_propagates(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """An unexpected exception is NOT swallowed (it must surface, FIX-2)."""
+        mod = self._force_darwin(monkeypatch)
+
+        def _raise_unexpected(*_a: object, **_k: object) -> None:
+            raise RuntimeError("kernel panic")
+
+        monkeypatch.setattr(mod.subprocess, "run", _raise_unexpected)
+
+        with pytest.raises(RuntimeError, match="kernel panic"):
+            mod._run_mount()
+        mod._run_mount.cache_clear()

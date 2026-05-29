@@ -14,6 +14,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.indexer._fs_capability import APFS, NTFS_MACFUSE
@@ -43,6 +44,31 @@ class TestDiskConfigFsType:
         """An explicit 'hfsplus' override is preserved on the model."""
         d = DiskConfig(id="x", path=Path("/tmp"), categories=["movies"], fs_type="hfsplus")
         assert d.fs_type == "hfsplus"
+
+    @pytest.mark.parametrize(
+        "fs_type",
+        ["ntfs_macfuse", "apfs", "hfsplus", "exfat", "ext4", "unknown"],
+    )
+    def test_every_canonical_key_accepted(self, fs_type: str) -> None:
+        """All six canonical fs-type keys are valid Literal values (FIX-1)."""
+        d = DiskConfig(id="x", path=Path("/tmp"), categories=["movies"], fs_type=fs_type)
+        assert d.fs_type == fs_type
+
+    @pytest.mark.parametrize(
+        "bad_value",
+        ["ntfs", "APFS", "apfs ", "some_unknown_driver_token", "ntfs-macfuse"],
+    )
+    def test_typo_fs_type_raises_validation_error(self, bad_value: str) -> None:
+        """A non-canonical fs_type fails loud at config load (FIX-1).
+
+        Pins the fail-loud contract: the Literal rejects typos like ``"ntfs"``,
+        wrong casing (``"APFS"``), trailing whitespace (``"apfs "``), or any
+        unrecognised driver token, instead of silently degrading to the
+        NTFS-safe ``"unknown"`` capability. This enforces the docstring's
+        "Must be one of the canonical keys" contract at construction time.
+        """
+        with pytest.raises(ValidationError):
+            DiskConfig(id="x", path=Path("/tmp"), categories=["movies"], fs_type=bad_value)
 
 
 class TestDispatcherCapabilityOverride:
@@ -91,17 +117,35 @@ class TestDispatcherCapabilityOverride:
         cap = mod._resolve_disk_capability(disk)
         assert cap == NTFS_MACFUSE
 
-    def test_unrecognised_override_falls_back_to_ntfs_safe(self) -> None:
-        """An unrecognised override value falls back to the NTFS-safe capability."""
-        from personalscraper.dispatch.dispatcher import _resolve_disk_capability
+    def test_unrecognised_override_rejected_at_config_load(self) -> None:
+        """FIX-1: an unrecognised DiskConfig.fs_type fails loud at construction.
 
-        disk = DiskConfig(
-            id="paragon",
-            path=Path("/Volumes/Paragon"),
-            categories=["movies"],
-            fs_type="some_unknown_driver_token",
-        )
-        cap = _resolve_disk_capability(disk)
+        Previously this token silently constructed a ``DiskConfig`` whose
+        ``_resolve_disk_capability`` degraded to the NTFS-safe ``UNKNOWN``
+        capability. With the ``Literal`` field it now raises a
+        ``ValidationError`` at config load — a typo can no longer reach the
+        resolver. The resolver-level fallback (``capability_for(...) ==
+        UNKNOWN``) is unchanged and is covered directly below.
+        """
+        with pytest.raises(ValidationError):
+            DiskConfig(
+                id="paragon",
+                path=Path("/Volumes/Paragon"),
+                categories=["movies"],
+                fs_type="some_unknown_driver_token",
+            )
+
+    def test_resolver_fallback_for_unrecognised_token_unchanged(self) -> None:
+        """The resolver keeps its NTFS-safe fallback as defense-in-depth (FIX-1).
+
+        The ``DiskConfig`` Literal blocks bad tokens at config load, but the
+        ``resolve_capability`` resolver still falls back to the NTFS-safe
+        ``UNKNOWN`` capability for any non-config path that reaches it with an
+        unrecognised token — this behaviour is intentionally left intact.
+        """
+        from personalscraper.indexer._fs_capability import resolve_capability
+
+        cap = resolve_capability("/Volumes/Paragon", "some_unknown_driver_token")
         # capability_for falls back to UNKNOWN, which equals NTFS_MACFUSE.
         assert cap == NTFS_MACFUSE
 
