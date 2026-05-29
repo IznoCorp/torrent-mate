@@ -19,8 +19,12 @@ assertions below therefore pin ``called_cmd[0] == "rsync"`` and
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import personalscraper.dispatch._transfer as _transfer
 from personalscraper.indexer._fs_capability import APFS, NTFS_MACFUSE
+
+pytestmark = pytest.mark.multifs
 
 NTFS_FLAGS_PREFIX = [
     "-a",

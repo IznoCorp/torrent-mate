@@ -15,6 +15,8 @@ from personalscraper.indexer._fs_probe import (
     probe_mount,
 )
 
+pytestmark = pytest.mark.multifs
+
 # ---------------------------------------------------------------------------
 # canonical_fs_type
 # ---------------------------------------------------------------------------

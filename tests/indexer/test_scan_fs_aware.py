@@ -33,6 +33,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
+import pytest
+
 from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer._fs_capability import EXFAT, HFSPLUS, NTFS_MACFUSE
 from personalscraper.indexer._fs_probe import MountInfo
@@ -42,6 +44,8 @@ from personalscraper.indexer.scanner import ScanMode, scan
 from personalscraper.indexer.scanner._db_writes import _compute_oshash as _real_compute_oshash
 from personalscraper.indexer.scanner._modes.incremental import _scan_disk_incremental
 from personalscraper.indexer.schema import DiskRow
+
+pytestmark = pytest.mark.multifs
 
 if TYPE_CHECKING:
     from pyfakefs.fake_filesystem import FakeFilesystem

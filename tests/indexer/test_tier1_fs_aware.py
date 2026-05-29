@@ -16,6 +16,8 @@ branches (ctime drop, mtime bucketing) must *only* fire for exFAT / HFS+.
 
 from __future__ import annotations
 
+import pytest
+
 from personalscraper.indexer._fs_capability import (
     APFS,
     EXFAT,
@@ -24,6 +26,8 @@ from personalscraper.indexer._fs_capability import (
     NTFS_MACFUSE,
 )
 from personalscraper.indexer.fingerprint import normalize_tier1, round_mtime_ns
+
+pytestmark = pytest.mark.multifs
 
 # A representative epoch nanosecond timestamp (2023-11-14T...) used across cases.
 _BASE_NS: int = 1_700_000_000_000_000_000

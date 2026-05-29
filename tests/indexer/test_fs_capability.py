@@ -18,6 +18,8 @@ from personalscraper.indexer._fs_capability import (
     resolve_capability,
 )
 
+pytestmark = pytest.mark.multifs
+
 # ---------------------------------------------------------------------------
 # Golden pin: NTFS rsync flags must be byte-identical to _transfer.py:103-115
 # ---------------------------------------------------------------------------

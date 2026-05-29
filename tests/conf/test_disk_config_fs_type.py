@@ -18,6 +18,8 @@ import pytest
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.indexer._fs_capability import APFS, NTFS_MACFUSE
 
+pytestmark = pytest.mark.multifs
+
 
 class TestDiskConfigFsType:
     """AC-13: DiskConfig accepts an optional fs_type override."""
