@@ -121,6 +121,20 @@ class TestNormalizeTier1Exfat:
         b = normalize_tier1(10, _BASE_NS + 3_000_000_000, 0, EXFAT)
         assert a != b
 
+    def test_size_difference_trips_even_within_same_bucket(self) -> None:
+        """FIX-5: a size delta always produces inequality, even within one bucket.
+
+        Pins the property that narrows the exFAT missed-drift window to
+        *same-size* changes only: two entries whose mtimes share the same 2 s
+        bucket (``_BASE_NS`` and ``_BASE_NS + 1 s``) but whose sizes differ
+        (10 vs 20) MUST normalize unequal. Size participates in the tier-1 tuple
+        on every filesystem, so a content change that also changes the byte
+        count is caught by tier-1 regardless of the coarse mtime granularity.
+        """
+        within_bucket_a = normalize_tier1(10, _BASE_NS, 0, EXFAT)
+        within_bucket_b = normalize_tier1(20, _BASE_NS + 1_000_000_000, 0, EXFAT)
+        assert within_bucket_a != within_bucket_b
+
 
 class TestNormalizeTier1Hfsplus:
     """HFS+ keeps ctime but rounds mtime to 1 second."""

@@ -79,6 +79,20 @@ class TestUnknownFallback:
         cap = capability_for("nfs")
         assert cap == UNKNOWN
 
+    def test_unknown_and_ntfs_collapse_in_hash_and_set(self) -> None:
+        """FIX-8: UNKNOWN and NTFS_MACFUSE are interchangeable in hashes/sets.
+
+        Intentional: behavioural equality is declared via ``field(compare=False)``
+        on the ``fs_type`` key, so ``UNKNOWN == NTFS_MACFUSE`` (AC-02). Equality
+        implies hash-equality, so the two collapse to a single set element. This
+        converts a latent footgun (a caller using these as dict keys / set
+        members and silently losing one) into a documented, enforced contract.
+        Anyone who later wants UNKNOWN and NTFS_MACFUSE to be distinct in a set
+        must consciously break this pin.
+        """
+        assert hash(UNKNOWN) == hash(NTFS_MACFUSE)
+        assert len({UNKNOWN, NTFS_MACFUSE}) == 1
+
 
 # ---------------------------------------------------------------------------
 # AC-03: NTFS rsync flags (via capability_for)

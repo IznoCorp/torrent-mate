@@ -27,8 +27,10 @@ The core proof obligations:
 
 from __future__ import annotations
 
+import logging
 import os
 import sqlite3
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
@@ -43,6 +45,7 @@ from personalscraper.indexer.repos import disk_repo, file_repo
 from personalscraper.indexer.scanner import ScanMode, scan
 from personalscraper.indexer.scanner._db_writes import _compute_oshash as _real_compute_oshash
 from personalscraper.indexer.scanner._modes.incremental import _scan_disk_incremental
+from personalscraper.indexer.scanner._modes.quick import _run_paranoia_branch
 from personalscraper.indexer.schema import DiskRow
 
 pytestmark = pytest.mark.multifs
@@ -196,6 +199,15 @@ def _scan_generation(conn: sqlite3.Connection, file_id: int) -> int:
     return int(r["scan_generation"])
 
 
+def _stored_oshash(conn: sqlite3.Connection, file_id: int) -> str | None:
+    """Return the currently stored ``oshash`` for *file_id* (or ``None``)."""
+    conn.row_factory = sqlite3.Row
+    r = conn.execute("SELECT oshash FROM media_file WHERE id = ?", (file_id,)).fetchone()
+    conn.row_factory = None
+    assert r is not None
+    return r["oshash"]
+
+
 def _has_repair(conn: sqlite3.Connection, file_id: int) -> bool:
     """Return whether a ``repair_queue`` row exists for *file_id*."""
     conn.row_factory = sqlite3.Row
@@ -304,6 +316,116 @@ class TestExfatBeyondBucket:
 
         assert mock_oshash.call_count >= 1, "exFAT beyond-bucket must recompute OSHash"
         assert not _has_repair(conn, file_id), "content unchanged → tier1_drift_only, no repair"
+
+
+# ---------------------------------------------------------------------------
+# exFAT — DOCUMENTED LIMITATION: same-size, within-bucket, content-changed is
+# invisible to incremental tier-1 (FIX-3). This is the asymmetric coarse-FS
+# blind spot the reviewer flagged sev-9 — it must stay PINNED, not "fixed".
+# ---------------------------------------------------------------------------
+
+
+class TestExfatMissedDriftLimitation:
+    """PINNED documented limitation — DO NOT "fix" this accidentally.
+
+    On a coarse-granularity filesystem (exFAT, 2 s mtime bucket), an in-place
+    content edit that (a) keeps the byte count identical AND (b) lands within
+    the same 2 s mtime bucket as the stored value is **invisible** to the
+    incremental tier-1 compare: ``normalize_tier1`` floors the mtime, drops
+    ctime, and sees an unchanged ``(size, mtime_bucket)`` tuple → cheap-skip
+    taken → ``_compute_oshash`` is never invoked → the changed bytes are never
+    re-hashed. The full / Merkle scan is the backstop for this window.
+
+    This is a deliberate, accepted trade-off of the coarse-FS tier-1 path, NOT
+    a bug. The companion unit test ``test_size_difference_trips_even_within_same_bucket``
+    pins the other half: any size delta DOES trip tier-1, so the blind spot is
+    narrowed to same-size + within-bucket + content-changed only.
+    """
+
+    def test_same_size_within_bucket_content_change_is_missed(self, fs: "FakeFilesystem") -> None:
+        """ExFAT incremental tier-1 misses a same-size, within-bucket content edit.
+
+        Uses the REAL ``_compute_oshash`` (not mocked) so the assertion is about
+        the genuine code path: because tier-1 matches, the OSHash is never
+        recomputed, the stored hash still points at the ORIGINAL content, and no
+        repair is enqueued — only the generation is bumped. This is the
+        documented coarse-FS limitation; the full/merkle scan is the backstop.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/ExfatMissedDrift"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        disk, file_id, on_disk_mtime = _seed_one_video(conn, mount)
+        original_oshash = _stored_oshash(conn, file_id)
+        assert original_oshash is not None
+
+        # Rewrite the file to DIFFERENT content of the SAME length (4096 bytes):
+        # the OSHash (size + head/tail hash) genuinely changes, but the size is
+        # identical so tier-1 size is unchanged.
+        film = f"{mount}/film.mkv"
+        Path(film).write_bytes(b"W" * 4096)
+        # Pin the on-disk mtime +1 s — same 2 s exFAT bucket as the stored value,
+        # so the bucketed mtime is also unchanged.
+        os.utime(film, ns=(on_disk_mtime + _ONE_SECOND_NS, on_disk_mtime + _ONE_SECOND_NS))
+
+        # Wrap the REAL hash function so we can assert it was NEVER called.
+        with patch(_OSHASH_PATCH, wraps=_real_compute_oshash) as mock_oshash:
+            _run_incremental(conn, disk, mount, EXFAT)
+
+        assert mock_oshash.call_count == 0, (
+            "DOCUMENTED LIMITATION: exFAT same-size + within-bucket content change "
+            "is invisible to incremental tier-1 (cheap-skip taken, no recompute). "
+            "If this now recomputes, the limitation changed — update the docstring, "
+            "do not silently flip the assertion."
+        )
+        assert _stored_oshash(conn, file_id) == original_oshash, (
+            "the stored OSHash must still point at the ORIGINAL content (never re-hashed)"
+        )
+        assert not _has_repair(conn, file_id), "no repair for an undetected within-bucket same-size edit"
+        assert _scan_generation(conn, file_id) == 2, "generation must still be bumped on the cheap-skip path"
+
+
+# ---------------------------------------------------------------------------
+# exFAT — real drift (beyond bucket + content change) → repair enqueue (FIX-6)
+# ---------------------------------------------------------------------------
+
+
+class TestExfatRealDriftEnqueuesRepair:
+    """Coarse FS still enqueues a repair when a real, detectable drift occurs."""
+
+    def test_beyond_bucket_content_change_enqueues_content_drift_repair(self, fs: "FakeFilesystem") -> None:
+        """exFAT: beyond-2 s mtime mismatch + real content change → repair enqueue.
+
+        Complements the missed-drift limitation: when the mtime moves into a
+        DIFFERENT 2 s bucket (so tier-1 mismatches) AND the bytes actually
+        changed, the recomputed OSHash differs from the stored value, no rename
+        candidate matches, and ``enqueue_repair(reason='content_drift')`` fires.
+        Proves the repair path still works on a coarse filesystem.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/ExfatRealDrift"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        disk, file_id, on_disk_mtime = _seed_one_video(conn, mount)
+        original_oshash = _stored_oshash(conn, file_id)
+        assert original_oshash is not None
+
+        # Real content change AND a mtime shift into a different 2 s bucket
+        # (+3 s) so tier-1 genuinely mismatches on exFAT.
+        film = f"{mount}/film.mkv"
+        Path(film).write_bytes(b"W" * 8192)
+        os.utime(film, ns=(on_disk_mtime + _THREE_SECONDS_NS, on_disk_mtime + _THREE_SECONDS_NS))
+
+        with patch(_OSHASH_PATCH, wraps=_real_compute_oshash) as mock_oshash:
+            _run_incremental(conn, disk, mount, EXFAT)
+
+        assert mock_oshash.call_count >= 1, "beyond-bucket mismatch must recompute the OSHash"
+        assert _stored_oshash(conn, file_id) != original_oshash, "the new content's OSHash must be persisted"
+        assert _has_repair(conn, file_id), "a real content drift on exFAT must enqueue a content_drift repair"
 
 
 # ---------------------------------------------------------------------------
@@ -560,4 +682,170 @@ class TestScannerHonorsFsTypeOverride:
         assert result.status == "ok"
         assert mock_oshash.call_count >= 1, (
             "without the override the NTFS probe governs: the zeroed ctime forces a recompute"
+        )
+
+
+# ---------------------------------------------------------------------------
+# FIX-7: per-disk override map across TWO disks — each disk resolves its OWN
+# capability (override applied per-disk via the orchestrator, not globally).
+# ---------------------------------------------------------------------------
+
+
+class TestPerDiskOverrideMapTwoDisks:
+    """``fs_type_overrides`` is resolved per-disk: one overridden, one auto-detected."""
+
+    def test_override_one_disk_other_autodetected(self, fs: "FakeFilesystem") -> None:
+        """Two disks, one ``exfat`` override + one auto-detect → distinct capabilities.
+
+        Both mounts PROBE as NTFS. The override map contains ONLY the first
+        disk (→ exfat). After a single ``scan()`` over both disks:
+
+        - Disk A (overridden exfat): a +1 s mtime gap + zeroed ctime is a no-op
+          (exFAT drops ctime, buckets the mtime) → NO OSHash recompute for A.
+        - Disk B (auto-detected NTFS): the same zeroed-ctime mutation IS a
+          tier-1 mismatch (NTFS keeps ctime) → OSHash recompute for B.
+
+        Asserting per-mount via the wrapped ``_compute_oshash`` call args proves
+        the orchestrator resolved each disk's capability INDEPENDENTLY — the
+        override is applied per-disk, not globally.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount_a = "/mnt/TwoDiskExfat"  # overridden → exfat
+        mount_b = "/mnt/TwoDiskNtfs"  # auto-detected → ntfs
+        Path(mount_a).mkdir(parents=True, exist_ok=True)
+        Path(mount_b).mkdir(parents=True, exist_ok=True)
+
+        disk_a, file_a, mtime_a = _seed_one_video(conn, mount_a)
+        disk_b, file_b, _mtime_b = _seed_one_video(conn, mount_b)
+
+        # Same mutation on both: +1 s mtime (within the exFAT 2 s bucket) and a
+        # zeroed ctime. On exFAT this is a no-op; on NTFS the ctime change drifts.
+        _set_stored_tier1(conn, file_a, mtime_ns=mtime_a + _ONE_SECOND_NS, ctime_ns=0)
+        _set_stored_tier1(conn, file_b, ctime_ns=0)
+
+        for d in (disk_a, disk_b):
+            disk_repo.update_merkle_root(conn, d.id, None)
+        fresh_a = disk_repo.get_by_id(conn, disk_a.id)
+        fresh_b = disk_repo.get_by_id(conn, disk_b.id)
+        assert fresh_a is not None and fresh_b is not None
+
+        # Both mounts probe as NTFS; only disk A is overridden to exfat.
+        def _probe(path: str) -> MountInfo:
+            return MountInfo(mount_point=path, fs_type="ntfs_macfuse", raw_fs_type="ufsd_ntfs", flags=frozenset())
+
+        with patch(_OSHASH_PATCH, wraps=_real_compute_oshash) as mock_oshash:
+            with patch(_PROBE_PATCH, side_effect=_probe):
+                with patch(_GUARD_PATCH, return_value=None):
+                    with patch(
+                        "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
+                        return_value=False,
+                    ):
+                        result = scan(
+                            [fresh_a, fresh_b],
+                            ScanMode.incremental,
+                            generation=2,
+                            conn=conn,
+                            fs_type_overrides={mount_a: "exfat"},
+                            event_bus=EventBus(),
+                        )
+
+        assert result.status == "ok"
+
+        # Partition the recompute calls by which mount's file was hashed.
+        hashed_paths = [c.args[0] for c in mock_oshash.call_args_list]
+        a_recomputes = [p for p in hashed_paths if p.startswith(mount_a + "/")]
+        b_recomputes = [p for p in hashed_paths if p.startswith(mount_b + "/")]
+
+        assert a_recomputes == [], "disk A (override → exfat) must absorb the within-bucket gap: no OSHash recompute"
+        assert len(b_recomputes) >= 1, (
+            "disk B (auto-detected → ntfs) keeps ctime: the zeroed ctime forces an OSHash recompute"
+        )
+
+
+# ---------------------------------------------------------------------------
+# FIX-4: quick-mode paranoia branch is FS-aware (coarse capability). This is the
+# ONLY FS-aware compare site in quick mode and was untested with a coarse cap.
+# ---------------------------------------------------------------------------
+
+
+def _seed_paranoia_outbox_event(conn: sqlite3.Connection, rel_path: str) -> None:
+    """Insert a scan_run + recent ``outbox.*`` scan_event referencing *rel_path*.
+
+    The paranoia branch only inspects paths surfaced by recent outbox events, so
+    a row is needed for :func:`_run_paranoia_branch` to re-stat the file.
+
+    Args:
+        conn: Open SQLite connection.
+        rel_path: Disk-relative path stored in the event ``payload_json``.
+    """
+    scan_run_id = conn.execute(
+        "INSERT INTO scan_run (generation, mode, started_at, status) VALUES (2, 'quick', ?, 'running')",
+        (int(time.time()),),
+    ).lastrowid
+    conn.execute(
+        "INSERT INTO scan_event (scan_id, ts, event, payload_json) VALUES (?, ?, 'outbox.move', ?)",
+        (scan_run_id, int(time.time()), f'{{"rel_path": "{rel_path}"}}'),
+    )
+
+
+class TestQuickParanoiaCoarseFs:
+    """The quick-mode paranoia compare buckets mtime via the per-disk capability.
+
+    ``_run_paranoia_branch`` re-stats outbox-referenced paths and flags a tier-1
+    mismatch (``indexer.scan.paranoia_recheck``). On a coarse filesystem (exFAT,
+    2 s bucket) it must NOT flag within-bucket mtime jitter at the SAME size, but
+    MUST flag a stored mtime that is more than one bucket away. This is the only
+    FS-aware compare site in quick mode and was previously untested with a
+    coarse capability.
+    """
+
+    def test_within_bucket_same_size_no_recheck(self, fs: "FakeFilesystem", caplog: pytest.LogCaptureFixture) -> None:
+        """exFAT: within-2 s stored/on-disk mtime jitter (same size) → NO recheck."""
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/ParanoiaExfatWithin"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        disk, file_id, on_disk_mtime = _seed_one_video(conn, mount)
+
+        # On-disk mtime stays at the aligned base; stored mtime is +1 s (same 2 s
+        # exFAT bucket). Same size → no real change for a coarse FS.
+        _set_stored_tier1(conn, file_id, mtime_ns=on_disk_mtime + _ONE_SECOND_NS)
+        _seed_paranoia_outbox_event(conn, "film.mkv")
+
+        with caplog.at_level(logging.INFO):
+            _run_paranoia_branch(conn, disk, mount, 86400, EXFAT)
+
+        msgs = [r.getMessage() for r in caplog.records if r.levelno >= logging.INFO]
+        assert not any("indexer.scan.paranoia_recheck" in m for m in msgs), (
+            f"exFAT within-bucket same-size jitter must NOT trigger a paranoia recheck; got: {msgs}"
+        )
+
+    def test_beyond_bucket_same_size_recheck_logged(
+        self, fs: "FakeFilesystem", caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """exFAT: stored mtime > 2 s away (same size) → paranoia_recheck logged."""
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/ParanoiaExfatBeyond"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        disk, file_id, on_disk_mtime = _seed_one_video(conn, mount)
+
+        # Stored mtime +3 s → a different 2 s bucket than the on-disk base, even
+        # at the same size: the coarse-FS compare still flags this.
+        _set_stored_tier1(conn, file_id, mtime_ns=on_disk_mtime + _THREE_SECONDS_NS)
+        _seed_paranoia_outbox_event(conn, "film.mkv")
+
+        with caplog.at_level(logging.INFO):
+            _run_paranoia_branch(conn, disk, mount, 86400, EXFAT)
+
+        msgs = [r.getMessage() for r in caplog.records if r.levelno >= logging.INFO]
+        assert any("indexer.scan.paranoia_recheck" in m for m in msgs), (
+            f"a beyond-bucket stored mtime must trigger a paranoia recheck on exFAT; got: {msgs}"
         )
