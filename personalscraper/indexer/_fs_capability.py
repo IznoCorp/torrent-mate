@@ -59,12 +59,9 @@ class FilesystemCapability:
             policy, name regex, drift tunables), not the cosmetic key.
         rsync_flags: Complete rsync flag prefix tuple (excluding source/dest
             paths).  Single source of truth replacing the two hardcoded literal
-            lists in ``_transfer.py``.
-        forbids_unix_perms: When ``True``, ``--no-perms --no-owner --no-group``
-            are present in ``rsync_flags`` to suppress EPERM on FUSE volumes.
-        forbids_apple_metadata: When ``True``, ``--exclude=.DS_Store`` and
-            ``--exclude=._*`` are present to avoid rsync errors on FS types
-            that reject AppleDouble files.
+            lists in ``_transfer.py``.  The :attr:`forbids_unix_perms` and
+            :attr:`forbids_apple_metadata` flags are *derived* from this tuple
+            (see the read-only properties below) so they can never desync.
         illegal_name_regex: Compiled pattern for filesystem-illegal filename
             characters, or ``None`` when the FS imposes no name restrictions.
         tier1_uses_ctime: When ``False``, ctime is dropped from the tier-1
@@ -79,12 +76,39 @@ class FilesystemCapability:
 
     fs_type: str = field(compare=False)
     rsync_flags: tuple[str, ...]
-    forbids_unix_perms: bool
-    forbids_apple_metadata: bool
     illegal_name_regex: Optional[re.Pattern[str]]
     tier1_uses_ctime: bool
     mtime_granularity_ns: int
     dir_mtime_reliable_default: Optional[bool]
+
+    @property
+    def forbids_unix_perms(self) -> bool:
+        """Whether Unix permissions are suppressed on transfers to this FS.
+
+        Derived from :attr:`rsync_flags` (single source of truth) so it can
+        never desync from the flags actually passed to rsync.  ``True`` when
+        ``--no-perms`` is present (NTFS-via-macFUSE / ``unknown`` superset),
+        which also implies ``--no-owner --no-group`` to suppress EPERM on FUSE
+        volumes.
+
+        Returns:
+            ``True`` when ``--no-perms`` is in :attr:`rsync_flags`.
+        """
+        return "--no-perms" in self.rsync_flags
+
+    @property
+    def forbids_apple_metadata(self) -> bool:
+        """Whether AppleDouble / .DS_Store files are excluded on this FS.
+
+        Derived from :attr:`rsync_flags` (single source of truth) so it can
+        never desync from the flags actually passed to rsync.  ``True`` when
+        ``--exclude=.DS_Store`` is present (NTFS and exFAT, which reject or junk
+        AppleDouble files), implying the companion ``--exclude=._*``.
+
+        Returns:
+            ``True`` when ``--exclude=.DS_Store`` is in :attr:`rsync_flags`.
+        """
+        return "--exclude=.DS_Store" in self.rsync_flags
 
 
 # ---------------------------------------------------------------------------
@@ -138,8 +162,6 @@ NTFS_MACFUSE = _register(
     FilesystemCapability(
         fs_type="ntfs_macfuse",
         rsync_flags=_NTFS_RSYNC_FLAGS,
-        forbids_unix_perms=True,
-        forbids_apple_metadata=True,
         illegal_name_regex=_NTFS_ILLEGAL,
         tier1_uses_ctime=True,
         mtime_granularity_ns=1,
@@ -152,8 +174,6 @@ UNKNOWN = _register(
     FilesystemCapability(
         fs_type="unknown",
         rsync_flags=_NTFS_RSYNC_FLAGS,
-        forbids_unix_perms=True,
-        forbids_apple_metadata=True,
         illegal_name_regex=_NTFS_ILLEGAL,
         tier1_uses_ctime=True,
         mtime_granularity_ns=1,
@@ -165,8 +185,6 @@ APFS = _register(
     FilesystemCapability(
         fs_type="apfs",
         rsync_flags=_POSIX_RSYNC_FLAGS,
-        forbids_unix_perms=False,
-        forbids_apple_metadata=False,
         illegal_name_regex=None,
         tier1_uses_ctime=True,
         mtime_granularity_ns=1,
@@ -180,8 +198,6 @@ HFSPLUS = _register(
     FilesystemCapability(
         fs_type="hfsplus",
         rsync_flags=_POSIX_RSYNC_FLAGS,
-        forbids_unix_perms=False,
-        forbids_apple_metadata=False,
         illegal_name_regex=None,
         tier1_uses_ctime=True,
         mtime_granularity_ns=1_000_000_000,
@@ -195,8 +211,6 @@ EXFAT = _register(
     FilesystemCapability(
         fs_type="exfat",
         rsync_flags=_EXFAT_RSYNC_FLAGS,
-        forbids_unix_perms=False,
-        forbids_apple_metadata=True,
         illegal_name_regex=None,
         tier1_uses_ctime=False,
         mtime_granularity_ns=2_000_000_000,
@@ -211,8 +225,6 @@ EXT4 = _register(
     FilesystemCapability(
         fs_type="ext4",
         rsync_flags=_POSIX_RSYNC_FLAGS,
-        forbids_unix_perms=False,
-        forbids_apple_metadata=False,
         illegal_name_regex=None,
         tier1_uses_ctime=True,
         mtime_granularity_ns=1,
