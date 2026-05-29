@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from personalscraper.indexer._fs_capability import resolve_capability
+from personalscraper.indexer._fs_capability import FilesystemCapability, resolve_capability
 from personalscraper.indexer.breaker import (
     DiskCircuitBreaker,
     bind_global_disk_breaker_to_bus,
@@ -245,7 +245,7 @@ def _scan_one_disk(
     disk: DiskRow,
     state: _ScanState,
     ctx: _DiskWalkContext,
-    finalize_after_walk: Callable[[sqlite3.Connection, DiskRow, int, int, int], None],
+    finalize_after_walk: Callable[[sqlite3.Connection, DiskRow, int, int, int, FilesystemCapability], None],
     local_files: list[int],
     local_dirs: list[int],
     local_skipped: list[int],
@@ -542,12 +542,16 @@ def _scan_one_disk(
     )
 
     # Persist post-walk per-disk state (merkle_root, last_seen_at, scan_event).
+    # Thread the resolved capability so the full-scan merkle root store is
+    # FS-aware (bucketed) and byte-equal to what the first incremental/quick
+    # short-circuit recomputes for this disk.
     finalize_after_walk(
         worker_conn,
         disk,
         ctx.scan_run_id,
         local_files[0],
         local_dirs[0],
+        disk_capability,
     )
 
 
@@ -561,7 +565,7 @@ def _run_parallel_walk(
     db_path: Path,
     state: _ScanState,
     ctx: _DiskWalkContext,
-    finalize_after_walk: Callable[[sqlite3.Connection, DiskRow, int, int, int], None],
+    finalize_after_walk: Callable[[sqlite3.Connection, DiskRow, int, int, int, FilesystemCapability], None],
     max_workers: int,
 ) -> None:
     """Spawn one worker per disk and run :func:`_scan_one_disk` concurrently.
@@ -629,7 +633,7 @@ def _run_sequential_walk(
     conn: sqlite3.Connection,
     state: _ScanState,
     ctx: _DiskWalkContext,
-    finalize_after_walk: Callable[[sqlite3.Connection, DiskRow, int, int, int], None],
+    finalize_after_walk: Callable[[sqlite3.Connection, DiskRow, int, int, int, FilesystemCapability], None],
 ) -> None:
     """Walk every disk on the calling thread using the shared *conn*.
 

@@ -263,7 +263,10 @@ def _scan_disk_quick(
             actionable message to the user.
     """
     # --- Merkle short-circuit ---
-    fingerprints = _build_disk_fingerprints(conn, disk.id)
+    # Build FS-aware fingerprints (mtime bucketed by the disk capability) so the
+    # root gate, the dir-mtime walk, and the bulk-change delta are all bucketed
+    # consistently; for NTFS this is the identity transform → byte-identical.
+    fingerprints = _build_disk_fingerprints(conn, disk.id, capability)
     current_root = compute_merkle_root(fingerprints)
 
     if disk.merkle_root is not None and current_root == disk.merkle_root:
@@ -301,7 +304,10 @@ def _scan_disk_quick(
     # A high delta (many files changed at once) suggests a bulk restore or
     # disk swap rather than organic drift — freeze unless confirmed by caller.
     if not confirm_bulk_change and disk.merkle_root is not None:
-        fresh_fps = _sample_fresh_fingerprints(conn, disk.id, mount)
+        # Sample fresh FS-side fingerprints with the SAME capability so the
+        # delta is bucketed-vs-bucketed — sub-bucket jitter on a coarse FS
+        # cannot inflate the delta and trip a spurious freeze of a healthy disk.
+        fresh_fps = _sample_fresh_fingerprints(conn, disk.id, mount, capability)
         delta = compute_merkle_delta(fingerprints, fresh_fps)
         if delta > merkle_delta_freeze_threshold:
             log.warning(
@@ -329,6 +335,7 @@ def _scan_disk_quick(
         budget_seconds,
         scan_run_id,
         checkpoint_every,
+        capability,
     )
 
     # Skip post-walk bookkeeping if the budget was exhausted during the walk —
@@ -345,8 +352,9 @@ def _scan_disk_quick(
         log.warning("indexer.scan.root_stat_failed", mount_path=mount)
 
     # Recompute and persist the updated Merkle root so the next quick scan
-    # can short-circuit if the FS state is unchanged.
-    updated_fingerprints = _build_disk_fingerprints(conn, disk.id)
+    # can short-circuit if the FS state is unchanged (FS-aware bucketing so the
+    # stored root matches what the next scan's short-circuit recomputes).
+    updated_fingerprints = _build_disk_fingerprints(conn, disk.id, capability)
     new_root = compute_merkle_root(updated_fingerprints)
     disk_repo.update_merkle_root(conn, disk.id, new_root)
     log.debug("indexer.scan.merkle_root_updated", disk_id=disk.id, merkle_root=new_root)

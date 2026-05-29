@@ -8,7 +8,7 @@ import sqlite3
 
 from personalscraper.indexer import drift as _drift
 from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
-from personalscraper.indexer.fingerprint import normalize_tier1
+from personalscraper.indexer.fingerprint import normalize_tier1, round_mtime_ns
 from personalscraper.indexer.merkle import (
     DiskBulkChangeDetected,
     compute_merkle_delta,
@@ -118,7 +118,10 @@ def _scan_disk_incremental(
             *merkle_delta_freeze_threshold* and *confirm_bulk_change* is ``False``.
     """
     # --- Merkle short-circuit (same as quick mode) ---
-    fingerprints = _build_disk_fingerprints(conn, disk.id)
+    # Build FS-aware fingerprints (mtime bucketed by the disk capability) so the
+    # Merkle root gate is consistent with the per-file compare below; for NTFS
+    # this is the identity transform → byte-identical to the legacy root.
+    fingerprints = _build_disk_fingerprints(conn, disk.id, capability)
     current_root = compute_merkle_root(fingerprints)
 
     if disk.merkle_root is not None and current_root == disk.merkle_root:
@@ -141,7 +144,10 @@ def _scan_disk_incremental(
 
     # --- Bulk-change guard (same as quick mode, on Merkle miss) ---
     if not confirm_bulk_change and disk.merkle_root is not None:
-        fresh_fps = _sample_fresh_fingerprints(conn, disk.id, mount)
+        # Sample fresh FS-side fingerprints with the SAME capability so the
+        # delta is bucketed-vs-bucketed — sub-bucket jitter on a coarse FS
+        # cannot inflate the delta and trip a spurious freeze.
+        fresh_fps = _sample_fresh_fingerprints(conn, disk.id, mount, capability)
         delta = compute_merkle_delta(fingerprints, fresh_fps)
         if delta > merkle_delta_freeze_threshold:
             log.warning(
@@ -185,8 +191,9 @@ def _scan_disk_incremental(
     except OSError:
         log.warning("indexer.scan.root_stat_failed", mount_path=mount)
 
-    # Recompute and persist the updated Merkle root.
-    updated_fingerprints = _build_disk_fingerprints(conn, disk.id)
+    # Recompute and persist the updated Merkle root (FS-aware bucketing so the
+    # stored root matches what the next incremental's short-circuit recomputes).
+    updated_fingerprints = _build_disk_fingerprints(conn, disk.id, capability)
     new_root = compute_merkle_root(updated_fingerprints)
     disk_repo.update_merkle_root(conn, disk.id, new_root)
     log.debug("indexer.scan.merkle_root_updated", disk_id=disk.id, merkle_root=new_root)
@@ -285,9 +292,17 @@ def _walk_dir_incremental(
             current_mtime_ns: int = st.st_mtime_ns
 
             if dir_mtime_reliable:
-                # Check stored dir_mtime_ns — skip unchanged subtrees.
+                # Check stored dir_mtime_ns — skip unchanged subtrees.  Both the
+                # stored and live values are bucketed via the disk capability so
+                # sub-bucket jitter on a coarse FS does not force a spurious
+                # re-walk (NTFS granularity 1 → identity → legacy exact compare).
                 existing_path = disk_repo.get_path_by_disk_and_relpath(conn, disk.id, rel)
-                if existing_path is not None and existing_path.dir_mtime_ns == current_mtime_ns:
+                if (
+                    existing_path is not None
+                    and existing_path.dir_mtime_ns is not None
+                    and round_mtime_ns(existing_path.dir_mtime_ns, capability)
+                    == round_mtime_ns(current_mtime_ns, capability)
+                ):
                     log.debug(
                         "indexer.scan.dir_unchanged",
                         path=entry.path,
