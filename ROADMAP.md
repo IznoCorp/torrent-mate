@@ -10,7 +10,9 @@
 
 ### P1 — Architecture Cleanup Round 2 (`arch-cleanup-2`)
 
-> Design: `docs/features/arch-cleanup-2/DESIGN.md` _(to be written)_. Source analysis: `docs/analysis/05-architecture-improvement-roadmap.md`.
+> **Status: implemented (v0.17.0) — shipped pending merge.** All four goals below
+> are delivered on `feat/arch-cleanup-2`; the entry is kept here until the PR merges.
+> Design: `docs/features/arch-cleanup-2/DESIGN.md`. Source analysis: `docs/analysis/05-architecture-improvement-roadmap.md`.
 
 The original `arch-cleanup` (v0.9.0) decomposed the god-modules. This second round fixes the
 architectural defects that block the web-facing roadmap (Web UI / Watcher / Auto-Download) and
@@ -80,7 +82,7 @@ Web-based graphical interface to pilot and supervise the whole project from a br
 - **Architecture pointers** (to decide during brainstorm): FastAPI / Flask + HTMX vs. SPA (Vue/React) + REST/WebSocket; auth (local-only vs. basic auth); reverse-proxy friendly (sub-path deploy behind `iznogoudatall.xyz`).
 - **Out of scope (v1)**: multi-user, remote-agent control, mobile-specific UX.
 
-**Depends on:** Pipeline Observer Protocol (shipped v0.13.0), Event Bus (shipped v0.14.0), Third-Party API Consumer Unification (shipped v0.11.0). Prerequisite: `arch-cleanup-2` (Event contract + envelope `schema_version`).
+**Depends on:** Pipeline Observer Protocol (shipped v0.13.0), Event Bus (shipped v0.14.0), Third-Party API Consumer Unification (shipped v0.11.0). Prerequisite: `arch-cleanup-2` (Event contract + envelope `schema_version`) — implemented v0.17.0, shipped pending merge.
 
 ### P2 — Auto-Download System
 
@@ -102,7 +104,7 @@ Replace cron-based pipeline trigger with a real-time watcher service.
 - Triggers `personalscraper run` automatically on new downloads.
 - More responsive than the current 3am daily cron.
 
-**Depends on:** Event Bus (shipped v0.14.0), Pipeline Observer Protocol (shipped v0.13.0). Prerequisite: `arch-cleanup-2` (cross-process event envelope).
+**Depends on:** Event Bus (shipped v0.14.0), Pipeline Observer Protocol (shipped v0.13.0). Prerequisite: `arch-cleanup-2` (cross-process event envelope) — implemented v0.17.0, shipped pending merge.
 
 ### P2 — Verify Checker Plugin System
 
@@ -164,7 +166,7 @@ every mainstream filesystem (APFS, HFS+, ext4, exFAT, NTFS) without losing curre
 
 - Web Management UI scaffolding (P2 above).
 - `registry.status()` + `registry.operations()` (shipped v0.16.0 — Provider Registry feature).
-- Prerequisite: `arch-cleanup-2` (registry events on the base `Event` contract for WebSocket streaming).
+- Prerequisite: `arch-cleanup-2` (registry events on the base `Event` contract for WebSocket streaming) — implemented v0.17.0, shipped pending merge.
 
 **Scope**:
 

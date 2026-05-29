@@ -58,6 +58,8 @@ staging/
 │   │   ├── tracker/             # TrackerClient + ranking engine — lacale, c411
 │   │   └── notify/              # Notifier + HealthChecker — telegram, healthchecks
 │   ├── core/            # Reusable cross-cutting infrastructure (post-api-unify)
+│   │   ├── _contracts.py        # Core-layer primitive contracts: MediaType, ApiError, CircuitOpenError (re-exported from api/_contracts.py for backward compat)
+│   │   ├── media_types.py       # Shared media-type constants: VIDEO_EXTENSIONS, FileType, is_trailer_filename (canonical home — promoted from sorter/file_type.py in arch-cleanup-2)
 │   │   ├── circuit.py           # CircuitBreaker (reused by API transport + indexer disk breaker)
 │   │   └── http_helpers.py      # tenacity helpers (retry logger, retryable predicate)
 │   ├── scraper/         # NFO/artwork orchestration consuming api/metadata providers
@@ -190,6 +192,7 @@ Notes:
 - `sanitize_filename()` — lives in `personalscraper/text_utils.py`; strips `<>:"/\|?*` and normalizes U+00A0→space. Applied in `NamingPatterns.format()` (all artwork/NFO filenames) and in scraper `clean_name` (folder renames). TMDB titles often contain `:` (e.g. "Spirale : L'Héritage de Saw") and non-breaking spaces (French typography before `:`).
 - `SortResult`, `StepReport`, `PipelineReport` — defined in `personalscraper/models.py`. Each `run_*()` converts internal results to `StepReport` before returning; `personalscraper/reports/` defines typed `details_payload` contracts for each pipeline step.
 - TV show folders: sorter creates `Show Name/` (no year), scraper renames to `Show Name (Year)/` after API matching (idempotent rename).
+- Media-type constants (`VIDEO_EXTENSIONS`, `FileType`, `is_trailer_filename`) — canonical home is `personalscraper/core/media_types.py` (promoted from `sorter/file_type.py` in arch-cleanup-2). `sorter/file_type.py` now contains only the detection functions (`detect_file_type`, `detect_dir_type`) and imports the shared constants from `core.media_types`.
 
 ## trailers/ Subsystem Notes
 
@@ -300,14 +303,21 @@ Cross-cutting:
 **Dependency direction.** Dependencies flow top-down: `commands/` calls into
 `pipeline/`, `library/`, `scraper/`, and `trailers/`. The pipeline composes
 `library/` and `scraper/` — the reverse never happens (library and scraper
-modules never import from pipeline). `core/` and `conf/` are meant to be
-foundational, but the rule currently leaks (verified 2026-05-28):
-`core/circuit.py` imports `api._contracts` (`CircuitOpenError`, `ApiError`),
-`conf/classifier.py` and `conf/models/api_config.py` import `api/`, and
-`conf/loader.py` imports `indexer.db._apply_pragmas` — upward dependencies that
-invert the documented direction. Closing these leaks is tracked as
-`arch-cleanup-2` (see `ROADMAP.md` P1). `api/` is consumed by `scraper/` and
-`trailers/` but never by `commands/` directly.
+modules never import from pipeline). `core/` and `conf/` are the lowest layers
+and must not import from `api/`, `scraper/`, `pipeline/`, `dispatch/`, `verify/`,
+`library/`, `indexer/`, or `trailers/` at runtime. `personalscraper.logger` is
+allow-listed as a leaf utility. The `core/app_context.py` TYPE_CHECKING import of
+`ProviderRegistry` is the documented AppContext boundary (tested separately).
+This invariant is enforced by `tests/architecture/test_layering.py`
+(arch-cleanup-2, Phase 2): the prior upward leaks — `core/circuit.py` importing
+`api._contracts`, `conf/classifier.py` and `conf/models/api_config.py` importing
+`api/` — were closed by promoting those contracts to `core/_contracts.py` and
+`conf/models/_ranking.py`. Two upward imports survive as documented exceptions,
+each carried by an inline `# layering: allow` marker honoured by the AST guard:
+`conf/models/_ranking.py → api._units.ByteSize` (config-model byte-size parse)
+and `conf/loader.py → indexer.db._apply_pragmas` (function-local orphan-check
+import). `api/` is consumed by `scraper/` and `trailers/` but never by
+`commands/` directly.
 
 ## Provider Registry
 
@@ -328,12 +338,15 @@ pattern with a configurable ordered registry per capability Protocol.
 
 ### Boot sequence (DESIGN §6.1)
 
-`AppContext._build_app_context()` constructs the registry at the CLI/pipeline boundary:
+`AppContext._build_app_context()` constructs the registry at the CLI/pipeline
+boundary; the steps below all run inside `ProviderRegistry.__init__`
+(`api/metadata/registry/__init__.py`), which `_build_app_context` triggers by
+instantiating the registry:
 
 1. Instantiate each provider listed in any `providers.json5` section.
 2. Validate (aggregated): all 6 issue families collected; on any failure, `RegistryConfigError` raised AFTER cleanup of partially-built providers.
 3. Build the per-capability index from the priority-ordered config.
-4. Emit `RegistryBootValidated` on success.
+4. Emit `RegistryBootValidated` on success (emitted from `ProviderRegistry.__init__`, not `_build_app_context`).
 
 ### Three operations
 
@@ -362,6 +375,15 @@ sections rejected at boot.
 
 `registry.status()` returns per-provider circuit state. Exposed via
 `personalscraper info providers`.
+
+### Registry events on the `Event` contract
+
+The five provider-registry events (`ProviderFallbackTriggered`,
+`ProviderExhaustedEvent`, `LockedCapabilityUnresolved`,
+`RegistryFanOutCompleted`, `RegistryBootValidated`) are full `Event`
+subclasses as of arch-cleanup-2 (v0.17.0). They are auto-registered in
+`_EVENT_CLASS_REGISTRY`, envelope-round-trippable, and delivered to
+base-`Event` subscribers. The event catalog count is 23.
 
 ### See also
 

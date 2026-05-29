@@ -3,60 +3,31 @@
 Implements DESIGN §3.1: AuthMode, ApiError, CircuitOpenError, MediaType,
 ProviderName. ApiError is a unified exception replacing all
 provider-specific error types.
+
+``ApiError``, ``CircuitOpenError`` and ``MediaType`` are now defined in the
+lowest layer (``personalscraper.core._contracts``) and re-exported here for
+backward compatibility (arch-cleanup-2 Phase 2). ``AuthMode``, ``ProviderName``,
+``Named``/``HasName`` and ``TVDB_BOOTSTRAP`` remain defined in this module.
 """
 
-from dataclasses import dataclass
 from enum import Enum
 from typing import Final, Protocol, runtime_checkable
 
-
-class MediaType(str, Enum):
-    """Canonical media type used across all metadata- and tracker-family APIs.
-
-    Inherits from ``str`` so existing equality checks (``media_type == "tv"``),
-    dict keys, and JSON serialization keep working unchanged — ``MediaType.TV``
-    *is* the string ``"tv"``. New code should prefer the enum members for
-    nominal typing and exhaustive ``match`` statements.
-
-    The legacy library/dispatch/scraper layers historically used ``"tvshow"``
-    instead of ``"tv"``; :meth:`from_legacy` is the single coercion entry
-    point that maps both vocabularies into this enum.
-
-    ``__str__`` returns the wire value (``"movie"`` / ``"tv"``) rather than the
-    enum repr (``"MediaType.MOVIE"``). This matches Python 3.11+ ``StrEnum``
-    semantics and keeps f-string interpolation backward-compatible with the
-    previous ``Literal`` alias.
-    """
-
-    MOVIE = "movie"
-    TV = "tv"
-
-    def __str__(self) -> str:
-        return str(self.value)
-
-    @classmethod
-    def from_legacy(cls, value: str) -> "MediaType":
-        """Coerce any historical media-type string into a :class:`MediaType`.
-
-        Accepts the api/ vocabulary (``"movie"``, ``"tv"``) and the legacy
-        library/dispatch vocabulary (``"tvshow"``, ``"tvshows"``). Case- and
-        whitespace-insensitive.
-
-        Args:
-            value: Free-form string from a legacy caller.
-
-        Returns:
-            The matching :class:`MediaType` enum member.
-
-        Raises:
-            ValueError: ``value`` is not a recognised media-type string.
-        """
-        normalised = value.strip().lower()
-        if normalised == "movie":
-            return cls.MOVIE
-        if normalised in ("tv", "tvshow", "tvshows"):
-            return cls.TV
-        raise ValueError(f"Unknown media_type {value!r} — expected one of: 'movie', 'tv', 'tvshow', 'tvshows'.")
+# Re-export from the canonical core-layer home (arch-cleanup-2 Phase 2).
+# All 35 downstream importers of personalscraper.api._contracts continue to work
+# unchanged — the symbols are still accessible via this path. ``ApiError`` and
+# ``CircuitOpenError`` and ``MediaType`` are now defined in core/_contracts.py
+# (the lowest layer, no upward dependencies). Identity is preserved: the class
+# objects imported here are the *same* objects as in core._contracts.
+from personalscraper.core._contracts import (
+    ApiError as ApiError,
+)
+from personalscraper.core._contracts import (
+    CircuitOpenError as CircuitOpenError,
+)
+from personalscraper.core._contracts import (
+    MediaType as MediaType,
+)
 
 
 class ProviderName(str, Enum):
@@ -99,27 +70,6 @@ class AuthMode(Enum):
     NONE = "none"
 
 
-@dataclass
-class ApiError(Exception):
-    """Unified API error raised by every provider on transport or response failure.
-
-    Attributes:
-        provider: Provider name (e.g. "TMDB", "TVDB").
-        http_status: HTTP status code from the response.
-        provider_code: Provider-specific error code, if any.
-        message: Human-readable error message.
-    """
-
-    provider: str
-    http_status: int
-    provider_code: int = 0
-    message: str = ""
-
-    def __str__(self) -> str:
-        code = f" provider_code={self.provider_code}" if self.provider_code else ""
-        return f"{self.provider} API {self.http_status}{code}: {self.message}"
-
-
 @runtime_checkable
 class Named(Protocol):
     """Capability marker exposing a stable ``provider_name`` identifier.
@@ -151,17 +101,3 @@ class Named(Protocol):
 # Backward-compatibility alias for any external caller that still imports
 # the pre-cycle-4 name. The canonical name is :class:`Named`.
 HasName = Named
-
-
-class CircuitOpenError(Exception):
-    """Raised when a call is attempted on an OPEN circuit.
-
-    Attributes:
-        provider: Name of the unavailable provider.
-        remaining_seconds: Seconds remaining until cooldown expires.
-    """
-
-    def __init__(self, provider: str, remaining_seconds: float) -> None:
-        self.provider = provider
-        self.remaining_seconds = remaining_seconds
-        super().__init__(f"Circuit breaker OPEN for {provider} ({remaining_seconds:.0f}s remaining)")

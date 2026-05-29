@@ -253,4 +253,77 @@ def make_verify_item_done() -> VerifyItemDone:
     )
 
 
+# Registry events (arch-cleanup-2 Phase 1) — imported lazily after the module
+# body so the heavy ``personalscraper.api.metadata.registry`` package (which
+# pulls in the transport stack) is only resolved when this fixture module loads,
+# matching the deferred-import pattern used for the indexer events above.
+from personalscraper.api._contracts import MediaType  # noqa: E402
+from personalscraper.api.metadata.registry import AttemptOutcome, ProviderMatch  # noqa: E402
+from personalscraper.api.metadata.registry._events import (  # noqa: E402
+    LockedCapabilityUnresolved,
+    ProviderExhaustedEvent,
+    ProviderFallbackTriggered,
+    RegistryBootValidated,
+    RegistryFanOutCompleted,
+)
+
+
+@register_factory(ProviderFallbackTriggered)
+def make_provider_fallback_triggered() -> ProviderFallbackTriggered:
+    """Realistic :class:`ProviderFallbackTriggered` factory."""
+    return ProviderFallbackTriggered(
+        capability="MetadataClient",
+        from_provider="tmdb",
+        to_provider="tvdb",
+        reason="network",
+        exc_type="requests.Timeout",
+        item={"title": "Inception", "year": 2010},
+    )
+
+
+@register_factory(ProviderExhaustedEvent)
+def make_provider_exhausted_event() -> ProviderExhaustedEvent:
+    """Realistic :class:`ProviderExhaustedEvent` factory."""
+    return ProviderExhaustedEvent(
+        capability="MetadataClient",
+        attempted=(
+            AttemptOutcome(provider="tmdb", reason="network", detail="timeout"),
+            AttemptOutcome(provider="tvdb", reason="empty_result"),
+        ),
+        item={"title": "Inception", "year": 2010},
+    )
+
+
+@register_factory(LockedCapabilityUnresolved)
+def make_locked_capability_unresolved() -> LockedCapabilityUnresolved:
+    """Realistic :class:`LockedCapabilityUnresolved` factory."""
+    return LockedCapabilityUnresolved(
+        capability="MetadataClient",
+        match=ProviderMatch(provider="tmdb", id="27205", media_type=MediaType.MOVIE),
+        chain_tried=("tmdb", "tvdb"),
+    )
+
+
+@register_factory(RegistryFanOutCompleted)
+def make_registry_fan_out_completed() -> RegistryFanOutCompleted:
+    """Realistic :class:`RegistryFanOutCompleted` factory."""
+    return RegistryFanOutCompleted(
+        capability="RatingProvider",
+        attempted=(
+            AttemptOutcome(provider="tmdb", reason="empty_result"),
+            AttemptOutcome(provider="imdb", reason="circuit_open"),
+        ),
+        eligible=2,
+    )
+
+
+@register_factory(RegistryBootValidated)
+def make_registry_boot_validated() -> RegistryBootValidated:
+    """Realistic :class:`RegistryBootValidated` factory."""
+    return RegistryBootValidated(
+        providers=("tmdb", "tvdb"),
+        capabilities={"MetadataClient": ("tmdb", "tvdb"), "RatingProvider": ("tmdb",)},
+    )
+
+
 __all__ = ["EVENT_SAMPLE_FACTORIES", "register_factory"]

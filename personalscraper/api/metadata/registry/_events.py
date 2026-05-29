@@ -3,14 +3,21 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal
 
-if TYPE_CHECKING:
-    from personalscraper.api.metadata.registry import AttemptOutcome, ProviderMatch
+# ``AttemptOutcome`` / ``ProviderMatch`` are imported at RUNTIME (not under
+# ``TYPE_CHECKING``) from the leaf ``_types`` module so that
+# ``typing.get_type_hints`` can resolve the string annotations on
+# ``ProviderExhaustedEvent`` / ``RegistryFanOutCompleted`` / ``LockedCapabilityUnresolved``
+# during ``event_from_envelope`` round-trip. ``_types`` is a leaf (it does not
+# import the registry package ``__init__``), so this import does NOT cycle even
+# though ``__init__`` imports this module (arch-cleanup-2 Phase 5).
+from personalscraper.api.metadata.registry._types import AttemptOutcome, ProviderMatch
+from personalscraper.core.event_bus import Event
 
 
-@dataclass(frozen=True)
-class ProviderFallbackTriggered:
+@dataclass(frozen=True, kw_only=True)
+class ProviderFallbackTriggered(Event):
     """Emitted when a chain moves from one provider to the next.
 
     Attributes:
@@ -36,8 +43,8 @@ class ProviderFallbackTriggered:
     item: dict[str, Any]
 
 
-@dataclass(frozen=True)
-class ProviderExhaustedEvent:
+@dataclass(frozen=True, kw_only=True)
+class ProviderExhaustedEvent(Event):
     """Emitted when all providers in a chain failed for an item.
 
     Attributes:
@@ -53,8 +60,8 @@ class ProviderExhaustedEvent:
     item: dict[str, Any]
 
 
-@dataclass(frozen=True)
-class LockedCapabilityUnresolved:
+@dataclass(frozen=True, kw_only=True)
+class LockedCapabilityUnresolved(Event):
     """Emitted when ``locked()`` cannot bind a provider via IDCrossRef.
 
     Attributes:
@@ -68,8 +75,8 @@ class LockedCapabilityUnresolved:
     chain_tried: tuple[str, ...]
 
 
-@dataclass(frozen=True)
-class RegistryFanOutCompleted:
+@dataclass(frozen=True, kw_only=True)
+class RegistryFanOutCompleted(Event):
     """Always emitted after ``fan_out`` returns (even on full success).
 
     Attributes:
@@ -86,8 +93,8 @@ class RegistryFanOutCompleted:
     eligible: int
 
 
-@dataclass(frozen=True)
-class RegistryBootValidated:
+@dataclass(frozen=True, kw_only=True)
+class RegistryBootValidated(Event):
     """Emitted when boot completed successfully.
 
     Attributes:

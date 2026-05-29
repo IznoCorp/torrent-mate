@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
 from personalscraper._fs_utils import is_apple_double
 from personalscraper.conf.ids import TV_CATEGORY_IDS
+from personalscraper.core.media_types import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 from personalscraper.library.models import (
     AudioTrack,
     LibraryAnalysisItem,
@@ -42,7 +43,6 @@ from personalscraper.library.models import (
 from personalscraper.library.scanner import parse_title_year
 from personalscraper.logger import get_logger
 from personalscraper.scraper.mediainfo import extract_stream_info
-from personalscraper.sorter.file_type import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 
 log = get_logger("library.analyzer")
 

@@ -19,9 +19,9 @@ import re
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from personalscraper.api._contracts import MediaType
 from personalscraper.conf.models.categories import CategoryRule
 from personalscraper.conf.models.config import Config
+from personalscraper.core._contracts import MediaType
 from personalscraper.logger import get_logger
 
 log = get_logger("personalscraper.conf.classifier")

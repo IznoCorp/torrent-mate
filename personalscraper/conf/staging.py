@@ -14,7 +14,7 @@ from personalscraper.logger import get_logger
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
     from personalscraper.conf.models.staging import StagingDirConfig
-    from personalscraper.sorter.file_type import FileType
+    from personalscraper.core.media_types import FileType
 
 _log = get_logger("staging")
 

@@ -69,7 +69,23 @@ def _decode_field_value(value: Any, annotation: Any) -> Any:
             return _decode_field_value(value, non_none[0])
         return value
     if origin in (list, tuple):
-        (item_type,) = get_args(annotation) or (Any,)
+        args = get_args(annotation)
+        if origin is tuple and len(args) == 2 and args[1] is Ellipsis:
+            # Homogeneous variadic tuple ``tuple[X, ...]``: ``get_args`` yields
+            # ``(X, Ellipsis)``. Decode every element with the single item type
+            # ``X`` and drop the ``Ellipsis`` sentinel.
+            decoded = [_decode_field_value(item, args[0]) for item in value]
+            return tuple(decoded)
+        if origin is tuple and len(args) > 1:
+            # Heterogeneous fixed-length tuple ``tuple[X, Y, ...]``: decode each
+            # position with its own declared type (positional pairing).
+            # ``strict=True`` fails loud (``ValueError``) on a length mismatch
+            # between the decoded value and the declared positions, rather than
+            # silently truncating to the shorter sequence — a malformed envelope
+            # must surface, not be partially reconstructed.
+            return tuple(_decode_field_value(item, arg) for item, arg in zip(value, args, strict=True))
+        # ``list[X]`` or single-element ``tuple[X]`` — one item type for all.
+        (item_type,) = args or (Any,)
         decoded = [_decode_field_value(item, item_type) for item in value]
         return tuple(decoded) if origin is tuple else decoded
     if origin is dict:
@@ -219,6 +235,10 @@ class Event:
         correlation_id: Snapshot of ``current_correlation_id`` at construction
             time. ``None`` when constructed outside any bound region. An explicit
             argument (including explicit ``None``) wins over the ContextVar.
+        schema_version: Envelope schema version for this event payload. Defaults
+            to ``1`` and is serialized inside the envelope ``data`` so consumers
+            can branch on contract revisions when the shape evolves. Per-class
+            serialization constant — do not override at call sites.
     """
 
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -227,6 +247,7 @@ class Event:
     correlation_id: str | None = field(
         default_factory=lambda: current_correlation_id.get(),
     )
+    schema_version: int = 1
 
     def __post_init__(self) -> None:
         """Auto-derive ``source`` when empty.

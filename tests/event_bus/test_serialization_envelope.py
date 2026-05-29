@@ -20,6 +20,7 @@ from personalscraper.core.event_bus import (
     _EVENT_CLASS_REGISTRY,
     UTC,
     Event,
+    _decode_field_value,
     current_correlation_id,
     event_from_envelope,
     event_to_dict,
@@ -277,3 +278,30 @@ def test_envelope_decode_propagates_when_module_keeps_get_type_hints_resolution(
     reconstructed = event_from_envelope(event_to_envelope(original))
     assert isinstance(reconstructed.where, Path)
     assert isinstance(reconstructed.mode, _Mode)
+
+
+# ---------------------------------------------------------------------------
+# Heterogeneous fixed-length tuple decode — fail loud on length mismatch
+# ---------------------------------------------------------------------------
+
+
+def test_heterogeneous_tuple_decode_fails_loud_on_length_mismatch() -> None:
+    """Decoding a wrong-length value against ``tuple[X, Y]`` raises, not truncates.
+
+    The heterogeneous fixed-length tuple branch of ``_decode_field_value`` pairs
+    each value position with its declared type via ``zip(..., strict=True)``. A
+    value whose length differs from the annotation's arity is a malformed
+    envelope and MUST fail loud (``ValueError``) rather than silently truncate to
+    the shorter sequence. No production event currently uses a heterogeneous
+    fixed-length tuple field, so this guards a latent trap with a synthetic
+    annotation driven straight through the decoder.
+    """
+    annotation = tuple[str, int]
+    # One value short of the declared two positions — strict zip must raise.
+    with pytest.raises(ValueError):
+        _decode_field_value(["only-one"], annotation)
+    # One value too many — likewise.
+    with pytest.raises(ValueError):
+        _decode_field_value(["a", 1, "extra"], annotation)
+    # Sanity: the exact-length case still decodes positionally without raising.
+    assert _decode_field_value(["a", 1], annotation) == ("a", 1)

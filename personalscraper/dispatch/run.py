@@ -15,13 +15,13 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
+from personalscraper.core.media_types import FileType
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.pipeline_events import ItemProgressed
-from personalscraper.sorter.file_type import FileType
 from personalscraper.verify.verifier import VerifyResult
 
 log = get_logger("dispatch_run")

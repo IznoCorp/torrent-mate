@@ -11,9 +11,9 @@ from pathlib import Path
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.core.media_types import FileType
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
-from personalscraper.sorter.file_type import FileType
 from personalscraper.text_utils import sanitize_filename
 
 log = get_logger("enforce.structure")

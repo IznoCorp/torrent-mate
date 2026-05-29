@@ -5,7 +5,8 @@ the staging root into categorized subdirectories
 ({movies_dir}, {tvshows_dir}, {audio_dir}, etc.).
 """
 
-from personalscraper.sorter.file_type import FileType, detect_dir_type, detect_file_type
+from personalscraper.core.media_types import FileType
+from personalscraper.sorter.file_type import detect_dir_type, detect_file_type
 from personalscraper.sorter.matcher import find_matching_directory
 
 __all__ = [

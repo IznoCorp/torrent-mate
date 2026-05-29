@@ -5,6 +5,45 @@ All notable changes to personalscraper are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.0] — 2026-05-29
+
+### Added
+
+- `core/_contracts.py`: canonical home for `CircuitOpenError`, `ApiError`, `MediaType`
+  (re-exported from `api/_contracts.py` for backward compatibility).
+- `conf/models/_ranking.py`: canonical home for `ThresholdEntry`, `RankingCriterion`,
+  `RankingBonuses`, `RankingConfig` (re-exported from `api/tracker/_ranking.py`).
+- `core/media_types.py`: canonical home for `VIDEO_EXTENSIONS`, `FileType`,
+  `is_trailer_filename` (promoted from `sorter/file_type.py`).
+- `schema_version: int = 1` field on the `Event` base class — threads through
+  `event_to_envelope` / `event_from_envelope`.
+- `tests/architecture/test_layering.py`: AST-based guard enforcing that `core/`
+  and `conf/` do not import upward into `api/` or upper layers.
+- `tests/architecture/test_event_schema_version.py`: invariant tests for `schema_version`.
+- `tests/architecture/test_registry_events_contract.py`: invariant tests asserting all
+  5 registry events subclass `Event` and are envelope-round-trippable.
+
+### Changed
+
+- 5 provider-registry events (`ProviderFallbackTriggered`, `ProviderExhaustedEvent`,
+  `LockedCapabilityUnresolved`, `RegistryFanOutCompleted`, `RegistryBootValidated`)
+  now subclass `Event` (`frozen=True, kw_only=True`); auto-registered in
+  `_EVENT_CLASS_REGISTRY`; production event catalog grows from 18 to 23.
+- `sorter/file_type.py` no longer exports shared constants — `detect_file_type` and
+  `detect_dir_type` remain; 23 non-`sorter` import lines rewritten to `core.media_types`.
+- `core/circuit.py` and `conf/classifier.py` import from `core._contracts` instead of
+  `api._contracts`; `conf/models/api_config.py` imports from `conf/models/_ranking`.
+
+### Fixed
+
+- Removed `# type: ignore[arg-type]` suppression on registry event `emit()` call
+  (`api/metadata/registry/__init__.py`) — no longer needed now that events subclass `Event`.
+
+### Architecture
+
+- Closes the P1 roadmap prerequisite for the Web Management UI, Watcher Service,
+  and Web UI Registry Consumer items (see `ROADMAP.md` P2 entries).
+
 ## [0.16.0] — 2026-05-27
 
 ### Added

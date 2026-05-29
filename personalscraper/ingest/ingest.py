@@ -18,11 +18,11 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, find_ingest_dir, folder_name, staging_path
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
+from personalscraper.core.media_types import FileType
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.pipeline_events import ItemProgressed
-from personalscraper.sorter.file_type import FileType
 
 log = get_logger("ingest")
 

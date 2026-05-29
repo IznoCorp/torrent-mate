@@ -18,9 +18,9 @@ from pathlib import Path
 
 from personalscraper.conf.classifier import classify_from_nfo
 from personalscraper.conf.models.config import Config
+from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_trailer_filename
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
-from personalscraper.sorter.file_type import VIDEO_EXTENSIONS, is_trailer_filename
 from personalscraper.text_utils import _NTFS_ILLEGAL
 
 log = get_logger("verify.checker")

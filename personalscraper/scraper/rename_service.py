@@ -5,9 +5,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from personalscraper.core.media_types import VIDEO_EXTENSIONS
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
-from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 
 log = get_logger("scraper")
 

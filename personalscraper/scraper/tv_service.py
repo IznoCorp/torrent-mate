@@ -14,6 +14,7 @@ from personalscraper.api.metadata._contracts import TvDetailsProvider
 from personalscraper.api.metadata._tvdb_parsers import map_language
 from personalscraper.api.metadata.registry import AttemptOutcome, RegistryProviderName
 from personalscraper.api.metadata.registry._errors import ProviderExhausted
+from personalscraper.core.media_types import VIDEO_EXTENSIONS
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
@@ -37,7 +38,6 @@ from personalscraper.scraper.rename_service import (
 from personalscraper.scraper.tv_service_episodes import (
     _episode_payload as _episode_payload,
 )
-from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 
 if TYPE_CHECKING:
     from collections.abc import Callable

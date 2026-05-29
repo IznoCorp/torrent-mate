@@ -10,63 +10,19 @@ to the 6 types relevant to the PersonalScraper staging directories.
 """
 
 import re
-from enum import Enum
 from pathlib import Path
 
-# Video extensions handled by the pipeline (matches CLAUDE.md list + extras from FileMate)
-VIDEO_EXTENSIONS: frozenset[str] = frozenset(
-    {
-        "avi",
-        "mkv",
-        "mp4",
-        "mpg",
-        "mpeg",
-        "mov",
-        "wmv",
-        "flv",
-        "webm",
-        "m4v",
-        "ts",
-        "m2ts",
-        "mts",
-        "3gp",
-        "vob",
-        "ogv",
-        "rmvb",
-    }
-)
-
-AUDIO_EXTENSIONS: frozenset[str] = frozenset(
-    {
-        "mp3",
-        "wav",
-        "flac",
-        "ogg",
-        "m4a",
-        "wma",
-        "aac",
-        "ac3",
-        "dts",
-        "mka",
-        "opus",
-        "m4b",
-        "m4r",
-    }
-)
-
-EBOOK_EXTENSIONS: frozenset[str] = frozenset(
-    {
-        "pdf",
-        "epub",
-        "mobi",
-        "azw",
-        "azw3",
-        "djvu",
-        "cbz",
-        "cbr",
-        "fb2",
-        "lit",
-    }
+# Shared constants and the FileType enum are canonical in core.media_types.
+# Imported here as a plain (non-re-exported) dependency so the sorter-internal
+# detection functions (detect_file_type / detect_dir_type) can use them. The
+# transitional re-export for legacy `from personalscraper.sorter.file_type import …`
+# call sites was dropped at the end of arch-cleanup-2 Phase 3 — every external
+# caller now imports these symbols from core.media_types directly.
+from personalscraper.core.media_types import (
+    AUDIO_EXTENSIONS,
+    EBOOK_EXTENSIONS,
+    VIDEO_EXTENSIONS,
+    FileType,
 )
 
 APP_EXTENSIONS: frozenset[str] = frozenset(
@@ -93,26 +49,6 @@ _TVSHOW_PATTERN: re.Pattern[str] = re.compile(
 )
 
 
-class FileType(Enum):
-    """Media type categories matching staging subdirectories.
-
-    Attributes:
-        MOVIE: Films — sorted to {movies_dir}/.
-        TVSHOW: TV series — sorted to {tvshows_dir}/.
-        EBOOK: Ebooks — sorted to {ebooks_dir}/.
-        AUDIO: Audiobooks/music — sorted to {audio_dir}/.
-        APP: Applications — sorted to {apps_dir}/ or {android_dir}/.
-        OTHER: Unrecognized — sorted to {autres_dir}/.
-    """
-
-    MOVIE = "movie"
-    TVSHOW = "tvshow"
-    EBOOK = "ebook"
-    AUDIO = "audio"
-    APP = "app"
-    OTHER = "other"
-
-
 def _extension_of(path: Path) -> str:
     """Extract lowercase extension without dot from a path.
 
@@ -123,28 +59,6 @@ def _extension_of(path: Path) -> str:
         Lowercase extension string (e.g. "mkv"), or empty string.
     """
     return path.suffix.lstrip(".").lower()
-
-
-def is_trailer_filename(name: str) -> bool:
-    """Check if a filename is a flat Plex movie trailer (filename-only check).
-
-    Movies place their trailer FLAT at the movie root following the Plex Local
-    Media Assets convention: ``{media_name}-trailer.{ext}`` (ext in
-    ``VIDEO_EXTENSIONS``). This predicate lets dedup logic exempt that trailer
-    from duplicate-video detection so a movie with its trailer is not wrongly
-    flagged as holding two feature videos at its root.
-
-    The match is purely on the filename stem: it is True only when the stem
-    ends with the ``-trailer`` suffix. A movie literally named "The Trailer"
-    has stem "The Trailer" (no hyphen before "trailer") and is NOT matched.
-
-    Args:
-        name: Filename (basename only; any directory part is ignored).
-
-    Returns:
-        True if the filename stem ends with ``-trailer`` (case-insensitive).
-    """
-    return Path(name).stem.casefold().endswith("-trailer")
 
 
 def _has_tvshow_markers(name: str) -> bool:

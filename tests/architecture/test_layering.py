@@ -1,0 +1,311 @@
+"""AST-based layering guard: core/ and conf/ must not import upward (arch-cleanup-2 Phase 2).
+
+Enforces the architecture invariant from docs/reference/architecture.md:
+core/ and conf/ are the lowest layers and must not import from api/, scraper/,
+pipeline/, dispatch/, verify/, library/, indexer/, or trailers/.
+
+Allow-listed exceptions (documented boundaries):
+- personalscraper.logger — leaf utility, allow-listed in core/ and conf/
+- core/app_context.py importing personalscraper.api.metadata.registry
+  under TYPE_CHECKING — the AppContext boundary, already tested separately
+- Per-line ``# layering: allow`` markers — a single import line may opt out of
+  the guard when the upward dependency is a documented, intentional boundary
+  (see the two markers in conf/models/_ranking.py and conf/loader.py). This is
+  finer-grained than whole-module allow-listing so the rest of the file stays
+  guarded. Each marked line MUST carry a justification comment.
+"""
+
+from __future__ import annotations
+
+import ast
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_PACKAGE_ROOT = _REPO_ROOT / "personalscraper"
+
+# Upward targets that core/ and conf/ must never import at runtime.
+_FORBIDDEN_PREFIXES = (
+    "personalscraper.api",
+    "personalscraper.scraper",
+    "personalscraper.pipeline",
+    "personalscraper.dispatch",
+    "personalscraper.verify",
+    "personalscraper.library",
+    "personalscraper.indexer",
+    "personalscraper.trailers",
+)
+
+# Modules that are structural exceptions — checked independently elsewhere.
+_ALLOWED_MODULES = {
+    "personalscraper/core/app_context.py",  # TYPE_CHECKING registry import — AppContext boundary
+}
+
+
+def _is_type_checking_block(node: ast.AST, tree: ast.Module) -> bool:
+    """Return True if ``node`` is nested inside an ``if TYPE_CHECKING:`` block."""
+    for top in ast.walk(tree):
+        if isinstance(top, ast.If):
+            test = top.test
+            is_tc = (isinstance(test, ast.Name) and test.id == "TYPE_CHECKING") or (
+                isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING"
+            )
+            if is_tc:
+                # Walk body and orelse — if node is in this subtree it's guarded.
+                for child in ast.walk(top):
+                    if child is node:
+                        return True
+    return False
+
+
+# Inline marker that exempts a single import line from the layering guard.
+# Use sparingly, only for documented, intentional upward boundaries, and always
+# alongside a justification comment. The justification may be trailing text on
+# the marker line itself (``# layering: allow <why>``) OR an immediately
+# preceding comment line. A bare ``# layering: allow`` with neither is rejected.
+_ALLOW_MARKER = "# layering: allow"
+
+
+def _marker_has_justification(source_lines: list[str], line_idx: int) -> bool:
+    """Return True if the ``# layering: allow`` marker at ``line_idx`` is justified.
+
+    A justification is REQUIRED (see this module's docstring). It is considered
+    present when either:
+
+    - there is non-empty text trailing the marker on the same line
+      (``... import x  # layering: allow because <reason>``), OR
+    - the immediately preceding source line is a non-empty comment
+      (``# <reason>`` then the marked import on the next line).
+
+    A bare ``# layering: allow`` with neither — no trailing text and no
+    preceding comment — is unjustified and must still be treated as a violation.
+    The two real markers (``conf/models/_ranking.py`` and ``conf/loader.py``)
+    place their justification in a preceding comment, so both remain accepted.
+
+    Args:
+        source_lines: The file's source split into lines (no trailing newlines).
+        line_idx: Zero-based index of the line carrying the marker.
+
+    Returns:
+        ``True`` if a justification accompanies the marker, ``False`` otherwise.
+    """
+    line = source_lines[line_idx]
+    marker_pos = line.find(_ALLOW_MARKER)
+    if marker_pos == -1:
+        return False
+    # (a) Trailing justification text after the marker on the same line.
+    trailing = line[marker_pos + len(_ALLOW_MARKER) :].strip()
+    if trailing:
+        return True
+    # (b) Immediately preceding non-empty comment line.
+    if line_idx > 0:
+        prev = source_lines[line_idx - 1].strip()
+        if prev.startswith("#") and prev.lstrip("#").strip():
+            return True
+    return False
+
+
+def _collect_violations_from_source(source: str, rel: str) -> list[str]:
+    """Return layering violations for ``source`` attributed to relative path ``rel``.
+
+    Pure function: parses the given source text and applies the upward-import
+    guard (TYPE_CHECKING exemption + justified ``# layering: allow`` exemption).
+    Decoupled from the filesystem so the guard can be self-pinned with synthetic
+    sources (positive/negative control tests) without writing probe files into
+    the package tree.
+
+    Args:
+        source: Python source code to analyse.
+        rel: Repo-relative POSIX path used both for the allow-list lookup and in
+            the returned violation strings (e.g. ``"personalscraper/core/x.py"``).
+
+    Returns:
+        List of human-readable violation strings (empty if none).
+    """
+    if rel in _ALLOWED_MODULES:
+        return []
+    source_lines = source.splitlines()
+    tree = ast.parse(source, filename=rel)
+    violations: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            # Determine the full module name being imported.
+            if isinstance(node, ast.ImportFrom) and node.module:
+                module = node.module
+                # Reconstruct absolute path from relative imports.
+                if node.level and node.level > 0:
+                    # Relative import — resolve against the file's package.
+                    pkg_parts = rel.replace(".py", "").replace("/", ".").split(".")
+                    base = pkg_parts[: -(node.level)]
+                    module = ".".join(base) + ("." + module if module else "")
+            elif isinstance(node, ast.Import):
+                module = node.names[0].name
+            else:
+                continue
+            # Check against forbidden prefixes.
+            for prefix in _FORBIDDEN_PREFIXES:
+                if module == prefix or module.startswith(prefix + "."):
+                    # Allow if guarded by TYPE_CHECKING.
+                    if _is_type_checking_block(node, tree):
+                        break
+                    # Allow if the import line carries an inline opt-out marker
+                    # AND that marker is accompanied by a justification (trailing
+                    # text or a preceding comment line). A bare, unjustified
+                    # marker is still a violation — the marker docstring requires
+                    # a justification for every opt-out.
+                    line_idx = node.lineno - 1
+                    if 0 <= line_idx < len(source_lines) and _ALLOW_MARKER in source_lines[line_idx]:
+                        if _marker_has_justification(source_lines, line_idx):
+                            break
+                        violations.append(
+                            f"{rel}:{node.lineno}: imports {module!r} with a bare "
+                            f"'# layering: allow' marker and no justification"
+                        )
+                        break
+                    violations.append(f"{rel}:{node.lineno}: imports {module!r}")
+                    break
+    return violations
+
+
+def _collect_violations(py_file: Path) -> list[str]:
+    """Return list of violation strings for ``py_file`` (filesystem wrapper)."""
+    rel = py_file.relative_to(_REPO_ROOT).as_posix()
+    return _collect_violations_from_source(py_file.read_text(encoding="utf-8"), rel)
+
+
+def test_core_does_not_import_upward() -> None:
+    """No module under core/ imports api/, scraper/, or any upper layer at runtime."""
+    core_root = _PACKAGE_ROOT / "core"
+    violations: list[str] = []
+    for py_file in sorted(core_root.rglob("*.py")):
+        violations.extend(_collect_violations(py_file))
+    assert not violations, "core/ has upward import leaks (fix by importing from core._contracts):\n" + "\n".join(
+        violations
+    )
+
+
+def test_conf_does_not_import_upward() -> None:
+    """No module under conf/ imports api/, scraper/, or any upper layer at runtime."""
+    conf_root = _PACKAGE_ROOT / "conf"
+    violations: list[str] = []
+    for py_file in sorted(conf_root.rglob("*.py")):
+        violations.extend(_collect_violations(py_file))
+    assert not violations, (
+        "conf/ has upward import leaks (fix by importing from core._contracts "
+        "or conf/models/_ranking.py):\n" + "\n".join(violations)
+    )
+
+
+def test_core_contracts_has_no_upward_deps() -> None:
+    """core/_contracts.py imports nothing from personalscraper (only stdlib/enum)."""
+    contracts_file = _PACKAGE_ROOT / "core" / "_contracts.py"
+    assert contracts_file.exists(), "core/_contracts.py does not exist"
+    source = contracts_file.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            if isinstance(node, ast.ImportFrom) and node.module:
+                module = node.module
+            elif isinstance(node, ast.Import):
+                module = node.names[0].name
+            else:
+                continue
+            assert not module.startswith("personalscraper."), (
+                f"core/_contracts.py:{node.lineno}: must not import "
+                f"from personalscraper — found {module!r}. "
+                "Only stdlib and enum are allowed."
+            )
+
+
+# ---------------------------------------------------------------------------
+# Self-pin control tests
+#
+# The three real-tree tests above pass *vacuously* today: the real core/ and
+# conf/ trees carry zero unmarked upward imports, so an empty result is also
+# what a broken (always-empty) guard would return. The synthetic-source control
+# tests below feed known-bad and known-good inputs through
+# ``_collect_violations_from_source`` so the guard is proven non-vacuous: it
+# must flag the bad cases and exempt the good ones. If ``_collect_violations``
+# ever rots into a no-op, ``test_unmarked_upward_import_is_flagged`` fails.
+# ---------------------------------------------------------------------------
+
+# Synthetic relative path used by the control tests — pretends to live under
+# core/ so it is subject to the guard, but is never written to disk.
+_SYNTHETIC_REL = "personalscraper/core/_synthetic_probe.py"
+
+
+def test_unmarked_upward_import_is_flagged() -> None:
+    """POSITIVE control: a bare upward import (no marker, no guard) IS a violation.
+
+    This is the non-vacuous anchor — it feeds a known-bad source and asserts the
+    guard reports it. If ``_collect_violations_from_source`` were broken into an
+    always-empty stub, this assertion would fail.
+    """
+    source = "from personalscraper.api import x\n"
+    violations = _collect_violations_from_source(source, _SYNTHETIC_REL)
+    assert violations, "guard failed to flag an unmarked upward import (vacuous guard!)"
+    assert "personalscraper.api" in violations[0]
+
+
+def test_marked_upward_import_is_not_flagged() -> None:
+    """NEGATIVE control: a justified ``# layering: allow`` import is exempt."""
+    source = "from personalscraper.api import x  # layering: allow — documented boundary\n"
+    violations = _collect_violations_from_source(source, _SYNTHETIC_REL)
+    assert violations == [], f"justified marker should be exempt, got: {violations}"
+
+
+def test_type_checking_guarded_upward_import_is_not_flagged() -> None:
+    """NEGATIVE control: an import under ``if TYPE_CHECKING:`` is exempt."""
+    source = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from personalscraper.api import x\n"
+    violations = _collect_violations_from_source(source, _SYNTHETIC_REL)
+    assert violations == [], f"TYPE_CHECKING-guarded import should be exempt, got: {violations}"
+
+
+def test_bare_marker_without_justification_is_flagged() -> None:
+    """A ``# layering: allow`` with no justification at all is STILL a violation.
+
+    No trailing text after the marker and no preceding comment line means the
+    marker is unjustified, and the guard requires a justification for every
+    opt-out — so the import remains a violation.
+    """
+    source = "from personalscraper.api import x  # layering: allow\n"
+    violations = _collect_violations_from_source(source, _SYNTHETIC_REL)
+    assert violations, "bare unjustified '# layering: allow' should still be a violation"
+    assert "no justification" in violations[0]
+
+
+def test_marker_justified_by_preceding_comment_is_not_flagged() -> None:
+    """A marker justified by a preceding comment line is exempt.
+
+    This mirrors the form used by the two real markers
+    (``conf/models/_ranking.py`` and ``conf/loader.py``), whose justification
+    lives in a comment on the line above the marked import.
+    """
+    source = (
+        "# documented, intentional upward boundary — see arch-cleanup-2 Phase 2\n"
+        "from personalscraper.api import x  # layering: allow\n"
+    )
+    violations = _collect_violations_from_source(source, _SYNTHETIC_REL)
+    assert violations == [], f"marker justified by preceding comment should be exempt, got: {violations}"
+
+
+def test_real_layering_markers_carry_justifications() -> None:
+    """The two real ``# layering: allow`` markers in the tree are justified.
+
+    Locates every real marker under ``personalscraper/`` and asserts each is
+    justified (so the stricter enforcement does not regress them). Guards
+    against someone adding a bare marker to the real tree.
+    """
+    marked: list[tuple[str, int]] = []
+    for py_file in sorted(_PACKAGE_ROOT.rglob("*.py")):
+        lines = py_file.read_text(encoding="utf-8").splitlines()
+        for idx, line in enumerate(lines):
+            if _ALLOW_MARKER in line:
+                rel = py_file.relative_to(_REPO_ROOT).as_posix()
+                assert _marker_has_justification(lines, idx), (
+                    f"{rel}:{idx + 1}: '# layering: allow' marker lacks a justification "
+                    "(add trailing text or a preceding comment line)"
+                )
+                marked.append((rel, idx + 1))
+    # Sanity: the two documented markers exist — keeps the test honest if the
+    # tree ever loses them (would otherwise pass vacuously with zero markers).
+    assert len(marked) >= 2, f"expected at least the 2 documented markers, found: {marked}"

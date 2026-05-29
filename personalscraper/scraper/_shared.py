@@ -6,9 +6,9 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_trailer_filename
 from personalscraper.logger import get_logger
 from personalscraper.scraper.confidence import MatchResult
-from personalscraper.sorter.file_type import VIDEO_EXTENSIONS, is_trailer_filename
 
 log = get_logger("scraper")
 

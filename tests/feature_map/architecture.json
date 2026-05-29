@@ -49,6 +49,11 @@
         "tests/unit/api/metadata/registry/test_registry_get.py::test_get_known_name_returns_provider"
       ]
     },
+    "registry-events-on-the-event-contract": {
+      "tests": [
+        "tests/architecture/test_registry_events_contract.py::test_registry_event_in_catalog"
+      ]
+    },
     "three-operations": {
       "tests": [
         "tests/unit/api/metadata/registry/test_registry_chain.py::test_chain_wrong_semantic_raises",

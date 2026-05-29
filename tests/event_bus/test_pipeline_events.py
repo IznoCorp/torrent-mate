@@ -107,22 +107,27 @@ def test_every_event_has_factory() -> None:
 
 
 def test_event_registry_has_eighteen_v1_events() -> None:
-    """The v1 catalog is pinned at 18 events.
+    """The catalog is pinned at 23 events.
 
     Phase 5 acceptance landed at 13 ; the ``provider-ids`` feature
     (sub-phase 8.4) added 4 ``Backfill*`` events for the IDs/ratings
     backfill lifecycle (→ 17). The ``tech-debt`` 0.16.0 sub-phase 3.1
     (DEV #6/#40) added ``VerifyItemDone`` for per-item verify
-    telemetry (→ 18). The literal count guards against silent
-    additions that bypass the documented event catalog in
-    ``docs/reference/event-bus.md`` (Phase 8.13 ships the v1.2 catalog
-    sync that bumps the doc table from 17 to 18).
+    telemetry (→ 18). The ``arch-cleanup-2`` Phase 1 sub-phase 1.2
+    rebased the 5 provider-registry events onto the ``Event`` contract
+    and eager-imported them via ``personalscraper.events``, so they now
+    auto-register in the catalog (→ 23): ``ProviderFallbackTriggered``,
+    ``ProviderExhaustedEvent``, ``LockedCapabilityUnresolved``,
+    ``RegistryFanOutCompleted``, ``RegistryBootValidated``. The literal
+    count guards against silent additions that bypass the documented
+    event catalog in ``docs/reference/event-bus.md``.
     """
     import personalscraper.events  # noqa: F401 — eager-import side effect
     import personalscraper.verify.events  # noqa: F401 — eager-import side effect
 
-    assert len(_EVENT_CLASS_REGISTRY) == 18, (
-        f"Expected 18 v1 events, found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
+    assert len(_EVENT_CLASS_REGISTRY) == 23, (
+        f"Expected 23 events (18 original + 5 registry), "
+        f"found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
     )
 
 
