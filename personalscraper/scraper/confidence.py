@@ -137,7 +137,7 @@ def _search_with_language(
     title: str,
     year: int | None,
     language: str,
-) -> list:  # type: ignore[type-arg]
+) -> list[SearchResult]:
     """Search TMDB with an explicit language override.
 
     Args:
@@ -155,10 +155,10 @@ def _search_with_language(
 
 
 def _filter_by_year_window(
-    results: list,  # type: ignore[type-arg]
+    results: list[SearchResult],
     year: int,
     window: int = YEAR_FALLBACK_WINDOW,
-) -> list:  # type: ignore[type-arg]
+) -> list[SearchResult]:
     """Filter search results to those within a year window of the expected year.
 
     Args:
@@ -200,9 +200,9 @@ def match_movie(
     fr = getattr(tmdb_client, "_language", "fr-FR")
     en = getattr(tmdb_client, "_fallback_language", "en-US")
 
-    results: list = []  # type: ignore[type-arg]
+    results: list[SearchResult] = []
     fallback_event: str | None = None
-    fallback_meta: dict = {}  # type: ignore[type-arg]
+    fallback_meta: dict[str, int | str] = {}
 
     # 1. Initial search: configured language + year
     results = _search_with_language(tmdb_client, title, year, fr)
@@ -427,6 +427,91 @@ def match_tvshow_tvdb(
             )
 
     return best_match
+
+
+def match_tvshow_single(
+    provider: object,
+    title: str,
+    year: int | None,
+    local_seasons: set[int] | None = None,
+) -> MatchResult | None:
+    """Match a TV show against a SINGLE provider (chain-step helper).
+
+    Per-provider counterpart to :func:`match_movie`. Dispatches by
+    ``provider.provider_name`` to the appropriate search routine:
+
+    - ``tvdb`` → :func:`match_tvshow_tvdb` (TVDB search + content-aware
+      season disambiguation when ``local_seasons`` is supplied).
+    - ``tmdb`` → TMDB ``search_tv`` over the conservative title variants
+      returned by :func:`_tv_fallback_title_variants` (the historical
+      "narrow subject-only query" path for French documentary
+      localisations).
+
+    Unknown provider names fall through to ``None`` rather than raising,
+    so a chain that mixes future providers does not break the matching
+    loop. The caller (``TvServiceMixin._match_tvshow_candidates``) is
+    responsible for the chain iteration, fallback events, and the
+    cross-provider rule that TVDB takes precedence over TMDB — that
+    invariant is now expressed via the provider chain order in
+    ``config.metadata.priorities`` rather than hardcoded inside this
+    helper.
+
+    Args:
+        provider: A chain-eligible TV provider (currently TVDB or TMDB)
+            with the legacy method names (``search_series`` for TVDB,
+            ``search_tv`` for TMDB).
+        title: Show title from the local folder.
+        year: First air date year (None if not detected).
+        local_seasons: Season numbers observed in the folder's video
+            files; forwarded to :func:`match_tvshow_tvdb`.
+
+    Returns:
+        Best :class:`MatchResult` for that provider, or ``None`` when the
+        provider returned no candidates.
+    """
+    name = getattr(provider, "provider_name", "")
+    if name == "tvdb":
+        return match_tvshow_tvdb(provider, title, year, local_seasons=local_seasons)
+    if name == "tmdb":
+        # TMDB search path lifted from the legacy ``match_tvshow`` TMDB
+        # fallback branch — keeps the subject-only query variant for
+        # French documentary localisations.
+        tmdb_results: list[tuple[str, SearchResult]] = []
+        for query_title in _tv_fallback_title_variants(title):
+            results = provider.search_tv(query_title, year)  # type: ignore[attr-defined]
+            tmdb_results.extend((query_title, result) for result in results)
+        if not tmdb_results:
+            log.info("show_no_tmdb_results", title=title, year=year)
+            return None
+        best_match: MatchResult | None = None
+        best_score = -1.0
+        for query_title, result in tmdb_results:
+            api_title = result.title
+            api_year = result.year
+            api_id = int(result.provider_id) if result.provider_id.isdigit() else 0
+            score = score_match(query_title, year, api_title, api_year)
+            if score > best_score:
+                best_score = score
+                best_match = MatchResult(
+                    api_id=api_id,
+                    api_title=api_title,
+                    api_year=api_year,
+                    confidence=score,
+                    source="tmdb",
+                )
+        if best_match is not None:
+            log.info(
+                "show_tmdb_match",
+                title=title,
+                api_title=best_match.api_title,
+                api_year=best_match.api_year,
+                confidence=round(best_match.confidence, 2),
+            )
+        return best_match
+    # Unknown provider — refuse to guess. Future TV providers must
+    # extend this dispatch table explicitly.
+    log.debug("tvshow_match_unknown_provider", provider=name)
+    return None
 
 
 def match_tvshow(

@@ -20,6 +20,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 from xml.etree import ElementTree as ET
 
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.event_bus import EventBus
 from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
 from personalscraper.trailers.orchestrator import TrailersOrchestrator, _LibraryEntry
@@ -118,7 +119,12 @@ class TestHermeticMovieTrailer:
         # Disable library check so the test never hits library_scanner.
         cfg.trailers.library_check.movies = False
         cfg.trailers.library_check.tv_shows = False
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         scan_item = ScanItem(
             path=movie_dir,
@@ -169,7 +175,12 @@ class TestHermeticMovieTrailer:
         cfg = _make_config(tmp_path)
         cfg.trailers.library_check.movies = False
         cfg.trailers.library_check.tv_shows = False
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         scan_item = ScanItem(
             path=movie_dir,
@@ -254,7 +265,12 @@ class TestHermeticSeasonTrailer:
         cfg = _make_config(tmp_path, seasons_enabled=True)
         cfg.trailers.library_check.movies = False
         cfg.trailers.library_check.tv_shows = False
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         # Show-level item -> finder returns None (no show-level trailer).
         show_item = ScanItem(
@@ -346,7 +362,12 @@ class TestHermeticLibraryAwareIdempotence:
         cfg = _make_config(tmp_path)
         cfg.trailers.library_check.movies = False
         cfg.trailers.library_check.tv_shows = True
-        orch = TrailersOrchestrator(config=cfg, staging_dir=staging_show_dir.parent, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=staging_show_dir.parent,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         staging_item = ScanItem(
             path=staging_show_dir,
@@ -392,7 +413,12 @@ class TestHermeticLibraryAwareIdempotence:
 
         cfg = _make_config(tmp_path)
         cfg.trailers.library_check.tv_shows = True
-        orch = TrailersOrchestrator(config=cfg, staging_dir=staging_show_dir.parent, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=staging_show_dir.parent,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         staging_item = ScanItem(
             path=staging_show_dir,

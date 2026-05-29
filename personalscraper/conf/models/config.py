@@ -25,6 +25,7 @@ from personalscraper.conf.models.fuzzy import FuzzyMatchConfig
 from personalscraper.conf.models.indexer import IndexerConfig
 from personalscraper.conf.models.paths import PathConfig
 from personalscraper.conf.models.preferences import LibraryPrefs
+from personalscraper.conf.models.providers import ProvidersConfig
 from personalscraper.conf.models.scraper import IngestConfig, ScraperConfig, ThresholdsConfig
 from personalscraper.conf.models.staging import StagingDirConfig
 from personalscraper.conf.models.trailers import TrailersConfig
@@ -101,6 +102,8 @@ class Config(_StrictModel):
     tracker: TrackerConfig = Field(default_factory=TrackerConfig)
     ranking: RankingConfig = Field(default_factory=RankingConfig)
     notify: NotifyConfig = Field(default_factory=NotifyConfig)
+
+    providers: ProvidersConfig = Field(default_factory=ProvidersConfig)
 
     @model_validator(mode="after")
     def _resolve_derived_paths(self) -> "Config":

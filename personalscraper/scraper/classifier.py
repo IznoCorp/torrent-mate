@@ -12,10 +12,12 @@ from guessit.api import GuessitException
 
 from personalscraper.api._contracts import MediaType
 from personalscraper.api.metadata._base import MediaDetails
+from personalscraper.api.metadata._contracts import KeywordProvider
+from personalscraper.api.metadata.registry import ProviderMatch, RegistryProviderName
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
-    from personalscraper.api.metadata.tmdb import TMDBClient
+    from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.conf.models.config import Config
     from personalscraper.scraper.keywords_cache import KeywordsCache
 
@@ -118,7 +120,7 @@ class ClassifierMixin:
     _needs_keywords: bool
     _keywords_cache: "KeywordsCache | None"
     _prefer_local_title: bool
-    _tmdb: "TMDBClient"
+    _registry: "ProviderRegistry"
 
     def _classify_item(
         self,
@@ -160,12 +162,22 @@ class ClassifierMixin:
         tmdb_keywords: list[str] = []
         if self._needs_keywords and tmdb_id is not None and self._keywords_cache is not None:
             cached = self._keywords_cache.get(tmdb_id, media_type)
-            if cached is None:
-                fetched = self._tmdb.get_keywords(str(tmdb_id), media_type)
+            if cached is not None:
+                tmdb_keywords = cached
+            else:
+                match = ProviderMatch(
+                    provider=RegistryProviderName("tmdb"),
+                    id=str(tmdb_id),
+                    media_type=media_type,
+                )
+                locked = self._registry.locked(KeywordProvider, match)  # type: ignore[type-abstract, type-var]
+                if locked is None:
+                    log.warning("classifier_keywords_unresolved", tmdb_id=tmdb_id, media_type=media_type)
+                    fetched: list[str] = []
+                else:
+                    fetched = locked.provider.get_keywords(locked.bound_id, media_type)
                 self._keywords_cache.set(tmdb_id, media_type, fetched)
                 tmdb_keywords = fetched
-            else:
-                tmdb_keywords = cached
 
         # api-unify: api_data may arrive as a typed MediaDetails. Coerce to
         # the legacy dict shape so the rest of this method keeps using the

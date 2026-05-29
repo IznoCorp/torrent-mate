@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus
 from personalscraper.models import PipelineReport, StepReport
@@ -16,7 +17,12 @@ from personalscraper.pipeline import Pipeline
 @pytest.fixture
 def pipeline_app(pipeline_config, pipeline_settings):
     """Build an :class:`AppContext` from the existing config/settings mocks."""
-    return AppContext(config=pipeline_config, settings=pipeline_settings, event_bus=EventBus())
+    return AppContext(
+        config=pipeline_config,
+        settings=pipeline_settings,
+        event_bus=EventBus(),
+        provider_registry=MagicMock(spec=ProviderRegistry),
+    )
 
 
 @pytest.fixture
@@ -279,7 +285,14 @@ class TestCrashRecovery:
         (tmp_path / "097-TEMP").mkdir()
         settings = MagicMock()
 
-        pipeline = Pipeline(AppContext(config=self._make_config(tmp_path), settings=settings, event_bus=EventBus()))
+        pipeline = Pipeline(
+            AppContext(
+                config=self._make_config(tmp_path),
+                settings=settings,
+                event_bus=EventBus(),
+                provider_registry=MagicMock(spec=ProviderRegistry),
+            )
+        )
         pipeline._recover_from_previous_run(lockout_path=lockout)
 
         assert not lockout.exists()
@@ -293,7 +306,14 @@ class TestCrashRecovery:
         (tmp_path / "097-TEMP").mkdir()
         settings = MagicMock()
 
-        pipeline = Pipeline(AppContext(config=self._make_config(tmp_path), settings=settings, event_bus=EventBus()))
+        pipeline = Pipeline(
+            AppContext(
+                config=self._make_config(tmp_path),
+                settings=settings,
+                event_bus=EventBus(),
+                provider_registry=MagicMock(spec=ProviderRegistry),
+            )
+        )
         pipeline._recover_from_previous_run(lockout_path=lockout)
 
         assert lockout.exists()
@@ -315,7 +335,14 @@ class TestCrashRecovery:
 
         config = self._make_config(tmp_path)
         config.disks = [disk_config]  # inject disk with orphan directly
-        pipeline = Pipeline(AppContext(config=config, settings=settings, event_bus=EventBus()))
+        pipeline = Pipeline(
+            AppContext(
+                config=config,
+                settings=settings,
+                event_bus=EventBus(),
+                provider_registry=MagicMock(spec=ProviderRegistry),
+            )
+        )
         pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")
 
         assert not orphan.exists()
@@ -330,7 +357,14 @@ class TestCrashRecovery:
 
         settings = MagicMock()
 
-        pipeline = Pipeline(AppContext(config=self._make_config(tmp_path), settings=settings, event_bus=EventBus()))
+        pipeline = Pipeline(
+            AppContext(
+                config=self._make_config(tmp_path),
+                settings=settings,
+                event_bus=EventBus(),
+                provider_registry=MagicMock(spec=ProviderRegistry),
+            )
+        )
         pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")
 
         assert not orphan.exists()
@@ -349,7 +383,14 @@ class TestCrashRecovery:
 
         config = self._make_config(tmp_path)
         config.disks = [disk_config]
-        pipeline = Pipeline(AppContext(config=config, settings=MagicMock(), event_bus=EventBus()))
+        pipeline = Pipeline(
+            AppContext(
+                config=config,
+                settings=MagicMock(),
+                event_bus=EventBus(),
+                provider_registry=MagicMock(spec=ProviderRegistry),
+            )
+        )
 
         with patch("shutil.rmtree", side_effect=OSError("device busy")):
             cleaned = pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")
@@ -370,7 +411,14 @@ class TestCrashRecovery:
 
         config = self._make_config(tmp_path)
         config.disks = [disk_config]
-        pipeline = Pipeline(AppContext(config=config, settings=MagicMock(), event_bus=EventBus()))
+        pipeline = Pipeline(
+            AppContext(
+                config=config,
+                settings=MagicMock(),
+                event_bus=EventBus(),
+                provider_registry=MagicMock(spec=ProviderRegistry),
+            )
+        )
 
         with patch("pathlib.Path.iterdir", side_effect=OSError("io error")):
             cleaned = pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")
@@ -382,7 +430,14 @@ class TestCrashRecovery:
         (tmp_path / "097-TEMP").mkdir()
         # No orphan files, ingest dir absent → total cleaned = 0.
         settings = MagicMock()
-        pipeline = Pipeline(AppContext(config=self._make_config(tmp_path), settings=settings, event_bus=EventBus()))
+        pipeline = Pipeline(
+            AppContext(
+                config=self._make_config(tmp_path),
+                settings=settings,
+                event_bus=EventBus(),
+                provider_registry=MagicMock(spec=ProviderRegistry),
+            )
+        )
         cleaned = pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")
         assert cleaned == 0
 
@@ -396,7 +451,14 @@ class TestCrashRecovery:
 
         (tmp_path / "097-TEMP").mkdir()
 
-        pipeline = Pipeline(AppContext(config=self._make_config(tmp_path), settings=MagicMock(), event_bus=EventBus()))
+        pipeline = Pipeline(
+            AppContext(
+                config=self._make_config(tmp_path),
+                settings=MagicMock(),
+                event_bus=EventBus(),
+                provider_registry=MagicMock(spec=ProviderRegistry),
+            )
+        )
 
         with patch.object(Path, "unlink", side_effect=OSError("read-only")):
             cleaned = pipeline._recover_from_previous_run(lockout_path=lockout)

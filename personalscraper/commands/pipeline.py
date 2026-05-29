@@ -133,6 +133,7 @@ def scrape(
                 movies_only=movies_only,
                 tvshows_only=tvshows_only,
                 event_bus=app_context.event_bus,
+                registry=app_context.provider_registry,
             )
         console.print(
             f"[bold]Scrape:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
@@ -358,6 +359,7 @@ def process(
                     interactive=interactive,
                     config=config,
                     event_bus=app_context.event_bus,
+                    registry=app_context.provider_registry,
                 )
         except Exception as exc:
             console.print(f"[red]Process failed: {type(exc).__name__}: {exc}[/red]")

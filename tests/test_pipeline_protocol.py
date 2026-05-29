@@ -4,11 +4,12 @@
 
 from __future__ import annotations
 
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 from uuid import uuid4
 
 import pytest
 
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus
 from personalscraper.models import StepReport
@@ -17,7 +18,12 @@ from personalscraper.pipeline_protocol import PipelineStep, StepContext, is_pipe
 
 def _make_app() -> AppContext:
     """Build a synthetic AppContext for protocol-shape tests."""
-    return AppContext(config=Mock(), settings=Mock(), event_bus=EventBus())
+    return AppContext(
+        config=Mock(),
+        settings=Mock(),
+        event_bus=EventBus(),
+        provider_registry=MagicMock(spec=ProviderRegistry),
+    )
 
 
 def test_step_context_is_frozen() -> None:

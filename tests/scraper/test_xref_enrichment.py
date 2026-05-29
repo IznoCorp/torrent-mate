@@ -33,8 +33,20 @@ def _make_mixin(
     """Build a bare :class:`TvServiceMixin` for direct method calls."""
     mixin = TvServiceMixin.__new__(TvServiceMixin)
     mixin.dry_run = False
-    mixin._tvdb = tvdb if tvdb is not None else MagicMock()  # type: ignore[assignment]
-    mixin._tmdb = tmdb if tmdb is not None else MagicMock()  # type: ignore[assignment]
+
+    _tvdb_client = tvdb if tvdb is not None else MagicMock()
+    _tmdb_client = tmdb if tmdb is not None else MagicMock()
+    _registry = MagicMock()
+    _registry.get.side_effect = (
+        lambda name,
+        _cache={  # type: ignore[misc]
+            "tmdb": _tmdb_client,
+            "tvdb": _tvdb_client,
+        }: _cache.get(name, MagicMock())
+    )
+    mixin._registry = _registry  # type: ignore[assignment]
+    mixin._tvdb = _tvdb_client  # type: ignore[assignment]
+    mixin._tmdb = _tmdb_client  # type: ignore[assignment]
     mixin._nfo = MagicMock()  # type: ignore[assignment]
     mixin._artwork = MagicMock()  # type: ignore[assignment]
     mixin.config = None  # type: ignore[assignment]
@@ -198,9 +210,9 @@ def test_xref_enrichment_wired_between_build_map_and_match_seasons(tmp_path: Any
     def _xref(*_a: Any, **_k: Any) -> None:
         call_log.append("xref")
 
-    def _match(*_a: Any, **_k: Any) -> int:
+    def _match(*_a: Any, **_k: Any) -> tuple[int, list[str]]:
         call_log.append("match")
-        return 1
+        return 1, []
 
     mixin._build_episode_map = MagicMock(side_effect=_build)  # type: ignore[assignment]
     mixin._xref_enrichment = MagicMock(side_effect=_xref)  # type: ignore[assignment]

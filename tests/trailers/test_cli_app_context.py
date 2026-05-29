@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.cli import app
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus, current_correlation_id
@@ -59,7 +60,12 @@ def _capturing_factory() -> tuple:
     captured: list[AppContext] = []
 
     def _factory(config, settings):  # type: ignore[no-untyped-def]
-        ctx = AppContext(config=config, settings=settings, event_bus=EventBus())
+        ctx = AppContext(
+            config=config,
+            settings=settings,
+            event_bus=EventBus(),
+            provider_registry=MagicMock(spec=ProviderRegistry),
+        )
         captured.append(ctx)
         return ctx
 
@@ -141,7 +147,12 @@ def test_trailers_command_binds_correlation_id(cmd: str) -> None:
         # ``after`` the AppContext is built (see ``_trailers_boundary``)
         # — to capture during body execution we read it on the next stub
         # invocation (Scanner.scan_staging) below.
-        return AppContext(config=config, settings=settings, event_bus=EventBus())
+        return AppContext(
+            config=config,
+            settings=settings,
+            event_bus=EventBus(),
+            provider_registry=MagicMock(spec=ProviderRegistry),
+        )
 
     def _scan_spy(self, *_a, **_kw):  # type: ignore[no-untyped-def]
         observed.append(current_correlation_id.get())
@@ -212,7 +223,12 @@ def test_trailers_download_passes_event_bus_to_orchestrator() -> None:
     captured: list[AppContext] = []
 
     def _factory(config, settings):  # type: ignore[no-untyped-def]
-        ctx = AppContext(config=config, settings=settings, event_bus=EventBus())
+        ctx = AppContext(
+            config=config,
+            settings=settings,
+            event_bus=EventBus(),
+            provider_registry=MagicMock(spec=ProviderRegistry),
+        )
         captured.append(ctx)
         return ctx
 
@@ -242,3 +258,6 @@ def test_trailers_download_passes_event_bus_to_orchestrator() -> None:
     # The orchestrator received the bus carried by the AppContext built at the boundary.
     assert "event_bus" in orchestrator_kwargs
     assert orchestrator_kwargs["event_bus"] is captured[0].event_bus
+    # Sub-phase 3.1: the registry must also be threaded from the AppContext.
+    assert "registry" in orchestrator_kwargs
+    assert orchestrator_kwargs["registry"] is captured[0].provider_registry

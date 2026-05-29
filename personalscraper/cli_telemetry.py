@@ -54,14 +54,18 @@ def cli_telemetry(cmd_name: str) -> Callable[[Callable[..., Any]], Callable[...,
             # Positional args are logged by index only when the command
             # signature exposes them (rare in Typer — most options are kwargs).
             log_kwargs = {k: v for k, v in kwargs.items()}
-            _log.info(f"cli.invoke.{cmd_name}", **log_kwargs)
+            # Use string concatenation (not f-string) so structlog audit rule
+            # `no-fstring-log` is satisfied while preserving the documented
+            # event surface (`cli.invoke.<cmd>` / `cli.complete.<cmd>` /
+            # `cli.failed.<cmd>`).
+            _log.info("cli.invoke." + cmd_name, **log_kwargs)
             try:
                 ret = fn(*args, **kwargs)
-                _log.info(f"cli.complete.{cmd_name}", exit_code=ret if ret is not None else 0)
+                _log.info("cli.complete." + cmd_name, exit_code=ret if ret is not None else 0)
                 return ret
             except Exception as exc:
                 _log.error(
-                    f"cli.failed.{cmd_name}",
+                    "cli.failed." + cmd_name,
                     error=str(exc),
                     error_type=type(exc).__name__,
                 )

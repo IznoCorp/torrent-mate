@@ -95,7 +95,7 @@ ignore = ["D100", "D104"]  # D100=module docstring (enforced manually), D104=__i
 convention = "google"
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.12"
 strict = true
 files = ["personalscraper"]
 exclude = ["tests/"]

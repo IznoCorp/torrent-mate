@@ -135,8 +135,10 @@ def test_crash_recovery_uses_filesystem_scan(
     movies_staging = staging_tree / folder_name(find_by_file_type(config, FileType.MOVIE))
     new_movie_dir = _build_verified_movie_dir(movies_staging, title=title, year=year)
 
-    # Add a distinctively-named file so we can confirm the new version landed.
-    new_marker = new_movie_dir / "file_new.mkv"
+    # Add a distinctively-named non-video marker so we can confirm the new
+    # version landed. A .txt extension keeps the movie's single root video
+    # ({title}.mkv); a second root video would trip the no_duplicate_videos check.
+    new_marker = new_movie_dir / "file_new.txt"
     new_marker.write_bytes(b"new_content" * 10)
 
     report = run_dispatch(_make_settings(), config, dry_run=False, verified=None, event_bus=EventBus())
@@ -154,8 +156,8 @@ def test_crash_recovery_uses_filesystem_scan(
     )
 
     # The new marker file must be present on Disk1 — confirms correct placement.
-    assert (dest_dir / "file_new.mkv").exists(), (
-        f"New marker file should be on Disk1 after replace. Expected: {dest_dir / 'file_new.mkv'}. "
+    assert (dest_dir / "file_new.txt").exists(), (
+        f"New marker file should be on Disk1 after replace. Expected: {dest_dir / 'file_new.txt'}. "
         f"Dispatch details: {report.details}"
     )
 

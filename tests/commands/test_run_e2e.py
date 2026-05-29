@@ -8,7 +8,7 @@ plus 2 run-specific sections (SIGINT mid-run, step skip flags).
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from personalscraper.models import PipelineReport, StepReport
 from tests.commands._e2e_helpers import (
@@ -16,6 +16,7 @@ from tests.commands._e2e_helpers import (
     capture_event_bus,
     run_cli,
 )
+from tests.fixtures.settings_stub import make_typed_settings_stub
 
 
 def _make_pipeline_report(*, step_count: int = 9, with_errors: bool = False) -> PipelineReport:
@@ -102,7 +103,7 @@ def test_run_all_steps_noop(
 ) -> None:
     """All 9 steps complete with zero ops → exit 0, summary printed."""
     mock_run.return_value = _make_pipeline_report(step_count=9)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["run"])
 
@@ -125,7 +126,7 @@ def test_run_with_operations(
 ) -> None:
     """Pipeline with real operations → exit 0, mock called once."""
     mock_run.return_value = _make_pipeline_report(step_count=9, with_errors=False)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["run"])
 
@@ -145,7 +146,7 @@ def test_run_headless(
 ) -> None:
     """--headless runs without crash, exit 0."""
     mock_run.return_value = _make_pipeline_report(step_count=9)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["run", "--headless"])
 
@@ -177,7 +178,7 @@ def test_run_lock_contention(
     mock_cleanup,
 ) -> None:
     """Lock held → exit 1, friendly message, no traceback."""
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["run"])
 
@@ -198,7 +199,7 @@ def test_run_errors_in_report_exit_nonzero(
 ) -> None:
     """Pipeline reports errors → exit code 1."""
     mock_run.return_value = _make_pipeline_report(step_count=9, with_errors=True)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["run"])
 
@@ -221,7 +222,7 @@ def test_run_idempotent(
 ) -> None:
     """Two consecutive run calls exit 0, mock called twice."""
     mock_run.return_value = _make_pipeline_report(step_count=9)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     r1 = run_cli(["run"])
     r2 = run_cli(["run"])
@@ -246,7 +247,7 @@ def test_run_dry_run_forwards_flag(
 ) -> None:
     """--dry-run flag is forwarded to Pipeline.run."""
     mock_run.return_value = _make_pipeline_report(step_count=9)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["run", "--dry-run"])
 
@@ -267,7 +268,7 @@ def test_run_interactive_forwards_flag(
 ) -> None:
     """--interactive flag is forwarded to Pipeline.run."""
     mock_run.return_value = _make_pipeline_report(step_count=9)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["run", "--interactive"])
 
@@ -291,7 +292,7 @@ def test_run_output_no_traceback(
 ) -> None:
     """Output is structured, never a raw Python traceback."""
     mock_run.return_value = _make_pipeline_report(step_count=9)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["run"])
 
@@ -311,7 +312,7 @@ def test_run_error_exit_nonzero_on_bad_report(
 ) -> None:
     """Pipeline report with errors → exit non-zero."""
     mock_run.return_value = _make_pipeline_report(step_count=9, with_errors=True)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["run"])
 
@@ -349,7 +350,7 @@ def test_run_emits_pipeline_lifecycle_events(
         StepStarted,
     )
 
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
     captured = capture_event_bus(monkeypatch)
 
     # Use monkeypatch.setattr on the CLASS with a real function so Python's
@@ -369,10 +370,15 @@ def test_run_emits_pipeline_lifecycle_events(
     result = run_cli(["run"])
 
     assert result.exit_code == 0, result.output
-    # 9 steps × 2 events each = 18 events
-    assert len(captured) == 18, f"Expected 18 events, got {len(captured)}"
+    # 9 steps × 2 events each = 18 lifecycle events. The bus may also carry a
+    # ``RegistryBootValidated`` event emitted by the real ``ProviderRegistry``
+    # at CLI boot (since feat/registry Phase 15 removed the autouse stub) —
+    # filter by relevant event type rather than asserting on the total count.
     started = [e for e in captured if isinstance(e, StepStarted)]
     completed = [e for e in captured if isinstance(e, StepCompleted)]
+    assert len(started) + len(completed) == 18, (
+        f"Expected 18 lifecycle events, got {len(started) + len(completed)} (total bus captures: {len(captured)})"
+    )
     assert len(started) == 9
     assert len(completed) == 9
     # Verify step order: every started step also completed
@@ -432,7 +438,7 @@ def test_run_sigint_partial_completion(
     Lock is released cleanly in the finally block. No orphan,
     friendly structured output (no Python traceback).
     """
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
     # Only 3 of 9 steps completed, and the last one errored
     # (simulates interruption mid-sort or mid-process).
     partial = _make_pipeline_report(step_count=3, with_errors=True)
@@ -471,7 +477,7 @@ def test_run_sigint_lock_released_on_exception(
     """Pipeline.run raises _PipelineInterrupted → lock released, exit != 0."""
     from personalscraper.pipeline import _PipelineInterrupted
 
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     with patch(
         "personalscraper.pipeline.Pipeline.run",
@@ -500,7 +506,7 @@ def test_run_skip_trailers_forwards_flag(
 ) -> None:
     """--skip-trailers flag is forwarded to Pipeline.run."""
     mock_run.return_value = _make_pipeline_report(step_count=8)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["run", "--skip-trailers"])
 
@@ -521,7 +527,7 @@ def test_run_continue_on_trailer_error_forwards_flag(
 ) -> None:
     """--continue-on-trailer-error flag is forwarded to Pipeline.run."""
     mock_run.return_value = _make_pipeline_report(step_count=9)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["run", "--continue-on-trailer-error"])
 
@@ -551,7 +557,7 @@ def test_run_verbose_forwards_flag(
 ) -> None:
     """--verbose flag is forwarded to Pipeline.run."""
     mock_run.return_value = _make_pipeline_report(step_count=9)
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["--verbose", "run"])
 

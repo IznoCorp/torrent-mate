@@ -203,7 +203,18 @@ def _make_classifier(
     instance._needs_keywords = needs_keywords  # type: ignore[assignment]
     instance._keywords_cache = keywords_cache  # type: ignore[assignment]
     instance._prefer_local_title = prefer_local  # type: ignore[assignment]
-    instance._tmdb = tmdb if tmdb is not None else MagicMock()  # type: ignore[assignment]
+
+    _tmdb_client = tmdb if tmdb is not None else MagicMock()
+    _registry = MagicMock()
+
+    def _locked_side_effect(capability: object, match: object) -> MagicMock:
+        locked = MagicMock()
+        locked.provider = _tmdb_client
+        locked.bound_id = getattr(match, "id", str(match))
+        return locked
+
+    _registry.locked.side_effect = _locked_side_effect
+    instance._registry = _registry  # type: ignore[assignment]
     return instance
 
 

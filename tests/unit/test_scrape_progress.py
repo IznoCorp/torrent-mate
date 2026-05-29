@@ -40,7 +40,7 @@ class TestScrapeProgress:
             patch("personalscraper.scraper.run._has_unscraped_items", return_value=False),
             patch("personalscraper.scraper.run._needs_repair", return_value=False),
         ):
-            report = run_scrape(MagicMock(), config=_base_config(), dry_run=True, event_bus=bus)
+            report = run_scrape(MagicMock(), config=_base_config(), dry_run=True, event_bus=bus, registry=MagicMock())
 
         assert report.name == "scrape"
         assert collector.received == []
@@ -69,7 +69,7 @@ class TestScrapeProgress:
             patch("personalscraper.scraper.run.Scraper", return_value=mock_scraper),
             patch("pathlib.Path.exists", return_value=True),
         ):
-            run_scrape(MagicMock(), config=_base_config(), dry_run=True, event_bus=bus)
+            run_scrape(MagicMock(), config=_base_config(), dry_run=True, event_bus=bus, registry=MagicMock())
 
         statuses = [e.status for e in collector.received]
         assert statuses.count("started") == 6

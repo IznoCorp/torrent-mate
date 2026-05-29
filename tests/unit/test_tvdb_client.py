@@ -1,9 +1,15 @@
 """Unit tests for TVDBClient method bodies (search, get_*, helpers).
 
-The bootstrap login (POST /login) is bypassed by constructing the client
-via ``__new__`` and injecting a MagicMock transport. This avoids a real
-HTTP call while still exercising the per-method endpoint, params and
-parser-glue paths.
+The bootstrap login (POST /login) is **deferred** since Phase 14 of
+``feat/registry``: construction is network-free and the JWT exchange
+fires on the first real HTTP call. For per-method unit tests we still
+bypass it by constructing the client via ``__new__`` and injecting a
+MagicMock transport (the lazy ``_transport`` property has a setter that
+preserves this pattern).
+
+The bootstrap path itself is exercised below via a full ``TVDBClient(...)``
+construction followed by a first method call — that's what now triggers
+the ``POST /login``.
 """
 
 from __future__ import annotations
@@ -66,10 +72,22 @@ def client(transport: MagicMock) -> TVDBClient:
 
 
 class TestBootstrapLogin:
-    """Cover the __init__ path: POST /login, JWT extraction, type guard."""
+    """Cover the deferred bootstrap path: POST /login, JWT extraction, type guard.
 
-    def test_init_logs_in_and_stores_jwt(self) -> None:
-        """A successful /login response yields a fully wired client."""
+    Since Phase 14, ``TVDBClient(...)`` is pure-Python — no HTTP fires.
+    The bootstrap exchange happens on first real HTTP call. These tests
+    construct the client, then exercise a method to trigger ``/login``.
+    """
+
+    def test_init_does_not_fire_http(self) -> None:
+        """Construction itself MUST NOT call HttpTransport (deferred bootstrap)."""
+        with patch("personalscraper.api.metadata.tvdb.HttpTransport") as MockTransport:
+            TVDBClient("fake-api-key", event_bus=EventBus())
+            # Zero HTTP transport instantiations at construction time.
+            MockTransport.assert_not_called()
+
+    def test_first_call_logs_in_and_stores_jwt(self) -> None:
+        """A successful /login response yields a fully wired client on first call."""
         login_resp = {"status": "success", "data": {"token": "jwt-token"}}
         with patch("personalscraper.api.metadata.tvdb.HttpTransport") as MockTransport:
             bootstrap = MagicMock()
@@ -81,12 +99,15 @@ class TestBootstrapLogin:
             MockTransport.side_effect = [bootstrap, main]
 
             c = TVDBClient("fake-api-key", event_bus=EventBus())
+            # No HTTP yet.
+            MockTransport.assert_not_called()
+            # Touching the lazy transport triggers bootstrap.
+            assert c._transport is main
 
-        assert c._transport is main
         bootstrap.post.assert_called_once_with("/login", data={"apikey": "fake-api-key"})
 
-    def test_init_non_dict_login_response_raises(self) -> None:
-        """A non-dict /login response raises TypeError."""
+    def test_first_call_non_dict_login_response_raises(self) -> None:
+        """A non-dict /login response raises TypeError on first method call."""
         with patch("personalscraper.api.metadata.tvdb.HttpTransport") as MockTransport:
             bootstrap = MagicMock()
             bootstrap.__enter__.return_value = bootstrap
@@ -94,8 +115,29 @@ class TestBootstrapLogin:
             bootstrap.post.return_value = ["unexpected"]
             MockTransport.return_value = bootstrap
 
+            # Construction MUST succeed even with a malformed /login response —
+            # the bogus payload is only inspected on first transport access.
+            c = TVDBClient("fake-api-key", event_bus=EventBus())
             with pytest.raises(TypeError, match="Expected dict"):
-                TVDBClient("fake-api-key", event_bus=EventBus())
+                _ = c._transport
+
+    def test_bootstrap_is_idempotent(self) -> None:
+        """Second access to _transport reuses the cached main transport."""
+        login_resp = {"status": "success", "data": {"token": "jwt-token"}}
+        with patch("personalscraper.api.metadata.tvdb.HttpTransport") as MockTransport:
+            bootstrap = MagicMock()
+            bootstrap.__enter__.return_value = bootstrap
+            bootstrap.__exit__.return_value = None
+            bootstrap.post.return_value = login_resp
+            main = MagicMock()
+            MockTransport.side_effect = [bootstrap, main]
+
+            c = TVDBClient("fake-api-key", event_bus=EventBus())
+            first = c._transport
+            second = c._transport
+            assert first is second is main
+            # Only the bootstrap + main pair were ever built (two calls total).
+            assert MockTransport.call_count == 2
 
 
 # ── policy + circuit property ─────────────────────────────────────────
@@ -394,3 +436,77 @@ class TestUnsupportedCapabilities:
         """get_notations raises NotImplementedError."""
         with pytest.raises(NotImplementedError, match="notations"):
             client.get_notations("1", "movie")
+
+
+class TestCircuitPropertyIsHttpFree:
+    """Phase 22 / DESIGN §7.6: reading ``TVDBClient.circuit`` is HTTP-free.
+
+    Pre-bootstrap, the breaker doesn't exist yet (it's constructed by
+    :meth:`_ensure_transport` together with the main HttpTransport), so
+    the property returns ``None``. Post-bootstrap, the property returns
+    the same instance the transport uses — no extra HTTP, no extra
+    instantiation.
+    """
+
+    def test_tvdb_circuit_property_no_bootstrap_on_first_access(self) -> None:
+        """Reading ``.circuit`` on a fresh TVDBClient must not call ``_ensure_transport``."""
+        bus = EventBus()
+        client = TVDBClient(api_key="bogus", event_bus=bus)
+
+        bootstrap_calls: list[None] = []
+        original_ensure = TVDBClient._ensure_transport
+
+        def spy(self_: TVDBClient) -> Any:
+            bootstrap_calls.append(None)
+            return original_ensure(self_)
+
+        with patch.object(TVDBClient, "_ensure_transport", spy):
+            result = client.circuit
+
+        assert result is None, "Pre-bootstrap, circuit must be None (lazy breaker)."
+        assert bootstrap_calls == [], "Reading .circuit must not invoke _ensure_transport."
+
+    def test_tvdb_circuit_property_returns_breaker_post_bootstrap(self) -> None:
+        """After ``_ensure_transport`` runs, ``.circuit`` returns the transport's breaker."""
+        client = TVDBClient.__new__(TVDBClient)
+        client._api_key = "fake"  # type: ignore[attr-defined]
+        client._tvdb_lang = "fra"  # type: ignore[attr-defined]
+        client._language = "fr-FR"  # type: ignore[attr-defined]
+        client._circuit_breaker = None  # type: ignore[attr-defined]
+        # Inject a transport carrying a sentinel breaker; the setter mirrors
+        # it into the cache.
+        sentinel_breaker = object()
+        transport = MagicMock()
+        transport._circuit = sentinel_breaker
+        client._transport = transport  # type: ignore[attr-defined]
+
+        assert client.circuit is sentinel_breaker
+
+    def test_tvdb_eligibility_is_http_free(self) -> None:
+        """``_eligible(TVDBClient)`` must not trigger the JWT bootstrap.
+
+        The registry boots providers eagerly; the first
+        ``registry.chain(...)`` or ``registry.status()`` call iterates
+        the chain and calls :func:`_eligible` on every provider. Before
+        Phase 22, that triggered the TVDB JWT exchange via the
+        ``circuit`` property. The ``_registry_lazy_circuit = True``
+        marker now flags TVDB as eligible pre-bootstrap without reading
+        the live breaker.
+        """
+        from personalscraper.api.metadata.registry._factory import _eligible
+
+        bus = EventBus()
+        client = TVDBClient(api_key="bogus", event_bus=bus)
+
+        bootstrap_calls: list[None] = []
+        original_ensure = TVDBClient._ensure_transport
+
+        def spy(self_: TVDBClient) -> Any:
+            bootstrap_calls.append(None)
+            return original_ensure(self_)
+
+        with patch.object(TVDBClient, "_ensure_transport", spy):
+            result = _eligible(client)
+
+        assert result is True
+        assert bootstrap_calls == [], "Eligibility check triggered TVDB bootstrap."

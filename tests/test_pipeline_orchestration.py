@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus
 from personalscraper.models import StepReport
@@ -20,7 +21,12 @@ from personalscraper.pipeline import Pipeline
 @pytest.fixture
 def orch_app(orch_config, orch_settings):
     """Build the AppContext used by every orchestration test."""
-    return AppContext(config=orch_config, settings=orch_settings, event_bus=EventBus())
+    return AppContext(
+        config=orch_config,
+        settings=orch_settings,
+        event_bus=EventBus(),
+        provider_registry=MagicMock(spec=ProviderRegistry),
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -73,7 +73,7 @@ def make_cli_runner() -> _RawCliRunner:
 
 
 # Expose shared fixtures from the fixtures package
-pytest_plugins = ["tests.fixtures.config"]
+pytest_plugins = ["tests.fixtures.config", "tests.fixtures.settings_stub"]
 
 # Disable Rich/Typer color output so help-text assertions (e.g. "--disk" in output)
 # match the rendered text without ANSI escape codes splitting option names.
@@ -146,6 +146,14 @@ def _replace_console_renderer_for_tests() -> None:
                 ]
                 fmt.processors = new_procs
             break
+
+
+# NOTE: The legacy autouse `_patch_provider_registry_for_cli_tests` fixture was
+# removed in feat/registry Phase 15. CLI tests now rely on:
+#   - tests/fixtures/settings_stub.make_typed_settings_stub() — typed Settings
+#     with dummy credentials that boot ProviderRegistry cleanly (Phase 9.1).
+#   - TVDBClient deferred bootstrap (Phase 14) — no HTTP call at __init__.
+# Real ProviderRegistry boots silently end-to-end on every CLI test.
 
 
 @pytest.fixture(autouse=True)

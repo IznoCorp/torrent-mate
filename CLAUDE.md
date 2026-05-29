@@ -209,6 +209,7 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | qBittorrent / Transmission torrent clients (auth, endpoints, content_path, particularities)                         | `docs/reference/<provider>-api.md`      |
 | LaCale / C411 trackers (search, ranking, samples, freeleech, passkey)                                               | `docs/reference/<tracker>-api.md`       |
 | Telegram notifier / healthchecks (lifecycle, auth-in-URL, fail-soft contract)                                       | `docs/reference/<provider>-api.md`      |
+| Provider naming conventions — `ProviderName` Enum (transport) vs `RegistryProviderName` NewType (registry)          | `docs/features/registry/DESIGN.md` §5.3 |
 
 Also check archived alpha versions under `docs/archive/legacy-alpha/` and archived features under `docs/archive/features/`.
 

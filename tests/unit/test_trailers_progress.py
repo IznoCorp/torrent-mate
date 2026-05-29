@@ -5,10 +5,16 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.event_bus import EventBus
 from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.trailers.step import run_trailers
 from tests.fixtures.event_bus import CollectingSubscriber
+
+
+def _mk_registry():
+    """Return a MagicMock standing in for a ProviderRegistry."""
+    return MagicMock(spec=ProviderRegistry)
 
 
 class TestTrailersProgress:
@@ -22,7 +28,13 @@ class TestTrailersProgress:
         _orch.return_value.item_results = []
         config = MagicMock()
         config.trailers.enabled = True
-        report = run_trailers(config, staging_dir=Path("/tmp/staging"), verified=[], event_bus=EventBus())
+        report = run_trailers(
+            config,
+            staging_dir=Path("/tmp/staging"),
+            verified=[],
+            event_bus=EventBus(),
+            registry=_mk_registry(),
+        )
         assert report.name == "trailers"
 
     @patch("personalscraper.trailers.orchestrator.TrailersOrchestrator")
@@ -43,7 +55,13 @@ class TestTrailersProgress:
         config = MagicMock()
         config.trailers.enabled = True
 
-        run_trailers(config, staging_dir=Path("/tmp/staging"), verified=[MagicMock()], event_bus=bus)
+        run_trailers(
+            config,
+            staging_dir=Path("/tmp/staging"),
+            verified=[MagicMock()],
+            event_bus=bus,
+            registry=_mk_registry(),
+        )
 
         downloaded = [e for e in collector.received if e.status == "downloaded"]
         assert len(downloaded) >= 1
@@ -73,7 +91,13 @@ class TestTrailersProgress:
         config = MagicMock()
         config.trailers.enabled = True
 
-        run_trailers(config, staging_dir=Path("/tmp/staging"), verified=[MagicMock()], event_bus=bus)
+        run_trailers(
+            config,
+            staging_dir=Path("/tmp/staging"),
+            verified=[MagicMock()],
+            event_bus=bus,
+            registry=_mk_registry(),
+        )
 
         statuses = [e.status for e in collector.received]
         assert "error" in statuses
@@ -92,6 +116,7 @@ class TestTrailersProgress:
             verified=[],
             skip_trailers=True,
             event_bus=bus,
+            registry=_mk_registry(),
         )
 
         skipped = [e for e in collector.received if e.status == "skipped"]
@@ -108,7 +133,13 @@ class TestTrailersProgress:
         config = MagicMock()
         config.trailers.enabled = True
 
-        report = run_trailers(config, staging_dir=Path("/tmp/staging"), verified=[], event_bus=bus)
+        report = run_trailers(
+            config,
+            staging_dir=Path("/tmp/staging"),
+            verified=[],
+            event_bus=bus,
+            registry=_mk_registry(),
+        )
 
         assert report.status == "error"
         failed = [e for e in collector.received if e.status == "failed"]

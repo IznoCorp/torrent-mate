@@ -6,7 +6,7 @@ via CliRunner with mocked sub-steps. Follows the 8-section pattern.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from personalscraper.models import StepReport
 from tests.commands._e2e_helpers import (
@@ -15,6 +15,7 @@ from tests.commands._e2e_helpers import (
     capture_event_bus,
     run_cli,
 )
+from tests.fixtures.settings_stub import make_typed_settings_stub
 
 
 def _clean_report(**kw: int) -> StepReport:
@@ -61,7 +62,7 @@ def test_process_empty_staging_noop(
         _scrape_report(),
         _cleanup_report(),
     )
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["process"])
 
@@ -88,7 +89,7 @@ def test_process_with_operations(
         _scrape_report(success_count=3, skip_count=1),
         _cleanup_report(success_count=2),
     )
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["process"])
 
@@ -110,7 +111,7 @@ def test_process_lock_contention(
     mock_settings,
 ) -> None:
     """Lock held → exit 1, friendly message, no traceback."""
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["process"])
 
@@ -131,7 +132,7 @@ def test_process_runtime_error(
 ) -> None:
     """run_process raises RuntimeError → exit 1, friendly message."""
     mock_run.side_effect = RuntimeError("disk full")
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["process"])
 
@@ -159,7 +160,7 @@ def test_process_idempotent(
         _scrape_report(skip_count=5),
         _cleanup_report(skip_count=5),
     )
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     r1 = run_cli(["process"])
     r2 = run_cli(["process"])
@@ -187,7 +188,7 @@ def test_process_dry_run_forwards_flag(
 ) -> None:
     """--dry-run flag is forwarded to run_process."""
     mock_run.return_value = (_clean_report(), _scrape_report(), _cleanup_report())
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["process", "--dry-run"])
 
@@ -211,7 +212,7 @@ def test_process_output_no_traceback(
 ) -> None:
     """Output is Rich-formatted, never a raw Python traceback."""
     mock_run.return_value = (_clean_report(), _scrape_report(), _cleanup_report())
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["process"])
 
@@ -231,7 +232,7 @@ def test_process_error_exit_code_nonzero(
 ) -> None:
     """run_process raises → exit code non-zero."""
     mock_run.side_effect = RuntimeError("boom")
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["process"])
 
@@ -253,7 +254,7 @@ def test_process_emits_item_progressed_events(
     """run_process emits ItemProgressed events on the shared EventBus."""
     from personalscraper.pipeline_events import ItemProgressed
 
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
     captured = capture_event_bus(monkeypatch)
 
     def _emit_and_return(*args, **kwargs):
@@ -268,7 +269,10 @@ def test_process_emits_item_progressed_events(
         result = run_cli(["process"])
 
     assert result.exit_code == 0
-    assert len(captured) == 3
+    # Filter by domain event type — the bus may also carry a
+    # ``RegistryBootValidated`` infra event since Phase 15 removed the autouse stub.
+    item_events = [e for e in captured if isinstance(e, ItemProgressed)]
+    assert len(item_events) == 3
     assert_events_emitted(captured, [ItemProgressed])
 
 

@@ -20,7 +20,7 @@ from personalscraper.conf.classifier import classify_from_nfo
 from personalscraper.conf.models.config import Config
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
-from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
+from personalscraper.sorter.file_type import VIDEO_EXTENSIONS, is_trailer_filename
 from personalscraper.text_utils import _NTFS_ILLEGAL
 
 log = get_logger("verify.checker")
@@ -96,7 +96,7 @@ class MediaChecker:
 
         Checks: video_present, not_sample, dir_naming, nfo_present,
         nfo_valid, nfo_ids, poster_present, artwork_landscape,
-        streamdetails, no_empty_dirs, category.
+        streamdetails, no_empty_dirs, category, no_duplicate_videos.
 
         Args:
             movie_dir: Path to the movie directory.
@@ -250,6 +250,9 @@ class MediaChecker:
                     message="" if category else "Cannot determine category from genres",
                 )
             )
+
+        # no_duplicate_videos (movie-only — TV shows have multi-file seasons)
+        results.append(self._check_no_duplicate_videos(movie_dir))
 
         # ntfs_safe_names
         results.append(self._check_ntfs_safe_names(movie_dir))
@@ -701,6 +704,40 @@ class MediaChecker:
             if uid_type and uid_text:
                 ids[uid_type] = uid_text
         return ids
+
+    def _check_no_duplicate_videos(self, movie_dir: Path) -> CheckResult:
+        """Verify a movie directory holds at most one video file at its root.
+
+        Movies are flat: a movie folder must contain exactly one feature video
+        at its root. More than one root-level video means the same-TMDB merge
+        dedup contract was violated (two distinct staged folders resolving to
+        the same TMDB id were merged but an orphan video was left behind). If
+        that happens, DISPATCH would copy duplicate videos to storage, so this
+        check blocks the movie. TV shows are EXEMPT — they hold multi-file
+        seasons by design — hence this check is wired into check_movie only.
+
+        The scan is non-recursive (root only): videos inside sub-dirs such as
+        ``Extras/`` are legitimate and ignored. The flat Plex movie trailer
+        ``{media_name}-trailer.{ext}`` (placed at the movie root by the trailers
+        step) is also EXEMPT — it is filtered out before the count so a movie
+        with its trailer is not wrongly flagged as holding two feature videos.
+
+        Args:
+            movie_dir: Path to the movie directory.
+
+        Returns:
+            CheckResult named "no_duplicate_videos" with ERROR severity;
+            passed when at most one non-trailer video file lives at the root.
+        """
+        videos = [f for f in self._find_video_files(movie_dir) if not is_trailer_filename(f.name)]
+        passed = len(videos) <= 1
+        filenames = sorted(f.name for f in videos)
+        return CheckResult(
+            name="no_duplicate_videos",
+            passed=passed,
+            severity=Severity.ERROR,
+            message="" if passed else f"Multiple video files at root: {filenames}",
+        )
 
     @staticmethod
     def _find_video_files(directory: Path) -> list[Path]:

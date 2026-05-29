@@ -11,6 +11,7 @@ from personalscraper.config import Settings
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
+    from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.core.event_bus import EventBus
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper._shared import ScrapeResult
@@ -21,6 +22,7 @@ from personalscraper.scraper.keywords_cache import KeywordsCache
 from personalscraper.scraper.movie_service import MovieServiceMixin
 from personalscraper.scraper.nfo_generator import NFOGenerator
 from personalscraper.scraper.tv_service import TvServiceMixin
+from personalscraper.scraper.tv_service_nfo import TvServiceNfoMixin
 
 log = get_logger("scraper")
 
@@ -30,11 +32,19 @@ _EPISODE_STRICT_RE = re.compile(r"^S\d{2}E\d{2} - .+\.\w+$")
 _EPISODE_FALLBACK_RE = re.compile(r"^S\d{2}E0*(\d+) - Episode 0*\1\.\w+$", re.IGNORECASE)
 
 
-class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServiceMixin):
+class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServiceMixin, TvServiceNfoMixin):
     """Main scraping orchestrator.
 
     Coordinates TMDB/TVDB matching, NFO generation, artwork download,
     and episode management for both movies and TV shows.
+
+    The orchestrator no longer owns provider instantiation — it receives a
+    :class:`ProviderRegistry` built once at pipeline boot and routes every
+    provider access through it (DESIGN §1.1, §5.2). Legacy direct
+    ``self._{tmdb,tvdb}`` attributes have been removed; provider-bound code
+    reads ``self._registry.get("tmdb")`` / ``self._registry.get("tvdb")`` for
+    transitional direct access (Phase 1) and will move to
+    ``registry.chain()`` / ``registry.locked()`` semantics in later phases.
     """
 
     def __init__(
@@ -46,8 +56,9 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
         config: Config | None = None,
         *,
         event_bus: EventBus,
+        registry: ProviderRegistry,
     ):
-        """Initialize the scraper with API clients and helpers.
+        """Initialize the scraper with the provider registry and helpers.
 
         Args:
             settings: Pipeline configuration with API keys.
@@ -57,10 +68,13 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
             config: Config for classification rules and paths. When provided,
                 classifier.classify() is called for every scraped item to assign
                 a category_id. When None, classification is skipped (legacy mode).
-            event_bus: Required :class:`EventBus` forwarded to the TMDB/TVDB
-                HTTP transports so their circuit breakers emit
-                :class:`CircuitBreakerOpened` / ``Closed`` / ``HalfOpened`` on
-                transitions.
+            event_bus: Required :class:`EventBus` forwarded by ``Pipeline`` —
+                kept on the orchestrator only for downstream helpers that still
+                want to emit through it. Transport-level breaker events now
+                originate from registry-owned ``HttpTransport`` instances.
+            registry: Required :class:`ProviderRegistry` built once per process
+                at pipeline boot (DESIGN §6.1). Replaces the legacy direct
+                ``self._{tmdb,tvdb}`` attributes.
         """
         self.settings = settings
         self.config = config
@@ -68,34 +82,17 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
         self.dry_run = dry_run
         self.interactive = interactive
         self._event_bus = event_bus
+        self._registry = registry
         scraper_config = config.scraper if config is not None else None
-        thresholds_config = config.thresholds if config is not None else None
         self._scraper_language = scraper_config.language if scraper_config is not None else "fr-FR"
         self._scraper_fallback_language = scraper_config.fallback_language if scraper_config is not None else "en-US"
         self._prefer_local_title = scraper_config.prefer_local_title if scraper_config is not None else True
         self._tvdb_language = self._to_tvdb_language(self._scraper_language)
         self._tvdb_fallback_language = self._to_tvdb_language(self._scraper_fallback_language)
 
-        # Initialize API clients with circuit breaker config from thresholds
-        from personalscraper.api.metadata.tmdb import TMDBClient  # noqa: PLC0415
-        from personalscraper.api.metadata.tvdb import TVDBClient  # noqa: PLC0415
-        from personalscraper.api.transport._http import HttpTransport  # noqa: PLC0415
-        from personalscraper.api.transport._policy import CircuitPolicy  # noqa: PLC0415
-
-        cb_threshold = thresholds_config.circuit_breaker_threshold if thresholds_config is not None else 5
-        cb_cooldown = thresholds_config.circuit_breaker_cooldown if thresholds_config is not None else 300
-        cb_policy = CircuitPolicy(failure_threshold=cb_threshold, cooldown_seconds=cb_cooldown)
-
-        tmdb_policy = TMDBClient.policy(settings.tmdb_api_key, circuit=cb_policy)
-        self._tmdb = TMDBClient(
-            transport=HttpTransport(tmdb_policy, event_bus=event_bus),
-            language=self._scraper_language,
-        )
-        self._tvdb = TVDBClient(
-            api_key=settings.tvdb_api_key,
-            circuit=cb_policy,
-            event_bus=event_bus,
-        )
+        # Provider instantiation is owned by the registry. No TMDBClient or
+        # TVDBClient is constructed here anymore — the orchestrator only
+        # consumes providers via ``self._registry`` (chain / get / locked).
 
         # Initialize helpers.  Pass db_path so write-through outbox publishes
         # land in the user-configured DB (DESIGN §9.4).  When config is None
@@ -120,11 +117,13 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
             self._needs_keywords = False
 
     def process_movies(self, movies_dir: Path) -> list[ScrapeResult]:
-        """Scrape all movies in a directory.
+        """Scrape all movies in a directory using the registry chain.
 
-        Scans all subdirectories of movies_dir and calls scrape_movie()
-        on each one. When the TMDB circuit breaker is OPEN, skips
-        remaining movies (no viable fallback for movie metadata).
+        Scans all subdirectories of ``movies_dir`` and calls ``scrape_movie()``
+        on each one. The eligible-provider gate now comes from
+        ``self._registry.chain(MovieDetailsProvider)``: when that list is empty
+        (all circuits OPEN), the item is skipped immediately — analogous to the
+        legacy "TMDB circuit OPEN" gate at orchestrator.py:150 (DESIGN §6.2).
 
         Args:
             movies_dir: Path to the movies directory (e.g. {movies_dir}/).
@@ -132,7 +131,8 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
         Returns:
             List of ScrapeResult for each processed movie.
         """
-        from personalscraper.api._contracts import CircuitOpenError
+        from personalscraper.api._contracts import CircuitOpenError  # noqa: PLC0415
+        from personalscraper.api.metadata._contracts import MovieDetailsProvider  # noqa: PLC0415
 
         results: list[ScrapeResult] = []
 
@@ -146,8 +146,13 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
         log.info("movies_start", count=len(subdirs), directory=movies_dir.name)
 
         for movie_dir in subdirs:
-            # Skip if TMDB circuit is OPEN (primary provider for movies)
-            if not self._tmdb.circuit.can_proceed():
+            # Registry-driven eligibility gate (DESIGN §6.2). An empty chain
+            # means no provider can satisfy MovieDetailsProvider right now —
+            # the closest semantic equivalent of "TMDB circuit OPEN" in the
+            # legacy single-provider world. The error string keeps the legacy
+            # wording so downstream observers (logs, tests) keep matching.
+            eligible_providers = self._registry.chain(MovieDetailsProvider)  # type: ignore[type-abstract]
+            if not eligible_providers:
                 log.warning("movies_tmdb_circuit_open", directory=movie_dir.name)
                 results.append(
                     ScrapeResult(
@@ -194,11 +199,15 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
         return results
 
     def process_tvshows(self, tvshows_dir: Path) -> list[ScrapeResult]:
-        """Scrape all TV shows in a directory.
+        """Scrape all TV shows using ``registry.chain(TvDetailsProvider)``.
 
-        When both TVDB and TMDB circuits are OPEN, skips remaining shows.
-        When only TVDB is OPEN, TMDB fallback is used (handled in
-        match_tvshow via CircuitOpenError catch).
+        Mirror of :meth:`process_movies` for TV. When the chain of eligible
+        ``TvDetailsProvider`` instances is empty, the item is skipped — the
+        registry-shaped equivalent of the legacy "both TVDB and TMDB circuits
+        OPEN" gate at orchestrator.py:223 (DESIGN §6.2). Partial-eligibility
+        (one provider open, one closed) is no longer gated here: the chain
+        loop in :meth:`tv_service.TvServiceMixin.scrape_tvshow` handles
+        per-provider fallback.
 
         Args:
             tvshows_dir: Path to the TV shows directory (e.g. {tvshows_dir}/).
@@ -206,7 +215,8 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
         Returns:
             List of ScrapeResult for each processed show.
         """
-        from personalscraper.api._contracts import CircuitOpenError
+        from personalscraper.api._contracts import CircuitOpenError  # noqa: PLC0415
+        from personalscraper.api.metadata._contracts import TvDetailsProvider  # noqa: PLC0415
 
         results: list[ScrapeResult] = []
 
@@ -219,8 +229,13 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
         log.info("tvshows_start", count=len(subdirs), directory=tvshows_dir.name)
 
         for show_dir in subdirs:
-            # Skip if both circuits are OPEN (no provider available)
-            if not self._tvdb.circuit.can_proceed() and not self._tmdb.circuit.can_proceed():
+            # Registry-driven eligibility gate (DESIGN §6.2). The TV path
+            # tolerates partial eligibility — only an empty chain means no
+            # provider can satisfy TvDetailsProvider, which is the registry
+            # equivalent of "both circuits open". The legacy wording is
+            # preserved so log scrapers and characterization tests still match.
+            eligible_providers = self._registry.chain(TvDetailsProvider)  # type: ignore[type-abstract]
+            if not eligible_providers:
                 log.warning("tvshows_both_circuits_open", directory=show_dir.name)
                 results.append(
                     ScrapeResult(

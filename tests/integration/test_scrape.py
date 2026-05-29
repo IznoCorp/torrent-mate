@@ -11,6 +11,7 @@ Catalogue items covered:
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from unittest.mock import MagicMock
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, staging_path
@@ -55,6 +56,7 @@ def _movies_dir(integration_config: Config) -> Path:
 def test_scrape_writes_nfo_on_tmdb_hit(
     staging_tree: Path,
     fake_tmdb: FakeTMDB,
+    mock_registry: MagicMock,
     integration_config: Config,
 ) -> None:
     """A TMDB hit produces an NFO file containing a tmdb uniqueid element.
@@ -71,6 +73,7 @@ def test_scrape_writes_nfo_on_tmdb_hit(
     Args:
         staging_tree: Staging root under tmp_path.
         fake_tmdb: In-memory TMDB stub (monkeypatched, fixture pre-seeded).
+        mock_registry: Mock :class:`ProviderRegistry` wired to the fake clients.
         integration_config: Config wired to fixture paths.
     """
     movies_dir = _movies_dir(integration_config)
@@ -105,7 +108,7 @@ def test_scrape_writes_nfo_on_tmdb_hit(
         },
     )
 
-    run_scrape(_make_settings(), config=integration_config, event_bus=EventBus())
+    run_scrape(_make_settings(), config=integration_config, event_bus=EventBus(), registry=mock_registry)
 
     # After a successful scrape the scraper may rename the folder to match the
     # resolved API title; locate the NFO by scanning for any .nfo file.
@@ -142,6 +145,7 @@ def test_scrape_writes_nfo_on_tmdb_hit(
 def test_scrape_leaves_folder_on_tmdb_miss(
     staging_tree: Path,
     fake_tmdb: FakeTMDB,
+    mock_registry: MagicMock,
     integration_config: Config,
 ) -> None:
     """No TMDB results leaves the folder intact — no NFO written, no files lost.
@@ -156,6 +160,7 @@ def test_scrape_leaves_folder_on_tmdb_miss(
     Args:
         staging_tree: Staging root under tmp_path.
         fake_tmdb: In-memory TMDB stub (monkeypatched, returns empty by default).
+        mock_registry: Mock :class:`ProviderRegistry` wired to the fake clients.
         integration_config: Config wired to fixture paths.
     """
     movies_dir = _movies_dir(integration_config)
@@ -166,7 +171,7 @@ def test_scrape_leaves_folder_on_tmdb_miss(
     video_file.write_bytes(b"\x00" * 64)
 
     # Do NOT seed search/movie — default stub returns {"results": []}.
-    run_scrape(_make_settings(), config=integration_config, event_bus=EventBus())
+    run_scrape(_make_settings(), config=integration_config, event_bus=EventBus(), registry=mock_registry)
 
     # No NFO should have been written.
     nfo_files = list(movies_dir.rglob("*.nfo"))

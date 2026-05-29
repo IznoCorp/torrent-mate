@@ -298,11 +298,18 @@ class FakeTMDB:
         _default: Fallback response returned when no key matches.
         circuit: Always-closed circuit breaker stub so process_movies/process_tvshows
             never short-circuits on ``self._tmdb.circuit.can_proceed()``.
+        provider_name: Stable identifier matching the production
+            ``MetadataClient.provider_name`` ClassVar — required by the
+            chain-iteration filter in
+            ``MovieServiceMixin._match_movie_candidates`` (sub-phase 7.1)
+            so the fake is recognised as the matched provider when
+            ``MatchResult.source == "tmdb"``.
     """
 
     _responses: dict[str, Any] = field(default_factory=dict)
     _default: dict[str, Any] = field(default_factory=lambda: {"results": []})
     circuit: FakeCircuit = field(default_factory=FakeCircuit)
+    provider_name: str = "tmdb"
 
     def seed(self, endpoint_fragment: str, payload: dict[str, Any]) -> None:
         """Register a canned JSON response for a given endpoint fragment.
@@ -432,11 +439,15 @@ class FakeTVDB:
         _default: Fallback response when no fragment matches.
         circuit: Always-closed circuit breaker stub so process_tvshows never
             short-circuits on ``self._tvdb.circuit.can_proceed()``.
+        provider_name: Stable identifier matching the production
+            ``MetadataClient.provider_name`` ClassVar — used by the
+            chain-iteration filter in the scraper services (sub-phase 7.1).
     """
 
     _responses: dict[str, Any] = field(default_factory=dict)
     _default: dict[str, Any] = field(default_factory=lambda: {"data": {}})
     circuit: FakeCircuit = field(default_factory=FakeCircuit)
+    provider_name: str = "tvdb"
 
     def seed(self, endpoint_fragment: str, payload: dict[str, Any]) -> None:
         """Register a canned response for a TVDB endpoint fragment.
@@ -692,7 +703,7 @@ def fake_tmdb(monkeypatch: pytest.MonkeyPatch) -> FakeTMDB:
         mock_cls,
     )
     monkeypatch.setattr(
-        "personalscraper.scraper.scraper.TMDBClient",
+        "personalscraper.api.metadata.tmdb.TMDBClient",
         mock_cls,
     )
     # Mock HttpTransport so Scraper.__init__ doesn't build real sessions.
@@ -735,9 +746,9 @@ def fake_tvdb(monkeypatch: pytest.MonkeyPatch) -> FakeTVDB:
         "personalscraper.api.metadata.tvdb.TVDBClient",
         lambda *args, **kwargs: stub,
     )
-    # Also patch the already-imported name in scraper.py (same rationale as fake_tmdb).
+    # Patch the canonical TVDBClient location (registry-era — no scraper.scraper re-export).
     monkeypatch.setattr(
-        "personalscraper.scraper.scraper.TVDBClient",
+        "personalscraper.api.metadata.tvdb.TVDBClient",
         lambda *args, **kwargs: stub,
     )
     return stub
@@ -780,6 +791,60 @@ def fake_qbit(monkeypatch: pytest.MonkeyPatch) -> FakeQBitClient:
     monkeypatch.setattr("personalscraper.api.torrent.qbittorrent.qbittorrentapi.Client", mock_qbit_cls)
 
     return stub
+
+
+# ---------------------------------------------------------------------------
+# Registry fixtures (post sub-phase 1.2 pivot)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def mock_registry(fake_tmdb: "FakeTMDB", fake_tvdb: "FakeTVDB") -> MagicMock:
+    """Return a mock :class:`ProviderRegistry` wired to the integration fakes.
+
+    The Scraper migration (sub-phase 1.2) replaced the legacy
+    ``self._tmdb`` / ``self._tvdb`` direct attributes with a single
+    :class:`ProviderRegistry` injection — production code now reads
+    providers through ``self._registry.get("tmdb")`` /
+    ``self._registry.get("tvdb")`` and gates capability eligibility on
+    ``self._registry.chain(MovieDetailsProvider)`` / ``chain(TvDetailsProvider)``.
+    This fixture builds a mock registry that returns the existing
+    ``FakeTMDB`` / ``FakeTVDB`` stubs so canned-response integration tests
+    keep working without rebuilding the registry from a real
+    ``ProvidersConfig`` (which would require non-empty config sections and
+    valid credentials at boot — out of scope for these scrape-step tests).
+
+    The ``chain.side_effect`` covers ``MovieDetailsProvider`` (TMDB only —
+    the movie matching path is TMDB-primary today) and ``TvDetailsProvider``
+    (TVDB then TMDB — the legacy fallback order). Tests that need to
+    simulate an empty chain (== "circuit OPEN") can override
+    ``mock_registry.chain.side_effect`` at the call site.
+
+    Args:
+        fake_tmdb: TMDB stub (already monkeypatched onto the real client).
+        fake_tvdb: TVDB stub (already monkeypatched onto the real client).
+
+    Returns:
+        ``MagicMock`` configured as a :class:`ProviderRegistry` substitute.
+    """
+    from personalscraper.api.metadata._contracts import (  # noqa: PLC0415
+        MovieDetailsProvider,
+        TvDetailsProvider,
+    )
+    from personalscraper.api.metadata.registry import ProviderRegistry  # noqa: PLC0415
+
+    reg = MagicMock(spec=ProviderRegistry)
+    reg.get.side_effect = lambda name: {"tmdb": fake_tmdb, "tvdb": fake_tvdb}[name]
+
+    def _chain(capability: type) -> list[Any]:
+        if capability is MovieDetailsProvider:
+            return [fake_tmdb]
+        if capability is TvDetailsProvider:
+            return [fake_tvdb, fake_tmdb]
+        return []
+
+    reg.chain.side_effect = _chain
+    return reg
 
 
 # ---------------------------------------------------------------------------

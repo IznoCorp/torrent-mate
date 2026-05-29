@@ -30,8 +30,15 @@ from unittest.mock import MagicMock
 import pytest
 
 from personalscraper.api.metadata._base import Notations
-from personalscraper.api.metadata._contracts import IDCrossRef, IDValidator, RatingProvider
+from personalscraper.api.metadata._contracts import (
+    IDCrossRef,
+    IDValidator,
+    MovieDetailsProvider,
+    RatingProvider,
+    TvDetailsProvider,
+)
 from personalscraper.api.metadata.imdb import IMDbClient
+from personalscraper.api.metadata.registry import FanOutResult, ProviderRegistry
 from personalscraper.api.metadata.rotten_tomatoes import RottenTomatoesClient
 from personalscraper.api.notify._contracts import HealthChecker, Notifier
 from personalscraper.api.torrent._contracts import (
@@ -50,6 +57,39 @@ from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.scanner._modes.backfill_ids import run_backfill_ids
 
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations"
+
+
+def _named(name: str) -> MagicMock:
+    """Build a MagicMock with ``provider_name`` set to ``name``."""
+    m = MagicMock()
+    m.provider_name = name
+    return m
+
+
+def _registry_mock(
+    *,
+    ratings: list[MagicMock] | None = None,
+    details: list[MagicMock] | None = None,
+) -> MagicMock:
+    """Build a registry mock for the indexer driver.
+
+    Args:
+        ratings: Providers returned from ``fan_out(RatingProvider)``.
+        details: Providers returned from ``chain(MovieDetailsProvider)``
+            and ``chain(TvDetailsProvider)``.
+    """
+    reg = MagicMock(spec=ProviderRegistry)
+    reg.fan_out.return_value = FanOutResult(values=tuple(ratings or ()), attempted=())
+    reg.chain.return_value = details or []
+    reg.emit_provider_fallback = MagicMock()
+    reg.emit_provider_exhausted = MagicMock()
+    return reg
+
+
+# Reference the capability Protocols so the formatter does not strip them —
+# they document the shape of providers handed to ``chain``/``fan_out`` in
+# the registry mocks below.
+_ = (MovieDetailsProvider, TvDetailsProvider)
 
 
 @pytest.fixture()
@@ -121,11 +161,12 @@ def test_e2e_backfill_idempotent_on_complete_library(conn: sqlite3.Connection) -
     produce zero updates.
     """
     _seed_complete_item(conn, title="Breaking Bad")
-    imdb = MagicMock(spec=IMDbClient)
-    rt = MagicMock(spec=RottenTomatoesClient)
+    imdb = _named("imdb")
+    rt = _named("rotten_tomatoes")
     bus = EventBus()
+    registry = _registry_mock(ratings=[imdb, rt])
 
-    stats = run_backfill_ids(conn, event_bus=bus, imdb_client=imdb, rt_client=rt)
+    stats = run_backfill_ids(conn, event_bus=bus, registry=registry)
 
     assert stats.items_scanned == 1
     assert stats.items_updated == 0
@@ -171,20 +212,19 @@ def test_e2e_backfill_partial_then_idempotent(conn: sqlite3.Connection) -> None:
     """
     item_id = _seed_partial_item(conn, title="Breaking Bad")
 
-    tvdb_client = MagicMock()
+    tvdb_client = _named("tvdb")
     tvdb_client.get_tv.return_value = MagicMock(external_ids={"tmdb": "5005", "imdb": "tt0944947"})
-    imdb = MagicMock(spec=IMDbClient)
+    imdb = _named("imdb")
     imdb.get_rating.return_value = [Notations(provider="omdb", source="imdb", score=9.5, votes_count=2_000_000)]
-    rt = MagicMock(spec=RottenTomatoesClient)
+    rt = _named("rotten_tomatoes")
     rt.get_rating.return_value = None
     bus = EventBus()
+    registry = _registry_mock(ratings=[imdb, rt], details=[tvdb_client])
 
     stats = run_backfill_ids(
         conn,
         event_bus=bus,
-        imdb_client=imdb,
-        rt_client=rt,
-        tvdb_client=tvdb_client,
+        registry=registry,
     )
 
     assert stats.items_updated == 1
@@ -211,9 +251,7 @@ def test_e2e_backfill_partial_then_idempotent(conn: sqlite3.Connection) -> None:
     stats2 = run_backfill_ids(
         conn,
         event_bus=bus,
-        imdb_client=imdb,
-        rt_client=rt,
-        tvdb_client=tvdb_client,
+        registry=registry,
     )
 
     assert stats2.items_updated == 0
@@ -236,13 +274,14 @@ def test_e2e_backfill_canonical_in_cross_refs_is_safely_ignored(
     """
     item_id = _seed_partial_item(conn, title="Breaking Bad")
 
-    tvdb_client = MagicMock()
+    tvdb_client = _named("tvdb")
     # Echo the canonical family back in the cross-ref payload to assert
     # the merge skips it (the seeded tvdb id "9001" must stay).
     tvdb_client.get_tv.return_value = MagicMock(external_ids={"tvdb": "OVERWRITE", "tmdb": "5005"})
     bus = EventBus()
+    registry = _registry_mock(details=[tvdb_client])
 
-    stats = run_backfill_ids(conn, event_bus=bus, tvdb_client=tvdb_client, ratings_only=False, ids_only=True)
+    stats = run_backfill_ids(conn, event_bus=bus, registry=registry, ratings_only=False, ids_only=True)
 
     assert stats.ids_added_count == 1  # only tmdb added, tvdb echo skipped
 
@@ -267,12 +306,15 @@ def test_e2e_backfill_no_canonical_client_logs_warning(
 
     import logging  # noqa: PLC0415
 
+    # Pass registry=None to exercise the "no registry passed" branch — the
+    # Phase 11 migration consolidated the four typed-client branches into
+    # a single registry guard.
     with caplog.at_level(logging.WARNING, logger="indexer.backfill_ids"):
-        run_backfill_ids(conn, event_bus=bus, ids_only=True)
+        run_backfill_ids(conn, event_bus=bus, registry=None, ids_only=True)
 
     messages = " ".join(record.message for record in caplog.records)
-    assert "backfill_ids_path_disabled_no_canonical_client" in messages
-    assert "backfill_ids_path_no_client" in messages
+    assert "backfill_ids_path_disabled_no_registry" in messages
+    assert "backfill_ids_path_no_registry" in messages
 
 
 def test_e2e_backfill_canonical_id_missing_logs_warning(
@@ -294,13 +336,14 @@ def test_e2e_backfill_canonical_id_missing_logs_warning(
         "VALUES (?, ?, ?, NULL, 2008, 'tv_shows', '{}', NULL, 'tmdb', NULL, NULL, ?, ?, NULL, 0, 'fr')",
         ("show", "Orphan", "Orphan", now, now),
     )
-    tmdb_client = MagicMock()
+    tmdb_client = _named("tmdb")
     bus = EventBus()
+    registry = _registry_mock(details=[tmdb_client])
 
     import logging  # noqa: PLC0415
 
     with caplog.at_level(logging.WARNING, logger="indexer.backfill_ids"):
-        run_backfill_ids(conn, event_bus=bus, tmdb_client=tmdb_client, ids_only=True)
+        run_backfill_ids(conn, event_bus=bus, registry=registry, ids_only=True)
 
     messages = " ".join(record.message for record in caplog.records)
     assert "backfill_ids_canonical_id_missing" in messages
@@ -318,14 +361,15 @@ def test_e2e_backfill_cross_ref_fetch_failure_is_fail_soft(
     bad row never aborts the pass.
     """
     item_id = _seed_partial_item(conn, title="Breaking Bad")
-    tvdb_client = MagicMock()
+    tvdb_client = _named("tvdb")
     tvdb_client.get_tv.side_effect = RuntimeError("simulated TVDB outage")
     bus = EventBus()
+    registry = _registry_mock(details=[tvdb_client])
 
     import logging  # noqa: PLC0415
 
     with caplog.at_level(logging.WARNING, logger="indexer.backfill_ids"):
-        stats = run_backfill_ids(conn, event_bus=bus, tvdb_client=tvdb_client, ids_only=True)
+        stats = run_backfill_ids(conn, event_bus=bus, registry=registry, ids_only=True)
 
     assert stats.items_failed == 0  # fail-soft: counted as skip, not failure
     assert stats.items_updated == 0

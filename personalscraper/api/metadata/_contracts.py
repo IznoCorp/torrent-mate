@@ -74,16 +74,27 @@ class MovieDetailsProvider(Protocol):
     :class:`MediaDetails` dataclass; the split into provider-side
     ``MovieDetails`` / ``TvDetails`` types (DESIGN §4.2) is deferred to
     a later refinement and does not gate the capability shape.
+
+    The ``provider_id`` parameter accepts ``int | str`` because some
+    callers parse the ID from an NFO (returns ``int``) while others
+    receive it as a string from the registry or search results. Concrete
+    clients coerce internally — see ``TMDBClient.get_movie`` /
+    ``TVDBClient.get_movie``.
     """
 
-    def get_movie(self, provider_id: str) -> MediaDetails: ...
+    def get_movie(self, provider_id: int | str) -> MediaDetails: ...
 
 
 @runtime_checkable
 class TvDetailsProvider(Protocol):
-    """Capability — fetch full details for a TV show by provider-side ID."""
+    """Capability — fetch full details for a TV show by provider-side ID.
 
-    def get_tv(self, provider_id: str) -> MediaDetails: ...
+    The ``provider_id`` parameter accepts ``int | str`` for the same
+    reason as :class:`MovieDetailsProvider.get_movie` — NFO-parsed IDs
+    arrive as ``int``, other call sites pass ``str``.
+    """
+
+    def get_tv(self, provider_id: int | str) -> MediaDetails: ...
 
 
 @runtime_checkable

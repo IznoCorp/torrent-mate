@@ -8,9 +8,12 @@ from typing import TYPE_CHECKING, Any
 
 import requests
 
-from personalscraper.api._contracts import ApiError, MediaType
-from personalscraper.api.metadata._base import EpisodeInfo, Notations
+from personalscraper.api._contracts import ApiError, CircuitOpenError, MediaType
+from personalscraper.api.metadata._base import Notations
+from personalscraper.api.metadata._contracts import TvDetailsProvider
 from personalscraper.api.metadata._tvdb_parsers import map_language
+from personalscraper.api.metadata.registry import AttemptOutcome, RegistryProviderName
+from personalscraper.api.metadata.registry._errors import ProviderExhausted
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
@@ -31,13 +34,15 @@ from personalscraper.scraper.rename_service import (
     _merge_dirs,
     _rename_dir_case_safe,
 )
+from personalscraper.scraper.tv_service_episodes import (
+    _episode_payload as _episode_payload,
+)
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from personalscraper.api.metadata.tmdb import TMDBClient
-    from personalscraper.api.metadata.tvdb import TVDBClient
+    from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.conf.models.config import Config
     from personalscraper.naming_patterns import NamingPatterns
     from personalscraper.scraper.artwork import ArtworkDownloader
@@ -57,43 +62,18 @@ def _safe_get_rating(client: Any, provider_id: str) -> list[Notations]:
     return safe_get_rating(client, provider_id)
 
 
-def _episode_payload(ep: EpisodeInfo, episode_default_name: str) -> dict[str, Any]:
-    """Build the per-episode payload for ``_build_episode_map``.
-
-    Translates an :class:`EpisodeInfo` from the metadata layer into the
-    dict shape consumed downstream by :func:`match_episode_files` and
-    :meth:`TvServiceMixin._generate_episode_nfos`. The provider-side
-    IDs travel under the ``{provider}_episode_id`` keys (DEV #2 root
-    cause — these keys are what reach the NFO writer as ``tvdb_id`` /
-    ``tmdb_id`` / ``imdb_id``).
-
-    Args:
-        ep: Episode parsed from a TVDB / TMDB season response.
-        episode_default_name: Fallback prefix when ``ep.title`` is blank.
-
-    Returns:
-        Dict carrying the display title, the still-image path
-        placeholder, and the per-provider episode IDs surfaced by the
-        parser.
-    """
-    payload: dict[str, Any] = {
-        "title": ep.title or f"{episode_default_name} {ep.episode_number}",
-        "still_path": "",
-    }
-    for provider, value in ep.external_ids.items():
-        if not value:
-            continue
-        payload[f"{provider}_episode_id"] = value
-    return payload
-
-
 class TvServiceMixin:
-    """TV show scrape service methods."""
+    """TV show scrape service methods.
+
+    Provider access routes through ``self._registry`` (DESIGN §5.2). Phase 1
+    uses ``self._registry.get("tmdb")`` / ``get("tvdb")`` for transitional
+    direct access; Phase 2 migrates the matching path to
+    ``registry.chain(Searchable | TvDetailsProvider | EpisodeFetcher)``.
+    """
 
     patterns: "NamingPatterns"
     dry_run: bool
-    _tvdb: "TVDBClient"
-    _tmdb: "TMDBClient"
+    _registry: "ProviderRegistry"
     _scraper_language: str
     _scraper_fallback_language: str
     _tvdb_language: str
@@ -108,6 +88,7 @@ class TvServiceMixin:
     _check_missing_tvshow_artwork: "Callable[..., list[str]]"
     _recover_tvshow_artwork: "Callable[..., None]"
     _repair_tvshow_dir: "Callable[..., bool]"
+    _generate_episode_nfos: Any  # from TvServiceNfoMixin (Phase 27.2 extraction)
 
     @staticmethod
     def _to_tvdb_language(language: str) -> str:
@@ -356,7 +337,10 @@ class TvServiceMixin:
                 tmdb_id=tmdb_id,
             )
 
-            total_renamed = self._match_seasons(video_files, api_episodes, show_dir, show_data, episode_default_name)
+            total_renamed, nfo_warnings = self._match_seasons(
+                video_files, api_episodes, show_dir, show_data, episode_default_name
+            )
+            result.warnings.extend(nfo_warnings)
 
             # Clean empty release-group subdirectories left after episode moves
             if not self.dry_run:
@@ -404,41 +388,22 @@ class TvServiceMixin:
         result.action = "scraped"
         return result
 
-    def _augment_episode_nfo_with_xref(self, nfo_path: Path, info: dict[str, Any]) -> None:
-        """Append missing xref ``<uniqueid>`` rows to an existing episode NFO.
+    def _match_tvshow_candidates(
+        self,
+        title: str,
+        year: int | None,
+        local_seasons: set[int],
+        result: ScrapeResult,
+    ) -> Any | None:
+        """Search the configured TV chain for candidates matching title + year.
 
         Thin delegate to
-        :func:`personalscraper.scraper._xref.augment_episode_nfo_with_xref`.
+        :func:`personalscraper.scraper.tv_service_episodes.match_tvshow_candidates`
+        — see that function for the full chain-iteration / fallback contract.
         """
-        from personalscraper.scraper._xref import augment_episode_nfo_with_xref  # noqa: PLC0415
+        from personalscraper.scraper.tv_service_episodes import match_tvshow_candidates  # noqa: PLC0415
 
-        augment_episode_nfo_with_xref(nfo_path, info, dry_run=self.dry_run)
-
-    def _download_episode_thumb(
-        self,
-        still_path: str,
-        thumb_path: Path,
-        season: int,
-        episode: int,
-    ) -> None:
-        """Download an episode thumbnail from TMDB if available.
-
-        Skips if still_path is empty, thumb already exists, or dry_run.
-        Errors are logged and do not interrupt the caller.
-
-        Args:
-            still_path: TMDB still image path (e.g. "/abc123.jpg"), empty to skip.
-            thumb_path: Local destination path for the thumbnail.
-            season: Season number (for log messages).
-            episode: Episode number (for log messages).
-        """
-        if not still_path or thumb_path.exists() or self.dry_run:
-            return
-        url = f"https://image.tmdb.org/t/p/original{still_path}"
-        try:
-            self._artwork.download_image(url, thumb_path)
-        except requests.exceptions.RequestException:
-            log.warning("episode_thumb_failed", season=season, episode=episode)
+        return match_tvshow_candidates(self._registry, title, year, local_seasons, result)
 
     def _lookup_series(
         self,
@@ -447,10 +412,28 @@ class TvServiceMixin:
         local_seasons: set[int],
         result: ScrapeResult,
     ) -> tuple[Any, dict[str, Any], int | None, str] | None:
-        """Match a TV show against TVDB/TMDB and fetch full series details.
+        """Match a TV show against the TV chain and fetch full series details.
 
-        Returns ``(match, show_data, tmdb_id, resolved_title)`` on success,
-        ``None`` on failure (sets result.error/action).
+        Two-step lookup:
+
+        1. ``_match_tvshow_candidates`` iterates
+           ``registry.chain(TvDetailsProvider)`` to find the best
+           :class:`MatchResult` (TVDB first then TMDB by default
+           configuration, with full chain fallback semantics).
+        2. Once a match is accepted (confidence ≥ ``LOW_CONFIDENCE``),
+           the details fetch iterates the same chain again but filters
+           to ``provider_name == match.source`` to honour the
+           source-of-match invariant — cross-provider id translation
+           (TVDB ↔ TMDB) is owned by ``registry.cross_ref`` and lives
+           in sub-phase 7.4.
+
+        Per-provider failures during the details step emit
+        :class:`ProviderFallbackTriggered`; full exhaustion emits
+        :class:`ProviderExhaustedEvent` and populates ``result.error``.
+
+        Returns ``(match, show_data, tmdb_id, resolved_title)`` on
+        success, ``None`` on failure (sets ``result.error`` /
+        ``result.action``).
 
         Args:
             title: Parsed show title.
@@ -461,19 +444,18 @@ class TvServiceMixin:
         Returns:
             Success tuple or ``None``.
         """
+        # The chain raises ``ProviderExhausted`` when every eligible
+        # provider failed with a classified error (DESIGN §6.2 line 79).
+        # Catch and surface the original exception detail to preserve
+        # the ACC-13 legacy contract.
         try:
-            from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
-
-            match = scraper_api.match_tvshow(
-                self._tvdb,
-                self._tmdb,
-                title,
-                year,
-                local_seasons=local_seasons,
-            )
-        except Exception as e:
-            result.error = f"Match failed: {e}"
-            log.error("show_match_failed", title=title, error=str(e), exc_info=True)
+            match = self._match_tvshow_candidates(title, year, local_seasons, result)
+        except ProviderExhausted as exc:
+            detail = exc.last_exception if exc.last_exception is not None else exc
+            result.error = f"Match failed: {detail}"
+            result.action = "error"
+            return None
+        if result.error:
             return None
         if match is None or match.confidence < LOW_CONFIDENCE:
             result.action = "skipped_low_confidence"
@@ -492,54 +474,137 @@ class TvServiceMixin:
             source=match.source,
             confidence=round(match.confidence, 2),
         )
-        tmdb_id: int | None = None
-        show_data: dict[str, Any] = {}
-        try:
-            if match.source == "tvdb":
-                tvdb_data = self._tvdb.get_series(match.api_id)
-                # Use MediaDetails.external_ids (replaces get_remote_ids).
-                # Handle both typed models and legacy dict mocks in tests.
-                if hasattr(tvdb_data, "external_ids"):
-                    remote_ids: dict[str, str] = tvdb_data.external_ids
-                else:
-                    remote_ids = {}
-                # MediaDetails.external_ids uses plain provider names as keys
-                # ("imdb", "tmdb", "tvdb"). Earlier code read suffixed key names
-                # here and always got None, which silently dropped IMDB/TMDB
-                # cross-references on every TVDB-resolved series.
-                raw_tmdb = remote_ids.get("tmdb")
-                tmdb_id = int(raw_tmdb) if raw_tmdb else None
-                imdb_id = remote_ids.get("imdb") or ""
-                if not tmdb_id:
-                    log.info("show_tvdb_only", tvdb_id=match.api_id)
-                # api-unify phase 27: _tvdb_series_to_show_data now accepts
-                # MediaDetails directly (typed branch). The TODO + type:ignore
-                # left from cycle-1 review have been resolved.
-                show_data = _tvdb_series_to_show_data(
-                    tvdb_data,
-                    match.api_id,
-                    self._tvdb,
-                    preferred_language=self._scraper_language,
-                    fallback_language=self._scraper_fallback_language,
-                    external_ids=ScraperExternalIds(tmdb_id=tmdb_id, imdb_id=imdb_id),
-                )
-            else:
-                # Local import: avoids the movie_service ↔ tv_service circular
-                # dependency at module load. Cheap (function already imported
-                # elsewhere) and confined to this branch.
-                from personalscraper.scraper.movie_service import _coerce_to_show_data  # noqa: PLC0415
 
-                tmdb_id = match.api_id
-                show_data = _coerce_to_show_data(self._tmdb.get_tv(tmdb_id))
-        except (ApiError, requests.RequestException, ValueError, TypeError, KeyError, AttributeError) as e:
-            # Operational + payload-shape failures from the metadata path
-            # (network, HTTP, JSON-decode, response-shape drift, missing
-            # external_ids keys). Programming errors elsewhere — e.g. a typo
-            # in the surrounding code — keep propagating as before. Aligned
-            # with the narrowed-tuple stance in tracker/_registry.py.
-            result.error = f"Get details failed: {e}"
-            log.error("show_details_failed", error=str(e), exc_info=True)
+        # Step 2 — details fetch via chain iteration (DESIGN §6.2). Mirror
+        # of the movie scrape_movie details path: iterate
+        # ``chain(TvDetailsProvider)`` filtering to ``match.source``;
+        # ApiError / network / circuit failures emit fallback events;
+        # full exhaustion emits ProviderExhaustedEvent.
+        details_item_context: dict[str, Any] = {
+            "title": match.api_title,
+            "year": match.api_year,
+            "media_type": "tvshow",
+            "provider_id": match.api_id,
+        }
+        tmdb_id: int | None = None
+        show_data: dict[str, Any] | None = None
+        details_attempted: list[AttemptOutcome] = []
+        details_providers = self._registry.chain(TvDetailsProvider)  # type: ignore[type-abstract]
+        for provider in details_providers:
+            provider_name = getattr(provider, "provider_name", "?")
+            # Honour the source-of-match invariant: only consult the
+            # provider that produced the MatchResult. Cross-provider
+            # translation lands in sub-phase 7.4.
+            if provider_name != match.source:
+                continue
+            try:
+                if match.source == "tvdb":
+                    tvdb_data = provider.get_series(match.api_id)  # type: ignore[attr-defined]
+                    if hasattr(tvdb_data, "external_ids"):
+                        remote_ids: dict[str, str] = tvdb_data.external_ids
+                    else:
+                        remote_ids = {}
+                    raw_tmdb = remote_ids.get("tmdb")
+                    tmdb_id = int(raw_tmdb) if raw_tmdb else None
+                    imdb_id = remote_ids.get("imdb") or ""
+                    if not tmdb_id:
+                        log.info("show_tvdb_only", tvdb_id=match.api_id)
+                    show_data = _tvdb_series_to_show_data(
+                        tvdb_data,
+                        match.api_id,
+                        provider,
+                        preferred_language=self._scraper_language,
+                        fallback_language=self._scraper_fallback_language,
+                        external_ids=ScraperExternalIds(tmdb_id=tmdb_id, imdb_id=imdb_id),
+                    )
+                else:
+                    # Local import: avoids the movie_service ↔ tv_service
+                    # circular dependency at module load.
+                    from personalscraper.scraper.movie_service import _coerce_to_show_data  # noqa: PLC0415
+
+                    tmdb_id = match.api_id
+                    show_data = _coerce_to_show_data(provider.get_tv(tmdb_id))  # type: ignore[attr-defined]
+                break
+            except CircuitOpenError as exc:
+                details_attempted.append(
+                    AttemptOutcome(provider=RegistryProviderName(provider_name), reason="circuit_open")
+                )
+                self._registry.emit_provider_fallback(
+                    capability="TvDetailsProvider",
+                    from_provider=provider_name,
+                    reason="circuit_open",
+                    item=details_item_context,
+                )
+                log.warning("show_details_circuit_open", provider=provider_name, error=str(exc))
+                continue
+            except (ApiError, requests.RequestException, OSError) as exc:
+                details_attempted.append(
+                    AttemptOutcome(
+                        provider=RegistryProviderName(provider_name),
+                        reason="network",
+                        detail=type(exc).__name__,
+                    )
+                )
+                self._registry.emit_provider_fallback(
+                    capability="TvDetailsProvider",
+                    from_provider=provider_name,
+                    reason="network",
+                    exc_type=type(exc).__name__,
+                    item=details_item_context,
+                )
+                log.warning(
+                    "show_details_network_fail",
+                    provider=provider_name,
+                    exc_type=type(exc).__name__,
+                    error=str(exc),
+                )
+                continue
+            except Exception as e:
+                # Phase 21 + 26.2: ANY unclassified exception during details
+                # fetch is treated as a chain fallback per DESIGN §6.2.
+                # Aligns with the broader ``except Exception`` already used
+                # by movie_service.py:857.
+                details_attempted.append(
+                    AttemptOutcome(
+                        provider=RegistryProviderName(provider_name),
+                        reason="other",
+                        detail=type(e).__name__,
+                    )
+                )
+                self._registry.emit_provider_fallback(
+                    capability="TvDetailsProvider",
+                    from_provider=provider_name,
+                    reason="other",
+                    exc_type=type(e).__name__,
+                    item=details_item_context,
+                )
+                log.warning(
+                    "show_details_failed",
+                    provider=provider_name,
+                    exc_type=type(e).__name__,
+                    error=str(e),
+                )
+                continue
+
+        if show_data is None:
+            if details_attempted:
+                self._registry.emit_provider_exhausted(
+                    capability="TvDetailsProvider",
+                    attempted=details_attempted,
+                    item=details_item_context,
+                )
+                log.error(
+                    "registry_chain_exhausted",
+                    capability="TvDetailsProvider",
+                    attempted=[(a.provider, a.reason) for a in details_attempted],
+                    item=details_item_context,
+                )
+                result.error = f"Get details failed: all providers exhausted for {TvDetailsProvider.__name__}"
+            else:
+                result.error = f"Get details failed: no provider available for source={match.source!r}"
+                log.error("show_details_no_provider", api_title=match.api_title, source=match.source)
             return None
+
         resolved_title = self._strip_trailing_year(self._resolve_title(match.api_title, show_data, "tvshow"))
         return match, show_data, tmdb_id, resolved_title
 
@@ -663,14 +728,24 @@ class TvServiceMixin:
         )
 
     def _xref_fetch_tmdb_season(self, tmdb_id: int, season: int) -> dict[int, dict[str, str]]:
-        """Return ``{episode_number: external_ids}`` from a TMDb season fetch."""
-        detail = self._tmdb.get_tv_season(tmdb_id, season)
-        return {ep.episode_number: dict(ep.external_ids) for ep in detail.episodes}
+        """Return ``{episode_number: external_ids}`` from a TMDb season fetch.
+
+        Thin delegate to
+        :func:`personalscraper.scraper.tv_service_episodes.xref_fetch_tmdb_season`.
+        """
+        from personalscraper.scraper.tv_service_episodes import xref_fetch_tmdb_season  # noqa: PLC0415
+
+        return xref_fetch_tmdb_season(self._registry, tmdb_id, season)
 
     def _xref_fetch_tvdb_season(self, tvdb_id: int, season: int) -> dict[int, dict[str, str]]:
-        """Return ``{episode_number: external_ids}`` from a TVDB season fetch."""
-        detail = self._tvdb.get_series_episodes(tvdb_id, season)
-        return {ep.episode_number: dict(ep.external_ids) for ep in detail.episodes}
+        """Return ``{episode_number: external_ids}`` from a TVDB season fetch.
+
+        Thin delegate to
+        :func:`personalscraper.scraper.tv_service_episodes.xref_fetch_tvdb_season`.
+        """
+        from personalscraper.scraper.tv_service_episodes import xref_fetch_tvdb_season  # noqa: PLC0415
+
+        return xref_fetch_tvdb_season(self._registry, tvdb_id, season)
 
     def _resolve_external_ids(
         self,
@@ -698,10 +773,28 @@ class TvServiceMixin:
         )
 
     def _family_to_client(self, family: str) -> Any | None:
-        """Map a provider family name to the wired client / façade (or ``None``)."""
+        """Map a provider family name to the wired client / façade (or ``None``).
+
+        Transitional access via the registry (Phase 1 — DESIGN §5.2). The
+        registry raises ``UnknownProviderError`` for names it does not know;
+        we treat that as ``None`` to preserve the legacy fail-soft contract.
+        """
+        from personalscraper.api.metadata.registry._errors import UnknownProviderError  # noqa: PLC0415
+
+        if family in {"tmdb", "tvdb"}:
+            try:
+                return self._registry.get(family)
+            except UnknownProviderError as e:
+                # If boot validation passed but we reach here, this is a runtime
+                # contract violation worth a forensic anchor (the registry's
+                # config should already have caught an unwired family).
+                log.warning(
+                    "xref_family_unwired",
+                    family=family,
+                    exc_type=type(e).__name__,
+                )
+                return None
         mapping: dict[str, Any] = {
-            "tvdb": getattr(self, "_tvdb", None),
-            "tmdb": getattr(self, "_tmdb", None),
             "imdb": getattr(self, "_imdb", None),
         }
         return mapping.get(family)
@@ -714,48 +807,13 @@ class TvServiceMixin:
     ) -> list[tuple[str, Callable[[int], list[tuple[int, dict[str, Any]]]]]]:
         """Build the per-season fetch list, ordered by ``episode_scraping`` priority.
 
-        Each entry is ``(provider_name, fetch_callable)`` where ``fetch_callable``
-        takes a season number and returns ``[(episode_number, payload), ...]``.
-        Providers whose cross-reference id is missing are dropped. The
-        ordering reads from ``config.metadata.priorities.episode_scraping``
-        with a sane default (``tvdb`` then ``tmdb``) when config is absent.
-
-        Args:
-            tvdb_id: Resolved TVDB id (``None`` if unavailable).
-            tmdb_id: Resolved TMDB id (``None`` if unavailable).
-            episode_default_name: Title prefix for episodes whose provider
-                title is empty.
-
-        Returns:
-            List of ``(name, fetch)`` pairs, lowest priority number first.
+        Thin delegate to
+        :func:`personalscraper.scraper.tv_service_episodes.ordered_episode_providers`.
         """
+        from personalscraper.scraper.tv_service_episodes import ordered_episode_providers  # noqa: PLC0415
+
         priority: dict[str, int] = self.config.metadata.priorities.episode_scraping if self.config is not None else {}
-
-        def _rank(name: str) -> int:
-            """Pull a provider rank, falling back to a sentinel for unknowns.
-
-            Providers absent from ``episode_scraping`` are sorted last so they
-            only fire when everything higher-priority is unavailable.
-            """
-            return priority.get(name, 99)
-
-        def _tvdb_fetch(season: int) -> list[tuple[int, dict[str, Any]]]:
-            assert tvdb_id is not None
-            detail = self._tvdb.get_series_episodes(tvdb_id, season)
-            return [(ep.episode_number, _episode_payload(ep, episode_default_name)) for ep in detail.episodes]
-
-        def _tmdb_fetch(season: int) -> list[tuple[int, dict[str, Any]]]:
-            assert tmdb_id is not None
-            detail = self._tmdb.get_tv_season(tmdb_id, season)
-            return [(ep.episode_number, _episode_payload(ep, episode_default_name)) for ep in detail.episodes]
-
-        candidates: list[tuple[str, int, Callable[[int], list[tuple[int, dict[str, Any]]]]]] = []
-        if tvdb_id is not None:
-            candidates.append(("tvdb", _rank("tvdb"), _tvdb_fetch))
-        if tmdb_id is not None:
-            candidates.append(("tmdb", _rank("tmdb"), _tmdb_fetch))
-        candidates.sort(key=lambda c: c[1])
-        return [(name, fetch) for name, _, fetch in candidates]
+        return ordered_episode_providers(self._registry, priority, tvdb_id, tmdb_id, episode_default_name)
 
     def _fetch_season_with_fallback(
         self,
@@ -764,38 +822,12 @@ class TvServiceMixin:
     ) -> dict[tuple[int, int], dict[str, Any]]:
         """Iterate providers in priority order, return the first non-empty result.
 
-        A provider is considered "successful" only when it returns at least
-        one episode for the requested season. Empty responses and exceptions
-        both fall through to the next provider so a stale catalog on the
-        primary source does not silently lose downstream data.
-
-        Args:
-            season: Season number to fetch.
-            providers: Ordered ``(name, fetch)`` list from
-                :meth:`_ordered_episode_providers`.
-
-        Returns:
-            ``{(season, episode): payload}`` mapping. Empty when all
-            providers came back empty or raised.
+        Thin delegate to
+        :func:`personalscraper.scraper.tv_service_episodes.fetch_season_with_fallback`.
         """
-        for name, fetch in providers:
-            try:
-                items = fetch(season)
-            except Exception as e:  # noqa: BLE001 — provider clients raise a wide variety
-                log.warning(
-                    "show_season_fetch_failed",
-                    provider=name,
-                    season=season,
-                    exc_info=True,
-                    error=str(e),
-                )
-                continue
-            if not items:
-                log.warning("show_season_empty", provider=name, season=season)
-                continue
-            log.info("show_season_fetched", provider=name, season=season, count=len(items))
-            return {(season, e_num): payload for e_num, payload in items}
-        return {}
+        from personalscraper.scraper.tv_service_episodes import fetch_season_with_fallback  # noqa: PLC0415
+
+        return fetch_season_with_fallback(season, providers)
 
     def _match_seasons(
         self,
@@ -804,7 +836,7 @@ class TvServiceMixin:
         show_dir: Path,
         show_data: dict[str, Any],
         episode_default_name: str,
-    ) -> int:
+    ) -> tuple[int, list[str]]:
         """Match local video files to API episodes and organise into season dirs.
 
         Uses ``match_episode_files`` to pair local files with API episode data,
@@ -819,7 +851,7 @@ class TvServiceMixin:
             episode_default_name: Fallback title prefix for unnamed episodes.
 
         Returns:
-            Number of episodes renamed (0 if no matches).
+            Tuple of (count of episodes renamed, list of NFO write failure warnings).
         """
         # Pass the unmatched-episode policy through to ``match_episode_files``.
         # Default contract (``allow_synthetic_rename_on_unmatched=False``)
@@ -839,113 +871,10 @@ class TvServiceMixin:
             allow_synthetic_rename=allow_synthetic_rename,
         )
         if not matched:
-            return 0
+            return 0, []
         needed_seasons = sorted({info["season"] for info in matched.values()})
         ep_list = [{"season_number": s, "episode_number": 0} for s in needed_seasons]
         create_season_dirs(show_dir, ep_list, self.patterns, self.dry_run)
         total = rename_episodes(matched, show_dir, self.patterns, self.dry_run)
-        self._generate_episode_nfos(matched, show_dir, show_data)
-        return total
-
-    def _generate_episode_nfos(
-        self,
-        matched: dict[Path, dict[str, Any]],
-        show_dir: Path,
-        show_data: dict[str, Any],
-    ) -> None:
-        """Generate NFO files and download episode thumbnails.
-
-        For each matched episode, creates an NFO file with metadata and
-        downloads the TMDB still image as a thumbnail file. Episodes with
-        existing NFOs only get thumbnail recovery (if missing).
-
-        Args:
-            matched: Dict from match_episode_files().
-            show_dir: Path to the TV show directory.
-            show_data: Full TMDB show details.
-        """
-        show_title = show_data.get("name", "")
-        mpaa = NFOGenerator._extract_content_rating_fr(show_data)
-        networks = show_data.get("networks", [])
-        studio = networks[0].get("name", "") if networks else ""
-
-        for video_path, info in matched.items():
-            season = info["season"]
-            episode = info["episode"]
-            api_title = info["api_title"]
-            still_path = info.get("still_path", "")
-
-            # Fallback entries (no provider record — synthetic "Episode N" title)
-            # skip NFO/thumb generation: the file lands as "SxxExx - Episode N.mkv"
-            # under its Saison XX/ dir so verify/dispatch don't block, but we refuse
-            # to fabricate episode metadata.
-            if info.get("fallback"):
-                continue
-
-            season_dir_name = self.patterns.format("season_dir", Season=season)
-            new_stem = self.patterns.format(
-                "episode_video",
-                Season=season,
-                Episode=episode,
-                EpisodeTitle=api_title,
-            )
-            nfo_path = show_dir / season_dir_name / f"{new_stem}.nfo"
-            thumb_name = self.patterns.format(
-                "episode_thumb",
-                Season=season,
-                Episode=episode,
-                EpisodeTitle=api_title,
-            )
-            thumb_path = show_dir / season_dir_name / thumb_name
-
-            if nfo_path.exists():
-                # Phase 5.4 : upgrade-in-place. An NFO already on disk
-                # may have been written by an earlier scrape that did
-                # not yet have the xref IDs available — append the
-                # ``<uniqueid type=xref>`` rows now without touching
-                # the existing canonical (and never overwriting an
-                # already-present xref value).
-                self._augment_episode_nfo_with_xref(nfo_path, info)
-                # Still download thumbnail if NFO exists but thumb doesn't
-                self._download_episode_thumb(still_path, thumb_path, season, episode)
-                continue
-
-            # Propagate per-episode provider IDs originated by
-            # ``_build_episode_map`` and surfaced via
-            # ``match_episode_files`` (DEV #2 root cause). Empty values are
-            # mapped to ``""`` so the NFO generator's own
-            # "omit on blank" logic keeps producing well-formed XML when
-            # an upstream provider had nothing to surface.
-            episode_data = {
-                "name": api_title,
-                "showtitle": show_title,
-                "id": info.get("tmdb_episode_id", ""),
-                "tvdb_id": info.get("tvdb_episode_id", ""),
-                "imdb_id": info.get("imdb_episode_id", ""),
-                "season_number": season,
-                "episode_number": episode,
-                "overview": "",
-                "mpaa": mpaa,
-                "studio": studio,
-                "crew": [],
-                "still_path": still_path,
-            }
-
-            # Stream info from the renamed video
-            renamed_video = show_dir / season_dir_name / f"{new_stem}{video_path.suffix}"
-            stream_info = None
-            if renamed_video.exists():
-                from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
-
-                stream_info = scraper_api.extract_stream_info(renamed_video)
-
-            try:
-                xml = self._nfo.generate_episode_nfo(episode_data, stream_info)
-                if not self.dry_run:
-                    nfo_path.parent.mkdir(parents=True, exist_ok=True)
-                    self._nfo.write_nfo(xml, nfo_path)
-            except Exception as e:
-                log.warning("episode_nfo_failed", season=season, episode=episode, error=str(e), exc_info=True)
-
-            # Download episode thumbnail
-            self._download_episode_thumb(still_path, thumb_path, season, episode)
+        nfo_warnings = self._generate_episode_nfos(matched, show_dir, show_data)
+        return total, nfo_warnings

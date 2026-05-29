@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.event_bus import (
     EventBus,
     current_correlation_id,
@@ -71,7 +72,12 @@ def test_trailers_emit_trailer_downloaded_on_success(tmp_path: Path) -> None:
     bus = EventBus()
     collector: CollectingSubscriber[TrailerDownloaded] = CollectingSubscriber(bus, TrailerDownloaded)
     config = _make_config(tmp_path)
-    orchestrator = TrailersOrchestrator(config=config, staging_dir=tmp_path, event_bus=bus)
+    orchestrator = TrailersOrchestrator(
+        config=config,
+        staging_dir=tmp_path,
+        event_bus=bus,
+        registry=MagicMock(spec=ProviderRegistry),
+    )
     out_path = tmp_path / "Fight Club (1999)-trailer.mp4"
 
     with (
@@ -101,7 +107,12 @@ def test_trailers_do_not_emit_on_failure(tmp_path: Path, failure_status: str) ->
     bus = EventBus()
     collector: CollectingSubscriber[TrailerDownloaded] = CollectingSubscriber(bus, TrailerDownloaded)
     config = _make_config(tmp_path)
-    orchestrator = TrailersOrchestrator(config=config, staging_dir=tmp_path, event_bus=bus)
+    orchestrator = TrailersOrchestrator(
+        config=config,
+        staging_dir=tmp_path,
+        event_bus=bus,
+        registry=MagicMock(spec=ProviderRegistry),
+    )
     status = getattr(DownloadStatus, failure_status)
 
     with (
@@ -147,7 +158,12 @@ def test_trailers_emit_works_from_pipeline_step_path(tmp_path: Path) -> None:
     bus = EventBus()
     collector: CollectingSubscriber[TrailerDownloaded] = CollectingSubscriber(bus, TrailerDownloaded)
     config = _make_config(tmp_path)
-    orchestrator = TrailersOrchestrator(config=config, staging_dir=tmp_path, event_bus=bus)
+    orchestrator = TrailersOrchestrator(
+        config=config,
+        staging_dir=tmp_path,
+        event_bus=bus,
+        registry=MagicMock(spec=ProviderRegistry),
+    )
 
     token = current_correlation_id.set("run-pipeline-abc")
     try:
@@ -183,7 +199,12 @@ def test_trailers_emit_works_from_standalone_command_path(tmp_path: Path) -> Non
     bus = EventBus()
     collector: CollectingSubscriber[TrailerDownloaded] = CollectingSubscriber(bus, TrailerDownloaded)
     config = _make_config(tmp_path)
-    orchestrator = TrailersOrchestrator(config=config, staging_dir=tmp_path, event_bus=bus)
+    orchestrator = TrailersOrchestrator(
+        config=config,
+        staging_dir=tmp_path,
+        event_bus=bus,
+        registry=MagicMock(spec=ProviderRegistry),
+    )
 
     token = current_correlation_id.set("trailers-cli-run-xyz")
     try:

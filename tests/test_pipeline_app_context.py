@@ -20,6 +20,7 @@ from uuid import UUID
 
 import pytest
 
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus, current_correlation_id
 from personalscraper.models import StepReport
@@ -42,7 +43,12 @@ def _stub_app() -> AppContext:
     config.staging_dirs = [ingest_entry]
     config.paths.data_dir = MagicMock()
     settings = MagicMock()
-    return AppContext(config=config, settings=settings, event_bus=EventBus())
+    return AppContext(
+        config=config,
+        settings=settings,
+        event_bus=EventBus(),
+        provider_registry=MagicMock(spec=ProviderRegistry),
+    )
 
 
 class _CapturingStep:

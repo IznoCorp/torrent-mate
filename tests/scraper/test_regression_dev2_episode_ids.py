@@ -36,10 +36,15 @@ from personalscraper.scraper.confidence import MatchResult
 from personalscraper.scraper.episode_manager import match_episode_files
 from personalscraper.scraper.nfo_generator import NFOGenerator
 from personalscraper.scraper.tv_service import TvServiceMixin
+from personalscraper.scraper.tv_service_nfo import TvServiceNfoMixin
 
 # ---------------------------------------------------------------------------
 # Helpers (mirror tests/scraper/test_tv_service_extra.py)
 # ---------------------------------------------------------------------------
+
+
+class _TestTvMixin(TvServiceMixin, TvServiceNfoMixin):
+    """Combined mixin for tests — mirrors ``Scraper`` MRO."""
 
 
 def _make_mixin(
@@ -47,7 +52,7 @@ def _make_mixin(
     tvdb: Any = None,
     tmdb: Any = None,
     patterns: NamingPatterns | None = None,
-) -> TvServiceMixin:
+) -> _TestTvMixin:
     """Build a :class:`TvServiceMixin` with the minimum attributes the methods touch.
 
     The mixin instance is constructed via ``__new__`` to skip the
@@ -56,10 +61,30 @@ def _make_mixin(
     suite are exercised, so the missing attributes never come into
     play.
     """
-    mixin = TvServiceMixin.__new__(TvServiceMixin)
+    mixin = _TestTvMixin.__new__(_TestTvMixin)
     mixin.dry_run = False
-    mixin._tvdb = tvdb if tvdb is not None else MagicMock()  # type: ignore[assignment]
-    mixin._tmdb = tmdb if tmdb is not None else MagicMock()  # type: ignore[assignment]
+
+    _tvdb_client = tvdb if tvdb is not None else MagicMock()
+    _tmdb_client = tmdb if tmdb is not None else MagicMock()
+    # Sub-phase 7.2 — the chain iteration path reads ``provider_name`` to
+    # dispatch per-provider matching and episode fetching. Set the
+    # attribute here so the chain helpers route correctly.
+    _tvdb_client.provider_name = "tvdb"
+    _tmdb_client.provider_name = "tmdb"
+    _registry = MagicMock()
+    _registry.get.side_effect = (
+        lambda name,
+        _cache={  # type: ignore[misc]
+            "tmdb": _tmdb_client,
+            "tvdb": _tvdb_client,
+        }: _cache.get(name, MagicMock())
+    )
+    _registry.chain.return_value = [_tvdb_client, _tmdb_client]
+    _registry.emit_provider_fallback = MagicMock()
+    _registry.emit_provider_exhausted = MagicMock()
+    mixin._registry = _registry  # type: ignore[assignment]
+    mixin._tvdb = _tvdb_client  # type: ignore[assignment]
+    mixin._tmdb = _tmdb_client  # type: ignore[assignment]
     mixin._nfo = MagicMock()  # type: ignore[assignment]
     mixin._artwork = MagicMock()  # type: ignore[assignment]
     mixin.config = None  # type: ignore[assignment]

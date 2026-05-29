@@ -424,6 +424,7 @@ def mock_tmdb_client(monkeypatch: Any) -> Any:
     """
     from unittest.mock import MagicMock  # noqa: PLC0415
 
+    from personalscraper.api.metadata.tmdb import TMDBClient  # noqa: PLC0415
     from personalscraper.api.transport._auth import NoAuth  # noqa: PLC0415
     from personalscraper.api.transport._policy import (  # noqa: PLC0415
         CircuitPolicy,
@@ -432,12 +433,19 @@ def mock_tmdb_client(monkeypatch: Any) -> Any:
         TransportPolicy,
     )
 
-    mock = MagicMock()
+    # ``MagicMock(spec=TMDBClient)`` so the real ``ProviderRegistry``
+    # ``protocol_mismatch`` check accepts the mock as a valid implementation
+    # of every capability protocol the class composes.
+    mock = MagicMock(spec=TMDBClient)
     mock.get_movie.return_value = _make_minimal_movie_details()
-    mock.get_show.return_value = _make_minimal_show_details()
-    mock.get_season.return_value = None
+    # TMDB's TV equivalent is ``get_tv`` (not ``get_show`` — that's TVDB).
+    # Both names were stubbed historically (when the mock had no ``spec=``);
+    # the spec now enforces the real signature.
+    mock.get_tv.return_value = _make_minimal_show_details()
+    mock.get_tv_season.return_value = None
+    mock.search.return_value = []
     mock.search_movie.return_value = []
-    mock.search_show.return_value = []
+    mock.search_tv.return_value = []
 
     safe_policy = TransportPolicy(
         provider_name="mock-tmdb",
@@ -450,7 +458,10 @@ def mock_tmdb_client(monkeypatch: Any) -> Any:
     )
 
     cls_mock = MagicMock(return_value=mock)
-    cls_mock.policy = lambda api_key: safe_policy  # type: ignore[attr-defined]
+    # ``TMDBClient.policy`` accepts ``api_key`` plus a keyword-only ``circuit``
+    # override (used by ``ProviderRegistry`` to inject a shared circuit policy).
+    # The mock ignores both and returns the safe canned policy.
+    cls_mock.policy = lambda api_key, *, circuit=None: safe_policy  # type: ignore[attr-defined]
 
     monkeypatch.setattr(
         "personalscraper.api.metadata.tmdb.TMDBClient",
@@ -465,13 +476,26 @@ def mock_tvdb_client(monkeypatch: Any) -> Any:
     Returns a minimal show for ``get_show``.  Callers can override
     ``get_show.return_value``, ``get_season.return_value``, etc. for
     scenario-specific tests.
+
+    The mock instance uses ``MagicMock(spec=TVDBClient)`` so the
+    real :class:`ProviderRegistry` ``protocol_mismatch`` check (which
+    runs ``isinstance(instance, Searchable)`` etc.) accepts the mock
+    as a valid implementation of every capability protocol TVDBClient
+    composes.
     """
     from unittest.mock import MagicMock  # noqa: PLC0415
 
-    mock = MagicMock()
-    mock.get_show.return_value = _make_minimal_show_details()
+    from personalscraper.api.metadata.tvdb import TVDBClient  # noqa: PLC0415
+
+    mock = MagicMock(spec=TVDBClient)
+    # TVDB exposes ``get_tv`` / ``get_series`` (not ``get_show``).  The spec
+    # enforces the real method names; legacy callers that overrode
+    # ``mock.get_show`` will now see an explicit ``AttributeError``.
+    mock.get_tv.return_value = _make_minimal_show_details()
+    mock.get_series.return_value = _make_minimal_show_details()
     mock.get_season.return_value = None
-    mock.search_show.return_value = []
+    mock.search.return_value = []
+    mock.search_series.return_value = []
 
     monkeypatch.setattr(
         "personalscraper.api.metadata.tvdb.TVDBClient",
@@ -678,7 +702,15 @@ def assert_events_emitted(
     """
     matrix_names = _load_matrix_event_names()
 
-    captured_names = {type(e).__name__ for e in captured}
+    # Infra events emitted by the registry / transport layers that the
+    # design-conformity matrix intentionally does not enumerate (the matrix
+    # tracks the pipeline-domain step/item events, not the boot signal).
+    # Since feat/registry Phase 15 removed the autouse stub, every CLI test
+    # captures ``RegistryBootValidated`` at boot — filter it out here so
+    # individual tests do not all need to know about it.
+    _INFRA_EVENT_NAMES = {"RegistryBootValidated"}
+
+    captured_names = {type(e).__name__ for e in captured} - _INFRA_EVENT_NAMES
     expected_names = {cls.__name__ for cls in expected_classes}
 
     # Check expected classes were emitted.

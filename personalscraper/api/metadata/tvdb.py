@@ -1,8 +1,17 @@
 """TVDB v4 metadata provider.
 
-Bootstrap login at init: one-shot HttpTransport(NoAuth) → POST /login → JWT.
-Main client uses BearerAuth(jwt). All responses unwrapped via _tvdb_parsers.unwrap().
-Returns typed models from _base.py. Zero untyped dicts in public signatures.
+Bootstrap login is **deferred**: `__init__` only records credentials; the
+one-shot ``HttpTransport(NoAuth) → POST /login → JWT`` exchange runs on first
+real HTTP call via the lazy ``_transport`` property. The main client then uses
+``BearerAuth(jwt)``. All responses unwrapped via ``_tvdb_parsers.unwrap()``.
+Returns typed models from ``_base.py``. Zero untyped dicts in public signatures.
+
+Rationale (Phase 14, ``feat/registry``): the original synchronous bootstrap
+forced every ``TVDBClient(...)`` construction — including registry boot,
+test-suite collection, and CLI smoke paths — to hit the live TVDB API. By
+moving the call to first use, the registry can be constructed (and exercised
+in unit tests) without network access; only callers that actually invoke an
+API method incur the bootstrap.
 """
 
 from __future__ import annotations
@@ -47,6 +56,7 @@ from personalscraper.api.transport._policy import (
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
+    from personalscraper.core.circuit import CircuitBreaker
     from personalscraper.core.event_bus import EventBus
 
 log = get_logger("api.tvdb")
@@ -84,6 +94,12 @@ class TVDBClient(
 
     REQUIRED_CREDS: ClassVar[list[str]] = ["TVDB_API_KEY"]
     provider_name: ClassVar[str] = "tvdb"
+    # Phase 22 (DESIGN §7.6): TVDB defers JWT bootstrap to first HTTP call,
+    # so the CircuitBreaker (which lives on the main HttpTransport) does
+    # not exist before bootstrap. Mark the class so the registry
+    # eligibility gate treats a pre-bootstrap ``circuit is None`` as
+    # eligible rather than warning + rejecting.
+    _registry_lazy_circuit: ClassVar[bool] = True
 
     def __init__(
         self,
@@ -93,7 +109,13 @@ class TVDBClient(
         circuit: CircuitPolicy | None = None,
         event_bus: EventBus,
     ) -> None:
-        """Initialize TVDB client with bootstrap login.
+        """Initialize TVDB client *without* contacting the API.
+
+        The bootstrap ``POST /login`` exchange is **deferred** to the first
+        real HTTP call; see :meth:`_ensure_transport`. Construction is pure
+        Python: it stores credentials, language, circuit policy and the
+        event bus, then leaves ``self._transport`` unset until first access
+        on the lazy property.
 
         Args:
             api_key: TVDB API key (Negotiated Contract type, no PIN needed).
@@ -106,32 +128,117 @@ class TVDBClient(
         """
         self._api_key = api_key
         self._tvdb_lang = map_language(language)
-        _cb = circuit or _DEFAULT_CIRCUIT
+        self._language = language
+        self._circuit_policy = circuit or _DEFAULT_CIRCUIT
+        self._event_bus = event_bus
+        # Lazy: built on first access via the _transport property.
+        self.__transport: HttpTransport | None = None
+        # Cached reference to the main transport's CircuitBreaker. ``None``
+        # until ``_ensure_transport`` runs the JWT bootstrap and constructs
+        # the main transport (Phase 22 / DESIGN §7.6). Reading
+        # :attr:`circuit` pre-bootstrap returns ``None``, which the
+        # registry eligibility gate treats as eligible via the
+        # ``_registry_lazy_circuit`` marker — eligibility checks never
+        # trigger HTTP.
+        self._circuit_breaker: CircuitBreaker | None = None
 
-        # Bootstrap login with NoAuth
+    def _ensure_transport(self) -> HttpTransport:
+        """Run the bootstrap login and build the main transport (idempotent).
+
+        On first invocation, opens a one-shot bootstrap ``HttpTransport``
+        with ``NoAuth``, exchanges the API key for a JWT via ``POST /login``,
+        then builds and caches the main ``HttpTransport`` configured with
+        ``BearerAuth(jwt)``. Subsequent calls return the cached instance.
+
+        Returns:
+            The fully wired main transport.
+
+        Raises:
+            TypeError: If the ``/login`` response is not a dict (provider
+                contract violation).
+            ApiError: Propagated from the underlying transport when the
+                bootstrap HTTP call fails (e.g. invalid credentials → 401).
+        """
+        if self.__transport is not None:
+            return self.__transport
+
+        # Bootstrap login with NoAuth — one-shot transport, closed via ctxmgr.
         bootstrap_policy = TransportPolicy(
             provider_name=TVDB_BOOTSTRAP,
             base_url="https://api4.thetvdb.com/v4",
             auth=NoAuth(),
             timeout_seconds=15.0,
             retry=_DEFAULT_RETRY,
-            circuit=_cb,
+            circuit=self._circuit_policy,
             rate_limit=_DEFAULT_RATE,
         )
-        with HttpTransport(bootstrap_policy, event_bus=event_bus) as bootstrap:
-            resp = bootstrap.post("/login", data={"apikey": api_key})
+        with HttpTransport(bootstrap_policy, event_bus=self._event_bus) as bootstrap:
+            resp = bootstrap.post("/login", data={"apikey": self._api_key})
         if not isinstance(resp, dict):
             raise TypeError(f"Expected dict response from TVDB login, got {type(resp).__name__}")
         jwt = resp["data"]["token"]
 
-        # Main transport with JWT
-        main_policy = TVDBClient.policy(jwt, circuit=_cb)
-        super().__init__(transport=HttpTransport(main_policy, event_bus=event_bus), language=language)
+        # Main transport with JWT.
+        main_policy = TVDBClient.policy(jwt, circuit=self._circuit_policy)
+        self.__transport = HttpTransport(main_policy, event_bus=self._event_bus)
+        # Cache the CircuitBreaker reference so :attr:`circuit` reads it
+        # directly without re-triggering :meth:`_ensure_transport` — see
+        # the ``circuit`` property and DESIGN §7.6 (Phase 22).
+        self._circuit_breaker = self.__transport._circuit
+        return self.__transport
 
     @property
-    def circuit(self) -> Any:
-        """Expose the underlying circuit breaker for external consumers."""
-        return self._transport._circuit
+    def _transport(self) -> HttpTransport:
+        """Lazy accessor for the main HTTP transport.
+
+        Triggers :meth:`_ensure_transport` on first access; subsequent reads
+        return the cached transport. Defined as a property (rather than an
+        attribute set in ``__init__``) so that construction stays
+        network-free — see module docstring for the registry-boot
+        rationale.
+        """
+        return self._ensure_transport()
+
+    @_transport.setter
+    def _transport(self, value: HttpTransport) -> None:
+        """Setter preserved for test fixtures that inject a mock transport.
+
+        Several unit tests bypass the bootstrap entirely by constructing
+        the client via ``__new__`` and assigning ``client._transport =
+        mock``. The setter writes to the cached backing field so those
+        assignments still short-circuit :meth:`_ensure_transport`. It also
+        mirrors the cached :attr:`_circuit_breaker` from the new
+        transport (when the mock exposes ``_circuit``) so that
+        :attr:`circuit` reads the injected breaker instead of ``None``.
+
+        Args:
+            value: The transport (real or mock) to use directly.
+        """
+        self.__transport = value
+        # Mirror the breaker cache when the injected transport carries one.
+        # Plain MagicMocks return another MagicMock for any attribute, which
+        # is fine — production code paths only assert eligibility on the
+        # CircuitBreaker.state, and tests can override as needed.
+        circuit_ref = getattr(value, "_circuit", None)
+        if circuit_ref is not None:
+            self._circuit_breaker = circuit_ref
+
+    @property
+    def circuit(self) -> CircuitBreaker | None:
+        """Expose the underlying circuit breaker for external consumers.
+
+        Returns ``None`` before the JWT bootstrap has run — the
+        CircuitBreaker is constructed lazily by :meth:`_ensure_transport`
+        on first HTTP access. Reading this property is **HTTP-free**: it
+        only consults the cached reference set by
+        :meth:`_ensure_transport` and never triggers a bootstrap (Phase
+        22, DESIGN §7.6).
+
+        Registry eligibility checks (:func:`_eligible` in
+        ``api.metadata.registry._factory``) treat a ``None`` return from
+        a class marked ``_registry_lazy_circuit = True`` as eligible.
+        """
+        return self._circuit_breaker
 
     @classmethod
     def policy(

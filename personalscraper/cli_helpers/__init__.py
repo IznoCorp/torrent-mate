@@ -31,6 +31,12 @@ def _build_app_context(config: "Config", settings: "Settings") -> AppContext:
     in-process instance; subscriber wiring (``RichConsoleSubscriber``,
     ``TelegramSubscriber``, …) is the caller's responsibility.
 
+    The :class:`ProviderRegistry` is instantiated here from ``settings`` +
+    ``config.providers`` so the whole process shares ONE registry (DESIGN
+    §6.1 boot sequence). A misconfigured providers section raises
+    :class:`RegistryConfigError` at this boundary — fail loud at boot
+    rather than discover the problem mid-pipeline.
+
     Args:
         config: The typed JSON5 configuration loaded by ``cli.main``.
         settings: The Pydantic env-var settings (API keys, paths).
@@ -40,7 +46,29 @@ def _build_app_context(config: "Config", settings: "Settings") -> AppContext:
         or the orchestrator entrypoints for the launchd / trailers
         commands.
     """
-    return AppContext(config=config, settings=settings, event_bus=EventBus())
+    # Lazy imports: ProviderRegistry pulls the full provider tree, so we
+    # defer it to keep CLI import time minimal for commands that never
+    # build an AppContext (``--help``, ``init-config``).
+    from personalscraper.api.metadata.registry import ProviderRegistry
+    from personalscraper.api.transport._policy import CircuitPolicy
+
+    event_bus = EventBus()
+    cb_policy = CircuitPolicy(
+        failure_threshold=config.thresholds.circuit_breaker_threshold,
+        cooldown_seconds=config.thresholds.circuit_breaker_cooldown,
+    )
+    provider_registry = ProviderRegistry(
+        settings=settings,
+        event_bus=event_bus,
+        cb_policy=cb_policy,
+        providers_config=config.providers,
+    )
+    return AppContext(
+        config=config,
+        settings=settings,
+        event_bus=event_bus,
+        provider_registry=provider_registry,
+    )
 
 
 @contextmanager
@@ -68,6 +96,7 @@ def per_step_boundary(config: "Config", settings: "Settings") -> Iterator[AppCon
         yield app_context
     finally:
         current_correlation_id.reset(token)
+        app_context.provider_registry.close()
 
 
 def _format_validation(exc: ValidationError) -> str:

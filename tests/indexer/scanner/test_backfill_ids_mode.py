@@ -6,6 +6,13 @@ writes the merged payloads back through a fail-soft UPDATE. The
 tests below pin the orchestration contract — fail-soft on a façade
 exception, no-op when every row is already populated, dry-run
 guarantees no DB writes.
+
+Registry migration (Phase 11): the driver now consumes a
+:class:`ProviderRegistry` instead of typed clients. Tests build a
+``MagicMock(spec=ProviderRegistry)`` whose ``fan_out(RatingProvider)``
+yields a ``FanOutResult`` populated with named MagicMock rating
+providers, and whose ``chain(TvDetailsProvider | MovieDetailsProvider)``
+yields a list of named MagicMock details providers.
 """
 
 from __future__ import annotations
@@ -20,6 +27,12 @@ import pytest
 
 from personalscraper.api._helpers import ProviderFeatureUnavailable
 from personalscraper.api.metadata._base import Notations
+from personalscraper.api.metadata._contracts import (
+    MovieDetailsProvider,
+    RatingProvider,
+    TvDetailsProvider,
+)
+from personalscraper.api.metadata.registry import FanOutResult, ProviderRegistry
 from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.scanner._modes.backfill_ids import (
@@ -79,6 +92,53 @@ def _rt_notation() -> Notations:
     return Notations(provider="omdb", source="rotten_tomatoes", score=91.0, votes_count=0)
 
 
+def _named_provider(name: str) -> MagicMock:
+    """Build a MagicMock that exposes ``provider_name`` as an attribute.
+
+    The driver dispatches on ``getattr(provider, 'provider_name', ...)`` so
+    each MagicMock must surface a plain string (not the auto-generated
+    MagicMock child) for both fan_out filtering and chain matching.
+    """
+    m = MagicMock()
+    m.provider_name = name
+    return m
+
+
+def _build_registry_mock(
+    *,
+    rating_providers: list[MagicMock] | None = None,
+    details_providers: list[MagicMock] | None = None,
+) -> MagicMock:
+    """Build a registry mock with fan_out + chain wired to the given providers.
+
+    Args:
+        rating_providers: Providers returned from
+            ``registry.fan_out(RatingProvider)``. ``None`` yields an
+            empty ``FanOutResult``.
+        details_providers: Providers returned from
+            ``registry.chain(MovieDetailsProvider)`` and
+            ``registry.chain(TvDetailsProvider)``. The same list is
+            returned for both chains (real fixtures rarely need to
+            differentiate).
+
+    Returns:
+        ``MagicMock(spec=ProviderRegistry)`` ready to pass as
+        ``registry=`` to :func:`run_backfill_ids` / :func:`_backfill_one`.
+    """
+    rating_providers = rating_providers or []
+    details_providers = details_providers or []
+    reg = MagicMock(spec=ProviderRegistry)
+    reg.fan_out.return_value = FanOutResult(values=tuple(rating_providers), attempted=())
+    reg.chain.return_value = details_providers
+    # emit_provider_fallback / emit_provider_exhausted are the public
+    # chain-iteration emit helpers (Phase 22 promoted them from leading
+    # underscore). Provide explicit MagicMock attributes so call_args_list
+    # works against the spec'd mock.
+    reg.emit_provider_fallback = MagicMock()
+    reg.emit_provider_exhausted = MagicMock()
+    return reg
+
+
 # ---------------------------------------------------------------------------
 # Happy path — gap detected, fetched, merged
 # ---------------------------------------------------------------------------
@@ -89,12 +149,13 @@ def test_backfill_appends_missing_imdb_rating(conn: sqlite3.Connection) -> None:
     eids = json.dumps({"imdb": {"series_id": "tt0944947"}})
     item_id = _insert_item(conn, title="Show", external_ids_json=eids, ratings_json=None)
 
-    imdb = MagicMock()
+    imdb = _named_provider("imdb")
     imdb.get_rating.return_value = [_imdb_notation()]
-    rt = MagicMock()
+    rt = _named_provider("rotten_tomatoes")
     rt.get_rating.return_value = [_rt_notation()]
+    registry = _build_registry_mock(rating_providers=[imdb, rt])
 
-    stats = run_backfill_ids(conn, event_bus=EventBus(), imdb_client=imdb, rt_client=rt)
+    stats = run_backfill_ids(conn, event_bus=EventBus(), registry=registry)
 
     assert stats.items_updated == 1
     assert stats.ratings_added_count == 2
@@ -122,10 +183,11 @@ def test_backfill_skips_fully_populated_row(conn: sqlite3.Connection) -> None:
     )
     _insert_item(conn, title="Full", external_ids_json=eids, ratings_json=ratings)
 
-    imdb = MagicMock()
-    rt = MagicMock()
+    imdb = _named_provider("imdb")
+    rt = _named_provider("rotten_tomatoes")
+    registry = _build_registry_mock(rating_providers=[imdb, rt])
 
-    stats = run_backfill_ids(conn, event_bus=EventBus(), imdb_client=imdb, rt_client=rt)
+    stats = run_backfill_ids(conn, event_bus=EventBus(), registry=registry)
 
     assert stats.items_updated == 0
     assert stats.items_skipped == 1
@@ -138,10 +200,11 @@ def test_backfill_dry_run_does_not_write(conn: sqlite3.Connection) -> None:
     eids = json.dumps({"imdb": {"series_id": "tt0944947"}})
     item_id = _insert_item(conn, title="Dry", external_ids_json=eids, ratings_json=None)
 
-    imdb = MagicMock()
+    imdb = _named_provider("imdb")
     imdb.get_rating.return_value = [_imdb_notation()]
+    registry = _build_registry_mock(rating_providers=[imdb])
 
-    stats = run_backfill_ids(conn, event_bus=EventBus(), imdb_client=imdb, rt_client=None, dry_run=True)
+    stats = run_backfill_ids(conn, event_bus=EventBus(), registry=registry, dry_run=True)
 
     assert stats.items_updated == 1  # logically updated
     row = conn.execute("SELECT ratings_json FROM media_item WHERE id = ?", (item_id,)).fetchone()
@@ -164,17 +227,49 @@ def test_backfill_fails_soft_on_provider_exception(conn: sqlite3.Connection) -> 
         ratings_json=None,
     )
 
-    imdb_seq = MagicMock()
+    imdb_seq = _named_provider("imdb")
     imdb_seq.get_rating.side_effect = [
         ProviderFeatureUnavailable("imdb", "get_rating", "outage"),
         [_imdb_notation()],
     ]
+    registry = _build_registry_mock(rating_providers=[imdb_seq])
 
-    stats = run_backfill_ids(conn, event_bus=EventBus(), imdb_client=imdb_seq, rt_client=None)
+    stats = run_backfill_ids(conn, event_bus=EventBus(), registry=registry)
 
     # The failing row counted as "no ratings to add" → skipped, not failed.
     assert stats.items_skipped >= 1
     assert stats.items_updated == 1
+
+
+def test_backfill_emits_fallback_on_unclassified_provider_exception(conn: sqlite3.Connection) -> None:
+    """Phase 21 (C3) — unclassified Exception in _call_rating_provider emits fallback.
+
+    The broad-except in _call_rating_provider preserves fail-soft return
+    semantics ([]). Phase 21 also routes the bypass through the EventBus
+    so observers see ``ProviderFallbackTriggered(reason='other')`` for
+    parity with the chain-iteration sites in scraper/.
+    """
+    eids = json.dumps({"imdb": {"series_id": "tt0944947"}})
+    _insert_item(conn, title="ValueErrorRow", external_ids_json=eids, ratings_json=None)
+
+    imdb = _named_provider("imdb")
+    imdb.get_rating.side_effect = ValueError("parser drift in OMDb payload")
+    registry = _build_registry_mock(rating_providers=[imdb])
+
+    # Fail-soft contract preserved (no exception, loop completes).
+    stats = run_backfill_ids(conn, event_bus=EventBus(), registry=registry)
+    assert isinstance(stats, BackfillStats)
+
+    # The registry's emit_provider_fallback helper was called with
+    # reason="other" + exc_type="ValueError" for the rating provider.
+    other_calls = [
+        call for call in registry.emit_provider_fallback.call_args_list if call.kwargs.get("reason") == "other"
+    ]
+    assert other_calls, "Expected ProviderFallbackTriggered(reason='other') emission"
+    matching = [c for c in other_calls if c.kwargs.get("exc_type") == "ValueError"]
+    assert matching, "Expected exc_type='ValueError' in fallback emission"
+    assert matching[0].kwargs.get("capability") == "RatingProvider"
+    assert matching[0].kwargs.get("from_provider") == "imdb"
 
 
 def test_backfill_respects_show_filter(conn: sqlite3.Connection) -> None:
@@ -188,10 +283,11 @@ def test_backfill_respects_show_filter(conn: sqlite3.Connection) -> None:
         ratings_json=None,
     )
 
-    imdb = MagicMock()
+    imdb = _named_provider("imdb")
     imdb.get_rating.return_value = [_imdb_notation()]
+    registry = _build_registry_mock(rating_providers=[imdb])
 
-    stats = run_backfill_ids(conn, event_bus=EventBus(), imdb_client=imdb, rt_client=None, show_filter="Target")
+    stats = run_backfill_ids(conn, event_bus=EventBus(), registry=registry, show_filter="Target")
 
     assert stats.items_scanned == 1
     assert stats.items_updated == 1
@@ -231,8 +327,9 @@ def test_backfill_emits_event_bus_lifecycle_events(conn: sqlite3.Connection) -> 
     )
     _insert_item(conn, title="Skipped", external_ids_json=fully_done, ratings_json=fully_done_ratings)
 
-    imdb = MagicMock()
+    imdb = _named_provider("imdb")
     imdb.get_rating.return_value = [_imdb_notation()]
+    registry = _build_registry_mock(rating_providers=[imdb])
 
     captured: list[object] = []
     bus = EventBus()
@@ -241,7 +338,7 @@ def test_backfill_emits_event_bus_lifecycle_events(conn: sqlite3.Connection) -> 
     bus.subscribe(BackfillSkipped, captured.append)
     bus.subscribe(BackfillCompleted, captured.append)
 
-    run_backfill_ids(conn, event_bus=bus, imdb_client=imdb, rt_client=None)
+    run_backfill_ids(conn, event_bus=bus, registry=registry)
 
     types = [type(event).__name__ for event in captured]
     assert types[0] == "BackfillStarted"
@@ -261,33 +358,34 @@ def test_backfill_propagates_programmer_class_exceptions(conn: sqlite3.Connectio
     """
     _insert_item(conn, title="WillCrash", external_ids_json='{"imdb": {"series_id": "tt1"}}', ratings_json=None)
 
-    imdb = MagicMock()
+    imdb = _named_provider("imdb")
     imdb.get_rating.side_effect = TypeError("renamed parameter foo")
+    registry = _build_registry_mock(rating_providers=[imdb])
 
     with pytest.raises(TypeError, match="renamed parameter foo"):
-        run_backfill_ids(conn, event_bus=EventBus(), imdb_client=imdb, rt_client=None)
+        run_backfill_ids(conn, event_bus=EventBus(), registry=registry)
 
 
 def test_backfill_quota_short_circuit_preserves_caller_args(conn: sqlite3.Connection) -> None:
     """OmdbQuotaExhausted disables ratings via local flag (not arg reassignment).
 
-    Before this fix, the loop would set imdb_client = None / rt_client = None,
+    Before this fix, the loop would set rating providers to None,
     mutating bindings owned by the caller. The local-flag refactor leaves the
-    references intact so a caller that re-uses them (e.g. for diagnostic
-    inspection after run_backfill_ids returns) still sees the original
-    object — even though no subsequent row called .get_rating() on it.
+    registry reference intact so the caller can keep using it (e.g. for
+    diagnostic inspection after run_backfill_ids returns).
     """
     from personalscraper.api.metadata.omdb import OmdbQuotaExhausted  # noqa: PLC0415
 
     _insert_item(conn, title="First", external_ids_json='{"imdb": {"series_id": "tt1"}}', ratings_json=None)
     _insert_item(conn, title="Second", external_ids_json='{"imdb": {"series_id": "tt2"}}', ratings_json=None)
 
-    imdb = MagicMock()
+    imdb = _named_provider("imdb")
     # First call raises quota; subsequent calls must NOT happen.
     imdb.get_rating.side_effect = [OmdbQuotaExhausted(pre_call=True)]
-    rt = MagicMock()
+    rt = _named_provider("rotten_tomatoes")
+    registry = _build_registry_mock(rating_providers=[imdb, rt])
 
-    stats = run_backfill_ids(conn, event_bus=EventBus(), imdb_client=imdb, rt_client=rt)
+    stats = run_backfill_ids(conn, event_bus=EventBus(), registry=registry)
 
     # imdb.get_rating called exactly once (the first row); the second row's
     # rating attempt was short-circuited by the ratings_disabled flag.
@@ -298,19 +396,49 @@ def test_backfill_quota_short_circuit_preserves_caller_args(conn: sqlite3.Connec
 
 
 def test_backfill_no_imdb_id_skips_rating_fetch(conn: sqlite3.Connection) -> None:
-    """Without an IMDb anchor, the IMDb / RT façades are not called."""
+    """Without an IMDb anchor, the rating providers are not called."""
     _insert_item(conn, title="NoAnchor", external_ids_json="{}", ratings_json=None)
 
-    imdb = MagicMock()
-    rt = MagicMock()
+    imdb = _named_provider("imdb")
+    rt = _named_provider("rotten_tomatoes")
+    registry = _build_registry_mock(rating_providers=[imdb, rt])
 
-    stats = run_backfill_ids(conn, event_bus=EventBus(), imdb_client=imdb, rt_client=rt)
+    stats = run_backfill_ids(conn, event_bus=EventBus(), registry=registry)
 
     imdb.get_rating.assert_not_called()
     rt.get_rating.assert_not_called()
     # The IDs branch is currently a placeholder so the row is treated as
     # nothing-to-do at the ratings layer ; ``items_skipped`` is acceptable.
     assert isinstance(stats, BackfillStats)
+
+
+# ---------------------------------------------------------------------------
+# Registry-aware: fan_out filters by missing_rating_sources
+# ---------------------------------------------------------------------------
+
+
+def test_backfill_fan_out_skips_providers_not_in_missing_sources(conn: sqlite3.Connection) -> None:
+    """A rating provider whose ``provider_name`` is not in the gap is not called.
+
+    If the row already has an ``imdb`` rating, only ``rotten_tomatoes``
+    remains in ``gap.missing_rating_sources`` — the IMDb provider in
+    ``fan_out`` must be skipped silently, but RT must still be called.
+    """
+    eids = json.dumps({"imdb": {"series_id": "tt0944947"}})
+    ratings = json.dumps({"entries": [{"source": "imdb", "score": "8.5/10", "votes": 10}]})
+    _insert_item(conn, title="HasImdb", external_ids_json=eids, ratings_json=ratings)
+
+    imdb = _named_provider("imdb")
+    imdb.get_rating.return_value = [_imdb_notation()]
+    rt = _named_provider("rotten_tomatoes")
+    rt.get_rating.return_value = [_rt_notation()]
+    registry = _build_registry_mock(rating_providers=[imdb, rt])
+
+    stats = run_backfill_ids(conn, event_bus=EventBus(), registry=registry)
+
+    imdb.get_rating.assert_not_called()  # already present in row → filtered out
+    rt.get_rating.assert_called_once()
+    assert stats.ratings_added_count == 1
 
 
 # ---------------------------------------------------------------------------
@@ -363,18 +491,17 @@ def test_backfill_one_stats_not_inflated_on_db_failure(conn: sqlite3.Connection)
     assert row is not None
 
     stats = BackfillStats()
-    imdb = MagicMock()
+    imdb = _named_provider("imdb")
     imdb.get_rating.return_value = [_imdb_notation()]
+    registry = _build_registry_mock(rating_providers=[imdb])
 
     failing_conn = _FailingConn(conn)
     try:
         _backfill_one(
             failing_conn,
             row,
-            imdb_client=imdb,
-            rt_client=None,
-            tmdb_client=None,
-            tvdb_client=None,
+            registry=registry,
+            ratings_disabled=False,
             ids_only=False,
             ratings_only=False,
             dry_run=False,
@@ -425,3 +552,10 @@ def test_init_canonical_stats_rollback_on_operational_error(conn: sqlite3.Connec
     assert stats.populated_fallback == 0, f"populated_fallback={stats.populated_fallback}, expected 0"
     # The OperationalError is caught by the fail-soft per-row except handler.
     assert stats.parse_unexpected_error == 1, f"parse_unexpected_error={stats.parse_unexpected_error}, expected 1"
+
+
+# ---------------------------------------------------------------------------
+# Suppress unused-import warnings for chain capabilities — referenced via the
+# registry mock's spec, even though the test body doesn't instantiate them.
+# ---------------------------------------------------------------------------
+_ = (MovieDetailsProvider, TvDetailsProvider, RatingProvider)

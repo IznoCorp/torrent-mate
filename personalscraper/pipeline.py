@@ -80,11 +80,18 @@ class Pipeline:
 
         Args:
             app: Process-scoped service bundle (``config``, ``settings``,
-                ``event_bus``). All other knobs are run-scope and live on
-                :meth:`run` as keyword-only parameters.
+                ``event_bus``, ``provider_registry``). All other knobs are
+                run-scope and live on :meth:`run` as keyword-only
+                parameters.
         """
         self._app: AppContext = app
         self._log = get_logger("pipeline")
+
+        # Provider registry: instantiated once per process at boot
+        # (DESIGN §6.1) by ``_build_app_context``. The pipeline reads it
+        # from the bundle rather than constructing its own — feat/registry
+        # §5.2 / sub-phase 3.1.
+        self._registry = app.provider_registry
         # Run-scope state below is (re)assigned at the start of every
         # ``run`` call so existing helper methods can read it via ``self``.
         # Defaults are conservative no-op values used only if a helper
@@ -313,6 +320,10 @@ class Pipeline:
         report = PipelineReport(started_at=datetime.now())
         extras: dict[str, Any] = {
             "skip_trailers": self.skip_trailers,
+            # Step adapters that need the registry (currently ``ScrapeStep``)
+            # pick it up via ``ctx.extras["registry"]``. Keeping it here avoids
+            # widening ``AppContext`` (boundary-only rule, DESIGN §Architecture).
+            "registry": self._registry,
         }
 
         token = current_correlation_id.set(str(self._run_id))
@@ -467,6 +478,14 @@ class Pipeline:
             finally:
                 current_correlation_id.reset(token)
                 self._restore_sigint_handler(previous_sigint)
+            # Cleanup provider registry resources (best-effort, never blocks
+            # the pipeline report from being returned). Must run AFTER the
+            # PipelineEnded emit so subscribers can still introspect the
+            # registry during the event.
+            try:
+                self._registry.close()
+            except Exception:
+                self._log.warning("registry_close_failed", exc_info=True)
 
         return report
 

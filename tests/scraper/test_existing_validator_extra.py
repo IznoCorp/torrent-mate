@@ -28,6 +28,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from personalscraper.api.metadata._base import EpisodeInfo, SeasonDetails
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper._shared import ScrapeResult
@@ -60,8 +62,22 @@ def _make_validator(
     instance = ExistingValidatorMixin.__new__(ExistingValidatorMixin)
     instance.patterns = NamingPatterns()
     instance.dry_run = dry_run
-    instance._tmdb = tmdb if tmdb is not None else MagicMock()
-    instance._tvdb = tvdb if tvdb is not None else MagicMock()
+
+    _tmdb_client = tmdb if tmdb is not None else MagicMock()
+    _tvdb_client = tvdb if tvdb is not None else MagicMock()
+    _registry = MagicMock()
+    _registry.get.side_effect = (
+        lambda name,
+        _cache={  # type: ignore[misc]
+            "tmdb": _tmdb_client,
+            "tvdb": _tvdb_client,
+        }: _cache.get(name, MagicMock())
+    )
+    instance._registry = _registry  # type: ignore[assignment]
+    # Keep backward-compat attrs for test code that reads them directly.
+    instance._tmdb = _tmdb_client
+    instance._tvdb = _tvdb_client
+
     instance._artwork = artwork if artwork is not None else MagicMock()
     instance._generate_episode_nfos = MagicMock()
     return instance
@@ -535,6 +551,41 @@ class TestRecoverArtwork:
         result = ScrapeResult(media_path=show, media_type="tvshow")
         validator._recover_tvshow_artwork(nfo, show, result)
         assert any("Artwork recovery failed" in w for w in result.warnings)
+
+    def test_recover_movie_artwork_skipped_when_tmdb_not_configured(
+        self,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Regression for I4 (PR review cycle 4): silent skip when tmdb missing.
+
+        ``_recover_movie_artwork`` must NOT raise nor append a warning when
+        ``registry.get("tmdb")`` raises :class:`UnknownProviderError` — it
+        must short-circuit and emit a structured debug log
+        (``artwork_recovery_skipped_no_tmdb``). Without the I4 pre-check the
+        broad ``except Exception`` swallowed the exception and surfaced it
+        as a misleading "Artwork recovery failed: Unknown provider 'tmdb'"
+        warning, hiding the true (config) cause from the operator.
+        """
+        from personalscraper.api.metadata.registry._errors import UnknownProviderError
+
+        validator = _make_validator()
+        # Registry has no tmdb configured: any get("tmdb") raises.
+        validator._registry.get.side_effect = UnknownProviderError("tmdb")  # type: ignore[attr-defined]
+        nfo = tmp_path / "Movie.nfo"
+        nfo.write_text('<movie><uniqueid type="tmdb">42</uniqueid></movie>')
+        movie_dir = tmp_path / "Movie"
+        movie_dir.mkdir()
+        result = ScrapeResult(media_path=movie_dir, media_type="movie")
+
+        with caplog.at_level("DEBUG", logger="scraper"):
+            validator._recover_movie_artwork(nfo, movie_dir, result)
+
+        # No exception escaped, action unchanged, no warning surfaced.
+        assert result.action != "artwork_recovered"
+        assert result.warnings == []
+        # Forensic anchor present.
+        assert any("artwork_recovery_skipped_no_tmdb" in rec.message for rec in caplog.records)
 
 
 # ---------------------------------------------------------------------------

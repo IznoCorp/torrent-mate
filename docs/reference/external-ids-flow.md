@@ -102,7 +102,14 @@ canonical family or already-populated values. Emits
 ## Related docs
 
 - `docs/reference/indexer-json-shapes.md` — JSON column shapes.
-- `docs/reference/scraping.md` — TMDB / TVDB / OMDb invariants.
+- `docs/reference/scraping.md` — TMDB / TVDB / OMDb invariants;
+  `#capability-cookbook` for the six registry call shapes.
+- `docs/reference/indexer.md#registry-integration` — how `backfill_ids`
+  composes `fan_out(RatingProvider)` and `chain(MovieDetailsProvider |
+TvDetailsProvider)` (the implementation of the flows described here).
+- `docs/reference/architecture.md#provider-registry` — registry module
+  layout; `cross_ref` is the underlying mechanic for the
+  cross-provider id translation step.
 - `docs/reference/event-bus.md` — event catalog including the four
   `Backfill*` events.
 

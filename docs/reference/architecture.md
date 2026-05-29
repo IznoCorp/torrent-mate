@@ -300,9 +300,79 @@ Cross-cutting:
 **Dependency direction.** Dependencies flow top-down: `commands/` calls into
 `pipeline/`, `library/`, `scraper/`, and `trailers/`. The pipeline composes
 `library/` and `scraper/` — the reverse never happens (library and scraper
-modules never import from pipeline). `core/` and `conf/` are used by everything
-and depend on nothing in the project. `api/` is consumed by `scraper/` and
+modules never import from pipeline). `core/` and `conf/` are meant to be
+foundational, but the rule currently leaks (verified 2026-05-28):
+`core/circuit.py` imports `api._contracts` (`CircuitOpenError`, `ApiError`),
+`conf/classifier.py` and `conf/models/api_config.py` import `api/`, and
+`conf/loader.py` imports `indexer.db._apply_pragmas` — upward dependencies that
+invert the documented direction. Closing these leaks is tracked as
+`arch-cleanup-2` (see `ROADMAP.md` P1). `api/` is consumed by `scraper/` and
 `trailers/` but never by `commands/` directly.
+
+## Provider Registry
+
+Capability-keyed, circuit-aware metadata provider dispatch. Introduced in 0.16.0
+(feat/registry). Replaces the historical hard-coded `self._tmdb` / `self._tvdb`
+pattern with a configurable ordered registry per capability Protocol.
+
+### Module layout
+
+`personalscraper/api/metadata/registry/`:
+
+- `__init__.py` — public `ProviderRegistry` class (chain / fan_out / locked / get / cross_ref / status / operations / providers_for / close) + data structures (Mode, ProviderMatch, LockedProvider, AttemptOutcome, ProviderStatus, ConfigIssue, FanOutResult, Named).
+- `_errors.py` — exception hierarchy (RegistryError, RegistryConfigError, UnknownProviderError, ProviderExhausted, WrongSemanticBug).
+- `_events.py` — five EventBus event dataclasses (ProviderFallbackTriggered, ProviderExhaustedEvent, LockedCapabilityUnresolved, RegistryFanOutCompleted, RegistryBootValidated).
+- `_semantics.py` — capability→Mode mapping (CHAIN / FAN_OUT / LOCKED / DIRECT capability sets, CAPABILITY_KEYS, mode_for()).
+- `_factory.py` — provider builders (TMDB, TVDB, IMDb, OMDb, Trakt, RottenTomatoes), `build_providers()`, `_eligible()`.
+- `_validation.py` — boot validation: 6 ConfigIssue families aggregated (missing_credentials, protocol_mismatch, unknown_provider, empty_chain_section, locked_capability_orphan, idcrossref_cycle).
+
+### Boot sequence (DESIGN §6.1)
+
+`AppContext._build_app_context()` constructs the registry at the CLI/pipeline boundary:
+
+1. Instantiate each provider listed in any `providers.json5` section.
+2. Validate (aggregated): all 6 issue families collected; on any failure, `RegistryConfigError` raised AFTER cleanup of partially-built providers.
+3. Build the per-capability index from the priority-ordered config.
+4. Emit `RegistryBootValidated` on success.
+
+### Three operations
+
+- `chain(capability)` — ordered list of eligible providers (CLOSED or HALF_OPEN). For chain capabilities (Searchable, MovieDetailsProvider, TvDetailsProvider, EpisodeFetcher).
+- `fan_out(capability)` — all eligible providers, in config order. For aggregation capabilities (RatingProvider). Always emits `RegistryFanOutCompleted`.
+- `locked(capability, match)` — provider bound to the match's id, with `IDCrossRef` escape for cross-provider id translation. For identity-locked capabilities (ArtworkProvider, KeywordProvider, VideoProvider, RecommendationProvider).
+
+### Configuration
+
+`config/providers.json5` (one overlay file in the Config bundle):
+
+```json5
+{
+  providers: {
+    Searchable: { tvdb: 1, tmdb: 2 },
+    MovieDetailsProvider: { tmdb: 1, tvdb: 2 },
+    // ... 11 capability sections total
+  },
+}
+```
+
+Lower priority number = higher precedence. `extra="forbid"` strict — unknown
+sections rejected at boot.
+
+### Introspection
+
+`registry.status()` returns per-provider circuit state. Exposed via
+`personalscraper info providers`.
+
+### See also
+
+- `docs/reference/scraping.md#capability-cookbook` — six worked examples,
+  one per call shape (chain Searchable, chain MovieDetailsProvider,
+  fan_out RatingProvider, locked, cross_ref, direct get).
+- `docs/reference/indexer.md#registry-integration` — how `backfill_ids`
+  composes `fan_out(RatingProvider)` with `chain(MovieDetailsProvider |
+TvDetailsProvider)`.
+- `docs/reference/external-ids-flow.md` — cross-provider id flow at the
+  pipeline level.
 
 ## Anti-decisions (out of scope for 1.0)
 
@@ -313,17 +383,21 @@ time proposing what was already declined.
 - **No microservices.** Single Python process. The pipeline runs end-to-end
   in-tree; the BDD is local SQLite. Splitting into services trades clarity for
   operability cost we don't yet have a reason to pay.
-- **No network server / web UI.** CLI is the only interface. No FastAPI, no
-  Flask, no embedded server. (Future: a read-only dashboard MAY be considered
-  in 2.x but is NOT promised.)
+- **No network server / web UI _in 1.0_.** The CLI is the only interface for
+  1.0 — no FastAPI, no Flask, no embedded server in-tree today. A Web Management
+  UI is now a planned post-1.0 feature (see `ROADMAP.md` P2 — Web Management UI),
+  with `arch-cleanup-2` landing the event-contract prerequisites first.
 - **No authentication / multi-user.** Single operator on a single machine.
   Files inherit OS permissions; the BDD is owned by the running user.
 - **No plugin loader.** Scrapers and torrent clients are configured via
   `config/*.json5`, not loaded from a plugin directory. Adding a provider =
   editing source.
-- **No cloud / no remote storage.** Storage is local NTFS via macFUSE
-  (Apple Silicon). Backup is the operator's responsibility (rsync, snapshot,
-  Backblaze, ...). No S3 / Glacier / cold-storage tier abstraction.
+- **No cloud / no remote storage.** Storage is local, directly-attached disks.
+  Today that is NTFS via macFUSE (Apple Silicon); multi-filesystem support
+  (APFS / HFS+ on AppleRAID / ext4 / exFAT) is a planned feature (see
+  `ROADMAP.md` P2 — Multi-Filesystem Support). Backup is the operator's
+  responsibility (rsync, snapshot, Backblaze, ...). No S3 / Glacier /
+  cold-storage tier abstraction, and no network filesystems (NFS/SMB).
 - **No web scraping fallback.** Metadata comes from typed provider APIs
   (TMDB / TVDB / OMDB / Trakt). MediaElch is the manual fallback when API
   matching fails — there is no HTML scraping codepath.

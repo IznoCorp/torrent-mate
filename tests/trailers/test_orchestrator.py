@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.event_bus import EventBus
 from personalscraper.trailers.orchestrator import TrailersOrchestrator, _LibraryEntry
 from personalscraper.trailers.scanner import ScanItem
@@ -56,7 +57,12 @@ def orchestrator(tmp_path: Path) -> TrailersOrchestrator:
         A TrailersOrchestrator instance backed by a mock config.
     """
     config = _make_config(tmp_path)
-    return TrailersOrchestrator(config=config, staging_dir=tmp_path, event_bus=EventBus())
+    return TrailersOrchestrator(
+        config=config,
+        staging_dir=tmp_path,
+        event_bus=EventBus(),
+        registry=MagicMock(spec=ProviderRegistry),
+    )
 
 
 _SCAN_ITEM = ScanItem(
@@ -251,7 +257,12 @@ class TestDiskSpaceAndBudget:
         """
         cfg = _make_config(tmp_path)
         cfg.trailers.step.max_duration_sec = 0
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         item_a = ScanItem(
             path=Path("/fake/ItemA (2000)"),
@@ -319,7 +330,12 @@ class TestLibraryAwareRecheck:
         cfg = _make_config(tmp_path)
         cfg.trailers.library_check.movies = False
         cfg.trailers.library_check.tv_shows = True
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         # Create a TV show item in staging
         show_dir = tmp_path / "Breaking Bad (2008)"
@@ -373,7 +389,12 @@ class TestLibraryAwareRecheck:
 
         cfg = _make_config(tmp_path)
         cfg.trailers.library_check.tv_shows = True
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         item = ScanItem(
             path=Path("/fake/Breaking Bad (2008)"),
@@ -413,7 +434,12 @@ class TestLibraryAwareRecheck:
             tmp_path: Pytest tmp_path fixture.
         """
         cfg = _make_config(tmp_path)
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
         # Force finder to None to simulate import/config failure.
         orch._finder = None
 
@@ -431,7 +457,12 @@ class TestLibraryAwareRecheck:
             tmp_path: Pytest tmp_path fixture.
         """
         cfg = _make_config(tmp_path)
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         persisted_states: list[TrailerStatus] = []
 
@@ -462,7 +493,12 @@ class TestLibraryAwareRecheck:
         cfg = _make_config(tmp_path)
         cfg.trailers.library_check.movies = False
         cfg.trailers.library_check.tv_shows = False
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         tv_item = ScanItem(
             path=Path("/fake/Breaking Bad (2008)"),
@@ -501,7 +537,12 @@ class TestLibraryAwareRecheck:
         cfg = _make_config(tmp_path)
         cfg.trailers.library_check.movies = False
         cfg.trailers.library_check.tv_shows = True
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         movie_item = ScanItem(
             path=Path("/fake/Fight Club (1999)"),
@@ -537,7 +578,12 @@ class TestLibraryAwareRecheck:
         cfg = _make_config(tmp_path)
         cfg.trailers.library_check.movies = True
         cfg.trailers.library_check.tv_shows = True
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         movie_item = ScanItem(
             path=Path("/fake/Fight Club (1999)"),
@@ -568,7 +614,12 @@ class TestLibraryAwareRecheck:
         """
         cfg = _make_config(tmp_path)
         cfg.trailers.library_check.tv_shows = True
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         tv_a = ScanItem(
             path=Path("/fake/Show A (2000)"),
@@ -860,12 +911,23 @@ class TestCircuitOpenCounter:
         from personalscraper.scraper.youtube_search import YoutubeSearch
 
         cfg = _make_config(tmp_path)
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         # Build a real TrailerFinder with a mocked TMDB client that raises
-        # CircuitOpenError on every _fetch_videos_strict call.
+        # CircuitOpenError on every get_videos call (the Protocol path for movies).
         tmdb_client = MagicMock()
-        tmdb_client._fetch_videos_strict.side_effect = CircuitOpenError("tmdb-videos", 9999.0)
+        tmdb_client.get_videos.side_effect = CircuitOpenError("tmdb-videos", 9999.0)
+
+        mock_provider_registry = MagicMock(spec=ProviderRegistry)
+        mock_locked = MagicMock()
+        mock_locked.provider = tmdb_client
+        mock_locked.bound_id = "12345"
+        mock_provider_registry.locked.return_value = mock_locked
 
         yt_breaker = CircuitBreaker(name="yt-integration", failure_threshold=5, event_bus=EventBus())
         yt_searcher = YoutubeSearch(
@@ -876,7 +938,7 @@ class TestCircuitOpenCounter:
         )
         cache = TrailersCache(tmp_path / "tc_int.json")
         real_finder = TrailerFinder(
-            tmdb_client=tmdb_client,
+            registry=mock_provider_registry,
             youtube_search=yt_searcher,
             cache=cache,
             languages=["en-US"],
@@ -938,7 +1000,12 @@ class TestYtdlpRetryRoundTrip:
         )
 
         # ── Run 1: downloader returns YTDLP_ERROR ────────────────────────────
-        orch1 = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch1 = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
         fail_result = DownloadResult(
             status=DownloadStatus.YTDLP_ERROR,
             output_path=None,
@@ -985,7 +1052,12 @@ class TestYtdlpRetryRoundTrip:
         )
 
         # ── Run 2: within cool-down → should be skipped ──────────────────────
-        orch2 = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch2 = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
         with (
             patch.object(orch2._scanner, "scan_staging", return_value=[scan_item]),
             patch.object(orch2._finder, "find", return_value="https://youtube.com/watch?v=X"),
@@ -1011,7 +1083,12 @@ class TestYtdlpRetryRoundTrip:
             ),
         )
 
-        orch3 = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch3 = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
         with (
             patch.object(orch3._scanner, "scan_staging", return_value=[scan_item]),
             patch.object(orch3._finder, "find", return_value="https://youtube.com/watch?v=X"),
@@ -1061,7 +1138,12 @@ class TestPerItemLockContention:
         )
 
         cfg = _make_config(tmp_path)
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path, event_bus=EventBus())
+        orch = TrailersOrchestrator(
+            config=cfg,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
 
         call_count = 0
 

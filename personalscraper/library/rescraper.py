@@ -11,7 +11,7 @@ import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from personalscraper.api.metadata.tmdb import TMDBClient
@@ -20,9 +20,9 @@ if TYPE_CHECKING:
     from personalscraper.scraper.nfo_generator import NFOGenerator
 
 from personalscraper._fs_utils import is_apple_double
+from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.conf.ids import TV_CATEGORY_IDS
 from personalscraper.conf.models.config import Config
-from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
 from personalscraper.library.models import (
     ACTION_ARTWORK_DOWNLOADED,
@@ -108,8 +108,7 @@ def _resolve_tmdb_id(
     media_type: str,
     title: str,
     year: int | None,
-    tmdb_client: TMDBClient,
-    tvdb_client: TVDBClient,
+    registry: ProviderRegistry,
     interactive: bool,
 ) -> tuple[str | None, str | None, float | None]:
     """Resolve TMDB ID for a media item.
@@ -123,14 +122,16 @@ def _resolve_tmdb_id(
         media_type: "movie" or "tvshow".
         title: Parsed title from directory name.
         year: Parsed year.
-        tmdb_client: TMDB API client.
-        tvdb_client: TVDB API client.
+        registry: ProviderRegistry for resolving metadata clients.
         interactive: If True, prompt for low-confidence matches.
 
     Returns:
         Tuple of (tmdb_id_str, id_source, confidence).
         tmdb_id_str is None if no match found.
     """
+    tmdb_client = cast("TMDBClient", registry.get("tmdb"))
+    tvdb_client = cast("TVDBClient", registry.get("tvdb"))
+
     # 1. Try to extract from NFO
     nfo_name = f"{title}.nfo" if media_type == "movie" else "tvshow.nfo"
     nfo_path = media_dir / nfo_name
@@ -202,8 +203,7 @@ def _rescrape_item(
     title: str,
     year: int | None,
     *,
-    tmdb_client: TMDBClient,
-    tvdb_client: TVDBClient,
+    registry: ProviderRegistry,
     nfo_gen: NFOGenerator,
     artwork_dl: ArtworkDownloader,
     patterns: NamingPatterns,
@@ -221,8 +221,7 @@ def _rescrape_item(
         category: Category name.
         title: Parsed title.
         year: Parsed year.
-        tmdb_client: TMDB API client.
-        tvdb_client: TVDB API client.
+        registry: ProviderRegistry for resolving metadata clients.
         nfo_gen: NFOGenerator instance.
         artwork_dl: ArtworkDownloader instance.
         patterns: NamingPatterns instance.
@@ -246,8 +245,7 @@ def _rescrape_item(
         media_type,
         title,
         year,
-        tmdb_client,
-        tvdb_client,
+        registry,
         interactive,
     )
 
@@ -270,11 +268,12 @@ def _rescrape_item(
 
     # Fetch API data (once)
     api_id = int(tmdb_id)
+    tmdb = cast("TMDBClient", registry.get("tmdb"))
     try:
         if media_type == "movie":
-            api_data = tmdb_client.get_movie(api_id)
+            api_data = tmdb.get_movie(api_id)
         else:
-            api_data = tmdb_client.get_tv(api_id)
+            api_data = tmdb.get_tv(api_id)
     except Exception as exc:
         return RescrapeAction(
             path=str(media_dir),
@@ -347,7 +346,7 @@ def _rescrape_item(
                 media_dir,
                 api_data,
                 api_id,
-                tmdb_client,
+                tmdb,
                 patterns,
                 dry_run,
                 episode_default_name=episode_default_name,
@@ -378,7 +377,7 @@ def _rescrape_episodes(
     show_dir: Path,
     show_data: object,
     tmdb_id: int,
-    tmdb_client: TMDBClient,
+    tmdb_client: "TMDBClient",
     patterns: NamingPatterns,
     dry_run: bool,
     episode_default_name: str = "Episode",
@@ -389,7 +388,7 @@ def _rescrape_episodes(
         show_dir: Path to TV show directory.
         show_data: TMDB MediaDetails (typed model, not a raw dict).
         tmdb_id: TMDB show ID.
-        tmdb_client: TMDB API client.
+        tmdb_client: TMDB API client (already resolved from registry).
         patterns: NamingPatterns instance.
         dry_run: Preview without changes.
         episode_default_name: Prefix used when the provider has no episode
@@ -545,7 +544,6 @@ def _collect_rescrape_candidates(
 
 def rescrape_library(
     config: Config,
-    settings: Settings,
     conn: sqlite3.Connection | None = None,
     disk_filter: str | None = None,
     category_filter: str | None = None,
@@ -555,6 +553,7 @@ def rescrape_library(
     max_items: int | None = None,
     *,
     event_bus: EventBus,
+    registry: ProviderRegistry,
 ) -> LibraryRescrapeResult:
     """Rescrape library items that need repair.
 
@@ -566,7 +565,6 @@ def rescrape_library(
 
     Args:
         config: Config with disk and category definitions.
-        settings: Pipeline settings (API keys, language, paths).
         conn: Optional open SQLite connection to the indexer DB.  When supplied,
             items are found via DB query instead of a full filesystem walk.
         disk_filter: Only rescrape this disk (by disk.id). None = all.
@@ -578,23 +576,16 @@ def rescrape_library(
         event_bus: Required :class:`EventBus` propagated to TMDB/TVDB
             transports so circuit-breaker trips during a long rescrape
             reach the run's Telegram / RichConsole subscribers.
+        registry: Configured :class:`ProviderRegistry` for resolving metadata
+            clients (TMDB, TVDB).
 
     Returns:
         LibraryRescrapeResult with per-item actions.
     """
-    from personalscraper.api.metadata.tmdb import TMDBClient  # noqa: PLC0415
-    from personalscraper.api.metadata.tvdb import TVDBClient  # noqa: PLC0415
-    from personalscraper.api.transport._http import HttpTransport  # noqa: PLC0415
     from personalscraper.scraper.artwork import ArtworkDownloader  # noqa: PLC0415
     from personalscraper.scraper.nfo_generator import NFOGenerator  # noqa: PLC0415
 
     scraper_config = config.scraper
-    tmdb_policy = TMDBClient.policy(settings.tmdb_api_key)
-    tmdb_client = TMDBClient(
-        transport=HttpTransport(tmdb_policy, event_bus=event_bus),
-        language=scraper_config.language,
-    )
-    tvdb_client = TVDBClient(settings.tvdb_api_key, event_bus=event_bus)
     # Pass db_path so write-through outbox publishes land in the user-configured
     # DB rather than the default IndexerConfig().db_path (DESIGN §9.4).
     nfo_gen = NFOGenerator(db_path=config.indexer.db_path)
@@ -628,8 +619,7 @@ def rescrape_library(
                 category=category_id,
                 title=title,
                 year=year,
-                tmdb_client=tmdb_client,
-                tvdb_client=tvdb_client,
+                registry=registry,
                 nfo_gen=nfo_gen,
                 artwork_dl=artwork_dl,
                 patterns=patterns,

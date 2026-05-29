@@ -100,10 +100,16 @@ def _invoke_run(*, verbose: bool, monkeypatch: Any) -> tuple[Any, list[Any]]:
     ):
         # Build a real AppContext so its EventBus is a real bus (the subscriber
         # subscribes to it, the stub Pipeline emits on it).
+        from personalscraper.api.metadata.registry import ProviderRegistry
         from personalscraper.core.app_context import AppContext
         from personalscraper.core.event_bus import EventBus
 
-        _build.return_value = AppContext(config=config, settings=MagicMock(), event_bus=EventBus())
+        _build.return_value = AppContext(
+            config=config,
+            settings=MagicMock(),
+            event_bus=EventBus(),
+            provider_registry=MagicMock(spec=ProviderRegistry),
+        )
         result = runner.invoke(app, cmd)
     return result, received
 
@@ -179,10 +185,16 @@ def test_cli_run_verbose_debug_log_subscriber_closed_on_exception(monkeypatch: A
         patch("personalscraper.commands.pipeline.cli_compat.get_settings", return_value=MagicMock()),
         patch("personalscraper.commands.pipeline._build_app_context") as _build,
     ):
+        from personalscraper.api.metadata.registry import ProviderRegistry
         from personalscraper.core.app_context import AppContext
         from personalscraper.core.event_bus import EventBus
 
-        _build.return_value = AppContext(config=config, settings=MagicMock(), event_bus=EventBus())
+        _build.return_value = AppContext(
+            config=config,
+            settings=MagicMock(),
+            event_bus=EventBus(),
+            provider_registry=MagicMock(spec=ProviderRegistry),
+        )
         result = runner.invoke(app, ["--verbose", "run", "--headless", "--skip-trailers"])
 
     # The CLI exits non-zero because Pipeline.run raised — but the finally

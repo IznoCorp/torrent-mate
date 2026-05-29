@@ -92,7 +92,8 @@ class TestScrapeFastSkipContract:
             patch("personalscraper.scraper.run.Scraper") as MockScraper,
             caplog.at_level(logging.INFO, logger="scraper.run"),
         ):
-            report = run_scrape(settings, config=config, event_bus=EventBus())
+            # Fast-skip path does not touch the registry — any sentinel works.
+            report = run_scrape(settings, config=config, event_bus=EventBus(), registry=MagicMock())
 
         # Pin 1: no Scraper instance constructed.
         MockScraper.assert_not_called()
@@ -235,8 +236,9 @@ class TestIdempotenceContract:
             patch("personalscraper.scraper.run.Scraper"),
             caplog.at_level(logging.INFO, logger="scraper.run"),
         ):
-            report1 = run_scrape(settings, config=config, event_bus=EventBus())
-            report2 = run_scrape(settings, config=config, event_bus=EventBus())
+            # Fast-skip path does not touch the registry — any sentinel works.
+            report1 = run_scrape(settings, config=config, event_bus=EventBus(), registry=MagicMock())
+            report2 = run_scrape(settings, config=config, event_bus=EventBus(), registry=MagicMock())
 
         # Both runs must produce the same zero-change outcome.
         assert report1.success_count == 0

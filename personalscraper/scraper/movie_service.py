@@ -11,19 +11,24 @@ from typing import TYPE_CHECKING, Any
 
 import requests
 
+from personalscraper.api._contracts import ApiError, CircuitOpenError
 from personalscraper.api.metadata._base import MediaDetails, Notations
+from personalscraper.api.metadata._contracts import MovieDetailsProvider
+from personalscraper.api.metadata.registry import AttemptOutcome, RegistryProviderName
+from personalscraper.api.metadata.registry._errors import ProviderExhausted
 from personalscraper.logger import get_logger
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
 from personalscraper.scraper._shared import ScrapeResult, _find_video_file
 from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.confidence import LOW_CONFIDENCE
 from personalscraper.scraper.rename_service import _cleanup_stale_files, _merge_dirs
+from personalscraper.sorter.file_type import VIDEO_EXTENSIONS, is_trailer_filename
 from personalscraper.text_utils import sanitize_filename
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from personalscraper.api.metadata.tmdb import TMDBClient
+    from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.conf.models.config import Config
     from personalscraper.naming_patterns import NamingPatterns
     from personalscraper.scraper.artwork import ArtworkDownloader
@@ -416,11 +421,17 @@ _EPISODE_FALLBACK_RE = re.compile(r"^S\d{2}E0*(\d+) - Episode 0*\1\.\w+$", re.IG
 
 
 class MovieServiceMixin:
-    """Movie scrape service methods."""
+    """Movie scrape service methods.
+
+    Provider access goes through ``self._registry`` (DESIGN §5.2). Phase 1 uses
+    ``self._registry.get("tmdb")`` / ``get("tvdb")`` as transitional direct
+    access; Phase 2 will migrate Movie/TV matching to ``registry.chain()`` and
+    Artwork/Keyword/Video to ``registry.locked()`` (identity-locked semantics).
+    """
 
     patterns: "NamingPatterns"
     dry_run: bool
-    _tmdb: "TMDBClient"
+    _registry: "ProviderRegistry"
     _artwork: "ArtworkDownloader"
     config: "Config | None"
     _nfo: "NFOGenerator"
@@ -459,10 +470,33 @@ class MovieServiceMixin:
         )
 
     def _family_to_client(self, family: str) -> Any | None:
-        """Map a provider family to the wired client / façade (or ``None``)."""
+        """Map a provider family to the wired client / façade (or ``None``).
+
+        Transitional access via the registry (Phase 1 — DESIGN §5.2). The
+        registry raises ``UnknownProviderError`` for names it does not know;
+        we treat that as ``None`` to preserve the legacy fail-soft contract
+        of this helper (xref enrichment and ratings resolution both consume
+        the ``None`` branch).
+        """
+        from personalscraper.api.metadata.registry._errors import UnknownProviderError  # noqa: PLC0415
+
+        # ``imdb`` / ``rotten_tomatoes`` remain optional companion façades
+        # injected by other call sites; the registry currently only owns the
+        # canonical "tmdb"/"tvdb" providers (Phase 1 scope).
+        if family in {"tmdb", "tvdb"}:
+            try:
+                return self._registry.get(family)
+            except UnknownProviderError as e:
+                # If boot validation passed but we reach here, this is a runtime
+                # contract violation worth a forensic anchor (the registry's
+                # config should already have caught an unwired family).
+                log.warning(
+                    "xref_family_unwired",
+                    family=family,
+                    exc_type=type(e).__name__,
+                )
+                return None
         mapping: dict[str, Any] = {
-            "tvdb": getattr(self, "_tvdb", None),
-            "tmdb": getattr(self, "_tmdb", None),
             "imdb": getattr(self, "_imdb", None),
         }
         return mapping.get(family)
@@ -473,7 +507,36 @@ class MovieServiceMixin:
         year: int | None,
         result: ScrapeResult,
     ) -> MatchResult | None:
-        """Search TMDB for movie candidates matching the given title and year.
+        """Search the configured movie chain for candidates matching title + year.
+
+        Iterates ``self._registry.chain(MovieDetailsProvider)`` per DESIGN §6.2
+        and tries each eligible provider in priority order. Per-provider
+        failures emit :class:`ProviderFallbackTriggered`; full chain
+        exhaustion (every attempt errored) emits
+        :class:`ProviderExhaustedEvent` **and raises**
+        :class:`ProviderExhausted` (DESIGN §6.2 line 79, restored in
+        Phase 16). The immediate caller (:meth:`scrape_movie`) catches
+        and surfaces a legacy fail-soft ``result.error`` containing the
+        original exception's message — the ACC-13 contract
+        (``"API down" in result.error``) is preserved because
+        :attr:`ProviderExhausted.last_exception` carries the underlying
+        :class:`ApiError` / :class:`OSError`.
+
+        Branch semantics (closed list — DESIGN §6.2):
+
+        - ``circuit_open`` — :class:`CircuitOpenError` raised by the
+          provider; record outcome, emit fallback, continue.
+        - ``network`` — :class:`ApiError`, :class:`requests.RequestException`,
+          or :class:`OSError` (including :class:`ConnectionError`); record
+          outcome with ``exc_type``, emit fallback, continue.
+        - ``empty_result`` — provider returned ``None`` (no candidates);
+          emit fallback, continue.
+        - Any other exception — set ``result.error``, log, return ``None``
+          (preserves the legacy fail-soft contract used by orchestrator).
+
+        Returns the **first** provider's MatchResult (even if low-confidence
+        — the confidence threshold is the caller's responsibility, see
+        ``_select_best_candidate``).
 
         Args:
             title: Movie title to search for.
@@ -481,18 +544,145 @@ class MovieServiceMixin:
             result: ScrapeResult for error tracking.
 
         Returns:
-            MatchResult on successful API call (may be None when no candidate
-            was found), or None when an API exception occurred (result.error
-            is set).
-        """
-        try:
-            from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
+            MatchResult on the first successful provider call, or ``None``
+            when ``result.error`` was populated (unclassified exception)
+            or every chain provider returned an empty result (legacy
+            ``skipped_low_confidence`` path).
 
-            return scraper_api.match_movie(self._tmdb, title, year)
-        except Exception as e:
-            result.error = f"Match failed: {e}"
-            log.error("movie_match_failed", title=title, error=str(e), exc_info=True)
-            return None
+        Raises:
+            ProviderExhausted: When at least one chain provider raised
+                a classified failure (``circuit_open`` / ``network``) and
+                no provider returned a match. The caller is responsible
+                for catching and surfacing the error in ``result.error``.
+        """
+        from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
+
+        item_context: dict[str, Any] = {"title": title, "year": year, "media_type": "movie"}
+        providers = self._registry.chain(MovieDetailsProvider)  # type: ignore[type-abstract]
+        attempted: list[AttemptOutcome] = []
+        last_exception: Exception | None = None
+
+        for provider in providers:
+            provider_name = getattr(provider, "provider_name", "?")
+            try:
+                match = scraper_api.match_movie(provider, title, year)
+            except CircuitOpenError as exc:
+                last_exception = exc
+                attempted.append(AttemptOutcome(provider=RegistryProviderName(provider_name), reason="circuit_open"))
+                log.debug(
+                    "registry_provider_skip",
+                    provider=provider_name,
+                    capability="MovieDetailsProvider",
+                    reason="circuit_open",
+                )
+                self._registry.emit_provider_fallback(
+                    capability="MovieDetailsProvider",
+                    from_provider=provider_name,
+                    reason="circuit_open",
+                    item=item_context,
+                )
+                continue
+            except (ApiError, requests.RequestException, OSError) as exc:
+                last_exception = exc
+                attempted.append(
+                    AttemptOutcome(
+                        provider=RegistryProviderName(provider_name),
+                        reason="network",
+                        detail=type(exc).__name__,
+                    )
+                )
+                log.warning(
+                    "registry_provider_fail",
+                    provider=provider_name,
+                    capability="MovieDetailsProvider",
+                    exc_type=type(exc).__name__,
+                )
+                self._registry.emit_provider_fallback(
+                    capability="MovieDetailsProvider",
+                    from_provider=provider_name,
+                    reason="network",
+                    exc_type=type(exc).__name__,
+                    item=item_context,
+                )
+                continue
+            except Exception as exc:  # noqa: BLE001 — DESIGN §6.2 fallback on unclassified
+                # Unclassified provider failure — DESIGN §6.2 promises chain
+                # fallback ("first provider that returns a usable result wins"),
+                # so we record the attempt, emit a ``reason="other"`` fallback
+                # event for observers, and continue to the next provider.
+                # Phase 21 (C2): restored chain semantics that previous code
+                # broke by short-circuiting here with ``result.error`` /
+                # ``return None``.
+                last_exception = exc
+                attempted.append(
+                    AttemptOutcome(
+                        provider=RegistryProviderName(provider_name),
+                        reason="other",
+                        detail=type(exc).__name__,
+                    )
+                )
+                log.warning(
+                    "registry_provider_fail",
+                    provider=provider_name,
+                    capability="MovieDetailsProvider",
+                    exc_type=type(exc).__name__,
+                )
+                self._registry.emit_provider_fallback(
+                    capability="MovieDetailsProvider",
+                    from_provider=provider_name,
+                    reason="other",
+                    exc_type=type(exc).__name__,
+                    item=item_context,
+                )
+                continue
+
+            if match is None:
+                attempted.append(AttemptOutcome(provider=RegistryProviderName(provider_name), reason="empty_result"))
+                log.debug(
+                    "registry_provider_skip",
+                    provider=provider_name,
+                    capability="MovieDetailsProvider",
+                    reason="empty_result",
+                )
+                self._registry.emit_provider_fallback(
+                    capability="MovieDetailsProvider",
+                    from_provider=provider_name,
+                    reason="empty_result",
+                    item=item_context,
+                )
+                continue
+
+            return match
+
+        # All providers attempted and none produced a match.
+        if attempted and any(a.reason in {"circuit_open", "network", "other"} for a in attempted):
+            # At least one attempt errored (chain actually broken). Emit
+            # the exhausted event for observers, then RAISE
+            # ``ProviderExhausted`` per DESIGN §6.2. The caller
+            # (:meth:`scrape_movie`) catches and surfaces a
+            # legacy-shape ``result.error`` carrying the original
+            # exception's detail (ACC-13 contract).
+            self._registry.emit_provider_exhausted(
+                capability="MovieDetailsProvider",
+                attempted=attempted,
+                item=item_context,
+            )
+            log.error(
+                "registry_chain_exhausted",
+                capability="MovieDetailsProvider",
+                attempted=[(a.provider, a.reason) for a in attempted],
+                item=item_context,
+            )
+            raise ProviderExhausted(
+                capability=MovieDetailsProvider,
+                attempted=attempted,
+                item_context=item_context,
+                last_exception=last_exception,
+            )
+        # Empty chain or all empty_result → legacy "no confident match"
+        # path (caller branches on the None return to set
+        # ``skipped_low_confidence`` and try ``_restore_from_db``).
+        return None
 
     def _select_best_candidate(
         self,
@@ -591,8 +781,18 @@ class MovieServiceMixin:
                     log.error("nfo_corrupt_delete_failed", path=str(nfo_path), error=str(exc))
                     return result
 
-        # Match against TMDB
-        match = self._match_movie_candidates(title, year, result)
+        # Match against TMDB. The chain raises ``ProviderExhausted`` when
+        # every eligible provider failed with a classified error
+        # (``circuit_open`` / ``network``) — DESIGN §6.2 line 79. Catch
+        # and surface the original exception detail in ``result.error``
+        # to preserve the ACC-13 legacy contract.
+        try:
+            match = self._match_movie_candidates(title, year, result)
+        except ProviderExhausted as exc:
+            detail = exc.last_exception if exc.last_exception is not None else exc
+            result.error = f"Match failed: {detail}"
+            result.action = "error"
+            return result
         if result.error:
             return result
         if not self._select_best_candidate(match, title, year, result):
@@ -604,12 +804,116 @@ class MovieServiceMixin:
             return result
         assert match is not None  # narrowed by _select_best_candidate returning True
 
-        # Get full movie details (needed for local title resolution)
-        try:
-            movie_data = self._tmdb.get_movie(match.api_id)
-        except Exception as e:
-            result.error = f"Get details failed: {e}"
-            log.error("movie_details_failed", api_title=match.api_title, error=str(e), exc_info=True)
+        # Get full movie details via chain iteration (DESIGN §6.2). Iterate
+        # ``registry.chain(MovieDetailsProvider)`` and try each provider that
+        # owns the match's source id (others would need cross_ref translation
+        # — out of scope until sub-phase 7.4). Per-provider failures emit
+        # ``ProviderFallbackTriggered``; total chain exhaustion emits
+        # ``ProviderExhaustedEvent`` and populates ``result.error``.
+        details_item_context: dict[str, Any] = {
+            "title": match.api_title,
+            "year": match.api_year,
+            "media_type": "movie",
+            "provider_id": match.api_id,
+        }
+        movie_data: MediaDetails | dict[str, Any] | None = None
+        details_attempted: list[AttemptOutcome] = []
+        details_providers = self._registry.chain(MovieDetailsProvider)  # type: ignore[type-abstract]
+        for provider in details_providers:
+            provider_name = getattr(provider, "provider_name", "?")
+            # Honour the source-of-match invariant: only consult the provider
+            # that produced the MatchResult. Cross-provider translation (e.g.
+            # TMDB id → TVDB id) is owned by ``registry.cross_ref`` and lands
+            # in sub-phase 7.4 (existing_validator) — out of scope for 7.1.
+            if provider_name != match.source:
+                continue
+            # Runtime isinstance + narrow: the chain overload returns a
+            # union type for type-checkers (Searchable | MovieDetailsProvider
+            # | TvDetailsProvider | EpisodeFetcher); the guard restores
+            # the MovieDetailsProvider Protocol shape for ``get_movie``.
+            if not isinstance(provider, MovieDetailsProvider):
+                continue
+            try:
+                movie_data = provider.get_movie(str(match.api_id))
+                break
+            except CircuitOpenError:
+                details_attempted.append(
+                    AttemptOutcome(provider=RegistryProviderName(provider_name), reason="circuit_open")
+                )
+                self._registry.emit_provider_fallback(
+                    capability="MovieDetailsProvider",
+                    from_provider=provider_name,
+                    reason="circuit_open",
+                    item=details_item_context,
+                )
+                continue
+            except (ApiError, requests.RequestException, OSError) as exc:
+                details_attempted.append(
+                    AttemptOutcome(
+                        provider=RegistryProviderName(provider_name),
+                        reason="network",
+                        detail=type(exc).__name__,
+                    )
+                )
+                self._registry.emit_provider_fallback(
+                    capability="MovieDetailsProvider",
+                    from_provider=provider_name,
+                    reason="network",
+                    exc_type=type(exc).__name__,
+                    item=details_item_context,
+                )
+                continue
+            except Exception as exc:  # noqa: BLE001 — DESIGN §6.2 fallback on unclassified
+                # Unclassified failure — Phase 21 (C2) restores DESIGN §6.2
+                # fallback semantics: record the attempt with reason="other",
+                # emit ProviderFallbackTriggered for observers, and continue
+                # to the next eligible provider in the chain. If every
+                # candidate fails the post-loop exhausted branch surfaces
+                # ``result.error`` (ACC-13 legacy shape).
+                details_attempted.append(
+                    AttemptOutcome(
+                        provider=RegistryProviderName(provider_name),
+                        reason="other",
+                        detail=type(exc).__name__,
+                    )
+                )
+                self._registry.emit_provider_fallback(
+                    capability="MovieDetailsProvider",
+                    from_provider=provider_name,
+                    reason="other",
+                    exc_type=type(exc).__name__,
+                    item=details_item_context,
+                )
+                log.warning(
+                    "movie_details_failed",
+                    api_title=match.api_title,
+                    provider=provider_name,
+                    exc_type=type(exc).__name__,
+                    error=str(exc),
+                )
+                continue
+
+        if movie_data is None:
+            # Either no provider matched ``match.source`` or every attempt
+            # in that subset failed. Emit the exhausted event and surface
+            # the legacy ``result.error`` path so the orchestrator records
+            # ``action="error"``.
+            if details_attempted:
+                self._registry.emit_provider_exhausted(
+                    capability="MovieDetailsProvider",
+                    attempted=details_attempted,
+                    item=details_item_context,
+                )
+                log.error(
+                    "registry_chain_exhausted",
+                    capability="MovieDetailsProvider",
+                    attempted=[(a.provider, a.reason) for a in details_attempted],
+                    item=details_item_context,
+                )
+                result.error = f"Get details failed: all providers exhausted for {MovieDetailsProvider.__name__}"
+            else:
+                result.error = f"Get details failed: no provider available for source={match.source!r}"
+                log.error("movie_details_no_provider", api_title=match.api_title, source=match.source)
             return result
 
         # Resolve title: use local FR title if preferred and available
@@ -688,6 +992,55 @@ class MovieServiceMixin:
                         result.warnings.append(f"Video rename failed: {video_file.name}: {exc}")
                 else:
                     log.info("movie_video_would_rename", source=video_file.name, dest=clean_video_name)
+
+            # Remove non-canonical video files left at the movie root. When two
+            # distinct staged folders resolve to the same TMDB id, _merge_dirs
+            # folds both into one folder, so several video files can coexist at
+            # the root. _find_video_file picked the most-recently-modified one as
+            # canonical (above); every other root-level video is an orphan from
+            # the merged source and must go. Iterate non-recursively so videos in
+            # Trailers/ or Extras/ sub-folders are never touched (movies are flat
+            # at the root).
+            #
+            # Scope-consistency guard: _find_video_file selects RECURSIVELY
+            # (rglob), so the canonical may legitimately live in a sub-dir (e.g.
+            # an Extras/ video that was the newest). The cleanup below is
+            # root-only and skips by-name comparison against the canonical; if
+            # the canonical is NOT itself at the root, that name-based skip
+            # cannot protect it and the loop would delete every root video.
+            # Only run the cleanup when selection and cleanup share the same
+            # scope — i.e. the canonical sits at the movie root. Otherwise skip;
+            # VERIFY's no_duplicate_videos check still backstops residual roots.
+            if video_file.parent == movie_dir:
+                for entry in sorted(movie_dir.iterdir()):
+                    if not entry.is_file() or entry.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
+                        continue
+                    # A flat movie trailer ({name}-trailer.{ext}) legitimately lives
+                    # at the movie root (Plex Local Media Assets) — never unlink it.
+                    if is_trailer_filename(entry.name):
+                        continue
+                    if entry.name == video_file.name:
+                        continue
+                    if self.dry_run:
+                        log.info("movie_video_orphan_would_remove", filename=entry.name, parent=movie_dir.name)
+                        continue
+                    try:
+                        entry.unlink()
+                        log.info("movie_video_orphan_removed", filename=entry.name, parent=movie_dir.name)
+                    except OSError as exc:
+                        log.warning(
+                            "movie_video_orphan_remove_failed",
+                            filename=entry.name,
+                            parent=movie_dir.name,
+                            error=str(exc),
+                        )
+                        # Surface the residual duplicate so the scrape result does
+                        # not self-report clean success while an orphan persists
+                        # (mirrors the rename-failure branch above). Fail-soft: the
+                        # ``continue`` semantics are preserved — one failing orphan
+                        # must not abort cleanup of the others.
+                        result.warnings.append(f"Orphan video not removed: {entry.name}: {exc}")
+
             from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
 
             stream_info = scraper_api.extract_stream_info(video_file)
@@ -709,7 +1062,7 @@ class MovieServiceMixin:
             return result
 
         # api-unify phase 27: movie_data arrives as MediaDetails from
-        # ``self._tmdb.get_movie``. Adapt to the legacy raw-dict shape the
+        # ``self._registry.get("tmdb").get_movie``. Adapt to the legacy raw-dict shape the
         # NFO generator + artwork downloader still consume. Once those two
         # consumers migrate to MediaDetails, this conversion can be deleted.
         movie_data_dict = _coerce_to_movie_data(movie_data)

@@ -279,7 +279,14 @@ class TestLibraryBackfillIdsDryRun:
         assert data["dry_run"] is True
 
     def test_dry_run_skips_client_construction(self, test_config) -> None:
-        """``--dry-run`` skips building TMDB/TVDB/IMDb/RT clients (no API keys needed)."""
+        """``--dry-run`` passes ``registry=None`` (no API keys needed).
+
+        Phase 11 migration: the four typed-client kwargs (tmdb_client /
+        tvdb_client / imdb_client / rt_client) were collapsed into a
+        single ``registry=`` kwarg. In dry-run mode the CLI passes
+        ``None`` so the indexer driver never attempts any provider
+        call.
+        """
         conn_mock = _conn_mock()
         calls: list[dict] = []
 
@@ -287,7 +294,7 @@ class TestLibraryBackfillIdsDryRun:
             calls.append(kwargs)
             return _empty_stats()
 
-        # No API keys in env — clients should remain None in dry-run mode.
+        # No API keys in env — registry should be None in dry-run mode.
         with (
             patch(_OPEN_DB, return_value=conn_mock),
             patch(_APPLY_MIGRATIONS),
@@ -297,10 +304,13 @@ class TestLibraryBackfillIdsDryRun:
             result = runner.invoke(app, ["library-backfill-ids", "--dry-run"])
 
         assert result.exit_code == 0, result.output
-        assert calls[0]["tmdb_client"] is None
-        assert calls[0]["tvdb_client"] is None
-        assert calls[0]["imdb_client"] is None
-        assert calls[0]["rt_client"] is None
+        assert calls[0]["registry"] is None
+        # The four legacy typed-client kwargs are gone from the driver
+        # signature; ensure they were not silently re-added.
+        assert "tmdb_client" not in calls[0]
+        assert "tvdb_client" not in calls[0]
+        assert "imdb_client" not in calls[0]
+        assert "rt_client" not in calls[0]
 
 
 # ── 4. Missing db_path guard ──────────────────────────────────────────────────

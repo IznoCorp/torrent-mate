@@ -264,7 +264,10 @@ class ArtworkDownloader:
         if poster_path:
             poster_name = patterns.format("movie_poster", Title=title)
             dest = movie_dir / poster_name
-            url = f"{IMAGE_BASE_URL}/{IMAGE_SIZE}{poster_path}"
+            # Registry providers may return already-absolute image URLs; only
+            # prepend the TMDB CDN base for bare relative paths (same guard as
+            # the TV path below).
+            url = poster_path if poster_path.startswith("http") else f"{IMAGE_BASE_URL}/{IMAGE_SIZE}{poster_path}"
             try:
                 if self.download_image(url, dest):
                     downloaded.append(dest)
@@ -295,7 +298,12 @@ class ArtworkDownloader:
         if landscape_path:
             landscape_name = patterns.format("movie_landscape", Title=title)
             dest = movie_dir / landscape_name
-            url = f"{IMAGE_BASE_URL}/{IMAGE_SIZE}{landscape_path}"
+            # See poster note above: pass absolute URLs through unchanged.
+            url = (
+                landscape_path
+                if landscape_path.startswith("http")
+                else f"{IMAGE_BASE_URL}/{IMAGE_SIZE}{landscape_path}"
+            )
             try:
                 if self.download_image(url, dest):
                     downloaded.append(dest)

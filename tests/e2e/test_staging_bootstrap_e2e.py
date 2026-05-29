@@ -35,15 +35,27 @@ _STAGING_DIRS = [
 
 
 @pytest.fixture
-def e2e_env(tmp_path: Path):
+def e2e_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Create a minimal v2 split-config directory in tmp_path.
 
     Args:
         tmp_path: pytest-provided temporary directory.
+        monkeypatch: pytest monkeypatch fixture (used to set dummy
+            ``TMDB_API_KEY`` / ``TVDB_API_KEY`` env vars so the real
+            :class:`ProviderRegistry` boots without a
+            ``missing_credentials`` issue — Phase 15 removed the autouse
+            stub that previously swallowed that boot path).
 
     Returns:
         Dict with keys: tmp_path, staging, config_dir.
     """
+    # Dummy provider credentials so the real ``ProviderRegistry`` passes
+    # the ``missing_credentials`` check at CLI boot.  No real HTTP is
+    # performed — TVDB deferred its bootstrap in Phase 14, TMDB never
+    # called HTTP at ``__init__``.
+    monkeypatch.setenv("TMDB_API_KEY", "dummy_tmdb_key")
+    monkeypatch.setenv("TVDB_API_KEY", "dummy_tvdb_key")
+
     staging = tmp_path / "staging"
     config_dir = tmp_path / "config"
     config_dir.mkdir()
@@ -55,6 +67,7 @@ def e2e_env(tmp_path: Path):
             "paths.json5",
             "disks.json5",
             "patterns.json5",
+            "providers.json5",
         ],
     }
     (config_dir / "config.json5").write_text(json5.dumps(master))
@@ -86,6 +99,28 @@ def e2e_env(tmp_path: Path):
         json5.dumps(
             {
                 "staging_dirs": _STAGING_DIRS,
+            }
+        )
+    )
+
+    # providers.json5 overlay — minimal valid ProvidersConfig so
+    # ``ProviderRegistry`` (built at the CLI boundary) does not fail
+    # with ``empty_chain_section``. ``KeywordProvider`` stays empty to
+    # avoid the ``locked_capability_orphan`` rule (tvdb is in chain but
+    # does not implement ``KeywordProvider`` and there is no IDCrossRef
+    # bridge configured here).
+    (config_dir / "providers.json5").write_text(
+        json5.dumps(
+            {
+                "providers": {
+                    "Searchable": {"tvdb": 1, "tmdb": 2},
+                    "MovieDetailsProvider": {"tmdb": 1, "tvdb": 2},
+                    "TvDetailsProvider": {"tvdb": 1, "tmdb": 2},
+                    "EpisodeFetcher": {"tvdb": 1, "tmdb": 2},
+                    "ArtworkProvider": {"tmdb": 1, "tvdb": 2},
+                    "KeywordProvider": {},
+                    "VideoProvider": {"tmdb": 1, "tvdb": 2},
+                }
             }
         )
     )

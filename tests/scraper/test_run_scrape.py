@@ -120,7 +120,7 @@ class TestRunScrape:
             mock_scraper.process_movies.return_value = []
             mock_scraper.process_tvshows.return_value = []
 
-            report = run_scrape(settings, config=config, event_bus=EventBus())
+            report = run_scrape(settings, config=config, event_bus=EventBus(), registry=MagicMock())
 
         assert report.name == "scrape"
         mock_scraper.process_movies.assert_called_once()
@@ -146,7 +146,7 @@ class TestRunScrape:
             mock_scraper = MockScraper.return_value
             mock_scraper.process_movies.return_value = []
 
-            run_scrape(settings, config=config, movies_only=True, event_bus=EventBus())
+            run_scrape(settings, config=config, movies_only=True, event_bus=EventBus(), registry=MagicMock())
 
         mock_scraper.process_movies.assert_called_once()
         mock_scraper.process_tvshows.assert_not_called()
@@ -171,7 +171,7 @@ class TestRunScrape:
             mock_scraper = MockScraper.return_value
             mock_scraper.process_tvshows.return_value = []
 
-            run_scrape(settings, config=config, tvshows_only=True, event_bus=EventBus())
+            run_scrape(settings, config=config, tvshows_only=True, event_bus=EventBus(), registry=MagicMock())
 
         mock_scraper.process_movies.assert_not_called()
         mock_scraper.process_tvshows.assert_called_once()

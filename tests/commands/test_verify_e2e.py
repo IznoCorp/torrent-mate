@@ -16,6 +16,7 @@ from tests.commands._e2e_helpers import (
     capture_event_bus,
     run_cli,
 )
+from tests.fixtures.settings_stub import make_typed_settings_stub
 
 
 def _verify_report(**kw: int) -> StepReport:
@@ -48,7 +49,7 @@ def test_verify_no_media_noop(
 ) -> None:
     """No media folders in staging → fast-skip, zero ops, exit 0."""
     mock_run.return_value = (StepReport(name="verify"), [])
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["verify"])
 
@@ -73,7 +74,7 @@ def test_verify_some_valid_some_blocked(
         _verify_report(success_count=3, error_count=2, details=["[valid] Inception...", "[blocked] Bad.Movie..."]),
         [MagicMock(), MagicMock(), MagicMock()],
     )
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["verify"])
 
@@ -99,7 +100,7 @@ def test_verify_all_blocked(
         _verify_report(success_count=0, error_count=4),
         [],
     )
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["verify"])
 
@@ -121,7 +122,7 @@ def test_verify_lock_contention(
     mock_settings,
 ) -> None:
     """Lock held → exit 1, friendly message, no traceback."""
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["verify"])
 
@@ -145,7 +146,7 @@ def test_verify_idempotent(
 ) -> None:
     """Two consecutive verify calls exit 0, mock called twice."""
     mock_run.return_value = (_verify_report(skip_count=5), [])
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     r1 = run_cli(["verify"])
     r2 = run_cli(["verify"])
@@ -171,7 +172,7 @@ def test_verify_dry_run_forwards_flag(
 ) -> None:
     """--dry-run flag is forwarded to run_verify."""
     mock_run.return_value = (_verify_report(), [])
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["verify", "--dry-run"])
 
@@ -192,7 +193,7 @@ def test_verify_movies_only_forwards_flag(
 ) -> None:
     """--movies-only flag is forwarded to run_verify."""
     mock_run.return_value = (_verify_report(), [])
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["verify", "--movies-only"])
 
@@ -213,7 +214,7 @@ def test_verify_tvshows_only_forwards_flag(
 ) -> None:
     """--tvshows-only flag is forwarded to run_verify."""
     mock_run.return_value = (_verify_report(), [])
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["verify", "--tvshows-only"])
 
@@ -237,7 +238,7 @@ def test_verify_output_no_traceback(
 ) -> None:
     """Output is Rich-formatted, never a raw Python traceback."""
     mock_run.return_value = (_verify_report(success_count=1), [MagicMock()])
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["verify"])
 
@@ -257,7 +258,7 @@ def test_verify_summary_always_printed(
 ) -> None:
     """Even with all blocked, the summary + dispatchable count is printed."""
     mock_run.return_value = (_verify_report(success_count=0, error_count=3), [])
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["verify"])
 
@@ -285,7 +286,7 @@ def test_verify_verbose_prints_details(
         ),
         [MagicMock(), MagicMock()],
     )
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["--verbose", "verify"])
 
@@ -308,7 +309,7 @@ def test_verify_emits_item_progressed_events(
     """run_verify emits ItemProgressed events on the shared EventBus."""
     from personalscraper.pipeline_events import ItemProgressed
 
-    mock_settings.return_value = MagicMock()
+    mock_settings.return_value = make_typed_settings_stub()
     captured = capture_event_bus(monkeypatch)
 
     def _emit_and_return(*args, **kwargs):
@@ -329,7 +330,10 @@ def test_verify_emits_item_progressed_events(
         result = run_cli(["verify"])
 
     assert result.exit_code == 0
-    assert len(captured) == 2
+    # Filter by domain event type — the bus may also carry a
+    # ``RegistryBootValidated`` infra event since Phase 15 removed the autouse stub.
+    item_events = [e for e in captured if isinstance(e, ItemProgressed)]
+    assert len(item_events) == 2
     assert_events_emitted(captured, [ItemProgressed])
 
 
