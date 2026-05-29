@@ -7,9 +7,16 @@
 > `tests/indexer/test_drift.py`, `test_drift_e2e.py`, `tests/e2e/test_indexer_racy_mtime.py`).
 > The **live** tier-1 drift comparison is in `scanner/_modes/incremental.py` and
 > `scanner/_modes/quick.py`. The full scan (`_walker.py` via `fingerprint_tier1`)
-> only **stores** raw fingerprints and never compares — it needs no change. This
-> re-scoped plan targets the real paths. `reconcile_file` is left untouched (dead
-> code; flagged for tech-debt-2 removal, out of scope here).
+> only **stores** raw fingerprints and never compares — it needs no change _in
+> this phase_. This re-scoped plan targets the real paths. `reconcile_file` is
+> left untouched (dead code; flagged for tech-debt-2 removal, out of scope here).
+>
+> **Phase-8 follow-up (2026-05-29):** the Merkle/dir-mtime _gating_ layer in
+> `_walker.py` (`_build_disk_fingerprints` / `_sample_fresh_fingerprints`) was
+> later made FS-aware too — it buckets mtime via the disk capability so the
+> Merkle short-circuit, the bulk-change freeze, and the dir-mtime skip are all
+> coarse-FS-safe. See `phase-08-retro-fixes.md` Task 1. The full-scan raw
+> _storage_ path is still unchanged.
 
 **Goal:** Stop exFAT/ext4 perpetual re-hashing by making the live tier-1
 comparison FS-aware. Introduce one centralized, pure `normalize_tier1` helper
@@ -44,18 +51,21 @@ the NTFS no-op.
   `_scan_disk_quick` (mirroring how `dir_mtime_reliable` is passed). It also
   computes an effective per-disk `dir_mtime_reliable` honouring
   `capability.dir_mtime_reliable_default` when not `None`.
-- `_scan_disk_full` / `_walker.py` are **not** changed (full scan stores raw,
-  never compares).
+- `_scan_disk_full` / the full-scan raw-storage path in `_walker.py` are **not**
+  changed in this phase (full scan stores raw, never compares). _(Phase-8 later
+  made `_walker.py`'s Merkle/dir-mtime fingerprint helpers FS-aware — see the
+  re-scope note above.)_
 
-**Capability source (documented asymmetry):** the scanner auto-detects via
-`probe_mount` (read-time FS is authoritative for drift). The
-`DiskConfig.fs_type` operator override (Phase 4) governs the **transfer** path
-(write-time rsync flags). They agree whenever `probe_mount` recognises the
-driver token (it recognises all known NTFS/APFS/HFS+/exFAT/ext4 spellings). On
-a truly unrecognised token the scanner falls back to `unknown` ==
-`ntfs_macfuse` (conservative: full ctime+exact mtime → never skips a real
-change). Threading the override into the scanner is a small future enhancement,
-out of scope here.
+**Capability source (one shared resolver — delivered, not deferred):** the
+scanner and the transfer layer both resolve through the **same**
+`resolve_capability(path, fs_type_override)` (Task 5 below), so the
+`DiskConfig.fs_type` operator override is authoritative across scan _and_
+transfer — they can never diverge. When no override is given the type is
+auto-detected via `probe_mount`; an unrecognised token / unmounted path falls
+back to `unknown` == `ntfs_macfuse` (conservative: full ctime + exact mtime →
+never skips a real change). (An earlier draft of this plan called threading the
+override into the scanner "out of scope here"; that was superseded by Task 5,
+which delivered it.)
 
 **Tech Stack:** `personalscraper.indexer._fs_capability`, `personalscraper.indexer._fs_probe`, `os.stat_result`.
 

@@ -6,7 +6,7 @@
 
 **Branch:** `feat/multi-filesystem`
 **Codename:** `multi-filesystem`
-**SemVer bump:** `0.16.0 → 0.17.0` (minor — purely additive, no breaking config/DB change)
+**SemVer bump:** `0.17.0 → 0.18.0` (minor — purely additive, no breaking config/DB change; shipped as **0.18.0** — 0.17.0 was consumed by arch-cleanup-2)
 **Design doc:** `docs/features/multi-filesystem/DESIGN.md`
 
 **CRITICAL INVARIANT (all phases):** The NTFS-via-macFUSE rsync flags must remain byte-identical to today's hardcoded list throughout every phase. The `ntfs_macfuse` `FilesystemCapability` entry is the golden anchor. `"unknown"` falls back to `ntfs_macfuse` (restrictive default — never permissive).
@@ -50,8 +50,10 @@ make lint && make test && make check
 
 ## SH-16 Acceptance criteria (summary)
 
-Full executable commands in `docs/features/multi-filesystem/ACCEPTANCE.md` (authored in Phase 6).
-Quick reference: AC-01 through AC-17 from DESIGN §6.
+Full executable commands in `docs/features/multi-filesystem/ACCEPTANCE.md` (authored in Phase 6;
+19 criteria after the phase-8 retro additions AC-18/AC-19).
+Quick reference: AC-01 through AC-17 from DESIGN §6, plus AC-18 (`normalize_tier1` is the
+byte-identical NTFS path — NOT `reconcile_file`) and AC-19 (shared `resolve_capability`).
 
 Key checks:
 
@@ -62,6 +64,6 @@ Key checks:
 - Single `subprocess.run(["mount"]` call in the codebase (AC-11, AC-12)
 - `DiskConfig` accepts `fs_type` field (AC-13)
 - `make check` green (AC-14)
-- Version `0.17.0` present (AC-15)
+- Version `0.18.0` present (AC-15)
 - `CHANGELOG.md` entry (AC-16)
 - `import personalscraper` smoke (AC-17)

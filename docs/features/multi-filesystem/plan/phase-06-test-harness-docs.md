@@ -3,9 +3,9 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Register the `multifs` pytest marker, tag all filesystem-capability
-tests with it, author the `ACCEPTANCE.md` (all 17 SH-16 criteria as executable
+tests with it, author the `ACCEPTANCE.md` (all 19 SH-16 criteria as executable
 commands), update `docs/reference/storage.md` and `docs/reference/indexer.md`,
-add the `0.17.0` `CHANGELOG.md` entry, and confirm every AC passes.
+add the `0.18.0` `CHANGELOG.md` entry, and confirm every AC passes.
 
 **NTFS invariant:** Documentation only — no code changes to transfer or drift
 behaviour. The `ntfs_macfuse` capability entry documented in `storage.md`
@@ -20,10 +20,12 @@ docs, ACCEPTANCE.md. No new production modules.
 
 ## Gate (prerequisites from Phase 5)
 
-Phase 5 produced:
+Phase 5 produced (re-scoped — NOT `reconcile_file`):
 
-- `reconcile_file` with `capability` parameter (default `NTFS_MACFUSE`).
-- `test_drift_fs_aware.py` tests passing.
+- `fingerprint.normalize_tier1` / `round_mtime_ns` (default `NTFS_MACFUSE`),
+  consumed by `scanner/_modes/incremental.py` + `quick.py`. `reconcile_file` is
+  dead/test-only and was left untouched.
+- `test_tier1_fs_aware.py` / `test_scan_fs_aware.py` tests passing.
 - All phases 1–5 gates green.
 
 Verify:
@@ -32,7 +34,7 @@ Verify:
 make check
 # expected: exit 0, all green
 
-pytest tests/indexer/test_drift_fs_aware.py -v
+pytest tests/indexer/test_tier1_fs_aware.py tests/indexer/test_scan_fs_aware.py -v
 # expected: all PASS
 ```
 
@@ -40,17 +42,19 @@ pytest tests/indexer/test_drift_fs_aware.py -v
 
 ## Files
 
-| Action | Path                                                                |
-| ------ | ------------------------------------------------------------------- |
-| Modify | `pyproject.toml` (add `multifs` marker)                             |
-| Modify | `tests/indexer/test_fs_probe.py` (add `@pytest.mark.multifs`)       |
-| Modify | `tests/indexer/test_fs_capability.py` (add `@pytest.mark.multifs`)  |
-| Modify | `tests/dispatch/test_transfer_argv.py` (add `@pytest.mark.multifs`) |
-| Modify | `tests/indexer/test_drift_fs_aware.py` (add `@pytest.mark.multifs`) |
-| Modify | `docs/reference/storage.md` (add "Filesystem capability" section)   |
-| Modify | `docs/reference/indexer.md` (add cross-reference)                   |
-| Modify | `CHANGELOG.md` (add `0.17.0` entry)                                 |
-| Create | `docs/features/multi-filesystem/ACCEPTANCE.md`                      |
+| Action | Path                                                                 |
+| ------ | -------------------------------------------------------------------- |
+| Modify | `pyproject.toml` (add `multifs` marker)                              |
+| Modify | `tests/indexer/test_fs_probe.py` (add `@pytest.mark.multifs`)        |
+| Modify | `tests/indexer/test_fs_capability.py` (add `@pytest.mark.multifs`)   |
+| Modify | `tests/dispatch/test_transfer_argv.py` (add `@pytest.mark.multifs`)  |
+| Modify | `tests/indexer/test_tier1_fs_aware.py` (add `@pytest.mark.multifs`)  |
+| Modify | `tests/indexer/test_scan_fs_aware.py` (add `@pytest.mark.multifs`)   |
+| Modify | `tests/indexer/test_merkle_fs_aware.py` (add `@pytest.mark.multifs`) |
+| Modify | `docs/reference/storage.md` (add "Filesystem capability" section)    |
+| Modify | `docs/reference/indexer.md` (add cross-reference)                    |
+| Modify | `CHANGELOG.md` (add `0.18.0` entry)                                  |
+| Create | `docs/features/multi-filesystem/ACCEPTANCE.md`                       |
 
 ---
 
@@ -109,18 +113,20 @@ git commit -m "test(multi-filesystem): register multifs pytest marker"
 
 ---
 
-## Task 2 — Tag existing capability/probe/argv/drift tests with `@pytest.mark.multifs`
+## Task 2 — Tag existing capability/probe/argv/fs-aware tests with `@pytest.mark.multifs`
 
 **Files:**
 
 - Modify: `tests/indexer/test_fs_probe.py`
 - Modify: `tests/indexer/test_fs_capability.py`
 - Modify: `tests/dispatch/test_transfer_argv.py`
-- Modify: `tests/indexer/test_drift_fs_aware.py`
+- Modify: `tests/indexer/test_tier1_fs_aware.py`
+- Modify: `tests/indexer/test_scan_fs_aware.py`
+- Modify: `tests/indexer/test_merkle_fs_aware.py`
 
 - [ ] **Step 2.1: Add `pytestmark` to each test file**
 
-In each of the four files, add at module level (after imports):
+In each of these files, add at module level (after imports):
 
 ```python
 import pytest
@@ -136,8 +142,8 @@ If `pytest` is already imported, just add the `pytestmark` line.
 cd /Users/izno/dev/PersonnalScaper
 pytest -m multifs --collect-only -q
 # expected: lists tests from test_fs_probe.py, test_fs_capability.py,
-#           test_transfer_argv.py, test_drift_fs_aware.py
-#           At least 8 tests collected
+#           test_transfer_argv.py, test_tier1_fs_aware.py, test_scan_fs_aware.py,
+#           test_merkle_fs_aware.py — At least 8 tests collected
 ```
 
 - [ ] **Step 2.3: Run the multifs suite (no real disks)**
@@ -154,8 +160,10 @@ pytest -m multifs -q
 git add tests/indexer/test_fs_probe.py \
         tests/indexer/test_fs_capability.py \
         tests/dispatch/test_transfer_argv.py \
-        tests/indexer/test_drift_fs_aware.py
-git commit -m "test(multi-filesystem): tag capability/probe/argv/drift tests with multifs marker"
+        tests/indexer/test_tier1_fs_aware.py \
+        tests/indexer/test_scan_fs_aware.py \
+        tests/indexer/test_merkle_fs_aware.py
+git commit -m "test(multi-filesystem): tag capability/probe/argv/fs-aware tests with multifs marker"
 ```
 
 ---
@@ -176,7 +184,7 @@ NTFS/macFUSE section).
 Append the following section to `docs/reference/storage.md`:
 
 ```markdown
-## Filesystem capability layer (v0.17.0+)
+## Filesystem capability layer (v0.18.0+)
 
 The pipeline adapts its rsync flags and indexer drift behaviour to the
 destination filesystem via a `FilesystemCapability` strategy table
@@ -206,7 +214,7 @@ output does not change mid-run.
 † ext4 ctime mutates on metadata ops; granularity widening is deferred until a
 real ext4 target exists (DESIGN §8.4).
 
-### NTFS flags (byte-identical to pre-0.17.0)
+### NTFS flags (byte-identical to pre-0.18.0)
 
 The full `ntfs_macfuse` rsync prefix:
 ```
@@ -261,7 +269,7 @@ Search for "tier-1" or "drift" in the file to find the relevant section.
 In the tier-1 drift section, add:
 
 ```markdown
-> **Filesystem-aware drift (v0.17.0+):** The tier-1 comparison is now
+> **Filesystem-aware drift (v0.18.0+):** The tier-1 comparison is now
 > capability-gated. On exFAT, ctime is excluded from the tuple and mtime is
 > rounded to the nearest 2-second bucket to prevent perpetual re-hashing.
 > On HFS+, mtime is rounded to the nearest second. NTFS and APFS behaviour is
@@ -278,7 +286,7 @@ git commit -m "docs(multi-filesystem): cross-reference filesystem capability lay
 
 ---
 
-## Task 5 — Add `0.17.0` CHANGELOG entry
+## Task 5 — Add `0.18.0` CHANGELOG entry
 
 **Files:**
 
@@ -286,23 +294,26 @@ git commit -m "docs(multi-filesystem): cross-reference filesystem capability lay
 
 - [ ] **Step 5.1: Read the top of `CHANGELOG.md` to understand the format**
 
-- [ ] **Step 5.2: Prepend the `0.17.0` entry**
+- [ ] **Step 5.2: Prepend the `0.18.0` entry**
 
 ```markdown
-## [0.17.0] — 2026-05-29
+## [0.18.0] — 2026-05-29
 
 ### Added
 
 - **Multi-filesystem support** (`FilesystemCapability` strategy table): the
-  pipeline now adapts rsync flags and indexer drift behaviour per destination
-  filesystem type. Supported: NTFS-via-macFUSE (unchanged), APFS, HFS+,
-  exFAT, ext4 (data-only).
+  pipeline now adapts rsync flags and indexer tier-1 drift behaviour per
+  destination filesystem type. Supported: NTFS-via-macFUSE (unchanged), APFS,
+  HFS+, exFAT, ext4 (data-only).
 - `FsProbe` (`personalscraper/indexer/_fs_probe.py`): single cached `mount`
   shell-out replacing three independent parsers. Fixes the `ufsd_NTFS`
   dead-branch asymmetry in `_spotlight.try_attach`.
+- FS-aware tier-1 helpers `normalize_tier1` / `round_mtime_ns`
+  (`fingerprint.py`), consumed by the live scan modes
+  `scanner/_modes/incremental.py` + `quick.py`.
 - `DiskConfig.fs_type` optional override: escape hatch for unrecognised
   macFUSE driver tokens.
-- `multifs` pytest marker: capability/probe/argv/drift tests tagged; no real
+- `multifs` pytest marker: capability/probe/argv/fs-aware tests tagged; no real
   disks required.
 
 ### Fixed
@@ -318,21 +329,20 @@ git commit -m "docs(multi-filesystem): cross-reference filesystem capability lay
 - Probe timeout for `db.py` pre-open check: 5 s → 10 s (single cached
   shell-out shared with scanner modules). Intentional; documented in
   `docs/reference/storage.md`.
-- `reconcile_file` gains an optional `capability` parameter (default:
-  `NTFS_MACFUSE` — byte-identical to pre-0.17.0 behaviour).
 
 ### Internal
 
 - `rsync()` and `rsync_merge()` in `_transfer.py` now read flags from
   `FilesystemCapability.rsync_flags` instead of hardcoded literals.
-  NTFS argv is pinned by a golden test.
+  NTFS argv is pinned by a golden test. (`reconcile_file` is dead/test-only and
+  was left untouched.)
 ```
 
 - [ ] **Step 5.3: Commit**
 
 ```bash
 git add CHANGELOG.md
-git commit -m "docs(multi-filesystem): add 0.17.0 CHANGELOG entry"
+git commit -m "docs(multi-filesystem): add 0.18.0 CHANGELOG entry"
 ```
 
 ---
@@ -346,7 +356,7 @@ git commit -m "docs(multi-filesystem): add 0.17.0 CHANGELOG entry"
 - [ ] **Step 6.1: Create `docs/features/multi-filesystem/ACCEPTANCE.md`**
 
 ````markdown
-# ACCEPTANCE — multi-filesystem (v0.17.0)
+# ACCEPTANCE — multi-filesystem (v0.18.0)
 
 Every criterion is an executable shell command with documented expected output
 (SH-16 convention). Run from the repository root on `feat/multi-filesystem`.
@@ -410,10 +420,10 @@ make check
 
 # AC-15 — version bump landed
 grep -m1 '^version' pyproject.toml 2>/dev/null || cat VERSION
-# expected stdout contains: 0.17.0
+# expected stdout contains: 0.18.0
 
 # AC-16 — CHANGELOG entry
-grep -c "0.17.0" CHANGELOG.md
+grep -c "0.18.0" CHANGELOG.md
 # expected stdout: >=1
 
 # AC-17 — package still imports (smoke)
@@ -467,7 +477,7 @@ python -c "import personalscraper; print('ok')"
 
 ```bash
 git add docs/features/multi-filesystem/ACCEPTANCE.md
-git commit -m "docs(multi-filesystem): author ACCEPTANCE.md — all 17 SH-16 criteria as executable commands"
+git commit -m "docs(multi-filesystem): author ACCEPTANCE.md — all 19 SH-16 criteria as executable commands"
 ```
 
 ---
@@ -497,7 +507,7 @@ pytest -m multifs -q 2>&1 | tail -1
 
 ```bash
 git add -u
-git commit -m "chore(multi-filesystem): phase 6 gate — multifs marker, ACCEPTANCE.md, storage.md + indexer.md docs, CHANGELOG 0.17.0"
+git commit -m "chore(multi-filesystem): phase 6 gate — multifs marker, ACCEPTANCE.md, storage.md + indexer.md docs, CHANGELOG 0.18.0"
 ```
 
 ---
@@ -515,10 +525,10 @@ pytest -m multifs -q 2>&1 | tail -1
 
 # AC-15
 grep -m1 '^version' pyproject.toml 2>/dev/null || cat VERSION
-# expected: contains 0.17.0
+# expected: contains 0.18.0
 
 # AC-16
-grep -c "0.17.0" CHANGELOG.md
+grep -c "0.18.0" CHANGELOG.md
 # expected: >=1
 
 # AC-14

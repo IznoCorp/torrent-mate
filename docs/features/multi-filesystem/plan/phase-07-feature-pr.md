@@ -46,12 +46,12 @@ rg -c "subprocess.run\(\[.mount.\]" -g '*.py' personalscraper/indexer/_fs_probe.
 rg -l "subprocess.run\(\[.mount.\]" -g '*.py' personalscraper/indexer/db.py personalscraper/indexer/scanner/_spotlight.py personalscraper/indexer/scanner/__init__.py
 # expected: empty stdout (exit 1)
 
-# 7. Version bump
-grep -m1 '^version' pyproject.toml 2>/dev/null || cat VERSION
-# expected: contains 0.17.0
+# 7. Version bump (VERSION is the single source of truth; pyproject uses an attr)
+cat VERSION
+# expected: contains 0.18.0
 
 # 8. CHANGELOG
-grep -c "0.17.0" CHANGELOG.md
+grep -c "0.18.0" CHANGELOG.md
 # expected: >=1
 
 # 9. Package smoke
