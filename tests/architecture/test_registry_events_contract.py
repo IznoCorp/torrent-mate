@@ -42,7 +42,7 @@ def test_registry_event_in_catalog(name: str) -> None:
     """Each registry event is registered in _EVENT_CLASS_REGISTRY.
 
     Design: docs/reference/architecture.md#registry-events-on-the-event-contract
-    Contract: the five provider-registry events are full Event subclasses, auto-registered in _EVENT_CLASS_REGISTRY so base-Event subscribers receive them.
+    Contract: the 5 registry events subclass Event and are auto-registered in _EVENT_CLASS_REGISTRY.
     """
     assert name in _EVENT_CLASS_REGISTRY, (
         f"{name} missing from _EVENT_CLASS_REGISTRY. Registered: {sorted(_EVENT_CLASS_REGISTRY)}"
