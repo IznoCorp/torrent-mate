@@ -8,11 +8,16 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/arch-cleanup-2/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/arch-cleanup-2/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                            | File                       | Status |
+| --- | ------------------------------------------------ | -------------------------- | ------ |
+| 1   | Event contract: schema_version + registry events | phase-01-event-contract.md | [ ]    |
+| 2   | Layering: relocate shared primitives down        | phase-02-layering.md       | [ ]    |
+| 3   | media_types promotion                            | phase-03-media-types.md    | [ ]    |
+| 4   | Docs + feature PR                                | phase-04-docs-pr.md        | [ ]    |
 
 ## Review cycles
 
@@ -20,4 +25,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start Phase 1.
