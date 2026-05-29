@@ -37,6 +37,16 @@
 
 **Ignored/out-of-scope:** lib-fold/multi-filesystem/DI/web-ui absence; `movie_service.py` size (tech-debt-2). **No design contradictions** (the critical is a bug vs the design's intent, not a contradiction → fix, not escalate).
 
+### Cycle 2 — 2026-05-29 (PR #28, CI green @ 203d848d)
+
+Re-review of the cycle-1 fix diff (`dfe23fe5..203d848d`) by code-reviewer + silent-failure-hunter, both with empirical verification (mypy 0/276, `pytest tests/architecture/ tests/event_bus/` 512 passed). **Verdict: CLEAN — 0 critical/major/medium findings. MERGE.**
+
+- CRITICAL resolved & proven: regression test `test_every_registered_event_round_trips_through_json` FAILS pre-fix (3 NameErrors) / PASSES post-fix; `_types.py` is a true leaf (no import cycle, mypy 0/276); single canonical definition + identity-preserving re-exports; all callers on the public path intact.
+- Guard self-pin non-vacuous; `zip(strict=True)` cannot break any live decode (homogeneous `tuple[X, ...]` is an earlier branch); docs accurate (event-bus 23 rows, RegistryBootValidated producer, layering exceptions).
+- Only minor informational notes (permissive justification heuristic; single round-trip test covers 22 of 23 — VerifyItemDone has its own coverage) — no action.
+
+**Loop exit: Case A.** Merge mode = manual → handed to user. CI 9/9 green; PR #28 OPEN / MERGEABLE / mergeStateStatus CLEAN.
+
 ## Next action
 
-Phase 5 (PR fixes cycle 1) complete — push, re-run CI, re-review (cycle 2).
+Merge PR #28 (squash, manual). After merge, archival of arch-cleanup-2 folds into the next feature's `/implement:create-branch` (prev_codename=arch-cleanup-2).
