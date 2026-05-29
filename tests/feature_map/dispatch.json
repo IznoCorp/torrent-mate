@@ -121,6 +121,36 @@
       "category": "documentation_only",
       "reason": "Operator advisory about UBC pressure during scans — prose reference, no behavior to test.",
       "expires": "2028-05-08"
+    },
+    {
+      "anchor": "filesystem-capability-layer-v0180",
+      "category": "documentation_only",
+      "reason": "Multi-filesystem (v0.18.0) overview prose — describes the resolve_capability resolver shared by transfer and scan. The behaviour itself is contract-tested under the multifs marker (tests/indexer/test_fs_capability.py, tests/dispatch/test_transfer_argv.py); this heading is the reference narrative.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "fsprobe-consolidation",
+      "category": "documentation_only",
+      "reason": "Multi-filesystem (v0.18.0) reference — FsProbe mount consolidation and canonical_fs_type substring matching. Behaviour is covered by tests/indexer/test_fs_probe.py (multifs marker); this heading is reference prose.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "capability-table",
+      "category": "documentation_only",
+      "reason": "Multi-filesystem (v0.18.0) reference table of per-FS knobs. Values are pinned by tests/indexer/test_fs_capability.py and tests/indexer/test_tier1_fs_aware.py (multifs marker); this heading is the human-readable table.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "ntfs-flags-byte-identical-to-pre-0180",
+      "category": "documentation_only",
+      "reason": "Multi-filesystem (v0.18.0) reference — the NTFS rsync flag prefix. Byte-identity is pinned by the golden test tests/dispatch/test_transfer_argv.py (multifs marker); this heading documents the flag list.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "operator-override",
+      "category": "documentation_only",
+      "reason": "Multi-filesystem (v0.18.0) operator reference — DiskConfig.fs_type override snippet. The override-beats-probe behaviour is covered by tests/conf/test_disk_config_fs_type.py (multifs marker); this heading is config reference prose.",
+      "expires": "2028-05-08"
     }
   ]
 }
