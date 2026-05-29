@@ -17,7 +17,7 @@
 | 1   | Event contract: schema_version + registry events | phase-01-event-contract.md | [x]    |
 | 2   | Layering: relocate shared primitives down        | phase-02-layering.md       | [x]    |
 | 3   | media_types promotion                            | phase-03-media-types.md    | [x]    |
-| 4   | Docs + feature PR                                | phase-04-docs-pr.md        | [ ]    |
+| 4   | Docs + feature PR                                | phase-04-docs-pr.md        | [x]    |
 
 ## Review cycles
 
@@ -25,4 +25,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 4 (Docs + feature PR — chains to /implement:feature-pr: push + PR + CI).
+All phases complete — run `/implement:feature-pr` (push + PR + CI), then `/implement:pr-review`.
