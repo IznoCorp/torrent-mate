@@ -64,7 +64,7 @@ if TYPE_CHECKING:
     from personalscraper.api.transport._policy import CircuitPolicy
     from personalscraper.conf.models.providers import ProvidersConfig
     from personalscraper.config import Settings
-    from personalscraper.core.event_bus import EventBus
+    from personalscraper.core.event_bus import Event, EventBus
 
 # ---------------------------------------------------------------------------
 # Module-private sentinel — never exported
@@ -696,14 +696,14 @@ class ProviderRegistry:
                     exc_type=type(e).__name__,
                 )
 
-    def _event_bus_safe_emit(self, event: object) -> None:
+    def _event_bus_safe_emit(self, event: Event) -> None:
         """Emit event safely; catch and log any bus failure (never propagates).
 
         The bus is always a real EventBus per project architectural contract
         (event-bus 0.14.0): no None permitted. Tests pass a MockEventBus.
         """
         try:
-            self._event_bus.emit(event)  # type: ignore[arg-type]
+            self._event_bus.emit(event)
         except Exception as exc:
             log.warning(
                 "registry_event_emit_failed",

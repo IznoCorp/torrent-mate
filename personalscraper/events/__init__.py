@@ -18,6 +18,14 @@ from __future__ import annotations
 # by ``Event.__init_subclass__`` before any consumer calls
 # ``event_from_envelope``.
 from personalscraper import pipeline_events as _pipeline_events  # noqa: F401
+from personalscraper.api.metadata.registry import _events as _registry_events  # noqa: F401
+from personalscraper.api.metadata.registry._events import (
+    LockedCapabilityUnresolved,
+    ProviderExhaustedEvent,
+    ProviderFallbackTriggered,
+    RegistryBootValidated,
+    RegistryFanOutCompleted,
+)
 from personalscraper.core import circuit as _circuit_events  # noqa: F401
 from personalscraper.core.circuit import (
     CircuitBreakerClosed,
@@ -58,8 +66,13 @@ __all__ = [
     "ItemDispatched",
     "ItemProgressed",
     "LibraryScanCompleted",
+    "LockedCapabilityUnresolved",
     "PipelineEnded",
     "PipelineStarted",
+    "ProviderExhaustedEvent",
+    "ProviderFallbackTriggered",
+    "RegistryBootValidated",
+    "RegistryFanOutCompleted",
     "StepCompleted",
     "StepErrored",
     "StepStarted",

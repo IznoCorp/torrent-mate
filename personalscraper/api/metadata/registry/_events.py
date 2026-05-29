@@ -5,12 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
+from personalscraper.core.event_bus import Event
+
 if TYPE_CHECKING:
     from personalscraper.api.metadata.registry import AttemptOutcome, ProviderMatch
 
 
-@dataclass(frozen=True)
-class ProviderFallbackTriggered:
+@dataclass(frozen=True, kw_only=True)
+class ProviderFallbackTriggered(Event):
     """Emitted when a chain moves from one provider to the next.
 
     Attributes:
@@ -36,8 +38,8 @@ class ProviderFallbackTriggered:
     item: dict[str, Any]
 
 
-@dataclass(frozen=True)
-class ProviderExhaustedEvent:
+@dataclass(frozen=True, kw_only=True)
+class ProviderExhaustedEvent(Event):
     """Emitted when all providers in a chain failed for an item.
 
     Attributes:
@@ -53,8 +55,8 @@ class ProviderExhaustedEvent:
     item: dict[str, Any]
 
 
-@dataclass(frozen=True)
-class LockedCapabilityUnresolved:
+@dataclass(frozen=True, kw_only=True)
+class LockedCapabilityUnresolved(Event):
     """Emitted when ``locked()`` cannot bind a provider via IDCrossRef.
 
     Attributes:
@@ -68,8 +70,8 @@ class LockedCapabilityUnresolved:
     chain_tried: tuple[str, ...]
 
 
-@dataclass(frozen=True)
-class RegistryFanOutCompleted:
+@dataclass(frozen=True, kw_only=True)
+class RegistryFanOutCompleted(Event):
     """Always emitted after ``fan_out`` returns (even on full success).
 
     Attributes:
@@ -86,8 +88,8 @@ class RegistryFanOutCompleted:
     eligible: int
 
 
-@dataclass(frozen=True)
-class RegistryBootValidated:
+@dataclass(frozen=True, kw_only=True)
+class RegistryBootValidated(Event):
     """Emitted when boot completed successfully.
 
     Attributes:
