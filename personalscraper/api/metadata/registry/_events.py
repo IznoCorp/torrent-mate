@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal
 
+# ``AttemptOutcome`` / ``ProviderMatch`` are imported at RUNTIME (not under
+# ``TYPE_CHECKING``) from the leaf ``_types`` module so that
+# ``typing.get_type_hints`` can resolve the string annotations on
+# ``ProviderExhaustedEvent`` / ``RegistryFanOutCompleted`` / ``LockedCapabilityUnresolved``
+# during ``event_from_envelope`` round-trip. ``_types`` is a leaf (it does not
+# import the registry package ``__init__``), so this import does NOT cycle even
+# though ``__init__`` imports this module (arch-cleanup-2 Phase 5).
+from personalscraper.api.metadata.registry._types import AttemptOutcome, ProviderMatch
 from personalscraper.core.event_bus import Event
-
-if TYPE_CHECKING:
-    from personalscraper.api.metadata.registry import AttemptOutcome, ProviderMatch
 
 
 @dataclass(frozen=True, kw_only=True)
