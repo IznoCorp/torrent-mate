@@ -14,7 +14,7 @@
 
 | #   | Phase                                                       | File                            | Status |
 | --- | ----------------------------------------------------------- | ------------------------------- | ------ |
-| 1   | Consolidate 3 mount-parsers into one cached FsProbe         | phase-01-fs-probe.md            | [ ]    |
+| 1   | Consolidate 3 mount-parsers into one cached FsProbe         | phase-01-fs-probe.md            | [x]    |
 | 2   | Define the FilesystemCapability strategy table              | phase-02-fs-capability.md       | [ ]    |
 | 3   | Make \_transfer rsync/rsync_merge consume the capability    | phase-03-transfer-capability.md | [ ]    |
 | 4   | Optional DiskConfig.fs_type override + plumb capabilities   | phase-04-diskconfig-override.md | [ ]    |
@@ -28,4 +28,4 @@ _(filled by implement:pr-review)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1 (Consolidate 3 mount-parsers into one cached FsProbe).
+Run `/implement:phase` to start Phase 2 (Define the FilesystemCapability strategy table).
