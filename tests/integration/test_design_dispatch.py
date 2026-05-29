@@ -229,7 +229,7 @@ class TestStagingCommitContract:
                 d._verify_transfer = Dispatcher._verify_transfer
 
                 # Override delegates to use real paths.
-                d._rsync = lambda s, dest_path, delete=False: rsync(s, dest_path, delete=delete)
+                d._rsync = lambda s, dest_path, delete=False, **_kw: rsync(s, dest_path, delete=delete)
                 d._verify_transfer = lambda s, dest_path: True
 
                 ok = Dispatcher._move_new(d, source, dest)
@@ -267,7 +267,7 @@ class TestStagingCommitContract:
         from personalscraper.dispatch.dispatcher import Dispatcher
 
         d = MagicMock(spec=Dispatcher)
-        d._rsync = lambda s, dest_path, delete=False: rsync(s, dest_path, delete=delete)
+        d._rsync = lambda s, dest_path, delete=False, **_kw: rsync(s, dest_path, delete=delete)
         d._verify_transfer = lambda s, dest_path: True
 
         ok = Dispatcher._move_new(d, source, dest)
@@ -296,7 +296,7 @@ class TestStagingCommitContract:
         from personalscraper.dispatch.dispatcher import Dispatcher
 
         d = MagicMock(spec=Dispatcher)
-        d._rsync = lambda s, dest_path, delete=False: False  # simulate failure
+        d._rsync = lambda s, dest_path, delete=False, **_kw: False  # simulate failure
 
         ok = Dispatcher._move_new(d, source, dest)
 
