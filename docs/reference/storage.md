@@ -281,6 +281,14 @@ fixes the `ufsd_NTFS` exact-token dead branch that previously lived in
 † ext4 ctime mutates on metadata ops; granularity widening is deferred until a
 real ext4 target exists (DESIGN §8.4).
 
+The "rsync extra flags" column lists only the **perms/time** flags for brevity;
+the AppleDouble excludes (`--exclude=.DS_Store --exclude=._*`) are NOT absent —
+they are captured by the "Apple metadata: excluded" column and apply to every FS
+marked _excluded_ there (`ntfs_macfuse`, `unknown`, and `exfat`). The complete,
+authoritative `ntfs_macfuse` prefix — including the AppleDouble excludes — is
+listed under "NTFS flags" below and is the value pinned in
+`_fs_capability.py::_NTFS_RSYNC_FLAGS`.
+
 The FS-aware tier-1 drift comparison is implemented by
 `fingerprint.normalize_tier1` / `round_mtime_ns`, consumed by the live scanner
 modes `scanner/_modes/incremental.py` and `scanner/_modes/quick.py`. On
@@ -288,6 +296,19 @@ modes `scanner/_modes/incremental.py` and `scanner/_modes/quick.py`. On
 2-second bucket; on `hfsplus`, mtime is floored to a 1-second bucket;
 `ntfs_macfuse` / `apfs` / `ext4` keep the legacy `(size, mtime_ns, ctime_ns)`
 3-tuple unchanged.
+
+The same capability bucketing now governs the **gating** layer in quick and
+incremental mode, not only the per-file compare and the paranoia branch: the
+Merkle root short-circuit, the `compute_merkle_delta` bulk-change freeze guard
+(`DiskBulkChangeDetected`), and the dir-mtime subtree skip all floor mtime
+through `round_mtime_ns` (the DB side in `_walker.py::_build_disk_fingerprints`,
+the FS side in `_sample_fresh_fingerprints`, and both sides of the dir-mtime
+compare). Because both sides bucket with the same capability, sub-bucket mtime
+jitter on a coarse filesystem can no longer defeat the Merkle short-circuit nor
+spuriously trip the bulk-change freeze on a healthy disk. For `ntfs_macfuse` /
+`apfs` / `ext4` (granularity 1) the bucketing is the identity transform, so the
+Merkle root, the delta, and the dir-mtime compare are all byte-identical to the
+pre-multi-filesystem behaviour.
 
 ### NTFS flags (byte-identical to pre-0.18.0)
 
