@@ -861,6 +861,84 @@ class TestOverrideSurvivesMountPathDivergence:
 
 
 # ---------------------------------------------------------------------------
+# Phase 8 Task 5: full → incremental no-op handoff on a COARSE FS. After a real
+# full scan on an exFAT disk stores a (FS-aware, Task 1) merkle_root, an
+# incremental with ZERO on-disk changes and the merkle_root LEFT INTACT must
+# short-circuit: no walk, no OSHash recompute, no repair, merkle_root unchanged.
+# This pins the idempotent-flooring guarantee now that the merkle gate is
+# FS-aware — a regression that bucketed the full-scan store differently from the
+# incremental recompute would force a spurious re-hash on the first incremental.
+# ---------------------------------------------------------------------------
+
+
+class TestFullToIncrementalNoOpHandoffCoarseFs:
+    """A no-change incremental after a full exFAT scan is a pure no-op."""
+
+    def test_incremental_after_full_exfat_is_noop_merkle_intact(self, fs: "FakeFilesystem") -> None:
+        """Full → incremental with no changes on exFAT: merkle hit, no recompute.
+
+        Both scans run under the exFAT override (keyed on the stable DiskRow.label)
+        so the full-scan merkle_root store and the incremental recompute bucket with
+        the SAME capability. With unchanged content and the stored root left intact,
+        the incremental must take the Merkle short-circuit (``files_visited == 0``,
+        the disk counted as skipped), invoke ``_compute_oshash`` zero times, enqueue
+        no repair, and leave ``merkle_root`` byte-identical.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/exfat_noop"  # basename → DiskRow.label "exfat_noop"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        film = f"{mount}/film.mkv"
+        Path(film).write_bytes(b"V" * 4096)
+        os.utime(film, ns=(_ALIGNED_BASE_NS, _ALIGNED_BASE_NS))
+
+        disk = _insert_disk(conn, mount)
+        overrides = {disk.label: "exfat"}
+
+        # Full scan under the exFAT override: stores the FS-aware merkle_root.
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn, fs_type_overrides=overrides, event_bus=EventBus())
+
+        after_full = disk_repo.get_by_id(conn, disk.id)
+        assert after_full is not None
+        assert after_full.merkle_root is not None, "full exFAT scan must store a merkle_root"
+        stored_root = after_full.merkle_root
+
+        # Incremental, ZERO on-disk changes, merkle_root deliberately LEFT INTACT.
+        exfat_info = MountInfo(mount_point=mount, fs_type="exfat", raw_fs_type="exfat", flags=frozenset())
+
+        with patch(_OSHASH_PATCH, wraps=_real_compute_oshash) as mock_oshash:
+            with patch(_PROBE_PATCH, return_value=exfat_info):
+                with patch(_GUARD_PATCH, return_value=None):
+                    with patch(
+                        "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
+                        return_value=True,
+                    ):
+                        result = scan(
+                            [after_full],
+                            ScanMode.incremental,
+                            generation=2,
+                            conn=conn,
+                            fs_type_overrides=overrides,
+                            event_bus=EventBus(),
+                        )
+
+        assert result.status == "ok"
+        assert result.files_visited == 0, "merkle short-circuit must skip the walk entirely"
+        assert result.disks_skipped == 1, "the unchanged disk must be counted as a Merkle-hit skip"
+        assert mock_oshash.call_count == 0, "no OSHash recompute on an unchanged merkle-hit disk"
+
+        n_repairs = conn.execute("SELECT COUNT(*) FROM repair_queue").fetchone()[0]
+        assert n_repairs == 0, "a pure no-op incremental must enqueue no repair"
+
+        after_incr = disk_repo.get_by_id(conn, disk.id)
+        assert after_incr is not None
+        assert after_incr.merkle_root == stored_root, "merkle_root must be byte-identical after the no-op incremental"
+
+
+# ---------------------------------------------------------------------------
 # FIX-4: quick-mode paranoia branch is FS-aware (coarse capability). This is the
 # ONLY FS-aware compare site in quick mode and was untested with a coarse cap.
 # ---------------------------------------------------------------------------

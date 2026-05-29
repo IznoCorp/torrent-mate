@@ -89,6 +89,35 @@ class TestCanonicalFsType:
         """An empty fs-type token falls back to unknown."""
         assert canonical_fs_type("") == "unknown"
 
+    def test_apfs_superstring_stays_unknown(self) -> None:
+        """A benign superstring of a non-NTFS key stays ``unknown`` (safe direction).
+
+        Pins the DELIBERATE asymmetry in :func:`canonical_fs_type`: only the
+        NTFS/fuse driver tokens use greedy *substring* matching (so the real
+        ``ufsd_NTFS`` production token is caught). Every other canonical key
+        (apfs / hfsplus / exfat / ext4) uses an EXACT ``==`` match, so an
+        unrecognised token that merely *contains* ``apfs`` (e.g.
+        ``apfs_encrypted``) does NOT collapse to ``apfs`` — it falls through to
+        the NTFS-safe ``unknown`` superset. This is the safe direction: an
+        unknown FS gets the restrictive (NTFS-superset) capability, never a
+        permissive one that could write Unix perms / AppleDouble to a real disk.
+        """
+        assert canonical_fs_type("apfs_encrypted") == "unknown"
+
+    def test_ntfs_substring_is_deliberately_greedy(self) -> None:
+        """The ``ntfs`` substring match is intentional, even inside a larger token.
+
+        The complement of :meth:`test_apfs_superstring_stays_unknown`: an
+        unknown token that *contains* an NTFS driver spelling (here
+        ``my_ntfs_variant``) is GREEDILY classified as ``ntfs_macfuse``. This is
+        intentional and safe — the NTFS capability is the restrictive superset,
+        so over-matching toward NTFS can only make transfers *more* conservative
+        (suppress perms, exclude AppleDouble), never less. Pinning this guards
+        the asymmetry from being "tidied" into an exact match that would then
+        miss real driver-spelling variants.
+        """
+        assert canonical_fs_type("my_ntfs_variant") == "ntfs_macfuse"
+
 
 # ---------------------------------------------------------------------------
 # _parse_mount_line

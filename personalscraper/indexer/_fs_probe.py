@@ -72,10 +72,19 @@ def canonical_fs_type(raw: str) -> str:
     """
     lowered = raw.lower()
 
-    # NTFS-via-macFUSE: substring match across all known driver spellings.
+    # NTFS-via-macFUSE: GREEDY substring match across all known driver spellings.
+    # This is deliberately asymmetric with the exact ``==`` matches below: only
+    # the NTFS/fuse family over-matches. Over-classifying an unknown token toward
+    # NTFS is the SAFE direction (NTFS is the restrictive superset — suppress
+    # perms, exclude AppleDouble), whereas over-matching toward a permissive FS
+    # could write Unix perms / AppleDouble to a real NTFS disk. Pinned by
+    # test_ntfs_substring_is_deliberately_greedy / test_apfs_superstring_stays_unknown.
     if any(token in lowered for token in _NTFS_TOKENS):
         return "ntfs_macfuse"
 
+    # Exact match for every non-NTFS key: a superstring like ``apfs_encrypted``
+    # must fall through to the NTFS-safe ``unknown`` superset, never collapse to
+    # a permissive capability.
     if lowered == "apfs":
         return "apfs"
 

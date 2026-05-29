@@ -1759,3 +1759,86 @@ class TestCleanupOrphanTempsBranches:
         ):
             cleaned = d._cleanup_orphan_temps()
         assert cleaned == 0
+
+
+# ---------------------------------------------------------------------------
+# Phase 8 Task 5: Dispatcher resolve_capability E2E. Symmetric to the scanner
+# override coverage (tests/indexer/test_scan_fs_aware.py): a Dispatcher built
+# with a DiskConfig.fs_type='apfs' must resolve that disk's capability via
+# dispatcher._resolve_disk_capability -> resolve_capability(str(disk.path),
+# 'apfs') and feed the RESOLVED (APFS, no --no-perms) flags into the real rsync
+# argv. Proves the override threads end-to-end through the transfer layer.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.multifs
+class TestDispatcherResolvesCapabilityForRsyncArgv:
+    """The dispatcher resolves DiskConfig.fs_type and feeds it to the rsync argv."""
+
+    def test_apfs_override_builds_apfs_rsync_argv(
+        self,
+        test_config,
+        mock_settings: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """A DiskConfig.fs_type='apfs' disk transfers with APFS (no --no-perms) flags.
+
+        Constructs a real :class:`Dispatcher` whose ``drive_a`` carries an
+        explicit ``fs_type='apfs'`` override, then drives ``_move_new`` with the
+        capability the dispatcher resolved for that disk. The real
+        ``_transfer.rsync`` runs (only ``subprocess.run`` is mocked), so the
+        captured argv is the one the dispatcher would actually execute.
+
+        Asserting the argv equals the APFS prefix (NTFS-only flags absent) proves
+        ``dispatcher._resolve_disk_capability`` →
+        ``resolve_capability(str(disk.path), 'apfs')`` returned APFS and that the
+        capability flows all the way into rsync — the dispatch-side mirror of the
+        scanner's per-disk override resolution.
+        """
+        # Override ``drive_a`` to APFS (the others keep auto-detect).
+        apfs_disk = DiskConfig(
+            id="drive_a",
+            path=tmp_path / "drive_a",
+            categories=list(test_config.disks[0].categories),
+            fs_type="apfs",
+        )
+        cfg = test_config.model_copy(update={"disks": [apfs_disk, *test_config.disks[1:]]})
+
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        d = Dispatcher(cfg, mock_settings, idx, event_bus=EventBus())
+
+        # The dispatcher resolved drive_a's capability at construction time.
+        cap = d._disk_capabilities["drive_a"]
+        assert cap.fs_type == "apfs", "explicit fs_type='apfs' must resolve to the APFS capability"
+        assert "--no-perms" not in cap.rsync_flags, "APFS must not suppress Unix perms"
+
+        source = tmp_path / "source"
+        source.mkdir()
+        (source / "file.mkv").write_bytes(b"\x00" * 1024)
+        dest = (tmp_path / "drive_a") / "cat_movies" / "Movie (2024)"
+
+        def _fake_run(cmd, *_args, **_kwargs):
+            # Materialise the staging target so the staging->commit rename in
+            # _move_new succeeds, then report rsync success.
+            cmd[-1]  # final argv element is the dest dir
+            Path(cmd[-1]).mkdir(parents=True, exist_ok=True)
+            return MagicMock(returncode=0, stderr="")
+
+        with (
+            patch("personalscraper.dispatch._transfer.subprocess.run", side_effect=_fake_run) as mock_run,
+            patch.object(d, "_verify_transfer", return_value=True),
+        ):
+            ok = d._move_new(source, dest, capability=cap)
+
+        assert ok is True
+        called_cmd = mock_run.call_args[0][0]
+        assert called_cmd[0] == "rsync"
+        # APFS argv: the NTFS-only flags must be absent, the FS-agnostic core present.
+        assert "--no-perms" not in called_cmd
+        assert "--no-owner" not in called_cmd
+        assert "--no-group" not in called_cmd
+        assert "--no-times" not in called_cmd
+        assert "--omit-dir-times" not in called_cmd
+        assert "--exclude=.DS_Store" not in called_cmd
+        assert "--exclude=._*" not in called_cmd
+        assert called_cmd[1:4] == ["-a", "--inplace", "--partial"]

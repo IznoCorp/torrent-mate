@@ -41,7 +41,7 @@ python -c "import tomllib; d=tomllib.load(open('pyproject.toml','rb')); print(an
 
 # AC-09 — all multi-FS tests pass with no real disks
 python -m pytest -m multifs -q 2>&1 | tail -1
-# expected: a "N passed" line with N >= 8 (currently "112 passed, 5794 deselected ..."), 0 failed, 0 errors   (exit 0)
+# expected: a "N passed" line with N >= 8 (currently "150 passed, 5794 deselected ..."), 0 failed, 0 errors   (exit 0)
 
 # AC-10 — no residual literal rsync flag list remains in _transfer.py
 rg -n '"--no-perms"' -g '*.py' personalscraper/dispatch/_transfer.py | wc -l | tr -d ' '
