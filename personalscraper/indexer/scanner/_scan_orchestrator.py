@@ -470,6 +470,7 @@ def _scan_one_disk(
                 local_exhausted,
                 ctx.scan_run_id,
                 no_enqueue=ctx.no_enqueue,
+                capability=disk_capability,
             )
         else:
             # Skeleton walk for any future modes not yet implemented.

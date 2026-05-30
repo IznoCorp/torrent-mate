@@ -8,6 +8,8 @@ import sqlite3
 import time
 from pathlib import Path
 
+from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
+from personalscraper.indexer.fingerprint import round_mtime_ns
 from personalscraper.indexer.schema import DiskRow
 from personalscraper.logger import get_logger
 
@@ -29,6 +31,7 @@ def _scan_disk_verify(
     scan_run_id: int,
     *,
     no_enqueue: bool = False,
+    capability: FilesystemCapability = NTFS_MACFUSE,
 ) -> None:
     """Re-stat every indexed file on a disk and enqueue repair on mismatch.
 
@@ -63,6 +66,14 @@ def _scan_disk_verify(
             file and bumps ``last_verified_at`` on clean rows (read-only audit
             mode for the queue, but ``last_verified_at`` / ``scan_generation``
             writes still happen).
+        capability: Per-disk :class:`FilesystemCapability`.  The mtime drift
+            comparison is bucketed via :func:`round_mtime_ns` so coarse-grained
+            filesystems (HFS+ 1 s, exFAT 2 s) do not flag sub-bucket jitter as
+            spurious drift and enqueue a bogus repair.  Only the COMPARISON is
+            bucketed; the DB row's stored ``mtime_ns`` is never rewritten by
+            verify (consistent with quick / incremental).  Defaults to
+            ``NTFS_MACFUSE`` (granularity 1 → identity → byte-identical to the
+            legacy exact compare).
     """
     if disk.mount_path is None:
         log.warning("indexer.verify.disk_no_mount", disk_id=disk.id, label=disk.label)
@@ -178,7 +189,11 @@ def _scan_disk_verify(
             continue
 
         size_match = st.st_size == row["size_bytes"]
-        mtime_match = st.st_mtime_ns == row["mtime_ns"]
+        # Bucket BOTH sides by the disk capability so coarse-grained filesystems
+        # (HFS+ 1 s, exFAT 2 s) do not flag sub-bucket mtime jitter as spurious
+        # drift and enqueue a bogus repair.  NTFS/APFS/ext4 (granularity 1) →
+        # identity → byte-identical to the legacy exact compare.
+        mtime_match = round_mtime_ns(st.st_mtime_ns, capability) == round_mtime_ns(row["mtime_ns"], capability)
 
         if size_match and mtime_match:
             # Clean verification — bump last_verified_at and scan_generation.

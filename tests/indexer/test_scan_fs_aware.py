@@ -1022,3 +1022,127 @@ class TestQuickParanoiaCoarseFs:
         assert any("indexer.scan.paranoia_recheck" in m for m in msgs), (
             f"a beyond-bucket stored mtime must trigger a paranoia recheck on exFAT; got: {msgs}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Cycle-5 completeness sweep: ScanMode.verify is the THIRD per-file scan-mode
+# comparator (siblings: incremental tier-1, quick paranoia). Its raw exact
+# ``st_mtime_ns == row["mtime_ns"]`` compare would flag spurious drift and
+# enqueue a BOGUS repair on a coarse FS (HFS+ 1 s / exFAT 2 s) when sub-bucket
+# mtime jitter leaves the content unchanged. The orchestrator must resolve the
+# per-disk capability and thread it into ``_scan_disk_verify`` so the compare is
+# bucketed. NTFS (granularity 1 → identity) stays byte-identical.
+# ---------------------------------------------------------------------------
+
+
+class TestVerifyModeCoarseFs:
+    """``verify`` mode buckets the mtime compare via the per-disk capability.
+
+    Drives the full :func:`scan` entry point in ``verify`` mode and lets the
+    orchestrator resolve + thread the capability from a monkeypatched
+    ``probe_mount`` — proving the wiring end-to-end. On a coarse filesystem a
+    sub-bucket stored-vs-on-disk mtime jitter at the SAME size must NOT enqueue a
+    ``repair_queue`` row; a beyond-bucket gap (and NTFS, where ctime/exact mtime
+    still governs) MUST still detect drift.
+    """
+
+    def test_hfsplus_subsecond_jitter_no_spurious_repair(self, fs: "FakeFilesystem") -> None:
+        """HFS+: a <1 s stored/on-disk mtime gap (same size) → NO bogus repair.
+
+        The on-disk mtime sits at the aligned base; the stored mtime is +0.5 s
+        — same 1 s HFS+ bucket. With the content unchanged, the bucketed verify
+        compare must treat the file as clean: ``last_verified_at`` is bumped and
+        the ``repair_queue`` stays empty. Without the fix the raw exact compare
+        would see ``base != base+0.5s`` and enqueue a spurious drift repair, so
+        this assertion fails if the bucketing is reverted.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/VerifyHfsplusJitter"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        disk, file_id, on_disk_mtime = _seed_one_video(conn, mount)
+
+        # Stored mtime +0.5 s (same 1 s HFS+ bucket as the on-disk base); size
+        # unchanged. Only sub-bucket mtime jitter differs.
+        _set_stored_tier1(conn, file_id, mtime_ns=on_disk_mtime + _HALF_SECOND_NS)
+        fresh = disk_repo.get_by_id(conn, disk.id)
+        assert fresh is not None
+
+        hfsplus_info = MountInfo(mount_point=mount, fs_type="hfsplus", raw_fs_type="hfs", flags=frozenset())
+
+        with patch(_PROBE_PATCH, return_value=hfsplus_info):
+            with patch(_GUARD_PATCH, return_value=None):
+                result = scan([fresh], ScanMode.verify, generation=2, conn=conn, event_bus=EventBus())
+
+        assert result.status == "ok"
+        assert not _has_repair(conn, file_id), (
+            "HFS+ sub-second mtime jitter (same size, unchanged content) must NOT enqueue a repair: "
+            "the verify compare must bucket the mtime via the resolved capability"
+        )
+        # The row must be marked verified-clean (generation bumped, not just touched).
+        assert _scan_generation(conn, file_id) == 2
+
+    def test_hfsplus_beyond_bucket_still_detects_drift(self, fs: "FakeFilesystem") -> None:
+        """HFS+ control: a >1 s stored/on-disk mtime gap → drift still enqueued.
+
+        Pins the other half of the bucketing: a stored mtime in a DIFFERENT 1 s
+        bucket than the on-disk value is a genuine mtime drift even on a coarse
+        FS, so the repair must still fire. Guarantees the fix only absorbs
+        sub-bucket jitter, never real drift.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/VerifyHfsplusBeyond"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        disk, file_id, on_disk_mtime = _seed_one_video(conn, mount)
+
+        # Stored mtime +3 s → a different 1 s HFS+ bucket than the on-disk base.
+        _set_stored_tier1(conn, file_id, mtime_ns=on_disk_mtime + _THREE_SECONDS_NS)
+        fresh = disk_repo.get_by_id(conn, disk.id)
+        assert fresh is not None
+
+        hfsplus_info = MountInfo(mount_point=mount, fs_type="hfsplus", raw_fs_type="hfs", flags=frozenset())
+
+        with patch(_PROBE_PATCH, return_value=hfsplus_info):
+            with patch(_GUARD_PATCH, return_value=None):
+                result = scan([fresh], ScanMode.verify, generation=2, conn=conn, event_bus=EventBus())
+
+        assert result.status == "ok"
+        assert _has_repair(conn, file_id), (
+            "a beyond-bucket stored mtime must still be flagged as drift on HFS+ (real change, not jitter)"
+        )
+
+    def test_ntfs_subsecond_mtime_change_still_detects_drift(self, fs: "FakeFilesystem") -> None:
+        """NTFS control: granularity 1 → exact compare → even +0.5 s drifts.
+
+        The SAME +0.5 s stored mtime mutation that HFS+ absorbs MUST enqueue a
+        repair on NTFS (granularity 1 → identity → exact compare, byte-identical
+        to the legacy behaviour). This proves the fix is a strict no-op on the
+        fine-grained NTFS path.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/VerifyNtfsExact"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        disk, file_id, on_disk_mtime = _seed_one_video(conn, mount)
+
+        _set_stored_tier1(conn, file_id, mtime_ns=on_disk_mtime + _HALF_SECOND_NS)
+        fresh = disk_repo.get_by_id(conn, disk.id)
+        assert fresh is not None
+
+        ntfs_info = MountInfo(mount_point=mount, fs_type="ntfs_macfuse", raw_fs_type="ufsd_ntfs", flags=frozenset())
+
+        with patch(_PROBE_PATCH, return_value=ntfs_info):
+            with patch(_GUARD_PATCH, return_value=None):
+                result = scan([fresh], ScanMode.verify, generation=2, conn=conn, event_bus=EventBus())
+
+        assert result.status == "ok"
+        assert _has_repair(conn, file_id), (
+            "NTFS verify keeps an exact mtime compare (granularity 1): a +0.5 s stored mtime is real drift"
+        )
