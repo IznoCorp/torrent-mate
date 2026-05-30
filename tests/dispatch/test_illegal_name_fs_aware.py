@@ -28,7 +28,7 @@ from personalscraper.dispatch._movie import dispatch_movie
 from personalscraper.dispatch._tv import dispatch_tvshow
 from personalscraper.dispatch.disk_scanner import DiskStatus
 from personalscraper.dispatch.dispatcher import Dispatcher
-from personalscraper.dispatch.media_index import MediaIndex
+from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
 from personalscraper.indexer._fs_capability import APFS, NTFS_MACFUSE
 
 pytestmark = pytest.mark.multifs
@@ -142,4 +142,103 @@ class TestTvIllegalNameFsAware:
 
         assert result.action == "skipped"
         assert "NTFS" in (result.reason or "")
+        mock_move.assert_not_called()
+
+
+class TestSkipReasonPrecedence:
+    """AC-05 skip-reason precedence: disk-full beats illegal-name when BOTH hold.
+
+    The phase-8 gate move relocated the illegal-name gate to run AFTER the
+    destination disk is chosen — and therefore AFTER the disk-full check in the
+    ``existing`` (replace / merge) branch.  When an item is BOTH disk-full AND
+    illegally named on an NTFS dest, the disk-full check returns first, so the
+    *disk-full* reason wins.  The action is ``skipped`` either way (no
+    transfer-safety change), but pinning the precedence locks the user-facing
+    reason so a future reorder cannot silently flip it.
+    """
+
+    def test_movie_replace_disk_full_beats_illegal_name(
+        self, test_config, mock_settings: MagicMock, tmp_path: Path
+    ) -> None:
+        """Colon-named movie on a FULL NTFS dest → skipped with the DISK-FULL reason."""
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        # Materialise the existing dest so _resolve_existing_on_filesystem
+        # validates it and the replace branch is taken.
+        dest_dir = tmp_path / "drive_a" / "Films" / "Movie S01E01: Pilot"
+        dest_dir.mkdir(parents=True)
+        (dest_dir / "Movie.mkv").write_bytes(b"old")
+        idx.add(
+            IndexEntry(
+                name="Movie S01E01: Pilot",
+                disk="drive_a",
+                category="movies",
+                path=str(dest_dir),
+                media_type="movie",
+            )
+        )
+
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
+        # NTFS dest → the colon WOULD be illegal, but disk-full must win first.
+        d._disk_capabilities["drive_a"] = NTFS_MACFUSE
+
+        movie_dir = tmp_path / "Movie S01E01: Pilot"
+        movie_dir.mkdir()
+        (movie_dir / "Movie S01E01: Pilot.mkv").write_bytes(b"\x00" * 1024)
+
+        with (
+            patch("personalscraper.dispatch._movie.get_disk_status") as mock_status,
+            patch.object(d, "_move_new", return_value=True) as mock_move,
+        ):
+            mock_status.return_value = DiskStatus(
+                config=DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=["movies"]),
+                free_space_gb=0.1,  # Way below threshold → disk-full.
+                is_mounted=True,
+            )
+            result = dispatch_movie(d, movie_dir, "movies")
+
+        assert result.action == "skipped"
+        # Disk-full wins: the reason is the disk-full message, NOT the NTFS one.
+        assert "full" in (result.reason or "").lower()
+        assert "NTFS" not in (result.reason or "")
+        mock_move.assert_not_called()
+
+    def test_tvshow_merge_disk_full_beats_illegal_name(
+        self, test_config, mock_settings: MagicMock, tmp_path: Path
+    ) -> None:
+        """Colon-named show on a FULL NTFS dest → skipped with the DISK-FULL reason."""
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        dest_dir = tmp_path / "drive_a" / "Series" / "Show S01E01: Pilot"
+        dest_dir.mkdir(parents=True)
+        (dest_dir / "S01E01.mkv").write_bytes(b"old")
+        idx.add(
+            IndexEntry(
+                name="Show S01E01: Pilot",
+                disk="drive_a",
+                category="tv_shows",
+                path=str(dest_dir),
+                media_type="tvshow",
+            )
+        )
+
+        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
+        d._disk_capabilities["drive_a"] = NTFS_MACFUSE
+
+        show_dir = tmp_path / "Show S01E01: Pilot"
+        show_dir.mkdir()
+        (show_dir / "Show S01E01: Pilot.mkv").write_bytes(b"\x00" * 1024)
+
+        with (
+            patch("personalscraper.dispatch._tv.get_disk_status") as mock_status,
+            patch.object(d, "_move_new", return_value=True) as mock_move,
+        ):
+            mock_status.return_value = DiskStatus(
+                config=DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=["tv_shows"]),
+                free_space_gb=0.1,
+                is_mounted=True,
+            )
+            result = dispatch_tvshow(d, show_dir, "tv_shows")
+
+        assert result.action == "skipped"
+        assert "full" in (result.reason or "").lower()
+        assert "NTFS" not in (result.reason or "")
         mock_move.assert_not_called()
