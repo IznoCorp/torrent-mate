@@ -54,6 +54,16 @@ A 5-lens adversarial retrospective (design / scope / tests / bugs / docs-process
 
 Gate: `make check` exit 0 (5751 passed cov-run), `pytest -m multifs` 150 passed, design-gaps AUDIT=0 FM=0, NTFS byte-identical re-verified (merkle + tier1 + rsync).
 
+### Cycle 4 (2026-05-30) — re-review caught a phase-8 REGRESSION, fixed
+
+A 4-lens adversarial re-review confirmed the phase-8 scanner fix is correct + NTFS byte-identical, but found phase-8 was **incomplete**: the merkle root is computed in FOUR places and phase-8 only bucketed two (scanner build + finalize). The other two stayed RAW → on an auto-detected coarse FS the bucketed-stored root permanently mismatched the raw-recomputed root (a regression vs pre-phase-8, where all four were raw and agreed):
+
+- **(major regression → fixed)** `reconcile.detect_merkle_drift` → `library doctor` warned false merkle-drift after every clean scan on exFAT/HFS+. Now routes through the shared `_build_disk_fingerprints(conn, disk_id, capability)` with per-disk `resolve_capability`; override threaded from `doctor` (keyed on stable `DiskRow.label`).
+- **(major regression → fixed)** `repair._refresh_disk_merkle` wrote a RAW root after repairs → defeated the next scan's short-circuit. Now FS-aware (auto-detect; the `drain` processor protocol has no override channel — documented, matches the scanner for the no-override case).
+- **(should-fix → fixed)** docs over-claim corrected (all three consumers now named as co-bucketers); AC-05 skip-reason precedence pinned (disk-full beats illegal-name).
+
+`8ed5f389`..`bb8a8e8e`. Gate: `make check` exit 0 (5918 passed), `pytest -m multifs` 159, design-gaps AUDIT=0 FM=0, NTFS byte-identical re-verified for both new consumers. The regression-guard tests fail without the fix (verified via git stash).
+
 ## Next action
 
 Review converged after **3 cycles**; the retrospective remediation closed the half-delivered headline. **Merge is BLOCKED only by GitHub Actions billing** (spending limit): the `test`/`security`/`coverage-merge` jobs cannot start. Static CI (lint, typecheck, design-gaps, licenses, secrets) is green. Action for the operator: fix Settings → Billing & plans, then re-run CI (`gh run rerun <id> --failed`) → green → manual squash-merge of PR #29.
