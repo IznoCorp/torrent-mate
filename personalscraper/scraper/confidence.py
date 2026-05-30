@@ -14,6 +14,7 @@ See docs/rapidfuzz-reference.md for scorer details.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -34,6 +35,11 @@ log = get_logger("confidence")
 HIGH_CONFIDENCE = 0.8  # Auto-accept in automatic mode
 LOW_CONFIDENCE = 0.5  # Skip in automatic mode (no match)
 # Between LOW and HIGH: caller decides (skip in auto, prompt in interactive)
+
+# When the runner-up candidate scores within this delta of the winner (and is
+# itself >= LOW_CONFIDENCE), the auto-accepted match is ambiguous. Surfaced as a
+# warning for operator visibility; does NOT change acceptance behaviour.
+AMBIGUITY_DELTA = 0.05
 
 # Above this fuzzy score, the content-aware season veto in
 # match_tvshow_tvdb is bypassed: a 0.95+ title match is treated as
@@ -132,6 +138,114 @@ def score_match(
     return max(0.0, min(1.0, title_score + year_bonus))
 
 
+# Tokens that carry no disambiguating weight when deciding whether one title is
+# a strict content-expansion of another (articles / prepositions / conjunctions,
+# EN + FR). Without dropping these, "The Matrix" vs "Matrix" would wrongly count
+# as a superstring expansion.
+_TITLE_NOISE_TOKENS = frozenset(
+    {
+        "the",
+        "a",
+        "an",
+        "le",
+        "la",
+        "les",
+        "l",
+        "un",
+        "une",
+        "de",
+        "des",
+        "du",
+        "of",
+        "and",
+        "et",
+    }
+)
+
+
+def _significant_tokens(text: str) -> frozenset[str]:
+    """Return the disambiguating tokens of a title.
+
+    Normalises via media_processor (lowercase + accent strip) and drops
+    articles/prepositions, leaving only content words.
+
+    Args:
+        text: Title to tokenise.
+
+    Returns:
+        Frozenset of significant (content) tokens.
+    """
+    return frozenset(tok for tok in media_processor(text).split() if tok and tok not in _TITLE_NOISE_TOKENS)
+
+
+def _superstring_penalty(query: str, candidate: str) -> float:
+    """Penalty (<= 0) when ``candidate`` is a strict content-expansion of ``query``.
+
+    A candidate whose content words are a PROPER SUPERSET of the query's — a
+    making-of ("The Making of X"), a sequel ("X 2"), an "X: Subtitle", or a
+    prefixed work ("The Crow: <query>") — matches the query only by containment
+    and should not outrank the exact title. The penalty scales with the number
+    of extra content words and is capped, so a single-word subtitle is nudged
+    while a far-expanded title is pushed down. It stays modest so a lone correct
+    candidate is never dropped below the acceptance threshold by this alone.
+
+    Returns 0.0 when the candidate is not a strict expansion (equal content, or
+    disjoint/partial), so exact and clean localized matches are never penalised.
+
+    Args:
+        query: Local title being matched.
+        candidate: Candidate API title.
+
+    Returns:
+        A penalty in [-0.20, 0.0].
+    """
+    q = _significant_tokens(query)
+    c = _significant_tokens(candidate)
+    if not q or q == c or not (q < c):
+        return 0.0
+    extra = len(c - q)
+    return max(-0.20, -0.08 * extra)
+
+
+def _score_result(
+    local_title: str,
+    local_year: int | None,
+    result: SearchResult,
+) -> float:
+    """Score a SearchResult against a local title/year (matching-grade score).
+
+    Refines the base WRatio+year :func:`score_match` with two signals, taking
+    the best (score + superstring penalty) across the localized title and the
+    original-language title:
+
+    - **original_title**: an English-named folder ("The Frighteners") matches a
+      localized TMDB/TVDB title ("Fantômes contre fantômes") poorly but the
+      original_title exactly — so a localized result is not unfairly beaten.
+    - **superstring penalty**: a content-expansion candidate (sequel, making-of,
+      "X: Subtitle") is demoted so it does not outrank the exact title.
+
+    Shared by movie and TV ranking so behaviour is uniform across providers.
+
+    Args:
+        local_title: Title extracted from the local folder.
+        local_year: Year extracted from the local folder (None if absent).
+        result: Candidate API search result.
+
+    Returns:
+        Confidence score in [0.0, 1.0].
+    """
+    titles = [result.title]
+    if result.original_title and result.original_title != result.title:
+        titles.append(result.original_title)
+    best = -1.0
+    for api_title in titles:
+        scored = score_match(local_title, local_year, api_title, result.year) + _superstring_penalty(
+            local_title, api_title
+        )
+        best = max(best, scored)
+    return max(0.0, best)
+
+
 def _search_with_language(
     tmdb_client: object,
     title: str,
@@ -172,6 +286,28 @@ def _filter_by_year_window(
     return [r for r in results if r.year is not None and abs(r.year - year) <= window]
 
 
+def _merge_results(
+    primary: list[SearchResult],
+    extra: list[SearchResult],
+) -> list[SearchResult]:
+    """Union two TMDB result lists, de-duplicating by provider_id.
+
+    Primary results keep their order and precedence; extra results not already
+    present (matched by provider_id) are appended. Used to merge year-filtered
+    results with no-year window candidates, so a film excluded by TMDB's
+    region-aware ``year=`` filter is still considered during ranking.
+
+    Args:
+        primary: First-priority results (e.g. year-filtered search).
+        extra: Additional candidates to merge in (e.g. no-year window).
+
+    Returns:
+        Merged list with duplicates removed and primary order preserved.
+    """
+    seen = {r.provider_id for r in primary}
+    return primary + [r for r in extra if r.provider_id not in seen]
+
+
 def match_movie(
     tmdb_client: object,
     title: str,
@@ -204,16 +340,36 @@ def match_movie(
     fallback_event: str | None = None
     fallback_meta: dict[str, int | str] = {}
 
-    # 1. Initial search: configured language + year
+    # 1. Initial search: configured language + year (TMDB hard year filter)
     results = _search_with_language(tmdb_client, title, year, fr)
 
-    # 2. Year fallback: same language, no year filter
-    if not results and year is not None:
-        candidates = _search_with_language(tmdb_client, title, None, fr)
-        results = _filter_by_year_window(candidates, year)
-        if results:
-            fallback_event = "movie_match_year_fallback"
-            fallback_meta = {"original_year": year}
+    # 1b. Year-window merge: TMDB's `year=` param matches ANY region's release
+    #     date, so a film whose only release is off by a year from a
+    #     similarly-titled film's *regional* release is silently excluded from
+    #     the year-filtered results (e.g. "La Cité des Anges" with year=1997
+    #     returned only "The Crow: City of Angels" 1996 — which has a 1997
+    #     regional release — and excluded "City of Angels" 1998). When a year
+    #     is present, always fetch the no-year candidates within the fallback
+    #     window and merge them so the correct film survives to ranking, even
+    #     when the year-filtered search already returned a (possibly wrong)
+    #     result.
+    if year is not None:
+        windowed = _filter_by_year_window(_search_with_language(tmdb_client, title, None, fr), year)
+        if windowed:
+            before = len(results)
+            results = _merge_results(results, windowed)
+            if before == 0:
+                # Year-filtered search found nothing; the window rescued it.
+                fallback_event = "movie_match_year_fallback"
+                fallback_meta = {"original_year": year}
+            elif len(results) > before:
+                # Year-filtered search returned results, but the window added
+                # candidates that TMDB's year= filter had excluded.
+                fallback_event = "movie_match_year_window_merged"
+                fallback_meta = {
+                    "original_year": year,
+                    "added": len(results) - before,
+                }
 
     # 3. Language fallback: fallback language + year
     if not results and en != fr:
@@ -242,7 +398,7 @@ def match_movie(
         api_year = result.year
         api_id = int(result.provider_id) if result.provider_id.isdigit() else 0
 
-        score = score_match(title, year, api_title, api_year)
+        score = _score_result(title, year, result)
 
         if score > best_score:
             best_score = score
@@ -279,6 +435,17 @@ def match_movie(
                 top_score=round(best_match.confidence, 2),
                 source="tmdb",
             )
+        elif len(results) > 1:
+            # Ambiguity guard (observability only — no acceptance change).
+            ranked = sorted((_score_result(title, year, r) for r in results), reverse=True)
+            if ranked[1] >= LOW_CONFIDENCE and ranked[0] - ranked[1] < AMBIGUITY_DELTA:
+                log.warning(
+                    "movie_match_ambiguous",
+                    title=title,
+                    top_score=round(ranked[0], 2),
+                    runner_up=round(ranked[1], 2),
+                    candidates_count=len(results),
+                )
 
     return best_match
 
@@ -350,6 +517,18 @@ def match_tvshow_tvdb(
         Best MatchResult with source="tvdb", or None if no results.
     """
     results = tvdb_client.search_series(title, year)  # type: ignore[attr-defined]
+    # Year-window merge: TVDB's year filter (like TMDB's) can exclude the correct
+    # show when its first-air year differs by a year or two from a similarly-titled
+    # show's. When a year is present, also fetch the no-year candidates within the
+    # fallback window and merge them so the right show survives to scoring. Same
+    # bug class as the movie path (fixed there first); TVDB previously had no
+    # no-year fallback at all, so this also closes that gap.
+    if year is not None:
+        windowed = _filter_by_year_window(
+            tvdb_client.search_series(title, None),  # type: ignore[attr-defined]
+            year,
+        )
+        results = _merge_results(results, windowed)
     if not results:
         log.info("show_no_tvdb_results", title=title, year=year)
         return None
@@ -363,7 +542,7 @@ def match_tvshow_tvdb(
         api_year = result.year
         api_id = int(result.provider_id) if result.provider_id.isdigit() else 0
 
-        score = score_match(title, year, api_title, api_year)
+        score = _score_result(title, year, result)
 
         scored.append(
             (
@@ -429,6 +608,46 @@ def match_tvshow_tvdb(
     return best_match
 
 
+def _tv_tmdb_candidates(
+    search_tv: Callable[[str, int | None], list[SearchResult]],
+    title: str,
+    year: int | None,
+) -> list[tuple[str, SearchResult]]:
+    """Collect ``(query_title, SearchResult)`` TMDB-TV candidates over title variants.
+
+    Searches each conservative title variant (see
+    :func:`_tv_fallback_title_variants`) with the year filter, then — when a year
+    is present — merges the no-year candidates within the fallback window,
+    de-duplicated by ``provider_id``. The no-year merge closes the same
+    year-filter exclusion gap fixed for movies: TMDB's ``first_air_date_year``
+    filter can hide the correct show when its first-air year differs by a year
+    or two from a similarly-titled show's.
+
+    Args:
+        search_tv: The provider's ``search_tv(title, year)`` bound method.
+        title: Local show title.
+        year: First-air year (None if absent).
+
+    Returns:
+        ``(query_title, result)`` pairs, de-duplicated by ``provider_id``.
+    """
+    out: list[tuple[str, SearchResult]] = []
+    seen: set[str] = set()
+
+    def _add(query_title: str, items: list[SearchResult]) -> None:
+        for r in items:
+            if r.provider_id not in seen:
+                seen.add(r.provider_id)
+                out.append((query_title, r))
+
+    for query_title in _tv_fallback_title_variants(title):
+        _add(query_title, search_tv(query_title, year))
+    if year is not None:
+        for query_title in _tv_fallback_title_variants(title):
+            _add(query_title, _filter_by_year_window(search_tv(query_title, None), year))
+    return out
+
+
 def match_tvshow_single(
     provider: object,
     title: str,
@@ -476,10 +695,7 @@ def match_tvshow_single(
         # TMDB search path lifted from the legacy ``match_tvshow`` TMDB
         # fallback branch — keeps the subject-only query variant for
         # French documentary localisations.
-        tmdb_results: list[tuple[str, SearchResult]] = []
-        for query_title in _tv_fallback_title_variants(title):
-            results = provider.search_tv(query_title, year)  # type: ignore[attr-defined]
-            tmdb_results.extend((query_title, result) for result in results)
+        tmdb_results = _tv_tmdb_candidates(provider.search_tv, title, year)  # type: ignore[attr-defined]
         if not tmdb_results:
             log.info("show_no_tmdb_results", title=title, year=year)
             return None
@@ -489,7 +705,7 @@ def match_tvshow_single(
             api_title = result.title
             api_year = result.year
             api_id = int(result.provider_id) if result.provider_id.isdigit() else 0
-            score = score_match(query_title, year, api_title, api_year)
+            score = _score_result(query_title, year, result)
             if score > best_score:
                 best_score = score
                 best_match = MatchResult(
@@ -569,10 +785,7 @@ def match_tvshow(
     # French documentary releases are localised as "Les secrets de
     # <subject>" while TMDB indexes the original title under the subject
     # name, so try a narrow subject-only query as well.
-    tmdb_results: list[tuple[str, SearchResult]] = []
-    for query_title in _tv_fallback_title_variants(title):
-        results = tmdb_client.search_tv(query_title, year)  # type: ignore[attr-defined]
-        tmdb_results.extend((query_title, result) for result in results)
+    tmdb_results = _tv_tmdb_candidates(tmdb_client.search_tv, title, year)  # type: ignore[attr-defined]
     tmdb_match: MatchResult | None = None
     best_score = -1.0
 
@@ -583,7 +796,7 @@ def match_tvshow(
         api_year = result.year
         api_id = int(result.provider_id) if result.provider_id.isdigit() else 0
 
-        score = score_match(query_title, year, api_title, api_year)
+        score = _score_result(query_title, year, result)
         if score > best_score:
             best_score = score
             tmdb_match = MatchResult(

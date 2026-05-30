@@ -15,6 +15,8 @@ from personalscraper.scraper.confidence import (
     HIGH_CONFIDENCE,
     LOW_CONFIDENCE,
     MatchResult,
+    _score_result,
+    _superstring_penalty,
     get_episode_titles,
     match_movie,
     match_tvshow,
@@ -40,6 +42,7 @@ def _sr_tmdb_movie(d: dict[str, Any]) -> SearchResult:
         provider="tmdb",
         provider_id=str(d.get("id", "")),
         title=d.get("title", ""),
+        original_title=d.get("original_title", ""),
         year=int(rd[:4]) if rd[:4].isdigit() else None,
         media_type="movie",
     )
@@ -253,16 +256,6 @@ class TestMatchMovie:
         assert result is not None
         assert result.api_id == 603  # Exact match should win
 
-    @pytest.mark.skip(
-        reason=(
-            "api-unify removed original_title from SearchResult — TMDB localized "
-            "matches via original_title are no longer possible without enriching "
-            "the typed model. Tracked as a known regression: a French user with a "
-            "TMDB-localized 'L'Effet papillon' folder named 'The Butterfly Effect' "
-            "will only match if the localized title is close enough to the query, "
-            "or via a per-locale prefer_local_title hint elsewhere in the pipeline."
-        )
-    )
     def test_original_title_used_for_localized_movie_score(self) -> None:
         """Original title should rescue localized TMDB titles with the same year.
 
@@ -319,6 +312,97 @@ class TestMatchMovie:
         match_movie(client, "Inception", 2010)
         client.search_movie.assert_any_call("Inception", 2010, language="fr-FR")
 
+    def test_year_filter_excludes_correct_film_rescued_by_window(self) -> None:
+        """Year-window merge rescues a film TMDB's year= filter wrongly excludes.
+
+        Regression test for the 'La Cité des Anges' mismatch (pipeline run
+        2026-05-30): TMDB's `year=` param matches ANY region's release date,
+        so a search for "La Cité des Anges" with year=1997 returns only
+        'The Crow: City of Angels' (1996, which has a 1997 regional release)
+        and excludes 'City of Angels' (1998, release 1998-04-10). The
+        year-filtered result is non-empty, so the old code never ran the
+        no-year fallback and auto-accepted the wrong film at confidence 0.9.
+
+        The fix: when a year is present, always merge the no-year candidates
+        within the ±5y window. 'City of Angels' (exact FR title, year off by
+        one) then scores 1.0 and beats the Crow (partial title, 0.9).
+        """
+        client = MagicMock()
+        client._language = "fr-FR"
+        client._fallback_language = "en-US"
+
+        crow = {
+            "id": 10546,
+            "title": "The Crow : La Cité des Anges",
+            "release_date": "1996-08-30",
+        }
+        city = {
+            "id": 795,
+            "title": "La Cité des anges",
+            "release_date": "1998-04-10",
+        }
+
+        def search_side(t: str, y: int | None, *, language: str = "fr-FR") -> list[object]:
+            # TMDB year= filter: 1997 catches the Crow's regional release only.
+            if language == "fr-FR" and y == 1997:
+                return [_sr_tmdb_movie(crow)]
+            # No-year search returns both films.
+            if language == "fr-FR" and y is None:
+                return [_sr_tmdb_movie(crow), _sr_tmdb_movie(city)]
+            return []
+
+        client.search_movie.side_effect = search_side
+        result = match_movie(client, "La Cité des Anges", 1997)
+
+        assert result is not None
+        assert result.api_id == 795  # City of Angels (1998), NOT the Crow
+        assert result.api_year == 1998
+        assert result.confidence >= HIGH_CONFIDENCE
+
+    def test_window_merge_localized_title_beats_making_of(self) -> None:
+        """original_title scoring stops a window-merge noise candidate winning.
+
+        Regression test for The Frighteners (pipeline run 2026-05-30): with a
+        year filter, year=1996 returned only 'Fantômes contre fantômes' (FR
+        title of The Frighteners; original_title 'The Frighteners'). The
+        no-year window merge then added "The Making of 'The Frighteners'"
+        (1998), whose localized title contains the query as a substring (0.75)
+        and beat the real film's localized title scored against the English
+        query (0.57). Scoring against original_title lifts the real film to
+        1.0 so it wins, and its localized title is kept for the NFO/folder.
+        """
+        client = MagicMock()
+        client._language = "fr-FR"
+        client._fallback_language = "en-US"
+
+        film = {
+            "id": 25297,
+            "title": "Fantômes contre fantômes",
+            "original_title": "The Frighteners",
+            "release_date": "1996-07-18",
+        }
+        making_of = {
+            "id": 999999,
+            "title": "The Making of 'The Frighteners'",
+            "original_title": "The Making of 'The Frighteners'",
+            "release_date": "1998-01-01",
+        }
+
+        def search_side(t: str, y: int | None, *, language: str = "fr-FR") -> list[object]:
+            if language == "fr-FR" and y == 1996:
+                return [_sr_tmdb_movie(film)]
+            if language == "fr-FR" and y is None:
+                return [_sr_tmdb_movie(film), _sr_tmdb_movie(making_of)]
+            return []
+
+        client.search_movie.side_effect = search_side
+        result = match_movie(client, "The Frighteners", 1996)
+
+        assert result is not None
+        assert result.api_id == 25297  # the real film, not the making-of
+        assert result.api_title == "Fantômes contre fantômes"  # localized kept
+        assert result.confidence >= HIGH_CONFIDENCE
+
     # -- year fallback --
 
     def test_year_fallback_triggers_when_no_results_with_year(self) -> None:
@@ -362,22 +446,34 @@ class TestMatchMovie:
         # 2000 is 10 years from 2010, outside ±5 window
         assert result is None
 
-    def test_year_fallback_not_triggered_when_results_exist(self) -> None:
-        """Initial search returns results — fallback is not triggered."""
+    def test_language_fallback_not_triggered_when_fr_results_exist(self) -> None:
+        """Language fallback chain is not triggered while fr results exist.
+
+        With the year-window merge, a present year always runs a second
+        no-year fr search (the bug-fix path), so search_movie is called twice
+        in fr-FR. But the en-US language fallback (steps 3-4) must NOT be
+        reached while fr results exist, and a lone fr candidate is unchanged
+        by the merge.
+        """
         client = MagicMock()
         client._language = "fr-FR"
         client._fallback_language = "en-US"
 
         def search_side(t: str, y: int | None, *, language: str = "fr-FR") -> list[object]:
-            return [_sr_tmdb_movie({"id": 603, "title": "The Matrix", "release_date": "1999-03-31"})]
+            if language == "fr-FR":
+                return [_sr_tmdb_movie({"id": 603, "title": "The Matrix", "release_date": "1999-03-31"})]
+            # en-US must never be consulted while fr results exist.
+            return [_sr_tmdb_movie({"id": 999, "title": "Wrong", "release_date": "1999-01-01"})]
 
         client.search_movie.side_effect = search_side
         result = match_movie(client, "The Matrix", 1999)
 
         assert result is not None
         assert result.api_id == 603
-        # search_movie called exactly once (no fallback needed)
-        assert client.search_movie.call_count == 1
+        # fr year-filtered + fr no-year window merge = exactly 2 fr searches;
+        # the en-US language fallback is never reached (fr results exist).
+        assert client.search_movie.call_count == 2
+        assert all(c.kwargs.get("language") == "fr-FR" for c in client.search_movie.call_args_list)
 
     # -- language fallback --
 
@@ -657,7 +753,16 @@ class TestMatchTvshow:
         assert result.api_id == 77081
 
     def test_tvdb_no_local_seasons_keeps_score_based_winner(self) -> None:
-        """Without local_seasons, behavior is backwards-compatible (best score)."""
+        """Without local_seasons, the season veto is skipped — score decides.
+
+        With the superstring penalty, an expansion candidate
+        ("Top Chef France - Dans l'assiette", a distinct spin-off whose content
+        words are a proper superset of the query) is demoted, so the base
+        "Top Chef" wins on score. This is the desired behaviour: a folder named
+        "Top Chef France" should resolve to the base show, not a "- Dans
+        l'assiette" spin-off. The veto path is still NOT taken (get_series is
+        never called) — selection remains purely score-based.
+        """
         tvdb = MagicMock()
         tvdb.search_series.return_value = [
             _sr_tvdb({"tvdb_id": "346368", "name": "Top Chef France - Dans l'assiette", "year": "2016"}),
@@ -669,9 +774,8 @@ class TestMatchTvshow:
         # get_series must not be called when no local_seasons provided.
         assert not tvdb.get_series.called
         assert result is not None
-        # Best fuzzy score wins (as before) — title "Top Chef France - Dans l'assiette"
-        # contains the full query, so it scores higher than "Top Chef".
-        assert result.api_id == 346368
+        # Superstring penalty demotes the expansion → base "Top Chef" wins on score.
+        assert result.api_id == 77081
 
     def test_tvdb_local_seasons_no_survivor_falls_back_to_best_score(self) -> None:
         """If no candidate has the wanted season, fall back to best fuzzy score.
@@ -1063,3 +1167,132 @@ class TestBelowThresholdWarning:
         assert payload["title"] == "The Butterfly Effect"
         assert payload["candidates_count"] == 1
         assert payload["source"] == "tvdb"
+
+
+# ---------------------------------------------------------------------------
+# Maximal patch hardening — superstring penalty, original_title scoring,
+# and TV year-filter parity (window merge). See pipeline run 2026-05-30.
+# ---------------------------------------------------------------------------
+
+
+class TestSuperstringPenalty:
+    """Unit tests for _superstring_penalty (content-expansion demotion)."""
+
+    def test_proper_superset_penalised(self) -> None:
+        """A candidate adding a content word over the query is penalised."""
+        # "The Crow : La Cité des Anges" adds the content word "crow".
+        p = _superstring_penalty("La Cité des Anges", "The Crow : La Cité des Anges")
+        assert p == pytest.approx(-0.08)
+
+    def test_article_only_difference_not_penalised(self) -> None:
+        """Differing only by an article ("Matrix" vs "The Matrix") → no penalty."""
+        assert _superstring_penalty("Matrix", "The Matrix") == 0.0
+
+    def test_equal_content_not_penalised(self) -> None:
+        """Identical content words → no penalty."""
+        assert _superstring_penalty("Heat", "Heat") == 0.0
+
+    def test_disjoint_titles_not_penalised(self) -> None:
+        """A localized title sharing no content words is not an expansion."""
+        assert _superstring_penalty("The Frighteners", "Fantômes contre fantômes") == 0.0
+
+    def test_penalty_scales_and_caps(self) -> None:
+        """The penalty scales with extra words and is clamped to the -0.20 floor."""
+        # 3 extra content words → -0.24 clamped to the -0.20 floor.
+        assert _superstring_penalty("Show", "Show Alpha Beta Gamma") == pytest.approx(-0.20)
+
+
+class TestScoreResult:
+    """Unit tests for _score_result (title + original_title + penalty)."""
+
+    def test_original_title_rescues_localized(self) -> None:
+        """An English folder name scores high against a localized title via original_title."""
+        r = SearchResult(
+            provider="tmdb",
+            provider_id="10779",
+            title="Fantômes contre fantômes",
+            original_title="The Frighteners",
+            year=1996,
+            media_type="movie",
+        )
+        # English folder name matches the original_title exactly → high score.
+        assert _score_result("The Frighteners", 1996, r) >= HIGH_CONFIDENCE
+
+    def test_superstring_demoted_below_exact(self) -> None:
+        """An exact localized title outranks a prefixed-expansion candidate."""
+        crow = SearchResult(
+            provider="tmdb",
+            provider_id="10546",
+            title="The Crow : La Cité des Anges",
+            original_title="The Crow: City of Angels",
+            year=1996,
+            media_type="movie",
+        )
+        city = SearchResult(
+            provider="tmdb",
+            provider_id="795",
+            title="La Cité des anges",
+            original_title="City of Angels",
+            year=1998,
+            media_type="movie",
+        )
+        crow_score = _score_result("La Cité des Anges", 1997, crow)
+        city_score = _score_result("La Cité des Anges", 1997, city)
+        # The exact localized title outranks the prefixed-expansion candidate.
+        assert city_score > crow_score
+
+
+class TestTvYearWindowParity:
+    """TV matching must close the same year-filter exclusion gap as movies."""
+
+    def test_tvshow_tvdb_year_window_rescues_excluded_show(self) -> None:
+        """No-year window merge rescues a show the TVDB year filter excluded.
+
+        The year filter returns only a wrong same-year show; the no-year window
+        merge surfaces the correct show, which then wins on score.
+        """
+        tvdb = MagicMock()
+        wrong = _sr_tvdb({"tvdb_id": "111", "name": "Galaxy Quest Show", "year": "2014"})
+        right = _sr_tvdb({"tvdb_id": "222", "name": "My Detective", "year": "2016"})
+
+        def side(t: str, y: int | None) -> list[object]:
+            if y == 2014:
+                return [wrong]  # year= filter excludes the correct 2016 show
+            if y is None:
+                return [wrong, right]
+            return []
+
+        tvdb.search_series.side_effect = side
+        result = match_tvshow_tvdb(tvdb, "My Detective", 2014)
+
+        assert result is not None
+        assert result.api_id == 222  # rescued by the no-year window merge
+
+    def test_tvshow_tvdb_original_title_rescues_localized(self) -> None:
+        """A localized TVDB title is rescued by original_title.
+
+        It must not be beaten by a content-expansion candidate.
+        """
+        tvdb = MagicMock()
+        loc = SearchResult(
+            provider="tvdb",
+            provider_id="500",
+            title="Les Soprano",
+            original_title="The Sopranos",
+            year=1999,
+            media_type="tv",
+        )
+        expansion = SearchResult(
+            provider="tvdb",
+            provider_id="501",
+            title="The Sopranos Family Values",
+            original_title="The Sopranos Family Values",
+            year=2001,
+            media_type="tv",
+        )
+        tvdb.search_series.return_value = [loc, expansion]
+
+        result = match_tvshow_tvdb(tvdb, "The Sopranos", 1999)
+
+        assert result is not None
+        assert result.api_id == 500
