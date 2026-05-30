@@ -117,14 +117,18 @@ def _build_disk_fingerprints(
 
     Rows with ``oshash IS NULL`` (Stage A — file discovered but not yet
     enriched) are excluded so the merkle reflects only fully-fingerprinted
-    files. The query mirrors the two consumers that read the same set:
+    files. This helper is the SINGLE SOURCE OF TRUTH for the fingerprint set:
+    every Merkle-root consumer routes through it so a stored bucketed root is
+    never compared against a raw recomputation. The consumers are
     :func:`personalscraper.indexer.scanner._finalize_disk_after_walk` (the
-    bootstrap path that writes the first-ever merkle) and
+    bootstrap path that writes the first-ever merkle),
     :func:`personalscraper.indexer.reconcile.detect_merkle_drift` (the
-    consistency probe). Earlier revisions of this helper omitted the
-    ``oshash IS NOT NULL`` filter, leaving the scanner-stored and detector-
-    computed merkles to drift permanently against each other on every disk
-    that contained any Stage-A row (DEV #14).
+    ``library-doctor`` consistency probe), and
+    :func:`personalscraper.indexer.repair._refresh_disk_merkle` (the
+    ``library-repair`` post-cascade rewrite). Earlier revisions of this helper
+    omitted the ``oshash IS NOT NULL`` filter, leaving the scanner-stored and
+    detector-computed merkles to drift permanently against each other on every
+    disk that contained any Stage-A row (DEV #14).
 
     The ``mtime_ns`` of each fingerprint is floored to *capability*'s
     granularity bucket via :func:`round_mtime_ns` so the Merkle root computed

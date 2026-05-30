@@ -67,11 +67,19 @@ left alone.
 > Merkle root short-circuit, the `compute_merkle_delta` bulk-change freeze
 > guard, and the dir-mtime subtree skip) buckets mtime per the disk capability
 > too — via `_walker.py`'s `_build_disk_fingerprints` / `_sample_fresh_fingerprints`
-> and the dir-mtime compares — so coarse filesystems are consistent end-to-end.
-> On exFAT, ctime is dropped from the tuple and mtime is floored to a 2-second
-> bucket; on HFS+, mtime is floored to a 1-second bucket; NTFS / APFS / ext4
-> keep the exact `(size, mtime_ns, ctime_ns)` 3-tuple unchanged (bucketing is
-> the identity transform → byte-identical Merkle root). See
+> and the dir-mtime compares. The **other** Merkle-root consumers bucket through
+> the very same `_build_disk_fingerprints` helper so every stored vs computed
+> comparison is consistent: `reconcile.detect_merkle_drift` (the
+> `library-doctor` drift check) resolves the per-disk capability the same way
+> the scanner does and is fed the operator override from the doctor caller, and
+> `repair._refresh_disk_merkle` (the `library-repair` post-cascade rewrite)
+> auto-detects the capability from the disk mount so the root it writes is the
+> one the next scan recomputes. Coarse filesystems are therefore consistent
+> end-to-end — store, short-circuit, drift check, and repair rewrite all bucket
+> identically. On exFAT, ctime is dropped from the tuple and mtime is floored to
+> a 2-second bucket; on HFS+, mtime is floored to a 1-second bucket; NTFS / APFS
+> / ext4 keep the exact `(size, mtime_ns, ctime_ns)` 3-tuple unchanged
+> (bucketing is the identity transform → byte-identical Merkle root). See
 > [`docs/reference/storage.md`](storage.md) — "Filesystem capability layer" for
 > the full table.
 

@@ -310,6 +310,15 @@ spuriously trip the bulk-change freeze on a healthy disk. For `ntfs_macfuse` /
 Merkle root, the delta, and the dir-mtime compare are all byte-identical to the
 pre-multi-filesystem behaviour.
 
+The remaining Merkle-root consumers outside the scanner bucket through the same
+`_build_disk_fingerprints` helper, so a stored bucketed root is never compared
+against a raw recomputation: `reconcile.detect_merkle_drift` (the
+`library-doctor` drift check, fed the operator override from its caller) and
+`repair._refresh_disk_merkle` (the `library-repair` post-cascade rewrite, which
+auto-detects the capability from the disk mount). On a coarse filesystem this is
+what keeps the doctor from emitting a false drift warning after a clean scan and
+keeps the repair-written root reproducible by the next scan's short-circuit.
+
 ### NTFS flags (byte-identical to pre-0.18.0)
 
 The full `ntfs_macfuse` rsync prefix:
