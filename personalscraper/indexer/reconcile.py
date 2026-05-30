@@ -168,7 +168,11 @@ class ReconcileReport:
 # ---------------------------------------------------------------------------
 
 
-def detect_merkle_drift(conn: sqlite3.Connection) -> list[int]:
+def detect_merkle_drift(
+    conn: sqlite3.Connection,
+    *,
+    fs_type_overrides: dict[str, str] | None = None,
+) -> list[int]:
     """Return disk IDs whose stored merkle differs from the live computation.
 
     The stored merkle (``disk.merkle_root``) is the value persisted at
@@ -178,42 +182,61 @@ def detect_merkle_drift(conn: sqlite3.Connection) -> list[int]:
     finished partially (``enriched_at`` not yet propagated to merkle) or
     the file fingerprints have moved without the disk row being refreshed.
 
+    The live root MUST be computed exactly the way the scanner stores it,
+    otherwise a *false* drift is reported on every clean scan of a coarse
+    filesystem.  The scanner (full-scan finalize + quick/incremental
+    short-circuit) buckets each ``mtime_ns`` to the disk's
+    :class:`~personalscraper.indexer._fs_capability.FilesystemCapability`
+    granularity via
+    :func:`~personalscraper.indexer.scanner._walker._build_disk_fingerprints`.
+    This detector therefore goes through the SAME helper, resolving the
+    per-disk capability the SAME way the scanner does — via
+    :func:`~personalscraper.indexer._fs_capability.resolve_capability` (mount,
+    override) — so the live root and the stored root use identical bucketing.
+    On a coarse FS (exFAT 2 s, HFS+ 1 s) a raw recomputation would never
+    reproduce the bucketed stored root and the merkle check would warn
+    forever; on NTFS/APFS/ext4 (granularity 1) the bucketing is the identity
+    transform, so the result is byte-identical to the legacy raw behaviour.
+
     Args:
         conn: Open SQLite connection on the indexer DB.
+        fs_type_overrides: Optional mapping of the STABLE disk identity
+            (``DiskConfig.id``, persisted as the immutable ``DiskRow.label``)
+            to a canonical fs-type override token.  Threaded from the doctor
+            caller via
+            :func:`~personalscraper.indexer.commands._bootstrap.build_fs_type_overrides`
+            so the detector honours the operator override exactly like the
+            scanner.  ``None`` (the default) means pure auto-detection per
+            disk — which matches the scanner for the common no-override case.
 
     Returns:
         Sorted list of ``disk.id`` values whose merkle has drifted.
         Disks with ``merkle_root IS NULL`` are excluded — they have never
         been fingerprinted, which is "missing" rather than "drifted".
     """
-    from personalscraper.indexer.merkle import FileFingerprint, compute_merkle_root  # noqa: PLC0415
+    # Lazy import: ``scanner._walker`` is heavy and the scanner package
+    # transitively pulls reconcile into its import graph during normal runs,
+    # so an in-function import keeps the (scanner ↔ reconcile) edge acyclic.
+    from personalscraper.indexer._fs_capability import resolve_capability  # noqa: PLC0415
+    from personalscraper.indexer.merkle import compute_merkle_root  # noqa: PLC0415
+    from personalscraper.indexer.scanner._walker import _build_disk_fingerprints  # noqa: PLC0415
 
+    overrides = fs_type_overrides or {}
     conn.row_factory = sqlite3.Row
-    disks = conn.execute("SELECT id, merkle_root FROM disk WHERE merkle_root IS NOT NULL ORDER BY id").fetchall()
+    disks = conn.execute(
+        "SELECT id, label, mount_path, merkle_root FROM disk WHERE merkle_root IS NOT NULL ORDER BY id"
+    ).fetchall()
     drifted: list[int] = []
 
     for d in disks:
-        rows = conn.execute(
-            """
-            SELECT mf.path_id AS path_id, mf.size_bytes AS size,
-                   mf.mtime_ns AS mtime_ns, mf.oshash AS oshash
-              FROM media_file mf
-              JOIN path p ON p.id = mf.path_id
-             WHERE p.disk_id = ?
-               AND mf.deleted_at IS NULL
-               AND mf.oshash IS NOT NULL
-            """,
-            (d["id"],),
-        ).fetchall()
-        fingerprints = [
-            FileFingerprint(
-                path_id=int(r["path_id"]),
-                size=int(r["size"]),
-                mtime_ns=int(r["mtime_ns"]),
-                oshash=str(r["oshash"]),
-            )
-            for r in rows
-        ]
+        # Resolve the per-disk capability the SAME way the scanner does: look
+        # the override up by the STABLE ``DiskRow.label`` (== ``DiskConfig.id``)
+        # and auto-detect from ``mount_path`` when no override is supplied. An
+        # unmounted disk (``mount_path IS NULL``) probes to the NTFS-safe
+        # ``unknown`` superset (granularity 1 → identity), so its stored root —
+        # which was likewise bucketed at granularity 1 if NTFS — still matches.
+        capability = resolve_capability(d["mount_path"] or "", overrides.get(d["label"]))
+        fingerprints = _build_disk_fingerprints(conn, int(d["id"]), capability)
         # ``compute_merkle_root`` handles the empty case (yields a fixed
         # empty-set hash).  A disk with zero live fingerprints whose stored
         # merkle equals that empty-set hash is COHERENT, not drifted —

@@ -381,11 +381,27 @@ def _check_index_outbox_lag(conn: sqlite3.Connection, lag_threshold_s: int = 360
     )
 
 
-def _check_merkle_drift(conn: sqlite3.Connection) -> CheckResult:
+def _check_merkle_drift(
+    conn: sqlite3.Connection,
+    fs_type_overrides: dict[str, str] | None = None,
+) -> CheckResult:
     """Live-recompute merkle roots and verify they match stored values.
+
+    The live recomputation is delegated to
+    :func:`~personalscraper.indexer.reconcile.detect_merkle_drift`, which
+    buckets each ``mtime_ns`` to the per-disk filesystem-capability granularity
+    exactly as the scanner does.  *fs_type_overrides* is threaded through so the
+    operator ``DiskConfig.fs_type`` override is honoured here just as on the scan
+    path — without it, a coarse-FS disk (exFAT/HFS+) whose stored root is
+    bucketed would emit a *false* drift warning after every clean scan.
 
     Args:
         conn: Open :class:`sqlite3.Connection` on the indexer DB.
+        fs_type_overrides: Optional ``{DiskConfig.id: fs_type}`` map built from
+            config via
+            :func:`~personalscraper.indexer.commands._bootstrap.build_fs_type_overrides`.
+            ``None`` means pure per-disk auto-detection (matches the scanner for
+            the no-override case).
 
     Returns:
         :class:`CheckResult` with status ``ok`` when all disk merkle roots match,
@@ -401,7 +417,7 @@ def _check_merkle_drift(conn: sqlite3.Connection) -> CheckResult:
             detail=str(exc),
         )
     try:
-        drifted = detect_merkle_drift(conn)
+        drifted = detect_merkle_drift(conn, fs_type_overrides=fs_type_overrides)
     except sqlite3.OperationalError as exc:
         return CheckResult(
             name="merkle_drift",
@@ -532,6 +548,7 @@ def run_doctor(
     outbox_lag_threshold_s: int = 3600,
     canonical_provider_threshold_pct: float = 50.0,
     stuck_scan_threshold_s: int = 3600,
+    fs_type_overrides: dict[str, str] | None = None,
 ) -> DoctorReport:
     """Run all health checks and return a :class:`DoctorReport`.
 
@@ -542,6 +559,10 @@ def run_doctor(
         canonical_provider_threshold_pct: Minimum percent of items that must have
             ``canonical_provider`` set.
         stuck_scan_threshold_s: Seconds after which a running scan is stuck.
+        fs_type_overrides: Optional ``{DiskConfig.id: fs_type}`` override map
+            forwarded to the Merkle-drift check so its live recomputation buckets
+            mtimes with the same per-disk capability the scanner used.  ``None``
+            means per-disk auto-detection.
 
     Returns:
         Populated :class:`DoctorReport` with one :class:`CheckResult` per check.
@@ -555,7 +576,7 @@ def run_doctor(
         _check_no_stuck_scan_run(conn, stuck_threshold_s=stuck_scan_threshold_s),
         _check_repair_queue_backlog(conn, threshold=repair_queue_threshold),
         _check_index_outbox_lag(conn, lag_threshold_s=outbox_lag_threshold_s),
-        _check_merkle_drift(conn),
+        _check_merkle_drift(conn, fs_type_overrides),
         _check_canonical_provider_populated(conn, threshold_pct=canonical_provider_threshold_pct),
         _check_phantom_paths(conn),
     ]
@@ -615,6 +636,7 @@ def library_doctor(
     from personalscraper.cli_helpers.output import emit  # noqa: PLC0415
     from personalscraper.conf.loader import load_config  # noqa: PLC0415
     from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
+    from personalscraper.indexer.commands._bootstrap import build_fs_type_overrides  # noqa: PLC0415
     from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
@@ -627,6 +649,12 @@ def library_doctor(
     db_path = Path(cfg.indexer.db_path)
     migrations_dir = _os.path.dirname(_migrations_pkg.__file__)
 
+    # Build the per-disk fs-type override map from config (keyed on the STABLE
+    # DiskConfig.id == DiskRow.label) so the Merkle-drift check recomputes live
+    # roots with the SAME capability the scanner stored them under — avoiding a
+    # false drift warning on a coarse-FS (exFAT/HFS+) disk after a clean scan.
+    fs_type_overrides = build_fs_type_overrides(cfg.disks)
+
     event_bus = EventBus()
     conn = open_db(db_path, event_bus=event_bus)
     apply_migrations(conn, Path(migrations_dir))
@@ -638,6 +666,7 @@ def library_doctor(
             outbox_lag_threshold_s=outbox_lag_threshold_s,
             canonical_provider_threshold_pct=canonical_threshold_pct,
             stuck_scan_threshold_s=stuck_scan_threshold_s,
+            fs_type_overrides=fs_type_overrides,
         )
     finally:
         conn.close()
