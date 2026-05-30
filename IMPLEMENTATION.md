@@ -64,9 +64,19 @@ A 4-lens adversarial re-review confirmed the phase-8 scanner fix is correct + NT
 
 `8ed5f389`..`bb8a8e8e`. Gate: `make check` exit 0 (5918 passed), `pytest -m multifs` 159, design-gaps AUDIT=0 FM=0, NTFS byte-identical re-verified for both new consumers. The regression-guard tests fail without the fix (verified via git stash).
 
+### Cycle 5 (2026-05-30) — last consumer of the recurring risk class; CONVERGED
+
+Two adversarial verifiers: (1) the cycle-4 merkle fix is **byte-identical to the original inline code** (proven: helper root == old-inline root, row set clause-for-clause equivalent, unmounted-disk fallback → NTFS-safe UNKNOWN) — no row-set regression. (2) A whole-feature completeness sweep cleared 6 gap classes (dead reconcile_file, staleness-not-drift checks, NTFS-portable library audits by design, the sole WAL gate, all 4 override consumers route through `resolve_capability`, docs accuracy) and found **one** remaining gap:
+
+- **(major → fixed)** `ScanMode.verify` (`verify.py:181`) compared raw `st.st_mtime_ns == row["mtime_ns"]` and enqueued repairs on mismatch — the THIRD per-file scan-mode comparator (siblings: incremental, quick), missed by phase-5 and the cycle-4 enumeration → spurious repairs on coarse FS. Now buckets both sides via `round_mtime_ns`; capability threaded from the orchestrator. `0c93dc7d`.
+
+**Exhaustive convergence check (the recurring failure was "another un-bucketed consumer"):** enumerated EVERY per-file mtime comparator in `scanner/_modes/` — incremental (dir-mtime skip + tier-1 via normalize_tier1), quick (paranoia), verify — **all now bucketed**, and `rg "st_mtime_ns ==" scanner/` returns **zero** raw comparators. Combined with every `FileFingerprint`/merkle-root consumer routing through the single `_build_disk_fingerprints` helper, the two risk classes are **structurally closed** — no "yet another consumer" remains. Gate: `make check` exit 0 (5921 passed), `pytest -m multifs` 162, design-gaps AUDIT=0 FM=0.
+
+**Review CONVERGED after 5 cycles.** No remaining critical/major/medium findings.
+
 ## Next action
 
-Review converged after **3 cycles**; the retrospective remediation closed the half-delivered headline. **Merge is BLOCKED only by GitHub Actions billing** (spending limit): the `test`/`security`/`coverage-merge` jobs cannot start. Static CI (lint, typecheck, design-gaps, licenses, secrets) is green. Action for the operator: fix Settings → Billing & plans, then re-run CI (`gh run rerun <id> --failed`) → green → manual squash-merge of PR #29.
+Review **CONVERGED after 5 cycles** — the recurring per-file-mtime / merkle risk class is now exhaustively closed (every comparator + every merkle consumer is FS-aware via single helpers; verified by enumeration). **Merge is BLOCKED only by GitHub Actions billing** (spending limit): the `test`/`security`/`coverage-merge` jobs cannot start. Static CI (lint, typecheck, design-gaps, licenses, secrets) is green; code fully validated locally (`make check`). Action for the operator: fix Settings → Billing & plans, then re-run CI (`gh run rerun <id> --failed`) → green → manual squash-merge of PR #29.
 
 > Phase 2 note (for Phases 3–5): `FilesystemCapability.fs_type` is `field(compare=False)`
 > so `capability_for("unknown") == capability_for("ntfs_macfuse")` is `True` (behavioral
