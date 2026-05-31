@@ -305,7 +305,8 @@ cd /Users/izno/dev/PersonnalScaper && git rm personalscraper/library/scanner.py
 
 ```bash
 test ! -f /Users/izno/dev/PersonnalScaper/personalscraper/library/scanner.py && echo "deleted"
-cd /Users/izno/dev/PersonnalScaper && rg -t py 'library.scanner|scan_library' personalscraper/ tests/ ; echo "rc=$?"
+# RE-SCOPED ACC-04 (signed off) — live-import form, not the unsatisfiable bare-token form:
+cd /Users/izno/dev/PersonnalScaper && rg -t py 'from personalscraper\.library\.scanner|import personalscraper\.library\.scanner' personalscraper/ tests/ ; echo "rc=$?"
 ```
 
 Expected: `deleted`, then no output, then `rc=1`.
@@ -355,9 +356,13 @@ cd /Users/izno/dev/PersonnalScaper && git commit --allow-empty -m "chore(lib-fol
 ## Acceptance
 
 ```bash
-# ACC-04  library/scanner.py gone; scan_library removed; no residual imports
+# ACC-04  library/scanner.py deleted; NO LIVE import of the deleted module remains
+# RE-SCOPED (operator sign-off — mirrors the ACC-02 incoherence-fix): the broad
+# 'library.scanner|scan_library' grep is unsatisfiable (trailers has its own unrelated
+# scan_library method; analyzer.py keeps :func: docstrings until Phase 4; '.' is a regex
+# wildcard). Satisfiable form = file gone + no live import of the deleted module.
 test ! -f personalscraper/library/scanner.py && echo "deleted"
-rg -t py 'library.scanner|scan_library' personalscraper/ tests/ ; echo "rc=$?"
+rg -t py 'from personalscraper\.library\.scanner|import personalscraper\.library\.scanner' personalscraper/ tests/ ; echo "rc=$?"
 # Expected: deleted   then no output, then rc=1
 
 # ACC-04b  no canonical_provider=None in dispatch

@@ -398,10 +398,17 @@ DB=$(python -c "from personalscraper.conf.loader import load_config as L; print(
 sqlite3 "$DB" "SELECT COUNT(*) FROM item_issue WHERE type IN ('nfo_missing','nfo_incomplete');"
 # Expected: integer >= 0 (rows exist iff NFO-less dirs exist; none silently absent from media_item)
 
-# ACC-04  Phase 3 — library/scanner.py + scan_library removed; dispatch makes rich rows (no canonical_provider=None)
+# ACC-04  Phase 3 — library/scanner.py deleted; NO LIVE import of the deleted module; dispatch makes rich rows
+# RE-SCOPED (operator sign-off 2026-05-31 — same precedent as ACC-02 above): the broad
+# `rg 'library.scanner|scan_library'` form is UNSATISFIABLE at the Phase-3 gate — (a) the
+# trailers subsystem has its OWN unrelated `Scanner.scan_library` method (production, stays),
+# (b) `library/analyzer.py` keeps `:func:` docstrings referencing `library.scanner.scan_library`
+# until Phase 4 deletes it, and (c) `.` is a regex wildcard that also matches `library/scanner`
+# provenance notes ("Verbatim port of …") in surviving indexer modules. The satisfiable,
+# intent-preserving criterion is: the file is gone AND no module still IMPORTS the deleted one.
 test ! -f personalscraper/library/scanner.py && echo "deleted"
-rg -t py 'library.scanner|scan_library' personalscraper/ tests/ ; echo "rc=$?"
-# Expected: deleted   then no output, then rc=1
+rg -t py 'from personalscraper\.library\.scanner|import personalscraper\.library\.scanner' personalscraper/ tests/ ; echo "rc=$?"
+# Expected: deleted   then no output, then rc=1   (docstring provenance + trailers.scan_library are NOT violations)
 # ACC-04b
 rg -t py 'canonical_provider=None' personalscraper/dispatch/media_index.py ; echo "rc=$?"
 # Expected: no output, then rc=1

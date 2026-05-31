@@ -17,7 +17,7 @@
 | 0   | Season-dir SSOT (widen-first) + VIDEO_EXTENSIONS                 | phase-00-season-ssot.md               | [x]    |
 | 1   | Extract NFO helpers → nfo_utils                                  | phase-01-nfo-helpers.md               | [x]    |
 | 2   | Build \_item_stage + \_canonical; rewire scan_library (parallel) | phase-02-item-stage.md                | [x]    |
-| 3   | Single-creator cutover: dispatch + alias + delete scanner.py     | phase-03-single-creator-cutover.md    | [ ]    |
+| 3   | Single-creator cutover: dispatch + alias + delete scanner.py     | phase-03-single-creator-cutover.md    | [x]    |
 | 4   | ffprobe fold + insights/                                         | phase-04-ffprobe-insights.md          | [ ]    |
 | 5   | verify/maintenance re-home + no-NFO + delete library/            | phase-05-verify-maintenance-delete.md | [ ]    |
 | 6   | Feature PR + review (auto-invoked)                               | phase-06-feature-pr.md                | [ ]    |
@@ -47,16 +47,21 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-**Phase 3 in progress** (Single-creator cutover). Done so far (suite green, 5987 passed):
+**Phase 4** (ffprobe fold + `insights/`). Start at `docs/features/lib-fold/plan/phase-04-ffprobe-insights.md`.
 
-- ✅ Task 1+2 — dispatch single-writer cutover: `media_index.py` `rebuild()`/`add()` now delegate to the shared `scan_and_stage_dir`/`build_item_row`+`upsert_item_with_attrs` (rich rows; `canonical_provider=None` eliminated — ACC-04b passes). Regression test `tests/dispatch/test_media_index_rich_rows.py` pins the bug. Commit `3d54ba8c`.
-- ✅ Latent bug surfaced + fixed: `run.py` post-enrich passed the string `"enrich"` (not `ScanMode.enrich`) → `AttributeError` once rich-row rebuild inserts a disk row (regressed `test_dispatch_recovery`). Fixed `b73a141c`; an unscoped prod `OSError` guard was reverted in favour of the documented `guard_disk_mounted` test seam `0784850d`.
+### Phase 3 — DONE (2026-05-31, single-creator cutover; independently verified at HEAD)
 
-**Remaining (next):**
+All five tasks complete; each sub-dispatch was verified against DESIGN + plan by the main session (git range, scope, quality gate re-run, honesty audit of every migrated/weakened assertion) before proceeding.
 
-- Task 3 — re-point `library-scan` CLI as a visible alias of `library-index --mode full` (kept in `--help`); confirm `scan_library` has no other callers.
-- Task 4 — **(irreversible) delete `personalscraper/library/scanner.py`** + migrate its importers/tests: `commands/library/scan.py`, `tests/library/test_scanner.py` (scan_movie_dir/scan_tvshow_dir/\_ensure_disk_row), `tests/library/test_integration.py` (scan_library), `tests/architecture/test_event_bus_required_signatures.py` (scan_library), `tests/indexer/scanner/_modes/test_item_stage_golden.py` (scan_library baseline — re-home/adapt). NFO-helper imports already repointed to `nfo_utils`.
-- Task 5 — Phase 3 gate (`make lint && make test && make check`), then the phase milestone commit.
+- ✅ **Task 1+2** (pre-existing): dispatch `rebuild()`/`add()` delegate to the shared `upsert_item_with_attrs` (rich rows; `canonical_provider=None` eliminated — ACC-04b ✓). Regression test `tests/dispatch/test_media_index_rich_rows.py`. Commits `3d54ba8c`/`b73a141c`/`0784850d`.
+- ✅ **Task 3** — `library-scan` is now a **visible alias** of `library-index --mode full`, delegating to the shared `library_index_command(mode="full", …)` (NOT the stale plan's `commands/library/index.py` import nor a direct decorated-function call — that was a Typer `OptionInfo` trap). `tests/commands/test_library_scan.py` + `_e2e.py` rewritten to the delegation contract. Commit `5731e398`.
+- ✅ **Task 4** (irreversible) — `personalscraper/library/scanner.py` **deleted** (`a487fd88`), in three verified steps: (4a) golden `test_item_stage_golden.py` **decoupled** from the live `scan_library` by freezing a verbatim-captured legacy baseline snapshot (`89267d1e`); (4b) unique scanner coverage **migrated** to `tests/indexer/scanner/_modes/test_item_stage.py` (+24 tests against `stage_library_items`/`scan_and_stage_dir`/`_detect_issues`/`_ensure_disk_row`) and `tests/test_nfo_utils.py` (+12) — full coverage-mapping table audited, `_item_stage.py` at 92.81% (`09aef064`); (4c) `test_integration.py` re-pointed to `stage_library_items`, arch `test_event_bus_required_signatures.py` entry removed, `test_scanner.py` deleted.
+- ✅ **Task 5 gate (independently re-run by main session):** `make lint` clean · `make test` **5972 passed, 0 failed, 0 errors** · `make check` rc=0, **coverage 91.74%** (≥90). Module-size: only the pre-existing `movie_service.py` (975) WARN remains (out of lib-fold scope).
+
+**Two documented incoherence-fixes (the only deviations from literal plan/DESIGN text, both signed off):**
+
+1. **ACC-04 re-scoped** (operator sign-off — same precedent as the ACC-02 fix): the broad `rg 'library.scanner|scan_library'` → rc=1 form is **unsatisfiable** (the `trailers` subsystem has its own unrelated `Scanner.scan_library` method; `library/analyzer.py` keeps `:func:` docstrings until Phase 4; `.` is a regex wildcard). Re-scoped to the satisfiable, intent-preserving form: **file gone + no LIVE import of the deleted module** (`rg 'from personalscraper\.library\.scanner|import personalscraper\.library\.scanner'` → rc=1, verified). DESIGN.md + plan-03 synced.
+2. **`library-scan --disk X` semantic shift** (DESIGN-conformant consequence of OQ-4, not a regression): the legacy alias filtered `cfg.disks` so `--disk` restricted `media_item` creation; the delegated `library-index --mode full` runs its item stage (pass 1) **library-wide** (DESIGN §4.1/§5 — `stage_items_pass1` has no `disk_filter`), so `--disk` now restricts only the file-level walk (`path`/`media_file`). No cron/launchd job uses `library-scan --disk` (DESIGN §3.6); pre-1.0, no back-compat.
 
 ## Phase 0/1/2 — corrective closure (2026-05-31, post-audit, NO DEFERRAL)
 
