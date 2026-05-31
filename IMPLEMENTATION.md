@@ -47,7 +47,16 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to continue with Phase 3 (Single-creator cutover: dispatch + alias + delete scanner.py).
+**Phase 3 in progress** (Single-creator cutover). Done so far (suite green, 5987 passed):
+
+- ✅ Task 1+2 — dispatch single-writer cutover: `media_index.py` `rebuild()`/`add()` now delegate to the shared `scan_and_stage_dir`/`build_item_row`+`upsert_item_with_attrs` (rich rows; `canonical_provider=None` eliminated — ACC-04b passes). Regression test `tests/dispatch/test_media_index_rich_rows.py` pins the bug. Commit `3d54ba8c`.
+- ✅ Latent bug surfaced + fixed: `run.py` post-enrich passed the string `"enrich"` (not `ScanMode.enrich`) → `AttributeError` once rich-row rebuild inserts a disk row (regressed `test_dispatch_recovery`). Fixed `b73a141c`; an unscoped prod `OSError` guard was reverted in favour of the documented `guard_disk_mounted` test seam `0784850d`.
+
+**Remaining (next):**
+
+- Task 3 — re-point `library-scan` CLI as a visible alias of `library-index --mode full` (kept in `--help`); confirm `scan_library` has no other callers.
+- Task 4 — **(irreversible) delete `personalscraper/library/scanner.py`** + migrate its importers/tests: `commands/library/scan.py`, `tests/library/test_scanner.py` (scan_movie_dir/scan_tvshow_dir/\_ensure_disk_row), `tests/library/test_integration.py` (scan_library), `tests/architecture/test_event_bus_required_signatures.py` (scan_library), `tests/indexer/scanner/_modes/test_item_stage_golden.py` (scan_library baseline — re-home/adapt). NFO-helper imports already repointed to `nfo_utils`.
+- Task 5 — Phase 3 gate (`make lint && make test && make check`), then the phase milestone commit.
 
 ## Phase 0/1/2 — corrective closure (2026-05-31, post-audit, NO DEFERRAL)
 
