@@ -29,6 +29,11 @@ from personalscraper.indexer.repos.item_repo import (
     _ATTR_DISPATCH_NORM_TITLE,
     _ATTR_DISPATCH_PATH,
 )
+from personalscraper.indexer.scanner._modes._item_stage import (
+    _nfo_metadata_for_dir,
+    build_item_row,
+    scan_and_stage_dir,
+)
 from personalscraper.indexer.schema import ItemAttributeRow, MediaItemKind, MediaItemRow
 from personalscraper.logger import get_logger
 
@@ -403,28 +408,37 @@ class MediaIndex:
                 (entry.category, now_ts, entry.name, item_id),
             )
         else:
-            item_id = item_repo.upsert(
-                self._conn,
-                MediaItemRow(
-                    id=0,
-                    kind=kind,
-                    title=entry.name,
-                    title_sort=entry.name,
-                    original_title=None,
-                    year=_extract_year(entry.name),
-                    category_id=entry.category,
-                    external_ids_json="{}",
-                    ratings_json=None,
-                    canonical_provider=None,
-                    nfo_status=None,
-                    artwork_json=None,
-                    date_created=now_ts,
-                    date_modified=now_ts,
-                    date_metadata_refreshed=None,
-                    is_locked=0,
-                    preferred_lang="fr",
-                ),
+            # Insert a *rich* row via the shared :mod:`_item_stage` primitives
+            # so dispatch never re-introduces the NULL-canonical-provider
+            # degradation (lib-fold Phase 3, single-creator decision #4): the
+            # provider is derived deterministically from the on-disk NFO's
+            # provider IDs, not hard-coded NULL. When the destination directory
+            # exists (the production run path, where ``entry.path`` is a real
+            # post-move folder) its NFO is read; otherwise blank metadata yields
+            # a deterministic ``canonical_provider`` of ``None`` *only when no ID
+            # is present* — the correct rich-row result, not the prior bug.
+            media_dir = Path(entry.path)
+            is_tvshow = kind == "show"
+            if media_dir.is_dir():
+                meta, nfo_status = _nfo_metadata_for_dir(media_dir, entry.name, is_tvshow)
+            else:
+                meta = {"tmdb_id": None, "imdb_id": None, "tvdb_id": None, "canonical_provider": None, "ratings": []}
+                nfo_status = "missing"
+            row = build_item_row(
+                title=entry.name,
+                kind=kind,
+                year=_extract_year(entry.name),
+                category_id=entry.category,
+                tvdb_id=meta["tvdb_id"],
+                tmdb_id=meta["tmdb_id"],
+                imdb_id=meta["imdb_id"],
+                nfo_default=meta["canonical_provider"],
+                nfo_status=nfo_status,
+                ratings=meta["ratings"],
             )
+            row["date_created"] = now_ts
+            row["date_modified"] = now_ts
+            item_id = item_repo.upsert(self._conn, MediaItemRow(**row))
 
         # Write dispatch-specific attributes (upsert replaces on conflict).
         for key, value in (
@@ -470,6 +484,7 @@ class MediaIndex:
             for cid, cat in categories.items():
                 folder_to_id[cat.folder_name.lower()] = cid
 
+        now_ts = int(time.time())
         count = 0
         for config in disk_configs:
             if not config.path.exists():
@@ -490,20 +505,25 @@ class MediaIndex:
                 if resolved_id not in config.categories:
                     continue
 
-                media_type = "tvshow" if resolved_id in _SERIES_CATEGORY_IDS else "movie"
+                kind: MediaItemKind = "show" if resolved_id in _SERIES_CATEGORY_IDS else "movie"
 
                 for media_dir in category_dir.iterdir():
                     if not media_dir.is_dir() or media_dir.name.startswith("."):
                         continue
 
-                    self.add(
-                        IndexEntry(
-                            name=media_dir.name,
-                            disk=config.id,
-                            category=resolved_id,
-                            path=str(media_dir),
-                            media_type=media_type,
-                        )
+                    # Delegate to the shared item stage — produces rich rows
+                    # (canonical_provider derived from the NFO, seasons, issues
+                    # and the three dispatch_* flex attributes) identical to
+                    # ``library-index --mode full`` (lib-fold single-creator
+                    # cutover). Prior to this, the per-directory write went
+                    # through ``add()`` and persisted a NULL canonical provider.
+                    scan_and_stage_dir(
+                        self._conn,
+                        media_dir,
+                        disk_cfg=config,
+                        category_id=resolved_id,
+                        kind=kind,
+                        now_s=now_ts,
                     )
                     count += 1
 
