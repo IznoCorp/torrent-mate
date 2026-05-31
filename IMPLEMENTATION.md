@@ -16,7 +16,7 @@
 | --- | ---------------------------------------------------------------- | ------------------------------------- | ------ |
 | 0   | Season-dir SSOT (widen-first) + VIDEO_EXTENSIONS                 | phase-00-season-ssot.md               | [x]    |
 | 1   | Extract NFO helpers → nfo_utils                                  | phase-01-nfo-helpers.md               | [x]    |
-| 2   | Build \_item_stage + \_canonical; rewire scan_library (parallel) | phase-02-item-stage.md                | [ ]    |
+| 2   | Build \_item_stage + \_canonical; rewire scan_library (parallel) | phase-02-item-stage.md                | [x]    |
 | 3   | Single-creator cutover: dispatch + alias + delete scanner.py     | phase-03-single-creator-cutover.md    | [ ]    |
 | 4   | ffprobe fold + insights/                                         | phase-04-ffprobe-insights.md          | [ ]    |
 | 5   | verify/maintenance re-home + no-NFO + delete library/            | phase-05-verify-maintenance-delete.md | [ ]    |
@@ -47,4 +47,11 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to continue with Phase 2 (Build \_item_stage + \_canonical — the XL crux).
+Run `/implement:phase` to continue with Phase 3 (Single-creator cutover: dispatch + alias + delete scanner.py).
+
+## Phase 2 — carried notes (resolve in Phase 3)
+
+- **Objective #5 (rewire `scan_library` to the shared `upsert_item_with_attrs`) deferred to Phase 3.** Phase 3 deletes `scan_library` entirely (cutover + delete `scanner.py`), which subsumes the rewire. Phase-2 parity is guaranteed by the characterization golden test (`tests/indexer/scanner/_modes/test_item_stage_golden.py`), which compares `stage_library_items` against the **real** legacy per-dir functions and passes (3-item mini-library: movie, no-NFO movie, show+seasons).
+- **Golden-test baseline note:** it replicates `scan_library`'s trivial disk×category×media-dir loop (calling the real `scan_movie_dir`/`scan_tvshow_dir`/`_upsert_media_item`/`_upsert_seasons_and_episodes`) rather than calling `scan_library()` directly — the latter's terminal `_indexer_scan` writes a disk-identity sentinel to the volume root (fails on tmp fs). Phase 3's cutover must exercise the **real `library-index --mode full` end-to-end** path to close the wrapper-loop gap.
+- **Minor:** the `integration` pytest marker used by the golden test is unregistered (benign `PytestUnknownMarkWarning`, ×8 under xdist; `--strict-markers` is OFF so it does not gate). Register it in `pyproject.toml [tool.pytest.ini_options] markers` (or drop the marker — the test is fast + self-contained) during Phase 3.
+- **Pre-existing module-size WARNs** (`scanner.py` 855, `movie_service.py` 975 — both < 1000 hard ceiling): `scanner.py`'s WARN clears when Phase 3 deletes it.
