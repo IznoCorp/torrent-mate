@@ -22,22 +22,24 @@ Phase 0 must be complete:
 ## Objective
 
 1. Copy `parse_title_year`, `extract_nfo_ids`, `extract_nfo_metadata` verbatim into `personalscraper/nfo_utils.py`.
-2. Update every external importer: `trailers/scanner.py`, `library/analyzer.py`, `library/rescraper.py`.
-3. Update `library/scanner.py` internal calls to use the new location (forward-compatibility until Phase 3 deletes the file).
-4. Verify `rg -t py 'from personalscraper.library.scanner import' personalscraper/ tests/` returns zero.
+2. Update every external importer: `trailers/scanner.py`, `library/analyzer.py`, `library/rescraper.py`, `library/validator.py`.
+3. Replace the three NFO-helper **definitions** in `library/scanner.py` with `from personalscraper.nfo_utils import ...` so `nfo_utils` is the single source of truth (SSOT). `library.scanner.parse_title_year` / `extract_nfo_ids` / `extract_nfo_metadata` remain importable as re-exports for any consumer not yet repointed; `scanner.py`'s own internal call-sites (`scan_movie_dir`, `scan_tvshow_dir`) use the imported helpers.
+4. Verify no importer reaches into `library.scanner` for the NFO **helpers** specifically (see ACC-02 below). The other `library.scanner` surface (`scan_library`, `scan_movie_dir`, `scan_tvshow_dir`, `_ensure_disk_row`) legitimately remains until Phase 3 deletes the file.
 
 ---
 
 ## Files to create / modify
 
-| Action        | File                                                                                     |
-| ------------- | ---------------------------------------------------------------------------------------- |
-| Modify        | `personalscraper/nfo_utils.py` (append three helpers)                                    |
-| Modify        | `personalscraper/trailers/scanner.py` (repoint import)                                   |
-| Modify        | `personalscraper/library/analyzer.py` (repoint import)                                   |
-| Modify        | `personalscraper/library/rescraper.py` (repoint import)                                  |
-| Modify        | `personalscraper/library/scanner.py` (self-import → nfo_utils, internal calls unchanged) |
-| Create/Modify | `tests/test_nfo_utils.py` (unit tests for the three moved helpers)                       |
+| Action        | File                                                                                                                                               |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Modify        | `personalscraper/nfo_utils.py` (append three helpers)                                                                                              |
+| Modify        | `personalscraper/trailers/scanner.py` (repoint import)                                                                                             |
+| Modify        | `personalscraper/library/analyzer.py` (repoint import)                                                                                             |
+| Modify        | `personalscraper/library/rescraper.py` (repoint import)                                                                                            |
+| Modify        | `personalscraper/library/validator.py` (repoint `parse_title_year` import)                                                                         |
+| Modify        | `personalscraper/library/scanner.py` (replace local NFO-helper defs with `nfo_utils` imports; re-export them; internal call-sites use the imports) |
+| Modify        | `tests/library/test_scanner.py` (repoint NFO-helper imports to `nfo_utils`)                                                                        |
+| Create/Modify | `tests/test_nfo_utils.py` (unit tests for the three moved helpers)                                                                                 |
 
 ---
 
@@ -158,7 +160,7 @@ sed -n '155,300p' /Users/izno/dev/PersonnalScaper/personalscraper/library/scanne
 
 - [ ] **Step 2.2: Append the three functions verbatim to `nfo_utils.py`**
 
-Open `personalscraper/nfo_utils.py` and append the three functions exactly as they appear in `scanner.py` (including all docstrings and inline comments). Ensure all imports they depend on (e.g. `re`, `xml.etree.ElementTree`, `Path`, `Any`) are present at the top of `nfo_utils.py`. Do not remove the originals from `scanner.py` yet — Phase 3 does that when the file is deleted.
+Open `personalscraper/nfo_utils.py` and append the three functions exactly as they appear in `scanner.py` (including all docstrings and inline comments). Ensure all imports they depend on (e.g. `re`, `xml.etree.ElementTree`, `Path`, `Any`) are present at the top of `nfo_utils.py`. This step only **copies** into `nfo_utils`; the **definitions** in `scanner.py` are replaced by `from personalscraper.nfo_utils import ...` re-exports in Task 3 (so `nfo_utils` becomes the true SSOT in Phase 1, not Phase 3). Phase 3 then deletes `scanner.py` entirely along with the re-export.
 
 Example top-of-file additions if not already present:
 
@@ -193,13 +195,16 @@ cd /Users/izno/dev/PersonnalScaper && git add personalscraper/nfo_utils.py tests
 
 ---
 
-### Task 3: Repoint all external importers
+### Task 3: Repoint all external importers + make `scanner.py` re-export the SSOT
 
 **Files:**
 
 - Modify: `personalscraper/trailers/scanner.py`
 - Modify: `personalscraper/library/analyzer.py`
 - Modify: `personalscraper/library/rescraper.py`
+- Modify: `personalscraper/library/validator.py`
+- Modify: `personalscraper/library/scanner.py` (replace the three local NFO-helper defs with `from personalscraper.nfo_utils import ...`; keep them as re-exports)
+- Modify: `tests/library/test_scanner.py` (repoint the NFO-helper imports to `nfo_utils`; keep `scan_library` / `scan_movie_dir` / `scan_tvshow_dir` / `_ensure_disk_row` on `library.scanner`)
 
 - [ ] **Step 3.1: Find every external importer**
 
@@ -241,13 +246,15 @@ grep -n 'from.*library.scanner import\|parse_title_year\|extract_nfo' /Users/izn
 
 Apply the same repoint.
 
-- [ ] **Step 3.5: Verify ACC-02 — no importer reaches into library.scanner for NFO helpers**
+- [ ] **Step 3.5: Verify ACC-02 — no importer reaches into library.scanner for the NFO helpers**
 
 ```bash
-cd /Users/izno/dev/PersonnalScaper && rg -t py 'from personalscraper.library.scanner import' personalscraper/ tests/ ; echo "rc=$?"
+cd /Users/izno/dev/PersonnalScaper && rg -t py 'from personalscraper.library.scanner import (parse_title_year|extract_nfo_ids|extract_nfo_metadata)' personalscraper/ tests/ ; echo "rc=$?"
 ```
 
 Expected: no output, then `rc=1`.
+
+> **NOTE:** This is scoped to the three NFO helpers only. `from personalscraper.library.scanner import scan_library | scan_movie_dir | scan_tvshow_dir | _ensure_disk_row` imports legitimately remain — that is `scanner.py`'s own public surface (tested via `tests/library/`), and the whole file is deleted only in Phase 3. A blanket `from personalscraper.library.scanner import` grep returning zero is impossible while `scan_library` exists and is exercised by tests.
 
 - [ ] **Step 3.6: Run full test suite**
 
@@ -286,8 +293,11 @@ cd /Users/izno/dev/PersonnalScaper && git commit --allow-empty -m "chore(lib-fol
 ## Acceptance
 
 ```bash
-# ACC-02  no importer reaches into library.scanner for NFO helpers
-rg -t py 'from personalscraper.library.scanner import' personalscraper/ tests/ ; echo "rc=$?"
+# ACC-02  no importer reaches into library.scanner for the three NFO helpers
+# (scoped to the helpers only: scan_library / scan_movie_dir / scan_tvshow_dir /
+#  _ensure_disk_row imports legitimately remain — scanner.py's own surface,
+#  deleted in Phase 3)
+rg -t py 'from personalscraper.library.scanner import (parse_title_year|extract_nfo_ids|extract_nfo_metadata)' personalscraper/ tests/ ; echo "rc=$?"
 # Expected: no output, then rc=1
 
 # ACC-02b  helpers callable from new home
@@ -299,8 +309,8 @@ python -c "from personalscraper.nfo_utils import parse_title_year, extract_nfo_i
 
 ## Risks & mitigations
 
-| Risk                                                                        | Mitigation                                                                                                                           |
-| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `scanner.py` internal calls break if originals removed too early            | Originals stay in `scanner.py` until Phase 3 deletes the whole file; Phase 1 only adds to `nfo_utils` and repoints external callers. |
-| Test coverage drop if `tests/library/test_scanner.py` covered these helpers | Verify coverage gate (`make check`) passes; if it drops, add unit tests in `tests/test_nfo_utils.py`.                                |
-| Import cycle (`nfo_utils` → `library`)                                      | `nfo_utils.py` must not import anything from `library/`; the three helpers are pure-stdlib (regex + XML).                            |
+| Risk                                                                          | Mitigation                                                                                                                                                                                                                                     |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scanner.py` internal calls break when the local defs are replaced by imports | Task 3 replaces the defs with `from personalscraper.nfo_utils import ...` and keeps them as re-exports, so `scanner.py`'s internal call-sites and any not-yet-repointed consumer keep resolving. Phase 3 deletes the file (and the re-export). |
+| Test coverage drop if `tests/library/test_scanner.py` covered these helpers   | Verify coverage gate (`make check`) passes; if it drops, add unit tests in `tests/test_nfo_utils.py`.                                                                                                                                          |
+| Import cycle (`nfo_utils` → `library`)                                        | `nfo_utils.py` must not import anything from `library/`; the three helpers are pure-stdlib (regex + XML).                                                                                                                                      |
