@@ -257,21 +257,34 @@ def library_init_canonical(
 def library_scan(
     ctx: typer.Context,
     disk: Optional[str] = typer.Option(None, "--disk", "-d", help="Restrict scan to this disk label"),
-    mode: str = typer.Option("full", "--mode", help="Scan mode (currently only 'full' is supported)"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Count media dirs without writing to DB"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Simulate scan without persisting any DB rows"),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
 ) -> None:
-    """Scan media directories on disks and create media_item rows from NFOs.
+    """Index the media library — visible alias of ``library-index --mode full``.
 
-    Walks all configured storage disks (or a single disk with --disk),
-    scans movie / TV show directories, reads NFO files, and writes
-    ``media_item``, ``season``, ``episode``, and ``item_attribute`` rows
-    to the indexer DB.  Delegates file-level indexing to the underlying
-    indexer scanner so ``media_file`` / ``path`` rows are also populated.
+    Walks all configured storage disks (or a single disk with ``--disk``),
+    reads NFO files, and writes the rich ``media_item`` / ``season`` /
+    ``episode`` rows together with the file-level ``media_file`` / ``path``
+    rows into the indexer database.  This command is a thin, re-pointed
+    alias: it delegates to the very same
+    :func:`~personalscraper.indexer.commands.scan.library_index_command`
+    that backs ``library-index``, fixing ``mode="full"``.
 
-    Use ``--dry-run`` to count directories that would be scanned without
-    writing any DB rows.  Use ``--disk`` to restrict the scan to a single
-    disk label (as configured in ``config/paths.json5``).
+    Because the delegation target is shared, this alias preserves the
+    indexer's behaviour exactly: ``--disk`` validation (an unknown label
+    exits non-zero), idempotent re-scans, a rolled-back savepoint for
+    ``--dry-run`` (no rows persisted), and a single
+    :class:`~personalscraper.indexer.events.LibraryScanCompleted` emitted
+    per scan.  The printed JSON summary is the indexer's summary, not the
+    legacy bespoke shape.
+
+    The command is kept for backwards compatibility and remains visible in
+    ``--help``.  Unlike the legacy command, it no longer exposes ``--mode``:
+    the alias is always equivalent to ``--mode full``.
+
+    Use ``--dry-run`` to simulate without committing any DB rows.  Use
+    ``--disk`` to restrict the file-level walk to a single disk label (as
+    configured in ``config/paths.json5``).
 
     Examples:
         personalscraper library-scan
@@ -279,84 +292,45 @@ def library_scan(
         personalscraper library-scan --dry-run
         personalscraper library-scan --disk disk_1 --dry-run
     """
-    import os as _os  # noqa: PLC0415
+    from uuid import uuid4  # noqa: PLC0415
 
     from personalscraper import cli as cli_compat  # noqa: PLC0415
-    from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
-    from personalscraper.cli_state import state as _state  # noqa: PLC0415
-    from personalscraper.conf.loader import load_config  # noqa: PLC0415
-    from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
-    from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
-    from personalscraper.library.scanner import scan_library  # noqa: PLC0415
+    from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
+    from personalscraper.core.event_bus import current_correlation_id  # noqa: PLC0415
+    from personalscraper.indexer.cli import library_index_command  # noqa: PLC0415
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
-    cfg = ctx.obj.config if ctx.obj is not None else load_config(effective_config)
-    console = _state["console"]
 
-    # Validate --disk filter early so the user gets a clear error message
-    # before we open the DB or acquire the writer lock.
-    if disk is not None:
-        disk_ids = {d.id for d in cfg.disks}
-        if disk not in disk_ids:
-            typer.echo(
-                f"Unknown disk '{disk}'. Configured disks: {', '.join(sorted(disk_ids))}",
-                err=True,
-            )
-            raise typer.Exit(code=1)
-
-    if dry_run:
-        # Dry-run: count media directories that would be scanned.  Walk the
-        # category directories without writing any DB rows.
-        total_dirs = 0
-        for disk_cfg in cfg.disks:
-            if disk is not None and disk_cfg.id != disk:
-                continue
-            if not disk_cfg.path.exists():
-                console.print(f"[yellow]Disk not mounted — skipping: {disk_cfg.id}[/yellow]")
-                continue
-            for category_id in disk_cfg.categories:
-                cat_cfg = cfg.category(category_id)
-                category_dir = disk_cfg.path / cat_cfg.folder_name
-                if not category_dir.is_dir():
-                    continue
-                total_dirs += sum(1 for d in category_dir.iterdir() if d.is_dir() and not d.name.startswith("."))
-        console.print(_json.dumps({"dry_run": True, "media_dirs_to_scan": total_dirs, "disk_filter": disk}))
-        return
-
-    # Live scan — acquire writer lock, open DB, call scan_library.
-    if not cli_compat.acquire_lock():
-        console.print("[red]Another instance is running. Exiting.[/red]")
-        raise typer.Exit(1)
-
-    if cfg.indexer.db_path is None:
-        typer.echo("indexer.db_path is not configured", err=True)
-        raise typer.Exit(code=1)
-    db_path = Path(cfg.indexer.db_path)
-
-    migrations_dir = _os.path.dirname(_migrations_pkg.__file__)
-
-    try:
+    # Build the process-scoped AppContext at the launchd command boundary
+    # (DESIGN §Architecture — boundary-only rule), mirroring ``library-index``.
+    # Only ``event_bus`` flows into the orchestrator; ``library_index_command``
+    # still loads its own ``Config`` from ``config_path``.
+    loaded_config = ctx.obj.config if ctx.obj is not None else None
+    if loaded_config is not None:
         settings = cli_compat.get_settings()
-        with per_step_boundary(cfg, settings) as app_context:
-            conn = open_db(db_path, event_bus=app_context.event_bus)
-            apply_migrations(conn, Path(migrations_dir))
-            try:
-                # Apply --disk filter by restricting config.disks to the
-                # requested disk only.  We shadow the attribute rather than
-                # mutating the shared config so other components remain
-                # unaffected.
-                if disk is not None:
-                    filtered_disks = [d for d in cfg.disks if d.id == disk]
-                    cfg = cfg.model_copy(update={"disks": filtered_disks})
+        app_context = _build_app_context(loaded_config, settings)
+        event_bus = app_context.event_bus
+    else:
+        # init-config path: ``ctx.obj.config`` was never populated. Fresh
+        # unobserved bus keeps the required-bus contract local to this
+        # CLI entry point.
+        event_bus = EventBus()
 
-                scan_library(cfg, conn, event_bus=app_context.event_bus)
-                conn.commit()
-            finally:
-                conn.close()
+    # Bind a fresh ``run_id`` for the duration of the scan — every Event
+    # constructed downstream captures it as ``correlation_id``.
+    token = current_correlation_id.set(str(uuid4()))
+    try:
+        rc = library_index_command(
+            mode="full",
+            disk=disk,
+            dry_run=dry_run,
+            config_path=effective_config,
+            event_bus=event_bus,
+        )
     finally:
-        cli_compat.release_lock()
-
-    console.print(_json.dumps({"status": "ok", "disk_filter": disk}))
+        current_correlation_id.reset(token)
+    if rc != 0:
+        raise typer.Exit(rc)
 
 
 @app.command("library-backfill-ids")

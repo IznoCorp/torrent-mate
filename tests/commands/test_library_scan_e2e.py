@@ -1,7 +1,14 @@
 """E2E tests for ``personalscraper library-scan`` — CLI-level harness.
 
-Covers smoke, dry-run, NFO-based media_item creation, --disk filter,
-idempotence, and hidden-dir skipping.
+Since the lib-fold single-creator cutover, ``library-scan`` is a **visible
+re-pointed alias of ``library-index --mode full``** (DESIGN OQ-4).  It delegates
+to the shared internal ``library_index_command(mode="full", ...)`` rather than
+running a bespoke ``scan_library`` pass, so the observable behaviour (and the
+printed JSON summary) is the indexer's, not the legacy command's.
+
+Covers smoke, dry-run (no persisted rows), NFO-based media_item creation,
+--disk file-walk restriction, idempotence, hidden-dir skipping, and the
+``LibraryScanCompleted`` emission — all via the delegated indexer path.
 """
 
 from __future__ import annotations
@@ -98,23 +105,28 @@ def test_scan_help_exits_zero() -> None:
 
 
 def test_scan_dry_run_lists_without_writes(tmp_path, test_config) -> None:
-    """Dry-run counts media dirs but does not write to DB."""
+    """Dry-run simulates a full scan but persists no media_item rows.
+
+    The delegated ``library-index --mode full --dry-run`` wraps all writes
+    in a rolled-back SQLite savepoint.  We assert the indexer dry-run JSON
+    shape (``dry_run: true``) and that no ``media_item`` row survives.
+    """
     db_path = make_synthetic_db(tmp_path)
     mount = tmp_path / "drive_a"
-    # Create a category dir with one TV show inside
+    _pre_seed_disk(db_path, "drive_a", mount)
+    # Create a category dir with one TV show inside.
     cat_dir = mount / "cat_tv_shows"
     _create_tvshow_on_disk(cat_dir, "My Show (2020)")
-    cfg = make_test_config_with_db(test_config, db_path)
 
-    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
-        result = run_cli(["library-scan", "--dry-run"])
+    result = _run_scan(["--dry-run"], test_config, db_path)
 
     assert result.exit_code == 0, result.output
     data = json_from_result(result)
+    # Indexer dry-run summary shape (NOT the legacy ``media_dirs_to_scan``).
     assert data["dry_run"] is True
-    assert data["media_dirs_to_scan"] >= 1, f"Expected >=1 media dir, got {data}"
+    assert data["mode"] == "full"
 
-    # Verify no media_item rows were created.
+    # Verify no media_item rows were persisted (savepoint rolled back).
     conn = sqlite3.connect(str(db_path))
     conn.execute("PRAGMA foreign_keys=ON")
     count = conn.execute("SELECT COUNT(*) FROM media_item").fetchone()[0]
@@ -149,29 +161,45 @@ def test_scan_creates_media_items_from_nfo(tmp_path, test_config) -> None:
     assert item[3] == "tvdb" or item[3] is None  # canonical_provider may be set or None
 
 
-def test_scan_disk_filter_restricts_to_one_disk(tmp_path, test_config) -> None:
-    """--disk flag only scans the requested disk."""
+def test_scan_disk_filter_restricts_file_walk_to_one_disk(tmp_path, test_config) -> None:
+    """--disk restricts the file-level walk to the requested disk.
+
+    The delegated ``library-index --mode full`` runs the item stage
+    (``media_item`` creation from NFOs) library-wide — that pass is
+    intentionally NOT filtered by ``--disk`` (DESIGN: item stage runs once
+    before the per-disk file walk).  What ``--disk`` DOES restrict is the
+    file-level walk: ``path`` / ``media_file`` rows are only produced for
+    the requested disk.  This test asserts that contract.
+    """
     db_path = make_synthetic_db(tmp_path)
     mount_a = tmp_path / "drive_a"
     mount_b = tmp_path / "drive_b"
     _pre_seed_disk(db_path, "drive_a", mount_a)
     _pre_seed_disk(db_path, "drive_b", mount_b)
 
-    # Create TV shows on both disks
-    _create_tvshow_on_disk(mount_a / "cat_tv_shows", "Show A (2022)")
-    _create_tvshow_on_disk(mount_b / "cat_tv_shows_animation", "Show B (2023)")
+    # Create TV shows with a real media file on both disks.
+    show_a = _create_tvshow_on_disk(mount_a / "cat_tv_shows", "Show A (2022)")
+    (show_a / "Show A S01E01.mkv").write_bytes(b"X" * 131072)
+    show_b = _create_tvshow_on_disk(mount_b / "cat_tv_shows_animation", "Show B (2023)")
+    (show_b / "Show B S01E01.mkv").write_bytes(b"X" * 131072)
 
     # Scan only drive_a.
     result = _run_scan(["--disk", "drive_a"], test_config, db_path)
     assert result.exit_code == 0, result.output
 
-    # Only Show A should exist, not Show B.
+    # The file-level walk must only touch drive_a: path rows exist for
+    # drive_a and NOT for drive_b.
     conn = sqlite3.connect(str(db_path))
     conn.execute("PRAGMA foreign_keys=ON")
-    titles = [r[0] for r in conn.execute("SELECT title FROM media_item").fetchall()]
+    path_labels = {
+        r[0]
+        for r in conn.execute(
+            "SELECT DISTINCT d.label FROM path p JOIN disk d ON d.id = p.disk_id"
+        ).fetchall()
+    }
     conn.close()
-    assert any("Show A" in t for t in titles), f"Show A should be present: {titles}"
-    assert not any("Show B" in t for t in titles), f"Show B should be absent (filtered by --disk drive_a): {titles}"
+    assert "drive_a" in path_labels, f"drive_a should be walked: {path_labels}"
+    assert "drive_b" not in path_labels, f"drive_b should NOT be walked (filtered by --disk): {path_labels}"
 
 
 # ── 4. Idempotence ───────────────────────────────────────────────────────────
@@ -269,7 +297,7 @@ def test_scan_nonexistent_disk_exits_gracefully(tmp_path, test_config) -> None:
 
 
 def test_scan_json_schema_valid(tmp_path, test_config) -> None:
-    """``--format json`` output matches expected schema (live mode)."""
+    """Live-mode output matches the delegated indexer JSON summary schema."""
     db_path = make_synthetic_db(tmp_path)
     mount = tmp_path / "drive_a"
     _pre_seed_disk(db_path, "drive_a", mount)
@@ -278,7 +306,13 @@ def test_scan_json_schema_valid(tmp_path, test_config) -> None:
 
     result = _run_scan([], test_config, db_path)
     assert result.exit_code == 0
-    assert_json_schema(result, required_keys=["status", "disk_filter"])
+    # The alias prints the indexer's summary (NOT the legacy
+    # ``{"status", "disk_filter"}`` shape).  Assert a stable subset of the
+    # real keys emitted by ``library_index_command``.
+    assert_json_schema(
+        result,
+        required_keys=["mode", "files_walked", "dirs_walked", "status", "dry_run"],
+    )
 
 
 def test_scan_error_exits_nonzero(tmp_path, test_config) -> None:
