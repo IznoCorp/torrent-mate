@@ -208,8 +208,7 @@ def test_extract_nfo_metadata_canonical_provider_from_default_true(tmp_path: Pat
     """``<uniqueid default="true" type="tvdb">`` → canonical_provider='tvdb'."""
     nfo = tmp_path / "tvshow.nfo"
     nfo.write_text(
-        '<tvshow><uniqueid type="tvdb" default="true">73141</uniqueid>'
-        '<uniqueid type="tmdb">1433</uniqueid></tvshow>'
+        '<tvshow><uniqueid type="tvdb" default="true">73141</uniqueid><uniqueid type="tmdb">1433</uniqueid></tvshow>'
     )
 
     meta = extract_nfo_metadata(nfo)

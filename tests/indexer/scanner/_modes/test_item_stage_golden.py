@@ -107,8 +107,7 @@ _FROZEN_LEGACY_BASELINE: list[dict[str, Any]] = [
         "year": 1999,
         "category_id": "movies",
         "external_ids_json": (
-            '{"tmdb": {"series_id": "603", "episode_id": null}, '
-            '"imdb": {"series_id": "tt0133093", "episode_id": null}}'
+            '{"tmdb": {"series_id": "603", "episode_id": null}, "imdb": {"series_id": "tt0133093", "episode_id": null}}'
         ),
         "ratings_json": None,
         "canonical_provider": "tmdb",

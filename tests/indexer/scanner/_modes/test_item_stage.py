@@ -654,19 +654,13 @@ def test_stage_library_item_issue_drops_resolved_on_rescan(tmp_path: Path) -> No
     item_row = conn.execute("SELECT id FROM media_item WHERE title = 'Cleaned'").fetchone()
     assert item_row is not None
     item_id = item_row["id"]
-    before = {
-        r["type"]
-        for r in conn.execute("SELECT type FROM item_issue WHERE item_id = ?", (item_id,)).fetchall()
-    }
+    before = {r["type"] for r in conn.execute("SELECT type FROM item_issue WHERE item_id = ?", (item_id,)).fetchall()}
     assert ISSUE_ACTORS_DIR in before
 
     actors_dir.rmdir()
     stage_library_items(conn, config, now_s=2000)
 
-    after = {
-        r["type"]
-        for r in conn.execute("SELECT type FROM item_issue WHERE item_id = ?", (item_id,)).fetchall()
-    }
+    after = {r["type"] for r in conn.execute("SELECT type FROM item_issue WHERE item_id = ?", (item_id,)).fetchall()}
     assert ISSUE_ACTORS_DIR not in after
 
 
@@ -979,8 +973,7 @@ def test_ensure_disk_row_no_duplicate_when_row_has_real_uuid(tmp_path: Path) -> 
 
     disk_count = conn.execute("SELECT COUNT(*) FROM disk").fetchone()[0]
     assert disk_count == 1, (
-        f"Expected 1 disk row after _ensure_disk_row, got {disk_count} "
-        f"(DEV #50 regression: duplicate row was inserted)"
+        f"Expected 1 disk row after _ensure_disk_row, got {disk_count} (DEV #50 regression: duplicate row was inserted)"
     )
     assert result.uuid == real_uuid
     assert result.label == disk_cfg.id

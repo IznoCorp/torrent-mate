@@ -192,10 +192,7 @@ def test_scan_disk_filter_restricts_file_walk_to_one_disk(tmp_path, test_config)
     conn = sqlite3.connect(str(db_path))
     conn.execute("PRAGMA foreign_keys=ON")
     path_labels = {
-        r[0]
-        for r in conn.execute(
-            "SELECT DISTINCT d.label FROM path p JOIN disk d ON d.id = p.disk_id"
-        ).fetchall()
+        r[0] for r in conn.execute("SELECT DISTINCT d.label FROM path p JOIN disk d ON d.id = p.disk_id").fetchall()
     }
     conn.close()
     assert "drive_a" in path_labels, f"drive_a should be walked: {path_labels}"

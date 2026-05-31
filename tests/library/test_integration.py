@@ -5,11 +5,9 @@ Uses a realistic temporary filesystem with movies and TV shows.
 """
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
-from personalscraper.core.event_bus import EventBus
 from personalscraper.library.models import (
     ISSUE_ACTORS_DIR,
     ISSUE_JUNK_FILES,
@@ -123,16 +121,15 @@ class TestScanIntegration:
     """Integration test for library scanning (DB-backed API)."""
 
     def test_scan_finds_all_items(self, mini_library) -> None:
-        """scan_library(config, conn) -> 2 movies + 1 TV show = 3 media_item rows."""
+        """stage_library_items(conn, config) -> 2 movies + 1 TV show = 3 media_item rows."""
         import sqlite3
 
         from personalscraper.indexer.db import apply_migrations
-        from personalscraper.library.scanner import scan_library
+        from personalscraper.indexer.scanner._modes._item_stage import stage_library_items
 
         conn = sqlite3.connect(":memory:")
         apply_migrations(conn, MIGRATIONS_DIR)
-        with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
-            scan_library(mini_library["config"], conn, event_bus=EventBus())
+        stage_library_items(conn, mini_library["config"])
 
         count = conn.execute("SELECT COUNT(*) FROM media_item").fetchone()[0]
         assert count == 3
@@ -143,16 +140,15 @@ class TestScanIntegration:
         assert "Fallout" in titles
 
     def test_scan_detects_issues(self, mini_library) -> None:
-        """scan_library must persist item_issue rows for .actors and junk files."""
+        """stage_library_items must persist item_issue rows for .actors and junk files."""
         import sqlite3
 
         from personalscraper.indexer.db import apply_migrations
-        from personalscraper.library.scanner import scan_library
+        from personalscraper.indexer.scanner._modes._item_stage import stage_library_items
 
         conn = sqlite3.connect(":memory:")
         apply_migrations(conn, MIGRATIONS_DIR)
-        with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
-            scan_library(mini_library["config"], conn, event_bus=EventBus())
+        stage_library_items(conn, mini_library["config"])
 
         # Matrix item should have actors_dir + junk_files issues
         matrix_id = conn.execute("SELECT id FROM media_item WHERE title = 'The Matrix'").fetchone()[0]
@@ -163,16 +159,15 @@ class TestScanIntegration:
         assert ISSUE_JUNK_FILES in issue_types
 
     def test_scan_detects_seasons(self, mini_library) -> None:
-        """scan_library must persist season and episode rows for TV shows."""
+        """stage_library_items must persist season and episode rows for TV shows."""
         import sqlite3
 
         from personalscraper.indexer.db import apply_migrations
-        from personalscraper.library.scanner import scan_library
+        from personalscraper.indexer.scanner._modes._item_stage import stage_library_items
 
         conn = sqlite3.connect(":memory:")
         apply_migrations(conn, MIGRATIONS_DIR)
-        with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
-            scan_library(mini_library["config"], conn, event_bus=EventBus())
+        stage_library_items(conn, mini_library["config"])
 
         fallout_id = conn.execute("SELECT id FROM media_item WHERE title = 'Fallout'").fetchone()[0]
 
@@ -189,16 +184,15 @@ class TestScanIntegration:
         assert episode_count == 2
 
     def test_scan_db_roundtrip(self, mini_library) -> None:
-        """After scan_library, DB queries must return consistent item counts by kind."""
+        """After stage_library_items, DB queries must return consistent item counts by kind."""
         import sqlite3
 
         from personalscraper.indexer.db import apply_migrations
-        from personalscraper.library.scanner import scan_library
+        from personalscraper.indexer.scanner._modes._item_stage import stage_library_items
 
         conn = sqlite3.connect(":memory:")
         apply_migrations(conn, MIGRATIONS_DIR)
-        with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
-            scan_library(mini_library["config"], conn, event_bus=EventBus())
+        stage_library_items(conn, mini_library["config"])
 
         movie_count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'movie'").fetchone()[0]
         show_count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'show'").fetchone()[0]
@@ -296,18 +290,17 @@ class TestReportIntegration:
     """Integration test for library-report (DB-backed API)."""
 
     def test_report_from_scan_data(self, mini_library) -> None:
-        """Report should aggregate data from the indexer DB after scan_library."""
+        """Report should aggregate data from the indexer DB after stage_library_items."""
         import sqlite3
 
         from personalscraper.indexer.db import apply_migrations
+        from personalscraper.indexer.scanner._modes._item_stage import stage_library_items
         from personalscraper.library.analyzer import analyze
         from personalscraper.library.reporter import generate_report
-        from personalscraper.library.scanner import scan_library
 
         conn = sqlite3.connect(":memory:")
         apply_migrations(conn, MIGRATIONS_DIR)
-        with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
-            scan_library(mini_library["config"], conn, event_bus=EventBus())
+        stage_library_items(conn, mini_library["config"])
 
         analysis_result = analyze(conn)
         report = generate_report(analysis_result=analysis_result)
@@ -323,11 +316,10 @@ class TestFullWorkflow:
     def test_clean_then_rescan_shows_fewer_issues(self, mini_library) -> None:
         """After cleaning .actors and junk, rescan must drop those item_issue rows."""
         import sqlite3
-        from unittest.mock import patch
 
         from personalscraper.indexer.db import apply_migrations
+        from personalscraper.indexer.scanner._modes._item_stage import stage_library_items
         from personalscraper.library.disk_cleaner import clean_library
-        from personalscraper.library.scanner import scan_library
 
         # Use a file DB so it survives between scan calls.
         db_path = mini_library["config"].paths.data_dir / "library.db"
@@ -335,8 +327,7 @@ class TestFullWorkflow:
         conn = sqlite3.connect(str(db_path))
         apply_migrations(conn, MIGRATIONS_DIR)
 
-        with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
-            scan_library(mini_library["config"], conn, event_bus=EventBus())
+        stage_library_items(conn, mini_library["config"])
 
         # Matrix must have issues after first scan
         matrix_id = conn.execute("SELECT id FROM media_item WHERE title = 'The Matrix'").fetchone()[0]
@@ -347,8 +338,7 @@ class TestFullWorkflow:
         clean_library(mini_library["config"], apply=True)
 
         # Rescan — issues for Matrix should be gone
-        with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
-            scan_library(mini_library["config"], conn, event_bus=EventBus())
+        stage_library_items(conn, mini_library["config"])
 
         remaining = conn.execute("SELECT COUNT(*) FROM item_issue WHERE item_id = ?", (matrix_id,)).fetchone()[0]
         assert remaining < initial_issues
