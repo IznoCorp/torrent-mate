@@ -45,6 +45,8 @@ Phase 1 must be complete:
 | Create | `tests/indexer/scanner/_modes/test_canonical.py`                                        |
 | Create | `tests/indexer/scanner/_modes/test_item_stage.py`                                       |
 | Create | `tests/indexer/scanner/_modes/test_item_stage_golden.py` (characterization golden)      |
+| Create | `tests/indexer/scanner/_modes/test_full_pass1_integration.py` (C3 wiring integration)   |
+| Modify | `pyproject.toml` (register the `integration` pytest marker)                             |
 
 ---
 
@@ -579,23 +581,31 @@ cd /Users/izno/dev/PersonnalScaper && git add personalscraper/indexer/scanner/_m
 
 - [ ] **Step 5.1: Write the golden test**
 
-This test runs the legacy `scan_library` on a fixture, captures the `media_item` DB end-state as the baseline, then on a fresh DB runs the new `library-index --mode full` path, and asserts the end-states are equal.
+This test runs the **real** legacy `scan_library` on a temp-fs fixture, captures the full DB end-state as the baseline, then on a fresh DB runs the new pass-1 path (`stage_library_items`), and asserts the end-states are equal across the full DESIGN §4.3 behaviour-set.
 
-> **CORRECTED harness — the originals don't exist.** There is **no** `init_db`; DB schema is built with `apply_migrations(conn, MIGRATIONS_DIR)`. `scan_library` is `scan_library(config: Config, conn, *, event_bus: EventBus)` — **not** `scan_library(conn, root=…)`. The indexer entry is `scan(disks: list[DiskRow], mode: ScanMode, generation: int, conn, *, …, event_bus: EventBus) -> ScanRunResult` — **not** `scan(conn, root=…, mode="full")`. And the snapshot must read **real** columns: `title` (no `norm_title` column), IDs via `json_extract(external_ids_json, …)` (no `tvdb_id`/`tmdb_id` columns), disk via an `item_attribute` join on `key='dispatch_disk'` (no `disk_id` column).
+> **HARDENED (C4) — baseline is the REAL `scan_library`, not a replicated loop.** Now that obj#5 routes `scan_library`'s `media_item` writes through the shared `upsert_item_with_attrs`, the baseline MUST be the live `scan_library(config, conn, event_bus=EventBus())` — never a hand-replicated copy of its loop (a replicated loop tests the test, not the code). `scan_library` calls `_indexer_scan` at the very end for the file/path walk; that terminal call bootstraps a disk-identity sentinel at the volume root and **fails on a tmp filesystem**. Neutralise ONLY that call with the `monkeypatch` fixture so the real `media_item`/`season`/`episode`/`item_issue`/`item_attribute` creation runs unchanged while the never-compared `media_file`/`path` walk is skipped:
 >
-> **Model the harness on existing integration tests** — read both before writing:
+> ```python
+> monkeypatch.setattr("personalscraper.library.scanner._indexer_scan", lambda **kwargs: None)
+> ```
 >
-> - Baseline (legacy) → `tests/library/test_integration.py` (`apply_migrations(conn, MIGRATIONS_DIR)` + `scan_library(config, conn, event_bus=EventBus())`, with its `mini_library`/`Config` setup).
-> - New path (indexer full scan over a seeded fs) → `tests/integration/test_scan_reconcile_clean.py` (uses `seeded_library_fs`; shows how to build the `DiskRow` list + `ScanMode.FULL` + `generation` + `EventBus` and call `scan(...)`).
->   Both paths must run against the **same** on-disk fixture and the **same** `Config`/disks so the comparison is apples-to-apples.
+> Add `monkeypatch` to the test signature.
+
+> **HARDENED (C4) — extended snapshot to the full §4.3 behaviour-set.** The snapshot is NOT 9 trimmed columns; it captures the whole DESIGN §4.3 behaviour-set, keyed by `(kind, title)` (id-independent) with every nested set sorted (order-independent):
+>
+> - **media_item**: all stable columns — `title`, `title_sort`, `original_title`, `kind`, `year`, `category_id`, `external_ids_json`, `ratings_json`, `canonical_provider`, `nfo_status`, `artwork_json`, `preferred_lang` (EXCLUDE volatile/auto: `id`, `date_created`, `date_modified`, `date_metadata_refreshed`, `is_locked`).
+> - **item_issue**: the sorted set of `type` values per item.
+> - **season**: per item, the sorted `(number, episode_count, has_poster, episodes_with_nfo)` plus the season's episodes.
+> - **episode**: per season, the sorted `(number, title)` set.
+> - **item_attribute**: the three `dispatch_*` values (`dispatch_path`, `dispatch_disk`, `dispatch_normalized_title`) per item — the trailers / dispatch / release_linker INNER-JOIN keys.
+
+> **HONEST net — documented no-NFO superset (DESIGN §4.3 decision #2).** Do NOT trim a column to force a pass. The C4 run surfaced exactly ONE field difference: the no-NFO `Incomplete Movie`'s `item_issue` types are `['bad_dir_naming']` on the legacy baseline vs `['bad_dir_naming', 'nfo_missing']` on the new path. This is the **intended** decision-#2 upgrade — the new path flags no-NFO/incomplete dirs with `nfo_missing`/`nfo_incomplete`, which the legacy `scan_library` never emitted. The golden asserts every field byte-identical EXCEPT `item_issue`, and for issues asserts `legacy ⊆ new ⊆ legacy ∪ {nfo_missing, nfo_incomplete}` (any other extra/missing tag is a real regression).
+
+> **CORRECTED harness — the originals don't exist.** There is **no** `init_db`; DB schema is built with `apply_migrations(conn, MIGRATIONS_DIR)`. `scan_library` is `scan_library(config: Config, conn, *, event_bus: EventBus)` — **not** `scan_library(conn, root=…)`. The snapshot must read **real** columns: `title` (no `norm_title` column), IDs via `external_ids_json` (no `tvdb_id`/`tmdb_id` columns), disk/path/norm-title via `item_attribute` joins (no `disk_id`/`dispatch_path` columns). The fixture is the self-contained `_build_mini_library(tmp_path)` (mirrors `tests/library/test_integration.py`'s `mini_library`); both the baseline and the new path take the **same** `Config` object so the comparison is apples-to-apples.
 
 ```python
-# tests/indexer/scanner/_modes/test_item_stage_golden.py
-"""Characterization golden: library-index --mode full == legacy library-scan DB end-state.
-
-This test is the safety net for Phase 3's deletion of library/scanner.py.
-It must pass before any deletion is attempted. If it fails, Phase 3 is blocked.
-"""
+# tests/indexer/scanner/_modes/test_item_stage_golden.py  (C4-hardened shape)
+"""Characterization golden: library-index --mode full == legacy library-scan DB end-state."""
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -606,65 +616,63 @@ from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations
 
 MIGRATIONS_DIR = Path(__file__).resolve().parents[4] / "personalscraper" / "indexer" / "migrations"
+_DISPATCH_ATTR_KEYS = ("dispatch_path", "dispatch_disk", "dispatch_normalized_title")
 
 
-def _snapshot_media_items(conn: sqlite3.Connection) -> list[dict[str, Any]]:
-    """Sorted media_item rows as dicts — REAL post-005 columns only.
+def _build_mini_library(tmp_path: Path) -> dict[str, Any]:
+    """Self-contained temp fs + Config (mirrors tests/library/test_integration.py mini_library):
+    a complete movie (tmdb+imdb NFO, artwork, .actors, .DS_Store), a no-NFO movie, and a TV show
+    with one season + two episodes (one with a sibling .nfo). Returns {disk, config, disk_cfg}."""
+    ...  # build the dirs/files, then a Config with DiskConfig(id="disk1", categories=[movies, tv_shows])
 
-    IDs come from external_ids_json (migration 005 dropped the flat columns);
-    disk comes from the item_attribute flex row (key='dispatch_disk').
-    """
-    rows = conn.execute(
-        """
-        SELECT mi.title, mi.kind, mi.year, mi.canonical_provider,
-               json_extract(mi.external_ids_json, '$.tvdb.series_id') AS tvdb,
-               json_extract(mi.external_ids_json, '$.tmdb.series_id') AS tmdb,
-               mi.nfo_status, mi.category_id,
-               (SELECT value FROM item_attribute
-                 WHERE item_id = mi.id AND key = 'dispatch_disk') AS disk
-          FROM media_item mi
-         ORDER BY mi.title, mi.kind
-        """
-    ).fetchall()
-    cols = ["title", "kind", "year", "canonical_provider", "tvdb", "tmdb",
-            "nfo_status", "category_id", "disk"]
-    return [dict(zip(cols, r)) for r in rows]
+
+def _snapshot_db(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    """Full DESIGN §4.3 behaviour-set keyed by (kind, title), every nested set sorted:
+    stable media_item columns (excl. id/date_*/is_locked) + sorted item_issue types +
+    season (number, episode_count, has_poster, episodes_with_nfo) + per-season episodes
+    (number, title) + the three dispatch_* item_attribute values."""
+    ...  # SELECT media_item ORDER BY kind, title; sub-SELECT issues/seasons/episodes/attrs per item
 
 
 @pytest.mark.integration
-def test_full_mode_db_equals_library_scan_baseline(tmp_path: Path, seeded_library_fs) -> None:
-    """library-index --mode full must produce the same media_item rows as library-scan."""
+def test_full_mode_db_equals_library_scan_baseline(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """library-index --mode full must produce the same DB end-state as library-scan."""
+    from personalscraper.indexer.scanner._modes._item_stage import stage_library_items
     from personalscraper.library.scanner import scan_library
-    # NOTE: build `config` + `disks` (list[DiskRow]) from seeded_library_fs —
-    # see tests/integration/test_scan_reconcile_clean.py for the exact setup.
 
-    # --- Baseline: legacy scan_library ---
+    config = _build_mini_library(tmp_path)["config"]
+
+    # --- Baseline: the REAL scan_library, with ONLY the terminal file/path walk
+    # neutralised (it bootstraps a disk-identity sentinel that fails on tmp fs and
+    # writes media_file/path rows we never compare). ---
+    monkeypatch.setattr("personalscraper.library.scanner._indexer_scan", lambda **kwargs: None)
     conn_legacy = sqlite3.connect(":memory:")
     apply_migrations(conn_legacy, MIGRATIONS_DIR)
-    scan_library(config, conn_legacy, event_bus=EventBus())  # config from the fixture
-    baseline = _snapshot_media_items(conn_legacy)
+    scan_library(config, conn_legacy, event_bus=EventBus())
+    baseline = _snapshot_db(conn_legacy)
     conn_legacy.close()
 
-    # --- New path: library-index --mode full PASS 1 (the item stage from Task 4) ---
-    # The media_item rows of the new path are produced by stage_library_items
-    # (pass 1); pass 2 (the indexer scan() file walk) only adds media_file/path
-    # rows, which the snapshot does not compare. Drive pass 1 directly with the
-    # SAME config for an apples-to-apples media_item comparison.
-    from personalscraper.indexer.scanner._modes._item_stage import stage_library_items
+    # --- New path: stage_library_items (pass 1 of library-index --mode full) ---
     conn_new = sqlite3.connect(":memory:")
     apply_migrations(conn_new, MIGRATIONS_DIR)
-    stage_library_items(conn_new, config)  # same `config` object as the baseline
-    result = _snapshot_media_items(conn_new)
+    stage_library_items(conn_new, config)
+    result = _snapshot_db(conn_new)
     conn_new.close()
 
-    assert baseline, "Baseline must not be empty — fixture has media dirs"
-    assert result == baseline, (
-        f"DB end-state mismatch.\nBaseline ({len(baseline)} rows):\n{baseline[:3]}\n"
-        f"Result ({len(result)} rows):\n{result[:3]}"
-    )
+    assert len(baseline) == 3 and len(result) == 3
+    _NO_NFO_AUGMENTATION = {"nfo_missing", "nfo_incomplete"}
+    for base_item, new_item in zip(baseline, result):
+        # Core: every field except item_issue must be byte-identical.
+        base_core = {k: v for k, v in base_item.items() if k != "issue_types"}
+        new_core = {k: v for k, v in new_item.items() if k != "issue_types"}
+        assert new_core == base_core
+        # Issues: new ⊇ legacy and the only delta is the documented no-NFO augmentation.
+        base_issues, new_issues = set(base_item["issue_types"]), set(new_item["issue_types"])
+        assert base_issues <= new_issues
+        assert (new_issues - base_issues) <= _NO_NFO_AUGMENTATION
 ```
 
-The `config` construction above is intentionally elided — wire it from `seeded_library_fs` exactly as `tests/library/test_integration.py`'s `mini_library` fixture does (build `Config` with `DiskConfig` + `CategoryConfig` pointing at the fixture fs; verify the `seeded_library_fs` return type before writing). Both paths take the **same** `config` object, so the comparison is apples-to-apples. (Optionally also assert the full `library-index --mode full` CLI path agrees, but the `stage_library_items` comparison is the core safety net for Phase 3's deletion.)
+The full implementation fills in `_build_mini_library` (verbatim from the previous golden's builder) and `_snapshot_db` (the nested per-item snapshot above). Both paths take the **same** `Config` object, so the comparison is apples-to-apples. The baseline is the **live** `scan_library` — not a replicated loop — so the golden actually guards the code, and the only field allowed to differ is `item_issue` (the documented §4.3 decision-#2 no-NFO superset).
 
 - [ ] **Step 5.2: Run the golden test**
 
@@ -713,6 +721,65 @@ Expected: `scanner.py still present (correct)`.
 
 ```bash
 cd /Users/izno/dev/PersonnalScaper && git commit --allow-empty -m "chore(lib-fold): phase 2 gate — _item_stage + _canonical built; golden test green"
+```
+
+---
+
+### Task 7: C3-wiring integration test + register the `integration` marker (C4)
+
+> **Why (audit C4):** Task 5's golden proves pass-1's `stage_library_items` output equals the legacy baseline, but nothing proved the **C3 wiring** — that the indexer `scan()` full-mode branch actually invokes `full.stage_items_pass1` when `config` is provided (and skips it when `config=None`). The DESIGN promise ("a single `library-index --mode full` reaches the same DB end-state") is otherwise unverified end-to-end. C4 closes that gap and registers the `integration` pytest marker (previously unregistered → `PytestUnknownMarkWarning`).
+
+**Files:**
+
+- Create: `tests/indexer/scanner/_modes/test_full_pass1_integration.py`
+- Modify: `pyproject.toml` (register the `integration` marker)
+
+- [ ] **Step 7.1: Register the `integration` marker in `pyproject.toml`**
+
+Append to `[tool.pytest.ini_options].markers`:
+
+```toml
+"integration: cross-module characterization / integration tests (not unit; may build a temp library FS)",
+```
+
+After this, `python -m pytest tests/indexer/scanner/_modes/test_item_stage_golden.py -q` shows **0** `PytestUnknownMarkWarning` about `integration`. The marker is **not** excluded by `addopts`, so `integration` tests run in the default suite.
+
+- [ ] **Step 7.2: Write the integration test (drive the real `scan()` full-mode branch)**
+
+Build the same `_build_mini_library(tmp_path)` `Config` + a fresh `:memory:` DB (`apply_migrations`). Then call the **real** indexer entry point with an **empty disk list** so pass 2 (the per-disk file walk) is a no-op (no mount point, no disk-identity sentinel) while pass 1 still iterates `config.disks`:
+
+```python
+from personalscraper.indexer.scanner import ScanMode, scan
+
+result = scan(disks=[], mode=ScanMode.full, generation=1, conn=conn, config=cfg, event_bus=EventBus())
+assert result.status == "ok"
+```
+
+`scan()` reaches the pass-1 call (`__init__.py` ~:596, `if mode == ScanMode.full and config is not None`) **before** the per-disk walk dispatch, so `disks=[]` does **not** short-circuit it (verified against `_setup_scan_run` / `_run_sequential_walk`, which both no-op on an empty disk list).
+
+Assertions (positive — pass 1 fired):
+
+- three `media_item` rows exist (one per media dir);
+- `canonical_provider` is set (`"tmdb"`) on the NFO-bearing movie + show — `canonical_provider` is set **only** by pass 1's `build_item_row` → `derive_canonical_provider`; the file walk never writes it, so a non-NULL value is positive proof pass 1 ran;
+- the show has a `season` row (pass 1's season/episode upsert);
+- the no-NFO movie carries an `nfo_missing` `item_issue` (never dropped).
+
+Assertion (negative — the guard): `scan(disks=[], mode=ScanMode.full, generation=1, conn=conn, config=None, event_bus=EventBus())` creates **zero** `media_item` rows — proving the `config is not None` guard prevents the other 3 `scan()` callers (verify, dispatch enrich, `scan_library`'s own `_indexer_scan`) from double-staging.
+
+A third assertion pins that the rows staged via `scan(config=cfg)` equal those from a direct `stage_library_items(conn, cfg)` (same titles + canonical providers) — confirming `scan()` routes through the same driver with no divergent wiring.
+
+- [ ] **Step 7.3: Run the integration tests**
+
+```bash
+cd /Users/izno/dev/PersonnalScaper && python -m pytest tests/indexer/scanner/_modes/test_full_pass1_integration.py tests/indexer/scanner/_modes/test_item_stage_golden.py -v 2>&1 | tail -20
+```
+
+Expected: all pass, **0** `integration`-marker warnings.
+
+- [ ] **Step 7.4: Commit**
+
+```bash
+cd /Users/izno/dev/PersonnalScaper && git add tests/indexer/scanner/_modes/test_full_pass1_integration.py pyproject.toml && git commit -m "test(lib-fold): integration test for scan() full-mode pass-1 wiring + register integration marker"
 ```
 
 ---

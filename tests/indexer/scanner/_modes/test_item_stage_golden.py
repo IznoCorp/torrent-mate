@@ -3,30 +3,46 @@
 This test is the safety net for Phase 3's deletion of library/scanner.py.
 It must pass before any deletion is attempted. If it fails, Phase 3 is blocked.
 
-Runs the legacy ``scan_library`` on a temp filesystem fixture, captures the
-``media_item`` DB end-state as the baseline, then on a fresh in-memory DB runs
-the new ``stage_library_items`` (pass 1 of ``library-index --mode full``), and
-asserts the end-states are equal.
+Baseline = the **real** ``scan_library`` (the live legacy path) on a temp
+filesystem fixture. ``scan_library`` calls the indexer file walk
+(``_indexer_scan``) at the very end for ``media_file`` / ``path`` rows; that
+terminal call triggers a disk-identity bootstrap that writes a sentinel to the
+volume root and fails on a tmp filesystem. We monkeypatch ``_indexer_scan`` to
+a no-op so the REAL ``media_item`` / ``season`` / ``episode`` / ``item_issue`` /
+``item_attribute`` creation (which — after obj#5 — routes through the shared
+``upsert_item_with_attrs`` SSOT) runs unchanged, while only the file/path walk
+(never compared) is skipped.
+
+Result = the new ``stage_library_items`` (pass 1 of ``library-index --mode
+full``) on a fresh in-memory DB with the **same** config. The snapshot covers
+the full DESIGN §4.3 behaviour-set — all stable ``media_item`` columns plus
+``item_issue`` types, ``season`` rows, ``episode`` rows, and the three
+``dispatch_*`` flex attributes — so the equality assertion is the honest
+deletion safety net (no column-trimming to force a pass).
 """
 
 from __future__ import annotations
 
 import sqlite3
-import time
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from personalscraper.conf.ids import TV_CATEGORY_IDS
 from personalscraper.conf.models.categories import CategoryConfig
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.paths import PathConfig
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 MIGRATIONS_DIR = Path(__file__).resolve().parents[4] / "personalscraper" / "indexer" / "migrations"
+
+# The three dispatch flex-attribute keys (parity with item_repo._ATTR_DISPATCH_*).
+# Snapshotted per item so the trailers / dispatch / release_linker INNER JOINs
+# stay byte-identical across the legacy → new cutover (DESIGN §4.3).
+_DISPATCH_ATTR_KEYS = ("dispatch_path", "dispatch_disk", "dispatch_normalized_title")
 
 
 def _build_mini_library(tmp_path: Path) -> dict[str, Any]:
@@ -108,118 +124,199 @@ def _build_mini_library(tmp_path: Path) -> dict[str, Any]:
     return {"disk": disk, "config": config, "disk_cfg": disk_cfg}
 
 
-def _snapshot_media_items(conn: sqlite3.Connection) -> list[dict[str, Any]]:
-    """Sorted media_item rows as dicts — real post-migration-005 columns only.
+def _snapshot_db(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    """Capture the full DESIGN §4.3 behaviour-set, keyed by ``(kind, title)``.
 
-    IDs come from ``external_ids_json`` (migration 005 dropped the flat columns);
-    disk comes from the ``item_attribute`` flex row (key='dispatch_disk').
+    For every ``media_item`` row this snapshots:
+
+    * all stable ``media_item`` columns (excludes the volatile / auto-stamped
+      ``id``, ``date_created``, ``date_modified``, ``date_metadata_refreshed``,
+      ``is_locked``);
+    * the sorted set of ``item_issue.type`` values;
+    * per-item ``season`` rows as sorted ``(number, episode_count, has_poster,
+      episodes_with_nfo)`` tuples;
+    * per-season ``episode`` rows as sorted ``(number, title)`` tuples;
+    * the three ``dispatch_*`` flex attributes from ``item_attribute``.
+
+    Sorting every nested set makes the comparison insertion-order-independent;
+    keying on ``(kind, title)`` makes it ``media_item.id``-independent (the two
+    DBs assign PKs in different orders). This is the honest deletion net — no
+    column is trimmed to force a pass.
 
     Args:
         conn: Open SQLite connection with migrations applied and data populated.
 
     Returns:
-        List of dicts, each with keys ``title``, ``kind``, ``year``,
-        ``canonical_provider``, ``tvdb``, ``tmdb``, ``nfo_status``,
-        ``category_id``, ``disk``, ordered by ``(title, kind)``.
+        List of per-item dicts, ordered by ``(kind, title)``.
     """
-    rows = conn.execute(
+    item_rows = conn.execute(
         """
-        SELECT mi.title, mi.kind, mi.year, mi.canonical_provider,
-               json_extract(mi.external_ids_json, '$.tvdb.series_id') AS tvdb,
-               json_extract(mi.external_ids_json, '$.tmdb.series_id') AS tmdb,
-               mi.nfo_status, mi.category_id,
-               (SELECT value FROM item_attribute
-                 WHERE item_id = mi.id AND key = 'dispatch_disk') AS disk
-          FROM media_item mi
-         ORDER BY mi.title, mi.kind
+        SELECT id, title, title_sort, original_title, kind, year, category_id,
+               external_ids_json, ratings_json, canonical_provider, nfo_status,
+               artwork_json, preferred_lang
+          FROM media_item
+         ORDER BY kind, title
         """
     ).fetchall()
-    cols = [
+    item_cols = [
         "title",
+        "title_sort",
+        "original_title",
         "kind",
         "year",
-        "canonical_provider",
-        "tvdb",
-        "tmdb",
-        "nfo_status",
         "category_id",
-        "disk",
+        "external_ids_json",
+        "ratings_json",
+        "canonical_provider",
+        "nfo_status",
+        "artwork_json",
+        "preferred_lang",
     ]
-    return [dict(zip(cols, r)) for r in rows]
+
+    snapshot: list[dict[str, Any]] = []
+    for row in item_rows:
+        item_id = row[0]
+        item: dict[str, Any] = dict(zip(item_cols, row[1:]))
+
+        # item_issue: sorted set of type values for this item.
+        item["issue_types"] = sorted(
+            r[0] for r in conn.execute("SELECT type FROM item_issue WHERE item_id = ?", (item_id,)).fetchall()
+        )
+
+        # season + episode rows for this item (sorted, id-independent).
+        seasons: list[dict[str, Any]] = []
+        season_rows = conn.execute(
+            """
+            SELECT id, number, episode_count, has_poster, episodes_with_nfo
+              FROM season WHERE item_id = ? ORDER BY number
+            """,
+            (item_id,),
+        ).fetchall()
+        for s_id, number, ep_count, has_poster, eps_with_nfo in season_rows:
+            episodes = sorted(
+                (ep_num, title)
+                for ep_num, title in conn.execute(
+                    "SELECT number, title FROM episode WHERE season_id = ?", (s_id,)
+                ).fetchall()
+            )
+            seasons.append(
+                {
+                    "number": number,
+                    "episode_count": ep_count,
+                    "has_poster": has_poster,
+                    "episodes_with_nfo": eps_with_nfo,
+                    "episodes": episodes,
+                }
+            )
+        item["seasons"] = seasons
+
+        # The three dispatch_* flex attributes (trailers / dispatch INNER JOINs).
+        item["dispatch_attrs"] = {
+            key: (
+                conn.execute(
+                    "SELECT value FROM item_attribute WHERE item_id = ? AND key = ?",
+                    (item_id, key),
+                ).fetchone()
+                or (None,)
+            )[0]
+            for key in _DISPATCH_ATTR_KEYS
+        }
+
+        snapshot.append(item)
+
+    return snapshot
 
 
 @pytest.mark.integration
-def test_full_mode_db_equals_library_scan_baseline(tmp_path: Path) -> None:
-    """library-index --mode full must produce the same media_item rows as library-scan.
+def test_full_mode_db_equals_library_scan_baseline(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """library-index --mode full must produce the same DB end-state as library-scan.
 
-    Baseline = legacy ``scan_library``'s directory walk (scan_movie_dir /
-    scan_tvshow_dir → _upsert_media_item → _upsert_seasons_and_episodes),
-    which is the code path that writes ``media_item`` rows.  The full
-    ``scan_library`` function also calls ``_indexer_scan`` at the end for
-    file-level indexing, but that only writes ``media_file`` / ``path`` /
-    ``scan_run`` rows — none of which the snapshot reads — and it requires
-    a real mount point for disk identity bootstrapping.  Replicating the
-    directory walk directly gives identical ``media_item`` rows without the
-    side effect.
+    Baseline = the REAL ``scan_library`` (live legacy path). Its terminal
+    ``_indexer_scan`` call (file/path walk) is monkeypatched to a no-op so the
+    disk-identity sentinel bootstrap does not fail on the tmp filesystem and so
+    only the never-compared ``media_file`` / ``path`` rows are skipped; the
+    ``media_item`` / ``season`` / ``episode`` / ``item_issue`` / ``item_attribute``
+    writes — which after obj#5 route through ``upsert_item_with_attrs`` — run
+    unchanged.
 
-    Result = new ``stage_library_items`` on the same config.
-    Both run against a fresh in-memory DB with all migrations applied.
+    Result = the new ``stage_library_items`` (pass 1 of ``library-index --mode
+    full``) on the same config.
+
+    Both run against a fresh in-memory DB with all migrations applied; the
+    snapshot covers the full DESIGN §4.3 behaviour-set. Every field must be
+    byte-identical EXCEPT ``item_issue`` types: the new path is a documented
+    SUPERSET — DESIGN §4.3 decision #2 has it flag no-NFO dirs with an extra
+    ``nfo_missing`` / ``nfo_incomplete`` tag the legacy path never emitted, so
+    the issue set is asserted as ``legacy ⊆ new ⊆ legacy ∪ {no-NFO tags}``.
     """
     from personalscraper.indexer.scanner._modes._item_stage import stage_library_items
-    from personalscraper.library.scanner import (
-        _ensure_disk_row,
-        _upsert_media_item,
-        _upsert_seasons_and_episodes,
-        scan_movie_dir,
-        scan_tvshow_dir,
-    )
+    from personalscraper.library.scanner import scan_library
 
     fixture = _build_mini_library(tmp_path)
     config = fixture["config"]
-    now_s = int(time.time())
 
-    # --- Baseline: legacy scan_library directory walk (replicated verbatim) ---
-    # Mirror lines 931-986 of library/scanner.py:scan_library.
+    # --- Baseline: the REAL scan_library, with only the terminal file/path
+    # walk neutralised (it writes media_file/path rows we do not compare and
+    # bootstraps a disk-identity sentinel that fails on tmp filesystems). ---
+    monkeypatch.setattr("personalscraper.library.scanner._indexer_scan", lambda **kwargs: None)
     conn_legacy = sqlite3.connect(":memory:")
     apply_migrations(conn_legacy, MIGRATIONS_DIR)
-
-    for disk_cfg in config.disks:
-        if not disk_cfg.path.exists():
-            continue
-        _ensure_disk_row(conn_legacy, disk_cfg, now_s)
-        for category_id in disk_cfg.categories:
-            cat_cfg = config.category(category_id)
-            category_dir = disk_cfg.path / cat_cfg.folder_name
-            if not category_dir.is_dir():
-                continue
-            is_tvshow = category_id in TV_CATEGORY_IDS
-            for media_dir in sorted(category_dir.iterdir()):
-                if not media_dir.is_dir() or media_dir.name.startswith("."):
-                    continue
-                try:
-                    if is_tvshow:
-                        scan_item = scan_tvshow_dir(media_dir, disk_cfg.id, category_id)
-                    else:
-                        scan_item = scan_movie_dir(media_dir, disk_cfg.id, category_id)
-                    item_id = _upsert_media_item(conn_legacy, scan_item, now_s)
-                    if is_tvshow and scan_item.seasons:
-                        _upsert_seasons_and_episodes(conn_legacy, item_id, scan_item.seasons)
-                except OSError:
-                    continue
-
-    baseline = _snapshot_media_items(conn_legacy)
+    scan_library(config, conn_legacy, event_bus=EventBus())
+    baseline = _snapshot_db(conn_legacy)
     conn_legacy.close()
 
     # --- New path: stage_library_items (pass 1 of library-index --mode full) ---
     conn_new = sqlite3.connect(":memory:")
     apply_migrations(conn_new, MIGRATIONS_DIR)
     stage_library_items(conn_new, config)
-    result = _snapshot_media_items(conn_new)
+    result = _snapshot_db(conn_new)
     conn_new.close()
 
     assert baseline, "Baseline must not be empty — fixture has 3 media dirs"
-    assert result == baseline, (
-        f"DB end-state mismatch.\n\n"
-        f"Baseline ({len(baseline)} rows):\n{baseline}\n\n"
-        f"Result   ({len(result)} rows):\n{result}"
-    )
+    assert len(baseline) == 3, f"Expected 3 media_item rows, got {len(baseline)}"
+    assert len(result) == len(baseline), f"media_item count mismatch: baseline={len(baseline)} result={len(result)}"
+
+    # The new path is a documented SUPERSET of the legacy issue set: DESIGN §4.3
+    # decision #2 has it flag no-NFO directories with an extra ``nfo_missing`` /
+    # ``nfo_incomplete`` ``item_issue`` tag that the legacy ``scan_library`` path
+    # never emitted (legacy only recorded the directory-hygiene tags). Every
+    # OTHER field must be byte-identical, so we compare the core verbatim and
+    # treat ``issue_types`` separately rather than trim it from the snapshot
+    # (keeping the net honest).
+    _NO_NFO_AUGMENTATION = {"nfo_missing", "nfo_incomplete"}
+
+    for base_item, new_item in zip(baseline, result):
+        assert (new_item["kind"], new_item["title"]) == (base_item["kind"], base_item["title"]), (
+            f"item ordering mismatch: baseline={base_item['kind']}/{base_item['title']} "
+            f"result={new_item['kind']}/{new_item['title']}"
+        )
+
+        # Core: every field except ``issue_types`` must be byte-identical.
+        base_core = {k: v for k, v in base_item.items() if k != "issue_types"}
+        new_core = {k: v for k, v in new_item.items() if k != "issue_types"}
+        assert new_core == base_core, (
+            f"DB end-state mismatch (non-issue fields) for "
+            f"{base_item['kind']}/{base_item['title']}.\n\n"
+            f"Baseline:\n{base_core}\n\nResult:\n{new_core}"
+        )
+
+        # Issue set: new ⊇ legacy, and the only delta is the documented no-NFO
+        # augmentation. Any other extra/missing tag is a real regression.
+        base_issues = set(base_item["issue_types"])
+        new_issues = set(new_item["issue_types"])
+        assert base_issues <= new_issues, (
+            f"new path dropped a legacy issue tag for {base_item['kind']}/{base_item['title']}: "
+            f"legacy={sorted(base_issues)} new={sorted(new_issues)}"
+        )
+        extra = new_issues - base_issues
+        assert extra <= _NO_NFO_AUGMENTATION, (
+            f"new path added an UNEXPECTED issue tag for {base_item['kind']}/{base_item['title']}: "
+            f"extra={sorted(extra)} (only {sorted(_NO_NFO_AUGMENTATION)} are the documented "
+            f"DESIGN §4.3 decision-#2 no-NFO augmentation)"
+        )
+        # When the documented augmentation fires, it must agree with nfo_status.
+        if extra:
+            assert base_item["nfo_status"] in ("missing", "invalid"), (
+                f"no-NFO augmentation {sorted(extra)} fired on a valid-NFO item "
+                f"{base_item['kind']}/{base_item['title']} (nfo_status={base_item['nfo_status']!r})"
+            )
