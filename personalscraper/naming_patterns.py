@@ -169,4 +169,29 @@ def _build_dir_regex(pattern: str) -> "re.Pattern[str]":
     return re.compile(f"^{regex_str}$")
 
 
-SEASON_DIR_RE = _build_dir_regex(PATTERNS.season_dir)
+# Widened to FR+EN+Specials union — the authoritative SSOT used by all callers.
+# Matches: "Saison N", "Season N" (any digit count, case-insensitive keyword),
+# "Specials", "Special" (case-insensitive).
+SEASON_DIR_RE: re.Pattern[str] = re.compile(
+    r"^(?:saison|season)\s+(\d+)$|^specials?$",
+    re.IGNORECASE,
+)
+
+
+def season_number_from_dir(name: str) -> int | None:
+    """Return the season number from a season directory name.
+
+    Args:
+        name: Directory name, e.g. ``"Saison 3"``, ``"Season 12"``,
+            ``"Specials"``.
+
+    Returns:
+        Season number as int (0 for Specials/Special, positive int for
+        numbered seasons), or ``None`` when ``name`` does not match any
+        known season-directory form.
+    """
+    m = SEASON_DIR_RE.match(name)
+    if m is None:
+        return None
+    # Group 1 is present for "Saison N" / "Season N"; absent for "Specials".
+    return int(m.group(1)) if m.lastindex and m.group(1) else 0
