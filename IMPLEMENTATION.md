@@ -14,7 +14,7 @@
 
 | #   | Phase                                                            | File                                  | Status |
 | --- | ---------------------------------------------------------------- | ------------------------------------- | ------ |
-| 0   | Season-dir SSOT (widen-first) + VIDEO_EXTENSIONS                 | phase-00-season-ssot.md               | [ ]    |
+| 0   | Season-dir SSOT (widen-first) + VIDEO_EXTENSIONS                 | phase-00-season-ssot.md               | [x]    |
 | 1   | Extract NFO helpers → nfo_utils                                  | phase-01-nfo-helpers.md               | [ ]    |
 | 2   | Build \_item_stage + \_canonical; rewire scan_library (parallel) | phase-02-item-stage.md                | [ ]    |
 | 3   | Single-creator cutover: dispatch + alias + delete scanner.py     | phase-03-single-creator-cutover.md    | [ ]    |
@@ -47,4 +47,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 0.
+Run `/implement:phase` to continue with Phase 1 (Extract NFO helpers → nfo_utils).
