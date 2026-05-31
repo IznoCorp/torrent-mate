@@ -24,9 +24,9 @@ from personalscraper.library.models import (
     LibraryValidationResult,
     ValidationItem,
 )
-from personalscraper.library.scanner import parse_title_year
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
+from personalscraper.nfo_utils import parse_title_year
 from personalscraper.text_utils import sanitize_filename
 from personalscraper.verify.checker import CheckResult, MediaChecker, Severity
 from personalscraper.verify.fixer import MediaFixer

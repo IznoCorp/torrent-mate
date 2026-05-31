@@ -40,8 +40,8 @@ from personalscraper.library.models import (
     SubtitleTrack,
     VideoInfo,
 )
-from personalscraper.library.scanner import parse_title_year
 from personalscraper.logger import get_logger
+from personalscraper.nfo_utils import parse_title_year
 from personalscraper.scraper.mediainfo import extract_stream_info
 
 log = get_logger("library.analyzer")

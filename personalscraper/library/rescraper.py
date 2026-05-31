@@ -34,13 +34,9 @@ from personalscraper.library.models import (
     LibraryRescrapeResult,
     RescrapeAction,
 )
-from personalscraper.library.scanner import (
-    extract_nfo_ids,
-    parse_title_year,
-)
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
-from personalscraper.nfo_utils import is_nfo_complete
+from personalscraper.nfo_utils import extract_nfo_ids, is_nfo_complete, parse_title_year
 from personalscraper.scraper.confidence import (
     HIGH_CONFIDENCE,
     match_movie,

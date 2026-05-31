@@ -12,8 +12,8 @@ from typing import Any, Literal
 
 from personalscraper.indexer import query as indexer_query
 from personalscraper.indexer.repos import item_repo
-from personalscraper.library.scanner import extract_nfo_ids, parse_title_year
 from personalscraper.logger import get_logger
+from personalscraper.nfo_utils import extract_nfo_ids, parse_title_year
 from personalscraper.trailers.placement import (
     trailer_exists,
     trailer_path_for,
