@@ -184,3 +184,170 @@ def test_extract_nfo_metadata_returns_dict(tmp_path: Path) -> None:
     meta = extract_nfo_metadata(nfo)
     assert isinstance(meta, dict)
     assert meta.get("tmdb_id") == "99" or "tmdb" in str(meta)
+
+
+# --- extract_nfo_metadata: provider-ids + ratings (migrated from
+#     tests/library/test_scanner.TestExtractNfoMetadata, lib-fold Phase 3).
+#     The scanner module that hosted these tests is being deleted; the helper
+#     itself lives in personalscraper.nfo_utils and is imported here directly. ---
+
+
+def test_extract_nfo_metadata_extracts_tvdb_id(tmp_path: Path) -> None:
+    """TVDB uniqueid is read (legacy extract_nfo_ids silently dropped it)."""
+    nfo = tmp_path / "tvshow.nfo"
+    nfo.write_text('<tvshow><uniqueid type="tvdb">73141</uniqueid></tvshow>')
+
+    meta = extract_nfo_metadata(nfo)
+
+    assert meta["tvdb_id"] == "73141"
+    assert meta["tmdb_id"] is None
+    assert meta["imdb_id"] is None
+
+
+def test_extract_nfo_metadata_canonical_provider_from_default_true(tmp_path: Path) -> None:
+    """``<uniqueid default="true" type="tvdb">`` → canonical_provider='tvdb'."""
+    nfo = tmp_path / "tvshow.nfo"
+    nfo.write_text(
+        '<tvshow><uniqueid type="tvdb" default="true">73141</uniqueid>'
+        '<uniqueid type="tmdb">1433</uniqueid></tvshow>'
+    )
+
+    meta = extract_nfo_metadata(nfo)
+
+    assert meta["canonical_provider"] == "tvdb"
+
+
+def test_extract_nfo_metadata_canonical_provider_default_tmdb(tmp_path: Path) -> None:
+    """``<uniqueid default="true" type="tmdb">`` → canonical_provider='tmdb'."""
+    nfo = tmp_path / "movie.nfo"
+    nfo.write_text('<movie><uniqueid type="tmdb" default="true">603</uniqueid></movie>')
+
+    meta = extract_nfo_metadata(nfo)
+
+    assert meta["canonical_provider"] == "tmdb"
+
+
+def test_extract_nfo_metadata_canonical_provider_none_when_no_default(tmp_path: Path) -> None:
+    """Legacy NFO without ``default="true"`` → canonical_provider=None."""
+    nfo = tmp_path / "tvshow.nfo"
+    nfo.write_text('<tvshow><uniqueid type="tvdb">73141</uniqueid></tvshow>')
+
+    meta = extract_nfo_metadata(nfo)
+
+    assert meta["canonical_provider"] is None
+
+
+def test_extract_nfo_metadata_all_three_ids_with_canonical(tmp_path: Path) -> None:
+    """NFO with tvdb (canonical) + tmdb + imdb returns all three IDs."""
+    nfo = tmp_path / "tvshow.nfo"
+    nfo.write_text(
+        '<tvshow><uniqueid type="tvdb" default="true">73141</uniqueid>'
+        '<uniqueid type="tmdb">1433</uniqueid>'
+        '<uniqueid type="imdb">tt0397306</uniqueid></tvshow>'
+    )
+
+    meta = extract_nfo_metadata(nfo)
+
+    assert meta["tvdb_id"] == "73141"
+    assert meta["tmdb_id"] == "1433"
+    assert meta["imdb_id"] == "tt0397306"
+    assert meta["canonical_provider"] == "tvdb"
+
+
+def test_extract_nfo_metadata_ratings_block_with_source_mapping(tmp_path: Path) -> None:
+    """``<rating name="themoviedb">`` is mapped to internal ``"tmdb"`` source.
+
+    Mirrors the inverse of ``nfo_generator._NFO_RATING_SOURCE_NAMES`` so
+    ``ratings_json`` carries the same shape the scraper writes.
+    """
+    nfo = tmp_path / "movie.nfo"
+    nfo.write_text(
+        "<movie>"
+        "<ratings>"
+        '<rating name="imdb" max="10"><value>8.5</value><votes>1000000</votes></rating>'
+        '<rating name="themoviedb" max="10"><value>7.2</value><votes>500</votes></rating>'
+        '<rating name="rottentomatoes" max="100"><value>91</value><votes>0</votes></rating>'
+        "</ratings>"
+        "</movie>"
+    )
+
+    meta = extract_nfo_metadata(nfo)
+
+    sources = {r["source"] for r in meta["ratings"]}
+    assert sources == {"imdb", "tmdb", "rotten_tomatoes"}
+    imdb = next(r for r in meta["ratings"] if r["source"] == "imdb")
+    assert imdb["score"] == "8.5"
+    assert imdb["votes"] == 1_000_000
+
+
+def test_extract_nfo_metadata_empty_ratings_when_no_ratings_tag(tmp_path: Path) -> None:
+    """NFO without a ``<ratings>`` block returns an empty list."""
+    nfo = tmp_path / "tvshow.nfo"
+    nfo.write_text('<tvshow><uniqueid type="tvdb">73141</uniqueid></tvshow>')
+
+    meta = extract_nfo_metadata(nfo)
+
+    assert meta["ratings"] == []
+
+
+def test_extract_nfo_metadata_corrupt_xml_returns_blank_dict(tmp_path: Path) -> None:
+    """Bad XML returns a blank stable dict (all None / empty list)."""
+    nfo = tmp_path / "movie.nfo"
+    nfo.write_text("<not_xml")
+
+    meta = extract_nfo_metadata(nfo)
+
+    assert meta == {
+        "tmdb_id": None,
+        "imdb_id": None,
+        "tvdb_id": None,
+        "canonical_provider": None,
+        "ratings": [],
+    }
+
+
+# --- extract_nfo_ids: unique cases not yet covered in this file
+#     (migrated from tests/library/test_scanner.TestExtractNfoIds). ---
+
+
+def test_extract_nfo_ids_empty_uniqueid_text(tmp_path: Path) -> None:
+    """NFO with empty uniqueid text returns (None, None)."""
+    nfo = tmp_path / "movie.nfo"
+    nfo.write_text('<movie><uniqueid type="tmdb"></uniqueid></movie>')
+    tmdb, imdb = extract_nfo_ids(nfo)
+    assert tmdb is None
+    assert imdb is None
+
+
+def test_extract_nfo_ids_corrupt_xml(tmp_path: Path) -> None:
+    """Corrupt XML returns (None, None)."""
+    nfo = tmp_path / "movie.nfo"
+    nfo.write_text("<movie><broken")
+    tmdb, imdb = extract_nfo_ids(nfo)
+    assert tmdb is None
+    assert imdb is None
+
+
+def test_extract_nfo_ids_nonexistent_file(tmp_path: Path) -> None:
+    """Missing file returns (None, None)."""
+    tmdb, imdb = extract_nfo_ids(tmp_path / "missing.nfo")
+    assert tmdb is None
+    assert imdb is None
+
+
+def test_extract_nfo_ids_backward_compatible_with_three_ids(tmp_path: Path) -> None:
+    """The legacy 2-tuple shape is preserved even when tvdb is also present.
+
+    Migrated from
+    ``test_scanner.TestExtractNfoMetadata.test_extract_nfo_ids_remains_backward_compatible``:
+    extract_nfo_ids returns ``(tmdb, imdb)`` and hides the tvdb id (read only by
+    extract_nfo_metadata) for compatibility with trailers / rescraper callers.
+    """
+    nfo = tmp_path / "movie.nfo"
+    nfo.write_text(
+        '<movie><uniqueid type="tvdb">99999</uniqueid>'
+        '<uniqueid type="tmdb">603</uniqueid>'
+        '<uniqueid type="imdb">tt0133093</uniqueid></movie>'
+    )
+
+    assert extract_nfo_ids(nfo) == ("603", "tt0133093")
