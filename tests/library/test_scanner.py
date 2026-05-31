@@ -38,11 +38,11 @@ from personalscraper.library.models import (
     ISSUE_JUNK_FILES,
 )
 from personalscraper.library.scanner import (
-    extract_nfo_ids,
     scan_library,
     scan_movie_dir,
     scan_tvshow_dir,
 )
+from personalscraper.nfo_utils import extract_nfo_ids
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 if TYPE_CHECKING:
@@ -900,7 +900,7 @@ class TestParseTitleYear:
 
     def test_title_with_year(self) -> None:
         """Standard 'Title (2024)' format."""
-        from personalscraper.library.scanner import parse_title_year
+        from personalscraper.nfo_utils import parse_title_year
 
         title, year = parse_title_year("The Matrix (1999)")
         assert title == "The Matrix"
@@ -908,7 +908,7 @@ class TestParseTitleYear:
 
     def test_title_without_year(self) -> None:
         """No year in parentheses returns None."""
-        from personalscraper.library.scanner import parse_title_year
+        from personalscraper.nfo_utils import parse_title_year
 
         title, year = parse_title_year("Some Movie")
         assert title == "Some Movie"
@@ -916,7 +916,7 @@ class TestParseTitleYear:
 
     def test_title_with_spaces(self) -> None:
         """Extra spaces around year should be handled."""
-        from personalscraper.library.scanner import parse_title_year
+        from personalscraper.nfo_utils import parse_title_year
 
         title, year = parse_title_year("Movie  (2024) ")
         assert title == "Movie"
@@ -924,7 +924,7 @@ class TestParseTitleYear:
 
     def test_title_with_non_year_parens(self) -> None:
         """Non-4-digit parens should not match."""
-        from personalscraper.library.scanner import parse_title_year
+        from personalscraper.nfo_utils import parse_title_year
 
         title, year = parse_title_year("Movie (Extended)")
         assert year is None
@@ -987,7 +987,7 @@ class TestExtractNfoMetadata:
 
     def test_extracts_tvdb_id(self, tmp_path: Path) -> None:
         """Regression: TVDB uniqueid is now read (was silently dropped)."""
-        from personalscraper.library.scanner import extract_nfo_metadata
+        from personalscraper.nfo_utils import extract_nfo_metadata
 
         nfo = tmp_path / "test.nfo"
         nfo.write_text('<tvshow><uniqueid type="tvdb">73141</uniqueid></tvshow>')
@@ -1000,7 +1000,7 @@ class TestExtractNfoMetadata:
 
     def test_canonical_provider_from_default_true(self, tmp_path: Path) -> None:
         """``<uniqueid default="true" type="tvdb">`` → canonical_provider="tvdb"."""
-        from personalscraper.library.scanner import extract_nfo_metadata
+        from personalscraper.nfo_utils import extract_nfo_metadata
 
         nfo = tmp_path / "test.nfo"
         nfo.write_text(
@@ -1014,7 +1014,7 @@ class TestExtractNfoMetadata:
 
     def test_canonical_provider_default_tmdb(self, tmp_path: Path) -> None:
         """``<uniqueid default="true" type="tmdb">`` → canonical_provider="tmdb"."""
-        from personalscraper.library.scanner import extract_nfo_metadata
+        from personalscraper.nfo_utils import extract_nfo_metadata
 
         nfo = tmp_path / "test.nfo"
         nfo.write_text('<movie><uniqueid type="tmdb" default="true">603</uniqueid></movie>')
@@ -1025,7 +1025,7 @@ class TestExtractNfoMetadata:
 
     def test_canonical_provider_none_when_no_default(self, tmp_path: Path) -> None:
         """Legacy NFO without ``default="true"`` → canonical_provider=None."""
-        from personalscraper.library.scanner import extract_nfo_metadata
+        from personalscraper.nfo_utils import extract_nfo_metadata
 
         nfo = tmp_path / "test.nfo"
         nfo.write_text('<tvshow><uniqueid type="tvdb">73141</uniqueid></tvshow>')
@@ -1036,7 +1036,7 @@ class TestExtractNfoMetadata:
 
     def test_all_three_ids_with_canonical(self, tmp_path: Path) -> None:
         """NFO with tvdb (canonical) + tmdb + imdb returns all three IDs."""
-        from personalscraper.library.scanner import extract_nfo_metadata
+        from personalscraper.nfo_utils import extract_nfo_metadata
 
         nfo = tmp_path / "test.nfo"
         nfo.write_text(
@@ -1058,7 +1058,7 @@ class TestExtractNfoMetadata:
         Mirrors the inverse of ``nfo_generator._NFO_RATING_SOURCE_NAMES``
         so ``ratings_json`` carries the same shape the scraper writes.
         """
-        from personalscraper.library.scanner import extract_nfo_metadata
+        from personalscraper.nfo_utils import extract_nfo_metadata
 
         nfo = tmp_path / "test.nfo"
         nfo.write_text(
@@ -1081,7 +1081,7 @@ class TestExtractNfoMetadata:
 
     def test_empty_ratings_when_no_ratings_tag(self, tmp_path: Path) -> None:
         """NFO without a ``<ratings>`` block returns an empty list."""
-        from personalscraper.library.scanner import extract_nfo_metadata
+        from personalscraper.nfo_utils import extract_nfo_metadata
 
         nfo = tmp_path / "test.nfo"
         nfo.write_text('<tvshow><uniqueid type="tvdb">73141</uniqueid></tvshow>')
@@ -1092,7 +1092,7 @@ class TestExtractNfoMetadata:
 
     def test_corrupt_xml_returns_blank_dict(self, tmp_path: Path) -> None:
         """Bad XML returns a blank stable dict (all None / empty list)."""
-        from personalscraper.library.scanner import extract_nfo_metadata
+        from personalscraper.nfo_utils import extract_nfo_metadata
 
         nfo = tmp_path / "test.nfo"
         nfo.write_text("<not_xml")
