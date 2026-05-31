@@ -236,6 +236,10 @@ class TestSeasonDirRegex:
         # Mixed-case keywords (the ad-hoc copies used re.IGNORECASE on the keyword)
         "saison 3",
         "season 3",
+        # No-space forms — matched by the \s* ad-hoc copies, DESIGN §3.4 parity
+        "Saison1",
+        "Season1",
+        "saison5",
     ],
 )
 def test_season_dir_re_matches(name: str) -> None:
@@ -271,6 +275,8 @@ def test_season_dir_re_does_not_match(name: str) -> None:
         ("Special", 0),
         ("saison 5", 5),
         ("season 5", 5),
+        ("Season1", 1),
+        ("Saison1", 1),
         ("Movies", None),
         ("", None),
     ],

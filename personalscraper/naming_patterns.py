@@ -173,7 +173,7 @@ def _build_dir_regex(pattern: str) -> "re.Pattern[str]":
 # Matches: "Saison N", "Season N" (any digit count, case-insensitive keyword),
 # "Specials", "Special" (case-insensitive).
 SEASON_DIR_RE: re.Pattern[str] = re.compile(
-    r"^(?:saison|season)\s+(\d+)$|^specials?$",
+    r"^(?:saison|season)\s*(\d+)$|^specials?$",
     re.IGNORECASE,
 )
 

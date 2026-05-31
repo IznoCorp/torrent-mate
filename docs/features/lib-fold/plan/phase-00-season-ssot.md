@@ -216,6 +216,13 @@ from personalscraper.naming_patterns import SEASON_DIR_RE as _TV_SEASON_DIR_RE
 
 Same pattern — remove local definition, add import alias.
 
+> **NOTE (2026-05-31, C0 correction):** The Phase 0 audit found that
+> `incremental.py`'s local `_TV_SEASON_DIR_RE` had **zero consumers** (dead code).
+> Rather than adding an unused import alias (which would be dead code / ruff F401),
+> the constant was simply **deleted** with no replacement. This is a correct
+> resolution of the plan's literal step text, which assumed the constant was
+> live.
+
 - [ ] **Step 3.4: Replace `release_linker.py:34` capture-group copy**
 
 `release_linker.py` uses `parse_season_dir()` which internally uses `_SEASON_DIR_RE`. Replace both the constant and the helper:
@@ -345,6 +352,11 @@ cd /Users/izno/dev/PersonnalScaper && git commit --allow-empty -m "chore(lib-fol
 # ACC-00  no ad-hoc season-dir regex constant left in migrated files
 rg -t py '_TV_SEASON_DIR_RE *=|_SEASON_DIR_RE *=' personalscraper/library/ personalscraper/indexer/ personalscraper/trailers/ ; echo "rc=$?"
 # Expected: no output, then rc=1
+
+# NOTE (2026-05-31, C0 correction): the canonical SEASON_DIR_RE uses \s* (zero-or-more spaces)
+# to match the FULL union of the 5 ad-hoc copies, including no-space degenerate forms like
+# 'Season1' / 'Saison1' / 'saison5' that the original \s* copies matched. This is the
+# DESIGN §3.4 parity promise: "every form each copy matched still matches."
 
 # ACC-00b  widened canonical matches French + English + Specials
 python -c "from personalscraper.naming_patterns import SEASON_DIR_RE as r; assert all(r.match(s) for s in ['Saison 1','Saison 01','Season 1','Specials']); print('OK')"
