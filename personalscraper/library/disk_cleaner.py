@@ -30,28 +30,16 @@ from personalscraper.logger import get_logger
 
 log = get_logger("library.disk_cleaner")
 
-from personalscraper.text_utils import JUNK_FILE_NAMES as _JUNK_FILES  # noqa: E402
-
 # --- Orphan-detection constants -------------------------------------------
-
-# Video extensions considered for "main video" presence. Subtitle/audio-only
-# files do not count: a release with only an .mp3 or .srt is not a watchable
-# release. Audiobook items (.m4b) are intentionally excluded from this check
-# because the orphan mode targets video releases, not audiobook collections.
-_VIDEO_EXTENSIONS: frozenset[str] = frozenset(
-    {
-        ".mkv",
-        ".mp4",
-        ".avi",
-        ".m4v",
-        ".webm",
-        ".mov",
-        ".ts",
-        ".m2ts",
-        ".mpg",
-        ".mpeg",
-    }
-)
+# Video extensions considered for "main video" presence — canonical SSOT from
+# core.media_types. Subtitle/audio-only files do not count: a release with
+# only an .mp3 or .srt is not a watchable release. Audiobook items (.m4b) are
+# intentionally excluded from this check because the orphan mode targets video
+# releases, not audiobook collections.
+# Note: core.media_types stores extensions WITHOUT leading dot (e.g. "mkv").
+# Callers must use ``path.suffix.lower().lstrip(".")`` when comparing.
+from personalscraper.core.media_types import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS  # noqa: E402
+from personalscraper.text_utils import JUNK_FILE_NAMES as _JUNK_FILES  # noqa: E402
 
 # A "main" video must be at least this large. Trailers and shorts under this
 # threshold do not count, even if their filename does not match the trailer
@@ -379,7 +367,7 @@ def _has_main_video(directory: Path) -> bool:
 
 def _looks_like_main_video(path: Path) -> bool:
     """Return True if *path* is a substantial video file (not a trailer/sample)."""
-    if path.suffix.lower() not in _VIDEO_EXTENSIONS:
+    if path.suffix.lower().lstrip(".") not in _VIDEO_EXTENSIONS:
         return False
     stem_lower = path.stem.lower()
     if any(marker in stem_lower for marker in _TRAILER_MARKERS):
