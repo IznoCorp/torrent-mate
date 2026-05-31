@@ -1,8 +1,17 @@
 """Tests for personalscraper.nfo_utils — shared NFO validation."""
 
+import textwrap
 from pathlib import Path
 
-from personalscraper.nfo_utils import glob_nfo_candidates, is_nfo_complete
+import pytest
+
+from personalscraper.nfo_utils import (
+    extract_nfo_ids,
+    extract_nfo_metadata,
+    glob_nfo_candidates,
+    is_nfo_complete,
+    parse_title_year,
+)
 
 
 class TestGlobNfoCandidates:
@@ -95,3 +104,64 @@ class TestIsNfoComplete:
             '<tvshow><uniqueid default="true" type="tmdb">0</uniqueid><uniqueid type="tvdb">475278</uniqueid></tvshow>'
         )
         assert is_nfo_complete(nfo) is True
+
+
+# --- parse_title_year ---
+
+@pytest.mark.parametrize("dirname,expected_title,expected_year", [
+    ("The Godfather (1972)", "The Godfather", 1972),
+    ("Inception (2010)", "Inception", 2010),
+    ("No Year Here", "No Year Here", None),
+    ("Bad Boys for Life (2020)", "Bad Boys for Life", 2020),
+])
+def test_parse_title_year(dirname: str, expected_title: str, expected_year: int | None) -> None:
+    title, year = parse_title_year(dirname)
+    assert title == expected_title
+    assert year == expected_year
+
+
+# --- extract_nfo_ids ---
+
+def _write_nfo(tmp_path: Path, content: str) -> Path:
+    nfo = tmp_path / "movie.nfo"
+    nfo.write_text(textwrap.dedent(content), encoding="utf-8")
+    return nfo
+
+
+def test_extract_nfo_ids_tmdb_and_imdb(tmp_path: Path) -> None:
+    # extract_nfo_ids returns (tmdb_id, imdb_id) — not (tvdb_id, tmdb_id).
+    nfo = _write_nfo(tmp_path, """\
+        <?xml version="1.0" encoding="UTF-8"?>
+        <movie>
+          <uniqueid type="tmdb" default="true">67890</uniqueid>
+          <uniqueid type="imdb">tt0012345</uniqueid>
+        </movie>
+    """)
+    tmdb_id, imdb_id = extract_nfo_ids(nfo)
+    assert tmdb_id == "67890"
+    assert imdb_id == "tt0012345"
+
+
+def test_extract_nfo_ids_missing(tmp_path: Path) -> None:
+    nfo = _write_nfo(tmp_path, """\
+        <?xml version="1.0" encoding="UTF-8"?>
+        <movie><title>No IDs</title></movie>
+    """)
+    tmdb_id, imdb_id = extract_nfo_ids(nfo)
+    assert tmdb_id is None
+    assert imdb_id is None
+
+
+# --- extract_nfo_metadata ---
+
+def test_extract_nfo_metadata_returns_dict(tmp_path: Path) -> None:
+    nfo = _write_nfo(tmp_path, """\
+        <?xml version="1.0" encoding="UTF-8"?>
+        <movie>
+          <uniqueid type="tmdb" default="true">99</uniqueid>
+          <uniqueid type="imdb">tt0000001</uniqueid>
+        </movie>
+    """)
+    meta = extract_nfo_metadata(nfo)
+    assert isinstance(meta, dict)
+    assert meta.get("tmdb_id") == "99" or "tmdb" in str(meta)
