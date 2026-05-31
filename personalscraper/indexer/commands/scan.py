@@ -237,6 +237,13 @@ def library_index_command(
                 else:
                     effective_budget_seconds = cfg.indexer.scan.budget_seconds
 
+                # --- Pass 1 (library-index --mode full): stage rich media_item rows ---
+                if scan_mode == ScanMode.full:
+                    from personalscraper.indexer.scanner._modes._item_stage import stage_library_items  # noqa: PLC0415
+
+                    staged = stage_library_items(conn, cfg)
+                    log.info("indexer.cli.index.pass1_staged", staged=staged)
+
                 try:
                     result = scan(
                         disks=filtered_disks,

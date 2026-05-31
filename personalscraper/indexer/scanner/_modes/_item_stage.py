@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any
 from xml.etree import ElementTree as ET
 
 from personalscraper._fs_utils import is_apple_double
-from personalscraper.conf.ids import AUDIOBOOKS
+from personalscraper.conf.ids import AUDIOBOOKS, TV_CATEGORY_IDS
 from personalscraper.core.media_types import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 from personalscraper.indexer.repos import disk_repo, item_repo, tv_repo
 from personalscraper.indexer.scanner._modes._canonical import derive_canonical_provider
@@ -56,6 +56,7 @@ from personalscraper.nfo_utils import extract_nfo_metadata, is_nfo_complete, par
 from personalscraper.text_utils import JUNK_FILE_NAMES as _JUNK_FILES
 
 if TYPE_CHECKING:
+    from personalscraper.conf.models.config import Config
     from personalscraper.conf.models.disks import DiskConfig
 
 log = get_logger("indexer.scanner.item_stage")
@@ -709,3 +710,58 @@ def scan_and_stage_dir(
             _upsert_seasons_and_episodes(conn, item_id, media_dir, seasons)
 
     return item_id
+
+
+# ---------------------------------------------------------------------------
+# Library-wide pass-1 driver (library-index --mode full)
+# ---------------------------------------------------------------------------
+
+
+def stage_library_items(conn: sqlite3.Connection, config: Config, now_s: int | None = None) -> int:
+    """Stage rich ``media_item`` rows for every media directory across all configured disks.
+
+    Pass-1 of ``library-index --mode full``. Mirrors ``library.scanner.scan_library``'s
+    walk (disks × categories × media dirs) but delegates each directory to
+    :func:`scan_and_stage_dir` instead of the legacy ``scan_movie_dir`` /
+    ``scan_tvshow_dir``. Every mounted disk gets a guaranteed ``disk`` row
+    (:func:`_ensure_disk_row`) before its directories are iterated. Dotfile
+    directories are skipped.
+
+    Args:
+        conn: Open SQLite connection.
+        config: Fully-loaded application config. All configured disks are
+            iterated (the ``--disk`` filter is not applied to pass-1 in
+            Phase 2, parity with ``scan_library``).
+        now_s: Unix epoch seconds stamped on the rows; defaults to
+            ``int(time.time())``.
+
+    Returns:
+        Count of media directories successfully staged.
+    """
+    now_s = now_s if now_s is not None else int(time.time())
+    staged = 0
+    for disk_cfg in config.disks:
+        if not disk_cfg.path.exists():
+            log.warning("item_stage_disk_not_mounted", disk=disk_cfg.id, path=str(disk_cfg.path))
+            continue
+        _ensure_disk_row(conn, disk_cfg, now_s)
+        for category_id in disk_cfg.categories:
+            cat_cfg = config.category(category_id)
+            category_dir = disk_cfg.path / cat_cfg.folder_name
+            if not category_dir.is_dir():
+                continue
+            kind: MediaItemKind = "show" if category_id in TV_CATEGORY_IDS else "movie"
+            for media_dir in sorted(category_dir.iterdir()):
+                if not media_dir.is_dir() or media_dir.name.startswith("."):
+                    continue
+                try:
+                    scan_and_stage_dir(conn, media_dir, disk_cfg, category_id, kind, now_s)
+                    staged += 1
+                except OSError as exc:
+                    log.warning(
+                        "item_stage_item_error",
+                        media_dir=str(media_dir),
+                        error=str(exc),
+                        exc_info=True,
+                    )
+    return staged
