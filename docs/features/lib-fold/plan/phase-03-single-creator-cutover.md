@@ -6,6 +6,14 @@
 
 **Architecture:** Phase 2 proved (via the golden test) that `library-index --mode full` produces the same DB end-state as `library-scan`. Phase 3 commits to that path: deletes the legacy creator, eliminates the third write pattern in dispatch, and re-homes scanner tests. The golden test remains in the suite as a regression guard.
 
+> **POST-PHASE-2-CORRECTION STATE (read before executing — validated against HEAD `d7a210e9`):** The Phase-2 corrective sweep already advanced several Phase-3 preconditions, so this phase is _cleaner_ than the original narrative below:
+>
+> - `scan_library._upsert_media_item` **already delegates** to the shared `upsert_item_with_attrs` (commit `a01bc3a0`) → the single-writer is **already achieved for the `library-scan` leg**. The **only remaining second writer is `dispatch/media_index.py`** (Task 1/2 below).
+> - `_normalize_canonical_provider` is **already deleted** from `scanner.py` (logic lives in `_canonical.derive_canonical_provider`); the NFO helpers in `scanner.py` are **already imports** from `nfo_utils`; `_ensure_disk_row` / `_detect_issues` / `_upsert_seasons_and_episodes` / `_read_episode_titles` / `_build_disk_row` / artwork+nfo-status helpers are **already ported** into `_item_stage.py`. So deleting `scanner.py` (Task 3) removes only the dir-scanning (`scan_movie_dir`/`scan_tvshow_dir`) + `scan_library` walk that the alias replaces — no unique logic is lost.
+> - The dispatch redirect (Task 2) target is real: `media_index.py` rebuild/add still does its own `item_repo.upsert(MediaItemRow(..., canonical_provider=None, ...))` (line ~418). `scan_and_stage_dir(conn, media_dir, disk_cfg, category_id, kind, now_s=None)` and `_ensure_disk_row(conn, disk_cfg, now_s)` signatures **match** what `MediaIndex.rebuild()` has in scope (`DiskConfig`, category id, kind via `TV_CATEGORY_IDS`). ACC-04b (`no canonical_provider=None`) currently **fails** at `media_index.py:418` — Task 2 fixes it.
+> - `library-scan` (Task 2/3 alias) currently calls the (now-delegating) `scan_library`; re-pointing it to `library-index --mode full` is the final CLI cut. Confirm `scan_library` has no other callers before deletion.
+> - Importers to migrate before deleting `scanner.py`: `commands/library/scan.py` (`scan_library`), `tests/library/test_scanner.py` (`scan_movie_dir`/`scan_tvshow_dir`/`_ensure_disk_row`), `tests/library/test_integration.py` (`scan_library`), `tests/architecture/test_event_bus_required_signatures.py` (`scan_library`), `tests/indexer/scanner/_modes/test_item_stage_golden.py` (`scan_library` — the golden baseline; re-home or adapt). NFO-helper imports were already repointed to `nfo_utils` in Phase 2.
+
 **Tech Stack:** Python 3.11, SQLite, Typer (CLI alias), pytest, ruff, mypy.
 
 ---
