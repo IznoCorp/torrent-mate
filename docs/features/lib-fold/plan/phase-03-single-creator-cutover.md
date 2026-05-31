@@ -52,6 +52,14 @@ Phase 2 must be complete AND the golden test green:
 
 ## Sub-tasks
 
+> **▶ RESUME POINT (fresh session): Tasks 1 + 2 are DONE — START AT TASK 3.**
+> The dispatch single-writer cutover is already committed and the suite is green (5987 passed):
+>
+> - Task 1+2 → `media_index.py` `rebuild()`/`add()` delegate to the shared `scan_and_stage_dir`/`build_item_row`+`upsert_item_with_attrs`; `canonical_provider=None` eliminated (ACC-04b ✓); regression test `tests/dispatch/test_media_index_rich_rows.py` exists. Commit `3d54ba8c`.
+> - Exposed-bug fixes: `run.py` post-enrich uses `ScanMode.enrich` (`b73a141c`); the unscoped prod `OSError` guard was reverted for the documented `guard_disk_mounted` test seam (`0784850d`).
+>
+> Do **NOT** re-run Tasks 1/2 (the redirect + regression test already exist — re-dispatch would be a no-op at best, a duplicate at worst). **Begin at Task 3** (library-scan alias) → Task 4 (delete `scanner.py` + migrate its importers/tests, per the POST-PHASE-2-CORRECTION note above) → Task 5 (gate + milestone commit). See `IMPLEMENTATION.md` "Next action" for the same resume state.
+
 ### Task 1: Write the dispatch rich-rows regression test FIRST
 
 **Files:**
