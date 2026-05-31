@@ -5,6 +5,74 @@ All notable changes to personalscraper are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0] — 2026-05-29
+
+### Added
+
+- **Multi-filesystem support** (`FilesystemCapability` strategy table,
+  `personalscraper/indexer/_fs_capability.py`): the pipeline now adapts rsync
+  flags and indexer tier-1 drift behaviour per destination filesystem type.
+  Supported keys: `ntfs_macfuse` (unchanged), `apfs`, `hfsplus`, `exfat`,
+  `ext4` (data-only), and `unknown` (NTFS-safe restrictive fallback).
+- `resolve_capability(path, fs_type_override)`
+  (`personalscraper/indexer/_fs_capability.py`): a **single shared resolver**
+  consumed by **both** the transfer layer (`dispatch.dispatcher.Dispatcher`)
+  and the indexer scanner (`indexer/scanner/_scan_orchestrator.py`). This
+  guarantees a disk's filesystem type is honoured uniformly end-to-end —
+  transfer and scan can never diverge. An explicit `DiskConfig.fs_type`
+  override beats `probe_mount` auto-detection.
+- `FsProbe` (`personalscraper/indexer/_fs_probe.py`): single cached `mount`
+  shell-out replacing three independent parsers (`db.py`,
+  `scanner/_spotlight.py`, `scanner/__init__.py`). `canonical_fs_type` matches
+  macFUSE/NTFS driver tokens by substring, fixing the `ufsd_NTFS` exact-token
+  dead branch in `_spotlight.try_attach`.
+- FS-aware tier-1 fingerprint helpers `normalize_tier1` and `round_mtime_ns`
+  (`personalscraper/indexer/fingerprint.py`), consumed by the live scanner
+  modes `scanner/_modes/incremental.py` and `scanner/_modes/quick.py`. On
+  exFAT, ctime is dropped from the tier-1 tuple and mtime is floored to a
+  2-second bucket; on HFS+, mtime is floored to a 1-second bucket. NTFS / APFS
+  / ext4 keep the legacy `(size, mtime_ns, ctime_ns)` 3-tuple unchanged.
+- FS-aware Merkle and dir-mtime **gating** layer: the Merkle root short-circuit,
+  the `compute_merkle_delta` bulk-change freeze guard, and the dir-mtime subtree
+  skip now bucket mtime per the disk capability
+  (`_walker.py::_build_disk_fingerprints` / `_sample_fresh_fingerprints` and the
+  dir-mtime compares in incremental / quick). On a coarse filesystem (HFS+ 1 s,
+  exFAT 2 s) sub-bucket mtime jitter can no longer defeat the Merkle
+  short-circuit nor spuriously trip the bulk-change freeze on a healthy disk;
+  NTFS / APFS / ext4 (granularity 1) keep a byte-identical Merkle root.
+- `DiskConfig.fs_type` optional override: escape hatch for unrecognised
+  macFUSE driver tokens; falls back to the NTFS-safe `unknown` capability for
+  any unrecognised value. The scanner override map is keyed on the **stable**
+  `DiskConfig.id` (== the immutable `DiskRow.label`), not on the mutable
+  `mount_path`, so a runtime remount can no longer drop the operator override.
+
+### Changed (per-FS dispatch)
+
+- Per-FS illegal-filename relaxation now applies **end-to-end**: the
+  illegal-name gate in `dispatch/_movie.py` / `_tv.py` runs **after** the
+  destination disk is resolved and uses that disk's
+  `capability.illegal_name_regex`. A `:`-titled item is no longer skipped when
+  the destination is a POSIX filesystem (APFS / HFS+ / exFAT / ext4, where the
+  regex is `None`); on an NTFS / `unknown` destination it is still skipped.
+- `multifs` pytest marker: capability / probe / argv / tier-1 / scan /
+  diskconfig tests tagged; no real disks required (faked mount/stat fixtures).
+
+### Fixed
+
+- `_spotlight.try_attach` dead branch: `ufsd_NTFS` mounts were not recognised
+  as macFUSE volumes due to exact-token vs substring asymmetry. Now fixed via
+  substring matching in `canonical_fs_type`.
+
+### Changed
+
+- Probe timeout for the `db.py` pre-open check: 5 s → 10 s (single cached
+  shell-out shared with the scanner modules). Intentional; documented in
+  `docs/reference/storage.md`.
+- `rsync()` and `rsync_merge()` in `dispatch/_transfer.py` now read flags from
+  `FilesystemCapability.rsync_flags` (defaulting to `NTFS_MACFUSE`) instead of
+  hardcoded literals. The NTFS argv is pinned byte-for-byte by a golden test
+  (`tests/dispatch/test_transfer_argv.py`).
+
 ## [0.17.0] — 2026-05-29
 
 ### Added

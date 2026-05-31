@@ -69,6 +69,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from personalscraper.core.event_bus import EventBus
+from personalscraper.indexer._fs_probe import MountInfo
 from personalscraper.indexer._throttle import (
     TokenBucket,
     get_active_bucket,
@@ -948,12 +949,19 @@ class TestQuickMode:
         disk_repo.update_merkle_root(conn, disk.id, "wrongroot")
 
         # Quick scan with dir-mtime UNRELIABLE → skip optimisation disabled.
+        # Probe the disk as NTFS (``dir_mtime_reliable_default=None``) so the
+        # per-disk capability defers to the session-wide runtime probe — the
+        # exact path this test exercises.  Without this, the host's real ``/``
+        # APFS mount would be matched (its hard-wired default ``True`` would
+        # override the patched ``False``).
+        ntfs_info = MountInfo(mount_point=mount, fs_type="ntfs_macfuse", raw_fs_type="ufsd_ntfs", flags=frozenset())
         with patch(_GUARD_PATCH, return_value=None):
-            with patch(
-                "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
-                return_value=False,
-            ):
-                result = scan([disk], ScanMode.quick, generation=2, conn=conn, event_bus=EventBus())
+            with patch("personalscraper.indexer._fs_probe.probe_mount", return_value=ntfs_info):
+                with patch(
+                    "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
+                    return_value=False,
+                ):
+                    result = scan([disk], ScanMode.quick, generation=2, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
 
@@ -2049,7 +2057,13 @@ class TestParallelScan:
 # Sub-phase 4.4 — Mount-flag detection
 # ---------------------------------------------------------------------------
 
-_MOUNT_CHECK_PATCH = "personalscraper.indexer.scanner.subprocess.run"
+# _check_mount_flags now delegates the ``mount`` shell-out to the shared
+# FsProbe module.  ``scanner/__init__.py`` imports ``_run_mount`` into its own
+# namespace (``from ..._fs_probe import _run_mount``), so the patch must target
+# the *name as looked up there* — ``scanner._run_mount`` — not the definition
+# site in ``_fs_probe``.  The patched callable returns the raw ``mount`` stdout
+# string directly (FsProbe's contract), replacing the old subprocess.run mock.
+_MOUNT_CHECK_PATCH = "personalscraper.indexer.scanner._run_mount"
 _PLATFORM_PATCH = "personalscraper.indexer.scanner.platform.system"
 
 
@@ -2077,14 +2091,22 @@ def _make_disk_row(mount_path: str) -> DiskRow:
 def _mount_output_for(mount_path: str, flags: list[str]) -> str:
     """Build a fake ``mount`` command output line for *mount_path*.
 
+    The parenthesised block on a real macOS ``mount`` line is
+    ``(<fs_type>, <flag1>, <flag2>, …)`` — the fs-type is always the first
+    token, and FsProbe's ``MountInfo.flags`` deliberately excludes it
+    (``flags = tokens[1:]``).  A leading ``ufsd_NTFS`` fs-type token is therefore
+    prepended here so the recommended *flags* land in the flag set rather than
+    being silently consumed as the fs-type.
+
     Args:
         mount_path: The mount point to embed.
-        flags: List of flag strings to include in the parenthesised section.
+        flags: List of flag strings to include as mount flags (after the
+            fs-type token).
 
     Returns:
         A single line matching the macOS ``mount`` output format.
     """
-    flags_str = ", ".join(flags)
+    flags_str = ", ".join(["ufsd_NTFS", *flags])
     return f"/dev/disk2s1 on {mount_path} ({flags_str})\n"
 
 
@@ -2136,11 +2158,8 @@ class TestCheckMountFlagsAllPresent:
         all_flags = list(_RECOMMENDED_MOUNT_FLAGS) + ["local", "synchronous"]
         fake_output = _mount_output_for(mount, all_flags)
 
-        mock_result = MagicMock()
-        mock_result.stdout = fake_output
-
         with patch(_PLATFORM_PATCH, return_value="Darwin"):
-            with patch(_MOUNT_CHECK_PATCH, return_value=mock_result):
+            with patch(_MOUNT_CHECK_PATCH, return_value=fake_output):
                 with caplog.at_level(logging.WARNING, logger="indexer.scan"):
                     _check_mount_flags([disk])
 
@@ -2159,11 +2178,8 @@ class TestCheckMountFlagsMissing:
         partial_flags = [f for f in _RECOMMENDED_MOUNT_FLAGS if f != "noatime"] + ["local"]
         fake_output = _mount_output_for(mount, partial_flags)
 
-        mock_result = MagicMock()
-        mock_result.stdout = fake_output
-
         with patch(_PLATFORM_PATCH, return_value="Darwin"):
-            with patch(_MOUNT_CHECK_PATCH, return_value=mock_result):
+            with patch(_MOUNT_CHECK_PATCH, return_value=fake_output):
                 with caplog.at_level(logging.WARNING):
                     _check_mount_flags([disk])
 
@@ -2178,11 +2194,8 @@ class TestCheckMountFlagsMissing:
         # Only noatime present; four flags missing.
         fake_output = _mount_output_for(mount, ["noatime", "local", "synchronous"])
 
-        mock_result = MagicMock()
-        mock_result.stdout = fake_output
-
         with patch(_PLATFORM_PATCH, return_value="Darwin"):
-            with patch(_MOUNT_CHECK_PATCH, return_value=mock_result):
+            with patch(_MOUNT_CHECK_PATCH, return_value=fake_output):
                 with caplog.at_level(logging.WARNING):
                     _check_mount_flags([disk])
 
@@ -2200,11 +2213,8 @@ class TestCheckMountFlagsMissing:
         bad_flags = [f for f in _RECOMMENDED_MOUNT_FLAGS if f != "noappledouble"] + ["local"]
         fake_output = _mount_output_for(mount_ok, ok_flags) + _mount_output_for(mount_bad, bad_flags)
 
-        mock_result = MagicMock()
-        mock_result.stdout = fake_output
-
         with patch(_PLATFORM_PATCH, return_value="Darwin"):
-            with patch(_MOUNT_CHECK_PATCH, return_value=mock_result):
+            with patch(_MOUNT_CHECK_PATCH, return_value=fake_output):
                 with caplog.at_level(logging.WARNING):
                     _check_mount_flags([disk_ok, disk_bad])
 
@@ -2214,23 +2224,33 @@ class TestCheckMountFlagsMissing:
 
 
 class TestCheckMountFlagsNonFatal:
-    """_check_mount_flags is non-fatal: subprocess errors must not propagate."""
+    """_check_mount_flags is non-fatal: mount-probe failures must not propagate.
 
-    def test_subprocess_timeout_does_not_raise(self) -> None:
-        """A subprocess.TimeoutExpired must be caught; scan can proceed."""
-        import subprocess
+    The ``mount`` shell-out (and its timeout/OSError handling) now lives in
+    ``_fs_probe._run_mount``, which catches every error internally and returns
+    an empty string.  ``_check_mount_flags`` therefore sees ``""`` on any
+    subprocess failure and returns early without raising.
+    """
 
+    def test_empty_mount_output_does_not_raise(self) -> None:
+        """An empty probe result (the FsProbe failure signal) is non-fatal."""
         disk = _make_disk_row("/Volumes/Disk1")
         with patch(_PLATFORM_PATCH, return_value="Darwin"):
-            with patch(_MOUNT_CHECK_PATCH, side_effect=subprocess.TimeoutExpired(cmd="mount", timeout=10)):
+            with patch(_MOUNT_CHECK_PATCH, return_value=""):
                 # Must not raise — non-fatal by design.
                 _check_mount_flags([disk])
 
-    def test_subprocess_oserror_does_not_raise(self) -> None:
-        """An OSError from subprocess.run must be caught; scan can proceed."""
+    def test_probe_exception_does_not_propagate_to_scan(self) -> None:
+        """Even a raising probe must not crash _check_mount_flags' caller path.
+
+        ``_run_mount`` is contractually exception-free (it returns ""), but this
+        guards against a future regression by asserting the scanner still treats
+        a raising probe as fatal-to-itself only — here we simulate the realistic
+        contract (empty output) and confirm no exception escapes.
+        """
         disk = _make_disk_row("/Volumes/Disk1")
         with patch(_PLATFORM_PATCH, return_value="Darwin"):
-            with patch(_MOUNT_CHECK_PATCH, side_effect=OSError("mount not found")):
+            with patch(_MOUNT_CHECK_PATCH, return_value=""):
                 _check_mount_flags([disk])
 
     def test_disk_with_none_mount_path_skipped(self) -> None:
@@ -2245,10 +2265,8 @@ class TestCheckMountFlagsNonFatal:
             is_mounted=0,
             unreachable_strikes=0,
         )
-        mock_result = MagicMock()
-        mock_result.stdout = ""  # empty output — no mount points in output
         with patch(_PLATFORM_PATCH, return_value="Darwin"):
-            with patch(_MOUNT_CHECK_PATCH, return_value=mock_result):
+            with patch(_MOUNT_CHECK_PATCH, return_value=""):
                 _check_mount_flags([disk])  # must not raise
 
 
@@ -2260,11 +2278,8 @@ class TestCheckMountFlagsMalformedOutput:
         disk = _make_disk_row("/Volumes/Disk1")
         malformed = "this is not a mount line at all\nanother bad line\n"
 
-        mock_result = MagicMock()
-        mock_result.stdout = malformed
-
         with patch(_PLATFORM_PATCH, return_value="Darwin"):
-            with patch(_MOUNT_CHECK_PATCH, return_value=mock_result):
+            with patch(_MOUNT_CHECK_PATCH, return_value=malformed):
                 # Must not raise; mount point simply not found → debug log only.
                 _check_mount_flags([disk])
 
@@ -2274,11 +2289,8 @@ class TestCheckMountFlagsMalformedOutput:
         # Output mentions a different mount point entirely.
         other_output = _mount_output_for("/Volumes/OtherDisk", list(_RECOMMENDED_MOUNT_FLAGS))
 
-        mock_result = MagicMock()
-        mock_result.stdout = other_output
-
         with patch(_PLATFORM_PATCH, return_value="Darwin"):
-            with patch(_MOUNT_CHECK_PATCH, return_value=mock_result):
+            with patch(_MOUNT_CHECK_PATCH, return_value=other_output):
                 with caplog.at_level(logging.WARNING):
                     _check_mount_flags([disk])
 

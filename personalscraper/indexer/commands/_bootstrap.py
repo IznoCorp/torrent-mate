@@ -75,6 +75,35 @@ def _bootstrap_disks_from_config(
     return registered
 
 
+def build_fs_type_overrides(cfg_disks: Sequence[DiskConfig]) -> dict[str, str]:
+    """Build the scanner ``fs_type_overrides`` map keyed on the STABLE disk id.
+
+    The override map links an operator ``DiskConfig.fs_type`` to the disk it
+    applies to.  The link MUST use a stable identity, not the mutable
+    ``DiskRow.mount_path`` (which is rewritten by
+    :func:`~personalscraper.indexer.repos.disk_repo.update_mount_path` and set
+    to ``NULL`` on unmount).  :func:`_bootstrap_disks_from_config` persists
+    ``DiskConfig.id`` into the immutable ``DiskRow.label`` column, so the label
+    is the durable join key between a config disk and its DB row.
+
+    Keying on ``DiskConfig.id`` (== ``DiskRow.label``) therefore guarantees the
+    scanner resolves the SAME capability the transfer layer resolves for that
+    disk — the two can never diverge after a remount.  The scanner looks the
+    map up by ``DiskRow.label`` in
+    :func:`~personalscraper.indexer.scanner._scan_orchestrator._scan_one_disk`.
+
+    Args:
+        cfg_disks: Sequence of :class:`~personalscraper.conf.models.DiskConfig`
+            objects from the loaded config.
+
+    Returns:
+        Mapping ``{DiskConfig.id: DiskConfig.fs_type}`` for every disk that
+        carries an explicit ``fs_type`` override.  Disks with ``fs_type=None``
+        are omitted (pure auto-detection on the scan side).
+    """
+    return {disk.id: disk.fs_type for disk in cfg_disks if disk.fs_type is not None}
+
+
 # ---------------------------------------------------------------------------
 # library-status
 # ---------------------------------------------------------------------------

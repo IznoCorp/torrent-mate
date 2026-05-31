@@ -237,3 +237,112 @@ full diagnosis and measured impact estimates.
 
 - Paths contain spaces (`/path/to/staging/`) — always quote paths in shell commands.
 - macOS filesystem is case-insensitive — `git mv FILE.md file.md` fails; use intermediate rename: `git mv FILE.md tmp.md && git mv tmp.md file.md`.
+
+## Filesystem capability layer (v0.18.0+)
+
+The pipeline adapts its rsync flags and indexer drift behaviour to the
+destination filesystem via a `FilesystemCapability` strategy table
+(`personalscraper/indexer/_fs_capability.py`). The same
+`resolve_capability(path, fs_type_override)` resolver is consumed by **both**
+the transfer layer (`dispatch.dispatcher.Dispatcher`) and the indexer scanner
+(`indexer/scanner/_scan_orchestrator.py`), so a disk's filesystem type is
+honoured uniformly end-to-end — transfer and scan can never diverge.
+Resolution order: an explicit `DiskConfig.fs_type` override wins and skips the
+probe entirely; otherwise the type is auto-detected via `probe_mount`; an
+unmounted path or non-Darwin host falls back to the NTFS-safe `unknown`
+capability.
+
+### FsProbe consolidation
+
+A single cached `probe_mount(path)` call (`personalscraper/indexer/_fs_probe.py`)
+replaces the three independent `mount` parsers that previously lived in
+`db.py`, `scanner/_spotlight.py`, and `scanner/__init__.py`.
+
+**Timeout:** 10 seconds (consolidated from the former 5s in `db.py` and 10s in
+the scanner modules). The result is cached for the process lifetime — `mount`
+output does not change mid-run.
+
+`canonical_fs_type` matches NTFS-via-macFUSE driver tokens by **substring**
+(`ufsd_ntfs`, `fuse_osxfuse`, `osxfuse`, `macfuse`, `ntfs`, `fuse-t`), which
+fixes the `ufsd_NTFS` exact-token dead branch that previously lived in
+`_spotlight.try_attach`.
+
+### Capability table
+
+| fs_type        | rsync extra flags                                              | Unix perms | Apple metadata | NTFS name check | ctime in tier-1 | mtime granularity |
+| -------------- | -------------------------------------------------------------- | ---------- | -------------- | --------------- | --------------- | ----------------- |
+| `ntfs_macfuse` | `--no-perms --no-owner --no-group --no-times --omit-dir-times` | blocked    | excluded       | yes             | yes             | exact (1 ns)      |
+| `unknown`      | **same as `ntfs_macfuse`** (restrictive fallback)              | blocked    | excluded       | yes             | yes             | exact (1 ns)      |
+| `apfs`         | _(none beyond `-a --inplace --partial`)_                       | allowed    | allowed        | no              | yes             | exact (1 ns)      |
+| `hfsplus`      | _(none beyond `-a --inplace --partial`)_                       | allowed    | allowed        | no              | yes             | 1 s               |
+| `exfat`        | `--exclude=.DS_Store --exclude=._*`                            | allowed    | excluded       | no              | no (no ctime)   | 2 s               |
+| `ext4`         | _(none beyond `-a --inplace --partial`)_                       | allowed    | allowed        | no              | yes†            | exact (1 ns)      |
+
+† ext4 ctime mutates on metadata ops; granularity widening is deferred until a
+real ext4 target exists (DESIGN §8.4).
+
+The "rsync extra flags" column lists only the **perms/time** flags for brevity;
+the AppleDouble excludes (`--exclude=.DS_Store --exclude=._*`) are NOT absent —
+they are captured by the "Apple metadata: excluded" column and apply to every FS
+marked _excluded_ there (`ntfs_macfuse`, `unknown`, and `exfat`). The complete,
+authoritative `ntfs_macfuse` prefix — including the AppleDouble excludes — is
+listed under "NTFS flags" below and is the value pinned in
+`_fs_capability.py::_NTFS_RSYNC_FLAGS`.
+
+The FS-aware tier-1 drift comparison is implemented by
+`fingerprint.normalize_tier1` / `round_mtime_ns`, consumed by the live scanner
+modes `scanner/_modes/incremental.py` and `scanner/_modes/quick.py`. On
+`exfat`, ctime is dropped from the tier-1 tuple and mtime is floored to a
+2-second bucket; on `hfsplus`, mtime is floored to a 1-second bucket;
+`ntfs_macfuse` / `apfs` / `ext4` keep the legacy `(size, mtime_ns, ctime_ns)`
+3-tuple unchanged.
+
+The same capability bucketing now governs the **gating** layer in quick and
+incremental mode, not only the per-file compare and the paranoia branch: the
+Merkle root short-circuit, the `compute_merkle_delta` bulk-change freeze guard
+(`DiskBulkChangeDetected`), and the dir-mtime subtree skip all floor mtime
+through `round_mtime_ns` (the DB side in `_walker.py::_build_disk_fingerprints`,
+the FS side in `_sample_fresh_fingerprints`, and both sides of the dir-mtime
+compare). Because both sides bucket with the same capability, sub-bucket mtime
+jitter on a coarse filesystem can no longer defeat the Merkle short-circuit nor
+spuriously trip the bulk-change freeze on a healthy disk. For `ntfs_macfuse` /
+`apfs` / `ext4` (granularity 1) the bucketing is the identity transform, so the
+Merkle root, the delta, and the dir-mtime compare are all byte-identical to the
+pre-multi-filesystem behaviour.
+
+The remaining Merkle-root consumers outside the scanner bucket through the same
+`_build_disk_fingerprints` helper, so a stored bucketed root is never compared
+against a raw recomputation: `reconcile.detect_merkle_drift` (the
+`library-doctor` drift check, fed the operator override from its caller) and
+`repair._refresh_disk_merkle` (the `library-repair` post-cascade rewrite, which
+auto-detects the capability from the disk mount). On a coarse filesystem this is
+what keeps the doctor from emitting a false drift warning after a clean scan and
+keeps the repair-written root reproducible by the next scan's short-circuit.
+
+### NTFS flags (byte-identical to pre-0.18.0)
+
+The full `ntfs_macfuse` rsync prefix:
+
+```
+-a --no-perms --no-owner --no-group --no-times --omit-dir-times --inplace --partial --exclude=.DS_Store --exclude=._*
+```
+
+These flags are pinned in `_fs_capability.py::_NTFS_RSYNC_FLAGS` and verified
+by a golden test (`tests/dispatch/test_transfer_argv.py`).
+
+### Operator override
+
+To force a specific filesystem type for a disk (e.g. when the macFUSE driver
+token is not auto-recognised):
+
+```json5
+// config/disks.json5
+{
+  id: "raid",
+  path: "/Volumes/AppleRAID",
+  categories: ["movies", "tv_shows"],
+  fs_type: "hfsplus", // override: unlocks Unix perms, disables NTFS name check
+}
+```
+
+When `fs_type` is omitted, the type is auto-detected via `probe_mount`.

@@ -256,6 +256,16 @@ def library_index_command(
                         staging_dir=str(cfg.paths.staging_dir),
                         spotlight_enabled=cfg.indexer.spotlight.use_when_available,
                         paranoia_window_seconds=cfg.indexer.scan.paranoia_window_seconds,
+                        # Thread the operator ``DiskConfig.fs_type`` overrides into
+                        # the scanner so capability resolution is consistent with
+                        # the dispatch (transfer) layer. The map is keyed on the
+                        # STABLE ``DiskConfig.id`` (persisted as the immutable
+                        # ``DiskRow.label`` by ``_bootstrap_disks_from_config``),
+                        # NOT on the mutable ``DiskRow.mount_path`` (rewritten on
+                        # remount, NULL on unmount) — so the scanner's per-disk
+                        # ``ctx.fs_type_overrides.get(disk.label)`` lookup can never
+                        # diverge from the transfer layer after a mount_path change.
+                        fs_type_overrides=cli_compat.build_fs_type_overrides(cfg.disks),
                         event_bus=event_bus,
                     )
                 except DiskBulkChangeDetected as bulk_exc:

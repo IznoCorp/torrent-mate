@@ -22,6 +22,7 @@ from pathlib import Path
 
 import xxhash
 
+from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
 from personalscraper.indexer._macos_io import disable_cache
 from personalscraper.indexer._throttle import acquire as _acquire_read_tokens
 
@@ -79,6 +80,66 @@ def fingerprint_tier1(stat: os.stat_result) -> tuple[int, int, int]:
         A 3-tuple ``(st_size, st_mtime_ns, st_ctime_ns)``.
     """
     return (stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+
+
+# ---------------------------------------------------------------------------
+# FS-aware tier-1 normalisation (Phase 5)
+# ---------------------------------------------------------------------------
+
+
+def round_mtime_ns(mtime_ns: int, capability: FilesystemCapability = NTFS_MACFUSE) -> int:
+    """Floor an mtime to the capability's granularity bucket.
+
+    The default *capability* is ``NTFS_MACFUSE`` (granularity 1), so an
+    un-threaded caller gets the identity transform — the value is returned
+    unchanged.  Only filesystems with a coarser timestamp resolution (HFS+ 1 s,
+    exFAT 2 s) actually bucket the mtime.
+
+    Args:
+        mtime_ns: Raw ``st_mtime_ns``.
+        capability: Filesystem capability (provides ``mtime_granularity_ns``).
+            Defaults to ``NTFS_MACFUSE`` so omitting it is a no-op.
+
+    Returns:
+        ``mtime_ns`` unchanged when granularity is 1 (NTFS/APFS/ext4); otherwise
+        floored to the nearest ``mtime_granularity_ns`` bucket (HFS+ 1 s,
+        exFAT 2 s).
+    """
+    gran = capability.mtime_granularity_ns
+    return (mtime_ns // gran) * gran if gran > 1 else mtime_ns
+
+
+def normalize_tier1(
+    size: int,
+    mtime_ns: int,
+    ctime_ns: int,
+    capability: FilesystemCapability = NTFS_MACFUSE,
+) -> tuple[int, ...]:
+    """Capability-aware tier-1 fingerprint used for drift comparison.
+
+    For ``ntfs_macfuse`` (and APFS/ext4: granularity=1, ctime=True) this returns
+    ``(size, mtime_ns, ctime_ns)`` — byte-identical to the legacy inline tuples,
+    so the NTFS scan path is unchanged.  exFAT drops ctime (unreliable) and
+    rounds mtime to 2 s; HFS+ keeps ctime but rounds mtime to 1 s.
+
+    The default *capability* is ``NTFS_MACFUSE`` so any call site not yet
+    threaded behaves exactly like the legacy tuple.
+
+    Args:
+        size: ``st_size``.
+        mtime_ns: Raw ``st_mtime_ns``.
+        ctime_ns: Raw ``st_ctime_ns`` (caller passes ``stored.ctime_ns or 0``).
+        capability: Filesystem capability for the disk being scanned.  Defaults
+            to ``NTFS_MACFUSE`` (legacy 3-tuple, no rounding).
+
+    Returns:
+        A 3-tuple ``(size, mtime_bucket, ctime_ns)`` when the FS has reliable
+        ctime, else a 2-tuple ``(size, mtime_bucket)``.
+    """
+    m = round_mtime_ns(mtime_ns, capability)
+    if capability.tier1_uses_ctime:
+        return (size, m, ctime_ns)
+    return (size, m)
 
 
 # ---------------------------------------------------------------------------

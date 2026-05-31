@@ -376,18 +376,28 @@ class TestMacFuseNtfsRejection:
     """open_db rejects paths on macFUSE-NTFS mounts."""
 
     def test_ntfs_mount_raises_invalid_path_error(self, tmp_path: Path) -> None:
-        """Mocked mount output with NTFS type causes IndexerInvalidPathError."""
+        """Mocked mount output with NTFS type causes IndexerInvalidPathError.
+
+        ``_find_ntfs_mount`` now delegates to ``_fs_probe.probe_mount``, whose
+        ``_run_mount`` shell-out is ``lru_cache``-wrapped.  Patch ``_run_mount``
+        directly (bypassing the cache) so the injected mount output is honoured
+        regardless of any earlier cached real probe.  ``db_path`` is resolved
+        before matching, so the fake mount point must use the resolved tmp_path.
+        """
         from personalscraper.indexer.db import IndexerInvalidPathError
 
         db_path = tmp_path / "library.db"
 
-        fake_mount_output = f"/dev/disk2s1 on {tmp_path} (ufsd_NTFS, local, noatime)\n"
+        # Use the resolved tmp_path: _find_ntfs_mount resolves db_path before
+        # matching, and on macOS /var → /private/var symlink resolution applies.
+        resolved_tmp = tmp_path.resolve()
+        fake_mount_output = f"/dev/disk2s1 on {resolved_tmp} (ufsd_NTFS, local, noatime)\n"
 
         with patch(
-            "subprocess.run",
-            return_value=MagicMock(stdout=fake_mount_output, returncode=0),
+            "personalscraper.indexer._fs_probe._run_mount",
+            return_value=fake_mount_output,
         ):
             with pytest.raises(IndexerInvalidPathError) as exc_info:
                 open_db(db_path, event_bus=EventBus())
 
-        assert str(tmp_path) in str(exc_info.value.mount_point)
+        assert str(resolved_tmp) in str(exc_info.value.mount_point)

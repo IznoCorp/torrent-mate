@@ -7,11 +7,12 @@ from typing import TYPE_CHECKING
 
 from personalscraper.conf import resolver
 from personalscraper.dispatch import _transfer
-from personalscraper.dispatch._movie import _disk_root_for
+from personalscraper.dispatch._movie import _disk_root_for, _is_skipped_for_illegal_names
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.disk_scanner import get_disk_status
 from personalscraper.dispatch.events import ItemDispatched
 from personalscraper.dispatch.media_index import IndexEntry
+from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
 from personalscraper.indexer.outbox._disk import disk_id_for_path
 from personalscraper.indexer.outbox._publish import publish_event
 from personalscraper.logger import get_logger
@@ -39,13 +40,6 @@ def dispatch_tvshow(
     """
     result = DispatchResult(source=show_dir)
 
-    # Pre-scan for NTFS-illegal filenames before any rsync operation
-    if _transfer.has_ntfs_illegal_names(show_dir):
-        result.action = "skipped"
-        result.reason = f"NTFS-illegal filenames in {show_dir.name}. Run 'personalscraper process' to sanitize."
-        log.error("dispatch_ntfs_illegal", path=str(show_dir))
-        return result
-
     disk_statuses = [get_disk_status(c) for c in dispatcher._disk_configs]
     free_space_by_id = {s.config.id: s.free_space_gb if s.is_mounted else 0.0 for s in disk_statuses}
     item_size_gb = _transfer.dir_size_gb(show_dir)
@@ -70,11 +64,19 @@ def dispatch_tvshow(
             result.reason = f"Disk {existing.disk} full, cannot merge"
             return result
 
+        # Resolve the destination disk's capability (NTFS-safe default), then
+        # gate illegal filenames against THAT capability's regex (None on POSIX
+        # filesystems → no restriction → not skipped). Resolving before the
+        # dry-run branch keeps dry-run a faithful preview of the real run.
+        cap = dispatcher._disk_capabilities.get(existing.disk, NTFS_MACFUSE)
+        if _is_skipped_for_illegal_names(result, show_dir, cap):
+            return result
+
         if dispatcher.dry_run:
             result.action = "merged"
             result.reason = f"[DRY RUN] Would merge on {existing.disk}"
             return result
-        success = merge(show_dir, dest)
+        success = merge(show_dir, dest, capability=cap)
         result.action = "merged" if success else "error"
     else:
         # Move to best disk via resolver
@@ -93,11 +95,20 @@ def dispatch_tvshow(
         dest = resolver.folder_for(dispatcher.config, target_disk, category_id) / show_dir.name
         result.disk = target_disk.id
         result.destination = dest
+
+        # Resolve the target disk's capability (NTFS-safe default), then gate
+        # illegal filenames against THAT capability's regex (None on POSIX
+        # filesystems → no restriction → not skipped). Resolving before the
+        # dry-run branch keeps dry-run a faithful preview of the real run.
+        cap = dispatcher._disk_capabilities.get(target_disk.id, NTFS_MACFUSE)
+        if _is_skipped_for_illegal_names(result, show_dir, cap):
+            return result
+
         if dispatcher.dry_run:
             result.action = "moved"
             result.reason = f"[DRY RUN] Would move to {target_disk.id}"
             return result
-        success = dispatcher._move_new(show_dir, dest)
+        success = dispatcher._move_new(show_dir, dest, capability=cap)
         result.action = "moved" if success else "error"
 
     if result.action in ("merged", "moved") and result.destination:
@@ -161,7 +172,11 @@ def dispatch_tvshow(
     return result
 
 
-def merge(source: Path, dest: Path) -> bool:
+def merge(
+    source: Path,
+    dest: Path,
+    capability: FilesystemCapability = NTFS_MACFUSE,
+) -> bool:
     """Merge TV show with backup-based rollback for existing files.
 
     Uses rsync --backup to preserve overwritten files in
@@ -182,6 +197,9 @@ def merge(source: Path, dest: Path) -> bool:
     Args:
         source: Source TV show directory.
         dest: Existing destination directory.
+        capability: Filesystem capability for the destination volume.
+            Defaults to ``NTFS_MACFUSE`` (NTFS-safe) so existing callers are
+            byte-identical to the legacy behaviour.
 
     Returns:
         True if successful.
@@ -195,7 +213,7 @@ def merge(source: Path, dest: Path) -> bool:
         purge_episode_conflicts(source, dest, backup_dir)
 
         # rsync with backup for overwritten files
-        if not _transfer.rsync_merge(source, dest, backup_dir):
+        if not _transfer.rsync_merge(source, dest, backup_dir, capability=capability):
             _transfer.restore_merge_backup(dest, backup_dir)
             return False
 

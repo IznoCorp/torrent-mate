@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from personalscraper.indexer._fs_capability import FilesystemCapability, resolve_capability
 from personalscraper.indexer.breaker import (
     DiskCircuitBreaker,
     bind_global_disk_breaker_to_bus,
@@ -99,6 +100,17 @@ class _DiskWalkContext:
     timestamp captured before any disk is walked; the per-disk mode helpers
     consult it together with ``budget_seconds`` to detect time-budget
     exhaustion.
+
+    ``fs_type_overrides`` maps the STABLE disk identity (``DiskConfig.id``,
+    persisted as the immutable ``DiskRow.label``) to the canonical
+    ``DiskConfig.fs_type`` override for that disk.  It threads the operator
+    override into the scanner so capability resolution is consistent with the
+    dispatch (transfer) layer — both route through
+    :func:`~personalscraper.indexer._fs_capability.resolve_capability`.  Keying
+    on ``label`` rather than the mutable ``mount_path`` (rewritten on remount,
+    NULL on unmount) guarantees scan and transfer never diverge.  An empty dict
+    (the default) means no overrides → pure auto-detection, preserving the
+    historical scanner behaviour.
     """
 
     mode: ScanMode
@@ -116,6 +128,7 @@ class _DiskWalkContext:
     no_enqueue: bool
     breaker: DiskCircuitBreaker
     started_at_monotonic: float = 0.0
+    fs_type_overrides: dict[str, str] = field(default_factory=dict)
 
 
 # Mapping reused by :func:`_scan_one_disk` when classifying mount-guard
@@ -235,7 +248,7 @@ def _scan_one_disk(
     disk: DiskRow,
     state: _ScanState,
     ctx: _DiskWalkContext,
-    finalize_after_walk: Callable[[sqlite3.Connection, DiskRow, int, int, int], None],
+    finalize_after_walk: Callable[[sqlite3.Connection, DiskRow, int, int, int, FilesystemCapability], None],
     local_files: list[int],
     local_dirs: list[int],
     local_skipped: list[int],
@@ -327,6 +340,30 @@ def _scan_one_disk(
     mount = disk.mount_path
     log.info("indexer.scan.disk_start", disk_id=disk.id, label=disk.label, mount_path=mount)
 
+    # Resolve the per-disk FilesystemCapability via the SHARED resolver so the
+    # scanner honours the ``DiskConfig.fs_type`` operator override exactly like
+    # the dispatch (transfer) layer — one knob, one behaviour. When no override
+    # is supplied for this mount the resolver auto-detects via the read-time
+    # mount probe (authoritative for drift); an unrecognised / unprobeable mount
+    # falls back to the NTFS-safe "unknown" superset (full ctime + exact mtime),
+    # which is byte-identical to the legacy behaviour.
+    # Look the override up by the STABLE ``DiskRow.label`` (== ``DiskConfig.id``),
+    # NOT the mutable ``mount`` path: ``mount_path`` is rewritten on remount and
+    # NULL on unmount, so keying on it would silently drop the operator override
+    # while the transfer layer (which resolves from the DiskConfig directly) kept
+    # it. The label is set once at bootstrap and never changes, so the scan and
+    # transfer capability resolutions stay in lock-step.
+    disk_capability = resolve_capability(mount, ctx.fs_type_overrides.get(disk.label))
+
+    # The capability may hard-wire dir-mtime reliability (APFS/HFS+ default True);
+    # otherwise fall back to the session-wide runtime probe. NTFS leaves this at
+    # None → effective value equals the session probe (ctx.dir_mtime_reliable),
+    # so the NTFS path is unchanged.
+    if disk_capability.dir_mtime_reliable_default is not None:
+        effective_dir_mtime_reliable = disk_capability.dir_mtime_reliable_default
+    else:
+        effective_dir_mtime_reliable = ctx.dir_mtime_reliable
+
     try:
         if ctx.mode == ScanMode.full:
             _scanner_pkg._scan_disk_full(
@@ -367,7 +404,7 @@ def _scan_one_disk(
                 local_dirs,
                 ctx.generation,
                 local_skipped,
-                ctx.dir_mtime_reliable,
+                effective_dir_mtime_reliable,
                 local_resume_from,
                 local_files_since_ckpt,
                 local_exhausted,
@@ -378,6 +415,7 @@ def _scan_one_disk(
                 confirm_bulk_change=ctx.confirm_bulk_change,
                 merkle_delta_freeze_threshold=ctx.merkle_delta_freeze_threshold,
                 paranoia_window_seconds=ctx.paranoia_window_seconds,
+                capability=disk_capability,
             )
         elif ctx.mode == ScanMode.incremental:
             _scanner_pkg._scan_disk_incremental(
@@ -388,7 +426,7 @@ def _scan_one_disk(
                 local_dirs,
                 ctx.generation,
                 local_skipped,
-                ctx.dir_mtime_reliable,
+                effective_dir_mtime_reliable,
                 local_resume_from,
                 local_files_since_ckpt,
                 local_exhausted,
@@ -398,6 +436,7 @@ def _scan_one_disk(
                 ctx.checkpoint_every_n_files,
                 confirm_bulk_change=ctx.confirm_bulk_change,
                 merkle_delta_freeze_threshold=ctx.merkle_delta_freeze_threshold,
+                capability=disk_capability,
             )
         elif ctx.mode == ScanMode.enrich:
             if ctx.backfill_streams:
@@ -431,6 +470,7 @@ def _scan_one_disk(
                 local_exhausted,
                 ctx.scan_run_id,
                 no_enqueue=ctx.no_enqueue,
+                capability=disk_capability,
             )
         else:
             # Skeleton walk for any future modes not yet implemented.
@@ -512,12 +552,16 @@ def _scan_one_disk(
     )
 
     # Persist post-walk per-disk state (merkle_root, last_seen_at, scan_event).
+    # Thread the resolved capability so the full-scan merkle root store is
+    # FS-aware (bucketed) and byte-equal to what the first incremental/quick
+    # short-circuit recomputes for this disk.
     finalize_after_walk(
         worker_conn,
         disk,
         ctx.scan_run_id,
         local_files[0],
         local_dirs[0],
+        disk_capability,
     )
 
 
@@ -531,7 +575,7 @@ def _run_parallel_walk(
     db_path: Path,
     state: _ScanState,
     ctx: _DiskWalkContext,
-    finalize_after_walk: Callable[[sqlite3.Connection, DiskRow, int, int, int], None],
+    finalize_after_walk: Callable[[sqlite3.Connection, DiskRow, int, int, int, FilesystemCapability], None],
     max_workers: int,
 ) -> None:
     """Spawn one worker per disk and run :func:`_scan_one_disk` concurrently.
@@ -599,7 +643,7 @@ def _run_sequential_walk(
     conn: sqlite3.Connection,
     state: _ScanState,
     ctx: _DiskWalkContext,
-    finalize_after_walk: Callable[[sqlite3.Connection, DiskRow, int, int, int], None],
+    finalize_after_walk: Callable[[sqlite3.Connection, DiskRow, int, int, int, FilesystemCapability], None],
 ) -> None:
     """Walk every disk on the calling thread using the shared *conn*.
 

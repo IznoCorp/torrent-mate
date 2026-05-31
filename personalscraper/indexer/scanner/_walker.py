@@ -18,6 +18,8 @@ import tempfile
 from typing import Any
 
 from personalscraper.indexer import fingerprint
+from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
+from personalscraper.indexer.fingerprint import round_mtime_ns
 from personalscraper.indexer.merkle import FileFingerprint
 from personalscraper.indexer.repos import disk_repo
 from personalscraper.indexer.scanner._checkpoint import _maybe_checkpoint
@@ -101,7 +103,11 @@ def _verify_dir_mtime_reliable() -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _build_disk_fingerprints(conn: sqlite3.Connection, disk_id: int) -> list[FileFingerprint]:
+def _build_disk_fingerprints(
+    conn: sqlite3.Connection,
+    disk_id: int,
+    capability: FilesystemCapability = NTFS_MACFUSE,
+) -> list[FileFingerprint]:
     """Query non-deleted, fingerprinted ``media_file`` rows for *disk_id*.
 
     Used by the quick-mode Merkle short-circuit and incremental's mid-walk
@@ -111,18 +117,34 @@ def _build_disk_fingerprints(conn: sqlite3.Connection, disk_id: int) -> list[Fil
 
     Rows with ``oshash IS NULL`` (Stage A — file discovered but not yet
     enriched) are excluded so the merkle reflects only fully-fingerprinted
-    files. The query mirrors the two consumers that read the same set:
+    files. This helper is the SINGLE SOURCE OF TRUTH for the fingerprint set:
+    every Merkle-root consumer routes through it so a stored bucketed root is
+    never compared against a raw recomputation. The consumers are
     :func:`personalscraper.indexer.scanner._finalize_disk_after_walk` (the
-    bootstrap path that writes the first-ever merkle) and
+    bootstrap path that writes the first-ever merkle),
     :func:`personalscraper.indexer.reconcile.detect_merkle_drift` (the
-    consistency probe). Earlier revisions of this helper omitted the
-    ``oshash IS NOT NULL`` filter, leaving the scanner-stored and detector-
-    computed merkles to drift permanently against each other on every disk
-    that contained any Stage-A row (DEV #14).
+    ``library-doctor`` consistency probe), and
+    :func:`personalscraper.indexer.repair._refresh_disk_merkle` (the
+    ``library-repair`` post-cascade rewrite). Earlier revisions of this helper
+    omitted the ``oshash IS NOT NULL`` filter, leaving the scanner-stored and
+    detector-computed merkles to drift permanently against each other on every
+    disk that contained any Stage-A row (DEV #14).
+
+    The ``mtime_ns`` of each fingerprint is floored to *capability*'s
+    granularity bucket via :func:`round_mtime_ns` so the Merkle root computed
+    from these rows is FS-aware: on a coarse filesystem (HFS+ 1 s, exFAT 2 s)
+    sub-bucket mtime jitter no longer defeats the Merkle short-circuit nor
+    spuriously inflates :func:`~personalscraper.indexer.merkle.compute_merkle_delta`.
+    For ``NTFS_MACFUSE`` (granularity 1, the default) the bucketing is the
+    identity transform, so the resulting fingerprints — and any Merkle root or
+    delta derived from them — are byte-identical to the legacy behaviour.
 
     Args:
         conn: Open SQLite connection.
         disk_id: PK of the disk whose files to query.
+        capability: Per-disk :class:`FilesystemCapability` governing mtime
+            bucketing.  Defaults to ``NTFS_MACFUSE`` (granularity 1 → identity),
+            so an un-threaded caller is byte-identical to the legacy behaviour.
 
     Returns:
         List of :class:`~personalscraper.indexer.merkle.FileFingerprint` objects,
@@ -141,7 +163,12 @@ def _build_disk_fingerprints(conn: sqlite3.Connection, disk_id: int) -> list[Fil
         (disk_id,),
     ).fetchall()
     return [
-        FileFingerprint(path_id=r["path_id"], size=r["size_bytes"], mtime_ns=r["mtime_ns"], oshash=r["oshash"])
+        FileFingerprint(
+            path_id=r["path_id"],
+            size=r["size_bytes"],
+            mtime_ns=round_mtime_ns(r["mtime_ns"], capability),
+            oshash=r["oshash"],
+        )
         for r in rows
     ]
 
@@ -150,6 +177,7 @@ def _sample_fresh_fingerprints(
     conn: sqlite3.Connection,
     disk_id: int,
     mount: str,
+    capability: FilesystemCapability = NTFS_MACFUSE,
 ) -> list[FileFingerprint]:
     """Sample fresh tier-1 fingerprints for all known paths on *disk_id*.
 
@@ -164,10 +192,23 @@ def _sample_fresh_fingerprints(
     are handled by regular drift reconciliation; the delta guard is only
     concerned with mass-change events (restores, disk swaps).
 
+    The freshly-sampled ``st_mtime_ns`` is floored to *capability*'s
+    granularity bucket via :func:`round_mtime_ns` so it is comparable with the
+    bucketed stored fingerprints from :func:`_build_disk_fingerprints`: BOTH
+    sides bucket with the SAME capability, so
+    :func:`~personalscraper.indexer.merkle.compute_merkle_delta` (bucketed-vs-
+    bucketed) no longer counts sub-bucket mtime jitter on a coarse FS as a
+    difference, and the bulk-change freeze guard cannot trip on a healthy disk.
+    For ``NTFS_MACFUSE`` (granularity 1, the default) this is the identity
+    transform — byte-identical to the legacy sample.
+
     Args:
         conn: Open SQLite connection.
         disk_id: PK of the disk whose files to sample.
         mount: Absolute mount point path for the disk.
+        capability: Per-disk :class:`FilesystemCapability` governing mtime
+            bucketing.  Defaults to ``NTFS_MACFUSE`` (granularity 1 → identity),
+            so an un-threaded caller is byte-identical to the legacy behaviour.
 
     Returns:
         List of :class:`~personalscraper.indexer.merkle.FileFingerprint` objects
@@ -198,7 +239,9 @@ def _sample_fresh_fingerprints(
             FileFingerprint(
                 path_id=row["path_id"],
                 size=st.st_size,
-                mtime_ns=st.st_mtime_ns,
+                # Bucket the FS-side mtime so it matches the bucketed DB-side
+                # stored fingerprint (both sides use the same capability).
+                mtime_ns=round_mtime_ns(st.st_mtime_ns, capability),
                 # Keep stored oshash — recomputing it defeats the purpose of a
                 # lightweight sample.  Only size/mtime_ns are compared here.
                 oshash=row["oshash"],
@@ -628,6 +671,7 @@ def _walk_dir_quick(
     budget_seconds: float | None = None,
     scan_run_id: int = 0,
     checkpoint_every: int = 100,
+    capability: FilesystemCapability = NTFS_MACFUSE,
 ) -> None:
     """Recursively walk *dir_abs* in quick mode with dir-mtime subtree skipping.
 
@@ -662,6 +706,13 @@ def _walk_dir_quick(
         budget_seconds: Maximum wall-clock seconds for the scan; ``None`` = unlimited.
         scan_run_id: PK of the active ``scan_run`` row (needed by checkpoint helper).
         checkpoint_every: How many files to process between checkpoint writes.
+        capability: Per-disk :class:`FilesystemCapability` governing the
+            dir-mtime granularity bucketing.  Both the stored ``dir_mtime_ns``
+            and the live FS value are floored via :func:`round_mtime_ns` before
+            comparison, so sub-bucket jitter on a coarse FS (HFS+ 1 s, exFAT
+            2 s) does not defeat the subtree skip.  Defaults to ``NTFS_MACFUSE``
+            (granularity 1 → identity), so an un-threaded caller is byte-
+            identical to the legacy exact compare.
     """
     assert disk.mount_path is not None  # guard: mount_path checked before entering walk
 
@@ -693,8 +744,15 @@ def _walk_dir_quick(
 
             if dir_mtime_reliable:
                 # Check whether the stored dir_mtime_ns matches the live FS value.
+                # Both sides are bucketed via the disk capability so sub-bucket
+                # jitter on a coarse FS does not force a spurious re-walk.
                 existing_path = disk_repo.get_path_by_disk_and_relpath(conn, disk.id, rel)
-                if existing_path is not None and existing_path.dir_mtime_ns == current_mtime_ns:
+                if (
+                    existing_path is not None
+                    and existing_path.dir_mtime_ns is not None
+                    and round_mtime_ns(existing_path.dir_mtime_ns, capability)
+                    == round_mtime_ns(current_mtime_ns, capability)
+                ):
                     # Subtree unchanged — skip recursion entirely (zero file reads).
                     log.debug("indexer.scan.dir_unchanged", path=entry.path, dir_mtime_ns=current_mtime_ns)
                     continue
@@ -715,6 +773,7 @@ def _walk_dir_quick(
                 budget_seconds,
                 scan_run_id,
                 checkpoint_every,
+                capability,
             )
 
             # Stop iterating this directory if budget was exhausted in the subtree.

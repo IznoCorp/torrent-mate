@@ -328,7 +328,11 @@ def get_queue_health(conn: sqlite3.Connection) -> tuple[int | None, int]:
 # ---------------------------------------------------------------------------
 
 
-def _refresh_disk_merkle(conn: sqlite3.Connection, disk_id: int) -> str | None:
+def _refresh_disk_merkle(
+    conn: sqlite3.Connection,
+    disk_id: int,
+    fs_type_overrides: dict[str, str] | None = None,
+) -> str | None:
     """Recompute and persist ``disk.merkle_root`` from the current live file set.
 
     Reads every live (``deleted_at IS NULL``, ``oshash IS NOT NULL``)
@@ -339,35 +343,59 @@ def _refresh_disk_merkle(conn: sqlite3.Connection, disk_id: int) -> str | None:
     live file set — without this, ``library-index --mode quick`` later trips
     the bulk-change protection because the stored vs computed delta is huge.
 
+    The recomputed root MUST be FS-aware and match the scanner's bucketing,
+    otherwise the next scan's Merkle short-circuit can never reproduce the
+    root this function wrote and a coarse filesystem (exFAT 2 s, HFS+ 1 s)
+    re-walks (or bulk-change-freezes) forever.  The recomputation therefore
+    goes through the SAME helper the scanner uses —
+    :func:`~personalscraper.indexer.scanner._walker._build_disk_fingerprints` —
+    with the per-disk capability resolved exactly the way the scanner resolves
+    it (:func:`~personalscraper.indexer._fs_capability.resolve_capability`).
+    On NTFS/APFS/ext4 (granularity 1) the bucketing is the identity transform,
+    so the written root is byte-identical to the legacy raw behaviour.
+
+    .. note::
+       The repair cascade (``library-repair`` → :func:`drain` →
+       :func:`repair_processor` → :func:`soft_delete_subtree`) calls this with
+       *fs_type_overrides* left at ``None`` because the
+       ``Callable[[conn, row], None]`` processor protocol consumed by
+       :func:`drain` has no channel for the operator override map.  Auto-detect
+       (``resolve_capability(mount_path, None)``) is correct for that path: it
+       probes the live mount and matches the scanner for the common
+       no-override case.  The operator ``DiskConfig.fs_type`` override is
+       honoured end-to-end via the scan and ``library-doctor`` paths, which DO
+       thread the map; *fs_type_overrides* is exposed here so a direct caller
+       that already holds the map (e.g. a future batched end-of-drain refresh)
+       can pass it.
+
     Args:
         conn: Open SQLite connection with an active transaction.
         disk_id: PK of the ``disk`` row whose ``merkle_root`` should be
             refreshed. If the disk row has ``merkle_root IS NULL`` (never
             scanned), this is a no-op.
+        fs_type_overrides: Optional mapping of the STABLE disk identity
+            (``DiskConfig.id`` == ``DiskRow.label``) to a canonical fs-type
+            override token.  ``None`` (the default, used by the repair cascade)
+            means auto-detect the capability from the disk's ``mount_path``.
 
     Returns:
         The new merkle root that was written, or ``None`` if the disk had no
         prior merkle (no-op).
     """
-    from personalscraper.indexer.merkle import FileFingerprint, compute_merkle_root  # noqa: PLC0415
+    # Lazy imports keep the (scanner ↔ repair) import edge acyclic — the
+    # scanner package transitively reaches repair during normal runs.
+    from personalscraper.indexer._fs_capability import resolve_capability  # noqa: PLC0415
+    from personalscraper.indexer.merkle import compute_merkle_root  # noqa: PLC0415
+    from personalscraper.indexer.scanner._walker import _build_disk_fingerprints  # noqa: PLC0415
 
-    row = conn.execute("SELECT merkle_root FROM disk WHERE id = ?", (disk_id,)).fetchone()
-    if row is None or row[0] is None:
+    row = conn.execute("SELECT label, mount_path, merkle_root FROM disk WHERE id = ?", (disk_id,)).fetchone()
+    if row is None or row[2] is None:
         return None
-    rows = conn.execute(
-        """
-        SELECT mf.path_id, mf.size_bytes, mf.mtime_ns, mf.oshash
-          FROM media_file mf
-          JOIN path p ON p.id = mf.path_id
-         WHERE p.disk_id = ?
-           AND mf.deleted_at IS NULL
-           AND mf.oshash IS NOT NULL
-        """,
-        (disk_id,),
-    ).fetchall()
-    fingerprints = [
-        FileFingerprint(path_id=int(r[0]), size=int(r[1]), mtime_ns=int(r[2]), oshash=str(r[3])) for r in rows
-    ]
+    overrides = fs_type_overrides or {}
+    # Resolve the per-disk capability the SAME way the scanner does: override
+    # keyed on the STABLE label, else auto-detect from mount_path.
+    capability = resolve_capability(row[1] or "", overrides.get(row[0]))
+    fingerprints = _build_disk_fingerprints(conn, disk_id, capability)
     new_root = compute_merkle_root(fingerprints)
     conn.execute("UPDATE disk SET merkle_root = ? WHERE id = ?", (new_root, disk_id))
     log.info(

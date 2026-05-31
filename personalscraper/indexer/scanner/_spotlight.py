@@ -25,6 +25,7 @@ import platform
 import subprocess
 from collections.abc import Callable
 
+from personalscraper.indexer._fs_probe import probe_mount as _probe_mount
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.spotlight")
@@ -34,82 +35,23 @@ log = get_logger("indexer.spotlight")
 # ---------------------------------------------------------------------------
 
 
-def _parse_mount_output(mount_output: str) -> dict[str, str]:
-    """Parse ``mount`` command output into a mapping of mount-point → fs-type.
-
-    Each ``mount`` line has the form::
-
-        <device> on <mount_point> (<fs_type>, <flag1>, ...)
-
-    The filesystem type is the first token inside the parentheses.
-
-    Args:
-        mount_output: Raw stdout from the ``mount`` command.
-
-    Returns:
-        Dict mapping normalised mount-point string to lowercase fs-type string
-        (e.g. ``{"/Volumes/DiskA": "apfs", "/Volumes/DiskB": "macfuse"}``).
-        Lines that do not match the expected format are silently skipped.
-    """
-    result: dict[str, str] = {}
-    for line in mount_output.splitlines():
-        paren_open = line.rfind("(")
-        paren_close = line.rfind(")")
-        on_idx = line.find(" on ")
-        if paren_open == -1 or paren_close == -1 or on_idx == -1:
-            continue
-        mount_point = line[on_idx + 4 : paren_open].strip()
-        flags_str = line[paren_open + 1 : paren_close]
-        # The fs-type is always the first comma-separated token.
-        tokens = [t.strip() for t in flags_str.split(",") if t.strip()]
-        if tokens:
-            result[mount_point] = tokens[0].lower()
-    return result
-
-
-def _get_mount_output() -> str:
-    """Run the ``mount`` command and return its stdout.
-
-    Returns:
-        Raw stdout of ``mount``, or empty string on any error.
-    """
-    try:
-        proc = subprocess.run(
-            ["mount"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        return proc.stdout
-    except Exception as exc:
-        log.debug("indexer.disk.mount_check_failed", error=str(exc))
-        return ""
-
-
 def detect_fs_type(path: str) -> str | None:
     """Return the filesystem type for *path*'s mount point, or ``None`` if unknown.
 
-    Only meaningful on macOS (Darwin).  On other platforms the function always
-    returns ``None``.
+    Delegates to :func:`personalscraper.indexer._fs_probe.probe_mount`.
+    Only meaningful on macOS (Darwin); returns ``None`` on other platforms.
 
     Args:
         path: Absolute path whose mount-point filesystem type is needed.
 
     Returns:
-        Lowercase filesystem type string (e.g. ``"apfs"``, ``"macfuse"``,
-        ``"ntfs"``), or ``None`` when the mount point cannot be determined.
+        Canonical fs-type string (e.g. ``"apfs"``, ``"ntfs_macfuse"``,
+        ``"hfsplus"``), or ``None`` when the mount point cannot be determined.
     """
     if platform.system() != "Darwin":
         return None
-
-    mount_out = _get_mount_output()
-    fs_map = _parse_mount_output(mount_out)
-
-    # Normalise: strip trailing slash from path and all map keys.
-    normalised_path = path.rstrip("/")
-    # Build a normalised lookup table.
-    normalised_map = {k.rstrip("/"): v for k, v in fs_map.items()}
-    return normalised_map.get(normalised_path)
+    info = _probe_mount(path)
+    return info.fs_type if info is not None else None
 
 
 # ---------------------------------------------------------------------------
@@ -255,7 +197,7 @@ class SpotlightChangeDetector:
         _probe_fn = probe_fn if probe_fn is not None else probe_spotlight
         fs_type = _fs_type_fn(path)
 
-        if fs_type == "macfuse":
+        if fs_type == "ntfs_macfuse":
             # Emit flag_ignored_macfuse warning only if the operator opted in
             # (spotlight_enabled=True) — and only once per path per session.
             if spotlight_enabled and path not in self._skipped_macfuse_paths:

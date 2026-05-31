@@ -80,6 +80,7 @@ markers = [
     "network: Network tests — opt-in via TRAILER_INTEGRATION_TESTS=1 env var",
     "slow: slow tests (perf regression), off by default — run with -m slow",
     "darwin_only: macOS-only smoke tests (skipped on Linux/Windows CI runners)",
+    "multifs: filesystem-capability tests using faked mount/stat fixtures (no real disks required)",
 ]
 addopts = "-m 'not e2e and not e2e_torrent and not e2e_idempotence and not slow and not network'"
 

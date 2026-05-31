@@ -12,6 +12,7 @@ from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.disk_scanner import get_disk_status
 from personalscraper.dispatch.events import ItemDispatched
 from personalscraper.dispatch.media_index import IndexEntry
+from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
 from personalscraper.indexer.outbox._disk import disk_id_for_path
 from personalscraper.indexer.outbox._publish import publish_event
 from personalscraper.logger import get_logger
@@ -38,13 +39,6 @@ def dispatch_movie(
         DispatchResult with operation details.
     """
     result = DispatchResult(source=movie_dir)
-
-    # Pre-scan for NTFS-illegal filenames before any rsync operation
-    if _transfer.has_ntfs_illegal_names(movie_dir):
-        result.action = "skipped"
-        result.reason = f"NTFS-illegal filenames in {movie_dir.name}. Run 'personalscraper process' to sanitize."
-        log.error("dispatch_ntfs_illegal", path=str(movie_dir))
-        return result
 
     # Get disk statuses keyed by disk ID for resolver
     disk_statuses = [get_disk_status(c) for c in dispatcher._disk_configs]
@@ -74,11 +68,19 @@ def dispatch_movie(
             result.reason = f"Disk {existing.disk} full, cannot replace"
             return result
 
+        # Resolve the destination disk's capability (NTFS-safe default), then
+        # gate illegal filenames against THAT capability's regex (None on POSIX
+        # filesystems → no restriction → not skipped). Resolving before the
+        # dry-run branch keeps dry-run a faithful preview of the real run.
+        cap = dispatcher._disk_capabilities.get(existing.disk, NTFS_MACFUSE)
+        if _is_skipped_for_illegal_names(result, movie_dir, cap):
+            return result
+
         if dispatcher.dry_run:
             result.action = "replaced"
             result.reason = f"[DRY RUN] Would replace on {existing.disk}"
             return result
-        success = replace(movie_dir, dest)
+        success = replace(movie_dir, dest, capability=cap)
         result.action = "replaced" if success else "error"
     else:
         # Move to best disk via resolver
@@ -97,11 +99,20 @@ def dispatch_movie(
         dest = resolver.folder_for(dispatcher.config, target_disk, category_id) / movie_dir.name
         result.disk = target_disk.id
         result.destination = dest
+
+        # Resolve the target disk's capability (NTFS-safe default), then gate
+        # illegal filenames against THAT capability's regex (None on POSIX
+        # filesystems → no restriction → not skipped). Resolving before the
+        # dry-run branch keeps dry-run a faithful preview of the real run.
+        cap = dispatcher._disk_capabilities.get(target_disk.id, NTFS_MACFUSE)
+        if _is_skipped_for_illegal_names(result, movie_dir, cap):
+            return result
+
         if dispatcher.dry_run:
             result.action = "moved"
             result.reason = f"[DRY RUN] Would move to {target_disk.id}"
             return result
-        success = dispatcher._move_new(movie_dir, dest)
+        success = dispatcher._move_new(movie_dir, dest, capability=cap)
         result.action = "moved" if success else "error"
 
     # Update index with current IDs
@@ -162,6 +173,45 @@ def dispatch_movie(
     return result
 
 
+def _is_skipped_for_illegal_names(
+    result: DispatchResult,
+    source_dir: Path,
+    capability: FilesystemCapability,
+) -> bool:
+    """Gate a transfer on filesystem-illegal filenames for the resolved dest.
+
+    Run AFTER the destination disk (and thus its capability) is chosen, so the
+    gate honours the per-disk ``illegal_name_regex``: ``None`` on POSIX
+    filesystems (APFS/HFS+/exFAT/ext4) means no restriction, so a ``:``-titled
+    item proceeds; on NTFS/unknown the restrictive regex still skips it exactly
+    as before this phase. Disk selection is read-only (index lookup +
+    free-space), so it is safe to resolve the capability before this gate and
+    before any file transfer.
+
+    On a hit, mutates *result* in place with the same ``skipped`` action and
+    NTFS-illegal reason the legacy pre-resolution gate set, logs the event, and
+    returns ``True`` so the caller returns the skipped result without
+    dispatching. Returns ``False`` (no mutation) when the resolved capability
+    imposes no name restriction or no illegal name is present.
+
+    Args:
+        result: DispatchResult to mutate on a skip (action/reason set in place).
+        source_dir: Source media directory whose filenames are scanned.
+        capability: Resolved destination-disk capability; its
+            ``illegal_name_regex`` drives the gate (``None`` → never skips).
+
+    Returns:
+        True if the item is skipped (illegal name on a restricted dest FS);
+        False otherwise.
+    """
+    if _transfer.has_ntfs_illegal_names(source_dir, pattern=capability.illegal_name_regex):
+        result.action = "skipped"
+        result.reason = f"NTFS-illegal filenames in {source_dir.name}. Run 'personalscraper process' to sanitize."
+        log.error("dispatch_ntfs_illegal", path=str(source_dir))
+        return True
+    return False
+
+
 def _disk_root_for(dispatcher: Dispatcher, disk_id: str | None) -> Path:
     """Return the storage-disk root path for ``disk_id`` (empty path if unknown).
 
@@ -178,7 +228,11 @@ def _disk_root_for(dispatcher: Dispatcher, disk_id: str | None) -> Path:
     return Path("")
 
 
-def replace(source: Path, dest: Path) -> bool:
+def replace(
+    source: Path,
+    dest: Path,
+    capability: FilesystemCapability = NTFS_MACFUSE,
+) -> bool:
     """Crash-safe cross-filesystem replace via rsync.
 
     Phase 1 (Transfer): rsync source → dest.new.tmp/
@@ -192,6 +246,9 @@ def replace(source: Path, dest: Path) -> bool:
     Args:
         source: Source directory.
         dest: Destination directory to replace.
+        capability: Filesystem capability for the destination volume.
+            Defaults to ``NTFS_MACFUSE`` (NTFS-safe) so existing callers are
+            byte-identical to the legacy behaviour.
 
     Returns:
         True if successful.
@@ -200,7 +257,7 @@ def replace(source: Path, dest: Path) -> bool:
     tmp_old = dest.parent / f"{dest.name}.old.tmp"
 
     # Phase 1: Transfer (critical — must succeed)
-    if not _transfer.rsync(source, tmp_new):
+    if not _transfer.rsync(source, tmp_new, capability=capability):
         try:
             if tmp_new.exists():
                 _transfer.force_rmtree(tmp_new)

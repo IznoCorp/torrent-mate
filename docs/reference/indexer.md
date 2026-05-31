@@ -10,7 +10,11 @@ Cross-references: DESIGN §6, §8, §11, §12, §13, §14, §17.
 ## Schema Overview
 
 The database lives at `paths.data_dir / "library.db"` by default (configurable
-via `indexer.db_path` in `config/indexer.json5`; WAL mode; must reside on the internal APFS disk).
+via `indexer.db_path` in `config/indexer.json5`; WAL mode; must reside on any
+WAL-safe filesystem — i.e. not NTFS-via-macFUSE and not an `unknown`-typed
+volume — which includes an APFS volume mounted under `/Volumes/`. The
+`db_path` validator rejects only WAL-unsafe filesystem types, not a bare
+`/Volumes/` prefix).
 Full DDL is in `personalscraper/indexer/migrations/001_init.sql`; the table list
 below gives a one-line description of each table's role.
 
@@ -51,6 +55,33 @@ On each scan the walker calls `os.stat()` on every media file and compares
 `(size_bytes, mtime_ns, ctime_ns)` against the stored row. If all three match
 the file is unchanged; the `scan_generation` counter is bumped and the row is
 left alone.
+
+> **Filesystem-aware tier-1 (v0.18.0+):** the tier-1 comparison is
+> capability-gated. The scan orchestrator (`scanner/_scan_orchestrator.py`)
+> resolves the disk's `FilesystemCapability` once per disk via the shared
+> `resolve_capability(path, override)` resolver — the **same** resolver the
+> transfer layer uses, so scan and dispatch never diverge — and threads it down
+> into the scan modes. The live modes `scanner/_modes/incremental.py` and
+> `scanner/_modes/quick.py` consume `fingerprint.normalize_tier1` /
+> `round_mtime_ns` for the **per-file** compare, and the **gating** layer (the
+> Merkle root short-circuit, the `compute_merkle_delta` bulk-change freeze
+> guard, and the dir-mtime subtree skip) buckets mtime per the disk capability
+> too — via `_walker.py`'s `_build_disk_fingerprints` / `_sample_fresh_fingerprints`
+> and the dir-mtime compares. The **other** Merkle-root consumers bucket through
+> the very same `_build_disk_fingerprints` helper so every stored vs computed
+> comparison is consistent: `reconcile.detect_merkle_drift` (the
+> `library-doctor` drift check) resolves the per-disk capability the same way
+> the scanner does and is fed the operator override from the doctor caller, and
+> `repair._refresh_disk_merkle` (the `library-repair` post-cascade rewrite)
+> auto-detects the capability from the disk mount so the root it writes is the
+> one the next scan recomputes. Coarse filesystems are therefore consistent
+> end-to-end — store, short-circuit, drift check, and repair rewrite all bucket
+> identically. On exFAT, ctime is dropped from the tuple and mtime is floored to
+> a 2-second bucket; on HFS+, mtime is floored to a 1-second bucket; NTFS / APFS
+> / ext4 keep the exact `(size, mtime_ns, ctime_ns)` 3-tuple unchanged
+> (bucketing is the identity transform → byte-identical Merkle root). See
+> [`docs/reference/storage.md`](storage.md) — "Filesystem capability layer" for
+> the full table.
 
 ### Tier 2 — racy-mtime escalation
 

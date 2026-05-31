@@ -7,6 +7,8 @@ import re
 import sqlite3
 
 from personalscraper.indexer import drift as _drift
+from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
+from personalscraper.indexer.fingerprint import normalize_tier1, round_mtime_ns
 from personalscraper.indexer.merkle import (
     DiskBulkChangeDetected,
     compute_merkle_delta,
@@ -53,6 +55,7 @@ def _scan_disk_incremental(
     checkpoint_every: int = 100,
     confirm_bulk_change: bool = False,
     merkle_delta_freeze_threshold: float = 0.50,
+    capability: FilesystemCapability = NTFS_MACFUSE,
 ) -> None:
     """Run the incremental-mode walk for a single disk.
 
@@ -105,13 +108,20 @@ def _scan_disk_incremental(
             *merkle_delta_freeze_threshold*.
         merkle_delta_freeze_threshold: Halt if the Merkle delta exceeds this
             fraction (0.0–1.0).
+        capability: Per-disk :class:`FilesystemCapability` governing tier-1
+            normalisation at the comparison site (ctime drop / mtime bucketing).
+            Defaults to ``NTFS_MACFUSE`` so an un-threaded caller is byte-identical
+            to the legacy behaviour.
 
     Raises:
         DiskBulkChangeDetected: When the Merkle delta exceeds
             *merkle_delta_freeze_threshold* and *confirm_bulk_change* is ``False``.
     """
     # --- Merkle short-circuit (same as quick mode) ---
-    fingerprints = _build_disk_fingerprints(conn, disk.id)
+    # Build FS-aware fingerprints (mtime bucketed by the disk capability) so the
+    # Merkle root gate is consistent with the per-file compare below; for NTFS
+    # this is the identity transform → byte-identical to the legacy root.
+    fingerprints = _build_disk_fingerprints(conn, disk.id, capability)
     current_root = compute_merkle_root(fingerprints)
 
     if disk.merkle_root is not None and current_root == disk.merkle_root:
@@ -134,7 +144,10 @@ def _scan_disk_incremental(
 
     # --- Bulk-change guard (same as quick mode, on Merkle miss) ---
     if not confirm_bulk_change and disk.merkle_root is not None:
-        fresh_fps = _sample_fresh_fingerprints(conn, disk.id, mount)
+        # Sample fresh FS-side fingerprints with the SAME capability so the
+        # delta is bucketed-vs-bucketed — sub-bucket jitter on a coarse FS
+        # cannot inflate the delta and trip a spurious freeze.
+        fresh_fps = _sample_fresh_fingerprints(conn, disk.id, mount, capability)
         delta = compute_merkle_delta(fingerprints, fresh_fps)
         if delta > merkle_delta_freeze_threshold:
             log.warning(
@@ -162,6 +175,7 @@ def _scan_disk_incremental(
         budget_seconds,
         scan_run_id,
         checkpoint_every,
+        capability,
     )
 
     # Skip post-walk bookkeeping if the budget was exhausted — partial state is
@@ -177,8 +191,9 @@ def _scan_disk_incremental(
     except OSError:
         log.warning("indexer.scan.root_stat_failed", mount_path=mount)
 
-    # Recompute and persist the updated Merkle root.
-    updated_fingerprints = _build_disk_fingerprints(conn, disk.id)
+    # Recompute and persist the updated Merkle root (FS-aware bucketing so the
+    # stored root matches what the next incremental's short-circuit recomputes).
+    updated_fingerprints = _build_disk_fingerprints(conn, disk.id, capability)
     new_root = compute_merkle_root(updated_fingerprints)
     disk_repo.update_merkle_root(conn, disk.id, new_root)
     log.debug("indexer.scan.merkle_root_updated", disk_id=disk.id, merkle_root=new_root)
@@ -199,6 +214,7 @@ def _walk_dir_incremental(
     budget_seconds: float | None = None,
     scan_run_id: int = 0,
     checkpoint_every: int = 100,
+    capability: FilesystemCapability = NTFS_MACFUSE,
 ) -> None:
     """Recursively walk *dir_abs* in incremental mode.
 
@@ -242,6 +258,9 @@ def _walk_dir_incremental(
         budget_seconds: Maximum wall-clock seconds; ``None`` = unlimited.
         scan_run_id: PK of the active ``scan_run`` row.
         checkpoint_every: How many files to process between checkpoint writes.
+        capability: Per-disk :class:`FilesystemCapability` used to normalise the
+            tier-1 fingerprints before comparison.  Defaults to ``NTFS_MACFUSE``
+            (legacy behaviour: ctime kept, mtime unrounded).
     """
     from personalscraper.indexer.scanner._checkpoint import _maybe_checkpoint  # noqa: PLC0415
 
@@ -273,9 +292,17 @@ def _walk_dir_incremental(
             current_mtime_ns: int = st.st_mtime_ns
 
             if dir_mtime_reliable:
-                # Check stored dir_mtime_ns — skip unchanged subtrees.
+                # Check stored dir_mtime_ns — skip unchanged subtrees.  Both the
+                # stored and live values are bucketed via the disk capability so
+                # sub-bucket jitter on a coarse FS does not force a spurious
+                # re-walk (NTFS granularity 1 → identity → legacy exact compare).
                 existing_path = disk_repo.get_path_by_disk_and_relpath(conn, disk.id, rel)
-                if existing_path is not None and existing_path.dir_mtime_ns == current_mtime_ns:
+                if (
+                    existing_path is not None
+                    and existing_path.dir_mtime_ns is not None
+                    and round_mtime_ns(existing_path.dir_mtime_ns, capability)
+                    == round_mtime_ns(current_mtime_ns, capability)
+                ):
                     log.debug(
                         "indexer.scan.dir_unchanged",
                         path=entry.path,
@@ -299,6 +326,7 @@ def _walk_dir_incremental(
                 budget_seconds,
                 scan_run_id,
                 checkpoint_every,
+                capability,
             )
 
             if budget_exhausted is not None and budget_exhausted[0]:
@@ -442,9 +470,13 @@ def _walk_dir_incremental(
                         oshash_value=None,
                     )
             else:
-                # Existing file — compare tier-1 fingerprint.
-                t1_stored = (existing.size_bytes, existing.mtime_ns, existing.ctime_ns or 0)
-                t1_current = (st.st_size, mtime_ns_val, ctime_ns_val or 0)
+                # Existing file — compare tier-1 fingerprint (FS-aware).  The
+                # capability decides whether ctime participates and whether the
+                # mtime is bucketed; for NTFS this is byte-identical to the
+                # legacy ``(size, mtime_ns, ctime_ns)`` tuples.  Storage of the
+                # tier-1 fields below stays raw — only the comparison normalises.
+                t1_stored = normalize_tier1(existing.size_bytes, existing.mtime_ns, existing.ctime_ns or 0, capability)
+                t1_current = normalize_tier1(st.st_size, mtime_ns_val, ctime_ns_val or 0, capability)
 
                 if t1_current == t1_stored:
                     # Tier-1 unchanged — bump generation only (cheap skip).

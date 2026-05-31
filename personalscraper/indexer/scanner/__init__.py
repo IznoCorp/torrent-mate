@@ -20,12 +20,13 @@ import json
 import os
 import platform
 import sqlite3
-import subprocess
 import tempfile  # noqa: F401 — imported so tests can patch scanner.tempfile.*
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
+from personalscraper.indexer._fs_probe import _build_mount_table, _run_mount
 from personalscraper.indexer._throttle import TokenBucket, set_active_bucket
 from personalscraper.indexer.breaker import DiskCircuitBreaker
 
@@ -33,7 +34,6 @@ if TYPE_CHECKING:
     from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.merkle import (
     DiskBulkChangeDetected,
-    FileFingerprint,
     compute_merkle_root,
     guard_disk_mounted,
     verify_disk_mounted,
@@ -101,6 +101,7 @@ def _finalize_disk_after_walk(
     scan_run_id: int,
     files_visited: int,
     dirs_visited: int,
+    capability: FilesystemCapability = NTFS_MACFUSE,
 ) -> None:
     """Persist post-walk per-disk state: ``merkle_root``, ``last_seen_at``, scan_event.
 
@@ -121,7 +122,14 @@ def _finalize_disk_after_walk(
        not, fall through to this branch and get their first-ever fingerprint
        written here.  Files with ``oshash IS NULL`` (Stage A only — OSHash
        deferred to ``--mode enrich``) are skipped so a partial Stage A walk
-       does not overwrite a real merkle with the empty-set hash.
+       does not overwrite a real merkle with the empty-set hash.  The
+       fingerprints are bucketed by *capability* (via
+       :func:`_build_disk_fingerprints`) so the full-scan root is FS-aware and
+       byte-equal to what the FIRST incremental/quick scan recomputes — without
+       this, the first incremental after a full scan on a coarse FS would see a
+       one-version root mismatch.  For NTFS (granularity 1) the bucketing is the
+       identity transform, so the stored root is byte-identical to the legacy
+       value.
     3. One ``indexer.scan.disk_done`` row is inserted into ``scan_event``
        with the per-disk counters as JSON payload, giving the audit trail a
        durable per-disk endpoint that survives log rotation.
@@ -133,6 +141,10 @@ def _finalize_disk_after_walk(
             ``scan_event`` insert).
         files_visited: Number of files visited by this walk on this disk.
         dirs_visited: Number of directories visited.
+        capability: Per-disk :class:`FilesystemCapability` governing mtime
+            bucketing of the recomputed merkle root.  Defaults to
+            ``NTFS_MACFUSE`` (granularity 1 → identity), so an un-threaded
+            caller stores a byte-identical root.
     """
     now = int(time.time())
     merkle_root: str | None = None
@@ -149,29 +161,10 @@ def _finalize_disk_after_walk(
         existing_root: str | None = existing_root_row["merkle_root"] if existing_root_row is not None else None
 
         if existing_root is None:
-            cursor = conn.execute(
-                """
-                SELECT mf.path_id   AS path_id,
-                       mf.size_bytes AS size,
-                       mf.mtime_ns  AS mtime_ns,
-                       mf.oshash    AS oshash
-                FROM media_file mf
-                JOIN path p ON p.id = mf.path_id
-                WHERE p.disk_id = ?
-                  AND mf.deleted_at IS NULL
-                  AND mf.oshash IS NOT NULL
-                """,
-                (disk.id,),
-            )
-            fingerprints = [
-                FileFingerprint(
-                    path_id=int(row["path_id"]),
-                    size=int(row["size"]),
-                    mtime_ns=int(row["mtime_ns"]),
-                    oshash=str(row["oshash"]),
-                )
-                for row in cursor.fetchall()
-            ]
+            # Reuse the shared fingerprint builder so the full-scan root is
+            # bucketed by the disk capability exactly like the quick/incremental
+            # short-circuit gates (consistent FS-aware root across all modes).
+            fingerprints = _build_disk_fingerprints(conn, disk.id, capability)
             # Only persist a freshly-computed root when at least one file is
             # fully fingerprinted; otherwise leave NULL so the next enrich
             # pass can compute a meaningful value.
@@ -248,36 +241,17 @@ def _check_mount_flags(disks: list[DiskRow]) -> None:
     if platform.system() != "Darwin":
         return
 
-    try:
-        result = subprocess.run(
-            ["mount"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        mount_output = result.stdout
-    except Exception as exc:
-        # Non-fatal — subprocess failure must not block scanning.
-        log.debug("indexer.disk.mount_check_failed", error=str(exc))
+    # Delegate the mount shell-out + line parsing to the shared FsProbe module
+    # (single cached ``mount`` call).  The recommendation logic (which flags to
+    # check) stays here.
+    mount_output = _run_mount()
+    if not mount_output:
         return
 
-    # Parse mount output into a mapping of mount-point → flag set.
-    # Each line has the form:
-    #   <device> on <mount_point> (<flag1>, <flag2>, ...)
-    mount_flags: dict[str, frozenset[str]] = {}
-    for line in mount_output.splitlines():
-        # Locate the parenthesised flags block at the end of the line.
-        paren_open = line.rfind("(")
-        paren_close = line.rfind(")")
-        on_idx = line.find(" on ")
-        if paren_open == -1 or paren_close == -1 or on_idx == -1:
-            # Line doesn't match expected format — skip gracefully.
-            continue
-        # Extract the mount point: text between " on " and " (".
-        mount_point = line[on_idx + 4 : paren_open].strip()
-        flags_str = line[paren_open + 1 : paren_close]
-        flags = frozenset(f.strip() for f in flags_str.split(",") if f.strip())
-        mount_flags[mount_point] = flags
+    mount_table = _build_mount_table(mount_output)
+    # MountInfo.flags holds the option tokens after the fs-type token, which is
+    # exactly the set the recommended-flag check needs (noatime, allow_other, …).
+    mount_flags: dict[str, frozenset[str]] = {mp: info.flags for mp, info in mount_table.items()}
 
     # Warn once per disk for each missing recommended flag.
     for disk in disks:
@@ -357,6 +331,7 @@ def scan(
     spotlight_enabled: bool = False,
     paranoia_window_seconds: int = 86400,
     no_enqueue: bool = False,
+    fs_type_overrides: dict[str, str] | None = None,
     event_bus: EventBus,
 ) -> ScanRunResult:
     """Walk all provided disks and record discovered files in the database.
@@ -487,6 +462,19 @@ def scan(
             pass still walks every file but does NOT insert rows into
             ``repair_queue`` on drift or absence.  Ignored for all other modes.
             Used by ``library-verify --no-enqueue`` for read-only audit runs.
+        fs_type_overrides: Optional mapping of the STABLE disk identity
+            (``DiskConfig.id`` == ``DiskRow.label``) → canonical
+            ``DiskConfig.fs_type`` override.  Threaded into the per-disk
+            capability resolution so the scanner honours the operator override
+            identically to the dispatch (transfer) layer (both route through
+            :func:`~personalscraper.indexer._fs_capability.resolve_capability`).
+            The map is keyed on ``label`` (not the mutable ``mount_path``) so a
+            remount that rewrites ``mount_path`` cannot silently drop the
+            override on the scan side.  Build it via
+            :func:`~personalscraper.indexer.commands._bootstrap.build_fs_type_overrides`.
+            ``None`` (the default) means no overrides → pure auto-detection,
+            preserving the historical scanner behaviour for every caller that
+            does not pass the map.
         event_bus: Required :class:`EventBus`. Exactly one
             :class:`LibraryScanCompleted` event is emitted in the
             ``finally`` block — fires on success, partial failure, and
@@ -571,6 +559,7 @@ def scan(
         no_enqueue=no_enqueue,
         breaker=breaker,
         started_at_monotonic=state.started_at_monotonic,
+        fs_type_overrides=fs_type_overrides or {},
     )
 
     # Decide worker count.  DESIGN §11.8: ``--full --disk D`` (single-disk
