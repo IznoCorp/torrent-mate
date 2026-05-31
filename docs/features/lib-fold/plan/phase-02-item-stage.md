@@ -468,14 +468,16 @@ cd /Users/izno/dev/PersonnalScaper && git add personalscraper/indexer/scanner/_m
 
 ---
 
-### Task 4: Wire the item-stage as full-mode pass 1 (command layer)
+### Task 4: Wire the item-stage as full-mode pass 1 (`full.py` invokes pass 1 via `scan()`)
 
-> ARCHITECTURE (orchestrator-resolved): `full.py:_scan_disk_full(conn, disk: DiskRow, mount, …)` is the file-level walk only — it has **no** `Config`/`DiskConfig`/category map. The indexer `scan(disks, mode, generation, conn, …)` likewise takes `DiskRow`s, not config. The category-aware pass-1 staging needs config, which is available at the **`library-index` command layer** (`commands/scan.py` already does `cfg = load_config(...)`). DESIGN §323 ("full.py invokes the stage as pass 1") is satisfied by running pass-1 as part of the `library-index --mode full` invocation. We do **NOT** plumb `Config` through `scan()`'s signature into all 4 callers (CLI, `query.py`, `scan_library`, `dispatch/run.py`) — only `library-index --mode full` needs pass-1 in Phase 2 (the dispatch auto-rebuild gets rich rows via Phase 3's `upsert_item_with_attrs` redirect; `scan_library` is deleted in Phase 3).
+> ARCHITECTURE (DESIGN §4.1/§5 — "full.py invokes the stage as pass 1"): the library-wide `stage_library_items(conn, config, now_s)` driver lives in `_item_stage.py` and iterates **all** configured disks × categories × media dirs itself. `full.py` exposes a thin module-level invoker `stage_items_pass1(conn, config, now_s=None)` that delegates to it. The indexer `scan(disks, mode, generation, conn, …)` gains an optional keyword-only `config: Config | None = None` param; in its **full-mode branch** it calls `full.stage_items_pass1(conn, config)` **exactly once** — before the per-disk file-walk dispatch, only when `mode == ScanMode.full` AND `config is not None`. This honors DESIGN literally (full.py invokes pass 1) while keeping correctness: pass-1 must NOT run inside the per-disk `_scan_disk_full` walker (that would re-stage every dir once per disk — N²). The `library-index --mode full` command passes `config=cfg` to `scan()`; the **other 3 `scan()` callers** (`query.py` verify, `dispatch/run.py` enrich, `scan_library`'s own `_indexer_scan`) pass **no** config → `config=None` → no pass-1. `scan_library`'s call in particular MUST NOT pass config, because `scan_library` already creates the `media_item` rows itself (legacy obj#5 path) — passing config would double-stage. (The dispatch auto-rebuild gets rich rows via Phase 3's `upsert_item_with_attrs` redirect; `scan_library` is deleted in Phase 3.)
 
 **Files:**
 
 - Modify: `personalscraper/indexer/scanner/_modes/_item_stage.py` (add the `stage_library_items` driver)
-- Modify: `personalscraper/indexer/commands/scan.py` (call it as pass 1 for `mode == full`)
+- Modify: `personalscraper/indexer/scanner/_modes/full.py` (add the `stage_items_pass1` thin invoker that delegates to `stage_library_items`)
+- Modify: `personalscraper/indexer/scanner/__init__.py` (`scan()` gains `config` kw param; full-mode branch calls `full.stage_items_pass1` once)
+- Modify: `personalscraper/indexer/commands/scan.py` (pass `config=cfg` to the `scan(...)` call for `mode == full`; no command-layer pass-1 block)
 
 - [ ] **Step 4.1: Read the command + the reference iteration**
 
@@ -519,19 +521,39 @@ def stage_library_items(conn: sqlite3.Connection, config: "Config", now_s: int |
 
 Import `TV_CATEGORY_IDS` from `personalscraper.conf.ids` and `Config` under `TYPE_CHECKING`. Match `scan_library`'s warning event-name style and the `media_dir.name.startswith(".")` skip.
 
-- [ ] **Step 4.3: Call it as pass 1 in `commands/scan.py`**
+- [ ] **Step 4.3a: Add the `stage_items_pass1` invoker to `full.py`**
 
-In the `library-index` command, for `scan_mode == ScanMode.full`, after `apply_migrations(conn, …)` and before the `scan(...)` call (the file walk = pass 2), invoke:
+DESIGN §4.1/§5: `full.py` is what "invokes the stage as pass 1". Add a thin module-level invoker that delegates to the library-wide `stage_library_items`:
 
 ```python
-from personalscraper.indexer.scanner._modes._item_stage import stage_library_items  # noqa: PLC0415
+def stage_items_pass1(conn: sqlite3.Connection, config: "Config", now_s: int | None = None) -> int:
+    """Pass 1 of ScanMode.full: stage rich media_item rows for the whole library
+    before the per-disk file walk. Delegates to _item_stage.stage_library_items."""
+    from personalscraper.indexer.scanner._modes._item_stage import stage_library_items  # noqa: PLC0415
 
-if scan_mode == ScanMode.full:
-    staged = stage_library_items(conn, cfg)
-    log.info("indexer.cli.index.pass1_staged", staged=staged)
+    staged = stage_library_items(conn, config, now_s)
+    log.info("indexer.scan.full.pass1_staged", staged=staged)
+    return staged
 ```
 
-Verify the exact variable names (`cfg`, `conn`, `scan_mode`) in the command body before inserting.
+Import `Config` under `TYPE_CHECKING`; `full.py` already has `log = get_logger("indexer.scan")` and `from __future__ import annotations`. Add `stage_items_pass1` to `__all__`. Keep the import+use in the same edit (PostToolUse autoflake removes a `TYPE_CHECKING` import that has no use yet).
+
+- [ ] **Step 4.3b: Plumb `config` through `scan()` and call pass 1 ONCE in the full-mode branch (`__init__.py`)**
+
+Add a keyword-only `config: "Config" | None = None` param to `scan()` (import `Config` under `TYPE_CHECKING` from `personalscraper.conf.models.config`; document the param). In the full-mode path, **before** the per-disk walk dispatch (the `_run_parallel_walk` / `_run_sequential_walk` `try:` block), call pass 1 exactly once:
+
+```python
+if mode == ScanMode.full and config is not None:
+    from personalscraper.indexer.scanner._modes.full import stage_items_pass1  # noqa: PLC0415
+
+    stage_items_pass1(conn, config)
+```
+
+It runs on `conn` once for the whole library (NOT inside `_scan_disk_full`, which is per-disk), and stays inside the caller's dry-run SAVEPOINT scope (the savepoint is opened in `commands/scan.py` before `scan()` is invoked).
+
+- [ ] **Step 4.3c: Pass `config=cfg` to `scan()` in `commands/scan.py`**
+
+Remove any command-layer pass-1 block. In the `library-index` command, add `config=cfg` to the `scan(...)` call so pass 1 runs inside `scan()`'s full-mode branch. Verify the exact variable names (`cfg`, `conn`, `scan_mode`). Leave the other 3 `scan()` callers (`query.py:399`, `dispatch/run.py:292`, `library/scanner.py:768`) passing **no** config — they default to `config=None` and run no pass-1 (critically, `scan_library`'s call must not pass config or it would double-stage).
 
 - [ ] **Step 4.4: Run the suite (item-stage + canonical + indexer scan tests)**
 
@@ -539,12 +561,12 @@ Verify the exact variable names (`cfg`, `conn`, `scan_mode`) in the command body
 cd /Users/izno/dev/PersonnalScaper && python -m pytest tests/indexer/ tests/library/ -q 2>&1 | tail -20
 ```
 
-Expected: all pass (legacy `library-scan` path still active — both paths co-exist).
+Expected: all pass (legacy `library-scan` path still active — both paths co-exist; the golden test stays green).
 
 - [ ] **Step 4.5: Commit**
 
 ```bash
-cd /Users/izno/dev/PersonnalScaper && git add personalscraper/indexer/scanner/_modes/_item_stage.py personalscraper/indexer/commands/scan.py && git commit -m "feat(lib-fold): wire stage_library_items as library-index --mode full pass 1"
+cd /Users/izno/dev/PersonnalScaper && git add personalscraper/indexer/scanner/_modes/_item_stage.py personalscraper/indexer/scanner/_modes/full.py personalscraper/indexer/scanner/__init__.py personalscraper/indexer/commands/scan.py && git commit -m "feat(lib-fold): full.py invokes item stage as pass 1 via scan()"
 ```
 
 ---

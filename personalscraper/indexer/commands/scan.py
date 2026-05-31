@@ -237,13 +237,6 @@ def library_index_command(
                 else:
                     effective_budget_seconds = cfg.indexer.scan.budget_seconds
 
-                # --- Pass 1 (library-index --mode full): stage rich media_item rows ---
-                if scan_mode == ScanMode.full:
-                    from personalscraper.indexer.scanner._modes._item_stage import stage_library_items  # noqa: PLC0415
-
-                    staged = stage_library_items(conn, cfg)
-                    log.info("indexer.cli.index.pass1_staged", staged=staged)
-
                 try:
                     result = scan(
                         disks=filtered_disks,
@@ -274,6 +267,12 @@ def library_index_command(
                         # diverge from the transfer layer after a mount_path change.
                         fs_type_overrides=cli_compat.build_fs_type_overrides(cfg.disks),
                         event_bus=event_bus,
+                        # DESIGN §4.1/§5 — pass the loaded config so scan()'s
+                        # full-mode branch runs the item stage (pass 1) exactly
+                        # once, library-wide, before the per-disk file walk.
+                        # The pass-1 writes land on ``conn`` inside the dry_run
+                        # SAVEPOINT scope, so a dry run still rolls them back.
+                        config=cfg,
                     )
                 except DiskBulkChangeDetected as bulk_exc:
                     typer.echo(

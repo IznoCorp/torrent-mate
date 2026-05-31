@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from personalscraper.indexer.scanner._index_ddl import _recreate_indexes
 from personalscraper.indexer.scanner._walker import (
@@ -12,10 +12,14 @@ from personalscraper.indexer.scanner._walker import (
 from personalscraper.indexer.schema import DiskRow
 from personalscraper.logger import get_logger
 
+if TYPE_CHECKING:
+    from personalscraper.conf.models.config import Config
+
 log = get_logger("indexer.scan")
 
 __all__ = [
     "_scan_disk_full",
+    "stage_items_pass1",
 ]
 
 
@@ -95,3 +99,36 @@ def _scan_disk_full(
     finally:
         if drop_indexes and ddl_pairs:
             _recreate_indexes(conn, ddl_pairs)
+
+
+def stage_items_pass1(conn: sqlite3.Connection, config: Config, now_s: int | None = None) -> int:
+    """Pass 1 of :class:`ScanMode.full`: stage rich ``media_item`` rows for the whole library.
+
+    DESIGN §4.1/§5: ``full.py`` invokes the item stage **before** the per-disk
+    file walk so a single ``library-index --mode full`` reaches the same DB
+    end-state as the legacy ``library-scan`` + ``library-index``. This is a thin
+    module-level invoker — the library-wide iteration (all configured disks ×
+    categories × media dirs) lives in
+    :func:`personalscraper.indexer.scanner._modes._item_stage.stage_library_items`,
+    to which this delegates.
+
+    It must run **exactly once per full scan** (library-wide), not once per disk:
+    :func:`stage_library_items` already iterates every configured disk, so the
+    caller (:func:`personalscraper.indexer.scanner.scan` full-mode branch) invokes
+    this before the per-disk walk dispatch — never inside the per-disk
+    :func:`_scan_disk_full` walker.
+
+    Args:
+        conn: Open SQLite connection.
+        config: Fully-loaded application config. All configured disks are staged.
+        now_s: Unix epoch seconds stamped on the rows; defaults to
+            ``int(time.time())`` inside the delegate.
+
+    Returns:
+        Count of media directories successfully staged.
+    """
+    from personalscraper.indexer.scanner._modes._item_stage import stage_library_items  # noqa: PLC0415
+
+    staged = stage_library_items(conn, config, now_s)
+    log.info("indexer.scan.full.pass1_staged", staged=staged)
+    return staged
