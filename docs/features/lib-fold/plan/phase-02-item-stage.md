@@ -468,50 +468,83 @@ cd /Users/izno/dev/PersonnalScaper && git add personalscraper/indexer/scanner/_m
 
 ---
 
-### Task 4: Wire `full.py` to invoke the stage as pass 1
+### Task 4: Wire the item-stage as full-mode pass 1 (command layer)
+
+> ARCHITECTURE (orchestrator-resolved): `full.py:_scan_disk_full(conn, disk: DiskRow, mount, …)` is the file-level walk only — it has **no** `Config`/`DiskConfig`/category map. The indexer `scan(disks, mode, generation, conn, …)` likewise takes `DiskRow`s, not config. The category-aware pass-1 staging needs config, which is available at the **`library-index` command layer** (`commands/scan.py` already does `cfg = load_config(...)`). DESIGN §323 ("full.py invokes the stage as pass 1") is satisfied by running pass-1 as part of the `library-index --mode full` invocation. We do **NOT** plumb `Config` through `scan()`'s signature into all 4 callers (CLI, `query.py`, `scan_library`, `dispatch/run.py`) — only `library-index --mode full` needs pass-1 in Phase 2 (the dispatch auto-rebuild gets rich rows via Phase 3's `upsert_item_with_attrs` redirect; `scan_library` is deleted in Phase 3).
 
 **Files:**
 
-- Modify: `personalscraper/indexer/scanner/_modes/full.py`
+- Modify: `personalscraper/indexer/scanner/_modes/_item_stage.py` (add the `stage_library_items` driver)
+- Modify: `personalscraper/indexer/commands/scan.py` (call it as pass 1 for `mode == full`)
 
-- [ ] **Step 4.1: Read `full.py` AND its orchestrator**
+- [ ] **Step 4.1: Read the command + the reference iteration**
 
 ```bash
-cat /Users/izno/dev/PersonnalScaper/personalscraper/indexer/scanner/_modes/full.py
-# The orchestrator that calls _scan_disk_full per disk (where config/disks live):
-sed -n '1,60p;300,420p' /Users/izno/dev/PersonnalScaper/personalscraper/indexer/scanner/__init__.py
-# The reference iteration to mirror (disks × categories × media dirs):
-sed -n '902,1003p' /Users/izno/dev/PersonnalScaper/personalscraper/library/scanner.py
+sed -n '120,260p' /Users/izno/dev/PersonnalScaper/personalscraper/indexer/commands/scan.py   # where cfg + conn + scan() live
+sed -n '902,1003p' /Users/izno/dev/PersonnalScaper/personalscraper/library/scanner.py        # the loop to port
 ```
 
-> REALITY (verify): `full.py` exposes only `_scan_disk_full(conn, disk: DiskRow, mount: str, …)` — the **file-level** walk (`media_file`/`media_stream`) via `_walk_dir_full_buffered`. There is **no** `_iter_media_dirs` and **no** `category` object in that scope; `_scan_disk_full` has only a `DiskRow` + mount string, not a `DiskConfig` or the category map. The fabricated `for media_dir in _iter_media_dirs(category)` / `category.kind` / `category.id` / `disk.id` snippet does not match any existing API.
+- [ ] **Step 4.2: Add `stage_library_items` to `_item_stage.py`**
 
-- [ ] **Step 4.2: Wire the item-stage pass 1**
-
-The pass-1 item stage must replicate `library.scanner.scan_library`'s iteration — **config disks × categories × media dirs** — which requires the `Config`/`DiskConfig`/categories that live in the `scan()` orchestrator (`personalscraper/indexer/scanner/__init__.py`), **not** inside `_scan_disk_full`. Choose the insertion layer that actually has config + disks in scope (the orchestrator, or a small `_stage_items(conn, config, disks, now_s)` helper invoked from it **before** the per-disk file walk). For each `(disk_cfg, category_id, kind, media_dir)`:
+Port `scan_library`'s disk×category×media-dir loop (scanner.py:931-986) into a driver that delegates per-dir to `scan_and_stage_dir`:
 
 ```python
-from personalscraper.indexer.scanner._modes._item_stage import scan_and_stage_dir
-
-# Pass 1: upsert rich media_item rows (title, canonical_provider, attrs, seasons,
-# issues) for every media directory — mirrors library.scanner.scan_library's walk.
-scan_and_stage_dir(conn, media_dir, disk_cfg=disk_cfg, category_id=category_id, kind=kind, now_s=now_s)
+def stage_library_items(conn: sqlite3.Connection, config: "Config", now_s: int | None = None) -> int:
+    """Pass-1 of library-index --mode full: upsert rich media_item rows for every
+    media directory across all mounted disks. Mirrors library.scanner.scan_library's
+    walk (disks × categories × media dirs). Returns the count of items staged."""
+    now_s = now_s if now_s is not None else int(time.time())
+    staged = 0
+    for disk_cfg in config.disks:
+        if not disk_cfg.path.exists():
+            log.warning("item_stage_disk_not_mounted", disk=disk_cfg.id, path=str(disk_cfg.path))
+            continue
+        _ensure_disk_row(conn, disk_cfg, now_s)
+        for category_id in disk_cfg.categories:
+            cat_cfg = config.category(category_id)
+            category_dir = disk_cfg.path / cat_cfg.folder_name
+            if not category_dir.is_dir():
+                continue
+            kind = "show" if category_id in TV_CATEGORY_IDS else "movie"
+            for media_dir in sorted(category_dir.iterdir()):
+                if not media_dir.is_dir() or media_dir.name.startswith("."):
+                    continue
+                try:
+                    scan_and_stage_dir(conn, media_dir, disk_cfg, category_id, kind, now_s)
+                    staged += 1
+                except OSError as exc:
+                    log.warning("item_stage_item_error", media_dir=str(media_dir), error=str(exc), exc_info=True)
+    return staged
 ```
 
-Read `scan_library` (scanner.py:902) for the exact disk/category/media-dir iteration (folder*name resolution, kind per category via `TV_CATEGORY_IDS`, NFC handling) and port that walk. Adjust the objective's "modify full.py" to whichever layer has config in scope — the goal is \_pass 1 runs before the file walk*, not literally a one-liner inside `full.py`. The existing file walk (pass 2) continues unchanged after pass 1.
+Import `TV_CATEGORY_IDS` from `personalscraper.conf.ids` and `Config` under `TYPE_CHECKING`. Match `scan_library`'s warning event-name style and the `media_dir.name.startswith(".")` skip.
 
-- [ ] **Step 4.3: Run the full test suite**
+- [ ] **Step 4.3: Call it as pass 1 in `commands/scan.py`**
 
-```bash
-cd /Users/izno/dev/PersonnalScaper && make test 2>&1 | tail -20
+In the `library-index` command, for `scan_mode == ScanMode.full`, after `apply_migrations(conn, …)` and before the `scan(...)` call (the file walk = pass 2), invoke:
+
+```python
+from personalscraper.indexer.scanner._modes._item_stage import stage_library_items  # noqa: PLC0415
+
+if scan_mode == ScanMode.full:
+    staged = stage_library_items(conn, cfg)
+    log.info("indexer.cli.index.pass1_staged", staged=staged)
 ```
 
-Expected: all tests pass (the legacy `library-scan` path is still active — both paths co-exist).
+Verify the exact variable names (`cfg`, `conn`, `scan_mode`) in the command body before inserting.
 
-- [ ] **Step 4.4: Commit**
+- [ ] **Step 4.4: Run the suite (item-stage + canonical + indexer scan tests)**
 
 ```bash
-cd /Users/izno/dev/PersonnalScaper && git add personalscraper/indexer/scanner/_modes/full.py && git commit -m "feat(lib-fold): wire _item_stage as pass 1 in ScanMode.full"
+cd /Users/izno/dev/PersonnalScaper && python -m pytest tests/indexer/ tests/library/ -q 2>&1 | tail -20
+```
+
+Expected: all pass (legacy `library-scan` path still active — both paths co-exist).
+
+- [ ] **Step 4.5: Commit**
+
+```bash
+cd /Users/izno/dev/PersonnalScaper && git add personalscraper/indexer/scanner/_modes/_item_stage.py personalscraper/indexer/commands/scan.py && git commit -m "feat(lib-fold): wire stage_library_items as library-index --mode full pass 1"
 ```
 
 ---
@@ -590,11 +623,15 @@ def test_full_mode_db_equals_library_scan_baseline(tmp_path: Path, seeded_librar
     baseline = _snapshot_media_items(conn_legacy)
     conn_legacy.close()
 
-    # --- New path: indexer full scan (ScanMode.FULL) ---
-    from personalscraper.indexer.scanner import ScanMode, scan
+    # --- New path: library-index --mode full PASS 1 (the item stage from Task 4) ---
+    # The media_item rows of the new path are produced by stage_library_items
+    # (pass 1); pass 2 (the indexer scan() file walk) only adds media_file/path
+    # rows, which the snapshot does not compare. Drive pass 1 directly with the
+    # SAME config for an apples-to-apples media_item comparison.
+    from personalscraper.indexer.scanner._modes._item_stage import stage_library_items
     conn_new = sqlite3.connect(":memory:")
     apply_migrations(conn_new, MIGRATIONS_DIR)
-    scan(disks, mode=ScanMode.FULL, generation=1, conn=conn_new, event_bus=EventBus())  # disks from the fixture
+    stage_library_items(conn_new, config)  # same `config` object as the baseline
     result = _snapshot_media_items(conn_new)
     conn_new.close()
 
@@ -605,7 +642,7 @@ def test_full_mode_db_equals_library_scan_baseline(tmp_path: Path, seeded_librar
     )
 ```
 
-The `config` / `disks` construction above is intentionally elided — wire it from `seeded_library_fs` exactly as the two reference integration tests do (verify the `seeded_library_fs` return type and the `scan()` kwargs before writing). If full `scan()` proves too heavy to drive directly in a unit-style test, it is acceptable to drive the new path through the CLI command layer (`personalscraper library-index --mode full`) against a temp config, as long as both paths hit the same fixture.
+The `config` construction above is intentionally elided — wire it from `seeded_library_fs` exactly as `tests/library/test_integration.py`'s `mini_library` fixture does (build `Config` with `DiskConfig` + `CategoryConfig` pointing at the fixture fs; verify the `seeded_library_fs` return type before writing). Both paths take the **same** `config` object, so the comparison is apples-to-apples. (Optionally also assert the full `library-index --mode full` CLI path agrees, but the `stage_library_items` comparison is the core safety net for Phase 3's deletion.)
 
 - [ ] **Step 5.2: Run the golden test**
 
