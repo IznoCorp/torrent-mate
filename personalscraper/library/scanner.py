@@ -36,14 +36,12 @@ from personalscraper._fs_utils import is_apple_double
 from personalscraper.conf.ids import AUDIOBOOKS, TV_CATEGORY_IDS
 from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.repos import disk_repo, tv_repo
-from personalscraper.indexer.repos import item_repo as _item_repo
 from personalscraper.indexer.scanner import ScanMode
 from personalscraper.indexer.scanner import scan as _indexer_scan
 from personalscraper.indexer.schema import (
     ArtworkInventory,
     DiskRow,
     MediaItemKind,
-    MediaItemRow,
     SeasonRow,
 )
 from personalscraper.indexer.schema import (
@@ -71,81 +69,6 @@ from personalscraper.nfo_utils import (
 )
 
 log = get_logger("library.scanner")
-
-
-def _normalize_canonical_provider(
-    kind: MediaItemKind,
-    tvdb_id: str | None,
-    tmdb_id: str | None,
-    nfo_declared: str | None,
-) -> str | None:
-    """Compute the canonical_provider value enforced at the indexer DB insertion source.
-
-    The NFO files on disk may carry a ``<uniqueid default="true">`` flag whose
-    family disagrees with the SSOT rule the codebase enforces elsewhere
-    (TV shows → TVDB primary, movies → TMDB primary, see
-    ``feedback_multi_provider_ids_separation`` memory rule). Honouring the NFO's
-    declared default blindly let inverted values leak into ``media_item.canonical_provider``
-    every time the library scanner re-walked the disks (Phase 14.1, reopen 12.1 —
-    194 shows wrongly tagged ``'tmdb'`` despite a valid ``tvdb.series_id`` because
-    the historical NFO from an old TMDB-first scrape still flagged tmdb as default).
-
-    This helper short-circuits that path: regardless of the NFO's ``default``
-    attribute, the canonical_provider written to the DB is derived from
-    ``kind`` + available external IDs.
-
-    Args:
-        kind: ``'movie'`` or ``'show'`` — the row's category.
-        tvdb_id: TVDB series-id surfaced from the NFO (``None`` when absent).
-        tmdb_id: TMDB id surfaced from the NFO (``None`` when absent).
-        nfo_declared: The ``canonical_provider`` value extracted from
-            ``<uniqueid default="true">`` (``'tvdb'``, ``'tmdb'``, or ``None``).
-            Used only for the structlog warning when the NFO disagrees with
-            the deterministic rule.
-
-    Returns:
-        ``'tvdb'`` for shows with a valid tvdb_id, ``'tmdb'`` for movies with a
-        valid tmdb_id or shows with only tmdb_id, ``None`` when no provider id
-        is available at all (in which case the row stays NULL — the CLI
-        ``library-fix-canonical-provider`` can repair it once a provider id
-        lands later).
-    """
-    computed: str | None
-    if kind == "show":
-        # TVDB is the canonical provider for shows whenever available.
-        if tvdb_id:
-            computed = "tvdb"
-        elif tmdb_id:
-            # Show with only a TMDB id — accepted, but flag at WARN level so
-            # operators notice the provider gap when looking at logs.
-            computed = "tmdb"
-        else:
-            computed = None
-    else:
-        # Movies: TMDB is canonical.
-        if tmdb_id:
-            computed = "tmdb"
-        elif tvdb_id:
-            # Movies tagged with a TVDB id only — anomaly (TVDB is shows-first).
-            # Keep NULL so the CLI repair can pick it up rather than persisting
-            # an inverted value the rest of the pipeline would treat as canonical.
-            computed = None
-        else:
-            computed = None
-
-    # Warn whenever the NFO's declared default disagrees with the deterministic
-    # computation. This is the trail we want when auditing post-Phase 14.1 logs.
-    if nfo_declared and nfo_declared != computed and computed is not None:
-        log.warning(
-            "library_canonical_provider_overridden",
-            kind=kind,
-            nfo_declared=nfo_declared,
-            computed=computed,
-            tvdb_id=tvdb_id,
-            tmdb_id=tmdb_id,
-        )
-
-    return computed
 
 
 # NTFS-illegal characters
@@ -488,15 +411,22 @@ def _upsert_media_item(
 ) -> int:
     """Upsert a ``media_item`` row from a library scan result.
 
-    Converts a :class:`LibraryScanItem` into a :class:`MediaItemRow` and calls
-    :func:`personalscraper.indexer.repos.item_repo.upsert`.  Also writes the
-    ``dispatch_path`` and ``dispatch_disk`` flex attributes so consumers that
-    rely on them (``trailers/scanner.py``, ``indexer/release_linker.py``) can
-    locate the on-disk media directory regardless of whether the item was
-    discovered by the dispatch layer or by this library scanner.  The
-    attribute key prefix is historical (originally introduced by dispatch);
-    the values stored here are the same shape — absolute media-dir path and
-    config-level disk ID.
+    Delegates the ``media_item`` + flex-attribute + ``item_issue`` write to the
+    shared single-writer :func:`~personalscraper.indexer.scanner._modes._item_stage.upsert_item_with_attrs`
+    (DESIGN decision #4): the legacy ``library-scan`` path and the new
+    ``library-index --mode full`` path now go through the *same* writer, so the
+    rows are byte-identical by construction (the Phase 2 golden test proves it).
+    The ``media_item`` column dict is built by
+    :func:`~personalscraper.indexer.scanner._modes._item_stage.build_item_row`,
+    which was ported from this very function.
+
+    Also writes the ``dispatch_path`` / ``dispatch_disk`` /
+    ``dispatch_normalized_title`` flex attributes so consumers that rely on them
+    (``trailers/scanner.py``, ``indexer/release_linker.py``) can locate the
+    on-disk media directory regardless of whether the item was discovered by
+    the dispatch layer or by this library scanner. The attribute key prefix is
+    historical (originally introduced by dispatch); the values stored here are
+    the same shape — absolute media-dir path and config-level disk ID.
 
     Args:
         conn: Open SQLite connection.
@@ -514,97 +444,54 @@ def _upsert_media_item(
         _ATTR_DISPATCH_NORM_TITLE,
         _ATTR_DISPATCH_PATH,
     )
-    from personalscraper.indexer.schema import ItemAttributeRow  # noqa: PLC0415
+    from personalscraper.indexer.scanner._modes._item_stage import (  # noqa: PLC0415
+        build_item_row,
+        upsert_item_with_attrs,
+    )
 
     kind: MediaItemKind = "show" if scan_item.media_type == "tvshow" else "movie"
     nfo_status = _nfo_status_string(scan_item.nfo)
     artwork_json = _artwork_inventory(scan_item.artwork).model_dump_json()
 
-    # Migration 005 (provider-ids feature) consolidated the flat
-    # ``tmdb_id`` / ``imdb_id`` / ``tvdb_id`` columns into a single
-    # ``external_ids_json`` column. Build the JSON here from whatever
-    # the NFO surfaced.
-    import json as _json  # noqa: PLC0415
-
-    eids: dict[str, dict[str, str | None]] = {}
-    if scan_item.nfo.tvdb_id and scan_item.nfo.tvdb_id.isdigit():
-        eids["tvdb"] = {"series_id": scan_item.nfo.tvdb_id, "episode_id": None}
-    if scan_item.nfo.tmdb_id and scan_item.nfo.tmdb_id.isdigit():
-        eids["tmdb"] = {"series_id": scan_item.nfo.tmdb_id, "episode_id": None}
-    if scan_item.nfo.imdb_id:
-        eids["imdb"] = {"series_id": scan_item.nfo.imdb_id, "episode_id": None}
-    external_ids_json = _json.dumps(eids) if eids else "{}"
-
-    # Ratings + canonical provider — populated from the NFO parse so
-    # post-scrape state (provider-ids feature) lives in the indexer DB
-    # instead of being write-only on the scraper side.
-    ratings_json: str | None
-    if scan_item.nfo.ratings:
-        ratings_json = _json.dumps({"entries": scan_item.nfo.ratings})
-    else:
-        ratings_json = None
-    # Phase 14.1 (reopen 12.1) — block the canonical_provider regression at the
-    # insertion source. Older NFOs on disk may flag tmdb as default even for
-    # shows with a valid tvdb_id; recompute deterministically from kind + IDs.
-    canonical_provider = _normalize_canonical_provider(
-        kind=kind,
-        tvdb_id=scan_item.nfo.tvdb_id,
-        tmdb_id=scan_item.nfo.tmdb_id,
-        nfo_declared=scan_item.nfo.canonical_provider,
-    )
-
-    row = MediaItemRow(
-        id=0,
-        kind=kind,
+    # Build the media_item column dict via the shared SSOT. build_item_row
+    # owns the external_ids_json / ratings_json construction and the
+    # kind-deterministic canonical_provider derivation (via derive_canonical_provider,
+    # the SSOT that ported the legacy inline build + _normalize_canonical_provider).
+    row = build_item_row(
         title=scan_item.title,
-        title_sort=scan_item.title,  # stripped sort key is handled by scraper (7.2+)
-        original_title=None,
+        kind=kind,
         year=scan_item.year,
         category_id=scan_item.category,
-        external_ids_json=external_ids_json,
-        ratings_json=ratings_json,
-        canonical_provider=canonical_provider,
+        tvdb_id=scan_item.nfo.tvdb_id,
+        tmdb_id=scan_item.nfo.tmdb_id,
+        imdb_id=scan_item.nfo.imdb_id,
+        nfo_default=scan_item.nfo.canonical_provider,
         nfo_status=nfo_status,
         artwork_json=artwork_json,
-        date_created=now_s,
-        date_modified=now_s,
-        date_metadata_refreshed=None,
-        is_locked=0,
-        preferred_lang="fr",
+        ratings=scan_item.nfo.ratings,
     )
-    item_id = _item_repo.upsert(conn, row)
 
-    # Persist dispatch flex attributes so trailers, release_linker, and the
-    # dispatch index rebuild can locate the media directory and look it up by
-    # normalized title.  Without ``dispatch_normalized_title`` items inserted
-    # by this scanner are invisible to ``find_by_normalized_name`` /
+    # Dispatch flex attributes. Without ``dispatch_normalized_title`` items
+    # inserted by this scanner are invisible to ``find_by_normalized_name`` /
     # ``list_all_dispatch_items`` (both INNER JOIN on that key), which would
     # silently break the trailers cross-disk index after a clean DB rebuild.
     # Normalization mirrors ``dispatch.media_index._normalize_key``: NFC,
     # lowercase, stripped — APFS / macFUSE-NTFS may otherwise differ on
     # decomposed accents.
     norm_title = unicodedata.normalize("NFC", scan_item.title).lower().strip()
-    for key, value in (
-        (_ATTR_DISPATCH_PATH, scan_item.path),
-        (_ATTR_DISPATCH_DISK, scan_item.disk),
-        (_ATTR_DISPATCH_NORM_TITLE, norm_title),
-    ):
-        _item_repo.upsert_attr(conn, ItemAttributeRow(item_id=item_id, key=key, value=value))
+    attrs: dict[str, str | None] = {
+        _ATTR_DISPATCH_PATH: scan_item.path,
+        _ATTR_DISPATCH_DISK: scan_item.disk,
+        _ATTR_DISPATCH_NORM_TITLE: norm_title,
+    }
 
-    # Persist the directory-hygiene issue tags into ``item_issue`` so the
-    # report layer (and any downstream maintenance UI) can surface them
-    # without re-walking the disks.  We replace the row's whole issue set
-    # on every scan: a previously-flagged issue that has since been
-    # cleaned up (e.g. .actors/ removed by ``library-clean``) must drop
-    # off the report on the next scan.
-    conn.execute("DELETE FROM item_issue WHERE item_id = ?", (item_id,))
-    if scan_item.issues:
-        conn.executemany(
-            "INSERT OR IGNORE INTO item_issue (item_id, type, detail, detected_at) VALUES (?, ?, NULL, ?)",
-            [(item_id, issue, now_s) for issue in scan_item.issues],
-        )
+    # The directory-hygiene issue tags are replaced wholesale on every scan: a
+    # previously-flagged issue that has since been cleaned up (e.g. .actors/
+    # removed by ``library-clean``) must drop off the report on the next scan.
+    # upsert_item_with_attrs performs the DELETE-then-INSERT internally.
+    issues = [{"type": issue, "detail": None} for issue in scan_item.issues]
 
-    return item_id
+    return upsert_item_with_attrs(conn, row, attrs, issues=issues, now_s=now_s)
 
 
 def _upsert_seasons_and_episodes(
