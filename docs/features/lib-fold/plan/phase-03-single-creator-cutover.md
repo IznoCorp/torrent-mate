@@ -108,14 +108,14 @@ def test_dispatch_rebuild_no_canonical_provider_none(minimal_config: MagicMock) 
     idx = MediaIndex(config=minimal_config, auto_rebuild=True)
     conn = sqlite3.connect(minimal_config.indexer.db_path)
     rows = conn.execute(
-        "SELECT norm_title, canonical_provider FROM media_item"
+        "SELECT title, canonical_provider FROM media_item"
     ).fetchall()
     conn.close()
 
     assert rows, "rebuild() must create at least one media_item row"
-    for norm_title, cp in rows:
+    for title, cp in rows:
         assert cp is not None, (
-            f"canonical_provider=None found for {norm_title!r} — "
+            f"canonical_provider=None found for {title!r} — "
             "dispatch auto-rebuild must produce rich rows (lib-fold regression)"
         )
 ```
@@ -155,20 +155,22 @@ from personalscraper.indexer.scanner._modes._item_stage import (
 
 - [ ] **Step 2.3: Replace the minimal-row upsert in `rebuild()` / `add()`**
 
-Find the block that calls `item_repo.upsert(...)` with `canonical_provider=None` (around line 406). Replace the per-directory upsert call with:
+Find the block that calls `item_repo.upsert(...)` with `canonical_provider=None` (around line 406). Replace the per-directory upsert call with a delegation to the shared stage. Use the **corrected** `scan_and_stage_dir` signature from Phase 2 (`scan_and_stage_dir(conn, media_dir, disk_cfg, category_id, kind, now_s=None)` — `disk_cfg` is a `DiskConfig`, not `disk.id`):
 
 ```python
 # Delegate to the shared item stage — produces rich rows (canonical_provider
 # derived from NFO, seasons, issues) identical to library-index --mode full.
 # Prior to lib-fold, this path wrote canonical_provider=None (regression fixed).
 scan_and_stage_dir(
-    conn=self._conn,
-    media_dir=Path(media_dir_path),
-    disk_id=disk.id,
-    category_id=category.id,
-    kind=category.kind,
+    self._conn,
+    Path(media_dir_path),
+    disk_cfg=disk_cfg,          # DiskConfig from MediaIndex config — verify the real var
+    category_id=category_id,    # the logical category id string
+    kind=kind,                  # "movie" | "show" — derive via TV_CATEGORY_IDS
 )
 ```
+
+> Verify the actual objects available in `MediaIndex.rebuild()` / `add()` before wiring: the dispatch layer carries `config` (→ `DiskConfig`), a category id, and the media-dir path. Resolve `disk_cfg` / `category_id` / `kind` from those — do **not** assume a `disk.id` / `category.id` / `category.kind` attribute shape (those were from the stale draft). `_ensure_disk_row(conn, disk_cfg, now_s)` (imported above) needs the same `DiskConfig`.
 
 Remove the old `item_repo.upsert(...)` call and the `canonical_provider=None` assignment. Keep the `find_by_normalized_name` dedup check if it is used for something other than the upsert (read the surrounding code first).
 

@@ -136,12 +136,12 @@ Find the `ScanMode.full` description and add (or replace) a subsection:
 `indexer/scanner/_modes/_item_stage.py` performs the directory-metadata
 pass before the recursive file walk:
 
-| Public function                                                   | Purpose                                                                                                                                                       |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `build_item_row(...)`                                             | Build a `media_item` dict from parsed NFO inputs; calls `_canonical.derive_canonical_provider`.                                                               |
-| `upsert_item_with_attrs(conn, row, attrs, issues)`                | Write `media_item` + `item_attr` + `item_issue` rows; idempotent on `(norm_title, disk_id)` conflict.                                                         |
-| `scan_and_stage_dir(conn, media_dir, disk_id, category_id, kind)` | High-level: read the NFO, build the row, upsert. No-NFO dirs are indexed (folder-name fallback) and flagged (`nfo_missing`/`nfo_incomplete` in `item_issue`). |
-| `_ensure_disk_row(conn, disk_id, mount_point)`                    | DEV #50: insert the disk row if absent before FK writes.                                                                                                      |
+| Public function                                                                | Purpose                                                                                                                                                                               |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `build_item_row(*, title, kind, year, category_id, tvdb_id, tmdb_id, …)`       | Build a `media_item` **column dict** (real post-005 columns; IDs → `external_ids_json`) from parsed NFO inputs; sets `canonical_provider` via `_canonical.derive_canonical_provider`. |
+| `upsert_item_with_attrs(conn, row, attrs, issues=None, *, now_s=None)`         | Write `media_item` (via `item_repo.upsert`) + `item_attribute` + `item_issue` (with `detected_at`) rows; idempotent on **`(kind, title)`** (the `item_repo.upsert` conflict key).     |
+| `scan_and_stage_dir(conn, media_dir, disk_cfg, category_id, kind, now_s=None)` | High-level: read the NFO, build the row, upsert. No-NFO dirs are indexed (folder-name fallback) and flagged (`nfo_missing`/`nfo_incomplete` in `item_issue`).                         |
+| `_ensure_disk_row(conn, disk_cfg, now_s) -> DiskRow`                           | DEV #50: SELECT-by-label then insert the disk row if absent before FK writes (ports `library.scanner._ensure_disk_row`).                                                              |
 
 Pass 2 is the existing recursive file walk (`_walker.py`) that populates
 `media_file` and `media_stream` rows. Both passes run inside a single
