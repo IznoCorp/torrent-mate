@@ -18,7 +18,6 @@ successful — the indexer will reconcile the drift at the next scan.
 from __future__ import annotations
 
 import os
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -64,11 +63,8 @@ _MAIN_VIDEO_MIN_BYTES: int = 50 * 1024 * 1024
 # matched case-insensitively against the basename.
 _TRAILER_MARKERS: tuple[str, ...] = ("trailer", "teaser", "sample", "extra")
 
-# TV-show season folder names (re-using the same regex as the indexer).
-_TV_SEASON_DIR_RE = re.compile(
-    r"^(?:saison|season)\s*\d+$|^specials?$",
-    re.IGNORECASE,
-)
+# TV-show season folder names — canonical SSOT from naming_patterns.
+from personalscraper.naming_patterns import SEASON_DIR_RE as _TV_SEASON_DIR_RE  # noqa: E402
 
 # Categories whose "main content" is not a video file. ``orphans`` mode
 # always skips these because its definition of orphan ("no main video") is

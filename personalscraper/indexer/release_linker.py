@@ -30,27 +30,10 @@ from personalscraper.logger import get_logger
 log = get_logger("indexer.release_linker")
 
 
-# Match French ``Saison 01`` / ``Saison 1`` and English ``Season 01`` / ``Season 1``.
-_SEASON_DIR_RE = re.compile(r"^Sa[ie]son\s+(\d+)$|^Season\s+(\d+)$", re.IGNORECASE)
+from personalscraper.naming_patterns import season_number_from_dir as parse_season_dir  # noqa: E402
 
 # Match ``S01E02`` / ``s1e2`` / ``1x02`` style markers anywhere in the filename.
 _EPISODE_RE = re.compile(r"[sS](\d{1,2})[eE](\d{1,3})|(\d{1,2})x(\d{1,3})")
-
-
-def parse_season_dir(name: str) -> int | None:
-    """Return the season number when ``name`` matches a season directory.
-
-    Args:
-        name: Bare directory name (no parent path).
-
-    Returns:
-        Season number as int, or ``None`` when ``name`` is not a season dir.
-    """
-    match = _SEASON_DIR_RE.match(name)
-    if match is None:
-        return None
-    captured = next((g for g in match.groups() if g is not None), None)
-    return int(captured) if captured is not None else None
 
 
 def parse_episode_number(filename: str) -> int | None:

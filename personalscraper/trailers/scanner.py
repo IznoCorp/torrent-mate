@@ -5,7 +5,6 @@ Media-without-trailer detection for staging and library.
 
 from __future__ import annotations
 
-import re
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -24,7 +23,12 @@ from personalscraper.trailers.state import _validate_season_number
 
 log = get_logger(__name__)
 
-_SEASON_DIR_RE = re.compile(r"^Saison (\d{2})$")
+from personalscraper.naming_patterns import (  # noqa: E402
+    SEASON_DIR_RE as _SEASON_DIR_RE,
+)
+from personalscraper.naming_patterns import (  # noqa: E402
+    season_number_from_dir as _season_number_from_dir,
+)
 
 MediaTypeLiteral = Literal["movie", "tvshow"]
 
@@ -354,7 +358,11 @@ class Scanner:
             m = _SEASON_DIR_RE.match(sub.name)
             if not m:
                 continue
-            season_number = int(m.group(1))
+            # Use the SSOT helper: returns 0 for Specials, int for numbered seasons.
+            # Specials (season 0) have no season-level trailer slot — skip them.
+            season_number = _season_number_from_dir(sub.name)
+            if season_number is None or season_number == 0:
+                continue
             expected_season = trailer_path_for_season(show_dir, season_number, "mp4")
             if trailer_exists(expected_season, self._min_size):
                 continue
