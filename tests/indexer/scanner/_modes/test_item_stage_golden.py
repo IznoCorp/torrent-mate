@@ -1,17 +1,17 @@
-"""Characterization golden: library-index --mode full == legacy library-scan DB end-state.
+"""Characterization golden: library-index --mode full == frozen legacy DB end-state.
 
-This test is the safety net for Phase 3's deletion of library/scanner.py.
-It must pass before any deletion is attempted. If it fails, Phase 3 is blocked.
+This test is the safety net for Phase 3's deletion of the legacy scanner module
+under ``personalscraper.library``. It must pass before any deletion is attempted.
+If it fails, Phase 3 is blocked.
 
-Baseline = the **real** ``scan_library`` (the live legacy path) on a temp
-filesystem fixture. ``scan_library`` calls the indexer file walk
-(``_indexer_scan``) at the very end for ``media_file`` / ``path`` rows; that
-terminal call triggers a disk-identity bootstrap that writes a sentinel to the
-volume root and fails on a tmp filesystem. We monkeypatch ``_indexer_scan`` to
-a no-op so the REAL ``media_item`` / ``season`` / ``episode`` / ``item_issue`` /
-``item_attribute`` creation (which — after obj#5 — routes through the shared
-``upsert_item_with_attrs`` SSOT) runs unchanged, while only the file/path walk
-(never compared) is skipped.
+Baseline = a **frozen snapshot** (``_FROZEN_LEGACY_BASELINE``) captured verbatim
+from the real legacy library-scan entrypoint run on the ``_build_mini_library``
+fixture at this commit. The baseline used to be produced by running that legacy
+entrypoint LIVE inside the test, but that live dependency is removed here so this
+golden no longer imports the legacy scanner module (which Phase 3 deletes). The
+captured assertion semantics are preserved exactly — the snapshot is
+byte-for-byte the legacy output, not hand-edited (see the constant's docstring
+for the documented capture/regeneration procedure).
 
 Result = the new ``stage_library_items`` (pass 1 of ``library-index --mode
 full``) on a fresh in-memory DB with the **same** config. The snapshot covers
@@ -33,7 +33,6 @@ from personalscraper.conf.models.categories import CategoryConfig
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.paths import PathConfig
-from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
@@ -43,6 +42,156 @@ MIGRATIONS_DIR = Path(__file__).resolve().parents[4] / "personalscraper" / "inde
 # Snapshotted per item so the trailers / dispatch / release_linker INNER JOINs
 # stay byte-identical across the legacy → new cutover (DESIGN §4.3).
 _DISPATCH_ATTR_KEYS = ("dispatch_path", "dispatch_disk", "dispatch_normalized_title")
+
+# Marker that splits the volatile tmp root from the deterministic suffix in
+# ``dispatch_path``. The fixture always builds the media tree under
+# ``<tmp_path>/Disk1/medias/...`` (see ``_build_mini_library``), so the segment
+# from this marker onward is stable across runs while the prefix is the
+# per-invocation tmp dir. ``_canonicalize_dispatch_path`` rewrites the prefix to
+# a fixed token so the frozen baseline (captured under one tmp dir) compares
+# byte-identically to a fresh run (executed under a different tmp dir).
+_DISPATCH_PATH_MARKER = "/Disk1/medias"
+
+# Frozen legacy baseline — captured VERBATIM from the real legacy library-scan
+# entrypoint (the live legacy path in the ``personalscraper.library`` scanner
+# module) run on the ``_build_mini_library`` fixture at this commit. It is FROZEN
+# because Phase 3 deletes that module: this golden must keep its exact legacy
+# assertion semantics without a live dependency on the module being removed.
+#
+# Honesty contract: every value below is the real legacy output, byte-for-byte
+# (no hand-editing). The only field with a per-run-volatile component is
+# ``dispatch_attrs['dispatch_path']`` — its tmp-root prefix is the capture run's
+# temp dir and is normalized away via ``_canonicalize_dispatch_path`` before the
+# equality check (the deterministic suffix from ``/Disk1/medias`` onward is
+# still compared verbatim).
+#
+# To regenerate (e.g. if the legacy scan output legitimately changes while the
+# module still exists in git history): check out a commit where the legacy
+# ``personalscraper.library`` scanner module still exists, then run a throwaway
+# script that (1) builds the fixture via ``_build_mini_library``, (2) sets the
+# module's ``_indexer_scan`` attribute to a no-op (so the terminal file/path
+# walk that bootstraps a disk-identity sentinel does not fail on a tmp
+# filesystem), (3) applies migrations to an in-memory DB, (4) calls the legacy
+# scan entrypoint ``scan(config, conn, event_bus=EventBus())``, and (5) prints
+# ``repr(_snapshot_db(conn))``. Paste that repr here verbatim.
+_FROZEN_LEGACY_BASELINE: list[dict[str, Any]] = [
+    {
+        "title": "Incomplete Movie",
+        "title_sort": "Incomplete Movie",
+        "original_title": None,
+        "kind": "movie",
+        "year": None,
+        "category_id": "movies",
+        "external_ids_json": "{}",
+        "ratings_json": None,
+        "canonical_provider": None,
+        "nfo_status": "missing",
+        "artwork_json": (
+            '{"poster":false,"fanart":false,"landscape":false,"banner":false,'
+            '"clearlogo":false,"clearart":false,"discart":false,"characterart":false}'
+        ),
+        "preferred_lang": "fr",
+        "issue_types": ["bad_dir_naming"],
+        "seasons": [],
+        "dispatch_attrs": {
+            "dispatch_path": "/tmp/claude-501/tmp6_hf8f3i/Disk1/medias/films/Incomplete Movie",
+            "dispatch_disk": "disk1",
+            "dispatch_normalized_title": "incomplete movie",
+        },
+    },
+    {
+        "title": "The Matrix",
+        "title_sort": "The Matrix",
+        "original_title": None,
+        "kind": "movie",
+        "year": 1999,
+        "category_id": "movies",
+        "external_ids_json": (
+            '{"tmdb": {"series_id": "603", "episode_id": null}, '
+            '"imdb": {"series_id": "tt0133093", "episode_id": null}}'
+        ),
+        "ratings_json": None,
+        "canonical_provider": "tmdb",
+        "nfo_status": "valid",
+        "artwork_json": (
+            '{"poster":true,"fanart":false,"landscape":true,"banner":false,'
+            '"clearlogo":false,"clearart":false,"discart":false,"characterart":false}'
+        ),
+        "preferred_lang": "fr",
+        "issue_types": ["actors_dir_present", "junk_files"],
+        "seasons": [],
+        "dispatch_attrs": {
+            "dispatch_path": "/tmp/claude-501/tmp6_hf8f3i/Disk1/medias/films/The Matrix (1999)",
+            "dispatch_disk": "disk1",
+            "dispatch_normalized_title": "the matrix",
+        },
+    },
+    {
+        "title": "Fallout",
+        "title_sort": "Fallout",
+        "original_title": None,
+        "kind": "show",
+        "year": 2024,
+        "category_id": "tv_shows",
+        "external_ids_json": '{"tmdb": {"series_id": "106379", "episode_id": null}}',
+        "ratings_json": None,
+        "canonical_provider": "tmdb",
+        "nfo_status": "valid",
+        "artwork_json": (
+            '{"poster":true,"fanart":false,"landscape":false,"banner":false,'
+            '"clearlogo":false,"clearart":false,"discart":false,"characterart":false}'
+        ),
+        "preferred_lang": "fr",
+        "issue_types": ["actors_dir_present", "release_group_artifact"],
+        "seasons": [
+            {
+                "number": 1,
+                "episode_count": 2,
+                "has_poster": 1,
+                "episodes_with_nfo": 1,
+                "episodes": [(1, "The Beginning"), (2, None)],
+            }
+        ],
+        "dispatch_attrs": {
+            "dispatch_path": "/tmp/claude-501/tmp6_hf8f3i/Disk1/medias/series/Fallout (2024)",
+            "dispatch_disk": "disk1",
+            "dispatch_normalized_title": "fallout",
+        },
+    },
+]
+
+
+def _canonicalize_dispatch_path(snapshot: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return ``snapshot`` with each ``dispatch_path`` tmp-root prefix canonicalized.
+
+    The ``dispatch_path`` flex attribute embeds the absolute on-disk media path,
+    whose prefix is the per-invocation tmp dir (``<tmp_path>/Disk1/medias/...``).
+    That prefix differs between the frozen baseline's capture run and any fresh
+    test run, while the suffix from ``_DISPATCH_PATH_MARKER`` onward is stable.
+    This rewrites everything up to (and including) the marker to a fixed token so
+    the equality check compares only the deterministic suffix — keeping the net
+    honest (the suffix is still byte-compared) without false failures on the
+    volatile tmp root.
+
+    Args:
+        snapshot: A ``_snapshot_db`` result (mutated copies are returned, not the
+            input rows).
+
+    Returns:
+        A new list of per-item dicts with ``dispatch_attrs['dispatch_path']``
+        rewritten to ``<TMP_ROOT>{marker}{suffix}``.
+    """
+    out: list[dict[str, Any]] = []
+    for item in snapshot:
+        new_item = dict(item)
+        attrs = dict(new_item["dispatch_attrs"])
+        path = attrs.get("dispatch_path")
+        if isinstance(path, str) and _DISPATCH_PATH_MARKER in path:
+            suffix = path[path.index(_DISPATCH_PATH_MARKER) :]
+            attrs["dispatch_path"] = f"<TMP_ROOT>{suffix}"
+        new_item["dispatch_attrs"] = attrs
+        out.append(new_item)
+    return out
 
 
 def _build_mini_library(tmp_path: Path) -> dict[str, Any]:
@@ -228,57 +377,51 @@ def _snapshot_db(conn: sqlite3.Connection) -> list[dict[str, Any]]:
 
 
 @pytest.mark.integration
-def test_full_mode_db_equals_library_scan_baseline(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """library-index --mode full must produce the same DB end-state as library-scan.
+def test_full_mode_db_equals_frozen_legacy_baseline(tmp_path: Path) -> None:
+    """library-index --mode full must match the frozen legacy library-scan end-state.
 
-    Baseline = the REAL ``scan_library`` (live legacy path). Its terminal
-    ``_indexer_scan`` call (file/path walk) is monkeypatched to a no-op so the
-    disk-identity sentinel bootstrap does not fail on the tmp filesystem and so
-    only the never-compared ``media_file`` / ``path`` rows are skipped; the
-    ``media_item`` / ``season`` / ``episode`` / ``item_issue`` / ``item_attribute``
-    writes — which after obj#5 route through ``upsert_item_with_attrs`` — run
-    unchanged.
+    Baseline = ``_FROZEN_LEGACY_BASELINE``, a snapshot captured VERBATIM from the
+    real legacy library-scan entrypoint (live legacy path) on the
+    ``_build_mini_library`` fixture at this commit. It is frozen because Phase 3
+    deletes the legacy ``personalscraper.library`` scanner module; freezing keeps
+    this golden's exact legacy assertion semantics without re-running (or
+    importing) the module being removed.
 
     Result = the new ``stage_library_items`` (pass 1 of ``library-index --mode
-    full``) on the same config.
+    full``) on the same fixture config, against a fresh in-memory DB with all
+    migrations applied; the snapshot covers the full DESIGN §4.3 behaviour-set.
 
-    Both run against a fresh in-memory DB with all migrations applied; the
-    snapshot covers the full DESIGN §4.3 behaviour-set. Every field must be
-    byte-identical EXCEPT ``item_issue`` types: the new path is a documented
-    SUPERSET — DESIGN §4.3 decision #2 has it flag no-NFO dirs with an extra
-    ``nfo_missing`` / ``nfo_incomplete`` tag the legacy path never emitted, so
-    the issue set is asserted as ``legacy ⊆ new ⊆ legacy ∪ {no-NFO tags}``.
+    Both snapshots have their ``dispatch_path`` tmp-root canonicalized (the only
+    per-run-volatile field). Every other field must be byte-identical EXCEPT
+    ``item_issue`` types: the new path is a documented SUPERSET — DESIGN §4.3
+    decision #2 has it flag no-NFO dirs with an extra ``nfo_missing`` /
+    ``nfo_incomplete`` tag the legacy path never emitted, so the issue set is
+    asserted as ``legacy ⊆ new ⊆ legacy ∪ {no-NFO tags}``.
     """
     from personalscraper.indexer.scanner._modes._item_stage import stage_library_items
-    from personalscraper.library.scanner import scan_library
 
     fixture = _build_mini_library(tmp_path)
     config = fixture["config"]
 
-    # --- Baseline: the REAL scan_library, with only the terminal file/path
-    # walk neutralised (it writes media_file/path rows we do not compare and
-    # bootstraps a disk-identity sentinel that fails on tmp filesystems). ---
-    monkeypatch.setattr("personalscraper.library.scanner._indexer_scan", lambda **kwargs: None)
-    conn_legacy = sqlite3.connect(":memory:")
-    apply_migrations(conn_legacy, MIGRATIONS_DIR)
-    scan_library(config, conn_legacy, event_bus=EventBus())
-    baseline = _snapshot_db(conn_legacy)
-    conn_legacy.close()
+    # --- Baseline: frozen snapshot of the real legacy library-scan, with the
+    # volatile dispatch_path tmp root canonicalized so it compares against a
+    # fresh run executed under a different tmp dir. ---
+    baseline = _canonicalize_dispatch_path(_FROZEN_LEGACY_BASELINE)
 
     # --- New path: stage_library_items (pass 1 of library-index --mode full) ---
     conn_new = sqlite3.connect(":memory:")
     apply_migrations(conn_new, MIGRATIONS_DIR)
     stage_library_items(conn_new, config)
-    result = _snapshot_db(conn_new)
+    result = _canonicalize_dispatch_path(_snapshot_db(conn_new))
     conn_new.close()
 
     assert baseline, "Baseline must not be empty — fixture has 3 media dirs"
-    assert len(baseline) == 3, f"Expected 3 media_item rows, got {len(baseline)}"
+    assert len(baseline) == 3, f"Expected 3 frozen baseline rows, got {len(baseline)}"
     assert len(result) == len(baseline), f"media_item count mismatch: baseline={len(baseline)} result={len(result)}"
 
     # The new path is a documented SUPERSET of the legacy issue set: DESIGN §4.3
     # decision #2 has it flag no-NFO directories with an extra ``nfo_missing`` /
-    # ``nfo_incomplete`` ``item_issue`` tag that the legacy ``scan_library`` path
+    # ``nfo_incomplete`` ``item_issue`` tag that the legacy library-scan path
     # never emitted (legacy only recorded the directory-hygiene tags). Every
     # OTHER field must be byte-identical, so we compare the core verbatim and
     # treat ``issue_types`` separately rather than trim it from the snapshot
