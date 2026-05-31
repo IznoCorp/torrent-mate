@@ -261,6 +261,7 @@ def _enrich_after_dispatch(config: Config, results: list[DispatchResult], *, eve
 
     from personalscraper.indexer.db import _apply_pragmas
     from personalscraper.indexer.repos import disk_repo
+    from personalscraper.indexer.scanner import ScanMode
     from personalscraper.indexer.scanner import scan as _indexer_scan
     from personalscraper.indexer.schema import DiskRow
 
@@ -289,18 +290,26 @@ def _enrich_after_dispatch(config: Config, results: list[DispatchResult], *, eve
             disks=[d.label for d in disk_rows],
             affected_item_count=len(affected_ids),
         )
-        result = _indexer_scan(
-            disks=disk_rows,
-            mode="enrich",  # type: ignore[arg-type]
-            generation=next_generation,
-            conn=conn,
-            event_bus=event_bus,
-        )
-        log.info(
-            "dispatch_post_enrich_done",
-            files_visited=result.files_visited,
-            status=result.status,
-        )
+        try:
+            result = _indexer_scan(
+                disks=disk_rows,
+                mode=ScanMode.enrich,
+                generation=next_generation,
+                conn=conn,
+                event_bus=event_bus,
+            )
+        except OSError:
+            log.warning(
+                "dispatch_post_enrich_scan_oserror",
+                disks=[d.label for d in disk_rows],
+                exc_info=True,
+            )
+        else:
+            log.info(
+                "dispatch_post_enrich_done",
+                files_visited=result.files_visited,
+                status=result.status,
+            )
     finally:
         conn.close()
 
