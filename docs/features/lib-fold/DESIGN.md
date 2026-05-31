@@ -380,7 +380,10 @@ rg -t py 'VIDEO_EXTENSIONS\s*[:=]\s*frozenset|VIDEO_EXTENSIONS\s*=\s*\{' persona
 # Expected: no output, then rc=1
 
 # ACC-02  Phase 1 — no importer reaches into library.scanner for NFO helpers; helpers callable from new home
-rg -t py 'from personalscraper.library.scanner import' personalscraper/ tests/ ; echo "rc=$?"
+# Scoped to the three NFO helpers: scan_library/scan_movie_dir/scan_tvshow_dir/_ensure_disk_row imports
+# legitimately remain until Phase 3 deletes scanner.py (the broad form is a post-Phase-3 state, not a
+# Phase-1 criterion — it is unsatisfiable while scan_library is the live legacy path and is still tested).
+rg -t py 'from personalscraper.library.scanner import (parse_title_year|extract_nfo_ids|extract_nfo_metadata)' personalscraper/ tests/ ; echo "rc=$?"
 # Expected: no output, then rc=1
 # ACC-02b
 python -c "from personalscraper.nfo_utils import parse_title_year, extract_nfo_ids, extract_nfo_metadata; print('OK')"
