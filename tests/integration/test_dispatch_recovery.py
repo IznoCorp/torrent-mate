@@ -11,6 +11,8 @@ rather than treating the item as new.
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
+import pytest
+
 from personalscraper.conf import ids as CID
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
@@ -83,6 +85,7 @@ def test_crash_recovery_uses_filesystem_scan(
     fake_disks: list[Path],
     integration_config: Config,
     rsync_available: None,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Dispatcher detects an existing folder via filesystem scan when index is empty.
 
@@ -106,8 +109,17 @@ def test_crash_recovery_uses_filesystem_scan(
         fake_disks: List of four fake disk root paths.
         integration_config: Fully composed integration Config fixture.
         rsync_available: Skips test when rsync is absent from PATH.
+        monkeypatch: Pytest monkeypatch fixture for patching
+            ``guard_disk_mounted`` (read-only test sandbox).
     """
     config = integration_config
+
+    # The post-dispatch enrich scan calls guard_disk_mounted which tries to
+    # write the .personalscraper-disk-id sentinel.  In the test sandbox the
+    # resolved volume root may be read-only, so patch the documented seam
+    # (personalscraper/indexer/scanner/__init__.py:39 + _scan_orchestrator.py:286).
+    monkeypatch.setattr("personalscraper.indexer.scanner.guard_disk_mounted", lambda disk: None)
+
     title = "SomeMovie"
     year = 2023
     folder = f"{title} ({year})"
