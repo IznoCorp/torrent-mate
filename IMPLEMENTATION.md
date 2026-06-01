@@ -58,7 +58,11 @@ Design + plan were reviewed collaboratively before Phase 0 — more rigorous tha
 | L2/L3/L4 | low | stale docstrings (`rebuild` "via add", `_canonical` "Replaces", `maintenance` "Phase 5", `nfo_utils` "library scanner", orphan comment, dead `_NFO_RATING_SOURCE_REVERSE`)                                    | corrected/removed                                                                                                                                  |
 | L5/L6    | low | missing tests (rebuild show seasons; `analyze_from_index` disk_filter/max_items)                                                                                                                              | added                                                                                                                                              |
 
-**Re-gate after fixes (independently re-run):** `make lint` clean · `make test` **5996 passed, 0 failed/errors** · `make check` rc=0, coverage **91.69%** · ACC-06 rc=1. Ignored (out of scope): `--from-index` deprecated no-op (CLI flag, not a migration); `library-scan --disk` semantic (already DESIGN-conformant, documented).
+**Re-gate after fixes (independently re-run):** `make lint` clean · `make test` **5996 passed, 0 failed/errors** · `make check` rc=0, coverage **91.69%** · ACC-06 rc=1. Ignored (out of scope): `--from-index` deprecated no-op (CLI flag, not a migration); `library-scan --disk` semantic (already DESIGN-conformant, documented). CI green: run `26765085079`.
+
+### Cycle 2 (2026-06-01) — CLEAN (re-review of the fix delta)
+
+Re-ran 3 agents (code / silent-failure / tests) on the cycle-1 fix delta `1678d95f..HEAD`. **All clean** — every fix (M1–M5, L1–L6) confirmed correct; no new bug, silent path, or regression; the L1 `_scan_seasons` signature change broke no caller and lost no coverage (numbered-season behaviour byte-identical, golden green). The test analyst **empirically verified** each regression test fails when its production fix is reverted (genuine pins, no tautologies). Two labeling nits (1–2/10, test-docstring only) corrected: the M5 show-variant test re-labeled as `add()`-show coverage (the M5 movie-basename fix doesn't apply to the fixed-name `tvshow.nfo`), and the L6 filter tests re-labeled as additive coverage of pre-existing branches. **No code defects. PR #31 is merge-ready** (manual squash-merge pending the operator).
 
 ## Next action
 

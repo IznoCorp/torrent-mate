@@ -414,9 +414,11 @@ def test_add_real_movie_folder_derives_tmdb_provider(godfather_library: Config) 
 def test_add_real_show_folder_derives_tvdb_provider(tvshow_library: Config) -> None:
     """``add()`` of a real on-disk TVDB-bearing show folder must derive ``"tvdb"``.
 
-    TVDB variant of the M5 gap: points ``add()`` at the real Fallout show folder
-    (``tvshow.nfo`` with TVDB id) and asserts the persisted
-    ``canonical_provider == "tvdb"`` (the show rule prefers TVDB).
+    add()-show rich-row coverage (NOT an M5 pin): for shows the NFO is the fixed
+    ``tvshow.nfo``, so the M5 movie-basename fix (``parse_title_year`` vs
+    ``entry.name``) does not apply — this instead exercises the show NFO-read
+    branch in ``add()``. Points at the real Fallout folder (``tvshow.nfo`` with
+    TVDB id) and asserts ``canonical_provider == "tvdb"`` (show rule prefers TVDB).
 
     Args:
         tvshow_library: Real one-show :class:`Config` fixture.

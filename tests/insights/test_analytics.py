@@ -547,7 +547,12 @@ class TestAnalyzeFromIndexExtraBranches:
         return item_id  # type: ignore[return-value]
 
     def test_disk_filter_excludes_other_disks(self) -> None:
-        """``disk_filter`` skips items whose dispatch_disk attribute differs (FIX L6)."""
+        """``disk_filter`` skips items whose dispatch_disk attribute differs.
+
+        L6 — additive coverage of a pre-existing ``analyze_from_index`` filter
+        branch (re-adds the ``disk_filter`` test dropped during the analyzer
+        migration); not a pin of a cycle-1 code change.
+        """
         from personalscraper.insights.analytics import analyze_from_index
 
         conn = _make_conn()
@@ -561,7 +566,12 @@ class TestAnalyzeFromIndexExtraBranches:
         assert analyze_from_index(conn).item_count == 2
 
     def test_max_items_caps_returned_items(self) -> None:
-        """``max_items=N`` caps the returned items at N (FIX L6)."""
+        """``max_items=N`` caps the returned items at N.
+
+        L6 — additive coverage of a pre-existing ``analyze_from_index`` cap
+        branch (re-adds the ``max_items`` test dropped during the analyzer
+        migration); not a pin of a cycle-1 code change.
+        """
         from personalscraper.insights.analytics import analyze_from_index
 
         conn = _make_conn()
