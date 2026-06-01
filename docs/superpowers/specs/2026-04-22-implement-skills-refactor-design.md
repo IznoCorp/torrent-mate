@@ -1,5 +1,10 @@
 # Implement Skills Refactor — Design Spec
 
+> **STATUS (as of 0.19.0)**: 11 skills deployed, not the 10 in the final
+> architecture below. The extra skill is `implement:prepare-feature` (added
+> after this spec), which prepares a future feature's design/plan ahead of
+> implementation. See the row appended to the §4.1 table.
+
 **Date**: 2026-04-22
 **Status**: Draft (awaiting user review)
 **Scope**: Refonte des skills `.claude/skills/implement-*` et `archive-version` / `model-version` vers un modèle orienté feature avec préfixe `implement:*`.
@@ -42,18 +47,24 @@ Le bump est appliqué à l'étape `implement:create-branch`, avant le premier co
 
 ### 4.1 Liste finale (10 skills)
 
-| Skill                     | Rôle                                                                                         | Modèle                          |
-| ------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------- |
-| `implement:feature`       | Orchestrateur entrée nouvelle feature (enchaîne archive → brainstorm → create-branch → plan) | Opus (main)                     |
-| `implement:archive`       | Archivage de la feature précédente (pre-flight, git mv, commit)                              | Haiku subagent                  |
-| `implement:create-branch` | Bump version, crée branche, initialise IMPLEMENTATION.md                                     | Inline Opus                     |
-| `implement:brainstorm`    | Wrap `superpowers:brainstorming` ; produit DESIGN.md et dérive codename + type               | Opus (main)                     |
-| `implement:plan`          | Wrap `superpowers:writing-plans` ; produit INDEX.md + phase-NN-\*.md                         | Sonnet subagent                 |
-| `implement:phase`         | Orchestrateur phase : boucle sur sous-phases, garant de la cohérence                         | Opus (main)                     |
-| `implement:sub-phase`     | Dispatch Sonnet pour UNE sous-phase, commit inclus                                           | Sonnet subagent                 |
-| `implement:check`         | Vérification cohérence design/plan + quality gate après sous-phase                           | Opus (main)                     |
-| `implement:feature-pr`    | Gate local, push, création PR, polling CI                                                    | Opus + Sonnet + Haiku (hybride) |
-| `implement:pr-review`     | Orchestration `/pr-review-toolkit`, filtrage retours, boucle fix (max 3)                     | Opus (main)                     |
+| Skill                       | Rôle                                                                                               | Modèle                          |
+| --------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `implement:feature`         | Orchestrateur entrée nouvelle feature (enchaîne archive → brainstorm → create-branch → plan)       | Opus (main)                     |
+| `implement:archive`         | Archivage de la feature précédente (pre-flight, git mv, commit)                                    | Haiku subagent                  |
+| `implement:create-branch`   | Bump version, crée branche, initialise IMPLEMENTATION.md                                           | Inline Opus                     |
+| `implement:brainstorm`      | Wrap `superpowers:brainstorming` ; produit DESIGN.md et dérive codename + type                     | Opus (main)                     |
+| `implement:plan`            | Wrap `superpowers:writing-plans` ; produit INDEX.md + phase-NN-\*.md                               | Sonnet subagent                 |
+| `implement:phase`           | Orchestrateur phase : boucle sur sous-phases, garant de la cohérence                               | Opus (main)                     |
+| `implement:sub-phase`       | Dispatch Sonnet pour UNE sous-phase, commit inclus                                                 | Sonnet subagent                 |
+| `implement:check`           | Vérification cohérence design/plan + quality gate après sous-phase                                 | Opus (main)                     |
+| `implement:feature-pr`      | Gate local, push, création PR, polling CI                                                          | Opus + Sonnet + Haiku (hybride) |
+| `implement:pr-review`       | Orchestration `/pr-review-toolkit`, filtrage retours, boucle fix (max 3)                           | Opus (main)                     |
+| `implement:prepare-feature` | Prépare le design/plan d'une feature future (roadmap) en amont de l'implémentation, sans committer | Opus (main)                     |
+
+> **Note (0.19.0)**: `implement:prepare-feature` was added after this spec, bringing
+> the deployed count to **11 skills**. It is a standalone, optional preparation step:
+> it lands design/plan artifacts under `docs/superpowers/roadmap/<codename>/` so a
+> later `/implement:feature` can skip the brainstorm/plan steps. Nothing is committed.
 
 ### 4.2 Arbre d'appel
 

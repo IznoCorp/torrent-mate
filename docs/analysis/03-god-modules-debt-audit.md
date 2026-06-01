@@ -1,5 +1,7 @@
 # God-Modules & Module-Size Debt Audit
 
+> STATUS: PARTIALLY ADDRESSED. library/scanner.py removed by lib-fold (0.19.0); the remaining god-module is scraper/movie_service.py (~975 non-blank LOC, sole file over the 800 WARN ceiling). Point-in-time audit; see current code.
+
 > **Metadata** — Date: 2026-05-28 · Version: 0.16.0 · Branch: `feat/registry` ·
 > Project status: pre-1.0, single mono-user instance, **not in production** (no back-compat / no migration scripts) ·
 > Report scope: module-size guardrail (`scripts/check-module-size.py`), the "god-module" inventory in `ROADMAP.md` P3, and concrete decomposition seams for the real offenders ·

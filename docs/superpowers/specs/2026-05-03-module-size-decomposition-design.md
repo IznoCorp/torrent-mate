@@ -1,5 +1,10 @@
 # Module Size Decomposition — Design
 
+> **STATUS: SHIPPED** — the module decompositions (`conf/models/`,
+> `commands/library/`, `dispatch/`, `indexer/outbox/`) and the size guardrail
+> landed during arch-cleanup-2 + lib-fold (now v0.19.0, not the original
+> 0.9.0 → 0.10.0 target). Historical.
+
 **Status**: Prepared (not yet implemented)
 **Codename**: `module-split`
 **Version bump**: 0.9.0 → 0.10.0 (minor — decomposes 4 modules, removes dead config fields, hardens the size guardrail)

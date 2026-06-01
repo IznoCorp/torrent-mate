@@ -1,5 +1,7 @@
 # Architecture Improvement Roadmap
 
+> STATUS: LARGELY SHIPPED. P-1 (registry events subclass Event), P-2 (layer leaks), P-3 (VIDEO_EXTENSIONS/media-types), Feature E (lib-fold) all shipped (v0.17-0.19). movie_service.py now ~975 LOC. Point-in-time roadmap; see CHANGELOG.md + code.
+
 > **Metadata** — Date: 2026-05-28 · Version: 0.16.0 · Branch: `feat/registry` · Project status: pre-1.0, single mono-user instance, **not in production** (no back-compat / no migration scripts allowed) · Scope: cross-axis architecture evolution synthesizing the four sibling reports (`01-library-indexer-consolidation.md`, `02-registry merge readiness`, `03-godmodules`, `04-filesystem-decoupling-macfuse-ntfs.md`) into one sequenced plan · Confidence: **High** — every load-bearing claim re-verified against live code; fact-check corrections incorporated (LOC re-measured with the project's own `scripts/check-module-size.py`, layering leaks and event anchors confirmed at exact `file:line`).
 
 ---
@@ -25,6 +27,7 @@
 ### 2.2 Layering — NOT acyclic as documented
 
 `docs/reference/architecture.md:304` asserts "core/ and conf/ … depend on nothing in the project." **This is FALSE**, verified:
+
 - `core/circuit.py:35` → `from personalscraper.api._contracts import CircuitOpenError`; `:37` → `personalscraper.logger`.
 - `conf/models/api_config.py:11` → `from personalscraper.api.tracker._ranking import RankingBonuses, RankingConfig, RankingCriterion, ThresholdEntry`.
 - `conf/classifier.py:22` → `from personalscraper.api._contracts import MediaType`.
@@ -38,6 +41,7 @@ So `core/` and `conf/` both depend on `api/`. The dependency direction is invert
 ### 2.4 EventBus & the registry-event inconsistency
 
 `core/event_bus.py`: synchronous in-process bus, frozen `Event` base (`timestamp`/`source`/`event_id`/`correlation_id` via `ContextVar`, **no `version`/`schema_version` field** — grep confirms), MRO-walking dispatch + cache, `_EVENT_CLASS_REGISTRY` auto-populated by `Event.__init_subclass__` for envelope round-trip. 18 `Event` subclasses. **The 5 registry events break the contract**:
+
 - `api/metadata/registry/_events.py:13,40,57,72,90` — `@dataclass(frozen=True)` classes (`ProviderFallbackTriggered`, `ProviderExhaustedEvent`, `LockedCapabilityUnresolved`, `RegistryFanOutCompleted`, `RegistryBootValidated`) that **do NOT subclass `Event`**.
 - `registry/__init__.py:706` — `self._event_bus.emit(event)  # type: ignore[arg-type]`.
 - `subscribers/debug_log.py:25` — `bus.subscribe(Event, self.on_event)` never receives them (their MRO is `[dataclass, object]`).
@@ -69,18 +73,18 @@ No `FilesystemCapability` layer. `dispatch/_transfer.py` `rsync()` (flags at `:1
 
 ## 3. Problems & risks
 
-| # | Severity | Problem | Evidence |
-|---|----------|---------|----------|
-| P-1 | **Critical** | Registry events bypass the `Event` contract → no envelope, no correlation_id, dropped by base subscribers. Blocks P2 Web UI. | `_events.py:13/40/57/72/90`; `registry/__init__.py:706`; `subscribers/debug_log.py:25`; `events/__init__.py` (omits `_events`) |
-| P-2 | **High** | Documented acyclic-layering invariant is false; `core/`/`conf/` leak into `api/`+`logger`. Blocks a clean service/HTTP layer. | `core/circuit.py:35,37`; `conf/models/api_config.py:11`; `conf/classifier.py:22`; vs `architecture.md:304` |
-| P-3 | **High** | `sorter.file_type.VIDEO_EXTENSIONS`/`FileType` is a misplaced shared constant pulled by 11 subpackages / 23 lines. | `rg "from personalscraper.sorter.file_type import" -g '*.py'` → 23 non-sorter lines |
-| P-4 | **High** | No event `schema_version` → first cross-process/persisted consumer silently breaks on the next event-shape change. | grep `schema_version` in `event_bus.py`/`pipeline_events.py` → 0 hits |
-| P-5 | **High** | Two `media_item` creators + a delegating scanner = the dual mental model; ROADMAP P1 wording mis-scopes it. | `library/scanner.py:691`; `dispatch/media_index.py:406`; `library/scanner.py` delegates `scan(ScanMode.full)` |
-| P-6 | Medium | No `FilesystemCapability`; NTFS/macFUSE hardcoded; 3 mount-parsers + `ufsd_NTFS` dead-branch; rsync prefix duplicated. | `dispatch/_transfer.py:106,166,176`; `indexer/db.py:176`; `scanner/_spotlight.py:89`; `scanner/__init__.py:225` |
-| P-7 | Medium | Partial DI: services self-instantiate; `commands/info.py` re-builds registry. Forces monkeypatch tests; blocks headless container. | `scraper/orchestrator.py:101,103,113`; `commands/info.py:59-80` |
-| P-8 | Low | Registry passed via stringly-typed `ctx.extras["registry"]` instead of the typed `ctx.app.provider_registry`. | `pipeline.py:326` |
-| P-9 | Low | `__init__.py` blanket size exclusion hides the two largest logic modules. | `scripts/check-module-size.py:22`; `registry/__init__.py` 689; `indexer/scanner/__init__.py` 621 |
-| P-10 | Low (docs) | `ROADMAP.md` P1/P3 LOC + premises and `architecture.md:304` are materially stale. | `movie_service.py` 954 (ROADMAP says 927); `scraper/tmdb_client.py` row references a deleted file |
+| #    | Severity     | Problem                                                                                                                            | Evidence                                                                                                                       |
+| ---- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| P-1  | **Critical** | Registry events bypass the `Event` contract → no envelope, no correlation_id, dropped by base subscribers. Blocks P2 Web UI.       | `_events.py:13/40/57/72/90`; `registry/__init__.py:706`; `subscribers/debug_log.py:25`; `events/__init__.py` (omits `_events`) |
+| P-2  | **High**     | Documented acyclic-layering invariant is false; `core/`/`conf/` leak into `api/`+`logger`. Blocks a clean service/HTTP layer.      | `core/circuit.py:35,37`; `conf/models/api_config.py:11`; `conf/classifier.py:22`; vs `architecture.md:304`                     |
+| P-3  | **High**     | `sorter.file_type.VIDEO_EXTENSIONS`/`FileType` is a misplaced shared constant pulled by 11 subpackages / 23 lines.                 | `rg "from personalscraper.sorter.file_type import" -g '*.py'` → 23 non-sorter lines                                            |
+| P-4  | **High**     | No event `schema_version` → first cross-process/persisted consumer silently breaks on the next event-shape change.                 | grep `schema_version` in `event_bus.py`/`pipeline_events.py` → 0 hits                                                          |
+| P-5  | **High**     | Two `media_item` creators + a delegating scanner = the dual mental model; ROADMAP P1 wording mis-scopes it.                        | `library/scanner.py:691`; `dispatch/media_index.py:406`; `library/scanner.py` delegates `scan(ScanMode.full)`                  |
+| P-6  | Medium       | No `FilesystemCapability`; NTFS/macFUSE hardcoded; 3 mount-parsers + `ufsd_NTFS` dead-branch; rsync prefix duplicated.             | `dispatch/_transfer.py:106,166,176`; `indexer/db.py:176`; `scanner/_spotlight.py:89`; `scanner/__init__.py:225`                |
+| P-7  | Medium       | Partial DI: services self-instantiate; `commands/info.py` re-builds registry. Forces monkeypatch tests; blocks headless container. | `scraper/orchestrator.py:101,103,113`; `commands/info.py:59-80`                                                                |
+| P-8  | Low          | Registry passed via stringly-typed `ctx.extras["registry"]` instead of the typed `ctx.app.provider_registry`.                      | `pipeline.py:326`                                                                                                              |
+| P-9  | Low          | `__init__.py` blanket size exclusion hides the two largest logic modules.                                                          | `scripts/check-module-size.py:22`; `registry/__init__.py` 689; `indexer/scanner/__init__.py` 621                               |
+| P-10 | Low (docs)   | `ROADMAP.md` P1/P3 LOC + premises and `architecture.md:304` are materially stale.                                                  | `movie_service.py` 954 (ROADMAP says 927); `scraper/tmdb_client.py` row references a deleted file                              |
 
 ---
 
@@ -91,50 +95,66 @@ Sequenced into discrete features compatible with `/implement:feature`. Each resp
 > **Prerequisite gate**: merge `feat/registry` (PR #27) first — sibling report 02 verdict is CONDITIONAL (Phase 30 open, branch unpushed). Branch all features below off a clean post-#27 `main`.
 
 ### Feature A — `docs-rebaseline` (fix, Z+1, branch `fix/docs-rebaseline`)
+
 **Objective**: stop every downstream plan inheriting stale premises. Docs only, no code.
+
 - **Modify**: `docs/reference/architecture.md` (correct `:304` to state `core/`+`conf/` currently leak into `api/`+`logger`, OR add a forward-pointer that Feature C fixes it); `ROADMAP.md` (P1: replace "duplicating walk logic" with "two `media_item` creators + helper re-home" per sibling 01; P3: replace LOC table with `check-module-size.py` output — only `movie_service.py` 954 + `library/scanner.py` 855 exceed 800; delete the `scraper/tmdb_client.py` row — file deleted).
 - **Effort**: S · **Risk**: low · **Dependencies**: none.
 
 ### Feature B — `media-types` (refactor → minor, Y+1, branch `feat/media-types`)
+
 **Objective**: promote `VIDEO_EXTENSIONS`/`FileType` out of `sorter` to collapse the dominant horizontal edge.
+
 - **Create**: `personalscraper/core/media_types.py` (or extend `text_utils`/`naming_patterns` — choose the existing shared family to minimize new modules). Houses `VIDEO_EXTENSIONS` + `FileType`.
 - **Modify**: keep `sorter/file_type.py` re-exporting from the new home for one transitional commit, then rewrite the 23 non-sorter import sites to import from the new home; finally drop the re-export. Preserve public path `personalscraper.sorter.file_type` only if external tests rely on it (verify first).
 - **Sub-tasks**: (1) create module + move symbols; (2) update all 23 import lines (`scraper`,`enforce`,`library`,`conf`,`indexer`,`verify`,`dispatch`,`ingest`,`process`,`trailers`); (3) residual-import grep in `personalscraper/` AND `tests/`; (4) regression test asserting `VIDEO_EXTENSIONS` identity from the new path.
 - **Effort**: M (S logic, M test-fixture churn) · **Risk**: low · **Dependencies**: Feature A.
 
 ### Feature C — `layer-contracts` (refactor → minor, Y+1, branch `feat/layer-contracts`)
+
 **Objective**: invert the `core`/`conf` → `api` leak by moving shared primitives DOWN.
+
 - **Create**: `personalscraper/core/_contracts.py` housing `CircuitOpenError`, `MediaType`, and the `Ranking*` config models (`RankingBonuses`, `RankingConfig`, `RankingCriterion`, `ThresholdEntry`). Add `tests/architecture/test_layering.py` (AST guardrail asserting `core/` and `conf/` never import `api`/`scraper`/`pipeline`/`dispatch`/`verify`/`library`/`indexer`/`trailers`).
 - **Modify**: `core/circuit.py:35`, `conf/classifier.py:22`, `conf/models/api_config.py:11` to import from `core._contracts`; have `api/_contracts.py` and `api/tracker/_ranking.py` re-export from `core._contracts` to preserve `api`-side public paths.
 - **Sub-tasks**: (1) move definitions; (2) re-point `core`+`conf`; (3) re-export from `api` to keep `api`-consumers working; (4) author the layering AST test; (5) residual grep.
 - **Effort**: M · **Risk**: low · **Dependencies**: Feature A. **Note**: check whether any existing test already encodes the false invariant — if a passing layering test exists it must be updated, not just added.
 
 ### Feature D — `event-unify` (refactor → minor, Y+1, branch `feat/event-unify`)
+
 **Objective**: unify the event substrate; unblock P2.
+
 - **Modify**: rebase the 5 `_events.py` classes onto `Event` (frozen, `kw_only`); remove `# type: ignore[arg-type]` at `registry/__init__.py:706`; register them in `events/__init__.py`; add `schema_version: int` (default = current version) to the `Event` base (`core/event_bus.py`) and include it in `event_to_envelope`/`event_from_envelope`.
 - **Regression tests** (one per bug): (a) every emitted event `isinstance Event`; (b) a base-`Event` subscriber receives a `ProviderFallbackTriggered` emit; (c) `event_from_envelope(event_to_envelope(ProviderFallbackTriggered(...)))` equals the original; (d) `tests/architecture` asserts all `_events.py` classes subclass `Event`.
 - **Caveat (missing-angle)**: the indexer outbox persists serialized events — adding `schema_version` and re-shaping the 5 events may require a coordinated in-place rewrite of any stored/outbox rows. Pre-1.0 permits destructive in-place change (no migration script); the phase must verify the outbox table tolerates / is cleared for the new shape rather than silently failing on read.
 - **Effort**: M · **Risk**: medium · **Dependencies**: none (do early — P2 depends on it). Can run in parallel with B/C.
 
 ### Feature E — `lib-fold` (feature → minor, Y+1, branch `feat/lib-fold`)
+
 **Objective**: single `media_item` creator (sibling report 01's re-scoped P1). The largest dual-mental-model removal.
+
 - **Phased (per sibling 01)**: Phase 0 — unify the 5 season-dir regexes onto `naming_patterns.SEASON_DIR_RE` (+ regression test); Phase 1 — done by Feature A docs; Phase 2 — move `extract_nfo_ids`/`extract_nfo_metadata`/`parse_title_year` out of `library/scanner.py` into `nfo_utils` (unblocks `trailers/scanner.py:16` AND must keep `commands/library/scan.py:290`'s `scan_library` working); Phase 3 (XL, crux) — fold rich `media_item`/season/episode creation into a new indexer scan stage inside `ScanMode.full`, reconcile `dispatch/media_index.py:406` as the second writer, unify canonical-provider extraction with `backfill_ids_canonical` (preserve the 194-show regression guard); Phase 4 — delete `library/scanner.py`; Phase 5 — merge ffprobe into `enrich.py` (resolve OQ HDR/Atmos: add `hdr`/`hdr_type`/`is_atmos` columns in-place or accept documented loss); Phase 6 — re-home validator into a `verify/library_checks.py` plugin (NOT inline — `verify/checker.py` is 788 LOC) and `disk_cleaner` into a `maintenance/` module.
 - **Side effect**: shrinks `library/scanner.py` below 800, subsuming its god-module split.
 - **Effort**: XL · **Risk**: medium (touches the single-writer DB invariant) · **Dependencies**: Features B (shared constants) + C (layering).
 
 ### Feature F — `fs-capability` (feature → minor, Y+1, branch `feat/fs-capability`)
+
 **Objective**: `FilesystemCapability` layer (sibling report 04).
+
 - **Create**: `personalscraper/indexer/_fs_probe.py` (one cached `probe_mount()`/`canonical_fs_type()`, fixes the `ufsd_NTFS` dead-branch) and `personalscraper/indexer/_fs_capability.py` (frozen capability table; `ntfs_macfuse` entry + `unknown` fallback byte-identical to today's rsync flags).
 - **Modify**: `db.py:176`, `_spotlight.py:89`, `scanner/__init__.py:225` to delegate to `_fs_probe`; `dispatch/_transfer.py` to consume `capability.rsync_flags` (hoist the shared 11-flag prefix). Author a golden-argv test against the CURRENT code FIRST. Defer the FS-aware drift mtime/ctime knob (high risk) behind a capability defaulting to current NTFS behaviour.
 - **Effort**: L · **Risk**: medium · **Dependencies**: none (parallel-able). Prerequisite for headless/dry-run Web UI ops.
 
 ### Feature G — `service-container` (refactor → minor, Y+1, branch `feat/service-container`)
+
 **Objective**: complete DI (P3), no framework.
+
 - **Modify**: `scraper/orchestrator.py:101/103/113` to accept `NFOGenerator`/`ArtworkDownloader`/`KeywordsCache` via `__init__`; add production/test/headless factories; fix `commands/info.py:59-80` to read `ctx.obj`; replace `pipeline.py:326` `ctx.extras["registry"]` with `ctx.app.provider_registry`.
 - **Effort**: L · **Risk**: medium · **Dependencies**: Feature C.
 
 ### Feature H — `service-api` + `web-ui` (feature → minor/major, branch `feat/service-api`)
+
 **Objective**: freeze a read-only service facade, THEN P2 Web UI as a thin WebSocket+REST adapter. **Requires re-opening `architecture.md:381` "no network server / web UI" anti-decision with a new DESIGN doc** before any FastAPI/Flask code.
+
 - **Facade**: `registry.status()`/`operations()` (exist), a `PipelineController` (reuse `pipeline.py` `request_shutdown`), event subscription over the unified substrate + versioned envelope, a read-only config view.
 - **Effort**: XL · **Risk**: high · **Dependencies**: D, C, B, F, G all landed.
 
