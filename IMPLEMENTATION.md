@@ -43,7 +43,22 @@ Design + plan were reviewed collaboratively before Phase 0 — more rigorous tha
 
 ## Review cycles
 
-_(filled by implement:pr-review — max 3 cycles)_
+### Cycle 1 (2026-06-01) — CLEAN after fixes
+
+`/pr-review-toolkit:review-pr` ran 4 agents (code / silent-failure / tests / comments) on PR #31. All findings filtered vs DESIGN (no design contradictions), severity-classified, re-verified in code by the main session, and **all fixed with regression tests** (operator chose "fix everything"). Commits `227842cc` (dispatch), `9a5bf899` (CLI/audit), `0badd8fc` (Specials + docs/tests).
+
+| ID       | Sev | Finding                                                                                                                                                                                                       | Fix                                                                                                                                                |
+| -------- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M1       | med | `MediaIndex.rebuild()` had no per-dir `OSError` guard → one macFUSE ghost-inode aborts the whole dispatch index                                                                                               | wrapped `scan_and_stage_dir` in `try/except OSError → warn → continue` (mirrors `stage_library_items`) + regression test                           |
+| M2       | med | `rebuild()` stored a year-stripped `dispatch_normalized_title` (≠ `add()` full-name) → exact-lookup miss + duplicate risk                                                                                     | `rebuild()` overrides the attr with `_normalize_key(media_dir.name)` (dispatch convention); golden untouched + exact-match regression test         |
+| **M5**   | med | **(extra bug the gap-test caught)** `add()` passed `entry.name` (` (YYYY)`) to the NFO reader → looked up `Title (YYYY).nfo` not the real `Title.nfo` → **NULL canonical_provider on every dispatched movie** | resolve the NFO basename via `parse_title_year` (matches `scan_and_stage_dir`) + real-folder regression test asserting `canonical_provider="tmdb"` |
+| M3       | med | `audit._count_nfo_missing` swallowed all `sqlite3.Error` + no log                                                                                                                                             | narrowed to `OperationalError` + `log.warning` (matches `doctor`) + tests                                                                          |
+| M4       | med | `library-analyze`/`recommend` silently returned empty when enrich never ran                                                                                                                                   | yellow hint "run `library-index --mode enrich` first" + tests                                                                                      |
+| L1       | low | widened `SEASON_DIR_RE` matched `Specials/` but `_scan_seasons` `int()`-parse dropped it                                                                                                                      | wired `season_number_from_dir` SSOT + threaded the real season dir path (Specials → season 0 indexed) + test; golden still green                   |
+| L2/L3/L4 | low | stale docstrings (`rebuild` "via add", `_canonical` "Replaces", `maintenance` "Phase 5", `nfo_utils` "library scanner", orphan comment, dead `_NFO_RATING_SOURCE_REVERSE`)                                    | corrected/removed                                                                                                                                  |
+| L5/L6    | low | missing tests (rebuild show seasons; `analyze_from_index` disk_filter/max_items)                                                                                                                              | added                                                                                                                                              |
+
+**Re-gate after fixes (independently re-run):** `make lint` clean · `make test` **5996 passed, 0 failed/errors** · `make check` rc=0, coverage **91.69%** · ACC-06 rc=1. Ignored (out of scope): `--from-index` deprecated no-op (CLI flag, not a migration); `library-scan --disk` semantic (already DESIGN-conformant, documented).
 
 ## Next action
 
