@@ -335,8 +335,17 @@ def init_canonical_from_nfo(conn: sqlite3.Connection, dry_run: bool = False) -> 
             # (``personalscraper.indexer.scanner._modes.backfill_ids._parse_canonical_from_nfo``)
             # keep intercepting the call after the Phase 18 extraction.
             from personalscraper.indexer.scanner._modes import backfill_ids as _bf  # noqa: PLC0415
+            from personalscraper.indexer.scanner._modes._canonical import derive_canonical_provider  # noqa: PLC0415
 
             canonical, outcome, extracted_ids = _bf._parse_canonical_from_nfo(nfo_path)
+            # SSOT override: kind-deterministic canonical (194-show fix).
+            # TVDB primary for shows, TMDB primary for movies (§4.4 DESIGN).
+            canonical = derive_canonical_provider(
+                kind,
+                extracted_ids.get("tvdb"),
+                extracted_ids.get("tmdb"),
+                nfo_default=canonical,
+            )
             if outcome == "parse_error":
                 stats.nfo_parse_error += 1
                 continue

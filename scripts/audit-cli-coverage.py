@@ -48,7 +48,6 @@ COMMANDS_DOC = REPO_ROOT / "docs" / "reference" / "commands.md"
 # that imports from it.  The key is a human-readable label; the value is the
 # import prefix to search for in command module sources.
 DOMAIN_IMPORT_PREFIXES: dict[str, str] = {
-    "library": "personalscraper.library",
     "indexer": "personalscraper.indexer",
     "scraper": "personalscraper.scraper",
     "trailers": "personalscraper.trailers",

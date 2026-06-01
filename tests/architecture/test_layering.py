@@ -30,7 +30,6 @@ _FORBIDDEN_PREFIXES = (
     "personalscraper.pipeline",
     "personalscraper.dispatch",
     "personalscraper.verify",
-    "personalscraper.library",
     "personalscraper.indexer",
     "personalscraper.trailers",
 )

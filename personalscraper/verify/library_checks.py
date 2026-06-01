@@ -1,17 +1,29 @@
-"""Library validator — check NFO, artwork, naming, structure conformity.
+"""Library media-item validation checks — standalone verify module.
 
-Wraps existing verify/checker.py checks for use on storage disks.
+Wraps :class:`verify.checker.MediaChecker` and :class:`verify.fixer.MediaFixer`
+to produce per-item validation results. Kept standalone (NOT inlined into
+``checker.py``) to respect the 1000-LOC hard ceiling on that module and to
+enable future registration in the Check plugin system.
+
+Checks NFO, artwork, naming, structure conformity on storage disks.
 Supports --fix mode for local corrections (empty dirs, NTFS names, dir naming).
-Distinction with enforce: enforce = staging (``paths.staging_dir``), validate = library (configured storage disks).
+Distinction with enforce: enforce = staging (``paths.staging_dir``),
+validate = library (configured storage disks).
 
 ``validate_library`` accepts a ``Config`` object and resolves folder names
 from ``config.category(id).folder_name``. TV detection uses ``TV_CATEGORY_IDS``.
+
+Dataclasses ``ValidationItem`` and ``LibraryValidationResult`` live here
+(DESIGN §4.6 — verify is the producer/consumer).
+
+Moved from the legacy library validator module during lib-fold Phase 5.
 """
 
 from __future__ import annotations
 
 import json
 import sqlite3
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -20,18 +32,73 @@ if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
 
 from personalscraper.conf.ids import TV_CATEGORY_IDS
-from personalscraper.library.models import (
-    LibraryValidationResult,
-    ValidationItem,
-)
-from personalscraper.library.scanner import parse_title_year
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
+from personalscraper.nfo_utils import parse_title_year
 from personalscraper.text_utils import sanitize_filename
 from personalscraper.verify.checker import CheckResult, MediaChecker, Severity
 from personalscraper.verify.fixer import MediaFixer
 
 log = get_logger("library.validator")
+
+
+# --- Validation models ---
+
+_VALID_VALIDATION_STATUSES = {"valid", "fixed", "issues"}
+
+
+@dataclass
+class ValidationItem:
+    """Validation result for a single library item.
+
+    Attributes:
+        path: Absolute path to media directory (str for JSON).
+        disk: Disk name.
+        category: Category name.
+        media_type: "movie" or "tvshow".
+        title: Media title.
+        year: Release year.
+        status: "valid", "fixed", or "issues" (has quality problems).
+        errors: List of error check names that failed.
+        warnings: List of warning check names that failed.
+        fixes_applied: List of fixes that were applied (if --fix --apply).
+    """
+
+    path: str
+    disk: str
+    category: str
+    media_type: str
+    title: str
+    year: int | None
+    status: str
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    fixes_applied: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        """Enforce status/errors/fixes_applied consistency."""
+        if self.status not in _VALID_VALIDATION_STATUSES:
+            raise ValueError(f"status must be one of {_VALID_VALIDATION_STATUSES}, got '{self.status}'")
+        if self.status == "fixed" and not self.fixes_applied:
+            raise ValueError("status='fixed' requires non-empty fixes_applied")
+        if self.status == "valid" and (self.errors or self.fixes_applied):
+            raise ValueError("status='valid' must have empty errors and fixes_applied")
+        if self.status == "issues" and not (self.errors or self.warnings):
+            raise ValueError("status='issues' requires non-empty errors or warnings")
+
+
+@dataclass
+class LibraryValidationResult:
+    """Top-level container for library_validation.json."""
+
+    validated_at: str
+    disk_filter: str | None
+    category_filter: str | None
+    total_items: int
+    valid_count: int
+    fixed_count: int
+    issues_count: int
+    items: list[ValidationItem] = field(default_factory=list)
 
 
 def _classify_results(

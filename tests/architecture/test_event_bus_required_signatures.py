@@ -44,8 +44,7 @@ from personalscraper.indexer.commands.scan import library_index_command
 from personalscraper.indexer.db import check_free_space, open_db
 from personalscraper.indexer.scanner import scan as indexer_scan
 from personalscraper.ingest.ingest import run_ingest
-from personalscraper.library.rescraper import rescrape_library
-from personalscraper.library.scanner import scan_library
+from personalscraper.maintenance.rescraper import rescrape_library
 from personalscraper.process.run import run_clean, run_cleanup, run_process
 from personalscraper.scraper.orchestrator import Scraper
 from personalscraper.scraper.run import run_scrape
@@ -84,8 +83,7 @@ REQUIRED_BUS_SITES: list[tuple[str, Callable[..., Any] | type]] = [
     ("indexer.db.open_db", open_db),
     ("indexer.db.check_free_space", check_free_space),
     ("indexer._disk_guard.handle_disk_full", handle_disk_full),
-    ("library.scanner.scan_library", scan_library),
-    ("library.rescraper.rescrape_library", rescrape_library),
+    ("maintenance.rescraper.rescrape_library", rescrape_library),
     ("MediaIndex.__init__", MediaIndex),
 ]
 

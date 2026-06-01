@@ -130,6 +130,12 @@
       "expires": "2028-05-08"
     },
     {
+      "anchor": "item-stage-pass-1-of-scanmodefull",
+      "category": "documentation_only",
+      "reason": "lib-fold 0.19.0 — reference table for the ScanMode.full item stage (build_item_row / upsert_item_with_attrs / scan_and_stage_dir / _ensure_disk_row). Those functions are covered by tests/indexer/scanner/_modes/test_item_stage*.py and the characterization golden; the doc section is a reference table, not a single-function contract.",
+      "expires": "2028-06-01"
+    },
+    {
       "anchor": "single-disk-rebuild---rebuild-flag",
       "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",

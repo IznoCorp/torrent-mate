@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import sqlite3
 import time
 from pathlib import Path
@@ -116,13 +115,8 @@ _ITEM_ROOT_SKIP_DIRS: frozenset[str] = frozenset(
     }
 )
 
-# TV-show season folder names. When an episode file's parent matches this,
-# the show's tvshow.nfo and root artwork live one level up (the show dir),
-# not in the season dir.
-_TV_SEASON_DIR_RE = re.compile(
-    r"^(?:saison|season)\s*\d+$|^specials?$",
-    re.IGNORECASE,
-)
+# TV-show season folder names — canonical SSOT from naming_patterns.
+from personalscraper.naming_patterns import SEASON_DIR_RE as _TV_SEASON_DIR_RE  # noqa: E402
 
 # Categories that do not follow the Kodi NFO convention. For these,
 # ``nfo_status='missing'`` is a structural false-positive — there is no

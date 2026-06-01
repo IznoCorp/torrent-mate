@@ -24,67 +24,64 @@ def library_analyze(
     category: str = typer.Option(None, "--category", help="Analyze only this category"),
     max_items: int = typer.Option(None, "--max-items", help="Limit number of items to analyze"),
     from_index: bool = typer.Option(
-        False,
-        "--from-index",
+        True,
+        "--from-index/--no-from-index",
         help=(
-            "Read codec / audio / subtitle data from the indexer DB instead of "
-            "running ffprobe per file. Requires a prior `library-index --mode enrich` "
-            "pass; HDR / Atmos detection is approximated (see analyze_from_index docstring)."
+            "Deprecated no-op: analysis always reads enrich-populated streams from "
+            "the indexer DB. Kept for back-compat; the flag has no effect."
         ),
     ),
 ) -> None:
-    """Deep scan video files with ffprobe (codec, audio, subtitles) and print a summary.
+    """Summarize codec / audio / subtitle data read from the indexer DB.
 
-    Most I/O-intensive command — schedule during off-peak hours. Use
-    ``--from-index`` to read enrich-populated streams from the DB instead
-    (orders of magnitude faster, with the documented HDR / Atmos caveats).
+    Reads the ``media_stream`` rows populated by the enrich pass — requires a
+    prior ``library-index --mode enrich`` run. No ffprobe is launched and no
+    filesystem walk happens (the legacy inline ffprobe re-scan was removed in
+    favour of the single enrich-backed stream reader). HDR / Atmos detection
+    reflects whatever the enrich pass persisted (see the
+    ``analyze_from_index`` docstring for the per-field caveats).
 
     The result set is **not persisted to disk**. ``library-recommend`` runs
-    this scan inline before producing recommendations, so there is no need to
-    call ``library-analyze`` first as a side-effect setup step.
+    this analysis inline before producing recommendations, so there is no need
+    to call ``library-analyze`` first as a side-effect setup step.
+
+    The ``--from-index`` flag is a deprecated no-op (always on) kept for
+    back-compat.
 
     Examples:
         personalscraper library-analyze
         personalscraper library-analyze --disk <disk_id> --category series
         personalscraper library-analyze --max-items 50
-        personalscraper library-analyze --from-index
     """
-    from personalscraper.library.analyzer import analyze_from_index, analyze_library
+    import sqlite3  # noqa: PLC0415
+
+    from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
+    from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
+    from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
+    from personalscraper.insights.analytics import analyze_from_index  # noqa: PLC0415
+
+    # ``from_index`` is accepted but ignored — the DB is the sole source.
+    _ = from_index
 
     category_id = _resolve_category(ctx, category)
     console = state["console"]
     config = ctx.obj.config
 
-    if from_index:
-        console.print("[bold]Analyzing library (from index)...[/bold]")
-        import sqlite3  # noqa: PLC0415
-
-        from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
-        from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
-        from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
-
-        db_path = config.indexer.db_path
-        migrations_dir = Path(_migrations_pkg.__file__).parent
-        app_context = _build_app_context(config, cli_compat.get_settings())
-        conn: sqlite3.Connection = open_db(db_path, event_bus=app_context.event_bus)
-        apply_migrations(conn, migrations_dir)
-        try:
-            result = analyze_from_index(
-                conn,
-                disk_filter=disk,
-                category_filter=category_id,
-                max_items=max_items,
-            )
-        finally:
-            conn.close()
-    else:
-        console.print("[bold]Analyzing library (ffprobe)...[/bold]")
-        result = analyze_library(
-            config,
+    console.print("[bold]Analyzing library (from index)...[/bold]")
+    db_path = config.indexer.db_path
+    migrations_dir = Path(_migrations_pkg.__file__).parent
+    app_context = _build_app_context(config, cli_compat.get_settings())
+    conn: sqlite3.Connection = open_db(db_path, event_bus=app_context.event_bus)
+    apply_migrations(conn, migrations_dir)
+    try:
+        result = analyze_from_index(
+            conn,
             disk_filter=disk,
             category_filter=category_id,
             max_items=max_items,
         )
+    finally:
+        conn.close()
 
     # Aggregate codec / audio profile distributions for the summary.
     codec_counts: dict[str, int] = {}
@@ -97,6 +94,13 @@ def library_analyze(
             audio_counts[profile] = audio_counts.get(profile, 0) + 1
 
     console.print(f"[green]Analysis complete:[/green] {result.item_count} items, {result.file_count} files")
+    if result.item_count == 0:
+        # No enriched media streams in the DB. The most common cause is that
+        # ``library-index --mode enrich`` was never run (Stage A only), so the
+        # ``media_stream`` rows the analysis reads do not exist yet. Surface an
+        # explicit hint (mirrors the ``library_report`` no-data guidance)
+        # instead of leaving the operator with a silent "0 items, 0 files".
+        console.print("[yellow]No enriched media streams found — run 'library-index --mode enrich' first.[/yellow]")
     if codec_counts:
         codecs = ", ".join(f"{c}={n}" for c, n in sorted(codec_counts.items(), key=lambda kv: -kv[1]))
         console.print(f"  Codecs: {codecs}")
@@ -114,34 +118,43 @@ def library_recommend(
     disk: str = typer.Option(None, "--disk", help="Filter to this disk"),
     category: str = typer.Option(None, "--category", help="Filter to this category"),
     from_index: bool = typer.Option(
-        False,
-        "--from-index",
+        True,
+        "--from-index/--no-from-index",
         help=(
-            "Read codec / audio / subtitle data from the indexer DB instead of "
-            "running ffprobe per file. Requires a prior `library-index --mode enrich` "
-            "pass."
+            "Deprecated no-op: recommendations always read enrich-populated streams "
+            "from the indexer DB. Kept for back-compat; the flag has no effect."
         ),
     ),
 ) -> None:
-    """Generate re-download recommendations from a fresh ffprobe analysis.
+    """Generate re-download recommendations from the indexer DB.
 
-    Runs the ffprobe analysis inline (no on-disk cache) and feeds the
-    in-memory result to the recommender.  Preferences come from
-    ``config.library``.  Output is written to ``library_recommendations.json``.
-    Pass ``--from-index`` to skip ffprobe and read streams from the indexer
-    DB instead (orders of magnitude faster on a populated index).
+    Reads the ``media_stream`` rows populated by the enrich pass — requires a
+    prior ``library-index --mode enrich`` run — and feeds the in-memory
+    analysis to the recommender. No ffprobe is launched and no filesystem walk
+    happens (the legacy inline ffprobe re-scan was removed). Preferences come
+    from ``config.library``. Output is written to
+    ``library_recommendations.json``.
+
+    The ``--from-index`` flag is a deprecated no-op (always on) kept for
+    back-compat.
 
     Examples:
         personalscraper library-recommend
         personalscraper library-recommend --sort size
         personalscraper library-recommend --export csv
-        personalscraper library-recommend --from-index
     """
     import csv
+    import sqlite3  # noqa: PLC0415
 
-    from personalscraper.library.analyzer import analyze_from_index, analyze_library
-    from personalscraper.library.models import write_json
-    from personalscraper.library.recommender import generate_recommendations
+    from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
+    from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
+    from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
+    from personalscraper.insights.analytics import analyze_from_index  # noqa: PLC0415
+    from personalscraper.insights.recommender import generate_recommendations  # noqa: PLC0415
+    from personalscraper.io_utils import write_json  # noqa: PLC0415
+
+    # ``from_index`` is accepted but ignored — the DB is the sole source.
+    _ = from_index
 
     # Resolve alias now so unknown --category values fail fast.
     category_id = _resolve_category(ctx, category)
@@ -154,35 +167,26 @@ def library_recommend(
         console.print(f"[red]Invalid --sort value '{sort}'. Valid: {', '.join(sorted(valid_sorts))}[/red]")
         raise typer.Exit(1)
 
-    if from_index:
-        console.print("[bold]Analyzing library (from index)...[/bold]")
-        import sqlite3  # noqa: PLC0415
-
-        from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
-        from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
-        from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
-
-        db_path = config.indexer.db_path
-        migrations_dir = Path(_migrations_pkg.__file__).parent
-        app_context = _build_app_context(config, cli_compat.get_settings())
-        conn: sqlite3.Connection = open_db(db_path, event_bus=app_context.event_bus)
-        apply_migrations(conn, migrations_dir)
-        try:
-            analysis = analyze_from_index(
-                conn,
-                disk_filter=disk,
-                category_filter=category_id,
-            )
-        finally:
-            conn.close()
-    else:
-        # Run analysis inline; the indexer DB remains the source of truth.
-        console.print("[bold]Analyzing library (ffprobe)...[/bold]")
-        analysis = analyze_library(
-            config,
+    console.print("[bold]Analyzing library (from index)...[/bold]")
+    db_path = config.indexer.db_path
+    migrations_dir = Path(_migrations_pkg.__file__).parent
+    app_context = _build_app_context(config, cli_compat.get_settings())
+    conn: sqlite3.Connection = open_db(db_path, event_bus=app_context.event_bus)
+    apply_migrations(conn, migrations_dir)
+    try:
+        analysis = analyze_from_index(
+            conn,
             disk_filter=disk,
             category_filter=category_id,
         )
+    finally:
+        conn.close()
+
+    if analysis.item_count == 0:
+        # Same no-enrich guidance as ``library-analyze``: recommendations are
+        # derived from enriched media streams, so an empty analysis means
+        # ``library-index --mode enrich`` has not populated ``media_stream``.
+        console.print("[yellow]No enriched media streams found — run 'library-index --mode enrich' first.[/yellow]")
 
     # Use preferences from config.library (no separate file).
     prefs = config.library
@@ -266,8 +270,8 @@ def library_rescrape(
         personalscraper library-rescrape --disk <disk_id> --max-items 50
         personalscraper library-rescrape --interactive
     """
-    from personalscraper.library.models import write_json
-    from personalscraper.library.rescraper import rescrape_library
+    from personalscraper.io_utils import write_json
+    from personalscraper.maintenance.rescraper import rescrape_library
 
     category_id = _resolve_category(ctx, category)
     console = state["console"]
@@ -339,9 +343,9 @@ def library_report(
     from personalscraper.cli_helpers.output import emit  # noqa: PLC0415
     from personalscraper.dispatch.disk_scanner import get_disk_status
     from personalscraper.indexer.db import open_db
-    from personalscraper.library.analyzer import analyze
-    from personalscraper.library.models import read_json
-    from personalscraper.library.reporter import format_report_text, generate_report
+    from personalscraper.insights.analytics import analyze
+    from personalscraper.insights.reporter import format_report_text, generate_report
+    from personalscraper.io_utils import read_json
 
     config = ctx.obj.config
     console = state["console"]

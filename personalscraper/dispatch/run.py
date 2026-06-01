@@ -261,6 +261,7 @@ def _enrich_after_dispatch(config: Config, results: list[DispatchResult], *, eve
 
     from personalscraper.indexer.db import _apply_pragmas
     from personalscraper.indexer.repos import disk_repo
+    from personalscraper.indexer.scanner import ScanMode
     from personalscraper.indexer.scanner import scan as _indexer_scan
     from personalscraper.indexer.schema import DiskRow
 
@@ -291,7 +292,7 @@ def _enrich_after_dispatch(config: Config, results: list[DispatchResult], *, eve
         )
         result = _indexer_scan(
             disks=disk_rows,
-            mode="enrich",  # type: ignore[arg-type]
+            mode=ScanMode.enrich,
             generation=next_generation,
             conn=conn,
             event_bus=event_bus,

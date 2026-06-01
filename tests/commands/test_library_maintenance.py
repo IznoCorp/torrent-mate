@@ -11,8 +11,8 @@ from unittest.mock import MagicMock, patch
 from typer.testing import CliRunner
 
 from personalscraper.cli import app
-from personalscraper.library.disk_cleaner import CleanResult
-from personalscraper.library.models import LibraryValidationResult
+from personalscraper.maintenance.disk_cleaner import CleanResult
+from personalscraper.verify.library_checks import LibraryValidationResult
 
 runner = CliRunner()
 
@@ -188,7 +188,7 @@ class TestLibraryClean:
         """--apply prints the deleted count and freed bytes summary."""
         cresult = CleanResult(dry_run=False, deleted_count=4, freed_bytes=2 * 1024 * 1024)
         with (
-            patch("personalscraper.library.disk_cleaner.clean_library", return_value=cresult),
+            patch("personalscraper.maintenance.disk_cleaner.clean_library", return_value=cresult),
             patch("personalscraper.cli.acquire_lock", return_value=True),
             patch("personalscraper.cli.release_lock"),
         ):
@@ -207,7 +207,7 @@ class TestLibraryClean:
             errors=["NTFS-fail: /foo/bar"],
         )
         with (
-            patch("personalscraper.library.disk_cleaner.clean_library", return_value=cresult),
+            patch("personalscraper.maintenance.disk_cleaner.clean_library", return_value=cresult),
             patch("personalscraper.cli.acquire_lock", return_value=True),
             patch("personalscraper.cli.release_lock"),
         ):
@@ -224,7 +224,7 @@ class TestLibraryClean:
             freed_bytes=0,
             details=["/disk/Movies/Test1", "/disk/Movies/Test2"],
         )
-        with patch("personalscraper.library.disk_cleaner.clean_library", return_value=cresult):
+        with patch("personalscraper.maintenance.disk_cleaner.clean_library", return_value=cresult):
             result = runner.invoke(app, ["library-clean", "--only", "orphans"])
         assert result.exit_code == 0
         assert "Preview" in result.output
@@ -239,7 +239,7 @@ class TestLibraryClean:
             freed_bytes=0,
             details=details,
         )
-        with patch("personalscraper.library.disk_cleaner.clean_library", return_value=cresult):
+        with patch("personalscraper.maintenance.disk_cleaner.clean_library", return_value=cresult):
             result = runner.invoke(app, ["library-clean", "--only", "orphans"])
         assert result.exit_code == 0
         assert "more" in result.output
@@ -253,7 +253,7 @@ class TestLibraryClean:
     def test_dry_run_flag_is_no_op(self) -> None:
         """--dry-run passes apply=False to clean_library (no mutation)."""
         cresult = CleanResult(dry_run=True, deleted_count=0, freed_bytes=0)
-        with patch("personalscraper.library.disk_cleaner.clean_library", return_value=cresult) as mock_clean:
+        with patch("personalscraper.maintenance.disk_cleaner.clean_library", return_value=cresult) as mock_clean:
             result = runner.invoke(app, ["library-clean", "--dry-run"])
         assert result.exit_code == 0
         # clean_library must have been called with apply=False
@@ -294,10 +294,10 @@ class TestLibraryValidateGaps:
         """--from-index uses validate_from_index and opens the indexer DB."""
         with (
             patch(
-                "personalscraper.library.validator.validate_from_index",
+                "personalscraper.verify.library_checks.validate_from_index",
                 return_value=self._empty_validation(),
             ) as mock_val,
-            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
             patch("personalscraper.indexer.db.apply_migrations"),
         ):
@@ -326,10 +326,10 @@ class TestLibraryValidateGaps:
         )
         with (
             patch(
-                "personalscraper.library.validator.validate_library",
+                "personalscraper.verify.library_checks.validate_library",
                 return_value=vresult,
             ),
-            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.io_utils.write_json"),
         ):
             result = runner.invoke(app, ["library-validate", "--fix"])
         assert result.exit_code == 0

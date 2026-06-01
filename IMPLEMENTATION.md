@@ -1,23 +1,115 @@
-# Implementation Progress — (awaiting feature)
+# Implementation Progress — lib-fold
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: _(to be defined by /implement:feature)_
-**Version bump**: _(to be defined)_
-**Branch**: _(to be defined)_
-**PR merge**: _(to be defined: manual or auto)_
-**PR**: _(created after last phase)_
-**Design**: _(to be defined after brainstorm)_
-**Master plan**: _(to be defined after plan generation)_
+**Feature**: Library / Indexer Consolidation (minor)
+**Version bump**: 0.18.0 → 0.19.0
+**Branch**: feat/lib-fold
+**PR merge**: manual
+**PR**: https://github.com/LounisBou/personal-scraper/pull/31
+**Design**: docs/features/lib-fold/DESIGN.md
+**Master plan**: docs/features/lib-fold/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                                            | File                                  | Status |
+| --- | ---------------------------------------------------------------- | ------------------------------------- | ------ |
+| 0   | Season-dir SSOT (widen-first) + VIDEO_EXTENSIONS                 | phase-00-season-ssot.md               | [x]    |
+| 1   | Extract NFO helpers → nfo_utils                                  | phase-01-nfo-helpers.md               | [x]    |
+| 2   | Build \_item_stage + \_canonical; rewire scan_library (parallel) | phase-02-item-stage.md                | [x]    |
+| 3   | Single-creator cutover: dispatch + alias + delete scanner.py     | phase-03-single-creator-cutover.md    | [x]    |
+| 4   | ffprobe fold + insights/                                         | phase-04-ffprobe-insights.md          | [x]    |
+| 5   | verify/maintenance re-home + no-NFO + delete library/            | phase-05-verify-maintenance-delete.md | [x]    |
+| 6   | Feature PR + review (auto-invoked)                               | phase-06-feature-pr.md                | [ ]    |
+
+## Design & plan review (2026-05-31, pre-implementation)
+
+Design + plan were reviewed collaboratively before Phase 0 — more rigorous than the default flow.
+
+**DESIGN review:**
+
+- Interactive brainstorm → **8 decisions** resolved, each user-approved: single `media_item` creator; kind-deterministic canonical SSOT; NFO-less dirs indexed (folder-name fallback) + flagged (`item_issue`/`nfo_missing`) + proactive `doctor`/`audit` visibility; HDR/Atmos via the **existing** `media_stream` columns; `insights/` move-only; `maintenance/` = `disk_cleaner` + `rescraper`; `library-scan` visible re-pointed alias; `models.py` split by producer/consumer.
+- **Adversarial self-review** (3 lenses: grounding / consistency / ACC executability) caught **2 real errors** + 8 grounding fixes:
+  - HDR/Atmos columns (`hdr_format`/`is_atmos`) **already exist** (migration 004, populated by `enrich`) → decision reframed from "add columns" to "ensure enrich parity with the dropped ffprobe granularity".
+  - Canonical `SEASON_DIR_RE` is **French-only** `^Saison (\d+)$`; three ad-hoc copies also match English `Season N` + `Specials` → **Phase 0 must widen before replacing** (silent-regression trap).
+  - Also: `load_config` import path (`conf.loader`), `incremental.py:667` anchor, canonical trigger = manual `library-init-canonical` (not a scheduled job), completed `models.py` routing, existing `nfo_utils.py` path.
+- Merged the pre-existing 619-line draft (committed in #27, v0.16→0.17, which carried the same HDR/regex errors) — best of both: its implementation-grade detail + the validated corrections.
+
+**PLAN review:**
+
+- 7 phases (0→6) generated, then verified for fidelity: strict 0→6 order; Phase 0 widen-first; Phase 2 parallel + characterization golden (no deletion); Phase 3 cutover (single creator, visible alias, delete `scanner.py`); Phase 4 no-new-columns + `hdr_format` parity; every phase opens with a Gate. All 16 ACC mapped.
+
+**Outcome:** design + plan **approved**, ready for implementation. Invariants carried forward: DB end-state equality vs `library-scan` (Phase 2), 194-show + DEV#50 guards verbatim, residual-import grep = 0, `make check` per gate.
 
 ## Review cycles
 
-_(filled by /implement:pr-review)_
+### Cycle 1 (2026-06-01) — CLEAN after fixes
+
+`/pr-review-toolkit:review-pr` ran 4 agents (code / silent-failure / tests / comments) on PR #31. All findings filtered vs DESIGN (no design contradictions), severity-classified, re-verified in code by the main session, and **all fixed with regression tests** (operator chose "fix everything"). Commits `227842cc` (dispatch), `9a5bf899` (CLI/audit), `0badd8fc` (Specials + docs/tests).
+
+| ID       | Sev | Finding                                                                                                                                                                                                       | Fix                                                                                                                                                |
+| -------- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M1       | med | `MediaIndex.rebuild()` had no per-dir `OSError` guard → one macFUSE ghost-inode aborts the whole dispatch index                                                                                               | wrapped `scan_and_stage_dir` in `try/except OSError → warn → continue` (mirrors `stage_library_items`) + regression test                           |
+| M2       | med | `rebuild()` stored a year-stripped `dispatch_normalized_title` (≠ `add()` full-name) → exact-lookup miss + duplicate risk                                                                                     | `rebuild()` overrides the attr with `_normalize_key(media_dir.name)` (dispatch convention); golden untouched + exact-match regression test         |
+| **M5**   | med | **(extra bug the gap-test caught)** `add()` passed `entry.name` (` (YYYY)`) to the NFO reader → looked up `Title (YYYY).nfo` not the real `Title.nfo` → **NULL canonical_provider on every dispatched movie** | resolve the NFO basename via `parse_title_year` (matches `scan_and_stage_dir`) + real-folder regression test asserting `canonical_provider="tmdb"` |
+| M3       | med | `audit._count_nfo_missing` swallowed all `sqlite3.Error` + no log                                                                                                                                             | narrowed to `OperationalError` + `log.warning` (matches `doctor`) + tests                                                                          |
+| M4       | med | `library-analyze`/`recommend` silently returned empty when enrich never ran                                                                                                                                   | yellow hint "run `library-index --mode enrich` first" + tests                                                                                      |
+| L1       | low | widened `SEASON_DIR_RE` matched `Specials/` but `_scan_seasons` `int()`-parse dropped it                                                                                                                      | wired `season_number_from_dir` SSOT + threaded the real season dir path (Specials → season 0 indexed) + test; golden still green                   |
+| L2/L3/L4 | low | stale docstrings (`rebuild` "via add", `_canonical` "Replaces", `maintenance` "Phase 5", `nfo_utils` "library scanner", orphan comment, dead `_NFO_RATING_SOURCE_REVERSE`)                                    | corrected/removed                                                                                                                                  |
+| L5/L6    | low | missing tests (rebuild show seasons; `analyze_from_index` disk_filter/max_items)                                                                                                                              | added                                                                                                                                              |
+
+**Re-gate after fixes (independently re-run):** `make lint` clean · `make test` **5996 passed, 0 failed/errors** · `make check` rc=0, coverage **91.69%** · ACC-06 rc=1. Ignored (out of scope): `--from-index` deprecated no-op (CLI flag, not a migration); `library-scan --disk` semantic (already DESIGN-conformant, documented). CI green: run `26765085079`.
+
+### Cycle 2 (2026-06-01) — CLEAN (re-review of the fix delta)
+
+Re-ran 3 agents (code / silent-failure / tests) on the cycle-1 fix delta `1678d95f..HEAD`. **All clean** — every fix (M1–M5, L1–L6) confirmed correct; no new bug, silent path, or regression; the L1 `_scan_seasons` signature change broke no caller and lost no coverage (numbered-season behaviour byte-identical, golden green). The test analyst **empirically verified** each regression test fails when its production fix is reverted (genuine pins, no tautologies). Two labeling nits (1–2/10, test-docstring only) corrected: the M5 show-variant test re-labeled as `add()`-show coverage (the M5 movie-basename fix doesn't apply to the fixed-name `tvshow.nfo`), and the L6 filter tests re-labeled as additive coverage of pre-existing branches. **No code defects. PR #31 is merge-ready** (manual squash-merge pending the operator).
 
 ## Next action
 
-**Awaiting new feature definition** — run /implement:feature
+**Phase 6** (Feature PR + review — auto-invoked). All implementation phases (0–5) are `[x]`. The `library/` package is fully deleted; the consolidation is code-complete. Next: `/implement:feature-pr` (local gate + push + PR + CI) → `/implement:pr-review`. Start at `docs/features/lib-fold/plan/phase-06-feature-pr.md`.
+
+### Phase 5 — DONE (2026-06-01, verify/maintenance re-home + no-NFO + delete library/; independently verified at HEAD)
+
+The `library/` package (the original consolidation target) **no longer exists**. Executed in two coordinated dispatches, each verified by the main session (live-import grep, coverage-omit honesty, gate re-run, assertion-honesty audit):
+
+- ✅ **P5-A — re-home + models split (additive, no deletion).** `library/validator.py` → `verify/library_checks.py` (standalone, NOT inlined into `checker.py`); `library/disk_cleaner.py` → `maintenance/disk_cleaner.py`. Split `library/models.py`: scan types (`SeasonInfo`/`LibraryScanItem`/`NfoStatus`/`ArtworkStatus`) + `ISSUE_*` → new `indexer/scanner/_modes/_item_stage_types.py`; `ValidationItem`/`LibraryValidationResult` → `verify/library_checks.py`; `RescrapeAction`/`LibraryRescrapeResult` (+TODO lifted) → `maintenance/rescraper.py`; analysis/recommender dataclasses already in `insights/models.py` (Phase 4) → importers repointed; **I/O helpers `write_json`/`read_json`/`serialize_to_json` → `io_utils.py`** (decision: fills the DESIGN §4.6 gap, layering-clean — they were unaccounted for in the routing table). Every live importer (prod + ~7 test files) repointed; `test_models.py` split to the new homes. Commits `837761bf`/`83ada834`.
+- ✅ **P5-B — no-NFO feature + delete `library/`.** Added `_check_nfo_missing` to `library-doctor` (real `CheckStatus.WARN/.OK`) + a no-NFO advisory line to `library-reconcile` (the real read-only audit command; there is no `library-audit`). **Message uses the REAL invocation `library-rescrape --only nfo`** (the plan's `--target nfo_missing` flag does not exist). Scrubbed the residual `personalscraper.library` provenance docstrings (`_item_stage.py`, golden test) + removed the dead `"personalscraper.library"` node from `test_layering.py` (ACC-06 **force-now**, operator pattern — same as ACC-05, NOT a re-scope). Deleted `library/{validator,disk_cleaner,models,__init__}.py` + the package dir; dropped the temporary coverage-omit. Updated `architecture.md` (module map: `library/` removed, `maintenance/`/`insights/` added). Commits `eeec0b7d`/`041b02ef`.
+- ✅ **Gate (independently re-run):** `make lint` clean · `make test` **5983 passed, 0 failed/errors** · `make check` rc=0, coverage **91.71%** · **ACC-06** `rg -t py 'personalscraper\.library'` → rc=1 (literal, force-now) · **ACC-06b** `library-doctor` shows the `nfo_missing` row · **ACC-06c** module-size rc=0 (only pre-existing `movie_service.py` 975 WARN, out of scope). CI-only guardrails (`audit_design_coverage --strict`, `update_feature_map --check`) green.
+
+### Phase 4 — DONE (2026-06-01, ffprobe fold + insights/; independently verified at HEAD)
+
+- ✅ **Task 1 — HDR/Atmos parity (no gap).** The surviving pymediainfo path `indexer/mediainfo.py:_normalise_hdr_format` + `_detect_atmos` covers HDR10/HDR10+/Dolby Vision/HLG + Atmos at full parity with the dropped `analyze_library` ffprobe path. Parity regression test `tests/indexer/test_mediainfo_hdr_parity.py` (17 cases) + confirmation comment. Commit `52ef7b37`. **ACC-05b proven on real data: `library.db` has 135 `media_stream` rows with `hdr_format` populated.**
+- ✅ **Tasks 2-5 — `insights/` package + DB-only repoint.** Created `personalscraper/insights/` (`models`, `analytics`, `reporter`, `recommender`); moved `analyze`/`analyze_from_index` (+ `AnalysisResult`/`ArtworkCounts`/`NfoStatusCounts` — which the plan/DESIGN §4.6 had mis-routed: they lived in `analyzer.py`, not `models.py`) + reporter + recommender. **`library-analyze`/`library-recommend`/`library-report` are now DB-only** (operator sign-off; DESIGN §4.5 — `analyze_from_index` is the sole stream reader; `--from-index` is a no-op default; commands stay visible; require a prior `library-index --mode enrich`). Deleted `analyzer.py` (incl. `analyze_library` + the inline-ffprobe path), `reporter.py`, `recommender.py` + migrated their tests to `tests/insights/`. `scraper/mediainfo.extract_stream_info` STAYS (NFO gen). Commits `c21d8c90`/`5bfd7f7d`.
+- ✅ **rescraper → maintenance/ (operator-elected "force now", not a re-scope).** Rather than re-scope ACC-05 (the broad `rg extract_stream_info library/` was premature — `rescraper.py` legitimately uses it for NFO `<fileinfo>` gen, DESIGN §4.5), the operator chose to pull the Phase-5 `rescraper` move forward: `git mv library/rescraper.py → maintenance/rescraper.py` + `maintenance/__init__.py` + 6 importers re-pointed + `test_rescraper.py` → `tests/maintenance/` (77 path swaps). `RescrapeAction`/`LibraryRescrapeResult` kept in `library/models.py` for now (transient import, TODO for Phase 5 models split). **ACC-05 now passes LITERALLY** (`rg extract_stream_info library/ insights/` → rc=1). Commit `3159f117`.
+- ✅ **Task 6 gate (independently re-run by main session):** `make lint` clean · `make test` **5977 passed, 0 failed/errors** · `make check` rc=0, coverage **91.73%**. Plan corrections (parity target, mis-routed dataclasses, missed test files, DB-only CLI) were validated against code and folded into the dispatches; the phase-04 plan carries a "PLAN CORRECTIONS" banner.
+
+### Phase 3 — DONE (2026-05-31, single-creator cutover; independently verified at HEAD)
+
+All five tasks complete; each sub-dispatch was verified against DESIGN + plan by the main session (git range, scope, quality gate re-run, honesty audit of every migrated/weakened assertion) before proceeding.
+
+- ✅ **Task 1+2** (pre-existing): dispatch `rebuild()`/`add()` delegate to the shared `upsert_item_with_attrs` (rich rows; `canonical_provider=None` eliminated — ACC-04b ✓). Regression test `tests/dispatch/test_media_index_rich_rows.py`. Commits `3d54ba8c`/`b73a141c`/`0784850d`.
+- ✅ **Task 3** — `library-scan` is now a **visible alias** of `library-index --mode full`, delegating to the shared `library_index_command(mode="full", …)` (NOT the stale plan's `commands/library/index.py` import nor a direct decorated-function call — that was a Typer `OptionInfo` trap). `tests/commands/test_library_scan.py` + `_e2e.py` rewritten to the delegation contract. Commit `5731e398`.
+- ✅ **Task 4** (irreversible) — `personalscraper/library/scanner.py` **deleted** (`a487fd88`), in three verified steps: (4a) golden `test_item_stage_golden.py` **decoupled** from the live `scan_library` by freezing a verbatim-captured legacy baseline snapshot (`89267d1e`); (4b) unique scanner coverage **migrated** to `tests/indexer/scanner/_modes/test_item_stage.py` (+24 tests against `stage_library_items`/`scan_and_stage_dir`/`_detect_issues`/`_ensure_disk_row`) and `tests/test_nfo_utils.py` (+12) — full coverage-mapping table audited, `_item_stage.py` at 92.81% (`09aef064`); (4c) `test_integration.py` re-pointed to `stage_library_items`, arch `test_event_bus_required_signatures.py` entry removed, `test_scanner.py` deleted.
+- ✅ **Task 5 gate (independently re-run by main session):** `make lint` clean · `make test` **5972 passed, 0 failed, 0 errors** · `make check` rc=0, **coverage 91.74%** (≥90). Module-size: only the pre-existing `movie_service.py` (975) WARN remains (out of lib-fold scope).
+
+**Two documented incoherence-fixes (the only deviations from literal plan/DESIGN text, both signed off):**
+
+1. **ACC-04 re-scoped** (operator sign-off — same precedent as the ACC-02 fix): the broad `rg 'library.scanner|scan_library'` → rc=1 form is **unsatisfiable** (the `trailers` subsystem has its own unrelated `Scanner.scan_library` method; `library/analyzer.py` keeps `:func:` docstrings until Phase 4; `.` is a regex wildcard). Re-scoped to the satisfiable, intent-preserving form: **file gone + no LIVE import of the deleted module** (`rg 'from personalscraper\.library\.scanner|import personalscraper\.library\.scanner'` → rc=1, verified). DESIGN.md + plan-03 synced.
+2. **`library-scan --disk X` semantic shift** (DESIGN-conformant consequence of OQ-4, not a regression): the legacy alias filtered `cfg.disks` so `--disk` restricted `media_item` creation; the delegated `library-index --mode full` runs its item stage (pass 1) **library-wide** (DESIGN §4.1/§5 — `stage_items_pass1` has no `disk_filter`), so `--disk` now restricts only the file-level walk (`path`/`media_file`). No cron/launchd job uses `library-scan --disk` (DESIGN §3.6); pre-1.0, no back-compat.
+
+## Phase 0/1/2 — corrective closure (2026-05-31, post-audit, NO DEFERRAL)
+
+An independent adversarial audit found the original phase 0/1/2 gate commits had been stamped **before** some planned objectives/ACC were complete (false-greens at the time). Per the user's directive ("respecter le design — Option A; sans déférer"), **every gap was closed at HEAD by building exactly what DESIGN+plan specify** (not by amending the design away), then re-verified COMPLETE by a fresh independent audit (all P0/P1/P2 objectives DONE + all ACC PASS at HEAD).
+
+| Gap (audit)                                                                                                          | Sev         | Closure                                                                                                                                                                                                | Commit     |
+| -------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| P0 `SEASON_DIR_RE` shipped `\s+`, narrowing out no-space forms the ad-hoc copies matched (DESIGN §3.4 parity broken) | minor       | restored `\s*` + no-space test cases                                                                                                                                                                   | `3b98290e` |
+| P1 scanner.py still **defined** the 3 NFO helpers (duplication, not SSOT)                                            | blocker     | helpers now **import** from `nfo_utils` (SSOT); `test_scanner.py` repointed                                                                                                                            | `0b975e51` |
+| P1 ACC-02 broad form unsatisfiable / failing                                                                         | blocker     | rescoped to NFO-helpers (incoherence) + `validator.py` inventory + DESIGN.md ACC-02 synced                                                                                                             | `b80d1725` |
+| P2 obj #5 — `scan_library` not single-writer                                                                         | blocker     | `_upsert_media_item` **delegates** to shared `upsert_item_with_attrs`; dead `_normalize_canonical_provider` removed                                                                                    | `a01bc3a0` |
+| P2 `full.py` unmodified (pass-1 in command layer, diverged from DESIGN §4.1/§5)                                      | blocker     | pass-1 → `full.stage_items_pass1`, invoked **once** by `scan()` via new optional `config` param                                                                                                        | `f73abf1c` |
+| P2 no end-to-end pass-1 test (MAJOR) + golden weaker than DESIGN §4.3 + marker unregistered                          | major/minor | `test_full_pass1_integration.py` (real `scan(mode=full, config=cfg)`); golden → **real** `scan_library` baseline (monkeypatched `_indexer_scan`) + full §4.3 snapshot; `integration` marker registered | `8df8828c` |
+
+**Two authorized incoherence-fixes** (the only deviations from literal DESIGN text, both documented): ACC-02 rescope (the broad form is unsatisfiable while `scan_library` lives) and the golden's **bounded** `item_issue` superset (DESIGN decision #3 mandates the new path _adds_ `nfo_missing` for NFO-less dirs — surfaced honestly by the hardened test, every other field asserted byte-identical).
+
+**Re-gate after corrections:** `make lint` clean · `make test` **5986 passed, 0 failed** · `make check` (coverage ≥ 90 %; module-size OK <1000 — `scanner.py` dropped below 800 after the helper/`_normalize_canonical_provider` removal; registry/typed-api/pragma/CLI guardrails OK). Pre-existing `movie_service.py` (975) WARN remains (out of lib-fold scope).

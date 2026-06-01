@@ -1,7 +1,7 @@
 """Library reporter — aggregate statistics from the indexer DB and command outputs.
 
-Reads health metrics from :class:`~personalscraper.library.analyzer.AnalysisResult`
-(produced by :func:`~personalscraper.library.analyzer.analyze`) and supplementary
+Reads health metrics from :class:`~personalscraper.insights.models.AnalysisResult`
+(produced by :func:`~personalscraper.insights.analytics.analyze`) and supplementary
 command outputs (validation, recommendations, rescrape) to produce a comprehensive
 library health report with clear explanations and suggested remediation commands.
 
@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from personalscraper.dispatch.disk_scanner import DiskStatus
-    from personalscraper.library.analyzer import AnalysisResult
+    from personalscraper.insights.models import AnalysisResult
 
 # Human-readable explanations for scan issues
 _ISSUE_EXPLANATIONS: dict[str, str] = {
@@ -154,14 +154,14 @@ def generate_report(
     """Generate a library health report from the indexer DB analysis and JSON data.
 
     Each parameter is optional — report includes whatever data is available.
-    ``analysis_result`` is produced by :func:`~personalscraper.library.analyzer.analyze`
+    ``analysis_result`` is produced by :func:`~personalscraper.insights.analytics.analyze`
     and is the single source of truth for totals, NFO / artwork status, disk
     distribution, and per-item sizes.  Supplementary JSON files (validation,
     recommendations, rescrape) are individual command outputs that this report
     aggregates when present.
 
     Args:
-        analysis_result: DB-backed library summary from ``analyzer.analyze(conn)``.
+        analysis_result: DB-backed library summary from ``analytics.analyze(conn)``.
             Supplies totals, disk / category distribution, top-largest items,
             NFO status counts, artwork presence, and season poster gaps.
         validation_data: Parsed library_validation.json (output of library-validate).

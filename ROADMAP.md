@@ -8,29 +8,6 @@
 
 ## P1 — High Priority (do next, unblocks major features)
 
-### P1 — Architecture Cleanup Round 2 (`arch-cleanup-2`)
-
-> **Status: implemented (v0.17.0) — shipped pending merge.** All four goals below
-> are delivered on `feat/arch-cleanup-2`; the entry is kept here until the PR merges.
-> Design: `docs/features/arch-cleanup-2/DESIGN.md`. Source analysis: `docs/analysis/05-architecture-improvement-roadmap.md`.
-
-The original `arch-cleanup` (v0.9.0) decomposed the god-modules. This second round fixes the
-architectural defects that block the web-facing roadmap (Web UI / Watcher / Auto-Download) and
-collapses residual horizontal coupling. The code is structurally healthier than the older
-ROADMAP/`architecture.md` claimed — these are targeted, low-risk enablers, not a rewrite.
-
-**Goals**
-
-- Bring the 5 registry events (`ProviderFallbackTriggered`, `ProviderExhaustedEvent`, `LockedCapabilityUnresolved`, `RegistryFanOutCompleted`, `RegistryBootValidated`) onto the base `Event` contract so they round-trip through envelope serialization and reach base-`Event` subscribers.
-- Add a `schema_version` field to the `Event` envelope before the first cross-process consumer (Web UI / Watcher) exists.
-- Fix the dependency-direction leak: `core/` and `conf/` import upward into `api/` + the logger, inverting the documented acyclic direction.
-- Promote `sorter.file_type.VIDEO_EXTENSIONS` / `FileType` to a neutral home — it is imported by 11 non-`sorter` subpackages across 23 import lines; this turns `sorter` back into a pure pipeline step.
-
-**Non-goals**
-
-- The heavy library/indexer fold (separate `lib-fold` entry).
-- A full DI framework (see P3 DI Container).
-
 ### P1 — Library / Indexer Consolidation (`lib-fold`)
 
 > Design: `docs/features/lib-fold/DESIGN.md` _(to be written)_. Source analysis: `docs/analysis/01-library-indexer-consolidation.md`.
@@ -82,7 +59,7 @@ Web-based graphical interface to pilot and supervise the whole project from a br
 - **Architecture pointers** (to decide during brainstorm): FastAPI / Flask + HTMX vs. SPA (Vue/React) + REST/WebSocket; auth (local-only vs. basic auth); reverse-proxy friendly (sub-path deploy behind `iznogoudatall.xyz`).
 - **Out of scope (v1)**: multi-user, remote-agent control, mobile-specific UX.
 
-**Depends on:** Pipeline Observer Protocol (shipped v0.13.0), Event Bus (shipped v0.14.0), Third-Party API Consumer Unification (shipped v0.11.0). Prerequisite: `arch-cleanup-2` (Event contract + envelope `schema_version`) — implemented v0.17.0, shipped pending merge.
+**Depends on:** Pipeline Observer Protocol (shipped v0.13.0), Event Bus (shipped v0.14.0), Third-Party API Consumer Unification (shipped v0.11.0). Prerequisite: `arch-cleanup-2` (Event contract + envelope `schema_version`) — shipped v0.17.0 (#28).
 
 ### P2 — Auto-Download System
 
@@ -104,7 +81,7 @@ Replace cron-based pipeline trigger with a real-time watcher service.
 - Triggers `personalscraper run` automatically on new downloads.
 - More responsive than the current 3am daily cron.
 
-**Depends on:** Event Bus (shipped v0.14.0), Pipeline Observer Protocol (shipped v0.13.0). Prerequisite: `arch-cleanup-2` (cross-process event envelope) — implemented v0.17.0, shipped pending merge.
+**Depends on:** Event Bus (shipped v0.14.0), Pipeline Observer Protocol (shipped v0.13.0). Prerequisite: `arch-cleanup-2` (cross-process event envelope) — shipped v0.17.0 (#28).
 
 ### P2 — Verify Checker Plugin System
 
@@ -135,27 +112,6 @@ Find SXXEXX for episodes missing season/episode numbers via reverse scraping on 
 
 **Depends on:** Provider Registry (shipped v0.16.0) for clean provider fallback.
 
-### P2 — Multi-Filesystem Support (`multi-filesystem`)
-
-> Design: `docs/features/multi-filesystem/DESIGN.md` _(to be written)_. Source analysis: `docs/analysis/04-filesystem-decoupling-macfuse-ntfs.md`.
-
-Today NTFS-via-macFUSE behaviour is hardcoded in the transfer layer and filesystem-type
-detection is duplicated across three independent `mount`-parsers. The next storage target is
-**HFS+ on AppleRAID** (native macOS, full POSIX perms, no macFUSE), and the goal is to support
-every mainstream filesystem (APFS, HFS+, ext4, exFAT, NTFS) without losing current behaviour.
-
-**Goals**
-
-- Consolidate the three `mount`-parsers (`indexer/db.py`, `indexer/scanner/_spotlight.py`, `indexer/scanner/__init__.py`) into one cached `FsProbe`.
-- Introduce a `FilesystemCapability` table (rsync flags, atomic-rename support, mtime/ctime reliability, case-sensitivity, xattr/AppleDouble handling) keyed off detected FS type; the NTFS entry stays byte-identical to today.
-- Make `dispatch/_transfer.py` (`rsync()` + `rsync_merge()` currently share byte-identical hardcoded NTFS flags) and the indexer tier-1 drift detector consume the capability table.
-- Fix the latent dead-branch bug in `_spotlight.try_attach` (`fs_type == "macfuse"` never matches real `ufsd_NTFS` mounts; `db.py` uses substring matching and is correct — the asymmetry is the root cause).
-
-**Non-goals**
-
-- Changing the indexer schema beyond additive capability metadata.
-- Network filesystems (NFS/SMB).
-
 ### P2 — Web UI Registry Consumer
 
 **Source**: registry feature DESIGN §11 deferral (recorded in Phase 12 of the registry feature).
@@ -166,7 +122,7 @@ every mainstream filesystem (APFS, HFS+, ext4, exFAT, NTFS) without losing curre
 
 - Web Management UI scaffolding (P2 above).
 - `registry.status()` + `registry.operations()` (shipped v0.16.0 — Provider Registry feature).
-- Prerequisite: `arch-cleanup-2` (registry events on the base `Event` contract for WebSocket streaming) — implemented v0.17.0, shipped pending merge.
+- Prerequisite: `arch-cleanup-2` (registry events on the base `Event` contract for WebSocket streaming) — shipped v0.17.0 (#28).
 
 **Scope**:
 

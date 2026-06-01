@@ -12,12 +12,12 @@ from unittest.mock import MagicMock, patch
 from typer.testing import CliRunner
 
 from personalscraper.cli import app
-from personalscraper.library.models import (
+from personalscraper.insights.models import (
     LibraryAnalysisResult,
     LibraryRecommendationResult,
-    LibraryRescrapeResult,
-    LibraryValidationResult,
 )
+from personalscraper.maintenance.rescraper import LibraryRescrapeResult
+from personalscraper.verify.library_checks import LibraryValidationResult
 
 runner = CliRunner()
 
@@ -49,24 +49,29 @@ def _empty_recommend() -> LibraryRecommendationResult:
 
 
 class TestLibraryAnalyze:
-    """Tests for the library-analyze Typer command."""
+    """Tests for the library-analyze Typer command (DB-only after lib-fold Phase 4)."""
 
-    def test_runs_ffprobe_path(self) -> None:
-        """Default invocation runs analyze_library and prints summary."""
-        with patch(
-            "personalscraper.library.analyzer.analyze_library",
-            return_value=_empty_analysis(),
-        ) as mock_an:
+    def test_default_reads_from_index(self) -> None:
+        """Default invocation reads from the indexer DB and prints summary."""
+        with (
+            patch(
+                "personalscraper.insights.analytics.analyze_from_index",
+                return_value=_empty_analysis(),
+            ) as mock_an,
+            patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
+            patch("personalscraper.indexer.db.apply_migrations"),
+        ):
             result = runner.invoke(app, ["library-analyze"])
         assert result.exit_code == 0
         mock_an.assert_called_once()
         assert "Analysis complete" in result.output
+        assert "from index" in result.output
 
-    def test_from_index_path(self) -> None:
-        """--from-index uses analyze_from_index and opens the indexer DB."""
+    def test_from_index_flag_is_noop(self) -> None:
+        """The deprecated --from-index flag behaves identically (DB-backed)."""
         with (
             patch(
-                "personalscraper.library.analyzer.analyze_from_index",
+                "personalscraper.insights.analytics.analyze_from_index",
                 return_value=_empty_analysis(),
             ) as mock_an,
             patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
@@ -78,11 +83,15 @@ class TestLibraryAnalyze:
         assert "from index" in result.output
 
     def test_with_filters_passes_kwargs(self) -> None:
-        """--disk / --max-items reach the analyze_library call."""
-        with patch(
-            "personalscraper.library.analyzer.analyze_library",
-            return_value=_empty_analysis(),
-        ) as mock_an:
+        """--disk / --max-items reach the analyze_from_index call."""
+        with (
+            patch(
+                "personalscraper.insights.analytics.analyze_from_index",
+                return_value=_empty_analysis(),
+            ) as mock_an,
+            patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
+            patch("personalscraper.indexer.db.apply_migrations"),
+        ):
             result = runner.invoke(
                 app,
                 ["library-analyze", "--disk", "drive_a", "--max-items", "5"],
@@ -92,9 +101,24 @@ class TestLibraryAnalyze:
         assert kwargs["disk_filter"] == "drive_a"
         assert kwargs["max_items"] == 5
 
+    def test_no_enrich_hint_shown_when_empty(self) -> None:
+        """An empty analysis (no enriched streams) prints the run-enrich hint (FIX M4)."""
+        with (
+            patch(
+                "personalscraper.insights.analytics.analyze_from_index",
+                return_value=_empty_analysis(),
+            ),
+            patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
+            patch("personalscraper.indexer.db.apply_migrations"),
+        ):
+            result = runner.invoke(app, ["library-analyze"])
+        assert result.exit_code == 0
+        assert "No enriched media streams found" in result.output
+        assert "library-index --mode enrich" in result.output
+
     def test_codec_audio_aggregation(self) -> None:
         """Codec / audio profile counts appear in the summary."""
-        from personalscraper.library.models import (
+        from personalscraper.insights.models import (
             LibraryAnalysisItem,
             MediaFileAnalysis,
             VideoInfo,
@@ -127,7 +151,11 @@ class TestLibraryAnalyze:
             file_count=1,
             items=[item],
         )
-        with patch("personalscraper.library.analyzer.analyze_library", return_value=result):
+        with (
+            patch("personalscraper.insights.analytics.analyze_from_index", return_value=result),
+            patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
+            patch("personalscraper.indexer.db.apply_migrations"),
+        ):
             r = runner.invoke(app, ["library-analyze"])
         assert r.exit_code == 0
         assert "Codecs" in r.output
@@ -146,14 +174,16 @@ class TestLibraryRecommend:
         """Default run produces a recommendations file and prints summary."""
         with (
             patch(
-                "personalscraper.library.analyzer.analyze_library",
+                "personalscraper.insights.analytics.analyze_from_index",
                 return_value=_empty_analysis(),
             ),
             patch(
-                "personalscraper.library.recommender.generate_recommendations",
+                "personalscraper.insights.recommender.generate_recommendations",
                 return_value=_empty_recommend(),
             ),
-            patch("personalscraper.library.models.write_json") as mock_write,
+            patch("personalscraper.io_utils.write_json") as mock_write,
+            patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
+            patch("personalscraper.indexer.db.apply_migrations"),
         ):
             result = runner.invoke(app, ["library-recommend"])
         assert result.exit_code == 0
@@ -166,18 +196,38 @@ class TestLibraryRecommend:
         assert result.exit_code == 1
         assert "Invalid --sort" in result.output
 
-    def test_from_index_path(self, tmp_path) -> None:
-        """--from-index uses analyze_from_index."""
+    def test_no_enrich_hint_shown_when_empty(self, tmp_path) -> None:
+        """An empty analysis (no enriched streams) prints the run-enrich hint (FIX M4)."""
         with (
             patch(
-                "personalscraper.library.analyzer.analyze_from_index",
+                "personalscraper.insights.analytics.analyze_from_index",
+                return_value=_empty_analysis(),
+            ),
+            patch(
+                "personalscraper.insights.recommender.generate_recommendations",
+                return_value=_empty_recommend(),
+            ),
+            patch("personalscraper.io_utils.write_json"),
+            patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
+            patch("personalscraper.indexer.db.apply_migrations"),
+        ):
+            result = runner.invoke(app, ["library-recommend"])
+        assert result.exit_code == 0
+        assert "No enriched media streams found" in result.output
+        assert "library-index --mode enrich" in result.output
+
+    def test_from_index_flag_is_noop(self, tmp_path) -> None:
+        """The deprecated --from-index flag behaves identically (DB-backed)."""
+        with (
+            patch(
+                "personalscraper.insights.analytics.analyze_from_index",
                 return_value=_empty_analysis(),
             ) as mock_an,
             patch(
-                "personalscraper.library.recommender.generate_recommendations",
+                "personalscraper.insights.recommender.generate_recommendations",
                 return_value=_empty_recommend(),
             ),
-            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
             patch("personalscraper.indexer.db.apply_migrations"),
         ):
@@ -189,7 +239,7 @@ class TestLibraryRecommend:
         """--export csv writes a CSV alongside the JSON output."""
         # data_dir must exist for the CSV write.
         test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
-        from personalscraper.library.models import (
+        from personalscraper.insights.models import (
             CurrentState,
             Recommendation,
             TargetState,
@@ -223,14 +273,16 @@ class TestLibraryRecommend:
 
         with (
             patch(
-                "personalscraper.library.analyzer.analyze_library",
+                "personalscraper.insights.analytics.analyze_from_index",
                 return_value=_empty_analysis(),
             ),
             patch(
-                "personalscraper.library.recommender.generate_recommendations",
+                "personalscraper.insights.recommender.generate_recommendations",
                 return_value=rec_result,
             ),
-            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.io_utils.write_json"),
+            patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
+            patch("personalscraper.indexer.db.apply_migrations"),
         ):
             result = runner.invoke(app, ["library-recommend", "--export", "csv", "--sort", "size"])
         assert result.exit_code == 0
@@ -257,10 +309,10 @@ class TestLibraryRescrape:
         )
         with (
             patch(
-                "personalscraper.library.rescraper.rescrape_library",
+                "personalscraper.maintenance.rescraper.rescrape_library",
                 return_value=rresult,
             ),
-            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.cli.acquire_lock") as mock_acquire,
         ):
             result = runner.invoke(app, ["library-rescrape", "--dry-run"])
@@ -288,10 +340,10 @@ class TestLibraryRescrape:
         )
         with (
             patch(
-                "personalscraper.library.rescraper.rescrape_library",
+                "personalscraper.maintenance.rescraper.rescrape_library",
                 return_value=rresult,
             ),
-            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.cli.acquire_lock", return_value=True) as mock_acquire,
             patch("personalscraper.cli.release_lock") as mock_release,
         ):
@@ -323,25 +375,25 @@ class TestLibraryReport:
 
     def test_text_format(self, tmp_path) -> None:
         """Text format prints a formatted report."""
-        from personalscraper.library.analyzer import AnalysisResult
+        from personalscraper.insights.models import AnalysisResult
 
         analysis = AnalysisResult(total_items=1, total_size_gb=1.0)
 
         with (
             patch("pathlib.Path.exists", return_value=True),
             patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
-            patch("personalscraper.library.analyzer.analyze", return_value=analysis),
-            patch("personalscraper.library.models.read_json", return_value=None),
+            patch("personalscraper.insights.analytics.analyze", return_value=analysis),
+            patch("personalscraper.io_utils.read_json", return_value=None),
             patch(
                 "personalscraper.dispatch.disk_scanner.get_disk_status",
                 return_value=MagicMock(),
             ),
             patch(
-                "personalscraper.library.reporter.generate_report",
+                "personalscraper.insights.reporter.generate_report",
                 return_value=MagicMock(),
             ),
             patch(
-                "personalscraper.library.reporter.format_report_text",
+                "personalscraper.insights.reporter.format_report_text",
                 return_value="LIBRARY REPORT",
             ),
         ):
@@ -351,8 +403,8 @@ class TestLibraryReport:
 
     def test_json_format(self, tmp_path) -> None:
         """Global ``--format json`` emits parseable JSON to stdout."""
-        from personalscraper.library.analyzer import AnalysisResult
-        from personalscraper.library.reporter import LibraryReport
+        from personalscraper.insights.models import AnalysisResult
+        from personalscraper.insights.reporter import LibraryReport
 
         analysis = AnalysisResult(total_items=0, total_size_gb=0.0)
         # A real dataclass instance — emit() must call dataclasses.asdict on it.
@@ -360,14 +412,14 @@ class TestLibraryReport:
         with (
             patch("pathlib.Path.exists", return_value=True),
             patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
-            patch("personalscraper.library.analyzer.analyze", return_value=analysis),
-            patch("personalscraper.library.models.read_json", return_value=None),
+            patch("personalscraper.insights.analytics.analyze", return_value=analysis),
+            patch("personalscraper.io_utils.read_json", return_value=None),
             patch(
                 "personalscraper.dispatch.disk_scanner.get_disk_status",
                 return_value=MagicMock(),
             ),
             patch(
-                "personalscraper.library.reporter.generate_report",
+                "personalscraper.insights.reporter.generate_report",
                 return_value=fake_report,
             ),
         ):
@@ -382,7 +434,7 @@ class TestLibraryReport:
 
     def test_corrupted_supplementary_data(self, tmp_path) -> None:
         """A corrupt supplementary JSON triggers a warning, not a crash."""
-        from personalscraper.library.analyzer import AnalysisResult
+        from personalscraper.insights.models import AnalysisResult
 
         analysis = AnalysisResult(total_items=0, total_size_gb=0.0)
 
@@ -392,18 +444,18 @@ class TestLibraryReport:
         with (
             patch("pathlib.Path.exists", return_value=True),
             patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
-            patch("personalscraper.library.analyzer.analyze", return_value=analysis),
-            patch("personalscraper.library.models.read_json", side_effect=_raise),
+            patch("personalscraper.insights.analytics.analyze", return_value=analysis),
+            patch("personalscraper.io_utils.read_json", side_effect=_raise),
             patch(
                 "personalscraper.dispatch.disk_scanner.get_disk_status",
                 return_value=MagicMock(),
             ),
             patch(
-                "personalscraper.library.reporter.generate_report",
+                "personalscraper.insights.reporter.generate_report",
                 return_value=MagicMock(),
             ),
             patch(
-                "personalscraper.library.reporter.format_report_text",
+                "personalscraper.insights.reporter.format_report_text",
                 return_value="REPORT",
             ),
         ):
@@ -420,7 +472,7 @@ class TestLibraryReport:
                 side_effect=RuntimeError("db boom"),
             ),
             patch(
-                "personalscraper.library.models.read_json",
+                "personalscraper.io_utils.read_json",
                 return_value={"x": 1},
             ),
             patch(
@@ -428,11 +480,11 @@ class TestLibraryReport:
                 return_value=MagicMock(),
             ),
             patch(
-                "personalscraper.library.reporter.generate_report",
+                "personalscraper.insights.reporter.generate_report",
                 return_value=MagicMock(),
             ),
             patch(
-                "personalscraper.library.reporter.format_report_text",
+                "personalscraper.insights.reporter.format_report_text",
                 return_value="REPORT",
             ),
         ):

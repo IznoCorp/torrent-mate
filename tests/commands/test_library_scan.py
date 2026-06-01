@@ -1,17 +1,21 @@
-"""Regression tests for ``personalscraper library-scan`` CLI command (DEV #16).
+"""Regression tests for ``personalscraper library-scan`` CLI command.
+
+Since the lib-fold single-creator cutover, ``library-scan`` is a **visible
+re-pointed alias of ``library-index --mode full``** (DESIGN OQ-4): it no longer
+runs a bespoke ``scan_library`` pass.  It delegates to the shared internal
+:func:`~personalscraper.indexer.commands.scan.library_index_command` with
+``mode="full"`` and forwards ``--disk`` / ``--dry-run`` / ``--config``.
 
 Verifies:
-- ``library-scan --help`` exits 0 (smoke test).
-- ``library-scan`` invokes ``scan_library()`` (spy).
-- ``library-scan --dry-run`` is a pure count pass — no DB writes.
-- ``library-scan --disk <name>`` filters to the requested disk only.
-- Unknown ``--disk`` value exits non-zero with a clear error.
+- ``library-scan --help`` exits 0 and surfaces ``--disk`` and ``--dry-run``.
+- ``library-scan`` delegates to ``library_index_command(mode="full", ...)``
+  exactly once and forwards the user-supplied options.
+- A non-zero return code from the delegate becomes a ``typer.Exit(rc)``.
 """
 
 from __future__ import annotations
 
-import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from typer.testing import CliRunner
 
@@ -19,25 +23,10 @@ from personalscraper.cli import app
 
 runner = CliRunner()
 
-# ── fixtures ─────────────────────────────────────────────────────────────────
-
-_LOCK_PATH = "personalscraper.cli.acquire_lock"
-_RELEASE_PATH = "personalscraper.cli.release_lock"
-_OPEN_DB_PATH = "personalscraper.indexer.db.open_db"
-_APPLY_MIGRATIONS_PATH = "personalscraper.indexer.db.apply_migrations"
-_SCAN_LIBRARY_PATH = "personalscraper.library.scanner.scan_library"
-
-
-def _make_conn_mock() -> MagicMock:
-    """Return a minimal sqlite3.Connection stub.
-
-    Returns:
-        MagicMock that satisfies the open_db / apply_migrations contract.
-    """
-    mock = MagicMock()
-    mock.execute.return_value.fetchone.return_value = [0]
-    mock.execute.return_value.fetchall.return_value = []
-    return mock
+# The alias imports ``library_index_command`` from ``personalscraper.indexer.cli``
+# at call time (``from personalscraper.indexer.cli import library_index_command``),
+# so the spy must replace the name in that namespace.
+_DELEGATE_PATH = "personalscraper.indexer.cli.library_index_command"
 
 
 # ── smoke test ────────────────────────────────────────────────────────────────
@@ -62,215 +51,72 @@ class TestLibraryScanHelp:
         assert "--dry-run" in result.output
 
 
-# ── scan_library() spy ────────────────────────────────────────────────────────
+# ── delegation contract ───────────────────────────────────────────────────────
 
 
-class TestLibraryScanInvokesScanLibrary:
-    """``library-scan`` (live) calls ``scan_library()`` exactly once."""
+class TestLibraryScanDelegatesToIndex:
+    """``library-scan`` forwards to ``library_index_command(mode="full", ...)``."""
 
-    def test_invokes_scan_library(self, test_config) -> None:
-        """``scan_library`` is called with cfg + conn + event_bus on a live run."""
-        conn_mock = _make_conn_mock()
-        scan_calls: list[dict] = []
-
-        def _spy_scan(cfg, conn, *, event_bus):  # type: ignore[no-untyped-def]
-            scan_calls.append({"cfg": cfg, "conn": conn, "event_bus": event_bus})
-
-        with (
-            patch(_LOCK_PATH, return_value=True),
-            patch(_RELEASE_PATH),
-            patch(_OPEN_DB_PATH, return_value=conn_mock),
-            patch(_APPLY_MIGRATIONS_PATH),
-            patch(_SCAN_LIBRARY_PATH, side_effect=_spy_scan),
-            patch("personalscraper.cli.get_settings"),
-        ):
+    def test_delegates_with_mode_full(self, test_config) -> None:
+        """A plain ``library-scan`` calls the delegate once with ``mode='full'``."""
+        with patch(_DELEGATE_PATH, return_value=0) as mock_delegate:
             result = runner.invoke(app, ["library-scan"])
 
         assert result.exit_code == 0, result.output
-        assert len(scan_calls) == 1, f"expected 1 call to scan_library, got {len(scan_calls)}"
-        # conn must be the object returned by open_db
-        assert scan_calls[0]["conn"] is conn_mock
-        # event_bus must be set (not None)
-        assert scan_calls[0]["event_bus"] is not None
+        mock_delegate.assert_called_once()
+        kwargs = mock_delegate.call_args.kwargs
+        assert kwargs["mode"] == "full"
+        # Defaults forwarded for the unset options.
+        assert kwargs["disk"] is None
+        assert kwargs["dry_run"] is False
+        # The bus is always threaded from the CLI boundary (required-bus contract).
+        assert kwargs["event_bus"] is not None
 
-    def test_conn_commit_called_after_scan(self, test_config) -> None:
-        """``conn.commit()`` is called after a successful ``scan_library`` call."""
-        conn_mock = _make_conn_mock()
-
-        with (
-            patch(_LOCK_PATH, return_value=True),
-            patch(_RELEASE_PATH),
-            patch(_OPEN_DB_PATH, return_value=conn_mock),
-            patch(_APPLY_MIGRATIONS_PATH),
-            patch(_SCAN_LIBRARY_PATH),
-            patch("personalscraper.cli.get_settings"),
-        ):
-            result = runner.invoke(app, ["library-scan"])
-
-        assert result.exit_code == 0, result.output
-        conn_mock.commit.assert_called_once()
-
-    def test_conn_close_called_on_success(self, test_config) -> None:
-        """``conn.close()`` is called in the finally block even on success."""
-        conn_mock = _make_conn_mock()
-
-        with (
-            patch(_LOCK_PATH, return_value=True),
-            patch(_RELEASE_PATH),
-            patch(_OPEN_DB_PATH, return_value=conn_mock),
-            patch(_APPLY_MIGRATIONS_PATH),
-            patch(_SCAN_LIBRARY_PATH),
-            patch("personalscraper.cli.get_settings"),
-        ):
-            result = runner.invoke(app, ["library-scan"])
-
-        assert result.exit_code == 0, result.output
-        conn_mock.close.assert_called_once()
-
-    def test_lock_released_on_success(self, test_config) -> None:
-        """``release_lock`` is always called after a live scan (finally guard)."""
-        conn_mock = _make_conn_mock()
-
-        with (
-            patch(_LOCK_PATH, return_value=True),
-            patch(_RELEASE_PATH) as mock_release,
-            patch(_OPEN_DB_PATH, return_value=conn_mock),
-            patch(_APPLY_MIGRATIONS_PATH),
-            patch(_SCAN_LIBRARY_PATH),
-            patch("personalscraper.cli.get_settings"),
-        ):
-            result = runner.invoke(app, ["library-scan"])
-
-        assert result.exit_code == 0, result.output
-        mock_release.assert_called_once()
-
-
-# ── --dry-run ─────────────────────────────────────────────────────────────────
-
-
-class TestLibraryScanDryRun:
-    """``library-scan --dry-run`` counts dirs without writing to DB."""
-
-    def test_dry_run_does_not_call_scan_library(self, test_config, tmp_path) -> None:
-        """``--dry-run`` must NOT invoke ``scan_library``."""
-        with (
-            patch(_SCAN_LIBRARY_PATH) as mock_scan,
-            patch(_LOCK_PATH, return_value=True),
-            patch(_RELEASE_PATH),
-        ):
-            result = runner.invoke(app, ["library-scan", "--dry-run"])
-
-        assert result.exit_code == 0, result.output
-        mock_scan.assert_not_called()
-
-    def test_dry_run_does_not_open_db(self, test_config) -> None:
-        """``--dry-run`` must NOT open the indexer DB."""
-        with (
-            patch(_OPEN_DB_PATH) as mock_open_db,
-            patch(_LOCK_PATH, return_value=True),
-            patch(_RELEASE_PATH),
-        ):
-            result = runner.invoke(app, ["library-scan", "--dry-run"])
-
-        assert result.exit_code == 0, result.output
-        mock_open_db.assert_not_called()
-
-    def test_dry_run_outputs_json(self, test_config) -> None:
-        """``--dry-run`` prints a JSON object with ``dry_run: true``."""
-        result = runner.invoke(app, ["library-scan", "--dry-run"])
-        assert result.exit_code == 0, result.output
-        # Strip Rich markup from output before parsing JSON
-        raw = result.output.strip()
-        # Find the JSON line (starts with '{')
-        json_line = next((ln for ln in raw.splitlines() if ln.strip().startswith("{")), None)
-        assert json_line is not None, f"No JSON in output: {raw!r}"
-        data = json.loads(json_line)
-        assert data["dry_run"] is True
-
-    def test_dry_run_counts_dirs(self, test_config, tmp_path) -> None:
-        """``--dry-run`` counts media directories found on mounted disks."""
-        # Create fake category dirs with media directories inside drive_a
-        drive_a = tmp_path / "drive_a"
-        cat_movies = drive_a / "cat_movies"
-        cat_movies.mkdir(parents=True)
-        (cat_movies / "Movie A (2020)").mkdir()
-        (cat_movies / "Movie B (2021)").mkdir()
-        (cat_movies / ".hidden").mkdir()  # dot-prefix dirs must NOT be counted
-
-        result = runner.invoke(app, ["library-scan", "--dry-run"])
-        assert result.exit_code == 0, result.output
-
-        raw = result.output.strip()
-        json_line = next((ln for ln in raw.splitlines() if ln.strip().startswith("{")), None)
-        assert json_line is not None
-        data = json.loads(json_line)
-        # At least 2 non-hidden dirs counted (drive_b and drive_c are unmounted → skipped)
-        assert data["media_dirs_to_scan"] >= 2
-
-    def test_dry_run_skips_unmounted_disks(self, test_config, tmp_path) -> None:
-        """``--dry-run`` silently skips disks whose paths do not exist."""
-        # drive_a, drive_b, drive_c are under tmp_path but not created → not mounted
-        result = runner.invoke(app, ["library-scan", "--dry-run"])
-        assert result.exit_code == 0, result.output
-
-        raw = result.output.strip()
-        json_line = next((ln for ln in raw.splitlines() if ln.strip().startswith("{")), None)
-        assert json_line is not None
-        data = json.loads(json_line)
-        assert data["media_dirs_to_scan"] == 0
-
-
-# ── --disk filter ─────────────────────────────────────────────────────────────
-
-
-class TestLibraryScanDiskFilter:
-    """``library-scan --disk <name>`` restricts the scan to one disk."""
-
-    def test_disk_filter_restricts_to_single_disk(self, test_config) -> None:
-        """When ``--disk drive_a`` is passed, only drive_a is scanned."""
-        conn_mock = _make_conn_mock()
-        scan_calls: list[dict] = []
-
-        def _spy_scan(cfg, conn, *, event_bus):  # type: ignore[no-untyped-def]
-            scan_calls.append({"cfg": cfg})
-
-        with (
-            patch(_LOCK_PATH, return_value=True),
-            patch(_RELEASE_PATH),
-            patch(_OPEN_DB_PATH, return_value=conn_mock),
-            patch(_APPLY_MIGRATIONS_PATH),
-            patch(_SCAN_LIBRARY_PATH, side_effect=_spy_scan),
-            patch("personalscraper.cli.get_settings"),
-        ):
+    def test_forwards_disk_option(self, test_config) -> None:
+        """``--disk drive_a`` is forwarded to the delegate as ``disk='drive_a'``."""
+        with patch(_DELEGATE_PATH, return_value=0) as mock_delegate:
             result = runner.invoke(app, ["library-scan", "--disk", "drive_a"])
 
         assert result.exit_code == 0, result.output
-        assert len(scan_calls) == 1
-        cfg_used = scan_calls[0]["cfg"]
-        disk_ids = [d.id for d in cfg_used.disks]
-        assert disk_ids == ["drive_a"], f"Expected only drive_a, got {disk_ids}"
+        mock_delegate.assert_called_once()
+        assert mock_delegate.call_args.kwargs["disk"] == "drive_a"
+        assert mock_delegate.call_args.kwargs["mode"] == "full"
 
-    def test_disk_filter_dry_run(self, test_config, tmp_path) -> None:
-        """``--disk drive_a --dry-run`` reports disk_filter in JSON output."""
-        result = runner.invoke(app, ["library-scan", "--disk", "drive_a", "--dry-run"])
+    def test_forwards_dry_run_option(self, test_config) -> None:
+        """``--dry-run`` is forwarded to the delegate as ``dry_run=True``."""
+        with patch(_DELEGATE_PATH, return_value=0) as mock_delegate:
+            result = runner.invoke(app, ["library-scan", "--dry-run"])
+
         assert result.exit_code == 0, result.output
+        mock_delegate.assert_called_once()
+        assert mock_delegate.call_args.kwargs["dry_run"] is True
+        assert mock_delegate.call_args.kwargs["mode"] == "full"
 
-        raw = result.output.strip()
-        json_line = next((ln for ln in raw.splitlines() if ln.strip().startswith("{")), None)
-        assert json_line is not None
-        data = json.loads(json_line)
-        assert data["disk_filter"] == "drive_a"
-
-    def test_unknown_disk_exits_nonzero(self, test_config) -> None:
-        """``--disk unknown_disk`` exits non-zero with an error message."""
-        result = runner.invoke(app, ["library-scan", "--disk", "unknown_disk"])
+    def test_no_mode_option_exposed(self) -> None:
+        """The alias drops ``--mode`` — passing it is an unknown-flag error."""
+        with patch(_DELEGATE_PATH, return_value=0):
+            result = runner.invoke(app, ["library-scan", "--mode", "quick"])
+        # ``--mode`` is no longer a valid option for this command.
         assert result.exit_code != 0
-        assert (
-            "unknown_disk" in (result.output + (result.stderr or "")).lower()
-            or "unknown" in (result.output + (result.stderr or "")).lower()
-        )
 
-    def test_unknown_disk_dry_run_exits_nonzero(self, test_config) -> None:
-        """``--disk unknown_disk --dry-run`` also exits non-zero."""
-        result = runner.invoke(app, ["library-scan", "--disk", "unknown_disk", "--dry-run"])
-        assert result.exit_code != 0
+
+# ── return-code propagation ───────────────────────────────────────────────────
+
+
+class TestLibraryScanReturnCode:
+    """A non-zero delegate return code becomes a non-zero CLI exit."""
+
+    def test_nonzero_rc_propagates(self, test_config) -> None:
+        """``library_index_command`` returning 2 (unknown disk) → CLI exit 2."""
+        with patch(_DELEGATE_PATH, return_value=2):
+            result = runner.invoke(app, ["library-scan", "--disk", "unknown_disk"])
+
+        # rc != 0 → ``raise typer.Exit(rc)``; CliRunner surfaces the code.
+        assert result.exit_code == 2, result.output
+
+    def test_zero_rc_exits_zero(self, test_config) -> None:
+        """``library_index_command`` returning 0 → CLI exit 0."""
+        with patch(_DELEGATE_PATH, return_value=0):
+            result = runner.invoke(app, ["library-scan"])
+
+        assert result.exit_code == 0, result.output

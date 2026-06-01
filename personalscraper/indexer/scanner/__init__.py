@@ -31,6 +31,7 @@ from personalscraper.indexer._throttle import TokenBucket, set_active_bucket
 from personalscraper.indexer.breaker import DiskCircuitBreaker
 
 if TYPE_CHECKING:
+    from personalscraper.conf.models.config import Config
     from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.merkle import (
     DiskBulkChangeDetected,
@@ -333,6 +334,7 @@ def scan(
     no_enqueue: bool = False,
     fs_type_overrides: dict[str, str] | None = None,
     event_bus: EventBus,
+    config: Config | None = None,
 ) -> ScanRunResult:
     """Walk all provided disks and record discovered files in the database.
 
@@ -479,6 +481,16 @@ def scan(
             :class:`LibraryScanCompleted` event is emitted in the
             ``finally`` block — fires on success, partial failure, and
             mid-scan exception alike.
+        config: Optional fully-loaded application :class:`Config`. When provided
+            **and** ``mode == ScanMode.full``, the item stage (DESIGN §4.1/§5
+            pass 1) runs **exactly once** before the per-disk file walk, staging
+            rich ``media_item`` rows for the whole library via
+            :func:`personalscraper.indexer.scanner._modes.full.stage_items_pass1`.
+            ``None`` (the default) skips pass 1 — used by every caller that does
+            not own the rich item write path (``library-verify``,
+            ``dispatch`` post-enrich, and ``scan_library``'s own
+            ``_indexer_scan`` call, which already creates ``media_item`` rows
+            itself and would otherwise double-stage).
 
     Returns:
         :class:`ScanRunResult` with the assigned ``scan_run_id``, visit counts,
@@ -570,6 +582,21 @@ def scan(
     _effective_workers: int = min(max(1, max_workers), max(1, len(disks)))
     if disk_filter is not None:
         _effective_workers = 1
+
+    # DESIGN §4.1/§5 — full-mode pass 1: stage rich ``media_item`` rows for the
+    # whole library BEFORE the per-disk file walk. ``stage_items_pass1``
+    # delegates to the library-wide ``stage_library_items`` driver, which
+    # iterates every configured disk itself — so this is invoked EXACTLY ONCE
+    # per full scan here (not inside the per-disk ``_scan_disk_full`` walker,
+    # which would re-stage every dir once per disk). Gated on ``config is not
+    # None`` so only callers that own the rich item write path (the
+    # ``library-index --mode full`` command) trigger it; the other callers pass
+    # ``config=None`` and skip pass 1. Runs on ``conn`` before the walk, so it
+    # stays inside the caller's dry-run SAVEPOINT scope (rolled back on dry runs).
+    if mode == ScanMode.full and config is not None:
+        from personalscraper.indexer.scanner._modes.full import stage_items_pass1  # noqa: PLC0415
+
+        stage_items_pass1(conn, config)
 
     try:
         if db_path is not None and _effective_workers > 1:

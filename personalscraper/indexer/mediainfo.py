@@ -315,6 +315,12 @@ def _yesno_to_bool(value: object) -> bool | None:
     return None
 
 
+# lib-fold Phase 4 / DESIGN §4.5 parity confirmation:
+# This surviving pymediainfo normaliser covers HDR10 / HDR10+ / Dolby Vision / HLG
+# at the SAME granularity as the dropped ``analyzer.analyze_library`` ffprobe path
+# (which emitted ``dolby_vision`` / ``hdr10plus`` / ``hdr10`` / ``hlg``). No
+# granularity gap — the four-way distinction is pinned by
+# ``tests/indexer/test_mediainfo_hdr_parity.py``.
 def _normalise_hdr_format(track: object) -> str | None:
     """Derive a normalised HDR label from a pymediainfo video track.
 

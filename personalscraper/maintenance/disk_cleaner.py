@@ -1,7 +1,9 @@
-"""Library disk cleaner — remove .actors/, empty dirs, junk files.
+"""Filesystem-level cleanup for the media library — remove .actors/, empty dirs, junk files.
 
 Dry-run by default. Requires --apply to actually delete.
 Handles NTFS deletion failures gracefully (per-item error, continues).
+Performs ``rmtree``-based deletion (``_scandir_rmtree``) and tolerates
+NTFS ghost-dirents (macFUSE/NTFS known issue).
 
 ``clean_library`` accepts a ``Config`` object and resolves folder names
 from ``config.category(id).folder_name``. Disk filter uses ``disk.id``;
@@ -13,12 +15,13 @@ the indexer can reconcile removed files at the next drain cycle (DESIGN
 §10.2).  The event uses ``op='move'`` with an empty ``dst_rel_path`` to
 signal removal.  On any outbox error the deletion is still reported as
 successful — the indexer will reconcile the drift at the next scan.
+
+Moved from the legacy library disk-cleaner module during lib-fold Phase 5.
 """
 
 from __future__ import annotations
 
 import os
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -31,28 +34,16 @@ from personalscraper.logger import get_logger
 
 log = get_logger("library.disk_cleaner")
 
-from personalscraper.text_utils import JUNK_FILE_NAMES as _JUNK_FILES  # noqa: E402
-
 # --- Orphan-detection constants -------------------------------------------
-
-# Video extensions considered for "main video" presence. Subtitle/audio-only
-# files do not count: a release with only an .mp3 or .srt is not a watchable
-# release. Audiobook items (.m4b) are intentionally excluded from this check
-# because the orphan mode targets video releases, not audiobook collections.
-_VIDEO_EXTENSIONS: frozenset[str] = frozenset(
-    {
-        ".mkv",
-        ".mp4",
-        ".avi",
-        ".m4v",
-        ".webm",
-        ".mov",
-        ".ts",
-        ".m2ts",
-        ".mpg",
-        ".mpeg",
-    }
-)
+# Video extensions considered for "main video" presence — canonical SSOT from
+# core.media_types. Subtitle/audio-only files do not count: a release with
+# only an .mp3 or .srt is not a watchable release. Audiobook items (.m4b) are
+# intentionally excluded from this check because the orphan mode targets video
+# releases, not audiobook collections.
+# Note: core.media_types stores extensions WITHOUT leading dot (e.g. "mkv").
+# Callers must use ``path.suffix.lower().lstrip(".")`` when comparing.
+from personalscraper.core.media_types import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS  # noqa: E402
+from personalscraper.text_utils import JUNK_FILE_NAMES as _JUNK_FILES  # noqa: E402
 
 # A "main" video must be at least this large. Trailers and shorts under this
 # threshold do not count, even if their filename does not match the trailer
@@ -64,11 +55,8 @@ _MAIN_VIDEO_MIN_BYTES: int = 50 * 1024 * 1024
 # matched case-insensitively against the basename.
 _TRAILER_MARKERS: tuple[str, ...] = ("trailer", "teaser", "sample", "extra")
 
-# TV-show season folder names (re-using the same regex as the indexer).
-_TV_SEASON_DIR_RE = re.compile(
-    r"^(?:saison|season)\s*\d+$|^specials?$",
-    re.IGNORECASE,
-)
+# TV-show season folder names — canonical SSOT from naming_patterns.
+from personalscraper.naming_patterns import SEASON_DIR_RE as _TV_SEASON_DIR_RE  # noqa: E402
 
 # Categories whose "main content" is not a video file. ``orphans`` mode
 # always skips these because its definition of orphan ("no main video") is
@@ -383,7 +371,7 @@ def _has_main_video(directory: Path) -> bool:
 
 def _looks_like_main_video(path: Path) -> bool:
     """Return True if *path* is a substantial video file (not a trailer/sample)."""
-    if path.suffix.lower() not in _VIDEO_EXTENSIONS:
+    if path.suffix.lower().lstrip(".") not in _VIDEO_EXTENSIONS:
         return False
     stem_lower = path.stem.lower()
     if any(marker in stem_lower for marker in _TRAILER_MARKERS):

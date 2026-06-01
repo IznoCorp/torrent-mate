@@ -480,14 +480,14 @@ class TestLibraryClean:
 
     def test_dry_run_by_default(self, tmp_path) -> None:
         """library-clean without --apply should be dry-run."""
-        from personalscraper.library.disk_cleaner import CleanResult
+        from personalscraper.maintenance.disk_cleaner import CleanResult
 
         mock_result = CleanResult(dry_run=True, deleted_count=5, freed_bytes=1024)
 
         with (
             patch("personalscraper.cli.get_settings") as mock_settings,
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
-            patch("personalscraper.library.disk_cleaner.clean_library", return_value=mock_result),
+            patch("personalscraper.maintenance.disk_cleaner.clean_library", return_value=mock_result),
         ):
             settings = MagicMock()
             settings.data_dir = tmp_path
@@ -500,14 +500,14 @@ class TestLibraryClean:
 
     def test_apply_acquires_lock(self, tmp_path) -> None:
         """library-clean --apply should acquire pipeline lock."""
-        from personalscraper.library.disk_cleaner import CleanResult
+        from personalscraper.maintenance.disk_cleaner import CleanResult
 
         mock_result = CleanResult(dry_run=False, deleted_count=0)
 
         with (
             patch("personalscraper.cli.get_settings") as mock_settings,
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
-            patch("personalscraper.library.disk_cleaner.clean_library", return_value=mock_result),
+            patch("personalscraper.maintenance.disk_cleaner.clean_library", return_value=mock_result),
             patch("personalscraper.cli.acquire_lock", return_value=True) as mock_lock,
             patch("personalscraper.cli.release_lock"),
         ):
@@ -533,7 +533,7 @@ class TestLibraryValidate:
 
     def test_validate_produces_json(self, tmp_path) -> None:
         """library-validate should produce library_validation.json."""
-        from personalscraper.library.models import LibraryValidationResult
+        from personalscraper.verify.library_checks import LibraryValidationResult
 
         mock_result = LibraryValidationResult(
             validated_at="2026-04-15T12:00:00",
@@ -546,8 +546,8 @@ class TestLibraryValidate:
         )
 
         with (
-            patch("personalscraper.library.validator.validate_library", return_value=mock_result),
-            patch("personalscraper.library.models.write_json") as mock_write,
+            patch("personalscraper.verify.library_checks.validate_library", return_value=mock_result),
+            patch("personalscraper.io_utils.write_json") as mock_write,
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
             patch("personalscraper.cli.get_settings") as mock_settings,
         ):
@@ -572,7 +572,7 @@ class TestLibraryValidate:
 
     def test_fix_apply_acquires_lock(self, tmp_path) -> None:
         """--fix --apply should acquire pipeline lock."""
-        from personalscraper.library.models import LibraryValidationResult
+        from personalscraper.verify.library_checks import LibraryValidationResult
 
         mock_result = LibraryValidationResult(
             validated_at="2026-04-15T12:00:00",
@@ -585,8 +585,8 @@ class TestLibraryValidate:
         )
 
         with (
-            patch("personalscraper.library.validator.validate_library", return_value=mock_result),
-            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.verify.library_checks.validate_library", return_value=mock_result),
+            patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
             patch("personalscraper.cli.get_settings") as mock_settings,
             patch("personalscraper.cli.acquire_lock", return_value=True) as mock_lock,
@@ -603,7 +603,7 @@ class TestLibraryValidate:
 
     def test_fix_forwards_params(self, tmp_path) -> None:
         """--fix should forward fix=True to validate_library."""
-        from personalscraper.library.models import LibraryValidationResult
+        from personalscraper.verify.library_checks import LibraryValidationResult
 
         mock_result = LibraryValidationResult(
             validated_at="2026-04-15T12:00:00",
@@ -616,8 +616,8 @@ class TestLibraryValidate:
         )
 
         with (
-            patch("personalscraper.library.validator.validate_library", return_value=mock_result) as mock_val,
-            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.verify.library_checks.validate_library", return_value=mock_result) as mock_val,
+            patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
             patch("personalscraper.cli.get_settings") as mock_settings,
         ):
@@ -635,7 +635,7 @@ class TestLibraryValidate:
 
     def test_fix_suggests_rescrape(self, tmp_path) -> None:
         """--fix with remaining issues should suggest library-rescrape."""
-        from personalscraper.library.models import LibraryValidationResult
+        from personalscraper.verify.library_checks import LibraryValidationResult
 
         mock_result = LibraryValidationResult(
             validated_at="2026-04-15T12:00:00",
@@ -648,8 +648,8 @@ class TestLibraryValidate:
         )
 
         with (
-            patch("personalscraper.library.validator.validate_library", return_value=mock_result),
-            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.verify.library_checks.validate_library", return_value=mock_result),
+            patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
             patch("personalscraper.cli.get_settings") as mock_settings,
         ):
@@ -712,7 +712,7 @@ class TestLibraryRescrape:
 
     def test_dry_run_no_lock(self, tmp_path) -> None:
         """--dry-run should not acquire lock."""
-        from personalscraper.library.models import LibraryRescrapeResult
+        from personalscraper.maintenance.rescraper import LibraryRescrapeResult
 
         mock_result = LibraryRescrapeResult(
             rescraped_at="2026-04-17T12:00:00",
@@ -726,8 +726,8 @@ class TestLibraryRescrape:
         )
 
         with (
-            patch("personalscraper.library.rescraper.rescrape_library", return_value=mock_result),
-            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.maintenance.rescraper.rescrape_library", return_value=mock_result),
+            patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
             patch("personalscraper.cli.get_settings") as mock_settings,
             patch("personalscraper.cli.acquire_lock") as mock_lock,

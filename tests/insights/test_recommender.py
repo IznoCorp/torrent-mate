@@ -1,4 +1,4 @@
-"""Tests for personalscraper.library.recommender — re-download recommendations."""
+"""Tests for personalscraper.insights.recommender — re-download recommendations."""
 
 import pytest
 
@@ -8,7 +8,7 @@ from personalscraper.conf.models.preferences import (
     RuleCriteria,
     VideoPrefs,
 )
-from personalscraper.library.models import (
+from personalscraper.insights.models import (
     PRIORITY_HIGH,
     PRIORITY_MEDIUM,
     AudioTrack,
@@ -17,7 +17,7 @@ from personalscraper.library.models import (
     SubtitleTrack,
     VideoInfo,
 )
-from personalscraper.library.recommender import generate_recommendations
+from personalscraper.insights.recommender import generate_recommendations
 
 
 def _make_movie(

@@ -185,7 +185,7 @@ def library_clean(
         personalscraper library-clean --only orphans --apply        # delete
         personalscraper library-clean --disk Disk1
     """
-    from personalscraper.library.disk_cleaner import clean_library
+    from personalscraper.maintenance.disk_cleaner import clean_library
 
     category_id = _resolve_category(ctx, category)
     console = state["console"]
@@ -283,8 +283,8 @@ def library_validate(
         personalscraper library-validate --fix --apply
         personalscraper library-validate --from-index
     """
-    from personalscraper.library.models import write_json
-    from personalscraper.library.validator import validate_from_index, validate_library
+    from personalscraper.io_utils import write_json
+    from personalscraper.verify.library_checks import validate_from_index, validate_library
 
     category_id = _resolve_category(ctx, category)
     console = state["console"]

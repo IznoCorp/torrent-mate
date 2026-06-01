@@ -267,6 +267,12 @@ def library_index_command(
                         # diverge from the transfer layer after a mount_path change.
                         fs_type_overrides=cli_compat.build_fs_type_overrides(cfg.disks),
                         event_bus=event_bus,
+                        # DESIGN §4.1/§5 — pass the loaded config so scan()'s
+                        # full-mode branch runs the item stage (pass 1) exactly
+                        # once, library-wide, before the per-disk file walk.
+                        # The pass-1 writes land on ``conn`` inside the dry_run
+                        # SAVEPOINT scope, so a dry run still rolls them back.
+                        config=cfg,
                     )
                 except DiskBulkChangeDetected as bulk_exc:
                     typer.echo(

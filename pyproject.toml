@@ -81,6 +81,7 @@ markers = [
     "slow: slow tests (perf regression), off by default — run with -m slow",
     "darwin_only: macOS-only smoke tests (skipped on Linux/Windows CI runners)",
     "multifs: filesystem-capability tests using faked mount/stat fixtures (no real disks required)",
+    "integration: cross-module characterization / integration tests (not unit; may build a temp library FS)",
 ]
 addopts = "-m 'not e2e and not e2e_torrent and not e2e_idempotence and not slow and not network'"
 
@@ -127,7 +128,9 @@ reportMissingTypeStubs = "none"
 
 [tool.coverage.run]
 source = ["personalscraper"]
-omit = ["personalscraper/__main__.py"]
+omit = [
+    "personalscraper/__main__.py",
+]
 branch = true
 parallel = true
 concurrency = ["multiprocessing"]

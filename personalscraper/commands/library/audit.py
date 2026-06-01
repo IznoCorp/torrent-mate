@@ -128,9 +128,68 @@ def library_reconcile(
         )
     finally:
         current_correlation_id.reset(token)
+
+    # Proactive no-NFO visibility (DESIGN decision #3): surface items the
+    # scanner flagged with the folder-name fallback so the audit output points
+    # the operator straight at the repair command.
+    if isinstance(payload, dict):
+        payload.setdefault("nfo_missing_count", _count_nfo_missing(loaded_config))
+
     emit(payload, rich_renderer=lambda: _print_reconcile_rich(payload))
     if rc != 0:
         raise typer.Exit(rc)
+
+
+def _count_nfo_missing(loaded_config: object) -> int:
+    """Count distinct items flagged ``nfo_missing`` / ``nfo_incomplete``.
+
+    A read-only helper for the proactive no-NFO line in ``library-reconcile``
+    output. Returns 0 for the benign pre-migration / missing-table case
+    (``sqlite3.OperationalError``) — and logs a warning first so the advisory
+    line is silently dropped only when the ``item_issue`` table genuinely does
+    not exist yet. A real DB error (corruption, lock) is a different
+    ``sqlite3.Error`` subclass and is intentionally allowed to propagate rather
+    than masquerading as "0 items without NFO" (mirrors the narrowed contract
+    of ``doctor._check_nfo_missing``).
+
+    Args:
+        loaded_config: The loaded config object (``ctx.obj.config``), or ``None``.
+
+    Returns:
+        Number of distinct items with a missing/incomplete NFO, or 0 when the
+        ``item_issue`` table is absent (pre-migration DB).
+
+    Raises:
+        sqlite3.Error: For non-OperationalError DB failures (corruption, lock,
+            disk failure) — surfaced instead of silently returning 0.
+    """
+    import sqlite3 as _sqlite3  # noqa: PLC0415
+
+    from personalscraper.indexer.db import _apply_pragmas  # noqa: PLC0415
+
+    if loaded_config is None:
+        return 0
+    db_path = getattr(getattr(loaded_config, "indexer", None), "db_path", None)
+    if db_path is None or not Path(db_path).exists():
+        return 0
+    try:
+        conn = _sqlite3.connect(str(db_path))
+        _apply_pragmas(conn)
+        try:
+            row = conn.execute(
+                "SELECT COUNT(DISTINCT item_id) FROM item_issue WHERE type IN ('nfo_missing','nfo_incomplete')"
+            ).fetchone()
+        finally:
+            conn.close()
+    except _sqlite3.OperationalError as exc:
+        # Pre-migration / missing-table case only (mirrors
+        # ``doctor._check_nfo_missing``): the ``item_issue`` table does not
+        # exist yet. A genuine DB error (corruption, lock, disk failure) is a
+        # different sqlite3.Error subclass and is intentionally NOT swallowed
+        # here so it surfaces instead of reading as "0 items without NFO".
+        log.warning("nfo_missing_count_unavailable", db_path=str(db_path), error=str(exc))
+        return 0
+    return int(row[0]) if row and row[0] is not None else 0
 
 
 def _print_reconcile_rich(payload: dict[str, object]) -> None:
@@ -174,6 +233,15 @@ def _print_reconcile_rich(payload: dict[str, object]) -> None:
 
     if payload.get("enqueued_repairs", 0):
         console.print(f"[bold green]enqueued_repairs:[/bold green] {payload['enqueued_repairs']}")
+
+    # Proactive no-NFO visibility (DESIGN decision #3): a yellow advisory line
+    # pointing the operator at the targeted re-scrape repair command.
+    nfo_missing_count = cast("int", payload.get("nfo_missing_count", 0))
+    if nfo_missing_count > 0:
+        console.print(
+            f"[yellow]{nfo_missing_count} item(s) without a valid NFO — "
+            "run `library-rescrape --only nfo` to repair.[/yellow]"
+        )
 
 
 @app.command("library-ghost-audit")

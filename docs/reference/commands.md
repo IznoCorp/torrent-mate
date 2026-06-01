@@ -44,7 +44,7 @@ relates to. The canonical source for flag names is `personalscraper <cmd>
 ### Library — indexer & maintenance (→ 6.2.b)
 
 14. [`library-index`](#personalscraper-library-index) — scan disks into the indexer DB
-15. [`library-scan`](#personalscraper-library-scan) — NFO-based row creation
+15. [`library-scan`](#personalscraper-library-scan) — visible alias of `library-index --mode full`
 16. [`library-init-canonical`](#personalscraper-library-init-canonical) — bootstrap canonical_provider from NFOs
 17. [`library-status`](#personalscraper-library-status) — latest scan run summary
 18. [`library-verify`](#personalscraper-library-verify) — re-stat indexed files, enqueue mismatches
@@ -471,7 +471,14 @@ database, and prints a JSON summary. Supports multiple scan modes: `full`
 short-circuit), `incremental` (only new or modified files), and `enrich`
 (metadata enrichment from NFOs, artwork, and media streams).
 
-**Side effects**: `mutate BDD` (writes media_file, path, scan_run, scan_event rows)
+`library-index --mode full` is **self-sufficient** — it runs the item-stage
+pass (rich `media_item` rows: title, canonical provider, seasons, artwork
+status, `item_issue` flags) as **pass 1**, then the recursive file walk
+(`media_file` / `media_stream` / `path` rows) as **pass 2**, inside a single
+invocation. No prior `library-scan` step is required (the legacy two-step
+"scan then index" workflow is gone).
+
+**Side effects**: `mutate BDD` (writes media_item, season, episode, item_attribute, media_file, path, scan_run, scan_event rows)
 
 **Pipeline position**: n/a (indexer maintenance, runs independently from the pipeline)
 
@@ -502,22 +509,22 @@ short-circuit), `incremental` (only new or modified files), and `enrich`
 
 ## `personalscraper library-scan`
 
-**Purpose**: Scans media directories on disks and creates `media_item` rows from
-NFO files. Walks all configured storage disks (or a single disk with `--disk`),
-scans movie / TV show directories, reads NFO files, and writes `media_item`,
-`season`, `episode`, and `item_attribute` rows to the indexer DB. Delegates
-file-level indexing to the underlying indexer scanner so `media_file` / `path`
-rows are also populated.
+**Purpose**: Visible alias of `library-index --mode full`, kept in `--help` for
+backwards compatibility. It delegates to the very same indexer command that
+backs `library-index`, fixing `mode="full"`: the item-stage pass writes the
+rich `media_item` / `season` / `episode` / `item_attribute` rows, and the file
+walk populates the `media_file` / `path` rows — both in a single invocation. It
+no longer exposes `--mode` (always equivalent to `--mode full`). New scripts
+should call `library-index --mode full` directly.
 
 **Side effects**: `mutate BDD` (writes media_item, season, episode, item_attribute, media_file, path rows)
 
-**Pipeline position**: n/a (NFO-based DB population, runs independently)
+**Pipeline position**: n/a (alias of `library-index --mode full`, runs independently)
 
 **Args**:
 
 - `--disk / -d TEXT` : Restrict scan to this disk label
-- `--mode TEXT` : Scan mode (currently only `full` is supported) [default: full]
-- `--dry-run` : Count media dirs without writing to DB
+- `--dry-run` : Simulate scan without persisting any DB rows
 
 **Examples**:
 
@@ -1039,15 +1046,15 @@ and the count is reported.
 
 ## `personalscraper library-analyze`
 
-**Purpose**: Deep scan video files with ffprobe (codec, audio, subtitles) and
-print a summary. Most I/O-intensive command — schedule during off-peak hours.
-Use `--from-index` to read enrich-populated streams from the indexer DB instead
-(orders of magnitude faster, with documented HDR/Atmos caveats). The result set
-is not persisted to disk — `library-recommend` runs this scan inline before
-producing recommendations, so there is no need to call `library-analyze` first
-as a side-effect setup step.
+**Purpose**: Print a codec / audio / subtitle summary read **from the indexer
+DB** (no inline ffprobe, no filesystem walk — the legacy ffprobe re-scan was
+removed). Requires a prior `library-index --mode enrich` pass to populate the
+`media_stream` rows. The `--from-index` flag is accepted for backwards
+compatibility but ignored: the DB is always the sole source. HDR / Atmos
+detection is approximated from the enriched columns (see the
+`analyze_from_index` docstring for the per-field caveats).
 
-**Side effects**: `read-only` (ffprobe subprocess spawns unless `--from-index`)
+**Side effects**: `read-only` (DB query only — no ffprobe subprocess)
 
 **Pipeline position**: n/a
 
@@ -1056,10 +1063,8 @@ as a side-effect setup step.
 - `--disk TEXT` : Analyze only this disk
 - `--category TEXT` : Analyze only this category
 - `--max-items INTEGER` : Limit number of items to analyze
-- `--from-index` : Read codec / audio / subtitle data from the indexer DB
-  instead of running ffprobe per file. Requires a prior `library-index --mode
-enrich` pass; HDR / Atmos detection is approximated (see
-  `analyze_from_index` docstring).
+- `--from-index` : Accepted but ignored — the indexer DB is always the sole
+  source. Kept for backwards compatibility.
 
 **Examples**:
 
@@ -1074,15 +1079,16 @@ enrich` pass; HDR / Atmos detection is approximated (see
 
 ## `personalscraper library-recommend`
 
-**Purpose**: Generate re-download recommendations from a fresh ffprobe analysis.
-Runs the ffprobe analysis inline (no on-disk cache) and feeds the in-memory
-result to the recommender. Preferences come from `config.library`. Output is
-written to `library_recommendations.json`. Pass `--from-index` to skip ffprobe
-and read streams from the indexer DB instead (orders of magnitude faster on a
-populated index).
+**Purpose**: Generate re-download recommendations from an analysis read **from
+the indexer DB** (no inline ffprobe, no filesystem walk — the legacy ffprobe
+re-scan was removed). Requires a prior `library-index --mode enrich` pass to
+populate the `media_stream` rows. Preferences come from `config.library`.
+Output is written to `library_recommendations.json`. The `--from-index` flag is
+accepted for backwards compatibility but ignored: the DB is always the sole
+source.
 
-**Side effects**: `mutate FS` (writes `library_recommendations.json`), ffprobe
-subprocess spawns (unless `--from-index`)
+**Side effects**: `mutate FS` (writes `library_recommendations.json`) — no
+ffprobe subprocess
 
 **Pipeline position**: n/a
 
@@ -1092,9 +1098,8 @@ subprocess spawns (unless `--from-index`)
 - `--export TEXT` : Export format: `csv`
 - `--disk TEXT` : Filter to this disk
 - `--category TEXT` : Filter to this category
-- `--from-index` : Read codec / audio / subtitle data from the indexer DB
-  instead of running ffprobe per file. Requires a prior `library-index --mode
-enrich` pass.
+- `--from-index` : Accepted but ignored — the indexer DB is always the sole
+  source. Kept for backwards compatibility.
 
 **Examples**:
 

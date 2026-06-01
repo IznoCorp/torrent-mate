@@ -494,6 +494,47 @@ def _check_canonical_provider_populated(conn: sqlite3.Connection, threshold_pct:
     )
 
 
+def _check_nfo_missing(conn: sqlite3.Connection) -> CheckResult:
+    """Report items flagged as having a missing or incomplete NFO.
+
+    Surfaces the ``nfo_missing`` / ``nfo_incomplete`` ``item_issue`` rows the
+    scanner writes when a directory was indexed via the folder-name fallback
+    (DESIGN decision #2/#3). NFO-less items are never dropped — they are
+    indexed and flagged so the operator can repair them with a targeted
+    re-scrape.
+
+    Args:
+        conn: Open :class:`sqlite3.Connection` on the indexer DB.
+
+    Returns:
+        :class:`CheckResult` with status ``warn`` when one or more items lack a
+        valid NFO, ``ok`` when none do, ``skip`` when the ``item_issue`` table
+        does not exist yet (pre-migration DB).
+    """
+    try:
+        row = conn.execute(
+            "SELECT COUNT(DISTINCT item_id) FROM item_issue WHERE type IN ('nfo_missing','nfo_incomplete')"
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return CheckResult(
+            name="nfo_missing",
+            status=CheckStatus.SKIP,
+            message="item_issue table missing (pre-migration DB)",
+        )
+    count = row[0] if row else 0
+    if count == 0:
+        return CheckResult(
+            name="nfo_missing",
+            status=CheckStatus.OK,
+            message="All items have a valid NFO.",
+        )
+    return CheckResult(
+        name="nfo_missing",
+        status=CheckStatus.WARN,
+        message=(f"{count} item(s) without a valid NFO — run `library-rescrape --only nfo` to repair."),
+    )
+
+
 def _check_phantom_paths(conn: sqlite3.Connection) -> CheckResult:
     """Check for phantom paths (path rows whose resolved absolute path is gone).
 
@@ -579,6 +620,7 @@ def run_doctor(
         _check_merkle_drift(conn, fs_type_overrides),
         _check_canonical_provider_populated(conn, threshold_pct=canonical_provider_threshold_pct),
         _check_phantom_paths(conn),
+        _check_nfo_missing(conn),
     ]
     elapsed = time.monotonic() - start
     return DoctorReport(checks=checks, elapsed_s=elapsed)

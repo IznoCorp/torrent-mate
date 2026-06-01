@@ -2,7 +2,7 @@
 
 import pytest
 
-from personalscraper.naming_patterns import PATTERNS, SEASON_DIR_RE, NamingPatterns
+from personalscraper.naming_patterns import PATTERNS, SEASON_DIR_RE, NamingPatterns, season_number_from_dir
 
 # --- NamingPatterns dataclass ---
 
@@ -188,7 +188,6 @@ class TestSeasonDirRegex:
 
     def test_non_saison_dir_rejected(self):
         """Random directory names should not match."""
-        assert not SEASON_DIR_RE.match("Season 01")
         assert not SEASON_DIR_RE.match("S01")
         assert not SEASON_DIR_RE.match("Extras")
 
@@ -215,3 +214,73 @@ class TestSeasonDirRegex:
         assert m1 is not None and int(m1.group(1)) == 1
         m100 = SEASON_DIR_RE.match("Saison 100")
         assert m100 is not None and int(m100.group(1)) == 100
+
+
+# --- SEASON_DIR_RE no-regression: every form any of the 5 ad-hoc copies matched ---
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # French forms (canonical — must always have matched)
+        "Saison 1",
+        "Saison 01",
+        "Saison 12",
+        # English forms (matched by disk_cleaner / enrich / incremental copies)
+        "Season 1",
+        "Season 01",
+        "Season 12",
+        # Specials (matched by disk_cleaner / enrich / incremental copies)
+        "Specials",
+        "Special",
+        # Mixed-case keywords (the ad-hoc copies used re.IGNORECASE on the keyword)
+        "saison 3",
+        "season 3",
+        # No-space forms — matched by the \s* ad-hoc copies, DESIGN §3.4 parity
+        "Saison1",
+        "Season1",
+        "saison5",
+    ],
+)
+def test_season_dir_re_matches(name: str) -> None:
+    """SEASON_DIR_RE must match all forms any of the 5 ad-hoc copies matched."""
+    assert SEASON_DIR_RE.match(name), f"SEASON_DIR_RE did not match {name!r}"
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Movies",
+        "2023",
+        "Extras",
+        "Behind the Scenes",
+        "",
+    ],
+)
+def test_season_dir_re_does_not_match(name: str) -> None:
+    """SEASON_DIR_RE must not match non-season directory names."""
+    assert not SEASON_DIR_RE.match(name), f"SEASON_DIR_RE wrongly matched {name!r}"
+
+
+# --- season_number_from_dir ---
+
+
+@pytest.mark.parametrize(
+    "name,expected",
+    [
+        ("Saison 3", 3),
+        ("Saison 03", 3),
+        ("Season 12", 12),
+        ("Specials", 0),
+        ("Special", 0),
+        ("saison 5", 5),
+        ("season 5", 5),
+        ("Season1", 1),
+        ("Saison1", 1),
+        ("Movies", None),
+        ("", None),
+    ],
+)
+def test_season_number_from_dir(name: str, expected: int | None) -> None:
+    """season_number_from_dir extracts int for numbered seasons, 0 for Specials, None otherwise."""
+    assert season_number_from_dir(name) == expected

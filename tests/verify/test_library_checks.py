@@ -1,12 +1,14 @@
-"""Tests for personalscraper.library.validator — library validation."""
+"""Tests for personalscraper.verify.library_checks — library validation."""
 
 from pathlib import Path
+
+import pytest
 
 from personalscraper.conf.models.categories import CategoryConfig
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.paths import PathConfig
-from personalscraper.library.validator import validate_library
+from personalscraper.verify.library_checks import ValidationItem, validate_library
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
@@ -130,7 +132,7 @@ class TestValidateFromIndexEdgeCases:
         """
         from unittest.mock import MagicMock
 
-        from personalscraper.library.validator import validate_from_index
+        from personalscraper.verify.library_checks import validate_from_index
 
         # Build one row with an obviously malformed artwork_json blob.
         row = {
@@ -160,7 +162,7 @@ class TestValidateFromIndexEdgeCases:
         """artwork_raw being empty/None skips the parse branch entirely."""
         from unittest.mock import MagicMock
 
-        from personalscraper.library.validator import validate_from_index
+        from personalscraper.verify.library_checks import validate_from_index
 
         row = {
             "id": 1,
@@ -182,3 +184,131 @@ class TestValidateFromIndexEdgeCases:
         assert result.total_items == 1
         # No artwork errors when the column is NULL
         assert "poster_present" not in result.items[0].errors
+
+
+class TestValidationItem:
+    """Tests for ValidationItem model."""
+
+    def test_valid_item(self) -> None:
+        """Item with all checks passed."""
+        item = ValidationItem(
+            path="/tmp/Movie (2024)",
+            disk="Disk1",
+            category="films",
+            media_type="movie",
+            title="Movie",
+            year=2024,
+            status="valid",
+            errors=[],
+            warnings=[],
+            fixes_applied=[],
+        )
+        assert item.status == "valid"
+
+    def test_item_with_issues(self) -> None:
+        """Item with errors should have 'issues' status."""
+        item = ValidationItem(
+            path="/tmp/Movie",
+            disk="Disk1",
+            category="films",
+            media_type="movie",
+            title="Movie",
+            year=None,
+            status="issues",
+            errors=["nfo_missing", "bad_dir_naming"],
+            warnings=["no_landscape"],
+            fixes_applied=[],
+        )
+        assert item.status == "issues"
+        assert len(item.errors) == 2
+
+
+class TestValidationItemInvariant:
+    """Tests for ValidationItem.__post_init__ enforcement."""
+
+    def test_valid_status_accepted(self) -> None:
+        """Valid status values should be accepted."""
+        for status in ("valid", "fixed", "issues"):
+            item = ValidationItem(
+                path="/tmp/X",
+                disk="Disk1",
+                category="films",
+                media_type="movie",
+                title="X",
+                year=2024,
+                status=status,
+                errors=["err"] if status == "issues" else [],
+                fixes_applied=["fix"] if status == "fixed" else [],
+            )
+            assert item.status == status
+
+    def test_invalid_status_raises(self) -> None:
+        """Unknown status should raise ValueError."""
+        with pytest.raises(ValueError, match="status"):
+            ValidationItem(
+                path="/tmp/X",
+                disk="Disk1",
+                category="films",
+                media_type="movie",
+                title="X",
+                year=2024,
+                status="blocked",
+            )
+
+    def test_fixed_without_fixes_raises(self) -> None:
+        """status='fixed' with empty fixes_applied should raise."""
+        with pytest.raises(ValueError, match="fixes_applied"):
+            ValidationItem(
+                path="/tmp/X",
+                disk="Disk1",
+                category="films",
+                media_type="movie",
+                title="X",
+                year=2024,
+                status="fixed",
+                fixes_applied=[],
+            )
+
+    def test_valid_with_errors_raises(self) -> None:
+        """status='valid' with errors should raise."""
+        with pytest.raises(ValueError, match="valid"):
+            ValidationItem(
+                path="/tmp/X",
+                disk="Disk1",
+                category="films",
+                media_type="movie",
+                title="X",
+                year=2024,
+                status="valid",
+                errors=["nfo_present"],
+            )
+
+    def test_issues_without_errors_or_warnings_raises(self) -> None:
+        """status='issues' with no errors and no warnings should raise."""
+        with pytest.raises(ValueError, match="issues"):
+            ValidationItem(
+                path="/tmp/X",
+                disk="Disk1",
+                category="films",
+                media_type="movie",
+                title="X",
+                year=2024,
+                status="issues",
+                errors=[],
+                warnings=[],
+            )
+
+    def test_issues_with_only_warnings_accepted(self) -> None:
+        """status='issues' with only warnings should be accepted."""
+        item = ValidationItem(
+            path="/tmp/X",
+            disk="Disk1",
+            category="films",
+            media_type="movie",
+            title="X",
+            year=2024,
+            status="issues",
+            errors=[],
+            warnings=["no_landscape"],
+        )
+        assert item.status == "issues"

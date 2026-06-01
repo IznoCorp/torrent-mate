@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from personalscraper.conf.models.preferences import LibraryPrefs
-from personalscraper.library.models import (
+from personalscraper.insights.models import (
     PRIORITY_HIGH,
     PRIORITY_LOW,
     PRIORITY_MEDIUM,
@@ -22,7 +22,7 @@ from personalscraper.library.models import (
 )
 from personalscraper.logger import get_logger
 
-log = get_logger("library.recommender")
+log = get_logger("insights.recommender")
 
 
 def _max_priority(*priorities: str) -> str:
