@@ -5,6 +5,57 @@ All notable changes to personalscraper are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] — 2026-06-01
+
+### Changed
+
+- **Library / Indexer consolidation (lib-fold)**: the standalone top-level
+  `library/` package was deleted and its responsibilities folded into the
+  indexer, `insights/`, `maintenance/`, and `verify/`.
+  - `library-index --mode full` is now **self-sufficient**: it runs the item
+    stage (rich `media_item` rows) as pass 1, then the file walk as pass 2, in a
+    single invocation. No prior `library-scan` step is required.
+  - `library-scan` is now a **visible alias** of `library-index --mode full`
+    (kept in `--help` for backwards compatibility; no longer exposes `--mode`).
+  - **Single `media_item` creator**: `dispatch/media_index.rebuild()` (via
+    `add()`) now produces rich rows through the shared `_item_stage` row builder
+    (`build_item_row`), eliminating the prior `canonical_provider=None`
+    degradation on the dispatch path.
+  - **Kind-deterministic canonical SSOT**: `canonical_provider` is derived from
+    kind + provider IDs via `_canonical.derive_canonical_provider` (show → tvdb
+    when a tvdb_id exists, movie → tmdb when a tmdb_id exists).
+  - **Season-dir regex widened**: `naming_patterns.SEASON_DIR_RE` now matches the
+    FR + EN + `Specials` union; new `season_number_from_dir()` helper added.
+  - NFO helpers (`parse_title_year`, `extract_nfo_ids`, `extract_nfo_metadata`)
+    moved to `personalscraper.nfo_utils`.
+  - `write_json` / `read_json` moved to `personalscraper.io_utils`.
+  - The redundant inline **ffprobe re-scan was dropped** from `library-analyze`
+    and `library-recommend` — both now read enrich-populated `media_stream` rows
+    from the indexer DB (`hdr_format` / `is_atmos` columns pre-existed and are
+    populated by `library-index --mode enrich`). The `--from-index` flag is now
+    accepted-but-ignored (the DB is always the sole source).
+  - `library-doctor` / `library audit` now surface items without a valid NFO
+    (the `nfo_missing` / `nfo_incomplete` `item_issue` rows) with a repair hint
+    pointing at `library-rescrape --only nfo`.
+
+### Added
+
+- `personalscraper/insights/` — read-only analytics package over the indexer DB
+  (`analytics.py`, `reporter.py`, `recommender.py`, `models.py`); backs
+  `library-analyze`, `library-recommend`, and `library-report`.
+- `personalscraper/maintenance/` — operator-upkeep package (`disk_cleaner.py`,
+  `rescraper.py`); backs `library-clean` and `library-rescrape`.
+- `personalscraper/verify/library_checks.py` — standalone re-home of the former
+  `library/validator.py` (NFO / artwork / naming conformity), backing
+  `library-validate`; registerable in the future Check plugin system.
+- `personalscraper/naming_patterns.season_number_from_dir()` helper.
+
+### Removed
+
+- `personalscraper/library/` package (all modules) — responsibilities re-homed
+  into `indexer/scanner/_modes/_item_stage*`, `insights/`, `maintenance/`, and
+  `verify/library_checks.py`.
+
 ## [0.18.0] — 2026-05-29
 
 ### Added
