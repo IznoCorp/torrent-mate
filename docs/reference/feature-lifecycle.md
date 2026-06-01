@@ -111,7 +111,7 @@ comment:
 
 ```markdown
 **Status**: 🟡 DEFERRED — acceptance-check backfill deferred to 0.17+
-(see docs/features/tech-debt/audit/11-global-synthesis.md §out-of-scope)
+(see docs/archive/features/tech-debt/audit/11-global-synthesis.md §out-of-scope)
 ```
 
 Undocumented deferrals are treated as ❌ at merge time.

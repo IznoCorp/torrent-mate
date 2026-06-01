@@ -22,33 +22,35 @@ already returned 1 for REPORT-level findings — but there were none to trip it.
 The 0.16.0 action cleaned the dead flag and documented the convention here so
 the hard-block is auditable and the promise is closed.
 
-## Close-to-block modules (2026-05-24)
+## Close-to-block modules (2026-06-01)
 
-Last refreshed 2026-05-24 — regenerate via:
+Last refreshed 2026-06-01 — regenerate via:
 `python3 scripts/check-module-size.py`.
 
-Modules within 100 LOC of the 1000 BLOCK ceiling:
+Module LOC are non-blank-line counts (the proxy used by
+`scripts/check-module-size.py`). The scraper modules nearest the ceiling:
 
 | Module                                          | LOC | Distance to BLOCK |
 | ----------------------------------------------- | --- | ----------------- |
-| `personalscraper/scraper/tv_service.py`         | 998 | **2 LOC**         |
-| `personalscraper/scraper/existing_validator.py` | 917 | 83 LOC            |
+| `personalscraper/scraper/movie_service.py`      | 975 | 25 LOC            |
+| `personalscraper/scraper/tv_service.py`         | 797 | 203 LOC           |
+| `personalscraper/scraper/existing_validator.py` | 642 | 358 LOC           |
 
-Any feature touching these modules must either stay under the ceiling or split
-before merging.
+Only `movie_service.py` (975) is still within 100 LOC of the 1000 BLOCK ceiling
+and remains the single near-WARN/near-block file. `tv_service.py` (797) is just
+under the 800 WARN threshold, and `existing_validator.py` (642) is now well
+below both. Any feature touching `movie_service.py` must either stay under the
+ceiling or split before merging.
 
-## Split plan (deferred to 0.17+)
+## Split plan
 
-Per Phase 8 §8.11 (Option B): splitting `tv_service.py` and `existing_validator.py`
-is deferred to 0.17+. The 0.16.0 scope is limited to enforcing the hard-block and
-documenting the near-block risk. When 0.17+ picks this up:
+`movie_service.py` (975) is the remaining split candidate: if a feature would
+push it over the 1000 BLOCK ceiling, extract a cohesive concern (e.g. movie NFO
+emission or artwork resolution) into a sibling helper module before merging.
 
-- `tv_service.py` (998): extract TVDB-specific helpers to `_tvdb.py` or split by
-  concern (search vs. episode vs. season).
-- `existing_validator.py` (917): extract NFO validation to `_nfo_validator.py`.
-
-Until then, these modules are **split-required** before any feature that would
-add > 2 LOC to `tv_service.py` or > 83 LOC to `existing_validator.py`.
+`tv_service.py` and `existing_validator.py` were near-block in earlier versions
+(998 and 917 respectively at 0.16.0) but have since dropped below the WARN
+threshold; no split is currently required for them.
 
 ## Integration
 

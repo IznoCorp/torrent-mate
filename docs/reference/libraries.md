@@ -1,6 +1,6 @@
 # Libraries Reference
 
-Python library gotchas: rapidfuzz, tenacity, structlog, rich, guessit.
+Python library gotchas: rapidfuzz, tenacity, structlog, rich, yt-dlp, guessit.
 
 ## rapidfuzz (fuzzy matching)
 
@@ -44,4 +44,5 @@ Used by the sorter matcher and dispatch media_index.
 
 ## guessit (filename parsing)
 
-Used by the sorter for media filename parsing. Reference: `docs/guessit-evaluation.md`.
+Used by the sorter for media filename parsing. Reference:
+`docs/archive/legacy-alpha/guessit-evaluation.md`.

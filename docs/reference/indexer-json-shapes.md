@@ -5,8 +5,12 @@ shape model in `personalscraper/indexer/schema.py`. This document provides
 the canonical shape and a concrete example for each column.
 
 > **Validation status (2026-05):** `ArtworkInventory` is the only model
-> that is genuinely instantiated at write time (by `library/scanner.py`
-> and `indexer/scanner/_modes/verify.py`). The other models — `OutboxPayload`,
+> that is genuinely instantiated at write time. The write sites are
+> `personalscraper/indexer/scanner/_modes/_item_stage.py`
+> (`_artwork_inventory_movie` / `_artwork_inventory_tvshow`, used during the
+> item stage of `--mode full`) and
+> `personalscraper/indexer/scanner/_modes/enrich.py` (`_inventory_artwork`,
+> used during the enrich pass). The other models — `OutboxPayload`,
 > `RepairPayload`, `ScanStats`, `ScanEventPayload`, `DeletedSnapshot`
 > — currently serve as **documentation only**: production writers do
 > `json.dumps` directly from a raw `dict` and readers parse with

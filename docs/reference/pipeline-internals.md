@@ -60,6 +60,44 @@ The `Dispatcher` class selects the target disk for new items via `conf.resolver.
 - Movie `nfo_ids` check: both TMDB and IMDB required for a pass. Missing one → WARNING (check fails but non-blocking); missing both → ERROR (blocking).
 - TV show `nfo_ids` check: either TVDB or TMDB required for a pass (IMDB not required).
 
+## Per-step internals
+
+These notes complement the per-command CLI reference in
+[`commands.md`](commands.md) (flags, side effects) and the storage/move rules in
+[`storage.md`](storage.md).
+
+### Ingest
+
+`ingest/` wraps qBittorrent (`qbit_client.py`) and records already-ingested
+torrents in a JSON state file (`tracker.py`); `run_ingest` (`ingest/ingest.py`)
+is the entry point. Idempotence comes from the tracker — a completed torrent
+already recorded is skipped on the next run, so only new torrents are copied
+into staging.
+
+### Process (clean / cleanup)
+
+`process/` runs its sub-steps with **individual error isolation** — a failure in
+reclean does not abort dedup or cleanup. `clean` (step 3) re-sanitizes polluted
+folder names and removes fuzzy duplicates before scrape; `cleanup` (step 5)
+removes empty directories after scrape. Both are also exposed as standalone CLI
+commands; the composite `process` command runs clean → scrape → cleanup.
+
+### Enforce
+
+`enforce/` validates and corrects staging conventions (step 6, after cleanup,
+before verify) via three collaborators: a **file sanitizer** (NTFS-illegal
+characters, per-item `.DS_Store`), a **structure validator** (expected
+folder / NFO / artwork layout), and a **coherence checker** (cross-file naming +
+episode consistency).
+
+### StepReport contracts
+
+Every step returns a `StepReport`; the additive typed payload lives in
+`details_payload`. `personalscraper.reports.STEP_REPORT_CONTRACT` maps each of
+the nine public step names to its `*Details` dataclass (`IngestDetails`,
+`SortDetails`, `CleanDetails`, `ScrapeDetails`, `CleanupDetails`,
+`EnforceDetails`, `VerifyDetails`, `TrailersDetails`, `DispatchDetails`).
+
 ## Event Bus
 
 The pipeline broadcasts lifecycle and per-item activity through an
@@ -67,7 +105,7 @@ in-process typed bus
 (`personalscraper.core.event_bus.EventBus`). The bus is the **sole**
 emit substrate — there is no parallel callback channel.
 
-For the full reference — wiring, the 13-event v1 catalog, subscriber
+For the full reference — wiring, the 23-event v1 catalog, subscriber
 recipes, the boundary-only `AppContext` rule, the
 `current_correlation_id` ContextVar convention, the JSON
 serialization contract, performance notes, and the testing-pattern
