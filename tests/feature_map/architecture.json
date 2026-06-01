@@ -127,6 +127,18 @@
       "category": "documentation_only",
       "reason": "Phase 24 (registry docs rollout) — reference section linking to related docs. Not a behavior reachable from a single public function. Promote to a contract test if regressions surface.",
       "expires": "2028-05-28"
+    },
+    {
+      "anchor": "insights-package-new-in-0190",
+      "category": "documentation_only",
+      "reason": "lib-fold 0.19.0 — reference description of the new read-only insights/ package (analytics/reporter/recommender/models). The package code is covered by tests/insights/*; the doc section is a structural module-map reference, not a single-function contract.",
+      "expires": "2028-06-01"
+    },
+    {
+      "anchor": "maintenance-package-new-in-0190",
+      "category": "documentation_only",
+      "reason": "lib-fold 0.19.0 — reference description of the new maintenance/ package (disk_cleaner + rescraper). The package code is covered by tests/maintenance/*; the doc section is a structural module-map reference, not a single-function contract.",
+      "expires": "2028-06-01"
     }
   ]
 }
