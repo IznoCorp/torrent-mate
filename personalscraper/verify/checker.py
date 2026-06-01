@@ -12,8 +12,6 @@ issue can be auto-corrected by MediaFixer.
 
 import re
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
-from enum import Enum
 from pathlib import Path
 
 from personalscraper.conf.classifier import classify_from_nfo
@@ -22,6 +20,7 @@ from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_trailer_filena
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
 from personalscraper.text_utils import _NTFS_ILLEGAL
+from personalscraper.verify.checks.base import CheckResult, Severity
 
 log = get_logger("verify.checker")
 
@@ -36,37 +35,6 @@ _DIR_PATTERN = re.compile(r"^.+ \(\d{4}\)$")
 # (see episode_manager.rename_episodes). The fallback must not trip
 # episode_renamed / season_structure checks.
 _EPISODE_PATTERN = re.compile(r"^S\d{2}E\d{2}(?: - .+)?\.\w+$")
-
-
-class Severity(Enum):
-    """Check result severity level.
-
-    Attributes:
-        ERROR: Blocks dispatch — must be fixed or media is rejected.
-        WARNING: Informational — dispatch proceeds but issue is logged.
-    """
-
-    ERROR = "error"
-    WARNING = "warning"
-
-
-@dataclass
-class CheckResult:
-    """Result of a single quality check.
-
-    Attributes:
-        name: Check identifier (e.g. "nfo_present", "category").
-        passed: Whether the check passed.
-        severity: ERROR (blocking) or WARNING (informational).
-        message: Human-readable description of the issue.
-        fixable: Whether the issue can be auto-corrected.
-    """
-
-    name: str
-    passed: bool
-    severity: Severity
-    message: str
-    fixable: bool = False
 
 
 class MediaChecker:

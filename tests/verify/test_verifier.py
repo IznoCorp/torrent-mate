@@ -560,7 +560,7 @@ class TestVerifierEdgeCases:
         """Classify path: cat_check passed but _find_nfo returns None → category stays None."""
         # Build a movie dir that passes the "category" check but has no NFO file
         # (we patch _find_nfo to None to exercise the branch).
-        from personalscraper.verify.checker import CheckResult, Severity
+        from personalscraper.verify.checks.base import CheckResult, Severity
 
         v = Verifier(MagicMock(), NamingPatterns(), test_config)
         result = VerifyResult(media_path=tmp_path, media_type="movie")

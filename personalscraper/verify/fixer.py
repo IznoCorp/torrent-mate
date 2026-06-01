@@ -15,7 +15,7 @@ from pathlib import Path
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.nfo_utils import glob_nfo_candidates
-from personalscraper.verify.checker import CheckResult
+from personalscraper.verify.checks.base import CheckResult
 
 log = get_logger("verify.fixer")
 

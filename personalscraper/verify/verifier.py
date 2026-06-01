@@ -14,7 +14,8 @@ from personalscraper.config import Settings
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.nfo_utils import glob_nfo_candidates
-from personalscraper.verify.checker import CheckResult, MediaChecker, Severity
+from personalscraper.verify.checker import MediaChecker
+from personalscraper.verify.checks.base import CheckResult, Severity
 from personalscraper.verify.fixer import MediaFixer
 
 log = get_logger("verify.verifier")

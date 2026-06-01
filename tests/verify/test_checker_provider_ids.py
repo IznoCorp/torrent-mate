@@ -20,7 +20,8 @@ import pytest
 
 from personalscraper.conf.models.config import Config
 from personalscraper.naming_patterns import NamingPatterns
-from personalscraper.verify.checker import MediaChecker, Severity
+from personalscraper.verify.checker import MediaChecker
+from personalscraper.verify.checks.base import Severity
 
 
 @pytest.fixture()

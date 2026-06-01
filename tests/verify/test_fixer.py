@@ -11,7 +11,8 @@ import pytest
 
 from personalscraper.conf.models.config import Config
 from personalscraper.naming_patterns import NamingPatterns
-from personalscraper.verify.checker import CheckResult, MediaChecker, Severity
+from personalscraper.verify.checker import MediaChecker
+from personalscraper.verify.checks.base import CheckResult, Severity
 from personalscraper.verify.fixer import MediaFixer
 
 
