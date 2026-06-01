@@ -19,7 +19,7 @@
 | 2   | Migrate DISPATCH checks | phase-02-migrate-dispatch.md       | [x]    |
 | 3   | Consolidate fixes       | phase-03-consolidate-fixes.md      | [x]    |
 | 4   | DB-mode unification     | phase-04-db-mode.md                | [x]    |
-| 5   | Migrate STAGING checks  | phase-05-migrate-staging.md        | [ ]    |
+| 5   | Migrate STAGING checks  | phase-05-migrate-staging.md        | [x]    |
 | 6   | Granular CLI            | phase-06-granular-cli.md           | [ ]    |
 | 7   | Fix-policy unification  | phase-07-fix-policy-unification.md | [ ]    |
 | 8   | Latent bug fixes        | phase-08-latent-bug-fixes.md       | [ ]    |
@@ -58,7 +58,7 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-**Phase 4 DONE (gate green).** Proceed to **Phase 5 — Migrate STAGING checks** (`docs/features/check-plugins/plan/phase-05-migrate-staging.md`): migrate the enforce (STAGING coherence) checks — `check_coherence` — onto the framework via STAGING-stage plugins (the `(stage, name)` collision case: `nfo_ids` exists on both DISPATCH and STAGING). Strict 0→9 order; each phase ends with `make check`. The Phase-0 golden (esp. `coherence`) + `test_dispatch_parity` are the running parity guards.
+**Phase 5 DONE (gate green).** Proceed to **Phase 6 — Granular CLI** (`docs/features/check-plugins/plan/phase-06-granular-cli.md`): expose a granular CLI surface over the unified Check framework (list/run individual checks by stage+name, leveraging `catalog.list_checks` / `run_check`). Strict 0→9 order; each phase ends with `make check`. Parity guards: Phase-0 golden + `test_dispatch_parity`.
 
 ### Phase 0 gate record (2026-06-02)
 
@@ -95,5 +95,12 @@ _(filled by implement:pr-review — max 5 cycles)_
 - Sub-phases: `4.1` add `from_index()` to NfoPresent/NfoValid (nfo.py) + PosterPresent/ArtworkLandscape (artwork.py) — DB-mode IndexableCheck capability (`9a91a3d`); `4.2` `validate_from_index` becomes an `IndexableCheck` registry loop, replacing the inline `nfo_status`/`artwork_json` field-inspection (`09bc3148`).
 - Parity: `library_from_index` golden byte-identical. Verified the from_index methods reproduce the OLD inline logic exactly — incl. the **movie-only landscape gate** (`if media_type == "movie"` in legacy ⇄ `ArtworkLandscape.from_index` returns None for tvshow), `nfo_status` NULL→unflagged, and the nfo-before-artwork order (= `_ORDER`).
 - Gate green: `make check` ✓ (5875 passed, 0 failed, coverage 91.14%), ACC-01 golden 7 passed, ACC-02 168 passed, ACC-07 module-size (only the pre-existing movie_service.py WARN), `import personalscraper` ✓.
+
+### Phase 5 gate record (2026-06-02)
+
+- Sub-phases: `5.1` create `verify/checks/coherence.py` — 3 STAGING plugins `SortProcessCoherence`/`NfoIdsCoherence`/`GenreCoherence` (read-only, WARNING-only) (`fb2e77cb`); `5.2` `enforce/coherence_checker.check_coherence` becomes a STAGING registry loop with a `CoherenceResult` adapter, the 4 legacy `_check_*` methods deleted (`2512577d`, coherence_checker.py 186→99 LOC).
+- **ACC-05 (the `(stage, name)` collision)**: `registry.get(DISPATCH,'nfo_ids') is not registry.get(STAGING,'nfo_ids')` → **True**. DISPATCH `nfo_ids` (ERROR, full-id semantics) and STAGING `nfo_ids` (WARNING, coherence semantics) coexist independently.
+- Parity: `coherence` golden byte-identical. STAGING `_ORDER` (movie=[sort_process_coherence, nfo_ids], tvshow=[nfo_ids, genre_coherence, sort_process_coherence]) verified == the legacy append order; `[]`-on-no-NFO semantics + verbatim message strings preserved.
+- Gate green: `make check` ✓ (5889 passed, 0 failed, coverage 91.17%), ACC-01 golden 7 passed, ACC-02 181 passed, ACC-07 module-size (only the pre-existing movie_service.py WARN), `import personalscraper` ✓. Both stages now flow through the single registry.
 
 > **PR #33 is already created** (https://github.com/LounisBou/personal-scraper/pull/33, WIP). The branch is pushed to `origin/feat/check-plugins`. When the lifecycle reaches Phase 9 (`/implement:feature-pr`), it must **push onto the existing branch and reuse PR #33** (detect-existing, do not create a duplicate) — then `/implement:pr-review` → **manual squash merge**. Each implementation commit pushed to the branch updates PR #33 in place.
