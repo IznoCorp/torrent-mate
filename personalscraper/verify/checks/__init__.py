@@ -3,6 +3,7 @@
 from personalscraper.verify.checks import (  # noqa: F401
     artwork,
     category,
+    coherence,
     dedup,
     naming,
     nfo,
