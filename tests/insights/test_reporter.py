@@ -1,8 +1,8 @@
-"""Tests for personalscraper.library.reporter — DB-backed report generation.
+"""Tests for personalscraper.insights.reporter — DB-backed report generation.
 
 ``generate_report`` reads totals, distribution and top-largest data from
 :class:`AnalysisResult` produced by
-:func:`~personalscraper.library.analyzer.analyze` against the indexer DB.
+:func:`~personalscraper.insights.analytics.analyze` against the indexer DB.
 Validation, recommendations, and rescrape data remain regular per-command
 JSON outputs and are still consumed by the report.
 """
@@ -13,8 +13,9 @@ import sqlite3
 from pathlib import Path
 
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.library.analyzer import AnalysisResult, ArtworkCounts, NfoStatusCounts, analyze
-from personalscraper.library.reporter import LibraryReport, format_report_text, generate_report
+from personalscraper.insights.analytics import analyze
+from personalscraper.insights.models import AnalysisResult, ArtworkCounts, NfoStatusCounts
+from personalscraper.insights.reporter import LibraryReport, format_report_text, generate_report
 
 # ---------------------------------------------------------------------------
 # Shared artwork JSON constants (mirrors test_analyzer.py convention)

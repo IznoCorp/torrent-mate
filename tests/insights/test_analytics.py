@@ -1,37 +1,30 @@
-"""Tests for personalscraper.library.analyzer — rewritten for sub-phase 7.2.
+"""Tests for personalscraper.insights.analytics.
 
-Two test suites:
+Migrated from ``tests/library/test_analyzer.py`` (lib-fold Phase 4). The
+ffprobe ``analyze_library`` / ``_analyze_video_file`` suites were dropped —
+those functions were deleted with the library ffprobe re-scan.
+
+Three test suites remain:
 
 1. ``TestDeduceAudioProfile`` — pure-logic unit tests for the audio-profile
-   deduction helper (unchanged from pre-7.2; no DB required).
+   deduction helper (no DB required).
 
 2. ``TestAnalyze`` — DB-query tests for :func:`analyze`.
    Seeds an in-memory SQLite DB with known ``media_item`` and ``season`` rows,
    then asserts that :func:`analyze` returns the expected :class:`AnalysisResult`
    counts.  No JSON file is written or read.
 
-3. ``TestAnalyzeLibrary`` — ffprobe iteration tests for :func:`analyze_library`
-   (filesystem-level; uses ``unittest.mock.patch`` for ``extract_stream_info``).
+3. ``TestAnalyzeFromIndexExtraBranches`` — targeted branch tests for
+   :func:`analyze_from_index` (reads ``media_stream``).
 """
 
 from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-import pytest
-
-from personalscraper.conf.models.categories import CategoryConfig
-from personalscraper.conf.models.config import Config
-from personalscraper.conf.models.disks import DiskConfig
-from personalscraper.conf.models.paths import PathConfig
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.library.analyzer import AnalysisResult, analyze, deduce_audio_profile
-from tests.fixtures.config import CANONICAL_STAGING_DIRS
-
-if TYPE_CHECKING:
-    pass
+from personalscraper.insights.analytics import AnalysisResult, analyze, deduce_audio_profile
 
 # ---------------------------------------------------------------------------
 # Shared artwork JSON fixtures
@@ -68,43 +61,6 @@ def _make_conn() -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys=ON")
     apply_migrations(conn, MIGRATIONS_DIR)
     return conn
-
-
-# ---------------------------------------------------------------------------
-# Config helper
-# ---------------------------------------------------------------------------
-
-
-def _make_v15_config(
-    disk_path: Path,
-    disk_id: str,
-    folder_name: str,
-    category_id: str,
-    tmp_path: Path,
-) -> Config:
-    """Create a minimal V15 Config for a single disk/category.
-
-    Args:
-        disk_path: Root path of the disk.
-        disk_id: Disk identifier.
-        folder_name: Category folder name.
-        category_id: Category ID.
-        tmp_path: Pytest temporary directory.
-
-    Returns:
-        :class:`Config` with one disk and one category.
-    """
-    disk_cfg = DiskConfig(id=disk_id, path=disk_path, categories=[category_id])
-    return Config(
-        paths=PathConfig(
-            torrent_complete_dir=tmp_path / "torrents",
-            staging_dir=tmp_path / "staging",
-            data_dir=tmp_path / ".data",
-        ),
-        disks=[disk_cfg],
-        categories={category_id: CategoryConfig(folder_name=folder_name)},
-        staging_dirs=CANONICAL_STAGING_DIRS,
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -463,402 +419,18 @@ class TestAnalyze:
 
 
 # ---------------------------------------------------------------------------
-# Suite 3 — analyze_library (ffprobe) tests (kept for regression coverage)
+# Suite 3 — analyze_from_index branch tests
 # ---------------------------------------------------------------------------
-
-
-class TestAnalyzeLibrary:
-    """Tests for analyze_library — disk iteration, filtering, incremental."""
-
-    def _make_stream_info(self) -> dict:  # type: ignore[type-arg]
-        """Create a minimal stream info dict for mocking extract_stream_info.
-
-        Returns:
-            Minimal stream info dict accepted by _analyze_video_file.
-        """
-        return {
-            "video": {
-                "codec": "hevc",
-                "width": 1920,
-                "height": 1080,
-                "bitrate_kbps": 5000,
-                "hdr": {"is_hdr": False, "hdr_type": None},
-            },
-            "audio": [{"codec": "aac", "language": "fra", "channels": 2, "is_atmos": False, "is_default": True}],
-            "subtitle": [],
-            "duration_seconds": 7200.0,
-        }
-
-    def test_disk_filter(self, tmp_path: Path) -> None:
-        """--disk filter should only analyze the specified disk."""
-        from unittest.mock import patch
-
-        from personalscraper.library.analyzer import analyze_library
-
-        disk1 = tmp_path / "d1" / "medias"
-        disk2 = tmp_path / "d2" / "medias"
-        (disk1 / "films" / "A (2024)").mkdir(parents=True)
-        (disk1 / "films" / "A (2024)" / "a.mkv").write_bytes(b"\x00" * 1000)
-        (disk2 / "films" / "B (2024)").mkdir(parents=True)
-        (disk2 / "films" / "B (2024)" / "b.mkv").write_bytes(b"\x00" * 1000)
-
-        config = Config(
-            paths=PathConfig(
-                torrent_complete_dir=tmp_path / "torrents",
-                staging_dir=tmp_path / "staging",
-                data_dir=tmp_path / ".data",
-            ),
-            disks=[
-                DiskConfig(id="disk1", path=disk1, categories=["movies"]),
-                DiskConfig(id="disk2", path=disk2, categories=["movies"]),
-            ],
-            categories={"movies": CategoryConfig(folder_name="films")},
-            staging_dirs=CANONICAL_STAGING_DIRS,
-        )
-
-        with patch("personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()):
-            result = analyze_library(config, disk_filter="disk1")
-
-        assert result.item_count == 1
-
-    def test_max_items(self, tmp_path: Path) -> None:
-        """--max-items should limit items analyzed."""
-        from unittest.mock import patch
-
-        from personalscraper.library.analyzer import analyze_library
-
-        disk = tmp_path / "medias"
-        for name in ("A (2024)", "B (2024)", "C (2024)"):
-            d = disk / "films" / name
-            d.mkdir(parents=True)
-            (d / "movie.mkv").write_bytes(b"\x00" * 1000)
-
-        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
-
-        with patch("personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()):
-            result = analyze_library(config, max_items=2)
-
-        assert result.item_count == 2
-
-    def test_incremental_skips_unchanged(self, tmp_path: Path) -> None:
-        """Incremental mode should skip files with matching size_gb."""
-        from unittest.mock import patch
-
-        from personalscraper.library.analyzer import analyze_library
-
-        disk = tmp_path / "medias"
-        movie = disk / "films" / "Movie (2024)"
-        movie.mkdir(parents=True)
-        video = movie / "Movie.mkv"
-        video.write_bytes(b"\x00" * 1000)
-        size_gb = round(video.stat().st_size / (1024**3), 3)
-
-        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
-        existing = {str(video): size_gb}
-
-        with patch(
-            "personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()
-        ) as mock_extract:
-            result = analyze_library(config, incremental=True, existing_sizes=existing)
-
-        mock_extract.assert_not_called()
-        assert result.file_count == 0
-
-    def test_macos_resource_forks_skipped(self, tmp_path: Path) -> None:
-        """MacOS resource fork files (._*) should be skipped."""
-        from unittest.mock import patch
-
-        from personalscraper.library.analyzer import analyze_library
-
-        disk = tmp_path / "medias"
-        movie = disk / "films" / "Movie (2024)"
-        movie.mkdir(parents=True)
-        (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
-        (movie / "._Movie.mkv").write_bytes(b"\x00" * 100)
-
-        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
-
-        with patch(
-            "personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()
-        ) as mock_extract:
-            analyze_library(config)
-
-        assert mock_extract.call_count == 1
-
-    def test_disk_not_mounted_logs_and_skips(self, tmp_path: Path) -> None:
-        """When ``disk.path`` does not exist, the disk is logged and skipped.
-
-        Covers lines 724-725 (``library_disk_not_mounted`` warning branch).
-        """
-        from unittest.mock import patch
-
-        from personalscraper.library.analyzer import analyze_library
-
-        unmounted = tmp_path / "ghost"  # never created
-        config = _make_v15_config(unmounted, "ghost", "films", "movies", tmp_path)
-
-        with patch("personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()):
-            result = analyze_library(config)
-
-        assert result.item_count == 0
-        assert result.file_count == 0
-
-    def test_category_filter_excludes_other_categories(self, tmp_path: Path) -> None:
-        """``category_filter`` skips disks whose category_id does not match.
-
-        Covers line 729 (the ``continue`` when ``category_filter != category_id``).
-        """
-        from unittest.mock import patch
-
-        from personalscraper.library.analyzer import analyze_library
-
-        disk = tmp_path / "medias"
-        movie_dir = disk / "films" / "Movie (2024)"
-        movie_dir.mkdir(parents=True)
-        (movie_dir / "movie.mkv").write_bytes(b"\x00" * 1000)
-
-        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
-
-        with patch("personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()):
-            result = analyze_library(config, category_filter="tv_shows")
-
-        assert result.item_count == 0
-
-    def test_category_dir_missing_skipped(self, tmp_path: Path) -> None:
-        """When the category directory is missing, the disk loop continues.
-
-        Covers lines 735-736 (``library_category_not_found`` debug branch).
-        """
-        from unittest.mock import patch
-
-        from personalscraper.library.analyzer import analyze_library
-
-        disk = tmp_path / "medias"
-        disk.mkdir(parents=True)
-        # No "films" subdir created → category_dir does not exist.
-
-        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
-
-        with patch("personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()):
-            result = analyze_library(config)
-
-        assert result.item_count == 0
-
-    def test_hidden_directory_skipped(self, tmp_path: Path) -> None:
-        """Directories starting with ``.`` are skipped (covers line 742)."""
-        from unittest.mock import patch
-
-        from personalscraper.library.analyzer import analyze_library
-
-        disk = tmp_path / "medias"
-        hidden = disk / "films" / ".cache"
-        hidden.mkdir(parents=True)
-        (hidden / "trash.mkv").write_bytes(b"\x00" * 100)
-
-        # Provide a sibling regular dir so the loop iterates at all.
-        regular = disk / "films" / "Real (2024)"
-        regular.mkdir()
-        (regular / "real.mkv").write_bytes(b"\x00" * 100)
-
-        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
-
-        with patch("personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()):
-            result = analyze_library(config)
-
-        # Only the regular dir is reported.
-        assert result.item_count == 1
-        assert result.items[0].title == "Real"
-
-    def test_directory_with_no_video_files_skipped(self, tmp_path: Path) -> None:
-        """A media folder that contains only sidecars is skipped (covers line 756)."""
-        from unittest.mock import patch
-
-        from personalscraper.library.analyzer import analyze_library
-
-        disk = tmp_path / "medias"
-        movie = disk / "films" / "Empty (2024)"
-        movie.mkdir(parents=True)
-        (movie / "movie.nfo").write_text("<movie/>")
-        (movie / "poster.jpg").write_bytes(b"\xff\xd8")
-
-        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
-
-        with patch("personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()):
-            result = analyze_library(config)
-
-        assert result.item_count == 0
-
-    def test_incremental_stat_oserror_forces_reanalyze(self, tmp_path: Path) -> None:
-        """OSError during stat() in incremental mode falls through to ffprobe.
-
-        Covers lines 766-767 (the ``current_size_gb = -1.0`` reset).
-        """
-        from unittest.mock import patch
-
-        from personalscraper.library.analyzer import analyze_library
-
-        disk = tmp_path / "medias"
-        movie = disk / "films" / "Movie (2024)"
-        movie.mkdir(parents=True)
-        video = movie / "Movie.mkv"
-        video.write_bytes(b"\x00" * 1024)
-
-        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
-        existing = {str(video): 0.001}
-
-        # Make ``vf.stat()`` raise OSError specifically on the call inside
-        # the incremental branch — but allow earlier ``is_file()`` /
-        # ``rglob`` calls to succeed. We achieve this by counting calls
-        # against ``video`` and only failing on the third invocation
-        # (rglob's is_file → stat once, then incremental branch's
-        # ``vf.stat`` is the next direct stat call).
-        original_stat = Path.stat
-        call_count = {"n": 0}
-
-        def _raising_stat(self, *args: object, **kwargs: object) -> object:
-            if self == video:
-                call_count["n"] += 1
-                # Allow the first one (is_file pre-check) but raise on the
-                # incremental branch's explicit stat() call.
-                if call_count["n"] >= 2:
-                    raise OSError("stat denied")
-            return original_stat(self, *args, **kwargs)
-
-        with (
-            patch.object(Path, "stat", _raising_stat),
-            patch(
-                "personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()
-            ) as mock_extract,
-        ):
-            result = analyze_library(config, incremental=True, existing_sizes=existing)
-
-        # Stronger than ``mock_extract.called``: pin the exact arg + call count
-        # so a future regression that skips the file silently (e.g. swallowing
-        # the OSError and continuing) is caught.
-        mock_extract.assert_called_once_with(video)
-        assert result.file_count == 1
-
-    def test_thread_pool_path_used_for_multiple_files(
-        self,
-        tmp_path: Path,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """When max_workers > 1 and >= 2 files, the ThreadPoolExecutor branch runs.
-
-        Covers lines 791-795 (the parallel ffprobe submit path).
-        """
-        from unittest.mock import patch
-
-        from personalscraper.library.analyzer import analyze_library
-
-        # Force the parallel branch.
-        monkeypatch.setenv("LIBRARY_ANALYZER_MAX_WORKERS", "2")
-
-        disk = tmp_path / "medias"
-        movie = disk / "films" / "Movie (2024)"
-        movie.mkdir(parents=True)
-        # Two video files → triggers pool.map path
-        (movie / "Movie-disc1.mkv").write_bytes(b"\x00" * 100)
-        (movie / "Movie-disc2.mkv").write_bytes(b"\x00" * 100)
-
-        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
-
-        with patch(
-            "personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()
-        ) as mock_extract:
-            result = analyze_library(config)
-
-        assert mock_extract.call_count == 2
-        assert result.file_count == 2
-
-
-class TestAnalyzeVideoFile:
-    """Tests for ``_analyze_video_file`` helper covering ffprobe-failure branches."""
-
-    def test_stat_oserror_yields_zero_size(self, tmp_path: Path) -> None:
-        """When ``path.stat`` raises OSError, size_gb falls back to 0.0.
-
-        Covers lines 361-362 in ``_analyze_video_file``.
-        """
-        from unittest.mock import patch
-
-        from personalscraper.library.analyzer import _analyze_video_file
-
-        video = tmp_path / "Movie.mkv"
-        video.write_bytes(b"\x00" * 1000)
-
-        info = {
-            "video": {"codec": "hevc", "width": 1920, "height": 1080, "bitrate_kbps": 5000, "hdr": {}},
-            "audio": [],
-            "subtitles": [{"language": "fra", "format": "srt", "forced": False, "is_default": False}],
-            "duration_seconds": 1234.0,
-        }
-
-        original_stat = Path.stat
-
-        def _raise_for_video(self, *args: object, **kwargs: object) -> object:
-            if self == video:
-                raise OSError("stat denied")
-            return original_stat(self, *args, **kwargs)
-
-        with (
-            patch.object(Path, "stat", _raise_for_video),
-            patch("personalscraper.library.analyzer.extract_stream_info", return_value=info),
-        ):
-            result = _analyze_video_file(video)
-
-        assert result is not None
-        assert result.size_gb == 0.0
-        # Subtitle path was exercised (line 396 SubtitleTrack construction).
-        assert result.subtitle_tracks
-        assert result.subtitle_tracks[0].language == "fra"
-
-    def test_extract_exception_returns_none(self, tmp_path: Path) -> None:
-        """Ffprobe raising any Exception returns None (covers lines 366-368)."""
-        from unittest.mock import patch
-
-        from personalscraper.library.analyzer import _analyze_video_file
-
-        video = tmp_path / "Movie.mkv"
-        video.write_bytes(b"\x00" * 100)
-
-        with patch("personalscraper.library.analyzer.extract_stream_info", side_effect=RuntimeError("bad probe")):
-            assert _analyze_video_file(video) is None
-
-    def test_empty_info_returns_none(self, tmp_path: Path) -> None:
-        """Empty / falsy info dict returns None (covers line 371)."""
-        from unittest.mock import patch
-
-        from personalscraper.library.analyzer import _analyze_video_file
-
-        video = tmp_path / "Movie.mkv"
-        video.write_bytes(b"\x00" * 100)
-
-        with patch("personalscraper.library.analyzer.extract_stream_info", return_value=None):
-            assert _analyze_video_file(video) is None
-
-    def test_no_video_stream_returns_none(self, tmp_path: Path) -> None:
-        """Info without a video stream returns None (covers line 378)."""
-        from unittest.mock import patch
-
-        from personalscraper.library.analyzer import _analyze_video_file
-
-        video = tmp_path / "Movie.mkv"
-        video.write_bytes(b"\x00" * 100)
-
-        info = {"video": None, "audio": [], "subtitles": []}
-        with patch("personalscraper.library.analyzer.extract_stream_info", return_value=info):
-            assert _analyze_video_file(video) is None
 
 
 class TestAnalyzeFromIndexExtraBranches:
     """Targeted tests for branches missed by the broader suite."""
 
     def test_category_filter_excludes_other_categories(self) -> None:
-        """``category_filter`` skips items in other categories (covers line 494)."""
+        """``category_filter`` skips items in other categories."""
         import time
 
-        from personalscraper.library.analyzer import analyze_from_index
+        from personalscraper.insights.analytics import analyze_from_index
 
         conn = _make_conn()
 
@@ -912,10 +484,10 @@ class TestAnalyzeFromIndexExtraBranches:
         assert result_all.item_count == 1
 
     def test_item_with_no_files_skipped(self) -> None:
-        """Items without any media_file rows do not appear (covers line 501)."""
+        """Items without any media_file rows do not appear."""
         import time
 
-        from personalscraper.library.analyzer import analyze_from_index
+        from personalscraper.insights.analytics import analyze_from_index
 
         conn = _make_conn()
         # Item with no release, no files at all.
@@ -936,12 +508,12 @@ class TestAnalyzeFromIndexExtraBranches:
     def test_file_with_only_audio_streams_skipped(self) -> None:
         """A file row that has streams but no video stream is skipped.
 
-        Covers line 612 (the ``video_row is None`` early return inside
-        ``_file_analysis_from_index``).
+        Covers the ``video_row is None`` early return inside
+        ``_file_analysis_from_index``.
         """
         import time
 
-        from personalscraper.library.analyzer import analyze_from_index
+        from personalscraper.insights.analytics import analyze_from_index
 
         conn = _make_conn()
         cur = conn.execute(
@@ -979,7 +551,7 @@ class TestAnalyzeFromIndexExtraBranches:
             (release_id, path_id, now, now),
         )
         file_id = cur.lastrowid
-        # ONLY audio stream — no video → file is skipped (line 612).
+        # ONLY audio stream — no video → file is skipped.
         conn.execute(
             "INSERT INTO media_stream (file_id, idx, kind, codec, lang, channels, width, height, "
             " duration_ms, bitrate, hdr_format, is_atmos, is_default, forced, format) "

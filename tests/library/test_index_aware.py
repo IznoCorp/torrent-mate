@@ -1,7 +1,7 @@
 """Tests for the index-aware paths added to library tooling.
 
 Covers:
-- :func:`personalscraper.library.analyzer.analyze_from_index` — builds
+- :func:`personalscraper.insights.analytics.analyze_from_index` — builds
   :class:`LibraryAnalysisResult` from ``media_file`` + ``media_stream``
   rows in lieu of running ffprobe.
 - :func:`personalscraper.library.validator.validate_from_index` — fast
@@ -21,7 +21,7 @@ from pathlib import Path
 import pytest
 
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.library.analyzer import analyze_from_index
+from personalscraper.insights.analytics import analyze_from_index
 from personalscraper.library.validator import validate_from_index
 
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations"

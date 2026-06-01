@@ -110,10 +110,10 @@ def _seed_analyze_item(
 
 
 def test_analyze_help_exits_zero() -> None:
-    """--help exits 0 and shows usage."""
+    """--help exits 0 and shows usage (command stays visible; DB-only after lib-fold)."""
     result = run_cli(["library-analyze", "--help"])
     assert result.exit_code == 0, result.output
-    assert "Deep scan video files" in result.output
+    assert "codec / audio / subtitle data read from the indexer DB" in result.output
 
 
 # ── 2. From-index path ──────────────────────────────────────────────────────────

@@ -239,13 +239,13 @@ class TestRecommendIntegration:
     def test_recommend_from_analysis(self) -> None:
         """Recommendations should be generated from analysis data."""
         from personalscraper.conf.models.preferences import LibraryPrefs, VideoPrefs
+        from personalscraper.insights.recommender import generate_recommendations
         from personalscraper.library.models import (
             AudioTrack,
             LibraryAnalysisItem,
             MediaFileAnalysis,
             VideoInfo,
         )
-        from personalscraper.library.recommender import generate_recommendations
 
         # H.264 movie at 8 GB — should trigger codec + size recommendations
         items = [
@@ -295,8 +295,8 @@ class TestReportIntegration:
 
         from personalscraper.indexer.db import apply_migrations
         from personalscraper.indexer.scanner._modes._item_stage import stage_library_items
-        from personalscraper.library.analyzer import analyze
-        from personalscraper.library.reporter import generate_report
+        from personalscraper.insights.analytics import analyze
+        from personalscraper.insights.reporter import generate_report
 
         conn = sqlite3.connect(":memory:")
         apply_migrations(conn, MIGRATIONS_DIR)
