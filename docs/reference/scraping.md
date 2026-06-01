@@ -20,7 +20,7 @@ Never include API keys in documentation or brainstorming files — use `.env` re
   - **User Subscription** (requires PIN).
 - TVDB uses **3-char** language codes (`fra`, `eng`). Always convert between TVDB (`fra`) and TMDB (`fr-FR`) systems.
 - **No "landscape" type** — use "Background" (type 3 for series, 15 for movies, 1920×1080).
-- TVDB source type IDs for TMDB cross-ref: `10`=movies, `12`=TV series, `15`=people, `28`=collections — use the right one.
+- **No cross-provider ID translation in TVDBClient**: it raises `NotImplementedError` for `IDCrossRef` / `get_cross_refs` (`api/metadata/tvdb.py`). Cross-provider ID mapping is handled at the registry level via `registry.cross_ref(match, target=...)` → the source provider's `get_cross_refs()` (`api/metadata/registry/__init__.py`). See [`external-ids-flow.md`](external-ids-flow.md).
 
 ## ffprobe Language Codes
 
