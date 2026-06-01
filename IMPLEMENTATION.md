@@ -18,7 +18,7 @@
 | 1   | Core framework          | phase-01-core-framework.md         | [x]    |
 | 2   | Migrate DISPATCH checks | phase-02-migrate-dispatch.md       | [x]    |
 | 3   | Consolidate fixes       | phase-03-consolidate-fixes.md      | [x]    |
-| 4   | DB-mode unification     | phase-04-db-mode.md                | [ ]    |
+| 4   | DB-mode unification     | phase-04-db-mode.md                | [x]    |
 | 5   | Migrate STAGING checks  | phase-05-migrate-staging.md        | [ ]    |
 | 6   | Granular CLI            | phase-06-granular-cli.md           | [ ]    |
 | 7   | Fix-policy unification  | phase-07-fix-policy-unification.md | [ ]    |
@@ -58,7 +58,7 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-**Phase 3 DONE (gate green).** Proceed to **Phase 4 — DB-mode unification** (`docs/features/check-plugins/plan/phase-04-db-mode.md`): unify `validate_from_index` (the DB-mode `from_index` path) onto the framework via `IndexableCheck`. Strict 0→9 order; each phase ends with `make check`. The Phase-0 golden + `test_dispatch_parity` are the running parity guards. NOTE: checker.py's now-dead helper methods were NOT removed in Phase 3 (plan deferred that) — they remain until a later cleanup; checker.py is 450 LOC (<800).
+**Phase 4 DONE (gate green).** Proceed to **Phase 5 — Migrate STAGING checks** (`docs/features/check-plugins/plan/phase-05-migrate-staging.md`): migrate the enforce (STAGING coherence) checks — `check_coherence` — onto the framework via STAGING-stage plugins (the `(stage, name)` collision case: `nfo_ids` exists on both DISPATCH and STAGING). Strict 0→9 order; each phase ends with `make check`. The Phase-0 golden (esp. `coherence`) + `test_dispatch_parity` are the running parity guards.
 
 ### Phase 0 gate record (2026-06-02)
 
@@ -89,5 +89,11 @@ _(filled by implement:pr-review — max 5 cycles)_
 - Gate green: `make check` ✓ (5864 passed, 0 failed, **coverage 91.12%** — no regression despite deleting MediaFixer tests; branch coverage migrated to `test_fixes.py`), ACC-01 golden 7 byte-identical, ACC-02 157 passed, **ACC-06a `MediaFixer` rc=1**, **ACC-06b rc=1**, `from …verify.fixer` rc=1, `import personalscraper` ✓.
 - ⚠️ **BEHAVIOR NOTE (awaiting operator sign-off)**: the consolidated `NoEmptyDirs.fix()` (from the plan's 3.1 body) walks `rglob("*")` (recursive) whereas the legacy `library_checks._fix_empty_dirs` walked `iterdir()` (top-level only). The `library_validate` golden is byte-identical (corpus has no NESTED empty dirs, so the divergence is uncovered). This is a deliberate plan choice (more thorough cleaning) but IS a behavior change in the library empty-dir fix for nested cases. If strict legacy parity is required, revert `NoEmptyDirs.fix` to top-level `iterdir`. Otherwise no action.
 - ⚠️ **Minor plan gap**: Phase 2.2 said checker.py's dead helper methods would be "deleted in Phase 3", but the Phase 3 plan never removes them. They remain as dead code (checker.py 450 LOC < 800). Candidate for a later cleanup; not blocking.
+
+### Phase 4 gate record (2026-06-02)
+
+- Sub-phases: `4.1` add `from_index()` to NfoPresent/NfoValid (nfo.py) + PosterPresent/ArtworkLandscape (artwork.py) — DB-mode IndexableCheck capability (`9a91a3d`); `4.2` `validate_from_index` becomes an `IndexableCheck` registry loop, replacing the inline `nfo_status`/`artwork_json` field-inspection (`09bc3148`).
+- Parity: `library_from_index` golden byte-identical. Verified the from_index methods reproduce the OLD inline logic exactly — incl. the **movie-only landscape gate** (`if media_type == "movie"` in legacy ⇄ `ArtworkLandscape.from_index` returns None for tvshow), `nfo_status` NULL→unflagged, and the nfo-before-artwork order (= `_ORDER`).
+- Gate green: `make check` ✓ (5875 passed, 0 failed, coverage 91.14%), ACC-01 golden 7 passed, ACC-02 168 passed, ACC-07 module-size (only the pre-existing movie_service.py WARN), `import personalscraper` ✓.
 
 > **PR #33 is already created** (https://github.com/LounisBou/personal-scraper/pull/33, WIP). The branch is pushed to `origin/feat/check-plugins`. When the lifecycle reaches Phase 9 (`/implement:feature-pr`), it must **push onto the existing branch and reuse PR #33** (detect-existing, do not create a duplicate) — then `/implement:pr-review` → **manual squash merge**. Each implementation commit pushed to the branch updates PR #33 in place.
