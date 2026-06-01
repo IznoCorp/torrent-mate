@@ -20,7 +20,7 @@ Never include API keys in documentation or brainstorming files — use `.env` re
   - **User Subscription** (requires PIN).
 - TVDB uses **3-char** language codes (`fra`, `eng`). Always convert between TVDB (`fra`) and TMDB (`fr-FR`) systems.
 - **No "landscape" type** — use "Background" (type 3 for series, 15 for movies, 1920×1080).
-- TVDB source type IDs for TMDB cross-ref: `10`=movies, `12`=TV series, `15`=people, `28`=collections — use the right one.
+- **No cross-provider ID translation in TVDBClient**: it raises `NotImplementedError` for `IDCrossRef` / `get_cross_refs` (`api/metadata/tvdb.py`). Cross-provider ID mapping is handled at the registry level via `registry.cross_ref(match, target=...)` → the source provider's `get_cross_refs()` (`api/metadata/registry/__init__.py`). See [`external-ids-flow.md`](external-ids-flow.md).
 
 ## ffprobe Language Codes
 
@@ -29,7 +29,8 @@ ffprobe returns ISO 639-2/B codes (`fre`), Kodi NFO expects 639-2/T (`fra`). Alw
 ## NFO Invariants
 
 - `is_nfo_complete()` (defined in `nfo_utils.py`, imported as `_is_nfo_complete` in scraper modules) validates NFO has parsable XML + at least one `<uniqueid>` with non-empty text — used for fast-skip and corrupt NFO detection.
-- Movie verify `nfo_ids` check requires both TMDB and IMDB for a pass. TV shows require either TVDB or TMDB (IMDB not required). Missing one is WARNING (check fails but non-blocking), missing both is ERROR (blocking).
+- Movie verify `nfo_ids` check requires both TMDB and IMDB for a pass: missing one is WARNING (check fails but non-blocking), missing both is ERROR (blocking).
+- TV show verify `nfo_ids` check passes when either TVDB or TMDB is present (IMDB not required); missing both is always an ERROR (no WARNING tier).
 
 ## Artwork Recovery
 

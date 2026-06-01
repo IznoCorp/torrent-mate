@@ -22,17 +22,22 @@ relates to. The canonical source for flag names is `personalscraper <cmd>
 
 ## Table of contents
 
-### Pipeline (steps 1–9)
+### Pipeline (steps 1–9, in `DEFAULT_STEPS` execution order)
 
 1. [`ingest`](#personalscraper-ingest) — copy completed torrents into staging
 2. [`sort`](#personalscraper-sort) — sort media into category folders, clean filenames
-3. [`cleanup`](#personalscraper-cleanup) — pipeline-internal: remove empty dirs + junk after scrape
+3. [`clean`](#personalscraper-clean) — reclean folder names + fuzzy dedup
 4. [`scrape`](#personalscraper-scrape) — fetch metadata + artwork from TMDB/TVDB
-5. [`enforce`](#personalscraper-enforce) — sanitize filenames, validate structure
-6. [`verify`](#personalscraper-verify) — quality gate before dispatch
-7. [`dispatch`](#personalscraper-dispatch) — move media to storage disks
-8. [`process`](#personalscraper-process) — composite: reclean + dedup + scrape + cleanup
-9. [`run`](#personalscraper-run) — full pipeline (ingest → dispatch)
+5. [`cleanup`](#personalscraper-cleanup) — remove empty dirs after scrape
+6. [`enforce`](#personalscraper-enforce) — sanitize filenames, validate structure
+7. [`verify`](#personalscraper-verify) — quality gate before dispatch
+8. [`trailers`](#personalscraper-trailers) — download trailers (runs as a pipeline step; standalone surface = the `trailers` subcommands)
+9. [`dispatch`](#personalscraper-dispatch) — move media to storage disks
+
+### Composite / orchestration (not pipeline steps)
+
+- [`process`](#personalscraper-process) — composite: clean + scrape + cleanup
+- [`run`](#personalscraper-run) — full pipeline (ingest → … → dispatch)
 
 ### Meta / system
 
@@ -139,27 +144,52 @@ correct category subdirectory. Also performs initial filename sanitization.
 
 ---
 
-## `personalscraper cleanup`
+## `personalscraper clean`
 
-**Purpose**: Removes empty directories and residual junk files left behind after
-the scrape step completes. This is a pipeline-internal step — it is **not**
-invocable as a standalone CLI command. It runs automatically as part of
-`process` (after scrape) and `run` (between scrape and enforce).
+**Purpose**: Re-cleans raw folder names (re-sanitize) and removes fuzzy duplicate
+files in staging — the reclean + dedup sub-step of `process`. Useful for
+debugging the clean pass in isolation or composing it into operator workflows.
+The full pipeline still runs this internally via `process` / `run`.
 
-**Side effects**: `mutate FS` (deletes empty dirs, `.actors/` folders, and
-transient files under each media item's directory)
+**Side effects**: `mutate FS` (renames polluted folders, deletes fuzzy-duplicate files)
 
-**Pipeline position**: step 4 (internal only — runs after scrape, before enforce)
+**Pipeline position**: step 3 (after sort, before scrape)
 
-**Args**: none (not a standalone command)
+**Args**:
+
+- `--dry-run` : preview without modifying
 
 **Examples**:
 
-    # cleanup runs automatically inside these commands:
-    personalscraper process
-    personalscraper run
+    personalscraper clean
+    personalscraper clean --dry-run
 
-**Related**: `process`, `run`
+**Related**: `sort`, `cleanup`, `process`, `run`
+
+---
+
+## `personalscraper cleanup`
+
+**Purpose**: Removes empty directories left behind by earlier steps — the
+empty-directory cleanup sub-step of `process` (distinct from `clean`, which does
+reclean + dedup). Invocable standalone for tidying staging between manual
+operator interventions; the full pipeline also runs it internally via
+`process` / `run`.
+
+**Side effects**: `mutate FS` (removes empty directories)
+
+**Pipeline position**: step 5 (after scrape, before enforce)
+
+**Args**:
+
+- `--dry-run` : preview without deleting
+
+**Examples**:
+
+    personalscraper cleanup
+    personalscraper cleanup --dry-run
+
+**Related**: `clean`, `scrape`, `process`, `run`
 
 ---
 
@@ -173,7 +203,7 @@ ambiguous matches.
 
 **Side effects**: `mutate FS` (writes NFO + artwork files), `network` (TMDB / TVDB APIs)
 
-**Pipeline position**: step 3
+**Pipeline position**: step 4
 
 **Args**:
 
@@ -198,13 +228,14 @@ ambiguous matches.
 **Purpose**: Enforces staging conventions on media items before scrape. Sanitizes
 filenames (removes special characters, normalizes spacing), validates directory
 structure, and checks naming coherence against expected patterns. The
-`.DS_Store` cleanup performed by this step is **per-item only** (only within the
-folder being enforced), not disk-wide — use `library-clean` for whole-disk
-sweeps.
+`.DS_Store` cleanup performed by this step runs across **all items in staging
+in a single recursive pass** over the staging category dirs — the boundary is
+staging vs storage disks, so it is **not** disk-wide. Use `library-clean` for
+whole-disk sweeps.
 
-**Side effects**: `mutate FS` (renames files/folders, deletes `.DS_Store` per-item)
+**Side effects**: `mutate FS` (renames files/folders, deletes `.DS_Store` across all staging items)
 
-**Pipeline position**: step 5
+**Pipeline position**: step 6
 
 **Args**:
 
@@ -228,7 +259,7 @@ validation. Use `--movies-only` or `--tvshows-only` to scope the check.
 
 **Side effects**: `read-only` (inspects files, does not modify)
 
-**Pipeline position**: step 6
+**Pipeline position**: step 7
 
 **Args**:
 
@@ -256,7 +287,7 @@ staging directory for that item is removed.
 
 **Side effects**: `mutate FS` (moves media to storage, deletes from staging)
 
-**Pipeline position**: step 7
+**Pipeline position**: step 9
 
 **Args**:
 
@@ -281,7 +312,7 @@ operation. Supports `--interactive` for ambiguous scrape matches.
 
 **Side effects**: `mutate FS` (writes NFO + artwork, cleans junk), `network` (TMDB / TVDB APIs)
 
-**Pipeline position**: composite (covers steps 3–4 equivalent)
+**Pipeline position**: composite (runs clean + scrape + cleanup — steps 3–5)
 
 **Args**:
 
@@ -462,6 +493,10 @@ a category ID across config files and on-disk paths.
 
 ## Library — indexer & maintenance
 
+> `library-clean` (disk cleaning) is backed by the `maintenance/` package — see [`maintenance.md`](maintenance.md) for its internals and safety constraints.
+
+> Every `library-*` command also accepts its own `--config / -c PATH` option placed AFTER the subcommand (e.g. `personalscraper library-status -c ./config`), in addition to the global `--config` flag which must precede the subcommand.
+
 ## `personalscraper library-index`
 
 **Purpose**: Runs a full or quick media indexer scan. Walks all configured storage
@@ -583,7 +618,9 @@ output).
 
 **Pipeline position**: n/a
 
-**Args**: none beyond global flags
+**Args**:
+
+- `--config / -c PATH` : Path to `config.json5` or config dir, placed after the subcommand (overrides the global `--config`)
 
 **Examples**:
 
@@ -1043,6 +1080,10 @@ and the count is reported.
 ---
 
 ## Library — analysis & query
+
+> `library-analyze` / `library-recommend` / `library-report` surface the read-only `insights/` package — see [`insights.md`](insights.md). `library-rescrape` is backed by `maintenance/` — see [`maintenance.md`](maintenance.md).
+
+> Every `library-*` command also accepts its own `--config / -c PATH` option placed AFTER the subcommand (e.g. `personalscraper library-status -c ./config`), in addition to the global `--config` flag which must precede the subcommand.
 
 ## `personalscraper library-analyze`
 

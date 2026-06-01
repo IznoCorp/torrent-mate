@@ -99,7 +99,7 @@ Never put API keys in config files -- use .env (gitignored).
 ## Pipeline Step
 
 Step **8** of 9, between verify and dispatch.
-Blocking by default (trailer errors abort dispatch unless `--continue-on-trailer-error` is passed).
+Blocking only on catastrophic step failures (status=error) unless `--continue-on-trailer-error`; per-item failures (status=partial) are always non-blocking.
 
 - --skip-trailers : skip for this run.
 - --continue-on-trailer-error : continue to dispatch on errors.

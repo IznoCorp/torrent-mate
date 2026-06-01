@@ -78,7 +78,7 @@ Known error messages:
 - `"Error getting data."` — invalid or unknown IMDb ID.
 - `"Too many results."` — search too broad (rare).
 
-**Design decision** (Phase 12 checkpoint): `Response: "False"` MUST be converted to
+**Design decision**: `Response: "False"` MUST be converted to
 `ApiError(http_status=200, message=Error_string)` before control returns to the caller.
 No `None`-returning — callers already handle `ApiError`.
 

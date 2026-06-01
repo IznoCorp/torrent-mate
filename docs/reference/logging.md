@@ -70,16 +70,16 @@ typer.echo("Processing…")
 
 ## Migration recipes
 
-| Pattern (legacy)                                         | Replacement                                                                                                                               |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `logger = logging.getLogger(__name__)`                   | `log = get_logger("<short-tag>")`                                                                                                         |
-| `logger.info("moved %s to %s", src, dst)`                | `log.info("moved", source=src, dest=dst)`                                                                                                 |
-| `logger.warning("disk low: %s GB free", free)`           | `log.warning("disk_usage_failed", free_gb=free)`                                                                                          |
-| `logger.exception("fail")`                               | `log.exception("event_name", **context)` — `exc_info` implicit, never pass it                                                             |
-| `logger.error(f"Dispatch failed for {title}")`           | `log.error("replace_swap_failed", title=title)`                                                                                           |
-| `print(...)` in CLI commands                             | `state["console"].print(...)`                                                                                                             |
-| `print(...)` next to `input(...)`                        | `typer.echo(...)`                                                                                                                         |
-| `before_sleep=before_sleep_log(logger, logging.WARNING)` | `build_retry_logger(log, "event_name")` from `personalscraper.core.http_helpers` (see `personalscraper/api/metadata/tmdb.py` as template) |
+| Pattern (legacy)                                         | Replacement                                                                                                                             |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `logger = logging.getLogger(__name__)`                   | `log = get_logger("<short-tag>")`                                                                                                       |
+| `logger.info("moved %s to %s", src, dst)`                | `log.info("moved", source=src, dest=dst)`                                                                                               |
+| `logger.warning("disk low: %s GB free", free)`           | `log.warning("disk_usage_failed", free_gb=free)`                                                                                        |
+| `logger.exception("fail")`                               | `log.exception("event_name", **context)` — `exc_info` implicit, never pass it                                                           |
+| `logger.error(f"Dispatch failed for {title}")`           | `log.error("replace_swap_failed", title=title)`                                                                                         |
+| `print(...)` in CLI commands                             | `state["console"].print(...)`                                                                                                           |
+| `print(...)` next to `input(...)`                        | `typer.echo(...)`                                                                                                                       |
+| `before_sleep=before_sleep_log(logger, logging.WARNING)` | `build_retry_logger(log, "event_name")` from `personalscraper.core.http_helpers` (see `personalscraper/scraper/artwork.py` as template) |
 
 ## exc_info rules
 
@@ -228,13 +228,22 @@ template:
 | `<action>` | what happened at the item/object level | `item`, `file`, `disk`, `nfo`                     |
 | `<state>`  | outcome or lifecycle position          | `done`, `failed`, `skipped`, `started`, `missing` |
 
-Canonical examples shipped in 0.16.0:
+Canonical example shipped in production:
 
-| Event name           | Emitted by                        | Meaning                               |
-| -------------------- | --------------------------------- | ------------------------------------- |
-| `verify_item_done`   | `personalscraper/verify/run.py`   | one item checked (valid or blocked)   |
-| `dispatch_move_done` | `personalscraper/dispatch/run.py` | one item moved to permanent storage   |
-| `scrape_nfo_done`    | `personalscraper/scraper/`        | NFO generation completed for one item |
+| Event name         | Emitted by                      | Meaning                             |
+| ------------------ | ------------------------------- | ----------------------------------- |
+| `verify_item_done` | `personalscraper/verify/run.py` | one item checked (valid or blocked) |
+
+`verify_item_done` is the reference implementation of the three-segment
+template — it is the only domain event currently shipped in this exact
+shape. The names below are **hypothetical templates** (not yet emitted
+anywhere in the codebase) showing how the same `<step>_<action>_<state>`
+pattern would apply if new domain events were added to those steps:
+
+| Hypothetical event   | Would belong to             | Meaning                               |
+| -------------------- | --------------------------- | ------------------------------------- |
+| `dispatch_move_done` | `personalscraper/dispatch/` | one item moved to permanent storage   |
+| `scrape_nfo_done`    | `personalscraper/scraper/`  | NFO generation completed for one item |
 
 Abbreviated or legacy names (e.g. `moved`, `rsync_start`) are tolerated in pre-existing
 code but new events MUST follow the three-segment template.

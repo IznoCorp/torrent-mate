@@ -8,7 +8,7 @@ also get season posters. Other artwork types (fanart, clearlogo, etc.)
 are defined in NamingPatterns for compatibility with manually added files
 but are NOT downloaded by this module.
 
-Mapping notes (from docs/TVDB-API.md):
+Mapping notes (from docs/reference/tvdb-api.md):
 - TMDB: posters[] → poster, backdrops[] → landscape
 - TVDB: type 2 = Poster, type 3 = Background (≈landscape), type 7 = Season poster
 - TVDB has no "landscape" type — Background is the closest equivalent

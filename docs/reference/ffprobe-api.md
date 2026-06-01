@@ -1,6 +1,20 @@
-# ffprobe Reference for Media Pipeline
+# ffprobe Reference
 
-Complete reference for using `ffprobe` from Python via subprocess to extract video/audio/subtitle stream details from `.mkv` files and generate Kodi-compatible NFO XML.
+> The external `ffprobe` tool (shipped with FFmpeg) — reference for the media
+> stream-detail extraction used by `personalscraper/scraper/mediainfo.py` and by
+> the `insights/` and `maintenance/` enrich flows.
+> Source: https://ffmpeg.org/ffprobe.html
+> Last updated: 2026-06-01
+
+`ffprobe` is invoked via `subprocess` from `personalscraper/scraper/mediainfo.py`
+(`extract_stream_info()`) to read video/audio/subtitle stream details from media
+files and build the Kodi-compatible NFO `<streamdetails>` block. The same
+extraction feeds the `insights/` analytics and `maintenance/` enrich/rescrape
+flows. It reads container headers only (~65 ms per file) and never decodes media
+frames.
+
+This document is the canonical specification for the ffprobe JSON contract,
+codec/language mapping tables, and edge cases the wrapper must handle.
 
 ---
 
@@ -19,6 +33,7 @@ Complete reference for using `ffprobe` from Python via subprocess to extract vid
 11. [Performance](#11-performance)
 12. [Edge Cases](#12-edge-cases)
 13. [Complete Implementation](#13-complete-implementation)
+14. [Real ffprobe JSON Output Reference](#real-ffprobe-json-output-reference)
 
 ---
 
@@ -65,6 +80,8 @@ ffprobe -v quiet -print_format json -show_streams -show_format <file>
 | `-print_format json` | Output as JSON (alias: `-of json`)                       |
 | `-show_streams`      | Include per-stream info (video, audio, subtitle tracks)  |
 | `-show_format`       | Include container-level info (duration, size, bitrate)   |
+
+This is the exact argument vector `personalscraper/scraper/mediainfo.py` passes to `subprocess.run()`.
 
 ### Equivalent Aliases
 
@@ -193,7 +210,7 @@ ffprobe reports `display_aspect_ratio` as a ratio string (e.g., `"16:9"`, `"12:5
 
 Kodi NFO expects a decimal value (e.g., `1.778`, `2.400`, `2.201`).
 
-Conversion:
+Conversion (see `_parse_aspect_ratio()` in `personalscraper/scraper/mediainfo.py`):
 
 ```python
 def parse_aspect_ratio(dar_str: str, width: int, height: int) -> float:
@@ -344,6 +361,12 @@ Profile values seen in practice:
 - `"Dolby Digital Plus + Dolby Atmos"` -- EAC3 with Atmos
 - `""` or missing -- standard EAC3/TrueHD without Atmos
 
+> Implementation note: `personalscraper/scraper/mediainfo.py` records Atmos in two
+> places. The Kodi `<codec>` value becomes `atmos` (via `_map_audio_codec`), while
+> a separate boolean `is_atmos` field is kept on each audio track for analytics
+> (case-insensitive `"atmos" in profile.lower()`) so the underlying codec is still
+> recoverable downstream.
+
 ### Language Tags
 
 **Critical:** ffprobe uses **ISO 639-2/B** (bibliographic) codes, while Kodi NFO uses **ISO 639-2/T** (terminology) codes. Most codes are identical, but ~20 languages differ:
@@ -372,6 +395,8 @@ Profile values seen in practice:
 | `mao`             | `mri`              | Maori      |
 
 Codes that are **identical** in both standards: `eng`, `spa`, `ita`, `por`, `jpn`, `kor`, `ara`, `hin`, `rus`, `pol`, `tur`, `swe`, `nor`, `dan`, `fin`, and hundreds more.
+
+This is the exact `ISO_639_2_B_TO_T` table in `personalscraper/scraper/mediainfo.py`:
 
 ```python
 # ISO 639-2/B -> ISO 639-2/T mapping (only codes that differ)
@@ -428,7 +453,7 @@ def lang_b_to_t(code: str) -> str:
 
 ### Disposition Flags
 
-Useful subtitle disposition flags:
+Useful subtitle disposition flags (the wrapper records `forced` and `default` on each subtitle track):
 
 - `forced`: Forced subtitles (foreign language dialog only)
 - `hearing_impaired`: SDH subtitles
@@ -437,6 +462,11 @@ Useful subtitle disposition flags:
 ---
 
 ## 7. Python Wrapper Pattern
+
+The patterns below illustrate the contract. The production version lives in
+`personalscraper/scraper/mediainfo.py` (`extract_stream_info()`), which uses the
+project structlog logger (`personalscraper.logger.get_logger`) rather than the
+stdlib `logging` shown here.
 
 ### Basic Subprocess Call
 
@@ -627,32 +657,30 @@ Most video codec names pass through unchanged:
 
 ### Mapping Code
 
+This mirrors the mapping tables and helpers in `personalscraper/scraper/mediainfo.py`:
+
 ```python
 # Video codecs: ffprobe name -> Kodi NFO name
 VIDEO_CODEC_MAP: dict[str, str] = {
     "mpeg2video": "mpeg2",
 }
 
-# Audio codecs: ffprobe name -> Kodi NFO name
-# Atmos is handled separately via profile detection
-AUDIO_CODEC_MAP: dict[str, str] = {
-    # Most pass through unchanged; only list exceptions
-}
-
 # Subtitle codecs: ffprobe name -> Kodi NFO name
+# (`ass` is listed explicitly even though it maps to itself.)
 SUBTITLE_CODEC_MAP: dict[str, str] = {
     "subrip": "srt",
     "hdmv_pgs_subtitle": "pgs",
     "dvd_subtitle": "vobsub",
     "mov_text": "tx3g",
+    "ass": "ass",
 }
 
 
-def map_video_codec(codec_name: str) -> str:
+def _map_video_codec(codec_name: str) -> str:
     return VIDEO_CODEC_MAP.get(codec_name, codec_name)
 
 
-def map_audio_codec(codec_name: str, profile: str = "") -> str:
+def _map_audio_codec(codec_name: str, profile: str = "") -> str:
     """Map audio codec, with special Atmos detection."""
     if "Atmos" in profile:
         return "atmos"
@@ -661,14 +689,17 @@ def map_audio_codec(codec_name: str, profile: str = "") -> str:
             return "dtshd_ma"
         if "DTS-HD HRA" in profile or "DTS-HD HR" in profile:
             return "dtshd_hra"
-    return AUDIO_CODEC_MAP.get(codec_name, codec_name)
+    return codec_name
 
 
-def map_subtitle_codec(codec_name: str | None) -> str:
-    if not codec_name:
-        return ""
-    return SUBTITLE_CODEC_MAP.get(codec_name, codec_name)
+# Subtitle codecs have no dedicated helper: the mapping is applied inline
+# where subtitle streams are parsed.
+#     sub_format = SUBTITLE_CODEC_MAP.get(sub_codec_name, sub_codec_name)
 ```
+
+> Audio codecs that are not Atmos or a DTS-HD variant pass through unchanged
+> (`_map_audio_codec` returns the raw `codec_name`); the audio mapping does not
+> use a static lookup table beyond the Atmos/DTS-HD special cases above.
 
 ---
 
@@ -693,6 +724,10 @@ Available sections:
 - `stream_disposition=...` -- disposition flags
 - `format=...` -- container format fields
 - `format_tags=...` -- container tag fields
+
+> The production wrapper uses the broad `-show_streams -show_format` form rather
+> than `-show_entries`; the cost difference is negligible since ffprobe reads only
+> headers (see Performance).
 
 ### Filtering Streams with -select_streams
 
@@ -803,7 +838,7 @@ Common for many files. The `streams` array simply won't contain any `"codec_type
 
 ### Multiple Video Streams
 
-Rare but possible (e.g., files with embedded thumbnail/poster as a video stream, or multi-angle content). Typically take the first video stream (`index=0`) or the one with `disposition.default=1`.
+Rare but possible (e.g., files with embedded thumbnail/poster as a video stream, or multi-angle content). Typically take the first video stream (`index=0`) or the one with `disposition.default=1`. The wrapper takes the first video stream while skipping any with `disposition.attached_pic` set (embedded posters/thumbnails).
 
 ### Missing Language Tags
 
@@ -826,7 +861,8 @@ Some MKV files contain subtitle streams where `codec_name` is `None` or missing:
 }
 ```
 
-This happens with malformed or unusual subtitle formats. Handle by skipping the codec or defaulting to empty string.
+This happens with malformed or unusual subtitle formats. The wrapper defaults the
+codec name to `"unknown"` when it is absent (`s.get("codec_name", "unknown")`).
 
 ### Dolby Atmos in EAC3
 
@@ -854,7 +890,7 @@ duration_secs = round(float(data["format"]["duration"]))
 
 ### Files with Paths Containing Spaces or Special Characters
 
-The project path `/path/to/staging/` contains spaces. When using `subprocess.run()` with a list of arguments (not a shell string), this is handled automatically -- no quoting needed.
+Storage and staging paths may contain spaces (e.g., `/Volumes/<disk>/<staging-dir>/`). When using `subprocess.run()` with a list of arguments (not a shell string), this is handled automatically -- no quoting needed.
 
 ```python
 # CORRECT: list of args, spaces handled automatically
@@ -868,7 +904,14 @@ subprocess.run(f'ffprobe ... "{video_path}"', shell=True, ...)
 
 ## 13. Complete Implementation
 
-### extract_stream_info() -- Production-Ready Function
+The reference implementation below documents the full extraction contract. The
+live version is `extract_stream_info()` in `personalscraper/scraper/mediainfo.py`;
+it additionally records `bitrate_kbps` on the video block, `is_atmos`/`is_default`
+on each audio track, and `format`/`forced`/`is_default` on each subtitle track,
+and it logs via structlog event names (`ffprobe_timeout`, `ffprobe_failed`,
+`ffprobe_invalid_json`, `ffprobe_no_streams`, `ffprobe_no_video_stream`).
+
+### extract_stream_info() -- Reference Function
 
 ```python
 """
@@ -904,6 +947,7 @@ SUBTITLE_CODEC_MAP: dict[str, str] = {
     "hdmv_pgs_subtitle": "pgs",
     "dvd_subtitle": "vobsub",
     "mov_text": "tx3g",
+    "ass": "ass",
 }
 
 # ISO 639-2/B (ffprobe/MKV) -> ISO 639-2/T (Kodi) -- only codes that differ
@@ -942,11 +986,9 @@ def _map_audio_codec(codec_name: str, profile: str = "") -> str:
     return codec_name
 
 
-def _map_subtitle_codec(codec_name: str | None) -> str:
-    """Map ffprobe subtitle codec name to Kodi NFO name."""
-    if not codec_name:
-        return ""
-    return SUBTITLE_CODEC_MAP.get(codec_name, codec_name)
+# Subtitle codecs have no dedicated helper in the real implementation: the
+# mapping is applied inline where subtitle streams are parsed, i.e.
+#     sub_format = SUBTITLE_CODEC_MAP.get(sub_codec_name, sub_codec_name)
 
 
 def _parse_aspect_ratio(dar_str: str | None, width: int, height: int) -> float:

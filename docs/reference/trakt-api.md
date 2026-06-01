@@ -282,11 +282,17 @@ Each image key is a list of URLs (typically 1 entry).
 
 ## Particularities
 
-### Dual-header auth
+### Dual-header app-only auth (by design)
 
-Trakt requires two headers: `trakt-api-key` and `trakt-api-version: 2`.
-This is unique among our providers. Either a custom `TraktAuth` class or
-an `extra_headers` field on `TransportPolicy` will be needed in Phase 15.
+Trakt's app-only auth uses two headers on every request: `trakt-api-key`
+(the Client ID) and `trakt-api-version: 2`. This is intentional, not an
+inconsistency — both headers are mandatory for the public, app-authenticated
+surface this provider consumes: `search`, movie/show `details`, `ratings`,
+`related`, and `trending`. None of those require a user context.
+
+User-specific OAuth endpoints (watchlist, history, check-in,
+`/recommendations`) need a per-user Bearer token and are deliberately **out
+of scope** — the provider never sends an `Authorization` header.
 
 ### Response wrapper varies by endpoint
 

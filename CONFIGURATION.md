@@ -1,6 +1,8 @@
 # Configuration
 
-Guide complet de configuration pour PersonalScraper.
+Guide de configuration — credentials et réglages essentiels pour PersonalScraper.
+
+> Pour la structure complète des 16 fichiers de config et la fusion des overlays, voir [docs/reference/config-overlay-layout.md](docs/reference/config-overlay-layout.md).
 
 **Deux sources de configuration :**
 
@@ -151,6 +153,51 @@ TVDB_API_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 > Le pipeline s'authentifie avec `{"apikey": "..."}` uniquement, sans champ `pin`.
 
 > **Langue** : TVDB utilise des codes langue à 3 caractères (`fra`, `eng`). Le pipeline convertit automatiquement depuis le format TMDB (`fr-FR` → `fra`).
+
+---
+
+## OMDb (IMDb / Rotten Tomatoes — optionnel)
+
+Clé API OMDb utilisée pour le backfill des notes multi-sources (IMDb, Rotten Tomatoes) et des IDs croisés via `library-backfill-ids`.
+
+| Variable           | Défaut   | Description                                                             |
+| ------------------ | -------- | ----------------------------------------------------------------------- |
+| `OMDB_API_KEY`     | _(vide)_ | Clé API OMDb. Requise pour récupérer les notes IMDb et Rotten Tomatoes. |
+| `OMDB_DAILY_LIMIT` | `1000`   | Optionnel. Quota journalier de requêtes OMDb (voir ci-dessous).         |
+
+Lue directement depuis l'environnement par `personalscraper/api/metadata/registry/_factory.py`. Sans cette clé, le pipeline fonctionne normalement mais ignore les sources IMDb/OMDb/Rotten Tomatoes lors du backfill.
+
+> **`OMDB_DAILY_LIMIT`** (optionnel) : limite journalière de requêtes OMDb, défaut `1000` (quota gratuit OMDb). Surcharge possible pour les formules payantes (ex. Patreon 1 $ = 100 000 req/jour). Lue par `personalscraper/api/metadata/_omdb_quota.py` et active uniquement si `OMDB_API_KEY` est défini.
+
+### Comment obtenir la clé
+
+1. Demander une clé gratuite sur [omdbapi.com/apikey.aspx](https://www.omdbapi.com/apikey.aspx) (1000 requêtes/jour en formule gratuite)
+2. Valider la clé via le lien reçu par email
+
+```ini
+OMDB_API_KEY=xxxxxxxx
+```
+
+---
+
+## Trakt (optionnel)
+
+Identifiant client Trakt utilisé comme provider de métadonnées additionnel.
+
+| Variable          | Défaut   | Description                                        |
+| ----------------- | -------- | -------------------------------------------------- |
+| `TRAKT_CLIENT_ID` | _(vide)_ | Client ID de l'application Trakt (provider Trakt). |
+
+Lu directement depuis l'environnement par `personalscraper/api/metadata/registry/_factory.py`. Sans cette valeur, le provider Trakt n'est pas activé.
+
+### Comment obtenir la clé
+
+1. Créer une application sur [trakt.tv/oauth/applications](https://trakt.tv/oauth/applications)
+2. Copier le **Client ID** généré
+
+```ini
+TRAKT_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
 
 ---
 
@@ -377,26 +424,31 @@ Protection contre les pannes durables des APIs TMDB/TVDB. Le circuit breaker dé
 
 ## Migration depuis pré-0.11 (api-unify)
 
-À partir de 0.11.0 (api-unify), la configuration des **clients torrent** (qBittorrent,
-Transmission) est éclatée en deux endroits :
+À partir de 0.11.0 (api-unify), la **source canonique** de la configuration des
+**clients torrent** (qBittorrent, Transmission) est `config/torrent.json5` :
 
-| Avant 0.11 (legacy `Settings`) | Depuis 0.11 (api-unify)                             |
-| ------------------------------ | --------------------------------------------------- |
-| `.env` : `QBIT_HOST`           | `config/torrent.json5` : `clients.qbittorrent.host` |
-| `.env` : `QBIT_PORT`           | `config/torrent.json5` : `clients.qbittorrent.port` |
-| `.env` : `QBIT_USERNAME`       | inchangé (cred reste dans `.env`)                   |
-| `.env` : `QBIT_PASSWORD`       | inchangé (cred reste dans `.env`)                   |
+| Champ    | Source canonique                                    | Compat `.env` (legacy `Settings`) |
+| -------- | --------------------------------------------------- | --------------------------------- |
+| host     | `config/torrent.json5` : `clients.qbittorrent.host` | `.env` : `QBIT_HOST`              |
+| port     | `config/torrent.json5` : `clients.qbittorrent.port` | `.env` : `QBIT_PORT`              |
+| username | `.env` : `QBIT_USERNAME` (cred — reste dans `.env`) | —                                 |
+| password | `.env` : `QBIT_PASSWORD` (cred — reste dans `.env`) | —                                 |
+
+> **Les deux chemins fonctionnent.** `QBIT_HOST` et `QBIT_PORT` restent lus depuis
+> `.env` via les valeurs par défaut de `Settings` (`personalscraper/config.py` :
+> `qbit_host="localhost"`, `qbit_port=8081`) à des fins de rétro-compatibilité. Ils
+> ne sont **pas** ignorés. Préférez néanmoins `config/torrent.json5` comme source
+> unique : c'est la valeur canonique consommée par la couche api-unify.
 
 Si vous mettez à jour depuis 0.10 ou antérieur :
 
 1. Vérifiez `config/torrent.json5` (créé par `personalscraper init-config`) et
    ajustez `clients.qbittorrent.host` + `.port` à vos valeurs.
-2. Retirez `QBIT_HOST` et `QBIT_PORT` de `.env`.
+2. Optionnel : retirez `QBIT_HOST` et `QBIT_PORT` de `.env` une fois la valeur
+   reportée dans `config/torrent.json5` (la migration n'est pas obligatoire — les
+   deux chemins restent supportés tant que le projet est en `0.x`).
 3. Si vous utilisez Transmission, faites de même avec `TRANSMISSION_HOST` /
    `TRANSMISSION_PORT`.
-
-Le loader émet un `warning` au démarrage si ces variables sont encore présentes
-dans l'environnement (elles sont silencieusement ignorées par le code api-unify).
 
 ## Exemple complet
 
@@ -411,6 +463,10 @@ QBIT_PASSWORD=mon_mot_de_passe
 # ── TMDB / TVDB ──────────────────────────────
 TMDB_API_KEY=abcdef1234567890abcdef1234567890
 TVDB_API_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+# ── Backfill IDs / notes (optionnel) ─────────
+OMDB_API_KEY=xxxxxxxx
+TRAKT_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # ── Telegram ─────────────────────────────────
 TELEGRAM_BOT_TOKEN=123456789:ABCDefGhIjKlMnOpQrStUvWxYz

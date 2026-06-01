@@ -7,7 +7,7 @@ codes are converted from ISO 639-2/B (ffprobe) to ISO 639-2/T (Kodi).
 Uses subprocess to call ffprobe (reads headers only, ~65ms per file).
 Returns None gracefully if ffprobe is absent or the file is unreadable.
 
-See docs/ffprobe-reference.md for the full specification.
+See docs/reference/ffprobe-api.md for the full specification.
 """
 
 import json

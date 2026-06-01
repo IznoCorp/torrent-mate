@@ -80,16 +80,16 @@ X-Api-Key: <key>
 
 #### Reality vs initial spec (captured 2026-05-07)
 
-| Initial assumption                                       | Reality                                                                                                                                                                                                    |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `category` is the slug ("films-hd")                      | `category` is the **human label** ("Films", "Musique", "Séries TV"). The slug is **not** in search responses                                                                                               |
-| `downloadLink` is `/api/torrents/download/<hash>`        | `downloadLink` is `/api/download/<infoHash>?token=<JWT>`. Token is a per-request signed JWT (sensitive)                                                                                                    |
-| Freeleech encoded as `[FreeLeech]` title prefix          | **No** `[FreeLeech]` / `[SilverLeech]` prefixes observed in any captured sample. No JSON flag either. The title-prefix theory from TorrentMaker docs does not apply here — Phase 18 should drop this regex |
-| `leechers` derived from response                         | `leechers` is a direct int field in JSON — no derivation needed                                                                                                                                            |
-| `pubDate` ISO 8601 (date precision)                      | ISO 8601 with **milliseconds**: `2026-04-17T21:41:56.126Z`. Python `datetime.fromisoformat` (3.11+) handles `Z` only after manual replace; safer to swap `Z` → `+00:00` first                              |
-| `guid` is the torrent slug or infohash                   | `guid` is a short opaque ID (~20 chars, sometimes a CUID like `cmjuy63yh002t01mvbcjehgax`). Use it as `tracker_id` only — do not mistake for `infoHash`                                                    |
-| `meta` returns `{categories, tagGroups, ungroupedTags}`  | `/api/external/meta` returns **only** `{categories: [...]}`. No `tagGroups`, no `ungroupedTags` (those are upload-side concepts). Each category has `id`, `name`, `slug`, `icon`, `parentId`, `children`   |
-| Auth error returns `{"error": "..."}` body with HTTP 401 | Confirmed exactly: `HTTP 401` + `{"error":"Invalid API key"}` (see `_samples/lacale/error-auth.json`)                                                                                                      |
+| Initial assumption                                       | Reality                                                                                                                                                                                                                                                                                                                                                                                                    |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `category` is the slug ("films-hd")                      | The `category` **field in search responses** is the **human label** ("Films", "Musique", "Séries TV") — the slug is **not** returned. Slug-based filtering is a separate, request-time mechanism: pass the slug(s) via the repeatable `cat` **query parameter** when searching (`api/tracker/lacale.py`). So the slug exists only as input (`cat=…`) and in `/api/external/meta`, never as an output field |
+| `downloadLink` is `/api/torrents/download/<hash>`        | `downloadLink` is `/api/download/<infoHash>?token=<JWT>`. Token is a per-request signed JWT (sensitive)                                                                                                                                                                                                                                                                                                    |
+| Freeleech encoded as `[FreeLeech]` title prefix          | **No** `[FreeLeech]` / `[SilverLeech]` prefixes observed in any captured sample. No JSON flag either. The title-prefix theory from TorrentMaker docs does not apply here — Phase 18 should drop this regex                                                                                                                                                                                                 |
+| `leechers` derived from response                         | `leechers` is a direct int field in JSON — no derivation needed                                                                                                                                                                                                                                                                                                                                            |
+| `pubDate` ISO 8601 (date precision)                      | ISO 8601 with **milliseconds**: `2026-04-17T21:41:56.126Z`. Python `datetime.fromisoformat` (3.11+) handles `Z` only after manual replace; safer to swap `Z` → `+00:00` first                                                                                                                                                                                                                              |
+| `guid` is the torrent slug or infohash                   | `guid` is a short opaque ID (~20 chars, sometimes a CUID like `cmjuy63yh002t01mvbcjehgax`). Use it as `tracker_id` only — do not mistake for `infoHash`                                                                                                                                                                                                                                                    |
+| `meta` returns `{categories, tagGroups, ungroupedTags}`  | `/api/external/meta` returns **only** `{categories: [...]}`. No `tagGroups`, no `ungroupedTags` (those are upload-side concepts). Each category has `id`, `name`, `slug`, `icon`, `parentId`, `children`                                                                                                                                                                                                   |
+| Auth error returns `{"error": "..."}` body with HTTP 401 | Confirmed exactly: `HTTP 401` + `{"error":"Invalid API key"}` (see `_samples/lacale/error-auth.json`)                                                                                                                                                                                                                                                                                                      |
 
 ### Field mapping → `TrackerResult`
 
@@ -186,13 +186,13 @@ is regex-decomposed into the corresponding `TrackerResult` fields.
 
 ### Patterns
 
-| Field        | Pattern (case-insensitive)                                         | Example match                    |
-| ------------ | ------------------------------------------------------------------ | -------------------------------- |
-| `resolution` | `\b(2160p\|1080p\|720p\|480p\|4k\|uhd)\b`                          | `2160p`                          |
-| `codec`      | `\b(x265\|x264\|h\.?265\|h\.?264\|hevc\|av1\|xvid\|divx)\b`        | `x265`                           |
-| `source`     | `\b(uhd\.bluray\|bluray\|brrip\|web-?dl\|webrip\|hdtv\|dvdrip)\b`  | `BluRay`                         |
-| `audio`      | `\b(truehd\|atmos\|dts-?hd\|dts\|ddp?5\.1\|aac\|ac3\|flac\|mp3)\b` | `DTS-HD`                         |
-| `format`     | trailing extension `\.(mkv\|mp4\|avi\|m4v\|wmv\|mov)$`             | (empty if no extension in title) |
+| Field        | Pattern (case-insensitive)                                          | Example match                    |
+| ------------ | ------------------------------------------------------------------- | -------------------------------- |
+| `resolution` | `\b(2160p\|1080p\|720p\|480p\|4k\|uhd)\b`                           | `2160p`                          |
+| `codec`      | `\b(x265\|x264\|h\.?265\|h\.?264\|hevc\|av1\|xvid\|divx)\b`         | `x265`                           |
+| `source`     | `\b(uhd[. ]bluray\|bluray\|brrip\|web-?dl\|webrip\|hdtv\|dvdrip)\b` | `BluRay`                         |
+| `audio`      | `\b(truehd\|atmos\|dts-?hd\|dts\|ddp?5\.1\|aac\|ac3\|flac\|mp3)\b`  | `DTS-HD`                         |
+| `format`     | trailing extension `\.(mkv\|mp4\|avi\|m4v\|wmv\|mov)$`              | (empty if no extension in title) |
 
 ### Free / silver leech
 

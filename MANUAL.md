@@ -79,6 +79,9 @@ personalscraper library-index                    # Scan complet (tous les disque
 personalscraper library-index --mode quick       # Mode rapide (Merkle + dir-mtime)
 personalscraper library-index --mode full --disk Disk1  # Rebuild complet d'un disque
 personalscraper library-index --rebuild          # Quarantaine l'ancienne DB et repart de zéro
+personalscraper library-scan                     # Alias visible de `library-index --mode full`
+personalscraper library-init-canonical           # Initialiser canonical_provider + external_ids depuis les NFO
+personalscraper library-backfill-ids             # Compléter les IDs croisés + notes (IMDb/RT) manquants
 personalscraper library-status                   # Résumé du dernier scan
 personalscraper library-verify                   # Re-stat tous les fichiers indexés
 personalscraper library-search "<query>"         # Recherche flex-attr (ex: nfo_status:invalid)
@@ -97,6 +100,14 @@ personalscraper library-report                   # Statistiques de santé de la 
 # Utilitaires
 personalscraper library-ghost-audit              # Auditer les entrées fantômes NTFS-via-macFUSE
 personalscraper library-relink --apply           # Corriger les liens release manquants
+
+# Diagnostic & réparation DB (dry-run par défaut, --apply pour écrire)
+personalscraper library-doctor                   # Contrôles de santé de la DB indexeur (intégrité, schéma, dérive)
+personalscraper library-gc                        # Purger les vieilles lignes index_outbox traitées (status=done)
+personalscraper library-fix-nfo --apply          # Réparer les NFO cassés par du contenu après la balise racine
+personalscraper library-fix-canonical-provider --apply  # Corriger les canonical_provider erronés (séries TMDB→TVDB, films NULL)
+personalscraper library-fix-orphan-files --apply # Relier les media_file orphelins (release_id NULL) à leur release
+personalscraper library-fix-season-counts --apply # Corriger la dérive season.episode_count vs lignes episode réelles
 ```
 
 ### Commandes trailers (bandes-annonces)

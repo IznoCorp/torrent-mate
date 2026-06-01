@@ -53,7 +53,7 @@ staging/
 │   │   ├── _activation.py       # ProviderActivation (cred presence check)
 │   │   ├── _units.py            # ByteSize (parseable + comparable disk-size type)
 │   │   ├── transport/           # HttpTransport + TransportPolicy + auth/retry/circuit/rate
-│   │   ├── metadata/            # MetadataClient family — tmdb, tvdb, omdb, trakt
+│   │   ├── metadata/            # MetadataClient family — tmdb, tvdb, omdb, trakt, imdb, rotten_tomatoes
 │   │   ├── torrent/             # TorrentClient family — qbittorrent, transmission
 │   │   ├── tracker/             # TrackerClient + ranking engine — lacale, c411
 │   │   └── notify/              # Notifier + HealthChecker — telegram, healthchecks
@@ -244,7 +244,7 @@ re-homed standalone as `verify/library_checks.py` (new in 0.19.0), backing
 - `typer` — CLI framework (wraps Click, type hints = spec CLI, rich native, same CliRunner for tests)
 - `qbittorrent-api` — qBit wrapper (prefer over raw requests — handles auth/CSRF/v5 compat)
 - `guessit` — filename parsing (prefer over custom regex — 140+ services, edge cases)
-- `ffprobe` (subprocess) — streamdetails extraction (prefer over pymediainfo — already installed, zero dep)
+- `ffprobe` (external ffmpeg tool, via subprocess) — streamdetails extraction in `scraper/mediainfo.py` (no extra Python package, but requires `ffmpeg` installed on the host). The indexer's enrich pass uses the `pymediainfo` package (`indexer/mediainfo.py`) instead.
 - `rsync` (subprocess) — cross-filesystem transfers (prefer over shutil — resume, checksum, crash-safe)
 - `pydantic-settings` — config (rewritten from scratch, NOT copied from TorrentMaker)
 - `rapidfuzz` — fuzzy matching across sorter/scraper/dispatch (MIT license, C++ 5-100x faster than thefuzz)
@@ -466,15 +466,20 @@ time proposing what was already declined.
 
 ## Reference Documentation
 
-- `docs/qbittorrent-api-reference.md` — TorrentState enum, exceptions, patterns pipeline
-- `docs/guessit-evaluation.md` — parsing noms media, tests réels, comparaison regex
-- `docs/ffprobe-reference.md` — extraction streamdetails, mapping codec/langue Kodi
-- `docs/TMDB-API.md` — référence API TMDB v3 vérifiée par tests live
-- `docs/TVDB-API.md` — référence API TVDB v4 vérifiée par tests live
-- `docs/rapidfuzz-reference.md` — fuzzy matching titres, scorers, media_processor custom
-- `docs/tenacity-reference.md` — retry API calls, backoff, rate limits TMDB/TVDB
-- `docs/rich-reference.md` — CLI output, progress bars, tables, theming
-- `docs/structlog-reference.md` — logging JSON structuré, context binding, switch dev/prod
+Canonical provider/tool references (consolidated into `docs/reference/`):
+
+- [`qbittorrent-api.md`](qbittorrent-api.md) — qBittorrent WebUI API + `qbittorrentapi` client: TorrentState enum, exceptions, pipeline patterns
+- [`tmdb-api.md`](tmdb-api.md) — TMDB v3 API reference (auth, endpoints, response schemas, live-verified edge cases)
+- [`tvdb-api.md`](tvdb-api.md) — TVDB v4 API reference (auth, endpoints, artwork/source types, live-verified edge cases)
+- [`ffprobe-api.md`](ffprobe-api.md) — ffprobe streamdetails extraction, codec/language → Kodi mapping
+
+Library deep-dives kept as archived legacy references (`docs/archive/legacy-alpha/`):
+
+- `docs/archive/legacy-alpha/guessit-evaluation.md` — media-name parsing, real-world tests, regex comparison
+- `docs/archive/legacy-alpha/rapidfuzz-reference.md` — fuzzy title matching, scorers, custom media processor
+- `docs/archive/legacy-alpha/tenacity-reference.md` — API-call retry, backoff, TMDB/TVDB rate limits
+- `docs/archive/legacy-alpha/rich-reference.md` — CLI output, progress bars, tables, theming
+- `docs/archive/legacy-alpha/structlog-reference.md` — structured JSON logging, context binding, dev/prod auto-switch
 
 ## Versioning Hygiene
 

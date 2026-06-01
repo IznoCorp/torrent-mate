@@ -40,7 +40,9 @@ All 9 pipeline steps are idempotent — re-running produces no changes if everyt
 
 ### rsync flags
 
-Uses `-a --no-perms --no-owner --no-group` — NTFS via macFUSE does not support Unix permissions, plain `-a` (which includes `-pgo`) fails with EPERM on all 4 disks.
+Uses `-a --no-perms --no-owner --no-group --no-times --omit-dir-times --inplace --partial --exclude=.DS_Store --exclude=._*` — NTFS via macFUSE does not support Unix permissions, plain `-a` (which includes `-pgo`) fails with EPERM on all 4 disks.
+
+> Note: this is the complete NTFS flag set (`_NTFS_RSYNC_FLAGS` in `personalscraper/indexer/_fs_capability.py`). See `storage.md` for the rationale: `--no-times`/`--omit-dir-times` for NTFS mtime handling, `--inplace`/`--partial` for cache/USB pressure, and the `.DS_Store`/`._*` excludes for AppleDouble files.
 
 ### Staging→commit pattern
 
@@ -67,7 +69,7 @@ in-process typed bus
 (`personalscraper.core.event_bus.EventBus`). The bus is the **sole**
 emit substrate — there is no parallel callback channel.
 
-For the full reference — wiring, the 13-event v1 catalog, subscriber
+For the full reference — wiring, the 23-event v1 catalog, subscriber
 recipes, the boundary-only `AppContext` rule, the
 `current_correlation_id` ContextVar convention, the JSON
 serialization contract, performance notes, and the testing-pattern

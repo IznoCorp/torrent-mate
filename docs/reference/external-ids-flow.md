@@ -31,22 +31,37 @@ touching the scrape, backfill, dispatch, or verify paths.
 {
   "entries": [
     { "source": "imdb", "score": "8.5/10", "votes": 1000000 },
+    { "source": "tmdb", "score": "7.4/10", "votes": 12000 },
     { "source": "rotten_tomatoes", "score": "91%", "votes": 0 },
   ],
 }
 ```
 
-- `RatingEntry.source` is a Literal of `imdb` / `rotten_tomatoes` /
-  `metacritic` / `themoviedb` / `trakt`.
+- The `source` values actually **stored** in `ratings_json` are
+  `imdb` / `tmdb` / `rotten_tomatoes` / `metacritic` / `trakt`. The NFO
+  writer emits Plex/Kodi display names (`themoviedb`, `rottentomatoes`);
+  `nfo_utils._NFO_RATING_SOURCE_REVERSE` maps those back to the internal
+  shape the scraper / backfill produce — `themoviedb` → `tmdb`,
+  `rottentomatoes` → `rotten_tomatoes`. So a `themoviedb` rating in an NFO
+  lands as `tmdb` in the column.
+- Note: the `RatingEntry.source` Literal in
+  `personalscraper/indexer/external_ids.py` still lists `themoviedb`
+  (legacy) rather than `tmdb`. Aligning that Literal with the stored value
+  is a separate code follow-up — this doc describes the value on disk.
 - `score` is stored as a string so NFO-formatted values
   (`"8.5/10"`, `"87%"`, `"74/100"`) survive a round-trip.
 
 ### `media_item.canonical_provider`
 
 `"tvdb"` for TV shows, `"tmdb"` for movies, `NULL` for legacy rows
-that never re-scraped under the new flow. The verify checker reads
-this to enforce that every episode NFO carries the matching
-`<uniqueid type=canonical default="true">`.
+that never re-scraped under the new flow. This DB column drives backfill /
+doctor coverage reporting. The verify checker does **not** read this column:
+it derives the canonical family directly from the show NFO's default
+`<uniqueid>` row (`verify/checker.py` `_canonical_family_from_nfo` — the
+`type` of the `<uniqueid default="true">`, falling back to the first
+`<uniqueid>`), then enforces that every episode NFO carries a matching
+`<uniqueid type="{canonical}">`. The check is therefore NFO-based, so it
+stays correct even when the DB column is `NULL` or stale.
 
 ## Nominal scrape flow (TVDB-canonical TV show)
 
@@ -76,10 +91,11 @@ default uniqueid correctly.
 ## Backfill flow
 
 ```
-personalscraper indexer backfill-ids [--show=NAME] [--dry-run]
+personalscraper library-backfill-ids [--show=NAME] [--dry-run] [--ids-only] [--ratings-only]
 ```
 
-Calls
+Registered in `personalscraper/commands/library/scan.py` (command name
+`library-backfill-ids`). Calls
 :func:`personalscraper.indexer.scanner._modes.backfill_ids.run_backfill_ids`
 which iterates every `media_item` row, detects gaps via
 :func:`personalscraper.indexer.backfill_ids.detect_gaps`, fetches the
@@ -162,7 +178,7 @@ status = OK (>= 50% by default, configurable via `--canonical-threshold-pct`).
 - **Trakt** : optional, only if `config/trakt.json5` is present. Used for
   ratings cross-check.
 
-The HttpTransport (`personalscraper/transports/http_transport.py`) applies
+The HttpTransport (`personalscraper/api/transport/_http.py`) applies
 exponential backoff (factor 2, max 60s) on 429 + 5xx and retries up to 5 times
 before surfacing the error.
 

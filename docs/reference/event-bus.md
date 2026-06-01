@@ -5,7 +5,7 @@ indexer, scraper, dispatcher, and trailer components to their
 subscribers (RichConsole, Telegram, structured debug log, future Web
 UI). This document is the **how**; for the **why**, design rationale,
 and rollback discipline see
-[`docs/features/event-bus/DESIGN.md`](../features/event-bus/DESIGN.md).
+[`docs/archive/features/event-bus/DESIGN.md`](../archive/features/event-bus/DESIGN.md).
 
 ## Purpose & high-level architecture
 
@@ -157,11 +157,22 @@ long-lived breakers / orchestrators that pre-existed the run.
 
 ## Event catalog (v1)
 
-The v1 catalog defines exactly 23 production event classes, all
+The v1 catalog defines exactly 23 production event classes, almost all
 imported eagerly by `personalscraper.events` (plus the registry events
 re-exported via `personalscraper.api.metadata.registry`) so they
 self-register before any envelope round-trip. The count is pinned by
 `tests/event_bus/test_pipeline_events.py` (`len(_EVENT_CLASS_REGISTRY) == 23`).
+
+> **Exception — `VerifyItemDone`.** Unlike the other 22 classes,
+> `VerifyItemDone` is **not** in the eager-import list of
+> `personalscraper.events.__init__`. It self-registers only when the verify
+> step is loaded — `personalscraper.verify.run` does
+> `from personalscraper.verify.events import VerifyItemDone`, which triggers
+> `Event.__init_subclass__` and adds the class to `_EVENT_CLASS_REGISTRY`. In
+> a process that never touches the verify step, an `event_from_envelope` call
+> with `_type == "VerifyItemDone"` would raise `KeyError` until
+> `personalscraper.verify.events` is imported. Import that module explicitly if
+> you need to round-trip the event outside a verify run.
 
 | Class                        | Module                                          | Payload fields                                                                                                                  | Producer                                                                                           |
 | ---------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
@@ -205,10 +216,10 @@ an AST allowlist scan walks every source file, finds every
 the allowlist. Currently the allowlist contains:
 
 - `personalscraper.cli_helpers._build_app_context` (the constructor)
-- `personalscraper.cli.callback` (the typer top-level callback)
+- `personalscraper.cli.main` (the typer top-level callback, decorated `@app.callback()`)
 - `personalscraper.commands.pipeline.run` (the full-pipeline CLI)
 - `personalscraper.commands.library.scan.library_index` (the launchd command)
-- the four `personalscraper.trailers.cli.*` subcommands
+- the three `personalscraper.trailers.cli.*` subcommands (`scan`, `download`, `purge`)
 
 To add a new boundary, append its qualified name to the allowlist in
 `tests/architecture/test_app_context_boundary.py` and write a short
@@ -284,7 +295,7 @@ round-trips when no run is bound.
 ### CLI bootstrap (`personalscraper run`)
 
 The actual bind/reset lives **inside** `Pipeline.run` (see
-`personalscraper/pipeline.py:225` for `set` and `:370` for `reset`), not
+`personalscraper/pipeline.py:329` for `set` and `:479` for `reset`), not
 in the CLI command itself. The CLI command is a thin wrapper that
 constructs `AppContext`, instantiates subscribers, and calls
 `pipeline.run(...)`; the ContextVar lifecycle is one layer down so
@@ -418,6 +429,88 @@ to `Event` (single subscription) — the bus's MRO walk routes every
 concrete subclass to your handler. `DebugLogSubscriber` is the
 canonical example — fewer than 40 non-blank lines.
 
+### Subscriber lifecycle in practice
+
+Every shipped subscriber follows the same two-phase contract:
+
+1. **Construct = subscribe.** The `__init__(bus, ...)` body calls
+   `bus.subscribe(...)` once per event type it cares about and stores the
+   returned `SubscriptionToken`s on `self._tokens` (a single token on
+   `self._token` for the catch-all `DebugLogSubscriber`). There is no
+   separate `start()` / `register()` step — being alive means being
+   subscribed.
+2. **`close()` = unsubscribe.** Teardown walks `self._tokens`, calls
+   `bus.unsubscribe(token)` for each, and clears the list. The shipped
+   `close()` methods are idempotent — a second call is a no-op because the
+   token list is already empty and `unsubscribe` itself ignores stale
+   tokens. The CLI run command owns the subscribers' lifetime and wraps the
+   pipeline call in `try / finally`, so `close()` runs even when the run
+   raises.
+
+### Shipped subscribers
+
+Three production subscribers live in `personalscraper/subscribers/`
+(`RichConsoleSubscriber` and `TelegramSubscriber` are re-exported from
+`personalscraper.subscribers.__init__`; `DebugLogSubscriber` lives in
+`personalscraper.subscribers.debug_log`).
+
+**`RichConsoleSubscriber`** (`subscribers/rich_console.py`) — renders
+pipeline progress and errors to a `rich.Console`. It self-subscribes in
+`__init__` to the six pipeline-lifecycle events: `PipelineStarted`,
+`PipelineEnded`, `StepStarted`, `StepCompleted`, `StepErrored`, and
+`ItemProgressed`. It draws the run banner on start, a per-step header and
+summary line on each step, a `FATAL:` line on `StepErrored`, and a final
+summary `Panel` (a `Table` of OK / skip / err counts per step) on
+`PipelineEnded`. Construction takes optional `verbose`, `dry_run`, and
+`run_id` flags; per-item (`ItemProgressed`) detail and step details are
+only printed when `verbose=True`. Its output is locked by the canonical
+snapshot `tests/snapshots/rich_console_canonical.txt`.
+
+**`TelegramSubscriber`** (`subscribers/telegram.py`) — relays alerts to
+Telegram via an injected `TelegramNotifier`. It self-subscribes in
+`__init__` to four events: `PipelineEnded` (HTML run summary via
+`report.to_html()`), `StepErrored` (step-failure alert),
+`CircuitBreakerOpened` (provider-trip alert), and `DiskFullWarning`
+(disk-saturation alert). Crucially, every handler schedules the HTTP send
+on a fire-and-forget daemon thread (`_spawn` → `threading.Thread(...,
+daemon=True)`), so the bus dispatch returns in well under 50 ms even when
+Telegram is slow or unreachable — the bus has no async offload of its own
+in v1. Sends are fail-soft: a failed `notifier.send(...)` logs
+`telegram_subscriber_send_failed` (with a `concern=` tag) at WARNING and a
+crashing worker logs `telegram_subscriber_worker_crashed`, but neither
+propagates back to the bus.
+
+**`DebugLogSubscriber`** (`subscribers/debug_log.py`) — the catch-all. It
+subscribes once to the `Event` base class and relies on the MRO walk to
+receive every concrete subclass, logging each one at DEBUG as
+`event_emitted` with the `event_to_dict(event)` payload (no `_type`
+discriminator). Wired by `personalscraper run --verbose`.
+
+### Testing & mocking subscribers
+
+Subscribers are plain classes, so tests instantiate them against a fresh
+`EventBus()` and inject fakes for their collaborators rather than mocking
+the bus:
+
+- **Real bus, fake collaborator.** For `RichConsoleSubscriber`, pass a
+  `rich.Console(file=io.StringIO())` (or a `record=True` console) so the
+  rendered text can be asserted — the canonical snapshot test does exactly
+  this. For `TelegramSubscriber`, inject a stub notifier whose `send(...)`
+  records its arguments and returns `True`/`False`; because the real send
+  runs on a daemon thread, `join` the worker (or patch `_spawn` to run the
+  target synchronously) before asserting so the test is deterministic.
+- **Assert via the bus, not the handler.** Construct the subscriber, then
+  `bus.emit(SomeEvent(...))` and assert on the collaborator's recorded
+  calls. This exercises the real subscribe/MRO path instead of calling the
+  private `_on_*` handler directly.
+- **`CollectingSubscriber`** (`tests/fixtures/event_bus.py`) is the
+  go-to fake when a test only needs to prove an emit happened — see the
+  next section.
+- **Lifecycle hygiene.** Call `subscriber.close()` (or use a fixture that
+  does) at end of test so the subscription does not leak into a shared bus;
+  the bus is cheap enough that most tests simply use a per-test
+  `EventBus()` and skip the teardown.
+
 ## Testing patterns
 
 The bus is engineered to be cheap to test: a fresh `EventBus()` is a
@@ -530,7 +623,7 @@ NOT in scope for the v1 catalog:
   events stay at `1`.
 
 For the rationale and decision log, see
-[`docs/features/event-bus/DESIGN.md`](../features/event-bus/DESIGN.md)
+[`docs/archive/features/event-bus/DESIGN.md`](../archive/features/event-bus/DESIGN.md)
 §Roadmap Alignment.
 
 The bus contract is intentionally additive: new event classes and new

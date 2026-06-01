@@ -1,5 +1,7 @@
 # Filesystem Decoupling — macFUSE/NTFS Coupling and the Missing FilesystemCapability Layer
 
+> STATUS: PARTIALLY SHIPPED. FilesystemCapability layer landed (personalscraper/indexer/\_fs_probe.py + \_fs_capability.py present); FS-aware tier-1 drift (Phase 5) appears still open — verify before relying on it. Historical analysis.
+
 > **Metadata** — date: 2026-05-28 · version: 0.16.0 · branch: `feat/registry` · project status: pre-v1.0, single mono-user instance, NOT in production · report scope: filesystem-type coupling in the `dispatch` and `indexer` subsystems (rsync flags, mount detection, mtime/ctime drift, atomic rename, NTFS name policy) · confidence level: **high** (every claim below was re-read from source; fact-check corrections incorporated).
 
 ---
@@ -7,8 +9,8 @@
 ## 1. Executive summary (TL;DR)
 
 - **There is no filesystem-capability abstraction.** NTFS-via-macFUSE behaviour is hardcoded in the transfer layer, and filesystem-type detection is duplicated across **three** independent `mount`-parsers (`indexer/db.py`, `indexer/scanner/_spotlight.py`, `indexer/scanner/__init__.py`) with three different timeout budgets (5s / 10s / 10s).
-- **The single most concentrated coupling site is `personalscraper/dispatch/_transfer.py`.** `rsync()` (lines 103-118) and `rsync_merge()` (lines 163-179) build **byte-identical** static flag lists that are correct *only* for NTFS-via-macFUSE, with no shared constant — any change requires editing two places.
-- **A latent dead-branch bug exists in Spotlight detection.** `_spotlight.try_attach` (line 258) tests `fs_type == "macfuse"`, but real macFUSE-NTFS mounts report `ufsd_NTFS` as the first token, so `detect_fs_type` returns `"ufsd_ntfs"` — the `macfuse` branch never fires on production disks. It is masked because the `!= "apfs"` fallthrough (line 281) also refuses Spotlight, so behaviour is *correct by accident*. By contrast, `db.py::_find_ntfs_mount` uses **substring** matching (`db.py:218`) and therefore *does* detect `ufsd_ntfs` correctly — the asymmetry (substring vs exact-token) is the true root cause.
+- **The single most concentrated coupling site is `personalscraper/dispatch/_transfer.py`.** `rsync()` (lines 103-118) and `rsync_merge()` (lines 163-179) build **byte-identical** static flag lists that are correct _only_ for NTFS-via-macFUSE, with no shared constant — any change requires editing two places.
+- **A latent dead-branch bug exists in Spotlight detection.** `_spotlight.try_attach` (line 258) tests `fs_type == "macfuse"`, but real macFUSE-NTFS mounts report `ufsd_NTFS` as the first token, so `detect_fs_type` returns `"ufsd_ntfs"` — the `macfuse` branch never fires on production disks. It is masked because the `!= "apfs"` fallthrough (line 281) also refuses Spotlight, so behaviour is _correct by accident_. By contrast, `db.py::_find_ntfs_mount` uses **substring** matching (`db.py:218`) and therefore _does_ detect `ufsd_ntfs` correctly — the asymmetry (substring vs exact-token) is the true root cause.
 - **The indexer's tier-1 drift detector is mtime/ctime-coupled.** `fingerprint_tier1` = `(st_size, st_mtime_ns, st_ctime_ns)` (`fingerprint.py:81`); `drift.py::reconcile_file` escalates to a 2 MiB partial hash on any tier-1 mismatch. On exFAT (2s mtime granularity, no ctime) or ext4 (ctime changes on metadata ops) this would cause **perpetual re-hashing**. The storage layer already tolerates a NULL ctime (`drift.py:194` uses `stored.ctime_ns or 0`); only the live-side comparison needs a per-FS knob.
 - **`_verify_dir_mtime_reliable` (`_walker.py:61-96`) is the one existing per-FS runtime adaptation** (probe → boolean → behaviour switch) and is the proven template for a generalised capability layer.
 
@@ -33,17 +35,17 @@ The `Dispatcher` already holds the disk configs (`dispatcher.py:81`: `self._disk
 
 ### 2.2 Three independent mount-parsers (core architectural debt)
 
-| # | Function | File:lines | Timeout | Match style |
-|---|----------|-----------|---------|-------------|
-| 1 | `_find_ntfs_mount` + `_MACFUSE_FSTYPES` | `indexer/db.py:176-228` | **5s** (`db.py:194`) | **substring** (`db.py:218`: `any(t in fstype_raw …)`) |
-| 2 | `detect_fs_type` / `_parse_mount_output` | `indexer/scanner/_spotlight.py:89-112` (parse 37-67) | **10s** (`_spotlight.py:81`) | **exact** first-token `.lower()` (`_spotlight.py:66`) |
-| 3 | `_check_mount_flags` + `_RECOMMENDED_MOUNT_FLAGS` | `indexer/scanner/__init__.py:225-306` (flags 87-95) | **10s** (`__init__.py:256`) | re-parses parenthesised flag block |
+| #   | Function                                          | File:lines                                           | Timeout                      | Match style                                           |
+| --- | ------------------------------------------------- | ---------------------------------------------------- | ---------------------------- | ----------------------------------------------------- |
+| 1   | `_find_ntfs_mount` + `_MACFUSE_FSTYPES`           | `indexer/db.py:176-228`                              | **5s** (`db.py:194`)         | **substring** (`db.py:218`: `any(t in fstype_raw …)`) |
+| 2   | `detect_fs_type` / `_parse_mount_output`          | `indexer/scanner/_spotlight.py:89-112` (parse 37-67) | **10s** (`_spotlight.py:81`) | **exact** first-token `.lower()` (`_spotlight.py:66`) |
+| 3   | `_check_mount_flags` + `_RECOMMENDED_MOUNT_FLAGS` | `indexer/scanner/__init__.py:225-306` (flags 87-95)  | **10s** (`__init__.py:256`)  | re-parses parenthesised flag block                    |
 
 `_MACFUSE_FSTYPES = {fuse_osxfuse, osxfuse, macfuse, ntfs, fuse-t}` (`db.py:176`). `_RECOMMENDED_MOUNT_FLAGS = {noatime, noappledouble, noapplexattr, defer_permissions, allow_other}` (`__init__.py:87-95`, exactly 5). All three early-return on non-Darwin (`_spotlight.py:102`, `__init__.py:248`; `db.py` returns `None` on subprocess failure).
 
 ### 2.3 The dead-branch / asymmetry bug
 
-`_parse_mount_output` returns `tokens[0].lower()` (`_spotlight.py:66`) → a real `ufsd_NTFS` line yields `"ufsd_ntfs"`. `try_attach` checks `fs_type == "macfuse"` (`_spotlight.py:258`), which never matches; flow falls through to the `fs_type != "apfs"` branch (`_spotlight.py:281`, logs `reason="not_apfs"`, NOT the macfuse-specific `flag_ignored_macfuse`/`skipped_macfuse` warnings). Because `db.py` uses **substring** matching, `db.py` *correctly* detects real NTFS mounts while `_spotlight` does not normalise `ufsd_ntfs`. Tests inject `fs_type_fn` (`_spotlight.py:254`), so the real mount-parse path is **never exercised**.
+`_parse_mount_output` returns `tokens[0].lower()` (`_spotlight.py:66`) → a real `ufsd_NTFS` line yields `"ufsd_ntfs"`. `try_attach` checks `fs_type == "macfuse"` (`_spotlight.py:258`), which never matches; flow falls through to the `fs_type != "apfs"` branch (`_spotlight.py:281`, logs `reason="not_apfs"`, NOT the macfuse-specific `flag_ignored_macfuse`/`skipped_macfuse` warnings). Because `db.py` uses **substring** matching, `db.py` _correctly_ detects real NTFS mounts while `_spotlight` does not normalise `ufsd_ntfs`. Tests inject `fs_type_fn` (`_spotlight.py:254`), so the real mount-parse path is **never exercised**.
 
 ### 2.4 Indexer mtime/ctime coupling
 
@@ -59,28 +61,28 @@ The `Dispatcher` already holds the disk configs (`dispatcher.py:81`: `self._disk
 ### 2.6 Config and atomic rename
 
 - `DiskConfig` = `{id, path, categories}` only (`conf/models/disks.py:11-27`) — **no** `fs_type`. `config/disks.json5` lists 4 disks under `/Volumes/Disk[1-4]/medias` with no FS hint.
-- `conf/models/indexer.py:187` rejects `db_path` via `str(resolved).startswith("/Volumes/")` (string prefix, not FS detection); `db.py::open_db` (357-360) *also* calls `_find_ntfs_mount` — the two checks disagree on method.
+- `conf/models/indexer.py:187` rejects `db_path` via `str(resolved).startswith("/Volumes/")` (string prefix, not FS detection); `db.py::open_db` (357-360) _also_ calls `_find_ntfs_mount` — the two checks disagree on method.
 - `os.rename` appears at **7** non-test sites: `sorter.py:191,196`; `_movie.py:214,215,227`; `ingest.py:237`; `dispatcher.py:396`. `_move_new` (`dispatcher.py:379-396`) rsyncs into `dest.parent/_tmp_dispatch_*` (same disk) **then** `os.rename` — atomic only because tmp and dest share a mount. `ingest.py:200` docstring already notes "atomic rename on the same filesystem".
 
 ### 2.7 Test baseline gaps (verified)
 
-- **No golden test pins the exact rsync argv today** (`rg "no-perms|omit-dir-times" -g '*.py' tests/` returns nothing). Phase 3's "NTFS byte-identical" guarantee therefore has **no current baseline** — the golden test must be authored as the *first* step of Phase 3 against the current code, before any refactor.
+- **No golden test pins the exact rsync argv today** (`rg "no-perms|omit-dir-times" -g '*.py' tests/` returns nothing). Phase 3's "NTFS byte-identical" guarantee therefore has **no current baseline** — the golden test must be authored as the _first_ step of Phase 3 against the current code, before any refactor.
 - The `multifs` pytest marker does **not** exist; only `darwin_only` exists (`pyproject.toml`).
 
 ---
 
 ## 3. Problems & risks
 
-| Sev | Problem | Evidence |
-|-----|---------|----------|
-| **High** | rsync flag list hardcoded for NTFS-macFUSE and duplicated verbatim across two functions; no shared constant. On APFS/ext4 the flags discard metadata the indexer could rely on; `--no-times` actively harms tier-1 mtime drift. | `_transfer.py:103-118` & `163-179` |
-| **High** | FS-type detection implemented 3× with independent parsers, 3 timeout budgets, 2 match styles (substring vs exact). 3 places to fix on `mount` format change. | `db.py:176-228`, `_spotlight.py:89-112`, `__init__.py:225-306` |
-| **High** | Tier-1 drift compares ctime + exact mtime → exFAT/ext4 targets cause perpetual partial re-hashing. No per-FS knob on the live-side comparison. | `fingerprint.py:81`, `drift.py:193-235` |
-| **Medium** | Spotlight `macfuse` branch is dead on real disks (`ufsd_NTFS` → `ufsd_ntfs` ≠ `macfuse`); macfuse-specific warnings never fire; untested. | `_spotlight.py:66,258,281` |
-| **Medium** | NTFS-illegal-name pre-scan + AppleDouble excludes are unconditional → on an APFS/ext4 target, legal names (`:` etc.) would be needlessly skipped. | `_movie.py:43`, `_tv.py:43`, `verify/checker.py:636`, `_transfer.py:113-114,275-290` |
-| **Medium** | `DiskConfig` has no `fs_type` and no override; FS knowledge is runtime-only (no escape hatch for unrecognised tokens like fuse-t). | `conf/models/disks.py:11-27` |
-| **Low** | `db_path` `/Volumes` rejection is a string-prefix heuristic; a legitimate APFS volume under `/Volumes` would be wrongly rejected. | `conf/models/indexer.py:187` |
-| **Low** | `os.rename` atomic-commit invariant relies on same-FS staging; undocumented; cross-FS rename raises EXDEV and would silently fail the commit. | `dispatcher.py:379-396`, 7 `os.rename` sites |
+| Sev        | Problem                                                                                                                                                                                                                         | Evidence                                                                             |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| **High**   | rsync flag list hardcoded for NTFS-macFUSE and duplicated verbatim across two functions; no shared constant. On APFS/ext4 the flags discard metadata the indexer could rely on; `--no-times` actively harms tier-1 mtime drift. | `_transfer.py:103-118` & `163-179`                                                   |
+| **High**   | FS-type detection implemented 3× with independent parsers, 3 timeout budgets, 2 match styles (substring vs exact). 3 places to fix on `mount` format change.                                                                    | `db.py:176-228`, `_spotlight.py:89-112`, `__init__.py:225-306`                       |
+| **High**   | Tier-1 drift compares ctime + exact mtime → exFAT/ext4 targets cause perpetual partial re-hashing. No per-FS knob on the live-side comparison.                                                                                  | `fingerprint.py:81`, `drift.py:193-235`                                              |
+| **Medium** | Spotlight `macfuse` branch is dead on real disks (`ufsd_NTFS` → `ufsd_ntfs` ≠ `macfuse`); macfuse-specific warnings never fire; untested.                                                                                       | `_spotlight.py:66,258,281`                                                           |
+| **Medium** | NTFS-illegal-name pre-scan + AppleDouble excludes are unconditional → on an APFS/ext4 target, legal names (`:` etc.) would be needlessly skipped.                                                                               | `_movie.py:43`, `_tv.py:43`, `verify/checker.py:636`, `_transfer.py:113-114,275-290` |
+| **Medium** | `DiskConfig` has no `fs_type` and no override; FS knowledge is runtime-only (no escape hatch for unrecognised tokens like fuse-t).                                                                                              | `conf/models/disks.py:11-27`                                                         |
+| **Low**    | `db_path` `/Volumes` rejection is a string-prefix heuristic; a legitimate APFS volume under `/Volumes` would be wrongly rejected.                                                                                               | `conf/models/indexer.py:187`                                                         |
+| **Low**    | `os.rename` atomic-commit invariant relies on same-FS staging; undocumented; cross-FS rename raises EXDEV and would silently fail the commit.                                                                                   | `dispatcher.py:379-396`, 7 `os.rename` sites                                         |
 
 ---
 
@@ -93,6 +95,7 @@ The `Dispatcher` already holds the disk configs (`dispatcher.py:81`: `self._disk
 **Hard rules honoured:** no migration scripts (config/DB evolve in place); module-size ceiling 1000 LOC (new modules stay < 800); regression-test-per-bug; Google-style docstrings.
 
 ### Phase 1 — Consolidate the 3 mount-parsers into one cached `FsProbe`
+
 - **Objective:** single source of truth for `(mount_point, fs_type, flags)`; fix the `ufsd_NTFS` asymmetry.
 - **Create:** `personalscraper/indexer/_fs_probe.py` (keep < 300 LOC). Expose `probe_mount(path: str) -> MountInfo | None` and a module-level cache keyed on a single `mount` invocation (10s timeout). `MountInfo` = frozen dataclass `{mount_point: str, fs_type: str, flags: frozenset[str]}`. Add `canonical_fs_type(raw: str) -> str` normalising `ufsd_NTFS/ntfs/fuse_osxfuse/osxfuse/macfuse/fuse-t` → `"ntfs_macfuse"`; `apfs`; `exfat`; `ext4`; else `"unknown"`.
 - **Modify:** rewrite `db.py::_find_ntfs_mount`, `_spotlight.py::detect_fs_type`, `__init__.py::_check_mount_flags` to delegate to `_fs_probe`. Preserve each public name and behaviour. **Note the timeout change:** `db.py` currently uses 5s; collapsing onto a single 10s probe relaxes the pre-open latency budget — document this explicitly in the DESIGN as an intentional behaviour change.
@@ -100,6 +103,7 @@ The `Dispatcher` already holds the disk configs (`dispatcher.py:81`: `self._disk
 - **Effort:** M · **Risk:** medium · **Deps:** none.
 
 ### Phase 2 — Define the `FilesystemCapability` strategy table
+
 - **Objective:** pure data + lookup; the heart of the abstraction.
 - **Create:** `personalscraper/indexer/_fs_capability.py` — frozen dataclass `FilesystemCapability` fields: `rsync_flags: tuple[str, ...]`, `forbids_unix_perms: bool`, `forbids_apple_metadata: bool`, `illegal_name_regex: re.Pattern | None`, `tier1_uses_ctime: bool`, `mtime_granularity_ns: int`, `dir_mtime_reliable_default: bool | None` (None = probe). Provide `capability_for(fs_type: str) -> FilesystemCapability`.
 - **Constraints:** the `ntfs_macfuse` entry **must** reproduce today's exact flag list and `_NTFS_ILLEGAL` regex byte-for-byte. The `"unknown"` fallback **must equal** `ntfs_macfuse` (safest restrictive superset). `apfs`: `forbids_unix_perms=False`, `forbids_apple_metadata=False`, `illegal_name_regex=None`, `tier1_uses_ctime=True`, `mtime_granularity_ns=1`. `exfat`: `tier1_uses_ctime=False`, `mtime_granularity_ns=2_000_000_000`. `ext4`: `tier1_uses_ctime=True` with a note that ctime mutates on metadata ops (candidate for granularity widening).
@@ -107,6 +111,7 @@ The `Dispatcher` already holds the disk configs (`dispatcher.py:81`: `self._disk
 - **Effort:** M · **Risk:** low · **Deps:** Phase 1 (canonical fs_type).
 
 ### Phase 3 — Make `_transfer.rsync`/`rsync_merge` consume capability
+
 - **Objective:** dispatch reads flags from the **dest disk's** capability; NTFS output byte-identical.
 - **FIRST sub-task (baseline):** author the golden-argv test `tests/dispatch/test_transfer_argv.py` against **current** code, pinning the exact `rsync` argv for an NTFS dest. (No baseline exists today — confirmed.)
 - **Modify:** `_transfer.py` — add a single private builder `_build_rsync_cmd(source, dest, capability, *, delete=False, backup_dir=None)`; replace both literal lists. Move `has_ntfs_illegal_names` and the `.DS_Store`/`._*` excludes behind `capability.forbids_apple_metadata` / `capability.illegal_name_regex`. Add a `capability` param to `rsync()`/`rsync_merge()`.
@@ -115,6 +120,7 @@ The `Dispatcher` already holds the disk configs (`dispatcher.py:81`: `self._disk
 - **Effort:** L · **Risk:** medium · **Deps:** Phases 1-2.
 
 ### Phase 4 — Optional `DiskConfig.fs_type` override + plumb capabilities
+
 - **Objective:** operator escape hatch; no re-shelling to `mount` per item.
 - **Modify:** `conf/models/disks.py` add `fs_type: str | None = Field(default=None, …)` (auto-detect via `_fs_probe` when None; explicit value overrides). Update `config.example/disks.json5` with a **commented** example. Per no-backcompat-before-v1: edit `config/disks.json5` in place if desired, **no migration script**.
 - **Modify:** `Dispatcher.__init__` (`dispatcher.py:81`) resolves a `FilesystemCapability` per disk into a dict and passes it to transfer calls; optionally surface `fs_type` in `disk_scanner.get_disk_status` for diagnostics.
@@ -123,6 +129,7 @@ The `Dispatcher` already holds the disk configs (`dispatcher.py:81`: `self._disk
 - **Effort:** M · **Risk:** low · **Deps:** Phases 2-3.
 
 ### Phase 5 — Make indexer tier-1 drift FS-aware (HIGH RISK — defer-able)
+
 - **Objective:** stop exFAT/ext4 from triggering perpetual re-hashing; keep NTFS byte-identical.
 - **Modify:** `drift.py::reconcile_file` — when `capability.tier1_uses_ctime is False`, drop ctime from the tier-1 tuple comparison (the stored side already tolerates NULL ctime via `ctime_ns or 0` at `drift.py:194`, so only the live tuple build needs the conditional); when `capability.mtime_granularity_ns > 1`, round both stored and live mtime to the granularity before comparing. Generalise `_verify_dir_mtime_reliable` into the capability (`dir_mtime_reliable_default`; probe only when None).
 - **Tests:** simulate exFAT `stat_result` (no ctime, 2s mtime) → assert NO spurious `tier1_drift`; assert NTFS path (`tier1_uses_ctime=True`, granularity 1) is **unchanged** vs current. Needs branch coverage ≥ 90% on the new branches (`make check` gate).
@@ -130,6 +137,7 @@ The `Dispatcher` already holds the disk configs (`dispatcher.py:81`: `self._disk
 - **Defer option:** if no current disk is non-NTFS (open question), Phase 5 can ship as a capability that defaults to today's NTFS behaviour with **zero runtime change**, deferring the live exFAT/ext4 paths until a real target exists.
 
 ### Phase 6 — Multi-FS test harness + SH-16 ACCEPTANCE
+
 - **Objective:** exercise all FS paths without real `/Volumes` mounts.
 - **Modify:** `pyproject.toml` markers block — add `multifs: filesystem-capability tests using faked mount/stat fixtures (no real disks)`.
 - **Create:** fixtures faking `mount` stdout per fs_type and synthetic `stat_result` variants (no ctime, coarse mtime). Golden-test rsync argv per fs_type; unit-test `capability_for` for every fs_type.

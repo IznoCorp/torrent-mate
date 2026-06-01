@@ -22,11 +22,17 @@ covers the **manual steps** that must follow every merge.
 
 ---
 
-## tech-debt 0.16.0
+## Indexer / provider-ids merge checklist
 
-Feature branch: `fix/tech-debt` → `main`
-Design: `docs/features/tech-debt/DESIGN.md`
-ACCEPTANCE criteria: `docs/features/tech-debt/ACCEPTANCE.md`
+This is the canonical checklist for any feature that touches the indexer DB
+schema, the `canonical_provider` / `external_ids_json` columns, or the
+cross-provider backfill pipeline. The steps below were first written for the
+tech-debt 0.16.0 merge (archived at `docs/archive/features/tech-debt/`); they
+remain the reference procedure for the indexer/backfill surface.
+
+For a freshly merged feature, also consult the current feature's
+`docs/features/<codename>/ACCEPTANCE.md` (if present) for any feature-specific
+criteria, and re-exercise those in addition to the generic steps here.
 
 ### Prerequisites
 
@@ -34,7 +40,7 @@ ACCEPTANCE criteria: `docs/features/tech-debt/ACCEPTANCE.md`
 cd /Users/izno/dev/PersonnalScaper
 git log --oneline -1   # confirm merge commit is on main
 python -c "import personalscraper"   # exit 0 — smoke test
-make check             # exit 0 — lint + test + module-size + pragma-discipline
+make check             # exit 0 — lint + test + module-size + typed-api guardrails
 ```
 
 ---
@@ -218,7 +224,13 @@ sqlite3 .data/library.db \
 ### Step 9 — Plan A: backfill external IDs (DEV #27)
 
 This is the provider-ids ACCEPTANCE #3 closure step. Requires `canonical_provider`
-populated (step 8). Estimated duration: 1–2 hours (API rate limiting).
+populated (step 8) and the API credentials from `.env` (`TMDB_API_KEY`,
+`TVDB_API_KEY`, `OMDB_API_KEY`). Estimated duration: 1–2 hours (API rate limiting).
+
+The backfill is its own top-level command, **not** a `library-index` mode
+(`library-index` modes are `full`, `quick`, `incremental`, `enrich`). The command
+walks every `media_item` row (or one show with `--show`), merges missing
+cross-provider IDs and multi-source ratings additively, and prints a JSON summary.
 
 ```bash
 # Verify prerequisite
@@ -227,11 +239,12 @@ sqlite3 .data/library.db \
 # Expected: near 0 (items without NFOs will stay NULL — acceptable)
 
 # Dry-run first (read-only — no DB writes, only logs projected actions)
-personalscraper library-index --mode backfill-ids --no-budget --dry-run
-# Review log output
+personalscraper library-backfill-ids --dry-run
+# Review the JSON summary (items_scanned / items_updated / ids_added_count / ...)
 
 # Real run (long — do not background; use timeout=600000 if via Claude)
-personalscraper library-index --mode backfill-ids --no-budget
+personalscraper library-backfill-ids
+# Optional scoping: --show "<title>", --ids-only, or --ratings-only
 
 # Verify outcome
 sqlite3 .data/library.db \
@@ -246,31 +259,33 @@ personalscraper library-doctor | grep "canonical_provider populated"
 
 ### Step 10 — ACCEPTANCE re-exercise
 
-Re-run the executable ACCEPTANCE criteria from `docs/features/tech-debt/ACCEPTANCE.md`.
-At minimum, run the Phase 5 criteria since this is the post-5.8 merge point:
+Re-run the executable ACCEPTANCE criteria for the merged feature. For a feature
+with a live `docs/features/<codename>/ACCEPTANCE.md`, run each `ACC-NN` command
+in order and compare to its `Expected:` annotation (see
+`docs/reference/feature-lifecycle.md` §3 for the re-exercise protocol).
+
+For the indexer/provider-ids surface, the criteria that must still hold post-merge
+include:
 
 ```bash
-# ACC-23 — Drop monolithic Protocols
+# Monolithic Protocols are gone
 rg "^class MetadataProvider\b|^class TorrentClientFull\b" personalscraper/ --type py
 # Expected: zero matches
 
-# ACC-24 — Atomic Protocol tests
+# Atomic Protocol tests
 make test -k "test_metadata_client_supports"
 
-# ACC-25 — Pydantic ratings boundary
+# Pydantic ratings boundary
 make test -k test_scraper_uses_externalids_pydantic
 
-# ACC-26 — library-gc + library-doctor
+# library-gc + library-doctor present and healthy
 personalscraper library-gc --help && personalscraper library-doctor --help
 personalscraper library-doctor   # exit 0 on healthy DB
 ```
 
-For a full re-exercise of all 49 criteria, run:
-
-```bash
-bash docs/features/tech-debt/scripts/acceptance-check.sh
-# Created in Phase 8.9 — if not yet present, iterate criteria manually
-```
+If the current feature ships an executable acceptance script under
+`docs/features/<codename>/`, run it; otherwise iterate the `ACC-NN` criteria by
+hand. There is no repo-wide acceptance-check script — re-exercise is per-feature.
 
 ---
 
@@ -278,13 +293,21 @@ bash docs/features/tech-debt/scripts/acceptance-check.sh
 
 Required to keep `external_ids_json` current as new items are indexed.
 
+The plist invokes `personalscraper library-backfill-ids` every Sunday at 03:00.
+Before installing, edit the copied plist to replace the `REPLACE_ME` placeholder
+in the working-directory and log paths with the real home directory (see
+`launchd-plists/README.md`).
+
 ```bash
 ls launchd-plists/ | grep "backfill-ids"
 # Expected: com.personalscraper.backfill-ids.plist
 
 cp launchd-plists/com.personalscraper.backfill-ids.plist \
    ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.personalscraper.backfill-ids.plist
+# Edit ~/Library/LaunchAgents/com.personalscraper.backfill-ids.plist:
+# replace REPLACE_ME in WorkingDirectory and log paths with your home dir.
+launchctl bootstrap gui/$(id -u) \
+   ~/Library/LaunchAgents/com.personalscraper.backfill-ids.plist
 
 # Verify loaded
 launchctl list | grep "backfill-ids"
@@ -377,5 +400,6 @@ If any step above fails and cannot be resolved in-place:
 - `docs/reference/indexer.md` — DB schema, drift policy, scan modes
 - `docs/reference/commands.md` — full CLI reference
 - `docs/reference/feature-lifecycle.md` — ACCEPTANCE format and re-exercise protocol
-- `docs/features/tech-debt/ACCEPTANCE.md` — 49 executable criteria for 0.16.0
+- `docs/features/<codename>/ACCEPTANCE.md` — per-feature executable criteria (when a feature is active)
+- `docs/archive/features/tech-debt/ACCEPTANCE.md` — archived 0.16.0 criteria (historical)
 - `docs/reference/storage.md` — disk layout, rsync flags, NTFS/macFUSE notes

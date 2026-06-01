@@ -194,14 +194,22 @@ and is therefore not in Phase 22's scope.
 Hard cap: **4096 characters** per `text` field. Longer messages return
 `400 Bad Request: message is too long`.
 
-Current `notifier.py` does **not** chunk — `PipelineReport.to_html()` empirically
-fits within the cap (≤ ~2 KB for a typical run). If a future report grows past
-4096 chars, the API will refuse it and the fail-soft contract simply logs a
-warning and drops the message; no silent truncation, no partial send.
+**`telegram.py` chunks at this boundary.** `TelegramNotifier._chunk()` splits the
+message into pieces of at most `_MAX_MESSAGE_LEN` (4096) characters and `send()`
+issues one `sendMessage` POST per chunk. Splitting is purely positional (byte
+boundary, no semantic awareness) — an HTML tag straddling a chunk boundary
+produces a 400 on the chunk that lacks its opener.
 
-**Phase 22 decision**: do NOT add chunking. YAGNI — the current report sizes
-are well under cap. If a real-world overrun happens, add chunking then with a
-test that reproduces the exact payload.
+The send is considered successful **only when every chunk is accepted**. A
+mid-send failure aborts the remaining chunks and returns `False`; the structured
+warning `telegram_send_failed` records `chunks_sent` / `chunks_total` so a
+partial delivery is visible in logs (no silent truncation). Empty input still
+yields one chunk (`[""]`) so Telegram surfaces its own empty-body 400 via
+`ApiError` (caught by the fail-soft handler).
+
+A typical `PipelineReport.to_html()` fits within a single chunk (≤ ~2 KB), so
+chunking is a no-op in the common case; it only engages when a report grows
+past 4096 chars.
 
 ---
 
@@ -293,8 +301,8 @@ Defaults stand unless overridden during Phase 21 user checkpoint:
    `auth = NoAuth()`. URL is redacted in transport logs.
 2. **`ok:false` handling**: `HttpTransport` raises `ApiError` on non-2xx;
    `TelegramNotifier.send()` catches and returns `False` (fail-soft).
-3. **Message chunking**: NOT implemented in Phase 22. Reports ≤ 4096 chars
-   today; if exceeded, warning logged and message dropped.
+3. **Message chunking**: implemented. `_chunk()` splits at 4096 chars and
+   `send()` posts each chunk; a mid-send failure returns `False` (fail-soft).
 4. **Parse mode**: `HTML` (current behavior); `parse_mode` is a `send()`
    keyword arg with default `"HTML"`.
 5. **Retry policy**: default `RetryPolicy` (5xx + 429 only); 400/401/403 are
