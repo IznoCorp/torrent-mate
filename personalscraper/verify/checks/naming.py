@@ -58,12 +58,54 @@ class DirNaming:
         ]
 
     def fix(self, ctx: "CheckContext") -> "list[FixAction]":
-        """Stub — the real directory-rename fix is wired in Phase 3.
+        """Rename directory using title + year from NFO.
 
         Args:
-            ctx: Shared check context (respects ``ctx.dry_run``).
+            ctx: CheckContext (ctx.dry_run controls whether rename is applied).
 
         Returns:
-            Currently an empty list (no-op placeholder).
+            List of FixAction (0 or 1 entries).
         """
-        return []
+        import xml.etree.ElementTree as ET
+
+        from personalscraper.logger import get_logger
+        from personalscraper.nfo_utils import glob_nfo_candidates
+        from personalscraper.verify.checks.base import FixAction
+
+        log = get_logger("verify.checks.naming")
+
+        if ctx.media_type == "movie":
+            nfo_files = glob_nfo_candidates(ctx.media_dir)
+        else:
+            nfo_files = [ctx.media_dir / "tvshow.nfo"]
+
+        nfo_path = next((f for f in nfo_files if f.exists()), None)
+        if not nfo_path:
+            return []
+        try:
+            tree = ET.parse(nfo_path)  # noqa: S314
+            root = tree.getroot()
+        except (ET.ParseError, OSError) as exc:
+            log.warning("dir_naming_fix_nfo_parse_error", nfo=nfo_path.name, error=str(exc))
+            return []
+
+        title = (root.findtext("title") or "").strip()
+        year = (root.findtext("year") or "").strip()
+        if not title:
+            return []
+        canonical = f"{title} ({year})" if year else title
+        if ctx.media_dir.name == canonical:
+            return []
+        new_dir = ctx.media_dir.parent / canonical
+        if new_dir.exists():
+            log.warning("dir_naming_fix_target_exists", canonical=canonical)
+            return []
+        description = f"Renamed '{ctx.media_dir.name}' → '{canonical}'"
+        if not ctx.dry_run:
+            try:
+                ctx.media_dir.rename(new_dir)
+                log.info("dir_naming_fix_renamed", description=description)
+            except OSError as exc:
+                log.error("dir_naming_fix_rename_failed", error=str(exc))
+                return []
+        return [FixAction(description=description, old_path=ctx.media_dir, new_path=new_dir)]

@@ -61,12 +61,40 @@ class NtfsSafeNames:
         ]
 
     def fix(self, ctx: "CheckContext") -> "list[FixAction]":
-        """Stub — the real NTFS-rename fix is wired in Phase 3.
+        """Rename files with NTFS-illegal characters.
 
         Args:
-            ctx: Shared check context (respects ``ctx.dry_run``).
+            ctx: CheckContext (ctx.dry_run controls whether rename is applied).
 
         Returns:
-            Currently an empty list (no-op placeholder).
+            One FixAction per renamed file.
         """
-        return []
+        from personalscraper.logger import get_logger
+        from personalscraper.text_utils import sanitize_filename
+        from personalscraper.verify.checks.base import FixAction
+
+        log = get_logger("verify.checks.ntfs")
+        actions = []
+        try:
+            for item in ctx.media_dir.rglob("*"):
+                if item.is_file():
+                    safe = sanitize_filename(item.name)
+                    if safe != item.name:
+                        prefix = "[DRY-RUN] Would rename" if ctx.dry_run else "Renamed"
+                        desc = f"{prefix}: {item.name} → {safe}"
+                        if not ctx.dry_run:
+                            try:
+                                item.rename(item.parent / safe)
+                            except OSError as exc:
+                                log.warning("ntfs_fix_rename_failed", item=str(item), error=str(exc))
+                                continue
+                        actions.append(
+                            FixAction(
+                                description=desc,
+                                old_path=item,
+                                new_path=item.parent / safe if not ctx.dry_run else None,
+                            )
+                        )
+        except OSError as exc:
+            log.warning("ntfs_fix_list_error", error=str(exc))
+        return actions

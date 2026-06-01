@@ -27,7 +27,7 @@ from personalscraper.verify.checks.registry import register_check
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from personalscraper.verify.checks.base import CheckContext
+    from personalscraper.verify.checks.base import CheckContext, FixAction
 
 # Minimum file size (bytes) to not be considered a sample (copied from checker.py).
 _MIN_VIDEO_SIZE = 100 * 1024 * 1024  # 100 MB
@@ -139,6 +139,36 @@ class NoEmptyDirs:
                 fixable=True,
             )
         ]
+
+    def fix(self, ctx: "CheckContext") -> "list[FixAction]":
+        """Remove empty subdirectories.
+
+        Args:
+            ctx: CheckContext (ctx.dry_run controls whether rmdir is applied).
+
+        Returns:
+            One FixAction per removed directory.
+        """
+        from personalscraper.logger import get_logger
+        from personalscraper.verify.checks.base import FixAction
+
+        log = get_logger("verify.checks.structure")
+        actions = []
+        try:
+            for subdir in list(ctx.media_dir.rglob("*")):
+                if subdir.is_dir() and not any(subdir.iterdir()):
+                    prefix = "[DRY-RUN] Would remove" if ctx.dry_run else "Removed"
+                    desc = f"{prefix} empty dir: {subdir.name}"
+                    if not ctx.dry_run:
+                        try:
+                            subdir.rmdir()
+                        except OSError as exc:
+                            log.warning("no_empty_dirs_fix_failed", subdir=str(subdir), error=str(exc))
+                            continue
+                    actions.append(FixAction(description=desc, old_path=subdir))
+        except OSError as exc:
+            log.warning("no_empty_dirs_fix_list_error", error=str(exc))
+        return actions
 
 
 @register_check
