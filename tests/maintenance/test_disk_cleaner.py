@@ -1,4 +1,4 @@
-"""Tests for personalscraper.library.disk_cleaner — library cleanup."""
+"""Tests for personalscraper.maintenance.disk_cleaner — library cleanup."""
 
 from pathlib import Path
 
@@ -6,7 +6,7 @@ from personalscraper.conf.models.categories import CategoryConfig
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.paths import PathConfig
-from personalscraper.library.disk_cleaner import clean_library
+from personalscraper.maintenance.disk_cleaner import clean_library
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
@@ -70,7 +70,7 @@ class TestCleanActors:
         because the cleaner switched away from ``shutil.rmtree`` to handle
         NFC/NFD ghost dirents — see fix(library-clean) commit history.
         """
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         disk = tmp_path / "medias"
         movie1 = disk / "films" / "Movie1 (2024)" / ".actors"
@@ -292,7 +292,7 @@ class TestCleanFilters:
 
     def test_unlistable_media_dir_records_error(self, tmp_path: Path, monkeypatch) -> None:
         """OSError when listing a media directory should be recorded as an error."""
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         disk_path = tmp_path / "medias"
         movie = disk_path / "films" / "Movie (2024)"
@@ -448,7 +448,7 @@ class TestInternalHelpers:
 
     def test_dir_size_oserror_returns_zero(self, tmp_path: Path, monkeypatch) -> None:
         """``_dir_size`` should swallow OSError from rglob and return what was counted."""
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         d = tmp_path / "d"
         d.mkdir()
@@ -462,7 +462,7 @@ class TestInternalHelpers:
 
     def test_dir_size_skips_unstattable_files(self, tmp_path: Path, monkeypatch) -> None:
         """``_dir_size`` should skip files whose ``stat()`` raises OSError."""
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         d = tmp_path / "d"
         d.mkdir()
@@ -480,7 +480,7 @@ class TestInternalHelpers:
 
     def test_scandir_rmtree_unlinks_symlink(self, tmp_path: Path) -> None:
         """``_scandir_rmtree`` should ``unlink`` a symlink rather than recurse."""
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         target = tmp_path / "target"
         target.mkdir()
@@ -493,7 +493,7 @@ class TestInternalHelpers:
 
     def test_scandir_rmtree_unlinks_non_directory(self, tmp_path: Path) -> None:
         """``_scandir_rmtree`` should ``unlink`` a path that is not a directory."""
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         f = tmp_path / "f.txt"
         f.write_bytes(b"hi")
@@ -504,7 +504,7 @@ class TestInternalHelpers:
         """FileNotFoundError on unlink should be recorded as a ghost dirent."""
         import os as _os
 
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         d = tmp_path / "d"
         d.mkdir()
@@ -530,7 +530,7 @@ class TestInternalHelpers:
 
     def test_scandir_rmtree_records_ghost_on_is_dir_oserror(self, tmp_path: Path, monkeypatch) -> None:
         """If ``DirEntry.is_dir`` raises OSError the entry is logged as ghost."""
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         d = tmp_path / "d"
         d.mkdir()
@@ -571,7 +571,7 @@ class TestInternalHelpers:
 
     def test_delete_file_stat_oserror_size_zero(self, tmp_path: Path, monkeypatch) -> None:
         """File whose ``stat()`` fails is reported with size 0 but still deleted."""
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         f = tmp_path / "f.txt"
         f.write_bytes(b"hi")
@@ -593,7 +593,7 @@ class TestInternalHelpers:
 
     def test_delete_file_unlink_oserror_recorded(self, tmp_path: Path, monkeypatch) -> None:
         """``unlink`` failure is recorded as a CleanResult error."""
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         f = tmp_path / "f.txt"
         f.write_bytes(b"hi")
@@ -610,7 +610,7 @@ class TestInternalHelpers:
 
     def test_delete_dir_records_ghost_summary(self, tmp_path: Path, monkeypatch) -> None:
         """When ``_scandir_rmtree`` reports ghosts, ``_delete_dir`` summarises them."""
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         d = tmp_path / "ghosted"
         d.mkdir()
@@ -631,7 +631,7 @@ class TestInternalHelpers:
 
     def test_is_effectively_empty_oserror_returns_false(self, tmp_path: Path, monkeypatch) -> None:
         """If the dir cannot be listed it is conservatively considered non-empty."""
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         d = tmp_path / "d"
         d.mkdir()
@@ -644,7 +644,7 @@ class TestInternalHelpers:
 
     def test_has_main_video_oserror_returns_true(self, tmp_path: Path, monkeypatch) -> None:
         """If the dir cannot be listed, ``_has_main_video`` returns True."""
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         d = tmp_path / "d"
         d.mkdir()
@@ -657,7 +657,7 @@ class TestInternalHelpers:
 
     def test_has_main_video_season_iterdir_oserror_returns_true(self, tmp_path: Path, monkeypatch) -> None:
         """OSError listing a Saison sub-dir is conservatively a 'video present'."""
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         show = tmp_path / "Show"
         season = show / "Saison 01"
@@ -676,7 +676,7 @@ class TestInternalHelpers:
 
     def test_looks_like_main_video_non_video_extension(self, tmp_path: Path) -> None:
         """Non-video extensions are rejected outright."""
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         f = tmp_path / "doc.txt"
         f.write_bytes(b"\x00")
@@ -684,7 +684,7 @@ class TestInternalHelpers:
 
     def test_looks_like_main_video_trailer_marker_rejected(self, tmp_path: Path) -> None:
         """Filenames containing trailer markers are not 'main' videos."""
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         f = tmp_path / "movie-trailer.mp4"
         f.write_bytes(b"\x00" * (60 * 1024 * 1024))
@@ -692,7 +692,7 @@ class TestInternalHelpers:
 
     def test_looks_like_main_video_stat_oserror_returns_false(self, tmp_path: Path, monkeypatch) -> None:
         """``stat()`` failure means we cannot confirm size — treat as non-main."""
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         f = tmp_path / "movie.mkv"
         f.write_bytes(b"\x00")
@@ -705,7 +705,7 @@ class TestInternalHelpers:
 
     def test_publish_deleted_no_disk_match_silent(self, tmp_path: Path, monkeypatch) -> None:
         """When ``disk_id_for_path`` returns None, publish is skipped without error."""
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         called: dict[str, bool] = {"publish": False}
 
@@ -728,7 +728,7 @@ class TestInternalHelpers:
 
     def test_publish_deleted_calls_publish_event(self, tmp_path: Path, monkeypatch) -> None:
         """When disk match succeeds, publish_event is called with op='move'."""
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         captured: dict[str, object] = {}
 
@@ -756,7 +756,7 @@ class TestInternalHelpers:
 
     def test_publish_deleted_swallows_exceptions(self, tmp_path: Path, monkeypatch) -> None:
         """Any exception inside publish must be swallowed (best-effort)."""
-        from personalscraper.library import disk_cleaner as _dc
+        from personalscraper.maintenance import disk_cleaner as _dc
 
         def fake_disk_id_for_path(_path, _db_path):
             raise RuntimeError("DB exploded")

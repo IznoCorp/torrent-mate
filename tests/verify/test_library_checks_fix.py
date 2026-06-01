@@ -7,7 +7,7 @@ from personalscraper.conf.models.categories import CategoryConfig
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.paths import PathConfig
-from personalscraper.library.validator import (
+from personalscraper.verify.library_checks import (
     _fix_empty_dirs,
     _fix_ntfs_names,
     validate_library,
