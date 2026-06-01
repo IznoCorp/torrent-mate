@@ -10,7 +10,7 @@
 
 ---
 
-## ⚠️ PLAN CORRECTIONS (post-verification 2026-06-01)
+## ⚠️ Post-verification corrections (2026-06-01) — reflected in this phase's code blocks
 
 - **MOVE-1**: `Severity` + `CheckResult` are DEFINED in `base.py` here, but `checker.py` still defines its own copies. Those copies are REMOVED and all importers repointed at the **start of Phase 2** (new sub-phase 2.0) — not Phase 3. `base.py` is the single source; otherwise Phase 2 has two competing `CheckResult` types and the golden is built on the wrong one.
 - **CMP-4**: REMOVE `expected_file_type` from `CheckContext` (and its `FileType` TYPE_CHECKING import + docstring line) — it is never wired anywhere. The coherence wrong-category check uses `ctx.media_type` (the bucket the item was found under). Keep `resolved_category`.

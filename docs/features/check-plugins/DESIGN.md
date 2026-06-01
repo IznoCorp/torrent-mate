@@ -245,13 +245,13 @@ _ORDER = {
 ### Characterization golden (capture-before / assert-after)
 
 1. **Fixture corpus** covering every branch of every check (most exist in `tests/verify`/`tests/enforce`; fill the gaps: sample, duplicate video, NTFS-illegal, empty-dir, fixable dir-name, root-videos, provider-ids gaps, missing season poster, mis-sort coherence, genre→TV_PROGRAMS).
-2. **Baseline capture** (on `main`, BEFORE any extraction — the very first sub-phase): run the **6 public entry points** on the corpus, serialize to golden JSON under `tests/verify/golden/`, commit:
+2. **Baseline capture** (on `main`, BEFORE any extraction — the very first sub-phase): run all entry points on the corpus, serialize to **7 golden files** under `tests/verify/golden/`, commit:
    - `MediaChecker.check_movie` / `check_tvshow` → `list[CheckResult]`
    - `Verifier.verify_movie` / `verify_tvshow` → `VerifyResult` (incl. check→fix→reclassify, dry-run + apply)
    - `validate_library` → `LibraryValidationResult` (FS, incl. `--fix --apply` and dry-run)
    - `validate_from_index` → `LibraryValidationResult` (DB)
    - `check_coherence` → `list[CoherenceResult]` (STAGING)
-3. **Post-refactor assertion**: `test_characterization_golden.py` loads the golden and asserts ordered-identical output. This is the formal proof of "no behavior change".
+3. **Post-refactor assertion**: `test_characterization_golden.py` loads the golden and asserts ordered-identical output — **FAILS (not skips) on a missing golden**, and normalizes non-deterministic fields (e.g. `LibraryValidationResult.validated_at`) before comparing. This is the formal proof of "no behavior change". (Capture vs assert is one env-switched test: `CAPTURE_GOLDEN=1`, selective via `GOLDEN_ONLY=…`.)
 
 ### Test migration
 
@@ -303,7 +303,7 @@ Per project convention, every criterion is an executable shell command with docu
 
 ## 11. Phasing (high level — detailed by the plan)
 
-0. **Baseline golden capture** (on current code, before any extraction) — corpus + serialize **ALL 7 entry points** (`checker_movie`, `checker_tvshow`, `verifier_movie`, `verifier_tvshow`, `library_validate`, `library_from_index`, `coherence`) + commit. The golden test performs a **real equality** comparison and **fails (not skips)** on a missing golden; `capture_golden.py` exposes `--only NAMES…`. The `coherence` capture uses a **staging-layout corpus** (`staging_dir/001-MOVIES/`, `002-TVSHOWS/`) + a `Config` pointing at it, because `check_coherence` iterates `config.paths.staging_dir`. Gate: golden green on `main`-equivalent code, all 7 files present.
+0. **Baseline golden capture** (on current code, before any extraction) — corpus + serialize **ALL 7 entry points** (`checker_movie`, `checker_tvshow`, `verifier_movie`, `verifier_tvshow`, `library_validate`, `library_from_index`, `coherence`) + commit. The golden test performs a **real equality** comparison and **fails (not skips)** on a missing golden; capture vs assert is one env-switched test (`CAPTURE_GOLDEN=1`, selective via `GOLDEN_ONLY=NAMES`) — there is no separate `capture_golden.py` script. The `coherence` capture uses a **staging-layout corpus** (`staging_dir/001-MOVIES/`, `002-TVSHOWS/`) + a `Config` pointing at it, because `check_coherence` iterates `config.paths.staging_dir`. Gate: golden green on `main`-equivalent code, all 7 files present.
 1. **Core framework** — `base.py` (types/protocols/context), `registry.py` (registry + `_ORDER` + `apply_fixes`), `catalog.py`. Tests: registry + catalog.
 2. **Migrate DISPATCH checks** into `verify/checks/` (by group); `MediaChecker` becomes the facade loop. **First step: MOVE `Severity`/`CheckResult` from `checker.py` to `base.py` and repoint all importers** (verifier/library*checks/fixer/tests) so there is one `CheckResult` type the golden is built on. `Category.run()` stashes `ctx.resolved_category`. Per-plugin unit tests. Gate: `checker*\*` golden equality asserted + existing verify suites green + residual-import grep (`Severity`/`CheckResult`from`checker`) = 0.
 3. **Consolidate fixes** — co-locate `fix()`; delete `MediaFixer`; add `self._patterns` to `Verifier`; `_classify` reads `ctx.resolved_category` (falls back to `classify_from_nfo` only when `None`); `validate_library` uses `apply_fixes`. Gate: `verifier_*` + `library_validate` golden equality asserted + library suites green; residual-import grep = 0.

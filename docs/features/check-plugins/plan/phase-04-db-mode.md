@@ -10,7 +10,7 @@
 
 ---
 
-## ⚠️ PLAN CORRECTIONS (post-verification 2026-06-01)
+## ⚠️ Post-verification corrections (2026-06-01) — reflected in this phase's gate
 
 - **GOLD**: this phase rewrites `validate_from_index` → its gate MUST assert real-equality on the `library_from_index` golden (captured in Phase 0): `pytest tests/verify/test_characterization_golden.py -q`. The in-memory-SQLite integration tests in 4.2 are additive, not a substitute for the golden assertion.
 

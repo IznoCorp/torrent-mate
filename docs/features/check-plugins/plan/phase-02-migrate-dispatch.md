@@ -10,11 +10,11 @@
 
 ---
 
-## ⚠️ PLAN CORRECTIONS (post-verification 2026-06-01)
+## Sub-phase 2.0 — Move `Severity`/`CheckResult` to `base.py` (run FIRST, before 2.1)
 
-- **MOVE-1 (NEW sub-phase 2.0, run FIRST)**: before migrating any check, MOVE `Severity`/`CheckResult` from `checker.py` to `base.py`, DELETE checker.py's own definitions, and repoint every importer (`verifier.py`, `library_checks.py`, `fixer.py`, and all `tests/` that do `from personalscraper.verify.checker import … Severity|CheckResult`). Add the residual grep `rg -t py 'from personalscraper\.verify\.checker import.*\b(Severity|CheckResult)\b' personalscraper/ tests/` → rc=1 to THIS phase's gate (ACC-06b applies from Phase 2, not just Phase 3).
-- **CMP-3**: the `Category` plugin's `run()` must SET `ctx.resolved_category` to the resolved category id (so Phase 3's `_classify` can read it instead of re-running `classify_from_nfo`).
-- **GOLD**: this phase's gate must assert the `checker_movie` + `checker_tvshow` golden via real equality (sub-phase 2.2 already does this — keep it).
+Before migrating any check: delete `checker.py`'s own `Severity`/`CheckResult` definitions, import them from `base.py`, and repoint every importer (`verifier.py`, `library_checks.py`, `fixer.py`, and all `tests/` doing `from personalscraper.verify.checker import … Severity|CheckResult`). Reason (MOVE-1): plugins return `base.CheckResult`; leaving a second definition in `checker.py` gives two competing types and the golden would be built on the wrong one. This phase's gate adds the residual grep `rg -t py 'from personalscraper\.verify\.checker import.*\b(Severity|CheckResult)\b' personalscraper/ tests/` → rc=1 (ACC-06b applies from Phase 2, not only Phase 3).
+
+> Already covered in the steps below: `Category.run()` sets `ctx.resolved_category` (2.1, Step 3); `checker_movie`/`checker_tvshow` golden equality is asserted by re-running the Phase-0 test (2.2 Step 2–3).
 
 ---
 
@@ -269,23 +269,9 @@ def check_movie(self, movie_dir: Path) -> list[CheckResult]:
 
 Same pattern for `check_tvshow`.
 
-- [ ] **Step 2: Expand `test_characterization_golden.py` to assert full equality**
+- [ ] **Step 2: No new assertion code needed — the Phase-0 test already compares**
 
-After substituting `MediaChecker` loops, re-run the capture script is NOT needed. Instead, assert the current output matches the golden:
-
-```python
-def test_checker_movie_golden(self, tmp_path, test_config):
-    from personalscraper.verify.checker import MediaChecker
-    from personalscraper.naming_patterns import NamingPatterns
-    from tests.verify.golden.conftest_golden import build_corpus
-    checker = MediaChecker(NamingPatterns(), test_config)
-    items = build_corpus(tmp_path / "corpus")
-    golden = _load("checker_movie")
-    for name, path in items.items():
-        if name.startswith("movie_"):
-            actual = _serializable(checker.check_movie(path))
-            assert actual == golden[name], f"Golden mismatch for {name}"
-```
+The `test_characterization_golden.py` written in Phase 0 already asserts real equality for `checker_movie` + `checker_tvshow` (run-mode loads the golden and compares; fails-on-missing). After `MediaChecker.check_movie/check_tvshow` become registry loops, **just re-run that test** — no capture, no custom per-phase block, no `conftest_golden`/`build_corpus`/`_load` helpers (those don't exist; Phase 0 uses `tests/verify/golden/_corpus.py::build_item_corpus` + the env-driven test). If it's green, behavior is unchanged.
 
 - [ ] **Step 3: Run characterization golden — must be green**
 
@@ -318,8 +304,9 @@ git commit -m "refactor(check-plugins): MediaChecker.check_movie/check_tvshow be
 make lint && make test && make check
 pytest tests/verify/test_characterization_golden.py -q   # ACC-01: golden green
 pytest tests/verify tests/enforce -q                      # ACC-02: existing suites green
+rg -t py 'from personalscraper\.verify\.checker import.*\b(Severity|CheckResult)\b' personalscraper/ tests/  # ACC-06b: rc=1 (Severity/CheckResult moved to base.py in 2.0)
 python3 scripts/check-module-size.py                      # ACC-07: all modules << 800 LOC
 python -c "import personalscraper"
 ```
 
-Expected: all green. `checker.py` shrinks; 9 plugin files created; golden asserted.
+Expected: all green. `checker.py` shrinks (Severity/CheckResult moved to base.py); 9 plugin files created; golden asserted.

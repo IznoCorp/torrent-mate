@@ -10,7 +10,7 @@
 
 ---
 
-## ⚠️ PLAN CORRECTIONS (post-verification 2026-06-01)
+## ⚠️ Post-verification corrections (2026-06-01) — reflected in this phase's steps
 
 - **GND-8/CMP-7**: `Verifier.__init__` currently stores only `self._config`, `self._checker`, `self._fixer` — NOT `self._patterns`. Add `self._patterns = patterns` in `__init__` so the `CheckContext(..., patterns=self._patterns)` build in the rewrite works.
 - **CMP-3**: `_classify` gains a `ctx` parameter and reads `ctx.resolved_category` (falling back to `classify_from_nfo` only when `None`) — this wires the dual-purpose `category` optimization the DESIGN promises. Add a test pinning the single-`classify_from_nfo`-call behavior.
@@ -275,7 +275,8 @@ git commit -m "feat(check-plugins): co-locate fix() on DirNaming, NoEmptyDirs, N
 - [ ] **Step 1: Update `Verifier` to use `apply_fixes` with policy `{"dir_naming"}`**
 
 ```python
-# In Verifier.__init__ — remove MediaFixer import and self._fixer
+# In Verifier.__init__ — remove the MediaFixer import + self._fixer,
+#   and ADD `self._patterns = patterns` (the rewrite needs it for CheckContext).
 # In Verifier.verify_movie:
 from personalscraper.verify.checks.registry import apply_fixes
 from personalscraper.verify.checks.base import CheckContext, CheckStage
@@ -304,11 +305,13 @@ def verify_movie(self, movie_dir: Path) -> VerifyResult:
                         patterns=self._patterns, dry_run=self.dry_run,
                     )
             checks = self._checker.check_movie(movie_dir)
-    self._classify(result, checks, movie_dir, "movie")
+    self._classify(result, checks, movie_dir, "movie", ctx)   # ctx carries resolved_category
     return result
 ```
 
 Same pattern for `verify_tvshow`.
+
+**Also update `_classify`'s signature** to accept `ctx` and read `ctx.resolved_category` instead of re-running `classify_from_nfo` (the `category` plugin set it during `check_movie`/`check_tvshow`; fall back to `classify_from_nfo` only when `ctx.resolved_category is None`). Add a test pinning the single-`classify_from_nfo`-call behavior (CMP-3). The `verifier_*` golden (Phase 0) proves the resolved category is identical.
 
 - [ ] **Step 2: Update `validate_library` to use `apply_fixes` with policy `{"dir_naming","no_empty_dirs","ntfs_safe_names"}`**
 

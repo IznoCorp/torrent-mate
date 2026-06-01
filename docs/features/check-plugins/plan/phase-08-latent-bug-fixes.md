@@ -10,7 +10,7 @@
 
 ---
 
-## ⚠️ PLAN CORRECTIONS (post-verification 2026-06-01)
+## ⚠️ Post-verification corrections (2026-06-01) — reflected in this phase's steps
 
 - **BUG2-3 (blocker)**: the Bug 2 regression test (sub-phase 8.2 Step 1) builds a malformed envelope (`{"_type": "VerifyItemDone", …}`) and would FAIL post-fix. Round-trip through the real serializer instead (`event_to_envelope` exists at `core/event_bus.py:112`): `env = event_to_envelope(VerifyItemDone(item="X (2020)", status="valid", errors=[], checks_passed=5, checks_total=5)); e = event_from_envelope(env); assert type(e).__name__ == "VerifyItemDone"`. Keep the subprocess / fresh-interpreter isolation (`import personalscraper.events` ONLY, not `verify.run`). Pre-fix: `KeyError` (Unknown event type); post-fix: passes.
 - **EVT-1**: in sub-phase 8.2 Step 4, remove the actual `import personalscraper.verify.events` workaround line in `tests/event_bus/test_pipeline_events.py` (verify the exact line at edit time — ~126/127). The registry-count test `assert len(_EVENT_CLASS_REGISTRY) == 23` MUST stay green: after the catalog eager-imports `verify.events`, ensure the count test still triggers registration (it imports `personalscraper.events` or reads `_EVENT_CLASS_REGISTRY` after the catalog is importable). Add `pytest tests/event_bus/test_pipeline_events.py::test_event_registry_has_eighteen_v1_events -q` to THIS phase's gate.
@@ -123,12 +123,21 @@ import sys
 
 
 def test_verify_item_done_resolves_from_catalog_only():
+    # Import ONLY the catalog (personalscraper.events) — NOT verify.run / verify.events.
+    # The fix is that the catalog eager-registers every producer, so VerifyItemDone
+    # must be in _EVENT_CLASS_REGISTRY (exactly what event_from_envelope looks up).
+    # Do NOT import the producer to build the event — that would register it as a
+    # side effect and mask the gap. Get the class from the catalog-populated registry,
+    # then round-trip through the real serializer.
     code = (
-        "import personalscraper.events\n"  # catalog ONLY — no verify.run
-        "from personalscraper.core.event_bus import event_from_envelope\n"
-        "e = event_from_envelope({'_type': 'VerifyItemDone', 'item': 'X (2020)',"
-        " 'status': 'valid', 'errors': [], 'checks_passed': 5, 'checks_total': 5})\n"
-        "assert type(e).__name__ == 'VerifyItemDone'\n"
+        "import personalscraper.events  # catalog ONLY\n"
+        "from personalscraper.core.event_bus import ("
+        "_EVENT_CLASS_REGISTRY, event_to_envelope, event_from_envelope)\n"
+        "assert 'VerifyItemDone' in _EVENT_CLASS_REGISTRY, 'catalog did not eager-register VerifyItemDone'\n"
+        "cls = _EVENT_CLASS_REGISTRY['VerifyItemDone']\n"
+        "env = event_to_envelope(cls(item='X (2020)', status='valid',"
+        " errors=[], checks_passed=5, checks_total=5))\n"
+        "assert type(event_from_envelope(env)).__name__ == 'VerifyItemDone'\n"
         "print('OK')\n"
     )
     proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)

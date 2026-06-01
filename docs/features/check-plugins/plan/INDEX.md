@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the `verify/checker.py` monolith and `enforce/coherence_checker.py` duplicate with a single unified Check plugin framework: one `Check` Protocol, a `CheckRegistry`, per-group plugin modules under `verify/checks/`, and registry-driven orchestrator loops — all proven no-behavior-change by a characterization golden over all 6 public entry points.
+**Goal:** Replace the `verify/checker.py` monolith and `enforce/coherence_checker.py` duplicate with a single unified Check plugin framework: one `Check` Protocol, a `CheckRegistry`, per-group plugin modules under `verify/checks/`, and registry-driven orchestrator loops — all proven no-behavior-change by a characterization golden over all 7 entry-point golden files.
 
 **Architecture:** Each existing check becomes its own plugin class in `verify/checks/<group>.py` registered via `@register_check`. Four orchestrators (`MediaChecker`, `Verifier`, `validate_library`, `validate_from_index`, `check_coherence`) become thin registry-driven loops with unchanged public signatures. Fix logic moves to co-located `fix()` methods; `MediaFixer` is deleted. A final deliberate phase unifies verify's fix policy to the 3-check set already used by library validate.
 
@@ -69,7 +69,7 @@ Each phase gate MUST pass all of:
 
 ## Key code anchors (DESIGN §5, §8)
 
-- **6 public entry points**: `MediaChecker.check_movie/check_tvshow`, `Verifier.verify_movie/verify_tvshow`, `validate_library`, `validate_from_index`, `check_coherence`
+- **7 entry-point golden files**: `MediaChecker.check_movie/check_tvshow`, `Verifier.verify_movie/verify_tvshow`, `validate_library`, `validate_from_index`, `check_coherence`
 - **`_ORDER` table** (DESIGN §8): deterministic per `(stage, media_type)` key; `checks_for()` respects it
 - **Fix-policy asymmetry** (DESIGN §6.3): verify = `{"dir_naming"}`, library = `{"dir_naming","no_empty_dirs","ntfs_safe_names"}` — PRESERVED through Phase 6, unified in Phase 7
 - **`(stage, name)` registry key** (DESIGN §6.1): `nfo_ids` exists on both DISPATCH and STAGING as genuinely different checks

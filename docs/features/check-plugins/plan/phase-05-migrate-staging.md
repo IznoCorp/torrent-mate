@@ -10,10 +10,10 @@
 
 ---
 
-## ⚠️ PLAN CORRECTIONS (post-verification 2026-06-01)
+## ⚠️ Post-verification corrections (2026-06-01) — applied in the steps below
 
-- **GOLD-4**: the `coherence` golden is now captured in **Phase 0** (using a staging-layout corpus + a `Config` pointing `paths.staging_dir` at it — `check_coherence` iterates `config.paths.staging_dir`, so an arbitrary item corpus does NOT work). This phase **RE-ASSERTS** it after rewriting `check_coherence`; it does NOT capture for the first time. **Ignore sub-phase 5.2 Step 1's "capture the STAGING golden BEFORE rewriting" instruction** — that capture already happened in Phase 0.
-- **CMP-4**: `SortProcessCoherence` uses `ctx.media_type` (the bucket-derived type), NOT `ctx.expected_file_type` (removed in Phase 1). The `coherence.py` code in sub-phase 5.1 already uses `ctx.media_type` — keep it.
+- **GOLD-4**: the `coherence` golden is captured in **Phase 0** (staging-layout corpus + a `Config` pointing `paths.staging_dir` at it — `check_coherence` iterates `config.paths.staging_dir`). This phase **re-asserts** it (sub-phase 5.2 Step 1 reflects this — no re-capture here).
+- **CMP-4**: `SortProcessCoherence` uses `ctx.media_type` (the bucket type), not `expected_file_type` (removed in Phase 1) — see sub-phase 5.1.
 
 ---
 
@@ -149,7 +149,7 @@ class GenreCoherence:
 
 - Modify: `personalscraper/enforce/coherence_checker.py` (`check_coherence`; keep `CoherenceResult`)
 
-- [ ] **Step 1: Capture the STAGING golden** (extend `capture_golden.py` + `test_characterization_golden.py` for `check_coherence`) BEFORE rewriting — the corpus already has wrong-category + genre fixtures; if not, add `tvshow.nfo`-in-MOVIES and movie-NFO-in-TVSHOWS items. Run the capture once on the _pre-rewrite_ `check_coherence`, commit `coherence.json`.
+- [ ] **Step 1: (no capture here — done in Phase 0)** The `coherence` golden was already captured in Phase 0 on the pre-rewrite `check_coherence`, using the staging-layout corpus (`build_staging_corpus`). This sub-phase **re-asserts** it after the rewrite (Step 3 below). Do not re-capture.
 
 - [ ] **Step 2: Rewrite `check_coherence`** — keep the iteration over `movies_dir` / `tvshows_dir`; per item build the context and adapt:
 
