@@ -129,8 +129,8 @@ staging/
 │   │       ├── tv_repo.py       # season + episode
 │   │       ├── log_repo.py      # scan_run + scan_event + deleted_item
 │   │       └── outbox_repo.py   # index_outbox + pending_op + repair_queue
-│   ├── library/         # scan, clean, validate, analyze, recommend, report
-│   ├── verify/          # quality gate, fixer, genre categorization, reinforced checks
+│   ├── maintenance/     # operator upkeep: disk_cleaner (FS deletes), rescraper (targeted re-scrape)
+│   ├── verify/          # quality gate, fixer, genre categorization, reinforced checks, library_checks
 │   ├── dispatch/        # disk scanner, media index, transfer helpers, movie/tv dispatch
 │   ├── pipeline.py      # sequential 9-step pipeline orchestrator
 │   ├── pipeline_protocol.py # PipelineStep protocol + StepContext

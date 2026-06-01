@@ -1,13 +1,13 @@
 """Unified item/season/episode/issue upsert stage for ScanMode.full.
 
-Self-contained port of the ``media_item`` write path from
-``personalscraper.library.scanner`` (functions ``_upsert_media_item``,
+Self-contained port of the ``media_item`` write path from the former library
+scanner module (functions ``_upsert_media_item``,
 ``_upsert_seasons_and_episodes``, ``_detect_issues``, ``_ensure_disk_row``,
 ``scan_movie_dir``, ``scan_tvshow_dir``). During the lib-fold Phase 2
-parallel-path window this module duplicates that logic on purpose: both the
-legacy ``library-scan`` path and the new ``library-index --mode full`` path must
-produce byte-identical ``media_item`` rows (the Task 5 golden test asserts the
-equality before Phase 3 deletes ``library/scanner.py``).
+parallel-path window this module duplicated that logic on purpose: both the
+legacy ``library-scan`` path and the new ``library-index --mode full`` path had
+to produce byte-identical ``media_item`` rows (the golden test asserts the
+equality), before Phase 3 deleted the legacy scanner module.
 
 Exports
 -------

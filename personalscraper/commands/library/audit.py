@@ -156,6 +156,8 @@ def _count_nfo_missing(loaded_config: object) -> int:
     """
     import sqlite3 as _sqlite3  # noqa: PLC0415
 
+    from personalscraper.indexer.db import _apply_pragmas  # noqa: PLC0415
+
     if loaded_config is None:
         return 0
     db_path = getattr(getattr(loaded_config, "indexer", None), "db_path", None)
@@ -163,10 +165,10 @@ def _count_nfo_missing(loaded_config: object) -> int:
         return 0
     try:
         conn = _sqlite3.connect(str(db_path))
+        _apply_pragmas(conn)
         try:
             row = conn.execute(
-                "SELECT COUNT(DISTINCT item_id) FROM item_issue "
-                "WHERE type IN ('nfo_missing','nfo_incomplete')"
+                "SELECT COUNT(DISTINCT item_id) FROM item_issue WHERE type IN ('nfo_missing','nfo_incomplete')"
             ).fetchone()
         finally:
             conn.close()

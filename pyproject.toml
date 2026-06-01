@@ -130,13 +130,6 @@ reportMissingTypeStubs = "none"
 source = ["personalscraper"]
 omit = [
     "personalscraper/__main__.py",
-    # lib-fold Phase 5: these modules are re-homed (verify/library_checks.py,
-    # maintenance/disk_cleaner.py, indexer/scanner/_modes/_item_stage_types.py,
-    # io_utils.py) and are now dead duplicates with no live importer. The next
-    # task deletes the whole library/ package; this omit (and the files) go with it.
-    "personalscraper/library/validator.py",
-    "personalscraper/library/disk_cleaner.py",
-    "personalscraper/library/models.py",
 ]
 branch = true
 parallel = true

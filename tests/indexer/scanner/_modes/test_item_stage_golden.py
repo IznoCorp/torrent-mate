@@ -1,7 +1,7 @@
 """Characterization golden: library-index --mode full == frozen legacy DB end-state.
 
-This test is the safety net for Phase 3's deletion of the legacy scanner module
-under ``personalscraper.library``. It must pass before any deletion is attempted.
+This test is the safety net for Phase 3's deletion of the former library scanner
+module. It must pass before any deletion is attempted.
 If it fails, Phase 3 is blocked.
 
 Baseline = a **frozen snapshot** (``_FROZEN_LEGACY_BASELINE``) captured verbatim
@@ -53,7 +53,7 @@ _DISPATCH_ATTR_KEYS = ("dispatch_path", "dispatch_disk", "dispatch_normalized_ti
 _DISPATCH_PATH_MARKER = "/Disk1/medias"
 
 # Frozen legacy baseline — captured VERBATIM from the real legacy library-scan
-# entrypoint (the live legacy path in the ``personalscraper.library`` scanner
+# entrypoint (the live legacy path in the former library scanner
 # module) run on the ``_build_mini_library`` fixture at this commit. It is FROZEN
 # because Phase 3 deletes that module: this golden must keep its exact legacy
 # assertion semantics without a live dependency on the module being removed.
@@ -67,7 +67,7 @@ _DISPATCH_PATH_MARKER = "/Disk1/medias"
 #
 # To regenerate (e.g. if the legacy scan output legitimately changes while the
 # module still exists in git history): check out a commit where the legacy
-# ``personalscraper.library`` scanner module still exists, then run a throwaway
+# library scanner module still exists, then run a throwaway
 # script that (1) builds the fixture via ``_build_mini_library``, (2) sets the
 # module's ``_indexer_scan`` attribute to a no-op (so the terminal file/path
 # walk that bootstraps a disk-identity sentinel does not fail on a tmp
@@ -382,7 +382,7 @@ def test_full_mode_db_equals_frozen_legacy_baseline(tmp_path: Path) -> None:
     Baseline = ``_FROZEN_LEGACY_BASELINE``, a snapshot captured VERBATIM from the
     real legacy library-scan entrypoint (live legacy path) on the
     ``_build_mini_library`` fixture at this commit. It is frozen because Phase 3
-    deletes the legacy ``personalscraper.library`` scanner module; freezing keeps
+    deletes the legacy library scanner module; freezing keeps
     this golden's exact legacy assertion semantics without re-running (or
     importing) the module being removed.
 

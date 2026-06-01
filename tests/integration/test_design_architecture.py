@@ -100,10 +100,15 @@ class TestDirectoryStructureContract:
 
         Design: docs/reference/architecture.md#directory-structure
         Contract: The documented package subdirectories (ingest, sorter,
-        scraper, conf, api, verify, dispatch, indexer, library, commands,
+        scraper, conf, api, verify, dispatch, indexer, maintenance, commands,
         enforce, process, trailers, core) exist as importable packages
         under ``personalscraper/``. This guarantees that import paths in
         reference docs and DESIGN files stay valid across refactors.
+
+        Note: the ``library/`` source package was deleted in lib-fold Phase 5
+        (validator → verify/library_checks, disk_cleaner/rescraper →
+        maintenance/, models split to producer homes). The ``commands/library/``
+        CLI namespace is unaffected and stays.
         """
         pkg_dir = Path(personalscraper.__file__).parent
 
@@ -116,7 +121,7 @@ class TestDirectoryStructureContract:
             "verify",
             "dispatch",
             "indexer",
-            "library",
+            "maintenance",
             "commands",
             "enforce",
             "process",
