@@ -15,7 +15,7 @@
 | #   | Phase                   | File                               | Status |
 | --- | ----------------------- | ---------------------------------- | ------ |
 | 0   | Baseline golden capture | phase-00-baseline-golden.md        | [x]    |
-| 1   | Core framework          | phase-01-core-framework.md         | [ ]    |
+| 1   | Core framework          | phase-01-core-framework.md         | [x]    |
 | 2   | Migrate DISPATCH checks | phase-02-migrate-dispatch.md       | [ ]    |
 | 3   | Consolidate fixes       | phase-03-consolidate-fixes.md      | [ ]    |
 | 4   | DB-mode unification     | phase-04-db-mode.md                | [ ]    |
@@ -58,7 +58,7 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-**Phase 0 DONE (gate green).** Proceed to **Phase 1 — Core framework** (`docs/features/check-plugins/plan/phase-01-core-framework.md`): `Check` Protocol, `CheckResult`, `CheckRegistry` keyed by `(stage, name)`, shared `CheckContext` with parse-once NFO cache. Strict 0→9 order; each phase opens with a Gate and ends with `make check`. The Phase-0 golden (`tests/verify/test_characterization_golden.py`, 7 entry points) is now the running parity guard — re-asserted at every subsequent gate.
+**Phase 1 DONE (gate green).** Proceed to **Phase 2 — Migrate DISPATCH checks** (`docs/features/check-plugins/plan/phase-02-migrate-dispatch.md`). ⚠️ Sub-phase **2.0 FIRST**: move `Severity`/`CheckResult` out of `checker.py` into `base.py` (single source — MOVE-1) and repoint all importers; residual-import grep = 0. Then migrate the DISPATCH checks onto the framework, asserting the Phase-0 golden byte-identical at every step. Strict 0→9 order; each phase opens with a Gate and ends with `make check`. The Phase-0 golden (`tests/verify/test_characterization_golden.py`, 7 entry points) is the running parity guard.
 
 ### Phase 0 gate record (2026-06-02)
 
@@ -66,5 +66,11 @@ _(filled by implement:pr-review — max 5 cycles)_
 - Gate caught a real defect: the tmp-path normalization regex was not robust to the pytest-xdist worker segment (`popen-gwN/`) nor to non-macOS tmp prefixes — 4 path-bearing tests passed in isolation but failed under full `make check`. Fixed in `c0b6c602` (prefix-agnostic + worker-aware regex; goldens unchanged, no re-capture).
 - Gate green: `make lint` ✓, `make check` ✓ (5845 passed, 3 skipped, 2 xfailed, 0 failed; coverage 91.7%), 7 goldens, `import personalscraper` ✓, characterization test deterministic across serial + xdist runs.
 - Note: a parallel `docs(roadmap)` commit (`0d231b88`, ROADMAP.md only) rides in this branch range per the operator's choice (IMPLEMENTATION.md design note).
+
+### Phase 1 gate record (2026-06-02)
+
+- Sub-phases: `1.1` `verify/checks/base.py` — types + 3 Protocols + `CheckContext` (parse-once NFO cache) (`2caab076`); `1.2` `registry.py` (`CheckRegistry` + `_ORDER` + `apply_fixes`) + `catalog.py` (`e4fff6ce`). Framework skeleton only — **0 production code changed**; `checker.py` keeps its own `Severity`/`CheckResult` until 2.0 (MOVE-1).
+- Mechanical drift handled by sub-agents: `typing.Mapping` → `Mapping[str, Any]` (mypy strict), removed 2 stale `# type: ignore`, D103 test docstrings. No public shape changed; `_ORDER` table preserved verbatim.
+- Gate green: `make check` ✓ (5859 passed, 0 failed; coverage ≥90%; base/registry/catalog all << 800 LOC), `import personalscraper` ✓, ACC-02 `tests/verify tests/enforce` 160 passed.
 
 > **PR #33 is already created** (https://github.com/LounisBou/personal-scraper/pull/33, WIP). The branch is pushed to `origin/feat/check-plugins`. When the lifecycle reaches Phase 9 (`/implement:feature-pr`), it must **push onto the existing branch and reuse PR #33** (detect-existing, do not create a duplicate) — then `/implement:pr-review` → **manual squash merge**. Each implementation commit pushed to the branch updates PR #33 in place.
