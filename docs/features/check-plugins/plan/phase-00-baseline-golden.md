@@ -18,7 +18,7 @@
 | `library_from_index.json` | `validate_from_index`               | in-memory SQLite seeded rows                                                           | no       |
 | `coherence.json`          | `check_coherence`                   | **staging-layout** corpus (`001-MOVIES/`, `002-TVSHOWS/`) + `Config.paths.staging_dir` | no       |
 
-**Tech Stack:** Python 3.11, pytest, json, dataclasses, sqlite3, the 6 verify/enforce entry points, `tests/fixtures/config.test_config`
+**Tech Stack:** Python 3.11, pytest, json, dataclasses, sqlite3, the 7 verify/enforce entry points, `tests/fixtures/config.test_config`
 
 ---
 

@@ -275,6 +275,11 @@ git commit -m "feat(check-plugins): co-locate fix() on DirNaming, NoEmptyDirs, N
 - [ ] **Step 1: Update `Verifier` to use `apply_fixes` with policy `{"dir_naming"}`**
 
 ```python
+# verifier.py MODULE level — single source of truth for the verify fix policy
+# (mirrors _LIBRARY_FIX_POLICY below). Phase 7 flips THIS one constant for both
+# verify_movie AND verify_tvshow — do NOT inline it as a method-local variable.
+_VERIFY_FIX_POLICY = frozenset({"dir_naming"})
+
 # In Verifier.__init__ — remove the MediaFixer import + self._fixer,
 #   and ADD `self._patterns = patterns` (the rewrite needs it for CheckContext).
 # In Verifier.verify_movie:
@@ -292,8 +297,7 @@ def verify_movie(self, movie_dir: Path) -> VerifyResult:
     if self.fix:
         failed = [c for c in checks if not c.passed and c.fixable]
         if failed:
-            _VERIFY_FIX_POLICY = frozenset({"dir_naming"})
-            actions = apply_fixes(ctx, failed, _VERIFY_FIX_POLICY)
+            actions = apply_fixes(ctx, failed, _VERIFY_FIX_POLICY)   # module-level constant (above)
             result.fixes_applied = [a.description for a in actions]
             for a in actions:
                 if a.new_path and not self.dry_run:
