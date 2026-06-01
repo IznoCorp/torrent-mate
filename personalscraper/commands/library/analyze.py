@@ -94,6 +94,13 @@ def library_analyze(
             audio_counts[profile] = audio_counts.get(profile, 0) + 1
 
     console.print(f"[green]Analysis complete:[/green] {result.item_count} items, {result.file_count} files")
+    if result.item_count == 0:
+        # No enriched media streams in the DB. The most common cause is that
+        # ``library-index --mode enrich`` was never run (Stage A only), so the
+        # ``media_stream`` rows the analysis reads do not exist yet. Surface an
+        # explicit hint (mirrors the ``library_report`` no-data guidance)
+        # instead of leaving the operator with a silent "0 items, 0 files".
+        console.print("[yellow]No enriched media streams found — run 'library-index --mode enrich' first.[/yellow]")
     if codec_counts:
         codecs = ", ".join(f"{c}={n}" for c, n in sorted(codec_counts.items(), key=lambda kv: -kv[1]))
         console.print(f"  Codecs: {codecs}")
@@ -174,6 +181,12 @@ def library_recommend(
         )
     finally:
         conn.close()
+
+    if analysis.item_count == 0:
+        # Same no-enrich guidance as ``library-analyze``: recommendations are
+        # derived from enriched media streams, so an empty analysis means
+        # ``library-index --mode enrich`` has not populated ``media_stream``.
+        console.print("[yellow]No enriched media streams found — run 'library-index --mode enrich' first.[/yellow]")
 
     # Use preferences from config.library (no separate file).
     prefs = config.library

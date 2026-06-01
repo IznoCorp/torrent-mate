@@ -6,6 +6,7 @@ Covers ``library-reconcile``, ``library-ghost-audit``, and ``library-relink``.
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 from unittest.mock import patch
 
 from typer.testing import CliRunner
@@ -162,6 +163,69 @@ class TestLibraryReconcile:
             result = runner.invoke(app, ["library-reconcile"])
         assert result.exit_code == 0
         assert "without a valid NFO" not in result.output
+
+
+# ── _count_nfo_missing DB-error contract (FIX M3) ────────────────────────────
+
+
+class TestCountNfoMissingDbErrors:
+    """Tests for the narrowed DB-error contract of ``_count_nfo_missing``.
+
+    The helper must swallow ONLY ``sqlite3.OperationalError`` (the benign
+    pre-migration / missing-table case) and log a warning; any other
+    ``sqlite3.Error`` (corruption, lock, disk failure) must propagate instead
+    of silently reading as "0 items without NFO".
+    """
+
+    def _config_with_db(self, db_path: Path) -> object:
+        """Build a minimal stand-in config object exposing ``indexer.db_path``."""
+        from types import SimpleNamespace
+
+        return SimpleNamespace(indexer=SimpleNamespace(db_path=str(db_path)))
+
+    def test_operational_error_swallowed_and_logged(self, tmp_path: Path) -> None:
+        """A missing ``item_issue`` table (OperationalError) returns 0 and logs a warning."""
+        from personalscraper.commands.library.audit import _count_nfo_missing
+
+        # A real (empty) SQLite file exists but has no ``item_issue`` table, so
+        # the SELECT raises sqlite3.OperationalError("no such table: ...").
+        db_path = tmp_path / "empty.sqlite3"
+        sqlite3.connect(str(db_path)).close()
+
+        with patch("personalscraper.commands.library.audit.log") as mock_log:
+            result = _count_nfo_missing(self._config_with_db(db_path))
+
+        assert result == 0
+        mock_log.warning.assert_called_once()
+        # The warning event name pins the trace requirement (no silent swallow).
+        assert mock_log.warning.call_args[0][0] == "nfo_missing_count_unavailable"
+
+    def test_non_operational_error_propagates(self, tmp_path: Path) -> None:
+        """A genuine DB error (non-OperationalError) propagates instead of returning 0."""
+        from personalscraper.commands.library.audit import _count_nfo_missing
+
+        db_path = tmp_path / "real.sqlite3"
+        sqlite3.connect(str(db_path)).close()
+
+        # Force a DatabaseError (a sqlite3.Error that is NOT an
+        # OperationalError) from inside the try block — must NOT be swallowed.
+        # ``_apply_pragmas`` runs right after connect() in the same try, so
+        # making it raise exercises the propagation path cleanly.
+        with (
+            patch(
+                "personalscraper.indexer.db._apply_pragmas",
+                side_effect=sqlite3.DatabaseError("database disk image is malformed"),
+            ),
+            patch("personalscraper.commands.library.audit.log"),
+        ):
+            try:
+                _count_nfo_missing(self._config_with_db(db_path))
+            except sqlite3.DatabaseError:
+                propagated = True
+            else:
+                propagated = False
+
+        assert propagated, "non-OperationalError sqlite3 failure must propagate, not return 0"
 
 
 # ── library-ghost-audit ──────────────────────────────────────────────────────

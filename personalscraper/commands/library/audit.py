@@ -144,15 +144,24 @@ def _count_nfo_missing(loaded_config: object) -> int:
     """Count distinct items flagged ``nfo_missing`` / ``nfo_incomplete``.
 
     A read-only helper for the proactive no-NFO line in ``library-reconcile``
-    output. Returns 0 on any error (missing DB, missing table) so the audit
-    never fails because of this advisory check.
+    output. Returns 0 for the benign pre-migration / missing-table case
+    (``sqlite3.OperationalError``) — and logs a warning first so the advisory
+    line is silently dropped only when the ``item_issue`` table genuinely does
+    not exist yet. A real DB error (corruption, lock) is a different
+    ``sqlite3.Error`` subclass and is intentionally allowed to propagate rather
+    than masquerading as "0 items without NFO" (mirrors the narrowed contract
+    of ``doctor._check_nfo_missing``).
 
     Args:
         loaded_config: The loaded config object (``ctx.obj.config``), or ``None``.
 
     Returns:
         Number of distinct items with a missing/incomplete NFO, or 0 when the
-        count cannot be obtained.
+        ``item_issue`` table is absent (pre-migration DB).
+
+    Raises:
+        sqlite3.Error: For non-OperationalError DB failures (corruption, lock,
+            disk failure) — surfaced instead of silently returning 0.
     """
     import sqlite3 as _sqlite3  # noqa: PLC0415
 
@@ -172,7 +181,13 @@ def _count_nfo_missing(loaded_config: object) -> int:
             ).fetchone()
         finally:
             conn.close()
-    except _sqlite3.Error:
+    except _sqlite3.OperationalError as exc:
+        # Pre-migration / missing-table case only (mirrors
+        # ``doctor._check_nfo_missing``): the ``item_issue`` table does not
+        # exist yet. A genuine DB error (corruption, lock, disk failure) is a
+        # different sqlite3.Error subclass and is intentionally NOT swallowed
+        # here so it surfaces instead of reading as "0 items without NFO".
+        log.warning("nfo_missing_count_unavailable", db_path=str(db_path), error=str(exc))
         return 0
     return int(row[0]) if row and row[0] is not None else 0
 

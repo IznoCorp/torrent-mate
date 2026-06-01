@@ -101,6 +101,21 @@ class TestLibraryAnalyze:
         assert kwargs["disk_filter"] == "drive_a"
         assert kwargs["max_items"] == 5
 
+    def test_no_enrich_hint_shown_when_empty(self) -> None:
+        """An empty analysis (no enriched streams) prints the run-enrich hint (FIX M4)."""
+        with (
+            patch(
+                "personalscraper.insights.analytics.analyze_from_index",
+                return_value=_empty_analysis(),
+            ),
+            patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
+            patch("personalscraper.indexer.db.apply_migrations"),
+        ):
+            result = runner.invoke(app, ["library-analyze"])
+        assert result.exit_code == 0
+        assert "No enriched media streams found" in result.output
+        assert "library-index --mode enrich" in result.output
+
     def test_codec_audio_aggregation(self) -> None:
         """Codec / audio profile counts appear in the summary."""
         from personalscraper.insights.models import (
@@ -180,6 +195,26 @@ class TestLibraryRecommend:
         result = runner.invoke(app, ["library-recommend", "--sort", "bogus"])
         assert result.exit_code == 1
         assert "Invalid --sort" in result.output
+
+    def test_no_enrich_hint_shown_when_empty(self, tmp_path) -> None:
+        """An empty analysis (no enriched streams) prints the run-enrich hint (FIX M4)."""
+        with (
+            patch(
+                "personalscraper.insights.analytics.analyze_from_index",
+                return_value=_empty_analysis(),
+            ),
+            patch(
+                "personalscraper.insights.recommender.generate_recommendations",
+                return_value=_empty_recommend(),
+            ),
+            patch("personalscraper.io_utils.write_json"),
+            patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
+            patch("personalscraper.indexer.db.apply_migrations"),
+        ):
+            result = runner.invoke(app, ["library-recommend"])
+        assert result.exit_code == 0
+        assert "No enriched media streams found" in result.output
+        assert "library-index --mode enrich" in result.output
 
     def test_from_index_flag_is_noop(self, tmp_path) -> None:
         """The deprecated --from-index flag behaves identically (DB-backed)."""
