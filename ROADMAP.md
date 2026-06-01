@@ -1,447 +1,387 @@
 # ROADMAP — PersonalScraper
 
-> Future ideas. Each item gets its own brainstorming session before implementation.
-> Priority scale: **P1** (high — unblocks major features, do next) → **P3** (stretch — nice to have, no urgency).
-> Shipped work is **not** tracked here — see `CHANGELOG.md` and `docs/archive/features/`.
+> Future ideas. Chaque item passe par son propre brainstorming avant implémentation.
+> **Priorité** : **P1** (haute — débloque, à faire tôt) → **P3** (stretch).
+> **Vague** : ordre de construction dépendance-correct (voir « Plan de construction »).
+> Le travail **shippé n'est pas tracké ici** — voir `CHANGELOG.md` et `docs/archive/features/`.
+> Restructuré le **2026-06-01** (brainstorm trackers/ratio/suivi + refacto-prép, analyse
+> multi-agents ancrée sur le code réel). `lib-fold` shippé en 0.19.0 → retiré.
 
 ---
 
-## P1 — High Priority (do next, unblocks major features)
+## 🎯 Vision — la boucle fermée
 
-### P1 — LaCale Deprecation
+Système auto-hébergé en **boucle fermée** :
 
-> Ex-stub (a), 2026-06-01.
+```
+ACQUIRE ──▶ TRIAGE ──▶ STORE & INDEX ──▶ SEED / RATIO ──▶ SUPERVISE
+(suivi séries     (pipeline rename/    (disques +        (ratio sain sur   (Web UI +
+ + auto-download   clean/scrape/        indexer DB)        trackers privés)  Telegram)
+ trackers privés)  dispatch existant)                                        │
+        ▲──────────────────────────────────────────────────────────────────┘
+```
 
-LaCale n'existe plus en tant que tracker. On **conserve tout le code** mais on le marque
-**déprécié** plutôt que de le supprimer (réactivation possible, valeur de référence pour
-l'implémentation des futurs trackers — voir P2 Additional Trackers).
-
-**Portée**
-
-- **Désactivation** : retirer LaCale de l'ordre de préférence / du registry actif via le
-  mécanisme `ProviderActivation` existant (config) — il ne participe plus aux recherches.
-- **Flag `deprecated` explicite** dans le provider (`api/tracker/lacale.py`), avec warning
-  au boot s'il est malgré tout activé en config.
-- **Tests/fixtures** : marqués `skip` avec raison documentée (deprecated) — gardés dans
-  l'arbo, non exécutés. `docs/reference/lacale-api.md` + samples conservés.
-- **CHANGELOG** : entrée « Deprecated » signalant le retrait du tracker.
-
-**Non-goals** : suppression du code, du doc de référence ou des fixtures.
-
-> _`lib-fold` (Library / Indexer Consolidation) shippé en 0.19.0 (2026-06-01) — retiré de la
-> roadmap conformément à « shipped work is not tracked here ». Détails : `CHANGELOG.md`._
+Les nouvelles features (acquisition, ratio, seed-safety) reposent toutes sur **un socle
+partagé** : un `DownloadOrchestrator` (RP5) au-dessus d'un client torrent capable d'**ajouter**
+et **tagger** (RP1), d'une **config par tracker** (RP2), d'une **persistance d'acquisition**
+(`acquire.db`, RP3) et d'un **catalogue d'events** (RP4). On pose ces fondations avant tout.
 
 ---
 
-## P2 — Medium Priority (important but not blocking)
+## 🧊 Décisions gelées (brainstorm 2026-06-01)
 
-### P2 — Web Management UI
-
-Web-based graphical interface to pilot and supervise the whole project from a browser.
-
-- **Pipeline control**: start / pause / resume / kill each step (`ingest`, `sort`, `process`, `dispatch`), view live logs, step status, and per-run history.
-- **Configuration editor**: visual editor for `config/` (paths, categories, disks, thresholds, patterns) with schema validation and safe reload — no shell required.
-- **Maintenance dashboard**: disk usage / free space per disk, orphan files (`_tmp_ingest_*`, `_tmp_dispatch_*`), stale locks, library index health, pipeline-runs history.
-- **Interactive scraping**: front-end for the manual-decision points currently handled via MediaElch / CLI prompts — ambiguous TMDB/TVDB matches, multi-result picks, low-fuzzy-score arbitration, manual override of detected title/year/season.
-- **Future-ready**: UI shell designed to host pages for upcoming roadmap items, notably:
-  - **Auto-Download System** — tracker search, format preferences, subscription list CRUD, override rules editor
-  - **Watcher Service** — live watcher status, trigger history
-  - **Library Indexer** — browse/search indexed media, trigger re-scan, view stale entries
-  - **YoutubeTrailerScraper Integration** — missing-trailer queue, per-item scrape trigger
-- **Architecture pointers** (to decide during brainstorm): FastAPI / Flask + HTMX vs. SPA (Vue/React) + REST/WebSocket; auth (local-only vs. basic auth); reverse-proxy friendly (sub-path deploy behind `iznogoudatall.xyz`).
-- **Out of scope (v1)**: multi-user, remote-agent control, mobile-specific UX.
-
-**Depends on:** Pipeline Observer Protocol (shipped v0.13.0), Event Bus (shipped v0.14.0), Third-Party API Consumer Unification (shipped v0.11.0). Prerequisite: `arch-cleanup-2` (Event contract + envelope `schema_version`) — shipped v0.17.0 (#28).
-
-### P2 — TVShow Follow & Auto-Download System
-
-> Refondu le 2026-06-01 : le **suivi de séries** (ex-stub (d)) devient la feature
-> principale ; l'ancien « Auto-Download System » (abonnement + recherche multi-trackers
-> + renouvellement médiathèque) **fusionne dedans** comme volets de la même feature.
-
-Pipeline de téléchargement automatique de torrents avec intégration API tracker, piloté
-par une **liste de séries suivies**.
-
-**Suivi de séries (volet principal)**
-
-- **Liste manuelle** de séries suivies, gérée en CRUD (ajouter / retirer), indépendante
-  de la médiathèque — on peut suivre une série pas encore possédée.
-- **Détection des nouveautés** : nouveaux épisodes et nouvelles saisons des séries suivies.
-- **Recherche multi-trackers** : on cherche sur **tous** les trackers actifs.
-- **Sélection du meilleur torrent — filtres durs + score** :
-  - **Filtres durs (éliminatoires)** : non négociables, ex. piste audio requise (VF/VOSTFR),
-    qualité mini (ex. ≥ 1080p). Un torrent qui ne passe pas est écarté d'office.
-  - **Score pondéré** sur les survivants pour départager : seeders, freeleech / économie
-    de ratio du tracker, source, codec, taille…
-  - Réutilise le moteur de ranking `api/tracker/_ranking.py`.
-- **Déduplication** vs ce qui est déjà en médiathèque (indexer DB) — ne pas re-télécharger.
-
-**Volets hérités de l'ex-Auto-Download System**
-
-- Formats : format préféré + formats de repli.
-- Vérifs cron des nouveaux épisodes (planification).
-- Recherche multi-trackers avec ordre de préférence.
-- Branchement de la liste de recommandations médiathèque sur l'auto-download (renouvellement).
-- Règles d'override par critère : studio, réalisateur, franchise, titre, IMDB ID.
-
-**À affiner en design** (pas maintenant)
-
-- Source « nouvel épisode dispo » : calendrier TVDB/TMDB vs détection par recherche tracker.
-- Langue / piste audio voulue par série (filtre dur global vs par série).
-- Réglage des poids du score, et articulation avec le module de ratio (c) (un grab peut
-  servir le suivi ET le ratio).
-
-**Depends on:** Third-Party API Consumer Unification (shipped v0.11.0), Provider Registry
-(shipped v0.16.0), trackers actifs (P2 — Additional Trackers), client torrent (qBittorrent),
-**P2 — Download Orchestration & Seed Safety** (tag « contenu utile » pour ingestion +
-anti-HnR), **P3 — Freeleech Radar** (critère de score).
-
-### P2 — Additional Trackers (torr9 + digitalcore)
-
-> Remonté de P3 → P2 le 2026-06-01 : avec la dépréciation de LaCale (voir entrée (a)),
-> il faut des sources actives. Débloque l'Auto-Download System, le module de ratio (c) et
-> le suivi de séries (d), qui ont tous besoin de plusieurs trackers vivants.
-
-Implement `api/tracker/torr9.py` and `api/tracker/digitalcore.py` following the
-`TrackerClient` Protocol established in 0.11.0. Study each tracker's API
-(Torznab/RSS/REST), capture real-response samples, write reference docs in
-`docs/reference/torr9-api.md` and `docs/reference/digitalcore-api.md`, then
-implement using the unified `HttpTransport` infrastructure.
-
-**Goals**
-
-- Two new `TrackerClient` providers, plug-compatible with the existing
-  `TrackerRegistry` and `rank()` engine.
-- Reference docs + sample fixtures so future updates can replay against
-  captured responses.
-- Activation through the existing `ProviderActivation` mechanism — no new
-  config schema.
-- Capture per-tracker ratio-economy specifics (freeleech markers, bonus,
-  min seedtime, passkey) — feeds the ratio module (c) and the tvshow ranking (d).
-
-**Non-goals**
-
-- New ranking criteria (the engine landed in 0.11.0 already supports
-  arbitrary providers).
-- Auto-Download System integration — that lands in its own P2 feature.
-
-**Depends on**: Third-Party API Consumer Unification (shipped v0.11.0).
-
-### P2 — Download Orchestration & Seed Safety
-
-> Issu du brainstorm 2026-06-01. **Couche partagée** dont dépendent le module de ratio (c),
-> le suivi de séries (d) et le Watcher Service. Sans elle, le seed-pur du ratio polluerait
-> la médiathèque et les obligations de seed des trackers privés seraient violées.
-
-Couche transverse entre les modules qui téléchargent (ratio, suivi) et le client torrent /
-le pipeline de triage. Trois responsabilités :
-
-- **Tag « seed-pur » / catégorisation des downloads.** Tout torrent grabbé pour le seul
-  ratio (c) reçoit une catégorie/tag qBittorrent dédiée. Le **Watcher Service ignore ces
-  torrents** (pas de `personalscraper run` déclenché) et le triage ne les voit jamais. Les
-  grabs « contenu utile » (suivi (d), mode hybride de (c)) sont au contraire taggés pour
-  ingestion normale. **C'est le garde-fou anti-pollution médiathèque.**
-- **Suivi des obligations de seed / anti-HnR.** Registre par torrent du seedtime mini exigé
-  par le tracker source ; aucun module ne peut supprimer/arrêter un torrent avant échéance.
-  Évite les pénalités hit-and-run des trackers privés. Partagé par (c) et (d).
-- **Arbitre de budget disque global.** Médiathèque et seed-pur se disputent le disque : un
-  arbitre central applique les quotas (dont le plafond par tracker de (c)) et garantit que
-  le seed jetable n'affame jamais le vrai stockage. À relier au module `maintenance/`.
-
-- **Notifications** (via le notifier Telegram existant) : centralise les événements de
-  download — nouvel épisode grabbé, cible ratio atteinte/en danger, obligation de seed
-  proche de l'échéance, suppression seed-pur effectuée.
-
-**Depends on:** client torrent (qBittorrent, shipped), notifier Telegram (shipped),
-`maintenance/` (shipped en 0.19.0 via lib-fold). **Bloque (ou cadre) :** Watcher Service,
-Ratio Module (c), TVShow Follow (d).
-
-### P2 — Watcher Service
-
-Replace cron-based pipeline trigger with a real-time watcher service.
-
-- Service that watches either qBittorrent state or the `complete/` directory.
-- Triggers `personalscraper run` automatically on new downloads.
-- **Doit ignorer les torrents taggés « seed-pur »** (voir P2 — Download Orchestration &
-  Seed Safety) : ne jamais déclencher `personalscraper run` sur un grab de ratio jetable.
-- More responsive than the current 3am daily cron.
-
-**Depends on:** Event Bus (shipped v0.14.0), Pipeline Observer Protocol (shipped v0.13.0). Prerequisite: `arch-cleanup-2` (cross-process event envelope) — shipped v0.17.0 (#28). Tagging contract: **P2 — Download Orchestration & Seed Safety**.
-
-### P2 — Verify Checker Plugin System
-
-`verify/checker.py` (822 LOC, 713 non-blank) is a monolithic file containing all pre-dispatch validation checks. Adding a new check (e.g., a new media type, a new quality rule) requires modifying the file directly. A plugin architecture makes checks independently testable, extensible, and discoverable by the Web UI. This is also the landing zone for `library/validator.py` (see `lib-fold`).
-
-**Goals**
-
-- `Check` Protocol: `severity: Severity`, `category: str`, `check(item: Path, config: Config) -> CheckResult`.
-- `CheckRegistry` — checks auto-register via a decorator or entry point.
-- Each existing check group (NFO validity, artwork presence, naming conventions, stream details, genre categorization, file size, the Phase 30 `no_duplicate_videos` movie check) becomes its own plugin file under `verify/checks/`.
-- Web UI can list available checks, run them individually, and display per-check results.
-- CLI gets `personalscraper verify --check nfo_validity` granular invocation.
-
-**Non-goals**
-
-- Changing existing check logic beyond the extraction itself.
-
-### P2 — Reverse Episode Lookup (Standalone)
-
-Find SXXEXX for episodes missing season/episode numbers via reverse scraping on TVDB (TMDB/other fallback). Standalone command invoked manually when needed.
-
-- **Input**: a video file named without SXXEXX (e.g. `The Return of the King.mkv`).
-- **Reverse lookup**: clean the filename → search the episode name in TVDB (within the already-identified series) → retrieve `airedSeason` and `airedEpisodeNumber`.
-- **Cascading fallback**: TVDB in scraping language → TVDB in fallback language → TMDB → other scrapers.
-- **Output**: rename the file to `SXXEXX - Episode Name.ext` so it flows through the standard pipeline.
-- **CLI**: `personalscraper resolve-episodes <path>` — standalone, not integrated into the automated pipeline.
-- **Codebase**: inspired by the `TVDBNameToNum.py.bak` script (interactive TVDB v3 interface, name cleaning/normalization, fuzzy matching).
-
-**Depends on:** Provider Registry (shipped v0.16.0) for clean provider fallback.
-
-### P2 — Web UI Registry Consumer
-
-**Source**: registry feature DESIGN §11 deferral (recorded in Phase 12 of the registry feature).
-
-**Goal**: Expose ProviderRegistry status + operations to the Web Management UI (P2 above). Surface live provider eligibility, circuit state, fallback history, fan_out attempted lists.
-
-**Dependencies**:
-
-- Web Management UI scaffolding (P2 above).
-- `registry.status()` + `registry.operations()` (shipped v0.16.0 — Provider Registry feature).
-- Prerequisite: `arch-cleanup-2` (registry events on the base `Event` contract for WebSocket streaming) — shipped v0.17.0 (#28).
-
-**Scope**:
-
-- WebSocket subscription to `ProviderFallbackTriggered`, `ProviderExhaustedEvent`, `LockedCapabilityUnresolved`, `RegistryFanOutCompleted`, `RegistryBootValidated` events.
-- REST endpoint `GET /api/registry/status` returning the dict from `registry.status()`.
-- REST endpoint `GET /api/registry/operations` returning the dict from `registry.operations()`.
-- UI panel: per-provider circuit state, per-capability priority chain, fan_out latency aggregates.
-
-**Non-goals**:
-
-- Hot-swap (separate ROADMAP entry — see P3 Hot-Swap).
-- Provider configuration editing via UI (config file is source-of-truth; UI is read-only).
-
-**Estimated effort**: 1 sprint (5 days) after Web Management UI scaffolding lands.
+| # | Décision | Choix retenu |
+|---|----------|--------------|
+| **Q1** | Détection « nouvel épisode » (suivi séries) | **Calendrier-déclencheur** : RP9 poll les dates de diffusion (TVDB/TMDB) → quand l'air date est passée, l'épisode entre dans une file `wanted` (acquire.db) → recherche **répétée** sur les trackers jusqu'à le trouver (les trackers sont en retard sur la diffusion). |
+| **cadence** | Fréquence de recherche des `wanted` | **Backoff par paliers, configurable** (défaut global + override par série) : 🔥 Hot 0–72 h → ~toutes les 2 h ; 🌤 Warm 3–14 j → 1×/jour ; ❄️ Cold 14–30 j → 1×/semaine ; ⛔ cutoff 30 j → stop + notif Telegram. |
+| **Q2** | Mesure du ratio par tracker | **Cascade** : endpoint API tracker en priorité **→ fallback agrégation qBittorrent locale** (somme up/down par host) si le tracker n'expose pas son ratio. Capability detection façon registry. |
+| **Q3** | Séquencement trackers + radar freeleech | **Spike d'étude d'API → torr9 → digitalcore**. Radar freeleech **R1 conditionnel** : seulement si un tracker expose une API d'énumération de fenêtres ; sinon R1 se réduit à la récolte par recherche (déjà shippée). |
+| **Q4** | Frontière de téléchargement du `.torrent` | **PersonalScraper fetch + POST** : on télécharge le `.torrent` (auth gérée) puis on POST le fichier à qBittorrent ; **exception magnet** pour les liens sans auth. Le 401 reste observable/routable (vs qBit qui ne sait pas ré-authentifier un JWT expiré). |
 
 ---
 
-## P3 — Stretch (nice to have, lower urgency)
+## 🗺️ Plan de construction — 7 vagues
 
-### P3 — Ratio Management Module
+Index d'exécution dépendance-correct. `RPx` = refacto-prép (voir section dédiée) ; les codes
+`Sx/Dx/Ox/Vx/Cx/R1` = sous-features (voir catalogue). Détail riche dans le **Catalogue** plus bas.
 
-> Ex-stub (c), 2026-06-01.
+### Vague 1 — Feuilles + amorce des fondations
+- **LaCale Deprecation** `[P1]` — désactiver + flag `deprecated` + tests skip.
+- **RP1** `[P1, prérequis]` — protocoles d'écriture torrent (`add`/catégorie/limite) + tags `TorrentItem` + Transmission fail-fast. **Pin Q4 ici.**
+- **RP1a** `[P1, prérequis]` — frontière fetch (PersonalScraper fetch+POST, exception magnet).
+- **RP2** `[P1, parallèle]` — config économie par tracker (`RatioPolicy` + `announce_passkey`) ; **raye le non-goal « no new config schema »**.
+- **Reverse Episode Lookup** `[P2]` — autonome, ne dépend que du registry shippé.
+- **architecture.md Multi-Filesystem cleanup** `[P3, doc]` — pointeur mort (shippé 0.18.0).
 
-Téléchargement automatique des torrents les plus propices au partage pour faire monter
-le ratio, **tracker par tracker** (chaque tracker a son passkey, ses règles et sa propre
-économie de ratio : freeleech, bonus, seedtime mini…). Distinct du suivi de séries /
-Auto-Download : ici on télécharge **pour seeder**, pas pour alimenter la médiathèque —
-mais les deux modes coexistent (« hybride » ci-dessous).
+### Vague 2 — Persistance / events + shell de supervision + P2 indépendants
+- **RP3** `[P1, parallèle]` — `acquire.db` (`FollowedSeriesRepo` + `SeedObligationRepo` + `may_remove` autorité unique de suppression, *fail-open*).
+- **RP4** `[P1, parallèle]` — catalogue d'events d'acquisition + subscriber Telegram (muet jusqu'aux vagues 4–5).
+- **Web UI S1** `[P2]` — shell + auth + WebSocket + container headless.
+- **Verify V1** `[P2]` — `CheckRegistry` + 2 protocoles (`PreDispatchCheck` Path + `LibraryCheck` entrée).
+- **Additional Trackers — spike + torr9** `[P2]` — étude API (Q3), puis torr9 sur le schéma RP2.
 
-**Mode de fonctionnement — hybride**
+### Vague 3 — Le cœur « grab » + le garde-fou
+- **RP5** `[P1, prérequis]` — `DownloadOrchestrator` + `AcquisitionService` (câble `TrackerRegistry` dans AppContext ; **absorbe le DI Container**). **Gate de l'épopée.** Contient l'étage **dédup cross-tracker pré-ranking**.
+- **Seed Safety O1** `[P2]` — tag « seed-pur » + skip à travers `ingest`/`sort`/`process` + skip Watcher + patch cron 3 h.
+- **Seed Safety O2** `[P2]` — politique d'obligation de seed au-dessus de `may_remove` (RP3).
+- **RP6** `[P2, parallèle]` — prédicat « je possède déjà » dans `indexer/query.py`.
+- **RP7** `[P2, parallèle]` — cycle de vie auth tracker + fraîcheur du grab (`TrackerAuthFailed`).
+- **RP9** `[P2, prérequis]` — capability poll des dates de diffusion sur un *set* (après Q1).
+- **Freeleech R1** `[P3, conditionnel]` — découverte de fenêtres (seulement si API d'énumération ; sinon récolte par recherche).
 
-- **Seed pur (jetable)** : grab des torrents qui seedent le mieux (freeleech, gros swarm,
-  beaucoup de leechers) indépendamment du contenu, pour le seul ratio.
-- **Contenu utile** : si un torrent à bon swarm correspond à du contenu voulu (wishlist /
-  complément médiathèque), on le **garde** au lieu de le jeter. Le ratio devient un bonus.
+### Vague 4 — Acquisition headline + déclencheur de supervision
+- **Follow D1** `[P2]` — store + CRUD de la liste suivie (`acquire.db`).
+- **Follow D2** `[P2]` — détection calendrier-d'abord (RP9) + file `wanted` + cadence backoff + ownership (RP6).
+- **Follow D3** `[P2]` — grab via le cœur partagé (RP5) : dédup cross-tracker + re-résolution URL (RP7) + fetch (RP1a) + tag « contenu utile » (O1).
+- **Watcher Service** `[P2]` — remplace le cron ; **décommission du cron 3 h dans le même changement** (pas de double-ingestion).
 
-**Pilotage — par tracker, double contrainte**
+### Vague 5 — Politique ratio + reste de l'orchestration
+- **Ratio C1** `[P3]` — mesure par tracker (Q2 : API→fallback qBit) + boucle de grab vers la cible.
+- **Seed Safety O3** `[P2]` — arbitre de budget disque global (**précédence : le vrai média gagne**).
+- **Ratio C2** `[P3]` — rotation/LRU (respecte O2, bornée par O3).
+- **Ratio C3** `[P3]` — mode hybride « contenu utile » (taggé via O1).
+- **Seed Safety O4** `[P2]` — events + caps de bande passante (par torrent **et** global).
+- **Verify V2** `[P2]` — CLI granulaire (`verify --check nfo_validity`).
+- **Additional Trackers — digitalcore** `[P2]` — second tracker (après torr9).
 
-- **Cible de ratio** (ex. 1.5) : tant que ratio < cible, le module grab ; au-dessus, pause.
-- **Plafond disque** (ex. 50 Go) : on grab tant que ratio < cible **sans** dépasser le quota.
-- Config indépendante par tracker (cible + quota + seedtime mini propres à chacun).
+### Vague 6 — Surfaces de supervision sur l'acquisition désormais vivante
+- **Web UI S2** `[P2]` — pipeline control + logs + history.
+- **Web UI S3** `[P2]` — maintenance dashboard.
+- **Web UI S4** `[P2]` — éditeur de config.
+- **Web UI S5** `[P2]` — scraping interactif.
+- **Web UI S6** `[P2]` — registry + health (**fusionne Registry Consumer** ; `registry.status()` versionné additif-only).
+- **Web UI S7** `[P2]` — pages acquisition/watcher (sur les events RP4).
+- **Verify V3** `[P2]` — panneau Web UI par check (sur V1).
 
-**Suppression / rotation (contenu jetable) — combiné**
-
-- Jamais avant le **seedtime mini** du tracker (respect des règles).
-- Ensuite **rotation LRU par rentabilité** : quand le quota disque est plein, on retire le
-  torrent le moins rentable (swarm faible / déjà bien seedé) pour faire de la place.
-
-**À affiner en design** (pas maintenant)
-
-- Critères de « propice au partage » : freeleech, ratio seeders/leechers, taille, fraîcheur,
-  vélocité du swarm.
-- Intégration client torrent (qBittorrent déjà présent — API, catégories/tags dédiés ratio).
-- Mesure du ratio courant par tracker (scrape page profil vs API tracker).
-- Garde-fous : ne jamais re-télécharger du contenu déjà en médiathèque ; limites de
-  bande passante ; cap nombre de torrents actifs.
-
-**Depends on**: trackers actifs (P2 — Additional Trackers), client torrent (qBittorrent,
-shipped), **P2 — Download Orchestration & Seed Safety** (tag seed-pur + anti-HnR + budget
-disque), **P3 — Freeleech Radar** (priorité n°1 des grabs). Réutilise le moteur de ranking
-`api/tracker/_ranking.py`.
-
-### P3 — Freeleech Radar
-
-> Issu du brainstorm 2026-06-01. Petit module **transverse**, partagé par le module de
-> ratio (c) et le suivi de séries (d).
-
-Détecte les fenêtres **freeleech** (et bonus/upload multiplié) sur tous les trackers actifs
-et expose l'info aux consommateurs :
-
-- Le **module de ratio (c)** en fait sa priorité n°1 : un grab freeleech = gain de ratio à
-  coût nul (rien décompté en download).
-- Le **suivi de séries (d)** s'en sert comme critère de score (à qualité/piste égales,
-  préférer la source freeleech).
-
-**À affiner** : détection par tracker (flag dans la réponse de recherche vs page dédiée vs
-annonce), fraîcheur/expiration de la fenêtre, event `FreeleechWindowDetected` sur l'Event Bus
-pour notification (voir Seed Safety).
-
-**Depends on**: trackers actifs (P2 — Additional Trackers), Event Bus (shipped v0.14.0).
-
-### P3 — Tech-Debt Round 2 (`tech-debt-2`)
-
-> Design: `docs/features/tech-debt-2/DESIGN.md` _(to be written)_. Source analysis: `docs/analysis/03-god-modules-debt-audit.md` + a forthcoming broad debt sweep.
-
-**Status correction (verified 2026-05-28, HEAD `79b345d8`):** the god-module "crisis" the older
-ROADMAP described **no longer exists**. `python3 scripts/check-module-size.py` exits **0** (no
-hard-block breach); only **two** files exceed the 800 non-blank soft-warn ceiling:
-`scraper/movie_service.py` (**954** non-blank — grew from 927 via the Phase 30 orphan-unlink fix,
-now 46 lines from the 1000 hard ceiling) and `library/scanner.py` (**855** non-blank, removed by
-`lib-fold`). The previously-listed offenders are all under ceiling now: `indexer/scanner/__init__.py`
-621, `trailers/state.py` 767, `trailers/cli.py` 698, `indexer/db.py` 588. `scraper/tmdb_client.py`
-no longer exists (split into `api/metadata/tmdb.py` + `api/metadata/_tmdb_parsers.py`).
-
-**Real blind spot:** `check-module-size.py` excludes **all** `__init__.py` files (line 22/37),
-hiding two facade modules carrying heavy logic: `api/metadata/registry/__init__.py` (689 non-blank —
-the largest module by this metric) and `indexer/scanner/__init__.py` (621). The guardrail policy is
-the decision to make.
-
-**Goals**
-
-- Extract `scraper/movie_service.py` along its dedup/rename/orphan-unlink seam to get it back under 800 and away from the hard ceiling.
-- Decide and implement the `__init__.py` guardrail policy (count facade modules, or enforce re-exports-only).
-- Run a broad debt sweep (dead code, `TODO`/`FIXME`/`HACK`, `type: ignore` / `pragma: no cover` debt, broad `except`, magic values, test skips / `xfail` / `skip_audit` expiries) and fold the actionable items into the design.
-
-**Non-goals**
-
-- Behaviour changes during extraction — structural moves only.
-
-### P3 — LLM Pipeline Assistant (idée, gardée pour la fin)
-
-Connecter un LLM (local et/ou distant) comme assistant d'arbitrage pour les
-points du pipeline qui requièrent aujourd'hui une décision humaine (matches
-ambigus TMDB/TVDB, post-mortem d'erreurs, détection d'incohérences). L'IA
-s'imprègne de la médiathèque existante et apprend des corrections utilisateur
-via RAG — jamais de fine-tuning, jamais autonome, toujours en validation.
-Principe directeur : feature volontairement simple à implémenter.
-
-Vision et questions ouvertes (document vivant, pas de plan technique) :
-`docs/superpowers/roadmap/llm-assistant/brainstorming.md`
-
-**Brainstorming déjà entamé** (2026-05-11/12) : principes directeurs posés,
-cas d'usage cadrés (pipeline + médiathèque), stack pressenti identifié
-(MCP server + sqlite-vec + Ollama + Open WebUI compatible), 3 questions
-ouvertes restantes (log de corrections, indexation initiale, confidentialité
-backend distant). Reprendre la prochaine session via `/brainstorming` sur ce
-document — pas besoin de repartir de zéro.
-
-### P3 — Dependency Injection Container
-
-Components directly instantiate their dependencies (e.g., `Scraper.__init__` creates its own `TMDBClient`, `TVDBClient`, `NFOGenerator`, `ArtworkDownloader`). This makes testing harder (requires monkeypatching) and blocks the Web UI from swapping real implementations for mocks. May be partly absorbed by `arch-cleanup-2` if a `ServiceContainer` lands there first.
-
-**Goals**
-
-- Lightweight DI container (no framework — a simple `AppContext` dataclass or `ServiceContainer` with factory functions).
-- All domain services accept their dependencies via `__init__`, never create them internally.
-- CLI wiring creates the production container; tests create a test container; Web UI creates a headless container.
-
-**Non-goals**
-
-- Runtime service hot-swap.
-- Full-blown DI framework (no `dependency-injector`, no decorator-based injection).
-
-### P3 — Active Health Scoring (Registry)
-
-**Source**: registry feature DESIGN §11 deferral (recorded in Phase 12 of the registry feature).
-
-**Goal**: Move from passive circuit breaker (per-call failure threshold) to active health scoring (periodic ping + rolling window + provider de-prioritization).
-
-**Dependencies**:
-
-- Provider Registry framework (shipped v0.16.0).
-- ProviderObserver protocol (already defined for circuit transitions).
-
-**Scope**:
-
-- New `ProviderHealthMonitor` running as a background AppContext-scoped task.
-- Each provider exposes `health_check() -> bool` (cheap synthetic call).
-- Rolling window of last N health checks, exponentially-weighted moving average.
-- `chain()` consults health score: providers below threshold are skipped (not removed — re-attempted on next health window).
-- `registry.status()` includes per-provider health score.
-- **Économie de ratio dans le score (brainstorm 2026-06-01)** : pour les providers tracker,
-  intégrer l'état de ratio (proche de la limite tracker → déprioriser) en plus de la santé
-  réseau. Un tracker où ton ratio est en danger est temporairement écarté des recherches
-  d'auto-download/suivi. Alimenté par le module de ratio (c).
-
-**Non-goals**:
-
-- Active load balancing.
-- Per-region provider routing.
-
-**Risk**: health_check budget for each provider must be defined to avoid quota burn.
-
-**Estimated effort**: 1 sprint (5 days).
-
-### P3 — Hot-Swap Provider Configuration
-
-**Source**: registry feature DESIGN §11 deferral (recorded in Phase 12 of the registry feature).
-
-**Goal**: Reload `ProvidersConfig` on SIGHUP or config-file change without restarting the process. Currently registry is constructed once at AppContext init; config changes require restart.
-
-**Dependencies**:
-
-- Provider Registry framework (shipped v0.16.0).
-- `validate_config()` (shipped v0.16.0, used at boot — re-usable for hot reload).
-
-**Scope**:
-
-- File-watcher on `config/providers.json5` (using `watchdog` or polling).
-- On change: call `validate_config()` → if PASS, atomically swap `ProviderRegistry._index` + `_priority_for_chain` + `_circuit_breakers`.
-- Drain in-flight calls before swap (5 s grace period).
-- Emit new event `RegistryHotSwapped(...)` with diff summary.
-
-**Non-goals**:
-
-- Hot-swap of provider IMPLEMENTATIONS (only config). Adding a new provider class still requires restart.
-- Distributed config (single-process only).
-
-**Risk**: Race conditions on circuit breaker state during swap. Mitigate with explicit drain protocol.
-
-**Estimated effort**: 2 sprints (10 days).
+### Vague 7 — Déferrals registry + dette + stretch
+- **RP8** `[P3, prérequis]` — primitive unique de re-priorisation live (drain + swap atomique).
+- **Active Health Scoring — cœur réseau** `[P3]` — au-dessus de RP8.
+- **Active Health Scoring — slice ratio** `[P3]` — lit l'état Ratio (après C1).
+- **Hot-Swap Provider Config** `[P3]` — au-dessus de RP8.
+- **Tech-Debt Round 2** `[P3]`.
+- **Follow D4** `[P2→P3]` — overrides + profils qualité par série + cron + renouvellement médiathèque.
+- **LLM Pipeline Assistant** `[P3]`.
 
 ---
 
-## Journal — ajouts 2026-06-01 (résolus)
+## 🧱 Refacto-prep (RP1–RP9)
 
-Quatre demandes ajoutées puis raffinées en mini-brainstorm, désormais classées :
+> Nouvelles features de **préparation du terrain**, ancrées sur des manques **vérifiés** dans le
+> code. On les pose avant les features d'acquisition pour ne pas bâtir sur du sable.
 
-- **(a) Dépréciation LaCale** → **P1 — LaCale Deprecation** (section P1).
-- **(b) Nouveaux trackers torr9 + digitalcore** → fusionné dans **P2 — Additional Trackers**
-  (remonté de P3 → P2).
-- **(c) Module de ratio** → **P3 — Ratio Management Module** (section P3).
-- **(d) Suivi de séries** → devenu le volet principal de **P2 — TVShow Follow &
-  Auto-Download System** (a absorbé l'ancien Auto-Download System).
+| Code | Prio | Type | Quoi (constat code) | Prépare |
+|------|------|------|---------------------|---------|
+| **RP1** | P1 | prérequis | `api/_contracts.py` n'a **pas de `add`** ; `TorrentItem` **sans tags** (`qbittorrent.py:259`). Ajouter adder/categorizer/limiter + tags ; **Transmission asserte `TorrentAdder` au démarrage** (fail-fast). Pin Q4. | Orchestration, Follow, Ratio, Watcher, Trackers |
+| **RP1a** | P1 | prérequis | JWT lacale / apikey c411 peuvent **401 si qBit fetch lui-même**. → PersonalScraper fetch le `.torrent` puis POST le fichier ; exception magnet sans auth. | Follow, Ratio, Orchestration |
+| **RP2** | P1 | parallèle | `TrackerProviderConfig` n'a que `enabled`. Ajouter `RatioPolicy` + `announce_passkey`. **Rayer le non-goal « no new config schema »** des Additional Trackers avant torr9/digitalcore. | Ratio, Trackers, Follow, Orchestration |
+| **RP3** | P1 | parallèle | Pas de persistance d'acquisition. Créer `acquire.db` : `FollowedSeriesRepo` + `SeedObligationRepo` + **`may_remove` autorité unique de suppression**, *fail-open* si absent (ne bloque pas `disk_cleaner`). | Follow, Orchestration, Ratio |
+| **RP4** | P1 | parallèle | Aucun event d'acquisition. Les définir **une fois** (sous-classes de `Event`) + mapping subscriber Telegram. Muet jusqu'aux vagues 4–5. | Orchestration, Freeleech, Watcher, Follow, Ratio, Web UI |
+| **RP5** | P1 | prérequis | `TrackerRegistry` **jamais instancié hors tests** ; AppContext ne le porte pas. Créer `DownloadOrchestrator` + `AcquisitionService` (cœur de grab partagé) ; **absorbe le DI Container**. Gate de l'épopée — Ratio C1 et Follow D3 partagent ce cœur. | Orchestration, Follow, Ratio, Watcher |
+| **RP6** | P2 | parallèle | Prédicat « je possède déjà » indéfini. Ajouter `owns_episode` / `owns_movie_at_quality` dans `indexer/query.py` (**pas** `movie_service.py` à 975 LOC). | Follow, Ratio |
+| **RP7** | P2 | parallèle | Tokens courts ; le breaker ignore les 4xx. Re-résoudre l'URL avant `add`, émettre `TrackerAuthFailed`. Avec RP1a le 401 est observable. | Follow, Ratio, Trackers, Active Health |
+| **RP8** | P3 | prérequis | Hot-Swap **et** Active Health veulent **muter l'ordre du chain à chaud** : une seule primitive sûre (drain + swap atomique). | Active Health, Hot-Swap |
+| **RP9** | P2 | prérequis | `chain(EpisodeFetcher)` fetch par série ; un **poll de dates sur un *set*** est neuf. Ajouter `poll_recent_episodes`. Résoudre Q1 d'abord. | Follow |
 
-Brainstorm phase 3 — nouvelles entrées dérivées (glu d'intégration + synergies) :
+---
 
-- **Glu critique** → **P2 — Download Orchestration & Seed Safety** (tag seed-pur ignoré par
-  le Watcher/triage, suivi anti-HnR des obligations de seed, arbitre de budget disque
-  global, + notifications Telegram).
-- **Radar freeleech** → **P3 — Freeleech Radar** (transverse, partagé par (c) et (d)).
-- **Économie tracker → health** → bullet ajouté à **P3 — Active Health Scoring**.
-- *(Reporté : confort 7-8-9 — bootstrap liste depuis indexer, profils qualité par série,
-  pages Web UI ratio + CRUD liste. Non retenu ce tour-ci.)*
+## 📦 Catalogue des features (détail)
 
-Demande utilisateur d'origine (verbatim) :
+### — Acquisition —
+
+#### TVShow Follow & Auto-Download System (D1–D4)
+
+> Refondu 2026-06-01 : le **suivi de séries** est la feature principale ; l'ancien
+> « Auto-Download System » (abonnement + recherche multi-trackers + renouvellement) **fusionne
+> dedans** comme volets. Découpé en 4 sous-features.
+
+Téléchargement automatique des nouveaux épisodes / saisons des séries d'une **liste suivie**,
+recherche sur **tous les trackers actifs**, choix du **meilleur torrent** (filtres durs + score).
+
+- **D1 — Liste + CRUD** : store de séries suivies dans `acquire.db` (`FollowedSeriesRepo`),
+  **liste manuelle** (ajouter/retirer), indépendante de la médiathèque.
+- **D2 — Détection** : **calendrier-d'abord** (Q1) — RP9 poll les air dates → file `wanted` →
+  recherche tracker répétée selon la **cadence backoff** (Hot/Warm/Cold/cutoff, configurable
+  globale + par série). Ownership via RP6 (ne pas chercher ce qu'on possède déjà).
+- **D3 — Grab (cœur partagé)** : via `DownloadOrchestrator` (RP5).
+  - **Filtres durs (éliminatoires)** : piste audio requise (VF/VOSTFR), qualité mini (≥1080p)…
+  - **Score pondéré** sur les survivants : seeders, freeleech/économie tracker, source, codec, taille.
+  - **Dédup cross-tracker AVANT le ranking** : `_ranking` traite 1 résultat à la fois → on
+    regroupe par `info_hash`, on choisit la meilleure provenance, on passe **un** représentant à `score_result`.
+  - Re-résolution d'URL (RP7) + fetch (RP1a) + tag « contenu utile » (O1) pour ingestion normale.
+- **D4 — Overrides & extras** : règles par critère (studio, réalisateur, franchise, titre, IMDB ID),
+  **profils qualité par série** (anime VOSTFR vs série VF), cron, **renouvellement médiathèque**
+  (brancher la liste de recommandations sur l'auto-download).
+
+**Depends on** : RP1, RP1a, RP2, RP3, RP5, RP6, RP7, RP9 ; trackers actifs ; `_ranking.py` (shippé).
+
+#### Ratio Management Module (C1–C3)
+
+> Télécharge les torrents les plus **propices au partage** pour faire monter le ratio,
+> **tracker par tracker**. Distinct du suivi (on télécharge **pour seeder**) mais modes coexistants.
+> Reste **P3** : c'est de la **politique** au-dessus du socle P2.
+
+- **C1 — Mesure + boucle** : ratio par tracker en **cascade** (Q2 : endpoint API → fallback
+  agrégation qBit locale). Boucle de grab tant que `ratio < cible` **et** `disque < plafond`
+  (config par tracker via RP2).
+- **C2 — Rotation/LRU** : suppression jamais avant le **seedtime mini** (politique O2), puis
+  **rotation LRU par rentabilité** quand le quota est plein, bornée par l'arbitre disque (O3).
+- **C3 — Hybride contenu-utile** : si un torrent à bon swarm correspond à du contenu voulu
+  (wishlist/médiathèque, via RP6), on le **garde** (taggé « contenu utile » via O1) au lieu de le jeter.
+
+Critères « propice au partage » : freeleech (priorité, voir R1), ratio seeders/leechers, taille,
+fraîcheur, vélocité du swarm.
+
+**Depends on** : RP1, RP1a, RP2, RP3, RP5, RP6 ; Seed Safety O1/O2/O3 ; Freeleech R1 (bonus) ; `_ranking.py`.
+
+#### Download Orchestration & Seed Safety (O1–O4)
+
+> **Couche partagée** (P2) entre les modules qui téléchargent et le client torrent / le triage.
+> Sans elle, le seed-pur polluerait la médiathèque et les obligations de seed seraient violées.
+
+- **O1 — Tag « seed-pur » + skip** : catégorie/tag qBittorrent dédiée ; **skip à travers
+  `ingest`/`sort`/`process`** ET skip Watcher ; **patch du cron 3 h**. Les grabs « contenu
+  utile » sont taggés pour ingestion normale. **Garde-fou anti-pollution médiathèque.**
+- **O2 — Obligation de seed / anti-HnR** : politique au-dessus de `may_remove` (RP3) — aucun
+  module ne supprime/arrête un torrent avant le seedtime mini du tracker (évite les pénalités HnR).
+- **O3 — Arbitre de budget disque global** : applique les quotas (dont le plafond par tracker de
+  C1) ; **précédence : le dispatch du vrai média gagne toujours**, l'arbitre ne réserve que
+  l'espace non réclamé ; une seule vue partagée de l'espace libre. Relié à `maintenance/`.
+- **O4 — Events + caps** : events de download (via RP4) + **caps de bande passante par torrent
+  ET globaux**.
+
+**Depends on** : RP1, RP3, RP4 ; client torrent (qBittorrent) ; notifier Telegram ; `maintenance/` (shippé 0.19.0).
+**Cadre/bloque** : Watcher, Ratio, TVShow Follow.
+
+#### Additional Trackers (spike → torr9 → digitalcore)
+
+> Remonté P3 → P2 le 2026-06-01 (LaCale tombe → besoin de sources actives). Séquencement Q3.
+
+Implémenter `api/tracker/torr9.py` puis `api/tracker/digitalcore.py` suivant le protocole
+`TrackerClient` (0.11.0). **Spike d'étude d'API d'abord** (Torznab/RSS/REST, samples réels,
+docs `docs/reference/{torr9,digitalcore}-api.md`), puis torr9, puis digitalcore. Sur l'infra
+`HttpTransport` unifiée.
+
+- Deux providers `TrackerClient`, plug-compatibles avec `TrackerRegistry` + `rank()`.
+- Capter l'économie par tracker (freeleech, bonus, seedtime mini, passkey) → **via le schéma RP2**.
+- Activation via `ProviderActivation`.
+- Détecter si le tracker expose une **API d'énumération de fenêtres freeleech** → gate R1 (Q3).
+
+**Non-goals** : nouveaux critères de ranking (le moteur 0.11.0 les supporte déjà).
+**Depends on** : RP2 (schéma config), RP7 (auth). ⚠️ L'ancien non-goal « no new config schema » est **rayé** (RP2).
+
+#### Freeleech Radar (R1) — conditionnel
+
+> Module **transverse** partagé par Ratio et Follow. **La plomberie par-résultat est déjà
+> shippée** (`is_freeleech` / `FreeleechAware` / bonus `_ranking`). Le seul net-new = la
+> **découverte proactive de fenêtres**.
+
+- **R1** : `FreeleechWindowDetected` sur l'Event Bus + découverte de fenêtres — **seulement si
+  ≥1 tracker expose une API d'énumération** (sinon R1 se réduit à la récolte par recherche déjà
+  shippée). Ratio en fait sa priorité n°1 (gain de ratio à coût nul) ; Follow s'en sert comme
+  critère de score.
+
+**Depends on** : Additional Trackers (spike Q3), Event Bus (shippé).
+
+#### Watcher Service
+
+Remplace le déclencheur cron par un service temps-réel.
+
+- Surveille l'état qBittorrent ou le répertoire `complete/` ; déclenche `personalscraper run`.
+- **Ignore les torrents taggés « seed-pur »** (contrat O1).
+- **Décommission du cron 3 h dans le même changement** (sinon double-ingestion).
+
+**Depends on** : Event Bus (shippé 0.14.0), Pipeline Observer Protocol (shippé 0.13.0), Seed Safety O1.
+
+### — Supervise —
+
+#### Web Management UI (S1–S7)
+
+Interface web pour piloter/superviser tout le projet. Découpée en 7 sous-features.
+
+- **S1** — shell + auth + WebSocket + container headless (**à faire en premier**).
+- **S2** — pipeline control : start/pause/resume/kill (`ingest`/`sort`/`process`/`dispatch`), logs live, status, history.
+- **S3** — maintenance dashboard : disque/espace libre par disque, orphelins (`_tmp_*`), locks, santé index, historique des runs.
+- **S4** — éditeur de config visuel (`config/`) avec validation de schéma + reload sûr.
+- **S5** — scraping interactif : points de décision manuels (matches ambigus TMDB/TVDB, picks multi-résultats, arbitrage fuzzy, override titre/année/saison).
+- **S6** — registry + health (**fusionne l'ancien « Web UI Registry Consumer »**) : WebSocket sur
+  `ProviderFallbackTriggered`/`ProviderExhaustedEvent`/`LockedCapabilityUnresolved`/`RegistryFanOutCompleted`/`RegistryBootValidated`,
+  REST `GET /api/registry/{status,operations}`, panneau état circuit + chain + latences fan_out.
+  ⚠️ **`registry.status()` versionné additif-only** avant S6 (Active Health en vague 7 l'étend).
+- **S7** — pages acquisition/watcher (status, history, CRUD liste suivie, règles override) sur les events RP4.
+
+**Architecture (à trancher en design)** : FastAPI/Flask+HTMX vs SPA+REST/WebSocket ; auth local-only vs basic ;
+reverse-proxy friendly (sous-chemin derrière `iznogoudatall.xyz`). **Hors scope v1** : multi-user, contrôle d'agent distant, UX mobile.
+**Depends on** : Pipeline Observer (0.13.0), Event Bus (0.14.0), RP4 (pour S7), `registry.status()`/`operations()` (0.16.0, pour S6).
+
+### — Qualité / plateforme —
+
+#### Verify Checker Plugin System (V1–V3)
+
+`verify/checker.py` (822 LOC) est monolithique. Architecture en plugins → checks testables,
+extensibles, découvrables par la Web UI. Landing zone de l'ex-`library/validator.py`.
+
+- **V1** — `CheckRegistry` + **deux protocoles** : `PreDispatchCheck` (porte sur `Path`) et
+  `LibraryCheck` (valide des lignes, ex-`library_checks.py`) sous un seul registre. Chaque groupe
+  existant (NFO, artwork, naming, stream, genre, taille, `no_duplicate_videos`) devient un plugin sous `verify/checks/`.
+- **V2** — CLI granulaire : `personalscraper verify --check nfo_validity`.
+- **V3** — panneau Web UI par check (liste, run individuel, résultats).
+
+**Non-goals** : changer la logique des checks au-delà de l'extraction.
+
+#### Active Health Scoring (Registry) — au-dessus de RP8
+
+Passer du circuit breaker passif au scoring de santé actif (ping périodique + fenêtre glissante +
+dé-priorisation). Mutation de l'ordre du chain **via la primitive RP8**.
+
+- `ProviderHealthMonitor` (tâche de fond AppContext) ; `health_check() -> bool` par provider ;
+  EWMA sur N checks ; `chain()` skip sous seuil (re-tenté à la fenêtre suivante) ; `registry.status()` inclut le score.
+- **Slice ratio (brainstorm 2026-06-01)** : pour les providers tracker, intégrer l'état de ratio
+  (proche de la limite → déprioriser) **en plus** de la santé réseau. Alimenté par Ratio C1 →
+  **cette slice attend C1 (vague 5)**.
+
+**Non-goals** : load-balancing actif, routage par région. **Risque** : budget `health_check` à borner.
+**Depends on** : Provider Registry (0.16.0), ProviderObserver, **RP8**, RP7 ; slice ratio ⇐ Ratio C1.
+
+#### Hot-Swap Provider Configuration — au-dessus de RP8
+
+Recharger `ProvidersConfig` sur SIGHUP / changement de fichier sans redémarrer.
+
+- File-watcher sur `config/providers.json5` → `validate_config()` → si PASS, **swap atomique via RP8**
+  (`_index` + `_priority_for_chain` + `_circuit_breakers`), drain 5 s, event `RegistryHotSwapped`.
+
+**Non-goals** : hot-swap des IMPLÉMENTATIONS (config seulement), config distribuée.
+**Depends on** : Provider Registry (0.16.0), `validate_config()` (0.16.0), **RP8**.
+
+#### Reverse Episode Lookup (Standalone)
+
+Trouver SXXEXX pour des épisodes sans numéro via reverse scraping TVDB (fallback TMDB/autres).
+Commande autonome, manuelle.
+
+- **Input** : fichier sans SXXEXX (`The Return of the King.mkv`).
+- **Reverse** : nettoyer le nom → chercher le titre d'épisode dans TVDB (série déjà identifiée) → `airedSeason`/`airedEpisodeNumber`.
+- **Fallback cascade** : TVDB langue scrap → TVDB langue fallback → TMDB → autres.
+- **Output** : renommer en `SXXEXX - Episode Name.ext` pour le pipeline standard.
+- **CLI** : `personalscraper resolve-episodes <path>` — hors pipeline auto.
+- Inspiré de `TVDBNameToNum.py.bak`.
+
+**Depends on** : Provider Registry (0.16.0). _(Vague 1 : autonome, ne touche pas au socle d'acquisition.)_
+
+#### Tech-Debt Round 2 (`tech-debt-2`)
+
+> Status (vérifié 2026-05-28) : pas de crise god-module. `check-module-size.py` exit 0.
+
+- Extraire `scraper/movie_service.py` (954 non-blank, 46 lignes du plafond dur) le long du seam dedup/rename/orphan-unlink.
+- Décider la politique de garde-fou `__init__.py` (le check exclut tous les `__init__.py` — masque `api/metadata/registry/__init__.py` à 689 et `indexer/scanner/__init__.py` à 621).
+- Sweep large : code mort, `TODO`/`FIXME`/`HACK`, `type: ignore`/`pragma: no cover`, `except` larges, magic values, skips/`xfail` expirés.
+
+**Non-goals** : changements de comportement (déplacements structurels seulement).
+
+#### architecture.md Multi-Filesystem cleanup `[doc]`
+
+Section « Multi-Filesystem » encore marquée *planned* alors que shippée 0.18.0 — seul pointeur
+mort restant (la critique « lib-fold encore en P1 » était fausse, lib-fold retiré). Nettoyage doc.
+
+#### LLM Pipeline Assistant (idée, gardée pour la fin)
+
+Connecter un LLM (local/distant) comme assistant d'arbitrage pour les points à décision humaine
+(matches ambigus, post-mortem d'erreurs, incohérences). RAG sur la médiathèque + corrections
+utilisateur — jamais de fine-tuning, jamais autonome, toujours en validation. Volontairement simple.
+
+Vision/questions ouvertes : `docs/superpowers/roadmap/llm-assistant/brainstorming.md`.
+**Brainstorming entamé** (2026-05-11/12) : principes posés, cas d'usage cadrés, stack pressenti
+(MCP + sqlite-vec + Ollama + Open WebUI), 3 questions ouvertes. Reprendre via `/brainstorming`.
+
+### — Dépréciations —
+
+#### LaCale Deprecation
+
+LaCale n'existe plus. On **conserve tout le code** (référence pour les futurs trackers) mais on le
+marque **déprécié**.
+
+- **Désactivation** via `ProviderActivation` (retiré du registry actif / de l'ordre de préférence).
+- **Flag `deprecated`** dans `api/tracker/lacale.py` + warning au boot s'il est activé.
+- **Tests/fixtures** marqués `skip` (raison documentée), gardés. `docs/reference/lacale-api.md` conservé.
+- **CHANGELOG** : entrée « Deprecated ».
+
+**Non-goals** : suppression du code, du doc ou des fixtures.
+
+---
+
+## 🔀 Journal des fusions & reclassements (2026-06-01)
+
+Issu du brainstorm multi-agents (analyse ancrée sur le code, critique adverse appliquée) :
+
+**Fusions**
+- **Web UI Registry Consumer** → page **Web UI S6** (zéro backend indépendant ; `status/operations` shippés 0.16.0).
+- **Dependency Injection Container** → **RP5** (le `ServiceContainer`/AppContext doit porter `TrackerRegistry` — c'est le seam RP5).
+- **Plomberie par-résultat du Freeleech Radar** → déjà shippée ; seul survivant net-new = **R1** (découverte de fenêtres).
+- **Events d'acquisition épars** → **RP4** (un seul catalogue).
+- **Mutation Active Health + swap Hot-Swap** → **primitive RP8 unique** (les deux mutent l'ordre du chain à chaud).
+- **`verify/library_checks.py`** → 2e protocole dans **Verify V1**.
+
+**Découpes** (features trop grosses → spec-sized)
+- Web Management UI → **S1–S7** · TVShow Follow → **D1–D4** · Seed Safety → **O1–O4** · Verify → **V1–V3** · Ratio → **C1–C3** · Freeleech → **R1**.
+
+**Ajouts de cohérence** (sinon la boucle ne tourne pas)
+- Dédup cross-tracker **pré-ranking** (dans RP5/D3) · précédence disque réel > seed-pur (O3) ·
+  décommission cron 3 h au cutover Watcher · versionnage `registry.status()` avant S6 · cleanup doc Multi-Filesystem.
+
+**Reclassements**
+- `lib-fold` (shippé 0.19.0) **retiré**. · LaCale → P1. · torr9+digitalcore P3 → P2. · DI Container → absorbé RP5.
+
+**Reporté (non retenu ce tour-ci)** : confort — bootstrap liste depuis l'indexer, ~~profils qualité par série~~ (intégré à D4), pages Web UI ratio dédiées.
+
+---
+
+## 📜 Journal — demande d'origine (verbatim, 2026-06-01)
 
 - LaCale n'est plus, déprécié, garder le code.
 - 2 nouveaux trackers : https://torr9.net/ et https://digitalcore.club/
-- Module de gestion du ratio (téléchargement automatique des torrents les plus propices
-  au partage afin d'augmenter le ratio). Gestion tracker par tracker.
-- Module de suivi tvshows (téléchargement automatique des nouveaux épisodes / nouvelles
-  saisons d'une série, parmi une liste de séries suivies) ; recherche sur tous les
-  trackers et choix du meilleur torrent selon plusieurs critères (ratio, qualité, piste
-  audio…).
+- Module de gestion du ratio (téléchargement automatique des torrents les plus propices au
+  partage afin d'augmenter le ratio). Gestion tracker par tracker.
+- Module de suivi tvshows (téléchargement automatique des nouveaux épisodes / nouvelles saisons
+  d'une série, parmi une liste de séries suivies) ; recherche sur tous les trackers et choix du
+  meilleur torrent selon plusieurs critères (ratio, qualité, piste audio…).
 
-Le détail raffiné vit désormais dans les entrées P1/P2/P3 listées ci-dessus.
+Puis : « on pense aussi architecture en ajoutant des features de refacto si nécessaire pour
+préparer le terrain » → RP1–RP9. Le détail raffiné vit dans le Catalogue + le Plan de construction ci-dessus.
