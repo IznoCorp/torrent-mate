@@ -5,20 +5,45 @@ consistency, and checks sort↔process coherence. Produces
 warnings, never modifies the filesystem.
 """
 
-import xml.etree.ElementTree as ET
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from personalscraper.conf import ids as CID
-from personalscraper.conf.classifier import classify_from_nfo
+import personalscraper.verify.checks  # trigger registration  # noqa: F401
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.core.media_types import FileType
-from personalscraper.logger import get_logger
-from personalscraper.nfo_utils import glob_nfo_candidates
+from personalscraper.naming_patterns import PATTERNS
+from personalscraper.verify.checks.base import CheckContext, CheckStage
+from personalscraper.verify.checks.registry import registry
 
-log = get_logger("enforce.coherence")
+
+def _coherence_for(media_dir: Path, media_type: str, config: Config) -> CoherenceResult:
+    """Build a CoherenceResult by running all STAGING checks for media_type.
+
+    Args:
+        media_dir: Path to the media directory.
+        media_type: "movie" or "tvshow" — the bucket the item was found under.
+        config: Config for classifier rules.
+
+    Returns:
+        CoherenceResult aggregating check names and warning messages.
+    """
+    ctx = CheckContext(
+        media_dir=media_dir,
+        media_type=media_type,
+        stage=CheckStage.STAGING,
+        config=config,
+        patterns=PATTERNS,
+    )
+    results = [r for check in registry.checks_for(CheckStage.STAGING, media_type) for r in check.run(ctx)]
+    return CoherenceResult(
+        path=media_dir,
+        checks=[r.name for r in results],
+        warnings=[r.message for r in results if not r.passed and r.message],
+    )
 
 
 @dataclass
@@ -63,123 +88,12 @@ def check_coherence(
     if movies_dir.exists():
         for folder in sorted(movies_dir.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):
-                results.append(_check_movie(folder))
+                results.append(_coherence_for(folder, "movie", config))
 
     tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
     if tvshows_dir.exists():
         for folder in sorted(tvshows_dir.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):
-                results.append(_check_tvshow(folder, config))
+                results.append(_coherence_for(folder, "tvshow", config))
 
     return results
-
-
-def _check_movie(movie_dir: Path) -> CoherenceResult:
-    """Check coherence for a single movie directory.
-
-    Detects TV show NFOs misplaced in the MOVIES category, and validates
-    that at least one NFO contains a recognised external ID.
-
-    Args:
-        movie_dir: Path to the movie folder.
-
-    Returns:
-        CoherenceResult with any warnings found.
-    """
-    result = CoherenceResult(path=movie_dir)
-
-    # A tvshow.nfo in MOVIES indicates a mis-sorted TV show
-    if (movie_dir / "tvshow.nfo").exists():
-        result.warnings.append(f"Wrong category: {movie_dir.name} has tvshow.nfo but is in MOVIES")
-    result.checks.append("sort_process_coherence")
-
-    nfos = glob_nfo_candidates(movie_dir)
-    if nfos:
-        _check_nfo_ids(nfos[0], result)
-
-    return result
-
-
-def _check_tvshow(show_dir: Path, config: Config) -> CoherenceResult:
-    """Check coherence for a single TV show directory.
-
-    Detects movie NFOs misplaced in TVSHOWS, validates external IDs in the
-    show-level NFO, and checks whether the genre suggests a different category.
-
-    Args:
-        show_dir: Path to the TV show folder.
-        config: Config used by the classifier for genre coherence.
-
-    Returns:
-        CoherenceResult with any warnings found.
-    """
-    result = CoherenceResult(path=show_dir)
-
-    nfo_path = show_dir / "tvshow.nfo"
-    if not nfo_path.exists():
-        # A movie-style NFO in TVSHOWS indicates a mis-sorted movie
-        movie_nfos = [f for f in glob_nfo_candidates(show_dir) if f.name != "tvshow.nfo"]
-        if movie_nfos:
-            result.warnings.append(f"Wrong category: {show_dir.name} has movie NFO but is in TVSHOWS")
-    else:
-        _check_nfo_ids(nfo_path, result)
-        _check_genre_coherence(nfo_path, result, config)
-
-    result.checks.append("sort_process_coherence")
-    return result
-
-
-def _check_nfo_ids(nfo_path: Path, result: CoherenceResult) -> None:
-    """Check that an NFO file contains at least one valid external ID.
-
-    A valid NFO should have at least one <uniqueid> element with type
-    "tmdb" or "imdb" and non-empty text. Missing both is a warning.
-
-    Args:
-        nfo_path: Path to the NFO XML file.
-        result: CoherenceResult to append warnings and checks to (mutated).
-    """
-    try:
-        root = ET.parse(nfo_path).getroot()  # noqa: S314
-    except (ET.ParseError, OSError):
-        result.warnings.append(f"Cannot parse NFO: {nfo_path.name}")
-        result.checks.append("nfo_ids")
-        return
-
-    has_tmdb = False
-    has_imdb = False
-    for uid in root.findall("uniqueid"):
-        uid_type = uid.get("type", "")
-        if uid_type == "tmdb" and uid.text and uid.text.strip():
-            has_tmdb = True
-        elif uid_type == "imdb" and uid.text and uid.text.strip():
-            has_imdb = True
-
-    if not has_tmdb and not has_imdb:
-        result.warnings.append(f"Missing IDs: no TMDB or IMDB in {nfo_path.name}")
-
-    result.checks.append("nfo_ids")
-
-
-def _check_genre_coherence(nfo_path: Path, result: CoherenceResult, config: Config) -> None:
-    """Check whether the NFO genre suggests a different target category.
-
-    Uses the classifier (classify_from_nfo) to determine the implied
-    category. If the genre implies ``CID.TV_PROGRAMS`` but the item is in the
-    default TVSHOWS bucket, a warning is emitted so the operator can review
-    and re-categorise manually.
-
-    Args:
-        nfo_path: Path to the tvshow NFO file.
-        result: CoherenceResult to append warnings and checks to (mutated).
-        config: Config passed to the classifier.
-    """
-    try:
-        category_id, _reason = classify_from_nfo(config, nfo_path, media_type="tvshow")
-        if category_id == CID.TV_PROGRAMS:
-            result.warnings.append(f"Genre suggests TV program ({CID.TV_PROGRAMS}) not series for {result.path.name}")
-    except (ET.ParseError, OSError, ValueError) as exc:
-        log.warning("enforce_coherence_genre_check_failed", nfo=nfo_path.name, exc_info=True, error=str(exc))
-        result.warnings.append(f"Genre check failed: {exc}")
-
-    result.checks.append("genre_coherence")
