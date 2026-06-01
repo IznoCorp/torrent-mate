@@ -6,7 +6,7 @@
 **Version bump**: 0.18.0 → 0.19.0
 **Branch**: feat/lib-fold
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/LounisBou/personal-scraper/pull/31
 **Design**: docs/features/lib-fold/DESIGN.md
 **Master plan**: docs/features/lib-fold/plan/INDEX.md
 
