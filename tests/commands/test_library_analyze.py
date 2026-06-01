@@ -12,12 +12,12 @@ from unittest.mock import MagicMock, patch
 from typer.testing import CliRunner
 
 from personalscraper.cli import app
-from personalscraper.library.models import (
+from personalscraper.insights.models import (
     LibraryAnalysisResult,
     LibraryRecommendationResult,
-    LibraryRescrapeResult,
-    LibraryValidationResult,
 )
+from personalscraper.maintenance.rescraper import LibraryRescrapeResult
+from personalscraper.verify.library_checks import LibraryValidationResult
 
 runner = CliRunner()
 
@@ -166,7 +166,7 @@ class TestLibraryRecommend:
                 "personalscraper.insights.recommender.generate_recommendations",
                 return_value=_empty_recommend(),
             ),
-            patch("personalscraper.library.models.write_json") as mock_write,
+            patch("personalscraper.io_utils.write_json") as mock_write,
             patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
             patch("personalscraper.indexer.db.apply_migrations"),
         ):
@@ -192,7 +192,7 @@ class TestLibraryRecommend:
                 "personalscraper.insights.recommender.generate_recommendations",
                 return_value=_empty_recommend(),
             ),
-            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
             patch("personalscraper.indexer.db.apply_migrations"),
         ):
@@ -204,7 +204,7 @@ class TestLibraryRecommend:
         """--export csv writes a CSV alongside the JSON output."""
         # data_dir must exist for the CSV write.
         test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
-        from personalscraper.library.models import (
+        from personalscraper.insights.models import (
             CurrentState,
             Recommendation,
             TargetState,
@@ -245,7 +245,7 @@ class TestLibraryRecommend:
                 "personalscraper.insights.recommender.generate_recommendations",
                 return_value=rec_result,
             ),
-            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
             patch("personalscraper.indexer.db.apply_migrations"),
         ):
@@ -277,7 +277,7 @@ class TestLibraryRescrape:
                 "personalscraper.maintenance.rescraper.rescrape_library",
                 return_value=rresult,
             ),
-            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.cli.acquire_lock") as mock_acquire,
         ):
             result = runner.invoke(app, ["library-rescrape", "--dry-run"])
@@ -308,7 +308,7 @@ class TestLibraryRescrape:
                 "personalscraper.maintenance.rescraper.rescrape_library",
                 return_value=rresult,
             ),
-            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.cli.acquire_lock", return_value=True) as mock_acquire,
             patch("personalscraper.cli.release_lock") as mock_release,
         ):
@@ -348,7 +348,7 @@ class TestLibraryReport:
             patch("pathlib.Path.exists", return_value=True),
             patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
             patch("personalscraper.insights.analytics.analyze", return_value=analysis),
-            patch("personalscraper.library.models.read_json", return_value=None),
+            patch("personalscraper.io_utils.read_json", return_value=None),
             patch(
                 "personalscraper.dispatch.disk_scanner.get_disk_status",
                 return_value=MagicMock(),
@@ -378,7 +378,7 @@ class TestLibraryReport:
             patch("pathlib.Path.exists", return_value=True),
             patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
             patch("personalscraper.insights.analytics.analyze", return_value=analysis),
-            patch("personalscraper.library.models.read_json", return_value=None),
+            patch("personalscraper.io_utils.read_json", return_value=None),
             patch(
                 "personalscraper.dispatch.disk_scanner.get_disk_status",
                 return_value=MagicMock(),
@@ -410,7 +410,7 @@ class TestLibraryReport:
             patch("pathlib.Path.exists", return_value=True),
             patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
             patch("personalscraper.insights.analytics.analyze", return_value=analysis),
-            patch("personalscraper.library.models.read_json", side_effect=_raise),
+            patch("personalscraper.io_utils.read_json", side_effect=_raise),
             patch(
                 "personalscraper.dispatch.disk_scanner.get_disk_status",
                 return_value=MagicMock(),
@@ -437,7 +437,7 @@ class TestLibraryReport:
                 side_effect=RuntimeError("db boom"),
             ),
             patch(
-                "personalscraper.library.models.read_json",
+                "personalscraper.io_utils.read_json",
                 return_value={"x": 1},
             ),
             patch(

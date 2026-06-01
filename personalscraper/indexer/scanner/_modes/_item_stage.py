@@ -33,6 +33,14 @@ from personalscraper.conf.ids import AUDIOBOOKS, TV_CATEGORY_IDS
 from personalscraper.core.media_types import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 from personalscraper.indexer.repos import disk_repo, item_repo, tv_repo
 from personalscraper.indexer.scanner._modes._canonical import derive_canonical_provider
+from personalscraper.indexer.scanner._modes._item_stage_types import (
+    ISSUE_ACTORS_DIR,
+    ISSUE_BAD_DIR_NAME,
+    ISSUE_EMPTY_SUBDIR,
+    ISSUE_JUNK_FILES,
+    ISSUE_NTFS_UNSAFE,
+    ISSUE_RELEASE_ARTIFACT,
+)
 from personalscraper.indexer.schema import (
     ArtworkInventory,
     DiskRow,
@@ -41,14 +49,6 @@ from personalscraper.indexer.schema import (
     MediaItemRow,
     NfoStatus,
     SeasonRow,
-)
-from personalscraper.library.models import (
-    ISSUE_ACTORS_DIR,
-    ISSUE_BAD_DIR_NAME,
-    ISSUE_EMPTY_SUBDIR,
-    ISSUE_JUNK_FILES,
-    ISSUE_NTFS_UNSAFE,
-    ISSUE_RELEASE_ARTIFACT,
 )
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
@@ -66,7 +66,7 @@ _NTFS_ILLEGAL = re.compile(r'[<>:"/\\|?*]')
 
 # Issue types raised by the no-NFO folder-name fallback (scan_and_stage_dir).
 # Free-form ``item_issue.type`` strings (the column carries no CHECK), distinct
-# from the directory-hygiene constants imported from ``library.models``.
+# from the directory-hygiene constants imported from ``_item_stage_types``.
 ISSUE_NFO_MISSING = "nfo_missing"
 ISSUE_NFO_INCOMPLETE = "nfo_incomplete"
 

@@ -231,7 +231,7 @@ class TestRescrapeItem:
             )
 
         assert result is not None
-        from personalscraper.library.models import SKIP_NO_MATCH
+        from personalscraper.maintenance.rescraper import SKIP_NO_MATCH
 
         assert SKIP_NO_MATCH in result.actions_skipped
         assert result.tmdb_id is None
@@ -265,7 +265,7 @@ class TestRescrapeItem:
         )
 
         assert result is not None
-        from personalscraper.library.models import ACTION_ARTWORK_DOWNLOADED
+        from personalscraper.maintenance.rescraper import ACTION_ARTWORK_DOWNLOADED
 
         assert ACTION_ARTWORK_DOWNLOADED in result.actions_taken
         assert result.tmdb_id == "123"
@@ -701,7 +701,7 @@ class TestRescrapeItemErrors:
         tmdb.get_movie.return_value = {"id": 42, "title": "Movie"}
         artwork_dl = MagicMock()
 
-        from personalscraper.library.models import ACTION_ARTWORK_DOWNLOADED
+        from personalscraper.maintenance.rescraper import ACTION_ARTWORK_DOWNLOADED
 
         result = _rescrape_item(
             media_dir=movie,
@@ -725,8 +725,7 @@ class TestRescrapeItemErrors:
 
     def test_tvshow_artwork_branch(self, tmp_path: Path) -> None:
         """TV show needing artwork should call download_tvshow_artwork (apply mode)."""
-        from personalscraper.library.models import ACTION_ARTWORK_DOWNLOADED
-        from personalscraper.maintenance.rescraper import _rescrape_item
+        from personalscraper.maintenance.rescraper import ACTION_ARTWORK_DOWNLOADED, _rescrape_item
         from personalscraper.naming_patterns import NamingPatterns
 
         show = tmp_path / "Show (2024)"
@@ -1170,8 +1169,7 @@ class TestRescrapeLibraryOrchestrator:
 
     def test_action_with_errors_increments_error_count(self, tmp_path: Path) -> None:
         """RescrapeAction with non-empty errors should bump error_count."""
-        from personalscraper.library.models import RescrapeAction
-        from personalscraper.maintenance.rescraper import rescrape_library
+        from personalscraper.maintenance.rescraper import RescrapeAction, rescrape_library
 
         movie = tmp_path / "Movie (2024)"
         movie.mkdir()
@@ -1212,8 +1210,7 @@ class TestRescrapeLibraryOrchestrator:
 
     def test_action_with_skipped_increments_skipped_count(self, tmp_path: Path) -> None:
         """RescrapeAction with actions_skipped should bump skipped_count."""
-        from personalscraper.library.models import SKIP_NO_MATCH, RescrapeAction
-        from personalscraper.maintenance.rescraper import rescrape_library
+        from personalscraper.maintenance.rescraper import SKIP_NO_MATCH, RescrapeAction, rescrape_library
 
         movie = tmp_path / "Movie (2024)"
         movie.mkdir()
@@ -1253,8 +1250,7 @@ class TestRescrapeLibraryOrchestrator:
 
     def test_action_success_increments_fixed_count(self, tmp_path: Path) -> None:
         """RescrapeAction with actions_taken and no errors bumps fixed_count."""
-        from personalscraper.library.models import ACTION_NFO_REGENERATED, RescrapeAction
-        from personalscraper.maintenance.rescraper import rescrape_library
+        from personalscraper.maintenance.rescraper import ACTION_NFO_REGENERATED, RescrapeAction, rescrape_library
 
         movie = tmp_path / "Movie (2024)"
         movie.mkdir()
@@ -1354,3 +1350,208 @@ class TestRescrapeLibraryOrchestrator:
         assert result.skipped_count == 0
         assert result.error_count == 0
         assert result.items == []
+
+
+class TestRescrapeAction:
+    """Tests for RescrapeAction model."""
+
+    def test_valid_action(self) -> None:
+        """Action with valid fields should work."""
+        from personalscraper.maintenance.rescraper import ACTION_NFO_REGENERATED, RescrapeAction
+
+        action = RescrapeAction(
+            path="/tmp/Movie (2024)",
+            title="Movie",
+            media_type="movie",
+            disk="Disk1",
+            category="films",
+            actions_taken=[ACTION_NFO_REGENERATED],
+            actions_skipped=[],
+            errors=[],
+            tmdb_id="123",
+            id_source="nfo",
+            match_confidence=None,
+            rescraped_at="2026-04-17T12:00:00",
+        )
+        assert action.tmdb_id == "123"
+        assert action.id_source == "nfo"
+
+    def test_invalid_media_type_raises(self) -> None:
+        """Invalid media_type should raise ValueError."""
+        import pytest
+
+        from personalscraper.maintenance.rescraper import RescrapeAction
+
+        with pytest.raises(ValueError, match="media_type"):
+            RescrapeAction(
+                path="/tmp/X",
+                title="X",
+                media_type="audiobook",
+                disk="Disk1",
+                category="films",
+                actions_taken=["test"],
+                actions_skipped=[],
+                errors=[],
+                tmdb_id=None,
+                id_source=None,
+                match_confidence=None,
+            )
+
+    def test_confidence_out_of_range_raises(self) -> None:
+        """Confidence > 1.0 should raise ValueError."""
+        import pytest
+
+        from personalscraper.maintenance.rescraper import RescrapeAction
+
+        with pytest.raises(ValueError, match="match_confidence"):
+            RescrapeAction(
+                path="/tmp/X",
+                title="X",
+                media_type="movie",
+                disk="Disk1",
+                category="films",
+                actions_taken=["test"],
+                actions_skipped=[],
+                errors=[],
+                tmdb_id="1",
+                id_source="api_match",
+                match_confidence=95.0,
+            )
+
+    def test_no_tmdb_clears_confidence(self) -> None:
+        """If tmdb_id is None, confidence should be cleared."""
+        from personalscraper.maintenance.rescraper import SKIP_NO_MATCH, RescrapeAction
+
+        action = RescrapeAction(
+            path="/tmp/X",
+            title="X",
+            media_type="movie",
+            disk="Disk1",
+            category="films",
+            actions_taken=[],
+            actions_skipped=[SKIP_NO_MATCH],
+            errors=[],
+            tmdb_id=None,
+            id_source=None,
+            match_confidence=0.5,
+        )
+        assert action.match_confidence is None
+
+    def test_artwork_action_constant(self) -> None:
+        """ACTION_ARTWORK_DOWNLOADED and ACTION_EPISODES_RENAMED should be usable."""
+        from personalscraper.maintenance.rescraper import (
+            ACTION_ARTWORK_DOWNLOADED,
+            ACTION_EPISODES_RENAMED,
+            RescrapeAction,
+        )
+
+        action = RescrapeAction(
+            path="/tmp/X",
+            title="X",
+            media_type="tvshow",
+            disk="Disk1",
+            category="series",
+            actions_taken=[ACTION_ARTWORK_DOWNLOADED, ACTION_EPISODES_RENAMED],
+            actions_skipped=[],
+            errors=[],
+            tmdb_id="1",
+            id_source="nfo",
+            match_confidence=None,
+        )
+        assert ACTION_ARTWORK_DOWNLOADED in action.actions_taken
+        assert ACTION_EPISODES_RENAMED in action.actions_taken
+
+    def test_invalid_id_source_raises(self) -> None:
+        """Invalid id_source should raise ValueError."""
+        import pytest
+
+        from personalscraper.maintenance.rescraper import RescrapeAction
+
+        with pytest.raises(ValueError, match="id_source"):
+            RescrapeAction(
+                path="/tmp/X",
+                title="X",
+                media_type="movie",
+                disk="Disk1",
+                category="films",
+                actions_taken=[],
+                actions_skipped=[],
+                errors=[],
+                tmdb_id="1",
+                id_source="api",
+                match_confidence=0.9,
+            )
+
+    def test_none_id_source_accepted(self) -> None:
+        """id_source=None should be accepted."""
+        from personalscraper.maintenance.rescraper import SKIP_NO_MATCH, RescrapeAction
+
+        action = RescrapeAction(
+            path="/tmp/X",
+            title="X",
+            media_type="movie",
+            disk="Disk1",
+            category="films",
+            actions_taken=[],
+            actions_skipped=[SKIP_NO_MATCH],
+            errors=[],
+            tmdb_id=None,
+            id_source=None,
+            match_confidence=None,
+        )
+        assert action.id_source is None
+
+
+class TestLibraryRescrapeResult:
+    """Tests for LibraryRescrapeResult container."""
+
+    def test_valid_result(self) -> None:
+        """Result with valid fields."""
+        from personalscraper.maintenance.rescraper import LibraryRescrapeResult
+
+        result = LibraryRescrapeResult(
+            rescraped_at="2026-04-17T12:00:00",
+            disk_filter=None,
+            category_filter=None,
+            only_filter=None,
+            dry_run=True,
+            fixed_count=0,
+            skipped_count=0,
+            error_count=0,
+        )
+        assert result.dry_run is True
+
+    def test_invalid_only_filter_raises(self) -> None:
+        """Invalid only_filter should raise ValueError."""
+        import pytest
+
+        from personalscraper.maintenance.rescraper import LibraryRescrapeResult
+
+        with pytest.raises(ValueError, match="only_filter"):
+            LibraryRescrapeResult(
+                rescraped_at="2026-04-17T12:00:00",
+                disk_filter=None,
+                category_filter=None,
+                only_filter="invalid",
+                dry_run=True,
+                fixed_count=0,
+                skipped_count=0,
+                error_count=0,
+            )
+
+    def test_valid_only_filters(self) -> None:
+        """Valid only_filter values should be accepted."""
+        from personalscraper.maintenance.rescraper import LibraryRescrapeResult
+
+        for val in ("nfo", "artwork", "episodes"):
+            result = LibraryRescrapeResult(
+                rescraped_at="2026-04-17T12:00:00",
+                disk_filter=None,
+                category_filter=None,
+                only_filter=val,
+                dry_run=False,
+                fixed_count=0,
+                skipped_count=0,
+                error_count=0,
+            )
+            assert result.only_filter == val

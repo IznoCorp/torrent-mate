@@ -19,7 +19,7 @@ from personalscraper.indexer.scanner._modes._item_stage import (
     stage_library_items,
     upsert_item_with_attrs,
 )
-from personalscraper.library.models import (
+from personalscraper.indexer.scanner._modes._item_stage_types import (
     ISSUE_ACTORS_DIR,
     ISSUE_BAD_DIR_NAME,
     ISSUE_EMPTY_SUBDIR,

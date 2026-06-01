@@ -11,8 +11,9 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 
 def _atomic_write_bytes(path: Path, payload: bytes) -> None:
@@ -76,3 +77,56 @@ def atomic_write_text(path: Path, content: str, *, encoding: str = "utf-8") -> N
         encoding: Text encoding to use (default ``"utf-8"``).
     """
     _atomic_write_bytes(path, content.encode(encoding))
+
+
+# --- Dataclass JSON serialization helpers ---
+
+
+def _json_default(obj: object) -> str:
+    """JSON encoder fallback for Path and other non-serializable types."""
+    if isinstance(obj, Path):
+        return str(obj)
+    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
+
+def serialize_to_json(obj: object) -> str:
+    """Serialize a dataclass instance to JSON string.
+
+    Handles Path objects via custom encoder. Uses dataclasses.asdict()
+    for conversion, matching the IndexEntry serialization pattern.
+
+    Args:
+        obj: A dataclass instance.
+
+    Returns:
+        JSON string with 2-space indentation.
+    """
+    # mypy: asdict requires DataclassInstance; callers always pass a dataclass instance.
+    return json.dumps(asdict(obj), default=_json_default, indent=2, ensure_ascii=False)  # type: ignore[call-overload]
+
+
+def write_json(obj: object, path: Path) -> None:
+    """Atomically write a dataclass to a JSON file.
+
+    Writes to a .tmp file first, then renames to target path.
+    Prevents corruption from interrupted writes.
+
+    Args:
+        obj: A dataclass instance.
+        path: Target file path.
+    """
+    tmp_path = path.with_suffix(".tmp")
+    tmp_path.write_text(serialize_to_json(obj), encoding="utf-8")
+    tmp_path.rename(path)
+
+
+def read_json(path: Path) -> dict[str, Any]:
+    """Read a JSON file and return parsed dict.
+
+    Args:
+        path: Path to JSON file.
+
+    Returns:
+        Parsed dictionary.
+    """
+    return cast("dict[str, Any]", json.loads(path.read_text(encoding="utf-8")))

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.library.models import (
+from personalscraper.indexer.scanner._modes._item_stage_types import (
     ISSUE_ACTORS_DIR,
     ISSUE_JUNK_FILES,
 )
@@ -205,7 +205,7 @@ class TestCleanIntegration:
 
     def test_clean_actors_apply(self, mini_library) -> None:
         """Clean should remove .actors/ directories."""
-        from personalscraper.library.disk_cleaner import clean_library
+        from personalscraper.maintenance.disk_cleaner import clean_library
 
         result = clean_library(mini_library["config"], apply=True, only="actors")
 
@@ -215,7 +215,7 @@ class TestCleanIntegration:
 
     def test_clean_junk_apply(self, mini_library) -> None:
         """Clean should remove .DS_Store files."""
-        from personalscraper.library.disk_cleaner import clean_library
+        from personalscraper.maintenance.disk_cleaner import clean_library
 
         clean_library(mini_library["config"], apply=True, only="junk")
 
@@ -223,7 +223,7 @@ class TestCleanIntegration:
 
     def test_clean_dry_run_preserves(self, mini_library) -> None:
         """Dry-run should not delete anything."""
-        from personalscraper.library.disk_cleaner import clean_library
+        from personalscraper.maintenance.disk_cleaner import clean_library
 
         result = clean_library(mini_library["config"], apply=False)
 
@@ -239,13 +239,13 @@ class TestRecommendIntegration:
     def test_recommend_from_analysis(self) -> None:
         """Recommendations should be generated from analysis data."""
         from personalscraper.conf.models.preferences import LibraryPrefs, VideoPrefs
-        from personalscraper.insights.recommender import generate_recommendations
-        from personalscraper.library.models import (
+        from personalscraper.insights.models import (
             AudioTrack,
             LibraryAnalysisItem,
             MediaFileAnalysis,
             VideoInfo,
         )
+        from personalscraper.insights.recommender import generate_recommendations
 
         # H.264 movie at 8 GB — should trigger codec + size recommendations
         items = [
@@ -319,7 +319,7 @@ class TestFullWorkflow:
 
         from personalscraper.indexer.db import apply_migrations
         from personalscraper.indexer.scanner._modes._item_stage import stage_library_items
-        from personalscraper.library.disk_cleaner import clean_library
+        from personalscraper.maintenance.disk_cleaner import clean_library
 
         # Use a file DB so it survives between scan calls.
         db_path = mini_library["config"].paths.data_dir / "library.db"

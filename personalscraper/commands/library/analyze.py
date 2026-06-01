@@ -144,7 +144,7 @@ def library_recommend(
     from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
     from personalscraper.insights.analytics import analyze_from_index  # noqa: PLC0415
     from personalscraper.insights.recommender import generate_recommendations  # noqa: PLC0415
-    from personalscraper.library.models import write_json
+    from personalscraper.io_utils import write_json  # noqa: PLC0415
 
     # ``from_index`` is accepted but ignored — the DB is the sole source.
     _ = from_index
@@ -257,7 +257,7 @@ def library_rescrape(
         personalscraper library-rescrape --disk <disk_id> --max-items 50
         personalscraper library-rescrape --interactive
     """
-    from personalscraper.library.models import write_json
+    from personalscraper.io_utils import write_json
     from personalscraper.maintenance.rescraper import rescrape_library
 
     category_id = _resolve_category(ctx, category)
@@ -332,7 +332,7 @@ def library_report(
     from personalscraper.indexer.db import open_db
     from personalscraper.insights.analytics import analyze
     from personalscraper.insights.reporter import format_report_text, generate_report
-    from personalscraper.library.models import read_json
+    from personalscraper.io_utils import read_json
 
     config = ctx.obj.config
     console = state["console"]
