@@ -14,7 +14,7 @@
 
 | #   | Phase                   | File                               | Status |
 | --- | ----------------------- | ---------------------------------- | ------ |
-| 0   | Baseline golden capture | phase-00-baseline-golden.md        | [ ]    |
+| 0   | Baseline golden capture | phase-00-baseline-golden.md        | [x]    |
 | 1   | Core framework          | phase-01-core-framework.md         | [ ]    |
 | 2   | Migrate DISPATCH checks | phase-02-migrate-dispatch.md       | [ ]    |
 | 3   | Consolidate fixes       | phase-03-consolidate-fixes.md      | [ ]    |
@@ -58,6 +58,13 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-**Ready for implementation in a fresh session.** Run `/implement:phase` — it starts at **Phase 0** (baseline golden capture of all 7 entry points; the parity spine). Strict 0→9 order; each phase opens with a Gate and ends with `make check`. Plan: `docs/features/check-plugins/plan/INDEX.md`.
+**Phase 0 DONE (gate green).** Proceed to **Phase 1 — Core framework** (`docs/features/check-plugins/plan/phase-01-core-framework.md`): `Check` Protocol, `CheckResult`, `CheckRegistry` keyed by `(stage, name)`, shared `CheckContext` with parse-once NFO cache. Strict 0→9 order; each phase opens with a Gate and ends with `make check`. The Phase-0 golden (`tests/verify/test_characterization_golden.py`, 7 entry points) is now the running parity guard — re-asserted at every subsequent gate.
+
+### Phase 0 gate record (2026-06-02)
+
+- Sub-phases: `0.1` corpus builders (`175bf4a1`), `0.2` characterization test + 7 goldens (`71e7b4e3`).
+- Gate caught a real defect: the tmp-path normalization regex was not robust to the pytest-xdist worker segment (`popen-gwN/`) nor to non-macOS tmp prefixes — 4 path-bearing tests passed in isolation but failed under full `make check`. Fixed in `c0b6c602` (prefix-agnostic + worker-aware regex; goldens unchanged, no re-capture).
+- Gate green: `make lint` ✓, `make check` ✓ (5845 passed, 3 skipped, 2 xfailed, 0 failed; coverage 91.7%), 7 goldens, `import personalscraper` ✓, characterization test deterministic across serial + xdist runs.
+- Note: a parallel `docs(roadmap)` commit (`0d231b88`, ROADMAP.md only) rides in this branch range per the operator's choice (IMPLEMENTATION.md design note).
 
 > **PR #33 is already created** (https://github.com/LounisBou/personal-scraper/pull/33, WIP). The branch is pushed to `origin/feat/check-plugins`. When the lifecycle reaches Phase 9 (`/implement:feature-pr`), it must **push onto the existing branch and reuse PR #33** (detect-existing, do not create a duplicate) — then `/implement:pr-review` → **manual squash merge**. Each implementation commit pushed to the branch updates PR #33 in place.
