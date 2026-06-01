@@ -2,7 +2,7 @@
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.verify.checks.base import CheckContext, CheckStage
@@ -78,3 +78,107 @@ def test_ntfs_safe_names_fix_renames_illegal(tmp_path):
     actions = NtfsSafeNames().fix(ctx)
     assert not bad.exists()
     assert len(actions) == 1
+
+
+# ---------------------------------------------------------------------------
+# OSError / edge branches (migrated from the deleted helper tests in
+# tests/verify/test_library_checks_fix.py::TestFixHelpers when the empty-dir and
+# NTFS-name helpers were folded into the plugin fix() methods).
+# ---------------------------------------------------------------------------
+
+
+def test_no_empty_dirs_fix_dry_run_reports(tmp_path):
+    """NoEmptyDirs.fix() in dry-run reports the empty subdir without removing it."""
+    from personalscraper.verify.checks.structure import NoEmptyDirs
+
+    d = tmp_path / "Movie (2020)"
+    d.mkdir()
+    empty = d / "Subs"
+    empty.mkdir()
+    ctx = _ctx(d, dry_run=True)
+    actions = NoEmptyDirs().fix(ctx)
+    assert empty.exists()
+    assert any("Would remove" in a.description for a in actions)
+
+
+def test_no_empty_dirs_fix_rmdir_oserror(tmp_path):
+    """NoEmptyDirs.fix() skips a subdir whose rmdir raises OSError, no crash."""
+    from personalscraper.verify.checks.structure import NoEmptyDirs
+
+    d = tmp_path / "Movie (2020)"
+    d.mkdir()
+    empty = d / "Subs"
+    empty.mkdir()
+    ctx = _ctx(d)
+    with patch.object(Path, "rmdir", side_effect=OSError("denied")):
+        actions = NoEmptyDirs().fix(ctx)
+    # The continue path means no action was appended for the failed rmdir.
+    assert all("Removed" not in a.description for a in actions)
+
+
+def test_no_empty_dirs_fix_rglob_oserror(tmp_path):
+    """NoEmptyDirs.fix() catches an rglob OSError and returns an empty list."""
+    from personalscraper.verify.checks.structure import NoEmptyDirs
+
+    d = tmp_path / "Movie (2020)"
+    d.mkdir()
+    ctx = _ctx(d)
+    with patch.object(Path, "rglob", side_effect=OSError("scan failed")):
+        actions = NoEmptyDirs().fix(ctx)
+    assert actions == []
+
+
+def test_ntfs_safe_names_fix_dry_run_reports(tmp_path):
+    """NtfsSafeNames.fix() in dry-run reports the rename without performing it."""
+    from personalscraper.verify.checks.ntfs import NtfsSafeNames
+
+    d = tmp_path / "Movie (2020)"
+    d.mkdir()
+    bad = d / "weird:file.mkv"
+    bad.write_bytes(b"\x00")
+    ctx = _ctx(d, dry_run=True)
+    actions = NtfsSafeNames().fix(ctx)
+    assert bad.exists()
+    assert any("Would rename" in a.description for a in actions)
+    # Dry-run FixActions carry no new_path.
+    assert all(a.new_path is None for a in actions)
+
+
+def test_ntfs_safe_names_fix_no_illegal_chars(tmp_path):
+    """NtfsSafeNames.fix() yields no actions for files with safe names."""
+    from personalscraper.verify.checks.ntfs import NtfsSafeNames
+
+    d = tmp_path / "Movie (2020)"
+    d.mkdir()
+    ok = d / "ok_file.mkv"
+    ok.write_bytes(b"\x00")
+    ctx = _ctx(d)
+    actions = NtfsSafeNames().fix(ctx)
+    assert actions == []
+    assert ok.exists()
+
+
+def test_ntfs_safe_names_fix_rename_oserror(tmp_path):
+    """NtfsSafeNames.fix() skips a file whose rename raises OSError, no crash."""
+    from personalscraper.verify.checks.ntfs import NtfsSafeNames
+
+    d = tmp_path / "Movie (2020)"
+    d.mkdir()
+    bad = d / "weird:file.mkv"
+    bad.write_bytes(b"\x00")
+    ctx = _ctx(d)
+    with patch.object(Path, "rename", side_effect=OSError("rename denied")):
+        actions = NtfsSafeNames().fix(ctx)
+    assert all("Renamed" not in a.description for a in actions)
+
+
+def test_ntfs_safe_names_fix_rglob_oserror(tmp_path):
+    """NtfsSafeNames.fix() catches an rglob OSError and returns an empty list."""
+    from personalscraper.verify.checks.ntfs import NtfsSafeNames
+
+    d = tmp_path / "Movie (2020)"
+    d.mkdir()
+    ctx = _ctx(d)
+    with patch.object(Path, "rglob", side_effect=OSError("scan failed")):
+        actions = NtfsSafeNames().fix(ctx)
+    assert actions == []
