@@ -8,6 +8,13 @@
 
 **Tech Stack:** Python 3.11, pymediainfo (via enrich), SQLite, pytest, ruff, mypy.
 
+> **PLAN CORRECTIONS — validated against code 2026-06-01 (the original task bodies below drifted; follow THESE):**
+>
+> 1. **HDR parity target is wrong.** `enrich.py` has NO `_map_hdr_format` helper — it persists `row.hdr_format` directly (`enrich.py:369`). The REAL pymediainfo normalizer is **`indexer/mediainfo.py:_normalise_hdr_format`** (`:261`). Task 1 must compare the ffprobe path (`scraper/mediainfo.extract_stream_info`, still used by `analyzer.analyze_library`) vs `_normalise_hdr_format` granularity (HDR10/HDR10+/Dolby Vision/HLG) and test/document the gap there.
+> 2. **`analyze()`-local dataclasses are NOT in `library/models.py`.** `analyze()` returns **`AnalysisResult`** and uses **`ArtworkCounts`, `NfoStatusCounts`** — all defined IN `library/analyzer.py` (`:58/:74/:87`), plus helpers `deduce_audio_profile` (`:310`), `_analyze_video_file` (`:351`, ffprobe — dies with `analyze_library`), `analyze_from_index` (`:436`), `_collect_files_for_item` (`:541`), `_file_analysis_from_index` (`:583`). These must move with `analyze`/`analyze_from_index` into `insights/` (dataclasses → `insights/models.py` or `insights/analytics.py`; do NOT assume the DESIGN §4.6 `LibraryAnalysisResult` is what `analyze()` returns — it returns `AnalysisResult`). `_analyze_video_file` + the `extract_stream_info` import die with `analyze_library` (only that path uses inline ffprobe).
+> 3. **Missed test files (re-point, not just the 3 listed):** besides `test_analyzer.py`/`test_reporter.py`/`test_recommender.py`, also `tests/library/test_integration.py` (imports `analyzer.analyze`, `reporter.generate_report`, `recommender.generate_recommendations`) and `tests/library/test_index_aware.py` (imports `analyzer.analyze_from_index`) import the doomed modules and break on deletion.
+> 4. **CLI repoint = DB-only (operator sign-off 2026-06-01, faithful to DESIGN §4.5 "analyze_from_index is the SOLE stream reader").** Both `library-analyze` AND `library-recommend` currently DEFAULT to inline ffprobe via `analyze_library` (`analyze.py:82,~180`), with `--from-index` as the DB alternative. After this phase: `analyze_library` is deleted; both commands read ONLY from `media_stream` via `analyze_from_index` (require a prior `library-index --mode enrich`); `--from-index` becomes the sole mode (make it the default; the flag may stay as a documented no-op/back-compat or be dropped — keep the command VISIBLE per DESIGN non-goals). `scraper/mediainfo.extract_stream_info` STAYS (NFO generation uses it) — only the `analyze_library` caller is removed.
+
 ---
 
 ## Gate

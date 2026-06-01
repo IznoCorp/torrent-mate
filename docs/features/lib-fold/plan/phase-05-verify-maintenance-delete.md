@@ -8,6 +8,9 @@
 
 **Tech Stack:** Python 3.11, SQLite, pytest, ruff, mypy, `python3 scripts/check-module-size.py`.
 
+> **ALREADY DONE in Phase 4 (operator-elected "force now" to satisfy ACC-05 literally — commit `3159f117`):**
+> `personalscraper/maintenance/__init__.py` is created and **`rescraper.py` is already moved** to `maintenance/rescraper.py` (with all 6 importers re-pointed + `tests/maintenance/test_rescraper.py`). So in THIS phase, Objective 2 reduces to **`disk_cleaner.py` → `maintenance/disk_cleaner.py`** only (do NOT re-move rescraper / re-create the package). For Objective 3, `RescrapeAction`/`LibraryRescrapeResult` still live in `library/models.py` and `maintenance/rescraper.py` imports them from there with a `# TODO(lib-fold Phase 5)` marker — moving those two into `maintenance/rescraper.py` (and dropping that transient import) is part of THIS phase's models split. Everything else (validator → `verify/library_checks.py`, the rest of the `models.py` split, the proactive no-NFO doctor/audit line, deleting `library/`) is unchanged.
+
 ---
 
 ## Gate

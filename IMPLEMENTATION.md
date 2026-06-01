@@ -18,7 +18,7 @@
 | 1   | Extract NFO helpers → nfo_utils                                  | phase-01-nfo-helpers.md               | [x]    |
 | 2   | Build \_item_stage + \_canonical; rewire scan_library (parallel) | phase-02-item-stage.md                | [x]    |
 | 3   | Single-creator cutover: dispatch + alias + delete scanner.py     | phase-03-single-creator-cutover.md    | [x]    |
-| 4   | ffprobe fold + insights/                                         | phase-04-ffprobe-insights.md          | [ ]    |
+| 4   | ffprobe fold + insights/                                         | phase-04-ffprobe-insights.md          | [x]    |
 | 5   | verify/maintenance re-home + no-NFO + delete library/            | phase-05-verify-maintenance-delete.md | [ ]    |
 | 6   | Feature PR + review (auto-invoked)                               | phase-06-feature-pr.md                | [ ]    |
 
@@ -47,7 +47,14 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-**Phase 4** (ffprobe fold + `insights/`). Start at `docs/features/lib-fold/plan/phase-04-ffprobe-insights.md`.
+**Phase 5** (verify/maintenance re-home + proactive no-NFO + delete `library/`). Start at `docs/features/lib-fold/plan/phase-05-verify-maintenance-delete.md`. **NOTE — `rescraper.py` + `maintenance/__init__.py` are ALREADY done** (pulled forward in Phase 4 to satisfy ACC-05 literally); Phase 5 now only needs `disk_cleaner.py` → `maintenance/`, `validator.py` → `verify/library_checks.py`, the `models.py` split (incl. `RescrapeAction`/`LibraryRescrapeResult` → `maintenance/rescraper.py`, removing the transient `library.models` import flagged with a TODO there), the proactive no-NFO doctor/audit line, and deleting `library/`.
+
+### Phase 4 — DONE (2026-06-01, ffprobe fold + insights/; independently verified at HEAD)
+
+- ✅ **Task 1 — HDR/Atmos parity (no gap).** The surviving pymediainfo path `indexer/mediainfo.py:_normalise_hdr_format` + `_detect_atmos` covers HDR10/HDR10+/Dolby Vision/HLG + Atmos at full parity with the dropped `analyze_library` ffprobe path. Parity regression test `tests/indexer/test_mediainfo_hdr_parity.py` (17 cases) + confirmation comment. Commit `52ef7b37`. **ACC-05b proven on real data: `library.db` has 135 `media_stream` rows with `hdr_format` populated.**
+- ✅ **Tasks 2-5 — `insights/` package + DB-only repoint.** Created `personalscraper/insights/` (`models`, `analytics`, `reporter`, `recommender`); moved `analyze`/`analyze_from_index` (+ `AnalysisResult`/`ArtworkCounts`/`NfoStatusCounts` — which the plan/DESIGN §4.6 had mis-routed: they lived in `analyzer.py`, not `models.py`) + reporter + recommender. **`library-analyze`/`library-recommend`/`library-report` are now DB-only** (operator sign-off; DESIGN §4.5 — `analyze_from_index` is the sole stream reader; `--from-index` is a no-op default; commands stay visible; require a prior `library-index --mode enrich`). Deleted `analyzer.py` (incl. `analyze_library` + the inline-ffprobe path), `reporter.py`, `recommender.py` + migrated their tests to `tests/insights/`. `scraper/mediainfo.extract_stream_info` STAYS (NFO gen). Commits `c21d8c90`/`5bfd7f7d`.
+- ✅ **rescraper → maintenance/ (operator-elected "force now", not a re-scope).** Rather than re-scope ACC-05 (the broad `rg extract_stream_info library/` was premature — `rescraper.py` legitimately uses it for NFO `<fileinfo>` gen, DESIGN §4.5), the operator chose to pull the Phase-5 `rescraper` move forward: `git mv library/rescraper.py → maintenance/rescraper.py` + `maintenance/__init__.py` + 6 importers re-pointed + `test_rescraper.py` → `tests/maintenance/` (77 path swaps). `RescrapeAction`/`LibraryRescrapeResult` kept in `library/models.py` for now (transient import, TODO for Phase 5 models split). **ACC-05 now passes LITERALLY** (`rg extract_stream_info library/ insights/` → rc=1). Commit `3159f117`.
+- ✅ **Task 6 gate (independently re-run by main session):** `make lint` clean · `make test` **5977 passed, 0 failed/errors** · `make check` rc=0, coverage **91.73%**. Plan corrections (parity target, mis-routed dataclasses, missed test files, DB-only CLI) were validated against code and folded into the dispatches; the phase-04 plan carries a "PLAN CORRECTIONS" banner.
 
 ### Phase 3 — DONE (2026-05-31, single-creator cutover; independently verified at HEAD)
 
