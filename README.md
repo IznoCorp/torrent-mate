@@ -14,17 +14,17 @@ qBittorrent  →  staging/  →  Disques de stockage (configurés)
                personalscraper run
 ```
 
-| Etape        | Commande                   | Description                                                    |
-| ------------ | -------------------------- | -------------------------------------------------------------- |
-| **Ingest**   | `personalscraper ingest`   | Copie/déplace les torrents terminés depuis qBittorrent         |
-| **Sort**     | `personalscraper sort`     | Tri dans les dossiers de staging (définis dans `staging_dirs`) |
-| **Clean**    | (intégré au pipeline)      | Nettoyage noms + dédoublonnage fuzzy                           |
-| **Scrape**   | `personalscraper scrape`   | Métadonnées TMDB/TVDB (.nfo, artwork, rename)                  |
-| **Cleanup**  | (intégré au pipeline)      | Suppression des dossiers vides                                 |
-| **Enforce**  | `personalscraper enforce`  | Application des règles de conformité (nommage, structure)      |
-| **Verify**   | `personalscraper verify`   | Contrôle qualité + catégorisation par genre                    |
-| **Trailers** | (intégré au pipeline)      | Téléchargement bandes-annonces via yt-dlp                      |
-| **Dispatch** | `personalscraper dispatch` | Déplacement vers le bon disque de stockage                     |
+| Etape        | Commande                   | Description                                                              |
+| ------------ | -------------------------- | ------------------------------------------------------------------------ |
+| **Ingest**   | `personalscraper ingest`   | Copie/déplace les torrents terminés depuis qBittorrent                   |
+| **Sort**     | `personalscraper sort`     | Tri dans les dossiers de staging (définis dans `staging_dirs`)           |
+| **Clean**    | `personalscraper clean`    | Nettoyage noms + dédoublonnage fuzzy (standalone ou intégré au pipeline) |
+| **Scrape**   | `personalscraper scrape`   | Métadonnées TMDB/TVDB (.nfo, artwork, rename)                            |
+| **Cleanup**  | `personalscraper cleanup`  | Suppression des dossiers vides (standalone ou intégré)                   |
+| **Enforce**  | `personalscraper enforce`  | Application des règles de conformité (nommage, structure)                |
+| **Verify**   | `personalscraper verify`   | Contrôle qualité + catégorisation par genre                              |
+| **Trailers** | (intégré au pipeline)      | Téléchargement bandes-annonces via yt-dlp                                |
+| **Dispatch** | `personalscraper dispatch` | Déplacement vers le bon disque de stockage                               |
 
 Toutes les étapes s'enchaînent avec `personalscraper run` (ou `--dry-run` pour prévisualiser).
 
@@ -76,7 +76,9 @@ personalscraper run --dry-run           # Prévisualiser
 # Etapes individuelles
 personalscraper ingest --dry-run        # Prévisualiser l'ingestion
 personalscraper sort                    # Trier les fichiers
+personalscraper clean --dry-run         # Nettoyage noms + dédoublonnage fuzzy
 personalscraper scrape                  # Scraper les métadonnées
+personalscraper cleanup --dry-run       # Supprimer les dossiers vides
 personalscraper enforce                 # Appliquer les règles de conformité
 personalscraper verify                  # Vérifier la qualité
 personalscraper dispatch                # Déplacer vers stockage

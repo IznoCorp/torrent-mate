@@ -178,7 +178,7 @@ status = OK (>= 50% by default, configurable via `--canonical-threshold-pct`).
 - **Trakt** : optional, only if `config/trakt.json5` is present. Used for
   ratings cross-check.
 
-The HttpTransport (`personalscraper/transports/http_transport.py`) applies
+The HttpTransport (`personalscraper/api/transport/_http.py`) applies
 exponential backoff (factor 2, max 60s) on 429 + 5xx and retries up to 5 times
 before surfacing the error.
 

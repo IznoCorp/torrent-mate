@@ -676,11 +676,11 @@ SUBTITLE_CODEC_MAP: dict[str, str] = {
 }
 
 
-def map_video_codec(codec_name: str) -> str:
+def _map_video_codec(codec_name: str) -> str:
     return VIDEO_CODEC_MAP.get(codec_name, codec_name)
 
 
-def map_audio_codec(codec_name: str, profile: str = "") -> str:
+def _map_audio_codec(codec_name: str, profile: str = "") -> str:
     """Map audio codec, with special Atmos detection."""
     if "Atmos" in profile:
         return "atmos"
@@ -692,10 +692,9 @@ def map_audio_codec(codec_name: str, profile: str = "") -> str:
     return codec_name
 
 
-def map_subtitle_codec(codec_name: str | None) -> str:
-    if not codec_name:
-        return ""
-    return SUBTITLE_CODEC_MAP.get(codec_name, codec_name)
+# Subtitle codecs have no dedicated helper: the mapping is applied inline
+# where subtitle streams are parsed.
+#     sub_format = SUBTITLE_CODEC_MAP.get(sub_codec_name, sub_codec_name)
 ```
 
 > Audio codecs that are not Atmos or a DTS-HD variant pass through unchanged
@@ -987,11 +986,9 @@ def _map_audio_codec(codec_name: str, profile: str = "") -> str:
     return codec_name
 
 
-def _map_subtitle_codec(codec_name: str | None) -> str:
-    """Map ffprobe subtitle codec name to Kodi NFO name."""
-    if not codec_name:
-        return ""
-    return SUBTITLE_CODEC_MAP.get(codec_name, codec_name)
+# Subtitle codecs have no dedicated helper in the real implementation: the
+# mapping is applied inline where subtitle streams are parsed, i.e.
+#     sub_format = SUBTITLE_CODEC_MAP.get(sub_codec_name, sub_codec_name)
 
 
 def _parse_aspect_ratio(dar_str: str | None, width: int, height: int) -> float:

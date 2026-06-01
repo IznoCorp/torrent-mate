@@ -219,7 +219,7 @@ the allowlist. Currently the allowlist contains:
 - `personalscraper.cli.main` (the typer top-level callback, decorated `@app.callback()`)
 - `personalscraper.commands.pipeline.run` (the full-pipeline CLI)
 - `personalscraper.commands.library.scan.library_index` (the launchd command)
-- the four `personalscraper.trailers.cli.*` subcommands (`scan`, `download`, `audit`, `purge`)
+- the three `personalscraper.trailers.cli.*` subcommands (`scan`, `download`, `purge`)
 
 To add a new boundary, append its qualified name to the allowlist in
 `tests/architecture/test_app_context_boundary.py` and write a short
@@ -295,7 +295,7 @@ round-trips when no run is bound.
 ### CLI bootstrap (`personalscraper run`)
 
 The actual bind/reset lives **inside** `Pipeline.run` (see
-`personalscraper/pipeline.py:225` for `set` and `:370` for `reset`), not
+`personalscraper/pipeline.py:329` for `set` and `:479` for `reset`), not
 in the CLI command itself. The CLI command is a thin wrapper that
 constructs `AppContext`, instantiates subscribers, and calls
 `pipeline.run(...)`; the ContextVar lifecycle is one layer down so

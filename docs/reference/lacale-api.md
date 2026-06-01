@@ -186,13 +186,13 @@ is regex-decomposed into the corresponding `TrackerResult` fields.
 
 ### Patterns
 
-| Field        | Pattern (case-insensitive)                                         | Example match                    |
-| ------------ | ------------------------------------------------------------------ | -------------------------------- |
-| `resolution` | `\b(2160p\|1080p\|720p\|480p\|4k\|uhd)\b`                          | `2160p`                          |
-| `codec`      | `\b(x265\|x264\|h\.?265\|h\.?264\|hevc\|av1\|xvid\|divx)\b`        | `x265`                           |
-| `source`     | `\b(uhd\.bluray\|bluray\|brrip\|web-?dl\|webrip\|hdtv\|dvdrip)\b`  | `BluRay`                         |
-| `audio`      | `\b(truehd\|atmos\|dts-?hd\|dts\|ddp?5\.1\|aac\|ac3\|flac\|mp3)\b` | `DTS-HD`                         |
-| `format`     | trailing extension `\.(mkv\|mp4\|avi\|m4v\|wmv\|mov)$`             | (empty if no extension in title) |
+| Field        | Pattern (case-insensitive)                                          | Example match                    |
+| ------------ | ------------------------------------------------------------------- | -------------------------------- |
+| `resolution` | `\b(2160p\|1080p\|720p\|480p\|4k\|uhd)\b`                           | `2160p`                          |
+| `codec`      | `\b(x265\|x264\|h\.?265\|h\.?264\|hevc\|av1\|xvid\|divx)\b`         | `x265`                           |
+| `source`     | `\b(uhd[. ]bluray\|bluray\|brrip\|web-?dl\|webrip\|hdtv\|dvdrip)\b` | `BluRay`                         |
+| `audio`      | `\b(truehd\|atmos\|dts-?hd\|dts\|ddp?5\.1\|aac\|ac3\|flac\|mp3)\b`  | `DTS-HD`                         |
+| `format`     | trailing extension `\.(mkv\|mp4\|avi\|m4v\|wmv\|mov)$`              | (empty if no extension in title) |
 
 ### Free / silver leech
 

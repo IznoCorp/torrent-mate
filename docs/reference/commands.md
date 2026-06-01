@@ -228,11 +228,12 @@ ambiguous matches.
 **Purpose**: Enforces staging conventions on media items before scrape. Sanitizes
 filenames (removes special characters, normalizes spacing), validates directory
 structure, and checks naming coherence against expected patterns. The
-`.DS_Store` cleanup performed by this step is **per-item only** (only within the
-folder being enforced), not disk-wide — use `library-clean` for whole-disk
-sweeps.
+`.DS_Store` cleanup performed by this step runs across **all items in staging
+in a single recursive pass** over the staging category dirs — the boundary is
+staging vs storage disks, so it is **not** disk-wide. Use `library-clean` for
+whole-disk sweeps.
 
-**Side effects**: `mutate FS` (renames files/folders, deletes `.DS_Store` per-item)
+**Side effects**: `mutate FS` (renames files/folders, deletes `.DS_Store` across all staging items)
 
 **Pipeline position**: step 6
 
@@ -494,6 +495,8 @@ a category ID across config files and on-disk paths.
 
 > `library-clean` (disk cleaning) is backed by the `maintenance/` package — see [`maintenance.md`](maintenance.md) for its internals and safety constraints.
 
+> Every `library-*` command also accepts its own `--config / -c PATH` option placed AFTER the subcommand (e.g. `personalscraper library-status -c ./config`), in addition to the global `--config` flag which must precede the subcommand.
+
 ## `personalscraper library-index`
 
 **Purpose**: Runs a full or quick media indexer scan. Walks all configured storage
@@ -615,7 +618,9 @@ output).
 
 **Pipeline position**: n/a
 
-**Args**: none beyond global flags
+**Args**:
+
+- `--config / -c PATH` : Path to `config.json5` or config dir, placed after the subcommand (overrides the global `--config`)
 
 **Examples**:
 
@@ -1077,6 +1082,8 @@ and the count is reported.
 ## Library — analysis & query
 
 > `library-analyze` / `library-recommend` / `library-report` surface the read-only `insights/` package — see [`insights.md`](insights.md). `library-rescrape` is backed by `maintenance/` — see [`maintenance.md`](maintenance.md).
+
+> Every `library-*` command also accepts its own `--config / -c PATH` option placed AFTER the subcommand (e.g. `personalscraper library-status -c ./config`), in addition to the global `--config` flag which must precede the subcommand.
 
 ## `personalscraper library-analyze`
 

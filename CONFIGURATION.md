@@ -1,6 +1,8 @@
 # Configuration
 
-Guide complet de configuration pour PersonalScraper.
+Guide de configuration — credentials et réglages essentiels pour PersonalScraper.
+
+> Pour la structure complète des 16 fichiers de config et la fusion des overlays, voir [docs/reference/config-overlay-layout.md](docs/reference/config-overlay-layout.md).
 
 **Deux sources de configuration :**
 
@@ -158,11 +160,14 @@ TVDB_API_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 Clé API OMDb utilisée pour le backfill des notes multi-sources (IMDb, Rotten Tomatoes) et des IDs croisés via `library-backfill-ids`.
 
-| Variable       | Défaut   | Description                                                             |
-| -------------- | -------- | ----------------------------------------------------------------------- |
-| `OMDB_API_KEY` | _(vide)_ | Clé API OMDb. Requise pour récupérer les notes IMDb et Rotten Tomatoes. |
+| Variable           | Défaut   | Description                                                             |
+| ------------------ | -------- | ----------------------------------------------------------------------- |
+| `OMDB_API_KEY`     | _(vide)_ | Clé API OMDb. Requise pour récupérer les notes IMDb et Rotten Tomatoes. |
+| `OMDB_DAILY_LIMIT` | `1000`   | Optionnel. Quota journalier de requêtes OMDb (voir ci-dessous).         |
 
 Lue directement depuis l'environnement par `personalscraper/api/metadata/registry/_factory.py`. Sans cette clé, le pipeline fonctionne normalement mais ignore les sources IMDb/OMDb/Rotten Tomatoes lors du backfill.
+
+> **`OMDB_DAILY_LIMIT`** (optionnel) : limite journalière de requêtes OMDb, défaut `1000` (quota gratuit OMDb). Surcharge possible pour les formules payantes (ex. Patreon 1 $ = 100 000 req/jour). Lue par `personalscraper/api/metadata/_omdb_quota.py` et active uniquement si `OMDB_API_KEY` est défini.
 
 ### Comment obtenir la clé
 
