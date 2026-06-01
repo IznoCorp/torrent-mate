@@ -129,8 +129,9 @@ staging/
 │   │       ├── tv_repo.py       # season + episode
 │   │       ├── log_repo.py      # scan_run + scan_event + deleted_item
 │   │       └── outbox_repo.py   # index_outbox + pending_op + repair_queue
-│   ├── maintenance/     # operator upkeep: disk_cleaner (FS deletes), rescraper (targeted re-scrape)
-│   ├── verify/          # quality gate, fixer, genre categorization, reinforced checks, library_checks
+│   ├── insights/        # (new in 0.19.0) read-only analytics over the indexer DB: analytics, reporter, recommender, models
+│   ├── maintenance/     # (new in 0.19.0) operator upkeep: disk_cleaner (FS deletes), rescraper (targeted re-scrape)
+│   ├── verify/          # quality gate, fixer, genre categorization, reinforced checks, library_checks (validator re-home, new in 0.19.0)
 │   ├── dispatch/        # disk scanner, media index, transfer helpers, movie/tv dispatch
 │   ├── pipeline.py      # sequential 9-step pipeline orchestrator
 │   ├── pipeline_protocol.py # PipelineStep protocol + StepContext
@@ -201,13 +202,42 @@ Notes:
   `indexer.query.find_items_without_trailer(conn)` to detect items missing a
   `trailer_found` attribute. The on-disk media directory for each candidate
   is recovered from the `dispatch_path` flex attribute (written by both the
-  dispatch layer and `library.scanner.scan_library`). This avoids
+  dispatch layer and the indexer item stage
+  `indexer/scanner/_modes/_item_stage.py:scan_and_stage_dir`). This avoids
   re-downloading trailers for shows already present in the permanent library
   (library-aware idempotence, DESIGN section 8 / §10.3). The previous TTL-cached
-  walk via `library.scanner.scan_library()` was removed in the media-indexer
-  feature.
+  filesystem walk was removed in the media-indexer feature.
 - The new scraper modules (`json_ttl_cache`, `youtube_search`, `trailer_finder`,
   `ytdlp_downloader`, `trailers_cache`) are independent of the existing TMDB/TVDB scraper.
+
+## `insights/` Package (new in 0.19.0)
+
+Read-only analytics layer over the indexer DB — the SELECT-side re-home of the
+former `library/analyzer.py` + `library/recommender.py` + `library/reporter.py`.
+It never spawns ffprobe and never walks the filesystem: every metric is read
+from the enrich-populated `media_stream` rows (so a prior
+`library-index --mode enrich` is a precondition). Modules:
+
+- `analytics.py` — `analyze(conn)` (DB aggregates) + `analyze_from_index(conn, …)`
+  (stream-level codec / audio / subtitle analysis). Backs `library-analyze`.
+- `reporter.py` — `generate_report()` / `format_report_text()`. Backs `library-report`.
+- `recommender.py` — `generate_recommendations()`. Backs `library-recommend`.
+- `models.py` — analysis + recommender dataclasses (`VideoInfo`,
+  `MediaFileAnalysis`, `AnalysisResult`, `Recommendation`, etc.).
+
+## `maintenance/` Package (new in 0.19.0)
+
+Operator-upkeep package for filesystem and re-scrape maintenance — distinct from
+`indexer/repair.py`, which is DB-only. Modules:
+
+- `disk_cleaner.py` — `rmtree`-based deletion + NTFS ghost-dirent handling +
+  outbox events. Backs `library-clean`.
+- `rescraper.py` — targeted TMDB/TVDB re-scrapes (`rescrape_library`,
+  `_detect_needs`). Backs `library-rescrape`.
+
+The former `library/validator.py` (NFO / artwork / naming conformity) is
+re-homed standalone as `verify/library_checks.py` (new in 0.19.0), backing
+`library-validate` and registerable in the future Check plugin system.
 
 ## Key Dependencies (chosen after evaluation)
 
@@ -262,7 +292,7 @@ and the filesystem.
 ```
 [ commands/ ] -----invokes----> [ pipeline phases (ingest/sort/...) ]
      |                                          |
-     +--invokes--> [ library/ (BDD-backed) ]    +--writes--> FS
+     +--invokes--> [ indexer/ (BDD-backed) ]    +--writes--> FS
                             |                                |
                             +--writes--> indexer BDD         |
                                                              v
@@ -272,16 +302,25 @@ and the filesystem.
 ```
 
 - **commands/** (`personalscraper/commands/`) — CLI surface (Typer). Adapters
-  into pipeline / library / scraper / trailers. Stateless; per-invocation state
-  lives in `state` dict + `ctx.obj` (AppContext).
+  into pipeline / indexer / scraper / trailers. The `commands/library/`
+  sub-package hosts the `library-*` CLI commands (the standalone top-level
+  `library/` package was removed in 0.19.0 — lib-fold). Stateless;
+  per-invocation state lives in `state` dict + `ctx.obj` (AppContext).
 - **pipeline/** (`ingest`, `sort`, `clean`, `scrape`, `cleanup`, `enforce`,
   `verify`, `dispatch`, `trailers`, `process`, `run`) — owns staging + storage
   FS layout. Each step produces a `StepReport`. The `run` orchestrator chains
   them sequentially.
-- **library/** — indexer BDD layer + maintenance ops (`library-index`,
-  `library-reconcile`, `library-repair`, `library-doctor`, `library-search`,
-  `library-show`, `library-report`, `library-clean`, `library-validate`,
-  `library-analyze`). Owns `.data/library.db` exclusively.
+- **indexer/** — SQLite-backed media index. Owns `.data/library.db` exclusively
+  and backs every `library-*` command (`library-index`, `library-reconcile`,
+  `library-repair`, `library-doctor`, `library-search`, `library-show`,
+  `library-clean`). The former standalone top-level `library/` package was folded
+  away in 0.19.0 (lib-fold): its NFO-driven `media_item` row construction now
+  lives in `indexer/scanner/_modes/_item_stage.py` (pass 1 of
+  `library-index --mode full`); its read-only analytics moved to `insights/`
+  (`library-analyze`, `library-recommend`, `library-report`); its filesystem +
+  re-scrape upkeep moved to `maintenance/` (`library-clean`, `library-rescrape`);
+  and its NFO/artwork/naming validator moved to `verify/library_checks.py`
+  (`library-validate`).
 - **scraper/** (`personalscraper/scraper/`) — metadata (NFO) + artwork + trailer
   URL discovery. Owns NFO writes. Consumes provider APIs (TMDB / TVDB / OMDB /
   Trakt) via `api/metadata/`.
@@ -301,11 +340,12 @@ Cross-cutting:
   circuit breaker). Used by `api/` providers.
 
 **Dependency direction.** Dependencies flow top-down: `commands/` calls into
-`pipeline/`, `library/`, `scraper/`, and `trailers/`. The pipeline composes
-`library/` and `scraper/` — the reverse never happens (library and scraper
-modules never import from pipeline). `core/` and `conf/` are the lowest layers
-and must not import from `api/`, `scraper/`, `pipeline/`, `dispatch/`, `verify/`,
-`library/`, `indexer/`, or `trailers/` at runtime. `personalscraper.logger` is
+`pipeline/`, `indexer/`, `insights/`, `maintenance/`, `scraper/`, and
+`trailers/`. The pipeline composes `indexer/` and `scraper/` — the reverse never
+happens (indexer and scraper modules never import from pipeline). `core/` and
+`conf/` are the lowest layers and must not import from `api/`, `scraper/`,
+`pipeline/`, `dispatch/`, `verify/`, `indexer/`, `insights/`, `maintenance/`, or
+`trailers/` at runtime. `personalscraper.logger` is
 allow-listed as a leaf utility. The `core/app_context.py` TYPE_CHECKING import of
 `ProviderRegistry` is the documented AppContext boundary (tested separately).
 This invariant is enforced by `tests/architecture/test_layering.py`

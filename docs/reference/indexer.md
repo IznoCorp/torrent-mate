@@ -163,6 +163,34 @@ prevent accidental parallel I/O on the USB hub.
 `--budget SECONDS` caps wall-clock time; when exhausted the scanner writes a
 checkpoint and exits cleanly. The next invocation resumes from the checkpoint.
 
+### Item stage (pass 1 of `ScanMode.full`)
+
+`library-index --mode full` is a **two-pass, single-invocation** scan. Pass 1 is
+the _item stage_ (`personalscraper/indexer/scanner/_modes/_item_stage.py`): a
+directory-metadata pass that writes the rich `media_item` rows (title, canonical
+provider, seasons/episodes, artwork inventory, `item_issue` flags) before any
+file is walked. Pass 2 is the recursive file walk (`_walker.py`) that populates
+`media_file` and `media_stream` rows. No prior `library-scan` is required — the
+legacy two-step "scan then index" workflow was folded into this single mode in
+0.19.0 (lib-fold).
+
+| Public function                                                                                                                                    | Purpose                                                                                                                                                                                                                    |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `build_item_row(*, title, kind, year, category_id, tvdb_id, tmdb_id, imdb_id=None, nfo_default=None, nfo_status, artwork_json="{}", ratings=None)` | Build a `media_item` **column dict** from parsed NFO inputs (provider IDs → `external_ids_json`); resolves `canonical_provider` via the kind-deterministic SSOT `_canonical.derive_canonical_provider`.                    |
+| `upsert_item_with_attrs(conn, row, attrs, issues=None, *, now_s=None)`                                                                             | Write `media_item` (via `item_repo.upsert`) + `item_attribute` + `item_issue` (each with `detected_at`) rows; idempotent on `(kind, title)` (the `item_repo.upsert` conflict key); replaces the whole issue set each scan. |
+| `scan_and_stage_dir(conn, media_dir, disk_cfg, category_id, kind, now_s=None)`                                                                     | High-level: parse the dir name, resolve the NFO, detect hygiene issues, build the row, upsert. No-NFO dirs are still indexed (folder-name fallback) and flagged (`nfo_missing` / `nfo_incomplete` in `item_issue`).        |
+| `_ensure_disk_row(conn, disk_cfg, now_s) -> DiskRow`                                                                                               | DEV #50: SELECT-by-label, then insert the `disk` row if absent before any FK-bearing write (port of `library.scanner._ensure_disk_row`).                                                                                   |
+
+The library-wide pass-1 driver is `stage_library_items(conn, config, now_s=None)`,
+which iterates disks × categories × media dirs and delegates each directory to
+`scan_and_stage_dir`.
+
+`dispatch/media_index.rebuild()` (via its per-entry `add()`) reuses the shared
+`_item_stage` primitives — `build_item_row` + `_nfo_metadata_for_dir` — to insert
+the same rich row shape, so there is a **single `media_item` creator** and
+dispatch never re-introduces the prior `canonical_provider=None` degradation
+(the provider is derived deterministically from the on-disk NFO's provider IDs).
+
 ---
 
 ## Query Language
