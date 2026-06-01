@@ -36,6 +36,7 @@ from personalscraper.indexer.scanner._modes._item_stage import (
 )
 from personalscraper.indexer.schema import ItemAttributeRow, MediaItemKind, MediaItemRow
 from personalscraper.logger import get_logger
+from personalscraper.nfo_utils import parse_title_year
 
 if TYPE_CHECKING:
     from personalscraper.conf.models.categories import CategoryConfig
@@ -420,7 +421,15 @@ class MediaIndex:
             media_dir = Path(entry.path)
             is_tvshow = kind == "show"
             if media_dir.is_dir():
-                meta, nfo_status = _nfo_metadata_for_dir(media_dir, entry.name, is_tvshow)
+                # Resolve the NFO basename the same way ``scan_and_stage_dir``
+                # does: the movie NFO is ``<year-stripped-title>.nfo``, so the
+                # lookup title must be the parsed folder title (``parse_title_year``)
+                # — NOT ``entry.name`` (which still carries the `` (YYYY)`` suffix
+                # and would miss the on-disk ``The Godfather.nfo`` file, yielding a
+                # spurious ``nfo_status="missing"`` + NULL canonical_provider).
+                # (lib-fold PR#31 review M5.)
+                nfo_title, _nfo_year = parse_title_year(media_dir.name)
+                meta, nfo_status = _nfo_metadata_for_dir(media_dir, nfo_title, is_tvshow)
             else:
                 meta = {"tmdb_id": None, "imdb_id": None, "tvdb_id": None, "canonical_provider": None, "ratings": []}
                 nfo_status = "missing"
@@ -511,21 +520,48 @@ class MediaIndex:
                     if not media_dir.is_dir() or media_dir.name.startswith("."):
                         continue
 
-                    # Delegate to the shared item stage — produces rich rows
-                    # (canonical_provider derived from the NFO, seasons, issues
-                    # and the three dispatch_* flex attributes) identical to
-                    # ``library-index --mode full`` (lib-fold single-creator
-                    # cutover). Prior to this, the per-directory write went
-                    # through ``add()`` and persisted a NULL canonical provider.
-                    scan_and_stage_dir(
-                        self._conn,
-                        media_dir,
-                        disk_cfg=config,
-                        category_id=resolved_id,
-                        kind=kind,
-                        now_s=now_ts,
-                    )
-                    count += 1
+                    # Per-directory OSError guard: a single unreadable dir
+                    # (documented macFUSE/NTFS ghost-inode hazard) must NOT
+                    # abort the whole dispatch index build. Mirrors the sibling
+                    # ``_item_stage.stage_library_items`` try/except → warn →
+                    # continue (lib-fold PR#31 review M1).
+                    try:
+                        # Delegate to the shared item stage — produces rich rows
+                        # (canonical_provider derived from the NFO, seasons,
+                        # issues and the three dispatch_* flex attributes)
+                        # identical to ``library-index --mode full`` (lib-fold
+                        # single-creator cutover). Prior to this, the
+                        # per-directory write went through ``add()`` and
+                        # persisted a NULL canonical provider.
+                        item_id = scan_and_stage_dir(
+                            self._conn,
+                            media_dir,
+                            disk_cfg=config,
+                            category_id=resolved_id,
+                            kind=kind,
+                            now_s=now_ts,
+                        )
+                        # Dispatch rows key on the FULL folder name (incl. year)
+                        # so the dispatch exact-match lookup (``find`` →
+                        # ``_normalize_key``) and ``add()`` dedup find them.
+                        # ``scan_and_stage_dir`` stores the YEAR-STRIPPED indexer
+                        # norm_title (golden/library-index parity); dispatch
+                        # overrides it here to its own full-name convention so a
+                        # later ``add()`` of the same item dedups instead of
+                        # inserting a duplicate ``media_item`` (lib-fold PR#31
+                        # review M2).
+                        item_repo.upsert_attr(
+                            self._conn,
+                            ItemAttributeRow(
+                                item_id=item_id,
+                                key=_ATTR_DISPATCH_NORM_TITLE,
+                                value=_normalize_key(media_dir.name),
+                            ),
+                        )
+                        count += 1
+                    except OSError:
+                        log.warning("dispatch_rebuild_item_error", media_dir=str(media_dir), exc_info=True)
+                        continue
 
         log.info("index_rebuilt", entries=count)
         return count
