@@ -8,36 +8,28 @@
 
 ## P1 — High Priority (do next, unblocks major features)
 
-### P1 — Library / Indexer Consolidation (`lib-fold`)
+### P1 — LaCale Deprecation
 
-> Design: `docs/features/lib-fold/DESIGN.md` _(to be written)_. Source analysis: `docs/analysis/01-library-indexer-consolidation.md`.
+> Ex-stub (a), 2026-06-01.
 
-**Premise correction (verified 2026-05-28):** `library/scanner.py` does **not** duplicate the
-indexer walk — `scan_library()` walks only at media-directory granularity, then delegates the
-recursive file walk to `indexer.scanner.scan(mode=ScanMode.full)` (`library/scanner.py:38-39,997`).
-The real consolidation problem is narrower and concrete:
+LaCale n'existe plus en tant que tracker. On **conserve tout le code** mais on le marque
+**déprécié** plutôt que de le supprimer (réactivation possible, valeur de référence pour
+l'implémentation des futurs trackers — voir P2 Additional Trackers).
 
-- **Two `media_item` writers** that must be reconciled: `library/scanner.py:691` (`_item_repo.upsert` — rich rows with seasons/episodes/`canonical_provider`) and `dispatch/media_index.py` (`MediaIndex.rebuild` — minimal cache rows, `canonical_provider=None`, auto-rebuilt on empty DB).
-- **Two MediaInfo backends**: ffprobe in `library/analyzer.py` vs pymediainfo in `indexer/scanner/_modes/enrich.py`, both persisting to `media_stream` (a documented HDR/Atmos fidelity gap exists between them).
-- **Divergent season-directory regexes** duplicated across `indexer/` + `trailers/` instead of a single `naming_patterns` SSOT.
-- **`canonical_provider` extraction** duplicated between `library/scanner.py` and the indexer backfill path (guards the 194-show regression).
+**Portée**
 
-Actual `library/` package (8 modules): `analyzer.py`, `disk_cleaner.py`, `models.py`,
-`recommender.py`, `reporter.py`, `rescraper.py`, `scanner.py`, `validator.py`.
+- **Désactivation** : retirer LaCale de l'ordre de préférence / du registry actif via le
+  mécanisme `ProviderActivation` existant (config) — il ne participe plus aux recherches.
+- **Flag `deprecated` explicite** dans le provider (`api/tracker/lacale.py`), avec warning
+  au boot s'il est malgré tout activé en config.
+- **Tests/fixtures** : marqués `skip` avec raison documentée (deprecated) — gardés dans
+  l'arbo, non exécutés. `docs/reference/lacale-api.md` + samples conservés.
+- **CHANGELOG** : entrée « Deprecated » signalant le retrait du tracker.
 
-**Goals**
+**Non-goals** : suppression du code, du doc de référence ou des fixtures.
 
-- Fold rich `media_item`/`season`/`episode` creation into a unified indexer scan stage; reconcile the `dispatch/media_index.py` minimal-row writer.
-- Merge `library/analyzer.py` (ffprobe) into `enrich.py` — resolve the HDR/Atmos gap or accept it explicitly (no migration script; evolve in place).
-- Move `library/recommender.py` + `library/reporter.py` into a read-only `insights/` package over the indexer DB.
-- Re-home `library/validator.py` as a `verify/` check plugin — **not inline** into `verify/checker.py` (already 713 non-blank LOC, near the 800 advisory ceiling).
-- Re-home `library/disk_cleaner.py` (filesystem `rmtree`) into a new `maintenance/` module — **not** `indexer/repair.py` (which is DB-only).
-- Remove the `library/` package once all consumers are migrated (residual-import grep gate).
-
-**Non-goals**
-
-- Removing any CLI commands — `library-index`, `library-search`, `library-report`, etc. keep working from new locations.
-- Changing the indexer schema.
+> _`lib-fold` (Library / Indexer Consolidation) shippé en 0.19.0 (2026-06-01) — retiré de la
+> roadmap conformément à « shipped work is not tracked here ». Détails : `CHANGELOG.md`._
 
 ---
 
@@ -61,17 +53,108 @@ Web-based graphical interface to pilot and supervise the whole project from a br
 
 **Depends on:** Pipeline Observer Protocol (shipped v0.13.0), Event Bus (shipped v0.14.0), Third-Party API Consumer Unification (shipped v0.11.0). Prerequisite: `arch-cleanup-2` (Event contract + envelope `schema_version`) — shipped v0.17.0 (#28).
 
-### P2 — Auto-Download System
+### P2 — TVShow Follow & Auto-Download System
 
-Automatic torrent download pipeline with tracker API integration.
+> Refondu le 2026-06-01 : le **suivi de séries** (ex-stub (d)) devient la feature
+> principale ; l'ancien « Auto-Download System » (abonnement + recherche multi-trackers
+> + renouvellement médiathèque) **fusionne dedans** comme volets de la même feature.
 
-- Define preferred format + fallback formats.
-- Series subscription list with cron-based new episode checks.
-- Search multiple trackers via their APIs with preference ordering.
-- Connect the library recommendation list to auto-download for library renewal.
-- Override rules by criteria: studio, director, franchise, title, IMDB ID.
+Pipeline de téléchargement automatique de torrents avec intégration API tracker, piloté
+par une **liste de séries suivies**.
 
-**Depends on:** Third-Party API Consumer Unification (shipped v0.11.0), Provider Registry (shipped v0.16.0).
+**Suivi de séries (volet principal)**
+
+- **Liste manuelle** de séries suivies, gérée en CRUD (ajouter / retirer), indépendante
+  de la médiathèque — on peut suivre une série pas encore possédée.
+- **Détection des nouveautés** : nouveaux épisodes et nouvelles saisons des séries suivies.
+- **Recherche multi-trackers** : on cherche sur **tous** les trackers actifs.
+- **Sélection du meilleur torrent — filtres durs + score** :
+  - **Filtres durs (éliminatoires)** : non négociables, ex. piste audio requise (VF/VOSTFR),
+    qualité mini (ex. ≥ 1080p). Un torrent qui ne passe pas est écarté d'office.
+  - **Score pondéré** sur les survivants pour départager : seeders, freeleech / économie
+    de ratio du tracker, source, codec, taille…
+  - Réutilise le moteur de ranking `api/tracker/_ranking.py`.
+- **Déduplication** vs ce qui est déjà en médiathèque (indexer DB) — ne pas re-télécharger.
+
+**Volets hérités de l'ex-Auto-Download System**
+
+- Formats : format préféré + formats de repli.
+- Vérifs cron des nouveaux épisodes (planification).
+- Recherche multi-trackers avec ordre de préférence.
+- Branchement de la liste de recommandations médiathèque sur l'auto-download (renouvellement).
+- Règles d'override par critère : studio, réalisateur, franchise, titre, IMDB ID.
+
+**À affiner en design** (pas maintenant)
+
+- Source « nouvel épisode dispo » : calendrier TVDB/TMDB vs détection par recherche tracker.
+- Langue / piste audio voulue par série (filtre dur global vs par série).
+- Réglage des poids du score, et articulation avec le module de ratio (c) (un grab peut
+  servir le suivi ET le ratio).
+
+**Depends on:** Third-Party API Consumer Unification (shipped v0.11.0), Provider Registry
+(shipped v0.16.0), trackers actifs (P2 — Additional Trackers), client torrent (qBittorrent),
+**P2 — Download Orchestration & Seed Safety** (tag « contenu utile » pour ingestion +
+anti-HnR), **P3 — Freeleech Radar** (critère de score).
+
+### P2 — Additional Trackers (torr9 + digitalcore)
+
+> Remonté de P3 → P2 le 2026-06-01 : avec la dépréciation de LaCale (voir entrée (a)),
+> il faut des sources actives. Débloque l'Auto-Download System, le module de ratio (c) et
+> le suivi de séries (d), qui ont tous besoin de plusieurs trackers vivants.
+
+Implement `api/tracker/torr9.py` and `api/tracker/digitalcore.py` following the
+`TrackerClient` Protocol established in 0.11.0. Study each tracker's API
+(Torznab/RSS/REST), capture real-response samples, write reference docs in
+`docs/reference/torr9-api.md` and `docs/reference/digitalcore-api.md`, then
+implement using the unified `HttpTransport` infrastructure.
+
+**Goals**
+
+- Two new `TrackerClient` providers, plug-compatible with the existing
+  `TrackerRegistry` and `rank()` engine.
+- Reference docs + sample fixtures so future updates can replay against
+  captured responses.
+- Activation through the existing `ProviderActivation` mechanism — no new
+  config schema.
+- Capture per-tracker ratio-economy specifics (freeleech markers, bonus,
+  min seedtime, passkey) — feeds the ratio module (c) and the tvshow ranking (d).
+
+**Non-goals**
+
+- New ranking criteria (the engine landed in 0.11.0 already supports
+  arbitrary providers).
+- Auto-Download System integration — that lands in its own P2 feature.
+
+**Depends on**: Third-Party API Consumer Unification (shipped v0.11.0).
+
+### P2 — Download Orchestration & Seed Safety
+
+> Issu du brainstorm 2026-06-01. **Couche partagée** dont dépendent le module de ratio (c),
+> le suivi de séries (d) et le Watcher Service. Sans elle, le seed-pur du ratio polluerait
+> la médiathèque et les obligations de seed des trackers privés seraient violées.
+
+Couche transverse entre les modules qui téléchargent (ratio, suivi) et le client torrent /
+le pipeline de triage. Trois responsabilités :
+
+- **Tag « seed-pur » / catégorisation des downloads.** Tout torrent grabbé pour le seul
+  ratio (c) reçoit une catégorie/tag qBittorrent dédiée. Le **Watcher Service ignore ces
+  torrents** (pas de `personalscraper run` déclenché) et le triage ne les voit jamais. Les
+  grabs « contenu utile » (suivi (d), mode hybride de (c)) sont au contraire taggés pour
+  ingestion normale. **C'est le garde-fou anti-pollution médiathèque.**
+- **Suivi des obligations de seed / anti-HnR.** Registre par torrent du seedtime mini exigé
+  par le tracker source ; aucun module ne peut supprimer/arrêter un torrent avant échéance.
+  Évite les pénalités hit-and-run des trackers privés. Partagé par (c) et (d).
+- **Arbitre de budget disque global.** Médiathèque et seed-pur se disputent le disque : un
+  arbitre central applique les quotas (dont le plafond par tracker de (c)) et garantit que
+  le seed jetable n'affame jamais le vrai stockage. À relier au module `maintenance/`.
+
+- **Notifications** (via le notifier Telegram existant) : centralise les événements de
+  download — nouvel épisode grabbé, cible ratio atteinte/en danger, obligation de seed
+  proche de l'échéance, suppression seed-pur effectuée.
+
+**Depends on:** client torrent (qBittorrent, shipped), notifier Telegram (shipped),
+`maintenance/` (shipped en 0.19.0 via lib-fold). **Bloque (ou cadre) :** Watcher Service,
+Ratio Module (c), TVShow Follow (d).
 
 ### P2 — Watcher Service
 
@@ -79,9 +162,11 @@ Replace cron-based pipeline trigger with a real-time watcher service.
 
 - Service that watches either qBittorrent state or the `complete/` directory.
 - Triggers `personalscraper run` automatically on new downloads.
+- **Doit ignorer les torrents taggés « seed-pur »** (voir P2 — Download Orchestration &
+  Seed Safety) : ne jamais déclencher `personalscraper run` sur un grab de ratio jetable.
 - More responsive than the current 3am daily cron.
 
-**Depends on:** Event Bus (shipped v0.14.0), Pipeline Observer Protocol (shipped v0.13.0). Prerequisite: `arch-cleanup-2` (cross-process event envelope) — shipped v0.17.0 (#28).
+**Depends on:** Event Bus (shipped v0.14.0), Pipeline Observer Protocol (shipped v0.13.0). Prerequisite: `arch-cleanup-2` (cross-process event envelope) — shipped v0.17.0 (#28). Tagging contract: **P2 — Download Orchestration & Seed Safety**.
 
 ### P2 — Verify Checker Plugin System
 
@@ -141,6 +226,68 @@ Find SXXEXX for episodes missing season/episode numbers via reverse scraping on 
 ---
 
 ## P3 — Stretch (nice to have, lower urgency)
+
+### P3 — Ratio Management Module
+
+> Ex-stub (c), 2026-06-01.
+
+Téléchargement automatique des torrents les plus propices au partage pour faire monter
+le ratio, **tracker par tracker** (chaque tracker a son passkey, ses règles et sa propre
+économie de ratio : freeleech, bonus, seedtime mini…). Distinct du suivi de séries /
+Auto-Download : ici on télécharge **pour seeder**, pas pour alimenter la médiathèque —
+mais les deux modes coexistent (« hybride » ci-dessous).
+
+**Mode de fonctionnement — hybride**
+
+- **Seed pur (jetable)** : grab des torrents qui seedent le mieux (freeleech, gros swarm,
+  beaucoup de leechers) indépendamment du contenu, pour le seul ratio.
+- **Contenu utile** : si un torrent à bon swarm correspond à du contenu voulu (wishlist /
+  complément médiathèque), on le **garde** au lieu de le jeter. Le ratio devient un bonus.
+
+**Pilotage — par tracker, double contrainte**
+
+- **Cible de ratio** (ex. 1.5) : tant que ratio < cible, le module grab ; au-dessus, pause.
+- **Plafond disque** (ex. 50 Go) : on grab tant que ratio < cible **sans** dépasser le quota.
+- Config indépendante par tracker (cible + quota + seedtime mini propres à chacun).
+
+**Suppression / rotation (contenu jetable) — combiné**
+
+- Jamais avant le **seedtime mini** du tracker (respect des règles).
+- Ensuite **rotation LRU par rentabilité** : quand le quota disque est plein, on retire le
+  torrent le moins rentable (swarm faible / déjà bien seedé) pour faire de la place.
+
+**À affiner en design** (pas maintenant)
+
+- Critères de « propice au partage » : freeleech, ratio seeders/leechers, taille, fraîcheur,
+  vélocité du swarm.
+- Intégration client torrent (qBittorrent déjà présent — API, catégories/tags dédiés ratio).
+- Mesure du ratio courant par tracker (scrape page profil vs API tracker).
+- Garde-fous : ne jamais re-télécharger du contenu déjà en médiathèque ; limites de
+  bande passante ; cap nombre de torrents actifs.
+
+**Depends on**: trackers actifs (P2 — Additional Trackers), client torrent (qBittorrent,
+shipped), **P2 — Download Orchestration & Seed Safety** (tag seed-pur + anti-HnR + budget
+disque), **P3 — Freeleech Radar** (priorité n°1 des grabs). Réutilise le moteur de ranking
+`api/tracker/_ranking.py`.
+
+### P3 — Freeleech Radar
+
+> Issu du brainstorm 2026-06-01. Petit module **transverse**, partagé par le module de
+> ratio (c) et le suivi de séries (d).
+
+Détecte les fenêtres **freeleech** (et bonus/upload multiplié) sur tous les trackers actifs
+et expose l'info aux consommateurs :
+
+- Le **module de ratio (c)** en fait sa priorité n°1 : un grab freeleech = gain de ratio à
+  coût nul (rien décompté en download).
+- Le **suivi de séries (d)** s'en sert comme critère de score (à qualité/piste égales,
+  préférer la source freeleech).
+
+**À affiner** : détection par tracker (flag dans la réponse de recherche vs page dédiée vs
+annonce), fraîcheur/expiration de la fenêtre, event `FreeleechWindowDetected` sur l'Event Bus
+pour notification (voir Seed Safety).
+
+**Depends on**: trackers actifs (P2 — Additional Trackers), Event Bus (shipped v0.14.0).
 
 ### P3 — Tech-Debt Round 2 (`tech-debt-2`)
 
@@ -204,31 +351,6 @@ Components directly instantiate their dependencies (e.g., `Scraper.__init__` cre
 - Runtime service hot-swap.
 - Full-blown DI framework (no `dependency-injector`, no decorator-based injection).
 
-### P3 — Additional Trackers (torr9 + digitalcore)
-
-Implement `api/tracker/torr9.py` and `api/tracker/digitalcore.py` following the
-`TrackerClient` Protocol established in 0.11.0. Study each tracker's API
-(Torznab/RSS/REST), capture real-response samples, write reference docs in
-`docs/reference/torr9-api.md` and `docs/reference/digitalcore-api.md`, then
-implement using the unified `HttpTransport` infrastructure.
-
-**Goals**
-
-- Two new `TrackerClient` providers, plug-compatible with the existing
-  `TrackerRegistry` and `rank()` engine.
-- Reference docs + sample fixtures so future updates can replay against
-  captured responses.
-- Activation through the existing `ProviderActivation` mechanism — no new
-  config schema.
-
-**Non-goals**
-
-- New ranking criteria (the engine landed in 0.11.0 already supports
-  arbitrary providers).
-- Auto-Download System integration — that lands in its own P2 feature.
-
-**Depends on**: Third-Party API Consumer Unification (shipped v0.11.0).
-
 ### P3 — Active Health Scoring (Registry)
 
 **Source**: registry feature DESIGN §11 deferral (recorded in Phase 12 of the registry feature).
@@ -247,6 +369,10 @@ implement using the unified `HttpTransport` infrastructure.
 - Rolling window of last N health checks, exponentially-weighted moving average.
 - `chain()` consults health score: providers below threshold are skipped (not removed — re-attempted on next health window).
 - `registry.status()` includes per-provider health score.
+- **Économie de ratio dans le score (brainstorm 2026-06-01)** : pour les providers tracker,
+  intégrer l'état de ratio (proche de la limite tracker → déprioriser) en plus de la santé
+  réseau. Un tracker où ton ratio est en danger est temporairement écarté des recherches
+  d'auto-download/suivi. Alimenté par le module de ratio (c).
 
 **Non-goals**:
 
@@ -283,3 +409,39 @@ implement using the unified `HttpTransport` infrastructure.
 **Risk**: Race conditions on circuit breaker state during swap. Mitigate with explicit drain protocol.
 
 **Estimated effort**: 2 sprints (10 days).
+
+---
+
+## Journal — ajouts 2026-06-01 (résolus)
+
+Quatre demandes ajoutées puis raffinées en mini-brainstorm, désormais classées :
+
+- **(a) Dépréciation LaCale** → **P1 — LaCale Deprecation** (section P1).
+- **(b) Nouveaux trackers torr9 + digitalcore** → fusionné dans **P2 — Additional Trackers**
+  (remonté de P3 → P2).
+- **(c) Module de ratio** → **P3 — Ratio Management Module** (section P3).
+- **(d) Suivi de séries** → devenu le volet principal de **P2 — TVShow Follow &
+  Auto-Download System** (a absorbé l'ancien Auto-Download System).
+
+Brainstorm phase 3 — nouvelles entrées dérivées (glu d'intégration + synergies) :
+
+- **Glu critique** → **P2 — Download Orchestration & Seed Safety** (tag seed-pur ignoré par
+  le Watcher/triage, suivi anti-HnR des obligations de seed, arbitre de budget disque
+  global, + notifications Telegram).
+- **Radar freeleech** → **P3 — Freeleech Radar** (transverse, partagé par (c) et (d)).
+- **Économie tracker → health** → bullet ajouté à **P3 — Active Health Scoring**.
+- *(Reporté : confort 7-8-9 — bootstrap liste depuis indexer, profils qualité par série,
+  pages Web UI ratio + CRUD liste. Non retenu ce tour-ci.)*
+
+Demande utilisateur d'origine (verbatim) :
+
+- LaCale n'est plus, déprécié, garder le code.
+- 2 nouveaux trackers : https://torr9.net/ et https://digitalcore.club/
+- Module de gestion du ratio (téléchargement automatique des torrents les plus propices
+  au partage afin d'augmenter le ratio). Gestion tracker par tracker.
+- Module de suivi tvshows (téléchargement automatique des nouveaux épisodes / nouvelles
+  saisons d'une série, parmi une liste de séries suivies) ; recherche sur tous les
+  trackers et choix du meilleur torrent selon plusieurs critères (ratio, qualité, piste
+  audio…).
+
+Le détail raffiné vit désormais dans les entrées P1/P2/P3 listées ci-dessus.
