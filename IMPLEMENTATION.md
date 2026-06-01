@@ -16,7 +16,7 @@
 | --- | ----------------------- | ---------------------------------- | ------ |
 | 0   | Baseline golden capture | phase-00-baseline-golden.md        | [x]    |
 | 1   | Core framework          | phase-01-core-framework.md         | [x]    |
-| 2   | Migrate DISPATCH checks | phase-02-migrate-dispatch.md       | [ ]    |
+| 2   | Migrate DISPATCH checks | phase-02-migrate-dispatch.md       | [x]    |
 | 3   | Consolidate fixes       | phase-03-consolidate-fixes.md      | [ ]    |
 | 4   | DB-mode unification     | phase-04-db-mode.md                | [ ]    |
 | 5   | Migrate STAGING checks  | phase-05-migrate-staging.md        | [ ]    |
@@ -58,7 +58,7 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-**Phase 1 DONE (gate green).** Proceed to **Phase 2 — Migrate DISPATCH checks** (`docs/features/check-plugins/plan/phase-02-migrate-dispatch.md`). ⚠️ Sub-phase **2.0 FIRST**: move `Severity`/`CheckResult` out of `checker.py` into `base.py` (single source — MOVE-1) and repoint all importers; residual-import grep = 0. Then migrate the DISPATCH checks onto the framework, asserting the Phase-0 golden byte-identical at every step. Strict 0→9 order; each phase opens with a Gate and ends with `make check`. The Phase-0 golden (`tests/verify/test_characterization_golden.py`, 7 entry points) is the running parity guard.
+**Phase 2 DONE (gate green).** Proceed to **Phase 3 — Consolidate fixes** (`docs/features/check-plugins/plan/phase-03-consolidate-fixes.md`): co-locate fixes into the plugins (real `fix()` on `DirNaming`/`NtfsSafeNames` replacing the 2.1 stubs), delete `MediaFixer`, delete checker.py's now-dead helper methods; residual-import grep = 0. Strict 0→9 order; each phase ends with `make check`. The Phase-0 golden + `test_dispatch_parity` are the running parity guards.
 
 ### Phase 0 gate record (2026-06-02)
 
@@ -72,5 +72,12 @@ _(filled by implement:pr-review — max 5 cycles)_
 - Sub-phases: `1.1` `verify/checks/base.py` — types + 3 Protocols + `CheckContext` (parse-once NFO cache) (`2caab076`); `1.2` `registry.py` (`CheckRegistry` + `_ORDER` + `apply_fixes`) + `catalog.py` (`e4fff6ce`). Framework skeleton only — **0 production code changed**; `checker.py` keeps its own `Severity`/`CheckResult` until 2.0 (MOVE-1).
 - Mechanical drift handled by sub-agents: `typing.Mapping` → `Mapping[str, Any]` (mypy strict), removed 2 stale `# type: ignore`, D103 test docstrings. No public shape changed; `_ORDER` table preserved verbatim.
 - Gate green: `make check` ✓ (5859 passed, 0 failed; coverage ≥90%; base/registry/catalog all << 800 LOC), `import personalscraper` ✓, ACC-02 `tests/verify tests/enforce` 160 passed.
+
+### Phase 2 gate record (2026-06-02)
+
+- Sub-phases: `2.0` move `Severity`/`CheckResult` → base.py + repoint 8 importers, no shim (`27cebac6`); `2.1` extract all DISPATCH checks into **9 plugin modules / 22 `@register_check` classes** (`bdfacd85`); `2.2` `MediaChecker.check_movie/check_tvshow` become registry-driven loops (`8fa2bfa0`, checker.py 793→450 LOC; helper methods kept as dead code until Phase 3).
+- **Parity proof strengthened**: added `tests/verify/checks/test_dispatch_parity.py` asserting `registry.checks_for(DISPATCH, mt)` loop output == `MediaChecker` output over the Phase-0 corpus (movie+tvshow). It passed in 2.1 (when MediaChecker still used inline logic) — proving the extraction is byte-faithful BEFORE 2.2 switched the bodies. `_ORDER` verified against the real append sequence (movie=13, tvshow=18).
+- DeepSeek 2.2 dispatch hit one Category-B socket error; health-probe PASS → retried once → clean (per subagent:deepseek policy).
+- Gate green: `make check` ✓ (5876 passed, 0 failed), ACC-01 golden 7 passed, ACC-02 168 passed, **ACC-06b grep rc=1**, `import personalscraper` ✓. ACC-07 module-size: all check-plugins modules << 800; 1 **pre-existing** advisory WARN on `scraper/movie_service.py` (975 LOC, untouched by this feature, under the 1000 hard ceiling) — out of scope.
 
 > **PR #33 is already created** (https://github.com/LounisBou/personal-scraper/pull/33, WIP). The branch is pushed to `origin/feat/check-plugins`. When the lifecycle reaches Phase 9 (`/implement:feature-pr`), it must **push onto the existing branch and reuse PR #33** (detect-existing, do not create a duplicate) — then `/implement:pr-review` → **manual squash merge**. Each implementation commit pushed to the branch updates PR #33 in place.
