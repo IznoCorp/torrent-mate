@@ -9,7 +9,7 @@ Guide d'installation et de configuration de PersonalScraper.
 ### Système
 
 - **macOS** (testé sur macOS Sonoma 14+)
-- **Python 3.10+** (`python3 --version`)
+- **Python 3.12+** (`python3 --version`)
 - **pip** (`pip --version`)
 - **rsync** (inclus avec macOS)
 - **ffprobe** (inclus avec [FFmpeg](https://ffmpeg.org/))

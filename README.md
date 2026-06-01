@@ -52,7 +52,7 @@ Voir [INSTALLATION.md](INSTALLATION.md) pour les instructions détaillées.
 
 ```
 personal-scraper/        # Racine du dépôt git
-├── personalscraper/     # Package Python (ingest, sorter, scraper, verify, dispatch, indexer, trailers, commands)
+├── personalscraper/     # Package Python (ingest, sorter, process, scraper, enforce, verify, dispatch, indexer, trailers, commands)
 ├── tests/               # Tests unitaires + E2E
 ├── docs/                # Documentation
 ├── scripts/             # Scripts utilitaires (install-launchd.sh, check-logging.py, etc.)
