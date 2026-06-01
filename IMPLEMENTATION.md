@@ -19,7 +19,7 @@
 | 2   | Build \_item_stage + \_canonical; rewire scan_library (parallel) | phase-02-item-stage.md                | [x]    |
 | 3   | Single-creator cutover: dispatch + alias + delete scanner.py     | phase-03-single-creator-cutover.md    | [x]    |
 | 4   | ffprobe fold + insights/                                         | phase-04-ffprobe-insights.md          | [x]    |
-| 5   | verify/maintenance re-home + no-NFO + delete library/            | phase-05-verify-maintenance-delete.md | [ ]    |
+| 5   | verify/maintenance re-home + no-NFO + delete library/            | phase-05-verify-maintenance-delete.md | [x]    |
 | 6   | Feature PR + review (auto-invoked)                               | phase-06-feature-pr.md                | [ ]    |
 
 ## Design & plan review (2026-05-31, pre-implementation)
@@ -47,7 +47,15 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-**Phase 5** (verify/maintenance re-home + proactive no-NFO + delete `library/`). Start at `docs/features/lib-fold/plan/phase-05-verify-maintenance-delete.md`. **NOTE — `rescraper.py` + `maintenance/__init__.py` are ALREADY done** (pulled forward in Phase 4 to satisfy ACC-05 literally); Phase 5 now only needs `disk_cleaner.py` → `maintenance/`, `validator.py` → `verify/library_checks.py`, the `models.py` split (incl. `RescrapeAction`/`LibraryRescrapeResult` → `maintenance/rescraper.py`, removing the transient `library.models` import flagged with a TODO there), the proactive no-NFO doctor/audit line, and deleting `library/`.
+**Phase 6** (Feature PR + review — auto-invoked). All implementation phases (0–5) are `[x]`. The `library/` package is fully deleted; the consolidation is code-complete. Next: `/implement:feature-pr` (local gate + push + PR + CI) → `/implement:pr-review`. Start at `docs/features/lib-fold/plan/phase-06-feature-pr.md`.
+
+### Phase 5 — DONE (2026-06-01, verify/maintenance re-home + no-NFO + delete library/; independently verified at HEAD)
+
+The `library/` package (the original consolidation target) **no longer exists**. Executed in two coordinated dispatches, each verified by the main session (live-import grep, coverage-omit honesty, gate re-run, assertion-honesty audit):
+
+- ✅ **P5-A — re-home + models split (additive, no deletion).** `library/validator.py` → `verify/library_checks.py` (standalone, NOT inlined into `checker.py`); `library/disk_cleaner.py` → `maintenance/disk_cleaner.py`. Split `library/models.py`: scan types (`SeasonInfo`/`LibraryScanItem`/`NfoStatus`/`ArtworkStatus`) + `ISSUE_*` → new `indexer/scanner/_modes/_item_stage_types.py`; `ValidationItem`/`LibraryValidationResult` → `verify/library_checks.py`; `RescrapeAction`/`LibraryRescrapeResult` (+TODO lifted) → `maintenance/rescraper.py`; analysis/recommender dataclasses already in `insights/models.py` (Phase 4) → importers repointed; **I/O helpers `write_json`/`read_json`/`serialize_to_json` → `io_utils.py`** (decision: fills the DESIGN §4.6 gap, layering-clean — they were unaccounted for in the routing table). Every live importer (prod + ~7 test files) repointed; `test_models.py` split to the new homes. Commits `837761bf`/`83ada834`.
+- ✅ **P5-B — no-NFO feature + delete `library/`.** Added `_check_nfo_missing` to `library-doctor` (real `CheckStatus.WARN/.OK`) + a no-NFO advisory line to `library-reconcile` (the real read-only audit command; there is no `library-audit`). **Message uses the REAL invocation `library-rescrape --only nfo`** (the plan's `--target nfo_missing` flag does not exist). Scrubbed the residual `personalscraper.library` provenance docstrings (`_item_stage.py`, golden test) + removed the dead `"personalscraper.library"` node from `test_layering.py` (ACC-06 **force-now**, operator pattern — same as ACC-05, NOT a re-scope). Deleted `library/{validator,disk_cleaner,models,__init__}.py` + the package dir; dropped the temporary coverage-omit. Updated `architecture.md` (module map: `library/` removed, `maintenance/`/`insights/` added). Commits `eeec0b7d`/`041b02ef`.
+- ✅ **Gate (independently re-run):** `make lint` clean · `make test` **5983 passed, 0 failed/errors** · `make check` rc=0, coverage **91.71%** · **ACC-06** `rg -t py 'personalscraper\.library'` → rc=1 (literal, force-now) · **ACC-06b** `library-doctor` shows the `nfo_missing` row · **ACC-06c** module-size rc=0 (only pre-existing `movie_service.py` 975 WARN, out of scope). CI-only guardrails (`audit_design_coverage --strict`, `update_feature_map --check`) green.
 
 ### Phase 4 — DONE (2026-06-01, ffprobe fold + insights/; independently verified at HEAD)
 
