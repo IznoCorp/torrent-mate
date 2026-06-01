@@ -465,7 +465,9 @@ class MediaIndex:
         """Rebuild the index by scanning all mounted disks.
 
         Deletes all dispatch-attributed items from the DB, then re-walks each
-        disk directory and re-inserts entries via :meth:`add`.
+        disk directory and re-stages each media dir via the shared
+        ``_item_stage.scan_and_stage_dir`` (full rich rows — seasons, episodes,
+        ``item_issue``).
 
         Resolves each on-disk category directory to a canonical category ID.
         When ``categories`` is supplied, the reverse map ``folder_name → id``

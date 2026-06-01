@@ -660,8 +660,6 @@ _ITEM_ROOT_SKIP_DIRS: frozenset[str] = frozenset(
     }
 )
 
-# TV-show season folder names — canonical SSOT from naming_patterns.
-
 # Categories that do not follow the Kodi NFO convention. For these,
 # ``nfo_status='missing'`` is a structural false-positive — there is no
 # ``movie.nfo`` / ``tvshow.nfo`` to find because the format does not

@@ -1,9 +1,11 @@
 """Kind-deterministic canonical-provider SSOT.
 
 The single source of truth for deriving ``canonical_provider`` from a
-media item's kind and known provider IDs. Replaces both
-``library.scanner._normalize_canonical_provider`` and the NFO-XML-order
-fallback in ``backfill_ids_canonical._parse_canonical_from_nfo``.
+media item's kind and known provider IDs. Supersedes the canonical
+*selection* from ``library.scanner._normalize_canonical_provider``, and
+**overrides** (does not remove) the NFO-XML-order result from
+``backfill_ids_canonical._parse_canonical_from_nfo``, which still parses the
+NFO and extracts provider IDs.
 
 Rule (§4.4 DESIGN; ports library.scanner._normalize_canonical_provider):
 - show  + tvdb_id present              → ``"tvdb"``

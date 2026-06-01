@@ -1,7 +1,7 @@
 """Shared NFO file validation utilities.
 
 Provides is_nfo_complete() for checking NFO validity across the
-pipeline (scraper, library scanner, verify). Moved from
+pipeline (scraper, indexer item stage, verify). Moved from
 scraper/scraper.py to enable cross-module access.
 
 Also hosts the three NFO helper functions extracted from

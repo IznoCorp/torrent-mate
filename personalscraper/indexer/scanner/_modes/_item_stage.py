@@ -51,7 +51,7 @@ from personalscraper.indexer.schema import (
     SeasonRow,
 )
 from personalscraper.logger import get_logger
-from personalscraper.naming_patterns import SEASON_DIR_RE
+from personalscraper.naming_patterns import SEASON_DIR_RE, season_number_from_dir
 from personalscraper.nfo_utils import extract_nfo_metadata, is_nfo_complete, parse_title_year
 from personalscraper.text_utils import JUNK_FILE_NAMES as _JUNK_FILES
 
@@ -69,19 +69,6 @@ _NTFS_ILLEGAL = re.compile(r'[<>:"/\\|?*]')
 # from the directory-hygiene constants imported from ``_item_stage_types``.
 ISSUE_NFO_MISSING = "nfo_missing"
 ISSUE_NFO_INCOMPLETE = "nfo_incomplete"
-
-# Inverse map of ``scraper.nfo_generator._NFO_RATING_SOURCE_NAMES`` — kept in
-# sync with ``nfo_utils._NFO_RATING_SOURCE_REVERSE`` so ``ratings_json`` stores
-# the internal source-name shape the scraper / backfill produce.
-_NFO_RATING_SOURCE_REVERSE: dict[str, str] = {
-    "imdb": "imdb",
-    "themoviedb": "tmdb",
-    "tmdb": "tmdb",
-    "rottentomatoes": "rotten_tomatoes",
-    "rotten_tomatoes": "rotten_tomatoes",
-    "metacritic": "metacritic",
-    "trakt": "trakt",
-}
 
 
 # ---------------------------------------------------------------------------
@@ -360,30 +347,35 @@ def _artwork_inventory_tvshow(show_dir: Path) -> ArtworkInventory:
 # ---------------------------------------------------------------------------
 
 
-def _scan_seasons(show_dir: Path) -> list[SeasonRow]:
-    """Scan a TV show's season directories into :class:`SeasonRow` rows.
+def _scan_seasons(show_dir: Path) -> list[tuple[Path, SeasonRow]]:
+    """Scan a TV show's season directories into ``(dir, SeasonRow)`` pairs.
 
-    Verbatim port of ``library.scanner._scan_seasons`` (lines 399-444), but
-    emits :class:`SeasonRow` (``item_id=0`` placeholder, filled at upsert)
-    instead of the intermediate ``SeasonInfo``. The season directory's path is
-    not stored on :class:`SeasonRow`; it is recovered by
-    :func:`_upsert_seasons_and_episodes` from the show directory + season number.
+    Ports ``library.scanner._scan_seasons`` (lines 399-444), but emits the
+    actual on-disk season directory alongside each :class:`SeasonRow`
+    (``item_id=0`` placeholder, filled at upsert). The number is resolved via
+    the SSOT :func:`~personalscraper.naming_patterns.season_number_from_dir`
+    (FR ``Saison NN`` / EN ``Season NN`` → int, ``Specials`` / ``Special`` → 0),
+    so a ``Specials/`` dir is no longer silently dropped by an ``int()`` parse
+    of a non-numeric token. The real directory is carried out (rather than
+    reconstructed from the number by :func:`_upsert_seasons_and_episodes`)
+    because a ``Specials/`` dir is *not* ``Saison 00`` — its episode NFOs live
+    in the directory the scan actually matched.
 
     Args:
         show_dir: Path to the TV show directory.
 
     Returns:
-        List of :class:`SeasonRow`, sorted by season number.
+        List of ``(season_dir, SeasonRow)`` tuples, sorted by directory name.
     """
-    seasons: list[SeasonRow] = []
+    seasons: list[tuple[Path, SeasonRow]] = []
     for subdir in sorted(show_dir.iterdir()):
         if not subdir.is_dir() or not SEASON_DIR_RE.match(subdir.name):
             continue
-        # Extract season number from the trailing token (e.g. "Saison 03").
-        parts = subdir.name.split()
-        try:
-            season_num = int(parts[-1])
-        except (ValueError, IndexError):
+        # SSOT: numbered seasons → their int, Specials/Special → 0. None means
+        # the regex matched but the name is not a known season form (defensive
+        # — SEASON_DIR_RE and season_number_from_dir share the same pattern).
+        season_num = season_number_from_dir(subdir.name)
+        if season_num is None:
             continue
 
         # Count video files and NFO files.
@@ -402,13 +394,16 @@ def _scan_seasons(show_dir: Path) -> list[SeasonRow]:
         has_poster = (show_dir / poster_name).exists()
 
         seasons.append(
-            SeasonRow(
-                id=0,
-                item_id=0,
-                number=season_num,
-                episode_count=episode_count,
-                has_poster=int(has_poster),
-                episodes_with_nfo=nfo_count,
+            (
+                subdir,
+                SeasonRow(
+                    id=0,
+                    item_id=0,
+                    number=season_num,
+                    episode_count=episode_count,
+                    has_poster=int(has_poster),
+                    episodes_with_nfo=nfo_count,
+                ),
             )
         )
 
@@ -424,7 +419,8 @@ def _read_episode_titles(season_dir: Path, episode_count: int) -> dict[int, str 
     empty title map to ``None``.
 
     Args:
-        season_dir: Path to the ``Saison NN/`` directory.
+        season_dir: Path to the actual season directory (e.g. ``Saison NN/`` or
+            ``Specials/``) as matched on disk by :func:`_scan_seasons`.
         episode_count: Number of episode video files expected (used to pre-size
             the result mapping).
 
@@ -470,24 +466,25 @@ def _read_episode_titles(season_dir: Path, episode_count: int) -> dict[int, str 
 def _upsert_seasons_and_episodes(
     conn: sqlite3.Connection,
     item_id: int,
-    show_dir: Path,
-    seasons: list[SeasonRow],
+    seasons: list[tuple[Path, SeasonRow]],
 ) -> None:
     """Insert/refresh ``season`` and ``episode`` rows for a TV show.
 
-    Verbatim port of ``library.scanner._upsert_seasons_and_episodes``
-    (lines 726-771): :func:`tv_repo.upsert_season` refreshes the denormalized
-    counts on every scan, and episode stubs get their ``<title>`` from the
-    sibling NFO via :func:`_read_episode_titles`.
+    Ports ``library.scanner._upsert_seasons_and_episodes`` (lines 726-771):
+    :func:`tv_repo.upsert_season` refreshes the denormalized counts on every
+    scan, and episode stubs get their ``<title>`` from the sibling NFO via
+    :func:`_read_episode_titles`. Episodes are read from the *actual* season
+    directory carried by :func:`_scan_seasons` — never reconstructed as
+    ``show_dir / f"Saison {n:02d}"`` — so a ``Specials/`` dir (number 0) reads
+    its episodes from ``Specials/`` rather than a non-existent ``Saison 00/``.
 
     Args:
         conn: Open SQLite connection.
         item_id: PK of the owning ``media_item`` (kind must be ``"show"``).
-        show_dir: Path to the show directory (used to locate season dirs).
-        seasons: Season rows from :func:`_scan_seasons` (``item_id`` placeholder
-            is overridden here).
+        seasons: ``(season_dir, SeasonRow)`` pairs from :func:`_scan_seasons`
+            (``item_id`` placeholder is overridden here).
     """
-    for season in seasons:
+    for season_dir, season in seasons:
         season_row = SeasonRow(
             id=0,
             item_id=item_id,
@@ -499,7 +496,6 @@ def _upsert_seasons_and_episodes(
         season_id = tv_repo.upsert_season(conn, season_row)
 
         if season.episode_count > 0:
-            season_dir = show_dir / f"Saison {season.number:02d}"
             episode_titles = _read_episode_titles(season_dir, season.episode_count)
             conn.executemany(
                 """
@@ -707,7 +703,7 @@ def scan_and_stage_dir(
     if is_tvshow:
         seasons = _scan_seasons(media_dir)
         if seasons:
-            _upsert_seasons_and_episodes(conn, item_id, media_dir, seasons)
+            _upsert_seasons_and_episodes(conn, item_id, seasons)
 
     return item_id
 

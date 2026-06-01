@@ -5,6 +5,9 @@ the standard tmp+rename pattern still leaves the parent directory
 inode unflushed on most filesystems (notably ext4 and macFUSE-mounted
 NTFS), so a power loss between write and journal flush can lose the
 just-renamed entry.
+
+Also hosts the ``serialize_to_json`` / ``write_json`` / ``read_json``
+(de)serialization helpers (moved here in 0.19.0).
 """
 
 from __future__ import annotations

@@ -817,6 +817,49 @@ def test_scan_and_stage_dir_show_multiple_seasons(tmp_path: Path) -> None:
     assert seasons[1]["episode_count"] == 3
 
 
+def test_scan_and_stage_dir_specials_dir_produces_season_zero(tmp_path: Path) -> None:
+    """A ``Specials/`` dir must produce a season row (number=0) + its episode rows.
+
+    Regression for FIX L1: ``SEASON_DIR_RE`` was widened to match ``Specials``,
+    but ``_scan_seasons`` parsed the number with ``int(name.split()[-1])`` and
+    silently dropped ``Specials`` (``int("Specials")`` raised). The fix wires
+    ``season_number_from_dir`` (Specials → 0) and threads the *real* season
+    directory through so episodes are read from ``Specials/`` (not a
+    reconstructed ``Saison 00/``).
+    """
+    conn = _make_db()
+    disk_cfg = DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=[CID.TV_SHOWS])
+    show = tmp_path / "series" / "Specials Show (2021)"
+    show.mkdir(parents=True)
+    (show / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">42</uniqueid></tvshow>')
+    specials = show / "Specials"
+    specials.mkdir()
+    (specials / "S00E01 - Behind the Scenes.mkv").write_bytes(b"\x00" * 100)
+    (specials / "S00E01 - Behind the Scenes.nfo").write_text(
+        "<episodedetails><title>Behind the Scenes</title></episodedetails>"
+    )
+
+    item_id = scan_and_stage_dir(conn, show, disk_cfg, CID.TV_SHOWS, "show", now_s=1000)
+
+    conn.row_factory = sqlite3.Row
+    # Season 0 row exists for the Specials dir.
+    season = conn.execute(
+        "SELECT * FROM season WHERE item_id = ? AND number = 0",
+        (item_id,),
+    ).fetchone()
+    assert season is not None, "Specials/ dir must create a season row with number=0"
+    assert season["episode_count"] == 1
+    # The episode row exists and its title was read from the REAL Specials/ NFO
+    # (proves the season dir was threaded through, not reconstructed as Saison 00).
+    ep = conn.execute(
+        "SELECT number, title FROM episode WHERE season_id = ?",
+        (season["id"],),
+    ).fetchone()
+    assert ep is not None
+    assert ep["number"] == 1
+    assert ep["title"] == "Behind the Scenes"
+
+
 # ---------------------------------------------------------------------------
 # _detect_issues — directory-hygiene detection (port of scanner._detect_issues).
 # Returns ``(deduped issue list, actors_dir bool)``.

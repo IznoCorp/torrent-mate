@@ -483,6 +483,96 @@ class TestAnalyzeFromIndexExtraBranches:
         result_all = analyze_from_index(conn)
         assert result_all.item_count == 1
 
+    def _seed_full_item(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        title: str,
+        category_id: str = "movies",
+        dispatch_disk: str | None = None,
+    ) -> int:
+        """Seed a fully enriched item (disk → path → item → release → file → video stream).
+
+        Returns the media_item PK. When ``dispatch_disk`` is given an
+        ``item_attribute(dispatch_disk)`` row is added so ``analyze_from_index``
+        resolves the item's ``disk_label`` for the ``disk_filter`` branch.
+        """
+        import time
+
+        cur = conn.execute(
+            "INSERT INTO disk (uuid, label, mount_path, last_seen_at, merkle_root, is_mounted, unreachable_strikes) "
+            "VALUES (?, ?, ?, ?, NULL, 1, 0)",
+            (f"uuid-{title}", title, f"/Volumes/{title}", int(time.time())),
+        )
+        disk_id = cur.lastrowid
+        cur = conn.execute(
+            "INSERT INTO path (disk_id, rel_path, dir_mtime_ns, last_walked_at) VALUES (?, ?, NULL, NULL)",
+            (disk_id, f"films/{title}"),
+        )
+        path_id = cur.lastrowid
+        now = int(time.time())
+        cur = conn.execute(
+            "INSERT INTO media_item (kind, title, title_sort, original_title, year, category_id, "
+            " external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
+            " date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang) "
+            "VALUES ('movie', ?, ?, NULL, NULL, ?, '{}', NULL, NULL, 'valid', NULL, ?, ?, NULL, 0, 'fr')",
+            (title, title, category_id, now, now),
+        )
+        item_id = cur.lastrowid
+        if dispatch_disk is not None:
+            conn.execute(
+                "INSERT INTO item_attribute (item_id, key, value) VALUES (?, 'dispatch_disk', ?)",
+                (item_id, dispatch_disk),
+            )
+        cur = conn.execute(
+            "INSERT INTO media_release (item_id, episode_id, quality, edition, primary_lang) "
+            "VALUES (?, NULL, NULL, NULL, NULL)",
+            (item_id,),
+        )
+        release_id = cur.lastrowid
+        cur = conn.execute(
+            "INSERT INTO media_file (release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns, "
+            " oshash, xxh3_partial, xxh3_full, scan_generation, last_verified_at, enriched_at, "
+            " miss_strikes, deleted_at) "
+            "VALUES (?, ?, ?, 1000, 0, NULL, NULL, NULL, NULL, 1, ?, ?, 0, NULL)",
+            (release_id, path_id, f"{title}.mkv", now, now),
+        )
+        file_id = cur.lastrowid
+        conn.execute(
+            "INSERT INTO media_stream (file_id, idx, kind, codec, lang, channels, width, height, "
+            " duration_ms, bitrate, hdr_format, is_atmos, is_default, forced, format) "
+            "VALUES (?, 0, 'video', 'h264', NULL, NULL, 1920, 1080, NULL, NULL, NULL, NULL, NULL, NULL, NULL)",
+            (file_id,),
+        )
+        return item_id  # type: ignore[return-value]
+
+    def test_disk_filter_excludes_other_disks(self) -> None:
+        """``disk_filter`` skips items whose dispatch_disk attribute differs (FIX L6)."""
+        from personalscraper.insights.analytics import analyze_from_index
+
+        conn = _make_conn()
+        self._seed_full_item(conn, title="OnDiskX", dispatch_disk="diskX")
+        self._seed_full_item(conn, title="OnDiskY", dispatch_disk="diskY")
+
+        result = analyze_from_index(conn, disk_filter="diskX")
+        assert result.item_count == 1
+        assert result.items[0].disk == "diskX"
+        # Same DB without the filter returns both items.
+        assert analyze_from_index(conn).item_count == 2
+
+    def test_max_items_caps_returned_items(self) -> None:
+        """``max_items=N`` caps the returned items at N (FIX L6)."""
+        from personalscraper.insights.analytics import analyze_from_index
+
+        conn = _make_conn()
+        for i in range(3):
+            self._seed_full_item(conn, title=f"Item{i}", dispatch_disk="diskA")
+
+        result = analyze_from_index(conn, max_items=2)
+        assert result.item_count == 2
+        # Unbounded returns all three.
+        assert analyze_from_index(conn).item_count == 3
+
     def test_item_with_no_files_skipped(self) -> None:
         """Items without any media_file rows do not appear."""
         import time
