@@ -7,11 +7,7 @@ from personalscraper.conf.models.categories import CategoryConfig
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.paths import PathConfig
-from personalscraper.verify.library_checks import (
-    _fix_empty_dirs,
-    _fix_ntfs_names,
-    validate_library,
-)
+from personalscraper.verify.library_checks import validate_library
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
@@ -103,108 +99,6 @@ class TestFixNonFixableMessage:
         result = validate_library(config, fix=True, apply=True)
 
         assert result.issues_count >= 1
-
-
-class TestFixHelpers:
-    """Direct tests for helper functions covering OSError branches."""
-
-    def test_fix_empty_dirs_dry_run_reports(self, tmp_path: Path) -> None:
-        """Dry-run mode reports the empty subdir without removing it."""
-        media = tmp_path / "Movie (2024)"
-        media.mkdir()
-        empty = media / "Subs"
-        empty.mkdir()
-
-        fixes = _fix_empty_dirs(media, dry_run=True)
-
-        assert empty.exists()
-        assert any("Would remove" in f for f in fixes)
-
-    def test_fix_empty_dirs_applies(self, tmp_path: Path) -> None:
-        """Apply mode actually removes empty subdir."""
-        media = tmp_path / "Movie (2024)"
-        media.mkdir()
-        empty = media / "Subs"
-        empty.mkdir()
-
-        fixes = _fix_empty_dirs(media, dry_run=False)
-
-        assert not empty.exists()
-        assert any("Removed empty dir" in f for f in fixes)
-
-    def test_fix_empty_dirs_iterdir_oserror(self, tmp_path: Path) -> None:
-        """OSError on iterdir is caught and logged, returning empty list."""
-        media = tmp_path / "Movie (2024)"
-        media.mkdir()
-        with patch.object(Path, "iterdir", side_effect=OSError("permission denied")):
-            fixes = _fix_empty_dirs(media, dry_run=False)
-        assert fixes == []
-
-    def test_fix_empty_dirs_rmdir_oserror(self, tmp_path: Path) -> None:
-        """Rmdir failures are logged and the entry is skipped without crash."""
-        media = tmp_path / "Movie (2024)"
-        media.mkdir()
-        empty = media / "Subs"
-        empty.mkdir()
-        with patch.object(Path, "rmdir", side_effect=OSError("denied")):
-            fixes = _fix_empty_dirs(media, dry_run=False)
-        # The continue path means no fix appended for this dir
-        assert all("Removed" not in f for f in fixes)
-
-    def test_fix_ntfs_names_dry_run(self, tmp_path: Path) -> None:
-        """Dry-run reports rename without performing it."""
-        media = tmp_path / "Movie (2024)"
-        media.mkdir()
-        bad = media / "weird:file.mkv"
-        bad.write_bytes(b"\x00")
-
-        fixes = _fix_ntfs_names(media, dry_run=True)
-
-        assert bad.exists()
-        assert any("Would rename" in f for f in fixes)
-
-    def test_fix_ntfs_names_applies(self, tmp_path: Path) -> None:
-        """Apply mode renames NTFS-illegal filename."""
-        media = tmp_path / "Movie (2024)"
-        media.mkdir()
-        bad = media / "weird:file.mkv"
-        bad.write_bytes(b"\x00")
-
-        fixes = _fix_ntfs_names(media, dry_run=False)
-
-        assert not bad.exists()
-        assert any("Renamed" in f for f in fixes)
-
-    def test_fix_ntfs_names_no_illegal_chars(self, tmp_path: Path) -> None:
-        """Files with safe names yield no fixes."""
-        media = tmp_path / "Movie (2024)"
-        media.mkdir()
-        ok = media / "ok_file.mkv"
-        ok.write_bytes(b"\x00")
-
-        fixes = _fix_ntfs_names(media, dry_run=False)
-
-        assert fixes == []
-        assert ok.exists()
-
-    def test_fix_ntfs_names_rglob_oserror(self, tmp_path: Path) -> None:
-        """Rglob OSError is caught and logged, returning empty list."""
-        media = tmp_path / "Movie (2024)"
-        media.mkdir()
-        with patch.object(Path, "rglob", side_effect=OSError("scan failed")):
-            fixes = _fix_ntfs_names(media, dry_run=False)
-        assert fixes == []
-
-    def test_fix_ntfs_names_rename_oserror(self, tmp_path: Path) -> None:
-        """Rename OSError is caught and the file is skipped."""
-        media = tmp_path / "Movie (2024)"
-        media.mkdir()
-        bad = media / "weird:file.mkv"
-        bad.write_bytes(b"\x00")
-        with patch.object(Path, "rename", side_effect=OSError("rename denied")):
-            fixes = _fix_ntfs_names(media, dry_run=False)
-        # The continue path means no rename description was appended
-        assert all("Renamed" not in f for f in fixes)
 
 
 class TestValidateLibraryBranches:

@@ -1,8 +1,8 @@
 """Library media-item validation checks — standalone verify module.
 
-Wraps :class:`verify.checker.MediaChecker` and :class:`verify.fixer.MediaFixer`
-to produce per-item validation results. Kept standalone (NOT inlined into
-``checker.py``) to respect the 1000-LOC hard ceiling on that module and to
+Wraps :class:`verify.checker.MediaChecker` and the registry ``apply_fixes``
+helper to produce per-item validation results. Kept standalone (NOT inlined
+into ``checker.py``) to respect the 1000-LOC hard ceiling on that module and to
 enable future registration in the Check plugin system.
 
 Checks NFO, artwork, naming, structure conformity on storage disks.
@@ -25,22 +25,26 @@ import json
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
 
+import personalscraper.verify.checks  # noqa: F401 — trigger plugin registration
 from personalscraper.conf.ids import TV_CATEGORY_IDS
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.nfo_utils import parse_title_year
-from personalscraper.text_utils import sanitize_filename
 from personalscraper.verify.checker import MediaChecker
-from personalscraper.verify.checks.base import CheckResult, Severity
-from personalscraper.verify.fixer import MediaFixer
+from personalscraper.verify.checks.base import CheckContext, CheckResult, CheckStage, Severity
+from personalscraper.verify.checks.registry import apply_fixes
 
 log = get_logger("library.validator")
+
+# Module-level single source of truth for the library fix policy (mirrors
+# ``_VERIFY_FIX_POLICY`` in verifier.py). The library validator fixes the full
+# structural triplet, unlike verify which is limited to ``dir_naming``.
+_LIBRARY_FIX_POLICY = frozenset({"dir_naming", "no_empty_dirs", "ntfs_safe_names"})
 
 
 # --- Validation models ---
@@ -116,72 +120,6 @@ def _classify_results(
     errors = [c.name for c in checks if not c.passed and c.severity == Severity.ERROR]
     warnings = [c.name for c in checks if not c.passed and c.severity == Severity.WARNING]
     return errors, warnings
-
-
-def _fix_empty_dirs(media_dir: Path, dry_run: bool) -> list[str]:
-    """Remove empty subdirectories from a media directory.
-
-    Args:
-        media_dir: Path to media directory.
-        dry_run: If True, only report without deleting.
-
-    Returns:
-        List of fix descriptions.
-    """
-    fixes = []
-    try:
-        for subdir in list(media_dir.iterdir()):
-            if subdir.is_dir() and not any(subdir.iterdir()):
-                if not dry_run:
-                    try:
-                        subdir.rmdir()
-                    except OSError as exc:
-                        log.warning(
-                            "library_validate_remove_empty_dir_failed",
-                            subdir=str(subdir),
-                            exc_info=True,
-                            error=str(exc),
-                        )
-                        continue
-                prefix = "[DRY-RUN] Would remove" if dry_run else "Removed"
-                fixes.append(f"{prefix} empty dir: {subdir.name}")
-    except OSError as exc:
-        log.warning("library_validate_list_error", media_dir=str(media_dir), exc_info=True, error=str(exc))
-    return fixes
-
-
-def _fix_ntfs_names(media_dir: Path, dry_run: bool) -> list[str]:
-    """Rename files with NTFS-illegal characters.
-
-    Args:
-        media_dir: Path to media directory.
-        dry_run: If True, only report without renaming.
-
-    Returns:
-        List of fix descriptions.
-    """
-    fixes = []
-    try:
-        for item in media_dir.rglob("*"):
-            if item.is_file():
-                safe_name = sanitize_filename(item.name)
-                if safe_name != item.name:
-                    if not dry_run:
-                        try:
-                            item.rename(item.parent / safe_name)
-                        except OSError as exc:
-                            log.warning(
-                                "library_validate_ntfs_rename_failed",
-                                item=str(item),
-                                exc_info=True,
-                                error=str(exc),
-                            )
-                            continue
-                    prefix = "[DRY-RUN] Would rename" if dry_run else "Renamed"
-                    fixes.append(f"{prefix}: {item.name} → {safe_name}")
-    except OSError as exc:
-        log.warning("library_validate_ntfs_list_error", media_dir=str(media_dir), exc_info=True, error=str(exc))
-    return fixes
 
 
 def validate_from_index(
@@ -334,7 +272,6 @@ def validate_library(
     """
     patterns = NamingPatterns()
     checker = MediaChecker(patterns, config)
-    fixer = MediaFixer(patterns, dry_run=not apply) if fix else None
     items: list[ValidationItem] = []
     valid_count = 0
     fixed_count = 0
@@ -394,35 +331,37 @@ def validate_library(
                 fixed_error_names: set[str] = set()
 
                 # --- Apply fixes if requested ---
+                # Replaces the three legacy manual fix blocks (dir_naming, plus
+                # the empty-dir and NTFS-name helpers) with apply_fixes()
+                # governed by _LIBRARY_FIX_POLICY. Fixes run per failed check so
+                # we can bind each FixAction back to its originating check name
+                # for the remaining_errors filter (legacy used check NAMES).
                 if fix and errors:
-                    # Fix 1: dir_naming via MediaFixer (rename from NFO title+year)
-                    if "dir_naming" in errors and fixer:
-                        fixable_checks = [c for c in checks if not c.passed and c.fixable]
-                        if fixable_checks:
-                            if is_series:
-                                actions = fixer.fix_tvshow(media_dir, fixable_checks)
-                            else:
-                                actions = fixer.fix_movie(media_dir, fixable_checks)
-                            for a in actions:
-                                fixes_applied.append(a.description)
-                                fixed_error_names.add("dir_naming")
-                                # Update media_dir if renamed
-                                if a.new_path and apply:
-                                    media_dir = a.new_path
-
-                    # Fix 2: Empty subdirectories
-                    if "no_empty_dirs" in errors:
-                        empty_fixes = _fix_empty_dirs(media_dir, dry_run=not apply)
-                        fixes_applied.extend(empty_fixes)
-                        if empty_fixes:
-                            fixed_error_names.add("no_empty_dirs")
-
-                    # Fix 3: NTFS-unsafe filenames
-                    if "ntfs_safe_names" in errors:
-                        ntfs_fixes = _fix_ntfs_names(media_dir, dry_run=not apply)
-                        fixes_applied.extend(ntfs_fixes)
-                        if ntfs_fixes:
-                            fixed_error_names.add("ntfs_safe_names")
+                    ctx = CheckContext(
+                        media_dir=media_dir,
+                        media_type="tvshow" if is_series else "movie",
+                        stage=CheckStage.DISPATCH,
+                        config=config,
+                        patterns=patterns,
+                        dry_run=not apply,
+                    )
+                    for c in checks:
+                        if c.passed or not c.fixable or c.name not in _LIBRARY_FIX_POLICY:
+                            continue
+                        actions = apply_fixes(ctx, [c], _LIBRARY_FIX_POLICY)
+                        if not actions:
+                            continue
+                        fixes_applied.extend(a.description for a in actions)
+                        # A name is "fixed" only when its check produced ≥1 action
+                        # (mirrors the legacy ``if empty_fixes:`` / per-action guards).
+                        fixed_error_names.add(c.name)
+                        for a in actions:
+                            # Thread the renamed media dir forward (dir_naming) so
+                            # the ValidationItem records the post-rename path, and
+                            # keep ctx pointing at the new dir for later fixes.
+                            if a.new_path and apply and a.old_path == media_dir:
+                                media_dir = a.new_path
+                                ctx.media_dir = media_dir
 
                 # Determine final status
                 remaining_errors = [e for e in errors if e not in fixed_error_names]

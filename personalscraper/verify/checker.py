@@ -7,7 +7,7 @@ genre categorization.
 
 Each check produces a CheckResult with severity (ERROR blocks dispatch,
 WARNING is informational) and a fixable flag indicating whether the
-issue can be auto-corrected by MediaFixer.
+issue can be auto-corrected by ``apply_fixes`` (the check's ``fix()`` method).
 """
 
 import re
