@@ -38,9 +38,12 @@ _ONLY = set(filter(None, os.environ.get("GOLDEN_ONLY", "").split(",")))
 # Fields that are non-deterministic and must be normalized out before compare.
 _DROP_KEYS = {"validated_at"}
 
-# Pattern that matches pytest tmp_path prefixes — normalize to a fixed token
-# so that golden files are deterministic across test sessions.
-_TMP_PATH_RE = re.compile(r"/private/tmp/.+?/pytest-of-\w+/pytest-\d+/")
+# Pattern that matches a pytest tmp_path prefix — independent of the absolute
+# base (/private/tmp on this host, /tmp on Linux CI, /private/var/folders on
+# some macOS) and of the optional pytest-xdist worker segment (popen-gwN/).
+# Normalizing to a fixed token keeps the goldens deterministic across OSes,
+# serial vs parallel runs, and worker counts.
+_TMP_PATH_RE = re.compile(r".*?/pytest-of-[^/]+/pytest-\d+/(?:popen-gw\d+/)?")
 
 
 def _settings_stub() -> Settings:
