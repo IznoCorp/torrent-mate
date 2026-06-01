@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 import xml.etree.ElementTree as ET
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 from personalscraper.logger import get_logger
@@ -19,8 +20,9 @@ from personalscraper.verify.checks.registry import register_check
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from typing import Any
 
-    from personalscraper.verify.checks.base import CheckContext
+    from personalscraper.verify.checks.base import CheckContext, IndexContext
 
 log = get_logger("verify.checks.nfo")
 
@@ -93,6 +95,28 @@ class NfoPresent:
             )
         ]
 
+    def from_index(self, row: Mapping[str, Any], ctx: IndexContext) -> list[CheckResult] | None:
+        """Derive nfo_present result from DB row.
+
+        Args:
+            row: DB row with nfo_status field.
+            ctx: IndexContext with media_type and category.
+
+        Returns:
+            [failed CheckResult] if nfo_status=="missing"; [] otherwise; None never.
+        """
+        nfo_status = row["nfo_status"] if hasattr(row, "__getitem__") else getattr(row, "nfo_status", None)
+        if nfo_status == "missing":
+            return [
+                CheckResult(
+                    name="nfo_present",
+                    passed=False,
+                    severity=Severity.ERROR,
+                    message="NFO missing (from index)",
+                )
+            ]
+        return []  # "valid", "invalid", or NULL → not flagged by this check
+
 
 @register_check
 class NfoValid:
@@ -145,6 +169,28 @@ class NfoValid:
                     message="" if tv_valid else "tvshow.nfo invalid or missing <title>",
                 )
             ]
+
+    def from_index(self, row: Mapping[str, Any], ctx: IndexContext) -> list[CheckResult] | None:
+        """Derive nfo_valid result from DB row.
+
+        Args:
+            row: DB row with nfo_status field.
+            ctx: IndexContext.
+
+        Returns:
+            [failed CheckResult] if nfo_status=="invalid"; [] otherwise.
+        """
+        nfo_status = row["nfo_status"] if hasattr(row, "__getitem__") else getattr(row, "nfo_status", None)
+        if nfo_status == "invalid":
+            return [
+                CheckResult(
+                    name="nfo_valid",
+                    passed=False,
+                    severity=Severity.ERROR,
+                    message="NFO invalid (from index)",
+                )
+            ]
+        return []
 
 
 @register_check

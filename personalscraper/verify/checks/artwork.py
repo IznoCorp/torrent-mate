@@ -8,6 +8,7 @@ Ported verbatim from ``verify/checker.py`` (the inline ``poster_present`` /
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 from personalscraper.naming_patterns import SEASON_DIR_RE
@@ -15,7 +16,9 @@ from personalscraper.verify.checks.base import CheckResult, CheckStage, Severity
 from personalscraper.verify.checks.registry import register_check
 
 if TYPE_CHECKING:
-    from personalscraper.verify.checks.base import CheckContext
+    from typing import Any
+
+    from personalscraper.verify.checks.base import CheckContext, IndexContext
 
 
 def _parsed_movie_title(ctx: "CheckContext") -> str:
@@ -68,6 +71,36 @@ class PosterPresent:
             )
         ]
 
+    def from_index(self, row: Mapping[str, Any], ctx: IndexContext) -> list[CheckResult] | None:
+        """Derive poster_present result from DB row artwork_json.
+
+        Args:
+            row: DB row with artwork_json field.
+            ctx: IndexContext.
+
+        Returns:
+            [failed CheckResult] if poster absent; [] if present; None if no artwork_json.
+        """
+        import json as _json
+
+        artwork_raw = row["artwork_json"] if hasattr(row, "__getitem__") else getattr(row, "artwork_json", None)
+        if not artwork_raw:
+            return None
+        try:
+            artwork = _json.loads(artwork_raw)
+        except (TypeError, ValueError):
+            artwork = {}
+        if not artwork.get("poster"):
+            return [
+                CheckResult(
+                    name="poster_present",
+                    passed=False,
+                    severity=Severity.ERROR,
+                    message="Poster missing (from index)",
+                )
+            ]
+        return []
+
 
 @register_check
 class ArtworkLandscape:
@@ -105,6 +138,38 @@ class ArtworkLandscape:
                 message=message,
             )
         ]
+
+    def from_index(self, row: Mapping[str, Any], ctx: IndexContext) -> list[CheckResult] | None:
+        """Derive artwork_landscape result from DB row — movie-only in DB-mode.
+
+        Args:
+            row: DB row with artwork_json field.
+            ctx: IndexContext.
+
+        Returns:
+            None for tvshow (not derivable); [result] or [] for movie.
+        """
+        import json as _json
+
+        if ctx.media_type != "movie":
+            return None  # DB-mode landscape is movie-only (DESIGN §9 quirk)
+        artwork_raw = row["artwork_json"] if hasattr(row, "__getitem__") else getattr(row, "artwork_json", None)
+        if not artwork_raw:
+            return None
+        try:
+            artwork = _json.loads(artwork_raw)
+        except (TypeError, ValueError):
+            artwork = {}
+        if not artwork.get("landscape"):
+            return [
+                CheckResult(
+                    name="artwork_landscape",
+                    passed=False,
+                    severity=Severity.WARNING,
+                    message="Landscape missing (from index)",
+                )
+            ]
+        return []
 
 
 @register_check
