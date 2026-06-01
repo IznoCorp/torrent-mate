@@ -6,7 +6,7 @@
 **Version bump**: 0.19.0 → 0.20.0
 **Branch**: feat/check-plugins
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/LounisBou/personal-scraper/pull/33 (pre-created, WIP — **update in place, do NOT create a new one**)
 **Design**: docs/features/check-plugins/DESIGN.md
 **Master plan**: docs/features/check-plugins/plan/INDEX.md
 
@@ -59,3 +59,5 @@ _(filled by implement:pr-review — max 5 cycles)_
 ## Next action
 
 **Ready for implementation in a fresh session.** Run `/implement:phase` — it starts at **Phase 0** (baseline golden capture of all 7 entry points; the parity spine). Strict 0→9 order; each phase opens with a Gate and ends with `make check`. Plan: `docs/features/check-plugins/plan/INDEX.md`.
+
+> **PR #33 is already created** (https://github.com/LounisBou/personal-scraper/pull/33, WIP). The branch is pushed to `origin/feat/check-plugins`. When the lifecycle reaches Phase 9 (`/implement:feature-pr`), it must **push onto the existing branch and reuse PR #33** (detect-existing, do not create a duplicate) — then `/implement:pr-review` → **manual squash merge**. Each implementation commit pushed to the branch updates PR #33 in place.
