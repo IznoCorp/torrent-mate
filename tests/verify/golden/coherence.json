@@ -1,0 +1,50 @@
+[
+  {
+    "checks": [
+      "sort_process_coherence",
+      "nfo_ids"
+    ],
+    "path": "{tmp}/test_coherence0/stg/001-MOVIES/Staging Movie (2024)",
+    "warnings": []
+  },
+  {
+    "checks": [
+      "sort_process_coherence",
+      "nfo_ids"
+    ],
+    "path": "{tmp}/test_coherence0/stg/001-MOVIES/Wrong Cat TV (2020)",
+    "warnings": [
+      "Wrong category: Wrong Cat TV (2020) has tvshow.nfo but is in MOVIES",
+      "Missing IDs: no TMDB or IMDB in tvshow.nfo"
+    ]
+  },
+  {
+    "checks": [
+      "nfo_ids",
+      "genre_coherence",
+      "sort_process_coherence"
+    ],
+    "path": "{tmp}/test_coherence0/stg/002-TVSHOWS/Reality Show (2022)",
+    "warnings": [
+      "Genre suggests TV program (tv_programs) not series for Reality Show (2022)"
+    ]
+  },
+  {
+    "checks": [
+      "nfo_ids",
+      "genre_coherence",
+      "sort_process_coherence"
+    ],
+    "path": "{tmp}/test_coherence0/stg/002-TVSHOWS/Staging TVShow (2024)",
+    "warnings": []
+  },
+  {
+    "checks": [
+      "sort_process_coherence"
+    ],
+    "path": "{tmp}/test_coherence0/stg/002-TVSHOWS/Wrong Cat Movie (2021)",
+    "warnings": [
+      "Wrong category: Wrong Cat Movie (2021) has movie NFO but is in TVSHOWS"
+    ]
+  }
+]

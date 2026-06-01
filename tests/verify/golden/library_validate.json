@@ -1,0 +1,40 @@
+{
+  "category_filter": null,
+  "disk_filter": null,
+  "fixed_count": 0,
+  "issues_count": 0,
+  "items": [
+    {
+      "category": "movies",
+      "disk": "corpus_disk",
+      "errors": [],
+      "fixes_applied": [],
+      "media_type": "movie",
+      "path": "{tmp}/test_library_validate0/disk/cat_movies/Disk Movie (2024)",
+      "status": "valid",
+      "title": "Disk Movie",
+      "warnings": [
+        "not_sample"
+      ],
+      "year": 2024
+    },
+    {
+      "category": "tv_shows",
+      "disk": "corpus_disk",
+      "errors": [],
+      "fixes_applied": [],
+      "media_type": "tvshow",
+      "path": "{tmp}/test_library_validate0/disk/cat_tv_shows/Disk TVShow (2024)",
+      "status": "valid",
+      "title": "Disk TVShow",
+      "warnings": [
+        "season_posters",
+        "episode_xref_secondary_id_present",
+        "episode_xref_imdb_id_present"
+      ],
+      "year": 2024
+    }
+  ],
+  "total_items": 2,
+  "valid_count": 2
+}

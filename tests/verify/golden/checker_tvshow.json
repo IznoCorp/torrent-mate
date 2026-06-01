@@ -1,0 +1,642 @@
+{
+  "tvshow_empty_subdir": [
+    {
+      "fixable": false,
+      "message": "",
+      "name": "video_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "dir_naming",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_valid",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_ids",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "poster_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "artwork_landscape",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "season_structure",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "Missing season01-poster.jpg",
+      "name": "season_posters",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "episode_renamed",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "episode_nfo",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "Empty subdirs: Extras",
+      "name": "no_empty_dirs",
+      "passed": false,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "category",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "root_video_files",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "episode_canonical_uniqueid_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "Missing xref <uniqueid type=\"tmdb\"> on: S01E01 - Only.nfo; consider 'personalscraper indexer backfill-ids'",
+      "name": "episode_xref_secondary_id_present",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "Missing IMDb uniqueid on: S01E01 - Only.nfo",
+      "name": "episode_xref_imdb_id_present",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "ntfs_safe_names",
+      "passed": true,
+      "severity": "error"
+    }
+  ],
+  "tvshow_missing_ep_nfo": [
+    {
+      "fixable": false,
+      "message": "",
+      "name": "video_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "dir_naming",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_valid",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_ids",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "poster_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "artwork_landscape",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "season_structure",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "Missing season01-poster.jpg",
+      "name": "season_posters",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "episode_renamed",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "No episode NFO files found",
+      "name": "episode_nfo",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "no_empty_dirs",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "category",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "root_video_files",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "episode_canonical_uniqueid_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "episode_xref_secondary_id_present",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "episode_xref_imdb_id_present",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "ntfs_safe_names",
+      "passed": true,
+      "severity": "error"
+    }
+  ],
+  "tvshow_ntfs_illegal": [
+    {
+      "fixable": false,
+      "message": "",
+      "name": "video_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "dir_naming",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_valid",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_ids",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "poster_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "artwork_landscape",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "season_structure",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "Missing season01-poster.jpg",
+      "name": "season_posters",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "Unrenamed episodes: bad:file.mkv",
+      "name": "episode_renamed",
+      "passed": false,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "episode_nfo",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "no_empty_dirs",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "category",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "root_video_files",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "episode_canonical_uniqueid_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "Missing xref <uniqueid type=\"tmdb\"> on: S01E01 - Legal.nfo; consider 'personalscraper indexer backfill-ids'",
+      "name": "episode_xref_secondary_id_present",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "Missing IMDb uniqueid on: S01E01 - Legal.nfo",
+      "name": "episode_xref_imdb_id_present",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "NTFS-illegal filenames: bad:file.mkv",
+      "name": "ntfs_safe_names",
+      "passed": false,
+      "severity": "error"
+    }
+  ],
+  "tvshow_unrenamed_episode": [
+    {
+      "fixable": false,
+      "message": "",
+      "name": "video_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "dir_naming",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_valid",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_ids",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "poster_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "artwork_landscape",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "season_structure",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "Missing season01-poster.jpg",
+      "name": "season_posters",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "Unrenamed episodes: episode02.mkv",
+      "name": "episode_renamed",
+      "passed": false,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "episode_nfo",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "no_empty_dirs",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "category",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "root_video_files",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "episode_canonical_uniqueid_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "Missing xref <uniqueid type=\"tmdb\"> on: S01E01 - Proper.nfo; consider 'personalscraper indexer backfill-ids'",
+      "name": "episode_xref_secondary_id_present",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "Missing IMDb uniqueid on: S01E01 - Proper.nfo",
+      "name": "episode_xref_imdb_id_present",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "ntfs_safe_names",
+      "passed": true,
+      "severity": "error"
+    }
+  ],
+  "tvshow_valid": [
+    {
+      "fixable": false,
+      "message": "",
+      "name": "video_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "dir_naming",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_valid",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_ids",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "poster_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "artwork_landscape",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "season_structure",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "Missing season01-poster.jpg",
+      "name": "season_posters",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "episode_renamed",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "episode_nfo",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "no_empty_dirs",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "category",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "root_video_files",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "episode_canonical_uniqueid_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "episode_xref_secondary_id_present",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "Missing IMDb uniqueid on: S01E01 - Pilot.nfo, S01E02 - Episode Two.nfo",
+      "name": "episode_xref_imdb_id_present",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "ntfs_safe_names",
+      "passed": true,
+      "severity": "error"
+    }
+  ]
+}

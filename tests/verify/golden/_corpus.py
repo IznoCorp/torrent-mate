@@ -486,6 +486,7 @@ def seed_index_db(conn: sqlite3.Connection) -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             kind TEXT NOT NULL,
             title TEXT NOT NULL,
+            title_sort TEXT NOT NULL,
             year INTEGER,
             category_id TEXT NOT NULL,
             nfo_status TEXT,
@@ -652,6 +653,7 @@ def _insert_item(
     artwork_json: str | None,
     disk_label: str | None,
     dispatch_path: str | None,
+    title_sort: str | None = None,
 ) -> int:
     """Insert a media_item row and its item_attribute rows.
 
@@ -665,13 +667,15 @@ def _insert_item(
         artwork_json: JSON string with poster/landscape keys, or ``None``.
         disk_label: Value for the ``dispatch_disk`` attribute.
         dispatch_path: Value for the ``dispatch_path`` attribute.
+        title_sort: Sort title; defaults to ``title`` if ``None``.
 
     Returns:
         The new item's ``id``.
     """
     cur = conn.execute(
-        "INSERT INTO media_item (kind, title, year, category_id, nfo_status, artwork_json) VALUES (?, ?, ?, ?, ?, ?)",
-        (kind, title, year, category_id, nfo_status, artwork_json),
+        "INSERT INTO media_item (kind, title, title_sort, year, category_id, nfo_status, artwork_json) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (kind, title, title_sort if title_sort is not None else title, year, category_id, nfo_status, artwork_json),
     )
     item_id: int = cur.lastrowid  # type: ignore[assignment]
 
