@@ -73,6 +73,16 @@ GET /api?t=tvsearch&q=<query>&apikey=<key>       (tv scope)
 | `limit`  | no       | Max results                                                    |
 | `offset` | no       | Pagination offset                                              |
 
+> **Finality note — no `cat` narrowing (live caps confirmed).** C411's Torznab
+> `caps` does **not** advertise `cat` in `supportedParams` for any of
+> `search` / `movie-search` / `tv-search`, so the indexer does not honor a `cat`
+> filter. Media-type routing is done at the **endpoint** level — `t=movie` for
+> movies, `t=tvsearch` for TV — never via `cat`. `api/tracker/c411.py` therefore
+> never sends `cat`; it picks the endpoint from `media_type` and falls back to
+> `t=search` for everything else. ID-based narrowing (`imdbid` / `tmdbid` /
+> `tvdbid`) remains available on the movie/tv endpoints. This is settled — no
+> behavioral change is pending.
+
 ### Limits
 
 - 5 min server-side cache (per `ArrStack.md`).

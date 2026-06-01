@@ -45,8 +45,13 @@ The `transmission-rpc` library handles this CSRF dance transparently.
 | 5     | Queued to seed  | Yes      |
 | 6     | Seeding         | Yes      |
 
-**"Completed" detection**: status 5 (queued to seed) OR 6 (seeding). Both count as "done downloading".
-This differs from qBittorrent where completion is `progress == 1.0` across multiple states.
+**"Completed" detection**: status **5** (queued/pending to seed) OR **6** (seeding) — and
+**only** those two. The check is membership in `_COMPLETED_STATES`
+(`personalscraper/api/torrent/transmission.py`), a `frozenset` of
+`{transmission_rpc.Status.SEEDING, transmission_rpc.Status.SEED_PENDING}`. Status **4**
+(downloading) and anything below it (0–3) are treated as in-progress **regardless of
+`percent_done`** — `percent_done` is never consulted for completion. This differs from
+qBittorrent where completion is `progress == 1.0` across multiple states.
 
 ## Methods used by the pipeline
 
@@ -171,8 +176,9 @@ For multi-file torrents: `Path(download_dir)`. The `files` array provides per-fi
    torrents or `download_dir/<name>` for single-file. Content path resolution differs from qBit's `content_path`.
 5. **Seed ratio modes**: `seed_ratio_mode` (0=global, 1=single, 2=unlimited) and `seed_ratio_limit`.
    Analogous to qBit's `ratio_limit` + `seeding_time_limit`.
-6. **"Completed" detection differs from qBit**: status 5 (queued-to-seed) or 6 (seeding) means completed.
-   qBit uses `progress == 1.0` + state check. Both are "done downloading".
+6. **"Completed" detection differs from qBit**: only status 5 (seed-pending) or 6 (seeding)
+   means completed (`_COMPLETED_STATES`). Status 4 (downloading) and below are in-progress
+   regardless of `percent_done`. qBit instead uses `progress == 1.0` + state check.
 7. **Integer torrent IDs are NOT stable across daemon restarts**. Must use `hashString` for persistence.
 8. **JSON-RPC 2.0**: all responses wrapped in `{"jsonrpc": "2.0", "result": ..., "id": N}`.
    Error format: `{"jsonrpc": "2.0", "error": {"code": N, "message": "..."}, "id": N}`.

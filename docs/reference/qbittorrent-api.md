@@ -1,4 +1,45 @@
-# qBittorrent WebUI API Reference
+# qBittorrent API Reference
+
+This document has two parts:
+
+1. **WebUI HTTP API** — the raw `/api/v2/` HTTP surface qBittorrent exposes.
+2. **`qbittorrentapi` Python client** — the library the pipeline uses to talk to that
+   surface, including the `TorrentDictionary` / `TorrentState` typed objects and the
+   patterns the ingest step relies on.
+
+The pipeline integration lives in `personalscraper/api/torrent/qbittorrent.py`
+(`QBitClient` + `build_client`).
+
+## Table of contents
+
+- [Part 1 — WebUI HTTP API](#part-1--webui-http-api)
+  - [Auth (`/api/v2/auth/`)](#auth-apiv2auth)
+  - [Torrent info (`/api/v2/torrents/`)](#torrent-info-apiv2torrents)
+  - [Torrent actions (`/api/v2/torrents/`)](#torrent-actions-apiv2torrents)
+  - [Sync (`/api/v2/sync/`)](#sync-apiv2sync)
+  - [Transfer info (`/api/v2/transfer/`)](#transfer-info-apiv2transfer)
+  - [Categories & Tags](#categories-apiv2torrentscategories)
+  - [Auth lockout (qBit-specific)](#auth-lockout-qbit-specific)
+  - [Version compatibility](#version-compatibility)
+  - [Endpoints used by the pipeline](#endpoints-used-by-the-pipeline)
+- [Part 2 — `qbittorrentapi` Python client](#part-2--qbittorrentapi-python-client)
+  - [Overview & installation](#overview--installation)
+  - [Connection & authentication](#connection--authentication)
+  - [Client constructor — key parameters](#client-constructor--key-parameters)
+  - [Listing torrents — `torrents_info()`](#listing-torrents--torrents_info)
+  - [`TorrentDictionary` — torrent properties](#torrentdictionary--torrent-properties)
+  - [`TorrentState` — enum and helpers](#torrentstate--enum-and-helpers)
+  - [Error handling](#error-handling)
+  - [CSRF and security](#csrf-and-security)
+  - [qBittorrent v4.x vs v5.x compatibility](#qbittorrent-v4x-vs-v5x-compatibility)
+  - [Timeout and retry](#timeout-and-retry)
+  - [Pipeline-specific patterns](#pipeline-specific-patterns)
+  - [Useful imports](#useful-imports)
+  - [Sources](#sources)
+
+---
+
+# Part 1 — WebUI HTTP API
 
 Official reference: <https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)>
 Base path: `/api/v2/`
@@ -188,22 +229,9 @@ that does NOT increment the ban counter.
 
 Our client wrapper maintains a lockout file (`~/.cache/personalscraper/qbit_auth_lockout`,
 1-hour TTL) to short-circuit further attempts after a credential failure, preventing
-cron/launchd from accumulating attempts across scheduled runs.
-
-## `qbittorrentapi` library coverage
-
-The `qbittorrentapi` Python package wraps all endpoints listed above. It handles:
-
-- CSRF token extraction (qBit v4.x `X-QBITTORRENT-CSRF` header; dropped in v5.0+)
-- SID cookie management and automatic re-login
-- `host:port` → URL construction
-- Response JSON → typed Python objects (`TorrentDictionary`, `TorrentProperties`, etc.)
-
-What we still need raw HTTP for:
-
-- **Pre-check**: `GET /` on the qBit host — must bypass `qbittorrentapi` to avoid the
-  auth layer triggering the ban counter before we're ready to log in.
-- Batch operations not covered by `qbittorrentapi` convenience methods (if any).
+cron/launchd from accumulating attempts across scheduled runs. This is implemented in
+`build_client` (raw `GET /` pre-check via `requests`) and `QBitClient.login`
+(`_check_lockout` / `_set_lockout`) in `personalscraper/api/torrent/qbittorrent.py`.
 
 ## Version compatibility
 
@@ -225,3 +253,492 @@ What we still need raw HTTP for:
 | POST   | `/api/v2/torrents/pause`                 | Pause by hash                | qbittorrentapi |
 | POST   | `/api/v2/torrents/resume`                | Resume by hash               | qbittorrentapi |
 | POST   | `/api/v2/torrents/delete`                | Delete by hash               | qbittorrentapi |
+
+---
+
+# Part 2 — `qbittorrentapi` Python client
+
+## Overview & installation
+
+[`qbittorrent-api`](https://github.com/rmartin16/qbittorrent-api) is a Python client for the
+qBittorrent WebUI API. It replaces a hand-rolled HTTP client by handling automatically:
+
+- Authentication (login / re-login if the cookie expires)
+- CSRF headers (`Referer` / `Origin`)
+- qBittorrent v4.x and v5.0+ compatibility (`pausedUP` / `stoppedUP`)
+- The `TorrentState` enum with helpers (`is_complete`, `is_uploading`, `is_stopped`)
+- Built-in retry with exponential backoff
+
+License: MIT. Python: `>= 3.9`. Dependencies: `requests >= 2.16.0`, `urllib3 >= 1.24.2`,
+`packaging`.
+
+```bash
+pip install qbittorrent-api
+```
+
+> The pipeline pins this dependency in `pyproject.toml`. The reference behavior described
+> below was validated against the `qbittorrent-api` release current at the time of writing
+> (supporting qBittorrent up to v5.1.x, WebUI API up to v2.11.x).
+
+## Connection & authentication
+
+### Context manager (recommended)
+
+```python
+import qbittorrentapi
+
+with qbittorrentapi.Client(
+    host="localhost",
+    port=8081,
+    username="izno",
+    password="secret",
+) as qbt:
+    # auth_log_in() is called automatically on entry
+    torrents = qbt.torrents_info()
+    # auth_log_out() is called automatically on exit
+```
+
+### Manual connection
+
+```python
+qbt = qbittorrentapi.Client(
+    host="localhost", port=8081,
+    username="izno", password="secret",
+)
+
+try:
+    qbt.auth_log_in()
+except qbittorrentapi.LoginFailed:
+    print("Invalid credentials")
+except qbittorrentapi.APIConnectionError:
+    print("qBittorrent unreachable")
+
+# ... work ...
+
+qbt.auth_log_out()
+```
+
+The pipeline does **not** use the context manager: `QBitClient` constructs an
+un-authenticated `qbittorrentapi.Client` and `build_client` calls `client.login()`
+explicitly so it can wrap the login in the anti-ban lockout logic (see
+[Auth lockout](#auth-lockout-qbit-specific)).
+
+### Auto-reconnect
+
+If the session cookie expires mid-operation, the library intercepts the HTTP 403,
+re-calls `auth_log_in()`, and replays the request automatically. Transparent to the caller.
+
+### Environment variables (fallback)
+
+| Variable                                         | Role               |
+| ------------------------------------------------ | ------------------ |
+| `QBITTORRENTAPI_HOST`                            | Host               |
+| `QBITTORRENTAPI_USERNAME`                        | Username           |
+| `QBITTORRENTAPI_PASSWORD`                        | Password           |
+| `QBITTORRENTAPI_DO_NOT_VERIFY_WEBUI_CERTIFICATE` | Disable SSL verify |
+
+The pipeline does not rely on these; it reads `QBIT_USERNAME` / `QBIT_PASSWORD` from the
+process environment and passes them explicitly to the `Client` constructor.
+
+## Client constructor — key parameters
+
+```python
+qbittorrentapi.Client(
+    host="localhost",
+    port=8081,
+    username="izno",
+    password="secret",
+    VERIFY_WEBUI_CERTIFICATE=True,    # False for self-signed certificates
+    REQUESTS_ARGS={"timeout": 30},    # Timeout in seconds (default: 15.1s)
+    SIMPLE_RESPONSES=False,           # True = raw dicts instead of rich objects
+)
+```
+
+The pipeline's `QBitClient.__init__` constructs the client with
+`REQUESTS_ARGS={"timeout": 30}` and `VERIFY_WEBUI_CERTIFICATE=False` (self-signed-cert
+tolerant), keeping `SIMPLE_RESPONSES` at its default so it gets rich `TorrentDictionary`
+objects.
+
+## Listing torrents — `torrents_info()`
+
+```python
+torrents = qbt.torrents_info(
+    status_filter=None,     # Filter by state (see table below)
+    category=None,          # Filter by category
+    sort=None,              # Sort by field
+    reverse=None,           # Reverse the sort
+    limit=None,             # Max results
+    offset=None,            # Offset (negative = from the end)
+    torrent_hashes=None,    # Filter by hash(es)
+    tag=None,               # Filter by tag ("" = untagged)
+)
+```
+
+### Values of `status_filter`
+
+| Filter                  | Description                                           |
+| ----------------------- | ----------------------------------------------------- |
+| `"all"`                 | All torrents                                          |
+| `"downloading"`         | Currently downloading                                 |
+| `"seeding"`             | Seeding (uploading after completion)                  |
+| `"completed"`           | Download finished (100%), regardless of seeding state |
+| `"paused"`              | Paused (qBit v4.x term)                               |
+| `"stopped"`             | Stopped (qBit v5.x term, replaces "paused")           |
+| `"active"`              | Data transfer in progress                             |
+| `"inactive"`            | No transfer                                           |
+| `"stalled"`             | Stalled (no peers)                                    |
+| `"stalled_uploading"`   | Stalled while uploading                               |
+| `"stalled_downloading"` | Stalled while downloading                             |
+| `"errored"`             | In error                                              |
+| `"checking"`            | Checking in progress                                  |
+| `"moving"`              | Moving in progress                                    |
+
+### Fluent API (alternative)
+
+```python
+# Equivalents:
+qbt.torrents_info(status_filter="completed")
+qbt.torrents.info.completed()
+
+qbt.torrents_info(status_filter="seeding")
+qbt.torrents.info.seeding()
+```
+
+The pipeline uses three call shapes:
+
+- `torrents_info(status_filter="completed")` — `QBitClient.get_completed()`
+- `torrents_info()` — `QBitClient.get_all_hashes()` (any state)
+- `torrents_info(hashes=<hash>)` — `QBitClient.is_seeding()` / `get_content_path()` (single)
+
+## `TorrentDictionary` — torrent properties
+
+Each torrent returned by `torrents_info()` is a `TorrentDictionary`: both a dict and an object.
+
+```python
+torrent = qbt.torrents_info()[0]
+
+# Both syntaxes work:
+torrent.name            # "Shrinking.S03.MULTi.1080p..."
+torrent["name"]         # same
+
+torrent.hash            # "a1b2c3d4e5..."
+torrent.content_path    # "/path/to/torrents/complete/Shrinking.S03..."
+torrent.save_path       # "/path/to/torrents/complete/"
+torrent.progress        # 1.0
+torrent.size            # 5368709120 (bytes)
+torrent.state           # "uploading"
+torrent.state_enum      # TorrentState.UPLOADING
+```
+
+### Main properties
+
+| Property        | Type         | Description                                    |
+| --------------- | ------------ | ---------------------------------------------- |
+| `hash`          | str          | Torrent SHA-1 info hash                        |
+| `name`          | str          | Display name                                   |
+| `state`         | str          | Raw state ("uploading", "stalledUP", etc.)     |
+| `state_enum`    | TorrentState | Enum with helpers                              |
+| `content_path`  | str          | Absolute path to the content (file or folder)  |
+| `save_path`     | str          | Destination folder                             |
+| `progress`      | float        | Progress (0.0 to 1.0)                          |
+| `size`          | int          | Size in bytes (selected files)                 |
+| `total_size`    | int          | Total size in bytes (all files)                |
+| `completion_on` | int          | Unix completion timestamp (-1 if not finished) |
+| `added_on`      | int          | Unix added timestamp                           |
+| `ratio`         | float        | Share ratio                                    |
+| `seeding_time`  | int          | Seeding time in seconds                        |
+| `category`      | str          | Assigned category                              |
+| `tags`          | str          | Tags (comma-separated)                         |
+| `tracker`       | str          | URL of the first active tracker                |
+| `dlspeed`       | int          | Download speed (bytes/s)                       |
+| `upspeed`       | int          | Upload speed (bytes/s)                         |
+| `amount_left`   | int          | Bytes remaining to download                    |
+| `magnet_uri`    | str          | Magnet link                                    |
+
+The pipeline maps a `TorrentDictionary` to its internal `TorrentItem` dataclass in
+`_torrent_item()`, reading `hash`, `name`, `total_size` (→ `size_bytes`), `progress`,
+`state`, `ratio`, `content_path`, `category`, and `added_on`. Note it uses **`total_size`**
+(all files) rather than `size` (selected files only) for the reported size.
+
+## `TorrentState` — enum and helpers
+
+### All states
+
+| State                      | API value              | Description                          |
+| -------------------------- | ---------------------- | ------------------------------------ |
+| `UPLOADING`                | `"uploading"`          | Active seed                          |
+| `STALLED_UPLOAD`           | `"stalledUP"`          | Seeding with no peers                |
+| `FORCED_UPLOAD`            | `"forcedUP"`           | Forced seed                          |
+| `QUEUED_UPLOAD`            | `"queuedUP"`           | Queued for seeding                   |
+| `CHECKING_UPLOAD`          | `"checkingUP"`         | Checking after completion            |
+| `PAUSED_UPLOAD`            | `"pausedUP"`           | Paused after completion (qBit v4.x)  |
+| `STOPPED_UPLOAD`           | `"stoppedUP"`          | Stopped after completion (qBit v5.x) |
+| `DOWNLOADING`              | `"downloading"`        | Active download                      |
+| `STALLED_DOWNLOAD`         | `"stalledDL"`          | Downloading with no peers            |
+| `FORCED_DOWNLOAD`          | `"forcedDL"`           | Forced download                      |
+| `QUEUED_DOWNLOAD`          | `"queuedDL"`           | Queued for download                  |
+| `CHECKING_DOWNLOAD`        | `"checkingDL"`         | Checking during download             |
+| `PAUSED_DOWNLOAD`          | `"pausedDL"`           | Paused during download (v4.x)        |
+| `STOPPED_DOWNLOAD`         | `"stoppedDL"`          | Stopped during download (v5.x)       |
+| `METADATA_DOWNLOAD`        | `"metaDL"`             | Fetching metadata                    |
+| `FORCED_METADATA_DOWNLOAD` | `"forcedMetaDL"`       | Forced metadata (v5.0+)              |
+| `ERROR`                    | `"error"`              | Error                                |
+| `MISSING_FILES`            | `"missingFiles"`       | Missing files                        |
+| `ALLOCATING`               | `"allocating"`         | Disk allocation                      |
+| `CHECKING_RESUME_DATA`     | `"checkingResumeData"` | Checking on startup                  |
+| `MOVING`                   | `"moving"`             | Moving in progress                   |
+| `UNKNOWN`                  | `"unknown"`            | Unknown state                        |
+
+### Boolean helpers
+
+| Helper           | True for                                                           | Pipeline use                          |
+| ---------------- | ------------------------------------------------------------------ | ------------------------------------- |
+| `is_complete`    | All `*UP` states (uploading, stalledUP, pausedUP, stoppedUP, etc.) | Torrent finished (ready to copy/move) |
+| `is_uploading`   | uploading, stalledUP, checkingUP, queuedUP, forcedUP               | Actively seeding (copy, don't move)   |
+| `is_stopped`     | pausedUP, stoppedUP, pausedDL, stoppedDL                           | Stopped (safe to move)                |
+| `is_downloading` | All `*DL` states                                                   | Currently downloading                 |
+| `is_errored`     | error, missingFiles                                                | In error                              |
+| `is_checking`    | checkingUP, checkingDL, checkingResumeData                         | Checking                              |
+| `is_paused`      | Alias of `is_stopped`                                              | Compatibility                         |
+
+### How the pipeline classifies "completed"
+
+`QBitClient.get_completed()` lists `torrents_info(status_filter="completed")` — every torrent
+at `progress == 1.0`, regardless of seeding state. The ingest step then uses
+`state_enum.is_uploading` (via `QBitClient.is_seeding()`) to decide copy-vs-move:
+
+```python
+for torrent in qbt.torrents_info(status_filter="completed"):
+    state = torrent.state_enum
+
+    if state.is_uploading:
+        # Still seeding → COPY (do not remove the source)
+        action = "copy"
+    elif state.is_complete and not state.is_uploading:
+        # Finished, no longer seeding → MOVE
+        action = "move"
+    else:
+        continue  # skip (checking, etc.)
+```
+
+## Error handling
+
+### Exception hierarchy
+
+```
+APIError (base)
+├── UnsupportedQbittorrentVersion
+├── FileError (IOError)
+│   └── TorrentFileError
+│       ├── TorrentFileNotFoundError
+│       └── TorrentFilePermissionError
+└── APIConnectionError (requests.RequestException)
+    ├── LoginFailed
+    └── HTTPError (requests.HTTPError)
+        ├── HTTP4XXError
+        │   ├── HTTP400Error / InvalidRequest400Error
+        │   ├── HTTP401Error / Unauthorized401Error
+        │   ├── HTTP403Error / Forbidden403Error
+        │   ├── HTTP404Error / NotFound404Error
+        │   └── HTTP409Error / Conflict409Error
+        └── HTTP5XXError
+            └── HTTP500Error / InternalServerError500Error
+```
+
+### Pattern for the pipeline
+
+```python
+import qbittorrentapi
+
+try:
+    with qbittorrentapi.Client(
+        host="localhost", port=8081,
+        username="izno", password="secret",
+    ) as qbt:
+        completed = qbt.torrents_info(status_filter="completed")
+        # ... processing ...
+
+except qbittorrentapi.LoginFailed:
+    # Invalid credentials or WebUI auth disabled
+    log.error("qBittorrent: authentication failed")
+
+except qbittorrentapi.APIConnectionError:
+    # qBittorrent unreachable (not running, wrong host/port)
+    log.error("qBittorrent: connection failed")
+
+except qbittorrentapi.APIError as e:
+    # Other API error
+    log.error(f"qBittorrent: API error — {e}")
+```
+
+`QBitClient` translates these provider-specific exceptions into the project's uniform
+`ApiError` (DESIGN §1.1): `LoginFailed` → `http_status=401`, `Forbidden403Error` →
+`http_status=403` (IP ban), missing creds / unreachable host → `http_status=0`. It also
+raises its own `QBitAuthLockoutError` when a recent failure lockout is still active. On
+login failure it writes the lockout file (`_set_lockout`); `logout()` swallows
+`APIConnectionError` / `OSError` at warning level so a dead daemon doesn't crash teardown.
+
+## CSRF and security
+
+The library handles automatically:
+
+- **Session cookie**: `SID` (v4.x) or `QBT_SID_{port}` (v5.2+)
+- **Transparent re-login** if the cookie expires
+- **CSRF**: handled server-side by qBittorrent, no client-side token required
+
+**IP ban**: after too many failed login attempts, qBittorrent bans the IP (HTTP 403).
+Configurable via `web_ui_max_auth_fail_count` and `web_ui_ban_duration` in qBit settings.
+See [Auth lockout](#auth-lockout-qbit-specific) for the pipeline's own short-circuit lockout
+file that prevents scheduled runs from accumulating attempts toward this ban.
+
+## qBittorrent v4.x vs v5.x compatibility
+
+The library abstracts the differences:
+
+| Concept             | v4.x                | v5.x               | Library             |
+| ------------------- | ------------------- | ------------------ | ------------------- |
+| Pause               | `torrents_pause()`  | `torrents_stop()`  | Both work (aliases) |
+| Resume              | `torrents_resume()` | `torrents_start()` | Both work (aliases) |
+| Paused-upload state | `pausedUP`          | `stoppedUP`        | Both in the enum    |
+| Pause filter        | `"paused"`          | `"stopped"`        | Both accepted       |
+| Resume filter       | `"resumed"`         | `"running"`        | Both accepted       |
+
+The code does **not** need to check the qBittorrent version. The pipeline accordingly
+calls the v4.x-named `torrents_pause()` / `torrents_resume()` (in `QBitClient.pause()` /
+`resume()`), which the library aliases to the v5.x calls transparently.
+
+## Timeout and retry
+
+- **Default timeout**: 15.1 seconds
+- **Built-in retry**: 2 layers
+  - `HTTPAdapter`: 1 retry for connection/read errors and codes 500/502/504
+  - Request manager: up to 2 retries with exponential backoff (max 10s)
+
+```python
+# Custom timeout:
+qbt = qbittorrentapi.Client(
+    host="localhost", port=8081,
+    username="izno", password="secret",
+    REQUESTS_ARGS={"timeout": 30},  # 30 seconds
+)
+```
+
+The pipeline sets `REQUESTS_ARGS={"timeout": 30}` (see
+[constructor](#client-constructor--key-parameters)). The raw reachability pre-check in
+`build_client` uses a separate, tighter `requests.get(..., timeout=5)`.
+
+## Pipeline-specific patterns
+
+### List completed torrents
+
+```python
+with qbittorrentapi.Client(
+    host="localhost", port=8081,
+    username="izno", password="secret",
+) as qbt:
+    for torrent in qbt.torrents_info(status_filter="completed"):
+        print(f"{torrent.name}")
+        print(f"  Hash:    {torrent.hash}")
+        print(f"  Path:    {torrent.content_path}")
+        print(f"  Size:    {torrent.total_size / 1e9:.1f} GB")
+        print(f"  State:   {torrent.state}")
+        print(f"  Seeding: {torrent.state_enum.is_uploading}")
+```
+
+### Copy or move depending on seeding state
+
+```python
+from pathlib import Path
+import shutil
+
+STAGING = Path("/path/to/staging")
+
+with qbittorrentapi.Client(
+    host="localhost", port=8081,
+    username="izno", password="secret",
+) as qbt:
+    for torrent in qbt.torrents_info(status_filter="completed"):
+        source = Path(torrent.content_path)
+        dest = STAGING / source.name
+
+        if dest.exists():
+            continue  # already present
+
+        if torrent.state_enum.is_uploading:
+            # Still seeding → copy
+            if source.is_dir():
+                shutil.copytree(source, dest)
+            else:
+                shutil.copy2(source, dest)
+        else:
+            # No longer seeding → move
+            shutil.move(str(source), str(dest))
+```
+
+### Collect all hashes (for the tracker)
+
+```python
+with qbittorrentapi.Client(
+    host="localhost", port=8081,
+    username="izno", password="secret",
+) as qbt:
+    all_hashes = {t.hash for t in qbt.torrents_info()}
+    # Used to clean up the tracker (drop hashes that disappeared)
+```
+
+This is exactly what `QBitClient.get_all_hashes()` does.
+
+### Robust connection with retry
+
+```python
+import time
+import qbittorrentapi
+
+def connect_qbit(host, port, username, password, max_retries=3, delay=5):
+    """Connect with retry, suitable for cron."""
+    for attempt in range(max_retries):
+        try:
+            qbt = qbittorrentapi.Client(
+                host=host, port=port,
+                username=username, password=password,
+                REQUESTS_ARGS={"timeout": 30},
+            )
+            qbt.auth_log_in()
+            return qbt
+        except qbittorrentapi.LoginFailed:
+            raise  # do not retry on bad credentials
+        except qbittorrentapi.APIConnectionError:
+            if attempt < max_retries - 1:
+                time.sleep(delay)
+            else:
+                raise
+```
+
+> The pipeline's actual anti-ban strategy is stricter than a blind retry: it pre-checks
+> reachability with `GET /` and, on a credential failure, writes a 1-hour lockout file so
+> scheduled runs stop retrying until the operator fixes the credentials. See
+> [Auth lockout](#auth-lockout-qbit-specific).
+
+## Useful imports
+
+```python
+# Client
+from qbittorrentapi import Client
+
+# State enum
+from qbittorrentapi import TorrentState
+
+# Exceptions
+from qbittorrentapi import (
+    APIError,
+    APIConnectionError,
+    LoginFailed,
+    Forbidden403Error,
+)
+```
+
+## Sources
+
+- [PyPI](https://pypi.org/project/qbittorrent-api/)
+- [GitHub](https://github.com/rmartin16/qbittorrent-api) — MIT
+- [qBittorrent Web API wiki](<https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)>)
