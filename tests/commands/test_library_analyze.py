@@ -274,7 +274,7 @@ class TestLibraryRescrape:
         )
         with (
             patch(
-                "personalscraper.library.rescraper.rescrape_library",
+                "personalscraper.maintenance.rescraper.rescrape_library",
                 return_value=rresult,
             ),
             patch("personalscraper.library.models.write_json"),
@@ -305,7 +305,7 @@ class TestLibraryRescrape:
         )
         with (
             patch(
-                "personalscraper.library.rescraper.rescrape_library",
+                "personalscraper.maintenance.rescraper.rescrape_library",
                 return_value=rresult,
             ),
             patch("personalscraper.library.models.write_json"),

@@ -726,7 +726,7 @@ class TestLibraryRescrape:
         )
 
         with (
-            patch("personalscraper.library.rescraper.rescrape_library", return_value=mock_result),
+            patch("personalscraper.maintenance.rescraper.rescrape_library", return_value=mock_result),
             patch("personalscraper.library.models.write_json"),
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
             patch("personalscraper.cli.get_settings") as mock_settings,

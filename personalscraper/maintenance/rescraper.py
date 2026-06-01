@@ -25,6 +25,8 @@ from personalscraper.conf.ids import TV_CATEGORY_IDS
 from personalscraper.conf.models.config import Config
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import VIDEO_EXTENSIONS
+
+# TODO(lib-fold Phase 5): move RescrapeAction/LibraryRescrapeResult here per DESIGN §4.6
 from personalscraper.library.models import (
     ACTION_ARTWORK_DOWNLOADED,
     ACTION_EPISODES_RENAMED,

@@ -258,7 +258,7 @@ def library_rescrape(
         personalscraper library-rescrape --interactive
     """
     from personalscraper.library.models import write_json
-    from personalscraper.library.rescraper import rescrape_library
+    from personalscraper.maintenance.rescraper import rescrape_library
 
     category_id = _resolve_category(ctx, category)
     console = state["console"]
