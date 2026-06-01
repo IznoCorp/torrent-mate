@@ -10,6 +10,13 @@
 
 ---
 
+## ⚠️ PLAN CORRECTIONS (post-verification 2026-06-01)
+
+- **MOVE-1**: `Severity` + `CheckResult` are DEFINED in `base.py` here, but `checker.py` still defines its own copies. Those copies are REMOVED and all importers repointed at the **start of Phase 2** (new sub-phase 2.0) — not Phase 3. `base.py` is the single source; otherwise Phase 2 has two competing `CheckResult` types and the golden is built on the wrong one.
+- **CMP-4**: REMOVE `expected_file_type` from `CheckContext` (and its `FileType` TYPE_CHECKING import + docstring line) — it is never wired anywhere. The coherence wrong-category check uses `ctx.media_type` (the bucket the item was found under). Keep `resolved_category`.
+
+---
+
 ## Gate (previous phase)
 
 - `tests/verify/golden/checker_movie.json` and `checker_tvshow.json` exist and are committed.
@@ -96,7 +103,6 @@ from typing import Protocol
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
     from personalscraper.naming_patterns import NamingPatterns
-    from personalscraper.core.media_types import FileType
 
 
 class CheckStage(Enum):
@@ -196,7 +202,6 @@ class CheckContext:
         config: Config with category and classifier rules.
         patterns: NamingPatterns for file naming lookups.
         dry_run: If True, fixes are described but not applied.
-        expected_file_type: For enforce wrong-category detection.
         resolved_category: Set by the category check; read by _classify.
     """
 
@@ -206,7 +211,6 @@ class CheckContext:
     config: "Config"
     patterns: "NamingPatterns"
     dry_run: bool = False
-    expected_file_type: "FileType | None" = None
     resolved_category: "str | None" = None
 
     _nfo_root: "ET.Element | None | object" = field(default=None, init=False, repr=False, compare=False)

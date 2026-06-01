@@ -10,6 +10,13 @@
 
 ---
 
+## ⚠️ PLAN CORRECTIONS (post-verification 2026-06-01)
+
+- **FIX-1/ACC-2/GND-7**: the `test_fix_policy.py` tests in sub-phase 7.1 use a `test_settings` fixture that **does not exist** (collection error). Use `MagicMock()` for the `settings` arg (as existing `tests/verify/test_verifier.py` does) and the real `test_config` fixture for `config`. Replace the `__import__("personalscraper.naming_patterns", ...).PATTERNS` hack with `from personalscraper.naming_patterns import PATTERNS`.
+- **GOLD-2**: the selective `verifier_*` re-capture uses the Phase-0 env-driven capture, NOT a non-existent `capture_golden.py --only` script: `GOLDEN_ONLY=verifier_movie,verifier_tvshow CAPTURE_GOLDEN=1 pytest tests/verify/test_characterization_golden.py -q`. Then `git diff --stat tests/verify/golden/` must show ONLY `verifier_movie.json` + `verifier_tvshow.json` changed.
+
+---
+
 ## Gate (previous phase)
 
 - The structural refactor is complete and proven no-behavior-change: `pytest tests/verify/test_characterization_golden.py -q` → all pass (Phases 2–6 green).

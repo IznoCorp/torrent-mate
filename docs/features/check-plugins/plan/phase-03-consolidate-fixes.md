@@ -10,6 +10,14 @@
 
 ---
 
+## ⚠️ PLAN CORRECTIONS (post-verification 2026-06-01)
+
+- **GND-8/CMP-7**: `Verifier.__init__` currently stores only `self._config`, `self._checker`, `self._fixer` — NOT `self._patterns`. Add `self._patterns = patterns` in `__init__` so the `CheckContext(..., patterns=self._patterns)` build in the rewrite works.
+- **CMP-3**: `_classify` gains a `ctx` parameter and reads `ctx.resolved_category` (falling back to `classify_from_nfo` only when `None`) — this wires the dual-purpose `category` optimization the DESIGN promises. Add a test pinning the single-`classify_from_nfo`-call behavior.
+- **GOLD (critical)**: this phase rewrites `Verifier.verify_movie/verify_tvshow` AND `validate_library` → its gate MUST assert real-equality on the `verifier_movie`, `verifier_tvshow`, and `library_validate` goldens (all captured in Phase 0): `pytest tests/verify/test_characterization_golden.py -q`.
+
+---
+
 ## Gate (previous phase)
 
 - `pytest tests/verify/test_characterization_golden.py -q` → all pass.

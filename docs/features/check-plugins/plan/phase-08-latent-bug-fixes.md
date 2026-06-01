@@ -10,6 +10,13 @@
 
 ---
 
+## ⚠️ PLAN CORRECTIONS (post-verification 2026-06-01)
+
+- **BUG2-3 (blocker)**: the Bug 2 regression test (sub-phase 8.2 Step 1) builds a malformed envelope (`{"_type": "VerifyItemDone", …}`) and would FAIL post-fix. Round-trip through the real serializer instead (`event_to_envelope` exists at `core/event_bus.py:112`): `env = event_to_envelope(VerifyItemDone(item="X (2020)", status="valid", errors=[], checks_passed=5, checks_total=5)); e = event_from_envelope(env); assert type(e).__name__ == "VerifyItemDone"`. Keep the subprocess / fresh-interpreter isolation (`import personalscraper.events` ONLY, not `verify.run`). Pre-fix: `KeyError` (Unknown event type); post-fix: passes.
+- **EVT-1**: in sub-phase 8.2 Step 4, remove the actual `import personalscraper.verify.events` workaround line in `tests/event_bus/test_pipeline_events.py` (verify the exact line at edit time — ~126/127). The registry-count test `assert len(_EVENT_CLASS_REGISTRY) == 23` MUST stay green: after the catalog eager-imports `verify.events`, ensure the count test still triggers registration (it imports `personalscraper.events` or reads `_EVENT_CLASS_REGISTRY` after the catalog is importable). Add `pytest tests/event_bus/test_pipeline_events.py::test_event_registry_has_eighteen_v1_events -q` to THIS phase's gate.
+
+---
+
 ## Gate (previous phase)
 
 - The check-plugins refactor is complete through Phase 7; `make check` green at HEAD.

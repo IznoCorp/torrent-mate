@@ -84,7 +84,6 @@ class CheckContext:
     config: Config
     patterns: NamingPatterns
     dry_run: bool = False
-    expected_file_type: FileType | None = None   # enforce wrong-category needs the bucket it was found in
     resolved_category: str | None = None          # category check stashes its resolution here → no double classify
     def nfo_root(self) -> ET.Element | None: ...   # lazy, cached (sentinel-guarded)
     def nfo_path(self) -> Path | None: ...
@@ -154,11 +153,11 @@ Shrinking `checker.py` below the soft ceiling and keeping each plugin small also
 
 ### Stage STAGING (enforce/coherence) — all WARNING, read-only
 
-| Check                    | Group     | MT       | Notes                                                                                                     |
-| ------------------------ | --------- | -------- | --------------------------------------------------------------------------------------------------------- |
-| `sort_process_coherence` | coherence | movie+tv | wrong-category detection (`tvshow.nfo` in MOVIES / movie NFO in TVSHOWS) — needs `ctx.expected_file_type` |
-| `nfo_ids`                | coherence | movie+tv | **name collision** with DISPATCH `nfo_ids` (see §6.1); own logic (tmdb\|imdb, warning only)               |
-| `genre_coherence`        | coherence | tv       | classifier → warning if genre implies `TV_PROGRAMS`                                                       |
+| Check                    | Group     | MT       | Notes                                                                                                                                  |
+| ------------------------ | --------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `sort_process_coherence` | coherence | movie+tv | wrong-category detection (`tvshow.nfo` in MOVIES / movie NFO in TVSHOWS) — uses `ctx.media_type` (the bucket the item was found under) |
+| `nfo_ids`                | coherence | movie+tv | **name collision** with DISPATCH `nfo_ids` (see §6.1); own logic (tmdb\|imdb, warning only)                                            |
+| `genre_coherence`        | coherence | tv       | classifier → warning if genre implies `TV_PROGRAMS`                                                                                    |
 
 ## 6. Three structural subtleties
 
@@ -290,7 +289,7 @@ _ORDER = {
 
 Per project convention, every criterion is an executable shell command with documented expected output. Indicative set (final ACC-NN numbering assigned in the plan):
 
-- **ACC — characterization parity**: `pytest tests/verify/test_characterization_golden.py -q` → all pass (the 6 entry points byte-identical to the golden).
+- **ACC — characterization parity**: `pytest tests/verify/test_characterization_golden.py -q` → all pass (**all 7 entry points** byte-identical to the golden; real equality, fail-on-missing).
 - **ACC — existing suites intact**: `pytest tests/verify tests/enforce -q` → all pass (public facades unchanged).
 - **ACC — registry enumerates all checks**: `python -c "from personalscraper.verify.checks.catalog import list_checks; s=list_checks(); print(len(s))"` → count equals the migrated-check total (≥ 23 across both stages).
 - **ACC — granular CLI**: `personalscraper verify --list-checks` → prints the DISPATCH specs; `personalscraper verify --check nfo_present` → runs only that check.
@@ -299,17 +298,27 @@ Per project convention, every criterion is an executable shell command with docu
 - **ACC — module size**: `python3 scripts/check-module-size.py` → rc=0; `verify/checker.py` and every `verify/checks/*.py` under the 800 soft ceiling.
 - **ACC — gate**: `make check` → rc=0, coverage ≥ 90 %.
 - **ACC — fix-policy unification (final phase)**: a dedicated test proves the verify pipeline now auto-fixes `no_empty_dirs` + `ntfs_safe_names` (deliberate change; golden updated in the same phase).
+- **ACC-10 — Bug 1 (RatingSource)**: `pytest tests/indexer/test_external_ids_models.py::test_extract_nfo_metadata_rating_source_validates_against_model -q` → pass (stored `source="tmdb"` validates against the `Ratings` model).
+- **ACC-11 — Bug 2 (VerifyItemDone catalog)**: `pytest tests/event_bus/test_verify_item_done_catalog.py -q` → pass (`VerifyItemDone` resolves from the eager catalog in a fresh interpreter); registry count test still `== 23`.
 
 ## 11. Phasing (high level — detailed by the plan)
 
-0. **Baseline golden capture** (on current code, before any extraction) — corpus + serialize the 6 entry points + commit. Gate: golden green on `main`-equivalent code.
+0. **Baseline golden capture** (on current code, before any extraction) — corpus + serialize **ALL 7 entry points** (`checker_movie`, `checker_tvshow`, `verifier_movie`, `verifier_tvshow`, `library_validate`, `library_from_index`, `coherence`) + commit. The golden test performs a **real equality** comparison and **fails (not skips)** on a missing golden; `capture_golden.py` exposes `--only NAMES…`. The `coherence` capture uses a **staging-layout corpus** (`staging_dir/001-MOVIES/`, `002-TVSHOWS/`) + a `Config` pointing at it, because `check_coherence` iterates `config.paths.staging_dir`. Gate: golden green on `main`-equivalent code, all 7 files present.
 1. **Core framework** — `base.py` (types/protocols/context), `registry.py` (registry + `_ORDER` + `apply_fixes`), `catalog.py`. Tests: registry + catalog.
-2. **Migrate DISPATCH checks** into `verify/checks/` (by group); `MediaChecker` becomes the facade loop. Per-plugin unit tests. Gate: characterization golden + existing verify suites green.
-3. **Consolidate fixes** — co-locate `fix()`; delete `MediaFixer`; `validate_library` uses `apply_fixes`. Gate: golden + library suites green; residual-import grep = 0.
-4. **DB-mode unification** — `from_index()` on the 4 indexable checks; `validate_from_index` becomes the loop. Gate: golden (DB entry point) green.
-5. **Migrate STAGING (enforce) checks** — `coherence.py`; `check_coherence` becomes the loop with the `CoherenceResult` adapter. Gate: golden (coherence) + `test_coherence_checker` green.
+2. **Migrate DISPATCH checks** into `verify/checks/` (by group); `MediaChecker` becomes the facade loop. **First step: MOVE `Severity`/`CheckResult` from `checker.py` to `base.py` and repoint all importers** (verifier/library*checks/fixer/tests) so there is one `CheckResult` type the golden is built on. `Category.run()` stashes `ctx.resolved_category`. Per-plugin unit tests. Gate: `checker*\*` golden equality asserted + existing verify suites green + residual-import grep (`Severity`/`CheckResult`from`checker`) = 0.
+3. **Consolidate fixes** — co-locate `fix()`; delete `MediaFixer`; add `self._patterns` to `Verifier`; `_classify` reads `ctx.resolved_category` (falls back to `classify_from_nfo` only when `None`); `validate_library` uses `apply_fixes`. Gate: `verifier_*` + `library_validate` golden equality asserted + library suites green; residual-import grep = 0.
+4. **DB-mode unification** — `from_index()` on the 4 indexable checks; `validate_from_index` becomes the loop. Gate: `library_from_index` golden equality asserted.
+5. **Migrate STAGING (enforce) checks** — `coherence.py` (wrong-category uses `ctx.media_type`, the bucket-derived type); `check_coherence` becomes the loop with the `CoherenceResult` adapter. Gate: `coherence` golden re-asserted + `test_coherence_checker` green.
 6. **Granular CLI** — `--check`/`--list-checks` on the 3 commands. Tests.
-7. **Fix-policy unification (deliberate)** — unify verify's policy to the 3-check set; explicit golden update + dedicated tests.
-8. **Feature PR + review** (auto-invoked).
+7. **Fix-policy unification (deliberate)** — unify verify's policy to the 3-check set; explicit selective golden re-capture (`--only verifier_movie verifier_tvshow`) + dedicated tests.
+8. **Latent bug fixes** (operator-added adjacent scope, not part of the refactor) — Bug 1: `RatingSource` Literal `themoviedb`→`tmdb` in `indexer/external_ids.py` (+ fix the existing test that encodes `themoviedb`); Bug 2: eager-register `VerifyItemDone` in `events/__init__.py`. Each = 1 commit + regression test. See §12.
+9. **Feature PR + review** (auto-invoked).
 
-Each phase opens with a Gate and ends with `make check`; strict 0→8 order; the golden is the running parity guard from Phase 0 onward.
+Each phase opens with a Gate and ends with `make check`; strict 0→9 order; the golden (all 7 entry points, real equality) is the running parity guard from Phase 0 through Phase 6, deliberately updated for `verifier_*` only in Phase 7.
+
+## 12. Operator-added scope — latent bug fixes (Phase 8)
+
+Two independently-verified latent bugs, folded into this feature at operator request (adjacent cleanup, **not** derived from the check-framework goals — documented here so review understands why `indexer/external_ids.py` and `events/__init__.py` change in this PR):
+
+- **Bug 1 — `RatingSource` Literal misalignment.** `external_ids.py:34` allows `themoviedb` and omits `tmdb`, but `ratings_json` stores `tmdb` (via `nfo_utils._NFO_RATING_SOURCE_REVERSE` + `extract_nfo_metadata`), and `Notations.source` (`api/metadata/_base.py:156`) uses `tmdb`. Fix the Literal **and** the existing test (`tests/indexer/test_external_ids_models.py`) which encodes `themoviedb`. Latent (breaks when `ratings_json` is pydantic-validated).
+- **Bug 2 — `VerifyItemDone` absent from the eager event catalog.** `events/__init__.py` (which promises to eager-import every producer) omits `verify.events`, so `event_from_envelope` `KeyError`s on a `VerifyItemDone` envelope unless `verify.run` was imported. Fix the eager import + `__all__`; round-trip regression test via `event_to_envelope`; keep the registry count test (== 23) green.

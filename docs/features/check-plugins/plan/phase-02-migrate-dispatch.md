@@ -10,6 +10,14 @@
 
 ---
 
+## ⚠️ PLAN CORRECTIONS (post-verification 2026-06-01)
+
+- **MOVE-1 (NEW sub-phase 2.0, run FIRST)**: before migrating any check, MOVE `Severity`/`CheckResult` from `checker.py` to `base.py`, DELETE checker.py's own definitions, and repoint every importer (`verifier.py`, `library_checks.py`, `fixer.py`, and all `tests/` that do `from personalscraper.verify.checker import … Severity|CheckResult`). Add the residual grep `rg -t py 'from personalscraper\.verify\.checker import.*\b(Severity|CheckResult)\b' personalscraper/ tests/` → rc=1 to THIS phase's gate (ACC-06b applies from Phase 2, not just Phase 3).
+- **CMP-3**: the `Category` plugin's `run()` must SET `ctx.resolved_category` to the resolved category id (so Phase 3's `_classify` can read it instead of re-running `classify_from_nfo`).
+- **GOLD**: this phase's gate must assert the `checker_movie` + `checker_tvshow` golden via real equality (sub-phase 2.2 already does this — keep it).
+
+---
+
 ## Gate (previous phase)
 
 - `personalscraper/verify/checks/base.py`, `registry.py`, `catalog.py` exist and tests pass.

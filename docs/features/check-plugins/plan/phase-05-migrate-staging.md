@@ -4,9 +4,16 @@
 
 **Goal:** Move the three enforce coherence checks (`sort_process_coherence`, `nfo_ids` coherence-variant, `genre_coherence`) into `verify/checks/coherence.py` as STAGING-stage plugins. `enforce/coherence_checker.check_coherence` becomes a registry-driven loop with a `CoherenceResult` adapter at the boundary. The public `CoherenceResult` type and `check_coherence` signature are unchanged.
 
-**Architecture:** `coherence.py` hosts three `@register_check` classes with `stages=frozenset({CheckStage.STAGING})`, all `default_severity=WARNING`, read-only (no `fix()`). `check_coherence` builds a `CheckContext(stage=STAGING, media_type, expected_file_type)` per item, loops `registry.checks_for(STAGING, mt)`, and maps the resulting `list[CheckResult]` to `CoherenceResult(path, checks=[r.name…], warnings=[r.message for failed…])`. The `(stage, name)` registry key keeps DISPATCH `nfo_ids` and STAGING `nfo_ids` independent (ACC-05).
+**Architecture:** `coherence.py` hosts three `@register_check` classes with `stages=frozenset({CheckStage.STAGING})`, all `default_severity=WARNING`, read-only (no `fix()`). `check_coherence` builds a `CheckContext(stage=STAGING, media_type=<bucket type>)` per item, loops `registry.checks_for(STAGING, mt)`, and maps the resulting `list[CheckResult]` to `CoherenceResult(path, checks=[r.name…], warnings=[r.message for failed…])`. The `(stage, name)` registry key keeps DISPATCH `nfo_ids` and STAGING `nfo_ids` independent (ACC-05).
 
 **Tech Stack:** Python 3.11, `@register_check`, `CheckStage.STAGING`, `classify_from_nfo`, pytest
+
+---
+
+## ⚠️ PLAN CORRECTIONS (post-verification 2026-06-01)
+
+- **GOLD-4**: the `coherence` golden is now captured in **Phase 0** (using a staging-layout corpus + a `Config` pointing `paths.staging_dir` at it — `check_coherence` iterates `config.paths.staging_dir`, so an arbitrary item corpus does NOT work). This phase **RE-ASSERTS** it after rewriting `check_coherence`; it does NOT capture for the first time. **Ignore sub-phase 5.2 Step 1's "capture the STAGING golden BEFORE rewriting" instruction** — that capture already happened in Phase 0.
+- **CMP-4**: `SortProcessCoherence` uses `ctx.media_type` (the bucket-derived type), NOT `ctx.expected_file_type` (removed in Phase 1). The `coherence.py` code in sub-phase 5.1 already uses `ctx.media_type` — keep it.
 
 ---
 
@@ -149,13 +156,13 @@ class GenreCoherence:
 ```python
 from personalscraper.verify.checks.base import CheckContext, CheckStage
 from personalscraper.verify.checks.registry import registry
-from personalscraper.core.media_types import FileType
 import personalscraper.verify.checks  # trigger registration
 
-def _coherence_for(media_dir, media_type, expected, config) -> CoherenceResult:
+def _coherence_for(media_dir, media_type, config) -> CoherenceResult:
+    # media_type is the bucket the item was found under (movie for 001-MOVIES,
+    # tvshow for 002-TVSHOWS); the wrong-category check compares NFO type vs it.
     ctx = CheckContext(media_dir=media_dir, media_type=media_type,
-                       stage=CheckStage.STAGING, config=config,
-                       patterns=PATTERNS, expected_file_type=expected)
+                       stage=CheckStage.STAGING, config=config, patterns=PATTERNS)
     results = [r for check in registry.checks_for(CheckStage.STAGING, media_type) for r in check.run(ctx)]
     return CoherenceResult(
         path=media_dir,
