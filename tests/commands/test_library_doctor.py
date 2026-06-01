@@ -600,6 +600,89 @@ class TestCheckFunctions:
             conn.close()
         assert result.status == CheckStatus.OK
 
+    # ── _check_nfo_missing ────────────────────────────────────────────────────
+
+    def _seed_nfo_issue(self, conn: sqlite3.Connection, issue_type: str) -> None:
+        """Insert one media_item + one item_issue row of ``issue_type``.
+
+        Args:
+            conn: Open, migrated connection.
+            issue_type: ``item_issue.type`` value (e.g. ``nfo_missing``).
+        """
+        now = int(time.time())
+        _cols = "kind, title, title_sort, category_id, date_created, date_modified"
+        cur = conn.execute(
+            f"INSERT INTO media_item({_cols}) VALUES ('movie', 'Movie X', 'Movie X', 'movies', ?, ?)",
+            (now, now),
+        )
+        conn.execute(
+            "INSERT INTO item_issue(item_id, type, detail, detected_at) VALUES (?, ?, NULL, ?)",
+            (cur.lastrowid, issue_type, now),
+        )
+        conn.commit()
+
+    def test_nfo_missing_ok_when_no_issues(self, tmp_path: Path) -> None:
+        """No nfo_missing/nfo_incomplete issues → status ok."""
+        from personalscraper.commands.library.doctor import CheckStatus, _check_nfo_missing  # noqa: PLC0415
+
+        conn = self._open_migrated_conn(tmp_path)
+        try:
+            result = _check_nfo_missing(conn)
+        finally:
+            conn.close()
+        assert result.status == CheckStatus.OK
+        assert "valid NFO" in result.message
+
+    def test_nfo_missing_warn_when_missing(self, tmp_path: Path) -> None:
+        """An item flagged nfo_missing → status warn + repair hint in message."""
+        from personalscraper.commands.library.doctor import CheckStatus, _check_nfo_missing  # noqa: PLC0415
+
+        conn = self._open_migrated_conn(tmp_path)
+        self._seed_nfo_issue(conn, "nfo_missing")
+        try:
+            result = _check_nfo_missing(conn)
+        finally:
+            conn.close()
+        assert result.status == CheckStatus.WARN
+        # The message must point the operator at the real rescrape invocation.
+        assert "library-rescrape --only nfo" in result.message
+        assert "1 item(s) without a valid NFO" in result.message
+
+    def test_nfo_missing_warn_when_incomplete(self, tmp_path: Path) -> None:
+        """An item flagged nfo_incomplete also triggers the WARN."""
+        from personalscraper.commands.library.doctor import CheckStatus, _check_nfo_missing  # noqa: PLC0415
+
+        conn = self._open_migrated_conn(tmp_path)
+        self._seed_nfo_issue(conn, "nfo_incomplete")
+        try:
+            result = _check_nfo_missing(conn)
+        finally:
+            conn.close()
+        assert result.status == CheckStatus.WARN
+
+    def test_nfo_missing_skip_when_table_absent(self) -> None:
+        """Missing item_issue table (bare DB) → status skip, never raises."""
+        from personalscraper.commands.library.doctor import CheckStatus, _check_nfo_missing  # noqa: PLC0415
+
+        conn = sqlite3.connect(":memory:")
+        try:
+            result = _check_nfo_missing(conn)
+        finally:
+            conn.close()
+        assert result.status == CheckStatus.SKIP
+
+    def test_nfo_missing_registered_in_run_doctor(self, tmp_path: Path) -> None:
+        """The nfo_missing check is wired into the run_doctor check list."""
+        from personalscraper.commands.library.doctor import run_doctor  # noqa: PLC0415
+
+        conn = self._open_migrated_conn(tmp_path)
+        try:
+            report = run_doctor(conn)
+        finally:
+            conn.close()
+        names = [c.name for c in report.checks]
+        assert "nfo_missing" in names
+
 
 # ── 7. DoctorReport model ─────────────────────────────────────────────────────
 

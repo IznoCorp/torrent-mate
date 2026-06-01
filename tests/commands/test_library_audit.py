@@ -128,6 +128,41 @@ class TestLibraryReconcile:
         # Baseline: the command is read-only by default.
         assert kwargs["enqueue_repairs"] is False
 
+    # ── proactive no-NFO visibility (DESIGN decision #3) ──────────────────────
+
+    def test_nfo_missing_line_shown_when_positive(self) -> None:
+        """A positive nfo_missing_count emits the yellow repair-hint line."""
+        with (
+            patch(
+                "personalscraper.indexer.cli.library_reconcile_command",
+                return_value=(0, {"total_findings": 0}),
+            ),
+            patch(
+                "personalscraper.commands.library.audit._count_nfo_missing",
+                return_value=3,
+            ),
+        ):
+            result = runner.invoke(app, ["library-reconcile"])
+        assert result.exit_code == 0
+        assert "3 item(s) without a valid NFO" in result.output
+        assert "library-rescrape --only nfo" in result.output
+
+    def test_nfo_missing_line_absent_when_zero(self) -> None:
+        """A zero nfo_missing_count suppresses the advisory line."""
+        with (
+            patch(
+                "personalscraper.indexer.cli.library_reconcile_command",
+                return_value=(0, {"total_findings": 0}),
+            ),
+            patch(
+                "personalscraper.commands.library.audit._count_nfo_missing",
+                return_value=0,
+            ),
+        ):
+            result = runner.invoke(app, ["library-reconcile"])
+        assert result.exit_code == 0
+        assert "without a valid NFO" not in result.output
+
 
 # ── library-ghost-audit ──────────────────────────────────────────────────────
 

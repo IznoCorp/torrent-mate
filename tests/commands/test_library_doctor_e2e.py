@@ -275,7 +275,9 @@ def test_doctor_json_schema_valid(tmp_path, test_config) -> None:
     assert result.exit_code == 0
     data = assert_json_schema(result, required_keys=["overall_status", "checks", "elapsed_s"])
     assert isinstance(data["checks"], list)
-    assert len(data["checks"]) == 10
+    # 11 checks: the 10 core health checks + the proactive nfo_missing check
+    # (lib-fold Phase 5, DESIGN decision #3).
+    assert len(data["checks"]) == 11
 
 
 def test_doctor_error_exits_nonzero(test_config) -> None:
