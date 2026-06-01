@@ -17,7 +17,7 @@
 | 0   | Baseline golden capture | phase-00-baseline-golden.md        | [x]    |
 | 1   | Core framework          | phase-01-core-framework.md         | [x]    |
 | 2   | Migrate DISPATCH checks | phase-02-migrate-dispatch.md       | [x]    |
-| 3   | Consolidate fixes       | phase-03-consolidate-fixes.md      | [ ]    |
+| 3   | Consolidate fixes       | phase-03-consolidate-fixes.md      | [x]    |
 | 4   | DB-mode unification     | phase-04-db-mode.md                | [ ]    |
 | 5   | Migrate STAGING checks  | phase-05-migrate-staging.md        | [ ]    |
 | 6   | Granular CLI            | phase-06-granular-cli.md           | [ ]    |
@@ -58,7 +58,7 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-**Phase 2 DONE (gate green).** Proceed to **Phase 3 — Consolidate fixes** (`docs/features/check-plugins/plan/phase-03-consolidate-fixes.md`): co-locate fixes into the plugins (real `fix()` on `DirNaming`/`NtfsSafeNames` replacing the 2.1 stubs), delete `MediaFixer`, delete checker.py's now-dead helper methods; residual-import grep = 0. Strict 0→9 order; each phase ends with `make check`. The Phase-0 golden + `test_dispatch_parity` are the running parity guards.
+**Phase 3 DONE (gate green).** Proceed to **Phase 4 — DB-mode unification** (`docs/features/check-plugins/plan/phase-04-db-mode.md`): unify `validate_from_index` (the DB-mode `from_index` path) onto the framework via `IndexableCheck`. Strict 0→9 order; each phase ends with `make check`. The Phase-0 golden + `test_dispatch_parity` are the running parity guards. NOTE: checker.py's now-dead helper methods were NOT removed in Phase 3 (plan deferred that) — they remain until a later cleanup; checker.py is 450 LOC (<800).
 
 ### Phase 0 gate record (2026-06-02)
 
@@ -79,5 +79,15 @@ _(filled by implement:pr-review — max 5 cycles)_
 - **Parity proof strengthened**: added `tests/verify/checks/test_dispatch_parity.py` asserting `registry.checks_for(DISPATCH, mt)` loop output == `MediaChecker` output over the Phase-0 corpus (movie+tvshow). It passed in 2.1 (when MediaChecker still used inline logic) — proving the extraction is byte-faithful BEFORE 2.2 switched the bodies. `_ORDER` verified against the real append sequence (movie=13, tvshow=18).
 - DeepSeek 2.2 dispatch hit one Category-B socket error; health-probe PASS → retried once → clean (per subagent:deepseek policy).
 - Gate green: `make check` ✓ (5876 passed, 0 failed), ACC-01 golden 7 passed, ACC-02 168 passed, **ACC-06b grep rc=1**, `import personalscraper` ✓. ACC-07 module-size: all check-plugins modules << 800; 1 **pre-existing** advisory WARN on `scraper/movie_service.py` (975 LOC, untouched by this feature, under the 1000 hard ceiling) — out of scope.
+
+### Phase 3 gate record (2026-06-02)
+
+- Sub-phases: `3.1` co-locate real `fix()` on `DirNaming`/`NoEmptyDirs`/`NtfsSafeNames` (`fce87f94`); `3.2` delete `MediaFixer`, wire `Verifier` + `validate_library` to `apply_fixes()`, `_classify` reuses `ctx.resolved_category` (`0504c10` + `1d41ca`). `fixer.py` deleted.
+- **Fix-policy asymmetry preserved** as module-level constants for Phase 7's single-flip: `_VERIFY_FIX_POLICY = frozenset({"dir_naming"})` (verifier.py), `_LIBRARY_FIX_POLICY = frozenset({"dir_naming","no_empty_dirs","ntfs_safe_names"})` (library_checks.py).
+- **CMP-3**: verify_movie/verify_tvshow now run the registry loop on verify's OWN ctx (NOT `self._checker.check_movie`, which used a throwaway ctx — a latent plan inconsistency the Opus sub-agent corrected) so the `category` plugin's `resolved_category` propagates to `_classify`. `classify_from_nfo` calls per verify: 2 → 1 (pinned by `tests/verify/test_verifier_classify.py`).
+- **Plan-literal bug caught + fixed by sub-agent**: the plan's `fixed_error_names = {a.old_path.name …}` captured path basenames, but the downstream `remaining_errors` filter compares check NAMES — would have silently broken the filter. Replaced with a per-failed-check `apply_fixes` loop tagging the check NAME.
+- Gate green: `make check` ✓ (5864 passed, 0 failed, **coverage 91.12%** — no regression despite deleting MediaFixer tests; branch coverage migrated to `test_fixes.py`), ACC-01 golden 7 byte-identical, ACC-02 157 passed, **ACC-06a `MediaFixer` rc=1**, **ACC-06b rc=1**, `from …verify.fixer` rc=1, `import personalscraper` ✓.
+- ⚠️ **BEHAVIOR NOTE (awaiting operator sign-off)**: the consolidated `NoEmptyDirs.fix()` (from the plan's 3.1 body) walks `rglob("*")` (recursive) whereas the legacy `library_checks._fix_empty_dirs` walked `iterdir()` (top-level only). The `library_validate` golden is byte-identical (corpus has no NESTED empty dirs, so the divergence is uncovered). This is a deliberate plan choice (more thorough cleaning) but IS a behavior change in the library empty-dir fix for nested cases. If strict legacy parity is required, revert `NoEmptyDirs.fix` to top-level `iterdir`. Otherwise no action.
+- ⚠️ **Minor plan gap**: Phase 2.2 said checker.py's dead helper methods would be "deleted in Phase 3", but the Phase 3 plan never removes them. They remain as dead code (checker.py 450 LOC < 800). Candidate for a later cleanup; not blocking.
 
 > **PR #33 is already created** (https://github.com/LounisBou/personal-scraper/pull/33, WIP). The branch is pushed to `origin/feat/check-plugins`. When the lifecycle reaches Phase 9 (`/implement:feature-pr`), it must **push onto the existing branch and reuse PR #33** (detect-existing, do not create a duplicate) — then `/implement:pr-review` → **manual squash merge**. Each implementation commit pushed to the branch updates PR #33 in place.
