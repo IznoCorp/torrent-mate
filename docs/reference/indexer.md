@@ -185,11 +185,19 @@ The library-wide pass-1 driver is `stage_library_items(conn, config, now_s=None)
 which iterates disks × categories × media dirs and delegates each directory to
 `scan_and_stage_dir`.
 
-`dispatch/media_index.rebuild()` (via its per-entry `add()`) reuses the shared
-`_item_stage` primitives — `build_item_row` + `_nfo_metadata_for_dir` — to insert
-the same rich row shape, so there is a **single `media_item` creator** and
-dispatch never re-introduces the prior `canonical_provider=None` degradation
-(the provider is derived deterministically from the on-disk NFO's provider IDs).
+`dispatch/media_index.py` is the **single `media_item` creator** on the dispatch
+side: both of its write paths share the `_item_stage` primitives, so dispatch
+never re-introduces the prior `canonical_provider=None` degradation (the provider
+is always derived deterministically from the on-disk NFO's provider IDs):
+
+- `rebuild()` (empty-DB auto-rebuild) delegates each media dir to
+  `scan_and_stage_dir` — the **full** stage (rich row + seasons + episodes +
+  `item_issue`), byte-identical to `library-index --mode full`.
+- `add()` (per-dispatch incremental, called from `dispatch/_movie.py` /
+  `dispatch/_tv.py` on every move into permanent storage) builds the row via the
+  shared `build_item_row` (+ `_nfo_metadata_for_dir`) — rich `canonical_provider`,
+  no seasons/issues (those are added by the next `--mode full` walk) — plus the
+  three `dispatch_*` flex attributes that trailers / `release_linker` join on.
 
 ---
 

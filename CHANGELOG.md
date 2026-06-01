@@ -17,10 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     single invocation. No prior `library-scan` step is required.
   - `library-scan` is now a **visible alias** of `library-index --mode full`
     (kept in `--help` for backwards compatibility; no longer exposes `--mode`).
-  - **Single `media_item` creator**: `dispatch/media_index.rebuild()` (via
-    `add()`) now produces rich rows through the shared `_item_stage` row builder
-    (`build_item_row`), eliminating the prior `canonical_provider=None`
-    degradation on the dispatch path.
+  - **Single `media_item` creator**: both dispatch write paths now share the
+    `_item_stage` primitives — `rebuild()` (auto-rebuild) delegates to
+    `scan_and_stage_dir` (full rich rows: seasons + issues), and `add()`
+    (per-dispatch) builds via `build_item_row` — eliminating the prior
+    `canonical_provider=None` degradation on the dispatch path.
   - **Kind-deterministic canonical SSOT**: `canonical_provider` is derived from
     kind + provider IDs via `_canonical.derive_canonical_provider` (show → tvdb
     when a tvdb_id exists, movie → tmdb when a tmdb_id exists).
