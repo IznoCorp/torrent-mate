@@ -111,12 +111,12 @@ Index d'exécution dépendance-correct. `RPx` = refacto-prép (voir section déd
 
 | Code | Prio | Type | Quoi (constat code) | Prépare |
 |------|------|------|---------------------|---------|
-| **RP1** | P1 | prérequis | `api/_contracts.py` n'a **pas de `add`** ; `TorrentItem` **sans tags** (`qbittorrent.py:259`). Ajouter adder/categorizer/limiter + tags ; **Transmission asserte `TorrentAdder` au démarrage** (fail-fast). Pin Q4. | Orchestration, Follow, Ratio, Watcher, Trackers |
+| **RP1** | P1 | prérequis | _(vérifié)_ `api/torrent/_contracts.py` expose `pause/resume/delete/get_*/login/is_seeding` mais **aucun `add`** : le client ne sait pas ajouter un torrent. `TorrentItem` a déjà `category` (`_base.py:36`) mais **pas de `tags`**. Ajouter un **protocole d'écriture** (adder/categorizer/limiter) + champ `tags` ; **Transmission asserte `TorrentAdder` au démarrage** (fail-fast). Pin Q4. | Orchestration, Follow, Ratio, Watcher, Trackers |
 | **RP1a** | P1 | prérequis | JWT lacale / apikey c411 peuvent **401 si qBit fetch lui-même**. → PersonalScraper fetch le `.torrent` puis POST le fichier ; exception magnet sans auth. | Follow, Ratio, Orchestration |
 | **RP2** | P1 | parallèle | `TrackerProviderConfig` n'a que `enabled`. Ajouter `RatioPolicy` + `announce_passkey`. **Rayer le non-goal « no new config schema »** des Additional Trackers avant torr9/digitalcore. | Ratio, Trackers, Follow, Orchestration |
 | **RP3** | P1 | parallèle | Pas de persistance d'acquisition. Créer `acquire.db` : `FollowedSeriesRepo` + `SeedObligationRepo` + **`may_remove` autorité unique de suppression**, *fail-open* si absent (ne bloque pas `disk_cleaner`). | Follow, Orchestration, Ratio |
 | **RP4** | P1 | parallèle | Aucun event d'acquisition. Les définir **une fois** (sous-classes de `Event`) + mapping subscriber Telegram. Muet jusqu'aux vagues 4–5. | Orchestration, Freeleech, Watcher, Follow, Ratio, Web UI |
-| **RP5** | P1 | prérequis | `TrackerRegistry` **jamais instancié hors tests** ; AppContext ne le porte pas. Créer `DownloadOrchestrator` + `AcquisitionService` (cœur de grab partagé) ; **absorbe le DI Container**. Gate de l'épopée — Ratio C1 et Follow D3 partagent ce cœur. | Orchestration, Follow, Ratio, Watcher |
+| **RP5** | P1 | prérequis | _(vérifié)_ `TrackerRegistry(` n'apparaît que dans 3 fichiers de tests, **jamais dans `personalscraper/`** ; AppContext ne le porte pas. Créer `DownloadOrchestrator` + `AcquisitionService` (cœur de grab partagé) ; **absorbe le DI Container**. Gate de l'épopée — Ratio C1 et Follow D3 partagent ce cœur. | Orchestration, Follow, Ratio, Watcher |
 | **RP6** | P2 | parallèle | Prédicat « je possède déjà » indéfini. Ajouter `owns_episode` / `owns_movie_at_quality` dans `indexer/query.py` (**pas** `movie_service.py` à 975 LOC). | Follow, Ratio |
 | **RP7** | P2 | parallèle | Tokens courts ; le breaker ignore les 4xx. Re-résoudre l'URL avant `add`, émettre `TrackerAuthFailed`. Avec RP1a le 401 est observable. | Follow, Ratio, Trackers, Active Health |
 | **RP8** | P3 | prérequis | Hot-Swap **et** Active Health veulent **muter l'ordre du chain à chaud** : une seule primitive sûre (drain + swap atomique). | Active Health, Hot-Swap |
@@ -178,7 +178,7 @@ fraîcheur, vélocité du swarm.
 > **Couche partagée** (P2) entre les modules qui téléchargent et le client torrent / le triage.
 > Sans elle, le seed-pur polluerait la médiathèque et les obligations de seed seraient violées.
 
-- **O1 — Tag « seed-pur » + skip** : catégorie/tag qBittorrent dédiée ; **skip à travers
+- **O1 — Tag « seed-pur » + skip** : marquage via le champ `category` existant + nouveau `tags` (RP1) ; **skip à travers
   `ingest`/`sort`/`process`** ET skip Watcher ; **patch du cron 3 h**. Les grabs « contenu
   utile » sont taggés pour ingestion normale. **Garde-fou anti-pollution médiathèque.**
 - **O2 — Obligation de seed / anti-HnR** : politique au-dessus de `may_remove` (RP3) — aucun
