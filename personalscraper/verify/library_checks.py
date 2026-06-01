@@ -21,7 +21,6 @@ Moved from the legacy library validator module during lib-fold Phase 5.
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -36,8 +35,15 @@ from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.nfo_utils import parse_title_year
 from personalscraper.verify.checker import MediaChecker
-from personalscraper.verify.checks.base import CheckContext, CheckResult, CheckStage, Severity
-from personalscraper.verify.checks.registry import apply_fixes
+from personalscraper.verify.checks.base import (
+    CheckContext,
+    CheckResult,
+    CheckStage,
+    IndexableCheck,
+    IndexContext,
+    Severity,
+)
+from personalscraper.verify.checks.registry import apply_fixes, registry
 
 log = get_logger("library.validator")
 
@@ -192,25 +198,19 @@ def validate_from_index(
         errors: list[str] = []
         warnings: list[str] = []
 
-        nfo_status = row["nfo_status"]
-        if nfo_status == "missing":
-            errors.append("nfo_present")
-        elif nfo_status == "invalid":
-            errors.append("nfo_valid")
-        # nfo_status=='valid' or NULL (item never enriched) → no NFO finding;
-        # NULL is not flagged because we cannot distinguish "not yet enriched"
-        # from "no NFO" without re-walking the filesystem.
-
-        artwork_raw = row["artwork_json"]
-        if artwork_raw:
-            try:
-                artwork = json.loads(artwork_raw)
-            except (TypeError, ValueError):
-                artwork = {}
-            if not artwork.get("poster"):
-                errors.append("poster_present")
-            if media_type == "movie" and not artwork.get("landscape"):
-                warnings.append("artwork_landscape")
+        ictx = IndexContext(row=row, media_type=media_type, category=row["category_id"])
+        for check in registry.checks_for(CheckStage.DISPATCH, media_type):
+            if not isinstance(check, IndexableCheck):
+                continue
+            results = check.from_index(row, ictx)
+            if results is None:
+                continue
+            for r in results:
+                if not r.passed:
+                    if r.severity.value == "error":
+                        errors.append(r.name)
+                    else:
+                        warnings.append(r.name)
 
         if errors or warnings:
             status = "issues"
