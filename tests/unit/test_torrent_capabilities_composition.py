@@ -110,3 +110,13 @@ def test_qbit_client_is_torrent_adder() -> None:
 def test_qbit_client_is_torrent_limiter() -> None:
     """``QBitClient`` satisfies :class:`TorrentLimiter`."""
     assert isinstance(_qbit(), TorrentLimiter)
+
+
+def test_transmission_client_is_torrent_adder() -> None:
+    """TransmissionClient satisfies TorrentAdder."""
+    assert isinstance(_transmission(), TorrentAdder)
+
+
+def test_transmission_client_not_torrent_limiter() -> None:
+    """TransmissionClient does NOT satisfy TorrentLimiter (D2)."""
+    assert not isinstance(_transmission(), TorrentLimiter)
