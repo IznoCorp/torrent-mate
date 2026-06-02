@@ -56,6 +56,37 @@ def test_dir_naming_fix_dry_run_no_rename(tmp_path):
     assert "Good Movie (2000)" in actions[0].description
 
 
+def test_dir_naming_fix_target_exists_no_rename(tmp_path):
+    """DirNaming.fix() is a no-op when the canonical target dir already exists.
+
+    Both the malformed source dir and the pre-existing collision target must be
+    left untouched (no rename, no overwrite).
+    """
+    from personalscraper.verify.checks.naming import DirNaming
+
+    d = tmp_path / "Bad Name"
+    d.mkdir()
+    root = ET.Element("movie")
+    ET.SubElement(root, "title").text = "Good Movie"
+    ET.SubElement(root, "year").text = "2000"
+    ET.ElementTree(root).write(d / "Good Movie.nfo", encoding="unicode")
+    # Pre-existing sibling occupying the canonical target name.
+    target = tmp_path / "Good Movie (2000)"
+    target.mkdir()
+    (target / "sentinel.txt").write_text("keep")
+
+    ctx = _ctx(d)
+    actions = DirNaming().fix(ctx)
+
+    assert actions == []
+    # Source dir untouched (not renamed away).
+    assert d.is_dir()
+    assert (d / "Good Movie.nfo").exists()
+    # Pre-existing target untouched (not overwritten).
+    assert target.is_dir()
+    assert (target / "sentinel.txt").read_text() == "keep"
+
+
 def test_no_empty_dirs_fix_removes_empty(tmp_path):
     """NoEmptyDirs.fix() removes empty subdirectories."""
     from personalscraper.verify.checks.structure import NoEmptyDirs
