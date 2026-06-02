@@ -63,11 +63,49 @@ def _build_app_context(config: "Config", settings: "Settings") -> AppContext:
         cb_policy=cb_policy,
         providers_config=config.providers,
     )
+
+    # D3/D9: Boot-wire the torrent client when configured; fail-fast if
+    # incapable.  No client configured (torrent.active="") → None, no error.
+    torrent_client = None
+    if config.torrent.active:
+        from personalscraper.api.metadata.registry import (  # noqa: PLC0415
+            ConfigIssue,
+            RegistryProviderName,
+        )
+        from personalscraper.api.metadata.registry._errors import (  # noqa: PLC0415
+            RegistryConfigError,
+        )
+        from personalscraper.api.torrent._contracts import (  # noqa: PLC0415
+            TorrentAdder,
+        )
+        from personalscraper.api.torrent._factory import (  # noqa: PLC0415
+            build_active_torrent_client,
+        )
+
+        raw_client = build_active_torrent_client(config.torrent)
+        if not isinstance(raw_client, TorrentAdder):
+            raise RegistryConfigError(
+                [
+                    ConfigIssue(
+                        code="protocol_mismatch",
+                        section="torrent",
+                        provider=RegistryProviderName(config.torrent.active),
+                        message=(
+                            f"Active torrent client {config.torrent.active!r} "
+                            "does not compose TorrentAdder. Verify the client "
+                            "implementation or configuration."
+                        ),
+                    )
+                ]
+            )
+        torrent_client = raw_client
+
     return AppContext(
         config=config,
         settings=settings,
         event_bus=event_bus,
         provider_registry=provider_registry,
+        torrent_client=torrent_client,
     )
 
 
