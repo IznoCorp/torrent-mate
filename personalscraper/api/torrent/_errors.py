@@ -1,5 +1,4 @@
-"""Transport-class exception tuples and the capability-gap signal for
-torrent-client consumers.
+"""Transport-class exception tuples and the capability-gap signal for torrent consumers.
 
 Centralised here so the commands layer (``personalscraper/commands/pipeline.py``)
 and any future consumer can ``except TORRENT_CONNECT_ERRORS`` without
