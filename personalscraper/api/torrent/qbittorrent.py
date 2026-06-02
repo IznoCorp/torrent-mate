@@ -184,8 +184,14 @@ class QBitClient(
         """Add a torrent to qBittorrent (D1/D6/D7/D8).
 
         Applies category, tags, paused state, and limits inline in one
-        torrents_add call. Duplicate adds return the existing info_hash
-        (idempotent, D7). 401/403 surfaces as ApiError (observable).
+        torrents_add call. A duplicate add raises ``Conflict409Error``, which
+        is mapped to idempotent success returning the existing info_hash (D7).
+        The ``torrents_add`` return value is inspected: ``"Ok."`` is success;
+        any other value (notably ``"Fails."`` — a generic failure such as a
+        bad magnet, disk full, or bad save path) raises ``ApiError`` so the
+        failure is observable rather than a silent fake-success (D8). 401/403
+        and corrupt-payload (415 / torrent-file) errors also surface as
+        ApiError.
 
         D10: qBit uses its own default save path; no savepath arg needed.
 
@@ -201,21 +207,26 @@ class QBitClient(
             info_hash of the added (or already-present) torrent.
 
         Raises:
-            ApiError: qBittorrent returns 401 or 403.
+            ApiError: qBittorrent returns 401/403, a corrupt-payload error
+                (415 / torrent-file), or a non-``"Ok."`` result (e.g.
+                ``"Fails."``).
         """
+        kwargs: dict[str, object] = {
+            "category": category,
+            "tags": list(tags),
+            "is_paused": paused,
+            **_limit_kwargs(limits),
+        }
+        if source.magnet is not None:
+            kwargs["urls"] = source.magnet
+        else:
+            kwargs["torrent_files"] = source.file_bytes
         try:
-            kwargs: dict[str, object] = {
-                "category": category,
-                "tags": list(tags),
-                "is_paused": paused,
-                **_limit_kwargs(limits),
-            }
-            if source.magnet is not None:
-                kwargs["urls"] = source.magnet
-            else:
-                kwargs["torrent_files"] = source.file_bytes
-            self._client.torrents_add(**kwargs)  # type: ignore[arg-type,type-var]
-            # "Ok" = success, "Fails." = duplicate → both are idempotent success (D7)
+            result = self._client.torrents_add(**kwargs)  # type: ignore[arg-type,type-var]
+        except qbittorrentapi.Conflict409Error:
+            # The torrent is already present — qBit signals a duplicate by
+            # raising 409. This is the real D7 path: idempotent success.
+            log.debug("qbit_add_duplicate", info_hash=source.info_hash)
             return source.info_hash
         except qbittorrentapi.Forbidden403Error as exc:
             raise ApiError(
@@ -229,6 +240,32 @@ class QBitClient(
                 http_status=401,
                 message=f"qBittorrent add unauthorized: {exc}",
             ) from exc
+        except qbittorrentapi.UnsupportedMediaType415Error as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=415,
+                message=f"qBittorrent rejected corrupt torrent payload: {exc}",
+            ) from exc
+        except qbittorrentapi.TorrentFileError as exc:
+            # TorrentFileError is the base of the torrent-file family
+            # (TorrentFileNotFoundError / TorrentFilePermissionError) — a
+            # corrupt or unreadable .torrent must be observable (D8).
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=0,
+                message=f"qBittorrent could not read torrent file: {exc}",
+            ) from exc
+        # qBit returns the string "Ok." on success and "Fails." on a generic
+        # failure. Treat only an "Ok." result as success (case/period-tolerant);
+        # any other value (notably "Fails.") raises so we never report a
+        # silent fake-success (D8).
+        if str(result).strip().rstrip(".").lower() == "ok":
+            return source.info_hash
+        raise ApiError(
+            provider=ProviderName.QBITTORRENT,
+            http_status=0,
+            message=f"qBittorrent add failed (result={result!r})",
+        )
 
     def apply_limits(self, info_hash: str, limits: TorrentLimits) -> None:
         """Apply transfer limits to an existing torrent (D2/§5.4).

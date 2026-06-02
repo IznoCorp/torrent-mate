@@ -68,11 +68,50 @@ def test_add_returns_info_hash() -> None:
 
 
 def test_add_idempotent_on_duplicate() -> None:
-    """``add()`` on duplicate returns info_hash without exception (D7)."""
+    """``add()`` on duplicate returns info_hash without exception (D7).
+
+    The library raises ``Conflict409Error`` when the torrent is already
+    present — this is the real duplicate signal, mapped to idempotent success.
+    """
     c = _c()
-    c._client.torrents_add.return_value = "Fails."
+    c._client.torrents_add.side_effect = qbittorrentapi.Conflict409Error("already added")
     src = TorrentSource.from_magnet(MAGNET)
     assert c.add(src) == src.info_hash  # no exception, returns hash (D7)
+
+
+def test_add_fails_string_raises() -> None:
+    """``add()`` raises ``ApiError`` when ``torrents_add`` returns ``"Fails."`` (D8).
+
+    ``"Fails."`` is a generic failure (bad magnet, disk full, bad save path),
+    NOT a duplicate — it must surface as an observable error, never a silent
+    fake-success.
+    """
+    c = _c()
+    c._client.torrents_add.return_value = "Fails."
+    with pytest.raises(ApiError):
+        c.add(TorrentSource.from_magnet(MAGNET))
+
+
+def test_add_corrupt_payload_raises() -> None:
+    """``add()`` raises ``ApiError`` on a corrupt ``.torrent`` payload (D8).
+
+    The library raises ``UnsupportedMediaType415Error`` (and the
+    ``TorrentFileError`` family) for malformed torrent files — the failure
+    must be observable rather than silently swallowed.
+    """
+    c = _c()
+    c._client.torrents_add.side_effect = qbittorrentapi.UnsupportedMediaType415Error("corrupt")
+    with pytest.raises(ApiError) as ei:
+        c.add(TorrentSource.from_magnet(MAGNET))
+    assert ei.value.http_status == 415
+
+
+def test_add_torrent_file_error_raises() -> None:
+    """``add()`` raises ``ApiError`` on a ``TorrentFileError`` (D8)."""
+    c = _c()
+    c._client.torrents_add.side_effect = qbittorrentapi.TorrentFileNotFoundError("missing")
+    with pytest.raises(ApiError):
+        c.add(TorrentSource.from_magnet(MAGNET))
 
 
 def test_add_with_limits_sets_ratio_and_upload() -> None:
