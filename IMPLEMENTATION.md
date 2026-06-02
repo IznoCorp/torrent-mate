@@ -15,7 +15,7 @@
 | #   | Phase                                                                      | File                              | Status |
 | --- | -------------------------------------------------------------------------- | --------------------------------- | ------ |
 | 1   | `TorrentSource` + `TorrentLimits` value objects                            | phase-01-value-objects.md         | [x]    |
-| 2   | `TorrentAdder` + `TorrentLimiter` Protocols + `UnsupportedCapabilityError` | phase-02-protocols.md             | [ ]    |
+| 2   | `TorrentAdder` + `TorrentLimiter` Protocols + `UnsupportedCapabilityError` | phase-02-protocols.md             | [x]    |
 | 3   | `TorrentItem.tags` field + mapper updates (qBit CSV + Transmission D5)     | phase-03-torrentitem-tags.md      | [ ]    |
 | 4   | `QBitClient.add()` + `_limit_kwargs()`                                     | phase-04-qbit-add.md              | [ ]    |
 | 5   | `QBitClient.apply_limits()` + composition assertions                       | phase-05-qbit-apply-limits.md     | [ ]    |
@@ -32,4 +32,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phase 1 complete (commit 9be4c0ac). Next: Phase 2 — Protocols + `UnsupportedCapabilityError`.
+Phases 1–2 complete. Next: Phase 3 — `TorrentItem.tags` field + mapper updates.
