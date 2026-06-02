@@ -3,8 +3,9 @@
 Wraps qbittorrentapi.Client with anti-ban protection (lockout file, pre-check)
 and maps qBit API responses to TorrentItem dataclasses. Composes
 :class:`TorrentLister`, :class:`TorrentInspector`, :class:`AuthenticatedClient`,
-:class:`TorrentStateInspector` and :class:`TorrentController` from
-:mod:`personalscraper.api.torrent._contracts` (DESIGN §4 — phase 13).
+:class:`TorrentStateInspector`, :class:`TorrentController`, :class:`TorrentAdder`
+and :class:`TorrentLimiter` from
+:mod:`personalscraper.api.torrent._contracts` (DESIGN §4 — phase 13, D1/D2/D8).
 
 Provider-specific exceptions (QBitAuthLockoutError, LoginFailed, Forbidden403Error,
 APIConnectionError) are preserved — they carry actionable user guidance in the
@@ -14,7 +15,7 @@ ingest step. This is the allowed escape hatch documented in _base.py.
 from __future__ import annotations
 
 import time
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import ClassVar
@@ -23,11 +24,13 @@ import qbittorrentapi
 import requests
 
 from personalscraper.api._contracts import ApiError, ProviderName
-from personalscraper.api.torrent._base import TorrentItem
+from personalscraper.api.torrent._base import TorrentItem, TorrentLimits, TorrentSource
 from personalscraper.api.torrent._contracts import (
     AuthenticatedClient,
+    TorrentAdder,
     TorrentController,
     TorrentInspector,
+    TorrentLimiter,
     TorrentLister,
     TorrentStateInspector,
 )
@@ -50,13 +53,16 @@ class QBitClient(
     AuthenticatedClient,
     TorrentStateInspector,
     TorrentController,
+    TorrentAdder,
+    TorrentLimiter,
 ):
     """qBittorrent client wrapping qbittorrentapi.Client.
 
     Composes the full set of atomic torrent capabilities
     (:class:`TorrentLister`, :class:`TorrentInspector`,
     :class:`AuthenticatedClient`, :class:`TorrentStateInspector`,
-    :class:`TorrentController`). Login is handled by :func:`build_client` —
+    :class:`TorrentController`, :class:`TorrentAdder`,
+    :class:`TorrentLimiter`). Login is handled by :func:`build_client` —
     this class assumes an already-authenticated underlying client.
     """
 
@@ -165,6 +171,73 @@ class QBitClient(
             delete_files: If True, also delete the downloaded files.
         """
         self._client.torrents_delete(torrent_hashes=hash, delete_files=delete_files)
+
+    def add(
+        self,
+        source: TorrentSource,
+        *,
+        category: str | None = None,
+        tags: Sequence[str] = (),
+        paused: bool = False,
+        limits: TorrentLimits | None = None,
+    ) -> str:
+        """Add a torrent to qBittorrent (D1/D6/D7/D8).
+
+        Applies category, tags, paused state, and limits inline in one
+        torrents_add call. Duplicate adds return the existing info_hash
+        (idempotent, D7). 401/403 surfaces as ApiError (observable).
+
+        D10: qBit uses its own default save path; no savepath arg needed.
+
+        Args:
+            source: TorrentSource — magnet or file bytes.
+            category: Category label.
+            tags: Tag strings.
+            paused: Add in paused state if True.
+            limits: Optional transfer limits applied inline (D8 — qBit
+                composes TorrentLimiter, so limits are always honored).
+
+        Returns:
+            info_hash of the added (or already-present) torrent.
+
+        Raises:
+            ApiError: qBittorrent returns 401 or 403.
+        """
+        try:
+            kwargs: dict[str, object] = {
+                "category": category,
+                "tags": list(tags),
+                "is_paused": paused,
+                **_limit_kwargs(limits),
+            }
+            if source.magnet is not None:
+                kwargs["urls"] = source.magnet
+            else:
+                kwargs["torrent_files"] = source.file_bytes
+            self._client.torrents_add(**kwargs)  # type: ignore[arg-type,type-var]
+            # "Ok" = success, "Fails." = duplicate → both are idempotent success (D7)
+            return source.info_hash
+        except qbittorrentapi.Forbidden403Error as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=403,
+                message=f"qBittorrent add forbidden: {exc}",
+            ) from exc
+        except qbittorrentapi.LoginFailed as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=401,
+                message=f"qBittorrent add unauthorized: {exc}",
+            ) from exc
+
+    def apply_limits(self, info_hash: str, limits: TorrentLimits) -> None:
+        """Apply transfer limits to an existing torrent (Phase 05 — D2).
+
+        Stub: full implementation with torrents_set_share_limits /
+        torrents_set_upload_limit / torrents_set_download_limit in Phase 05.
+        """
+        # No-op stub — mypy concrete-body requirement. Phase 05 implementation
+        # will replace this with the real torrents_set_* calls.
 
     # -- Auth ----------------------------------------------------------------
 
@@ -318,3 +391,29 @@ def _set_lockout(reason: str) -> None:
             hint="Cannot enforce auth lockout — credentials may keep retrying. Check filesystem permissions on "
             f"{_LOCKOUT_FILE.parent}.",
         )
+
+
+def _limit_kwargs(limits: TorrentLimits | None) -> dict[str, object]:
+    """Build qBittorrent limit kwargs from a TorrentLimits instance.
+
+    Only non-None fields are included to avoid overwriting client defaults
+    with zeros.
+
+    Args:
+        limits: TorrentLimits or None.
+
+    Returns:
+        Dict of torrents_add kwargs for limits; empty if limits is None.
+    """
+    if limits is None:
+        return {}
+    out: dict[str, object] = {}
+    if limits.ratio is not None:
+        out["ratio_limit"] = limits.ratio
+    if limits.seed_time_minutes is not None:
+        out["seeding_time_limit"] = limits.seed_time_minutes * 60
+    if limits.up_bytes_per_s is not None:
+        out["upload_limit"] = limits.up_bytes_per_s
+    if limits.down_bytes_per_s is not None:
+        out["download_limit"] = limits.down_bytes_per_s
+    return out
