@@ -36,6 +36,16 @@ import requests
 from personalscraper.api._contracts import ApiError
 from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError
 
+
+class UnsupportedCapabilityError(Exception):
+    """Raised when a capability unsupported by the client is requested (D8).
+
+    Raised by TransmissionClient.add() when limits is not None — Transmission
+    has no ratio/bandwidth/seedtime limit fields. Gate via
+    isinstance(client, TorrentLimiter) before passing limits.
+    """
+
+
 TORRENT_CONNECT_ERRORS: tuple[type[BaseException], ...] = (
     QBitAuthLockoutError,
     ApiError,
@@ -54,4 +64,4 @@ TORRENT_LISTING_ERRORS: tuple[type[BaseException], ...] = (
 )
 
 
-__all__ = ["TORRENT_CONNECT_ERRORS", "TORRENT_LISTING_ERRORS"]
+__all__ = ["TORRENT_CONNECT_ERRORS", "TORRENT_LISTING_ERRORS", "UnsupportedCapabilityError"]

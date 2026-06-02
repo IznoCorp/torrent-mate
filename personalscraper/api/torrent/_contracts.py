@@ -39,10 +39,11 @@ their dependency via the atomic protocols they actually consume.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from personalscraper.api.torrent._base import TorrentItem
+from personalscraper.api.torrent._base import TorrentItem, TorrentLimits, TorrentSource
 
 
 @runtime_checkable
@@ -119,10 +120,64 @@ class TorrentController(Protocol):
     def delete(self, hash: str, *, delete_files: bool = False) -> None: ...
 
 
+@runtime_checkable
+class TorrentAdder(Protocol):
+    """Capability — add a torrent to the client (D1/§5.2).
+
+    Composed by QBitClient and TransmissionClient. Returns info_hash (D6).
+    Duplicate adds are idempotent (D7). Passing limits to a client without
+    TorrentLimiter must raise UnsupportedCapabilityError (D8).
+    """
+
+    def add(
+        self,
+        source: TorrentSource,
+        *,
+        category: str | None = None,
+        tags: Sequence[str] = (),
+        paused: bool = False,
+        limits: TorrentLimits | None = None,
+    ) -> str:
+        """Add a torrent from a source.
+
+        Args:
+            source: Discriminated value object — magnet or file bytes.
+            category: Category label.
+            tags: Tag strings.
+            paused: Add in paused state if True.
+            limits: Transfer limits; raise UnsupportedCapabilityError if
+                client lacks TorrentLimiter and limits is not None (D8).
+
+        Returns:
+            info_hash string of the added torrent.
+        """
+        ...
+
+
+@runtime_checkable
+class TorrentLimiter(Protocol):
+    """Capability — apply transfer limits to an existing torrent (D2/§5.2).
+
+    Composed by QBitClient only. Callers gate via
+    isinstance(client, TorrentLimiter) before calling apply_limits.
+    """
+
+    def apply_limits(self, info_hash: str, limits: TorrentLimits) -> None:
+        """Apply transfer limits to the torrent.
+
+        Args:
+            info_hash: Lowercase hex info_hash of the target torrent.
+            limits: Limits to apply; None fields are no-ops.
+        """
+        ...
+
+
 __all__ = [
-    "TorrentLister",
-    "TorrentInspector",
     "AuthenticatedClient",
-    "TorrentStateInspector",
+    "TorrentAdder",
     "TorrentController",
+    "TorrentInspector",
+    "TorrentLimiter",
+    "TorrentLister",
+    "TorrentStateInspector",
 ]
