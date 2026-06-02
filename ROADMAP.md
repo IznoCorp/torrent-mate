@@ -33,6 +33,34 @@ d'acquisition** (RP3) et d'un **catalogue d'events** (RP4). On pose ces fondatio
 
 ---
 
+## 🏛 Architecture cible (intention)
+
+> Vers quoi la roadmap **converge**. Niveau intention — **pas un design**. Chaque item sert cette
+> cible plutôt que de s'empiler. (Issu de la revue d'archi multi-agents, 2026-06-02.)
+
+- **Un lobe `acquire/` de premier niveau** — package pair de `ingest`/`sort`/`dispatch`/`indexer`,
+  home de l'orchestrateur, du service d'acquisition, de Follow, Ratio, Seed-Safety et du Watcher.
+  Il dépend **vers le bas** des ports `api/` (tracker, torrent, transport) + de son store
+  `acquire.db`, et **n'importe jamais** les packages de triage.
+- **Un seul seam triage ↔ acquisition** — tout le contact se réduit au **tag seed-pur /
+  contenu-utile** (champ `tags`, RP1) : l'acquisition l'écrit, le triage le lit et skippe, le
+  Watcher (qui remplace le cron 3 h) consomme le même contrat. Aucun autre couplage.
+- **State partitionné, autorités uniques** — `library.db` reste l'autorité **single-writer** du
+  *possédé* (lue en SELECT-only à travers la frontière par le prédicat d'ownership, RP6) ;
+  `acquire.db` possède le *désiré / obligation* sous sa propre discipline single-writer. **Une
+  seule** autorité d'espace libre, lue par dispatch (owner de fait), maintenance et l'arbitre O3.
+- **Composition root unique** — un seul site de construction du contexte applicatif, étendu d'**une**
+  poignée d'acquisition (+ le registre de trackers), jamais N champs (sinon le contexte gelé dérive
+  en service-locator).
+- **Contrôle direct, EventBus observe-only** — l'acquisition s'orchestre en appels directs
+  top-down ; l'EventBus porte **un** catalogue d'events que SUPERVISE (Telegram + read-models
+  Web UI) consomme ; les actions d'écriture Web UI passent par la **même autorité de déclenchement**
+  (lock pipeline) que le Watcher.
+- **Direction d'import garantie** — le garde-fou de layering est étendu pour imposer que `acquire/`
+  dépende vers le bas, jamais l'inverse (RP-layer).
+
+---
+
 ## 🧊 Décisions gelées (brainstorm 2026-06-01)
 
 | # | Décision | Choix retenu |
@@ -58,10 +86,13 @@ Index d'exécution dépendance-correct. `RPx` = refacto-prép (voir section déd
 - **Name-keyed matching E1** `[P2]` — rattrapage par nom quand le numéro d'épisode est absent (mode 1) + flag non bloquant si nom/numéro divergent franchement, le numéro restant la clé (mode 2). Léger, dans le triage.
 - **architecture.md Multi-Filesystem cleanup** `[P3, doc]` — pointeur mort (shippé).
 
-### Vague 2 — Persistance / events + câblage DI + shell de supervision + P2 indépendants
-- **RP3** `[P1, parallèle]` — store d'acquisition (séries suivies + obligations de seed) + autorité unique de suppression (*fail-open*).
-- **RP4** `[P1, parallèle]` — catalogue d'events d'acquisition + subscriber Telegram (muet jusqu'aux vagues 4–5).
-- **RP5a** `[P1, prérequis]` — câbler le registre de trackers dans le contexte applicatif runtime (absorbe le besoin de conteneur d'injection).
+### Vague 2 — Persistance / events + composition root + package `acquire/` + shell de supervision
+- **RP3** `[P1, parallèle]` — store `acquire.db` (séparé de `library.db`) : suivies + `wanted` + obligations + état ratio ; single-writer partitionné ; autorité de suppression *fail-open* (qui décide vs qui exécute).
+- **RP3a** `[P2, prérequis]` — modèle de domaine **« item désiré »** partagé (Follow/Ratio/Renouvellement/E2), contrat d'entrée de l'orchestrateur. Vit dans `acquire/`.
+- **RP4** `[P1, parallèle]` — catalogue d'events d'acquisition + subscriber Telegram (muet) ; **enregistrer le module producteur dans le hub eager-import**.
+- **RP5a** `[P1, prérequis]` — câbler le registre de trackers dans le composition root + **factory config-driven + validation au boot** à parité avec metadata.
+- **RP5c** `[P1, prérequis]` — package **`acquire/`** de premier niveau (home orchestrateur/Follow/Ratio/Seed-Safety/Watcher) + **une seule poignée** au composition root.
+- **RP-layer** `[P2, parallèle]` — étendre le garde-fou de layering pour la direction d'import de `acquire/`.
 - **Web UI S1** `[P2]` — shell + auth + WebSocket + container headless.
 - **Verify V1** `[P2]` — registre de checks + 2 protocoles (check pré-dispatch sur chemin + check de lignes médiathèque).
 - **Additional Trackers — spike** `[P2]` — étude d'API (Q3), dépend de RP2 seulement.
@@ -80,11 +111,11 @@ Index d'exécution dépendance-correct. `RPx` = refacto-prép (voir section déd
 - **Follow D1** `[P2]` — store + CRUD de la liste suivie.
 - **Follow D2** `[P2]` — détection calendrier-d'abord (RP9) + file `wanted` + cadence backoff + ownership (RP6).
 - **Follow D3** `[P2]` — grab via le cœur partagé (RP5b) : dédup cross-tracker + re-résolution URL (RP7) + fetch (RP1a) + tag « contenu utile » (O1).
-- **Watcher Service** `[P2]` — remplace le cron ; **décommission du cron 3 h dans le même changement** (pas de double-ingestion) ; consomme le contrat de skip seed-pur d'O1.
+- **Watcher Service** `[P2]` — remplace le cron ; **décommission du cron 3 h dans le même changement** (pas de double-ingestion) ; consomme le contrat de skip seed-pur d'O1 ; **autorité de déclenchement unique** (lock pipeline) — Watcher, cron-remplacement et actions Web UI ne sont pas des writers parallèles.
 
 ### Vague 5 — Politique ratio + reste de l'orchestration
 - **Ratio C1** `[P3]` — mesure par tracker (Q2 : API→fallback qBit, lit le plafond par tracker de RP2) + boucle de grab vers la cible.
-- **Seed Safety O3** `[P2]` — arbitre de budget disque global (**précédence : le vrai média gagne**). Précède C2.
+- **Seed Safety O3** `[P2]` — arbitre de budget disque global (**précédence : le vrai média gagne**). **Une seule** autorité d'espace libre lue par dispatch (owner de fait) / maintenance / O3 — pas trois calculs. Précède C2.
 - **Ratio C2** `[P3]` — rotation/LRU (respecte O2, bornée par O3).
 - **Ratio C3** `[P3]` — mode hybride « contenu utile » (taggé via O1).
 - **Seed Safety O4** `[P2]` — events + caps de bande passante (par torrent **et** global).
@@ -95,8 +126,8 @@ Index d'exécution dépendance-correct. `RPx` = refacto-prép (voir section déd
 ### Vague 6 — Surfaces de supervision sur l'acquisition désormais vivante
 - **Web UI S2** `[P2]` — pipeline control + logs + history.
 - **Web UI S3** `[P2]` — maintenance dashboard.
-- **Web UI S4** `[P2]` — éditeur de config.
-- **Web UI S5** `[P2]` — scraping interactif.
+- **Web UI S4** `[P2]` — éditeur de config. ⚠️ « reload sûr » dépend d'un reload qui n'existe que pour la config providers (RP8, vague 7) : soit borner S4 à ce périmètre, soit anticiper un seam de reload plus large.
+- **Web UI S5** `[P2]` — scraping interactif. ⚠️ requiert un seam **pause/reprise-sur-décision-humaine** que le pipeline batch n'a pas — à anticiper comme prérequis structurel.
 - **Web UI S6** `[P2]` — registry + health (**fusionne Registry Consumer**) ; inclut **S6.0 — geler le statut registry en additif-only AVANT d'exposer le panneau**.
 - **Web UI S7** `[P2]` — pages acquisition/watcher (sur les events RP4).
 - **Verify V3** `[P2]` — panneau Web UI par check (sur V1).
@@ -113,7 +144,7 @@ Index d'exécution dépendance-correct. `RPx` = refacto-prép (voir section déd
 
 ---
 
-## 🧱 Refacto-prep (RP1–RP9)
+## 🧱 Refacto-prep (préparation du terrain)
 
 > Nouvelles features de **préparation du terrain**, motivées par des manques **constatés** dans le
 > code (indices datés, à re-vérifier). On les pose avant les features d'acquisition pour ne pas
@@ -124,14 +155,17 @@ Index d'exécution dépendance-correct. `RPx` = refacto-prép (voir section déd
 | **RP1** | P1 | prérequis | Le client torrent sait piloter un torrent existant (pause/reprise/suppression, état de seed) mais **ne sait pas en AJOUTER un**. Le modèle d'item porte déjà une catégorie mais **pas de tags**. Ajouter un **protocole d'écriture** (ajout + catégorisation + limites) + un champ tags ; le client Transmission doit **refuser de démarrer s'il ne sait pas ajouter** (fail-fast). Pin Q4. | Orchestration, Follow, Ratio, Watcher, Trackers |
 | **RP1a** | P1 | prérequis | Certains trackers exigent une auth pour récupérer le `.torrent` → si qBittorrent le fetch lui-même il peut se prendre un 401. PersonalScraper fetch le `.torrent` (auth gérée) puis POST le fichier ; **exception magnet** (lien sans auth). | Follow, Ratio, Orchestration |
 | **RP2** | P1 | parallèle | La config par tracker ne porte aujourd'hui que l'**activation**. Lui ajouter l'**économie par tracker** (politique de ratio + secret d'annonce/passkey) **avant torr9/digitalcore**. Le non-goal « no new config schema » des Additional Trackers est **rayé**. | Ratio, Trackers, Follow, Orchestration |
-| **RP3** | P1 | parallèle | Pas de persistance d'acquisition aujourd'hui. Créer un **store dédié** (`acquire.db`) : séries suivies + obligations de seed + **autorité UNIQUE de décision de suppression**, en **fail-open** (si le store manque, ne bloque jamais le nettoyage disque). | Follow, Orchestration, Ratio |
-| **RP4** | P1 | parallèle | Aucun event d'acquisition aujourd'hui. Les définir **une fois** (catalogue unique) + un subscriber Telegram, muet jusqu'aux vagues 4–5. | Orchestration, Freeleech, Watcher, Follow, Ratio, Web UI |
-| **RP5a** | P1 | prérequis | Le registre de trackers existe mais **n'est pas câblé dans le contexte applicatif runtime**. Le câbler ; **absorbe le besoin de conteneur d'injection** (le contexte doit porter le registre). Prérequis de RP5b. | RP5b, Follow, Ratio, Watcher |
-| **RP5b** | P1 | prérequis | Pas de **cœur de grab partagé**. Créer un **orchestrateur de téléchargement + service d'acquisition** au-dessus de RP5a. **Gate de l'épopée** — Ratio C1 et Follow D3 partagent ce cœur. Contient l'étage **dédup cross-tracker pré-ranking** (c'est le job de l'orchestrateur ; D3 ne fait qu'y référer). | Orchestration, Follow, Ratio, Watcher |
+| **RP3** | P1 | parallèle | Pas de persistance d'acquisition aujourd'hui. Créer un **store dédié** (`acquire.db`, **fichier séparé de `library.db`**) : séries suivies + file `wanted` + obligations de seed + état ratio. Entre dans le **modèle de State-ownership** (single-writer), **autorité d'écriture partitionnée** (follow / seed-safety / ratio). L'**autorité UNIQUE de suppression** est définie vs les deleters FS existants (maintenance/disk_cleaner) et l'arbitre O3 — **qui décide vs qui exécute** — en **fail-open** (store absent → ne bloque jamais le nettoyage). | Follow, Orchestration, Ratio |
+| **RP3a** | P2 | prérequis | Nommer **une fois** le **modèle de domaine partagé « item désiré »** (épisode/film/release + profil qualité + critères de source ; série suivie ; entrée `wanted` ; obligation de seed), réutilisé par Follow, Ratio, Renouvellement et E2, et consommé comme **contrat d'entrée de l'orchestrateur** (RP5b). Évite que chaque feature réinvente « la chose que je veux » (même piège que les events épars). Vit dans `acquire/`. Vocabulaire partagé, pas de schéma. | Follow, Ratio, Renouvellement, E2 |
+| **RP4** | P1 | parallèle | Aucun event d'acquisition aujourd'hui. Les définir **une fois** (catalogue unique) + un subscriber Telegram, muet jusqu'aux vagues 4–5. ⚠️ Le module producteur doit être **enregistré dans le hub eager-import des events** (+ compteur de catalogue), sinon le round-trip d'enveloppe drope silencieusement les events cross-process / Web UI (casse S7 + Telegram). | Orchestration, Freeleech, Watcher, Follow, Ratio, Web UI |
+| **RP5a** | P1 | prérequis | Le registre de trackers existe mais **n'est pas câblé dans le contexte applicatif runtime**. Le câbler ; **absorbe le besoin de conteneur d'injection** (le contexte porte le registre). ⚠️ Câbler exige aussi une **construction pilotée par config + validation au boot à parité** avec le registre metadata (aujourd'hui le constructeur prend un dict pré-bâti ; ni factory ni validation côté tracker) — pour éviter une 2e voie divergente. Prérequis de RP5b. | RP5b, Follow, Ratio, Watcher |
+| **RP5b** | P1 | prérequis | Pas de **cœur de grab partagé**. Créer un **orchestrateur de téléchargement + service d'acquisition** au-dessus de RP5a, **dans le package `acquire/`** (RP5c). **Gate de l'épopée** — Ratio C1 et Follow D3 partagent ce cœur. Contient l'étage **dédup cross-tracker pré-ranking** (c'est le job de l'orchestrateur ; D3 ne fait qu'y référer). | Orchestration, Follow, Ratio, Watcher |
+| **RP5c** | P1 | prérequis | **Donner un home + un seam d'injection au lobe acquisition** : un package **`acquire/` de premier niveau** (pair de ingest/sort/dispatch/indexer) hébergeant orchestrateur, service d'acquisition, Follow, Ratio, Seed-Safety, Watcher ; dépend des ports `api/` + `acquire.db`, **jamais** du triage. Injecté au composition root unique via **une seule poignée** (pas N champs → l'AppContext gelé ne dérive pas en service-locator). Étend RP5a au-delà du seul registre. Intention, pas de layout de classes. | Orchestration, Follow, Ratio, Seed-Safety, Watcher |
 | **RP6** | P2 | parallèle | Prédicat « je possède déjà » indéfini. L'ajouter dans la **couche de requête de l'indexer** (PAS dans le service films, déjà trop gros — voir Tech-Debt Round 2). | Follow, Ratio |
 | **RP7** | P2 | parallèle | Jetons d'auth à durée courte ; le circuit breaker ne réagit pas aux 4xx. **Re-résoudre l'URL juste avant l'ajout** du torrent, et émettre un **event d'échec d'auth tracker**. Avec RP1a le 401 est observable. | Follow, Ratio, Trackers, Active Health |
 | **RP8** | P3 | prérequis | Hot-Swap **et** Active Health veulent **muter l'ordre du chain à chaud** : une seule **primitive sûre** (drain + swap atomique). | Active Health, Hot-Swap |
 | **RP9** | P2 | prérequis | Aujourd'hui le fetch d'épisodes se fait **série par série** ; un **poll des dates de diffusion sur un ENSEMBLE** de séries est une capacité neuve à ajouter. Résoudre Q1 d'abord. | Follow |
+| **RP-layer** | P2 | parallèle | Quand `acquire/` atterrit, **étendre le garde-fou de layering** pour imposer sa direction d'import : `acquire/` → bas (`api`/`core`/`conf` + `acquire.db`), **jamais** l'inverse ; le pipeline le compose, lui n'importe pas le pipeline. (Au passage, l'énumération actuelle omet `insights`/`maintenance`/`enforce`/`process`.) Énoncer l'invariant, pas le test. | acquire/ (tout le lobe) |
 
 ---
 
@@ -198,7 +232,9 @@ fraîcheur, vélocité du swarm.
   — aucun module ne supprime/arrête un torrent avant le seedtime mini du tracker (évite les pénalités HnR).
 - **O3 — Arbitre de budget disque global** : applique les quotas (dont le plafond par tracker de
   C1) ; **précédence : le dispatch du vrai média gagne toujours**, l'arbitre ne réserve que
-  l'espace non réclamé ; une seule vue partagée de l'espace libre. Relié au sous-système de maintenance.
+  l'espace non réclamé ; **une seule autorité d'espace libre** que dispatch (**owner de fait
+  aujourd'hui**), maintenance et l'arbitre lisent — l'arbitre ne duplique pas le calcul et ne plonge
+  pas dans les internes disque de dispatch. Relié au sous-système de maintenance.
 - **O4 — Events + caps** : events de download (via RP4) + **caps de bande passante par torrent
   ET globaux**.
 
@@ -241,6 +277,7 @@ Remplace le déclencheur cron par un service temps-réel.
 - Surveille l'état qBittorrent ou le répertoire `complete/` ; déclenche `personalscraper run`.
 - **Ignore les torrents taggés « seed-pur »** (consomme le contrat défini par O1).
 - **Décommission du cron 3 h au cutover** (sinon double-ingestion) — mention canonique de la cadence cron.
+- **Autorité de déclenchement unique** : Watcher, ex-cron et actions Web UI (S2 start/kill) passent par le **même lock pipeline** — pas de writer parallèle.
 
 **Depends on** : Event Bus (shippé), Pipeline Observer Protocol (shippé), Seed Safety O1.
 
@@ -253,8 +290,8 @@ Interface web pour piloter/superviser tout le projet. Découpée en 7 sous-featu
 - **S1** — shell + auth + WebSocket + container headless (**à faire en premier**).
 - **S2** — pipeline control : start/pause/resume/kill (`ingest`/`sort`/`process`/`dispatch`), logs live, status, history.
 - **S3** — maintenance dashboard : disque/espace libre par disque, orphelins (préfixe temporaire), locks, santé index, historique des runs.
-- **S4** — éditeur de config visuel avec validation de schéma + reload sûr.
-- **S5** — scraping interactif : points de décision manuels (matches ambigus TMDB/TVDB, picks multi-résultats, arbitrage fuzzy, override titre/année/saison).
+- **S4** — éditeur de config visuel avec validation de schéma + reload sûr. ⚠️ Le « reload sûr » dépend d'un mécanisme de reload qui n'existe aujourd'hui que pour la config providers (RP8, vague 7) : soit S4 borne son reload à ce périmètre, soit un seam de reload plus large est anticipé.
+- **S5** — scraping interactif : points de décision manuels (matches ambigus TMDB/TVDB, picks multi-résultats, arbitrage fuzzy, override titre/année/saison). ⚠️ Requiert un seam **pause/reprise-sur-décision-humaine** que le pipeline batch n'a pas aujourd'hui — à anticiper comme prérequis structurel.
 - **S6** — registry + health (**fusionne l'ancien « Web UI Registry Consumer »**) : WebSocket sur
   les events registry (fallback / épuisement / capacité verrouillée / fan-out / boot), REST de
   lecture de l'état et des opérations du registry, panneau circuit + chain + latences.
@@ -432,6 +469,16 @@ fallback + corroboration non bloquante, vague 1 — le numéro reste la clé par
 (correction par re-scrape name-keyed depuis le download d'origine / re-download, vague 5, dépend du
 cœur de grab + trackers). Principe figé : le nom (bruité) ne supplante jamais le numéro
 automatiquement ; il sert de fallback (numéro absent) ou de signal mou (numéro présent).
+
+**Architecture pass (2026-06-02)** : revue d'archi multi-agents ancrée code. Verdict — la roadmap
+**pense archi** (RP partagés posés avant les features, fusions qui réduisent la surface, ordre =
+layering, state ownership raisonné), pas de l'empilage. Manque majeur corrigé : **l'altitude du lobe
+acquisition**. Ajouts : section **🏛 Architecture cible** + **RP5c** (package `acquire/` + seam
+d'injection unique), **RP3a** (modèle de domaine « item désiré » partagé), **RP-layer** (garde-fou
+de direction d'import) ; précisions **RP3** (ownership/partition `acquire.db`, suppression
+décide-vs-exécute), **RP5a** (factory config + validation au boot), **RP4** (enregistrement
+eager-import des events), **O3** (autorité unique d'espace libre, dispatch owner de fait) ; notes de
+dépendance **S4/S5** (seams reload + pause/reprise) et **Watcher** (autorité de déclenchement unique).
 
 ---
 
