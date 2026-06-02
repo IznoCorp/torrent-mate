@@ -22,7 +22,7 @@
 | 5   | Migrate STAGING checks  | phase-05-migrate-staging.md        | [x]    |
 | 6   | Granular CLI            | phase-06-granular-cli.md           | [x]    |
 | 7   | Fix-policy unification  | phase-07-fix-policy-unification.md | [x]    |
-| 8   | Latent bug fixes        | phase-08-latent-bug-fixes.md       | [ ]    |
+| 8   | Latent bug fixes        | phase-08-latent-bug-fixes.md       | [x]    |
 | 9   | Feature PR + review     | phase-09-feature-pr.md             | [ ]    |
 
 ## Design & plan review (2026-06-01, pre-implementation)
@@ -58,7 +58,7 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-**Phase 7 DONE (gate green).** Proceed to **Phase 8 — Latent bug fixes** (`docs/features/check-plugins/plan/phase-08-latent-bug-fixes.md`): operator-added adjacent scope (NOT derived from the framework goals) — Bug 1 `RatingSource` Literal `themoviedb`→`tmdb` (`indexer/external_ids.py`), Bug 2 eager-register `VerifyItemDone` (`events/__init__.py`). Bug 3 (trailers AppContext allowlist) = verified false positive, no action. Regression-test-per-bug. Strict 0→9 order; each phase ends with `make check`.
+**Phase 8 DONE (gate green) — all 9 code/refactor phases complete.** Proceed to **Phase 9 — Feature PR + review** (`docs/features/check-plugins/plan/phase-09-feature-pr.md`): run the full local quality gate, push onto the EXISTING `origin/feat/check-plugins`, reuse **pre-created PR #33** (detect-existing, do NOT create a duplicate), poll CI green, then `/implement:pr-review` → **manual squash merge** (PR merge mode = manual). Re-exercise all 11 ACC criteria before merge.
 
 ### Phase 0 gate record (2026-06-02)
 
@@ -117,5 +117,12 @@ _(filled by implement:pr-review — max 5 cycles)_
 - **Justified bug fix (documented, in-commit)**: the post-fix loop in `verify_movie`/`verify_tvshow` unconditionally set `media_dir = action.new_path` for ANY action — but `ntfs_safe_names` sets `new_path` to a renamed _file_, which would crash re-check once ntfs entered the policy. Added an `and a.new_path.is_dir()` guard (only directory renames redirect media_dir; the `dir_naming` path is unchanged since its new_path IS a dir). Existing `test_movie_with_empty_subdir_blocked` → `..._fixed` (necessary consequence).
 - ⚠️ Process note: the DeepSeek sub-agent's report omitted the `MODEL_IDENTITY`/`BRIEFING_ACK` lines (probe-contract miss). The dispatch DID go to DeepSeek (wrapper verified + PONG + 8 prior DeepSeek dispatches this session); correctness established by independent orchestrator verification (golden diff confined, gates re-run). Cosmetic report defect, not a model leak.
 - Gate green: `make check` ✓ (5907 passed, 0 failed, coverage 91.21%), ACC-09 `test_fix_policy` 2 passed, ACC-01 golden 7 passed vs UPDATED baseline, ACC-07 module-size (only the pre-existing movie_service.py WARN), `import personalscraper` ✓.
+
+### Phase 8 gate record (2026-06-02) — operator-added adjacent latent bug fixes
+
+- `8.1` Bug 1 (`549be029`): `RatingSource` Literal `themoviedb`→`tmdb` in `indexer/external_ids.py` (the stored `ratings_json` shape + `Notations.source` both use `tmdb`; `extract_nfo_metadata` never writes `themoviedb`). Updated the 2 existing tests that encoded the wrong contract + added a round-trip regression test. NFO read/write aliases (`nfo_utils` reverse-map, `nfo_generator` forward-map) correctly LEFT UNTOUCHED (they translate the Kodi/Plex display name `themoviedb` ⇄ internal `tmdb`).
+- `8.2` Bug 2 (`699b51a6`): eager-register `VerifyItemDone` in `events/__init__.py` so `event_from_envelope` resolves it without a consumer first importing `verify.run`. Removed the dead workaround in `test_pipeline_events.py`; the registry-count test stays `== 23` (the catalog's `import personalscraper.events` now provides the 23rd entry the workaround used to). Subprocess-isolated regression test proves catalog-only resolution. No import cycle.
+- Each bug pinned by a test that fails when the fix is reverted (project rule: 1 bug = 1 test).
+- Gate green: `make check` ✓ (5909 passed, 0 failed, coverage 91.21%), `import personalscraper` ✓, ACC-07 module-size (only the pre-existing movie_service.py WARN).
 
 > **PR #33 is already created** (https://github.com/LounisBou/personal-scraper/pull/33, WIP). The branch is pushed to `origin/feat/check-plugins`. When the lifecycle reaches Phase 9 (`/implement:feature-pr`), it must **push onto the existing branch and reuse PR #33** (detect-existing, do not create a duplicate) — then `/implement:pr-review` → **manual squash merge**. Each implementation commit pushed to the branch updates PR #33 in place.
