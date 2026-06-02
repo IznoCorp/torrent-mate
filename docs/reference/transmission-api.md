@@ -213,3 +213,61 @@ mirroring the qBittorrent pattern. Arguments:
   Cons: slightly more code, pre-check endpoint choice matters (recommend: `session_get` with version field).
 - **Option B**: `transmission-rpc` only, no `HttpTransport`. Pros: simpler. Cons: less observability,
   no circuit breaker, harder to diagnose RPC errors at the infrastructure layer.
+
+## TransmissionClient — Write Capabilities (torrent-write, v0.20.0)
+
+`TransmissionClient` (`personalscraper/api/torrent/transmission.py`) composes
+one new atomic `@runtime_checkable` Protocol introduced in `torrent-write`:
+
+- **`TorrentAdder`** (`api/torrent/_contracts.py:124`) — add a torrent from a
+  `TorrentSource` (magnet URI or `.torrent` bytes).
+- `TorrentLimiter` is **not** composed — Transmission's RPC protocol has no
+  equivalent of qBit's per-torrent ratio/seed-time/bandwidth limits (D2/D8).
+
+### `TransmissionClient.add(source, *, category, tags, paused, limits) → str`
+
+Adds a torrent to Transmission via `add_torrent`, with category and tags encoded
+as labels (DESIGN D1/D5/D7/D8).
+
+| Parameter  | Type                    | Required | Description                                       |
+| ---------- | ----------------------- | -------- | ------------------------------------------------- |
+| `source`   | `TorrentSource`         | yes      | Magnet URI or `.torrent` bytes (exactly one set)  |
+| `category` | `str \| None`           | no       | Category (becomes `labels[0]`, per D5)            |
+| `tags`     | `Sequence[str]`         | no       | Tag strings (appended after category in `labels`) |
+| `paused`   | `bool`                  | no       | Add in paused state (default `False`)             |
+| `limits`   | `TorrentLimits \| None` | no       | **Must be `None`**; raises if set (D8)            |
+
+**Labels encoding (D5 round-trip).** Transmission has `labels` (array of
+strings), no separate `category`/`tags` fields. The round-trip is:
+
+- **Write**: `labels = [category, *deduped_tags]` where category is first and
+  any duplicates are removed. The helper `_labels()` (`transmission.py:324`)
+  implements this.
+- **Read**: `category = labels[0] if labels else None`, `tags = labels[1:]`.
+  This is applied in `_torrent_item()` when mapping a Transmission torrent to
+  the internal `TorrentItem` dataclass.
+
+**`limits` rejection (D8).** Passing a non-`None` `TorrentLimits` raises
+`UnsupportedCapabilityError`. Callers gate via
+`isinstance(client, TorrentLimiter)`. This follows the project's
+no-silent-failure norm: capacity absence is a hard error, not a quiet ignore.
+
+**Idempotence (D7).** A duplicate add returns the existing `info_hash`
+successfully. Transmission returns a `transmission_rpc.TransmissionError` with
+`"duplicate"` in its message string → caught and mapped to a success return
+(the original lookup returns `source.info_hash`).
+
+**Return value**: `source.info_hash` (per D6). Transmission echoes its own
+`hashString` from the RPC response; it is logged as a cross-check at debug
+level (`transmission_add_ok` event) but the caller always receives the
+client-computed `info_hash`.
+
+### Capability Composition
+
+| Capability          | TransmissionClient | Notes                                              |
+| ------------------- | ------------------ | -------------------------------------------------- |
+| `TorrentLister`     | ✓                  | (pre-existing) list torrents via `torrent-get`     |
+| `TorrentInspector`  | ✓                  | (pre-existing) inspect single torrent              |
+| `TorrentController` | ✓                  | (pre-existing) start/stop/remove                   |
+| `TorrentAdder`      | ✓                  | add via `add_torrent` (labels encoding, D5)        |
+| `TorrentLimiter`    | ✗                  | **Not supported** (D2/D8); passing `limits` raises |
