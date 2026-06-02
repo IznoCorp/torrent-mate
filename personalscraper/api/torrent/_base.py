@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from functools import cached_property
 from pathlib import Path
@@ -25,6 +25,7 @@ class TorrentItem:
         state: Current torrent state (e.g. "uploading", "pausedUP").
         content_path: Filesystem path to torrent content.
         category: Torrent category label, if any.
+        tags: List of tag labels (default ``[]``).
         added_on: Timestamp when the torrent was added.
         ratio: Seed ratio (uploaded / downloaded). 0.0 if never seeded.
             Used by ``ingest`` to enforce ``config.ingest.min_ratio``.
@@ -37,6 +38,7 @@ class TorrentItem:
     state: str
     content_path: Path | None = None
     category: str | None = None
+    tags: list[str] = field(default_factory=list)
     added_on: datetime | None = None
     ratio: float = 0.0
 

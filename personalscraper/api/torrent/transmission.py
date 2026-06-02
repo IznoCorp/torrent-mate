@@ -266,8 +266,9 @@ def _torrent_item(t: transmission_rpc.Torrent) -> TorrentItem:
         elif t.name:
             content_path = str(Path(t.download_dir) / t.name)
 
-    labels = getattr(t, "labels", None)
+    labels: list[str] = list(getattr(t, "labels", None) or [])
     category = labels[0] if labels else None
+    tags = list(labels[1:]) if len(labels) > 1 else []
 
     added_on = None
     if t.added_date:
@@ -285,5 +286,6 @@ def _torrent_item(t: transmission_rpc.Torrent) -> TorrentItem:
         ratio=float(getattr(t, "ratio", 0.0) or 0.0),
         content_path=Path(content_path) if content_path else None,
         category=category,
+        tags=tags,
         added_on=added_on,
     )

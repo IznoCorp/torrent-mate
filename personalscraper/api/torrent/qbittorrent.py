@@ -259,6 +259,8 @@ def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -
 def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
     """Map a qBittorrent torrent dictionary to a TorrentItem."""
     content_path = t.content_path or ""
+    raw_tags = getattr(t, "tags", "") or ""
+    tags = [tag.strip() for tag in raw_tags.split(",") if tag.strip()]
     return TorrentItem(
         hash=t.hash,
         name=t.name,
@@ -268,6 +270,7 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
         ratio=float(t.ratio or 0.0),
         content_path=Path(content_path) if content_path else None,
         category=t.category if t.category else None,
+        tags=tags,
         added_on=datetime.fromtimestamp(t.added_on) if t.added_on else None,
     )
 
