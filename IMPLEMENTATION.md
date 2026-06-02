@@ -25,7 +25,7 @@
 | 9   | Remove lazy inline `QBitClient` fallbacks                                  | phase-09-remove-lazy-fallbacks.md | [x]    |
 | 10  | Reference docs updates                                                     | phase-10-docs.md                  | [x]    |
 | 11  | Executable `ACCEPTANCE.md` + ROADMAP flip                                  | phase-11-acceptance-roadmap.md    | [x]    |
-| 12  | PR review fixes — cycle 1 (bencode, qBit add, seed-time, +mediums)         | phase-12-pr-fixes-cycle-1.md      | [ ]    |
+| 12  | PR review fixes — cycle 1 (bencode, qBit add, seed-time, +mediums)         | phase-12-pr-fixes-cycle-1.md      | [x]    |
 
 ## Review cycles
 
@@ -72,7 +72,7 @@ re-push (CI) + re-review. PR #36 **blocked** until C1/C2/M1 fixed.
 
 ## Next action
 
-**All 11 phases complete.** All 13 ACC criteria run green; `make check` exit 0 (5988 passed). Run `/implement:feature-pr` (local gate + push + PR + CI).
+**All phases (1–12) complete.** Cycle-1 review fixes landed (C1 bencode, C2 qBit add, M1 seed-time + 7 mediums) — each independently re-verified, `make check` exit 0, design-gaps audit `--strict` = 0 findings. Run `/implement:feature-pr` to re-push PR #36 + re-poll CI, then `/implement:pr-review` cycle 2.
 
 > **Phase 9 re-scope (documented):** the plan estimated 3 files; reality was 23 — `run_ingest`'s
 > signature change rippled through `pipeline_steps.py` (IngestStep/LegacyCallableStep — missed by
