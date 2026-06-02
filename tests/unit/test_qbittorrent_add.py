@@ -136,6 +136,21 @@ def test_add_forbidden_raises_api_error() -> None:
     assert ei.value.http_status == 403
 
 
+def test_add_unauthorized_401_raises_api_error() -> None:
+    """``add()`` raises ``ApiError`` (http_status 401) on ``Unauthorized401Error``.
+
+    A real 401 on ``torrents_add`` is ``qbittorrentapi.Unauthorized401Error``
+    (``HTTP401Error`` MRO), a DISTINCT class from ``LoginFailed`` — neither
+    subclasses the other. Catching only ``LoginFailed`` let a genuine 401
+    escape ``add()`` uncaught; it must now map to a uniform ``ApiError`` (D8).
+    """
+    c = _c()
+    c._client.torrents_add.side_effect = qbittorrentapi.Unauthorized401Error("unauthorized")
+    with pytest.raises(ApiError) as ei:
+        c.add(TorrentSource.from_magnet(MAGNET))
+    assert ei.value.http_status == 401
+
+
 class TestQBitClientApplyLimits:
     """qBittorrent ``apply_limits()`` tests — DESIGN D2."""
 

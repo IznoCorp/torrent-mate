@@ -234,7 +234,12 @@ class QBitClient(
                 http_status=403,
                 message=f"qBittorrent add forbidden: {exc}",
             ) from exc
-        except qbittorrentapi.LoginFailed as exc:
+        except (qbittorrentapi.LoginFailed, qbittorrentapi.Unauthorized401Error) as exc:
+            # A real 401 on torrents_add is Unauthorized401Error (HTTP401Error
+            # MRO), a DISTINCT class from LoginFailed — neither subclasses the
+            # other, so both must be caught explicitly. LoginFailed is kept
+            # defensively; Unauthorized401Error is the one the daemon actually
+            # raises here. Both map to a uniform 401 ApiError (D8).
             raise ApiError(
                 provider=ProviderName.QBITTORRENT,
                 http_status=401,

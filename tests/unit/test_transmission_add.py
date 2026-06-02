@@ -79,6 +79,33 @@ class TestTransmissionAdd:
         src = TorrentSource.from_magnet(MAGNET)
         assert c.add(src) == src.info_hash  # D7: no exception
 
+    def test_duplicate_torrent_message_idempotent(self):
+        """A daemon ``"duplicate torrent"`` error is idempotent success (D7).
+
+        Some daemons raise a ``TransmissionError`` carrying ``"duplicate
+        torrent"`` (the human-readable result string) rather than the lib's
+        ``"torrent-duplicate"`` result key. The except-branch dup match now
+        covers BOTH forms, so this maps to idempotent success (returns hash).
+        """
+        c = _c()
+        c._client.add_torrent.side_effect = transmission_rpc.TransmissionError(
+            'Query failed with result "duplicate torrent".'
+        )
+        src = TorrentSource.from_magnet(MAGNET)
+        assert c.add(src) == src.info_hash  # D7: no exception
+
+    def test_duplicate_returns_torrent_idempotent(self):
+        """``add_torrent`` RETURNS a Torrent on duplicate (installed-lib path).
+
+        transmission_rpc 7.x builds a ``Torrent`` from the
+        ``torrent-duplicate`` result key and returns it WITHOUT raising. This
+        is the realistic happy path — ``add()`` returns the source info_hash.
+        """
+        c = _c()
+        c._client.add_torrent.return_value = _mock_torrent()
+        src = TorrentSource.from_magnet(MAGNET)
+        assert c.add(src) == src.info_hash  # D7: no raise, returns hash
+
     def test_non_duplicate_not_swallowed(self):
         """TransmissionError without 'torrent-duplicate' must propagate (Md5)."""
         c = _c()

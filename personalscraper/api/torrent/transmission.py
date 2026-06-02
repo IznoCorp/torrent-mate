@@ -240,7 +240,12 @@ class TransmissionClient(
                 )
             return source.info_hash
         except transmission_rpc.TransmissionError as exc:
-            if "torrent-duplicate" in str(exc).lower():  # D7 idempotence
+            # D7 idempotence — match both the lib's result-key form
+            # ("torrent-duplicate") and the human-readable daemon-error form
+            # ("duplicate torrent"). A message like "duplicate label rejected"
+            # matches neither token and correctly re-raises.
+            msg = str(exc).lower()
+            if "torrent-duplicate" in msg or "duplicate torrent" in msg:
                 log.debug("transmission_add_duplicate", info_hash=source.info_hash)
                 return source.info_hash
             raise
