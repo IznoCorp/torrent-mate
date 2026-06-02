@@ -67,7 +67,7 @@ def test_ratings_round_trip_populated() -> None:
         entries=[
             RatingEntry(source="imdb", score="8.5/10", votes=1_000_000),
             RatingEntry(source="rotten_tomatoes", score="87%"),
-            RatingEntry(source="themoviedb", score="8.2", votes=4_321),
+            RatingEntry(source="tmdb", score="8.2", votes=4_321),
         ]
     )
     payload = ratings.model_dump_json()
@@ -78,7 +78,7 @@ def test_ratings_round_trip_populated() -> None:
     assert by_source["imdb"].votes == 1_000_000
     assert by_source["rotten_tomatoes"].score == "87%"
     assert by_source["rotten_tomatoes"].votes is None
-    assert by_source["themoviedb"].votes == 4_321
+    assert by_source["tmdb"].votes == 4_321
 
 
 def test_rating_entry_rejects_unknown_source() -> None:
@@ -90,3 +90,30 @@ def test_rating_entry_rejects_unknown_source() -> None:
     """
     with pytest.raises(ValueError):
         RatingEntry(source="unknown_source", score="0")  # type: ignore[arg-type]
+
+
+def test_extract_nfo_metadata_rating_source_validates_against_model(tmp_path):
+    """A <rating name="themoviedb"> round-trips to source='tmdb' (storage shape).
+
+    And that value MUST validate against the Ratings model — pins the Literal
+    to the real ratings_json contract (regression for the themoviedb/tmdb skew).
+    """
+    import xml.etree.ElementTree as ET
+
+    from personalscraper.indexer.external_ids import Ratings
+    from personalscraper.nfo_utils import extract_nfo_metadata
+
+    root = ET.Element("movie")
+    ET.SubElement(root, "title").text = "M"
+    ET.SubElement(root, "year").text = "2020"
+    r = ET.SubElement(root, "rating")
+    r.set("name", "themoviedb")
+    ET.SubElement(r, "value").text = "8.2"
+    ET.SubElement(r, "votes").text = "4321"
+    nfo = tmp_path / "M.nfo"
+    ET.ElementTree(root).write(nfo, encoding="unicode")
+
+    meta = extract_nfo_metadata(nfo)
+    assert meta["ratings"] == [{"source": "tmdb", "score": "8.2", "votes": 4321}]
+    # The crux: the stored source ('tmdb') must validate against the model.
+    Ratings.model_validate({"entries": meta["ratings"]})  # raises pre-fix (tmdb ∉ Literal)

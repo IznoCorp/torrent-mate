@@ -1,0 +1,73 @@
+{
+  "movie_missing_landscape": {
+    "category": "movies",
+    "checks_passed": 11,
+    "checks_total": 13,
+    "errors": [],
+    "fixes_applied": [],
+    "media_path": "{tmp}/test_verifier_movie0/v_mov/Movie NoLandscape (2022)",
+    "media_type": "movie",
+    "status": "valid",
+    "warnings": [
+      "Largest video is 0 MB (possible sample)",
+      "Landscape not found: Movie NoLandscape-landscape.jpg"
+    ]
+  },
+  "movie_missing_nfo": {
+    "category": null,
+    "checks_passed": 7,
+    "checks_total": 9,
+    "errors": [
+      "NFO not found: Movie NoNFO.nfo"
+    ],
+    "fixes_applied": [],
+    "media_path": "{tmp}/test_verifier_movie0/v_mov/Movie NoNFO (2020)",
+    "media_type": "movie",
+    "status": "blocked",
+    "warnings": [
+      "Largest video is 0 MB (possible sample)"
+    ]
+  },
+  "movie_nfo_no_ids": {
+    "category": "movies",
+    "checks_passed": 11,
+    "checks_total": 13,
+    "errors": [
+      "Missing IDs: tmdb=False, imdb=False"
+    ],
+    "fixes_applied": [],
+    "media_path": "{tmp}/test_verifier_movie0/v_mov/Movie NoIDs (2021)",
+    "media_type": "movie",
+    "status": "blocked",
+    "warnings": [
+      "Largest video is 0 MB (possible sample)"
+    ]
+  },
+  "movie_no_streamdetails": {
+    "category": "movies",
+    "checks_passed": 11,
+    "checks_total": 13,
+    "errors": [],
+    "fixes_applied": [],
+    "media_path": "{tmp}/test_verifier_movie0/v_mov/Movie NoStream (2023)",
+    "media_type": "movie",
+    "status": "valid",
+    "warnings": [
+      "Largest video is 0 MB (possible sample)",
+      "No <streamdetails> in NFO"
+    ]
+  },
+  "movie_valid": {
+    "category": "movies",
+    "checks_passed": 12,
+    "checks_total": 13,
+    "errors": [],
+    "fixes_applied": [],
+    "media_path": "{tmp}/test_verifier_movie0/v_mov/Movie Valid (2024)",
+    "media_type": "movie",
+    "status": "valid",
+    "warnings": [
+      "Largest video is 0 MB (possible sample)"
+    ]
+  }
+}

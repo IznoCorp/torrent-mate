@@ -53,6 +53,7 @@ def run_verify(
     fix: bool = True,
     movies_only: bool = False,
     tvshows_only: bool = False,
+    only: frozenset[str] | None = None,
     *,
     event_bus: EventBus,
 ) -> tuple[StepReport, list[VerifyResult]]:
@@ -66,6 +67,9 @@ def run_verify(
         fix: If True, attempt automatic corrections.
         movies_only: Process only {movies_dir}/.
         tvshows_only: Process only {tvshows_dir}/.
+        only: Optional allow-set of check names restricting the run to the
+            named DISPATCH-stage checks. ``None`` (default) runs every check —
+            byte-identical to the pre-filter behavior.
         event_bus: Required in-process EventBus. Each per-item lifecycle
             transition emits an ``ItemProgressed`` event and a
             ``VerifyItemDone`` event on the bus, plus a structured
@@ -85,6 +89,7 @@ def run_verify(
         config=config,
         dry_run=dry_run,
         fix=fix,
+        only=only,
     )
 
     all_results: list[VerifyResult] = []

@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 from personalscraper.conf.models.config import Config
 from personalscraper.core.event_bus import EventBus
 from personalscraper.naming_patterns import NamingPatterns
+from personalscraper.verify.checks.base import CheckContext, CheckResult, CheckStage, Severity
 from personalscraper.verify.run import _to_step_report, run_verify
 from personalscraper.verify.verifier import Verifier, VerifyResult
 
@@ -314,14 +315,15 @@ class TestReinforcedChecks:
         assert result.status == "blocked"
         assert any("Poster not found" in e for e in result.errors)
 
-    def test_movie_with_empty_subdir_blocked(self, tmp_path: Path, test_config: Config) -> None:
-        """Movie with empty subdirectory is blocked."""
+    def test_movie_with_empty_subdir_fixed(self, tmp_path: Path, test_config: Config) -> None:
+        """Movie with empty subdirectory is auto-fixed (Phase 7 behavior change)."""
         d = _make_valid_movie(tmp_path)
         (d / "empty_subdir").mkdir()
         v = Verifier(MagicMock(), NamingPatterns(), test_config)
         result = v.verify_movie(d)
-        assert result.status == "blocked"
-        assert any("Empty subdirs" in e for e in result.errors)
+        assert result.status in ("valid", "fixed")
+        assert not (d / "empty_subdir").exists()
+        assert any("empty" in f.lower() for f in result.fixes_applied)
 
     def test_tvshow_unrenamed_episode_blocked(self, tmp_path: Path, test_config: Config) -> None:
         """TV show with unrenamed episode file is blocked."""
@@ -557,16 +559,25 @@ class TestVerifierEdgeCases:
         assert result.fixes_applied == []
 
     def test_classify_no_nfo_keeps_category_none(self, tmp_path: Path, test_config: Config) -> None:
-        """Classify path: cat_check passed but _find_nfo returns None → category stays None."""
-        # Build a movie dir that passes the "category" check but has no NFO file
-        # (we patch _find_nfo to None to exercise the branch).
-        from personalscraper.verify.checker import CheckResult, Severity
+        """Classify fallback yields None when ctx.resolved_category and NFO are absent.
 
+        Exercises the fallback branch taken when the ``category`` plugin never
+        ran on this ctx (resolved_category is None) — _classify falls back to
+        classify_from_nfo, which yields nothing because _find_nfo is None.
+        """
         v = Verifier(MagicMock(), NamingPatterns(), test_config)
         result = VerifyResult(media_path=tmp_path, media_type="movie")
         cat = CheckResult("category", True, Severity.WARNING, "ok")
+        ctx = CheckContext(
+            media_dir=tmp_path,
+            media_type="movie",
+            stage=CheckStage.DISPATCH,
+            config=test_config,
+            patterns=NamingPatterns(),
+        )
+        # resolved_category stays None → _classify takes the _find_nfo fallback.
         with patch.object(Verifier, "_find_nfo", return_value=None):
-            v._classify(result, [cat], tmp_path, "movie")
+            v._classify(result, [cat], tmp_path, "movie", ctx)
         assert result.category is None
         assert result.status == "valid"
 

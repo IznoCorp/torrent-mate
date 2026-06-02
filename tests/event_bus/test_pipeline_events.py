@@ -123,7 +123,6 @@ def test_event_registry_has_eighteen_v1_events() -> None:
     event catalog in ``docs/reference/event-bus.md``.
     """
     import personalscraper.events  # noqa: F401 — eager-import side effect
-    import personalscraper.verify.events  # noqa: F401 — eager-import side effect
 
     assert len(_EVENT_CLASS_REGISTRY) == 23, (
         f"Expected 23 events (18 original + 5 registry), "

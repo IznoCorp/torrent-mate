@@ -1,0 +1,144 @@
+{
+  "category_filter": null,
+  "disk_filter": null,
+  "fixed_count": 0,
+  "issues_count": 6,
+  "items": [
+    {
+      "category": "movies",
+      "disk": "corpus_disk",
+      "errors": [],
+      "fixes_applied": [],
+      "media_type": "movie",
+      "path": "/tmp/corpus/DB Movie Fresh (2025)",
+      "status": "valid",
+      "title": "DB Movie Fresh",
+      "warnings": [],
+      "year": 2025
+    },
+    {
+      "category": "movies",
+      "disk": "corpus_disk",
+      "errors": [
+        "nfo_valid"
+      ],
+      "fixes_applied": [],
+      "media_type": "movie",
+      "path": "/tmp/corpus/DB Movie InvalidNFO (2022)",
+      "status": "issues",
+      "title": "DB Movie InvalidNFO",
+      "warnings": [
+        "artwork_landscape"
+      ],
+      "year": 2022
+    },
+    {
+      "category": "movies",
+      "disk": "corpus_disk",
+      "errors": [
+        "nfo_present"
+      ],
+      "fixes_applied": [],
+      "media_type": "movie",
+      "path": "/tmp/corpus/DB Movie MissingNFO (2023)",
+      "status": "issues",
+      "title": "DB Movie MissingNFO",
+      "warnings": [],
+      "year": 2023
+    },
+    {
+      "category": "movies_animation",
+      "disk": "corpus_disk",
+      "errors": [],
+      "fixes_applied": [],
+      "media_type": "movie",
+      "path": "/tmp/corpus/DB Movie NoLandscape (2020)",
+      "status": "issues",
+      "title": "DB Movie NoLandscape",
+      "warnings": [
+        "artwork_landscape"
+      ],
+      "year": 2020
+    },
+    {
+      "category": "movies",
+      "disk": "corpus_disk",
+      "errors": [
+        "poster_present"
+      ],
+      "fixes_applied": [],
+      "media_type": "movie",
+      "path": "/tmp/corpus/DB Movie NoPoster (2021)",
+      "status": "issues",
+      "title": "DB Movie NoPoster",
+      "warnings": [],
+      "year": 2021
+    },
+    {
+      "category": "movies",
+      "disk": "corpus_disk",
+      "errors": [],
+      "fixes_applied": [],
+      "media_type": "movie",
+      "path": "/tmp/corpus/Disk Movie (2024)",
+      "status": "valid",
+      "title": "DB Movie Valid",
+      "warnings": [],
+      "year": 2024
+    },
+    {
+      "category": "tv_shows",
+      "disk": "corpus_disk",
+      "errors": [],
+      "fixes_applied": [],
+      "media_type": "tvshow",
+      "path": "/tmp/corpus/DB Show Fresh (2025)",
+      "status": "valid",
+      "title": "DB Show Fresh",
+      "warnings": [],
+      "year": 2025
+    },
+    {
+      "category": "tv_shows",
+      "disk": "corpus_disk",
+      "errors": [
+        "nfo_valid"
+      ],
+      "fixes_applied": [],
+      "media_type": "tvshow",
+      "path": "/tmp/corpus/DB Show InvalidNFO (2022)",
+      "status": "issues",
+      "title": "DB Show InvalidNFO",
+      "warnings": [],
+      "year": 2022
+    },
+    {
+      "category": "tv_shows",
+      "disk": "corpus_disk",
+      "errors": [
+        "nfo_present"
+      ],
+      "fixes_applied": [],
+      "media_type": "tvshow",
+      "path": "/tmp/corpus/DB Show MissingNFO (2023)",
+      "status": "issues",
+      "title": "DB Show MissingNFO",
+      "warnings": [],
+      "year": 2023
+    },
+    {
+      "category": "tv_shows",
+      "disk": "corpus_disk",
+      "errors": [],
+      "fixes_applied": [],
+      "media_type": "tvshow",
+      "path": "/tmp/corpus/DB Show Valid (2024)",
+      "status": "valid",
+      "title": "DB Show Valid",
+      "warnings": [],
+      "year": 2024
+    }
+  ],
+  "total_items": 10,
+  "valid_count": 4
+}

@@ -1,0 +1,439 @@
+{
+  "movie_missing_landscape": [
+    {
+      "fixable": false,
+      "message": "",
+      "name": "video_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "Largest video is 0 MB (possible sample)",
+      "name": "not_sample",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "dir_naming",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_valid",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_ids",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "poster_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "Landscape not found: Movie NoLandscape-landscape.jpg",
+      "name": "artwork_landscape",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "streamdetails",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "no_empty_dirs",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "category",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "no_duplicate_videos",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "ntfs_safe_names",
+      "passed": true,
+      "severity": "error"
+    }
+  ],
+  "movie_missing_nfo": [
+    {
+      "fixable": false,
+      "message": "",
+      "name": "video_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "Largest video is 0 MB (possible sample)",
+      "name": "not_sample",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "dir_naming",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "NFO not found: Movie NoNFO.nfo",
+      "name": "nfo_present",
+      "passed": false,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "poster_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "artwork_landscape",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "no_empty_dirs",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "no_duplicate_videos",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "ntfs_safe_names",
+      "passed": true,
+      "severity": "error"
+    }
+  ],
+  "movie_nfo_no_ids": [
+    {
+      "fixable": false,
+      "message": "",
+      "name": "video_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "Largest video is 0 MB (possible sample)",
+      "name": "not_sample",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "dir_naming",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_valid",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "Missing IDs: tmdb=False, imdb=False",
+      "name": "nfo_ids",
+      "passed": false,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "poster_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "artwork_landscape",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "streamdetails",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "no_empty_dirs",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "category",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "no_duplicate_videos",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "ntfs_safe_names",
+      "passed": true,
+      "severity": "error"
+    }
+  ],
+  "movie_no_streamdetails": [
+    {
+      "fixable": false,
+      "message": "",
+      "name": "video_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "Largest video is 0 MB (possible sample)",
+      "name": "not_sample",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "dir_naming",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_valid",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_ids",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "poster_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "artwork_landscape",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "No <streamdetails> in NFO",
+      "name": "streamdetails",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "no_empty_dirs",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "category",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "no_duplicate_videos",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "ntfs_safe_names",
+      "passed": true,
+      "severity": "error"
+    }
+  ],
+  "movie_valid": [
+    {
+      "fixable": false,
+      "message": "",
+      "name": "video_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "Largest video is 0 MB (possible sample)",
+      "name": "not_sample",
+      "passed": false,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "dir_naming",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_valid",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "nfo_ids",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "poster_present",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "artwork_landscape",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "streamdetails",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "no_empty_dirs",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "category",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "no_duplicate_videos",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": true,
+      "message": "",
+      "name": "ntfs_safe_names",
+      "passed": true,
+      "severity": "error"
+    }
+  ]
+}

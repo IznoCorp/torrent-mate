@@ -1,0 +1,83 @@
+{
+  "tvshow_empty_subdir": {
+    "category": "tv_shows",
+    "checks_passed": 15,
+    "checks_total": 18,
+    "errors": [],
+    "fixes_applied": [
+      "Removed empty dir: Extras"
+    ],
+    "media_path": "{tmp}/test_verifier_tvshow0/v_tv/TVShow EmptyDir (2022)",
+    "media_type": "tvshow",
+    "status": "fixed",
+    "warnings": [
+      "Missing season01-poster.jpg",
+      "Missing xref <uniqueid type=\"tmdb\"> on: S01E01 - Only.nfo; consider 'personalscraper indexer backfill-ids'",
+      "Missing IMDb uniqueid on: S01E01 - Only.nfo"
+    ]
+  },
+  "tvshow_missing_ep_nfo": {
+    "category": "tv_shows",
+    "checks_passed": 16,
+    "checks_total": 18,
+    "errors": [],
+    "fixes_applied": [],
+    "media_path": "{tmp}/test_verifier_tvshow0/v_tv/TVShow NoEpNFO (2020)",
+    "media_type": "tvshow",
+    "status": "valid",
+    "warnings": [
+      "Missing season01-poster.jpg",
+      "No episode NFO files found"
+    ]
+  },
+  "tvshow_ntfs_illegal": {
+    "category": "tv_shows",
+    "checks_passed": 14,
+    "checks_total": 18,
+    "errors": [
+      "Unrenamed episodes: badfile.mkv"
+    ],
+    "fixes_applied": [
+      "Renamed: bad:file.mkv \u2192 badfile.mkv"
+    ],
+    "media_path": "{tmp}/test_verifier_tvshow0/v_tv/TVShow NTFS (2023)",
+    "media_type": "tvshow",
+    "status": "blocked",
+    "warnings": [
+      "Missing season01-poster.jpg",
+      "Missing xref <uniqueid type=\"tmdb\"> on: S01E01 - Legal.nfo; consider 'personalscraper indexer backfill-ids'",
+      "Missing IMDb uniqueid on: S01E01 - Legal.nfo"
+    ]
+  },
+  "tvshow_unrenamed_episode": {
+    "category": "tv_shows",
+    "checks_passed": 14,
+    "checks_total": 18,
+    "errors": [
+      "Unrenamed episodes: episode02.mkv"
+    ],
+    "fixes_applied": [],
+    "media_path": "{tmp}/test_verifier_tvshow0/v_tv/TVShow Unrenamed (2021)",
+    "media_type": "tvshow",
+    "status": "blocked",
+    "warnings": [
+      "Missing season01-poster.jpg",
+      "Missing xref <uniqueid type=\"tmdb\"> on: S01E01 - Proper.nfo; consider 'personalscraper indexer backfill-ids'",
+      "Missing IMDb uniqueid on: S01E01 - Proper.nfo"
+    ]
+  },
+  "tvshow_valid": {
+    "category": "tv_shows",
+    "checks_passed": 16,
+    "checks_total": 18,
+    "errors": [],
+    "fixes_applied": [],
+    "media_path": "{tmp}/test_verifier_tvshow0/v_tv/TVShow Valid (2024)",
+    "media_type": "tvshow",
+    "status": "valid",
+    "warnings": [
+      "Missing season01-poster.jpg",
+      "Missing IMDb uniqueid on: S01E01 - Pilot.nfo, S01E02 - Episode Two.nfo"
+    ]
+  }
+}
