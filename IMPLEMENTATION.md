@@ -1,14 +1,14 @@
-# Implementation Progress — (awaiting feature)
+# Implementation Progress — torrent-write
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: _(to be defined by /implement:feature)_
-**Version bump**: _(to be defined)_
-**Branch**: _(to be defined)_
-**PR merge**: _(to be defined: manual or auto)_
+**Feature**: RP1 — Torrent Write Capability (add + categorize + tags + limits) (minor)
+**Version bump**: 0.20.0 → 0.21.0
+**Branch**: feat/torrent-write
+**PR merge**: manual
 **PR**: _(created after last phase)_
-**Design**: _(to be defined after brainstorm)_
-**Master plan**: _(to be defined after plan generation)_
+**Design**: docs/features/torrent-write/DESIGN.md
+**Master plan**: _(to be defined after /implement:plan)_
 
 ## Phases
 
@@ -16,8 +16,8 @@ _(filled by /implement:plan)_
 
 ## Review cycles
 
-_(filled by /implement:pr-review)_
+_(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-**Awaiting new feature definition** — run /implement:feature
+Run `/implement:plan` to generate the phase plan from the design doc.
