@@ -26,6 +26,7 @@
 | 10  | Reference docs updates                                                     | phase-10-docs.md                  | [x]    |
 | 11  | Executable `ACCEPTANCE.md` + ROADMAP flip                                  | phase-11-acceptance-roadmap.md    | [x]    |
 | 12  | PR review fixes — cycle 1 (bencode, qBit add, seed-time, +mediums)         | phase-12-pr-fixes-cycle-1.md      | [x]    |
+| 13  | PR review fixes — cycle 2 (qBit 401 catch, Transmission dup robustness)    | phase-13-pr-fixes-cycle-2.md      | [ ]    |
 
 ## Review cycles
 
@@ -69,6 +70,27 @@ unwired (log.warning on mismatch); `info_hash` vs `hash` param naming;
 
 **Verdict:** Case B → fix phase 12 generated; run `/implement:phase`, then
 re-push (CI) + re-review. PR #36 **blocked** until C1/C2/M1 fixed.
+**Outcome:** phase 12 landed all fixes (commits 1fffb7b2…4521dfbe), each
+independently re-verified; `make check` + design-gaps green; CI green at 47e46635.
+
+### Cycle 2 — 2026-06-03
+
+Focused adversarial re-review of the phase-12 fix diff (code-reviewer agent +
+own adversarial bencode probing). **No regressions** — the 3 cycle-1
+criticals/major are correctly fixed (bencode parser adversarially confirmed:
+pieces-token-bytes, info-not-last, depth cap, length bounds, base32, empty-guard
+all pass). Two residual findings, both **confirmed by hand**:
+
+- **MEDIUM** `qbittorrent.py` `add()` catches `LoginFailed` for "401" but a real
+  401 on `torrents_add` is `Unauthorized401Error` (distinct MRO) → escapes
+  uncaught; docstring over-claims "401 → ApiError". Verified: a simulated
+  `Unauthorized401Error` escapes `add()`.
+- **MINOR** `transmission.py` `add()` `"torrent-duplicate"` except branch is
+  effectively dead with the installed lib (a dup returns a `Torrent`, no raise);
+  a daemon that raised would say `"duplicate torrent"` (not `"torrent-duplicate"`).
+  Its test mocks an unrealistic raise.
+
+**Verdict:** Case B → fix phase 13 (401 catch + Transmission dup robustness).
 
 ## Next action
 
