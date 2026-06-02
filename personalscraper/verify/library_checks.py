@@ -132,6 +132,7 @@ def validate_from_index(
     conn: sqlite3.Connection,
     disk_filter: str | None = None,
     category_filter: str | None = None,
+    only: frozenset[str] | None = None,
 ) -> LibraryValidationResult:
     """Cheap validate path that reads NFO + artwork status from the indexer DB.
 
@@ -161,6 +162,9 @@ def validate_from_index(
         disk_filter: Restrict to items on a specific disk (matches
             ``item_attribute.dispatch_disk``).
         category_filter: Restrict to a single ``media_item.category_id``.
+        only: Optional allow-set of check names restricting the run to the
+            named DISPATCH-stage checks. ``None`` (default) runs every
+            indexable check — byte-identical to the pre-filter behavior.
 
     Returns:
         :class:`LibraryValidationResult` populated from the index.
@@ -199,7 +203,7 @@ def validate_from_index(
         warnings: list[str] = []
 
         ictx = IndexContext(row=row, media_type=media_type, category=row["category_id"])
-        for check in registry.checks_for(CheckStage.DISPATCH, media_type):
+        for check in registry.checks_for_filtered(CheckStage.DISPATCH, media_type, only):
             if not isinstance(check, IndexableCheck):
                 continue
             results = check.from_index(row, ictx)
@@ -253,6 +257,7 @@ def validate_library(
     category_filter: str | None = None,
     fix: bool = False,
     apply: bool = False,
+    only: frozenset[str] | None = None,
 ) -> LibraryValidationResult:
     """Validate all library items on storage disks.
 
@@ -266,6 +271,9 @@ def validate_library(
         category_filter: Only validate this category_id. None = all.
         fix: If True, attempt to fix locally fixable issues.
         apply: If True (with fix), actually execute fixes. False = dry-run.
+        only: Optional allow-set of check names restricting the run to the
+            named DISPATCH-stage checks. ``None`` (default) runs every check —
+            byte-identical to the pre-filter behavior.
 
     Returns:
         LibraryValidationResult with per-item validation status.
@@ -306,9 +314,9 @@ def validate_library(
 
                 try:
                     if is_series:
-                        checks = checker.check_tvshow(media_dir)
+                        checks = checker.check_tvshow(media_dir, only)
                     else:
-                        checks = checker.check_movie(media_dir)
+                        checks = checker.check_movie(media_dir, only)
                 except OSError as exc:
                     log.warning("library_validate_fs_error", media_dir=str(media_dir), exc_info=True, error=str(exc))
                     items.append(

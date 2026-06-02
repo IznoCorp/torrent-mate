@@ -59,7 +59,7 @@ class MediaChecker:
         self.patterns = patterns
         self.config = config
 
-    def check_movie(self, movie_dir: Path) -> list[CheckResult]:
+    def check_movie(self, movie_dir: Path, only: frozenset[str] | None = None) -> list[CheckResult]:
         """Run all quality checks on a movie directory.
 
         Checks: video_present, not_sample, dir_naming, nfo_present,
@@ -68,6 +68,9 @@ class MediaChecker:
 
         Args:
             movie_dir: Path to the movie directory.
+            only: Optional allow-set of check names to restrict the run to.
+                ``None`` (default) runs every DISPATCH-stage movie check —
+                byte-identical to the pre-filter behavior.
 
         Returns:
             List of CheckResult for each criterion.
@@ -79,9 +82,9 @@ class MediaChecker:
             config=self.config,
             patterns=self.patterns,
         )
-        return [r for check in registry.checks_for(CheckStage.DISPATCH, "movie") for r in check.run(ctx)]
+        return [r for check in registry.checks_for_filtered(CheckStage.DISPATCH, "movie", only) for r in check.run(ctx)]
 
-    def check_tvshow(self, show_dir: Path) -> list[CheckResult]:
+    def check_tvshow(self, show_dir: Path, only: frozenset[str] | None = None) -> list[CheckResult]:
         """Run all quality checks on a TV show directory.
 
         Checks: video_present, dir_naming, nfo_present, nfo_valid,
@@ -91,6 +94,9 @@ class MediaChecker:
 
         Args:
             show_dir: Path to the TV show directory.
+            only: Optional allow-set of check names to restrict the run to.
+                ``None`` (default) runs every DISPATCH-stage tvshow check —
+                byte-identical to the pre-filter behavior.
 
         Returns:
             List of CheckResult for each criterion.
@@ -102,7 +108,9 @@ class MediaChecker:
             config=self.config,
             patterns=self.patterns,
         )
-        return [r for check in registry.checks_for(CheckStage.DISPATCH, "tvshow") for r in check.run(ctx)]
+        return [
+            r for check in registry.checks_for_filtered(CheckStage.DISPATCH, "tvshow", only) for r in check.run(ctx)
+        ]
 
     # --- provider-ids per-episode uniqueid checks (phase 9) -----------
 

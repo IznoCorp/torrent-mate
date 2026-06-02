@@ -25,6 +25,7 @@ def run_enforce(
     settings: Settings,
     config: Config,
     dry_run: bool = False,
+    only: frozenset[str] | None = None,
     *,
     event_bus: EventBus,
 ) -> StepReport:
@@ -40,6 +41,11 @@ def run_enforce(
         settings: Pipeline configuration.
         config: Config passed to the coherence checker for classifier rules.
         dry_run: If True, preview without modifying filesystem.
+        only: Optional allow-set of check names restricting the coherence
+            sub-component to the named STAGING-stage checks. ``None`` (default)
+            runs every check — byte-identical to the pre-filter behavior. The
+            sanitize and structure sub-components are unaffected (they are not
+            registry-driven).
         event_bus: Required in-process EventBus. Each per-item
         lifecycle transition emits an ``ItemProgressed`` event on the bus.
 
@@ -50,7 +56,7 @@ def run_enforce(
 
     sanitize_results = sanitize_files(settings, config, dry_run)
     structure_results = validate_structure(settings, config, dry_run)
-    coherence_results = check_coherence(settings, config, dry_run)
+    coherence_results = check_coherence(settings, config, dry_run, only)
 
     success = 0
     warnings_list: list[str] = []

@@ -130,6 +130,67 @@ class CheckRegistry:
                 ordered.append(check)
         return ordered
 
+    def _all_for_stage(self, stage: CheckStage) -> list["Check"]:
+        """Return every distinct check registered for a stage (any media_type).
+
+        Used by :meth:`checks_for_filtered` to recognise check names that are
+        valid for the stage but do not apply to the requested media type (e.g.
+        a tvshow-only check named in ``--check`` while verifying a movie). Such
+        names must NOT raise — they simply filter to nothing.
+
+        Args:
+            stage: Pipeline stage to enumerate.
+
+        Returns:
+            List of distinct Check instances registered for ``stage``.
+        """
+        seen: set[str] = set()
+        out: list["Check"] = []
+        for (s, n), check in self._checks.items():
+            if s == stage and n not in seen:
+                seen.add(n)
+                out.append(check)
+        return out
+
+    def checks_for_filtered(
+        self,
+        stage: CheckStage,
+        media_type: str,
+        only: frozenset[str] | None,
+    ) -> list["Check"]:
+        """Return :meth:`checks_for` output, optionally restricted to ``only``.
+
+        When ``only`` is ``None`` (the default everywhere), this is byte-for-byte
+        identical to :meth:`checks_for` — the no-filter path preserves the
+        characterization golden. When ``only`` is a non-empty allow-set, the
+        returned list is the intersection of the ordered ``checks_for`` output
+        with ``only`` (order preserved).
+
+        Names in ``only`` that are unknown for the *stage* (not registered for
+        any media type at that stage) raise :class:`KeyError`. Names that are
+        valid for the stage but not for ``media_type`` do NOT raise — they
+        simply contribute nothing to the result.
+
+        Args:
+            stage: Pipeline stage.
+            media_type: "movie" or "tvshow".
+            only: Allow-set of check names, or None for no filtering.
+
+        Returns:
+            Ordered list of Check instances (subset of ``checks_for`` when
+            ``only`` is set).
+
+        Raises:
+            KeyError: If ``only`` names a check unknown for ``stage``.
+        """
+        checks = self.checks_for(stage, media_type)
+        if only is None:
+            return checks
+        unknown = only - {c.name for c in checks} - {c.name for c in self._all_for_stage(stage)}
+        if unknown:
+            raise KeyError(f"Unknown check(s) for stage {stage.value}: {sorted(unknown)}")
+        return [c for c in checks if c.name in only]
+
     def list_specs(self) -> list[CheckSpec]:
         """Return CheckSpec for every registered check.
 

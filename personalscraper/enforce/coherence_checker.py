@@ -20,13 +20,21 @@ from personalscraper.verify.checks.base import CheckContext, CheckStage
 from personalscraper.verify.checks.registry import registry
 
 
-def _coherence_for(media_dir: Path, media_type: str, config: Config) -> CoherenceResult:
+def _coherence_for(
+    media_dir: Path,
+    media_type: str,
+    config: Config,
+    only: frozenset[str] | None = None,
+) -> CoherenceResult:
     """Build a CoherenceResult by running all STAGING checks for media_type.
 
     Args:
         media_dir: Path to the media directory.
         media_type: "movie" or "tvshow" — the bucket the item was found under.
         config: Config for classifier rules.
+        only: Optional allow-set of check names restricting the run to the
+            named STAGING-stage checks. ``None`` (default) runs every check —
+            byte-identical to the pre-filter behavior.
 
     Returns:
         CoherenceResult aggregating check names and warning messages.
@@ -38,7 +46,9 @@ def _coherence_for(media_dir: Path, media_type: str, config: Config) -> Coherenc
         config=config,
         patterns=PATTERNS,
     )
-    results = [r for check in registry.checks_for(CheckStage.STAGING, media_type) for r in check.run(ctx)]
+    results = [
+        r for check in registry.checks_for_filtered(CheckStage.STAGING, media_type, only) for r in check.run(ctx)
+    ]
     return CoherenceResult(
         path=media_dir,
         checks=[r.name for r in results],
@@ -65,6 +75,7 @@ def check_coherence(
     settings: Settings,
     config: Config,
     dry_run: bool = False,
+    only: frozenset[str] | None = None,
 ) -> list[CoherenceResult]:
     """Check cross-step coherence for all staging items.
 
@@ -76,6 +87,9 @@ def check_coherence(
         settings: Pipeline configuration (reserved for future use).
         config: Config used to resolve staging_dir and by the classifier for genre coherence.
         dry_run: No effect (coherence check is always read-only).
+        only: Optional allow-set of check names restricting the run to the
+            named STAGING-stage checks. ``None`` (default) runs every check —
+            byte-identical to the pre-filter behavior.
 
     Returns:
         List of CoherenceResult, one per media directory found.
@@ -88,12 +102,12 @@ def check_coherence(
     if movies_dir.exists():
         for folder in sorted(movies_dir.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):
-                results.append(_coherence_for(folder, "movie", config))
+                results.append(_coherence_for(folder, "movie", config, only))
 
     tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
     if tvshows_dir.exists():
         for folder in sorted(tvshows_dir.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):
-                results.append(_coherence_for(folder, "tvshow", config))
+                results.append(_coherence_for(folder, "tvshow", config, only))
 
     return results

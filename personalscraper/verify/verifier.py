@@ -71,6 +71,7 @@ class Verifier:
         config: Config,
         dry_run: bool = False,
         fix: bool = True,
+        only: frozenset[str] | None = None,
     ):
         """Initialize the verifier with patterns and classifier config.
 
@@ -80,11 +81,15 @@ class Verifier:
             config: Config with category IDs and classification rules.
             dry_run: If True, preview without modifying files.
             fix: If True, attempt to fix correctable issues.
+            only: Optional allow-set of check names to restrict every verify
+                run to. ``None`` (default) runs every DISPATCH-stage check —
+                byte-identical to the pre-filter behavior.
         """
         self.fix = fix
         self.dry_run = dry_run
         self._config = config
         self._patterns = patterns
+        self._only = only
 
     def _new_ctx(self, media_dir: Path, media_type: str) -> CheckContext:
         """Build a DISPATCH-stage CheckContext for ``media_dir``.
@@ -107,13 +112,15 @@ class Verifier:
             dry_run=self.dry_run,
         )
 
-    @staticmethod
-    def _run_checks(ctx: CheckContext) -> list[CheckResult]:
+    def _run_checks(self, ctx: CheckContext) -> list[CheckResult]:
         """Run all DISPATCH-stage check plugins for ``ctx``'s media type.
 
         Mirrors ``MediaChecker.check_movie``/``check_tvshow`` exactly (same
         registry loop, same order). ``run()`` is read-only, so re-running
         after fixes is side-effect-free aside from ``resolved_category``.
+
+        Honors ``self._only`` — when it is ``None`` (the default) the loop is
+        byte-identical to the unfiltered ``checks_for`` output.
 
         Args:
             ctx: Shared check context (drives the registry loop and carries
@@ -122,7 +129,9 @@ class Verifier:
         Returns:
             Ordered list of CheckResult for this stage/media type.
         """
-        return [r for check in registry.checks_for(ctx.stage, ctx.media_type) for r in check.run(ctx)]
+        return [
+            r for check in registry.checks_for_filtered(ctx.stage, ctx.media_type, self._only) for r in check.run(ctx)
+        ]
 
     def verify_movie(self, movie_dir: Path) -> VerifyResult:
         """Verify a single movie directory.
