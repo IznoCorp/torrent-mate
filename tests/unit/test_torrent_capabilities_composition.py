@@ -118,5 +118,12 @@ def test_transmission_client_is_torrent_adder() -> None:
 
 
 def test_transmission_client_not_torrent_limiter() -> None:
-    """TransmissionClient does NOT satisfy TorrentLimiter (D2)."""
+    """TransmissionClient does NOT satisfy TorrentLimiter (D2).
+
+    Design: docs/reference/architecture.md#torrent-family--capability-table
+    Contract: In the torrent capability table, QBitClient composes both
+    TorrentAdder and TorrentLimiter while TransmissionClient composes
+    TorrentAdder only — Transmission lacks per-torrent ratio/bandwidth/
+    seed-time RPC methods (D2).
+    """
     assert not isinstance(_transmission(), TorrentLimiter)

@@ -42,7 +42,13 @@ class TestBuildAppContextTorrent:
         assert ctx.torrent_client is None
 
     def test_capable_client_wired(self) -> None:
-        """D3: capable active client → wired into AppContext."""
+        """D3: capable active client → wired into AppContext.
+
+        Design: docs/reference/architecture.md#torrent-client-boot-wiring-torrent-write-v0200
+        Contract: The torrent-write boot-wiring promotes the active torrent
+        client into AppContext — a capable client resolved by
+        build_active_torrent_client() is stored in ctx.torrent_client.
+        """
         from personalscraper.api.torrent._contracts import TorrentAdder
         from personalscraper.cli_helpers import _build_app_context
 
@@ -58,7 +64,13 @@ class TestBuildAppContextTorrent:
         assert ctx.torrent_client is mock_client
 
     def test_incapable_client_raises(self) -> None:
-        """D3: enabled-but-incapable client → RegistryConfigError at boot."""
+        """D3: enabled-but-incapable client → RegistryConfigError at boot.
+
+        Design: docs/reference/architecture.md#boot-sequence
+        Contract: In the boot sequence, _build_app_context() asserts the active
+        torrent client composes TorrentAdder and raises RegistryConfigError
+        (protocol_mismatch, section torrent) when it does not (D3 fail-fast).
+        """
         from personalscraper.api.metadata.registry import RegistryConfigError
         from personalscraper.cli_helpers import _build_app_context
 
