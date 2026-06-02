@@ -20,7 +20,7 @@
 | 3   | Consolidate fixes       | phase-03-consolidate-fixes.md      | [x]    |
 | 4   | DB-mode unification     | phase-04-db-mode.md                | [x]    |
 | 5   | Migrate STAGING checks  | phase-05-migrate-staging.md        | [x]    |
-| 6   | Granular CLI            | phase-06-granular-cli.md           | [ ]    |
+| 6   | Granular CLI            | phase-06-granular-cli.md           | [x]    |
 | 7   | Fix-policy unification  | phase-07-fix-policy-unification.md | [ ]    |
 | 8   | Latent bug fixes        | phase-08-latent-bug-fixes.md       | [ ]    |
 | 9   | Feature PR + review     | phase-09-feature-pr.md             | [ ]    |
@@ -58,7 +58,7 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-**Phase 5 DONE (gate green).** Proceed to **Phase 6 — Granular CLI** (`docs/features/check-plugins/plan/phase-06-granular-cli.md`): expose a granular CLI surface over the unified Check framework (list/run individual checks by stage+name, leveraging `catalog.list_checks` / `run_check`). Strict 0→9 order; each phase ends with `make check`. Parity guards: Phase-0 golden + `test_dispatch_parity`.
+**Phase 6 DONE (gate green).** Proceed to **Phase 7 — Fix-policy unification** (`docs/features/check-plugins/plan/phase-07-fix-policy-unification.md`). ⚠️ This is the **first DELIBERATE behavior change**: flip the module-level `_VERIFY_FIX_POLICY` (currently `{"dir_naming"}`) to unify it with the library set, so verify auto-fixes more than just dir_naming. The `verifier_movie`/`verifier_tvshow` goldens WILL change — they are **re-captured** (env `CAPTURE_GOLDEN=1 GOLDEN_ONLY=verifier_movie,verifier_tvshow`) as the deliberate, isolated update point. All OTHER goldens stay byte-identical. Read the phase plan carefully before running. Strict 0→9 order; each phase ends with `make check`.
 
 ### Phase 0 gate record (2026-06-02)
 
@@ -102,5 +102,12 @@ _(filled by implement:pr-review — max 5 cycles)_
 - **ACC-05 (the `(stage, name)` collision)**: `registry.get(DISPATCH,'nfo_ids') is not registry.get(STAGING,'nfo_ids')` → **True**. DISPATCH `nfo_ids` (ERROR, full-id semantics) and STAGING `nfo_ids` (WARNING, coherence semantics) coexist independently.
 - Parity: `coherence` golden byte-identical. STAGING `_ORDER` (movie=[sort_process_coherence, nfo_ids], tvshow=[nfo_ids, genre_coherence, sort_process_coherence]) verified == the legacy append order; `[]`-on-no-NFO semantics + verbatim message strings preserved.
 - Gate green: `make check` ✓ (5889 passed, 0 failed, coverage 91.17%), ACC-01 golden 7 passed, ACC-02 181 passed, ACC-07 module-size (only the pre-existing movie_service.py WARN), `import personalscraper` ✓. Both stages now flow through the single registry.
+
+### Phase 6 gate record (2026-06-02)
+
+- Sub-phases: `6.1` thread an optional `only: frozenset[str] | None` allow-set through all 5 registry-loop call-sites + `run_verify`/`run_enforce`/`Verifier.__init__`/`validate_library`/`validate_from_index`/`check_coherence`/`MediaChecker.check_movie/check_tvshow`; added `CheckRegistry.checks_for_filtered` + `_all_for_stage` (`ff249161`, 8 files). `6.2` add `--check NAME` (repeatable) + `--list-checks` Typer flags to `verify` (DISPATCH), `enforce` (STAGING), `library_validate` (DISPATCH) — unknown name → `typer.BadParameter`; `library_clean`'s unrelated `--only` left untouched (`6cf49c6f`, 5 files).
+- **Additive invariant**: `only=None` default everywhere → `checks_for_filtered` returns `checks_for` unchanged → golden byte-identical + `default-None identity == True`.
+- **ACC-04**: `personalscraper verify --list-checks` → exit 0, prints the DISPATCH `CheckSpec` rows (the Web-UI `catalog.list_checks` enumeration API exercised end-to-end).
+- Gate green: `make check` ✓ (5905 passed, 0 failed, coverage 91.21%), ACC-01 golden 7 passed, ACC-02+commands 876/full-suite green, 9 new CLI tests, ACC-07 module-size (only the pre-existing movie_service.py WARN), `import personalscraper` ✓.
 
 > **PR #33 is already created** (https://github.com/LounisBou/personal-scraper/pull/33, WIP). The branch is pushed to `origin/feat/check-plugins`. When the lifecycle reaches Phase 9 (`/implement:feature-pr`), it must **push onto the existing branch and reuse PR #33** (detect-existing, do not create a duplicate) — then `/implement:pr-review` → **manual squash merge**. Each implementation commit pushed to the branch updates PR #33 in place.
