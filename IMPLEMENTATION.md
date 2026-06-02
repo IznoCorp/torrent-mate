@@ -6,7 +6,7 @@
 **Version bump**: 0.20.0 → 0.21.0
 **Branch**: feat/torrent-write
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/36
 **Design**: docs/features/torrent-write/DESIGN.md
 **Master plan**: docs/features/torrent-write/plan/INDEX.md
 
