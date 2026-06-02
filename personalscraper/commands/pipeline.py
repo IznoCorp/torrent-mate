@@ -152,12 +152,28 @@ def verify(
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying files"),
     movies_only: bool = typer.Option(False, "--movies-only", help="Process only movies"),
     tvshows_only: bool = typer.Option(False, "--tvshows-only", help="Process only TV shows"),
+    check: list[str] = typer.Option(None, "--check", help="Run only the named check(s); repeatable"),
+    list_checks: bool = typer.Option(False, "--list-checks", help="List available checks and exit"),
 ) -> None:
     """Verify and qualify scraped media before dispatch."""
     from personalscraper.verify.run import run_verify
 
     config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
+    if list_checks:
+        from personalscraper.verify.checks.base import CheckStage
+        from personalscraper.verify.checks.catalog import list_checks as _list
+
+        for spec in (s for s in _list() if s.stage == CheckStage.DISPATCH):
+            fix = "fixable" if spec.fixable else "-"
+            idx = "indexable" if spec.indexable else "-"
+            console.print(
+                f"  {spec.name:<34} [{spec.group}] "
+                f"{spec.default_severity.value:<7} {fix:<8} {idx:<9} "
+                f"{spec.description}"
+            )
+        raise typer.Exit(0)
+    only = frozenset(check) if check else None
     if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
@@ -165,14 +181,18 @@ def verify(
         _bootstrap_staging(ctx)
         settings = cli_compat.get_settings()
         with per_step_boundary(config, settings) as app_context:
-            report, dispatchable = run_verify(
-                settings,
-                config,
-                dry_run=dry_run,
-                movies_only=movies_only,
-                tvshows_only=tvshows_only,
-                event_bus=app_context.event_bus,
-            )
+            try:
+                report, dispatchable = run_verify(
+                    settings,
+                    config,
+                    dry_run=dry_run,
+                    movies_only=movies_only,
+                    tvshows_only=tvshows_only,
+                    only=only,
+                    event_bus=app_context.event_bus,
+                )
+            except KeyError as exc:
+                raise typer.BadParameter(str(exc)) from exc
         console.print(f"[bold]Verify:[/bold] {report.success_count} OK, {report.error_count} blocked")
         console.print(f"  {len(dispatchable)} ready for dispatch")
         if state["verbose"]:
@@ -187,12 +207,28 @@ def verify(
 def enforce(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying"),
+    check: list[str] = typer.Option(None, "--check", help="Run only the named check(s); repeatable"),
+    list_checks: bool = typer.Option(False, "--list-checks", help="List available checks and exit"),
 ) -> None:
     """Enforce staging conventions: sanitize filenames, validate structure, check coherence."""
     from personalscraper.enforce.run import run_enforce
 
     config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
+    if list_checks:
+        from personalscraper.verify.checks.base import CheckStage
+        from personalscraper.verify.checks.catalog import list_checks as _list
+
+        for spec in (s for s in _list() if s.stage == CheckStage.STAGING):
+            fix = "fixable" if spec.fixable else "-"
+            idx = "indexable" if spec.indexable else "-"
+            console.print(
+                f"  {spec.name:<34} [{spec.group}] "
+                f"{spec.default_severity.value:<7} {fix:<8} {idx:<9} "
+                f"{spec.description}"
+            )
+        raise typer.Exit(0)
+    only = frozenset(check) if check else None
     if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
@@ -200,7 +236,10 @@ def enforce(
         _bootstrap_staging(ctx)
         settings = cli_compat.get_settings()
         with per_step_boundary(config, settings) as app_context:
-            report = run_enforce(settings, config, dry_run=dry_run, event_bus=app_context.event_bus)
+            try:
+                report = run_enforce(settings, config, dry_run=dry_run, only=only, event_bus=app_context.event_bus)
+            except KeyError as exc:
+                raise typer.BadParameter(str(exc)) from exc
         console.print(f"Enforce: {report.success_count} fixed, {report.skip_count} OK, {report.error_count} errors")
         if state["verbose"]:
             for detail in report.details:
