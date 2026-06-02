@@ -50,3 +50,48 @@ def test_verify_pipeline_fixes_ntfs_names(tmp_path, test_config):
     result = v.verify_movie(d)
     assert not (d / "bad:name.srt").exists()  # renamed by verify now
     assert result.status in ("valid", "fixed")
+
+
+def test_verify_multi_fix_threads_dir_rename_forward(tmp_path, test_config):
+    """A bad dir name + empty subdir are BOTH fixed in one verify pass.
+
+    Regression for the apply_fixes ordering bug: dir_naming renames the dir
+    on disk, but apply_fixes must thread the new path forward so the later
+    no_empty_dirs fix rglobs the RENAMED dir (not the now-missing old path).
+    Before the fix, no_empty_dirs scanned the stale path → returned [] →
+    the empty dir survived and the item ended ``blocked``.
+    """
+    bad = tmp_path / "BadName"  # malformed → dir_naming ERROR (fixable)
+    bad.mkdir()
+    _valid_movie(bad)  # NFO declares canonical "M (2020)"
+    (bad / "Empty").mkdir()  # empty subdir → no_empty_dirs ERROR (fixable)
+    v = Verifier(MagicMock(), PATTERNS, test_config, dry_run=False, fix=True)
+    result = v.verify_movie(bad)
+
+    renamed = tmp_path / "M (2020)"
+    assert renamed.is_dir()  # dir_naming fix happened
+    assert not bad.exists()  # old path gone
+    assert not (renamed / "Empty").exists()  # empty dir removed in the SAME pass
+    assert result.status in ("valid", "fixed")
+    descs = " ".join(result.fixes_applied)
+    assert "M (2020)" in descs  # rename recorded
+    assert "Empty" in descs  # empty-dir removal recorded
+
+
+def test_verify_multi_fix_threads_dir_rename_to_ntfs_fix(tmp_path, test_config):
+    """A bad dir name + NTFS-illegal file are BOTH fixed in one verify pass.
+
+    Same threading bug as above, exercising the dir_naming → ntfs_safe_names
+    ordering: the NTFS fix must scan the renamed dir to find the illegal file.
+    """
+    bad = tmp_path / "BadName"  # malformed → dir_naming ERROR (fixable)
+    bad.mkdir()
+    _valid_movie(bad)  # NFO declares canonical "M (2020)"
+    (bad / "bad:name.srt").write_bytes(b"1\n")  # NTFS-illegal → fixable
+    v = Verifier(MagicMock(), PATTERNS, test_config, dry_run=False, fix=True)
+    result = v.verify_movie(bad)
+
+    renamed = tmp_path / "M (2020)"
+    assert renamed.is_dir()  # dir_naming fix happened
+    assert not (renamed / "bad:name.srt").exists()  # illegal file renamed in same pass
+    assert result.status in ("valid", "fixed")

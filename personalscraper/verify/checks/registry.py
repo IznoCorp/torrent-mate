@@ -254,6 +254,15 @@ def apply_fixes(
         if r.name not in policy:
             continue
         check = registry.get(ctx.stage, r.name)
-        if check is not None and isinstance(check, FixableCheck):
-            actions.extend(check.fix(ctx))
+        if check is not None and callable(getattr(check, "fix", None)):
+            fix_actions = check.fix(ctx)
+            actions.extend(fix_actions)
+            # Thread a directory rename forward: if this fix renamed the media
+            # dir itself (e.g. dir_naming → ``new_path`` is the renamed dir),
+            # repoint ctx.media_dir so later fixes in THIS call operate on the
+            # new path instead of rglob-ing the now-missing old one. Mirrors the
+            # per-check threading that validate_library does in its outer loop.
+            for a in fix_actions:
+                if a.new_path is not None and a.new_path != ctx.media_dir and a.new_path.is_dir():
+                    ctx.media_dir = a.new_path
     return actions
