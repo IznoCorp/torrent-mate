@@ -53,6 +53,8 @@ from personalscraper.pipeline_events import (
 )
 from personalscraper.trailers import events as _trailers_events  # noqa: F401
 from personalscraper.trailers.events import TrailerDownloaded
+from personalscraper.verify import events as _verify_events  # noqa: F401
+from personalscraper.verify.events import VerifyItemDone
 
 __all__ = [
     "BackfillCompleted",
@@ -77,4 +79,5 @@ __all__ = [
     "StepErrored",
     "StepStarted",
     "TrailerDownloaded",
+    "VerifyItemDone",
 ]
