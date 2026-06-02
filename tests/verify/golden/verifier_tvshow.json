@@ -1,15 +1,15 @@
 {
   "tvshow_empty_subdir": {
     "category": "tv_shows",
-    "checks_passed": 14,
+    "checks_passed": 15,
     "checks_total": 18,
-    "errors": [
-      "Empty subdirs: Extras"
+    "errors": [],
+    "fixes_applied": [
+      "Removed empty dir: Extras"
     ],
-    "fixes_applied": [],
     "media_path": "{tmp}/test_verifier_tvshow0/v_tv/TVShow EmptyDir (2022)",
     "media_type": "tvshow",
-    "status": "blocked",
+    "status": "fixed",
     "warnings": [
       "Missing season01-poster.jpg",
       "Missing xref <uniqueid type=\"tmdb\"> on: S01E01 - Only.nfo; consider 'personalscraper indexer backfill-ids'",
@@ -32,13 +32,14 @@
   },
   "tvshow_ntfs_illegal": {
     "category": "tv_shows",
-    "checks_passed": 13,
+    "checks_passed": 14,
     "checks_total": 18,
     "errors": [
-      "Unrenamed episodes: bad:file.mkv",
-      "NTFS-illegal filenames: bad:file.mkv"
+      "Unrenamed episodes: badfile.mkv"
     ],
-    "fixes_applied": [],
+    "fixes_applied": [
+      "Renamed: bad:file.mkv \u2192 badfile.mkv"
+    ],
     "media_path": "{tmp}/test_verifier_tvshow0/v_tv/TVShow NTFS (2023)",
     "media_type": "tvshow",
     "status": "blocked",

@@ -25,7 +25,7 @@ log = get_logger("verify.verifier")
 # ``_LIBRARY_FIX_POLICY`` in library_checks.py). Phase 7 flips THIS one
 # constant for both verify_movie AND verify_tvshow — do NOT inline it as a
 # method-local variable.
-_VERIFY_FIX_POLICY = frozenset({"dir_naming"})
+_VERIFY_FIX_POLICY = frozenset({"dir_naming", "no_empty_dirs", "ntfs_safe_names"})
 
 
 @dataclass
@@ -158,9 +158,12 @@ class Verifier:
             if fixable_fails:
                 actions = apply_fixes(ctx, fixable_fails, _VERIFY_FIX_POLICY)
                 result.fixes_applied = [a.description for a in actions]
-                # Update movie_dir if renamed; rebuild ctx on the new path
+                # Update movie_dir if renamed; rebuild ctx on the new path.
+                # Only follow directory renames (e.g. dir_naming); file-level
+                # fixes (e.g. ntfs_safe_names) set new_path to the renamed file
+                # and must NOT redirect movie_dir.
                 for a in actions:
-                    if a.new_path and not self.dry_run:
+                    if a.new_path and not self.dry_run and a.new_path.is_dir():
                         movie_dir = a.new_path
                         result.media_path = movie_dir
                         ctx = self._new_ctx(movie_dir, "movie")
@@ -191,7 +194,7 @@ class Verifier:
                 actions = apply_fixes(ctx, fixable_fails, _VERIFY_FIX_POLICY)
                 result.fixes_applied = [a.description for a in actions]
                 for a in actions:
-                    if a.new_path and not self.dry_run:
+                    if a.new_path and not self.dry_run and a.new_path.is_dir():
                         show_dir = a.new_path
                         result.media_path = show_dir
                         ctx = self._new_ctx(show_dir, "tvshow")

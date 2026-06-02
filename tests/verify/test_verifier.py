@@ -315,14 +315,15 @@ class TestReinforcedChecks:
         assert result.status == "blocked"
         assert any("Poster not found" in e for e in result.errors)
 
-    def test_movie_with_empty_subdir_blocked(self, tmp_path: Path, test_config: Config) -> None:
-        """Movie with empty subdirectory is blocked."""
+    def test_movie_with_empty_subdir_fixed(self, tmp_path: Path, test_config: Config) -> None:
+        """Movie with empty subdirectory is auto-fixed (Phase 7 behavior change)."""
         d = _make_valid_movie(tmp_path)
         (d / "empty_subdir").mkdir()
         v = Verifier(MagicMock(), NamingPatterns(), test_config)
         result = v.verify_movie(d)
-        assert result.status == "blocked"
-        assert any("Empty subdirs" in e for e in result.errors)
+        assert result.status in ("valid", "fixed")
+        assert not (d / "empty_subdir").exists()
+        assert any("empty" in f.lower() for f in result.fixes_applied)
 
     def test_tvshow_unrenamed_episode_blocked(self, tmp_path: Path, test_config: Config) -> None:
         """TV show with unrenamed episode file is blocked."""
