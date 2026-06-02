@@ -31,7 +31,7 @@ ProviderFamily = Literal["tvdb", "tmdb", "imdb"]
 
 # Rating source literal. Mirrors :class:`Notations.source` from the
 # metadata family for round-trip compatibility.
-RatingSource = Literal["imdb", "rotten_tomatoes", "metacritic", "themoviedb", "trakt"]
+RatingSource = Literal["imdb", "tmdb", "rotten_tomatoes", "metacritic", "trakt"]
 
 
 class ProviderIds(BaseModel):
