@@ -25,10 +25,50 @@
 | 9   | Remove lazy inline `QBitClient` fallbacks                                  | phase-09-remove-lazy-fallbacks.md | [x]    |
 | 10  | Reference docs updates                                                     | phase-10-docs.md                  | [x]    |
 | 11  | Executable `ACCEPTANCE.md` + ROADMAP flip                                  | phase-11-acceptance-roadmap.md    | [x]    |
+| 12  | PR review fixes — cycle 1 (bencode, qBit add, seed-time, +mediums)         | phase-12-pr-fixes-cycle-1.md      | [ ]    |
 
 ## Review cycles
 
-_(filled by implement:pr-review — max 3 cycles)_
+### Cycle 1 — 2026-06-02
+
+pr-review-toolkit (5 agents) + Opus filter vs DESIGN. Findings **independently
+reproduced** before classification (evidence-before-severity). All are
+implementation bugs within DESIGN scope — **no design contradiction**.
+
+**Retained — blocking (must fix before merge):**
+
+- **C1 (critical)** `_base.py` `_bencode_info_hash`: flat `data.find(b"4:info")`
+  matches inside a sibling string value (`comment`/`announce`/`created by` sort
+  before `info`) → crash or **silent wrong info_hash** (attacker-influenceable).
+  Reproduced (crash). Fix: structural top-level dict walk.
+- **C2 (critical)** `qbittorrent.py` `add()`: ignores `torrents_add` return +
+  miscatches duplicate. Lib raises `Conflict409Error` on duplicate (uncaught →
+  D7 broken) and returns `"Fails."` on failure (→ silent fake-success, D8
+  violated). Verified vs qbittorrentapi v5.1.4. Fix: catch Conflict409 →
+  idempotent; inspect return, raise on `"Fails."`; catch file/media errors.
+- **M1 (major)** `qbittorrent.py` `_limit_kwargs`/`apply_limits`: `seed_time_minutes
+  - 60`— qBit expects **minutes** (verified). 60× error. Test asserts the bug.
+Fix: drop`\* 60`; fix test.
+
+**Retained — medium:**
+
+- Md1 `apply_limits` sends `-2` (reset-to-global) for the unspecified field →
+  contradicts "None = no-op". Fix: only send provided fields.
+- Md2 bencode not hardened (length bound / recursion depth) — folds into C1.
+- Md3 base32 (32-char) magnets rejected → crash add path. Fix: accept + decode.
+- Md4 `TorrentSource("")`/`from_file(b"")` pass exactly-one. Fix: reject empties.
+- Md5 Transmission dup match `"duplicate" in str(exc)` fragile. Fix: `"torrent-duplicate"`.
+- Md6 boot tests miss `enabled=False` + factory-raise propagation. Fix: add tests.
+- Md7 doc rot: `_contracts.py` docstring + `architecture.md` say "5 protocols"
+  (now 7) — DESIGN §5.2 asked to update. Fix: correct counts/tables.
+
+**Minor (bundle opportunistically):** Transmission D6 hashString cross-check
+unwired (log.warning on mismatch); `info_hash` vs `hash` param naming;
+`UnsupportedCapabilityError` extends Exception (add intent comment); misleading
+`patch.object(info_hash)` stub; `_errors.py` module docstring.
+
+**Verdict:** Case B → fix phase 12 generated; run `/implement:phase`, then
+re-push (CI) + re-review. PR #36 **blocked** until C1/C2/M1 fixed.
 
 ## Next action
 
