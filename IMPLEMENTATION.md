@@ -17,7 +17,7 @@
 | 1   | `TorrentSource` + `TorrentLimits` value objects                            | phase-01-value-objects.md         | [x]    |
 | 2   | `TorrentAdder` + `TorrentLimiter` Protocols + `UnsupportedCapabilityError` | phase-02-protocols.md             | [x]    |
 | 3   | `TorrentItem.tags` field + mapper updates (qBit CSV + Transmission D5)     | phase-03-torrentitem-tags.md      | [x]    |
-| 4   | `QBitClient.add()` + `_limit_kwargs()`                                     | phase-04-qbit-add.md              | [ ]    |
+| 4   | `QBitClient.add()` + `_limit_kwargs()`                                     | phase-04-qbit-add.md              | [x]    |
 | 5   | `QBitClient.apply_limits()` + composition assertions                       | phase-05-qbit-apply-limits.md     | [ ]    |
 | 6   | `TransmissionClient.add()` + `_labels()` + composition assertions          | phase-06-transmission-add.md      | [ ]    |
 | 7   | `AppContext.torrent_client` field                                          | phase-07-appcontext-field.md      | [ ]    |
@@ -32,4 +32,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phases 1–3 complete (contract layer done). Next: Phase 4 — `QBitClient.add()` + `_limit_kwargs()`.
+Phases 1–4 complete. Next: Phase 5 — `QBitClient.apply_limits()` (replaces the Phase-4 no-op stub) + composition assertions.
