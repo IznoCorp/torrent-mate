@@ -231,13 +231,25 @@ class QBitClient(
             ) from exc
 
     def apply_limits(self, info_hash: str, limits: TorrentLimits) -> None:
-        """Apply transfer limits to an existing torrent (Phase 05 — D2).
+        """Apply transfer limits to an existing torrent (D2/§5.4).
 
-        Stub: full implementation with torrents_set_share_limits /
-        torrents_set_upload_limit / torrents_set_download_limit in Phase 05.
+        Only non-None fields trigger API calls. All-None TorrentLimits is
+        a no-op.
+
+        Args:
+            info_hash: Lowercase hex info_hash of the target torrent.
+            limits: Limits to apply.
         """
-        # No-op stub — mypy concrete-body requirement. Phase 05 implementation
-        # will replace this with the real torrents_set_* calls.
+        if limits.ratio is not None or limits.seed_time_minutes is not None:
+            self._client.torrents_set_share_limits(
+                torrent_hashes=info_hash,
+                ratio_limit=limits.ratio if limits.ratio is not None else -2,  # type: ignore[arg-type]  # stub is str|int|None; API accepts float
+                seeding_time_limit=(limits.seed_time_minutes * 60 if limits.seed_time_minutes is not None else -2),
+            )
+        if limits.up_bytes_per_s is not None:
+            self._client.torrents_set_upload_limit(torrent_hashes=info_hash, limit=limits.up_bytes_per_s)
+        if limits.down_bytes_per_s is not None:
+            self._client.torrents_set_download_limit(torrent_hashes=info_hash, limit=limits.down_bytes_per_s)
 
     # -- Auth ----------------------------------------------------------------
 

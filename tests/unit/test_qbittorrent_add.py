@@ -9,7 +9,7 @@ import qbittorrentapi
 
 from personalscraper.api._contracts import ApiError
 from personalscraper.api.torrent._base import TorrentLimits, TorrentSource
-from personalscraper.api.torrent._contracts import TorrentAdder
+from personalscraper.api.torrent._contracts import TorrentAdder, TorrentLimiter
 from personalscraper.api.torrent.qbittorrent import QBitClient
 
 MAGNET = "magnet:?xt=urn:btih:aabbcc112233ddeeff00112233445566778899aa&dn=t"
@@ -95,3 +95,54 @@ def test_add_forbidden_raises_api_error() -> None:
     with pytest.raises(ApiError) as ei:
         c.add(TorrentSource.from_magnet(MAGNET))
     assert ei.value.http_status == 403
+
+
+class TestQBitClientApplyLimits:
+    """qBittorrent ``apply_limits()`` tests — DESIGN D2."""
+
+    def test_qbit_is_torrent_limiter(self) -> None:
+        """``QBitClient`` satisfies :class:`TorrentLimiter`."""
+        assert isinstance(_c(), TorrentLimiter)
+
+    def test_apply_ratio_calls_set_share_limits(self) -> None:
+        """``apply_limits()`` with ratio calls ``torrents_set_share_limits``."""
+        c = _c()
+        c.apply_limits("abc", TorrentLimits(ratio=1.5))
+        c._client.torrents_set_share_limits.assert_called_once_with(
+            torrent_hashes="abc",
+            ratio_limit=1.5,
+            seeding_time_limit=-2,
+        )
+
+    def test_apply_upload_calls_set_upload_limit(self) -> None:
+        """``apply_limits()`` with upload limit calls ``torrents_set_upload_limit``."""
+        c = _c()
+        c.apply_limits("abc", TorrentLimits(up_bytes_per_s=512))
+        c._client.torrents_set_upload_limit.assert_called_once_with(
+            torrent_hashes="abc",
+            limit=512,
+        )
+
+    def test_apply_download_calls_set_download_limit(self) -> None:
+        """``apply_limits()`` with download limit calls ``torrents_set_download_limit``."""
+        c = _c()
+        c.apply_limits("abc", TorrentLimits(down_bytes_per_s=1024))
+        c._client.torrents_set_download_limit.assert_called_once_with(
+            torrent_hashes="abc",
+            limit=1024,
+        )
+
+    def test_all_none_is_noop(self) -> None:
+        """``apply_limits()`` with all-None limits is a no-op."""
+        c = _c()
+        c.apply_limits("abc", TorrentLimits())
+        c._client.torrents_set_share_limits.assert_not_called()
+        c._client.torrents_set_upload_limit.assert_not_called()
+        c._client.torrents_set_download_limit.assert_not_called()
+
+    def test_seed_time_converted_to_seconds(self) -> None:
+        """``apply_limits()`` converts seed_time_minutes to seconds."""
+        c = _c()
+        c.apply_limits("abc", TorrentLimits(seed_time_minutes=30))
+        kw = c._client.torrents_set_share_limits.call_args[1]
+        assert kw["seeding_time_limit"] == 1800

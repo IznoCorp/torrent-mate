@@ -9,8 +9,10 @@ from __future__ import annotations
 
 from personalscraper.api.torrent._contracts import (
     AuthenticatedClient,
+    TorrentAdder,
     TorrentController,
     TorrentInspector,
+    TorrentLimiter,
     TorrentLister,
     TorrentStateInspector,
 )
@@ -93,3 +95,18 @@ def test_transmission_client_is_torrent_controller() -> None:
 def test_transmission_client_not_authenticated_client() -> None:
     """Transmission deliberately omits :class:`AuthenticatedClient` (no explicit login)."""
     assert not isinstance(_transmission(), AuthenticatedClient)
+
+
+# ---------------------------------------------------------------------------
+# TorrentAdder / TorrentLimiter — D1/D2
+# ---------------------------------------------------------------------------
+
+
+def test_qbit_client_is_torrent_adder() -> None:
+    """``QBitClient`` satisfies :class:`TorrentAdder`."""
+    assert isinstance(_qbit(), TorrentAdder)
+
+
+def test_qbit_client_is_torrent_limiter() -> None:
+    """``QBitClient`` satisfies :class:`TorrentLimiter`."""
+    assert isinstance(_qbit(), TorrentLimiter)
