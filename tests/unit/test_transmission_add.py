@@ -79,6 +79,32 @@ class TestTransmissionAdd:
         src = TorrentSource.from_magnet(MAGNET)
         assert c.add(src) == src.info_hash  # D7: no exception
 
+    def test_non_duplicate_not_swallowed(self):
+        """TransmissionError without 'torrent-duplicate' must propagate (Md5)."""
+        c = _c()
+        c._client.add_torrent.side_effect = transmission_rpc.TransmissionError("duplicate label rejected")
+        src = TorrentSource.from_magnet(MAGNET)
+        with pytest.raises(transmission_rpc.TransmissionError, match="duplicate label rejected"):
+            c.add(src)
+
+    def test_hash_mismatch_warns(self):
+        """When echoed hash differs from source hash, a warning is emitted (D6/mn1)."""
+        from personalscraper.api.torrent import transmission as tmod
+
+        c = _c()
+        t = _mock_torrent(hash_string="ffffeeeeddddccccbbbbaaaa9999888877776666")
+        c._client.add_torrent.return_value = t
+        src = TorrentSource.from_magnet(MAGNET)
+        with patch.object(tmod.log, "warning") as mock_warn:
+            result = c.add(src)
+        assert result == src.info_hash  # D6: source hash is canonical
+        mock_warn.assert_called_once()
+        call_args = mock_warn.call_args
+        assert call_args[0][0] == "transmission_add_hash_mismatch"
+        assert call_args[1]["echoed_hash"] == "ffffeeeeddddccccbbbbaaaa9999888877776666"
+        assert call_args[1]["source_hash"] == src.info_hash
+        assert "source-derived" in call_args[1]["hint"]
+
     def test_limits_raises_unsupported(self):
         """Passing limits raises UnsupportedCapabilityError (D8)."""
         c = _c()

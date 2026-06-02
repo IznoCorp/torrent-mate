@@ -227,9 +227,20 @@ class TransmissionClient(
                 echoed_hash=result.hash_string,
                 source_hash=source.info_hash,
             )
+            if result.hash_string.lower() != source.info_hash.lower():
+                log.warning(
+                    "transmission_add_hash_mismatch",
+                    echoed_hash=result.hash_string,
+                    source_hash=source.info_hash,
+                    hint=(
+                        "Transmission echoed a hash_string that differs"
+                        " from the source-derived info_hash."
+                        " Returning source.info_hash as canonical (D6)."
+                    ),
+                )
             return source.info_hash
         except transmission_rpc.TransmissionError as exc:
-            if "duplicate" in str(exc).lower():  # D7 idempotence
+            if "torrent-duplicate" in str(exc).lower():  # D7 idempotence
                 log.debug("transmission_add_duplicate", info_hash=source.info_hash)
                 return source.info_hash
             raise
