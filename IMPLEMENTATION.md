@@ -66,7 +66,17 @@ Design + plan were brainstormed, then verified **three times** before any code �
 
 ## Review cycles
 
-_(filled by implement:pr-review — max 5 cycles)_
+### Cycle 1 (2026-06-02) — pr-review-toolkit (4 agents: code / silent-failure / test-coverage / type-design)
+
+**Findings retained + fixed** (`63610ac2`, `b24b763d` — 6 plugins + 4 test files; golden JSON + characterization test UNTOUCHED; golden+parity stayed 9 passed; `make check` EXIT=0, 5916 passed, cov 91.21%):
+
+- **MAJOR (correctness) — `apply_fixes` multi-fix ordering**: the verify path passed the full fixable list to ONE `apply_fixes` call without threading `ctx.media_dir` between fixes → after `DirNaming.fix` renamed the dir, `NoEmptyDirs`/`NtfsSafeNames` `rglob`'d the STALE path → silently no-op → item wrongly `blocked` not `fixed`. Golden-blind (corpus names are well-formed). **Fixed**: `apply_fixes` now updates `ctx.media_dir = action.new_path` after any fix returning a directory `new_path` (mirrors `validate_library`). **Regression tests** (`test_fix_policy.py`): bad-name + empty-subdir, and bad-name + NTFS-illegal — both fail-before / pass-after.
+- **MEDIUM**: restored `exc_info=True` on 7 fix/genre error handlers (debuggability regression vs legacy); `DirNaming.fix` dry-run now prints `[DRY-RUN] Would rename …` (was past-tense "Renamed" → false "mutation happened" claim in the mandated dry-run-first workflow); end-to-end + STAGING `--check` filter tests added (the CLI tests only mocked the run — the exact gap behind the upfront-validation bug); `CheckContext` parse-once-cache docstring corrected (removed the non-existent `_NOT_PARSED` claim, noted it's an unwired optional helper) + added a `nfo_root_parse_failed` log.
+- **LOW (robustness)**: `register` now raises on a duplicate `(stage,name)` (fail-fast; `nfo_ids` collision uses different stages → unaffected); `apply_fixes` dispatch hardened to `callable(check.fix)`; `list_specs` `indexable` detection made symmetric (`isinstance(IndexableCheck)`); `dir_naming_fix_skipped` debug logs; provider_ids coverage tests (unparseable episode NFO; canonical_family None with episodes).
+- **No design contradictions** — `(stage,name)` keying + `resolved_category` side-channel confirmed correct by the type-design pass.
+- **Known/documented (not re-fixed)**: the `rglob` recursive empty-dir removal in `validate_library` (vs legacy top-level) — already flagged for operator sign-off in the Phase 3 gate record.
+
+_(loop converged after Cycle 1 — all MAJOR/MEDIUM/LOW findings fixed; remaining is the documented rglob sign-off item. Final squash merge is manual.)_
 
 ## Next action
 
