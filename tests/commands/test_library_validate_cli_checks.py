@@ -38,8 +38,6 @@ def test_library_validate_check_bogus_name_exits_nonzero(
     test_config,
 ) -> None:
     """library-validate --check bogus_name exits != 0 with a hint."""
-    mock_validate.side_effect = KeyError("Unknown check(s) for stage dispatch: ['bogus_name']")
-
     with patch(_PATCH_LOAD_CONFIG, return_value=test_config):
         result = run_cli(["library-validate", "--check", "bogus_name"])
 

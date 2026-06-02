@@ -174,6 +174,16 @@ def verify(
             )
         raise typer.Exit(0)
     only = frozenset(check) if check else None
+    if only is not None:
+        from personalscraper.verify.checks.base import CheckStage
+        from personalscraper.verify.checks.catalog import list_checks as _list_checks
+
+        _available = {s.name for s in _list_checks() if s.stage == CheckStage.DISPATCH}
+        _unknown = only - _available
+        if _unknown:
+            raise typer.BadParameter(
+                f"Unknown check(s): {sorted(_unknown)}. Available dispatch checks: {sorted(_available)}"
+            )
     if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
@@ -229,6 +239,16 @@ def enforce(
             )
         raise typer.Exit(0)
     only = frozenset(check) if check else None
+    if only is not None:
+        from personalscraper.verify.checks.base import CheckStage
+        from personalscraper.verify.checks.catalog import list_checks as _list_checks
+
+        _available = {s.name for s in _list_checks() if s.stage == CheckStage.STAGING}
+        _unknown = only - _available
+        if _unknown:
+            raise typer.BadParameter(
+                f"Unknown check(s): {sorted(_unknown)}. Available staging checks: {sorted(_available)}"
+            )
     if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)

@@ -42,7 +42,6 @@ def test_verify_check_bogus_name_exits_nonzero(
     test_config,
 ) -> None:
     """Verify --check bogus_name exits != 0 with a hint."""
-    mock_run.side_effect = KeyError("Unknown check(s) for stage dispatch: ['bogus_name']")
     from tests.fixtures.settings_stub import make_typed_settings_stub
 
     mock_settings.return_value = make_typed_settings_stub()

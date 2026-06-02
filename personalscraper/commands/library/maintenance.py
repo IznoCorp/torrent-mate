@@ -303,6 +303,16 @@ def library_validate(
             )
         raise typer.Exit(0)
     only = frozenset(check) if check else None
+    if only is not None:
+        from personalscraper.verify.checks.base import CheckStage
+        from personalscraper.verify.checks.catalog import list_checks as _list_checks
+
+        _available = {s.name for s in _list_checks() if s.stage == CheckStage.DISPATCH}
+        _unknown = only - _available
+        if _unknown:
+            raise typer.BadParameter(
+                f"Unknown check(s): {sorted(_unknown)}. Available dispatch checks: {sorted(_available)}"
+            )
 
     category_id = _resolve_category(ctx, category)
     config = ctx.obj.config
