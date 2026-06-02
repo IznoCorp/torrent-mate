@@ -17,8 +17,28 @@
 
 ## Files
 
-- Modify: `personalscraper/ingest/ingest.py`
-- Modify: `personalscraper/commands/pipeline.py`
+> **Plan-drift correction (execution).** The original 3-file estimate
+> under-scoped the `run_ingest` signature ripple. Adding the keyword-only
+> `torrent_client` parameter and removing the inline fallbacks touched every
+> `run_ingest` call site and every test that mocked the removed
+> `build_active_torrent_client` / `QBitClient` factories — the real footprint is
+> the list below. `_build_app_context` already boot-wires the client (prior
+> phase), so this phase only rewires the _consumers_ to read it.
+
+- Modify: `personalscraper/ingest/ingest.py` (add `torrent_client` kwarg; drop lazy build + unused imports)
+- Modify: `personalscraper/commands/pipeline.py` (pass `app_context.torrent_client`; rewrite `torrents_list` via `per_step_boundary`)
+- Modify: `personalscraper/pipeline_steps.py` (`IngestStep` + `LegacyCallableStep` pass `ctx.app.torrent_client`)
+- Modify: `tests/ingest/test_ingest.py` (drop factory patches; pass `torrent_client=`; rewrite obsolete legacy/init tests to D9 path)
+- Modify: `tests/event_bus/test_step_item_progressed_emit.py` (pass `torrent_client=`)
+- Modify: `tests/unit/test_ingest_progress.py` (drop factory patches; pass `torrent_client=`)
+- Modify: `tests/test_event_names.py` (drop factory patch; pass `torrent_client=`)
+- Modify: `tests/test_cli.py` + `tests/commands/test_torrents_list_e2e.py` + `tests/commands/test_format_flag_torrents_list.py` (boundary-mock `torrents_list`)
+- Modify: `tests/commands/_e2e_helpers.py` (add `mock_boundary_torrent_client` helper)
+- Modify: `tests/integration/conftest.py` (drop stale `ingest.ingest` factory patches from `fake_qbit`)
+- Modify: `tests/integration/test_ingest.py` + `tests/integration/test_full_pipeline.py` (pass the stub via `torrent_client=` / `AppContext(...)`)
+- Modify: `tests/e2e/test_pipeline_movies.py` + `tests/e2e/test_pipeline_tvshows.py` (pass `torrent_client=e2e_qbit_client`)
+- Modify: `tests/event_bus/test_app_context.py` (pre-existing drift fix: `AppContext` now has 5 fields incl. `torrent_client`)
+- Modify: `tests/trailers/test_cli.py` + `tests/trailers/test_cli_extra.py` + `tests/indexer/test_cli.py` + `tests/indexer/test_drift_e2e.py` (pre-existing phase-8 debt: bare-MagicMock config made `torrent.active` truthy and tripped the boot fail-fast; set `torrent.active = ""` per D9 — 56 failures already red at the phase-8 gate SHA `9a9eac1d`, not introduced here)
 - Create: `tests/unit/test_no_inline_qbit_fallback.py`
 
 ---

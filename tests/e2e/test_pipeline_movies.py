@@ -88,7 +88,9 @@ class TestMovieFullPipeline:
             # ── 2. V1 Ingest (REAL) ──
             from personalscraper.ingest.ingest import run_ingest
 
-            ingest_report = run_ingest(settings, dry_run=False, config=e2e_config, event_bus=EventBus())
+            ingest_report = run_ingest(
+                settings, dry_run=False, config=e2e_config, event_bus=EventBus(), torrent_client=e2e_qbit_client
+            )
             print(
                 f"  V1 Ingest: {ingest_report.success_count} ingested, "
                 f"{ingest_report.skip_count} skipped, {ingest_report.error_count} errors"

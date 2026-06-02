@@ -257,10 +257,8 @@ class TestRunIngest:
     """Tests for run_ingest orchestrator."""
 
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_no_completed_torrents(
         self,
-        mock_qbit_cls: MagicMock,
         mock_tracker_cls: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -273,18 +271,15 @@ class TestRunIngest:
         mock_client.get_all_hashes.return_value = set()
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_qbit_cls.return_value = mock_client
 
-        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
         assert report.success_count == 0
         assert report.error_count == 0
 
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_already_ingested_skip(
         self,
-        mock_qbit_cls: MagicMock,
         mock_tracker_cls: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -298,23 +293,20 @@ class TestRunIngest:
         mock_client.get_all_hashes.return_value = {"abc123"}
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_qbit_cls.return_value = mock_client
 
         mock_tracker = MagicMock()
         mock_tracker.is_ingested.return_value = True
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
         assert report.skip_count == 1
         assert report.success_count == 0
 
     @patch("personalscraper.ingest.ingest.transfer_torrent", return_value=True)
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_copy_seeding(
         self,
-        mock_qbit_cls: MagicMock,
         mock_tracker_cls: MagicMock,
         mock_transfer: MagicMock,
         tmp_path: Path,
@@ -335,13 +327,12 @@ class TestRunIngest:
         mock_client.is_seeding.return_value = True
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_qbit_cls.return_value = mock_client
 
         mock_tracker = MagicMock()
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
         assert report.success_count == 1
         mock_transfer.assert_called_once()
@@ -350,10 +341,8 @@ class TestRunIngest:
 
     @patch("personalscraper.ingest.ingest.transfer_torrent", return_value=True)
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_move_done(
         self,
-        mock_qbit_cls: MagicMock,
         mock_tracker_cls: MagicMock,
         mock_transfer: MagicMock,
         tmp_path: Path,
@@ -374,13 +363,12 @@ class TestRunIngest:
         mock_client.is_seeding.return_value = False
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_qbit_cls.return_value = mock_client
 
         mock_tracker = MagicMock()
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
         assert report.success_count == 1
         mock_transfer.assert_called_once()
@@ -389,10 +377,8 @@ class TestRunIngest:
 
     @patch("personalscraper.ingest.ingest._check_disk_space", return_value=False)
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_disk_space_fail(
         self,
-        mock_qbit_cls: MagicMock,
         mock_tracker_cls: MagicMock,
         mock_space: MagicMock,
         tmp_path: Path,
@@ -415,23 +401,20 @@ class TestRunIngest:
         mock_client.get_content_path.return_value = source
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_qbit_cls.return_value = mock_client
 
         mock_tracker = MagicMock()
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=config, event_bus=EventBus())
+        report = run_ingest(settings, config=config, event_bus=EventBus(), torrent_client=mock_client)
 
         assert report.skip_count == 1
         assert report.success_count == 0
 
     @patch("personalscraper.ingest.ingest.transfer_torrent", return_value=False)
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_transfer_fail(
         self,
-        mock_qbit_cls: MagicMock,
         mock_tracker_cls: MagicMock,
         mock_transfer: MagicMock,
         tmp_path: Path,
@@ -452,22 +435,19 @@ class TestRunIngest:
         mock_client.is_seeding.return_value = False
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_qbit_cls.return_value = mock_client
 
         mock_tracker = MagicMock()
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
         assert report.error_count == 1
         assert report.success_count == 0
 
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_dry_run(
         self,
-        mock_qbit_cls: MagicMock,
         mock_tracker_cls: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -487,22 +467,21 @@ class TestRunIngest:
         mock_client.is_seeding.return_value = False
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_qbit_cls.return_value = mock_client
 
         mock_tracker = MagicMock()
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, dry_run=True, config=_make_config(tmp_path), event_bus=EventBus())
+        report = run_ingest(
+            settings, dry_run=True, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client
+        )
 
         assert report.success_count == 1
         mock_tracker.mark_ingested.assert_not_called()
 
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_step_report_counts(
         self,
-        mock_qbit_cls: MagicMock,
         mock_tracker_cls: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -515,9 +494,8 @@ class TestRunIngest:
         mock_client.get_all_hashes.return_value = set()
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_qbit_cls.return_value = mock_client
 
-        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
         assert report.name == "ingest"
         assert report.success_count == 0
@@ -526,10 +504,8 @@ class TestRunIngest:
 
     @patch("personalscraper.ingest.ingest.transfer_torrent", return_value=True)
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_multiple_torrents(
         self,
-        mock_qbit_cls: MagicMock,
         mock_tracker_cls: MagicMock,
         mock_transfer: MagicMock,
         tmp_path: Path,
@@ -555,39 +531,37 @@ class TestRunIngest:
         mock_client.is_seeding.side_effect = [True, False]
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_qbit_cls.return_value = mock_client
 
         # t3 is already ingested
         mock_tracker = MagicMock()
         mock_tracker.is_ingested.side_effect = [False, False, True]
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
         assert report.success_count == 2
         assert report.skip_count == 1
 
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
-    def test_qbit_init_failure(
+    def test_no_torrent_client_returns_error(
         self,
-        mock_qbit_cls: MagicMock,
         tmp_path: Path,
     ) -> None:
-        """QBitClient init failure should return error report."""
+        """Passing ``torrent_client=None`` returns an error report (DESIGN D9).
+
+        The torrent client is boot-wired into ``AppContext`` (DESIGN D3); when
+        no client is configured the wired value is ``None`` and ``run_ingest``
+        must surface a clear error instead of building one inline.
+        """
         settings = MagicMock()
 
-        mock_qbit_cls.side_effect = ConnectionError("Cannot connect")
-
-        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=None)
 
         assert report.error_count == 1
-        assert "init failed" in report.details[0].lower()
+        assert "no torrent client configured" in report.details[0].lower()
 
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_content_path_missing(
         self,
-        mock_qbit_cls: MagicMock,
         mock_tracker_cls: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -603,13 +577,12 @@ class TestRunIngest:
         mock_client.get_content_path.return_value = tmp_path / "nonexistent"
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_qbit_cls.return_value = mock_client
 
         mock_tracker = MagicMock()
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
         assert report.skip_count == 1
         # Escalated to error because ALL torrents had missing content
@@ -618,10 +591,8 @@ class TestRunIngest:
 
     @patch("personalscraper.ingest.ingest.transfer_torrent")
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_one_torrent_failure_does_not_block_others(
         self,
-        mock_qbit_cls: MagicMock,
         mock_tracker_cls: MagicMock,
         mock_transfer: MagicMock,
         tmp_path: Path,
@@ -650,7 +621,6 @@ class TestRunIngest:
         mock_client.is_seeding.return_value = False
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_qbit_cls.return_value = mock_client
 
         mock_tracker = MagicMock()
         mock_tracker.is_ingested.return_value = False
@@ -659,7 +629,7 @@ class TestRunIngest:
         # 2nd call raises OSError, 1st and 3rd succeed
         mock_transfer.side_effect = [True, OSError("Disk I/O error"), True]
 
-        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
         assert report.success_count == 2
         assert report.error_count == 1
@@ -667,10 +637,8 @@ class TestRunIngest:
 
     @patch("personalscraper.ingest.ingest.transfer_torrent")
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_consecutive_errors_abort_loop(
         self,
-        mock_qbit_cls: MagicMock,
         mock_tracker_cls: MagicMock,
         mock_transfer: MagicMock,
         tmp_path: Path,
@@ -699,7 +667,6 @@ class TestRunIngest:
         mock_client.is_seeding.return_value = False
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_qbit_cls.return_value = mock_client
 
         mock_tracker = MagicMock()
         mock_tracker.is_ingested.return_value = False
@@ -708,7 +675,7 @@ class TestRunIngest:
         # Both transfers raise the same error type → triggers abort after 2nd
         mock_transfer.side_effect = [OSError("Disk dead"), OSError("Disk dead")]
 
-        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
         # 2 errors, loop aborted before reaching torrent 3
         assert report.error_count == 2
@@ -717,10 +684,8 @@ class TestRunIngest:
         # Transfer was only called twice (3rd torrent never reached)
         assert mock_transfer.call_count == 2
 
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_forbidden_403_actionable_message(
         self,
-        mock_qbit_cls: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Forbidden403Error should produce IP-banned message, not generic unreachable."""
@@ -731,9 +696,8 @@ class TestRunIngest:
 
         mock_client = MagicMock()
         mock_client.get_completed.side_effect = qbittorrentapi.Forbidden403Error()
-        mock_qbit_cls.return_value = mock_client
 
-        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
         assert report.error_count >= 1
         combined = " ".join(report.details).lower()
@@ -741,10 +705,8 @@ class TestRunIngest:
         assert "banned" in combined or "blocked" in combined
         assert "unreachable" not in combined
 
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_login_failed_actionable_message(
         self,
-        mock_qbit_cls: MagicMock,
         tmp_path: Path,
     ) -> None:
         """LoginFailed should produce an actionable message mentioning auth or login."""
@@ -755,18 +717,15 @@ class TestRunIngest:
 
         mock_client = MagicMock()
         mock_client.get_completed.side_effect = qbittorrentapi.LoginFailed()
-        mock_qbit_cls.return_value = mock_client
 
-        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
         assert report.error_count >= 1
         combined = " ".join(report.details).lower()
         assert "auth" in combined or "login" in combined
 
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_api_connection_error_actionable_message(
         self,
-        mock_qbit_cls: MagicMock,
         tmp_path: Path,
     ) -> None:
         """APIConnectionError should produce an actionable message mentioning unreachable or running."""
@@ -777,19 +736,16 @@ class TestRunIngest:
 
         mock_client = MagicMock()
         mock_client.get_completed.side_effect = qbittorrentapi.APIConnectionError("Connection refused")
-        mock_qbit_cls.return_value = mock_client
 
-        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
         assert report.error_count >= 1
         combined = " ".join(report.details).lower()
         assert "unreachable" in combined or "running" in combined
 
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_dest_already_exists_skip(
         self,
-        mock_qbit_cls: MagicMock,
         mock_tracker_cls: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -812,21 +768,18 @@ class TestRunIngest:
         mock_client.get_content_path.return_value = source
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_qbit_cls.return_value = mock_client
 
         mock_tracker = MagicMock()
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
         assert report.skip_count == 1
         mock_tracker.mark_ingested.assert_called_once()
 
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_ingest_unexpected_error_logs_and_increments(
         self,
-        mock_qbit_cls: MagicMock,
         tmp_path: Path,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
@@ -837,7 +790,6 @@ class TestRunIngest:
         exception class name and must increment ``report.error_count``.
 
         Args:
-            mock_qbit_cls: Patched build_active_torrent_client factory.
             tmp_path: Pytest temporary directory fixture.
             caplog: Pytest log capture fixture.
         """
@@ -846,10 +798,11 @@ class TestRunIngest:
 
         mock_client = MagicMock()
         mock_client.get_completed.side_effect = RuntimeError("boom")
-        mock_qbit_cls.return_value = mock_client
 
         with caplog.at_level(logging.ERROR, logger="ingest"):
-            report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+            report = run_ingest(
+                settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client
+            )
 
         assert report.error_count >= 1
 
@@ -867,10 +820,8 @@ class TestRunIngest:
         )
 
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_orphan_tracker_entry_emits_warning(
         self,
-        mock_qbit_cls: MagicMock,
         mock_tracker_cls: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -889,7 +840,6 @@ class TestRunIngest:
         mock_client.get_all_hashes.return_value = {"orphan_hash"}
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_qbit_cls.return_value = mock_client
 
         # Tracker says the torrent was previously ingested with a dest_path
         # that no longer exists outside the ingest_dir → real orphan signal.
@@ -904,17 +854,15 @@ class TestRunIngest:
         }
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
         assert report.skip_count == 1
         assert any("orphan entry" in w for w in report.warnings)
 
     @patch("personalscraper.ingest.ingest.transfer_torrent", return_value=True)
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_torrent_ratio_missing_emits_warning(
         self,
-        mock_qbit_cls: MagicMock,
         mock_tracker_cls: MagicMock,
         mock_transfer: MagicMock,
         tmp_path: Path,
@@ -950,7 +898,6 @@ class TestRunIngest:
         mock_client.is_seeding.return_value = False
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_qbit_cls.return_value = mock_client
 
         mock_tracker = MagicMock()
         mock_tracker.is_ingested.return_value = False
@@ -959,7 +906,7 @@ class TestRunIngest:
         config = _make_config(tmp_path)
         # Default min_ratio == 0 so the loop continues past the ratio gate.
         with caplog.at_level(logging.WARNING, logger="ingest"):
-            report = run_ingest(settings, config=config, event_bus=EventBus())
+            report = run_ingest(settings, config=config, event_bus=EventBus(), torrent_client=mock_client)
 
         assert report.success_count == 1
         events = [r.msg for r in caplog.records if isinstance(r.msg, dict)]
@@ -967,10 +914,8 @@ class TestRunIngest:
 
     @patch("personalscraper.ingest.ingest.transfer_torrent")
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_ratio_below_threshold_skips(
         self,
-        mock_qbit_cls: MagicMock,
         mock_tracker_cls: MagicMock,
         mock_transfer: MagicMock,
         tmp_path: Path,
@@ -996,7 +941,6 @@ class TestRunIngest:
         mock_client.is_seeding.return_value = False
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_qbit_cls.return_value = mock_client
 
         mock_tracker = MagicMock()
         mock_tracker.is_ingested.return_value = False
@@ -1005,17 +949,15 @@ class TestRunIngest:
         config = _make_config(tmp_path)
         config.ingest.min_ratio = 1.0  # require ratio >= 1.0
 
-        report = run_ingest(settings, config=config, event_bus=EventBus())
+        report = run_ingest(settings, config=config, event_bus=EventBus(), torrent_client=mock_client)
 
         assert report.skip_count == 1
         assert report.success_count == 0
         mock_transfer.assert_not_called()
 
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_already_in_staging_marks_ingested(
         self,
-        mock_qbit_cls: MagicMock,
         mock_tracker_cls: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -1044,13 +986,12 @@ class TestRunIngest:
         mock_client.get_content_path.return_value = missing_source
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_qbit_cls.return_value = mock_client
 
         mock_tracker = MagicMock()
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
         assert report.skip_count == 1
         # Tracker recorded the staged dest path
@@ -1062,49 +1003,39 @@ class TestRunIngest:
         assert kwargs.get("dest_path") == str(staged)
 
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.QBitClient")
-    def test_inactive_torrent_uses_legacy_qbit_client(
+    def test_no_torrent_client_default_emits_warning(
         self,
-        mock_qbit_cls: MagicMock,
         mock_tracker_cls: MagicMock,
         tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """When config.torrent.active is False, legacy QBitClient(login) is used.
+        """Omitting ``torrent_client`` (default ``None``) errors and warns (DESIGN D9).
 
-        Covers lines 293-299 (the ``else`` branch of the active flag): the
-        QBitClient is instantiated with host/port/credentials from
-        ``Settings`` and ``login()`` is called before the loop.
+        Previously the ``else`` branch lazily built a ``QBitClient`` when
+        ``config.torrent.active`` was falsey. That inline fallback is removed:
+        the boot-wiring (DESIGN D3) hands ``None`` for an unconfigured client,
+        and ``run_ingest`` returns an error report after emitting the
+        ``ingest_no_torrent_client`` warning so operators can fix the config.
         """
         settings = MagicMock()
-        settings.qbit_host = "127.0.0.1"
-        settings.qbit_port = 8080
-        settings.qbit_username = "admin"
-        settings.qbit_password = "secret"
 
         config = _make_config(tmp_path)
         config.torrent.active = False
 
-        mock_client = MagicMock()
-        mock_client.get_completed.return_value = []
-        mock_client.get_all_hashes.return_value = set()
-        mock_qbit_cls.return_value = mock_client
-
         mock_tracker = MagicMock()
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=config, event_bus=EventBus())
+        with caplog.at_level(logging.WARNING, logger="ingest"):
+            report = run_ingest(settings, config=config, event_bus=EventBus())
 
-        assert report.error_count == 0
-        # Legacy path: QBitClient was constructed with host/port and login()
-        # was invoked.
-        mock_qbit_cls.assert_called_once()
-        mock_client.login.assert_called_once()
+        assert report.error_count == 1
+        assert "no torrent client configured" in report.details[0].lower()
+        events = [r.msg for r in caplog.records if isinstance(r.msg, dict)]
+        assert any(e.get("event") == "ingest_no_torrent_client" for e in events)
 
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_logout_exception_is_swallowed(
         self,
-        mock_qbit_cls: MagicMock,
         mock_tracker_cls: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -1121,13 +1052,12 @@ class TestRunIngest:
         mock_client.get_all_hashes.return_value = set()
         # logout exists and raises — the finally block must swallow it.
         mock_client.logout.side_effect = RuntimeError("logout failed")
-        mock_qbit_cls.return_value = mock_client
 
         mock_tracker = MagicMock()
         mock_tracker_cls.return_value = mock_tracker
 
         # Should NOT raise
-        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+        report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
         assert report.error_count == 0
         mock_client.logout.assert_called_once()

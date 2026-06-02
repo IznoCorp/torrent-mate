@@ -20,8 +20,12 @@ class _Foo(Event):
 
 
 def test_app_context_is_frozen() -> None:
-    """``AppContext`` is a frozen dataclass with exactly four fields."""
-    expected = {"config", "settings", "event_bus", "provider_registry"}
+    """``AppContext`` is a frozen dataclass with exactly five fields.
+
+    The fifth field ``torrent_client`` was added when the torrent client was
+    promoted into the boundary bundle (DESIGN D3/D9).
+    """
+    expected = {"config", "settings", "event_bus", "provider_registry", "torrent_client"}
     field_names = {f.name for f in dataclasses.fields(AppContext)}
     assert field_names == expected
     bundle = AppContext(

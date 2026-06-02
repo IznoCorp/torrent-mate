@@ -180,6 +180,7 @@ def test_dry_run_three_torrents(
             settings=_make_settings(),
             event_bus=EventBus(),
             provider_registry=MagicMock(spec=ProviderRegistry),
+            torrent_client=fake_qbit,
         )
     )
     report: PipelineReport = pipeline.run(

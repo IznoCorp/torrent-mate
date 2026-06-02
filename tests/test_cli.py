@@ -279,22 +279,25 @@ def test_torrents_list_command_help_advertises_command():
     assert "torrents-list" in result.output
 
 
-@patch("personalscraper.api.torrent.qbittorrent.QBitClient")
-def test_torrents_list_unreachable_exits_2(mock_qbit_class):
-    """Unreachable qBit → exit code 2 with friendly message.
+def test_torrents_list_unreachable_exits_2(monkeypatch):
+    """Listing failure on a boot-wired client → exit code 2 with friendly message.
 
-    Matches the skill's pipeline-monitor expectation for an
-    OPERATIONAL classification (qBit ban / daemon down).
+    Matches the skill's pipeline-monitor expectation for an OPERATIONAL
+    classification (qBit ban / daemon down). Since DESIGN D3 the client is
+    boot-wired into ``AppContext``; the command reports a friendly listing
+    failure when ``get_completed()`` raises a transient torrent error.
     """
     from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError  # noqa: PLC0415
+    from tests.commands._e2e_helpers import mock_boundary_torrent_client  # noqa: PLC0415
 
-    mock_instance = mock_qbit_class.return_value
-    mock_instance.login.side_effect = QBitAuthLockoutError("auth lockout active")
+    client = MagicMock()
+    client.get_completed.side_effect = QBitAuthLockoutError("auth lockout active")
+    mock_boundary_torrent_client(monkeypatch, client)
 
     result = runner.invoke(app, ["torrents-list"])
 
     assert result.exit_code == 2
-    assert "Torrent client unavailable" in result.output
+    assert "Torrent listing failed" in result.output
 
 
 # ── Pipeline `run` command tests ─────────────────────

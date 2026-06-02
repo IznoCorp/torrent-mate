@@ -49,6 +49,9 @@ def _fake_config(tmp_path: Path) -> MagicMock:
     cfg.trailers.library_check.movies = False
     cfg.trailers.library_check.tv_shows = True
     cfg.trailers.filters.allowed_extensions = {"mp4", "mkv", "webm"}
+    # No torrent client configured (DESIGN D9): keep ``torrent.active`` falsey
+    # so the boot fail-fast in _build_app_context does not trip.
+    cfg.torrent.active = ""
     return cfg
 
 

@@ -756,12 +756,16 @@ def fake_tvdb(monkeypatch: pytest.MonkeyPatch) -> FakeTVDB:
 
 @pytest.fixture()
 def fake_qbit(monkeypatch: pytest.MonkeyPatch) -> FakeQBitClient:
-    """Monkeypatch qbittorrentapi.Client and QBitClient with an in-memory stub.
+    """Provide an in-memory qBittorrent stub for ingest integration tests.
 
-    Patches both the underlying ``qbittorrentapi.Client`` (used in
-    ``personalscraper.api.torrent.qbittorrent``) and the ``build_active_torrent_client``
-    factory imported in ``personalscraper.ingest.ingest`` so that no real qBittorrent
-    connection is attempted.  The stub starts with an empty torrent list;
+    Since DESIGN D3 the torrent client is boot-wired into ``AppContext`` and is
+    no longer built inside ``ingest.ingest`` (the lazy ``build_active_torrent_client``
+    / ``QBitClient`` fallbacks were removed). Tests therefore pass the returned
+    stub explicitly — either via ``run_ingest(..., torrent_client=fake_qbit)`` or
+    via ``AppContext(..., torrent_client=fake_qbit)`` — rather than relying on a
+    monkeypatched factory. This fixture still patches the underlying
+    ``qbittorrentapi.Client`` as a belt-and-suspenders guard against any
+    accidental real connection. The stub starts with an empty torrent list;
     call ``stub.seed([...])`` to inject test torrents before running ingest.
 
     Args:
@@ -772,20 +776,8 @@ def fake_qbit(monkeypatch: pytest.MonkeyPatch) -> FakeQBitClient:
     """
     stub = FakeQBitClient()
 
-    # Patch the factory used in ingest.py so the pipeline receives the stub
-    # without any network calls.
-    monkeypatch.setattr(
-        "personalscraper.ingest.ingest.build_active_torrent_client",
-        lambda *args, **kwargs: stub,
-    )
-    # Also patch QBitClient directly in ingest.py for the fallback path
-    # (torrent.active="" → else branch that instantiates QBitClient directly).
-    monkeypatch.setattr(
-        "personalscraper.ingest.ingest.QBitClient",
-        lambda *args, **kwargs: stub,
-    )
-    # Also patch qbittorrentapi.Client to guard against direct instantiation
-    # in qbittorrent.py (belt-and-suspenders: QBitClient wraps it).
+    # Guard against direct instantiation in qbittorrent.py: no test should ever
+    # reach a real qBittorrent daemon even if a client is constructed by mistake.
     mock_qbit_cls = MagicMock()
     mock_qbit_cls.return_value = MagicMock()
     monkeypatch.setattr("personalscraper.api.torrent.qbittorrent.qbittorrentapi.Client", mock_qbit_cls)

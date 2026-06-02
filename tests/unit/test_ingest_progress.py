@@ -27,17 +27,18 @@ class TestIngestProgress:
         config.staging_dirs = [ingest_entry]
         return config
 
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    def test_accepts_event_bus_param(self, _mock_tracker, _mock_client) -> None:
+    def test_accepts_event_bus_param(self, _mock_tracker) -> None:
         """run_ingest accepts ``event_bus`` without error."""
-        _mock_client.return_value.get_completed.return_value = []
-        report = run_ingest(MagicMock(), dry_run=True, config=self._make_config(), event_bus=EventBus())
+        mock_client = MagicMock()
+        mock_client.get_completed.return_value = []
+        report = run_ingest(
+            MagicMock(), dry_run=True, config=self._make_config(), event_bus=EventBus(), torrent_client=mock_client
+        )
         assert report.name == "ingest"
 
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    def test_emits_started_event_per_torrent(self, _mock_tracker, _mock_client) -> None:
+    def test_emits_started_event_per_torrent(self, _mock_tracker) -> None:
         """Each torrent emits started and completed/skipped/failed progress events."""
         bus = EventBus()
         collector = CollectingSubscriber(bus, ItemProgressed)
@@ -46,15 +47,18 @@ class TestIngestProgress:
         mock_torrent.name = "Test.Movie.2024.1080p"
         mock_torrent.hash = "abc123"
         mock_torrent.ratio = 1.5
-        _mock_client.return_value.get_completed.return_value = [mock_torrent]
-        _mock_client.return_value.get_all_hashes.return_value = {"abc123"}
+        mock_client = MagicMock()
+        mock_client.get_completed.return_value = [mock_torrent]
+        mock_client.get_all_hashes.return_value = {"abc123"}
         _mock_tracker.return_value.is_ingested.return_value = False
         _mock_tracker.return_value.get_entry.return_value = None
 
         with patch("personalscraper.ingest.ingest._check_disk_space", return_value=True):
             with patch("personalscraper.ingest.ingest._get_dir_size", return_value=1000):
                 with patch("personalscraper.ingest.ingest.transfer_torrent", return_value=True):
-                    run_ingest(MagicMock(), dry_run=True, config=self._make_config(), event_bus=bus)
+                    run_ingest(
+                        MagicMock(), dry_run=True, config=self._make_config(), event_bus=bus, torrent_client=mock_client
+                    )
 
         assert len(collector.received) >= 1
         started = [e for e in collector.received if e.status == "started"]
@@ -72,9 +76,8 @@ class TestIngestProgress:
         assert event.step == "ingest"
         assert event.status == "copied"
 
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    def test_already_ingested_emits_skipped(self, _mock_tracker, _mock_client) -> None:
+    def test_already_ingested_emits_skipped(self, _mock_tracker) -> None:
         """A torrent already recorded in the tracker emits a skipped event."""
         bus = EventBus()
         collector = CollectingSubscriber(bus, ItemProgressed)
@@ -83,22 +86,22 @@ class TestIngestProgress:
         torrent.name = "Already.Ingested.2024"
         torrent.hash = "deadbeef"
         torrent.ratio = 2.0
-        _mock_client.return_value.get_completed.return_value = [torrent]
-        _mock_client.return_value.get_all_hashes.return_value = {"deadbeef"}
+        mock_client = MagicMock()
+        mock_client.get_completed.return_value = [torrent]
+        mock_client.get_all_hashes.return_value = {"deadbeef"}
         _mock_tracker.return_value.is_ingested.return_value = True
         tracker_entry = MagicMock()
         tracker_entry.dest_path = "/non/existent/path"
         _mock_tracker.return_value.get_entry.return_value = tracker_entry
 
-        run_ingest(MagicMock(), dry_run=True, config=self._make_config(), event_bus=bus)
+        run_ingest(MagicMock(), dry_run=True, config=self._make_config(), event_bus=bus, torrent_client=mock_client)
 
         skipped = [e for e in collector.received if e.status == "skipped"]
         assert len(skipped) == 1
         assert skipped[0].details["reason"] == "already_ingested"
 
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    def test_ratio_below_threshold_emits_skipped(self, _mock_tracker, _mock_client) -> None:
+    def test_ratio_below_threshold_emits_skipped(self, _mock_tracker) -> None:
         """A torrent under config.ingest.min_ratio emits a skipped event."""
         bus = EventBus()
         collector = CollectingSubscriber(bus, ItemProgressed)
@@ -109,12 +112,13 @@ class TestIngestProgress:
         torrent.name = "LowRatio.2024"
         torrent.hash = "low1"
         torrent.ratio = 0.5
-        _mock_client.return_value.get_completed.return_value = [torrent]
-        _mock_client.return_value.get_all_hashes.return_value = {"low1"}
+        mock_client = MagicMock()
+        mock_client.get_completed.return_value = [torrent]
+        mock_client.get_all_hashes.return_value = {"low1"}
         _mock_tracker.return_value.is_ingested.return_value = False
         _mock_tracker.return_value.get_entry.return_value = None
 
-        run_ingest(MagicMock(), dry_run=True, config=config, event_bus=bus)
+        run_ingest(MagicMock(), dry_run=True, config=config, event_bus=bus, torrent_client=mock_client)
 
         skipped = [e for e in collector.received if e.status == "skipped"]
         assert len(skipped) == 1

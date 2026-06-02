@@ -60,6 +60,7 @@ def ingest(
                 staging_dir=staging_dir,
                 config=config,
                 event_bus=app_context.event_bus,
+                torrent_client=app_context.torrent_client,
             )
         console.print(
             f"[bold]Ingest:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
@@ -623,14 +624,7 @@ def torrents_list(ctx: typer.Context) -> None:
 
     Output format respects the global ``--format`` flag.
     """
-    import os  # noqa: PLC0415
-
-    from personalscraper.api.torrent._errors import (  # noqa: PLC0415
-        TORRENT_CONNECT_ERRORS,
-        TORRENT_LISTING_ERRORS,
-    )
-    from personalscraper.api.torrent._factory import build_active_torrent_client  # noqa: PLC0415
-    from personalscraper.api.torrent.qbittorrent import QBitClient  # noqa: PLC0415
+    from personalscraper.api.torrent._errors import TORRENT_LISTING_ERRORS  # noqa: PLC0415
     from personalscraper.cli_helpers.output import emit  # noqa: PLC0415
 
     config = ctx.obj.config
@@ -638,43 +632,37 @@ def torrents_list(ctx: typer.Context) -> None:
     console = state["console"]
     settings = cli_compat.get_settings()
 
-    try:
-        if config.torrent.active:
-            client = build_active_torrent_client(config.torrent, os.environ)
-        else:
-            client = QBitClient(
-                host=settings.qbit_host,
-                port=settings.qbit_port,
-                username=settings.qbit_username,
-                password=settings.qbit_password,
-            )
-            client.login()
-    except TORRENT_CONNECT_ERRORS as exc:
-        console.print(f"[yellow]Torrent client unavailable:[/yellow] {exc}")
-        raise typer.Exit(2) from exc
+    # Torrent client is boot-wired into AppContext (DESIGN D3) and read here
+    # rather than built inline. None when no torrent client is configured
+    # (DESIGN D9) — exit 2 so monitoring tools can branch on the code.
+    with per_step_boundary(config, settings) as app_context:
+        client = app_context.torrent_client
+        if client is None:
+            console.print("[yellow]No torrent client configured (set torrent.active in torrent.json5).[/yellow]")
+            raise typer.Exit(2)
 
-    try:
-        torrents = client.get_completed()
-        active_hashes = client.get_all_hashes()
-    except TORRENT_LISTING_ERRORS as exc:
-        console.print(f"[yellow]Torrent listing failed:[/yellow] {exc}")
-        raise typer.Exit(2) from exc
+        try:
+            torrents = client.get_completed()
+            active_hashes = client.get_all_hashes()
+        except TORRENT_LISTING_ERRORS as exc:
+            console.print(f"[yellow]Torrent listing failed:[/yellow] {exc}")
+            raise typer.Exit(2) from exc
 
-    payload = {
-        "torrents": [
-            {
-                "name": t.name,
-                "state": t.state,
-                "progress": t.progress,
-                "size_gb": t.size_bytes / (1024**3),
-                "seeding": client.is_seeding(t),
-            }
-            for t in torrents
-        ],
-        "completed": len(torrents),
-        "tracked": len(active_hashes),
-    }
-    emit(payload, rich_renderer=lambda: _print_torrents_rich(payload))
+        payload = {
+            "torrents": [
+                {
+                    "name": t.name,
+                    "state": t.state,
+                    "progress": t.progress,
+                    "size_gb": t.size_bytes / (1024**3),
+                    "seeding": client.is_seeding(t),
+                }
+                for t in torrents
+            ],
+            "completed": len(torrents),
+            "tracked": len(active_hashes),
+        }
+        emit(payload, rich_renderer=lambda: _print_torrents_rich(payload))
 
 
 def _print_torrents_rich(payload: dict[str, object]) -> None:

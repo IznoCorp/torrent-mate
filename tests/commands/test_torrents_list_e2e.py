@@ -9,11 +9,10 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError
 from tests.commands._e2e_helpers import (
     assert_json_schema,
     assert_no_python_traceback,
-    mock_qbit_client,
+    mock_boundary_torrent_client,
     run_cli,
 )
 
@@ -48,8 +47,8 @@ def test_torrents_list_help_exits_zero() -> None:
 
 
 def test_torrents_list_three_torrents_shows_table(monkeypatch) -> None:
-    """Mocked qbit returns 3 torrents → table output with all 3 names."""
-    mock = mock_qbit_client(monkeypatch)
+    """Boot-wired client returns 3 torrents → table output with all 3 names."""
+    mock = mock_boundary_torrent_client(monkeypatch, MagicMock())
     mock.get_completed.return_value = [
         _fake_torrent(name="Movie.One.2024.1080p"),
         _fake_torrent(name="Movie.Two.2024.720p", progress=0.75, state="downloading"),
@@ -71,23 +70,20 @@ def test_torrents_list_three_torrents_shows_table(monkeypatch) -> None:
 # ── 3. Errors ───────────────────────────────────────────────────────────────────
 
 
-def test_torrents_list_client_unreachable_exits_two(monkeypatch) -> None:
-    """When qbit raises QBitAuthLockoutError → exit 2, friendly message, no traceback."""
-    monkeypatch.setattr(
-        "personalscraper.api.torrent.qbittorrent.QBitClient",
-        MagicMock(side_effect=QBitAuthLockoutError("IP banned for 10 min")),
-    )
+def test_torrents_list_no_client_configured_exits_two(monkeypatch) -> None:
+    """No boot-wired torrent client (DESIGN D9) → exit 2, friendly message, no traceback."""
+    mock_boundary_torrent_client(monkeypatch, None)
 
     result = run_cli(["torrents-list"])
 
     assert result.exit_code == 2, f"Expected exit 2, got {result.exit_code}: {result.output}"
-    assert "Torrent client unavailable" in result.output
+    assert "No torrent client configured" in result.output
     assert_no_python_traceback(result)
 
 
 def test_torrents_list_listing_fails_exits_two(monkeypatch) -> None:
     """When get_completed raises after successful connection → exit 2."""
-    mock = mock_qbit_client(monkeypatch)
+    mock = mock_boundary_torrent_client(monkeypatch, MagicMock())
     mock.get_completed.side_effect = ConnectionError("Connection reset")
 
     result = run_cli(["torrents-list"])
@@ -102,7 +98,7 @@ def test_torrents_list_listing_fails_exits_two(monkeypatch) -> None:
 
 def test_torrents_list_format_json_schema(monkeypatch) -> None:
     """``--format json`` emits JSON with torrents/completed/tracked keys."""
-    mock = mock_qbit_client(monkeypatch)
+    mock = mock_boundary_torrent_client(monkeypatch, MagicMock())
     mock.get_completed.return_value = [
         _fake_torrent(name="Test.Movie.2024", size_bytes=8_000_000_000),
     ]

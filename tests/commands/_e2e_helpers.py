@@ -393,6 +393,45 @@ def mock_qbit_client(monkeypatch: Any) -> Any:
     return mock
 
 
+def mock_boundary_torrent_client(monkeypatch: Any, client: Any) -> Any:
+    """Wire *client* as ``AppContext.torrent_client`` for boundary commands.
+
+    Since DESIGN D3 the torrent client is boot-wired into ``AppContext`` by
+    ``_build_app_context`` and read by ``torrents-list`` via
+    ``per_step_boundary``.  CLI E2E tests therefore patch the boundary rather
+    than the client constructors: this replaces ``per_step_boundary`` (as
+    imported into ``commands.pipeline``) with a context manager that yields a
+    real :class:`AppContext` whose ``torrent_client`` is *client*.
+
+    Args:
+        monkeypatch: Pytest ``monkeypatch`` fixture.
+        client: The mock torrent client to expose as ``ctx.torrent_client``.
+            Pass ``None`` to exercise the "no torrent client configured" path.
+
+    Returns:
+        The *client* argument (for convenient inline configuration).
+    """
+    from contextlib import contextmanager  # noqa: PLC0415
+    from unittest.mock import MagicMock  # noqa: PLC0415
+
+    from personalscraper.cli import app as _app  # noqa: F401, PLC0415 — ensure command module imported
+    from personalscraper.core.app_context import AppContext  # noqa: PLC0415
+    from personalscraper.core.event_bus import EventBus  # noqa: PLC0415
+
+    @contextmanager
+    def _fake_boundary(config: Any, settings: Any) -> Any:
+        yield AppContext(
+            config=config,
+            settings=settings,
+            event_bus=EventBus(),
+            provider_registry=MagicMock(),
+            torrent_client=client,
+        )
+
+    monkeypatch.setattr("personalscraper.commands.pipeline.per_step_boundary", _fake_boundary)
+    return client
+
+
 def mock_transmission_client(monkeypatch: Any) -> Any:
     """Mock Transmission client.
 

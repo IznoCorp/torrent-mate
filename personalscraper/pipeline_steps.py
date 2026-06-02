@@ -36,6 +36,7 @@ class IngestStep:
             dry_run=ctx.dry_run,
             config=ctx.app.config,
             event_bus=ctx.app.event_bus,
+            torrent_client=ctx.app.torrent_client,
         )
 
 
@@ -299,6 +300,7 @@ class LegacyCallableStep:
                 dry_run=ctx.dry_run,
                 config=ctx.app.config,
                 event_bus=ctx.app.event_bus,
+                torrent_client=ctx.app.torrent_client,
             )
         if self.name == "sort":
             return self._fn(

@@ -73,6 +73,9 @@ def _make_config(tmp_path: Path) -> Any:
     mock_cfg.indexer = ic
     mock_cfg.paths.staging_dir = tmp_path / "staging"
     mock_cfg.all_category_ids = frozenset({"movies", "tv_shows", "anime", "standup"})
+    # No torrent client configured (DESIGN D9): keep ``torrent.active`` falsey
+    # so the boot fail-fast in _build_app_context does not trip.
+    mock_cfg.torrent.active = ""
     return mock_cfg
 
 

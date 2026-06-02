@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from typer.testing import CliRunner
 
 from personalscraper.cli import app
+from tests.commands._e2e_helpers import mock_boundary_torrent_client
 
 runner = CliRunner()
 
@@ -29,7 +30,7 @@ def _mock_torrent(
 class TestFormatFlagTorrentsList:
     """--format flag on torrents-list produces valid output for each mode."""
 
-    def test_format_json_produces_parseable_json(self) -> None:
+    def test_format_json_produces_parseable_json(self, monkeypatch) -> None:
         """--format json emits valid JSON with expected keys."""
         mock_client = MagicMock()
         mock_client.get_completed.return_value = [
@@ -39,11 +40,8 @@ class TestFormatFlagTorrentsList:
         mock_client.get_all_hashes.return_value = {"a": "hash1", "b": "hash2", "c": "hash3"}
         mock_client.is_seeding.side_effect = [True, False]
 
-        with patch(
-            "personalscraper.api.torrent.qbittorrent.QBitClient",
-            return_value=mock_client,
-        ):
-            result = runner.invoke(app, ["--format", "json", "torrents-list"])
+        mock_boundary_torrent_client(monkeypatch, mock_client)
+        result = runner.invoke(app, ["--format", "json", "torrents-list"])
         assert result.exit_code == 0
         parsed = json.loads(result.stdout)
         assert "torrents" in parsed
@@ -53,33 +51,27 @@ class TestFormatFlagTorrentsList:
         assert len(parsed["torrents"]) == 2
         assert parsed["torrents"][0]["name"] == "Test Movie 2023.mkv"
 
-    def test_format_plain_produces_key_value(self) -> None:
+    def test_format_plain_produces_key_value(self, monkeypatch) -> None:
         """--format plain emits key:value lines."""
         mock_client = MagicMock()
         mock_client.get_completed.return_value = [_mock_torrent("Movie.mkv")]
         mock_client.get_all_hashes.return_value = {"a": "h1"}
         mock_client.is_seeding.return_value = True
 
-        with patch(
-            "personalscraper.api.torrent.qbittorrent.QBitClient",
-            return_value=mock_client,
-        ):
-            result = runner.invoke(app, ["--format", "plain", "torrents-list"])
+        mock_boundary_torrent_client(monkeypatch, mock_client)
+        result = runner.invoke(app, ["--format", "plain", "torrents-list"])
         assert result.exit_code == 0
         assert "completed:" in result.output
 
-    def test_format_rich_is_default(self) -> None:
+    def test_format_rich_is_default(self, monkeypatch) -> None:
         """Default (rich) emits the formatted table."""
         mock_client = MagicMock()
         mock_client.get_completed.return_value = [_mock_torrent("Movie.mkv")]
         mock_client.get_all_hashes.return_value = {"a": "h1"}
         mock_client.is_seeding.return_value = True
 
-        with patch(
-            "personalscraper.api.torrent.qbittorrent.QBitClient",
-            return_value=mock_client,
-        ):
-            result = runner.invoke(app, ["torrents-list"])
+        mock_boundary_torrent_client(monkeypatch, mock_client)
+        result = runner.invoke(app, ["torrents-list"])
         assert result.exit_code == 0
         assert "Movie.mkv" in result.output
         assert "Total:" in result.output
