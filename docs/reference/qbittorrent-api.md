@@ -764,7 +764,7 @@ state, and limits all applied inline in a single call (DESIGN D1/D2/D6/D7/D8).
 The native `qbittorrentapi.torrents_add()` accepts either shape.
 
 **Limits applied inline** via `_limit_kwargs()`: `ratio_limit` (float),
-`seeding_time_limit` (minutes × 60, because qBit's API expects **seconds**),
+`seeding_time_limit` (minutes, passed 1:1 — qBit's API expects **minutes**),
 `upload_limit` (bytes/s), `download_limit` (bytes/s). All four are set in the
 same `torrents_add` call — qBit is the only client that supports this (D2).
 

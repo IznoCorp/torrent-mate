@@ -1,28 +1,33 @@
 """Atomic capability protocols for the torrent family (DESIGN §4).
 
 Decomposes the historical monolithic ``TorrentClient`` Protocol
-(``api/torrent/_base.py``) into 5 single-purpose,
-``@runtime_checkable`` protocols covering the 7 public methods of the
-legacy interface :
+(``api/torrent/_base.py``) into 7 atomic, single-purpose,
+``@runtime_checkable`` protocols covering the 10 public methods of the
+interface :
 
-| Legacy ``TorrentClient`` method | Atomic capability         |
-| ------------------------------- | ------------------------- |
-| ``get_completed()``             | :class:`TorrentLister`    |
-| ``get_all_hashes()``            | :class:`TorrentLister`    |
-| ``get_content_path()``          | :class:`TorrentInspector` |
-| ``login()`` (optional)          | :class:`AuthenticatedClient` |
-| ``is_seeding()``                | :class:`TorrentStateInspector` |
-| ``pause()``                     | :class:`TorrentController` |
-| ``resume()``                    | :class:`TorrentController` |
-| ``delete()``                    | :class:`TorrentController` |
+| Capability / method              | Atomic capability            |
+| -------------------------------- | ---------------------------- |
+| ``get_completed()``              | :class:`TorrentLister`       |
+| ``get_all_hashes()``             | :class:`TorrentLister`       |
+| ``get_content_path()``           | :class:`TorrentInspector`    |
+| ``login()`` (optional)           | :class:`AuthenticatedClient` |
+| ``is_seeding()``                 | :class:`TorrentStateInspector` |
+| ``pause()``                      | :class:`TorrentController`   |
+| ``resume()``                     | :class:`TorrentController`   |
+| ``delete()``                     | :class:`TorrentController`   |
+| ``add()``                        | :class:`TorrentAdder`        |
+| ``apply_limits()``               | :class:`TorrentLimiter`      |
 
 Composition under DESIGN §4 :
 
 - ``QBitClient(TorrentLister, TorrentInspector, AuthenticatedClient,
-  TorrentStateInspector, TorrentController)`` — full set.
+  TorrentStateInspector, TorrentController, TorrentAdder,
+  TorrentLimiter)`` — full set.
 - ``TransmissionClient(TorrentLister, TorrentInspector,
-  TorrentStateInspector, TorrentController)`` — no
-  :class:`AuthenticatedClient` (no explicit ``login()`` step).
+  TorrentStateInspector, TorrentController, TorrentAdder)`` — no
+  :class:`AuthenticatedClient` (no explicit ``login()`` step); no
+  :class:`TorrentLimiter` (Transmission lacks per-torrent limit RPC
+  methods, D2).
 
 The split addresses two requirements raised by the
 ``provider-ids`` work : (1) the dispatch flow needs to query torrent

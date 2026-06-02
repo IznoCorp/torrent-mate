@@ -452,17 +452,19 @@ simpler: a single client, not a multi-provider registry.
 
 ### Torrent Family — Capability Table
 
-The torrent family (`api/torrent/`) defines 5 atomic `@runtime_checkable`
+The torrent family (`api/torrent/`) defines 7 atomic `@runtime_checkable`
 Protocols in `_contracts.py`. The two new ones (`TorrentAdder`, `TorrentLimiter`)
-were added in `torrent-write`; the three pre-existing ones were unchanged.
+were added in `torrent-write`; the five pre-existing ones were unchanged.
 
-| Capability          | QBitClient | TransmissionClient | Protocol file         |
-| ------------------- | ---------- | ------------------ | --------------------- |
-| `TorrentLister`     | ✓          | ✓                  | `_contracts.py` (pre) |
-| `TorrentInspector`  | ✓          | ✓                  | `_contracts.py` (pre) |
-| `TorrentController` | ✓          | ✓                  | `_contracts.py` (pre) |
-| `TorrentAdder`      | ✓          | ✓                  | `_contracts.py` (new) |
-| `TorrentLimiter`    | ✓          | ✗                  | `_contracts.py` (new) |
+| Capability              | QBitClient | TransmissionClient | Protocol file         |
+| ----------------------- | ---------- | ------------------ | --------------------- |
+| `TorrentLister`         | ✓          | ✓                  | `_contracts.py` (pre) |
+| `TorrentInspector`      | ✓          | ✓                  | `_contracts.py` (pre) |
+| `AuthenticatedClient`   | ✓          | ✗                  | `_contracts.py` (pre) |
+| `TorrentStateInspector` | ✓          | ✓                  | `_contracts.py` (pre) |
+| `TorrentController`     | ✓          | ✓                  | `_contracts.py` (pre) |
+| `TorrentAdder`          | ✓          | ✓                  | `_contracts.py` (new) |
+| `TorrentLimiter`        | ✓          | ✗                  | `_contracts.py` (new) |
 
 - **`TorrentAdder`**: `add(source, *, category, tags, paused, limits) → str` —
   returns the `info_hash` (D6). Composed by both clients.
