@@ -19,7 +19,7 @@
 | 3   | `TorrentItem.tags` field + mapper updates (qBit CSV + Transmission D5)     | phase-03-torrentitem-tags.md      | [x]    |
 | 4   | `QBitClient.add()` + `_limit_kwargs()`                                     | phase-04-qbit-add.md              | [x]    |
 | 5   | `QBitClient.apply_limits()` + composition assertions                       | phase-05-qbit-apply-limits.md     | [x]    |
-| 6   | `TransmissionClient.add()` + `_labels()` + composition assertions          | phase-06-transmission-add.md      | [ ]    |
+| 6   | `TransmissionClient.add()` + `_labels()` + composition assertions          | phase-06-transmission-add.md      | [x]    |
 | 7   | `AppContext.torrent_client` field                                          | phase-07-appcontext-field.md      | [ ]    |
 | 8   | Fail-fast in `_build_app_context()` (D3/D9)                                | phase-08-boot-failfast.md         | [ ]    |
 | 9   | Remove lazy inline `QBitClient` fallbacks                                  | phase-09-remove-lazy-fallbacks.md | [ ]    |
@@ -32,4 +32,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phases 1–5 complete (qBit client fully done). Next: Phase 6 — `TransmissionClient.add()` + `_labels()` + composition.
+Phases 1–6 complete (interface + both clients done). Next: Phase 7 — `AppContext.torrent_client` field (boot-wiring layer).
