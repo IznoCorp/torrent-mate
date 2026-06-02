@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 import qbittorrentapi
@@ -44,7 +44,7 @@ def test_add_file_bytes_uses_torrent_files() -> None:
     c._client.torrents_add.return_value = "Ok"
     # Patch info_hash — b"bytes" is not a valid .torrent bencode, but the
     # test only cares about the torrents_add kwargs, not hash derivation.
-    with patch.object(TorrentSource, "info_hash", return_value="abc123"):
+    with patch.object(TorrentSource, "info_hash", new_callable=PropertyMock, return_value="abc123"):
         c.add(TorrentSource.from_file(b"bytes"))
     kw = c._client.torrents_add.call_args[1]
     assert kw.get("torrent_files") == b"bytes"
