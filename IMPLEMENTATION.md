@@ -23,7 +23,7 @@
 | 7   | `AppContext.torrent_client` field                                          | phase-07-appcontext-field.md      | [x]    |
 | 8   | Fail-fast in `_build_app_context()` (D3/D9)                                | phase-08-boot-failfast.md         | [x]    |
 | 9   | Remove lazy inline `QBitClient` fallbacks                                  | phase-09-remove-lazy-fallbacks.md | [x]    |
-| 10  | Reference docs updates                                                     | phase-10-docs.md                  | [ ]    |
+| 10  | Reference docs updates                                                     | phase-10-docs.md                  | [x]    |
 | 11  | Executable `ACCEPTANCE.md` + ROADMAP flip                                  | phase-11-acceptance-roadmap.md    | [ ]    |
 
 ## Review cycles
@@ -32,7 +32,7 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phases 1–9 complete (boot-wiring done; full `make check` green, 5988 tests). Next: Phase 10 — reference docs updates.
+Phases 1–10 complete. Next: Phase 11 (final) — executable `ACCEPTANCE.md` + ROADMAP RP1 flip.
 
 > **Phase 9 re-scope (documented):** the plan estimated 3 files; reality was 23 — `run_ingest`'s
 > signature change rippled through `pipeline_steps.py` (IngestStep/LegacyCallableStep — missed by
