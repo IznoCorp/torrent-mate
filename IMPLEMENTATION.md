@@ -21,7 +21,7 @@
 | 4   | DB-mode unification     | phase-04-db-mode.md                | [x]    |
 | 5   | Migrate STAGING checks  | phase-05-migrate-staging.md        | [x]    |
 | 6   | Granular CLI            | phase-06-granular-cli.md           | [x]    |
-| 7   | Fix-policy unification  | phase-07-fix-policy-unification.md | [ ]    |
+| 7   | Fix-policy unification  | phase-07-fix-policy-unification.md | [x]    |
 | 8   | Latent bug fixes        | phase-08-latent-bug-fixes.md       | [ ]    |
 | 9   | Feature PR + review     | phase-09-feature-pr.md             | [ ]    |
 
@@ -58,7 +58,7 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-**Phase 6 DONE (gate green).** Proceed to **Phase 7 — Fix-policy unification** (`docs/features/check-plugins/plan/phase-07-fix-policy-unification.md`). ⚠️ This is the **first DELIBERATE behavior change**: flip the module-level `_VERIFY_FIX_POLICY` (currently `{"dir_naming"}`) to unify it with the library set, so verify auto-fixes more than just dir_naming. The `verifier_movie`/`verifier_tvshow` goldens WILL change — they are **re-captured** (env `CAPTURE_GOLDEN=1 GOLDEN_ONLY=verifier_movie,verifier_tvshow`) as the deliberate, isolated update point. All OTHER goldens stay byte-identical. Read the phase plan carefully before running. Strict 0→9 order; each phase ends with `make check`.
+**Phase 7 DONE (gate green).** Proceed to **Phase 8 — Latent bug fixes** (`docs/features/check-plugins/plan/phase-08-latent-bug-fixes.md`): operator-added adjacent scope (NOT derived from the framework goals) — Bug 1 `RatingSource` Literal `themoviedb`→`tmdb` (`indexer/external_ids.py`), Bug 2 eager-register `VerifyItemDone` (`events/__init__.py`). Bug 3 (trailers AppContext allowlist) = verified false positive, no action. Regression-test-per-bug. Strict 0→9 order; each phase ends with `make check`.
 
 ### Phase 0 gate record (2026-06-02)
 
@@ -109,5 +109,13 @@ _(filled by implement:pr-review — max 5 cycles)_
 - **Additive invariant**: `only=None` default everywhere → `checks_for_filtered` returns `checks_for` unchanged → golden byte-identical + `default-None identity == True`.
 - **ACC-04**: `personalscraper verify --list-checks` → exit 0, prints the DISPATCH `CheckSpec` rows (the Web-UI `catalog.list_checks` enumeration API exercised end-to-end).
 - Gate green: `make check` ✓ (5905 passed, 0 failed, coverage 91.21%), ACC-01 golden 7 passed, ACC-02+commands 876/full-suite green, 9 new CLI tests, ACC-07 module-size (only the pre-existing movie_service.py WARN), `import personalscraper` ✓.
+
+### Phase 7 gate record (2026-06-02) — DELIBERATE behavior change
+
+- Single atomic TDD dispatch (7.1+7.2 merged — 7.1's failing test cannot be committed alone): wrote `test_fix_policy.py` (2 tests, failing on the old `{"dir_naming"}` policy), flipped `_VERIFY_FIX_POLICY` → `{"dir_naming", "no_empty_dirs", "ntfs_safe_names"}`, re-captured ONLY the verifier\_\* golden (`74d02ab8`).
+- **Golden change is exactly confined**: ONLY `verifier_tvshow.json` changed (`verifier_movie.json` unchanged — no movie corpus item has an empty dir / NTFS-illegal file; checker*\*/library*\*/coherence all byte-identical). Diff = `tvshow_empty_subdir` (blocked→fixed, `fixes_applied: ["Removed empty dir: Extras"]`) + `tvshow_ntfs_illegal` (file renamed, stays blocked on a remaining `episode_renamed` error — correct).
+- **Justified bug fix (documented, in-commit)**: the post-fix loop in `verify_movie`/`verify_tvshow` unconditionally set `media_dir = action.new_path` for ANY action — but `ntfs_safe_names` sets `new_path` to a renamed _file_, which would crash re-check once ntfs entered the policy. Added an `and a.new_path.is_dir()` guard (only directory renames redirect media_dir; the `dir_naming` path is unchanged since its new_path IS a dir). Existing `test_movie_with_empty_subdir_blocked` → `..._fixed` (necessary consequence).
+- ⚠️ Process note: the DeepSeek sub-agent's report omitted the `MODEL_IDENTITY`/`BRIEFING_ACK` lines (probe-contract miss). The dispatch DID go to DeepSeek (wrapper verified + PONG + 8 prior DeepSeek dispatches this session); correctness established by independent orchestrator verification (golden diff confined, gates re-run). Cosmetic report defect, not a model leak.
+- Gate green: `make check` ✓ (5907 passed, 0 failed, coverage 91.21%), ACC-09 `test_fix_policy` 2 passed, ACC-01 golden 7 passed vs UPDATED baseline, ACC-07 module-size (only the pre-existing movie_service.py WARN), `import personalscraper` ✓.
 
 > **PR #33 is already created** (https://github.com/LounisBou/personal-scraper/pull/33, WIP). The branch is pushed to `origin/feat/check-plugins`. When the lifecycle reaches Phase 9 (`/implement:feature-pr`), it must **push onto the existing branch and reuse PR #33** (detect-existing, do not create a duplicate) — then `/implement:pr-review` → **manual squash merge**. Each implementation commit pushed to the branch updates PR #33 in place.
