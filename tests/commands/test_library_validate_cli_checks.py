@@ -8,7 +8,12 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from tests.commands._e2e_helpers import assert_no_python_traceback, run_cli
+from tests.commands._e2e_helpers import (
+    assert_no_python_traceback,
+    make_synthetic_db,
+    make_test_config_with_db,
+    run_cli,
+)
 
 _PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
 
@@ -76,3 +81,27 @@ def test_library_validate_check_known_name_forwards_only(
     assert result.exit_code == 0, result.output
     _, kwargs = mock_validate.call_args
     assert kwargs.get("only") == frozenset({"nfo_present"})
+
+
+# ── --from-index --check <non-indexable> advisory note ──
+
+
+def test_library_validate_from_index_non_indexable_check_warns(tmp_path, test_config) -> None:
+    """--from-index --check dir_naming prints an advisory Note and exits 0.
+
+    ``dir_naming`` is a DISPATCH check but not an IndexableCheck, so it produces
+    nothing in DB-mode. The command must warn (not raise) and still complete.
+    """
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    # Ensure data_dir exists so write_json can write the output file.
+    (tmp_path / ".data").mkdir(exist_ok=True)
+
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-validate", "--from-index", "--check", "dir_naming"])
+
+    assert result.exit_code == 0, result.output
+    assert "Note:" in result.output
+    assert "dir_naming" in result.output
+    assert "--from-index" in result.output
+    assert_no_python_traceback(result)

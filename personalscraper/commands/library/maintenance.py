@@ -332,6 +332,28 @@ def library_validate(
 
     try:
         if from_index:
+            # Advisory: --from-index runs the DB-backed (IndexableCheck) subset
+            # only. If the operator scoped --check to non-indexable checks (e.g.
+            # dir_naming, no_empty_dirs, season_structure), those silently
+            # produce nothing in DB-mode. Warn rather than raise — the request is
+            # well-formed, just vacuous for the named checks.
+            if only is not None:
+                from personalscraper.verify.checks.base import (  # noqa: PLC0415
+                    CheckStage as _Stage,
+                )
+                from personalscraper.verify.checks.base import (  # noqa: PLC0415
+                    IndexableCheck as _Indexable,
+                )
+                from personalscraper.verify.checks.registry import registry as _registry  # noqa: PLC0415
+
+                non_indexable = sorted(
+                    name for name in only if not isinstance(_registry.get(_Stage.DISPATCH, name), _Indexable)
+                )
+                if non_indexable:
+                    console.print(
+                        f"[yellow]Note:[/yellow] {non_indexable} do not apply in --from-index mode "
+                        "(they need the filesystem); they will produce no results."
+                    )
             console.print("[bold]Validating library (from index)...[/bold]")
             import sqlite3  # noqa: PLC0415
 

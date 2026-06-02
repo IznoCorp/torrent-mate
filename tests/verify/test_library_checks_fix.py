@@ -234,3 +234,51 @@ class TestValidateLibraryBranches:
         items_with_fixes = [it for it in result.items if it.fixes_applied]
         assert items_with_fixes  # at least one
         assert any("weird" in fix or "Renamed" in fix for it in items_with_fixes for fix in it.fixes_applied)
+
+
+class TestFixErrorIsolation:
+    """The per-item apply_fixes block isolates OSError instead of aborting."""
+
+    def _movie_with_empty_subdir(self, films: Path, name: str) -> None:
+        """Create a valid movie dir (so the only failed check is no_empty_dirs).
+
+        Args:
+            films: Parent ``films`` category directory.
+            name: Directory name for this movie (must be ``Title (Year)``).
+        """
+        movie = films / name
+        movie.mkdir(parents=True)
+        (movie / f"{name}.mkv").write_bytes(b"\x00" * 200_000_000)
+        (movie / f"{name}.nfo").write_text(_VALID_MOVIE_NFO)
+        (movie / f"{name}-poster.jpg").write_bytes(b"\x00" * 100)
+        (movie / f"{name}-landscape.jpg").write_bytes(b"\x00" * 100)
+        (movie / "Subs").mkdir()  # empty subdir → no_empty_dirs fails (fixable)
+
+    def test_oserror_in_fix_does_not_abort_scan(self, tmp_path: Path) -> None:
+        """An OSError raised by a fix marks the item issues; the scan continues.
+
+        Two movies each have a fixable empty-subdir issue. We monkeypatch the
+        ``NoEmptyDirs`` plugin so its ``fix()`` always raises OSError. The
+        wrapped apply_fixes block must catch it, mark BOTH items ``issues`` with
+        a ``fix_error`` tag, and never bubble an uncaught traceback.
+        """
+        from personalscraper.verify.checks.structure import NoEmptyDirs
+
+        disk = tmp_path / "medias"
+        films = disk / "films"
+        # Two media dirs, sorted order is deterministic: 'A …' before 'B …'.
+        self._movie_with_empty_subdir(films, "A Movie (2001)")
+        self._movie_with_empty_subdir(films, "B Movie (2002)")
+
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+
+        with patch.object(NoEmptyDirs, "fix", side_effect=OSError("rmdir denied")):
+            result = validate_library(config, fix=True, apply=True)
+
+        # The scan visited BOTH items (did not abort after the first failure).
+        assert result.total_items == 2
+        assert result.issues_count == 2
+        # Every item is marked issues and carries a fix_error tag.
+        for it in result.items:
+            assert it.status == "issues"
+            assert any(e.startswith("fix_error:") for e in it.errors)

@@ -353,23 +353,54 @@ def validate_library(
                         patterns=patterns,
                         dry_run=not apply,
                     )
-                    for c in checks:
-                        if c.passed or not c.fixable or c.name not in _LIBRARY_FIX_POLICY:
-                            continue
-                        actions = apply_fixes(ctx, [c], _LIBRARY_FIX_POLICY)
-                        if not actions:
-                            continue
-                        fixes_applied.extend(a.description for a in actions)
-                        # A name is "fixed" only when its check produced ≥1 action
-                        # (mirrors the legacy ``if empty_fixes:`` / per-action guards).
-                        fixed_error_names.add(c.name)
-                        for a in actions:
-                            # Thread the renamed media dir forward (dir_naming) so
-                            # the ValidationItem records the post-rename path, and
-                            # keep ctx pointing at the new dir for later fixes.
-                            if a.new_path and apply and a.old_path == media_dir:
-                                media_dir = a.new_path
-                                ctx.media_dir = media_dir
+                    # Isolate the fix loop per-item: an unexpected OSError while
+                    # applying a fix (e.g. a rename racing a concurrent mount
+                    # unmount) must NOT abort the whole disk scan. Mirror the
+                    # read-path ``except OSError`` posture and verify_all_*'s
+                    # per-item isolation — record whatever fixes already landed,
+                    # mark the item ``issues`` with a ``fix_error`` tag, and move
+                    # on to the next media dir.
+                    try:
+                        for c in checks:
+                            if c.passed or not c.fixable or c.name not in _LIBRARY_FIX_POLICY:
+                                continue
+                            actions = apply_fixes(ctx, [c], _LIBRARY_FIX_POLICY)
+                            if not actions:
+                                continue
+                            fixes_applied.extend(a.description for a in actions)
+                            # A name is "fixed" only when its check produced ≥1 action
+                            # (mirrors the legacy ``if empty_fixes:`` / per-action guards).
+                            fixed_error_names.add(c.name)
+                            for a in actions:
+                                # Thread the renamed media dir forward (dir_naming) so
+                                # the ValidationItem records the post-rename path, and
+                                # keep ctx pointing at the new dir for later fixes.
+                                if a.new_path and apply and a.old_path == media_dir:
+                                    media_dir = a.new_path
+                                    ctx.media_dir = media_dir
+                    except OSError as exc:
+                        log.warning(
+                            "library_fix_error",
+                            media_dir=str(media_dir),
+                            exc_info=True,
+                            error=str(exc),
+                        )
+                        items.append(
+                            ValidationItem(
+                                path=str(media_dir),
+                                disk=disk.id,
+                                category=category_id,
+                                media_type="tvshow" if is_series else "movie",
+                                title=title,
+                                year=year,
+                                status="issues",
+                                errors=[*errors, f"fix_error: {exc}"],
+                                warnings=warnings,
+                                fixes_applied=fixes_applied,
+                            )
+                        )
+                        issues_count += 1
+                        continue
 
                 # Determine final status
                 remaining_errors = [e for e in errors if e not in fixed_error_names]
