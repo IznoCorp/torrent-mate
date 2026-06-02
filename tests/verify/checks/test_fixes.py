@@ -50,6 +50,10 @@ def test_dir_naming_fix_dry_run_no_rename(tmp_path):
     actions = DirNaming().fix(ctx)
     assert len(actions) == 1
     assert not (tmp_path / "Good Movie (2000)").exists()  # dry run: no actual rename
+    # Description now carries the [DRY-RUN] marker, matching the sibling fixes
+    # (NoEmptyDirs / NtfsSafeNames) instead of the silent "Renamed …" wording.
+    assert actions[0].description.startswith("[DRY-RUN] Would rename")
+    assert "Good Movie (2000)" in actions[0].description
 
 
 def test_no_empty_dirs_fix_removes_empty(tmp_path):

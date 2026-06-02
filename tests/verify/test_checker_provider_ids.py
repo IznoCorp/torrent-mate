@@ -197,3 +197,61 @@ def test_check_tvshow_total_checks_includes_new_three(checker: MediaChecker, tmp
     assert "episode_canonical_uniqueid_present" in names
     assert "episode_xref_secondary_id_present" in names
     assert "episode_xref_imdb_id_present" in names
+
+
+def test_check_canonical_uniqueid_unparseable_episode_nfo(checker: MediaChecker, tmp_path: Path) -> None:
+    """An unparseable episode NFO fails the canonical ERROR check ``(unparseable)``.
+
+    The show NFO is valid (canonical family = tvdb) so the check runs, but the
+    episode NFO bytes are corrupt — the canonical check treats an unparseable
+    NFO as a missing canonical uniqueid and annotates the filename.
+    """
+    show_dir = _build_show(
+        tmp_path,
+        canonical_family="tvdb",
+        episode_uniqueids=[("tvdb", "9001", True)],
+    )
+    # Corrupt the episode NFO on disk (was written valid by _build_show).
+    ep_nfo = show_dir / "Saison 01" / "S01E01 - Pilot.nfo"
+    ep_nfo.write_text("<episodedetails><title>broken", encoding="utf-8")  # truncated XML
+
+    results = checker.check_tvshow(show_dir)
+    check = _result_by_name(results, "episode_canonical_uniqueid_present")
+    assert check is not None
+    assert check.passed is False
+    assert check.severity == Severity.ERROR
+    assert "(unparseable)" in check.message
+
+
+def test_check_canonical_uniqueid_none_family_passes_with_episodes(checker: MediaChecker, tmp_path: Path) -> None:
+    """A show NFO with NO ``<uniqueid>`` → canonical family None → check passes.
+
+    Episodes ARE present on disk, but with no derivable canonical family the
+    canonical / secondary checks are no-ops (``passed=True``), exactly as the
+    legacy ``check_tvshow``.
+    """
+    show_dir = tmp_path / "Show (2024)"
+    show_dir.mkdir()
+    season = show_dir / "Saison 01"
+    season.mkdir()
+    (season / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * 1024)
+
+    # Show NFO with NO uniqueid at all → _canonical_family returns None.
+    root = ET.Element("tvshow")
+    ET.SubElement(root, "title").text = "Show"
+    ET.SubElement(root, "year").text = "2024"
+    ET.SubElement(root, "genre").text = "Drame"
+    ET.ElementTree(root).write(show_dir / "tvshow.nfo", encoding="unicode")
+    (show_dir / "poster.jpg").write_bytes(b"\xff")
+    (show_dir / "landscape.jpg").write_bytes(b"\xff")
+
+    # An episode NFO IS present (so the "no episodes" early-out is NOT the reason).
+    ep_root = ET.Element("episodedetails")
+    ET.SubElement(ep_root, "title").text = "Pilot"
+    ET.ElementTree(ep_root).write(season / "S01E01 - Pilot.nfo", encoding="unicode")
+
+    results = checker.check_tvshow(show_dir)
+    canonical = _result_by_name(results, "episode_canonical_uniqueid_present")
+    secondary = _result_by_name(results, "episode_xref_secondary_id_present")
+    assert canonical is not None and canonical.passed is True
+    assert secondary is not None and secondary.passed is True

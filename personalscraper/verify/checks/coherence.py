@@ -136,7 +136,7 @@ class GenreCoherence:
         try:
             category_id, _ = classify_from_nfo(ctx.config, nfo_path, media_type="tvshow")
         except (ET.ParseError, OSError, ValueError) as exc:
-            log.warning("coherence_genre_check_failed", nfo=nfo_path.name, error=str(exc))
+            log.warning("coherence_genre_check_failed", nfo=nfo_path.name, exc_info=True, error=str(exc))
             return [CheckResult("genre_coherence", False, Severity.WARNING, f"Genre check failed: {exc}")]
         if category_id == CID.TV_PROGRAMS:
             msg = f"Genre suggests TV program ({CID.TV_PROGRAMS}) not series for {ctx.media_dir.name}"

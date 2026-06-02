@@ -90,7 +90,7 @@ class NtfsSafeNames:
                             try:
                                 item.rename(item.parent / safe)
                             except OSError as exc:
-                                log.warning("ntfs_fix_rename_failed", item=str(item), error=str(exc))
+                                log.warning("ntfs_fix_rename_failed", item=str(item), exc_info=True, error=str(exc))
                                 continue
                         actions.append(
                             FixAction(
@@ -100,5 +100,5 @@ class NtfsSafeNames:
                             )
                         )
         except OSError as exc:
-            log.warning("ntfs_fix_list_error", error=str(exc))
+            log.warning("ntfs_fix_list_error", exc_info=True, error=str(exc))
         return actions

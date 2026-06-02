@@ -81,17 +81,19 @@ class DirNaming:
 
         nfo_path = next((f for f in nfo_files if f.exists()), None)
         if not nfo_path:
+            log.debug("dir_naming_fix_skipped", reason="no NFO found", dir=ctx.media_dir.name)
             return []
         try:
             tree = ET.parse(nfo_path)  # noqa: S314
             root = tree.getroot()
         except (ET.ParseError, OSError) as exc:
-            log.warning("dir_naming_fix_nfo_parse_error", nfo=nfo_path.name, error=str(exc))
+            log.warning("dir_naming_fix_nfo_parse_error", nfo=nfo_path.name, exc_info=True, error=str(exc))
             return []
 
         title = (root.findtext("title") or "").strip()
         year = (root.findtext("year") or "").strip()
         if not title:
+            log.debug("dir_naming_fix_skipped", reason="no <title> in NFO", dir=ctx.media_dir.name)
             return []
         canonical = f"{title} ({year})" if year else title
         if ctx.media_dir.name == canonical:
@@ -100,12 +102,13 @@ class DirNaming:
         if new_dir.exists():
             log.warning("dir_naming_fix_target_exists", canonical=canonical)
             return []
-        description = f"Renamed '{ctx.media_dir.name}' → '{canonical}'"
+        prefix = "[DRY-RUN] Would rename" if ctx.dry_run else "Renamed"
+        description = f"{prefix} '{ctx.media_dir.name}' → '{canonical}'"
         if not ctx.dry_run:
             try:
                 ctx.media_dir.rename(new_dir)
                 log.info("dir_naming_fix_renamed", description=description)
             except OSError as exc:
-                log.error("dir_naming_fix_rename_failed", error=str(exc))
+                log.error("dir_naming_fix_rename_failed", exc_info=True, error=str(exc))
                 return []
         return [FixAction(description=description, old_path=ctx.media_dir, new_path=new_dir)]

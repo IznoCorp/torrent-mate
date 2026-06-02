@@ -165,11 +165,11 @@ class NoEmptyDirs:
                         try:
                             subdir.rmdir()
                         except OSError as exc:
-                            log.warning("no_empty_dirs_fix_failed", subdir=str(subdir), error=str(exc))
+                            log.warning("no_empty_dirs_fix_failed", subdir=str(subdir), exc_info=True, error=str(exc))
                             continue
                     actions.append(FixAction(description=desc, old_path=subdir))
         except OSError as exc:
-            log.warning("no_empty_dirs_fix_list_error", error=str(exc))
+            log.warning("no_empty_dirs_fix_list_error", exc_info=True, error=str(exc))
         return actions
 
 

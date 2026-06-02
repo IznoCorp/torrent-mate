@@ -116,3 +116,54 @@ def test_all_for_stage_dedups_across_media_types() -> None:
 
     names = [c.name for c in reg._all_for_stage(CheckStage.DISPATCH)]
     assert names.count("both") == 1
+
+
+# ---------------------------------------------------------------------------
+# End-to-end filter proof: the ``only`` allow-set must actually restrict the
+# PRODUCED results past ``checks_for_filtered`` (the CLI tests mock the run
+# functions, so this is the only place the restriction is exercised on real
+# output from MediaChecker / check_coherence over a corpus).
+# ---------------------------------------------------------------------------
+
+
+def test_check_movie_only_restricts_results(test_config, tmp_path) -> None:
+    """DISPATCH end-to-end: ``check_movie(only={nfo_present})`` yields ONLY nfo_present."""
+    from pathlib import Path
+
+    from personalscraper.naming_patterns import PATTERNS
+    from personalscraper.verify.checker import MediaChecker
+    from tests.verify.golden import _corpus
+
+    items = _corpus.build_item_corpus(Path(tmp_path) / "flt_mov")
+    movie_dir = items["movie_valid"]
+    chk = MediaChecker(PATTERNS, test_config)
+    results = chk.check_movie(movie_dir, only=frozenset({"nfo_present"}))
+    assert {r.name for r in results} == {"nfo_present"}
+
+
+def test_check_coherence_only_restricts_results(test_config, tmp_path) -> None:
+    """STAGING end-to-end: ``check_coherence(only={sort_process_coherence})``.
+
+    Every produced CoherenceResult.checks must be a subset of the allow-set.
+    """
+    from pathlib import Path
+
+    from personalscraper.enforce.coherence_checker import check_coherence
+    from tests.fixtures.settings_stub import make_typed_settings_stub
+    from tests.verify.golden import _corpus
+
+    cfg = _corpus.build_staging_corpus(Path(tmp_path) / "flt_stg", test_config)
+    only = frozenset({"sort_process_coherence"})
+    results = check_coherence(make_typed_settings_stub(), cfg, only=only)
+    assert results, "corpus produced no coherence results — fail-on-empty guard"
+    for r in results:
+        assert set(r.checks) <= only, f"{r.path.name} ran extra checks: {r.checks}"
+
+
+def test_staging_unknown_name_raises_keyerror() -> None:
+    """STAGING unknown ``--check`` name raises KeyError mentioning stage 'staging'."""
+    with pytest.raises(KeyError) as excinfo:
+        registry.checks_for_filtered(CheckStage.STAGING, "movie", frozenset({"bogus"}))
+    msg = str(excinfo.value)
+    assert "bogus" in msg
+    assert "staging" in msg

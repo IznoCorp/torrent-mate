@@ -15,6 +15,7 @@ from personalscraper.verify.checks.base import (
     CheckSpec,
     CheckStage,
     FixableCheck,
+    IndexableCheck,
 )
 
 if TYPE_CHECKING:
@@ -89,6 +90,8 @@ class CheckRegistry:
         instance = cls()
         for stage in instance.stages:
             key = (stage, instance.name)
+            if key in self._checks:
+                raise ValueError(f"Duplicate check registration for {key}")
             self._checks[key] = instance
         return cls
 
@@ -211,7 +214,7 @@ class CheckRegistry:
                     media_types=check.media_types,
                     default_severity=check.default_severity,
                     fixable=isinstance(check, FixableCheck),
-                    indexable=hasattr(check, "from_index"),
+                    indexable=isinstance(check, IndexableCheck),
                     description=check.description,
                 )
             )
@@ -254,7 +257,11 @@ def apply_fixes(
         if r.name not in policy:
             continue
         check = registry.get(ctx.stage, r.name)
-        if check is not None and callable(getattr(check, "fix", None)):
+        # ``isinstance(check, FixableCheck)`` narrows the type for mypy (the
+        # runtime_checkable Protocol only verifies the ``fix`` attribute
+        # exists); the extra ``callable`` guard hardens against a non-callable
+        # ``fix`` attribute slipping through that attribute-presence check.
+        if check is not None and isinstance(check, FixableCheck) and callable(check.fix):
             fix_actions = check.fix(ctx)
             actions.extend(fix_actions)
             # Thread a directory rename forward: if this fix renamed the media

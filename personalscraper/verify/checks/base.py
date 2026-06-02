@@ -13,11 +13,15 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Mapping, Protocol, runtime_checkable
 
+from personalscraper.logger import get_logger
+
 if TYPE_CHECKING:
     from typing import Any
 
     from personalscraper.conf.models.config import Config
     from personalscraper.naming_patterns import NamingPatterns
+
+log = get_logger("verify.checks.base")
 
 
 class CheckStage(Enum):
@@ -107,8 +111,14 @@ class CheckSpec:
 class CheckContext:
     """Shared context passed to every check plugin.
 
-    Carries a parse-once, cached NFO root to avoid O(checks) re-parsing.
-    A sentinel (_NOT_PARSED) distinguishes "not yet parsed" from "parse failed → None".
+    Exposes an OPTIONAL parse-once NFO cache (:meth:`nfo_root` /
+    :meth:`nfo_path`) that a plugin MAY use to avoid O(checks) re-parsing.
+    It is NOT currently wired into any plugin: the existing checks resolve
+    the NFO per their own path rules (movie NFO resolution differs from this
+    cache's first-candidate glob), so they parse independently. The cache
+    remains available for future plugins. First call parses and memoizes the
+    result; a ``_nfo_parsed`` flag distinguishes "not yet parsed" from a
+    cached "parse failed → None".
 
     Attributes:
         media_dir: Absolute path to the media directory.
@@ -145,7 +155,8 @@ class CheckContext:
             else:
                 try:
                     self._nfo_root = ET.parse(p).getroot()  # noqa: S314
-                except (ET.ParseError, OSError):
+                except (ET.ParseError, OSError) as exc:
+                    log.warning("nfo_root_parse_failed", nfo=str(p), exc_info=True, error=str(exc))
                     self._nfo_root = None
         return self._nfo_root  # type: ignore[return-value]
 
