@@ -23,7 +23,7 @@
 | 6   | Granular CLI            | phase-06-granular-cli.md           | [x]    |
 | 7   | Fix-policy unification  | phase-07-fix-policy-unification.md | [x]    |
 | 8   | Latent bug fixes        | phase-08-latent-bug-fixes.md       | [x]    |
-| 9   | Feature PR + review     | phase-09-feature-pr.md             | [ ]    |
+| 9   | Feature PR + review     | phase-09-feature-pr.md             | [x]    |
 
 ## Design & plan review (2026-06-01, pre-implementation)
 
@@ -76,7 +76,17 @@ Design + plan were brainstormed, then verified **three times** before any code �
 - **No design contradictions** — `(stage,name)` keying + `resolved_category` side-channel confirmed correct by the type-design pass.
 - **Known/documented (not re-fixed)**: the `rglob` recursive empty-dir removal in `validate_library` (vs legacy top-level) — already flagged for operator sign-off in the Phase 3 gate record.
 
-_(loop converged after Cycle 1 — all MAJOR/MEDIUM/LOW findings fixed; remaining is the documented rglob sign-off item. Final squash merge is manual.)_
+### Cycle 2 (2026-06-02) — verification re-review (code-reviewer on the fix diff)
+
+**Verdict: CLEAN, no new issues.** Verified the Cycle-1 fixes are correct + regression-free: the `apply_fixes` `ctx.media_dir` mutation is tolerated by both callers (verifier rebuilds ctx; library threads media_dir itself, converging to the same value); `is_dir()` guard correct for the rename-already-happened state; only `dir_naming` returns a directory `new_path` so no loop/mis-thread; the `register` duplicate guard doesn't fire on the legit `nfo_ids` DISPATCH-vs-STAGING split; `callable(check.fix)` + `isinstance(IndexableCheck)` match the old `hasattr` behavior across all 24 checks. **Loop converged.**
+
+## Feature status: COMPLETE — awaiting manual squash merge
+
+- All 10 phases `[x]`. PR #33 head `fbae94d5`, **CI GREEN** (all 8 jobs). 11/11 ACC re-exercised. Review loop converged (Cycle 1 fixed MAJOR+MEDIUM+LOW; Cycle 2 clean). `make check` EXIT=0 (5916 passed, cov 91.21%).
+- **Operator's remaining actions** (merge mode = manual):
+  1. **Squash merge** PR #33: `gh pr merge 33 --squash --delete-branch` (or via the GitHub UI). The branch also carries unrelated `docs(roadmap):` commits (ROADMAP.md only) + `DOC-FOLLOWUPS.md` is untracked (not in the PR).
+  2. **Post-merge** (`docs/reference/runbook-post-merge.md`): `git checkout main && git pull` ; `python -c "import personalscraper; print(personalscraper.__version__)"` → `0.20.0` ; `personalscraper verify --list-checks` (framework live on main).
+- ⚠️ **One sign-off item** (non-blocking, documented in the Phase 3 record): `validate_library --fix --apply` now removes **nested** empty dirs (recursive `rglob`) vs the legacy top-level `iterdir`. Golden-clean (corpus has none). Accept as a determinism/thoroughness improvement, or ask for a revert to top-level `iterdir` if strict legacy parity is required.
 
 ## Next action
 
