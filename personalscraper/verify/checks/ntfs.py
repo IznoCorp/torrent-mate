@@ -39,7 +39,9 @@ class NtfsSafeNames:
             Single-element list with the ``ntfs_safe_names`` result.
         """
         illegal_files = []
-        for f in ctx.media_dir.rglob("*"):
+        # Sort so the illegal-filename order (which feeds the result message)
+        # is deterministic across filesystems (APFS vs ext4 rglob order).
+        for f in sorted(ctx.media_dir.rglob("*")):
             if f.is_file() and _NTFS_ILLEGAL.search(f.name):
                 illegal_files.append(f.name)
 
@@ -76,7 +78,9 @@ class NtfsSafeNames:
         log = get_logger("verify.checks.ntfs")
         actions = []
         try:
-            for item in ctx.media_dir.rglob("*"):
+            # Sort so the emitted FixAction order is deterministic across
+            # filesystems (APFS vs ext4 yield different rglob order).
+            for item in sorted(ctx.media_dir.rglob("*")):
                 if item.is_file():
                     safe = sanitize_filename(item.name)
                     if safe != item.name:

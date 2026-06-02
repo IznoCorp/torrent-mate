@@ -54,7 +54,7 @@ class EpisodeNfo:
         Returns:
             Single-element list with the ``episode_nfo`` result.
         """
-        episode_nfos = list(ctx.media_dir.rglob("S??E??*.nfo"))
+        episode_nfos = sorted(ctx.media_dir.rglob("S??E??*.nfo"))
         return [
             CheckResult(
                 name="episode_nfo",
@@ -296,9 +296,9 @@ def _episode_nfo_paths(show_dir: "Path") -> "list[Path]":
         show_dir: Path to the TV show directory.
 
     Returns:
-        List of episode NFO paths.
+        List of episode NFO paths, sorted by path for deterministic order.
     """
-    return list(show_dir.rglob("S??E??*.nfo"))
+    return sorted(show_dir.rglob("S??E??*.nfo"))
 
 
 def _parse_nfo(nfo_path: "Path") -> "ET.Element | None":

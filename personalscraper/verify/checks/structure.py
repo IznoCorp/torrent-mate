@@ -155,7 +155,9 @@ class NoEmptyDirs:
         log = get_logger("verify.checks.structure")
         actions = []
         try:
-            for subdir in list(ctx.media_dir.rglob("*")):
+            # Sort so the emitted FixAction order is deterministic across
+            # filesystems (APFS vs ext4 yield different iterdir/rglob order).
+            for subdir in sorted(ctx.media_dir.rglob("*")):
                 if subdir.is_dir() and not any(subdir.iterdir()):
                     prefix = "[DRY-RUN] Would remove" if ctx.dry_run else "Removed"
                     desc = f"{prefix} empty dir: {subdir.name}"
@@ -192,7 +194,10 @@ class SeasonStructure:
             Single-element list with the ``season_structure`` result.
         """
         show_dir = ctx.media_dir
-        season_dirs = [d for d in show_dir.iterdir() if d.is_dir() and SEASON_DIR_RE.match(d.name)]
+        season_dirs = sorted(
+            (d for d in show_dir.iterdir() if d.is_dir() and SEASON_DIR_RE.match(d.name)),
+            key=lambda d: d.name,
+        )
         has_episodes_in_seasons = (
             any(any(_EPISODE_PATTERN.match(f.name) for f in sd.iterdir() if f.is_file()) for sd in season_dirs)
             if season_dirs
@@ -229,7 +234,10 @@ class EpisodeRenamed:
             Single-element list with the ``episode_renamed`` result.
         """
         show_dir = ctx.media_dir
-        season_dirs = [d for d in show_dir.iterdir() if d.is_dir() and SEASON_DIR_RE.match(d.name)]
+        season_dirs = sorted(
+            (d for d in show_dir.iterdir() if d.is_dir() and SEASON_DIR_RE.match(d.name)),
+            key=lambda d: d.name,
+        )
         unrenamed = _find_unrenamed_episodes(season_dirs)
         return [
             CheckResult(
@@ -268,9 +276,9 @@ class RootVideoFiles:
         nfo_path = show_dir / ctx.patterns.tvshow_nfo
         if not nfo_path.exists():
             return []
-        root_videos = [
+        root_videos = sorted(
             f for f in show_dir.iterdir() if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
-        ]
+        )
         if root_videos:
             names = ", ".join(f.name for f in root_videos[:3])
             suffix = f" (+{len(root_videos) - 3} more)" if len(root_videos) > 3 else ""
@@ -297,9 +305,9 @@ def _find_video_files(directory: "Path") -> "list[Path]":
         directory: Directory to search.
 
     Returns:
-        List of video file paths.
+        List of video file paths, sorted by path for deterministic order.
     """
-    return [f for f in directory.iterdir() if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS]
+    return sorted(f for f in directory.iterdir() if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS)
 
 
 def _find_video_files_recursive(directory: "Path") -> "list[Path]":
@@ -309,12 +317,12 @@ def _find_video_files_recursive(directory: "Path") -> "list[Path]":
         directory: Root directory to search.
 
     Returns:
-        List of video file paths.
+        List of video file paths, sorted by path for deterministic order.
     """
     results: list[Path] = []
     for ext in VIDEO_EXTENSIONS:
         results.extend(directory.rglob(f"*.{ext}"))
-    return results
+    return sorted(results)
 
 
 def _find_empty_dirs(root: "Path") -> "list[Path]":
@@ -331,7 +339,9 @@ def _find_empty_dirs(root: "Path") -> "list[Path]":
     """
     junk = {".DS_Store", "Thumbs.db"}
     empty = []
-    for d in root.rglob("*"):
+    # Sort so the returned empty-dir order (which feeds the result message and
+    # the fix-action order) is deterministic across filesystems.
+    for d in sorted(root.rglob("*")):
         if not d.is_dir():
             continue
         contents = list(d.iterdir())
@@ -352,7 +362,9 @@ def _find_unrenamed_episodes(season_dirs: "list[Path]") -> "list[Path]":
     """
     unrenamed = []
     for sd in season_dirs:
-        for f in sd.iterdir():
+        # Sort within each season dir so the unrenamed-episode order (which
+        # feeds the result message) is deterministic across filesystems.
+        for f in sorted(sd.iterdir()):
             if not f.is_file():
                 continue
             if f.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:

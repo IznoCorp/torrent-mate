@@ -64,6 +64,6 @@ def _find_video_files(directory: "Path") -> "list[Path]":
         directory: Directory to search.
 
     Returns:
-        List of video file paths.
+        List of video file paths, sorted by path for deterministic order.
     """
-    return [f for f in directory.iterdir() if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS]
+    return sorted(f for f in directory.iterdir() if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS)

@@ -197,7 +197,12 @@ class SeasonPosters:
             List of ``season_posters`` results (≥ 1).
         """
         show_dir = ctx.media_dir
-        season_dirs = [d for d in show_dir.iterdir() if d.is_dir() and SEASON_DIR_RE.match(d.name)]
+        # Sort by name so the per-season CheckResults are emitted in a stable
+        # order across filesystems (APFS vs ext4 iterdir order differs).
+        season_dirs = sorted(
+            (d for d in show_dir.iterdir() if d.is_dir() and SEASON_DIR_RE.match(d.name)),
+            key=lambda d: d.name,
+        )
         results: list[CheckResult] = []
         for sd in season_dirs:
             season_num = int(sd.name.split()[-1])
