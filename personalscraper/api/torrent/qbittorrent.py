@@ -270,19 +270,23 @@ class QBitClient(
     def apply_limits(self, info_hash: str, limits: TorrentLimits) -> None:
         """Apply transfer limits to an existing torrent (D2/§5.4).
 
-        Only non-None fields trigger API calls. All-None TorrentLimits is
-        a no-op.
+        Only non-None fields trigger API calls. For share limits, only the
+        fields that are explicitly set are included in the call — no ``-2``
+        global-reset sentinel is sent for an unspecified field. When all
+        fields of ``TorrentLimits`` are None, no API calls are made at all
+        (true no-op).
 
         Args:
             info_hash: Lowercase hex info_hash of the target torrent.
             limits: Limits to apply.
         """
-        if limits.ratio is not None or limits.seed_time_minutes is not None:
-            self._client.torrents_set_share_limits(
-                torrent_hashes=info_hash,
-                ratio_limit=limits.ratio if limits.ratio is not None else -2,  # type: ignore[arg-type]  # stub is str|int|None; API accepts float
-                seeding_time_limit=(limits.seed_time_minutes * 60 if limits.seed_time_minutes is not None else -2),
-            )
+        share_kwargs: dict[str, object] = {}
+        if limits.ratio is not None:
+            share_kwargs["ratio_limit"] = limits.ratio
+        if limits.seed_time_minutes is not None:
+            share_kwargs["seeding_time_limit"] = limits.seed_time_minutes
+        if share_kwargs:
+            self._client.torrents_set_share_limits(torrent_hashes=info_hash, **share_kwargs)  # type: ignore[arg-type]
         if limits.up_bytes_per_s is not None:
             self._client.torrents_set_upload_limit(torrent_hashes=info_hash, limit=limits.up_bytes_per_s)
         if limits.down_bytes_per_s is not None:
@@ -460,7 +464,7 @@ def _limit_kwargs(limits: TorrentLimits | None) -> dict[str, object]:
     if limits.ratio is not None:
         out["ratio_limit"] = limits.ratio
     if limits.seed_time_minutes is not None:
-        out["seeding_time_limit"] = limits.seed_time_minutes * 60
+        out["seeding_time_limit"] = limits.seed_time_minutes
     if limits.up_bytes_per_s is not None:
         out["upload_limit"] = limits.up_bytes_per_s
     if limits.down_bytes_per_s is not None:
