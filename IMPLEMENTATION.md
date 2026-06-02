@@ -59,7 +59,10 @@ Design + plan were brainstormed, then verified **three times** before any code �
 - **CI-only guardrails (run locally)**: `audit_design_coverage.py --strict` exit 0 (0 findings) · `update_feature_map.py --check` exit 0.
 - **Local gate**: `make check` rc=0 (5909 passed, 0 failed, cov 91.20%), `import personalscraper` ✓.
 - **Branch carries unrelated parallel roadmap commits** (docs-only, ride in PR #33 per operator choice): `0d231b88`, `acef6bda`, `e2473328`, `990f7b0d`, `95ae7bfb` (`docs(roadmap): …`). To be flagged in the PR body.
-- ⏸️ **Awaiting operator go-ahead** for the outward-facing 9.1 actions (push → reuse PR #33 → poll CI) and 9.2 (`pr-review` loop). Final squash merge is **manual** (operator).
+- **9.1 DONE** (operator chose "full autonomous PR flow"): pushed `feat/check-plugins` → PR #33 (reused, not duplicated, head `c2cb30a1`).
+  - **CI red on first push → cross-platform non-determinism bug found + fixed** (`c2cb30a1`): the `test` job FAILED on Linux CI (`test_checker_tvshow`, `test_verifier_tvshow` — "Golden mismatch") while green on macOS. Root cause: the tvshow check plugins iterated directories with UNSORTED `iterdir()`/`glob()`/`rglob()`, so findings order followed the filesystem (APFS vs ext4); the macOS-captured golden didn't match Linux order. Fix: `sorted(...)` on every order-affecting directory iteration across `structure.py`/`provider_ids.py`/`artwork.py`/`ntfs.py`/`dedup.py` — deterministic, platform-independent findings. Goldens unchanged (macOS order already coincided with sorted). **Proven** by a reversed-iteration probe (monkeypatch `Path.iterdir/glob/rglob` to reverse = worst-case ext4↔APFS divergence): WITHOUT the fix → the exact 2 CI tests fail; WITH the fix → 7 passed. (Pre-existing latent non-determinism, inherited verbatim from old checker.py; exposed by the cross-platform golden.)
+  - **CI GREEN** on `c2cb30a1`: all 8 jobs success (secrets, design-gaps, lint, licenses, typecheck, security, test, coverage-merge).
+- ⏸️ **9.2 next**: `/implement:pr-review` (pr-review-toolkit + filter + fix loop, max 5). Final squash merge is **manual** (operator).
 
 ## Review cycles
 
