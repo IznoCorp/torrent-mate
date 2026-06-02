@@ -222,8 +222,7 @@ Also check archived alpha versions under `docs/archive/legacy-alpha/` and archiv
 
 ## Current Feature
 
-**Feature**: check-plugins — Unified Check Plugin Framework (verify + enforce), minor, 0.19.0 → 0.20.0
-**Branch**: feat/check-plugins (rebased on `origin/main` #32)
-**Design**: docs/features/check-plugins/DESIGN.md
-**Plan**: docs/features/check-plugins/plan/INDEX.md (10 phases, 0→9 — verified 3× pre-implementation)
-**Status**: planned + verified, **ready for `/implement:phase`** (starts Phase 0 — baseline golden). Read `IMPLEMENTATION.md` first.
+**Feature**: _(awaiting /implement:feature)_
+**Branch**: _(to be defined)_
+**Design**: _(to be defined)_
+**Plan**: _(to be defined)_
