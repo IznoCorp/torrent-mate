@@ -80,7 +80,7 @@ Index d'exécution dépendance-correct. `RPx` = refacto-prép (voir section déd
 
 ### Vague 1 — Feuilles + amorce des fondations
 
-- **RP1** `[P1, prérequis]` — protocole d'écriture torrent (ajout/catégorie/limite) + tags sur l'item torrent + Transmission fail-fast. **Pin Q4 ici.**
+- **RP1** `[DONE — feat/torrent-write]` — protocole d'écriture torrent (ajout/catégorie/limite) + tags sur l'item torrent + Transmission fail-fast. **Pin Q4 ici.**
 - **RP1a** `[P1, prérequis]` — frontière fetch (PersonalScraper fetch+POST, exception magnet).
 - **RP2** `[P1, parallèle]` — config économie par tracker (politique de ratio + secret d'annonce) ; **raye le non-goal « no new config schema »**.
 - **Name-keyed matching E1** `[P2]` — rattrapage par nom quand le numéro d'épisode est absent (mode 1) + flag non bloquant si nom/numéro divergent franchement, le numéro restant la clé (mode 2). Léger, dans le triage.
