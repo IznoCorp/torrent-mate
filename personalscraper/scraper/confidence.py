@@ -223,8 +223,12 @@ def _score_result(
       original_title exactly — so a localized result is not unfairly beaten.
     - **aliases**: a folder named with a translated/alternate title ("Murder
       Mindfully") matches a foreign-primary candidate ("Achtsam Morden") via one
-      of its alias/translation titles (DEV #2). Best-of scoring only RAISES the
-      score, so the season-veto and ambiguity guards still protect the ranking.
+      of its alias/translation titles (DEV #2). Best-of only RAISES a candidate's
+      score (never lowers it), and the per-alias superstring penalty still
+      applies, so an alias cannot make a wrong candidate outrank an exact-title
+      match of the same year; for TV the season-veto is the additional guard when
+      the folder has parseable seasons. (Note: ``match_tvshow_tvdb`` has no
+      runner-up "ambiguity" warning — that exists only on the movie path.)
     - **superstring penalty**: a content-expansion candidate (sequel, making-of,
       "X: Subtitle") is demoted so it does not outrank the exact title.
 

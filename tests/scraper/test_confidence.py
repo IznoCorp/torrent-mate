@@ -1344,3 +1344,31 @@ class TestAliasMatching:
                 "Exact Title", 2020, SearchResult(provider="tvdb", provider_id="1", title="Exact Title", year=2020)
             )
         )
+
+
+class TestAliasCollision:
+    """Regression (review REG-1): an alias cannot make a wrong show win."""
+
+    def test_exact_title_beats_different_year_colliding_alias(self) -> None:
+        """A colliding alias does not outrank an exact-title, correct-year match."""
+        right = SearchResult(provider="tvdb", provider_id="1", title="The Office", year=2005)
+        wrong = SearchResult(
+            provider="tvdb",
+            provider_id="2",
+            title="Parks and Recreation",
+            year=2009,
+            aliases=("The Office",),  # wrong show carries the query as an alias
+        )
+        assert _score_result("The Office", 2005, right) > _score_result("The Office", 2005, wrong)
+
+    def test_superstring_alias_is_penalized(self) -> None:
+        """An alias that is a superstring of the query is penalized vs the exact."""
+        exact = SearchResult(provider="tvdb", provider_id="1", title="The Office", year=2005)
+        superstring = SearchResult(
+            provider="tvdb",
+            provider_id="2",
+            title="Whatever",
+            year=2005,
+            aliases=("The Office: Special Edition Extended",),
+        )
+        assert _score_result("The Office", 2005, exact) > _score_result("The Office", 2005, superstring)

@@ -275,8 +275,11 @@ dict, and dropped the `aliases[]` array — the matcher never saw the comparable
 translation as `original_title` and every translation value + alias into `aliases`;
 `confidence._score_result` scores best-of `{title, original_title, aliases}`. Strictly
 within the TVDB family (no cross-provider contamination — DESIGN §3 multi-provider
-separation preserved); best-of only raises scores, season-veto/ambiguity guards intact.
-Acceptance: **ACC-19**.
+separation preserved). Best-of only RAISES a candidate's score; the per-alias superstring
+penalty and (for TV folders with parseable seasons) the season-veto still apply, so an
+alias cannot make a wrong candidate outrank an exact-title same-year match. (The TV match
+path has no runner-up "ambiguity" warning — that is movie-only — so the protection is the
+superstring penalty + year + season-veto, not an ambiguity guard.) Acceptance: **ACC-19**.
 
 ## 14. Out-of-scope addition — library.db FK-orphan cleanup (phase 20, 2026-06-03)
 
