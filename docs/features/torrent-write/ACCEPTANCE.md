@@ -171,3 +171,21 @@ call the factory (no daemon connect / login / auth-lockout) and
 `torrent_client` stays `None`. Guards against the boot-coupling regression where
 read-only commands (`library *`, `trailers`, `maintenance`) connected to the
 torrent daemon at boot.
+
+---
+
+## ACC-15 — Dispatch matches an existing folder by external ID (phase 15, out-of-scope addition)
+
+```bash
+cd /Users/izno/dev/PersonnalScaper && pytest \
+  "tests/dispatch/test_media_index.py::TestProviderIdMatch" \
+  "tests/integration/test_design_dispatch.py::TestTvShowMergeContract::test_existing_folder_matched_by_provider_id_when_name_differs" -q
+```
+
+Expected: exits 0; 0 failed. A staging show/movie sharing its canonical provider
+id (TVDB for shows, TMDB for movies) with an on-disk folder of a _different_
+normalized name resolves to the existing folder — so the move rule merges /
+replaces into it instead of creating a duplicate (the `Rick et Morty (2006)` vs
+`Rick and Morty (2013)`, TVDB 275274 split). Placeholder ids (`0` / `None`) never
+false-match, an exact-name hit is not shadowed by the id pass, and an ambiguous
+id (two folders sharing one id) resolves deterministically without crashing.

@@ -211,3 +211,29 @@ brainstorm: the tracker registry is never boot-wired, so LaCale deprecation depe
 RP5a) is staged in `ROADMAP.md` and will be committed on this feature branch
 (`docs(roadmap): defer LaCale deprecation behind RP5a`), per the operator's choice to
 carry it here rather than as a standalone PR.
+
+## 11. Out-of-scope addition — Dispatch external-ID matching (phase 15, 2026-06-03)
+
+**Status: documented deviation (operator-approved).** This is **outside** the original
+RP1 scope (§1/§2: RP1 surfaces a _write capability_ on `api/torrent/`; the dispatch / move
+subsystem in `personalscraper/dispatch/` is a separate concern). It is folded into this PR
+at the operator's explicit request as a fix phase, justified by the project norm
+"deviation only for a documented anomaly, with sign-off".
+
+**Anomaly (found during a 2026-06-03 pipeline-monitor run).** DISPATCH matched a staging
+item to its on-disk folder by **normalized folder name only**. A show already on disk under
+a localized / mis-named folder (`Rick et Morty (2006)`, TVDB 275274) was not recognized as
+the same show as the staging folder `Rick and Morty (2013)` (identical TVDB 275274) and
+would have been dispatched as a **new** folder — splitting the show across two folders (the
+new season orphaned from the back catalogue). It generalizes to every legacy-mis-named
+on-disk show receiving a new season.
+
+**Change.** `MediaIndex.find()` gains a provider-id pass between exact-name and fuzzy: on a
+name miss it matches the staging item's **canonical provider id** (TVDB for shows, TMDB for
+movies — the same provider-family separation as scraping, parsed from the staging NFO)
+against the on-disk entry's `external_ids_json`. The id pass never overrides an exact-name
+hit, never crosses provider families, screens placeholder ids (`0`/`None`), warns on an
+ambiguous id (two folders, one id), and survives index drift. Move-rule doc:
+`docs/reference/storage.md#move-rules-dispatch` (codename `dispatch`); paired contract test
+in `tests/integration/test_design_dispatch.py`. Acceptance: **ACC-15**. No torrent-client
+(`api/torrent/`) code is touched.

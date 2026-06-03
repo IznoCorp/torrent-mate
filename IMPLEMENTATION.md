@@ -28,6 +28,7 @@
 | 12  | PR review fixes — cycle 1 (bencode, qBit add, seed-time, +mediums)                       | phase-12-pr-fixes-cycle-1.md      | [x]    |
 | 13  | PR review fixes — cycle 2 (qBit 401 catch, Transmission dup robustness)                  | phase-13-pr-fixes-cycle-2.md      | [x]    |
 | 14  | PR review fixes — cycle 3 (boot-coupling scope, qBit metadata return, D5 guard, doc/ACC) | _review-driven (no plan file)_    | [x]    |
+| 15  | Dispatch external-ID matching (out-of-scope addition: Rick-and-Morty split fix)          | _review-driven (no plan file)_    | [x]    |
 
 ## Review cycles
 
@@ -132,14 +133,50 @@ correct. Six items fixed (operator chose "fix everything"):
 clean, `audit_design_coverage --strict` 0 findings, `update_feature_map
 --check` clean, all ACC-01..ACC-14 re-exercised green, smoke v0.21.0.
 
+### Phase 15 — Dispatch external-ID matching (out-of-scope addition) — 2026-06-03
+
+Folded into this PR at the operator's explicit request (a `pipeline-monitor` run
+surfaced the anomaly). **Out of original RP1 scope** (RP1 = torrent write capability
+on `api/torrent/`; this touches `personalscraper/dispatch/`) — documented as a
+sign-off deviation in DESIGN §11.
+
+**Anomaly:** DISPATCH matched a staging item to its on-disk folder by normalized
+**folder name only**. `Rick and Morty (2013)` (staging, TVDB 275274) did not match the
+on-disk `Rick et Morty (2006)` (same TVDB 275274) → would dispatch as a **new** folder,
+**splitting** the show. Generalizes to any legacy-mis-named on-disk show getting a new season.
+
+**Change (TDD):** `MediaIndex.find()` gains a provider-id pass between exact-name and
+fuzzy — on a name miss it matches the staging NFO's **canonical provider id** (TVDB shows /
+TMDB movies) against the on-disk entry's `external_ids_json`. New `item_repo.find_by_external_id`.
+Threaded via `dispatcher._resolve_existing_on_filesystem` + `_tv.py`/`_movie.py`. Doc:
+`storage.md#move-rules-dispatch` + paired contract test; `dispatch.json` regenerated.
+
+**Adversarial review (3 reviewers) → 3 findings fixed, each with a regression test:**
+
+- **HIGH (2-reviewer consensus)** — placeholder-id poisoning: a leaked `tvdb=0` / `imdb=None`
+  would false-match any row carrying the same placeholder → wrong merge/replace. Fixed: repo
+  rejects placeholder series_ids (`""`/`0`/`none`). Test `test_placeholder_imdb_id_does_not_false_match`.
+- **MED-HIGH** — ambiguous id (two folders, one id): `LIMIT 1` newest-wins silently. Fixed:
+  warn `indexer.dispatch.external_id_ambiguous`. Test `test_ambiguous_external_id_resolves_to_one_existing_entry`.
+- **MED** — drift fallback re-keyed on the staging name, discarding a drifted id-match → re-split.
+  Fixed: the per-disk rescan also probes the matched entry's basename.
+
+Evidence (live `library.db`): 90.8% of 1934 rows already carry IDs (shows 93.6% tvdb, movies
+88% tmdb); `Rick et Morty (2006)` (id 1381) carries tvdb 275274 → matched today, no backfill
+needed for it. The 177 blank rows backfilled via `library-init-canonical` (phase 15 step).
+Acceptance: **ACC-15**.
+
 ## Next action
 
-**All phases (1–14) complete.** Cycle-1 (C1/C2/M1 + 7 mediums), cycle-2 (qBit
+**All phases (1–15) complete.** Cycle-1 (C1/C2/M1 + 7 mediums), cycle-2 (qBit
 401 catch, Transmission dup robustness) and cycle-3 (boot-coupling scope, qBit
 metadata return, D5 guard, doc/ACC hygiene) fixes all landed and independently
 re-verified. `make check` 6016 passed, design-gaps `--strict` 0 findings, smoke
 v0.21.0. Re-push PR #36 + CI; review loop converged (cycle-3 adversarial pass
-confirmed no critical/high defects survive). Awaiting **manual merge**.
+confirmed no critical/high defects survive). **Phase 15** (dispatch external-ID
+matching) then landed on top with its own 3-reviewer adversarial pass (3 findings
+fixed, each with a regression test) — re-run the full gate, re-push PR #36 + CI,
+then **manual merge**.
 
 > **Phase 9 re-scope (documented):** the plan estimated 3 files; reality was 23 — `run_ingest`'s
 > signature change rippled through `pipeline_steps.py` (IngestStep/LegacyCallableStep — missed by
