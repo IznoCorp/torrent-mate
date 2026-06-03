@@ -12,24 +12,25 @@
 
 ## Phases
 
-| #   | Phase                                                                                    | File                              | Status |
-| --- | ---------------------------------------------------------------------------------------- | --------------------------------- | ------ |
-| 1   | `TorrentSource` + `TorrentLimits` value objects                                          | phase-01-value-objects.md         | [x]    |
-| 2   | `TorrentAdder` + `TorrentLimiter` Protocols + `UnsupportedCapabilityError`               | phase-02-protocols.md             | [x]    |
-| 3   | `TorrentItem.tags` field + mapper updates (qBit CSV + Transmission D5)                   | phase-03-torrentitem-tags.md      | [x]    |
-| 4   | `QBitClient.add()` + `_limit_kwargs()`                                                   | phase-04-qbit-add.md              | [x]    |
-| 5   | `QBitClient.apply_limits()` + composition assertions                                     | phase-05-qbit-apply-limits.md     | [x]    |
-| 6   | `TransmissionClient.add()` + `_labels()` + composition assertions                        | phase-06-transmission-add.md      | [x]    |
-| 7   | `AppContext.torrent_client` field                                                        | phase-07-appcontext-field.md      | [x]    |
-| 8   | Fail-fast in `_build_app_context()` (D3/D9)                                              | phase-08-boot-failfast.md         | [x]    |
-| 9   | Remove lazy inline `QBitClient` fallbacks                                                | phase-09-remove-lazy-fallbacks.md | [x]    |
-| 10  | Reference docs updates                                                                   | phase-10-docs.md                  | [x]    |
-| 11  | Executable `ACCEPTANCE.md` + ROADMAP flip                                                | phase-11-acceptance-roadmap.md    | [x]    |
-| 12  | PR review fixes — cycle 1 (bencode, qBit add, seed-time, +mediums)                       | phase-12-pr-fixes-cycle-1.md      | [x]    |
-| 13  | PR review fixes — cycle 2 (qBit 401 catch, Transmission dup robustness)                  | phase-13-pr-fixes-cycle-2.md      | [x]    |
-| 14  | PR review fixes — cycle 3 (boot-coupling scope, qBit metadata return, D5 guard, doc/ACC) | _review-driven (no plan file)_    | [x]    |
-| 15  | Dispatch external-ID matching (out-of-scope addition: Rick-and-Morty split fix)          | _review-driven (no plan file)_    | [x]    |
-| 16  | Metadata search NFC-normalization (out-of-scope addition: accented-title scrape fix)     | _review-driven (no plan file)_    | [x]    |
+| #   | Phase                                                                                            | File                               | Status |
+| --- | ------------------------------------------------------------------------------------------------ | ---------------------------------- | ------ |
+| 1   | `TorrentSource` + `TorrentLimits` value objects                                                  | phase-01-value-objects.md          | [x]    |
+| 2   | `TorrentAdder` + `TorrentLimiter` Protocols + `UnsupportedCapabilityError`                       | phase-02-protocols.md              | [x]    |
+| 3   | `TorrentItem.tags` field + mapper updates (qBit CSV + Transmission D5)                           | phase-03-torrentitem-tags.md       | [x]    |
+| 4   | `QBitClient.add()` + `_limit_kwargs()`                                                           | phase-04-qbit-add.md               | [x]    |
+| 5   | `QBitClient.apply_limits()` + composition assertions                                             | phase-05-qbit-apply-limits.md      | [x]    |
+| 6   | `TransmissionClient.add()` + `_labels()` + composition assertions                                | phase-06-transmission-add.md       | [x]    |
+| 7   | `AppContext.torrent_client` field                                                                | phase-07-appcontext-field.md       | [x]    |
+| 8   | Fail-fast in `_build_app_context()` (D3/D9)                                                      | phase-08-boot-failfast.md          | [x]    |
+| 9   | Remove lazy inline `QBitClient` fallbacks                                                        | phase-09-remove-lazy-fallbacks.md  | [x]    |
+| 10  | Reference docs updates                                                                           | phase-10-docs.md                   | [x]    |
+| 11  | Executable `ACCEPTANCE.md` + ROADMAP flip                                                        | phase-11-acceptance-roadmap.md     | [x]    |
+| 12  | PR review fixes — cycle 1 (bencode, qBit add, seed-time, +mediums)                               | phase-12-pr-fixes-cycle-1.md       | [x]    |
+| 13  | PR review fixes — cycle 2 (qBit 401 catch, Transmission dup robustness)                          | phase-13-pr-fixes-cycle-2.md       | [x]    |
+| 14  | PR review fixes — cycle 3 (boot-coupling scope, qBit metadata return, D5 guard, doc/ACC)         | _review-driven (no plan file)_     | [x]    |
+| 15  | Dispatch external-ID matching (out-of-scope addition: Rick-and-Morty split fix)                  | _review-driven (no plan file)_     | [x]    |
+| 16  | Metadata search NFC-normalization (out-of-scope addition: accented-title scrape fix)             | _review-driven (no plan file)_     | [x]    |
+| 17  | Unify TV source-aware fetch — rescraper reuses fetch_show_data (out-of-scope: TVDB-only 404 fix) | _workflow-designed (no plan file)_ | [x]    |
 
 ## Review cycles
 
@@ -200,9 +201,43 @@ titles now match at confidence 1.0). `make check` green, design-gaps `--strict`
 > see in-place NFO rewrites on NTFS (incremental + full both short-circuited).
 > Both are candidates for a future indexer fix.
 
+### Phase 17 — Unify the TV source-aware fetch (out-of-scope addition) — 2026-06-03
+
+Folded into this PR at the operator's request after a `library-rescrape` of old
+French/classic shows (Hey Arnold!, Tintin, Famille Pirate, Il était une fois…)
+aborted with `tmdb API 404`. **Out of original RP1 scope** (touches `scraper/` +
+`maintenance/`) — documented sign-off deviation, same basis as phases 15–16.
+
+**Bug (found via systematic-debugging, after a first mis-localized attempt that
+was reverted):** the maintenance rescraper is a **divergent copy** of the TV
+scrape — `_resolve_tmdb_id` dropped `match.source` and the rescraper fed the
+matched **TVDB** id to `tmdb.get_tv` → 404 → the whole item aborted, even though
+TVDB had the show. The operator's diagnosis was the real root cause: **the scrape
+logic was duplicated** (`tv_service`, `existing_validator`, and this rescraper),
+so the TVDB-primary discipline could diverge.
+
+**Fix (option C, designed via a Workflow that mapped all three copies; TDD):**
+extract the source-aware fetch slice — `fetch_show_data(source, api_id, provider,
+…)` in `_tvdb_convert.py` — the TVDB-primary / TMDB-fallback branch lifted
+verbatim from `tv_service._lookup_series:501-526`. **Both** `tv_service` and the
+rescraper now call it, so the discipline lives in ONE place. The rescraper carries
+`match.source` through `_resolve_tmdb_id` (NFO path now uses `extract_nfo_metadata`,
+tvdb-present → tvdb) and routes episodes to the shared `_fetch_season_episodes_tvdb`
+/ `_fetch_season_episodes` twins. Regression test `test_tvdb_only_show_scrapes_via_tvdb_not_tmdb`.
+Verified end-to-end: anime re-scrape **Errors 8 → 0, Fixed 0 → 8** (Hey Arnold! /
+Tintin now scrape via TVDB). `make check` green (959 in scraper+maintenance+e2e),
+design-gaps `--strict` 0 findings, residual `tmdb.get_tv(` in `maintenance/` = 0.
+Acceptance: **ACC-17**.
+
+> The **full** unification (option B — extract the whole `_lookup_series` match +
+> title-resolve into a shared core so `tv_service` / `existing_validator` /
+> rescraper stop duplicating it) is deferred to a dedicated feature and logged in
+> ROADMAP.md (Tech-Debt Round 2): it touches the pipeline scrape path + ~6000
+> tests, too large for a fix-phase. Phase 17 unified the seam that caused the bug.
+
 ## Next action
 
-**All phases (1–16) complete.** Cycle-1 (C1/C2/M1 + 7 mediums), cycle-2 (qBit
+**All phases (1–17) complete.** Cycle-1 (C1/C2/M1 + 7 mediums), cycle-2 (qBit
 401 catch, Transmission dup robustness) and cycle-3 (boot-coupling scope, qBit
 metadata return, D5 guard, doc/ACC hygiene) fixes all landed and independently
 re-verified. `make check` 6016 passed, design-gaps `--strict` 0 findings, smoke
@@ -211,7 +246,10 @@ confirmed no critical/high defects survive). **Phase 15** (dispatch external-ID
 matching) then landed on top with its own 3-reviewer adversarial pass (3 findings
 fixed, each with a regression test). **Phase 16** (metadata search NFC-normalization)
 landed next via systematic-debugging (root cause reproduced, TDD fix, verified
-end-to-end). Re-run the full gate, re-push PR #36 + CI, then **manual merge**.
+end-to-end). **Phase 17** (unify the TV source-aware fetch) followed — designed via
+a Workflow mapping the three duplicated scrape paths, fixing the TVDB-only 404 abort
+at its root (de-duplication). Re-run the full gate, re-push PR #36 + CI, then
+**manual merge**.
 
 > **Phase 9 re-scope (documented):** the plan estimated 3 files; reality was 23 — `run_ingest`'s
 > signature change rippled through `pipeline_steps.py` (IngestStep/LegacyCallableStep — missed by

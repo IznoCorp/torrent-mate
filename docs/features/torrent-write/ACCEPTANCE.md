@@ -205,3 +205,19 @@ delivered by the macOS / NTFS-via-macFUSE filesystem — `a` + U+0302 instead of
 `â`) is NFC-normalized before being sent to TMDB / TVDB search. Without this,
 accented French titles (e.g. `L'âge de glace`) returned zero results and silently
 failed to match, even though the provider has the film.
+
+---
+
+## ACC-17 — Rescrape honours TVDB-primary via the shared fetch (phase 17, out-of-scope addition)
+
+```bash
+cd /Users/izno/dev/PersonnalScaper && pytest \
+  "tests/maintenance/test_rescraper.py::TestRescrapeItem::test_tvdb_only_show_scrapes_via_tvdb_not_tmdb" -q
+```
+
+Expected: exits 0; 0 failed. A TVDB-matched show is fetched from TVDB
+(`get_series`) via the shared `fetch_show_data`, never feeding the TVDB id to
+`tmdb.get_tv` (which 404'd and aborted the whole item for old TVDB-only shows
+like Hey Arnold! / Tintin). The source-of-match invariant now lives in ONE place
+shared by the initial scrape (`tv_service`) and the maintenance rescraper, so the
+TVDB-primary / TMDB-fallback discipline cannot diverge between them.

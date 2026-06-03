@@ -145,6 +145,7 @@ Index d'exécution dépendance-correct. `RPx` = refacto-prép (voir section déd
 - **Active Health Scoring — slice ratio** `[P3]` — lit l'état Ratio (après C1).
 - **Hot-Swap Provider Config** `[P3]` — au-dessus de RP8.
 - **Tech-Debt Round 2** `[P3]`.
+  - **Unification complète du scrape TV (option B)** — extraire un cœur partagé « scraper un show TV » (match + résolution provider + résolution titre) que `tv_service`, le rescraper de maintenance ET `existing_validator` instancient. Le _slice_ de fetch source-aware (`fetch_show_data` dans `_tvdb_convert.py`) a déjà été unifié en **torrent-write phase 17** (correctif du bug TVDB-only 404 : le rescraper feedait un id TVDB à `tmdb.get_tv` → 404 → abort). Reste à dé-dupliquer `_lookup_series` (match + title-resolve), encore copié entre les trois. Gros refacto multi-fichiers touchant le chemin de scrape du pipeline (~6000 tests) → **feature dédiée, pas un fix**. La duplication restante est la cause-racine de cette classe de bug.
 - **Follow D4** `[P2→P3]` — règles d'override par critère + profils qualité par série + cron.
 - **Renouvellement médiathèque** `[P3]` — déclencheur d'auto-download sourcé des recommandations.
 - **LLM Pipeline Assistant** `[P3]`.
