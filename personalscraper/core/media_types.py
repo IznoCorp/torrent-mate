@@ -154,10 +154,6 @@ ARCHIVE_EXTENSIONS: frozenset[str] = frozenset({"rar", "zip", "7z", "tar", "gz",
 # volumes that follow the entry ``.rar``).
 _RAR_VOLUME_RE = re.compile(r"\.r\d{2}$", re.IGNORECASE)
 
-# Scene checksum sidecar — accompanies archives, carries no media; stripped as a
-# sample/junk artifact alongside ``Sample/`` clips.
-_SFV_RE = re.compile(r"\.sfv$", re.IGNORECASE)
-
 
 def is_sample_filename(name: str) -> bool:
     """Check whether a filename is a scene-release sample clip (name-only check).
@@ -217,19 +213,3 @@ def is_archive_filename(name: str) -> bool:
     if ext in ARCHIVE_EXTENSIONS:
         return True
     return bool(_RAR_VOLUME_RE.search(name))
-
-
-def is_sample_or_archive_junk(name: str) -> bool:
-    """Check whether a filename is a sample clip, archive part, or ``.sfv``.
-
-    Convenience predicate for the pre-scrape strip pass: everything a scene
-    release leaves behind once the real video is extracted — the sample clip,
-    leftover archive volumes, and the ``.sfv`` checksum sidecar.
-
-    Args:
-        name: Filename (basename only).
-
-    Returns:
-        ``True`` for sample clips, archive parts, and ``.sfv`` files.
-    """
-    return is_sample_filename(name) or is_archive_filename(name) or bool(_SFV_RE.search(name))

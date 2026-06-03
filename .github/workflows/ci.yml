@@ -114,6 +114,10 @@ jobs:
           path: .venv/
           key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
           restore-keys: venv-${{ runner.os }}-3.12-
+      # RAR extractor backend for the DEV #1 golden-fixture extraction test
+      # (rarfile shells out to it). `unar` is in ubuntu main; without it the
+      # real-extraction test skips instead of asserting the happy path (COV-4).
+      - run: sudo apt-get update && sudo apt-get install -y unar
       - run: pip install -e ".[dev]"
       # Run the full test suite (tests/) — the previous split into
       # tests/unit/ + tests/integration/ only covered 883 of 5521 tests

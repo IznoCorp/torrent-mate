@@ -32,7 +32,6 @@ from pathlib import Path
 from personalscraper.core.media_types import (
     SAMPLE_DIR_NAMES,
     VIDEO_EXTENSIONS,
-    is_archive_filename,
     is_sample_filename,
     is_sample_path,
 )
@@ -43,8 +42,10 @@ log = get_logger("process.extract")
 
 # New-style multi-volume RAR entry/continuation: ``name.partNN.rar``.
 _PART_RAR_RE = re.compile(r"\.part(\d+)\.rar$", re.IGNORECASE)
-# Scene checksum sidecar, consumed alongside the archives on success.
-_SFV_RE = re.compile(r"\.sfv$", re.IGNORECASE)
+
+
+class _SymlinkMemberError(Exception):
+    """A RAR carries a symlink member — rejected as a filesystem-escape risk."""
 
 
 def _is_first_volume(name: str) -> bool:
@@ -81,15 +82,32 @@ def _find_rar_entrypoints(category_dir: Path) -> list[Path]:
     )
 
 
-def _has_real_video(directory: Path) -> bool:
-    """Check whether a directory already holds a non-sample video file.
+def _archive_set_base(name: str) -> str:
+    """Return the base stem of a RAR-set entry volume.
 
-    Used for extraction idempotence: if the real video is already present
-    (a prior run extracted it), skip re-extraction.
+    ``release.part01.rar`` → ``release``; ``release.rar`` → ``release``. Used to
+    locate the set's ``.sfv`` sidecar for set-scoped removal.
 
     Args:
-        directory: Release directory to inspect (non-recursive — the extracted
-            video lands directly next to the archives).
+        name: Entry-volume filename (basename only).
+
+    Returns:
+        The set's base stem.
+    """
+    part = _PART_RAR_RE.search(name)
+    if part:
+        return name[: part.start()]
+    if name.casefold().endswith(".rar"):
+        return name[:-4]
+    return Path(name).stem
+
+
+def _has_real_video(directory: Path) -> bool:
+    """Check whether a directory holds a non-sample video file (non-recursive).
+
+    Args:
+        directory: Release directory to inspect — the extracted video lands
+            directly next to the archives.
 
     Returns:
         ``True`` if a non-sample video file exists directly in ``directory``.
@@ -100,24 +118,29 @@ def _has_real_video(directory: Path) -> bool:
     return False
 
 
-def _remove_archive_parts(directory: Path) -> None:
-    """Delete every archive part and ``.sfv`` sidecar in a directory.
+def _remove_extracted_set(volumes: list[Path], base: str, release_dir: Path) -> None:
+    """Delete ONLY the just-extracted set's volumes (+ its ``.sfv``).
 
-    Called only after a successful extraction so the consumed RAR set does not
-    reach dispatch. Failures are logged but never raised — a leftover archive
-    is caught by the ``no_archive_files`` verify check.
+    Set-scoped (not directory-scoped) so a sibling RAR set in the same release
+    directory — a 2-CD movie, or a season pack with one set per episode flat in
+    one folder — is never destroyed before it is extracted (DEV #1 / review
+    BUG-1). Failures are logged, never raised.
 
     Args:
-        directory: Directory whose archive parts should be removed.
+        volumes: The exact volume files of the extracted set (``rf.volumelist()``).
+        base: The set's base stem, for the ``{base}.sfv`` sidecar.
+        release_dir: Directory holding the set.
     """
-    for f in directory.iterdir():
-        if not f.is_file():
-            continue
-        if is_archive_filename(f.name) or _SFV_RE.search(f.name):
-            try:
+    targets = list(volumes)
+    sfv = release_dir / f"{base}.sfv"
+    if sfv.exists():
+        targets.append(sfv)
+    for f in targets:
+        try:
+            if f.exists():
                 f.unlink()
-            except OSError as exc:
-                log.warning("archive_part_remove_failed", filename=f.name, error=str(exc))
+        except OSError as exc:
+            log.warning("process_extract_part_remove_failed", filename=f.name, exc_info=True, error=str(exc))
 
 
 def extract_release_archives(
@@ -128,12 +151,23 @@ def extract_release_archives(
 
     For every entry-volume ``.rar`` found under ``category_dir``, extracts the
     contained files next to the archive (so the scraper's recursive video
-    discovery finds the real video) and removes the consumed archive parts on
-    success. Extraction is skipped when a non-sample video already exists in the
-    release directory (idempotent). Fail-soft: a missing ``unrar`` backend or a
-    corrupt/locked archive logs a warning, leaves the archives in place, and
-    counts as an error so the operator is alerted — the archives are then
-    blocked from dispatch by the ``no_archive_files`` verify check.
+    discovery finds the real video) and removes ONLY that set's consumed volumes
+    on success. Idempotence is structural: once a set is extracted its volumes
+    are removed, so a finished release has no entry volume left and re-runs are a
+    no-op — while a partial extraction, a sibling set, or a redundant loose video
+    next to still-present archives keeps its entry volume and is (re-)extracted so
+    the archives are always consumed (and never left to block dispatch).
+
+    Safety guards (review-hardened):
+    - Set-scoped removal (never deletes a sibling set's archives — BUG-1).
+    - Symlink members are rejected (a malicious target can escape the release
+      dir; ``rarfile`` does not sanitize symlink targets).
+    - Archives are removed only after a real video is verified present, so a
+      backend that exits 0 without producing a video keeps its source.
+    Fail-soft throughout: a missing ``unrar`` backend, a corrupt/locked archive,
+    a symlink member, or a no-video result logs a warning, leaves the archives in
+    place, and counts as an error — the ``no_archive_files`` verify check then
+    blocks the item from dispatch.
 
     Args:
         category_dir: Movies or TV-shows staging directory.
@@ -150,37 +184,45 @@ def extract_release_archives(
     for entry in _find_rar_entrypoints(category_dir):
         release_dir = entry.parent
         if not entry.exists():
-            # A prior iteration's extraction already consumed this set.
-            continue
-        if _has_real_video(release_dir):
-            log.info("archive_extract_skip_existing_video", directory=release_dir.name)
-            report.skip_count += 1
+            # A prior iteration's set-scoped removal already consumed this set.
             continue
 
         if dry_run:
-            log.info("archive_would_extract", archive=entry.name, directory=release_dir.name)
+            log.info("process_extract_would_extract", archive=entry.name, directory=release_dir.name)
             report.success_count += 1
             report.details.append(f"[DRY-RUN] extract {entry.name}")
             continue
 
+        base = _archive_set_base(entry.name)
         try:
             import rarfile
 
             with rarfile.RarFile(str(entry)) as rf:
+                if any(info.is_symlink() for info in rf.infolist()):
+                    raise _SymlinkMemberError(entry.name)
+                volumes = [Path(v) for v in rf.volumelist()]
                 rf.extractall(path=str(release_dir))
-        except Exception as exc:  # rarfile.Error subclasses + OSError (fail-soft)
+        except Exception as exc:  # rarfile.Error subclasses + OSError + symlink (fail-soft)
             log.warning(
-                "archive_extract_failed",
+                "process_extract_failed",
                 archive=entry.name,
                 directory=release_dir.name,
+                exc_info=True,
                 error=f"{type(exc).__name__}: {exc}",
             )
             report.error_count += 1
             report.warnings.append(f"Extract failed for {entry.name}: {exc}")
             continue
 
-        _remove_archive_parts(release_dir)
-        log.info("archive_extracted", archive=entry.name, directory=release_dir.name)
+        # Only delete the archives once a real video is verified present.
+        if not _has_real_video(release_dir):
+            log.warning("process_extract_no_video", archive=entry.name, directory=release_dir.name)
+            report.error_count += 1
+            report.warnings.append(f"Extract produced no video for {entry.name}")
+            continue
+
+        _remove_extracted_set(volumes, base, release_dir)
+        log.info("process_extract_done", archive=entry.name, directory=release_dir.name)
         report.success_count += 1
         report.details.append(f"extracted {entry.name}")
 
@@ -221,17 +263,17 @@ def strip_sample_artifacts(
             continue
         rel = sample_dir.relative_to(category_dir)
         if dry_run:
-            log.info("sample_would_strip", path=str(rel))
+            log.info("process_sample_would_strip", path=str(rel))
             report.success_count += 1
             report.details.append(f"[DRY-RUN] {rel}")
             continue
         try:
             shutil.rmtree(sample_dir)
-            log.info("sample_stripped", path=str(rel))
+            log.info("process_sample_stripped", path=str(rel))
             report.success_count += 1
             report.details.append(str(rel))
         except OSError as exc:
-            log.warning("sample_strip_failed", path=str(rel), error=str(exc))
+            log.warning("process_sample_strip_failed", path=str(rel), exc_info=True, error=str(exc))
             report.error_count += 1
 
     # Remove loose ``*-sample.*`` files not inside a Sample/ dir (those are
@@ -246,17 +288,17 @@ def strip_sample_artifacts(
             continue
         rel = f.relative_to(category_dir)
         if dry_run:
-            log.info("sample_would_strip", path=str(rel))
+            log.info("process_sample_would_strip", path=str(rel))
             report.success_count += 1
             report.details.append(f"[DRY-RUN] {rel}")
             continue
         try:
             f.unlink()
-            log.info("sample_stripped", path=str(rel))
+            log.info("process_sample_stripped", path=str(rel))
             report.success_count += 1
             report.details.append(str(rel))
         except OSError as exc:
-            log.warning("sample_strip_failed", path=str(rel), error=str(exc))
+            log.warning("process_sample_strip_failed", path=str(rel), exc_info=True, error=str(exc))
             report.error_count += 1
 
     return report

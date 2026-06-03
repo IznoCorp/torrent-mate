@@ -15,7 +15,6 @@ import pytest
 from personalscraper.core.media_types import (
     is_archive_filename,
     is_sample_filename,
-    is_sample_or_archive_junk,
     is_sample_path,
 )
 
@@ -81,16 +80,3 @@ class TestIsArchiveFilename:
     def test_non_archives_not_flagged(self, name: str) -> None:
         """Media/text files and near-miss extensions (.r1, .rb) are not archives."""
         assert is_archive_filename(name) is False
-
-
-class TestIsSampleOrArchiveJunk:
-    """Union predicate: sample clips, archive parts, and .sfv sidecars."""
-
-    @pytest.mark.parametrize("name", ["x-sample.mkv", "x.rar", "x.r00", "x.sfv"])
-    def test_junk_detected(self, name: str) -> None:
-        """Samples, archive parts, and .sfv sidecars are all junk."""
-        assert is_sample_or_archive_junk(name) is True
-
-    def test_real_video_not_junk(self) -> None:
-        """A real episode video is not junk."""
-        assert is_sample_or_archive_junk("rafa.s01e01.mkv") is False
