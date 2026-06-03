@@ -29,6 +29,7 @@
 | 13  | PR review fixes — cycle 2 (qBit 401 catch, Transmission dup robustness)                  | phase-13-pr-fixes-cycle-2.md      | [x]    |
 | 14  | PR review fixes — cycle 3 (boot-coupling scope, qBit metadata return, D5 guard, doc/ACC) | _review-driven (no plan file)_    | [x]    |
 | 15  | Dispatch external-ID matching (out-of-scope addition: Rick-and-Morty split fix)          | _review-driven (no plan file)_    | [x]    |
+| 16  | Metadata search NFC-normalization (out-of-scope addition: accented-title scrape fix)     | _review-driven (no plan file)_    | [x]    |
 
 ## Review cycles
 
@@ -166,17 +167,51 @@ Evidence (live `library.db`): 90.8% of 1934 rows already carry IDs (shows 93.6% 
 needed for it. The 177 blank rows backfilled via `library-init-canonical` (phase 15 step).
 Acceptance: **ACC-15**.
 
+### Phase 16 — Metadata search NFC-normalization (out-of-scope addition) — 2026-06-03
+
+Folded into this PR at the operator's request (a `library-rescrape` of legacy
+catalog items surfaced the bug). **Out of original RP1 scope** (touches
+`api/metadata/`, not `api/torrent/`) — documented sign-off deviation, same basis as
+phase 15.
+
+**Bug (found via systematic-debugging):** accented French film titles
+(`L'âge de glace`, `Le Garçon et la Bête`, …) returned **zero** TMDB/TVDB search
+results and silently became `no_match`, even though the provider has the film.
+Root cause proven by reproduction: folder names on the macOS / NTFS-via-macFUSE
+filesystem are stored **NFD-decomposed** (`a` + U+0302 combining circumflex); the
+search query was passed **verbatim** to the provider, whose index is **NFC** →
+no match. `search RAW(NFD) → 0 results` vs `search NFC → 2 results`. ASCII titles
+(Aladdin) were unaffected; the fuzzy _matching_ layer already accent-folds, but the
+_search query_ was never normalized — the gap.
+
+**Fix (TDD):** NFC-normalize the search query at the provider boundary —
+`TMDBClient._search_paginated` (covers movie+tv) and `TVDBClient.search_series` /
+`search_movie`. Idempotent for ASCII / already-NFC → zero regression. Regression
+tests `test_query_is_nfc_normalized` (TMDB + TVDB). Verified end-to-end: the
+`movies_animation` bulk re-scrape went from **Fixed 1 → Fixed 13** (all accented
+titles now match at confidence 1.0). `make check` green, design-gaps `--strict`
+0 findings, smoke ok. Acceptance: **ACC-16**.
+
+> Side-findings (operational, not code): (a) `library-init-canonical` reads the
+> folder-name NFO (`Aladdin (1992).nfo`) not the canonical `<title>.nfo`, so it
+> missed re-scraped IDs — worked around by a targeted DB `external_ids_json`
+> UPDATE reusing `_nfo_metadata_for_dir` + `derive_canonical_provider` (cohort
+> video-blank 107 → 35). (b) The scanner's Merkle/mtime change-detection does not
+> see in-place NFO rewrites on NTFS (incremental + full both short-circuited).
+> Both are candidates for a future indexer fix.
+
 ## Next action
 
-**All phases (1–15) complete.** Cycle-1 (C1/C2/M1 + 7 mediums), cycle-2 (qBit
+**All phases (1–16) complete.** Cycle-1 (C1/C2/M1 + 7 mediums), cycle-2 (qBit
 401 catch, Transmission dup robustness) and cycle-3 (boot-coupling scope, qBit
 metadata return, D5 guard, doc/ACC hygiene) fixes all landed and independently
 re-verified. `make check` 6016 passed, design-gaps `--strict` 0 findings, smoke
 v0.21.0. Re-push PR #36 + CI; review loop converged (cycle-3 adversarial pass
 confirmed no critical/high defects survive). **Phase 15** (dispatch external-ID
 matching) then landed on top with its own 3-reviewer adversarial pass (3 findings
-fixed, each with a regression test) — re-run the full gate, re-push PR #36 + CI,
-then **manual merge**.
+fixed, each with a regression test). **Phase 16** (metadata search NFC-normalization)
+landed next via systematic-debugging (root cause reproduced, TDD fix, verified
+end-to-end). Re-run the full gate, re-push PR #36 + CI, then **manual merge**.
 
 > **Phase 9 re-scope (documented):** the plan estimated 3 files; reality was 23 — `run_ingest`'s
 > signature change rippled through `pipeline_steps.py` (IngestStep/LegacyCallableStep — missed by

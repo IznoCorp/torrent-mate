@@ -189,3 +189,19 @@ replaces into it instead of creating a duplicate (the `Rick et Morty (2006)` vs
 `Rick and Morty (2013)`, TVDB 275274 split). Placeholder ids (`0` / `None`) never
 false-match, an exact-name hit is not shadowed by the id pass, and an ambiguous
 id (two folders sharing one id) resolves deterministically without crashing.
+
+---
+
+## ACC-16 — Metadata search NFC-normalizes the query (phase 16, out-of-scope addition)
+
+```bash
+cd /Users/izno/dev/PersonnalScaper && pytest \
+  "tests/unit/test_tmdb_client.py::TestSearchMovie::test_query_is_nfc_normalized" \
+  "tests/unit/test_tvdb_client.py::TestSearchMovieTvdb::test_query_is_nfc_normalized" -q
+```
+
+Expected: exits 0; 0 failed. A title passed in NFD form (decomposed accents, as
+delivered by the macOS / NTFS-via-macFUSE filesystem — `a` + U+0302 instead of
+`â`) is NFC-normalized before being sent to TMDB / TVDB search. Without this,
+accented French titles (e.g. `L'âge de glace`) returned zero results and silently
+failed to match, even though the provider has the film.
