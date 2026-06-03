@@ -90,6 +90,13 @@
       "name": "ntfs_safe_names",
       "passed": true,
       "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "no_archive_files",
+      "passed": true,
+      "severity": "error"
     }
   ],
   "movie_missing_nfo": [
@@ -153,6 +160,13 @@
       "fixable": true,
       "message": "",
       "name": "ntfs_safe_names",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "no_archive_files",
       "passed": true,
       "severity": "error"
     }
@@ -248,6 +262,13 @@
       "name": "ntfs_safe_names",
       "passed": true,
       "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "no_archive_files",
+      "passed": true,
+      "severity": "error"
     }
   ],
   "movie_no_streamdetails": [
@@ -341,6 +362,13 @@
       "name": "ntfs_safe_names",
       "passed": true,
       "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "no_archive_files",
+      "passed": true,
+      "severity": "error"
     }
   ],
   "movie_valid": [
@@ -432,6 +460,13 @@
       "fixable": true,
       "message": "",
       "name": "ntfs_safe_names",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "no_archive_files",
       "passed": true,
       "severity": "error"
     }

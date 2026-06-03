@@ -1,8 +1,8 @@
 {
   "movie_missing_landscape": {
     "category": "movies",
-    "checks_passed": 11,
-    "checks_total": 13,
+    "checks_passed": 12,
+    "checks_total": 14,
     "errors": [],
     "fixes_applied": [],
     "media_path": "{tmp}/test_verifier_movie0/v_mov/Movie NoLandscape (2022)",
@@ -15,8 +15,8 @@
   },
   "movie_missing_nfo": {
     "category": null,
-    "checks_passed": 7,
-    "checks_total": 9,
+    "checks_passed": 8,
+    "checks_total": 10,
     "errors": [
       "NFO not found: Movie NoNFO.nfo"
     ],
@@ -30,8 +30,8 @@
   },
   "movie_nfo_no_ids": {
     "category": "movies",
-    "checks_passed": 11,
-    "checks_total": 13,
+    "checks_passed": 12,
+    "checks_total": 14,
     "errors": [
       "Missing IDs: tmdb=False, imdb=False"
     ],
@@ -45,8 +45,8 @@
   },
   "movie_no_streamdetails": {
     "category": "movies",
-    "checks_passed": 11,
-    "checks_total": 13,
+    "checks_passed": 12,
+    "checks_total": 14,
     "errors": [],
     "fixes_applied": [],
     "media_path": "{tmp}/test_verifier_movie0/v_mov/Movie NoStream (2023)",
@@ -59,8 +59,8 @@
   },
   "movie_valid": {
     "category": "movies",
-    "checks_passed": 12,
-    "checks_total": 13,
+    "checks_passed": 13,
+    "checks_total": 14,
     "errors": [],
     "fixes_applied": [],
     "media_path": "{tmp}/test_verifier_movie0/v_mov/Movie Valid (2024)",

@@ -142,6 +142,7 @@ def run_clean(
         StepReport with combined reclean + dedup counts.
     """
     from personalscraper.process.dedup import dedup_folders
+    from personalscraper.process.extract import extract_release_archives, strip_sample_artifacts
     from personalscraper.process.reclean import _has_polluted_folders, reclean_folders
 
     staging = config.paths.staging_dir
@@ -151,9 +152,26 @@ def run_clean(
     has_polluted = _has_polluted_folders(movies_dir) or _has_polluted_folders(tvshows_dir)
 
     clean_report = StepReport(name="clean")
+    extracted_total = 0
+    stripped_total = 0
+    extract_failed_total = 0
 
     for category_dir in (movies_dir, tvshows_dir):
         event_bus.emit(ItemProgressed(step="clean", item=str(category_dir.name), status="started"))
+
+        # DEV #1: extract scene RAR sets + strip sample clips BEFORE scrape so
+        # the scraper finds the real video and never matches a sample. Extraction
+        # failures are warnings (the no_archive_files verify check blocks the
+        # item from dispatch) and do NOT count as reclean work.
+        extract_report = extract_release_archives(category_dir, dry_run=dry_run)
+        strip_report = strip_sample_artifacts(category_dir, dry_run=dry_run)
+        extracted_total += extract_report.success_count
+        stripped_total += strip_report.success_count
+        extract_failed_total += extract_report.error_count
+        clean_report.details.extend(extract_report.details)
+        clean_report.details.extend(strip_report.details)
+        clean_report.warnings.extend(extract_report.warnings)
+
         # Only run reclean if polluted folders exist
         if has_polluted:
             reclean_report = reclean_folders(category_dir, dry_run=dry_run, config=config)
@@ -187,6 +205,9 @@ def run_clean(
         recleaned=clean_report.success_count,
         skipped=clean_report.skip_count,
         errors=clean_report.error_count,
+        extracted=extracted_total,
+        sample_stripped=stripped_total,
+        extract_failed=extract_failed_total,
     )
     return clean_report
 

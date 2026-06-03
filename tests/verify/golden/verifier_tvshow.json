@@ -1,8 +1,8 @@
 {
   "tvshow_empty_subdir": {
     "category": "tv_shows",
-    "checks_passed": 15,
-    "checks_total": 18,
+    "checks_passed": 16,
+    "checks_total": 19,
     "errors": [],
     "fixes_applied": [
       "Removed empty dir: Extras"
@@ -18,8 +18,8 @@
   },
   "tvshow_missing_ep_nfo": {
     "category": "tv_shows",
-    "checks_passed": 16,
-    "checks_total": 18,
+    "checks_passed": 17,
+    "checks_total": 19,
     "errors": [],
     "fixes_applied": [],
     "media_path": "{tmp}/test_verifier_tvshow0/v_tv/TVShow NoEpNFO (2020)",
@@ -32,8 +32,8 @@
   },
   "tvshow_ntfs_illegal": {
     "category": "tv_shows",
-    "checks_passed": 14,
-    "checks_total": 18,
+    "checks_passed": 15,
+    "checks_total": 19,
     "errors": [
       "Unrenamed episodes: badfile.mkv"
     ],
@@ -51,8 +51,8 @@
   },
   "tvshow_unrenamed_episode": {
     "category": "tv_shows",
-    "checks_passed": 14,
-    "checks_total": 18,
+    "checks_passed": 15,
+    "checks_total": 19,
     "errors": [
       "Unrenamed episodes: episode02.mkv"
     ],
@@ -68,8 +68,8 @@
   },
   "tvshow_valid": {
     "category": "tv_shows",
-    "checks_passed": 16,
-    "checks_total": 18,
+    "checks_passed": 17,
+    "checks_total": 19,
     "errors": [],
     "fixes_applied": [],
     "media_path": "{tmp}/test_verifier_tvshow0/v_tv/TVShow Valid (2024)",
