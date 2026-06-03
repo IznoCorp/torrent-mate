@@ -143,6 +143,27 @@ class TestSearchMovie:
         call = transport.get.call_args_list[0]
         assert call.kwargs["params"]["language"] == "en-US"
 
+    def test_query_is_nfc_normalized(self, client: TMDBClient, transport: MagicMock) -> None:
+        """An NFD-decomposed title is NFC-normalized before hitting TMDB.
+
+        Folder names from the macOS / NTFS-via-macFUSE filesystem arrive
+        NFD-decomposed (``a`` + U+0302 combining circumflex). TMDB's search
+        index cannot match the decomposed form and returns zero results, so
+        accented French titles (e.g. ``L'âge de glace``) silently failed to
+        match. The client must NFC-normalize the query.
+        """
+        import unicodedata
+
+        transport.get.return_value = {"results": [], "total_pages": 0}
+        nfd = unicodedata.normalize("NFD", "L'âge de glace")
+        assert not unicodedata.is_normalized("NFC", nfd), "test setup must pass NFD"
+
+        client.search_movie(nfd, year=2002)
+
+        sent = transport.get.call_args_list[0].kwargs["params"]["query"]
+        assert unicodedata.is_normalized("NFC", sent), "query sent to TMDB must be NFC"
+        assert sent == "L'âge de glace"  # precomposed â
+
 
 class TestSearchTv:
     """search_tv: params, year filter, first_air_date_year mapping."""

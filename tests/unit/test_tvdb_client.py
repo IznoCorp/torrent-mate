@@ -283,6 +283,25 @@ class TestSearchMovieTvdb:
         results = client.search_movie("Inception")
         assert all(isinstance(r, SearchResult) for r in results)
 
+    def test_query_is_nfc_normalized(self, client: TVDBClient, transport: MagicMock) -> None:
+        """NFD-decomposed titles are NFC-normalized before hitting TVDB.
+
+        Same root cause as the TMDB client: NFD folder names from the macOS /
+        NTFS-via-macFUSE filesystem fail to match the provider's NFC-indexed
+        titles, returning zero results for accented titles.
+        """
+        import unicodedata
+
+        transport.get.return_value = {"status": "success", "data": []}
+        nfd = unicodedata.normalize("NFD", "Astérix")
+        assert not unicodedata.is_normalized("NFC", nfd), "test setup must pass NFD"
+
+        client.search_movie(nfd, year=2014)
+
+        sent = transport.get.call_args.kwargs["params"]["query"]
+        assert unicodedata.is_normalized("NFC", sent), "query sent to TVDB must be NFC"
+        assert sent == "Astérix"
+
 
 # ── get_details dispatcher ────────────────────────────────────────────
 

@@ -16,6 +16,7 @@ API method incur the bootstrap.
 
 from __future__ import annotations
 
+import unicodedata
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from personalscraper.api._contracts import TVDB_BOOTSTRAP, ApiError, MediaType, ProviderName
@@ -350,7 +351,9 @@ class TVDBClient(
         Returns:
             List of SearchResult.
         """
-        params: dict[str, object] = {"query": title, "type": "series"}
+        # NFC-normalize: NFD folder names (macOS/NTFS) don't match TVDB's
+        # NFC-indexed titles (see TMDBClient._search_paginated). Idempotent.
+        params: dict[str, object] = {"query": unicodedata.normalize("NFC", title), "type": "series"}
         if year is not None:
             params["year"] = str(year)
         data = self._get("/search", params=params)
@@ -372,7 +375,9 @@ class TVDBClient(
         Returns:
             List of SearchResult.
         """
-        params: dict[str, object] = {"query": title, "type": "movie"}
+        # NFC-normalize: NFD folder names (macOS/NTFS) don't match TVDB's
+        # NFC-indexed titles (see TMDBClient._search_paginated). Idempotent.
+        params: dict[str, object] = {"query": unicodedata.normalize("NFC", title), "type": "movie"}
         if year is not None:
             params["year"] = str(year)
         data = self._get("/search", params=params)
