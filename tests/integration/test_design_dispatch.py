@@ -16,8 +16,10 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.paths import PathConfig
 from personalscraper.conf.resolver import pick_disk_for
+from personalscraper.core.event_bus import EventBus
 from personalscraper.dispatch._movie import replace
 from personalscraper.dispatch._tv import purge_episode_conflicts
+from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
@@ -195,6 +197,53 @@ class TestTvShowMergeContract:
         assert not (dest / "Saison 04" / "S04E06 - YOU LOOK HORRIBLE.mkv").exists()
         # E07 (no source counterpart) is preserved on the destination.
         assert (dest / "Saison 04" / "S04E07 - HONEST DAY.mkv").exists()
+
+    def test_existing_folder_matched_by_provider_id_when_name_differs(self, tmp_path: Path) -> None:
+        """A title already on disk under a different folder name is matched by id.
+
+        Design: docs/reference/storage.md#move-rules-dispatch
+        Contract: "already exists" for the merge / replace rule is resolved by
+        the canonical provider id, not only the folder name. A show on disk
+        under a localized title and wrong year (``Rick et Morty (2006)``, TVDB
+        275274) is recognised as the SAME item as the staging folder
+        ``Rick and Morty (2013)`` (same TVDB 275274), so it resolves to the
+        existing on-disk folder — its new season merges there instead of being
+        dispatched as a duplicate. Without provider-id matching the
+        differently-named folder falls through to ``moved`` and splits the show
+        across two folders.
+        """
+        disk_show = tmp_path / "disk1" / "series animations" / "Rick et Morty (2006)"
+        disk_show.mkdir(parents=True)
+        (disk_show / "tvshow.nfo").write_text(
+            '<?xml version="1.0"?><tvshow>'
+            '<uniqueid type="tvdb" default="true">275274</uniqueid>'
+            "<title>Rick and Morty</title></tvshow>",
+            encoding="utf-8",
+        )
+        index = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        index.add(
+            IndexEntry(
+                name="Rick et Morty (2006)",
+                disk="disk1",
+                category=CID.TV_SHOWS,
+                path=str(disk_show),
+                media_type="tvshow",
+            )
+        )
+
+        staging_show = tmp_path / "staging" / "Rick and Morty (2013)"
+        staging_show.mkdir(parents=True)
+        (staging_show / "tvshow.nfo").write_text(
+            '<?xml version="1.0"?><tvshow>'
+            '<uniqueid type="tvdb" default="true">275274</uniqueid>'
+            "<title>Rick and Morty</title></tvshow>",
+            encoding="utf-8",
+        )
+
+        match = index.find("Rick and Morty (2013)", "tvshow", media_dir=staging_show)
+
+        assert match is not None, "same-TVDB show under a different name must resolve to the existing folder"
+        assert match.path == str(disk_show)
 
 
 class TestStagingCommitContract:

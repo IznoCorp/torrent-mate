@@ -470,6 +470,198 @@ class TestFuzzyGuards:
 
 
 # ---------------------------------------------------------------------------
+# Provider-ID matching (Rick-and-Morty split regression, torrent-write P15)
+# ---------------------------------------------------------------------------
+
+
+class TestProviderIdMatch:
+    """Match an existing entry by canonical provider id when the name differs.
+
+    Regression: dispatch matched staging→disk by normalized folder name only,
+    so a show already on disk under a localized / mis-named folder (e.g.
+    ``Rick et Morty (2006)``, TVDB 275274) was not recognized as the same show
+    as the staging folder ``Rick and Morty (2013)`` (same TVDB 275274) and was
+    dispatched as a brand-new folder — splitting the show across two folders.
+    The match now keys on the canonical provider id parsed from the staging
+    folder's NFO (``media_dir``) when the name lookup misses.
+    """
+
+    @staticmethod
+    def _write_tvshow(root: Path, folder: str, tvdb: str) -> Path:
+        """Create a real show folder with a ``tvshow.nfo`` carrying a TVDB id."""
+        show_dir = root / folder
+        show_dir.mkdir(parents=True)
+        (show_dir / "tvshow.nfo").write_text(
+            '<?xml version="1.0"?><tvshow>'
+            f'<uniqueid type="tvdb" default="true">{tvdb}</uniqueid>'
+            "<title>Rick and Morty</title></tvshow>",
+            encoding="utf-8",
+        )
+        return show_dir
+
+    @staticmethod
+    def _write_movie(root: Path, folder: str, title: str, tmdb: str) -> Path:
+        """Create a real movie folder with a ``<title>.nfo`` carrying a TMDB id."""
+        movie_dir = root / folder
+        movie_dir.mkdir(parents=True)
+        (movie_dir / f"{title}.nfo").write_text(
+            '<?xml version="1.0"?><movie>'
+            f'<uniqueid type="tmdb" default="true">{tmdb}</uniqueid>'
+            f"<title>{title}</title></movie>",
+            encoding="utf-8",
+        )
+        return movie_dir
+
+    def test_same_tvdb_different_name_is_matched(self, tmp_path: Path) -> None:
+        """Same-TVDB show under a different on-disk name resolves to the existing folder."""
+        disk_dir = self._write_tvshow(tmp_path / "disk1" / "series animations", "Rick et Morty (2006)", "275274")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        idx.add(
+            IndexEntry(
+                name="Rick et Morty (2006)",
+                disk="disk1",
+                category="tv_shows_animation",
+                path=str(disk_dir),
+                media_type="tvshow",
+            )
+        )
+
+        staging_dir = self._write_tvshow(tmp_path / "staging", "Rick and Morty (2013)", "275274")
+        result = idx.find("Rick and Morty (2013)", "tvshow", media_dir=staging_dir)
+
+        assert result is not None, "same-TVDB show under a different name must be matched"
+        assert result.path == str(disk_dir)
+        assert result.disk == "disk1"
+
+    def test_movie_matched_by_tmdb_when_name_differs(self, tmp_path: Path) -> None:
+        """Same-TMDB movie under a different on-disk name resolves to the existing folder."""
+        disk_dir = self._write_movie(tmp_path / "disk1" / "films", "Cité des Anges (1998)", "Cité des Anges", "795")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        idx.add(
+            IndexEntry(
+                name="Cité des Anges (1998)",
+                disk="disk1",
+                category="movies",
+                path=str(disk_dir),
+                media_type="movie",
+            )
+        )
+
+        staging_dir = self._write_movie(tmp_path / "staging", "City of Angels (1998)", "City of Angels", "795")
+        result = idx.find("City of Angels (1998)", "movie", media_dir=staging_dir)
+
+        assert result is not None, "same-TMDB movie under a different name must be matched"
+        assert result.path == str(disk_dir)
+
+    def test_no_provider_id_falls_back_to_name(self, tmp_path: Path) -> None:
+        """A staging folder without any NFO id falls back to name matching (no crash)."""
+        disk_dir = self._write_tvshow(tmp_path / "disk1" / "series", "Some Show (2020)", "111111")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        idx.add(
+            IndexEntry(
+                name="Some Show (2020)",
+                disk="disk1",
+                category="tv_shows",
+                path=str(disk_dir),
+                media_type="tvshow",
+            )
+        )
+
+        # Staging folder with NO nfo → no id to match on.
+        staging_dir = tmp_path / "staging" / "Totally Different (2024)"
+        staging_dir.mkdir(parents=True)
+        result = idx.find("Totally Different (2024)", "tvshow", media_dir=staging_dir)
+
+        assert result is None
+
+    def test_exact_name_match_is_not_shadowed_by_id_lookup(self, tmp_path: Path) -> None:
+        """An exact-name match is not shadowed by the provider-id pass."""
+        disk_dir = self._write_tvshow(tmp_path / "disk1" / "series", "Exact Show (2021)", "222222")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        idx.add(
+            IndexEntry(
+                name="Exact Show (2021)",
+                disk="disk1",
+                category="tv_shows",
+                path=str(disk_dir),
+                media_type="tvshow",
+            )
+        )
+
+        result = idx.find("Exact Show (2021)", "tvshow", media_dir=disk_dir)
+
+        assert result is not None
+        assert result.path == str(disk_dir)
+
+    def test_placeholder_imdb_id_does_not_false_match(self, tmp_path: Path) -> None:
+        """A leaked imdb='None' placeholder must not match another row carrying it."""
+        # On-disk show A: valid tvdb 100 + junk imdb 'None' (a historical scrape leak).
+        disk_a = tmp_path / "disk1" / "series" / "Alpha Show (2000)"
+        disk_a.mkdir(parents=True)
+        (disk_a / "tvshow.nfo").write_text(
+            '<?xml version="1.0"?><tvshow>'
+            '<uniqueid type="tvdb" default="true">100</uniqueid>'
+            '<uniqueid type="imdb">None</uniqueid>'
+            "<title>Alpha Show</title></tvshow>",
+            encoding="utf-8",
+        )
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        idx.add(
+            IndexEntry(
+                name="Alpha Show (2000)",
+                disk="disk1",
+                category="tv_shows",
+                path=str(disk_a),
+                media_type="tvshow",
+            )
+        )
+
+        # Staging show B: a *different* tvdb (not on disk) + the same junk imdb 'None'.
+        staging_b = tmp_path / "staging" / "Beta Show (2099)"
+        staging_b.mkdir(parents=True)
+        (staging_b / "tvshow.nfo").write_text(
+            '<?xml version="1.0"?><tvshow>'
+            '<uniqueid type="tvdb" default="true">200</uniqueid>'
+            '<uniqueid type="imdb">None</uniqueid>'
+            "<title>Beta Show</title></tvshow>",
+            encoding="utf-8",
+        )
+        result = idx.find("Beta Show (2099)", "tvshow", media_dir=staging_b)
+
+        assert result is None, "placeholder imdb='None' must not false-match an unrelated show"
+
+    def test_ambiguous_external_id_resolves_to_one_existing_entry(self, tmp_path: Path) -> None:
+        """Two on-disk folders sharing one TVDB id resolve to one of them, no crash."""
+        disk_old = self._write_tvshow(tmp_path / "disk1" / "series", "Rick et Morty (2006)", "275274")
+        disk_new = self._write_tvshow(tmp_path / "disk1" / "series2", "Rick and Morty (2013)", "275274")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        idx.add(
+            IndexEntry(
+                name="Rick et Morty (2006)",
+                disk="disk1",
+                category="tv_shows",
+                path=str(disk_old),
+                media_type="tvshow",
+            )
+        )
+        idx.add(
+            IndexEntry(
+                name="Rick and Morty (2013)",
+                disk="disk1",
+                category="tv_shows",
+                path=str(disk_new),
+                media_type="tvshow",
+            )
+        )
+
+        staging = self._write_tvshow(tmp_path / "staging", "Rick & Morty (2013)", "275274")
+        result = idx.find("Rick & Morty (2013)", "tvshow", media_dir=staging)
+
+        assert result is not None
+        assert result.path in {str(disk_old), str(disk_new)}
+
+
+# ---------------------------------------------------------------------------
 # Connection lifecycle — FD-leak guard
 # ---------------------------------------------------------------------------
 

@@ -23,6 +23,25 @@ log = get_logger("indexer.item")
 # Used by ``_canonical_title`` to normalise lookup keys.
 _CANONICAL_RE = re.compile(r"\s*\(\d{4}\)$")
 
+# Provider family → JSON path into ``media_item.external_ids_json`` for the
+# series-level id. Whitelist used by :func:`find_by_external_id`: the provider
+# name is interpolated into the ``json_extract`` path (which SQLite cannot
+# parameterise), so only these keys may ever reach the SQL string — an unknown
+# provider returns ``None`` rather than risking an injected path.
+_EXTERNAL_ID_JSON_PATHS: dict[str, str] = {
+    "tvdb": "$.tvdb.series_id",
+    "tmdb": "$.tmdb.series_id",
+    "imdb": "$.imdb.series_id",
+}
+
+# Placeholder / non-identifying values that historical scrapes leaked into NFO
+# ``<uniqueid>`` elements (a literal ``0`` or ``None``). They are stored verbatim
+# in ``external_ids_json`` (``"0".isdigit()`` is true; imdb is stored unfiltered),
+# so an id match on one of them would join *every* row carrying the same
+# placeholder and trigger a false merge/replace. :func:`find_by_external_id`
+# refuses to match on them.
+_PLACEHOLDER_PROVIDER_IDS = frozenset({"", "0", "none"})
+
 
 def _canonical_title(title: str) -> str:
     """Strip a trailing `` (YYYY)`` suffix from *title* if present.
@@ -199,6 +218,80 @@ def find_by_tmdb_id(conn: sqlite3.Connection, tmdb_id: int) -> MediaItemRow | No
     if row is None:
         return None
     return _row_to_item(row)
+
+
+def find_by_external_id(
+    conn: sqlite3.Connection,
+    provider: str,
+    series_id: str,
+    kind: str,
+) -> tuple[MediaItemRow, str, str] | None:
+    """Find a media item by an external provider series id + dispatch attrs.
+
+    Mirrors :func:`find_by_normalized_name` (identical return shape and
+    ``item_attribute`` JOIN for the dispatch disk/path) but matches on a
+    provider id stored in ``external_ids_json`` rather than the normalized
+    title. The dispatch lookup uses this to recognise a show/movie already on
+    disk under a *different* folder name (localized title, wrong year) as the
+    same item, keying on the canonical provider id instead of the spelling —
+    closing the "same TVDB id, two folders" split.
+
+    The match is filtered by ``kind`` (a movie and a show never share an
+    identity) and, on ties, returns the most-recently-modified row (consistent
+    with :func:`find_by_normalized_name`).
+
+    Args:
+        conn: Open SQLite connection.
+        provider: Provider family — one of ``"tvdb"``, ``"tmdb"``, ``"imdb"``.
+            Any other value returns ``None`` (whitelist guard).
+        series_id: The provider's series id, in string form.
+        kind: ``'movie'`` or ``'show'``.
+
+    Returns:
+        A ``(MediaItemRow, dispatch_disk, dispatch_path)`` triple when found,
+        or ``None`` when no matching item exists or ``provider`` is unknown.
+    """
+    json_path = _EXTERNAL_ID_JSON_PATHS.get(provider)
+    if json_path is None:
+        return None
+    # Never match on a placeholder id (``0``/``None``): it would join every
+    # unrelated row carrying the same leaked value and cause a false dispatch.
+    if series_id.strip().lower() in _PLACEHOLDER_PROVIDER_IDS:
+        return None
+    _set_row_factory(conn)
+    # Fetch up to two rows to detect (and surface) an ambiguous id — two on-disk
+    # folders sharing one provider id, e.g. a pre-existing split.
+    rows = conn.execute(
+        "SELECT m.id, m.kind, m.title, m.title_sort, m.original_title, m.year, m.category_id, "
+        "m.external_ids_json, m.ratings_json, m.canonical_provider, m.nfo_status, m.artwork_json, "
+        "m.date_created, m.date_modified, m.date_metadata_refreshed, m.is_locked, m.preferred_lang, "
+        "a1.value AS dispatch_disk, a2.value AS dispatch_path "
+        "FROM media_item m "
+        "LEFT JOIN item_attribute a1 ON a1.item_id = m.id AND a1.key = ? "
+        "LEFT JOIN item_attribute a2 ON a2.item_id = m.id AND a2.key = ? "
+        f"WHERE CAST(json_extract(m.external_ids_json, '{json_path}') AS TEXT) = CAST(? AS TEXT) "
+        "AND m.kind = ? "
+        "ORDER BY m.date_modified DESC "
+        "LIMIT 2",
+        (_ATTR_DISPATCH_DISK, _ATTR_DISPATCH_PATH, series_id, kind),
+    ).fetchall()
+    if not rows:
+        return None
+    if len(rows) > 1:
+        # Newest-modified wins (consistent with find_by_normalized_name), but
+        # log the ambiguity so the operator can reconcile the duplicate folders.
+        log.warning(
+            "indexer.dispatch.external_id_ambiguous",
+            provider=provider,
+            series_id=series_id,
+            kind=kind,
+            matched=len(rows),
+        )
+    row = rows[0]
+    item = _row_to_item(row)
+    dispatch_disk: str = row["dispatch_disk"] or ""
+    dispatch_path: str = row["dispatch_path"] or ""
+    return (item, dispatch_disk, dispatch_path)
 
 
 def delete(conn: sqlite3.Connection, id: int) -> bool:

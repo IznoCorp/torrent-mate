@@ -49,7 +49,7 @@ def dispatch_movie(
 
     # Check index for existing copy, validated against filesystem to avoid
     # duplicating when the user has moved the folder between disks manually.
-    existing = dispatcher._resolve_existing_on_filesystem(movie_dir.name, "movie")
+    existing = dispatcher._resolve_existing_on_filesystem(movie_dir.name, "movie", media_dir=movie_dir)
 
     if existing:
         # Replace existing on the same disk (disk stored as disk_id in the index)

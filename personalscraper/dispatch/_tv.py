@@ -46,7 +46,7 @@ def dispatch_tvshow(
 
     # Check index for existing copy, validated against filesystem to avoid
     # duplicating when the user has moved the folder between disks manually.
-    existing = dispatcher._resolve_existing_on_filesystem(show_dir.name, "tvshow")
+    existing = dispatcher._resolve_existing_on_filesystem(show_dir.name, "tvshow", media_dir=show_dir)
 
     if existing:
         dest = Path(existing.path)
