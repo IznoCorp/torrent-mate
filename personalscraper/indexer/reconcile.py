@@ -199,7 +199,11 @@ def _scan_fk_orphans(conn: sqlite3.Connection) -> tuple[dict[str, list[int]], in
     regardless of the ``foreign_keys`` pragma state) to enumerate every child
     row whose parent is missing, grouped by table. Also counts the
     ``media_file`` / ``media_stream`` rows that ``ON DELETE CASCADE`` will remove
-    when the orphan ``media_release`` rows are deleted.
+    when the orphans are deleted — counting BOTH the directly-orphaned
+    ``media_release`` rows AND the releases reachable from orphan ``season`` rows
+    via ``season → episode → media_release`` (review BUG-4: for a TV show the
+    orphan is the season, not the release, so the release-only count missed the
+    real cascade entirely).
 
     Args:
         conn: Open SQLite connection.
@@ -215,21 +219,44 @@ def _scan_fk_orphans(conn: sqlite3.Connection) -> tuple[dict[str, list[int]], in
             continue
         by_table.setdefault(str(table), []).append(int(rowid))
 
+    # Resolve the full set of media_release IDs that the cascade will delete:
+    # direct orphan releases + releases under orphan seasons' episodes.
+    release_ids: set[int] = set()
     release_rowids = by_table.get("media_release", [])
-    cascade_files = 0
-    cascade_streams = 0
     if release_rowids:
         marks = ",".join("?" * len(release_rowids))
+        release_ids.update(
+            r[0]
+            for r in conn.execute(
+                f"SELECT id FROM media_release WHERE rowid IN ({marks})",  # noqa: S608 (rowids are ints)
+                release_rowids,
+            ).fetchall()
+        )
+    season_rowids = by_table.get("season", [])
+    if season_rowids:
+        marks = ",".join("?" * len(season_rowids))
+        release_ids.update(
+            r[0]
+            for r in conn.execute(
+                f"SELECT mr.id FROM media_release mr JOIN episode e ON mr.episode_id = e.id "  # noqa: S608
+                f"WHERE e.season_id IN (SELECT id FROM season WHERE rowid IN ({marks}))",
+                season_rowids,
+            ).fetchall()
+        )
+
+    cascade_files = 0
+    cascade_streams = 0
+    if release_ids:
+        ids = list(release_ids)
+        marks = ",".join("?" * len(ids))
         cascade_files = conn.execute(
-            f"SELECT COUNT(*) FROM media_file WHERE release_id IN "  # noqa: S608 (rowids are ints)
-            f"(SELECT id FROM media_release WHERE rowid IN ({marks}))",
-            release_rowids,
+            f"SELECT COUNT(*) FROM media_file WHERE release_id IN ({marks})",  # noqa: S608 (ids are ints)
+            ids,
         ).fetchone()[0]
         cascade_streams = conn.execute(
-            f"SELECT COUNT(*) FROM media_stream WHERE file_id IN "  # noqa: S608 (rowids are ints)
-            f"(SELECT id FROM media_file WHERE release_id IN "
-            f"(SELECT id FROM media_release WHERE rowid IN ({marks})))",
-            release_rowids,
+            f"SELECT COUNT(*) FROM media_stream WHERE file_id IN "  # noqa: S608 (ids are ints)
+            f"(SELECT id FROM media_file WHERE release_id IN ({marks}))",
+            ids,
         ).fetchone()[0]
     return by_table, cascade_files, cascade_streams
 
@@ -261,6 +288,11 @@ def clean_fk_orphans(conn: sqlite3.Connection, *, dry_run: bool = False) -> FkOr
     The schema FKs are already correct (migrations 001/009); this is a pure
     runtime row cleanup — no schema change, no migration script (pre-1.0).
 
+    The deletes run inside an explicit ``BEGIN IMMEDIATE`` transaction (the
+    connection is autocommit — ``isolation_level=None`` — so a bare ``with conn``
+    would NOT roll back; review BUG-2) so a mid-loop failure rolls every table's
+    deletes back together rather than leaving the DB half-cleaned.
+
     Args:
         conn: Open SQLite connection (open with ``allow_fk_orphans=True``).
         dry_run: If True, report what would be deleted without deleting.
@@ -278,8 +310,11 @@ def clean_fk_orphans(conn: sqlite3.Connection, *, dry_run: bool = False) -> FkOr
     if dry_run or not by_table:
         return report
 
+    # PRAGMA must be set outside a transaction (no-op within one); open_db
+    # already enables it, this is belt-and-braces.
     conn.execute("PRAGMA foreign_keys=ON")
-    with conn:  # single transaction — all-or-nothing
+    conn.execute("BEGIN IMMEDIATE")
+    try:
         for table, rowids in by_table.items():
             # Table names come from sqlite's own schema (foreign_key_check), not
             # user input; rowids are ints. Quoted identifier is safe.
@@ -287,6 +322,10 @@ def clean_fk_orphans(conn: sqlite3.Connection, *, dry_run: bool = False) -> FkOr
                 f'DELETE FROM "{table}" WHERE rowid = ?',  # noqa: S608
                 [(rowid,) for rowid in rowids],
             )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     log.info(
         "indexer.reconcile.fk_orphans_cleaned",
         by_table=report.by_table,

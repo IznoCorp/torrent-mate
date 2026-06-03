@@ -440,9 +440,7 @@ def library_reconcile_command(
         detect_fk_orphans,
         reconcile,
     )
-    from personalscraper.indexer.reconcile import (
-        clean_fk_orphans as _clean_fk_orphans,
-    )
+    from personalscraper.indexer.reconcile import clean_fk_orphans as _clean_fk_orphans  # noqa: PLC0415
 
     log.info(
         "indexer.cli.reconcile",

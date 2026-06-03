@@ -13,8 +13,10 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+import pytest
+
 from personalscraper.core.event_bus import EventBus
-from personalscraper.indexer.db import apply_migrations, open_db
+from personalscraper.indexer.db import IndexerFKOrphansError, apply_migrations, open_db
 from personalscraper.indexer.reconcile import clean_fk_orphans, detect_fk_orphans
 
 _MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations"
@@ -153,5 +155,137 @@ class TestOpenDbAllowFkOrphans:
         try:
             # Usable connection on a dirty DB — the orphans are still present.
             assert conn.execute("PRAGMA foreign_key_check").fetchall() != []
+        finally:
+            conn.close()
+
+    def test_default_open_still_raises_on_same_dirty_db(self, tmp_path: Path) -> None:
+        """The default open stays strict (fail-loud DEV #19 contract preserved)."""
+        db = tmp_path / "library.db"
+        _bootstrap(db)
+        _seed_orphan_chain(db)
+
+        with pytest.raises(IndexerFKOrphansError):
+            open_db(db, event_bus=EventBus())
+
+
+def _seed_tv_orphan_chain(db_path: Path) -> None:
+    """Seed a TV chain then FK-OFF delete the show's media_item.
+
+    Chain: item → season → episode → release → file → stream.
+    The episode media_release links via episode_id with item_id NULL (the
+    media_release CHECK is item_id XOR episode_id), so deleting the show orphans
+    the SEASON (season.item_id), NOT the release — the BUG-4 scenario where the
+    cascade impact is reachable only via season → episode → media_release.
+    """
+    conn = sqlite3.connect(str(db_path), isolation_level=None)
+    try:
+        conn.execute("PRAGMA foreign_keys=ON")
+        disk = conn.execute(
+            "INSERT INTO disk (uuid, label, mount_path, last_seen_at, merkle_root, is_mounted, unreachable_strikes) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("u", "D", "/tmp/x", 0, None, 1, 0),
+        ).lastrowid
+        path_id = conn.execute("INSERT INTO path (disk_id, rel_path) VALUES (?, ?)", (disk, "r")).lastrowid
+        show = conn.execute(
+            "INSERT INTO media_item (kind, title, title_sort, category_id, date_created, date_modified) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            ("show", "Show", "show", "tv_shows", 0, 0),
+        ).lastrowid
+        season = conn.execute("INSERT INTO season (item_id, number) VALUES (?, ?)", (show, 1)).lastrowid
+        episode = conn.execute("INSERT INTO episode (season_id, number) VALUES (?, ?)", (season, 1)).lastrowid
+        rel = conn.execute("INSERT INTO media_release (episode_id) VALUES (?)", (episode,)).lastrowid
+        fid = conn.execute(
+            "INSERT INTO media_file (path_id, release_id, filename, size_bytes, mtime_ns, scan_generation, "
+            "last_verified_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (path_id, rel, "e01.mkv", 1, 1, 1, 0),
+        ).lastrowid
+        conn.execute("INSERT INTO media_stream (file_id, idx, kind) VALUES (?, ?, ?)", (fid, 0, "video"))
+        conn.execute("PRAGMA foreign_keys=OFF")
+        conn.execute("DELETE FROM media_item WHERE id = ?", (show,))
+    finally:
+        conn.close()
+
+
+class TestSeasonRootedCascadeCount:
+    """BUG-4: cascade impact counts the season → episode → release path too."""
+
+    def test_season_orphan_cascade_counted(self, tmp_path: Path) -> None:
+        """A deleted show orphans the season; its file/stream cascade is counted."""
+        db = tmp_path / "library.db"
+        _bootstrap(db)
+        _seed_tv_orphan_chain(db)
+
+        conn = open_db(db, allow_fk_orphans=True, event_bus=EventBus())
+        try:
+            report = detect_fk_orphans(conn)
+            # The orphan is the season (not a media_release), yet the cascade
+            # via season->episode->release->file/stream must be counted.
+            assert report.by_table.get("season") == 1
+            assert "media_release" not in report.by_table
+            assert report.cascade_media_files == 1
+            assert report.cascade_media_streams == 1
+        finally:
+            conn.close()
+
+    def test_season_clean_cascades_to_file_and_stream(self, tmp_path: Path) -> None:
+        """Cleaning the orphan season cascades episode->release->file->stream."""
+        db = tmp_path / "library.db"
+        _bootstrap(db)
+        _seed_tv_orphan_chain(db)
+
+        conn = open_db(db, allow_fk_orphans=True, event_bus=EventBus())
+        try:
+            clean_fk_orphans(conn, dry_run=False)
+            assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+            assert conn.execute("SELECT COUNT(*) FROM media_file").fetchone()[0] == 0
+            assert conn.execute("SELECT COUNT(*) FROM media_stream").fetchone()[0] == 0
+            assert conn.execute("SELECT COUNT(*) FROM episode").fetchone()[0] == 0
+        finally:
+            conn.close()
+
+
+class _FlakyConn:
+    """Connection proxy that raises on the 2nd executemany (atomicity probe)."""
+
+    def __init__(self, real: sqlite3.Connection) -> None:
+        self._real = real
+        self._em = 0
+
+    def execute(self, *a: object, **k: object) -> object:
+        return self._real.execute(*a, **k)
+
+    def executemany(self, *a: object, **k: object) -> object:
+        self._em += 1
+        if self._em >= 2:
+            raise sqlite3.OperationalError("injected mid-loop failure")
+        return self._real.executemany(*a, **k)
+
+    def commit(self) -> None:
+        self._real.commit()
+
+    def rollback(self) -> None:
+        self._real.rollback()
+
+
+class TestCleanFkOrphansAtomicity:
+    """BUG-2: a mid-loop failure rolls back ALL deletes (no half-cleaned DB)."""
+
+    def test_partial_failure_rolls_back(self, tmp_path: Path) -> None:
+        """When the 2nd table's delete fails, the 1st table's deletes are undone."""
+        db = tmp_path / "library.db"
+        _bootstrap(db)
+        _seed_orphan_chain(db)  # orphans across 2 tables: media_release + item_issue
+
+        conn = open_db(db, allow_fk_orphans=True, event_bus=EventBus())
+        try:
+            before = len(conn.execute("PRAGMA foreign_key_check").fetchall())
+            assert before >= 2  # two orphan tables → two executemany calls
+
+            with pytest.raises(sqlite3.OperationalError):
+                clean_fk_orphans(_FlakyConn(conn), dry_run=False)
+
+            # Rolled back: every orphan still present (no partial cleanup).
+            after = len(conn.execute("PRAGMA foreign_key_check").fetchall())
+            assert after == before
         finally:
             conn.close()
