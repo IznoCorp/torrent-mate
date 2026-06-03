@@ -12,25 +12,28 @@
 
 ## Phases
 
-| #   | Phase                                                                                            | File                               | Status |
-| --- | ------------------------------------------------------------------------------------------------ | ---------------------------------- | ------ |
-| 1   | `TorrentSource` + `TorrentLimits` value objects                                                  | phase-01-value-objects.md          | [x]    |
-| 2   | `TorrentAdder` + `TorrentLimiter` Protocols + `UnsupportedCapabilityError`                       | phase-02-protocols.md              | [x]    |
-| 3   | `TorrentItem.tags` field + mapper updates (qBit CSV + Transmission D5)                           | phase-03-torrentitem-tags.md       | [x]    |
-| 4   | `QBitClient.add()` + `_limit_kwargs()`                                                           | phase-04-qbit-add.md               | [x]    |
-| 5   | `QBitClient.apply_limits()` + composition assertions                                             | phase-05-qbit-apply-limits.md      | [x]    |
-| 6   | `TransmissionClient.add()` + `_labels()` + composition assertions                                | phase-06-transmission-add.md       | [x]    |
-| 7   | `AppContext.torrent_client` field                                                                | phase-07-appcontext-field.md       | [x]    |
-| 8   | Fail-fast in `_build_app_context()` (D3/D9)                                                      | phase-08-boot-failfast.md          | [x]    |
-| 9   | Remove lazy inline `QBitClient` fallbacks                                                        | phase-09-remove-lazy-fallbacks.md  | [x]    |
-| 10  | Reference docs updates                                                                           | phase-10-docs.md                   | [x]    |
-| 11  | Executable `ACCEPTANCE.md` + ROADMAP flip                                                        | phase-11-acceptance-roadmap.md     | [x]    |
-| 12  | PR review fixes — cycle 1 (bencode, qBit add, seed-time, +mediums)                               | phase-12-pr-fixes-cycle-1.md       | [x]    |
-| 13  | PR review fixes — cycle 2 (qBit 401 catch, Transmission dup robustness)                          | phase-13-pr-fixes-cycle-2.md       | [x]    |
-| 14  | PR review fixes — cycle 3 (boot-coupling scope, qBit metadata return, D5 guard, doc/ACC)         | _review-driven (no plan file)_     | [x]    |
-| 15  | Dispatch external-ID matching (out-of-scope addition: Rick-and-Morty split fix)                  | _review-driven (no plan file)_     | [x]    |
-| 16  | Metadata search NFC-normalization (out-of-scope addition: accented-title scrape fix)             | _review-driven (no plan file)_     | [x]    |
-| 17  | Unify TV source-aware fetch — rescraper reuses fetch_show_data (out-of-scope: TVDB-only 404 fix) | _workflow-designed (no plan file)_ | [x]    |
+| #   | Phase                                                                                                | File                               | Status |
+| --- | ---------------------------------------------------------------------------------------------------- | ---------------------------------- | ------ |
+| 1   | `TorrentSource` + `TorrentLimits` value objects                                                      | phase-01-value-objects.md          | [x]    |
+| 2   | `TorrentAdder` + `TorrentLimiter` Protocols + `UnsupportedCapabilityError`                           | phase-02-protocols.md              | [x]    |
+| 3   | `TorrentItem.tags` field + mapper updates (qBit CSV + Transmission D5)                               | phase-03-torrentitem-tags.md       | [x]    |
+| 4   | `QBitClient.add()` + `_limit_kwargs()`                                                               | phase-04-qbit-add.md               | [x]    |
+| 5   | `QBitClient.apply_limits()` + composition assertions                                                 | phase-05-qbit-apply-limits.md      | [x]    |
+| 6   | `TransmissionClient.add()` + `_labels()` + composition assertions                                    | phase-06-transmission-add.md       | [x]    |
+| 7   | `AppContext.torrent_client` field                                                                    | phase-07-appcontext-field.md       | [x]    |
+| 8   | Fail-fast in `_build_app_context()` (D3/D9)                                                          | phase-08-boot-failfast.md          | [x]    |
+| 9   | Remove lazy inline `QBitClient` fallbacks                                                            | phase-09-remove-lazy-fallbacks.md  | [x]    |
+| 10  | Reference docs updates                                                                               | phase-10-docs.md                   | [x]    |
+| 11  | Executable `ACCEPTANCE.md` + ROADMAP flip                                                            | phase-11-acceptance-roadmap.md     | [x]    |
+| 12  | PR review fixes — cycle 1 (bencode, qBit add, seed-time, +mediums)                                   | phase-12-pr-fixes-cycle-1.md       | [x]    |
+| 13  | PR review fixes — cycle 2 (qBit 401 catch, Transmission dup robustness)                              | phase-13-pr-fixes-cycle-2.md       | [x]    |
+| 14  | PR review fixes — cycle 3 (boot-coupling scope, qBit metadata return, D5 guard, doc/ACC)             | _review-driven (no plan file)_     | [x]    |
+| 15  | Dispatch external-ID matching (out-of-scope addition: Rick-and-Morty split fix)                      | _review-driven (no plan file)_     | [x]    |
+| 16  | Metadata search NFC-normalization (out-of-scope addition: accented-title scrape fix)                 | _review-driven (no plan file)_     | [x]    |
+| 17  | Unify TV source-aware fetch — rescraper reuses fetch_show_data (out-of-scope: TVDB-only 404 fix)     | _workflow-designed (no plan file)_ | [x]    |
+| 18  | Scene RAR extraction + sample stripping before scrape (out-of-scope: pipeline-monitor DEV #1)        | _workflow-designed (no plan file)_ | [x]    |
+| 19  | TVDB alias/translation matching for translated-title folders (out-of-scope: pipeline-monitor DEV #2) | _workflow-designed (no plan file)_ | [x]    |
+| 20  | library.db FK-orphan cleanup via reconcile + tolerant open (out-of-scope: pipeline-monitor DEV #3)   | _workflow-designed (no plan file)_ | [x]    |
 
 ## Review cycles
 
@@ -235,9 +238,85 @@ Acceptance: **ACC-17**.
 > ROADMAP.md (Tech-Debt Round 2): it touches the pipeline scrape path + ~6000
 > tests, too large for a fix-phase. Phase 17 unified the seam that caused the bug.
 
+### Phase 18 — Scene RAR extraction + sample stripping (out-of-scope addition) — 2026-06-03
+
+Folded into this PR at the operator's request after a `pipeline-monitor` run
+(`docs/pipeline-runs/2026-06-03-17h36`) caught **DEV #1**. **Out of original RP1
+scope** (touches `process/` + `scraper/` + `verify/`) — documented sign-off
+deviation, same basis as phases 15–17. See DESIGN.md §12.
+
+**Bug (caught at the PROCESS dry-run, confirmed by grep — zero sample/RAR handling
+anywhere):** "Rafa S01E01–E04" are scene releases whose real ~2.5 GB video is in
+a multi-part RAR set, next to a 34–47 MB `Sample/*-sample.mkv` clip. The scraper's
+video discovery only excluded `Saison NN/` + `Trailers`, so it matched the **sample
+clip** as the episode (`episode_would_rename source=...sample.mkv`); the real video
+stayed locked in unextracted archives and `rename_service` would later rmtree the
+archive dir (data loss).
+
+**Fix (option B+A+D+C, operator-elected full scope; TDD):**
+
+- `core.media_types`: shared `is_sample_path` / `is_sample_filename` /
+  `is_archive_filename` predicates (strict suffix, low false-positive).
+- **C** `process/extract.py`: `extract_release_archives` (rarfile → unrar,
+  fail-soft, idempotent) extracts multi-part RAR in place + removes consumed parts;
+  **A** `strip_sample_artifacts` removes `Sample/` dirs + `*-sample.*`. Both wired
+  into `run_clean` BEFORE scrape.
+- **B** all video-discovery globs (`_shared._find_video_file`, `tv_service`,
+  `existing_validator` rescrape) exclude samples.
+- **D** `rename_service._cleanup_empty_release_dirs` preserves archive-bearing dirs
+  (no silent loss) + new `verify` check `no_archive_files` (ERROR) blocks dispatch
+  of any un-extracted archive.
+
+New dep `rarfile>=4.2` (shells to system `unrar`, already present). Regression
+tests reproduce the Rafa scenario with a REAL multi-part RAR
+(`tests/process/test_extract.py`) + predicate/movie/verify tests. Golden check
+counts regenerated (+1 check). Verified end-to-end on real staging:
+`process_clean_complete extracted=3 sample_stripped=4`, no more
+`source=...sample.mkv`. Acceptance: **ACC-18**.
+
+### Phase 19 — TVDB alias/translation matching (out-of-scope addition) — 2026-06-03
+
+`pipeline-monitor` **DEV #2**. Out of RP1 scope (touches `api/metadata/` +
+`scraper/`). See DESIGN.md §13.
+
+**Bug:** "Murder Mindfully" (16 real episodes) matched its German-primary TVDB
+candidate "Achtsam Morden" at only 0.38 (< LOW_CONFIDENCE 0.5) →
+`show_no_confident_match` → left unscraped. Root cause: `_tvdb_parsers.parse_search_result`
+handled a **list**-shaped `translations` field while the live TVDB `/search` returns
+a **dict** (`{"eng": "Murder Mindfully", "deu": "Achtsam Morden"}`) and dropped the
+`aliases[]` array entirely — the matcher never saw the comparable titles.
+
+**Fix (option A1; TDD):** `SearchResult` gains an `aliases` tuple; the parser surfaces
+the eng translation as `original_title` and every translation value + alias into
+`aliases`; `confidence._score_result` scores best-of `{title, original_title,
+aliases}`. Strictly inside the TVDB family (no cross-provider contamination);
+best-of only raises scores, season-veto/ambiguity guards intact. Verified end-to-end:
+`show_tvdb_match 'Achtsam Morden' confidence=1.0 title='Murder Mindfully'` → 16
+episodes organized. Acceptance: **ACC-19**.
+
+### Phase 20 — library.db FK-orphan cleanup (out-of-scope addition) — 2026-06-03
+
+`pipeline-monitor` **DEV #3** (pre-existing BDD state). Out of RP1 scope (touches
+`indexer/` + `commands/library/`). See DESIGN.md §14.
+
+**Bug:** the live `library.db` held 11 foreign-key orphans (6 `item_issue` + 5
+`media_release` whose parent `media_item` 645/800/874/875/876 were deleted by
+migration 007 with FK enforcement off — proof: their 47 `media_file` + 58
+`media_stream` descendants survived). `open_db`'s FK guard then aborted EVERY
+indexer command, including `library-reconcile` (the maintenance-drain tool).
+
+**Fix (option A; TDD):** `open_db(allow_fk_orphans=False)` escape hatch (default keeps
+the fail-loud DEV #19 contract; only reconcile opts in). `reconcile.detect_fk_orphans`
+/ `clean_fk_orphans` delete orphan child rows under `foreign_keys=ON` so the declared
+`ON DELETE CASCADE` removes descendants; `library-reconcile --clean-fk-orphans`
+(dry-run-first — counts + cascade impact always reported). No schema change / no
+migration (FKs already correct, pre-1.0). Live remediation applied (backup taken):
+11 cleaned, cascade 47+58, `foreign_key_check` now 0, `integrity_check ok`,
+`library-reconcile` unblocked. Acceptance: **ACC-20**.
+
 ## Next action
 
-**All phases (1–17) complete.** Cycle-1 (C1/C2/M1 + 7 mediums), cycle-2 (qBit
+**All phases (1–20) complete.** Cycle-1 (C1/C2/M1 + 7 mediums), cycle-2 (qBit
 401 catch, Transmission dup robustness) and cycle-3 (boot-coupling scope, qBit
 metadata return, D5 guard, doc/ACC hygiene) fixes all landed and independently
 re-verified. `make check` 6016 passed, design-gaps `--strict` 0 findings, smoke

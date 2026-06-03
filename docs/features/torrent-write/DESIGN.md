@@ -237,3 +237,61 @@ ambiguous id (two folders, one id), and survives index drift. Move-rule doc:
 `docs/reference/storage.md#move-rules-dispatch` (codename `dispatch`); paired contract test
 in `tests/integration/test_design_dispatch.py`. Acceptance: **ACC-15**. No torrent-client
 (`api/torrent/`) code is touched.
+
+## 12. Out-of-scope addition — Scene RAR extraction + sample stripping (phase 18, 2026-06-03)
+
+**Status: documented deviation (operator-approved).** Outside original RP1 scope
+(touches `process/`, `scraper/`, `verify/`, not `api/torrent/`). Folded in as a fix
+phase at the operator's request, justified by the "deviation only for a documented
+anomaly, with sign-off" norm.
+
+**Anomaly (pipeline-monitor run 2026-06-03-17h36, DEV #1).** Scene releases ship the
+real video inside a multi-part RAR set next to a small `Sample/*-sample.mkv` preview
+clip. The scraper's video discovery excluded only `Saison NN/` + `Trailers`, so it
+matched the 34–47 MB sample clip as the episode and the real ~2.5 GB video stayed
+locked in unextracted archives; `rename_service` would then rmtree the archive dir
+(data loss). There was zero sample/RAR awareness anywhere in the pipeline.
+
+**Change (operator-elected full scope B+A+D+C).** A single SSOT predicate set in
+`core.media_types` (`is_sample_path` / `is_sample_filename` / `is_archive_filename`).
+`process/extract.py` extracts multi-part RAR in place (rarfile → system `unrar`,
+fail-soft, idempotent) and strips `Sample/` + `*-sample.*`, wired into `run_clean`
+before scrape. All video-discovery globs exclude samples. `rename_service` preserves
+archive-bearing dirs; a new `verify` `no_archive_files` check (ERROR) blocks dispatch
+of any un-extracted archive. New dep `rarfile>=4.2`. Acceptance: **ACC-18**.
+
+## 13. Out-of-scope addition — TVDB alias/translation matching (phase 19, 2026-06-03)
+
+**Status: documented deviation (operator-approved).** Outside RP1 scope (touches
+`api/metadata/`, `scraper/`).
+
+**Anomaly (pipeline-monitor run 2026-06-03-17h36, DEV #2).** A real show whose folder
+uses a translated title ("Murder Mindfully" for the German-primary TVDB entry "Achtsam
+Morden") scored 0.38 (< LOW_CONFIDENCE) and was left unscraped. `parse_search_result`
+handled only a list-shaped `translations` field while the live TVDB `/search` returns a
+dict, and dropped the `aliases[]` array — the matcher never saw the comparable titles.
+
+**Change.** `SearchResult` gains an `aliases` tuple; the TVDB parser surfaces the eng
+translation as `original_title` and every translation value + alias into `aliases`;
+`confidence._score_result` scores best-of `{title, original_title, aliases}`. Strictly
+within the TVDB family (no cross-provider contamination — DESIGN §3 multi-provider
+separation preserved); best-of only raises scores, season-veto/ambiguity guards intact.
+Acceptance: **ACC-19**.
+
+## 14. Out-of-scope addition — library.db FK-orphan cleanup (phase 20, 2026-06-03)
+
+**Status: documented deviation (operator-approved).** Outside RP1 scope (touches
+`indexer/`, `commands/library/`). Respects the existing `indexer.md` hard-delete /
+CASCADE / boot-guard design — extends, does not contradict it.
+
+**Anomaly (pipeline-monitor run 2026-06-03-17h36, DEV #3, pre-existing BDD state).** The
+live `library.db` held 11 foreign-key orphans (6 `item_issue` + 5 `media_release` whose
+parent `media_item` was deleted FK-off by migration 007 — descendants survived). The
+`open_db` FK guard then aborted every indexer command, including `library-reconcile`.
+
+**Change.** `open_db(allow_fk_orphans=False)` opt-in escape hatch (default keeps the
+fail-loud DEV #19 contract; only reconcile opts in). `reconcile.detect_fk_orphans` /
+`clean_fk_orphans` delete orphan child rows under `foreign_keys=ON` so the declared
+`ON DELETE CASCADE` removes descendants; `library-reconcile --clean-fk-orphans`
+(dry-run-first: counts + cascade impact always reported). No schema change / no migration
+(FKs already correct, pre-1.0) — the live DB was remediated in place. Acceptance: **ACC-20**.

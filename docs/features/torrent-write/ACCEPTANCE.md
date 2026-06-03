@@ -221,3 +221,54 @@ Expected: exits 0; 0 failed. A TVDB-matched show is fetched from TVDB
 like Hey Arnold! / Tintin). The source-of-match invariant now lives in ONE place
 shared by the initial scrape (`tv_service`) and the maintenance rescraper, so the
 TVDB-primary / TMDB-fallback discipline cannot diverge between them.
+
+---
+
+## ACC-18 — Scene samples never scraped as episodes; RAR extracted (phase 18, out-of-scope addition)
+
+```bash
+pytest \
+  "tests/process/test_extract.py" \
+  "tests/core/test_media_types_sample_archive.py" \
+  "tests/scraper/test_find_video_file.py::TestFindVideoFileSampleExclusion" \
+  "tests/verify/checks/test_no_archive_files.py" -q
+```
+
+Expected: exits 0; 0 failed (the real-RAR end-to-end test is skipped only where
+the `rar`/`unrar` binaries are absent). A `Sample/*-sample.mkv` clip is excluded
+from every video-discovery glob (movie + TV + rescrape) so it is never matched as
+the episode/feature; the CLEAN step extracts multi-part RAR sets in place before
+scrape and strips the samples; a release whose archives failed to extract is
+preserved (not deleted) and blocked from dispatch by the `no_archive_files` check.
+
+---
+
+## ACC-19 — Translated-title folders match via TVDB aliases (phase 19, out-of-scope addition)
+
+```bash
+cd /Users/izno/dev/PersonnalScaper && pytest \
+  "tests/scraper/test_confidence.py::TestAliasMatching" \
+  "tests/unit/test_tvdb_parsers.py::TestParseSearchResultDictTranslationsAndAliases" -q
+```
+
+Expected: exits 0; 0 failed. The live dict-shaped TVDB `translations` field and the
+`aliases[]` array are parsed into `SearchResult.aliases`, and `_score_result` scores
+the best of `{title, original_title, aliases}` — so a folder named with a translated
+title ("Murder Mindfully") matches its foreign-primary candidate ("Achtsam Morden")
+above LOW_CONFIDENCE instead of being left unscraped at 0.38.
+
+---
+
+## ACC-20 — FK orphans cleaned via reconcile; tolerant open hatch (phase 20, out-of-scope addition)
+
+```bash
+cd /Users/izno/dev/PersonnalScaper && pytest \
+  "tests/indexer/test_fk_orphan_cleanup.py" -q
+```
+
+Expected: exits 0; 0 failed. `clean_fk_orphans` deletes child rows whose parent
+`media_item` is gone under `foreign_keys=ON`, so the declared `ON DELETE CASCADE`
+removes their `media_file`/`media_stream` descendants (`foreign_key_check` returns
+empty afterward); `detect_fk_orphans` reports without modifying; and
+`open_db(allow_fk_orphans=True)` returns a usable connection on a dirty DB while the
+default open stays strict (fail-loud DEV #19 contract preserved).
