@@ -12,7 +12,7 @@ import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from personalscraper.api.metadata.tmdb import TMDBClient
@@ -28,7 +28,7 @@ from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import VIDEO_EXTENSIONS
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
-from personalscraper.nfo_utils import extract_nfo_ids, is_nfo_complete, parse_title_year
+from personalscraper.nfo_utils import extract_nfo_metadata, is_nfo_complete, parse_title_year
 from personalscraper.scraper.confidence import (
     HIGH_CONFIDENCE,
     match_movie,
@@ -187,8 +187,8 @@ def _resolve_tmdb_id(
     year: int | None,
     registry: ProviderRegistry,
     interactive: bool,
-) -> tuple[str | None, str | None, float | None]:
-    """Resolve TMDB ID for a media item.
+) -> tuple[str | None, str | None, float | None, str | None]:
+    """Resolve the metadata-provider ID + matched provider for a media item.
 
     Strategy:
     1. Extract from existing NFO (even partially valid)
@@ -209,13 +209,20 @@ def _resolve_tmdb_id(
     tmdb_client = cast("TMDBClient", registry.get("tmdb"))
     tvdb_client = cast("TVDBClient", registry.get("tvdb"))
 
-    # 1. Try to extract from NFO
+    # 1. Try to extract from NFO. Honour the canonical provider recorded there:
+    # a TVDB-canonical show NFO must resolve to its TVDB id (so the fetch goes
+    # through TVDB), not be mislabelled as a TMDB id. Provider is derived from
+    # id presence (tvdb wins for TV), mirroring existing_validator.
     nfo_name = f"{title}.nfo" if media_type == "movie" else "tvshow.nfo"
     nfo_path = media_dir / nfo_name
     if nfo_path.exists():
-        tmdb_id, _imdb_id = extract_nfo_ids(nfo_path)
-        if tmdb_id:
-            return tmdb_id, "nfo", None
+        meta = extract_nfo_metadata(nfo_path)
+        nfo_tvdb = meta.get("tvdb_id")
+        nfo_tmdb = meta.get("tmdb_id")
+        if nfo_tvdb and str(nfo_tvdb).isdigit():
+            return str(nfo_tvdb), "nfo", None, "tvdb"
+        if nfo_tmdb and str(nfo_tmdb).isdigit():
+            return str(nfo_tmdb), "nfo", None, "tmdb"
 
     # 2. Re-match via API
     try:
@@ -225,10 +232,10 @@ def _resolve_tmdb_id(
             match = match_tvshow(tvdb_client, tmdb_client, title, year)
     except Exception as exc:
         log.warning("library_rescrape_match_failed", title=title, exc_info=True, error=str(exc))
-        return None, None, None
+        return None, None, None, None
 
     if match is None:
-        return None, None, None
+        return None, None, None, None
 
     # Confidence check
     if match.confidence < HIGH_CONFIDENCE:
@@ -237,16 +244,18 @@ def _resolve_tmdb_id(
                 f"  Match: '{title}' → '{match.api_title}' (confidence={match.confidence:.0%}). Accept? [y/N] "
             )
             if response.lower() != "y":
-                return None, None, match.confidence
+                return None, None, match.confidence, None
         else:
             log.info(
                 "library_rescrape_low_confidence",
                 title=title,
                 confidence=round(match.confidence * 100),
             )
-            return None, None, match.confidence
+            return None, None, match.confidence, None
 
-    return str(match.api_id), "api_match", match.confidence
+    # Movies are TMDB-only; TV honours the matched provider (TVDB-primary).
+    source = "tmdb" if media_type == "movie" else match.source
+    return str(match.api_id), "api_match", match.confidence, source
 
 
 def _find_largest_video(media_dir: Path) -> Path | None:
@@ -317,7 +326,7 @@ def _rescrape_item(
         return None  # Already OK
 
     # Resolve TMDB ID
-    tmdb_id, id_source, confidence = _resolve_tmdb_id(
+    provider_id, id_source, confidence, source = _resolve_tmdb_id(
         media_dir,
         media_type,
         title,
@@ -326,7 +335,7 @@ def _rescrape_item(
         interactive,
     )
 
-    if tmdb_id is None:
+    if provider_id is None:
         skip_reason = SKIP_LOW_CONFIDENCE if confidence is not None else SKIP_NO_MATCH
         return RescrapeAction(
             path=str(media_dir),
@@ -343,14 +352,30 @@ def _rescrape_item(
             rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
         )
 
-    # Fetch API data (once)
-    api_id = int(tmdb_id)
+    # Fetch API data once, honouring the source-of-match invariant via the
+    # SHARED fetch_show_data (TVDB-primary / TMDB fallback) — the SAME helper
+    # the initial tv_service scrape uses, so the provider-priority discipline
+    # cannot diverge between scrape and rescrape. Movies stay TMDB-only.
+    # provider_id is a TVDB series id when source == "tvdb".
+    api_id = int(provider_id)
     tmdb = cast("TMDBClient", registry.get("tmdb"))
+    report_tmdb_id: str | None = provider_id if media_type == "movie" else None
+    api_data: Any
     try:
         if media_type == "movie":
             api_data = tmdb.get_movie(api_id)
         else:
-            api_data = tmdb.get_tv(api_id)
+            from personalscraper.scraper._tvdb_convert import fetch_show_data
+
+            provider = registry.get(source) if source else tmdb
+            api_data, xref_tmdb = fetch_show_data(
+                source or "tmdb",
+                api_id,
+                provider,
+                preferred_language="fr-FR",
+                fallback_language="en-US",
+            )
+            report_tmdb_id = str(xref_tmdb) if xref_tmdb else None
     except Exception as exc:
         return RescrapeAction(
             path=str(media_dir),
@@ -361,7 +386,7 @@ def _rescrape_item(
             actions_taken=[],
             actions_skipped=[],
             errors=[f"API error: {exc}"],
-            tmdb_id=tmdb_id,
+            tmdb_id=report_tmdb_id,
             id_source=id_source,
             match_confidence=confidence,
             rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
@@ -422,11 +447,11 @@ def _rescrape_item(
             _rescrape_episodes(
                 media_dir,
                 api_data,
+                source or "tmdb",
                 api_id,
-                tmdb,
+                registry,
                 patterns,
                 dry_run,
-                episode_default_name=episode_default_name,
             )
             actions.append(ACTION_EPISODES_RENAMED)
             log.info("library_rescrape_episodes", title=title, dry_run=dry_run)
@@ -443,7 +468,7 @@ def _rescrape_item(
         actions_taken=actions,
         actions_skipped=[],
         errors=errors,
-        tmdb_id=tmdb_id,
+        tmdb_id=report_tmdb_id,
         id_source=id_source,
         match_confidence=confidence,
         rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
@@ -453,23 +478,28 @@ def _rescrape_item(
 def _rescrape_episodes(
     show_dir: Path,
     show_data: object,
-    tmdb_id: int,
-    tmdb_client: "TMDBClient",
+    source: str,
+    api_id: int,
+    registry: ProviderRegistry,
     patterns: NamingPatterns,
     dry_run: bool,
-    episode_default_name: str = "Episode",
 ) -> None:
-    """Rescrape TV show episodes: fetch season data and rename.
+    """Rescrape TV show episodes from the MATCHED provider, then rename.
+
+    Honours the source-of-match invariant: a TVDB-matched show fetches episode
+    data from TVDB (``_fetch_season_episodes_tvdb``), a TMDB-matched show from
+    TMDB (``_fetch_season_episodes``) — the shared twins also used by
+    ``existing_validator``. Never queries TMDB for a TVDB-matched show's
+    episodes (which would 404 on the TVDB id).
 
     Args:
         show_dir: Path to TV show directory.
-        show_data: TMDB MediaDetails (typed model, not a raw dict).
-        tmdb_id: TMDB show ID.
-        tmdb_client: TMDB API client (already resolved from registry).
+        show_data: Show metadata (TMDB MediaDetails or TVDB-derived dict).
+        source: Matched provider — ``"tvdb"`` or ``"tmdb"``.
+        api_id: Provider id (TVDB series id when source == 'tvdb', else TMDB id).
+        registry: ProviderRegistry to resolve the matched provider's client.
         patterns: NamingPatterns instance.
         dry_run: Preview without changes.
-        episode_default_name: Prefix used when the provider has no episode
-            title in the configured scraper language.
     """
     from personalscraper.naming_patterns import SEASON_DIR_RE
     from personalscraper.scraper.episode_manager import (
@@ -477,8 +507,12 @@ def _rescrape_episodes(
         match_episode_files,
         rename_episodes,
     )
+    from personalscraper.scraper.existing_validator_repair import (
+        _fetch_season_episodes,
+        _fetch_season_episodes_tvdb,
+    )
 
-    # Discover season numbers from local filesystem (MediaDetails has no seasons array).
+    # Discover season numbers from local filesystem (show_data has no seasons array).
     season_nums = sorted(
         {
             int(m.group(1))
@@ -490,24 +524,24 @@ def _rescrape_episodes(
     if not season_nums:
         return
 
-    all_episodes = {}
-    for season_num in season_nums:
-        try:
-            season_data = tmdb_client.get_tv_season(tmdb_id, season_num)
-            for ep in season_data.episodes:
-                ep_num = ep.episode_number
-                all_episodes[(season_num, ep_num)] = {
-                    "title": ep.title or f"{episode_default_name} {ep_num}",
-                    "still_path": "",
-                }
-        except Exception as exc:
-            log.warning(
-                "library_rescrape_season_fetch_failed",
-                season=season_num,
-                show=show_dir.name,
-                exc_info=True,
-                error=str(exc),
-            )
+    # Source-aware episode fetch (TVDB-primary): use the shared twins, never
+    # tmdb.get_tv_season on a TVDB id (the divergence that caused the 404 abort).
+    try:
+        if source == "tvdb":
+            tvdb_client = cast("TVDBClient", registry.get("tvdb"))
+            all_episodes = _fetch_season_episodes_tvdb(tvdb_client, api_id, season_nums)
+        else:
+            tmdb_client = cast("TMDBClient", registry.get("tmdb"))
+            all_episodes = _fetch_season_episodes(tmdb_client, api_id, season_nums)
+    except Exception as exc:
+        log.warning(
+            "library_rescrape_season_fetch_failed",
+            show=show_dir.name,
+            source=source,
+            exc_info=True,
+            error=str(exc),
+        )
+        all_episodes = {}
 
     if not all_episodes:
         return

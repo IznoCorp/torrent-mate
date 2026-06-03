@@ -25,6 +25,60 @@ from personalscraper.scraper.models import ScraperExternalIds
 log = get_logger("scraper")
 
 
+def fetch_show_data(
+    source: str,
+    api_id: int,
+    provider: Any,
+    *,
+    preferred_language: str,
+    fallback_language: str,
+) -> tuple[dict[str, Any], int | None]:
+    """Fetch full TV-show metadata honouring the source-of-match invariant.
+
+    The single source of truth for the TVDB-primary / TMDB-fallback show-data
+    fetch, shared by the initial scrape (``tv_service._lookup_series``) and the
+    maintenance rescraper so the provider-priority discipline lives in ONE
+    place. The matched provider (``source``) dictates which client method is
+    called: a TVDB-matched show is fetched from TVDB (never ``tmdb.get_tv`` with
+    a TVDB id — the divergence this helper unifies away), a TMDB-matched show
+    from TMDB.
+
+    Args:
+        source: Matched provider — ``"tvdb"`` or ``"tmdb"`` (``MatchResult.source``).
+        api_id: TVDB series id when ``source == "tvdb"``, else the TMDB id.
+        provider: The registry-resolved metadata client for ``source``.
+        preferred_language: Primary language for the TVDB → show_data conversion.
+        fallback_language: Fallback language for the conversion.
+
+    Returns:
+        ``(show_data, tmdb_id)``. ``tmdb_id`` is the cross-referenced TMDB id
+        (``None`` for a TVDB-only show); for a TMDB match it equals ``api_id``.
+    """
+    if source == "tvdb":
+        tvdb_data = provider.get_series(api_id)
+        remote_ids: dict[str, str] = tvdb_data.external_ids if hasattr(tvdb_data, "external_ids") else {}
+        raw_tmdb = remote_ids.get("tmdb")
+        tmdb_id = int(raw_tmdb) if raw_tmdb else None
+        imdb_id = remote_ids.get("imdb") or ""
+        if not tmdb_id:
+            log.info("show_tvdb_only", tvdb_id=api_id)
+        show_data = _tvdb_series_to_show_data(
+            tvdb_data,
+            api_id,
+            provider,
+            preferred_language=preferred_language,
+            fallback_language=fallback_language,
+            external_ids=ScraperExternalIds(tmdb_id=tmdb_id, imdb_id=imdb_id),
+        )
+        return show_data, tmdb_id
+
+    # source == "tmdb": fetch directly from TMDB.
+    from personalscraper.scraper.movie_service import _coerce_to_show_data  # noqa: PLC0415
+
+    show_data = _coerce_to_show_data(provider.get_tv(api_id))
+    return show_data, api_id
+
+
 def _tvdb_series_to_show_data(
     tvdb_data: "MediaDetails | dict[str, Any]",
     tvdb_id: int,
