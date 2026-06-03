@@ -338,8 +338,6 @@ def test_run_ingest_emits_item_progressed_per_torrent(
         get_completed=lambda: [torrent],
         get_all_hashes=lambda: {"abc"},
     )
-    monkeypatch.setattr("personalscraper.ingest.ingest.build_active_torrent_client", lambda *_a, **_k: client)
-    monkeypatch.setattr("personalscraper.ingest.ingest.QBitClient", lambda **_kw: client)
 
     tracker = MagicMock(is_ingested=lambda _h: True, get_entry=lambda _h: None)
     monkeypatch.setattr("personalscraper.ingest.ingest.IngestTracker", lambda *_a, **_k: tracker)
@@ -350,6 +348,8 @@ def test_run_ingest_emits_item_progressed_per_torrent(
     config.paths.data_dir = tmp_path / ".data"
     config.paths.data_dir.mkdir(exist_ok=True)
 
+    # The torrent client is now boot-wired into AppContext (DESIGN D3) and
+    # passed in explicitly rather than built inside run_ingest.
     run_ingest(
         MagicMock(),
         dry_run=True,
@@ -357,6 +357,7 @@ def test_run_ingest_emits_item_progressed_per_torrent(
         staging_dir=tmp_path,
         config=config,
         event_bus=bus,
+        torrent_client=client,
     )
 
     assert sub.received, "ingest emitted no ItemProgressed"

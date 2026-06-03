@@ -19,7 +19,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from personalscraper.core.media_types import VIDEO_EXTENSIONS
+from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_archive_filename
 from personalscraper.naming_patterns import SEASON_DIR_RE
 from personalscraper.verify.checks.base import CheckResult, CheckStage, Severity
 from personalscraper.verify.checks.registry import register_check
@@ -289,6 +289,51 @@ class RootVideoFiles:
             CheckResult(
                 name="root_video_files",
                 passed=len(root_videos) == 0,
+                severity=Severity.ERROR,
+                message=message,
+            )
+        ]
+
+
+@register_check
+class NoArchiveFiles:
+    """Check that no un-extracted archive files remain (both media types).
+
+    Scene releases ship the real video inside a multi-part RAR set. The CLEAN
+    step extracts them before scrape; if extraction failed (corrupt archive or
+    missing ``unrar`` backend) the archives are deliberately preserved on disk.
+    This check blocks dispatch of any item that still holds archive parts so a
+    RAR set is never shipped to the library and the operator is alerted to
+    extract it manually (DEV #1 safety net).
+    """
+
+    name = "no_archive_files"
+    group = "structure"
+    stages = frozenset({CheckStage.DISPATCH})
+    media_types = frozenset({"movie", "tvshow"})
+    default_severity = Severity.ERROR
+    description = "No un-extracted archive files (.rar/.r00/.zip/.7z) allowed"
+
+    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+        """Return ``[CheckResult]`` — passed=False when archive files remain.
+
+        Args:
+            ctx: Shared check context.
+
+        Returns:
+            Single-element list with the ``no_archive_files`` result.
+        """
+        archives = sorted(f for f in ctx.media_dir.rglob("*") if f.is_file() and is_archive_filename(f.name))
+        if archives:
+            names = ", ".join(f.name for f in archives[:3])
+            suffix = f" (+{len(archives) - 3} more)" if len(archives) > 3 else ""
+            message = f"Un-extracted archives present: {names}{suffix}"
+        else:
+            message = ""
+        return [
+            CheckResult(
+                name="no_archive_files",
+                passed=len(archives) == 0,
                 severity=Severity.ERROR,
                 message=message,
             )

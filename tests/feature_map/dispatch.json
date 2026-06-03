@@ -9,6 +9,7 @@
         "tests/integration/test_design_dispatch.py::TestMovieReplaceContract::test_replace_swaps_destination_atomically",
         "tests/integration/test_design_dispatch.py::TestNewMediaDiskSelectionContract::test_pick_disk_for_returns_most_free_eligible",
         "tests/integration/test_design_dispatch.py::TestNewMediaDiskSelectionContract::test_pick_disk_for_returns_none_when_no_disk_eligible",
+        "tests/integration/test_design_dispatch.py::TestTvShowMergeContract::test_existing_folder_matched_by_provider_id_when_name_differs",
         "tests/integration/test_design_dispatch.py::TestTvShowMergeContract::test_purge_resolves_episode_conflicts_on_season_episode_key"
       ]
     }

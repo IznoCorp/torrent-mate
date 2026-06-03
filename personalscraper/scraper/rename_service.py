@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from personalscraper.core.media_types import VIDEO_EXTENSIONS
+from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_archive_filename, is_sample_path
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
 
@@ -152,11 +152,21 @@ def _cleanup_empty_release_dirs(show_dir: Path) -> int:
             continue
         if SEASON_DIR_RE.match(subdir.name):
             continue
-        # Check if subdir has any video files (recursively)
-        has_video = any(f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS for f in subdir.rglob("*"))
-        if has_video:
+        files = [f for f in subdir.rglob("*") if f.is_file()]
+        # Keep the subdir if it still holds a REAL (non-sample) video — sample
+        # clips no longer count as content (DEV #1) so a sample-only leftover
+        # release dir is removed here.
+        has_real_video = any(f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS and not is_sample_path(f) for f in files)
+        if has_real_video:
             continue
-        non_video_files = [f.name for f in subdir.rglob("*") if f.is_file()]
+        # Preserve a subdir that still holds un-extracted archives: extraction
+        # failed (or never ran), and deleting it would destroy the only copy of
+        # the real content. The no_archive_files verify check blocks dispatch so
+        # the operator can extract it manually (DEV #1 safety net).
+        if any(is_archive_filename(f.name) for f in files):
+            log.warning("release_dir_archive_retained", directory=subdir.name, files=[f.name for f in files])
+            continue
+        non_video_files = [f.name for f in files]
         if non_video_files:
             log.warning("release_dir_residual_files", directory=subdir.name, files=non_video_files)
         try:

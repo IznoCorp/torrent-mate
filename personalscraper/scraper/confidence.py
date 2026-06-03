@@ -221,6 +221,14 @@ def _score_result(
     - **original_title**: an English-named folder ("The Frighteners") matches a
       localized TMDB/TVDB title ("Fantômes contre fantômes") poorly but the
       original_title exactly — so a localized result is not unfairly beaten.
+    - **aliases**: a folder named with a translated/alternate title ("Murder
+      Mindfully") matches a foreign-primary candidate ("Achtsam Morden") via one
+      of its alias/translation titles (DEV #2). Best-of only RAISES a candidate's
+      score (never lowers it), and the per-alias superstring penalty still
+      applies, so an alias cannot make a wrong candidate outrank an exact-title
+      match of the same year; for TV the season-veto is the additional guard when
+      the folder has parseable seasons. (Note: ``match_tvshow_tvdb`` has no
+      runner-up "ambiguity" warning — that exists only on the movie path.)
     - **superstring penalty**: a content-expansion candidate (sequel, making-of,
       "X: Subtitle") is demoted so it does not outrank the exact title.
 
@@ -237,6 +245,7 @@ def _score_result(
     titles = [result.title]
     if result.original_title and result.original_title != result.title:
         titles.append(result.original_title)
+    titles.extend(alias for alias in result.aliases if alias and alias not in titles)
     best = -1.0
     for api_title in titles:
         scored = score_match(local_title, local_year, api_title, result.year) + _superstring_penalty(

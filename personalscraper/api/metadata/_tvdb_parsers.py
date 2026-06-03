@@ -117,28 +117,50 @@ def parse_search_result(raw: dict[str, Any], provider: str) -> SearchResult:
         except (ValueError, TypeError):
             year = None
 
-    # TVDB exposes localised title via ``translations[*].name`` when
-    # available; the search response returns the canonical English (or
-    # primary) title in ``name``. Surface ``original_title`` as a copy
-    # of ``name`` when no translations array is present so consumers can
-    # treat both fields uniformly across providers.
+    # TVDB exposes alternate titles two ways in the live /search response:
+    # ``translations`` is a DICT keyed by ISO-639-3 language
+    # ({"eng": "Murder Mindfully", "deu": "Achtsam Morden", ...}) and
+    # ``aliases`` is a flat list[str]. The canonical (often non-English) title
+    # is in ``name``. We surface the English translation as ``original_title``
+    # and ALL alternate titles (every translation value + every alias) as
+    # ``aliases`` so a folder named with any translated title still matches
+    # (DEV #2). A legacy list-of-dicts ``translations`` shape is still handled
+    # defensively.
+    name = raw.get("name", "") or ""
     original = ""
-    translations = raw.get("translations") or []
-    if isinstance(translations, list):
+    alt_titles: list[str] = []
+    translations = raw.get("translations") or {}
+    if isinstance(translations, dict):
+        original = translations.get("eng", "") or ""
+        alt_titles.extend(v for v in translations.values() if isinstance(v, str) and v)
+    elif isinstance(translations, list):
         for t in translations:
-            if isinstance(t, dict) and t.get("language") == "eng" and t.get("name"):
-                original = t["name"]
-                break
+            if isinstance(t, dict) and t.get("name"):
+                if t.get("language") == "eng" and not original:
+                    original = t["name"]
+                alt_titles.append(t["name"])
+    raw_aliases = raw.get("aliases") or []
+    if isinstance(raw_aliases, list):
+        alt_titles.extend(a for a in raw_aliases if isinstance(a, str) and a)
+
+    # Dedup (preserve order), dropping the primary title and empties.
+    seen: set[str] = set()
+    aliases: list[str] = []
+    for alt in alt_titles:
+        if alt and alt != name and alt not in seen:
+            seen.add(alt)
+            aliases.append(alt)
 
     return SearchResult(
         provider=provider,
         provider_id=str(raw.get("tvdb_id", raw.get("id", ""))),
-        title=raw.get("name", "") or "",
+        title=name,
         year=year,
         media_type=media_type,  # type: ignore[arg-type]
         overview=raw.get("overview", "") or "",
         poster_url=raw.get("image_url", "") or "",
         original_title=original,
+        aliases=tuple(aliases),
     )
 
 

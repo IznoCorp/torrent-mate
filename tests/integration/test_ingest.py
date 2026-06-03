@@ -118,6 +118,7 @@ def test_ingest_filters_completed_and_untracked(
         ingest_dir=ingest_dir,
         staging_dir=staging_tree,
         event_bus=EventBus(),
+        torrent_client=fake_qbit,
     )
 
     # Exactly one folder should appear in 097-TEMP (the completed torrent)
@@ -209,6 +210,7 @@ def test_ingest_ratio_threshold(
         ingest_dir=ingest_dir,
         staging_dir=staging_tree,
         event_bus=EventBus(),
+        torrent_client=fake_qbit,
     )
 
     ingested_entries = [e for e in ingest_dir.iterdir() if e.is_dir()]

@@ -437,3 +437,56 @@ class TestLibraryRelink:
         result = runner.invoke(app, ["library-relink", "--dry-run", "--apply"])
         assert result.exit_code == 1
         assert "mutually exclusive" in result.output
+
+
+class TestLibraryReconcileCleanFkOrphans:
+    """--clean-fk-orphans gating (DEV #3 + review COV-1): dry-run-first.
+
+    The flag must forward clean_fk_orphans=True only when NOT in a read-only /
+    dry-run preview — otherwise a write (destructive ON DELETE CASCADE) would
+    run under --dry-run, violating the project's dry-run-first hard rule.
+    """
+
+    def test_clean_flag_applies(self) -> None:
+        """--clean-fk-orphans alone forwards clean_fk_orphans=True (apply)."""
+        with patch(
+            "personalscraper.indexer.cli.library_reconcile_command",
+            return_value=(0, {"total_findings": 0}),
+        ) as mock_cmd:
+            result = runner.invoke(app, ["library-reconcile", "--clean-fk-orphans"])
+        assert result.exit_code == 0
+        _, kwargs = mock_cmd.call_args
+        assert kwargs["clean_fk_orphans"] is True
+
+    def test_clean_flag_with_dry_run_is_preview(self) -> None:
+        """--clean-fk-orphans --dry-run previews (clean_fk_orphans=False)."""
+        with patch(
+            "personalscraper.indexer.cli.library_reconcile_command",
+            return_value=(0, {"total_findings": 0}),
+        ) as mock_cmd:
+            result = runner.invoke(app, ["library-reconcile", "--clean-fk-orphans", "--dry-run"])
+        assert result.exit_code == 0
+        _, kwargs = mock_cmd.call_args
+        assert kwargs["clean_fk_orphans"] is False
+
+    def test_clean_flag_with_read_only_is_preview(self) -> None:
+        """--clean-fk-orphans --read-only previews (clean_fk_orphans=False)."""
+        with patch(
+            "personalscraper.indexer.cli.library_reconcile_command",
+            return_value=(0, {"total_findings": 0}),
+        ) as mock_cmd:
+            result = runner.invoke(app, ["library-reconcile", "--clean-fk-orphans", "--read-only"])
+        assert result.exit_code == 0
+        _, kwargs = mock_cmd.call_args
+        assert kwargs["clean_fk_orphans"] is False
+
+    def test_default_does_not_clean(self) -> None:
+        """No flag → clean_fk_orphans=False (detect/report only)."""
+        with patch(
+            "personalscraper.indexer.cli.library_reconcile_command",
+            return_value=(0, {"total_findings": 0}),
+        ) as mock_cmd:
+            result = runner.invoke(app, ["library-reconcile"])
+        assert result.exit_code == 0
+        _, kwargs = mock_cmd.call_args
+        assert kwargs["clean_fk_orphans"] is False

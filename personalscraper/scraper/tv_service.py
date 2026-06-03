@@ -14,7 +14,7 @@ from personalscraper.api.metadata._contracts import TvDetailsProvider
 from personalscraper.api.metadata._tvdb_parsers import map_language
 from personalscraper.api.metadata.registry import AttemptOutcome, RegistryProviderName
 from personalscraper.api.metadata.registry._errors import ProviderExhausted
-from personalscraper.core.media_types import VIDEO_EXTENSIONS
+from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_sample_path
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
@@ -23,11 +23,13 @@ from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper._tvdb_convert import (
     _tvdb_series_to_show_data as _tvdb_series_to_show_data,
 )
+from personalscraper.scraper._tvdb_convert import (
+    fetch_show_data,
+)
 from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.confidence import LOW_CONFIDENCE
 from personalscraper.scraper.episode_manager import create_season_dirs, match_episode_files, rename_episodes
 from personalscraper.scraper.existing_validator import _infer_year_from_child_names, _local_show_seasons
-from personalscraper.scraper.models import ScraperExternalIds
 from personalscraper.scraper.nfo_generator import NFOGenerator
 from personalscraper.scraper.rename_service import (
     _cleanup_empty_release_dirs,
@@ -313,6 +315,7 @@ class TvServiceMixin:
             and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
             and (drift_rescrape_episode_nfo or not _is_in_season_dir(f))
             and "Trailers" not in f.parts
+            and not is_sample_path(f)
         )
 
         if video_files:
@@ -498,32 +501,16 @@ class TvServiceMixin:
             if provider_name != match.source:
                 continue
             try:
-                if match.source == "tvdb":
-                    tvdb_data = provider.get_series(match.api_id)  # type: ignore[attr-defined]
-                    if hasattr(tvdb_data, "external_ids"):
-                        remote_ids: dict[str, str] = tvdb_data.external_ids
-                    else:
-                        remote_ids = {}
-                    raw_tmdb = remote_ids.get("tmdb")
-                    tmdb_id = int(raw_tmdb) if raw_tmdb else None
-                    imdb_id = remote_ids.get("imdb") or ""
-                    if not tmdb_id:
-                        log.info("show_tvdb_only", tvdb_id=match.api_id)
-                    show_data = _tvdb_series_to_show_data(
-                        tvdb_data,
-                        match.api_id,
-                        provider,
-                        preferred_language=self._scraper_language,
-                        fallback_language=self._scraper_fallback_language,
-                        external_ids=ScraperExternalIds(tmdb_id=tmdb_id, imdb_id=imdb_id),
-                    )
-                else:
-                    # Local import: avoids the movie_service ↔ tv_service
-                    # circular dependency at module load.
-                    from personalscraper.scraper.movie_service import _coerce_to_show_data  # noqa: PLC0415
-
-                    tmdb_id = match.api_id
-                    show_data = _coerce_to_show_data(provider.get_tv(tmdb_id))  # type: ignore[attr-defined]
+                # Source-aware show-data fetch — the TVDB-primary / TMDB-fallback
+                # branch now lives once in fetch_show_data, shared with the
+                # maintenance rescraper so the discipline cannot diverge.
+                show_data, tmdb_id = fetch_show_data(
+                    match.source,
+                    match.api_id,
+                    provider,
+                    preferred_language=self._scraper_language,
+                    fallback_language=self._scraper_fallback_language,
+                )
                 break
             except CircuitOpenError as exc:
                 details_attempted.append(

@@ -36,6 +36,11 @@ class SearchResult:
         original_title: Original-language title (for matching localised
             releases against their original-name folders, e.g. matching
             'The Butterfly Effect' against 'L'Effet papillon').
+        aliases: Alternate/translated titles for the same media (TVDB
+            ``aliases[]`` + translation values), used so a folder named with a
+            translated title (e.g. 'Murder Mindfully' for the German-primary
+            'Achtsam Morden') still matches. Empty for providers that do not
+            surface alternates.
     """
 
     provider: str
@@ -46,6 +51,7 @@ class SearchResult:
     overview: str = ""
     poster_url: str = ""
     original_title: str = ""
+    aliases: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -307,3 +307,49 @@ class TestParseVideo:
     def test_empty_url_returns_none(self) -> None:
         """No URL → None."""
         assert parse_video({"id": 1, "url": ""}) is None
+
+
+class TestParseSearchResultDictTranslationsAndAliases:
+    """DEV #2: live dict-shaped translations + aliases[] surface alternate titles."""
+
+    def test_dict_translations_eng_becomes_original(self) -> None:
+        """Dict-shaped translations (the live API shape) surface eng as original."""
+        result = parse_search_result(
+            {
+                "tvdb_id": "420001",
+                "name": "Achtsam Morden",
+                "type": "series",
+                "year": "2024",
+                "translations": {"deu": "Achtsam Morden", "eng": "Murder Mindfully"},
+            },
+            "tvdb",
+        )
+        assert result.original_title == "Murder Mindfully"
+        assert "Murder Mindfully" in result.aliases
+
+    def test_aliases_array_surfaced(self) -> None:
+        """The flat ``aliases[]`` list is carried into SearchResult.aliases."""
+        result = parse_search_result(
+            {
+                "tvdb_id": "1",
+                "name": "Breaking Bad",
+                "type": "series",
+                "aliases": ["Ruptura Total", "Breaking Bad: Original Minisodes"],
+            },
+            "tvdb",
+        )
+        assert "Ruptura Total" in result.aliases
+
+    def test_primary_title_excluded_from_aliases(self) -> None:
+        """The primary ``name`` is never duplicated into aliases."""
+        result = parse_search_result(
+            {
+                "tvdb_id": "1",
+                "name": "Breaking Bad",
+                "type": "series",
+                "translations": {"eng": "Breaking Bad", "fra": "Breaking Bad"},
+                "aliases": ["Breaking Bad"],
+            },
+            "tvdb",
+        )
+        assert "Breaking Bad" not in result.aliases

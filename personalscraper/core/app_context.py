@@ -26,6 +26,8 @@ if TYPE_CHECKING:
     # The frozen dataclass stores them by reference; the runtime never
     # inspects their types.
     from personalscraper.api.metadata.registry import ProviderRegistry
+    from personalscraper.api.torrent.qbittorrent import QBitClient
+    from personalscraper.api.torrent.transmission import TransmissionClient
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
     from personalscraper.core.event_bus import EventBus
@@ -51,12 +53,16 @@ class AppContext:
             hand the registry (or specific capabilities) down to the
             components that need them — see the boundary allowlist in
             ``tests/architecture/test_app_context_boundary.py``.
+        torrent_client: Active torrent client, or ``None`` when no torrent
+            client is configured (DESIGN D3/D9). Boundary modules read this
+            field to pass the client to pipeline steps without re-building it.
     """
 
     config: Config
     settings: Settings
     event_bus: EventBus
     provider_registry: ProviderRegistry
+    torrent_client: "QBitClient | TransmissionClient | None" = None
 
 
 __all__ = ["AppContext"]

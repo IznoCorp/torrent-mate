@@ -228,6 +228,7 @@ class Dispatcher:
         self,
         name: str,
         media_type: str,
+        media_dir: Path | None = None,
     ) -> IndexEntry | None:
         """Resolve an existing entry for ``name`` validated against the filesystem.
 
@@ -246,16 +247,34 @@ class Dispatcher:
         Args:
             name: Directory name (source folder basename).
             media_type: ``"movie"`` or ``"tvshow"``.
+            media_dir: Staging directory of the item being dispatched, passed
+                through to the index so a name miss can fall back to a
+                canonical-provider-id match (recognising the same title on disk
+                under a different folder name).
 
         Returns:
             IndexEntry with a validated (existing) path, or ``None`` if the
             item is not present on any disk.
         """
-        entry = self.index.find(name, media_type, fuzzy_config=self.config.fuzzy_match)
+        entry = self.index.find(
+            name,
+            media_type,
+            fuzzy_config=self.config.fuzzy_match,
+            media_dir=media_dir,
+        )
         if entry is not None and Path(entry.path).exists():
             return entry
 
         # Index says a location that doesn't exist -- scan disks for reality.
+        # Probe the staging name and, for a provider-id match whose stored path
+        # has drifted, the matched entry's own (differently-spelled) basename —
+        # otherwise a drifted id-match would be demoted to "new" and re-split.
+        candidate_names = [name]
+        if entry is not None:
+            entry_name = Path(entry.path).name
+            if entry_name and entry_name != name:
+                candidate_names.append(entry_name)
+
         for disk_cfg in self._disk_configs:
             if not disk_cfg.path.exists():
                 continue
@@ -272,8 +291,10 @@ class Dispatcher:
                 )
                 continue
             for category_dir in category_dirs:
-                candidate = category_dir / name
-                if candidate.is_dir():
+                for candidate_name in candidate_names:
+                    candidate = category_dir / candidate_name
+                    if not candidate.is_dir():
+                        continue
                     if entry is not None:
                         log.warning(
                             "index_drift_detected",
@@ -283,7 +304,7 @@ class Dispatcher:
                             fs_disk=disk_cfg.id,
                         )
                     return IndexEntry(
-                        name=name,
+                        name=candidate_name,
                         disk=disk_cfg.id,
                         category=(entry.category if entry else category_dir.name),
                         path=str(candidate),

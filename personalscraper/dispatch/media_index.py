@@ -283,19 +283,31 @@ class MediaIndex:
         name: str,
         media_type: str,
         fuzzy_config: FuzzyMatchConfig | None = None,
+        media_dir: Path | None = None,
     ) -> IndexEntry | None:
-        """Find a media entry by name.
+        """Find a media entry by name, then by canonical provider id.
 
-        Strategy: exact normalized lookup first (via stored
-        ``dispatch_normalized_title`` attribute), then fuzzy matching with
-        anti-false-positive guards (year, length ratio, adaptive threshold
-        via ``fuzzy_match_score``).
+        Strategy, in order: (1) exact normalized lookup via the stored
+        ``dispatch_normalized_title`` attribute; (2) **provider-id** lookup —
+        when ``media_dir`` is supplied and the name missed, match an existing
+        on-disk entry by the staging item's canonical provider id (parsed from
+        ``media_dir``'s NFO), which recognises a show/movie already on disk
+        under a different folder name (localized title, wrong year) as the same
+        item; (3) fuzzy name matching with anti-false-positive guards (year,
+        length ratio, adaptive threshold via ``fuzzy_match_score``). The
+        provider-id pass sits between exact and fuzzy so it rescues a name miss
+        with the reliable canonical identity before resorting to fuzzy guessing,
+        and never overrides an exact-name hit.
 
         Args:
             name: Media directory name to search.
             media_type: ``"movie"`` or ``"tvshow"`` to filter results.
             fuzzy_config: Optional thresholds from ``Config.fuzzy_match``.
                 Defaults applied when None.
+            media_dir: Optional staging directory of the item being dispatched.
+                When provided, its NFO is parsed for provider ids to enable the
+                provider-id pass. ``None`` (or a folder with no usable id) skips
+                that pass and behaves exactly as the prior name-only lookup.
 
         Returns:
             Matching IndexEntry, or None if not found.
@@ -324,6 +336,15 @@ class MediaIndex:
                 media_type=media_type,
                 last_updated=datetime.fromtimestamp(item_row.date_modified, tz=timezone.utc).isoformat(),
             )
+
+        # Provider-id fallback: a staging item already on disk under a
+        # different folder name (localized title, wrong year) shares its
+        # canonical provider id with the on-disk entry. Match on that id before
+        # fuzzy guessing to avoid splitting the same show across two folders.
+        if media_dir is not None:
+            id_entry = self._find_by_provider_id(media_dir, kind, media_type)
+            if id_entry is not None:
+                return id_entry
 
         # Fuzzy fallback with anti-false-positive guards.
         try:
@@ -377,6 +398,71 @@ class MediaIndex:
         except ImportError:
             log.warning("fuzzy_match_disabled", reason="rapidfuzz_not_available")
             return None
+
+    def _find_by_provider_id(
+        self,
+        media_dir: Path,
+        kind: MediaItemKind,
+        media_type: str,
+    ) -> IndexEntry | None:
+        """Resolve an existing entry by the staging item's canonical provider id.
+
+        Parses ``media_dir``'s NFO with the same primitive :meth:`add` uses
+        (``_nfo_metadata_for_dir``) to obtain the item's provider ids, then
+        queries :func:`item_repo.find_by_external_id` for an on-disk entry of
+        the same ``kind`` sharing one of them. The canonical provider is tried
+        first (TVDB for shows, TMDB for movies — the strict provider-family
+        separation), then any other present id as a fallback. Each query keys a
+        provider id against that *same* provider's column, so families never
+        cross-contaminate.
+
+        Args:
+            media_dir: Staging directory of the item being dispatched.
+            kind: Indexer kind (``"movie"`` or ``"show"``).
+            media_type: Dispatch media_type (``"movie"`` or ``"tvshow"``) for
+                the returned entry and the lookup log.
+
+        Returns:
+            The matching IndexEntry, or ``None`` when the staging folder carries
+            no usable id or no on-disk entry shares one.
+        """
+        if not media_dir.is_dir():
+            return None
+        nfo_title, _year = parse_title_year(media_dir.name)
+        meta, _status = _nfo_metadata_for_dir(media_dir, nfo_title, kind == "show")
+
+        # Build provider→id candidates, canonical provider first then the rest.
+        ordered = ["tvdb", "tmdb", "imdb"]
+        canonical = meta.get("canonical_provider")
+        if canonical in ordered:
+            ordered.remove(canonical)
+            ordered.insert(0, canonical)
+        candidates = [(p, str(meta[f"{p}_id"])) for p in ordered if meta.get(f"{p}_id")]
+
+        for provider, series_id in candidates:
+            result = item_repo.find_by_external_id(self._conn, provider, series_id, kind)
+            if result is None:
+                continue
+            item_row, dispatch_disk, dispatch_path = result
+            log.info(
+                "indexer.dispatch.lookup_hit",
+                name=media_dir.name,
+                media_type=media_type,
+                match_type="external_id",
+                provider=provider,
+                title=item_row.title,
+                disk=dispatch_disk,
+                category=item_row.category_id,
+            )
+            return IndexEntry(
+                name=item_row.title,
+                disk=dispatch_disk,
+                category=item_row.category_id,
+                path=dispatch_path,
+                media_type=media_type,
+                last_updated=datetime.fromtimestamp(item_row.date_modified, tz=timezone.utc).isoformat(),
+            )
+        return None
 
     def add(self, entry: IndexEntry) -> None:
         """Add or update an entry in the index.

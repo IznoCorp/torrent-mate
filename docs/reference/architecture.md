@@ -55,6 +55,12 @@ staging/
 │   │   ├── transport/           # HttpTransport + TransportPolicy + auth/retry/circuit/rate
 │   │   ├── metadata/            # MetadataClient family — tmdb, tvdb, omdb, trakt, imdb, rotten_tomatoes
 │   │   ├── torrent/             # TorrentClient family — qbittorrent, transmission
+│   │   │   ├── _base.py              # TorrentItem, TorrentSource, TorrentLimits
+│   │   │   ├── _contracts.py         # TorrentLister, TorrentInspector, TorrentController,
+│   │   │   │                         # TorrentAdder, TorrentLimiter (Protocols)
+│   │   │   ├── _factory.py           # build_client, build_active_torrent_client
+│   │   │   ├── qbittorrent.py        # QBitClient (Adder + Limiter)
+│   │   │   └── transmission.py       # TransmissionClient (Adder only)
 │   │   ├── tracker/             # TrackerClient + ranking engine — lacale, c411
 │   │   └── notify/              # Notifier + HealthChecker — telegram, healthchecks
 │   ├── core/            # Reusable cross-cutting infrastructure (post-api-unify)
@@ -332,8 +338,9 @@ Cross-cutting:
 
 - **core/event_bus.py** — pub-sub for events (no business logic). Process-scoped,
   one `EventBus` per `AppContext`.
-- **core/app_context.py** — per-invocation context (`event_bus` +
-  `correlation_id`).
+- **core/app_context.py** — per-invocation service bundle (`config` +
+  `settings` + `event_bus` + `provider_registry` + `torrent_client`).
+  Frozen dataclass; see [AppContext Field Table](#appcontext-field-table).
 - **conf/** — Pydantic config loader (`paths.json5`, `patterns.json5`,
   `indexer.json5`, `preferences.json5`). Read-only at runtime.
 - **transports/** — `HttpTransport` + `TransportPolicy` (rate limit, retry,
@@ -435,6 +442,83 @@ base-`Event` subscribers. The event catalog count is 23.
 TvDetailsProvider)`.
 - `docs/reference/external-ids-flow.md` — cross-provider id flow at the
   pipeline level.
+
+## Torrent Client Boot-Wiring (torrent-write, v0.21.0)
+
+The `torrent-write` feature promotes the active torrent client into
+`AppContext`, validates it at boot (fail-fast) **for the commands that consume
+it**, and defines two new capability Protocols. This mirrors the metadata
+`ProviderRegistry` boot pattern but is simpler: a single client, not a
+multi-provider registry.
+
+### Torrent Family — Capability Table
+
+The torrent family (`api/torrent/`) defines 7 atomic `@runtime_checkable`
+Protocols in `_contracts.py`. The two new ones (`TorrentAdder`, `TorrentLimiter`)
+were added in `torrent-write`; the five pre-existing ones were unchanged.
+
+| Capability              | QBitClient | TransmissionClient | Protocol file         |
+| ----------------------- | ---------- | ------------------ | --------------------- |
+| `TorrentLister`         | ✓          | ✓                  | `_contracts.py` (pre) |
+| `TorrentInspector`      | ✓          | ✓                  | `_contracts.py` (pre) |
+| `AuthenticatedClient`   | ✓          | ✗                  | `_contracts.py` (pre) |
+| `TorrentStateInspector` | ✓          | ✓                  | `_contracts.py` (pre) |
+| `TorrentController`     | ✓          | ✓                  | `_contracts.py` (pre) |
+| `TorrentAdder`          | ✓          | ✓                  | `_contracts.py` (new) |
+| `TorrentLimiter`        | ✓          | ✗                  | `_contracts.py` (new) |
+
+- **`TorrentAdder`**: `add(source, *, category, tags, paused, limits) → str` —
+  returns the `info_hash` (D6). Composed by both clients.
+- **`TorrentLimiter`**: `apply_limits(info_hash, limits) → None` — composed by
+  qBittorrent only. Transmission lacks per-torrent ratio/bandwidth/seed-time RPC
+  methods (D2). Passing `limits` to `TransmissionClient.add()` raises
+  `UnsupportedCapabilityError` (D8).
+
+### `AppContext` Field Table
+
+`AppContext` is the frozen process-scoped service container
+(`core/app_context.py`, line 37). The `torrent_client` field was added in
+`torrent-write`.
+
+| Field               | Type                                       | Description                                          |
+| ------------------- | ------------------------------------------ | ---------------------------------------------------- |
+| `config`            | `Config`                                   | Typed JSON5 configuration                            |
+| `settings`          | `Settings`                                 | Pydantic env-var settings (API keys, paths)          |
+| `event_bus`         | `EventBus`                                 | In-process pub-sub for cross-component events        |
+| `provider_registry` | `ProviderRegistry`                         | Capability-keyed metadata provider dispatch          |
+| `torrent_client`    | `QBitClient \| TransmissionClient \| None` | Active torrent client; `None` when unconfigured (D9) |
+
+### Boot Sequence
+
+`_build_app_context(config, settings, *, build_torrent_client=False)`
+(`cli_helpers/__init__.py`) handles torrent client resolution after the metadata
+`ProviderRegistry` is constructed. The build is **gated on `build_torrent_client`**:
+
+1. **When `build_torrent_client` is True _and_ `config.torrent.active` is set**
+   (non-empty string):
+   - Calls `build_active_torrent_client(config.torrent)` from
+     `api/torrent/_factory.py` to instantiate the client (a live network
+     connect + login).
+   - Asserts the result is `isinstance(raw_client, TorrentAdder)` — fails
+     with `RegistryConfigError` (code `protocol_mismatch`, section `torrent`)
+     if the client does not compose the adder capability (D3 fail-fast).
+   - Stores the validated client in `torrent_client`.
+2. **Otherwise** (`build_torrent_client` False, or `config.torrent.active`
+   empty `""`):
+   - `torrent_client` stays `None` — no boot error, no daemon contact.
+
+**Who sets `build_torrent_client=True`:** only the commands that actually read
+`ctx.torrent_client` — `run` (includes the ingest step), the standalone
+`ingest` subcommand, and `torrents_list`. Read-only commands (`library *`,
+`trailers`, `maintenance`, `info`) leave it `False` so they never connect or
+log in to the torrent daemon at boot. This prevents a configured-but-unreachable
+daemon (or a stale-credential login, which would write a 1-hour auth lockout
+that blocks the next ingest) from breaking a command that has nothing to do with
+torrents (review #1/#2/#5).
+
+This replaces the previous lazy-per-step `build_active_torrent_client()` calls
+in `ingest/ingest.py` and `commands/pipeline.py`, which now read
+`ctx.torrent_client` directly.
 
 ## Anti-decisions (out of scope for 1.0)
 

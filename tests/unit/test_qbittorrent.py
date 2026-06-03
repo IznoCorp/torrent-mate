@@ -108,6 +108,46 @@ class TestTorrentItemMapping:
         assert item.content_path is None
 
 
+class TestTorrentItemTagsField:
+    """TorrentItem.tags field — D4."""
+
+    def test_default_empty_list(self) -> None:
+        """TorrentItem.tags defaults to empty list."""
+        item = TorrentItem(hash="h", name="n", size_bytes=0, progress=0.0, state="up")
+        assert item.tags == []
+        assert isinstance(item.tags, list)
+
+    def test_qbit_mapper_splits_csv(self) -> None:
+        """QBit _torrent_item splits comma-separated tags string into list."""
+        mock = MagicMock()
+        mock.hash = "h"
+        mock.name = "n"
+        mock.total_size = 0
+        mock.progress = 0.0
+        mock.state = "up"
+        mock.ratio = 0.0
+        mock.content_path = ""
+        mock.category = ""
+        mock.added_on = 0
+        mock.tags = "action,drama,2024"
+        assert _torrent_item(mock).tags == ["action", "drama", "2024"]
+
+    def test_qbit_mapper_empty_tags(self) -> None:
+        """QBit _torrent_item handles empty tags string as empty list."""
+        mock = MagicMock()
+        mock.hash = "h"
+        mock.name = "n"
+        mock.total_size = 0
+        mock.progress = 0.0
+        mock.state = "up"
+        mock.ratio = 0.0
+        mock.content_path = ""
+        mock.category = ""
+        mock.added_on = 0
+        mock.tags = ""
+        assert _torrent_item(mock).tags == []
+
+
 class TestBuildClient:
     """build_client() factory function."""
 

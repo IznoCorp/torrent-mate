@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 import requests
@@ -229,10 +229,8 @@ class TestIngestQbitAuthLockoutEvent:
     pattern used in ``tests/ingest/test_ingest.py`` for the other auth-error arms.
     """
 
-    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_ingest_qbit_auth_lockout_event_name(
         self,
-        mock_qbit_cls: MagicMock,
         tmp_path: Path,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
@@ -240,9 +238,9 @@ class TestIngestQbitAuthLockoutEvent:
 
         Injects ``QBitAuthLockoutError`` on ``get_completed()`` so the
         handler in ``run_ingest`` is exercised, not a synthetic logger emit.
+        The torrent client is boot-wired (DESIGN D3) and passed explicitly.
 
         Args:
-            mock_qbit_cls: Patched build_active_torrent_client factory.
             tmp_path: Pytest temporary directory fixture.
             caplog: Pytest log capture fixture.
         """
@@ -251,10 +249,9 @@ class TestIngestQbitAuthLockoutEvent:
 
         mock_client = MagicMock()
         mock_client.get_completed.side_effect = QBitAuthLockoutError("lockout detected")
-        mock_qbit_cls.return_value = mock_client
 
         with caplog.at_level(logging.ERROR, logger="ingest"):
-            run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
+            run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
         assert _has_event(caplog, "ingest_qbit_auth_lockout"), "ingest event 'ingest_qbit_auth_lockout' was not emitted"
         assert not _has_event(caplog, "ingest_unexpected_error"), "auth_lockout should not fall through to catch-all"

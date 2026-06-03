@@ -41,6 +41,7 @@ dependencies = [
     "enzyme>=0.5.2",
     "xxhash>=3.4.0",
     "filelock>=3.13.0",
+    "rarfile>=4.2",
 ]
 
 [project.optional-dependencies]
@@ -103,7 +104,7 @@ files = ["personalscraper"]
 exclude = ["tests/"]
 
 [[tool.mypy.overrides]]
-module = ["enzyme.*", "guessit.*", "qbittorrent_api.*", "rapidfuzz.*", "yt_dlp.*"]
+module = ["enzyme.*", "guessit.*", "qbittorrent_api.*", "rapidfuzz.*", "rarfile.*", "yt_dlp.*"]
 ignore_missing_imports = true
 
 [tool.pyright]

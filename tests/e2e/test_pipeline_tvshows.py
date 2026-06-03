@@ -84,7 +84,9 @@ class TestTVShowFullPipeline:
             # ── 2. V1 Ingest (REAL) ──
             from personalscraper.ingest.ingest import run_ingest
 
-            ingest_report = run_ingest(settings, dry_run=False, config=e2e_config, event_bus=EventBus())
+            ingest_report = run_ingest(
+                settings, dry_run=False, config=e2e_config, event_bus=EventBus(), torrent_client=e2e_qbit_client
+            )
             print(f"  V1 Ingest: {ingest_report.success_count} ingested")
 
             expected = [{"name": n, "type": "tvshow"} for n in names.values()]
@@ -227,7 +229,7 @@ class TestFullPipelineMixed:
             # 2. Ingest first so there's data in staging for the run command
             from personalscraper.ingest.ingest import run_ingest
 
-            run_ingest(settings, dry_run=False, config=e2e_config, event_bus=EventBus())
+            run_ingest(settings, dry_run=False, config=e2e_config, event_bus=EventBus(), torrent_client=e2e_qbit_client)
 
             # Register ingested items for cleanup
             for item in staging.iterdir():

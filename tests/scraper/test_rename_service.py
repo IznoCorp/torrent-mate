@@ -304,3 +304,31 @@ class TestCleanupEmptyReleaseDirs:
 
         assert removed == 1
         assert (tmp_path / "stray.txt").exists()
+
+
+class TestCleanupReleaseDirsArchiveAndSample:
+    """DEV #1 / review COV-2: sample-only dirs removed, archive dirs retained."""
+
+    def test_removes_sample_only_release_dir(self, tmp_path: Path) -> None:
+        """A release dir whose only video is a sample clip is removed."""
+        sub = tmp_path / "Show.S01E01.1080p.WEB-GROUP"
+        (sub / "Sample").mkdir(parents=True)
+        (sub / "Sample" / "show.s01e01-sample.mkv").write_bytes(b"x")
+
+        removed = _cleanup_empty_release_dirs(tmp_path)
+
+        assert removed == 1
+        assert not sub.exists()
+
+    def test_retains_archive_bearing_release_dir(self, tmp_path: Path) -> None:
+        """A release dir still holding un-extracted archives is preserved (no data loss)."""
+        sub = tmp_path / "Show.S01E01.1080p.WEB-GROUP"
+        sub.mkdir()
+        (sub / "release.rar").write_bytes(b"RAR")
+        (sub / "release.r00").write_bytes(b"VOL")
+
+        removed = _cleanup_empty_release_dirs(tmp_path)
+
+        assert removed == 0
+        assert sub.exists()
+        assert (sub / "release.rar").exists()

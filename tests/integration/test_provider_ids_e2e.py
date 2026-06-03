@@ -43,8 +43,10 @@ from personalscraper.api.metadata.rotten_tomatoes import RottenTomatoesClient
 from personalscraper.api.notify._contracts import HealthChecker, Notifier
 from personalscraper.api.torrent._contracts import (
     AuthenticatedClient,
+    TorrentAdder,
     TorrentController,
     TorrentInspector,
+    TorrentLimiter,
     TorrentLister,
     TorrentStateInspector,
 )
@@ -413,13 +415,15 @@ def test_e2e_tracker_clients_compose_capabilities() -> None:
 
 
 def test_e2e_qbit_client_composes_all_torrent_capabilities() -> None:
-    """``QBitClient`` satisfies all 5 atomic torrent capabilities."""
+    """``QBitClient`` satisfies all 7 atomic torrent capabilities."""
     client = QBitClient(host="http://localhost", port=8080, username="u", password="p")
     assert isinstance(client, TorrentLister)
     assert isinstance(client, TorrentInspector)
     assert isinstance(client, AuthenticatedClient)
     assert isinstance(client, TorrentStateInspector)
     assert isinstance(client, TorrentController)
+    assert isinstance(client, TorrentAdder)
+    assert isinstance(client, TorrentLimiter)
 
 
 def test_e2e_notify_clients_match_capabilities() -> None:

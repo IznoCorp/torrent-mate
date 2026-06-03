@@ -1,19 +1,21 @@
 """Main ingest orchestrator — run_ingest() entry point.
 
-Coordinates QBitClient, IngestTracker, and atomic file transfers
-to move completed torrents from torrents/complete/ to staging area.
+Coordinates the boot-wired torrent client, IngestTracker, and atomic file
+transfers to move completed torrents from torrents/complete/ to staging area.
 The lock is managed by the CLI caller, not by this module.
 """
+
+from __future__ import annotations
 
 import os
 import shutil
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import qbittorrentapi
 import requests
 
-from personalscraper.api.torrent._factory import build_active_torrent_client
-from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError, QBitClient
+from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, find_ingest_dir, folder_name, staging_path
 from personalscraper.config import Settings
@@ -23,6 +25,12 @@ from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.pipeline_events import ItemProgressed
+
+if TYPE_CHECKING:
+    # Imported under TYPE_CHECKING to mirror AppContext and avoid a circular
+    # import: the torrent client modules transitively reach back into config.
+    from personalscraper.api.torrent.qbittorrent import QBitClient
+    from personalscraper.api.torrent.transmission import TransmissionClient
 
 log = get_logger("ingest")
 
@@ -259,10 +267,11 @@ def run_ingest(
     staging_dir: Path | None = None,
     config: Config,
     event_bus: EventBus,
+    torrent_client: QBitClient | TransmissionClient | None = None,
 ) -> StepReport:
     """Run the ingest pipeline step.
 
-    Connects to qBittorrent, lists completed torrents, and transfers
+    Lists completed torrents via the boot-wired torrent client and transfers
     new ones to the staging area. The lock is managed by the CLI caller.
 
     Args:
@@ -275,6 +284,10 @@ def run_ingest(
         config: Loaded Config instance (required) for staging dir name resolution.
         event_bus: Required in-process EventBus. Each per-torrent lifecycle
             transition emits an ``ItemProgressed`` event on the bus.
+        torrent_client: Boot-wired torrent client read from
+            ``AppContext.torrent_client`` (DESIGN D3). ``None`` when no torrent
+            client is configured (DESIGN D9); in that case the step returns an
+            error report instead of building one inline.
 
     Returns:
         StepReport with success/skip/error counts and details.
@@ -291,21 +304,17 @@ def run_ingest(
     if not dry_run:
         _cleanup_orphan_temps(resolved_ingest_dir)
 
-    try:
-        if config.torrent.active:
-            client = build_active_torrent_client(config.torrent, os.environ)
-        else:
-            client = QBitClient(
-                host=settings.qbit_host,
-                port=settings.qbit_port,
-                username=settings.qbit_username,
-                password=settings.qbit_password,
-            )
-            client.login()
-    except Exception as e:
-        log.error("qbit_init_failed", error=str(e), exc_info=True)
+    # Torrent client is boot-wired into AppContext (DESIGN D3) and read here
+    # rather than built inline. None when no torrent client is configured
+    # (DESIGN D9) — surface a clear error instead of silently doing nothing.
+    client = torrent_client
+    if client is None:
+        log.warning(
+            "ingest_no_torrent_client",
+            hint="Set torrent.active in torrent.json5 to enable torrent ingestion",
+        )
         report.error_count = 1
-        report.details.append(f"qBittorrent init failed: {e}")
+        report.details.append("No torrent client configured — set torrent.active in torrent.json5")
         return report
 
     try:

@@ -91,7 +91,7 @@ class TestResolveId:
         movie.mkdir()
         (movie / "Movie.nfo").write_text('<movie><uniqueid type="tmdb">12345</uniqueid></movie>')
 
-        tmdb_id, id_source, confidence = _resolve_tmdb_id(
+        tmdb_id, id_source, confidence, _source = _resolve_tmdb_id(
             movie,
             "movie",
             "Movie",
@@ -115,7 +115,7 @@ class TestResolveId:
         mock_match = MatchResult(api_id=999, api_title="Movie", api_year=2024, confidence=0.95, source="tmdb")
 
         with patch("personalscraper.maintenance.rescraper.match_movie", return_value=mock_match):
-            tmdb_id, id_source, confidence = _resolve_tmdb_id(
+            tmdb_id, id_source, confidence, _source = _resolve_tmdb_id(
                 movie,
                 "movie",
                 "Movie",
@@ -139,7 +139,7 @@ class TestResolveId:
         mock_match = MatchResult(api_id=999, api_title="Movie?", api_year=2024, confidence=0.4, source="tmdb")
 
         with patch("personalscraper.maintenance.rescraper.match_movie", return_value=mock_match):
-            tmdb_id, id_source, confidence = _resolve_tmdb_id(
+            tmdb_id, id_source, confidence, _source = _resolve_tmdb_id(
                 movie,
                 "movie",
                 "Movie",
@@ -158,7 +158,7 @@ class TestResolveId:
         movie.mkdir()
 
         with patch("personalscraper.maintenance.rescraper.match_movie", return_value=None):
-            tmdb_id, id_source, confidence = _resolve_tmdb_id(
+            tmdb_id, id_source, confidence, _source = _resolve_tmdb_id(
                 movie,
                 "movie",
                 "Movie",
@@ -272,6 +272,69 @@ class TestRescrapeItem:
         assert result.id_source == "nfo"
         # Dry-run: artwork_dl methods should NOT have been called
         mock_artwork.download_movie_artwork.assert_not_called()
+
+    def test_tvdb_only_show_scrapes_via_tvdb_not_tmdb(self, tmp_path: Path) -> None:
+        """A TVDB-matched show fetches from TVDB, never ``tmdb.get_tv(tvdb_id)``.
+
+        Regression: the rescraper resolved the TVDB match id but fed it to
+        ``tmdb.get_tv`` → 404 → the whole item aborted (Hey Arnold!, Tintin,
+        Famille Pirate — old TVDB-only French / classic shows). It must route
+        through TVDB, the SAME source-of-match discipline as the initial
+        ``tv_service`` scrape (now both via the shared ``fetch_show_data``).
+        """
+        from personalscraper.api._contracts import ApiError
+        from personalscraper.maintenance.rescraper import (
+            ACTION_NFO_REGENERATED,
+            _rescrape_item,
+        )
+        from personalscraper.naming_patterns import NamingPatterns
+        from personalscraper.scraper.confidence import MatchResult
+
+        show = tmp_path / "Hey Arnold ! (1996)"
+        (show / "Saison 01").mkdir(parents=True)
+        (show / "Saison 01" / "S01E01 - Ep.mkv").write_bytes(b"\x00" * 1000)
+        # No tvshow.nfo → needs_nfo.
+
+        tvdb = MagicMock()
+        tvdb_series = MagicMock()
+        tvdb_series.external_ids = {}  # TVDB-only: no tmdb cross-ref.
+        tvdb.get_series.return_value = tvdb_series
+
+        tmdb = MagicMock()
+        # The bug surface: feeding the TVDB id to tmdb.get_tv 404s.
+        tmdb.get_tv.side_effect = ApiError("tvdb", 404, 34)
+
+        match = MatchResult(api_id=255968, api_title="Hey Arnold!", api_year=1996, confidence=0.99, source="tvdb")
+
+        with (
+            patch("personalscraper.maintenance.rescraper.match_tvshow", return_value=match),
+            patch(
+                "personalscraper.scraper._tvdb_convert._tvdb_series_to_show_data",
+                return_value={"name": "Hey Arnold!", "genres": []},
+            ),
+        ):
+            result = _rescrape_item(
+                media_dir=show,
+                media_type="tvshow",
+                disk="Disk1",
+                category="anime",
+                title="Hey Arnold !",
+                year=1996,
+                registry=_mock_registry(tmdb=tmdb, tvdb=tvdb),
+                nfo_gen=MagicMock(),
+                artwork_dl=MagicMock(),
+                patterns=NamingPatterns(),
+                only="nfo",
+                interactive=False,
+                dry_run=True,
+            )
+
+        assert result is not None
+        assert result.errors == []  # no 404 abort
+        assert ACTION_NFO_REGENERATED in result.actions_taken
+        tvdb.get_series.assert_called_once_with(255968)  # fetched from TVDB
+        tmdb.get_tv.assert_not_called()  # never feed a TVDB id to tmdb.get_tv
+        assert result.tmdb_id is None  # TVDB-only: no cross-ref tmdb
 
 
 class TestRescrapeLibraryConfig:
@@ -401,7 +464,7 @@ class TestResolveIdAdditional:
             "personalscraper.maintenance.rescraper.match_movie",
             side_effect=RuntimeError("API down"),
         ):
-            tmdb_id, id_source, confidence = _resolve_tmdb_id(
+            tmdb_id, id_source, confidence, _source = _resolve_tmdb_id(
                 movie,
                 "movie",
                 "Movie",
@@ -424,7 +487,7 @@ class TestResolveIdAdditional:
 
         mock_match = MatchResult(api_id=4242, api_title="Show", api_year=2024, confidence=0.99, source="tmdb")
         with patch("personalscraper.maintenance.rescraper.match_tvshow", return_value=mock_match) as mtv:
-            tmdb_id, id_source, confidence = _resolve_tmdb_id(
+            tmdb_id, id_source, confidence, _source = _resolve_tmdb_id(
                 show,
                 "tvshow",
                 "Show",
@@ -450,7 +513,7 @@ class TestResolveIdAdditional:
             patch("personalscraper.maintenance.rescraper.match_movie", return_value=mock_match),
             patch("builtins.input", return_value="y"),
         ):
-            tmdb_id, id_source, confidence = _resolve_tmdb_id(
+            tmdb_id, id_source, confidence, _source = _resolve_tmdb_id(
                 movie,
                 "movie",
                 "Movie",
@@ -476,7 +539,7 @@ class TestResolveIdAdditional:
             patch("personalscraper.maintenance.rescraper.match_movie", return_value=mock_match),
             patch("builtins.input", return_value="n"),
         ):
-            tmdb_id, id_source, confidence = _resolve_tmdb_id(
+            tmdb_id, id_source, confidence, _source = _resolve_tmdb_id(
                 movie,
                 "movie",
                 "Movie",
@@ -501,7 +564,7 @@ class TestResolveIdAdditional:
 
         mock_match = MatchResult(api_id=33, api_title="Movie", api_year=2024, confidence=0.95, source="tmdb")
         with patch("personalscraper.maintenance.rescraper.match_movie", return_value=mock_match):
-            tmdb_id, id_source, confidence = _resolve_tmdb_id(
+            tmdb_id, id_source, confidence, _source = _resolve_tmdb_id(
                 movie,
                 "movie",
                 "Movie",
@@ -796,13 +859,17 @@ class TestRescrapeEpisodes:
         (show / "Extras").mkdir()  # Non-season dir, must be ignored.
 
         tmdb = MagicMock()
-        tmdb.get_tv_season.side_effect = RuntimeError("network down")
+        empty_season = MagicMock()
+        empty_season.episodes = []
+        tmdb.get_tv_season.return_value = empty_season
 
         # No patch on SEASON_DIR_RE — uses production regex.
-        _rescrape_episodes(show, {"id": 1}, 1, tmdb, NamingPatterns(), dry_run=True)
+        _rescrape_episodes(
+            show, {"id": 1}, "tmdb", 1, _mock_registry(tmdb=tmdb, tvdb=MagicMock()), NamingPatterns(), dry_run=True
+        )
 
-        # Both real season dirs were discovered; iteration completed
-        # without IndexError, even though the API mock raises per call.
+        # Both real season dirs were discovered (no IndexError from the production
+        # regex) and passed through to the shared episode fetcher.
         assert tmdb.get_tv_season.call_count == 2
 
     def test_no_seasons_returns_early(self, tmp_path: Path) -> None:
@@ -815,7 +882,9 @@ class TestRescrapeEpisodes:
         tmdb = MagicMock()
 
         with patch("personalscraper.naming_patterns.SEASON_DIR_RE", self._CAPTURING_RE):
-            _rescrape_episodes(show, {"id": 1}, 1, tmdb, NamingPatterns(), dry_run=True)
+            _rescrape_episodes(
+                show, {"id": 1}, "tmdb", 1, _mock_registry(tmdb=tmdb, tvdb=MagicMock()), NamingPatterns(), dry_run=True
+            )
         tmdb.get_tv_season.assert_not_called()
 
     def test_season_fetch_failure_continues(self, tmp_path: Path) -> None:
@@ -833,7 +902,9 @@ class TestRescrapeEpisodes:
         tmdb.get_tv_season.side_effect = RuntimeError("api fail")
 
         with patch("personalscraper.naming_patterns.SEASON_DIR_RE", self._CAPTURING_RE):
-            _rescrape_episodes(show, {"id": 1}, 1, tmdb, NamingPatterns(), dry_run=True)
+            _rescrape_episodes(
+                show, {"id": 1}, "tmdb", 1, _mock_registry(tmdb=tmdb, tvdb=MagicMock()), NamingPatterns(), dry_run=True
+            )
         tmdb.get_tv_season.assert_called()
 
     def test_dry_run_renames_when_matched(self, tmp_path: Path) -> None:
@@ -860,7 +931,9 @@ class TestRescrapeEpisodes:
             patch("personalscraper.scraper.episode_manager.create_season_dirs") as csd,
             patch("personalscraper.scraper.episode_manager.rename_episodes") as ren,
         ):
-            _rescrape_episodes(show, {"id": 1}, 1, tmdb, NamingPatterns(), dry_run=True)
+            _rescrape_episodes(
+                show, {"id": 1}, "tmdb", 1, _mock_registry(tmdb=tmdb, tvdb=MagicMock()), NamingPatterns(), dry_run=True
+            )
 
         csd.assert_called_once()
         ren.assert_called_once()
@@ -893,7 +966,9 @@ class TestRescrapeEpisodes:
             patch("personalscraper.scraper.episode_manager.create_season_dirs") as csd,
             patch("personalscraper.scraper.episode_manager.rename_episodes") as ren,
         ):
-            _rescrape_episodes(show, {"id": 1}, 1, tmdb, NamingPatterns(), dry_run=True)
+            _rescrape_episodes(
+                show, {"id": 1}, "tmdb", 1, _mock_registry(tmdb=tmdb, tvdb=MagicMock()), NamingPatterns(), dry_run=True
+            )
 
         csd.assert_not_called()
         ren.assert_not_called()
@@ -918,7 +993,9 @@ class TestRescrapeEpisodes:
             patch("personalscraper.naming_patterns.SEASON_DIR_RE", self._CAPTURING_RE),
             patch("personalscraper.scraper.episode_manager.match_episode_files") as mef,
         ):
-            _rescrape_episodes(show, {"id": 1}, 1, tmdb, NamingPatterns(), dry_run=True)
+            _rescrape_episodes(
+                show, {"id": 1}, "tmdb", 1, _mock_registry(tmdb=tmdb, tvdb=MagicMock()), NamingPatterns(), dry_run=True
+            )
         mef.assert_not_called()
 
 

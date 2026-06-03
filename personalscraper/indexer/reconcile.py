@@ -163,6 +163,178 @@ class ReconcileReport:
         )
 
 
+@dataclass
+class FkOrphanReport:
+    """Foreign-key orphan detection / cleanup result (DEV #3).
+
+    A foreign-key orphan is a child row whose parent ``media_item`` was deleted
+    without its children being cascade-removed (a historical FK-off delete — see
+    migration 007). ``open_db``'s FK guard then aborts every indexer command;
+    the cleanup deletes the orphan child rows under ``foreign_keys=ON`` so the
+    declared ``ON DELETE CASCADE`` chain removes their dependent rows too.
+
+    Attributes:
+        by_table: Orphan child-row count per table (e.g.
+            ``{"media_release": 5, "item_issue": 6}``).
+        cascade_media_files: ``media_file`` rows that the cascade will remove
+            (children of orphan ``media_release`` rows).
+        cascade_media_streams: ``media_stream`` rows the cascade will remove
+            (grandchildren via ``media_file``).
+    """
+
+    by_table: dict[str, int] = field(default_factory=dict)
+    cascade_media_files: int = 0
+    cascade_media_streams: int = 0
+
+    @property
+    def total_orphans(self) -> int:
+        """Total orphan child rows across all tables."""
+        return sum(self.by_table.values())
+
+
+def _scan_fk_orphans(conn: sqlite3.Connection) -> tuple[dict[str, list[int]], int, int]:
+    """Scan FK orphans and the cascade impact of removing them.
+
+    Uses ``PRAGMA foreign_key_check`` (a whole-DB diagnostic that works
+    regardless of the ``foreign_keys`` pragma state) to enumerate every child
+    row whose parent is missing, grouped by table. Also counts the
+    ``media_file`` / ``media_stream`` rows that ``ON DELETE CASCADE`` will remove
+    when the orphans are deleted — counting BOTH the directly-orphaned
+    ``media_release`` rows AND the releases reachable from orphan ``season`` rows
+    via ``season → episode → media_release`` (review BUG-4: for a TV show the
+    orphan is the season, not the release, so the release-only count missed the
+    real cascade entirely).
+
+    Args:
+        conn: Open SQLite connection.
+
+    Returns:
+        ``(by_table_rowids, cascade_media_files, cascade_media_streams)`` where
+        ``by_table_rowids`` maps each table to the rowids of its orphan rows.
+    """
+    by_table: dict[str, list[int]] = {}
+    for row in conn.execute("PRAGMA foreign_key_check").fetchall():
+        table, rowid = row[0], row[1]
+        if rowid is None:
+            continue
+        by_table.setdefault(str(table), []).append(int(rowid))
+
+    # Resolve the full set of media_release IDs that the cascade will delete:
+    # direct orphan releases + releases under orphan seasons' episodes.
+    release_ids: set[int] = set()
+    release_rowids = by_table.get("media_release", [])
+    if release_rowids:
+        marks = ",".join("?" * len(release_rowids))
+        release_ids.update(
+            r[0]
+            for r in conn.execute(
+                f"SELECT id FROM media_release WHERE rowid IN ({marks})",  # noqa: S608 (rowids are ints)
+                release_rowids,
+            ).fetchall()
+        )
+    season_rowids = by_table.get("season", [])
+    if season_rowids:
+        marks = ",".join("?" * len(season_rowids))
+        release_ids.update(
+            r[0]
+            for r in conn.execute(
+                f"SELECT mr.id FROM media_release mr JOIN episode e ON mr.episode_id = e.id "  # noqa: S608
+                f"WHERE e.season_id IN (SELECT id FROM season WHERE rowid IN ({marks}))",
+                season_rowids,
+            ).fetchall()
+        )
+
+    cascade_files = 0
+    cascade_streams = 0
+    if release_ids:
+        ids = list(release_ids)
+        marks = ",".join("?" * len(ids))
+        cascade_files = conn.execute(
+            f"SELECT COUNT(*) FROM media_file WHERE release_id IN ({marks})",  # noqa: S608 (ids are ints)
+            ids,
+        ).fetchone()[0]
+        cascade_streams = conn.execute(
+            f"SELECT COUNT(*) FROM media_stream WHERE file_id IN "  # noqa: S608 (ids are ints)
+            f"(SELECT id FROM media_file WHERE release_id IN ({marks}))",
+            ids,
+        ).fetchone()[0]
+    return by_table, cascade_files, cascade_streams
+
+
+def detect_fk_orphans(conn: sqlite3.Connection) -> FkOrphanReport:
+    """Report foreign-key orphans without modifying the DB (DEV #3).
+
+    Args:
+        conn: Open SQLite connection (may be opened with
+            ``allow_fk_orphans=True`` on a dirty DB).
+
+    Returns:
+        :class:`FkOrphanReport` with per-table counts and cascade impact.
+    """
+    by_table, files, streams = _scan_fk_orphans(conn)
+    return FkOrphanReport(
+        by_table={t: len(rows) for t, rows in by_table.items()},
+        cascade_media_files=files,
+        cascade_media_streams=streams,
+    )
+
+
+def clean_fk_orphans(conn: sqlite3.Connection, *, dry_run: bool = False) -> FkOrphanReport:
+    """Delete foreign-key orphan rows, letting CASCADE clean dependents (DEV #3).
+
+    Deletes each orphan child row (parent ``media_item`` gone) under
+    ``foreign_keys=ON`` so the declared ``ON DELETE CASCADE`` removes the
+    dependent ``media_file`` / ``media_stream`` rows in the same transaction.
+    The schema FKs are already correct (migrations 001/009); this is a pure
+    runtime row cleanup — no schema change, no migration script (pre-1.0).
+
+    The deletes run inside an explicit ``BEGIN IMMEDIATE`` transaction (the
+    connection is autocommit — ``isolation_level=None`` — so a bare ``with conn``
+    would NOT roll back; review BUG-2) so a mid-loop failure rolls every table's
+    deletes back together rather than leaving the DB half-cleaned.
+
+    Args:
+        conn: Open SQLite connection (open with ``allow_fk_orphans=True``).
+        dry_run: If True, report what would be deleted without deleting.
+
+    Returns:
+        :class:`FkOrphanReport` describing the rows removed (or that would be
+        removed in dry-run) and their cascade impact.
+    """
+    by_table, files, streams = _scan_fk_orphans(conn)
+    report = FkOrphanReport(
+        by_table={t: len(rows) for t, rows in by_table.items()},
+        cascade_media_files=files,
+        cascade_media_streams=streams,
+    )
+    if dry_run or not by_table:
+        return report
+
+    # PRAGMA must be set outside a transaction (no-op within one); open_db
+    # already enables it, this is belt-and-braces.
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        for table, rowids in by_table.items():
+            # Table names come from sqlite's own schema (foreign_key_check), not
+            # user input; rowids are ints. Quoted identifier is safe.
+            conn.executemany(
+                f'DELETE FROM "{table}" WHERE rowid = ?',  # noqa: S608
+                [(rowid,) for rowid in rowids],
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    log.info(
+        "indexer.reconcile.fk_orphans_cleaned",
+        by_table=report.by_table,
+        cascade_media_files=files,
+        cascade_media_streams=streams,
+    )
+    return report
+
+
 # ---------------------------------------------------------------------------
 # Detectors
 # ---------------------------------------------------------------------------

@@ -1,16 +1,19 @@
 """Torrent client capability composition tests (phase 13).
 
 The monolithic ``TorrentClient`` Protocol was retired in sub-phase
-13.1 ; ``QBitClient`` now satisfies all 5 atomic capabilities while
-``TransmissionClient`` deliberately omits :class:`AuthenticatedClient`.
+13.1 ; ``QBitClient`` now satisfies all 7 atomic capabilities while
+``TransmissionClient`` deliberately omits :class:`AuthenticatedClient`
+and :class:`TorrentLimiter`.
 """
 
 from __future__ import annotations
 
 from personalscraper.api.torrent._contracts import (
     AuthenticatedClient,
+    TorrentAdder,
     TorrentController,
     TorrentInspector,
+    TorrentLimiter,
     TorrentLister,
     TorrentStateInspector,
 )
@@ -93,3 +96,35 @@ def test_transmission_client_is_torrent_controller() -> None:
 def test_transmission_client_not_authenticated_client() -> None:
     """Transmission deliberately omits :class:`AuthenticatedClient` (no explicit login)."""
     assert not isinstance(_transmission(), AuthenticatedClient)
+
+
+# ---------------------------------------------------------------------------
+# TorrentAdder / TorrentLimiter — D1/D2
+# ---------------------------------------------------------------------------
+
+
+def test_qbit_client_is_torrent_adder() -> None:
+    """``QBitClient`` satisfies :class:`TorrentAdder`."""
+    assert isinstance(_qbit(), TorrentAdder)
+
+
+def test_qbit_client_is_torrent_limiter() -> None:
+    """``QBitClient`` satisfies :class:`TorrentLimiter`."""
+    assert isinstance(_qbit(), TorrentLimiter)
+
+
+def test_transmission_client_is_torrent_adder() -> None:
+    """TransmissionClient satisfies TorrentAdder."""
+    assert isinstance(_transmission(), TorrentAdder)
+
+
+def test_transmission_client_not_torrent_limiter() -> None:
+    """TransmissionClient does NOT satisfy TorrentLimiter (D2).
+
+    Design: docs/reference/architecture.md#torrent-family--capability-table
+    Contract: In the torrent capability table, QBitClient composes both
+    TorrentAdder and TorrentLimiter while TransmissionClient composes
+    TorrentAdder only — Transmission lacks per-torrent ratio/bandwidth/
+    seed-time RPC methods (D2).
+    """
+    assert not isinstance(_transmission(), TorrentLimiter)

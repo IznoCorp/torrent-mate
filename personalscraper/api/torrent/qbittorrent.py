@@ -3,8 +3,9 @@
 Wraps qbittorrentapi.Client with anti-ban protection (lockout file, pre-check)
 and maps qBit API responses to TorrentItem dataclasses. Composes
 :class:`TorrentLister`, :class:`TorrentInspector`, :class:`AuthenticatedClient`,
-:class:`TorrentStateInspector` and :class:`TorrentController` from
-:mod:`personalscraper.api.torrent._contracts` (DESIGN §4 — phase 13).
+:class:`TorrentStateInspector`, :class:`TorrentController`, :class:`TorrentAdder`
+and :class:`TorrentLimiter` from
+:mod:`personalscraper.api.torrent._contracts` (DESIGN §4 — phase 13, D1/D2/D8).
 
 Provider-specific exceptions (QBitAuthLockoutError, LoginFailed, Forbidden403Error,
 APIConnectionError) are preserved — they carry actionable user guidance in the
@@ -14,7 +15,7 @@ ingest step. This is the allowed escape hatch documented in _base.py.
 from __future__ import annotations
 
 import time
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import ClassVar
@@ -23,11 +24,13 @@ import qbittorrentapi
 import requests
 
 from personalscraper.api._contracts import ApiError, ProviderName
-from personalscraper.api.torrent._base import TorrentItem
+from personalscraper.api.torrent._base import TorrentItem, TorrentLimits, TorrentSource
 from personalscraper.api.torrent._contracts import (
     AuthenticatedClient,
+    TorrentAdder,
     TorrentController,
     TorrentInspector,
+    TorrentLimiter,
     TorrentLister,
     TorrentStateInspector,
 )
@@ -50,13 +53,16 @@ class QBitClient(
     AuthenticatedClient,
     TorrentStateInspector,
     TorrentController,
+    TorrentAdder,
+    TorrentLimiter,
 ):
     """qBittorrent client wrapping qbittorrentapi.Client.
 
     Composes the full set of atomic torrent capabilities
     (:class:`TorrentLister`, :class:`TorrentInspector`,
     :class:`AuthenticatedClient`, :class:`TorrentStateInspector`,
-    :class:`TorrentController`). Login is handled by :func:`build_client` —
+    :class:`TorrentController`, :class:`TorrentAdder`,
+    :class:`TorrentLimiter`). Login is handled by :func:`build_client` —
     this class assumes an already-authenticated underlying client.
     """
 
@@ -166,6 +172,141 @@ class QBitClient(
         """
         self._client.torrents_delete(torrent_hashes=hash, delete_files=delete_files)
 
+    def add(
+        self,
+        source: TorrentSource,
+        *,
+        category: str | None = None,
+        tags: Sequence[str] = (),
+        paused: bool = False,
+        limits: TorrentLimits | None = None,
+    ) -> str:
+        """Add a torrent to qBittorrent (D1/D6/D7/D8).
+
+        Applies category, tags, paused state, and limits inline in one
+        torrents_add call. A duplicate add raises ``Conflict409Error``, which
+        is mapped to idempotent success returning the existing info_hash (D7).
+        The ``torrents_add`` return value is inspected: a str ``"Ok."`` is
+        success and a str ``"Fails."`` (generic failure — bad magnet, disk
+        full, bad save path) raises ``ApiError`` so the failure is observable
+        rather than a silent fake-success (D8). A non-str result (the
+        ``TorrentsAddedMetadata`` mapping returned by qBit Web API v2.14.0+ on
+        a 2xx body) is treated as success, since HTTP failures are already
+        raised as typed exceptions before the result is read. 401/403 and
+        corrupt-payload (415 / torrent-file) errors also surface as ApiError.
+
+        D10: qBit uses its own default save path; no savepath arg needed.
+
+        Args:
+            source: TorrentSource — magnet or file bytes.
+            category: Category label.
+            tags: Tag strings.
+            paused: Add in paused state if True.
+            limits: Optional transfer limits applied inline (D8 — qBit
+                composes TorrentLimiter, so limits are always honored).
+
+        Returns:
+            info_hash of the added (or already-present) torrent.
+
+        Raises:
+            ApiError: qBittorrent returns 401/403, a corrupt-payload error
+                (415 / torrent-file), or a non-``"Ok."`` result (e.g.
+                ``"Fails."``).
+        """
+        kwargs: dict[str, object] = {
+            "category": category,
+            "tags": list(tags),
+            "is_paused": paused,
+            **_limit_kwargs(limits),
+        }
+        if source.magnet is not None:
+            kwargs["urls"] = source.magnet
+        else:
+            kwargs["torrent_files"] = source.file_bytes
+        try:
+            result = self._client.torrents_add(**kwargs)  # type: ignore[arg-type,type-var]
+        except qbittorrentapi.Conflict409Error:
+            # The torrent is already present — qBit signals a duplicate by
+            # raising 409. This is the real D7 path: idempotent success.
+            log.debug("qbit_add_duplicate", info_hash=source.info_hash)
+            return source.info_hash
+        except qbittorrentapi.Forbidden403Error as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=403,
+                message=f"qBittorrent add forbidden: {exc}",
+            ) from exc
+        except (qbittorrentapi.LoginFailed, qbittorrentapi.Unauthorized401Error) as exc:
+            # A real 401 on torrents_add is Unauthorized401Error (HTTP401Error
+            # MRO), a DISTINCT class from LoginFailed — neither subclasses the
+            # other, so both must be caught explicitly. LoginFailed is kept
+            # defensively; Unauthorized401Error is the one the daemon actually
+            # raises here. Both map to a uniform 401 ApiError (D8).
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=401,
+                message=f"qBittorrent add unauthorized: {exc}",
+            ) from exc
+        except qbittorrentapi.UnsupportedMediaType415Error as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=415,
+                message=f"qBittorrent rejected corrupt torrent payload: {exc}",
+            ) from exc
+        except qbittorrentapi.TorrentFileError as exc:
+            # TorrentFileError is the base of the torrent-file family
+            # (TorrentFileNotFoundError / TorrentFilePermissionError) — a
+            # corrupt or unreadable .torrent must be observable (D8).
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=0,
+                message=f"qBittorrent could not read torrent file: {exc}",
+            ) from exc
+        # torrents_add has two success shapes (qbittorrent-api 2025.11.x):
+        #   * a plain-text body → the str "Ok." (current qBit) or "Fails." on a
+        #     generic failure (bad magnet, disk full, bad save path);
+        #   * a JSON body → a ``TorrentsAddedMetadata`` mapping (qBit Web API
+        #     v2.14.0+). The lib only returns that object on a 2xx response —
+        #     every HTTP failure (401/403/409/415/4xx/5xx) is already raised as
+        #     a typed exception above and caught. So a NON-str result is always
+        #     a success; only a str must be matched against the "Ok." sentinel
+        #     (case/period-tolerant). A "Fails." string raises so we never
+        #     report a silent fake-success (D8); a metadata object must NOT be
+        #     str()-compared (it would never equal "ok" → a successful add would
+        #     be misreported as failure — review #3).
+        if not isinstance(result, str) or result.strip().rstrip(".").lower() == "ok":
+            return source.info_hash
+        raise ApiError(
+            provider=ProviderName.QBITTORRENT,
+            http_status=0,
+            message=f"qBittorrent add failed (result={result!r})",
+        )
+
+    def apply_limits(self, info_hash: str, limits: TorrentLimits) -> None:
+        """Apply transfer limits to an existing torrent (D2/§5.4).
+
+        Only non-None fields trigger API calls. For share limits, only the
+        fields that are explicitly set are included in the call — no ``-2``
+        global-reset sentinel is sent for an unspecified field. When all
+        fields of ``TorrentLimits`` are None, no API calls are made at all
+        (true no-op).
+
+        Args:
+            info_hash: Lowercase hex info_hash of the target torrent.
+            limits: Limits to apply.
+        """
+        share_kwargs: dict[str, object] = {}
+        if limits.ratio is not None:
+            share_kwargs["ratio_limit"] = limits.ratio
+        if limits.seed_time_minutes is not None:
+            share_kwargs["seeding_time_limit"] = limits.seed_time_minutes
+        if share_kwargs:
+            self._client.torrents_set_share_limits(torrent_hashes=info_hash, **share_kwargs)  # type: ignore[arg-type]
+        if limits.up_bytes_per_s is not None:
+            self._client.torrents_set_upload_limit(torrent_hashes=info_hash, limit=limits.up_bytes_per_s)
+        if limits.down_bytes_per_s is not None:
+            self._client.torrents_set_download_limit(torrent_hashes=info_hash, limit=limits.down_bytes_per_s)
+
     # -- Auth ----------------------------------------------------------------
 
     def login(self) -> None:
@@ -259,6 +400,8 @@ def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -
 def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
     """Map a qBittorrent torrent dictionary to a TorrentItem."""
     content_path = t.content_path or ""
+    raw_tags = getattr(t, "tags", "") or ""
+    tags = [tag.strip() for tag in raw_tags.split(",") if tag.strip()]
     return TorrentItem(
         hash=t.hash,
         name=t.name,
@@ -268,6 +411,7 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
         ratio=float(t.ratio or 0.0),
         content_path=Path(content_path) if content_path else None,
         category=t.category if t.category else None,
+        tags=tags,
         added_on=datetime.fromtimestamp(t.added_on) if t.added_on else None,
     )
 
@@ -315,3 +459,29 @@ def _set_lockout(reason: str) -> None:
             hint="Cannot enforce auth lockout — credentials may keep retrying. Check filesystem permissions on "
             f"{_LOCKOUT_FILE.parent}.",
         )
+
+
+def _limit_kwargs(limits: TorrentLimits | None) -> dict[str, object]:
+    """Build qBittorrent limit kwargs from a TorrentLimits instance.
+
+    Only non-None fields are included to avoid overwriting client defaults
+    with zeros.
+
+    Args:
+        limits: TorrentLimits or None.
+
+    Returns:
+        Dict of torrents_add kwargs for limits; empty if limits is None.
+    """
+    if limits is None:
+        return {}
+    out: dict[str, object] = {}
+    if limits.ratio is not None:
+        out["ratio_limit"] = limits.ratio
+    if limits.seed_time_minutes is not None:
+        out["seeding_time_limit"] = limits.seed_time_minutes
+    if limits.up_bytes_per_s is not None:
+        out["upload_limit"] = limits.up_bytes_per_s
+    if limits.down_bytes_per_s is not None:
+        out["download_limit"] = limits.down_bytes_per_s
+    return out

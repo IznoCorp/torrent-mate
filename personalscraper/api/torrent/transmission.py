@@ -5,10 +5,13 @@ GET via the unified transport before instantiating transmission-rpc so
 network/auth failures surface as a uniform ApiError instead of leaking the
 library's exception types up the call stack. Composes
 :class:`TorrentLister`, :class:`TorrentInspector`,
-:class:`TorrentStateInspector` and :class:`TorrentController` from
+:class:`TorrentStateInspector`, :class:`TorrentController` and
+:class:`TorrentAdder` from
 :mod:`personalscraper.api.torrent._contracts`. Deliberately omits
 :class:`AuthenticatedClient` — the transmission-rpc library performs HTTP
 Basic Auth per request without an explicit login step (DESIGN §4 — phase 13).
+Also deliberately omits :class:`TorrentLimiter` — Transmission has no ratio/
+bandwidth/seedtime limits API (D2/D8).
 
 Transmission itself uses JSON-RPC 2.0 over a single POST endpoint with
 HTTP Basic Auth and the CSRF session-id dance handled by the library.
@@ -16,7 +19,7 @@ HTTP Basic Auth and the CSRF session-id dance handled by the library.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import ClassVar
@@ -24,13 +27,15 @@ from typing import ClassVar
 import transmission_rpc
 
 from personalscraper.api._contracts import ApiError, ProviderName
-from personalscraper.api.torrent._base import TorrentItem
+from personalscraper.api.torrent._base import TorrentItem, TorrentLimits, TorrentSource
 from personalscraper.api.torrent._contracts import (
+    TorrentAdder,
     TorrentController,
     TorrentInspector,
     TorrentLister,
     TorrentStateInspector,
 )
+from personalscraper.api.torrent._errors import UnsupportedCapabilityError
 from personalscraper.api.transport._auth import LoginAuth
 from personalscraper.api.transport._http import HttpTransport
 from personalscraper.api.transport._policy import TransportPolicy
@@ -49,14 +54,18 @@ class TransmissionClient(
     TorrentInspector,
     TorrentStateInspector,
     TorrentController,
+    TorrentAdder,
 ):
     """Transmission client wrapping transmission-rpc.
 
     Composes :class:`TorrentLister`, :class:`TorrentInspector`,
-    :class:`TorrentStateInspector` and :class:`TorrentController`.
+    :class:`TorrentStateInspector`, :class:`TorrentController` and
+    :class:`TorrentAdder`.
     Deliberately omits :class:`AuthenticatedClient` because
     transmission-rpc has no explicit login step (HTTP Basic Auth runs
-    per-request). A pre-check via HttpTransport verifies reachability
+    per-request). Also omits :class:`TorrentLimiter` — Transmission
+    does not support ratio/bandwidth/seedtime limits (D2/D8).
+    A pre-check via HttpTransport verifies reachability
     and credentials before the library client is instantiated.
     """
 
@@ -168,6 +177,100 @@ class TransmissionClient(
 
     # -- Protocol: mutations -------------------------------------------------
 
+    def add(
+        self,
+        source: TorrentSource,
+        *,
+        category: str | None = None,
+        tags: Sequence[str] = (),
+        paused: bool = False,
+        limits: TorrentLimits | None = None,
+    ) -> str:
+        """Add a torrent to Transmission (D1/D5/D7/D8).
+
+        Labels encode category + tags per D5: ``labels = [category, *tags]`` so
+        the read side (``_torrent_item``) recovers ``category = labels[0]`` and
+        ``tags = labels[1:]``. This flat-labels scheme can only round-trip when
+        a category is present: ``category=None`` with a non-empty ``tags`` is
+        unrepresentable (the read side would promote the first tag to category),
+        so it is rejected with ``ValueError`` rather than silently mangling the
+        labels (no-silent-failure norm; review #6). ``category=None`` with no
+        tags is fine (empty labels).
+
+        Duplicate adds are idempotent (torrent-duplicate → return info_hash, no
+        exception). Passing limits raises UnsupportedCapabilityError (D8 — no
+        silent ignore).
+
+        Args:
+            source: TorrentSource — magnet or file bytes.
+            category: Category (becomes labels[0]).
+            tags: Tags (appended after category in labels). Requires a non-None
+                ``category`` when non-empty (D5 round-trip constraint).
+            paused: Add in paused state if True.
+            limits: Must be None; raises if set (D8).
+
+        Returns:
+            info_hash of the added (or already-present) torrent.
+
+        Raises:
+            UnsupportedCapabilityError: limits is not None.
+            ValueError: ``category`` is None while ``tags`` is non-empty
+                (unrepresentable in Transmission's flat-labels round-trip, D5).
+        """
+        if limits is not None:
+            raise UnsupportedCapabilityError(
+                "TransmissionClient does not support transfer limits. "
+                "Gate via isinstance(client, TorrentLimiter) before passing limits."
+            )
+        if category is None and tags:
+            # D5 flat-labels (labels=[category, *tags]) cannot round-trip tags
+            # without a category: _torrent_item would read the first tag back as
+            # the category. Reject rather than silently lose/relabel (review #6).
+            raise ValueError(
+                "TransmissionClient.add requires a non-None category when tags are "
+                "provided: labels=[category, *tags] cannot round-trip tags without "
+                "a leading category (the first tag would be read back as the category)."
+            )
+        torrent_arg: str | bytes
+        if source.magnet is not None:
+            torrent_arg = source.magnet
+        else:
+            assert source.file_bytes is not None  # guaranteed by TorrentSource.__post_init__
+            torrent_arg = source.file_bytes
+        try:
+            result = self._client.add_torrent(
+                torrent=torrent_arg,
+                labels=_labels(category, list(tags)),
+                paused=paused,
+            )
+            log.debug(
+                "transmission_add_ok",
+                echoed_hash=result.hash_string,
+                source_hash=source.info_hash,
+            )
+            if result.hash_string.lower() != source.info_hash.lower():
+                log.warning(
+                    "transmission_add_hash_mismatch",
+                    echoed_hash=result.hash_string,
+                    source_hash=source.info_hash,
+                    hint=(
+                        "Transmission echoed a hash_string that differs"
+                        " from the source-derived info_hash."
+                        " Returning source.info_hash as canonical (D6)."
+                    ),
+                )
+            return source.info_hash
+        except transmission_rpc.TransmissionError as exc:
+            # D7 idempotence — match both the lib's result-key form
+            # ("torrent-duplicate") and the human-readable daemon-error form
+            # ("duplicate torrent"). A message like "duplicate label rejected"
+            # matches neither token and correctly re-raises.
+            msg = str(exc).lower()
+            if "torrent-duplicate" in msg or "duplicate torrent" in msg:
+                log.debug("transmission_add_duplicate", info_hash=source.info_hash)
+                return source.info_hash
+            raise
+
     def pause(self, hash: str) -> None:
         """Stop a torrent by hash.
 
@@ -256,6 +359,28 @@ def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -
 # -- Internal helpers --------------------------------------------------------
 
 
+def _labels(category: str | None, tags: list[str]) -> list[str]:
+    """Build Transmission labels list from category and tags (D5).
+
+    Round-trip: write labels=[category, *tags]; read category=labels[0],
+    tags=labels[1:]. Category is deduped if it also appears in tags.
+
+    Args:
+        category: Category string or None.
+        tags: Tag strings.
+
+    Returns:
+        Ordered list [category, *deduped_tags].
+    """
+    result: list[str] = []
+    if category is not None:
+        result.append(category)
+    for tag in tags:
+        if tag not in result:
+            result.append(tag)
+    return result
+
+
 def _torrent_item(t: transmission_rpc.Torrent) -> TorrentItem:
     """Map a transmission-rpc Torrent object to a TorrentItem."""
     content_path = ""
@@ -266,8 +391,9 @@ def _torrent_item(t: transmission_rpc.Torrent) -> TorrentItem:
         elif t.name:
             content_path = str(Path(t.download_dir) / t.name)
 
-    labels = getattr(t, "labels", None)
+    labels: list[str] = list(getattr(t, "labels", None) or [])
     category = labels[0] if labels else None
+    tags = list(labels[1:]) if len(labels) > 1 else []
 
     added_on = None
     if t.added_date:
@@ -285,5 +411,6 @@ def _torrent_item(t: transmission_rpc.Torrent) -> TorrentItem:
         ratio=float(getattr(t, "ratio", 0.0) or 0.0),
         content_path=Path(content_path) if content_path else None,
         category=category,
+        tags=tags,
         added_on=added_on,
     )

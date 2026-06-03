@@ -22,7 +22,12 @@ if TYPE_CHECKING:
     from personalscraper.config import Settings
 
 
-def _build_app_context(config: "Config", settings: "Settings") -> AppContext:
+def _build_app_context(
+    config: "Config",
+    settings: "Settings",
+    *,
+    build_torrent_client: bool = False,
+) -> AppContext:
     """Build the process-scoped :class:`AppContext` for a CLI invocation.
 
     Constructed once per CLI command invocation at the boundary
@@ -37,9 +42,23 @@ def _build_app_context(config: "Config", settings: "Settings") -> AppContext:
     :class:`RegistryConfigError` at this boundary — fail loud at boot
     rather than discover the problem mid-pipeline.
 
+    The torrent client (DESIGN D3/D9) is built and validated **only** when
+    ``build_torrent_client`` is True — i.e. for the commands that actually
+    consume ``ctx.torrent_client`` (``run``, ``ingest``, ``torrents_list``).
+    ``build_active_torrent_client`` performs a live network connect + login,
+    so building it unconditionally would couple every read-only command
+    (``library *``, ``trailers``, ``maintenance``) to a reachable torrent
+    daemon and could even write a 1-hour auth lockout that blocks the next
+    ingest. Read-only commands leave ``build_torrent_client`` at its default
+    and get ``torrent_client=None`` with no daemon contact (review #1/#2/#5).
+
     Args:
         config: The typed JSON5 configuration loaded by ``cli.main``.
         settings: The Pydantic env-var settings (API keys, paths).
+        build_torrent_client: When True and a torrent client is configured,
+            resolve + validate it at boot (D3 fail-fast). When False
+            (default), ``torrent_client`` stays None and no torrent daemon is
+            contacted — used by commands that never touch the torrent client.
 
     Returns:
         A frozen :class:`AppContext` ready to drive ``Pipeline.__init__``
@@ -63,16 +82,62 @@ def _build_app_context(config: "Config", settings: "Settings") -> AppContext:
         cb_policy=cb_policy,
         providers_config=config.providers,
     )
+
+    # D3/D9: Boot-wire the torrent client when configured; fail-fast if
+    # incapable. Gated on ``build_torrent_client`` so only commands that
+    # consume the client (run/ingest/torrents_list) pay the connect+login —
+    # read-only commands stay decoupled from the daemon (review #1/#2/#5).
+    # No client configured (torrent.active="") → None, no error.
+    torrent_client = None
+    if build_torrent_client and config.torrent.active:
+        from personalscraper.api.metadata.registry import (  # noqa: PLC0415
+            ConfigIssue,
+            RegistryProviderName,
+        )
+        from personalscraper.api.metadata.registry._errors import (  # noqa: PLC0415
+            RegistryConfigError,
+        )
+        from personalscraper.api.torrent._contracts import (  # noqa: PLC0415
+            TorrentAdder,
+        )
+        from personalscraper.api.torrent._factory import (  # noqa: PLC0415
+            build_active_torrent_client,
+        )
+
+        raw_client = build_active_torrent_client(config.torrent)
+        if not isinstance(raw_client, TorrentAdder):
+            raise RegistryConfigError(
+                [
+                    ConfigIssue(
+                        code="protocol_mismatch",
+                        section="torrent",
+                        provider=RegistryProviderName(config.torrent.active),
+                        message=(
+                            f"Active torrent client {config.torrent.active!r} "
+                            "does not compose TorrentAdder. Verify the client "
+                            "implementation or configuration."
+                        ),
+                    )
+                ]
+            )
+        torrent_client = raw_client
+
     return AppContext(
         config=config,
         settings=settings,
         event_bus=event_bus,
         provider_registry=provider_registry,
+        torrent_client=torrent_client,
     )
 
 
 @contextmanager
-def per_step_boundary(config: "Config", settings: "Settings") -> Iterator[AppContext]:
+def per_step_boundary(
+    config: "Config",
+    settings: "Settings",
+    *,
+    build_torrent_client: bool = False,
+) -> Iterator[AppContext]:
     """Context manager wrapping the per-step CLI boundary.
 
     Builds an :class:`AppContext`, binds ``current_correlation_id`` for the
@@ -86,11 +151,15 @@ def per_step_boundary(config: "Config", settings: "Settings") -> Iterator[AppCon
     Args:
         config: Loaded JSON5 configuration.
         settings: Loaded env-var settings.
+        build_torrent_client: Forwarded to :func:`_build_app_context`. Only
+            the torrent-consuming subcommands (``ingest``, ``torrents_list``)
+            pass True; the rest leave it False so they never contact the
+            torrent daemon at boot (review #1/#2/#5).
 
     Yields:
         The fresh :class:`AppContext` bound for this invocation.
     """
-    app_context = _build_app_context(config, settings)
+    app_context = _build_app_context(config, settings, build_torrent_client=build_torrent_client)
     token = current_correlation_id.set(str(uuid4()))
     try:
         yield app_context

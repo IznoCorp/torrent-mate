@@ -1,0 +1,300 @@
+# Design — RP1: Torrent Write Capability (`torrent-write`)
+
+> ROADMAP item **RP1** (Vague 1, `[P1, prérequis]`). Keystone of the acquisition epic:
+> unblocks Orchestration, Follow, Ratio, Watcher, Trackers.
+> Grounded against the code on **2026-06-02** via a multi-agent footprint survey.
+
+## 1. Purpose
+
+The torrent-client family in `personalscraper/api/torrent/` is today strictly **read /
+control**: it can list, inspect, check seed-state, pause, resume and delete an _existing_
+torrent — but it **cannot add one**, and the client-side item model carries a `category`
+but no `tags`.
+
+RP1 surfaces a **write capability** on the family so downstream acquisition features can
+programmatically **add** a torrent (from `.torrent` bytes or a magnet URI) with a
+**category + tags**, and **apply transfer limits** where the client supports them. RP1
+delivers three things:
+
+1. the **interface** (new atomic capability Protocols + value objects),
+2. the **implementations** on both clients (qBittorrent, Transmission),
+3. **boot-wiring** of the torrent client into the composition root with a **capability
+   fail-fast**.
+
+## 2. Non-goals
+
+- **The `.torrent` fetch+POST plumbing** (authenticated download of the `.torrent`, the
+  magnet exception, the routable 401) — that is **RP1a**. RP1 only defines the `add`
+  interface so it _accommodates_ file-bytes vs magnet-url, and guarantees that a 401 from
+  the add POST itself stays observable.
+- **Limit policy** (ratio targets, bandwidth caps, seedtime rules) — that is RP2 / Ratio
+  (C1–C3) / Seed-Safety (O4). RP1 ships only the _mechanism_ to set limits.
+- Multi-tracker orchestration, dedup, ranking (RP5b and beyond).
+- Removing or reworking the existing read/control protocols.
+
+## 3. Grounded current state (2026-06-02)
+
+| Area            | Reality                                                                                                                                                                                                                                                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Family contract | 5 atomic `@runtime_checkable` Protocols in `api/torrent/_contracts.py`: `TorrentLister`, `TorrentInspector`, `AuthenticatedClient`, `TorrentStateInspector`, `TorrentController` — 8 methods, all read/control.                                                                                                          |
+| Item model      | `TorrentItem` `@dataclass` (mutable) in `api/torrent/_base.py` — 9 fields incl. `category: str \| None`, **no `tags`**.                                                                                                                                                                                                  |
+| Native libs     | `qbittorrentapi.torrents_add()` and `transmission_rpc.add_torrent()` **already support add** — `tests/e2e/setup_torrents.py` calls `torrents_add`. RP1 is a **wrapping/surfacing** task, not from-scratch.                                                                                                               |
+| Wiring          | Torrent client is **not boot-wired**. Built lazily per-step by `build_active_torrent_client()` (`api/torrent/_factory.py`) at `ingest/ingest.py:296` and `commands/pipeline.py:643`, each with an inline `QBitClient(...)` fallback. **Not** in `AppContext`. Failures are per-step `StepReport` errors, not boot-fatal. |
+| Transport       | `HttpTransport` (`api/transport/_http.py`) is **JSON-only** (`json=data` hardcoded, no `files=`). Multipart `.torrent` upload **cannot** go through it → add delegates to the **native client objects**.                                                                                                                 |
+| Capability gap  | qBit `torrents_add` does add+category+tags+limits (`upLimit/dlLimit/ratioLimit/seedingTimeLimit`) in one call. Transmission `torrent-add` has only `labels[]` + `peer_limit` — **no ratio/bandwidth/seedtime**. Limits are **not portable**.                                                                             |
+
+### 3.1 ROADMAP corrections (incohérences actées)
+
+The ROADMAP RP1 text (2026-06-01) diverges from the code; the design adopts the corrected
+reading:
+
+1. _"the client cannot add"_ — false at the lib level; it can, it is just **not exposed**.
+2. _"add + categorize + limit (symmetric)"_ — **asymmetric**: Transmission cannot set
+   ratio/bandwidth/seedtime. Limits are modelled as a **separate optional capability**.
+3. _"Transmission must refuse to start if it cannot add"_ — Transmission **can** add (via
+   `labels`), and there is **no boot phase** for the torrent client today. RP1 _creates_
+   that boot phase (AppContext promotion) and makes the fail-fast a **capability gate**
+   (refuse a client that cannot compose `TorrentAdder`), not a Transmission-specific block.
+4. `tags` belongs on the **client-side `TorrentItem`** (daemon view), not the tracker
+   search-result model (`TorrentResult`).
+5. _"Pin Q4 here"_ — Q4's multipart plumbing is genuinely a different layer (native libs,
+   not `HttpTransport`) → correctly **RP1a**. RP1 only pins the _interface shape_.
+
+## 4. Frozen decisions (brainstorm 2026-06-02)
+
+| #                                      | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **D1 — API shape**                     | A single method `add(source, *, category=None, tags=(), paused=False, limits=None) -> str` on a new atomic Protocol `TorrentAdder`. The source is a discriminated value object `TorrentSource{magnet \| file_bytes}` (exactly one set). Maps cleanly to Transmission's unified `torrent=` param and qBit's split `urls=`/`torrent_files=`.                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| **D2 — Limits as separate capability** | `TorrentLimiter` is a **separate** atomic `@runtime_checkable` Protocol (`apply_limits(info_hash, limits)`), composed by **qBit only**. `TorrentAdder` is composed by **both** clients (Transmission adds via `labels`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| **D3 — Fail-fast placement**           | **Promote** the torrent client into `AppContext` and validate at boot in `_build_app_context()` (true boot fail-fast via `RegistryConfigError`), mirroring the metadata `ProviderRegistry`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| **D4 — `tags` type**                   | `TorrentItem.tags: list[str] = field(default_factory=list)` (no `None`/empty ambiguity). The dataclass stays **mutable** (no frozen/slots churn).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| **D5 — Transmission round-trip**       | Write `labels = [category, *tags]` (deduped, category first). Read `category = labels[0] if labels else None`, `tags = labels[1:]`. Stable round-trip, no category duplication. **Constraint (review #6):** the flat-labels scheme can only round-trip when a category is present — `category=None` with non-empty `tags` is unrepresentable (the read side would promote the first tag to category), so `add()` **raises `ValueError`** for that combination rather than silently mangling the labels. `category=None` + no tags is fine (empty labels).                                                                                                                                                                                                                       |
+| **D6 — Return value**                  | `add(...) -> str` returns the **info_hash**, derived from the source (magnet → parse `xt=urn:btih:`; bytes → bencode infohash). Avoids qBit's missing hash echo and gives Watcher/Follow a handle. Transmission's echoed `hashString` is used as a cross-check.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| **D7 — Idempotence**                   | A duplicate add is **success** (no-op): qBit raises `Conflict409Error` on a duplicate (HTTP 409 — "torrent already added") and Transmission returns the existing torrent (or, on error-string daemons, a `torrent-duplicate`/`duplicate torrent` message) — both map to "already present → return the existing info*hash". (A qBit `"Fails."` result string is a \_generic* failure, not a duplicate, and raises — D8.) RP1 unblocks re-adding consumers (Watcher/Follow).                                                                                                                                                                                                                                                                                                      |
+| **D8 — Limits reconciliation (N2)**    | `add()` accepts `limits` (per D1), but it is honored **only** by a client also composing `TorrentLimiter`. Passing `limits` to a client without `TorrentLimiter` (Transmission) **raises** a clear error — **never a silent ignore** (project no-silent-failure norm). Callers gate via `isinstance(client, TorrentLimiter)`. qBit applies limits inline in the single `torrents_add` call.                                                                                                                                                                                                                                                                                                                                                                                     |
+| **D9 — Boot validation scope (N1)**    | Validate **only when a torrent client is configured/enabled** _and_ the command actually consumes it: an _enabled-but-incapable_ client → boot fail-fast; _no torrent client configured_ → no error (read-only commands like `info` / `library` queries must not break on an absent torrent config). **Scoping (review #1/#2/#5):** `_build_app_context(..., build_torrent_client=…)` gates the resolve+connect+login on a flag set **only** by the torrent-consuming commands (`run`, `ingest`, `torrents_list`). Read-only commands (`library *`, `trailers`, `maintenance`) leave it `False`, so a configured-but-**unreachable** daemon — or a stale-credential login that would write a 1-hour auth lockout — can no longer break a command that never touches the client. |
+| **D10 — Config (N3)**                  | **No** limit defaults added to config now (policy = RP2). `TorrentClientEntry` gains a `save_path` field **only if** `add` needs a default save path; otherwise config is untouched.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+
+## 5. Components
+
+### 5.1 Value objects (new, `api/torrent/_base.py`)
+
+- **`TorrentSource`** — frozen dataclass; exactly one of `magnet: str | None` /
+  `file_bytes: bytes | None` (validated in `__post_init__`, else `ValueError`).
+  Classmethods `from_magnet(uri)` / `from_file(data)`. Property/cached `info_hash: str`
+  (magnet → parse `btih`; bytes → minimal stdlib bencode infohash helper, **no new heavy
+  dependency**).
+- **`TorrentLimits`** — frozen dataclass; `ratio: float | None`,
+  `seed_time_minutes: int | None`, `up_bytes_per_s: int | None`,
+  `down_bytes_per_s: int | None` (all optional; all-`None` = no-op).
+
+### 5.2 New atomic Protocols (`api/torrent/_contracts.py`)
+
+```python
+@runtime_checkable
+class TorrentAdder(Protocol):
+    def add(self, source: TorrentSource, *, category: str | None = None,
+            tags: Sequence[str] = (), paused: bool = False,
+            limits: TorrentLimits | None = None) -> str: ...
+
+@runtime_checkable
+class TorrentLimiter(Protocol):
+    def apply_limits(self, info_hash: str, limits: TorrentLimits) -> None: ...
+```
+
+`TorrentAdder` → composed by `QBitClient` **and** `TransmissionClient`.
+`TorrentLimiter` → composed by `QBitClient` **only**. Update `__all__` and the family
+docstring/legacy-mapping table.
+
+### 5.3 Model change (`api/torrent/_base.py`)
+
+Add `tags: list[str] = field(default_factory=list)` after `category` on `TorrentItem`.
+Update both mappers:
+
+- qBit `_torrent_item()` (`qbittorrent.py:259`): `tags = [t for t in t.tags.split(",") if t]`.
+- Transmission `_torrent_item()` (`transmission.py:259`): `category = labels[0] if labels
+else None`, `tags = list(labels[1:])` (per D5; ensure the request asks for `labels`,
+  already at `transmission.py:104`).
+
+### 5.4 Client implementations
+
+- **`QBitClient`** — `add` → `self._client.torrents_add(urls=source.magnet |
+torrent_files=source.file_bytes, category=category, tags=list(tags),
+is_paused=paused, **_limit_kwargs(limits))`; returns `source.info_hash`; idempotent
+  (D7); 401 → `ApiError` (observable). `apply_limits` → `torrents_set_*` /
+  share-limit calls. Composes `TorrentAdder` + `TorrentLimiter`.
+- **`TransmissionClient`** — `add` → `self._client.add_torrent(torrent=source.magnet or
+source.file_bytes, labels=_labels(category, tags), paused=paused)`; returns the echoed
+  `hashString` (cross-checked vs `source.info_hash`); idempotent (D7); **raises**
+  `UnsupportedCapabilityError` if `limits` is not `None` (D8). Composes `TorrentAdder`
+  only.
+
+### 5.5 Boot-wiring + fail-fast (D3, D9)
+
+- `AppContext` (`core/app_context.py`) gains `torrent_client: TorrentClient | None`.
+- `_build_app_context()` (`cli_helpers/__init__.py`) resolves the active client via
+  `build_active_torrent_client(cfg.torrent, os.environ)` **when a torrent client is
+  configured/enabled**, asserts it composes `TorrentAdder`, else raises
+  `RegistryConfigError` (or a torrent `ConfigIssue` with a closed-enum code) at boot.
+- The two lazy sites (`ingest/ingest.py:296`, `commands/pipeline.py:643`) read
+  `ctx.torrent_client`; the inline `QBitClient(...)` fallbacks are removed.
+
+### 5.6 Errors (`api/torrent/_errors.py`)
+
+- New `UnsupportedCapabilityError` (or reuse `ApiError` with a capability code) for D8.
+- Optional `TorrentAddError` tuple alongside `TORRENT_CONNECT_ERRORS` /
+  `TORRENT_LISTING_ERRORS`. 401 surfaces as `ApiError(http_status=401)`.
+
+### 5.7 Config (D10, `conf/models/api_config.py`)
+
+`TorrentClientEntry` (currently `enabled/host/port`) gains `save_path: str | None = None`
+**only if** `add` requires a default; **no** limit defaults (RP2 owns policy).
+
+## 6. Data flow
+
+```
+RP1a (fetch .torrent / magnet, auth) ──▶ TorrentSource{file_bytes|magnet}
+                                              │
+future consumer (RP5b orchestrator / Watcher / Follow)
+   ctx.torrent_client.add(source, category=…, tags=[…], limits=… if Limiter)
+                                              │
+                              ┌───────────────┴───────────────┐
+                         QBitClient                     TransmissionClient
+                  torrents_add(+category,tags,           add_torrent(labels=[cat,*tags])
+                   limits inline)                         (raises if limits)
+                                              │
+                                       returns info_hash
+```
+
+## 7. Testing
+
+Unit (mirroring `tests/unit/test_qbittorrent.py`, `test_transmission_client.py`,
+`test_torrent_capabilities_composition.py`, `test_torrent_factory.py`):
+
+- qBit: `add` (magnet + file), tags mapping, limits applied inline, idempotent duplicate,
+  401 observable.
+- Transmission: `add` (magnet + bytes), `labels` round-trip (D5), tags mapping,
+  `limits` → raises, idempotent duplicate.
+- Capability composition: `isinstance(QBitClient, TorrentAdder/TorrentLimiter)` True;
+  `isinstance(TransmissionClient, TorrentAdder)` True, `TorrentLimiter` **False**.
+- Boot fail-fast: enabled-but-incapable active client → `RegistryConfigError`; no client
+  configured → no error (D9).
+- `TorrentSource`: exactly-one validation, `info_hash` derivation (magnet + bytes).
+- Factory: union still type-narrows the new capabilities.
+
+Follow the project's design-contract pairing convention (`Design:` / `Contract:`) where the
+repo already pairs them for the torrent family.
+
+## 8. Acceptance (design-level; full executable `ACCEPTANCE.md` produced at plan time)
+
+Each criterion becomes an executable shell command + expected output in `ACCEPTANCE.md`:
+
+- `python -c "from personalscraper.api.torrent import TorrentAdder, TorrentLimiter, TorrentSource, TorrentLimits"` → exit 0.
+- Capability composition (one-liners): a built `QBitClient` satisfies both `isinstance(c, TorrentAdder)` and `isinstance(c, TorrentLimiter)`; a built `TransmissionClient` satisfies `isinstance(c, TorrentAdder)` but **not** `isinstance(c, TorrentLimiter)` → asserts pass.
+- A misconfigured (enabled, incapable) torrent client makes `_build_app_context()` raise `RegistryConfigError` → asserted in tests.
+- `TorrentItem` exposes `tags: list[str]` defaulting to `[]` → asserted.
+- `make check` green; `python -c "import personalscraper"` smoke OK.
+
+## 9. Open items carried to planning
+
+- Exact `info_hash` bencode helper (stdlib-only) shape and its unit coverage (D6).
+- Whether `save_path` is actually needed on `TorrentClientEntry` (D10) — confirm during
+  the implementation of qBit/Transmission `add`.
+- Coordinate `lacale.py` importability with the in-flight-design `tech-debt-2` (unrelated
+  to RP1 but in the same `api/tracker` neighborhood) — RP1 does not touch tracker code, so
+  no collision expected.
+
+## 10. Side artifact carried on this branch
+
+The **LaCale Deprecation → Vague 2** ROADMAP reclassification (discovered during this
+brainstorm: the tracker registry is never boot-wired, so LaCale deprecation depends on
+RP5a) is staged in `ROADMAP.md` and will be committed on this feature branch
+(`docs(roadmap): defer LaCale deprecation behind RP5a`), per the operator's choice to
+carry it here rather than as a standalone PR.
+
+## 11. Out-of-scope addition — Dispatch external-ID matching (phase 15, 2026-06-03)
+
+**Status: documented deviation (operator-approved).** This is **outside** the original
+RP1 scope (§1/§2: RP1 surfaces a _write capability_ on `api/torrent/`; the dispatch / move
+subsystem in `personalscraper/dispatch/` is a separate concern). It is folded into this PR
+at the operator's explicit request as a fix phase, justified by the project norm
+"deviation only for a documented anomaly, with sign-off".
+
+**Anomaly (found during a 2026-06-03 pipeline-monitor run).** DISPATCH matched a staging
+item to its on-disk folder by **normalized folder name only**. A show already on disk under
+a localized / mis-named folder (`Rick et Morty (2006)`, TVDB 275274) was not recognized as
+the same show as the staging folder `Rick and Morty (2013)` (identical TVDB 275274) and
+would have been dispatched as a **new** folder — splitting the show across two folders (the
+new season orphaned from the back catalogue). It generalizes to every legacy-mis-named
+on-disk show receiving a new season.
+
+**Change.** `MediaIndex.find()` gains a provider-id pass between exact-name and fuzzy: on a
+name miss it matches the staging item's **canonical provider id** (TVDB for shows, TMDB for
+movies — the same provider-family separation as scraping, parsed from the staging NFO)
+against the on-disk entry's `external_ids_json`. The id pass never overrides an exact-name
+hit, never crosses provider families, screens placeholder ids (`0`/`None`), warns on an
+ambiguous id (two folders, one id), and survives index drift. Move-rule doc:
+`docs/reference/storage.md#move-rules-dispatch` (codename `dispatch`); paired contract test
+in `tests/integration/test_design_dispatch.py`. Acceptance: **ACC-15**. No torrent-client
+(`api/torrent/`) code is touched.
+
+## 12. Out-of-scope addition — Scene RAR extraction + sample stripping (phase 18, 2026-06-03)
+
+**Status: documented deviation (operator-approved).** Outside original RP1 scope
+(touches `process/`, `scraper/`, `verify/`, not `api/torrent/`). Folded in as a fix
+phase at the operator's request, justified by the "deviation only for a documented
+anomaly, with sign-off" norm.
+
+**Anomaly (pipeline-monitor run 2026-06-03-17h36, DEV #1).** Scene releases ship the
+real video inside a multi-part RAR set next to a small `Sample/*-sample.mkv` preview
+clip. The scraper's video discovery excluded only `Saison NN/` + `Trailers`, so it
+matched the 34–47 MB sample clip as the episode and the real ~2.5 GB video stayed
+locked in unextracted archives; `rename_service` would then rmtree the archive dir
+(data loss). There was zero sample/RAR awareness anywhere in the pipeline.
+
+**Change (operator-elected full scope B+A+D+C).** A single SSOT predicate set in
+`core.media_types` (`is_sample_path` / `is_sample_filename` / `is_archive_filename`).
+`process/extract.py` extracts multi-part RAR in place (rarfile → system `unrar`,
+fail-soft, idempotent) and strips `Sample/` + `*-sample.*`, wired into `run_clean`
+before scrape. All video-discovery globs exclude samples. `rename_service` preserves
+archive-bearing dirs; a new `verify` `no_archive_files` check (ERROR) blocks dispatch
+of any un-extracted archive. New dep `rarfile>=4.2`. Acceptance: **ACC-18**.
+
+## 13. Out-of-scope addition — TVDB alias/translation matching (phase 19, 2026-06-03)
+
+**Status: documented deviation (operator-approved).** Outside RP1 scope (touches
+`api/metadata/`, `scraper/`).
+
+**Anomaly (pipeline-monitor run 2026-06-03-17h36, DEV #2).** A real show whose folder
+uses a translated title ("Murder Mindfully" for the German-primary TVDB entry "Achtsam
+Morden") scored 0.38 (< LOW_CONFIDENCE) and was left unscraped. `parse_search_result`
+handled only a list-shaped `translations` field while the live TVDB `/search` returns a
+dict, and dropped the `aliases[]` array — the matcher never saw the comparable titles.
+
+**Change.** `SearchResult` gains an `aliases` tuple; the TVDB parser surfaces the eng
+translation as `original_title` and every translation value + alias into `aliases`;
+`confidence._score_result` scores best-of `{title, original_title, aliases}`. Strictly
+within the TVDB family (no cross-provider contamination — DESIGN §3 multi-provider
+separation preserved). Best-of only RAISES a candidate's score; the per-alias superstring
+penalty and (for TV folders with parseable seasons) the season-veto still apply, so an
+alias cannot make a wrong candidate outrank an exact-title same-year match. (The TV match
+path has no runner-up "ambiguity" warning — that is movie-only — so the protection is the
+superstring penalty + year + season-veto, not an ambiguity guard.) Acceptance: **ACC-19**.
+
+## 14. Out-of-scope addition — library.db FK-orphan cleanup (phase 20, 2026-06-03)
+
+**Status: documented deviation (operator-approved).** Outside RP1 scope (touches
+`indexer/`, `commands/library/`). Respects the existing `indexer.md` hard-delete /
+CASCADE / boot-guard design — extends, does not contradict it.
+
+**Anomaly (pipeline-monitor run 2026-06-03-17h36, DEV #3, pre-existing BDD state).** The
+live `library.db` held 11 foreign-key orphans (6 `item_issue` + 5 `media_release` whose
+parent `media_item` was deleted FK-off by migration 007 — descendants survived). The
+`open_db` FK guard then aborted every indexer command, including `library-reconcile`.
+
+**Change.** `open_db(allow_fk_orphans=False)` opt-in escape hatch (default keeps the
+fail-loud DEV #19 contract; only reconcile opts in). `reconcile.detect_fk_orphans` /
+`clean_fk_orphans` delete orphan child rows under `foreign_keys=ON` so the declared
+`ON DELETE CASCADE` removes descendants; `library-reconcile --clean-fk-orphans`
+(dry-run-first: counts + cascade impact always reported). No schema change / no migration
+(FKs already correct, pre-1.0) — the live DB was remediated in place. Acceptance: **ACC-20**.

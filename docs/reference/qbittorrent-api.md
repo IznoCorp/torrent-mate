@@ -737,6 +737,77 @@ from qbittorrentapi import (
 )
 ```
 
+## QBitClient — Write Capabilities (torrent-write, v0.21.0)
+
+`QBitClient` (`personalscraper/api/torrent/qbittorrent.py`) composes two new
+atomic `@runtime_checkable` Protocols introduced in `torrent-write`:
+
+- **`TorrentAdder`** (`api/torrent/_contracts.py:124`) — add a torrent from a
+  `TorrentSource` (magnet URI or `.torrent` bytes).
+- **`TorrentLimiter`** (`api/torrent/_contracts.py:158`) — apply transfer limits
+  (ratio, seed time, bandwidth) to an existing torrent.
+
+### `QBitClient.add(source, *, category, tags, paused, limits) → str`
+
+Adds a torrent to qBittorrent via `torrents_add`, with category, tags, paused
+state, and limits all applied inline in a single call (DESIGN D1/D2/D6/D7/D8).
+
+| Parameter  | Type                    | Required | Description                                      |
+| ---------- | ----------------------- | -------- | ------------------------------------------------ |
+| `source`   | `TorrentSource`         | yes      | Magnet URI or `.torrent` bytes (exactly one set) |
+| `category` | `str \| None`           | no       | Category label (qBit category feature)           |
+| `tags`     | `Sequence[str]`         | no       | Tag strings applied via comma-separated format   |
+| `paused`   | `bool`                  | no       | Add in paused state (default `False`)            |
+| `limits`   | `TorrentLimits \| None` | no       | Optional transfer limits; qBit honors all fields |
+
+**Source routing**: magnet → `urls=` kwarg; file bytes → `torrent_files=` kwarg.
+The native `qbittorrentapi.torrents_add()` accepts either shape.
+
+**Limits applied inline** via `_limit_kwargs()`: `ratio_limit` (float),
+`seeding_time_limit` (minutes, passed 1:1 — qBit's API expects **minutes**),
+`upload_limit` (bytes/s), `download_limit` (bytes/s). All four are set in the
+same `torrents_add` call — qBit is the only client that supports this (D2).
+
+**Return value**: `source.info_hash` (lowercase hex SHA-1, per D6). A duplicate
+add raises `Conflict409Error` (HTTP 409 — "torrent is already added"), which is
+caught and mapped to idempotent success: the existing `info_hash` is returned
+unchanged (D7). A `"Fails."` result string is a **generic failure** (bad magnet,
+disk full, bad save path), not a duplicate, and raises `ApiError` (D8 — no
+silent fake-success). A non-str return (the `TorrentsAddedMetadata` mapping from
+qBit Web API v2.14.0+) is treated as success. 401 (caught as both
+`Unauthorized401Error` — the one the daemon raises here — and `LoginFailed`,
+defensively) and 403 (`Forbidden403Error`), plus corrupt-payload (415 /
+`TorrentFileError` family), are re-raised as the project's uniform `ApiError`.
+
+### `QBitClient.apply_limits(info_hash, limits) → None`
+
+Applies transfer limits to an **existing** torrent (D2).
+
+| Parameter   | Type            | Required | Description             |
+| ----------- | --------------- | -------- | ----------------------- |
+| `info_hash` | `str`           | yes      | Lowercase hex info_hash |
+| `limits`    | `TorrentLimits` | yes      | Limits to apply         |
+
+**Dispatch logic:**
+
+- `ratio` and/or `seed_time_minutes` → `torrents_set_share_limits`, passing
+  **only the explicitly-set fields** (`ratio_limit` / `seeding_time_limit`). No
+  `-2` global-reset sentinel is sent for an unspecified field — unset fields are
+  omitted from the request entirely.
+- `up_bytes_per_s` → `torrents_set_upload_limit`.
+- `down_bytes_per_s` → `torrents_set_download_limit`.
+- All-`None` `TorrentLimits` → true no-op (no API calls made).
+
+### Capability Composition
+
+| Capability          | QBitClient | Notes                                                         |
+| ------------------- | ---------- | ------------------------------------------------------------- |
+| `TorrentLister`     | ✓          | (pre-existing) list torrents                                  |
+| `TorrentInspector`  | ✓          | (pre-existing) inspect single torrent                         |
+| `TorrentController` | ✓          | (pre-existing) pause/resume/delete                            |
+| `TorrentAdder`      | ✓          | add via `torrents_add` (category + tags + limits inline)      |
+| `TorrentLimiter`    | ✓          | apply limits via `torrents_set_share_limits` / `_set_*_limit` |
+
 ## Sources
 
 - [PyPI](https://pypi.org/project/qbittorrent-api/)

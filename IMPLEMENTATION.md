@@ -1,23 +1,338 @@
-# Implementation Progress — (awaiting feature)
+# Implementation Progress — torrent-write
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: _(to be defined by /implement:feature)_
-**Version bump**: _(to be defined)_
-**Branch**: _(to be defined)_
-**PR merge**: _(to be defined: manual or auto)_
-**PR**: _(created after last phase)_
-**Design**: _(to be defined after brainstorm)_
-**Master plan**: _(to be defined after plan generation)_
+**Feature**: RP1 — Torrent Write Capability (add + categorize + tags + limits) (minor)
+**Version bump**: 0.20.0 → 0.21.0
+**Branch**: feat/torrent-write
+**PR merge**: manual
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/36
+**Design**: docs/features/torrent-write/DESIGN.md
+**Master plan**: docs/features/torrent-write/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                                                                                | File                               | Status |
+| --- | ---------------------------------------------------------------------------------------------------- | ---------------------------------- | ------ |
+| 1   | `TorrentSource` + `TorrentLimits` value objects                                                      | phase-01-value-objects.md          | [x]    |
+| 2   | `TorrentAdder` + `TorrentLimiter` Protocols + `UnsupportedCapabilityError`                           | phase-02-protocols.md              | [x]    |
+| 3   | `TorrentItem.tags` field + mapper updates (qBit CSV + Transmission D5)                               | phase-03-torrentitem-tags.md       | [x]    |
+| 4   | `QBitClient.add()` + `_limit_kwargs()`                                                               | phase-04-qbit-add.md               | [x]    |
+| 5   | `QBitClient.apply_limits()` + composition assertions                                                 | phase-05-qbit-apply-limits.md      | [x]    |
+| 6   | `TransmissionClient.add()` + `_labels()` + composition assertions                                    | phase-06-transmission-add.md       | [x]    |
+| 7   | `AppContext.torrent_client` field                                                                    | phase-07-appcontext-field.md       | [x]    |
+| 8   | Fail-fast in `_build_app_context()` (D3/D9)                                                          | phase-08-boot-failfast.md          | [x]    |
+| 9   | Remove lazy inline `QBitClient` fallbacks                                                            | phase-09-remove-lazy-fallbacks.md  | [x]    |
+| 10  | Reference docs updates                                                                               | phase-10-docs.md                   | [x]    |
+| 11  | Executable `ACCEPTANCE.md` + ROADMAP flip                                                            | phase-11-acceptance-roadmap.md     | [x]    |
+| 12  | PR review fixes — cycle 1 (bencode, qBit add, seed-time, +mediums)                                   | phase-12-pr-fixes-cycle-1.md       | [x]    |
+| 13  | PR review fixes — cycle 2 (qBit 401 catch, Transmission dup robustness)                              | phase-13-pr-fixes-cycle-2.md       | [x]    |
+| 14  | PR review fixes — cycle 3 (boot-coupling scope, qBit metadata return, D5 guard, doc/ACC)             | _review-driven (no plan file)_     | [x]    |
+| 15  | Dispatch external-ID matching (out-of-scope addition: Rick-and-Morty split fix)                      | _review-driven (no plan file)_     | [x]    |
+| 16  | Metadata search NFC-normalization (out-of-scope addition: accented-title scrape fix)                 | _review-driven (no plan file)_     | [x]    |
+| 17  | Unify TV source-aware fetch — rescraper reuses fetch_show_data (out-of-scope: TVDB-only 404 fix)     | _workflow-designed (no plan file)_ | [x]    |
+| 18  | Scene RAR extraction + sample stripping before scrape (out-of-scope: pipeline-monitor DEV #1)        | _workflow-designed (no plan file)_ | [x]    |
+| 19  | TVDB alias/translation matching for translated-title folders (out-of-scope: pipeline-monitor DEV #2) | _workflow-designed (no plan file)_ | [x]    |
+| 20  | library.db FK-orphan cleanup via reconcile + tolerant open (out-of-scope: pipeline-monitor DEV #3)   | _workflow-designed (no plan file)_ | [x]    |
 
 ## Review cycles
 
-_(filled by /implement:pr-review)_
+### Cycle 1 — 2026-06-02
+
+pr-review-toolkit (5 agents) + Opus filter vs DESIGN. Findings **independently
+reproduced** before classification (evidence-before-severity). All are
+implementation bugs within DESIGN scope — **no design contradiction**.
+
+**Retained — blocking (must fix before merge):**
+
+- **C1 (critical)** `_base.py` `_bencode_info_hash`: flat `data.find(b"4:info")`
+  matches inside a sibling string value (`comment`/`announce`/`created by` sort
+  before `info`) → crash or **silent wrong info_hash** (attacker-influenceable).
+  Reproduced (crash). Fix: structural top-level dict walk.
+- **C2 (critical)** `qbittorrent.py` `add()`: ignores `torrents_add` return +
+  miscatches duplicate. Lib raises `Conflict409Error` on duplicate (uncaught →
+  D7 broken) and returns `"Fails."` on failure (→ silent fake-success, D8
+  violated). Verified vs qbittorrentapi v5.1.4. Fix: catch Conflict409 →
+  idempotent; inspect return, raise on `"Fails."`; catch file/media errors.
+- **M1 (major)** `qbittorrent.py` `_limit_kwargs`/`apply_limits`: `seed_time_minutes
+  - 60`— qBit expects **minutes** (verified). 60× error. Test asserts the bug.
+Fix: drop`\* 60`; fix test.
+
+**Retained — medium:**
+
+- Md1 `apply_limits` sends `-2` (reset-to-global) for the unspecified field →
+  contradicts "None = no-op". Fix: only send provided fields.
+- Md2 bencode not hardened (length bound / recursion depth) — folds into C1.
+- Md3 base32 (32-char) magnets rejected → crash add path. Fix: accept + decode.
+- Md4 `TorrentSource("")`/`from_file(b"")` pass exactly-one. Fix: reject empties.
+- Md5 Transmission dup match `"duplicate" in str(exc)` fragile. Fix: `"torrent-duplicate"`.
+- Md6 boot tests miss `enabled=False` + factory-raise propagation. Fix: add tests.
+- Md7 doc rot: `_contracts.py` docstring + `architecture.md` say "5 protocols"
+  (now 7) — DESIGN §5.2 asked to update. Fix: correct counts/tables.
+
+**Minor (bundle opportunistically):** Transmission D6 hashString cross-check
+unwired (log.warning on mismatch); `info_hash` vs `hash` param naming;
+`UnsupportedCapabilityError` extends Exception (add intent comment); misleading
+`patch.object(info_hash)` stub; `_errors.py` module docstring.
+
+**Verdict:** Case B → fix phase 12 generated; run `/implement:phase`, then
+re-push (CI) + re-review. PR #36 **blocked** until C1/C2/M1 fixed.
+**Outcome:** phase 12 landed all fixes (commits 1fffb7b2…4521dfbe), each
+independently re-verified; `make check` + design-gaps green; CI green at 47e46635.
+
+### Cycle 2 — 2026-06-03
+
+Focused adversarial re-review of the phase-12 fix diff (code-reviewer agent +
+own adversarial bencode probing). **No regressions** — the 3 cycle-1
+criticals/major are correctly fixed (bencode parser adversarially confirmed:
+pieces-token-bytes, info-not-last, depth cap, length bounds, base32, empty-guard
+all pass). Two residual findings, both **confirmed by hand**:
+
+- **MEDIUM** `qbittorrent.py` `add()` catches `LoginFailed` for "401" but a real
+  401 on `torrents_add` is `Unauthorized401Error` (distinct MRO) → escapes
+  uncaught; docstring over-claims "401 → ApiError". Verified: a simulated
+  `Unauthorized401Error` escapes `add()`.
+- **MINOR** `transmission.py` `add()` `"torrent-duplicate"` except branch is
+  effectively dead with the installed lib (a dup returns a `Torrent`, no raise);
+  a daemon that raised would say `"duplicate torrent"` (not `"torrent-duplicate"`).
+  Its test mocks an unrealistic raise.
+
+**Verdict:** Case B → fix phase 13 (401 catch + Transmission dup robustness).
+
+### Cycle 3 — 2026-06-03
+
+Full adversarial multi-agent review (7 dimension reviewers + per-finding
+skeptic verification; 27 findings, 0 refuted) followed by an evidence-based
+severity calibration. No critical/high defects survived verification; the
+cycle-1/2 fixes (bencode C1 structural walk, qBit Conflict409 idempotence,
+seed-time minutes, Unauthorized401 catch) were independently re-confirmed
+correct. Six items fixed (operator chose "fix everything"):
+
+- **boot-coupling (review #1/#2/#5)** — `_build_app_context` /
+  `per_step_boundary` gained a keyword-only `build_torrent_client` flag
+  (default False). Only `run` / `ingest` / `torrents_list` set it True. Read-
+  only commands (`library *`, `trailers`, `maintenance`) no longer connect +
+  log in to the torrent daemon at boot, so a configured-but-unreachable daemon
+  (or a stale-cred login writing a 1-hour auth lockout that would block the
+  next ingest) can no longer break a command that never consumes
+  `ctx.torrent_client`. DESIGN D9 amended to document the scoping; regression
+  test `test_read_only_command_skips_torrent_build` + ACC-14.
+- **qBit add() return type (review #3)** — success check made robust to a
+  non-str `TorrentsAddedMetadata` return (qBit Web API v2.14.0+): a non-str
+  result is success (HTTP failures already raise), only a str is matched
+  against `"Ok."`. Prevents misreporting a successful add as `ApiError`.
+  Regression test `test_add_metadata_object_return_is_success`.
+- **D5 round-trip guard (review #6)** — `TransmissionClient.add` now raises
+  `ValueError` for `category=None` + non-empty `tags` (unrepresentable in the
+  flat-labels round-trip; the read side would promote the first tag to
+  category). DESIGN D5 amended; tests `test_category_none_with_tags_raises` +
+  `test_d5_round_trip_stable_for_supported_inputs`.
+- **doc/ACC hygiene (review #4/#7/#8/#9/#10/#11)** — ACCEPTANCE absolute test
+  counts replaced with `0 failed` assertions (SH-16 re-exercise stability);
+  DESIGN D7 + qbittorrent-api.md corrected (duplicate = Conflict409, not
+  `"Fails."`; `-2` sentinel removed; 401 catches both exceptions); reference
+  section version headers `v0.20.0` → `v0.21.0` (+ feature_map anchor regen);
+  `_base.py` + two test docstrings `5 atomic` → `7`.
+
+`make check` exit 0 (6016 passed, 0 failed, coverage 91.26%), `make lint`
+clean, `audit_design_coverage --strict` 0 findings, `update_feature_map
+--check` clean, all ACC-01..ACC-14 re-exercised green, smoke v0.21.0.
+
+### Phase 15 — Dispatch external-ID matching (out-of-scope addition) — 2026-06-03
+
+Folded into this PR at the operator's explicit request (a `pipeline-monitor` run
+surfaced the anomaly). **Out of original RP1 scope** (RP1 = torrent write capability
+on `api/torrent/`; this touches `personalscraper/dispatch/`) — documented as a
+sign-off deviation in DESIGN §11.
+
+**Anomaly:** DISPATCH matched a staging item to its on-disk folder by normalized
+**folder name only**. `Rick and Morty (2013)` (staging, TVDB 275274) did not match the
+on-disk `Rick et Morty (2006)` (same TVDB 275274) → would dispatch as a **new** folder,
+**splitting** the show. Generalizes to any legacy-mis-named on-disk show getting a new season.
+
+**Change (TDD):** `MediaIndex.find()` gains a provider-id pass between exact-name and
+fuzzy — on a name miss it matches the staging NFO's **canonical provider id** (TVDB shows /
+TMDB movies) against the on-disk entry's `external_ids_json`. New `item_repo.find_by_external_id`.
+Threaded via `dispatcher._resolve_existing_on_filesystem` + `_tv.py`/`_movie.py`. Doc:
+`storage.md#move-rules-dispatch` + paired contract test; `dispatch.json` regenerated.
+
+**Adversarial review (3 reviewers) → 3 findings fixed, each with a regression test:**
+
+- **HIGH (2-reviewer consensus)** — placeholder-id poisoning: a leaked `tvdb=0` / `imdb=None`
+  would false-match any row carrying the same placeholder → wrong merge/replace. Fixed: repo
+  rejects placeholder series_ids (`""`/`0`/`none`). Test `test_placeholder_imdb_id_does_not_false_match`.
+- **MED-HIGH** — ambiguous id (two folders, one id): `LIMIT 1` newest-wins silently. Fixed:
+  warn `indexer.dispatch.external_id_ambiguous`. Test `test_ambiguous_external_id_resolves_to_one_existing_entry`.
+- **MED** — drift fallback re-keyed on the staging name, discarding a drifted id-match → re-split.
+  Fixed: the per-disk rescan also probes the matched entry's basename.
+
+Evidence (live `library.db`): 90.8% of 1934 rows already carry IDs (shows 93.6% tvdb, movies
+88% tmdb); `Rick et Morty (2006)` (id 1381) carries tvdb 275274 → matched today, no backfill
+needed for it. The 177 blank rows backfilled via `library-init-canonical` (phase 15 step).
+Acceptance: **ACC-15**.
+
+### Phase 16 — Metadata search NFC-normalization (out-of-scope addition) — 2026-06-03
+
+Folded into this PR at the operator's request (a `library-rescrape` of legacy
+catalog items surfaced the bug). **Out of original RP1 scope** (touches
+`api/metadata/`, not `api/torrent/`) — documented sign-off deviation, same basis as
+phase 15.
+
+**Bug (found via systematic-debugging):** accented French film titles
+(`L'âge de glace`, `Le Garçon et la Bête`, …) returned **zero** TMDB/TVDB search
+results and silently became `no_match`, even though the provider has the film.
+Root cause proven by reproduction: folder names on the macOS / NTFS-via-macFUSE
+filesystem are stored **NFD-decomposed** (`a` + U+0302 combining circumflex); the
+search query was passed **verbatim** to the provider, whose index is **NFC** →
+no match. `search RAW(NFD) → 0 results` vs `search NFC → 2 results`. ASCII titles
+(Aladdin) were unaffected; the fuzzy _matching_ layer already accent-folds, but the
+_search query_ was never normalized — the gap.
+
+**Fix (TDD):** NFC-normalize the search query at the provider boundary —
+`TMDBClient._search_paginated` (covers movie+tv) and `TVDBClient.search_series` /
+`search_movie`. Idempotent for ASCII / already-NFC → zero regression. Regression
+tests `test_query_is_nfc_normalized` (TMDB + TVDB). Verified end-to-end: the
+`movies_animation` bulk re-scrape went from **Fixed 1 → Fixed 13** (all accented
+titles now match at confidence 1.0). `make check` green, design-gaps `--strict`
+0 findings, smoke ok. Acceptance: **ACC-16**.
+
+> Side-findings (operational, not code): (a) `library-init-canonical` reads the
+> folder-name NFO (`Aladdin (1992).nfo`) not the canonical `<title>.nfo`, so it
+> missed re-scraped IDs — worked around by a targeted DB `external_ids_json`
+> UPDATE reusing `_nfo_metadata_for_dir` + `derive_canonical_provider` (cohort
+> video-blank 107 → 35). (b) The scanner's Merkle/mtime change-detection does not
+> see in-place NFO rewrites on NTFS (incremental + full both short-circuited).
+> Both are candidates for a future indexer fix.
+
+### Phase 17 — Unify the TV source-aware fetch (out-of-scope addition) — 2026-06-03
+
+Folded into this PR at the operator's request after a `library-rescrape` of old
+French/classic shows (Hey Arnold!, Tintin, Famille Pirate, Il était une fois…)
+aborted with `tmdb API 404`. **Out of original RP1 scope** (touches `scraper/` +
+`maintenance/`) — documented sign-off deviation, same basis as phases 15–16.
+
+**Bug (found via systematic-debugging, after a first mis-localized attempt that
+was reverted):** the maintenance rescraper is a **divergent copy** of the TV
+scrape — `_resolve_tmdb_id` dropped `match.source` and the rescraper fed the
+matched **TVDB** id to `tmdb.get_tv` → 404 → the whole item aborted, even though
+TVDB had the show. The operator's diagnosis was the real root cause: **the scrape
+logic was duplicated** (`tv_service`, `existing_validator`, and this rescraper),
+so the TVDB-primary discipline could diverge.
+
+**Fix (option C, designed via a Workflow that mapped all three copies; TDD):**
+extract the source-aware fetch slice — `fetch_show_data(source, api_id, provider,
+…)` in `_tvdb_convert.py` — the TVDB-primary / TMDB-fallback branch lifted
+verbatim from `tv_service._lookup_series:501-526`. **Both** `tv_service` and the
+rescraper now call it, so the discipline lives in ONE place. The rescraper carries
+`match.source` through `_resolve_tmdb_id` (NFO path now uses `extract_nfo_metadata`,
+tvdb-present → tvdb) and routes episodes to the shared `_fetch_season_episodes_tvdb`
+/ `_fetch_season_episodes` twins. Regression test `test_tvdb_only_show_scrapes_via_tvdb_not_tmdb`.
+Verified end-to-end: anime re-scrape **Errors 8 → 0, Fixed 0 → 8** (Hey Arnold! /
+Tintin now scrape via TVDB). `make check` green (959 in scraper+maintenance+e2e),
+design-gaps `--strict` 0 findings, residual `tmdb.get_tv(` in `maintenance/` = 0.
+Acceptance: **ACC-17**.
+
+> The **full** unification (option B — extract the whole `_lookup_series` match +
+> title-resolve into a shared core so `tv_service` / `existing_validator` /
+> rescraper stop duplicating it) is deferred to a dedicated feature and logged in
+> ROADMAP.md (Tech-Debt Round 2): it touches the pipeline scrape path + ~6000
+> tests, too large for a fix-phase. Phase 17 unified the seam that caused the bug.
+
+### Phase 18 — Scene RAR extraction + sample stripping (out-of-scope addition) — 2026-06-03
+
+Folded into this PR at the operator's request after a `pipeline-monitor` run
+(`docs/pipeline-runs/2026-06-03-17h36`) caught **DEV #1**. **Out of original RP1
+scope** (touches `process/` + `scraper/` + `verify/`) — documented sign-off
+deviation, same basis as phases 15–17. See DESIGN.md §12.
+
+**Bug (caught at the PROCESS dry-run, confirmed by grep — zero sample/RAR handling
+anywhere):** "Rafa S01E01–E04" are scene releases whose real ~2.5 GB video is in
+a multi-part RAR set, next to a 34–47 MB `Sample/*-sample.mkv` clip. The scraper's
+video discovery only excluded `Saison NN/` + `Trailers`, so it matched the **sample
+clip** as the episode (`episode_would_rename source=...sample.mkv`); the real video
+stayed locked in unextracted archives and `rename_service` would later rmtree the
+archive dir (data loss).
+
+**Fix (option B+A+D+C, operator-elected full scope; TDD):**
+
+- `core.media_types`: shared `is_sample_path` / `is_sample_filename` /
+  `is_archive_filename` predicates (strict suffix, low false-positive).
+- **C** `process/extract.py`: `extract_release_archives` (rarfile → unrar,
+  fail-soft, idempotent) extracts multi-part RAR in place + removes consumed parts;
+  **A** `strip_sample_artifacts` removes `Sample/` dirs + `*-sample.*`. Both wired
+  into `run_clean` BEFORE scrape.
+- **B** all video-discovery globs (`_shared._find_video_file`, `tv_service`,
+  `existing_validator` rescrape) exclude samples.
+- **D** `rename_service._cleanup_empty_release_dirs` preserves archive-bearing dirs
+  (no silent loss) + new `verify` check `no_archive_files` (ERROR) blocks dispatch
+  of any un-extracted archive.
+
+New dep `rarfile>=4.2` (shells to system `unrar`, already present). Regression
+tests reproduce the Rafa scenario with a REAL multi-part RAR
+(`tests/process/test_extract.py`) + predicate/movie/verify tests. Golden check
+counts regenerated (+1 check). Verified end-to-end on real staging:
+`process_clean_complete extracted=3 sample_stripped=4`, no more
+`source=...sample.mkv`. Acceptance: **ACC-18**.
+
+### Phase 19 — TVDB alias/translation matching (out-of-scope addition) — 2026-06-03
+
+`pipeline-monitor` **DEV #2**. Out of RP1 scope (touches `api/metadata/` +
+`scraper/`). See DESIGN.md §13.
+
+**Bug:** "Murder Mindfully" (16 real episodes) matched its German-primary TVDB
+candidate "Achtsam Morden" at only 0.38 (< LOW_CONFIDENCE 0.5) →
+`show_no_confident_match` → left unscraped. Root cause: `_tvdb_parsers.parse_search_result`
+handled a **list**-shaped `translations` field while the live TVDB `/search` returns
+a **dict** (`{"eng": "Murder Mindfully", "deu": "Achtsam Morden"}`) and dropped the
+`aliases[]` array entirely — the matcher never saw the comparable titles.
+
+**Fix (option A1; TDD):** `SearchResult` gains an `aliases` tuple; the parser surfaces
+the eng translation as `original_title` and every translation value + alias into
+`aliases`; `confidence._score_result` scores best-of `{title, original_title,
+aliases}`. Strictly inside the TVDB family (no cross-provider contamination);
+best-of only raises scores, season-veto/ambiguity guards intact. Verified end-to-end:
+`show_tvdb_match 'Achtsam Morden' confidence=1.0 title='Murder Mindfully'` → 16
+episodes organized. Acceptance: **ACC-19**.
+
+### Phase 20 — library.db FK-orphan cleanup (out-of-scope addition) — 2026-06-03
+
+`pipeline-monitor` **DEV #3** (pre-existing BDD state). Out of RP1 scope (touches
+`indexer/` + `commands/library/`). See DESIGN.md §14.
+
+**Bug:** the live `library.db` held 11 foreign-key orphans (6 `item_issue` + 5
+`media_release` whose parent `media_item` 645/800/874/875/876 were deleted by
+migration 007 with FK enforcement off — proof: their 47 `media_file` + 58
+`media_stream` descendants survived). `open_db`'s FK guard then aborted EVERY
+indexer command, including `library-reconcile` (the maintenance-drain tool).
+
+**Fix (option A; TDD):** `open_db(allow_fk_orphans=False)` escape hatch (default keeps
+the fail-loud DEV #19 contract; only reconcile opts in). `reconcile.detect_fk_orphans`
+/ `clean_fk_orphans` delete orphan child rows under `foreign_keys=ON` so the declared
+`ON DELETE CASCADE` removes descendants; `library-reconcile --clean-fk-orphans`
+(dry-run-first — counts + cascade impact always reported). No schema change / no
+migration (FKs already correct, pre-1.0). Live remediation applied (backup taken):
+11 cleaned, cascade 47+58, `foreign_key_check` now 0, `integrity_check ok`,
+`library-reconcile` unblocked. Acceptance: **ACC-20**.
 
 ## Next action
 
-**Awaiting new feature definition** — run /implement:feature
+**All phases (1–20) complete.** Cycle-1 (C1/C2/M1 + 7 mediums), cycle-2 (qBit
+401 catch, Transmission dup robustness) and cycle-3 (boot-coupling scope, qBit
+metadata return, D5 guard, doc/ACC hygiene) fixes all landed and independently
+re-verified. `make check` 6016 passed, design-gaps `--strict` 0 findings, smoke
+v0.21.0. Re-push PR #36 + CI; review loop converged (cycle-3 adversarial pass
+confirmed no critical/high defects survive). **Phase 15** (dispatch external-ID
+matching) then landed on top with its own 3-reviewer adversarial pass (3 findings
+fixed, each with a regression test). **Phase 16** (metadata search NFC-normalization)
+landed next via systematic-debugging (root cause reproduced, TDD fix, verified
+end-to-end). **Phase 17** (unify the TV source-aware fetch) followed — designed via
+a Workflow mapping the three duplicated scrape paths, fixing the TVDB-only 404 abort
+at its root (de-duplication). Re-run the full gate, re-push PR #36 + CI, then
+**manual merge**.
+
+> **Phase 9 re-scope (documented):** the plan estimated 3 files; reality was 23 — `run_ingest`'s
+> signature change rippled through `pipeline_steps.py` (IngestStep/LegacyCallableStep — missed by
+> the plan, would have broken the live pipeline) + ~20 test call sites. Phase 9 also fixed a
+> Phase-8 boot-fail-fast regression (56 trailers/indexer CLI tests with bare-MagicMock configs
+> tripping the fail-fast) — verified pre-existing at baseline SHA 9a9eac1d via a worktree run.
+> Net: zero new failures, full suite green.

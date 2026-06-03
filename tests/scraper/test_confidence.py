@@ -1296,3 +1296,79 @@ class TestTvYearWindowParity:
 
         assert result is not None
         assert result.api_id == 500
+
+
+class TestAliasMatching:
+    """Regression (DEV #2): a translated-title folder matches via aliases.
+
+    Reproduces the production miss: folder "Murder Mindfully" against the
+    German-primary TVDB candidate "Achtsam Morden". Before the fix the candidate
+    only exposed its primary title, scoring ~0.38 (below LOW_CONFIDENCE), so the
+    real show was left unscraped.
+    """
+
+    def test_alias_rescues_translated_folder(self) -> None:
+        """The English alias makes the German-primary candidate score >= LOW."""
+        candidate = SearchResult(
+            provider="tvdb",
+            provider_id="420001",
+            title="Achtsam Morden",
+            year=2024,
+            original_title="Murder Mindfully",
+            aliases=("Murder Mindfully", "Mindful Murder"),
+        )
+        score = _score_result("Murder Mindfully", 2024, candidate)
+        assert score >= LOW_CONFIDENCE
+
+    def test_primary_title_only_would_miss(self) -> None:
+        """Without aliases/original (the old shape) the same folder scores low."""
+        bare = SearchResult(
+            provider="tvdb",
+            provider_id="420001",
+            title="Achtsam Morden",
+            year=2024,
+        )
+        assert _score_result("Murder Mindfully", 2024, bare) < LOW_CONFIDENCE
+
+    def test_aliases_only_raise_score(self) -> None:
+        """Best-of scoring: an alias can only raise, never lower, the score."""
+        with_alias = SearchResult(
+            provider="tvdb",
+            provider_id="1",
+            title="Exact Title",
+            year=2020,
+            aliases=("totally different",),
+        )
+        assert _score_result("Exact Title", 2020, with_alias) == pytest.approx(
+            _score_result(
+                "Exact Title", 2020, SearchResult(provider="tvdb", provider_id="1", title="Exact Title", year=2020)
+            )
+        )
+
+
+class TestAliasCollision:
+    """Regression (review REG-1): an alias cannot make a wrong show win."""
+
+    def test_exact_title_beats_different_year_colliding_alias(self) -> None:
+        """A colliding alias does not outrank an exact-title, correct-year match."""
+        right = SearchResult(provider="tvdb", provider_id="1", title="The Office", year=2005)
+        wrong = SearchResult(
+            provider="tvdb",
+            provider_id="2",
+            title="Parks and Recreation",
+            year=2009,
+            aliases=("The Office",),  # wrong show carries the query as an alias
+        )
+        assert _score_result("The Office", 2005, right) > _score_result("The Office", 2005, wrong)
+
+    def test_superstring_alias_is_penalized(self) -> None:
+        """An alias that is a superstring of the query is penalized vs the exact."""
+        exact = SearchResult(provider="tvdb", provider_id="1", title="The Office", year=2005)
+        superstring = SearchResult(
+            provider="tvdb",
+            provider_id="2",
+            title="Whatever",
+            year=2005,
+            aliases=("The Office: Special Edition Extended",),
+        )
+        assert _score_result("The Office", 2005, exact) > _score_result("The Office", 2005, superstring)

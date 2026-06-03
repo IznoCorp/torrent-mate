@@ -144,3 +144,32 @@ class TestFindVideoFile:
 
         assert result == only
         assert "video_stat_failed" in caplog.text
+
+
+class TestFindVideoFileSampleExclusion:
+    """Regression (DEV #1): sample clips must never be picked as the feature."""
+
+    def test_sample_subdir_video_is_ignored(self, tmp_path: Path) -> None:
+        """A larger, newer ``Sample/`` clip must NOT beat the real feature.
+
+        Reproduces the bug: the sample sits in a ``Sample/`` subdir and is both
+        newer and larger, so without the exclusion it would win on mtime/size.
+        """
+        feature = _make_video(tmp_path / "movie.2026.mkv", size=4096, mtime=1000.0)
+        # Sample is newer AND larger — would win if not excluded.
+        _make_video(tmp_path / "Sample" / "movie.2026-sample.mkv", size=999_999, mtime=9999.0)
+
+        assert _find_video_file(tmp_path) == feature
+
+    def test_flat_sample_named_file_is_ignored(self, tmp_path: Path) -> None:
+        """A flat ``*-sample.mkv`` (no Sample/ dir) is excluded too."""
+        feature = _make_video(tmp_path / "movie.2026.mkv", size=4096, mtime=1000.0)
+        _make_video(tmp_path / "movie.2026-sample.mkv", size=999_999, mtime=9999.0)
+
+        assert _find_video_file(tmp_path) == feature
+
+    def test_only_sample_yields_none(self, tmp_path: Path) -> None:
+        """A directory holding nothing but a sample yields no feature video."""
+        _make_video(tmp_path / "Sample" / "x-sample.mkv", size=1024, mtime=1.0)
+
+        assert _find_video_file(tmp_path) is None

@@ -2,10 +2,20 @@
   "feature": "architecture",
   "design": "docs/reference/architecture.md",
   "sections": {
+    "appcontext-field-table": {
+      "tests": [
+        "tests/unit/test_app_context_torrent.py::test_torrent_client_field_exists"
+      ]
+    },
     "automated-pipeline-personalscraper-run": {
       "tests": [
         "tests/integration/test_design_architecture.py::TestAutomatedPipelineContract::test_pipeline_run_uses_all_nine_default_steps",
         "tests/integration/test_design_architecture.py::TestAutomatedPipelineContract::test_pipeline_steps_are_coherent_with_cli_commands"
+      ]
+    },
+    "boot-sequence": {
+      "tests": [
+        "tests/unit/test_build_app_context_torrent.py::TestBuildAppContextTorrent::test_incapable_client_raises"
       ]
     },
     "boot-sequence-design-61": {
@@ -59,6 +69,16 @@
         "tests/unit/api/metadata/registry/test_registry_chain.py::test_chain_wrong_semantic_raises",
         "tests/unit/api/metadata/registry/test_registry_fan_out.py::test_fan_out_wrong_semantic_raises",
         "tests/unit/api/metadata/registry/test_registry_locked.py::test_locked_match_provider_path_no_xref"
+      ]
+    },
+    "torrent-client-boot-wiring-torrent-write-v0210": {
+      "tests": [
+        "tests/unit/test_build_app_context_torrent.py::TestBuildAppContextTorrent::test_capable_client_wired"
+      ]
+    },
+    "torrent-family--capability-table": {
+      "tests": [
+        "tests/unit/test_torrent_capabilities_composition.py::test_transmission_client_not_torrent_limiter"
       ]
     },
     "workflow-pipeline": {

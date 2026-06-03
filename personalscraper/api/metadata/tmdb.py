@@ -7,6 +7,7 @@ from _base.py via _tmdb_parsers.py. Zero untyped dicts in public signatures.
 
 from __future__ import annotations
 
+import unicodedata
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from personalscraper.api._contracts import MediaType, ProviderName
@@ -514,6 +515,15 @@ class TMDBClient(
         Returns:
             List of SearchResult across all fetched pages.
         """
+        # TMDB indexes titles in NFC; folder names from the macOS / NTFS-via-
+        # macFUSE filesystem arrive NFD-decomposed (e.g. ``a`` + U+0302 instead
+        # of ``â``), which TMDB search cannot match — yielding zero results for
+        # accented titles like ``L'âge de glace``. Normalise the query to NFC
+        # (idempotent for ASCII / already-NFC queries, so no regression).
+        query = params.get("query")
+        if isinstance(query, str):
+            params = {**params, "query": unicodedata.normalize("NFC", query)}
+
         all_results: list[SearchResult] = []
         for page in range(1, max_pages + 1):
             page_params = {**params, "page": page}

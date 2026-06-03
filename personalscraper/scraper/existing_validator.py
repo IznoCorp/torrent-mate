@@ -50,7 +50,7 @@ if TYPE_CHECKING:
 # 4 are the expected residual per DESIGN §5.2 (``Mode.DIRECT`` for methods
 # without a capability Protocol).
 
-from personalscraper.core.media_types import VIDEO_EXTENSIONS
+from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_sample_path
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper.episode_manager import (
     _extract_season_episode,
@@ -144,6 +144,8 @@ class ExistingValidatorMixin:
             for f in list(show_dir.iterdir()):
                 if not f.is_file() or f.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
                     continue
+                if is_sample_path(f):
+                    continue
                 m = _SXXEXX_RE.search(f.stem)
                 if not m:
                     continue
@@ -199,6 +201,8 @@ class ExistingValidatorMixin:
         root_new: dict[tuple[int, int], list[Path]] = {}
         for f in list(show_dir.iterdir()):
             if not f.is_file() or f.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
+                continue
+            if is_sample_path(f):
                 continue
             m = _SXXEXX_RE.search(f.stem)
             if not m:
@@ -311,6 +315,7 @@ class ExistingValidatorMixin:
             and f.parent != show_dir
             and ".actors" not in f.parts
             and "Trailers" not in f.parts
+            and not is_sample_path(f)
         )
 
         if not unorganized:

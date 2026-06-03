@@ -125,6 +125,13 @@
       "name": "ntfs_safe_names",
       "passed": true,
       "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "no_archive_files",
+      "passed": true,
+      "severity": "error"
     }
   ],
   "tvshow_missing_ep_nfo": [
@@ -251,6 +258,13 @@
       "fixable": true,
       "message": "",
       "name": "ntfs_safe_names",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "no_archive_files",
       "passed": true,
       "severity": "error"
     }
@@ -381,6 +395,13 @@
       "name": "ntfs_safe_names",
       "passed": false,
       "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "no_archive_files",
+      "passed": true,
+      "severity": "error"
     }
   ],
   "tvshow_unrenamed_episode": [
@@ -509,6 +530,13 @@
       "name": "ntfs_safe_names",
       "passed": true,
       "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "no_archive_files",
+      "passed": true,
+      "severity": "error"
     }
   ],
   "tvshow_valid": [
@@ -635,6 +663,13 @@
       "fixable": true,
       "message": "",
       "name": "ntfs_safe_names",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "no_archive_files",
       "passed": true,
       "severity": "error"
     }

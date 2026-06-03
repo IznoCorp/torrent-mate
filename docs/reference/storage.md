@@ -19,6 +19,20 @@ All 4 disks are **NTFS** formatted, mounted via **macFUSE** (ntfstool driver) ov
 - **TV Shows** (series, animations, documentaires): if a folder already exists, **merge** new episode files into it, replacing any that already exist.
 - **New media** (no existing folder on any disk): move to the **disk with the most free space**.
 
+**Matching an existing folder** — "already exists" is resolved against the
+indexer (`library.db`) in three passes: (1) exact normalized folder name; (2)
+**canonical provider id** — the staging item's NFO id (`<uniqueid>`: TVDB for
+shows, TMDB for movies, the same provider-family separation as scraping) matched
+against the on-disk entry's `external_ids_json`; (3) fuzzy name. The provider-id
+pass sits between exact and fuzzy so a title already on disk under a _different_
+folder name — a localized title or a wrong year (e.g. `Rick et Morty (2006)` vs
+`Rick and Morty (2013)`, both TVDB `275274`) — is recognised as the **same**
+item and merged/replaced into its existing folder rather than dispatched as a
+duplicate. The on-disk folder keeps its own name (its casing/spelling survives
+the merge). An item whose `external_ids_json` is empty simply falls through to
+the fuzzy name pass — the provider-id pass never overrides an exact-name hit and
+never crosses provider families.
+
 ## NTFS via macFUSE constraints
 
 - **No Unix permissions** — `chmod`, `chown`, `chgrp` are no-ops or fail with EPERM. All files appear as `rwxrwxrwx` owned by the mounting user.

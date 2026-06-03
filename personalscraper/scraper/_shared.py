@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_trailer_filename
+from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_sample_path, is_trailer_filename
 from personalscraper.logger import get_logger
 from personalscraper.scraper.confidence import MatchResult
 
@@ -61,6 +61,9 @@ def _find_video_file(directory: Path) -> Path | None:
     Flat movie trailers (``{name}-trailer.{ext}``, Plex Local Media Assets
     convention) are excluded so a trailer downloaded after the feature can
     never win on mtime and be mistaken for the canonical feature video.
+    Scene-release sample clips (``Sample/`` subdirs and ``*-sample.*`` files)
+    are likewise excluded so a 30-50 MB preview clip is never picked as the
+    feature (DEV #1).
 
     Args:
         directory: Root directory to search.
@@ -78,6 +81,7 @@ def _find_video_file(directory: Path) -> Path | None:
         and ".actors" not in f.parts
         and "Trailers" not in f.parts
         and not is_trailer_filename(f.name)
+        and not is_sample_path(f)
     ]
     if not candidates:
         return None

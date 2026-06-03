@@ -1,11 +1,11 @@
-"""Transport-class exception tuples for torrent-client consumers.
+"""Transport-class exception tuples and the capability-gap signal for torrent consumers.
 
 Centralised here so the commands layer (``personalscraper/commands/pipeline.py``)
 and any future consumer can ``except TORRENT_CONNECT_ERRORS`` without
 importing ``qbittorrentapi`` / ``requests`` directly — keeping the
 third-party transport dependencies behind the ``api/torrent/`` boundary.
 
-Two flavours intentionally separated:
+Two flavours of transport-error tuples intentionally separated:
 
 - :data:`TORRENT_CONNECT_ERRORS` — broad set covering connection setup
   (``build_active_torrent_client``, ``.login()``). Includes ``OSError``
@@ -36,6 +36,20 @@ import requests
 from personalscraper.api._contracts import ApiError
 from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError
 
+
+class UnsupportedCapabilityError(Exception):
+    """Raised when a capability unsupported by the client is requested (D8).
+
+    Raised by TransmissionClient.add() when limits is not None — Transmission
+    has no ratio/bandwidth/seedtime limit fields. Gate via
+    isinstance(client, TorrentLimiter) before passing limits.
+
+    Intentionally not an :class:`ApiError` — this is a caller-contract
+    violation (passing limits to a client that doesn't support them), not a
+    transport or API failure. It must bubble uncaught for operator visibility.
+    """
+
+
 TORRENT_CONNECT_ERRORS: tuple[type[BaseException], ...] = (
     QBitAuthLockoutError,
     ApiError,
@@ -54,4 +68,4 @@ TORRENT_LISTING_ERRORS: tuple[type[BaseException], ...] = (
 )
 
 
-__all__ = ["TORRENT_CONNECT_ERRORS", "TORRENT_LISTING_ERRORS"]
+__all__ = ["TORRENT_CONNECT_ERRORS", "TORRENT_LISTING_ERRORS", "UnsupportedCapabilityError"]
