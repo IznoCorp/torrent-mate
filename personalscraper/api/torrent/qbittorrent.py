@@ -186,12 +186,14 @@ class QBitClient(
         Applies category, tags, paused state, and limits inline in one
         torrents_add call. A duplicate add raises ``Conflict409Error``, which
         is mapped to idempotent success returning the existing info_hash (D7).
-        The ``torrents_add`` return value is inspected: ``"Ok."`` is success;
-        any other value (notably ``"Fails."`` — a generic failure such as a
-        bad magnet, disk full, or bad save path) raises ``ApiError`` so the
-        failure is observable rather than a silent fake-success (D8). 401/403
-        and corrupt-payload (415 / torrent-file) errors also surface as
-        ApiError.
+        The ``torrents_add`` return value is inspected: a str ``"Ok."`` is
+        success and a str ``"Fails."`` (generic failure — bad magnet, disk
+        full, bad save path) raises ``ApiError`` so the failure is observable
+        rather than a silent fake-success (D8). A non-str result (the
+        ``TorrentsAddedMetadata`` mapping returned by qBit Web API v2.14.0+ on
+        a 2xx body) is treated as success, since HTTP failures are already
+        raised as typed exceptions before the result is read. 401/403 and
+        corrupt-payload (415 / torrent-file) errors also surface as ApiError.
 
         D10: qBit uses its own default save path; no savepath arg needed.
 
@@ -260,11 +262,19 @@ class QBitClient(
                 http_status=0,
                 message=f"qBittorrent could not read torrent file: {exc}",
             ) from exc
-        # qBit returns the string "Ok." on success and "Fails." on a generic
-        # failure. Treat only an "Ok." result as success (case/period-tolerant);
-        # any other value (notably "Fails.") raises so we never report a
-        # silent fake-success (D8).
-        if str(result).strip().rstrip(".").lower() == "ok":
+        # torrents_add has two success shapes (qbittorrent-api 2025.11.x):
+        #   * a plain-text body → the str "Ok." (current qBit) or "Fails." on a
+        #     generic failure (bad magnet, disk full, bad save path);
+        #   * a JSON body → a ``TorrentsAddedMetadata`` mapping (qBit Web API
+        #     v2.14.0+). The lib only returns that object on a 2xx response —
+        #     every HTTP failure (401/403/409/415/4xx/5xx) is already raised as
+        #     a typed exception above and caught. So a NON-str result is always
+        #     a success; only a str must be matched against the "Ok." sentinel
+        #     (case/period-tolerant). A "Fails." string raises so we never
+        #     report a silent fake-success (D8); a metadata object must NOT be
+        #     str()-compared (it would never equal "ok" → a successful add would
+        #     be misreported as failure — review #3).
+        if not isinstance(result, str) or result.strip().rstrip(".").lower() == "ok":
             return source.info_hash
         raise ApiError(
             provider=ProviderName.QBITTORRENT,

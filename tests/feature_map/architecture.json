@@ -71,7 +71,7 @@
         "tests/unit/api/metadata/registry/test_registry_locked.py::test_locked_match_provider_path_no_xref"
       ]
     },
-    "torrent-client-boot-wiring-torrent-write-v0200": {
+    "torrent-client-boot-wiring-torrent-write-v0210": {
       "tests": [
         "tests/unit/test_build_app_context_torrent.py::TestBuildAppContextTorrent::test_capable_client_wired"
       ]

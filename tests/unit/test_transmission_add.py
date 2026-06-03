@@ -145,6 +145,20 @@ class TestTransmissionAdd:
         c.add(TorrentSource.from_magnet(MAGNET))
         assert c._client.add_torrent.call_args[1]["labels"] == []
 
+    def test_category_none_with_tags_raises(self):
+        """category=None + non-empty tags raises ValueError (D5 round-trip guard, review #6).
+
+        labels=[category, *tags] cannot round-trip tags without a leading
+        category — the read side (_torrent_item) would promote the first tag to
+        category. Rather than silently mangle the labels, add() rejects the
+        unrepresentable combination.
+        """
+        c = _c()
+        c._client.add_torrent.return_value = _mock_torrent()
+        with pytest.raises(ValueError, match="non-None category"):
+            c.add(TorrentSource.from_magnet(MAGNET), category=None, tags=["action"])
+        c._client.add_torrent.assert_not_called()  # rejected before any RPC
+
 
 class TestLabelsHelper:
     """Tests for _labels() helper (D5)."""
@@ -166,3 +180,27 @@ class TestLabelsHelper:
         r = _labels("movies", ["movies", "action"])
         assert r.count("movies") == 1
         assert r[0] == "movies"
+
+    @pytest.mark.parametrize(
+        ("category", "tags"),
+        [
+            ("movies", ["hd", "fr"]),
+            ("movies", []),
+            (None, []),
+        ],
+    )
+    def test_d5_round_trip_stable_for_supported_inputs(self, category, tags):
+        """D5 round-trip is stable for the supported inputs (review #6).
+
+        Write labels via _labels, then read them back with the exact formula
+        used by _torrent_item (category=labels[0] if labels else None;
+        tags=labels[1:]). For every input add() accepts (category present, or
+        category=None with no tags), the round-trip recovers the original
+        category/tags. The one unrepresentable case (category=None + tags) is
+        rejected by add() — see test_category_none_with_tags_raises.
+        """
+        labels = _labels(category, tags)
+        read_category = labels[0] if labels else None
+        read_tags = list(labels[1:]) if len(labels) > 1 else []
+        assert read_category == category
+        assert read_tags == tags

@@ -5,6 +5,12 @@ D9: no client configured → torrent_client=None, no error.
 
 Md6a: disabled client → ValueError propagates from the real factory.
 Md6b: factory ApiError propagates through _build_app_context (boot fail-loud).
+
+Review #1/#2/#5: the torrent build is gated on ``build_torrent_client``. Only
+the torrent-consuming commands (run/ingest/torrents_list) pass True; read-only
+commands leave it False and never contact the daemon at boot (no connect, no
+login, no auth-lockout side effect). The fail-fast tests below therefore pass
+``build_torrent_client=True`` to exercise the build+validate path.
 """
 
 from __future__ import annotations
@@ -49,10 +55,11 @@ class TestBuildAppContextTorrent:
     def test_capable_client_wired(self) -> None:
         """D3: capable active client → wired into AppContext.
 
-        Design: docs/reference/architecture.md#torrent-client-boot-wiring-torrent-write-v0200
+        Design: docs/reference/architecture.md#torrent-client-boot-wiring-torrent-write-v0210
         Contract: The torrent-write boot-wiring promotes the active torrent
         client into AppContext — a capable client resolved by
-        build_active_torrent_client() is stored in ctx.torrent_client.
+        build_active_torrent_client() is stored in ctx.torrent_client (only
+        when build_torrent_client=True, i.e. for torrent-consuming commands).
         """
         from personalscraper.api.torrent._contracts import TorrentAdder
         from personalscraper.cli_helpers import _build_app_context
@@ -65,7 +72,7 @@ class TestBuildAppContextTorrent:
             patch(_SRC_FACTORY, return_value=mock_client),
         ):
             mock_reg.return_value = MagicMock()
-            ctx = _build_app_context(_cfg(active="qbittorrent"), MagicMock())
+            ctx = _build_app_context(_cfg(active="qbittorrent"), MagicMock(), build_torrent_client=True)
         assert ctx.torrent_client is mock_client
 
     def test_incapable_client_raises(self) -> None:
@@ -88,7 +95,7 @@ class TestBuildAppContextTorrent:
         ):
             mock_reg.return_value = MagicMock()
             with pytest.raises(RegistryConfigError, match="TorrentAdder"):
-                _build_app_context(_cfg(active="qbittorrent"), MagicMock())
+                _build_app_context(_cfg(active="qbittorrent"), MagicMock(), build_torrent_client=True)
 
     def test_disabled_client_raises(self) -> None:
         """Md6a: disabled client → ValueError propagates from real factory.
@@ -111,7 +118,7 @@ class TestBuildAppContextTorrent:
         ):
             mock_reg.return_value = MagicMock()
             with pytest.raises(ValueError, match="disabled"):
-                _build_app_context(_cfg(active="qbittorrent", enabled=False), MagicMock())
+                _build_app_context(_cfg(active="qbittorrent", enabled=False), MagicMock(), build_torrent_client=True)
 
     def test_factory_raise_propagates(self) -> None:
         """Md6b: factory ApiError propagates through _build_app_context.
@@ -136,4 +143,25 @@ class TestBuildAppContextTorrent:
         ):
             mock_reg.return_value = MagicMock()
             with pytest.raises(ApiError, match="missing creds"):
-                _build_app_context(_cfg(active="qbittorrent"), MagicMock())
+                _build_app_context(_cfg(active="qbittorrent"), MagicMock(), build_torrent_client=True)
+
+    def test_read_only_command_skips_torrent_build(self) -> None:
+        """Review #1/#2/#5: default build_torrent_client=False never touches the daemon.
+
+        A read-only command (library/trailers/maintenance) builds an AppContext
+        WITHOUT build_torrent_client. Even with a torrent client configured
+        (active="qbittorrent"), the factory must NOT be called — so no network
+        connect, no login, and no auth-lockout side effect can leak from a
+        command that never consumes ctx.torrent_client. torrent_client is None.
+        """
+        from personalscraper.cli_helpers import _build_app_context
+
+        with (
+            patch(_SRC_PROVIDER_REGISTRY) as mock_reg,
+            patch(_SRC_CIRCUIT_POLICY),
+            patch(_SRC_FACTORY) as mock_factory,
+        ):
+            mock_reg.return_value = MagicMock()
+            ctx = _build_app_context(_cfg(active="qbittorrent"), MagicMock())
+        assert ctx.torrent_client is None
+        mock_factory.assert_not_called()

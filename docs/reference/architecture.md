@@ -443,12 +443,13 @@ TvDetailsProvider)`.
 - `docs/reference/external-ids-flow.md` — cross-provider id flow at the
   pipeline level.
 
-## Torrent Client Boot-Wiring (torrent-write, v0.20.0)
+## Torrent Client Boot-Wiring (torrent-write, v0.21.0)
 
 The `torrent-write` feature promotes the active torrent client into
-`AppContext`, validates it at boot (fail-fast), and defines two new capability
-Protocols. This mirrors the metadata `ProviderRegistry` boot pattern but is
-simpler: a single client, not a multi-provider registry.
+`AppContext`, validates it at boot (fail-fast) **for the commands that consume
+it**, and defines two new capability Protocols. This mirrors the metadata
+`ProviderRegistry` boot pattern but is simpler: a single client, not a
+multi-provider registry.
 
 ### Torrent Family — Capability Table
 
@@ -489,20 +490,31 @@ were added in `torrent-write`; the five pre-existing ones were unchanged.
 
 ### Boot Sequence
 
-`_build_app_context()` (`cli_helpers/__init__.py`) handles torrent client
-resolution after the metadata `ProviderRegistry` is constructed:
+`_build_app_context(config, settings, *, build_torrent_client=False)`
+(`cli_helpers/__init__.py`) handles torrent client resolution after the metadata
+`ProviderRegistry` is constructed. The build is **gated on `build_torrent_client`**:
 
-1. **When `config.torrent.active` is set** (non-empty string):
+1. **When `build_torrent_client` is True _and_ `config.torrent.active` is set**
+   (non-empty string):
    - Calls `build_active_torrent_client(config.torrent)` from
-     `api/torrent/_factory.py` to instantiate the client.
+     `api/torrent/_factory.py` to instantiate the client (a live network
+     connect + login).
    - Asserts the result is `isinstance(raw_client, TorrentAdder)` — fails
      with `RegistryConfigError` (code `protocol_mismatch`, section `torrent`)
      if the client does not compose the adder capability (D3 fail-fast).
    - Stores the validated client in `torrent_client`.
-2. **When `config.torrent.active` is empty** (`""`, the default for a
-   read-only setup):
-   - `torrent_client` stays `None` — no boot error. Read-only commands
-     (`info`, `library-*`) must not break on an absent torrent config (D9).
+2. **Otherwise** (`build_torrent_client` False, or `config.torrent.active`
+   empty `""`):
+   - `torrent_client` stays `None` — no boot error, no daemon contact.
+
+**Who sets `build_torrent_client=True`:** only the commands that actually read
+`ctx.torrent_client` — `run` (includes the ingest step), the standalone
+`ingest` subcommand, and `torrents_list`. Read-only commands (`library *`,
+`trailers`, `maintenance`, `info`) leave it `False` so they never connect or
+log in to the torrent daemon at boot. This prevents a configured-but-unreachable
+daemon (or a stale-credential login, which would write a 1-hour auth lockout
+that blocks the next ingest) from breaking a command that has nothing to do with
+torrents (review #1/#2/#5).
 
 This replaces the previous lazy-per-step `build_active_torrent_client()` calls
 in `ingest/ingest.py` and `commands/pipeline.py`, which now read

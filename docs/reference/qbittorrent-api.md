@@ -737,7 +737,7 @@ from qbittorrentapi import (
 )
 ```
 
-## QBitClient — Write Capabilities (torrent-write, v0.20.0)
+## QBitClient — Write Capabilities (torrent-write, v0.21.0)
 
 `QBitClient` (`personalscraper/api/torrent/qbittorrent.py`) composes two new
 atomic `@runtime_checkable` Protocols introduced in `torrent-write`:
@@ -768,11 +768,16 @@ The native `qbittorrentapi.torrents_add()` accepts either shape.
 `upload_limit` (bytes/s), `download_limit` (bytes/s). All four are set in the
 same `torrents_add` call — qBit is the only client that supports this (D2).
 
-**Return value**: `source.info_hash` (lowercase hex SHA-1, per D6). On
-duplicate, qBit returns `"Fails."` → treated as idempotent success (D7); the
-existing `info_hash` is returned unchanged. 401 (`LoginFailed`) and 403
-(`Forbidden403Error`) are caught and re-raised as the project's uniform
-`ApiError`.
+**Return value**: `source.info_hash` (lowercase hex SHA-1, per D6). A duplicate
+add raises `Conflict409Error` (HTTP 409 — "torrent is already added"), which is
+caught and mapped to idempotent success: the existing `info_hash` is returned
+unchanged (D7). A `"Fails."` result string is a **generic failure** (bad magnet,
+disk full, bad save path), not a duplicate, and raises `ApiError` (D8 — no
+silent fake-success). A non-str return (the `TorrentsAddedMetadata` mapping from
+qBit Web API v2.14.0+) is treated as success. 401 (caught as both
+`Unauthorized401Error` — the one the daemon raises here — and `LoginFailed`,
+defensively) and 403 (`Forbidden403Error`), plus corrupt-payload (415 /
+`TorrentFileError` family), are re-raised as the project's uniform `ApiError`.
 
 ### `QBitClient.apply_limits(info_hash, limits) → None`
 
@@ -785,11 +790,13 @@ Applies transfer limits to an **existing** torrent (D2).
 
 **Dispatch logic:**
 
-- `ratio` or `seed_time_minutes` → `torrents_set_share_limits` with sentinel
-  `-2` for unchanged fields (qBit convention: `-2` = "leave as-is").
+- `ratio` and/or `seed_time_minutes` → `torrents_set_share_limits`, passing
+  **only the explicitly-set fields** (`ratio_limit` / `seeding_time_limit`). No
+  `-2` global-reset sentinel is sent for an unspecified field — unset fields are
+  omitted from the request entirely.
 - `up_bytes_per_s` → `torrents_set_upload_limit`.
 - `down_bytes_per_s` → `torrents_set_download_limit`.
-- All-`None` `TorrentLimits` → no-op (no API calls made).
+- All-`None` `TorrentLimits` → true no-op (no API calls made).
 
 ### Capability Composition
 

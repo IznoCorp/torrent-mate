@@ -270,7 +270,7 @@ def _bencode_end(data: bytes, pos: int, depth: int = 0) -> int:
 
 # NOTE — provider-ids feature, sub-phase 13.1 :
 # The historical monolithic ``TorrentClient(Protocol)`` defined here
-# was dropped in favour of the 5 atomic capability protocols hosted in
+# was dropped in favour of the 7 atomic capability protocols hosted in
 # ``personalscraper.api.torrent._contracts``. The factory returns
 # ``QBitClient | TransmissionClient`` directly ; callers type their
 # dependency via the atomic protocol they actually consume, and those

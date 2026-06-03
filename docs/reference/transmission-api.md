@@ -214,7 +214,7 @@ mirroring the qBittorrent pattern. Arguments:
 - **Option B**: `transmission-rpc` only, no `HttpTransport`. Pros: simpler. Cons: less observability,
   no circuit breaker, harder to diagnose RPC errors at the infrastructure layer.
 
-## TransmissionClient — Write Capabilities (torrent-write, v0.20.0)
+## TransmissionClient — Write Capabilities (torrent-write, v0.21.0)
 
 `TransmissionClient` (`personalscraper/api/torrent/transmission.py`) composes
 one new atomic `@runtime_checkable` Protocol introduced in `torrent-write`:

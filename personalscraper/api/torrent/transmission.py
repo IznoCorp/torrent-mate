@@ -188,14 +188,24 @@ class TransmissionClient(
     ) -> str:
         """Add a torrent to Transmission (D1/D5/D7/D8).
 
-        Labels encode category + tags per D5. Duplicate adds are idempotent
-        (torrent-duplicate → return info_hash, no exception). Passing limits
-        raises UnsupportedCapabilityError (D8 — no silent ignore).
+        Labels encode category + tags per D5: ``labels = [category, *tags]`` so
+        the read side (``_torrent_item``) recovers ``category = labels[0]`` and
+        ``tags = labels[1:]``. This flat-labels scheme can only round-trip when
+        a category is present: ``category=None`` with a non-empty ``tags`` is
+        unrepresentable (the read side would promote the first tag to category),
+        so it is rejected with ``ValueError`` rather than silently mangling the
+        labels (no-silent-failure norm; review #6). ``category=None`` with no
+        tags is fine (empty labels).
+
+        Duplicate adds are idempotent (torrent-duplicate → return info_hash, no
+        exception). Passing limits raises UnsupportedCapabilityError (D8 — no
+        silent ignore).
 
         Args:
             source: TorrentSource — magnet or file bytes.
             category: Category (becomes labels[0]).
-            tags: Tags (appended after category in labels).
+            tags: Tags (appended after category in labels). Requires a non-None
+                ``category`` when non-empty (D5 round-trip constraint).
             paused: Add in paused state if True.
             limits: Must be None; raises if set (D8).
 
@@ -204,11 +214,22 @@ class TransmissionClient(
 
         Raises:
             UnsupportedCapabilityError: limits is not None.
+            ValueError: ``category`` is None while ``tags`` is non-empty
+                (unrepresentable in Transmission's flat-labels round-trip, D5).
         """
         if limits is not None:
             raise UnsupportedCapabilityError(
                 "TransmissionClient does not support transfer limits. "
                 "Gate via isinstance(client, TorrentLimiter) before passing limits."
+            )
+        if category is None and tags:
+            # D5 flat-labels (labels=[category, *tags]) cannot round-trip tags
+            # without a category: _torrent_item would read the first tag back as
+            # the category. Reject rather than silently lose/relabel (review #6).
+            raise ValueError(
+                "TransmissionClient.add requires a non-None category when tags are "
+                "provided: labels=[category, *tags] cannot round-trip tags without "
+                "a leading category (the first tag would be read back as the category)."
             )
         torrent_arg: str | bytes
         if source.magnet is not None:

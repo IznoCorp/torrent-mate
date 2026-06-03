@@ -419,7 +419,9 @@ def mock_boundary_torrent_client(monkeypatch: Any, client: Any) -> Any:
     from personalscraper.core.event_bus import EventBus  # noqa: PLC0415
 
     @contextmanager
-    def _fake_boundary(config: Any, settings: Any) -> Any:
+    def _fake_boundary(config: Any, settings: Any, *, build_torrent_client: bool = False) -> Any:
+        # Mirror the real per_step_boundary signature (review #1/#2/#5 added the
+        # build_torrent_client keyword); torrents-list passes it as True.
         yield AppContext(
             config=config,
             settings=settings,

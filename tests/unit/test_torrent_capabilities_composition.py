@@ -1,8 +1,9 @@
 """Torrent client capability composition tests (phase 13).
 
 The monolithic ``TorrentClient`` Protocol was retired in sub-phase
-13.1 ; ``QBitClient`` now satisfies all 5 atomic capabilities while
-``TransmissionClient`` deliberately omits :class:`AuthenticatedClient`.
+13.1 ; ``QBitClient`` now satisfies all 7 atomic capabilities while
+``TransmissionClient`` deliberately omits :class:`AuthenticatedClient`
+and :class:`TorrentLimiter`.
 """
 
 from __future__ import annotations

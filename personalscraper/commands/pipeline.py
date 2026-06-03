@@ -52,7 +52,7 @@ def ingest(
         settings = cli_compat.get_settings()
         staging_dir = config.paths.staging_dir
         ingest_dir = staging_path(config, find_ingest_dir(config))
-        with per_step_boundary(config, settings) as app_context:
+        with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
             report = cli_compat.run_ingest(
                 settings,
                 dry_run=dry_run,
@@ -500,7 +500,10 @@ def run(
         # in Sub-phase 2.6). Constructed early so the healthcheck and Telegram
         # transports built below can plumb ``app_context.event_bus`` into their
         # circuit breakers (Sub-phase 4.1).
-        app_context = _build_app_context(config, settings)
+        # build_torrent_client=True: the full pipeline includes the ingest step,
+        # which consumes ctx.torrent_client, so the client is resolved + validated
+        # at boot here (DESIGN D3 fail-fast for the run path).
+        app_context = _build_app_context(config, settings, build_torrent_client=True)
 
         # Healthcheck client (None if not configured — pings short-circuit at the call site).
         healthcheck: HealthcheckClient | None = None
@@ -635,7 +638,7 @@ def torrents_list(ctx: typer.Context) -> None:
     # Torrent client is boot-wired into AppContext (DESIGN D3) and read here
     # rather than built inline. None when no torrent client is configured
     # (DESIGN D9) — exit 2 so monitoring tools can branch on the code.
-    with per_step_boundary(config, settings) as app_context:
+    with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
         client = app_context.torrent_client
         if client is None:
             console.print("[yellow]No torrent client configured (set torrent.active in torrent.json5).[/yellow]")

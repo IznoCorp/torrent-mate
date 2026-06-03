@@ -92,6 +92,24 @@ def test_add_fails_string_raises() -> None:
         c.add(TorrentSource.from_magnet(MAGNET))
 
 
+def test_add_metadata_object_return_is_success() -> None:
+    """``add()`` treats a non-str ``TorrentsAddedMetadata`` return as success (review #3).
+
+    qBit Web API v2.14.0+ returns a ``TorrentsAddedMetadata`` mapping (not the
+    plain-text ``"Ok."``) on a successful add. The success check must NOT
+    ``str()``-compare it (the repr never equals ``"ok"``), which would
+    misreport a real success as ``ApiError`` and leave the torrent added while
+    the caller sees an exception. A non-str result is only ever returned on a
+    2xx success (HTTP failures already raise above), so it maps to info_hash.
+    """
+    from qbittorrentapi.torrents import TorrentsAddedMetadata
+
+    c = _c()
+    c._client.torrents_add.return_value = TorrentsAddedMetadata({"hash": "deadbeef"})
+    src = TorrentSource.from_magnet(MAGNET)
+    assert c.add(src) == src.info_hash  # success, not a false ApiError
+
+
 def test_add_corrupt_payload_raises() -> None:
     """``add()`` raises ``ApiError`` on a corrupt ``.torrent`` payload (D8).
 

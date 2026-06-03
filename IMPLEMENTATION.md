@@ -12,21 +12,22 @@
 
 ## Phases
 
-| #   | Phase                                                                      | File                              | Status |
-| --- | -------------------------------------------------------------------------- | --------------------------------- | ------ |
-| 1   | `TorrentSource` + `TorrentLimits` value objects                            | phase-01-value-objects.md         | [x]    |
-| 2   | `TorrentAdder` + `TorrentLimiter` Protocols + `UnsupportedCapabilityError` | phase-02-protocols.md             | [x]    |
-| 3   | `TorrentItem.tags` field + mapper updates (qBit CSV + Transmission D5)     | phase-03-torrentitem-tags.md      | [x]    |
-| 4   | `QBitClient.add()` + `_limit_kwargs()`                                     | phase-04-qbit-add.md              | [x]    |
-| 5   | `QBitClient.apply_limits()` + composition assertions                       | phase-05-qbit-apply-limits.md     | [x]    |
-| 6   | `TransmissionClient.add()` + `_labels()` + composition assertions          | phase-06-transmission-add.md      | [x]    |
-| 7   | `AppContext.torrent_client` field                                          | phase-07-appcontext-field.md      | [x]    |
-| 8   | Fail-fast in `_build_app_context()` (D3/D9)                                | phase-08-boot-failfast.md         | [x]    |
-| 9   | Remove lazy inline `QBitClient` fallbacks                                  | phase-09-remove-lazy-fallbacks.md | [x]    |
-| 10  | Reference docs updates                                                     | phase-10-docs.md                  | [x]    |
-| 11  | Executable `ACCEPTANCE.md` + ROADMAP flip                                  | phase-11-acceptance-roadmap.md    | [x]    |
-| 12  | PR review fixes — cycle 1 (bencode, qBit add, seed-time, +mediums)         | phase-12-pr-fixes-cycle-1.md      | [x]    |
-| 13  | PR review fixes — cycle 2 (qBit 401 catch, Transmission dup robustness)    | phase-13-pr-fixes-cycle-2.md      | [x]    |
+| #   | Phase                                                                                    | File                              | Status |
+| --- | ---------------------------------------------------------------------------------------- | --------------------------------- | ------ |
+| 1   | `TorrentSource` + `TorrentLimits` value objects                                          | phase-01-value-objects.md         | [x]    |
+| 2   | `TorrentAdder` + `TorrentLimiter` Protocols + `UnsupportedCapabilityError`               | phase-02-protocols.md             | [x]    |
+| 3   | `TorrentItem.tags` field + mapper updates (qBit CSV + Transmission D5)                   | phase-03-torrentitem-tags.md      | [x]    |
+| 4   | `QBitClient.add()` + `_limit_kwargs()`                                                   | phase-04-qbit-add.md              | [x]    |
+| 5   | `QBitClient.apply_limits()` + composition assertions                                     | phase-05-qbit-apply-limits.md     | [x]    |
+| 6   | `TransmissionClient.add()` + `_labels()` + composition assertions                        | phase-06-transmission-add.md      | [x]    |
+| 7   | `AppContext.torrent_client` field                                                        | phase-07-appcontext-field.md      | [x]    |
+| 8   | Fail-fast in `_build_app_context()` (D3/D9)                                              | phase-08-boot-failfast.md         | [x]    |
+| 9   | Remove lazy inline `QBitClient` fallbacks                                                | phase-09-remove-lazy-fallbacks.md | [x]    |
+| 10  | Reference docs updates                                                                   | phase-10-docs.md                  | [x]    |
+| 11  | Executable `ACCEPTANCE.md` + ROADMAP flip                                                | phase-11-acceptance-roadmap.md    | [x]    |
+| 12  | PR review fixes — cycle 1 (bencode, qBit add, seed-time, +mediums)                       | phase-12-pr-fixes-cycle-1.md      | [x]    |
+| 13  | PR review fixes — cycle 2 (qBit 401 catch, Transmission dup robustness)                  | phase-13-pr-fixes-cycle-2.md      | [x]    |
+| 14  | PR review fixes — cycle 3 (boot-coupling scope, qBit metadata return, D5 guard, doc/ACC) | _review-driven (no plan file)_    | [x]    |
 
 ## Review cycles
 
@@ -92,9 +93,53 @@ all pass). Two residual findings, both **confirmed by hand**:
 
 **Verdict:** Case B → fix phase 13 (401 catch + Transmission dup robustness).
 
+### Cycle 3 — 2026-06-03
+
+Full adversarial multi-agent review (7 dimension reviewers + per-finding
+skeptic verification; 27 findings, 0 refuted) followed by an evidence-based
+severity calibration. No critical/high defects survived verification; the
+cycle-1/2 fixes (bencode C1 structural walk, qBit Conflict409 idempotence,
+seed-time minutes, Unauthorized401 catch) were independently re-confirmed
+correct. Six items fixed (operator chose "fix everything"):
+
+- **boot-coupling (review #1/#2/#5)** — `_build_app_context` /
+  `per_step_boundary` gained a keyword-only `build_torrent_client` flag
+  (default False). Only `run` / `ingest` / `torrents_list` set it True. Read-
+  only commands (`library *`, `trailers`, `maintenance`) no longer connect +
+  log in to the torrent daemon at boot, so a configured-but-unreachable daemon
+  (or a stale-cred login writing a 1-hour auth lockout that would block the
+  next ingest) can no longer break a command that never consumes
+  `ctx.torrent_client`. DESIGN D9 amended to document the scoping; regression
+  test `test_read_only_command_skips_torrent_build` + ACC-14.
+- **qBit add() return type (review #3)** — success check made robust to a
+  non-str `TorrentsAddedMetadata` return (qBit Web API v2.14.0+): a non-str
+  result is success (HTTP failures already raise), only a str is matched
+  against `"Ok."`. Prevents misreporting a successful add as `ApiError`.
+  Regression test `test_add_metadata_object_return_is_success`.
+- **D5 round-trip guard (review #6)** — `TransmissionClient.add` now raises
+  `ValueError` for `category=None` + non-empty `tags` (unrepresentable in the
+  flat-labels round-trip; the read side would promote the first tag to
+  category). DESIGN D5 amended; tests `test_category_none_with_tags_raises` +
+  `test_d5_round_trip_stable_for_supported_inputs`.
+- **doc/ACC hygiene (review #4/#7/#8/#9/#10/#11)** — ACCEPTANCE absolute test
+  counts replaced with `0 failed` assertions (SH-16 re-exercise stability);
+  DESIGN D7 + qbittorrent-api.md corrected (duplicate = Conflict409, not
+  `"Fails."`; `-2` sentinel removed; 401 catches both exceptions); reference
+  section version headers `v0.20.0` → `v0.21.0` (+ feature_map anchor regen);
+  `_base.py` + two test docstrings `5 atomic` → `7`.
+
+`make check` exit 0 (6016 passed, 0 failed, coverage 91.26%), `make lint`
+clean, `audit_design_coverage --strict` 0 findings, `update_feature_map
+--check` clean, all ACC-01..ACC-14 re-exercised green, smoke v0.21.0.
+
 ## Next action
 
-**All phases (1–13) complete.** Cycle-1 fixes (C1/C2/M1 + 7 mediums) + cycle-2 fixes (qBit 401 catch, Transmission dup robustness) all landed and independently re-verified. `make check` 6010 passed, design-gaps `--strict` 0 findings, smoke v0.21.0. Re-push PR #36 + CI; review loop converged (cycle-2 adversarial pass confirmed no regressions). Awaiting **manual merge**.
+**All phases (1–14) complete.** Cycle-1 (C1/C2/M1 + 7 mediums), cycle-2 (qBit
+401 catch, Transmission dup robustness) and cycle-3 (boot-coupling scope, qBit
+metadata return, D5 guard, doc/ACC hygiene) fixes all landed and independently
+re-verified. `make check` 6016 passed, design-gaps `--strict` 0 findings, smoke
+v0.21.0. Re-push PR #36 + CI; review loop converged (cycle-3 adversarial pass
+confirmed no critical/high defects survive). Awaiting **manual merge**.
 
 > **Phase 9 re-scope (documented):** the plan estimated 3 files; reality was 23 — `run_ingest`'s
 > signature change rippled through `pipeline_steps.py` (IngestStep/LegacyCallableStep — missed by

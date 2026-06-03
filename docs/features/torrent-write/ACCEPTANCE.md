@@ -40,7 +40,8 @@ Expected: prints `ok`, exits 0.
 cd /Users/izno/dev/PersonnalScaper && pytest tests/unit/test_torrent_source.py -q
 ```
 
-Expected: all pass, 0 failed (10 passed).
+Expected: all pass, 0 failed. (Absolute count omitted intentionally — the suite
+gains regression tests every review cycle; assert `0 failed`, not a brittle total.)
 
 ---
 
@@ -50,7 +51,7 @@ Expected: all pass, 0 failed (10 passed).
 cd /Users/izno/dev/PersonnalScaper && pytest tests/unit/test_torrent_write_contracts.py -q
 ```
 
-Expected: all pass, 0 failed (8 passed).
+Expected: all pass, 0 failed.
 
 ---
 
@@ -60,7 +61,7 @@ Expected: all pass, 0 failed (8 passed).
 cd /Users/izno/dev/PersonnalScaper && pytest tests/unit/test_qbittorrent_add.py -q
 ```
 
-Expected: all pass, 0 failed (14 passed).
+Expected: all pass, 0 failed.
 
 ---
 
@@ -70,7 +71,7 @@ Expected: all pass, 0 failed (14 passed).
 cd /Users/izno/dev/PersonnalScaper && pytest tests/unit/test_transmission_add.py -q
 ```
 
-Expected: all pass, 0 failed (13 passed).
+Expected: all pass, 0 failed.
 
 ---
 
@@ -80,7 +81,7 @@ Expected: all pass, 0 failed (13 passed).
 cd /Users/izno/dev/PersonnalScaper && pytest tests/unit/test_torrent_capabilities_composition.py -q
 ```
 
-Expected: all pass including TorrentAdder/TorrentLimiter assertions (15 passed).
+Expected: all pass including TorrentAdder/TorrentLimiter assertions; 0 failed.
 
 ---
 
@@ -90,7 +91,7 @@ Expected: all pass including TorrentAdder/TorrentLimiter assertions (15 passed).
 cd /Users/izno/dev/PersonnalScaper && pytest tests/unit/test_build_app_context_torrent.py -q
 ```
 
-Expected: all pass, 0 failed (3 passed).
+Expected: all pass, 0 failed.
 
 ---
 
@@ -143,7 +144,8 @@ Expected: prints `ok`, exits 0.
 cd /Users/izno/dev/PersonnalScaper && make check
 ```
 
-Expected: exits 0; all tests pass (5988 passed); 0 lint/mypy errors.
+Expected: exits 0; 0 failed / 0 errors; 0 lint/mypy errors. (Absolute pass count
+omitted — assert the gate, not a total that drifts as tests are added.)
 
 ---
 
@@ -154,3 +156,18 @@ python -c "import personalscraper; print('ok')"
 ```
 
 Expected: prints `ok`, exits 0.
+
+---
+
+## ACC-14 — D9 scoping: read-only command never builds the torrent client (review #1/#2/#5)
+
+```bash
+cd /Users/izno/dev/PersonnalScaper && pytest "tests/unit/test_build_app_context_torrent.py::TestBuildAppContextTorrent::test_read_only_command_skips_torrent_build" -q
+```
+
+Expected: `1 passed`. With a torrent client configured (`active="qbittorrent"`)
+but `build_torrent_client` left at its default, `_build_app_context` must NOT
+call the factory (no daemon connect / login / auth-lockout) and
+`torrent_client` stays `None`. Guards against the boot-coupling regression where
+read-only commands (`library *`, `trailers`, `maintenance`) connected to the
+torrent daemon at boot.
