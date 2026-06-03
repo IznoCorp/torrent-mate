@@ -1296,3 +1296,51 @@ class TestTvYearWindowParity:
 
         assert result is not None
         assert result.api_id == 500
+
+
+class TestAliasMatching:
+    """Regression (DEV #2): a translated-title folder matches via aliases.
+
+    Reproduces the production miss: folder "Murder Mindfully" against the
+    German-primary TVDB candidate "Achtsam Morden". Before the fix the candidate
+    only exposed its primary title, scoring ~0.38 (below LOW_CONFIDENCE), so the
+    real show was left unscraped.
+    """
+
+    def test_alias_rescues_translated_folder(self) -> None:
+        """The English alias makes the German-primary candidate score >= LOW."""
+        candidate = SearchResult(
+            provider="tvdb",
+            provider_id="420001",
+            title="Achtsam Morden",
+            year=2024,
+            original_title="Murder Mindfully",
+            aliases=("Murder Mindfully", "Mindful Murder"),
+        )
+        score = _score_result("Murder Mindfully", 2024, candidate)
+        assert score >= LOW_CONFIDENCE
+
+    def test_primary_title_only_would_miss(self) -> None:
+        """Without aliases/original (the old shape) the same folder scores low."""
+        bare = SearchResult(
+            provider="tvdb",
+            provider_id="420001",
+            title="Achtsam Morden",
+            year=2024,
+        )
+        assert _score_result("Murder Mindfully", 2024, bare) < LOW_CONFIDENCE
+
+    def test_aliases_only_raise_score(self) -> None:
+        """Best-of scoring: an alias can only raise, never lower, the score."""
+        with_alias = SearchResult(
+            provider="tvdb",
+            provider_id="1",
+            title="Exact Title",
+            year=2020,
+            aliases=("totally different",),
+        )
+        assert _score_result("Exact Title", 2020, with_alias) == pytest.approx(
+            _score_result(
+                "Exact Title", 2020, SearchResult(provider="tvdb", provider_id="1", title="Exact Title", year=2020)
+            )
+        )
