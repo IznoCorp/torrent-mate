@@ -50,6 +50,15 @@ def library_reconcile(
             "Mutually exclusive with --read-only / --dry-run."
         ),
     ),
+    clean_fk_orphans: bool = typer.Option(
+        False,
+        "--clean-fk-orphans",
+        help=(
+            "Delete foreign-key orphan rows (child rows whose parent media_item is gone) "
+            "under ON DELETE CASCADE. Combine with --dry-run/--read-only to preview the "
+            "cascade impact (media_file/media_stream rows removed) before applying."
+        ),
+    ),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
 ) -> None:
     """Detect index ↔ filesystem divergences without a full rescan.
@@ -105,6 +114,11 @@ def library_reconcile(
     # assert the default mode.  No flag means read-only as well.
     effective_enqueue = enqueue_repairs
 
+    # FK-orphan cleanup is a write; applied only when not in a read-only/dry-run
+    # preview (dry-run-first: the FK-orphan counts + cascade impact are always
+    # reported, and --clean-fk-orphans --dry-run previews without deleting).
+    apply_fk_clean = clean_fk_orphans and not (read_only or dry_run)
+
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
 
     # Build the process-scoped AppContext at the CLI boundary so the
@@ -123,6 +137,7 @@ def library_reconcile(
         rc, payload = library_reconcile_command(
             scopes=scope if scope else None,
             enqueue_repairs=effective_enqueue,
+            clean_fk_orphans=apply_fk_clean,
             config_path=effective_config,
             event_bus=event_bus,
         )

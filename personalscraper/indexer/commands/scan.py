@@ -385,6 +385,7 @@ def library_reconcile_command(
     *,
     scopes: Sequence[str] | None = None,
     enqueue_repairs: bool = False,
+    clean_fk_orphans: bool = False,
     config_path: Path | None = None,
     event_bus: "EventBus",
 ) -> tuple[int, dict[str, Any]]:
@@ -402,6 +403,10 @@ def library_reconcile_command(
             (``merkle``, ``dispatch_path``, ``enrich``, ``release``,
             ``season``, ``item``).
         enqueue_repairs: When True, push findings into ``repair_queue``.
+        clean_fk_orphans: When True, delete foreign-key orphan rows (parent
+            ``media_item`` gone) under CASCADE (DEV #3). When False (default),
+            FK orphans are only detected and reported in the summary so the
+            operator can preview the cascade impact before applying.
         config_path: Optional explicit path to config.json5 or config dir.
         event_bus: Required in-process :class:`EventBus`. Threaded from the
             CLI boundary so the pre-open free-space guard inside ``open_db``
@@ -432,10 +437,19 @@ def library_reconcile_command(
     )
     from personalscraper.indexer.reconcile import (  # noqa: PLC0415
         ReconcileScope,
+        detect_fk_orphans,
         reconcile,
     )
+    from personalscraper.indexer.reconcile import (
+        clean_fk_orphans as _clean_fk_orphans,
+    )
 
-    log.info("indexer.cli.reconcile", scopes=list(scopes) if scopes else None, enqueue=enqueue_repairs)
+    log.info(
+        "indexer.cli.reconcile",
+        scopes=list(scopes) if scopes else None,
+        enqueue=enqueue_repairs,
+        clean_fk_orphans=clean_fk_orphans,
+    )
 
     try:
         cfg = load_config(resolve_config_path(config_path))
@@ -451,7 +465,9 @@ def library_reconcile_command(
 
     try:
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = open_db(db_path, event_bus=event_bus)
+        # Tolerant open: reconcile is the tool that REPAIRS FK orphans, so it
+        # must be able to open a dirty DB the strict guard would reject (DEV #3).
+        conn = open_db(db_path, allow_fk_orphans=True, event_bus=event_bus)
     except (
         IndexerLockError,
         IndexerCorruptError,
@@ -487,6 +503,10 @@ def library_reconcile_command(
         if enqueue_repairs:
             conn.commit()
 
+        # FK-orphan detection / cleanup (DEV #3). Always report; delete only
+        # when clean_fk_orphans is set (the operator previews the cascade first).
+        fk_report = _clean_fk_orphans(conn, dry_run=False) if clean_fk_orphans else detect_fk_orphans(conn)
+
         summary = {
             "merkle_drift": report.merkle_drift,
             "dispatch_path_missing_count": len(report.dispatch_path_missing),
@@ -503,6 +523,13 @@ def library_reconcile_command(
             "path_missing_sample": report.path_missing[:10],
             "total_findings": report.total_findings,
             "enqueued_repairs": report.enqueued_repairs,
+            "fk_orphans": {
+                "by_table": fk_report.by_table,
+                "total": fk_report.total_orphans,
+                "cascade_media_files": fk_report.cascade_media_files,
+                "cascade_media_streams": fk_report.cascade_media_streams,
+                "cleaned": clean_fk_orphans,
+            },
         }
         return 0, summary
 

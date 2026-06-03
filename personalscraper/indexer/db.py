@@ -283,6 +283,7 @@ def open_db(
     expected_growth_bytes: int = 0,
     *,
     rebuild: bool = False,
+    allow_fk_orphans: bool = False,
     event_bus: EventBus,
 ) -> sqlite3.Connection:
     """Open (or create) the indexer SQLite database at *path*.
@@ -308,6 +309,12 @@ def open_db(
         rebuild: When ``True``, a corrupt existing DB is quarantined and a
             fresh empty DB is created.  When ``False`` (default), corruption
             raises :class:`IndexerCorruptError` immediately.
+        allow_fk_orphans: When ``True``, foreign-key orphans are logged as a
+            WARNING and the connection is returned instead of raising
+            :class:`IndexerFKOrphansError`. Default ``False`` preserves the
+            fail-loud DEV #19 contract; only the FK-orphan cleanup path
+            (``library-reconcile --clean-fk-orphans``) opts in so it can open a
+            dirty DB and repair it (DEV #3).
         event_bus: Required :class:`EventBus` forwarded to
             :func:`check_free_space` so the pre-open free-space guard emits
             :class:`DiskFullWarning` on threshold violation.
@@ -391,6 +398,16 @@ def open_db(
     # them here provides a clear diagnostic at connection time.
     orphans = conn.execute("PRAGMA foreign_key_check").fetchall()
     if orphans:
+        if allow_fk_orphans:
+            # Opt-in tolerant mode (DEV #3): the FK-orphan cleanup path needs to
+            # open a dirty DB to repair it. Warn loudly but return the connection.
+            log.warning(
+                "indexer.db.foreign_key_orphans_tolerated",
+                db_path=str(path),
+                count=len(orphans),
+                sample=[tuple(row) for row in orphans[:5]],
+            )
+            return conn
         log.error(
             "indexer.db.foreign_key_orphans",
             db_path=str(path),
