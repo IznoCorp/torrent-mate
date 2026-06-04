@@ -172,6 +172,41 @@ class TestGetBytesSizeCap:
         with pytest.raises(ValueError, match="empty"):
             transport.get_bytes("https://test-api.example.com/dl")
 
+    def test_oversize_closes_response(self) -> None:
+        """The streamed response is closed even when the oversize abort fires.
+
+        Design: docs/features/torrent-fetch/DESIGN.md (§5.1, D5)
+        Contract: aborting mid-stream on ``max_bytes`` must still ``close()``
+        the response so the underlying connection is not leaked on the exact
+        path defending against an unbounded stream.
+        """
+        transport = _make_transport()
+        fake_resp = _fake_response(chunks=[b"x" * 100])
+        request_mock = MagicMock(return_value=fake_resp)
+        transport._session.request = request_mock  # type: ignore[method-assign]
+
+        with pytest.raises(ValueError, match="max_bytes"):
+            transport.get_bytes("https://test-api.example.com/dl", max_bytes=10)
+
+        fake_resp.close.assert_called()
+
+    def test_success_closes_response(self) -> None:
+        """The streamed response is closed on the success path too.
+
+        Design: docs/features/torrent-fetch/DESIGN.md (§5.1, D5)
+        Contract: a normal download closes the response after the body has been
+        fully consumed (close happens after the bytes are read, never before).
+        """
+        transport = _make_transport()
+        fake_resp = _fake_response(chunks=[b"torrent-bytes"])
+        request_mock = MagicMock(return_value=fake_resp)
+        transport._session.request = request_mock  # type: ignore[method-assign]
+
+        result = transport.get_bytes("https://test-api.example.com/dl")
+
+        assert result == b"torrent-bytes"
+        fake_resp.close.assert_called()
+
 
 class TestGetBytesNon2xx:
     """Non-2xx responses raise ApiError (shared raise path)."""

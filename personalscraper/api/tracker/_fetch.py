@@ -29,12 +29,15 @@ from typing import TYPE_CHECKING
 from personalscraper.api._contracts import ApiError
 from personalscraper.api.torrent._base import TorrentSource
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
+from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from personalscraper.api.tracker._base import TrackerResult
     from personalscraper.api.transport._http import HttpTransport
+
+log = get_logger("api.tracker.fetch")
 
 # HTTP statuses that signal an authentication failure on a tracker download
 # (expired token / invalid passkey). Mapped to ``TrackerAuthError`` so callers
@@ -144,7 +147,17 @@ def fetch_torrent_source(
     if _is_magnet(url):
         return TorrentSource.from_magnet(url)
 
-    provider = transport._policy.provider_name
+    provider = transport.provider_name
+
+    # An empty url is invalid input: it would otherwise join onto the
+    # transport's base_url and GET the tracker root instead of a torrent file.
+    # ``fetch_torrent_source`` is publicly exported, so guard it directly.
+    if not url:
+        raise TorrentFetchError(
+            provider=provider,
+            http_status=0,
+            message="no usable download_url: empty url",
+        )
 
     try:
         data = transport.get_bytes(url)
@@ -194,6 +207,16 @@ def fetch_torrent_source(
         try:
             canonical_expected = _canonical_info_hash(expected_info_hash)
         except ValueError:
+            # A requested integrity check is being downgraded to a no-check
+            # because the *expected* value is junk — log it so the silent skip
+            # is observable. Behavior is unchanged (the file already validated
+            # structurally, so a bad expected value is not grounds to reject).
+            log.warning(
+                "expected_info_hash_uncanonicalizable",
+                provider=provider,
+                url=url,
+                expected_info_hash=expected_info_hash,
+            )
             return source
         if canonical_expected != info_hash:
             raise TorrentFetchError(
@@ -222,7 +245,7 @@ def resolve_source(
     1. If ``result.download_url`` is a magnet URI (D8), short-circuit *before*
        the transport lookup — a magnet needs no transport, so a missing
        provider entry must not block it.
-    2. ``download_url is None`` → :class:`TorrentFetchError`.
+    2. ``download_url`` is empty/``None`` → :class:`TorrentFetchError`.
     3. ``result.provider`` not in ``transports`` → :class:`TorrentFetchError`
        whose message lists both the missing provider and the available keys.
     4. Otherwise delegate to :func:`fetch_torrent_source`, forwarding
@@ -240,8 +263,8 @@ def resolve_source(
 
     Raises:
         TrackerAuthError: Propagated from :func:`fetch_torrent_source`.
-        TorrentFetchError: ``download_url`` is ``None``, the provider has no
-            transport, or any fetch/validation failure from
+        TorrentFetchError: ``download_url`` is empty or ``None``, the provider
+            has no transport, or any fetch/validation failure from
             :func:`fetch_torrent_source`.
         ApiError: Any non-auth, non-2xx HTTP status (propagated unchanged).
     """
@@ -252,11 +275,11 @@ def resolve_source(
     if download_url is not None and _is_magnet(download_url):
         return TorrentSource.from_magnet(download_url)
 
-    if download_url is None:
+    if not download_url:
         raise TorrentFetchError(
             provider=result.provider,
             http_status=0,
-            message=f"no download_url on TrackerResult from {result.provider!r}",
+            message=f"no usable download_url on TrackerResult from {result.provider!r}",
         )
 
     provider = result.provider

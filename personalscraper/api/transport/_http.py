@@ -31,10 +31,6 @@ _DEFAULT_MAX_BYTES = 10_485_760
 # ``dict | str`` for the search path, ``bytes`` for the download path.
 _T = TypeVar("_T")
 
-# ``Callable`` is referenced in method signatures below (``response_mapper``);
-# the alias keeps the import live for the ruff formatter's orphan-import sweep.
-_ResponseMapper = Callable[[requests.Response], _T]
-
 
 class HttpTransport:
     """Provider-agnostic HTTP transport consuming a TransportPolicy.
@@ -88,6 +84,19 @@ class HttpTransport:
         self._download_rate_limiter = RateLimiter(policy.rate_limit.requests_per_second)
 
     # -- Public API ----------------------------------------------------------
+
+    @property
+    def provider_name(self) -> str:
+        """Return the provider name declared by the transport's policy.
+
+        Public accessor so callers (e.g. the tracker→torrent fetch boundary)
+        can read the provider name for error context without reaching into the
+        private ``_policy`` attribute.
+
+        Returns:
+            The provider name from the underlying :class:`TransportPolicy`.
+        """
+        return self._policy.provider_name
 
     def get(self, path: str = "", params: dict[str, Any] | None = None) -> dict[str, Any] | str:
         """Send a GET request.
@@ -172,19 +181,27 @@ class HttpTransport:
 
         def _download_mapper(resp: requests.Response) -> bytes:
             """Stream the response body, enforcing the size cap and non-empty rule."""
-            chunks: list[bytes] = []
-            total = 0
-            for chunk in resp.iter_content(chunk_size=65536):
-                total += len(chunk)
-                if total > max_bytes:
-                    # D5 oversize — agnostic ValueError, NOT a tracker error.
-                    raise ValueError(f"download exceeds max_bytes={max_bytes}")
-                chunks.append(chunk)
-            data = b"".join(chunks)
-            if not data:
-                # D5 empty — agnostic ValueError, NOT a tracker error.
-                raise ValueError("empty download body")
-            return data
+            # ``stream=True`` keeps the underlying connection open until the body
+            # is consumed or the response is closed. The oversize path raises
+            # mid-stream, so close on EVERY exit (success, oversize, empty) to
+            # avoid leaking the connection on the exact path defending against
+            # an unbounded stream.
+            try:
+                chunks: list[bytes] = []
+                total = 0
+                for chunk in resp.iter_content(chunk_size=65536):
+                    total += len(chunk)
+                    if total > max_bytes:
+                        # D5 oversize — agnostic ValueError, NOT a tracker error.
+                        raise ValueError(f"download exceeds max_bytes={max_bytes}")
+                    chunks.append(chunk)
+                data = b"".join(chunks)
+                if not data:
+                    # D5 empty — agnostic ValueError, NOT a tracker error.
+                    raise ValueError("empty download body")
+                return data
+            finally:
+                resp.close()
 
         return self._request_outer(
             "GET",
@@ -418,7 +435,7 @@ class HttpTransport:
         and retries network-level failures (connection errors, timeouts).
 
         Args:
-            exc: The exception raised by _do_request.
+            exc: The exception raised by _do_request_raw.
 
         Returns:
             True if the call should be retried.

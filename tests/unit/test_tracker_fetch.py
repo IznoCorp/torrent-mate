@@ -88,8 +88,9 @@ def _make_torrent() -> tuple[bytes, str]:
 def _fake_transport(provider: str = "c411") -> MagicMock:
     """Return a MagicMock transport with a settable provider name.
 
-    The fetcher reads ``transport._policy.provider_name`` for error context;
-    set it to a real string so error messages are deterministic.
+    The fetcher reads ``transport.provider_name`` (the public accessor) for
+    error context; set it to a real string so error messages are deterministic.
+    ``_policy.provider_name`` is also set to mirror the real transport.
 
     Args:
         provider: Lowercase wire provider name.
@@ -98,6 +99,7 @@ def _fake_transport(provider: str = "c411") -> MagicMock:
         A MagicMock standing in for an ``HttpTransport``.
     """
     transport = MagicMock()
+    transport.provider_name = provider
     transport._policy.provider_name = provider
     return transport
 
@@ -238,6 +240,27 @@ class TestFetchTorrentSourceHttp:
         with pytest.raises(TorrentFetchError):
             fetch_torrent_source("https://c411.org/dl/x", transport)
 
+    def test_empty_url_raises_torrent_fetch_error_without_get_bytes(self) -> None:
+        """An empty url is rejected upfront and never reaches get_bytes."""
+        transport = _fake_transport()
+        with pytest.raises(TorrentFetchError):
+            fetch_torrent_source("", transport)
+        transport.get_bytes.assert_not_called()
+
+    def test_404_propagates_as_api_error_not_auth_error(self) -> None:
+        """A non-auth 404 ApiError propagates unchanged and is NOT a TrackerAuthError.
+
+        Exercises the ``_AUTH_STATUSES`` lower boundary: 404 is below 401/403 in
+        intent (a missing resource, not an auth failure) and must surface as the
+        raw ``ApiError``.
+        """
+        transport = _fake_transport()
+        transport.get_bytes.side_effect = ApiError(provider="c411", http_status=404, message="not found")
+        with pytest.raises(ApiError) as exc_info:
+            fetch_torrent_source("https://c411.org/dl/x", transport)
+        assert exc_info.value.http_status == 404
+        assert not isinstance(exc_info.value, TrackerAuthError)
+
 
 # --------------------------------------------------------------------------- #
 # TestFetchTorrentSourceAuthErrors (D4)
@@ -332,6 +355,23 @@ class TestFetchTorrentSourceHashCrossCheck:
         source = fetch_torrent_source("https://c411.org/dl/x", transport, expected_info_hash=None)
         assert source.file_bytes == raw
 
+    def test_uncanonicalizable_expected_hash_skips_and_logs(self, caplog: pytest.LogCaptureFixture) -> None:
+        """A truthy-but-junk expected hash skips the check, returns source, and warns.
+
+        The fetched file already validated structurally, so a bad *expected*
+        value is not grounds to reject it — but the silent downgrade of a
+        requested integrity check must be observable (a warning is logged).
+        """
+        import logging
+
+        raw, _ = _make_torrent()
+        transport = _fake_transport()
+        transport.get_bytes.return_value = raw
+        with caplog.at_level(logging.WARNING):
+            source = fetch_torrent_source("https://c411.org/dl/x", transport, expected_info_hash="zzz")
+        assert source.file_bytes == raw
+        assert "expected_info_hash_uncanonicalizable" in caplog.text
+
 
 # --------------------------------------------------------------------------- #
 # TestResolveSource (D6)
@@ -414,6 +454,15 @@ class TestResolveSource:
         result = _result(provider="c411", download_url=None)
         with pytest.raises(TorrentFetchError, match="download_url"):
             resolve_source(result, transports)
+
+    def test_empty_download_url_raises_torrent_fetch_error(self) -> None:
+        """An empty-string download_url (falsy-yet-not-None) raises TorrentFetchError."""
+        c411 = _fake_transport("c411")
+        transports = {"c411": c411}
+        result = _result(provider="c411", download_url="")
+        with pytest.raises(TorrentFetchError, match="download_url"):
+            resolve_source(result, transports)
+        c411.get_bytes.assert_not_called()
 
     def test_magnet_download_url_bypasses_transport(self) -> None:
         """A magnet download_url short-circuits before any transport lookup/call."""
