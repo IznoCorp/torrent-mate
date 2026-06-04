@@ -19,7 +19,7 @@ Extend `HttpTransport` (`personalscraper/api/transport/_http.py`) with four chan
 1. **`_do_request_raw`** — extracted inner helper that executes a single HTTP call, handles rate-limiting, URL build, logging, and non-2xx raising, then calls a `response_mapper`. Eliminates duplication between the JSON/XML path and the new binary path (survey C1).
 2. **`_request_outer` refactor** — parameterized with `(circuit, rate_limiter, response_mapper)`. `get`/`post` pass the search breaker; `get_bytes` passes the download breaker. Zero duplication of the retry/circuit logic.
 3. **`self._download_circuit` + `self._download_rate_limiter`** — a dedicated second pair (D3), named `"<provider>-download"`, built from the same `TransportPolicy` thresholds in `__init__`. A download 5xx **never** opens the search circuit.
-4. **`get_bytes(self, url: str, *, max_bytes: int = 10_485_760) -> bytes`** — binary GET with absolute/relative URL detection (D10), no auth-param re-merge (D9), streamed size cap + empty-body reject (D5), using the download circuit/limiter (D3).
+4. **`get_bytes(self, url: str, *, max_bytes: int = 10_485_760) -> bytes`** — binary GET with absolute/relative URL detection (D10), no auth-param re-merge (D9), streamed size cap + empty-body reject (D5), using the download circuit/limiter (D3). **On empty/oversize it raises a provider-agnostic `ValueError`** — NOT a tracker error. `HttpTransport` must stay "fully decoupled from any specific provider" (its own docstring) and import **nothing** from `api/tracker`; the fetcher (Phase 3) maps this `ValueError` to `TorrentFetchError`.
 
 > **Read the live file first.** The current `_http.py` has `_request_outer` (`:104`) and `_do_request` (`:145`). The refactor renames `_do_request` → `_do_request_raw` and splits format parsing into a `response_mapper` callable. Confirm exact field names (`_circuit`, `_rate_limiter`) before editing.
 
@@ -70,11 +70,11 @@ def get_bytes(self, url: str, *, max_bytes: int = _DEFAULT_MAX_BYTES) -> bytes:
         for chunk in resp.iter_content(chunk_size=65536):
             total += len(chunk)
             if total > max_bytes:
-                raise TorrentFetchError(...)  # D5 oversize
+                raise ValueError(f"download exceeds max_bytes={max_bytes}")  # D5 oversize (agnostic)
             chunks.append(chunk)
         data = b"".join(chunks)
         if not data:
-            raise TorrentFetchError(...)  # D5 empty
+            raise ValueError("empty download body")  # D5 empty (agnostic)
         return data
 
     return self._request_outer(
@@ -122,10 +122,11 @@ The `_make_transport` factory uses `ApiKeyAuth(key=..., param=..., location=...)
 
 - `test_no_apikey_appended_to_absolute_url` — capture `kwargs["params"]`; must be `None` or empty (no second `apikey`).
 
-**TestGetBytesSizeCap (D5):**
+**TestGetBytesSizeCap (D5) — agnostic `ValueError` (NOT TorrentFetchError; transport stays decoupled):**
 
-- `test_oversize_body_raises_torrent_fetch_error` — `iter_content` yields 100 bytes; `max_bytes=10` → `TorrentFetchError` with `"max_bytes"` in message.
-- `test_empty_body_raises_torrent_fetch_error` — `iter_content` yields no chunks → `TorrentFetchError` with `"empty"` in message.
+- `test_oversize_body_raises_value_error` — `iter_content` yields 100 bytes; `max_bytes=10` → `ValueError` with `"max_bytes"` in message.
+- `test_empty_body_raises_value_error` — `iter_content` yields no chunks → `ValueError` with `"empty"` in message.
+- (The `TorrentFetchError` surfacing for these cases is asserted at the fetcher level in Phase 3, not here.)
 
 **TestGetBytesNon2xx:**
 

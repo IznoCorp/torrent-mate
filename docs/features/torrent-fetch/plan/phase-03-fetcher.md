@@ -53,7 +53,7 @@ The module has two public functions and two private helpers. Key design invarian
 
 - `_is_magnet`: `url.lower().startswith("magnet:")` — no regex needed.
 - `_canonical_info_hash`: regex-match then lowercase (hex) or `base64.b32decode(s.upper()).hex()` (base32); raise `ValueError` for anything else.
-- `fetch_torrent_source`: magnet → `TorrentSource.from_magnet(url)` immediately, no transport call. HTTP → `transport.get_bytes(url)` → catch `ApiError(http_status in {401,403})` and re-raise as `TrackerAuthError` (other `ApiError` propagates as-is) → `TorrentSource.from_file(data)` (raises `ValueError` on non-bencode/missing `info` key; wrap as `TorrentFetchError` with URL + `data[:64]` preview) → if `expected_info_hash` is truthy, canonicalize and compare, raise `TorrentFetchError("mismatch …")` on divergence; non-canonicalizable hash → skip silently.
+- `fetch_torrent_source`: magnet → `TorrentSource.from_magnet(url)` immediately, no transport call. HTTP → `transport.get_bytes(url)`. **Error mapping** (the fetcher owns ALL `TorrentFetchError` surfacing — `HttpTransport` stays provider-agnostic, Phase 2): `ApiError(http_status in {401,403})` → re-raise as `TrackerAuthError` (other `ApiError` propagates as-is); a `ValueError` raised by `get_bytes` (empty/oversize body — agnostic, Phase 2) → wrap as `TorrentFetchError`. Then `TorrentSource.from_file(data)` + access `.info_hash`, which raises `ValueError` on non-bencode / missing `info` key → wrap as `TorrentFetchError` with URL + `data[:64]` preview. Finally, if `expected_info_hash` is truthy, canonicalize and compare, raise `TorrentFetchError("mismatch …")` on divergence; non-canonicalizable expected hash → skip silently.
 - `resolve_source`: magnet check first (before transport lookup, D8); then `download_url is None` → `TorrentFetchError`; then `provider_key not in transports` → `TorrentFetchError` (embed available keys); else delegate to `fetch_torrent_source`.
 
 Illustrative snippet — `_canonical_info_hash` core (the tricky bit):
@@ -119,6 +119,8 @@ Include a local `_bencode`/`_make_torrent` helper (copy the pattern from `tests/
 - `test_html_200_raises_torrent_fetch_error` — `b"<html>…"` → `TorrentFetchError` with `"invalid"` in message.
 - `test_json_error_page_raises_torrent_fetch_error` — `b'{"error":…}'` → `TorrentFetchError`.
 - `test_bencode_without_info_key_raises_torrent_fetch_error` — bencoded dict with no `info` key → `TorrentFetchError`.
+- `test_get_bytes_oversize_valueerror_becomes_torrent_fetch_error` — `transport.get_bytes` `side_effect=ValueError("download exceeds max_bytes=…")` → `TorrentFetchError` (the agnostic transport `ValueError` is mapped here, D5).
+- `test_get_bytes_empty_valueerror_becomes_torrent_fetch_error` — `transport.get_bytes` `side_effect=ValueError("empty download body")` → `TorrentFetchError` (D5).
 
 **TestFetchTorrentSourceAuthErrors (D4):**
 
@@ -145,7 +147,7 @@ Include a local `_bencode`/`_make_torrent` helper (copy the pattern from `tests/
 - `test_cross_check_false_disables_hash_check` — deliberately wrong `info_hash` on `TrackerResult`; `cross_check=False` → no raise.
 - `test_empty_transports_map_raises_torrent_fetch_error` — empty `{}` map → `TorrentFetchError` with `"available"` in message.
 
-- [ ] Run: `pytest tests/unit/test_tracker_fetch.py -v` — 31 tests, all pass.
+- [ ] Run: `pytest tests/unit/test_tracker_fetch.py -v` — 33 tests, all pass.
 
 ---
 
@@ -180,6 +182,6 @@ git commit -m "feat(torrent-fetch): tracker fetch boundary — fetch_torrent_sou
 ## Gate exit checklist
 
 - [ ] `python -c "from personalscraper.api.tracker import fetch_torrent_source, resolve_source, TrackerAuthError, TorrentFetchError"` → exit 0
-- [ ] `pytest tests/unit/test_tracker_fetch.py` → 31 passed, 0 failed
+- [ ] `pytest tests/unit/test_tracker_fetch.py` → 33 passed, 0 failed
 - [ ] `pytest tests/unit/` → no regression in existing suite
 - [ ] Commit SHA recorded
