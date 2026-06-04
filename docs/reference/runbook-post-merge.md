@@ -194,6 +194,39 @@ personalscraper library-gc --older-than-days 30
 
 ---
 
+### Step 7b — Migration 010 re-index (year-aware dispatch dedup)
+
+Migration `010_media_item_dedup_year.sql` swaps the year-blind
+`UNIQUE(title, kind)` index for `UNIQUE(title, kind, year)` so a remake/revival
+and its original (e.g. `Scrubs (2026)` vs `Scrubs (2001)`) stop collapsing into a
+single `media_item` row whose `dispatch_path` points at the _other_ show's folder.
+**The migration only swaps the index — it does NOT split the rows already
+collapsed by migration 007.** A full re-index is mandatory to repair them (each
+on-disk folder re-stages through the now year-aware `item_repo.upsert`):
+
+```bash
+# 1. Re-stage every disk so collapsed remake/original rows split into two.
+personalscraper library-index --mode full --dry-run   # review plan
+personalscraper library-index --mode full
+
+# 2. Verify the previously-collapsed titles now have one row per year.
+DB="$(python3 -c 'from personalscraper.conf.loader import load_config, resolve_config_path as r; print(load_config(r()).indexer.db_path)')"
+sqlite3 "$DB" \
+  "SELECT title, kind, COUNT(*), GROUP_CONCAT(year) FROM media_item
+   GROUP BY title, kind HAVING COUNT(DISTINCT year) > 1;"
+# Expected: the remake/original pairs (Scrubs, RoboCop, Mulan, Doctor Who, ...)
+# each appear as 2 rows with distinct years.
+
+# 3. Confirm no dispatch_path points at a different-year folder than its row.
+personalscraper -v dispatch --dry-run 2>&1 | grep -i "stale_target_rejected"
+# Expected: empty (no stale targets remain after the re-index).
+```
+
+If `library-index --mode full` short-circuits unchanged dirs (merkle) and the
+split does not occur, force a clean rebuild: `personalscraper library-index --rebuild`.
+
+---
+
 ### Step 8 — init-canonical bootstrap (DEV #54 / Plan A prerequisite)
 
 This step populates `canonical_provider` from existing NFO files. It is

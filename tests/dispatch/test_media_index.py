@@ -660,6 +660,106 @@ class TestProviderIdMatch:
         assert result is not None
         assert result.path in {str(disk_old), str(disk_new)}
 
+    def test_same_title_different_year_resolves_to_own_year_folder(self, tmp_path: Path) -> None:
+        """A revival sharing a base title with its original dispatches to its OWN year folder.
+
+        Regression (dispatch_path normalized-title collision): "Scrubs (2026)"
+        (tvdb 465690) and "Scrubs (2001)" (tvdb 76156) both canonicalise to
+        "Scrubs" and used to collapse into a single media_item row whose
+        dispatch_path pointed at the *other* show's folder — so dispatching the
+        revival merged it into the original on a different disk.
+        """
+        disk_old = self._write_tvshow(tmp_path / "disk2" / "series", "Scrubs (2001)", "76156")
+        disk_new = self._write_tvshow(tmp_path / "disk1" / "series", "Scrubs (2026)", "465690")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        idx.add(
+            IndexEntry(
+                name="Scrubs (2001)", disk="disk_2", category="tv_shows", path=str(disk_old), media_type="tvshow"
+            )
+        )
+        idx.add(
+            IndexEntry(
+                name="Scrubs (2026)", disk="disk_1", category="tv_shows", path=str(disk_new), media_type="tvshow"
+            )
+        )
+
+        # The 2001 original and 2026 revival must be two distinct dispatch rows.
+        assert idx.count == 2, "the original and the revival must not collapse into one row"
+
+        # Staging the 2026 revival (tvdb 465690) must resolve to its OWN folder.
+        staging_new = self._write_tvshow(tmp_path / "staging_new", "Scrubs (2026)", "465690")
+        result_new = idx.find("Scrubs (2026)", "tvshow", media_dir=staging_new)
+        assert result_new is not None
+        assert result_new.path == str(disk_new), (
+            "the 2026 revival must dispatch to the 2026 folder, not the 2001 original"
+        )
+        assert result_new.disk == "disk_1"
+
+        # Mirror: staging the 2001 original must resolve to the 2001 folder.
+        staging_old = self._write_tvshow(tmp_path / "staging_old", "Scrubs (2001)", "76156")
+        result_old = idx.find("Scrubs (2001)", "tvshow", media_dir=staging_old)
+        assert result_old is not None
+        assert result_old.path == str(disk_old)
+        assert result_old.disk == "disk_2"
+
+    def test_stale_dispatch_target_year_mismatch_is_rejected(self, tmp_path: Path) -> None:
+        """A stored dispatch_path whose folder year contradicts the matched item is rejected.
+
+        Defense-in-depth for the dispatch_path collision: even if an item's
+        dispatch_path attribute is stale and points at a different-year folder,
+        the resolver must never hand that wrong folder back as a merge target.
+        """
+        disk_2026 = self._write_tvshow(tmp_path / "disk1" / "series", "Scrubs (2026)", "465690")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        idx.add(
+            IndexEntry(
+                name="Scrubs (2026)", disk="disk_1", category="tv_shows", path=str(disk_2026), media_type="tvshow"
+            )
+        )
+
+        # Corrupt the stored dispatch target to a DIFFERENT-year folder (the bug state).
+        stale_dir = tmp_path / "disk2" / "series" / "Scrubs (2001)"
+        stale_dir.mkdir(parents=True)
+        idx._conn.execute(
+            "UPDATE item_attribute SET value = ? WHERE key = 'dispatch_path'",
+            (str(stale_dir),),
+        )
+
+        staging = self._write_tvshow(tmp_path / "staging", "Scrubs (2026)", "465690")
+        result = idx.find("Scrubs (2026)", "tvshow", media_dir=staging)
+
+        assert result is None or Path(result.path).name != "Scrubs (2001)", (
+            "a dispatch_path pointing at a different-year folder must not be served as the target"
+        )
+
+    def test_year_in_title_body_resolves_to_existing_folder(self, tmp_path: Path) -> None:
+        """A title whose body contains a 4-digit year must still resolve to its own folder.
+
+        Regression: the resolver guard compares the folder year (parse_title_year,
+        trailing ``(YYYY)``) against ``media_item.year``, which ``add()`` used to
+        populate via ``_extract_year`` (first 4-digit anywhere). For
+        ``"Blade Runner 2049 (2017)"`` those disagreed (2049 vs 2017), so the
+        guard false-rejected the match and the movie was dispatched as new instead
+        of replacing its existing on-disk folder.
+        """
+        disk_dir = self._write_movie(
+            tmp_path / "disk1" / "films", "Blade Runner 2049 (2017)", "Blade Runner 2049", "335984"
+        )
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        idx.add(
+            IndexEntry(
+                name="Blade Runner 2049 (2017)",
+                disk="disk_1",
+                category="movies",
+                path=str(disk_dir),
+                media_type="movie",
+            )
+        )
+
+        result = idx.find("Blade Runner 2049 (2017)", "movie", media_dir=disk_dir)
+        assert result is not None, "a body-year title must not be false-rejected by the year guard"
+        assert result.path == str(disk_dir)
+
 
 # ---------------------------------------------------------------------------
 # Connection lifecycle — FD-leak guard

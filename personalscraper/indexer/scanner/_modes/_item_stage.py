@@ -175,8 +175,9 @@ def upsert_item_with_attrs(
 ) -> int:
     """Write a media_item row plus its flex attributes and issue set.
 
-    Idempotent on ``(kind, title)`` via :func:`item_repo.upsert` (the repo
-    strips a trailing `` (YYYY)`` from the title). The ``date_created`` /
+    Idempotent on ``(kind, title, year)`` via :func:`item_repo.upsert` (the
+    repo strips a trailing `` (YYYY)`` from the title and disambiguates
+    same-title remakes by year). The ``date_created`` /
     ``date_modified`` placeholders carried in *row* are stamped with *now_s*
     just before the write. Each ``attrs`` pair is upserted via
     :func:`item_repo.upsert_attr` (``ON CONFLICT(item_id, key)``), then the
