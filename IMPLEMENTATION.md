@@ -18,7 +18,7 @@
 | 2   | Transport binary GET — `get_bytes` + dedicated download circuit/limiter | phase-02-transport-get-bytes.md | [x]    |
 | 3   | Fetcher module + public surface + docstring fix                         | phase-03-fetcher.md             | [x]    |
 | 4   | ACCEPTANCE.md + reference docs + `make check` gate                      | phase-04-acceptance.md          | [x]    |
-| 5   | PR fixes cycle 1 (review #90)                                           | phase-05-pr-fixes-cycle-1.md    | [ ]    |
+| 5   | PR fixes cycle 1 (review #90)                                           | phase-05-pr-fixes-cycle-1.md    | [x]    |
 
 ## Review cycles
 
