@@ -18,10 +18,41 @@
 | 2   | Transport binary GET — `get_bytes` + dedicated download circuit/limiter | phase-02-transport-get-bytes.md | [x]    |
 | 3   | Fetcher module + public surface + docstring fix                         | phase-03-fetcher.md             | [x]    |
 | 4   | ACCEPTANCE.md + reference docs + `make check` gate                      | phase-04-acceptance.md          | [x]    |
+| 5   | PR fixes cycle 1 (review #90)                                           | phase-05-pr-fixes-cycle-1.md    | [ ]    |
 
 ## Review cycles
 
-_(filled by implement:pr-review — max 3 cycles)_
+### Cycle 1 — 2026-06-04
+
+pr-review-toolkit (4 agents: code-reviewer, silent-failure-hunter, pr-test-analyzer,
+type-design-analyzer) + Opus filter vs DESIGN. **Verdict: implementation sound** — every
+core invariant (D3 isolation, D9 no-auth-remerge, D10 URL handling, agnostic-ValueError
+split, magnet bypass, hash canonicalization) confirmed correct; tests confirmed real (not
+vacuous). No design contradiction.
+
+- Findings received: ~14 (across 4 agents, deduped)
+- Retained: 7 (0 critical, 1 major, 3 medium, 3 minor)
+- Ignored: pre-existing `count_retries=True` docstring drift (carried from main — out of scope)
+- Fix phase created: phase-05-pr-fixes-cycle-1.md
+- Status: fix phase dispatched → fixes applied inline
+
+**Retained — major:**
+
+- **F1 (major)** `resolve_source` empty-string `download_url` (`""`) bypasses the
+  `is None` guard → `get_bytes("")` GETs the tracker root instead of raising. Fix:
+  `if not download_url:` + guard `fetch_torrent_source` + tests.
+
+**Retained — medium:**
+
+- **F2** non-canonicalizable truthy `expected_info_hash` silently skipped, no log/test →
+  module-logger `warning` + regression test.
+- **F3** streamed response not `close()`d on oversize abort (connection leak on the
+  defensive path) → `try/finally resp.close()` in `_download_mapper` + test.
+- **F4** `_fetch.py` reaches `transport._policy.provider_name` (cross-module private) →
+  public `provider_name` property on `HttpTransport`.
+
+**Retained — minor:** dead `_ResponseMapper` alias (delete), stale `_is_retryable`
+docstring (`_do_request`→`_do_request_raw`), missing 404-propagation test.
 
 ## Next action
 
