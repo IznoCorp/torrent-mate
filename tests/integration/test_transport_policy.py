@@ -102,7 +102,7 @@ class TestCircuitBreaker:
         def _raise_typeerror(*_args: Any, **_kwargs: Any) -> Any:
             raise TypeError("internal bug")
 
-        transport._do_request = _raise_typeerror  # type: ignore[method-assign]
+        transport._do_request_raw = _raise_typeerror  # type: ignore[method-assign]
         failure_before = transport._circuit._failure_count
 
         with pytest.raises(TypeError, match="internal bug"):
