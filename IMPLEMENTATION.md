@@ -8,11 +8,16 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/torrent-fetch/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/torrent-fetch/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                                                   | File                            | Status |
+| --- | ----------------------------------------------------------------------- | ------------------------------- | ------ |
+| 1   | Errors module — `TrackerAuthError` + `TorrentFetchError`                | phase-01-errors.md              | [ ]    |
+| 2   | Transport binary GET — `get_bytes` + dedicated download circuit/limiter | phase-02-transport-get-bytes.md | [ ]    |
+| 3   | Fetcher module + public surface + docstring fix                         | phase-03-fetcher.md             | [ ]    |
+| 4   | ACCEPTANCE.md + reference docs + `make check` gate                      | phase-04-acceptance.md          | [ ]    |
 
 ## Review cycles
 
@@ -20,4 +25,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start Phase 1.
