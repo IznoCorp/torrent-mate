@@ -124,7 +124,10 @@ in PersonalScraper). `core` depends on nothing; `ports` are Protocols; `adapters
 **Entrypoints**
 - `daemon/loop.py` — `kanban run`: standalone blocking loop, **supervisor-agnostic** (see §5)
 - `cli/` — typer app: `install · uninstall · doctor · init · seed · status · sessions · cancel · logs · reset · run · poll --once`
-- `bin/` — agent helpers (thin urllib-client wrappers): `kanban-comment` (sticky), `kanban-move`
+- `bin/` — agent helpers (thin urllib-client wrappers): `kanban-comment` (sticky, §8.1),
+  `kanban-move`, `kanban-heartbeat` (liveness, §8.3), `kanban-progress`, `kanban-session-end`,
+  `check-pr-ready.sh`, `check-merge-ready.sh`, `kanban-update-main`. (Exact set per the §11 re-sync;
+  the PoC source is authoritative.)
 
 **Design patterns**: hexagonal · functional-core/imperative-shell · command (actions) · strategy
 (interval) · the PoC's injectable seams formalised as Protocols.
@@ -195,7 +198,7 @@ Anti-loop reduces to: (a) `kanban-move` refuses agent-triggering targets; (b) at
 | # | Requirement |
 |---|---|
 | H3 | **Pagination**: `projectItems` GraphQL cursor-follow (board with many items must not truncate) |
-| H4 | Permission profiles **materialised** into the worktree's `.claude/settings.json` (`defaultMode` pinned — mitigates mid-session reset #39057); `safe` (concrete `permissions.allow`) vs `trusted`; both ban `gh pr merge`, `git push --force`, history rewrite |
+| H4 | Permission profiles **materialised** into the worktree's `.claude/settings.json` (`defaultMode` pinned — mitigates mid-session reset #39057); `safe` (concrete `permissions.allow`) vs `trusted`; both ban `gh pr merge`, `git push --force`, history rewrite. The same worktree settings file also carries the **PostToolUse heartbeat hook** (§8.3) |
 | H5 | **Kill-switch** `~/.kanban/PAUSE` → downgrade all profiles to `safe` + **unattended-hours** window → zero launches |
 | H6 | **Real captured GraphQL responses** (board snapshot, fieldValueByName, move mutation) as fixtures — replaces synthetic fixtures and pins the exact shape |
 | H7 | **Real GitHub integration tests** actually executed against a dedicated test org/Project (no longer gated-and-skipped-forever) — see §7 |
@@ -242,6 +245,19 @@ clear/transition persisted state, post a final sticky comment. This shares the t
 to a clean, re-startable state (fresh uuid/worktree on a later move into an agent column). Both Cancel
 and Backlog are non-agent, so neither move relaunches an agent; teardown keys on the destination
 (`Cancel`), reset on the transition (`Cancel→Backlog`).
+
+### 8.3 Agent liveness heartbeat (PoC #67)
+Two **distinct** heartbeats exist, do not conflate them:
+- **Agent heartbeat** (this section) — proves the *agent* is working. `LaunchAction` bakes a
+  **PostToolUse hook** (`kanban-heartbeat <issue>`, a fail-soft shim that always exits 0) into the
+  worktree's `.claude/settings.json` (alongside the H4 perms). Every agent tool-use calls
+  `StateStore.touch_heartbeat(issue, now)`, refreshing `state[issue].heartbeat`. A working agent
+  therefore never stales; an agent that *stops acting* goes silent.
+- **Daemon heartbeat** (§5) — proves the *daemon* is alive; `kanban doctor` checks it.
+
+The daemon's reap step (part of every `tick`) blocks a `running` ticket whose agent heartbeat is
+older than `HEARTBEAT_TTL` (default 1800 s): comment + move to `Blocked` + kill the dead session +
+release the slot. A retry refreshes the heartbeat so the next tick does not immediately re-block it.
 
 ## 9. Default columns & triggering
 
