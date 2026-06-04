@@ -83,13 +83,14 @@ merge-ready.** No critical/major/medium. Every invariant re-confirmed; tests rea
 * Fix phase created: none
 * Status: clean — Case A, proceeding to merge (manual)
 
-**Retained — minor (optional, non-blocking follow-ups):**
+**Retained — minor — CLOSED in `4cee24f6` (operator elected to fix):**
 
-- `HttpTransport.provider_name` accessor (new in `b2c1cf18`) has no direct unit test — trivial
-  one-line delegation, mypy-guarded, exercised by every real non-magnet fetch (3/10).
-- `fetch_torrent_source` / `resolve_source` `Raises:` docstrings omit `CircuitOpenError`
-  (doc-completeness only).
+- `HttpTransport.provider_name` accessor — now has a direct unit test
+  (`test_provider_name_exposes_policy_value`).
+- `fetch_torrent_source` / `resolve_source` `Raises:` docstrings now document `CircuitOpenError`
+  (propagated unmapped from `get_bytes`).
 
 ## Next action
 
-Review clean (2 cycles). **Manual merge**: squash-merge PR #90 when ready, then run `/implement:archive`.
+Review clean (3 cycles; cycle-3 minors closed in `4cee24f6`). **Manual merge**: squash-merge
+PR #90 when ready, then run `/implement:archive`.
