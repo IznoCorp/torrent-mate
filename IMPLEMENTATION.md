@@ -54,6 +54,19 @@ vacuous). No design contradiction.
 **Retained — minor:** dead `_ResponseMapper` alias (delete), stale `_is_retryable`
 docstring (`_do_request`→`_do_request_raw`), missing 404-propagation test.
 
+### Cycle 2 — 2026-06-04
+
+Focused re-review of the cycle-1 fix commit (`b2c1cf18`) — code-reviewer + silent-failure-hunter
+on the fix diff. **Verdict: all 7 fixes correct, complete, non-vacuously tested; NO new findings
+at any severity.** CI green; PR mergeable (clean).
+
+- Findings received: 0 (re-review of fixes)
+- Retained: 0
+- Ignored: 1 observation (non-2xx streamed response not explicitly closed) — non-issue (error
+  path drains the body via the json/text preview read) + pre-existing, out of scope.
+- Fix phase created: none
+- Status: clean — proceeding to merge (manual)
+
 ## Next action
 
-All phases complete — run `/implement:feature-pr` (local gate + push + PR + CI).
+Review clean (2 cycles). **Manual merge**: squash-merge PR #90 when ready, then run `/implement:archive`.
