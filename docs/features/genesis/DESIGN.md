@@ -246,14 +246,27 @@ to a clean, re-startable state (fresh uuid/worktree on a later move into an agen
 and Backlog are non-agent, so neither move relaunches an agent; teardown keys on the destination
 (`Cancel`), reset on the transition (`Cancel→Backlog`).
 
-### 8.3 Agent liveness heartbeat (PoC #67)
+### 8.3 Agent liveness heartbeat (PoC #67 — shipped)
 Two **distinct** heartbeats exist, do not conflate them:
-- **Agent heartbeat** (this section) — proves the *agent* is working. `LaunchAction` bakes a
-  **PostToolUse hook** (`kanban-heartbeat <issue>`, a fail-soft shim that always exits 0) into the
-  worktree's `.claude/settings.json` (alongside the H4 perms). Every agent tool-use calls
-  `StateStore.touch_heartbeat(issue, now)`, refreshing `state[issue].heartbeat`. A working agent
-  therefore never stales; an agent that *stops acting* goes silent.
+- **Agent heartbeat** (this section) — proves the *agent* is working.
 - **Daemon heartbeat** (§5) — proves the *daemon* is alive; `kanban doctor` checks it.
+
+`LaunchAction` bakes a **PostToolUse hook with matcher `"*"`** into the worktree's
+`.claude/settings.json` (alongside the H4 perms), so it fires after *every* tool the agent uses.
+Per the Claude Code hook schema the hook is a **command string with the issue baked in by the
+dispatcher** (`kanban-heartbeat <issue>` — a command string, **not** exec-form args); the hook's
+stdin JSON payload is ignored. Each firing calls `Store.touch_heartbeat(issue, now)` — an
+**atomic** (temp + `os.replace`) write that refreshes `state[issue].heartbeat`. A working agent
+therefore never stales; an agent that *stops emitting tools* for the whole TTL goes silent and is reaped.
+
+Hard contracts of the shim (`bin/kanban-heartbeat`):
+- **Always exits 0** (non-blocking, zero influence on the agent); exit 2 would *block* the agent and
+  is never emitted. A bare `try/except` swallows any missed heartbeat.
+- **Import-light**: argv is parsed to `int` *before* importing `kanbanmate`, so a missing/non-int
+  arg short-circuits to exit 0 without paying the package-import cost (it fires synchronously after
+  every tool; cold start ~100 ms, negligible and never blocking).
+- **No resurrection**: `touch_heartbeat` is a **no-op when `state/<issue>.json` is absent**, so a
+  late hook firing *after a Cancel teardown* (§8.2) never recreates a torn-down ticket's state.
 
 The daemon's reap step (part of every `tick`) blocks a `running` ticket whose agent heartbeat is
 older than `HEARTBEAT_TTL` (default 1800 s): comment + move to `Blocked` + kill the dead session +
