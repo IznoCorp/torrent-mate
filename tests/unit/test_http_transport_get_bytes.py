@@ -302,3 +302,18 @@ class TestGetBytesResponseFormat:
 
         assert isinstance(result, bytes)
         assert result == b"<x>raw</x>"
+
+
+class TestProviderName:
+    """The public provider_name accessor (cycle-1 encapsulation fix)."""
+
+    def test_provider_name_exposes_policy_value(self) -> None:
+        """``HttpTransport.provider_name`` returns the policy's provider name.
+
+        Design: docs/features/torrent-fetch/DESIGN.md (§5.2) — the tracker fetch
+        boundary reads ``transport.provider_name`` for error context instead of
+        reaching into the private ``_policy`` attribute.
+        Contract: the property delegates to ``policy.provider_name`` (read-only).
+        """
+        transport = _make_transport(provider_name="c411")
+        assert transport.provider_name == "c411"

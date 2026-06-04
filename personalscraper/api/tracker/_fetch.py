@@ -142,6 +142,9 @@ def fetch_torrent_source(
         TorrentFetchError: Empty/oversize body, body is not a valid ``.torrent``,
             no top-level ``info`` key, or an info_hash mismatch.
         ApiError: Any non-auth, non-2xx HTTP status (propagated unchanged).
+        CircuitOpenError: The transport's download circuit is OPEN — propagated
+            unchanged from ``HttpTransport.get_bytes`` (not an ``ApiError``, so
+            it is not remapped here).
     """
     # D8: a magnet carries the hash inline and needs no transport at all.
     if _is_magnet(url):
@@ -267,6 +270,8 @@ def resolve_source(
             has no transport, or any fetch/validation failure from
             :func:`fetch_torrent_source`.
         ApiError: Any non-auth, non-2xx HTTP status (propagated unchanged).
+        CircuitOpenError: The download circuit is OPEN — propagated unchanged
+            from :func:`fetch_torrent_source`.
     """
     download_url = result.download_url
 
