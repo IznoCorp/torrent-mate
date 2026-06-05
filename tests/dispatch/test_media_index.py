@@ -12,6 +12,8 @@ equivalent behaviour via ``add()`` / ``find()`` / ``count``.
 
 from pathlib import Path
 
+import pytest
+
 from personalscraper.core.event_bus import EventBus
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
 
@@ -496,6 +498,32 @@ class TestFuzzyGuards:
         # original full name on disk for FS operations.
         assert result.name == "Jumanji"
 
+    def test_same_title_different_year_remake_not_fuzzy_matched(self, tmp_path: Path) -> None:
+        """A remake must NOT fuzzy-match the same-title original on a different year.
+
+        Dispatch_path collision regression (Mulan 1998↔2020, Scrubs 2001↔2026):
+        the on-disk title is canonicalised (year stripped), so the old fuzzy pass
+        derived the candidate year via a first-4-digit scan of that title — which
+        returns ``None`` for a normal title, silently disabling the year guard.
+        The strip-year-then-rescore branch then scored ``"Mulan (2020)"`` vs
+        ``"Mulan"`` at 100 and merged the 2020 remake into the 1998 folder. The
+        guard must now read the candidate year from ``media_item.year`` so the
+        25-year gap rejects the match and the remake gets a fresh placement.
+        """
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        idx.add(
+            IndexEntry(
+                name="Mulan (1998)",
+                disk="drive_a",
+                category="movies",
+                path="/d/movies/Mulan (1998)",
+                media_type="movie",
+            )
+        )
+
+        result = idx.find("Mulan (2020)", "movie")
+        assert result is None, "a different-year remake must not fuzzy-merge into the same-title original folder"
+
 
 # ---------------------------------------------------------------------------
 # Provider-ID matching (Rick-and-Morty split regression, torrent-write P15)
@@ -787,6 +815,45 @@ class TestProviderIdMatch:
         result = idx.find("Blade Runner 2049 (2017)", "movie", media_dir=disk_dir)
         assert result is not None, "a body-year title must not be false-rejected by the year guard"
         assert result.path == str(disk_dir)
+
+    def test_stale_dispatch_target_rejection_is_logged(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """The exact-pass stale-target rejection emits ``indexer.dispatch.stale_target_rejected``.
+
+        Pins the observability of the dispatch_path collision guard: when the
+        stored target's folder year contradicts the matched item's year, the
+        resolver must log the rejection (with ``match_type="exact"`` and the
+        item's own year) before falling through to a safe placement.
+        """
+        import logging
+
+        disk_2026 = self._write_tvshow(tmp_path / "disk1" / "series", "Scrubs (2026)", "465690")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        idx.add(
+            IndexEntry(
+                name="Scrubs (2026)", disk="disk_1", category="tv_shows", path=str(disk_2026), media_type="tvshow"
+            )
+        )
+
+        # Corrupt the stored dispatch target to a DIFFERENT-year folder (the bug state).
+        stale_dir = tmp_path / "disk2" / "series" / "Scrubs (2001)"
+        stale_dir.mkdir(parents=True)
+        idx._conn.execute(
+            "UPDATE item_attribute SET value = ? WHERE key = 'dispatch_path'",
+            (str(stale_dir),),
+        )
+
+        staging = self._write_tvshow(tmp_path / "staging", "Scrubs (2026)", "465690")
+        with caplog.at_level(logging.WARNING):
+            idx.find("Scrubs (2026)", "tvshow", media_dir=staging)
+
+        events = [
+            r.msg
+            for r in caplog.records
+            if isinstance(r.msg, dict) and r.msg.get("event") == "indexer.dispatch.stale_target_rejected"
+        ]
+        exact = [e for e in events if e.get("match_type") == "exact"]
+        assert exact, f"expected an exact-pass stale_target_rejected warning; got {[r.msg for r in caplog.records]}"
+        assert exact[0]["item_year"] == 2026
 
 
 # ---------------------------------------------------------------------------

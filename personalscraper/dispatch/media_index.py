@@ -13,7 +13,6 @@ IndexEntry.category and IndexEntry.disk always store canonical IDs
 
 from __future__ import annotations
 
-import re
 import time
 import unicodedata
 from dataclasses import dataclass, field
@@ -47,8 +46,6 @@ if TYPE_CHECKING:
 
 log = get_logger("media_index")
 
-_YEAR_PATTERN = re.compile(r"\b((?:19|20)\d{2})\b")
-
 # Categories that represent TV-like content (episodic/serialized)
 _SERIES_CATEGORY_IDS = frozenset(
     {
@@ -62,19 +59,6 @@ _SERIES_CATEGORY_IDS = frozenset(
 
 # Path to the migration SQL scripts, relative to this package.
 _MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "indexer" / "migrations"
-
-
-def _extract_year(name: str) -> int | None:
-    """Extract a year (19xx/20xx) from a media name.
-
-    Args:
-        name: Media directory name, possibly containing a year.
-
-    Returns:
-        The year as int, or None if not found.
-    """
-    match = _YEAR_PATTERN.search(name)
-    return int(match.group(1)) if match else None
 
 
 def _normalize_key(name: str) -> str:
@@ -390,7 +374,11 @@ class MediaIndex:
         try:
             from personalscraper.text_utils import fuzzy_match_score
 
-            name_year = _extract_year(name)
+            # Use the trailing ``(YYYY)`` release year (matching ``add()`` and
+            # the dispatch guard) — NOT a first-4-digit-anywhere scan — so a
+            # body-year title like "Blade Runner 2049 (2017)" contributes 2017,
+            # keeping the year guard consistent with ``media_item.year``.
+            name_year = parse_title_year(name)[1]
             best_score = 0.0
             best_entry: IndexEntry | None = None
 
@@ -402,7 +390,12 @@ class MediaIndex:
                     # Skip rows whose stored target folder year contradicts the
                     # row's own year (stale dispatch_path collision guard).
                     continue
-                entry_year = _extract_year(item_row.title)
+                # The candidate year is the row's stored release year, NOT a
+                # scan of its (already year-stripped) canonical title — which
+                # returns None for normal titles and the wrong body-year for
+                # titles like "Blade Runner 2049", silently disabling or
+                # corrupting the fuzzy year guard.
+                entry_year = item_row.year
                 score = fuzzy_match_score(
                     name,
                     item_row.title,
@@ -582,11 +575,11 @@ class MediaIndex:
                 title=entry.name,
                 kind=kind,
                 # Parse the trailing ``(YYYY)`` (matching the scanner's
-                # ``scan_and_stage_dir``) rather than ``_extract_year``'s
-                # first-4-digit-anywhere: a title with a year in its body (e.g.
-                # "Blade Runner 2049 (2017)") must store the release year 2017,
-                # not 2049, so ``media_item.year`` stays consistent with the year
-                # the dispatch guard parses from the folder name.
+                # ``scan_and_stage_dir``) rather than a first-4-digit-anywhere
+                # scan: a title with a year in its body (e.g. "Blade Runner 2049
+                # (2017)") must store the release year 2017, not 2049, so
+                # ``media_item.year`` stays consistent with the year the dispatch
+                # guard parses from the folder name.
                 year=parse_title_year(entry.name)[1],
                 category_id=entry.category,
                 tvdb_id=meta["tvdb_id"],

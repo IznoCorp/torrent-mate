@@ -253,6 +253,39 @@ def test_upsert_year_none_first_then_two_explicit_years_split(conn: sqlite3.Conn
     assert years == {2001, 2026}
 
 
+def test_upsert_yearless_match_with_multiple_remakes_warns(
+    conn: sqlite3.Connection, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A year-less upsert that matches one of several explicit-year remakes logs the ambiguity.
+
+    When two explicit-year rows share a canonical title (``Scrubs`` 2001 + 2026)
+    and a later year-less ``Scrubs`` arrives, the merge target is non-deterministic
+    (it could belong to either remake). The upsert must surface this with
+    ``indexer.item.ambiguous_yearless_match`` rather than merge silently.
+    """
+    import logging
+
+    item_repo.upsert(conn, _make_item(title="Scrubs (2001)", kind="show", year=2001, category_id="tv_shows"))
+    item_repo.upsert(conn, _make_item(title="Scrubs (2026)", kind="show", year=2026, category_id="tv_shows"))
+
+    with caplog.at_level(logging.WARNING):
+        item_repo.upsert(conn, _make_item(title="Scrubs", kind="show", year=None, category_id="tv_shows"))
+
+    events = [
+        r.msg
+        for r in caplog.records
+        if isinstance(r.msg, dict) and r.msg.get("event") == "indexer.item.ambiguous_yearless_match"
+    ]
+    assert events, f"expected ambiguous_yearless_match warning; got {[r.msg for r in caplog.records]}"
+    assert events[0]["candidates"] == 2
+    assert events[0]["title"] == "Scrubs"
+    assert events[0]["kind"] == "show"
+
+    # The ambiguity is logged but the year-less row still merges (no 3rd row).
+    count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'show'").fetchone()[0]
+    assert count == 2, f"the year-less upsert must merge into an existing remake, not insert; got {count}"
+
+
 def test_migration_010_replaces_title_kind_index_with_year_aware(conn: sqlite3.Connection) -> None:
     """Migration 010 drops the year-blind UNIQUE(title,kind) index for a year-aware one."""
     index_names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='index'").fetchall()}
