@@ -14,7 +14,7 @@
 
 | #   | Phase                                                 | File                        | Status |
 | --- | ----------------------------------------------------- | --------------------------- | ------ |
-| 1   | Duration parser (`_duration.py`) + unit tests         | phase-01-duration-parser.md | [ ]    |
+| 1   | Duration parser (`_duration.py`) + unit tests         | phase-01-duration-parser.md | [x]    |
 | 2   | Economy schema model                                  | phase-02-schema-model.md    | [ ]    |
 | 3   | Economy schema unit tests                             | phase-03-schema-tests.md    | [ ]    |
 | 4   | Optional-secret resolver + non-gating regression test | phase-04-optional-secret.md | [ ]    |
@@ -27,4 +27,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1.
+Phase 1 complete (`c91a3197`). Run `/implement:phase` to continue with Phase 2 — Economy schema model.
