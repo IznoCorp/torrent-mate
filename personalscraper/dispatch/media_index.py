@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from personalscraper.conf.ids import NON_VIDEO_CATEGORY_IDS
 from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations, open_db
 from personalscraper.indexer.repos import item_repo
@@ -665,6 +666,9 @@ class MediaIndex:
 
                 if resolved_id not in config.categories:
                     continue
+
+                if resolved_id in NON_VIDEO_CATEGORY_IDS:
+                    continue  # non-video categories (audiobooks) aren't dispatch-tracked
 
                 kind: MediaItemKind = "show" if resolved_id in _SERIES_CATEGORY_IDS else "movie"
 

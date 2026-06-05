@@ -42,6 +42,11 @@ TV_CATEGORY_IDS: Final[frozenset[str]] = frozenset(
 )
 """Category IDs that contain TV show-type media (season/episode structure)."""
 
+NON_VIDEO_CATEGORY_IDS: Final[frozenset[str]] = frozenset({AUDIOBOOKS})
+"""Category IDs whose media is not video (e.g. audiobooks — ``.m4b`` author
+folders). The movie/show library + dispatch index skip these during a full scan:
+they are not movies/shows and must never be indexed as ``kind=movie`` rows."""
+
 BUILTIN_CATEGORY_IDS: Final[frozenset[str]] = frozenset(
     {
         MOVIES,

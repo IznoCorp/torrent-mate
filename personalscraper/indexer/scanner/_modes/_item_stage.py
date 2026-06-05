@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any
 from xml.etree import ElementTree as ET
 
 from personalscraper._fs_utils import is_apple_double
-from personalscraper.conf.ids import AUDIOBOOKS, TV_CATEGORY_IDS
+from personalscraper.conf.ids import AUDIOBOOKS, NON_VIDEO_CATEGORY_IDS, TV_CATEGORY_IDS
 from personalscraper.core.media_types import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 from personalscraper.indexer.repos import disk_repo, item_repo, tv_repo
 from personalscraper.indexer.scanner._modes._canonical import derive_canonical_provider
@@ -743,6 +743,8 @@ def stage_library_items(conn: sqlite3.Connection, config: Config, now_s: int | N
             continue
         _ensure_disk_row(conn, disk_cfg, now_s)
         for category_id in disk_cfg.categories:
+            if category_id in NON_VIDEO_CATEGORY_IDS:
+                continue  # audiobooks etc. are not movies/shows — never indexed
             cat_cfg = config.category(category_id)
             category_dir = disk_cfg.path / cat_cfg.folder_name
             if not category_dir.is_dir():

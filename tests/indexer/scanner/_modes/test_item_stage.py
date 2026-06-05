@@ -239,6 +239,39 @@ def test_stage_library_five_movies_two_shows(tmp_path: Path) -> None:
     assert episode_count == 12, f"expected 12 episode rows, got {episode_count}"
 
 
+def test_stage_library_skips_audiobooks(tmp_path: Path) -> None:
+    """A full library walk does NOT index non-video categories (audiobooks).
+
+    Audiobook author folders (``.m4b`` under ``livres audios``) are a configured
+    category but are not movies/shows — the library/dispatch index must skip them
+    so they never pollute the movie list as ``kind=movie`` rows.
+    """
+    conn = _make_db()
+    config = _scanner_config(tmp_path)
+    disk_a = config.disks[0].path
+    films = disk_a / "films"
+    livres = disk_a / "livres audios"
+    films.mkdir(parents=True)
+    livres.mkdir(parents=True)
+
+    # One real movie (must be indexed).
+    movie = films / "A Movie (2020)"
+    movie.mkdir()
+    (movie / "A Movie.mkv").write_bytes(b"\x00" * 1000)
+    (movie / "A Movie.nfo").write_text('<movie><uniqueid type="tmdb">1</uniqueid></movie>')
+
+    # One audiobook author folder (must be SKIPPED).
+    book = livres / "Isaac Asimov"
+    book.mkdir()
+    (book / "Foundation.m4b").write_bytes(b"\x00" * 100)
+
+    staged = stage_library_items(conn, config, now_s=1000)
+
+    assert staged == 1, f"only the movie should be staged, got {staged}"
+    titles = [r[0] for r in conn.execute("SELECT title FROM media_item ORDER BY title").fetchall()]
+    assert titles == ["A Movie"], f"audiobook author folder must not be indexed, got {titles}"
+
+
 def test_stage_library_media_item_fields_populated(tmp_path: Path) -> None:
     """media_item rows carry correct title, year, category_id, nfo_status, kind, ids.
 
