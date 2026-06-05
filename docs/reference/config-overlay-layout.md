@@ -86,3 +86,27 @@ Run `personalscraper init-config` to copy it to `./config/`.
 | `tracker`                                                                          | `tracker.json5`    |
 | `ranking`                                                                          | `ranking.json5`    |
 | `notify`                                                                           | `notify.json5`     |
+
+## Tracker economy schema (tracker-economy RP2)
+
+`tracker.json5` providers may include an optional `economy` block:
+
+    c411: {
+      enabled: true,
+      economy: {
+        target_ratio: 2.0,        // required; must be >= min_ratio
+        min_ratio: 1.0,           // default 1.0; deletion floor (Vague 5 O2)
+        min_seed_time: "72h",     // humanized string → integer seconds at load
+        hit_and_run_grace: "0h",  // default "0h"; grace before H&R counting
+      },
+    },
+
+Duration fields accept `"<N><unit>"` (unit `s/m/h/d/w`) or bare integer seconds.
+Invalid strings raise `ValueError` at boot.
+
+### Optional-secret convention
+
+Announce passkeys are **non-gating**: a missing `<TRACKER>_PASSKEY` never
+deactivates a tracker. Resolved via `resolve_optional_secret()` in
+`api/_activation.py` — never consulted by `resolve_active()`.
+See `.env.example` for variable names (`LACALE_PASSKEY`, `C411_PASSKEY`).

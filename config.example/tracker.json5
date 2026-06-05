@@ -1,20 +1,29 @@
 {
-  // PROVIDER_CREDS hardcoded in api/_activation.py:
-  //   lacale → ["LACALE_API_KEY"]
-  //   c411   → ["C411_API_KEY"]
+  // PROVIDER_CREDS (activation-gating): lacale → LACALE_API_KEY, c411 → C411_API_KEY
+  // PROVIDER_OPTIONAL_SECRETS (non-gating, RP2): lacale → LACALE_PASSKEY, c411 → C411_PASSKEY
+  // A missing passkey never deactivates a tracker (DESIGN §Non-Goals, D3).
   tracker: {
     providers: {
-      lacale: { enabled: false },
-      c411: { enabled: false },
+      lacale: {
+        enabled: false,
+        // economy: {
+        //   target_ratio: 2.0,        // Ratio-C1 loops toward this
+        //   min_ratio: 1.0,           // deletion floor (O2)
+        //   min_seed_time: "72h",     // humanized: s/m/h/d/w → stored as seconds
+        //   hit_and_run_grace: "48h", // grace after download before H&R counting
+        // },
+      },
+      c411: {
+        enabled: false,
+        // economy: {
+        //   target_ratio: 2.0,
+        //   min_ratio: 1.0,
+        //   min_seed_time: "72h",
+        //   hit_and_run_grace: "48h",
+        // },
+      },
     },
     priority: ["lacale", "c411"],
-    // priority_by_media_type — optional per-media-type overrides
-    // (provider-ids feature, DESIGN §6.7). The key is the
-    // ``MediaType`` wire value (``"movie"`` / ``"tv"``) ; the value
-    // is an ordered tracker list that replaces ``priority`` for that
-    // media type. Media types without an entry fall back to the
-    // global ``priority``. Every entry must reference declared
-    // ``providers`` — config-load rejects unknown trackers.
     priority_by_media_type: {
       // movie: ["c411", "lacale"],
       // tv:    ["lacale", "c411"],
