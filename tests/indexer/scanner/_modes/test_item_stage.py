@@ -272,6 +272,31 @@ def test_stage_library_skips_audiobooks(tmp_path: Path) -> None:
     assert titles == ["A Movie"], f"audiobook author folder must not be indexed, got {titles}"
 
 
+def test_stage_library_purges_legacy_audiobook_rows(tmp_path: Path) -> None:
+    """The full-scan walk purges stale non-video (audiobook) ``media_item`` rows.
+
+    An older build staged audiobook author folders as ``kind=movie`` rows. The
+    walk no longer produces them, so — being upsert-only — it must converge
+    legacy data by deleting them rather than leaving them in the movie list.
+    """
+    conn = _make_db()
+    config = _scanner_config(tmp_path)
+    (config.disks[0].path / "films").mkdir(parents=True)
+
+    # Seed a legacy audiobook row exactly as an old build would have staged it.
+    conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, year, category_id, "
+        "external_ids_json, date_created, date_modified, is_locked, preferred_lang) "
+        "VALUES ('movie', 'Isaac Asimov', 'Isaac Asimov', NULL, 'audiobooks', '{}', 1, 1, 0, 'fr')"
+    )
+    assert conn.execute("SELECT COUNT(*) FROM media_item WHERE category_id = 'audiobooks'").fetchone()[0] == 1
+
+    stage_library_items(conn, config, now_s=1000)
+
+    remaining = conn.execute("SELECT COUNT(*) FROM media_item WHERE category_id = 'audiobooks'").fetchone()[0]
+    assert remaining == 0, "legacy audiobook rows must be purged by the full-scan walk"
+
+
 def test_stage_library_media_item_fields_populated(tmp_path: Path) -> None:
     """media_item rows carry correct title, year, category_id, nfo_status, kind, ids.
 

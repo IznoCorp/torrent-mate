@@ -714,6 +714,32 @@ def scan_and_stage_dir(
 # ---------------------------------------------------------------------------
 
 
+def _purge_non_video_items(conn: sqlite3.Connection) -> int:
+    """Delete legacy ``media_item`` rows of non-video categories (e.g. audiobooks).
+
+    An older build staged audiobook author folders as ``kind=movie`` rows.  The
+    full-scan walk no longer produces them (see the ``NON_VIDEO_CATEGORY_IDS``
+    skip in :func:`stage_library_items`), but that walk is upsert-only, so without
+    a convergence pass the stale rows would linger in the movie list forever.
+    ``ON DELETE CASCADE`` removes their child rows (seasons/releases/files/attrs).
+    Mirrors ``enrich._purge_non_video_stream_rows``.
+
+    Args:
+        conn: Open SQLite connection.
+
+    Returns:
+        Number of ``media_item`` rows removed.
+    """
+    if not NON_VIDEO_CATEGORY_IDS:
+        return 0
+    placeholders = ",".join("?" for _ in NON_VIDEO_CATEGORY_IDS)
+    cursor = conn.execute(
+        f"DELETE FROM media_item WHERE category_id IN ({placeholders})",  # noqa: S608 — fixed-set IN list
+        tuple(NON_VIDEO_CATEGORY_IDS),
+    )
+    return int(cursor.rowcount)
+
+
 def stage_library_items(conn: sqlite3.Connection, config: Config, now_s: int | None = None) -> int:
     """Stage rich ``media_item`` rows for every media directory across all configured disks.
 
@@ -736,6 +762,11 @@ def stage_library_items(conn: sqlite3.Connection, config: Config, now_s: int | N
         Count of media directories successfully staged.
     """
     now_s = now_s if now_s is not None else int(time.time())
+    # Converge legacy data: non-video rows (audiobooks) staged by an older build
+    # are no longer produced (skipped below) — purge them so they don't linger.
+    purged = _purge_non_video_items(conn)
+    if purged:
+        log.info("item_stage_non_video_purged", removed=purged)
     staged = 0
     for disk_cfg in config.disks:
         if not disk_cfg.path.exists():

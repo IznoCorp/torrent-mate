@@ -313,6 +313,34 @@ class TestMediaIndexRebuild:
         assert matrix is not None
         assert matrix.category == "movies"
 
+    def test_rebuild_skips_audiobooks(self, tmp_path: Path) -> None:
+        """rebuild() must not index non-video (audiobook) categories as movie rows.
+
+        Mirrors the ``stage_library_items`` skip test for the SECOND scan loop
+        (``MediaIndex.rebuild``) — a physically separate code path that must also
+        honour ``NON_VIDEO_CATEGORY_IDS`` so audiobook author folders never become
+        ``kind=movie`` dispatch rows.
+        """
+        from personalscraper.conf.models.categories import CategoryConfig
+        from personalscraper.conf.models.disks import DiskConfig
+
+        disk = tmp_path / "medias"
+        (disk / "films" / "A Movie (2020)").mkdir(parents=True)
+        book = disk / "livres audios" / "Isaac Asimov"
+        book.mkdir(parents=True)
+        (book / "Foundation.m4b").write_bytes(b"\x00")
+
+        config = DiskConfig(id="drive_a", path=disk, categories=["movies", "audiobooks"])
+        categories = {
+            "movies": CategoryConfig(folder_name="films"),
+            "audiobooks": CategoryConfig(folder_name="livres audios"),
+        }
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        count = idx.rebuild([config], categories=categories)
+
+        assert count == 1, f"only the movie should be indexed, got {count}"
+        assert idx.find("Isaac Asimov", "movie") is None, "audiobook folder must not become a movie row"
+
     def test_first_run_empty_db_triggers_auto_rebuild(self, tmp_path: Path) -> None:
         """Empty library.db at __init__ time triggers rebuild when config is supplied.
 
