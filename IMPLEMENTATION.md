@@ -17,7 +17,7 @@
 | 1   | Duration parser (`_duration.py`) + unit tests         | phase-01-duration-parser.md | [x]    |
 | 2   | Economy schema model                                  | phase-02-schema-model.md    | [x]    |
 | 3   | Economy schema unit tests                             | phase-03-schema-tests.md    | [x]    |
-| 4   | Optional-secret resolver + non-gating regression test | phase-04-optional-secret.md | [ ]    |
+| 4   | Optional-secret resolver + non-gating regression test | phase-04-optional-secret.md | [x]    |
 | 5   | Config files + .env.example + reference doc           | phase-05-config-files.md    | [ ]    |
 | 6   | ACCEPTANCE.md + `make check` gate                     | phase-06-acceptance.md      | [ ]    |
 
@@ -27,4 +27,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phases 1-3 complete (`c91a3197`, `0120a269`, `8f813235`). Run `/implement:phase` to continue with Phase 4 — Optional-secret resolver.
+Phases 1-4 complete (`c91a3197`, `0120a269`, `8f813235`, `9ceaa18a`). Run `/implement:phase` to continue with Phase 5 — Config files + .env.example + reference doc.
