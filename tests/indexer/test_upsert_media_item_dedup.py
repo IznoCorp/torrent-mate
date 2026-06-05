@@ -169,6 +169,134 @@ def test_upsert_same_title_different_kind_no_collision(conn: sqlite3.Connection)
 
 
 # ---------------------------------------------------------------------------
+# Same-title different-year (remake / revival) dedup — dispatch_path collision.
+# A remake and its original share a base title but carry *different explicit*
+# years (e.g. "Scrubs (2001)" tvdb 76156 vs "Scrubs (2026)" tvdb 465690). The
+# year-blind dedup (migration 007) collapsed them into ONE media_item row whose
+# dispatch_path attribute pointed at the *other* show's folder, so a dispatch
+# would merge the revival into the original. They MUST stay distinct rows while
+# the DEV #53 merge (one side has no year) is preserved.
+# ---------------------------------------------------------------------------
+
+
+def test_upsert_same_title_different_year_no_collision(conn: sqlite3.Connection) -> None:
+    """A remake (different explicit year) must NOT collapse into the original's row."""
+    first = item_repo.upsert(conn, _make_item(title="Scrubs (2001)", kind="show", year=2001, category_id="tv_shows"))
+    second = item_repo.upsert(conn, _make_item(title="Scrubs (2026)", kind="show", year=2026, category_id="tv_shows"))
+
+    assert first != second, "the 2026 revival must be a distinct row from the 2001 original"
+    count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'show'").fetchone()[0]
+    assert count == 2, f"expected 2 distinct rows (original + revival), got {count}"
+    years = {r[0] for r in conn.execute("SELECT year FROM media_item WHERE kind = 'show'").fetchall()}
+    assert years == {2001, 2026}
+
+
+def test_upsert_same_title_year_none_still_merges(conn: sqlite3.Connection) -> None:
+    """DEV #53 preserved: same title where one side has no year still merges (no split)."""
+    first = item_repo.upsert(conn, _make_item(title="Inception (2010)", kind="movie", year=2010))
+    # A later scan that could not parse a year (year=None) must MERGE, not split.
+    second = item_repo.upsert(conn, _make_item(title="Inception", kind="movie", year=None))
+
+    assert first == second, "a year-less re-scan of the same movie must merge (DEV #53)"
+    count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'movie'").fetchone()[0]
+    assert count == 1, f"expected 1 merged row, got {count}"
+
+
+def test_upsert_same_title_same_year_merges(conn: sqlite3.Connection) -> None:
+    """Same title + same explicit year is the same item — must merge into one row."""
+    first = item_repo.upsert(conn, _make_item(title="Dune (2021)", kind="movie", year=2021))
+    second = item_repo.upsert(conn, _make_item(title="Dune", kind="movie", year=2021))
+
+    assert first == second
+    count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'movie'").fetchone()[0]
+    assert count == 1
+
+
+def test_upsert_same_title_both_years_none_still_merges(conn: sqlite3.Connection) -> None:
+    """Two year-less upserts of the same title merge.
+
+    The ``UNIQUE(title, kind, year)`` index cannot enforce this (SQLite treats
+    NULL years as distinct), so the upsert SELECT-first path is the only
+    safeguard against duplicate year-less rows — this pins it.
+    """
+    first = item_repo.upsert(conn, _make_item(title="NoYearMovie", kind="movie", year=None))
+    second = item_repo.upsert(conn, _make_item(title="NoYearMovie", kind="movie", year=None))
+
+    assert first == second
+    count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'movie'").fetchone()[0]
+    assert count == 1
+
+
+def test_upsert_year_none_first_then_two_explicit_years_split(conn: sqlite3.Connection) -> None:
+    """A year-less row backfills its year on first explicit merge, so a later remake splits.
+
+    Regression for the NULL-year "merge magnet": before the backfill, a year-less
+    ``"Scrubs"`` row (``year IS NULL`` matches any incoming year) absorbed BOTH
+    ``"Scrubs (2001)"`` and ``"Scrubs (2026)"`` into one row, re-introducing the
+    dispatch_path collision the fix targets.
+    """
+    yearless = item_repo.upsert(conn, _make_item(title="Scrubs", kind="show", year=None, category_id="tv_shows"))
+    # First explicit year heals the year-less row in place (backfills year=2001).
+    first_explicit = item_repo.upsert(
+        conn, _make_item(title="Scrubs (2001)", kind="show", year=2001, category_id="tv_shows")
+    )
+    assert first_explicit == yearless, "the first explicit year must heal the year-less row, not insert a new one"
+    # A different explicit year must now split into its own row, not re-merge.
+    second_explicit = item_repo.upsert(
+        conn, _make_item(title="Scrubs (2026)", kind="show", year=2026, category_id="tv_shows")
+    )
+    assert second_explicit != yearless, "a different-year remake must not be absorbed by the (now-2001) row"
+
+    count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'show'").fetchone()[0]
+    assert count == 2, f"expected the 2001 original and 2026 revival as 2 rows, got {count}"
+    years = {r[0] for r in conn.execute("SELECT year FROM media_item WHERE kind = 'show'").fetchall()}
+    assert years == {2001, 2026}
+
+
+def test_upsert_yearless_match_with_multiple_remakes_warns(
+    conn: sqlite3.Connection, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A year-less upsert that matches one of several explicit-year remakes logs the ambiguity.
+
+    When two explicit-year rows share a canonical title (``Scrubs`` 2001 + 2026)
+    and a later year-less ``Scrubs`` arrives, the merge target is non-deterministic
+    (it could belong to either remake). The upsert must surface this with
+    ``indexer.item.ambiguous_yearless_match`` rather than merge silently.
+    """
+    import logging
+
+    item_repo.upsert(conn, _make_item(title="Scrubs (2001)", kind="show", year=2001, category_id="tv_shows"))
+    item_repo.upsert(conn, _make_item(title="Scrubs (2026)", kind="show", year=2026, category_id="tv_shows"))
+
+    with caplog.at_level(logging.WARNING):
+        item_repo.upsert(conn, _make_item(title="Scrubs", kind="show", year=None, category_id="tv_shows"))
+
+    events = [
+        r.msg
+        for r in caplog.records
+        if isinstance(r.msg, dict) and r.msg.get("event") == "indexer.item.ambiguous_yearless_match"
+    ]
+    assert events, f"expected ambiguous_yearless_match warning; got {[r.msg for r in caplog.records]}"
+    assert events[0]["candidates"] == 2
+    assert events[0]["title"] == "Scrubs"
+    assert events[0]["kind"] == "show"
+
+    # The ambiguity is logged but the year-less row still merges (no 3rd row).
+    count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'show'").fetchone()[0]
+    assert count == 2, f"the year-less upsert must merge into an existing remake, not insert; got {count}"
+
+
+def test_migration_010_replaces_title_kind_index_with_year_aware(conn: sqlite3.Connection) -> None:
+    """Migration 010 drops the year-blind UNIQUE(title,kind) index for a year-aware one."""
+    index_names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='index'").fetchall()}
+    assert "idx_item_title_kind" not in index_names, "the year-blind index must be dropped"
+    assert "idx_item_title_kind_year" in index_names, "the year-aware index must exist"
+
+    cols = [r[2] for r in conn.execute("PRAGMA index_info('idx_item_title_kind_year')").fetchall()]
+    assert cols == ["title", "kind", "year"], f"unexpected index columns: {cols}"
+
+
+# ---------------------------------------------------------------------------
 # UNIQUE constraint enforcement
 # ---------------------------------------------------------------------------
 
@@ -389,15 +517,30 @@ def test_migration_007_changes_table_populated(tmp_path: Path) -> None:
 
 
 def test_unique_title_kind_rejects_duplicate_insert(conn: sqlite3.Connection) -> None:
-    """Direct INSERT of same (title, kind) must raise IntegrityError."""
-    item_repo.insert(conn, _make_item(title="UniqueMovie"))
+    """Direct INSERT of same (title, kind, year) raises; a DIFFERENT year does not.
 
+    Migration 010 made the UNIQUE index ``(title, kind, year)`` (year-aware), so a
+    remake sharing a base title but carrying a different year is a legitimate
+    distinct row rather than a duplicate.
+    """
+    item_repo.insert(conn, _make_item(title="UniqueMovie", year=2024))
+
+    # Same (title, kind, year) → rejected.
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute(
             "INSERT INTO media_item (kind, title, title_sort, year, category_id, "
             "date_created, date_modified, is_locked, preferred_lang) "
             "VALUES ('movie', 'UniqueMovie', 'UniqueMovie', 2024, 'movies', 1, 1, 0, 'fr')"
         )
+
+    # Same (title, kind) but a DIFFERENT year → allowed (remake / revival).
+    conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, year, category_id, "
+        "date_created, date_modified, is_locked, preferred_lang) "
+        "VALUES ('movie', 'UniqueMovie', 'UniqueMovie (1990)', 1990, 'movies', 1, 1, 0, 'fr')"
+    )
+    count = conn.execute("SELECT COUNT(*) FROM media_item WHERE title = 'UniqueMovie'").fetchone()[0]
+    assert count == 2
 
 
 # ---------------------------------------------------------------------------
@@ -430,7 +573,7 @@ def test_migration_007_canonicalises_existing_titles(tmp_path: Path) -> None:
     assert row[0] == "Test", f"Expected canonicalised 'Test', got {row[0]!r}"
 
     user_version = conn.execute("PRAGMA user_version").fetchone()[0]
-    assert user_version == 9
+    assert user_version == 10
 
     conn.close()
 
@@ -467,7 +610,7 @@ def test_migration_007_dedups_post_canonicalisation(tmp_path: Path) -> None:
     assert row[2] == 200  # date_modified merged to max
 
     user_version = conn.execute("PRAGMA user_version").fetchone()[0]
-    assert user_version == 9
+    assert user_version == 10
 
     conn.close()
 
@@ -478,18 +621,18 @@ def test_migration_007_idempotent(tmp_path: Path) -> None:
     conn = sqlite3.connect(str(db_path), isolation_level=None)
     conn.execute("PRAGMA foreign_keys=ON")
 
-    apply_migrations(conn, _MIGRATIONS_DIR)  # fresh 001–009
+    apply_migrations(conn, _MIGRATIONS_DIR)  # fresh 001–010
 
     user_v1 = conn.execute("PRAGMA user_version").fetchone()[0]
-    assert user_v1 == 9
+    assert user_v1 == 10
 
     # Second apply — must be no-op.
     apply_migrations(conn, _MIGRATIONS_DIR)
     user_v2 = conn.execute("PRAGMA user_version").fetchone()[0]
-    assert user_v2 == 9
+    assert user_v2 == 10
 
     versions = [r[0] for r in conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()]
-    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9], f"Got {versions}"
+    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], f"Got {versions}"
 
     conn.close()
 

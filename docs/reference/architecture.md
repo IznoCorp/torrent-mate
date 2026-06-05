@@ -62,6 +62,10 @@ staging/
 │   │   │   ├── qbittorrent.py        # QBitClient (Adder + Limiter)
 │   │   │   └── transmission.py       # TransmissionClient (Adder only)
 │   │   ├── tracker/             # TrackerClient + ranking engine — lacale, c411
+│   │   │   ├── _errors.py            # TrackerAuthError, TorrentFetchError (tracker-family errors)
+│   │   │   └── _fetch.py             # fetch boundary (RP1a): TrackerResult → TorrentSource
+│   │   │                             # via HttpTransport.get_bytes (dedicated download circuit, D3);
+│   │   │                             # owns ALL TorrentFetchError surfacing; magnet bypasses network
 │   │   └── notify/              # Notifier + HealthChecker — telegram, healthchecks
 │   ├── core/            # Reusable cross-cutting infrastructure (post-api-unify)
 │   │   ├── _contracts.py        # Core-layer primitive contracts: MediaType, ApiError, CircuitOpenError (re-exported from api/_contracts.py for backward compat)

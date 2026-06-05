@@ -390,33 +390,64 @@ _ATTR_DISPATCH_NORM_TITLE = "dispatch_normalized_title"
 
 
 def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
-    """Insert or update a :class:`MediaItemRow` keyed by ``(kind, title)``.
+    """Insert or update a :class:`MediaItemRow`, deduplicating on ``(title, kind, year)``.
 
-    Performs a SELECT-then-UPDATE-or-INSERT to handle the dispatch layer's
-    one-row-per-``(kind, title)`` invariant.  The title is canonicalised via
-    :func:`_canonical_title` before lookup and insert so that callers passing
-    ``"Inception (2010)"`` match an already-stored row with ``title="Inception"``
-    (DEV #53 dedup fix).
+    Performs a SELECT-then-UPDATE-or-INSERT keyed by the canonicalised title
+    (:func:`_canonical_title` strips a trailing `` (YYYY)``), the kind, and a
+    *year-compatible* match (see :func:`get_by_title_kind_year`).  A remake and
+    its original share a base title but carry *different explicit* years, so they
+    stay distinct rows — preventing the dispatch_path collision where the revival
+    (e.g. ``"Scrubs (2026)"``) would otherwise collapse into the original
+    (``"Scrubs (2001)"``) and inherit its on-disk folder.  The DEV #53 case
+    (``"Inception (2010)"`` vs ``"Inception"``, one side year-less) still merges.
 
-    When a matching row already exists, ``category_id`` and ``date_modified``
-    are refreshed.  Otherwise a new row is inserted with the canonicalised title.
+    When a year-compatible row already exists, ``category_id`` and
+    ``date_modified`` are refreshed.  Otherwise a new row is inserted with the
+    canonicalised title.
 
     Args:
         conn: Open SQLite connection.
         row: :class:`MediaItemRow` to upsert.  The ``id`` field is ignored;
             ``title`` may carry a trailing `` (YYYY)`` suffix which will be
-            stripped before storage.
+            stripped before storage.  ``year`` disambiguates same-title remakes.
 
     Returns:
         The ``rowid`` (= ``id``) of the inserted or updated row.
     """
     canonical = _canonical_title(row.title)
-    existing = get_by_title_and_kind(conn, canonical, row.kind)
+    existing = get_by_title_kind_year(conn, canonical, row.kind, row.year)
     if existing is not None:
-        conn.execute(
-            "UPDATE media_item SET category_id = ?, date_modified = ? WHERE id = ?",
-            (row.category_id, row.date_modified, existing.id),
-        )
+        # A year-less incoming item is ambiguous only when it matched an
+        # *explicit*-year row (no year-less row existed to absorb it) while
+        # several explicit-year remakes share its canonical title — then it
+        # could belong to any of them. When a year-less row exists it merges
+        # into that one deterministically (unambiguous), so no warning fires.
+        if row.year is None and existing.year is not None:
+            siblings: int = conn.execute(
+                "SELECT COUNT(*) FROM media_item WHERE title = ? AND kind = ?",
+                (canonical, row.kind),
+            ).fetchone()[0]
+            if siblings > 1:
+                log.warning(
+                    "indexer.item.ambiguous_yearless_match",
+                    title=canonical,
+                    kind=row.kind,
+                    candidates=siblings,
+                    merged_into=existing.id,
+                )
+        if existing.year is None and row.year is not None:
+            # Heal a year-less survivor by backfilling the first explicit year
+            # seen, so a later *different*-year remake splits into its own row
+            # instead of being absorbed by the NULL-year "merge magnet".
+            conn.execute(
+                "UPDATE media_item SET category_id = ?, date_modified = ?, year = ? WHERE id = ?",
+                (row.category_id, row.date_modified, row.year, existing.id),
+            )
+        else:
+            conn.execute(
+                "UPDATE media_item SET category_id = ?, date_modified = ? WHERE id = ?",
+                (row.category_id, row.date_modified, existing.id),
+            )
         log.info("indexer.item.upsert_update", title=canonical, kind=row.kind, id=existing.id)
         return existing.id
     cursor = conn.execute(
@@ -453,20 +484,32 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
     return rowid
 
 
-def get_by_title_and_kind(conn: sqlite3.Connection, title: str, kind: str) -> MediaItemRow | None:
-    """Fetch a media item row by its ``(title, kind)`` unique pair.
+def get_by_title_kind_year(
+    conn: sqlite3.Connection,
+    title: str,
+    kind: str,
+    year: int | None,
+) -> MediaItemRow | None:
+    """Fetch a media item by ``(title, kind)`` with *year-compatible* matching.
 
-    Canonicalises *title* via :func:`_canonical_title` before querying so
-    that ``"Inception (2010)"`` and ``"Inception"`` resolve to the same row
-    (DEV #53 dedup fix).
+    Canonicalises *title* (strips a trailing `` (YYYY)``) then matches a row of
+    the same ``(canonical_title, kind)`` whose ``year`` is **compatible** with
+    *year*: equal, or either side ``NULL``.  A remake and its original share a
+    base title but carry *different explicit* years, so they never match each
+    other here — this is what keeps ``"Scrubs (2026)"`` (tvdb 465690) from
+    collapsing into ``"Scrubs (2001)"`` (tvdb 76156) and inheriting the wrong
+    dispatch folder.  The DEV #53 case (``"Inception (2010)"`` vs ``"Inception"``,
+    one side ``NULL``) still merges.  On ties the exact-year row wins, then a
+    year-less row, then the most-recently-modified.
 
     Args:
         conn: Open SQLite connection.
         title: Display title, possibly with a trailing `` (YYYY)`` suffix.
         kind: ``'movie'`` or ``'show'``.
+        year: Release year of the item being looked up, or ``None`` when unknown.
 
     Returns:
-        :class:`MediaItemRow` if found, ``None`` otherwise.
+        :class:`MediaItemRow` if a year-compatible row exists, ``None`` otherwise.
     """
     canonical = _canonical_title(title)
     _set_row_factory(conn)
@@ -474,8 +517,16 @@ def get_by_title_and_kind(conn: sqlite3.Connection, title: str, kind: str) -> Me
         "SELECT id, kind, title, title_sort, original_title, year, category_id, "
         "external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
         "date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang "
-        "FROM media_item WHERE title = ? AND kind = ?",
-        (canonical, kind),
+        "FROM media_item "
+        "WHERE title = ? AND kind = ? "
+        # Year-compatible: the incoming year is unknown, the stored year is
+        # unknown, or they match exactly.  Two *different explicit* years never
+        # match — that is the remake / revival split.
+        "AND (? IS NULL OR year IS NULL OR year = ?) "
+        # Prefer an exact-year row, then a year-less row, then the newest.
+        "ORDER BY (year IS NOT ?), date_modified DESC "
+        "LIMIT 1",
+        (canonical, kind, year, year, year),
     ).fetchone()
     if row is None:
         return None

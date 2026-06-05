@@ -239,6 +239,64 @@ def test_stage_library_five_movies_two_shows(tmp_path: Path) -> None:
     assert episode_count == 12, f"expected 12 episode rows, got {episode_count}"
 
 
+def test_stage_library_skips_audiobooks(tmp_path: Path) -> None:
+    """A full library walk does NOT index non-video categories (audiobooks).
+
+    Audiobook author folders (``.m4b`` under ``livres audios``) are a configured
+    category but are not movies/shows — the library/dispatch index must skip them
+    so they never pollute the movie list as ``kind=movie`` rows.
+    """
+    conn = _make_db()
+    config = _scanner_config(tmp_path)
+    disk_a = config.disks[0].path
+    films = disk_a / "films"
+    livres = disk_a / "livres audios"
+    films.mkdir(parents=True)
+    livres.mkdir(parents=True)
+
+    # One real movie (must be indexed).
+    movie = films / "A Movie (2020)"
+    movie.mkdir()
+    (movie / "A Movie.mkv").write_bytes(b"\x00" * 1000)
+    (movie / "A Movie.nfo").write_text('<movie><uniqueid type="tmdb">1</uniqueid></movie>')
+
+    # One audiobook author folder (must be SKIPPED).
+    book = livres / "Isaac Asimov"
+    book.mkdir()
+    (book / "Foundation.m4b").write_bytes(b"\x00" * 100)
+
+    staged = stage_library_items(conn, config, now_s=1000)
+
+    assert staged == 1, f"only the movie should be staged, got {staged}"
+    titles = [r[0] for r in conn.execute("SELECT title FROM media_item ORDER BY title").fetchall()]
+    assert titles == ["A Movie"], f"audiobook author folder must not be indexed, got {titles}"
+
+
+def test_stage_library_purges_legacy_audiobook_rows(tmp_path: Path) -> None:
+    """The full-scan walk purges stale non-video (audiobook) ``media_item`` rows.
+
+    An older build staged audiobook author folders as ``kind=movie`` rows. The
+    walk no longer produces them, so — being upsert-only — it must converge
+    legacy data by deleting them rather than leaving them in the movie list.
+    """
+    conn = _make_db()
+    config = _scanner_config(tmp_path)
+    (config.disks[0].path / "films").mkdir(parents=True)
+
+    # Seed a legacy audiobook row exactly as an old build would have staged it.
+    conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, year, category_id, "
+        "external_ids_json, date_created, date_modified, is_locked, preferred_lang) "
+        "VALUES ('movie', 'Isaac Asimov', 'Isaac Asimov', NULL, 'audiobooks', '{}', 1, 1, 0, 'fr')"
+    )
+    assert conn.execute("SELECT COUNT(*) FROM media_item WHERE category_id = 'audiobooks'").fetchone()[0] == 1
+
+    stage_library_items(conn, config, now_s=1000)
+
+    remaining = conn.execute("SELECT COUNT(*) FROM media_item WHERE category_id = 'audiobooks'").fetchone()[0]
+    assert remaining == 0, "legacy audiobook rows must be purged by the full-scan walk"
+
+
 def test_stage_library_media_item_fields_populated(tmp_path: Path) -> None:
     """media_item rows carry correct title, year, category_id, nfo_status, kind, ids.
 

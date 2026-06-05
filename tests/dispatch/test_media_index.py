@@ -12,6 +12,8 @@ equivalent behaviour via ``add()`` / ``find()`` / ``count``.
 
 from pathlib import Path
 
+import pytest
+
 from personalscraper.core.event_bus import EventBus
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
 
@@ -313,6 +315,34 @@ class TestMediaIndexRebuild:
         assert matrix is not None
         assert matrix.category == "movies"
 
+    def test_rebuild_skips_audiobooks(self, tmp_path: Path) -> None:
+        """rebuild() must not index non-video (audiobook) categories as movie rows.
+
+        Mirrors the ``stage_library_items`` skip test for the SECOND scan loop
+        (``MediaIndex.rebuild``) — a physically separate code path that must also
+        honour ``NON_VIDEO_CATEGORY_IDS`` so audiobook author folders never become
+        ``kind=movie`` dispatch rows.
+        """
+        from personalscraper.conf.models.categories import CategoryConfig
+        from personalscraper.conf.models.disks import DiskConfig
+
+        disk = tmp_path / "medias"
+        (disk / "films" / "A Movie (2020)").mkdir(parents=True)
+        book = disk / "livres audios" / "Isaac Asimov"
+        book.mkdir(parents=True)
+        (book / "Foundation.m4b").write_bytes(b"\x00")
+
+        config = DiskConfig(id="drive_a", path=disk, categories=["movies", "audiobooks"])
+        categories = {
+            "movies": CategoryConfig(folder_name="films"),
+            "audiobooks": CategoryConfig(folder_name="livres audios"),
+        }
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        count = idx.rebuild([config], categories=categories)
+
+        assert count == 1, f"only the movie should be indexed, got {count}"
+        assert idx.find("Isaac Asimov", "movie") is None, "audiobook folder must not become a movie row"
+
     def test_first_run_empty_db_triggers_auto_rebuild(self, tmp_path: Path) -> None:
         """Empty library.db at __init__ time triggers rebuild when config is supplied.
 
@@ -467,6 +497,32 @@ class TestFuzzyGuards:
         # strips " (YYYY)" suffix to dedup rows). dispatch_path preserves the
         # original full name on disk for FS operations.
         assert result.name == "Jumanji"
+
+    def test_same_title_different_year_remake_not_fuzzy_matched(self, tmp_path: Path) -> None:
+        """A remake must NOT fuzzy-match the same-title original on a different year.
+
+        Dispatch_path collision regression (Mulan 1998↔2020, Scrubs 2001↔2026):
+        the on-disk title is canonicalised (year stripped), so the old fuzzy pass
+        derived the candidate year via a first-4-digit scan of that title — which
+        returns ``None`` for a normal title, silently disabling the year guard.
+        The strip-year-then-rescore branch then scored ``"Mulan (2020)"`` vs
+        ``"Mulan"`` at 100 and merged the 2020 remake into the 1998 folder. The
+        guard must now read the candidate year from ``media_item.year`` so the
+        25-year gap rejects the match and the remake gets a fresh placement.
+        """
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        idx.add(
+            IndexEntry(
+                name="Mulan (1998)",
+                disk="drive_a",
+                category="movies",
+                path="/d/movies/Mulan (1998)",
+                media_type="movie",
+            )
+        )
+
+        result = idx.find("Mulan (2020)", "movie")
+        assert result is None, "a different-year remake must not fuzzy-merge into the same-title original folder"
 
 
 # ---------------------------------------------------------------------------
@@ -659,6 +715,145 @@ class TestProviderIdMatch:
 
         assert result is not None
         assert result.path in {str(disk_old), str(disk_new)}
+
+    def test_same_title_different_year_resolves_to_own_year_folder(self, tmp_path: Path) -> None:
+        """A revival sharing a base title with its original dispatches to its OWN year folder.
+
+        Regression (dispatch_path normalized-title collision): "Scrubs (2026)"
+        (tvdb 465690) and "Scrubs (2001)" (tvdb 76156) both canonicalise to
+        "Scrubs" and used to collapse into a single media_item row whose
+        dispatch_path pointed at the *other* show's folder — so dispatching the
+        revival merged it into the original on a different disk.
+        """
+        disk_old = self._write_tvshow(tmp_path / "disk2" / "series", "Scrubs (2001)", "76156")
+        disk_new = self._write_tvshow(tmp_path / "disk1" / "series", "Scrubs (2026)", "465690")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        idx.add(
+            IndexEntry(
+                name="Scrubs (2001)", disk="disk_2", category="tv_shows", path=str(disk_old), media_type="tvshow"
+            )
+        )
+        idx.add(
+            IndexEntry(
+                name="Scrubs (2026)", disk="disk_1", category="tv_shows", path=str(disk_new), media_type="tvshow"
+            )
+        )
+
+        # The 2001 original and 2026 revival must be two distinct dispatch rows.
+        assert idx.count == 2, "the original and the revival must not collapse into one row"
+
+        # Staging the 2026 revival (tvdb 465690) must resolve to its OWN folder.
+        staging_new = self._write_tvshow(tmp_path / "staging_new", "Scrubs (2026)", "465690")
+        result_new = idx.find("Scrubs (2026)", "tvshow", media_dir=staging_new)
+        assert result_new is not None
+        assert result_new.path == str(disk_new), (
+            "the 2026 revival must dispatch to the 2026 folder, not the 2001 original"
+        )
+        assert result_new.disk == "disk_1"
+
+        # Mirror: staging the 2001 original must resolve to the 2001 folder.
+        staging_old = self._write_tvshow(tmp_path / "staging_old", "Scrubs (2001)", "76156")
+        result_old = idx.find("Scrubs (2001)", "tvshow", media_dir=staging_old)
+        assert result_old is not None
+        assert result_old.path == str(disk_old)
+        assert result_old.disk == "disk_2"
+
+    def test_stale_dispatch_target_year_mismatch_is_rejected(self, tmp_path: Path) -> None:
+        """A stored dispatch_path whose folder year contradicts the matched item is rejected.
+
+        Defense-in-depth for the dispatch_path collision: even if an item's
+        dispatch_path attribute is stale and points at a different-year folder,
+        the resolver must never hand that wrong folder back as a merge target.
+        """
+        disk_2026 = self._write_tvshow(tmp_path / "disk1" / "series", "Scrubs (2026)", "465690")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        idx.add(
+            IndexEntry(
+                name="Scrubs (2026)", disk="disk_1", category="tv_shows", path=str(disk_2026), media_type="tvshow"
+            )
+        )
+
+        # Corrupt the stored dispatch target to a DIFFERENT-year folder (the bug state).
+        stale_dir = tmp_path / "disk2" / "series" / "Scrubs (2001)"
+        stale_dir.mkdir(parents=True)
+        idx._conn.execute(
+            "UPDATE item_attribute SET value = ? WHERE key = 'dispatch_path'",
+            (str(stale_dir),),
+        )
+
+        staging = self._write_tvshow(tmp_path / "staging", "Scrubs (2026)", "465690")
+        result = idx.find("Scrubs (2026)", "tvshow", media_dir=staging)
+
+        assert result is None or Path(result.path).name != "Scrubs (2001)", (
+            "a dispatch_path pointing at a different-year folder must not be served as the target"
+        )
+
+    def test_year_in_title_body_resolves_to_existing_folder(self, tmp_path: Path) -> None:
+        """A title whose body contains a 4-digit year must still resolve to its own folder.
+
+        Regression: the resolver guard compares the folder year (parse_title_year,
+        trailing ``(YYYY)``) against ``media_item.year``, which ``add()`` used to
+        populate via ``_extract_year`` (first 4-digit anywhere). For
+        ``"Blade Runner 2049 (2017)"`` those disagreed (2049 vs 2017), so the
+        guard false-rejected the match and the movie was dispatched as new instead
+        of replacing its existing on-disk folder.
+        """
+        disk_dir = self._write_movie(
+            tmp_path / "disk1" / "films", "Blade Runner 2049 (2017)", "Blade Runner 2049", "335984"
+        )
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        idx.add(
+            IndexEntry(
+                name="Blade Runner 2049 (2017)",
+                disk="disk_1",
+                category="movies",
+                path=str(disk_dir),
+                media_type="movie",
+            )
+        )
+
+        result = idx.find("Blade Runner 2049 (2017)", "movie", media_dir=disk_dir)
+        assert result is not None, "a body-year title must not be false-rejected by the year guard"
+        assert result.path == str(disk_dir)
+
+    def test_stale_dispatch_target_rejection_is_logged(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """The exact-pass stale-target rejection emits ``indexer.dispatch.stale_target_rejected``.
+
+        Pins the observability of the dispatch_path collision guard: when the
+        stored target's folder year contradicts the matched item's year, the
+        resolver must log the rejection (with ``match_type="exact"`` and the
+        item's own year) before falling through to a safe placement.
+        """
+        import logging
+
+        disk_2026 = self._write_tvshow(tmp_path / "disk1" / "series", "Scrubs (2026)", "465690")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
+        idx.add(
+            IndexEntry(
+                name="Scrubs (2026)", disk="disk_1", category="tv_shows", path=str(disk_2026), media_type="tvshow"
+            )
+        )
+
+        # Corrupt the stored dispatch target to a DIFFERENT-year folder (the bug state).
+        stale_dir = tmp_path / "disk2" / "series" / "Scrubs (2001)"
+        stale_dir.mkdir(parents=True)
+        idx._conn.execute(
+            "UPDATE item_attribute SET value = ? WHERE key = 'dispatch_path'",
+            (str(stale_dir),),
+        )
+
+        staging = self._write_tvshow(tmp_path / "staging", "Scrubs (2026)", "465690")
+        with caplog.at_level(logging.WARNING):
+            idx.find("Scrubs (2026)", "tvshow", media_dir=staging)
+
+        events = [
+            r.msg
+            for r in caplog.records
+            if isinstance(r.msg, dict) and r.msg.get("event") == "indexer.dispatch.stale_target_rejected"
+        ]
+        exact = [e for e in events if e.get("match_type") == "exact"]
+        assert exact, f"expected an exact-pass stale_target_rejected warning; got {[r.msg for r in caplog.records]}"
+        assert exact[0]["item_year"] == 2026
 
 
 # ---------------------------------------------------------------------------

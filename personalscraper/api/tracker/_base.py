@@ -59,7 +59,9 @@ class TrackerResult:
     """A single search result from a tracker.
 
     Attributes:
-        provider: Tracker provider name (e.g. "LaCale", "C411").
+        provider: Tracker provider name as the lowercase wire value
+            (e.g. "lacale", "c411"). This is the key used to look up the
+            matching transport in ``resolve_source``'s ``transports`` map.
         tracker_id: Provider-specific identifier for this torrent.
         title: Human-readable torrent title.
         size: Torrent size as a typed ByteSize.

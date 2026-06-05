@@ -13,7 +13,6 @@ IndexEntry.category and IndexEntry.disk always store canonical IDs
 
 from __future__ import annotations
 
-import re
 import time
 import unicodedata
 from dataclasses import dataclass, field
@@ -21,6 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from personalscraper.conf.ids import NON_VIDEO_CATEGORY_IDS
 from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations, open_db
 from personalscraper.indexer.repos import item_repo
@@ -46,8 +46,6 @@ if TYPE_CHECKING:
 
 log = get_logger("media_index")
 
-_YEAR_PATTERN = re.compile(r"\b((?:19|20)\d{2})\b")
-
 # Categories that represent TV-like content (episodic/serialized)
 _SERIES_CATEGORY_IDS = frozenset(
     {
@@ -61,19 +59,6 @@ _SERIES_CATEGORY_IDS = frozenset(
 
 # Path to the migration SQL scripts, relative to this package.
 _MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "indexer" / "migrations"
-
-
-def _extract_year(name: str) -> int | None:
-    """Extract a year (19xx/20xx) from a media name.
-
-    Args:
-        name: Media directory name, possibly containing a year.
-
-    Returns:
-        The year as int, or None if not found.
-    """
-    match = _YEAR_PATTERN.search(name)
-    return int(match.group(1)) if match else None
 
 
 def _normalize_key(name: str) -> str:
@@ -92,6 +77,31 @@ def _normalize_key(name: str) -> str:
         Normalized key string.
     """
     return unicodedata.normalize("NFC", name).lower().strip()
+
+
+def _target_year_matches(dispatch_path: str, item_year: int | None) -> bool:
+    """Whether a stored dispatch target's folder year is compatible with the item.
+
+    Defense-in-depth for the dispatch_path collision: a stale ``dispatch_path``
+    attribute may point at a *different-year* folder than the matched item
+    (e.g. a ``Scrubs (2026)`` row whose stored path is ``.../Scrubs (2001)``).
+    Returns ``False`` only when BOTH the folder name and the item carry an
+    *explicit* year and they differ — year-less targets / items pass through
+    unchanged, mirroring the year-compatible dedup rule so a legitimate
+    year-unknown folder is never rejected.
+
+    Args:
+        dispatch_path: Stored dispatch target path (may be empty).
+        item_year: Release year of the matched media item, or ``None``.
+
+    Returns:
+        ``True`` when the target is acceptable; ``False`` when its folder year
+        contradicts ``item_year``.
+    """
+    if not dispatch_path:
+        return True
+    _title, path_year = parse_title_year(Path(dispatch_path).name)
+    return not (path_year is not None and item_year is not None and path_year != item_year)
 
 
 def _media_type_to_kind(media_type: str) -> MediaItemKind:
@@ -319,22 +329,36 @@ class MediaIndex:
         result = item_repo.find_by_normalized_name(self._conn, key, kind)
         if result is not None:
             item_row, dispatch_disk, dispatch_path = result
-            log.info(
-                "indexer.dispatch.lookup_hit",
+            if _target_year_matches(dispatch_path, item_row.year):
+                log.info(
+                    "indexer.dispatch.lookup_hit",
+                    name=name,
+                    media_type=media_type,
+                    match_type="exact",
+                    title=item_row.title,
+                    disk=dispatch_disk,
+                    category=item_row.category_id,
+                )
+                return IndexEntry(
+                    name=item_row.title,
+                    disk=dispatch_disk,
+                    category=item_row.category_id,
+                    path=dispatch_path,
+                    media_type=media_type,
+                    last_updated=datetime.fromtimestamp(item_row.date_modified, tz=timezone.utc).isoformat(),
+                )
+            # Stale denormalized target: the stored path's folder year
+            # contradicts the matched item's year. Reject and fall through to
+            # the provider-id / fuzzy passes (or a fresh placement) rather than
+            # merge into a different-year folder (dispatch_path collision guard).
+            log.warning(
+                "indexer.dispatch.stale_target_rejected",
                 name=name,
                 media_type=media_type,
                 match_type="exact",
                 title=item_row.title,
-                disk=dispatch_disk,
-                category=item_row.category_id,
-            )
-            return IndexEntry(
-                name=item_row.title,
-                disk=dispatch_disk,
-                category=item_row.category_id,
-                path=dispatch_path,
-                media_type=media_type,
-                last_updated=datetime.fromtimestamp(item_row.date_modified, tz=timezone.utc).isoformat(),
+                dispatch_path=dispatch_path,
+                item_year=item_row.year,
             )
 
         # Provider-id fallback: a staging item already on disk under a
@@ -350,7 +374,11 @@ class MediaIndex:
         try:
             from personalscraper.text_utils import fuzzy_match_score
 
-            name_year = _extract_year(name)
+            # Use the trailing ``(YYYY)`` release year (matching ``add()`` and
+            # the dispatch guard) — NOT a first-4-digit-anywhere scan — so a
+            # body-year title like "Blade Runner 2049 (2017)" contributes 2017,
+            # keeping the year guard consistent with ``media_item.year``.
+            name_year = parse_title_year(name)[1]
             best_score = 0.0
             best_entry: IndexEntry | None = None
 
@@ -358,7 +386,16 @@ class MediaIndex:
             for item_row, dispatch_disk, dispatch_path in all_items:
                 if item_row.kind != kind:
                     continue
-                entry_year = _extract_year(item_row.title)
+                if not _target_year_matches(dispatch_path, item_row.year):
+                    # Skip rows whose stored target folder year contradicts the
+                    # row's own year (stale dispatch_path collision guard).
+                    continue
+                # The candidate year is the row's stored release year, NOT a
+                # scan of its (already year-stripped) canonical title — which
+                # returns None for normal titles and the wrong body-year for
+                # titles like "Blade Runner 2049", silently disabling or
+                # corrupting the fuzzy year guard.
+                entry_year = item_row.year
                 score = fuzzy_match_score(
                     name,
                     item_row.title,
@@ -444,6 +481,21 @@ class MediaIndex:
             if result is None:
                 continue
             item_row, dispatch_disk, dispatch_path = result
+            if not _target_year_matches(dispatch_path, item_row.year):
+                # Identity matched by provider id, but the row's stored target
+                # folder is a different-year show — a stale attribute from the
+                # year-blind dedup era. Skip it (dispatch_path collision guard).
+                log.warning(
+                    "indexer.dispatch.stale_target_rejected",
+                    name=media_dir.name,
+                    media_type=media_type,
+                    match_type="external_id",
+                    provider=provider,
+                    title=item_row.title,
+                    dispatch_path=dispatch_path,
+                    item_year=item_row.year,
+                )
+                continue
             log.info(
                 "indexer.dispatch.lookup_hit",
                 name=media_dir.name,
@@ -522,7 +574,13 @@ class MediaIndex:
             row = build_item_row(
                 title=entry.name,
                 kind=kind,
-                year=_extract_year(entry.name),
+                # Parse the trailing ``(YYYY)`` (matching the scanner's
+                # ``scan_and_stage_dir``) rather than a first-4-digit-anywhere
+                # scan: a title with a year in its body (e.g. "Blade Runner 2049
+                # (2017)") must store the release year 2017, not 2049, so
+                # ``media_item.year`` stays consistent with the year the dispatch
+                # guard parses from the folder name.
+                year=parse_title_year(entry.name)[1],
                 category_id=entry.category,
                 tvdb_id=meta["tvdb_id"],
                 tmdb_id=meta["tmdb_id"],
@@ -601,6 +659,9 @@ class MediaIndex:
 
                 if resolved_id not in config.categories:
                     continue
+
+                if resolved_id in NON_VIDEO_CATEGORY_IDS:
+                    continue  # non-video categories (audiobooks) aren't dispatch-tracked
 
                 kind: MediaItemKind = "show" if resolved_id in _SERIES_CATEGORY_IDS else "movie"
 
