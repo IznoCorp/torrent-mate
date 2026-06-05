@@ -7,7 +7,11 @@ from dataclasses import dataclass
 
 import pytest
 
-from personalscraper.api._activation import PROVIDER_CREDS, resolve_active
+from personalscraper.api._activation import (
+    PROVIDER_CREDS,
+    resolve_active,
+    resolve_optional_secret,
+)
 
 
 @dataclass
@@ -117,3 +121,34 @@ class TestProviderCreds:
         assert PROVIDER_CREDS["imdb"] == ["OMDB_API_KEY"]
         assert PROVIDER_CREDS["rotten_tomatoes"] == ["OMDB_API_KEY"]
         assert PROVIDER_CREDS["omdb"] == ["OMDB_API_KEY"]
+
+
+class TestResolveOptionalSecret:
+    """resolve_optional_secret() — tracker-economy RP2."""
+
+    def test_present_returns_value(self) -> None:
+        """When the env var is set its value is returned."""
+        assert resolve_optional_secret("c411", env={"C411_PASSKEY": "abc"}) == {"C411_PASSKEY": "abc"}
+
+    def test_absent_returns_none(self) -> None:
+        """When the env var is absent None is returned (non-gating)."""
+        assert resolve_optional_secret("c411", env={}) == {"C411_PASSKEY": None}
+
+    def test_unknown_provider_returns_empty_dict(self) -> None:
+        """Provider not in PROVIDER_OPTIONAL_SECRETS → empty dict."""
+        assert resolve_optional_secret("tmdb", env={}) == {}
+
+    def test_lacale_passkey_absent(self) -> None:
+        """Lacale with no passkey → {'LACALE_PASSKEY': None}."""
+        assert resolve_optional_secret("lacale", env={}) == {"LACALE_PASSKEY": None}
+
+    def test_resolve_active_unaffected_by_missing_passkey(self) -> None:
+        """NON-GATING PROOF: resolve_active() ignores PROVIDER_OPTIONAL_SECRETS.
+
+        An enabled tracker with its API key present must be active even when
+        its passkey is absent (DESIGN §Non-Goals, D3).
+        """
+        env = {"C411_API_KEY": "key_value"}  # passkey intentionally absent
+        active = resolve_active({"c411": _FakeProvider(enabled=True)}, "tracker", env=env)
+        assert "c411" in active, "c411 must be active without C411_PASSKEY"
+        assert resolve_optional_secret("c411", env=env) == {"C411_PASSKEY": None}
