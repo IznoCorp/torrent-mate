@@ -36,8 +36,18 @@ _(filled by implement:pr-review — max 5 cycles)_
 - Fix phase created: phase-07-pr-fixes-cycle-1.md (sub-phases 7.1–7.5; minors bundled per user election "full fix cycle")
 - Fix commits: `7ab1c6b8` (7.1 parser bool/grammar), `33f62d53` (7.2 NaN/inf guard), `fe4d0c7d` (7.3 docstrings), `aa830228` (7.4 +13 tests), `4ff704e2` (7.5 env idiom + minors)
 - Verification: `make check` green (6219 passed, 91.28%); +13 tests; mutation check proved 7 new tests fail on pre-fix code (non-vacuous); full edge-case matrix re-reproduced
-- Status: fix phase 7 complete + gated → awaiting feature-pr push + CI + re-review (cycle 2)
+- Status: fix phase 7 complete + gated; pushed `865ce943..b340fa9f`; CI green
+
+### Cycle 2
+
+- Re-review scope: fix delta `865ce943..b340fa9f` (3 production + 4 test files), 3 agents (code, errors, tests)
+- Findings received: 4 — **all minor** (0 critical, 0 major, 0 medium)
+- All 5 cycle-1 findings CONFIRMED RESOLVED (each agent re-exercised the edge cases live; regex ReDoS-free; guard ordering correct; env idiom behaviour-preserving)
+- Minor findings: SF2-1 (`min_ratio` non-finite guarded but only `target_ratio` has a regression test), TEST2-2 (no direct parser-layer `-3h` test), TEST2-1 (over-broad `match=` on the `-3h` model test), SF2-2 (cosmetic "unknown duration unit" message for bare `"72"`)
+- Design contradictions: 0
+- Fix phase created: none (Case A — no blocking findings)
+- Status: clean — loop exits; merge is MANUAL → handed to user
 
 ## Next action
 
-**Phase 7 (PR fixes cycle 1) complete + gated** — `make check` green (6219 passed, 91.28%). All 5 sub-phases verified; mutation check confirmed non-vacuous regression tests. **Next: `/implement:feature-pr`** (push 5 fix commits + poll CI), then `/implement:pr-review` cycle 2. Merge is **manual** — hands back to user on clean re-review.
+**Review loop complete — cycle 2 clean (Case A, 0 blocking findings).** All 5 cycle-1 findings resolved + verified; CI green on `b340fa9f`. 4 minor findings remain (optional polish — see Cycle 2 record). Merge is **MANUAL**: ready for user squash merge of PR #141, then `/implement:archive`.
