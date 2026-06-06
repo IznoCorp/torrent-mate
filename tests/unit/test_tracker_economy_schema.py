@@ -19,7 +19,7 @@ class TestTrackerEconomyConfig:
         cfg = TrackerEconomyConfig(
             target_ratio=2.0,
             min_ratio=1.0,
-            min_seed_time="72h",
+            min_seed_time="72h",  # type: ignore[arg-type]
             hit_and_run_grace="48h",  # type: ignore[arg-type]
         )
         assert cfg.min_seed_time == 259_200  # 72 * 3600
@@ -59,6 +59,36 @@ class TestTrackerEconomyConfig:
         """Malformed duration string raises ValidationError."""
         with pytest.raises(ValidationError):
             TrackerEconomyConfig(target_ratio=1.0, min_seed_time="bad")  # type: ignore[arg-type]
+
+    def test_equal_ratios_accepted(self) -> None:
+        """Equal ratios are accepted (pins the inclusive target_ratio >= min_ratio boundary)."""
+        cfg = TrackerEconomyConfig(target_ratio=1.0, min_ratio=1.0, min_seed_time=0)
+        assert cfg.target_ratio == cfg.min_ratio == 1.0
+
+    def test_negative_min_seed_time_rejected(self) -> None:
+        """Negative bare-int min_seed_time raises ValidationError."""
+        with pytest.raises(ValidationError, match="min_seed_time"):
+            TrackerEconomyConfig(target_ratio=1.0, min_seed_time=-1)
+
+    def test_negative_hit_and_run_grace_rejected(self) -> None:
+        """Negative hit_and_run_grace raises ValidationError."""
+        with pytest.raises(ValidationError, match="hit_and_run_grace"):
+            TrackerEconomyConfig(target_ratio=1.0, min_seed_time=0, hit_and_run_grace=-5)
+
+    def test_negative_humanized_duration_rejected(self) -> None:
+        """Negative humanized duration '-3h' surfaces as ValidationError (parser rejects the sign)."""
+        with pytest.raises(ValidationError, match="min_seed_time"):
+            TrackerEconomyConfig(target_ratio=1.0, min_seed_time="-3h")  # type: ignore[arg-type]
+
+    def test_nan_target_ratio_rejected(self) -> None:
+        """NaN target_ratio raises ValidationError (finiteness guard catches it)."""
+        with pytest.raises(ValidationError, match="finite"):
+            TrackerEconomyConfig(target_ratio=float("nan"), min_seed_time=0)
+
+    def test_inf_target_ratio_rejected(self) -> None:
+        """Infinite target_ratio raises ValidationError (finiteness guard catches it)."""
+        with pytest.raises(ValidationError, match="finite"):
+            TrackerEconomyConfig(target_ratio=float("inf"), min_seed_time=0)
 
 
 class TestTrackerProviderConfigEconomy:

@@ -61,3 +61,33 @@ class TestParseDuration:
         """Empty string → ValueError."""
         with pytest.raises(ValueError, match="must not be empty"):
             parse_duration("")
+
+    def test_bool_true_rejected(self) -> None:
+        """Reject bool True → ValueError (bool is an int subclass, must not pass as 1s)."""
+        with pytest.raises(ValueError, match="duration must be an int or string"):
+            parse_duration(True)
+
+    def test_bool_false_rejected(self) -> None:
+        """Reject bool False → ValueError (must not pass as 0s)."""
+        with pytest.raises(ValueError, match="duration must be an int or string"):
+            parse_duration(False)
+
+    def test_interior_whitespace_rejected(self) -> None:
+        """Reject '72 h' with interior whitespace → ValueError."""
+        with pytest.raises(ValueError, match="non-integer magnitude"):
+            parse_duration("72 h")
+
+    def test_plus_sign_magnitude_rejected(self) -> None:
+        """Reject '+5h' with a leading plus sign → ValueError."""
+        with pytest.raises(ValueError, match="non-integer magnitude"):
+            parse_duration("+5h")
+
+    def test_underscore_magnitude_rejected(self) -> None:
+        """Reject '1_0h' PEP-515 underscore magnitude → ValueError."""
+        with pytest.raises(ValueError, match="non-integer magnitude"):
+            parse_duration("1_0h")
+
+    def test_bare_unit_empty_magnitude_rejected(self) -> None:
+        """Reject 'h' bare unit with empty magnitude → ValueError."""
+        with pytest.raises(ValueError, match="non-integer magnitude"):
+            parse_duration("h")
