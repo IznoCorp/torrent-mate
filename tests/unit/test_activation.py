@@ -134,6 +134,10 @@ class TestResolveOptionalSecret:
         """When the env var is absent None is returned (non-gating)."""
         assert resolve_optional_secret("c411", env={}) == {"C411_PASSKEY": None}
 
+    def test_empty_string_passkey_returns_none(self) -> None:
+        """A blank/empty-string value is normalized to None (env.get(k) or None)."""
+        assert resolve_optional_secret("c411", env={"C411_PASSKEY": ""}) == {"C411_PASSKEY": None}
+
     def test_unknown_provider_returns_empty_dict(self) -> None:
         """Provider not in PROVIDER_OPTIONAL_SECRETS → empty dict."""
         assert resolve_optional_secret("tmdb", env={}) == {}

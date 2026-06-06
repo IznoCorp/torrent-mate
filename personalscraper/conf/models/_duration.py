@@ -3,7 +3,7 @@
 Converts strings like ``"72h"`` / ``"3d"`` to integer seconds at config-load
 time. Used as a Pydantic field_validator on TrackerEconomyConfig seed-time fields.
 
-Design: tracker-economy §Components.2.
+Design: docs/features/tracker-economy/DESIGN.md ("Components → Duration parser").
 """
 
 from __future__ import annotations

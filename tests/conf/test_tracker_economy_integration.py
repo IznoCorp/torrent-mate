@@ -83,7 +83,7 @@ def test_economy_none_when_absent(tmp_path: pathlib.Path) -> None:
 
 def test_malformed_duration_rejected_at_load(tmp_path: pathlib.Path) -> None:
     """A malformed duration string raises ConfigValidationError at config-load."""
-    with pytest.raises(ConfigValidationError):
+    with pytest.raises(ConfigValidationError, match="min_seed_time"):
         load_config_dir(
             _write_config(
                 tmp_path / "baddur",
