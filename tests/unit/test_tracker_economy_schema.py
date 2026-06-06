@@ -77,7 +77,7 @@ class TestTrackerEconomyConfig:
 
     def test_negative_humanized_duration_rejected(self) -> None:
         """Negative humanized duration '-3h' surfaces as ValidationError (parser rejects the sign)."""
-        with pytest.raises(ValidationError, match="min_seed_time"):
+        with pytest.raises(ValidationError, match="non-integer magnitude"):
             TrackerEconomyConfig(target_ratio=1.0, min_seed_time="-3h")  # type: ignore[arg-type]
 
     def test_nan_target_ratio_rejected(self) -> None:
@@ -89,6 +89,16 @@ class TestTrackerEconomyConfig:
         """Infinite target_ratio raises ValidationError (finiteness guard catches it)."""
         with pytest.raises(ValidationError, match="finite"):
             TrackerEconomyConfig(target_ratio=float("inf"), min_seed_time=0)
+
+    def test_nan_min_ratio_rejected(self) -> None:
+        """NaN min_ratio raises ValidationError (pins the min_ratio finiteness branch)."""
+        with pytest.raises(ValidationError, match="finite"):
+            TrackerEconomyConfig(target_ratio=2.0, min_ratio=float("nan"), min_seed_time=0)
+
+    def test_inf_min_ratio_rejected(self) -> None:
+        """Infinite min_ratio raises ValidationError (pins the min_ratio finiteness branch)."""
+        with pytest.raises(ValidationError, match="finite"):
+            TrackerEconomyConfig(target_ratio=2.0, min_ratio=float("inf"), min_seed_time=0)
 
 
 class TestTrackerProviderConfigEconomy:
