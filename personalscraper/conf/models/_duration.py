@@ -27,9 +27,11 @@ def parse_duration(value: str | int) -> int:
         Integer seconds.
 
     Raises:
-        ValueError: ``bool`` or any non-``int`` type, unknown unit, non-integer
-            magnitude (including interior whitespace, ``+``/``-`` signs, PEP-515
-            underscores, or unicode digits), or empty string.
+        ValueError: ``bool`` or any non-``int`` type, unknown unit, missing unit
+            (a trailing ASCII digit, e.g. ``"72"`` — the user likely forgot the
+            unit suffix), non-integer magnitude (including interior whitespace,
+            ``+``/``-`` signs, PEP-515 underscores, or unicode digits), or empty
+            string.
     """
     # ``bool`` is an ``int`` subclass, so reject it explicitly and first to keep
     # ``True``/``False`` from silently passing through as ``1``/``0`` seconds.
@@ -42,6 +44,14 @@ def parse_duration(value: str | int) -> int:
         raise ValueError("duration string must not be empty")
     unit = raw[-1].lower()
     if unit not in _UNIT_SECONDS:
+        # A trailing ASCII digit means the user forgot the unit suffix entirely
+        # (e.g. "72" or "3.0"); steer them toward the fix instead of the
+        # misleading "unknown unit" message which points at the wrong cause.
+        if raw[-1].isascii() and raw[-1].isdigit():
+            raise ValueError(
+                f"missing duration unit in {raw!r}; append one of {', '.join(_UNIT_SECONDS)} "
+                f"(e.g. '72h') or pass a bare int for seconds"
+            )
         raise ValueError(f"unknown duration unit {raw[-1]!r} in {raw!r}; valid: {', '.join(_UNIT_SECONDS)}")
     magnitude_str = raw[:-1]
     # Validate the magnitude slice against ASCII digits only BEFORE calling

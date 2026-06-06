@@ -43,8 +43,8 @@ class TestParseDuration:
         assert parse_duration("24H") == 86_400
 
     def test_malformed_no_unit(self) -> None:
-        """Reject '3600' with no unit suffix → ValueError."""
-        with pytest.raises(ValueError, match="unknown duration unit"):
+        """Reject '3600' (trailing digit, missing unit) → ValueError missing-unit message."""
+        with pytest.raises(ValueError, match="missing duration unit"):
             parse_duration("3600")
 
     def test_malformed_non_integer_magnitude(self) -> None:
@@ -81,6 +81,11 @@ class TestParseDuration:
         """Reject '+5h' with a leading plus sign → ValueError."""
         with pytest.raises(ValueError, match="non-integer magnitude"):
             parse_duration("+5h")
+
+    def test_minus_sign_magnitude_rejected(self) -> None:
+        """Reject '-3h' with a leading minus sign → ValueError."""
+        with pytest.raises(ValueError, match="non-integer magnitude"):
+            parse_duration("-3h")
 
     def test_underscore_magnitude_rejected(self) -> None:
         """Reject '1_0h' PEP-515 underscore magnitude → ValueError."""
