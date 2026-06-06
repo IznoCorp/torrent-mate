@@ -170,7 +170,8 @@ class TrackerEconomyConfig(_StrictModel):
     Attributes:
         target_ratio: Ratio Ratio-C1 loops toward. Must be >= min_ratio.
         min_ratio: Deletion floor for O2. Default 1.0.
-        min_seed_time: Minimum seed time in seconds. Accepts humanized string (e.g. "72h").
+        min_seed_time: Minimum seed obligation, stored as integer seconds.
+            Accepts a humanized string (e.g. "72h") or a bare int at config load.
         hit_and_run_grace: Grace seconds after download before H&R counting. Default 0.
     """
 
@@ -189,6 +190,11 @@ class TrackerEconomyConfig(_StrictModel):
 
         Returns:
             Integer seconds.
+
+        Raises:
+            ValueError: Propagated from :func:`parse_duration` when the value is
+                malformed — an unknown duration unit, a non-integer magnitude,
+                an empty string, or a non-int/``bool`` type.
         """
         return parse_duration(v)  # type: ignore[arg-type]
 
