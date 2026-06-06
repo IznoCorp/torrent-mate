@@ -21,7 +21,7 @@
 | 5   | Config files + .env.example + reference doc           | phase-05-config-files.md     | [x]    |
 | 6   | ACCEPTANCE.md + `make check` gate                     | phase-06-acceptance.md       | [x]    |
 | 7   | PR fixes cycle 1                                      | phase-07-pr-fixes-cycle-1.md | [x]    |
-| 8   | PR fixes cycle 2 (minor polish)                       | phase-08-pr-fixes-cycle-2.md | [ ]    |
+| 8   | PR fixes cycle 2 (minor polish)                       | phase-08-pr-fixes-cycle-2.md | [x]    |
 
 ## Review cycles
 
@@ -48,7 +48,8 @@ _(filled by implement:pr-review — max 5 cycles)_
 - Design contradictions: 0
 - Fix phase created: none required (Case A — no blocking findings)
 - Status: clean — loop exits. User elected discretionary polish of the 4 minors → phase 8 (PR fixes cycle 2). Not a forced review cycle.
+- Polish outcome (phase 8): commits `618bd353` (8.1 SF2-2 missing-unit message + parser `-3h` test), `6d67af5e` (8.2 `min_ratio` NaN/inf tests + tightened `-3h` match). All 4 minors resolved. `make check` green (test-cov 6222 passed, 91.28%); `make test` 6380 passed; mutation check proved the 2 `min_ratio` tests fail on guard-less code (non-vacuous).
 
 ## Next action
 
-**Cycle-3 polish in progress (phase 8).** Review loop already exited clean at cycle 2; user elected to polish the 4 minors. Executing sub-phases 8.1–8.2 → gate → push → CI. On green: hand off PR #141 for **manual** squash merge, then `/implement:archive`.
+**Phase 8 (minor polish) complete + gated.** All 4 cycle-2 minors resolved; `make check` green (6222 test-cov / 6380 full, 91.28%). Pushing the polish commits + CI poll. On green: PR #141 ready for **manual** squash merge, then `/implement:archive`.
