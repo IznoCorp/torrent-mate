@@ -7,6 +7,8 @@ re-exported by api/tracker/_ranking.py so config validation and runtime
 ranking share one source of truth.
 """
 
+import math
+
 from pydantic import Field, field_validator, model_validator
 
 from personalscraper.conf.models._base import _StrictModel
@@ -200,6 +202,14 @@ class TrackerEconomyConfig(_StrictModel):
         Raises:
             ValueError: If target_ratio < min_ratio or any field is negative.
         """
+        # Guard non-finite float ratios first: NaN comparisons are always False,
+        # so NaN/inf would otherwise defeat both the ordering check below and the
+        # ``>= 0`` loop. Only the float fields can carry NaN/inf; the int fields
+        # are already coerced to ints by _parse_duration_field.
+        for name in ("target_ratio", "min_ratio"):
+            value = getattr(self, name)
+            if not math.isfinite(value):
+                raise ValueError(f"{name} must be finite, got {value}")
         if self.target_ratio < self.min_ratio:
             raise ValueError(f"target_ratio ({self.target_ratio}) must be >= min_ratio ({self.min_ratio})")
         for name in ("target_ratio", "min_ratio", "min_seed_time", "hit_and_run_grace"):
