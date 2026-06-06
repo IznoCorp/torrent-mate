@@ -21,6 +21,7 @@
 | 5   | Config files + .env.example + reference doc           | phase-05-config-files.md     | [x]    |
 | 6   | ACCEPTANCE.md + `make check` gate                     | phase-06-acceptance.md       | [x]    |
 | 7   | PR fixes cycle 1                                      | phase-07-pr-fixes-cycle-1.md | [x]    |
+| 8   | PR fixes cycle 2 (minor polish)                       | phase-08-pr-fixes-cycle-2.md | [ ]    |
 
 ## Review cycles
 
@@ -45,9 +46,9 @@ _(filled by implement:pr-review — max 5 cycles)_
 - All 5 cycle-1 findings CONFIRMED RESOLVED (each agent re-exercised the edge cases live; regex ReDoS-free; guard ordering correct; env idiom behaviour-preserving)
 - Minor findings: SF2-1 (`min_ratio` non-finite guarded but only `target_ratio` has a regression test), TEST2-2 (no direct parser-layer `-3h` test), TEST2-1 (over-broad `match=` on the `-3h` model test), SF2-2 (cosmetic "unknown duration unit" message for bare `"72"`)
 - Design contradictions: 0
-- Fix phase created: none (Case A — no blocking findings)
-- Status: clean — loop exits; merge is MANUAL → handed to user
+- Fix phase created: none required (Case A — no blocking findings)
+- Status: clean — loop exits. User elected discretionary polish of the 4 minors → phase 8 (PR fixes cycle 2). Not a forced review cycle.
 
 ## Next action
 
-**Review loop complete — cycle 2 clean (Case A, 0 blocking findings).** All 5 cycle-1 findings resolved + verified; CI green on `b340fa9f`. 4 minor findings remain (optional polish — see Cycle 2 record). Merge is **MANUAL**: ready for user squash merge of PR #141, then `/implement:archive`.
+**Cycle-3 polish in progress (phase 8).** Review loop already exited clean at cycle 2; user elected to polish the 4 minors. Executing sub-phases 8.1–8.2 → gate → push → CI. On green: hand off PR #141 for **manual** squash merge, then `/implement:archive`.
