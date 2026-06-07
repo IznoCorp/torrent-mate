@@ -1,96 +1,55 @@
-# Implementation Progress — torrent-fetch
+# Implementation Progress — tracker-economy
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: RP1a — Torrent fetch boundary (authenticated .torrent download + magnet exception, routable 401) (minor)
-**Version bump**: 0.21.0 → 0.22.0
-**Branch**: feat/torrent-fetch
+**Feature**: RP2 — Per-Tracker Economy Config (minor)
+**Version bump**: 0.22.0 → 0.23.0
+**Branch**: feat/tracker-economy
 **PR merge**: manual
-**PR**: https://github.com/IznoCorp/personal-scraper/pull/90
-**Design**: docs/features/torrent-fetch/DESIGN.md
-**Master plan**: docs/features/torrent-fetch/plan/INDEX.md
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/141
+**Design**: docs/features/tracker-economy/DESIGN.md
+**Master plan**: docs/features/tracker-economy/plan/INDEX.md
 
 ## Phases
 
-| #   | Phase                                                                   | File                            | Status |
-| --- | ----------------------------------------------------------------------- | ------------------------------- | ------ |
-| 1   | Errors module — `TrackerAuthError` + `TorrentFetchError`                | phase-01-errors.md              | [x]    |
-| 2   | Transport binary GET — `get_bytes` + dedicated download circuit/limiter | phase-02-transport-get-bytes.md | [x]    |
-| 3   | Fetcher module + public surface + docstring fix                         | phase-03-fetcher.md             | [x]    |
-| 4   | ACCEPTANCE.md + reference docs + `make check` gate                      | phase-04-acceptance.md          | [x]    |
-| 5   | PR fixes cycle 1 (review #90)                                           | phase-05-pr-fixes-cycle-1.md    | [x]    |
+| #   | Phase                                                 | File                         | Status |
+| --- | ----------------------------------------------------- | ---------------------------- | ------ |
+| 1   | Duration parser (`_duration.py`) + unit tests         | phase-01-duration-parser.md  | [x]    |
+| 2   | Economy schema model                                  | phase-02-schema-model.md     | [x]    |
+| 3   | Economy schema unit tests                             | phase-03-schema-tests.md     | [x]    |
+| 4   | Optional-secret resolver + non-gating regression test | phase-04-optional-secret.md  | [x]    |
+| 5   | Config files + .env.example + reference doc           | phase-05-config-files.md     | [x]    |
+| 6   | ACCEPTANCE.md + `make check` gate                     | phase-06-acceptance.md       | [x]    |
+| 7   | PR fixes cycle 1                                      | phase-07-pr-fixes-cycle-1.md | [x]    |
+| 8   | PR fixes cycle 2 (minor polish)                       | phase-08-pr-fixes-cycle-2.md | [x]    |
 
 ## Review cycles
 
-### Cycle 1 — 2026-06-04
+_(filled by implement:pr-review — max 5 cycles)_
 
-pr-review-toolkit (4 agents: code-reviewer, silent-failure-hunter, pr-test-analyzer,
-type-design-analyzer) + Opus filter vs DESIGN. **Verdict: implementation sound** — every
-core invariant (D3 isolation, D9 no-auth-remerge, D10 URL handling, agnostic-ValueError
-split, magnet bypass, hash canonicalization) confirmed correct; tests confirmed real (not
-vacuous). No design contradiction.
+### Cycle 1
 
-- Findings received: ~14 (across 4 agents, deduped)
-- Retained: 7 (0 critical, 1 major, 3 medium, 3 minor)
-- Ignored: pre-existing `count_retries=True` docstring drift (carried from main — out of scope)
-- Fix phase created: phase-05-pr-fixes-cycle-1.md
-- Status: fix phase dispatched → fixes applied inline
+- Findings received: 22 (5 review agents: code, tests, errors, types, comments)
+- Retained: 11 (0 critical, 0 major, 5 medium, 6 minor)
+- Ignored: 4 out of scope (global `_StrictModel` strict-mode, `frozen=True` base, "Vague 5"/"Ratio C1" roadmap-vocab refs)
+- Design contradictions: 0 — implementation matches DESIGN; findings are fail-loud hardening within the stated contract
+- Medium findings (M1–M5): bool/whitespace silent-accept in `parse_duration`, NaN/inf ratios pass guards, missing `Raises:` docstring, DESIGN-mandated behaviours unpinned
+- Fix phase created: phase-07-pr-fixes-cycle-1.md (sub-phases 7.1–7.5; minors bundled per user election "full fix cycle")
+- Fix commits: `7ab1c6b8` (7.1 parser bool/grammar), `33f62d53` (7.2 NaN/inf guard), `fe4d0c7d` (7.3 docstrings), `aa830228` (7.4 +13 tests), `4ff704e2` (7.5 env idiom + minors)
+- Verification: `make check` green (6219 passed, 91.28%); +13 tests; mutation check proved 7 new tests fail on pre-fix code (non-vacuous); full edge-case matrix re-reproduced
+- Status: fix phase 7 complete + gated; pushed `865ce943..b340fa9f`; CI green
 
-**Retained — major:**
+### Cycle 2
 
-- **F1 (major)** `resolve_source` empty-string `download_url` (`""`) bypasses the
-  `is None` guard → `get_bytes("")` GETs the tracker root instead of raising. Fix:
-  `if not download_url:` + guard `fetch_torrent_source` + tests.
-
-**Retained — medium:**
-
-- **F2** non-canonicalizable truthy `expected_info_hash` silently skipped, no log/test →
-  module-logger `warning` + regression test.
-- **F3** streamed response not `close()`d on oversize abort (connection leak on the
-  defensive path) → `try/finally resp.close()` in `_download_mapper` + test.
-- **F4** `_fetch.py` reaches `transport._policy.provider_name` (cross-module private) →
-  public `provider_name` property on `HttpTransport`.
-
-**Retained — minor:** dead `_ResponseMapper` alias (delete), stale `_is_retryable`
-docstring (`_do_request`→`_do_request_raw`), missing 404-propagation test.
-
-### Cycle 2 — 2026-06-04
-
-Focused re-review of the cycle-1 fix commit (`b2c1cf18`) — code-reviewer + silent-failure-hunter
-on the fix diff. **Verdict: all 7 fixes correct, complete, non-vacuously tested; NO new findings
-at any severity.** CI green; PR mergeable (clean).
-
-- Findings received: 0 (re-review of fixes)
-- Retained: 0
-- Ignored: 1 observation (non-2xx streamed response not explicitly closed) — non-issue (error
-  path drains the body via the json/text preview read) + pre-existing, out of scope.
-- Fix phase created: none
-- Status: clean — proceeding to merge (manual)
-
-### Cycle 3 — 2026-06-04
-
-Full fresh re-review (user-requested) — 4 agents (code-reviewer, silent-failure-hunter,
-pr-test-analyzer, type-design-analyzer) on the current diff `main...HEAD`. **Verdict: clean,
-merge-ready.** No critical/major/medium. Every invariant re-confirmed; tests real (`_fetch.py`
-
-- `_errors.py` 100%, `get_bytes` fully covered); silent-failure pass clean; type design sound.
-
-* Findings received: ~5 (deduped)
-* Retained: 2 minor (non-blocking)
-* Ignored: pre-existing `count_retries=True` docstring drift; non-slash relative-URL (LaCale
-  always leading-slash); non-2xx streamed-response close (error path drains body) — all
-  out-of-scope/non-issues
-* Fix phase created: none
-* Status: clean — Case A, proceeding to merge (manual)
-
-**Retained — minor — CLOSED in `4cee24f6` (operator elected to fix):**
-
-- `HttpTransport.provider_name` accessor — now has a direct unit test
-  (`test_provider_name_exposes_policy_value`).
-- `fetch_torrent_source` / `resolve_source` `Raises:` docstrings now document `CircuitOpenError`
-  (propagated unmapped from `get_bytes`).
+- Re-review scope: fix delta `865ce943..b340fa9f` (3 production + 4 test files), 3 agents (code, errors, tests)
+- Findings received: 4 — **all minor** (0 critical, 0 major, 0 medium)
+- All 5 cycle-1 findings CONFIRMED RESOLVED (each agent re-exercised the edge cases live; regex ReDoS-free; guard ordering correct; env idiom behaviour-preserving)
+- Minor findings: SF2-1 (`min_ratio` non-finite guarded but only `target_ratio` has a regression test), TEST2-2 (no direct parser-layer `-3h` test), TEST2-1 (over-broad `match=` on the `-3h` model test), SF2-2 (cosmetic "unknown duration unit" message for bare `"72"`)
+- Design contradictions: 0
+- Fix phase created: none required (Case A — no blocking findings)
+- Status: clean — loop exits. User elected discretionary polish of the 4 minors → phase 8 (PR fixes cycle 2). Not a forced review cycle.
+- Polish outcome (phase 8): commits `618bd353` (8.1 SF2-2 missing-unit message + parser `-3h` test), `6d67af5e` (8.2 `min_ratio` NaN/inf tests + tightened `-3h` match). All 4 minors resolved. `make check` green (test-cov 6222 passed, 91.28%); `make test` 6380 passed; mutation check proved the 2 `min_ratio` tests fail on guard-less code (non-vacuous).
 
 ## Next action
 
-Review clean (3 cycles; cycle-3 minors closed in `4cee24f6`). **Manual merge**: squash-merge
-PR #90 when ready, then run `/implement:archive`.
+**Phase 8 (minor polish) complete + gated.** All 4 cycle-2 minors resolved; `make check` green (6222 test-cov / 6380 full, 91.28%). Pushing the polish commits + CI poll. On green: PR #141 ready for **manual** squash merge, then `/implement:archive`.

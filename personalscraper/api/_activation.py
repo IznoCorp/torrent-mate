@@ -77,3 +77,44 @@ def resolve_active(
         active.append(name)
 
     return active
+
+
+# ---------------------------------------------------------------------------
+# Optional secrets (non-gating) — tracker-economy RP2
+# ---------------------------------------------------------------------------
+
+PROVIDER_OPTIONAL_SECRETS: dict[str, list[str]] = {
+    # Announce passkeys — never consulted by resolve_active(); a missing
+    # passkey never deactivates a tracker. Consumers (Vague 5 Ratio C1,
+    # Seed-Safety O2) decide what to do with a missing value.
+    "lacale": ["LACALE_PASSKEY"],
+    "c411": ["C411_PASSKEY"],
+}
+
+
+def resolve_optional_secret(
+    provider: str,
+    env: Mapping[str, str] | None = None,
+) -> dict[str, str | None]:
+    """Resolve a provider's optional, non-activation-gating secrets from the environment.
+
+    Unlike :data:`PROVIDER_CREDS` (consumed by :func:`resolve_active` to gate
+    activation), an absent value here returns ``None`` and never deactivates
+    the provider nor fails boot. A blank/empty-string value is likewise
+    normalized to ``None`` (the load-bearing ``env.get(k) or None``), so a
+    future consumer is not surprised by an empty string slipping through.
+
+    Args:
+        provider: Provider name (e.g. ``"lacale"``, ``"c411"``).
+        env: Secret source (defaults to ``os.environ``; injectable for testing).
+
+    Returns:
+        Dict mapping each optional secret name to its value or ``None`` if
+        absent or blank. Empty dict for providers not in
+        ``PROVIDER_OPTIONAL_SECRETS``.
+    """
+    if env is None:
+        env = os.environ
+
+    keys = PROVIDER_OPTIONAL_SECRETS.get(provider, [])
+    return {k: env.get(k) or None for k in keys}

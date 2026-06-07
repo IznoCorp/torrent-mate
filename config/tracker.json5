@@ -1,0 +1,22 @@
+{
+  // PROVIDER_CREDS: lacale → LACALE_API_KEY, c411 → C411_API_KEY
+  // PROVIDER_OPTIONAL_SECRETS (non-gating): lacale → LACALE_PASSKEY, c411 → C411_PASSKEY
+  tracker: {
+    providers: {
+      lacale: { enabled: true },
+      c411: {
+        enabled: true,
+        economy: {
+          target_ratio: 2.0,
+          min_ratio: 1.0,
+          min_seed_time: "72h",
+          hit_and_run_grace: "0h",
+        },
+      },
+    },
+    priority: ["lacale", "c411"],
+    max_total_results: 50,
+    max_per_tracker: 30,
+    timeout_per_tracker: 15,
+  },
+}
