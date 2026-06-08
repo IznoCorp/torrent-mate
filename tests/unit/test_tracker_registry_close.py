@@ -90,3 +90,11 @@ class TestTrackerRegistryClose:
             priority_by_media_type={"movie": ["lacale"]},
         )
         assert r._priority == ["lacale"]
+
+    def test_non_callable_close_attr_is_skipped(self) -> None:
+        """A _transport.close that is present but NOT callable must not raise."""
+        client = MagicMock()
+        client._transport = MagicMock()
+        client._transport.close = 5  # present but NOT callable
+        registry = _make_registry({"lacale": client})
+        registry.close()  # must not raise

@@ -427,6 +427,34 @@ class TestSeveritySplit:
 # ---------------------------------------------------------------------------
 
 
+class TestErrorAggregation:
+    """Non-vacuous aggregation invariant: the factory never fails fast."""
+
+    def test_multiple_missing_credentials_aggregated(self) -> None:
+        """Two enabled, keyless trackers → TrackerConfigError carries BOTH issues."""
+        cfg = _cfg({"lacale": True, "c411": True}, priority=["lacale", "c411"])
+
+        with pytest.raises(TrackerConfigError) as exc_info:
+            build_tracker_registry(
+                cfg,
+                _ranking(),
+                settings=_settings(),
+                event_bus=EventBus(),
+                cb_policy=_policy(),
+                env={},
+            )
+
+        issues = exc_info.value.issues
+        assert len(issues) == 2
+        providers = {i.provider for i in issues}
+        assert providers == {"lacale", "c411"}
+
+
+# ---------------------------------------------------------------------------
+# Happy path: 2 enabled + credentialed trackers
+# ---------------------------------------------------------------------------
+
+
 class TestHappyPath:
     """Tests for the normal, error-free boot path."""
 

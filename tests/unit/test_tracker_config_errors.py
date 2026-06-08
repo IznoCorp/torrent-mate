@@ -97,7 +97,7 @@ class TestTrackerConfigError:
     """TrackerConfigError aggregates multiple error-severity TrackerConfigIssue instances."""
 
     def test_carries_issues(self) -> None:
-        """TrackerConfigError stores the exact list passed to its constructor."""
+        """TrackerConfigError stores the issues passed to its constructor as a tuple."""
         issues = [
             TrackerConfigIssue(
                 severity="error",
@@ -113,8 +113,24 @@ class TestTrackerConfigError:
             ),
         ]
         err = TrackerConfigError(issues)
-        assert err.issues is issues
+        assert list(err.issues) == issues
         assert len(err.issues) == 2
+
+    def test_empty_issues_rejected(self) -> None:
+        """TrackerConfigError([]) must raise ValueError (empty list invariant)."""
+        with pytest.raises(ValueError):
+            TrackerConfigError([])
+
+    def test_warning_severity_rejected(self) -> None:
+        """TrackerConfigError must reject issues with severity != 'error'."""
+        warn = TrackerConfigIssue(
+            severity="warning",
+            code="disabled_in_priority",
+            provider="lacale",
+            message="x",
+        )
+        with pytest.raises(ValueError):
+            TrackerConfigError([warn])
 
     def test_message_includes_count(self) -> None:
         """The error message includes the issue count and provider names."""
