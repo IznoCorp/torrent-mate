@@ -12,12 +12,11 @@ import os
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
-import structlog
-
 from personalscraper.api._activation import PROVIDER_CREDS
 from personalscraper.api.tracker._contracts import TorrentSearchable
 from personalscraper.api.tracker._errors import TrackerConfigError, TrackerConfigIssue
 from personalscraper.api.tracker._registry import TrackerRegistry
+from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.api.transport._policy import CircuitPolicy
@@ -25,7 +24,7 @@ if TYPE_CHECKING:
     from personalscraper.config import Settings
     from personalscraper.core.event_bus import EventBus
 
-log = structlog.get_logger("api.tracker.factory")
+log = get_logger("api.tracker.factory")
 
 _TRACKER_CLASSES: dict[str, str] = {
     "lacale": "personalscraper.api.tracker.lacale:LaCaleClient",
