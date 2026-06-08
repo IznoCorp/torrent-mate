@@ -15,7 +15,7 @@
 | #   | Phase                                                                      | File                                     | Status |
 | --- | -------------------------------------------------------------------------- | ---------------------------------------- | ------ |
 | 1   | Error types — `TrackerError` + `TrackerConfigIssue` + `TrackerConfigError` | phase-01-error-types.md                  | [x]    |
-| 2   | Factory — `build_tracker_registry` implementation                          | phase-02-factory-impl.md                 | [ ]    |
+| 2   | Factory — `build_tracker_registry` implementation                          | phase-02-factory-impl.md                 | [x]    |
 | 3a  | Factory unit tests — error cases + silent boot                             | phase-03a-factory-tests-error-cases.md   | [ ]    |
 | 3b  | Factory unit tests — warning, severity split, happy path                   | phase-03b-factory-tests-warning-happy.md | [ ]    |
 | 4   | `TrackerRegistry.close()` + regression guard                               | phase-04-registry-close.md               | [ ]    |
