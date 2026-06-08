@@ -10,7 +10,7 @@ Verifies:
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from personalscraper.api.tracker._ranking import RankingConfig
 from personalscraper.api.tracker._registry import TrackerRegistry
@@ -92,9 +92,20 @@ class TestTrackerRegistryClose:
         assert r._priority == ["lacale"]
 
     def test_non_callable_close_attr_is_skipped(self) -> None:
-        """A _transport.close that is present but NOT callable must not raise."""
+        """A non-callable `close` attr is skipped by the callable() guard WITHOUT entering try/except.
+
+        Isolates the guard (not just "close() doesn't raise"): with the guard, the non-callable
+        close is skipped silently — no `tracker_transport_close_failed` debug log. Without the
+        guard, `5()` raises a TypeError that the broad except catches AND logs, so asserting the
+        failure log is absent pins the guard specifically.
+        """
         client = MagicMock()
         client._transport = MagicMock()
         client._transport.close = 5  # present but NOT callable
         registry = _make_registry({"lacale": client})
-        registry.close()  # must not raise
+
+        with patch("personalscraper.api.tracker._registry.log") as mock_log:
+            registry.close()  # must not raise
+
+        logged = [c.args[0] for c in mock_log.debug.call_args_list if c.args]
+        assert "tracker_transport_close_failed" not in logged
