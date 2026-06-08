@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.api.torrent.qbittorrent import QBitClient
     from personalscraper.api.torrent.transmission import TransmissionClient
+    from personalscraper.api.tracker._registry import TrackerRegistry
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
     from personalscraper.core.event_bus import EventBus
@@ -56,6 +57,11 @@ class AppContext:
         torrent_client: Active torrent client, or ``None`` when no torrent
             client is configured (DESIGN D3/D9). Boundary modules read this
             field to pass the client to pipeline steps without re-building it.
+        tracker_registry: Configured :class:`TrackerRegistry` built at boot
+            by :func:`~personalscraper.api.tracker._factory.build_tracker_registry`
+            (called from the composition root), or ``None`` when no tracker
+            is configured. In production the composition root always sets this
+            to a real (possibly empty) registry. (RP5a — tracker-wiring.)
     """
 
     config: Config
@@ -63,6 +69,7 @@ class AppContext:
     event_bus: EventBus
     provider_registry: ProviderRegistry
     torrent_client: "QBitClient | TransmissionClient | None" = None
+    tracker_registry: "TrackerRegistry | None" = None  # RP5a — own port handle
 
 
 __all__ = ["AppContext"]
