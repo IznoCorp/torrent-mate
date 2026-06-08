@@ -21,7 +21,7 @@
 | 4   | `TrackerRegistry.close()` + regression guard                               | phase-04-registry-close.md               | [x]    |
 | 5a  | `AppContext.tracker_registry` field                                        | phase-05a-appcontext-field.md            | [x]    |
 | 5b  | Composition-root wiring + integration tests                                | phase-05b-composition-root-wiring.md     | [x]    |
-| 6   | ACCEPTANCE.md + `make check` gate                                          | phase-06-acceptance.md                   | [ ]    |
+| 6   | ACCEPTANCE.md + `make check` gate                                          | phase-06-acceptance.md                   | [x]    |
 
 ## Review cycles
 
@@ -29,4 +29,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Phase 1 done (`fa423a16`). Phase 2 (factory `build_tracker_registry`) next.
+All 8 phases complete. `make check` green (6259 passed, 91.30%); all 5 ACCEPTANCE criteria re-exercised and passing. Run `/implement:feature-pr` (local gate + push + PR + CI poll).
