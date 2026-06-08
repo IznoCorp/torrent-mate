@@ -19,7 +19,7 @@
 | 3a  | Factory unit tests — error cases + silent boot                             | phase-03a-factory-tests-error-cases.md   | [x]    |
 | 3b  | Factory unit tests — warning, severity split, happy path                   | phase-03b-factory-tests-warning-happy.md | [x]    |
 | 4   | `TrackerRegistry.close()` + regression guard                               | phase-04-registry-close.md               | [x]    |
-| 5a  | `AppContext.tracker_registry` field                                        | phase-05a-appcontext-field.md            | [ ]    |
+| 5a  | `AppContext.tracker_registry` field                                        | phase-05a-appcontext-field.md            | [x]    |
 | 5b  | Composition-root wiring + integration tests                                | phase-05b-composition-root-wiring.md     | [ ]    |
 | 6   | ACCEPTANCE.md + `make check` gate                                          | phase-06-acceptance.md                   | [ ]    |
 
