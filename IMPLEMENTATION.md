@@ -14,7 +14,7 @@
 
 | #   | Phase                                                                      | File                                     | Status |
 | --- | -------------------------------------------------------------------------- | ---------------------------------------- | ------ |
-| 1   | Error types — `TrackerError` + `TrackerConfigIssue` + `TrackerConfigError` | phase-01-error-types.md                  | [ ]    |
+| 1   | Error types — `TrackerError` + `TrackerConfigIssue` + `TrackerConfigError` | phase-01-error-types.md                  | [x]    |
 | 2   | Factory — `build_tracker_registry` implementation                          | phase-02-factory-impl.md                 | [ ]    |
 | 3a  | Factory unit tests — error cases + silent boot                             | phase-03a-factory-tests-error-cases.md   | [ ]    |
 | 3b  | Factory unit tests — warning, severity split, happy path                   | phase-03b-factory-tests-warning-happy.md | [ ]    |
@@ -29,4 +29,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1.
+Phase 1 done (`fa423a16`). Phase 2 (factory `build_tracker_registry`) next.
