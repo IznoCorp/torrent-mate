@@ -70,7 +70,9 @@ class TrackerConfigIssue:
         code: Machine-readable issue identifier.
             ``missing_credentials`` — tracker enabled but API key absent.
             ``protocol_mismatch`` — built client fails ``TorrentSearchable`` check.
-            ``unknown_provider`` — name in priority not present in providers.
+            ``unknown_provider`` — a referenced tracker cannot be activated:
+                either a name in ``priority`` is absent from ``providers``,
+                or an enabled provider has no client implementation registered.
             ``disabled_in_priority`` — disabled tracker referenced in priority
                 when ≥1 tracker is active (warning only).
         provider: Tracker name (e.g. ``"lacale"``), or ``None`` for issues
@@ -98,7 +100,8 @@ class TrackerConfigError(TrackerError):
     composition root when any error-severity issue is found.
 
     Attributes:
-        issues: List of all error-severity issues found during boot validation.
+        issues: Frozen tuple of all error-severity issues found during boot
+            validation.
     """
 
     def __init__(self, issues: list[TrackerConfigIssue]) -> None:
@@ -107,10 +110,17 @@ class TrackerConfigError(TrackerError):
         Args:
             issues: Non-empty list of :class:`TrackerConfigIssue` instances,
                 all with ``severity == "error"``.
+
+        Raises:
+            ValueError: If *issues* is empty or contains any non-error issue.
         """
-        self.issues = issues
-        codes = ", ".join(f"{i.provider or '?'}:{i.code}" for i in issues)
-        super().__init__(f"Tracker boot validation failed ({len(issues)} error(s)): {codes}")
+        if not issues:
+            raise ValueError("TrackerConfigError requires at least one issue")
+        if any(i.severity != "error" for i in issues):
+            raise ValueError("TrackerConfigError accepts only error-severity issues")
+        self.issues: tuple[TrackerConfigIssue, ...] = tuple(issues)
+        codes = ", ".join(f"{i.provider or '?'}:{i.code}" for i in self.issues)
+        super().__init__(f"Tracker boot validation failed ({len(self.issues)} error(s)): {codes}")
 
 
 __all__ = [

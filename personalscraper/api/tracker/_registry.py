@@ -118,12 +118,17 @@ class TrackerRegistry:
         """Release the HttpTransport owned by each tracker client.
 
         Iterates ``self._trackers`` and calls ``close()`` on each client's
-        ``_transport`` attribute when present, mirroring
-        ``ProviderRegistry.close()``. Per-client exceptions are caught,
-        logged at DEBUG level, and do not propagate — a failing close on one
-        tracker must not prevent the others from releasing their sessions.
+        ``_transport`` attribute when present. Unlike
+        ``ProviderRegistry.close()`` — which delegates to each provider's own
+        ``close()`` — tracker clients expose no ``close()`` of their own, so
+        the transport is closed directly. The parity with
+        ``ProviderRegistry.close()`` is the fail-soft *shape*: iterate a
+        copied list, swallow per-client exceptions at DEBUG level, and close
+        as a no-op when the registry is empty — not the close target.
 
-        An empty registry (no active trackers) closes cleanly as a no-op.
+        Per-client exceptions are caught, logged at DEBUG level, and do not
+        propagate — a failing close on one tracker must not prevent the others
+        from releasing their sessions.
         """
         for name, client in list(self._trackers.items()):
             transport = getattr(client, "_transport", None)

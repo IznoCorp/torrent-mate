@@ -114,6 +114,8 @@ def build_tracker_registry(
             continue
 
         client_cls = _resolve_tracker_class(name)
+        # Single-key assumption: all current trackers (lacale/c411) have exactly
+        # one credential; revisit if a multi-key tracker is added.
         api_key = env[required[0]] if required else ""
         transport = HttpTransport(client_cls.policy(api_key), event_bus=event_bus)  # type: ignore[attr-defined]
         client = client_cls(transport)
@@ -132,11 +134,13 @@ def build_tracker_registry(
         built[name] = client
 
     # Step 2: unknown_provider — names in priority absent from providers.
+    # priority_by_media_type unknown names are already rejected at config-load
+    # by TrackerConfig._validate_priority_by_media_type.
     known_providers = set(tracker_config.providers)
     priority_names: set[str] = set(tracker_config.priority)
     for names_list in tracker_config.priority_by_media_type.values():
         priority_names.update(names_list)
-    for name in sorted(priority_names - known_providers):
+    for name in sorted(set(tracker_config.priority) - known_providers):
         issues.append(
             TrackerConfigIssue(
                 severity="error",
