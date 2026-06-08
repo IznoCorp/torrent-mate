@@ -8,11 +8,20 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/tracker-wiring/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/tracker-wiring/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                                                      | File                                     | Status |
+| --- | -------------------------------------------------------------------------- | ---------------------------------------- | ------ |
+| 1   | Error types — `TrackerError` + `TrackerConfigIssue` + `TrackerConfigError` | phase-01-error-types.md                  | [ ]    |
+| 2   | Factory — `build_tracker_registry` implementation                          | phase-02-factory-impl.md                 | [ ]    |
+| 3a  | Factory unit tests — error cases + silent boot                             | phase-03a-factory-tests-error-cases.md   | [ ]    |
+| 3b  | Factory unit tests — warning, severity split, happy path                   | phase-03b-factory-tests-warning-happy.md | [ ]    |
+| 4   | `TrackerRegistry.close()` + regression guard                               | phase-04-registry-close.md               | [ ]    |
+| 5a  | `AppContext.tracker_registry` field                                        | phase-05a-appcontext-field.md            | [ ]    |
+| 5b  | Composition-root wiring + integration tests                                | phase-05b-composition-root-wiring.md     | [ ]    |
+| 6   | ACCEPTANCE.md + `make check` gate                                          | phase-06-acceptance.md                   | [ ]    |
 
 ## Review cycles
 
@@ -20,4 +29,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start Phase 1.
