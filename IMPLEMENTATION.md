@@ -23,6 +23,7 @@
 | 5b  | Composition-root wiring + integration tests                                | phase-05b-composition-root-wiring.md     | [x]    |
 | 6   | ACCEPTANCE.md + `make check` gate                                          | phase-06-acceptance.md                   | [x]    |
 | 7   | PR fixes cycle 1 (2 medium + 5 minor)                                      | phase-07-pr-fixes-cycle-1.md             | [x]    |
+| 8   | PR fixes cycle 2 (1 minor — test isolation polish)                         | _(no plan file — single test fix)_       | [x]    |
 
 ## Review cycles
 
@@ -37,6 +38,14 @@
 - Fix phase created: phase-07-pr-fixes-cycle-1.md.
 - Fix commits: `04e05f68` (prod hardening: TrackerConfigError invariants + tuple freeze, narrowed unknown-check, docstrings), `d556a95f` (4 new non-vacuous tests: aggregation, non-callable-close guard, empty/warning TrackerConfigError). `make check` green (6263 passed, 91%); all 4 new tests mutation-proven RED on pre-fix code. All 2 medium + 5 minor resolved.
 
+### Cycle 2
+
+- Re-review scope: cycle-1 fix delta `04e05f68^..HEAD`, 2 agents (code, tests).
+- Findings: **0 critical/major/medium** → loop exits clean (Case A). code-reviewer: all 3 fixes correct, no regression, tuple-freeze safe for all `.issues` readers, Step 2 narrowing correct. pr-test-analyzer: 3/4 new tests mutation-proven non-vacuous.
+- 1 LOW minor (test precision): `test_non_callable_close_attr_is_skipped` didn't isolate the `callable()` guard (broad except swallowed the TypeError → near-dup of the existing swallow test). Operator-style discretionary polish (not a forced cycle).
+- Ops note: the 2 cycle-2 agents mutation-tested in parallel on the shared tree; verified working tree clean afterward (no stray mutant committed).
+- Polish (phase 8): commit `a4214086` — rewrote the test to assert NO `tracker_transport_close_failed` debug log when `close` is non-callable, isolating the guard. Non-vacuity confirmed RED under guard-mutation. `make check` green (6263 passed). Loop clean — ready for **manual** squash merge.
+
 ## Next action
 
-Phase 7 (cycle-1 fixes) complete + gated. Push fix delta → CI → re-review cycle 2.
+All 8 phases + 2 review cycles complete. `make check` green (6263 passed, 91%); CI green; PR #142 reviewed clean. **Ready for manual squash merge.**
