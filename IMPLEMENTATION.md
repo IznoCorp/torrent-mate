@@ -6,7 +6,7 @@
 **Version bump**: 0.23.0 → 0.24.0
 **Branch**: feat/tracker-wiring
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/142
 **Design**: docs/features/tracker-wiring/DESIGN.md
 **Master plan**: docs/features/tracker-wiring/plan/INDEX.md
 
