@@ -46,6 +46,13 @@
 - Ops note: the 2 cycle-2 agents mutation-tested in parallel on the shared tree; verified working tree clean afterward (no stray mutant committed).
 - Polish (phase 8): commit `a4214086` — rewrote the test to assert NO `tracker_transport_close_failed` debug log when `close` is non-callable, isolating the guard. Non-vacuity confirmed RED under guard-mutation. `make check` green (6263 passed). Loop clean — ready for **manual** squash merge.
 
+### Cycle 3
+
+- Re-review scope: the un-reviewed phase-8 polish delta `c47d70a4..HEAD` (1 test file), 1 agent (pr-test-analyzer, run solo to avoid the cycle-2 shared-tree mutation race).
+- Findings: **0 critical/major/medium** → loop exits clean (Case A). The rewritten `test_non_callable_close_attr_is_skipped` is confirmed NON-VACUOUS (mutation-proven RED under guard-removal) and genuinely isolates the `callable()` guard (distinct from the swallow test); correct log-inspection idiom. 1 cosmetic 1/10 note ("no action needed").
+- Working tree verified clean after the mutation agent (no stray mutant).
+- **Loop terminal: clean across cycles 2 + 3.** No further fix cycle warranted.
+
 ## Next action
 
-All 8 phases + 2 review cycles complete. `make check` green (6263 passed, 91%); CI green; PR #142 reviewed clean. **Ready for manual squash merge.**
+All 8 phases + 3 review cycles complete; loop terminal-clean. `make check` green (6263 passed, 91%); CI green (8/8); PR #142 reviewed clean. **Ready for manual squash merge** (`gh pr merge 142 --squash`). Next `/implement:feature` will archive `tracker-wiring`.
