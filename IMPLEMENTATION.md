@@ -22,11 +22,20 @@
 | 5a  | `AppContext.tracker_registry` field                                        | phase-05a-appcontext-field.md            | [x]    |
 | 5b  | Composition-root wiring + integration tests                                | phase-05b-composition-root-wiring.md     | [x]    |
 | 6   | ACCEPTANCE.md + `make check` gate                                          | phase-06-acceptance.md                   | [x]    |
+| 7   | PR fixes cycle 1 (2 medium + 5 minor)                                      | phase-07-pr-fixes-cycle-1.md             | [ ]    |
 
 ## Review cycles
 
-_(filled by implement:pr-review — max 5 cycles)_
+### Cycle 1
+
+- Toolkit: 5 agents (code, silent-failure, tests, types, comments) on `main...HEAD`.
+- Findings received: ~11. Design contradictions: **0** — implementation faithfully matches DESIGN; all findings are hardening-within-contract or test/doc completeness.
+- Retained: 2 medium + 5 minor. Ignored: 1 (`enabled_not_in_priority` — out of RP5a scope: no consumer until RP5b, would extend the DESIGN's deliberate 4-code catalog → noted for RP5b).
+- **Medium**: (A) `TrackerConfigError` doesn't enforce its documented non-empty + all-error invariants and stores `issues` by reference; (B) factory "never fail-fast" aggregation invariant untested (mutation-proven).
+- **Minor**: (C) `unknown_provider` docstring incomplete; (D) `close()` "mirroring ProviderRegistry.close()" imprecise; (E) Step 2 `priority_by_media_type` unknown-check is a dead/untested branch; (G) `close()` non-callable guard untested; (H) `api_key` single-key assumption undocumented.
+- Positive: `pr-test-analyzer` mutation-tested all 6 core behaviors → non-vacuous; parity-without-import validated; type design sound.
+- Fix phase created: phase-07-pr-fixes-cycle-1.md.
 
 ## Next action
 
-All 8 phases complete. `make check` green (6259 passed, 91.30%); all 5 ACCEPTANCE criteria re-exercised and passing. Run `/implement:feature-pr` (local gate + push + PR + CI poll).
+Execute phase 7 (PR fixes cycle 1) — 2 medium + 5 minor hardening/test/doc fixes.
