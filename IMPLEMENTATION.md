@@ -22,7 +22,7 @@
 | 5a  | `AppContext.tracker_registry` field                                        | phase-05a-appcontext-field.md            | [x]    |
 | 5b  | Composition-root wiring + integration tests                                | phase-05b-composition-root-wiring.md     | [x]    |
 | 6   | ACCEPTANCE.md + `make check` gate                                          | phase-06-acceptance.md                   | [x]    |
-| 7   | PR fixes cycle 1 (2 medium + 5 minor)                                      | phase-07-pr-fixes-cycle-1.md             | [ ]    |
+| 7   | PR fixes cycle 1 (2 medium + 5 minor)                                      | phase-07-pr-fixes-cycle-1.md             | [x]    |
 
 ## Review cycles
 
@@ -35,7 +35,8 @@
 - **Minor**: (C) `unknown_provider` docstring incomplete; (D) `close()` "mirroring ProviderRegistry.close()" imprecise; (E) Step 2 `priority_by_media_type` unknown-check is a dead/untested branch; (G) `close()` non-callable guard untested; (H) `api_key` single-key assumption undocumented.
 - Positive: `pr-test-analyzer` mutation-tested all 6 core behaviors → non-vacuous; parity-without-import validated; type design sound.
 - Fix phase created: phase-07-pr-fixes-cycle-1.md.
+- Fix commits: `04e05f68` (prod hardening: TrackerConfigError invariants + tuple freeze, narrowed unknown-check, docstrings), `d556a95f` (4 new non-vacuous tests: aggregation, non-callable-close guard, empty/warning TrackerConfigError). `make check` green (6263 passed, 91%); all 4 new tests mutation-proven RED on pre-fix code. All 2 medium + 5 minor resolved.
 
 ## Next action
 
-Execute phase 7 (PR fixes cycle 1) — 2 medium + 5 minor hardening/test/doc fixes.
+Phase 7 (cycle-1 fixes) complete + gated. Push fix delta → CI → re-review cycle 2.
