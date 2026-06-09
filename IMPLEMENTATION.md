@@ -6,7 +6,7 @@
 **Version bump**: 0.24.0 → 0.25.0
 **Branch**: feat/acquire-lobe
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: _(to be created by /implement:feature-pr)_
 **Design**: docs/features/acquire-lobe/DESIGN.md
 **Master plan**: docs/features/acquire-lobe/plan/INDEX.md
 
@@ -18,7 +18,7 @@
 | 2   | build_acquire_context factory + tests                             | phase-02-factory.md              | [x]    |
 | 3   | AppContext swap + cli_helpers wiring + wiring tests               | phase-03-appcontext-wiring.md    | [x]    |
 | 4   | Layering guard extension (acquire/ → never triage)                | phase-04-layering-guard.md       | [x]    |
-| 5   | ACCEPTANCE.md + architecture.md update + make check gate          | phase-05-acceptance-docs-gate.md | [ ]    |
+| 5   | ACCEPTANCE.md + architecture.md update + make check gate          | phase-05-acceptance-docs-gate.md | [x]    |
 
 ## Review cycles
 
@@ -26,4 +26,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phases 1-4 done (all checks OK). Continue with Phase 5 (ACCEPTANCE.md + architecture.md + final make check gate).
+All 5 phases done (all checks OK; make check green = 6289 passed, coverage 91.31%). Run `/implement:feature-pr` (push + PR + CI).
