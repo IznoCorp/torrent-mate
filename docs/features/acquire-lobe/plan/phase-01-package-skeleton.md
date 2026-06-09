@@ -21,7 +21,7 @@ make check                                   # must be green (all tests pass)
 
 ---
 
-## Task 1: Create `acquire/` package with `_ports.py`
+## Sub-phase 1.1: Create `acquire/` package with `_ports.py`
 
 **Files:**
 
@@ -139,7 +139,7 @@ git commit -m "feat(acquire-lobe): add acquire/ package skeleton and AcquireStor
 
 ---
 
-## Task 2: Implement `AcquireContext` frozen dataclass
+## Sub-phase 1.2: Implement `AcquireContext` frozen dataclass
 
 **Files:**
 
@@ -286,7 +286,7 @@ git commit -m "feat(acquire-lobe): implement AcquireContext frozen dataclass"
 
 ---
 
-## Task 3: Mutation-proven close() non-ownership guard tests
+## Sub-phase 1.3: Mutation-proven close() non-ownership guard tests
 
 **Files:**
 

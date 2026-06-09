@@ -26,7 +26,7 @@ make test                                        # all pass
 
 ---
 
-## Task 1: Write `ACCEPTANCE.md`
+## Sub-phase 5.1: Write `ACCEPTANCE.md`
 
 **Files:**
 
@@ -140,7 +140,7 @@ git commit -m "docs(acquire-lobe): add ACCEPTANCE.md with ACC-1 through ACC-5"
 
 ---
 
-## Task 2: Update `docs/reference/architecture.md`
+## Sub-phase 5.2: Update `docs/reference/architecture.md`
 
 **Files:**
 
@@ -186,7 +186,7 @@ git commit -m "docs(acquire-lobe): add acquire/ to module map with import-direct
 
 ---
 
-## Task 3: Final `make check` gate
+## Sub-phase 5.3: Final `make check` gate
 
 **Files:** none (gate only)
 

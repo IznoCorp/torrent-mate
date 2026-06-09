@@ -26,7 +26,7 @@ python -c "from personalscraper.acquire._factory import build_acquire_context; p
 
 ---
 
-## Task 1: Swap `AppContext` fields
+## Sub-phase 3.1: Swap `AppContext` fields
 
 **Files:**
 
@@ -178,7 +178,7 @@ git commit -m "feat(acquire-lobe): swap AppContext — drop tracker_registry, ad
 
 ---
 
-## Task 2: Wire `cli_helpers/__init__.py`
+## Sub-phase 3.2: Wire `cli_helpers/__init__.py`
 
 **Files:**
 
@@ -286,7 +286,7 @@ git commit -m "feat(acquire-lobe): wire cli_helpers to build_acquire_context, cl
 
 ---
 
-## Task 3: Adapt wiring tests
+## Sub-phase 3.3: Adapt wiring tests
 
 **Files:**
 

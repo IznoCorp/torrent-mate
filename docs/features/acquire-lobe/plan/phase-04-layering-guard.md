@@ -32,7 +32,7 @@ print('OK')
 
 ---
 
-## Task 1: Extend the layering guard (parametrize + reuse)
+## Sub-phase 4.1: Extend the layering guard (parametrize + reuse)
 
 **Files:**
 

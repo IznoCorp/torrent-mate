@@ -28,7 +28,7 @@ python -c "from personalscraper.acquire.context import AcquireContext; print('OK
 
 ---
 
-## Task 1: Write failing factory tests
+## Sub-phase 2.1: Write failing factory tests
 
 **Files:**
 
@@ -180,7 +180,7 @@ Expected: `ModuleNotFoundError` — `acquire/_factory.py` does not exist yet.
 
 ---
 
-## Task 2: Implement `build_acquire_context`
+## Sub-phase 2.2: Implement `build_acquire_context`
 
 **Files:**
 
