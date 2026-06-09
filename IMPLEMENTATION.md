@@ -6,7 +6,7 @@
 **Version bump**: 0.24.0 → 0.25.0
 **Branch**: feat/acquire-lobe
 **PR merge**: manual
-**PR**: _(to be created by /implement:feature-pr)_
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/143
 **Design**: docs/features/acquire-lobe/DESIGN.md
 **Master plan**: docs/features/acquire-lobe/plan/INDEX.md
 
