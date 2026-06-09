@@ -41,6 +41,7 @@ staging/
 ├── 097-TEMP/            # Temporary workspace
 ├── 098-AUTRES/          # Miscellaneous
 ├── personalscraper/     # Python package
+│   ├── acquire/         # Acquisition lobe (RP5c). Owns TrackerRegistry (RP5a) and AcquireStore seam slot (RP3). No behaviour — injection handle only. Import direction: downward only (api/, core/, conf/, events/); never triage packages.
 │   ├── ingest/          # qBittorrent → staging
 │   ├── sorter/          # guessit + strategies → category folders
 │   ├── commands/        # Typer command groups (pipeline, library, config, info)
@@ -369,6 +370,13 @@ each carried by an inline `# layering: allow` marker honoured by the AST guard:
 and `conf/loader.py → indexer.db._apply_pragmas` (function-local orphan-check
 import). `api/` is consumed by `scraper/` and `trailers/` but never by
 `commands/` directly.
+
+**`acquire/` import-direction invariant**: `acquire/` must import downward only
+(`api/`, `core/`, `conf/`, `events/`). It must never import the triage packages
+(`ingest`, `sort`, `sorter`, `process`, `scraper`, `dispatch`, `indexer`,
+`enforce`, `verify`, `insights`, `maintenance`, `reports`, `trailers`,
+`pipeline`, `pipeline_steps`, `commands`). Enforced by the AST layering guard
+in `tests/architecture/test_layering.py`.
 
 ## Provider Registry
 
