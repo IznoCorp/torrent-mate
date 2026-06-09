@@ -94,7 +94,6 @@ class TestBuildAcquireContext:
     def test_tracker_config_error_surfaces(self) -> None:
         """TrackerConfigError from build_tracker_registry propagates unchanged."""
         from personalscraper.acquire._factory import build_acquire_context
-
         from personalscraper.api.tracker._errors import TrackerConfigError, TrackerConfigIssue
 
         config = self._minimal_config()
