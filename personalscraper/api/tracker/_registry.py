@@ -113,3 +113,35 @@ class TrackerRegistry:
                 # wrapping contract that tracker authors must satisfy.
                 log.warning("tracker_search_failed", tracker=name, exc_info=True)
         return rank(results, self._ranking)
+
+    def close(self) -> None:
+        """Release the HttpTransport owned by each tracker client.
+
+        Iterates ``self._trackers`` and calls ``close()`` on each client's
+        ``_transport`` attribute when present. Unlike
+        ``ProviderRegistry.close()`` — which delegates to each provider's own
+        ``close()`` — tracker clients expose no ``close()`` of their own, so
+        the transport is closed directly. The parity with
+        ``ProviderRegistry.close()`` is the fail-soft *shape*: iterate a
+        copied list, swallow per-client exceptions at DEBUG level, and close
+        as a no-op when the registry is empty — not the close target.
+
+        Per-client exceptions are caught, logged at DEBUG level, and do not
+        propagate — a failing close on one tracker must not prevent the others
+        from releasing their sessions.
+        """
+        for name, client in list(self._trackers.items()):
+            transport = getattr(client, "_transport", None)
+            if transport is None:
+                continue
+            close_fn = getattr(transport, "close", None)
+            if not callable(close_fn):
+                continue
+            try:
+                close_fn()
+            except Exception as exc:  # noqa: BLE001
+                log.debug(
+                    "tracker_transport_close_failed",
+                    tracker=name,
+                    exc_type=type(exc).__name__,
+                )

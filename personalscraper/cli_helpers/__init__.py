@@ -52,6 +52,13 @@ def _build_app_context(
     ingest. Read-only commands leave ``build_torrent_client`` at its default
     and get ``torrent_client=None`` with no daemon contact (review #1/#2/#5).
 
+    The :class:`TrackerRegistry` is built unconditionally for every command
+    that goes through the single composition root (DESIGN §Components.4).
+    The default config (all trackers disabled) produces an empty registry
+    and boots silently. A misconfigured tracker raises
+    :class:`~personalscraper.api.tracker._errors.TrackerConfigError` at this
+    boundary — fail-loud, parity with ``RegistryConfigError``.
+
     Args:
         config: The typed JSON5 configuration loaded by ``cli.main``.
         settings: The Pydantic env-var settings (API keys, paths).
@@ -122,12 +129,27 @@ def _build_app_context(
             )
         torrent_client = raw_client
 
+    # RP5a: build tracker registry at boot (lazy import mirrors the
+    # provider_registry pattern — keeps --help / init-config network-light).
+    # TrackerConfigError surfaces here on any misconfig: fail-loud at the same
+    # boundary as RegistryConfigError (metadata/torrent).
+    from personalscraper.api.tracker._factory import build_tracker_registry  # noqa: PLC0415
+
+    tracker_registry = build_tracker_registry(
+        config.tracker,
+        config.ranking,
+        settings=settings,
+        event_bus=event_bus,
+        cb_policy=cb_policy,
+    )
+
     return AppContext(
         config=config,
         settings=settings,
         event_bus=event_bus,
         provider_registry=provider_registry,
         torrent_client=torrent_client,
+        tracker_registry=tracker_registry,
     )
 
 
@@ -166,6 +188,8 @@ def per_step_boundary(
     finally:
         current_correlation_id.reset(token)
         app_context.provider_registry.close()
+        if app_context.tracker_registry is not None:
+            app_context.tracker_registry.close()
 
 
 def _format_validation(exc: ValidationError) -> str:
