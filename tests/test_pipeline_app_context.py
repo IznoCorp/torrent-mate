@@ -20,6 +20,7 @@ from uuid import UUID
 
 import pytest
 
+from personalscraper.acquire.context import AcquireContext
 from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus, current_correlation_id
@@ -43,11 +44,13 @@ def _stub_app() -> AppContext:
     config.staging_dirs = [ingest_entry]
     config.paths.data_dir = MagicMock()
     settings = MagicMock()
+    acquire = AcquireContext(tracker_registry=MagicMock())
     return AppContext(
         config=config,
         settings=settings,
         event_bus=EventBus(),
         provider_registry=MagicMock(spec=ProviderRegistry),
+        acquire=acquire,
     )
 
 

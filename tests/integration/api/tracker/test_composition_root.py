@@ -1,8 +1,10 @@
 """Integration tests for tracker-registry composition-root wiring.
 
-Verifies _build_app_context() populates tracker_registry, that
-TrackerConfigError surfaces at boot, and that per_step_boundary calls close().
-Network is not touched: build_tracker_registry is patched throughout.
+Verifies _build_app_context() populates the acquisition lobe handle
+(``ctx.acquire.tracker_registry``), that TrackerConfigError surfaces at boot
+through ``build_acquire_context``, and that per_step_boundary calls
+``app_context.acquire.close()``. Network is not touched: build_tracker_registry
+is patched throughout (RP5c delegates tracker construction to it unchanged).
 """
 
 from __future__ import annotations
@@ -11,6 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.acquire.context import AcquireContext
 from personalscraper.api.tracker._errors import TrackerConfigError, TrackerConfigIssue
 from personalscraper.api.tracker._ranking import RankingConfig
 from personalscraper.api.tracker._registry import TrackerRegistry
@@ -35,22 +38,28 @@ def _empty_registry() -> TrackerRegistry:
 
 
 class TestBuildAppContextTrackerWiring:
-    """_build_app_context wires tracker_registry from the live factory."""
+    """_build_app_context wires the tracker registry via the acquire handle."""
 
     def test_tracker_registry_set_from_factory(self) -> None:
-        """_build_app_context must store the factory's return value."""
+        """_build_app_context must store the factory's return value on ctx.acquire."""
         stub = _empty_registry()
 
         with (
-            patch("personalscraper.api.tracker._factory.build_tracker_registry", return_value=stub),
+            patch("personalscraper.acquire._factory.build_tracker_registry", return_value=stub),
             patch("personalscraper.api.metadata.registry.ProviderRegistry"),
         ):
             ctx = _build_app_context(_config(), _settings())
 
-        assert ctx.tracker_registry is stub
+        assert ctx.acquire is not None
+        assert ctx.acquire.tracker_registry is stub
 
     def test_tracker_config_error_surfaces_at_boot(self) -> None:
-        """TrackerConfigError from the factory must propagate out of _build_app_context."""
+        """TrackerConfigError must propagate out of _build_app_context.
+
+        RP5c routes tracker construction through ``build_acquire_context``,
+        which delegates to ``build_tracker_registry`` unchanged — so the error
+        still surfaces at the same composition-root boundary.
+        """
         issue = TrackerConfigIssue(
             severity="error",
             code="missing_credentials",
@@ -59,9 +68,7 @@ class TestBuildAppContextTrackerWiring:
         )
 
         with (
-            patch(
-                "personalscraper.api.tracker._factory.build_tracker_registry", side_effect=TrackerConfigError([issue])
-            ),
+            patch("personalscraper.acquire._factory.build_tracker_registry", side_effect=TrackerConfigError([issue])),
             patch("personalscraper.api.metadata.registry.ProviderRegistry"),
         ):
             with pytest.raises(TrackerConfigError) as exc_info:
@@ -70,29 +77,35 @@ class TestBuildAppContextTrackerWiring:
         assert exc_info.value.issues[0].code == "missing_credentials"
 
     def test_app_context_direct_construction_defaults_to_none(self) -> None:
-        """Direct AppContext construction (test fixtures) still defaults to None."""
+        """Direct AppContext construction (test fixtures) still defaults acquire to None."""
         ctx = AppContext(
             config=MagicMock(),
             settings=MagicMock(),
             event_bus=MagicMock(),
             provider_registry=MagicMock(),
         )
-        assert ctx.tracker_registry is None
+        assert ctx.acquire is None
 
 
 class TestPerStepBoundaryClose:
-    """per_step_boundary calls tracker_registry.close() in its finally."""
+    """per_step_boundary calls app_context.acquire.close() in its finally.
+
+    ``AcquireContext.close()`` owns ``tracker_registry.close()`` (RP5c), so
+    these tests wrap the registry stub in a real ``AcquireContext`` and assert
+    the registry's ``close()`` is reached through the acquire handle.
+    """
 
     def test_close_called_on_normal_exit(self) -> None:
-        """per_step_boundary must call tracker_registry.close() on normal exit."""
+        """per_step_boundary must call acquire.close() (→ registry.close()) on normal exit."""
         stub_registry = MagicMock(spec=TrackerRegistry)
+        acquire = AcquireContext(tracker_registry=stub_registry)
 
         with (
             patch("personalscraper.cli_helpers._build_app_context") as mock_build,
             patch("personalscraper.cli_helpers.current_correlation_id"),
         ):
             mock_ctx = MagicMock(spec=AppContext)
-            mock_ctx.tracker_registry = stub_registry
+            mock_ctx.acquire = acquire
             mock_ctx.provider_registry = MagicMock()
             mock_build.return_value = mock_ctx
 
@@ -102,15 +115,16 @@ class TestPerStepBoundaryClose:
         stub_registry.close.assert_called_once()
 
     def test_close_called_when_body_raises(self) -> None:
-        """per_step_boundary must call close() even when the body raises."""
+        """per_step_boundary must call acquire.close() even when the body raises."""
         stub_registry = MagicMock(spec=TrackerRegistry)
+        acquire = AcquireContext(tracker_registry=stub_registry)
 
         with (
             patch("personalscraper.cli_helpers._build_app_context") as mock_build,
             patch("personalscraper.cli_helpers.current_correlation_id"),
         ):
             mock_ctx = MagicMock(spec=AppContext)
-            mock_ctx.tracker_registry = stub_registry
+            mock_ctx.acquire = acquire
             mock_ctx.provider_registry = MagicMock()
             mock_build.return_value = mock_ctx
 
@@ -120,14 +134,14 @@ class TestPerStepBoundaryClose:
 
         stub_registry.close.assert_called_once()
 
-    def test_none_tracker_registry_does_not_raise(self) -> None:
-        """per_step_boundary must not crash when tracker_registry is None."""
+    def test_none_acquire_does_not_raise(self) -> None:
+        """per_step_boundary must not crash when acquire is None."""
         with (
             patch("personalscraper.cli_helpers._build_app_context") as mock_build,
             patch("personalscraper.cli_helpers.current_correlation_id"),
         ):
             mock_ctx = MagicMock(spec=AppContext)
-            mock_ctx.tracker_registry = None
+            mock_ctx.acquire = None
             mock_ctx.provider_registry = MagicMock()
             mock_build.return_value = mock_ctx
 
