@@ -86,10 +86,13 @@ boot validation remains RP5a's; `TrackerConfigError` still surfaces at the same 
 
 ### 4.4 `core/app_context.py` — the swap (one handle)
 
-`AppContext` **drops** the `tracker_registry` field and **gains one** field `acquire: AcquireContext`.
-The other five fields are unchanged (`config, settings, event_bus, provider_registry, torrent_client`).
-`torrent_client` stays a top-level field (shared with `ingest`). `acquire` is non-optional (always
-built at boot); its sub-deps may be `None` (`store`, `torrent_client`).
+`AppContext` **drops** the `tracker_registry` field and **gains one** field
+`acquire: AcquireContext | None = None`. The default is `None` for test-stub ergonomics, mirroring the
+**existing** `tracker_registry: TrackerRegistry | None = None` precedent (dozens of `AppContext(...)`
+stub sites pass no handle) — but the **production composition root always sets it**, and a wiring test
+asserts `app_context.acquire is not None`. The other five fields are unchanged
+(`config, settings, event_bus, provider_registry, torrent_client`). `torrent_client` stays a top-level
+field (shared with `ingest`). The handle's sub-deps may be `None` (`store`, `torrent_client`).
 
 ### 4.5 `cli_helpers/__init__.py` — wiring (only impacted site)
 
