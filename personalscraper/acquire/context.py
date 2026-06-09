@@ -55,9 +55,11 @@ class AcquireContext:
         ``ingest`` boundary which owns its lifecycle.
 
         Raises:
-            Nothing — resource-release errors must not propagate to the
-            caller.  Individual close() failures should be handled at the
-            resource level (e.g. TrackerRegistry.close() is already fail-soft).
+            Exception: If ``store.close()`` raises (after RP3 wires it).
+            ``close()`` does not suppress exceptions itself — fail-safety is
+            delegated to the resources.  ``TrackerRegistry.close()`` is
+            independently fail-soft, and the future RP3 store ``close()`` MUST
+            honor the same contract or its exception will propagate.
         """
         self.tracker_registry.close()
         if self.store is not None:

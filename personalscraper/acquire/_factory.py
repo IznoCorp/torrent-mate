@@ -46,7 +46,9 @@ def build_acquire_context(
         config: Typed JSON5 configuration loaded at the boundary.
         settings: Pydantic env-var settings (API keys, paths).
         event_bus: In-process event bus forwarded to the tracker registry.
-        cb_policy: Circuit-breaker policy forwarded to the tracker registry.
+        cb_policy: Circuit-breaker policy forwarded to the tracker registry;
+            reserved for future circuit-wiring — not yet threaded into the
+            tracker transports.
         torrent_client: Already-built torrent client, or ``None``.
             Lifecycle is NOT owned by ``AcquireContext`` — it is shared with
             the ``ingest`` boundary.

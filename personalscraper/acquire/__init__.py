@@ -1,6 +1,6 @@
 """Acquisition lobe — home of the RP5b orchestrator (future) and the RP5c injection handle.
 
-This package is a peer of ``ingest``, ``sort``, ``dispatch``, and ``indexer``.
+This package is a peer of ``ingest``, ``sorter``, ``dispatch``, and ``indexer``.
 At RP5c it contains only the injection context (``AcquireContext``) and the
 ``AcquireStore`` Protocol seam.  No behaviour is implemented here yet.
 
