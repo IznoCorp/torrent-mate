@@ -68,9 +68,7 @@ class TestBuildAppContextTrackerWiring:
         )
 
         with (
-            patch(
-                "personalscraper.acquire._factory.build_tracker_registry", side_effect=TrackerConfigError([issue])
-            ),
+            patch("personalscraper.acquire._factory.build_tracker_registry", side_effect=TrackerConfigError([issue])),
             patch("personalscraper.api.metadata.registry.ProviderRegistry"),
         ):
             with pytest.raises(TrackerConfigError) as exc_info:
