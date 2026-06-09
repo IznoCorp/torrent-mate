@@ -24,8 +24,9 @@ def test_app_context_is_frozen() -> None:
 
     The fifth field ``torrent_client`` was added when the torrent client was
     promoted into the boundary bundle (DESIGN D3/D9). The sixth field
-    ``tracker_registry`` was added by RP5a (tracker-wiring): the configured
-    ``TrackerRegistry`` handle on the boundary bundle.
+    ``acquire`` was added by RP5c (acquire-lobe): the acquisition lobe
+    injection handle, which now owns the ``TrackerRegistry`` migrated from
+    RP5a's old ``tracker_registry`` field.
     """
     expected = {
         "config",
@@ -33,7 +34,7 @@ def test_app_context_is_frozen() -> None:
         "event_bus",
         "provider_registry",
         "torrent_client",
-        "tracker_registry",
+        "acquire",
     }
     field_names = {f.name for f in dataclasses.fields(AppContext)}
     assert field_names == expected
