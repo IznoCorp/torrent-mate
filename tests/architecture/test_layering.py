@@ -103,7 +103,9 @@ def _marker_has_justification(source_lines: list[str], line_idx: int) -> bool:
     return False
 
 
-def _collect_violations_from_source(source: str, rel: str) -> list[str]:
+def _collect_violations_from_source(
+    source: str, rel: str, prefixes: tuple[str, ...] = _FORBIDDEN_PREFIXES
+) -> list[str]:
     """Return layering violations for ``source`` attributed to relative path ``rel``.
 
     Pure function: parses the given source text and applies the upward-import
@@ -116,6 +118,8 @@ def _collect_violations_from_source(source: str, rel: str) -> list[str]:
         source: Python source code to analyse.
         rel: Repo-relative POSIX path used both for the allow-list lookup and in
             the returned violation strings (e.g. ``"personalscraper/core/x.py"``).
+        prefixes: Forbidden import prefixes to check against. Defaults to
+            ``_FORBIDDEN_PREFIXES`` (the core/conf upward-import guard set).
 
     Returns:
         List of human-readable violation strings (empty if none).
@@ -141,7 +145,7 @@ def _collect_violations_from_source(source: str, rel: str) -> list[str]:
             else:
                 continue
             # Check against forbidden prefixes.
-            for prefix in _FORBIDDEN_PREFIXES:
+            for prefix in prefixes:
                 if module == prefix or module.startswith(prefix + "."):
                     # Allow if guarded by TYPE_CHECKING.
                     if _is_type_checking_block(node, tree):
@@ -308,3 +312,64 @@ def test_real_layering_markers_carry_justifications() -> None:
     # Sanity: the two documented markers exist — keeps the test honest if the
     # tree ever loses them (would otherwise pass vacuously with zero markers).
     assert len(marked) >= 2, f"expected at least the 2 documented markers, found: {marked}"
+
+
+# ---------------------------------------------------------------------------
+# acquire/ layering guard — RP5c (D3)
+#
+# ``acquire/`` is the acquisition lobe. It must import downward only:
+# ``api/``, ``core/``, ``conf/``, ``events/``. It must NEVER import the
+# triage packages in ``_TRIAGE_PREFIXES``. The two control tests pin the guard
+# non-vacuously: a synthetic triage import attributed under ``acquire/`` MUST be
+# flagged (positive anchor); a downward ``api/`` import MUST NOT be (negative).
+# ---------------------------------------------------------------------------
+
+_TRIAGE_PREFIXES = (
+    "personalscraper.ingest",
+    "personalscraper.sort",
+    "personalscraper.sorter",
+    "personalscraper.process",
+    "personalscraper.scraper",
+    "personalscraper.dispatch",
+    "personalscraper.indexer",
+    "personalscraper.enforce",
+    "personalscraper.verify",
+    "personalscraper.insights",
+    "personalscraper.maintenance",
+    "personalscraper.reports",
+    "personalscraper.trailers",
+    "personalscraper.pipeline",
+    "personalscraper.pipeline_steps",
+    "personalscraper.commands",
+)
+
+_ACQUIRE_SYNTHETIC_REL = "personalscraper/acquire/_synthetic_probe.py"
+
+
+def test_acquire_does_not_import_triage() -> None:
+    """No module under acquire/ imports any triage package at runtime."""
+    acquire_root = _PACKAGE_ROOT / "acquire"
+    if not acquire_root.exists():
+        return  # package not yet created — skip gracefully before Phase 01
+    violations: list[str] = []
+    for py_file in sorted(acquire_root.rglob("*.py")):
+        rel = py_file.relative_to(_REPO_ROOT).as_posix()
+        violations.extend(_collect_violations_from_source(py_file.read_text(encoding="utf-8"), rel, _TRIAGE_PREFIXES))
+    assert not violations, "acquire/ has forbidden triage imports (it must only import downward):\n" + "\n".join(
+        violations
+    )
+
+
+def test_acquire_triage_import_is_flagged() -> None:
+    """POSITIVE control: a triage import attributed to acquire/ IS a violation (non-vacuous anchor)."""
+    source = "from personalscraper.dispatch import something\n"
+    violations = _collect_violations_from_source(source, _ACQUIRE_SYNTHETIC_REL, _TRIAGE_PREFIXES)
+    assert violations, "acquire/ triage guard failed to flag a dispatch import (vacuous guard!)"
+    assert "personalscraper.dispatch" in violations[0]
+
+
+def test_acquire_downward_import_is_not_flagged() -> None:
+    """NEGATIVE control: a downward import (api/) attributed to acquire/ is NOT a violation."""
+    source = "from personalscraper.api import something\n"
+    violations = _collect_violations_from_source(source, _ACQUIRE_SYNTHETIC_REL, _TRIAGE_PREFIXES)
+    assert violations == [], f"downward api/ import should not be flagged, got: {violations}"
