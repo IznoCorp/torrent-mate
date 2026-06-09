@@ -14,7 +14,7 @@
 
 | #   | Phase                                                             | File                             | Status |
 | --- | ----------------------------------------------------------------- | -------------------------------- | ------ |
-| 1   | acquire/ skeleton + AcquireStore + AcquireContext + close() tests | phase-01-package-skeleton.md     | [ ]    |
+| 1   | acquire/ skeleton + AcquireStore + AcquireContext + close() tests | phase-01-package-skeleton.md     | [x]    |
 | 2   | build_acquire_context factory + tests                             | phase-02-factory.md              | [ ]    |
 | 3   | AppContext swap + cli_helpers wiring + wiring tests               | phase-03-appcontext-wiring.md    | [ ]    |
 | 4   | Layering guard extension (acquire/ → never triage)                | phase-04-layering-guard.md       | [ ]    |
@@ -26,4 +26,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1.
+Phase 1 done (1.1+1.2+1.3, all checks OK). Continue with Phase 2 (build_acquire_context factory).
