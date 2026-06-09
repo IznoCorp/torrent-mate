@@ -17,7 +17,7 @@
 | 1   | acquire/ skeleton + AcquireStore + AcquireContext + close() tests | phase-01-package-skeleton.md     | [x]    |
 | 2   | build_acquire_context factory + tests                             | phase-02-factory.md              | [x]    |
 | 3   | AppContext swap + cli_helpers wiring + wiring tests               | phase-03-appcontext-wiring.md    | [x]    |
-| 4   | Layering guard extension (acquire/ → never triage)                | phase-04-layering-guard.md       | [ ]    |
+| 4   | Layering guard extension (acquire/ → never triage)                | phase-04-layering-guard.md       | [x]    |
 | 5   | ACCEPTANCE.md + architecture.md update + make check gate          | phase-05-acceptance-docs-gate.md | [ ]    |
 
 ## Review cycles
@@ -26,4 +26,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phases 1-3 done (all checks OK; full make test green = 6444 passed). Continue with Phase 4 (layering guard extension).
+Phases 1-4 done (all checks OK). Continue with Phase 5 (ACCEPTANCE.md + architecture.md + final make check gate).
