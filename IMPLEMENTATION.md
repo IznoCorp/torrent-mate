@@ -6,7 +6,7 @@
 **Version bump**: 0.26.0 → 0.27.0
 **Branch**: feat/acquire-events
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/145
 **Design**: docs/features/acquire-events/DESIGN.md
 **Master plan**: docs/features/acquire-events/plan/INDEX.md
 
