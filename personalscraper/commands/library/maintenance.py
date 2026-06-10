@@ -185,6 +185,12 @@ def library_clean(
         personalscraper library-clean --only orphans --apply        # delete
         personalscraper library-clean --disk Disk1
     """
+    # Local imports for fail-open delete authority building.
+    # Kept inside the function to stay off the module's hot path and avoid
+    # pulling per_step_boundary (+ its transitive AppContext build) for every
+    # library-* command.
+    from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
+    from personalscraper.core.delete_permit import AllowAllPermit  # noqa: PLC0415
     from personalscraper.maintenance.disk_cleaner import clean_library
 
     category_id = _resolve_category(ctx, category)
@@ -209,6 +215,22 @@ def library_clean(
             console.print("[red]Another instance is running. Exiting.[/red]")
             raise typer.Exit(1)
 
+    # Build the fail-open deletion authority from the acquisition lobe
+    # (DESIGN §7.4 / §9). A store/acquire failure must never abort cleanup
+    # — fall back to AllowAllPermit (always-ALLOW).
+    permit = AllowAllPermit()
+    settings = cli_compat.get_settings()
+    try:
+        with per_step_boundary(config, settings) as app_context:
+            acquire = getattr(app_context, "acquire", None)
+            authority = getattr(acquire, "delete_authority", None) if acquire is not None else None
+            if authority is not None:
+                permit = authority
+    except Exception:
+        # Fail-open: any error building the authority (store absent,
+        # unreadable, migration failure) → deletion proceeds.
+        pass
+
     try:
         mode = "[bold red]APPLY[/bold red]" if apply else "[bold yellow]DRY-RUN[/bold yellow]"
         console.print(f"[bold]Cleaning library ({mode})...[/bold]")
@@ -219,6 +241,7 @@ def library_clean(
             only=only,
             disk_filter=disk,
             category_filter=category_id,
+            permit=permit,
         )
 
         if result.dry_run:
@@ -226,6 +249,8 @@ def library_clean(
                 f"[yellow]DRY-RUN:[/yellow] Would delete {result.deleted_count} items "
                 f"({result.freed_bytes / 1024 / 1024:.1f} MB)"
             )
+            if result.skipped_by_obligation:
+                console.print(f"[blue]Skipped by seed obligation:[/blue] {result.skipped_by_obligation} item(s)")
             # Orphan deletes a whole release directory at once — high blast
             # radius. List the first matches so the operator can sanity-check
             # before re-running with --apply.
@@ -241,6 +266,8 @@ def library_clean(
                 f"[green]Deleted:[/green] {result.deleted_count} items "
                 f"({result.freed_bytes / 1024 / 1024:.1f} MB freed)"
             )
+            if result.skipped_by_obligation:
+                console.print(f"[blue]Skipped by seed obligation:[/blue] {result.skipped_by_obligation} item(s)")
             if result.error_count:
                 console.print(f"[red]Errors:[/red] {result.error_count} deletions failed (NTFS)")
                 for err in result.errors:
