@@ -1,0 +1,9 @@
+{
+  // Acquisition lobe configuration (RP3).
+  // Copy this file to config/acquire.json5 and adjust as needed.
+  // The database must reside on the internal APFS volume (not under /Volumes/).
+  // db_path defaults to paths.data_dir / "acquire.db" when not set.
+  acquire: {
+    db_path: null,
+  },
+}

@@ -16,6 +16,7 @@
     "scraper.json5",
     "trailers.json5",
     "indexer.json5",
+    "acquire.json5",
     "thresholds.json5",
     "metadata.json5",
     "providers.json5",

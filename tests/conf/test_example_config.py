@@ -70,6 +70,12 @@ class TestExampleConfig:
         config = load_config_dir(EXAMPLE_DIR)
         assert config.scraper.artwork_language == "en"
 
+    def test_acquire_db_path_derived_from_data_dir(self):
+        """When acquire.db_path is null, it must be derived from paths.data_dir."""
+        config = load_config_dir(EXAMPLE_DIR)
+        expected = config.paths.data_dir / "acquire.db"
+        assert config.acquire.db_path == expected
+
     def test_db_path_derived_from_data_dir(self):
         """When db_path is null, it must be derived from paths.data_dir."""
         config = load_config_dir(EXAMPLE_DIR)
