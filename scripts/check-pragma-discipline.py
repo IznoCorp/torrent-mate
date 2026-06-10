@@ -2,12 +2,18 @@
 
 Fails if any Python file under ``personalscraper/`` contains a raw
 ``sqlite3.connect(`` call that is **not** immediately followed (within 5 lines)
-by a call to ``_apply_pragmas(``.
+by a call to ``_apply_pragmas(`` or ``apply_pragmas(``.
 
-The one authorised exception is ``personalscraper/indexer/db.py`` itself, which
-**defines** both :func:`open_db` (uses ``sqlite3.connect`` internally) and
-:func:`_apply_pragmas` (the helper).  All other sites MUST use
-``_apply_pragmas`` after every raw ``sqlite3.connect`` call.
+The authorised exceptions are:
+
+* ``personalscraper/indexer/db.py`` — **defines** :func:`_apply_pragmas`
+  (the original helper) via ``open_db`` which uses ``sqlite3.connect`` internally.
+* ``personalscraper/core/sqlite/_pragmas.py`` — **defines** the canonical
+  :func:`apply_pragmas` (no leading underscore) helper; its docstring mentions
+  ``sqlite3.connect()``.  The module performs NO actual connection.
+
+All other sites MUST use ``_apply_pragmas`` or ``apply_pragmas`` after every
+raw ``sqlite3.connect`` call.
 
 Usage::
 
@@ -31,11 +37,12 @@ from pathlib import Path
 PACKAGE_ROOT = Path(__file__).parent.parent / "personalscraper"
 
 # Files explicitly allowed to contain raw ``sqlite3.connect(`` without an
-# immediately following ``_apply_pragmas`` call.  Only db.py itself is
-# exempted — it owns the canonical implementation.
+# immediately following ``_apply_pragmas`` or ``apply_pragmas`` call.
 ALLOWLIST: frozenset[str] = frozenset(
     {
         str(PACKAGE_ROOT / "indexer" / "db.py"),
+        # definition site of apply_pragmas; its docstring mentions sqlite3.connect()
+        str(PACKAGE_ROOT / "core" / "sqlite" / "_pragmas.py"),
     }
 )
 
@@ -82,9 +89,10 @@ def _check_file(path: Path) -> list[str]:
         if stripped.startswith("#"):
             continue
 
-        # Look ahead up to LOOKAHEAD_LINES for _apply_pragmas(
+        # Look ahead up to LOOKAHEAD_LINES for _apply_pragmas( or apply_pragmas(
+        # (the bare "apply_pragmas(" substring matches both spellings).
         window = lines[i + 1 : i + 1 + LOOKAHEAD_LINES]
-        found_apply = any("_apply_pragmas(" in wl for wl in window)
+        found_apply = any("apply_pragmas(" in wl for wl in window)
         if not found_apply:
             violations.append(
                 f"{path}:{i + 1}: raw sqlite3.connect() without _apply_pragmas — "
