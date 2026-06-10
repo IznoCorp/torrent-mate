@@ -16,7 +16,7 @@
 | --- | ---------------------------------------------------------------- | ---------------------- | ------ |
 | 1   | Event catalog (acquire/events.py) + hub registration + factories | phase-01-events.md     | [x]    |
 | 2   | Muted Telegram subscriber + config flag + CLI wiring             | phase-02-subscriber.md | [x]    |
-| 3   | Docs update + ACCEPTANCE.md + make check gate                    | phase-03-docs-gate.md  | [ ]    |
+| 3   | Docs update + ACCEPTANCE.md + make check gate                    | phase-03-docs-gate.md  | [x]    |
 
 ## Review cycles
 
@@ -24,4 +24,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 3 (docs + ACCEPTANCE + gate).
+All phases complete — run `/implement:feature-pr` (local gate + push + PR + CI).
