@@ -14,7 +14,7 @@
 
 | #   | Phase                                                            | File                   | Status |
 | --- | ---------------------------------------------------------------- | ---------------------- | ------ |
-| 1   | Event catalog (acquire/events.py) + hub registration + factories | phase-01-events.md     | [ ]    |
+| 1   | Event catalog (acquire/events.py) + hub registration + factories | phase-01-events.md     | [x]    |
 | 2   | Muted Telegram subscriber + config flag + CLI wiring             | phase-02-subscriber.md | [ ]    |
 | 3   | Docs update + ACCEPTANCE.md + make check gate                    | phase-03-docs-gate.md  | [ ]    |
 
@@ -24,4 +24,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1.
+Run `/implement:phase` to start Phase 2 (muted Telegram subscriber).
