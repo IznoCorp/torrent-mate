@@ -478,6 +478,7 @@ def run(
     from personalscraper.api.transport._http import HttpTransport
     from personalscraper.logger import cleanup_old_logs
     from personalscraper.pipeline import Pipeline
+    from personalscraper.subscribers.acquire import AcquisitionTelegramSubscriber
     from personalscraper.subscribers.debug_log import DebugLogSubscriber
     from personalscraper.subscribers.rich_console import RichConsoleSubscriber
     from personalscraper.subscribers.telegram import TelegramSubscriber
@@ -542,6 +543,7 @@ def run(
             # for silent cron / CI runs.
             rich_subscriber: RichConsoleSubscriber | None = None
             telegram_subscriber: TelegramSubscriber | None = None
+            acq_telegram_subscriber: AcquisitionTelegramSubscriber | None = None
             # ``--verbose`` activates the DebugLogSubscriber which logs every
             # emitted event at DEBUG. Registered independently of ``--headless``
             # so verbose log streams work even in cron / CI contexts that
@@ -564,6 +566,11 @@ def run(
                     )
                     tg_notifier = TelegramNotifier(tg_transport, settings.telegram_chat_id)
                     telegram_subscriber = TelegramSubscriber(app_context.event_bus, tg_notifier)
+                    acq_telegram_subscriber = AcquisitionTelegramSubscriber(
+                        app_context.event_bus,
+                        notifier=tg_notifier,
+                        enabled=config.notify.acquire_notify_enabled,
+                    )
 
             pipeline = Pipeline(app_context)
             try:
@@ -580,6 +587,8 @@ def run(
                         rich_subscriber.close()
                     if telegram_subscriber is not None:
                         telegram_subscriber.close()
+                    if acq_telegram_subscriber is not None:
+                        acq_telegram_subscriber.close()
                     if debug_subscriber is not None:
                         debug_subscriber.close()
             except TrailerStepFailed as exc:

@@ -299,7 +299,15 @@ class NotifyConfig(_StrictModel):
     Attributes:
         telegram: Telegram bot configuration.
         healthchecks: Healthchecks ping configuration.
+        acquire_notify_enabled: Whether the muted acquisition Telegram subscriber
+            is allowed to send messages. Default ``False`` (muted) until producers
+            arrive in waves 4–5.
     """
 
     telegram: NotifyProviderConfig = Field(default_factory=NotifyProviderConfig)
     healthchecks: NotifyProviderConfig = Field(default_factory=NotifyProviderConfig)
+    acquire_notify_enabled: bool = Field(
+        default=False,
+        description="Enable Telegram notifications for acquisition events (RP4+). "
+        "Default False — muted until wave-4/5 producers are active.",
+    )
