@@ -15,7 +15,7 @@
 | #   | Phase                                         | File                                | Status |
 | --- | --------------------------------------------- | ----------------------------------- | ------ |
 | 1   | core/sqlite extraction                        | phase-01-core-sqlite-extraction.md  | [x]    |
-| 2   | core/identity + AcquireConfig + acquire.json5 | phase-02-identity-config.md         | [ ]    |
+| 2   | core/identity + AcquireConfig + acquire.json5 | phase-02-identity-config.md         | [x]    |
 | 3   | acquire/domain + schema + store               | phase-03-domain-schema-store.md     | [ ]    |
 | 4   | core/delete_permit + acquire/delete_authority | phase-04-delete-permit-authority.md | [ ]    |
 | 5   | Dispatch-time writer + per-site wiring        | phase-05-dispatch-wiring.md         | [ ]    |
@@ -27,4 +27,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 2 (core/identity + AcquireConfig + acquire.json5).
+Run `/implement:phase` to start Phase 3 (acquire/domain + schema + store).
