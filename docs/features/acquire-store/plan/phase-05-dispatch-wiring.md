@@ -502,42 +502,36 @@ rg "shutil.rmtree\|os.unlink\|\.unlink\|rmtree\|delete\|remove" --type py \
 
 - [ ] **Step 2: Apply three-state policy at each deletion site in `_movie.py`**
 
-Before each real deletion (replace/overwrite of existing library content), add:
+> **CORRECTIVE NOTE (sub-phase 5.3, applied):** the original draft below reached into
+> `self._recorder._store.seed._conn` with raw SQL + `hasattr` probing. That is replaced by
+> the clean `mark_breach(path)` port method added to the `SeedObligationRecorder` Protocol in
+> sub-phase 5.1 (`AllowAllPermit.mark_breach` is the fail-soft no-op default). Dispatch code
+> NEVER touches the store internals — it depends only on `core.delete_permit`. Also note the
+> dispatch sub-modules are FREE functions taking `dispatcher`, so the call sites use
+> `dispatcher._permit` / `dispatcher._recorder` (not `self.`), and the whole block is gated on
+> `not dispatcher.dry_run` so dry-run stays side-effect-free. The implemented pattern:
 
 ```python
 from personalscraper.core.delete_permit import ALLOW
-import time as _time
 
-decision = self._permit.may_delete(dest_path)
+# In the replace (movie) / merge (tv) branch, after the dry-run early-return,
+# BEFORE the replace()/merge() FS move (dest = existing on-disk path):
+decision = dispatcher._permit.may_delete(dest)
 if decision is not ALLOW:
-    # Proceed anyway (new real media must land) — but record the breach
-    log.warning(
-        "acquire.hnr_risk",
-        path=str(dest_path),
-        reason=str(decision),
-    )
-    # Mark breached_at on the obligation if store is available
-    # (best-effort — fail-soft if store absent)
-    try:
-        if self._recorder is not None and hasattr(self._recorder, "_store"):
-            store = self._recorder._store
-            if store is not None:
-                ob = store.seed.find_by_dispatched_path(dest_path)
-                if ob is not None:
-                    ob_id = store.seed._conn.execute(
-                        "SELECT id FROM seed_obligation WHERE info_hash=? AND dispatched_path=?",
-                        (ob.info_hash, str(dest_path)),
-                    ).fetchone()
-                    if ob_id:
-                        store.seed.mark_breached(ob_id[0], breached_at=int(_time.time()))
-    except Exception:  # noqa: BLE001
-        pass
-# Then call record_dispatch BEFORE the FS move:
-self._recorder.record_dispatch(staging_source=src_path, dispatched_dest=dest_path)
-# ... proceed with actual move/copy ...
+    # Real media wins (O3) — proceed anyway, but record the breach (never silent).
+    # Relocate-not-delete is deferred to O2/O3.
+    log.warning("acquire.hnr_risk", path=str(dest), reason=str(decision), action="replace")  # "merge" in _tv
+    dispatcher._recorder.mark_breach(dest)
+# Write-before-move (DESIGN §7.2): record the NEW media's obligation BEFORE the
+# FS move so a crash mid-move never loses the safety constraint. Fail-soft.
+dispatcher._recorder.record_dispatch(staging_source=movie_dir, dispatched_dest=dest)  # show_dir in _tv
+success = replace(movie_dir, dest, capability=cap)  # merge(show_dir, dest, ...) in _tv
 ```
 
-Apply the same pattern in `_tv.py` at each merge-deletion site.
+The `_move_new` (new-media) branch also calls `record_dispatch` write-before-move (the new
+media may itself be seeding) but takes **no** permit consult / `mark_breach` — there is no
+pre-existing library content to delete there. Apply the same pattern in `_tv.py` at the
+merge-deletion site (`action="merge"`, `staging_source=show_dir`).
 
 - [ ] **Step 3: Run dispatch tests**
 
