@@ -19,7 +19,7 @@
 | 3   | acquire/domain + schema + store               | phase-03-domain-schema-store.md     | [x]    |
 | 4   | core/delete_permit + acquire/delete_authority | phase-04-delete-permit-authority.md | [x]    |
 | 5   | Dispatch-time writer + per-site wiring        | phase-05-dispatch-wiring.md         | [x]    |
-| 6   | Guardrails + docs + gate                      | phase-06-guardrails-docs-gate.md    | [ ]    |
+| 6   | Guardrails + docs + gate                      | phase-06-guardrails-docs-gate.md    | [x]    |
 
 ## Review cycles
 
@@ -27,4 +27,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 6 (guardrails + docs + gate).
+All phases complete — run `/implement:feature-pr` (local gate + push + PR + CI).
