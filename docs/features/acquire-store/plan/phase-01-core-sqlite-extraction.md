@@ -709,6 +709,11 @@ __all__ = [
 ]
 ```
 
+- [ ] **Step 1b (orchestrator addition, DESIGN §5.3): Re-target conf/ WAL-probe lazy import**
+  - `conf/models/indexer.py`: `personalscraper.indexer._fs_probe` → `personalscraper.core.sqlite._fs_probe`
+  - Update comment: drop `# layering: allow` exemption → `# lazy WAL-safety probe (conf→core, clean layering)`
+  - Update `tests/conf/test_disk_config_fs_type.py`: all monkeypatch paths from `indexer._fs_probe` → `core.sqlite._fs_probe`
+
 - [ ] **Step 2: Run full gate**
 
 ```bash
