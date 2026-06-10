@@ -384,10 +384,57 @@ git commit -m "feat(acquire-store): acquire/migrations/001_init.sql — 4 tables
 **Files:**
 
 - Modify: `personalscraper/acquire/_ports.py`
+- Create: `personalscraper/acquire/errors.py` — the three Acquire\* errors live in a
+  **dedicated module** (not inline in `store.py`), mirroring the placement of the
+  `IndexerXxxError` subclasses in `indexer/db.py`. `store.py` re-exports them for the
+  draft test-import path. This keeps `store.py` lean (558 non-blank LOC, < 800 budget).
 - Create: `personalscraper/acquire/store.py`
 - Test: `tests/acquire/test_store.py`
 
+> **IMPLEMENTATION CORRECTIONS (sub-phase 3.3, applied as-built).** The draft below is the
+> original sketch. The shipped code diverges as follows — these are the authoritative facts:
+>
+> 1. **Error constructor signatures match the `error_factory` callables.** The core helpers
+>    (`db_lock`, `apply_migrations`, `open_db`) take an `error_factory` callable. So
+>    `AcquireLockError.__init__(self, pid: int)`, `AcquireMigrationError.__init__(self, version:
+int)`, and `AcquireCorruptError.__init__(self, db_path, quarantine_path)` mirror the
+>    indexer subclasses — NOT the draft's `AcquireLockError(str(exc))`. The classes are passed
+>    directly as factories: `db_lock(..., error_factory=AcquireLockError)`,
+>    `apply_migrations(..., error_factory=AcquireMigrationError)`,
+>    `open_db(..., errors=OpenDbErrorFactories(corrupt=AcquireCorruptError))`.
+> 2. **The store holds the writer lock for its LIFETIME**, not per-method. The draft acquired
+>    `db_lock(timeout=0)` inside every write method — wrong (it would re-acquire on every call
+>    and never serialize reads, and the leaf-lock lifetime contract requires one acquisition).
+>    `build_acquire_store` enters the `db_lock` context manager via `lock_cm.__enter__()` and
+>    hands the entered CM to the store; `close()` calls `lock_cm.__exit__(None, None, None)`.
+>    Single-writer per ROADMAP; short-lived stores per pipeline step via the factory.
+> 3. **All four sub-stores are built** (`follow` / `wanted` / `seed` / `ratio`) per DESIGN §6.1,
+>    not just `seed` + `follow`. Writes use explicit `BEGIN IMMEDIATE` / `COMMIT` / `ROLLBACK`
+>    (autocommit connection from `open_db`), via a `_write_tx` context manager. SELECTs set
+>    `conn.row_factory = sqlite3.Row` lazily and map rows to frozen VOs through `_row_to_*`.
+> 4. **Lock-contention test restructured (planner-flagged).** See Step 1 below.
+
 - [ ] **Step 1: Write the failing store tests**
+
+> **Lock-contention test — DETERMINISTIC RESTRUCTURE.** The planner flagged the draft
+> `test_lock_contention_raises` (a second `build_acquire_store` on an already-open DB) as
+> unreliable. The shipped test holds the writer lock **explicitly** via the core context
+> manager, then asserts the build fails fast:
+>
+> ```python
+> def test_lock_contention_raises_acquire_lock_error(tmp_path):
+>     db_path = tmp_path / "acquire.db"
+>     cfg = AcquireConfig(db_path=db_path)
+>     with db_lock(db_path, timeout=0, error_factory=AcquireLockError):
+>         with pytest.raises(AcquireLockError) as exc_info:
+>             build_acquire_store(cfg)
+>     assert "PID" in str(exc_info.value)
+>     assert exc_info.value.pid > 0
+> ```
+>
+> A companion test (`test_lifetime_lock_blocks_second_store`) keeps a first store OPEN (holding
+> the lifetime lock) and asserts a second build raises — proving the lifetime-lock claim, not
+> just the explicit-hold path. The original draft block below is superseded:
 
 ```python
 # tests/acquire/test_store.py
@@ -527,7 +574,14 @@ class AcquireStore(Protocol):
 __all__ = ["AcquireStore"]
 ```
 
-- [ ] **Step 4: Create `personalscraper/acquire/store.py`**
+- [ ] **Step 4: Create `personalscraper/acquire/errors.py` + `personalscraper/acquire/store.py`**
+
+> The draft `store.py` below is superseded by the as-built module (see the IMPLEMENTATION
+> CORRECTIONS box above). Authoritative behaviours: three Acquire\* errors in a dedicated
+> `errors.py` with factory-shaped constructors; lifetime writer lock via `lock_cm.__enter__()`
+> / `__exit__()`; four sub-stores over one shared autocommit connection with explicit
+> `BEGIN IMMEDIATE` transactions; `_row_to_*` mappers to frozen VOs. The draft is retained only
+> as a reading aid:
 
 ```python
 # personalscraper/acquire/store.py
@@ -790,9 +844,15 @@ Expected: all pass.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add personalscraper/acquire/_ports.py personalscraper/acquire/store.py tests/acquire/test_store.py
-git commit -m "feat(acquire-store): AcquireStore Protocol + concrete store + 4 sub-stores"
+git add personalscraper/acquire/_ports.py personalscraper/acquire/errors.py \
+        personalscraper/acquire/store.py tests/acquire/test_store.py
+git commit -m "feat(acquire-store): AcquireStore protocol extension + concrete store over core/sqlite"
 ```
+
+> As-built note: `errors.py` is part of this commit (the three Acquire\* errors live there, not
+> inline in `store.py`). The non-vacuous test hardenings (lock-contention restructure, close()
+> fail-soft + lock-release, per-sub-store round-trips, CHECK-liveness, isinstance) ship in the
+> same `test_store.py` and may be split into a second `test(acquire-store): …` commit.
 
 ---
 
