@@ -895,3 +895,78 @@ class TestDeletePermitHardSkip:
         assert junk.exists(), "VETOed junk file MUST NOT be deleted"
         assert result.deleted_count == 0
         assert result.skipped_by_obligation == 1
+
+
+class _RaisingPermit:
+    """A DeletePermit whose may_delete always raises (F2 fail-open consult)."""
+
+    def may_delete(self, path: Path):  # noqa: D102, ANN001
+        raise RuntimeError("permit boom")
+
+
+class TestDeletePermitConsultFailOpen:
+    """F2: a raising permit consult is fail-open — deletion PROCEEDS + logs.
+
+    DESIGN §7.3 / §9: ``permit.may_delete`` may raise (DB locked, corrupt
+    store, etc.). The consult must never abort cleanup — the deleter treats
+    the error as ALLOW and logs ``disk_cleaner.permit_error``. Pre-fix the
+    exception propagated and failed the clean run CLOSED.
+    """
+
+    def test_delete_dir_raising_permit_deletes_and_logs(self, tmp_path: Path, monkeypatch, caplog) -> None:
+        """``_delete_dir`` with a raising permit DELETES (ALLOW) + logs permit_error."""
+        from personalscraper.maintenance import disk_cleaner as _dc
+
+        d = tmp_path / "medias" / ".actors"
+        d.mkdir(parents=True)
+        (d / "thumb.jpg").write_bytes(b"\x00" * 100)
+
+        result = _dc.CleanResult(dry_run=False)
+        monkeypatch.setattr(_dc, "_publish_deleted", lambda *a, **k: None)
+        with caplog.at_level("WARNING"):
+            _dc._delete_dir(
+                d, result, dry_run=False, label=".actors", db_path=tmp_path / "db.sqlite", permit=_RaisingPermit()
+            )
+
+        # Real deletion happened (fail-open ALLOW), NOT skipped, NOT aborted.
+        assert not d.exists(), "Raising permit MUST fail OPEN → dir deleted"
+        assert result.deleted_count == 1
+        assert result.skipped_by_obligation == 0
+        assert "disk_cleaner.permit_error" in caplog.text
+        assert "permit boom" in caplog.text
+
+    def test_delete_file_raising_permit_deletes_and_logs(self, tmp_path: Path, monkeypatch, caplog) -> None:
+        """``_delete_file`` with a raising permit DELETES (ALLOW) + logs permit_error."""
+        from personalscraper.maintenance import disk_cleaner as _dc
+
+        f = tmp_path / ".DS_Store"
+        f.write_text("junk")
+
+        result = _dc.CleanResult(dry_run=False)
+        monkeypatch.setattr(_dc, "_publish_deleted", lambda *a, **k: None)
+        with caplog.at_level("WARNING"):
+            _dc._delete_file(
+                f, result, dry_run=False, label="junk", db_path=tmp_path / "db.sqlite", permit=_RaisingPermit()
+            )
+
+        assert not f.exists(), "Raising permit MUST fail OPEN → file deleted"
+        assert result.deleted_count == 1
+        assert result.skipped_by_obligation == 0
+        assert "disk_cleaner.permit_error" in caplog.text
+        assert "permit boom" in caplog.text
+
+    def test_clean_library_raising_permit_does_not_abort(self, tmp_path: Path) -> None:
+        """End-to-end: ``clean_library`` with a raising permit completes (deletes)."""
+        disk = tmp_path / "medias"
+        movie = disk / "films" / "Movie (2024)"
+        actors = movie / ".actors"
+        actors.mkdir(parents=True)
+        (actors / "thumb.jpg").write_bytes(b"\x00" * 100)
+
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        # No raise propagates out of clean_library → the run completes.
+        result = clean_library(config, apply=True, only="actors", permit=_RaisingPermit())
+
+        assert not actors.exists(), "Raising permit MUST NOT abort cleanup"
+        assert result.deleted_count == 1
+        assert result.skipped_by_obligation == 0

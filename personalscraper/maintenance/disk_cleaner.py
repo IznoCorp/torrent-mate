@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
 
 from personalscraper._fs_utils import is_apple_double
-from personalscraper.core.delete_permit import ALLOW, AllowAllPermit, DeletePermit
+from personalscraper.core.delete_permit import ALLOW, AllowAllPermit, DeletePermit, PermitDecision
 from personalscraper.logger import get_logger
 
 log = get_logger("library.disk_cleaner")
@@ -247,7 +247,15 @@ def _delete_dir(
             :func:`_publish_deleted` (DESIGN §9.4).
         permit: Deletion authority (fail-open default: AllowAllPermit).
     """
-    decision = permit.may_delete(path)
+    # F2: the consult itself is fail-open (DESIGN §7.3 / §9). A permit whose
+    # may_delete raises must NOT abort cleanup — treat the error as ALLOW (the
+    # deletion proceeds) and log it. Without this guard a raising permit would
+    # propagate out of _delete_dir and fail the whole clean run CLOSED.
+    try:
+        decision: PermitDecision = permit.may_delete(path)
+    except Exception as exc:
+        log.warning("disk_cleaner.permit_error", path=str(path), label=label, error=str(exc))
+        decision = ALLOW
     if decision is not ALLOW:
         log.info(
             "disk_cleaner.skipped_by_obligation",
@@ -336,7 +344,14 @@ def _delete_file(
             :func:`_publish_deleted` (DESIGN §9.4).
         permit: Deletion authority (fail-open default: AllowAllPermit).
     """
-    decision = permit.may_delete(path)
+    # F2: the consult itself is fail-open (DESIGN §7.3 / §9). A permit whose
+    # may_delete raises must NOT abort cleanup — treat the error as ALLOW (the
+    # deletion proceeds) and log it.
+    try:
+        decision: PermitDecision = permit.may_delete(path)
+    except Exception as exc:
+        log.warning("disk_cleaner.permit_error", path=str(path), label=label, error=str(exc))
+        decision = ALLOW
     if decision is not ALLOW:
         log.info(
             "disk_cleaner.skipped_by_obligation",

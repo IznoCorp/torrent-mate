@@ -462,3 +462,91 @@ class TestTvThreeState:
         merge_mock.assert_not_called()
         recorder.record_dispatch.assert_not_called()
         recorder.mark_breach.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# F2 — fail-open permit consult at the dispatch deletion sites
+# ---------------------------------------------------------------------------
+
+
+class _RaisingPermit:
+    """A permit whose may_delete always raises (F2 fail-open consult)."""
+
+    def may_delete(self, path: Path) -> PermitDecision:
+        """Raise unconditionally to simulate a broken store consult.
+
+        Args:
+            path: Ignored.
+
+        Raises:
+            RuntimeError: Always.
+        """
+        raise RuntimeError("permit boom")
+
+
+class TestDispatchPermitConsultFailOpen:
+    """F2: a raising permit consult must NOT crash dispatch (DESIGN §7.3 / §9).
+
+    The replace/merge proceeds (real media wins), ``dispatch.permit_error`` is
+    logged, and ``mark_breach`` is NOT called (a breach is only recorded on a
+    positive VETO, never on an errored consult). Pre-fix the RuntimeError
+    propagated out of the deletion site and crashed the dispatch.
+    """
+
+    def test_movie_replace_raising_permit_proceeds_no_crash(
+        self,
+        test_config: object,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Movie replace with a raising permit → replaced (ALLOW), logged, no breach."""
+        recorder = MagicMock()
+        d = _make_dispatcher(test_config, tmp_path, permit=_RaisingPermit(), recorder=recorder)
+        staging_dir, _existing_dir = _seed_existing_movie(d, tmp_path)
+
+        replace_mock = MagicMock(return_value=True)
+        monkeypatch.setattr(_movie, "replace", replace_mock)
+        monkeypatch.setattr(
+            _movie,
+            "get_disk_status",
+            lambda c: _disk_status(c.id, c.path, CID.MOVIES, 500.0),
+        )
+
+        with caplog.at_level("WARNING"):
+            result = d.dispatch_movie(staging_dir, CID.MOVIES)
+
+        # Real media wins — the replace proceeds, no crash.
+        assert result.action == "replaced"
+        replace_mock.assert_called_once()
+        # Errored consult → NOT a breach.
+        recorder.mark_breach.assert_not_called()
+        assert "dispatch.permit_error" in caplog.text
+
+    def test_tv_merge_raising_permit_proceeds_no_crash(
+        self,
+        test_config: object,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """TV merge with a raising permit → merged (ALLOW), logged, no breach."""
+        recorder = MagicMock()
+        d = _make_dispatcher(test_config, tmp_path, permit=_RaisingPermit(), recorder=recorder)
+        staging_dir, _existing_dir = _seed_existing_show(d, tmp_path)
+
+        merge_mock = MagicMock(return_value=True)
+        monkeypatch.setattr(_tv, "merge", merge_mock)
+        monkeypatch.setattr(
+            _tv,
+            "get_disk_status",
+            lambda c: _disk_status(c.id, c.path, CID.TV_SHOWS, 500.0),
+        )
+
+        with caplog.at_level("WARNING"):
+            result = d.dispatch_tvshow(staging_dir, CID.TV_SHOWS)
+
+        assert result.action == "merged"
+        merge_mock.assert_called_once()
+        recorder.mark_breach.assert_not_called()
+        assert "dispatch.permit_error" in caplog.text

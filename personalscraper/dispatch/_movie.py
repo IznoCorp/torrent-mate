@@ -85,7 +85,16 @@ def dispatch_movie(
         # OLD on-disk content. If a live seed obligation on it is unmet, the new
         # real media still wins (O3) — but the breach is recorded, never silent.
         # Relocate-not-delete is deferred to O2/O3, so we proceed either way.
-        decision = dispatcher._permit.may_delete(dest)
+        #
+        # F2: the consult is fail-open (DESIGN §7.3 / §9). A permit whose
+        # may_delete raises must NOT crash the dispatch — treat the error as
+        # ALLOW (the replace proceeds, real media wins) and do NOT mark_breach
+        # on an errored consult (a breach is only recorded on a positive VETO).
+        try:
+            decision = dispatcher._permit.may_delete(dest)
+        except Exception as exc:
+            log.warning("dispatch.permit_error", path=str(dest), error=str(exc), action="replace")
+            decision = ALLOW
         if decision is not ALLOW:
             log.warning("acquire.hnr_risk", path=str(dest), reason=str(decision), action="replace")
             dispatcher._recorder.mark_breach(dest)
