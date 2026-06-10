@@ -105,6 +105,82 @@ accepted).
 
 ---
 
+## Sub-phase 7.2 — maintenance-lifecycle + fail-open consult + wiring coverage
+
+Cycle-1 fix-batch B. Closes the two MAJOR review findings that survived
+fix-batch A (a closed-store lifecycle bug in the maintenance command, and a
+fail-CLOSED gap in the consult sites) plus the two highest-value wiring-test
+gaps the test-analyzer flagged (DispatchStep authority forwarding + the factory
+economy map).
+
+### C2 (MAJOR) — library-clean consults a CLOSED acquire store
+
+`library_clean` derived the permit inside `with per_step_boundary(...) as
+app_context:` but called `clean_library(..., permit=authority)` AFTER the block
+exited. `per_step_boundary`'s `finally` closes `app_context.acquire`, so by the
+time `clean_library` ran the store was closed → `may_delete` hit "AcquireStore
+is closed" → fail-open swallowed it to ALLOW → the hard-skip never fired and a
+VETOed dir was deleted.
+
+**Fix:** restructure `library_clean` so `clean_library` + result-reporting run
+INSIDE the `with per_step_boundary` block (store alive for every `may_delete`
+consult). A `_run_and_report(permit)` nested helper hosts the body so it can run
+both inside the boundary (live authority) and on the fail-open fallback. Only an
+authority-BUILD/enter failure is fail-open: a `cleaned` flag flips to True the
+instant control passes to `_run_and_report`, so `clean_library`'s own exceptions
+re-raise instead of being mistaken for a build failure (they are NOT swallowed).
+The `--apply` `acquire_lock()` logic is unchanged; `maintenance.py` imports only
+`core.delete_permit` + the `per_step_boundary` helper, never `acquire/`.
+
+**Files:** Modify `personalscraper/commands/library/maintenance.py`.
+**Test:** `tests/commands/test_library_clean_e2e.py::test_clean_apply_respects_live_obligation_store_stays_open`
+— seeds a real unmet `SeedObligation` (via the live acquire store on
+`config.acquire.db_path`) for the to-be-deleted `.actors/` dir, runs
+`library-clean --apply --only actors`, asserts the CLI prints "Skipped by seed
+obligation" (`skipped_by_obligation >= 1`) and the dir survives. FAILS pre-fix
+(closed store → ALLOW → deleted).
+
+### F2 (MAJOR) — permit consult fails CLOSED on a raising permit
+
+DESIGN §7.3 requires the consult itself to be fail-open. `decision =
+permit.may_delete(path)` was unwrapped at all four sites, so a permit whose
+`may_delete` raised propagated out and aborted the run CLOSED.
+
+**Fix:** wrap each consult.
+
+- `disk_cleaner._delete_dir` / `_delete_file`: `except Exception:` → log
+  `disk_cleaner.permit_error` (path, label, error) + `decision = ALLOW`.
+- `dispatch/_movie.py` (replace) / `_tv.py` (merge): `except Exception:` → log
+  `dispatch.permit_error` (path, error, action) + `decision = ALLOW` (real media
+  wins). An ERRORED consult does NOT `mark_breach` (a breach is recorded only on
+  a positive VETO).
+
+**Files:** Modify `personalscraper/maintenance/disk_cleaner.py`,
+`personalscraper/dispatch/_movie.py`, `personalscraper/dispatch/_tv.py`.
+**Test:**
+`tests/maintenance/test_disk_cleaner.py::TestDeletePermitConsultFailOpen`
+(raising permit → `_delete_dir`/`_delete_file`/`clean_library` DELETE, log
+`permit_error`, no abort) and
+`tests/dispatch/test_three_state_policy.py::TestDispatchPermitConsultFailOpen`
+(raising permit → movie replace / TV merge proceed, log `dispatch.permit_error`,
+no `mark_breach`, no crash). All 5 FAIL pre-fix.
+
+### Wiring-test gaps (test-analyzer, cheap, prevents the next C2-class bug)
+
+- **DispatchStep authority forwarding** — assert the single
+  `ctx.app.acquire.delete_authority` handle is forwarded into `run_dispatch` as
+  BOTH `permit=` AND `recorder=` (same object), and that `acquire=None` degrades
+  to run_dispatch's `AllowAllPermit()` defaults (no permit/recorder kwargs, no
+  crash). **Test:**
+  `tests/test_pipeline_step_wrappers.py::test_dispatch_step_forwards_authority_as_permit_and_recorder`
+  - `::test_dispatch_step_acquire_none_degrades_to_defaults`.
+- **Factory economy map** — assert `build_acquire_context` builds
+  `DeleteAuthority._economy` from `config.tracker.providers`, mapping ONLY
+  providers whose `economy` is set (None excluded). **Test:**
+  `tests/acquire/test_factory.py::TestBuildAcquireContext::test_economy_map_excludes_none_economy_providers`.
+
+---
+
 ## Gate
 
 - `python -m pytest tests/acquire/ tests/core/ tests/architecture/ -q` → 0 failures.

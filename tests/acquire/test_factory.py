@@ -206,3 +206,37 @@ class TestBuildAcquireContext:
         ):
             with pytest.raises(TrackerConfigError):
                 build_acquire_context(config, settings, event_bus=event_bus, cb_policy=cb_policy)
+
+    def test_economy_map_excludes_none_economy_providers(self, tmp_path: Path) -> None:
+        """The economy map carries ONLY trackers whose ``economy`` is set (None excluded).
+
+        DESIGN §7.2: ``record_dispatch`` resolves a tracker's seed obligation from
+        this map. Activation-only trackers (``economy is None``) must be absent so
+        their torrents record an honest tracker-unresolved MISS — they must NOT
+        leak into ``DeleteAuthority._economy``.
+        """
+        from personalscraper.acquire._factory import build_acquire_context
+        from personalscraper.conf.models.api_config import (
+            TrackerEconomyConfig,
+            TrackerProviderConfig,
+        )
+
+        econ = TrackerEconomyConfig(target_ratio=2.0, min_ratio=1.0, min_seed_time=259200)
+        with_econ = TrackerProviderConfig(enabled=True, economy=econ)
+        without_econ = TrackerProviderConfig(enabled=True, economy=None)
+
+        config = self._minimal_config(tmp_path)
+        # Real ProviderConfig-shaped tracker providers: one with economy, one None.
+        config.tracker.providers = {"lacale": with_econ, "c411": without_econ}
+        settings = MagicMock()
+        event_bus = MagicMock()
+        cb_policy = MagicMock()
+
+        with patch("personalscraper.acquire._factory.build_tracker_registry") as mock_build:
+            mock_build.return_value = MagicMock()
+            ctx = build_acquire_context(config, settings, event_bus=event_bus, cb_policy=cb_policy)
+
+        # Only the economy-bearing tracker is present; the value is the exact
+        # TrackerEconomyConfig instance from the provider config.
+        assert ctx.delete_authority._economy == {"lacale": econ}
+        assert "c411" not in ctx.delete_authority._economy
