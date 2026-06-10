@@ -100,6 +100,19 @@ class SeedObligationRecorder(Protocol):
         """
         ...
 
+    def mark_breach(self, path: Path) -> None:
+        """Mark every active obligation under *path* as breached (DESIGN §7.3).
+
+        Called by the dispatch flow when the "real media wins" rule deletes a
+        live payload before its seed obligation is met. Implementations MUST be
+        fail-soft: any write error is swallowed and logged; the caller is never
+        interrupted.
+
+        Args:
+            path: Absolute path whose active obligations are breached.
+        """
+        ...
+
 
 class AllowAllPermit:
     """Fail-open no-op DeletePermit — always returns ALLOW.
@@ -131,6 +144,13 @@ class AllowAllPermit:
         Args:
             staging_source: Ignored.
             dispatched_dest: Ignored.
+        """
+
+    def mark_breach(self, path: Path) -> None:
+        """No-op breach marker — does nothing.
+
+        Args:
+            path: Ignored.
         """
 
 

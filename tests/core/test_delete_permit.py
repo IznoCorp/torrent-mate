@@ -36,3 +36,26 @@ def test_veto_carries_reason() -> None:
     decision = veto("seeding: lacale min_seed_time not met")
     assert decision is not ALLOW
     assert "lacale" in str(decision)
+
+
+def test_allow_all_permit_record_dispatch_is_noop(tmp_path: Path) -> None:
+    """AllowAllPermit.record_dispatch is a no-op that never raises."""
+    permit = AllowAllPermit()
+    permit.record_dispatch(
+        staging_source=tmp_path / "staging" / "x.mkv",
+        dispatched_dest=tmp_path / "library" / "x.mkv",
+    )
+
+
+def test_allow_all_permit_mark_breach_is_noop(tmp_path: Path) -> None:
+    """AllowAllPermit.mark_breach is a no-op that never raises."""
+    permit = AllowAllPermit()
+    permit.mark_breach(tmp_path / "library" / "x.mkv")
+
+
+def test_allow_all_permit_implements_recorder_protocol() -> None:
+    """AllowAllPermit satisfies the SeedObligationRecorder runtime-checkable Protocol."""
+    from personalscraper.core.delete_permit import SeedObligationRecorder
+
+    permit = AllowAllPermit()
+    assert isinstance(permit, SeedObligationRecorder)

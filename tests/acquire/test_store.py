@@ -378,6 +378,88 @@ def test_seed_mark_breached(store: ConcreteAcquireStore) -> None:
     assert found.satisfied_at is None
 
 
+def test_mark_breached_under_descendant_and_count(store: ConcreteAcquireStore) -> None:
+    """mark_breached_under breaches an active descendant obligation and returns the count."""
+    obligation = SeedObligation(
+        info_hash="under111",
+        source_tracker="lacale",
+        min_seed_time_s=999999,
+        min_ratio=1.0,
+        added_at=1_700_000_000,
+        dispatched_path="/data/tv/Show/Season 01/ep.mkv",
+    )
+    store.seed.add(obligation)
+
+    # Breach by parent directory — the descendant obligation is stamped.
+    count = store.seed.mark_breached_under(Path("/data/tv/Show"), breached_at=4242)
+    assert count == 1
+
+    found = store.seed.find_by_dispatched_path(Path("/data/tv/Show/Season 01/ep.mkv"))
+    assert found is not None
+    assert found.breached_at == 4242
+    assert found.satisfied_at is None
+
+
+def test_mark_breached_under_boundary_safe_no_sibling(store: ConcreteAcquireStore) -> None:
+    """mark_breached_under does NOT breach a sibling-prefix obligation (boundary-safe LIKE)."""
+    obligation = SeedObligation(
+        info_hash="under222",
+        source_tracker="c411",
+        min_seed_time_s=999999,
+        min_ratio=1.0,
+        added_at=1_700_000_001,
+        dispatched_path="/data/tv/Show-Other/stray.mkv",
+    )
+    store.seed.add(obligation)
+
+    # "/data/tv/Show" must NOT match "/data/tv/Show-Other/...".
+    count = store.seed.mark_breached_under(Path("/data/tv/Show"), breached_at=99)
+    assert count == 0
+
+    found = store.seed.find_by_dispatched_path(Path("/data/tv/Show-Other/stray.mkv"))
+    assert found is not None
+    assert found.breached_at is None
+
+
+def test_mark_breached_under_excludes_released(store: ConcreteAcquireStore) -> None:
+    """mark_breached_under skips already-released obligations (released_at IS NOT NULL)."""
+    obligation = SeedObligation(
+        info_hash="under333",
+        source_tracker="lacale",
+        min_seed_time_s=999999,
+        min_ratio=1.0,
+        added_at=1_700_000_002,
+        dispatched_path="/data/movies/Film",
+        released_at=1_700_000_900,
+    )
+    store.seed.add(obligation)
+
+    count = store.seed.mark_breached_under(Path("/data/movies/Film"), breached_at=55)
+    assert count == 0
+
+
+def test_mark_breached_under_idempotent_skips_already_breached(store: ConcreteAcquireStore) -> None:
+    """A second mark_breached_under on the same path is a no-op (idempotent count=0)."""
+    obligation = SeedObligation(
+        info_hash="under444",
+        source_tracker="lacale",
+        min_seed_time_s=999999,
+        min_ratio=1.0,
+        added_at=1_700_000_003,
+        dispatched_path="/data/movies/Repeat",
+    )
+    store.seed.add(obligation)
+
+    first = store.seed.mark_breached_under(Path("/data/movies/Repeat"), breached_at=10)
+    assert first == 1
+    # Second call must not re-stamp (breached_at IS NULL guard) → count 0.
+    second = store.seed.mark_breached_under(Path("/data/movies/Repeat"), breached_at=20)
+    assert second == 0
+    found = store.seed.find_by_dispatched_path(Path("/data/movies/Repeat"))
+    assert found is not None
+    assert found.breached_at == 10
+
+
 def test_find_active_under_exact_match(store: ConcreteAcquireStore) -> None:
     """find_active_under returns an obligation whose dispatched_path exactly matches path."""
     obligation = SeedObligation(

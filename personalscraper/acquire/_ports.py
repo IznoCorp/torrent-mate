@@ -96,6 +96,15 @@ class SeedSubStore(Protocol):
         """Set ``breached_at`` on an obligation row."""
         ...
 
+    def mark_breached_under(self, path: Path, breached_at: int) -> int:
+        """Breach every active obligation under *path*; return the row count.
+
+        Matches obligations whose ``dispatched_path`` is exactly *path* OR a
+        descendant (boundary-safe LIKE with ESCAPE). Only touches rows with
+        ``released_at IS NULL`` that are not already breached.
+        """
+        ...
+
 
 @runtime_checkable
 class RatioSubStore(Protocol):

@@ -547,6 +547,48 @@ class _SeedSubStore:
                 (breached_at, obligation_id),
             )
 
+    def mark_breached_under(self, path: Path, breached_at: int) -> int:
+        """Set ``breached_at`` on every active obligation under *path*.
+
+        Marks the breach (DESIGN §7.3) for all still-active obligations whose
+        ``dispatched_path`` is either exactly *path* OR a descendant of *path*
+        (boundary-safe LIKE with ESCAPE, mirroring :meth:`find_active_under` so
+        ``D/child`` is matched but ``D-other`` / ``Dx`` are not). Only rows
+        where ``released_at IS NULL`` are touched, and only those not already
+        breached (``breached_at IS NULL``), so a re-run is idempotent.
+
+        This avoids the id-juggling the deletion-time caller would otherwise
+        need: :meth:`find_active_under` returns value objects WITHOUT the row
+        id, so a path-scoped UPDATE is the natural breach primitive.
+
+        Args:
+            path: Absolute path whose active obligations should be breached.
+            breached_at: Unix epoch seconds to stamp on ``breached_at``.
+
+        Returns:
+            The number of obligation rows updated.
+        """
+        path_str = str(path)
+        # Escape LIKE wildcards in the path prefix so that literal % and _
+        # characters in the path string don't act as patterns (same scheme as
+        # find_active_under to keep the descendant boundary safe).
+        escaped = path_str.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        like_pattern = escaped + "/%"
+
+        with _write_tx(self._conn):
+            cur = self._conn.execute(
+                """
+                UPDATE seed_obligation
+                SET breached_at = ?
+                WHERE (dispatched_path = ? OR dispatched_path LIKE ? ESCAPE '\\')
+                  AND released_at IS NULL
+                  AND breached_at IS NULL
+                """,
+                (breached_at, path_str, like_pattern),
+            )
+            count = cur.rowcount
+        return count if count is not None else 0
+
 
 class _RatioSubStore:
     """Reader + upsert for the ``ratio_state`` table (data-carrier; Ratio C1)."""
