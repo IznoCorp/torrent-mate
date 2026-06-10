@@ -157,13 +157,13 @@ long-lived breakers / orchestrators that pre-existed the run.
 
 ## Event catalog (v1)
 
-The v1 catalog defines exactly 23 production event classes, almost all
+The v1 catalog defines exactly 33 production event classes, almost all
 imported eagerly by `personalscraper.events` (plus the registry events
 re-exported via `personalscraper.api.metadata.registry`) so they
 self-register before any envelope round-trip. The count is pinned by
-`tests/event_bus/test_pipeline_events.py` (`len(_EVENT_CLASS_REGISTRY) == 23`).
+`tests/event_bus/test_pipeline_events.py` (`len(_EVENT_CLASS_REGISTRY) == 33`).
 
-> **Exception — `VerifyItemDone`.** Unlike the other 22 classes,
+> **Exception — `VerifyItemDone`.** Unlike the other 32 classes,
 > `VerifyItemDone` is **not** in the eager-import list of
 > `personalscraper.events.__init__`. It self-registers only when the verify
 > step is loaded — `personalscraper.verify.run` does
@@ -199,8 +199,18 @@ self-register before any envelope round-trip. The count is pinned by
 | `RegistryFanOutCompleted`    | `personalscraper.api.metadata.registry._events` | `fan_out` returned (success or failure)                                                                                         | registry `fan_out` dispatch                                                                        |
 | `RegistryBootValidated`      | `personalscraper.api.metadata.registry._events` | Registry boot completed successfully                                                                                            | `ProviderRegistry.__init__` (`api/metadata/registry/__init__.py`)                                  |
 | `VerifyItemDone`             | `personalscraper.verify.events`                 | `item: str`, `status: str`, `errors: list[str]`, `checks_passed: int`, `checks_total: int`                                      | `verify.run.run_verify` once per media item after the check → fix → re-check → classify cycle      |
+| `SeriesFollowed`             | `personalscraper.acquire.events`                | `media_ref: MediaRef`, `title: str`                                                                                             | acquire/ — muted until waves 4-5 (Follow D1)                                                       |
+| `SeriesUnfollowed`           | `personalscraper.acquire.events`                | `media_ref: MediaRef`                                                                                                           | acquire/ — muted until waves 4-5 (Follow D1)                                                       |
+| `WantedEnqueued`             | `personalscraper.acquire.events`                | `media_ref: MediaRef`, `kind: Literal["movie","episode"]`, `season: int \| None`, `episode: int \| None`                        | acquire/ — muted until waves 4-5 (Follow D2)                                                       |
+| `WantedAbandoned`            | `personalscraper.acquire.events`                | `media_ref: MediaRef`, `reason: str`                                                                                            | acquire/ — muted until waves 4-5 (Follow D2 cutoff)                                                |
+| `GrabSucceeded`              | `personalscraper.acquire.events`                | `media_ref: MediaRef \| None`, `info_hash: str`, `source_tracker: str`, `category: str \| None`, `tags: tuple[str, ...]`        | acquire/ — muted until waves 4-5 (RP5b / Follow D3 + Ratio C1)                                     |
+| `GrabFailed`                 | `personalscraper.acquire.events`                | `media_ref: MediaRef \| None`, `source_tracker: str \| None`, `reason: str`                                                     | acquire/ — muted until waves 4-5 (RP5b)                                                            |
+| `SeedObligationRecorded`     | `personalscraper.acquire.events`                | `info_hash: str`, `source_tracker: str`, `min_seed_time_s: int`, `dispatched_path: str \| None`                                 | acquire/ — muted until waves 4-5 (RP3 dispatch / O2)                                               |
+| `SeedObligationBreached`     | `personalscraper.acquire.events`                | `info_hash: str`, `source_tracker: str`, `dispatched_path: str \| None`                                                         | acquire/ — muted until waves 4-5 (O2)                                                              |
+| `SeedObligationSatisfied`    | `personalscraper.acquire.events`                | `info_hash: str`, `source_tracker: str`                                                                                         | acquire/ — muted until waves 4-5 (O2)                                                              |
+| `RatioMeasured`              | `personalscraper.acquire.events`                | `tracker: str`, `observed_ratio: float`, `target_ratio: float`                                                                  | acquire/ — muted until waves 4-5 (Ratio C1)                                                        |
 
-The set is pinned by `test_every_event_has_factory` in `tests/fixtures/test_factories_registry.py`; adding a new event requires extending both the registry and the factories in the same commit.
+The set is pinned by `test_every_event_has_factory` in `tests/fixtures/test_factories_registry.py`; adding a new event requires extending both the registry and the factories in the same commit. RP4 (`acquire-events`) added 10 acquisition events (catalog: 23 → 33).
 
 ## Boundary-only AppContext rule
 

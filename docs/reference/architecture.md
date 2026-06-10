@@ -41,8 +41,9 @@ staging/
 ├── 097-TEMP/            # Temporary workspace
 ├── 098-AUTRES/          # Miscellaneous
 ├── personalscraper/     # Python package
-│   ├── acquire/         # Acquisition lobe — 4-table SQLite store (RP3) + delete authority
+│   ├── acquire/         # Acquisition lobe — 4-table SQLite store (RP3) + delete authority + event catalog (RP4)
 │   │   ├── domain.py           # Frozen VOs: FollowedSeries, WantedItem, SeedObligation, RatioState
+│   │   ├── events.py           # Event catalog (RP4): 10 frozen Event subclasses for Follow/Grab/Seed/Ratio
 │   │   ├── store.py            # ConcreteAcquireStore — 4 sub-stores, lazy-open, lock-free reads
 │   │   ├── delete_authority.py # DeleteAuthority: DeletePermit + SeedObligationRecorder impl (fail-open)
 │   │   ├── _factory.py         # build_acquire_context (fills store= + delete_authority=)
@@ -51,6 +52,7 @@ staging/
 │   │   ├── context.py          # AcquireContext dataclass (per-invocation acquire service bundle)
 │   │   └── migrations/         # SQL migration scripts for acquire.db
 │   │   Import direction: downward only (api/, core/, conf/, events/); never triage packages.
+│   │   (RP4) `subscribers/acquire.py` — muted AcquisitionTelegramSubscriber, gated by `acquire_notify_enabled`.
 │   ├── ingest/          # qBittorrent → staging
 │   ├── sorter/          # guessit + strategies → category folders
 │   ├── commands/        # Typer command groups (pipeline, library, config, info)

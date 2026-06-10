@@ -106,8 +106,8 @@ def test_every_event_has_factory() -> None:
     )
 
 
-def test_event_registry_has_eighteen_v1_events() -> None:
-    """The catalog is pinned at 23 events.
+def test_event_registry_has_all_v1_events() -> None:
+    """The catalog is pinned at 33 events.
 
     Phase 5 acceptance landed at 13 ; the ``provider-ids`` feature
     (sub-phase 8.4) added 4 ``Backfill*`` events for the IDs/ratings
@@ -116,16 +116,19 @@ def test_event_registry_has_eighteen_v1_events() -> None:
     telemetry (→ 18). The ``arch-cleanup-2`` Phase 1 sub-phase 1.2
     rebased the 5 provider-registry events onto the ``Event`` contract
     and eager-imported them via ``personalscraper.events``, so they now
-    auto-register in the catalog (→ 23): ``ProviderFallbackTriggered``,
-    ``ProviderExhaustedEvent``, ``LockedCapabilityUnresolved``,
-    ``RegistryFanOutCompleted``, ``RegistryBootValidated``. The literal
-    count guards against silent additions that bypass the documented
-    event catalog in ``docs/reference/event-bus.md``.
+    auto-register in the catalog (→ 23). The ``acquire-events`` RP4
+    Phase 1 adds 10 acquisition events: ``SeriesFollowed``,
+    ``SeriesUnfollowed``, ``WantedEnqueued``, ``WantedAbandoned``,
+    ``GrabSucceeded``, ``GrabFailed``, ``SeedObligationRecorded``,
+    ``SeedObligationBreached``, ``SeedObligationSatisfied``,
+    ``RatioMeasured`` (→ 33). The literal count guards against silent
+    additions that bypass the documented event catalog in
+    ``docs/reference/event-bus.md``.
     """
     import personalscraper.events  # noqa: F401 — eager-import side effect
 
-    assert len(_EVENT_CLASS_REGISTRY) == 23, (
-        f"Expected 23 events (18 original + 5 registry), "
+    assert len(_EVENT_CLASS_REGISTRY) == 33, (
+        f"Expected 33 events (23 existing + 10 acquire-events), "
         f"found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
     )
 

@@ -128,7 +128,8 @@ class TestNotifyConfig:
     """NotifyConfig model tests."""
 
     def test_defaults(self) -> None:
-        """Default NotifyConfig has both providers disabled."""
+        """Default NotifyConfig has both providers disabled and acquire muted."""
         cfg = NotifyConfig()
         assert cfg.telegram.enabled is False
         assert cfg.healthchecks.enabled is False
+        assert cfg.acquire_notify_enabled is False
