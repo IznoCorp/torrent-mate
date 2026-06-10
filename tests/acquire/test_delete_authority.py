@@ -134,6 +134,51 @@ def test_lookup_exception_fail_open_with_mutation_proof(
     assert decision is not ALLOW
 
 
+def test_path_exists_oserror_fail_open_with_mutation_proof(
+    store: "ConcreteAcquireStore",
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """F1: a dispatched_path raising OSError on .exists() → ALLOW, never raises.
+
+    The fail-open guard must span the WHOLE obligation loop, not just
+    find_active_under. ``Path.exists()`` re-raises an OSError whose errno is not
+    benign (ENAMETOOLONG / EACCES), so without the widened guard may_delete
+    would propagate the error into the deleter and fail CLOSED (DESIGN §9
+    requires ALLOW on any error). Mutation-proof: the SAME active unmet
+    obligation VETOes once .exists() stops raising.
+    """
+    path = tmp_path / "movie.mkv"
+    path.write_text("fake content")
+
+    ob = _obligation(dispatched_path=str(path), min_seed_time_s=999999)
+    store.seed.add(ob)
+
+    auth = build_delete_authority(store=store)
+
+    real_exists = Path.exists
+
+    def _boom(self: Path, *args: object, **kwargs: object) -> bool:
+        # Only the obligation's dispatched_path detonates; everything else is
+        # delegated to the real implementation.
+        if str(self) == str(path):
+            raise OSError(36, "File name too long")  # errno 36 == ENAMETOOLONG
+        return real_exists(self)
+
+    monkeypatch.setattr(Path, "exists", _boom)
+
+    # OSError in the loop → ALLOW (fail-open), no propagation.
+    decision = auth.may_delete(path)
+    assert decision is ALLOW
+    assert "acquire.delete_authority.lookup_failed" in caplog.text
+
+    # Mutation proof: drop the raise → the same obligation now VETOes.
+    monkeypatch.undo()
+    decision = auth.may_delete(path)
+    assert decision is not ALLOW
+
+
 def test_stale_obligation_mutation_proof(store: "ConcreteAcquireStore", tmp_path: Path) -> None:
     """Path-exists guard: missing file → ALLOW; creating it → VETO.
 

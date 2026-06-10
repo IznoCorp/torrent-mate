@@ -425,3 +425,156 @@ def test_mark_breach_fail_soft_on_store_error(store: ConcreteAcquireStore, tmp_p
     with patch.object(store.seed, "mark_breached_under", side_effect=RuntimeError("db locked")):
         # Must NOT raise.
         auth.mark_breach(tmp_path / "D")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# C1 — directory staging source: recursive content size (regression)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _build_dir_tree(root: Path, *, files: dict[str, int]) -> int:
+    """Materialise a directory tree under *root* and return its total file bytes.
+
+    Args:
+        root: Directory to create (with parents).
+        files: Map of relative POSIX path → byte length to write.
+
+    Returns:
+        The sum of all file byte lengths written.
+    """
+    total = 0
+    for rel, nbytes in files.items():
+        target = root / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"x" * nbytes)
+        total += nbytes
+    return total
+
+
+def test_record_dispatch_hit_directory_recursive_size(
+    store: ConcreteAcquireStore, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """C1: a DIRECTORY staging source matches on its RECURSIVE content size.
+
+    ``dispatch_movie`` / ``dispatch_tvshow`` pass a directory whose bare inode
+    size (~KB) would never equal a multi-GB torrent's ``size_bytes``. The fix
+    sums every contained file so the verbatim-folder torrent matches → one
+    obligation row written (info_hash=item.hash, dispatched_path=dest).
+    """
+    staging_dir = tmp_path / "staging" / "MyShow.S01"
+    total = _build_dir_tree(
+        staging_dir,
+        files={
+            "MyShow.S01E01.mkv": 1500,
+            "MyShow.S01E02.mkv": 2500,
+            "Subs/eng.srt": 48,
+        },
+    )
+    # The bare directory inode size must NOT equal the recursive total — proves
+    # the test would fail under the old `staging_source.stat().st_size` code.
+    assert staging_dir.stat().st_size != total
+    dest = tmp_path / "library" / "MyShow.S01"
+
+    item = _torrent_item(
+        name="MyShow.S01",  # item.name == dir.name
+        size_bytes=total,  # item.size_bytes == recursive total
+        tags=["lacale"],
+        info_hash="dir9001",
+    )
+    client = _client([item], is_seeding=True)
+
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth.record_dispatch(staging_source=staging_dir, dispatched_dest=dest)
+
+    rows = _read_rows(tmp_path / "acquire.db")
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["info_hash"] == "dir9001"
+    assert row["dispatched_path"] == str(dest)
+    assert row["source_tracker"] == "lacale"
+    assert "acquire.record_dispatch.hit" in caplog.text
+
+
+def test_record_dispatch_directory_size_mismatch_miss(
+    store: ConcreteAcquireStore, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """C1: a directory whose recursive total != item.size_bytes → MISS, no row.
+
+    Honest fail-open MISS (e.g. processed/renamed media diverging from the
+    torrent's reported size) — no obligation is invented.
+    """
+    staging_dir = tmp_path / "staging" / "MyShow.S02"
+    total = _build_dir_tree(staging_dir, files={"a.mkv": 1000, "b.mkv": 2000})
+    dest = tmp_path / "library" / "MyShow.S02"
+
+    item = _torrent_item(name="MyShow.S02", size_bytes=total + 5000, tags=["lacale"])  # wrong total
+    client = _client([item], is_seeding=True)
+
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth.record_dispatch(staging_source=staging_dir, dispatched_dest=dest)
+
+    assert _read_rows(tmp_path / "acquire.db") == []
+    assert "no-live-torrent" in caplog.text
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# F3 — correlation window fail-soft (regression)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_record_dispatch_fail_soft_on_is_seeding_error(
+    store: ConcreteAcquireStore, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """F3: client.is_seeding(item) raising → no raise, no row, miss logged.
+
+    ``is_seeding`` is a live client call that can raise on a flaky connection.
+    It runs inside the correlation window AFTER get_completed()/stat(); without
+    the widened guard it would propagate into the dispatch FS path (write-
+    before-move → aborts the move). The whole window must be fail-soft.
+    """
+    staging = tmp_path / "staging" / "Film.mkv"
+    staging.parent.mkdir()
+    staging.write_bytes(b"x" * 512)
+    dest = tmp_path / "library" / "Film.mkv"
+
+    item = _torrent_item(name="Film.mkv", size_bytes=512, tags=["lacale"])
+    client = MagicMock()
+    client.get_completed.return_value = [item]
+    client.is_seeding.side_effect = RuntimeError("connection reset")
+
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    # Must NOT raise.
+    auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
+
+    assert _read_rows(tmp_path / "acquire.db") == []
+    assert "acquire.record_dispatch.miss" in caplog.text
+    assert "unexpected-error" in caplog.text
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Store-write fail-soft (test-analyzer gap)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_record_dispatch_fail_soft_on_store_write_error(
+    store: ConcreteAcquireStore, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """HIT inputs but store.seed.add raises → no raise, no row, write_failed logged."""
+    from unittest.mock import patch
+
+    staging = tmp_path / "staging" / "Film.mkv"
+    staging.parent.mkdir()
+    staging.write_bytes(b"x" * 512)
+    dest = tmp_path / "library" / "Film.mkv"
+
+    item = _torrent_item(name="Film.mkv", size_bytes=512, tags=["lacale"])
+    client = _client([item], is_seeding=True)
+
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+
+    with patch.object(store.seed, "add", side_effect=RuntimeError("db locked")):
+        # Must NOT raise.
+        auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
+
+    assert _read_rows(tmp_path / "acquire.db") == []
+    assert "acquire.record_dispatch.write_failed" in caplog.text

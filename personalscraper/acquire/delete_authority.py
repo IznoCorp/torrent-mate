@@ -90,10 +90,12 @@ class DeleteAuthority:
         resolver finds that obligation.  The LIKE is boundary-safe so D does
         NOT match D-other or Dx.
 
-        Fail-open: any error → ALLOW.  VETO only when a positively-known
-        unmet obligation exists AND the dispatched_path still exists on disk
-        (path-exists guard makes stale obligations inert).  Seed-time only;
-        ratio is deferred to C1.
+        Fail-open: any error anywhere in the lookup — the store query OR the
+        per-obligation seed-time / path-exists checks (a pathological
+        ``dispatched_path`` raising ENAMETOOLONG/EACCES on ``Path.exists()``) —
+        → ALLOW (DESIGN §9).  VETO only when a positively-known unmet obligation
+        exists AND the dispatched_path still exists on disk (path-exists guard
+        makes stale obligations inert).  Seed-time only; ratio is deferred to C1.
 
         Args:
             path: Absolute path about to be deleted.
@@ -105,9 +107,15 @@ class DeleteAuthority:
             log.debug("acquire.delete_authority.no_store", path=str(path))
             return ALLOW
 
+        # Fail-open guard spans the ENTIRE lookup: find_active_under AND the
+        # per-obligation seed-time / path-exists checks (F1). Path.exists()
+        # re-raises an OSError whose errno is not benign (ENAMETOOLONG on a
+        # >255-byte path, EACCES on an unreadable parent), so a pathological
+        # dispatched_path must NOT make may_delete raise into the deleter —
+        # DESIGN §9 requires ALLOW on any error (fail CLOSED is forbidden).
         try:
-            obligations = self._store.seed.find_active_under(path)
-        except Exception as exc:  # noqa: BLE001
+            return self._evaluate_obligations(path)
+        except Exception as exc:  # noqa: BLE001 — fail-open: any error → ALLOW
             log.warning(
                 "acquire.delete_authority.lookup_failed",
                 path=str(path),
@@ -115,6 +123,22 @@ class DeleteAuthority:
             )
             return ALLOW
 
+    def _evaluate_obligations(self, path: Path) -> PermitDecision:
+        """Return the permit decision for *path* (raises propagate to the guard).
+
+        Extracted from :meth:`may_delete` so the fail-open ``try/except`` wraps
+        BOTH the store lookup and the per-obligation loop (find_active_under +
+        seed-time + path-exists). The VETO/ALLOW logic is unchanged.
+
+        Args:
+            path: Absolute path about to be deleted.
+
+        Returns:
+            ALLOW if permitted, veto(reason) if a live unmet obligation exists.
+        """
+        assert self._store is not None  # noqa: S101 — guarded by the caller
+
+        obligations = self._store.seed.find_active_under(path)
         if not obligations:
             return ALLOW
 
@@ -168,8 +192,11 @@ class DeleteAuthority:
         - Calls :meth:`TorrentLister.get_completed` **once** (cached locally),
           fail-soft: any exception is logged and swallowed (never raised).
         - Correlates by **basename + size**: ``item.name == staging_source.name``
-          AND ``item.size_bytes == staging_source.stat().st_size`` (file). Zero
-          matches → MISS ``no-live-torrent``; more than one → MISS
+          AND ``item.size_bytes`` equals the staging size. For a FILE that is
+          ``staging_source.stat().st_size``; for a DIRECTORY (dispatch passes a
+          directory) it is the RECURSIVE content size — see :meth:`_staging_size`
+          (C1: a directory's bare inode size never matches a multi-GB torrent).
+          Zero matches → MISS ``no-live-torrent``; more than one → MISS
           ``name+size-ambiguous`` (never guessed).
         - The matched item must be seeding (``client.is_seeding(item)`` — a
           CLIENT method taking the item, per :class:`TorrentStateInspector`);
@@ -217,11 +244,10 @@ class DeleteAuthority:
 
         basename = staging_source.name
         try:
-            size = staging_source.stat().st_size
+            size = self._staging_size(staging_source)
         except OSError as exc:
-            # staging_source missing or a directory we can't size — folder
-            # torrents are out of scope for the size-based correlation; an
-            # honest MISS is correct rather than a name-only guess.
+            # staging_source missing, or an rglob/stat error while walking a
+            # directory tree — an honest MISS is correct rather than a guess.
             log.warning(
                 "acquire.record_dispatch.miss",
                 reason="stat-error",
@@ -229,6 +255,86 @@ class DeleteAuthority:
                 dispatched_dest=str(dispatched_dest),
             )
             return
+
+        # The whole correlation body below (match comprehension, is_seeding()
+        # client call, tracker resolution, obligation construction + write) is
+        # fail-soft per the §9 fail-open / §7.2 best-effort contract: a flaky
+        # client (is_seeding raising) or any unexpected error must NOT propagate
+        # into the dispatch FS path (write-before-move → would abort the move).
+        # Any unexpected exception → MISS reason="unexpected-error", never raised.
+        try:
+            self._correlate_and_record(
+                completed=completed,
+                basename=basename,
+                size=size,
+                dispatched_dest=dispatched_dest,
+            )
+        except Exception as exc:  # noqa: BLE001 — fail-soft correlation window
+            log.warning(
+                "acquire.record_dispatch.miss",
+                reason="unexpected-error",
+                error=str(exc),
+                dispatched_dest=str(dispatched_dest),
+            )
+            return
+
+    @staticmethod
+    def _staging_size(staging_source: Path) -> int:
+        """Return the byte size used to correlate *staging_source* to a torrent.
+
+        For a regular file this is ``stat().st_size``.  For a directory it is
+        the RECURSIVE content size — the sum of every contained file's size —
+        because ``dispatch_movie`` / ``dispatch_tvshow`` pass a DIRECTORY as the
+        staging source: its bare inode size (~KB) would never match a torrent's
+        multi-GB ``size_bytes``, so every directory dispatch MISSed and no
+        obligation was ever written (C1).  Stdlib-only (``rglob``) — acquire/
+        must not import dispatch/_transfer.
+
+        NOTE: processed / renamed media (sample-stripped, RAR-extracted,
+        renamed) may still MISS because the staging tree's total size diverges
+        from the torrent's reported size — that is an honest, fail-open MISS;
+        full torrent↔media linkage arrives with acquisition (RP5b).  This fix
+        makes the verbatim-folder-torrent case work, not every media case.
+
+        Args:
+            staging_source: The staging file or directory.
+
+        Returns:
+            The byte size to compare against ``item.size_bytes``.
+
+        Raises:
+            OSError: If ``stat`` on the source (or any walked file) fails — the
+                caller turns this into a fail-soft MISS reason="stat-error".
+        """
+        if staging_source.is_dir():
+            return sum(f.stat().st_size for f in staging_source.rglob("*") if f.is_file())
+        return staging_source.stat().st_size
+
+    def _correlate_and_record(
+        self,
+        *,
+        completed: "list[TorrentItem]",
+        basename: str,
+        size: int,
+        dispatched_dest: Path,
+    ) -> None:
+        """Correlate the staging source to a seeding torrent and write the obligation.
+
+        Extracted so the whole window (match, ``is_seeding`` client call,
+        tracker resolution, obligation construction + store write) sits inside a
+        single fail-soft guard in :meth:`record_dispatch`.  Emits the normal
+        §7.2 MISS reasons for the deterministic branches and the HIT on success.
+
+        Args:
+            completed: The cached list of completed torrents.
+            basename: ``staging_source.name`` to correlate on.
+            size: The (recursive) staging size to correlate on.
+            dispatched_dest: The destination path recorded on the obligation.
+        """
+        # ``self._store`` is non-None here (guarded by the record_dispatch
+        # pre-checks); assert for the type checker.
+        assert self._store is not None  # noqa: S101
+        assert self._torrent_client is not None  # noqa: S101
 
         matches = [t for t in completed if t.name == basename and t.size_bytes == size]
 
