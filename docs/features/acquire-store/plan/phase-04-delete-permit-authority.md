@@ -44,6 +44,11 @@ The concrete `DeleteAuthority` in `acquire/` imports `core/` and `acquire/store.
 
 - [ ] **Step 1: Write the failing test**
 
+> **Plan-drift (sub-phase 4.1):** Added Google-style docstrings to the four test
+> functions so `ruff D103` passes. The import block was also re-sorted by `ruff
+format` (I001) and unused imports (`PermitDecision`, `SeedObligationRecorder`)
+> were removed by the post-write hook.
+
 ```python
 # tests/core/test_delete_permit.py
 """Tests for core.delete_permit: Protocols + AllowAllPermit."""
