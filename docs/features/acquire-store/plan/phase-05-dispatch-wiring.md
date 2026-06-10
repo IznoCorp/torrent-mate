@@ -556,6 +556,31 @@ git commit -m "feat(acquire-store): three-state dispatch policy — breached_at 
 
 - Modify: `personalscraper/maintenance/disk_cleaner.py`
 
+> **CORRECTIVE NOTE (2026-06-10, sub-phase 5.4):** Built as specified with the
+> following refinements vs the original plan:
+>
+> - The VETO consult sits at the **top** of `_delete_dir` / `_delete_file`
+>   **before the dry-run branch** so dry-run previews correctly show what would
+>   be skipped — the plan's "before each real deletion" was corrected to
+>   "before the dry-run/real branch".
+> - `permit` threading reaches ALL deletion executors: `clean_library` →
+>   `_clean_media_dir` → `_delete_dir` / `_delete_file`, AND the direct
+>   `_delete_dir` call inside the `clean_library` orphan path.
+> - Command wiring (Step 3) uses `per_step_boundary(config, settings)` like
+>   `library_verify`, NOT a direct `AllowAllPermit()` placeholder — the real
+>   `DeleteAuthority` is built at the boundary and injected fail-open:
+>   `app_context.acquire.delete_authority` → `permit`, falling back to
+>   `AllowAllPermit()` on any store/acquire failure (§9 fail-open).
+> - `per_step_boundary` is independent of the existing `pipeline.lock`
+>   (`acquire_lock`/`release_lock`) — both coexist without conflict.
+> - Tests added: 5 hard-skip tests (VETO actor, VETO junk, dry-run skip
+>   count, ALLOW permit, fail-open default) + 1 E2E event-expectation update.
+> - disk_cleaner.py imports ONLY `core.delete_permit` — never `acquire/`.
+> - `skipped_by_obligation` is reported in CLI output for both dry-run and
+>   apply modes.
+>
+> Commits: `a8d60e66`, `aafeaa2e`
+
 - [ ] **Step 1: Add `permit` param to `clean_library`**
 
 In `personalscraper/maintenance/disk_cleaner.py`:
@@ -754,13 +779,28 @@ def test_scenario3_concurrent_write_does_not_hang(tmp_path: Path) -> None:
     store.close()
 ```
 
+> **CORRECTIVE NOTE (sub-phase 5.5): Scenario 3 above is STALE.** Sub-phase 3.4
+> dropped the lifetime FileLock; the real store uses lazy-open + SQLite-native
+> single-writer (WAL + BEGIN IMMEDIATE + busy_timeout=5000) + lock-free reads
+> (DESIGN §6.3). No `db_lock` is held for the store's lifetime, so there is no
+> lock to "hold while dispatch writes." The implemented test
+> (`test_scenario3_two_stores_same_db_no_deadlock`) proves the REAL model: two
+> stores on the same `db_path` both open, read (lock-free WAL), and write
+> (BEGIN IMMEDIATE serializes them; no hang, no AcquireLockError). The plan
+> draft's `db_lock(db_path, timeout=0)` + threading scenario would fail because
+> `record_dispatch` writes through the store (which uses `BEGIN IMMEDIATE`
+> under the shared connection, NOT a raw sqlite3 path), and the FileLock is
+> only held briefly around open+migrate — it is never held by the time
+> `record_dispatch` runs. The new test is a correct, deterministic,
+> single-process demonstration of the lock-free-concurrency model.
+
 - [ ] **Step 2: Run crash-window tests — expect PASS**
 
 ```bash
 cd /Users/izno/dev/PersonnalScaper && python -m pytest tests/acquire/test_crash_window.py -v 2>&1 | tail -15
 ```
 
-Expected: `3 passed`
+Expected: `5 passed` (4 scenarios; Scenario 2 split into stale-inert + re-runnable)
 
 - [ ] **Step 3: Run full test suite**
 
