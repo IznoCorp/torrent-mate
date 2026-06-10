@@ -1,35 +1,49 @@
-# Implementation Progress — acquire-lobe
+# Implementation Progress — acquire-store
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: RP5c — acquire/ lobe + single injection handle (minor)
-**Version bump**: 0.24.0 → 0.25.0
-**Branch**: feat/acquire-lobe
+**Feature**: RP3 — acquire.db store + single deletion authority (minor)
+**Version bump**: 0.25.0 → 0.26.0
+**Branch**: feat/acquire-store
 **PR merge**: manual
-**PR**: https://github.com/IznoCorp/personal-scraper/pull/143
-**Design**: docs/features/acquire-lobe/DESIGN.md
-**Master plan**: docs/features/acquire-lobe/plan/INDEX.md
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/144
+**Design**: docs/features/acquire-store/DESIGN.md
+**Master plan**: docs/features/acquire-store/plan/INDEX.md
 
 ## Phases
 
-| #   | Phase                                                             | File                             | Status |
-| --- | ----------------------------------------------------------------- | -------------------------------- | ------ |
-| 1   | acquire/ skeleton + AcquireStore + AcquireContext + close() tests | phase-01-package-skeleton.md     | [x]    |
-| 2   | build_acquire_context factory + tests                             | phase-02-factory.md              | [x]    |
-| 3   | AppContext swap + cli_helpers wiring + wiring tests               | phase-03-appcontext-wiring.md    | [x]    |
-| 4   | Layering guard extension (acquire/ → never triage)                | phase-04-layering-guard.md       | [x]    |
-| 5   | ACCEPTANCE.md + architecture.md update + make check gate          | phase-05-acceptance-docs-gate.md | [x]    |
+| #   | Phase                                         | File                                | Status |
+| --- | --------------------------------------------- | ----------------------------------- | ------ |
+| 1   | core/sqlite extraction                        | phase-01-core-sqlite-extraction.md  | [x]    |
+| 2   | core/identity + AcquireConfig + acquire.json5 | phase-02-identity-config.md         | [x]    |
+| 3   | acquire/domain + schema + store               | phase-03-domain-schema-store.md     | [x]    |
+| 4   | core/delete_permit + acquire/delete_authority | phase-04-delete-permit-authority.md | [x]    |
+| 5   | Dispatch-time writer + per-site wiring        | phase-05-dispatch-wiring.md         | [x]    |
+| 6   | Guardrails + docs + gate                      | phase-06-guardrails-docs-gate.md    | [x]    |
+| 7   | PR review fixes — cycle 1                     | phase-07-pr-fixes-cycle-1.md        | [x]    |
 
 ## Review cycles
 
 ### Cycle 1
 
-- Toolkit: 5 agents (code-reviewer, pr-test-analyzer, type-design-analyzer, silent-failure-hunter, comment-analyzer) on the feat/acquire-lobe diff (PR #143).
-- Verdict: faithful, well-tested, DESIGN-conformant skeleton. code-reviewer: 0 findings ≥80% confidence. pr-test-analyzer **independently mutation-verified** the close() non-ownership guard (injected `torrent_client.close()` → 2 tests RED → reverted) + the per_step_boundary None-guard; 0 critical gaps, 0 vacuous tests. silent-failure: no critical silent failure introduced (TrackerConfigError surfaces correctly, close() None-guards correct).
-- Retained findings (all **minor** for RP5c — latent/cosmetic): (1) `AcquireContext.close()` docstring "Raises: Nothing" over-promised (3-agent convergence) — holds today (tracker_registry fail-soft, store always None) but inaccurate for a future RP3 raising store; (2) `acquire/__init__` docstring `sort`→`sorter` (no `sort` package); (3) `cb_policy` docstring missing the "reserved/not-yet-threaded" note.
-- Ignored (filtered vs DESIGN): per_step_boundary `finally` masking = **pre-existing on main** (not a regression; fault-isolation flagged for RP3, out of RP5c blast radius); pipeline_events/pipeline_protocol guard gap = in-spec (DESIGN §3 enumeration); test/type minors = design-sanctioned (`| None` optionality per §4.4, `runtime_checkable` marker, exact field-set assertion).
-- Decision: **Case A** (no critical/major/medium). Applied the 3 doc-only fixes in commit `450bcaa9` (zero behaviour change, 18 acquire tests pass). Loop terminal-clean. merge=manual → handoff to operator for squash merge.
+- Toolkit: 4 agents (silent-failure-hunter, code-reviewer, pr-test-analyzer, type-design-analyzer) on the feat/acquire-store diff (PR #144), focused on fail-open correctness, concurrency, real-API usage, layering. CI green at review time.
+- Retained findings (all design-conformant — implementation did not match design intent; NO design contradiction):
+  - **C1 (major)** `record_dispatch` correlates by `staging_source.stat().st_size`, but dispatch passes a directory → directory inode size never equals the torrent's `size_bytes` → no obligation ever written in production. Vacuous tests (single files, not dirs) masked it.
+  - **C2 (major)** `library_clean` calls `clean_library(permit=…)` outside the `per_step_boundary` block → store closed before `may_delete` → swallowed → ALLOW → maintenance hard-skip can never fire.
+  - **F1 (major)** `may_delete` path-exists guard (`Path(dp).exists()`) sits outside the fail-open `try/except` → can raise `OSError` (ENAMETOOLONG/EACCES) → fails CLOSED into the deleter.
+  - **F2 (major)** permit consult sites (disk*cleaner `\_delete*\*`, dispatch `\_movie`/`\_tv`) unwrapped → a raising permit aborts cleanup/dispatch (DESIGN §7.3 requires the consult itself be fail-open).
+  - **T1 (medium)** `SeedObligation.min_seed_time_s`/`min_ratio` have no `>= 0` guard; a negative value defeats the HnR comparison (`delete_authority.py:137`).
+  - F3 (minor, folded in) `record_dispatch` correlation window (`is_seeding()`) unguarded vs the "never raises" contract.
+- Decision: **Case B** (major/medium present). Fix phase 7 executed (2 Opus batches, 5 commits `b68855f5`→`eb9cbcf9`); regression test per bug (project rule).
+- Fixes applied + independently re-verified:
+  - **C1** `record_dispatch._staging_size` sums recursive file bytes for directory sources (stdlib `rglob`, no dispatch import) → matches the torrent `size_bytes`; verbatim-folder-torrent dispatch now records an obligation. Smoke: directory source → obligation row written.
+  - **C2** `library_clean` runs `clean_library` + reporting **inside** the `per_step_boundary` block via `_run_and_report(permit)`; store stays open across `may_delete`; authority-build failure still fail-opens to `AllowAllPermit`; `clean_library`'s own errors re-raise. Smoke: descendant obligation → dir hard-skipped, `skipped_by_obligation=1`.
+  - **F1** `may_delete` fail-open `try/except` widened over the whole obligation loop (`_evaluate_obligations`) → `Path.exists()` OSError → ALLOW (mutation-proven). **F3** correlation window (`_correlate_and_record`) made fully fail-soft (`is_seeding`/store-write errors → MISS, never raises).
+  - **F2** every `permit.may_delete(...)` consult (disk*cleaner `\_delete*_`, dispatch `\_movie`/`\_tv`) wrapped → a raising permit → ALLOW + `_.permit_error` log, never aborts.
+  - **T1** `SeedObligation.__post_init__` rejects negative `min_seed_time_s`/`min_ratio`; DB `CHECK` added to `001_init.sql`.
+  - Closed the wiring test gaps that masked C2: DispatchStep authority forwarding (permit==recorder), factory economy-map construction.
+- Gate: `make check` 6445 / `make test` 6603, 0 failed. Deleters still ⇏ acquire (layering green). Pushed; CI re-running. Merge = manual → operator squash-merges once CI green.
 
 ## Next action
 
-All 5 phases done + PR #143 created + CI green + review cycle 1 terminal-clean (3 doc-only fixes applied). **Ready for MANUAL squash merge** (`gh pr merge 143 --squash` or GitHub UI). After merge: next `/implement:feature` archives acquire-lobe.
+Review cycle 1 fixes pushed + locally green. **Awaiting CI green on PR #144, then MANUAL squash merge** (`gh pr merge 144 --squash` or GitHub UI). After merge: next `/implement:feature` archives acquire-store.

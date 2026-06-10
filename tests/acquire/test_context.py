@@ -28,15 +28,15 @@ def test_acquire_context_is_frozen_dataclass() -> None:
 
 
 def test_acquire_context_fields() -> None:
-    """AcquireContext has tracker_registry, store, torrent_client fields."""
+    """AcquireContext has tracker_registry, store, delete_authority, torrent_client."""
     from personalscraper.acquire.context import AcquireContext
 
     fields = {f.name for f in dataclasses.fields(AcquireContext)}
-    assert fields == {"tracker_registry", "store", "torrent_client"}
+    assert fields == {"tracker_registry", "store", "delete_authority", "torrent_client"}
 
 
 def test_acquire_context_store_and_torrent_client_default_none() -> None:
-    """Store and torrent_client default to None."""
+    """Store, delete_authority, and torrent_client default to None."""
     from personalscraper.acquire.context import AcquireContext
     from personalscraper.api.tracker._ranking import RankingConfig
     from personalscraper.api.tracker._registry import TrackerRegistry
@@ -44,6 +44,7 @@ def test_acquire_context_store_and_torrent_client_default_none() -> None:
     registry = TrackerRegistry(trackers={}, priority=[], ranking=RankingConfig())
     ctx = AcquireContext(tracker_registry=registry)
     assert ctx.store is None
+    assert ctx.delete_authority is None
     assert ctx.torrent_client is None
 
 
@@ -104,3 +105,20 @@ class TestAcquireContextClose:
         ctx.close()
         torrent_client.close.assert_not_called()
         store.close.assert_called_once()
+
+    def test_delete_authority_is_stateless_not_closed(self) -> None:
+        """NON-OWNERSHIP GUARD: close() must NEVER touch delete_authority.
+
+        delete_authority is stateless (has no close() method) and borrows the
+        store handle.  close() must not call any method on it.
+        """
+        from personalscraper.acquire.delete_authority import DeleteAuthority
+
+        store = MagicMock()
+        delete_auth = DeleteAuthority(store=store)
+        ctx = self._make_ctx(store=store)
+        # Use object.__setattr__ to inject on frozen dataclass (test-only).
+        object.__setattr__(ctx, "delete_authority", delete_auth)
+        ctx.close()
+        # close() must not touch delete_authority — no attribute access, no call.
+        # (delete_authority has no close(), so any close() call would AttributeError.)

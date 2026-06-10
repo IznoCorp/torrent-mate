@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from personalscraper.conf import resolver
+from personalscraper.core.delete_permit import ALLOW
 from personalscraper.dispatch import _transfer
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.disk_scanner import get_disk_status
@@ -80,6 +81,27 @@ def dispatch_movie(
             result.action = "replaced"
             result.reason = f"[DRY RUN] Would replace on {existing.disk}"
             return result
+        # Three-state seedtime-aware policy (DESIGN §7.3): the replace deletes the
+        # OLD on-disk content. If a live seed obligation on it is unmet, the new
+        # real media still wins (O3) — but the breach is recorded, never silent.
+        # Relocate-not-delete is deferred to O2/O3, so we proceed either way.
+        #
+        # F2: the consult is fail-open (DESIGN §7.3 / §9). A permit whose
+        # may_delete raises must NOT crash the dispatch — treat the error as
+        # ALLOW (the replace proceeds, real media wins) and do NOT mark_breach
+        # on an errored consult (a breach is only recorded on a positive VETO).
+        try:
+            decision = dispatcher._permit.may_delete(dest)
+        except Exception as exc:
+            log.warning("dispatch.permit_error", path=str(dest), error=str(exc), action="replace")
+            decision = ALLOW
+        if decision is not ALLOW:
+            log.warning("acquire.hnr_risk", path=str(dest), reason=str(decision), action="replace")
+            dispatcher._recorder.mark_breach(dest)
+        # Write-before-move (DESIGN §7.2): record the obligation for the NEWLY
+        # dispatched media BEFORE the FS move, so a crash mid-move never loses
+        # the safety constraint. Fail-soft (never raises).
+        dispatcher._recorder.record_dispatch(staging_source=movie_dir, dispatched_dest=dest)
         success = replace(movie_dir, dest, capability=cap)
         result.action = "replaced" if success else "error"
     else:
@@ -112,6 +134,12 @@ def dispatch_movie(
             result.action = "moved"
             result.reason = f"[DRY RUN] Would move to {target_disk.id}"
             return result
+        # Write-before-move (DESIGN §7.2): the new media may itself be a live
+        # seed, so record its obligation BEFORE the FS move. No permit consult
+        # here — there is no pre-existing library content to delete (only the
+        # staging copy is removed after the move, and ingest copies seeding
+        # torrents, so that copy is not the qBit-seeding payload).
+        dispatcher._recorder.record_dispatch(staging_source=movie_dir, dispatched_dest=dest)
         success = dispatcher._move_new(movie_dir, dest, capability=cap)
         result.action = "moved" if success else "error"
 

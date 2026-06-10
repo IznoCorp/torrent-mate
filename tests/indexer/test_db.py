@@ -183,8 +183,8 @@ class TestStaleLockRecovery:
                     return True
             return False
 
-        assert _has_structlog_event("indexer.lock.stale_recovered"), (
-            f"Expected 'indexer.lock.stale_recovered' in caplog; got: {[r.msg for r in caplog.records]}"
+        assert _has_structlog_event("core.sqlite.lock.stale_recovered"), (
+            f"Expected 'core.sqlite.lock.stale_recovered' in caplog; got: {[r.msg for r in caplog.records]}"
         )
 
 
@@ -394,7 +394,7 @@ class TestMacFuseNtfsRejection:
         fake_mount_output = f"/dev/disk2s1 on {resolved_tmp} (ufsd_NTFS, local, noatime)\n"
 
         with patch(
-            "personalscraper.indexer._fs_probe._run_mount",
+            "personalscraper.core.sqlite._fs_probe._run_mount",
             return_value=fake_mount_output,
         ):
             with pytest.raises(IndexerInvalidPathError) as exc_info:

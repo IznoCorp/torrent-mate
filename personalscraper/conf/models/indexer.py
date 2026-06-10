@@ -207,13 +207,14 @@ class IndexerConfig(_StrictModel):
             resolved = (base / resolved).resolve()
 
         # Capability-aware WAL-safety check. Import here (not at module level)
-        # to avoid a circular import: conf → indexer → conf. This lazy,
-        # in-validator upward import is a documented, intentional boundary
-        # (DESIGN: db_path WAL-safety needs FsProbe); the per-line marker below
-        # opts it out of the conf/ layering guard while keeping the rest of the
-        # module guarded.
+        # because this is a Pydantic validator — lazy avoids the conf import
+        # scanning the whole core tree at model-class definition time.
+        # conf→core is a legal downward import (DESIGN: db_path WAL-safety
+        # needs FsProbe).
         try:
-            from personalscraper.indexer._fs_probe import probe_mount  # layering: allow — lazy WAL-safety probe
+            from personalscraper.core.sqlite._fs_probe import (
+                probe_mount,  # lazy WAL-safety probe (conf→core, clean layering)
+            )
 
             info = probe_mount(str(resolved))
             fs_type = info.fs_type if info is not None else None

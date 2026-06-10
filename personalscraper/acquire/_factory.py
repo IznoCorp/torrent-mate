@@ -12,6 +12,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from personalscraper.acquire.context import AcquireContext
+from personalscraper.acquire.delete_authority import build_delete_authority
+from personalscraper.acquire.store import build_acquire_store
 from personalscraper.api.tracker._factory import build_tracker_registry
 
 if TYPE_CHECKING:
@@ -35,9 +37,20 @@ def build_acquire_context(
 
     Delegates tracker registry construction to the unchanged
     :func:`~personalscraper.api.tracker._factory.build_tracker_registry`
-    (RP5a). Sets ``store=None`` — RP3 fills the slot when the acquisition
-    DB is wired. Borrows ``torrent_client`` from the caller; does NOT build
-    or validate it (that is the torrent-client boundary's responsibility).
+    (RP5a). Fills the ``store`` slot with a **lazily-built**
+    :class:`~personalscraper.acquire.store.ConcreteAcquireStore`
+    (:func:`~personalscraper.acquire.store.build_acquire_store`): the handle is
+    inert at build time — it opens no connection, takes no lock and runs no
+    migration until the first sub-store access. Open/migration errors
+    (``AcquireLockError`` / ``AcquireCorruptError`` / ``AcquireMigrationError``)
+    therefore surface at **first access**, not at boot — fail-open-friendly for
+    the deletion path. Tracker errors still fail loud at boot. Borrows
+    ``torrent_client`` from the caller; does NOT build or validate it (that is
+    the torrent-client boundary's responsibility).
+
+    Also builds a stateless :class:`DeleteAuthority` over the same lazy store:
+    it is fail-open (returns ALLOW) when the store is ``None``, and costs
+    nothing at boot.
 
     ``TrackerConfigError`` raised by ``build_tracker_registry`` propagates
     unchanged — fail-loud at the same boundary as ``RegistryConfigError``.
@@ -54,8 +67,9 @@ def build_acquire_context(
             the ``ingest`` boundary.
 
     Returns:
-        A populated :class:`AcquireContext` with ``tracker_registry`` set,
-        ``store=None``, and ``torrent_client`` forwarded.
+        A populated :class:`AcquireContext` with ``tracker_registry`` set, a
+        lazily-built ``store`` (opens on first use), a stateless
+        ``delete_authority``, and ``torrent_client`` forwarded.
 
     Raises:
         TrackerConfigError: Any error-severity issue found in the tracker
@@ -68,9 +82,30 @@ def build_acquire_context(
         event_bus=event_bus,
         cb_policy=cb_policy,
     )
+    # Inert at build (no I/O): opens lazily on first sub-store access. A mock
+    # config whose .acquire is never touched leaks nothing, so no path guard is
+    # needed at the composition root.
+    store = build_acquire_store(config.acquire)
+    # Per-tracker seeding economy map (tracker_name → TrackerEconomyConfig) for
+    # the dispatch-time obligation writer (DESIGN §7.2). Only trackers that
+    # declare an explicit `economy` block participate; activation-only trackers
+    # (economy is None) are intentionally absent, so record_dispatch records an
+    # honest tracker-unresolved MISS for their torrents.
+    economy = {
+        name: provider.economy for name, provider in config.tracker.providers.items() if provider.economy is not None
+    }
+    # Stateless — fail-open when store is None, costs nothing at boot. The
+    # torrent_client (read-only here) and economy feed record_dispatch's
+    # basename+size correlation + tracker resolution.
+    delete_authority = build_delete_authority(
+        store=store,
+        torrent_client=torrent_client,
+        economy=economy,
+    )
     return AcquireContext(
         tracker_registry=tracker_registry,
-        store=None,
+        store=store,
+        delete_authority=delete_authority,
         torrent_client=torrent_client,
     )
 

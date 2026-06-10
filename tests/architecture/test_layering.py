@@ -373,3 +373,117 @@ def test_acquire_downward_import_is_not_flagged() -> None:
     source = "from personalscraper.api import something\n"
     violations = _collect_violations_from_source(source, _ACQUIRE_SYNTHETIC_REL, _TRIAGE_PREFIXES)
     assert violations == [], f"downward api/ import should not be flagged, got: {violations}"
+
+
+# ---------------------------------------------------------------------------
+# Deleter ⇏ acquire/ guard — RP3 (D3 extended)
+#
+# ``maintenance/`` and ``dispatch/`` are the two deletion sites.  They must
+# import ONLY ``core.delete_permit`` port types, never the concrete ``acquire/``
+# implementation.  The concrete authority is injected at the composition root
+# ($7.4 of DESIGN.md).  The three tests below share ONE scanner
+# (``_scan_deleters_for_acquire_import`` → ``_collect_violations_from_source``)
+# so the positive control is non-vacuous: if the scanner rots into a no-op the
+# anchor test fails.
+# ---------------------------------------------------------------------------
+
+_DELETER_FORBIDDEN_ACQUIRE = ("personalscraper.acquire",)
+
+_DELETER_MODULES: list[Path] = [
+    _PACKAGE_ROOT / "maintenance",
+    _PACKAGE_ROOT / "dispatch",
+]
+
+
+def _scan_deleters_for_acquire_import(module_dirs: list[Path]) -> list[str]:
+    """Return violation strings for any ``personalscraper.acquire.*`` import.
+
+    Walks every ``*.py`` under *module_dirs* and delegates to
+    ``_collect_violations_from_source`` — the same scanner engine used by the
+    core/conf and acquire/ guards.  Decoupled from the forbidden-prefix list
+    so the positive/negative controls exercise the identical code path.
+
+    Args:
+        module_dirs: Package directories to scan recursively.
+
+    Returns:
+        List of human-readable violation strings (empty if none).
+    """
+    violations: list[str] = []
+    for module_dir in module_dirs:
+        if not module_dir.is_dir():
+            continue
+        for py_file in sorted(module_dir.rglob("*.py")):
+            rel = py_file.relative_to(_REPO_ROOT).as_posix()
+            try:
+                source = py_file.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            violations.extend(_collect_violations_from_source(source, rel, _DELETER_FORBIDDEN_ACQUIRE))
+    return violations
+
+
+def test_deleters_do_not_import_acquire() -> None:
+    """No module under dispatch/ or maintenance/ imports acquire/ at runtime."""
+    violations = _scan_deleters_for_acquire_import(_DELETER_MODULES)
+    assert not violations, (
+        "dispatch/ or maintenance/ has forbidden acquire/ imports "
+        "(deleters must only use core.delete_permit port types):\n" + "\n".join(violations)
+    )
+
+
+def test_deleter_acquire_import_is_flagged() -> None:
+    """POSITIVE control: a synthetic dispatch/ file importing acquire/ IS flagged.
+
+    Creates a temporary probe file on disk inside ``personalscraper/dispatch/``,
+    runs the REAL scanner ``_scan_deleters_for_acquire_import`` over the dispatch/
+    directory, and asserts the forbidden import is detected.  The probe is
+    cleaned up in a ``finally`` block so it never persists in the tree.
+
+    This is the non-vacuous anchor — if ``_collect_violations_from_source``
+    were broken into an always-empty stub, this assertion would fail.
+    """
+    probe_path = _PACKAGE_ROOT / "dispatch" / "_synthetic_acquire_probe.py"
+    assert not probe_path.exists(), (
+        f"Probe file {probe_path} already exists — "
+        "a previous test run may have leaked it. Delete it manually and re-run."
+    )
+    try:
+        probe_path.write_text(
+            "from personalscraper.acquire.store import ConcreteAcquireStore\n",
+            encoding="utf-8",
+        )
+        violations = _scan_deleters_for_acquire_import([_PACKAGE_ROOT / "dispatch"])
+        assert violations, (
+            "deleter acquire guard failed to flag a synthetic acquire import "
+            "(vacuous guard — the scanner did not detect the forbidden import)"
+        )
+        assert any("personalscraper.acquire" in v for v in violations), (
+            f"expected 'personalscraper.acquire' in violation message, got: {violations}"
+        )
+    finally:
+        if probe_path.exists():
+            probe_path.unlink()
+
+
+def test_deleter_core_import_is_not_flagged() -> None:
+    """NEGATIVE control: a synthetic dispatch/ file importing ``core.delete_permit`` is NOT flagged.
+
+    Same tmp-file discipline as the positive control.  ``core/`` is the neutral
+    leaf — deleters are allowed (and expected) to depend on the port types.
+    """
+    probe_path = _PACKAGE_ROOT / "dispatch" / "_synthetic_core_probe.py"
+    assert not probe_path.exists(), (
+        f"Probe file {probe_path} already exists — "
+        "a previous test run may have leaked it. Delete it manually and re-run."
+    )
+    try:
+        probe_path.write_text(
+            "from personalscraper.core.delete_permit import AllowAllPermit\n",
+            encoding="utf-8",
+        )
+        violations = _scan_deleters_for_acquire_import([_PACKAGE_ROOT / "dispatch"])
+        assert violations == [], f"core.delete_permit import was wrongly flagged as an acquire/ violation: {violations}"
+    finally:
+        if probe_path.exists():
+            probe_path.unlink()

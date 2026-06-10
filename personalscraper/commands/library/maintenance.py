@@ -185,6 +185,12 @@ def library_clean(
         personalscraper library-clean --only orphans --apply        # delete
         personalscraper library-clean --disk Disk1
     """
+    # Local imports for fail-open delete authority building.
+    # Kept inside the function to stay off the module's hot path and avoid
+    # pulling per_step_boundary (+ its transitive AppContext build) for every
+    # library-* command.
+    from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
+    from personalscraper.core.delete_permit import AllowAllPermit, DeletePermit  # noqa: PLC0415
     from personalscraper.maintenance.disk_cleaner import clean_library
 
     category_id = _resolve_category(ctx, category)
@@ -209,7 +215,20 @@ def library_clean(
             console.print("[red]Another instance is running. Exiting.[/red]")
             raise typer.Exit(1)
 
-    try:
+    def _run_and_report(permit: DeletePermit) -> None:
+        """Run ``clean_library`` with *permit* and render the result.
+
+        Extracted so the body can run BOTH inside the per_step_boundary scope
+        (when the authority builds — the acquire store must stay OPEN while
+        ``clean_library`` consults ``permit.may_delete``) AND on the fail-open
+        fallback path (build failed → ``AllowAllPermit``). Exceptions raised
+        here propagate to the caller — only an authority-BUILD failure is
+        fail-open; ``clean_library``'s own errors must NOT be swallowed.
+
+        Args:
+            permit: The deletion authority (live ``DeleteAuthority`` or the
+                fail-open ``AllowAllPermit`` fallback).
+        """
         mode = "[bold red]APPLY[/bold red]" if apply else "[bold yellow]DRY-RUN[/bold yellow]"
         console.print(f"[bold]Cleaning library ({mode})...[/bold]")
 
@@ -219,6 +238,7 @@ def library_clean(
             only=only,
             disk_filter=disk,
             category_filter=category_id,
+            permit=permit,
         )
 
         if result.dry_run:
@@ -226,6 +246,8 @@ def library_clean(
                 f"[yellow]DRY-RUN:[/yellow] Would delete {result.deleted_count} items "
                 f"({result.freed_bytes / 1024 / 1024:.1f} MB)"
             )
+            if result.skipped_by_obligation:
+                console.print(f"[blue]Skipped by seed obligation:[/blue] {result.skipped_by_obligation} item(s)")
             # Orphan deletes a whole release directory at once — high blast
             # radius. List the first matches so the operator can sanity-check
             # before re-running with --apply.
@@ -241,10 +263,48 @@ def library_clean(
                 f"[green]Deleted:[/green] {result.deleted_count} items "
                 f"({result.freed_bytes / 1024 / 1024:.1f} MB freed)"
             )
+            if result.skipped_by_obligation:
+                console.print(f"[blue]Skipped by seed obligation:[/blue] {result.skipped_by_obligation} item(s)")
             if result.error_count:
                 console.print(f"[red]Errors:[/red] {result.error_count} deletions failed (NTFS)")
                 for err in result.errors:
                     console.print(f"  {err}")
+
+    # Build the fail-open deletion authority from the acquisition lobe
+    # (DESIGN §7.4 / §9), then run clean_library WHILE the store is still open.
+    #
+    # C2 fix: ``permit.may_delete`` reads the acquire store, so the store must
+    # stay OPEN for the whole clean_library run. The boundary's ``finally``
+    # closes ``app_context.acquire`` on exit — so clean_library MUST execute
+    # INSIDE the ``with`` block (a previous version derived the permit inside,
+    # then ran clean_library after the block had already closed the store →
+    # may_delete hit "AcquireStore is closed" → fail-open ALLOW swallowed the
+    # hard-skip). On a build/enter failure (store absent, unreadable, migration
+    # error) we fall through to the AllowAllPermit path so cleanup still runs
+    # (fail-open, DESIGN §9). clean_library's OWN exceptions are NOT swallowed:
+    # the ``cleaned`` flag flips to True the instant we hand control to
+    # ``_run_and_report``, so an exception after that point re-raises instead of
+    # being mistaken for an authority-build failure.
+    settings = cli_compat.get_settings()
+    cleaned = False
+    try:
+        try:
+            with per_step_boundary(config, settings) as app_context:
+                acquire = getattr(app_context, "acquire", None)
+                authority = getattr(acquire, "delete_authority", None) if acquire is not None else None
+                permit: DeletePermit = authority if authority is not None else AllowAllPermit()
+                # Run + report INSIDE the boundary so the store is alive for
+                # every may_delete consult.
+                cleaned = True
+                _run_and_report(permit)
+        except Exception:
+            if cleaned:
+                # The failure came from clean_library / reporting (not the
+                # authority build) — do NOT swallow it as fail-open.
+                raise
+            # Fail-open: building/entering the authority failed → cleanup still
+            # proceeds with an always-ALLOW permit (DESIGN §9).
+            _run_and_report(AllowAllPermit())
     finally:
         if apply:
             cli_compat.release_lock()

@@ -5,7 +5,7 @@ the composition root and carrying the owned/borrowed service handles needed
 by the acquisition lobe.
 
 Import direction: this module imports only from ``personalscraper.api`` and
-``personalscraper.acquire._ports`` — never from triage packages.
+``personalscraper.acquire`` — never from triage packages.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from personalscraper.acquire._ports import AcquireStore
+    from personalscraper.acquire.delete_authority import DeleteAuthority
     from personalscraper.api.torrent.qbittorrent import QBitClient
     from personalscraper.api.torrent.transmission import TransmissionClient
     from personalscraper.api.tracker._registry import TrackerRegistry
@@ -31,6 +32,10 @@ class AcquireContext:
     - ``tracker_registry``: OWNED — RP5a port, migrated from ``AppContext``.
       ``close()`` will call ``tracker_registry.close()``.
     - ``store``: OWNED (when present) — filled by RP3; ``close()`` propagates.
+    - ``delete_authority``: BORROWED (stateless) — built at the same boundary
+      as ``store``; borrows the store handle (no lifecycle of its own).
+      ``close()`` does NOT touch ``delete_authority`` — it has no ``close()``
+      method and owns no resources.
     - ``torrent_client``: BORROWED — shared with ``ingest``; its lifecycle is
       managed by the ``ingest`` boundary, NOT here. ``close()`` must NOT call
       ``torrent_client.close()``.
@@ -40,12 +45,15 @@ class AcquireContext:
             boot; may be empty when all trackers are disabled).
         store: ``AcquireStore`` implementation or ``None``.  Slot filled by
             RP3 when the acquisition DB is wired.
+        delete_authority: ``DeleteAuthority`` or ``None``.  Stateless resolver
+            that borrows the store — fail-open when store is ``None``.
         torrent_client: Active torrent client or ``None``.  Borrowed from
             the shared port — ``close()`` does not own its lifecycle.
     """
 
     tracker_registry: "TrackerRegistry"
     store: "AcquireStore | None" = None
+    delete_authority: "DeleteAuthority | None" = None
     torrent_client: "QBitClient | TransmissionClient | None" = None
 
     def close(self) -> None:
@@ -53,6 +61,8 @@ class AcquireContext:
 
         Does NOT close ``torrent_client`` — that handle is shared with the
         ``ingest`` boundary which owns its lifecycle.
+        Does NOT close ``delete_authority`` — it is stateless, borrows the
+        store handle, and has no ``close()`` method.
 
         Raises:
             Exception: If ``store.close()`` raises (after RP3 wires it).

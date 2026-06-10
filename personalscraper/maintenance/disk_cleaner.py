@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
 
 from personalscraper._fs_utils import is_apple_double
+from personalscraper.core.delete_permit import ALLOW, AllowAllPermit, DeletePermit, PermitDecision
 from personalscraper.logger import get_logger
 
 log = get_logger("library.disk_cleaner")
@@ -76,6 +77,10 @@ class CleanResult:
         deleted_count: Number of items deleted (or would-be-deleted in dry-run).
         error_count: Number of deletion failures (NTFS errors, etc.).
         freed_bytes: Approximate bytes freed (or would be freed).
+        skipped_by_obligation: Number of deletions vetoed by the
+            :class:`~personalscraper.core.delete_permit.DeletePermit`
+            (hard-skip — counted but never deleted in both dry-run and
+            apply modes).
         details: Per-item details (path + action).
         errors: Per-item error details (path + error message).
     """
@@ -84,6 +89,7 @@ class CleanResult:
     deleted_count: int = 0
     error_count: int = 0
     freed_bytes: int = 0
+    skipped_by_obligation: int = 0
     details: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
@@ -215,11 +221,22 @@ def _scandir_rmtree(path: Path, ghosts: list[str] | None = None) -> None:
     os.rmdir(path)
 
 
-def _delete_dir(path: Path, result: CleanResult, dry_run: bool, label: str, db_path: Path) -> None:
+def _delete_dir(
+    path: Path,
+    result: CleanResult,
+    dry_run: bool,
+    label: str,
+    db_path: Path,
+    permit: DeletePermit = AllowAllPermit(),
+) -> None:
     """Delete a directory, handling NTFS errors gracefully.
 
     On a successful real deletion (not dry-run) publishes a best-effort
     outbox event so the indexer can reconcile removed content at drain time.
+
+    Consults *permit* before any deletion (VETO → hard-skip, counted as
+    ``skipped_by_obligation``). The consult runs in both dry-run and apply
+    modes so a dry-run preview correctly shows what would be skipped.
 
     Args:
         path: Directory to delete.
@@ -228,7 +245,27 @@ def _delete_dir(path: Path, result: CleanResult, dry_run: bool, label: str, db_p
         label: Human label for logging (e.g. ".actors", "empty dir").
         db_path: Resolved ``Config.indexer.db_path`` forwarded to
             :func:`_publish_deleted` (DESIGN §9.4).
+        permit: Deletion authority (fail-open default: AllowAllPermit).
     """
+    # F2: the consult itself is fail-open (DESIGN §7.3 / §9). A permit whose
+    # may_delete raises must NOT abort cleanup — treat the error as ALLOW (the
+    # deletion proceeds) and log it. Without this guard a raising permit would
+    # propagate out of _delete_dir and fail the whole clean run CLOSED.
+    try:
+        decision: PermitDecision = permit.may_delete(path)
+    except Exception as exc:
+        log.warning("disk_cleaner.permit_error", path=str(path), label=label, error=str(exc))
+        decision = ALLOW
+    if decision is not ALLOW:
+        log.info(
+            "disk_cleaner.skipped_by_obligation",
+            path=str(path),
+            label=label,
+            reason=str(decision),
+        )
+        result.skipped_by_obligation += 1
+        return
+
     size = _dir_size(path)
     if dry_run:
         result.deleted_count += 1
@@ -281,11 +318,22 @@ def _delete_dir(path: Path, result: CleanResult, dry_run: bool, label: str, db_p
             )
 
 
-def _delete_file(path: Path, result: CleanResult, dry_run: bool, label: str, db_path: Path) -> None:
+def _delete_file(
+    path: Path,
+    result: CleanResult,
+    dry_run: bool,
+    label: str,
+    db_path: Path,
+    permit: DeletePermit = AllowAllPermit(),
+) -> None:
     """Delete a single file, handling errors gracefully.
 
     On a successful real deletion (not dry-run) publishes a best-effort
     outbox event so the indexer can reconcile removed content at drain time.
+
+    Consults *permit* before any deletion (VETO → hard-skip, counted as
+    ``skipped_by_obligation``). The consult runs in both dry-run and apply
+    modes so a dry-run preview correctly shows what would be skipped.
 
     Args:
         path: File to delete.
@@ -294,7 +342,26 @@ def _delete_file(path: Path, result: CleanResult, dry_run: bool, label: str, db_
         label: Human label for logging.
         db_path: Resolved ``Config.indexer.db_path`` forwarded to
             :func:`_publish_deleted` (DESIGN §9.4).
+        permit: Deletion authority (fail-open default: AllowAllPermit).
     """
+    # F2: the consult itself is fail-open (DESIGN §7.3 / §9). A permit whose
+    # may_delete raises must NOT abort cleanup — treat the error as ALLOW (the
+    # deletion proceeds) and log it.
+    try:
+        decision: PermitDecision = permit.may_delete(path)
+    except Exception as exc:
+        log.warning("disk_cleaner.permit_error", path=str(path), label=label, error=str(exc))
+        decision = ALLOW
+    if decision is not ALLOW:
+        log.info(
+            "disk_cleaner.skipped_by_obligation",
+            path=str(path),
+            label=label,
+            reason=str(decision),
+        )
+        result.skipped_by_obligation += 1
+        return
+
     try:
         size = path.stat().st_size
     except OSError:
@@ -412,6 +479,7 @@ def clean_library(
     only: str | None = None,
     disk_filter: str | None = None,
     category_filter: str | None = None,
+    permit: DeletePermit = AllowAllPermit(),
 ) -> CleanResult:
     """Clean the media library across storage disks.
 
@@ -434,6 +502,10 @@ def clean_library(
             irreversible at the release-dir granularity.
         disk_filter: Only clean this disk (by disk.id). None = all.
         category_filter: Only clean this category_id. None = all.
+        permit: Deletion authority consulted before each deletion.
+            Defaults to :class:`~personalscraper.core.delete_permit.AllowAllPermit`
+            (fail-open — always ALLOW). Inject a real ``DeletePermit``
+            via the command boundary when seed-safety is desired.
 
     Returns:
         CleanResult with counts and details.
@@ -487,6 +559,7 @@ def clean_library(
                             not apply,
                             "orphan release",
                             db_path,
+                            permit=permit,
                         )
                     continue
                 db_path = config.indexer.db_path
@@ -500,6 +573,7 @@ def clean_library(
                     clean_junk,
                     clean_release,
                     db_path,
+                    permit=permit,
                 )
 
     return result
@@ -514,6 +588,7 @@ def _clean_media_dir(
     clean_junk: bool,
     clean_release: bool,
     db_path: Path,
+    permit: DeletePermit = AllowAllPermit(),
 ) -> None:
     """Clean a single media directory.
 
@@ -527,6 +602,8 @@ def _clean_media_dir(
         clean_release: Whether to remove release-group artifacts.
         db_path: Resolved ``Config.indexer.db_path`` forwarded to deletion
             helpers for write-through outbox publish (DESIGN §9.4).
+        permit: Deletion authority forwarded to ``_delete_dir`` / ``_delete_file``
+            (fail-open default: AllowAllPermit).
     """
     try:
         entries = list(media_dir.iterdir())
@@ -541,12 +618,12 @@ def _clean_media_dir(
 
         # .actors directory
         if clean_actors and name == ".actors" and item.is_dir():
-            _delete_dir(item, result, dry_run, ".actors", db_path)
+            _delete_dir(item, result, dry_run, ".actors", db_path, permit=permit)
             continue
 
         # Junk files (including macOS resource forks "._*")
         if clean_junk and (name in _JUNK_FILES or is_apple_double(name)) and item.is_file():
-            _delete_file(item, result, dry_run, "junk file", db_path)
+            _delete_file(item, result, dry_run, "junk file", db_path, permit=permit)
             continue
 
         # Empty directories and release-group artifacts
@@ -554,6 +631,6 @@ def _clean_media_dir(
             # Detect release-group style names (contain dots + group suffix)
             is_release = "." in name and any(c.isupper() for c in name.split(".")[-1] if c.isalpha())
             if clean_release and is_release:
-                _delete_dir(item, result, dry_run, "release artifact", db_path)
+                _delete_dir(item, result, dry_run, "release artifact", db_path, permit=permit)
             elif clean_empty:
-                _delete_dir(item, result, dry_run, "empty dir", db_path)
+                _delete_dir(item, result, dry_run, "empty dir", db_path, permit=permit)

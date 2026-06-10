@@ -90,7 +90,7 @@ class TestDispatcherCapabilityOverride:
         # inside ``resolve_capability`` (``_fs_probe.probe_mount``); when an
         # override is set ``resolve_capability`` returns before that import, so
         # ``assert_not_called`` still holds after the consistency refactor.
-        with patch("personalscraper.indexer._fs_probe.probe_mount") as mock_probe:
+        with patch("personalscraper.core.sqlite._fs_probe.probe_mount") as mock_probe:
             mock_probe.return_value = None  # probe would say "unknown"
             cap = _resolve_disk_capability(disk)
 
@@ -100,7 +100,7 @@ class TestDispatcherCapabilityOverride:
     def test_autodetect_used_when_no_override(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """When fs_type is None, the FsProbe result is used."""
         import personalscraper.dispatch.dispatcher as mod
-        from personalscraper.indexer._fs_probe import MountInfo
+        from personalscraper.core.sqlite._fs_probe import MountInfo
 
         fake_info = MountInfo(
             mount_point="/Volumes/Disk1",
@@ -111,7 +111,7 @@ class TestDispatcherCapabilityOverride:
         # The single real call site is the lazy import inside
         # ``resolve_capability`` — patch ``_fs_probe.probe_mount`` (not the
         # dispatcher namespace, which no longer imports the symbol).
-        monkeypatch.setattr("personalscraper.indexer._fs_probe.probe_mount", lambda _: fake_info)
+        monkeypatch.setattr("personalscraper.core.sqlite._fs_probe.probe_mount", lambda _: fake_info)
 
         disk = DiskConfig(id="disk1", path=Path("/Volumes/Disk1"), categories=["movies"])
         cap = mod._resolve_disk_capability(disk)
@@ -155,7 +155,7 @@ class TestIndexerConfigDbPathValidator:
 
     def test_apfs_under_volumes_accepted(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """A legitimate APFS DB path at /Volumes/Data/library.db must be accepted."""
-        from personalscraper.indexer._fs_probe import MountInfo
+        from personalscraper.core.sqlite._fs_probe import MountInfo
 
         apfs_info = MountInfo(
             mount_point="/Volumes/Data",
@@ -167,7 +167,7 @@ class TestIndexerConfigDbPathValidator:
         # Patch probe_mount to return an APFS MountInfo whose mount point is the
         # real external volume /Volumes/Data, mirroring a genuine APFS volume.
         monkeypatch.setattr(
-            "personalscraper.indexer._fs_probe.probe_mount",
+            "personalscraper.core.sqlite._fs_probe.probe_mount",
             lambda p: apfs_info if "/Volumes/Data" in p else None,
         )
 
@@ -181,7 +181,7 @@ class TestIndexerConfigDbPathValidator:
         """A detected NTFS-macFUSE DB path under /Volumes/ must be rejected."""
         from pydantic import ValidationError
 
-        from personalscraper.indexer._fs_probe import MountInfo
+        from personalscraper.core.sqlite._fs_probe import MountInfo
 
         ntfs_info = MountInfo(
             mount_point="/Volumes/Disk1",
@@ -190,7 +190,7 @@ class TestIndexerConfigDbPathValidator:
             flags=frozenset({"local", "noatime"}),
         )
         monkeypatch.setattr(
-            "personalscraper.indexer._fs_probe.probe_mount",
+            "personalscraper.core.sqlite._fs_probe.probe_mount",
             lambda p: ntfs_info if "/Volumes/Disk1" in p else None,
         )
 

@@ -31,7 +31,7 @@ The tracked equivalent lives under `config.example/` at the repo root:
 
 ```
 config.example/               ← tracked, canonical template for new installs
-  config.json5                ← master (15 overlays + config_version)
+  config.json5                ← master (16 overlays + config_version)
   paths.json5
   disks.json5
   categories.json5
@@ -49,8 +49,8 @@ config.example/               ← tracked, canonical template for new installs
   notify.json5
 ```
 
-The master `config.json5` lists exactly 15 overlays (one master + 15 overlay
-files = 16 config files total).
+The master `config.json5` lists exactly 16 overlays (one master + 16 overlay
+files = 17 config files total).
 
 The `config.example/` directory at repo root is the tracked template for new installs.
 Run `personalscraper init-config` to copy it to `./config/`.
@@ -86,6 +86,7 @@ Run `personalscraper init-config` to copy it to `./config/`.
 | `tracker`                                                                          | `tracker.json5`    |
 | `ranking`                                                                          | `ranking.json5`    |
 | `notify`                                                                           | `notify.json5`     |
+| `acquire`                                                                          | `acquire.json5`    |
 
 ## Tracker economy schema (tracker-economy RP2)
 

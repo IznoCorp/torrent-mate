@@ -159,6 +159,12 @@
       "category": "documentation_only",
       "reason": "lib-fold 0.19.0 — reference description of the new maintenance/ package (disk_cleaner + rescraper). The package code is covered by tests/maintenance/*; the doc section is a structural module-map reference, not a single-function contract.",
       "expires": "2028-06-01"
+    },
+    {
+      "anchor": "lock-order",
+      "category": "documentation_only",
+      "reason": "RP3 acquire-store — summary section pointing to docs/features/acquire-store/lock-order.md. The lock-model contract (lazy-open, SQLite-native single-writer via BEGIN IMMEDIATE + busy_timeout, lock-free reads, brief migration-only db_lock, total order pipeline.lock > indexer_lock > acquire.db.lock) is covered by tests/acquire/test_store.py and tests/acquire/test_crash_window.py, not by an architecture-level single-function contract.",
+      "expires": "2028-06-10"
     }
   ]
 }
