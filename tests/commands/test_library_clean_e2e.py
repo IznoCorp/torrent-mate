@@ -8,6 +8,8 @@ junk files, --only / --disk filters, and mutual-exclusion of --apply/--dry-run.
 from __future__ import annotations
 
 import re
+import time
+from pathlib import Path
 from unittest.mock import patch
 
 from tests.commands._e2e_helpers import (
@@ -299,3 +301,72 @@ def test_clean_idempotent_second_run_noop(tmp_path, test_config) -> None:
 # reads or writes.  Closure-of-loop is a BDD ↔ FS coherence pattern; with no
 # BDD interaction there is no loop to close.  The dry-run safety test already
 # proves the command observes and respects the filesystem state.
+
+
+# ── 10. C2 regression — acquire store stays OPEN across clean_library ──
+
+
+def _seed_unmet_obligation(acquire_db_path: Path, dispatched_path: Path) -> None:
+    """Insert one active, unmet seed obligation for *dispatched_path*.
+
+    Uses the REAL acquire store on *acquire_db_path* (the same DB the live
+    ``DeleteAuthority`` reads through ``per_step_boundary``). The obligation has
+    a huge ``min_seed_time_s`` and ``added_at == now`` so its seed time is never
+    met → ``may_delete`` returns VETO → the deleter must hard-skip it.
+
+    Args:
+        acquire_db_path: Resolved ``config.acquire.db_path``.
+        dispatched_path: Absolute path the obligation protects (the dir whose
+            descendants library-clean would otherwise delete).
+    """
+    from personalscraper.acquire.domain import SeedObligation
+    from personalscraper.acquire.store import build_acquire_store
+    from personalscraper.conf.models.acquire import AcquireConfig
+
+    store = build_acquire_store(AcquireConfig(db_path=acquire_db_path))
+    try:
+        store.seed.add(
+            SeedObligation(
+                info_hash="c2deadbeef0001",
+                source_tracker="lacale",
+                min_seed_time_s=999_999_999,  # never elapses → obligation unmet
+                min_ratio=1.0,
+                added_at=int(time.time()),
+                dispatched_path=str(dispatched_path),
+            )
+        )
+    finally:
+        store.close()
+
+
+def test_clean_apply_respects_live_obligation_store_stays_open(tmp_path, test_config) -> None:
+    """C2: a live seed obligation under a cleaned dir → deletion HARD-SKIPPED.
+
+    Reproduces the C2 bug: ``library_clean`` derived the permit inside a
+    ``with per_step_boundary(...)`` block, then ran ``clean_library`` AFTER the
+    block had already closed ``app_context.acquire`` → ``may_delete`` hit
+    "AcquireStore is closed" → fail-open swallowed it to ALLOW → the hard-skip
+    never fired and the VETOed ``.actors/`` dir was deleted.
+
+    The fix runs ``clean_library`` INSIDE the boundary so the store is alive for
+    every ``may_delete`` consult.  Asserting ``skipped_by_obligation >= 1`` (via
+    the CLI's "Skipped by seed obligation" line) + the dir still on disk proves
+    the store stayed open. This test FAILS on the pre-fix code.
+    """
+    cfg, actors_dir, _ = _setup_movie_with_actors(tmp_path, test_config)
+
+    # The live DeleteAuthority reads config.acquire.db_path; the .actors/ dir is
+    # what --only actors would delete, so protect it with an unmet obligation.
+    assert cfg.acquire.db_path is not None
+    _seed_unmet_obligation(cfg.acquire.db_path, actors_dir)
+
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-clean", "--apply", "--only", "actors"])
+
+    assert result.exit_code == 0, result.output
+    clean = _ansi_clean(result.output)
+    # The hard-skip line must appear (store was open → may_delete saw the VETO).
+    assert "Skipped by seed obligation" in clean, f"Expected obligation skip, got: {clean}"
+    # And the protected dir + its content must survive.
+    assert actors_dir.exists(), f"VETOed .actors/ MUST NOT be deleted (store closed too early?): {actors_dir}"
+    assert (actors_dir / "dummy.txt").exists(), "VETOed .actors/ content was deleted"
