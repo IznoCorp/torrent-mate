@@ -41,7 +41,16 @@ staging/
 ├── 097-TEMP/            # Temporary workspace
 ├── 098-AUTRES/          # Miscellaneous
 ├── personalscraper/     # Python package
-│   ├── acquire/         # Acquisition lobe (RP5c). Owns TrackerRegistry (RP5a) and AcquireStore seam slot (RP3). No behaviour — injection handle only. Import direction: downward only (api/, core/, conf/, events/); never triage packages.
+│   ├── acquire/         # Acquisition lobe — 4-table SQLite store (RP3) + delete authority
+│   │   ├── domain.py           # Frozen VOs: FollowedSeries, WantedItem, SeedObligation, RatioState
+│   │   ├── store.py            # ConcreteAcquireStore — 4 sub-stores, lazy-open, lock-free reads
+│   │   ├── delete_authority.py # DeleteAuthority: DeletePermit + SeedObligationRecorder impl (fail-open)
+│   │   ├── _factory.py         # build_acquire_context (fills store= + delete_authority=)
+│   │   ├── _ports.py           # AcquireStore Protocol (extended in RP3)
+│   │   ├── errors.py           # AcquireLockError, AcquireCorruptError, AcquireMigrationError
+│   │   ├── context.py          # AcquireContext dataclass (per-invocation acquire service bundle)
+│   │   └── migrations/         # SQL migration scripts for acquire.db
+│   │   Import direction: downward only (api/, core/, conf/, events/); never triage packages.
 │   ├── ingest/          # qBittorrent → staging
 │   ├── sorter/          # guessit + strategies → category folders
 │   ├── commands/        # Typer command groups (pipeline, library, config, info)
@@ -72,7 +81,13 @@ staging/
 │   │   ├── _contracts.py        # Core-layer primitive contracts: MediaType, ApiError, CircuitOpenError (re-exported from api/_contracts.py for backward compat)
 │   │   ├── media_types.py       # Shared media-type constants: VIDEO_EXTENSIONS, FileType, is_trailer_filename (canonical home — promoted from sorter/file_type.py in arch-cleanup-2)
 │   │   ├── circuit.py           # CircuitBreaker (reused by API transport + indexer disk breaker)
-│   │   └── http_helpers.py      # tenacity helpers (retry logger, retryable predicate)
+│   │   ├── http_helpers.py      # tenacity helpers (retry logger, retryable predicate)
+│   │   ├── identity.py          # MediaRef — neutral provider-ID value object (tvdb primary)
+│   │   ├── delete_permit.py     # DeletePermit + SeedObligationRecorder Protocols + AllowAllPermit
+│   │   ├── sqlite/              # Neutral SQLite machinery (event-free): open_db, db_lock,
+│   │   │                        # apply_migrations, apply_pragmas, _fs_probe, errors.Sqlite*Error
+│   │   ├── event_bus.py         # pub-sub EventBus (in-process, no business logic)
+│   │   └── app_context.py       # per-invocation frozen service container (AppContext)
 │   ├── scraper/         # NFO/artwork orchestration consuming api/metadata providers
 │   │   ├── orchestrator.py      # Scraper composition and shared lifecycle
 │   │   ├── movie_service.py     # movie scrape flow
@@ -293,6 +308,22 @@ contents; the BDD is truth for derived metadata (oshash, release_id binding,
 scan_generation). Reconciliation always compares BDD to FS, never the reverse:
 `library-reconcile` detects files that disappeared from disk and soft-deletes
 their BDD rows, but never creates or mutates files based on BDD state.
+
+## Lock order
+
+Total lock order: `pipeline.lock` (outer) > `indexer_lock` > `acquire.db.lock` (leaf).
+`acquire.db.lock` (`core/sqlite/_lock.py::db_lock`) is a **brief migration-only leaf** —
+taken only around `open_db` + `apply_migrations` in `_ensure_open`, then released
+immediately. Runtime writes use SQLite-native serialization via `BEGIN IMMEDIATE` +
+`busy_timeout` (no `FileLock`); reads are lock-free (WAL). The store opens lazily:
+commands that never touch acquire state open nothing and take no lock.
+
+No `acquire.db` writer may acquire `pipeline.lock` or `indexer_lock` while holding
+`acquire.db.lock`. `acquire.db` is a separate file from `library.db`, structurally
+isolating the indexer scan's writer from the acquire writer.
+
+See `docs/features/acquire-store/lock-order.md` for the full invariant, rules,
+and implementation references.
 
 ## Module relationships
 
