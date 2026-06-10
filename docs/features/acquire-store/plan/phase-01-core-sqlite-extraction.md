@@ -360,14 +360,20 @@ Event-free: no EventBus, no domain imports.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable
 from pathlib import Path
 
+from personalscraper.core.sqlite.errors import SqliteMigrationError
 from personalscraper.logger import get_logger
 
 log = get_logger("core.sqlite.migrate")
 
-
-def apply_migrations(conn: sqlite3.Connection, dir_: Path) -> None:
+def apply_migrations(
+    conn: sqlite3.Connection,
+    dir_: Path,
+    *,
+    error_factory: Callable[[int], BaseException] | None = None,
+) -> None:
     """Apply pending *.sql migration scripts from dir_ in sorted order.
 
     Reads schema_version from PRAGMA user_version, applies every script
@@ -376,21 +382,27 @@ def apply_migrations(conn: sqlite3.Connection, dir_: Path) -> None:
     Args:
         conn: An open sqlite3.Connection (must have foreign_keys=ON).
         dir_: Directory containing NNN_name.sql migration scripts.
+        error_factory: Optional callable that builds a rich exception from
+            the failed migration version.  When None, a bare
+            SqliteMigrationError with a human-readable message is raised.
 
     Raises:
-        SqliteMigrationError: If a migration script fails.
+        SqliteMigrationError: If a migration script fails and no
+            error_factory is supplied.
+        BaseException: Whatever error_factory(version) returns, when supplied.
     """
-    # (copy the full body of apply_migrations from indexer/db.py line 588+)
-    # Change: raise IndexerMigrationError(...) → raise SqliteMigrationError(...)
-    # Import SqliteMigrationError from personalscraper.core.sqlite.errors
     ...
 ```
 
-**Concretely:** copy the body of `apply_migrations` from `personalscraper/indexer/db.py` (line 588 onward), change the import of `IndexerMigrationError` to `SqliteMigrationError` from `personalscraper.core.sqlite.errors`, and update the raise statement.
+- `error_factory` is keyword-only so the indexer can pass `IndexerMigrationError` →
+  `isinstance(exc, IndexerMigrationError)` + `.version` works post-rewire (Task 4).
+  When absent, a bare `SqliteMigrationError(f"Migration {ver} failed")` is raised.
+
+**Concretely:** copy the body of `apply_migrations` from `personalscraper/indexer/db.py` (line 588 onward), plus private helpers `_migration_version` and `_db_path_from_conn`. Update log event strings `indexer.migration.*` → `core.sqlite.migration.*`. At the failure raise site: `error_factory(ver) if error_factory is not None else SqliteMigrationError(...)`.
 
 - [ ] **Step 3: Create `personalscraper/core/sqlite/_lock.py`**
 
-Extract `indexer_lock` → rename to `db_lock`, update log event strings from `indexer.lock.*` to `core.sqlite.lock.*`, raise `SqliteLockError` (not `IndexerLockError`):
+Extract `indexer_lock` → rename to `db_lock`, update log event strings from `indexer.lock.*` to `core.sqlite.lock.*`:
 
 ```python
 # personalscraper/core/sqlite/_lock.py
@@ -404,7 +416,8 @@ import json
 import os
 import socket
 import time
-from collections.abc import Generator
+from collections.abc import Callable, Generator
+from contextlib import contextmanager
 from pathlib import Path
 
 from filelock import FileLock, Timeout
@@ -415,7 +428,13 @@ from personalscraper.logger import get_logger
 log = get_logger("core.sqlite.lock")
 
 
-def db_lock(path: Path, *, timeout: float = 0) -> Generator[None, None, None]:
+@contextmanager
+def db_lock(
+    path: Path,
+    *,
+    timeout: float = 0,
+    error_factory: Callable[[int], BaseException] | None = None,
+) -> Generator[None, None, None]:
     """Acquire the single-writer lock for a SQLite database file.
 
     Mirrors indexer_lock semantics: FileLock + JSON sidecar + stale-PID recovery.
@@ -424,20 +443,24 @@ def db_lock(path: Path, *, timeout: float = 0) -> Generator[None, None, None]:
     Args:
         path: Path of the database file (lock files derived from this).
         timeout: Seconds to wait before declaring a timeout. 0 = fail immediately.
+        error_factory: Optional callable that builds a rich exception from
+            the holder PID.  When None, a bare SqliteLockError with a
+            human-readable message is raised.
 
     Yields:
         None — lock is held for the duration of the with block.
 
     Raises:
-        SqliteLockError: If the lock is held by a live process.
+        SqliteLockError: If the lock is held by a live process and no
+            error_factory is supplied.
+        BaseException: Whatever error_factory(pid) returns, when supplied.
     """
-    # (copy body of indexer_lock from indexer/db.py, replacing:)
-    #   log.warning("indexer.lock.stale_recovered", ...) → log.warning("core.sqlite.lock.stale_recovered", ...)
-    #   raise IndexerLockError(...) → raise SqliteLockError(...)
-    # NOTE: SqliteLockError is the bare marker; it does not carry .pid.
-    # The raise becomes: raise SqliteLockError(f"Lock held by PID {held_pid}")
     ...
 ```
+
+- `error_factory` is keyword-only so the indexer can pass `IndexerLockError` →
+  `isinstance(exc, IndexerLockError)` + `.pid` works post-rewire (Task 4).
+  When absent, a bare `SqliteLockError(f"Writer lock held by PID {held_pid}")` is raised.
 
 - [ ] **Step 4: Verify imports**
 
