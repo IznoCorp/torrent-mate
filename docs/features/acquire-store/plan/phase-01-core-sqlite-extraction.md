@@ -223,6 +223,8 @@ git commit -m "refactor(acquire-store): add core/sqlite/errors.py markers + re-p
 
 ### Task 2 — Move `_fs_probe` to core and add re-export shim
 
+- Plan-drift (sub-phase 1.2): re-targeted `tests/indexer/test_fs_probe.py` module references and `tests/indexer/test_db.py` patch string to `core.sqlite._fs_probe` (definition-site patch fix).
+
 **Files:**
 
 - Create: `personalscraper/core/sqlite/_fs_probe.py`

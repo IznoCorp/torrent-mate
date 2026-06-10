@@ -1,4 +1,4 @@
-"""Tests for personalscraper.indexer._fs_probe.
+"""Tests for personalscraper.core.sqlite._fs_probe.
 
 Regression test for the ufsd_NTFS dead-branch bug: _spotlight.py used exact-token
 matching, so the real production token "ufsd_NTFS" returned "ufsd_ntfs" (not
@@ -8,7 +8,7 @@ FsProbe uses substring matching, fixing this at the root.
 
 import pytest
 
-from personalscraper.indexer._fs_probe import (
+from personalscraper.core.sqlite._fs_probe import (
     _build_mount_table,
     _parse_mount_line,
     canonical_fs_type,
@@ -225,7 +225,7 @@ class TestProbeMount:
 
     def test_probe_ntfs_volume(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """A path under an NTFS volume probes to that volume's MountInfo."""
-        import personalscraper.indexer._fs_probe as mod
+        import personalscraper.core.sqlite._fs_probe as mod
 
         monkeypatch.setattr(mod, "_run_mount", lambda: self.SAMPLE_MOUNT)
         info = probe_mount("/Volumes/Disk1/Movies/Foo")
@@ -239,7 +239,7 @@ class TestProbeMount:
 /dev/disk1s1 on / (apfs, local)
 /dev/disk2s1 on /Volumes/Disk1 (ufsd_NTFS, local)
 """
-        import personalscraper.indexer._fs_probe as mod
+        import personalscraper.core.sqlite._fs_probe as mod
 
         monkeypatch.setattr(mod, "_run_mount", lambda: mount_out)
         info = probe_mount("/Volumes/Disk1/deep/path")
@@ -255,7 +255,7 @@ class TestProbeMount:
         included) contains the path.
         """
         mount_out = "/dev/disk2s1 on /Volumes/Disk1 (ufsd_NTFS, local, noatime)\n"
-        import personalscraper.indexer._fs_probe as mod
+        import personalscraper.core.sqlite._fs_probe as mod
 
         monkeypatch.setattr(mod, "_run_mount", lambda: mount_out)
         info = probe_mount("/nonexistent/path")
@@ -263,7 +263,7 @@ class TestProbeMount:
 
     def test_probe_returns_none_on_empty_mount_output(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Empty mount output (FsProbe failure signal) probes to None."""
-        import personalscraper.indexer._fs_probe as mod
+        import personalscraper.core.sqlite._fs_probe as mod
 
         monkeypatch.setattr(mod, "_run_mount", lambda: "")
         info = probe_mount("/Volumes/Disk1/foo")
@@ -293,7 +293,7 @@ class TestRunMountErrorHandling:
         are only reachable when ``platform.system()`` reports ``"Darwin"``.
         The ``lru_cache`` is cleared so each test triggers a fresh shell-out.
         """
-        import personalscraper.indexer._fs_probe as mod
+        import personalscraper.core.sqlite._fs_probe as mod
 
         monkeypatch.setattr(mod.platform, "system", lambda: "Darwin")
         mod._run_mount.cache_clear()
@@ -315,7 +315,7 @@ class TestRunMountErrorHandling:
 
         with caplog.at_level(logging.WARNING):
             assert mod._run_mount() == ""
-        assert any("indexer.fs_probe.mount_timeout" in r.getMessage() for r in caplog.records)
+        assert any("core.sqlite.fs_probe.mount_timeout" in r.getMessage() for r in caplog.records)
         mod._run_mount.cache_clear()
 
     def test_oserror_returns_empty_and_warns(
@@ -333,7 +333,7 @@ class TestRunMountErrorHandling:
 
         with caplog.at_level(logging.WARNING):
             assert mod._run_mount() == ""
-        assert any("indexer.fs_probe.mount_failed" in r.getMessage() for r in caplog.records)
+        assert any("core.sqlite.fs_probe.mount_failed" in r.getMessage() for r in caplog.records)
         mod._run_mount.cache_clear()
 
     def test_unexpected_exception_propagates(self, monkeypatch: pytest.MonkeyPatch) -> None:
