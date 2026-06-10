@@ -106,7 +106,7 @@ def test_every_event_has_factory() -> None:
     )
 
 
-def test_event_registry_has_eighteen_v1_events() -> None:
+def test_event_registry_has_all_v1_events() -> None:
     """The catalog is pinned at 33 events.
 
     Phase 5 acceptance landed at 13 ; the ``provider-ids`` feature

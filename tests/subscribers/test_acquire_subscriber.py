@@ -2,18 +2,18 @@
 """Non-vacuous dispatch tests for AcquisitionTelegramSubscriber.
 
 Tests verify:
-1. Every handler fires when its event is emitted.
-2. Each handler formats a non-empty string message and logs a structlog line.
-3. With enabled=True + a mocked notifier: notifier.send called exactly once.
-4. With enabled=False (default): notifier.send never called.
-5. A notifier that raises does not propagate (fail-soft contract).
-6. close() unsubscribes — after close, emitting does not call the handler.
+1. enabled=False → notifier.send never called (muted mode).
+2. enabled=True → notifier.send called exactly once per emit.
+3. Each handler logs a structlog line at INFO level.
+4. Fail-soft guards: _send handles False return / None notifier (synchronous),
+   and _spawn worker-crashed WARNING (daemon thread, poll-based).
+5. Regression: WantedEnqueued season=0 formats S00E05, not '?'.
+6. close() unsubscribes all 10 subscriptions — emit post-close is a no-op.
 """
 
 from __future__ import annotations
 
 import re
-import time
 from unittest.mock import MagicMock
 
 import pytest
@@ -58,6 +58,22 @@ def _camel_to_snake(name: str) -> str:
     return s
 
 
+def _wait_for(condition, timeout: float = 2.0) -> None:
+    """Poll until *condition()* returns truthy or *timeout* expires.
+
+    Replaces blind ``time.sleep(0.05)`` daemon-join waits with a
+    deterministic poll that is immune to xdist/coverage-induced
+    scheduling jitter.
+    """
+    import time
+
+    deadline = time.monotonic() + timeout
+    while not condition():
+        if time.monotonic() > deadline:
+            raise TimeoutError(f"Condition not met within {timeout}s")
+        time.sleep(0.01)
+
+
 def _make_bus_and_sub(
     enabled: bool = False,
 ) -> tuple[EventBus, AcquisitionTelegramSubscriber, MagicMock]:
@@ -95,8 +111,8 @@ def test_handler_enabled_sends_once(event_cls: type) -> None:
     bus, sub, notifier = _make_bus_and_sub(enabled=True)
     event = EVENT_SAMPLE_FACTORIES[event_cls]()
     bus.emit(event)
-    # _spawn uses a daemon thread; give it a moment to fire
-    time.sleep(0.05)
+    # _spawn uses a daemon thread; poll until it fires
+    _wait_for(lambda: notifier.send.call_count >= 1)
     assert notifier.send.call_count == 1, (
         f"Expected notifier.send called once for {event_cls.__name__}, got {notifier.send.call_count}"
     )
@@ -112,7 +128,10 @@ def test_handler_enabled_sends_once(event_cls: type) -> None:
 
 @pytest.mark.parametrize("event_cls", _ALL_ACQUIRE_EVENT_CLASSES, ids=lambda c: c.__name__)
 def test_handler_logs_structlog_line(event_cls: type, caplog: pytest.LogCaptureFixture) -> None:
-    """Each handler emits a structlog line at INFO level (acquire.notify.<event>)."""
+    """Each handler emits a structlog line at INFO level.
+
+    Keyed as ``acquire.notify.event`` with an ``acquire_event`` discriminator field.
+    """
     caplog.set_level("INFO")
     bus, sub, notifier = _make_bus_and_sub(enabled=False)
     event = EVENT_SAMPLE_FACTORIES[event_cls]()
@@ -126,21 +145,94 @@ def test_handler_logs_structlog_line(event_cls: type, caplog: pytest.LogCaptureF
 
 
 # ---------------------------------------------------------------------------
-# 4. Fail-soft: notifier error does not propagate
+# 4. Fail-soft: _send guards (synchronous — no daemon thread)
 # ---------------------------------------------------------------------------
 
 
-def test_fail_soft_notifier_error_does_not_propagate() -> None:
-    """A raising notifier must not propagate out of the subscriber."""
+def test_fail_soft_notifier_send_returns_false_logs_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """When notifier.send returns False, _send logs send_failed (no raise).
+
+    MUTATION-PROOF: deleting the ``if not … send(…)`` guard in _send
+    suppresses the WARNING → this test fails.
+    """
+    caplog.set_level("WARNING")
     bus = EventBus()
     notifier = MagicMock()
-    notifier.send.side_effect = RuntimeError("telegram down")
+    notifier.send.return_value = False
     sub = AcquisitionTelegramSubscriber(bus, notifier=notifier, enabled=True)
-    event = EVENT_SAMPLE_FACTORIES[SeriesFollowed]()
-    # Must not raise
+    sub._send("test message", "test_event")
+    assert "acquire_telegram_subscriber_send_failed" in caplog.text
+
+
+def test_fail_soft_no_notifier_logs_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """When notifier is None, _send logs no_notifier (no raise).
+
+    MUTATION-PROOF: deleting the ``if self._notifier is None`` guard in
+    _send causes an AttributeError on ``None.send()`` → this test fails
+    (either via the missing WARNING or via the unhandled AttributeError).
+    """
+    caplog.set_level("WARNING")
+    bus = EventBus()
+    sub = AcquisitionTelegramSubscriber(bus, notifier=None, enabled=True)
+    sub._send("test message", "test_event")
+    assert "acquire_telegram_subscriber_no_notifier" in caplog.text
+
+
+def test_fail_soft_worker_crashed_logged(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """_spawn with a raising target logs worker_crashed (no raise).
+
+    MUTATION-PROOF: deleting the try/except in _spawn's _runner
+    suppresses the WARNING → this test fails.
+    """
+    caplog.set_level("WARNING")
+    bus = EventBus()
+    sub = AcquisitionTelegramSubscriber(bus, notifier=MagicMock(), enabled=True)
+
+    def _raising_target() -> None:
+        raise RuntimeError("boom")
+
+    sub._spawn(_raising_target)
+    _wait_for(lambda: "acquire_telegram_subscriber_worker_crashed" in caplog.text)
+    assert "acquire_telegram_subscriber_worker_crashed" in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# 4b. Regression: WantedEnqueued season=0/episode=0 must format correctly
+# ---------------------------------------------------------------------------
+
+
+def test_wanted_enqueued_specials_format_s00e05() -> None:
+    """Season 0 / episode 5 (Plex Specials) renders S00E05, not '?'."""
+    bus, sub, notifier = _make_bus_and_sub(enabled=True)
+    from personalscraper.core.identity import MediaRef
+
+    ref = MediaRef(tvdb_id=81189)
+    event = WantedEnqueued(media_ref=ref, kind="episode", season=0, episode=5)
     bus.emit(event)
-    time.sleep(0.05)  # let daemon thread run
+    _wait_for(lambda: notifier.send.call_count >= 1)
+    msg = notifier.send.call_args[0][0]
+    assert "S00E05" in msg, f"Expected S00E05 in message, got: {msg}"
+    assert "?" not in msg, f"Expected no '?' in message, got: {msg}"
     sub.close()
+
+
+def test_wanted_enqueued_movie_no_season_placeholder() -> None:
+    """Movie kind does not include season/episode placeholder in message."""
+    bus, sub, notifier = _make_bus_and_sub(enabled=True)
+    from personalscraper.core.identity import MediaRef
+
+    ref = MediaRef(tvdb_id=81189)
+    event = WantedEnqueued(media_ref=ref, kind="movie", season=None, episode=None)
+    bus.emit(event)
+    _wait_for(lambda: notifier.send.call_count >= 1)
+    msg = notifier.send.call_args[0][0]
+    assert "Wanted movie" in msg
 
 
 # ---------------------------------------------------------------------------
@@ -161,5 +253,6 @@ def test_close_unsubscribes_all() -> None:
     sub2.close()
     event = EVENT_SAMPLE_FACTORIES[RatioMeasured]()
     bus.emit(event)
-    time.sleep(0.05)
+    # close() synchronously unsubscribes — emit post-close is a no-op,
+    # no daemon thread is spawned, so notifier.send is never called.
     notifier.send.assert_not_called()
