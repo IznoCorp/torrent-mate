@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from personalscraper.acquire.context import AcquireContext
+from personalscraper.acquire.delete_authority import build_delete_authority
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.api.tracker._factory import build_tracker_registry
 
@@ -47,6 +48,10 @@ def build_acquire_context(
     ``torrent_client`` from the caller; does NOT build or validate it (that is
     the torrent-client boundary's responsibility).
 
+    Also builds a stateless :class:`DeleteAuthority` over the same lazy store:
+    it is fail-open (returns ALLOW) when the store is ``None``, and costs
+    nothing at boot.
+
     ``TrackerConfigError`` raised by ``build_tracker_registry`` propagates
     unchanged — fail-loud at the same boundary as ``RegistryConfigError``.
 
@@ -63,8 +68,8 @@ def build_acquire_context(
 
     Returns:
         A populated :class:`AcquireContext` with ``tracker_registry`` set, a
-        lazily-built ``store`` (opens on first use), and ``torrent_client``
-        forwarded.
+        lazily-built ``store`` (opens on first use), a stateless
+        ``delete_authority``, and ``torrent_client`` forwarded.
 
     Raises:
         TrackerConfigError: Any error-severity issue found in the tracker
@@ -81,9 +86,12 @@ def build_acquire_context(
     # config whose .acquire is never touched leaks nothing, so no path guard is
     # needed at the composition root.
     store = build_acquire_store(config.acquire)
+    # Stateless — fail-open when store is None, costs nothing at boot.
+    delete_authority = build_delete_authority(store=store)
     return AcquireContext(
         tracker_registry=tracker_registry,
         store=store,
+        delete_authority=delete_authority,
         torrent_client=torrent_client,
     )
 

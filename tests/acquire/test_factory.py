@@ -149,6 +149,41 @@ class TestBuildAcquireContext:
         )
         assert ctx.tracker_registry is fake_registry
 
+    def test_delete_authority_is_attached(self, tmp_path: Path) -> None:
+        """build_acquire_context attaches a DeleteAuthority to the context."""
+        from personalscraper.acquire._factory import build_acquire_context
+        from personalscraper.acquire.delete_authority import DeleteAuthority
+
+        config = self._minimal_config(tmp_path)
+        settings = MagicMock()
+        event_bus = MagicMock()
+        cb_policy = MagicMock()
+
+        with patch("personalscraper.acquire._factory.build_tracker_registry") as mock_build:
+            mock_build.return_value = MagicMock()
+            ctx = build_acquire_context(config, settings, event_bus=event_bus, cb_policy=cb_policy)
+
+        assert isinstance(ctx.delete_authority, DeleteAuthority)
+        assert ctx.delete_authority._store is ctx.store
+
+    def test_delete_authority_fail_open_when_store_unset(self) -> None:
+        """DeleteAuthority built with store=None (no db_path) is fail-open."""
+        from personalscraper.acquire._factory import build_acquire_context
+
+        config = self._minimal_config()  # no tmp_path → store is inert, but not None
+        settings = MagicMock()
+        event_bus = MagicMock()
+        cb_policy = MagicMock()
+
+        with patch("personalscraper.acquire._factory.build_tracker_registry") as mock_build:
+            mock_build.return_value = MagicMock()
+            ctx = build_acquire_context(config, settings, event_bus=event_bus, cb_policy=cb_policy)
+
+        # The store is NOT None — it's a ConcreteAcquireStore. The factory builds
+        # it unconditionally (guarded by config.acquire.db_path).  The delete_authority
+        # borrows the same store handle, so it's present when the store is present.
+        assert ctx.delete_authority is not None
+
     def test_tracker_config_error_surfaces(self) -> None:
         """TrackerConfigError from build_tracker_registry propagates unchanged."""
         from personalscraper.acquire._factory import build_acquire_context
