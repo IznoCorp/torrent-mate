@@ -326,4 +326,120 @@ def make_registry_boot_validated() -> RegistryBootValidated:
     )
 
 
+# ---------------------------------------------------------------------------
+# acquire-events feature (RP4) — 10 acquisition event factories
+# ---------------------------------------------------------------------------
+
+from personalscraper.acquire.events import (  # noqa: E402, PLC0415
+    GrabFailed,
+    GrabSucceeded,
+    RatioMeasured,
+    SeedObligationBreached,
+    SeedObligationRecorded,
+    SeedObligationSatisfied,
+    SeriesFollowed,
+    SeriesUnfollowed,
+    WantedAbandoned,
+    WantedEnqueued,
+)
+from personalscraper.core.identity import MediaRef  # noqa: E402, PLC0415
+
+_BREAKING_BAD_REF = MediaRef(tvdb_id=81189, tmdb_id=1396, imdb_id="tt0903747")
+_INCEPTION_REF = MediaRef(tvdb_id=None, tmdb_id=27205, imdb_id="tt1375666")
+
+
+@register_factory(SeriesFollowed)
+def make_series_followed() -> SeriesFollowed:
+    """Realistic SeriesFollowed factory — Breaking Bad."""
+    return SeriesFollowed(media_ref=_BREAKING_BAD_REF, title="Breaking Bad")
+
+
+@register_factory(SeriesUnfollowed)
+def make_series_unfollowed() -> SeriesUnfollowed:
+    """Realistic SeriesUnfollowed factory — Breaking Bad."""
+    return SeriesUnfollowed(media_ref=_BREAKING_BAD_REF)
+
+
+@register_factory(WantedEnqueued)
+def make_wanted_enqueued() -> WantedEnqueued:
+    """Realistic WantedEnqueued factory — Breaking Bad S05E01."""
+    return WantedEnqueued(
+        media_ref=_BREAKING_BAD_REF,
+        kind="episode",
+        season=5,
+        episode=1,
+    )
+
+
+@register_factory(WantedAbandoned)
+def make_wanted_abandoned() -> WantedAbandoned:
+    """Realistic WantedAbandoned factory — Inception movie."""
+    return WantedAbandoned(
+        media_ref=_INCEPTION_REF,
+        reason="cutoff_reached",
+    )
+
+
+@register_factory(GrabSucceeded)
+def make_grab_succeeded() -> GrabSucceeded:
+    """Realistic GrabSucceeded factory — lacale grab with tags."""
+    return GrabSucceeded(
+        media_ref=_BREAKING_BAD_REF,
+        info_hash="a" * 40,
+        source_tracker="lacale",
+        category="tv_shows",
+        tags=("freeleech", "hd"),
+    )
+
+
+@register_factory(GrabFailed)
+def make_grab_failed() -> GrabFailed:
+    """Realistic GrabFailed factory — network failure, no tracker resolved."""
+    return GrabFailed(
+        media_ref=None,
+        source_tracker="lacale",
+        reason="ConnectionError: Max retries exceeded",
+    )
+
+
+@register_factory(SeedObligationRecorded)
+def make_seed_obligation_recorded() -> SeedObligationRecorded:
+    """Realistic SeedObligationRecorded factory."""
+    return SeedObligationRecorded(
+        info_hash="b" * 40,
+        source_tracker="lacale",
+        min_seed_time_s=86400,
+        dispatched_path="/Volumes/Disk1/TV Shows/Breaking Bad (2008)",
+    )
+
+
+@register_factory(SeedObligationBreached)
+def make_seed_obligation_breached() -> SeedObligationBreached:
+    """Realistic SeedObligationBreached factory."""
+    return SeedObligationBreached(
+        info_hash="b" * 40,
+        source_tracker="lacale",
+        dispatched_path="/Volumes/Disk1/TV Shows/Breaking Bad (2008)",
+    )
+
+
+@register_factory(SeedObligationSatisfied)
+def make_seed_obligation_satisfied() -> SeedObligationSatisfied:
+    """Realistic SeedObligationSatisfied factory."""
+    return SeedObligationSatisfied(
+        info_hash="b" * 40,
+        source_tracker="lacale",
+    )
+
+
+@register_factory(RatioMeasured)
+def make_ratio_measured() -> RatioMeasured:
+    """Realistic RatioMeasured factory — lacale ratio below target."""
+    return RatioMeasured(
+        tracker="lacale",
+        observed_ratio=0.87,
+        target_ratio=1.0,
+    )
+
+
 __all__ = ["EVENT_SAMPLE_FACTORIES", "register_factory"]

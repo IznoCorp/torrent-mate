@@ -18,6 +18,19 @@ from __future__ import annotations
 # by ``Event.__init_subclass__`` before any consumer calls
 # ``event_from_envelope``.
 from personalscraper import pipeline_events as _pipeline_events  # noqa: F401
+from personalscraper.acquire import events as _acquire_events  # noqa: F401
+from personalscraper.acquire.events import (
+    GrabFailed,
+    GrabSucceeded,
+    RatioMeasured,
+    SeedObligationBreached,
+    SeedObligationRecorded,
+    SeedObligationSatisfied,
+    SeriesFollowed,
+    SeriesUnfollowed,
+    WantedAbandoned,
+    WantedEnqueued,
+)
 from personalscraper.api.metadata.registry import _events as _registry_events  # noqa: F401
 from personalscraper.api.metadata.registry._events import (
     LockedCapabilityUnresolved,
@@ -65,6 +78,8 @@ __all__ = [
     "CircuitBreakerHalfOpened",
     "CircuitBreakerOpened",
     "DiskFullWarning",
+    "GrabFailed",
+    "GrabSucceeded",
     "ItemDispatched",
     "ItemProgressed",
     "LibraryScanCompleted",
@@ -73,11 +88,19 @@ __all__ = [
     "PipelineStarted",
     "ProviderExhaustedEvent",
     "ProviderFallbackTriggered",
+    "RatioMeasured",
     "RegistryBootValidated",
     "RegistryFanOutCompleted",
+    "SeedObligationBreached",
+    "SeedObligationRecorded",
+    "SeedObligationSatisfied",
+    "SeriesFollowed",
+    "SeriesUnfollowed",
     "StepCompleted",
     "StepErrored",
     "StepStarted",
     "TrailerDownloaded",
     "VerifyItemDone",
+    "WantedAbandoned",
+    "WantedEnqueued",
 ]
