@@ -64,6 +64,48 @@ def test_seed_obligation_fields() -> None:
     assert so.released_at is None
 
 
+def test_seed_obligation_rejects_negative_min_seed_time() -> None:
+    """T1: a negative min_seed_time_s raises ValueError.
+
+    A negative floor would make ``seed_time_elapsed >= min_seed_time_s``
+    trivially true in DeleteAuthority.may_delete, silently passing the HnR
+    guard for a live seed.
+    """
+    with pytest.raises(ValueError, match="min_seed_time_s"):
+        SeedObligation(
+            info_hash="abc123",
+            source_tracker="lacale",
+            min_seed_time_s=-1,
+            min_ratio=1.0,
+            added_at=int(time.time()),
+        )
+
+
+def test_seed_obligation_rejects_negative_min_ratio() -> None:
+    """T1: a negative min_ratio raises ValueError."""
+    with pytest.raises(ValueError, match="min_ratio"):
+        SeedObligation(
+            info_hash="abc123",
+            source_tracker="lacale",
+            min_seed_time_s=72 * 3600,
+            min_ratio=-0.5,
+            added_at=int(time.time()),
+        )
+
+
+def test_seed_obligation_accepts_zero_floors() -> None:
+    """T1: zero is a valid (non-negative) floor — no exception."""
+    so = SeedObligation(
+        info_hash="abc123",
+        source_tracker="lacale",
+        min_seed_time_s=0,
+        min_ratio=0.0,
+        added_at=int(time.time()),
+    )
+    assert so.min_seed_time_s == 0
+    assert so.min_ratio == 0.0
+
+
 def test_ratio_state_fields() -> None:
     """RatioState stores per-tracker ratio state."""
     rs = RatioState(

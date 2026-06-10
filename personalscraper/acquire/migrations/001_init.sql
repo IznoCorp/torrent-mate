@@ -43,7 +43,10 @@ CREATE TABLE IF NOT EXISTS seed_obligation (
     added_at         INTEGER NOT NULL,
     satisfied_at     INTEGER,
     breached_at      INTEGER,
-    released_at      INTEGER
+    released_at      INTEGER,
+    -- Defense-in-depth for the HnR guard (T1): a negative floor would make the
+    -- seedtime/ratio check trivially true in DeleteAuthority.may_delete.
+    CHECK (min_seed_time_s >= 0 AND min_ratio >= 0)
 );
 
 CREATE INDEX IF NOT EXISTS idx_seed_dispatched_path

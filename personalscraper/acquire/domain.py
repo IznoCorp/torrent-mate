@@ -112,6 +112,24 @@ class SeedObligation:
     breached_at: int | None = None
     released_at: int | None = None
 
+    def __post_init__(self) -> None:
+        """Enforce the non-negativity invariant on the seed-obligation floors.
+
+        A negative ``min_seed_time_s`` would make
+        ``seed_time_elapsed >= obligation.min_seed_time_s`` trivially true in
+        :meth:`DeleteAuthority.may_delete`, silently passing the HnR guard for a
+        live seed (T1). A negative ``min_ratio`` is likewise nonsensical. Both
+        are snapshots from a TrackerEconomyConfig, so a negative value here is a
+        programming error worth surfacing at construction.
+
+        Raises:
+            ValueError: If ``min_seed_time_s`` or ``min_ratio`` is negative.
+        """
+        if self.min_seed_time_s < 0:
+            raise ValueError(f"SeedObligation.min_seed_time_s must be >= 0; got {self.min_seed_time_s}")
+        if self.min_ratio < 0:
+            raise ValueError(f"SeedObligation.min_ratio must be >= 0; got {self.min_ratio}")
+
 
 @dataclass(frozen=True)
 class RatioState:

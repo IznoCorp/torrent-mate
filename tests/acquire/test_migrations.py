@@ -14,6 +14,8 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+import pytest
+
 from personalscraper.core.sqlite import apply_migrations
 
 # ---------------------------------------------------------------------------
@@ -126,3 +128,47 @@ class TestAcquireMigrations001:
         version_after_first = _user_version(conn)
         apply_migrations(conn, MIGRATIONS_DIR)
         assert _user_version(conn) == version_after_first
+
+    def test_seed_obligation_rejects_negative_min_seed_time(self, tmp_path: Path) -> None:
+        """T1: the seed_obligation CHECK rejects a negative min_seed_time_s.
+
+        Defense-in-depth at the DB boundary: even bypassing the domain
+        __post_init__ guard via raw SQL, a negative floor is refused.
+        """
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO seed_obligation "
+                "(info_hash, source_tracker, min_seed_time_s, min_ratio, added_at) "
+                "VALUES ('abc', 'lacale', -1, 1.0, 1)"
+            )
+            conn.commit()
+
+    def test_seed_obligation_rejects_negative_min_ratio(self, tmp_path: Path) -> None:
+        """T1: the seed_obligation CHECK rejects a negative min_ratio."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO seed_obligation "
+                "(info_hash, source_tracker, min_seed_time_s, min_ratio, added_at) "
+                "VALUES ('abc', 'lacale', 100, -0.5, 1)"
+            )
+            conn.commit()
+
+    def test_seed_obligation_accepts_zero_floors(self, tmp_path: Path) -> None:
+        """T1: zero floors are accepted by the CHECK (non-negative, not positive)."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+        conn.execute(
+            "INSERT INTO seed_obligation "
+            "(info_hash, source_tracker, min_seed_time_s, min_ratio, added_at) "
+            "VALUES ('abc', 'lacale', 0, 0.0, 1)"
+        )
+        conn.commit()
+        count = conn.execute("SELECT COUNT(*) FROM seed_obligation").fetchone()[0]
+        assert count == 1
