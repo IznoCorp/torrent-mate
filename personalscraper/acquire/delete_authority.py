@@ -15,8 +15,9 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
+from personalscraper.acquire.domain import SeedObligation
 from personalscraper.core.delete_permit import (
     ALLOW,
     PermitDecision,
@@ -26,6 +27,21 @@ from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.acquire.store import ConcreteAcquireStore
+    from personalscraper.api.torrent._base import TorrentItem
+    from personalscraper.api.torrent._contracts import TorrentLister, TorrentStateInspector
+    from personalscraper.conf.models.api_config import TrackerEconomyConfig
+
+    class _ReadOnlyTorrentClient(TorrentLister, TorrentStateInspector, Protocol):
+        """Read-only torrent client: lists completed torrents + inspects seeding state.
+
+        ``record_dispatch`` only needs to enumerate completed torrents
+        (:meth:`TorrentLister.get_completed`) and inspect their seeding state
+        (:meth:`TorrentStateInspector.is_seeding`). Both ``QBitClient`` and
+        ``TransmissionClient`` compose these two capabilities, so this
+        intersection expresses the exact requirement without coupling to a
+        concrete client.
+        """
+
 
 log = get_logger("acquire.delete_authority")
 
@@ -38,15 +54,32 @@ class DeleteAuthority:
 
     Attributes:
         _store: The ConcreteAcquireStore (or None if store is absent).
+        _torrent_client: A read-only torrent client (TorrentLister +
+            TorrentStateInspector), or None — used by record_dispatch to
+            correlate the staging source to a live seeding torrent.
+        _economy: Mapping of tracker name → TrackerEconomyConfig used to
+            resolve the source tracker from the torrent's tags and snapshot
+            the min_seed_time / min_ratio into the obligation, or None.
     """
 
-    def __init__(self, store: "ConcreteAcquireStore | None") -> None:
-        """Initialise with the acquire store.
+    def __init__(
+        self,
+        store: "ConcreteAcquireStore | None",
+        torrent_client: "_ReadOnlyTorrentClient | None" = None,
+        economy: "dict[str, TrackerEconomyConfig] | None" = None,
+    ) -> None:
+        """Initialise with the acquire store, torrent client, and economy map.
 
         Args:
             store: The ConcreteAcquireStore, or None to use fail-open fallback.
+            torrent_client: A read-only torrent client (TorrentLister +
+                TorrentStateInspector) for dispatch-time correlation, or None.
+            economy: Tracker-name → TrackerEconomyConfig map for resolving the
+                source tracker from a torrent's tags, or None.
         """
         self._store = store
+        self._torrent_client = torrent_client
+        self._economy = economy
 
     def may_delete(self, path: Path) -> PermitDecision:
         """Consult persisted seed obligations before permitting a deletion.
@@ -128,32 +161,212 @@ class DeleteAuthority:
         staging_source: Path,
         dispatched_dest: Path,
     ) -> None:
-        """No-op at this phase — write-before-move logic added in Phase 5.
+        """Correlate the staging source to a live seeding torrent and persist an obligation.
+
+        DESIGN §7.2 dispatch-time obligation writer:
+
+        - Calls :meth:`TorrentLister.get_completed` **once** (cached locally),
+          fail-soft: any exception is logged and swallowed (never raised).
+        - Correlates by **basename + size**: ``item.name == staging_source.name``
+          AND ``item.size_bytes == staging_source.stat().st_size`` (file). Zero
+          matches → MISS ``no-live-torrent``; more than one → MISS
+          ``name+size-ambiguous`` (never guessed).
+        - The matched item must be seeding (``client.is_seeding(item)`` — a
+          CLIENT method taking the item, per :class:`TorrentStateInspector`);
+          otherwise MISS ``not-seeding``.
+        - Resolves the source tracker by intersecting ``item.tags`` with the
+          configured ``economy`` keys (RP1 tag convention). No tag maps to a
+          configured economy → MISS ``tracker-unresolved`` (no global default
+          is invented — an honest MISS is correct per the coverage envelope).
+        - HIT: writes a :class:`SeedObligation` with ``info_hash=item.hash``,
+          the resolved tracker, the economy's ``min_seed_time`` / ``min_ratio``,
+          and ``dispatched_path=str(dispatched_dest)``. This is
+          **write-before-move**: the caller invokes this BEFORE the FS move, so
+          ``dispatched_dest`` does not yet exist — that is fine, the path is
+          merely recorded. The store write is **fail-soft** (errors swallowed +
+          logged ``acquire.record_dispatch.write_failed``).
+
+        Every outcome is logged: ``acquire.record_dispatch.hit`` (info_hash,
+        dest, tracker) or ``acquire.record_dispatch.miss`` (reason, dest) — the
+        §7.2 HIT/MISS observability.
 
         Args:
-            staging_source: Staging path of the media file.
-            dispatched_dest: Destination path after dispatch.
+            staging_source: Absolute path of the file in the staging area.
+            dispatched_dest: Absolute path of the destination after dispatch
+                (does not yet exist at call time).
         """
-        # Phase 5 adds basename+size torrent correlation here.
-        log.debug(
-            "acquire.delete_authority.record_dispatch.noop",
-            staging_source=str(staging_source),
+        if self._store is None or self._torrent_client is None:
+            log.debug(
+                "acquire.record_dispatch.noop",
+                reason="no-store" if self._store is None else "no-client",
+                dispatched_dest=str(dispatched_dest),
+            )
+            return
+
+        # Single cached get_completed() — fail-soft on any client error.
+        try:
+            completed = self._torrent_client.get_completed()
+        except Exception as exc:  # noqa: BLE001 — fail-soft: never interrupt the caller
+            log.warning(
+                "acquire.record_dispatch.miss",
+                reason="client-error",
+                error=str(exc),
+                dispatched_dest=str(dispatched_dest),
+            )
+            return
+
+        basename = staging_source.name
+        try:
+            size = staging_source.stat().st_size
+        except OSError as exc:
+            # staging_source missing or a directory we can't size — folder
+            # torrents are out of scope for the size-based correlation; an
+            # honest MISS is correct rather than a name-only guess.
+            log.warning(
+                "acquire.record_dispatch.miss",
+                reason="stat-error",
+                error=str(exc),
+                dispatched_dest=str(dispatched_dest),
+            )
+            return
+
+        matches = [t for t in completed if t.name == basename and t.size_bytes == size]
+
+        if not matches:
+            log.debug(
+                "acquire.record_dispatch.miss",
+                reason="no-live-torrent",
+                basename=basename,
+                size=size,
+                dispatched_dest=str(dispatched_dest),
+            )
+            return
+
+        if len(matches) > 1:
+            log.warning(
+                "acquire.record_dispatch.miss",
+                reason="name+size-ambiguous",
+                basename=basename,
+                match_count=len(matches),
+                dispatched_dest=str(dispatched_dest),
+            )
+            return
+
+        item = matches[0]
+
+        if not self._torrent_client.is_seeding(item):
+            log.debug(
+                "acquire.record_dispatch.miss",
+                reason="not-seeding",
+                info_hash=item.hash,
+                dispatched_dest=str(dispatched_dest),
+            )
+            return
+
+        resolved = self._resolve_tracker(item)
+        if resolved is None:
+            log.info(
+                "acquire.record_dispatch.miss",
+                reason="tracker-unresolved",
+                info_hash=item.hash,
+                tags=list(item.tags),
+                dispatched_dest=str(dispatched_dest),
+            )
+            return
+
+        tracker_name, economy = resolved
+        obligation = SeedObligation(
+            info_hash=item.hash,
+            source_tracker=tracker_name,
+            min_seed_time_s=economy.min_seed_time,
+            min_ratio=economy.min_ratio,
+            added_at=int(time.time()),
+            dispatched_path=str(dispatched_dest),
+        )
+
+        # Write-before-move, fail-soft: a write error must never interrupt the
+        # dispatch (a lost obligation degrades to fail-open at deletion time).
+        try:
+            self._store.seed.add(obligation)
+        except Exception as exc:  # noqa: BLE001 — fail-soft store write
+            log.warning(
+                "acquire.record_dispatch.write_failed",
+                error=str(exc),
+                info_hash=item.hash,
+                dispatched_dest=str(dispatched_dest),
+            )
+            return
+
+        log.info(
+            "acquire.record_dispatch.hit",
+            info_hash=item.hash,
+            tracker=tracker_name,
             dispatched_dest=str(dispatched_dest),
         )
+
+    def _resolve_tracker(self, item: "TorrentItem") -> "tuple[str, TrackerEconomyConfig] | None":
+        """Resolve the source tracker for *item* from its tags and the economy map.
+
+        The RP1 acquisition flow tags each torrent with its source tracker.
+        Manually-added torrents usually carry no such tag, so a MISS here is
+        the honest TODAY outcome (no global default is invented). The first
+        tag that names a configured economy tracker wins.
+
+        Args:
+            item: The matched, seeding torrent.
+
+        Returns:
+            A ``(tracker_name, economy)`` pair if a tag maps to a configured
+            economy, else ``None``.
+        """
+        if not self._economy:
+            return None
+        for tag in item.tags:
+            economy = self._economy.get(tag)
+            if economy is not None:
+                return tag, economy
+        return None
+
+    def mark_breach(self, path: Path) -> None:
+        """Mark every active obligation under *path* as breached (DESIGN §7.3).
+
+        Called by the dispatch flow when the "real media wins" rule deletes a
+        live payload before its seed obligation is met. Delegates to
+        :meth:`_SeedSubStore.mark_breached_under` (boundary-safe descendant
+        match). **Fail-soft**: a missing store is a silent no-op and any store
+        write error is swallowed + logged — the caller is never interrupted.
+
+        Args:
+            path: Absolute path whose active obligations are breached.
+        """
+        if self._store is None:
+            log.debug("acquire.mark_breach.noop", reason="no-store", path=str(path))
+            return
+        try:
+            count = self._store.seed.mark_breached_under(path, int(time.time()))
+        except Exception as exc:  # noqa: BLE001 — fail-soft store write
+            log.warning("acquire.mark_breach.failed", path=str(path), error=str(exc))
+            return
+        log.info("acquire.mark_breach.done", path=str(path), count=count)
 
 
 def build_delete_authority(
     store: "ConcreteAcquireStore | None",
+    torrent_client: "_ReadOnlyTorrentClient | None" = None,
+    economy: "dict[str, TrackerEconomyConfig] | None" = None,
 ) -> DeleteAuthority:
-    """Build a DeleteAuthority over the given store.
+    """Build a DeleteAuthority over the given store, torrent client, and economy map.
 
     Args:
         store: The ConcreteAcquireStore, or None for fail-open no-op.
+        torrent_client: A read-only torrent client (TorrentLister +
+            TorrentStateInspector) for dispatch-time correlation, or None.
+        economy: Tracker-name → TrackerEconomyConfig map, or None.
 
     Returns:
         A DeleteAuthority ready for injection into dispatch/maintenance.
     """
-    return DeleteAuthority(store=store)
+    return DeleteAuthority(store=store, torrent_client=torrent_client, economy=economy)
 
 
 __all__ = ["DeleteAuthority", "build_delete_authority"]

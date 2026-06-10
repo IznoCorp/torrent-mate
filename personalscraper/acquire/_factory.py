@@ -86,8 +86,22 @@ def build_acquire_context(
     # config whose .acquire is never touched leaks nothing, so no path guard is
     # needed at the composition root.
     store = build_acquire_store(config.acquire)
-    # Stateless — fail-open when store is None, costs nothing at boot.
-    delete_authority = build_delete_authority(store=store)
+    # Per-tracker seeding economy map (tracker_name → TrackerEconomyConfig) for
+    # the dispatch-time obligation writer (DESIGN §7.2). Only trackers that
+    # declare an explicit `economy` block participate; activation-only trackers
+    # (economy is None) are intentionally absent, so record_dispatch records an
+    # honest tracker-unresolved MISS for their torrents.
+    economy = {
+        name: provider.economy for name, provider in config.tracker.providers.items() if provider.economy is not None
+    }
+    # Stateless — fail-open when store is None, costs nothing at boot. The
+    # torrent_client (read-only here) and economy feed record_dispatch's
+    # basename+size correlation + tracker resolution.
+    delete_authority = build_delete_authority(
+        store=store,
+        torrent_client=torrent_client,
+        economy=economy,
+    )
     return AcquireContext(
         tracker_registry=tracker_registry,
         store=store,
