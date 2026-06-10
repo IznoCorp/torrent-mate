@@ -159,7 +159,10 @@ class AcquisitionTelegramSubscriber:
     def _on_wanted_enqueued(self, event: WantedEnqueued) -> None:
         """Handle WantedEnqueued — format + dispatch."""
         if event.kind == "episode":
-            loc = f"S{event.season:02d}E{event.episode:02d}" if event.season is not None and event.episode is not None else "?"
+            if event.season is not None and event.episode is not None:
+                loc = f"S{event.season:02d}E{event.episode:02d}"
+            else:
+                loc = "?"
             msg = f"🔍 Wanted episode: tvdb:{event.media_ref.tvdb_id} {loc}"
         else:
             msg = f"🔍 Wanted movie: tvdb:{event.media_ref.tvdb_id}"
