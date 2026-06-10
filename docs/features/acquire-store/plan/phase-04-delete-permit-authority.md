@@ -432,6 +432,16 @@ git commit -m "feat(acquire-store): acquire/delete_authority.py — deletion-tim
 
 ### Task 3 — Adversarial fail-open mutation tests
 
+> **PLAN-DRIFT NOTE (2026-06-10, sub-phase 4.3):** The real `DeleteAuthority.may_delete`
+> calls `store.seed.find_active_under(path)` (returns **list**, boundary-safe LIKE with
+> ESCAPE) — NOT the exact-match singleton `find_by_dispatched_path` the draft tests
+> below reference. `find_active_under` only filters on `released_at IS NULL` (not
+> `satisfied_at`), so the `mark_satisfied` approach in the draft `test_removing_obligation_allows_deletion`
+> would not work — a satisfied obligation is still returned by the query (the clock-based
+> seedtime check in `may_delete` would then decide). The delivered tests use `released_at`
+> instead for the "excluded at SQL level" case, and verify descendant-boundary matching
+> (descendant, sibling-prefix, exact, mixed) per DESIGN §7.2.
+
 **Files:**
 
 - Create: `tests/acquire/test_delete_authority.py`
