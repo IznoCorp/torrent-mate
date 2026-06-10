@@ -18,7 +18,7 @@
 | 2   | core/identity + AcquireConfig + acquire.json5 | phase-02-identity-config.md         | [x]    |
 | 3   | acquire/domain + schema + store               | phase-03-domain-schema-store.md     | [x]    |
 | 4   | core/delete_permit + acquire/delete_authority | phase-04-delete-permit-authority.md | [x]    |
-| 5   | Dispatch-time writer + per-site wiring        | phase-05-dispatch-wiring.md         | [ ]    |
+| 5   | Dispatch-time writer + per-site wiring        | phase-05-dispatch-wiring.md         | [x]    |
 | 6   | Guardrails + docs + gate                      | phase-06-guardrails-docs-gate.md    | [ ]    |
 
 ## Review cycles
@@ -27,4 +27,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 5 (dispatch-time writer + per-site wiring).
+Run `/implement:phase` to start Phase 6 (guardrails + docs + gate).
