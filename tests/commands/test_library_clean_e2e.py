@@ -370,3 +370,31 @@ def test_clean_apply_respects_live_obligation_store_stays_open(tmp_path, test_co
     # And the protected dir + its content must survive.
     assert actors_dir.exists(), f"VETOed .actors/ MUST NOT be deleted (store closed too early?): {actors_dir}"
     assert (actors_dir / "dummy.txt").exists(), "VETOed .actors/ content was deleted"
+
+
+def test_clean_library_error_propagates_not_swallowed_by_fail_open(tmp_path, test_config) -> None:
+    """C2: ``clean_library`` exceptions must propagate, not be swallowed by the fail-open handler.
+
+    The ``cleaned`` flag flips ``True`` just before ``_run_and_report`` is called.
+    If ``clean_library`` raises inside ``_run_and_report``, the outer ``except``
+    must re-raise — NOT fall through to the fail-open ``AllowAllPermit`` path.
+    This proves ``clean_library``'s own errors are not caught by the authority
+    fail-open handler (DESIGN §9).
+
+    Pre-fix behaviour: the exception was swallowed → exit 0, misleading the
+    operator into thinking cleanup succeeded when it actually crashed.
+    """
+    cfg, _, _ = _setup_movie_with_actors(tmp_path, test_config)
+
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        with patch(
+            "personalscraper.maintenance.disk_cleaner.clean_library",
+            side_effect=RuntimeError("boom"),
+        ):
+            result = run_cli(["library-clean"])
+
+    assert result.exit_code != 0, f"Expected non-zero exit (error propagation), got {result.exit_code}: {result.output}"
+    assert isinstance(result.exception, RuntimeError), (
+        f"Expected RuntimeError in result.exception, got {type(result.exception).__name__}: {result.exception}"
+    )
+    assert "boom" in str(result.exception), f"Expected 'boom' in exception message, got: {result.exception}"
