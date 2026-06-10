@@ -99,7 +99,11 @@ def test_clean_apply_removes_actors_dir(tmp_path, test_config, monkeypatch) -> N
     """``--apply`` deletes the .actors/ directory."""
     cfg, actors_dir, _ = _setup_movie_with_actors(tmp_path, test_config)
 
-    # Pin contract: clean is a filesystem-only operation, no domain events.
+    # Pin contract: clean is a filesystem-only operation that does NOT emit
+    # its own domain events.  However, the command now uses per_step_boundary
+    # to build the fail-open delete authority (DESIGN §7.4), which constructs
+    # the ProviderRegistry and emits exactly one RegistryBootValidated event.
+    # This is a boundary event — not a cleanup event.
     captured = capture_event_bus(monkeypatch)
 
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
@@ -112,7 +116,10 @@ def test_clean_apply_removes_actors_dir(tmp_path, test_config, monkeypatch) -> N
     # The .actors/ dir MUST be gone.
     assert not actors_dir.exists(), f"--apply did not delete .actors/: still exists at {actors_dir}"
 
-    assert len(captured) == 0, f"Expected 0 events, got: {[type(e).__name__ for e in captured]}"
+    assert len(captured) == 1, f"Expected 1 boundary event, got {len(captured)}: {[type(e).__name__ for e in captured]}"
+    assert captured[0].__class__.__name__ == "RegistryBootValidated", (
+        f"Expected RegistryBootValidated, got {captured[0].__class__.__name__}"
+    )
 
 
 # ── 5. --only filter ────────────────────────────────────────────────────────────

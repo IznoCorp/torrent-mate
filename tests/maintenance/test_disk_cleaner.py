@@ -767,3 +767,131 @@ class TestInternalHelpers:
 
         # Must not raise.
         _dc._publish_deleted(tmp_path / "x.jpg", ".actors", tmp_path / "db.sqlite")
+
+
+class TestDeletePermitHardSkip:
+    """Tests for the VETO hard-skip behaviour (DESIGN §7.3)."""
+
+    @staticmethod
+    def _veto_actors_permit():
+        """A DeletePermit that vetoes .actors/ directories."""
+        from personalscraper.core.delete_permit import ALLOW, veto
+
+        class VetoActorsPermit:
+            def may_delete(self, path: Path):
+                if ".actors" in str(path):
+                    return veto("still-seeding-actors")
+                return ALLOW
+
+        return VetoActorsPermit()
+
+    @staticmethod
+    def _veto_everything_permit():
+        """A DeletePermit that vetoes everything."""
+        from personalscraper.core.delete_permit import veto
+
+        class VetoAllPermit:
+            def may_delete(self, path: Path):
+                return veto("still-seeding-all")
+
+        return VetoAllPermit()
+
+    def test_veto_hard_skip_actors_dir(self, tmp_path: Path) -> None:
+        """VETO on .actors/ dir → hard-skip, count, NOT deleted."""
+        from personalscraper.core.delete_permit import ALLOW, veto
+
+        veto_count = 0
+
+        class CountingVetoPermit:
+            def may_delete(self, path: Path):
+                nonlocal veto_count
+                if ".actors" in str(path):
+                    veto_count += 1
+                    return veto("still-seeding-actors")
+                return ALLOW
+
+        disk = tmp_path / "medias"
+        movie = disk / "films" / "Movie (2024)"
+        actors = movie / ".actors"
+        actors.mkdir(parents=True)
+        (actors / "thumb.jpg").write_bytes(b"\x00" * 100)
+
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        result = clean_library(config, apply=True, only="actors", permit=CountingVetoPermit())
+
+        # Must be skipped, not deleted.
+        assert actors.exists(), "VETOed .actors/ directory MUST NOT be deleted"
+        assert result.deleted_count == 0, "VETOed items should NOT count as deleted"
+        assert result.skipped_by_obligation == 1, f"Expected 1 skip, got {result.skipped_by_obligation}"
+        assert veto_count == 1
+
+    def test_veto_dry_run_still_counts_skip(self, tmp_path: Path) -> None:
+        """Dry-run with VETO → skip counted, item untouched."""
+        disk = tmp_path / "medias"
+        movie = disk / "films" / "Movie (2024)"
+        actors = movie / ".actors"
+        actors.mkdir(parents=True)
+        (actors / "thumb.jpg").write_bytes(b"\x00" * 100)
+
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        result = clean_library(config, apply=False, only="actors", permit=self._veto_actors_permit())
+
+        # Dry-run must still show the veto (before the dry-run branch).
+        assert actors.exists(), "DRY-RUN VETOed .actors/ MUST still exist"
+        assert result.skipped_by_obligation == 1, f"DRY-RUN should count skip, got {result.skipped_by_obligation}"
+
+    def test_allow_permit_deletes_actors(self, tmp_path: Path) -> None:
+        """ALLOW permit → normal deletion proceeds."""
+        from personalscraper.core.delete_permit import AllowAllPermit
+
+        disk = tmp_path / "medias"
+        movie = disk / "films" / "Movie (2024)"
+        actors = movie / ".actors"
+        actors.mkdir(parents=True)
+        (actors / "thumb.jpg").write_bytes(b"\x00" * 100)
+
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        result = clean_library(config, apply=True, only="actors", permit=AllowAllPermit())
+
+        assert not actors.exists(), "ALLOWed .actors/ directory MUST be deleted"
+        assert result.deleted_count == 1
+        assert result.skipped_by_obligation == 0
+
+    def test_fail_open_default_still_deletes(self, tmp_path: Path) -> None:
+        """AllowAllPermit (default) → deletion proceeds (unchanged behavior)."""
+        disk = tmp_path / "medias"
+        movie = disk / "films" / "Movie (2024)"
+        actors = movie / ".actors"
+        actors.mkdir(parents=True)
+        (actors / "thumb.jpg").write_bytes(b"\x00" * 100)
+
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        # No permit arg → default AllowAllPermit().
+        result = clean_library(config, apply=True, only="actors")
+
+        assert not actors.exists(), "Default permit MUST allow deletion"
+        assert result.deleted_count == 1
+        assert result.skipped_by_obligation == 0
+
+    def test_veto_hard_skip_junk_file(self, tmp_path: Path) -> None:
+        """VETO on a junk file → hard-skip, count, NOT deleted."""
+        from personalscraper.core.delete_permit import ALLOW, veto
+
+        disk = tmp_path / "medias"
+        movie = disk / "films" / "Movie (2024)"
+        movie.mkdir(parents=True)
+        junk = movie / ".DS_Store"
+        junk.write_text("junk")
+
+        class VetoJunkPermit:
+            def may_delete(self, path: Path):
+                if ".DS_Store" in str(path):
+                    return veto("still-seeding-junk")
+                return ALLOW
+
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        result = clean_library(config, apply=True, only="junk", permit=VetoJunkPermit())
+
+        assert junk.exists(), "VETOed junk file MUST NOT be deleted"
+        assert result.deleted_count == 0
+        assert result.skipped_by_obligation == 1
