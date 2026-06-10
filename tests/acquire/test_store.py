@@ -1,12 +1,16 @@
-"""Non-vacuous tests for the concrete AcquireStore (RP3).
+"""Non-vacuous tests for the concrete AcquireStore (RP3, lock-model corrected).
 
 Covers:
-- Construction: opens acquire.db, runs 001_init.sql, holds the lifetime lock.
+- Lazy open: build_acquire_store creates NO db file / connection / lock until
+  the first sub-store access (the corrected concurrency model — DESIGN §6.3).
+- Migration: on first access PRAGMA user_version == 1 (001_init.sql applied).
 - Protocol conformance: ConcreteAcquireStore satisfies the AcquireStore Protocol.
-- Lock contention: an explicitly-held db_lock makes build_acquire_store raise
-  AcquireLockError (the planner-flagged deterministic restructure — we hold the
-  lock via the core context manager, NOT a second build call).
-- close() fail-soft + idempotent + lock release.
+- CONCURRENCY REGRESSION: two stores on the SAME db_path both open + read with
+  NO AcquireLockError (proves the lifetime-writer-lock regression is fixed).
+- WRITE SERIALIZATION: a write through one store is visible to a second store's
+  read (BEGIN IMMEDIATE commits are durable + shared cross-handle); _write_tx
+  issues the BEGIN IMMEDIATE serialization primitive.
+- close() fail-soft + idempotent + close-without-open no-op.
 - Round-trip per sub-store with field-level frozen-VO equality (incl. MediaRef
   JSON round-trip), wanted status transition, partial-index pending query.
 - CHECK-constraint liveness (mutation-proof guard).
@@ -35,11 +39,11 @@ from personalscraper.acquire.errors import (
 )
 from personalscraper.acquire.store import (
     ConcreteAcquireStore,
+    _write_tx,
     build_acquire_store,
 )
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.identity import MediaRef
-from personalscraper.core.sqlite._lock import db_lock
 from personalscraper.core.sqlite.errors import (
     SqliteCorruptError,
     SqliteLockError,
@@ -49,13 +53,16 @@ from personalscraper.core.sqlite.errors import (
 
 @pytest.fixture
 def store(tmp_path: Path) -> Iterator[ConcreteAcquireStore]:
-    """Yield an open store on a temp acquire.db and close it afterwards.
+    """Yield a store on a temp acquire.db and close it afterwards.
+
+    The store is inert until a sub-store is accessed; the tests that use this
+    fixture access a sub-store, which lazily opens the connection.
 
     Args:
         tmp_path: Pytest temp directory.
 
     Yields:
-        An open :class:`ConcreteAcquireStore`.
+        A :class:`ConcreteAcquireStore` (opens on first sub-store access).
     """
     cfg = AcquireConfig(db_path=tmp_path / "acquire.db")
     s = build_acquire_store(cfg)
@@ -66,17 +73,40 @@ def store(tmp_path: Path) -> Iterator[ConcreteAcquireStore]:
 
 
 # ---------------------------------------------------------------------------
-# Construction + schema contract
+# Lazy open (corrected concurrency model — DESIGN §6.3)
 # ---------------------------------------------------------------------------
 
 
-def test_build_runs_migration_user_version(tmp_path: Path) -> None:
-    """After construction PRAGMA user_version == 1 (001_init.sql applied)."""
+def test_build_is_inert_no_db_file_until_first_access(tmp_path: Path) -> None:
+    """build_acquire_store opens nothing: the db file is absent until first use.
+
+    Proves the laziness contract: no mkdir, no connection, no lock and no
+    migration happen at build.  The db file appears only after a sub-store is
+    touched.
+    """
+    db_path = tmp_path / "subdir" / "acquire.db"
+    cfg = AcquireConfig(db_path=db_path)
+    s = build_acquire_store(cfg)
+    try:
+        # Inert: file (and even the parent dir) must not exist yet.
+        assert not db_path.exists()
+        assert not db_path.parent.exists()
+        assert s._conn is None  # type: ignore[unreachable]
+        # First sub-store access opens the connection + migrates.
+        _ = s.follow
+        assert db_path.exists()
+        assert s._conn is not None
+    finally:
+        s.close()
+
+
+def test_build_runs_migration_user_version_on_first_access(tmp_path: Path) -> None:
+    """After first sub-store access PRAGMA user_version == 1 (001_init.sql)."""
     cfg = AcquireConfig(db_path=tmp_path / "acquire.db")
     s = build_acquire_store(cfg)
     try:
-        # Read user_version through a throwaway connection (the store holds the
-        # lifetime lock, but a SELECT-only connection does not need the lock).
+        _ = s.follow  # triggers open + migrate
+        # Read user_version through a throwaway connection (reads are lock-free).
         conn = sqlite3.connect(str(tmp_path / "acquire.db"))
         version = conn.execute("PRAGMA user_version").fetchone()[0]
         conn.close()
@@ -86,7 +116,8 @@ def test_build_runs_migration_user_version(tmp_path: Path) -> None:
 
 
 def test_all_four_tables_exist(store: ConcreteAcquireStore, tmp_path: Path) -> None:
-    """All four domain tables are present after construction."""
+    """All four domain tables are present after the store opens."""
+    _ = store.follow  # ensure the store has opened + migrated
     conn = sqlite3.connect(str(tmp_path / "acquire.db"))
     tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     conn.close()
@@ -103,47 +134,100 @@ def test_build_requires_resolved_db_path() -> None:
 def test_store_satisfies_protocol(store: ConcreteAcquireStore) -> None:
     """ConcreteAcquireStore is a runtime instance of the AcquireStore Protocol."""
     assert isinstance(store, AcquireStoreProtocol)
-    # All four sub-store namespaces are present.
+    # All four sub-store namespaces are present (as ensure-open properties).
     assert all(hasattr(store, ns) for ns in ("follow", "wanted", "seed", "ratio"))
 
 
 # ---------------------------------------------------------------------------
-# Lock contention — deterministic restructure (planner-flagged)
+# Concurrency regression — two stores on one db_path coexist (lock-free reads)
 # ---------------------------------------------------------------------------
 
 
-def test_lock_contention_raises_acquire_lock_error(tmp_path: Path) -> None:
-    """A held db_lock makes build_acquire_store raise AcquireLockError (timeout=0).
+def test_two_stores_same_path_both_open_and_read_no_lock_error(tmp_path: Path) -> None:
+    """REGRESSION: two stores on the SAME db_path both open + read concurrently.
 
-    The planner flagged the original draft (a second build on an already-open
-    DB) as unreliable.  We instead hold the writer lock EXPLICITLY via the core
-    ``db_lock`` context manager, then assert the build (whose own lock uses
-    timeout=0 + the AcquireLockError factory) fails fast.
+    The committed 3.3 store held the writer FileLock for its lifetime, so a
+    second store on the same path crashed with AcquireLockError — which broke
+    the shared composition root (e.g. the library-index cron during a pipeline
+    run).  With the corrected model (SQLite-native single-writer, lock-free
+    reads), both stores open and read with NO AcquireLockError.
     """
     db_path = tmp_path / "acquire.db"
-    cfg = AcquireConfig(db_path=db_path)
-    # Hold the writer lock for the duration of the build attempt.
-    with db_lock(db_path, timeout=0, error_factory=AcquireLockError):
-        with pytest.raises(AcquireLockError) as exc_info:
-            build_acquire_store(cfg)
-    # The actionable message must reference the holder PID.
-    assert "PID" in str(exc_info.value)
-    assert exc_info.value.pid > 0
-
-
-def test_lifetime_lock_blocks_second_store(tmp_path: Path) -> None:
-    """An open store holds the lifetime lock; a second build raises AcquireLockError."""
-    cfg = AcquireConfig(db_path=tmp_path / "acquire.db")
-    s1 = build_acquire_store(cfg)
+    s1 = build_acquire_store(AcquireConfig(db_path=db_path))
+    s2 = build_acquire_store(AcquireConfig(db_path=db_path))
     try:
-        with pytest.raises(AcquireLockError):
-            build_acquire_store(cfg)
+        # Open store A (access a sub-store → opens the connection + migrates).
+        assert s1.wanted.list_pending() == []
+        # Build + access store B on the SAME path — must NOT raise AcquireLockError.
+        assert s2.wanted.list_pending() == []
+        # Both connections are independently live and lock-free for reads.
+        assert s1.follow.get(123) is None
+        assert s2.follow.get(123) is None
     finally:
         s1.close()
+        s2.close()
+
+
+def test_write_through_one_store_visible_to_another(tmp_path: Path) -> None:
+    """SINGLE-WRITER CORRECTNESS: a committed write is visible across handles.
+
+    A FollowedSeries written through store A is read back through a *separate*
+    store B opened on the same db_path — proving BEGIN IMMEDIATE commits are
+    durable and shared cross-process/cross-handle (the SQLite-native serializer
+    that replaced the lifetime FileLock).
+    """
+    db_path = tmp_path / "acquire.db"
+    writer = build_acquire_store(AcquireConfig(db_path=db_path))
+    reader = build_acquire_store(AcquireConfig(db_path=db_path))
+    try:
+        series = FollowedSeries(
+            media_ref=MediaRef(tvdb_id=999),
+            title="Cross-Handle Show",
+            added_at=1_700_000_000,
+            active=True,
+        )
+        row_id = writer.follow.add(series)
+        # A fresh handle on the same DB sees the committed row.
+        fetched = reader.follow.get(row_id)
+        assert fetched == series
+    finally:
+        writer.close()
+        reader.close()
+
+
+def test_write_tx_issues_begin_immediate(tmp_path: Path) -> None:
+    """_write_tx opens an IMMEDIATE write transaction (the serialization primitive).
+
+    Asserts the serializer directly: while a _write_tx block is open, the
+    connection is in an active transaction (in_transaction True), and a SECOND
+    connection with a tiny busy_timeout cannot acquire the write lock and gets
+    SQLITE_BUSY (OperationalError "database is locked").  This proves BEGIN
+    IMMEDIATE — not a deferred transaction — is the cross-process write gate.
+    """
+    db_path = tmp_path / "acquire.db"
+    s = build_acquire_store(AcquireConfig(db_path=db_path))
+    try:
+        _ = s.follow  # open + migrate
+        conn = s._conn
+        assert conn is not None
+        # A competing connection with a near-zero busy_timeout.
+        rival = sqlite3.connect(str(db_path), timeout=0)
+        try:
+            with _write_tx(conn):
+                assert conn.in_transaction  # IMMEDIATE took the write lock
+                with pytest.raises(sqlite3.OperationalError, match="database is locked"):
+                    rival.execute("BEGIN IMMEDIATE")
+            # After COMMIT the write lock is released; the rival can now write.
+            rival.execute("BEGIN IMMEDIATE")
+            rival.execute("ROLLBACK")
+        finally:
+            rival.close()
+    finally:
+        s.close()
 
 
 # ---------------------------------------------------------------------------
-# close() — fail-soft, idempotent, releases the lock
+# close() — fail-soft, idempotent, no-op when never opened
 # ---------------------------------------------------------------------------
 
 
@@ -151,28 +235,41 @@ def test_close_is_idempotent_and_fail_soft(tmp_path: Path) -> None:
     """Double close() does not raise (fail-soft, idempotent)."""
     cfg = AcquireConfig(db_path=tmp_path / "acquire.db")
     s = build_acquire_store(cfg)
+    _ = s.follow  # open it so there is a real connection to close
     s.close()
     s.close()  # must not raise
 
 
-def test_close_releases_lock(tmp_path: Path) -> None:
-    """After close() the writer lock is free — a fresh db_lock acquire succeeds."""
+def test_close_without_open_is_noop(tmp_path: Path) -> None:
+    """close() on a never-accessed store is a pure no-op (no I/O, no raise).
+
+    No connection was opened and no lock taken, so close() touches nothing and
+    the db file is never created.
+    """
     db_path = tmp_path / "acquire.db"
-    cfg = AcquireConfig(db_path=db_path)
-    s = build_acquire_store(cfg)
-    assert Path(str(db_path) + ".lock").exists()  # lock held while open
-    s.close()
-    # The lock sidecar/file are gone and a fresh acquire succeeds immediately.
-    with db_lock(db_path, timeout=0):
-        pass  # would raise if the store's lock were still held
+    s = build_acquire_store(AcquireConfig(db_path=db_path))
+    s.close()  # must not raise
+    assert not db_path.exists()  # nothing was ever opened
 
 
 def test_close_fail_soft_even_if_conn_already_closed(tmp_path: Path) -> None:
     """close() swallows errors when the underlying connection is already closed."""
     cfg = AcquireConfig(db_path=tmp_path / "acquire.db")
     s = build_acquire_store(cfg)
+    _ = s.follow  # open it
+    assert s._conn is not None
     s._conn.close()  # simulate an externally-closed connection
     s.close()  # must not raise despite the already-closed conn
+
+
+def test_access_after_close_raises(tmp_path: Path) -> None:
+    """Accessing a sub-store after close() raises (closed handle is unusable)."""
+    cfg = AcquireConfig(db_path=tmp_path / "acquire.db")
+    s = build_acquire_store(cfg)
+    _ = s.follow
+    s.close()
+    with pytest.raises(RuntimeError, match="closed"):
+        _ = s.follow
 
 
 # ---------------------------------------------------------------------------
@@ -340,6 +437,7 @@ def test_wanted_status_check_is_live(store: ConcreteAcquireStore, tmp_path: Path
 
 def test_wanted_kind_check_is_live(store: ConcreteAcquireStore, tmp_path: Path) -> None:
     """Inserting an out-of-CHECK kind via raw SQL is rejected (CHECK is live)."""
+    _ = store.wanted  # ensure the schema exists before the raw connection probes it
     raw = sqlite3.connect(str(tmp_path / "acquire.db"))
     try:
         with pytest.raises(sqlite3.IntegrityError):

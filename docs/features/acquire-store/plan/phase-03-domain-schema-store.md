@@ -414,6 +414,39 @@ int)`, and `AcquireCorruptError.__init__(self, db_path, quarantine_path)` mirror
 >    `conn.row_factory = sqlite3.Row` lazily and map rows to frozen VOs through `_row_to_*`.
 > 4. **Lock-contention test restructured (planner-flagged).** See Step 1 below.
 
+> **CORRECTIVE DEVIATION (sub-phase 3.4 — supersedes 3.3 point #2 above).** The 3.3
+> "lifetime writer lock" was a **concurrency regression** at the shared composition root:
+> `cli_helpers._build_app_context` builds the acquire store for _every_ command, so holding
+> the `db_lock` (with `timeout=0`) for the store's lifetime made every command lock
+> `acquire.db` for its whole runtime — crashing any second concurrent command (e.g. the
+> library-index cron during `personalscraper run`) with `AcquireLockError`. It also broke
+> the §6.3 leaf-lock rule and the Phase-4/5 fail-open delete-permit reader. **Corrected
+> model (now authoritative, see DESIGN §6.3 CHANGE-LOG):**
+>
+> - **Lazy open.** `build_acquire_store(config)` returns an **inert** handle — no `mkdir`,
+>   no connection, no lock, no migration. The connection opens on the **first sub-store
+>   access** via `_ensure_open()`.
+> - **Brief migration lock only.** `_ensure_open()` takes `db_lock(timeout=10s,
+error_factory=AcquireLockError)` ONLY around `open_db` + `apply_migrations` (a normal
+>   `with` block, NOT `__enter__`/`__exit__` for the lifetime), then releases it. No
+>   lifetime lock; **never `timeout=0`**. `apply_migrations` is idempotent, so steady-state
+>   holds the lock microseconds.
+> - **Runtime writes via `_write_tx` (`BEGIN IMMEDIATE` + `busy_timeout`)** — SQLite-native
+>   cross-process single-writer (same as the indexer outbox + Phase-5 writer). **No
+>   per-write `FileLock`.**
+> - **Reads are lock-free** (WAL) — required by the fail-open delete-permit reader.
+> - `close()` closes the connection if one was opened (fail-soft, idempotent); a
+>   never-opened store's `close()` is a pure no-op.
+> - **Sub-stores are ensure-open properties** (`follow` / `wanted` / `seed` / `ratio`); the
+>   `_Follow/_Wanted/_Seed/_Ratio` classes + SQL are unchanged from 3.3 — only their
+>   construction timing moved to lazy.
+> - **Tests replaced:** `test_lock_contention_raises` / `test_lifetime_lock_blocks_second_store`
+>   are **deleted** (the lifetime behaviour they asserted is gone). Added: a two-store
+>   concurrency-regression test (both open + read, no `AcquireLockError`), a laziness test
+>   (no db file until first access), a write-serialization test (cross-handle visibility +
+>   `_write_tx` issues `BEGIN IMMEDIATE`), and a close-without-open no-op test. Kept:
+>   round-trips, CHECK liveness, `isinstance` hierarchy, close fail-soft/idempotent.
+
 - [ ] **Step 1: Write the failing store tests**
 
 > **Lock-contention test — DETERMINISTIC RESTRUCTURE.** The planner flagged the draft
@@ -861,6 +894,17 @@ git commit -m "feat(acquire-store): AcquireStore protocol extension + concrete s
 **Files:**
 
 - Modify: `personalscraper/acquire/_factory.py`
+
+> **CORRECTIVE DEVIATION (sub-phase 3.4).** Because `build_acquire_store` is now **inert**
+> (no I/O — see Task 3's 3.4 corrective deviation), the factory passes `store=store` with
+> **no path/isinstance guard**: a mock config whose `.acquire` is never dereferenced into a
+> sub-store leaks nothing. The docstring states the store is built lazily and that
+> open/migration errors surface at first access (fail-open-friendly), while tracker errors
+> still fail loud at boot. `cli_helpers/__init__.py` and `core/app_context.py` are unchanged
+> (`per_step_boundary` → `acquire.close()` → `store.close()` is a no-op when never opened).
+> Factory tests assert: `ctx.store` is a live `ConcreteAcquireStore` (runtime-checkable
+> `AcquireStore`), building a context opens NO connection / db file (laziness at the factory
+> level), and `ctx.close()` propagates to `store.close()`.
 
 - [ ] **Step 1: Update `_factory.py` to call `build_acquire_store`**
 

@@ -9,10 +9,11 @@ exposed as attribute namespaces:
   * ``store.seed``    — ``seed_obligation`` writer + reader (deletion authority)
   * ``store.ratio``   — ``ratio_state`` reader + upsert (data-carrier)
 
-All four sub-stores share a single ``acquire.db`` connection serialized by a
-single ``acquire.db`` writer lock held for the store's lifetime (single-writer
-per ROADMAP).  See :mod:`personalscraper.acquire.store` for the concrete
-implementation.
+All four sub-stores share a single ``acquire.db`` connection.  Cross-process
+single-writer is SQLite-native (WAL + ``BEGIN IMMEDIATE`` + ``busy_timeout``):
+no ``FileLock`` is held for the store's lifetime, and reads are lock-free.  The
+concrete store opens lazily (on first sub-store access).  See
+:mod:`personalscraper.acquire.store` for the concrete implementation.
 
 Import direction: this module imports only from ``personalscraper.acquire``
 domain VOs + stdlib — never from triage packages (layering, RP5c D3).
@@ -104,21 +105,34 @@ class RatioSubStore(Protocol):
 class AcquireStore(Protocol):
     """Full store contract for the acquisition lobe (RP3).
 
-    Sub-stores are accessed via attribute namespaces.  All operations are
-    serialized by the single ``acquire.db`` writer lock held by the concrete
-    store for its lifetime.
+    Sub-stores are accessed via attribute namespaces.  Writes are serialized
+    cross-process by SQLite itself (WAL + ``BEGIN IMMEDIATE`` + ``busy_timeout``);
+    reads are lock-free.  The concrete store opens lazily on first access.
 
-    Attributes:
-        follow: ``followed_series`` sub-store.
-        wanted: ``wanted`` sub-store.
-        seed: ``seed_obligation`` sub-store (the deletion-authority table).
-        ratio: ``ratio_state`` sub-store (data-carrier, dormant writer).
+    The four sub-store namespaces are **read-only accessors** (the concrete
+    store exposes them as ensure-open properties): callers read ``store.follow``
+    but never assign it.
     """
 
-    follow: FollowSubStore
-    wanted: WantedSubStore
-    seed: SeedSubStore
-    ratio: RatioSubStore
+    @property
+    def follow(self) -> FollowSubStore:
+        """``followed_series`` sub-store (opens the store on first access)."""
+        ...
+
+    @property
+    def wanted(self) -> WantedSubStore:
+        """``wanted`` sub-store (opens the store on first access)."""
+        ...
+
+    @property
+    def seed(self) -> SeedSubStore:
+        """``seed_obligation`` sub-store / deletion authority (opens on access)."""
+        ...
+
+    @property
+    def ratio(self) -> RatioSubStore:
+        """``ratio_state`` sub-store / data-carrier (opens on access)."""
+        ...
 
     def close(self) -> None:
         """Release all resources held by the store (fail-soft — never raises)."""

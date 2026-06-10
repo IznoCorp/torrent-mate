@@ -197,27 +197,60 @@ series/episode hierarchical shape) and `scraper/models.py::ScraperExternalIds` (
 `acquire/` may import neither (layering). `QualityProfile` + source-criteria are **deferred
 to RP3a**; `quality_profile_json` is a nullable passthrough column until then.
 
-### 6.3 Single-writer + total lock order
+### 6.3 Single-writer model (SQLite-native) + brief migration lock
 
-- One `acquire.db.lock` via `core.sqlite.db_lock`. **Strict leaf lock**: never held across
-  an FS operation, never across a qBit/Transmission HTTP call.
-- **Total lock order invariant (new, enforced by discipline + doc):**
-  `pipeline.lock` (outer) > `indexer_lock` > `acquire.db.lock` (leaf). No `acquire.db`
-  writer may acquire `pipeline.lock` or `indexer_lock` while holding `acquire.db.lock`.
-  This makes opposite-order pairs unreachable → provably deadlock-free. (`acquire.db` being
-  a separate file also _reduces_ contention: it never contends with the indexer scan's
-  `library.db` writer.)
-- `store.close()` is **fail-soft** (release connection + lock without raising), honoring
-  `AcquireContext.close()`'s documented no-suppress contract.
+> **CHANGE-LOG (sub-phase 3.4, supersedes the earlier "lifetime writer lock" wording):**
+> The 3.3 store took the core `db_lock` (FileLock) with `timeout=0` and **held it for
+> the store's lifetime**. Because `cli_helpers._build_app_context` is the **single
+> composition root** for _every_ command (pipeline, `library/scan` cron, `library/report`,
+> `library/query`, `library/audit`, `trailers/cli`), that made every command open
+> `acquire.db` and hold the writer lock for its whole runtime — so two previously-concurrent
+> commands (e.g. the library-index cron during `personalscraper run`) crashed the second
+> with `AcquireLockError`. It also violated this section's own "strict leaf, never held
+> across an FS/HTTP op" rule and would have blocked the Phase-4/5 fail-open delete-permit
+> _reader_. The model below replaces the lifetime lock.
+
+- **Cross-process single-writer is SQLite-native:** `acquire.db` is opened in **WAL** mode
+  (canonical PRAGMA set) and every write goes through `BEGIN IMMEDIATE` (`store._write_tx`)
+  with `busy_timeout=5000`. SQLite then serializes writers across processes for free — the
+  **same model** used by the indexer outbox publisher and the Phase-5 lock-free seed-
+  obligation writer. **No per-write `FileLock`.**
+- **Reads are lock-free** (WAL). No lock anywhere on the read path — a **hard requirement**
+  of the Phase-4/5 fail-open delete-permit reader, which must never take the writer lock.
+- **The core `db_lock` (FileLock) is taken ONLY briefly around open + migrate** — a single
+  `with db_lock(..., timeout=10s, error_factory=AcquireLockError):` block wrapping
+  `open_db` + `apply_migrations`, then released immediately. `apply_migrations` is
+  idempotent (a no-op once `user_version` is current), so the steady-state path holds this
+  lock for microseconds. It is a **strict leaf**: never held across an FS operation, never
+  across a qBit/Transmission HTTP call, **never `timeout=0`, never for the store's lifetime**.
+- **The store opens lazily** (on first sub-store access). `build_acquire_store(config)`
+  returns an **inert** handle — no `mkdir`, no connection, no lock, no migration. Commands
+  that never touch acquire state open nothing and take no lock, so the **shared composition
+  root does NOT serialize unrelated commands** (the library-index cron may run concurrently
+  with the pipeline). Open/migration errors (`AcquireLockError` / `AcquireCorruptError` /
+  `AcquireMigrationError`) therefore surface at **first access**, not at boot — intentional
+  and consistent with §9 fail-open (the future delete-permit treats store-unavailable as
+  ALLOW); the config-level WAL-safety validator still validates the **path** at boot.
+- **Total lock order invariant** (enforced by discipline + doc):
+  `pipeline.lock` (outer) > `indexer_lock` > `acquire.db.lock` (leaf — now only the **brief
+  migration lock**). No `acquire.db` writer may acquire `pipeline.lock` or `indexer_lock`
+  while holding the migration lock. This makes opposite-order pairs unreachable → provably
+  deadlock-free. (`acquire.db` being a separate file also _reduces_ contention: it never
+  contends with the indexer scan's `library.db` writer.)
+- `store.close()` is **fail-soft** (closes the connection if one was opened, without
+  raising) and **idempotent**; close-without-open is a pure no-op (there is no lifetime
+  lock to release). It honors `AcquireContext.close()`'s documented no-suppress contract.
 
 ### 6.4 Factory wiring
 
 `build_acquire_context` (the single construction site) gains a `build_acquire_store(config)`
 delegate (parity with `build_tracker_registry`) and a `build_delete_authority(store,
 torrent_client, config)` delegate; it sets `store=` and the delete-authority on
-`AcquireContext` instead of `store=None`. **No `AppContext` change, no `cli_helpers`
-change** beyond what already exists — `per_step_boundary` teardown already calls
-`acquire.close()`, which now transitively closes the store.
+`AcquireContext` instead of `store=None`. **`build_acquire_store` is inert** (no I/O), so
+the factory needs **no path guard** — a mock config whose `.acquire` is never dereferenced
+into a sub-store leaks nothing. **No `AppContext` change, no `cli_helpers` change** beyond
+what already exists — `per_step_boundary` teardown already calls `acquire.close()`, which
+now transitively closes the store (a no-op when the store was never opened).
 
 ## 7. Pillar 3 — single deletion authority
 
@@ -334,8 +367,10 @@ self.paths.data_dir / 'acquire.db')`.
 2. **`core/identity.MediaRef` + `AcquireConfig` + `acquire.json5`** — config plumbing,
    derived path, WAL-safety validator, overlay-layout doc bump, example-config test.
 3. **`acquire/domain.py` + schema + store** — VOs, `001_init.sql` (4 tables), `AcquireStore`
-   Protocol extension, concrete store (4 sub-stores, single-writer leaf lock), factory
-   wiring (`store=` filled), migration-contract + lock + close() tests.
+   Protocol extension, concrete store (4 sub-stores; **lazy open, SQLite-native single-writer
+   via `BEGIN IMMEDIATE`, lock-free reads, brief migration-only `db_lock`** — corrected in
+   sub-phase 3.4, see §6.3 CHANGE-LOG), factory wiring (`store=` filled, lazily),
+   migration-contract + concurrency-regression + laziness + close() tests.
 4. **`core/delete_permit` + `acquire/delete_authority`** — Protocols + `AllowAllPermit`,
    deletion-time resolver (persisted `dispatched_path` + path-exists guard), fail-open;
    adversarial fail-open mutation tests.
@@ -360,7 +395,12 @@ RP3 and O2 entries are updated in Phase 6 to record this split. SemVer stays **m
 - **Per-bug regression discipline** + adversarial goldens on the lock/migration code
   (memory: dispatched DB code ships vacuous tests that hide real bugs).
 - Migration-contract test (every version 1..N in `schema_version`; `user_version` == latest).
-- Single-writer lock: contention → `AcquireLockError`; stale-PID recovery.
+- **Concurrency regression (sub-phase 3.4):** two stores on the SAME `db_path` both open +
+  read with NO `AcquireLockError` (the lifetime-lock regression is fixed); a write through
+  one handle is visible to another (`BEGIN IMMEDIATE` durability across handles); the brief
+  migration `db_lock` still maps a live holder → `AcquireLockError` + stale-PID recovery.
+- **Laziness (sub-phase 3.4):** `build_acquire_store` creates no db file / connection / lock
+  until the first sub-store access; building a context opens nothing at boot.
 - **Fail-open mutation-proven:** inject a VETO → deleter skips; remove the obligation →
   deleter deletes. Store absent/unreadable → ALLOW.
 - **Crash-window tests:** (1) move-then-kill-before-obligation → live path can't help

@@ -1,27 +1,40 @@
-"""Concrete ``AcquireStore`` over ``core/sqlite``: 4 sub-stores, one leaf lock.
+"""Concrete ``AcquireStore`` over ``core/sqlite``: 4 sub-stores, lock-free reads.
 
-One ``acquire.db`` file, one ``acquire.db`` writer lock (via
-:func:`personalscraper.core.sqlite.db_lock`, with
-:class:`~personalscraper.acquire.errors.AcquireLockError` as the error factory).
-Logical write authority is partitioned into method namespaces
+One ``acquire.db`` file shared by four sub-store method namespaces
 (``store.follow.*``, ``store.wanted.*``, ``store.seed.*``, ``store.ratio.*``)
-that all share the single connection — matching the indexer precedent where one
-lock serializes one DB file (no 3-file/3-lock split).
+over a single connection — matching the indexer precedent where one DB file
+backs many logical writers (no 3-file/3-lock split).
 
-Lock-scope choice (LEAF-LOCK DISCIPLINE):
-    The store acquires the single-writer lock at construction (around
-    open → migrate) and **holds it for its entire lifetime**, releasing it only
-    in :meth:`ConcreteAcquireStore.close`.  This is sound because the ROADMAP
-    mandates a single writer: short-lived stores are built per pipeline step via
-    the factory, so the lock is never held across a full pipeline run.  The lock
-    is a **strict leaf**: it is never acquired while holding ``pipeline.lock`` or
-    ``indexer_lock`` (total order ``pipeline.lock > indexer_lock >
-    acquire.db.lock``), and the store performs no FS operation or HTTP call while
-    holding it — every method here is a pure DB read/write.
+Concurrency model (CORRECTED — see DESIGN §6.3):
+    Cross-process single-writer is provided by **SQLite itself** — WAL mode +
+    an explicit ``BEGIN IMMEDIATE`` on every write (:func:`_write_tx`) +
+    ``busy_timeout=5000`` (in the canonical PRAGMA set).  This is exactly the
+    model used by the indexer outbox publisher and the Phase-5 lock-free seed-
+    obligation writer.  The store does **NOT** hold a lifetime ``FileLock``.
 
-    The dispatch-time seed-obligation writer (Phase 5) is **lock-free** and
-    fail-soft (a short raw ``sqlite3`` connection + ``busy_timeout``); it does
-    NOT use this lock.  That writer is noted here but not built in RP3.
+    The core ``db_lock`` (FileLock) is taken **only briefly** around
+    open + migrate (idempotent ``apply_migrations`` — a no-op once the schema is
+    current), then released immediately.  It is a **strict leaf**: never held
+    across an FS operation or a qBit/Transmission HTTP call, never acquired with
+    ``timeout=0``, never held for the store's lifetime.  Total lock order
+    (``pipeline.lock > indexer_lock > acquire.db.lock``) is unchanged; the
+    ``acquire.db.lock`` is now only the brief migration lock.
+
+    **Reads are lock-free** (WAL).  No lock anywhere on the read path — this is
+    a hard requirement of the Phase-4/5 fail-open delete-permit reader, which
+    must never block on or contend for the writer lock.
+
+Lazy open:
+    :func:`build_acquire_store` returns an inert handle — it opens nothing (no
+    ``mkdir``, no connection, no lock, no migration).  The connection opens on
+    the **first sub-store access** via :meth:`ConcreteAcquireStore._ensure_open`.
+    Commands that never touch acquire state (e.g. the read-only JSON CLI
+    commands, the library-index cron) open nothing and take no lock — so the
+    shared composition root does NOT serialize unrelated commands.  Open and
+    migration errors (``AcquireCorruptError`` / ``AcquireMigrationError`` /
+    ``AcquireLockError``) therefore surface at **first access**, not at boot;
+    this is intentional and fail-open-friendly (the future delete-permit treats
+    store-unavailable as ALLOW).
 
 Connection: opened by :func:`personalscraper.core.sqlite.open_db`, which uses
 ``isolation_level=None`` (autocommit).  Writes are wrapped in explicit
@@ -30,9 +43,9 @@ write does not leave a half-applied transaction.  ``conn.row_factory`` is set to
 :class:`sqlite3.Row` lazily before SELECTs so row mappers can index by column
 name.
 
-``close()`` is **fail-soft**: it releases the connection and the lock without
-raising, and is idempotent (double-close is safe), honoring
-``AcquireContext.close()``'s no-suppress contract.
+``close()`` is **fail-soft**: if a connection was opened it is closed without
+raising; it is idempotent (double-close is safe) and a pure no-op when the store
+was never opened, honoring ``AcquireContext.close()``'s no-suppress contract.
 
 Logging: ``personalscraper.logger.get_logger`` (NEVER ``structlog.get_logger``);
 event names ``acquire.store.*``.
@@ -45,7 +58,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections.abc import Generator
-from contextlib import AbstractContextManager, contextmanager
+from contextlib import contextmanager
 from pathlib import Path
 from typing import cast
 
@@ -71,6 +84,14 @@ from personalscraper.logger import get_logger
 log = get_logger("acquire.store")
 
 _MIGRATIONS_DIR = Path(__file__).parent / "migrations"
+
+# Generous timeout for the BRIEF open+migrate lock.  apply_migrations is
+# idempotent (a no-op once user_version is current), so the steady-state path
+# holds this lock for microseconds; the timeout only matters on a genuine first-
+# boot race where two processes try to create the schema at once.  It is NOT
+# timeout=0: that was the lifetime-lock regression and is wrong for a migration
+# lock that several short-lived processes can legitimately contend for.
+_MIGRATION_LOCK_TIMEOUT_S = 10.0
 
 # Factory bundle so the core (event-free) open_db raises the rich, attribute-
 # bearing AcquireCorruptError through the acquire open path.  Only `corrupt` is
@@ -560,106 +581,157 @@ class _RatioSubStore:
 class ConcreteAcquireStore:
     """Concrete implementation of the :class:`AcquireStore` protocol.
 
-    Holds the single ``acquire.db`` writer lock for its entire lifetime and
-    exposes the four sub-store namespaces over one shared connection.
+    Lazy + lock-free-on-the-read-path.  Construction opens nothing: the
+    connection is opened (and migrations applied under a brief leaf lock) on the
+    first sub-store access.  Cross-process single-writer is SQLite-native (WAL +
+    ``BEGIN IMMEDIATE`` + ``busy_timeout``); no ``FileLock`` is held for the
+    store's lifetime.
+
+    The four sub-stores are exposed as properties (``follow`` / ``wanted`` /
+    ``seed`` / ``ratio``) that ensure-open on first touch and return a sub-store
+    bound to the shared connection.
 
     Attributes:
-        follow: ``followed_series`` sub-store.
-        wanted: ``wanted`` sub-store.
-        seed: ``seed_obligation`` sub-store (deletion authority).
-        ratio: ``ratio_state`` sub-store (data-carrier).
+        follow: ``followed_series`` sub-store (lazy).
+        wanted: ``wanted`` sub-store (lazy).
+        seed: ``seed_obligation`` sub-store (deletion authority, lazy).
+        ratio: ``ratio_state`` sub-store (data-carrier, lazy).
     """
 
-    def __init__(
-        self,
-        conn: sqlite3.Connection,
-        db_path: Path,
-        lock_cm: AbstractContextManager[None],
-    ) -> None:
-        """Initialise with an open connection, the DB path, and the held lock.
+    def __init__(self, db_path: Path) -> None:
+        """Initialise an INERT handle for ``db_path`` (no I/O).
+
+        No directory is created, no connection is opened, no lock is taken and
+        no migration is run until the first sub-store access.
 
         Args:
-            conn: Open :class:`sqlite3.Connection` to ``acquire.db`` (PRAGMAs
-                applied, migrations run).
-            db_path: Path to ``acquire.db`` (for logging + lock-file derivation).
-            lock_cm: The *already-entered* ``db_lock`` context manager; released
-                by :meth:`close`.  Holding it keeps the writer lock for the
-                store's lifetime.
+            db_path: Path to ``acquire.db`` (resolved by the config layer).
         """
-        self._conn = conn
         self._db_path = db_path
-        self._lock_cm = lock_cm
+        self._conn: sqlite3.Connection | None = None
         self._closed = False
-        self.follow = _FollowSubStore(conn)
-        self.wanted = _WantedSubStore(conn)
-        self.seed = _SeedSubStore(conn)
-        self.ratio = _RatioSubStore(conn)
-        log.info("acquire.store.opened", db_path=str(db_path))
+        self._follow: _FollowSubStore | None = None
+        self._wanted: _WantedSubStore | None = None
+        self._seed: _SeedSubStore | None = None
+        self._ratio: _RatioSubStore | None = None
+
+    def _ensure_open(self) -> sqlite3.Connection:
+        """Open the connection and migrate the schema on first access.
+
+        Takes the core ``db_lock`` (FileLock) with a generous timeout ONLY
+        around ``open_db`` + ``apply_migrations`` and releases it immediately —
+        the lock spans a single ``with`` block, never the store's lifetime.
+        ``apply_migrations`` is idempotent, so the steady-state path holds the
+        lock for microseconds.  After this, ``self._conn`` stays open with no
+        held lock; subsequent calls return it directly.
+
+        Returns:
+            The open :class:`sqlite3.Connection` to ``acquire.db``.
+
+        Raises:
+            RuntimeError: If the store has already been closed.
+            AcquireLockError: If the brief migration lock cannot be acquired
+                within :data:`_MIGRATION_LOCK_TIMEOUT_S`.
+            AcquireCorruptError: If ``acquire.db`` is malformed.
+            AcquireMigrationError: If a pending migration fails to apply.
+        """
+        if self._closed:
+            raise RuntimeError("AcquireStore is closed")
+        if self._conn is not None:
+            return self._conn
+
+        self._db_path.parent.mkdir(parents=True, exist_ok=True)
+        # Brief leaf lock around open+migrate only (generous timeout, NOT 0).
+        # Released the instant the `with` block exits; the connection survives.
+        with db_lock(
+            self._db_path,
+            timeout=_MIGRATION_LOCK_TIMEOUT_S,
+            error_factory=AcquireLockError,
+        ):
+            conn = open_db(self._db_path, errors=_OPEN_DB_ERROR_FACTORIES)
+            apply_migrations(conn, _MIGRATIONS_DIR, error_factory=AcquireMigrationError)
+
+        self._conn = conn
+        log.info("acquire.store.opened", db_path=str(self._db_path))
+        return conn
+
+    @property
+    def follow(self) -> _FollowSubStore:
+        """``followed_series`` sub-store (ensures the store is open)."""
+        conn = self._ensure_open()
+        if self._follow is None:
+            self._follow = _FollowSubStore(conn)
+        return self._follow
+
+    @property
+    def wanted(self) -> _WantedSubStore:
+        """``wanted`` sub-store (ensures the store is open)."""
+        conn = self._ensure_open()
+        if self._wanted is None:
+            self._wanted = _WantedSubStore(conn)
+        return self._wanted
+
+    @property
+    def seed(self) -> _SeedSubStore:
+        """``seed_obligation`` sub-store (deletion authority; ensures open)."""
+        conn = self._ensure_open()
+        if self._seed is None:
+            self._seed = _SeedSubStore(conn)
+        return self._seed
+
+    @property
+    def ratio(self) -> _RatioSubStore:
+        """``ratio_state`` sub-store (data-carrier; ensures open)."""
+        conn = self._ensure_open()
+        if self._ratio is None:
+            self._ratio = _RatioSubStore(conn)
+        return self._ratio
 
     def close(self) -> None:
-        """Release the connection and the writer lock (fail-soft, idempotent).
+        """Close the connection if one was opened (fail-soft, idempotent).
 
         Never raises (honors ``AcquireContext.close()``'s no-suppress contract):
-        connection-close and lock-release errors are swallowed and logged.
-        Double-close is a no-op.
+        a connection-close error is swallowed and logged.  Double-close is a
+        no-op, and close-without-open (the store was never accessed) is a pure
+        no-op — there is no lifetime lock to release.
         """
         if self._closed:
             return
         self._closed = True
+        if self._conn is None:
+            # Never opened — nothing to release.
+            return
         try:
             self._conn.close()
         except Exception as exc:  # noqa: BLE001 — fail-soft close contract
             log.warning("acquire.store.close_conn_failed", error=str(exc))
-        # Release the lifetime lock by exiting the db_lock context manager.
-        try:
-            self._lock_cm.__exit__(None, None, None)
-        except Exception as exc:  # noqa: BLE001 — fail-soft close contract
-            log.warning("acquire.store.close_lock_failed", error=str(exc))
         log.info("acquire.store.closed", db_path=str(self._db_path))
 
 
 def build_acquire_store(config: AcquireConfig) -> ConcreteAcquireStore:
-    """Build a :class:`ConcreteAcquireStore` for the given config.
+    """Build an INERT :class:`ConcreteAcquireStore` handle (no I/O at build).
 
-    Acquires the single ``acquire.db`` writer lock (held for the store's
-    lifetime), opens ``acquire.db`` with the canonical PRAGMAs, and applies any
-    pending migrations.
+    Building opens nothing: no directory is created, no connection is opened, no
+    lock is taken and no migration runs.  The connection opens lazily on the
+    first sub-store access (:meth:`ConcreteAcquireStore._ensure_open`), at which
+    point open/migration errors (``AcquireLockError`` / ``AcquireCorruptError`` /
+    ``AcquireMigrationError``) may surface.  This keeps the shared composition
+    root from serializing unrelated commands and is fail-open-friendly for the
+    deletion path.
 
     Args:
         config: :class:`AcquireConfig` with a resolved ``db_path``.
 
     Returns:
-        A :class:`ConcreteAcquireStore` ready for use.
+        An inert :class:`ConcreteAcquireStore`; opens on first use.
 
     Raises:
         ValueError: If ``config.db_path`` is ``None`` (must be resolved by
             ``Config._resolve_derived_paths`` before this call).
-        AcquireLockError: If the ``acquire.db`` writer lock is held by a live
-            process.
-        AcquireCorruptError: If ``acquire.db`` is malformed.
-        AcquireMigrationError: If a pending migration fails to apply.
     """
     if config.db_path is None:
         raise ValueError("AcquireConfig.db_path must be resolved before calling build_acquire_store")
-    db_path: Path = config.db_path
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Acquire the lifetime writer lock FIRST (timeout=0 — fail fast on contention).
-    # We enter the db_lock @contextmanager manually so the lock spans the store's
-    # lifetime rather than a single `with` block; the entered context manager is
-    # handed to the store and `__exit__`-ed in ConcreteAcquireStore.close.
-    lock_cm = db_lock(db_path, timeout=0, error_factory=AcquireLockError)
-    lock_cm.__enter__()  # raises AcquireLockError on live contention; holds the lock on success
-
-    try:
-        conn = open_db(db_path, errors=_OPEN_DB_ERROR_FACTORIES)
-        apply_migrations(conn, _MIGRATIONS_DIR, error_factory=AcquireMigrationError)
-    except BaseException:
-        # Open/migrate failed — release the lock we just took so we don't leak it.
-        lock_cm.__exit__(None, None, None)
-        raise
-
-    return ConcreteAcquireStore(conn, db_path, lock_cm)
+    return ConcreteAcquireStore(config.db_path)
 
 
 # Public alias so ``isinstance(store, AcquireStore)`` reads naturally at call
