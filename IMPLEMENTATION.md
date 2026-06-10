@@ -8,11 +8,18 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/acquire-store/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/acquire-store/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                         | File                                | Status |
+| --- | --------------------------------------------- | ----------------------------------- | ------ |
+| 1   | core/sqlite extraction                        | phase-01-core-sqlite-extraction.md  | [ ]    |
+| 2   | core/identity + AcquireConfig + acquire.json5 | phase-02-identity-config.md         | [ ]    |
+| 3   | acquire/domain + schema + store               | phase-03-domain-schema-store.md     | [ ]    |
+| 4   | core/delete_permit + acquire/delete_authority | phase-04-delete-permit-authority.md | [ ]    |
+| 5   | Dispatch-time writer + per-site wiring        | phase-05-dispatch-wiring.md         | [ ]    |
+| 6   | Guardrails + docs + gate                      | phase-06-guardrails-docs-gate.md    | [ ]    |
 
 ## Review cycles
 
@@ -20,4 +27,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start Phase 1.
