@@ -6,7 +6,7 @@
 **Version bump**: 0.25.0 → 0.26.0
 **Branch**: feat/acquire-store
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/144
 **Design**: docs/features/acquire-store/DESIGN.md
 **Master plan**: docs/features/acquire-store/plan/INDEX.md
 
