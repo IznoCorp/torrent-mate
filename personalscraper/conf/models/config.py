@@ -7,6 +7,7 @@ from pydantic import Field, field_validator, model_validator
 
 from personalscraper.conf.ids import BUILTIN_CATEGORY_IDS
 from personalscraper.conf.models._base import _StrictModel
+from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.conf.models.api_config import (
     MetadataConfig,
     NotifyConfig,
@@ -56,6 +57,7 @@ class Config(_StrictModel):
         ingest: Ingest step tunables (min_ratio threshold, etc.).
         trailers: Trailer download feature configuration. Disabled by default (enabled=False).
         indexer: Media indexer sub-system configuration.
+        acquire: Acquisition lobe SQLite store configuration (RP3).
     """
 
     config_version: int = Field(default=1, description="Schéma version pour migration future.")
@@ -97,6 +99,8 @@ class Config(_StrictModel):
 
     indexer: IndexerConfig = Field(default_factory=IndexerConfig)
 
+    acquire: AcquireConfig = Field(default_factory=AcquireConfig)
+
     metadata: MetadataConfig = Field(default_factory=MetadataConfig)
     torrent: TorrentConfig = Field(default_factory=TorrentConfig)
     tracker: TrackerConfig = Field(default_factory=TrackerConfig)
@@ -110,6 +114,7 @@ class Config(_StrictModel):
         """Resolve derived paths from ``paths.data_dir`` when not explicitly set.
 
         - ``indexer.db_path`` → ``paths.data_dir / 'library.db'``
+        - ``acquire.db_path`` → ``paths.data_dir / 'acquire.db'``
         - ``trailers.state_file`` → ``paths.data_dir / 'trailers_state.json'``
 
         Returns:
@@ -117,6 +122,8 @@ class Config(_StrictModel):
         """
         if self.indexer.db_path is None:
             object.__setattr__(self.indexer, "db_path", self.paths.data_dir / "library.db")
+        if self.acquire.db_path is None:
+            object.__setattr__(self.acquire, "db_path", self.paths.data_dir / "acquire.db")
         if self.trailers.state_file is None:
             object.__setattr__(self.trailers, "state_file", str(self.paths.data_dir / "trailers_state.json"))
         return self
