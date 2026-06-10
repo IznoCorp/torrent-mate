@@ -148,6 +148,19 @@ def test_deleter_core_import_is_not_flagged() -> None:
     assert not violations, "core.delete_permit import was wrongly flagged as an acquire/ violation"
 ```
 
+> **CORRECTIVE NOTE (sub-phase 6.1):** The positive control draft above is
+> **vacuous** — it reimplements the AST walk inline (`ast.parse(source); for node
+in ast.walk(tree): ...`) instead of calling the real scanner. An inline
+> reimplementation tests a copy, not the guard. The committed implementation
+> uses the real `_scan_deleters_for_acquire_import` → `_collect_violations_from_source`
+> path for all three tests (real guard + positive/negative controls), matching
+> the `_ACQUIRE_SYNTHETIC_REL` pattern from the existing acquire⇏triage guard.
+> Positive control: creates a real tmp-file probe in `dispatch/`, runs the real
+> scanner over dispatch/, asserts the import IS flagged, cleans up in `finally`.
+> Mutation check: injecting `from personalscraper.acquire.store import
+ConcreteAcquireStore` into `dispatch/_movie.py` → `test_deleters_do_not_import_acquire`
+> FAILS; reverting → PASSES.
+
 - [ ] **Step 3: Run the new layering tests**
 
 ```bash
