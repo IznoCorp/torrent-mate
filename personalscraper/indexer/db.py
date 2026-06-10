@@ -26,6 +26,14 @@ from typing import TYPE_CHECKING, Generator
 
 from filelock import FileLock, Timeout
 
+from personalscraper.core.sqlite.errors import (
+    SqliteCorruptError,
+    SqliteDiskFullError,
+    SqliteFKOrphansError,
+    SqliteInvalidPathError,
+    SqliteLockError,
+    SqliteMigrationError,
+)
 from personalscraper.indexer._fs_probe import probe_mount as _probe_mount
 from personalscraper.indexer.events import DiskFullWarning
 from personalscraper.logger import get_logger
@@ -40,7 +48,7 @@ log = get_logger("indexer.db")
 # ---------------------------------------------------------------------------
 
 
-class IndexerLockError(RuntimeError):
+class IndexerLockError(SqliteLockError):
     """Raised when the writer lock is held by a live process.
 
     Args:
@@ -53,7 +61,7 @@ class IndexerLockError(RuntimeError):
         super().__init__(f"Indexer writer lock held by PID {pid}")
 
 
-class IndexerCorruptError(RuntimeError):
+class IndexerCorruptError(SqliteCorruptError):
     """Raised when ``library.db`` is malformed and has been quarantined.
 
     Args:
@@ -71,7 +79,7 @@ class IndexerCorruptError(RuntimeError):
         )
 
 
-class IndexerInvalidPathError(ValueError):
+class IndexerInvalidPathError(SqliteInvalidPathError):
     """Raised when ``db_path`` resolves to a macFUSE-NTFS (external) mount.
 
     SQLite WAL mode is unreliable on macFUSE-NTFS; the DB must live on the
@@ -92,7 +100,7 @@ class IndexerInvalidPathError(ValueError):
         )
 
 
-class IndexerDiskFullError(OSError):
+class IndexerDiskFullError(SqliteDiskFullError):
     """Raised when free disk space is insufficient for the indexer to proceed.
 
     Args:
@@ -111,7 +119,7 @@ class IndexerDiskFullError(OSError):
         )
 
 
-class IndexerFKOrphansError(RuntimeError):
+class IndexerFKOrphansError(SqliteFKOrphansError):
     """Raised by :func:`open_db` when ``PRAGMA foreign_key_check`` returns rows.
 
     A foreign-key orphan is a row whose foreign key references a parent row
@@ -153,7 +161,7 @@ class IndexerFKOrphansError(RuntimeError):
         )
 
 
-class IndexerMigrationError(RuntimeError):
+class IndexerMigrationError(SqliteMigrationError):
     """Raised when applying a migration script fails.
 
     The database is restored from the pre-migration snapshot before this
