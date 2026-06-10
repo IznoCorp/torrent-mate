@@ -8,11 +8,15 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/acquire-events/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/acquire-events/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                                            | File                   | Status |
+| --- | ---------------------------------------------------------------- | ---------------------- | ------ |
+| 1   | Event catalog (acquire/events.py) + hub registration + factories | phase-01-events.md     | [ ]    |
+| 2   | Muted Telegram subscriber + config flag + CLI wiring             | phase-02-subscriber.md | [ ]    |
+| 3   | Docs update + ACCEPTANCE.md + make check gate                    | phase-03-docs-gate.md  | [ ]    |
 
 ## Review cycles
 
@@ -20,4 +24,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start Phase 1.
