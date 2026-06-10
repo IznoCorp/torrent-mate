@@ -255,7 +255,20 @@ class DispatchStep:
         Returns:
             A ``StepReport`` with per-item move/merge/replace outcomes.
         """
+        from typing import TypedDict
+
+        from personalscraper.core.delete_permit import DeletePermit, SeedObligationRecorder
         from personalscraper.dispatch.run import run_dispatch
+
+        class _DispatchKW(TypedDict, total=False):
+            permit: DeletePermit
+            recorder: SeedObligationRecorder
+
+        acquire = getattr(ctx.app, "acquire", None)
+        authority = getattr(acquire, "delete_authority", None)
+        kw: _DispatchKW = {}
+        if authority is not None:
+            kw = {"permit": authority, "recorder": authority}
 
         return run_dispatch(
             ctx.app.settings,
@@ -263,6 +276,7 @@ class DispatchStep:
             dry_run=ctx.dry_run,
             verified=ctx.extras.get("verified"),
             event_bus=ctx.app.event_bus,
+            **kw,
         )
 
 

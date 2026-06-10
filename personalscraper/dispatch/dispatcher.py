@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.config import Settings
+from personalscraper.core.delete_permit import AllowAllPermit, DeletePermit, SeedObligationRecorder
 from personalscraper.dispatch import _movie, _transfer, _tv
 from personalscraper.dispatch._types import DispatchError, DispatchResult
 from personalscraper.dispatch.disk_scanner import get_disk_configs
@@ -83,6 +84,8 @@ class Dispatcher:
         dry_run: bool = False,
         *,
         event_bus: EventBus,
+        permit: DeletePermit = AllowAllPermit(),
+        recorder: SeedObligationRecorder = AllowAllPermit(),
     ):
         """Initialize the dispatcher.
 
@@ -95,6 +98,11 @@ class Dispatcher:
                 and ``_tv.dispatch_tvshow`` emit :class:`ItemDispatched`
                 after every successful real transfer (dry-run never emits,
                 by design — the catalog only records completed transfers).
+            permit: Injected :class:`DeletePermit` consulted before any
+                media deletion (default: ``AllowAllPermit`` — always permit).
+            recorder: Injected :class:`SeedObligationRecorder` for recording
+                seed obligations at dispatch time (default:
+                ``AllowAllPermit`` — no-op).
 
         Raises:
             DispatchError: If rsync is not available.
@@ -104,6 +112,8 @@ class Dispatcher:
         self.index = index
         self.dry_run = dry_run
         self._event_bus = event_bus
+        self._permit = permit
+        self._recorder = recorder
         self._disk_configs = get_disk_configs(config)
 
         # Resolve the filesystem capability per dest disk once (not per file).

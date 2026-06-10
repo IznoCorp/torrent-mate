@@ -14,6 +14,7 @@ from pathlib import Path
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.core.delete_permit import AllowAllPermit, DeletePermit, SeedObligationRecorder
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import FileType
 from personalscraper.dispatch._types import DispatchResult
@@ -80,6 +81,8 @@ def run_dispatch(
     verified: list[VerifyResult] | None = None,
     *,
     event_bus: EventBus,
+    permit: DeletePermit = AllowAllPermit(),
+    recorder: SeedObligationRecorder = AllowAllPermit(),
 ) -> StepReport:
     """Run the dispatch pipeline step.
 
@@ -93,6 +96,10 @@ def run_dispatch(
             lifecycle transition emits an ``ItemProgressed`` event on the bus.
             Also forwarded to ``MediaIndex`` so ``open_db``'s pre-open
             free-space guard emits ``DiskFullWarning`` on the same bus.
+        permit: Injected :class:`DeletePermit` forwarded to
+            :class:`Dispatcher` (default: ``AllowAllPermit`` — always permit).
+        recorder: Injected :class:`SeedObligationRecorder` forwarded to
+            :class:`Dispatcher` (default: ``AllowAllPermit`` — no-op).
 
     Returns:
         StepReport with dispatch counts and details.
@@ -140,6 +147,8 @@ def run_dispatch(
                 index=index,
                 dry_run=dry_run,
                 event_bus=event_bus,
+                permit=permit,
+                recorder=recorder,
             )
 
             if verified is None:
