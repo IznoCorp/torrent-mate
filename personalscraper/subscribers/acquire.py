@@ -42,7 +42,8 @@ class AcquisitionTelegramSubscriber:
 
     Subscribes to all 10 acquisition event types defined in
     :mod:`personalscraper.acquire.events`. Each handler formats a short message
-    and emits a structlog line at ``INFO`` level (``acquire.notify.<event>``).
+    and emits a structlog line at ``INFO`` level with the static key
+    ``acquire.notify.event`` and an ``acquire_event`` discriminator field.
     When ``enabled=True`` the message is also sent via ``notifier`` on a
     fire-and-forget daemon thread (fail-soft: any notifier exception is caught
     and logged at ``WARNING``). When ``enabled=False`` (default) the subscriber
@@ -136,7 +137,8 @@ class AcquisitionTelegramSubscriber:
 
         Args:
             message: Formatted human-readable message.
-            event_name: Structlog event name (``acquire.notify.<event>``).
+            event_name: Value for the ``acquire_event`` field in the structlog
+                line (keyed under the static name ``acquire.notify.event``).
         """
         log.info("acquire.notify.event", acquire_event=event_name, message=message)
         if self._enabled:
@@ -157,7 +159,7 @@ class AcquisitionTelegramSubscriber:
     def _on_wanted_enqueued(self, event: WantedEnqueued) -> None:
         """Handle WantedEnqueued — format + dispatch."""
         if event.kind == "episode":
-            loc = f"S{event.season:02d}E{event.episode:02d}" if event.season and event.episode else "?"
+            loc = f"S{event.season:02d}E{event.episode:02d}" if event.season is not None and event.episode is not None else "?"
             msg = f"🔍 Wanted episode: tvdb:{event.media_ref.tvdb_id} {loc}"
         else:
             msg = f"🔍 Wanted movie: tvdb:{event.media_ref.tvdb_id}"
