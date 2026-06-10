@@ -466,6 +466,15 @@ git add docs/features/acquire-store/ACCEPTANCE.md
 git commit -m "docs(acquire-store): ACCEPTANCE.md — 16 executable shell criteria (SH-16)"
 ````
 
+> **Plan-drift (2026-06-10, sub-phase 6.3)**: five ACC commands corrected against live code:
+>
+> - ACC-06: `test_migration_contract` did not exist → replaced with `TestAcquireMigrations001` (6 tests).
+> - ACC-09: `test_store_lookup_exception_returns_allow` renamed → `test_lookup_exception_fail_open_with_mutation_proof`.
+> - ACC-10: `test_veto_on_active_unmet_obligation` renamed → `test_seedtime_not_met_veto`.
+> - ACC-11: `test_stale_obligation_inert_when_path_missing` renamed → `test_stale_obligation_mutation_proof`.
+> - ACC-14: count was 3 in draft → actual 5 tests (two scenarios have sub-tests).
+> - ACC-16: expected summary recorded as `6425 passed, 3 skipped, 2 xfailed` (live count).
+
 ---
 
 ### Task 5 — Update ROADMAP.md (RP3/O2 re-scope) + final make check gate
