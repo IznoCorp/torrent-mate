@@ -282,7 +282,7 @@ touch /Users/izno/dev/PersonnalScaper/personalscraper/acquire/migrations/__init_
 cd /Users/izno/dev/PersonnalScaper && python -m pytest tests/acquire/test_domain.py -v 2>&1 | tail -10
 ```
 
-Expected: `7 passed`
+Expected: `5 passed` (corrected — 5 test functions, not 7; plan drift)
 
 - [ ] **Step 6: Commit**
 
@@ -290,6 +290,13 @@ Expected: `7 passed`
 git add personalscraper/acquire/domain.py personalscraper/acquire/migrations/__init__.py tests/acquire/test_domain.py
 git commit -m "feat(acquire-store): acquire/domain.py frozen VOs keyed on MediaRef"
 ```
+
+> **Sub-phase 3.1 drift notes (2026-06-10):**
+>
+> - Test count corrected: 5 tests, not 7.
+> - domain.py: removed unused `field` import (ruff F811).
+> - test_domain.py: added D103 docstrings, fixed I001 import ordering (ruff).
+> - Commit message adjusted to `acquire/domain.py — store-facing value objects`.
 
 ---
 
