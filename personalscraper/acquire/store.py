@@ -486,6 +486,41 @@ class _SeedSubStore:
         ).fetchone()
         return _row_to_seed(row) if row is not None else None
 
+    def find_active_under(self, path: Path) -> list[SeedObligation]:
+        """Return all active obligations for *path* or any of its descendants.
+
+        Matches obligations whose ``dispatched_path`` is either exactly *path*
+        OR a descendant of *path* (i.e. starts with ``path/``).  Uses a
+        boundary-safe LIKE with ESCAPE so that ``/a/b`` matches ``/a/b/x``
+        but NOT ``/a/bc`` or ``/a/b-other``.  Only returns obligations where
+        ``released_at IS NULL`` (still active).
+
+        Args:
+            path: Absolute path to match against ``dispatched_path``.
+
+        Returns:
+            A list of :class:`SeedObligation` (possibly empty).
+        """
+        path_str = str(path)
+        # Escape LIKE wildcards in the path prefix so that literal %
+        # and _ characters in the path string don't act as patterns.
+        escaped = path_str.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        like_pattern = escaped + "/%"
+
+        self._conn.row_factory = sqlite3.Row
+        rows = self._conn.execute(
+            """
+            SELECT info_hash, source_tracker, dispatched_path,
+                   min_seed_time_s, min_ratio, added_at,
+                   satisfied_at, breached_at, released_at
+            FROM seed_obligation
+            WHERE (dispatched_path = ? OR dispatched_path LIKE ? ESCAPE '\\')
+              AND released_at IS NULL
+            """,
+            (path_str, like_pattern),
+        ).fetchall()
+        return [_row_to_seed(r) for r in rows]
+
     def mark_satisfied(self, obligation_id: int, satisfied_at: int) -> None:
         """Set ``satisfied_at`` on a ``seed_obligation`` row.
 

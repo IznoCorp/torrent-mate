@@ -79,6 +79,15 @@ class SeedSubStore(Protocol):
         """Return the active obligation for *dispatched_path*, or ``None``."""
         ...
 
+    def find_active_under(self, path: Path) -> list[SeedObligation]:
+        """Return all active obligations for *path* or any of its descendants.
+
+        Matches obligations whose ``dispatched_path`` is either exactly *path*
+        OR a descendant of *path* (boundary-safe LIKE with ESCAPE).
+        Only returns obligations where ``released_at IS NULL``.
+        """
+        ...
+
     def mark_satisfied(self, obligation_id: int, satisfied_at: int) -> None:
         """Set ``satisfied_at`` on an obligation row."""
         ...

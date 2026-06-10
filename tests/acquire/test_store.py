@@ -378,6 +378,123 @@ def test_seed_mark_breached(store: ConcreteAcquireStore) -> None:
     assert found.satisfied_at is None
 
 
+def test_find_active_under_exact_match(store: ConcreteAcquireStore) -> None:
+    """find_active_under returns an obligation whose dispatched_path exactly matches path."""
+    obligation = SeedObligation(
+        info_hash="aaa111",
+        source_tracker="lacale",
+        min_seed_time_s=100,
+        min_ratio=1.0,
+        added_at=1_700_000_000,
+        dispatched_path="/data/tv/The Show",
+    )
+    store.seed.add(obligation)
+
+    results = store.seed.find_active_under(Path("/data/tv/The Show"))
+    assert len(results) == 1
+    assert results[0].info_hash == "aaa111"
+
+
+def test_find_active_under_descendant(store: ConcreteAcquireStore) -> None:
+    """find_active_under matches a dispatched_path that is a descendant of path."""
+    obligation = SeedObligation(
+        info_hash="bbb222",
+        source_tracker="c411",
+        min_seed_time_s=200,
+        min_ratio=2.0,
+        added_at=1_700_000_001,
+        dispatched_path="/data/tv/The Show/Season 01/episode.mkv",
+    )
+    store.seed.add(obligation)
+
+    # Querying the parent directory finds the file obligation underneath.
+    results = store.seed.find_active_under(Path("/data/tv/The Show"))
+    assert len(results) == 1
+    assert results[0].info_hash == "bbb222"
+
+    # Querying a higher ancestor also finds it.
+    results = store.seed.find_active_under(Path("/data/tv"))
+    assert len(results) == 1
+
+
+def test_find_active_under_no_sibling_prefix_match(store: ConcreteAcquireStore) -> None:
+    """find_active_under does NOT match a sibling-prefix path.
+
+    ``/a/b`` must NOT match ``/a/bc`` or ``/a/b-other`` — the LIKE is boundary-safe.
+    """
+    obligation = SeedObligation(
+        info_hash="ccc333",
+        source_tracker="lacale",
+        min_seed_time_s=300,
+        min_ratio=1.0,
+        added_at=1_700_000_002,
+        dispatched_path="/data/tv/The Show-Other/stray.mkv",
+    )
+    store.seed.add(obligation)
+
+    # /data/tv/The Show should NOT match /data/tv/The Show-Other/stray.mkv
+    results = store.seed.find_active_under(Path("/data/tv/The Show"))
+    assert len(results) == 0
+
+    # /data/tv/The should NOT match /data/tv/The Show-Other/stray.mkv either
+    results = store.seed.find_active_under(Path("/data/tv/The"))
+    assert len(results) == 0
+
+
+def test_find_active_under_excludes_released(store: ConcreteAcquireStore) -> None:
+    """find_active_under excludes obligations with released_at IS NOT NULL."""
+    obligation = SeedObligation(
+        info_hash="ddd444",
+        source_tracker="c411",
+        min_seed_time_s=400,
+        min_ratio=1.0,
+        added_at=1_700_000_003,
+        dispatched_path="/data/movies/Film",
+        released_at=1_700_000_999,  # already released
+    )
+    store.seed.add(obligation)
+
+    results = store.seed.find_active_under(Path("/data/movies/Film"))
+    assert len(results) == 0
+
+
+def test_find_active_under_returns_multiple_descendants(store: ConcreteAcquireStore) -> None:
+    """find_active_under returns all active obligations under a directory."""
+    obligations = [
+        SeedObligation(
+            info_hash="eee1",
+            source_tracker="lacale",
+            min_seed_time_s=100,
+            min_ratio=1.0,
+            added_at=1_700_000_100,
+            dispatched_path="/data/tv/Show/S01/E01.mkv",
+        ),
+        SeedObligation(
+            info_hash="eee2",
+            source_tracker="lacale",
+            min_seed_time_s=200,
+            min_ratio=1.0,
+            added_at=1_700_000_200,
+            dispatched_path="/data/tv/Show/S01/E02.mkv",
+        ),
+        SeedObligation(
+            info_hash="eee3",
+            source_tracker="c411",
+            min_seed_time_s=300,
+            min_ratio=2.0,
+            added_at=1_700_000_300,
+            dispatched_path="/data/tv/Show/S02/E01.mkv",
+        ),
+    ]
+    for obl in obligations:
+        store.seed.add(obl)
+
+    results = store.seed.find_active_under(Path("/data/tv/Show"))
+    assert len(results) == 3
+    info_hashes = {r.info_hash for r in results}
+    assert info_hashes == {"eee1", "eee2", "eee3"}
+
+
 def test_ratio_upsert_round_trip(store: ConcreteAcquireStore) -> None:
     """ratio.upsert inserts then updates the same PK row (data-carrier)."""
     initial = RatioState(
