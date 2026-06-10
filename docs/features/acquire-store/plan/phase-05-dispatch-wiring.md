@@ -47,6 +47,45 @@ Deleters import only `core.delete_permit` types — never `acquire/`.
 
 ### Task 1 — Implement `record_dispatch` in `delete_authority.py`
 
+> **⚠ CORRECTIVE NOTE (sub-phase 5.1, real-API grounding).** The Step-1/Step-3
+> code blocks below code against a **fictional torrent API** and MUST NOT be
+> copied verbatim. They were superseded during implementation. The shipped
+> implementation uses the REAL API:
+>
+> - **`TorrentItem`** (`api/torrent/_base.py`) fields: `hash` (the info hash, NOT
+>   `info_hash`), `name`, `size_bytes` (NOT `total_size`), `tags`, `state`,
+>   `progress`, `ratio`. There is **NO** `item.is_seeding()` method.
+> - **Seeding check** is a **client** method: `client.is_seeding(item)` per
+>   `TorrentStateInspector` (`api/torrent/_contracts.py`) — NOT an item method.
+> - **Correlation**: `item.name == staging_source.name` AND
+>   `item.size_bytes == staging_source.stat().st_size`. Zero → MISS
+>   `no-live-torrent`; >1 → MISS `name+size-ambiguous`; not seeding → MISS
+>   `not-seeding`.
+> - **Tracker resolution + economy**: `DeleteAuthority.__init__` (and
+>   `build_delete_authority`) gain `torrent_client` and
+>   `economy: dict[str, TrackerEconomyConfig] | None`. The factory builds the
+>   economy map from `config.tracker.providers` (`{name: p.economy for name, p
+in providers.items() if p.economy is not None}`). The source tracker is
+>   resolved by intersecting `item.tags` with `economy.keys()` (RP1 tag
+>   convention). No matching tag → MISS `tracker-unresolved` (no global default
+>   invented — manually-added torrents legitimately MISS here today). On HIT the
+>   obligation snapshots `economy.min_seed_time` / `economy.min_ratio` (note: the
+>   field is `min_seed_time`, in seconds).
+> - **HIT write**: `store.seed.add(SeedObligation(info_hash=item.hash, …,
+dispatched_path=str(dispatched_dest)))` — write-before-move; store-write
+>   errors are swallowed + logged `acquire.record_dispatch.write_failed`. Writes
+>   go through the regular `store.seed.add` (lock-free WAL + `BEGIN IMMEDIATE`),
+>   NOT a raw `sqlite3.connect` against `self._store._db_path`.
+>
+> **`mark_breach` port (replaces the brittle raw-SQL breach hack in Task 3).**
+> A `mark_breach(self, path: Path) -> None` method was added to the
+> `SeedObligationRecorder` Protocol + `AllowAllPermit` (no-op) +
+> `DeleteAuthority` (fail-soft → `store.seed.mark_breached_under(path,
+int(time.time()))`). A new boundary-safe `mark_breached_under(path,
+breached_at) -> int` was added to `_SeedSubStore` (and the `SeedSubStore`
+> Protocol in `_ports.py`). Task 3 MUST call `self._recorder.mark_breach(path)`
+> instead of the `_recorder._store.seed._conn` raw-SQL fetch/update.
+
 **Files:**
 
 - Modify: `personalscraper/acquire/delete_authority.py`
