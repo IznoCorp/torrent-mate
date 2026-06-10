@@ -1,31 +1,43 @@
-"""SQLite connection management, writer-lock, disk-full guard, and migration applier.
+"""Indexer SQLite facade — thin wrapper over the event-free ``core.sqlite`` layer.
 
-Provides :func:`open_db` which applies the canonical PRAGMAs from DESIGN §6.1,
-:func:`indexer_lock` backed by a :class:`filelock.FileLock`, :func:`apply_migrations`
-which applies pending ``*.sql`` scripts in sorted order, and helpers for detecting and
-recovering from disk-full conditions and corrupt databases.
+The neutral connection-opening, writer-lock, PRAGMA, and migration machinery now
+lives under :mod:`personalscraper.core.sqlite` (event-free, shared by ``indexer/``
+and ``acquire/``).  This module re-wires those primitives into the indexer's
+event-aware surface:
 
-Custom exceptions defined here:
+* :func:`open_db` keeps its required ``event_bus`` parameter, runs the
+  :func:`check_free_space` guard (which emits :class:`DiskFullWarning`), and
+  delegates to :func:`personalscraper.core.sqlite._open.open_db` with a bundle of
+  rich ``Indexer*Error`` factories so the attribute-bearing exceptions still
+  propagate through the open path.
+* :func:`check_free_space` is kept VERBATIM here (required-bus contract pin — it
+  emits :class:`DiskFullWarning` before raising :class:`IndexerDiskFullError`).
+* :func:`indexer_lock`, :func:`apply_migrations`, and :func:`_apply_pragmas` are
+  thin shims delegating to the core primitives.
+
+Custom exceptions defined here (re-parented onto the bare ``core.sqlite``
+markers so ``isinstance`` works both ways):
 - :class:`IndexerLockError` — another process holds the writer lock.
 - :class:`IndexerCorruptError` — ``library.db`` is malformed and quarantined.
 - :class:`IndexerInvalidPathError` — ``db_path`` resolves to a macFUSE-NTFS mount.
 - :class:`IndexerDiskFullError` — not enough free space to proceed.
+- :class:`IndexerFKOrphansError` — ``PRAGMA foreign_key_check`` returned rows.
 - :class:`IndexerMigrationError` — a migration script failed; DB restored from snapshot.
 """
 
 from __future__ import annotations
 
-import json
 import os
-import socket
 import sqlite3
-import time
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Generator
 
-from filelock import FileLock, Timeout
-
+from personalscraper.core.sqlite._lock import db_lock
+from personalscraper.core.sqlite._migrate import apply_migrations as _core_apply_migrations
+from personalscraper.core.sqlite._open import OpenDbErrorFactories
+from personalscraper.core.sqlite._open import open_db as _core_open_db
+from personalscraper.core.sqlite._pragmas import apply_pragmas as _apply_pragmas
 from personalscraper.core.sqlite.errors import (
     SqliteCorruptError,
     SqliteDiskFullError,
@@ -34,7 +46,6 @@ from personalscraper.core.sqlite.errors import (
     SqliteLockError,
     SqliteMigrationError,
 )
-from personalscraper.indexer._fs_probe import probe_mount as _probe_mount
 from personalscraper.indexer.events import DiskFullWarning
 from personalscraper.logger import get_logger
 
@@ -42,6 +53,23 @@ if TYPE_CHECKING:
     from personalscraper.core.event_bus import EventBus
 
 log = get_logger("indexer.db")
+
+# Re-export the canonical PRAGMA helper under the historical underscore name so
+# callers doing ``from personalscraper.indexer.db import _apply_pragmas`` (outbox
+# publishers, scanner concurrency workers, best-effort readers) keep working.
+__all__ = [
+    "IndexerLockError",
+    "IndexerCorruptError",
+    "IndexerInvalidPathError",
+    "IndexerDiskFullError",
+    "IndexerFKOrphansError",
+    "IndexerMigrationError",
+    "check_free_space",
+    "open_db",
+    "indexer_lock",
+    "apply_migrations",
+    "_apply_pragmas",
+]
 
 # ---------------------------------------------------------------------------
 # Custom exceptions
@@ -178,28 +206,8 @@ class IndexerMigrationError(SqliteMigrationError):
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Disk-full guard (required-bus contract pin — kept VERBATIM, event-aware)
 # ---------------------------------------------------------------------------
-
-
-def _find_ntfs_mount(path: Path) -> str | None:
-    """Return the macFUSE-NTFS mount point that contains *path*, or ``None``.
-
-    Delegates to :func:`personalscraper.indexer._fs_probe.probe_mount` which
-    uses a single cached ``mount`` shell-out (10s timeout — up from the former
-    5s budget; intentional, documented change).
-
-    Args:
-        path: Filesystem path to check.
-
-    Returns:
-        The matching mount-point string, or ``None`` if the path is not on a
-        macFUSE-NTFS volume.
-    """
-    info = _probe_mount(str(path.resolve()))
-    if info is None:
-        return None
-    return info.mount_point if info.fs_type == "ntfs_macfuse" else None
 
 
 def check_free_space(
@@ -241,48 +249,22 @@ def check_free_space(
 # disk-full recovery path (PRAGMA wal_checkpoint + DiskFullWarning emit).
 
 
-def _apply_pragmas(conn: sqlite3.Connection) -> None:
-    """Apply the canonical PRAGMA set to an open SQLite connection.
+# ---------------------------------------------------------------------------
+# Rich-error factory bundle — wires the attribute-bearing Indexer*Error
+# subclasses into the event-free core open_db so they propagate through the
+# open path (tests assert pytest.raises(IndexerCorruptError) etc.).
+# ---------------------------------------------------------------------------
 
-    This is the single source of truth for the DESIGN §6.1 PRAGMA
-    configuration.  Every connection that touches the indexer database MUST
-    call this helper immediately after :func:`sqlite3.connect` — either via
-    :func:`open_db` (the normal code path) or directly when a site needs its
-    own connection (outbox, concurrency workers, best-effort readers).
-
-    The full set applied (in order):
-
-    * ``journal_mode=WAL`` — multi-reader / single-writer, no exclusive lock.
-    * ``synchronous=NORMAL`` — durability without per-commit fsync overhead.
-    * ``temp_store=MEMORY`` — avoid on-disk temp files for sort / hash ops.
-    * ``cache_size=-65536`` — 64 MiB page cache (negative = kilobytes).
-    * ``mmap_size=268435456`` — 256 MiB memory-mapped I/O window.
-    * ``wal_autocheckpoint=1000`` — auto-checkpoint after 1 000 WAL frames.
-    * ``busy_timeout=5000`` — retry writes for up to 5 s before SQLITE_BUSY.
-    * ``foreign_keys=ON`` — enforce referential integrity at write time.
-
-    Args:
-        conn: An open :class:`sqlite3.Connection` on which to apply PRAGMAs.
-            The connection must not be closed before this function returns.
-
-    Notes:
-        ``journal_mode=WAL`` is a persistent DB-level setting; subsequent
-        connections inherit it.  All other PRAGMAs are connection-scoped and
-        reset to defaults on close, so they must be re-applied on every new
-        connection.
-    """
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA synchronous=NORMAL")
-    conn.execute("PRAGMA temp_store=MEMORY")
-    conn.execute("PRAGMA cache_size=-65536")
-    conn.execute("PRAGMA mmap_size=268435456")
-    conn.execute("PRAGMA wal_autocheckpoint=1000")
-    conn.execute("PRAGMA busy_timeout=5000")
-    conn.execute("PRAGMA foreign_keys=ON")
+_OPEN_DB_ERROR_FACTORIES = OpenDbErrorFactories(
+    invalid_path=IndexerInvalidPathError,
+    corrupt=IndexerCorruptError,
+    disk_full=IndexerDiskFullError,
+    fk_orphans=IndexerFKOrphansError,
+)
 
 
 # ---------------------------------------------------------------------------
-# Core API
+# Core API (thin wrappers over personalscraper.core.sqlite)
 # ---------------------------------------------------------------------------
 
 
@@ -335,126 +317,37 @@ def open_db(
         IndexerDiskFullError: If free space < 2 × *expected_growth_bytes*.
         IndexerCorruptError: If the existing DB is malformed and *rebuild* is False.
     """
-    # --- macFUSE-NTFS check (defense-in-depth; the conf validator catches most) ---
-    ntfs_mount = _find_ntfs_mount(path)
-    if ntfs_mount is not None:
-        raise IndexerInvalidPathError(path, ntfs_mount)
-
-    # --- Pre-open free-space guard ---
+    # --- Pre-open free-space guard (event-aware; emits DiskFullWarning) ---
+    # Kept in the indexer wrapper because the core open_db is event-free.  The
+    # core call below therefore receives expected_growth_bytes=0 (the space check
+    # has already happened here, with the event emission and rich raise).
     if expected_growth_bytes > 0:
         check_free_space(path, expected_growth_bytes, event_bus=event_bus)
 
-    # --- Corruption check ---
-    # Signals produced by SQLite when the file is corrupt or not a valid DB at all.
-    _CORRUPT_SIGNALS = ("malformed", "file is not a database", "not a database")
-
-    quarantine_path: Path | None = None
-    if path.exists():
-        try:
-            _probe = sqlite3.connect(str(path))
-            try:
-                # Phase 1.6 / SH-9 / BD-L : check the RESULT of integrity_check,
-                # not just whether it raises. Subtle corruptions (B-tree page
-                # damage, index inconsistency) can return strings like
-                # ``* btree page X is broken`` without throwing — the previous
-                # code discarded the result and let those slip through.
-                ic_row = _probe.execute("PRAGMA integrity_check").fetchone()
-                ic_result = ic_row[0] if ic_row else "unknown"
-            finally:
-                _probe.close()
-            if ic_result != "ok":
-                ts = int(time.time())
-                quarantine_path = path.parent / f"{path.name}.corrupt-{ts}"
-                path.rename(quarantine_path)
-                log.error(
-                    "indexer.db.integrity_check_failed",
-                    original=str(path),
-                    quarantine=str(quarantine_path),
-                    result=ic_result,
-                )
-                if not rebuild:
-                    raise IndexerCorruptError(path, quarantine_path)
-                # rebuild=True: fall through and create a fresh DB
-        except sqlite3.DatabaseError as exc:
-            if any(signal in str(exc).lower() for signal in _CORRUPT_SIGNALS):
-                ts = int(time.time())
-                # Use suffix replacement that preserves the full original name
-                quarantine_path = path.parent / f"{path.name}.corrupt-{ts}"
-                path.rename(quarantine_path)
-                log.error(
-                    "indexer.db.corrupt",
-                    original=str(path),
-                    quarantine=str(quarantine_path),
-                )
-                if not rebuild:
-                    raise IndexerCorruptError(path, quarantine_path) from exc
-                # rebuild=True: fall through and create a fresh DB
-            else:
-                raise
-
-    # --- Open and configure ---
-    conn = sqlite3.connect(str(path), isolation_level=None, check_same_thread=False)
-    _apply_pragmas(conn)
-
-    # --- FK orphan pre-check (Phase 1.2 / DEV #19) ---
-    # PRAGMA foreign_key_check is a diagnostic PRAGMA that scans every FK
-    # constraint and reports rows referencing non-existent parents.  It works
-    # regardless of whether foreign_keys is ON or OFF on this connection
-    # (``_apply_pragmas`` already enabled it above).  Orphans created by a
-    # script bypassing open_db (raw sqlite3.connect, sqlite3 CLI) stay silently
-    # invisible until a write triggers a FK error far from the source — surfacing
-    # them here provides a clear diagnostic at connection time.
-    orphans = conn.execute("PRAGMA foreign_key_check").fetchall()
-    if orphans:
-        if allow_fk_orphans:
-            # Opt-in tolerant mode (DEV #3): the FK-orphan cleanup path needs to
-            # open a dirty DB to repair it. Warn loudly but return the connection.
-            log.warning(
-                "indexer.db.foreign_key_orphans_tolerated",
-                db_path=str(path),
-                count=len(orphans),
-                sample=[tuple(row) for row in orphans[:5]],
-            )
-            return conn
-        log.error(
-            "indexer.db.foreign_key_orphans",
-            db_path=str(path),
-            count=len(orphans),
-            sample=[tuple(row) for row in orphans[:5]],
-        )
-        conn.close()
-        raise IndexerFKOrphansError(
-            path,
-            orphan_count=len(orphans),
-            sample=[tuple(row) for row in orphans[:5]],
-        )
-
-    return conn
+    # --- Delegate to the event-free core, wiring the rich Indexer*Error factories ---
+    # The factory bundle preserves the attribute-bearing exceptions
+    # (IndexerInvalidPathError / IndexerCorruptError / IndexerFKOrphansError) so
+    # they are raised THROUGH this open path, exactly as the tests assert.
+    return _core_open_db(
+        path,
+        0,
+        rebuild=rebuild,
+        allow_fk_orphans=allow_fk_orphans,
+        errors=_OPEN_DB_ERROR_FACTORIES,
+    )
 
 
 @contextmanager
 def indexer_lock(db_path: Path, timeout: float = 0) -> Generator[None, None, None]:
     """Acquire the single-writer lock for the indexer database.
 
-    Two files are used:
-
-    * ``<db_path>.lock`` — the :class:`filelock.FileLock` file (OS-level flock/fcntl).
-    * ``<db_path>.lock.json`` — a human-readable JSON sidecar written **after**
-      acquiring the OS lock, containing ``{pid, started_at, hostname}``.
-
-    Keeping metadata in a separate file prevents :class:`filelock.FileLock`
-    from wiping the content on ``acquire()`` (FileLock truncates the lock file
-    when it takes ownership).
-
-    On timeout (``Timeout`` raised by :class:`filelock.FileLock`):
-
-    * Read ``<db_path>.lock.json``, extract ``pid``.
-    * ``os.kill(pid, 0)`` — if the process is dead (``OSError``), log
-      ``indexer.lock.stale_recovered``, delete both lock files, and acquire.
-    * If the process is alive, raise :class:`IndexerLockError`.
+    Thin wrapper over :func:`personalscraper.core.sqlite._lock.db_lock`,
+    passing :class:`IndexerLockError` as the ``error_factory`` so a live-lock
+    timeout raises the rich, ``.pid``-bearing exception (and stale recovery logs
+    ``core.sqlite.lock.stale_recovered``).
 
     Args:
-        db_path: Path of the indexer database (lock file is derived from this).
+        db_path: Path of the indexer database (lock files are derived from this).
         timeout: Seconds to wait before declaring a timeout.  ``0`` means
             fail immediately if the lock is unavailable (default).
 
@@ -464,239 +357,33 @@ def indexer_lock(db_path: Path, timeout: float = 0) -> Generator[None, None, Non
     Raises:
         IndexerLockError: If the lock is held by a live process.
     """
-    lock_path = Path(str(db_path) + ".lock")
-    meta_path = Path(str(db_path) + ".lock.json")
-    lock = FileLock(str(lock_path), timeout=timeout)
-
-    lock_metadata = json.dumps(
-        {
-            "pid": os.getpid(),
-            "started_at": time.time(),
-            "hostname": socket.gethostname(),
-        }
-    )
-
-    # --- Pre-acquisition stale check ---
-    # If a metadata sidecar exists before we even try to acquire the OS lock, check
-    # whether the recorded PID is still alive.  When a process crashes, the kernel
-    # releases the fcntl lock but the metadata file is left behind.  Without this
-    # check we would acquire silently and overwrite the stale metadata, losing the
-    # opportunity to log the recovery and alert the operator.
-    if meta_path.exists():
-        try:
-            data = json.loads(meta_path.read_text())
-            prior_pid = int(data.get("pid", -1))
-            try:
-                os.kill(prior_pid, 0)
-                # PID is alive — this is a live lock (OS lock will block/timeout below)
-            except OSError:
-                # PID is dead → stale metadata; clean up and log before acquiring
-                log.warning("indexer.lock.stale_recovered", stale_pid=prior_pid)
-                for stale in (lock_path, meta_path):
-                    try:
-                        stale.unlink(missing_ok=True)
-                    except OSError:
-                        pass
-        except (json.JSONDecodeError, ValueError, OSError):
-            # Unreadable sidecar; clean up defensively
-            try:
-                meta_path.unlink(missing_ok=True)
-            except OSError:
-                pass
-
-    try:
-        lock.acquire(timeout=timeout)
-    except Timeout:
-        # --- Timeout handler: OS lock held by another process ---
-        held_pid: int | None = None
-        try:
-            data_t = json.loads(meta_path.read_text())
-            held_pid = int(data_t.get("pid", -1))
-        except (OSError, json.JSONDecodeError, ValueError):
-            pass
-
-        if held_pid is not None:
-            try:
-                os.kill(held_pid, 0)
-                # Process is alive → cannot acquire
-                raise IndexerLockError(held_pid)
-            except OSError:
-                # Process is dead but OS lock is still held (zombie / timing window);
-                # log the recovery and try once more without timeout.
-                log.warning("indexer.lock.stale_recovered", stale_pid=held_pid)
-                for stale in (lock_path, meta_path):
-                    try:
-                        stale.unlink(missing_ok=True)
-                    except OSError:
-                        pass
-                lock.acquire(timeout=-1)
-        else:
-            # Cannot read the metadata file; clear both and try to acquire
-            for stale in (lock_path, meta_path):
-                try:
-                    stale.unlink(missing_ok=True)
-                except OSError:
-                    pass
-            lock.acquire(timeout=-1)
-
-    try:
-        meta_path.write_text(lock_metadata)
+    with db_lock(db_path, timeout=timeout, error_factory=IndexerLockError):
         yield
-    finally:
-        lock.release()
-        for p in (lock_path, meta_path):
-            try:
-                p.unlink(missing_ok=True)
-            except OSError:
-                pass
 
 
 # ---------------------------------------------------------------------------
-# Migration applier
+# Migration applier (thin wrapper)
 # ---------------------------------------------------------------------------
-
-
-def _migration_version(sql_path: Path) -> int:
-    """Extract the leading integer from a migration filename.
-
-    For example, ``001_init.sql`` → ``1``, ``042_add_col.sql`` → ``42``.
-
-    Args:
-        sql_path: Path to a ``*.sql`` migration file.
-
-    Returns:
-        The leading integer portion of the filename as an ``int``.
-
-    Raises:
-        ValueError: If the filename does not start with a numeric prefix.
-    """
-    stem = sql_path.stem  # e.g. "001_init"
-    prefix = stem.split("_")[0]
-    return int(prefix)
-
-
-def _db_path_from_conn(conn: sqlite3.Connection) -> Path | None:
-    """Attempt to derive the filesystem path of an open connection.
-
-    Queries ``PRAGMA database_list`` for the ``main`` database filename.
-    Returns ``None`` for in-memory or unnamed databases.
-
-    Args:
-        conn: An open :class:`sqlite3.Connection`.
-
-    Returns:
-        The :class:`~pathlib.Path` of the DB file, or ``None`` if in-memory.
-    """
-    for _seq, _name, filename in conn.execute("PRAGMA database_list"):
-        if _name == "main" and filename:
-            return Path(filename)
-    return None
 
 
 def apply_migrations(conn: sqlite3.Connection, dir_: Path) -> None:
     """Apply pending SQL migration scripts to *conn* in version order.
 
-    Discovers every ``*.sql`` file in *dir_* whose leading numeric prefix is
-    greater than the current ``PRAGMA user_version``, sorts them by that
-    number, and applies each in turn.
+    Thin wrapper over :func:`personalscraper.core.sqlite._migrate.apply_migrations`,
+    passing :class:`IndexerMigrationError` as the ``error_factory`` so a failed
+    migration raises the rich, ``.version``-bearing exception.
 
-    For each pending migration:
-
-    1. **Snapshot** — write a ``.pre-migration-<ver>.bak`` backup of the DB
-       file (sibling of the DB, via :meth:`~pathlib.Path.read_bytes` /
-       :meth:`~pathlib.Path.write_bytes`).  Skipped — with a warning — when
-       the connection is in-memory (no derivable DB path).
-    2. **Apply** — execute the script via :meth:`~sqlite3.Connection.executescript`
-       which runs the SQL in a single implicit transaction.
-    3. **Success** — log ``indexer.migration.applied`` with the version number.
-    4. **Failure** — restore the DB from the snapshot (if one was taken), log
-       ``indexer.migration.failed``, and raise
-       :class:`IndexerMigrationError` (chained from the original exception).
-
-    The function is idempotent: if all migrations are already applied
-    (``PRAGMA user_version`` ≥ highest script number), it is a no-op.
+    See the core function for the full snapshot / apply / restore semantics,
+    including the closed-connection invariant on the failure path (the caller
+    MUST re-open a fresh connection after :class:`IndexerMigrationError`).
 
     Args:
         conn: Open :class:`sqlite3.Connection` to the indexer database.
         dir_: Directory that contains the ``*.sql`` migration scripts.
 
     Raises:
-        IndexerMigrationError: When a migration script fails to apply.
-            The database is restored from the pre-migration snapshot before
-            the exception propagates.
-
-            **Closed-connection invariant**: when this exception is raised
-            because of a restore-from-snapshot, *conn* has already been
-            ``.close()``-d (the snapshot is restored by overwriting the DB
-            file on disk, which requires the active connection to be closed).
-            Callers MUST re-open a fresh connection (e.g. via
-            :func:`open_db`) before issuing further queries; reusing the
-            closed *conn* will raise ``sqlite3.ProgrammingError``.
+        IndexerMigrationError: When a migration script fails to apply.  The
+            database is restored from the pre-migration snapshot and *conn* is
+            closed before the exception propagates.
     """
-    # Resolve current schema version from the database.
-    current_version: int = conn.execute("PRAGMA user_version").fetchone()[0]
-
-    # Collect and sort all *.sql migration scripts by their leading number.
-    scripts = sorted(
-        (p for p in dir_.glob("*.sql") if p.is_file()),
-        key=_migration_version,
-    )
-
-    db_path: Path | None = _db_path_from_conn(conn)
-
-    for script in scripts:
-        try:
-            ver = _migration_version(script)
-        except (ValueError, IndexError):
-            log.warning("indexer.migration.skip_unparseable", file=str(script))
-            continue
-
-        if ver <= current_version:
-            # Already applied; idempotent skip.
-            continue
-
-        # --- Step 1: take a pre-migration snapshot ---
-        # Flush the WAL to the main file before snapshotting so that the backup
-        # contains all committed writes from prior migrations.  Without the
-        # checkpoint the WAL may hold pages that are not yet in the DB file,
-        # making a raw file-copy snapshot incomplete.
-        bak_path: Path | None = None
-        if db_path is not None:
-            conn.execute("PRAGMA wal_checkpoint(FULL)")
-            bak_path = db_path.parent / f"{db_path.name}.pre-migration-{ver}.bak"
-            bak_path.write_bytes(db_path.read_bytes())
-        else:
-            log.warning(
-                "indexer.migration.no_snapshot",
-                version=ver,
-                reason="in-memory database; skipping backup",
-            )
-
-        # --- Step 2: apply the script ---
-        sql_text = script.read_text(encoding="utf-8")
-        try:
-            conn.executescript(sql_text)
-        except Exception as exc:  # noqa: BLE001 — catch-all so we can restore + re-raise
-            log.error(
-                "indexer.migration.failed",
-                version=ver,
-                error=str(exc),
-            )
-            # --- Step 4 (failure path): restore from snapshot ---
-            if bak_path is not None and db_path is not None and bak_path.exists():
-                conn.close()
-                db_path.write_bytes(bak_path.read_bytes())
-                # Re-open the connection in-place so the caller still holds a valid conn.
-                # We cannot reassign the caller's local variable, but we can copy the
-                # restored file's pages back into the existing connection object via
-                # the backup API.  However, since conn is now closed we cannot use it.
-                # The contract: caller must re-open after IndexerMigrationError.
-            raise IndexerMigrationError(ver) from exc
-
-        # --- Step 3 (success): log and advance current_version tracker ---
-        log.info(
-            "indexer.migration.applied",
-            version=ver,
-            script=script.name,
-        )
-        current_version = ver
+    _core_apply_migrations(conn, dir_, error_factory=IndexerMigrationError)

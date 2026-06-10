@@ -484,86 +484,108 @@ git commit -m "refactor(acquire-store): extract _pragmas, _migrate, db_lock into
 
 ---
 
-### Task 4 — Create event-free `core/sqlite/_open.py` and update indexer shims
+### Task 4 — Create event-free `core/sqlite/_open.py` and rewire `indexer/db.py` into a thin wrapper
 
 **Files:**
 
 - Create: `personalscraper/core/sqlite/_open.py`
-- Modify: `personalscraper/indexer/db.py` (add shims for `apply_pragmas`, `apply_migrations`, `db_lock`)
+- Modify: `personalscraper/indexer/db.py` (delete moved bodies; delegate to core)
+- Modify: `tests/indexer/test_db.py` (one event-string line)
+
+> **Sanctioned plan-drift (rich-error preservation).** The original skeleton said
+> "replace all `Indexer*Error` raises with `Sqlite*Error` raises" and make the
+> indexer `open_db` a pure pass-through. That is **wrong**: the test suite asserts
+> the attribute-bearing exceptions are raised THROUGH `open_db`'s code paths —
+> `pytest.raises(IndexerCorruptError)` reading `.quarantine_path`,
+> `pytest.raises(IndexerLockError)` with `.pid`, `pytest.raises(IndexerDiskFullError)`
+> reading `.free_bytes`/`.required_bytes`, `pytest.raises(IndexerInvalidPathError)`
+> reading `.mount_point`, `pytest.raises(IndexerFKOrphansError)` reading
+> `.orphan_count`/`.sample`, `pytest.raises(IndexerMigrationError)` with `.version`.
+> A bare `SqliteCorruptError` (the parent) is NOT caught by `pytest.raises(IndexerCorruptError)`.
+> The solution generalises the `error_factory` pattern already shipped in
+> `core/_lock.py` and `core/_migrate.py`: core stays event-free and raises bare
+> markers by default, but the caller may inject factories so the rich exception is
+> raised from the core body.
 
 - [ ] **Step 1: Create `personalscraper/core/sqlite/_open.py`**
 
-`open_db` in core takes **no `event_bus` param**. It raises `SqliteDiskFullError` directly (no event emission). Copy the body of `open_db` from `indexer/db.py` and:
-
-- Remove `event_bus: EventBus` param and the `check_free_space` call
-- Replace the free-space check with a direct `SqliteDiskFullError` raise
-- Replace all `Indexer*Error` raises with `Sqlite*Error` raises
-- Import `_fs_probe.probe_mount` from `personalscraper.core.sqlite._fs_probe`
+A frozen dataclass `OpenDbErrorFactories` holds four optional factory callables
+(each `None` → raise the bare `Sqlite*Error` marker). Signatures mirror the real
+`Indexer*Error.__init__` shapes:
 
 ```python
-# personalscraper/core/sqlite/_open.py
-"""Event-free open_db for core SQLite connections.
+@dataclass(frozen=True)
+class OpenDbErrorFactories:
+    invalid_path: Callable[[Path, str], BaseException] | None = None        # (db_path, mount_point)
+    corrupt:      Callable[[Path, Path], BaseException] | None = None       # (db_path, quarantine_path)
+    disk_full:    Callable[[Path, int, int], BaseException] | None = None   # (path, free_bytes, required_bytes)
+    fk_orphans:   Callable[[Path, int, list[tuple[object, ...]]], BaseException] | None = None  # (db_path, orphan_count, sample)
+```
 
-No event_bus param, no EventBus import. Raises SqliteDiskFullError directly.
-Used by acquire/store.py (and future core consumers). indexer/db.py wraps
-this and adds the event_bus param + DiskFullWarning emission.
-"""
-from __future__ import annotations
+`open_db` signature (NO `event_bus` param — the AST sweep in
+`test_event_bus_required_signatures.py` forbids `event_bus` anywhere it could carry
+a `None` default, and core is event-free anyway):
 
-import sqlite3
-from pathlib import Path
-
-from personalscraper.core.sqlite._fs_probe import probe_mount
-from personalscraper.core.sqlite._pragmas import apply_pragmas
-from personalscraper.core.sqlite.errors import (
-    SqliteCorruptError,
-    SqliteDiskFullError,
-    SqliteFKOrphansError,
-    SqliteInvalidPathError,
-)
-from personalscraper.logger import get_logger
-
-log = get_logger("core.sqlite.open")
-
-
+```python
 def open_db(
     path: Path,
     expected_growth_bytes: int = 0,
     *,
     rebuild: bool = False,
     allow_fk_orphans: bool = False,
-) -> sqlite3.Connection:
-    """Open (or create) a SQLite database, applying the canonical PRAGMA set.
-
-    Event-free: raises SqliteDiskFullError directly (no DiskFullWarning event).
-    indexer/db.py wraps this to add event_bus + DiskFullWarning.
-
-    Args:
-        path: Path to the SQLite database file.
-        expected_growth_bytes: If > 0, check free space before opening.
-        rebuild: If True, delete an existing DB before opening.
-        allow_fk_orphans: If True, skip the FK orphan check.
-
-    Returns:
-        An open sqlite3.Connection with PRAGMAs applied.
-
-    Raises:
-        SqliteInvalidPathError: path is on a WAL-unsafe filesystem.
-        SqliteDiskFullError: insufficient free space.
-        SqliteCorruptError: database is malformed (quarantined).
-        SqliteFKOrphansError: FK orphan rows found (unless allow_fk_orphans).
-    """
-    # (copy body of open_db from indexer/db.py, removing event_bus param
-    #  and check_free_space call; replace Indexer*Error with Sqlite*Error;
-    #  inline the free-space logic raising SqliteDiskFullError directly)
-    ...
+    errors: OpenDbErrorFactories | None = None,
+) -> sqlite3.Connection: ...
 ```
 
-- [ ] **Step 2: Add re-export shims in `indexer/db.py` for moved symbols**
+Body = the historical `indexer.db.open_db` body, made event-free:
 
-In `indexer/db.py`, import from core and re-export so that `from personalscraper.indexer.db import apply_migrations, _apply_pragmas, indexer_lock` still works. Also keep `open_db` and `check_free_space` in `indexer/db.py` wrapping the core versions with `event_bus` param (this is the required signature per `test_event_bus_required_signatures.py`).
+- macFUSE-NTFS rejection (via a local `_find_ntfs_mount` delegating to
+  `core.sqlite._fs_probe.probe_mount`) → `errors.invalid_path(...)` or bare
+  `SqliteInvalidPathError`.
+- Free-space guard **inlined** (statvfs, `free >= 2 × expected_growth_bytes`),
+  **no `DiskFullWarning` emission** → `errors.disk_full(...)` or bare
+  `SqliteDiskFullError`. (In practice the indexer wrapper passes
+  `expected_growth_bytes=0` here, so this branch is exercised only by future core
+  consumers.)
+- Corruption quarantine (extracted into `_quarantine_if_corrupt` so both the
+  `sqlite3.connect` of the probe AND the real connect are each immediately
+  followed by `apply_pragmas(...)` — this satisfies
+  `scripts/check-pragma-discipline.py`'s 5-line lookahead WITHOUT allowlisting
+  `_open.py`). Detection checks the RESULT of `PRAGMA integrity_check` (not just
+  whether it raises) AND the `DatabaseError` corruption signals. → `errors.corrupt(...)`
+  or bare `SqliteCorruptError`.
+- FK-orphan pre-check (`PRAGMA foreign_key_check`) → `errors.fk_orphans(...)` or
+  bare `SqliteFKOrphansError`; `allow_fk_orphans=True` logs a warning and returns
+  the connection.
+- Logs via `get_logger("core.sqlite.open")`, event names `core.sqlite.open.*`
+  (zero tests assert the old `indexer.db.*` strings — free rename).
 
-The wrapper `open_db` in `indexer/db.py`:
+`core/sqlite/` imports NOTHING from `personalscraper.indexer`, `personalscraper.events`,
+or `core.event_bus` (hard invariant, pinned by `test_layering.py`).
+
+- [ ] **Step 2: Rewire `indexer/db.py` into a thin wrapper (delete moved bodies)**
+
+- KEEP the 6 rich `IndexerXxxError` classes (re-parented in 1.1) and
+  `check_free_space(path, expected_growth_bytes, *, event_bus: EventBus)` VERBATIM
+  (it is a `REQUIRED_BUS_SITES` pin: statvfs + `DiskFullWarning` emit + rich raise).
+- `open_db` keeps its EXACT signature (incl. no-default `event_bus: EventBus`):
+  if `expected_growth_bytes > 0` it calls `check_free_space` (event + rich raise),
+  then delegates to `_core_open_db(path, 0, rebuild=..., allow_fk_orphans=...,
+errors=_OPEN_DB_ERROR_FACTORIES)` where the module-level bundle wires all four
+  rich constructors.
+- `indexer_lock` → thin `@contextmanager` delegating to
+  `db_lock(db_path, timeout=timeout, error_factory=IndexerLockError)`.
+- `apply_migrations` → thin delegation to
+  `_core_apply_migrations(conn, dir_, error_factory=IndexerMigrationError)`.
+- `_apply_pragmas` → alias re-export of core `apply_pragmas` (the historical
+  underscore name; `outbox/_publish.py`, `outbox/_disk.py`, and
+  `scanner/_concurrency.py` import it).
+- DELETE the now-dead moved bodies (`_find_ntfs_mount`, the local `_apply_pragmas`
+  def, the `indexer_lock` body, `_migration_version`, `_db_path_from_conn`, the
+  `apply_migrations` body, and `open_db`'s moved internals). No dead code left.
+- An `__all__` pins every public symbol importable from `personalscraper.indexer.db`
+  today (the 6 errors + `check_free_space`, `open_db`, `indexer_lock`,
+  `apply_migrations`, `_apply_pragmas`).
 
 ```python
 def open_db(
@@ -574,11 +596,13 @@ def open_db(
     allow_fk_orphans: bool = False,
     event_bus: EventBus,
 ) -> sqlite3.Connection:
-    """Indexer open_db: wraps core open_db, adds DiskFullWarning event."""
+    """Indexer open_db: event-aware free-space guard, then delegate to core."""
     if expected_growth_bytes > 0:
         check_free_space(path, expected_growth_bytes, event_bus=event_bus)
-    from personalscraper.core.sqlite._open import open_db as _core_open_db
-    return _core_open_db(path, 0, rebuild=rebuild, allow_fk_orphans=allow_fk_orphans)
+    return _core_open_db(
+        path, 0, rebuild=rebuild, allow_fk_orphans=allow_fk_orphans,
+        errors=_OPEN_DB_ERROR_FACTORIES,
+    )
 ```
 
 - [ ] **Step 3: Update event string in `tests/indexer/test_db.py` line 186**

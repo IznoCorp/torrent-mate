@@ -183,8 +183,8 @@ class TestStaleLockRecovery:
                     return True
             return False
 
-        assert _has_structlog_event("indexer.lock.stale_recovered"), (
-            f"Expected 'indexer.lock.stale_recovered' in caplog; got: {[r.msg for r in caplog.records]}"
+        assert _has_structlog_event("core.sqlite.lock.stale_recovered"), (
+            f"Expected 'core.sqlite.lock.stale_recovered' in caplog; got: {[r.msg for r in caplog.records]}"
         )
 
 
