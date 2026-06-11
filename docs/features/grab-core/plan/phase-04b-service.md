@@ -3,6 +3,25 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 
+> **Plan-drift notes (executed 2026-06-11):**
+>
+> - The draft tests in this plan referenced a fictional `GrabOutcome(grabbed=True, info_hash=…, event_emitted=…)`.
+>   The phase-4a `GrabOutcome` actually ships as `disposition: Literal["success","retryable","terminal"]` +
+>   `info_hash` / `reason` / `chosen`. Tests + `service.py` use the REAL API: success→`mark_grabbed`,
+>   retryable→`set_status("pending")` (cap→abandon), terminal→`set_status("abandoned")`.
+> - `MAX_ATTEMPTS` did NOT exist in `orchestrator.py` (the gate assumed it). It is defined in `service.py`
+>   (`MAX_ATTEMPTS = 5`) and the cap is checked there on a retryable outcome.
+> - `grabbed_hash` was added directly to `001_init.sql` (no 002): the migration runner builds fresh DBs from
+>   001 (user_version 0→1) and acquire.db has no prod data — pre-1.0 in-place evolution. `user_version`
+>   stays 1 and the table-name set is unchanged, so `test_migrations.py` is unaffected.
+> - `AcquisitionService.__init__` takes `event_bus: EventBus` REQUIRED (not `| None = None`): the project's
+>   `test_event_bus_required_signatures` AST sweep forbids optional/defaulted `event_bus` params (exemptions
+>   empty by design). The factory always passes the bus.
+> - `_resolve_profile` resolves the effective `QualityProfile` per item (series `quality_profile_json`
+>   ← item `criteria_json` via `desired.effective_quality`), then calls the real two-arg `grab(item, profile)`.
+> - `WantedItem.id` round-trip changed `store.wanted.get`/`list_pending` equality; the two existing
+>   `test_store.py` round-trip asserts were updated to `replace(item, id=rowid)` (full-equality intent kept).
+
 **Goal:** Add `AcquisitionService` (batch loop + `RunSummary`), the three new store methods
 (`claim_for_search`, `mark_grabbed`, `list_stale_searching`), `WantedItem.id` field,
 `list_pending()` SELECT id fix, `WantedSubStore` Protocol updates, `GrabCore` sub-handle,
