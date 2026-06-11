@@ -96,10 +96,11 @@ def _make_orchestrator(
 
     Returns ``(orchestrator, event_spy, registry, torrent_client, seed_spy)``.
 
-    ``seed_spy`` is the NEGATIVE-invariant probe: it is deliberately NOT wired
-    into the orchestrator (the orchestrator has no store/seed dep at all), so a
-    correct implementation can never touch it. The negative test asserts its
-    ``record_dispatch`` / ``seed.add`` ``call_count == 0``.
+    ``seed_spy`` is a discarded placeholder kept for tuple-shape stability across
+    call sites. The load-bearing NEGATIVE-invariant proof is NOT a probe-mock
+    (which, wired nowhere, can never be touched — vacuous) but the dep-scan in
+    ``test_negative_seed_write_never_called_during_full_success``: no seed-write
+    method name may leak onto the deps the orchestrator actually holds.
     """
     if search_outcome is None:
         search_outcome = SearchOutcome(results=[_make_result()], trackers_queried=1, trackers_errored=0)
@@ -162,19 +163,28 @@ def test_grab_outcome_is_frozen_dataclass() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_grab_happy_path_emits_exactly_one_grab_succeeded_exact_payload() -> None:
-    """GOLDEN: fetch+add → ONE GrabSucceeded with the EXACT payload."""
+def test_grab_happy_path_returns_success_outcome_with_exact_payload() -> None:
+    """GOLDEN: fetch+add → success outcome carrying the EXACT GrabSucceeded payload.
+
+    Emit-after-persist (DESIGN §15 / §11(d)): the orchestrator NO LONGER emits
+    ``GrabSucceeded`` — the service does, after ``mark_grabbed`` persists. So the
+    golden assertion is on the returned outcome's payload fields (``info_hash`` /
+    ``category`` / ``tags`` / ``chosen``) the service hands to ``GrabSucceeded``,
+    AND that NO ``GrabSucceeded`` leaked from the orchestrator onto the bus.
+    """
     orchestrator, spy, _registry, torrent_client, _seed = _make_orchestrator(add_return="aaaa1234")
 
     with patch(_RESOLVE) as mock_resolve:
         mock_resolve.return_value = MagicMock(spec=TorrentSource)
         outcome = orchestrator.grab(_make_wanted(), QualityProfile())
 
-    # Disposition
+    # Disposition + carried success payload (the exact fields the service emits).
     assert outcome.disposition == "success"
     assert outcome.info_hash == "aaaa1234"
     assert outcome.reason is None
     assert outcome.chosen is not None and outcome.chosen.provider == "lacale"
+    assert outcome.category is None
+    assert outcome.tags == ("lacale",)
 
     # add() was called exactly once with the resolved source + tracker tag
     assert torrent_client is not None
@@ -183,16 +193,11 @@ def test_grab_happy_path_emits_exactly_one_grab_succeeded_exact_payload() -> Non
     assert kwargs["category"] is None
     assert kwargs["tags"] == ("lacale",)
 
-    # Exactly ONE GrabSucceeded, with the EXACT payload (golden)
-    succeeded = [e for e in spy.events if isinstance(e, GrabSucceeded)]
-    assert len(succeeded) == 1
-    ev = succeeded[0]
-    assert ev.media_ref == MediaRef(tvdb_id=12345)
-    assert ev.info_hash == "aaaa1234"
-    assert ev.source_tracker == "lacale"
-    assert ev.category is None
-    assert ev.tags == ("lacale",)
-    # No failure events leaked
+    # The orchestrator must NOT emit GrabSucceeded (the service owns that emit) —
+    # and no failure event may leak either.
+    assert not [e for e in spy.events if isinstance(e, GrabSucceeded)], (
+        "orchestrator must NOT emit GrabSucceeded (emit-after-persist — service does)"
+    )
     assert not [e for e in spy.events if isinstance(e, (GrabFailed, WantedAbandoned))]
 
 
@@ -306,9 +311,9 @@ def test_conflict_idempotent_add_returns_same_hash_still_success() -> None:
 
     assert outcome.disposition == "success"
     assert outcome.info_hash == "dup0beef"
-    succeeded = [e for e in spy.events if isinstance(e, GrabSucceeded)]
-    assert len(succeeded) == 1
-    assert succeeded[0].info_hash == "dup0beef"
+    # Emit-after-persist: the orchestrator returns the hash on the outcome and
+    # does NOT emit GrabSucceeded itself (the service emits after mark_grabbed).
+    assert not [e for e in spy.events if isinstance(e, GrabSucceeded)]
     assert torrent_client is not None
     torrent_client.add.assert_called_once()
 
@@ -404,22 +409,23 @@ def test_negative_seed_write_never_called_during_full_success() -> None:
     Asserted both via the spy's ``call_count == 0`` and by confirming no seed
     method name appears in the registry / torrent-client call logs.
     """
-    orchestrator, spy, registry, torrent_client, seed_spy = _make_orchestrator(add_return="aaaa1234")
+    orchestrator, _spy, registry, torrent_client, _seed = _make_orchestrator(add_return="aaaa1234")
 
     with patch(_RESOLVE) as mock_resolve:
         mock_resolve.return_value = MagicMock(spec=TorrentSource)
         outcome = orchestrator.grab(_make_wanted(), QualityProfile())
 
     # Grab really succeeded (so this is not a vacuous "nothing happened" pass).
+    # With emit-after-persist the success signal is the returned disposition +
+    # carried info-hash (the orchestrator no longer emits GrabSucceeded itself).
     assert outcome.disposition == "success"
-    assert [e for e in spy.events if isinstance(e, GrabSucceeded)]
+    assert outcome.info_hash == "aaaa1234"
 
-    # The seed spy was never wired in → must be completely untouched.
-    assert seed_spy.record_dispatch.call_count == 0, "record_dispatch must NOT be called at grab time (DESIGN §9)"
-    assert seed_spy.seed.add.call_count == 0, "seed.add must NOT be called at grab time (DESIGN §9)"
-    assert seed_spy.mock_calls == [], "no seed-obligation write path may be reachable from the orchestrator"
-
-    # Belt-and-suspenders: no seed-write method name leaked onto the real deps.
+    # Belt-and-suspenders (the REAL negative guarantee): the orchestrator has no
+    # store/seed dep, so no seed-write method name may leak onto the deps it DOES
+    # hold. (The unwired ``seed_spy`` asserts were vacuous — a mock passed nowhere
+    # can never be touched — so they are trimmed; this dep-scan is the load-bearing
+    # check.)
     assert torrent_client is not None
     for tracked in (registry, torrent_client):
         for call_item in tracked.mock_calls:

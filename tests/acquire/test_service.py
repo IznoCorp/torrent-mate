@@ -26,11 +26,20 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from personalscraper.acquire.domain import WantedItem
+from personalscraper.acquire.desired import QualityProfile, Resolution, quality_profile_to_json
+from personalscraper.acquire.domain import FollowedSeries, WantedItem
 from personalscraper.acquire.events import GrabSucceeded, WantedAbandoned
 from personalscraper.acquire.orchestrator import GrabOutcome
-from personalscraper.acquire.service import MAX_ATTEMPTS, AcquisitionService, GrabCore, RunSummary
+from personalscraper.acquire.service import (
+    _STALE_THRESHOLD_S,
+    MAX_ATTEMPTS,
+    AcquisitionService,
+    GrabCore,
+    RunSummary,
+)
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
+from personalscraper.api._units import ByteSize
+from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.identity import MediaRef
 
@@ -52,6 +61,21 @@ def _pending_item(tvdb_id: int = 99) -> WantedItem:
         kind="movie",
         status="pending",
         enqueued_at=1_700_000_000,
+    )
+
+
+def _make_tracker_result(*, provider: str = "lacale", info_hash: str = "aaaa1234") -> TrackerResult:
+    """Build a minimal TrackerResult to stand in as the orchestrator's ``chosen``."""
+    return TrackerResult(
+        provider=provider,
+        tracker_id="t1",
+        title="Inception 2010 MULTi 1080p BluRay x265-GRP",
+        size=ByteSize(5_000_000_000),
+        seeders=50,
+        leechers=0,
+        resolution="1080p",
+        info_hash=info_hash,
+        download_url=f"https://{provider}.test/torrent/1",
     )
 
 
@@ -359,31 +383,59 @@ def test_hash_guard_no_double_grab_on_rerun(store: ConcreteAcquireStore) -> None
     assert orch.grab.call_count == 1, "grabbed row must NOT be re-grabbed on re-run (hash-guard)"
 
 
-def test_hash_guard_no_double_emit_via_event_bus(store: ConcreteAcquireStore) -> None:
-    """Across two runs, exactly ONE GrabSucceeded reaches the bus for one item.
+def test_service_emits_grab_succeeded_after_persist_exact_payload(store: ConcreteAcquireStore) -> None:
+    """Emit-after-persist (DESIGN §15 / §11d): the SERVICE emits GrabSucceeded.
 
-    The orchestrator emits GrabSucceeded; the service owns the status. With the
-    hash-guard the grabbed row is never re-claimed, so the real orchestrator's
-    single emit is the only one. We assert call_count==1 over both runs.
+    The orchestrator no longer emits ``GrabSucceeded`` — it returns a success
+    outcome carrying the payload. The service emits AFTER ``mark_grabbed``
+    persists. Asserts exactly ONE GrabSucceeded with the carried payload, and
+    that ``mark_grabbed`` ran BEFORE the emit (persist-then-emit ordering).
     """
     rowid = store.wanted.add(_pending_item())
     bus = MagicMock()
 
-    # A real-shaped orchestrator stub that emits GrabSucceeded exactly when grab() runs.
-    def _grab(item: WantedItem, profile: object) -> GrabOutcome:
-        bus.emit(
-            GrabSucceeded(
-                media_ref=item.media_ref,
-                info_hash="emit-once",
-                source_tracker="lacale",
-                category=None,
-                tags=("lacale",),
-            )
-        )
-        return GrabOutcome(disposition="success", info_hash="emit-once")
-
+    chosen = _make_tracker_result(provider="lacale")
     orch = MagicMock()
-    orch.grab.side_effect = _grab
+    orch.grab.return_value = GrabOutcome(
+        disposition="success",
+        info_hash="emit-once",
+        chosen=chosen,
+        category="movies",
+        tags=("lacale",),
+    )
+    service = AcquisitionService(store=store, orchestrator=orch, event_bus=bus)
+
+    service.run(limit=10)
+
+    # The row is persisted as grabbed with the hash BEFORE the event fires.
+    item = store.wanted.get(rowid)
+    assert item is not None and item.status == "grabbed" and item.grabbed_hash == "emit-once"
+
+    grab_succeeded = [c.args[0] for c in bus.emit.call_args_list if isinstance(c.args[0], GrabSucceeded)]
+    assert len(grab_succeeded) == 1, f"service must emit exactly one GrabSucceeded; got {len(grab_succeeded)}"
+    ev = grab_succeeded[0]
+    assert ev.media_ref == MediaRef(tvdb_id=99)
+    assert ev.info_hash == "emit-once"
+    assert ev.source_tracker == "lacale"
+    assert ev.category == "movies"
+    assert ev.tags == ("lacale",)
+
+
+def test_hash_guard_no_double_emit_via_event_bus(store: ConcreteAcquireStore) -> None:
+    """Across two runs, exactly ONE GrabSucceeded reaches the bus for one item.
+
+    Emit-after-persist: the service emits GrabSucceeded after mark_grabbed. With
+    the hash-guard the grabbed row is never re-claimed on the second run, so the
+    service's single emit on run 1 is the only one. The orchestrator stub does
+    NOT emit (matching the real orchestrator), so any double-emit would be a
+    service bug, not a stub artefact.
+    """
+    rowid = store.wanted.add(_pending_item())
+    bus = MagicMock()
+
+    chosen = _make_tracker_result(provider="lacale")
+    orch = MagicMock()
+    orch.grab.return_value = GrabOutcome(disposition="success", info_hash="emit-once", chosen=chosen, tags=("lacale",))
     service = AcquisitionService(store=store, orchestrator=orch, event_bus=bus)
 
     service.run(limit=10)
@@ -392,6 +444,89 @@ def test_hash_guard_no_double_emit_via_event_bus(store: ConcreteAcquireStore) ->
     grab_succeeded = [c.args[0] for c in bus.emit.call_args_list if isinstance(c.args[0], GrabSucceeded)]
     assert len(grab_succeeded) == 1, f"exactly one GrabSucceeded expected; got {len(grab_succeeded)}"
     assert store.wanted.get(rowid).status == "grabbed"  # type: ignore[union-attr]
+
+
+def test_section_11d_crash_window_emits_grab_succeeded_exactly_once(store: ConcreteAcquireStore) -> None:
+    """LOAD-BEARING (DESIGN §11d): crash between add() and mark_grabbed → exactly one GrabSucceeded.
+
+    add() succeeds → mark_grabbed crashes ONCE → stale-recovery re-grabs →
+    EXACTLY one GrabSucceeded across both runs, add idempotent.
+
+    Closes the add→mark_grabbed double-emit window. Run 1: the orchestrator
+    ``add`` succeeds (the stub returns a success outcome) but ``mark_grabbed``
+    raises ``OperationalError`` once — with emit-after-persist NO GrabSucceeded
+    is emitted (persist failed first) and the per-item error isolation leaves the
+    row 'searching' for the stale sweep (skipped). Run 2 (stale recovery):
+    ``mark_grabbed`` now succeeds → the service emits GrabSucceeded ONCE. The
+    idempotent ``add`` (same info_hash both runs) means no duplicate torrent and
+    no duplicate-grab double-emit.
+    """
+    import sqlite3  # noqa: PLC0415 — local to the crash-injection test
+
+    rowid = store.wanted.add(_pending_item())
+
+    bus = MagicMock()
+    chosen = _make_tracker_result(provider="lacale")
+    add_calls: list[str] = []
+
+    def _grab(item: WantedItem, profile: object) -> GrabOutcome:
+        # Idempotent add(): every grab returns the SAME info_hash (a duplicate
+        # add is a no-op that returns the existing hash, never a new torrent).
+        add_calls.append("aaaa1234")
+        return GrabOutcome(disposition="success", info_hash="aaaa1234", chosen=chosen, tags=("lacale",))
+
+    orch = MagicMock()
+    orch.grab.side_effect = _grab
+
+    # Wrap the real wanted sub-store so mark_grabbed raises OperationalError on
+    # the FIRST call only (the add→status crash window), then behaves normally.
+    real_wanted = store.wanted
+    wanted_spy = MagicMock(wraps=real_wanted)
+    first_mark = {"done": False}
+
+    def _mark_grabbed(wanted_id: int, info_hash: str) -> None:
+        if not first_mark["done"]:
+            first_mark["done"] = True
+            raise sqlite3.OperationalError("database is locked")
+        real_wanted.mark_grabbed(wanted_id, info_hash)
+
+    wanted_spy.mark_grabbed.side_effect = _mark_grabbed
+    spy_store = MagicMock()
+    spy_store.wanted = wanted_spy
+    spy_store.follow = store.follow
+
+    service = AcquisitionService(store=spy_store, orchestrator=orch, event_bus=bus)
+
+    # --- Run 1: mark_grabbed crashes → row stays 'searching', NO emit. ---
+    summary1 = service.run(limit=10)
+    assert summary1.grabbed == 0
+    assert summary1.skipped == 1, "the locked row must be isolated (skipped) and left for the stale sweep"
+    assert not [c for c in bus.emit.call_args_list if isinstance(c.args[0], GrabSucceeded)], (
+        "NO GrabSucceeded may fire when mark_grabbed crashed (emit-after-persist)"
+    )
+    item_mid = real_wanted.get(rowid)
+    assert item_mid is not None
+    assert item_mid.status == "searching", "row must stay 'searching' (orphan recoverable, not lost)"
+    assert item_mid.grabbed_hash is None
+
+    # --- Run 2: stale recovery. Force the searching row stale so list_stale_searching picks it up. ---
+    # Re-stamp last_search_at far in the past via a direct claim cycle is not
+    # needed: drop the threshold by patching time so the fresh row counts as stale.
+    with patch("personalscraper.acquire.service.time.time", return_value=time.time() + _STALE_THRESHOLD_S + 10):
+        summary2 = service.run(limit=10)
+
+    assert summary2.grabbed == 1, "stale recovery must re-grab the orphaned row"
+    item_final = real_wanted.get(rowid)
+    assert item_final is not None
+    assert item_final.status == "grabbed"
+    assert item_final.grabbed_hash == "aaaa1234"
+
+    # EXACTLY one GrabSucceeded across BOTH runs (the §11d guarantee).
+    grab_succeeded = [c.args[0] for c in bus.emit.call_args_list if isinstance(c.args[0], GrabSucceeded)]
+    assert len(grab_succeeded) == 1, f"exactly ONE GrabSucceeded across the crash + recovery; got {len(grab_succeeded)}"
+    assert grab_succeeded[0].info_hash == "aaaa1234"
+    # add() was idempotent: the same hash both attempts → no duplicate torrent.
+    assert add_calls == ["aaaa1234", "aaaa1234"]
 
 
 # ---------------------------------------------------------------------------
@@ -481,3 +616,135 @@ def test_grabcore_built_via_registry_transports(tmp_path: Path) -> None:
             torrent_client=MagicMock(),
         )
     fake_registry.transports.assert_called_once_with()
+
+
+# ---------------------------------------------------------------------------
+# M1 — profile-overlay handoff (follow-lookup + effective_quality → orchestrator)
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_profile_follow_lookup_passes_floor_to_orchestrator(store: ConcreteAcquireStore) -> None:
+    """M1 (DESIGN §1/§3): a followed-series profile floor reaches the orchestrator.
+
+    Seeds a FollowedSeries whose ``quality_profile_json`` carries a non-permissive
+    floor (min_resolution=1080p), then a WantedItem bound to it (followed_id). The
+    service must do the follow-lookup, decode the series profile, overlay the
+    (default) item criteria, and hand the orchestrator a QualityProfile carrying
+    that 1080p floor — proving the live follow→overlay→grab handoff, not just the
+    unit-level ``effective_quality``.
+    """
+    followed_id = store.follow.add(
+        FollowedSeries(
+            media_ref=MediaRef(tvdb_id=4242),
+            title="A Followed Show",
+            added_at=1_700_000_000,
+            quality_profile_json=quality_profile_to_json(QualityProfile(min_resolution=Resolution.R1080P)),
+        )
+    )
+    store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=4242),
+            kind="episode",
+            status="pending",
+            enqueued_at=1_700_000_000,
+            followed_id=followed_id,
+        )
+    )
+
+    captured: dict[str, QualityProfile] = {}
+
+    def _grab(item: WantedItem, profile: QualityProfile) -> GrabOutcome:
+        captured["profile"] = profile
+        return GrabOutcome(disposition="success", info_hash="h", chosen=_make_tracker_result())
+
+    orch = MagicMock()
+    orch.grab.side_effect = _grab
+    service = _service(store, orch)
+
+    service.run(limit=10)
+
+    assert "profile" in captured, "orchestrator.grab must have been called with a resolved profile"
+    assert captured["profile"].min_resolution == Resolution.R1080P, (
+        "the followed-series 1080p floor must reach the orchestrator (follow-lookup + overlay handoff)"
+    )
+
+
+# ---------------------------------------------------------------------------
+# C2 — per-item error isolation (one bad row never aborts the batch, DESIGN §6.2)
+# ---------------------------------------------------------------------------
+
+
+def test_run_isolates_db_lock_and_continues_batch(store: ConcreteAcquireStore) -> None:
+    """C2 (DESIGN §6.2): item 1's mark_grabbed OperationalError must NOT abort the batch.
+
+    A 2-item queue where item 1's ``mark_grabbed`` raises ``sqlite3.OperationalError``
+    (DB lock). The locked item is isolated (left 'searching' for the stale sweep,
+    counted skipped) and item 2 IS still processed and grabbed. The run completes
+    (``run_complete`` fires → a RunSummary is returned) with sane counts.
+    """
+    import sqlite3  # noqa: PLC0415 — local to the lock-injection test
+
+    id1 = store.wanted.add(_pending_item(tvdb_id=1))
+    id2 = store.wanted.add(_pending_item(tvdb_id=2))
+
+    real_wanted = store.wanted
+    wanted_spy = MagicMock(wraps=real_wanted)
+
+    def _mark_grabbed(wanted_id: int, info_hash: str) -> None:
+        # Item 1 hits a DB lock; item 2 persists normally.
+        if wanted_id == id1:
+            raise sqlite3.OperationalError("database is locked")
+        real_wanted.mark_grabbed(wanted_id, info_hash)
+
+    wanted_spy.mark_grabbed.side_effect = _mark_grabbed
+    spy_store = MagicMock()
+    spy_store.wanted = wanted_spy
+    spy_store.follow = store.follow
+
+    orch = _success_orch(info_hash="ok")
+    service = _service(spy_store, orch)
+    summary = service.run(limit=10)
+
+    # The run COMPLETED and returned a RunSummary (batch not aborted).
+    assert isinstance(summary, RunSummary)
+    # Item 2 was still processed AND grabbed despite item 1's lock.
+    assert orch.grab.call_count == 2
+    assert summary.grabbed == 1
+    assert summary.skipped == 1, "the locked item is isolated (skipped), not a batch abort"
+    item2 = real_wanted.get(id2)
+    assert item2 is not None and item2.status == "grabbed" and item2.grabbed_hash == "ok"
+    # The locked item stays 'searching' (recoverable by the stale-searching sweep).
+    item1 = real_wanted.get(id1)
+    assert item1 is not None and item1.status == "searching"
+
+
+def test_run_isolates_corrupt_criteria_json_abandons_only_that_row(store: ConcreteAcquireStore) -> None:
+    """C2 (DESIGN §6.2): a corrupt criteria_json row is abandoned, the batch continues.
+
+    Item 1 carries an un-decodable ``criteria_json`` → ``json.JSONDecodeError`` in
+    ``_resolve_profile``. That single row is set 'abandoned' (guarded) and the run
+    continues; item 2 is grabbed normally. The run completes with sane counts.
+    """
+    id1 = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=1),
+            kind="movie",
+            status="pending",
+            enqueued_at=1_700_000_000,
+            criteria_json="{not valid json",
+        )
+    )
+    id2 = store.wanted.add(_pending_item(tvdb_id=2))
+
+    orch = _success_orch(info_hash="ok")
+    service = _service(store, orch)
+    summary = service.run(limit=10)
+
+    assert isinstance(summary, RunSummary)
+    assert summary.abandoned == 1
+    assert summary.grabbed == 1
+    # The bad row is abandoned, the good row grabbed.
+    bad = store.wanted.get(id1)
+    assert bad is not None and bad.status == "abandoned"
+    good = store.wanted.get(id2)
+    assert good is not None and good.status == "grabbed"
