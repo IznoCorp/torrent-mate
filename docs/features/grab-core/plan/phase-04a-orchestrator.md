@@ -20,6 +20,37 @@ separately from `ApiError` — they are siblings, not a subtype relationship.
 
 ---
 
+## Plan-drift note (as-built, 2026-06-11) — 4a/4b boundary
+
+The **intro above is authoritative** (narrow deps, separate `CircuitOpenError` catch).
+The **Task 1–3 code blocks below were written before the 4a/4b boundary was finalised**
+and drift from DESIGN §6.1 + §12 on three points. The implementation follows the intro
+
+- DESIGN (and the dispatch briefing), NOT the stale code blocks. Deviations, with rationale:
+
+1. **`GrabOutcome` shape.** Built as `GrabOutcome(disposition: Literal["success","retryable",
+"terminal"], info_hash, reason, chosen)` — NOT the `grabbed: bool / event_emitted: str`
+   shape in the Task-1 code block. The service (4b) maps `disposition` → wanted status
+   (success→grabbed, retryable→pending, terminal→abandoned). A typed 3-way disposition is the
+   clean seam between orchestrator (no store) and service (owns status).
+2. **No `store` dependency.** DESIGN §6.1 lists exactly five narrow deps
+   (`tracker_registry, transports, torrent_client, event_bus, ranking`) — **no store**. The
+   Task-2/3 code blocks inject a `store` and call `mark_grabbed` / `set_status`; those are the
+   §7 state machine, assigned to **phase 4b** (`AcquisitionService`) per DESIGN §12. The
+   orchestrator only emits one event and returns the disposition. The `db_lock_on_mark_grabbed`
+   branch and its test therefore move to 4b as well (no store write happens here).
+3. **No reliance on `WantedItem.id`.** `WantedItem` gains `id` in **4b** (DESIGN §7 + §12); at
+   4a it has none, so the Task code's `WantedItem(id=42)` would raise `TypeError`. The
+   orchestrator reads `item.media_ref` / `item.kind` only and never needs a rowid.
+
+Everything else (the §1 chain order, the RETRYABLE/TERMINAL taxonomy with `CircuitOpenError`
+caught separately, the golden exact-payload `GrabSucceeded`, and the load-bearing NEGATIVE
+seed-write assert) is implemented as specified. `transports` is a **direct constructor dep**
+(injected by `_factory` via `TrackerRegistry.transports()` in 4b), not fetched from the
+registry inside `grab()`.
+
+---
+
 ## Gate (start of phase)
 
 Previous phases produced:
