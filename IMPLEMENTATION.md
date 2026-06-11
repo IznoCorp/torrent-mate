@@ -14,7 +14,7 @@
 
 | #   | Phase                                                              | File                      | Status |
 | --- | ------------------------------------------------------------------ | ------------------------- | ------ |
-| 1   | RP3a vocab (Resolution + QualityProfile + SourceCriteria)          | phase-01-vocab.md         | [ ]    |
+| 1   | RP3a vocab (Resolution + QualityProfile + SourceCriteria)          | phase-01-vocab.md         | [x]    |
 | 2   | Cross-tracker dedup (search_candidates + keys + -QTZ golden)       | phase-02-dedup.md         | [ ]    |
 | 3   | Hard-filters (resolution ordinal + anchored audio regex)          | phase-03-filters.md       | [ ]    |
 | 4   | Orchestrator (GrabOrchestrator chain + failure taxonomy + events) | phase-04a-orchestrator.md | [ ]    |
@@ -28,4 +28,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1.
+Run `/implement:phase` to start Phase 2 (cross-tracker dedup).
