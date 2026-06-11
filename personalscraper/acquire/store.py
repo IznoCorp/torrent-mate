@@ -177,6 +177,8 @@ def _row_to_wanted(row: sqlite3.Row) -> WantedItem:
         criteria_json=row["criteria_json"],
         last_search_at=row["last_search_at"],
         attempts=row["attempts"],
+        id=row["id"],
+        grabbed_hash=row["grabbed_hash"],
     )
 
 
@@ -373,8 +375,9 @@ class _WantedSubStore:
         self._conn.row_factory = sqlite3.Row
         row = self._conn.execute(
             """
-            SELECT followed_id, media_ref_json, kind, season, episode,
-                   status, criteria_json, enqueued_at, last_search_at, attempts
+            SELECT id, followed_id, media_ref_json, kind, season, episode,
+                   status, criteria_json, enqueued_at, last_search_at, attempts,
+                   grabbed_hash
             FROM wanted WHERE id = ?
             """,
             (wanted_id,),
@@ -405,11 +408,91 @@ class _WantedSubStore:
         self._conn.row_factory = sqlite3.Row
         rows = self._conn.execute(
             """
-            SELECT followed_id, media_ref_json, kind, season, episode,
-                   status, criteria_json, enqueued_at, last_search_at, attempts
+            SELECT id, followed_id, media_ref_json, kind, season, episode,
+                   status, criteria_json, enqueued_at, last_search_at, attempts,
+                   grabbed_hash
             FROM wanted WHERE status = 'pending'
             ORDER BY id
             """
+        ).fetchall()
+        return [_row_to_wanted(r) for r in rows]
+
+    def claim_for_search(self, wanted_id: int, now: int) -> bool:
+        """Atomically claim a pending item for searching.
+
+        Runs one ``UPDATE … WHERE id=? AND status='pending'`` inside a single
+        ``BEGIN IMMEDIATE`` transaction — the SINGLE serialisation point for
+        concurrent grabbers (closes the TOCTOU race that ``get``-then-``set``
+        left open). Stamps ``attempts + 1`` and ``last_search_at = now``
+        atomically. Returns ``True`` iff this call won the claim
+        (``cur.rowcount == 1``); a concurrent loser (or an already-claimed /
+        non-pending row) gets ``False`` and must skip.
+
+        Args:
+            wanted_id: Rowid of the ``wanted`` row.
+            now: Unix epoch seconds (stamps ``last_search_at``).
+
+        Returns:
+            ``True`` if this caller won the claim; ``False`` otherwise.
+        """
+        with _write_tx(self._conn):
+            cur = self._conn.execute(
+                """
+                UPDATE wanted
+                SET status = 'searching',
+                    attempts = attempts + 1,
+                    last_search_at = ?
+                WHERE id = ? AND status = 'pending'
+                """,
+                (now, wanted_id),
+            )
+            return cur.rowcount == 1
+
+    def mark_grabbed(self, wanted_id: int, info_hash: str) -> None:
+        """Persist ``status='grabbed'`` AND the ``info_hash`` (idempotence guard).
+
+        Persisting the hash means a crash between ``add()`` and this write does
+        NOT double-emit ``GrabSucceeded`` on re-run: the re-run sees the
+        persisted hash / grabbed status and short-circuits (DESIGN §7).
+
+        Args:
+            wanted_id: Rowid of the ``wanted`` row.
+            info_hash: Torrent info-hash returned by ``TorrentAdder.add()``.
+        """
+        with _write_tx(self._conn):
+            self._conn.execute(
+                """
+                UPDATE wanted
+                SET status = 'grabbed', grabbed_hash = ?
+                WHERE id = ?
+                """,
+                (info_hash, wanted_id),
+            )
+
+    def list_stale_searching(self, older_than: int) -> list[WantedItem]:
+        """Return ``wanted`` rows stuck in 'searching' with ``last_search_at < older_than``.
+
+        Feeds back into the run loop alongside :meth:`list_pending` to recover
+        items whose process was killed mid-grab before any status write (no
+        stuck-'searching' orphan — :meth:`list_pending` only returns 'pending').
+
+        Args:
+            older_than: Unix epoch seconds threshold (exclusive).
+
+        Returns:
+            A list of :class:`WantedItem` (possibly empty).
+        """
+        self._conn.row_factory = sqlite3.Row
+        rows = self._conn.execute(
+            """
+            SELECT id, followed_id, media_ref_json, kind, season, episode,
+                   status, criteria_json, enqueued_at, last_search_at, attempts,
+                   grabbed_hash
+            FROM wanted
+            WHERE status = 'searching' AND last_search_at < ?
+            ORDER BY id
+            """,
+            (older_than,),
         ).fetchall()
         return [_row_to_wanted(r) for r in rows]
 

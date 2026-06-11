@@ -56,6 +56,14 @@ class WantedItem:
         criteria_json: Nullable JSON for search criteria (RP3a).
         last_search_at: Unix epoch seconds of last search attempt.
         attempts: Number of search attempts made.
+        id: SQLite rowid — populated by ``list_pending()`` / ``get()`` /
+            ``list_stale_searching()``; ``None`` for an as-yet-unpersisted item.
+            The acquisition service needs it to call ``claim_for_search`` /
+            ``mark_grabbed`` / ``set_status`` (RP5b, was a blocking gap).
+        grabbed_hash: Torrent info-hash persisted by ``mark_grabbed`` — the
+            idempotence guard consults the persisted hash (not status alone),
+            so a crash between ``add()`` and the status write does NOT
+            double-emit ``GrabSucceeded`` on re-run. ``None`` until grabbed.
     """
 
     media_ref: MediaRef
@@ -68,6 +76,8 @@ class WantedItem:
     criteria_json: str | None = None
     last_search_at: int | None = None
     attempts: int = 0
+    id: int | None = None
+    grabbed_hash: str | None = None
 
     def __post_init__(self) -> None:
         """Validate kind and status values.
