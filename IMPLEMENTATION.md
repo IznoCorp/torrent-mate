@@ -6,7 +6,7 @@
 **Version bump**: 0.27.0 → 0.28.0
 **Branch**: feat/grab-core
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/196
 **Design**: docs/features/grab-core/DESIGN.md (hardened by adversarial review — see DESIGN §15)
 **Master plan**: docs/features/grab-core/plan/INDEX.md
 
