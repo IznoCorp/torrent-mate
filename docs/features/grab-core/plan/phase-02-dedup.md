@@ -713,3 +713,47 @@ git add personalscraper/acquire/_dedup.py personalscraper/api/tracker/_registry.
     tests/acquire/test_dedup.py
 git commit -m "feat(grab-core): dedup engine + QTZ cross-tracker golden + phase 02 gate"
 ```
+
+---
+
+## Plan-drift notes (execution, 2026-06-11)
+
+Corrections made versus the verbatim Task pseudocode — each driven by a real bug
+the plan code would have shipped, not by preference:
+
+1. **`_size_bucket` was vacuous → replaced by a true tolerance window.** The
+   plan's `size // max(size // 50, 1)` returns ~50 for _every_ size > 50, so AAC
+   (4.68 GB) and DTS (7.35 GB) landed in the same bucket — size contributed
+   nothing. Two sizes 1.9 % apart on opposite sides of any fixed bucket boundary
+   would also wrongly split. Replaced with `_cluster_by_size`: group by the
+   size-agnostic fuzzy key, then greedily sub-cluster members within ±2 % of the
+   cluster anchor. This is what DESIGN §4 actually specifies ("size within a
+   tolerance window"). A `test_dedup_size_beyond_tolerance_stays_distinct` pins
+   the window as non-vacuous.
+
+2. **`release_group` dropped from the fuzzy key (folded into `title_core`).** The
+   plan keyed on `(core, year, tier, group)` with a `-GROUP`-only extractor.
+   The real `-QTZ` samples mix `…x265-QTZ` (dashed) and `… 5.1 - QTZ` (spaced),
+   so the extractor returned `"qtz"` for one and `""` for the other → false
+   split. The group token already lives inside `title_core` (it is neither noise
+   nor a language marker), so different groups still differ in the core. Key is
+   now `(core, year, tier)`; `_extract_release_group` removed as dead code.
+
+3. **`normalize_title_core` returns a `frozenset`, not a space-joined string.**
+   Equivalent for `==` but directly hashable as a dict-key component and a
+   clearer contract ("order-independent CORE" per the briefing).
+
+4. **Golden seeders/winners use the REAL sample counts.** The plan's hardcoded
+   seeders (lacale DTS = 50) were stale; the fixtures have lacale DTS = 175,
+   lacale AAC = 101, c411 AAC = 110, c411 DTS = 141. So the DTS best-provenance
+   winner is **lacale** (175 > 141), not c411. Tests assert the real winners.
+
+5. **`transports()` accessor included** (plan Task 1) even though DESIGN §12
+   assigns it to phase 4b — it lives in the in-scope `_registry.py`, is a trivial
+   isolated accessor, and unblocks the phase-4b composition root early. Guarded
+   by `TYPE_CHECKING` + `from __future__ import annotations` (the formatter
+   strips a TYPE_CHECKING import unless future-annotations defers the usage).
+
+6. **`RankingConfig` is a Pydantic model** — the plan's `_make_registry`
+   `MagicMock(bonuses=…)` fails validation. Replaced with `RankingConfig(min_seeders=0)`
+   (defaults suffice; `search_candidates` never ranks).

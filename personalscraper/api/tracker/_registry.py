@@ -6,7 +6,10 @@ instances, and returns them ranked via ``rank()``. Failures of individual
 trackers are logged and do not abort the search.
 """
 
+from __future__ import annotations
+
 import xml.parsers.expat
+from typing import TYPE_CHECKING
 
 import requests
 
@@ -15,6 +18,10 @@ from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._contracts import TorrentSearchable
 from personalscraper.api.tracker._ranking import RankingConfig, rank
 from personalscraper.logger import get_logger
+
+if TYPE_CHECKING:
+    from personalscraper.acquire._dedup import SearchOutcome
+    from personalscraper.api.transport._http import HttpTransport
 
 log = get_logger("api.tracker.registry")
 
@@ -113,6 +120,85 @@ class TrackerRegistry:
                 # wrapping contract that tracker authors must satisfy.
                 log.warning("tracker_search_failed", tracker=name, exc_info=True)
         return rank(results, self._ranking)
+
+    def search_candidates(
+        self,
+        query: str,
+        media_type: MediaType = MediaType.MOVIE,
+        year: int | None = None,
+    ) -> "SearchOutcome":
+        """Search every tracker and return a raw, un-ranked :class:`SearchOutcome`.
+
+        Unlike :meth:`search_all`, this method:
+
+        - returns the merged result list **un-ranked** (no ``rank()`` call) —
+          the grab orchestrator applies hard-filters + dedup + ranking itself;
+        - counts how many trackers were queried vs how many errored, so the
+          caller can tell a transient outage (``all_errored`` → retryable) from
+          a clean zero-hit search (→ terminal ``no_candidates``). See DESIGN §6.2.
+
+        The per-tracker loop mirrors :meth:`search_all` exactly — same priority
+        order, same narrowed ``except`` (operational failures swallowed and
+        logged; programming errors propagate).
+
+        Args:
+            query: Search query string.
+            media_type: ``MediaType.MOVIE`` or ``MediaType.TV``. Also the lookup
+                key for the optional ``priority_by_media_type`` override map.
+            year: Optional release year to scope the search.
+
+        Returns:
+            A :class:`~personalscraper.acquire._dedup.SearchOutcome` carrying the
+            raw result list plus ``trackers_queried`` / ``trackers_errored``.
+        """
+        from personalscraper.acquire._dedup import (
+            SearchOutcome,  # noqa: PLC0415 — lazy: avoids api→acquire import cycle
+        )
+
+        all_results: list[TrackerResult] = []
+        queried = 0
+        errored = 0
+        for name in self._priority_for(str(media_type)):
+            client = self._trackers.get(name)
+            if client is None:
+                continue
+            queried += 1
+            try:
+                all_results.extend(client.search(query, media_type, year))
+            except (
+                ApiError,
+                requests.RequestException,
+                ValueError,  # JSON decode, payload validation
+                TypeError,  # response-shape drift (wrong type returned)
+                xml.parsers.expat.ExpatError,  # malformed XML from c411 / Torznab
+            ):
+                # Same fail-soft contract as ``search_all``: operational failures
+                # are logged and counted; the surviving trackers' results stand.
+                log.warning("tracker_search_failed", tracker=name, exc_info=True)
+                errored += 1
+        return SearchOutcome(
+            results=all_results,
+            trackers_queried=queried,
+            trackers_errored=errored,
+        )
+
+    def transports(self) -> "dict[str, HttpTransport]":
+        """Return a ``{tracker name → HttpTransport}`` map for the grab seam.
+
+        The grab orchestrator passes these transports to ``resolve_source`` /
+        ``fetch_torrent_source`` (DESIGN §6.1). Only clients exposing a non-None
+        private ``_transport`` are included — the same attribute :meth:`close`
+        already relies on. No new public surface is added to the clients.
+
+        Returns:
+            Dict mapping each tracker's lowercase wire name to its transport.
+        """
+        result: dict[str, HttpTransport] = {}
+        for name, client in self._trackers.items():
+            transport = getattr(client, "_transport", None)
+            if transport is not None:
+                result[name] = transport
+        return result
 
     def close(self) -> None:
         """Release the HttpTransport owned by each tracker client.
