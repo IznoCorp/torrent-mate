@@ -103,14 +103,9 @@ def _passes_resolution(result: TrackerResult, profile: QualityProfile) -> bool:
         # Permissive default: no floor configured — filter is a no-op.
         return True
     parsed = _parse_resolution(result.resolution)
-    if parsed is None:
-        # Field absent from the tracker title: FAIL-OPEN (passes).
-        # REMUX / COMPLETE.BLURAY / WEB-DL packs often omit a resolution tag
-        # and are typically the best available source; rank() soft-scores them.
-        return True
-    if parsed is Resolution.UNKNOWN:
-        # Unrecognised token (e.g. "webdl", "hdtv"): FAIL-OPEN by default,
-        # but fail-closed when the profile explicitly requires a known resolution.
+    if parsed is None or parsed is Resolution.UNKNOWN:
+        # Field absent (None) or unrecognised token (UNKNOWN): FAIL-OPEN by
+        # default; FAIL-CLOSED only when the profile requires a known resolution.
         return not profile.require_known_resolution
     return parsed >= profile.min_resolution
 

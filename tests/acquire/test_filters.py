@@ -91,6 +91,29 @@ def test_resolution_unrecognised_fails_when_require_known_resolution() -> None:
     assert survivors[0].resolution == "1080p"
 
 
+def test_require_known_resolution_drops_absent_field() -> None:
+    """require_known_resolution=True → None-resolution is DROPPED (absent field, not UNKNOWN)."""
+    profile_strict = QualityProfile(
+        min_resolution=Resolution.R1080P,
+        require_known_resolution=True,
+    )
+    profile_default = QualityProfile(
+        min_resolution=Resolution.R1080P,
+        require_known_resolution=False,
+    )
+    none_result = _result("Movie.COMPLETE.BLURAY.NoResTag-GRP", resolution=None)
+    known_result = _result("Movie.1080p.BluRay", resolution="1080p")
+
+    # require_known_resolution=True: None-resolution is dropped (fail-closed).
+    survivors_strict = apply_hard_filters([none_result, known_result], profile_strict)
+    assert len(survivors_strict) == 1
+    assert survivors_strict[0].resolution == "1080p"
+
+    # require_known_resolution=False (default): None-resolution passes (fail-open).
+    survivors_default = apply_hard_filters([none_result], profile_default)
+    assert len(survivors_default) == 1, "None-resolution must pass when require_known_resolution=False"
+
+
 def test_resolution_filter_noop_when_profile_min_is_none() -> None:
     """Permissive default: min_resolution=None → filter is a no-op."""
     profile = QualityProfile()  # min_resolution=None
