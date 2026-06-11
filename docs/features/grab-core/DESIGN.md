@@ -147,3 +147,29 @@ Wanted-queue producers (Follow D3/Ratio C1) → waves 4-5; per-series QualityPro
 - **Failure taxonomy** RETRYABLE vs TERMINAL with `WantedAbandoned` + `SearchOutcome(trackers_errored)` (was a flat GrabFailed conflating transient outage with permanent no-source; `CircuitOpenError` caught separately).
 - **Phase 4 split** 4a/4b (was one over-budget gate vs the 734-LOC trailers orchestrator precedent).
 - **RP3a `SourceCriteria`** marked decode-only (no live producer until D4); helpers in `desired.py` not `store.py`; `TrackerResult.audio` docstring fix.
+
+### PR-fixes cycle 1 (2026-06-11) — emit-ordering decision + error isolation
+
+- **C1 — emit-after-persist (chosen over the pragmatic retry fallback).** The hash-guard
+  (`grabbed_hash`) was persisted but never **consulted**, and the orchestrator emitted
+  `GrabSucceeded` **before** the service called `mark_grabbed` — so a `mark_grabbed` crash
+  left the row `'searching'` and the §11(d) stale-recovery re-grab emitted a **second**
+  `GrabSucceeded`. Fix: the orchestrator NO LONGER emits `GrabSucceeded`; it returns the
+  success payload on `GrabOutcome` (`info_hash` / `category` / `tags`), and the **service**
+  emits `GrabSucceeded` **after** `mark_grabbed` persists. A `mark_grabbed` crash now means
+  **no emit happened** — the single re-grab (idempotent `add`, same `info_hash`) emits
+  **exactly once**. **Emission asymmetry is deliberate**: the orchestrator still emits the
+  FAILURE events (`GrabFailed` / `WantedAbandoned`) itself because no irreversible external
+  side-effect precedes them (no persist-then-crash window); **success is special** — the
+  torrent `add()` is the only irreversible side-effect that precedes persistence, so its
+  emit must follow persistence. A belt-and-suspenders **hash-guard consultation** also
+  short-circuits any row re-listed while already carrying a `grabbed_hash` (no re-grab, no
+  re-emit). Regression: §11(d) crash-window test asserts exactly ONE `GrabSucceeded` across
+  the crash + stale-recovery and an idempotent double-`add`.
+- **C2 — per-item error isolation (DESIGN §6.2).** Each item's body runs under a narrow
+  try/except: `sqlite3.OperationalError` (DB lock — RETRYABLE) is logged
+  (`acquire.service.item_db_locked`), counted skipped, and the row left `'searching'` for the
+  stale-searching sweep; `json.JSONDecodeError` (corrupt `criteria_json` /
+  `quality_profile_json`) abandons just that row (`acquire.service.item_bad_criteria_json`).
+  NO bare `except Exception` — a genuine programming bug still surfaces. ONE bad row never
+  aborts the batch; `run_complete` always fires.
