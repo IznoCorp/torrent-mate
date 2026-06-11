@@ -102,11 +102,40 @@ def build_acquire_context(
         torrent_client=torrent_client,
         economy=economy,
     )
+    # GrabCore is the single grab handle (orchestrator + service). It is built
+    # ONLY here — the only frame holding registry + config.ranking +
+    # torrent_client + event_bus + store together. It is None when there is no
+    # torrent_client (read-only / dry-run can still search+filter+rank via the
+    # registry, but cannot add). Transports come from the registry's phase-2
+    # accessor so resolve_source never reaches back into the registry.
+    grab: GrabCore | None = None
+    if torrent_client is not None:
+        from personalscraper.acquire.orchestrator import GrabOrchestrator  # noqa: PLC0415
+        from personalscraper.acquire.service import (  # noqa: PLC0415
+            AcquisitionService,
+            GrabCore,
+        )
+
+        orchestrator = GrabOrchestrator(
+            tracker_registry=tracker_registry,
+            transports=tracker_registry.transports(),
+            torrent_client=torrent_client,
+            event_bus=event_bus,
+            ranking=config.ranking,
+        )
+        service = AcquisitionService(
+            store=store,
+            orchestrator=orchestrator,
+            event_bus=event_bus,
+        )
+        grab = GrabCore(service=service, orchestrator=orchestrator)
+
     return AcquireContext(
         tracker_registry=tracker_registry,
         store=store,
         delete_authority=delete_authority,
         torrent_client=torrent_client,
+        grab=grab,
     )
 
 

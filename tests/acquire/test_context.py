@@ -28,15 +28,15 @@ def test_acquire_context_is_frozen_dataclass() -> None:
 
 
 def test_acquire_context_fields() -> None:
-    """AcquireContext has tracker_registry, store, delete_authority, torrent_client."""
+    """AcquireContext has tracker_registry, store, delete_authority, torrent_client, grab."""
     from personalscraper.acquire.context import AcquireContext
 
     fields = {f.name for f in dataclasses.fields(AcquireContext)}
-    assert fields == {"tracker_registry", "store", "delete_authority", "torrent_client"}
+    assert fields == {"tracker_registry", "store", "delete_authority", "torrent_client", "grab"}
 
 
 def test_acquire_context_store_and_torrent_client_default_none() -> None:
-    """Store, delete_authority, and torrent_client default to None."""
+    """Store, delete_authority, torrent_client, and grab default to None."""
     from personalscraper.acquire.context import AcquireContext
     from personalscraper.api.tracker._ranking import RankingConfig
     from personalscraper.api.tracker._registry import TrackerRegistry
@@ -46,6 +46,7 @@ def test_acquire_context_store_and_torrent_client_default_none() -> None:
     assert ctx.store is None
     assert ctx.delete_authority is None
     assert ctx.torrent_client is None
+    assert ctx.grab is None
 
 
 class TestAcquireContextClose:
