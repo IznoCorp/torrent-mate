@@ -34,6 +34,12 @@
   - m1 (minor) orchestrator NEGATIVE test has 3 vacuous `seed_spy.*` assertions on an unwired mock (theatre; the real guarantee is the dep-scan + structural no-dep) → trim. m2 (minor) dedup silverleech provenance tier untested. m3 (minor) `info_hash or ""` masks a success-without-hash contract violation → log.
 - Decision: **Case B**. Fix phase 8 executed (3 commits `c3cf2018`/`ef0a6d08`/`5db83c64`): **C1** emit-after-persist (the PREFERRED correct design — orchestrator no longer emits GrabSucceeded; service emits AFTER mark_grabbed → §11(d) crash window CLOSED: a mark_grabbed crash = no emit, stale-recovery re-grabs once via idempotent add) + hash-guard short-circuit; **C2** per-item try/except (OperationalError→retryable/skip+log, JSONDecodeError→abandon+log, batch never aborts, run_complete always fires); **M1** follow-overlay test (live lookup passes the 1080p floor to the orchestrator); m1 trimmed vacuous seed_spy asserts; m3 success-without-hash log. make check 6660 green. Independently verified emit-after-persist structure + C2 isolation. Merge = manual.
 
+
+### Cycle 2
+
+- Toolkit: silent-failure-hunter on the cycle-1 fix diff (`95e1ec2b..HEAD`, the emit-after-persist + error-isolation refactor). **APPROVE, zero findings.** Empirically proven: the §11(d) regression test is non-vacuous (reverting emit/persist order → test FAILS); emission completeness (success emits once via service after mark_grabbed; GrabFailed/WantedAbandoned byte-identical to pre-fix, none dropped); C2 catches are narrow (OperationalError/JSONDecodeError, no bare except), logged with wanted_id, leave rows recoverable, run_complete always fires; the new mark_grabbed→emit micro-gap is acceptable (worst case = one missed MUTED event, hash-guard prevents any re-grab — strictly better than the pre-fix double-emit).
+- Decision: **Case A** (no critical/major/medium). Loop exits clean. Merge = manual → operator squash-merges.
+
 ## Next action
 
 All phases complete — run `/implement:feature-pr` (local gate + push + PR + CI).
