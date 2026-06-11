@@ -375,10 +375,25 @@ python -m pytest tests/ -x -q 2>&1 | tail -10
 
 Expected: zero lint errors, passing test suite.
 
-- [ ] **Step 4: Commit phase gate**
+- [x] **Step 4: Commit phase gate** — DONE ebcbd289
 
 ```bash
 git add personalscraper/commands/grab.py personalscraper/cli.py \
     tests/commands/test_grab.py
-git commit -m "feat(grab-core): e2e dry-run test + phase 05 gate"
+git commit -m "feat(grab-core): personalscraper grab CLI command with --dry-run and --limit"
 ```
+
+**Plan-drift notes (2026-06-11):**
+
+- The plan specified a second commit for e2e tests; folded into one commit (ebcbd289)
+  per the task instruction "ONE green commit".
+- Dropped the unused `rank` import in `_run_dry` (plan had it but never called it).
+- Test mocking simplified: single `per_step_boundary` patch via `contextmanager`
+  (matching `_e2e_helpers.mock_boundary_torrent_client` pattern) instead of
+  double-patching both `_build_app_context` and `per_step_boundary`.
+- Added 3 extra tests beyond the plan's 3: `test_grab_help_exits_zero`,
+  `test_grab_dry_run_no_pending_items`, `test_grab_dry_run_respects_limit`.
+- `build_torrent_client=not dry_run` — torrent client is only built for the
+  real-grab path; dry-run skips it (GrabCore stays None which is the
+  design intent per DESIGN §8).
+- `_run_dry` uses `AcquireContext` + `Console` typing (not bare `object`).
