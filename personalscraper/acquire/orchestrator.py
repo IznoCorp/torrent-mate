@@ -4,13 +4,22 @@
 already-claimed ``WantedItem`` and returns a :class:`GrabOutcome`:
 
     profile → search → hard-filter → dedup → rank → resolve_source → add
-    → emit GrabSucceeded
 
 It does **not** touch the store or the wanted state machine — the
 ``AcquisitionService`` (phase 4b) owns the atomic claim, the status
 transitions (success→grabbed / retryable→pending / terminal→abandoned) and
-``mark_grabbed``. The orchestrator's only side effect is firing one event on
-the bus and returning the typed disposition the service maps onto a status.
+``mark_grabbed``. The orchestrator returns the typed disposition the service
+maps onto a status.
+
+Emission asymmetry (DESIGN §15 / §11(d)): the orchestrator emits the FAILURE
+events (``GrabFailed`` / ``WantedAbandoned``) itself but NOT ``GrabSucceeded``.
+Success is special — the torrent ``add()`` is an irreversible external
+side-effect that precedes persistence, so emitting before ``mark_grabbed`` left
+a double-emit window (a ``mark_grabbed`` crash kept the row 'searching', and
+stale-recovery re-grabbed (idempotent ``add``) then emitted a SECOND
+``GrabSucceeded``). The orchestrator therefore carries the success payload on
+``GrabOutcome`` (``info_hash`` / ``category`` / ``tags``) and the SERVICE emits
+``GrabSucceeded`` only AFTER ``mark_grabbed`` persists — exactly-once.
 
 Failure routing is a first-class taxonomy (DESIGN §6.2), not a flat
 ``GrabFailed``:
@@ -19,7 +28,8 @@ Failure routing is a first-class taxonomy (DESIGN §6.2), not a flat
   service resets ``searching → pending``, item retried next run).
 - **TERMINAL**  → ``WantedAbandoned(reason)``, ``disposition="terminal"`` (the
   service sets ``searching → abandoned`` — won't self-heal).
-- **Success**   → ``GrabSucceeded``, ``disposition="success"``.
+- **Success**   → ``disposition="success"`` (the service emits
+  ``GrabSucceeded`` after persisting — DESIGN §15 / §11(d)).
 
 ``CircuitOpenError`` is a *sibling* of ``ApiError`` (NOT a subclass — see
 ``core/_contracts.py``), so it is caught in a SEPARATE ``except`` clause. A
@@ -45,7 +55,7 @@ from typing import TYPE_CHECKING, Literal
 
 from personalscraper.acquire._dedup import SearchOutcome, dedup
 from personalscraper.acquire._filters import apply_hard_filters
-from personalscraper.acquire.events import GrabFailed, GrabSucceeded, WantedAbandoned
+from personalscraper.acquire.events import GrabFailed, WantedAbandoned
 from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
 from personalscraper.api.tracker._fetch import resolve_source
@@ -78,20 +88,38 @@ class GrabOutcome:
     ``"success"`` → grabbed, ``"retryable"`` → pending, ``"terminal"`` →
     abandoned. The orchestrator never writes a status itself.
 
+    Emission asymmetry (DESIGN §15 / §11(d)): the orchestrator emits
+    ``GrabFailed`` / ``WantedAbandoned`` on the failure paths itself (no
+    external side-effect precedes them, so there is no persist-then-crash
+    window). ``GrabSucceeded`` is the exception — the orchestrator does NOT
+    emit it; it carries the payload fields (``info_hash`` / ``category`` /
+    ``tags``) on this outcome and the service emits ``GrabSucceeded`` only
+    AFTER ``mark_grabbed`` persists. Success is special because the torrent
+    ``add()`` is an irreversible external side-effect that precedes
+    persistence; deferring the emit closes the §11(d) double-emit window.
+
     Attributes:
-        disposition: ``"success"`` (torrent added + ``GrabSucceeded`` emitted),
-            ``"retryable"`` (transient failure — ``GrabFailed``, retry next
-            run), or ``"terminal"`` (permanent — ``WantedAbandoned``).
+        disposition: ``"success"`` (torrent added — the service emits
+            ``GrabSucceeded`` after persisting), ``"retryable"`` (transient
+            failure — orchestrator already emitted ``GrabFailed``, retry next
+            run), or ``"terminal"`` (permanent — orchestrator already emitted
+            ``WantedAbandoned``).
         info_hash: Torrent info-hash on success, otherwise ``None``.
         reason: Machine-readable failure/abandonment reason, ``None`` on success.
         chosen: The ranked top :class:`TrackerResult` that was acted on, or
             ``None`` when the chain failed before a candidate was picked.
+        category: Category passed to ``add()`` (carried for the service's
+            ``GrabSucceeded`` payload). ``None`` off the success path.
+        tags: Tags passed to ``add()`` (carried for the service's
+            ``GrabSucceeded`` payload). Empty off the success path.
     """
 
     disposition: Literal["success", "retryable", "terminal"]
     info_hash: str | None = None
     reason: str | None = None
     chosen: TrackerResult | None = None
+    category: str | None = None
+    tags: tuple[str, ...] = ()
 
 
 class GrabOrchestrator:
@@ -147,8 +175,11 @@ class GrabOrchestrator:
         The item is assumed already claimed (``status='searching'``) by the
         service. This method performs NO store writes — it returns a
         :class:`GrabOutcome` whose ``disposition`` the service maps onto a
-        status, and emits exactly one event (``GrabSucceeded`` /
-        ``GrabFailed`` / ``WantedAbandoned``).
+        status. On a FAILURE path it emits exactly one event (``GrabFailed`` /
+        ``WantedAbandoned``); on SUCCESS it emits nothing and instead carries
+        the ``GrabSucceeded`` payload on the outcome — the service emits
+        ``GrabSucceeded`` after ``mark_grabbed`` persists (DESIGN §15 /
+        §11(d), emit-after-persist).
 
         Failure routing (DESIGN §6.2), in catch order — ``CircuitOpenError``
         is a sibling of ``ApiError`` (caught FIRST and SEPARATELY, else a bare
@@ -227,22 +258,27 @@ class GrabOrchestrator:
             # client surfaces as the existing hash on return, not a raise).
             return self._retryable(media_ref, "add_failed", chosen=top)
 
-        # --- Success: emit GrabSucceeded (NO seed write — DESIGN §9) ---
-        event = GrabSucceeded(
-            media_ref=media_ref,
-            info_hash=info_hash,
-            source_tracker=top.provider,
-            category=category,
-            tags=tags,
-        )
-        self._event_bus.emit(event)
+        # --- Success: return the outcome; the SERVICE emits GrabSucceeded
+        # AFTER a successful mark_grabbed (emit-after-persist — DESIGN §15 /
+        # §11(d)). The orchestrator does NOT emit here: emitting before the
+        # status write opened a double-emit window — a mark_grabbed crash left
+        # the row 'searching', and stale-recovery re-grabbed (idempotent add)
+        # then emitted a SECOND GrabSucceeded. By deferring the emit to follow
+        # persistence, a mark_grabbed crash means NO emit happened and the
+        # single re-grab emits exactly once. (NO seed write — DESIGN §9.)
         log.info(
             "acquire.grab.succeeded",
             info_hash=info_hash,
             provider=top.provider,
             kind=item.kind,
         )
-        return GrabOutcome(disposition="success", info_hash=info_hash, chosen=top)
+        return GrabOutcome(
+            disposition="success",
+            info_hash=info_hash,
+            chosen=top,
+            category=category,
+            tags=tags,
+        )
 
     @staticmethod
     def _build_query(media_ref: MediaRef) -> str:

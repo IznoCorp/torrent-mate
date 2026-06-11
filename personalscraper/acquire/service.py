@@ -8,15 +8,21 @@ effective :class:`~personalscraper.acquire.desired.QualityProfile`, delegates to
 disposition onto a wanted status:
 
 - ``"success"``   → :meth:`WantedSubStore.mark_grabbed` (persists status + the
-  info-hash for the idempotence guard — no double-emit on re-run).
+  info-hash for the idempotence guard), THEN emit ``GrabSucceeded``
+  (emit-after-persist — DESIGN §15 / §11(d): a ``mark_grabbed`` crash means NO
+  emit happened, so the stale-recovery re-grab emits exactly once).
 - ``"retryable"`` → reset ``searching → pending`` (re-listed next run) UNLESS
   ``attempts >= MAX_ATTEMPTS`` → abandon + emit ``WantedAbandoned('attempts_cap')``
   (no infinite loop).
 - ``"terminal"``  → set ``searching → abandoned``.
 
-The orchestrator already emits ``GrabSucceeded`` / ``GrabFailed`` /
-``WantedAbandoned`` on the bus; the service owns ONLY the status transitions
-(plus the attempts-cap ``WantedAbandoned`` the orchestrator cannot know about).
+The orchestrator emits the FAILURE events (``GrabFailed`` / ``WantedAbandoned``)
+itself; ``GrabSucceeded`` is emitted by the SERVICE after ``mark_grabbed``
+persists (DESIGN §15 / §11(d)). The service owns the status transitions, the
+success emit, and the attempts-cap ``WantedAbandoned`` the orchestrator cannot
+know about. Per-item store/decode failures are isolated (DESIGN §6.2) so ONE
+bad row never aborts the batch — a DB lock leaves the row for the stale-searching
+sweep; corrupt criteria JSON abandons just that row.
 
 ``GrabCore`` is a frozen sub-handle (service + orchestrator) attached to
 ``AcquireContext`` via ONE new field; it is constructed inside
@@ -33,9 +39,11 @@ Import direction: ``acquire/`` imports ``api/`` / ``core/`` / ``conf/`` /
 
 from __future__ import annotations
 
+import json
+import sqlite3
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from personalscraper.acquire.desired import (
     QualityProfile,
@@ -43,16 +51,19 @@ from personalscraper.acquire.desired import (
     quality_profile_from_json,
     source_criteria_from_json,
 )
-from personalscraper.acquire.events import WantedAbandoned
+from personalscraper.acquire.events import GrabSucceeded, WantedAbandoned
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.acquire._ports import AcquireStore
     from personalscraper.acquire.domain import WantedItem
-    from personalscraper.acquire.orchestrator import GrabOrchestrator
+    from personalscraper.acquire.orchestrator import GrabOrchestrator, GrabOutcome
     from personalscraper.core.event_bus import EventBus
 
 log = get_logger("acquire.service")
+
+# Per-item outcome tag (maps onto a RunSummary counter in run()).
+_ItemOutcome = Literal["grabbed", "retried", "abandoned", "skipped"]
 
 # Attempts cap (DESIGN §6.2): a retryable item is abandoned once its claim count
 # reaches this floor, so a permanently-flaky source never loops forever.
@@ -70,8 +81,12 @@ class RunSummary:
     Attributes:
         grabbed: Items successfully grabbed (orchestrator ``success``).
         retried: Items reset to 'pending' (orchestrator ``retryable``, below cap).
-        abandoned: Items abandoned (orchestrator ``terminal`` OR attempts cap).
-        skipped: Items whose atomic claim was lost to a concurrent process.
+        abandoned: Items abandoned (orchestrator ``terminal``, attempts cap, OR a
+            corrupt-criteria-JSON row isolated out of the batch — DESIGN §6.2).
+        skipped: Items not grabbed without a status change — the atomic claim was
+            lost to a concurrent process, the row was already grabbed (hash-guard
+            short-circuit), or a DB lock left it for the stale-searching sweep
+            (DESIGN §6.2).
     """
 
     grabbed: int = 0
@@ -172,42 +187,39 @@ class AcquisitionService:
             assert item.id is not None  # noqa: S101 — ensured by the SELECTs above
             wanted_id = item.id
 
-            # A stale 'searching' row is not 'pending', so its claim would fail.
-            # Recover it back to 'pending' first, then re-claim atomically — the
-            # re-claim re-stamps attempts/last_search_at and re-serialises.
-            if item.status == "searching":
-                self._store.wanted.set_status(wanted_id, "pending")
-
-            won = self._store.wanted.claim_for_search(wanted_id, now)
-            if not won:
-                # Lost the atomic claim (concurrent winner) — skip, do NOT proceed.
-                skipped += 1
-                log.debug("acquire.service.claim_lost", wanted_id=wanted_id)
-                continue
-
-            # Re-fetch to read the post-claim attempts count.
-            current = self._store.wanted.get(wanted_id)
-            if current is None:
+            # Per-item error isolation (DESIGN §6.2): ONE item's store/decode
+            # failure must never abort the batch — the run_complete summary MUST
+            # still fire. We catch only the specific store-lock / corrupt-JSON
+            # errors (NOT a bare ``except Exception`` — a genuine programming bug
+            # must still surface and crash loudly).
+            try:
+                outcome_tag = self._process_item(item, now)
+            except sqlite3.OperationalError as exc:
+                # DB lock (RETRYABLE, §6.2): leave the row for the stale-searching
+                # sweep to recover (do NOT abort the run). Count as skipped.
+                log.warning("acquire.service.item_db_locked", wanted_id=wanted_id, error=str(exc))
                 skipped += 1
                 continue
-
-            profile = self._resolve_profile(current)
-            outcome = self._orchestrator.grab(current, profile)
-
-            if outcome.disposition == "success":
-                info_hash = outcome.info_hash or ""
-                self._store.wanted.mark_grabbed(wanted_id, info_hash)
-                grabbed += 1
-            elif outcome.disposition == "terminal":
-                self._store.wanted.set_status(wanted_id, "abandoned")
+            except json.JSONDecodeError as exc:
+                # Corrupt criteria_json / quality_profile_json: one bad row must
+                # not kill the batch. Abandon it (guarded) and move on.
+                log.warning("acquire.service.item_bad_criteria_json", wanted_id=wanted_id, error=str(exc))
+                try:
+                    self._store.wanted.set_status(wanted_id, "abandoned")
+                except sqlite3.OperationalError as set_exc:
+                    # Even the abandon write lost the lock — leave it for the sweep.
+                    log.warning("acquire.service.item_db_locked", wanted_id=wanted_id, error=str(set_exc))
                 abandoned += 1
-            else:  # "retryable"
-                if current.attempts >= MAX_ATTEMPTS:
-                    self._abandon_at_cap(current)
-                    abandoned += 1
-                else:
-                    self._store.wanted.set_status(wanted_id, "pending")
-                    retried += 1
+                continue
+
+            if outcome_tag == "grabbed":
+                grabbed += 1
+            elif outcome_tag == "retried":
+                retried += 1
+            elif outcome_tag == "abandoned":
+                abandoned += 1
+            else:  # "skipped"
+                skipped += 1
 
         log.info(
             "acquire.service.run_complete",
@@ -217,6 +229,117 @@ class AcquisitionService:
             skipped=skipped,
         )
         return RunSummary(grabbed=grabbed, retried=retried, abandoned=abandoned, skipped=skipped)
+
+    def _process_item(self, item: WantedItem, now: int) -> _ItemOutcome:
+        """Claim, grab and persist the result for ONE queued item.
+
+        Extracted so :meth:`run` can wrap each item in error isolation
+        (DESIGN §6.2) without an over-broad try around the whole loop body.
+
+        Args:
+            item: The queued :class:`WantedItem` (``item.id`` is non-None — the
+                SELECTs in :meth:`run` populate it).
+            now: Unix epoch seconds (stamps the atomic claim).
+
+        Returns:
+            A one-word outcome tag mapped onto a :class:`RunSummary` counter by
+            :meth:`run`.
+
+        Raises:
+            sqlite3.OperationalError: On a DB lock (RETRYABLE — :meth:`run`
+                isolates it and leaves the row for the stale-searching sweep).
+            json.JSONDecodeError: On corrupt criteria/profile JSON (:meth:`run`
+                isolates it and abandons the row).
+        """
+        assert item.id is not None  # noqa: S101 — ensured by the SELECTs in run()
+        wanted_id = item.id
+
+        # A stale 'searching' row is not 'pending', so its claim would fail.
+        # Recover it back to 'pending' first, then re-claim atomically — the
+        # re-claim re-stamps attempts/last_search_at and re-serialises.
+        if item.status == "searching":
+            self._store.wanted.set_status(wanted_id, "pending")
+
+        won = self._store.wanted.claim_for_search(wanted_id, now)
+        if not won:
+            # Lost the atomic claim (concurrent winner) — skip, do NOT proceed.
+            log.debug("acquire.service.claim_lost", wanted_id=wanted_id)
+            return "skipped"
+
+        # Re-fetch to read the post-claim attempts count.
+        current = self._store.wanted.get(wanted_id)
+        if current is None:
+            return "skipped"
+
+        # Hash-guard consultation (DESIGN §7 / §11(d)): if the row already
+        # carries a persisted info-hash it was grabbed before (e.g. force-reset
+        # to 'pending' while retaining grabbed_hash, or re-listed by an
+        # external producer). Short-circuit — NO re-grab, NO re-emit. The
+        # primary defence is that ``claim_for_search`` only matches a 'pending'
+        # row, so a 'grabbed' row is normally never re-claimed; this consults
+        # the persisted hash as the belt-and-suspenders guard.
+        if current.status == "grabbed" or current.grabbed_hash is not None:
+            log.info("acquire.service.already_grabbed_skipped", wanted_id=wanted_id)
+            return "skipped"
+
+        profile = self._resolve_profile(current)
+        outcome = self._orchestrator.grab(current, profile)
+
+        if outcome.disposition == "success":
+            return self._persist_success(current, outcome)
+        if outcome.disposition == "terminal":
+            self._store.wanted.set_status(wanted_id, "abandoned")
+            return "abandoned"
+        # "retryable"
+        if current.attempts >= MAX_ATTEMPTS:
+            self._abandon_at_cap(current)
+            return "abandoned"
+        self._store.wanted.set_status(wanted_id, "pending")
+        return "retried"
+
+    def _persist_success(self, item: WantedItem, outcome: GrabOutcome) -> _ItemOutcome:
+        """Persist a successful grab then emit ``GrabSucceeded`` (emit-after-persist).
+
+        DESIGN §15 / §11(d): the orchestrator does NOT emit ``GrabSucceeded`` —
+        the service persists the info-hash via ``mark_grabbed`` FIRST, then emits
+        the event. A ``mark_grabbed`` crash therefore means NO emit happened: the
+        row stays 'searching', stale-recovery re-grabs (idempotent ``add``) and
+        emits exactly ONCE. Emit follows persistence.
+
+        Args:
+            item: The claimed item (``item.id`` non-None).
+            outcome: The success :class:`GrabOutcome` carrying the
+                ``GrabSucceeded`` payload (``info_hash`` / ``category`` /
+                ``tags``).
+
+        Returns:
+            The ``"grabbed"`` outcome tag.
+
+        Raises:
+            sqlite3.OperationalError: If ``mark_grabbed`` loses the DB lock — the
+                emit is then skipped (no double-emit on the eventual re-grab).
+        """
+        assert item.id is not None  # noqa: S101 — caller fetched it by id
+        info_hash = outcome.info_hash or ""
+        if not info_hash:
+            # A 'success' disposition with no hash is a contract violation upstream
+            # (the orchestrator only reaches success after add() returns a hash).
+            # Persist + emit with an empty hash rather than silently swallow it,
+            # but log loudly so the anomaly is observable (m3).
+            log.warning("acquire.service.success_without_hash", wanted_id=item.id)
+        # Persist FIRST — if this raises (lock), the emit below is skipped and the
+        # re-grab on the next run emits exactly once.
+        self._store.wanted.mark_grabbed(item.id, info_hash)
+        self._event_bus.emit(
+            GrabSucceeded(
+                media_ref=item.media_ref,
+                info_hash=info_hash,
+                source_tracker=outcome.chosen.provider if outcome.chosen is not None else "",
+                category=outcome.category,
+                tags=outcome.tags,
+            )
+        )
+        return "grabbed"
 
     def _abandon_at_cap(self, item: WantedItem) -> None:
         """Abandon an item that hit the attempts cap and emit ``WantedAbandoned``.
