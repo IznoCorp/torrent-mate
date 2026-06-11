@@ -20,7 +20,7 @@
 | 4   | Orchestrator (GrabOrchestrator chain + failure taxonomy + events) | phase-04a-orchestrator.md | [x]    |
 | 5   | Service + state machine + wiring (claim/mark_grabbed + GrabCore)   | phase-04b-service.md      | [x]    |
 | 6   | CLI (personalscraper grab + --dry-run + --limit)                  | phase-05-cli.md           | [x]    |
-| 7   | Docs + ACCEPTANCE + gate                                           | phase-06-gate.md          | [ ]    |
+| 7   | Docs + ACCEPTANCE + gate                                           | phase-06-gate.md          | [x]    |
 
 ## Review cycles
 
@@ -28,4 +28,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 7 (docs + ACCEPTANCE + gate).
+All phases complete — run `/implement:feature-pr` (local gate + push + PR + CI).
