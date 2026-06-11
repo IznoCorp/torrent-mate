@@ -17,7 +17,7 @@
 | 1   | RP3a vocab (Resolution + QualityProfile + SourceCriteria)          | phase-01-vocab.md         | [x]    |
 | 2   | Cross-tracker dedup (search_candidates + keys + -QTZ golden)       | phase-02-dedup.md         | [x]    |
 | 3   | Hard-filters (resolution ordinal + anchored audio regex)          | phase-03-filters.md       | [x]    |
-| 4   | Orchestrator (GrabOrchestrator chain + failure taxonomy + events) | phase-04a-orchestrator.md | [ ]    |
+| 4   | Orchestrator (GrabOrchestrator chain + failure taxonomy + events) | phase-04a-orchestrator.md | [x]    |
 | 5   | Service + state machine + wiring (claim/mark_grabbed + GrabCore)   | phase-04b-service.md      | [ ]    |
 | 6   | CLI (personalscraper grab + --dry-run + --limit)                  | phase-05-cli.md           | [ ]    |
 | 7   | Docs + ACCEPTANCE + gate                                           | phase-06-gate.md          | [ ]    |
@@ -28,4 +28,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 4 (orchestrator).
+Run `/implement:phase` to start Phase 5 (service + state machine + wiring).
