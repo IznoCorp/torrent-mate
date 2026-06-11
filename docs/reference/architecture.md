@@ -50,13 +50,19 @@ staging/
 │   │   ├── _ports.py           # AcquireStore Protocol (extended in RP3)
 │   │   ├── errors.py           # AcquireLockError, AcquireCorruptError, AcquireMigrationError
 │   │   ├── context.py          # AcquireContext dataclass (per-invocation acquire service bundle)
+│   │   ├── desired.py         # Resolution IntEnum, QualityProfile, SourceCriteria, JSON codecs (RP3a vocab)
+│   │   ├── _dedup.py          # SearchOutcome, search_candidates seam, token-set normalizer, dedup()
+│   │   ├── _filters.py        # Hard-filter stage: resolution floor (fail-open None) + anchored audio language regex
+│   │   ├── orchestrator.py    # GrabOrchestrator — single-item §1 grab chain, failure taxonomy, event emission
+│   │   ├── service.py         # AcquisitionService batch loop, GrabCore handle, RunSummary, attempts cap
 │   │   └── migrations/         # SQL migration scripts for acquire.db
 │   │   Import direction: downward only (api/, core/, conf/, events/); never triage packages.
 │   │   (RP4) `subscribers/acquire.py` — muted AcquisitionTelegramSubscriber, gated by `acquire_notify_enabled`.
 │   ├── ingest/          # qBittorrent → staging
 │   ├── sorter/          # guessit + strategies → category folders
-│   ├── commands/        # Typer command groups (pipeline, library, config, info)
+│   ├── commands/        # Typer command groups (pipeline, library, config, info, grab)
 │   │   ├── library/         # library-* sub-commands (scan, query, maintenance, audit, analyze)
+│   │   ├── grab.py          # `personalscraper grab` — batch acquisition run (--dry-run, --limit)
 │   ├── conf/            # Config loader, overlay merger, resolver, classifier, staging
 │   │   ├── models/          # Pydantic sub-models (categories, disks, paths, preferences, etc.)
 │   ├── info/            # info command implementation (run.py)
