@@ -66,6 +66,18 @@ class WantedSubStore(Protocol):
         """Return all ``wanted`` rows with ``status='pending'`` (partial-index path)."""
         ...
 
+    def claim_for_search(self, wanted_id: int, now: int) -> bool:
+        """Atomically claim a pending item; return ``True`` iff this call won."""
+        ...
+
+    def mark_grabbed(self, wanted_id: int, info_hash: str) -> None:
+        """Persist ``status='grabbed'`` + ``info_hash`` for the idempotence guard."""
+        ...
+
+    def list_stale_searching(self, older_than: int) -> list[WantedItem]:
+        """Return ``wanted`` rows stuck in 'searching' older than the threshold."""
+        ...
+
 
 @runtime_checkable
 class SeedSubStore(Protocol):

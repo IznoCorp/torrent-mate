@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from personalscraper.acquire._ports import AcquireStore
     from personalscraper.acquire.delete_authority import DeleteAuthority
+    from personalscraper.acquire.service import GrabCore
     from personalscraper.api.torrent.qbittorrent import QBitClient
     from personalscraper.api.torrent.transmission import TransmissionClient
     from personalscraper.api.tracker._registry import TrackerRegistry
@@ -49,12 +50,19 @@ class AcquireContext:
             that borrows the store — fail-open when store is ``None``.
         torrent_client: Active torrent client or ``None``.  Borrowed from
             the shared port — ``close()`` does not own its lifecycle.
+        grab: ``GrabCore`` sub-handle (orchestrator + acquisition service) or
+            ``None``.  Built by ``_factory.build_acquire_context`` only when a
+            ``torrent_client`` is present (``None`` for read-only / dry-run
+            commands).  Owns no closeable resource of its own — the bus is
+            borrowed and the store / registry lifecycles are owned here —
+            so ``close()`` does NOT touch it.
     """
 
     tracker_registry: "TrackerRegistry"
     store: "AcquireStore | None" = None
     delete_authority: "DeleteAuthority | None" = None
     torrent_client: "QBitClient | TransmissionClient | None" = None
+    grab: "GrabCore | None" = None
 
     def close(self) -> None:
         """Close OWNED resources: tracker_registry and store (when present).
@@ -63,6 +71,8 @@ class AcquireContext:
         ``ingest`` boundary which owns its lifecycle.
         Does NOT close ``delete_authority`` — it is stateless, borrows the
         store handle, and has no ``close()`` method.
+        Does NOT close ``grab`` — the ``GrabCore`` holds no closeable resource
+        (its bus is borrowed; its store / registry are closed above).
 
         Raises:
             Exception: If ``store.close()`` raises (after RP3 wires it).

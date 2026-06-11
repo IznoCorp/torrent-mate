@@ -78,7 +78,10 @@ class TrackerResult:
         codec: Video codec (x265, HEVC, x264...).
         source: Media source (BluRay, WEB-DL, WEBRip...).
         resolution: Video resolution (2160p, 1080p, 720p...).
-        audio: Audio language/track info (VFF, VFQ, TrueHD...).
+        audio: Audio codec info (DTS, AAC, TrueHD, AC3, ...).
+            NOTE: this field is codec-only — it never contains language
+            markers (VF/VOSTFR/VO). Language detection for the audio
+            hard-filter must parse ``result.title`` instead.
     """
 
     provider: str

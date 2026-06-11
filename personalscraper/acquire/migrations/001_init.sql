@@ -27,7 +27,11 @@ CREATE TABLE IF NOT EXISTS wanted (
     criteria_json   TEXT,
     enqueued_at     INTEGER NOT NULL,
     last_search_at  INTEGER,
-    attempts        INTEGER NOT NULL DEFAULT 0
+    attempts        INTEGER NOT NULL DEFAULT 0,
+    -- Idempotence guard (RP5b): mark_grabbed persists the torrent info-hash
+    -- here so a crash between add() and the status write never double-emits
+    -- GrabSucceeded on re-run. NULL until the item is grabbed.
+    grabbed_hash    TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_wanted_pending

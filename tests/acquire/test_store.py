@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterator
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -313,7 +314,9 @@ def test_wanted_round_trip_and_status_transition(store: ConcreteAcquireStore) ->
     )
     wid = store.wanted.add(item)
     fetched = store.wanted.get(wid)
-    assert fetched == item
+    # The fetched item carries the persisted rowid (RP5b WantedItem.id); a fresh
+    # 'pending' row has no grabbed_hash. Compare against the item with id set.
+    assert fetched == replace(item, id=wid)
 
     store.wanted.set_status(wid, "grabbed")
     after = store.wanted.get(wid)
@@ -336,8 +339,8 @@ def test_wanted_list_pending_partial_index_path(store: ConcreteAcquireStore) -> 
 
     listed = store.wanted.list_pending()
     assert [w.media_ref.tvdb_id for w in listed] == [1]
-    # Round-trip equality on the single pending item too.
-    assert store.wanted.get(pid) == pending
+    # Round-trip equality on the single pending item too (id now populated).
+    assert store.wanted.get(pid) == replace(pending, id=pid)
 
 
 def test_seed_round_trip_and_marks(store: ConcreteAcquireStore) -> None:

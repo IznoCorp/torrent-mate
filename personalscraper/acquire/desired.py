@@ -1,0 +1,256 @@
+"""Typed RP3a vocabulary — Resolution, QualityProfile, SourceCriteria.
+
+Frozen, core+stdlib-pure value objects.  JSON codec helpers live here
+(mirrors the style of ``store.py``'s ``_media_ref_to_json``) so the
+684-LOC ``store.py`` budget is protected.
+
+Import direction: stdlib only — never api/, indexer/, scraper/, or triage.
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass, field
+from enum import IntEnum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    pass
+
+
+class Resolution(IntEnum):
+    """Ordered resolution tiers.
+
+    ``>=`` comparisons are numeric — never string-compare resolution tokens.
+    ``R4K`` / ``RUHD`` / ``R2160P`` all fold to the same ordinal (2160)
+    so any of the three names in a result title ranks identically.
+    """
+
+    UNKNOWN = 0
+    R480P = 480
+    R720P = 720
+    R1080P = 1080
+    R2160P = 2160
+    # Aliases — same ordinal value as R2160P
+    R4K = 2160
+    RUHD = 2160
+
+    @classmethod
+    def from_token(cls, s: str | None) -> Resolution:
+        """Parse a lowercase resolution token into an ordered tier.
+
+        Folds ``4k`` / ``uhd`` / ``2160p`` → ``R2160P`` (via the most
+        specific alias) so all 2160-class tokens rank identically.
+
+        Args:
+            s: Lowercase token from a tracker result title
+                (e.g. ``"2160p"``, ``"1080p"``, ``"720p"``, ``"480p"``,
+                ``"4k"``, ``"uhd"``).  ``None`` or unrecognised tokens
+                return ``UNKNOWN``.
+
+        Returns:
+            The matching :class:`Resolution` tier.
+        """
+        if s is None:
+            return cls.UNKNOWN
+        token = s.strip().lower()
+        if token in ("2160p",):
+            return cls.R2160P
+        if token in ("1080p",):
+            return cls.R1080P
+        if token in ("720p",):
+            return cls.R720P
+        if token in ("480p",):
+            return cls.R480P
+        if token in ("4k",):
+            return cls.R4K
+        if token in ("uhd",):
+            return cls.RUHD
+        return cls.UNKNOWN
+
+
+@dataclass(frozen=True, kw_only=True)
+class QualityProfile:
+    """Per-series quality policy decoded from ``FollowedSeries.quality_profile_json``.
+
+    All defaults are **permissive**: ``min_resolution=None`` means no floor
+    (hard-filter stage is a no-op); ``required_audio=frozenset()`` means any
+    language passes.  A French-only or ≥1080p policy is an explicit per-profile
+    opt-in set by Follow D4 — not a global default.
+
+    Attributes:
+        min_resolution: Minimum acceptable resolution tier, or ``None`` (no
+            floor — fail-open, passes all resolutions including None-resolution
+            REMUX/BluRay sources that the ranking engine soft-scores).
+        required_audio: Set of required audio language markers
+            (``{"VF", "VOSTFR", "VO"}`` tiers).  Empty = no language filter.
+        allowed_codecs: Optional codec allow-list (empty = allow all).
+        min_size: Minimum file size in bytes, or ``None`` (no lower bound).
+        max_size: Maximum file size in bytes, or ``None`` (no upper bound).
+        require_known_resolution: When ``True``, fail-closed on unparseable
+            resolution.  Default ``False`` (fail-open) — an unparseable
+            resolution is usually a naming-style gap (REMUX/COMPLETE.BLURAY)
+            that the ranking engine soft-scores.
+    """
+
+    min_resolution: Resolution | None = None
+    required_audio: frozenset[str] = field(default_factory=frozenset)
+    allowed_codecs: frozenset[str] = field(default_factory=frozenset)
+    min_size: int | None = None
+    max_size: int | None = None
+    require_known_resolution: bool = False
+
+
+@dataclass(frozen=True, kw_only=True)
+class SourceCriteria:
+    """Per-item source overrides decoded from ``WantedItem.criteria_json``.
+
+    **Decode-only at RP5b** — no live producer until Follow D4.  The
+    effective-profile precedence (series default ← item override) ships as
+    a round-trip unit test, but is not an exercised live path yet.
+
+    Attributes:
+        preferred_resolution: Item-level resolution preference override, or
+            ``None`` (inherit from ``QualityProfile``).
+        required_audio: Item-level audio requirement override.  Empty =
+            inherit from ``QualityProfile``.
+    """
+
+    preferred_resolution: Resolution | None = None
+    required_audio: frozenset[str] = field(default_factory=frozenset)
+
+
+# ---------------------------------------------------------------------------
+# JSON helpers (mirrors _media_ref_to_json style in store.py)
+# ---------------------------------------------------------------------------
+
+
+def quality_profile_to_json(p: QualityProfile) -> str:
+    """Serialize a :class:`QualityProfile` to a compact JSON string.
+
+    Args:
+        p: The profile to serialize.
+
+    Returns:
+        JSON string suitable for storage in ``quality_profile_json`` column.
+    """
+    return json.dumps(
+        {
+            "min_resolution": p.min_resolution.value if p.min_resolution is not None else None,
+            "required_audio": sorted(p.required_audio),
+            "allowed_codecs": sorted(p.allowed_codecs),
+            "min_size": p.min_size,
+            "max_size": p.max_size,
+            "require_known_resolution": p.require_known_resolution,
+        }
+    )
+
+
+def quality_profile_from_json(blob: str | None) -> QualityProfile:
+    """Deserialize a :class:`QualityProfile` from its JSON string.
+
+    A ``None`` or empty blob decodes to the **permissive default**
+    profile (no floor, no language filter) — this is load-bearing:
+    a NULL column means "no policy configured yet".
+
+    Args:
+        blob: JSON string produced by :func:`quality_profile_to_json`,
+            or ``None`` for a null database column.
+
+    Returns:
+        The reconstructed :class:`QualityProfile`.
+    """
+    if blob is None:
+        return QualityProfile()
+    data = json.loads(blob)
+    min_res_val = data.get("min_resolution")
+    return QualityProfile(
+        min_resolution=Resolution(min_res_val) if min_res_val is not None else None,
+        required_audio=frozenset(data.get("required_audio", [])),
+        allowed_codecs=frozenset(data.get("allowed_codecs", [])),
+        min_size=data.get("min_size"),
+        max_size=data.get("max_size"),
+        require_known_resolution=bool(data.get("require_known_resolution", False)),
+    )
+
+
+def source_criteria_to_json(c: SourceCriteria) -> str:
+    """Serialize a :class:`SourceCriteria` to a compact JSON string.
+
+    Args:
+        c: The criteria to serialize.
+
+    Returns:
+        JSON string suitable for storage in ``criteria_json`` column.
+    """
+    return json.dumps(
+        {
+            "preferred_resolution": c.preferred_resolution.value if c.preferred_resolution is not None else None,
+            "required_audio": sorted(c.required_audio),
+        }
+    )
+
+
+def source_criteria_from_json(blob: str | None) -> SourceCriteria:
+    """Deserialize a :class:`SourceCriteria` from its JSON string.
+
+    A ``None`` or empty blob decodes to the default (all-None) criteria.
+
+    Args:
+        blob: JSON string produced by :func:`source_criteria_to_json`,
+            or ``None`` for a null database column.
+
+    Returns:
+        The reconstructed :class:`SourceCriteria`.
+    """
+    if blob is None:
+        return SourceCriteria()
+    data = json.loads(blob)
+    pref_res_val = data.get("preferred_resolution")
+    return SourceCriteria(
+        preferred_resolution=Resolution(pref_res_val) if pref_res_val is not None else None,
+        required_audio=frozenset(data.get("required_audio", [])),
+    )
+
+
+def effective_quality(series: QualityProfile, item: SourceCriteria) -> QualityProfile:
+    """Merge series-level profile with per-item criteria (item overrides series).
+
+    **RP5b: decode-only** — no live producer until Follow D4.  This helper is
+    shipped so the precedence is tested, not speculative.
+
+    Item fields override series fields only when explicitly set (non-None /
+    non-empty): a ``SourceCriteria()`` with all defaults leaves the series
+    profile unchanged.
+
+    Args:
+        series: Series-level :class:`QualityProfile` (from
+            ``FollowedSeries.quality_profile_json``).
+        item: Per-item :class:`SourceCriteria` override (from
+            ``WantedItem.criteria_json``).
+
+    Returns:
+        Effective :class:`QualityProfile` to use for the grab attempt.
+    """
+    min_res = item.preferred_resolution if item.preferred_resolution is not None else series.min_resolution
+    audio = item.required_audio if item.required_audio else series.required_audio
+    return QualityProfile(
+        min_resolution=min_res,
+        required_audio=audio,
+        allowed_codecs=series.allowed_codecs,
+        min_size=series.min_size,
+        max_size=series.max_size,
+        require_known_resolution=series.require_known_resolution,
+    )
+
+
+__all__ = [
+    "QualityProfile",
+    "Resolution",
+    "SourceCriteria",
+    "effective_quality",
+    "quality_profile_from_json",
+    "quality_profile_to_json",
+    "source_criteria_from_json",
+    "source_criteria_to_json",
+]
