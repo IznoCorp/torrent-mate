@@ -514,3 +514,23 @@ Expected: passing summary, no regressions.
 git add personalscraper/acquire/_filters.py tests/acquire/test_filters.py
 git commit -m "feat(grab-core): audio hard-filter + \\b boundary guard + phase 03 gate"
 ```
+
+---
+
+## Drift notes (phase-3 execution, 2026-06-11)
+
+- **Task 1-3 merged into single commit** (cap 2 allowed): the docstring fix + filter
+  module + tests ship together as one phase-3 gate commit — per the plan's own "one
+  phase, one gate" rhythm.
+- **`_parse_resolution` uses `Resolution.from_token`** instead of a manual
+  `_RESOLUTION_TOKEN_MAP` dict (plan §Task 2 Step 3). `from_token` already maps
+  4k/uhd/2160p/1080p/720p/480p → the correct tier and returns `UNKNOWN` for
+  unrecognised tokens, matching the fail-open design.
+- **Extra tests beyond the plan's 13**: `test_resolution_unrecognised_fails_open_by_default`
+  (UNKOWN→PASS), `test_resolution_unrecognised_fails_when_require_known_resolution`
+  (UNKOWN→FAIL with opt-in), `test_audio_filter_vf_required_drops_vo_only_title`
+  (VO→dropped when VF required), `test_audio_regex_boundary_convost_does_not_match`
+  (ConVOSTed→no VOST match either), `test_audio_regex_multi_exact_match_works`
+  (MULTi standalone→works). Total: 17 tests (plan minimum 13).
+- **`_base.py` docstring commit is separate** (fix type, not feat) — total 2 commits
+  for the phase.
