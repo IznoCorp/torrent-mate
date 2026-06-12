@@ -723,3 +723,21 @@ python -c "import personalscraper.commands.follow; print('ok')"
 make lint
 # Expected: 0 errors.
 ```
+
+---
+
+## Plan-drift notes (2026-06-12 — Phase 3 gate)
+
+**Commit**: `761e2955` — `feat(follow-list): add follow add/list/remove CLI command group`
+
+**Drifts from plan**:
+
+1. `follow_add` `--title` help string (line 52) was >120 chars (E501). Wrapped `typer.Option` across 5 lines (same pattern as `follow_remove`'s `--tvdb`/`--id` which were already multi-line).
+2. `ruff format` reformatted `tests/commands/test_follow.py` after initial write — file was committed post-reformat to keep a clean tree (`git status --short` clean after commit per CI rule).
+
+**Non-drift notes**:
+
+- All plan tests passed first-run without modification (14/14).
+- Plan's `test_config` fixture (conftest autouse) does NOT cover `tests/commands/test_follow.py` — but real `config/` is present at the repo root so `load_config` succeeds. Tests rely on `per_step_boundary` + `resolve_series_title` monkeypatch to avoid real AppContext construction.
+- `make check` GREEN (0 errors, 91.37% coverage, ruff/mypy/format all clean).
+- Smoked idempotent double-add → 1 row (verbatim Python assertion).
