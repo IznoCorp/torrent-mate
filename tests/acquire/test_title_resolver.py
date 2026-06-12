@@ -135,3 +135,52 @@ def test_resolve_uses_tmdb_id_placeholder_when_no_tvdb() -> None:
 
     assert result == "tmdb:5678"
     mock_provider.get_tv.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# m2 REGRESSION — empty / None-title fall-through to placeholder
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_falls_back_when_title_is_none() -> None:
+    """m2 REGRESSION: provider returns details with title=None → placeholder, no raise.
+
+    The resolver must treat a None title the same as an empty title — fall
+    through to the placeholder string, never return an empty string or raise.
+    """
+    from personalscraper.acquire.title_resolver import resolve_series_title
+
+    mock_details = MagicMock()
+    mock_details.title = None  # explicitly None
+    mock_provider = MagicMock(spec=TvDetailsProvider)
+    mock_provider.get_tv.return_value = mock_details
+
+    registry = _mock_registry(mock_provider)
+    ref = MediaRef(tvdb_id=81189)
+
+    result = resolve_series_title(ref, registry)
+
+    assert result == "tvdb:81189", f"m2 MISS: title=None must fall through to placeholder 'tvdb:81189'; got {result!r}"
+    assert result != "", "m2 MISS: result must not be empty string"
+
+
+def test_resolve_falls_back_when_title_is_empty_string() -> None:
+    """m2 REGRESSION: provider returns details with title='' → placeholder, no raise.
+
+    An empty string title is falsy and must trigger the fallback path, never
+    be returned as the resolved title.
+    """
+    from personalscraper.acquire.title_resolver import resolve_series_title
+
+    mock_details = MagicMock()
+    mock_details.title = ""  # empty string
+    mock_provider = MagicMock(spec=TvDetailsProvider)
+    mock_provider.get_tv.return_value = mock_details
+
+    registry = _mock_registry(mock_provider)
+    ref = MediaRef(tvdb_id=81189)
+
+    result = resolve_series_title(ref, registry)
+
+    assert result == "tvdb:81189", f"m2 MISS: title='' must fall through to placeholder 'tvdb:81189'; got {result!r}"
+    assert result != "", "m2 MISS: result must not be empty string"

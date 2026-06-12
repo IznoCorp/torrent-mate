@@ -360,3 +360,140 @@ def test_follow_remove_not_found_prints_message(tmp_path: Path, monkeypatch) -> 
     assert result.exit_code == 0, result.output
     assert "not found" in result.output.lower(), f"Expected 'not found' message; got:\n{result.output}"
     acquire.store.close()  # type: ignore[union-attr]
+
+
+# ---------------------------------------------------------------------------
+# C1 REGRESSION — cross-key dedup (find_by_ref json_extract)
+# ---------------------------------------------------------------------------
+
+
+def test_follow_add_tvdb_tmdb_remove_tvdb_dedup_reactivate(tmp_path: Path, monkeypatch) -> None:
+    """C1 REGRESSION: add with tvdb+tmdb → remove --tvdb works → re-add dedup.
+
+    Before the json_extract fix, remove --tvdb 81189 would say "not found" on a
+    series stored with tvdb_id=81189 + tmdb_id=1396 (exact-tuple mismatch), and
+    a re-add would create a duplicate row.
+    """
+    db_path = tmp_path / "acquire.db"
+    event_bus = EventBus()
+    acquire = _acquire_ctx_for(db_path, event_bus)
+    app_ctx = _make_app_context(acquire=acquire, event_bus=event_bus)
+
+    monkeypatch.setattr("personalscraper.commands.follow.per_step_boundary", _fake_boundary(app_ctx))
+    monkeypatch.setattr(
+        "personalscraper.commands.follow.resolve_series_title",
+        lambda *a, **kw: "Breaking Bad",
+    )
+
+    # Add with both tvdb and tmdb.
+    result_add = runner.invoke(app, ["follow", "add", "--tvdb", "81189", "--tmdb", "1396"])
+    assert result_add.exit_code == 0, result_add.output
+    assert "Now following" in result_add.output
+
+    # Remove --tvdb 81189 must find the row (cross-key match).
+    result_rm = runner.invoke(app, ["follow", "remove", "--tvdb", "81189"])
+    assert result_rm.exit_code == 0, result_rm.output
+    assert "not found" not in result_rm.output.lower(), (
+        f"C1 MISS: remove --tvdb 81189 should find the tvdb+tmdb row; got:\n{result_rm.output}"
+    )
+    store = acquire.store
+    assert store is not None
+    all_rows = store.follow.list_all()
+    assert len(all_rows) == 1, "Soft-unfollow preserves the single row"
+    assert all_rows[0].active is False, "Row must be inactive after remove"
+
+    # Re-add --tvdb 81189 must reactivate, NOT create a duplicate.
+    result_readd = runner.invoke(app, ["follow", "add", "--tvdb", "81189"])
+    assert result_readd.exit_code == 0, result_readd.output
+    all_rows2 = store.follow.list_all()
+    assert len(all_rows2) == 1, (
+        f"C1 DUPLICATE: re-add after cross-key remove must NOT create a second row; got {len(all_rows2)} rows"
+    )
+    assert all_rows2[0].active is True, "Row must be active again after re-add"
+    store.close()
+
+
+# ---------------------------------------------------------------------------
+# C2 REGRESSION — follow remove --id <rowid>
+# ---------------------------------------------------------------------------
+
+
+def test_follow_remove_by_id_soft_unfollows(tmp_path: Path, monkeypatch) -> None:
+    """C2 REGRESSION: ``follow remove --id <rowid>`` soft-unfollows and emits event."""
+    from personalscraper.acquire.events import SeriesUnfollowed
+
+    db_path = tmp_path / "acquire.db"
+    event_bus = EventBus()
+    unfollowed: list[SeriesUnfollowed] = []
+    event_bus.subscribe(SeriesUnfollowed, lambda e: unfollowed.append(e))
+
+    acquire = _acquire_ctx_for(db_path, event_bus)
+    app_ctx = _make_app_context(acquire=acquire, event_bus=event_bus)
+
+    monkeypatch.setattr("personalscraper.commands.follow.per_step_boundary", _fake_boundary(app_ctx))
+    monkeypatch.setattr(
+        "personalscraper.commands.follow.resolve_series_title",
+        lambda *a, **kw: "Breaking Bad",
+    )
+
+    # Add to get a rowid.
+    runner.invoke(app, ["follow", "add", "--tvdb", "81189"])
+    store = acquire.store
+    assert store is not None
+    all_rows = store.follow.list_all()
+    assert len(all_rows) == 1
+    row_id = all_rows[0].id
+    assert row_id is not None
+
+    # Remove by --id.
+    result = runner.invoke(app, ["follow", "remove", "--id", str(row_id)])
+    assert result.exit_code == 0, result.output
+
+    # Verify soft-unfollow.
+    fetched = store.follow.get(row_id)
+    assert fetched is not None
+    assert fetched.active is False, f"C2 MISS: remove --id {row_id} must set active=False; got active={fetched.active}"
+
+    # Verify event.
+    assert len(unfollowed) == 1, f"C2 MISS: expected 1 SeriesUnfollowed event for remove --id, got {len(unfollowed)}"
+    store.close()
+
+
+# ---------------------------------------------------------------------------
+# m1 REGRESSION — already-inactive double remove
+# ---------------------------------------------------------------------------
+
+
+def test_follow_remove_already_inactive_no_double_event(tmp_path: Path, monkeypatch) -> None:
+    """m1 REGRESSION: double remove on inactive series emits exactly one event."""
+    from personalscraper.acquire.events import SeriesUnfollowed
+
+    db_path = tmp_path / "acquire.db"
+    event_bus = EventBus()
+    unfollowed: list[SeriesUnfollowed] = []
+    event_bus.subscribe(SeriesUnfollowed, lambda e: unfollowed.append(e))
+
+    acquire = _acquire_ctx_for(db_path, event_bus)
+    app_ctx = _make_app_context(acquire=acquire, event_bus=event_bus)
+
+    monkeypatch.setattr("personalscraper.commands.follow.per_step_boundary", _fake_boundary(app_ctx))
+    monkeypatch.setattr(
+        "personalscraper.commands.follow.resolve_series_title",
+        lambda *a, **kw: "Breaking Bad",
+    )
+
+    # Add + first remove.
+    runner.invoke(app, ["follow", "add", "--tvdb", "81189"])
+    runner.invoke(app, ["follow", "remove", "--tvdb", "81189"])
+    assert len(unfollowed) == 1, "First remove must emit one event"
+
+    # Second remove — already inactive.
+    result2 = runner.invoke(app, ["follow", "remove", "--tvdb", "81189"])
+    assert result2.exit_code == 0, result2.output
+    assert "already inactive" in result2.output.lower(), (
+        f"m1 MISS: second remove must say 'already inactive'; got:\n{result2.output}"
+    )
+    assert len(unfollowed) == 1, (
+        f"m1 DOUBLE-EMIT: second remove on inactive series must NOT emit again; got {len(unfollowed)} events"
+    )
+    acquire.store.close()  # type: ignore[union-attr]

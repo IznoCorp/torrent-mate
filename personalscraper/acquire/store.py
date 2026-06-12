@@ -322,8 +322,12 @@ class _FollowSubStore:
     def find_by_ref(self, media_ref: MediaRef) -> FollowedSeries | None:
         """Return the :class:`FollowedSeries` keyed on *media_ref*, or ``None``.
 
-        Matches on the canonical ``media_ref_json`` serialization so that any
-        combination of provider IDs (tvdb/tmdb/imdb) deduplicates correctly.
+        Matches on the **primary available provider ID** (tvdb > tmdb > imdb),
+        using ``json_extract`` on the ``media_ref_json`` column.  This ensures
+        that a lookup with ``tvdb_id`` X matches any stored row whose
+        ``tvdb_id`` is X, regardless of the other IDs present — and likewise
+        for ``tmdb_id`` or ``imdb_id`` when the higher-priority key is absent.
+
         Used by the follow CLI to enforce the idempotent-add / reactivate logic.
 
         Args:
@@ -334,16 +338,41 @@ class _FollowSubStore:
             ``None``.
         """
         self._conn.row_factory = sqlite3.Row
-        row = self._conn.execute(
-            """
-            SELECT id, media_ref_json, title, active,
-                   quality_profile_json, cadence_json, added_at
-            FROM followed_series
-            WHERE media_ref_json = ?
-            LIMIT 1
-            """,
-            (_media_ref_to_json(media_ref),),
-        ).fetchone()
+        if media_ref.tvdb_id is not None:
+            row = self._conn.execute(
+                """
+                SELECT id, media_ref_json, title, active,
+                       quality_profile_json, cadence_json, added_at
+                FROM followed_series
+                WHERE json_extract(media_ref_json, '$.tvdb_id') = ?
+                ORDER BY id LIMIT 1
+                """,
+                (media_ref.tvdb_id,),
+            ).fetchone()
+        elif media_ref.tmdb_id is not None:
+            row = self._conn.execute(
+                """
+                SELECT id, media_ref_json, title, active,
+                       quality_profile_json, cadence_json, added_at
+                FROM followed_series
+                WHERE json_extract(media_ref_json, '$.tmdb_id') = ?
+                ORDER BY id LIMIT 1
+                """,
+                (media_ref.tmdb_id,),
+            ).fetchone()
+        elif media_ref.imdb_id is not None:
+            row = self._conn.execute(
+                """
+                SELECT id, media_ref_json, title, active,
+                       quality_profile_json, cadence_json, added_at
+                FROM followed_series
+                WHERE json_extract(media_ref_json, '$.imdb_id') = ?
+                ORDER BY id LIMIT 1
+                """,
+                (media_ref.imdb_id,),
+            ).fetchone()
+        else:
+            return None
         return _row_to_followed(row) if row is not None else None
 
     def list_active(self) -> list[FollowedSeries]:

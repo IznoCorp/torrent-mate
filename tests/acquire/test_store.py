@@ -341,6 +341,70 @@ def test_follow_find_by_ref_round_trips_id(store: ConcreteAcquireStore) -> None:
     assert found2.id == row_id  # same rowid, no duplicate
 
 
+def test_follow_find_by_ref_cross_key_tvdb_primary(store: ConcreteAcquireStore) -> None:
+    """C1 REGRESSION: add tvdb+tmdb → find_by_ref(tvdb-only) matches (cross-key dedup).
+
+    A series stored with both tvdb_id and tmdb_id MUST be found by a
+    tvdb-only lookup — the primary id drives the match, not the exact tuple.
+    """
+    series = FollowedSeries(
+        media_ref=MediaRef(tvdb_id=81189, tmdb_id=1396),
+        title="Breaking Bad",
+        added_at=1_700_000_000,
+        active=True,
+    )
+    store.follow.add(series)
+    found = store.follow.find_by_ref(MediaRef(tvdb_id=81189))
+    assert found is not None, "C1 MISS: tvdb-only lookup must match a row stored with tvdb+tmdb"
+    assert found.media_ref.tvdb_id == 81189
+    assert found.media_ref.tmdb_id == 1396
+
+
+def test_follow_find_by_ref_cross_key_tmdb_fallback(store: ConcreteAcquireStore) -> None:
+    """C1 REGRESSION: add tvdb+tmdb → find_by_ref(tmdb-only) also matches (fallback).
+
+    When the lookup ref has only tmdb_id, it should fall back to matching on
+    tmdb_id in stored rows.
+    """
+    series = FollowedSeries(
+        media_ref=MediaRef(tvdb_id=81189, tmdb_id=1396),
+        title="Breaking Bad",
+        added_at=1_700_000_000,
+        active=True,
+    )
+    store.follow.add(series)
+    found = store.follow.find_by_ref(MediaRef(tmdb_id=1396))
+    assert found is not None, "C1 MISS: tmdb-only lookup must match a row stored with tvdb+tmdb"
+    assert found.media_ref.tmdb_id == 1396
+
+
+def test_follow_find_by_ref_no_false_merge(store: ConcreteAcquireStore) -> None:
+    """C1 REGRESSION: two series with different tvdb_ids → find_by_ref(one) returns only that one.
+
+    The cross-key match must NOT merge unrelated series that share no primary id.
+    """
+    store.follow.add(
+        FollowedSeries(
+            media_ref=MediaRef(tvdb_id=81189),
+            title="Breaking Bad",
+            added_at=1_700_000_000,
+            active=True,
+        )
+    )
+    store.follow.add(
+        FollowedSeries(
+            media_ref=MediaRef(tvdb_id=121361),
+            title="Better Call Saul",
+            added_at=1_700_000_001,
+            active=True,
+        )
+    )
+    found = store.follow.find_by_ref(MediaRef(tvdb_id=81189))
+    assert found is not None
+    assert found.media_ref.tvdb_id == 81189, "C1 FALSE-MERGE: find_by_ref(81189) must not return the other series"
+    assert found.title == "Breaking Bad"
+
+
 def test_follow_list_active_excludes_inactive(store: ConcreteAcquireStore) -> None:
     """list_active returns only active=True rows (LOAD-BEARING filter check)."""
     active_series = FollowedSeries(
