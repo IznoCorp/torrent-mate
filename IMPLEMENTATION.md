@@ -8,11 +8,16 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/follow-list/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/follow-list/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                                       | File               | Status |
+| --- | ----------------------------------------------------------- | ------------------ | ------ |
+| 1   | Store CRUD (_FollowSubStore completion + Protocol)          | phase-01-store.md  | [ ]    |
+| 2   | Title resolution helper (fail-soft metadata lookup)         | phase-02-title.md  | [ ]    |
+| 3   | follow CLI command group (add/list/remove)                  | phase-03-cli.md    | [ ]    |
+| 4   | Docs + ACCEPTANCE + gate                                    | phase-04-gate.md   | [ ]    |
 
 ## Review cycles
 
@@ -20,4 +25,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start Phase 1.
