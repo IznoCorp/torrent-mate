@@ -30,6 +30,12 @@
   - m1 (medium) already-inactive `follow remove` (no 2nd SeriesUnfollowed) untested. m2 (medium) resolver empty/None-title fall-through untested.
 - Decision: **Case B**. Fix phase 5 executed (1 commit `a0724a4c`): **C1** find_by_ref now matches on the primary available id via `json_extract` ($.tvdb_id→tmdb→imdb, ORDER BY id LIMIT 1) — cross-key match fixed (verified: add tvdb+tmdb → find_by_ref(tvdb-only) matches; no false-merge; CLI remove --tvdb + re-add dedups, no duplicate row); **C2** remove --id test (branch was correct), **m1** already-inactive double-remove no-double-event test, **m2** resolver None/empty-title placeholder test. make check 6701 green. Merge = manual.
 
+
+### Cycle 2
+
+- Toolkit: code-reviewer on the cycle-1 fix diff (`203403f3..HEAD`, the json_extract find_by_ref change). **APPROVE, zero findings ≥80.** Empirically verified: json_extract type-matching (int tvdb/tmdb vs str imdb) sound; NULL handling correct (a tvdb-null row is excluded from a tvdb lookup — the core of the C1 fix, reproduced old-query-None vs new-query-match); no false-merge regression (the tmdb-only heuristic is the documented tvdb-primary trade-off); param-bound (injection-safe); C1/C2/m1/m2 tests non-vacuous (the C1 test provably fails against the old code); no residual exact-tuple query remains. Perf: json_extract full-scan negligible for dozens of rows (expression index only if it grows to thousands — not warranted).
+- Decision: **Case A** (no critical/major/medium). Loop exits clean. Merge = manual → operator squash-merges.
+
 ## Next action
 
-All phases complete — run `/implement:feature-pr`.
+Review cycles 1+2 complete (cycle 2 clean). CI green on PR #197. **Awaiting MANUAL squash merge** (`gh pr merge 197 --squash`). After merge: next `/implement:feature` archives follow-list (Follow D2 next = wanted-enqueue, consumes this followed list).
