@@ -354,3 +354,25 @@ python -c "from personalscraper.acquire.title_resolver import resolve_series_tit
 make lint
 # Expected: 0 errors (ruff + mypy).
 ```
+
+---
+
+## Plan-drift notes (2026-06-12, commit 2d06a8a6)
+
+1. **ApiError constructor** — `ApiError` is a dataclass with fields
+   `(provider, http_status, provider_code, message)`. The plan's `ApiError("msg")`
+   fails at runtime. Fixed: `ApiError(provider="tvdb", http_status=N, message="msg")`.
+
+2. **CircuitOpenError constructor** — takes `(provider, remaining_seconds)`, not
+   a bare message. Fixed: `CircuitOpenError(provider="tvdb", remaining_seconds=30.0)`.
+
+3. **mypy `attr-defined` on `chain(TvDetailsProvider)`** — mypy resolves the
+   `chain()` overload to `list[Searchable]` (the first overload), so
+   `providers[0].get_tv(...)` fails with `attr-defined`. The plan's
+   `# type: ignore[type-abstract]` doesn't suppress this. Fixed with
+   `cast(TvDetailsProvider, providers[0])`.
+
+4. **Test 7 non-vacuous** — added `mock_provider.get_tv.assert_not_called()`
+   to `test_resolve_uses_tmdb_id_placeholder_when_no_tvdb` to prove no lookup
+   is attempted when `tvdb_id` is absent (the plan's mock had
+   `side_effect = ApiError(...)` which was never exercised).
