@@ -190,7 +190,7 @@ def test_write_through_one_store_visible_to_another(tmp_path: Path) -> None:
         row_id = writer.follow.add(series)
         # A fresh handle on the same DB sees the committed row.
         fetched = reader.follow.get(row_id)
-        assert fetched == series
+        assert fetched == replace(series, id=row_id)
     finally:
         writer.close()
         reader.close()
@@ -290,8 +290,9 @@ def test_follow_round_trip(store: ConcreteAcquireStore) -> None:
     )
     row_id = store.follow.add(series)
     fetched = store.follow.get(row_id)
-    assert fetched == series  # frozen dataclass field-level equality
     assert fetched is not None
+    # fetched carries the persisted rowid; the fresh VO does not.
+    assert fetched == replace(series, id=row_id)
     # MediaRef must round-trip identically (no provider-ID contamination).
     assert fetched.media_ref == MediaRef(tvdb_id=12345, tmdb_id=678, imdb_id="tt0011223")
 
@@ -299,6 +300,118 @@ def test_follow_round_trip(store: ConcreteAcquireStore) -> None:
 def test_follow_get_missing_returns_none(store: ConcreteAcquireStore) -> None:
     """follow.get on an unknown id returns None."""
     assert store.follow.get(99999) is None
+
+
+def test_follow_get_round_trips_id(store: ConcreteAcquireStore) -> None:
+    """follow.get populates FollowedSeries.id with the rowid."""
+    series = FollowedSeries(
+        media_ref=MediaRef(tvdb_id=10001),
+        title="Id Roundtrip Show",
+        added_at=1_700_000_000,
+        active=True,
+    )
+    row_id = store.follow.add(series)
+    fetched = store.follow.get(row_id)
+    assert fetched is not None
+    assert fetched.id == row_id, f"Expected id={row_id}, got {fetched.id}"
+
+
+def test_follow_find_by_ref_returns_none_when_absent(store: ConcreteAcquireStore) -> None:
+    """find_by_ref returns None when no matching row exists."""
+    assert store.follow.find_by_ref(MediaRef(tvdb_id=99999)) is None
+
+
+def test_follow_find_by_ref_round_trips_id(store: ConcreteAcquireStore) -> None:
+    """find_by_ref locates the row and populates .id correctly (LOAD-BEARING dedup check)."""
+    series = FollowedSeries(
+        media_ref=MediaRef(tvdb_id=55555),
+        title="Dedup Show",
+        added_at=1_700_000_000,
+        active=True,
+    )
+    row_id = store.follow.add(series)
+    found = store.follow.find_by_ref(MediaRef(tvdb_id=55555))
+    assert found is not None
+    assert found.id == row_id
+    assert found.media_ref == series.media_ref
+
+    # LOAD-BEARING: second call with the same ref finds the SAME row (1 row only).
+    found2 = store.follow.find_by_ref(MediaRef(tvdb_id=55555))
+    assert found2 is not None
+    assert found2.id == row_id  # same rowid, no duplicate
+
+
+def test_follow_list_active_excludes_inactive(store: ConcreteAcquireStore) -> None:
+    """list_active returns only active=True rows (LOAD-BEARING filter check)."""
+    active_series = FollowedSeries(
+        media_ref=MediaRef(tvdb_id=1001),
+        title="Active Show",
+        added_at=1_700_000_001,
+        active=True,
+    )
+    inactive_series = FollowedSeries(
+        media_ref=MediaRef(tvdb_id=1002),
+        title="Inactive Show",
+        added_at=1_700_000_002,
+        active=False,
+    )
+    store.follow.add(active_series)
+    store.follow.add(inactive_series)
+
+    active_list = store.follow.list_active()
+    assert len(active_list) == 1, f"Expected 1 active row, got {len(active_list)}"
+    assert active_list[0].title == "Active Show"
+    assert active_list[0].active is True
+
+
+def test_follow_list_all_includes_both(store: ConcreteAcquireStore) -> None:
+    """list_all returns all rows regardless of active flag."""
+    store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=2001), title="A", added_at=1, active=True))
+    store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=2002), title="B", added_at=2, active=False))
+    all_rows = store.follow.list_all()
+    assert len(all_rows) == 2
+    tvdb_ids = {r.media_ref.tvdb_id for r in all_rows}
+    assert tvdb_ids == {2001, 2002}
+
+
+def test_follow_set_active_flips_flag(store: ConcreteAcquireStore) -> None:
+    """set_active(id, False) soft-unfollows; set_active(id, True) reactivates (LOAD-BEARING)."""
+    series = FollowedSeries(
+        media_ref=MediaRef(tvdb_id=77777),
+        title="Flip Show",
+        added_at=1_700_000_000,
+        active=True,
+    )
+    row_id = store.follow.add(series)
+
+    # Soft unfollow.
+    store.follow.set_active(row_id, False)
+    after_unfollow = store.follow.get(row_id)
+    assert after_unfollow is not None
+    assert after_unfollow.active is False, "Expected active=False after set_active(id, False)"
+
+    # Reactivate — must be the SAME row, not a new one.
+    store.follow.set_active(row_id, True)
+    after_reactivate = store.follow.get(row_id)
+    assert after_reactivate is not None
+    assert after_reactivate.active is True, "Expected active=True after set_active(id, True)"
+    assert after_reactivate.id == row_id, "Reactivate must update the existing row, not insert a new one"
+
+    # list_active reflects the change.
+    active_list = store.follow.list_active()
+    assert any(s.id == row_id for s in active_list), "Reactivated row must appear in list_active()"
+
+
+def test_follow_substore_satisfies_protocol(store: ConcreteAcquireStore) -> None:
+    """_FollowSubStore satisfies the FollowSubStore Protocol (all new methods present)."""
+    from personalscraper.acquire._ports import FollowSubStore as FollowSubStoreProto
+
+    follow_sub = store.follow
+    expected_methods = ("add", "get", "find_by_ref", "list_active", "list_all", "set_active")
+    missing = [m for m in expected_methods if not hasattr(follow_sub, m)]
+    assert isinstance(follow_sub, FollowSubStoreProto), (
+        f"Expected _FollowSubStore to satisfy the FollowSubStore Protocol; missing: {missing}"
+    )
 
 
 def test_wanted_round_trip_and_status_transition(store: ConcreteAcquireStore) -> None:

@@ -141,11 +141,13 @@ def _row_to_followed(row: sqlite3.Row) -> FollowedSeries:
 
     Args:
         row: A :class:`sqlite3.Row` from a ``followed_series`` SELECT.
+            Must include the ``id`` column.
 
     Returns:
-        The frozen :class:`FollowedSeries` value object.
+        The frozen :class:`FollowedSeries` value object with ``id`` set.
     """
     return FollowedSeries(
+        id=row["id"],
         media_ref=_media_ref_from_json(row["media_ref_json"]),
         title=row["title"],
         added_at=row["added_at"],
@@ -309,13 +311,95 @@ class _FollowSubStore:
         self._conn.row_factory = sqlite3.Row
         row = self._conn.execute(
             """
-            SELECT media_ref_json, title, active,
+            SELECT id, media_ref_json, title, active,
                    quality_profile_json, cadence_json, added_at
             FROM followed_series WHERE id = ?
             """,
             (followed_id,),
         ).fetchone()
         return _row_to_followed(row) if row is not None else None
+
+    def find_by_ref(self, media_ref: MediaRef) -> FollowedSeries | None:
+        """Return the :class:`FollowedSeries` keyed on *media_ref*, or ``None``.
+
+        Matches on the canonical ``media_ref_json`` serialization so that any
+        combination of provider IDs (tvdb/tmdb/imdb) deduplicates correctly.
+        Used by the follow CLI to enforce the idempotent-add / reactivate logic.
+
+        Args:
+            media_ref: Provider-ID key to look up.
+
+        Returns:
+            The :class:`FollowedSeries` (with ``id`` populated) if found, else
+            ``None``.
+        """
+        self._conn.row_factory = sqlite3.Row
+        row = self._conn.execute(
+            """
+            SELECT id, media_ref_json, title, active,
+                   quality_profile_json, cadence_json, added_at
+            FROM followed_series
+            WHERE media_ref_json = ?
+            LIMIT 1
+            """,
+            (_media_ref_to_json(media_ref),),
+        ).fetchone()
+        return _row_to_followed(row) if row is not None else None
+
+    def list_active(self) -> list[FollowedSeries]:
+        """Return all active ``followed_series`` rows, ordered by id.
+
+        Returns:
+            A list of :class:`FollowedSeries` where ``active=True``,
+            possibly empty.
+        """
+        self._conn.row_factory = sqlite3.Row
+        rows = self._conn.execute(
+            """
+            SELECT id, media_ref_json, title, active,
+                   quality_profile_json, cadence_json, added_at
+            FROM followed_series
+            WHERE active = 1
+            ORDER BY id
+            """
+        ).fetchall()
+        return [_row_to_followed(r) for r in rows]
+
+    def list_all(self) -> list[FollowedSeries]:
+        """Return all ``followed_series`` rows (active and inactive), ordered by id.
+
+        Used by ``follow list --all``.
+
+        Returns:
+            A list of all :class:`FollowedSeries`, possibly empty.
+        """
+        self._conn.row_factory = sqlite3.Row
+        rows = self._conn.execute(
+            """
+            SELECT id, media_ref_json, title, active,
+                   quality_profile_json, cadence_json, added_at
+            FROM followed_series
+            ORDER BY id
+            """
+        ).fetchall()
+        return [_row_to_followed(r) for r in rows]
+
+    def set_active(self, followed_id: int, active: bool) -> None:
+        """Set the ``active`` flag on a ``followed_series`` row.
+
+        Used for both soft unfollow (``active=False``) and refollow
+        (``active=True``).  Runs inside a single ``_write_tx`` BEGIN IMMEDIATE
+        so concurrent callers serialize correctly.
+
+        Args:
+            followed_id: Rowid of the ``followed_series`` row.
+            active: ``True`` to refollow; ``False`` to soft-unfollow.
+        """
+        with _write_tx(self._conn):
+            self._conn.execute(
+                "UPDATE followed_series SET active = ? WHERE id = ?",
+                (1 if active else 0, followed_id),
+            )
 
 
 class _WantedSubStore:

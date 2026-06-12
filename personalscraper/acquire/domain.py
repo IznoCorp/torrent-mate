@@ -31,6 +31,9 @@ class FollowedSeries:
         added_at: Unix epoch seconds when the series was followed.
         quality_profile_json: Nullable JSON string; rich profile = RP3a.
         cadence_json: Nullable JSON string; RP9/D2.
+        id: SQLite rowid — populated by ``find_by_ref()`` / ``list_active()`` /
+            ``list_all()`` / ``get()``; ``None`` for an as-yet-unpersisted item.
+            The follow CLI needs it to call ``set_active`` (Follow D1).
     """
 
     media_ref: MediaRef
@@ -39,6 +42,7 @@ class FollowedSeries:
     active: bool = True
     quality_profile_json: str | None = None
     cadence_json: str | None = None
+    id: int | None = None
 
 
 @dataclass(frozen=True)

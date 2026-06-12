@@ -31,6 +31,7 @@ from personalscraper.acquire.domain import (
     WantedItem,
     WantedStatus,
 )
+from personalscraper.core.identity import MediaRef
 
 
 @runtime_checkable
@@ -43,6 +44,22 @@ class FollowSubStore(Protocol):
 
     def get(self, followed_id: int) -> FollowedSeries | None:
         """Return the :class:`FollowedSeries` for *followed_id*, or ``None``."""
+        ...
+
+    def find_by_ref(self, media_ref: MediaRef) -> FollowedSeries | None:
+        """Return the :class:`FollowedSeries` keyed on *media_ref*, or ``None``."""
+        ...
+
+    def list_active(self) -> list[FollowedSeries]:
+        """Return all active ``followed_series`` rows, ordered by id."""
+        ...
+
+    def list_all(self) -> list[FollowedSeries]:
+        """Return all ``followed_series`` rows (active and inactive), ordered by id."""
+        ...
+
+    def set_active(self, followed_id: int, active: bool) -> None:
+        """Set the ``active`` flag on a ``followed_series`` row."""
         ...
 
 
