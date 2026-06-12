@@ -6,7 +6,7 @@
 **Version bump**: 0.28.0 → 0.29.0
 **Branch**: feat/follow-list
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/197
 **Design**: docs/features/follow-list/DESIGN.md
 **Master plan**: docs/features/follow-list/plan/INDEX.md
 
