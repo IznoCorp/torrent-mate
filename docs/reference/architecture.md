@@ -44,10 +44,13 @@ staging/
 │   ├── acquire/         # Acquisition lobe — 4-table SQLite store (RP3) + delete authority + event catalog (RP4)
 │   │   ├── domain.py           # Frozen VOs: FollowedSeries, WantedItem, SeedObligation, RatioState
 │   │   ├── events.py           # Event catalog (RP4): 10 frozen Event subclasses for Follow/Grab/Seed/Ratio
-│   │   ├── store.py            # ConcreteAcquireStore — 4 sub-stores, lazy-open, lock-free reads
+│   │   ├── store.py            # ConcreteAcquireStore — 4 sub-stores, lazy-open, lock-free reads;
+│   │   │                         # _FollowSubStore: find_by_ref/list_active/list_all/set_active (Follow D1 CRUD)
 │   │   ├── delete_authority.py # DeleteAuthority: DeletePermit + SeedObligationRecorder impl (fail-open)
 │   │   ├── _factory.py         # build_acquire_context (fills store= + delete_authority=)
-│   │   ├── _ports.py           # AcquireStore Protocol (extended in RP3)
+│   │   ├── _ports.py           # AcquireStore Protocol (extended in RP3);
+│   │   │                         # FollowSubStore: add/get/find_by_ref/list_active/list_all/set_active (Follow D1)
+│   │   ├── title_resolver.py  # Fail-soft series-title resolution (Follow D1) — calls provider_registry.chain(TvDetailsProvider), falls back to "tvdb:<id>"
 │   │   ├── errors.py           # AcquireLockError, AcquireCorruptError, AcquireMigrationError
 │   │   ├── context.py          # AcquireContext dataclass (per-invocation acquire service bundle)
 │   │   ├── desired.py         # Resolution IntEnum, QualityProfile, SourceCriteria, JSON codecs (RP3a vocab)
@@ -60,9 +63,10 @@ staging/
 │   │   (RP4) `subscribers/acquire.py` — muted AcquisitionTelegramSubscriber, gated by `acquire_notify_enabled`.
 │   ├── ingest/          # qBittorrent → staging
 │   ├── sorter/          # guessit + strategies → category folders
-│   ├── commands/        # Typer command groups (pipeline, library, config, info, grab)
+│   ├── commands/        # Typer command groups (pipeline, library, config, info, grab, follow)
 │   │   ├── library/         # library-* sub-commands (scan, query, maintenance, audit, analyze)
 │   │   ├── grab.py          # `personalscraper grab` — batch acquisition run (--dry-run, --limit)
+│   │   ├── follow.py        # `personalscraper follow add/list/remove` — followed-series management (Follow D1)
 │   ├── conf/            # Config loader, overlay merger, resolver, classifier, staging
 │   │   ├── models/          # Pydantic sub-models (categories, disks, paths, preferences, etc.)
 │   ├── info/            # info command implementation (run.py)
