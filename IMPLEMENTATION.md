@@ -14,7 +14,7 @@
 
 | #   | Phase                                                       | File               | Status |
 | --- | ----------------------------------------------------------- | ------------------ | ------ |
-| 1   | Store CRUD (_FollowSubStore completion + Protocol)          | phase-01-store.md  | [ ]    |
+| 1   | Store CRUD (_FollowSubStore completion + Protocol)          | phase-01-store.md  | [x]    |
 | 2   | Title resolution helper (fail-soft metadata lookup)         | phase-02-title.md  | [ ]    |
 | 3   | follow CLI command group (add/list/remove)                  | phase-03-cli.md    | [ ]    |
 | 4   | Docs + ACCEPTANCE + gate                                    | phase-04-gate.md   | [ ]    |
@@ -25,4 +25,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1.
+Run `/implement:phase` to start Phase 2 (title resolution helper).
