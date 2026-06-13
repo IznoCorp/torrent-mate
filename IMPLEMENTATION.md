@@ -19,6 +19,7 @@
 | 3   | follow CLI command group (add/list/remove)                  | phase-03-cli.md    | [x]    |
 | 4   | Docs + ACCEPTANCE + gate                                    | phase-04-gate.md   | [x]    |
 | 5   | PR review fixes — cycle 1                                    | phase-05-pr-fixes-cycle-1.md | [x]    |
+| 6   | PR review fixes — cycle 3 (docs/seam)                        | phase-06-pr-fixes-cycle-3.md | [x]    |
 
 ## Review cycles
 
@@ -35,6 +36,14 @@
 
 - Toolkit: code-reviewer on the cycle-1 fix diff (`203403f3..HEAD`, the json_extract find_by_ref change). **APPROVE, zero findings ≥80.** Empirically verified: json_extract type-matching (int tvdb/tmdb vs str imdb) sound; NULL handling correct (a tvdb-null row is excluded from a tvdb lookup — the core of the C1 fix, reproduced old-query-None vs new-query-match); no false-merge regression (the tmdb-only heuristic is the documented tvdb-primary trade-off); param-bound (injection-safe); C1/C2/m1/m2 tests non-vacuous (the C1 test provably fails against the old code); no residual exact-tuple query remains. Perf: json_extract full-scan negligible for dozens of rows (expression index only if it grows to thousands — not warranted).
 - Decision: **Case A** (no critical/major/medium). Loop exits clean. Merge = manual → operator squash-merges.
+
+
+### Cycle 3
+
+- Toolkit: the 2 lenses not yet applied across cycles 1-2 — comment-analyzer + type-design-analyzer — on the full PR diff (correctness/tests/errors already covered). comment-analyzer: docs ACCURATE (find_by_ref docstring correctly updated post-cycle-1-fix, no stale exact-tuple claim; all PASS). type-design-analyzer: FollowedSeries.id / resolve_series_title (honest total `-> str`) / CLI option types all PASS. Retained finding:
+  - **M1 (medium)** `FollowSubStore.find_by_ref` PROTOCOL docstring (_ports.py) omits the primary-id matching semantics (tvdb>tmdb>imdb, first-by-id tie-break) that live only on the concrete impl — and the Protocol is "the typed seam D2 will depend on" (DESIGN §2). The missing semantics are exactly the non-obvious behavior that caused the cycle-1 bug → lift them into the Protocol docstring so the seam is self-documenting for D2.
+  - m1 (minor) redundant `cast` at title_resolver.py:63 (chain overload already types it); m2 (minor) module "Fallback precedence" docstring ordering clarity.
+- Decision: **Case B** (one medium — docs/cosmetic). Fix phase 6 executed (1 commit `2b9f279f`): **M1** find_by_ref matching semantics (primary-id tvdb>tmdb>imdb, first-by-id tie-break) lifted into the FollowSubStore Protocol docstring (the D2 seam is now self-documenting); m1 cast KEPT (mypy verified to need it — removing → attr-defined on get_tv); m2 module 'Fallback precedence' docstring clarified (provider title preferred). make check 6701 green, 271 acquire tests still pass (no behavior change). Merge = manual.
 
 ## Next action
 
