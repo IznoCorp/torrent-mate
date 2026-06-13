@@ -47,7 +47,12 @@ class FollowSubStore(Protocol):
         ...
 
     def find_by_ref(self, media_ref: MediaRef) -> FollowedSeries | None:
-        """Return the :class:`FollowedSeries` keyed on *media_ref*, or ``None``."""
+        """Return the :class:`FollowedSeries` keyed on *media_ref*, or ``None``.
+
+        Matches on the primary available provider ID (tvdb > tmdb > imdb),
+        so a lookup matches any stored row sharing that ID regardless of
+        other IDs, returning the oldest (first-by-id) on ties, or ``None``.
+        """
         ...
 
     def list_active(self) -> list[FollowedSeries]:

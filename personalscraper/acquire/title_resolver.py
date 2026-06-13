@@ -6,7 +6,10 @@ by calling the first available ``TvDetailsProvider`` in the metadata
 not-found, unexpected exception) falls back gracefully — a metadata hiccup
 must **never** block a follow.
 
-Fallback precedence:
+The provider title is preferred; the fallbacks below apply only when it is
+unavailable.
+
+Fallback precedence (when the provider lookup fails or is skipped):
 1. ``fallback_title`` argument (if provided and non-empty).
 2. ``"tvdb:<tvdb_id>"`` when ``tvdb_id`` is set.
 3. ``"tmdb:<tmdb_id>"`` when only ``tmdb_id`` is set.
