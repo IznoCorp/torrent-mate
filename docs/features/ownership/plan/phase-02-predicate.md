@@ -28,6 +28,21 @@ Expected: `gate OK`.
 
 ## Schema quick-reference (from `personalscraper/indexer/migrations/001_init.sql`)
 
+> **PLAN-DRIFT NOTE (implemented 2026-06-14):** The flat `tvdb_id` / `tmdb_id` /
+> `imdb_id` columns on `media_item` described below were **dropped by migration
+> `005_external_ids_json.sql`** and consolidated into a single JSON column
+> `external_ids_json` with the hierarchical shape `{provider: {series_id, episode_id}}`
+> (the backfill stores `series_id` as a TEXT string). The full migration chain runs
+> 001→010 in tests, so the predicate and the test fixture both target
+> `external_ids_json`, NOT the flat columns. The provider match clauses mirror
+> `indexer/query.py`:
+> `CAST(json_extract(media_item.external_ids_json, '$.tvdb.series_id') AS INTEGER)=?`
+> for the numeric providers (tvdb, tmdb) and a raw
+> `json_extract(..., '$.imdb.series_id')=?` for IMDb (the `tt`-prefixed string).
+> Indexes `idx_external_ids_{tvdb,tmdb,imdb}` (migration 005) cover the raw extract
+> path. The flat-column quick-reference below is **stale** and kept only for
+> historical context.
+
 Key tables and columns used by `is_owned`:
 
 ```
