@@ -63,8 +63,13 @@ wiring) — a proven pattern in this codebase.
 `owned == there exists a non-soft-deleted `media_file`linked (via`media_release`) to the matching
 work` — i.e. a real file on disk, not merely a catalog row:
 
-- **Movie**: `media_item(kind='movie')` matching the MediaRef (tvdb primary, then tmdb, then imdb, via the
-  indexed id columns) → `media_release(item_id=…)` → `media_file(deleted_at IS NULL)`. Owned ⇔ ≥1 live file.
+- **Movie**: `media_item(kind='movie')` matching the MediaRef (tvdb primary, then tmdb, then imdb) →
+  `media_release(item_id=…)` → `media_file(deleted_at IS NULL)`. Owned ⇔ ≥1 live file.
+  > **Schema note (corrected at impl time)**: migration `005_external_ids_json.sql` dropped the flat
+  > `media_item.tvdb_id/tmdb_id/imdb_id` columns and consolidated provider IDs into
+  > `media_item.external_ids_json`. The predicate matches via
+  > `json_extract(external_ids_json, '$.tvdb.series_id')` (numeric tvdb/tmdb `CAST … AS INTEGER`, raw for
+  > `tt…` imdb), covered by the `idx_external_ids_*` expression indexes — mirroring `indexer/query.py`.
 - **Episode**: `media_item(kind='show')` matching the MediaRef → `season(number=season)` →
   `episode(number=episode)` → `media_release(episode_id=…)` → `media_file(deleted_at IS NULL)`. Owned ⇔ ≥1 live file.
 - A show row with no episode files (catalog-only / metadata stub) is **not** owned at the episode level.

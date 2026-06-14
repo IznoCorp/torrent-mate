@@ -15,7 +15,7 @@
 | #   | Phase                                                        | File                   | Status |
 | --- | ------------------------------------------------------------ | ---------------------- | ------ |
 | 1   | Core port (OwnershipChecker Protocol + NullOwnershipChecker) | phase-01-port.md       | [x]    |
-| 2   | Indexer predicate (is_owned SELECT-only + golden)            | phase-02-predicate.md  | [ ]    |
+| 2   | Indexer predicate (is_owned SELECT-only + golden)            | phase-02-predicate.md  | [x]    |
 | 3   | Adapter + composition-root wiring + integration test         | phase-03-wiring.md     | [ ]    |
 | 4   | Docs + ACCEPTANCE + gate                                     | phase-04-gate.md       | [ ]    |
 
@@ -25,4 +25,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 2 (indexer predicate).
+Run `/implement:phase` to start Phase 3 (adapter + wiring).
