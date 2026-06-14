@@ -1,45 +1,50 @@
-# Implementation Progress — grab-core
+# Implementation Progress — follow-list
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: RP5b — shared grab core (download orchestrator + acquisition service) + RP3a fold-in (minor)
-**Version bump**: 0.27.0 → 0.28.0
-**Branch**: feat/grab-core
+**Feature**: Follow D1 — followed-series list (store CRUD + `follow` CLI) (minor)
+**Version bump**: 0.28.0 → 0.29.0
+**Branch**: feat/follow-list
 **PR merge**: manual
-**PR**: https://github.com/IznoCorp/personal-scraper/pull/196
-**Design**: docs/features/grab-core/DESIGN.md (hardened by adversarial review — see DESIGN §15)
-**Master plan**: docs/features/grab-core/plan/INDEX.md
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/197
+**Design**: docs/features/follow-list/DESIGN.md
+**Master plan**: docs/features/follow-list/plan/INDEX.md
 
 ## Phases
 
-| #   | Phase                                                              | File                      | Status |
-| --- | ------------------------------------------------------------------ | ------------------------- | ------ |
-| 1   | RP3a vocab (Resolution + QualityProfile + SourceCriteria)          | phase-01-vocab.md         | [x]    |
-| 2   | Cross-tracker dedup (search_candidates + keys + -QTZ golden)       | phase-02-dedup.md         | [x]    |
-| 3   | Hard-filters (resolution ordinal + anchored audio regex)          | phase-03-filters.md       | [x]    |
-| 4   | Orchestrator (GrabOrchestrator chain + failure taxonomy + events) | phase-04a-orchestrator.md | [x]    |
-| 5   | Service + state machine + wiring (claim/mark_grabbed + GrabCore)   | phase-04b-service.md      | [x]    |
-| 6   | CLI (personalscraper grab + --dry-run + --limit)                  | phase-05-cli.md           | [x]    |
-| 7   | Docs + ACCEPTANCE + gate                                           | phase-06-gate.md          | [x]    |
-| 8   | PR review fixes — cycle 1                                          | phase-08-pr-fixes-cycle-1.md | [x]    |
+| #   | Phase                                                       | File               | Status |
+| --- | ----------------------------------------------------------- | ------------------ | ------ |
+| 1   | Store CRUD (_FollowSubStore completion + Protocol)          | phase-01-store.md  | [x]    |
+| 2   | Title resolution helper (fail-soft metadata lookup)         | phase-02-title.md  | [x]    |
+| 3   | follow CLI command group (add/list/remove)                  | phase-03-cli.md    | [x]    |
+| 4   | Docs + ACCEPTANCE + gate                                    | phase-04-gate.md   | [x]    |
+| 5   | PR review fixes — cycle 1                                    | phase-05-pr-fixes-cycle-1.md | [x]    |
+| 6   | PR review fixes — cycle 3 (docs/seam)                        | phase-06-pr-fixes-cycle-3.md | [x]    |
 
 ## Review cycles
 
 ### Cycle 1
 
-- Toolkit: 3 lenses (pr-test-analyzer, code-reviewer, silent-failure-hunter) on PR #196. The algos (dedup -QTZ, atomic claim, hard-filters, taxonomy) confirmed genuinely non-vacuous + mutation-sensitive; the §15 review-hardened decisions held (stage order, CircuitOpenError-separate, permissive defaults, seed-separation structural). Retained findings (all design-conformant — code doesn't match DESIGN §7/§6.2 intent; NO design contradiction):
-  - **C1 (major)** hash-guard CONSULTATION missing — `grabbed_hash` is persisted (store) + read into the VO but NEVER consulted to short-circuit (verified: 0 reads in service/orchestrator/grab). DESIGN §7/§11(d): a re-run after the add→mark_grabbed crash window must not re-grab/re-emit. Untested crash path.
-  - **C2 (major)** service batch loop has ZERO error isolation (verified: no try/except) — a mid-batch OperationalError (db-lock, DESIGN §6.2 = RETRYABLE) or JSONDecodeError (corrupt criteria_json) aborts the WHOLE run, leaves the item stuck 'searching', and suppresses the run_complete summary.
-  - **M1 (medium)** the `followed_id` series-profile overlay branch (`_resolve_profile` follow-lookup + handoff) is never exercised end-to-end (every service test uses followed_id=None) — the per-series policy-enforcement seam is untested.
-  - m1 (minor) orchestrator NEGATIVE test has 3 vacuous `seed_spy.*` assertions on an unwired mock (theatre; the real guarantee is the dep-scan + structural no-dep) → trim. m2 (minor) dedup silverleech provenance tier untested. m3 (minor) `info_hash or ""` masks a success-without-hash contract violation → log.
-- Decision: **Case B**. Fix phase 8 executed (3 commits `c3cf2018`/`ef0a6d08`/`5db83c64`): **C1** emit-after-persist (the PREFERRED correct design — orchestrator no longer emits GrabSucceeded; service emits AFTER mark_grabbed → §11(d) crash window CLOSED: a mark_grabbed crash = no emit, stale-recovery re-grabs once via idempotent add) + hash-guard short-circuit; **C2** per-item try/except (OperationalError→retryable/skip+log, JSONDecodeError→abandon+log, batch never aborts, run_complete always fires); **M1** follow-overlay test (live lookup passes the 1080p floor to the orchestrator); m1 trimmed vacuous seed_spy asserts; m3 success-without-hash log. make check 6660 green. Independently verified emit-after-persist structure + C2 isolation. Merge = manual.
+- Toolkit: code-reviewer + pr-test-analyzer on PR #197 (CI SUCCESS). Suite confirmed strong + non-vacuous; dedup/reactivate state machine + fail-soft resolver correct for single-id. Retained findings (design-conformant — match the tvdb-primary rule / close test gaps; NO design contradiction):
+  - **C1 (major)** `find_by_ref` keys on the EXACT canonical media_ref_json tuple → cross-key blind spot (VERIFIED): a series followed with `--tvdb X --tmdb Y` is NOT found by `find_by_ref(tvdb=X)` → `follow remove --tvdb X` says "not found" AND a re-`follow add --tvdb X` creates a DUPLICATE row. DESIGN §4 says tvdb primary → find_by_ref must match on the primary available id (tvdb→tmdb→imdb), not the exact tuple.
+  - **C2 (major)** `follow remove --id <rowid>` branch (get vs find_by_ref) entirely untested — a user-facing input mode that would regress silently.
+  - m1 (medium) already-inactive `follow remove` (no 2nd SeriesUnfollowed) untested. m2 (medium) resolver empty/None-title fall-through untested.
+- Decision: **Case B**. Fix phase 5 executed (1 commit `a0724a4c`): **C1** find_by_ref now matches on the primary available id via `json_extract` ($.tvdb_id→tmdb→imdb, ORDER BY id LIMIT 1) — cross-key match fixed (verified: add tvdb+tmdb → find_by_ref(tvdb-only) matches; no false-merge; CLI remove --tvdb + re-add dedups, no duplicate row); **C2** remove --id test (branch was correct), **m1** already-inactive double-remove no-double-event test, **m2** resolver None/empty-title placeholder test. make check 6701 green. Merge = manual.
 
 
 ### Cycle 2
 
-- Toolkit: silent-failure-hunter on the cycle-1 fix diff (`95e1ec2b..HEAD`, the emit-after-persist + error-isolation refactor). **APPROVE, zero findings.** Empirically proven: the §11(d) regression test is non-vacuous (reverting emit/persist order → test FAILS); emission completeness (success emits once via service after mark_grabbed; GrabFailed/WantedAbandoned byte-identical to pre-fix, none dropped); C2 catches are narrow (OperationalError/JSONDecodeError, no bare except), logged with wanted_id, leave rows recoverable, run_complete always fires; the new mark_grabbed→emit micro-gap is acceptable (worst case = one missed MUTED event, hash-guard prevents any re-grab — strictly better than the pre-fix double-emit).
+- Toolkit: code-reviewer on the cycle-1 fix diff (`203403f3..HEAD`, the json_extract find_by_ref change). **APPROVE, zero findings ≥80.** Empirically verified: json_extract type-matching (int tvdb/tmdb vs str imdb) sound; NULL handling correct (a tvdb-null row is excluded from a tvdb lookup — the core of the C1 fix, reproduced old-query-None vs new-query-match); no false-merge regression (the tmdb-only heuristic is the documented tvdb-primary trade-off); param-bound (injection-safe); C1/C2/m1/m2 tests non-vacuous (the C1 test provably fails against the old code); no residual exact-tuple query remains. Perf: json_extract full-scan negligible for dozens of rows (expression index only if it grows to thousands — not warranted).
 - Decision: **Case A** (no critical/major/medium). Loop exits clean. Merge = manual → operator squash-merges.
+
+
+### Cycle 3
+
+- Toolkit: the 2 lenses not yet applied across cycles 1-2 — comment-analyzer + type-design-analyzer — on the full PR diff (correctness/tests/errors already covered). comment-analyzer: docs ACCURATE (find_by_ref docstring correctly updated post-cycle-1-fix, no stale exact-tuple claim; all PASS). type-design-analyzer: FollowedSeries.id / resolve_series_title (honest total `-> str`) / CLI option types all PASS. Retained finding:
+  - **M1 (medium)** `FollowSubStore.find_by_ref` PROTOCOL docstring (_ports.py) omits the primary-id matching semantics (tvdb>tmdb>imdb, first-by-id tie-break) that live only on the concrete impl — and the Protocol is "the typed seam D2 will depend on" (DESIGN §2). The missing semantics are exactly the non-obvious behavior that caused the cycle-1 bug → lift them into the Protocol docstring so the seam is self-documenting for D2.
+  - m1 (minor) redundant `cast` at title_resolver.py:63 (chain overload already types it); m2 (minor) module "Fallback precedence" docstring ordering clarity.
+- Decision: **Case B** (one medium — docs/cosmetic). Fix phase 6 executed (1 commit `2b9f279f`): **M1** find_by_ref matching semantics (primary-id tvdb>tmdb>imdb, first-by-id tie-break) lifted into the FollowSubStore Protocol docstring (the D2 seam is now self-documenting); m1 cast KEPT (mypy verified to need it — removing → attr-defined on get_tv); m2 module 'Fallback precedence' docstring clarified (provider title preferred). make check 6701 green, 271 acquire tests still pass (no behavior change). Merge = manual.
 
 ## Next action
 
-All phases complete — run `/implement:feature-pr` (local gate + push + PR + CI).
+Review cycles 1+2 complete (cycle 2 clean). CI green on PR #197. **Awaiting MANUAL squash merge** (`gh pr merge 197 --squash`). After merge: next `/implement:feature` archives follow-list (Follow D2 next = wanted-enqueue, consumes this followed list).
