@@ -2,6 +2,38 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **PLAN-DRIFT NOTES (applied at implementation — deviations from the literal steps below, all documented):**
+>
+> 1. **Wiring moved to the TRUE composition root (`cli_helpers/_build_app_context`), NOT `acquire/_factory.py`.**
+>    The literal plan (Task 3.3) built `IndexerOwnershipChecker` _inside_ `build_acquire_context` via a
+>    function-body `from personalscraper.indexer.ownership import ...`. That would **break the layering guard**
+>    `tests/architecture/test_layering.py::test_acquire_does_not_import_triage` — it flags ALL imports of
+>    `personalscraper.indexer` under `acquire/` (function-body lazy imports included; only `TYPE_CHECKING` is
+>    exempt). DESIGN §1/§6 require `acquire/` to never import `indexer/`. Resolution: `build_acquire_context`
+>    gained an `ownership: OwnershipChecker | None = None` parameter; the concrete `IndexerOwnershipChecker` is
+>    built by a new helper `cli_helpers._build_ownership_checker(config)` (cli_helpers is NOT layering-guarded)
+>    and injected. This also keeps the existing `tests/acquire/test_factory.py` green (the bare-MagicMock-config
+>    calls would have raised `TypeError` from `Path(MagicMock())` had the db_path logic lived in the factory).
+> 2. **Lazy, read-only, lock-free connection inside the adapter (no boot connection at all).** The literal plan
+>    opened the read connection at _build_ time in the factory. Instead, `IndexerOwnershipChecker` takes a
+>    `db_path` and opens the connection **lazily on the first `owns()`** with `isolation_level=None` +
+>    `PRAGMA query_only=ON` (no `BEGIN`, no writer lock, no lifetime lock at the composition root). This is a
+>    strict improvement that directly honours the acquire.db lifetime-lock regression lesson (zero boot I/O).
+>    Consequence: `indexer/ownership.py` is added to the `ALLOWLIST` in `scripts/check-pragma-discipline.py`
+>    (justified: it MUST bypass the canonical writer PRAGMA set to stay read-only / lock-free).
+> 3. **Seeding fixtures use `media_item.external_ids_json`, NOT the flat `tvdb_id` column.** Migration 005
+>    dropped `media_item.tvdb_id/tmdb_id/imdb_id`; the predicate matches via
+>    `json_extract(external_ids_json, '$.tvdb.series_id')`. The literal plan's `INSERT … tvdb_id …` SQL would
+>    fail at insert time. Fixtures mirror `tests/indexer/test_ownership_predicate.py`. Also: `disk` rows seed
+>    `mount_path` when `is_mounted=1` (CHECK constraint).
+> 4. **`AcquireContext.ownership` is `field(default_factory=NullOwnershipChecker)`** (a non-`None` always-valid
+>    port impl), and `close()` closes it only when it exposes a `close()` (the indexer impl does;
+>    `NullOwnershipChecker` does not). Existing `tests/acquire/test_context.py` field-set + close tests updated
+>    accordingly (in-scope).
+> 5. **Test file locations:** adapter unit tests → `tests/indexer/test_ownership_adapter.py`; integration test
+>    → `tests/integration/test_ownership_wiring.py` (drives `_build_ownership_checker` → `build_acquire_context`
+>    end-to-end, plus the broken-db fail-soft case).
+
 **Goal:** Add `IndexerOwnershipChecker` (the `OwnershipChecker` port impl) to `personalscraper/indexer/ownership.py`, wire it into the composition root (`personalscraper/acquire/_factory.py` + `personalscraper/acquire/context.py`), expose it on `AcquireContext` as a single handle, and write an integration test confirming the full wiring works end-to-end.
 
 **Architecture:** `IndexerOwnershipChecker` holds a read-only SQLite connection and calls `is_owned`. It is **fail-soft**: any `Exception` from the DB → log + return `False`, never raises into the grab loop. The composition root (`build_acquire_context`) builds it from a dedicated read connection to `library.db` (opened with `sqlite3.connect(db_path, check_same_thread=False)` — read-only, no WAL writer lock needed). When no `library.db` is configured or the path doesn't exist, `NullOwnershipChecker` is used instead. The `acquire/` module imports ONLY `core.ownership` (the port) — never `indexer/`.
