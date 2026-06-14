@@ -344,6 +344,60 @@ class TestIsOwnedEpisode:
         assert result is False
 
 
+class TestIsOwnedCrossKindCollision:
+    """Regression: a movie and a show sharing the same tvdb_id must NOT collide.
+
+    The is_owned predicate applies ``kind='movie'`` (movie branch) and
+    ``kind='show'`` (episode branch) in the SQL WHERE clauses. A future join
+    refactor that drops the kind filter while a same-id show is owned would
+    ship a false-owned that silently skips a wanted movie.
+
+    This test seeds BOTH in the same library.db:
+    - a SHOW media_item (kind='show') with a live episode file (S01E03)
+    - a MOVIE media_item (kind='movie') with NO file, same tvdb_id
+
+    It proves that the kind filter correctly disambiguates the two paths.
+    """
+
+    def test_movie_false_despite_same_tvdb_id_show_owned(self) -> None:
+        """is_owned(kind='movie', tvdb_id=X) → False when only the show has a file.
+
+        The show's episode file must NOT count as ownership for the movie branch.
+        """
+        SHARED_ID = 11111
+        conn = _open_db()
+        disk_id = _insert_disk(conn)
+
+        # Seed a SHOW with S01E03 + live file.
+        path_show = _insert_path(conn, disk_id, rel_path="002-TVSHOWS/Collision Show/Season 01")
+        show_item_id = _insert_show_item(conn, tvdb_id=SHARED_ID)
+        season_id = _insert_season(conn, show_item_id, number=1)
+        ep_id = _insert_episode(conn, season_id, number=3)
+        rel_show = _insert_release(conn, episode_id=ep_id)
+        _insert_file(conn, rel_show, path_show, deleted_at=None)
+
+        # Seed a MOVIE with the SAME tvdb_id, distinct title, NO file.
+        _insert_movie_item(conn, tvdb_id=SHARED_ID)
+        # No release, no file — this movie should NOT appear owned.
+
+        # The movie branch must NOT match the show's episode file.
+        assert is_owned(conn, kind="movie", tvdb_id=SHARED_ID, tmdb_id=None, imdb_id=None) is False
+
+        # The episode branch must still correctly match the show's episode.
+        assert (
+            is_owned(
+                conn,
+                kind="episode",
+                tvdb_id=SHARED_ID,
+                tmdb_id=None,
+                imdb_id=None,
+                season=1,
+                episode=3,
+            )
+            is True
+        )
+
+
 class TestSoftDeleteFilterLoadBearing:
     """Mutation proof: deleted_at IS NULL is load-bearing.
 

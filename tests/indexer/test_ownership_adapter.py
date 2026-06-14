@@ -171,3 +171,25 @@ def test_close_is_idempotent(tmp_path: Path) -> None:
     checker = IndexerOwnershipChecker(tmp_path / "library.db")
     checker.close()  # never opened — pure no-op
     checker.close()  # double close — no-op
+
+
+def test_close_releases_connection(tmp_path: Path) -> None:
+    """close() releases the underlying sqlite3.Connection handle.
+
+    After close(), the captured connection must raise
+    ``sqlite3.ProgrammingError`` on any execute attempt — proving the handle
+    is genuinely released (a no-op close would let the conn remain usable).
+    """
+    db_path = tmp_path / "library.db"
+    _seed_library_db(db_path)
+    checker = IndexerOwnershipChecker(db_path)
+
+    # Force lazy open.
+    assert checker.owns(MediaRef(tvdb_id=9001), kind="movie") is True
+    conn = checker._conn
+    assert conn is not None
+
+    checker.close()
+
+    with pytest.raises(sqlite3.ProgrammingError, match="Cannot operate on a closed database"):
+        conn.execute("SELECT 1")

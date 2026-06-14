@@ -290,7 +290,11 @@ class IndexerOwnershipChecker:
         if self._conn is not None:
             return self._conn
         conn = sqlite3.connect(str(self._db_path), isolation_level=None, check_same_thread=False)
-        conn.execute("PRAGMA query_only=ON")
+        try:
+            conn.execute("PRAGMA query_only=ON")
+        except Exception:
+            conn.close()
+            raise
         self._conn = conn
         log.info("indexer.ownership.opened", db_path=str(self._db_path))
         return conn
