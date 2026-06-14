@@ -6,7 +6,7 @@
 **Version bump**: 0.29.0 → 0.30.0
 **Branch**: feat/ownership
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/198
 **Design**: docs/features/ownership/DESIGN.md
 **Master plan**: docs/features/ownership/plan/INDEX.md
 
