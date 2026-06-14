@@ -1,50 +1,23 @@
-# Implementation Progress — follow-list
+# Implementation Progress — ownership
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Follow D1 — followed-series list (store CRUD + `follow` CLI) (minor)
-**Version bump**: 0.28.0 → 0.29.0
-**Branch**: feat/follow-list
+**Feature**: RP6 — "do I already own this?" ownership predicate (port + indexer predicate + wiring) (minor)
+**Version bump**: 0.29.0 → 0.30.0
+**Branch**: feat/ownership
 **PR merge**: manual
-**PR**: https://github.com/IznoCorp/personal-scraper/pull/197
-**Design**: docs/features/follow-list/DESIGN.md
-**Master plan**: docs/features/follow-list/plan/INDEX.md
+**PR**: _(created after last phase)_
+**Design**: docs/features/ownership/DESIGN.md
+**Master plan**: _(to be defined after /implement:plan)_
 
 ## Phases
 
-| #   | Phase                                                       | File               | Status |
-| --- | ----------------------------------------------------------- | ------------------ | ------ |
-| 1   | Store CRUD (_FollowSubStore completion + Protocol)          | phase-01-store.md  | [x]    |
-| 2   | Title resolution helper (fail-soft metadata lookup)         | phase-02-title.md  | [x]    |
-| 3   | follow CLI command group (add/list/remove)                  | phase-03-cli.md    | [x]    |
-| 4   | Docs + ACCEPTANCE + gate                                    | phase-04-gate.md   | [x]    |
-| 5   | PR review fixes — cycle 1                                    | phase-05-pr-fixes-cycle-1.md | [x]    |
-| 6   | PR review fixes — cycle 3 (docs/seam)                        | phase-06-pr-fixes-cycle-3.md | [x]    |
+_(filled by /implement:plan)_
 
 ## Review cycles
 
-### Cycle 1
-
-- Toolkit: code-reviewer + pr-test-analyzer on PR #197 (CI SUCCESS). Suite confirmed strong + non-vacuous; dedup/reactivate state machine + fail-soft resolver correct for single-id. Retained findings (design-conformant — match the tvdb-primary rule / close test gaps; NO design contradiction):
-  - **C1 (major)** `find_by_ref` keys on the EXACT canonical media_ref_json tuple → cross-key blind spot (VERIFIED): a series followed with `--tvdb X --tmdb Y` is NOT found by `find_by_ref(tvdb=X)` → `follow remove --tvdb X` says "not found" AND a re-`follow add --tvdb X` creates a DUPLICATE row. DESIGN §4 says tvdb primary → find_by_ref must match on the primary available id (tvdb→tmdb→imdb), not the exact tuple.
-  - **C2 (major)** `follow remove --id <rowid>` branch (get vs find_by_ref) entirely untested — a user-facing input mode that would regress silently.
-  - m1 (medium) already-inactive `follow remove` (no 2nd SeriesUnfollowed) untested. m2 (medium) resolver empty/None-title fall-through untested.
-- Decision: **Case B**. Fix phase 5 executed (1 commit `a0724a4c`): **C1** find_by_ref now matches on the primary available id via `json_extract` ($.tvdb_id→tmdb→imdb, ORDER BY id LIMIT 1) — cross-key match fixed (verified: add tvdb+tmdb → find_by_ref(tvdb-only) matches; no false-merge; CLI remove --tvdb + re-add dedups, no duplicate row); **C2** remove --id test (branch was correct), **m1** already-inactive double-remove no-double-event test, **m2** resolver None/empty-title placeholder test. make check 6701 green. Merge = manual.
-
-
-### Cycle 2
-
-- Toolkit: code-reviewer on the cycle-1 fix diff (`203403f3..HEAD`, the json_extract find_by_ref change). **APPROVE, zero findings ≥80.** Empirically verified: json_extract type-matching (int tvdb/tmdb vs str imdb) sound; NULL handling correct (a tvdb-null row is excluded from a tvdb lookup — the core of the C1 fix, reproduced old-query-None vs new-query-match); no false-merge regression (the tmdb-only heuristic is the documented tvdb-primary trade-off); param-bound (injection-safe); C1/C2/m1/m2 tests non-vacuous (the C1 test provably fails against the old code); no residual exact-tuple query remains. Perf: json_extract full-scan negligible for dozens of rows (expression index only if it grows to thousands — not warranted).
-- Decision: **Case A** (no critical/major/medium). Loop exits clean. Merge = manual → operator squash-merges.
-
-
-### Cycle 3
-
-- Toolkit: the 2 lenses not yet applied across cycles 1-2 — comment-analyzer + type-design-analyzer — on the full PR diff (correctness/tests/errors already covered). comment-analyzer: docs ACCURATE (find_by_ref docstring correctly updated post-cycle-1-fix, no stale exact-tuple claim; all PASS). type-design-analyzer: FollowedSeries.id / resolve_series_title (honest total `-> str`) / CLI option types all PASS. Retained finding:
-  - **M1 (medium)** `FollowSubStore.find_by_ref` PROTOCOL docstring (_ports.py) omits the primary-id matching semantics (tvdb>tmdb>imdb, first-by-id tie-break) that live only on the concrete impl — and the Protocol is "the typed seam D2 will depend on" (DESIGN §2). The missing semantics are exactly the non-obvious behavior that caused the cycle-1 bug → lift them into the Protocol docstring so the seam is self-documenting for D2.
-  - m1 (minor) redundant `cast` at title_resolver.py:63 (chain overload already types it); m2 (minor) module "Fallback precedence" docstring ordering clarity.
-- Decision: **Case B** (one medium — docs/cosmetic). Fix phase 6 executed (1 commit `2b9f279f`): **M1** find_by_ref matching semantics (primary-id tvdb>tmdb>imdb, first-by-id tie-break) lifted into the FollowSubStore Protocol docstring (the D2 seam is now self-documenting); m1 cast KEPT (mypy verified to need it — removing → attr-defined on get_tv); m2 module 'Fallback precedence' docstring clarified (provider title preferred). make check 6701 green, 271 acquire tests still pass (no behavior change). Merge = manual.
+_(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Review cycles 1+2 complete (cycle 2 clean). CI green on PR #197. **Awaiting MANUAL squash merge** (`gh pr merge 197 --squash`). After merge: next `/implement:feature` archives follow-list (Follow D2 next = wanted-enqueue, consumes this followed list).
+Run `/implement:plan` to generate the phase plan from the design doc.
