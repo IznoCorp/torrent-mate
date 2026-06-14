@@ -43,6 +43,12 @@ ALLOWLIST: frozenset[str] = frozenset(
         str(PACKAGE_ROOT / "indexer" / "db.py"),
         # definition site of apply_pragmas; its docstring mentions sqlite3.connect()
         str(PACKAGE_ROOT / "core" / "sqlite" / "_pragmas.py"),
+        # RP6 ownership adapter (IndexerOwnershipChecker): opens a deliberately
+        # read-only, lock-free connection to library.db with ``PRAGMA
+        # query_only=ON``. It MUST bypass the canonical writer PRAGMA set
+        # (WAL + foreign_keys=ON would defeat the read-only / no-writer-lock
+        # intent and could take a lock at the shared composition root).
+        str(PACKAGE_ROOT / "indexer" / "ownership.py"),
     }
 )
 

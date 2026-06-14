@@ -28,11 +28,11 @@ def test_acquire_context_is_frozen_dataclass() -> None:
 
 
 def test_acquire_context_fields() -> None:
-    """AcquireContext has tracker_registry, store, delete_authority, torrent_client, grab."""
+    """AcquireContext has the six injection-handle fields (RP5c + RP6 ownership)."""
     from personalscraper.acquire.context import AcquireContext
 
     fields = {f.name for f in dataclasses.fields(AcquireContext)}
-    assert fields == {"tracker_registry", "store", "delete_authority", "torrent_client", "grab"}
+    assert fields == {"tracker_registry", "store", "delete_authority", "torrent_client", "grab", "ownership"}
 
 
 def test_acquire_context_store_and_torrent_client_default_none() -> None:
@@ -47,6 +47,26 @@ def test_acquire_context_store_and_torrent_client_default_none() -> None:
     assert ctx.delete_authority is None
     assert ctx.torrent_client is None
     assert ctx.grab is None
+
+
+def test_acquire_context_ownership_defaults_to_null_checker() -> None:
+    """Ownership defaults to a NullOwnershipChecker (always-False, fail-open).
+
+    The default is the core port's no-op impl — typed on the CORE port, never
+    the indexer impl — so a context built without a library wired is safe.
+    """
+    from personalscraper.acquire.context import AcquireContext
+    from personalscraper.api.tracker._ranking import RankingConfig
+    from personalscraper.api.tracker._registry import TrackerRegistry
+    from personalscraper.core.identity import MediaRef
+    from personalscraper.core.ownership import NullOwnershipChecker, OwnershipChecker
+
+    registry = TrackerRegistry(trackers={}, priority=[], ranking=RankingConfig())
+    ctx = AcquireContext(tracker_registry=registry)
+    assert isinstance(ctx.ownership, NullOwnershipChecker)
+    assert isinstance(ctx.ownership, OwnershipChecker)
+    # Fail-open: the default checker always answers False.
+    assert ctx.ownership.owns(MediaRef(tvdb_id=1), kind="movie") is False
 
 
 class TestAcquireContextClose:
@@ -123,3 +143,28 @@ class TestAcquireContextClose:
         ctx.close()
         # close() must not touch delete_authority — no attribute access, no call.
         # (delete_authority has no close(), so any close() call would AttributeError.)
+
+    def test_close_calls_ownership_close_when_present(self) -> None:
+        """OWNERSHIP: close() calls ownership.close() when the checker exposes one.
+
+        The injected IndexerOwnershipChecker owns a lazy read connection it must
+        release; close() must propagate to it exactly once.
+        """
+        from personalscraper.acquire.context import AcquireContext
+
+        ownership = MagicMock()  # has a close() method
+        ctx = AcquireContext(tracker_registry=MagicMock(), ownership=ownership)
+        ctx.close()
+        ownership.close.assert_called_once()
+
+    def test_close_skips_ownership_without_close_method(self) -> None:
+        """close() must NOT raise when ownership has no close() (NullOwnershipChecker).
+
+        NullOwnershipChecker is stateless and exposes no close(); close() must
+        skip it gracefully via the callable guard.
+        """
+        from personalscraper.acquire.context import AcquireContext
+        from personalscraper.core.ownership import NullOwnershipChecker
+
+        ctx = AcquireContext(tracker_registry=MagicMock(), ownership=NullOwnershipChecker())
+        ctx.close()  # must not raise (NullOwnershipChecker has no close())

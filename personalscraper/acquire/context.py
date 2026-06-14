@@ -10,8 +10,10 @@ Import direction: this module imports only from ``personalscraper.api`` and
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
+
+from personalscraper.core.ownership import NullOwnershipChecker
 
 if TYPE_CHECKING:
     from personalscraper.acquire._ports import AcquireStore
@@ -20,6 +22,7 @@ if TYPE_CHECKING:
     from personalscraper.api.torrent.qbittorrent import QBitClient
     from personalscraper.api.torrent.transmission import TransmissionClient
     from personalscraper.api.tracker._registry import TrackerRegistry
+    from personalscraper.core.ownership import OwnershipChecker
 
 
 @dataclass(frozen=True)
@@ -56,6 +59,16 @@ class AcquireContext:
             commands).  Owns no closeable resource of its own — the bus is
             borrowed and the store / registry lifecycles are owned here —
             so ``close()`` does NOT touch it.
+        ownership: ``OwnershipChecker`` port implementation (RP6). Typed on the
+            CORE port (``core.ownership.OwnershipChecker``), never the indexer
+            impl — ``acquire/`` stays free of any ``indexer/`` import. Defaults
+            to ``NullOwnershipChecker`` (always ``False``); the composition root
+            injects an ``IndexerOwnershipChecker`` when ``library.db`` is
+            configured and present. The injected impl holds a **lazy, read-only,
+            lock-free** connection (opened on first ``owns()``), so the single
+            handle takes no lifetime lock at the composition root. OWNED:
+            ``close()`` closes it when it exposes a ``close()`` method (the
+            indexer impl does; ``NullOwnershipChecker`` does not).
     """
 
     tracker_registry: "TrackerRegistry"
@@ -63,9 +76,10 @@ class AcquireContext:
     delete_authority: "DeleteAuthority | None" = None
     torrent_client: "QBitClient | TransmissionClient | None" = None
     grab: "GrabCore | None" = None
+    ownership: "OwnershipChecker" = field(default_factory=NullOwnershipChecker)
 
     def close(self) -> None:
-        """Close OWNED resources: tracker_registry and store (when present).
+        """Close OWNED resources: tracker_registry, store, and ownership.
 
         Does NOT close ``torrent_client`` — that handle is shared with the
         ``ingest`` boundary which owns its lifecycle.
@@ -73,17 +87,25 @@ class AcquireContext:
         store handle, and has no ``close()`` method.
         Does NOT close ``grab`` — the ``GrabCore`` holds no closeable resource
         (its bus is borrowed; its store / registry are closed above).
+        Closes ``ownership`` ONLY when it exposes a ``close()`` method: the
+        injected ``IndexerOwnershipChecker`` owns a lazy read connection it must
+        release (idempotent, fail-soft); ``NullOwnershipChecker`` has no
+        ``close()`` and is left untouched.
 
         Raises:
             Exception: If ``store.close()`` raises (after RP3 wires it).
             ``close()`` does not suppress exceptions itself — fail-safety is
             delegated to the resources.  ``TrackerRegistry.close()`` is
-            independently fail-soft, and the future RP3 store ``close()`` MUST
-            honor the same contract or its exception will propagate.
+            independently fail-soft, the RP3 store ``close()`` and the RP6
+            ``IndexerOwnershipChecker.close()`` both honour the same fail-soft
+            contract, so neither propagates.
         """
         self.tracker_registry.close()
         if self.store is not None:
             self.store.close()
+        ownership_close = getattr(self.ownership, "close", None)
+        if callable(ownership_close):
+            ownership_close()
 
 
 __all__ = ["AcquireContext"]
