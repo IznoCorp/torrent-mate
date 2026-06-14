@@ -1,20 +1,26 @@
-"""Indexer ownership predicate (RP6) — SELECT-only query layer.
+"""Indexer ownership predicate + adapter (RP6).
 
-Public API (Phase 2):
-- :func:`is_owned` — answers "does the library contain a live file for
-  this work?" via a chain of EXISTS sub-queries.
+Public API:
+- :func:`is_owned` (Phase 2) — SELECT-only predicate answering "does the
+  library contain a live file for this work?" via a chain of EXISTS
+  sub-queries.
+- :class:`IndexerOwnershipChecker` (Phase 3) — the port implementation of
+  ``core.ownership.OwnershipChecker``. Wraps :func:`is_owned` over a
+  **lazy, read-only, lock-free** ``library.db`` connection and is
+  **fail-soft**: any DB / open error → log + return ``False``.
 
-The ``IndexerOwnershipChecker`` adapter that wraps this function and
-implements ``core.ownership.OwnershipChecker`` is added in Phase 3.
-
-Import direction: stdlib + personalscraper.logger only.
-No core.ownership import at runtime in this module (the adapter adds it).
+Import direction: stdlib + ``personalscraper.core`` (port + identity) +
+``personalscraper.logger``. ``indexer/`` may import ``core/`` (downward,
+allowed). It does NOT import ``acquire/``.
 """
 
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
+from typing import Literal
 
+from personalscraper.core.identity import MediaRef
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.ownership")
@@ -211,4 +217,150 @@ def _is_owned_episode(
     return False
 
 
-__all__ = ["is_owned"]
+# ---------------------------------------------------------------------------
+# Port implementation — IndexerOwnershipChecker (Phase 3)
+# ---------------------------------------------------------------------------
+
+
+class IndexerOwnershipChecker:
+    """Port implementation of :class:`~personalscraper.core.ownership.OwnershipChecker`.
+
+    Wraps :func:`is_owned` over a **lazy, read-only, lock-free** connection to
+    ``library.db``. The connection is NOT opened at construction (no boot I/O,
+    no lock taken at the composition root — directly honouring the acquire.db
+    lifetime-lock regression lesson): it is opened on the first :meth:`owns`
+    call in autocommit + ``PRAGMA query_only=ON`` mode, so reads never take a
+    writer lock and never serialise unrelated commands.
+
+    Fail-soft contract (LOAD-BEARING): any exception from opening the database
+    or running the predicate is caught, logged, and ``False`` is returned. The
+    ownership check must never crash the caller (e.g. a future Follow/Ratio
+    grab loop) — an unverifiable lookup degrades to "not owned" (fail-open at
+    the policy level), never to a raised exception.
+
+    This adapter lives in ``indexer/`` because it imports ``sqlite3`` +
+    :func:`is_owned`; ``acquire/`` depends only on the ``core.ownership`` port
+    and receives this implementation injected at the composition root.
+
+    Import direction: imports ``core.ownership`` (port, via duck-typing — no
+    runtime import needed) + ``core.identity`` (:class:`MediaRef`) only. Does
+    NOT import ``acquire/`` — the allowed downward direction.
+
+    Attributes:
+        _db_path: Path to ``library.db`` (resolved by the config layer).
+        _conn: Lazily-opened read-only SQLite connection, or ``None`` until the
+            first :meth:`owns` call (and after :meth:`close`).
+        _closed: ``True`` once :meth:`close` has run (prevents reopen).
+    """
+
+    def __init__(self, db_path: Path) -> None:
+        """Initialise an INERT checker for ``db_path`` (no I/O).
+
+        No connection is opened, no lock is taken, and the file is not touched
+        until the first :meth:`owns` call.
+
+        Args:
+            db_path: Path to ``library.db`` (resolved by the config layer).
+                The file need not exist at construction time; a missing or
+                broken file surfaces as fail-soft ``False`` at lookup time.
+        """
+        self._db_path = db_path
+        self._conn: sqlite3.Connection | None = None
+        self._closed = False
+
+    def _ensure_open(self) -> sqlite3.Connection:
+        """Open the read-only, lock-free connection on first access.
+
+        Opens ``library.db`` in autocommit mode (``isolation_level=None``) and
+        applies ``PRAGMA query_only=ON`` so the connection can never take a
+        writer lock. No ``BEGIN`` is issued and no lifetime lock is held — WAL
+        reads are lock-free. After the first call ``self._conn`` stays open and
+        subsequent calls return it directly.
+
+        Returns:
+            The open read-only :class:`sqlite3.Connection` to ``library.db``.
+
+        Raises:
+            RuntimeError: If the checker has already been closed.
+            sqlite3.Error: If the database cannot be opened. The caller
+                (:meth:`owns`) catches this for the fail-soft contract.
+        """
+        if self._closed:
+            raise RuntimeError("IndexerOwnershipChecker is closed")
+        if self._conn is not None:
+            return self._conn
+        conn = sqlite3.connect(str(self._db_path), isolation_level=None, check_same_thread=False)
+        conn.execute("PRAGMA query_only=ON")
+        self._conn = conn
+        log.info("indexer.ownership.opened", db_path=str(self._db_path))
+        return conn
+
+    def owns(
+        self,
+        media_ref: MediaRef,
+        *,
+        kind: Literal["movie", "episode"],
+        season: int | None = None,
+        episode: int | None = None,
+    ) -> bool:
+        """Return True iff the library contains a live file for this work.
+
+        Opens the read-only connection lazily, then delegates to
+        :func:`is_owned`. Any exception — a missing/broken ``library.db``, a
+        closed connection, or a predicate error — is caught and logged; ``False``
+        is returned instead of propagating (fail-soft, LOAD-BEARING).
+
+        Args:
+            media_ref: Provider IDs (tvdb primary, tmdb fallback, imdb last).
+            kind: ``"movie"`` or ``"episode"``.
+            season: Season number; required when ``kind="episode"``.
+            episode: Episode number; required when ``kind="episode"``.
+
+        Returns:
+            ``True`` if ownership is confirmed; ``False`` on any error or when
+            the work is not found / all files are soft-deleted.
+        """
+        try:
+            conn = self._ensure_open()
+            return is_owned(
+                conn,
+                kind=kind,
+                tvdb_id=media_ref.tvdb_id,
+                tmdb_id=media_ref.tmdb_id,
+                imdb_id=media_ref.imdb_id,
+                season=season,
+                episode=episode,
+            )
+        except Exception as exc:  # noqa: BLE001 — fail-soft: never raise into the caller
+            log.warning(
+                "indexer.ownership.lookup_failed",
+                db_path=str(self._db_path),
+                kind=kind,
+                tvdb_id=media_ref.tvdb_id,
+                tmdb_id=media_ref.tmdb_id,
+                imdb_id=media_ref.imdb_id,
+                error=str(exc),
+            )
+            return False
+
+    def close(self) -> None:
+        """Close the connection if one was opened (fail-soft, idempotent).
+
+        Never raises (honours ``AcquireContext.close()``'s no-suppress
+        contract): a connection-close error is swallowed and logged. Double-
+        close is a no-op, and close-without-open (``owns`` never called) is a
+        pure no-op — there is no lifetime lock to release.
+        """
+        if self._closed:
+            return
+        self._closed = True
+        if self._conn is None:
+            return
+        try:
+            self._conn.close()
+        except Exception as exc:  # noqa: BLE001 — fail-soft close contract
+            log.warning("indexer.ownership.close_conn_failed", error=str(exc))
+        log.info("indexer.ownership.closed", db_path=str(self._db_path))
+
+
+__all__ = ["IndexerOwnershipChecker", "is_owned"]
