@@ -1,0 +1,35 @@
+{
+  "data": {
+    "node": {
+      "__typename": "ProjectV2",
+      "items": {
+        "pageInfo": {
+          "hasNextPage": false,
+          "endCursor": "Mw"
+        },
+        "nodes": [
+          {
+            "id": "PVTI_lADOBpVuBM4Ae2-IzgABcDG",
+            "updatedAt": "2026-06-04T07:55:01Z",
+            "fieldValueByName": {
+              "name": "Backlog"
+            },
+            "content": {
+              "__typename": "Issue",
+              "number": 12,
+              "title": "Wire the GitHub adapter"
+            }
+          },
+          {
+            "id": "PVTI_lADOBpVuBM4Ae2-IzgABcDH",
+            "updatedAt": "2026-06-04T07:40:18Z",
+            "fieldValueByName": null,
+            "content": {
+              "__typename": "PullRequest"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,55 @@
+# KanbanMate
+
+**Reusable Kanban orchestrator on GitHub Projects v2.** Each roadmap item is a ticket moved column by column on a board; moving a card into a triggering column fires an autonomous Claude Code agent in an isolated tmux + git-worktree workspace. The agent comments on the ticket, may re-move the card (only to non-triggering columns), and its session is resumable (`tmux attach` / `claude --resume <uuid>`). A single background daemon polls the board and reconciles it against persisted state — there is **no webhook and no n8n**.
+
+## Two artifacts, one repo
+
+| Artifact          | What                                                                                                                   | Install                                                   |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| **Engine**        | Python package `kanbanmate` + CLI `kanban` + bundled assets (PM2 ecosystem, `columns.yml` template, agent helper bins) | `pip install kanbanmate`                                  |
+| **Claude plugin** | Skill `/kanban` (thin shell to the `kanban` CLI) + agent helper commands                                               | `claude plugin marketplace add` + `claude plugin install` |
+
+All logic lives in the engine; the plugin only invokes `kanban …`.
+
+## 5-minute quickstart
+
+```bash
+# 1. Install the engine (host tier + claude tier)
+pip install kanbanmate          # or: pip install -e ".[dev]" for development
+kanban install                   # creates ~/.kanban, writes PM2 ecosystem, installs /kanban plugin
+
+# 2. Initialise a board for your repo (per-repo tier)
+kanban init --repo owner/name    # creates a GitHub Project v2 board + columns + labels
+# Save the project node id printed by init — you'll need it next.
+
+# 3. Seed the board from your roadmap
+kanban seed ROADMAP.md --repo owner/name --project-id "<node-id>"
+
+# 4. Start the daemon
+kanban run                       # foreground (Ctrl-C to stop)
+# OR let PM2 supervise it (set up by `kanban install`):
+pm2 start ecosystem.config.js --only kanban
+```
+
+That's it. Move a card into "In Progress" and watch an agent fire.
+
+```bash
+kanban status                    # board summary + running agents
+kanban sessions                  # list live agent tmux sessions
+kanban doctor                    # full health check (engine, daemon, plugin, token, permissions)
+kanban poll --once               # single dry-run tick (debug)
+```
+
+## Project status (dashboard health pill)
+
+The daemon maintains one rolling **status update** on the GitHub Project board — a single health "pill" that mirrors GitHub's `ProjectV2StatusUpdateStatus` enum. It is computed every state change from the live orchestration (running agents, the launch queue, and recent events) with a strict first-match-wins precedence, so at a glance you know whether the board is on track or needs you. `kanban status` surfaces the same picture in the terminal.
+
+| Status        | When it fires (first match wins)                                                                                                                                                                                 | What you should do                                                                                                                  |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **INACTIVE**  | The `~/.kanban/PAUSE` kill-switch is set — the daemon is paused and launches no agents.                                                                                                                          | Resume orchestration with `kanban resume` (clears the PAUSE sentinel).                                                              |
+| **OFF_TRACK** | A blocking/failure event is recent (a `block` or `gate_fail`), **or** an agent is parked in the **Blocked** column.                                                                                              | Open the ticket, read the agent's last comment, fix the blocker, then re-move the card out of Blocked.                              |
+| **AT_RISK**   | A degraded signal: an agent is **WAITING** for human input, a stale agent was reaped/relaunched, a move was rate-limit-parked, the launch queue exceeds the concurrency cap, or an agent's heartbeat went stale. | If an agent is waiting, attach and answer it: `tmux attach -t ticket-<n>`. Otherwise check `kanban status` for the degraded reason. |
+| **ON_TRACK**  | Agents are running and/or events are flowing with none of the above degraded/blocked/paused signals — normal healthy progress.                                                                                   | Nothing — let the agents work; glance at `kanban status` when you like.                                                             |
+| **COMPLETE**  | Fully idle: no agents running and no recent events — the orchestration reads as done rather than ongoing.                                                                                                        | Nothing — seed more roadmap items (`kanban seed …`) when you're ready for the next batch.                                           |
+
+For the full picture: [install.md](docs/install.md) · [how-it-works.md](docs/how-it-works.md) · [columns.md](docs/columns.md) · [ROADMAP.md](ROADMAP.md).

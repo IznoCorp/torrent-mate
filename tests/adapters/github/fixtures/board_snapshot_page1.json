@@ -1,0 +1,39 @@
+{
+  "data": {
+    "node": {
+      "__typename": "ProjectV2",
+      "items": {
+        "pageInfo": {
+          "hasNextPage": true,
+          "endCursor": "Mg"
+        },
+        "nodes": [
+          {
+            "id": "PVTI_lADOBpVuBM4Ae2-IzgABcDE",
+            "updatedAt": "2026-06-04T08:31:12Z",
+            "fieldValueByName": {
+              "name": "Done"
+            },
+            "content": {
+              "__typename": "Issue",
+              "number": 7,
+              "title": "Bootstrap the polling engine",
+              "body": "Kick off the engine.\n\nDepends on #4"
+            }
+          },
+          {
+            "id": "PVTI_lADOBpVuBM4Ae2-IzgABcDF",
+            "updatedAt": "2026-06-04T08:29:54Z",
+            "fieldValueByName": {
+              "name": "In Progress"
+            },
+            "content": {
+              "__typename": "DraftIssue",
+              "title": "Sketch the heartbeat hook"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

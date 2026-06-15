@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+"""Thin shim for the ``kanban-update-main`` agent helper (DESIGN §10).
+
+Delegates to :func:`kanbanmate.bin.kanban_update_main.main` so the post-merge clone-refresh logic
+(``git fetch`` the base clone, ``git pull --ff-only`` a clean dev clone on main — no merge, no
+force) lives in the importable engine and this top-level file stays a one-line entry point.
+"""
+
+import sys
+
+from kanbanmate.bin.kanban_update_main import main
+
+if __name__ == "__main__":
+    sys.exit(main())

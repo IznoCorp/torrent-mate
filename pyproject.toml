@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kanbanmate"
+version = "0.1.0"
+description = "Reusable Kanban orchestrator on GitHub Projects v2 with autonomous Claude Code agents."
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "LounisBou" }]
+dependencies = [
+    "typer>=0.12",
+    "PyYAML>=6",
+    "attrs>=23",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+    "mypy",
+    "types-PyYAML",
+]
+
+[project.scripts]
+kanban = "kanbanmate.cli.app:main"
+kanban-comment = "kanbanmate.bin.kanban_comment:main"
+kanban-heartbeat = "kanbanmate.bin.kanban_heartbeat:main"
+kanban-move = "kanbanmate.bin.kanban_move:main"
+kanban-progress = "kanbanmate.bin.kanban_progress:main"
+kanban-session-end = "kanbanmate.bin.kanban_session_end:main"
+kanban-update-body = "kanbanmate.bin.kanban_update_body:main"
+kanban-update-main = "kanbanmate.bin.kanban_update_main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+kanbanmate = ["py.typed", "assets/*.tmpl", "assets/*.yml", "bin/check-*.sh"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+
+[tool.pytest.ini_options]
+markers = [
+    "local_real: tests that exercise real local tooling (tmux, git worktrees); skipped by default in CI.",
+    "integration: end-to-end tests against external services; skipped in the default unit run.",
+]

@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+"""Thin shim for the ``kanban-progress`` agent helper (DESIGN §8.1).
+
+Delegates to :func:`kanbanmate.bin.kanban_progress.main` so the progress-note logic lives in the
+importable engine and this top-level file stays a one-line entry point (usable from a worktree
+before ``pip install`` places the console script on PATH).
+"""
+
+import sys
+
+from kanbanmate.bin.kanban_progress import main
+
+if __name__ == "__main__":
+    sys.exit(main())

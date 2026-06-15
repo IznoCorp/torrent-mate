@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+"""Thin shim for the ``kanban-heartbeat`` agent liveness hook (DESIGN §8.3).
+
+Delegates to :func:`kanbanmate.bin.kanban_heartbeat.main` so the heartbeat logic lives in the
+importable engine and this top-level file stays a one-line entry point. This is the command the
+PostToolUse hook (``kanban-heartbeat <issue>``) baked into each worktree's ``.claude/settings.json``
+invokes after every tool the agent uses. It ALWAYS exits 0 — exit 2 would block the agent.
+"""
+
+import sys
+
+from kanbanmate.bin.kanban_heartbeat import main
+
+if __name__ == "__main__":
+    sys.exit(main())

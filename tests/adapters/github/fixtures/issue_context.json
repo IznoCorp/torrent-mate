@@ -1,0 +1,24 @@
+{
+  "data": {
+    "repository": {
+      "issue": {
+        "body": "Kick off the engine.\n\nDepends on #4",
+        "comments": {
+          "nodes": [
+            { "body": "First comment — agent launched." },
+            { "body": "Second comment — step completed." }
+          ]
+        },
+        "timelineItems": {
+          "nodes": [
+            {
+              "source": {
+                "body": "This is the linked issue body — the upstream ticket."
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

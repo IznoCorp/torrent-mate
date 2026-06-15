@@ -1,0 +1,94 @@
+# KanbanMate board column template (DESIGN §8.0.6 / §9) — the transitions-only board model.
+#
+# Copied per-repo by `kanban init` and edited by the user. This file declares ONLY
+# the board's column SET. It carries NO launch configuration: the full transition
+# flow + every `/implement:*` PROMPT, `profile`, `permission_mode`, `script`,
+# `advance` and `on_fail` live on the `(from, to)` entry in `transitions.yml` (the
+# per-(from,to) whitelist), because the agent launches AT THE TRANSITION, never at a
+# column. There is no per-column autonomy switch and no dormant stage.
+#
+# Column classes (DESIGN §8.0.6) are derived from the single non-launch flag:
+#   action: teardown  -> reactive column (mechanical dispatcher side-effect, no agent)
+#   neither           -> inert column     (human gate / terminal)
+#
+# `key`  is the stable machine-readable identifier (no spaces).
+# `name` is the human-readable GitHub Projects v2 column label.
+#
+# Board-wide defaults — the AUTHORITATIVE surface is `transitions.yml`'s `defaults:` block
+# (#4). The daemon reads `concurrency_cap` / `move_rate_limit_per_hour` from transitions.yml,
+# NOT from here — so to change them, edit transitions.yml. A `defaults:` block written below
+# is parsed (BoardDefaults) but is a documented FALLBACK only; it is intentionally left
+# COMMENTED OUT here so there is ONE authoritative knob and an edit here cannot silently
+# disagree with the live config:
+#   concurrency_cap (3)          — max concurrent agent sessions; over-cap launches queue (§7)
+#   move_rate_limit_per_hour (10) — max AUTO/bot moves per ticket per hour; over-limit parks Blocked (§6)
+#
+# defaults:
+#   concurrency_cap: 3            # FALLBACK only — edit transitions.yml instead (§7)
+#   move_rate_limit_per_hour: 10  # FALLBACK only — edit transitions.yml instead (§6)
+
+columns:
+  - key: Backlog
+    name: Backlog
+    # Inert: manual entry point; also the reset target from Cancel.
+
+  - key: Brainstorming
+    name: Brainstorming
+    # Inert: the INTERACTIVE brainstorm stage. The launch lives on the
+    # Backlog -> Brainstorming transition (the one place a human attaches via
+    # `tmux attach` to answer the agent's clarifying questions).
+
+  - key: Spec
+    name: Spec
+    # Inert: the AUTONOMOUS design stage. The launch lives on the
+    # Brainstorming -> Spec transition (writes design.md from the brainstorm
+    # output already in the ticket body — no questions).
+
+  - key: Plan
+    name: Plan
+    # Inert: the AUTONOMOUS plan stage. The launch lives on the Spec -> Plan
+    # transition (writes the plan files — no questions).
+
+  - key: Planned
+    name: Planned
+    # Inert: a HUMAN checkpoint. Autonomous design+plans are done; the card
+    # lands here for human review before ReadyToDev (Plan -> Planned is a no-op).
+
+  - key: ReadyToDev
+    name: Ready to dev
+    # Inert human gate.
+
+  - key: PrepareFeature
+    name: Prepare feature
+    # Inert.
+
+  - key: InProgress
+    name: In Progress
+    # Inert.
+
+  - key: PRCI
+    name: PR/CI
+    # Inert.
+
+  - key: Review
+    name: Review
+    # Inert.
+
+  - key: Merge
+    name: Merge
+    # Inert: merge is a HUMAN action. The merge boundary is that Merge is not a launch
+    # target (Review -> Merge is a script gate, no prompt) + branch protection + the
+    # `gh pr merge` ban — NOT that the bot cannot move a card here (DESIGN §8.0.5/§10).
+
+  - key: Cancel
+    name: Cancel
+    action: teardown
+    # Reactive: full teardown; a Cancel -> Backlog move is the resume reset.
+
+  - key: Done
+    name: Done
+    # Inert terminal column.
+
+  - key: Blocked
+    name: Blocked
+    # Inert: the agent/daemon parks a stalled ticket here.

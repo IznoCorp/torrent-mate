@@ -49,14 +49,17 @@ heartbeat. See DESIGN §3 for the full module map.
 ## Critical Rules
 
 ### Search Safety (MANDATORY)
+
 Every `rg` command MUST include a type/glob filter (`--type py`, `-g '*.py'`, etc.). Unfiltered `rg`
 can scan large binary fixtures and exhaust RAM.
 
 ### Network Timeout Safety (MANDATORY)
+
 Every network command (curl/wget) MUST include `--connect-timeout N` and `--max-time N`. The urllib
 GitHub client MUST set connect + read timeouts on every request — the daemon must never hang on I/O.
 
 ### Commit Convention
+
 [Conventional Commits](https://www.conventionalcommits.org/) — globally enforced.
 
 ```
@@ -72,6 +75,7 @@ Types: `feat | fix | chore | refactor | style | docs | test | perf | build | ci`
 `chore(genesis): phase 1 gate — bootstrap engine + polling core`.
 
 ### Code Conventions
+
 - **Google-style docstrings** on all modules, classes, functions, methods (`Args:`/`Returns:`/`Raises:`).
 - Inline comments explain the **why**, in English.
 - New code respects the hexagonal layering: `core/` imports nothing with I/O; `adapters/` implement
@@ -79,25 +83,33 @@ Types: `feat | fix | chore | refactor | style | docs | test | perf | build | ci`
 - Module size: soft warning ~800 LOC, hard ceiling 1000 LOC.
 
 ### Autonomy & Safety (orchestrated agents)
+
 - **Merge = human only.** Agents push + open PRs but NEVER merge. Ban `gh pr merge`, `git push
-  --force`, history rewrite across all permission profiles.
-- Permission profiles (`safe`/`trusted`) are materialised into each worktree's `.claude/settings.json`
-  with a pinned `defaultMode`, plus the PostToolUse heartbeat hook.
-- Kill-switch `~/.kanban/PAUSE` downgrades all to `safe` and stops launches.
+--force`, history rewrite across all permission profiles.
+- Permission profiles (`docs` / `prepare` / `dev` / `check`) are materialised into each worktree's
+  `.claude/settings.json` with a pinned `defaultMode`, plus the PostToolUse heartbeat hook. `docs`
+  is the minimal floor (an unknown profile name degrades to it); the `merge` profile is gone
+  (merge = human-only).
+- Kill-switch `~/.kanban/PAUSE` downgrades all to the `docs` floor and stops launches.
 - The daemon and agents run **non-root** (tmux socket ownership; `bypassPermissions` refuses under root).
 
 ### Phase Gate Checklist (before every `chore(genesis): phase N gate`)
+
 1. `make lint` (ruff + mypy) — zero errors.
 2. `make test` — all pass (check the summary line; any ERROR = collection crash, fix imports first).
 3. `make check` — lint + test + module-size guards.
 4. Residual-import grep for any deleted module, in `src/` AND `tests/` — zero matches.
 5. `python -c "import kanbanmate"` smoke test.
+6. Tracker row updated + DESIGN delta present (a phase that changed behaviour must not close without
+   the matching `IMPLEMENTATION.md` row and a `DESIGN.md` edit — phases 25/27/28 all drifted).
 
 ### Implementation Workflow
+
 Feature lifecycle via `/implement:*` skills (brainstorm → create-branch → plan → phase → feature-pr →
 pr-review). Branch `feat/{codename}`, commits scoped `(codename)`, squash merge (mode chosen at start).
 
 ### Language
+
 User communicates in French or English. Code comments and report/doc artifacts in **English**.
 Respond in French when the user writes in French.
 

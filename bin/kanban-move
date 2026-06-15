@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+"""Thin shim for the ``kanban-move`` agent helper (DESIGN §8 anti-loop).
+
+Delegates to :func:`kanbanmate.bin.kanban_move.main` so the move logic (including the mandatory
+refusal to move a card into an AGENT-class column) lives in the importable engine and this
+top-level file stays a one-line entry point (usable from a worktree before ``pip install`` places
+the console script on PATH).
+"""
+
+import sys
+
+from kanbanmate.bin.kanban_move import main
+
+if __name__ == "__main__":
+    sys.exit(main())

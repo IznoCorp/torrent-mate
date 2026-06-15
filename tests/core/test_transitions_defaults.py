@@ -1,0 +1,671 @@
+"""Tests for the shipped ``/implement:*`` prompt defaults + the hybrid default
+transition table in :mod:`kanbanmate.core.transitions_defaults`.
+
+These pin the port from the PoC ``cli/transitions_yaml.py``: every ``/implement:*``
+slash-command lands in exactly the expected prompt, every ``{{placeholder}}``
+survives the French→English translation, no French prose leaks through, the
+default table round-trips through :func:`kanbanmate.core.transitions.load_transitions`
+into a :class:`TransitionConfig` whose ``get`` resolves every shipped pair (and the
+``PrepareFeature → InProgress`` vs ``PRCI → InProgress`` discriminator resolves to
+DIFFERENT prompts), and — crucially — there is NO autonomous merge prompt (merge
+stays human, DESIGN §10).
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+import yaml
+
+import kanbanmate.core.transitions_defaults as defaults_mod
+from kanbanmate.core.placeholders import fill
+from kanbanmate.core.transitions import load_transitions
+from kanbanmate.core.transitions_defaults import (
+    DEFAULT_CONCURRENCY_CAP,
+    DEFAULT_MOVE_RATE_LIMIT_PER_HOUR,
+    DEFAULT_TRANSITIONS,
+    _BRAINSTORM_PROMPT,
+    _DESIGN_PROMPT,
+    _FIXCI_PROMPT,
+    _IMPLEMENT_PROMPT,
+    _PLAN_PROMPT,
+    _PREPARE_PROMPT,
+    _REVIEW_PROMPT,
+    _REWORK_PROMPT,
+)
+
+
+def _render_doc(project: str) -> str:
+    """Render a transitions.yml document from the defaults (mirrors phase 12.7).
+
+    The phase 12.7 ``render_transitions_yaml`` does not exist yet, so this test
+    helper performs the equivalent ``yaml.safe_dump`` locally — the same shape
+    the renderer will emit — so the round-trip assertions exercise the real
+    :func:`load_transitions` parser against the shipped table.
+    """
+    doc: dict[str, Any] = {
+        "project": project,
+        "defaults": {
+            "concurrency_cap": DEFAULT_CONCURRENCY_CAP,
+            "move_rate_limit_per_hour": DEFAULT_MOVE_RATE_LIMIT_PER_HOUR,
+        },
+        "transitions": [dict(t) for t in DEFAULT_TRANSITIONS],
+    }
+    return yaml.safe_dump(doc, sort_keys=False, allow_unicode=True, width=120)
+
+
+class TestSlashCommands:
+    """Each ``/implement:*`` slash-command lands in exactly the expected prompt."""
+
+    def test_brainstorm_prompt_has_brainstorm(self) -> None:
+        """``_BRAINSTORM_PROMPT`` carries ``/implement:brainstorm`` (the interactive step)."""
+        assert "/implement:brainstorm" in _BRAINSTORM_PROMPT
+
+    def test_design_prompt_is_autonomous_design_no_brainstorm(self) -> None:
+        """``_DESIGN_PROMPT`` is the AUTONOMOUS design step — it does NOT brainstorm.
+
+        Genesis phase 26 split the front of the flow: the brainstorm slash-command
+        moved to ``_BRAINSTORM_PROMPT`` (Backlog→Brainstorming). ``_DESIGN_PROMPT``
+        (Brainstorming→Spec) writes design.md from the brainstorm output and carries
+        no interactive brainstorming.
+        """
+        assert "/implement:brainstorm" not in _DESIGN_PROMPT
+        # §29.4: the design is written to docs/features/<codename>/DESIGN.md.
+        assert "DESIGN.md" in _DESIGN_PROMPT
+
+    def test_plan_prompt_has_plan(self) -> None:
+        """``_PLAN_PROMPT`` carries ``/implement:plan``."""
+        assert "/implement:plan" in _PLAN_PROMPT
+
+    def test_prepare_prompt_has_create_branch(self) -> None:
+        """``_PREPARE_PROMPT`` carries ``/implement:create-branch``."""
+        assert "/implement:create-branch" in _PREPARE_PROMPT
+
+    def test_implement_prompt_has_phase(self) -> None:
+        """``_IMPLEMENT_PROMPT`` carries ``/implement:phase``."""
+        assert "/implement:phase" in _IMPLEMENT_PROMPT
+
+    def test_fixci_prompt_has_no_slash_command(self) -> None:
+        """``_FIXCI_PROMPT`` is the CI-fix prompt — it carries NO slash-command."""
+        assert "/implement:" not in _FIXCI_PROMPT
+
+    def test_review_prompt_has_pr_review_without_merging(self) -> None:
+        """``_REVIEW_PROMPT`` carries ``/implement:pr-review`` and ``WITHOUT merging``."""
+        assert "/implement:pr-review" in _REVIEW_PROMPT
+        assert "WITHOUT merging" in _REVIEW_PROMPT
+
+
+class TestPlaceholdersSurvive:
+    """Every ``{{placeholder}}`` survives the French→English translation."""
+
+    def test_brainstorm_prompt_placeholders(self) -> None:
+        """``_BRAINSTORM_PROMPT`` keeps every load-bearing source placeholder."""
+        for token in ("{{code}}", "{{title}}", "{{ticket_body}}", "{{issue_body}}", "{{comments}}"):
+            assert token in _BRAINSTORM_PROMPT
+
+    def test_design_prompt_placeholders(self) -> None:
+        """``_DESIGN_PROMPT`` (autonomous design) keeps ``{{code}}`` / ``{{codename}}`` / ``{{ticket_body}}``."""
+        for token in ("{{code}}", "{{codename}}", "{{ticket_body}}"):
+            assert token in _DESIGN_PROMPT
+
+    def test_plan_prompt_placeholders(self) -> None:
+        """``_PLAN_PROMPT`` keeps ``{{code}}`` / ``{{codename}}`` / ``{{design_path}}``."""
+        for token in ("{{code}}", "{{codename}}", "{{design_path}}"):
+            assert token in _PLAN_PROMPT
+
+    def test_prepare_prompt_placeholder(self) -> None:
+        """``_PREPARE_PROMPT`` keeps ``{{codename}}``."""
+        assert "{{codename}}" in _PREPARE_PROMPT
+
+    def test_implement_prompt_placeholder(self) -> None:
+        """``_IMPLEMENT_PROMPT`` keeps ``{{codename}}``."""
+        assert "{{codename}}" in _IMPLEMENT_PROMPT
+
+    def test_fixci_prompt_placeholders(self) -> None:
+        """``_FIXCI_PROMPT`` keeps ``{{codename}}`` / ``{{script_output}}``."""
+        for token in ("{{codename}}", "{{script_output}}"):
+            assert token in _FIXCI_PROMPT
+
+    def test_review_prompt_placeholder(self) -> None:
+        """``_REVIEW_PROMPT`` keeps ``{{codename}}``."""
+        assert "{{codename}}" in _REVIEW_PROMPT
+
+
+class TestNoFrenchProse:
+    """The PoC's French prose is fully translated — no French verbs leak through."""
+
+    _ALL_PROMPTS = (
+        _BRAINSTORM_PROMPT,
+        _DESIGN_PROMPT,
+        _PLAN_PROMPT,
+        _PREPARE_PROMPT,
+        _IMPLEMENT_PROMPT,
+        _FIXCI_PROMPT,
+        _REVIEW_PROMPT,
+    )
+
+    def test_no_french_words(self) -> None:
+        """No French token from the PoC prose survives in any shipped prompt."""
+        # A representative set of the PoC's French verbs/words (cli/transitions_yaml.py).
+        french_tokens = (
+            "Conçois",
+            "Corrige",
+            "déplace",
+            "Prépare",
+            "Implémente",
+            "Termine",
+            "Lance",
+            "commentaires",
+            "SANS merger",
+        )
+        for prompt in self._ALL_PROMPTS:
+            for token in french_tokens:
+                assert token not in prompt, f"French token {token!r} leaked into a prompt"
+
+
+class TestAutonomyInstruction:
+    """Genesis phase 26: only the brainstorm is interactive; every other agent prompt
+    carries an explicit "run fully autonomously — do NOT ask the user any questions"
+    instruction so an unattended orchestrated session never hangs on a clarifying
+    question (the e2e interactive-hang fix).
+    """
+
+    # The marker substring the autonomy instruction always contains.
+    _MARKER = "Run fully autonomously"
+
+    def test_brainstorm_is_the_only_interactive_prompt(self) -> None:
+        """``_BRAINSTORM_PROMPT`` does NOT carry the autonomy instruction — it is interactive."""
+        assert self._MARKER not in _BRAINSTORM_PROMPT
+        # It explicitly invites the user to be asked questions (the human attaches).
+        assert "MAY ask the user" in _BRAINSTORM_PROMPT
+
+    def test_every_other_agent_prompt_is_autonomous(self) -> None:
+        """Every non-brainstorm agent prompt carries the no-questions autonomy instruction."""
+        for prompt in (
+            _DESIGN_PROMPT,
+            _PLAN_PROMPT,
+            _IMPLEMENT_PROMPT,
+            _FIXCI_PROMPT,
+            _REVIEW_PROMPT,
+        ):
+            assert self._MARKER in prompt
+            assert "do NOT ask the user any questions" in prompt
+
+
+class TestNoAutonomousMergePrompt:
+    """Merge stays human (DESIGN §10): there is NO autonomous squash-merge prompt."""
+
+    def test_no_merge_prompt_constant(self) -> None:
+        """The module exposes no ``_MERGE_PROMPT`` constant."""
+        assert not hasattr(defaults_mod, "_MERGE_PROMPT")
+
+    def test_no_prompt_instructs_an_agent_to_merge(self) -> None:
+        """No shipped prompt INSTRUCTS an agent to merge (§29.4: merge is human-only).
+
+        The review prompt deliberately NAMES the pr-review skill's terminal squash-merge step in
+        order to order it SKIPPED — so "squash" legitimately appears there. The discipline is that
+        no prompt issues an affirmative merge instruction: none runs ``gh pr merge``, and the only
+        prompt mentioning merge frames it as SKIPPED + bans the command.
+        """
+        all_prompts = (
+            _BRAINSTORM_PROMPT,
+            _DESIGN_PROMPT,
+            _PLAN_PROMPT,
+            _PREPARE_PROMPT,
+            _IMPLEMENT_PROMPT,
+            _FIXCI_PROMPT,
+            _REVIEW_PROMPT,
+        )
+        for prompt in all_prompts:
+            lowered = prompt.lower()
+            # No prompt ever tells the agent to RUN a merge.
+            assert "run `gh pr merge`" not in lowered or "never run `gh pr merge`" in lowered
+
+    def test_review_prompt_names_the_merge_step_and_orders_it_skipped(self) -> None:
+        """``_REVIEW_PROMPT`` names the pr-review terminal merge step, orders it SKIPPED, bans it.
+
+        §29.4 verdict fix: prompt wording alone is the steering, so the review prompt must (a) name
+        the skill's terminal squash-merge step, (b) order it SKIPPED, and (c) carry the verbatim
+        ``gh pr merge`` ban — not merely omit a merge instruction.
+        """
+        assert "squash-merge step" in _REVIEW_PROMPT
+        assert "SKIPPED" in _REVIEW_PROMPT
+        assert "NEVER run `gh pr merge`" in _REVIEW_PROMPT
+
+    def test_review_to_merge_is_a_script_gate_not_a_prompt(self) -> None:
+        """``Review → Merge`` ships a script gate with NO prompt (a human merges)."""
+        rows = [t for t in DEFAULT_TRANSITIONS if t["from"] == "Review" and t["to"] == "Merge"]
+        assert len(rows) == 1
+        row = rows[0]
+        assert row.get("prompt") is None
+        assert row["script"] == "bin/check-merge-ready.sh"
+        assert row.get("on_fail") == "rollback"
+
+
+class TestDefaultTableRoundTrip:
+    """The shipped table round-trips through ``load_transitions`` and resolves."""
+
+    def test_round_trips_into_transition_config(self) -> None:
+        """The rendered defaults parse into a populated ``TransitionConfig``."""
+        cfg = load_transitions(_render_doc("owner/repo"))
+        assert cfg.project == "owner/repo"
+        assert cfg.concurrency_cap == DEFAULT_CONCURRENCY_CAP
+        assert cfg.move_rate_limit_per_hour == DEFAULT_MOVE_RATE_LIMIT_PER_HOUR
+
+    def test_every_explicit_pair_resolves(self) -> None:
+        """Every non-wildcard shipped pair resolves via ``get`` (list entries expanded)."""
+        cfg = load_transitions(_render_doc("owner/repo"))
+        for t in DEFAULT_TRANSITIONS:
+            if t["from"] == "*" or t["to"] == "*":
+                continue
+            # A list-valued ``from``/``to`` (the skip-to-Done sugar) cartesian-expands
+            # into concrete edges at load; expand it here too before resolving.
+            from_cols = t["from"] if isinstance(t["from"], list) else [t["from"]]
+            to_cols = t["to"] if isinstance(t["to"], list) else [t["to"]]
+            for from_col in from_cols:
+                for to_col in to_cols:
+                    assert cfg.get(from_col, to_col) is not None, (
+                        f"{from_col} → {to_col} did not resolve"
+                    )
+
+    def test_same_destination_different_prompts_discriminator(self) -> None:
+        """``PrepareFeature → InProgress`` vs ``PRCI → InProgress`` resolve to DIFFERENT prompts.
+
+        This is the load-bearing reason the model is per-(from,to) and not
+        per-column: the SAME destination reached from two origins gets two
+        prompts — the per-column model could not express it.
+        """
+        cfg = load_transitions(_render_doc("owner/repo"))
+        implement = cfg.get("PrepareFeature", "InProgress")
+        fixci = cfg.get("PRCI", "InProgress")
+        assert implement is not None and fixci is not None
+        assert implement.prompt == _IMPLEMENT_PROMPT
+        assert fixci.prompt == _FIXCI_PROMPT
+        assert implement.prompt != fixci.prompt
+
+    def test_planned_to_ready_is_allowed_no_op(self) -> None:
+        """``Planned → ReadyToDev`` is whitelisted with no action (allowed no-op)."""
+        cfg = load_transitions(_render_doc("owner/repo"))
+        t = cfg.get("Planned", "ReadyToDev")
+        assert t is not None
+        assert not t.has_action
+
+    def test_inprogress_to_prci_is_script_only(self) -> None:
+        """``InProgress → PRCI`` is a script-only transition (run_script)."""
+        cfg = load_transitions(_render_doc("owner/repo"))
+        t = cfg.get("InProgress", "PRCI")
+        assert t is not None
+        assert t.script == "bin/check-pr-ready.sh"
+        assert t.prompt is None
+        assert t.on_fail == "move:InProgress"
+
+    def test_wildcard_parking_and_cancel_rows_resolve(self) -> None:
+        """The ``*→Blocked`` / ``Blocked→*`` / ``*→Cancel`` / ``Cancel→Backlog`` rows resolve."""
+        cfg = load_transitions(_render_doc("owner/repo"))
+        # *→Blocked: any source parks.
+        assert cfg.get("InProgress", "Blocked") is not None
+        # Blocked→*: any un-park resolves.
+        assert cfg.get("Blocked", "Backlog") is not None
+        # *→Cancel: any source into Cancel is a KNOWN (not rolled back) transition.
+        assert cfg.get("Review", "Cancel") is not None
+        # Cancel→Backlog: the resume path.
+        assert cfg.get("Cancel", "Backlog") is not None
+
+
+class TestFrontFlowSplit:
+    """Genesis phase 26: the brainstorm↔design split + the new Brainstorming/Plan edges."""
+
+    def test_backlog_to_brainstorming_is_the_interactive_brainstorm(self) -> None:
+        """``Backlog → Brainstorming`` carries the interactive ``_BRAINSTORM_PROMPT``."""
+        cfg = load_transitions(_render_doc("owner/repo"))
+        t = cfg.get("Backlog", "Brainstorming")
+        assert t is not None
+        assert t.prompt == _BRAINSTORM_PROMPT
+        assert t.profile == "docs"
+
+    def test_old_backlog_to_spec_edge_is_gone(self) -> None:
+        """The former ``Backlog → Spec`` brainstorm+design edge no longer exists.
+
+        The single step was split into Backlog→Brainstorming (interactive) and
+        Brainstorming→Spec (autonomous design), so the direct Backlog→Spec move is
+        now un-whitelisted (it would roll back).
+        """
+        cfg = load_transitions(_render_doc("owner/repo"))
+        assert cfg.get("Backlog", "Spec") is None
+
+    def test_brainstorming_to_spec_is_the_autonomous_design(self) -> None:
+        """``Brainstorming → Spec`` carries the autonomous ``_DESIGN_PROMPT``."""
+        cfg = load_transitions(_render_doc("owner/repo"))
+        t = cfg.get("Brainstorming", "Spec")
+        assert t is not None
+        assert t.prompt == _DESIGN_PROMPT
+        assert t.profile == "docs"
+
+    def test_spec_to_plan_is_the_plan_step(self) -> None:
+        """``Spec → Plan`` carries the autonomous ``_PLAN_PROMPT``."""
+        cfg = load_transitions(_render_doc("owner/repo"))
+        t = cfg.get("Spec", "Plan")
+        assert t is not None
+        assert t.prompt == _PLAN_PROMPT
+        assert t.profile == "docs"
+
+    def test_plan_to_planned_is_allowed_no_op(self) -> None:
+        """``Plan → Planned`` is whitelisted with no action (autonomous work done; human review)."""
+        cfg = load_transitions(_render_doc("owner/repo"))
+        t = cfg.get("Plan", "Planned")
+        assert t is not None
+        assert not t.has_action
+
+
+class TestSkipToDone:
+    """Genesis phase 26: the early skip-to-Done whitelist (bounded at ReadyToDev)."""
+
+    # The six PRE-PrepareFeature columns that may skip straight to Done.
+    _SKIP_SOURCES = ("Backlog", "Brainstorming", "Spec", "Plan", "Planned", "ReadyToDev")
+    # The columns from which Done is NOT whitelisted (a worktree/branch exists → Cancel only).
+    _NON_SKIP_SOURCES = ("PrepareFeature", "InProgress", "PRCI", "Review")
+
+    def test_skip_to_done_is_a_single_list_expanded_entry(self) -> None:
+        """The skip-to-Done ships as ONE list-expanded entry (six sources → Done, no action)."""
+        rows = [t for t in DEFAULT_TRANSITIONS if t["to"] == "Done" and isinstance(t["from"], list)]
+        assert len(rows) == 1
+        row = rows[0]
+        assert sorted(row["from"]) == sorted(self._SKIP_SOURCES)
+        # No-op whitelist only: no prompt, no script.
+        assert row.get("prompt") is None
+        assert row.get("script") is None
+
+    def test_six_skip_edges_resolve_to_no_op(self) -> None:
+        """Each of the six skip sources → Done resolves to a whitelisted no-op (no rollback)."""
+        cfg = load_transitions(_render_doc("owner/repo"))
+        for source in self._SKIP_SOURCES:
+            t = cfg.get(source, "Done")
+            assert t is not None, f"{source} → Done did not resolve (would roll back)"
+            assert not t.has_action, f"{source} → Done must be a no-op, not a launch"
+
+    def test_done_not_whitelisted_from_prepare_feature_onward(self) -> None:
+        """Done is NOT whitelisted from PrepareFeature/InProgress/PRCI/Review (→ rollback)."""
+        cfg = load_transitions(_render_doc("owner/repo"))
+        for source in self._NON_SKIP_SOURCES:
+            assert cfg.get(source, "Done") is None, (
+                f"{source} → Done must NOT be whitelisted (worktree exists → Cancel only)"
+            )
+
+    def test_prepare_feature_to_done_rolls_back_via_decide(self) -> None:
+        """A live ``PrepareFeature → Done`` move yields ROLLBACK (the un-whitelisted bound).
+
+        Exercises the real ``decide`` path against the shipped columns + default
+        whitelist: the un-whitelisted pair bounces the card back to its origin.
+        """
+        import importlib.resources
+
+        from kanbanmate.core.columns import load_columns
+        from kanbanmate.core.decide import DecideContext, decide
+        from kanbanmate.core.domain import ActionKind, Ticket, Transition
+        from kanbanmate.core.transitions_defaults import default_transition_config
+
+        text = (importlib.resources.files("kanbanmate.assets") / "columns.yml.tmpl").read_text(
+            encoding="utf-8"
+        )
+        columns = load_columns(text)
+        ticket = Ticket(item_id="i1", issue_number=1, title="t", column_key="Done")
+        transition = Transition(ticket=ticket, from_column="PrepareFeature", to_column="Done")
+        ctx = DecideContext(transitions=default_transition_config())
+        action = decide(transition, columns, ctx)
+        assert action.kind is ActionKind.ROLLBACK
+        # ROLLBACK bounces back to the origin's DISPLAY NAME (defect 2): the baseline must equal
+        # the snapshot NAME or the diff re-fires the rollback every poll.
+        assert action.to_column == "Prepare feature"
+
+
+# The production placeholder context — the EXACT 12 keys app/actions._launch_context supplies.
+# Every shipped prompt must fill() cleanly against this (fail-loud on an unknown key).
+# ``code`` is the BARE issue number (defect 3): helper calls like ``kanban-move {{code}} 'PR/CI'``
+# require an int arg — a leading ``#`` makes ``#7`` a bash comment / fails ``int('#7')``.
+_PROD_CTX: dict[str, object] = {
+    "code": "7",
+    "title": "[A1] My feature",
+    "branch": "feat/my-feature",
+    "ticket_body": "body",
+    "script_output": "ci log",
+    "issue_body": "linked",
+    "comments": "c1\n---\nc2",
+    "codename": "my-feature",
+    "design_path": "docs/features/my-feature/DESIGN.md",
+    "plan_paths": "docs/features/my-feature/plan/INDEX.md",
+    "base_clone": "",
+    "dev_repo_path": "",
+}
+
+_ALL_PROMPTS = (
+    _BRAINSTORM_PROMPT,
+    _DESIGN_PROMPT,
+    _PLAN_PROMPT,
+    _PREPARE_PROMPT,
+    _IMPLEMENT_PROMPT,
+    _FIXCI_PROMPT,
+    _REVIEW_PROMPT,
+)
+
+# Every prompt EXCEPT the interactive brainstorm carries the hardening constants.
+_NON_BRAINSTORM_PROMPTS = (
+    _DESIGN_PROMPT,
+    _PLAN_PROMPT,
+    _PREPARE_PROMPT,
+    _IMPLEMENT_PROMPT,
+    _FIXCI_PROMPT,
+    _REVIEW_PROMPT,
+)
+
+
+class TestHardenedPromptsFill:
+    """§29.4: every prompt fills cleanly against the production placeholder context."""
+
+    def test_every_prompt_fills_against_prod_context(self) -> None:
+        """No shipped prompt references a placeholder absent from the launch context (fail-loud)."""
+        for prompt in _ALL_PROMPTS:
+            filled = fill(prompt, _PROD_CTX)  # raises KeyError on an unknown key
+            assert "{{" not in filled, "a placeholder leaked unfilled"
+
+
+class TestHardeningConstants:
+    """§29.4: the shared constants land on the right prompts (IDENTITY-THEN-STATE, autonomy, …)."""
+
+    def test_autonomy_on_all_non_brainstorm_incl_prepare(self) -> None:
+        """The autonomy instruction is on EVERY non-brainstorm prompt, including prepare."""
+        for prompt in _NON_BRAINSTORM_PROMPTS:
+            assert "Run fully autonomously" in prompt
+        # The interactive brainstorm is the one exception.
+        assert "Run fully autonomously" not in _BRAINSTORM_PROMPT
+
+    def test_identity_before_state_ordering(self) -> None:
+        """IDENTITY-THEN-STATE: the IDENTITY block precedes the STATE CHECK in each prompt."""
+        for prompt in _NON_BRAINSTORM_PROMPTS:
+            assert "IDENTITY FIRST" in prompt
+            assert "STATE CHECK" in prompt
+            # Identity must appear BEFORE the state check (a misattributed agent must never verify
+            # the wrong feature's shipped-ness).
+            assert prompt.index("IDENTITY FIRST") < prompt.index("STATE CHECK")
+
+    def test_absent_marker_self_backfill_rule(self) -> None:
+        """The IDENTITY block carries the absent-marker self-backfill rule (title [CODE] wins)."""
+        for prompt in _NON_BRAINSTORM_PROMPTS:
+            assert "--set-field roadmap" in prompt
+
+    def test_desync_protocol_on_all_non_brainstorm(self) -> None:
+        """The DESYNC protocol (STOP, never guess, never touch another ticket) is present."""
+        for prompt in _NON_BRAINSTORM_PROMPTS:
+            assert "DESYNC PROTOCOL" in prompt
+
+    def test_all_body_write_backs_via_kanban_update_body(self) -> None:
+        """Every body-writing stage routes write-backs through kanban-update-body ONLY."""
+        for prompt in (_BRAINSTORM_PROMPT, _DESIGN_PROMPT, _PLAN_PROMPT):
+            assert "kanban-update-body" in prompt
+            # The raw path is only ever mentioned to BAN it ("NEVER raw `gh issue edit`"), never as
+            # an instruction.
+            assert "gh issue edit" not in prompt or "NEVER raw `gh issue edit`" in prompt
+
+    def test_brainstorm_appends_not_overwrites(self) -> None:
+        """The brainstorm APPENDS under '## Brainstorm' and never overwrites the seed."""
+        assert "--append-section '## Brainstorm'" in _BRAINSTORM_PROMPT
+        assert "NEVER overwrite" in _BRAINSTORM_PROMPT
+
+    def test_context_framed_as_not_the_spec(self) -> None:
+        """{{issue_body}} AND {{comments}} are framed as related context — NOT the feature spec."""
+        assert "NOT your feature spec" in _BRAINSTORM_PROMPT
+
+    def test_design_and_plan_write_to_feature_folder(self) -> None:
+        """Design/plan write to docs/features/<codename>/ (a rendered {{codename}} parameter)."""
+        assert "docs/features/{{codename}}/" in _DESIGN_PROMPT
+        assert "docs/features/{{codename}}/plan/" in _PLAN_PROMPT
+
+    def test_fixci_labels_output_stale_and_rechecks(self) -> None:
+        """_FIXCI_PROMPT labels {{script_output}} possibly-STALE + requires a live re-check."""
+        assert "MAY BE STALE" in _FIXCI_PROMPT
+        assert "ALREADY GREEN" in _FIXCI_PROMPT  # the green-already fast path
+
+    def test_plan_and_prepare_preconditions(self) -> None:
+        """_PLAN_PROMPT/_PREPARE_PROMPT guard an empty design/plan path as a DESYNC, not a guess."""
+        assert "PRECONDITION" in _PLAN_PROMPT
+        assert "{{design_path}}" in _PLAN_PROMPT
+        assert "PRECONDITION" in _PREPARE_PROMPT
+        assert "{{plan_paths}}" in _PREPARE_PROMPT
+
+    def test_done_checklist_on_every_stage(self) -> None:
+        """Each stage carries a 'DONE =' completion checklist + re-entry idempotence."""
+        for prompt in _ALL_PROMPTS:
+            assert "DONE =" in prompt
+            assert "re-entry" in prompt.lower()
+
+
+class TestDoneBlockedSplit:
+    """§29.4: early stages exit shipped→Done; late stages (worktree exists) exit shipped→Blocked."""
+
+    # Early stages: the agent's card lands in a pre-PrepareFeature column (Design→Spec,
+    # Plan→Plan), where skip-to-Done IS whitelisted, so their prompt exits shipped→Done.
+    _EARLY = (_DESIGN_PROMPT, _PLAN_PROMPT)
+    # Late stages: the card sits in PrepareFeature onward and a worktree/branch/PR exists, so Done
+    # is NOT whitelisted (would roll back) — they exit shipped→Blocked, never Cancel.
+    _LATE = (_PREPARE_PROMPT, _IMPLEMENT_PROMPT, _FIXCI_PROMPT, _REVIEW_PROMPT)
+
+    def test_early_stages_exit_shipped_to_done(self) -> None:
+        """An early-stage shipped exit moves to Done (the skip-to-Done whitelist boundary)."""
+        for prompt in self._EARLY:
+            assert "kanban-move {{code}} Done" in prompt
+
+    def test_early_shipped_move_is_mandatory_and_overrides_done_checklist(self) -> None:
+        """Phase 39: the ALREADY_SHIPPED exit mandates the Done move and OVERRIDES the DONE checklist.
+
+        Live #146 finding: the agent followed the literal ``DONE =`` checklist (which only listed the
+        durable doc outputs) and ended WITHOUT moving the card. The shipped branch must now state the
+        move is MANDATORY and overrides the normal checklist, and each ``DONE =`` line must spell out
+        the ALREADY_SHIPPED completion so the two cannot be read as contradictory.
+        """
+        for prompt in self._EARLY:
+            # The STATE CHECK marks the Done move MANDATORY and overriding the normal checklist.
+            assert "MANDATORY" in prompt
+            assert "OVERRIDES (replaces) the normal" in prompt
+            # The DONE line restates the ALREADY_SHIPPED completion (no longer a contradiction).
+            assert "ALREADY_SHIPPED case: DONE = evidence comment + card moved to Done" in prompt
+
+    def test_late_stages_exit_shipped_to_blocked_not_cancel(self) -> None:
+        """A late-stage shipped exit moves to Blocked (Cancel is operator-only)."""
+        for prompt in self._LATE:
+            assert "kanban-move {{code}} Blocked" in prompt
+            assert "Cancel is operator-only" in prompt
+
+
+class TestBrainstormStateCheck:
+    """Phase 39b (R2, live #146): the FIRST stage gains a state-check-first shipped exit."""
+
+    def test_brainstorm_has_state_check_first(self) -> None:
+        """``_BRAINSTORM_PROMPT`` carries a STATE CHECK FIRST block (the cheapest catch)."""
+        assert "STATE CHECK FIRST" in _BRAINSTORM_PROMPT
+
+    def test_state_check_precedes_the_interactive_brainstorm(self) -> None:
+        """The state check is placed BEFORE the interactive Q&A invitation."""
+        assert _BRAINSTORM_PROMPT.index("STATE CHECK FIRST") < _BRAINSTORM_PROMPT.index(
+            "MAY ask the user"
+        )
+
+    def test_shipped_exit_moves_to_done_and_is_mandatory(self) -> None:
+        """The ALREADY_SHIPPED exit mandates the Done move and OVERRIDES the DONE checklist."""
+        assert "kanban-move {{code}} Done" in _BRAINSTORM_PROMPT
+        assert "MANDATORY" in _BRAINSTORM_PROMPT
+        assert "OVERRIDES (replaces) the normal" in _BRAINSTORM_PROMPT
+        # Posts the evidence FIRST, sets the codename marker, then ends WITHOUT brainstorming.
+        assert "already shipped: <evidence>" in _BRAINSTORM_PROMPT
+        assert "--set-field codename <the-shipped-codename>" in _BRAINSTORM_PROMPT
+        assert "WITHOUT starting the interactive brainstorm" in _BRAINSTORM_PROMPT
+
+    def test_done_line_restates_already_shipped_completion(self) -> None:
+        """The DONE line spells out the ALREADY_SHIPPED completion (no contradiction)."""
+        assert (
+            "ALREADY_SHIPPED case: DONE = evidence comment + **codename** marker + card moved to "
+            "Done" in _BRAINSTORM_PROMPT
+        )
+
+    def test_brainstorm_stays_interactive_on_the_non_shipped_path(self) -> None:
+        """The non-shipped path is unchanged: the interactive Q&A is still allowed."""
+        assert "MAY ask the user" in _BRAINSTORM_PROMPT
+        assert "Run fully autonomously" not in _BRAINSTORM_PROMPT
+
+
+class TestRecoveryEdges:
+    """#12: the three operator-recovery edges — Review→InProgress, Planned→Spec, Done→Backlog."""
+
+    def test_review_to_inprogress_rework_edge(self) -> None:
+        """Review→InProgress is a LAUNCH (rework prompt) mirroring fix-CI: profile dev, advance auto:PRCI."""
+        cfg = load_transitions(_render_doc("owner/repo"))
+        rework = cfg.get("Review", "InProgress")
+        assert rework is not None
+        assert rework.prompt == _REWORK_PROMPT
+        assert rework.profile == "dev"
+        assert rework.advance == "auto:PRCI"
+        # It mirrors the fix-CI pattern (advance auto:PRCI re-runs the CI gate after the push).
+        fixci = cfg.get("PRCI", "InProgress")
+        assert fixci is not None
+        assert rework.advance == fixci.advance
+
+    def test_rework_prompt_is_hardened_and_autonomous(self) -> None:
+        """The rework prompt carries the hardened constants (scope guard, identity, autonomy)."""
+        # Same hardening fingerprints the other hardened launch prompts carry.
+        assert "ONLY" in _REWORK_PROMPT  # scope guard
+        assert "kanban-move {{code}} 'PR/CI'" in _REWORK_PROMPT  # re-runs the CI gate
+        assert "{{codename}}" in _REWORK_PROMPT and "{{code}}" in _REWORK_PROMPT
+
+    def test_planned_to_spec_is_a_noop(self) -> None:
+        """Planned→Spec is a plain no-op (no agent launches on the edge — re-plan via Spec→Plan)."""
+        cfg = load_transitions(_render_doc("owner/repo"))
+        edge = cfg.get("Planned", "Spec")
+        assert edge is not None
+        assert edge.prompt is None
+        assert edge.script is None
+
+    def test_done_to_backlog_is_a_plain_noop_not_a_reset(self) -> None:
+        """Done→Backlog is a PLAIN no-op whitelist edge — NOT a RESET (rank-7 correction).
+
+        The whitelist schema has no `action:` field and RESET is hard-wired to the reactive Cancel
+        column, so Done→Backlog cannot BE a RESET. It is a known no-op edge (no rollback) that does
+        NOT wipe stale state — acceptable per the verdict (residual Done state is already rare).
+        """
+        cfg = load_transitions(_render_doc("owner/repo"))
+        edge = cfg.get("Done", "Backlog")
+        assert edge is not None
+        assert edge.prompt is None
+        assert edge.script is None
+        # The only RESET path stays Cancel→Backlog (a reactive-column route, not this whitelist edge).
+        assert cfg.get("Cancel", "Backlog") is not None
+
+    def test_recovery_edges_added_nothing_else_changed(self) -> None:
+        """The three recovery edges are present; the pre-existing edges are all still resolvable."""
+        cfg = load_transitions(_render_doc("owner/repo"))
+        # The three NEW edges resolve.
+        assert cfg.get("Review", "InProgress") is not None
+        assert cfg.get("Planned", "Spec") is not None
+        assert cfg.get("Done", "Backlog") is not None
+        # A spot-check of pre-existing edges still resolves (nothing was removed/broken).
+        assert cfg.get("Backlog", "Brainstorming") is not None
+        assert cfg.get("PrepareFeature", "InProgress") is not None
+        assert cfg.get("Review", "Merge") is not None
+        assert cfg.get("Merge", "Done") is not None

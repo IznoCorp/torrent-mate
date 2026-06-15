@@ -1,0 +1,17 @@
+{
+  "id": 2104857321,
+  "node_id": "IC_kwDOBpVuBM5kZ3xp",
+  "url": "https://api.github.com/repos/IznoCorp/demo/issues/7/comments/2104857321",
+  "html_url": "https://github.com/IznoCorp/demo/issues/7#issuecomment-2104857321",
+  "issue_url": "https://api.github.com/repos/IznoCorp/demo/issues/7",
+  "user": {
+    "login": "kanbanmate-bot",
+    "id": 198473625,
+    "node_id": "U_kgDOC8a2WQ",
+    "type": "Bot"
+  },
+  "created_at": "2026-06-04T08:31:40Z",
+  "updated_at": "2026-06-04T08:31:40Z",
+  "author_association": "COLLABORATOR",
+  "body": "Agent launched in worktree `ticket-7`."
+}
