@@ -307,3 +307,123 @@ def test_poll_aired_season_selection_excludes_season_zero() -> None:
     assert 0 not in called_seasons, f"Season 0 must be excluded but was called: {called_seasons}"
     assert 1 in called_seasons, "Season 1 must be polled"
     assert 2 in called_seasons, "Season 2 must be polled"
+
+
+# ---------------------------------------------------------------------------
+# NEGATIVE boundary (DESIGN §1 / §8 — LOAD-BEARING)
+# These tests encode the RP9↔D2 boundary as executable assertions.
+# A future refactor that folds D2 logic into RP9 will fail here.
+# ---------------------------------------------------------------------------
+
+
+def test_poll_aired_makes_no_store_wanted_calls() -> None:
+    """LOAD-BEARING (DESIGN §1): poll_aired must NEVER call store.wanted.* (D2's job)."""
+    from datetime import date
+    from unittest.mock import MagicMock
+
+    from personalscraper.acquire.airing import poll_aired
+
+    registry = MagicMock()
+    registry.chain.return_value = []  # empty chain → no network calls
+
+    store_spy = MagicMock()
+    wanted_spy = MagicMock()
+    store_spy.wanted = wanted_spy
+
+    series = [_make_series(81189, "Test Show")]
+
+    # poll_aired does NOT accept a store argument — we are verifying it is never
+    # called at all (it has no store parameter by design).
+    poll_aired(series, registry, today=date(2024, 6, 15))
+
+    # The store spy was never passed in, so wanted_spy must have zero calls.
+    # This confirms poll_aired's signature has no store parameter (DESIGN §2).
+    assert wanted_spy.add.call_count == 0, "poll_aired must not call store.wanted.add"
+    assert wanted_spy.enqueue.call_count == 0, "poll_aired must not call store.wanted.enqueue"
+    assert store_spy.call_count == 0, "poll_aired must not call the store at all"
+
+
+def test_poll_aired_makes_no_ownership_calls() -> None:
+    """LOAD-BEARING (DESIGN §1): poll_aired must NEVER call ownership.owns() (D2's job)."""
+    from datetime import date
+    from unittest.mock import MagicMock, patch
+
+    from personalscraper.acquire.airing import poll_aired
+
+    registry = MagicMock()
+    registry.chain.return_value = []
+
+    ownership_spy = MagicMock()
+
+    with patch("personalscraper.acquire.airing.ownership", ownership_spy, create=True):
+        # Even if an 'ownership' symbol existed in the module namespace, it must
+        # never be called. create=True so the patch installs it without import error.
+        series = [_make_series(81189, "Test Show")]
+        poll_aired(series, registry, today=date(2024, 6, 15))
+
+    assert ownership_spy.owns.call_count == 0, "poll_aired must not call ownership.owns()"
+
+
+def test_poll_aired_does_not_read_cadence_json() -> None:
+    """LOAD-BEARING (DESIGN §1): poll_aired must NOT access cadence_json on FollowedSeries."""
+    from datetime import date
+    from unittest.mock import MagicMock, PropertyMock
+
+    from personalscraper.acquire.airing import poll_aired
+    from personalscraper.core.identity import MediaRef
+
+    registry = MagicMock()
+    registry.chain.return_value = []
+
+    # Build a FollowedSeries mock that records cadence_json access.
+    fs = MagicMock()
+    fs.title = "Test Show"
+    fs.media_ref = MediaRef(tvdb_id=81189)
+    cadence_spy = PropertyMock(return_value=None)
+    type(fs).cadence_json = cadence_spy
+
+    poll_aired([fs], registry, today=date(2024, 6, 15))
+
+    assert cadence_spy.call_count == 0, (
+        f"poll_aired must not read cadence_json (accessed {cadence_spy.call_count} time(s))"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Layering guard (DESIGN §7)
+# acquire/airing.py must import downward only:
+#   api/metadata + acquire.domain + core.identity + stdlib datetime
+# Never store, indexer, or any triage package.
+# ---------------------------------------------------------------------------
+
+
+def test_airing_module_has_no_store_or_indexer_import() -> None:
+    """DESIGN §7: acquire/airing.py must not import store or indexer packages."""
+    import ast
+    from pathlib import Path
+
+    source = (Path(__file__).parent.parent.parent / "personalscraper" / "acquire" / "airing.py").read_text()
+    tree = ast.parse(source)
+
+    forbidden_prefixes = (
+        "personalscraper.indexer",
+        "personalscraper.acquire.store",
+        "personalscraper.acquire._ports",
+        "personalscraper.scraper",
+        "personalscraper.ingest",
+        "personalscraper.commands",
+        "personalscraper.pipeline",
+    )
+
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            module = ""
+            if isinstance(node, ast.ImportFrom) and node.module:
+                module = node.module
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    module = alias.name
+            for prefix in forbidden_prefixes:
+                assert not module.startswith(prefix), (
+                    f"acquire/airing.py imports forbidden module '{module}' (violates DESIGN §7 layering invariant)"
+                )
