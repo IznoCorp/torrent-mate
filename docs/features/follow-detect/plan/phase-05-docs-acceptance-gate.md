@@ -112,7 +112,8 @@ pytest tests/acquire/test_cadence.py -v -k "effective_cadence" --tb=short
 pytest tests/acquire/test_cadence.py -v -k "config" --tb=short
 ```
 
-**Expected:** `2 passed`, `0 failed`.
+**Expected:** `5 passed`, `0 failed` (broad `-k config` also matches the two
+`rejects_*` validator tests + the unit-conversion test, so the real count is 5).
 
 ---
 
@@ -172,7 +173,7 @@ pytest tests/acquire/test_service_cadence.py -v --tb=short
 pytest tests/commands/test_follow_detect.py::test_detect_boundary_no_grab_calls tests/acquire/test_airing.py -v --tb=short
 ```
 
-**Expected:** All pass, `0 failed`.
+**Expected:** `25 passed`, `0 failed`.
 
 ---
 
@@ -181,7 +182,7 @@ pytest tests/commands/test_follow_detect.py::test_detect_boundary_no_grab_calls 
 **Command:**
 
 ```bash
-rg "^from.*(indexer|acquire\.store|acquire\._ports|scraper|event_bus)|^import.*(indexer|acquire\.store|scraper)" --type py personalscraper/acquire/cadence.py
+rg "^from .*(indexer|acquire\.store|acquire\._ports|scraper|event_bus)|^import .*(indexer|acquire\.store|scraper)" --type py personalscraper/acquire/cadence.py
 pytest tests/commands/test_follow_detect.py::test_detect_layering_no_indexer_import -v --tb=short
 ```
 
@@ -258,7 +259,7 @@ Expected: all pass, `0 failed`.
 - [ ] **Step 5: Layering rg cross-check**
 
 ```bash
-rg "^from.*(indexer|acquire\.store|acquire\._ports|scraper|event_bus)|^import.*(indexer|acquire\.store|scraper)" --type py personalscraper/acquire/cadence.py
+rg "^from .*(indexer|acquire\.store|acquire\._ports|scraper|event_bus)|^import .*(indexer|acquire\.store|scraper)" --type py personalscraper/acquire/cadence.py
 ```
 
 Expected: no output (exit code 1 = no match = correct).
