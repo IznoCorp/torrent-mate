@@ -8,11 +8,17 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/follow-detect/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/follow-detect/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                              | File                                    | Status |
+| --- | ---------------------------------- | --------------------------------------- | ------ |
+| 1   | Cadence module + config + codec    | phase-01-cadence-module-config-codec.md | [ ]    |
+| 2   | Wanted dedup (`find`)              | phase-02-wanted-dedup.md                | [ ]    |
+| 3   | DETECT logic + `follow detect` CLI | phase-03-detect-cli.md                  | [ ]    |
+| 4   | Cadence-aware run loop             | phase-04-cadence-aware-run-loop.md      | [ ]    |
+| 5   | Docs + ACCEPTANCE + gate           | phase-05-docs-acceptance-gate.md        | [ ]    |
 
 ## Review cycles
 
@@ -20,4 +26,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start Phase 1.
