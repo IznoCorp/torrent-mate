@@ -59,7 +59,7 @@ staging/
 │   │   ├── orchestrator.py    # GrabOrchestrator — single-item §1 grab chain, failure taxonomy, event emission
 │   │   ├── service.py         # AcquisitionService batch loop, GrabCore handle, RunSummary, attempts cap
 │   │   ├── airing.py          # RP9 — stateless set-poll: poll_aired(series, registry, *, today) → list[AiredEpisode]; capability-only (no store/ownership/cadence); unblocks Follow D2
-│   │   ├── cadence.py          # Follow D2 — Cadence/CadenceTier VOs + is_due_by_cadence/is_past_cutoff (pure, stdlib only)
+│   │   ├── cadence.py         # Follow D2 — Cadence/CadenceTier VOs + is_due_by_cadence/is_past_cutoff (pure, stdlib only)
 │   │   └── migrations/         # SQL migration scripts for acquire.db
 │   │   Import direction: downward only (api/, core/, conf/, events/); never triage packages.
 │   │   (RP4) `subscribers/acquire.py` — muted AcquisitionTelegramSubscriber, gated by `acquire_notify_enabled`.

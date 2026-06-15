@@ -1,8 +1,8 @@
 """Typed RP3a vocabulary — Resolution, QualityProfile, SourceCriteria.
 
 Frozen, core+stdlib-pure value objects.  JSON codec helpers live here
-(mirrors the style of ``store.py``'s ``_media_ref_to_json``) so the
-684-LOC ``store.py`` budget is protected.
+(mirrors the style of ``store.py``'s ``_media_ref_to_json``) so
+``store.py`` stays under the 1000-LOC module ceiling.
 
 Import direction: stdlib only — never api/, indexer/, scraper/, or triage.
 """

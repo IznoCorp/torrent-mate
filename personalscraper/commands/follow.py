@@ -4,6 +4,8 @@ Sub-commands:
 - ``follow add --tvdb/--tmdb/--imdb/--title`` — follow a series (idempotent).
 - ``follow list [--all]`` — list followed series.
 - ``follow remove --tvdb/--id`` — soft-unfollow a series.
+- ``follow detect [--dry-run] [--series]`` — poll aired episodes for active
+  series and enqueue them as wanted items.
 
 Registered as a Typer sub-group (``follow_app = typer.Typer(...)`` mounted via
 ``_root_app.add_typer``). Sub-commands use ``@follow_app.command("name")``
@@ -364,6 +366,10 @@ def follow_detect(
             enqueued += 1
 
             if not dry_run:
+                # No ``criteria_json`` set: DESIGN §6's
+                # ``criteria_json = source_criteria(...) or None`` reduces to
+                # ``None`` at D2 since ``FollowedSeries`` has no per-series
+                # source-criteria field yet — the mapping wasn't dropped.
                 store.wanted.add(
                     WantedItem(
                         media_ref=ep.media_ref,

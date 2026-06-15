@@ -359,3 +359,28 @@ def test_cadence_post_init_rejects_cutoff_below_last_tier():
 
     with pytest.raises(ValueError):
         Cadence(tiers=(CadenceTier(max_age_s=100, interval_s=10),), cutoff_s=50)
+
+
+def test_cadence_module_imports_are_pure() -> None:
+    """PURITY (DESIGN §11 criterion 9): cadence.py imports stdlib only.
+
+    AST-parses ``personalscraper/acquire/cadence.py`` and asserts every
+    imported top-level module is in the stdlib allowlist — pinning that no
+    ``store``/``indexer``/``scraper``/``event_bus``/``conf``/``personalscraper.*``
+    runtime import sneaks into the pure cadence value-object module.
+    """
+    import ast
+    from pathlib import Path
+
+    allowed = {"__future__", "dataclasses"}
+    src = Path("personalscraper/acquire/cadence.py").read_text()
+    tree = ast.parse(src)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                top = alias.name.split(".")[0]
+                assert top in allowed, f"Forbidden import in cadence.py: {alias.name}"
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            top = module.split(".")[0]
+            assert top in allowed, f"Forbidden import in cadence.py: {module}"
