@@ -59,6 +59,7 @@ staging/
 │   │   ├── orchestrator.py    # GrabOrchestrator — single-item §1 grab chain, failure taxonomy, event emission
 │   │   ├── service.py         # AcquisitionService batch loop, GrabCore handle, RunSummary, attempts cap
 │   │   ├── airing.py          # RP9 — stateless set-poll: poll_aired(series, registry, *, today) → list[AiredEpisode]; capability-only (no store/ownership/cadence); unblocks Follow D2
+│   │   ├── cadence.py         # Follow D2 — Cadence/CadenceTier VOs + is_due_by_cadence/is_past_cutoff (pure, stdlib only)
 │   │   └── migrations/         # SQL migration scripts for acquire.db
 │   │   Import direction: downward only (api/, core/, conf/, events/); never triage packages.
 │   │   (RP4) `subscribers/acquire.py` — muted AcquisitionTelegramSubscriber, gated by `acquire_notify_enabled`.
@@ -431,6 +432,8 @@ in `tests/architecture/test_layering.py`.
 authority (`core.delete_permit`).
 
 **Airing capability (RP9):** `acquire/airing.py` exposes `poll_aired(series, registry, *, today)` — a **stateless** free function (no `AcquireContext` field) that returns `list[AiredEpisode]` (see `acquire/domain.py`). It performs **zero** `store.wanted.*` writes, never calls `ownership.owns()`, and never reads `cadence_json` — surfacing aired episodes is RP9's sole responsibility; applying policy (wanted enqueue, ownership skip, cadence backoff) is Follow D2's job. Unblocks Follow D2 (calendar-first detection → wanted enqueue).
+
+**Follow D2 (follow-detect):** Follow D2 is RP9's first consumer. The `follow detect` CLI (`commands/follow.py`) drives `poll_aired` over the active followed set, filters owned episodes (RP6 `ownership.owns`) and duplicates (`store.wanted.find`), then enqueues `WantedItem(kind='episode', status='pending')` and emits `WantedEnqueued`. Cadence policy lives in the pure `acquire/cadence.py` (imports `core`/stdlib only — never `store`, `indexer`, `scraper`, or the event bus); the cadence codecs and the `CadenceConfig`→`Cadence` bridge are in `acquire/desired.py`; the cadence-aware re-search gating (cutoff → `WantedAbandoned(reason='cutoff_reached')`) is in `AcquisitionService._process_item`.
 
 ## Provider Registry
 

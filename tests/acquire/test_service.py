@@ -31,7 +31,6 @@ from personalscraper.acquire.domain import FollowedSeries, WantedItem
 from personalscraper.acquire.events import GrabSucceeded, WantedAbandoned
 from personalscraper.acquire.orchestrator import GrabOutcome
 from personalscraper.acquire.service import (
-    _STALE_THRESHOLD_S,
     MAX_ATTEMPTS,
     AcquisitionService,
     GrabCore,
@@ -53,6 +52,28 @@ def store(tmp_path: Path) -> Iterator[ConcreteAcquireStore]:
         yield s
     finally:
         s.close()
+
+
+# Pinned service clock: 1h after the items' enqueued_at (1_700_000_000). With the
+# default Hot/Warm/Cold/30d cadence this puts every _pending_item in the Hot tier
+# (age 1h < 72h) and well within the 30d cutoff, so a fresh row (last_search_at is
+# None) is DUE immediately — preserving the pre-cadence grab/retry/stale behaviour.
+# Without this pin, real ``now`` (~2026) would be >30d past enqueued_at and the new
+# cutoff gate would abandon every legacy fixture row. Cadence-specific behaviour is
+# exercised in test_service_cadence.py.
+_PINNED_NOW = 1_700_003_600  # enqueued_at + 3600s
+
+
+@pytest.fixture(autouse=True)
+def _pin_service_clock() -> Iterator[None]:
+    """Pin ``service.time.time`` so legacy fixture rows stay due (not cutoff-abandoned).
+
+    Tests that need a different clock (e.g. the §11d stale-recovery window) nest
+    their own ``patch("...service.time.time", ...)`` which overrides this for the
+    duration of the inner ``with`` block.
+    """
+    with patch("personalscraper.acquire.service.time.time", return_value=_PINNED_NOW):
+        yield
 
 
 def _pending_item(tvdb_id: int = 99) -> WantedItem:
@@ -204,12 +225,26 @@ def _success_orch(info_hash: str = "h1") -> MagicMock:
     return orch
 
 
+def _config() -> MagicMock:
+    """Return a config stub whose ``.acquire`` is a real default :class:`AcquireConfig`.
+
+    The service reads ``config.acquire.cadence`` via ``cadence_from_config`` once
+    per run; a real ``AcquireConfig()`` supplies the canonical Hot/Warm/Cold/30d
+    cadence so the cadence helpers operate on real values (a bare MagicMock would
+    not).
+    """
+    config = MagicMock()
+    config.acquire = AcquireConfig()  # default cadence — Hot/Warm/Cold/30d
+    return config
+
+
 def _service(store: object, orchestrator: MagicMock, event_bus: MagicMock | None = None) -> AcquisitionService:
     """Build a service with a (mock) event_bus — required by the no-optional-bus contract."""
     return AcquisitionService(
         store=store,  # type: ignore[arg-type]
         orchestrator=orchestrator,  # type: ignore[arg-type]
         event_bus=event_bus if event_bus is not None else MagicMock(),
+        config=_config(),
     )
 
 
@@ -287,15 +322,17 @@ def test_attempts_cap_abandons_item(store: ConcreteAcquireStore) -> None:
     """
     rowid = store.wanted.add(_pending_item())
     # Exhaust attempts up to MAX_ATTEMPTS - 1 via direct claim/reset cycles so the
-    # NEXT service claim lands exactly at the cap.
+    # NEXT service claim lands exactly at the cap. Stamp last_search_at one Hot
+    # interval (2h) before the pinned service clock so the row is DUE again on the
+    # service run (else the cadence gate would skip it before reaching the cap).
     for _ in range(MAX_ATTEMPTS - 1):
-        store.wanted.claim_for_search(rowid, int(time.time()))
+        store.wanted.claim_for_search(rowid, _PINNED_NOW - 7200)
         store.wanted.set_status(rowid, "pending")
 
     mock_event_bus = MagicMock()
     orch = MagicMock()
     orch.grab.return_value = GrabOutcome(disposition="retryable", reason="add_failed")
-    service = AcquisitionService(store=store, orchestrator=orch, event_bus=mock_event_bus)
+    service = AcquisitionService(store=store, orchestrator=orch, event_bus=mock_event_bus, config=_config())
     summary = service.run(limit=10)
 
     item = store.wanted.get(rowid)
@@ -403,7 +440,7 @@ def test_service_emits_grab_succeeded_after_persist_exact_payload(store: Concret
         category="movies",
         tags=("lacale",),
     )
-    service = AcquisitionService(store=store, orchestrator=orch, event_bus=bus)
+    service = AcquisitionService(store=store, orchestrator=orch, event_bus=bus, config=_config())
 
     service.run(limit=10)
 
@@ -436,7 +473,7 @@ def test_hash_guard_no_double_emit_via_event_bus(store: ConcreteAcquireStore) ->
     chosen = _make_tracker_result(provider="lacale")
     orch = MagicMock()
     orch.grab.return_value = GrabOutcome(disposition="success", info_hash="emit-once", chosen=chosen, tags=("lacale",))
-    service = AcquisitionService(store=store, orchestrator=orch, event_bus=bus)
+    service = AcquisitionService(store=store, orchestrator=orch, event_bus=bus, config=_config())
 
     service.run(limit=10)
     service.run(limit=10)
@@ -495,7 +532,7 @@ def test_section_11d_crash_window_emits_grab_succeeded_exactly_once(store: Concr
     spy_store.wanted = wanted_spy
     spy_store.follow = store.follow
 
-    service = AcquisitionService(store=spy_store, orchestrator=orch, event_bus=bus)
+    service = AcquisitionService(store=spy_store, orchestrator=orch, event_bus=bus, config=_config())
 
     # --- Run 1: mark_grabbed crashes → row stays 'searching', NO emit. ---
     summary1 = service.run(limit=10)
@@ -510,9 +547,13 @@ def test_section_11d_crash_window_emits_grab_succeeded_exactly_once(store: Concr
     assert item_mid.grabbed_hash is None
 
     # --- Run 2: stale recovery. Force the searching row stale so list_stale_searching picks it up. ---
-    # Re-stamp last_search_at far in the past via a direct claim cycle is not
-    # needed: drop the threshold by patching time so the fresh row counts as stale.
-    with patch("personalscraper.acquire.service.time.time", return_value=time.time() + _STALE_THRESHOLD_S + 10):
+    # Run 1 stamped last_search_at = _PINNED_NOW (the pinned service clock). Advance
+    # the clock one Hot interval (2h) past that so the row is BOTH stale (older than
+    # the 1h _STALE_THRESHOLD_S sweep window) AND due again under the 2h Hot cadence,
+    # while staying well within the 30d cutoff (total age ~3h). This overrides the
+    # autouse clock pin for the duration of run 2.
+    run2_now = _PINNED_NOW + 7200 + 10
+    with patch("personalscraper.acquire.service.time.time", return_value=run2_now):
         summary2 = service.run(limit=10)
 
     assert summary2.grabbed == 1, "stale recovery must re-grab the orphaned row"

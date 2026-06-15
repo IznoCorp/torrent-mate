@@ -5,5 +5,14 @@
   // db_path defaults to paths.data_dir / "acquire.db" when not set.
   acquire: {
     db_path: null,
+    cadence: {
+      // Hot/Warm/Cold backoff — DESIGN §3 frozen policy (D2).
+      tiers: [
+        { max_age_hours: 72,  interval_minutes: 120  },  // Hot  — 0–72h,  re-search every 2h
+        { max_age_hours: 336, interval_minutes: 1440 },  // Warm — 3–14d,  re-search every 1d
+        { max_age_hours: 720, interval_minutes: 10080 }, // Cold — 14–30d, re-search every 7d
+      ],
+      cutoff_days: 30,
+    },
   },
 }
