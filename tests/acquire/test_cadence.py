@@ -219,18 +219,27 @@ def test_cadence_from_json_none_returns_none():
 def test_cadence_from_json_malformed_returns_none():
     """A malformed or semantically-invalid blob fails soft to None (no crash).
 
-    Covers all three except branches of the defensive decode (F-C):
-    - ``"{not json"`` → ``json.JSONDecodeError``,
-    - ``'{"tiers": []}'`` → ``KeyError`` (missing ``cutoff_s``) — and even with
-      a cutoff would hit ``ValueError`` (empty tiers via ``__post_init__``),
-    - a negative ``max_age_s`` → ``ValueError`` from ``Cadence.__post_init__``.
+    Covers all four except branches of the defensive decode (F-C / F-N) — one
+    blob per exception type in ``(JSONDecodeError, KeyError, TypeError,
+    ValueError)``:
+    - ``"{not json"`` → ``json.JSONDecodeError`` (unparseable JSON),
+    - ``'{"tiers": []}'`` → ``KeyError: 'cutoff_s'``: the tiers generator
+      yields nothing for the empty list, then ``data["cutoff_s"]`` is accessed
+      and raises — the empty-tiers ``ValueError`` in ``Cadence.__post_init__``
+      is never reached because the missing-key access happens first,
+    - ``'{"tiers": 5, "cutoff_s": 10}'`` → ``TypeError`` (``5`` is an ``int``,
+      not iterable — the ``for t in data["tiers"]`` generator raises),
+    - a negative ``max_age_s`` → ``ValueError`` from
+      ``CadenceTier.__post_init__`` (leaf-guard fires at tier construction).
 
     Each decodes to ``None`` so the caller falls back to the global default.
     """
     from personalscraper.acquire.desired import cadence_from_json
 
-    assert cadence_from_json("{not json") is None
-    assert cadence_from_json('{"tiers": []}') is None
+    assert cadence_from_json("{not json") is None  # JSONDecodeError
+    assert cadence_from_json('{"tiers": []}') is None  # KeyError: 'cutoff_s'
+    assert cadence_from_json('{"tiers": 5, "cutoff_s": 10}') is None  # TypeError (int not iterable)
+    # ValueError from CadenceTier.__post_init__ (negative max_age_s):
     assert cadence_from_json('{"tiers": [{"max_age_s": -1, "interval_s": 1}], "cutoff_s": 5}') is None
 
 
@@ -301,15 +310,33 @@ def test_is_due_dead_band_uses_last_tier_interval():
 
 
 def test_is_due_dead_band_too_recent_not_due():
-    """Same dead-band window but last_search only 1h back → NOT due.
+    """Same dead-band window but last_search 3 days back → NOT due.
 
-    Confirms the fallback applies the Cold interval (does not just always
-    return True): a too-recent search inside the window stays not-due.
+    Interval-DISCRIMINATING negative control (F-P): pins that the dead-band
+    fallback applies the LAST (Cold, 7d) tier's interval — not a shorter one
+    and not a blanket freeze. The ``last_search_at`` is chosen so the gap
+    (3 days) sits strictly BETWEEN the Hot interval (2h) and the Cold interval
+    (7d):
+
+      Hot 2h (7200s)  <  3 days (259200s)  <  Cold 7d (604800s)
+
+    - Under the real Cold-interval fallback: ``259200 >= 604800`` is False →
+      NOT due (asserted here).
+    - If the fallback regressed to a SHORTER interval (e.g. Hot 2h):
+      ``259200 >= 7200`` is True → it would FLIP to due, failing this assert.
+
+    A 1h-back search (the previous value) was ``< both`` intervals, so it
+    could not distinguish Cold from Hot and was a weak control. It also still
+    catches the pre-fix blanket ``return False`` because the paired
+    ``test_is_due_dead_band_uses_last_tier_interval`` (same window, older
+    search) asserts True — the pre-fix freeze would have made THAT False.
     """
     from personalscraper.acquire.cadence import is_due_by_cadence
 
     enqueued = NOW - (800 * 3600)  # age=800h, beyond last tier, before cutoff
-    last = NOW - 3600  # only 1h back, well under the 7d Cold interval
+    # 3 days back: > Hot interval (2h) but < Cold interval (7d) → not due ONLY
+    # if the fallback uses the Cold interval, not a shorter one.
+    last = NOW - (3 * 24 * 3600)
     assert is_due_by_cadence(_canon_cutoff_beyond(), now=NOW, enqueued_at=enqueued, last_search_at=last) is False
 
 
@@ -322,10 +349,14 @@ def test_cadence_post_init_canonical_builds():
 
 
 def test_cadence_post_init_rejects_empty_tiers():
-    """Empty tiers → ValueError."""
+    """Empty tiers → ValueError.
+
+    ``match=`` pins the exact guard message so a future guard-reorder that
+    swallows the empty check (or changes the wording) is a caught regression.
+    """
     from personalscraper.acquire.cadence import Cadence
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="tiers must not be empty"):
         Cadence(tiers=(), cutoff_s=100)
 
 
@@ -334,13 +365,16 @@ def test_cadence_post_init_rejects_nonpositive():
 
     The leaf-level :meth:`CadenceTier.__post_init__` guard fires first (the
     tier is constructed before the enclosing ``Cadence`` body runs), so these
-    raise at tier construction with a tier-level message — still a ``ValueError``.
+    raise at tier construction with a TIER-level message — still a
+    ``ValueError``. ``match=`` therefore pins the CadenceTier message
+    (``"max_age_s must be positive"`` / ``"interval_s must be positive"``),
+    not the Cadence-body wording, which is what actually fires.
     """
     from personalscraper.acquire.cadence import Cadence, CadenceTier
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="max_age_s must be positive"):
         Cadence(tiers=(CadenceTier(max_age_s=0, interval_s=10),), cutoff_s=100)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="interval_s must be positive"):
         Cadence(tiers=(CadenceTier(max_age_s=100, interval_s=0),), cutoff_s=100)
 
 
@@ -361,10 +395,14 @@ def test_cadence_tier_rejects_nonpositive():
 
 
 def test_cadence_post_init_rejects_non_monotonic():
-    """Tiers not strictly increasing by max_age_s → ValueError."""
+    """Tiers not strictly increasing by max_age_s → ValueError.
+
+    ``match=`` pins the monotonicity-guard wording so a guard-reorder that
+    drops the strictly-increasing check is a caught regression.
+    """
     from personalscraper.acquire.cadence import Cadence, CadenceTier
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="strictly increasing"):
         Cadence(
             tiers=(
                 CadenceTier(max_age_s=200, interval_s=10),
@@ -375,10 +413,14 @@ def test_cadence_post_init_rejects_non_monotonic():
 
 
 def test_cadence_post_init_rejects_cutoff_below_last_tier():
-    """cutoff_s below the last tier's max_age_s → ValueError."""
+    """cutoff_s below the last tier's max_age_s → ValueError.
+
+    ``match=`` pins the cutoff-guard wording so a guard-reorder that drops the
+    cutoff >= last-tier check is a caught regression.
+    """
     from personalscraper.acquire.cadence import Cadence, CadenceTier
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="cutoff_s must be >="):
         Cadence(tiers=(CadenceTier(max_age_s=100, interval_s=10),), cutoff_s=50)
 
 

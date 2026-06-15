@@ -50,17 +50,17 @@ cadence = effective_cadence(override, global_cadence)
 
 ### Task 2 — close the test gaps (pr-test F1/F2/F3)
 
-- [ ] **F-N — untested `TypeError` decode branch + misleading docstring (pr-test F1).**
+- [x] **F-N — untested `TypeError` decode branch + misleading docstring (pr-test F1).**
       `cadence_from_json`'s `except` is `(json.JSONDecodeError, KeyError, TypeError, ValueError)` but the existing `test_cadence_from_json_malformed_returns_none` exercises only 3 branches. Add a `TypeError` case: `assert cadence_from_json('{"tiers": 5, "cutoff_s": 10}') is None` ("'int' object is not iterable"). Also fix the test's docstring/comment: the `'{"tiers": []}'` case actually fails at `KeyError: 'cutoff_s'` (it never reaches the empty-tiers `ValueError`); the `ValueError`/`__post_init__` branch is covered by the negative-duration case. Reword so the comment matches reality.
 
-- [ ] **F-O — `match=` on the `__post_init__` rejection tests (pr-test F2).**
+- [x] **F-O — `match=` on the `__post_init__` rejection tests (pr-test F2).**
       Add a `match=` regex to each `pytest.raises(ValueError)` in the `test_cadence_post_init_rejects_*` suite (e.g. `match="empty"`, `match="must be positive"`, `match="strictly increasing"`, `match="cutoff"`) so a future guard-reorder or merged error path is caught as a regression. (Align the `match=` strings with the actual `ValueError` messages — read them from `cadence.py`.)
 
-- [ ] **F-P — strengthen the dead-band negative control (pr-test F3).**
+- [x] **F-P — strengthen the dead-band negative control (pr-test F3).**
       `test_is_due_dead_band_too_recent_not_due` passes even against the pre-fix `return False`, so it adds little. Make it independently load-bearing: in the SAME `[last_tier, cutoff)` window, assert that an item with `last_search_at` **older** than the Cold interval is due (True) AND one with a **recent** `last_search_at` is not due (False) — anchoring the not-due to the interval, not a blanket freeze. (The True half already lives in `test_is_due_dead_band_uses_last_tier_interval`; ensure the pair pins "interval-gated within the dead-band", and that the not-due half would FAIL if the fallback used a zero/Hot interval.)
 
-- [ ] **Gate 7.2:** `pytest tests/acquire/test_cadence.py -q` green; assertions name WHICH (never bare `raises` without `match` for the guard suite).
-- [ ] **Commit:** `test(follow-detect): cover TypeError decode branch + match= guard messages + stronger dead-band control`
+- [x] **Gate 7.2:** `pytest tests/acquire/test_cadence.py -q` green; assertions name WHICH (never bare `raises` without `match` for the guard suite).
+- [x] **Commit:** `test(follow-detect): cover TypeError decode branch + match= guard messages + stronger dead-band control`
 
 ---
 
