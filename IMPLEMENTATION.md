@@ -18,7 +18,7 @@
 | 2   | Wanted dedup (`find`)              | phase-02-wanted-dedup.md                | [x]    |
 | 3   | DETECT logic + `follow detect` CLI | phase-03-detect-cli.md                  | [x]    |
 | 4   | Cadence-aware run loop             | phase-04-cadence-aware-run-loop.md      | [x]    |
-| 5   | Docs + ACCEPTANCE + gate           | phase-05-docs-acceptance-gate.md        | [ ]    |
+| 5   | Docs + ACCEPTANCE + gate           | phase-05-docs-acceptance-gate.md        | [x]    |
 
 ## Review cycles
 
@@ -26,4 +26,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 5 (Docs + ACCEPTANCE + gate).
+All phases complete — run `/implement:feature-pr` (local gate + push + PR + CI).
