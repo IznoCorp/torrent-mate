@@ -46,8 +46,16 @@
   - **F-J** chain fall-through tested only on the empty branch; the DESIGN §4 error-then-fallback branch (primary raises → secondary tried) covered only transitively (GAP-2 two-layer ambiguity).
 - Ignored/acceptable residual: F-2 empty-fall-through silence (DESIGN §6 governs only the exception arms; the mirror's `show_season_empty` is richer but not mandated — DESIGN-consistent residual, not a blocker).
 - Decision: **Case B**. Fix phase 6 created (6.1 — 2 tests, no code change).
-- Status: fix phase complete — `482ffbc7` (2 tests). F-I (caplog WARNING + exc_info regression test) + F-J (error-then-fallback chain branch). Both independently mutation-proven non-vacuous (debug-revert fails F-I). `make check` 6765 passed. Awaiting CI re-poll + cycle-3 re-review.
+- Status: fix phase complete — `482ffbc7` (2 tests). F-I (caplog WARNING + exc_info regression test) + F-J (error-then-fallback chain branch). Both independently mutation-proven non-vacuous (debug-revert fails F-I). `make check` 6765 passed. CI green.
+
+### Cycle 3
+
+- Toolkit: focused pr-test-analyzer on the cycle-2 delta (2 tests, no code change), CI green.
+- Verdict: **CONVERGED**. Both cycle-2 tests re-verified non-vacuous (3 live mutants A/B/C each fail the tests, restored clean); mocks faithful; non-flaky (pass under xdist + reversed order). Branch-by-branch map: every load-bearing `airing.py` branch pinned.
+- Findings: **0** (0 critical, 0 major, 0 medium, 0 minor). No fix phase.
+- Decision: **Case A** — review clean. Loop exits.
+- Status: clean — handed off for manual squash merge (merge_mode = manual).
 
 ## Next action
 
-All phases complete — run `/implement:feature-pr` (push cycle-2 fixes).
+Review clean — **operator performs the manual squash merge** of PR #199, then run `/implement:archive`. (The assistant does not merge in manual mode.)
