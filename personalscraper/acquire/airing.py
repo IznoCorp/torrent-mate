@@ -17,8 +17,16 @@ Logging: ``personalscraper.logger.get_logger`` (NEVER ``structlog.get_logger``).
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import TYPE_CHECKING, Sequence, cast
 
+from personalscraper.acquire.domain import AiredEpisode, FollowedSeries
+from personalscraper.api._contracts import ApiError, CircuitOpenError
+from personalscraper.api.metadata._base import EpisodeInfo
+from personalscraper.api.metadata._contracts import EpisodeFetcher, TvDetailsProvider
 from personalscraper.logger import get_logger
+
+if TYPE_CHECKING:
+    from personalscraper.api.metadata.registry import ProviderRegistry
 
 log = get_logger("acquire.airing")
 
@@ -67,5 +75,146 @@ def _is_aired(air_date: str, today: date) -> bool:
     return parsed is not None and parsed <= today
 
 
-# poll_aired will be added in phase 2.
-__all__ = ["_is_aired", "_parse_date"]
+# ---------------------------------------------------------------------------
+# Set-poll service (phase 2)
+# ---------------------------------------------------------------------------
+
+
+def poll_aired(
+    series: Sequence[FollowedSeries],
+    registry: "ProviderRegistry",
+    *,
+    today: date,
+) -> list[AiredEpisode]:
+    """Return the list of episodes that have already aired across a set of followed series.
+
+    For each series whose ``media_ref.tvdb_id`` is set, fetches the season catalog
+    via ``registry.chain(TvDetailsProvider)`` then fetches episode details per
+    non-special season (``season_number >= 1``) via ``registry.chain(EpisodeFetcher)``.
+    Episodes are filtered to those whose ``air_date`` is a known past-or-today date
+    (DESIGN §5 predicate).
+
+    Provider chain fall-through: if the primary provider returns an empty list for a
+    season, the next provider in the chain is tried (mirrors
+    ``scraper.tv_service_episodes.fetch_season_with_fallback``).
+
+    Fail-soft: any ``ApiError``, ``CircuitOpenError``, or unexpected ``Exception``
+    per series or per season is logged at warning level and skipped — the remaining
+    series/seasons are still polled.
+
+    Args:
+        series: The set of followed series to poll.  Typically the result of
+            ``store.follow.list_active()`` — RP9 does not read the store itself.
+        registry: The live ``ProviderRegistry`` from the composition root.
+        today: Reference date (injected for determinism/testability — no hidden
+            ``date.today()`` call).
+
+    Returns:
+        Flat list of :class:`~personalscraper.acquire.domain.AiredEpisode` objects,
+        one per aired episode found across all series.  Empty when no episodes have
+        aired or all providers are unavailable.
+    """
+    result: list[AiredEpisode] = []
+
+    for fs in series:
+        media_ref = fs.media_ref
+        tvdb_id = media_ref.tvdb_id
+        if tvdb_id is None:
+            log.debug("acquire.airing.skip_no_tvdb_id", title=fs.title)
+            continue
+
+        try:
+            tv_providers = cast(
+                list[TvDetailsProvider],
+                list(registry.chain(TvDetailsProvider)),  # type: ignore[type-abstract]
+            )
+            if not tv_providers:
+                log.debug("acquire.airing.no_tv_provider", tvdb_id=tvdb_id)
+                continue
+
+            details = tv_providers[0].get_tv(tvdb_id)
+            seasons = [s for s in (details.seasons or []) if s.season_number >= 1]
+
+        except (ApiError, CircuitOpenError) as exc:
+            log.warning("acquire.airing.poll_failed", tvdb_id=tvdb_id, title=fs.title, error=str(exc))
+            continue
+        except Exception as exc:  # noqa: BLE001 — fail-soft: one bad series must not block others
+            log.warning("acquire.airing.poll_failed", tvdb_id=tvdb_id, title=fs.title, error=str(exc))
+            continue
+
+        for season_info in seasons:
+            season_num = season_info.season_number
+            try:
+                episodes = _fetch_season_with_fallback(tvdb_id, season_num, registry)
+            except Exception as exc:  # noqa: BLE001 — fail-soft per season
+                log.warning(
+                    "acquire.airing.poll_failed",
+                    tvdb_id=tvdb_id,
+                    season=season_num,
+                    error=str(exc),
+                )
+                continue
+
+            for ep in episodes:
+                if _is_aired(ep.air_date, today):
+                    result.append(
+                        AiredEpisode(
+                            media_ref=media_ref,
+                            season=ep.season_number,
+                            episode=ep.episode_number,
+                            air_date=_parse_date(ep.air_date),  # type: ignore[arg-type]
+                            title=ep.title,
+                        )
+                    )
+
+    return result
+
+
+def _fetch_season_with_fallback(
+    tvdb_id: int | str,
+    season: int,
+    registry: "ProviderRegistry",
+) -> list[EpisodeInfo]:
+    """Fetch episode list for one season, falling back through the provider chain.
+
+    Tries each ``EpisodeFetcher`` in the chain in order.  A provider is
+    considered successful only when it returns a non-empty list — an empty
+    response falls through to the next provider (mirrors
+    ``scraper.tv_service_episodes.fetch_season_with_fallback``).
+
+    Args:
+        tvdb_id: The TVDB series identifier.
+        season: Season number to fetch (>= 1; specials excluded upstream).
+        registry: The live ``ProviderRegistry``.
+
+    Returns:
+        List of :class:`~personalscraper.api.metadata._base.EpisodeInfo` objects,
+        or an empty list when no provider returned data.
+    """
+    fetchers = cast(
+        list[EpisodeFetcher],
+        list(registry.chain(EpisodeFetcher)),  # type: ignore[type-abstract]
+    )
+    for fetcher in fetchers:
+        try:
+            episodes = fetcher.get_episodes(str(tvdb_id), season)
+            if episodes:
+                return episodes
+        except (ApiError, CircuitOpenError) as exc:
+            log.debug(
+                "acquire.airing.season_provider_error",
+                tvdb_id=tvdb_id,
+                season=season,
+                error=str(exc),
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.debug(
+                "acquire.airing.season_provider_error",
+                tvdb_id=tvdb_id,
+                season=season,
+                error=str(exc),
+            )
+    return []
+
+
+__all__ = ["AiredEpisode", "_is_aired", "_parse_date", "poll_aired"]
