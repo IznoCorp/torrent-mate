@@ -97,6 +97,7 @@ staging/
 │   │   ├── circuit.py           # CircuitBreaker (reused by API transport + indexer disk breaker)
 │   │   ├── http_helpers.py      # tenacity helpers (retry logger, retryable predicate)
 │   │   ├── identity.py          # MediaRef — neutral provider-ID value object (tvdb primary)
+│   │   ├── tags.py              # Centralized tag vocabulary (SEED_PURE) — Seed Safety O1; imported by api/torrent, ingest, sorter, commands
 │   │   ├── delete_permit.py     # DeletePermit + SeedObligationRecorder Protocols + AllowAllPermit
 │   │   ├── ownership.py         # OwnershipChecker Protocol + NullOwnershipChecker (RP6)
 │   │   ├── sqlite/              # Neutral SQLite machinery (event-free): open_db, db_lock,
@@ -434,6 +435,16 @@ authority (`core.delete_permit`).
 **Airing capability (RP9):** `acquire/airing.py` exposes `poll_aired(series, registry, *, today)` — a **stateless** free function (no `AcquireContext` field) that returns `list[AiredEpisode]` (see `acquire/domain.py`). It performs **zero** `store.wanted.*` writes, never calls `ownership.owns()`, and never reads `cadence_json` — surfacing aired episodes is RP9's sole responsibility; applying policy (wanted enqueue, ownership skip, cadence backoff) is Follow D2's job. Unblocks Follow D2 (calendar-first detection → wanted enqueue).
 
 **Follow D2 (follow-detect):** Follow D2 is RP9's first consumer. The `follow detect` CLI (`commands/follow.py`) drives `poll_aired` over the active followed set, filters owned episodes (RP6 `ownership.owns`) and duplicates (`store.wanted.find`), then enqueues `WantedItem(kind='episode', status='pending')` and emits `WantedEnqueued`. Cadence policy lives in the pure `acquire/cadence.py` (imports `core`/stdlib only — never `store`, `indexer`, `scraper`, or the event bus); the cadence codecs and the `CadenceConfig`→`Cadence` bridge are in `acquire/desired.py`; the cadence-aware re-search gating (cutoff → `WantedAbandoned(reason='cutoff_reached')`) is in `AcquisitionService._process_item`.
+
+**Seed Safety O1 (`seed-pure`):** The `seed-pure` tag (`core/tags.py`, `SEED_PURE = "seed-pure"`) is the **single triage↔acquisition seam** — acquisition **writes** it (manually today via `personalscraper seed mark <hash>`, automatically later via Follow D3 / Ratio through the same capability), triage **reads** it and **skips**. Mechanics:
+
+- **Tagger capability** — a `TorrentTagger` Protocol (`api/torrent/_contracts.py`) with `add_tags`/`remove_tags` on an **existing** torrent. qBittorrent wraps `torrents_addTags`/`torrents_removeTags`; Transmission is **read-first** — it stores category and tags in one flat `labels=[category, *tags]` list, so tagging reads the torrent, preserves `labels[0]` (the category), recomputes the tag set, then writes back. Both methods are idempotent (set semantics) and fail-soft per the torrent-client family convention.
+- **`seed` CLI** (`commands/seed.py`) — `seed mark`/`unmark`/`list`, a Typer sub-group built with `per_step_boundary(..., build_torrent_client=True)` (all three touch the client).
+- **Always-on ingest skip (the real guardrail)** — `ingest/ingest.py` skips any completed torrent whose `TorrentItem.tags` contains `SEED_PURE`, mirroring the existing ratio-skip (check order: already-ingested → ratio → seed-pure → content resolution). Reuses `ItemProgressed(status="skipped", reason="seed_pure")`; unconditional, no config gate.
+- **Opt-in sort-side guard (real exclusion)** — `config.sort.verify_seed_pure` (default off). When on **and** a torrent client is available, `run_sort` builds the seed-pure name set from `torrent_client.get_completed()` and passes it as `Sorter.process`'s `skip_names`; matched items yield a **`skipped` `SortResult`** (`message="seed_pure"`) and are **genuinely excluded** (not sorted). When off (default), no client query and `skip_names` is empty — zero added cost on the baseline pipeline.
+- **Clean-side flag reserved/not-enforced** — `config.process_clean.verify_seed_pure` exists for config symmetry but is intentionally **not implemented**: by clean time items are already sorted **and renamed**, so name-matching to torrent names is unreliable. There is **no** seed-pure code in `process/`.
+
+The future **Watcher** (vague 4) consumes the **same** skip contract — it must ignore `seed-pure` torrents before triggering a pipeline run so it never double-ingests a seed-only torrent. `core.tags.SEED_PURE` is the canonical import. No `library.db` / NFO / media-model change — the signal lives only on the torrent client plus the centralized constant.
 
 ## Provider Registry
 
