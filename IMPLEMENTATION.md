@@ -19,7 +19,7 @@
 | 3   | DETECT logic + `follow detect` CLI | phase-03-detect-cli.md                  | [x]    |
 | 4   | Cadence-aware run loop             | phase-04-cadence-aware-run-loop.md      | [x]    |
 | 5   | Docs + ACCEPTANCE + gate           | phase-05-docs-acceptance-gate.md        | [x]    |
-| 6   | PR fixes cycle 1                   | phase-06-pr-fixes-cycle-1.md            | [ ]    |
+| 6   | PR fixes cycle 1                   | phase-06-pr-fixes-cycle-1.md            | [x]    |
 
 ## Review cycles
 
@@ -34,4 +34,4 @@
 
 ## Next action
 
-Execute phase 6 (`/implement:phase`), then re-poll CI + cycle-2 re-review.
+Cycle-1 fixes complete + gate green. Push fix commits → re-poll CI → cycle-2 re-review.
