@@ -97,7 +97,10 @@ Semantics (ROADMAP frozen decision, 2026-06-01):
 - **age** = `now − enqueued_at` (seconds). `enqueued_at` is the detection time; it stands in for "time since the episode entered the wanted queue".
 - Tier by age: 🔥 **Hot** `0 ≤ age < 72h` → `interval = 2h` · 🌤 **Warm** `72h ≤ age < 14d` → `interval = 1d` · ❄️ **Cold** `14d ≤ age < 30d` → `interval = 7d`.
 - ⛔ **cutoff** `age ≥ 30d` → `is_past_cutoff = True`, `is_due_by_cadence = False`.
-- **due** = `not is_past_cutoff AND (now − (last_search_at or enqueued_at)) ≥ interval(tier(age))`.
+- **due** = `not is_past_cutoff AND (last_search_at is None OR (now − last_search_at) ≥ interval(tier(age)))`.
+  A never-searched item (`last_search_at is None`) is **due immediately** within the cadence window (the
+  first search is prompt — trackers lag airing, and the existing `run()` loop already searches `pending`
+  items without an interval gate). The interval gate applies only to **re**-searches.
 
 `attempts` is **not** part of the cadence predicate (the existing attempts-cap abandon at `service.py:357`,
 `MAX_ATTEMPTS=5`, is orthogonal and retained). Cadence governs _when_ to search; attempts-cap governs _how
