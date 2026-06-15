@@ -15,6 +15,7 @@ from personalscraper.acquire.context import AcquireContext
 from personalscraper.acquire.delete_authority import build_delete_authority
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.api.tracker._factory import build_tracker_registry
+from personalscraper.core.ownership import NullOwnershipChecker
 
 if TYPE_CHECKING:
     from personalscraper.api.torrent.qbittorrent import QBitClient
@@ -23,6 +24,7 @@ if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
     from personalscraper.core.event_bus import EventBus
+    from personalscraper.core.ownership import OwnershipChecker
 
 
 def build_acquire_context(
@@ -32,6 +34,7 @@ def build_acquire_context(
     event_bus: "EventBus",
     cb_policy: "CircuitPolicy",
     torrent_client: "QBitClient | TransmissionClient | None" = None,
+    ownership: "OwnershipChecker | None" = None,
 ) -> AcquireContext:
     """Build the AcquireContext at the composition-root boundary.
 
@@ -65,11 +68,20 @@ def build_acquire_context(
         torrent_client: Already-built torrent client, or ``None``.
             Lifecycle is NOT owned by ``AcquireContext`` — it is shared with
             the ``ingest`` boundary.
+        ownership: Pre-built :class:`OwnershipChecker` port implementation
+            (RP6), or ``None``. Typed on the CORE port — the concrete
+            ``IndexerOwnershipChecker`` (which reads ``library.db``) is built at
+            the TRUE composition root (``cli_helpers._build_app_context``) and
+            injected here, so ``acquire/`` never imports ``indexer/`` (the
+            layering boundary holds). ``None`` falls back to
+            :class:`NullOwnershipChecker` (always ``False``), the safe default
+            for unit tests and commands with no library wired.
 
     Returns:
         A populated :class:`AcquireContext` with ``tracker_registry`` set, a
         lazily-built ``store`` (opens on first use), a stateless
-        ``delete_authority``, and ``torrent_client`` forwarded.
+        ``delete_authority``, ``torrent_client`` forwarded, and the injected
+        (or ``NullOwnershipChecker``) ``ownership`` handle.
 
     Raises:
         TrackerConfigError: Any error-severity issue found in the tracker
@@ -130,12 +142,18 @@ def build_acquire_context(
         )
         grab = GrabCore(service=service, orchestrator=orchestrator)
 
+    # RP6: ownership handle (single field, anti-service-locator). The concrete
+    # IndexerOwnershipChecker is built+injected at the composition root; this
+    # frame only forwards it (acquire/ stays free of any indexer/ import). When
+    # no checker is injected, fall back to the fail-open NullOwnershipChecker so
+    # the field is always a valid port impl.
     return AcquireContext(
         tracker_registry=tracker_registry,
         store=store,
         delete_authority=delete_authority,
         torrent_client=torrent_client,
         grab=grab,
+        ownership=ownership if ownership is not None else NullOwnershipChecker(),
     )
 
 

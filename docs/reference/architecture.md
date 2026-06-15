@@ -96,6 +96,7 @@ staging/
 │   │   ├── http_helpers.py      # tenacity helpers (retry logger, retryable predicate)
 │   │   ├── identity.py          # MediaRef — neutral provider-ID value object (tvdb primary)
 │   │   ├── delete_permit.py     # DeletePermit + SeedObligationRecorder Protocols + AllowAllPermit
+│   │   ├── ownership.py         # OwnershipChecker Protocol + NullOwnershipChecker (RP6)
 │   │   ├── sqlite/              # Neutral SQLite machinery (event-free): open_db, db_lock,
 │   │   │                        # apply_migrations, apply_pragmas, _fs_probe, errors.Sqlite*Error
 │   │   ├── event_bus.py         # pub-sub EventBus (in-process, no business logic)
@@ -145,6 +146,7 @@ staging/
 │   │   ├── repair.py            # repair queue worker + budget drain
 │   │   ├── outbox/              # outbox drainer + write-through (apply, drain, publish, disk)
 │   │   ├── query.py             # flex-attr query parser (FIELD_REGISTRY, execute())
+│   │   ├── ownership.py         # is_owned SELECT-only predicate + IndexerOwnershipChecker adapter (RP6)
 │   │   ├── cli.py               # compatibility registration for library commands
 │   │   ├── commands/            # indexer CLI command implementations
 │   │   ├── config.py            # IndexerConfig pydantic submodel
@@ -420,6 +422,12 @@ import). `api/` is consumed by `scraper/` and `trailers/` but never by
 `enforce`, `verify`, `insights`, `maintenance`, `reports`, `trailers`,
 `pipeline`, `pipeline_steps`, `commands`). Enforced by the AST layering guard
 in `tests/architecture/test_layering.py`.
+
+**Ownership boundary (RP6):** `acquire/` reads ownership via
+`ctx.acquire.ownership` (a `core.ownership.OwnershipChecker`). It NEVER imports
+`personalscraper.indexer`. The adapter (`IndexerOwnershipChecker`) lives in
+`indexer/` and is wired at the composition root — same shape as the deletion
+authority (`core.delete_permit`).
 
 ## Provider Registry
 

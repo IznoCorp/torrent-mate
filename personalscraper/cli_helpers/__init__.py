@@ -20,6 +20,7 @@ from personalscraper.logger import get_logger
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
+    from personalscraper.core.ownership import OwnershipChecker
 
 
 def _build_app_context(
@@ -139,12 +140,25 @@ def _build_app_context(
     # NOT own its lifecycle.
     from personalscraper.acquire._factory import build_acquire_context  # noqa: PLC0415
 
+    # RP6: build the ownership checker at the TRUE composition root. This is the
+    # only frame that may import indexer/ AND see config.indexer.db_path, so it
+    # bridges the acquire⇏indexer boundary: it constructs the concrete
+    # IndexerOwnershipChecker and injects it as the core OwnershipChecker port,
+    # keeping acquire/ free of any indexer import (the layering guard stays
+    # green). The checker is INERT here — it opens NO connection and takes NO
+    # lock at boot; its lazy, read-only, lock-free library.db connection opens on
+    # the first owns() call, so the shared composition root never serializes
+    # unrelated commands. When library.db is unconfigured or absent, the acquire
+    # factory falls back to NullOwnershipChecker (always-False, fail-open).
+    ownership = _build_ownership_checker(config)
+
     acquire = build_acquire_context(
         config,
         settings,
         event_bus=event_bus,
         cb_policy=cb_policy,
         torrent_client=torrent_client,
+        ownership=ownership,
     )
 
     return AppContext(
@@ -155,6 +169,48 @@ def _build_app_context(
         torrent_client=torrent_client,
         acquire=acquire,
     )
+
+
+def _build_ownership_checker(config: "Config") -> "OwnershipChecker":
+    """Build the RP6 ownership checker from the configured ``library.db`` path.
+
+    Returns an :class:`~personalscraper.indexer.ownership.IndexerOwnershipChecker`
+    when ``config.indexer.db_path`` is configured AND the file exists on disk;
+    otherwise a :class:`~personalscraper.core.ownership.NullOwnershipChecker`
+    (always-``False``, fail-open). Returning ``NullOwnershipChecker`` for a
+    missing/unconfigured DB keeps first-run / dry-run / no-library commands safe
+    (a wanted item is never silently skipped because ownership can't be
+    verified).
+
+    This helper lives at the TRUE composition root (``cli_helpers``), the only
+    layer permitted to import ``indexer/`` while also seeing the config; it
+    bridges the acquire⇏indexer boundary by handing back the neutral
+    ``OwnershipChecker`` core port. The returned ``IndexerOwnershipChecker`` is
+    INERT: it opens NO connection and takes NO lock here. Its lazy, read-only,
+    lock-free connection opens on the first ``owns()`` call, so building the
+    shared :class:`AppContext` never takes a lifetime lock on ``library.db`` and
+    never serializes unrelated commands (the acquire.db lifetime-lock regression
+    lesson).
+
+    Args:
+        config: The typed JSON5 configuration; ``config.indexer.db_path`` holds
+            the resolved ``library.db`` path (or ``None`` if unconfigured).
+
+    Returns:
+        An ``OwnershipChecker`` port implementation — concrete indexer-backed
+        when the library exists, ``NullOwnershipChecker`` otherwise.
+    """
+    from personalscraper.core.ownership import NullOwnershipChecker  # noqa: PLC0415
+
+    db_path = config.indexer.db_path
+    if db_path is None or not db_path.exists():
+        return NullOwnershipChecker()
+    # Lazy import: indexer/ pulls the SQLite machinery; defer it so commands that
+    # never build an AppContext stay import-light. cli_helpers/ is NOT subject to
+    # the acquire/ layering guard, so this indexer import is legal here.
+    from personalscraper.indexer.ownership import IndexerOwnershipChecker  # noqa: PLC0415
+
+    return IndexerOwnershipChecker(db_path)
 
 
 @contextmanager
@@ -250,6 +306,7 @@ def _resolve_category(ctx: typer.Context, category: str | None) -> str | None:
 __all__ = [
     "_bootstrap_staging",
     "_build_app_context",
+    "_build_ownership_checker",
     "_format_validation",
     "_resolve_category",
     "handle_cli_errors",
