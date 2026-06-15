@@ -427,3 +427,227 @@ def test_airing_module_has_no_store_or_indexer_import() -> None:
                 assert not module.startswith(prefix), (
                     f"acquire/airing.py imports forbidden module '{module}' (violates DESIGN §7 layering invariant)"
                 )
+
+
+# ---------------------------------------------------------------------------
+# F-E — chain fall-through (DESIGN §4)
+# ---------------------------------------------------------------------------
+
+
+def test_poll_aired_chain_fallthrough_on_empty() -> None:
+    """LOAD-BEARING (DESIGN §4): when primary EpisodeFetcher returns [], secondary is tried and its episode surfaced."""
+    from datetime import date
+
+    from personalscraper.acquire.airing import poll_aired
+    from personalscraper.api.metadata._contracts import EpisodeFetcher, TvDetailsProvider
+    from personalscraper.core.identity import MediaRef
+
+    TODAY = date(2024, 6, 15)
+    TVDB_ID = 81189
+
+    ep = _make_episode(1, 1, "2023-01-01", "Fallback Ep")
+
+    primary = MagicMock()
+    primary.get_episodes.return_value = []
+
+    secondary = MagicMock()
+    secondary.get_episodes.return_value = [ep]
+
+    tv_provider = MagicMock()
+    details = MagicMock()
+    details.seasons = [_make_season(1)]
+    tv_provider.get_tv.return_value = details
+
+    def _chain(cap):
+        if cap is TvDetailsProvider:
+            return [tv_provider]
+        if cap is EpisodeFetcher:
+            return [primary, secondary]
+        return []
+
+    registry = MagicMock()
+    registry.chain.side_effect = _chain
+
+    aired = poll_aired([_make_series(TVDB_ID)], registry, today=TODAY)
+
+    assert len(aired) == 1, f"Secondary episode must be surfaced; got {len(aired)}"
+    assert aired[0].episode == 1, "Surfaced episode must be ep 1 from secondary"
+    assert aired[0].media_ref == MediaRef(tvdb_id=TVDB_ID)
+    assert secondary.get_episodes.call_count >= 1, "Secondary fetcher must have been called"
+
+
+def test_poll_aired_chain_short_circuits_on_nonempty() -> None:
+    """LOAD-BEARING (DESIGN §4): when primary returns a non-empty list, secondary must NOT be called."""
+    from datetime import date
+
+    from personalscraper.acquire.airing import poll_aired
+    from personalscraper.api.metadata._contracts import EpisodeFetcher, TvDetailsProvider
+
+    TODAY = date(2024, 6, 15)
+    TVDB_ID = 81189
+
+    ep = _make_episode(1, 1, "2023-03-10", "Primary Ep")
+
+    primary = MagicMock()
+    primary.get_episodes.return_value = [ep]
+
+    secondary = MagicMock()
+    secondary.get_episodes.return_value = []
+
+    tv_provider = MagicMock()
+    details = MagicMock()
+    details.seasons = [_make_season(1)]
+    tv_provider.get_tv.return_value = details
+
+    def _chain(cap):
+        if cap is TvDetailsProvider:
+            return [tv_provider]
+        if cap is EpisodeFetcher:
+            return [primary, secondary]
+        return []
+
+    registry = MagicMock()
+    registry.chain.side_effect = _chain
+
+    aired = poll_aired([_make_series(TVDB_ID)], registry, today=TODAY)
+
+    assert len(aired) == 1, f"Primary episode must be surfaced; got {len(aired)}"
+    assert secondary.get_episodes.call_count == 0, (
+        f"Secondary must NOT be called when primary returns non-empty; call_count={secondary.get_episodes.call_count}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# F-F — per-season fail-soft (DESIGN §6)
+# ---------------------------------------------------------------------------
+
+
+def test_poll_aired_fail_soft_one_season_raises() -> None:
+    """LOAD-BEARING (DESIGN §6): ApiError on season 1 must not poison season 2 — season-2 episode still surfaced."""
+    from datetime import date
+
+    from personalscraper.acquire.airing import poll_aired
+    from personalscraper.api._contracts import ApiError
+    from personalscraper.core.identity import MediaRef
+
+    TODAY = date(2024, 6, 15)
+    TVDB_ID = 81189
+
+    ep_s2 = _make_episode(1, 2, "2023-03-03", "Season 2 Ep")
+
+    call_count = {"n": 0}
+
+    def get_episodes_side_effect(series_id, season):
+        call_count["n"] += 1
+        if season == 1:
+            raise ApiError(provider="tvdb", http_status=500, message="s1 error")
+        return [ep_s2]
+
+    ep_fetcher = MagicMock()
+    ep_fetcher.get_episodes.side_effect = get_episodes_side_effect
+
+    tv_provider = MagicMock()
+    details = MagicMock()
+    details.seasons = [_make_season(1), _make_season(2)]
+    tv_provider.get_tv.return_value = details
+
+    registry = _make_registry(tv_provider, ep_fetcher)
+
+    aired = poll_aired([_make_series(TVDB_ID)], registry, today=TODAY)
+
+    assert len(aired) == 1, f"Season-2 episode must be surfaced despite season-1 error; got {len(aired)}"
+    assert aired[0].season == 2, f"Aired episode must be from season 2; got season={aired[0].season}"
+    assert aired[0].episode == 1
+    assert aired[0].media_ref == MediaRef(tvdb_id=TVDB_ID)
+
+
+# ---------------------------------------------------------------------------
+# F-G — no-tvdb_id skip (DESIGN §4)
+# ---------------------------------------------------------------------------
+
+
+def test_poll_aired_skips_series_without_tvdb_id() -> None:
+    """LOAD-BEARING (DESIGN §4): series with tvdb_id=None are silently skipped; no crash; valid series still polled."""
+    from datetime import date
+
+    from personalscraper.acquire.airing import poll_aired
+    from personalscraper.core.identity import MediaRef
+
+    TODAY = date(2024, 6, 15)
+    TVDB_VALID = 81189
+
+    # Build a mock FollowedSeries whose media_ref.tvdb_id is None (cannot use
+    # MediaRef(tvdb_id=None) — it raises ValueError; use MagicMock instead).
+    fs_no_tvdb = MagicMock()
+    fs_no_tvdb.title = "No-TVDB Show"
+    fs_no_tvdb.media_ref = MagicMock()
+    fs_no_tvdb.media_ref.tvdb_id = None
+
+    ep = _make_episode(1, 1, "2023-06-01", "Valid Ep")
+
+    ep_fetcher = MagicMock()
+    ep_fetcher.get_episodes.return_value = [ep]
+
+    tv_provider = MagicMock()
+    details = MagicMock()
+    details.seasons = [_make_season(1)]
+    tv_provider.get_tv.return_value = details
+
+    registry = _make_registry(tv_provider, ep_fetcher)
+    series = [fs_no_tvdb, _make_series(TVDB_VALID, "Valid Show")]
+
+    aired = poll_aired(series, registry, today=TODAY)
+
+    assert tv_provider.get_tv.call_count == 1, (
+        f"Only 1 series must be polled (the valid one); get_tv called {tv_provider.get_tv.call_count} time(s)"
+    )
+    assert len(aired) == 1, f"Only the valid series must contribute episodes; got {len(aired)}"
+    assert aired[0].media_ref == MediaRef(tvdb_id=TVDB_VALID)
+
+
+# ---------------------------------------------------------------------------
+# F-H — multi-season aggregation + season-from-requested (pins F-A fix)
+# ---------------------------------------------------------------------------
+
+
+def test_poll_aired_aggregates_multiple_seasons_with_requested_season() -> None:
+    """LOAD-BEARING (F-A pin): season on AiredEpisode must equal the REQUESTED season_num, NOT ep.season_number.
+
+    Both seasons produce episodes whose mock ep.season_number=0 (divergent from
+    the requested season).  The emitted AiredEpisode.season must be 1 and 2
+    (the requested values), proving that airing.py uses season_num not
+    ep.season_number.  This test FAILS against the pre-5.1 code.
+    """
+    from datetime import date
+
+    from personalscraper.acquire.airing import poll_aired
+    from personalscraper.core.identity import MediaRef
+
+    TODAY = date(2024, 6, 15)
+    TVDB_ID = 81189
+
+    # ep.season_number=0 is intentionally divergent from the requested season.
+    ep_for_any_season = _make_episode(ep_num=9, season_num=0, air_date="2023-05-05", title="Divergent Ep")
+
+    ep_fetcher = MagicMock()
+    ep_fetcher.get_episodes.return_value = [ep_for_any_season]
+
+    tv_provider = MagicMock()
+    details = MagicMock()
+    details.seasons = [_make_season(1), _make_season(2)]
+    tv_provider.get_tv.return_value = details
+
+    registry = _make_registry(tv_provider, ep_fetcher)
+
+    aired = poll_aired([_make_series(TVDB_ID)], registry, today=TODAY)
+
+    assert len(aired) == 2, f"Both seasons must contribute an episode; got {len(aired)}"
+
+    emitted_seasons = sorted(e.season for e in aired)
+    assert emitted_seasons == [1, 2], (
+        f"Emitted seasons must be [1, 2] (requested), not {emitted_seasons} (would be [0, 0] with pre-5.1 code)"
+    )
+    assert all(e.season >= 1 for e in aired), (
+        "Every AiredEpisode.season must be >= 1 (Decision C: no special-season contamination)"
+    )
+    assert all(e.media_ref == MediaRef(tvdb_id=TVDB_ID) for e in aired)
