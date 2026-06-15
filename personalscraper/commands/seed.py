@@ -119,7 +119,7 @@ def seed_list(ctx: typer.Context) -> None:
             console.print("[red]Error:[/red] No torrent client configured. Check config/torrent.json5.")
             raise typer.Exit(code=1)
         torrents = app_context.torrent_client.get_completed()
-        seed_pure_torrents = [t for t in torrents if SEED_PURE in t.tags]
+        seed_pure_torrents = [t for t in torrents if SEED_PURE in (getattr(t, "tags", None) or [])]
         log.info("seed_list", total=len(torrents), seed_pure=len(seed_pure_torrents))
         if not seed_pure_torrents:
             console.print(f"No completed torrents tagged [bold]{SEED_PURE}[/bold].")

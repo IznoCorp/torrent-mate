@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.scraper import ProcessCleanConfig, SortConfig
@@ -16,6 +17,18 @@ def test_sort_config_verify_seed_pure_defaults_false() -> None:
 def test_process_clean_config_verify_seed_pure_defaults_false() -> None:
     """ProcessCleanConfig.verify_seed_pure defaults to False (reserved, not enforced)."""
     assert ProcessCleanConfig().verify_seed_pure is False
+
+
+def test_process_clean_config_verify_seed_pure_false_builds() -> None:
+    """ProcessCleanConfig(verify_seed_pure=False) builds (explicit-off is allowed)."""
+    assert ProcessCleanConfig(verify_seed_pure=False).verify_seed_pure is False
+
+
+def test_process_clean_config_verify_seed_pure_true_rejected() -> None:
+    """ProcessCleanConfig(verify_seed_pure=True) raises — the reserved flag must not lie."""
+    with pytest.raises(ValidationError) as excinfo:
+        ProcessCleanConfig(verify_seed_pure=True)
+    assert "reserved and not yet enforced" in str(excinfo.value)
 
 
 def test_sort_config_extra_fields_forbidden() -> None:

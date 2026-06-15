@@ -1,6 +1,6 @@
 """Scraper runtime config models (scraper, ingest, sort, process_clean, thresholds)."""
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from personalscraper.conf.models._base import _StrictModel
 
@@ -97,6 +97,34 @@ class ProcessCleanConfig(_StrictModel):
             "are the always-on ingest skip + the opt-in sort guard."
         ),
     )
+
+    @field_validator("verify_seed_pure")
+    @classmethod
+    def _reject_reserved_flag(cls, value: bool) -> bool:  # noqa: FBT001 — pydantic validator signature
+        """Reject ``verify_seed_pure=True`` — the clean-side guard is reserved.
+
+        The flag is intentionally not wired (the post-sort clean-side guard is
+        not implemented; see DESIGN §4.2). Accepting ``True`` would silently
+        promise enforcement that does not exist, so the model raises instead of
+        building. Default ``False`` (and explicit ``False``) build normally.
+
+        Args:
+            value: Candidate value for ``verify_seed_pure``.
+
+        Returns:
+            ``value`` unchanged when it is ``False``.
+
+        Raises:
+            ValueError: When ``value`` is ``True`` (reserved flag, not enforced).
+        """
+        if value is True:
+            raise ValueError(
+                "process_clean.verify_seed_pure is reserved and not yet enforced "
+                "(clean-side guard intentionally not implemented — see DESIGN §4.2). "
+                "Active guardrails: the always-on ingest skip + the opt-in sort guard "
+                "(config.sort.verify_seed_pure)."
+            )
+        return value
 
 
 class ThresholdsConfig(_StrictModel):
