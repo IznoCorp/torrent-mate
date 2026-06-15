@@ -20,6 +20,7 @@
 | 4   | Cadence-aware run loop             | phase-04-cadence-aware-run-loop.md      | [x]    |
 | 5   | Docs + ACCEPTANCE + gate           | phase-05-docs-acceptance-gate.md        | [x]    |
 | 6   | PR fixes cycle 1                   | phase-06-pr-fixes-cycle-1.md            | [x]    |
+| 7   | PR fixes cycle 2                   | phase-07-pr-fixes-cycle-2.md            | [ ]    |
 
 ## Review cycles
 
@@ -32,6 +33,14 @@
 - Ignored (documented): systemic-poll "no-coverage" signal (out of scope — needs an RP9 `poll_aired` contract change; per-series warnings already logged; DESIGN §10 chose per-series fail-soft) · redundant `store.follow.get` in `_resolve_profile` (pre-existing perf) · `--series` numeric-title shadowing (documented UX) · `db_path` WAL validator untested (pre-existing).
 - Decision: **Case B**. Fix phase 6 created (6.1 cadence dead-band + VO guard, 6.2 defensive decode + branch pins, 6.3 docs + purity test).
 
+### Cycle 2
+
+- Toolkit: 4 lenses on the cycle-1 delta (PR #200, CI green) — code-reviewer, pr-test-analyzer, silent-failure-hunter, type-design-analyzer.
+- Cycle-1 fixes verdict: **correct + complete**. code-reviewer CLEAN (F-A/F-B/F-C empirically verified, canonical config unaffected); type-design **FD-01/FD-02 RESOLVED**, enforcement re-rated 4/10 → 9/10; silent-failure fail-soft "correct and complete" (28 adversarial blobs all → None, no AttributeError path since decode uses subscript not attribute). All cycle-1 tests mutation-proven (dead-band + per-series override fail against their bugs).
+- Findings retained: **F-L** (medium — dropped per-series cadence override logs only the exception string, no series identity; unactionable when a producer ships → log `followed_id`/`title` at the service call site) · **F-M** (CadenceTier leaf guard → 10/10) · **F-N** (untested `TypeError` decode branch + misleading test docstring) · **F-O** (`match=` on guard tests) · **F-P** (strengthen the weak dead-band negative control).
+- Ignored (documented): float-vs-int strictness on durations (pre-existing leniency; Pydantic coerces too; reviewers said don't gate) · single-tier dead-band (informational, no missed code path).
+- Decision: **Case B**. Fix phase 7 created (7.1 observability + leaf guard, 7.2 test completeness).
+
 ## Next action
 
-Cycle-1 fixes complete + gate green. Push fix commits → re-poll CI → cycle-2 re-review.
+Execute phase 7 (`/implement:phase`), then re-poll CI + cycle-3 re-review.
