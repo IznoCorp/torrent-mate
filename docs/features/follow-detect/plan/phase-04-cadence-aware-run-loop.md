@@ -28,6 +28,14 @@ Phase 3 must be complete:
 
 ### Task 1: Write failing cadence-aware loop tests first (TDD)
 
+> **PLAN-DRIFT (corrected during 4.1):** the service computes
+> `now = int(time.time())` (service.py), so tests pin the clock by patching
+> `personalscraper.acquire.service.time.time` — NOT the builtin `int` (patching
+> `int` would also corrupt the `now - _STALE_THRESHOLD_S` arithmetic). This
+> follows the existing `test_service.py` §11d precedent. `FollowedSeries` is not
+> referenced in the cadence test module (the store stub returns `None` for
+> `follow.get`), so it is not imported there.
+
 - [ ] **Step 1: Create `tests/acquire/test_service_cadence.py`**
 
 ```python
@@ -36,10 +44,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from personalscraper.acquire.cadence import Cadence, CadenceTier
-from personalscraper.acquire.domain import FollowedSeries, WantedItem
+from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.events import WantedAbandoned
 from personalscraper.acquire.service import AcquisitionService
 from personalscraper.core.identity import MediaRef
@@ -107,7 +113,7 @@ def test_not_due_item_is_skipped_no_claim():
     item = _pending_item(enqueued_at=ENQUEUED_RECENT, last_search_at=NOW - 1800)
     svc, store, orchestrator, bus = _make_service([item])
 
-    with patch("personalscraper.acquire.service.int", return_value=NOW):
+    with patch("personalscraper.acquire.service.time.time", return_value=NOW):
         summary = svc.run()
 
     store.wanted.claim_for_search.assert_not_called()
@@ -125,7 +131,7 @@ def test_due_item_proceeds_to_claim():
         enqueued_at=ENQUEUED_RECENT, followed_id=1, season=1, episode=1, attempts=1,
     )
 
-    with patch("personalscraper.acquire.service.int", return_value=NOW):
+    with patch("personalscraper.acquire.service.time.time", return_value=NOW):
         summary = svc.run()
 
     store.wanted.claim_for_search.assert_called_once()
@@ -137,7 +143,7 @@ def test_cutoff_item_abandoned_no_claim():
     item = _pending_item(enqueued_at=ENQUEUED_CUTOFF, last_search_at=None)
     svc, store, orchestrator, bus = _make_service([item])
 
-    with patch("personalscraper.acquire.service.int", return_value=NOW):
+    with patch("personalscraper.acquire.service.time.time", return_value=NOW):
         summary = svc.run()
 
     store.wanted.claim_for_search.assert_not_called()
@@ -154,7 +160,7 @@ def test_cutoff_abandoned_before_grab():
     item = _pending_item(enqueued_at=ENQUEUED_CUTOFF)
     svc, store, orchestrator, bus = _make_service([item])
 
-    with patch("personalscraper.acquire.service.int", return_value=NOW):
+    with patch("personalscraper.acquire.service.time.time", return_value=NOW):
         svc.run()
 
     orchestrator.grab.assert_not_called()
@@ -297,10 +303,30 @@ Add to `Args:` section:
 - [ ] **Step 8: Find and update any construction sites of `AcquisitionService` to pass `config`**
 
 ```bash
-rg "AcquisitionService(" --type py personalscraper/
+rg --type py "AcquisitionService\(" personalscraper/
 ```
 
-Update each call site (typically in `acquire/_factory.py`) to pass `config=config`.
+Single prod site: `personalscraper/acquire/_factory.py:138`, inside
+`build_acquire_context(config, ...)` — pass `config=config` (the factory already
+holds the typed `Config` in scope). No other prod call sites exist.
+
+**PLAN-DRIFT — test call sites + clock-pin regression fix (added during 4.1):**
+The 5 `AcquisitionService(...)` sites in `tests/acquire/test_service.py` (one in
+the `_service` helper + 4 direct) must also pass `config=`. A shared `_config()`
+helper returns `MagicMock()` whose `.acquire` is a real `AcquireConfig()` so
+`cadence_from_config(config.acquire.cadence)` reads the canonical default cadence.
+
+Critically, every existing `_pending_item` uses `enqueued_at=1_700_000_000`; with
+a real ~2026 `now` the new 30d cutoff gate would ABANDON all of them, breaking the
+grab/retry/stale tests. Fix: an `autouse` fixture in `test_service.py` patches
+`personalscraper.acquire.service.time.time` to `_PINNED_NOW = 1_700_003_600`
+(enqueued_at + 1h → Hot tier, well within cutoff), so fresh rows
+(`last_search_at=None`) are due immediately. Two clock-sensitive tests are
+adjusted: `test_attempts_cap_abandons_item` stamps its claim/reset cycles at
+`_PINNED_NOW - 7200` (one Hot interval back, so the row is due on the service run);
+`test_section_11d_crash_window...`'s run-2 clock becomes `_PINNED_NOW + 7200 + 10`
+(stale AND due again, still < cutoff) instead of `time.time() + _STALE_THRESHOLD_S + 10`.
+The now-unused `_STALE_THRESHOLD_S` import in the test module is dropped (ruff `--fix`).
 
 - [ ] **Step 9: Run cadence-aware loop tests — all must PASS**
 

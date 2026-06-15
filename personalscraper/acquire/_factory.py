@@ -139,6 +139,7 @@ def build_acquire_context(
             store=store,
             orchestrator=orchestrator,
             event_bus=event_bus,
+            config=config,
         )
         grab = GrabCore(service=service, orchestrator=orchestrator)
 
