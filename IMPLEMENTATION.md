@@ -14,7 +14,7 @@
 
 | #   | Phase                         | File                             | Status |
 | --- | ----------------------------- | -------------------------------- | ------ |
-| 1   | Tag vocab + tagger capability | phase-01-tag-vocab-tagger.md     | [ ]    |
+| 1   | Tag vocab + tagger capability | phase-01-tag-vocab-tagger.md     | [x]    |
 | 2   | `seed` CLI group              | phase-02-seed-cli.md             | [ ]    |
 | 3   | Ingest skip (always-on)       | phase-03-ingest-skip.md          | [ ]    |
 | 4   | Opt-in sort/process guard     | phase-04-optional-guard.md       | [ ]    |
@@ -26,4 +26,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1.
+Run `/implement:phase` to start Phase 2 (`seed` CLI group).
