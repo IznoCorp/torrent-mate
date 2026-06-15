@@ -66,20 +66,31 @@ pill_app = typer.Typer(
 app.add_typer(pill_app, name="pill")
 
 
+# The ``--root`` option default, shared across commands. Resolved eagerly so the command surface
+# shows the concrete path; the daemon/loop reads the same default at runtime.
+_DEFAULT_ROOT = Path("~/.kanban/").expanduser()
+
+
 @app.command()
-def run() -> None:
+def run(
+    root: Path = typer.Option(
+        _DEFAULT_ROOT,
+        "--root",
+        help="Runtime root the daemon drives (default ~/.kanban). Use a separate root to run a "
+        "SECOND daemon for a different project on the same machine.",
+    ),
+) -> None:
     """Start the long-running poll daemon (``kanban run``).
 
     Hands off to :func:`kanbanmate.daemon.loop.main`, which acquires the single-instance lock and
-    blocks in the adaptive poll loop until SIGTERM (DESIGN §5). This is the only fully-wired
-    command in Phase 1.
+    blocks in the adaptive poll loop until SIGTERM (DESIGN §5). ``--root`` points the daemon at an
+    alternate runtime root (its own ``projects.json`` / lock / PAUSE), so a second daemon can drive
+    a different project alongside the default one.
+
+    Args:
+        root: The runtime root the daemon drives; defaults to ``~/.kanban``.
     """
-    daemon_loop.main()
-
-
-# The ``--root`` option default, shared by ``install``/``uninstall``. Resolved eagerly so the
-# command surface shows the concrete path; the daemon/loop reads the same default at runtime.
-_DEFAULT_ROOT = Path("~/.kanban/").expanduser()
+    daemon_loop.main(root=root)
 
 
 def _wiring_for(root: Path) -> WiringConfig:

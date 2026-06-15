@@ -1129,3 +1129,44 @@ def test_no_transitions_yaml_ticks_with_default_whitelist(tmp_path: Path) -> Non
     assert backlog_to_brainstorming is not None
     assert backlog_to_brainstorming.prompt is not None
     assert "/implement:brainstorm" in backlog_to_brainstorming.prompt
+
+
+def test_main_with_root_targets_alternate_runtime_root(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`kanban run --root X` → main(root=X) → run_loop with a DaemonConfig rooted at X (2nd daemon)."""
+    from kanbanmate.daemon import loop as loop_mod
+
+    captured: dict[str, object] = {}
+
+    def _fake_run_loop(daemon_config: object = None, **_kw: object) -> None:
+        captured["config"] = daemon_config
+
+    monkeypatch.setattr(loop_mod, "run_loop", _fake_run_loop)
+    monkeypatch.setattr("kanbanmate.daemon.loop.logging.basicConfig", lambda **_kw: None)
+
+    loop_mod.main(root=tmp_path)
+
+    cfg = captured["config"]
+    assert cfg is not None
+    assert cfg.kanban_root == tmp_path  # type: ignore[attr-defined]
+    assert cfg.config_path == tmp_path / loop_mod.CONFIG_FILENAME  # type: ignore[attr-defined]
+
+
+def test_main_without_root_uses_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """main() with no root runs the default loop (run_loop called with no explicit config)."""
+    from kanbanmate.daemon import loop as loop_mod
+
+    captured: dict[str, object] = {}
+
+    def _fake_run_loop(daemon_config: object = None, **_kw: object) -> None:
+        captured["config"] = daemon_config
+        captured["called"] = True
+
+    monkeypatch.setattr(loop_mod, "run_loop", _fake_run_loop)
+    monkeypatch.setattr("kanbanmate.daemon.loop.logging.basicConfig", lambda **_kw: None)
+
+    loop_mod.main()
+
+    assert captured.get("called") is True
+    assert captured["config"] is None

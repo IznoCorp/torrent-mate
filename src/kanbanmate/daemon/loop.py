@@ -551,14 +551,23 @@ def run_loop(
         logging.getLogger().removeHandler(jsonl_handler)
 
 
-def main() -> None:
+def main(root: Path | None = None) -> None:
     """Console-script entry for ``kanban run``: start the blocking daemon loop.
 
-    Configures a minimal root logger then runs :func:`run_loop` with defaults (``~/.kanban``).
-    Kept side-effect-free at import time — nothing runs until this is called.
+    Configures a minimal root logger then runs :func:`run_loop`. With ``root`` ``None`` it uses the
+    default ``~/.kanban`` runtime root; otherwise it points the daemon at ``root`` (its
+    ``projects.json`` / ``config.yml`` / lock / PAUSE), enabling a SECOND daemon on the same machine
+    for a different project under a separate root (one daemon drives one project, DESIGN §5). Kept
+    side-effect-free at import time — nothing runs until this is called.
+
+    Args:
+        root: The runtime root the daemon drives; ``None`` → the default ``~/.kanban``.
     """
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
-    run_loop()
+    if root is None:
+        run_loop()
+    else:
+        run_loop(DaemonConfig(kanban_root=root, config_path=root / CONFIG_FILENAME))
