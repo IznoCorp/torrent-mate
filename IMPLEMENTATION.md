@@ -18,7 +18,7 @@
 | 2   | Set-poll service                  | phase-02-set-poll-service.md     | [x]    |
 | 3   | Negative-boundary tests + wiring  | phase-03-negative-boundary.md    | [x]    |
 | 4   | Docs + ACCEPTANCE + gate          | phase-04-docs-acceptance-gate.md | [x]    |
-| 5   | PR fixes cycle 1                  | phase-05-pr-fixes-cycle-1.md     | [ ]    |
+| 5   | PR fixes cycle 1                  | phase-05-pr-fixes-cycle-1.md     | [x]    |
 
 ## Review cycles
 
@@ -34,8 +34,8 @@
   - **F-E** GAP-1 chain fall-through untested (mutation-survived). **F-F** GAP-2 per-season fail-soft untested. **F-G** GAP-4 no-tvdb_id skip untested. **F-H** GAP-5 multi-season aggregation untested (pins F-A).
 - Ignored: `__post_init__` validation (F-A removes the smuggle at source), event rename (DESIGN names `poll_failed`), empty-fall-through log, `__all__` re-export, store-wanted tautology (layering test covers it).
 - Decision: **Case B**. Fix phase 5 created (5.1 code, 5.2 tests).
-- Status: fix phase dispatched → awaiting /implement:phase.
+- Status: fix phase complete — `1c1a5320` (code: season-source + parse-once + observability + docstring), `220a0bed` (5 tests). All 8 retained findings addressed. `make check` 6763 passed. Independent Opus probe re-confirmed all behaviors + season-source fix. Awaiting CI re-poll + cycle-2 re-review.
 
 ## Next action
 
-Run `/implement:phase` to execute Phase 5 (PR fixes cycle 1).
+All phases complete — run `/implement:feature-pr` (push cycle-1 fixes).
