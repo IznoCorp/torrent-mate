@@ -200,16 +200,18 @@ def is_due_by_cadence(
 ) -> bool:
     """Return True iff the item should be (re)searched at ``now``.
 
-    Returns False when past cutoff, when no tier matches (age >= all tier
-    max_age_s but below cutoff — treated as not-due), or when last_search_at
-    is too recent for the current tier's interval.
+    A never-searched item (``last_search_at is None``) is due immediately
+    while inside the cadence window. Returns False when past cutoff, when no
+    tier matches (age >= all tier max_age_s but below cutoff — treated as
+    not-due), or when last_search_at is too recent for the current tier's
+    interval.
 
     Args:
         cadence: The effective cadence policy for this item.
         now: Current unix epoch seconds (injected — no hidden clock).
         enqueued_at: Unix epoch seconds when the item was enqueued (age origin).
         last_search_at: Unix epoch seconds of the last search attempt, or None
-            if never searched (treated as enqueued_at for interval calculation).
+            if never searched (None → due now while within the window).
 
     Returns:
         True iff the item is due for a (re)search.
@@ -219,18 +221,16 @@ def is_due_by_cadence(
 
     age = now - enqueued_at
     # Select the first tier whose max_age_s > age (i.e. age < max_age_s).
-    tier: CadenceTier | None = None
-    for t in cadence.tiers:
-        if age < t.max_age_s:
-            tier = t
-            break
-
+    tier: CadenceTier | None = next((t for t in cadence.tiers if age < t.max_age_s), None)
     if tier is None:
         # age is between last tier max_age_s and cutoff_s — treat as not-due.
         return False
 
-    last = last_search_at if last_search_at is not None else enqueued_at
-    return (now - last) >= tier.interval_s
+    if last_search_at is None:
+        # Never searched → due now (within the window).
+        return True
+
+    return (now - last_search_at) >= tier.interval_s
 
 
 def is_past_cutoff(cadence: Cadence, *, now: int, enqueued_at: int) -> bool:
