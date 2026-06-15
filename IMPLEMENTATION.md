@@ -6,7 +6,7 @@
 **Version bump**: 0.32.0 → 0.33.0
 **Branch**: feat/seed-pure
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/201
 **Design**: docs/features/seed-pure/DESIGN.md
 **Master plan**: docs/features/seed-pure/plan/INDEX.md
 
