@@ -4,9 +4,10 @@ The GitHub Project v2 board carries a **"Status updates"** section. KanbanMate
 maintains ONE *rolling* status update there (refreshed on state change, never on
 every tick — see phase-24 plan §24) that surfaces live orchestration activity:
 which agents are running, what each is doing (its latest progress milestone),
-the launch queue depth, recent significant events, and an overall **health**
-mapped onto GitHub's status enum (``INACTIVE | ON_TRACK | AT_RISK | OFF_TRACK |
-COMPLETE``).
+the launch queue depth, recent significant events, and an overall **health** in KanbanMate's own
+vocabulary (``INACTIVE | BLOCKED | WAITING | ACTIVE | COMPLETE`` — mirroring the agent/board states),
+which the GitHub adapter maps onto GitHub's fixed ``ProjectV2StatusUpdateStatus`` pill enum
+(ACTIVE→ACTIVE, WAITING→WAITING, BLOCKED→BLOCKED; INACTIVE / COMPLETE unchanged).
 
 This module is the **pure** half (sub-phase 24.1): a small set of frozen value
 objects (:class:`RunningAgent`, :class:`StatusEvent`, :class:`OrchestrationState`)
@@ -30,16 +31,25 @@ from dataclasses import dataclass
 from typing import Final, Literal, cast
 
 # ---------------------------------------------------------------------------
-# Status vocabulary — GitHub's ProjectV2StatusUpdateStatus enum (5 values).
+# Health vocabulary — KanbanMate's DOMAIN health names (5 values).
 # ---------------------------------------------------------------------------
+#
+# These are KanbanMate's OWN orchestration-health names — chosen to mirror the agent/board states
+# (an agent is ACTIVE, WAITING for a human, or BLOCKED), not GitHub's spelling. GitHub's Project v2
+# status-update pill is a FIXED enum (``ProjectV2StatusUpdateStatus``: INACTIVE / ACTIVE / WAITING
+# / BLOCKED / COMPLETE) that GitHub renders with its own labels and colours — we cannot rename it.
+# So the GitHub ADAPTER (``adapters/github/client.py``) maps each domain name onto the wire enum
+# before the GraphQL mutation: ACTIVE→ACTIVE, WAITING→WAITING, BLOCKED→BLOCKED (INACTIVE /
+# COMPLETE are spelt the same on both sides). The colored pill keeps GitHub's labels; the body text
+# this module renders carries the DOMAIN name, so the operator sees the orchestration's own wording.
 
-#: The five GitHub ``ProjectV2StatusUpdateStatus`` values, in their API spelling.
-StatusValue = Literal["INACTIVE", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETE"]
+#: KanbanMate's five DOMAIN health names (the values ``compute_status`` returns + the body renders).
+StatusValue = Literal["INACTIVE", "BLOCKED", "WAITING", "ACTIVE", "COMPLETE"]
 
-#: The same five values as a runtime set, for membership assertions in tests and
-#: callers that validate a string before handing it to the GraphQL mutation.
+#: The same five values as a runtime set, for membership assertions in tests and callers that
+#: validate a string before it is handed to the status reporter (the adapter maps it to the wire enum).
 STATUS_VALUES: Final[frozenset[str]] = frozenset(
-    {"INACTIVE", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETE"}
+    {"INACTIVE", "BLOCKED", "WAITING", "ACTIVE", "COMPLETE"}
 )
 
 # ---------------------------------------------------------------------------
@@ -47,24 +57,24 @@ STATUS_VALUES: Final[frozenset[str]] = frozenset(
 # ---------------------------------------------------------------------------
 
 #: An agent whose last heartbeat is at least this many seconds old is "stale"
-#: (a degraded signal that maps the dashboard to ``AT_RISK``). Mirrors the
+#: (a degraded signal that maps the dashboard to ``WAITING``). Mirrors the
 #: reaper's staleness intuition; the precise reaper deadline lives in the app
 #: layer — this is the dashboard's own degraded threshold (phase-24 §24.1).
 DEFAULT_STALE_AFTER_S: Final[float] = 1800.0
 
 #: Freshness window (seconds) past which a recent-events ring entry STOPS driving
 #: the health pill. The ring (last ~10) has no time decay, so on a quiet board a
-#: morning ``block`` would otherwise pin ``OFF_TRACK`` for hours (observed live:
-#: 3 stale #151 blocks → OFF_TRACK all afternoon). Only events YOUNGER than this
+#: morning ``block`` would otherwise pin ``BLOCKED`` for hours (observed live:
+#: 3 stale #151 blocks → BLOCKED all afternoon). Only events YOUNGER than this
 #: window count toward the verdict; older ones still RENDER in the "Événements
 #: récents" list, they just no longer drive the pill. Agents-based conditions
 #: (waiting / Blocked-parked / stale heartbeat / queue>cap) are unaffected.
 EVENT_HEALTH_WINDOW_S: Final[float] = 3600.0
 
-#: Event kinds that mean the orchestration is *blocked / failing* (→ OFF_TRACK).
+#: Event kinds that mean the orchestration is *blocked / failing* (→ BLOCKED).
 BLOCKING_EVENT_KINDS: Final[frozenset[str]] = frozenset({"block", "gate_fail"})
 
-#: Event kinds that mean the orchestration is *degraded* (→ AT_RISK): a stale
+#: Event kinds that mean the orchestration is *degraded* (→ WAITING): a stale
 #: agent was reaped/relaunched, or a move was rate-limit-parked.
 DEGRADED_EVENT_KINDS: Final[frozenset[str]] = frozenset({"reap", "rate_limit"})
 
@@ -117,7 +127,7 @@ def _fmt_heartbeat_age(age_seconds: float) -> str:
 
 #: Marker appended to a WAITING agent's line — it is alive but blocked on human
 #: input and needs operator attention (phase-27 §B). Its presence also pushes the
-#: overall pill to ``AT_RISK`` via :func:`compute_status`.
+#: overall pill to ``WAITING`` via :func:`compute_status`.
 _WAITING_MARKER: Final[str] = "⏳ waiting for input"
 
 #: Template for the concrete drop-in command a WAITING agent's dashboard block carries (31.2). The
@@ -159,7 +169,7 @@ class RunningAgent:
             comment), or ``None`` when it has reported none yet.
         waiting: Whether the agent is parked WAITING for human input (phase-27
             §B). A waiting agent renders a ``⏳ waiting for input`` marker and
-            pushes the overall pill to ``AT_RISK`` (it needs human attention).
+            pushes the overall pill to ``WAITING`` (it needs human attention).
             Defaulted ``False`` so existing call sites stay valid.
     """
 
@@ -308,18 +318,18 @@ def compute_status(state: OrchestrationState) -> StatusValue:
 
     1. ``state.paused`` (kill-switch) → ``INACTIVE``.
     2. any blocking/failure event (``block`` / ``gate_fail``) OR an agent parked
-       Blocked → ``OFF_TRACK``.
+       Blocked → ``BLOCKED``.
     3. any degraded signal — a stale agent (heartbeat past
        ``state.stale_after_s``), an agent WAITING for human input (phase-27 §B),
        a reap/relaunch or rate-limit-park event, or ``queue_depth > cap`` →
-       ``AT_RISK``.
+       ``WAITING``.
     4. no agents AND no recorded events (fully idle) → ``COMPLETE``.
-    5. otherwise → ``ON_TRACK``.
+    5. otherwise → ``ACTIVE``.
 
     Only events YOUNGER than :data:`EVENT_HEALTH_WINDOW_S` count toward the
     block/gate-fail/reap/rate-limit health verdict (precedence 2 & 3): the ring
     has no time decay, so without this a single morning ``block`` pins the pill to
-    ``OFF_TRACK`` for the rest of the day on an otherwise-quiet board. The stale
+    ``BLOCKED`` for the rest of the day on an otherwise-quiet board. The stale
     events still RENDER in the dashboard's events list (:func:`render_status`
     reads the full ring) — they just stop driving the pill. Agents-based
     conditions are unaffected.
@@ -331,7 +341,7 @@ def compute_status(state: OrchestrationState) -> StatusValue:
         The matching :data:`StatusValue`.
     """
     # Operator override wins over everything (cockpit ``pill set-health``): an explicit operator
-    # decision to pin the pill (e.g. AT_RISK during an incident) takes precedence over the computed
+    # decision to pin the pill (e.g. WAITING during an incident) takes precedence over the computed
     # health AND the kill-switch, until the operator clears it.
     if state.override_enum in STATUS_VALUES:
         return cast("StatusValue", state.override_enum)
@@ -345,25 +355,25 @@ def compute_status(state: OrchestrationState) -> StatusValue:
     event_kinds = {e.kind for e in state.events if state.now - e.ts <= EVENT_HEALTH_WINDOW_S}
 
     if event_kinds & BLOCKING_EVENT_KINDS or any(_agent_is_blocked(a) for a in state.agents):
-        return "OFF_TRACK"
+        return "BLOCKED"
 
     degraded = (
         bool(event_kinds & DEGRADED_EVENT_KINDS)
         or state.queue_depth > state.cap
         or any(_agent_is_stale(a, state.stale_after_s) for a in state.agents)
         # An agent WAITING for human input needs operator attention (phase-27 §B) — distinct from a
-        # truly-stale/hung agent (which the reaper kills), so it degrades the pill to AT_RISK.
+        # truly-stale/hung agent (which the reaper kills), so it degrades the pill to WAITING.
         or any(a.waiting for a in state.agents)
     )
     if degraded:
-        return "AT_RISK"
+        return "WAITING"
 
     # Fully idle — no running agents and no recorded activity — reads as the work
-    # being *done* rather than ongoing, so COMPLETE (not ON_TRACK). Unit-tested.
+    # being *done* rather than ongoing, so COMPLETE (not ACTIVE). Unit-tested.
     if not state.agents and not state.events:
         return "COMPLETE"
 
-    return "ON_TRACK"
+    return "ACTIVE"
 
 
 # ---------------------------------------------------------------------------
@@ -393,7 +403,7 @@ def _render_agent_block(agent: RunningAgent) -> list[str]:
         else f"{_HEARTBEAT_GLYPH} {_fmt_heartbeat_age(agent.heartbeat_age)}"
     )
     # A WAITING agent (phase-27 §B) carries the ⏳ marker on its FIRST line so the operator spots
-    # the need for intervention at a glance (and the pill is AT_RISK). A normal running agent has no
+    # the need for intervention at a glance (and the pill is WAITING). A normal running agent has no
     # suffix here.
     waiting_suffix = f" · {_WAITING_MARKER}" if agent.waiting else ""
     lines = [

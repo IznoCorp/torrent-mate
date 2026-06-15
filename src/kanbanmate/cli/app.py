@@ -677,9 +677,7 @@ def ticket_close(
 
 @pill_app.command("set-health")
 def pill_set_health(
-    enum: str = typer.Argument(
-        ..., help="Health enum: INACTIVE|ON_TRACK|AT_RISK|OFF_TRACK|COMPLETE."
-    ),
+    enum: str = typer.Argument(..., help="Health: INACTIVE|BLOCKED|WAITING|ACTIVE|COMPLETE."),
     note: str = typer.Option("", "--note", help="Optional operator note shown on the dashboard."),
     root: Path = typer.Option(
         _DEFAULT_ROOT, "--root", help="Kanban runtime root (default ~/.kanban)."

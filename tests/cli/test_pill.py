@@ -25,11 +25,11 @@ class _FakeStore:
 
 def test_set_health_enqueues_pill_set_health() -> None:
     store = _FakeStore()
-    msg = set_health(store, enum="AT_RISK", note="x", now=100.0)  # type: ignore[arg-type]
-    assert "enqueued AT_RISK" in msg
+    msg = set_health(store, enum="WAITING", note="x", now=100.0)  # type: ignore[arg-type]
+    assert "enqueued WAITING" in msg
     payload = next(iter(store.intents.values()))
     assert payload["kind"] == "pill_set_health"
-    assert payload["args"] == {"enum": "AT_RISK", "note": "x"}
+    assert payload["args"] == {"enum": "WAITING", "note": "x"}
     assert payload["issue"] is None
 
 
@@ -53,11 +53,11 @@ def test_set_health_wait_applied() -> None:
 
     def _sleep(_s: float) -> None:
         intent_id = next(iter(store.intents))
-        store.results[intent_id] = {"state": "done", "detail": "pill forced to AT_RISK"}
+        store.results[intent_id] = {"state": "done", "detail": "pill forced to WAITING"}
 
     msg = set_health(
         store,  # type: ignore[arg-type]
-        enum="AT_RISK",
+        enum="WAITING",
         wait=True,
         now=100.0,
         sleep=_sleep,

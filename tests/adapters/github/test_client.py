@@ -341,33 +341,56 @@ def test_move_card_rejects_unknown_column() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_create_status_update_issues_mutation_and_returns_id() -> None:
-    """``create_status_update`` issues ``createProjectV2StatusUpdate`` and returns the new id."""
+def test_create_status_update_maps_domain_health_to_github_wire_enum() -> None:
+    """``create_status_update`` MAPS the domain health name to GitHub's wire enum before the mutation.
+
+    Callers pass KanbanMate's domain health (``ACTIVE``); the adapter is the boundary that translates
+    it to GitHub's fixed ``ProjectV2StatusUpdateStatus`` (``ON_TRACK``) — sending the domain name raw
+    would be an invalid-enum GraphQL error.
+    """
     graphql = FakeGraphQL()
     client = _client(graphql, FakeRest())
 
-    new_id = client.create_status_update("PVT_PROJECT", "the dashboard body", "ON_TRACK")
+    new_id = client.create_status_update("PVT_PROJECT", "the dashboard body", "ACTIVE")
 
     assert new_id == "PVTSU_NEW"
     mutation = graphql.last_with("createProjectV2StatusUpdate")
     variables = mutation["variables"]
     assert variables["projectId"] == "PVT_PROJECT"
     assert variables["body"] == "the dashboard body"
-    assert variables["status"] == "ON_TRACK"
+    assert variables["status"] == "ON_TRACK"  # ACTIVE (domain) → ON_TRACK (GitHub wire)
 
 
-def test_update_status_update_issues_mutation_by_id() -> None:
-    """``update_status_update`` issues ``updateProjectV2StatusUpdate`` with the stored id."""
+def test_update_status_update_maps_domain_health_to_github_wire_enum() -> None:
+    """``update_status_update`` MAPS the domain health to the wire enum (WAITING → AT_RISK)."""
     graphql = FakeGraphQL()
     client = _client(graphql, FakeRest())
 
-    client.update_status_update("PVTSU_OLD", "refreshed body", "AT_RISK")
+    client.update_status_update("PVTSU_OLD", "refreshed body", "WAITING")
 
     mutation = graphql.last_with("updateProjectV2StatusUpdate")
     variables = mutation["variables"]
     assert variables["statusUpdateId"] == "PVTSU_OLD"
     assert variables["body"] == "refreshed body"
-    assert variables["status"] == "AT_RISK"
+    assert variables["status"] == "AT_RISK"  # WAITING (domain) → AT_RISK (GitHub wire)
+
+
+def test_status_health_maps_all_domain_names_to_wire_enum() -> None:
+    """The full domain→wire health map is exhaustive and correct (the adapter boundary contract)."""
+    from kanbanmate.adapters.github.client import _to_github_status
+    from kanbanmate.core.status_update import STATUS_VALUES
+
+    expected = {
+        "INACTIVE": "INACTIVE",
+        "BLOCKED": "OFF_TRACK",
+        "WAITING": "AT_RISK",
+        "ACTIVE": "ON_TRACK",
+        "COMPLETE": "COMPLETE",
+    }
+    # Every domain health value has a wire mapping.
+    assert set(expected) == set(STATUS_VALUES)
+    for domain, wire in expected.items():
+        assert _to_github_status(domain) == wire
 
 
 def test_delete_status_update_issues_mutation_by_id() -> None:
@@ -418,7 +441,7 @@ def test_create_status_update_errors_response_raises_graphql_error() -> None:
         rest_transport=FakeRest(),
     )
     with pytest.raises(GraphQLError, match="Could not resolve to a ProjectV2"):
-        client.create_status_update("PVT", "body", "ON_TRACK")
+        client.create_status_update("PVT", "body", "ACTIVE")
 
 
 def test_update_status_update_errors_response_raises_graphql_error() -> None:
@@ -435,7 +458,7 @@ def test_update_status_update_errors_response_raises_graphql_error() -> None:
         rest_transport=FakeRest(),
     )
     with pytest.raises(GraphQLError, match="Could not resolve to a ProjectV2StatusUpdate"):
-        client.update_status_update("PVTSU_STALE", "body", "ON_TRACK")
+        client.update_status_update("PVTSU_STALE", "body", "ACTIVE")
 
 
 def test_comment_posts_to_rest_endpoint() -> None:

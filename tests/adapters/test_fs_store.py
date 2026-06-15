@@ -1742,15 +1742,15 @@ class TestStatusUpdateState:
         """The last-posted status enum round-trips through set/get (re-create-on-change)."""
         store = FsStateStore(root=tmp_path)
         assert store.get_status_last_enum() is None  # never posted → first render posts
-        store.set_status_last_enum("OFF_TRACK")
-        assert store.get_status_last_enum() == "OFF_TRACK"
-        store.set_status_last_enum("ON_TRACK")
-        assert store.get_status_last_enum() == "ON_TRACK"
+        store.set_status_last_enum("BLOCKED")
+        assert store.get_status_last_enum() == "BLOCKED"
+        store.set_status_last_enum("ACTIVE")
+        assert store.get_status_last_enum() == "ACTIVE"
 
     def test_last_enum_clear_with_none(self, tmp_path: Path) -> None:
         """Setting the last-posted enum to ``None`` clears the marker (project rebind)."""
         store = FsStateStore(root=tmp_path)
-        store.set_status_last_enum("ON_TRACK")
+        store.set_status_last_enum("ACTIVE")
         store.set_status_last_enum(None)
         assert store.get_status_last_enum() is None
 
@@ -1758,8 +1758,8 @@ class TestStatusUpdateState:
         """The operator pill-override enum round-trips and clears (cockpit pill set-health/clear)."""
         store = FsStateStore(root=tmp_path)
         assert store.get_status_override_enum() is None
-        store.set_status_override_enum("AT_RISK")
-        assert store.get_status_override_enum() == "AT_RISK"
+        store.set_status_override_enum("WAITING")
+        assert store.get_status_override_enum() == "WAITING"
         store.set_status_override_enum(None)
         assert store.get_status_override_enum() is None
 

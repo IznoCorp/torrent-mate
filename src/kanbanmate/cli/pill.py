@@ -2,7 +2,7 @@
 
 ``kanban pill set-health|note|clear`` enqueue ``pill_*`` :class:`~kanbanmate.core.intent.Intent`s;
 the **daemon** applies them by writing the override markers its ``report_status`` step reads — the
-operator can pin the health pill (e.g. ``AT_RISK`` during an incident) + post a dashboard note, then
+operator can pin the health pill (e.g. ``WAITING`` during an incident) + post a dashboard note, then
 ``clear`` to revert to the computed health. Operator-only (the bare ``kanban`` CLI is agent-excluded).
 ``--wait`` blocks on the daemon's result.
 """

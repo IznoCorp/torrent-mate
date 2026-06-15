@@ -377,7 +377,7 @@ class ProjectStatusReporter(Protocol):
             project_id: The ``ProjectV2`` node id to post the status update on.
             body: The markdown status-update body (the rendered dashboard).
             status: A ``ProjectV2StatusUpdateStatus`` enum value (``INACTIVE`` /
-                ``ON_TRACK`` / ``AT_RISK`` / ``OFF_TRACK`` / ``COMPLETE``).
+                ``ACTIVE`` / ``WAITING`` / ``BLOCKED`` / ``COMPLETE``).
 
         Returns:
             The new ``ProjectV2StatusUpdate`` node id.
@@ -396,7 +396,7 @@ class ProjectStatusReporter(Protocol):
             status_update_id: The ``ProjectV2StatusUpdate`` node id to refresh.
             body: The new markdown status-update body.
             status: A ``ProjectV2StatusUpdateStatus`` enum value (``INACTIVE`` /
-                ``ON_TRACK`` / ``AT_RISK`` / ``OFF_TRACK`` / ``COMPLETE``).
+                ``ACTIVE`` / ``WAITING`` / ``BLOCKED`` / ``COMPLETE``).
         """
         ...
 

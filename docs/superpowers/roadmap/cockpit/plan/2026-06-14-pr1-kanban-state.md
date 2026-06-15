@@ -32,11 +32,11 @@ already takes.
 
 - [ ] **Step 1 — failing tests** (`tests/cli/test_state.py`): with in-memory fakes (a board_reader
       returning a snapshot of 3 tickets across 2 columns; a store with one RUNNING ticket, a queued
-      ticket, an events ring `[{ts,kind,issue,detail}]`, and `last_status="AT_RISK"`):
+      ticket, an events ring `[{ts,kind,issue,detail}]`, and `last_status="WAITING"`):
   - `build_state(...)` returns a `StateReport` whose `.status` is the `build_status` report, whose
-    `.events` equals the store ring (tuple), and whose `.health == "AT_RISK"`.
+    `.events` equals the store ring (tuple), and whose `.health == "WAITING"`.
   - `render_state_json(report)` is valid JSON with keys `health, paused, board{columns,total},
-agents[], queue[], events[] (newest-first), daemon, degraded`; `health=="AT_RISK"`; `board.total`
+agents[], queue[], events[] (newest-first), daemon, degraded`; `health=="WAITING"`; `board.total`
     == number of snapshot tickets; first event is the newest by `ts`.
   - `render_state_human(report)` contains the board render, a `Health` line with the enum, and a
     `Recent events` section listing the events newest-first.

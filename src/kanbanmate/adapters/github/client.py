@@ -48,6 +48,34 @@ from kanbanmate.core.probes import parse_branch_protection_on
 # import (e.g. the pagination tests) keeps resolving without touching the caller.
 __all__ = ["GithubClient", "Timeouts", "UrllibTransport"]
 
+# Domain-health → GitHub wire-enum map (the status-pill adapter boundary). KanbanMate's core speaks
+# its OWN health vocabulary (``core.status_update.StatusValue``: INACTIVE / BLOCKED / WAITING / ACTIVE
+# / COMPLETE — mirroring the agent/board states), but GitHub's ``ProjectV2StatusUpdateStatus`` pill is
+# a FIXED enum we cannot rename. This adapter is the ONLY place the value crosses to GitHub, so it
+# translates here: ACTIVE→ON_TRACK, WAITING→AT_RISK, BLOCKED→OFF_TRACK (INACTIVE / COMPLETE are
+# identical on both sides). An UNKNOWN value passes through unchanged so a future health name still
+# reaches GitHub (which then validates it) rather than being silently dropped.
+_HEALTH_TO_GITHUB_STATUS: dict[str, str] = {
+    "INACTIVE": "INACTIVE",
+    "BLOCKED": "OFF_TRACK",
+    "WAITING": "AT_RISK",
+    "ACTIVE": "ON_TRACK",
+    "COMPLETE": "COMPLETE",
+}
+
+
+def _to_github_status(health: str) -> str:
+    """Map a KanbanMate domain-health name onto GitHub's ``ProjectV2StatusUpdateStatus`` wire enum.
+
+    Args:
+        health: A :data:`kanbanmate.core.status_update.StatusValue` domain name (e.g. ``"ACTIVE"``).
+
+    Returns:
+        The matching GitHub wire-enum value (e.g. ``"ON_TRACK"``); the input unchanged for an
+        unknown name (forward-compatible — GitHub then validates it).
+    """
+    return _HEALTH_TO_GITHUB_STATUS.get(health, health)
+
 
 class GithubClient:
     """GitHub Projects v2 board adapter — the single client behind every board port.
@@ -489,8 +517,10 @@ class GithubClient:
         Args:
             project_id: The ``ProjectV2`` node id to post the status update on.
             body: The markdown status-update body (the rendered dashboard).
-            status: A ``ProjectV2StatusUpdateStatus`` enum value (``INACTIVE`` /
-                ``ON_TRACK`` / ``AT_RISK`` / ``OFF_TRACK`` / ``COMPLETE``).
+            status: A KanbanMate DOMAIN health name (``INACTIVE`` / ``BLOCKED`` /
+                ``WAITING`` / ``ACTIVE`` / ``COMPLETE``) — mapped to GitHub's
+                ``ProjectV2StatusUpdateStatus`` wire enum here via
+                :func:`_to_github_status` (ACTIVE→ON_TRACK, WAITING→AT_RISK, BLOCKED→OFF_TRACK).
 
         Returns:
             The new ``ProjectV2StatusUpdate`` node id.
@@ -498,7 +528,9 @@ class GithubClient:
         Raises:
             GraphQLError: When the mutation response carries errors.
         """
-        data = self._graphql(_queries.create_status_update(project_id, body, status))
+        data = self._graphql(
+            _queries.create_status_update(project_id, body, _to_github_status(status))
+        )
         return _parsers.parse_created_status_update(data)
 
     def update_status_update(self, status_update_id: str, body: str, status: str) -> None:
@@ -516,13 +548,16 @@ class GithubClient:
         Args:
             status_update_id: The ``ProjectV2StatusUpdate`` node id to refresh.
             body: The new markdown status-update body.
-            status: A ``ProjectV2StatusUpdateStatus`` enum value (``INACTIVE`` /
-                ``ON_TRACK`` / ``AT_RISK`` / ``OFF_TRACK`` / ``COMPLETE``).
+            status: A KanbanMate DOMAIN health name (``INACTIVE`` / ``BLOCKED`` /
+                ``WAITING`` / ``ACTIVE`` / ``COMPLETE``) — mapped to GitHub's
+                ``ProjectV2StatusUpdateStatus`` wire enum here via :func:`_to_github_status`.
 
         Raises:
             GraphQLError: When the mutation response carries errors.
         """
-        data = self._graphql(_queries.update_status_update(status_update_id, body, status))
+        data = self._graphql(
+            _queries.update_status_update(status_update_id, body, _to_github_status(status))
+        )
         raise_for_errors(data)
 
     def delete_status_update(self, status_update_id: str) -> None:

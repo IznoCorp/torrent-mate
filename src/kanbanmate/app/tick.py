@@ -844,7 +844,7 @@ def tick(
         )
         errors += reap_errors
         # Dashboard event (phase-24 §24.3): a stale-agent reap or relaunch happened this tick. A
-        # board-wide event (issue ``None``) — the render maps ``reap`` to the degraded (AT_RISK) bin.
+        # board-wide event (issue ``None``) — the render maps ``reap`` to the degraded (WAITING) bin.
         if reaped or relaunched:
             status_events.append(("reap", None, f"{reaped} reaped, {relaunched} relaunched"))
 

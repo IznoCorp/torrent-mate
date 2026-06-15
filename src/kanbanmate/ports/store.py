@@ -43,7 +43,7 @@ class TicketStatus(str, Enum):
     The reaper (:func:`kanbanmate.app.reaper.reap_stale_agents`) classifies a stale-but-ALIVE
     session's captured pane via :func:`kanbanmate.core.launch_keys.is_waiting_for_input`; a waiting
     pane transitions the ticket here (signalled to the user via the ⏳ stage header + the dashboard
-    AT_RISK pill) instead of being reaped. It is RESTORED to ``RUNNING`` once the human answers and
+    WAITING pill) instead of being reaped. It is RESTORED to ``RUNNING`` once the human answers and
     the heartbeat refreshes, or reaped if the session dies. Like ``RUNNING`` it is a LIVE status, so
     :meth:`StateStore.list_running` includes ``WAITING`` tickets — the reaper must keep observing
     them to detect the heartbeat refresh (resume) or a dead session (reap)."""
@@ -730,7 +730,7 @@ class StateStore(Protocol):
         update is *created* — an in-place ``update`` mutates the record's fields
         (visible via the API) but leaves the project pill frozen at the value the
         rolling update had when it was first created (observed live: a board stuck
-        ``OFF_TRACK`` for days while the record read ``ON_TRACK``). The reporter
+        ``BLOCKED`` for days while the record read ``ACTIVE``). The reporter
         therefore re-creates the rolling update whenever the health enum changes;
         this marker records the LAST-posted enum so a change is detectable.
         ``None`` means nothing has been posted yet (so the first render posts).

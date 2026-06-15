@@ -78,7 +78,7 @@ def _store() -> _FakeStore:
             {"ts": 1000.0, "kind": "launch", "issue": 7, "detail": "x"},
             {"ts": 2000.0, "kind": "teardown", "issue": 8, "detail": "done"},
         ],
-        last_status="AT_RISK",
+        last_status="WAITING",
     )
 
 
@@ -87,7 +87,7 @@ def test_build_state_aggregates_status_events_health() -> None:
     report = build_state(_reader(), _store(), now=3000.0)  # type: ignore[arg-type]
     assert report.status.total_cards == 3
     assert report.status.column_counts["Backlog"] == 2
-    assert report.health == "AT_RISK"
+    assert report.health == "WAITING"
     assert tuple(e["kind"] for e in report.events) == ("launch", "teardown")
 
 
@@ -100,7 +100,7 @@ def test_render_state_json_shape_and_events_newest_first() -> None:
         now=3000.0,
     )
     data = json.loads(render_state_json(report))
-    assert data["health"] == "AT_RISK"
+    assert data["health"] == "WAITING"
     assert data["board"]["total"] == 3
     assert data["board"]["columns"]["Backlog"] == 2
     assert [a["issue_number"] for a in data["agents"]] == [7]
@@ -113,7 +113,7 @@ def test_render_state_json_shape_and_events_newest_first() -> None:
 def test_render_state_human_includes_health_and_events_newest_first() -> None:
     """The human render shows the board, a Health line, and a newest-first Recent events block."""
     out = render_state_human(build_state(_reader(), _store(), now=3000.0))  # type: ignore[arg-type]
-    assert "AT_RISK" in out
+    assert "WAITING" in out
     assert "Recent events" in out
     # Within the events block, the newest event (teardown #8) is listed above the older launch (#7).
     events_block = out[out.index("Recent events") :]

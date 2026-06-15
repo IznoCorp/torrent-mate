@@ -149,7 +149,7 @@ class StatusUpdateStateMixin:
         """Return the OPERATOR pill override enum (cockpit ``pill set-health``), or ``None``.
 
         When set, the rolling-dashboard render forces this enum (winning over the computed health)
-        until the operator clears it — letting an operator pin the pill (e.g. ``AT_RISK`` during an
+        until the operator clears it — letting an operator pin the pill (e.g. ``WAITING`` during an
         incident) regardless of orchestration state.
         """
         return self._read_status_marker(self._status_override_enum_path())

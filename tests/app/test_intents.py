@@ -424,13 +424,13 @@ def test_pill_set_health_sets_override() -> None:
             "i1": {
                 "kind": "pill_set_health",
                 "issue": None,
-                "args": {"enum": "AT_RISK", "note": "incident"},
+                "args": {"enum": "WAITING", "note": "incident"},
                 "requested_at": 1.0,
             }
         }
     )
     _drain(store, _FakeWriter())
-    assert store.override_enum == "AT_RISK"
+    assert store.override_enum == "WAITING"
     assert store.override_note == "incident"
     assert store.results["i1"]["state"] == "done"
 
@@ -471,7 +471,7 @@ def test_pill_clear_clears_override() -> None:
     store = _FakeStore(
         intents={"i1": {"kind": "pill_clear", "issue": None, "args": {}, "requested_at": 1.0}}
     )
-    store.override_enum = "AT_RISK"
+    store.override_enum = "WAITING"
     store.override_note = "x"
     _drain(store, _FakeWriter())
     assert store.override_enum is None

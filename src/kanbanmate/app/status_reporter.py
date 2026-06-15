@@ -235,7 +235,7 @@ def _running_agent(
         launched_at=state.started or state.heartbeat or now,
         heartbeat_age=heartbeat_age,
         progress=progress,
-        # Phase-27 §B: a WAITING ticket renders the ⏳ marker + pushes the pill to AT_RISK. The
+        # Phase-27 §B: a WAITING ticket renders the ⏳ marker + pushes the pill to WAITING. The
         # store's ``list_running`` now returns WAITING tickets alongside RUNNING, so the reporter
         # observes them here straight off the persisted status.
         waiting=state.status is TicketStatus.WAITING,
@@ -275,7 +275,7 @@ def _recreate_rolling_update(deps: Deps, render: StatusUpdateRender, *, old_id: 
     update is *created* — an in-place ``update`` mutates the record's fields
     (visible via the API) but leaves the project pill frozen at the value the
     rolling update had when it was first created (observed live: a board stuck
-    ``OFF_TRACK`` for days while the record read ``ON_TRACK``). So both the
+    ``BLOCKED`` for days while the record read ``ACTIVE``). So both the
     enum-changed refresh AND the stale-id recovery path funnel through here:
     create the new update, persist its id, then delete the old one so the board
     keeps a SINGLE rolling pill. The delete is best-effort (a lingering orphan is
@@ -419,8 +419,8 @@ def report_status(
         # when a status update is *created*, never on an in-place ``update`` (the
         # in-place update DOES change the record's body + status fields the API
         # returns, but the project pill stays frozen at the value the rolling
-        # update had at creation — observed live: a board stuck OFF_TRACK for days
-        # while the record read ON_TRACK). So:
+        # update had at creation — observed live: a board stuck BLOCKED for days
+        # while the record read ACTIVE). So:
         #   • enum CHANGED (or first post)  → re-create (moves the pill).
         #   • enum SAME, body-only change   → cheap in-place update (pill already
         #     correct for this enum; avoids per-change pill churn / spam).

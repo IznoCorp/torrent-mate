@@ -76,61 +76,61 @@ def test_status_paused_is_inactive() -> None:
 
 
 def test_status_block_event_is_off_track() -> None:
-    """Precedence 2: a blocking event → OFF_TRACK."""
+    """Precedence 2: a blocking event → BLOCKED."""
     ev = StatusEvent(ts=_NOW, kind="block", issue=137, detail="dep gate")
-    assert compute_status(_state(events=(ev,))) == "OFF_TRACK"
+    assert compute_status(_state(events=(ev,))) == "BLOCKED"
 
 
 def test_status_gate_fail_event_is_off_track() -> None:
-    """Precedence 2: a gate_fail event → OFF_TRACK."""
+    """Precedence 2: a gate_fail event → BLOCKED."""
     ev = StatusEvent(ts=_NOW, kind="gate_fail", issue=137, detail="CI red")
-    assert compute_status(_state(events=(ev,))) == "OFF_TRACK"
+    assert compute_status(_state(events=(ev,))) == "BLOCKED"
 
 
 def test_status_blocked_agent_is_off_track() -> None:
-    """Precedence 2: an agent parked in Blocked → OFF_TRACK."""
-    assert compute_status(_state(agents=(_agent(to_col="Blocked"),))) == "OFF_TRACK"
+    """Precedence 2: an agent parked in Blocked → BLOCKED."""
+    assert compute_status(_state(agents=(_agent(to_col="Blocked"),))) == "BLOCKED"
 
 
 def test_status_stale_agent_is_at_risk() -> None:
-    """Precedence 3: a stale heartbeat (>= threshold) → AT_RISK."""
+    """Precedence 3: a stale heartbeat (>= threshold) → WAITING."""
     state = _state(agents=(_agent(heartbeat_age=2000.0),))
-    assert compute_status(state) == "AT_RISK"
+    assert compute_status(state) == "WAITING"
 
 
 def test_status_reap_event_is_at_risk() -> None:
-    """Precedence 3: a reap/relaunch event → AT_RISK."""
+    """Precedence 3: a reap/relaunch event → WAITING."""
     ev = StatusEvent(ts=_NOW, kind="reap", issue=140, detail="relaunch")
-    assert compute_status(_state(agents=(_agent(),), events=(ev,))) == "AT_RISK"
+    assert compute_status(_state(agents=(_agent(),), events=(ev,))) == "WAITING"
 
 
 def test_status_rate_limit_event_is_at_risk() -> None:
-    """Precedence 3: a rate-limit park event → AT_RISK."""
+    """Precedence 3: a rate-limit park event → WAITING."""
     ev = StatusEvent(ts=_NOW, kind="rate_limit", issue=None, detail="move parked")
-    assert compute_status(_state(agents=(_agent(),), events=(ev,))) == "AT_RISK"
+    assert compute_status(_state(agents=(_agent(),), events=(ev,))) == "WAITING"
 
 
 def test_status_queue_over_cap_is_at_risk() -> None:
-    """Precedence 3: queue depth over the cap → AT_RISK."""
-    assert compute_status(_state(agents=(_agent(),), queue_depth=4, cap=3)) == "AT_RISK"
+    """Precedence 3: queue depth over the cap → WAITING."""
+    assert compute_status(_state(agents=(_agent(),), queue_depth=4, cap=3)) == "WAITING"
 
 
 def test_status_waiting_agent_is_at_risk() -> None:
-    """Precedence 3 (phase-27 §B): an agent WAITING for human input → AT_RISK (needs attention).
+    """Precedence 3 (phase-27 §B): an agent WAITING for human input → WAITING (needs attention).
 
     A fresh-heartbeat, non-blocked agent that is WAITING still degrades the pill — it needs the
     human, distinct from a truly-stale/hung agent (which the reaper kills).
     """
     state = _state(agents=(_agent(waiting=True, heartbeat_age=5.0),))
-    assert compute_status(state) == "AT_RISK"
+    assert compute_status(state) == "WAITING"
 
 
 def test_render_waiting_agent_shows_marker() -> None:
     """A WAITING agent's line carries the ``⏳ waiting for input`` marker (phase-27 §B)."""
     body = render_status(_state(agents=(_agent(waiting=True),))).body
     assert "⏳ waiting for input" in body
-    # The overall pill is AT_RISK (rendered into the header pill line).
-    assert "`AT_RISK`" in body
+    # The overall pill is WAITING (rendered into the header pill line).
+    assert "`WAITING`" in body
 
 
 def test_render_non_waiting_agent_has_no_marker() -> None:
@@ -154,19 +154,19 @@ def test_render_non_waiting_agent_has_no_attach_hint() -> None:
 def test_status_stale_block_event_no_longer_drives_pill() -> None:
     """A block event OLDER than the freshness window stops driving the pill (phase-36).
 
-    The ring has no time decay, so a morning block would otherwise pin OFF_TRACK all day. An aged
+    The ring has no time decay, so a morning block would otherwise pin BLOCKED all day. An aged
     block (here just past the 3600s window) no longer counts toward the verdict: with no agents the
-    board reads ON_TRACK (the stale event still renders in the events list — it just stops driving
+    board reads ACTIVE (the stale event still renders in the events list — it just stops driving
     the pill).
     """
     aged = StatusEvent(ts=_NOW - 3601.0, kind="block", issue=151, detail="dep gate")
-    assert compute_status(_state(events=(aged,))) == "ON_TRACK"
+    assert compute_status(_state(events=(aged,))) == "ACTIVE"
 
 
 def test_status_fresh_block_event_still_off_track() -> None:
-    """A block event YOUNGER than the freshness window still drives OFF_TRACK (phase-36)."""
+    """A block event YOUNGER than the freshness window still drives BLOCKED (phase-36)."""
     fresh = StatusEvent(ts=_NOW - 60.0, kind="block", issue=151, detail="dep gate")
-    assert compute_status(_state(events=(fresh,))) == "OFF_TRACK"
+    assert compute_status(_state(events=(fresh,))) == "BLOCKED"
 
 
 def test_status_event_freshness_boundary_is_inclusive() -> None:
@@ -176,21 +176,21 @@ def test_status_event_freshness_boundary_is_inclusive() -> None:
     second past the window does not.
     """
     on_edge = StatusEvent(ts=_NOW - EVENT_HEALTH_WINDOW_S, kind="block", issue=151, detail="x")
-    assert compute_status(_state(events=(on_edge,))) == "OFF_TRACK"
+    assert compute_status(_state(events=(on_edge,))) == "BLOCKED"
     just_past = StatusEvent(
         ts=_NOW - EVENT_HEALTH_WINDOW_S - 1.0, kind="block", issue=151, detail="x"
     )
-    assert compute_status(_state(events=(just_past,))) == "ON_TRACK"
+    assert compute_status(_state(events=(just_past,))) == "ACTIVE"
 
 
 def test_status_stale_degraded_event_no_longer_drives_pill() -> None:
-    """An aged reap/rate-limit event no longer degrades the pill to AT_RISK (phase-36).
+    """An aged reap/rate-limit event no longer degrades the pill to WAITING (phase-36).
 
-    With a healthy agent present and only an OLD reap event, the board reads ON_TRACK rather than
-    AT_RISK — the degraded signal is windowed alongside the blocking ones.
+    With a healthy agent present and only an OLD reap event, the board reads ACTIVE rather than
+    WAITING — the degraded signal is windowed alongside the blocking ones.
     """
     aged = StatusEvent(ts=_NOW - 3601.0, kind="reap", issue=140, detail="relaunch")
-    assert compute_status(_state(agents=(_agent(),), events=(aged,))) == "ON_TRACK"
+    assert compute_status(_state(agents=(_agent(),), events=(aged,))) == "ACTIVE"
 
 
 def test_status_idle_is_complete() -> None:
@@ -199,21 +199,21 @@ def test_status_idle_is_complete() -> None:
 
 
 def test_status_active_is_on_track() -> None:
-    """Precedence 5: a healthy running agent → ON_TRACK."""
-    assert compute_status(_state(agents=(_agent(),))) == "ON_TRACK"
+    """Precedence 5: a healthy running agent → ACTIVE."""
+    assert compute_status(_state(agents=(_agent(),))) == "ACTIVE"
 
 
 def test_status_custom_stale_threshold() -> None:
     """The per-state ``stale_after_s`` overrides the default threshold."""
     # heartbeat_age 600 is below the 1800 default but above a 300 override.
-    assert compute_status(_state(agents=(_agent(heartbeat_age=600.0),))) == "ON_TRACK"
+    assert compute_status(_state(agents=(_agent(heartbeat_age=600.0),))) == "ACTIVE"
     state = _state(agents=(_agent(heartbeat_age=600.0),), stale_after_s=300.0)
-    assert compute_status(state) == "AT_RISK"
+    assert compute_status(state) == "WAITING"
 
 
 def test_status_none_heartbeat_is_not_stale() -> None:
-    """A just-launched agent (no heartbeat yet) is not stale → ON_TRACK."""
-    assert compute_status(_state(agents=(_agent(heartbeat_age=None),))) == "ON_TRACK"
+    """A just-launched agent (no heartbeat yet) is not stale → ACTIVE."""
+    assert compute_status(_state(agents=(_agent(heartbeat_age=None),))) == "ACTIVE"
 
 
 # ── render returns the rendered status in the dataclass ─────────────────────
@@ -223,7 +223,7 @@ def test_render_returns_status_value() -> None:
     """The render carries the computed status, a member of STATUS_VALUES."""
     render = render_status(_state(agents=(_agent(),)))
     assert isinstance(render, StatusUpdateRender)
-    assert render.status == "ON_TRACK"
+    assert render.status == "ACTIVE"
     assert render.status in STATUS_VALUES
 
 
@@ -247,7 +247,7 @@ def test_render_one_agent_layout() -> None:
     body = render_status(_state(agents=(agent,), cap=3, queue_depth=0, events=(ev,))).body
 
     assert body.splitlines() == [
-        "**KanbanMate — orchestration live** · `ON_TRACK`",
+        "**KanbanMate — orchestration live** · `ACTIVE`",
         f"tick {_hhmm(_NOW)} · cap 3 · queue 0",
         "",
         "**Agents en cours (1)**",
@@ -355,8 +355,8 @@ def test_render_is_deterministic() -> None:
 
 def test_override_enum_wins_over_computed_and_paused() -> None:
     # An explicit operator override forces the pill — over the computed health AND the kill-switch.
-    assert compute_status(_state(override_enum="OFF_TRACK")) == "OFF_TRACK"
-    assert compute_status(_state(paused=True, override_enum="ON_TRACK")) == "ON_TRACK"
+    assert compute_status(_state(override_enum="BLOCKED")) == "BLOCKED"
+    assert compute_status(_state(paused=True, override_enum="ACTIVE")) == "ACTIVE"
 
 
 def test_invalid_override_enum_is_ignored() -> None:
@@ -365,7 +365,7 @@ def test_invalid_override_enum_is_ignored() -> None:
 
 
 def test_render_shows_override_banner_and_note() -> None:
-    body = render_status(_state(override_enum="AT_RISK", override_note="incident in prod")).body
-    assert "`AT_RISK`" in body
+    body = render_status(_state(override_enum="WAITING", override_note="incident in prod")).body
+    assert "`WAITING`" in body
     assert "opérateur" in body  # the forced-pill banner
     assert "incident in prod" in body

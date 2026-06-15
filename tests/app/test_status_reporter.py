@@ -268,7 +268,7 @@ def test_one_running_agent_creates_with_rendered_body() -> None:
     assert reporter.updated == []
     project_id, body, status = reporter.created[0]
     assert project_id == "PVT_proj"
-    assert status == "ON_TRACK"  # one healthy running agent
+    assert status == "ACTIVE"  # one healthy running agent
     # The body is the real rendered dashboard — it carries the agent line + the title off the snapshot.
     assert "#7" in body
     assert "Wire it" in body
@@ -541,7 +541,7 @@ def test_progress_read_is_ttl_cached() -> None:
 
 # ---------------------------------------------------------------------------
 # (b2) health-enum change → RE-CREATE so GitHub moves the project status pill
-# (the live bug: a board stuck OFF_TRACK for days while the record read ON_TRACK,
+# (the live bug: a board stuck BLOCKED for days while the record read ACTIVE,
 # because the daemon only ever updated the single rolling record IN PLACE, and
 # GitHub refreshes the denormalised project pill only on a *create*).
 # ---------------------------------------------------------------------------
@@ -550,9 +550,9 @@ def test_progress_read_is_ttl_cached() -> None:
 def test_enum_change_recreates_and_deletes_old_to_move_pill() -> None:
     """When the health enum changes, the reporter re-creates (not updates) and deletes the old.
 
-    The stored rolling update was last posted ``OFF_TRACK``; the new render is
-    ``ON_TRACK`` (a healthy running agent). An in-place ``update`` would leave the
-    GitHub project pill frozen at ``OFF_TRACK`` (the live bug), so the reporter
+    The stored rolling update was last posted ``BLOCKED``; the new render is
+    ``ACTIVE`` (a healthy running agent). An in-place ``update`` would leave the
+    GitHub project pill frozen at ``BLOCKED`` (the live bug), so the reporter
     must CREATE a fresh update (which moves the pill) and best-effort delete the
     superseded one — keeping a single rolling pill.
     """
@@ -561,7 +561,7 @@ def test_enum_change_recreates_and_deletes_old_to_move_pill() -> None:
         update_id="PVTSU_old",
         body_hash="stale-hash",
         status_project_id="PVT_proj",
-        last_status="OFF_TRACK",  # last posted enum differs from the ON_TRACK render
+        last_status="BLOCKED",  # last posted enum differs from the ACTIVE render
     )
     snapshot = _snapshot(
         Ticket(item_id="PVTI_7", issue_number=7, title="Wire it", column_key="InProgress")
@@ -581,13 +581,13 @@ def test_enum_change_recreates_and_deletes_old_to_move_pill() -> None:
 
     # RE-CREATE path: a fresh create (NOT an in-place update) moved the pill.
     assert len(reporter.created) == 1
-    assert reporter.created[0][2] == "ON_TRACK"
+    assert reporter.created[0][2] == "ACTIVE"
     assert reporter.updated == []
     # The superseded record was deleted so the board keeps a single rolling pill.
     assert reporter.deleted == ["PVTSU_old"]
     # The fresh id + the new enum are persisted for the next tick's change detection.
     assert store.update_id == "PVTSU_1"
-    assert store.last_status == "ON_TRACK"
+    assert store.last_status == "ACTIVE"
 
 
 def test_same_enum_body_change_updates_in_place_and_persists_enum() -> None:
@@ -602,7 +602,7 @@ def test_same_enum_body_change_updates_in_place_and_persists_enum() -> None:
         update_id="PVTSU_existing",
         body_hash="stale-hash",
         status_project_id="PVT_proj",
-        last_status="ON_TRACK",  # matches the ON_TRACK render → no enum change
+        last_status="ACTIVE",  # matches the ACTIVE render → no enum change
     )
     deps = _deps(reporter=reporter, store=store)
 
@@ -621,7 +621,7 @@ def test_same_enum_body_change_updates_in_place_and_persists_enum() -> None:
     assert reporter.deleted == []
     assert len(reporter.updated) == 1
     assert reporter.updated[0][0] == "PVTSU_existing"
-    assert store.last_status == "ON_TRACK"
+    assert store.last_status == "ACTIVE"
 
 
 # ---------------------------------------------------------------------------
@@ -633,13 +633,13 @@ def test_stored_id_takes_update_path() -> None:
     """A stored update id + a changed body → the UPDATE path (no new create)."""
     reporter = _FakeReporter()
     # The stored id/hash belong to the CURRENT project (no rebind) AND the last
-    # posted enum matches the render (ON_TRACK) — the normal same-board refresh
+    # posted enum matches the render (ACTIVE) — the normal same-board refresh
     # with an unchanged enum, which must take the in-place update path.
     store = _FakeStatusStore(
         update_id="PVTSU_existing",
         body_hash="stale-hash",
         status_project_id="PVT_proj",
-        last_status="ON_TRACK",
+        last_status="ACTIVE",
     )
     deps = _deps(reporter=reporter, store=store)
 
@@ -666,13 +666,13 @@ def test_update_raises_falls_back_to_create() -> None:
     """When ``update`` raises (stale/deleted id) the reporter falls back to ``create`` + re-stores."""
     reporter = _FakeReporter(update_raises=True)
     # Stored state already belongs to the current project (no rebind) and the enum
-    # is unchanged (ON_TRACK) → the in-place update path is taken; the stale id is
+    # is unchanged (ACTIVE) → the in-place update path is taken; the stale id is
     # GitHub-stale, not project-stale, so the update raises and falls back.
     store = _FakeStatusStore(
         update_id="PVTSU_stale",
         body_hash="stale-hash",
         status_project_id="PVT_proj",
-        last_status="ON_TRACK",
+        last_status="ACTIVE",
     )
     deps = _deps(reporter=reporter, store=store)
 
@@ -707,7 +707,7 @@ def test_recreate_path_swallows_orphan_delete_failure(caplog) -> None:  # type: 
         update_id="PVTSU_stale",
         body_hash="stale-hash",
         status_project_id="PVT_proj",
-        last_status="ON_TRACK",
+        last_status="ACTIVE",
     )
     deps = _deps(reporter=reporter, store=store)
 
@@ -748,7 +748,7 @@ def test_posting_error_is_swallowed(caplog) -> None:  # type: ignore[no-untyped-
         update_id="PVTSU_x",
         body_hash="stale",
         status_project_id="PVT_proj",
-        last_status="ON_TRACK",
+        last_status="ACTIVE",
     )
     deps = _deps(reporter=reporter, store=store)
 
