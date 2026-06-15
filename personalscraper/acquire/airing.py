@@ -7,9 +7,10 @@ episodes that have already aired (air-date <= today).
 Mirrors :mod:`personalscraper.acquire.title_resolver` in structure:
 no ``AcquireContext`` handle, no store/indexer import.
 
-Import direction: ``api/metadata`` (downward) + ``acquire.domain`` +
-``core.identity`` + stdlib ``datetime``.  Never imports store, indexer,
-or any triage package.
+Import direction: ``api/metadata`` + ``api._contracts`` (downward) +
+``acquire.domain`` + stdlib ``datetime``.  MediaRef reaches this module only
+transitively via ``acquire.domain``; never imports ``core.identity``, store,
+or indexer directly.
 
 Logging: ``personalscraper.logger.get_logger`` (NEVER ``structlog.get_logger``).
 """
@@ -139,7 +140,7 @@ def poll_aired(
             log.warning("acquire.airing.poll_failed", tvdb_id=tvdb_id, title=fs.title, error=str(exc))
             continue
         except Exception as exc:  # noqa: BLE001 — fail-soft: one bad series must not block others
-            log.warning("acquire.airing.poll_failed", tvdb_id=tvdb_id, title=fs.title, error=str(exc))
+            log.warning("acquire.airing.poll_failed", tvdb_id=tvdb_id, title=fs.title, error=str(exc), exc_info=True)
             continue
 
         for season_info in seasons:
@@ -156,13 +157,14 @@ def poll_aired(
                 continue
 
             for ep in episodes:
-                if _is_aired(ep.air_date, today):
+                parsed = _parse_date(ep.air_date)
+                if parsed is not None and parsed <= today:
                     result.append(
                         AiredEpisode(
                             media_ref=media_ref,
-                            season=ep.season_number,
+                            season=season_num,
                             episode=ep.episode_number,
-                            air_date=_parse_date(ep.air_date),  # type: ignore[arg-type]
+                            air_date=parsed,
                             title=ep.title,
                         )
                     )
@@ -201,18 +203,19 @@ def _fetch_season_with_fallback(
             if episodes:
                 return episodes
         except (ApiError, CircuitOpenError) as exc:
-            log.debug(
+            log.warning(
                 "acquire.airing.season_provider_error",
                 tvdb_id=tvdb_id,
                 season=season,
                 error=str(exc),
             )
         except Exception as exc:  # noqa: BLE001
-            log.debug(
+            log.warning(
                 "acquire.airing.season_provider_error",
                 tvdb_id=tvdb_id,
                 season=season,
                 error=str(exc),
+                exc_info=True,
             )
     return []
 
