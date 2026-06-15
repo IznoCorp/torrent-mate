@@ -14,7 +14,7 @@
 
 | #   | Phase                             | File                             | Status |
 | --- | --------------------------------- | -------------------------------- | ------ |
-| 1   | AiredEpisode VO + aired predicate | phase-01-aired-episode-vo.md     | [ ]    |
+| 1   | AiredEpisode VO + aired predicate | phase-01-aired-episode-vo.md     | [x]    |
 | 2   | Set-poll service                  | phase-02-set-poll-service.md     | [ ]    |
 | 3   | Negative-boundary tests + wiring  | phase-03-negative-boundary.md    | [ ]    |
 | 4   | Docs + ACCEPTANCE + gate          | phase-04-docs-acceptance-gate.md | [ ]    |
@@ -25,4 +25,4 @@ _(none yet)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1.
+Run `/implement:phase` to start Phase 2 (Set-poll service).
