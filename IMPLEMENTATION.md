@@ -14,7 +14,7 @@
 
 | #   | Phase                              | File                                    | Status |
 | --- | ---------------------------------- | --------------------------------------- | ------ |
-| 1   | Cadence module + config + codec    | phase-01-cadence-module-config-codec.md | [ ]    |
+| 1   | Cadence module + config + codec    | phase-01-cadence-module-config-codec.md | [x]    |
 | 2   | Wanted dedup (`find`)              | phase-02-wanted-dedup.md                | [ ]    |
 | 3   | DETECT logic + `follow detect` CLI | phase-03-detect-cli.md                  | [ ]    |
 | 4   | Cadence-aware run loop             | phase-04-cadence-aware-run-loop.md      | [ ]    |
@@ -26,4 +26,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1.
+Run `/implement:phase` to start Phase 2 (Wanted dedup `find`).
