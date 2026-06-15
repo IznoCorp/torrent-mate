@@ -21,6 +21,7 @@ Import direction: commands/ imports acquire/, api/, core/, conf/, events/ only.
 from __future__ import annotations
 
 import time
+from datetime import date
 from typing import Optional
 
 import typer
@@ -28,7 +29,9 @@ from rich.console import Console
 from rich.table import Table
 
 from personalscraper import cli as cli_compat
-from personalscraper.acquire.events import SeriesFollowed, SeriesUnfollowed
+from personalscraper.acquire.airing import poll_aired
+from personalscraper.acquire.domain import WantedItem
+from personalscraper.acquire.events import SeriesFollowed, SeriesUnfollowed, WantedEnqueued
 from personalscraper.acquire.title_resolver import resolve_series_title
 from personalscraper.cli_app import app as _root_app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
@@ -211,7 +214,190 @@ def follow_remove(
         log.info("cli.follow.removed", series_id=series.id, title=series.title)
 
 
+@follow_app.command("detect")
+@handle_cli_errors
+def follow_detect(
+    ctx: typer.Context,
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Preview detected episodes without writing or emitting.",
+    ),
+    series: Optional[str] = typer.Option(
+        None,
+        "--series",
+        help="Filter active set by integer followed_id or title substring.",
+    ),
+) -> None:
+    """Detect aired episodes for followed series and enqueue them as wanted items.
+
+    Stage A of the DETECT flow: polls the active followed set for aired episodes
+    (one ``poll_aired`` call over the whole set), maps each aired episode back to
+    its followed series via ``media_ref``, skips owned episodes (RP6) and rows
+    already present in the wanted queue, then enqueues the remainder as
+    ``WantedItem(kind='episode', status='pending')`` and emits ``WantedEnqueued``
+    per enqueue.
+
+    Both ``poll_aired`` and ``ownership.owns`` are fail-soft: a failure is logged
+    and treated as "no episodes" / "not owned" so one bad series or a missing
+    library never aborts the run.
+
+    Use ``--dry-run`` to preview without any writes or events.
+    Use ``--series`` to restrict detection to a single series (integer
+    ``followed_id`` or a case-insensitive title substring).
+    """
+    config = ctx.obj.config
+    assert config is not None
+    console: Console = state["console"]
+    settings = cli_compat.get_settings()
+
+    with per_step_boundary(config, settings, build_torrent_client=False) as app_context:
+        acquire = app_context.acquire
+        if acquire is None or acquire.store is None:
+            console.print("[red]AcquireContext/store not available.[/red]")
+            raise typer.Exit(1)
+
+        store = acquire.store
+        ownership = acquire.ownership
+        bus = app_context.event_bus
+        registry = app_context.provider_registry
+        today = date.today()
+        now = int(time.time())
+
+        active = store.follow.list_active()
+        if not active:
+            console.print("[yellow]No active followed series.[/yellow]")
+            return
+
+        # Optional filter: integer followed_id, else case-insensitive title substring.
+        if series is not None:
+            try:
+                filter_id = int(series)
+                active = [s for s in active if s.id == filter_id]
+            except ValueError:
+                active = [s for s in active if series.lower() in s.title.lower()]
+            if not active:
+                console.print("[yellow]No matching series.[/yellow]")
+                return
+
+        # MediaRef is a frozen dataclass → hashable; map each aired episode back
+        # to its followed series by provider-ID key.
+        by_ref = {s.media_ref: s for s in active}
+
+        # ONE poll over the active set — poll_aired is fail-soft per series
+        # internally, so the broad except is purely defensive.
+        try:
+            aired = poll_aired(active, registry, today=today)
+        except Exception as exc:  # noqa: BLE001 — defensive; poll_aired already fail-soft
+            log.warning("cli.follow.detect.poll_failed", error=str(exc))
+            aired = []
+
+        table = Table(title="Follow Detect", show_header=True)
+        table.add_column("Series")
+        table.add_column("Season", justify="right")
+        table.add_column("Episode", justify="right")
+        table.add_column("AirDate")
+        table.add_column("Title")
+        table.add_column("Action")
+
+        enqueued = skipped_owned = skipped_dup = 0
+
+        for ep in aired:
+            fs = by_ref.get(ep.media_ref)
+            if fs is None or fs.id is None:
+                continue
+
+            # Ownership check (fail-soft: error → treat as not-owned).
+            try:
+                owned = ownership.owns(
+                    ep.media_ref,
+                    kind="episode",
+                    season=ep.season,
+                    episode=ep.episode,
+                )
+            except Exception as exc:  # noqa: BLE001 — fail-soft → treat as not-owned
+                log.warning("cli.follow.detect.ownership_error", error=str(exc))
+                owned = False
+
+            if owned:
+                table.add_row(
+                    fs.title,
+                    str(ep.season),
+                    str(ep.episode),
+                    str(ep.air_date),
+                    ep.title,
+                    "[yellow]skipped-owned[/yellow]",
+                )
+                skipped_owned += 1
+                continue
+
+            # Dedup against the wanted queue.
+            if (
+                store.wanted.find(
+                    followed_id=fs.id,
+                    kind="episode",
+                    season=ep.season,
+                    episode=ep.episode,
+                )
+                is not None
+            ):
+                table.add_row(
+                    fs.title,
+                    str(ep.season),
+                    str(ep.episode),
+                    str(ep.air_date),
+                    ep.title,
+                    "[dim]skipped-dup[/dim]",
+                )
+                skipped_dup += 1
+                continue
+
+            action = "[dim]dry-run[/dim]" if dry_run else "[green]enqueued[/green]"
+            table.add_row(
+                fs.title,
+                str(ep.season),
+                str(ep.episode),
+                str(ep.air_date),
+                ep.title,
+                action,
+            )
+            enqueued += 1
+
+            if not dry_run:
+                store.wanted.add(
+                    WantedItem(
+                        media_ref=ep.media_ref,
+                        kind="episode",
+                        status="pending",
+                        enqueued_at=now,
+                        followed_id=fs.id,
+                        season=ep.season,
+                        episode=ep.episode,
+                    )
+                )
+                bus.emit(
+                    WantedEnqueued(
+                        media_ref=ep.media_ref,
+                        kind="episode",
+                        season=ep.season,
+                        episode=ep.episode,
+                    )
+                )
+                log.info(
+                    "cli.follow.detect.enqueued",
+                    series=fs.title,
+                    season=ep.season,
+                    episode=ep.episode,
+                )
+
+        console.print(table)
+        console.print(
+            f"{enqueued} enqueued, {skipped_owned} skipped-owned, {skipped_dup} skipped-dup"
+            + (" [dim](dry-run)[/dim]" if dry_run else "")
+        )
+
+
 # Register the follow sub-group on the root Typer app (import side-effect, called by cli.py).
 _root_app.add_typer(follow_app, name="follow")
 
-__all__ = ["follow_add", "follow_app", "follow_list", "follow_remove"]
+__all__ = ["follow_add", "follow_app", "follow_detect", "follow_list", "follow_remove"]

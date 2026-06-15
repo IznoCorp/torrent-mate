@@ -2,9 +2,16 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to execute task-by-task. Steps use checkbox syntax for tracking.
 
-**Goal:** Add `@follow_app.command("detect")` to `commands/follow.py`. The command calls `list_active` → `poll_aired` → ownership filter → dedup → `store.wanted.add` + emit `WantedEnqueued`. Flags: `--dry-run` (no writes/emits), `--series` (filter active set). Rich table output. Tests: criteria 5-6, 8 (boundary), 9 (layering).
+**Goal:** Add `@follow_app.command("detect")` to `commands/follow.py`. The command calls `list_active` → ONE `poll_aired(active, ...)` over the active set → map each aired episode back to its series by `media_ref` → ownership filter → dedup → `store.wanted.add` + emit `WantedEnqueued`. Flags: `--dry-run` (no writes/emits), `--series` (filter active set). Rich table output. Tests: criteria 5-6, 8 (boundary), 9 (layering).
 
-**Architecture:** All logic in one command function; no separate module. Reuses `per_step_boundary(build_torrent_client=False)` exactly like `follow list`. `poll_aired` and `ownership.owns` are fail-soft (log + continue). `now` is injected via `int(time.time())` at the call site for testability (tests stub `time.time`).
+**Architecture:** All logic in one command function; no separate module. Reuses `per_step_boundary(build_torrent_client=False)` exactly like `follow list`. `poll_aired` and `ownership.owns` are fail-soft (log + continue). `now` is a real `int(time.time())` call (tests need NOT pin `now`).
+
+> **Ground-truth corrections applied at implementation (plan-drift, same commit):**
+>
+> - The provider registry is **`app_context.provider_registry`** (an `AppContext` field), NOT `acquire.provider_registry` (the `AcquireContext` has no such field — it would raise `AttributeError`).
+> - `poll_aired(series, registry, *, today)` takes a **`Sequence[FollowedSeries]`**, NOT a single series — the command issues ONE `poll_aired(active, ...)` call and maps results back by `media_ref` (Stage A, DESIGN §2).
+> - Stage A (this phase) does NOT import `cadence_from_config` / `cadence_from_json` / `effective_cadence` — cadence is Phase 4.
+> - Tests: the `patch(... .int)` / `mock_int` lines were removed (patching builtin `int` is wrong and unneeded). A NON-VACUOUS real-store integration test was added that catches the two bugs above.
 
 **Tech Stack:** Python 3.11+, `typer`, `rich`, `pytest`, `unittest.mock`, `make test`
 
@@ -29,187 +36,15 @@ Phase 2 must be complete:
 
 ### Task 1: Write failing tests first (TDD)
 
-- [ ] **Step 1: Create `tests/commands/test_follow_detect.py` with golden + dry-run tests**
+- [ ] **Step 1: Create `tests/commands/test_follow_detect.py` (golden + dry-run + non-vacuous integration)**
 
-```python
-"""Tests for `follow detect` command (criteria 5-6, 8-9)."""
-from __future__ import annotations
+The implemented test file is the source of truth — see `tests/commands/test_follow_detect.py`. It contains **8 tests** (the original 7 mock-based + 1 non-vacuous real-store integration). Corrections vs the original draft:
 
-from datetime import date
-from unittest.mock import MagicMock, call, patch
-
-import pytest
-
-from personalscraper.acquire.domain import AiredEpisode, FollowedSeries, WantedItem
-from personalscraper.core.identity import MediaRef
-
-
-def _fs(followed_id: int = 1, tvdb_id: int = 99) -> FollowedSeries:
-    return FollowedSeries(
-        id=followed_id,
-        media_ref=MediaRef(tvdb_id=tvdb_id),
-        title="Test Show",
-        added_at=1_000_000,
-        active=True,
-    )
-
-
-def _ep(tvdb_id: int = 99, season: int = 1, ep: int = 1) -> AiredEpisode:
-    return AiredEpisode(
-        media_ref=MediaRef(tvdb_id=tvdb_id),
-        season=season,
-        episode=ep,
-        air_date=date(2024, 1, 1),
-        title="Episode Title",
-    )
-
-
-def _make_ctx(series: list[FollowedSeries], aired: list[AiredEpisode], owned: bool = False,
-              existing: WantedItem | None = None):
-    """Build a minimal stub AppContext for follow detect tests."""
-    store = MagicMock()
-    store.follow.list_active.return_value = series
-    store.wanted.find.return_value = existing
-    store.wanted.add.return_value = 42
-
-    ownership = MagicMock()
-    ownership.owns.return_value = owned
-
-    registry = MagicMock()
-
-    acquire = MagicMock()
-    acquire.store = store
-    acquire.ownership = ownership
-    acquire.provider_registry = registry
-
-    bus = MagicMock()
-    app_context = MagicMock()
-    app_context.acquire = acquire
-    app_context.event_bus = bus
-    return app_context, store, bus
-
-
-def _run_detect(app_context, aired_eps: list[AiredEpisode], dry_run: bool = False, series_filter: str | None = None):
-    """Drive follow_detect with patched dependencies."""
-    from personalscraper.commands.follow import follow_detect
-
-    with (
-        patch("personalscraper.commands.follow.per_step_boundary") as mock_boundary,
-        patch("personalscraper.commands.follow.poll_aired", return_value=aired_eps),
-        patch("personalscraper.commands.follow.int") as mock_int,
-    ):
-        mock_boundary.return_value.__enter__ = MagicMock(return_value=app_context)
-        mock_boundary.return_value.__exit__ = MagicMock(return_value=False)
-        mock_int.return_value = 2_000_000  # injected 'now'
-
-        ctx = MagicMock()
-        ctx.obj.config = MagicMock()
-
-        follow_detect(ctx, dry_run=dry_run, series=series_filter)
-
-
-def test_detect_golden_enqueues_uowned_episode():
-    """GOLDEN: non-owned, non-dup episode → add() called once, WantedEnqueued emitted once."""
-    from personalscraper.acquire.events import WantedEnqueued
-
-    fs = _fs(followed_id=1, tvdb_id=99)
-    ep = _ep(tvdb_id=99, season=1, ep=1)
-    app_context, store, bus = _make_ctx([fs], [ep], owned=False, existing=None)
-
-    _run_detect(app_context, [ep])
-
-    store.wanted.add.assert_called_once()
-    added: WantedItem = store.wanted.add.call_args[0][0]
-    assert added.followed_id == 1
-    assert added.kind == "episode"
-    assert added.status == "pending"
-    assert added.season == 1
-    assert added.episode == 1
-
-    bus.emit.assert_called_once()
-    emitted = bus.emit.call_args[0][0]
-    assert isinstance(emitted, WantedEnqueued)
-    assert emitted.season == 1
-    assert emitted.episode == 1
-
-
-def test_detect_skips_owned_episode():
-    """owned=True → add() NOT called, WantedEnqueued NOT emitted."""
-    fs = _fs()
-    ep = _ep()
-    app_context, store, bus = _make_ctx([fs], [ep], owned=True)
-
-    _run_detect(app_context, [ep])
-
-    store.wanted.add.assert_not_called()
-    bus.emit.assert_not_called()
-
-
-def test_detect_skips_duplicate_episode():
-    """existing row found by find() → add() NOT called, WantedEnqueued NOT emitted."""
-    fs = _fs()
-    ep = _ep()
-    existing = WantedItem(
-        media_ref=MediaRef(tvdb_id=99), kind="episode", status="pending", enqueued_at=1_000_000,
-        followed_id=1, season=1, episode=1,
-    )
-    app_context, store, bus = _make_ctx([fs], [ep], owned=False, existing=existing)
-
-    _run_detect(app_context, [ep])
-
-    store.wanted.add.assert_not_called()
-    bus.emit.assert_not_called()
-
-
-def test_detect_dry_run_no_writes_no_emits():
-    """--dry-run: add() NOT called, bus.emit NOT called regardless of eligibility."""
-    fs = _fs()
-    ep = _ep()
-    app_context, store, bus = _make_ctx([fs], [ep], owned=False, existing=None)
-
-    _run_detect(app_context, [ep], dry_run=True)
-
-    store.wanted.add.assert_not_called()
-    bus.emit.assert_not_called()
-
-
-def test_detect_empty_active_set_no_crash():
-    """Empty active followed set → no crash, no adds, no emits."""
-    app_context, store, bus = _make_ctx([], [])
-
-    _run_detect(app_context, [])
-
-    store.wanted.add.assert_not_called()
-    bus.emit.assert_not_called()
-
-
-def test_detect_boundary_no_grab_calls():
-    """BOUNDARY (criterion 8): detect makes zero grab calls."""
-    fs = _fs()
-    ep = _ep()
-    app_context, store, bus = _make_ctx([fs], [ep])
-
-    _run_detect(app_context, [ep])
-
-    # The grab orchestrator must never be touched
-    assert not app_context.acquire.grab.called if hasattr(app_context.acquire, "grab") else True
-
-
-def test_detect_layering_no_indexer_import():
-    """LAYERING (criterion 9): commands/follow.py must not import indexer."""
-    import ast
-    import pathlib
-
-    src = pathlib.Path("personalscraper/commands/follow.py").read_text()
-    tree = ast.parse(src)
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.Import, ast.ImportFrom)):
-            names = [a.name for a in getattr(node, "names", [])]
-            module = getattr(node, "module", "") or ""
-            assert "indexer" not in module, f"Forbidden indexer import: {module}"
-            for n in names:
-                assert "indexer" not in n, f"Forbidden indexer import: {n}"
-```
+- `_make_ctx` sets the registry on **`app_context.provider_registry`** (the real `AppContext` field), NOT `acquire.provider_registry`; `app_context.event_bus` carries the bus; `acquire` exposes only `store` + `ownership`.
+- `_run_detect` patches **only** `per_step_boundary` (yielding `app_context`) and `poll_aired` (returning the aired list). The `patch(... .int)` / `mock_int` lines are **removed** — patching builtin `int` is wrong and the assertions never check `enqueued_at`.
+- The boundary test installs an explicit `grab` MagicMock on `acquire` and asserts `assert_not_called()` + no `method_calls` (a bare auto-speccing MagicMock would make the original `.called` check vacuously pass).
+- The 7 mock assertions are kept: golden enqueue (asserts the `WantedItem` has `followed_id` mapped via `by_ref`, `kind='episode'`, `status='pending'`, `season`, `episode`; `WantedEnqueued` emitted once with the right `season`/`episode`), skip-owned, skip-dup, dry-run no-writes, empty-set, boundary-no-grab, ast-layering-no-indexer.
+- **`test_detect_integration_enqueues_into_real_store` (NON-VACUOUS, mandatory):** builds a REAL `build_acquire_store(AcquireConfig(db_path=tmp_path/'acquire.db'))`, adds a real `FollowedSeries` (captures its id), wraps it in a real `AcquireContext(store=<real>, ownership=NullOwnershipChecker())`, exposes it behind a `SimpleNamespace` app-context with the REAL attribute names (`provider_registry` stub, real `EventBus`, `acquire`). Patches `per_step_boundary` to yield it and `poll_aired` to return one `AiredEpisode` whose `media_ref` equals the followed series' `media_ref`. Invokes `follow_detect(ctx, dry_run=False, series=None)`, then asserts `store.wanted.find(followed_id=<id>, kind='episode', season=.., episode=..)` returns a real `WantedItem` with `status='pending'`. This test FAILS (verified) if anyone reverts to `acquire.provider_registry` (real `AttributeError`) or `poll_aired(fs, ...)` (the poll-spy asserts ONE call over the Sequence). The store is closed in `finally`.
 
 - [ ] **Step 2: Confirm tests FAIL (command not yet defined)**
 
@@ -227,13 +62,11 @@ Expected: `ImportError` or `AttributeError` — `follow_detect` does not exist y
 from datetime import date
 
 from personalscraper.acquire.airing import poll_aired
-from personalscraper.acquire.desired import cadence_from_config, cadence_from_json, effective_cadence
 from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.events import WantedEnqueued
-from rich.table import Table
 ```
 
-Note: `Table` and `Console` are likely already imported. Add only what is missing.
+Note: `Table`, `Console`, `time`, `Optional` are already imported in `follow.py` — add only `date`, `poll_aired`, `WantedItem`, and merge `WantedEnqueued` into the existing `acquire.events` import line. Do **NOT** import `cadence_from_config` / `cadence_from_json` / `effective_cadence` — Stage A does not use cadence (Phase 4 territory).
 
 - [ ] **Step 4: Add the `follow_detect` command before `_root_app.add_typer`**
 
@@ -267,9 +100,9 @@ def follow_detect(
             raise typer.Exit(1)
 
         store = acquire.store
-        bus = app_context.event_bus
-        registry = acquire.provider_registry
         ownership = acquire.ownership
+        bus = app_context.event_bus
+        registry = app_context.provider_registry  # AppContext field — NOT acquire.*
         today = date.today()
         now = int(time.time())
 
@@ -278,13 +111,28 @@ def follow_detect(
             console.print("[yellow]No active followed series.[/yellow]")
             return
 
-        # Optional filter: title substring or integer followed_id.
+        # Optional filter: integer followed_id, else case-insensitive title substring.
         if series is not None:
             try:
                 filter_id = int(series)
                 active = [s for s in active if s.id == filter_id]
             except ValueError:
                 active = [s for s in active if series.lower() in s.title.lower()]
+            if not active:
+                console.print("[yellow]No matching series.[/yellow]")
+                return
+
+        # MediaRef is a frozen dataclass → hashable; map aired episodes back to series.
+        by_ref = {s.media_ref: s for s in active}
+
+        # ONE poll over the active SET (Stage A, DESIGN §2). poll_aired takes a
+        # Sequence[FollowedSeries] and is fail-soft per series internally, so the
+        # broad except here is purely defensive.
+        try:
+            aired = poll_aired(active, registry, today=today)
+        except Exception as exc:  # noqa: BLE001 — defensive; poll_aired already fail-soft
+            log.warning("cli.follow.detect.poll_failed", error=str(exc))
+            aired = []
 
         table = Table(title="Follow Detect", show_header=True)
         table.add_column("Series")
@@ -294,62 +142,56 @@ def follow_detect(
         table.add_column("Title")
         table.add_column("Action")
 
-        enqueued_count = skipped_owned = skipped_dup = 0
+        enqueued = skipped_owned = skipped_dup = 0
 
-        for fs in active:
-            try:
-                episodes = poll_aired(fs, registry, today=today)
-            except Exception as exc:  # noqa: BLE001 — fail-soft per series
-                log.warning("cli.follow.detect.poll_failed", series=fs.title, error=str(exc))
+        for ep in aired:
+            fs = by_ref.get(ep.media_ref)
+            if fs is None or fs.id is None:
                 continue
 
-            for ep in episodes:
-                # Ownership check (fail-soft: error → treat as not-owned).
-                try:
-                    owned = ownership.owns(ep.media_ref, kind="episode", season=ep.season, episode=ep.episode)
-                except Exception as exc:  # noqa: BLE001
-                    log.warning("cli.follow.detect.ownership_error", error=str(exc))
-                    owned = False
+            # Ownership check (fail-soft: error → treat as not-owned).
+            try:
+                owned = ownership.owns(ep.media_ref, kind="episode", season=ep.season, episode=ep.episode)
+            except Exception as exc:  # noqa: BLE001 — fail-soft → treat as not-owned
+                log.warning("cli.follow.detect.ownership_error", error=str(exc))
+                owned = False
 
-                if owned:
-                    table.add_row(fs.title, str(ep.season), str(ep.episode), str(ep.air_date), ep.title, "[yellow]skipped-owned[/yellow]")
-                    skipped_owned += 1
-                    continue
+            if owned:
+                table.add_row(fs.title, str(ep.season), str(ep.episode), str(ep.air_date), ep.title, "[yellow]skipped-owned[/yellow]")
+                skipped_owned += 1
+                continue
 
-                # Dedup check.
-                assert fs.id is not None
-                dup = store.wanted.find(followed_id=fs.id, kind="episode", season=ep.season, episode=ep.episode)
-                if dup is not None:
-                    table.add_row(fs.title, str(ep.season), str(ep.episode), str(ep.air_date), ep.title, "[dim]skipped-dup[/dim]")
-                    skipped_dup += 1
-                    continue
+            # Dedup against the wanted queue.
+            if store.wanted.find(followed_id=fs.id, kind="episode", season=ep.season, episode=ep.episode) is not None:
+                table.add_row(fs.title, str(ep.season), str(ep.episode), str(ep.air_date), ep.title, "[dim]skipped-dup[/dim]")
+                skipped_dup += 1
+                continue
 
-                action = "[dim]dry-run[/dim]" if dry_run else "[green]enqueued[/green]"
-                table.add_row(fs.title, str(ep.season), str(ep.episode), str(ep.air_date), ep.title, action)
-                enqueued_count += 1
+            action = "[dim]dry-run[/dim]" if dry_run else "[green]enqueued[/green]"
+            table.add_row(fs.title, str(ep.season), str(ep.episode), str(ep.air_date), ep.title, action)
+            enqueued += 1
 
-                if not dry_run:
-                    item = WantedItem(
-                        media_ref=ep.media_ref,
-                        kind="episode",
-                        status="pending",
-                        enqueued_at=now,
-                        followed_id=fs.id,
-                        season=ep.season,
-                        episode=ep.episode,
-                    )
-                    store.wanted.add(item)
-                    bus.emit(WantedEnqueued(
-                        media_ref=ep.media_ref,
-                        kind="episode",
-                        season=ep.season,
-                        episode=ep.episode,
-                    ))
-                    log.info("cli.follow.detect.enqueued", series=fs.title, season=ep.season, episode=ep.episode)
+            if not dry_run:
+                store.wanted.add(WantedItem(
+                    media_ref=ep.media_ref,
+                    kind="episode",
+                    status="pending",
+                    enqueued_at=now,
+                    followed_id=fs.id,
+                    season=ep.season,
+                    episode=ep.episode,
+                ))
+                bus.emit(WantedEnqueued(
+                    media_ref=ep.media_ref,
+                    kind="episode",
+                    season=ep.season,
+                    episode=ep.episode,
+                ))
+                log.info("cli.follow.detect.enqueued", series=fs.title, season=ep.season, episode=ep.episode)
 
         console.print(table)
         console.print(
-            f"{enqueued_count} enqueued, {skipped_owned} skipped-owned, {skipped_dup} skipped-dup"
+            f"{enqueued} enqueued, {skipped_owned} skipped-owned, {skipped_dup} skipped-dup"
             + (" [dim](dry-run)[/dim]" if dry_run else "")
         )
 ```
@@ -366,7 +208,7 @@ __all__ = ["follow_add", "follow_app", "follow_detect", "follow_list", "follow_r
 pytest tests/commands/test_follow_detect.py -v
 ```
 
-Expected: `7 passed`, `0 failed`.
+Expected: `8 passed`, `0 failed` (7 mock-based + 1 non-vacuous real-store integration).
 
 - [ ] **Step 7: Commit**
 
