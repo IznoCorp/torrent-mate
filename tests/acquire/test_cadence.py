@@ -176,6 +176,30 @@ def test_cadence_config_rejects_cutoff_below_last_tier():
         )
 
 
+def test_cadence_config_rejects_empty_and_nonpositive_tiers():
+    """CadenceConfig rejects empty tiers and non-positive tier durations.
+
+    Validator-rejection completeness (F-E): pins that the model_validator
+    guards ``tiers=[]``, ``max_age_hours=0`` and ``interval_minutes=0``.
+    A default ``CadenceConfig()`` must NOT raise (non-vacuous baseline).
+    """
+    from pydantic import ValidationError
+
+    from personalscraper.conf.models.acquire import CadenceConfig, CadenceTierConfig
+
+    # Default must NOT raise (non-vacuous baseline).
+    CadenceConfig()
+
+    with pytest.raises(ValidationError):
+        CadenceConfig(tiers=[])
+
+    with pytest.raises(ValidationError):
+        CadenceConfig(tiers=[CadenceTierConfig(max_age_hours=0, interval_minutes=120)])
+
+    with pytest.raises(ValidationError):
+        CadenceConfig(tiers=[CadenceTierConfig(max_age_hours=72, interval_minutes=0)])
+
+
 def test_cadence_round_trip_json():
     """cadence_to_json → cadence_from_json round-trips all fields."""
     from personalscraper.acquire.cadence import Cadence, CadenceTier
@@ -190,6 +214,24 @@ def test_cadence_from_json_none_returns_none():
     from personalscraper.acquire.desired import cadence_from_json
 
     assert cadence_from_json(None) is None
+
+
+def test_cadence_from_json_malformed_returns_none():
+    """A malformed or semantically-invalid blob fails soft to None (no crash).
+
+    Covers all three except branches of the defensive decode (F-C):
+    - ``"{not json"`` → ``json.JSONDecodeError``,
+    - ``'{"tiers": []}'`` → ``KeyError`` (missing ``cutoff_s``) — and even with
+      a cutoff would hit ``ValueError`` (empty tiers via ``__post_init__``),
+    - a negative ``max_age_s`` → ``ValueError`` from ``Cadence.__post_init__``.
+
+    Each decodes to ``None`` so the caller falls back to the global default.
+    """
+    from personalscraper.acquire.desired import cadence_from_json
+
+    assert cadence_from_json("{not json") is None
+    assert cadence_from_json('{"tiers": []}') is None
+    assert cadence_from_json('{"tiers": [{"max_age_s": -1, "interval_s": 1}], "cutoff_s": 5}') is None
 
 
 def test_cadence_from_config_converts_units():

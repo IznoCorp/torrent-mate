@@ -11,7 +11,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 from personalscraper.acquire.cadence import Cadence, CadenceTier
-from personalscraper.acquire.domain import WantedItem
+from personalscraper.acquire.desired import cadence_to_json
+from personalscraper.acquire.domain import FollowedSeries, WantedItem
 from personalscraper.acquire.events import WantedAbandoned
 from personalscraper.acquire.service import AcquisitionService
 from personalscraper.core.identity import MediaRef
@@ -90,6 +91,8 @@ def test_not_due_item_is_skipped_no_claim() -> None:
 
     store.wanted.claim_for_search.assert_not_called()
     orchestrator.grab.assert_not_called()
+    # A not-due item stays pending — the skip path must never write status (F-D).
+    store.wanted.set_status.assert_not_called()
     assert summary.skipped == 1
     assert summary.grabbed == 0
 
@@ -143,3 +146,41 @@ def test_cutoff_abandoned_before_grab() -> None:
         svc.run()
 
     orchestrator.grab.assert_not_called()
+
+
+def test_per_series_cadence_override_abandons() -> None:
+    """A per-series tight cutoff abandons an item the global default would keep.
+
+    Proves ``service.py`` consults ``cadence_from_json(fs.cadence_json)`` via
+    ``effective_cadence`` rather than the global default (F-F). The item is 3h
+    old: WELL under the global-default 30d cutoff (which would keep it), but
+    PAST the per-series 2h cutoff (which abandons it).
+
+    Mutation-proof: if the service dropped the per-series override lookup, the
+    global 30d default would keep the item — no abandon, no emit — and these
+    asserts would fail.
+    """
+    # Per-series cadence: 1h Hot tier, 2h cutoff (valid: cutoff 7200 >= last tier 3600).
+    per_series = Cadence(tiers=(CadenceTier(max_age_s=3600, interval_s=600),), cutoff_s=7200)
+    series = FollowedSeries(
+        media_ref=MediaRef(tvdb_id=99),
+        title="Override Series",
+        added_at=NOW,
+        cadence_json=cadence_to_json(per_series),
+        id=1,
+    )
+    # 3h old → past the 2h per-series cutoff, but far under the global 30d cutoff.
+    item = _pending_item(enqueued_at=NOW - 3 * 3600, last_search_at=None)
+    svc, store, orchestrator, bus = _make_service([item])
+    store.follow.get.return_value = series
+
+    with patch("personalscraper.acquire.service.time.time", return_value=NOW):
+        summary = svc.run()
+
+    store.wanted.claim_for_search.assert_not_called()
+    store.wanted.set_status.assert_called_once_with(10, "abandoned")
+    bus.emit.assert_called_once()
+    emitted = bus.emit.call_args[0][0]
+    assert isinstance(emitted, WantedAbandoned)
+    assert emitted.reason == "cutoff_reached"
+    assert summary.abandoned == 1

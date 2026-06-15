@@ -14,9 +14,13 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import TYPE_CHECKING
 
+from personalscraper.logger import get_logger
+
 if TYPE_CHECKING:
     from personalscraper.acquire.cadence import Cadence
     from personalscraper.conf.models.acquire import CadenceConfig
+
+log = get_logger("acquire.desired")
 
 
 class Resolution(IntEnum):
@@ -237,21 +241,36 @@ def cadence_from_json(blob: str | None) -> Cadence | None:
     A ``None`` blob means "use the global default" — callers must supply the
     fallback via :func:`effective_cadence`.
 
+    Fail-soft on a malformed or semantically-invalid blob: a parse error,
+    missing key, wrong type, or a value that violates a :class:`Cadence`
+    invariant (caught from ``__post_init__``'s ``ValueError``) is logged at
+    ``warning`` and decodes to ``None`` — the caller then falls back to the
+    global default via :func:`effective_cadence`, so a corrupt
+    ``cadence_json`` column never crashes a poll.
+
     Args:
         blob: JSON string produced by :func:`cadence_to_json`, or ``None``.
 
     Returns:
-        The reconstructed :class:`Cadence`, or ``None`` if blob is ``None``.
+        The reconstructed :class:`Cadence`, ``None`` if blob is ``None``, or
+        ``None`` if the blob is malformed or semantically invalid.
     """
     if blob is None:
         return None
     from personalscraper.acquire.cadence import Cadence, CadenceTier  # noqa: PLC0415
 
-    data = json.loads(blob)
-    return Cadence(
-        tiers=tuple(CadenceTier(max_age_s=t["max_age_s"], interval_s=t["interval_s"]) for t in data["tiers"]),
-        cutoff_s=data["cutoff_s"],
-    )
+    try:
+        data = json.loads(blob)
+        return Cadence(
+            tiers=tuple(CadenceTier(max_age_s=t["max_age_s"], interval_s=t["interval_s"]) for t in data["tiers"]),
+            cutoff_s=data["cutoff_s"],
+        )
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+        # Corrupt cadence_json must never crash a poll: fail-soft to the global
+        # default. __post_init__ raises ValueError for semantically-invalid
+        # blobs (empty tiers, negative durations, cutoff < last tier) — caught here.
+        log.warning("acquire.cadence.bad_cadence_json", error=str(exc))
+        return None
 
 
 def cadence_from_config(cfg: CadenceConfig) -> Cadence:
