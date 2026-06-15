@@ -14,20 +14,22 @@ Phase 5 complete: `make check` green (6858 passed), PR #201 open, CI green.
 
 ## Sub-phase 6.1 — Fix Transmission no-category corruption (F-A, MAJOR)
 
-**Files:** `personalscraper/api/torrent/transmission.py`, `tests/api/torrent/test_tagger.py`.
+**Files:** `personalscraper/api/torrent/transmission.py`, `tests/api/torrent/test_tagger.py`, `tests/unit/test_transmission_add.py` (plan-drift — see note below).
+
+> **PLAN-DRIFT (6.1):** `tests/unit/test_transmission_add.py::TestLabelsHelper::test_no_category` directly asserted the pre-fix (buggy) `_labels(None, ["action"]) == ["action"]` contract. Updated to the sentinel contract `== ["", "action"]` so the regression gate does not re-assert the corruption. The parametrized `test_d5_round_trip_stable_for_supported_inputs` and `tests/unit/test_transmission_tags.py` only exercise category-present / no-labels cases, so they stay green unchanged.
 
 **Root cause:** Transmission stores `labels=[category, *tags]` (flat). For a torrent with **no category** (`labels=[]`), `add_tags(["seed-pure"])` writes `labels=["seed-pure"]`; `_torrent_item` then reads `labels[0]` as the category → `tags=[]` → the ingest skip (`SEED_PURE in tags`) never fires. `add()` already rejects this ambiguity (`ValueError`, "review #6"); the tagger must instead **make it work** (the operator wants the tag applied), so use an **empty-string sentinel** for the no-category slot.
 
 ### Task 1 — sentinel for the no-category slot (consistent across all label round-trip sites)
 
-- [ ] **F-A.1 — `_labels(category, tags)`:** when `category is None` **and** `tags` is non-empty, return `["", *deduped_tags]` (empty-string sentinel = "no category"); when `category is None` and `tags` empty, return `[]` (unchanged); when `category` set, `[category, *deduped_tags]` (unchanged). (`add()` never passes `category=None`+tags — it rejects first — so this only affects the tagger path.) Document the sentinel in the `_labels` docstring.
-- [ ] **F-A.2 — read side treats `labels[0] == ""` as no-category** in BOTH `_torrent_item` and the read-first of `add_tags`/`remove_tags`: `if labels and labels[0] == "": category = None; tags = labels[1:]` else the existing `category = labels[0] if labels else None; tags = labels[1:]`. (Extract a tiny module-level helper `_split_labels(labels) -> tuple[str | None, list[str]]` and use it in all THREE sites to avoid drift — the type-design lens flagged the heuristic is duplicated in 4 places.)
-- [ ] **Tests (test_tagger.py):**
-  - `test_tx_add_tags_no_category_roundtrips_as_tag` (**LOAD-BEARING regression**): `_mock_torrent([])` (no category) → `add_tags("h", ["seed-pure"])` → assert `change_torrent` called with `labels=["", "seed-pure"]`; then feed `["", "seed-pure"]` through `_torrent_item` (or `_split_labels`) and assert `category is None` AND `SEED_PURE in tags` (the property the whole feature depends on). **Mutation-proof:** fails against the pre-fix code (which writes `labels=["seed-pure"]` → read back as category, `SEED_PURE not in tags`).
+- [x] **F-A.1 — `_labels(category, tags)`:** when `category is None` **and** `tags` is non-empty, return `["", *deduped_tags]` (empty-string sentinel = "no category"); when `category is None` and `tags` empty, return `[]` (unchanged); when `category` set, `[category, *deduped_tags]` (unchanged). (`add()` never passes `category=None`+tags — it rejects first — so this only affects the tagger path.) Document the sentinel in the `_labels` docstring.
+- [x] **F-A.2 — read side treats `labels[0] == ""` as no-category** in BOTH `_torrent_item` and the read-first of `add_tags`/`remove_tags`: `if labels and labels[0] == "": category = None; tags = labels[1:]` else the existing `category = labels[0] if labels else None; tags = labels[1:]`. (Extract a tiny module-level helper `_split_labels(labels) -> tuple[str | None, list[str]]` and use it in all THREE sites to avoid drift — the type-design lens flagged the heuristic is duplicated in 4 places.)
+- [x] **Tests (test_tagger.py):**
+  - `test_tx_add_tags_no_category_roundtrips_as_tag` (**LOAD-BEARING regression**): `_mock_torrent([])` (no category) → `add_tags("h", ["seed-pure"])` → assert `change_torrent` called with `labels=["", "seed-pure"]`; then feed `["", "seed-pure"]` through `_torrent_item` (or `_split_labels`) and assert `category is None` AND `SEED_PURE in tags` (the property the whole feature depends on). **Mutation-proof:** fails against the pre-fix code (which writes `labels=["seed-pure"]` → read back as category, `SEED_PURE not in tags`). Verified: pre-fix `add_tags([])` wrote `["seed-pure"]` (scratch reproduction) and pre-fix `remove_tags(["", "seed-pure"])` left an orphan `['']`.
   - `test_tx_remove_tags_no_category`: `_mock_torrent(["", "seed-pure"])` → `remove_tags(["seed-pure"])` → `change_torrent(labels=[])`.
-  - Keep the existing category-preservation golden (`["movies", ...]`) green — the sentinel must NOT affect the with-category path.
-- [ ] **Gate 6.1:** `pytest tests/api/torrent/test_tagger.py -q` (all pass); ruff + `mypy personalscraper/api/torrent/transmission.py` clean.
-- [ ] **Commit:** `fix(seed-pure): Transmission tagger preserves seed-pure as a tag on category-less torrents (no-category sentinel)`
+  - Keep the existing category-preservation golden (`["movies", ...]`) green — the sentinel must NOT affect the with-category path. (Stayed green.)
+- [x] **Gate 6.1:** `pytest tests/api/torrent/test_tagger.py -q` (16 passed); ruff + `mypy personalscraper/api/torrent/transmission.py` clean; regression `tests/api/torrent/ tests/unit/test_transmission*.py` 66 passed.
+- [x] **Commit:** `fix(seed-pure): Transmission tagger preserves seed-pure as a tag on category-less torrents (no-category sentinel)`
 
 ---
 

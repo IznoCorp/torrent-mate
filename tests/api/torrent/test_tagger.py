@@ -151,6 +151,47 @@ def test_tx_remove_tags_idempotent_absent():
     client._client.change_torrent.assert_called_once_with(ids="abc123", labels=["movies", "other"])
 
 
+def test_tx_add_tags_no_category_roundtrips_as_tag():
+    """No-category torrent keeps the tag readable as a tag (F-A regression).
+
+    Load-bearing for the whole feature: Transmission stores
+    ``labels=[category, *tags]`` flat. For a category-less torrent
+    (``labels=[]``), the empty-string sentinel must be used so the tag is
+    written at ``labels[1:]`` (``labels=["", "seed-pure"]``) rather than
+    promoted to the category slot. ``_torrent_item`` must then read it back as
+    a TAG (``category is None`` AND ``SEED_PURE in tags``) — the exact property
+    the ingest skip (``SEED_PURE in tags``) depends on.
+
+    Mutation-proof: the pre-fix code writes ``labels=["seed-pure"]`` and reads
+    it back as the category, so ``SEED_PURE not in tags`` and this test fails.
+    """
+    from personalscraper.api.torrent.transmission import _split_labels
+    from personalscraper.core.tags import SEED_PURE
+
+    client = _make_tx_client()
+    client._client.get_torrent.return_value = _mock_torrent([])
+
+    client.add_tags("h", [SEED_PURE])
+
+    # Write side: tag must land at labels[1:] behind the no-category sentinel.
+    client._client.change_torrent.assert_called_once_with(ids="h", labels=["", SEED_PURE])
+
+    # Read side: the written labels round-trip to category=None, tag present.
+    category, tags = _split_labels(["", SEED_PURE])
+    assert category is None
+    assert SEED_PURE in tags
+
+
+def test_tx_remove_tags_no_category():
+    """remove_tags on a no-category torrent collapses back to empty labels."""
+    client = _make_tx_client()
+    client._client.get_torrent.return_value = _mock_torrent(["", "seed-pure"])
+
+    client.remove_tags("abc123", ["seed-pure"])
+
+    client._client.change_torrent.assert_called_once_with(ids="abc123", labels=[])
+
+
 def test_tx_add_tags_empty_is_noop():
     """add_tags with empty list makes no API call."""
     client = _make_tx_client()
