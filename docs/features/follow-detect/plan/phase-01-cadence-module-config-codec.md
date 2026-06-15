@@ -285,24 +285,31 @@ grep -n "class AcquireConfig\|db_path\|__all__" personalscraper/conf/models/acqu
 
 - [ ] **Step 2: Add `CadenceTierConfig` + `CadenceConfig` before `AcquireConfig`, then add `cadence` field**
 
-Add to imports at top of `conf/models/acquire.py` (after existing imports):
+> **Plan-drift correction (orchestrator, pre-dispatch):**
+>
+> 1. **No `from typing import List`** — use the lowercase builtin `list[CadenceTierConfig]`
+>    (Python 3.11+). The PostToolUse ruff formatter strips unused imports anyway.
+> 2. **Define `class CadenceTierConfig` BEFORE `_default_tiers()`** (the function constructs
+>    it; cleaner ordering than the original plan which listed the function first).
+> 3. **Add a `@model_validator(mode="after")` monotonic-tier validator** (DESIGN §4 +
+>    ACCEPTANCE criterion 3 require it; the original plan omitted it). It enforces:
+>    non-empty `tiers`; every `max_age_hours > 0` and `interval_minutes > 0`; `tiers`
+>    strictly increasing by `max_age_hours`; `cutoff_days * 24 >= tiers[-1].max_age_hours`.
+>    Import `model_validator` alongside `field_validator` from `pydantic`.
+>
+> **Resolved contradiction (sub-phase 1.2):** the pre-dispatch correction first specified the
+> cutoff bound as _strict_ (`cutoff_days*24 > last_tier`), but that directly rejects the
+> mandated canonical defaults (Cold tier `max_age_hours=720` + `cutoff_days=30` → 720h, not
+> strictly beyond) and the 1.1 predicate canon (`cutoff_s == COLD_MAX`). The shared
+> `tests/fixtures/config.py` `Config()` builds the default `CadenceConfig` and crashed under
+> the strict rule. The canonical defaults are frozen DESIGN §3 decisions, so the bound is
+> relaxed to **`>=`** (cutoff _at or beyond_ the last tier). It still rejects a cutoff strictly
+> _below_ the last tier, preserving the validator's purpose (ACCEPTANCE criterion 3).
+
+Add `class CadenceTierConfig` then `_default_tiers()` then `class CadenceConfig` (with the
+validator) before `class AcquireConfig`:
 
 ```python
-from typing import List
-```
-
-Add before `class AcquireConfig`:
-
-```python
-def _default_tiers() -> "list[CadenceTierConfig]":
-    """Return the canonical Hot/Warm/Cold tier defaults (DESIGN §3 frozen decision)."""
-    return [
-        CadenceTierConfig(max_age_hours=72, interval_minutes=120),   # Hot
-        CadenceTierConfig(max_age_hours=336, interval_minutes=1440), # Warm (14d)
-        CadenceTierConfig(max_age_hours=720, interval_minutes=10080), # Cold (30d)
-    ]
-
-
 class CadenceTierConfig(_StrictModel):
     """Config for one Hot/Warm/Cold tier.
 
@@ -313,6 +320,15 @@ class CadenceTierConfig(_StrictModel):
 
     max_age_hours: int
     interval_minutes: int
+
+
+def _default_tiers() -> list[CadenceTierConfig]:
+    """Return the canonical Hot/Warm/Cold tier defaults (DESIGN §3 frozen decision)."""
+    return [
+        CadenceTierConfig(max_age_hours=72, interval_minutes=120),   # Hot
+        CadenceTierConfig(max_age_hours=336, interval_minutes=1440), # Warm (14d)
+        CadenceTierConfig(max_age_hours=720, interval_minutes=10080), # Cold (30d)
+    ]
 
 
 class CadenceConfig(_StrictModel):
@@ -327,6 +343,13 @@ class CadenceConfig(_StrictModel):
 
     tiers: list[CadenceTierConfig] = Field(default_factory=_default_tiers)
     cutoff_days: int = 30
+
+    @model_validator(mode="after")
+    def _validate_tier_ladder(self) -> CadenceConfig:
+        """Reject invalid tier ladders (DESIGN §4, ACCEPTANCE criterion 3)."""
+        # non-empty; max_age_hours/interval_minutes > 0; strictly increasing by
+        # max_age_hours; cutoff_days*24 strictly beyond last tier. Raises ValueError.
+        ...
 ```
 
 Modify `AcquireConfig` to add the `cadence` field after `db_path`:
@@ -400,6 +423,14 @@ def test_acquire_config_has_cadence_field():
     cfg = AcquireConfig()
     assert isinstance(cfg.cadence, CadenceConfig)
 ```
+
+> **Plan-drift correction (orchestrator):** also append two non-vacuous validator-rejection
+> tests asserting `pytest.raises(ValidationError)` (import from `pydantic`) — and that the
+> DEFAULT `CadenceConfig()` does NOT raise:
+>
+> - `test_cadence_config_rejects_non_monotonic_tiers` — tiers descending by `max_age_hours`.
+> - `test_cadence_config_rejects_cutoff_below_last_tier` — `cutoff_days*24` not beyond last tier.
+>   Requires `import pytest` at the top of the test module.
 
 - [ ] **Step 6: Run config tests**
 

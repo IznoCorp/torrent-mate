@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 # Canonical cadence for tests: Hot <72h/2h, Warm <14d/1d, Cold <30d/7d, cutoff=30d
 HOT_S = 2 * 3600
 WARM_S = 24 * 3600
@@ -113,3 +115,62 @@ def test_is_due_returns_false_past_cutoff():
 
     enqueued = NOW - (COLD_MAX + 1)
     assert is_due_by_cadence(_canon(), now=NOW, enqueued_at=enqueued, last_search_at=None) is False
+
+
+def test_cadence_config_default_reproduces_hot_warm_cold():
+    """CadenceConfig() must reproduce the DESIGN §3 frozen policy."""
+    from personalscraper.conf.models.acquire import CadenceConfig
+
+    cfg = CadenceConfig()
+    assert len(cfg.tiers) == 3
+    assert cfg.tiers[0].max_age_hours == 72
+    assert cfg.tiers[0].interval_minutes == 120
+    assert cfg.tiers[1].max_age_hours == 336
+    assert cfg.tiers[1].interval_minutes == 1440
+    assert cfg.tiers[2].max_age_hours == 720
+    assert cfg.tiers[2].interval_minutes == 10080
+    assert cfg.cutoff_days == 30
+
+
+def test_acquire_config_has_cadence_field():
+    """AcquireConfig() has a cadence field defaulting to CadenceConfig()."""
+    from personalscraper.conf.models.acquire import AcquireConfig, CadenceConfig
+
+    cfg = AcquireConfig()
+    assert isinstance(cfg.cadence, CadenceConfig)
+
+
+def test_cadence_config_rejects_non_monotonic_tiers():
+    """CadenceConfig rejects tiers that are not strictly increasing by max_age_hours."""
+    from pydantic import ValidationError
+
+    from personalscraper.conf.models.acquire import CadenceConfig, CadenceTierConfig
+
+    # Default must NOT raise (non-vacuous baseline).
+    CadenceConfig()
+
+    with pytest.raises(ValidationError):
+        CadenceConfig(
+            tiers=[
+                CadenceTierConfig(max_age_hours=336, interval_minutes=120),
+                CadenceTierConfig(max_age_hours=72, interval_minutes=1440),
+            ],
+            cutoff_days=30,
+        )
+
+
+def test_cadence_config_rejects_cutoff_below_last_tier():
+    """CadenceConfig rejects a cutoff that does not extend beyond the last tier."""
+    from pydantic import ValidationError
+
+    from personalscraper.conf.models.acquire import CadenceConfig, CadenceTierConfig
+
+    # Default must NOT raise (non-vacuous baseline).
+    CadenceConfig()
+
+    with pytest.raises(ValidationError):
+        # Last tier max_age_hours = 720h (30d); cutoff_days=20 → 480h, BELOW the last tier.
+        CadenceConfig(
+            tiers=[CadenceTierConfig(max_age_hours=720, interval_minutes=120)],
+            cutoff_days=20,
+        )

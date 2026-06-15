@@ -10,10 +10,93 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from personalscraper.conf.models import paths as _paths_model
 from personalscraper.conf.models._base import _StrictModel
+
+
+class CadenceTierConfig(_StrictModel):
+    """Config for one Hot/Warm/Cold tier.
+
+    Attributes:
+        max_age_hours: Upper age bound (exclusive) for this tier, in hours.
+        interval_minutes: Minimum gap between searches in this tier, in minutes.
+    """
+
+    max_age_hours: int
+    interval_minutes: int
+
+
+def _default_tiers() -> list[CadenceTierConfig]:
+    """Return the canonical Hot/Warm/Cold tier defaults (DESIGN §3 frozen decision).
+
+    Returns:
+        Ordered list of the three canonical tiers (Hot, Warm, Cold).
+    """
+    return [
+        CadenceTierConfig(max_age_hours=72, interval_minutes=120),  # Hot
+        CadenceTierConfig(max_age_hours=336, interval_minutes=1440),  # Warm (14d)
+        CadenceTierConfig(max_age_hours=720, interval_minutes=10080),  # Cold (30d)
+    ]
+
+
+class CadenceConfig(_StrictModel):
+    """Global cadence policy config for the acquisition lobe.
+
+    Attributes:
+        tiers: Ordered list of :class:`CadenceTierConfig` (ascending max_age_hours).
+            Defaults to the canonical Hot/Warm/Cold policy (DESIGN §3).
+        cutoff_days: Age in days at which a wanted item is abandoned. Must exceed
+            the last tier's max_age_hours / 24. Default: 30.
+    """
+
+    tiers: list[CadenceTierConfig] = Field(default_factory=_default_tiers)
+    cutoff_days: int = 30
+
+    @model_validator(mode="after")
+    def _validate_tier_ladder(self) -> CadenceConfig:
+        """Reject invalid tier ladders (DESIGN §4, ACCEPTANCE criterion 3).
+
+        Enforces:
+            - ``tiers`` is non-empty;
+            - every ``max_age_hours > 0`` and every ``interval_minutes > 0``;
+            - ``tiers`` are strictly increasing by ``max_age_hours``;
+            - ``cutoff_days * 24 >= tiers[-1].max_age_hours`` (cutoff at or
+              beyond the last tier — the canonical policy sets them equal at
+              720h/30d, so the bound is ``>=`` not strict ``>``).
+
+        Returns:
+            The validated model instance.
+
+        Raises:
+            ValueError: If any invariant is violated (Pydantic wraps this into
+                a ``ValidationError``).
+        """
+        if not self.tiers:
+            raise ValueError("CadenceConfig.tiers must be non-empty.")
+
+        for tier in self.tiers:
+            if tier.max_age_hours <= 0:
+                raise ValueError(f"CadenceConfig tier max_age_hours must be > 0, got {tier.max_age_hours}.")
+            if tier.interval_minutes <= 0:
+                raise ValueError(f"CadenceConfig tier interval_minutes must be > 0, got {tier.interval_minutes}.")
+
+        for prev, curr in zip(self.tiers, self.tiers[1:]):
+            if curr.max_age_hours <= prev.max_age_hours:
+                raise ValueError(
+                    "CadenceConfig.tiers must be strictly increasing by max_age_hours; "
+                    f"got {prev.max_age_hours} >= {curr.max_age_hours}."
+                )
+
+        if self.cutoff_days * 24 < self.tiers[-1].max_age_hours:
+            raise ValueError(
+                "CadenceConfig.cutoff_days must reach at least the last tier; "
+                f"cutoff_days*24 ({self.cutoff_days * 24}h) must be >= "
+                f"the last tier max_age_hours ({self.tiers[-1].max_age_hours}h)."
+            )
+
+        return self
 
 
 class AcquireConfig(_StrictModel):
@@ -24,6 +107,8 @@ class AcquireConfig(_StrictModel):
 
     Attributes:
         db_path: Path to the acquire SQLite database. ``None`` = auto-derive.
+        cadence: Global Hot/Warm/Cold cadence policy (DESIGN §3). Defaults to
+            the canonical policy via :class:`CadenceConfig`.
 
     Raises:
         ValueError: If ``db_path`` resolves to a WAL-unsafe filesystem
@@ -35,6 +120,7 @@ class AcquireConfig(_StrictModel):
         validate_default=True,
         description="Path to acquire.db. None = auto-derive from paths.data_dir.",
     )
+    cadence: CadenceConfig = Field(default_factory=CadenceConfig)
 
     @field_validator("db_path", mode="after")
     @classmethod
@@ -92,4 +178,4 @@ class AcquireConfig(_StrictModel):
         return resolved
 
 
-__all__ = ["AcquireConfig"]
+__all__ = ["AcquireConfig", "CadenceConfig", "CadenceTierConfig"]
