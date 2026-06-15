@@ -145,6 +145,27 @@ class StatusUpdateStateMixin:
         """
         self._write_status_marker(self._status_last_enum_path(), status)
 
+    def get_status_override_enum(self) -> str | None:
+        """Return the OPERATOR pill override enum (cockpit ``pill set-health``), or ``None``.
+
+        When set, the rolling-dashboard render forces this enum (winning over the computed health)
+        until the operator clears it — letting an operator pin the pill (e.g. ``AT_RISK`` during an
+        incident) regardless of orchestration state.
+        """
+        return self._read_status_marker(self._status_override_enum_path())
+
+    def set_status_override_enum(self, status: str | None) -> None:
+        """Persist the operator pill override enum atomically, or clear it (``pill clear``)."""
+        self._write_status_marker(self._status_override_enum_path(), status)
+
+    def get_status_override_note(self) -> str | None:
+        """Return the OPERATOR dashboard note (cockpit ``pill note``), or ``None``."""
+        return self._read_status_marker(self._status_override_note_path())
+
+    def set_status_override_note(self, note: str | None) -> None:
+        """Persist the operator dashboard note atomically, or clear it."""
+        self._write_status_marker(self._status_override_note_path(), note)
+
     def append_status_event(self, event: Mapping[str, object]) -> None:
         """Append one event to the bounded recent-events ring (≤10 newest kept).
 
@@ -205,6 +226,14 @@ class StatusUpdateStateMixin:
     def _status_last_enum_path(self) -> Path:
         """Return the last-posted status-enum marker path (``status/last_status``)."""
         return self.root / "status" / "last_status"
+
+    def _status_override_enum_path(self) -> Path:
+        """Return the operator pill-override enum marker path (``status/override_status``)."""
+        return self.root / "status" / "override_status"
+
+    def _status_override_note_path(self) -> Path:
+        """Return the operator dashboard-note marker path (``status/override_note``)."""
+        return self.root / "status" / "override_note"
 
     def _status_events_path(self) -> Path:
         """Return the bounded recent-events ring path (``status/events.json``)."""

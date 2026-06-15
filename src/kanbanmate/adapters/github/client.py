@@ -766,6 +766,20 @@ class GithubClient:
         data = self._graphql(_queries.update_issue_body(issue_node_id, body))
         raise_for_errors(data)
 
+    def close_issue(self, issue_node_id: str) -> None:
+        """Close an issue by its global node id (cockpit PR3 ``ticket_close``).
+
+        Routes through :attr:`_graphql`, inheriting the client's mandatory connect+read timeouts.
+
+        Args:
+            issue_node_id: The global node id of the issue to close.
+
+        Raises:
+            GraphQLError: When the mutation response carries errors.
+        """
+        data = self._graphql(_queries.close_issue(issue_node_id))
+        raise_for_errors(data)
+
     def add_to_project(self, project_id: str, issue_node_id: str) -> str:
         """Add an issue (by content node id) to a project; return the item id.
 

@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Final, Literal
+from typing import Final, Literal, cast
 
 # ---------------------------------------------------------------------------
 # Status vocabulary — GitHub's ProjectV2StatusUpdateStatus enum (5 values).
@@ -224,6 +224,11 @@ class OrchestrationState:
     paused: bool
     now: float
     stale_after_s: float = DEFAULT_STALE_AFTER_S
+    #: Operator pill override (cockpit ``pill set-health``): when one of :data:`STATUS_VALUES`, it
+    #: FORCES the health pill regardless of the computed state, until the operator clears it.
+    override_enum: str | None = None
+    #: Operator dashboard note (cockpit ``pill note``): rendered as a prominent line when non-empty.
+    override_note: str = ""
 
 
 @dataclass(frozen=True)
@@ -325,6 +330,12 @@ def compute_status(state: OrchestrationState) -> StatusValue:
     Returns:
         The matching :data:`StatusValue`.
     """
+    # Operator override wins over everything (cockpit ``pill set-health``): an explicit operator
+    # decision to pin the pill (e.g. AT_RISK during an incident) takes precedence over the computed
+    # health AND the kill-switch, until the operator clears it.
+    if state.override_enum in STATUS_VALUES:
+        return cast("StatusValue", state.override_enum)
+
     if state.paused:
         return "INACTIVE"
 
@@ -440,9 +451,16 @@ def render_status(state: OrchestrationState) -> StatusUpdateRender:
     lines: list[str] = [
         f"{_HEADER_TITLE} · `{status}`",
         f"tick {_fmt_hhmm(state.now)} · cap {state.cap} · queue {state.queue_depth}",
-        "",
-        f"**Agents en cours ({len(state.agents)})**",
     ]
+    # Operator override banner (cockpit pill): make a pinned pill + any operator note explicit so the
+    # dashboard does not look like a stuck/auto state when the operator forced it.
+    if state.override_enum in STATUS_VALUES:
+        lines.append(
+            f"⚙️ pill forcé par l'opérateur (`{state.override_enum}`) — `kanban pill clear`"
+        )
+    if state.override_note:
+        lines.append(f"**Note opérateur** — {state.override_note}")
+    lines.extend(["", f"**Agents en cours ({len(state.agents)})**"])
 
     if state.agents:
         for agent in state.agents:

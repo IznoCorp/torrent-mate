@@ -378,6 +378,9 @@ def report_status(
         #    first). A poison ring degrades to () inside the store.
         agents = tuple(_running_agent(deps, st, snapshot, now) for st in running)
         ring = tuple(_to_status_event(r) for r in deps.store.read_status_events())
+        # Operator pill override (cockpit ``pill set-health`` / ``pill note``): when set, it forces
+        # the health enum + renders a note. Read here so the next on-change render applies it (and
+        # the re-create-on-enum-change moves the GitHub pill); ``pill clear`` removes the markers.
         state = OrchestrationState(
             agents=agents,
             queue_depth=queue_depth,
@@ -385,6 +388,8 @@ def report_status(
             events=ring,
             paused=paused,
             now=now,
+            override_enum=deps.store.get_status_override_enum(),
+            override_note=deps.store.get_status_override_note() or "",
         )
 
         # 2b. Project-rebind guard (phase-33). The id/hash markers are BOARD-WIDE,

@@ -648,6 +648,28 @@ def update_issue_body(issue_node_id: str, body: str) -> dict[str, Any]:
     return {"query": query, "variables": {"id": issue_node_id, "body": body}}
 
 
+def close_issue(issue_node_id: str) -> dict[str, Any]:
+    """Close an Issue by its global node id (cockpit PR3 ``ticket_close``).
+
+    The ``CloseIssuePayload`` type DOES carry an ``issue`` field (unlike the status-update delete
+    payload), so selecting ``issue { id }`` is valid.
+
+    Args:
+        issue_node_id: The issue's global node id to close.
+
+    Returns:
+        A GraphQL ``closeIssue`` mutation payload whose response carries ``issue { id }``.
+    """
+    query = """
+    mutation($id: ID!) {
+      closeIssue(input: { issueId: $id }) {
+        issue { id }
+      }
+    }
+    """
+    return {"query": query, "variables": {"id": issue_node_id}}
+
+
 def add_item_to_project(project_id: str, content_id: str) -> dict[str, Any]:
     """Add an issue (by content node id) to a project; returns the item id.
 

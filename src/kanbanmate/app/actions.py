@@ -49,7 +49,13 @@ from kanbanmate.core.launch_keys import (
 from kanbanmate.core.placeholders import fill
 from kanbanmate.core.stage_comment import HeaderInfo, fmt_timestamp
 from kanbanmate.core.ticket_fields import parse_ticket_fields
-from kanbanmate.ports.board import BoardReader, BoardWriter, ProjectStatusReporter, PullRequests
+from kanbanmate.ports.board import (
+    BoardReader,
+    BoardWriter,
+    ProjectStatusReporter,
+    PullRequests,
+    Seeder,
+)
 from kanbanmate.ports.clock import Clock
 from kanbanmate.ports.store import StateStore, TicketState, TicketStatus
 from kanbanmate.ports.workspace import Sessions, Workspace
@@ -202,6 +208,10 @@ class Deps:
     # a no-op reporter so existing constructions compile and a tick with no real reporter is inert.
     status_reporter: ProjectStatusReporter = field(default_factory=lambda: _NullStatusReporter())
     project_id: str = ""
+    # The issue/project create side (cockpit PR3 ticket_create). The production GithubClient
+    # implements Seeder; defaulted to None so existing constructions compile (a tick with no seeder
+    # rejects ticket_create rather than crashing).
+    seeder: Seeder | None = None
     # The blocking-sleep boundary the launch's trust/ready poll waits on (phase-25 §25.1). Defaulted
     # to time.sleep; tests inject a no-op so the bounded capture-pane poll runs offline.
     sleeper: Callable[[float], None] = time.sleep

@@ -72,6 +72,15 @@ class FakeSeeder:
         """Record the body patch (unused by init)."""
         self.body_patches.append((issue_node_id, body))
 
+    def close_issue(self, issue_node_id: str) -> None:  # pragma: no cover - unused by init
+        """Unused by init (cockpit ticket_close); satisfies the Seeder protocol."""
+
+    def fetch_issue(self, issue_number: int):  # type: ignore[no-untyped-def]  # pragma: no cover
+        """Unused by init (cockpit ticket_edit/close); satisfies the Seeder protocol."""
+        from kanbanmate.adapters.github.types import IssueRef
+
+        return IssueRef(node_id=f"NODE_{issue_number}", number=issue_number, title="", body="")
+
     def add_to_project(self, project_id: str, issue_node_id: str) -> str:
         """Record the add (unused by init) and return a canned item id."""
         self.added.append((project_id, issue_node_id))

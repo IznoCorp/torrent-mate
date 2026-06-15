@@ -230,6 +230,22 @@ class _FakeStore:
         """Unused by the read-only commands (status-update enum marker)."""
         pass
 
+    def get_status_override_enum(self) -> str | None:  # pragma: no cover
+        """Unused by the read-only commands (pill override marker, cockpit PR3)."""
+        return None
+
+    def set_status_override_enum(self, status: str | None) -> None:  # pragma: no cover
+        """Unused by the read-only commands (pill override marker, cockpit PR3)."""
+        pass
+
+    def get_status_override_note(self) -> str | None:  # pragma: no cover
+        """Unused by the read-only commands (pill override note, cockpit PR3)."""
+        return None
+
+    def set_status_override_note(self, note: str | None) -> None:  # pragma: no cover
+        """Unused by the read-only commands (pill override note, cockpit PR3)."""
+        pass
+
     def get_status_project_id(self) -> str | None:  # pragma: no cover
         """Unused by the read-only commands (status-state project binding, phase-33)."""
         return None
@@ -247,6 +263,30 @@ class _FakeStore:
     def read_status_events(self) -> tuple[dict[str, object], ...]:  # pragma: no cover
         """Unused by the read-only commands (status-update state, phase-24)."""
         return ()
+
+    def enqueue_intent(self, intent_id: str, payload: object) -> None:  # pragma: no cover
+        """Unused by the read-only commands (intent queue, cockpit PR2)."""
+        pass
+
+    def load_intent(self, intent_id: str) -> dict[str, object] | None:  # pragma: no cover
+        """Unused by the read-only commands (intent queue, cockpit PR2)."""
+        return None
+
+    def clear_intent(self, intent_id: str) -> None:  # pragma: no cover
+        """Unused by the read-only commands (intent queue, cockpit PR2)."""
+        pass
+
+    def list_pending_intents(self) -> tuple[str, ...]:  # pragma: no cover
+        """Unused by the read-only commands (intent queue, cockpit PR2)."""
+        return ()
+
+    def save_intent_result(self, intent_id: str, payload: object) -> None:  # pragma: no cover
+        """Unused by the read-only commands (intent queue, cockpit PR2)."""
+        pass
+
+    def load_intent_result(self, intent_id: str) -> dict[str, object] | None:  # pragma: no cover
+        """Unused by the read-only commands (intent queue, cockpit PR2)."""
+        return None
 
 
 class _FakeSessions:

@@ -1587,3 +1587,13 @@ def test_branch_protection_on_defaults_to_main() -> None:
     )
     assert client.branch_protection_on() is True
     assert seen["path"] == "/repos/IznoCorp/demo/branches/main/protection"
+
+
+def test_close_issue_query_selects_issue_id() -> None:
+    """The closeIssue mutation selects ``issue { id }`` (valid on CloseIssuePayload) by node id."""
+    from kanbanmate.adapters.github import _queries
+
+    q = _queries.close_issue("NODE_1")
+    assert "closeIssue" in q["query"]
+    assert "issue { id }" in q["query"]
+    assert q["variables"] == {"id": "NODE_1"}

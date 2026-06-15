@@ -26,11 +26,15 @@ from kanbanmate.cli import doctor as doctor_mod
 from kanbanmate.cli import init as init_cmd
 from kanbanmate.cli import install as host_installer
 from kanbanmate.cli import logs as logs_cmd
+from kanbanmate.cli import move as move_cmd
+from kanbanmate.cli import pill as pill_cmd
 from kanbanmate.cli import poll as poll_cmd
 from kanbanmate.cli import reset as reset_cmd
 from kanbanmate.cli import seed as seed_cmd
 from kanbanmate.cli import sessions as sessions_cmd
+from kanbanmate.cli import state as state_cmd
 from kanbanmate.cli import status as status_cmd
+from kanbanmate.cli import ticket as ticket_cmd
 from kanbanmate.daemon import loop as daemon_loop
 
 app = typer.Typer(
@@ -39,6 +43,27 @@ app = typer.Typer(
     no_args_is_help=True,
     add_completion=False,
 )
+
+# Operator ticket-CRUD sub-app (cockpit PR3): `kanban ticket create ...` enqueues an intent the
+# daemon executes (the bare `kanban` CLI is agent-excluded, so this stays operator-only). The
+# subcommands are registered at the END of the module (they need _DEFAULT_ROOT + the helpers).
+ticket_app = typer.Typer(
+    name="ticket",
+    help="Operator ticket CRUD via the cockpit intent queue (daemon-executed).",
+    no_args_is_help=True,
+    add_completion=False,
+)
+app.add_typer(ticket_app, name="ticket")
+
+# Operator pill-override sub-app (cockpit PR3): `kanban pill set-health|note|clear` enqueues an
+# intent the daemon applies to the rolling status pill. Subcommands registered at the END of module.
+pill_app = typer.Typer(
+    name="pill",
+    help="Operator override of the rolling status pill (daemon-applied).",
+    no_args_is_help=True,
+    add_completion=False,
+)
+app.add_typer(pill_app, name="pill")
 
 
 @app.command()
@@ -324,6 +349,41 @@ def status(
 
 
 @app.command()
+def state(
+    root: Path = typer.Option(
+        _DEFAULT_ROOT,
+        "--root",
+        help="Kanban runtime root holding config.yml + state (default ~/.kanban).",
+    ),
+    json_out: bool = typer.Option(
+        False,
+        "--json",
+        help="Emit a machine-readable JSON shape (for agents/scripts) instead of the human pane.",
+    ),
+) -> None:
+    """Show the unified read-only board + agents + queue + recent-events + health-pill view (cockpit PR1).
+
+    Read-only — extends ``status`` with the recent-events ring and the current health pill (the
+    daemon's last-computed enum, read off the ``status/last_status`` marker). ``--json`` emits a
+    stable machine shape for agents/scripts. Nothing is moved, posted, or written.
+
+    Args:
+        root: The kanban runtime root holding ``config.yml``, the state store, and the markers.
+        json_out: When set, emit JSON instead of the human operator pane.
+    """
+    deps = build_deps(_wiring_for(root))
+    typer.echo(
+        state_cmd.state(
+            deps.board_reader,
+            deps.store,
+            root=root.expanduser(),
+            ttl=doctor_mod.HEARTBEAT_TTL_FLOOR,
+            as_json=json_out,
+        )
+    )
+
+
+@app.command()
 def pause(
     root: Path = typer.Option(
         _DEFAULT_ROOT,
@@ -408,6 +468,37 @@ def cancel(
 
 
 @app.command()
+def move(
+    issue: int = typer.Argument(..., help="The GitHub issue number whose card to move."),
+    column: str = typer.Argument(..., help="Destination column KEY (as shown by `kanban state`)."),
+    root: Path = typer.Option(
+        _DEFAULT_ROOT,
+        "--root",
+        help="Kanban runtime root holding config.yml + state (default ~/.kanban).",
+    ),
+    wait: bool = typer.Option(
+        False,
+        "--wait",
+        help="Block on the daemon's result (done/rejected) up to a timeout instead of returning now.",
+    ),
+) -> None:
+    """Enqueue an operator move of #issue's card to <column> — executed by the daemon (cockpit PR2).
+
+    Writes a move intent into the ``~/.kanban/intents/`` queue; the daemon (the sole board writer)
+    applies it on its next tick (re-validating + advancing the diff baseline so the move never
+    re-fires a launch). ``--wait`` blocks on the result. ``<column>`` is a column KEY.
+
+    Args:
+        issue: The GitHub issue number whose card to move.
+        column: The destination column KEY.
+        root: The kanban runtime root holding the intent queue.
+        wait: When set, block on the daemon's result up to a timeout.
+    """
+    deps = build_deps(_wiring_for(root))
+    typer.echo(move_cmd.move(deps.store, issue=issue, to_col=column, wait=wait))
+
+
+@app.command()
 def logs(
     issue: int = typer.Argument(
         None,
@@ -480,6 +571,162 @@ def poll(
         typer.echo(poll_cmd.render_poll(result))
         return
     daemon_loop.main()
+
+
+@ticket_app.command("create")
+def ticket_create(
+    title: str = typer.Option(..., "--title", help="The new issue title."),
+    body: str = typer.Option("", "--body", help="The issue body."),
+    label: list[str] = typer.Option(None, "--label", help="Label to apply (repeatable)."),
+    column: str = typer.Option(
+        None, "--column", help="Optional initial column KEY (must be non-triggering)."
+    ),
+    root: Path = typer.Option(
+        _DEFAULT_ROOT,
+        "--root",
+        help="Kanban runtime root holding config.yml + state (default ~/.kanban).",
+    ),
+    wait: bool = typer.Option(
+        False, "--wait", help="Block on the daemon's result up to a timeout."
+    ),
+) -> None:
+    """Enqueue an operator ticket-create — executed by the daemon (cockpit PR3).
+
+    Writes a ``ticket_create`` intent (create issue + add to the project + optional initial move) the
+    daemon applies idempotently. ``--wait`` blocks on the result.
+
+    Args:
+        title: The new issue title.
+        body: The issue body.
+        label: Labels to apply (repeatable ``--label``).
+        column: Optional initial column KEY (refused if it is a launch column).
+        root: The kanban runtime root holding the intent queue.
+        wait: When set, block on the daemon's result.
+    """
+    deps = build_deps(_wiring_for(root))
+    typer.echo(
+        ticket_cmd.create(
+            deps.store,
+            title=title,
+            body=body,
+            labels=label or [],
+            column=column or None,
+            wait=wait,
+        )
+    )
+
+
+@ticket_app.command("edit")
+def ticket_edit(
+    issue: int = typer.Argument(..., help="The issue number whose body to replace."),
+    body: str = typer.Option(..., "--body", help="The new issue body (markdown)."),
+    root: Path = typer.Option(
+        _DEFAULT_ROOT,
+        "--root",
+        help="Kanban runtime root holding config.yml + state (default ~/.kanban).",
+    ),
+    wait: bool = typer.Option(
+        False, "--wait", help="Block on the daemon's result up to a timeout."
+    ),
+) -> None:
+    """Enqueue an operator ticket-edit (replace the issue body) — executed by the daemon (cockpit PR3).
+
+    Args:
+        issue: The issue number whose body to replace.
+        body: The new issue body.
+        root: The kanban runtime root holding the intent queue.
+        wait: When set, block on the daemon's result.
+    """
+    deps = build_deps(_wiring_for(root))
+    typer.echo(ticket_cmd.edit(deps.store, issue=issue, body=body, wait=wait))
+
+
+@ticket_app.command("close")
+def ticket_close(
+    issue: int = typer.Argument(..., help="The issue number to close."),
+    root: Path = typer.Option(
+        _DEFAULT_ROOT,
+        "--root",
+        help="Kanban runtime root holding config.yml + state (default ~/.kanban).",
+    ),
+    wait: bool = typer.Option(
+        False, "--wait", help="Block on the daemon's result up to a timeout."
+    ),
+) -> None:
+    """Enqueue an operator ticket-close — executed by the daemon (cockpit PR3).
+
+    Args:
+        issue: The issue number to close.
+        root: The kanban runtime root holding the intent queue.
+        wait: When set, block on the daemon's result.
+    """
+    deps = build_deps(_wiring_for(root))
+    typer.echo(ticket_cmd.close(deps.store, issue=issue, wait=wait))
+
+
+@pill_app.command("set-health")
+def pill_set_health(
+    enum: str = typer.Argument(
+        ..., help="Health enum: INACTIVE|ON_TRACK|AT_RISK|OFF_TRACK|COMPLETE."
+    ),
+    note: str = typer.Option("", "--note", help="Optional operator note shown on the dashboard."),
+    root: Path = typer.Option(
+        _DEFAULT_ROOT, "--root", help="Kanban runtime root (default ~/.kanban)."
+    ),
+    wait: bool = typer.Option(
+        False, "--wait", help="Block on the daemon's result up to a timeout."
+    ),
+) -> None:
+    """Force the rolling status pill to <enum> until cleared — applied by the daemon (cockpit PR3).
+
+    Args:
+        enum: The health enum to pin.
+        note: Optional operator note rendered on the dashboard.
+        root: The kanban runtime root holding the intent queue.
+        wait: When set, block on the daemon's result.
+    """
+    deps = build_deps(_wiring_for(root))
+    typer.echo(pill_cmd.set_health(deps.store, enum=enum, note=note or None, wait=wait))
+
+
+@pill_app.command("note")
+def pill_note(
+    text: str = typer.Argument(..., help="The operator note to show on the dashboard."),
+    root: Path = typer.Option(
+        _DEFAULT_ROOT, "--root", help="Kanban runtime root (default ~/.kanban)."
+    ),
+    wait: bool = typer.Option(
+        False, "--wait", help="Block on the daemon's result up to a timeout."
+    ),
+) -> None:
+    """Set the operator dashboard note — applied by the daemon (cockpit PR3).
+
+    Args:
+        text: The operator note to display.
+        root: The kanban runtime root holding the intent queue.
+        wait: When set, block on the daemon's result.
+    """
+    deps = build_deps(_wiring_for(root))
+    typer.echo(pill_cmd.note(deps.store, text=text, wait=wait))
+
+
+@pill_app.command("clear")
+def pill_clear(
+    root: Path = typer.Option(
+        _DEFAULT_ROOT, "--root", help="Kanban runtime root (default ~/.kanban)."
+    ),
+    wait: bool = typer.Option(
+        False, "--wait", help="Block on the daemon's result up to a timeout."
+    ),
+) -> None:
+    """Clear the operator pill override + note (revert to the computed health) — cockpit PR3.
+
+    Args:
+        root: The kanban runtime root holding the intent queue.
+        wait: When set, block on the daemon's result.
+    """
+    deps = build_deps(_wiring_for(root))
+    typer.echo(pill_cmd.clear(deps.store, wait=wait))
 
 
 def main() -> None:

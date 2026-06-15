@@ -167,6 +167,21 @@ class _FakeStatusStore:
     def set_status_last_enum(self, status: str | None) -> None:
         self.last_status = status
 
+    override_enum: str | None = None
+    override_note: str | None = None
+
+    def get_status_override_enum(self) -> str | None:
+        return self.override_enum
+
+    def set_status_override_enum(self, status: str | None) -> None:
+        self.override_enum = status
+
+    def get_status_override_note(self) -> str | None:
+        return self.override_note
+
+    def set_status_override_note(self, note: str | None) -> None:
+        self.override_note = note
+
     def append_status_event(self, event: dict[str, object]) -> None:
         if self.append_raises:
             raise RuntimeError("simulated ring append failure")

@@ -755,6 +755,26 @@ class StateStore(Protocol):
         """
         ...
 
+    def get_status_override_enum(self) -> str | None:
+        """Return the OPERATOR pill-override enum (cockpit ``pill set-health``), or ``None``.
+
+        When set, the rolling-dashboard render FORCES this enum (winning over the computed health)
+        until the operator clears it (``pill clear``). ``None`` means no override is active.
+        """
+        ...
+
+    def set_status_override_enum(self, status: str | None) -> None:
+        """Persist the operator pill-override enum atomically, or clear it (``None``)."""
+        ...
+
+    def get_status_override_note(self) -> str | None:
+        """Return the OPERATOR dashboard note (cockpit ``pill note``), or ``None`` when unset."""
+        ...
+
+    def set_status_override_note(self, note: str | None) -> None:
+        """Persist the operator dashboard note atomically, or clear it (``None``)."""
+        ...
+
     def append_status_event(self, event: Mapping[str, object]) -> None:
         """Append one event to the bounded recent-events ring (newest kept).
 
@@ -783,4 +803,50 @@ class StateStore(Protocol):
             An immutable tuple of the stored event dicts (≤10), oldest-first, or
             an empty tuple when none are persisted.
         """
+        ...
+
+    # ------------------------------------------------------------------
+    # Board-mutation intent queue (cockpit PR2 — daemon is the sole writer)
+    # ------------------------------------------------------------------
+
+    def enqueue_intent(self, intent_id: str, payload: Mapping[str, object]) -> None:
+        """Persist a pending board-mutation intent atomically (the CLI/agent enqueue side).
+
+        The daemon's ``drain_intents`` tick step is the ONLY consumer/executor. The payload is the
+        JSON-serialisable intent mapping (``kind`` / ``issue`` / ``args`` / ``requested_at`` /
+        ``caller``).
+
+        Args:
+            intent_id: The intent id (its marker filename stem).
+            payload: The JSON-serialisable intent mapping.
+        """
+        ...
+
+    def load_intent(self, intent_id: str) -> dict[str, object] | None:
+        """Return the pending intent payload, or ``None`` when absent/corrupt (poison-tolerant)."""
+        ...
+
+    def clear_intent(self, intent_id: str) -> None:
+        """Remove the pending intent marker (the drain clears it after writing the result)."""
+        ...
+
+    def list_pending_intents(self) -> tuple[str, ...]:
+        """Return the ids of all pending intents (result files excluded), or ``()`` when none.
+
+        The drain orders these by the intents' ``requested_at`` before executing; this returns them
+        in a stable (lexicographic) order and degrades to ``()`` when the queue is absent/empty.
+        """
+        ...
+
+    def save_intent_result(self, intent_id: str, payload: Mapping[str, object]) -> None:
+        """Persist an intent's result atomically (the CLI ``--wait`` polls it).
+
+        Args:
+            intent_id: The intent id whose result to write.
+            payload: The JSON-serialisable result mapping (``state`` / ``detail``).
+        """
+        ...
+
+    def load_intent_result(self, intent_id: str) -> dict[str, object] | None:
+        """Return an intent's result payload, or ``None`` when not yet written/corrupt."""
         ...

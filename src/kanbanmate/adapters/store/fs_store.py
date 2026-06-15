@@ -26,6 +26,7 @@ import logging
 import os
 import time
 
+from kanbanmate.adapters.store.fs_intents import IntentsStateMixin
 from kanbanmate.adapters.store.fs_status_state import StatusUpdateStateMixin
 from kanbanmate.ports.store import LIVE_STATUSES, TicketState, TicketStatus
 
@@ -67,7 +68,7 @@ _ADVANCE_TTL = 300.0
 _RATE_WINDOW = 3600.0
 
 
-class FsStateStore(StatusUpdateStateMixin):
+class FsStateStore(StatusUpdateStateMixin, IntentsStateMixin):
     """Filesystem-backed :class:`~kanbanmate.ports.store.StateStore` implementation.
 
     Persists per-ticket runtime state as JSON files under ``<root>/state/``.

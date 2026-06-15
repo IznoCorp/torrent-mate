@@ -47,6 +47,7 @@ from kanbanmate.app.actions import (
 )
 from kanbanmate.app.depgate import resolve_dependency_gate
 from kanbanmate.app.drain import _drain_queue as _drain_queue_impl
+from kanbanmate.app.intents import drain_intents
 from kanbanmate.app.reaper import _ReapMove, reap_stale_agents
 from kanbanmate.app.stage_signal import upsert_stage_comment
 from kanbanmate.app.status_reporter import report_status
@@ -854,7 +855,25 @@ def tick(
         # queue markers intact (defect 6, DESIGN §10) so a resume re-launches them on a later tick.
         _drain_queue(deps, config, executor, now, kill_switch=kill_switch)
 
-        # Step 4c: heartbeat / bookkeeping — the daemon's own liveness marker (DESIGN §5). The
+        # Step 4c: drain the board-mutation intent queue (cockpit PR2). The daemon is the SOLE intent
+        # writer; this executes operator (and, when wired, bridled-agent) moves with the authority
+        # DERIVED from the running set (never the spoofable caller field). Placed AFTER drain_queue (a
+        # pathological intent can never starve launches) and BEFORE report_status (board mutations
+        # land before the dashboard render). It mutates next_columns (baseline advance, so a move into
+        # a triggering column does NOT re-fire next tick) + status_events in place, and is WHOLLY
+        # fail-soft — drain_intents swallows every exception, so it can never raise into the tick.
+        drain_intents(
+            deps,
+            config,
+            snapshot=snapshot,
+            next_columns=next_columns,
+            running=tuple(deps.store.list_running()),
+            status_events=status_events,
+            now=now,
+            kill_switch=kill_switch,
+        )
+
+        # Step 4d: heartbeat / bookkeeping — the daemon's own liveness marker (DESIGN §5). The
         # store's touch_heartbeat is keyed per ticket; the daemon-level heartbeat is written by
         # the daemon loop (run_loop writes daemon.heartbeat after each tick), so here we only
         # log the cycle for observability.

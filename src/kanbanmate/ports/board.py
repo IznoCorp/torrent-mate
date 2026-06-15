@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from kanbanmate.adapters.github.types import CommentRef, IssueContext
+from kanbanmate.adapters.github.types import CommentRef, IssueContext, IssueRef
 from kanbanmate.core.domain import BoardSnapshot
 
 
@@ -292,6 +292,29 @@ class Seeder(Protocol):
         Args:
             issue_node_id: The global node id of the issue to patch.
             body: The new markdown body.
+        """
+        ...
+
+    def close_issue(self, issue_node_id: str) -> None:
+        """Close an issue by its global node id (cockpit PR3 ``ticket_close``).
+
+        Args:
+            issue_node_id: The global node id of the issue to close.
+        """
+        ...
+
+    def fetch_issue(self, issue_number: int) -> IssueRef:
+        """Read an issue's identity + body by NUMBER (resolves number → node id).
+
+        Backs the cockpit ``ticket_edit`` / ``ticket_close`` executors, which carry an issue NUMBER
+        but need its global ``node_id`` for the patch/close mutations.
+
+        Args:
+            issue_number: The issue number in the board's repository.
+
+        Returns:
+            An :class:`~kanbanmate.adapters.github.types.IssueRef` (``node_id`` / ``number`` /
+            ``title`` / ``body``).
         """
         ...
 

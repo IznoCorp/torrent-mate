@@ -220,6 +220,14 @@ def _mocks(reader: _FakeBoardReader, *, now: float = 1000.0) -> _Mocks:
     sessions.capture.return_value = "│ > Welcome to Claude"
     store = MagicMock()
     store.list_running.return_value = ()
+    # The intent drain (cockpit PR2) runs every tick; default the queue EMPTY so drain_intents
+    # returns immediately (a bare MagicMock list is truthy + non-iterable and would otherwise make
+    # the drain fetch an extra snapshot / churn).
+    store.list_pending_intents.return_value = ()
+    # The status reporter reads the operator pill-override markers every tick (cockpit PR3); default
+    # them off so the bare-MagicMock truthy return does not inject a fake override into the render.
+    store.get_status_override_enum.return_value = None
+    store.get_status_override_note.return_value = None
     # The tick reads the kill-switch every cycle; default it off so the launch path is exercised
     # (a bare MagicMock return is truthy and would block every launch — DESIGN §10 / H5).
     store.kill_switch_active.return_value = False

@@ -1754,6 +1754,24 @@ class TestStatusUpdateState:
         store.set_status_last_enum(None)
         assert store.get_status_last_enum() is None
 
+    def test_override_enum_round_trips_and_clears(self, tmp_path: Path) -> None:
+        """The operator pill-override enum round-trips and clears (cockpit pill set-health/clear)."""
+        store = FsStateStore(root=tmp_path)
+        assert store.get_status_override_enum() is None
+        store.set_status_override_enum("AT_RISK")
+        assert store.get_status_override_enum() == "AT_RISK"
+        store.set_status_override_enum(None)
+        assert store.get_status_override_enum() is None
+
+    def test_override_note_round_trips_and_clears(self, tmp_path: Path) -> None:
+        """The operator dashboard note round-trips and clears (cockpit pill note/clear)."""
+        store = FsStateStore(root=tmp_path)
+        assert store.get_status_override_note() is None
+        store.set_status_override_note("incident")
+        assert store.get_status_override_note() == "incident"
+        store.set_status_override_note(None)
+        assert store.get_status_override_note() is None
+
     def test_events_ring_round_trips_oldest_first(self, tmp_path: Path) -> None:
         """The events ring round-trips in append (oldest-first) order."""
         store = FsStateStore(root=tmp_path)

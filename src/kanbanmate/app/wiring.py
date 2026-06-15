@@ -136,6 +136,9 @@ def build_deps(config: WiringConfig) -> Deps:
         # posts on is threaded alongside (the reporter ``create``s on it).
         status_reporter=board,
         project_id=config.project_id,
+        # The GithubClient also implements Seeder (create_issue / add_to_project) — threaded for the
+        # cockpit ticket_create intent executor (PR3).
+        seeder=board,
     )
 
 

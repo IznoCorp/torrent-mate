@@ -348,3 +348,24 @@ def test_render_is_deterministic() -> None:
     """The render is a pure function of its argument (same input → same output)."""
     state = _state(agents=(_agent(),), events=(StatusEvent(_NOW, "launch", 140, "go"),))
     assert render_status(state) == render_status(state)
+
+
+# ── operator pill override (cockpit PR3.3) ─────────────────────────────────
+
+
+def test_override_enum_wins_over_computed_and_paused() -> None:
+    # An explicit operator override forces the pill — over the computed health AND the kill-switch.
+    assert compute_status(_state(override_enum="OFF_TRACK")) == "OFF_TRACK"
+    assert compute_status(_state(paused=True, override_enum="ON_TRACK")) == "ON_TRACK"
+
+
+def test_invalid_override_enum_is_ignored() -> None:
+    # A bogus override falls through to the computed health (fully idle → COMPLETE).
+    assert compute_status(_state(override_enum="BOGUS")) == "COMPLETE"
+
+
+def test_render_shows_override_banner_and_note() -> None:
+    body = render_status(_state(override_enum="AT_RISK", override_note="incident in prod")).body
+    assert "`AT_RISK`" in body
+    assert "opérateur" in body  # the forced-pill banner
+    assert "incident in prod" in body
