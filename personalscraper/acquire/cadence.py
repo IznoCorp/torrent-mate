@@ -41,6 +41,41 @@ class Cadence:
     tiers: tuple[CadenceTier, ...]
     cutoff_s: int
 
+    def __post_init__(self) -> None:
+        """Validate the cadence invariants once at construction time.
+
+        Makes illegal states unrepresentable: every construction path
+        (``cadence_from_config``, ``cadence_from_json``, direct) is
+        self-validating, mirroring the ``CadenceConfig`` validator at the VO
+        level. Runs once at build — the predicates stay branch-free.
+
+        Raises:
+            ValueError: if ``tiers`` is empty; any tier has a non-positive
+                ``max_age_s`` or ``interval_s``; ``tiers`` are not strictly
+                increasing by ``max_age_s``; or ``cutoff_s`` is below the last
+                tier's ``max_age_s``.
+        """
+        if not self.tiers:
+            raise ValueError("Cadence.tiers must not be empty")
+
+        prev_max: int | None = None
+        for tier in self.tiers:
+            if tier.max_age_s <= 0:
+                raise ValueError(f"CadenceTier.max_age_s must be positive, got {tier.max_age_s}")
+            if tier.interval_s <= 0:
+                raise ValueError(f"CadenceTier.interval_s must be positive, got {tier.interval_s}")
+            if prev_max is not None and tier.max_age_s <= prev_max:
+                raise ValueError(
+                    f"Cadence.tiers must be strictly increasing by max_age_s, got {tier.max_age_s} after {prev_max}"
+                )
+            prev_max = tier.max_age_s
+
+        if self.cutoff_s < self.tiers[-1].max_age_s:
+            raise ValueError(
+                "Cadence.cutoff_s must be >= the last tier's max_age_s, "
+                f"got cutoff_s={self.cutoff_s} < {self.tiers[-1].max_age_s}"
+            )
+
 
 def is_due_by_cadence(
     cadence: Cadence,
@@ -53,9 +88,11 @@ def is_due_by_cadence(
 
     A never-searched item (``last_search_at is None``) is due immediately
     while inside the cadence window — that is the whole point of a fresh
-    enqueue. Returns False when past cutoff, when no tier matches (age >= all
-    tier max_age_s but below cutoff — treated as not-due), or when
-    ``last_search_at`` is too recent for the current tier's interval.
+    enqueue. Returns False when past cutoff or when ``last_search_at`` is too
+    recent for the current tier's interval. When no tier matches (age >= all
+    tier max_age_s but below cutoff), the item keeps searching at the last
+    (slowest/Cold) tier's interval rather than freezing — it is abandoned only
+    once ``is_past_cutoff`` fires.
 
     Args:
         cadence: The effective cadence policy for this item.
@@ -72,10 +109,12 @@ def is_due_by_cadence(
 
     age = now - enqueued_at
     # Select the first tier whose max_age_s > age (i.e. age < max_age_s).
-    tier: CadenceTier | None = next((t for t in cadence.tiers if age < t.max_age_s), None)
-    if tier is None:
-        # age is between last tier max_age_s and cutoff_s — treat as not-due.
-        return False
+    # When age is beyond the last tier (age >= tiers[-1].max_age_s) but still
+    # before cutoff, fall back to the last (slowest/Cold) tier and keep
+    # searching at that cadence until is_past_cutoff fires. This prevents the
+    # dead-band freeze that occurred when cutoff_s > tiers[-1].max_age_s (the
+    # validator allows cutoff >= last tier, so that gap is reachable).
+    tier: CadenceTier = next((t for t in cadence.tiers if age < t.max_age_s), cadence.tiers[-1])
 
     if last_search_at is None:
         # Never searched → due now (within the window).

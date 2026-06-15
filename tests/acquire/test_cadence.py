@@ -221,3 +221,99 @@ def test_effective_cadence_none_returns_default():
 
     default = Cadence(tiers=(CadenceTier(max_age_s=999, interval_s=999),), cutoff_s=999)
     assert effective_cadence(None, default) is default
+
+
+# --- Dead-band fix (F-A) ----------------------------------------------------
+
+# Cadence whose cutoff extends BEYOND the last tier (40d cutoff, 30d last tier):
+# ages in [720h, 960h) now search at the Cold cadence instead of freezing.
+CUTOFF_BEYOND_S = 960 * 3600  # 40 days
+
+
+def _canon_cutoff_beyond():
+    from personalscraper.acquire.cadence import Cadence, CadenceTier
+
+    return Cadence(
+        tiers=(
+            CadenceTier(max_age_s=HOT_MAX, interval_s=HOT_S),
+            CadenceTier(max_age_s=WARM_MAX, interval_s=WARM_S),
+            CadenceTier(max_age_s=COLD_MAX, interval_s=COLD_S),
+        ),
+        cutoff_s=CUTOFF_BEYOND_S,
+    )
+
+
+def test_is_due_dead_band_uses_last_tier_interval():
+    """Age in [last-tier, cutoff) with last_search past Cold interval → due.
+
+    Mutation-proof: under the pre-fix ``return False`` (no tier matches), this
+    item would be frozen and the assert would be False. The fix falls back to
+    the last (Cold) tier's interval, so a search one Cold interval + 1s old is
+    due.
+    """
+    from personalscraper.acquire.cadence import is_due_by_cadence
+
+    enqueued = NOW - (800 * 3600)  # age=800h ∈ [720h, 960h) → beyond last tier
+    last = NOW - COLD_S - 1  # one Cold interval (7d) + 1s back → due
+    assert is_due_by_cadence(_canon_cutoff_beyond(), now=NOW, enqueued_at=enqueued, last_search_at=last) is True
+
+
+def test_is_due_dead_band_too_recent_not_due():
+    """Same dead-band window but last_search only 1h back → NOT due.
+
+    Confirms the fallback applies the Cold interval (does not just always
+    return True): a too-recent search inside the window stays not-due.
+    """
+    from personalscraper.acquire.cadence import is_due_by_cadence
+
+    enqueued = NOW - (800 * 3600)  # age=800h, beyond last tier, before cutoff
+    last = NOW - 3600  # only 1h back, well under the 7d Cold interval
+    assert is_due_by_cadence(_canon_cutoff_beyond(), now=NOW, enqueued_at=enqueued, last_search_at=last) is False
+
+
+# --- Cadence VO invariant guard (F-B) ---------------------------------------
+
+
+def test_cadence_post_init_canonical_builds():
+    """Positive control: the canonical Cadence (cutoff == last tier) builds clean."""
+    _canon()  # must not raise under the new __post_init__ guard
+
+
+def test_cadence_post_init_rejects_empty_tiers():
+    """Empty tiers → ValueError."""
+    from personalscraper.acquire.cadence import Cadence
+
+    with pytest.raises(ValueError):
+        Cadence(tiers=(), cutoff_s=100)
+
+
+def test_cadence_post_init_rejects_nonpositive():
+    """A non-positive max_age_s or interval_s → ValueError."""
+    from personalscraper.acquire.cadence import Cadence, CadenceTier
+
+    with pytest.raises(ValueError):
+        Cadence(tiers=(CadenceTier(max_age_s=0, interval_s=10),), cutoff_s=100)
+    with pytest.raises(ValueError):
+        Cadence(tiers=(CadenceTier(max_age_s=100, interval_s=0),), cutoff_s=100)
+
+
+def test_cadence_post_init_rejects_non_monotonic():
+    """Tiers not strictly increasing by max_age_s → ValueError."""
+    from personalscraper.acquire.cadence import Cadence, CadenceTier
+
+    with pytest.raises(ValueError):
+        Cadence(
+            tiers=(
+                CadenceTier(max_age_s=200, interval_s=10),
+                CadenceTier(max_age_s=100, interval_s=20),
+            ),
+            cutoff_s=300,
+        )
+
+
+def test_cadence_post_init_rejects_cutoff_below_last_tier():
+    """cutoff_s below the last tier's max_age_s → ValueError."""
+    from personalscraper.acquire.cadence import Cadence, CadenceTier
+
+    with pytest.raises(ValueError):
+        Cadence(tiers=(CadenceTier(max_age_s=100, interval_s=10),), cutoff_s=50)
