@@ -8,11 +8,17 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/seed-pure/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/seed-pure/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                         | File                             | Status |
+| --- | ----------------------------- | -------------------------------- | ------ |
+| 1   | Tag vocab + tagger capability | phase-01-tag-vocab-tagger.md     | [ ]    |
+| 2   | `seed` CLI group              | phase-02-seed-cli.md             | [ ]    |
+| 3   | Ingest skip (always-on)       | phase-03-ingest-skip.md          | [ ]    |
+| 4   | Opt-in sort/process guard     | phase-04-optional-guard.md       | [ ]    |
+| 5   | Docs + ACCEPTANCE + gate      | phase-05-docs-acceptance-gate.md | [ ]    |
 
 ## Review cycles
 
@@ -20,4 +26,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start Phase 1.
