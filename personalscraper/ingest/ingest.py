@@ -21,6 +21,7 @@ from personalscraper.conf.staging import find_by_file_type, find_ingest_dir, fol
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import FileType
+from personalscraper.core.tags import SEED_PURE
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
@@ -399,6 +400,33 @@ def run_ingest(
                                 item=name,
                                 status="skipped",
                                 details={"reason": "ratio_below_threshold"},
+                            )
+                        )
+                        continue
+
+                    # Skip torrents tagged seed-pure — they were downloaded
+                    # only for ratio seeding and must never enter the media
+                    # library. This check is unconditional (no config gate).
+                    # Check order: already-ingested → ratio → seed-pure →
+                    # content resolution.
+                    # ``tags`` is read defensively (mirroring the ratio guard's
+                    # ``getattr(torrent, "ratio", None)``): a degenerate provider
+                    # response may omit the attribute, in which case the torrent
+                    # simply carries no tags and is never treated as seed-pure.
+                    torrent_tags = getattr(torrent, "tags", None) or []
+                    if SEED_PURE in torrent_tags:
+                        log.info(
+                            "ingest.seed_pure_skipped",
+                            name=name,
+                            tags=torrent_tags,
+                        )
+                        report.skip_count += 1
+                        event_bus.emit(
+                            ItemProgressed(
+                                step="ingest",
+                                item=name,
+                                status="skipped",
+                                details={"reason": "seed_pure"},
                             )
                         )
                         continue

@@ -6,6 +6,8 @@
 
 **Architecture:** The ingest loop (`ingest.py` line 334) iterates `for torrent in torrents`. Each torrent already carries `torrent.tags: list[str]` (`TorrentItem._base.py:47`). The new check is inserted **after** the ratio-skip block (ending at line 404's `continue`) and **before** content resolution (line 407 `source = client.get_content_path(torrent)`). It mirrors the ratio-skip pattern: `report.skip_count += 1` + `event_bus.emit(ItemProgressed(..., status="skipped", details={"reason": "seed_pure"}))` + `continue`. No config gate — this skip is unconditional.
 
+> **Deviation (3.1, implemented):** `tags` is read via `getattr(torrent, "tags", None) or []` rather than `torrent.tags` directly. The ratio guard already reads `getattr(torrent, "ratio", None)` for the same reason — a degenerate provider response may omit the attribute. The existing regression `tests/ingest/test_ingest.py::test_torrent_ratio_missing_emits_warning` feeds a hand-rolled stub with no `tags` attribute; a bare `torrent.tags` raised `AttributeError` and broke that test. Real `TorrentItem` always carries `tags` (default `[]`), so all seed-pure assertions are unaffected.
+
 **Tech Stack:** Python 3.11+, `pytest`, `unittest.mock`
 
 ---
@@ -350,11 +352,16 @@ Locate the ratio-skip block (the `continue` around line 404) and the content-res
                     # library. This check is unconditional (no config gate).
                     # Check order: already-ingested → ratio → seed-pure →
                     # content resolution.
-                    if SEED_PURE in torrent.tags:
+                    # ``tags`` is read defensively (mirroring the ratio guard's
+                    # ``getattr(torrent, "ratio", None)``): a degenerate provider
+                    # response may omit the attribute, in which case the torrent
+                    # simply carries no tags and is never treated as seed-pure.
+                    torrent_tags = getattr(torrent, "tags", None) or []
+                    if SEED_PURE in torrent_tags:
                         log.info(
                             "ingest.seed_pure_skipped",
                             name=name,
-                            tags=torrent.tags,
+                            tags=torrent_tags,
                         )
                         report.skip_count += 1
                         event_bus.emit(
