@@ -58,6 +58,7 @@ staging/
 │   │   ├── _filters.py        # Hard-filter stage: resolution floor (fail-open None) + anchored audio language regex
 │   │   ├── orchestrator.py    # GrabOrchestrator — single-item §1 grab chain, failure taxonomy, event emission
 │   │   ├── service.py         # AcquisitionService batch loop, GrabCore handle, RunSummary, attempts cap
+│   │   ├── airing.py          # RP9 — stateless set-poll: poll_aired(series, registry, *, today) → list[AiredEpisode]; capability-only (no store/ownership/cadence); unblocks Follow D2
 │   │   └── migrations/         # SQL migration scripts for acquire.db
 │   │   Import direction: downward only (api/, core/, conf/, events/); never triage packages.
 │   │   (RP4) `subscribers/acquire.py` — muted AcquisitionTelegramSubscriber, gated by `acquire_notify_enabled`.
@@ -428,6 +429,8 @@ in `tests/architecture/test_layering.py`.
 `personalscraper.indexer`. The adapter (`IndexerOwnershipChecker`) lives in
 `indexer/` and is wired at the composition root — same shape as the deletion
 authority (`core.delete_permit`).
+
+**Airing capability (RP9):** `acquire/airing.py` exposes `poll_aired(series, registry, *, today)` — a **stateless** free function (no `AcquireContext` field) that returns `list[AiredEpisode]` (see `acquire/domain.py`). It performs **zero** `store.wanted.*` writes, never calls `ownership.owns()`, and never reads `cadence_json` — surfacing aired episodes is RP9's sole responsibility; applying policy (wanted enqueue, ownership skip, cadence backoff) is Follow D2's job. Unblocks Follow D2 (calendar-first detection → wanted enqueue).
 
 ## Provider Registry
 
