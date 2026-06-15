@@ -609,6 +609,47 @@ class _WantedSubStore:
         ).fetchall()
         return [_row_to_wanted(r) for r in rows]
 
+    def find(
+        self,
+        *,
+        followed_id: int | None,
+        kind: WantedKind,
+        season: int | None,
+        episode: int | None,
+    ) -> WantedItem | None:
+        """Return the first matching wanted row, or None (soft dedup guard).
+
+        Uses ``IS`` for NULL-safe season/episode comparison to avoid false
+        matches between episode rows (season/episode non-NULL) and future movie
+        rows (season/episode NULL).
+
+        Args:
+            followed_id: FK to ``followed_series`` row, or ``None``.
+            kind: ``"movie"`` or ``"episode"``.
+            season: Season number, or ``None``.
+            episode: Episode number, or ``None``.
+
+        Returns:
+            The first matching :class:`WantedItem` if found, else ``None``.
+        """
+        self._conn.row_factory = sqlite3.Row
+        row = self._conn.execute(
+            """
+            SELECT id, followed_id, media_ref_json, kind, season, episode,
+                   status, criteria_json, enqueued_at, last_search_at, attempts,
+                   grabbed_hash
+            FROM wanted
+            WHERE followed_id IS ?
+              AND kind = ?
+              AND season IS ?
+              AND episode IS ?
+            ORDER BY id
+            LIMIT 1
+            """,
+            (followed_id, kind, season, episode),
+        ).fetchone()
+        return _row_to_wanted(row) if row is not None else None
+
 
 class _SeedSubStore:
     """Writer + reader for the ``seed_obligation`` table (deletion authority)."""

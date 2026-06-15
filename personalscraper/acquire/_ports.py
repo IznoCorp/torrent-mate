@@ -29,6 +29,7 @@ from personalscraper.acquire.domain import (
     RatioState,
     SeedObligation,
     WantedItem,
+    WantedKind,
     WantedStatus,
 )
 from personalscraper.core.identity import MediaRef
@@ -98,6 +99,31 @@ class WantedSubStore(Protocol):
 
     def list_stale_searching(self, older_than: int) -> list[WantedItem]:
         """Return ``wanted`` rows stuck in 'searching' older than the threshold."""
+        ...
+
+    def find(
+        self,
+        *,
+        followed_id: int | None,
+        kind: WantedKind,
+        season: int | None,
+        episode: int | None,
+    ) -> WantedItem | None:
+        """Return the first matching wanted row, or None (soft dedup guard).
+
+        Uses NULL-safe comparison (``IS`` not ``=``) for ``season`` and
+        ``episode`` so that a NULL episode in a future movie case does not
+        accidentally match an episode row.
+
+        Args:
+            followed_id: FK to ``followed_series`` row, or ``None``.
+            kind: ``"movie"`` or ``"episode"``.
+            season: Season number, or ``None`` for movies.
+            episode: Episode number, or ``None`` for movies.
+
+        Returns:
+            The first matching :class:`WantedItem` if found, else ``None``.
+        """
         ...
 
 

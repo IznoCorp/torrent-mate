@@ -122,25 +122,60 @@ grep -n "def list_stale_searching\|def mark_grabbed\|def claim_for_search" perso
 
 - [ ] **Step 5: Create `tests/acquire/test_store_wanted_find.py`**
 
+> **Plan-drift corrections (applied 2026-06-15):** the literal test code below was
+> reconciled against the real store before commit. Three drifts were corrected:
+>
+> 1. **Store construction** — there is no public `AcquireStore(db_path=...)` class and
+>    `ConcreteAcquireStore` has no context-manager (`__enter__`/`__exit__`). The real
+>    pattern (mirrored from `tests/acquire/test_store.py`) is
+>    `build_acquire_store(AcquireConfig(db_path=...))` returning a `ConcreteAcquireStore`,
+>    with a `store` fixture that `yield`s the store and `close()`s it in a `finally`.
+> 2. **FK on `wanted.followed_id`** — `001_init.sql` declares
+>    `followed_id INTEGER REFERENCES followed_series(id)` and `open_db` enables
+>    `PRAGMA foreign_keys=ON`, so a `wanted` row with a phantom `followed_id` raises
+>    `sqlite3.IntegrityError: FOREIGN KEY constraint failed`. Each test now inserts a
+>    parent `followed_series` row via `store.follow.add(...)` and uses the returned id.
+> 3. **Different-followed_id test** uses two real parent rows (`fid_a`, `fid_b`) so the
+>    non-matching id is a valid-but-different FK, not a phantom.
+>    The 5 assertions are unchanged. Final code:
+
 ```python
 """Tests for _WantedSubStore.find — soft dedup guard (criterion 4)."""
+
 from __future__ import annotations
 
-import sqlite3
-import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 
-from personalscraper.acquire.domain import WantedItem
-from personalscraper.acquire.store import AcquireStore
+from personalscraper.acquire.domain import FollowedSeries, WantedItem
+from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
+from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.identity import MediaRef
 
 
-def _make_store(tmp_path: Path) -> AcquireStore:
-    """Open a fresh AcquireStore for testing."""
-    db = tmp_path / "acquire.db"
-    return AcquireStore(db_path=db)
+@pytest.fixture
+def store(tmp_path: Path) -> Iterator[ConcreteAcquireStore]:
+    """Yield a fresh AcquireStore on a temp acquire.db and close it afterwards."""
+    cfg = AcquireConfig(db_path=tmp_path / "acquire.db")
+    s = build_acquire_store(cfg)
+    try:
+        yield s
+    finally:
+        s.close()
+
+
+def _add_series(store: ConcreteAcquireStore, tvdb_id: int) -> int:
+    """Insert a ``followed_series`` parent row (FK target) and return its rowid."""
+    return store.follow.add(
+        FollowedSeries(
+            media_ref=MediaRef(tvdb_id=tvdb_id),
+            title=f"Series {tvdb_id}",
+            added_at=1_000_000,
+            active=True,
+        )
+    )
 
 
 def _episode(followed_id: int, season: int, ep: int) -> WantedItem:
@@ -155,53 +190,48 @@ def _episode(followed_id: int, season: int, ep: int) -> WantedItem:
     )
 
 
-def test_find_returns_none_when_empty(tmp_path: Path) -> None:
-    """find returns None when the wanted table is empty."""
-    store = _make_store(tmp_path)
-    with store:
-        result = store.wanted.find(followed_id=1, kind="episode", season=1, episode=1)
+def test_find_returns_none_when_empty(store: ConcreteAcquireStore) -> None:
+    """Find returns None when the wanted table is empty."""
+    fid = _add_series(store, tvdb_id=100)
+    result = store.wanted.find(followed_id=fid, kind="episode", season=1, episode=1)
     assert result is None
 
 
-def test_find_returns_row_after_add(tmp_path: Path) -> None:
-    """find returns the WantedItem that was just added via add()."""
-    store = _make_store(tmp_path)
-    item = _episode(followed_id=7, season=2, ep=3)
-    with store:
-        store.wanted.add(item)
-        result = store.wanted.find(followed_id=7, kind="episode", season=2, episode=3)
+def test_find_returns_row_after_add(store: ConcreteAcquireStore) -> None:
+    """Find returns the WantedItem that was just added via add()."""
+    fid = _add_series(store, tvdb_id=200)
+    store.wanted.add(_episode(followed_id=fid, season=2, ep=3))
+    result = store.wanted.find(followed_id=fid, kind="episode", season=2, episode=3)
     assert result is not None
-    assert result.followed_id == 7
+    assert result.followed_id == fid
     assert result.season == 2
     assert result.episode == 3
     assert result.kind == "episode"
     assert result.status == "pending"
 
 
-def test_find_returns_none_for_different_episode(tmp_path: Path) -> None:
-    """find returns None when season/episode does not match."""
-    store = _make_store(tmp_path)
-    with store:
-        store.wanted.add(_episode(followed_id=1, season=1, ep=1))
-        result = store.wanted.find(followed_id=1, kind="episode", season=1, episode=2)
+def test_find_returns_none_for_different_episode(store: ConcreteAcquireStore) -> None:
+    """Find returns None when season/episode does not match."""
+    fid = _add_series(store, tvdb_id=300)
+    store.wanted.add(_episode(followed_id=fid, season=1, ep=1))
+    result = store.wanted.find(followed_id=fid, kind="episode", season=1, episode=2)
     assert result is None
 
 
-def test_find_null_safe_season_no_false_match(tmp_path: Path) -> None:
+def test_find_null_safe_season_no_false_match(store: ConcreteAcquireStore) -> None:
     """find(season=None) does NOT match an episode row with season=1."""
-    store = _make_store(tmp_path)
-    with store:
-        store.wanted.add(_episode(followed_id=1, season=1, ep=1))
-        result = store.wanted.find(followed_id=1, kind="episode", season=None, episode=None)
+    fid = _add_series(store, tvdb_id=400)
+    store.wanted.add(_episode(followed_id=fid, season=1, ep=1))
+    result = store.wanted.find(followed_id=fid, kind="episode", season=None, episode=None)
     assert result is None
 
 
-def test_find_different_followed_id_no_match(tmp_path: Path) -> None:
-    """find with a different followed_id returns None."""
-    store = _make_store(tmp_path)
-    with store:
-        store.wanted.add(_episode(followed_id=1, season=1, ep=1))
-        result = store.wanted.find(followed_id=2, kind="episode", season=1, episode=1)
+def test_find_different_followed_id_no_match(store: ConcreteAcquireStore) -> None:
+    """Find with a different followed_id returns None."""
+    fid_a = _add_series(store, tvdb_id=500)
+    fid_b = _add_series(store, tvdb_id=501)
+    store.wanted.add(_episode(followed_id=fid_a, season=1, ep=1))
+    result = store.wanted.find(followed_id=fid_b, kind="episode", season=1, episode=1)
     assert result is None
 ```
 
