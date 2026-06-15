@@ -182,3 +182,60 @@ def test_is_waiting_for_input_matches_marker_in_last_lines() -> None:
     assert is_waiting_for_input(pane) is True
     # The scan window is the named, tunable constant.
     assert WAITING_SCAN_LINES == 15
+
+
+# ---------------------------------------------------------------------------
+# prompt_pending — the submit-retry verdict (submit-reliability fix). True iff the filled prompt is
+# still sitting UNSUBMITTED in the input box; False once a turn is running / the box emptied.
+# ---------------------------------------------------------------------------
+
+
+def test_prompt_pending_collapsed_paste_is_pending() -> None:
+    """A collapsed multi-line paste in the input box ⇒ pending (the submit Enter was absorbed)."""
+    from kanbanmate.core.launch_keys import prompt_pending
+
+    pane = "❯ [Pasted text #1 +20 lines]\n  ⏵⏵ auto mode on (shift+tab to cycle)"
+    assert prompt_pending(pane, "/implement:brainstorm do the thing\nmore lines") is True
+
+
+def test_prompt_pending_verbatim_short_prompt_is_pending() -> None:
+    """A short prompt typed verbatim and still in the input box ⇒ pending."""
+    from kanbanmate.core.launch_keys import prompt_pending
+
+    filled = "/implement:plan prepare the plan for #7 now please"  # > 40 chars
+    pane = f"❯ {filled}\n  ⏵⏵ auto mode on"
+    assert prompt_pending(pane, filled) is True
+
+
+def test_prompt_pending_running_turn_marker_is_submitted() -> None:
+    """A running-turn marker (esc to interrupt) ⇒ NOT pending even if the paste lingers above."""
+    from kanbanmate.core.launch_keys import prompt_pending
+
+    pane = "[Pasted text #1 +20 lines]\n● working…\n  esc to interrupt"
+    assert prompt_pending(pane, "/implement:brainstorm do the thing") is False
+
+
+def test_prompt_pending_empty_input_box_is_submitted() -> None:
+    """An empty input box (prompt gone) ⇒ NOT pending (the submit landed)."""
+    from kanbanmate.core.launch_keys import prompt_pending
+
+    pane = "user: ...\nassistant: starting\n❯ \n  ⏵⏵ auto mode on (shift+tab to cycle)"
+    assert prompt_pending(pane, "/implement:brainstorm do the thing here now") is False
+
+
+def test_prompt_pending_empty_pane_is_not_pending() -> None:
+    """A blank pane is NOT pending — never spam Enter at an empty pane."""
+    from kanbanmate.core.launch_keys import prompt_pending
+
+    assert prompt_pending("", "/implement:brainstorm do the thing") is False
+    assert prompt_pending("   \n  ", "/implement:brainstorm do the thing") is False
+
+
+def test_prompt_pending_only_scans_input_box_tail_not_scrollback() -> None:
+    """A sent paste lingering in scrollback (above the input box) does NOT read as pending."""
+    from kanbanmate.core.launch_keys import SUBMIT_SCAN_LINES, prompt_pending
+
+    # The [Pasted text] is far up in scrollback; the live input box (last lines) is empty.
+    pane = "[Pasted text #1 +20 lines]\n" + "\n".join(f"line {i}" for i in range(SUBMIT_SCAN_LINES))
+    pane += "\n❯ \n  ⏵⏵ auto mode on"
+    assert prompt_pending(pane, "/implement:brainstorm do the thing here") is False

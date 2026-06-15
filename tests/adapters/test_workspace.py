@@ -1250,7 +1250,8 @@ class TestTmuxSessionsUnit:
         mock_runner = MagicMock()
         # The pre-launch kill exits non-zero (no session yet); check=False means it does NOT raise.
         mock_runner.return_value = _completed_process(returncode=1, stderr="can't find session")
-        sessions = TmuxSessions(runner=mock_runner)
+        # No-op sleeper so the shell-readiness poll does not real-sleep when the mock pane is empty.
+        sessions = TmuxSessions(runner=mock_runner, sleeper=lambda _s: None)
 
         # Must NOT raise — the tolerant kill swallows the no-session exit.
         result = sessions.launch("ticket-7", "/tmp/wt", "echo hi")
@@ -1266,7 +1267,7 @@ class TestTmuxSessionsUnit:
     def test_launch_preserves_special_characters_in_command(self) -> None:
         """The literal send-keys preserves slashes, quotes, and special chars."""
         mock_runner = MagicMock()
-        sessions = TmuxSessions(runner=mock_runner)
+        sessions = TmuxSessions(runner=mock_runner, sleeper=lambda _s: None)
 
         sessions.launch("s", "/d", "/implement:phase --codename 'my-feat'")
 
@@ -1274,6 +1275,43 @@ class TestTmuxSessionsUnit:
             ["tmux", "send-keys", "-t", "s", "-l", "--", "/implement:phase --codename 'my-feat'"],
             check=True,
         )
+
+    def test_launch_waits_for_shell_ready_before_sending_command(self) -> None:
+        """The launch polls capture-pane until the shell rendered before typing (first-char race).
+
+        ``tmux new-session -d`` returns before the interactive shell has printed its prompt; an
+        immediate send-keys drops the leading character (the live ``export`` → ``xport`` failure).
+        The launch must capture-pane until the pane is NON-EMPTY (the shell printed its prompt) and
+        only THEN send-keys the command — so the command's first char is never dropped. Here the
+        first two capture probes return an empty pane; the third returns a rendered prompt.
+        """
+        calls: list[list[str]] = []
+        captures = iter(["", "", "➜  ticket-7"])  # empty, empty, then the shell prompt rendered
+
+        def runner(argv, **_kw):  # type: ignore[no-untyped-def]
+            calls.append(argv)
+            if argv[:2] == ["tmux", "capture-pane"]:
+                return _completed_process(stdout=next(captures, "➜  ready"))
+            return _completed_process()
+
+        sleeps: list[float] = []
+        sessions = TmuxSessions(runner=runner, sleeper=sleeps.append)
+
+        sessions.launch("ticket-7", "/tmp/wt", "export PATH=/x:$PATH; claude")
+
+        # The command send-keys MUST come AFTER at least one capture-pane probe (shell-ready gate).
+        send_idx = next(
+            i for i, a in enumerate(calls) if a[:2] == ["tmux", "send-keys"] and "-l" in a
+        )
+        first_capture_idx = next(
+            i for i, a in enumerate(calls) if a[:2] == ["tmux", "capture-pane"]
+        )
+        assert first_capture_idx < send_idx, "the command was sent before any shell-ready probe"
+        # The command's literal send carries the FULL command (leading 'export' intact, not 'xport').
+        cmd_send = calls[send_idx]
+        assert cmd_send[-1] == "export PATH=/x:$PATH; claude"
+        # It polled (slept) while the pane was empty, then proceeded once it rendered.
+        assert len(sleeps) >= 1
 
     # -- capture --------------------------------------------------------------
 

@@ -25,12 +25,23 @@ from kanbanmate.core.launch_keys import (
     TRUST_POLL_ATTEMPTS,
     TRUST_POLL_INTERVAL,
     classify_pane,
+    prompt_pending,
 )
 
 if TYPE_CHECKING:
     from kanbanmate.app.actions import Deps
 
 logger = logging.getLogger(__name__)
+
+# How many times the submit-retry loop re-sends Enter when the prompt is still sitting in the input
+# box (#submit-reliability). On claude v2.1.x the REPL shows a ready prompt a beat before it accepts
+# input, so the FIRST submit Enter can be absorbed; re-sending Enter once claude is truly ready lands
+# the submit. Bounded so a genuinely undeliverable prompt still terminates (→ the WARN below).
+SUBMIT_RETRY_ATTEMPTS = 4
+
+# Seconds between submit-retry capture+resend cycles. Long enough for claude to render the post-submit
+# state (so a landed submit is seen and NOT re-Entered), short enough to keep launch latency low.
+SUBMIT_RETRY_INTERVAL = 0.6
 
 # How many trailing lines of a captured tmux pane to surface in a diagnostic log (#11). Enough to
 # show the REPL's current state without flooding the structured log with the full scrollback.
@@ -151,3 +162,68 @@ def verify_prompt_delivered(
             )
         except Exception:  # noqa: BLE001 — the sticky is advisory; never break the launch
             logger.warning("post-send warning sticky failed for #%s; continuing", issue)
+
+
+def submit_prompt_with_retries(
+    deps: Deps, issue: int, session_name: str, filled: str, column_key: str
+) -> bool:
+    """RE-SEND Enter until the prompt leaves the input box — the submit-reliability fix.
+
+    The single submit Enter that :meth:`kanbanmate.app.actions.LaunchAction._deliver_prompt` sends
+    can be ABSORBED on claude v2.1.x: the REPL renders a ready prompt (``❯`` / ``auto mode on``) a
+    beat before it accepts input, so the keystroke lands while the input loop is not yet listening and
+    the filled prompt is left sitting in the input box (a collapsed ``[Pasted text …]`` for a
+    multi-line prompt). For an INTERACTIVE stage a human eventually presses Enter; for an AUTONOMOUS
+    stage (Spec / Plan / dev) NO human is there, so the agent never starts and — post-Approach-A —
+    parks ``WAITING`` forever. This loop closes that gap: after the initial submit it polls the pane
+    and, while the prompt is still :func:`~kanbanmate.core.launch_keys.prompt_pending`, re-sends Enter
+    (bounded by :data:`SUBMIT_RETRY_ATTEMPTS`). A landed submit (a running-turn marker, or the prompt
+    gone from the input-box tail) stops the loop with NO further Enter — and an Enter at an already
+    empty input box is a harmless no-op, so an over-eager resend never corrupts a submitted turn.
+
+    Fully fail-soft: a capture/send error ends the loop quietly (the launch already happened). On
+    exhaustion (still pending after the budget) it falls back to :func:`verify_prompt_delivered` —
+    the WARN + advisory sticky — so an operator still sees a genuinely stuck prompt.
+
+    Args:
+        deps: The adapter bundle (the sessions ``capture`` / ``send_text`` seams + the injected
+            sleeper).
+        issue: The ticket issue number (for the fallback warning sticky).
+        session_name: The tmux session to poll + re-submit into (``ticket-<n>``).
+        filled: The filled prompt that was sent (its probe slice detects the pending state).
+        column_key: The ticket's column key (the stage sticky the fallback annotates).
+
+    Returns:
+        ``True`` iff the prompt was confirmed submitted within the retry budget; ``False`` on
+        exhaustion or a fail-soft early exit (the fallback warning has been emitted on exhaustion).
+    """
+    for _attempt in range(SUBMIT_RETRY_ATTEMPTS):
+        # Give claude a beat to render the post-submit state BEFORE judging, so a submit that DID
+        # land is seen as submitted and not needlessly re-Entered.
+        deps.sleeper(SUBMIT_RETRY_INTERVAL)
+        try:
+            pane = deps.sessions.capture(session_name)
+        except Exception:  # noqa: BLE001 — best-effort; a capture blip must not break the launch
+            logger.warning(
+                "submit-retry pane capture failed for #%s session %s; stopping retries",
+                issue,
+                session_name,
+            )
+            return False
+        if not prompt_pending(pane, filled):
+            # The submit landed (a turn is running, or the prompt left the input box).
+            return True
+        # Still sitting in the input box → the submit Enter was absorbed; re-send it.
+        try:
+            deps.sessions.send_text(session_name, "Enter", literal=False)
+        except Exception:  # noqa: BLE001 — best-effort; a send blip must not break the launch
+            logger.warning(
+                "submit-retry Enter resend failed for #%s session %s; stopping retries",
+                issue,
+                session_name,
+            )
+            return False
+    # Budget spent and the prompt still appears pending → surface it (WARN + advisory sticky) exactly
+    # as the pre-retry behaviour did, so a genuinely undeliverable prompt is never silently dropped.
+    verify_prompt_delivered(deps, issue, session_name, filled, column_key)
+    return False

@@ -11,10 +11,21 @@ MUST NOT import ``app``, ``daemon``, or ``cli``.
 from __future__ import annotations
 
 import subprocess
+import time
 from collections.abc import Callable
 from typing import Any
 
 Runner = Callable[..., "subprocess.CompletedProcess[Any]"]
+Sleeper = Callable[[float], None]
+
+# Bounded poll for the freshly-created session's shell to RENDER its prompt before the launch command
+# is typed (first-keystroke race). ``tmux new-session -d`` returns before the interactive shell
+# (zsh/oh-my-zsh) has printed its prompt and is ready to read; send-keys fired into that window drops
+# the leading character(s) — the live ``export PATH=…`` → ``xport`` → ``command not found`` case. A
+# non-empty pane means the shell printed SOMETHING (its prompt), i.e. it is ready for input. Bounded
+# so a silent shell still proceeds (best-effort, same as the pre-fix immediate send).
+_SHELL_READY_ATTEMPTS = 30
+_SHELL_READY_INTERVAL = 0.1  # seconds between capture probes (overridable for offline tests)
 
 
 class TmuxSessions:
@@ -30,14 +41,17 @@ class TmuxSessions:
     Enter), ``is_alive`` probes existence, and ``kill`` tears the session down.
     """
 
-    def __init__(self, *, runner: Runner = subprocess.run) -> None:
+    def __init__(self, *, runner: Runner = subprocess.run, sleeper: Sleeper = time.sleep) -> None:
         """Initialise the tmux sessions adapter.
 
         Args:
             runner: Subprocess runner (injected for tests). Defaults to
                 :func:`subprocess.run`.
+            sleeper: Sleep primitive between the launch shell-readiness probes (injected so
+                offline tests drive the poll without real waiting). Defaults to :func:`time.sleep`.
         """
         self._runner = runner
+        self._sleeper = sleeper
 
     # ------------------------------------------------------------------
     # Sessions Protocol methods
@@ -70,11 +84,41 @@ class TmuxSessions:
             ["tmux", "new-session", "-d", "-s", name, "-c", cwd],
             check=True,
         )
+        # Wait for the new session's shell to RENDER its prompt before typing (first-keystroke race):
+        # ``new-session -d`` returns before zsh/oh-my-zsh is ready to read, so an immediate send-keys
+        # drops the leading char(s) — the live ``export PATH=…`` → ``xport`` failure. Poll until the
+        # pane is non-empty (the shell printed its prompt), then send.
+        self._wait_for_shell_ready(name)
         # Type the command literally, then press Enter — routed through the same
         # ``send_text`` primitive the app's prompt-delivery uses, so there is one
         # send-keys seam (argv-list, no shell).
         self.send_text(name, command, literal=True, enter=True)
         return name
+
+    def _wait_for_shell_ready(self, name: str) -> None:
+        """Poll ``capture-pane`` until session *name*'s shell has rendered its prompt (best-effort).
+
+        Bounded by :data:`_SHELL_READY_ATTEMPTS` × :data:`_SHELL_READY_INTERVAL`. A non-empty pane
+        means the interactive shell printed SOMETHING (its prompt) and is ready to read, so the
+        launch command's leading character is no longer dropped (the ``export`` → ``xport`` race).
+        Fail-soft: a capture error is treated as "not ready yet" and, on timeout, the caller sends
+        anyway (same best-effort behaviour as before the fix — never block a launch on a quiet shell).
+
+        Args:
+            name: The freshly-created session name to probe.
+        """
+        for i in range(_SHELL_READY_ATTEMPTS):
+            try:
+                pane = self.capture(name)
+            except Exception:
+                pane = ""
+            if pane.strip():
+                return
+            # Don't sleep after the final probe (no point waiting just to time out).
+            if i < _SHELL_READY_ATTEMPTS - 1:
+                self._sleeper(_SHELL_READY_INTERVAL)
+        # TIMEOUT: the shell never printed a prompt within the budget — proceed with the send anyway
+        # (best-effort; the worst case is the pre-fix immediate-send behaviour).
 
     def capture(self, name: str) -> str:
         """Return the printable contents of session *name*'s active pane.

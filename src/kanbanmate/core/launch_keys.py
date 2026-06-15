@@ -148,6 +148,72 @@ def build_sendkeys_sequence(prompt: str, *, trust_prompt_seen: bool) -> list[Sen
     return seq
 
 
+# How many TRAILING pane lines :func:`prompt_pending` scans for unsent prompt content (submit-retry).
+# Restricted to the bottom INPUT-BOX region so a SENT message that lingers in scrollback (claude also
+# renders a sent paste as ``[Pasted text]`` in the transcript) does not read as still-pending. A small
+# window isolates the live input box (1-3 lines) + footer from the conversation above it.
+SUBMIT_SCAN_LINES = 6
+
+# Minimum verbatim prompt-slice length for the :func:`prompt_pending` echo check (mirrors the
+# observability probe). A whole prompt line this long still in the input box is unambiguous "not
+# submitted"; a shorter token could legitimately echo, so a substantial slice avoids false positives.
+SUBMIT_MIN_PROBE_LEN = 40
+
+# Markers that a SUBMIT already landed — a turn is running / the message left the input box. When the
+# pane tail shows one of these the prompt is NOT pending (do not re-send Enter). Matched
+# case-insensitively. ``esc to interrupt`` is claude's running-turn footer.
+SUBMITTED_MARKERS = ("esc to interrupt",)
+
+# The collapsed multi-line-paste marker claude shows in the input box for an UNSENT pasted prompt
+# (e.g. ``[Pasted text #1 +20 lines]``). Its presence in the input-box tail means the prompt is still
+# sitting unsubmitted. Matched case-insensitively.
+PENDING_PASTE_MARKER = "pasted text"
+
+
+def prompt_pending(pane: str, filled: str) -> bool:
+    """Return whether the filled prompt is STILL sitting unsubmitted in the input box (submit-retry).
+
+    Pure, marker-based — the verdict the submit-retry loop
+    (:func:`kanbanmate.app.prompt_delivery.submit_prompt_with_retries`) polls after sending the
+    submit Enter. On claude v2.1.x the REPL renders a ready prompt (``❯`` / ``auto mode on``) a beat
+    BEFORE it accepts input, so the single submit Enter can be ABSORBED and the prompt is left in the
+    input box (shown as a collapsed ``[Pasted text …]`` for a multi-line prompt, or verbatim for a
+    short one). This detects that state so the caller re-sends Enter until it lands.
+
+    Only the last :data:`SUBMIT_SCAN_LINES` lines (the live input-box region) are scanned: claude also
+    renders a SENT paste as ``[Pasted text]`` in the transcript above, so a full-buffer scan would
+    read a successfully-submitted prompt as still-pending and spam Enter.
+
+    Precedence: a running-turn marker (:data:`SUBMITTED_MARKERS`) wins → NOT pending (the submit
+    landed and a turn is in flight). Then the collapsed-paste marker or a verbatim probe slice →
+    pending. An EMPTY tail is NOT pending (nothing to resubmit — never spam Enter at a blank pane).
+
+    Args:
+        pane: The raw ``capture-pane`` text (may be empty). Matched case-insensitively.
+        filled: The filled prompt that was sent (its first non-blank line is the verbatim probe).
+
+    Returns:
+        ``True`` iff the prompt appears still-unsubmitted in the input box; ``False`` otherwise
+        (submitted, a turn running, or an empty/indeterminate pane).
+    """
+    tail = "\n".join((pane or "").splitlines()[-SUBMIT_SCAN_LINES:])
+    lowered = tail.lower()
+    if not lowered.strip():
+        # Blank tail: nothing to resubmit. Never spam Enter at an empty pane.
+        return False
+    if any(marker in lowered for marker in SUBMITTED_MARKERS):
+        # A turn is running → the submit landed.
+        return False
+    if PENDING_PASTE_MARKER in lowered:
+        # A collapsed multi-line paste sitting in the input box → not submitted.
+        return True
+    # Short prompts are typed verbatim (not collapsed): a long enough slice still in the input box
+    # is unambiguous "not submitted".
+    probe = next((line.strip() for line in (filled or "").splitlines() if line.strip()), "")
+    probe = probe[:80].lower()
+    return len(probe) >= SUBMIT_MIN_PROBE_LEN and probe in lowered
+
+
 def is_waiting_for_input(pane: str) -> bool:
     """Return whether a captured pane shows an agent BLOCKED on a PENDING human prompt (§B).
 

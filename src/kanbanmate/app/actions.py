@@ -41,7 +41,7 @@ from kanbanmate.app.stage_signal import (
 )
 from kanbanmate.core.domain import Ticket
 from kanbanmate.core.launch_argv import build_claude_argv, wrap_with_session_end
-from kanbanmate.app.prompt_delivery import poll_pane, verify_prompt_delivered
+from kanbanmate.app.prompt_delivery import poll_pane, submit_prompt_with_retries
 from kanbanmate.core.body_edit import declares_dependency_on, title_code
 from kanbanmate.core.launch_keys import (
     build_sendkeys_sequence,
@@ -600,11 +600,15 @@ class LaunchAction:
                 deps.sessions.send_text(session_name, "Enter", literal=False)
             else:
                 deps.sessions.send_text(session_name, step[1], literal=True)
-        # 4. Post-send verification (#11, WARN-ONLY): capture once more and surface an undelivered
-        # prompt (still sitting verbatim in the pane) as a warning + advisory sticky. It NEVER
-        # hard-fails the launch (an echo/consumption assertion is itself a heuristic; a redraw
-        # false-negative must not kill a good launch — rank-11 verdict).
-        verify_prompt_delivered(deps, issue, session_name, filled, self.ticket.column_key)
+        # 4. SUBMIT-RELIABILITY (submit-retry fix). The single Enter above can be ABSORBED on claude
+        # v2.1.x (the REPL renders ``❯`` / ``auto mode on`` a beat before it accepts input), leaving
+        # the prompt sitting in the input box — fatal for AUTONOMOUS stages (no human to press Enter →
+        # the agent never starts → parks WAITING forever, post-Approach-A). So poll the pane and
+        # RE-SEND Enter while the prompt is still pending (bounded); a landed submit stops it with no
+        # extra Enter, and an Enter at an emptied box is a harmless no-op. On exhaustion this falls
+        # back to the prior WARN + advisory sticky (verify_prompt_delivered), so a genuinely stuck
+        # prompt is still surfaced and a good launch is never hard-failed.
+        submit_prompt_with_retries(deps, issue, session_name, filled, self.ticket.column_key)
 
     def _launch_context(self, deps: Deps, issue: int, worktree: Path) -> dict[str, object]:
         """Build the placeholder context the shipped ``/implement:*`` prompts reference.

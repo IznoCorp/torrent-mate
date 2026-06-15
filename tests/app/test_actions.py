@@ -1202,27 +1202,30 @@ def test_launch_action_poll_waits_for_ready_then_sends(tmp_path: Path) -> None:
     """
     m = _mocks(now=1234.0, worktree=tmp_path)
     # Two booting (pending) snapshots, then a ready REPL — the poll must iterate three times. A
-    # fourth capture (a clean REPL) backs the #11 post-send delivery verification (WARN-only).
+    # fourth capture (a clean REPL with no pending prompt) backs the submit-retry check: it reads as
+    # SUBMITTED on the first probe, so no extra Enter is re-sent.
     m.sessions.capture.side_effect = [
         "booting...",
         "starting...",
         "│ > Welcome to Claude",
-        "│ > Welcome to Claude",  # post-send check: prompt not sitting untyped → no warning
+        "│ > Welcome to Claude",  # submit-retry check: input box clean → submitted → no resend
     ]
     sleeps: list[float] = []
     m.deps = replace(m.deps, sleeper=sleeps.append)
 
     _launch(_ticket(issue=7), prompt="/implement:phase {{code}}").execute(m.deps)
 
-    # Captured four times (2 pending + 1 ready poll + 1 post-send verification), slept twice.
+    # Captured four times (2 pending + 1 ready poll + 1 submit-retry check), slept twice for the poll
+    # (0.5 each) then once for the submit-retry settle (0.6).
     assert m.sessions.capture.call_count == 4
-    assert sleeps == [0.5, 0.5]
+    assert sleeps == [0.5, 0.5, 0.6]
     # The prompt was delivered only AFTER the ready REPL was seen.
     literal_sends = [
         c.args[1] for c in m.sessions.send_text.call_args_list if c.kwargs.get("literal") is True
     ]
     assert "/implement:phase 7" in literal_sends  # {{code}} → bare 7 (defect 3)
-    # A ready pane (not trust) means NO leading dismiss Enter — exactly one Enter (the submit).
+    # A ready pane (not trust) + a submitted-on-first-check input box ⇒ exactly one Enter (the
+    # initial submit); the submit-retry loop re-sends NO extra Enter.
     enters = [c for c in m.sessions.send_text.call_args_list if c.kwargs.get("literal") is False]
     assert len(enters) == 1
 
@@ -1253,26 +1256,26 @@ def test_poll_pane_timeout_logs_warning_with_pane_tail(
 def test_post_send_verification_warns_and_stickies_when_prompt_undelivered(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """#11: if the prompt is still sitting in the pane after the send, WARN + sticky (never fail).
+    """If the prompt never leaves the input box, the submit-retry loop EXHAUSTS then WARNs + stickies.
 
-    The post-send capture shows the filled prompt verbatim — unambiguous "keystrokes did not land"
-    evidence. The launch must NOT raise; it logs a warning and drops an advisory sticky note.
+    The pane keeps showing the filled prompt verbatim — unambiguous "keystrokes did not land"
+    evidence. The submit-retry loop re-sends Enter up to its budget; on exhaustion it falls back to
+    the WARN + advisory sticky (verify_prompt_delivered). The launch must NOT raise.
     """
     import logging  # noqa: PLC0415
 
     m = _mocks(now=1234.0, worktree=tmp_path)
     prompt = "/implement:phase {{code}} run all the remaining phases now please"
-    # Poll sees a ready REPL; the POST-SEND capture shows the filled prompt still sitting there.
-    # {{code}} fills the bare issue number (defect 3), so the undelivered line carries ``7``.
+    # {{code}} fills the bare issue number (defect 3), so the undelivered line carries ``7``. The
+    # pane CONSTANTLY shows the prompt still sitting in the input box: the poll reads it as ready
+    # (``│ >``), every submit-retry probe reads it as still-pending (prompt verbatim), and the final
+    # verify confirms it undelivered → WARN + sticky.
     filled_first_line = "/implement:phase 7 run all the remaining phases now please"
-    m.sessions.capture.side_effect = [
-        "│ > Welcome to Claude",  # poll → ready
-        f"│ > {filled_first_line}",  # post-send → prompt still visible (undelivered)
-    ]
+    m.sessions.capture.return_value = f"│ > {filled_first_line}"
     m.deps = replace(m.deps, sleeper=lambda _s: None)
 
     with caplog.at_level(logging.WARNING):
-        # Must NOT raise — verification is WARN-only.
+        # Must NOT raise — the submit-retry fallback is WARN-only.
         _launch(_ticket(issue=7), prompt=prompt).execute(m.deps)
 
     messages = " ".join(r.getMessage() for r in caplog.records)
