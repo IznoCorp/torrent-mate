@@ -6,7 +6,7 @@
 **Version bump**: 0.30.0 → 0.31.0
 **Branch**: feat/airing
 **PR merge**: manual
-**PR**: _(to be created by /implement:feature-pr)_
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/199
 **Design**: docs/features/airing/DESIGN.md
 **Master plan**: docs/features/airing/plan/INDEX.md
 
