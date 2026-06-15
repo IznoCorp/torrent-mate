@@ -116,12 +116,17 @@ tmux capture-pane -p -t ticket-<issue> 2>/dev/null | grep -qi 'esc to interrupt'
 - **FAIL** — session ALIVE **and** `never_refreshed=True` **and** `hb_age > 90` **and** NO active turn
   → the launch prompt never submitted (corroborate with input-box content anywhere in the pane:
   `[Pasted text]` / `paste again to expand` / `ctrl+g to edit` / the prompt text).
-  **Remediate** — send Enter until a turn starts (adequate budget for a large prompt; extra Enters on
-  an emptied box are harmless no-ops):
+  **Remediate** — send a trailing SPACE then Enter, until a turn starts. The space is LOAD-BEARING:
+  nearly every launch prompt is a slash command (`/implement:brainstorm`, `/implement:plan`, …) and a
+  bare Enter on a `/`-command interacts with claude's autocomplete instead of submitting (observed
+  live on #5) — the space closes the autocomplete so the Enter submits; on a non-slash prompt the
+  space is harmless. Extra cycles on an emptied box are no-ops, so the budget is safe:
   ```bash
   for i in $(seq 1 6); do
     tmux capture-pane -p -t ticket-<issue> 2>/dev/null | grep -qi 'esc to interrupt' && { echo SUBMITTED; break; }
-    tmux send-keys -t ticket-<issue> Enter; sleep 4
+    tmux send-keys -t ticket-<issue> -l ' '   # close the slash-command autocomplete
+    tmux send-keys -t ticket-<issue> Enter     # submit
+    sleep 4
   done
   ```
   Re-check A2 after; if still stuck past the budget, escalate to the A4 stage re-fire or flag the

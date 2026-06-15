@@ -58,9 +58,11 @@ If the prompt contains `--remediate` (or the operator says "fix it / recover"), 
 - **Dead-session zombie** (state RUNNING but tmux session gone) → `kanban cancel <issue> --root <r>`
   (the teardown only kills an ALREADY-DEAD session; it never touches a live one).
 - **Stuck unsubmitted prompt** (A2 — alive + heartbeat never refreshed since launch + no active turn)
-  → send Enter in a bounded LOOP until a turn starts (a single Enter is NOT enough for a large prompt):
-  `for i in $(seq 1 6); do tmux capture-pane -p -t ticket-<issue> | grep -qi 'esc to interrupt' && break; tmux send-keys -t ticket-<issue> Enter; sleep 4; done`.
-  Extra Enters on an emptied box are harmless no-ops.
+  → send a trailing SPACE then Enter, in a bounded LOOP until a turn starts. The space is required:
+  launch prompts are slash commands (`/implement:…`) and a bare Enter interacts with the autocomplete
+  instead of submitting (live #5); the space closes it so Enter submits (harmless on non-slash prompts):
+  `for i in $(seq 1 6); do tmux capture-pane -p -t ticket-<issue> | grep -qi 'esc to interrupt' && break; tmux send-keys -t ticket-<issue> -l ' '; tmux send-keys -t ticket-<issue> Enter; sleep 4; done`.
+  Extra cycles on an emptied box are harmless no-ops.
 - **Wrong-stage relaunch** (A4 — the running agent's `stage` ≠ the card's column; a stale stage was
   relaunched after the card advanced) → cancel + re-fire the CORRECT stage: `kanban cancel`, stop the
   daemon, API-move the card to the target transition's FROM-column, restart the daemon (let one tick
