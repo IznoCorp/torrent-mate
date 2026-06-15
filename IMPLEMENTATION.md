@@ -19,6 +19,7 @@
 | 3   | Negative-boundary tests + wiring  | phase-03-negative-boundary.md    | [x]    |
 | 4   | Docs + ACCEPTANCE + gate          | phase-04-docs-acceptance-gate.md | [x]    |
 | 5   | PR fixes cycle 1                  | phase-05-pr-fixes-cycle-1.md     | [x]    |
+| 6   | PR fixes cycle 2                  | phase-06-pr-fixes-cycle-2.md     | [ ]    |
 
 ## Review cycles
 
@@ -36,6 +37,17 @@
 - Decision: **Case B**. Fix phase 5 created (5.1 code, 5.2 tests).
 - Status: fix phase complete — `1c1a5320` (code: season-source + parse-once + observability + docstring), `220a0bed` (5 tests). All 8 retained findings addressed. `make check` 6763 passed. Independent Opus probe re-confirmed all behaviors + season-source fix. Awaiting CI re-poll + cycle-2 re-review.
 
+### Cycle 2
+
+- Toolkit: 3 lenses on the cycle-1 delta (PR #199, CI green) — code-reviewer, pr-test-analyzer, silent-failure-hunter.
+- Cycle-1 fixes verdict: **all correct + complete** (code-reviewer CLEAN; all 5 new tests mutation-sensitive — verified by mutation testing; season-source fix pins [0,0]≠[1,2]). No new critical/major, no regressions.
+- Findings received: 2 (both medium, test-only — pin the cycle-1 fixes):
+  - **F-I** no test pins the F-C observability fix (warning + exc_info) — a revert to debug would pass all 22 tests; repo rule "Test de régression par bug" applies.
+  - **F-J** chain fall-through tested only on the empty branch; the DESIGN §4 error-then-fallback branch (primary raises → secondary tried) covered only transitively (GAP-2 two-layer ambiguity).
+- Ignored/acceptable residual: F-2 empty-fall-through silence (DESIGN §6 governs only the exception arms; the mirror's `show_season_empty` is richer but not mandated — DESIGN-consistent residual, not a blocker).
+- Decision: **Case B**. Fix phase 6 created (6.1 — 2 tests, no code change).
+- Status: fix phase dispatched → awaiting /implement:phase.
+
 ## Next action
 
-All phases complete — run `/implement:feature-pr` (push cycle-1 fixes).
+Run `/implement:phase` to execute Phase 6 (PR fixes cycle 2).
