@@ -6,7 +6,7 @@
 **Version bump**: 0.31.0 → 0.32.0
 **Branch**: feat/follow-detect
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/200
 **Design**: docs/features/follow-detect/DESIGN.md
 **Master plan**: docs/features/follow-detect/plan/INDEX.md
 
