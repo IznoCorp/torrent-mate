@@ -974,6 +974,9 @@ def test_reap_stale_agent_tears_down_and_blocks() -> None:
     """A running ticket past the heartbeat TTL is torn down and blocked by the reap step."""
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = (
+        False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+    )
     # One running ticket whose heartbeat is far older than the default 1800s TTL.
     stale = TicketState(
         issue_number=7,
@@ -988,10 +991,11 @@ def test_reap_stale_agent_tears_down_and_blocks() -> None:
 
     result, _ = tick(m.deps, _config(), state)
 
-    # The reaped agent's session is killed and a block comment posted, but the reap is
-    # NON-DESTRUCTIVE (defect 5, ``reap`` flavour): the worktree is NOT removed, the branch NOT
-    # deleted, the PR NOT closed — a stalled agent keeps its unpushed work (PoC parity).
-    m.sessions.kill.assert_called_once_with("ticket-7")
+    # The block comment is posted, but the reap is NON-DESTRUCTIVE (defect 5, ``reap`` flavour): the
+    # worktree is NOT removed, the branch NOT deleted, the PR NOT closed — a stalled agent keeps its
+    # unpushed work (PoC parity). Under Approach A the reaper does not kill a dead session (nothing
+    # to kill; teardown only kills a live session).
+    m.sessions.kill.assert_not_called()
     m.workspace.remove_worktree.assert_not_called()
     m.workspace.delete_branch.assert_not_called()
     m.pull_requests.close_open_pr_for_branch.assert_not_called()
@@ -1011,6 +1015,9 @@ def test_reap_uses_configured_blocked_column() -> None:
     """The reaper parks the card in ``TickConfig.blocked_column`` (custom column key honoured)."""
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = (
+        False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+    )
     stale = TicketState(
         issue_number=7,
         item_id="PVTI_7",
@@ -1030,11 +1037,12 @@ def test_reap_uses_configured_blocked_column() -> None:
     assert result.reaped == 1
 
 
-def test_reap_reason_distinguishes_dead_session_from_stale_heartbeat() -> None:
-    """The reap block comment names the ACTUAL trigger — dead session vs stale heartbeat (minor (b)).
+def test_reap_reason_is_dead_session_and_alive_stale_is_not_reaped() -> None:
+    """The reap reason is "dead agent session"; an alive+stale agent is parked WAITING, not reaped.
 
-    A reaped agent whose tmux session is GONE gets a "dead agent session" reason; one merely past
-    the heartbeat TTL (session still alive) gets a "stale agent heartbeat" reason.
+    Under Approach A the reap path is reached ONLY for a DEAD session, so the stall comment always
+    names the dead session. An agent merely past the heartbeat TTL but whose session is STILL ALIVE
+    is parked WAITING (never killed) — it posts NO reap comment.
     """
     # Case 1: dead session (is_alive False), heartbeat fresh-ish but session gone → dead-session reap.
     reader = _FakeBoardReader("probe-1", _snapshot())
@@ -1052,11 +1060,11 @@ def test_reap_reason_distinguishes_dead_session_from_stale_heartbeat() -> None:
     dead_comment = " ".join(c.args[1] for c in m.board_writer.comment.call_args_list)
     assert "dead agent session" in dead_comment
 
-    # Case 2: stale heartbeat (session still alive, idle pane) → stale-heartbeat reap.
+    # Case 2: stale heartbeat but session STILL ALIVE → parked WAITING, NOT reaped (Approach A).
     reader2 = _FakeBoardReader("probe-1", _snapshot())
     m2 = _mocks(reader2, now=10_000.0)
     m2.sessions.is_alive.return_value = True  # session alive…
-    m2.sessions.capture.return_value = "idle / no prompt"  # …but NOT waiting → reaped on TTL
+    m2.sessions.capture.return_value = "idle / no prompt"  # …no waiting marker, but still ALIVE
     stale = TicketState(
         issue_number=7,
         item_id="PVTI_7",
@@ -1065,9 +1073,13 @@ def test_reap_reason_distinguishes_dead_session_from_stale_heartbeat() -> None:
         heartbeat=0.0,  # ancient → past the TTL
     )
     m2.store.list_running.return_value = (stale,)
-    tick(m2.deps, _config(), PersistedState(last_probe="probe-1"))
-    stale_comment = " ".join(c.args[1] for c in m2.board_writer.comment.call_args_list)
-    assert "stale agent heartbeat" in stale_comment
+    result2, _ = tick(m2.deps, _config(), PersistedState(last_probe="probe-1"))
+    # No reap, no kill, no Blocked move — the live session is parked WAITING instead.
+    m2.sessions.kill.assert_not_called()
+    m2.board_writer.move_card.assert_not_called()
+    assert result2.reaped == 0
+    saved2 = [c.args[0] for c in m2.store.save.call_args_list]
+    assert any(s.status is TicketStatus.WAITING for s in saved2)
 
 
 def test_fresh_agent_is_not_reaped() -> None:
@@ -1103,16 +1115,18 @@ def test_fresh_agent_is_not_reaped() -> None:
 
 
 def test_reaper_relaunches_stale_session_once() -> None:
-    """A stale agent with ``retries == 0`` (and a stage) is RELAUNCHED once, not blocked.
+    """A DEAD session with ``retries == 0`` (and a stage) is RELAUNCHED once, not blocked.
 
-    Port of the PoC ``reaper.apply`` retry branch (reaper.py:156-166): the dead tmux session is
-    killed, ``retries`` is bumped to 1, the heartbeat is REFRESHED to ``now`` (the load-bearing
-    refresh, DESIGN §8.3) and the status set back to RUNNING, and a fresh LaunchAction for the
-    SAME stage runs — the card is NOT parked in Blocked. The retry is counted as ``relaunched``,
-    never ``reaped``.
+    Port of the PoC ``reaper.apply`` retry branch (reaper.py:156-166). Under Approach A the relaunch
+    path is reached only for a DEAD session (an alive one is parked WAITING): ``retries`` is bumped to
+    1, the heartbeat is REFRESHED to ``now`` (the load-bearing refresh, DESIGN §8.3) and the status
+    set back to RUNNING, and a fresh LaunchAction for the SAME stage runs — the card is NOT parked in
+    Blocked. The kill is a no-op for the already-dead session (``is_alive`` False → skipped). The
+    retry is counted as ``relaunched``, never ``reaped``.
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = False  # DEAD session → the reap/relaunch path (Approach A)
     stale = TicketState(
         issue_number=7,
         item_id="PVTI_7",
@@ -1131,9 +1145,10 @@ def test_reaper_relaunches_stale_session_once() -> None:
 
     result, _ = tick(m.deps, _config(), state)
 
-    # The dead session was killed before the relaunch (mirror the PoC tmux.has_session/kill).
+    # The session liveness was probed; the kill is SKIPPED for the already-dead session (Approach A —
+    # the reaper never kills, and a dead session has nothing to kill).
     m.sessions.is_alive.assert_any_call("ticket-7")
-    m.sessions.kill.assert_called_once_with("ticket-7")
+    m.sessions.kill.assert_not_called()
     # A fresh LaunchAction ran for the SAME stage (the relaunch re-enters the agent column).
     m.workspace.ensure_worktree.assert_called_once_with(7, base="main")
     m.sessions.launch.assert_called_once()
@@ -1154,9 +1169,74 @@ def test_reaper_relaunches_stale_session_once() -> None:
     # ``state.profile`` (not a column default) — the relaunch save carries the same ``dev``.
     relaunched_save = next(s for s in saved_states if s.session_id != "ticket-7")
     assert relaunched_save.profile == "dev"
+    # The relaunch's LaunchAction state write PRESERVES the bumped retry budget (retries==1), not the
+    # default 0 — otherwise RETRY_LIMIT never trips and the reaper relaunches forever (the helm #5
+    # infinite-relaunch bug). See ``test_reaper_relaunch_preserves_retry_budget``.
+    assert relaunched_save.retries == 1
     # A successful relaunch is counted separately from a reap.
     assert result.relaunched == 1
     assert result.reaped == 0
+
+
+def test_reaper_relaunch_preserves_retry_budget() -> None:
+    """Fix: a reaper relaunch's bumped ``retries`` SURVIVES the LaunchAction state write.
+
+    ``_try_relaunch`` bumps ``retries`` to 1 (the pre-save) and dispatches a LaunchAction. The
+    LaunchAction writes a fresh ``TicketState``; before the fix it omitted ``retries`` so the field
+    defaulted to 0, silently RESETTING the budget — every subsequent reap saw ``retries == 0`` and
+    relaunched again, an infinite loop that never escalated to Blocked (RETRY_LIMIT defeated). The fix
+    threads ``retries = state.retries + 1`` onto the LaunchAction, so EVERY state the relaunch persists
+    carries ``retries == 1``. A SECOND reap of the same (still dead) session then sees
+    ``retries >= RETRY_LIMIT`` and parks it in Blocked instead of relaunching forever.
+    """
+    # First reap: a dead session at retries==0 → relaunch; every persisted state must carry retries==1.
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = False  # DEAD → reap/relaunch path
+    m.sessions.launch.return_value = "newsess"  # the relaunch's fresh session id
+    stale = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,
+        stage="InProgress",
+        profile="dev",
+        retries=0,
+    )
+    m.store.list_running.return_value = (stale,)
+
+    result, _ = tick(m.deps, _config(), PersistedState(last_probe="probe-1"))
+
+    assert result.relaunched == 1
+    saved = [c.args[0] for c in m.store.save.call_args_list if c.args[0].issue_number == 7]
+    assert saved, "expected the relaunch to persist state for #7"
+    # The pre-save AND the LaunchAction save must BOTH carry retries==1 (no reset to 0).
+    assert all(s.retries == 1 for s in saved), [s.retries for s in saved]
+
+    # Second reap: the same session is still dead and now at retries==1 (>= RETRY_LIMIT) → it parks in
+    # Blocked instead of relaunching again (proving the preserved budget actually trips the limit).
+    reader2 = _FakeBoardReader("probe-1", _snapshot())
+    m2 = _mocks(reader2, now=20_000.0)
+    m2.sessions.is_alive.return_value = False
+    relaunched_state = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="newsess",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,
+        stage="InProgress",
+        profile="dev",
+        retries=1,  # carried over from the first relaunch
+    )
+    m2.store.list_running.return_value = (relaunched_state,)
+
+    result2, _ = tick(m2.deps, _config(), PersistedState(last_probe="probe-1"))
+
+    m2.sessions.launch.assert_not_called()  # no second relaunch
+    m2.board_writer.move_card.assert_called_once_with("PVTI_7", "Blocked")
+    assert result2.reaped == 1
+    assert result2.relaunched == 0
 
 
 def test_reaper_under_pause_does_not_relaunch_parks_blocked() -> None:
@@ -1168,6 +1248,9 @@ def test_reaper_under_pause_does_not_relaunch_parks_blocked() -> None:
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = (
+        False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+    )
     stale = TicketState(
         issue_number=7,
         item_id="PVTI_7",
@@ -1267,6 +1350,9 @@ def test_reaper_blocks_after_retry_limit_reached() -> None:
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = (
+        False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+    )
     stale = TicketState(
         issue_number=7,
         item_id="PVTI_7",
@@ -1281,10 +1367,11 @@ def test_reaper_blocks_after_retry_limit_reached() -> None:
 
     result, _ = tick(m.deps, _config(), state)
 
-    # The block flow uses the NON-DESTRUCTIVE ``reap`` flavour (defect 5): kill session + purge
-    # state + park in Blocked ONLY. The worktree is NOT removed, the branch NOT deleted, the PR NOT
-    # closed — a twice-stalled agent keeps its unpushed work and open PR (PoC parity).
-    m.sessions.kill.assert_called_once_with("ticket-7")
+    # The block flow uses the NON-DESTRUCTIVE ``reap`` flavour (defect 5): purge state + park in
+    # Blocked ONLY. The worktree is NOT removed, the branch NOT deleted, the PR NOT closed — a
+    # twice-stalled agent keeps its unpushed work and open PR (PoC parity). Under Approach A the
+    # reaper does not kill a dead session (nothing to kill; teardown only kills a live session).
+    m.sessions.kill.assert_not_called()
     m.workspace.remove_worktree.assert_not_called()
     m.workspace.delete_branch.assert_not_called()
     m.pull_requests.close_open_pr_for_branch.assert_not_called()
@@ -1305,6 +1392,9 @@ def test_reaper_relaunch_that_raises_parks_in_blocked() -> None:
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = (
+        False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+    )
     stale = TicketState(
         issue_number=7,
         item_id="PVTI_7",
@@ -1344,6 +1434,9 @@ def test_reaper_writes_idle_before_teardown_so_purge_failure_never_leaves_runnin
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = (
+        False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+    )
     stale = TicketState(
         issue_number=7,
         item_id="PVTI_7",
@@ -1410,6 +1503,9 @@ def test_reaper_skips_retry_when_stage_empty() -> None:
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = (
+        False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+    )
     stale = TicketState(
         issue_number=7,
         item_id="PVTI_7",
@@ -1441,6 +1537,9 @@ def test_reaper_relaunched_reported_separately_from_reaped() -> None:
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = (
+        False  # DEAD sessions → reach the reap path (Approach A reaps only dead sessions)
+    )
     retry_agent = TicketState(
         issue_number=7,
         item_id="PVTI_7",
@@ -1608,13 +1707,14 @@ def test_reaper_throwing_is_alive_leaves_heartbeat_path_intact() -> None:
     assert result.relaunched == 0
 
 
-def test_reaper_stale_heartbeat_still_reaps_when_is_alive_throws() -> None:
-    """A STALE-heartbeat ticket is still reaped even when ``is_alive`` throws (#26 fail-closed
-    preserves the heartbeat-TTL trigger).
+def test_reaper_stale_heartbeat_throwing_is_alive_parks_waiting_never_kills() -> None:
+    """A STALE ticket whose ``is_alive`` probe THROWS is treated as alive (fail-OPEN) → WAITING.
 
-    The fail-closed probe reports "alive", but the heartbeat is past the TTL — so the OR gate
-    reaps it on the heartbeat trigger alone. The dead-session widening must never SUPPRESS the
-    original heartbeat-stale reap.
+    Under Approach A the reaper never kills a session it cannot prove is dead. ``_session_alive`` is
+    fail-OPEN (a throwing probe reports "alive"), so a stale ticket with an unreachable tmux server is
+    parked WAITING and signalled — NOT killed/reaped. This supersedes the pre-Approach-A #26 behavior
+    (which reaped on the heartbeat trigger when the probe failed): an uncertain liveness state must
+    never destroy a possibly-live session.
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
@@ -1624,17 +1724,22 @@ def test_reaper_stale_heartbeat_still_reaps_when_is_alive_throws() -> None:
         item_id="PVTI_7",
         session_id="ticket-7",
         status=TicketStatus.RUNNING,
-        heartbeat=0.0,  # ancient → past the TTL regardless of the probe
+        heartbeat=0.0,  # ancient → past the TTL, but the probe cannot confirm the session is dead
         stage="InProgress",
-        retries=1,  # >= RETRY_LIMIT → BLOCK branch
+        retries=1,
     )
     m.store.list_running.return_value = (stale,)
     state = PersistedState(last_probe="probe-1")
 
     result, _ = tick(m.deps, _config(), state)
 
-    m.board_writer.move_card.assert_called_once_with("PVTI_7", "Blocked")
-    assert result.reaped == 1
+    # Fail-OPEN → treated alive → parked WAITING, never killed/reaped/parked-in-Blocked.
+    m.sessions.kill.assert_not_called()
+    m.board_writer.move_card.assert_not_called()
+    saved = [c.args[0] for c in m.store.save.call_args_list]
+    assert any(s.status is TicketStatus.WAITING for s in saved)
+    assert result.reaped == 0
+    assert result.relaunched == 0
 
 
 # ---------------------------------------------------------------------------
@@ -1689,16 +1794,19 @@ def test_reaper_marks_waiting_on_stale_alive_waiting_pane_no_reap() -> None:
     assert result.relaunched == 0
 
 
-def test_reaper_reaps_stale_alive_idle_pane_no_waiting_marker() -> None:
-    """A stale + alive agent at a BARE idle prompt (no question) is REAPED, not marked WAITING.
+def test_reaper_marks_waiting_on_stale_alive_idle_pane_never_kills() -> None:
+    """Approach A: a stale + ALIVE agent at a BARE idle prompt is parked WAITING — NEVER killed.
 
-    The captured pane shows the idle ``❯`` cursor with no pending decision — a finished/idle agent,
-    not one awaiting the human — so the reaper proceeds with the normal reap/relaunch path.
+    Even when the captured pane shows only the idle ``❯`` cursor (no recognised waiting marker), an
+    ALIVE session is never killed/relaunched/parked: the reaper cannot tell "hung" from "blocked on a
+    free-text human prompt", and killing a live session would destroy interactive/unpushed work. It
+    is parked WAITING + the operator signalled (the kill+relaunch path is DEAD-session-only). This
+    supersedes the pre-Approach-A behavior that reaped a non-waiting-marker alive pane.
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
     m.sessions.is_alive.return_value = True  # alive...
-    m.sessions.capture.return_value = "❯ "  # ...but a BARE idle prompt — NOT waiting
+    m.sessions.capture.return_value = "❯ "  # ...a BARE idle prompt — no recognised waiting marker
     stale_idle = TicketState(
         issue_number=7,
         item_id="PVTI_7",
@@ -1706,19 +1814,75 @@ def test_reaper_reaps_stale_alive_idle_pane_no_waiting_marker() -> None:
         status=TicketStatus.RUNNING,
         heartbeat=0.0,  # stale
         stage="InProgress",
-        retries=1,  # >= RETRY_LIMIT → straight to BLOCK so the reap is unambiguous
+        retries=1,  # would have been >= RETRY_LIMIT → BLOCK under the old behavior
     )
     m.store.list_running.return_value = (stale_idle,)
     state = PersistedState(last_probe="probe-1")
 
     result, _ = tick(m.deps, _config(), state)
 
-    # Reaped: parked in Blocked, torn down — never marked WAITING.
-    m.board_writer.move_card.assert_called_once_with("PVTI_7", "Blocked")
-    m.store.purge_ticket.assert_called_once_with(7, keep_budgets=True)
+    # NEVER killed/relaunched/torn-down/parked — the live session is preserved.
+    m.sessions.kill.assert_not_called()
+    m.sessions.launch.assert_not_called()
+    m.board_writer.move_card.assert_not_called()
+    m.store.purge_ticket.assert_not_called()
+    # Parked WAITING instead (heartbeat + retries UNTOUCHED).
     saved = [c.args[0] for c in m.store.save.call_args_list]
-    assert not any(s.status is TicketStatus.WAITING for s in saved)
-    assert result.reaped == 1
+    waiting_save = next(s for s in saved if s.status is TicketStatus.WAITING)
+    assert waiting_save.heartbeat == 0.0
+    assert waiting_save.retries == 1
+    assert result.reaped == 0
+    assert result.relaunched == 0
+
+
+def test_reaper_never_kills_live_interactive_brainstorm_with_free_text_prompt() -> None:
+    """Regression (helm #5): a long interactive brainstorm at a FREE-TEXT prompt is never killed.
+
+    The brainstorm stage asks OPEN questions one at a time; while it waits for the operator the agent
+    makes no tool calls (its heartbeat goes stale) and sits at a bare ``❯`` prompt with the question
+    in scrollback — which shows NONE of the :data:`WAITING_FOR_INPUT_MARKERS` (no picker / ``(y/n)``
+    / "do you want"). Before this fix the reaper read that stale+alive session as "hung" and
+    killed+relaunched it, destroying the operator's in-progress brainstorm (and the relaunch reset the
+    retry budget, so it repeated every TTL forever). Now an ALIVE session is ALWAYS parked WAITING +
+    signalled — never killed, relaunched, torn down, or moved.
+    """
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = True  # the operator's brainstorm session is ALIVE
+    # A free-text brainstorm prompt: the question is in scrollback, the agent waits at a bare ❯.
+    m.sessions.capture.return_value = (
+        "What is the primary goal of this configuration interface?\n\n❯ "
+    )
+    stale_brainstorm = TicketState(
+        issue_number=5,
+        item_id="PVTI_5",
+        session_id="ticket-5",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,  # stale → past the reap TTL (a long interactive brainstorm)
+        stage="Brainstorming",
+        profile="docs",
+        retries=0,  # under RETRY_LIMIT → the OLD code would have relaunched (killing the session)
+    )
+    m.store.list_running.return_value = (stale_brainstorm,)
+    state = PersistedState(last_probe="probe-1")
+
+    result, _ = tick(m.deps, _config(), state)
+
+    # The live session is preserved — no kill, no relaunch, no teardown, no Blocked move.
+    m.sessions.kill.assert_not_called()
+    m.sessions.launch.assert_not_called()
+    m.workspace.remove_worktree.assert_not_called()
+    m.store.purge_ticket.assert_not_called()
+    m.board_writer.move_card.assert_not_called()
+    # Parked WAITING (heartbeat + retries untouched) and the operator is signalled on the issue.
+    saved = [c.args[0] for c in m.store.save.call_args_list]
+    waiting_save = next(s for s in saved if s.status is TicketStatus.WAITING)
+    assert waiting_save.issue_number == 5
+    assert waiting_save.heartbeat == 0.0
+    assert waiting_save.retries == 0
+    assert m.board_writer.list_issue_comments.called  # the ⏳ waiting sticky upsert
+    assert result.reaped == 0
+    assert result.relaunched == 0
 
 
 def test_reaper_early_waiting_detection_before_reap_ttl() -> None:
@@ -1860,18 +2024,20 @@ def test_reaper_reaps_waiting_ticket_when_session_dies() -> None:
     assert result.reaped == 1
 
 
-def test_reaper_fail_closed_reaps_when_capture_raises() -> None:
-    """A capture/classify EXCEPTION is FAIL-CLOSED: the ticket is REAPED (no slot wedged).
+def test_reaper_alive_stale_parks_waiting_even_if_pane_would_raise() -> None:
+    """An alive + stale agent is parked WAITING WITHOUT consulting the pane (Approach A).
 
-    A broken pane (capture raises) must never pin a concurrency slot forever — the conservative
-    call is to treat it as NOT waiting and reap it. The sweep must not crash.
+    The stale-but-alive path no longer probes the pane to decide reap-vs-wait — an alive session is
+    ALWAYS parked WAITING (never killed), so a broken ``capture`` is irrelevant: the pane is not even
+    captured. This proves the live session is preserved regardless of pane state, and the sweep does
+    not crash.
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
     m.sessions.is_alive.return_value = True  # alive...
     m.sessions.capture.side_effect = RuntimeError(
         "capture-pane failed"
-    )  # ...but the pane is broken
+    )  # ...and even a broken pane is irrelevant on the stale-alive path
     stale = TicketState(
         issue_number=7,
         item_id="PVTI_7",
@@ -1879,19 +2045,20 @@ def test_reaper_fail_closed_reaps_when_capture_raises() -> None:
         status=TicketStatus.RUNNING,
         heartbeat=0.0,  # stale
         stage="InProgress",
-        retries=1,  # >= RETRY_LIMIT → BLOCK so the reap is unambiguous
+        retries=1,
     )
     m.store.list_running.return_value = (stale,)
     state = PersistedState(last_probe="probe-1")
 
-    # The sweep must not crash on the throwing capture.
+    # The sweep must not crash; the pane is never even captured on the stale-alive path.
     result, _ = tick(m.deps, _config(), state)
 
-    # Fail-closed: reaped, never marked WAITING.
-    m.board_writer.move_card.assert_called_once_with("PVTI_7", "Blocked")
+    m.sessions.capture.assert_not_called()
+    m.sessions.kill.assert_not_called()
+    m.board_writer.move_card.assert_not_called()
     saved = [c.args[0] for c in m.store.save.call_args_list]
-    assert not any(s.status is TicketStatus.WAITING for s in saved)
-    assert result.reaped == 1
+    assert any(s.status is TicketStatus.WAITING for s in saved)
+    assert result.reaped == 0
 
 
 # ---------------------------------------------------------------------------
@@ -1920,6 +2087,9 @@ def test_reap_records_its_own_move_into_antiloop_state() -> None:
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = (
+        False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+    )
     m.store.list_running.return_value = (_stale_running(),)
     state = PersistedState(last_probe="probe-1")  # probe unchanged → only the reap step runs
 
@@ -1944,6 +2114,9 @@ def test_reaper_teardown_preserves_in_memory_history_and_adds_park_move() -> Non
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = (
+        False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+    )
     m.store.list_running.return_value = (_stale_running(),)
     # Seed a prior reap move for the item (e.g. an earlier tick parked it once already).
     seeded = record_move(AntiLoopState(), "PVTI_7", "Blocked", now=1.0)
@@ -1968,6 +2141,9 @@ def test_failed_reap_move_is_not_recorded() -> None:
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = (
+        False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+    )
     m.store.list_running.return_value = (_stale_running(),)
     # The board move blows up → ok_move is False → the move must not be recorded.
     m.board_writer.move_card.side_effect = RuntimeError("github move failed")
@@ -1990,6 +2166,9 @@ def test_antiloop_state_threads_across_two_ticks() -> None:
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = (
+        False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+    )
     m.store.list_running.return_value = (_stale_running(),)
 
     # Tick 1 at t=10_000 records the move once.
@@ -2014,6 +2193,9 @@ def test_repeated_self_move_to_same_target_is_dedup_guarded() -> None:
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = (
+        False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+    )
     m.store.list_running.return_value = (_stale_running(),)
 
     _, state = tick(m.deps, _config(), PersistedState(last_probe="probe-1"))
@@ -2066,6 +2248,9 @@ def test_reaper_flips_stage_sticky_to_blocked() -> None:
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = (
+        False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+    )
     m.store.list_running.return_value = (_stale_with_stage(),)
     # Simulate an existing running sticky that the LaunchAction created.
     existing = MagicMock()
@@ -2085,9 +2270,10 @@ def test_reaper_flips_stage_sticky_to_blocked() -> None:
 
     result, _ = tick(m.deps, _config(), state)
 
-    # The kill / purge / move steps still run, but the reap is NON-DESTRUCTIVE (defect 5): no
-    # worktree removal (the ``reap`` flavour skips it).
-    m.sessions.kill.assert_called_once_with("ticket-7")
+    # The purge / move steps still run, but the reap is NON-DESTRUCTIVE (defect 5): no worktree
+    # removal (the ``reap`` flavour skips it). Under Approach A the reaper does not kill a dead
+    # session (nothing to kill; teardown only kills a live session).
+    m.sessions.kill.assert_not_called()
     m.workspace.remove_worktree.assert_not_called()
     # Reaper teardown preserves the per-issue budgets → keep_budgets=True (13.8).
     m.store.purge_ticket.assert_called_once_with(7, keep_budgets=True)
@@ -2120,14 +2306,18 @@ def test_reaper_skips_flip_when_stage_empty() -> None:
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = (
+        False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+    )
     # stage="" is the default; this mimics an old-format state file.
     m.store.list_running.return_value = (_stale_running(),)
     state = PersistedState(last_probe="probe-1")
 
     result, _ = tick(m.deps, _config(), state)
 
-    # The critical reap steps still completed.
-    m.sessions.kill.assert_called_once_with("ticket-7")
+    # The critical reap steps still completed. Under Approach A the reaper does not kill a dead
+    # session (nothing to kill; teardown only kills a live session).
+    m.sessions.kill.assert_not_called()
     # Reaper teardown preserves the per-issue budgets → keep_budgets=True (13.8).
     m.store.purge_ticket.assert_called_once_with(7, keep_budgets=True)
     m.board_writer.move_card.assert_called_once_with("PVTI_7", "Blocked")
@@ -2146,6 +2336,9 @@ def test_reaper_sticky_flip_fail_soft() -> None:
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = (
+        False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+    )
     m.store.list_running.return_value = (_stale_with_stage(),)
     # Network down during the upsert — the list fails.
     m.board_writer.list_issue_comments.side_effect = RuntimeError("network down")
@@ -2155,8 +2348,9 @@ def test_reaper_sticky_flip_fail_soft() -> None:
     result, _ = tick(m.deps, _config(), state)
 
     # The critical reap steps still completed despite the flip failure. The reap is
-    # NON-DESTRUCTIVE (defect 5): no worktree removal.
-    m.sessions.kill.assert_called_once_with("ticket-7")
+    # NON-DESTRUCTIVE (defect 5): no worktree removal. Under Approach A the reaper does not kill a
+    # dead session (nothing to kill; teardown only kills a live session).
+    m.sessions.kill.assert_not_called()
     m.workspace.remove_worktree.assert_not_called()
     # Reaper teardown preserves the per-issue budgets → keep_budgets=True (13.8).
     m.store.purge_ticket.assert_called_once_with(7, keep_budgets=True)
@@ -3965,6 +4159,9 @@ class TestReapDurableMoveRateLimit:
         BEFORE the same reap re-wrote a single entry).
         """
         store, deps, _bw, _ws, _sess = _real_store_reap_deps(tmp_path, now=10000.0)
+        _sess.is_alive.return_value = (
+            False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+        )
 
         def _save_stale() -> None:
             """Re-persist the stale running ticket so the reaper picks it up again."""
@@ -4014,6 +4211,9 @@ class TestReapDurableMoveRateLimit:
         "park instead of acting + stop feeding the loop", runner.py:504-518).
         """
         store, deps, _bw, _ws, _sess = _real_store_reap_deps(tmp_path, now=10000.0)
+        _sess.is_alive.return_value = (
+            False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+        )
         store.save(_stale_running())
         # Seed the durable history to the cap (3 moves within the last hour).
         for seed_ts in (9000.0, 9300.0, 9600.0):
@@ -4049,6 +4249,9 @@ class TestReapDurableMoveRateLimit:
         rather than a hard-coded value — the tunability the audit flagged as lost.
         """
         store, deps, _bw, _ws, _sess = _real_store_reap_deps(tmp_path, now=10000.0)
+        _sess.is_alive.return_value = (
+            False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+        )
         store.save(_stale_running())
         # Seed 2 moves (the cap) within the rate window.
         for seed_ts in (9000.0, 9500.0):
@@ -4079,6 +4282,9 @@ class TestReapDurableMoveRateLimit:
         ``antiloop`` counter which ``loop.py`` re-initialises empty at every startup.
         """
         store, deps, _bw, _ws, _sess = _real_store_reap_deps(tmp_path, now=10000.0)
+        _sess.is_alive.return_value = (
+            False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+        )
         stale = TicketState(
             issue_number=7,
             item_id="PVTI_7",
@@ -4113,6 +4319,9 @@ class TestReapDurableMoveRateLimit:
         ``test_reap_records_its_own_move_into_antiloop_state``) is preserved.
         """
         store, deps, _bw, _ws, _sess = _real_store_reap_deps(tmp_path, now=10000.0)
+        _sess.is_alive.return_value = (
+            False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+        )
         store.save(_stale_running())
         config = _reap_config()
 
@@ -4158,6 +4367,9 @@ class TestKeepBudgetsLifecycle:
     def test_reaper_teardown_preserves_budgets(self, tmp_path: Path) -> None:
         """A reaper stale-agent teardown PRESERVES ``moves/`` + ``retries/`` (keep_budgets=True)."""
         store, deps, _bw, _ws, _sess = _real_store_reap_deps(tmp_path, now=10000.0)
+        _sess.is_alive.return_value = (
+            False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
+        )
         store.save(_stale_running())
         self._seed_budgets(store)
 

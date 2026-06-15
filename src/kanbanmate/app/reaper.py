@@ -270,22 +270,39 @@ def reap_stale_agents(
     *,
     kill_switch: bool = False,
 ) -> tuple[int, int, int, AntiLoopState]:
-    """Reap running agents whose heartbeat aged past the TTL OR whose session died (DESIGN §8.3).
+    """Reap running agents whose tmux session has DIED; park live-but-silent agents WAITING (§8.3).
 
-    A persisted running ticket is reaped when EITHER its agent heartbeat aged past
-    ``config.heartbeat_ttl`` OR its tmux session has DIED (#26 — port of the PoC ``reaper.sweep``
-    two-trigger gate, reaper.py:49-57): a crashed agent whose last heartbeat is still recent but
-    whose session is gone is reaped immediately, not after the full TTL. The session probe is
-    fail-closed (:func:`_session_alive`) so a transient probe error leaves the heartbeat-TTL path
-    intact. For each reaped ticket the stall reason is surfaced ONCE as a
-    :class:`~kanbanmate.app.actions.BlockAction` sticky comment, then the reaper decides RETRY vs
-    BLOCK (port of the PoC ``reaper.apply`` block-with-retry branch, reaper.py:106-184):
+    **Approach A — the reaper never kills a LIVE session (operator decision 2026-06-15).** A running
+    ticket is reaped (killed + parked) ONLY when its tmux session has DIED. A session that is still
+    ALIVE is left running:
 
-    * **RETRY** (``state.retries < RETRY_LIMIT`` AND ``state.stage != ""``): the stale session is
-      relaunched ONCE via :func:`_try_relaunch` (kill + bump retries + REFRESH heartbeat + relaunch
-      the same stage). A successful retry is counted as ``relaunched`` (NOT ``reaped`` — the ticket
-      keeps running); a relaunch that RAISES/times out falls through to BLOCK (one bad retry must
-      not starve the sweep — port reaper.py:173-182).
+    * **alive + fresh heartbeat** → RUNNING (a working agent); a WAITING ticket whose heartbeat
+      refreshed is restored to RUNNING (the human answered).
+    * **alive + STALE heartbeat** (silent past ``config.heartbeat_ttl``) → parked WAITING + the
+      operator signalled (⏳ sticky + tmux-attach hint), NEVER killed/relaunched. The agent is either
+      blocked on a human (the free-text brainstorm Q&A shows no pane marker
+      :func:`~kanbanmate.core.launch_keys.is_waiting_for_input` recognises) or hung — and killing a
+      live session to "recover" it would destroy in-progress interactive work + unpushed changes (the
+      helm #5 brainstorm-killed bug). A genuinely-hung live agent is the operator's call (attach, or
+      ``kanban cancel``). The heartbeat TTL thus governs WHEN an alive agent flips to WAITING, not
+      whether it is reaped.
+
+    Only a DEAD session (the ``is_alive`` probe DEFINITIVELY reports it gone) is reaped — immediately,
+    regardless of heartbeat freshness (#26: a crashed agent is not left for the full TTL). The probe
+    is fail-OPEN (:func:`_session_alive` reports "alive" on any probe error) so an uncertain liveness
+    state parks WAITING rather than killing. For each reaped (dead) ticket the stall reason is
+    surfaced ONCE as a :class:`~kanbanmate.app.actions.BlockAction` sticky comment, then the reaper
+    decides RETRY vs BLOCK (port of the PoC ``reaper.apply`` block-with-retry branch, reaper.py:106-184):
+
+    * **RETRY** (``state.retries < RETRY_LIMIT`` AND ``state.stage != ""``): the dead session is
+      relaunched ONCE via :func:`_try_relaunch` (bump retries + REFRESH heartbeat + relaunch the same
+      stage; the kill is a no-op for an already-dead session). The bumped ``retries`` now rides onto
+      the rebuilt LaunchAction (:attr:`~kanbanmate.app.actions.LaunchAction.retries`) so the budget
+      SURVIVES the LaunchAction's fresh state write — without that the next reap would see
+      ``retries == 0`` again and relaunch forever (the budget-reset bug). A successful retry is
+      counted as ``relaunched`` (NOT ``reaped`` — the ticket keeps running); a relaunch that
+      RAISES/times out falls through to BLOCK (one bad retry must not starve the sweep — port
+      reaper.py:173-182).
     * **BLOCK** (``state.retries >= RETRY_LIMIT``, OR ``state.stage == ""`` fail-soft, OR a relaunch
       raised): the inline park-in-Blocked sequence (teardown + move-to-Blocked + ⛔ flip) mirroring
       the PoC ``reaper._move_to_blocked``. Increments ``reaped``.
@@ -343,14 +360,21 @@ def reap_stale_agents(
                 _enter_waiting(deps, state, now)
             continue
         if alive:
-            # STALE but the session is STILL ALIVE — distinguish "waiting for the human" from
-            # "hung/idle/crashed". An agent blocked on an interactive prompt is NOT hung: do NOT reap
-            # it — mark it WAITING and signal the user. A non-waiting (idle/hung/errored) pane, OR a
-            # fail-closed capture/classify error, falls through to the reap/relaunch path below.
-            if _pane_shows_waiting(deps, state.issue_number):
-                _enter_waiting(deps, state, now)
-                continue
-        # else: the session is DEAD (``not alive``) — reap as usual (this also covers a ticket parked
+            # Approach A (operator decision 2026-06-15): the reaper NEVER KILLS a live session.
+            # A STALE-heartbeat but STILL-ALIVE agent is silent for one of two reasons — it is blocked
+            # on a human (an interactive prompt, e.g. the free-text brainstorm Q&A) or it is hung —
+            # and the pane cannot reliably tell them apart (a free-text prompt shows no marker that
+            # :func:`~kanbanmate.core.launch_keys.is_waiting_for_input` recognises). Killing a live
+            # session to "recover" it destroys the operator's in-progress INTERACTIVE work AND any
+            # unpushed worktree changes — the worst outcome (the live helm #5 brainstorm-killed bug).
+            # So an ALIVE session is ALWAYS parked WAITING + the operator signalled (⏳ sticky +
+            # tmux-attach hint); it is never killed, torn down, relaunched, or moved. The destructive
+            # kill+relaunch path below is reserved for DEAD sessions only (a crashed agent whose tmux
+            # session is gone). A genuinely-hung LIVE agent is the operator's call: attach and answer,
+            # or Ctrl-C / ``kanban cancel``.
+            _enter_waiting(deps, state, now)
+            continue
+        # The session is DEAD (``not alive``) — reap as usual (this also covers a ticket parked
         # WAITING whose session later died: it falls straight through to the reap/relaunch path).
         # Minimal Ticket from persisted state (the reap actions only need issue + item id).
         ticket = Ticket(
@@ -362,13 +386,10 @@ def reap_stale_agents(
         # Surface the stall reason ONCE; both branches want the operator to see WHY the reaper
         # acted. The BLOCK branch reuses ``ok_block`` toward its reap tally, so a relaunch that
         # later falls through does NOT double-post the comment (port the PoC comment-first ordering).
-        # Minor (b): name the ACTUAL trigger — a DEAD tmux session vs a STALE heartbeat — so the
-        # operator sees whether the agent crashed (session gone) or simply went silent (heartbeat
-        # aged past the TTL). A ticket can be both; the dead-session case is the more urgent signal,
-        # so it takes precedence in the message.
-        reap_reason = (
-            "dead agent session (reaped)" if not alive else "stale agent heartbeat (reaped)"
-        )
+        # Under Approach A the reap path is reached ONLY for a DEAD session (an alive session — even
+        # one whose heartbeat aged past the TTL — is parked WAITING above and never reaches here), so
+        # the trigger is always a crashed/gone tmux session.
+        reap_reason = "dead agent session (reaped)"
         block = BlockAction(ticket=ticket, reason=reap_reason)
         ok_block = _run_with_watchdog(executor, block, deps, config.action_timeout)
 
@@ -547,5 +568,10 @@ def _try_relaunch(
         on_fail=state.on_fail,
         advance=state.advance or "stop",
         profile=state.profile,
+        # Carry the BUMPED retry budget onto the LaunchAction so its fresh state write persists
+        # ``retries + 1`` — matching the pre-save above. Without this the LaunchAction defaults
+        # ``retries`` to 0, resetting the budget and defeating RETRY_LIMIT (an infinite relaunch loop
+        # — the live helm #5 bug: every reap saw retries == 0 and relaunched again).
+        retries=state.retries + 1,
     )
     return _run_with_watchdog(executor, relaunch, deps, config.action_timeout)

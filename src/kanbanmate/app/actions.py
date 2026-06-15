@@ -289,6 +289,12 @@ class LaunchAction:
     permission_mode: str = "auto"
     on_fail: str = ""
     advance: str = "stop"
+    # The retry budget to PERSIST on the launched state. A fresh board-move launch leaves this 0 (a
+    # new stage starts with a clean budget); a reaper RELAUNCH (:func:`kanbanmate.app.reaper._try_relaunch`)
+    # passes ``state.retries + 1`` so the bumped budget SURVIVES this action's fresh state write —
+    # without it ``execute`` would default ``TicketState.retries`` to 0 and silently RESET the reaper's
+    # retry budget, defeating ``RETRY_LIMIT`` (a dead session would relaunch forever).
+    retries: int = 0
 
     def _resolve_profile(self) -> str:
         """Resolve the launch profile from the matched transition ONLY (FAIL-LOUD; phase 20).
@@ -419,6 +425,9 @@ class LaunchAction:
                 mode=self.permission_mode,
                 started=now,
                 worktree=str(worktree),
+                # Carry the retry budget (0 for a normal launch; the incremented value for a reaper
+                # relaunch) so a relaunch does NOT reset ``retries`` to 0 — defeating RETRY_LIMIT.
+                retries=self.retries,
                 # Relaunch inputs (phase-25 §25.2, PoC ``launch.py`` "Re-launch inputs persisted"):
                 # persist the prompt + script + on_fail + advance so the reaper can rebuild the EXACT
                 # LaunchAction and RE-DELIVER the prompt via the 25.1 send-keys path. Without these a
