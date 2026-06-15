@@ -41,6 +41,14 @@
 - Ignored (documented): float-vs-int strictness on durations (pre-existing leniency; Pydantic coerces too; reviewers said don't gate) · single-tier dead-band (informational, no missed code path).
 - Decision: **Case B**. Fix phase 7 created (7.1 observability + leaf guard, 7.2 test completeness).
 
+### Cycle 3
+
+- Toolkit: 3 lenses on the cycle-2 delta (PR #200, CI green) — code-reviewer, pr-test-analyzer, silent-failure-hunter.
+- Verdict: **CONVERGED**. code-reviewer CLEAN (F-L fail-soft + identity log correct, no double-decode, no behavior change on the common cadence_json-None path; F-M leaf guard correct, cadence.py pure, no construction site breaks). pr-test: all 5 cycle-2 fixes sound + complete — both mutation claims empirically re-verified (removing the call-site log fails F-L; Cold→Hot fallback fails the strengthened dead-band control); `match=` strings aligned to real messages; TypeError branch + corrected docstring accurate. silent-failure: **FINDING 1 RESOLVED** (operator now gets `followed_id`+`title` on a dropped override), no new hidden failure, None-vs-rejected distinction exact.
+- Findings: **0** critical / 0 major / 0 medium. Two MINOR advisories, both reviewers non-blocking: (1) the now-redundant non-positive tier checks inside `Cadence.__post_init__` are dead (the `CadenceTier` leaf guard fires first) — kept as intentional defense-in-depth; (2) the F-L caplog test asserts the event name, not the `title` kwarg — optional test-strength polish. Neither blocks merge.
+- Decision: **Case A** — review clean. Loop exits.
+- Status: clean — handed off for manual squash merge (merge_mode = manual).
+
 ## Next action
 
-Cycle-2 fixes complete + gate green. Push → re-poll CI → cycle-3 re-review (expect convergence).
+Review clean — **operator performs the manual squash merge** of PR #200, then run `/implement:archive`. (The assistant does not merge in manual mode.)
