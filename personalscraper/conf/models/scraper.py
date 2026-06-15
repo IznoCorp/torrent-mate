@@ -1,8 +1,16 @@
-"""Scraper runtime config models (scraper, ingest, thresholds)."""
+"""Scraper runtime config models (scraper, ingest, sort, process_clean, thresholds)."""
 
 from pydantic import Field
 
 from personalscraper.conf.models._base import _StrictModel
+
+__all__ = [
+    "IngestConfig",
+    "ProcessCleanConfig",
+    "ScraperConfig",
+    "SortConfig",
+    "ThresholdsConfig",
+]
 
 
 class ScraperConfig(_StrictModel):
@@ -45,6 +53,49 @@ class IngestConfig(_StrictModel):
         default=0.0,
         ge=0.0,
         description=("Minimum seeding ratio for ingest eligibility. 0.0 (default) disables the guard."),
+    )
+
+
+class SortConfig(_StrictModel):
+    """Sort step runtime tunables.
+
+    Attributes:
+        verify_seed_pure: Opt-in seed-pure sort guard. When ``True``, the sort
+            step asks the torrent client for the set of completed torrents
+            tagged ``seed-pure`` and genuinely excludes any staging item whose
+            name matches one of them (reported as a ``skipped`` result, never
+            moved into the library). Enforced (the sort guard is active). The
+            always-on ingest skip (phase 3) remains the primary guardrail; this
+            opt-in guard is a defense-in-depth layer for items that bypassed
+            ingest. Default ``False`` (guard inactive).
+    """
+
+    verify_seed_pure: bool = Field(
+        default=False,
+        description=(
+            "Opt-in seed-pure sort guard. Enforced: when True, seed-pure-tagged "
+            "completed torrents are genuinely excluded from the sort (skipped, not moved)."
+        ),
+    )
+
+
+class ProcessCleanConfig(_StrictModel):
+    """Process clean sub-step runtime tunables.
+
+    Attributes:
+        verify_seed_pure: Reserved — not yet enforced; the clean-side guard is
+            intentionally not implemented (post-sort name-matching is
+            unreliable). The active guardrails are the always-on ingest skip +
+            the opt-in sort guard. Default ``False``.
+    """
+
+    verify_seed_pure: bool = Field(
+        default=False,
+        description=(
+            "Reserved — not yet enforced. The clean-side seed-pure guard is intentionally "
+            "not implemented (post-sort name-matching is unreliable). The active guardrails "
+            "are the always-on ingest skip + the opt-in sort guard."
+        ),
     )
 
 

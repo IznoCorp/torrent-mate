@@ -27,7 +27,13 @@ from personalscraper.conf.models.indexer import IndexerConfig
 from personalscraper.conf.models.paths import PathConfig
 from personalscraper.conf.models.preferences import LibraryPrefs
 from personalscraper.conf.models.providers import ProvidersConfig
-from personalscraper.conf.models.scraper import IngestConfig, ScraperConfig, ThresholdsConfig
+from personalscraper.conf.models.scraper import (
+    IngestConfig,
+    ProcessCleanConfig,
+    ScraperConfig,
+    SortConfig,
+    ThresholdsConfig,
+)
 from personalscraper.conf.models.staging import StagingDirConfig
 from personalscraper.conf.models.trailers import TrailersConfig
 
@@ -55,6 +61,9 @@ class Config(_StrictModel):
         genre_mapping: Genre ID → category_id mapping by API provider.
         library: Library maintenance preferences.
         ingest: Ingest step tunables (min_ratio threshold, etc.).
+        sort: Sort step tunables (verify_seed_pure opt-in guard, enforced).
+        process_clean: Process clean sub-step tunables (verify_seed_pure flag is
+            reserved — not yet enforced; see ``ProcessCleanConfig``).
         trailers: Trailer download feature configuration. Disabled by default (enabled=False).
         indexer: Media indexer sub-system configuration.
         acquire: Acquisition lobe SQLite store configuration (RP3).
@@ -85,6 +94,10 @@ class Config(_StrictModel):
     scraper: ScraperConfig = Field(default_factory=ScraperConfig)
 
     ingest: IngestConfig = Field(default_factory=IngestConfig)
+
+    sort: SortConfig = Field(default_factory=SortConfig)
+
+    process_clean: ProcessCleanConfig = Field(default_factory=ProcessCleanConfig)
 
     library: LibraryPrefs = Field(default_factory=LibraryPrefs)
 
