@@ -5,8 +5,8 @@ GET via the unified transport before instantiating transmission-rpc so
 network/auth failures surface as a uniform ApiError instead of leaking the
 library's exception types up the call stack. Composes
 :class:`TorrentLister`, :class:`TorrentInspector`,
-:class:`TorrentStateInspector`, :class:`TorrentController` and
-:class:`TorrentAdder` from
+:class:`TorrentStateInspector`, :class:`TorrentController`,
+:class:`TorrentAdder` and :class:`TorrentTagger` from
 :mod:`personalscraper.api.torrent._contracts`. Deliberately omits
 :class:`AuthenticatedClient` — the transmission-rpc library performs HTTP
 Basic Auth per request without an explicit login step (DESIGN §4 — phase 13).
@@ -34,6 +34,7 @@ from personalscraper.api.torrent._contracts import (
     TorrentInspector,
     TorrentLister,
     TorrentStateInspector,
+    TorrentTagger,
 )
 from personalscraper.api.torrent._errors import UnsupportedCapabilityError
 from personalscraper.api.transport._auth import LoginAuth
@@ -55,12 +56,13 @@ class TransmissionClient(
     TorrentStateInspector,
     TorrentController,
     TorrentAdder,
+    TorrentTagger,
 ):
     """Transmission client wrapping transmission-rpc.
 
     Composes :class:`TorrentLister`, :class:`TorrentInspector`,
-    :class:`TorrentStateInspector`, :class:`TorrentController` and
-    :class:`TorrentAdder`.
+    :class:`TorrentStateInspector`, :class:`TorrentController`,
+    :class:`TorrentAdder` and :class:`TorrentTagger`.
     Deliberately omits :class:`AuthenticatedClient` because
     transmission-rpc has no explicit login step (HTTP Basic Auth runs
     per-request). Also omits :class:`TorrentLimiter` — Transmission
@@ -295,6 +297,51 @@ class TransmissionClient(
             delete_files: If True, also delete the downloaded data.
         """
         self._client.remove_torrent(ids=hash, delete_data=delete_files)
+
+    def add_tags(self, info_hash: str, tags: Sequence[str]) -> None:
+        """Add tags to an existing Transmission torrent (idempotent, read-first).
+
+        Transmission stores category + tags in one flat ``labels`` list:
+        ``labels = [category, *tags]``. We read the current labels, compute the
+        new tag set (union, preserving order), then write back with the category
+        at ``labels[0]`` intact. Adding an already-present tag is a no-op.
+
+        Args:
+            info_hash: Lowercase-hex info hash of the target torrent.
+            tags: Tag strings to add.
+        """
+        if not tags:
+            return
+        t = self._client.get_torrent(info_hash, arguments=["labels"])
+        current_labels: list[str] = list(getattr(t, "labels", None) or [])
+        category = current_labels[0] if current_labels else None
+        existing_tags = list(current_labels[1:]) if len(current_labels) > 1 else []
+        new_tags = existing_tags[:]
+        for tag in tags:
+            if tag not in new_tags:
+                new_tags.append(tag)
+        self._client.change_torrent(ids=info_hash, labels=_labels(category, new_tags))
+
+    def remove_tags(self, info_hash: str, tags: Sequence[str]) -> None:
+        """Remove tags from an existing Transmission torrent (idempotent, read-first).
+
+        Reads current labels, removes the requested tags from the tag portion
+        (``labels[1:]``), then writes back with the category at ``labels[0]``
+        intact. Removing an absent tag is a no-op.
+
+        Args:
+            info_hash: Lowercase-hex info hash of the target torrent.
+            tags: Tag strings to remove.
+        """
+        if not tags:
+            return
+        t = self._client.get_torrent(info_hash, arguments=["labels"])
+        current_labels: list[str] = list(getattr(t, "labels", None) or [])
+        category = current_labels[0] if current_labels else None
+        existing_tags = list(current_labels[1:]) if len(current_labels) > 1 else []
+        tags_to_remove = set(tags)
+        new_tags = [tag for tag in existing_tags if tag not in tags_to_remove]
+        self._client.change_torrent(ids=info_hash, labels=_labels(category, new_tags))
 
 
 # -- Factory entry point -----------------------------------------------------

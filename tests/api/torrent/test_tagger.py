@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 
 if TYPE_CHECKING:
     from personalscraper.api.torrent.qbittorrent import QBitClient
+    from personalscraper.api.torrent.transmission import TransmissionClient
 
 # ---------------------------------------------------------------------------
 # Criterion 1 — SEED_PURE constant
@@ -78,4 +79,97 @@ def test_qbit_tagger_protocol_compliance():
     from personalscraper.api.torrent._contracts import TorrentTagger
 
     client = _make_qbit_client()
+    assert isinstance(client, TorrentTagger)
+
+
+# ---------------------------------------------------------------------------
+# Criterion 3 — TransmissionClient tagger (category preservation is the
+# load-bearing correctness point)
+# ---------------------------------------------------------------------------
+
+
+def _make_tx_client() -> "TransmissionClient":
+    """Build a TransmissionClient with a mocked underlying transmission_rpc.Client."""
+    from personalscraper.api.torrent.transmission import TransmissionClient
+
+    client = TransmissionClient.__new__(TransmissionClient)
+    client._client = MagicMock()
+    return client
+
+
+def _mock_torrent(labels: list[str]) -> MagicMock:
+    """Return a mock Transmission Torrent object with the given labels."""
+    t = MagicMock()
+    t.labels = labels
+    return t
+
+
+def test_tx_add_tags_preserves_category():
+    """add_tags keeps labels[0] (category) and appends the new tag.
+
+    Golden: category='movies', existing_tags=['tag1'],
+    add_tags(['seed-pure']) → change_torrent called with
+    labels=['movies', 'tag1', 'seed-pure'].
+    """
+    client = _make_tx_client()
+    client._client.get_torrent.return_value = _mock_torrent(["movies", "tag1"])
+
+    client.add_tags("abc123", ["seed-pure"])
+
+    client._client.get_torrent.assert_called_once_with("abc123", arguments=["labels"])
+    client._client.change_torrent.assert_called_once_with(ids="abc123", labels=["movies", "tag1", "seed-pure"])
+
+
+def test_tx_add_tags_idempotent_already_present():
+    """add_tags does not duplicate a tag already in the list."""
+    client = _make_tx_client()
+    client._client.get_torrent.return_value = _mock_torrent(["movies", "seed-pure"])
+
+    client.add_tags("abc123", ["seed-pure"])
+
+    # labels must stay exactly ['movies', 'seed-pure'] — no duplicate
+    client._client.change_torrent.assert_called_once_with(ids="abc123", labels=["movies", "seed-pure"])
+
+
+def test_tx_remove_tags_preserves_category():
+    """remove_tags keeps labels[0] and removes only the requested tag."""
+    client = _make_tx_client()
+    client._client.get_torrent.return_value = _mock_torrent(["movies", "seed-pure", "other"])
+
+    client.remove_tags("abc123", ["seed-pure"])
+
+    client._client.change_torrent.assert_called_once_with(ids="abc123", labels=["movies", "other"])
+
+
+def test_tx_remove_tags_idempotent_absent():
+    """remove_tags on an absent tag is a no-op (no error, category preserved)."""
+    client = _make_tx_client()
+    client._client.get_torrent.return_value = _mock_torrent(["movies", "other"])
+
+    client.remove_tags("abc123", ["seed-pure"])
+
+    client._client.change_torrent.assert_called_once_with(ids="abc123", labels=["movies", "other"])
+
+
+def test_tx_add_tags_empty_is_noop():
+    """add_tags with empty list makes no API call."""
+    client = _make_tx_client()
+    client.add_tags("abc123", [])
+    client._client.get_torrent.assert_not_called()
+    client._client.change_torrent.assert_not_called()
+
+
+def test_tx_remove_tags_empty_is_noop():
+    """remove_tags with empty list makes no API call."""
+    client = _make_tx_client()
+    client.remove_tags("abc123", [])
+    client._client.get_torrent.assert_not_called()
+    client._client.change_torrent.assert_not_called()
+
+
+def test_tx_tagger_protocol_compliance():
+    """TransmissionClient satisfies the TorrentTagger protocol at runtime."""
+    from personalscraper.api.torrent._contracts import TorrentTagger
+
+    client = _make_tx_client()
     assert isinstance(client, TorrentTagger)

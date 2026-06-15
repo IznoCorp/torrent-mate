@@ -544,11 +544,18 @@ def test_tx_remove_tags_empty_is_noop():
 def test_tx_tagger_protocol_compliance():
     """TransmissionClient satisfies the TorrentTagger protocol at runtime."""
     from personalscraper.api.torrent._contracts import TorrentTagger
-    from personalscraper.api.torrent.transmission import TransmissionClient
 
     client = _make_tx_client()
     assert isinstance(client, TorrentTagger)
 ```
+
+> **Plan-drift note (1.3):** same fix as 1.2 applied to the Transmission helper.
+> `TransmissionClient` was added to the module-top `TYPE_CHECKING` block so the
+> `-> "TransmissionClient"` string annotation resolves under
+> `from __future__ import annotations` (avoids ruff `F821`), and the unused
+> function-local `TransmissionClient` import in
+> `test_tx_tagger_protocol_compliance` was removed (the client is built via
+> `_make_tx_client`).
 
 - [ ] **Step 2: Run all tagger tests**
 
