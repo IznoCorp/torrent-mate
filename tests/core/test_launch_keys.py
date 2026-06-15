@@ -239,3 +239,38 @@ def test_prompt_pending_only_scans_input_box_tail_not_scrollback() -> None:
     pane = "[Pasted text #1 +20 lines]\n" + "\n".join(f"line {i}" for i in range(SUBMIT_SCAN_LINES))
     pane += "\n❯ \n  ⏵⏵ auto mode on"
     assert prompt_pending(pane, "/implement:brainstorm do the thing here") is False
+
+
+def test_prompt_pending_large_prompt_pasted_marker_above_old_window() -> None:
+    """A LARGE prompt whose [Pasted text] marker sits >6 lines above the footer is still PENDING.
+
+    Regression (helm #5): the design/Spec prompt collapses to several [Pasted text #N] blocks + many
+    wrapped lines, pushing the marker past the original 6-line tail — so it read as submitted and the
+    submit-retry exited, leaving the prompt stuck. The widened window (SUBMIT_SCAN_LINES=30) catches it.
+    """
+    from kanbanmate.core.launch_keys import prompt_pending
+
+    # [Pasted text] then ~12 wrapped prompt lines then the footer — marker is ~14 lines up (was missed
+    # by the old 6-line window, caught by 30).
+    body = "\n".join(f"  …design prompt line {i}…" for i in range(12))
+    pane = (
+        "❯ [Pasted text #1 +9 lines][Pasted text #2 +13 lines]\n"
+        + body
+        + "\n────────\n  ⏵⏵ auto mode on (shift+tab to cycle)"
+    )
+    assert prompt_pending(pane, "Write the design for #5 from the brainstorm output above") is True
+
+
+def test_prompt_pending_input_box_footer_hint_is_pending() -> None:
+    """The input-box expand/edit footer hint (shown only with unsent content) ⇒ pending."""
+    from kanbanmate.core.launch_keys import prompt_pending
+
+    pane = "  …prompt text…\n────────\n  paste again to expand        ctrl+g to edit in VS Code"
+    assert prompt_pending(pane, "/implement:plan prepare the plan") is True
+
+
+def test_prompt_pending_window_is_30() -> None:
+    """The submit scan window is the widened, named constant (large-prompt coverage)."""
+    from kanbanmate.core.launch_keys import SUBMIT_SCAN_LINES
+
+    assert SUBMIT_SCAN_LINES == 30

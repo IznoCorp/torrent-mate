@@ -36,8 +36,10 @@ logger = logging.getLogger(__name__)
 # How many times the submit-retry loop re-sends Enter when the prompt is still sitting in the input
 # box (#submit-reliability). On claude v2.1.x the REPL shows a ready prompt a beat before it accepts
 # input, so the FIRST submit Enter can be absorbed; re-sending Enter once claude is truly ready lands
-# the submit. Bounded so a genuinely undeliverable prompt still terminates (→ the WARN below).
-SUBMIT_RETRY_ATTEMPTS = 4
+# the submit. 8 (raised from 4) gives a LARGE multi-chunk prompt — the Spec/design prompt that embeds
+# the ticket body — enough cycles to settle and accept the Enter (4×0.6s≈2.4s was too short and left
+# helm #5 stuck). Bounded so a genuinely undeliverable prompt still terminates (→ the WARN below).
+SUBMIT_RETRY_ATTEMPTS = 8
 
 # Seconds between submit-retry capture+resend cycles. Long enough for claude to render the post-submit
 # state (so a landed submit is seen and NOT re-Entered), short enough to keep launch latency low.

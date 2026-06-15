@@ -150,9 +150,14 @@ def build_sendkeys_sequence(prompt: str, *, trust_prompt_seen: bool) -> list[Sen
 
 # How many TRAILING pane lines :func:`prompt_pending` scans for unsent prompt content (submit-retry).
 # Restricted to the bottom INPUT-BOX region so a SENT message that lingers in scrollback (claude also
-# renders a sent paste as ``[Pasted text]`` in the transcript) does not read as still-pending. A small
-# window isolates the live input box (1-3 lines) + footer from the conversation above it.
-SUBMIT_SCAN_LINES = 6
+# renders a sent paste as ``[Pasted text]`` in the transcript) does not read as still-pending. The
+# window must be large enough to cover a BIG prompt's input box: a long prompt (the Spec/design prompt
+# embeds the ticket body) collapses to SEVERAL ``[Pasted text #N]`` blocks + many wrapped lines, so
+# the live ``[Pasted text]`` marker sits well above the footer — a 6-line tail (the original size)
+# MISSED it and the submit-retry exited early, leaving the prompt stuck (live helm #5). 30 lines
+# covers the input box while staying clear of most of the conversation; the running-turn marker
+# (:data:`SUBMITTED_MARKERS`) still wins, and an over-eager re-send is a harmless no-op on an empty box.
+SUBMIT_SCAN_LINES = 30
 
 # Minimum verbatim prompt-slice length for the :func:`prompt_pending` echo check (mirrors the
 # observability probe). A whole prompt line this long still in the input box is unambiguous "not
@@ -165,9 +170,15 @@ SUBMIT_MIN_PROBE_LEN = 40
 SUBMITTED_MARKERS = ("esc to interrupt",)
 
 # The collapsed multi-line-paste marker claude shows in the input box for an UNSENT pasted prompt
-# (e.g. ``[Pasted text #1 +20 lines]``). Its presence in the input-box tail means the prompt is still
-# sitting unsubmitted. Matched case-insensitively.
+# (e.g. ``[Pasted text #1 +20 lines]``). Its presence in the input-box window means the prompt is
+# still sitting unsubmitted. Matched case-insensitively.
 PENDING_PASTE_MARKER = "pasted text"
+
+# Input-box footer hints claude shows ONLY when the input box holds UNSENT content (they vanish once
+# the box is empty / a turn runs). Strong, transcript-free pending signals — they complement the
+# ``[Pasted text]`` marker (which a huge prompt can still push out of even a 30-line window, and which
+# also echoes in the transcript). Matched case-insensitively.
+INPUT_CONTENT_MARKERS = ("paste again to expand", "ctrl+g to edit")
 
 
 def prompt_pending(pane: str, filled: str) -> bool:
@@ -185,8 +196,10 @@ def prompt_pending(pane: str, filled: str) -> bool:
     read a successfully-submitted prompt as still-pending and spam Enter.
 
     Precedence: a running-turn marker (:data:`SUBMITTED_MARKERS`) wins → NOT pending (the submit
-    landed and a turn is in flight). Then the collapsed-paste marker or a verbatim probe slice →
-    pending. An EMPTY tail is NOT pending (nothing to resubmit — never spam Enter at a blank pane).
+    landed and a turn is in flight). Then an input-box content hint (:data:`INPUT_CONTENT_MARKERS` —
+    the expand/edit footer claude shows only while the box holds unsent text), the collapsed-paste
+    marker, or a verbatim probe slice → pending. An EMPTY tail is NOT pending (nothing to resubmit —
+    never spam Enter at a blank pane).
 
     Args:
         pane: The raw ``capture-pane`` text (may be empty). Matched case-insensitively.
@@ -204,6 +217,9 @@ def prompt_pending(pane: str, filled: str) -> bool:
     if any(marker in lowered for marker in SUBMITTED_MARKERS):
         # A turn is running → the submit landed.
         return False
+    if any(marker in lowered for marker in INPUT_CONTENT_MARKERS):
+        # The input box still holds unsent content (its expand/edit footer hint is showing) → pending.
+        return True
     if PENDING_PASTE_MARKER in lowered:
         # A collapsed multi-line paste sitting in the input box → not submitted.
         return True
