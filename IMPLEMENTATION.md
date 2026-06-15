@@ -20,7 +20,7 @@
 | 4   | Cadence-aware run loop             | phase-04-cadence-aware-run-loop.md      | [x]    |
 | 5   | Docs + ACCEPTANCE + gate           | phase-05-docs-acceptance-gate.md        | [x]    |
 | 6   | PR fixes cycle 1                   | phase-06-pr-fixes-cycle-1.md            | [x]    |
-| 7   | PR fixes cycle 2                   | phase-07-pr-fixes-cycle-2.md            | [ ]    |
+| 7   | PR fixes cycle 2                   | phase-07-pr-fixes-cycle-2.md            | [x]    |
 
 ## Review cycles
 
@@ -43,4 +43,4 @@
 
 ## Next action
 
-Execute phase 7 (`/implement:phase`), then re-poll CI + cycle-3 re-review.
+Cycle-2 fixes complete + gate green. Push → re-poll CI → cycle-3 re-review (expect convergence).
