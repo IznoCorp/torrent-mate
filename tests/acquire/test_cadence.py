@@ -330,13 +330,34 @@ def test_cadence_post_init_rejects_empty_tiers():
 
 
 def test_cadence_post_init_rejects_nonpositive():
-    """A non-positive max_age_s or interval_s → ValueError."""
+    """A non-positive max_age_s or interval_s → ValueError.
+
+    The leaf-level :meth:`CadenceTier.__post_init__` guard fires first (the
+    tier is constructed before the enclosing ``Cadence`` body runs), so these
+    raise at tier construction with a tier-level message — still a ``ValueError``.
+    """
     from personalscraper.acquire.cadence import Cadence, CadenceTier
 
     with pytest.raises(ValueError):
         Cadence(tiers=(CadenceTier(max_age_s=0, interval_s=10),), cutoff_s=100)
     with pytest.raises(ValueError):
         Cadence(tiers=(CadenceTier(max_age_s=100, interval_s=0),), cutoff_s=100)
+
+
+def test_cadence_tier_rejects_nonpositive():
+    """CadenceTier leaf guard rejects a non-positive max_age_s or interval_s.
+
+    Independent of any enclosing :class:`Cadence`: a malformed tier is
+    unrepresentable on its own. A valid tier still builds (positive control).
+    """
+    from personalscraper.acquire.cadence import CadenceTier
+
+    with pytest.raises(ValueError, match="max_age_s must be positive"):
+        CadenceTier(max_age_s=0, interval_s=1)
+    with pytest.raises(ValueError, match="interval_s must be positive"):
+        CadenceTier(max_age_s=1, interval_s=-1)
+    # Positive control: a valid tier builds without raising.
+    CadenceTier(max_age_s=1, interval_s=1)
 
 
 def test_cadence_post_init_rejects_non_monotonic():

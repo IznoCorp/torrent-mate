@@ -18,29 +18,29 @@ Phase 6 complete: `make check` green (6815 passed), cycle-1 fixes pushed, CI gre
 
 ### Task 1 — observability + leaf guard
 
-- [ ] **F-L — actionable dropped per-series cadence override (silent-failure FINDING 1).**
+- [x] **F-L — actionable dropped per-series cadence override (silent-failure FINDING 1).**
       In `AcquisitionService.run()` (the cadence resolution at ~`service.py:216-220`), replace the inline `cadence = effective_cadence(cadence_from_json(fs.cadence_json) if fs else None, global_cadence)` with a form that distinguishes "no override" from "override present but rejected", and logs the latter with the owning series identity:
       `python
-    override = None
-    if fs is not None and fs.cadence_json is not None:
-        override = cadence_from_json(fs.cadence_json)
-        if override is None:
-            log.warning(
-                "acquire.service.cadence_override_dropped",
-                followed_id=fs.id,
-                title=fs.title,
-            )  # malformed per-series cadence_json → fell back to the global default
-    cadence = effective_cadence(override, global_cadence)
-    `
+override = None
+if fs is not None and fs.cadence_json is not None:
+    override = cadence_from_json(fs.cadence_json)
+    if override is None:
+        log.warning(
+            "acquire.service.cadence_override_dropped",
+            followed_id=fs.id,
+            title=fs.title,
+        )  # malformed per-series cadence_json → fell back to the global default
+cadence = effective_cadence(override, global_cadence)
+`
       `cadence_from_json` keeps its own `acquire.cadence.bad_cadence_json` warning (the parse-level detail); this adds the series-level breadcrumb at the call site where `fs` is known. (`cadence_from_json` signature unchanged — the call site owns the identity.)
   - Test `test_service_cadence.py::test_malformed_per_series_cadence_logs_series_and_uses_default`: a `FollowedSeries` with `cadence_json='{"broken'` (or an empty-tiers blob), `store.follow.get` returns it; assert (via `caplog`) a `WARNING` carrying the event `acquire.service.cadence_override_dropped` AND that the item is still processed under the **global** default (e.g. a recent item proceeds to claim, not abandoned). Use the repo's structlog→caplog bridge (see `tests/conftest.py`; precedent `tests/acquire/test_delete_authority.py`). Mutation-proof: fails if the call site doesn't log the drop.
 
-- [ ] **F-M — `CadenceTier` leaf guard (type-design residual → 10/10).**
+- [x] **F-M — `CadenceTier` leaf guard (type-design residual → 10/10).**
       Add a `__post_init__` to the frozen `CadenceTier` dataclass raising `ValueError` when `max_age_s <= 0` or `interval_s <= 0`, so the leaf type is independently sound (not only validated inside `Cadence`). cadence.py stays pure (stdlib only). Confirm `Cadence.__post_init__` still works (it iterates already-constructed tiers — leaf guard fires first on a bad tier, which is fine).
   - Tests (test_cadence.py): `test_cadence_tier_rejects_nonpositive` — `pytest.raises(ValueError, match=...)` for `CadenceTier(max_age_s=0, ...)` and `CadenceTier(max_age_s=1, interval_s=-1)`. Positive control: a valid `CadenceTier` builds.
 
-- [ ] **Gate 7.1:** `pytest tests/acquire/test_service_cadence.py tests/acquire/test_cadence.py -q` green; `ruff` + `mypy personalscraper/acquire/service.py personalscraper/acquire/cadence.py` clean.
-- [ ] **Commit:** `fix(follow-detect): log dropped per-series cadence override + CadenceTier leaf guard`
+- [x] **Gate 7.1:** `pytest tests/acquire/test_service_cadence.py tests/acquire/test_cadence.py -q` green; `ruff` + `mypy personalscraper/acquire/service.py personalscraper/acquire/cadence.py` clean.
+- [x] **Commit:** `fix(follow-detect): log dropped per-series cadence override + CadenceTier leaf guard`
 
 ---
 

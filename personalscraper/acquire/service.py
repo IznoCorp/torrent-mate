@@ -214,10 +214,16 @@ class AcquisitionService:
             # Resolve the effective cadence for this item: a per-series override
             # (FollowedSeries.cadence_json) wins over the global default.
             fs = follow_map.get(item.followed_id) if item.followed_id is not None else None
-            cadence = effective_cadence(
-                cadence_from_json(fs.cadence_json) if fs is not None else None,
-                global_cadence,
-            )
+            override = None
+            if fs is not None and fs.cadence_json is not None:
+                override = cadence_from_json(fs.cadence_json)
+                if override is None:
+                    log.warning(
+                        "acquire.service.cadence_override_dropped",
+                        followed_id=fs.id,
+                        title=fs.title,
+                    )  # malformed per-series cadence_json → fell back to the global default
+            cadence = effective_cadence(override, global_cadence)
 
             # Per-item error isolation (DESIGN §6.2): ONE item's store/decode
             # failure must never abort the batch — the run_complete summary MUST

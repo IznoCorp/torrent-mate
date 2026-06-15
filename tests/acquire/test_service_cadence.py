@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from personalscraper.acquire.cadence import Cadence, CadenceTier
 from personalscraper.acquire.desired import cadence_to_json
 from personalscraper.acquire.domain import FollowedSeries, WantedItem
@@ -184,3 +186,41 @@ def test_per_series_cadence_override_abandons() -> None:
     assert isinstance(emitted, WantedAbandoned)
     assert emitted.reason == "cutoff_reached"
     assert summary.abandoned == 1
+
+
+def test_malformed_per_series_cadence_logs_series_and_uses_default(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A malformed per-series cadence_json logs the series identity, then uses the default.
+
+    F-L (silent-failure FINDING 1): the call site logs
+    ``acquire.service.cadence_override_dropped`` WITH the owning series so the
+    drop is attributable, AND the item still proceeds under the GLOBAL default
+    (the malformed override is fail-soft, not abandoning the item).
+
+    Mutation-proof: fails if the call site doesn't log the drop (no event in
+    ``caplog.text``), OR if the malformed override is not fail-soft to the
+    default (the item would not be grabbed / claim never called).
+    """
+    series = FollowedSeries(
+        media_ref=MediaRef(tvdb_id=99),
+        title="Broken Cadence Series",
+        added_at=NOW,
+        cadence_json='{"broken',  # malformed → cadence_from_json returns None
+        id=1,
+    )
+    # RECENT item (Hot tier), never searched → due under the global default.
+    item = _pending_item(enqueued_at=ENQUEUED_RECENT, last_search_at=None)
+    svc, store, orchestrator, bus = _make_service([item])
+    store.follow.get.return_value = series
+
+    with patch("personalscraper.acquire.service.time.time", return_value=NOW):
+        summary = svc.run()
+
+    # The drop is logged with the series identity (structlog event name in caplog.text).
+    assert "acquire.service.cadence_override_dropped" in caplog.text
+
+    # Fail-soft to the global default: the item proceeds (claim + grab), not abandoned.
+    store.wanted.claim_for_search.assert_called_once()
+    assert summary.grabbed == 1
+    assert summary.abandoned == 0

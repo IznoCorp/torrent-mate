@@ -26,6 +26,23 @@ class CadenceTier:
     max_age_s: int
     interval_s: int
 
+    def __post_init__(self) -> None:
+        """Validate the tier invariants once at construction time.
+
+        Leaf-level guard making an illegal tier unrepresentable on its own,
+        independent of any enclosing :class:`Cadence`. Fires before
+        ``Cadence.__post_init__`` when a bad tier is nested in a Cadence (the
+        tuple is built — hence each tier constructed — before the Cadence body
+        runs), so the resulting ``ValueError`` names the offending tier field.
+
+        Raises:
+            ValueError: if ``max_age_s`` or ``interval_s`` is non-positive.
+        """
+        if self.max_age_s <= 0:
+            raise ValueError(f"CadenceTier.max_age_s must be positive, got {self.max_age_s}")
+        if self.interval_s <= 0:
+            raise ValueError(f"CadenceTier.interval_s must be positive, got {self.interval_s}")
+
 
 @dataclass(frozen=True)
 class Cadence:
