@@ -12,6 +12,7 @@ indexer/, scraper/, or any triage package).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from typing import Literal
 
 from personalscraper.core.identity import MediaRef
@@ -43,6 +44,30 @@ class FollowedSeries:
     quality_profile_json: str | None = None
     cadence_json: str | None = None
     id: int | None = None
+
+
+@dataclass(frozen=True)
+class AiredEpisode:
+    """A TV episode that has already aired (air-date <= today).
+
+    Emitted by :func:`~personalscraper.acquire.airing.poll_aired`.
+    Only episodes whose ``air_date`` has passed (inclusive of today) are
+    represented here — unscheduled / future / TBA episodes are never emitted.
+
+    Attributes:
+        media_ref: Provider-ID key of the parent followed series (tvdb_id primary).
+        season: Season number (1-based; specials / season 0 are excluded by the poller).
+        episode: Episode number within the season.
+        air_date: The parsed, confirmed air-date (always a real :class:`datetime.date`).
+        title: Episode title for display/logging; empty string when the provider
+            did not supply one.
+    """
+
+    media_ref: MediaRef
+    season: int
+    episode: int
+    air_date: date
+    title: str = ""
 
 
 @dataclass(frozen=True)
@@ -166,4 +191,4 @@ class RatioState:
     updated_at: int
 
 
-__all__ = ["FollowedSeries", "RatioState", "SeedObligation", "WantedItem", "WantedKind", "WantedStatus"]
+__all__ = ["AiredEpisode", "FollowedSeries", "RatioState", "SeedObligation", "WantedItem", "WantedKind", "WantedStatus"]
