@@ -19,7 +19,7 @@
 | 3   | Ingest skip (always-on)       | phase-03-ingest-skip.md          | [x]    |
 | 4   | Opt-in sort-side guard        | phase-04-optional-guard.md       | [x]    |
 | 5   | Docs + ACCEPTANCE + gate      | phase-05-docs-acceptance-gate.md | [x]    |
-| 6   | PR fixes cycle 1              | phase-06-pr-fixes-cycle-1.md     | [ ]    |
+| 6   | PR fixes cycle 1              | phase-06-pr-fixes-cycle-1.md     | [x]    |
 
 ## Review cycles
 
@@ -33,4 +33,4 @@
 
 ## Next action
 
-Execute phase 6 (`/implement:phase`), then re-poll CI + cycle-2 re-review.
+Cycle-1 fixes complete + gate green. Push → re-poll CI → cycle-2 re-review.
