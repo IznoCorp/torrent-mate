@@ -174,3 +174,50 @@ def test_cadence_config_rejects_cutoff_below_last_tier():
             tiers=[CadenceTierConfig(max_age_hours=720, interval_minutes=120)],
             cutoff_days=20,
         )
+
+
+def test_cadence_round_trip_json():
+    """cadence_to_json → cadence_from_json round-trips all fields."""
+    from personalscraper.acquire.cadence import Cadence, CadenceTier
+    from personalscraper.acquire.desired import cadence_from_json, cadence_to_json
+
+    c = Cadence(tiers=(CadenceTier(max_age_s=100, interval_s=10),), cutoff_s=200)
+    assert cadence_from_json(cadence_to_json(c)) == c
+
+
+def test_cadence_from_json_none_returns_none():
+    """cadence_from_json(None) returns None (use global default)."""
+    from personalscraper.acquire.desired import cadence_from_json
+
+    assert cadence_from_json(None) is None
+
+
+def test_cadence_from_config_converts_units():
+    """cadence_from_config converts hours/minutes/days → seconds correctly."""
+    from personalscraper.acquire.desired import cadence_from_config
+    from personalscraper.conf.models.acquire import CadenceConfig, CadenceTierConfig
+
+    cfg = CadenceConfig(tiers=[CadenceTierConfig(max_age_hours=1, interval_minutes=30)], cutoff_days=2)
+    c = cadence_from_config(cfg)
+    assert c.tiers[0].max_age_s == 3600
+    assert c.tiers[0].interval_s == 1800
+    assert c.cutoff_s == 2 * 24 * 3600
+
+
+def test_effective_cadence_series_wins():
+    """effective_cadence returns series override when not None."""
+    from personalscraper.acquire.cadence import Cadence, CadenceTier
+    from personalscraper.acquire.desired import effective_cadence
+
+    override = Cadence(tiers=(CadenceTier(max_age_s=10, interval_s=1),), cutoff_s=20)
+    default = Cadence(tiers=(CadenceTier(max_age_s=999, interval_s=999),), cutoff_s=999)
+    assert effective_cadence(override, default) is override
+
+
+def test_effective_cadence_none_returns_default():
+    """effective_cadence(None, default) returns default verbatim."""
+    from personalscraper.acquire.cadence import Cadence, CadenceTier
+    from personalscraper.acquire.desired import effective_cadence
+
+    default = Cadence(tiers=(CadenceTier(max_age_s=999, interval_s=999),), cutoff_s=999)
+    assert effective_cadence(None, default) is default

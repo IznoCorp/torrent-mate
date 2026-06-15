@@ -471,7 +471,9 @@ def cadence_to_json(cadence: "Cadence") -> str:
     Returns:
         Compact JSON string for storage in ``FollowedSeries.cadence_json``.
     """
-    from personalscraper.acquire.cadence import Cadence  # noqa: PLC0415 — avoid top-level cycle risk
+    # NOTE: no function-local Cadence import here — the body only reads
+    # attributes (cadence.tiers / cadence.cutoff_s); the annotation is
+    # TYPE_CHECKING-only, so a runtime import would be unused (ruff F401).
     return json.dumps(
         {
             "tiers": [{"max_age_s": t.max_age_s, "interval_s": t.interval_s} for t in cadence.tiers],
@@ -544,14 +546,20 @@ def effective_cadence(series_override: "Cadence | None", global_default: "Cadenc
     return series_override if series_override is not None else global_default
 ```
 
-Add a `TYPE_CHECKING` guard at the top of `desired.py` if not already present:
+**Plan-drift correction (1.3, applied):** `desired.py` already imports
+`from typing import TYPE_CHECKING` and already has an **empty** `if TYPE_CHECKING:
+pass` block (left from RP3a). Do NOT add a fresh import line — instead populate the
+existing block (replace the `pass`):
 
 ```python
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from personalscraper.acquire.cadence import Cadence
     from personalscraper.conf.models.acquire import CadenceConfig
 ```
+
+(Because `from __future__ import annotations` is active, the function signatures use
+bare `Cadence` / `CadenceConfig` annotations rather than the string-quoted forms
+shown above; both resolve identically under deferred evaluation.)
 
 Update `__all__` in `desired.py` to append:
 

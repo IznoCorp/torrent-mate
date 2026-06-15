@@ -15,7 +15,8 @@ from enum import IntEnum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    pass
+    from personalscraper.acquire.cadence import Cadence
+    from personalscraper.conf.models.acquire import CadenceConfig
 
 
 class Resolution(IntEnum):
@@ -213,6 +214,89 @@ def source_criteria_from_json(blob: str | None) -> SourceCriteria:
     )
 
 
+def cadence_to_json(cadence: Cadence) -> str:
+    """Serialize a :class:`~personalscraper.acquire.cadence.Cadence` to JSON.
+
+    Args:
+        cadence: The cadence to serialize.
+
+    Returns:
+        Compact JSON string for storage in ``FollowedSeries.cadence_json``.
+    """
+    return json.dumps(
+        {
+            "tiers": [{"max_age_s": t.max_age_s, "interval_s": t.interval_s} for t in cadence.tiers],
+            "cutoff_s": cadence.cutoff_s,
+        }
+    )
+
+
+def cadence_from_json(blob: str | None) -> Cadence | None:
+    """Deserialize a :class:`~personalscraper.acquire.cadence.Cadence` from JSON.
+
+    A ``None`` blob means "use the global default" — callers must supply the
+    fallback via :func:`effective_cadence`.
+
+    Args:
+        blob: JSON string produced by :func:`cadence_to_json`, or ``None``.
+
+    Returns:
+        The reconstructed :class:`Cadence`, or ``None`` if blob is ``None``.
+    """
+    if blob is None:
+        return None
+    from personalscraper.acquire.cadence import Cadence, CadenceTier  # noqa: PLC0415
+
+    data = json.loads(blob)
+    return Cadence(
+        tiers=tuple(CadenceTier(max_age_s=t["max_age_s"], interval_s=t["interval_s"]) for t in data["tiers"]),
+        cutoff_s=data["cutoff_s"],
+    )
+
+
+def cadence_from_config(cfg: CadenceConfig) -> Cadence:
+    """Convert a :class:`~personalscraper.conf.models.acquire.CadenceConfig` to a :class:`Cadence` VO.
+
+    Unit bridge: hours/minutes/days (config) → seconds (VO).
+
+    Args:
+        cfg: Pydantic config model loaded from ``config/acquire.json5``.
+
+    Returns:
+        A :class:`Cadence` with all durations in seconds.
+    """
+    from personalscraper.acquire.cadence import Cadence, CadenceTier  # noqa: PLC0415
+
+    return Cadence(
+        tiers=tuple(
+            CadenceTier(
+                max_age_s=t.max_age_hours * 3600,
+                interval_s=t.interval_minutes * 60,
+            )
+            for t in cfg.tiers
+        ),
+        cutoff_s=cfg.cutoff_days * 24 * 3600,
+    )
+
+
+def effective_cadence(series_override: Cadence | None, global_default: Cadence) -> Cadence:
+    """Return the effective cadence: series override if present, else global default.
+
+    Precedence is whole-object (no field-by-field merge): the per-series
+    ``cadence_json`` encodes a complete :class:`Cadence`. An absent
+    (``None``) override means "use the global default verbatim".
+
+    Args:
+        series_override: Per-series cadence decoded from
+            ``FollowedSeries.cadence_json``, or ``None``.
+        global_default: Cadence built from ``config.acquire.cadence``.
+
+    Returns:
+        The effective :class:`Cadence` to use.
+    """
+    return series_override if series_override is not None else global_default
+
+
 def effective_quality(series: QualityProfile, item: SourceCriteria) -> QualityProfile:
     """Merge series-level profile with per-item criteria (item overrides series).
 
@@ -248,6 +332,10 @@ __all__ = [
     "QualityProfile",
     "Resolution",
     "SourceCriteria",
+    "cadence_from_config",
+    "cadence_from_json",
+    "cadence_to_json",
+    "effective_cadence",
     "effective_quality",
     "quality_profile_from_json",
     "quality_profile_to_json",
