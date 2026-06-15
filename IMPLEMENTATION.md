@@ -19,7 +19,7 @@
 | 3   | Negative-boundary tests + wiring  | phase-03-negative-boundary.md    | [x]    |
 | 4   | Docs + ACCEPTANCE + gate          | phase-04-docs-acceptance-gate.md | [x]    |
 | 5   | PR fixes cycle 1                  | phase-05-pr-fixes-cycle-1.md     | [x]    |
-| 6   | PR fixes cycle 2                  | phase-06-pr-fixes-cycle-2.md     | [ ]    |
+| 6   | PR fixes cycle 2                  | phase-06-pr-fixes-cycle-2.md     | [x]    |
 
 ## Review cycles
 
@@ -46,8 +46,8 @@
   - **F-J** chain fall-through tested only on the empty branch; the DESIGN §4 error-then-fallback branch (primary raises → secondary tried) covered only transitively (GAP-2 two-layer ambiguity).
 - Ignored/acceptable residual: F-2 empty-fall-through silence (DESIGN §6 governs only the exception arms; the mirror's `show_season_empty` is richer but not mandated — DESIGN-consistent residual, not a blocker).
 - Decision: **Case B**. Fix phase 6 created (6.1 — 2 tests, no code change).
-- Status: fix phase dispatched → awaiting /implement:phase.
+- Status: fix phase complete — `482ffbc7` (2 tests). F-I (caplog WARNING + exc_info regression test) + F-J (error-then-fallback chain branch). Both independently mutation-proven non-vacuous (debug-revert fails F-I). `make check` 6765 passed. Awaiting CI re-poll + cycle-3 re-review.
 
 ## Next action
 
-Run `/implement:phase` to execute Phase 6 (PR fixes cycle 2).
+All phases complete — run `/implement:feature-pr` (push cycle-2 fixes).
