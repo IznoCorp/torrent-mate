@@ -241,7 +241,11 @@ idempotence), and 3 (Transmission category preservation).
 """
 from __future__ import annotations
 
-from unittest.mock import MagicMock, call, patch
+from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
+
+if TYPE_CHECKING:
+    from personalscraper.api.torrent.qbittorrent import QBitClient
 
 
 # ---------------------------------------------------------------------------
@@ -312,11 +316,18 @@ def test_qbit_remove_tags_empty_is_noop():
 def test_qbit_tagger_protocol_compliance():
     """QBitClient satisfies the TorrentTagger protocol at runtime."""
     from personalscraper.api.torrent._contracts import TorrentTagger
-    from personalscraper.api.torrent.qbittorrent import QBitClient
 
     client = _make_qbit_client()
     assert isinstance(client, TorrentTagger)
 ```
+
+> **Plan-drift note (1.2):** under `from __future__ import annotations`, the
+> string annotation `-> "QBitClient"` with a function-local import trips ruff
+> `F821` (undefined name). Resolved by adding a `TYPE_CHECKING` import for
+> `QBitClient` at module top and dropping `, call, patch` from the
+> `unittest.mock` import (neither is used → would trip `F401`). The unused
+> function-local `QBitClient` import in `test_qbit_tagger_protocol_compliance`
+> was removed (the client is built via `_make_qbit_client`).
 
 - [ ] **Step 2: Run the qBit tagger tests (must PASS)**
 
