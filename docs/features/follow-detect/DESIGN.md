@@ -122,7 +122,8 @@ class CadenceTierConfig(BaseModel):
 class CadenceConfig(BaseModel):
     tiers: list[CadenceTierConfig] = Field(default_factory=_default_tiers)  # Hot/Warm/Cold
     cutoff_days: int = 30
-    # validator: tiers sorted by max_age_hours ascending, strictly increasing, all > 0; cutoff_days > last tier
+    # validator: tiers strictly increasing by max_age_hours, all > 0; cutoff_days*24 >= last tier max_age_hours
+    # (the last tier's max_age IS the cutoff boundary in the canonical policy: Cold 720h == cutoff 30d)
 
 class AcquireConfig(BaseModel):
     db_path: ...
