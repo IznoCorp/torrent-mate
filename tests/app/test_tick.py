@@ -4853,3 +4853,88 @@ def test_tick_succeeds_if_status_reporter_raises() -> None:
     result, _ = tick(deps, _config(), state)
     m.sessions.launch.assert_called_once()
     assert result.actions_executed == 1
+
+
+# ---------------------------------------------------------------------------
+# Wrong-stage relaunch guard (engine fix b): a DEAD-session state whose stage no longer matches the
+# card's current column is PURGED instead of relaunched onto the wrong stage (live helm #5).
+# ---------------------------------------------------------------------------
+
+
+def test_reaper_purges_stale_wrong_stage_state_instead_of_relaunching() -> None:
+    """A dead-session state whose stage ≠ the card's current column is PURGED, not relaunched.
+
+    helm #5: the card advanced Brainstorming→Spec but the old Brainstorming running-state lingered;
+    relaunching it re-delivered the BRAINSTORM prompt onto a Spec card. With the card's current column
+    known (≠ state.stage), the reaper purges the stale state + posts a signal — no relaunch, no park.
+    """
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = False  # DEAD session
+    stale = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,
+        stage="Brainstorming",
+        profile="docs",
+        retries=0,
+    )
+    m.store.list_running.return_value = (stale,)
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        reaped, relaunched, errors, _antiloop = _reap_stale_agents(
+            m.deps,
+            _config(),
+            executor,
+            10_000.0,
+            AntiLoopState(),
+            current_columns={"PVTI_7": "Spec"},  # the card has moved on to Spec
+        )
+
+    # No wrong-stage relaunch, no Block-park; the stale state is purged + a one-line signal posted.
+    m.sessions.launch.assert_not_called()
+    m.board_writer.move_card.assert_not_called()
+    m.store.purge_ticket.assert_called_once_with(7, keep_budgets=True)
+    assert m.board_writer.comment.called  # the re-fire signal
+    assert reaped == 0
+    assert relaunched == 0
+
+
+def test_reaper_relaunches_when_stage_matches_current_column() -> None:
+    """When the card's column still matches the agent's stage, the dead session relaunches normally.
+
+    The wrong-stage guard must NOT fire when stage == column (a genuine crash of the correct-stage
+    agent) — it relaunches as usual.
+    """
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = False  # DEAD session
+    m.sessions.launch.return_value = "newsess"
+    stale = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,
+        stage="InProgress",
+        profile="dev",
+        retries=0,
+    )
+    m.store.list_running.return_value = (stale,)
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        reaped, relaunched, _errors, _antiloop = _reap_stale_agents(
+            m.deps,
+            _config(),
+            executor,
+            10_000.0,
+            AntiLoopState(),
+            current_columns={"PVTI_7": "InProgress"},  # column still matches the stage
+        )
+
+    # Normal relaunch — not purged as wrong-stage.
+    m.sessions.launch.assert_called_once()
+    assert relaunched == 1
+    assert reaped == 0

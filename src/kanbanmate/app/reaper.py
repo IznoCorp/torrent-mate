@@ -269,6 +269,7 @@ def reap_stale_agents(
     antiloop: AntiLoopState,
     *,
     kill_switch: bool = False,
+    current_columns: dict[str, str] | None = None,
 ) -> tuple[int, int, int, AntiLoopState]:
     """Reap running agents whose tmux session has DIED; park live-but-silent agents WAITING (§8.3).
 
@@ -317,6 +318,11 @@ def reap_stale_agents(
             SUPPRESSED — no relaunch is dispatched. A stale agent falls straight through to the
             non-destructive BLOCK park (kill + purge + move Blocked), so PAUSE genuinely stops every
             launch while leaving the reap BOOKKEEPING (the visible Blocked signal) intact.
+        current_columns: The tick's live diff baseline (``item_id`` → current column key). Used to
+            guard against a WRONG-STAGE relaunch: a dead-session state whose ``stage`` no longer
+            matches the card's current column is PURGED (the card advanced past it) rather than
+            relaunched onto the wrong stage. ``None`` (or a missing item entry) → the column is
+            unknown, so the normal reap proceeds (no false purge).
 
     Returns:
         A ``(reaped, relaunched, errors, antiloop)`` quad: how many agents were parked in Blocked,
@@ -374,8 +380,48 @@ def reap_stale_agents(
             # or Ctrl-C / ``kanban cancel``.
             _enter_waiting(deps, state, now)
             continue
-        # The session is DEAD (``not alive``) — reap as usual (this also covers a ticket parked
-        # WAITING whose session later died: it falls straight through to the reap/relaunch path).
+        # The session is DEAD (``not alive``). BEFORE relaunching it, guard against a WRONG-STAGE
+        # relaunch: if the card has ALREADY ADVANCED past this agent's stage (its current board column
+        # no longer equals ``state.stage``), the running-state is STALE — relaunching it would re-run
+        # the OLD stage's prompt on a moved card (live helm #5: a Brainstorming state relaunched onto a
+        # Spec card, re-delivering the brainstorm prompt). PURGE the stale state instead of
+        # relaunching, and surface a one-line signal so the operator / `kanban-monitor` re-fires the
+        # CORRECT stage. ``current_columns`` is the tick's live diff baseline (item_id → column); when
+        # it is absent (first tick post-restart, empty baseline) or has no entry for this item, the
+        # stage is UNKNOWN and we fall through to the normal reap (no false purge on missing data).
+        if current_columns is not None:
+            current_col = current_columns.get(state.item_id)
+            if current_col is not None and state.stage and current_col != state.stage:
+                logger.warning(
+                    "reaper: #%s running-state stage=%r no longer matches card column=%r (card "
+                    "advanced past this stage) — PURGING the stale state instead of relaunching the "
+                    "wrong stage; re-fire the %r stage to resume",
+                    state.issue_number,
+                    state.stage,
+                    current_col,
+                    current_col,
+                )
+                try:
+                    deps.board_writer.comment(
+                        state.issue_number,
+                        f"KanbanMate: cleared a stale `{state.stage}` agent state — the card has "
+                        f"moved to `{current_col}`. Re-fire the `{current_col}` stage to resume "
+                        f"(`/kanban-monitor --remediate`).",
+                    )
+                except Exception:
+                    logger.exception(
+                        "reaper stale-stage signal comment failed for #%s; continuing",
+                        state.issue_number,
+                    )
+                try:
+                    deps.store.purge_ticket(state.issue_number, keep_budgets=True)
+                except Exception:
+                    logger.exception(
+                        "reaper stale-stage purge failed for #%s; continuing", state.issue_number
+                    )
+                continue
+        # Reap as usual (this also covers a ticket parked WAITING whose session later died: it falls
+        # straight through to the reap/relaunch path).
         # Minimal Ticket from persisted state (the reap actions only need issue + item id).
         ticket = Ticket(
             item_id=state.item_id,

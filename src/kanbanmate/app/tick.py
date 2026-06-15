@@ -840,7 +840,16 @@ def tick(
         # record each move it lands (defense-in-depth, DESIGN §6). It now also relaunches a stale
         # session ONCE before parking it in Blocked (15.2 / RETRY_LIMIT), reported separately.
         reaped, relaunched, reap_errors, antiloop = _reap_stale_agents(
-            deps, config, executor, now, antiloop, kill_switch=kill_switch
+            deps,
+            config,
+            executor,
+            now,
+            antiloop,
+            kill_switch=kill_switch,
+            # The live diff baseline (item_id → current column) lets the reaper detect a card that has
+            # advanced past its agent's stage and PURGE the stale state instead of relaunching the
+            # wrong stage (helm #5: a Brainstorming state relaunched onto a Spec card).
+            current_columns=next_columns,
         )
         errors += reap_errors
         # Dashboard event (phase-24 §24.3): a stale-agent reap or relaunch happened this tick. A
