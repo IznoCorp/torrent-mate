@@ -93,18 +93,39 @@ tmux has-session -t ticket-<issue> 2>/dev/null && echo ALIVE || echo DEAD
   `--remediate`, `kanban cancel <issue> --root <r>`). A WAITING agent with a dead session is also a
   zombie (same FAIL).
 
-## A2 — No stuck (unsubmitted) prompt
+## A2 — No stuck (unsubmitted) prompt — the launch never started
 
-For each LIVE agent session, look at the bottom of the pane:
+The prompt-delivery path can leave the launch prompt sitting UNSUBMITTED in the input box (claude
+v2.1.x absorbs the submit Enter; the in-engine submit-retry budget is too short for a LARGE
+multi-chunk prompt — e.g. the Spec/design prompt that embeds the ticket body). The agent then reads
+RUNNING but does nothing.
+
+**Robust detection — do NOT key on the literal `[Pasted text]` in the pane tail.** A long prompt
+pushes that marker out of the last lines (the real miss this check was hardened against). The reliable
+signal is the **heartbeat never refreshing since launch + no active turn**: a working agent refreshes
+its heartbeat within seconds (the PostToolUse hook fires on its first tool call).
 
 ```bash
-tmux capture-pane -p -t ticket-<issue> 2>/dev/null | tail -6
+# never_refreshed = the heartbeat still equals the launch time (the agent has done nothing).
+python3 -c "import json,time;d=json.load(open('<r>/state/<issue>.json'));print('hb_age=%d'%(time.time()-d['heartbeat']),'never_refreshed=%s'%(abs(d['heartbeat']-d.get('started',d['heartbeat']))<2))"
+tmux capture-pane -p -t ticket-<issue> 2>/dev/null | grep -qi 'esc to interrupt' && echo TURN_RUNNING || echo NO_TURN
 ```
 
-- **PASS** — the input box is empty / a turn is running (`esc to interrupt`) / a question is shown.
-- **FAIL** — the bottom shows the launch prompt sitting unsubmitted (a collapsed `[Pasted text …]` in
-  the `❯` input box). This is the prompt-delivery regression; the submit-retry fix should prevent it.
-  Under `--remediate`: `tmux send-keys -t ticket-<issue> Enter`.
+- **PASS** — a turn is running (`esc to interrupt`), OR the heartbeat has refreshed since launch
+  (`never_refreshed=False`), OR the input box is empty.
+- **FAIL** — session ALIVE **and** `never_refreshed=True` **and** `hb_age > 90` **and** NO active turn
+  → the launch prompt never submitted (corroborate with input-box content anywhere in the pane:
+  `[Pasted text]` / `paste again to expand` / `ctrl+g to edit` / the prompt text).
+  **Remediate** — send Enter until a turn starts (adequate budget for a large prompt; extra Enters on
+  an emptied box are harmless no-ops):
+  ```bash
+  for i in $(seq 1 6); do
+    tmux capture-pane -p -t ticket-<issue> 2>/dev/null | grep -qi 'esc to interrupt' && { echo SUBMITTED; break; }
+    tmux send-keys -t ticket-<issue> Enter; sleep 4
+  done
+  ```
+  Re-check A2 after; if still stuck past the budget, escalate to the A4 stage re-fire or flag the
+  operator.
 
 ## A3 — WAITING agents (WARN — info for the operator)
 
@@ -112,6 +133,36 @@ From `kanban state --root <r>`: any agent with `status=…WAITING`.
 
 - **WARN** (never FAIL) — list each: `#<issue> WAITING — attach: tmux attach -t ticket-<issue>`. The
   orchestrator is healthy; these need a human to answer the agent's prompt.
+
+## A4 — Stage/column coherence (no wrong-stage relaunch)
+
+The reaper can relaunch a STALE running-state whose `stage` no longer matches the card's column — e.g.
+the card advanced Brainstorming→Spec but the OLD Brainstorming running-state was relaunched, so a
+BRAINSTORM agent runs on a Spec card (it re-delivers the WRONG prompt and the correct-stage agent
+never ran). This is invisible to A1/A2 (the session is alive and may even submit) — it needs its own
+check.
+
+```bash
+python3 -c "import json;print('stage=',json.load(open('<r>/state/<issue>.json')).get('stage'))"   # persisted stage
+kanban state --root <r> 2>&1 | grep "#<issue> " | grep -oE 'column=\S+'                            # board column
+```
+
+- **PASS** — the running agent's `stage` equals the card's current column.
+- **FAIL** — they differ AND the card has advanced PAST the agent's stage (e.g. `stage=Brainstorming`
+  but `column=Spec`) → a stale wrong-stage relaunch; the correct-stage agent never ran.
+  **Remediate** — cancel + re-fire the CORRECT stage (the column the card is in). Re-firing needs a
+  real board transition INTO that column, and the daemon ROLLS BACK an un-whitelisted backward move,
+  so route it while the daemon is stopped:
+  1. `kanban cancel <issue> --root <r>` — clears the stale agent + state (kills only an already-dead
+     session; safe).
+  2. `pm2 stop <name>` — so the daemon can't roll back the next move.
+  3. API-move the card to the FROM-column of the target stage's transition (e.g. the Spec agent fires
+     on `Brainstorming→Spec`, so move to **Brainstorming**) via the GraphQL
+     `updateProjectV2ItemFieldValue` mutation (the option ids are in `<root>/projects.json`
+     `option_map`).
+  4. `pm2 start <name>`; wait ~12s for one tick (first-contact baseline → NOOP, no spurious launch).
+  5. API-move the card to the **target column** → the daemon fires the correct-stage agent.
+  6. Babysit A2 (the new launch is large → run the Enter-resubmit loop until a turn starts).
 
 ## P1 — Status-pill coherent
 

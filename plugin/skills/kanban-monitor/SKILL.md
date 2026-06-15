@@ -57,8 +57,15 @@ If the prompt contains `--remediate` (or the operator says "fix it / recover"), 
 - **Daemon down/stopped** → `pm2 resurrect` (or `pm2 restart <name>`), then re-check the heartbeat.
 - **Dead-session zombie** (state RUNNING but tmux session gone) → `kanban cancel <issue> --root <r>`
   (the teardown only kills an ALREADY-DEAD session; it never touches a live one).
-- **Stuck unsubmitted prompt** (a live pane with the prompt sitting in the input box) →
-  `tmux send-keys -t ticket-<issue> Enter` (one Enter; idempotent on an empty box).
+- **Stuck unsubmitted prompt** (A2 — alive + heartbeat never refreshed since launch + no active turn)
+  → send Enter in a bounded LOOP until a turn starts (a single Enter is NOT enough for a large prompt):
+  `for i in $(seq 1 6); do tmux capture-pane -p -t ticket-<issue> | grep -qi 'esc to interrupt' && break; tmux send-keys -t ticket-<issue> Enter; sleep 4; done`.
+  Extra Enters on an emptied box are harmless no-ops.
+- **Wrong-stage relaunch** (A4 — the running agent's `stage` ≠ the card's column; a stale stage was
+  relaunched after the card advanced) → cancel + re-fire the CORRECT stage: `kanban cancel`, stop the
+  daemon, API-move the card to the target transition's FROM-column, restart the daemon (let one tick
+  set the baseline), API-move to the TARGET column so the daemon fires the right-stage agent, then
+  babysit A2. Full steps in `references/checks.md` §A4.
 - **PM2 boot-persistence missing** → print the exact `sudo pm2 startup …` command for the operator to
   run (do NOT run sudo yourself).
 
@@ -82,20 +89,21 @@ Pair each PM2 app with its root (the `run --root <r>` arg in its PM2 args; the d
 Run each check; record PASS/WARN/FAIL. Exact commands + thresholds are in
 `references/checks.md` — read it before the sweep (it is authoritative for the criteria).
 
-| #      | Check                           | What it proves                                                                                                               |
-| ------ | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| **D1** | PM2 process online              | the daemon process exists and is not errored/stopped                                                                         |
-| **D2** | Heartbeat fresh                 | the daemon is actually ticking (age < 120s) — not hung/asleep                                                                |
-| **D3** | Tick healthy                    | `last_tick_ok=True`, `consecutive_failures=0` — ticks are succeeding                                                         |
-| **D4** | No restart storm                | `restart_time` stable across two samples; `unstable_restarts=0`                                                              |
-| **H1** | Engine/host (default root only) | `kanban doctor` exit 0 — engine importable, token scoped, board reachable, helper shims, tmux socket, non-root, orphan slots |
-| **B1** | Board reachable                 | `kanban state --root <r>` returns a board snapshot                                                                           |
-| **A1** | No zombie agent                 | every state-RUNNING agent has a LIVE tmux session                                                                            |
-| **A2** | No stuck prompt                 | no live agent pane shows an UNSUBMITTED prompt (`[Pasted text]` sitting in the input box) — the prompt-delivery regression   |
-| **A3** | WAITING agents (WARN, info)     | list agents parked WAITING — they need a human to attach + answer                                                            |
-| **P1** | Status-pill coherent            | persisted `last_status` is a valid domain health; no GraphQL invalid-enum / orphan-status-update error in the recent log     |
-| **R1** | Boot-persistence                | a PM2 launchd/systemd startup item exists (survives reboot/sleep) — WARN if absent                                           |
-| **R2** | No recurring errors             | the daemon error log since its last start has no Traceback / crash-loop / repeated DNS failure                               |
+| #      | Check                           | What it proves                                                                                                                                                 |
+| ------ | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **D1** | PM2 process online              | the daemon process exists and is not errored/stopped                                                                                                           |
+| **D2** | Heartbeat fresh                 | the daemon is actually ticking (age < 120s) — not hung/asleep                                                                                                  |
+| **D3** | Tick healthy                    | `last_tick_ok=True`, `consecutive_failures=0` — ticks are succeeding                                                                                           |
+| **D4** | No restart storm                | `restart_time` stable across two samples; `unstable_restarts=0`                                                                                                |
+| **H1** | Engine/host (default root only) | `kanban doctor` exit 0 — engine importable, token scoped, board reachable, helper shims, tmux socket, non-root, orphan slots                                   |
+| **B1** | Board reachable                 | `kanban state --root <r>` returns a board snapshot                                                                                                             |
+| **A1** | No zombie agent                 | every state-RUNNING agent has a LIVE tmux session                                                                                                              |
+| **A2** | No stuck prompt                 | the launch prompt actually submitted — heartbeat refreshed since launch / a turn is running (NOT just a `[Pasted text]` tail-grep, which a long prompt evades) |
+| **A3** | WAITING agents (WARN, info)     | list agents parked WAITING — they need a human to attach + answer                                                                                              |
+| **A4** | Stage/column coherence          | the running agent's `stage` matches the card's column — catches a stale WRONG-STAGE relaunch (e.g. a Brainstorm agent on a Spec card)                          |
+| **P1** | Status-pill coherent            | persisted `last_status` is a valid domain health; no GraphQL invalid-enum / orphan-status-update error in the recent log                                       |
+| **R1** | Boot-persistence                | a PM2 launchd/systemd startup item exists (survives reboot/sleep) — WARN if absent                                                                             |
+| **R2** | No recurring errors             | the daemon error log since its last start has no Traceback / crash-loop / repeated DNS failure                                                                 |
 
 ## Verdict
 
