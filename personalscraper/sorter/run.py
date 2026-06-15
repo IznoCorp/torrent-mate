@@ -16,6 +16,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
+from personalscraper.core.tags import SEED_PURE
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.pipeline_events import ItemProgressed
@@ -32,6 +33,7 @@ def run_sort(
     dry_run: bool = False,
     *,
     event_bus: EventBus,
+    torrent_client: object | None = None,
 ) -> StepReport:
     """Sort all items from the ingest directory into type subdirectories.
 
@@ -48,6 +50,13 @@ def run_sort(
         dry_run: If True, simulate moves without actually moving.
         event_bus: Required in-process EventBus. Each per-item lifecycle
             transition emits an ``ItemProgressed`` event on the bus.
+        torrent_client: Optional torrent client (any object exposing
+            ``get_completed()``). Consulted only when
+            ``config.sort.verify_seed_pure`` is True to build the set of
+            seed-pure-tagged completed-torrent names that the sort genuinely
+            excludes. ``None`` (or the flag off) leaves the guard inert — the
+            sort proceeds with an empty skip set. The query is fail-soft: any
+            client error logs a warning and keeps the skip set empty.
 
     Returns:
         StepReport with counts and per-item details.
@@ -62,8 +71,21 @@ def run_sort(
     cleaner = NameCleaner()
     sorter = Sorter(config=config, cleaner=cleaner, dry_run=dry_run)
 
+    # Seed-pure sort guard (opt-in): genuinely exclude completed torrents tagged
+    # seed-pure from the sort. Guarded by config.sort.verify_seed_pure and the
+    # presence of a torrent client; fail-soft so the guard never aborts the sort.
+    skip_names: frozenset[str] = frozenset()
+    if getattr(config, "sort", None) is not None and config.sort.verify_seed_pure and torrent_client is not None:
+        try:
+            completed = torrent_client.get_completed()  # type: ignore[attr-defined]
+            skip_names = frozenset(t.name for t in completed if SEED_PURE in getattr(t, "tags", []))
+            if skip_names:
+                log.info("sort.seed_pure_guard_active", skipping=sorted(skip_names))
+        except Exception as exc:  # noqa: BLE001 — guard must never abort the sort
+            log.warning("sort.seed_pure_guard_failed", error=str(exc))
+
     # Sort processes ingest_dir ({ingest_dir}/) → categorized dirs at staging root
-    results = sorter.process(ingest_dir, dest_root=staging_dir)
+    results = sorter.process(ingest_dir, dest_root=staging_dir, skip_names=skip_names)
 
     report = StepReport(name="sort")
     for r in results:

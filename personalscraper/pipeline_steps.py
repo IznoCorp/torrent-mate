@@ -56,12 +56,18 @@ class SortStep:
         """
         from personalscraper.sorter.run import run_sort
 
+        # Pass the torrent client only when the opt-in seed-pure sort guard is
+        # enabled; otherwise leave it None so run_sort never queries the client.
+        sort_cfg = getattr(ctx.app.config, "sort", None)
+        torrent_client = ctx.app.torrent_client if sort_cfg is not None and sort_cfg.verify_seed_pure else None
+
         return run_sort(
             ctx.app.settings,
             staging_dir=ctx.app.config.paths.staging_dir,
             dry_run=ctx.dry_run,
             config=ctx.app.config,
             event_bus=ctx.app.event_bus,
+            torrent_client=torrent_client,
         )
 
 
