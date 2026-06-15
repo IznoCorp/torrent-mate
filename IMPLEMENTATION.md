@@ -17,7 +17,7 @@
 | 1   | Tag vocab + tagger capability | phase-01-tag-vocab-tagger.md     | [x]    |
 | 2   | `seed` CLI group              | phase-02-seed-cli.md             | [x]    |
 | 3   | Ingest skip (always-on)       | phase-03-ingest-skip.md          | [x]    |
-| 4   | Opt-in sort/process guard     | phase-04-optional-guard.md       | [ ]    |
+| 4   | Opt-in sort-side guard        | phase-04-optional-guard.md       | [ ]    |
 | 5   | Docs + ACCEPTANCE + gate      | phase-05-docs-acceptance-gate.md | [ ]    |
 
 ## Review cycles

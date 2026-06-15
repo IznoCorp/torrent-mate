@@ -1,15 +1,15 @@
 # DESIGN — Seed Safety O1: `seed-pure` tag + pipeline skip (+ manual tagger)
 
-| Field                        | Value                                                                                                                                                                                                                            |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Codename (proposed)**      | `seed-pure`                                                                                                                                                                                                                      |
-| **Roadmap item**             | Seed Safety O1 (P2, vague 3) — "tag « seed-pur » + skip à travers ingest/sort/process ; définit le contrat de skip que le Watcher consommera"                                                                                    |
-| **Type**                     | minor                                                                                                                                                                                                                            |
-| **Version bump**             | 0.32.0 → 0.33.0                                                                                                                                                                                                                  |
-| **Date**                     | 2026-06-15                                                                                                                                                                                                                       |
-| **Depends on (all shipped)** | `TorrentItem.tags` + `TorrentAdder.add(tags=)` (RP1), the qBittorrent/Transmission clients, the ingest completed-torrent loop + its ratio-skip pattern, `AppContext.torrent_client`, the `follow` Typer-group CLI pattern        |
-| **Unblocks**                 | Watcher Service (consumes the skip contract), Follow D3 + Ratio (produce the tag on seed-only grabs via the same tagger capability)                                                                                              |
-| **Scope decisions**          | A (videur **and** colleur), B (skip at **ingest** always-on + opt-in guard at sort/process, default off), C (tag vocab in `core/tags.py`), D (manual operator tagger CLI — automated producer is D3/Ratio), E (no DB/NFO change) |
+| Field                        | Value                                                                                                                                                                                                                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Codename (proposed)**      | `seed-pure`                                                                                                                                                                                                                                                                          |
+| **Roadmap item**             | Seed Safety O1 (P2, vague 3) — "tag « seed-pur » + skip à travers ingest/sort/process ; définit le contrat de skip que le Watcher consommera"                                                                                                                                        |
+| **Type**                     | minor                                                                                                                                                                                                                                                                                |
+| **Version bump**             | 0.32.0 → 0.33.0                                                                                                                                                                                                                                                                      |
+| **Date**                     | 2026-06-15                                                                                                                                                                                                                                                                           |
+| **Depends on (all shipped)** | `TorrentItem.tags` + `TorrentAdder.add(tags=)` (RP1), the qBittorrent/Transmission clients, the ingest completed-torrent loop + its ratio-skip pattern, `AppContext.torrent_client`, the `follow` Typer-group CLI pattern                                                            |
+| **Unblocks**                 | Watcher Service (consumes the skip contract), Follow D3 + Ratio (produce the tag on seed-only grabs via the same tagger capability)                                                                                                                                                  |
+| **Scope decisions**          | A (videur **and** colleur), B (skip at **ingest** always-on + opt-in **sort-side** real-exclusion guard, default off; clean-side flag reserved/not-enforced), C (tag vocab in `core/tags.py`), D (manual operator tagger CLI — automated producer is D3/Ratio), E (no DB/NFO change) |
 
 > The system downloads torrents for two reasons: **to keep the content** (→ normal pipeline) or **just to
 > seed** for ratio on a private tracker (→ must NOT enter the media library). O1 introduces a **`seed-pure`
@@ -26,7 +26,7 @@ O1 owns exactly:
 
 1. **The tag vocabulary** — a centralized `seed-pure` constant (`core/tags.py`) every layer can import.
 2. **The tagger capability (colleur)** — set/clear a tag on an **existing** torrent (qBittorrent + Transmission), plus a `seed` CLI group (`mark` / `unmark` / `list`) for the operator.
-3. **The skip (videur)** — ingest skips any completed torrent tagged `seed-pure` (always on); an **opt-in** defensive guard at sort + process (config flag, default off).
+3. **The skip (videur)** — ingest skips any completed torrent tagged `seed-pure` (always on, the real guardrail); an **opt-in** real-exclusion guard at **sort** (config flag, default off). The clean-side flag is reserved/not-enforced (post-sort name-matching is unreliable).
 4. **The skip contract** — documented semantics so the future Watcher consumes the same rule.
 
 O1 does **NOT**:
@@ -124,26 +124,34 @@ if SEED_PURE in torrent.tags:
   itself raises nothing.
 - Reuses the existing `ItemProgressed(status="skipped")` event (no new event type) — symmetric with ratio-skip.
 
-### 4.2 Optional sort/process guard — opt-in, default off (Decision B)
+### 4.2 Optional **sort-side** guard — opt-in, default off (Decision B, re-scoped)
 
 **Signal-loss reality:** the `seed-pure` tag lives on the torrent in the client; once ingested, a staging item is a
 plain filesystem path with **no seed-purity marker** (the ingest tracker records only hash/name/action/dest_path —
-`ingest/tracker.py:40,131`). So a sort/process guard **cannot** read a staging marker — it must **re-query the
-torrent client** and match the staging item to a torrent. This is **measurable latency** (a daemon round-trip)
-and **only works in a full pipeline run** (standalone `sort`/`process` CLI build no torrent client —
-`pipeline_steps.py:43,59,84` pass none; `commands/pipeline.py:507` builds it only for the full run).
+`ingest/tracker.py:40,131`). So this guard **cannot** read a staging marker — it must **re-query the torrent
+client** and match the staging item to a torrent **by name**. This is **measurable latency** (a daemon round-trip)
+and **only works in a full pipeline run** (standalone `sort` CLI builds no torrent client — `commands/pipeline.py`
+builds it only for the full run).
 
-Therefore the guard is **opt-in, default off**:
+**Re-scope (during implementation):** a guard that _counts_ a seed-pure item as skipped but still passes it to the
+sorter is a **vacuous guard** — the item still lands in the library. A _real_ exclusion requires the sorter to
+honour a skip-set. We therefore implement the guard **only on the sort side, with a genuine exclusion**, and
+**drop the clean-side guard**: by clean time items are already sorted **and renamed**, so name-matching to torrent
+names is unreliable — the marginal value does not justify the complexity. The always-on **ingest skip (§4.1)
+remains the real guardrail**; this sort-side guard is the opt-in "ceinture + bretelles".
 
-- New config flags `config.sort.verify_seed_pure` and `config.process.verify_seed_pure` (default `False`,
-  backward-compatible).
-- When enabled **and** a torrent client is available, `run_sort`/`run_clean` accept an optional `torrent_client`
-  (threaded by the `SortStep`/`CleanStep` adapters from `ctx.app.torrent_client`); for each staging item, match it
-  to a completed torrent (by name; hash if recoverable) and, if that torrent carries `SEED_PURE`, skip the item
-  (log + count). When the flag is off (default) the signature extension is inert — **zero added cost on the
-  baseline pipeline**.
-- This is the "ceinture + bretelles" the operator can switch on; the **always-on ingest skip is the real
-  guardrail**.
+Mechanics (sort side, opt-in, default off):
+
+- New config flag `config.sort.verify_seed_pure` (default `False`, enforced). A companion
+  `config.process_clean.verify_seed_pure` flag is added for config symmetry but is **reserved / not yet enforced**
+  (documented as such) — the clean-side guard is intentionally not implemented.
+- `Sorter.process` gains a `skip_names: frozenset[str]` parameter: items whose name is in the set yield a
+  **`skipped` `SortResult`** (`message="seed_pure"`) instead of being sorted — a **genuine exclusion**, counted by
+  `run_sort`'s existing result-loop.
+- `run_sort` gains an optional `torrent_client`; when `config.sort.verify_seed_pure` is True **and** a client is
+  available, it builds the seed-pure name set from `torrent_client.get_completed()` and passes it as `skip_names`.
+  When the flag is off (default), no client query and `skip_names` is empty — **zero added cost on the baseline
+  pipeline**. The `SortStep` adapter threads `ctx.app.torrent_client` only when the flag is on.
 
 ---
 
@@ -185,8 +193,11 @@ the Watcher consumes it.
    non-tagged torrent is **not** skipped by this check.
 6. **Skip ordering** — the seed-pure skip sits after ratio, before content resolution (a torrent that is both
    below-ratio and seed-pure is counted once, no double-processing).
-7. **Sort/process guard off by default** — with the flags unset, `run_sort`/`run_clean` behave exactly as before
-   (no torrent-client query); with the flag set + a stub client, a matched seed-pure item is skipped.
+7. **Sort-side guard off by default + real exclusion** — with `config.sort.verify_seed_pure` unset, `run_sort`
+   behaves exactly as before (no torrent-client query, `Sorter.process` `skip_names` empty); with the flag set + a
+   client carrying a seed-pure torrent matching a staging item, the item is **genuinely excluded** — `Sorter.process`
+   receives the name in `skip_names` and yields a `skipped` result (the item is NOT sorted), counted in `skip_count`.
+   (Clean-side `process_clean.verify_seed_pure` flag exists but is reserved/not-enforced.)
 8. **Layering guard** — `core/tags.py` imports nothing project-internal; `ingest`/`sorter`/`process` import
    `SEED_PURE` from `core` (not a local literal).
 9. **`make check`** green; `python -c "import personalscraper"` smoke.
@@ -197,8 +208,10 @@ the Watcher consumes it.
 
 - **A** — Ship both the **videur** (skip) and the **colleur** (tagger capability + manual CLI). The automated
   producer (decide seed-only) is deferred to D3/Ratio.
-- **B** — Skip at **ingest, always on** (primary); sort/process guard **opt-in, default off** (signal-loss makes a
-  re-query the only option — cost stays off the baseline).
+- **B** — Skip at **ingest, always on** (primary guardrail); opt-in **sort-side** guard with a **genuine exclusion**
+  (`Sorter.process` `skip_names` → `skipped` result, not a vacuous count), default off (re-query cost stays off the
+  baseline). The clean-side guard is **dropped** (post-sort name-matching unreliable); a `process_clean.verify_seed_pure`
+  flag is added for symmetry but reserved/not-enforced.
 - **C** — Tag vocabulary in `core/tags.py` (bottom layer, no layering violation).
 - **D** — Manual operator tagger (`seed mark/unmark/list`) + the reusable client capability; D3/Ratio call the
   same capability later.
@@ -217,7 +230,10 @@ the Watcher consumes it.
    tests (criterion 4).
 3. **Ingest skip** — the always-on `SEED_PURE` skip in `ingest/ingest.py` mirroring the ratio-skip pattern +
    tests (criteria 5-6).
-4. **Opt-in sort/process guard** — `verify_seed_pure` config flags (default off), optional `torrent_client`
-   threading via the Sort/Clean adapters, the matched-item skip + tests (criterion 7).
+4. **Opt-in sort-side guard (real exclusion)** — `SortConfig.verify_seed_pure` (enforced) +
+   `ProcessCleanConfig.verify_seed_pure` (reserved/not-enforced) config flags (default off); `Sorter.process` gains a
+   `skip_names` param (genuine exclusion → `skipped` result); `run_sort` builds the seed-pure name set + threads it;
+   `SortStep` wires `ctx.app.torrent_client` only when the flag is on + non-vacuous tests (criterion 7). Clean-side
+   guard dropped.
 5. **Docs + ACCEPTANCE + gate** — `architecture.md` (`core/tags.py` + the `seed-pure` skip-contract note for the
    Watcher), `ACCEPTANCE.md` (criteria 1-9 executable), `make check` + design-gaps local run.
