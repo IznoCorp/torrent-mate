@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date
 from unittest.mock import MagicMock
+
+import pytest
 
 # ---------------------------------------------------------------------------
 # _parse_date
@@ -651,3 +654,152 @@ def test_poll_aired_aggregates_multiple_seasons_with_requested_season() -> None:
         "Every AiredEpisode.season must be >= 1 (Decision C: no special-season contamination)"
     )
     assert all(e.media_ref == MediaRef(tvdb_id=TVDB_ID) for e in aired)
+
+
+# ---------------------------------------------------------------------------
+# F-I — observability regression test (pins F-C warning+exc_info fix)
+# ---------------------------------------------------------------------------
+
+
+def test_poll_aired_logs_warning_when_season_fails(caplog: pytest.LogCaptureFixture) -> None:
+    """LOAD-BEARING (F-C pin): _fetch_season_with_fallback must emit WARNING on provider error.
+
+    Two arms are exercised in sequence within one test:
+    1. ApiError arm — asserts WARNING level + event name in caplog.text.
+    2. RuntimeError arm (bare Exception) — asserts exc_info is captured on the
+       WARNING record (pins the ``exc_info=True`` half of F-C).
+
+    A revert of ``log.warning`` → ``log.debug`` in _fetch_season_with_fallback
+    MUST make this test fail (non-vacuity proven empirically — see sub-phase
+    6.1 non-vacuity report).
+    """
+    from personalscraper.acquire.airing import poll_aired
+    from personalscraper.api._contracts import ApiError
+    from personalscraper.api.metadata._contracts import EpisodeFetcher, TvDetailsProvider
+
+    TODAY = date(2024, 6, 15)
+    TVDB_ID = 81189
+
+    # --- Arm 1: ApiError raises → WARNING with event name ---
+    ep_fetcher_api = MagicMock()
+    ep_fetcher_api.get_episodes.side_effect = ApiError(provider="tvdb", http_status=500, message="boom")
+
+    tv_provider = MagicMock()
+    details = MagicMock()
+    details.seasons = [_make_season(1)]
+    tv_provider.get_tv.return_value = details
+
+    def _chain_api(cap):
+        if cap is TvDetailsProvider:
+            return [tv_provider]
+        if cap is EpisodeFetcher:
+            return [ep_fetcher_api]
+        return []
+
+    registry_api = MagicMock()
+    registry_api.chain.side_effect = _chain_api
+
+    with caplog.at_level(logging.WARNING):
+        aired = poll_aired([_make_series(TVDB_ID)], registry_api, today=TODAY)
+
+    assert aired == [], "Chain exhausted on ApiError — no episodes must be returned"
+    assert "acquire.airing.season_provider_error" in caplog.text, (
+        "WARNING with event 'acquire.airing.season_provider_error' must appear in caplog "
+        "(a revert to log.debug would make this assertion fail)"
+    )
+    assert any(r.levelno == logging.WARNING for r in caplog.records), (
+        "At least one record must be at WARNING level — future revert to log.debug must fail this"
+    )
+
+    # --- Arm 2: bare RuntimeError arm — exc_info must be captured on WARNING ---
+    caplog.clear()
+
+    ep_fetcher_rt = MagicMock()
+    ep_fetcher_rt.get_episodes.side_effect = RuntimeError("kaboom")
+
+    def _chain_rt(cap):
+        if cap is TvDetailsProvider:
+            return [tv_provider]
+        if cap is EpisodeFetcher:
+            return [ep_fetcher_rt]
+        return []
+
+    registry_rt = MagicMock()
+    registry_rt.chain.side_effect = _chain_rt
+
+    with caplog.at_level(logging.WARNING):
+        aired2 = poll_aired([_make_series(TVDB_ID)], registry_rt, today=TODAY)
+
+    assert aired2 == [], "RuntimeError chain exhausted — no episodes"
+    # The structlog→stdlib bridge renders exc_info=True as the key-value pair
+    # ``'exc_info': True`` inside the structured message string rather than
+    # setting LogRecord.exc_info (which stays None through this bridge).
+    # Both assertions below pin the ``exc_info=True`` half of the F-C fix:
+    # a revert to exc_info-less log.warning would remove that key from the text.
+    assert "acquire.airing.season_provider_error" in caplog.text
+    assert "'exc_info': True" in caplog.text, (
+        "structlog bridge must render exc_info=True in the log record message "
+        "(pins the exc_info=True kwarg added by the F-C fix in _fetch_season_with_fallback)"
+    )
+    warning_records = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert warning_records, "RuntimeError arm must also emit a WARNING record"
+
+
+# ---------------------------------------------------------------------------
+# F-J — error-then-fallback chain test (DESIGN §4 error branch, distinct from
+#        empty-fall-through test F-E)
+# ---------------------------------------------------------------------------
+
+
+def test_poll_aired_chain_fallthrough_on_primary_error() -> None:
+    """LOAD-BEARING (DESIGN §4): when primary EpisodeFetcher RAISES (not returns empty).
+
+    Secondary must still be tried and its episode surfaced.
+
+    This is distinct from F-E (test_poll_aired_chain_fallthrough_on_empty): here
+    the primary raises ApiError, proving the inner ``except`` in
+    ``_fetch_season_with_fallback`` continues to the next fetcher on a raised error.
+
+    Non-vacuity: a mutant where the inner ``except`` does not ``continue`` (e.g.
+    returns [] immediately on error) would see secondary.get_episodes never called
+    and aired == [], failing both assertions below.
+    """
+    from datetime import date
+
+    from personalscraper.acquire.airing import poll_aired
+    from personalscraper.api._contracts import ApiError
+    from personalscraper.api.metadata._contracts import EpisodeFetcher, TvDetailsProvider
+
+    TODAY = date(2024, 6, 15)
+    TVDB_ID = 81189
+
+    ep = _make_episode(1, 1, "2023-01-01", "Fallback on Error Ep")
+
+    primary = MagicMock()
+    primary.get_episodes.side_effect = ApiError(provider="tvdb", http_status=500, message="x")
+
+    secondary = MagicMock()
+    secondary.get_episodes.return_value = [ep]
+
+    tv_provider = MagicMock()
+    details = MagicMock()
+    details.seasons = [_make_season(1)]
+    tv_provider.get_tv.return_value = details
+
+    def _chain(cap):
+        if cap is TvDetailsProvider:
+            return [tv_provider]
+        if cap is EpisodeFetcher:
+            return [primary, secondary]
+        return []
+
+    registry = MagicMock()
+    registry.chain.side_effect = _chain
+
+    aired = poll_aired([_make_series(TVDB_ID)], registry, today=TODAY)
+
+    assert len(aired) == 1, f"Secondary episode must be surfaced after primary raises ApiError; got {len(aired)}"
+    assert aired[0].episode == 1, f"Surfaced episode must be ep 1 from secondary; got {aired[0].episode}"
+    assert secondary.get_episodes.call_count >= 1, (
+        "Secondary fetcher must have been called — proves inner except continues to next fetcher"
+    )
