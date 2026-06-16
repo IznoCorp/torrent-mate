@@ -7,8 +7,6 @@ AC-4: "The Hack sur ecoute" still matches "The Hack" (local-longer direction —
 AC-5: "FROM" → "FROM" at 1.0 is unaffected.
 """
 
-
-
 from pathlib import Path
 
 from personalscraper.api.metadata._base import SearchResult
@@ -49,9 +47,7 @@ class TestAC1OrvelleSuppression:
         """_score_result('S03', None, Glina result) < LOW_CONFIDENCE (no leading space)."""
         result = _sr("Glina. Nowy rozdział", 2025)
         score = _score_result("S03", None, result)
-        assert score < LOW_CONFIDENCE, (
-            f"Guard failed: score={score:.3f} for 'S03' vs 'Glina. Nowy rozdział'"
-        )
+        assert score < LOW_CONFIDENCE, f"Guard failed: score={score:.3f} for 'S03' vs 'Glina. Nowy rozdział'"
 
 
 # ---------------------------------------------------------------------------
@@ -88,8 +84,7 @@ class TestAC4DirectionalPreservation:
         # but guard must not reject it entirely — score must be > LOW_CONFIDENCE
         # to prove the guard did not fire on the local-longer direction.
         assert score > LOW_CONFIDENCE, (
-            f"Guard incorrectly fired on local-longer match: score={score:.3f} "
-            "for 'The Hack sur ecoute' → 'The Hack'"
+            f"Guard incorrectly fired on local-longer match: score={score:.3f} for 'The Hack sur ecoute' → 'The Hack'"
         )
 
     def test_top_chef_france_matches_top_chef(self) -> None:
@@ -97,8 +92,7 @@ class TestAC4DirectionalPreservation:
         result = _sr("Top Chef", None)
         score = _score_result("Top Chef France", None, result)
         assert score > LOW_CONFIDENCE, (
-            f"Guard incorrectly fired on local-longer match: score={score:.3f} "
-            "for 'Top Chef France' → 'Top Chef'"
+            f"Guard incorrectly fired on local-longer match: score={score:.3f} for 'Top Chef France' → 'Top Chef'"
         )
 
 
@@ -114,9 +108,7 @@ class TestAC5ExactShortTitlesUnaffected:
         """_score_result('FROM', None, 'FROM') must be >= HIGH_CONFIDENCE."""
         result = _sr("FROM", None)
         score = _score_result("FROM", None, result)
-        assert score >= HIGH_CONFIDENCE, (
-            f"Legit short exact match broken: score={score:.3f} for 'FROM' → 'FROM'"
-        )
+        assert score >= HIGH_CONFIDENCE, f"Legit short exact match broken: score={score:.3f} for 'FROM' → 'FROM'"
 
 
 # ---------------------------------------------------------------------------
@@ -168,6 +160,4 @@ class TestAC2OrvilleRecovery:
         (show_dir / "subtitles.srt").touch()  # not a video file
 
         recovered = _recover_title_from_episodes(show_dir)
-        assert recovered is None, (
-            f"Expected None when no video files present, got {recovered!r}"
-        )
+        assert recovered is None, f"Expected None when no video files present, got {recovered!r}"

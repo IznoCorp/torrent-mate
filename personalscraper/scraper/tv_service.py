@@ -74,9 +74,7 @@ def _recover_title_from_episodes(show_dir: Path) -> str | None:
         the recovery produces an empty / token-only string.
     """
     video_files = sorted(
-        f
-        for f in show_dir.iterdir()
-        if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+        f for f in show_dir.iterdir() if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
     )
     if not video_files:
         return None
