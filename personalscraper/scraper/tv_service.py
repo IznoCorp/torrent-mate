@@ -54,7 +54,9 @@ log = get_logger("scraper")
 
 # Season/episode token pattern used to strip the SxxEyy suffix from a
 # guessit-extracted episode title so only the show name remains.
-_SEASON_TOKEN_RE = re.compile(r"\s*-?\s*S\d+(?:E\d+)*.*$", re.IGNORECASE)
+# Requires the episode marker (E\d+) so a title-internal S-digit
+# (e.g. "S4C Documentary") is not mistakenly treated as a season token.
+_SEASON_TOKEN_RE = re.compile(r"\s*-?\s*S\d+E\d+.*$", re.IGNORECASE)
 
 
 def _recover_title_from_episodes(show_dir: Path) -> str | None:
@@ -74,18 +76,27 @@ def _recover_title_from_episodes(show_dir: Path) -> str | None:
         the recovery produces an empty / token-only string.
     """
     video_files = sorted(
-        f for f in show_dir.iterdir() if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+        f
+        for f in show_dir.rglob("*")
+        if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS and not is_sample_path(f)
     )
     if not video_files:
         return None
 
     first = video_files[0]
     try:
+        from guessit.api import GuessitException  # noqa: PLC0415
+
         from personalscraper.sorter.cleaner import NameCleaner  # noqa: PLC0415
 
         cleaner = NameCleaner()
         raw_title = cleaner.clean(first.stem)
-    except Exception:  # pragma: no cover — guard against unexpected guessit failures
+    except (
+        ValueError,
+        AttributeError,
+        TypeError,
+        GuessitException,
+    ):  # pragma: no cover — guard against unexpected guessit failures
         return None
 
     if not raw_title:

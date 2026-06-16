@@ -161,3 +161,90 @@ class TestAC2OrvilleRecovery:
 
         recovered = _recover_title_from_episodes(show_dir)
         assert recovered is None, f"Expected None when no video files present, got {recovered!r}"
+
+
+# ---------------------------------------------------------------------------
+# AC-2 (real layout) — recursive episode scan in Saison NN/ subdirs
+# ---------------------------------------------------------------------------
+
+
+class TestAC2RealLayoutRecovery:
+    """AC-2 (real layout): _recover_title_from_episodes must work with Saison-subdir layout.
+
+    The REAL Orville staging folder is ' S03/Saison 3/The Orville - S3E01.mkv'.
+    The flat-layout test above passed but the real layout failed because
+    show_dir.iterdir() is non-recursive and misses the nested 'Saison 3/' subdir.
+    After the fix (rglob), this test must pass.
+    """
+
+    def test_recover_title_from_nested_saison_subdir(self, tmp_path: Path) -> None:
+        """_recover_title_from_episodes returns 'The Orville' from Saison-subdir layout.
+
+        Build: tmp/' S03'/'Saison 3'/'The Orville - S3E01.mkv' (+ E02).
+        Current iterdir() scan FAILS (returns None).
+        After rglob fix it must return 'The Orville'.
+        """
+        from personalscraper.scraper.tv_service import _recover_title_from_episodes
+
+        show_dir = tmp_path / " S03"
+        show_dir.mkdir()
+        season_subdir = show_dir / "Saison 3"
+        season_subdir.mkdir()
+        (season_subdir / "The Orville - S3E01 - Premiere.mkv").touch()
+        (season_subdir / "The Orville - S3E02 - Episode Two.mkv").touch()
+
+        recovered = _recover_title_from_episodes(show_dir)
+        assert recovered == "The Orville", (
+            f"Expected 'The Orville', got {recovered!r}. "
+            "iterdir() is non-recursive and misses Saison 3/; rglob() fix is required."
+        )
+
+    def test_recover_title_from_nested_subdir_s4c_no_overstrip(self, tmp_path: Path) -> None:
+        r"""Recovery keeps 'S4C Documentary' (NOT '') when cleaned title embeds an S-number.
+
+        Filename 'S4C Documentary - S01E01.mkv' -> NameCleaner.clean() = 'S4C Documentary S01E01'.
+        The old _SEASON_TOKEN_RE (r'\\s*-?\\s*S\\d+(?:E\\d+)*.*$') strips from the FIRST
+        S-digit ('S4C') -> result ''. New regex anchors on S\\d+E\\d+ so the title-internal
+        'S4' is safe.
+        """
+        from personalscraper.scraper.tv_service import _recover_title_from_episodes
+
+        show_dir = tmp_path / "S01"
+        show_dir.mkdir()
+        season_subdir = show_dir / "Saison 1"
+        season_subdir.mkdir()
+        (season_subdir / "S4C Documentary - S01E01.mkv").touch()
+
+        recovered = _recover_title_from_episodes(show_dir)
+        assert recovered == "S4C Documentary", (
+            f"Over-strip regression: expected 'S4C Documentary', got {recovered!r}. "
+            "The regex must anchor on S\\d+E\\d+, not bare S\\d+."
+        )
+
+
+# ---------------------------------------------------------------------------
+# AC-6 — empty/whitespace title is degenerate
+# ---------------------------------------------------------------------------
+
+
+class TestAC6EmptyTitleDegenerate:
+    """AC-6: is_degenerate_title must return True for empty/whitespace-only input."""
+
+    def test_empty_string_is_degenerate(self) -> None:
+        """is_degenerate_title('') must return True (DESIGN: 'empty OR season token')."""
+        from personalscraper.scraper.classifier import is_degenerate_title
+
+        assert is_degenerate_title("") is True, "Empty string must be degenerate"
+
+    def test_whitespace_only_is_degenerate(self) -> None:
+        """is_degenerate_title('   ') must return True."""
+        from personalscraper.scraper.classifier import is_degenerate_title
+
+        assert is_degenerate_title("   ") is True, "Whitespace-only title must be degenerate"
+
+    def test_legit_title_is_not_degenerate(self) -> None:
+        """Legit show titles must remain non-degenerate (guard: no regression)."""
+        from personalscraper.scraper.classifier import is_degenerate_title
+
+        for title in ("The Orville", "S.W.A.T.", "Sense8", "S4C Documentary", "S Club 7"):
+            assert is_degenerate_title(title) is False, f"Legit title incorrectly flagged degenerate: {title!r}"

@@ -83,12 +83,14 @@ _DEGENERATE_TITLE_RE = re.compile(r"^\s*S\d+(E\d+)?\s*$", re.IGNORECASE)
 
 
 def is_degenerate_title(title: str) -> bool:
-    r"""Return True when ``title`` is a bare season/episode token with no show name.
+    r"""Return True when ``title`` is empty, whitespace-only, or a bare season/episode token.
 
-    A degenerate title is one that matches ``^\s*S\d+(E\d+)?\s*$`` — for
-    example `` S03``, ``S3``, ``S01E01``.  Such titles arise when the sort
-    step could not parse the torrent name (e.g. a torrent named ``Saison 3``
-    with no show title), leaving only the season token in the folder name.
+    A degenerate title is one that is either empty/whitespace, or matches
+    ``^\s*S\d+(E\d+)?\s*$`` — for example `` S03``, ``S3``, ``S01E01``.
+    Such titles arise when the sort step could not parse the torrent name
+    (e.g. a torrent named ``Saison 3`` with no show title), leaving only
+    the season token in the folder name.  An empty title arises when
+    ``_parse_folder_name`` returns a blank string from a degenerate input.
 
     Legit titles that start with ``S`` followed by digits but are NOT season
     tokens — ``S.W.A.T.``, ``Sense8``, ``S Club 7``, ``S-Town``, ``S4C`` —
@@ -98,8 +100,11 @@ def is_degenerate_title(title: str) -> bool:
         title: Show title as parsed from the staging folder name.
 
     Returns:
-        True if the title is a degenerate season/episode token.
+        True if the title is empty/whitespace or a degenerate season/episode token.
     """
+    # Empty or whitespace-only titles are always degenerate (DESIGN: "empty OR season token").
+    if not title.strip():
+        return True
     return bool(_DEGENERATE_TITLE_RE.match(title))
 
 
