@@ -28,6 +28,7 @@ from personalscraper.acquire.events import (
     SeedObligationSatisfied,
     SeriesFollowed,
     SeriesUnfollowed,
+    TrackerAuthFailed,
     WantedAbandoned,
     WantedEnqueued,
 )
@@ -49,6 +50,7 @@ _ALL_ACQUIRE_EVENT_CLASSES = [
     SeedObligationBreached,
     SeedObligationSatisfied,
     RatioMeasured,
+    TrackerAuthFailed,
 ]
 
 
