@@ -121,14 +121,15 @@ def test_event_registry_has_all_v1_events() -> None:
     ``SeriesUnfollowed``, ``WantedEnqueued``, ``WantedAbandoned``,
     ``GrabSucceeded``, ``GrabFailed``, ``SeedObligationRecorded``,
     ``SeedObligationBreached``, ``SeedObligationSatisfied``,
-    ``RatioMeasured`` (→ 33). The literal count guards against silent
+    ``RatioMeasured`` (→ 33). The ``tracker-auth`` Phase 1 adds
+    ``TrackerAuthFailed`` (→ 34). The literal count guards against silent
     additions that bypass the documented event catalog in
     ``docs/reference/event-bus.md``.
     """
     import personalscraper.events  # noqa: F401 — eager-import side effect
 
-    assert len(_EVENT_CLASS_REGISTRY) == 33, (
-        f"Expected 33 events (23 existing + 10 acquire-events), "
+    assert len(_EVENT_CLASS_REGISTRY) == 34, (
+        f"Expected 34 events (23 existing + 11 acquire-events), "
         f"found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
     )
 

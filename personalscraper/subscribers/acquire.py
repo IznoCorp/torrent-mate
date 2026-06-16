@@ -1,6 +1,6 @@
 """Muted Telegram subscriber for acquisition events (RP4).
 
-Subscribes to all 10 acquisition events from :mod:`personalscraper.acquire.events`.
+Subscribes to all 11 acquisition events from :mod:`personalscraper.acquire.events`.
 Each handler formats a human-readable message and emits a structlog line.
 Network send is dispatched on a fire-and-forget daemon thread only when
 ``enabled=True`` (default ``False`` — muted until wave-4/5 producers are active).
@@ -25,6 +25,7 @@ from personalscraper.acquire.events import (
     SeedObligationSatisfied,
     SeriesFollowed,
     SeriesUnfollowed,
+    TrackerAuthFailed,
     WantedAbandoned,
     WantedEnqueued,
 )
@@ -40,7 +41,7 @@ log = get_logger(__name__)
 class AcquisitionTelegramSubscriber:
     """Formats and (optionally) sends Telegram alerts for acquisition events.
 
-    Subscribes to all 10 acquisition event types defined in
+    Subscribes to all 11 acquisition event types defined in
     :mod:`personalscraper.acquire.events`. Each handler formats a short message
     and emits a structlog line at ``INFO`` level with the static key
     ``acquire.notify.event`` and an ``acquire_event`` discriminator field.
@@ -87,12 +88,13 @@ class AcquisitionTelegramSubscriber:
             bus.subscribe(SeedObligationBreached, self._on_seed_obligation_breached),
             bus.subscribe(SeedObligationSatisfied, self._on_seed_obligation_satisfied),
             bus.subscribe(RatioMeasured, self._on_ratio_measured),
+            bus.subscribe(TrackerAuthFailed, self._on_tracker_auth_failed),
         ]
 
     def close(self) -> None:
         """Unsubscribe every stored token. Idempotent.
 
-        Releases all 10 subscriptions registered in ``__init__``.
+        Releases all 11 subscriptions registered in ``__init__``.
         """
         for token in self._tokens:
             self._bus.unsubscribe(token)
@@ -207,3 +209,12 @@ class AcquisitionTelegramSubscriber:
         """Handle RatioMeasured — format + dispatch."""
         msg = f"📊 Ratio: tracker={event.tracker} observed={event.observed_ratio:.2f} target={event.target_ratio:.2f}"
         self._dispatch(msg, "ratio_measured")
+
+    def _on_tracker_auth_failed(self, event: TrackerAuthFailed) -> None:
+        """Format a tracker auth-failure notification.
+
+        Args:
+            event: The emitted :class:`TrackerAuthFailed`.
+        """
+        msg = f"🔐 Tracker auth failed on {event.tracker} (HTTP {event.http_status}) — credential needs fixing"
+        self._dispatch(msg, "tracker_auth_failed")

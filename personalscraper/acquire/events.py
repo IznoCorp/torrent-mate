@@ -193,6 +193,28 @@ class RatioMeasured(Event):
     target_ratio: float
 
 
+@dataclass(frozen=True, kw_only=True)
+class TrackerAuthFailed(Event):
+    """A tracker rejected the grab with an auth error (HTTP 401/403).
+
+    Emitted by the acquisition orchestrator's ``except TrackerAuthError``
+    branch when a ``.torrent`` download fails because the tracker credential
+    (apikey/passkey/token) is broken. The item is abandoned (a broken
+    credential will not self-heal by retrying the same item); this event is
+    the operator-routable signal that the credential needs fixing.
+
+    Attributes:
+        tracker: Provider wire name the grab targeted (``top.provider``,
+            lowercase).
+        http_status: The rejecting HTTP status (401 or 403).
+        media_ref: The desired item that could not be grabbed.
+    """
+
+    tracker: str
+    http_status: int
+    media_ref: MediaRef
+
+
 __all__ = [
     "GrabFailed",
     "GrabSucceeded",
@@ -202,6 +224,7 @@ __all__ = [
     "SeedObligationSatisfied",
     "SeriesFollowed",
     "SeriesUnfollowed",
+    "TrackerAuthFailed",
     "WantedAbandoned",
     "WantedEnqueued",
 ]

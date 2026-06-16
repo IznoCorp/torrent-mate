@@ -8,7 +8,7 @@ Tests verify:
 4. Fail-soft guards: _send handles False return / None notifier (synchronous),
    and _spawn worker-crashed WARNING (daemon thread, poll-based).
 5. Regression: WantedEnqueued season=0 formats S00E05, not '?'.
-6. close() unsubscribes all 10 subscriptions — emit post-close is a no-op.
+6. close() unsubscribes all 11 subscriptions — emit post-close is a no-op.
 """
 
 from __future__ import annotations
@@ -241,10 +241,10 @@ def test_wanted_enqueued_movie_no_season_placeholder() -> None:
 
 
 def test_close_unsubscribes_all() -> None:
-    """close() unregisters all 10 subscriptions."""
+    """close() unregisters all 11 subscriptions."""
     bus = EventBus()
     sub = AcquisitionTelegramSubscriber(bus, enabled=False)
-    assert len(sub._tokens) == 10
+    assert len(sub._tokens) == 11
     sub.close()
     assert len(sub._tokens) == 0
     # Emit after close — notifier.send must not be called (no subscriptions)
