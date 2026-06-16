@@ -14,7 +14,7 @@
 
 | #   | Phase                                      | File                                   | Status |
 | --- | ------------------------------------------ | -------------------------------------- | ------ |
-| 1   | TrackerAuthFailed event + catalog plumbing | phase-01-event-catalog-plumbing.md     | [ ]    |
+| 1   | TrackerAuthFailed event + catalog plumbing | phase-01-event-catalog-plumbing.md     | [x]    |
 | 2   | Grab emit + Transmission add() fix         | phase-02-grab-emit-transmission-fix.md | [ ]    |
 
 ## Review cycles
@@ -23,4 +23,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1.
+Phase 1 complete. Run `/implement:phase` to continue with Phase 2 (Grab emit + Transmission add() fix).
