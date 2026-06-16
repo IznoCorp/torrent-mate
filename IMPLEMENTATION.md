@@ -18,7 +18,7 @@
 | 2   | Episode-filename fallback for degenerate show titles (Unit 2) | phase-02-episode-filename-fallback.md | [x]    |
 | 3   | Phase gate — make check + AC-1..AC-7 re-exercise              | phase-03-gate.md                      | [x]    |
 | 4   | PR #203 review fixes (cycle 1)                                | phase-04-pr-fixes-cycle-1.md          | [x]    |
-| 5   | PR #203 review fixes (cycle 2)                                | phase-05-pr-fixes-cycle-2.md          | [ ]    |
+| 5   | PR #203 review fixes (cycle 2)                                | phase-05-pr-fixes-cycle-2.md          | [x]    |
 
 ## Review cycles
 
@@ -45,4 +45,4 @@ Lesson: cycle-1's two changes each traded one bug for another; cycle-2 fixes bot
 
 ## Next action
 
-Run `/implement:phase` to execute Phase 5 (PR review fixes, cycle 2).
+Cycle-2 fixes done + pushed. Re-running CI + cycle-3 re-review (regression-in-fix), then manual merge handoff.
