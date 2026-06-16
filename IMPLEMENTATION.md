@@ -51,3 +51,49 @@ See `docs/features/health-field/DESIGN.md` for the full delta.
 **Phase gate green** (`make check`: ruff + ruff format --check + mypy + 1619 tests + size guard, exit
 0). Awaiting human review + merge (merge is human-only). The operator redeploys the daemons after
 merge; the "Health" field then auto-appears on the next tick of each daemon (zero manual step).
+
+---
+
+# Follow-up — firm-exit (reaper clean-termination robustness)
+
+> Focused engine bugfix on branch `fix/end-session-robust` (SemVer **patch / Z+1**). A separate,
+> standalone fix from the health-field feature above — extends the clean-termination (#1) reaper
+> done-exit so a finished brainstorm/plan agent is reliably terminated. DESIGN delta:
+> `docs/features/clean-termination/DESIGN.md` §8.x (firm-exit follow-up).
+
+## Phases
+
+| Phase | Scope | Status | Commit |
+|-------|-------|--------|--------|
+| 1 | adapter + port: robust `TmuxSessions.end_session` (Escape→C-u→C-d→C-d, sleeper-seam delays, BSpace fallback, no kill-session) + new `Sessions.kill_repl_process` (pane-PID → claude child → SIGTERM, fail-soft) + its `Sessions` Protocol method | DONE | `fix(reaper): robust end_session + kill-escalation for finished agents` |
+| 2 | store: `AgentBreadcrumbsMixin` `end_attempts/` counter (`get_end_attempts`/`bump_end_attempt`/`clear_end_attempts`) + `StateStore` Protocol stubs; `FsStateStore.__init__` dir + `purge_ticket` unlink (both paths) | DONE | (same commit) |
+| 3 | reaper: `MAX_END_ATTEMPTS`=3; `_end_done_session` bounded-retry-then-kill escalation (dispatch+bump < MAX, keep breadcrumb; kill_repl_process + clear at MAX); `_reset_stale_end_attempts` defensive not-done reset; Approach A intact | DONE | (same commit) |
+| 4 | prompt tweak: shared `_CLEAN_STOP` appended to all 8 `kanban-done` launch prompts | DONE | (same commit) |
+| 5 | tests + DESIGN delta + this row: robust end_session order + delays; kill_repl_process SIGTERM-not-session + 4 fail-soft paths; counter mixin (8); reaper escalation/retry/reset (7); clean-stop in all 8 prompts | DONE | (same commit) |
+
+## Behaviour deltas (gate requirement)
+
+- **Robust `end_session`.** Escape (close the slash-command menu) → C-u (clear the box) → C-d → C-d
+  (the second confirms exit past "N shells still running"), with small `sleeper`-seam delays
+  (0.3/0.3/0.5s, worst-case 1.1s < 1.5s budget). Fixes the helm #5 NO-OP where a leftover
+  `/implement:plan` + background shells blocked the old two-key `C-c`/`C-d`. Never `kill-session`.
+- **`kill_repl_process` escalation primitive.** SIGTERMs the `claude` REPL child (resolved via
+  `tmux list-panes` pane-PID → `pgrep`/`ps` child), NOT the session/shell, so the surviving shell
+  still runs `; kanban-session-end`. Fail-soft on every resolution/kill error.
+- **Bounded-retry-then-kill (REVERSES the SINGLE-SHOT contract).** The reaper re-dispatches
+  `end_session` each tick (KEEPING the done breadcrumb + bumping a persisted `end_attempts/<issue>`
+  counter) until the REPL exits or `MAX_END_ATTEMPTS`=3 is hit → then it kills the REPL process and
+  clears both markers. A failed dispatch does not bump/clear (retries the same attempt). Counter reset
+  on `purge_ticket` (both paths) + a defensive not-done sweep reset.
+- **Approach A preserved.** Only ever acts on a done + IDLE + ALIVE session; a WORKING/not-done/dead
+  session is never exited or REPL-killed by this branch.
+- **`_CLEAN_STOP` prompt instruction.** Belt-and-suspenders on all 8 `kanban-done` prompts: end the
+  turn immediately after `kanban-done`, no next-stage command, no trailing background shells.
+
+See `docs/features/clean-termination/DESIGN.md` §8.x for the full delta.
+
+## Next action
+
+**Phase gate green** (`make check` exit 0; `python -c "import kanbanmate"` OK). Awaiting human review +
+merge (merge is human-only). The operator redeploys the daemons after merge; finished brainstorm/plan
+agents then terminate reliably (robust keystrokes + REPL-kill escalation).

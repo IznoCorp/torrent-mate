@@ -10,6 +10,8 @@ MUST NOT import ``app``, ``daemon``, or ``cli``.
 
 from __future__ import annotations
 
+import os
+import signal
 import subprocess
 import time
 from collections.abc import Callable
@@ -26,6 +28,17 @@ Sleeper = Callable[[float], None]
 # so a silent shell still proceeds (best-effort, same as the pre-fix immediate send).
 _SHELL_READY_ATTEMPTS = 30
 _SHELL_READY_INTERVAL = 0.1  # seconds between capture probes (overridable for offline tests)
+
+# Delays between the end_session keystrokes so claude v2.1.x processes each step (menu close → box
+# clear → EOF → confirm-EOF). Kept SMALL — end_session runs rarely (once per finished session) and
+# is dispatched from the reaper sweep, so the total must stay well under ~1.5s. Worst case here is
+# 0.3 + 0.3 + 0.5 = 1.1s (under budget). Routed through the existing ``sleeper`` seam so offline
+# tests inject a fake and pay zero real wall time.
+_END_MENU_DELAY = 0.3  # after Escape (let the slash-command autocomplete/menu close)
+_END_CLEAR_DELAY = 0.3  # after C-u (let the input line clear before EOF)
+_END_CONFIRM_DELAY = (
+    0.5  # between the two C-d (let claude surface the "N shells, press again" confirm)
+)
 
 
 class TmuxSessions:
@@ -206,24 +219,231 @@ class TmuxSessions:
             check=True,
         )
 
+    def _send_key(self, name: str, key: str) -> None:
+        """Send one tmux KEY NAME (no ``-l``) to session *name*, ``check=True``.
+
+        The single argv seam for the :meth:`end_session` keystroke sequence. Key NAMES (``Escape``,
+        ``C-u``, ``C-d``, ``BSpace``) are sent WITHOUT ``-l`` — exactly like the ``Enter`` event in
+        :meth:`send_text` — so tmux interprets them as keys rather than literal text.
+
+        Args:
+            name: The session name to send the key to.
+            key: The tmux key name (e.g. ``"Escape"``, ``"C-d"``).
+        """
+        self._runner(["tmux", "send-keys", "-t", name, key], check=True)
+
+    def _clear_input_line(self, name: str) -> None:
+        """Clear session *name*'s claude input line so the EOF lands on an EMPTY idle prompt.
+
+        Ships ``C-u`` (kill-line) — it clears the whole input line in one key, harmless on an
+        already-empty box.
+
+        Args:
+            name: The session name whose input line to clear.
+        """
+        self._send_key(name, "C-u")
+
     def end_session(self, name: str) -> None:
         """Cleanly EXIT the ``claude`` REPL in session *name* without killing the session (#1).
 
-        Sends two SEPARATE ``send-keys`` events to the live REPL: ``C-c`` (clear any partial input /
-        interrupt an absorbed keystroke) then ``C-d`` (EOF → ``claude`` exits at the idle prompt).
-        Both are tmux KEY NAMES (sent WITHOUT ``-l``, like the ``Enter`` event in :meth:`send_text`),
-        NOT literal text. Crucially this does NOT run ``tmux kill-session``: when ``claude`` exits the
-        surviving shell runs the trailing ``; kanban-session-end <issue>`` of the launched command, so
-        the teardown fires. ``kill-session`` would prevent that wrapper from ever running.
+        Robust exit sequence (firm-exit) for claude v2.1.x — sends, in order, with small delays so
+        claude processes each step:
+
+        1. ``Escape`` — close any open slash-command autocomplete / menu (the helm #5 condition: a
+           leftover ``/implement:plan`` in the input box kept C-c/C-d from landing on an idle prompt).
+        2. ``C-u`` (via :meth:`_clear_input_line`) — clear the input line so the EOF lands on an
+           EMPTY idle prompt.
+        3. ``C-d`` — EOF → ``claude`` exits at the idle prompt. With background shells running ("N
+           shells still running"), this FIRST ``C-d`` may only surface the "press again to exit"
+           confirm rather than exiting.
+        4. ``C-d`` — the SECOND ``C-d`` confirms the exit past the background-shell warning.
+
+        Every event is a tmux KEY NAME (sent WITHOUT ``-l``, like the ``Enter`` event in
+        :meth:`send_text`), NOT literal text, and each ``send-keys`` stays ``check=True``. Delays go
+        through the injected ``sleeper`` seam (offline tests pay zero wall time); worst case is
+        :data:`_END_MENU_DELAY` + :data:`_END_CLEAR_DELAY` + :data:`_END_CONFIRM_DELAY` = 1.1s.
+
+        INVARIANT — this NEVER runs ``tmux kill-session``: when ``claude`` exits the surviving shell
+        runs the trailing ``; kanban-session-end <issue>`` of the launched command, so the teardown
+        fires. ``kill-session`` would tear the shell down and that wrapper would never run.
 
         Args:
             name: The session name whose REPL to exit (``ticket-<n>``).
         """
-        # C-c first: clears any partial/absorbed input so the EOF lands at a clean idle prompt.
-        self._runner(["tmux", "send-keys", "-t", name, "C-c"], check=True)
-        # C-d (EOF) → claude exits at the idle prompt; the surviving shell then runs the trailing
-        # ``; kanban-session-end <issue>`` wrapper (the whole point — never kill-session here).
-        self._runner(["tmux", "send-keys", "-t", name, "C-d"], check=True)
+        # 1. Close any open slash-command autocomplete / menu so the box is editable.
+        self._send_key(name, "Escape")
+        self._sleeper(_END_MENU_DELAY)
+        # 2. Clear the input line so the EOF lands on an EMPTY idle prompt (not a leftover command).
+        self._clear_input_line(name)
+        self._sleeper(_END_CLEAR_DELAY)
+        # 3. First C-d (EOF): exits at an empty prompt, OR (background shells) surfaces the
+        #    "N shells still running, press again to exit" confirm.
+        self._send_key(name, "C-d")
+        self._sleeper(_END_CONFIRM_DELAY)
+        # 4. Second C-d: confirms the exit past the background-shell warning. The surviving shell then
+        #    runs the trailing ``; kanban-session-end <issue>`` wrapper (never kill-session here).
+        self._send_key(name, "C-d")
+
+    def kill_repl_process(self, name: str) -> None:
+        """SIGTERM the ``claude`` REPL child of session *name*'s pane — NOT the session/shell (#).
+
+        Escalation primitive for a graceful exit (:meth:`end_session`) that failed repeatedly (a
+        genuinely-hung REPL or stubborn leftover state that swallows the keystrokes). It resolves the
+        pane's shell PID (``tmux list-panes -t <name> -F '#{pane_pid}'``), finds the shell's child
+        (the ``claude`` REPL) and sends it ``SIGTERM`` so the REPL dies but the SURVIVING shell still
+        runs the trailing ``; kanban-session-end <issue>`` of the launched command → teardown fires.
+
+        INVARIANT — it MUST NOT ``kill-session`` (that kills the shell and the wrapper never runs)
+        and MUST NOT kill the shell PID itself. FAIL-SOFT: any resolution/kill error is swallowed
+        (the reaper logs and still clears the breadcrumb so the budget is not re-spent).
+
+        Args:
+            name: The session name whose REPL process to terminate (``ticket-<n>``).
+        """
+        pane_pid = self._pane_pid(name)
+        if pane_pid is None:
+            return  # fail-soft: pane gone / unresolved
+        child = self._child_pid(pane_pid)
+        if child is None:
+            return  # fail-soft: no live child under the shell
+        try:
+            os.kill(child, signal.SIGTERM)
+        except (ProcessLookupError, PermissionError, OSError):
+            # fail-soft: the child raced away or we cannot signal it — the reaper still clears.
+            return
+
+    def _pane_pid(self, name: str) -> int | None:
+        """Resolve session *name*'s active-pane shell PID via ``tmux list-panes`` (fail-soft).
+
+        Runs ``tmux list-panes -t <name> -F '#{pane_pid}'`` and parses the first line as the pane's
+        shell PID. Returns ``None`` on any error / empty output / non-int line — never raises (a gone
+        or unresolvable pane is the fail-soft escalation no-op).
+
+        Args:
+            name: The session name whose pane PID to resolve.
+
+        Returns:
+            The pane's shell PID, or ``None`` when it cannot be resolved.
+        """
+        try:
+            res = self._runner(
+                ["tmux", "list-panes", "-t", name, "-F", "#{pane_pid}"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except Exception:
+            return None
+        out = (res.stdout or "").strip().splitlines()
+        if not out:
+            return None
+        try:
+            return int(out[0].strip())
+        except (TypeError, ValueError):
+            return None
+
+    def _child_pid(self, pane_pid: int) -> int | None:
+        """Resolve the ``claude`` REPL child of shell *pane_pid* — comm-VERIFIED (fail-soft).
+
+        The launched command is ``… claude … ; kanban-session-end``, so under the pane shell there is
+        exactly one live ``claude`` UNTIL it exits — after which the surviving shell may be running the
+        trailing ``; kanban-session-end`` (teardown) as its sole child. Resolution order:
+
+        1. ``pgrep -P <pane_pid>`` — the direct children of the shell (verified on this host: the
+           pane shell is ``-zsh`` and ``claude`` is its direct child).
+        2. Fallback: scan ``ps -o ppid=,pid= -A`` for rows whose ppid == ``pane_pid``.
+
+        Then ALWAYS comm-verify (via ``ps -o comm= -p <pid>``) — even for a SINGLE child: return only
+        a child whose command name looks like ``claude``. If the SOLE child is NOT claude (claude has
+        already exited and ``; kanban-session-end`` or another command is now the shell's child), or
+        no child matches, return ``None`` so :meth:`kill_repl_process` SKIPS the kill — SIGTERMing a
+        non-claude process would kill the teardown mid-flight. Claude already gone → the session will
+        reap normally; we never SIGTERM the wrong process.
+
+        Args:
+            pane_pid: The pane's shell PID whose child to resolve.
+
+        Returns:
+            The ``claude`` REPL child PID, or ``None`` when no live ``claude`` child can be resolved.
+        """
+        children = self._children_via_pgrep(pane_pid)
+        if not children:
+            children = self._children_via_ps(pane_pid)
+        if not children:
+            return None
+        # ALWAYS comm-verify (single- AND multi-child): only ever return a child that looks like the
+        # claude REPL, so a surviving ``; kanban-session-end`` (teardown) child is never SIGTERMed.
+        for pid in children:
+            if "claude" in self._comm_of(pid):
+                return pid
+        # No child is claude → claude already exited; skip the kill (let the session reap normally).
+        return None
+
+    def _children_via_pgrep(self, pane_pid: int) -> list[int]:
+        """Return the direct child PIDs of *pane_pid* via ``pgrep -P`` (empty list, never raises)."""
+        try:
+            res = self._runner(
+                ["pgrep", "-P", str(pane_pid)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except Exception:
+            return []
+        return self._parse_pids(res.stdout or "")
+
+    def _children_via_ps(self, pane_pid: int) -> list[int]:
+        """Return *pane_pid*'s children by scanning ``ps -o ppid=,pid= -A`` (empty list, no raise).
+
+        The fallback when ``pgrep`` is unavailable / yields nothing. Reuses the same ``ps`` family of
+        probes the workspace adapter already shells out to. Each row is ``<ppid> <pid>``; rows whose
+        ppid equals *pane_pid* contribute their pid.
+        """
+        try:
+            res = self._runner(
+                ["ps", "-o", "ppid=,pid=", "-A"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except Exception:
+            return []
+        children: list[int] = []
+        for line in (res.stdout or "").splitlines():
+            parts = line.split()
+            if len(parts) != 2:
+                continue
+            try:
+                ppid, pid = int(parts[0]), int(parts[1])
+            except (TypeError, ValueError):
+                continue
+            if ppid == pane_pid:
+                children.append(pid)
+        return children
+
+    def _comm_of(self, pid: int) -> str:
+        """Return *pid*'s command name via ``ps -o comm=`` (empty string on any error, no raise)."""
+        try:
+            res = self._runner(
+                ["ps", "-o", "comm=", "-p", str(pid)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except Exception:
+            return ""
+        return (res.stdout or "").strip()
+
+    @staticmethod
+    def _parse_pids(text: str) -> list[int]:
+        """Parse whitespace/newline-separated PID lines into ``int``s (skips non-int lines)."""
+        pids: list[int] = []
+        for line in text.split():
+            try:
+                pids.append(int(line.strip()))
+            except (TypeError, ValueError):
+                continue
+        return pids
 
     def _kill_if_present(self, name: str) -> None:
         """Kill session *name* if it exists, TOLERATING "no such session" (idempotent pre-launch).

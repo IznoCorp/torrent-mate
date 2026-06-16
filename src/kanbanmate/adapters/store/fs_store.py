@@ -102,6 +102,9 @@ class FsStateStore(
         (self.root / "advances").mkdir(parents=True, exist_ok=True)
         # The agent-done breadcrumb directory (#1); one marker per issue.
         (self.root / "done").mkdir(parents=True, exist_ok=True)
+        # The reaper done-exit attempt-counter directory (firm-exit); one marker per issue holding
+        # ``{"n": <int>}`` — the bounded-retry count before the reaper escalates to kill_repl_process.
+        (self.root / "end_attempts").mkdir(parents=True, exist_ok=True)
         # Per-issue AUTO/bot move rate-limit history (DESIGN §6); one JSON list
         # per issue.  Issue-keyed — a deliberate divergence from the PoC, which
         # keyed ``moves/item_<item>.json`` by content node id.
@@ -268,6 +271,11 @@ class FsStateStore(
           * ``state/<issue>.json``         — runtime state
           * ``slots/ticket-<issue>``       — concurrency-cap slot marker
           * ``advances/<issue>``           — agent-advance breadcrumb
+          * ``done/<issue>``               — agent-done breadcrumb (#1)
+          * ``end_attempts/<issue>``       — reaper done-exit attempt counter
+                                             (firm-exit) — reset so a future agent
+                                             on this issue starts its done-exit
+                                             budget clean
           * ``queue/ticket-<issue>``       — relaunch queue marker
 
         And the per-issue BUDGET markers CONDITIONALLY (only when
@@ -330,6 +338,11 @@ class FsStateStore(
         # section (NOT under keep_budgets) so it is purged on BOTH reaper keep_budgets=True and
         # Cancel keep_budgets=False teardowns.
         self._unlink(self._done_path(issue_number))
+        # Purge the reaper done-exit attempt counter too (firm-exit): teardown must leave no stale
+        # counter so a future agent on the same ticket starts its done-exit budget clean. ALWAYS-
+        # removed (NOT under keep_budgets) — it is a RUNTIME marker, not a per-issue budget, so it
+        # is dropped on BOTH the reaper keep_budgets=True and the Cancel keep_budgets=False paths.
+        self._unlink(self._end_attempts_path(issue_number))
         # ── widened purge (port of OLD purge_ticket's issue-keyed targets) ──
         # Queue marker — a ticket parked in the queue at Cancel time must not
         # be drained later.

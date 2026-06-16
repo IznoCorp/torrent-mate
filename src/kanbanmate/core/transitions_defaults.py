@@ -134,7 +134,8 @@ _IDENTITY_THEN_STATE = (
 # Early-stage shipped exit (pre-PrepareFeature stages): if the feature is ALREADY
 # shipped, post the evidence FIRST, then kanban-move to Done. Evidence is REPO-LOCAL
 # only (ROADMAP.md, docs/archive/features/, git log, the code) so the docs/prepare
-# profiles need no extra gh scopes.
+# profiles need no extra gh scopes. This is a TERMINAL exit (ends in kanban-done), so it
+# carries the same clean-stop discipline as the main path (§_CLEAN_STOP).
 _STATE_CHECK_EARLY = (
     "STATE CHECK: if (and only if) identity is confirmed AND repo-local evidence "
     "(ROADMAP.md, docs/archive/features/, git log, the code) shows this feature is ALREADY "
@@ -142,30 +143,35 @@ _STATE_CHECK_EARLY = (
     '`kanban-comment {{code}} "already shipped: <evidence>"` FIRST, then '
     "`kanban-move {{code}} Done` — this move is MANDATORY: it OVERRIDES (replaces) the normal "
     "DONE checklist below, so the ALREADY_SHIPPED exit is NOT complete until the card is actually "
-    "in Done. Then run `kanban-done {{code}}` to end your session.\n"
+    "in Done. Then run `kanban-done {{code}}` and END your turn (do NOT type or run the next-stage "
+    "slash command; no trailing-`&` background shells).\n"
 )
 
 # Late-stage shipped exit (PrepareFeature onward — a worktree/branch/PR exists): a
 # false positive here must NEVER close a PR or destroy a worktree, so the exit is
-# Blocked (operator triages), NOT Cancel. Cancel is operator-only.
+# Blocked (operator triages), NOT Cancel. Cancel is operator-only. This is a TERMINAL
+# exit (ends in kanban-done), so it carries the same clean-stop discipline (§_CLEAN_STOP).
 _STATE_CHECK_LATE = (
     "STATE CHECK: if identity is confirmed AND repo-local evidence (ROADMAP.md, "
     "docs/archive/features/, git log, the code) shows this feature is ALREADY shipped, do NOT "
     'redo the work: post an evidence comment via `kanban-comment {{code}} "already shipped: '
     '<evidence>"` FIRST, then `kanban-move {{code}} Blocked` so the operator can triage. Do NOT '
     "move to Cancel (Cancel is operator-only — a false positive must never close a PR or destroy "
-    "a worktree). Run `kanban-done {{code}}` to end your session.\n"
+    "a worktree). Run `kanban-done {{code}}` and END your turn (do NOT type or run the next-stage "
+    "slash command; no trailing-`&` background shells).\n"
 )
 
 # Desync protocol: on ANY identity/state ambiguity, STOP — never guess, never touch
 # another ticket. Journal what you saw, post a DESYNC comment, then run `kanban-done`
-# (the terminal step, #1) so a human can triage.
+# (the terminal step, #1) so a human can triage. This is a TERMINAL exit (ends in
+# kanban-done), so it carries the same clean-stop discipline (§_CLEAN_STOP).
 _DESYNC = (
     "DESYNC PROTOCOL: if identity is ambiguous or the sources disagree in a way you cannot "
     'safely reconcile, STOP. Journal what you observed via `kanban-progress {{code}} "…"`, post '
     'a `kanban-comment {{code}} "DESYNC: <what disagrees>"`, do NOT guess, do NOT move the card, '
     "do NOT touch another ticket, and run `kanban-done {{code}}` to end your session for a human to "
-    "triage.\n"
+    "triage — then END your turn (do NOT type or run the next-stage slash command; no trailing-`&` "
+    "background shells).\n"
 )
 
 # Shared autonomy instruction on every NON-interactive agent prompt (incl. prepare).
@@ -182,6 +188,19 @@ _WRITE_BACK = (
     "All ticket-body write-backs go through `kanban-update-body {{code}}` ONLY (it preserves the "
     "**roadmap**/**codename**/**design**/**plans** markers and validates body↔title coherence) — "
     "NEVER raw `gh issue edit` or a GraphQL mutation.\n"
+)
+
+# Clean-stop discipline (firm-exit): after kanban-done the agent must END its turn so the reaper's
+# end_session lands on an EMPTY idle prompt with NO background shells (the helm #5 condition: a
+# leftover next-stage slash-command in the box + "N shells still running" blocked the C-c/C-d exit).
+# The engine's robust end_session + kill-escalation is the guarantee; this reduces the condition at
+# the source. NB: the wording stays GENERIC ("the next-stage slash command") — it must NOT embed a
+# literal ``/implement:…`` example (ironic in a "don't type the next command" instruction, and it
+# would inject a spurious /implement: substring into prompts that legitimately carry none).
+_CLEAN_STOP = (
+    "AFTER running `kanban-done {{code}}`, END your turn IMMEDIATELY: do NOT type, suggest, or run "
+    "the next-stage slash command, and do NOT leave background shells running (no trailing `&` on "
+    "any command). Leave the prompt EMPTY and idle.\n"
 )
 
 # Backlog -> Brainstorming: the ONLY interactive step. The agent gathers requirements
@@ -208,8 +227,9 @@ _BRAINSTORM_PROMPT = (
     "marker via `kanban-update-body {{code}} --set-field codename <the-shipped-codename>`, then "
     "`kanban-move {{code}} Done` — this move is MANDATORY: it OVERRIDES (replaces) the normal DONE "
     "checklist below, so the ALREADY_SHIPPED exit is NOT complete until the card is actually in "
-    "Done. Then run `kanban-done {{code}}` WITHOUT starting the interactive brainstorm.\n"
-    + "Sources (related context only — NOT your feature spec; your spec is the ticket "
+    "Done. Then run `kanban-done {{code}}` WITHOUT starting the interactive brainstorm, and END "
+    "your turn (do NOT type or run the next-stage slash command; no trailing-`&` background "
+    "shells).\n" + "Sources (related context only — NOT your feature spec; your spec is the ticket "
     "description + what you gather): ticket description:\n{{ticket_body}}\nlinked issue:\n"
     "{{issue_body}}\ncomments:\n{{comments}}\n"
     "Otherwise (NOT already shipped) gather the requirements INTERACTIVELY: you MAY ask the user "
@@ -226,7 +246,7 @@ _BRAINSTORM_PROMPT = (
     "outputs BEFORE ending. (ALREADY_SHIPPED case: DONE = evidence comment + **codename** marker + "
     "card moved to Done — see STATE CHECK FIRST above, which OVERRIDES this checklist.) If they "
     "already exist (re-entry), VERIFY and finalize — do NOT redo.\n"
-    "Run `kanban-done {{code}}` once the brainstorm output + codename are recorded.\n"
+    "Run `kanban-done {{code}}` once the brainstorm output + codename are recorded.\n" + _CLEAN_STOP
 )
 
 # Brainstorming -> Spec: AUTONOMOUS design. Reads the brainstorm output already in the
@@ -248,7 +268,7 @@ _DESIGN_PROMPT = (
     "outputs BEFORE any kanban-move). (ALREADY_SHIPPED case: DONE = evidence comment + card moved "
     "to Done — see STATE CHECK above, which OVERRIDES this checklist.) If the design already exists "
     "(re-entry), VERIFY and finalize — do NOT redo. Run `kanban-done {{code}}` once the design is "
-    "written.\n"
+    "written.\n" + _CLEAN_STOP
 )
 
 # Spec -> Plan: AUTONOMOUS /implement:plan. Precondition: {{design_path}} MUST be
@@ -271,7 +291,7 @@ _PLAN_PROMPT = (
     "(durable outputs BEFORE any kanban-move). (ALREADY_SHIPPED case: DONE = evidence comment + card "
     "moved to Done — see STATE CHECK above, which OVERRIDES this checklist.) If the plans already "
     "exist (re-entry), VERIFY and finalize — do NOT redo. Run `kanban-done {{code}}` to end your "
-    "session.\n"
+    "session.\n" + _CLEAN_STOP
 )
 
 # ReadyToDev -> PrepareFeature: the create-branch stage. Gains autonomy + identity +
@@ -292,7 +312,7 @@ _PREPARE_PROMPT = (
     + _AUTONOMY
     + "DONE = branch created + design/plan committed + IMPLEMENTATION.md initialized (durable "
     "outputs BEFORE any kanban-move). If the branch already exists (re-entry), VERIFY and finalize "
-    "— do NOT redo. Then run `kanban-done {{code}}` to end your session.\n"
+    "— do NOT redo. Then run `kanban-done {{code}}` to end your session.\n" + _CLEAN_STOP
 )
 
 # PrepareFeature -> InProgress: implement all phases. Late-stage (a worktree/branch
@@ -308,6 +328,7 @@ _IMPLEMENT_PROMPT = (
     "(durable outputs — the pushed branch + open PR — BEFORE the move). If the PR already exists "
     "(re-entry), VERIFY and finalize — do NOT redo.\n"
     "Finally, run `kanban-done {{code}}` to end your session (AFTER the kanban-move).\n"
+    + _CLEAN_STOP
 )
 
 # PRCI -> InProgress: the bot fix-CI loop. {{script_output}} may be STALE — re-check
@@ -328,6 +349,7 @@ _FIXCI_PROMPT = (
     + "DONE = the failing checks are addressed + re-pushed (or confirmed already green) THEN the "
     "move. If already handled (re-entry), VERIFY and finalize — do NOT redo.\n"
     "Finally, run `kanban-done {{code}}` to end your session (AFTER the kanban-move).\n"
+    + _CLEAN_STOP
 )
 
 # PRCI -> Review: the review rounds. The pr-review skill ends in a terminal squash-
@@ -346,7 +368,7 @@ _REVIEW_PROMPT = (
     + "DONE = all review rounds run + fixes pushed, the PR left OPEN for a human to merge (durable "
     "outputs BEFORE any move). If review already completed (re-entry), VERIFY and finalize — do "
     "NOT redo.\n"
-    "Finally, run `kanban-done {{code}}` to end your session.\n"
+    "Finally, run `kanban-done {{code}}` to end your session.\n" + _CLEAN_STOP
 )
 
 # Review -> InProgress: operator-requested REWORK (#12). A human moved the card back from Review
@@ -366,6 +388,7 @@ _REWORK_PROMPT = (
     + "DONE = the review feedback is addressed + re-pushed THEN the move. If the rework was already "
     "applied (re-entry), VERIFY and finalize — do NOT redo.\n"
     "Finally, run `kanban-done {{code}}` to end your session (AFTER the kanban-move).\n"
+    + _CLEAN_STOP
 )
 
 # NB: no _MERGE_PROMPT — merge stays human (DESIGN §10). Review -> Merge ships a

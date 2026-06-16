@@ -26,12 +26,15 @@ from kanbanmate.core.transitions_defaults import (
     DEFAULT_TRANSITIONS,
     _BRAINSTORM_PROMPT,
     _DESIGN_PROMPT,
+    _DESYNC,
     _FIXCI_PROMPT,
     _IMPLEMENT_PROMPT,
     _PLAN_PROMPT,
     _PREPARE_PROMPT,
     _REVIEW_PROMPT,
     _REWORK_PROMPT,
+    _STATE_CHECK_EARLY,
+    _STATE_CHECK_LATE,
 )
 
 
@@ -86,7 +89,12 @@ class TestSlashCommands:
         assert "/implement:phase" in _IMPLEMENT_PROMPT
 
     def test_fixci_prompt_has_no_slash_command(self) -> None:
-        """``_FIXCI_PROMPT`` is the CI-fix prompt — it carries NO slash-command."""
+        """``_FIXCI_PROMPT`` is the CI-fix prompt — it INVOKES no ``/implement:*`` slash-command.
+
+        The bot fix-CI loop runs no skill, and the firm-exit clean-stop wording is now GENERIC ("the
+        next-stage slash command", no literal ``/implement:…`` example), so the prompt must carry no
+        ``/implement:`` substring at all.
+        """
         assert "/implement:" not in _FIXCI_PROMPT
 
     def test_review_prompt_has_pr_review_without_merging(self) -> None:
@@ -703,3 +711,84 @@ class TestRecoveryEdges:
         assert cfg.get("PrepareFeature", "InProgress") is not None
         assert cfg.get("Review", "Merge") is not None
         assert cfg.get("Merge", "Done") is not None
+
+
+class TestCleanStopInstruction:
+    """firm-exit: the ``_CLEAN_STOP`` discipline lands in every prompt whose terminal step is
+    ``kanban-done`` (8 prompts), so the reaper's end_session lands on an EMPTY idle prompt with no
+    background shells — reducing the helm #5 leftover-box + "N shells running" condition at the source."""
+
+    # Every prompt template whose terminal step is ``kanban-done {{code}}``.
+    _DONE_PROMPTS = (
+        _BRAINSTORM_PROMPT,
+        _DESIGN_PROMPT,
+        _PLAN_PROMPT,
+        _PREPARE_PROMPT,
+        _IMPLEMENT_PROMPT,
+        _FIXCI_PROMPT,
+        _REVIEW_PROMPT,
+        _REWORK_PROMPT,
+    )
+
+    def test_clean_stop_present_in_all_done_prompts(self) -> None:
+        """The clean-stop instruction appears in each of the 8 done-prompts (substring check)."""
+        for prompt in self._DONE_PROMPTS:
+            assert "END your turn IMMEDIATELY" in prompt
+            assert "do NOT leave background shells running" in prompt
+
+    def test_clean_stop_lands_after_kanban_done(self) -> None:
+        """The clean-stop text comes AFTER the prompt's ``kanban-done`` line (run, THEN stop)."""
+        for prompt in self._DONE_PROMPTS:
+            assert "kanban-done" in prompt
+            assert prompt.index("kanban-done") < prompt.index("END your turn IMMEDIATELY")
+
+    def test_default_transitions_prompts_still_carry_kanban_done(self) -> None:
+        """Regression: every done-prompt still ENDS the agent with ``kanban-done {{code}}`` and the
+        ``_CLEAN_STOP`` text did not drop OR inflate any ``/implement:*`` slash-command in the prompts.
+
+        The clean-stop wording is now GENERIC ("the next-stage slash command", no literal
+        ``/implement:…`` example), so it must NOT change the per-prompt slash-command counts that
+        :class:`TestSlashCommands` pins. We assert the ``kanban-done {{code}}`` terminal step survives
+        and the brainstorm/plan/prepare/implement prompts keep exactly their own slash-command.
+        """
+        for prompt in self._DONE_PROMPTS:
+            assert "kanban-done {{code}}" in prompt
+        # The slash-command-bearing prompts keep THEIR command; _CLEAN_STOP no longer injects any
+        # /implement: substring (the literal example is gone — adversarial-review fix).
+        assert "/implement:brainstorm" in _BRAINSTORM_PROMPT
+        assert "/implement:plan" in _PLAN_PROMPT
+        assert "/implement:create-branch" in _PREPARE_PROMPT
+        assert "/implement:phase" in _IMPLEMENT_PROMPT
+        assert "/implement:pr-review" in _REVIEW_PROMPT
+        # _DESIGN_PROMPT carries NO next-stage slash-command — back to its ORIGINAL count of 0 now
+        # that the illustrative /implement:plan is removed from the clean-stop wording.
+        assert _DESIGN_PROMPT.count("/implement:") == 0
+
+    def test_clean_stop_wording_carries_no_literal_implement_command(self) -> None:
+        """Adversarial-review fix: the clean-stop wording is GENERIC — no literal ``/implement:…``.
+
+        The old ``(e.g. /implement:plan)`` example was ironic in a "don't type the next command"
+        instruction and injected a spurious /implement: substring into prompts (e.g. _DESIGN_PROMPT)
+        that legitimately carry none. The generic phrase "next-stage slash command" replaces it.
+        """
+        assert "(e.g. /implement:plan)" not in _DESIGN_PROMPT
+        for prompt in self._DONE_PROMPTS:
+            assert "next-stage slash command" in prompt
+
+    def test_alternative_terminal_exits_carry_clean_stop_discipline(self) -> None:
+        """firm-exit consistency (Finding 4): EVERY path that ends a session with ``kanban-done``
+        then stops carries the clean-stop discipline — not just the 8 main stage prompts.
+
+        The shared STATE-CHECK (early/late) shipped-exits and the DESYNC protocol all terminate with
+        ``kanban-done`` then stop, so they MUST also tell the agent to END its turn (do NOT run the
+        next-stage slash command) and leave no trailing-`&` background shells.
+        """
+        for exit_block in (_STATE_CHECK_EARLY, _STATE_CHECK_LATE, _DESYNC):
+            assert "kanban-done {{code}}" in exit_block
+            assert "END your turn" in exit_block
+            assert "next-stage slash command" in exit_block
+            assert "background shells" in exit_block
+        # The brainstorm prompt's inline STATE-CHECK-FIRST shipped-exit also ends in kanban-done +
+        # stop, so it carries the discipline too (it is not built from the shared constants above).
+        assert "WITHOUT starting the interactive brainstorm" in _BRAINSTORM_PROMPT
+        assert "next-stage slash command" in _BRAINSTORM_PROMPT

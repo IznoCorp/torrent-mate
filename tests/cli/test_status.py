@@ -164,6 +164,24 @@ class _FakeStore:
         """Unused by the read-only commands (done breadcrumb, #1)."""
         raise AssertionError("status/sessions must not clear done")
 
+    def bump_end_attempt(  # pragma: no cover - unused by read-only commands
+        self, issue_number: int
+    ) -> int:
+        """Unused by the read-only commands (done-exit attempt counter, firm-exit)."""
+        raise AssertionError("status/sessions must not bump end attempts")
+
+    def get_end_attempts(  # pragma: no cover - unused by read-only commands
+        self, issue_number: int
+    ) -> int:
+        """Unused by the read-only commands (done-exit attempt counter, firm-exit)."""
+        raise AssertionError("status/sessions must not read end attempts")
+
+    def clear_end_attempts(  # pragma: no cover - unused by read-only commands
+        self, issue_number: int
+    ) -> None:
+        """Unused by the read-only commands (done-exit attempt counter, firm-exit)."""
+        raise AssertionError("status/sessions must not clear end attempts")
+
     def kill_switch_active(self) -> bool:  # pragma: no cover - unused by read-only commands
         """Unused by the read-only status/sessions commands."""
         return False
@@ -377,6 +395,10 @@ class _FakeSessions:
     def end_session(self, name: str) -> None:  # pragma: no cover - unused
         """Unused by read-only status commands (#1 Protocol member)."""
         raise AssertionError("sessions must not end_session")
+
+    def kill_repl_process(self, name: str) -> None:  # pragma: no cover - unused
+        """Unused by read-only status commands (firm-exit Protocol member)."""
+        raise AssertionError("sessions must not kill_repl_process")
 
 
 def _state(

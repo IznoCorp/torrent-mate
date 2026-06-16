@@ -1135,6 +1135,69 @@ class TestAgentDoneBreadcrumb:
         assert not (store.root / "done" / "13").exists()
 
 
+class TestEndAttemptsCounter:
+    """``get_end_attempts`` / ``bump_end_attempt`` / ``clear_end_attempts`` implement the reaper's
+    bounded done-exit retry counter (firm-exit), keyed by ISSUE number under ``end_attempts/``."""
+
+    def test_init_creates_end_attempts_dir(self, tmp_path: Path) -> None:
+        """The store ``__init__`` creates the ``end_attempts/`` directory (well-formed empty store)."""
+        FsStateStore(root=tmp_path)
+        assert (tmp_path / "end_attempts").is_dir()
+
+    def test_end_attempts_absent_is_zero(self, tmp_path: Path) -> None:
+        """A never-written counter reads as 0."""
+        store = FsStateStore(root=tmp_path)
+        assert store.get_end_attempts(7) == 0
+
+    def test_bump_end_attempt_increments_from_one(self, tmp_path: Path) -> None:
+        """Bumping an absent counter starts at 1, then 2, then 3 across calls (the return value)."""
+        store = FsStateStore(root=tmp_path)
+        assert store.bump_end_attempt(7) == 1
+        assert store.bump_end_attempt(7) == 2
+        assert store.bump_end_attempt(7) == 3
+
+    def test_get_end_attempts_after_bump(self, tmp_path: Path) -> None:
+        """``get_end_attempts`` reflects the persisted count after a bump."""
+        store = FsStateStore(root=tmp_path)
+        store.bump_end_attempt(7)
+        store.bump_end_attempt(7)
+        assert store.get_end_attempts(7) == 2
+
+    def test_clear_end_attempts_removes_marker(self, tmp_path: Path) -> None:
+        """Clearing the counter removes the marker and the read drops back to 0."""
+        store = FsStateStore(root=tmp_path)
+        store.bump_end_attempt(7)
+        assert (store.root / "end_attempts" / "7").exists()
+
+        store.clear_end_attempts(7)
+
+        assert store.get_end_attempts(7) == 0
+        assert not (store.root / "end_attempts" / "7").exists()
+
+    def test_clear_end_attempts_noop_absent(self, tmp_path: Path) -> None:
+        """Clearing a never-written counter must not raise."""
+        store = FsStateStore(root=tmp_path)
+        store.clear_end_attempts(404)  # Must not raise.
+
+    def test_get_end_attempts_corrupt_file_is_zero(self, tmp_path: Path) -> None:
+        """A malformed counter file degrades to 0 (no raise) — poison-tolerant like the breadcrumbs."""
+        store = FsStateStore(root=tmp_path)
+        (store.root / "end_attempts" / "5").write_text("{not json")
+        assert store.get_end_attempts(5) == 0
+
+    def test_purge_ticket_clears_end_attempts(self, tmp_path: Path) -> None:
+        """``purge_ticket`` removes the counter on BOTH keep_budgets paths (it is a RUNTIME marker)."""
+        for issue, keep in ((21, True), (22, False)):
+            store = FsStateStore(root=tmp_path)
+            store.bump_end_attempt(issue)
+            assert (store.root / "end_attempts" / str(issue)).exists()
+
+            store.purge_ticket(issue, keep_budgets=keep)
+
+            assert store.get_end_attempts(issue) == 0
+            assert not (store.root / "end_attempts" / str(issue)).exists()
+
+
 # ---------------------------------------------------------------------------
 # Slot reservation (O_EXCL + flock)
 # ---------------------------------------------------------------------------

@@ -115,6 +115,13 @@ class _SpySessions:
             name: Session name (ignored).
         """
 
+    def kill_repl_process(self, name: str) -> None:
+        """No-op: no real REPL process to SIGTERM (firm-exit Protocol member).
+
+        Args:
+            name: Session name (ignored).
+        """
+
 
 class _SpyWorkspace:
     """Spy workspace adapter: records :meth:`ensure_worktree` calls without real git.

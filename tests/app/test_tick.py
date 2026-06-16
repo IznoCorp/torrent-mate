@@ -249,6 +249,10 @@ def _mocks(reader: _FakeBoardReader, *, now: float = 1000.0) -> _Mocks:
     # entered for the pre-existing reaper tests (a bare MagicMock default would be truthy and
     # spuriously exit every alive session). A test exercising the done-exit sets this True explicitly.
     store.recent_agent_done.return_value = False
+    # firm-exit: default the done-exit attempt counter to 0 (first attempt) so the bounded-retry path
+    # is exercised; a bare MagicMock would raise ``TypeError: '<' not supported`` when compared to
+    # MAX_END_ATTEMPTS. A test driving the escalation overrides ``get_end_attempts`` explicitly.
+    store.get_end_attempts.return_value = 0
     clock = MagicMock()
     clock.now.return_value = now
     pull_requests = MagicMock()
@@ -2088,70 +2092,19 @@ def test_reaper_done_exit_failsoft() -> None:
     assert result.reaped == 0
 
 
-def test_reaper_done_exit_is_single_shot_across_ticks() -> None:
-    """Option 1 (#1) SINGLE-SHOT (review BLOCKER): end_session fires AT MOST ONCE for a done agent.
+def test_reaper_done_exit_dispatches_and_bumps_below_max() -> None:
+    """firm-exit: below MAX, a done + idle agent is end_session'd + the counter bumped, NOT cleared.
 
-    The threat: ``claude`` exits slowly and the out-of-band ``; kanban-session-end`` then does
-    multi-second GitHub I/O — during that window the tmux session is STILL ALIVE + idle. A second
-    reap tick must NOT re-send C-c/C-d (it could interrupt ``kanban-session-end`` mid-teardown).
-    The reaper guards this by CLEARING the done breadcrumb after a successful end_session dispatch,
-    so the next tick no longer enters the done-exit branch. We model the breadcrumb store with a
-    ``clear_agent_done`` side-effect that flips ``recent_agent_done`` to ``False`` (exactly what the
-    real fs marker does), then drive TWO ticks on the SAME still-alive session and assert
-    ``end_session`` was dispatched only once. The second tick parks WAITING via Approach A.
-    """
-    reader = _FakeBoardReader("probe-1", _snapshot())
-    m = _mocks(reader, now=10_000.0)
-    m.sessions.is_alive.return_value = True  # STILL ALIVE across both ticks
-    m.sessions.capture.return_value = "❯ "  # idle pane — no running-turn marker
-    # Model the durable breadcrumb: present until the reaper CLEARS it after a clean end_session.
-    m.store.recent_agent_done.return_value = True
-
-    def _clear(_issue: int) -> None:
-        m.store.recent_agent_done.return_value = False
-
-    m.store.clear_agent_done.side_effect = _clear
-
-    done_idle = TicketState(
-        issue_number=7,
-        item_id="PVTI_7",
-        session_id="ticket-7",
-        status=TicketStatus.RUNNING,
-        heartbeat=0.0,  # stale (a long agent that finished after going silent)
-        stage="InProgress",
-    )
-    m.store.list_running.return_value = (done_idle,)
-
-    # Tick 1: the done agent is cleanly exited and the breadcrumb is cleared (single-shot).
-    state = PersistedState(last_probe="probe-1")
-    tick(m.deps, _config(), state)
-    m.sessions.end_session.assert_called_once_with("ticket-7")
-    m.store.clear_agent_done.assert_called_once_with(7)
-
-    # Tick 2: the session is STILL alive + idle, but the breadcrumb is gone → the done-exit branch
-    # is NOT re-entered. end_session is NOT dispatched again (no collision with kanban-session-end);
-    # instead the still-alive stale session parks WAITING via Approach A (non-destructive).
-    result2, _ = tick(m.deps, _config(), state)
-    m.sessions.end_session.assert_called_once_with("ticket-7")  # STILL exactly one dispatch
-    saved_statuses = [c.args[0].status for c in m.store.save.call_args_list]
-    assert TicketStatus.WAITING in saved_statuses  # parked WAITING on the second tick (Approach A)
-    m.sessions.kill.assert_not_called()
-    assert result2.reaped == 0
-    assert result2.relaunched == 0
-
-
-def test_reaper_done_exit_failure_does_not_clear_breadcrumb() -> None:
-    """Option 1 (#1) SINGLE-SHOT: a FAILED end_session must NOT clear the breadcrumb (retry next tick).
-
-    If the keystroke dispatch raised, ``; kanban-session-end`` was never triggered, so there is no
-    collision risk — the reaper leaves the breadcrumb in place so the NEXT tick retries the exit.
+    On a single tick with ``get_end_attempts=0`` the reaper dispatches the robust ``end_session``,
+    bumps ``bump_end_attempt(7)``, and KEEPS the done breadcrumb (``clear_agent_done`` NOT called) so
+    the next tick re-dispatches. It does NOT escalate (``kill_repl_process`` NOT called).
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
     m.sessions.is_alive.return_value = True
     m.sessions.capture.return_value = "❯ "  # idle
     m.store.recent_agent_done.return_value = True
-    m.sessions.end_session.side_effect = RuntimeError("tmux send-keys failed")
+    m.store.get_end_attempts.return_value = 0  # first attempt, below MAX
     done_idle = TicketState(
         issue_number=7,
         item_id="PVTI_7",
@@ -2166,8 +2119,198 @@ def test_reaper_done_exit_failure_does_not_clear_breadcrumb() -> None:
     tick(m.deps, _config(), state)
 
     m.sessions.end_session.assert_called_once_with("ticket-7")
-    # The dispatch raised → the breadcrumb is preserved for a retry next tick.
-    m.store.clear_agent_done.assert_not_called()
+    m.store.bump_end_attempt.assert_called_once_with(7)
+    m.store.clear_agent_done.assert_not_called()  # breadcrumb KEPT (re-enter next tick)
+    m.sessions.kill_repl_process.assert_not_called()  # not escalated below MAX
+    m.sessions.kill.assert_not_called()
+
+
+def test_reaper_done_exit_retries_across_ticks_until_max() -> None:
+    """firm-exit: end_session is re-dispatched each tick (NOT single-shot) until MAX → escalation.
+
+    Model the persisted counter advancing 0→1→2 across the first three ticks (each ``bump`` reflected
+    in the next ``get_end_attempts``); on each of those ticks ``end_session`` fires (the OLD single-
+    shot premise is intentionally reversed — the breadcrumb is kept). On the fourth tick the counter
+    is at MAX (3) → the reaper SIGTERMs the claude REPL (``kill_repl_process("ticket-7")`` once),
+    clears the done breadcrumb + the counter, and does NOT dispatch ``end_session`` that tick.
+    """
+    from kanbanmate.app.reaper import MAX_END_ATTEMPTS
+
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = True  # STILL ALIVE across all ticks
+    m.sessions.capture.return_value = "❯ "  # idle pane — no running-turn marker
+    m.store.recent_agent_done.return_value = True
+
+    # Model the durable counter: bump advances it; get_end_attempts reads the current value.
+    counter = {"n": 0}
+
+    def _bump(_issue: int) -> int:
+        counter["n"] += 1
+        return counter["n"]
+
+    m.store.bump_end_attempt.side_effect = _bump
+    m.store.get_end_attempts.side_effect = lambda _issue: counter["n"]
+
+    done_idle = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,
+        stage="InProgress",
+    )
+    m.store.list_running.return_value = (done_idle,)
+    state = PersistedState(last_probe="probe-1")
+
+    # The first MAX ticks each re-dispatch end_session (NOT single-shot) and bump the counter.
+    for expected in range(1, MAX_END_ATTEMPTS + 1):
+        tick(m.deps, _config(), state)
+        assert m.sessions.end_session.call_count == expected
+        assert counter["n"] == expected
+    m.sessions.kill_repl_process.assert_not_called()  # not yet escalated
+    m.store.clear_agent_done.assert_not_called()  # breadcrumb kept through the retry budget
+
+    # The (MAX+1)-th tick: counter == MAX → escalate (kill the REPL), clear both markers, no dispatch.
+    tick(m.deps, _config(), state)
+    assert m.sessions.end_session.call_count == MAX_END_ATTEMPTS  # NOT dispatched on the kill tick
+    m.sessions.kill_repl_process.assert_called_once_with("ticket-7")
+    m.store.clear_agent_done.assert_called_once_with(7)
+    m.store.clear_end_attempts.assert_called_once_with(7)
+    m.sessions.kill.assert_not_called()  # NEVER kill-session (Approach A)
+
+
+def test_reaper_escalation_kills_repl_not_session() -> None:
+    """firm-exit Approach A: at MAX the reaper kills the REPL PROCESS, never the tmux session.
+
+    With ``get_end_attempts == MAX`` the reaper escalates to ``kill_repl_process`` (so the surviving
+    shell still runs ``; kanban-session-end``) and NEVER calls ``sessions.kill`` (kill-session).
+    """
+    from kanbanmate.app.reaper import MAX_END_ATTEMPTS
+
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = True
+    m.sessions.capture.return_value = "❯ "  # idle
+    m.store.recent_agent_done.return_value = True
+    m.store.get_end_attempts.return_value = MAX_END_ATTEMPTS  # budget exhausted
+    done_idle = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,
+        stage="InProgress",
+    )
+    m.store.list_running.return_value = (done_idle,)
+    state = PersistedState(last_probe="probe-1")
+
+    tick(m.deps, _config(), state)
+
+    m.sessions.kill_repl_process.assert_called_once_with("ticket-7")
+    m.sessions.kill.assert_not_called()  # never kill-session here
+    m.sessions.end_session.assert_not_called()  # the graceful budget is spent
+
+
+def test_reaper_escalation_killrepl_failsoft() -> None:
+    """firm-exit: a kill_repl_process error at MAX still clears the breadcrumb + counter, no crash.
+
+    Even if the SIGTERM raises, the graceful budget is spent — the reaper clears both markers so the
+    next tick falls through to Approach A (the still-dying session parks WAITING). The sweep does not
+    crash.
+    """
+    from kanbanmate.app.reaper import MAX_END_ATTEMPTS
+
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = True
+    m.sessions.capture.return_value = "❯ "  # idle
+    m.store.recent_agent_done.return_value = True
+    m.store.get_end_attempts.return_value = MAX_END_ATTEMPTS
+    m.sessions.kill_repl_process.side_effect = RuntimeError("SIGTERM failed")
+    done_idle = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,
+        stage="InProgress",
+    )
+    m.store.list_running.return_value = (done_idle,)
+    state = PersistedState(last_probe="probe-1")
+
+    result, _ = tick(m.deps, _config(), state)  # must not raise
+
+    m.sessions.kill_repl_process.assert_called_once_with("ticket-7")
+    m.store.clear_agent_done.assert_called_once_with(7)
+    m.store.clear_end_attempts.assert_called_once_with(7)
+    assert result.reaped == 0
+
+
+def test_reaper_done_exit_failure_does_not_bump_or_clear() -> None:
+    """firm-exit: a FAILED end_session below MAX does NOT bump or clear (retries the SAME attempt).
+
+    If the keystroke dispatch raised, ``; kanban-session-end`` was never triggered (no collision) and
+    the attempt did not really happen — so the counter is NOT bumped and the breadcrumb is NOT
+    cleared, so the next tick retries the same attempt number. (Rewrite of the deployed
+    ``test_reaper_done_exit_failure_does_not_clear_breadcrumb``.)
+    """
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = True
+    m.sessions.capture.return_value = "❯ "  # idle
+    m.store.recent_agent_done.return_value = True
+    m.store.get_end_attempts.return_value = 0  # below MAX
+    m.sessions.end_session.side_effect = RuntimeError("tmux send-keys failed")
+    done_idle = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,
+        stage="InProgress",
+    )
+    m.store.list_running.return_value = (done_idle,)
+    state = PersistedState(last_probe="probe-1")
+
+    tick(m.deps, _config(), state)  # must not raise
+
+    m.sessions.end_session.assert_called_once_with("ticket-7")
+    m.store.bump_end_attempt.assert_not_called()  # the dispatch raised → no bump
+    m.store.clear_agent_done.assert_not_called()  # no collision risk → breadcrumb kept for retry
+    m.sessions.kill_repl_process.assert_not_called()
+
+
+def test_reaper_resets_end_attempts_when_not_done() -> None:
+    """firm-exit §3.4: a NOT-done alive session with a lingering counter has it reset, nothing else.
+
+    The §3.4 defensive reset: a not-done session (no done breadcrumb) carrying a stale
+    ``get_end_attempts=2`` (e.g. a daemon restart mid-escalation) has ``clear_end_attempts(7)``
+    called so a later done cycle starts clean — and is NOT exited or killed.
+    """
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = True
+    m.sessions.capture.return_value = "❯ "  # idle
+    m.store.recent_agent_done.return_value = False  # NOT in the done-exit cycle
+    m.store.get_end_attempts.return_value = 2  # but a stale counter lingers
+    not_done = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,  # stale → parks WAITING via Approach A
+        stage="InProgress",
+    )
+    m.store.list_running.return_value = (not_done,)
+    state = PersistedState(last_probe="probe-1")
+
+    tick(m.deps, _config(), state)
+
+    m.store.clear_end_attempts.assert_called_once_with(7)  # the defensive reset
+    m.sessions.end_session.assert_not_called()  # not in the done branch
+    m.sessions.kill_repl_process.assert_not_called()
+    m.sessions.kill.assert_not_called()
 
 
 def test_reaper_early_waiting_detection_before_reap_ttl() -> None:

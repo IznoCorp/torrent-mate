@@ -92,10 +92,8 @@ class TicketState:
         heartbeat: The wall-clock timestamp of the last liveness heartbeat,
             used by the reaper's stale-agent TTL check.
         stage: The column key the launch entered — the stage the finalizers
-            (✅ advance / ⚠️ session-end / ⛔ reaper) finalize. Defaulted to
-            ``""`` so an old-format on-disk record (predating the widened
-            ``TicketState``) still loads cleanly via the adapter's
-            ``TicketState(**data)`` round-trip (DESIGN §8.1.d).
+            (✅ advance / ⚠️ session-end / ⛔ reaper) finalize. Defaulted to ``""``
+            so an old-format record still loads via ``TicketState(**data)`` (§8.1.d).
         profile: The permission profile the agent runs under — the ``profile``
             bullet a terminal sticky's ``header_from_state`` renders. Defaulted.
         mode: The materialised Claude permission mode (e.g. ``"auto"``)
@@ -104,20 +102,16 @@ class TicketState:
             via ``fmt_timestamp`` into the ``started`` bullet. Defaulted.
         worktree: The worktree path the agent runs in — ``header_from_state``
             shows ``Path(worktree).name`` in the ``worktree`` bullet. Defaulted.
-        retries: How many times the reaper has relaunched this stale session
-            (the reaper relaunch-once budget; capped at
-            ``reaper.RETRY_LIMIT``). The reaper increments this on each retry
-            via :meth:`StateStore.save`; the bare counter rides on the
-            ``TicketState`` (NOT the ``(issue, key)`` ledger — those are two
-            distinct counters, never conflated). Defaulted to 0 so an
-            old-format state file lacking the key still loads cleanly.
-        prompt: The matched transition's FILLED-AT-LAUNCH prompt template — one
-            of the **relaunch inputs** persisted so the reaper can rebuild the
-            EXACT launch command (PoC ``launch.py`` "Re-launch inputs persisted",
-            phase-25 §25.2). Without it a reaper relaunch spawns a PROMPTLESS
-            idle agent that never does a tool call and is re-reaped at the TTL.
-            ``None`` for a bare (prompt-less) launch. Defaulted so an old-format
-            state file lacking the key still loads cleanly.
+        retries: How many times the reaper has relaunched this stale session (the
+            relaunch-once budget, capped at ``reaper.RETRY_LIMIT``). The reaper
+            increments it via :meth:`StateStore.save`; this bare counter rides on
+            ``TicketState`` (NOT the ``(issue, key)`` ledger — never conflated).
+            Defaulted to 0 so an old-format state file still loads cleanly.
+        prompt: The matched transition's FILLED-AT-LAUNCH prompt template — a
+            **relaunch input** persisted so the reaper rebuilds the EXACT launch
+            command (phase-25 §25.2). Without it a reaper relaunch spawns a
+            PROMPTLESS idle agent re-reaped at the TTL. ``None`` for a bare
+            launch. Defaulted so an old-format state file still loads.
         script: The matched transition's launch-transition script — a relaunch
             input persisted alongside :attr:`prompt` so the reaper rebuilds the
             full :class:`~kanbanmate.app.actions.LaunchAction`. ``None`` when the
@@ -157,11 +151,9 @@ class TicketState:
     on_fail: str = ""
     advance: str = ""
     # The ticket's title + body at launch (defect 4): persisted so a reaper RELAUNCH rebuilds the
-    # Ticket with the REAL title/body, not a synthetic ``ticket-N`` / empty body. An empty body
-    # makes ``parse_ticket_fields`` yield empty codename/design_path/plan_paths, and the Plan /
-    # Prepare prompts hard-instruct "if empty → DESYNC, END the session" — so a relaunched
-    # Spec→Plan agent self-DESYNCs and burns its one retry. The drain queue payload already proves
-    # this shape (it persists title/body). Both DEFAULTED so an old-format state still loads.
+    # Ticket with the REAL title/body, not a synthetic ``ticket-N`` / empty body (an empty body makes
+    # ``parse_ticket_fields`` yield empty codename/design/plans → the Plan/Prepare prompts DESYNC and
+    # burn the one retry). Both DEFAULTED so an old-format state still loads.
     title: str = ""
     body: str = ""
 
@@ -258,19 +250,17 @@ class StateStore(Protocol):
     def purge_ticket(self, issue_number: int, *, keep_budgets: bool = False) -> None:
         """Idempotent teardown purge of a ticket's markers for ``issue_number``.
 
-        Removes the per-ticket RUNTIME footprint ALWAYS:
-          * ``state/<issue>.json``    — persisted runtime state
-          * ``slots/ticket-<issue>``  — concurrency-cap slot marker
-          * ``advances/<issue>``      — agent-advance breadcrumb (DESIGN §8.1.d)
-          * ``done/<issue>``          — agent-done breadcrumb (#1)
-          * ``queue/ticket-<issue>``  — relaunch queue marker (DESIGN §7)
+        Removes the per-ticket RUNTIME footprint ALWAYS — ``state/<issue>.json``,
+        ``slots/ticket-<issue>``, ``advances/<issue>`` (agent-advance breadcrumb,
+        DESIGN §8.1.d), ``done/<issue>`` (agent-done breadcrumb, #1),
+        ``end_attempts/<issue>`` (reaper done-exit attempt counter, firm-exit) and
+        ``queue/ticket-<issue>`` (relaunch queue marker, DESIGN §7).
 
         And the per-issue BUDGET markers CONDITIONALLY (only when ``keep_budgets``
-        is ``False`` — the default exhaustive teardown):
-          * ``moves/<issue>.json``    — per-issue move rate-limit history (§6)
-          * ``retries/<issue>__*``    — every per-(issue, key) fix-CI retry
-            counter (the fs adapter ``glob.escape``s the interpolated issue so a
-            metachar can never widen the pattern — over-match defence).
+        is ``False`` — the default exhaustive teardown): ``moves/<issue>.json``
+        (move rate-limit history, §6) and every ``retries/<issue>__*`` fix-CI retry
+        counter (the fs adapter ``glob.escape``s the issue so a metachar can never
+        widen the pattern — over-match defence).
 
         The budget markers are *per-issue budgets* that must persist across the
         ticket's lifecycle (sessions, reaps) so the durable §6 rate-limit can
@@ -279,21 +269,14 @@ class StateStore(Protocol):
         absent) so a teardown→reset (or session-end/teardown) double-purge never
         raises — idempotent per the PoC ``purge_ticket`` contract.
 
-        Used by:
-          * ``keep_budgets=True`` — the reaper's stale-agent teardown
-            (:class:`~kanbanmate.app.actions.TeardownAction` constructed with the
-            flag) and ``kanban session-end``: the ticket MAY continue, so its
-            rate-limit / fix-CI budgets are PRESERVED across the gap.
-          * ``keep_budgets=False`` (default) — the Cancel-column
-            ``TeardownAction`` and the Cancel→Backlog ``ResetAction``: the ticket
-            is ABANDONED, so the full exhaustive purge drops the budgets too.
-
         Args:
             issue_number: The ticket whose persisted markers to purge.
             keep_budgets: When ``True``, preserve ``moves/`` + ``retries/`` (the
-                per-issue budgets) and purge only the runtime markers (reaper /
-                session-end — the ticket may continue). When ``False`` (default),
-                the exhaustive teardown (Cancel / reset — abandonment).
+                per-issue budgets) and purge only the runtime markers — the
+                reaper's stale-agent teardown / ``kanban session-end``, where the
+                ticket MAY continue. When ``False`` (default), the exhaustive
+                teardown drops the budgets too (the Cancel ``TeardownAction`` /
+                Cancel→Backlog ``ResetAction`` — the ticket is ABANDONED).
         """
         ...
 
@@ -458,6 +441,40 @@ class StateStore(Protocol):
 
         Args:
             issue_number: The ticket whose done breadcrumb to clear (the key).
+        """
+        ...
+
+    def bump_end_attempt(self, issue_number: int) -> int:
+        """Increment + return ``issue_number``'s reaper done-exit attempt counter (from 1; firm-exit).
+
+        Issue-keyed marker ``end_attempts/<issue>`` = ``{"n": n}``; the reaper bumps it per
+        ``end_session`` dispatch and escalates to ``kill_repl_process`` at
+        :data:`~kanbanmate.app.reaper.MAX_END_ATTEMPTS`. Absent → 1; corrupt → 0 before increment.
+
+        Args:
+            issue_number: The ticket whose attempt counter to bump.
+
+        Returns:
+            The new (incremented) attempt count.
+        """
+        ...
+
+    def get_end_attempts(self, issue_number: int) -> int:
+        """Return ``issue_number``'s done-exit attempt count (0 when absent/corrupt; firm-exit).
+
+        Args:
+            issue_number: The ticket whose attempt count to read.
+
+        Returns:
+            The attempt count, or ``0`` when absent / unreadable / corrupt.
+        """
+        ...
+
+    def clear_end_attempts(self, issue_number: int) -> None:
+        """Remove ``issue_number``'s done-exit attempt counter (no-op when absent; firm-exit).
+
+        Args:
+            issue_number: The ticket whose attempt counter to clear.
         """
         ...
 

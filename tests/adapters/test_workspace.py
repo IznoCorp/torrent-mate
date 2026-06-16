@@ -12,13 +12,19 @@ from __future__ import annotations
 
 import fcntl
 import os
+import signal
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
-from kanbanmate.adapters.workspace.sessions import TmuxSessions
+from kanbanmate.adapters.workspace.sessions import (
+    _END_CLEAR_DELAY,
+    _END_CONFIRM_DELAY,
+    _END_MENU_DELAY,
+    TmuxSessions,
+)
 from kanbanmate.adapters.workspace.worktree import (
     _PACKAGE_ROOT,
     GIT_TIMEOUT,
@@ -1428,39 +1434,215 @@ class TestTmuxSessionsUnit:
             check=True,
         )
 
-    def test_end_session_sends_ctrl_c_then_ctrl_d_no_kill(self) -> None:
-        """end_session (#1) exits the REPL with C-c then C-d — and NEVER runs kill-session.
+    def test_end_session_robust_sequence_in_order(self) -> None:
+        """end_session (firm-exit) sends Escape→C-u→C-d→C-d, with delays, and NEVER kill-session.
 
-        The trailing ``; kanban-session-end`` must run when claude exits, so the tmux session must
-        survive: end_session sends exactly two send-keys events (C-c, then C-d / EOF) and issues NO
-        kill-session call.
+        The robust exit closes any open slash-command menu (Escape), clears the input line (C-u),
+        then EOFs TWICE (the second C-d confirms past the "N shells still running" warning). Each
+        send-keys is a tmux KEY NAME (no ``-l``) and ``check=True``; the three delays go through the
+        injected sleeper in order; and there is NO kill-session (the trailing ``; kanban-session-end``
+        must still run).
         """
         mock_runner = MagicMock()
-        sessions = TmuxSessions(runner=mock_runner)
+        mock_sleeper = MagicMock()
+        sessions = TmuxSessions(runner=mock_runner, sleeper=mock_sleeper)
 
         sessions.end_session("ticket-7")
 
         argvs = [c.args[0] for c in mock_runner.call_args_list]
-        # Exactly two send-keys events, in order: C-c then C-d.
+        # Exactly four send-keys events, in order: Escape, C-u, C-d, C-d (each a KEY NAME, no -l).
         assert argvs == [
-            ["tmux", "send-keys", "-t", "ticket-7", "C-c"],
+            ["tmux", "send-keys", "-t", "ticket-7", "Escape"],
+            ["tmux", "send-keys", "-t", "ticket-7", "C-u"],
+            ["tmux", "send-keys", "-t", "ticket-7", "C-d"],
             ["tmux", "send-keys", "-t", "ticket-7", "C-d"],
         ]
+        # Every send-keys is check=True (no swallowed failures on the exit path).
+        for call in mock_runner.call_args_list:
+            assert call.kwargs.get("check") is True
         # CRUCIAL: no kill-session — that would prevent the trailing wrapper from firing.
         assert not any("kill-session" in argv for argv in argvs)
+        # The three delays fired in order (menu close → line clear → confirm-EOF).
+        assert [c.args[0] for c in mock_sleeper.call_args_list] == [
+            _END_MENU_DELAY,
+            _END_CLEAR_DELAY,
+            _END_CONFIRM_DELAY,
+        ]
+
+    def test_end_session_uses_no_real_sleep_offline(self) -> None:
+        """The injected fake sleeper proves end_session pays ZERO real wall time offline.
+
+        Every delay routes through the ``sleeper`` seam (not ``time.sleep``), so the unit suite runs
+        the robust sequence with no real waiting. The fake records three calls (one per delay).
+        """
+        mock_runner = MagicMock()
+        sleeps: list[float] = []
+        sessions = TmuxSessions(runner=mock_runner, sleeper=sleeps.append)
+
+        sessions.end_session("ticket-7")
+
+        assert sleeps == [_END_MENU_DELAY, _END_CLEAR_DELAY, _END_CONFIRM_DELAY]
+
+    # -- kill_repl_process (escalation primitive) ----------------------------
+
+    def test_kill_repl_process_sigterms_pane_child_not_session(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """kill_repl_process SIGTERMs the SINGLE claude REPL child — never kill-session, never the shell.
+
+        Resolves the pane shell PID via ``tmux list-panes`` (4242), finds its sole child via
+        ``pgrep -P 4242`` (4243), comm-verifies it IS claude (``ps -o comm= -p 4243`` → ``claude``),
+        and sends SIGTERM to 4243 — the claude REPL. It must NOT kill the tmux session (the surviving
+        shell runs ``; kanban-session-end``) nor the shell PID itself.
+        """
+
+        def _runner(argv: list[str], **_kwargs: object) -> MagicMock:
+            res = MagicMock()
+            if argv[:2] == ["tmux", "list-panes"]:
+                res.stdout = "4242\n"
+            elif argv[:1] == ["pgrep"]:
+                res.stdout = "4243\n"
+            elif argv[:3] == ["ps", "-o", "comm="]:
+                res.stdout = "claude\n"  # the sole child IS the claude REPL
+            else:
+                res.stdout = ""
+            return res
+
+        mock_runner = MagicMock(side_effect=_runner)
+        sessions = TmuxSessions(runner=mock_runner)
+        mock_kill = MagicMock()
+        monkeypatch.setattr("kanbanmate.adapters.workspace.sessions.os.kill", mock_kill)
+
+        sessions.kill_repl_process("ticket-7")
+
+        mock_kill.assert_called_once_with(4243, signal.SIGTERM)
+        argvs = [c.args[0] for c in mock_runner.call_args_list]
+        assert not any("kill-session" in argv for argv in argvs)
+
+    def test_kill_repl_process_skips_single_non_claude_child(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """kill_repl_process does NOT SIGTERM a SINGLE child that is NOT claude (the teardown guard).
+
+        Adversarial-review fix: at escalation time claude may have ALREADY exited, leaving the
+        surviving shell running ``; kanban-session-end`` (teardown) as its SOLE child. The old code
+        returned ``children[0]`` unconditionally for a single child and would SIGTERM that teardown
+        process. The comm-verify guard now runs in the single-child path too: the sole child
+        (``kanban-session-end``) is NOT claude → ``_child_pid`` returns ``None`` → no ``os.kill``.
+        """
+
+        def _runner(argv: list[str], **_kwargs: object) -> MagicMock:
+            res = MagicMock()
+            if argv[:2] == ["tmux", "list-panes"]:
+                res.stdout = "4242\n"
+            elif argv[:1] == ["pgrep"]:
+                res.stdout = "4243\n"  # a single child …
+            elif argv[:3] == ["ps", "-o", "comm="]:
+                res.stdout = "kanban-session-end\n"  # … but it is the teardown, NOT claude
+            else:
+                res.stdout = ""
+            return res
+
+        sessions = TmuxSessions(runner=MagicMock(side_effect=_runner))
+        mock_kill = MagicMock()
+        monkeypatch.setattr("kanbanmate.adapters.workspace.sessions.os.kill", mock_kill)
+
+        sessions.kill_repl_process("ticket-7")  # must not raise
+
+        # CRUCIAL: the lone non-claude child is NEVER signalled (no killing the teardown mid-flight).
+        mock_kill.assert_not_called()
+
+    def test_kill_repl_process_failsoft_when_pane_unresolved(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """kill_repl_process is a no-op (no os.kill) when the pane PID cannot be resolved."""
+
+        def _runner(argv: list[str], **_kwargs: object) -> MagicMock:
+            res = MagicMock()
+            res.stdout = ""  # list-panes returns nothing → pane gone
+            return res
+
+        sessions = TmuxSessions(runner=MagicMock(side_effect=_runner))
+        mock_kill = MagicMock()
+        monkeypatch.setattr("kanbanmate.adapters.workspace.sessions.os.kill", mock_kill)
+
+        sessions.kill_repl_process("ticket-7")  # must not raise
+
+        mock_kill.assert_not_called()
+
+    def test_kill_repl_process_failsoft_when_no_child(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """kill_repl_process is a no-op (no os.kill) when the shell has no resolvable child.
+
+        ``pgrep`` AND the ``ps`` fallback both return nothing → no claude REPL to kill.
+        """
+
+        def _runner(argv: list[str], **_kwargs: object) -> MagicMock:
+            res = MagicMock()
+            if argv[:2] == ["tmux", "list-panes"]:
+                res.stdout = "4242\n"
+            else:
+                res.stdout = ""  # pgrep + ps fallback both empty
+            return res
+
+        sessions = TmuxSessions(runner=MagicMock(side_effect=_runner))
+        mock_kill = MagicMock()
+        monkeypatch.setattr("kanbanmate.adapters.workspace.sessions.os.kill", mock_kill)
+
+        sessions.kill_repl_process("ticket-7")
+
+        mock_kill.assert_not_called()
+
+    def test_kill_repl_process_failsoft_on_oskill_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """kill_repl_process swallows an os.kill error (the child raced away) — no raise."""
+
+        def _runner(argv: list[str], **_kwargs: object) -> MagicMock:
+            res = MagicMock()
+            if argv[:2] == ["tmux", "list-panes"]:
+                res.stdout = "4242\n"
+            elif argv[:1] == ["pgrep"]:
+                res.stdout = "4243\n"
+            elif argv[:3] == ["ps", "-o", "comm="]:
+                res.stdout = "claude\n"  # comm-verify passes so os.kill is reached
+            else:
+                res.stdout = ""
+            return res
+
+        sessions = TmuxSessions(runner=MagicMock(side_effect=_runner))
+        monkeypatch.setattr(
+            "kanbanmate.adapters.workspace.sessions.os.kill",
+            MagicMock(side_effect=ProcessLookupError("gone")),
+        )
+
+        sessions.kill_repl_process("ticket-7")  # must not raise
+
+    def test_kill_repl_process_failsoft_on_runner_error(self) -> None:
+        """kill_repl_process swallows a runner exception while resolving the pane PID — no raise."""
+        mock_runner = MagicMock(side_effect=RuntimeError("tmux server unreachable"))
+        sessions = TmuxSessions(runner=mock_runner)
+
+        sessions.kill_repl_process("ticket-7")  # must not raise
 
     # -- safety (argv lists, no shell) ---------------------------------------
 
-    def test_all_tmux_calls_use_argv_lists_no_shell(self) -> None:
+    def test_all_tmux_calls_use_argv_lists_no_shell(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Every tmux call must pass an argv list WITHOUT shell=True."""
         mock_runner = MagicMock()
-        sessions = TmuxSessions(runner=mock_runner)
+        # list-panes/pgrep return parseable stdout so kill_repl_process traverses its argv seams.
+        mock_runner.return_value.stdout = "4242\n"
+        sessions = TmuxSessions(runner=mock_runner, sleeper=lambda _s: None)
+        monkeypatch.setattr("kanbanmate.adapters.workspace.sessions.os.kill", MagicMock())
 
         sessions.launch("s", "/d", "cmd")
         sessions.capture("s")
         sessions.send_text("s", "txt", literal=True, enter=True)
         sessions.is_alive("s")
         sessions.kill("s")
+        sessions.end_session("s")
+        sessions.kill_repl_process("s")
 
         for call_args in mock_runner.call_args_list:
             args, kwargs = call_args

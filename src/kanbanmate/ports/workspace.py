@@ -307,3 +307,20 @@ class Sessions(Protocol):
             name: The session name whose REPL to exit (``ticket-<n>``).
         """
         ...
+
+    def kill_repl_process(self, name: str) -> None:
+        """SIGTERM the ``claude`` REPL child of session ``name``'s pane — NOT the session/shell (#).
+
+        Escalation primitive for a graceful exit (:meth:`end_session`) that failed repeatedly. The
+        reaper calls this after :data:`~kanbanmate.app.reaper.MAX_END_ATTEMPTS` graceful dispatches
+        could not exit a hung/stubborn REPL. It resolves the pane's shell PID
+        (``tmux list-panes -t <name> -F '#{pane_pid}'``), finds its child (the ``claude`` REPL) and
+        sends it ``SIGTERM`` so the REPL dies but the SURVIVING shell still runs the trailing
+        ``; kanban-session-end <issue>`` of the launched command → teardown fires. It MUST NOT
+        ``kill-session`` (that kills the shell and the wrapper never runs) and MUST NOT kill the shell
+        PID itself. FAIL-SOFT: any resolution/kill error is swallowed (the reaper logs).
+
+        Args:
+            name: The session name whose REPL process to terminate (``ticket-<n>``).
+        """
+        ...

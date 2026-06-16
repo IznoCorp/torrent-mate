@@ -41,6 +41,14 @@ logger = logging.getLogger(__name__)
 # the same stage once; the next miss (``retries >= RETRY_LIMIT``) goes straight to Blocked.
 RETRY_LIMIT = 1
 
+# A graceful done-exit (end_session: Escape→C-u→C-d→C-d) is dispatched at most this many times before
+# the reaper ESCALATES to killing the claude REPL process. A genuinely-hung REPL or stubborn leftover
+# state can swallow the keystrokes; after MAX_END_ATTEMPTS we SIGTERM the claude child (NOT the
+# session/shell) so the surviving shell still runs ``; kanban-session-end``. Kept small (the keystroke
+# path usually works on attempt 1-2; helm #5 needed the menu-close + double-C-d the robust sequence
+# now sends in ONE dispatch).
+MAX_END_ATTEMPTS = 3
+
 
 @dataclass(frozen=True)
 class _ReapMove:
@@ -200,50 +208,124 @@ def _pane_has_active_turn(deps: Deps, issue_number: int) -> bool:
 
 
 def _end_done_session(deps: Deps, state: TicketState, now: float) -> bool:
-    """Cleanly EXIT a done + idle alive session so its session-end wrapper fires (#1).
+    """Cleanly EXIT a done + idle alive session, escalating to a REPL kill after repeated failures.
 
-    Calls :meth:`~kanbanmate.ports.workspace.Sessions.end_session` (C-c then C-d → ``claude`` exits
-    → the trailing ``; kanban-session-end <issue>`` runs the teardown). FAIL-SOFT: an exit-keystroke
-    error is logged and the ticket is left WAITING for the next tick to retry (never crashes the
-    sweep). Returns whether the exit was dispatched.
+    BOUNDED-RETRY-THEN-KILL escalation (firm-exit). On each tick this branch is entered for a done +
+    idle + alive session; the helper reads the persisted attempt counter
+    (:meth:`~kanbanmate.ports.store.StateStore.get_end_attempts`) and:
 
-    **SINGLE-SHOT dispatch (review BLOCKER).** On a SUCCESSFUL dispatch the done breadcrumb is
-    CLEARED (:meth:`~kanbanmate.ports.store.StateStore.clear_agent_done`, fail-soft) so a subsequent
-    reap tick no longer re-enters the done-exit branch. This matters because ``claude`` may exit
-    slowly AND the out-of-band ``; kanban-session-end`` then does multi-second GitHub I/O — during
-    that window the tmux session is STILL ALIVE with no active turn. A second ``end_session`` would
-    re-send C-c then C-d and could INTERRUPT ``kanban-session-end`` mid-teardown, leaving state
-    half-purged. With the breadcrumb cleared the next tick falls through to the Approach-A path: a
-    still-alive stale session parks WAITING (non-destructive, operator-visible) instead of being
-    re-exited. A FAILED dispatch does NOT clear — at that point ``kanban-session-end`` has not been
-    triggered, so a retry next tick has no collision risk.
+    * **attempts < :data:`MAX_END_ATTEMPTS`** — dispatch the ROBUST graceful exit
+      (:meth:`~kanbanmate.ports.workspace.Sessions.end_session`: Escape→C-u→C-d→C-d → ``claude``
+      exits → the trailing ``; kanban-session-end <issue>`` runs the teardown), then BUMP the counter.
+      The done breadcrumb is **LEFT in place** (the single-shot clear of the old contract is gone for
+      this path), so the next tick RE-ENTERS the branch and re-dispatches until the REPL exits or the
+      budget is hit. A FAILED dispatch returns ``False`` WITHOUT bumping or clearing — the keystrokes
+      never reached ``claude`` (no ``; kanban-session-end`` collision risk), so the next tick simply
+      retries the SAME attempt number.
+    * **attempts >= :data:`MAX_END_ATTEMPTS`** — the graceful exit failed repeatedly (a genuinely-hung
+      REPL or stubborn state swallowing the keystrokes). ESCALATE:
+      :meth:`~kanbanmate.ports.workspace.Sessions.kill_repl_process` SIGTERMs the ``claude`` child
+      (NOT the session/shell) so the surviving shell still runs ``; kanban-session-end`` → teardown.
+      Then CLEAR the done breadcrumb AND the attempt counter (whether or not the SIGTERM landed
+      cleanly — the graceful budget is spent), so the next tick falls through to Approach A: the
+      still-dying session parks WAITING (non-destructive) until it dies → reaped, OR
+      ``kanban-session-end`` purges its state (incl. both markers via ``purge_ticket``).
+
+    Reversal of the earlier **SINGLE-SHOT** contract: that single dispatch could no-op on the helm #5
+    leftover-box + background-shell condition and the consumed breadcrumb parked the finished agent
+    WAITING forever. The robust ``end_session`` now sends the menu-close + clear + double-C-d in ONE
+    dispatch, and the bounded retry + REPL-kill escalation is the engine guarantee.
+
+    FAIL-SOFT throughout: every store/sessions call is guarded; an error is logged and never crashes
+    the sweep. Approach A is preserved by the CALLER (this only ever runs for a done + idle + alive
+    session — a WORKING/not-done session is never reached here).
 
     Args:
-        deps: The injected adapter bundle (the sessions port).
+        deps: The injected adapter bundle (the sessions + store ports).
         state: The done + idle ticket's persisted state.
         now: The current wall-clock time (unused today; kept for symmetry with the WAITING helpers).
 
     Returns:
-        ``True`` iff ``end_session`` was dispatched without raising; ``False`` on error.
+        ``True`` iff this tick consumed the branch (dispatched + bumped, or escalated + cleared);
+        ``False`` only when the graceful dispatch RAISED (no bump/clear — retried next tick).
     """
+    issue = state.issue_number
+    # Read the persisted attempt budget; a read error degrades to 0 (treat as the first attempt — the
+    # fs reader is already poison-tolerant, but guard the call so the sweep never crashes).
     try:
-        deps.sessions.end_session(f"ticket-{state.issue_number}")
+        attempts = deps.store.get_end_attempts(issue)
+    except Exception:
+        logger.exception("reaper get_end_attempts failed for #%s; treating as 0", issue)
+        attempts = 0
+
+    if attempts < MAX_END_ATTEMPTS:
+        # Bounded-retry path: dispatch the robust graceful exit and bump the counter. Leave the done
+        # breadcrumb so the next tick re-enters and re-dispatches until exit or the budget is hit.
+        try:
+            deps.sessions.end_session(f"ticket-{issue}")
+        except Exception:
+            # The keystrokes never reached claude → no ; kanban-session-end collision. Do NOT bump or
+            # clear; the next tick retries the SAME attempt number.
+            logger.exception(
+                "reaper end_session failed for #%s; leaving for the next tick (no bump/clear)",
+                issue,
+            )
+            return False
+        try:
+            deps.store.bump_end_attempt(issue)
+        except Exception:
+            # A bump failure must not crash the sweep; worst case the next tick re-dispatches at the
+            # same (un-bumped) attempt number — still bounded by the eventual REPL exit / kill.
+            logger.exception("reaper bump_end_attempt failed for #%s; continuing", issue)
+        return True
+
+    # ESCALATION: the graceful budget is exhausted → SIGTERM the claude REPL child (NOT the session)
+    # so the surviving shell still runs ``; kanban-session-end``. Fail-soft — even if the kill raises
+    # we still clear, because the graceful budget is spent and re-dispatching would only re-fail.
+    try:
+        deps.sessions.kill_repl_process(f"ticket-{issue}")
     except Exception:
         logger.exception(
-            "reaper end_session failed for #%s; leaving for the next tick", state.issue_number
+            "reaper kill_repl_process failed for #%s; clearing anyway (budget spent)", issue
         )
-        return False
-    # SINGLE-SHOT: the exit dispatched cleanly, so drop the done breadcrumb to prevent a re-dispatch
-    # on a later tick from interrupting the in-flight ``; kanban-session-end`` teardown (fail-soft —
-    # a clear error must not crash the sweep; worst case the next tick re-exits an already-gone REPL).
+    # Clear the done breadcrumb + the attempt counter so the next tick falls through to Approach A
+    # (the still-dying session parks WAITING, then dies → reaped; or kanban-session-end purges state).
     try:
-        deps.store.clear_agent_done(state.issue_number)
+        deps.store.clear_agent_done(issue)
     except Exception:
         logger.exception(
-            "reaper clear_agent_done failed for #%s after end_session; continuing",
-            state.issue_number,
+            "reaper clear_agent_done failed for #%s after escalation; continuing", issue
+        )
+    try:
+        deps.store.clear_end_attempts(issue)
+    except Exception:
+        logger.exception(
+            "reaper clear_end_attempts failed for #%s after escalation; continuing", issue
         )
     return True
+
+
+def _reset_stale_end_attempts(deps: Deps, issue_number: int) -> None:
+    """Drop a lingering done-exit attempt counter for a NOT-done ``issue_number`` (firm-exit §3.4).
+
+    The defensive reset point for the case where the done breadcrumb is gone but a stale
+    ``end_attempts/<issue>`` counter lingers — e.g. a daemon restart mid-escalation, or an agent that
+    never reached done. Reads the counter and clears it ONLY when ``> 0``, so a not-done session never
+    carries a stale attempt count into a LATER done cycle. FAIL-SOFT: any store error is logged and
+    never crashes the sweep (the primary reset is ``purge_ticket`` at teardown; this only catches the
+    orphaned-counter edge case).
+
+    Args:
+        deps: The injected adapter bundle (the store port).
+        issue_number: The not-done ticket whose lingering counter to reset.
+    """
+    try:
+        if deps.store.get_end_attempts(issue_number) > 0:
+            deps.store.clear_end_attempts(issue_number)
+    except Exception:
+        logger.exception(
+            "reaper defensive clear_end_attempts failed for #%s; continuing", issue_number
+        )
 
 
 def _enter_waiting(deps: Deps, state: TicketState, now: float) -> None:
@@ -374,18 +456,25 @@ def reap_stale_agents(
       ``kanban cancel``). The heartbeat TTL thus governs WHEN an alive agent flips to WAITING, not
       whether it is reaped.
 
-    **Option 1 done-exit (#1) — runs AHEAD of the WAITING parking.** Before the Approach-A handling,
-    for an ALIVE session that has signalled DONE (the agent ran ``kanban-done`` → a persisted
-    ``done/<issue>`` breadcrumb, :meth:`~kanbanmate.ports.store.StateStore.recent_agent_done`) AND
-    whose pane is IDLE (no ``esc to interrupt`` active turn — :func:`_pane_has_active_turn`), the
-    reaper cleanly EXITS the REPL via :meth:`~kanbanmate.ports.workspace.Sessions.end_session` (C-c
-    then C-d, NOT ``kill``) so ``claude`` exits and the trailing ``; kanban-session-end <issue>`` of
-    the launched command runs the teardown → the card flows. This applies to BOTH fresh+alive and
-    stale+alive done agents (a quick-finish is fresh; a long agent that finishes after going silent is
-    stale). Approach A is UNCHANGED for every other case: a NOT-done alive session, or a done-but-
-    WORKING session (the active-turn probe FAILS CLOSED to "active" on any error, so an undecidable
-    pane is never exited), falls through to the WAITING / fresh handling and is never exited; a DEAD
-    session is reaped below.
+    **Option 1 done-exit (#1) + firm-exit escalation — runs AHEAD of the WAITING parking.** Before the
+    Approach-A handling, for an ALIVE session that has signalled DONE (the agent ran ``kanban-done`` →
+    a persisted ``done/<issue>`` breadcrumb, :meth:`~kanbanmate.ports.store.StateStore.recent_agent_done`)
+    AND whose pane is IDLE (no ``esc to interrupt`` active turn — :func:`_pane_has_active_turn`), the
+    reaper drives the BOUNDED-RETRY-THEN-KILL escalation in :func:`_end_done_session`: it dispatches the
+    ROBUST :meth:`~kanbanmate.ports.workspace.Sessions.end_session` (Escape→C-u→C-d→C-d, NOT ``kill``)
+    so ``claude`` exits and the trailing ``; kanban-session-end <issue>`` runs the teardown → the card
+    flows, KEEPING the done breadcrumb + bumping a persisted ``end_attempts/<issue>`` counter so the
+    next tick re-dispatches until the REPL exits or :data:`MAX_END_ATTEMPTS` is hit — then it SIGTERMs
+    the ``claude`` child (:meth:`~kanbanmate.ports.workspace.Sessions.kill_repl_process`, NOT the
+    session/shell) and clears both markers. This replaces the earlier SINGLE-SHOT dispatch (which
+    no-op'd on the helm #5 leftover-box + background-shell condition and parked the finished agent
+    WAITING forever). It applies to BOTH fresh+alive and stale+alive done agents (a quick-finish is
+    fresh; a long agent that finishes after going silent is stale). Approach A is UNCHANGED for every
+    other case: a NOT-done alive session, or a done-but-WORKING session (the active-turn probe FAILS
+    CLOSED to "active" on any error, so an undecidable pane is never exited), falls through to the
+    WAITING / fresh handling and is never exited or killed; a DEAD session is reaped below. A NOT-done
+    alive session also has any LINGERING ``end_attempts`` counter reset (:func:`_reset_stale_end_attempts`,
+    §3.4) so a future done cycle on the same ticket starts clean.
 
     Only a DEAD session (the ``is_alive`` probe DEFINITIVELY reports it gone) is reaped — immediately,
     regardless of heartbeat freshness (#26: a crashed agent is not left for the full TTL). The probe
@@ -452,17 +541,26 @@ def reap_stale_agents(
         # it has signalled done AND its pane is IDLE (no ``esc to interrupt`` active turn). A not-done
         # alive session, or a done-but-WORKING session, falls through to the unchanged WAITING /
         # fresh handling and is NEVER exited. A dead session is handled by the reap path below.
-        if alive and deps.store.recent_agent_done(state.issue_number, now=now):
+        done = alive and deps.store.recent_agent_done(state.issue_number, now=now)
+        if done:
             if not _pane_has_active_turn(deps, state.issue_number):
-                # SINGLE-SHOT (review BLOCKER): _end_done_session CLEARS the done breadcrumb on a
-                # successful dispatch, so the next tick no longer re-enters this branch — it cannot
-                # re-send C-c/C-d into the in-flight ``; kanban-session-end`` teardown. A still-alive
-                # stale session then parks WAITING via Approach A below (non-destructive). A failed
-                # dispatch leaves the breadcrumb so the next tick retries (no collision yet).
+                # BOUNDED-RETRY THEN KILL-ESCALATION (firm-exit) — see :func:`_end_done_session`: it
+                # dispatches the robust end_session and bumps a persisted attempt counter, KEEPING the
+                # done breadcrumb so the next tick re-dispatches, until either the REPL exits or
+                # MAX_END_ATTEMPTS is reached → it SIGTERMs the claude child (NOT the session) and
+                # clears the breadcrumb + counter. Approach A intact: only ever a done + idle + alive
+                # session reaches here.
                 _end_done_session(deps, state, now)
                 continue
             # Done but a turn is still running → do NOT interrupt it; fall through to the normal
             # fresh/stale handling (it will be re-evaluated next tick once the turn ends).
+        else:
+            # §3.4 defensive reset: this ticket is NOT in the done-exit cycle (no recent done
+            # breadcrumb — never reached done, or the breadcrumb aged out / was cleared). A stale
+            # attempt counter could linger across a daemon restart mid-escalation; drop it (fail-soft)
+            # so a LATER done cycle on the same ticket starts its budget clean. Cheap: a read + a
+            # conditional unlink, only when a counter is actually present.
+            _reset_stale_end_attempts(deps, state.issue_number)
 
         # Phase-27 §B — WAITING / RESUME / WAITING-death handling, BEFORE the reap gate:
         if fresh and alive:

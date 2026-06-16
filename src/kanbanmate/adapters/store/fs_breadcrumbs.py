@@ -18,6 +18,14 @@ Two distinct issue-keyed breadcrumbs live here, both written SYNCHRONOUSLY by th
   (1800 s — the reaper HEARTBEAT_TTL horizon, so a done signal a hung daemon never consumed still
   ages out).
 
+A third issue-keyed marker (firm-exit) mirrors the done breadcrumb but counts the reaper's done-exit
+attempts rather than a timestamp:
+
+* ``end_attempts/<issue>`` = ``{"n": <int>}`` — the reaper's bounded-retry counter. It bumps once per
+  ``end_session`` dispatch for a done + idle session; once the count reaches
+  :data:`~kanbanmate.app.reaper.MAX_END_ATTEMPTS` the reaper escalates to ``kill_repl_process``. No
+  TTL (it is reset by ``purge_ticket`` at teardown and by the reaper's defensive not-done reset).
+
 This mixin is **self-contained** (it owns its TTL constants + path helpers + atomic-write
 discipline), so mixing it into :class:`~kanbanmate.adapters.store.fs_store.FsStateStore` adds only
 one import line there. Layering: imports only the standard library.
@@ -196,3 +204,61 @@ class AgentBreadcrumbsMixin:
             issue_number: The ticket whose done breadcrumb to clear (the key).
         """
         self._unlink(self._done_path(issue_number))
+
+    # ------------------------------------------------------------------
+    # Reaper done-exit attempt counter (firm-exit kill-escalation)
+    # ------------------------------------------------------------------
+
+    def _end_attempts_path(self, issue_number: int) -> Path:
+        """Return the filesystem path for ``issue_number``'s done-exit attempt counter (issue-keyed)."""
+        return self.root / "end_attempts" / f"{issue_number}"
+
+    def get_end_attempts(self, issue_number: int) -> int:
+        """Return the persisted done-exit attempt count for ``issue_number`` (0 when absent/corrupt).
+
+        Reads ``<root>/end_attempts/<issue>`` = ``{"n": n}``. Degrades a missing or corrupt marker to
+        ``0`` (no raise) so a poison file never wedges the reaper sweep (mirrors :meth:`recent_agent_done`).
+
+        Args:
+            issue_number: The ticket whose attempt count to read (the marker key).
+
+        Returns:
+            The persisted attempt count, or ``0`` when absent / unreadable / corrupt.
+        """
+        path = self._end_attempts_path(issue_number)
+        if not path.exists():
+            return 0
+        try:
+            return int(json.loads(path.read_text()).get("n", 0))
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            return 0
+
+    def bump_end_attempt(self, issue_number: int) -> int:
+        """Increment and return ``issue_number``'s done-exit attempt counter (starts at 1).
+
+        Writes ``<root>/end_attempts/<issue>`` = ``{"n": n}`` where ``n`` is the prior count
+        (:meth:`get_end_attempts`, which degrades a corrupt/absent file to ``0``) plus one. The reaper
+        bumps this each time it dispatches ``end_session`` for a done + idle session; once the count
+        reaches :data:`~kanbanmate.app.reaper.MAX_END_ATTEMPTS` it escalates to ``kill_repl_process``.
+
+        Args:
+            issue_number: The ticket whose attempt counter to bump (the marker key).
+
+        Returns:
+            The new (incremented) attempt count.
+        """
+        n = self.get_end_attempts(issue_number) + 1
+        self._end_attempts_path(issue_number).write_text(json.dumps({"n": n}))
+        return n
+
+    def clear_end_attempts(self, issue_number: int) -> None:
+        """Remove ``issue_number``'s done-exit attempt counter (no-op when absent).
+
+        Unlinks ``<root>/end_attempts/<issue>``; no-op when absent. Called on the escalation-clear
+        and the defensive not-done reset (so a future agent on the same ticket starts clean), and by
+        ``purge_ticket`` at teardown (so the counter never leaks).
+
+        Args:
+            issue_number: The ticket whose attempt counter to clear (the marker key).
+        """
+        self._unlink(self._end_attempts_path(issue_number))
