@@ -17,7 +17,7 @@
 | 1   | Directional length-ratio guard in confidence path (Unit 1)    | phase-01-length-ratio-guard.md        | [x]    |
 | 2   | Episode-filename fallback for degenerate show titles (Unit 2) | phase-02-episode-filename-fallback.md | [x]    |
 | 3   | Phase gate — make check + AC-1..AC-7 re-exercise              | phase-03-gate.md                      | [x]    |
-| 4   | PR #203 review fixes (cycle 1)                                | phase-04-pr-fixes-cycle-1.md          | [ ]    |
+| 4   | PR #203 review fixes (cycle 1)                                | phase-04-pr-fixes-cycle-1.md          | [x]    |
 
 ## Review cycles
 
@@ -35,4 +35,4 @@ Adversarial review (4 dimensions × refute-by-default): 16 findings, **14 confir
 
 ## Next action
 
-Run `/implement:phase` to execute Phase 4 (PR review fixes, cycle 1).
+Cycle-1 fixes done + pushed. Re-running CI + cycle-2 re-review, then manual merge handoff.
