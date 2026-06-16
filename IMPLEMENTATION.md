@@ -8,11 +8,14 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/tracker-auth/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/tracker-auth/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                      | File                                   | Status |
+| --- | ------------------------------------------ | -------------------------------------- | ------ |
+| 1   | TrackerAuthFailed event + catalog plumbing | phase-01-event-catalog-plumbing.md     | [ ]    |
+| 2   | Grab emit + Transmission add() fix         | phase-02-grab-emit-transmission-fix.md | [ ]    |
 
 ## Review cycles
 
@@ -20,4 +23,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start Phase 1.
