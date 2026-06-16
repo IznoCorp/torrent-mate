@@ -199,6 +199,37 @@ class TestAC2RealLayoutRecovery:
             "iterdir() is non-recursive and misses Saison 3/; rglob() fix is required."
         )
 
+    def test_recover_title_season_only_pack(self, tmp_path: Path) -> None:
+        r"""Season-pack file (no episode marker) recovers the bare title.
+
+        ``NameCleaner.clean('The Orville Saison 3') == 'The Orville S03'`` — no
+        ``E\d+`` marker. The cycle-1 regex required ``S\d+E\d+`` and therefore
+        left the trailing ``S03`` in place. The end-anchored regex must strip the
+        season-only token so the recovered title is ``'The Orville'``.
+        """
+        from personalscraper.scraper.tv_service import _recover_title_from_episodes
+
+        show_dir = tmp_path / " S03"
+        show_dir.mkdir()
+        (show_dir / "The Orville Saison 3.mkv").touch()
+
+        recovered = _recover_title_from_episodes(show_dir)
+        assert recovered == "The Orville", (
+            f"Season-only under-strip regression: expected 'The Orville', got {recovered!r}. "
+            "NameCleaner returns 'The Orville S03' (no episode marker); the regex must still strip 'S03'."
+        )
+
+    def test_recover_title_season_only_shrinking(self, tmp_path: Path) -> None:
+        """Second season-only case: 'Shrinking Saison 3' -> 'Shrinking' (no 'S03' residue)."""
+        from personalscraper.scraper.tv_service import _recover_title_from_episodes
+
+        show_dir = tmp_path / " S03"
+        show_dir.mkdir()
+        (show_dir / "Shrinking Saison 3.mkv").touch()
+
+        recovered = _recover_title_from_episodes(show_dir)
+        assert recovered == "Shrinking", f"Season-only under-strip regression: expected 'Shrinking', got {recovered!r}."
+
     def test_recover_title_from_nested_subdir_s4c_no_overstrip(self, tmp_path: Path) -> None:
         r"""Recovery keeps 'S4C Documentary' (NOT '') when cleaned title embeds an S-number.
 

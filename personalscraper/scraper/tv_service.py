@@ -52,11 +52,15 @@ if TYPE_CHECKING:
 
 log = get_logger("scraper")
 
-# Season/episode token pattern used to strip the SxxEyy suffix from a
-# guessit-extracted episode title so only the show name remains.
-# Requires the episode marker (E\d+) so a title-internal S-digit
-# (e.g. "S4C Documentary") is not mistakenly treated as a season token.
-_SEASON_TOKEN_RE = re.compile(r"\s*-?\s*S\d+E\d+.*$", re.IGNORECASE)
+# Season/episode token pattern used to strip the trailing season/episode
+# suffix from a cleaned episode title so only the show name remains.
+# ``NameCleaner.clean`` appends the token at the END of the string —
+# ``"{title} S{NN}"`` for a season pack or ``"{title} S{NN}E{MM}"`` for a
+# single episode. The pattern is therefore END-ANCHORED with the episode
+# marker OPTIONAL (so season-only packs strip correctly) and NO trailing
+# ``.*`` (so a title-internal S-digit such as "S4C Documentary" — which is
+# not at the end — survives).
+_SEASON_TOKEN_RE = re.compile(r"\s*-?\s*S\d+(?:E\d+)?\s*$", re.IGNORECASE)
 
 
 def _recover_title_from_episodes(show_dir: Path) -> str | None:
