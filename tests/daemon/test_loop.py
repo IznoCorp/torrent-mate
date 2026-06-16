@@ -645,6 +645,94 @@ def test_run_loop_heartbeat_failures_snap_back_on_success(
     assert heartbeat.consecutive_failures == 0
 
 
+def test_run_loop_probe_failure_counts_as_failed_poll(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FIX4-reconcile: a RETURNED tick flagged ``probe_failed`` is a FAILED poll, NOT a clean one.
+
+    The earlier cut swallowed the probe failure and returned a clean result, so the loop reset the
+    failure run every tick — a dead token / DNS outage looked healthy forever. The reconciled loop
+    must climb ``consecutive_failures`` and write ``last_tick_ok=False`` for a probe-failed tick,
+    exactly as it does for a tick that raised outright — so a SUSTAINED outage is visible to doctor
+    and monitor D3 (and trips the backoff), even though every post-step still ran inside the tick.
+    """
+    from kanbanmate.core.heartbeat import parse_heartbeat
+
+    config_yml, _columns_yml = _setup_config_files(tmp_path)
+    daemon_config = DaemonConfig(kanban_root=tmp_path, config_path=config_yml)
+
+    def _probe_failed_tick(
+        _wiring: WiringConfig, state: PersistedState | None
+    ) -> tuple[TickResult, PersistedState]:
+        # A returned (not raised) tick that degraded on a probe failure: post-steps ran, but the
+        # result flags the failure so the loop must count it as a failed poll.
+        result = _make_tick_result(probe_failed=True, probe_error=RuntimeError("probe boom"))
+        return (result, state if state is not None else PersistedState())
+
+    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _probe_failed_tick)
+
+    run_loop(daemon_config, max_iterations=3, sleep=lambda _s: None)
+
+    heartbeat = parse_heartbeat((tmp_path / "daemon.heartbeat").read_text(encoding="utf-8"))
+    assert heartbeat.last_tick_ok is False
+    assert heartbeat.consecutive_failures == 3
+
+
+def test_run_loop_probe_failure_then_recovery_snaps_back(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FIX4-reconcile: a TRANSIENT probe failure self-heals — a clean tick resets the failure run."""
+    from kanbanmate.core.heartbeat import parse_heartbeat
+
+    config_yml, _columns_yml = _setup_config_files(tmp_path)
+    daemon_config = DaemonConfig(kanban_root=tmp_path, config_path=config_yml)
+
+    calls = [0]
+
+    def _probe_fail_then_recover(
+        _wiring: WiringConfig, state: PersistedState | None
+    ) -> tuple[TickResult, PersistedState]:
+        calls[0] += 1
+        carried = state if state is not None else PersistedState()
+        if calls[0] <= 2:
+            return (_make_tick_result(probe_failed=True, probe_error=RuntimeError("blip")), carried)
+        return (_make_tick_result(), carried)  # probe recovered → clean tick
+
+    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _probe_fail_then_recover)
+
+    run_loop(daemon_config, max_iterations=3, sleep=lambda _s: None)
+
+    heartbeat = parse_heartbeat((tmp_path / "daemon.heartbeat").read_text(encoding="utf-8"))
+    assert heartbeat.last_tick_ok is True
+    assert heartbeat.consecutive_failures == 0
+
+
+def test_run_loop_probe_failure_with_401_drops_degraded_sentinel(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FIX4-reconcile: a probe failure carrying a 401 forwards the breadcrumb (dead-token visibility)."""
+    from kanbanmate.adapters.github._parsers import GitHubHTTPError
+    from kanbanmate.daemon.loop import DEGRADED_FILENAME
+
+    config_yml, _columns_yml = _setup_config_files(tmp_path)
+    daemon_config = DaemonConfig(kanban_root=tmp_path, config_path=config_yml)
+
+    def _probe_failed_401(
+        _wiring: WiringConfig, state: PersistedState | None
+    ) -> tuple[TickResult, PersistedState]:
+        err = GitHubHTTPError(401, '{"message": "Bad credentials"}')
+        result = _make_tick_result(probe_failed=True, probe_error=err)
+        return (result, state if state is not None else PersistedState())
+
+    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _probe_failed_401)
+
+    run_loop(daemon_config, max_iterations=1, sleep=lambda _s: None)
+
+    sentinel = tmp_path / DEGRADED_FILENAME
+    assert sentinel.exists(), "expected a DEGRADED sentinel after a probe-failed 401 tick"
+    assert "401" in sentinel.read_text(encoding="utf-8")
+
+
 def test_run_loop_writes_degraded_sentinel_on_auth_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -380,6 +380,23 @@ class LaunchAction:
         # prompt=None launch (bare claude) delivers nothing — it boots without an injected message.
         if filled_prompt is not None:
             self._deliver_prompt(deps, issue, session_name, filled_prompt)
+        # Fresh-session breadcrumb hygiene (#FIX2): a stale done/<issue> breadcrumb (1800s TTL) or
+        # end_attempts counter from a PRIOR stage can survive into this launch and make the reaper
+        # done-exit THIS fresh agent prematurely. Clear both so the new session's done-exit gate
+        # depends ONLY on this session's own kanban-done. Each is independently fail-soft (a clear
+        # failure must never abort a launch the agent has already started — the breadcrumb only
+        # matters to the NEXT reap tick, which still ages it out at the TTL). Done BEFORE the
+        # running-state save so even if the save is the last successful step, the markers are gone.
+        try:
+            deps.store.clear_agent_done(issue)
+        except Exception:
+            logger.exception("launch breadcrumb-clear (done) failed for #%s; continuing", issue)
+        try:
+            deps.store.clear_end_attempts(issue)
+        except Exception:
+            logger.exception(
+                "launch breadcrumb-clear (end_attempts) failed for #%s; continuing", issue
+            )
         # 5. Persist the running state so the reaper can age/own the agent. heartbeat=now means
         # a freshly launched agent is never immediately stale on the next reap sweep. The widened
         # state (DESIGN §8.1.d) is the SINGLE SOURCE OF TRUTH the finalizers (✅ advance / ⚠️

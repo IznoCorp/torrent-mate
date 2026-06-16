@@ -176,3 +176,78 @@ BLOCKED→BLOCKED` was corrected: the real `ProjectV2StatusUpdateStatus` enum is
 `INACTIVE / ON_TRACK / AT_RISK / OFF_TRACK / COMPLETE`, and the adapter
 (`adapters/github/client.py::_HEALTH_TO_GITHUB_STATUS`) maps `ACTIVE→ON_TRACK`, `WAITING→AT_RISK`,
 `BLOCKED→OFF_TRACK` (INACTIVE / COMPLETE unchanged).
+
+## Robustness batch 1 — five contained fixes (branch `fix/robustness-batch-1`)
+
+An audit of this arc surfaced five clearly-correct, independent robustness fixes (none depends on
+an open lifecycle-design decision). FIXES 1-4 ship; FIX 5 is DEFERRED with a concrete design.
+
+### FIX 1 — multi-root completeness (extends §4.x)
+
+The §4.x km-root fix had missed three agent helpers — `bin/kanban_comment.py`,
+`bin/kanban_update_body.py`, `bin/kanban_update_main.py` — that still resolved `projects.json` from
+the import-time-frozen `~/.kanban` (`DEFAULT_KANBAN_ROOT`). On the `kanban-km` daemon they acted on
+the WRONG repo. They now resolve the registry via `_projects_path(_registry_root())`
+(`comment`/`update_body`, mirroring `kanban_move`) or a lazy `_registry_root` import
+(`update_main._resolve_from_registry`). None uses an `FsStateStore`, so the registry root is the
+whole change; the `~/.kanban` fallback (unset `$KANBAN_ROOT`) is preserved.
+
+### FIX 2 — fresh-session breadcrumb hygiene (extends §8.x firm-exit)
+
+A stale `done/<issue>` (1800s TTL) or `end_attempts/<issue>` counter from stage N could survive into
+stage N+1 and make the reaper done-exit the FRESH agent prematurely. `LaunchAction.execute` and
+`reaper._try_relaunch` now clear both (each independently fail-soft) before persisting the running
+state, so a new session's done-exit gate depends ONLY on its own `kanban-done`. `_try_relaunch`
+reuses the slot (no `purge_ticket`), so these clears are the only reset on the relaunch path.
+
+### FIX 3 — done-without-advance finalizes ✅ (extends §8.1.f split)
+
+The advance:stop stages (brainstorm/design/plan) complete cleanly via `kanban-done` (a DONE
+breadcrumb) and NEVER advance their card, so `kanban-session-end` was wrongly showing ⚠️ interrupted.
+It now reads the DONE breadcrumb (`recent_agent_done`) BEFORE `purge_ticket` (same load-bearing
+ordering as the advance breadcrumb — purge clears `done/<issue>` too) and finalizes ✅ done when
+EITHER advance OR done is present; ⚠️ interrupted is now reserved for NEITHER present (a genuine
+crash/interrupt). The advance→✅ path (daemon already finalized via §8.1.e) is untouched.
+
+### FIX 4 — tick probe-failure resilience, reconciled with the circuit-breaker (extends §3.1 / §5 poll loop)
+
+`cheap_probe()` was called outside the try/except, so a transient GitHub 401/403/5xx on the probe
+raised out of `tick()` and skipped the ENTIRE tick — reap, done-exit, drain, heartbeat and health all
+stranded (a finished agent + a freed slot waited for the backoff window). The probe is now wrapped, but
+the wrap must satisfy TWO goals that initially conflicted:
+
+* **(a) don't strand finished agents** — a probe failure sets a `probe_failed` flag that gates out the
+  snapshot+diff+decide (the launch path) while EVERY post-step (reap / done-exit / drain / intents /
+  heartbeat / health) still runs. `last_probe` is left at the prior token so the next tick re-probes and
+  recovery re-triggers a snapshot.
+* **(b) don't mask the failure** — the first cut returned a clean `TickResult` and swallowed the
+  exception, so the daemon loop counted the poll as a SUCCESS: it reset `consecutive_failures` to 0,
+  cleared the DEGRADED sentinel, and wrote `last_tick_ok=True` every tick. A dead token / DNS outage then
+  looked perfectly healthy — full-cadence polling forever, doctor + monitor **D3** green — which defeats
+  the §5 circuit-breaker and the dead-token observability (#1/#2).
+
+Reconciliation: `tick()` carries the failure back on the result (`TickResult.probe_failed` +
+`probe_error`, the original exception). The daemon loop (`daemon/loop.py`) treats a returned tick with
+`probe_failed=True` as a FAILED poll — it increments `consecutive_failures` (NOT reset), leaves the
+DEGRADED sentinel in place, and runs `_log_actionable_auth_failure(probe_error)` for the 401/403
+breadcrumb, exactly as it does for a tick that raised outright. So `last_tick_ok`/`consecutive_failures`
+reflect reality: a **sustained** probe failure trips the geometric backoff at `_BACKOFF_AFTER_FAILURES`
+(and surfaces FAIL to doctor/D3), while a **transient** one self-heals the next tick (the re-probe
+succeeds → a clean tick resets the run to 0 and clears DEGRADED). `snapshot_taken` stays `False` so the
+*idle* cadence is unaffected by the failure itself; the *failure* cadence is now driven correctly by the
+backoff. Both goals hold: post-steps run AND the breaker engages.
+
+### FIX 5 — DEFERRED: body-top current-status header
+
+There is no daemon-side body-write hook to reuse — every stage finalizer writes TIMELINE COMMENTS via
+`app/stage_signal.upsert_stage_comment`, while body writes (`fetch_issue` + marker-preserving
+transform + `update_issue_body`) live only in the `kanban-update-body` agent helper and the `Seeder`
+Protocol (`ports/board.py`), with `Deps.seeder` defaulted `None` and not threaded into the stage
+producers. A body-top header at every transition is cross-cutting and touches 4 modules at/near the
+1000-LOC ceiling, so it is deferred (see `IMPLEMENTATION.md` → "Follow-up — Robustness batch 1" for
+the full deferred design: a `<!-- kanban:status:begin -->`/`:end` delimited block, a pure
+`core/body_edit.set_status_header` helper, an `app/body_status.py` fail-soft orchestrator on the
+existing `Seeder.fetch_issue`/`update_issue_body` surface, and 5 fail-soft wires). **Risk to carry
+into the FIX-5 PR**: `update_issue_body` replaces the WHOLE body, so a daemon header write could race
+an agent's `kanban-update-body --set-field` (last-writer-wins) — keep the header write idempotent +
+body-diff-gated, region-disjoint from the markers, and adversarially test marker/section preservation.

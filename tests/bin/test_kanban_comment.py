@@ -14,7 +14,9 @@ touches the network. The tests assert:
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -182,3 +184,76 @@ def test_main_wiring_failure_exits_one_not_crash(monkeypatch: pytest.MonkeyPatch
     code = main(["7", "body", "--append"])
 
     assert code == 1
+
+
+# ---------------------------------------------------------------------------
+# FIX 1 — multi-root registry resolution ($KANBAN_ROOT, km-worktree-helper-root fix)
+# ---------------------------------------------------------------------------
+
+
+def _write_one_project_registry(root: Path) -> None:
+    """Write a single-project ``projects.json`` under *root* (the km-root registry)."""
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "projects.json").write_text(
+        json.dumps(
+            {
+                "PVT_PROJECT": {
+                    "repo": "IznoCorp/demo",
+                    "clone": "/tmp/clone",
+                    "project_id": "PVT_PROJECT",
+                    "status_field_node_id": "PVTSSF",
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_resolve_entry_reads_from_kanban_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``_resolve_entry`` resolves the registry from ``$KANBAN_ROOT``, not the ~/.kanban default.
+
+    Proves the FIX-1 km-root fix: a one-project registry placed under a tmp ``$KANBAN_ROOT`` is
+    found, so a kanban-km daemon's helper acts on its OWN repo, never the hardcoded ~/.kanban.
+    """
+    monkeypatch.setenv("KANBAN_ROOT", str(tmp_path))
+    _write_one_project_registry(tmp_path)
+
+    entry = kanban_comment._resolve_entry()
+
+    assert entry.repo == "IznoCorp/demo"
+    assert entry.project_id == "PVT_PROJECT"
+
+
+def test_resolve_entry_empty_kanban_root_raises_naming_that_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An EMPTY ``$KANBAN_ROOT`` registry raises a RuntimeError naming the tmp path.
+
+    The error message naming ``tmp_path`` (not ~/.kanban) proves the helper read the env root —
+    the live km-worktree-helper-root bug was that it always read ~/.kanban regardless of the root.
+    """
+    monkeypatch.setenv("KANBAN_ROOT", str(tmp_path))  # no projects.json under it → 0 projects
+
+    with pytest.raises(RuntimeError, match=str(tmp_path)):
+        kanban_comment._resolve_entry()
+
+
+def test_resolve_entry_kanban_root_unset_falls_back_to_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With ``$KANBAN_ROOT`` unset, the helper falls back to the ``DEFAULT_KANBAN_ROOT`` default.
+
+    ``DEFAULT_KANBAN_ROOT`` (the import-time-frozen ``~/.kanban``) is patched to a tmp dir so the
+    fallback resolves under tmp (never the operator's real home); a one-project registry there
+    resolves, proving the unset-env fallback is live (the contract `kanban_move`/`done` preserve).
+    """
+    monkeypatch.delenv("KANBAN_ROOT", raising=False)
+    default_root = tmp_path / "default-kanban"
+    monkeypatch.setattr("kanbanmate.cli.init.DEFAULT_KANBAN_ROOT", default_root)
+    _write_one_project_registry(default_root)
+
+    entry = kanban_comment._resolve_entry()
+
+    assert entry.repo == "IznoCorp/demo"

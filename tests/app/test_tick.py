@@ -111,6 +111,7 @@ class _FakeBoardReader:
         *,
         closed: dict[int, bool] | None = None,
         issue_state_raises: bool = False,
+        raise_on_probe: bool = False,
     ) -> None:
         """Store the scripted probe token, snapshot, and off-board ``issue_state`` script.
 
@@ -122,18 +123,24 @@ class _FakeBoardReader:
                 ``False`` (OPEN — conservative). Defaults to no off-board deps.
             issue_state_raises: When ``True``, every :meth:`issue_state` call raises,
                 so a test can assert the fail-soft path (an undecidable dep → UNMET).
+            raise_on_probe: When ``True``, :meth:`cheap_probe` raises a ``RuntimeError`` so a
+                test can exercise the FIX-4 probe-failure degrade path (no snapshot, but the
+                reap/done-exit/drain/heartbeat post-steps still run).
         """
         self._probe = probe
         self._snapshot = snapshot
         self.snapshot_calls = 0
         self._closed = closed or {}
         self._issue_state_raises = issue_state_raises
+        self._raise_on_probe = raise_on_probe
         # Record every issue number the off-board fallback probed, so a test can assert the
         # perf property (ZERO calls in the common all-on-board case) and the per-dep call set.
         self.issue_state_calls: list[int] = []
 
     def cheap_probe(self) -> str:
-        """Return the scripted probe token."""
+        """Return the scripted probe token, or raise when ``raise_on_probe`` was set (FIX 4)."""
+        if self._raise_on_probe:
+            raise RuntimeError("probe boom")
         return self._probe
 
     def snapshot(self) -> BoardSnapshot:
@@ -925,6 +932,87 @@ def test_idempotent_second_tick_does_not_relaunch() -> None:
 
 
 # ---------------------------------------------------------------------------
+# FIX 4 — probe-failure resilience (degrade to no-new-launches, still reap/drain/heartbeat)
+# ---------------------------------------------------------------------------
+
+
+def test_probe_failure_still_runs_reap_done_exit_and_post_steps() -> None:
+    """FIX 4: a probe failure must NOT skip the post-steps — the done-exit/reap/drain still run.
+
+    A transient ``cheap_probe`` failure used to raise out of ``tick`` and strand the reap/done-exit/
+    drain/heartbeat (a finished agent + a freed slot waited for the backoff window). Wire a probe
+    that raises AND a done+idle+alive running ticket: the tick must NOT raise, snapshot_taken stays
+    False, and the done-exit still calls ``end_session`` + the dashboard/health reporters still run.
+    """
+    reader = _FakeBoardReader("probe-1", _snapshot(), raise_on_probe=True)
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = True
+    m.sessions.capture.return_value = "❯ "  # idle prompt
+    m.store.recent_agent_done.return_value = True  # the agent signalled done → done-exit branch
+    done_idle = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,
+        stage="InProgress",
+    )
+    m.store.list_running.return_value = (done_idle,)
+    state = PersistedState(last_probe="probe-1")
+
+    result, _ = tick(m.deps, _config(), state)
+
+    # No snapshot was taken (the probe failed → the launch path is skipped).
+    assert result.snapshot_taken is False
+    assert reader.snapshot_calls == 0
+    # The done-exit STILL ran despite the probe failure (the post-steps are not gated on the probe).
+    m.sessions.end_session.assert_called_once_with("ticket-7")
+    # The drain + dashboard + health post-steps still executed (read off the store, not the snapshot).
+    assert m.store.dequeue_pending.called
+    assert m.store.list_running.called
+    # FIX4-reconcile: the failure is NOT masked as a clean tick — the result flags it (and carries
+    # the original exception) so the daemon loop can feed the circuit-breaker + DEGRADED breadcrumb.
+    assert result.probe_failed is True
+    assert isinstance(result.probe_error, RuntimeError)
+
+
+def test_probe_failure_leaves_last_probe_unchanged() -> None:
+    """FIX 4: a probe-failed tick leaves ``last_probe`` unchanged so the next tick re-snapshots.
+
+    The sentinel token returned/persisted on failure is the PRIOR token, so ``last_probe`` never
+    advances to a value that would suppress the next real snapshot — on recovery the changed token
+    re-triggers a snapshot.
+    """
+    reader = _FakeBoardReader("probe-2", _snapshot(), raise_on_probe=True)
+    m = _mocks(reader)
+    state = PersistedState(columns_by_item={"PVTI_7": "Backlog"}, last_probe="probe-1")
+
+    result, next_state = tick(m.deps, _config(), state)
+
+    assert next_state.last_probe == "probe-1"  # unchanged baseline → next tick re-probes
+    assert result.probe_token == "probe-1"  # the sentinel is the prior token, never advanced
+
+
+def test_probe_failure_launches_nothing() -> None:
+    """FIX 4: a probe failure degrades to ZERO launches even when a board move WOULD launch.
+
+    The snapshot+diff+decide block is skipped on a probe failure, so a card that moved into an
+    agent column never produces a launch this tick (it is picked up once the probe recovers).
+    """
+    ticket = Ticket(item_id="PVTI_7", issue_number=7, title="t", column_key="InProgress")
+    reader = _FakeBoardReader("probe-2", _snapshot(ticket), raise_on_probe=True)
+    m = _mocks(reader)
+    # Baseline differs from the (would-be) snapshot column → without the probe failure this launches.
+    state = PersistedState(columns_by_item={"PVTI_7": "Backlog"}, last_probe="probe-1")
+
+    result, _ = tick(m.deps, _config(), state)
+
+    assert result.actions_executed == 0
+    m.sessions.launch.assert_not_called()
+    assert reader.snapshot_calls == 0  # the snapshot block was skipped entirely
+
+
+# ---------------------------------------------------------------------------
 # Robustness: exception isolation + reaping
 # ---------------------------------------------------------------------------
 
@@ -1184,6 +1272,41 @@ def test_reaper_relaunches_stale_session_once() -> None:
     # A successful relaunch is counted separately from a reap.
     assert result.relaunched == 1
     assert result.reaped == 0
+
+
+def test_reaper_relaunch_clears_stale_done_and_end_attempts() -> None:
+    """FIX 2: a reaper relaunch clears the stale done/end_attempts breadcrumbs of the dead session.
+
+    ``_try_relaunch`` reuses the slot (it does NOT call ``purge_ticket``), so without an explicit
+    clear a stale done/<issue> breadcrumb or end_attempts counter from the prior (dead) session
+    would done-exit the FRESH relaunched agent on the next tick. Assert both clears fired with the
+    issue number, and the relaunch still dispatched.
+    """
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = False  # DEAD session → the reap/relaunch path (Approach A)
+    stale = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,  # ancient → past the TTL
+        stage="InProgress",
+        profile="dev",
+        retries=0,  # under RETRY_LIMIT → RETRY branch
+    )
+    m.store.list_running.return_value = (stale,)
+    state = PersistedState(last_probe="probe-1")  # probe unchanged → only the reap step runs
+
+    result, _ = tick(m.deps, _config(), state)
+
+    # The relaunch cleared BOTH breadcrumbs for the issue (the fresh session's done-exit gate is
+    # clean — it now depends only on the relaunched agent's own kanban-done).
+    m.store.clear_agent_done.assert_called_with(7)
+    m.store.clear_end_attempts.assert_called_with(7)
+    # The relaunch still dispatched (a fresh LaunchAction for the same stage).
+    m.sessions.launch.assert_called_once()
+    assert result.relaunched == 1
 
 
 def test_reaper_relaunch_preserves_retry_budget() -> None:

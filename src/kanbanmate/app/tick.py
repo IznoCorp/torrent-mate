@@ -212,6 +212,15 @@ class TickResult:
             keeps running — so it is counted separately for observability (DESIGN §8.3); only the
             terminal park-in-Blocked increments ``reaped``.
         errors: How many actions raised or timed out (caught and logged, never fatal).
+        probe_failed: ``True`` when ``cheap_probe`` raised this tick (FIX4). The tick still ran
+            every post-step (reap/done-exit/drain/heartbeat) so finished agents are not stranded,
+            but it returns this flag so the daemon loop counts the poll as FAILED — feeding the
+            circuit-breaker/backoff + the ``last_tick_ok``/``consecutive_failures`` observability
+            (a dead token / DNS outage trips the backoff instead of looking healthy). A transient
+            failure self-heals the next tick (re-probe succeeds → the failure run resets to 0).
+        probe_error: The exception ``cheap_probe`` raised (``None`` on success), forwarded so the
+            loop can classify a 401/403 and drop the actionable DEGRADED breadcrumb (dead-token
+            observability) — exactly as it does for a tick that raised outright.
     """
 
     probe_token: str
@@ -220,6 +229,8 @@ class TickResult:
     reaped: int
     errors: int
     relaunched: int = 0
+    probe_failed: bool = False
+    probe_error: BaseException | None = None
 
 
 @dataclass(frozen=True)
@@ -755,7 +766,29 @@ def tick(
         A ``(TickResult, PersistedState)`` pair: the cycle summary and the next baseline.
     """
     now = deps.clock.now()
-    probe_token = deps.board_reader.cheap_probe()
+    # FIX4: a probe failure (GitHub 401/403/5xx, DNS outage) must DEGRADE to no-new-launches WITHOUT
+    # stranding finished agents — so the post-steps (reap/done-exit/drain/heartbeat) below STILL run
+    # this tick. But it must NOT masquerade as a clean tick: ``probe_failed`` is carried back on the
+    # TickResult so the daemon loop counts the poll as FAILED — feeding the circuit-breaker/backoff
+    # and the last_tick_ok/consecutive_failures observability (a dead token would otherwise look
+    # healthy: full-cadence polling, monitor D3 green). A SUSTAINED failure trips the backoff at the
+    # loop's threshold; a TRANSIENT one self-heals next tick (re-probe succeeds → the run resets).
+    # The probe token returned/persisted is the PRIOR token, so last_probe never advances to a value
+    # that would suppress the next real snapshot, and the diff baseline is untouched (no launches).
+    probe_failed = False
+    probe_error: BaseException | None = None
+    try:
+        probe_token = deps.board_reader.cheap_probe()
+    except Exception as exc:
+        logger.warning(
+            "cheap_probe failed this tick; degrading to no-new-launches (reap/drain/heartbeat "
+            "still run) AND marking the poll FAILED so the loop's backoff engages. Re-probing "
+            "next tick.",
+            exc_info=True,
+        )
+        probe_failed = True
+        probe_error = exc  # forwarded to the loop for 401/403 classification + DEGRADED breadcrumb
+        probe_token = persisted_state.last_probe or ""
     # Read the kill-switch (~/.kanban/PAUSE) fresh every tick so a PAUSE file appearing between
     # ticks stops launches on the very next poll (DESIGN §10 / H5). OR with the static config flag
     # so an explicit override still pauses even if the sentinel read is bypassed in a test.
@@ -778,8 +811,10 @@ def tick(
     # non-blocking-shutdown context manager (#6) makes the never-hang guarantee REAL: tick exit
     # never blocks on a wedged worker (the plain ``with`` would call shutdown(wait=True)).
     with _watchdog_executor() as executor:
-        # Step 1-3: only when the probe changed is a snapshot worth its API cost (DESIGN §3.1).
-        if probe_token != persisted_state.last_probe:
+        # Step 1-3: only when the probe changed is a snapshot worth its API cost (DESIGN §3.1). A
+        # probe FAILURE (FIX4) is gated out here too — ``snapshot`` stays ``None`` / ``snapshot_taken``
+        # stays ``False`` so the launch path is skipped, while every post-step below still runs.
+        if not probe_failed and probe_token != persisted_state.last_probe:
             snapshot_taken = True
             snapshot = deps.board_reader.snapshot()
             ctx = DecideContext(
@@ -935,6 +970,8 @@ def tick(
         reaped=reaped,
         errors=errors,
         relaunched=relaunched,
+        probe_failed=probe_failed,
+        probe_error=probe_error,
     )
     next_state = replace(
         persisted_state,

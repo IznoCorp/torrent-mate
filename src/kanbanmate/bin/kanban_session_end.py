@@ -5,22 +5,27 @@ wires it as ``claude … ; kanban-session-end <issue>`` so it fires whether the 
 cleanly, crashed, or was interrupted — the trailing ``;`` is intentional). The session is OVER, so
 it **tears the runtime state down exhaustively** (the cap slot, the running state, the breadcrumb,
 and any queue/moves/retries markers via :meth:`~kanbanmate.ports.store.StateStore.purge_ticket`)
-and — when the agent ended WITHOUT advancing its own card — finalizes the stage sticky to ⚠️
-*interrupted* (DESIGN §8.1.f, port of the PoC ``cli/session_end.py::finalize_session``).
+and — when the agent ended WITHOUT either advancing its card OR signalling a clean ``kanban-done`` —
+finalizes the stage sticky to ⚠️ *interrupted* (DESIGN §8.1.f, port of the PoC
+``cli/session_end.py::finalize_session``).
 
-The ✅/⚠️ split is decided by the **advance breadcrumb** (DESIGN §8.1.d): the agent drops it
-SYNCHRONOUSLY (via ``kanban-move``) before ``claude`` exits, keyed by the **issue number**.
+The ✅/⚠️ split is decided by TWO breadcrumbs (DESIGN §8.1.d), both keyed by the **issue number**:
 
-* PRESENT (and recent) → the agent advanced; the daemon's ✅-on-advance finalize (8.1.e) already
-  flipped the LEFT stage to ✅ done, so session-end leaves the sticky untouched.
-* ABSENT → the agent ended without advancing; session-end finalizes the current stage ⚠️.
+* **advance** (dropped via ``kanban-move`` before ``claude`` exits) — PRESENT → the agent advanced
+  its card; the daemon's ✅-on-advance finalize (8.1.e) already flipped the LEFT stage to ✅ done,
+  so session-end leaves the sticky untouched.
+* **done** (dropped via ``kanban-done``, #FIX3) — PRESENT (and no advance) → an advance:stop stage
+  (brainstorm/design/plan) that completed CLEANLY: it never advances, so session-end finalizes the
+  stage sticky ✅ done itself (no daemon-side finalize runs for a done-without-advance).
+* NEITHER present → the agent ended without advancing or signalling done; session-end finalizes the
+  current stage ⚠️ interrupted (a genuine crash/interrupt — the ONLY ⚠️ case).
 
-**Ordering (load-bearing — DESIGN §8.1.f).** The breadcrumb MUST be read BEFORE
+**Ordering (load-bearing — DESIGN §8.1.f).** BOTH breadcrumbs MUST be read BEFORE
 :meth:`~kanbanmate.adapters.store.fs_store.FsStateStore.purge_ticket`, because ``purge_ticket``
-PURGES the breadcrumb (DESIGN §8.1.d — a torn-down ticket leaves no stale breadcrumb). Reading it
-after the purge would always observe "absent" and wrongly finalize ⚠️ even after a clean ✅
-advance, silently breaking the headline split. The correct order is: load state → read breadcrumb
-→ purge ticket → branch on the breadcrumb.
+PURGES them (DESIGN §8.1.d — a torn-down ticket leaves no stale breadcrumb). Reading after the
+purge would always observe "absent" and wrongly finalize ⚠️ even after a clean ✅ advance/done,
+silently breaking the headline split. The correct order is: load state → read advance breadcrumb →
+read done breadcrumb → purge ticket → branch on the breadcrumbs.
 
 This is a leaf entrypoint (DESIGN §3.2): the purge touches only the local state store (no
 network); the ⚠️ finalize wires a :class:`~kanbanmate.adapters.github.client.GithubClient` from the
@@ -79,15 +84,19 @@ def main(argv: list[str] | None = None) -> int:
 
     1. Load the persisted ``TicketState``. ``None`` → the state was purged by a Cancel teardown:
        idempotently purge the ticket, do NO GitHub I/O, and return (no-resurrection early-return).
-    2. Read the advance breadcrumb (:meth:`recent_agent_advance`) BEFORE the purge — the purge
-       removes it (DESIGN §8.1.d), so reading it first is mandatory or the ✅/⚠️ split mis-fires.
-    3. ``purge_ticket`` (frees the cap slot + running state + the now-consumed breadcrumb +
+    2. Read the advance breadcrumb (:meth:`recent_agent_advance`) AND the done breadcrumb
+       (:meth:`recent_agent_done`, #FIX3) BEFORE the purge — the purge removes both (DESIGN §8.1.d),
+       so reading them first is mandatory or the ✅/⚠️ split mis-fires.
+    3. ``purge_ticket`` (frees the cap slot + running state + the now-consumed breadcrumbs +
        any queue/moves/retries markers — the session is over).
-    4. If the breadcrumb was present → the agent advanced; the daemon's 8.1.e already finalized ✅,
-       so leave the sticky untouched and return.
-    5. Otherwise resolve the stage from ``TicketState.stage`` alone (8.1.d persists it directly —
-       no separate ``columns/`` marker) and finalize the sticky ⚠️ *interrupted* via a fail-soft
-       ``GithubClient``. An empty stage means nothing to finalize → return silently.
+    4. If the advance breadcrumb was present → the agent advanced; the daemon's 8.1.e already
+       finalized ✅, so leave the sticky untouched and return.
+    4b. Else if the done breadcrumb was present (#FIX3) → a clean advance:stop completion that never
+       advances; finalize the stage sticky ✅ done via a fail-soft ``GithubClient`` and return.
+    5. Otherwise (NEITHER breadcrumb) → a genuine crash/interrupt: resolve the stage from
+       ``TicketState.stage`` alone (8.1.d persists it directly — no separate ``columns/`` marker)
+       and finalize the sticky ⚠️ *interrupted* via a fail-soft ``GithubClient``. An empty stage
+       means nothing to finalize → return silently.
 
     Failure handling: a usage error exits ``2``; a store/wiring failure is reported to stderr and
     exits ``1`` — never a traceback that would crash the calling agent shell. The ⚠️ finalize is
@@ -135,6 +144,12 @@ def main(argv: list[str] | None = None) -> int:
         #    in bin/kanban_move.py.
         advanced = store.recent_agent_advance(issue, now=now)
 
+        # FIX3: a clean advance:stop stage (brainstorm/design/plan) runs kanban-done (DONE breadcrumb)
+        # and NEVER advances — so it must finalize ✅ done, not ⚠️ interrupted. Read the DONE breadcrumb
+        # BEFORE purge_ticket (purge clears done/<issue> too — same load-bearing ordering as the advance
+        # breadcrumb above), so a post-purge read would always look "absent". Keyed by the issue number.
+        done = store.recent_agent_done(issue, now=now)
+
         # 3. The agent process exited, so tear the RUNTIME state down: purge the cap slot + running
         #    state (the reaper stops aging the ticket) + the now-consumed breadcrumb + the queue
         #    marker. This is ``purge_ticket`` (the session is over), NOT the slot-only
@@ -156,10 +171,43 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
-        # 5. No breadcrumb → the agent ended without advancing. Finalize the current stage ⚠️
-        #    interrupted from the loaded TicketState. The stage resolves from TicketState.stage
-        #    ALONE (8.1.d persists the launch stage directly; OLD's get_item_column fallback is
-        #    collapsed). An old-format state with no recorded stage has nothing to finalize.
+        # 4b. FIX3: the agent finished cleanly via kanban-done but did NOT advance its card (the
+        #     advance:stop stages — brainstorm/design/plan — drop a DONE breadcrumb and stop). This
+        #     is a CLEAN completion, not a crash, so finalize the stage sticky ✅ done (NOT ⚠️
+        #     interrupted). The ⚠️ path below is reserved for NEITHER breadcrumb present (a genuine
+        #     crash/interrupt). Unlike the advance path (the daemon's 8.1.e already finalized ✅), no
+        #     daemon-side finalize runs for a done-without-advance, so session-end finalizes it here.
+        if done:
+            stage = state.stage
+            if not stage:
+                print(
+                    f"{_PROG}: ticket #{issue} done (no advance), no recorded stage; "
+                    "runtime record removed (slot freed), per-issue budgets preserved."
+                )
+                return 0
+            try:
+                entry = _resolve_entry()
+                client = GithubClient(load_token(), project_id=entry.project_id, repo=entry.repo)
+                header = header_from_state(
+                    asdict(state), issue, stage, "done", finished=fmt_timestamp(now)
+                )
+                upsert_stage_comment(client, issue, stage, header=header, now=now)
+            except Exception as exc:  # noqa: BLE001 — fail-soft: a finalize error never breaks session-end.
+                print(
+                    f"{_PROG}: warning: could not finalize ✅ done sticky for #{issue}: {exc}",
+                    file=sys.stderr,
+                )
+            print(
+                f"{_PROG}: ticket #{issue} done (clean completion, no advance); runtime record "
+                "removed (slot freed), per-issue budgets preserved, sticky finalized ✅."
+            )
+            return 0
+
+        # 5. NEITHER advance NOR done breadcrumb → genuine crash/interrupt. Finalize the current
+        #    stage ⚠️ interrupted from the loaded TicketState. The stage resolves from
+        #    TicketState.stage ALONE (8.1.d persists the launch stage directly; OLD's
+        #    get_item_column fallback is collapsed). An old-format state with no recorded stage has
+        #    nothing to finalize.
         stage = state.stage
         if not stage:
             print(

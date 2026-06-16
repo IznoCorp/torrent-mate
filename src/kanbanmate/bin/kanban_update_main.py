@@ -2,10 +2,11 @@
 
 ``kanban-update-main [<base_clone> [<dev_repo>]]`` keeps local clones current after a human merges
 a PR. When BOTH arguments are omitted it RESOLVES the base clone + dev clone from the ``kanban
-init`` registry (``~/.kanban/projects.json``) — the single registered project's ``clone`` and
-``dev_repo_path`` (defect 12: three docstrings already claimed this registry resolution, but the
-helper never read it). Explicit positional args still override the registry. Ported from the PoC
-``kanban-update-main`` bash script, preserving its exact, conservative semantics:
+init`` registry (``<root>/projects.json``, where ``<root>`` is ``$KANBAN_ROOT`` when set, else
+``~/.kanban`` — the km-worktree-helper-root fix, #1) — the single registered project's ``clone``
+and ``dev_repo_path`` (defect 12: three docstrings already claimed this registry resolution, but
+the helper never read it). Explicit positional args still override the registry. Ported from the
+PoC ``kanban-update-main`` bash script, preserving its exact, conservative semantics:
 
 1. **Base clone** — always ``git fetch origin main`` (safe: a bare/base clone has no working tree
    to clobber). A failure here is fatal (exit ``1``).
@@ -123,20 +124,22 @@ def _update_dev_clone(dev_repo: str) -> int:
 def _resolve_from_registry() -> tuple[str, str] | None:
     """Resolve ``(base_clone, dev_repo)`` from the single registered project (defect 12).
 
-    Reads ``~/.kanban/projects.json`` (the ``kanban init`` registry). v1 registers exactly one
-    project, so the SINGLE entry's ``clone`` is the base clone and its ``dev_repo_path`` the dev
-    clone (``""`` when the operator never passed ``--dev-repo-path``). Returns ``None`` (the caller
-    falls back to the usage error) when the registry is absent, empty, or ambiguous (>1 project) —
-    in those cases the operator must pass an explicit ``<base_clone>``.
+    Reads the ``projects.json`` under the runtime root (``$KANBAN_ROOT`` when set, else
+    ``~/.kanban``) — the km-worktree-helper-root fix, #1. v1 registers exactly one project, so the
+    SINGLE entry's ``clone`` is the base clone and its ``dev_repo_path`` the dev clone (``""`` when
+    the operator never passed ``--dev-repo-path``). Returns ``None`` (the caller falls back to the
+    usage error) when the registry is absent, empty, or ambiguous (>1 project) — in those cases the
+    operator must pass an explicit ``<base_clone>``.
 
     Returns:
         A ``(base_clone, dev_repo)`` tuple from the registry, or ``None`` when it cannot resolve.
     """
     # Lazy import (leaf entrypoint): the registry helpers live in the CLI module; importing them at
     # call time keeps this bin importable without eagerly pulling the CLI surface.
-    from kanbanmate.cli.init import DEFAULT_KANBAN_ROOT, _load_registry, _projects_path
+    from kanbanmate.bin._pin import _registry_root
+    from kanbanmate.cli.init import _load_registry, _projects_path
 
-    registry = _load_registry(_projects_path(DEFAULT_KANBAN_ROOT))
+    registry = _load_registry(_projects_path(_registry_root()))
     if len(registry) != 1:
         # No project (run init first) or >1 (ambiguous → require an explicit arg).
         return None

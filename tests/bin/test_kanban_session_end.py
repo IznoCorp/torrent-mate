@@ -16,6 +16,7 @@ The contract (DESIGN §8.1.f / §8.3):
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -120,10 +121,11 @@ def test_recent_breadcrumb_keeps_sticky_and_releases_slot(
 def test_no_breadcrumb_finalizes_interrupted_and_releases_slot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """WITHOUT a breadcrumb → ⚠️ flip (finished ts set) on the stage sticky, slot released."""
+    """WITHOUT either breadcrumb → ⚠️ flip (finished ts set) on the stage sticky, slot released."""
     store = MagicMock()
     store.load.return_value = _state(stage="Implement")
     store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = False  # NEITHER breadcrumb → the ⚠️ path (#FIX3)
     monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
     upsert = _patch_github(monkeypatch)
 
@@ -150,6 +152,7 @@ def test_no_breadcrumb_empty_stage_is_silent_no_finalize(
     store = MagicMock()
     store.load.return_value = _state(stage="")
     store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = False  # NEITHER breadcrumb → the ⚠️ path (#FIX3)
     monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
     upsert = _patch_github(monkeypatch)
 
@@ -163,6 +166,7 @@ def test_github_error_during_finalize_is_swallowed(monkeypatch: pytest.MonkeyPat
     store = MagicMock()
     store.load.return_value = _state()
     store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = False  # NEITHER breadcrumb → the ⚠️ path (#FIX3)
     monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
     monkeypatch.setattr(kanban_session_end, "_resolve_entry", lambda: MagicMock())
     monkeypatch.setattr(kanban_session_end, "load_token", lambda *a, **k: "tok")
@@ -213,3 +217,88 @@ def test_breadcrumb_read_before_purge_ticket(monkeypatch: pytest.MonkeyPatch) ->
     assert order == ["recent_agent_advance", "purge_ticket"]
     # And because the breadcrumb was seen present, a clean advance produces NO ⚠️.
     upsert.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# FIX 3 — done-without-advance finalizes ✅ done (not ⚠️ interrupted)
+# ---------------------------------------------------------------------------
+
+
+def test_done_without_advance_finalizes_done_not_interrupted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """FIX 3: a clean kanban-done WITHOUT advance finalizes the stage sticky ✅ done (NOT ⚠️).
+
+    The advance:stop stages (brainstorm/design/plan) complete by running kanban-done (a DONE
+    breadcrumb) and NEVER advance their card. Before the fix, session-end wrongly finalized ⚠️
+    interrupted; now it finalizes ✅ done — a clean completion is not a crash.
+    """
+    store = MagicMock()
+    store.load.return_value = _state(stage="Design")
+    store.recent_agent_advance.return_value = False  # never advanced (advance:stop stage)
+    store.recent_agent_done.return_value = True  # but signalled a clean kanban-done
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    upsert = _patch_github(monkeypatch)
+
+    assert main(["7"]) == 0
+    store.purge_ticket.assert_called_once_with(7, keep_budgets=True)
+    upsert.assert_called_once()
+    args, kwargs = upsert.call_args
+    assert args[1] == 7
+    assert args[2] == "Design"
+    header = kwargs["header"]
+    # ✅ DONE — not ⚠️ interrupted — with a finished timestamp + full-parity metadata bullets.
+    assert header.status == "done"
+    assert header.finished != ""
+    assert header.session == "sess-abc"
+    assert header.profile == "docs"
+    assert header.worktree == "ticket-7"
+
+
+def test_done_without_advance_empty_stage_is_silent_no_finalize(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """FIX 3: a done-without-advance with NO recorded stage → exit 0, slot released, NO GitHub I/O."""
+    store = MagicMock()
+    store.load.return_value = _state(stage="")
+    store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = True
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    upsert = _patch_github(monkeypatch)
+
+    assert main(["7"]) == 0
+    store.purge_ticket.assert_called_once_with(7, keep_budgets=True)
+    upsert.assert_not_called()
+
+
+def test_done_breadcrumb_read_before_purge_ticket(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """FIX 3 pre-purge ordering: the DONE breadcrumb is read BEFORE purge_ticket clears it.
+
+    Uses a REAL :class:`FsStateStore`: a recent done marker (no advance) is set, then ``main`` runs.
+    The ✅ DONE path can only be taken if the done read PRECEDED the purge that would have deleted
+    ``done/<issue>``. Asserting the upsert carried ✅ "done" proves the load-bearing ordering.
+    """
+    import time  # noqa: PLC0415 — test-local import (hook-safe: used in the same edit)
+
+    from kanbanmate.adapters.store.fs_store import FsStateStore  # noqa: PLC0415
+
+    real_store = FsStateStore(root=tmp_path)
+    real_store.save(_state(stage="Plan"))
+    # A clean done-without-advance: a recent done marker, NO advance breadcrumb. ``main`` reads it
+    # with its own ``time.time()`` now, so stamp the marker with a current ts (within the TTL).
+    now = time.time()
+    real_store.record_agent_done(7, now=now)
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: real_store)
+    upsert = _patch_github(monkeypatch)
+
+    assert main(["7"]) == 0
+    # The state + done marker were purged (the slot is freed).
+    assert real_store.load(7) is None
+    assert real_store.recent_agent_done(7, now=now) is False
+    # The ✅ DONE finalize fired — only possible if the done read PRECEDED the purge.
+    upsert.assert_called_once()
+    _args, kwargs = upsert.call_args
+    assert kwargs["header"].status == "done"

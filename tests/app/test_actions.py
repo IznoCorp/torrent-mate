@@ -503,6 +503,73 @@ def test_launch_action_audit_failure_is_swallowed(tmp_path: Path) -> None:
     m.store.append_dispatch.assert_called_once()
 
 
+def test_launch_action_clears_stale_done_and_end_attempts(tmp_path: Path) -> None:
+    """FIX 2: a fresh launch clears a stale done/<issue> breadcrumb + end_attempts counter.
+
+    A done breadcrumb (1800s TTL) or an end_attempts counter from a PRIOR stage must not survive
+    into this launch — otherwise the reaper would done-exit this fresh agent prematurely. Pre-seed
+    both with a REAL fs store, launch, and assert both are cleared after.
+    """
+    from kanbanmate.adapters.store.fs_store import FsStateStore  # noqa: PLC0415
+
+    kanban_root = tmp_path / "kanban"
+    worktree = tmp_path / "worktree"
+    worktree.mkdir()
+    real_store = FsStateStore(root=kanban_root)
+    # Pre-seed the stale breadcrumbs from the prior stage.
+    real_store.record_agent_done(7, now=1234.0)
+    real_store.bump_end_attempt(7)
+    assert real_store.recent_agent_done(7, now=1234.0) is True
+    assert real_store.get_end_attempts(7) == 1
+
+    m = _mocks(now=1234.0, worktree=worktree)
+    deps = replace(m.deps, store=real_store)
+    _launch(_ticket(issue=7)).execute(deps)
+
+    # Both stale markers were cleared at launch (the new session's done-exit gate is clean).
+    assert real_store.recent_agent_done(7, now=1234.0) is False
+    assert real_store.get_end_attempts(7) == 0
+
+
+def test_launch_action_breadcrumb_clear_failure_is_fail_soft(tmp_path: Path) -> None:
+    """FIX 2: a ``clear_agent_done`` failure must NOT abort the launch (fail-soft).
+
+    The breadcrumb only matters to the NEXT reap tick (it ages out at the TTL), so a clear failure
+    must never break a launch the agent has already started — the running state is still saved.
+    """
+    m = _mocks(now=1234.0, worktree=tmp_path)
+    m.store.clear_agent_done.side_effect = RuntimeError("disk full")
+
+    # Must NOT raise even though the breadcrumb clear blows up.
+    _launch(_ticket(issue=7)).execute(m.deps)
+
+    # The clear WAS attempted (and raised, swallowed); the launch still completed end to end.
+    m.store.clear_agent_done.assert_called_once_with(7)
+    m.sessions.launch.assert_called_once()
+    m.store.save.assert_called_once()
+
+
+def test_launch_action_end_attempts_clear_failure_is_fail_soft(tmp_path: Path) -> None:
+    """FIX 2: a ``clear_end_attempts`` failure must NOT abort the launch either (symmetric, independent).
+
+    The two breadcrumb clears sit in SEPARATE try/except blocks, so a failure of the SECOND one
+    (``clear_end_attempts``) must be swallowed independently — the first clear having succeeded
+    must not leave the launch half-done. ``clear_agent_done`` is left succeeding so this isolates
+    the second clear's fail-soft path; the running state must still be saved.
+    """
+    m = _mocks(now=1234.0, worktree=tmp_path)
+    m.store.clear_end_attempts.side_effect = RuntimeError("disk full")
+
+    # Must NOT raise even though the second breadcrumb clear blows up.
+    _launch(_ticket(issue=7)).execute(m.deps)
+
+    # The first clear ran cleanly; the second WAS attempted (and raised, swallowed); launch finished.
+    m.store.clear_agent_done.assert_called_once_with(7)
+    m.store.clear_end_attempts.assert_called_once_with(7)
+    m.sessions.launch.assert_called_once()
+    m.store.save.assert_called_once()
+
+
 def test_launch_action_audit_record_ensure_ascii_false(tmp_path: Path) -> None:
     """A non-ASCII repo round-trips intact through the dispatch JSON line
     (``ensure_ascii=False``)."""

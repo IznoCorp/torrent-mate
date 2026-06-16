@@ -8,12 +8,14 @@ exit ``0``). The only mutating git call is ``pull --ff-only`` — never a merge,
 
 from __future__ import annotations
 
+import json
 import subprocess
+from pathlib import Path
 from typing import Any
 
 import pytest
 
-from kanbanmate.bin.kanban_update_main import main
+from kanbanmate.bin.kanban_update_main import _resolve_from_registry, main
 
 
 def _completed(
@@ -143,6 +145,82 @@ def test_dev_dirty_skips_with_warning(monkeypatch: pytest.MonkeyPatch) -> None:
     assert main(["/base", "/dev"]) == 0
     assert not any("pull" in argv for argv in rec.calls)
     assert _no_force_or_merge(rec)
+
+
+# ---------------------------------------------------------------------------
+# FIX 1 — multi-root registry resolution ($KANBAN_ROOT, km-worktree-helper-root fix)
+# ---------------------------------------------------------------------------
+
+
+def _write_one_project_registry(root: Path, *, clone: str, dev_repo_path: str) -> None:
+    """Write a single-project ``projects.json`` under *root* carrying ``clone``/``dev_repo_path``."""
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "projects.json").write_text(
+        json.dumps(
+            {
+                "PVT_PROJECT": {
+                    "repo": "IznoCorp/demo",
+                    "clone": clone,
+                    "project_id": "PVT_PROJECT",
+                    "status_field_node_id": "PVTSSF",
+                    "dev_repo_path": dev_repo_path,
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_no_args_resolves_base_and_dev_from_kanban_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With no args, the base/dev clones resolve from the ``$KANBAN_ROOT`` registry (FIX 1).
+
+    Proves the km-root fix end to end: a single-project registry under a tmp ``$KANBAN_ROOT`` is
+    read, so the base clone fetched and the dev clone ff'd are the registry's — never resolved
+    from the hardcoded ~/.kanban. The base ``git fetch`` is the only real-ish op (stubbed).
+    """
+    monkeypatch.setenv("KANBAN_ROOT", str(tmp_path))
+    _write_one_project_registry(tmp_path, clone="/km/base", dev_repo_path="/km/dev")
+    rec = _GitRecorder(
+        {
+            "fetch origin": _completed(),
+            "rev-parse --abbrev-ref": _completed(stdout="main\n"),
+        }
+    )
+    _install(monkeypatch, rec)
+
+    assert main([]) == 0
+    assert ["git", "-C", "/km/base", "fetch", "origin", "main"] in rec.calls
+    assert ["git", "-C", "/km/dev", "pull", "--ff-only"] in rec.calls
+    assert _no_force_or_merge(rec)
+
+
+def test_resolve_from_registry_reads_kanban_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``_resolve_from_registry`` reads the registry from ``$KANBAN_ROOT`` directly (FIX 1)."""
+    monkeypatch.setenv("KANBAN_ROOT", str(tmp_path))
+    _write_one_project_registry(tmp_path, clone="/km/base", dev_repo_path="/km/dev")
+
+    assert _resolve_from_registry() == ("/km/base", "/km/dev")
+
+
+def test_resolve_from_registry_unset_falls_back_to_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With ``$KANBAN_ROOT`` unset, ``_resolve_from_registry`` falls back to the default root.
+
+    ``DEFAULT_KANBAN_ROOT`` (the import-time-frozen ~/.kanban) is patched to a tmp dir so the
+    fallback resolves under tmp; a single-project registry there resolves, proving the unset-env
+    fallback is preserved (matching ``kanban_move``/``kanban_done`` contract).
+    """
+    monkeypatch.delenv("KANBAN_ROOT", raising=False)
+    default_root = tmp_path / "default-kanban"
+    monkeypatch.setattr("kanbanmate.cli.init.DEFAULT_KANBAN_ROOT", default_root)
+    _write_one_project_registry(default_root, clone="/default/base", dev_repo_path="")
+
+    assert _resolve_from_registry() == ("/default/base", "")
 
 
 def test_dev_off_main_skips_with_warning(monkeypatch: pytest.MonkeyPatch) -> None:

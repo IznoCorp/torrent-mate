@@ -9,7 +9,9 @@ the network; the registry/token/pin are patched so nothing is read off a real cl
 from __future__ import annotations
 
 import io
+import json
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import pytest
 
@@ -196,3 +198,63 @@ def test_empty_node_id_refuses_write(monkeypatch: pytest.MonkeyPatch) -> None:
     _wire(monkeypatch, client, pinned=7)
     assert main(["7", "--set-field", "codename", "x"]) == 1
     assert client.patches == []
+
+
+# ---------------------------------------------------------------------------
+# FIX 1 — multi-root registry resolution ($KANBAN_ROOT, km-worktree-helper-root fix)
+# ---------------------------------------------------------------------------
+
+
+def _write_one_project_registry(root: Path) -> None:
+    """Write a single-project ``projects.json`` under *root* (the km-root registry)."""
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "projects.json").write_text(
+        json.dumps(
+            {
+                "PVT_PROJECT": {
+                    "repo": "IznoCorp/demo",
+                    "clone": "/tmp/clone",
+                    "project_id": "PVT_PROJECT",
+                    "status_field_node_id": "PVTSSF",
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_resolve_entry_reads_from_kanban_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``_resolve_entry`` resolves the registry from ``$KANBAN_ROOT``, not the ~/.kanban default."""
+    monkeypatch.setenv("KANBAN_ROOT", str(tmp_path))
+    _write_one_project_registry(tmp_path)
+
+    entry = kanban_update_body._resolve_entry()
+
+    assert entry.repo == "IznoCorp/demo"
+    assert entry.project_id == "PVT_PROJECT"
+
+
+def test_resolve_entry_empty_kanban_root_raises_naming_that_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An EMPTY ``$KANBAN_ROOT`` registry raises a RuntimeError naming the tmp path (not ~/.kanban)."""
+    monkeypatch.setenv("KANBAN_ROOT", str(tmp_path))  # no projects.json → 0 projects
+
+    with pytest.raises(RuntimeError, match=str(tmp_path)):
+        kanban_update_body._resolve_entry()
+
+
+def test_resolve_entry_kanban_root_unset_falls_back_to_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With ``$KANBAN_ROOT`` unset, the helper falls back to the ``DEFAULT_KANBAN_ROOT`` default."""
+    monkeypatch.delenv("KANBAN_ROOT", raising=False)
+    default_root = tmp_path / "default-kanban"
+    monkeypatch.setattr("kanbanmate.cli.init.DEFAULT_KANBAN_ROOT", default_root)
+    _write_one_project_registry(default_root)
+
+    entry = kanban_update_body._resolve_entry()
+
+    assert entry.repo == "IznoCorp/demo"

@@ -101,3 +101,93 @@ See `docs/features/clean-termination/DESIGN.md` §8.x for the full delta.
 **Phase gate green** (`make check` exit 0; `python -c "import kanbanmate"` OK). Awaiting human review +
 merge (merge is human-only). The operator redeploys the daemons after merge; finished brainstorm/plan
 agents then terminate reliably (robust keystrokes + REPL-kill escalation).
+
+---
+
+# Follow-up — Robustness batch 1 (five contained, lifecycle-design-independent fixes)
+
+> Focused engine bugfix batch on branch `fix/robustness-batch-1` (SemVer **patch / Z+1**). Five
+> clearly-correct, independent robustness fixes surfaced by an audit of the 2026-06-16 board-fix
+> arc (clean-termination + reaper end_session/SIGKILL + Health field + km-root helper fix). Each is
+> contained and does NOT depend on any open lifecycle-design decision. FIX 5 is DEFERRED (no
+> daemon-side body-write hook to reuse — see its row + the deferred design below).
+
+## Fixes
+
+| # | Scope | Status | Commit |
+|---|-------|--------|--------|
+| 1 | multi-root completeness: route the three MISSED agent helpers (`bin/kanban_comment.py`, `bin/kanban_update_body.py`, `bin/kanban_update_main.py`) through `bin/_pin._registry_root()` so they resolve the registry from `$KANBAN_ROOT` (not hardcoded `~/.kanban`), mirroring `kanban_move`/`kanban_progress`/`kanban_session_end` | DONE | `aa9f376` fix(bin): root-aware registry resolution for comment/update-body/update-main helpers |
+| 2 | done-breadcrumb clear-at-launch: clear `done/<issue>` + `end_attempts/<issue>` (fail-soft) in `LaunchAction.execute` (before the running-state save) and `reaper._try_relaunch` (before the bump-save), so a fresh session's done-exit gate depends only on its own `kanban-done` | DONE | `42c3d29` fix(launch): clear stale done/end_attempts breadcrumbs at fresh-session launch + relaunch |
+| 3 | done-sticky finalize ✅: `bin/kanban_session_end.py` reads the DONE breadcrumb (`recent_agent_done`) BEFORE `purge_ticket` and finalizes ✅ done when EITHER advance OR done is present; ⚠️ interrupted ONLY when NEITHER (a clean advance:stop stage no longer shows ⚠️) | DONE | `e3d7b58` fix(session-end): done-without-advance finalizes done sticky, not interrupted |
+| 4 | tick resilience on probe failure: wrap `cheap_probe()` in try/except in `tick()`; on failure log + skip snapshot+diff+decide (no new launches) but STILL run reap + done-exit + drain + heartbeat + report/health; `last_probe` left unchanged so the next tick re-probes | DONE | `314e542` fix(tick): degrade probe failure to no-new-launches instead of skipping the whole tick |
+| 5 | body-top current-status header ("pinned" equivalent) | **DEFERRED** | — (concrete design below) |
+
+## Behaviour deltas (gate requirement)
+
+- **FIX 1 — multi-root completeness.** The km-worktree-helper-root fix (#1) had missed three agent
+  helpers that still resolved `projects.json` from the import-time-frozen `~/.kanban`
+  (`DEFAULT_KANBAN_ROOT`); on the `kanban-km` daemon (`$KANBAN_ROOT=~/.kanban-km`) they acted on the
+  WRONG repo. `kanban_comment`/`kanban_update_body` now resolve the registry via
+  `_projects_path(_registry_root())` (identical to `kanban_move`); `kanban_update_main`'s
+  `_resolve_from_registry` lazy-imports `_registry_root`. None of the three use an `FsStateStore`, so
+  the registry root is the whole change. The `~/.kanban` fallback (unset `$KANBAN_ROOT`) is preserved.
+- **FIX 2 — fresh-session breadcrumb hygiene.** A stale `done/<issue>` (1800s TTL) or
+  `end_attempts/<issue>` counter from stage N could survive into stage N+1 and make the reaper
+  done-exit the FRESH agent prematurely. `LaunchAction.execute` and `reaper._try_relaunch` now clear
+  both (each independently fail-soft) before persisting the running state, so the new session's
+  done-exit gate depends ONLY on its own `kanban-done`. The relaunch path reuses the slot (no
+  `purge_ticket`), so these clears are the only reset there — exactly the gap.
+- **FIX 3 — done-without-advance finalizes ✅, not ⚠️.** The advance:stop stages
+  (brainstorm/design/plan) complete cleanly via `kanban-done` (a DONE breadcrumb) and NEVER advance
+  their card, so `kanban-session-end` was wrongly showing ⚠️ interrupted. It now reads the DONE
+  breadcrumb BEFORE `purge_ticket` (same load-bearing ordering as the advance breadcrumb — purge
+  clears `done/<issue>` too) and finalizes ✅ done when EITHER advance OR done is present; ⚠️
+  interrupted is now reserved for NEITHER present (a genuine crash/interrupt). The advance→✅ path
+  (daemon already finalized) is untouched.
+- **FIX 4 — tick probe-failure resilience.** `cheap_probe()` was outside the try/except, so a
+  transient GitHub 401/403/5xx on the probe raised out of `tick()` and skipped the ENTIRE tick —
+  reap, done-exit, drain, heartbeat and health all stranded (a finished agent + a freed slot waited
+  for the backoff window). The probe is now wrapped: a failure logs + sets a `probe_failed` flag that
+  gates out the snapshot+diff+decide (the launch path) while every post-step still runs. `last_probe`
+  is left at the prior token, so the next tick re-probes and recovery re-triggers a snapshot.
+  `snapshot_taken` stays `False` (same as an unchanged board), so the daemon-loop cadence backoff is
+  unchanged.
+- **FIX 5 — DEFERRED.** A body-top current-status header at every transition is cross-cutting: there
+  is NO daemon-side body-write hook to reuse (every stage finalizer writes TIMELINE COMMENTS via
+  `app/stage_signal.upsert_stage_comment`; body writes live only in the `kanban-update-body` agent
+  helper + the `Seeder` Protocol, with `Deps.seeder` defaulted `None` and not threaded into the stage
+  producers). Implementing it safely needs (a) a new pure `core/body_edit.set_status_header` helper
+  preserving the `**roadmap**`/`**codename**`/`**design**`/`**plans**` markers + `## Brainstorm`, (b)
+  a new fail-soft `app/body_status.py` orchestrator (`fetch_issue` → pure transform → `update_issue_body`,
+  body-diff-gated, no-op when `seeder is None`), (c) threading a body-writer port through `Deps`/wiring,
+  and (d) 5 fail-soft wires across `actions.py`/`tick.py`/`reaper.py`/`bin/kanban_session_end.py` (all
+  at/near the 1000-LOC ceiling). Per the task instruction, FIXES 1-4 are implemented fully and FIX 5
+  is deferred with the concrete design below. **Risk to carry into the FIX-5 PR**: `update_issue_body`
+  replaces the WHOLE body, so a daemon header write could race an agent's `kanban-update-body
+  --set-field` (last-writer-wins) — keep the header write idempotent + body-diff-gated, region-disjoint
+  from the markers, and adversarially test marker/section preservation.
+
+### Deferred FIX 5 — concrete design (for a future contained PR)
+
+- **Delimiter + block.** A single idempotent block at the VERY TOP of the body, fenced by HTML
+  comments so it never collides with the `**key**: value` markers or `## Brainstorm`:
+  `<!-- kanban:status:begin -->` … `<!-- kanban:status:end -->`. Shows stage key + state
+  (running/done/blocked/waiting/interrupted) + short summary + UTC timestamp.
+- **Pure core helper** `core/body_edit.set_status_header(body, *, stage, state, summary, ts) -> str`
+  (190-LOC module, wide headroom): replace an existing `begin…end` block in place; prepend a fresh
+  block when absent; leave everything below `end` byte-identical; no-op-equivalent on identical input.
+- **Fail-soft app orchestrator** `app/body_status.update_status_header(seeder, issue, *, stage, state,
+  summary, now)` (~60 LOC new module): `fetch_issue` → `set_status_header` → `update_issue_body`,
+  wholly fail-soft, no-op when `seeder is None`, body-diff-gated (skip the PATCH when new == fetched).
+- **Wire at the 5 transition points**, each a single fail-soft call mirroring the existing
+  `upsert_stage_comment` calls: `actions.LaunchAction.execute` (running) · `bin/kanban_session_end.py`
+  ⚠️ branch (interrupted) + the FIX-3 ✅ branch (done) · `reaper` ⛔ flip (blocked) + `_enter_waiting`
+  (waiting) · advance ✅ via `tick._finalize_left_stage` (done). Thread `deps.seeder` (already on
+  `Deps`) into the app-layer producers; for the bins, the existing `GithubClient` already implements
+  `Seeder`.
+
+## Next action
+
+**Phase gate green** (`make check` exit 0; `python -c "import kanbanmate"` OK). Awaiting human review +
+merge (merge is human-only). FIXES 1-4 ship in this batch; FIX 5 is a deferred follow-up with the
+concrete design above.

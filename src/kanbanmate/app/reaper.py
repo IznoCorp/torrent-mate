@@ -794,6 +794,25 @@ def _try_relaunch(
         logger.exception(
             "reaper relaunch kill_session failed for #%s; continuing", state.issue_number
         )
+    # Fresh-session breadcrumb hygiene (#FIX2, same as LaunchAction): the relaunch is a FRESH
+    # session for the SAME stage, so a stale done/end_attempts marker from the prior (dead) session
+    # must not done-exit it on the next tick. Clear both; fail-soft (a clear failure never aborts
+    # the retry — the markers age out at their TTL regardless). NOTE: _try_relaunch does NOT call
+    # purge_ticket (it reuses the slot), so these clears are the ONLY thing that resets the
+    # breadcrumb on the relaunch path — exactly the gap they close.
+    try:
+        deps.store.clear_agent_done(state.issue_number)
+    except Exception:
+        logger.exception(
+            "relaunch breadcrumb-clear (done) failed for #%s; continuing", state.issue_number
+        )
+    try:
+        deps.store.clear_end_attempts(state.issue_number)
+    except Exception:
+        logger.exception(
+            "relaunch breadcrumb-clear (end_attempts) failed for #%s; continuing",
+            state.issue_number,
+        )
     # Persist retries+1 / running / refreshed heartbeat BEFORE dispatching (port reaper.py:160-166):
     # even a relaunch the watchdog abandons leaves a bumped-retries record, so the NEXT sweep does
     # not retry again (the budget holds).

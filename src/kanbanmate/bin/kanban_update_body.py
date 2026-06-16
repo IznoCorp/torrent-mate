@@ -33,8 +33,8 @@ from dataclasses import dataclass
 
 from kanbanmate.adapters.github.client import GithubClient
 from kanbanmate.adapters.github.token import load_token
-from kanbanmate.bin._pin import check_pin, parse_issue_arg
-from kanbanmate.cli.init import DEFAULT_KANBAN_ROOT, ProjectEntry, _load_registry, _projects_path
+from kanbanmate.bin._pin import _registry_root, check_pin, parse_issue_arg
+from kanbanmate.cli.init import ProjectEntry, _load_registry, _projects_path
 from kanbanmate.core.body_edit import (
     append_section,
     set_field,
@@ -127,7 +127,9 @@ def _resolve_entry() -> ProjectEntry:
     """Resolve the single registered project from the per-clone registry.
 
     v1 runs one repo per clone (DESIGN §4.3), so the registry must hold exactly one
-    entry; anything else is an operator misconfiguration we surface loudly.
+    entry; anything else is an operator misconfiguration we surface loudly. The registry is read
+    from the runtime root resolved by :func:`_registry_root` (``$KANBAN_ROOT`` when set, else the
+    ~/.kanban default — the km-worktree-helper-root fix, #1).
 
     Returns:
         The sole :class:`~kanbanmate.cli.init.ProjectEntry`.
@@ -135,11 +137,11 @@ def _resolve_entry() -> ProjectEntry:
     Raises:
         RuntimeError: When the registry does not hold exactly one project.
     """
-    registry = _load_registry(_projects_path(DEFAULT_KANBAN_ROOT))
+    projects_path = _projects_path(_registry_root())
+    registry = _load_registry(projects_path)
     if len(registry) != 1:
         raise RuntimeError(
-            f"expected exactly one registered project in "
-            f"{_projects_path(DEFAULT_KANBAN_ROOT)}, found {len(registry)}"
+            f"expected exactly one registered project in {projects_path}, found {len(registry)}"
         )
     return next(iter(registry.values()))
 

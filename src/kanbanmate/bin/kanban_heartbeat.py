@@ -36,8 +36,9 @@ def main(argv: list[str] | None = None) -> int:
     The hot path is deliberately tiny: the issue number is parsed *before* importing
     :mod:`kanbanmate` so a malformed (or arg-less) invocation never pays the engine-import cost
     and never stalls on a slow/broken import. With a valid issue, the engine is imported, the
-    filesystem store is built from ``~/.kanban``, and the heartbeat is refreshed. Every failure is
-    swallowed — a missed heartbeat must never block or influence the agent (DESIGN §8.3).
+    filesystem store is built from the launching daemon's root (``$KANBAN_ROOT`` when set, else
+    ``~/.kanban`` — the km-worktree-helper-root fix, #1), and the heartbeat is refreshed. Every
+    failure is swallowed — a missed heartbeat must never block or influence the agent (DESIGN §8.3).
 
     Args:
         argv: Optional argument vector (excluding the program name); defaults to
@@ -64,8 +65,16 @@ def main(argv: list[str] | None = None) -> int:
     # is local to this branch so it only runs once a valid issue is in hand.
     try:
         from kanbanmate.adapters.store.fs_store import FsStateStore
+        from kanbanmate.bin._pin import resolve_kanban_root
 
-        store = FsStateStore()  # defaults to ~/.kanban (DESIGN §4.1)
+        # Root-aware exactly like the other write-capable helpers (kanban-done / kanban-move /
+        # kanban-progress / kanban-session-end): honour ``$KANBAN_ROOT`` — which the launch exports
+        # into the agent's worktree env (actions._agent_command) for a NON-default daemon — so this
+        # PostToolUse hook writes the heartbeat under the SAME root the daemon reaper reads, not the
+        # hardcoded ~/.kanban. That hardcoded default was the root cause of the km-agent
+        # "never_refreshed" symptom: the kanban-km agent's heartbeat landed under ~/.kanban while the
+        # km daemon aged it against ~/.kanban-km (#1, completing the km-worktree-helper-root fix).
+        store = FsStateStore(resolve_kanban_root())  # $KANBAN_ROOT, else ~/.kanban (DESIGN §4.1)
         # touch_heartbeat is no-resurrection: a no-op when state/<issue>.json is absent (e.g. after
         # a Cancel teardown), so a late hook never recreates a torn-down ticket's state (§8.3).
         store.touch_heartbeat(issue, time.time())

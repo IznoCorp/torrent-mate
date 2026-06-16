@@ -484,7 +484,7 @@ def run_loop(
 
             # Step 2: one idempotent tick, threading the persisted baseline forward.
             try:
-                result, state = run_one_tick(wiring, state)
+                tick_result, state = run_one_tick(wiring, state)
             except Exception as exc:  # noqa: BLE001 — one failed tick must not crash the daemon
                 logger.exception("tick raised; continuing")
                 result = None
@@ -493,12 +493,25 @@ def run_loop(
                 consecutive_failures += 1
                 _log_actionable_auth_failure(exc, config.kanban_root)
             else:
-                # The tick RETURNED (action-level errors are isolated inside the tick and do
-                # not count as a failed poll) ⇒ snap the failure run back to zero (#1) and clear
-                # any DEGRADED sentinel a prior auth failure dropped, so the daemon self-recovers
-                # the moment the operator fixes the token.
-                consecutive_failures = 0
-                _clear_degraded(config.kanban_root)
+                # The tick RETURNED — but a probe failure (FIX4) is a FAILED poll even though it
+                # returned: the tick degraded to no-new-launches (running its post-steps so finished
+                # agents aren't stranded) and flagged ``probe_failed`` so the circuit-breaker still
+                # engages here. Without this, a dead token / DNS outage would reset the failure run
+                # every tick, masking the outage (full-cadence polling, doctor + monitor D3 green).
+                # Action-level errors INSIDE a clean tick are still isolated and do NOT count. The
+                # narrowed ``tick_result`` (never None in this branch) is published to ``result`` for
+                # the shared post-tick bookkeeping (idle clock + heartbeat) below.
+                result = tick_result
+                if tick_result.probe_failed:
+                    consecutive_failures += 1
+                    if tick_result.probe_error is not None:
+                        _log_actionable_auth_failure(tick_result.probe_error, config.kanban_root)
+                else:
+                    # A clean tick ⇒ snap the failure run back to zero (#1) and clear any DEGRADED
+                    # sentinel a prior auth failure dropped, so the daemon self-recovers the moment
+                    # the probe succeeds again (the transient failure heals on the next tick).
+                    consecutive_failures = 0
+                    _clear_degraded(config.kanban_root)
 
             # Step 3: anything happened this tick ⇒ reset the idle clock so the cadence stays tight.
             now = time.time()
