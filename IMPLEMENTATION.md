@@ -6,7 +6,7 @@
 **Version bump**: 0.33.0 → 0.34.0
 **Branch**: feat/tracker-auth
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/202
 **Design**: docs/features/tracker-auth/DESIGN.md
 **Master plan**: docs/features/tracker-auth/plan/INDEX.md
 
