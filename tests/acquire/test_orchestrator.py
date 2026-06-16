@@ -33,7 +33,7 @@ from personalscraper.acquire.orchestrator import GrabOrchestrator, GrabOutcome
 from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api._units import ByteSize
 from personalscraper.api.torrent._base import TorrentSource
-from personalscraper.api.torrent._contracts import TorrentAdder
+from personalscraper.api.torrent._contracts import TorrentAdder, TorrentTagger
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
 from personalscraper.api.tracker._ranking import RankingConfig
@@ -198,8 +198,8 @@ def test_grab_happy_path_returns_success_outcome_with_exact_payload() -> None:
     # Skip-branch pin: this client is MagicMock(spec=TorrentAdder) — it does NOT
     # implement TorrentTagger, so the orchestrator must NOT call add_tags()
     # (isinstance check is False → skip the tagging step entirely).
-    assert not hasattr(torrent_client, "add_tags") or not torrent_client.add_tags.called, (
-        "add_tags must NOT be called when client does not implement TorrentTagger"
+    assert not isinstance(torrent_client, TorrentTagger), (
+        "test client must not implement TorrentTagger so the skip branch is exercised"
     )
 
     # The orchestrator must NOT emit GrabSucceeded (the service owns that emit) —
