@@ -160,6 +160,92 @@ def _pane_shows_waiting(deps: Deps, issue_number: int) -> bool:
         return False
 
 
+def _pane_has_active_turn(deps: Deps, issue_number: int) -> bool:
+    """Return whether ``issue_number``'s alive session is mid-turn (``esc to interrupt``) — FAIL-CLOSED.
+
+    Captures the pane and looks for the running-turn footer
+    (:data:`kanbanmate.core.launch_keys.SUBMITTED_MARKERS`, i.e. ``esc to interrupt``) in only the
+    LAST :data:`~kanbanmate.core.launch_keys.SUBMIT_SCAN_LINES` lines — the live input-box/footer
+    region (mirrors :func:`~kanbanmate.core.launch_keys.prompt_pending`). Scanning the WHOLE captured
+    pane would let a STALE ``esc to interrupt`` line left in scrollback false-positive "active turn"
+    forever, so a finished done agent could never be cleanly exited. A ``True`` verdict means a turn
+    is in flight — the reaper must NOT exit the REPL even if the agent signalled done (it would
+    interrupt live work). FAIL-CLOSED to ``True`` (treat as active) on any capture/classify error so
+    an undecidable pane is NEVER exited (the conservative call: an uncertain pane parks WAITING via
+    the normal path, it is never cleanly exited).
+
+    Args:
+        deps: The injected adapter bundle (the sessions port backing the pane capture).
+        issue_number: The ticket whose pane to classify (session ``ticket-<issue>``).
+
+    Returns:
+        ``True`` iff the pane TAIL shows a running turn OR the capture raised (fail-closed); ``False``
+        only when the capture DEFINITIVELY shows an idle pane.
+    """
+    from kanbanmate.core.launch_keys import SUBMIT_SCAN_LINES, SUBMITTED_MARKERS
+
+    session_name = f"ticket-{issue_number}"
+    try:
+        # Scan only the trailing live region (same idiom as prompt_pending) so a stale marker in
+        # scrollback cannot pin the agent "active" forever.
+        tail = "\n".join(deps.sessions.capture(session_name).splitlines()[-SUBMIT_SCAN_LINES:])
+        lowered = tail.lower()
+        return any(marker.lower() in lowered for marker in SUBMITTED_MARKERS)
+    except Exception:
+        logger.exception(
+            "reaper active-turn probe failed for #%s; treating as active (fail-closed)",
+            issue_number,
+        )
+        return True
+
+
+def _end_done_session(deps: Deps, state: TicketState, now: float) -> bool:
+    """Cleanly EXIT a done + idle alive session so its session-end wrapper fires (#1).
+
+    Calls :meth:`~kanbanmate.ports.workspace.Sessions.end_session` (C-c then C-d → ``claude`` exits
+    → the trailing ``; kanban-session-end <issue>`` runs the teardown). FAIL-SOFT: an exit-keystroke
+    error is logged and the ticket is left WAITING for the next tick to retry (never crashes the
+    sweep). Returns whether the exit was dispatched.
+
+    **SINGLE-SHOT dispatch (review BLOCKER).** On a SUCCESSFUL dispatch the done breadcrumb is
+    CLEARED (:meth:`~kanbanmate.ports.store.StateStore.clear_agent_done`, fail-soft) so a subsequent
+    reap tick no longer re-enters the done-exit branch. This matters because ``claude`` may exit
+    slowly AND the out-of-band ``; kanban-session-end`` then does multi-second GitHub I/O — during
+    that window the tmux session is STILL ALIVE with no active turn. A second ``end_session`` would
+    re-send C-c then C-d and could INTERRUPT ``kanban-session-end`` mid-teardown, leaving state
+    half-purged. With the breadcrumb cleared the next tick falls through to the Approach-A path: a
+    still-alive stale session parks WAITING (non-destructive, operator-visible) instead of being
+    re-exited. A FAILED dispatch does NOT clear — at that point ``kanban-session-end`` has not been
+    triggered, so a retry next tick has no collision risk.
+
+    Args:
+        deps: The injected adapter bundle (the sessions port).
+        state: The done + idle ticket's persisted state.
+        now: The current wall-clock time (unused today; kept for symmetry with the WAITING helpers).
+
+    Returns:
+        ``True`` iff ``end_session`` was dispatched without raising; ``False`` on error.
+    """
+    try:
+        deps.sessions.end_session(f"ticket-{state.issue_number}")
+    except Exception:
+        logger.exception(
+            "reaper end_session failed for #%s; leaving for the next tick", state.issue_number
+        )
+        return False
+    # SINGLE-SHOT: the exit dispatched cleanly, so drop the done breadcrumb to prevent a re-dispatch
+    # on a later tick from interrupting the in-flight ``; kanban-session-end`` teardown (fail-soft —
+    # a clear error must not crash the sweep; worst case the next tick re-exits an already-gone REPL).
+    try:
+        deps.store.clear_agent_done(state.issue_number)
+    except Exception:
+        logger.exception(
+            "reaper clear_agent_done failed for #%s after end_session; continuing",
+            state.issue_number,
+        )
+    return True
+
+
 def _enter_waiting(deps: Deps, state: TicketState, now: float) -> None:
     """Persist ``WAITING`` for ``state`` and SIGNAL the user via the ⏳ stage sticky (§B).
 
@@ -288,6 +374,19 @@ def reap_stale_agents(
       ``kanban cancel``). The heartbeat TTL thus governs WHEN an alive agent flips to WAITING, not
       whether it is reaped.
 
+    **Option 1 done-exit (#1) — runs AHEAD of the WAITING parking.** Before the Approach-A handling,
+    for an ALIVE session that has signalled DONE (the agent ran ``kanban-done`` → a persisted
+    ``done/<issue>`` breadcrumb, :meth:`~kanbanmate.ports.store.StateStore.recent_agent_done`) AND
+    whose pane is IDLE (no ``esc to interrupt`` active turn — :func:`_pane_has_active_turn`), the
+    reaper cleanly EXITS the REPL via :meth:`~kanbanmate.ports.workspace.Sessions.end_session` (C-c
+    then C-d, NOT ``kill``) so ``claude`` exits and the trailing ``; kanban-session-end <issue>`` of
+    the launched command runs the teardown → the card flows. This applies to BOTH fresh+alive and
+    stale+alive done agents (a quick-finish is fresh; a long agent that finishes after going silent is
+    stale). Approach A is UNCHANGED for every other case: a NOT-done alive session, or a done-but-
+    WORKING session (the active-turn probe FAILS CLOSED to "active" on any error, so an undecidable
+    pane is never exited), falls through to the WAITING / fresh handling and is never exited; a DEAD
+    session is reaped below.
+
     Only a DEAD session (the ``is_alive`` probe DEFINITIVELY reports it gone) is reaped — immediately,
     regardless of heartbeat freshness (#26: a crashed agent is not left for the full TTL). The probe
     is fail-OPEN (:func:`_session_alive` reports "alive" on any probe error) so an uncertain liveness
@@ -344,6 +443,26 @@ def reap_stale_agents(
         # SKIP a running ticket only when it is BOTH fresh AND alive.
         fresh = (now - state.heartbeat) <= config.heartbeat_ttl
         alive = _session_alive(deps, state.issue_number)
+
+        # Option 1 (#1): a DONE + IDLE alive session is cleanly EXITED so its trailing
+        # ``; kanban-session-end`` fires (teardown → the card flows). This runs BEFORE the
+        # Approach-A WAITING parking below (it applies to BOTH fresh+alive and stale+alive done
+        # agents — a quick-finish is fresh+alive+done; a long agent that finishes after going silent
+        # is stale+alive+done). Approach A is preserved EXACTLY: an alive session is exited ONLY when
+        # it has signalled done AND its pane is IDLE (no ``esc to interrupt`` active turn). A not-done
+        # alive session, or a done-but-WORKING session, falls through to the unchanged WAITING /
+        # fresh handling and is NEVER exited. A dead session is handled by the reap path below.
+        if alive and deps.store.recent_agent_done(state.issue_number, now=now):
+            if not _pane_has_active_turn(deps, state.issue_number):
+                # SINGLE-SHOT (review BLOCKER): _end_done_session CLEARS the done breadcrumb on a
+                # successful dispatch, so the next tick no longer re-enters this branch — it cannot
+                # re-send C-c/C-d into the in-flight ``; kanban-session-end`` teardown. A still-alive
+                # stale session then parks WAITING via Approach A below (non-destructive). A failed
+                # dispatch leaves the breadcrumb so the next tick retries (no collision yet).
+                _end_done_session(deps, state, now)
+                continue
+            # Done but a turn is still running → do NOT interrupt it; fall through to the normal
+            # fresh/stale handling (it will be re-evaluated next tick once the turn ends).
 
         # Phase-27 §B — WAITING / RESUME / WAITING-death handling, BEFORE the reap gate:
         if fresh and alive:

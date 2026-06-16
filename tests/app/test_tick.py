@@ -245,6 +245,10 @@ def _mocks(reader: _FakeBoardReader, *, now: float = 1000.0) -> _Mocks:
     # "human drag vs agent self-advance" discriminator is exercised. A test modelling a legitimate
     # AGENT self-advance (the agent ran ``kanban-move`` → breadcrumb) sets this True explicitly.
     store.recent_agent_advance.return_value = False
+    # Option 1 (#1): default NO recent agent-done breadcrumb so the reaper's done-exit branch is NOT
+    # entered for the pre-existing reaper tests (a bare MagicMock default would be truthy and
+    # spuriously exit every alive session). A test exercising the done-exit sets this True explicitly.
+    store.recent_agent_done.return_value = False
     clock = MagicMock()
     clock.now.return_value = now
     pull_requests = MagicMock()
@@ -1883,6 +1887,287 @@ def test_reaper_never_kills_live_interactive_brainstorm_with_free_text_prompt() 
     assert m.board_writer.list_issue_comments.called  # the ⏳ waiting sticky upsert
     assert result.reaped == 0
     assert result.relaunched == 0
+
+
+def test_reaper_exits_done_idle_alive_session() -> None:
+    """Option 1 (#1): a DONE + IDLE + ALIVE session is cleanly EXITED, not killed/parked.
+
+    The agent ran ``kanban-done`` (done breadcrumb present) and its pane is IDLE (no ``esc to
+    interrupt``). The reaper calls ``end_session`` (C-c/C-d → claude exits → the trailing
+    ``; kanban-session-end`` fires the teardown out of band) — it does NOT kill the session, does
+    NOT purge the ticket itself, and writes NO WAITING save.
+    """
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = True  # alive
+    m.sessions.capture.return_value = "❯ "  # idle prompt — no running-turn marker
+    m.store.recent_agent_done.return_value = True  # the agent signalled done
+    done_idle = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,  # stale (a long agent that finished after going silent)
+        stage="InProgress",
+    )
+    m.store.list_running.return_value = (done_idle,)
+    state = PersistedState(last_probe="probe-1")
+
+    result, _ = tick(m.deps, _config(), state)
+
+    # Cleanly exited — NOT killed, NOT parked, NOT purged by the reaper.
+    m.sessions.end_session.assert_called_once_with("ticket-7")
+    m.sessions.kill.assert_not_called()
+    m.sessions.launch.assert_not_called()
+    m.store.purge_ticket.assert_not_called()  # teardown happens via the wrapper, out of band
+    # No WAITING save written for this ticket (it is being exited, not parked).
+    saved_statuses = [c.args[0].status for c in m.store.save.call_args_list]
+    assert TicketStatus.WAITING not in saved_statuses
+    assert result.reaped == 0
+    assert result.relaunched == 0
+
+
+def test_reaper_exits_done_idle_even_when_fresh() -> None:
+    """Option 1 (#1): the quick-finish case — fresh + alive + done + idle is STILL exited.
+
+    An agent that finishes quickly is fresh+alive+done+idle. The done-exit branch runs ahead of the
+    fresh-path ``continue``, so it is exited (not left running until it goes stale).
+    """
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = True
+    m.sessions.capture.return_value = "❯ "  # idle
+    m.store.recent_agent_done.return_value = True
+    done_fresh = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=10_000.0,  # FRESH (just heartbeated)
+        stage="InProgress",
+    )
+    m.store.list_running.return_value = (done_fresh,)
+    state = PersistedState(last_probe="probe-1")
+
+    result, _ = tick(m.deps, _config(), state)
+
+    m.sessions.end_session.assert_called_once_with("ticket-7")
+    m.sessions.kill.assert_not_called()
+    assert result.reaped == 0
+
+
+def test_reaper_does_not_exit_done_but_working_session() -> None:
+    """Option 1 (#1) Approach-A safety: a DONE-marked but WORKING session is NEVER exited.
+
+    The done breadcrumb is present but the pane shows ``esc to interrupt`` (a turn is in flight).
+    Exiting it would interrupt live work — so end_session is NOT called; the agent falls through to
+    the normal handling (alive + fresh → left running, no kill).
+    """
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = True
+    m.sessions.capture.return_value = "doing work… (esc to interrupt)"  # ACTIVE turn
+    m.store.recent_agent_done.return_value = True
+    done_working = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=10_000.0,  # fresh
+        stage="InProgress",
+    )
+    m.store.list_running.return_value = (done_working,)
+    state = PersistedState(last_probe="probe-1")
+
+    result, _ = tick(m.deps, _config(), state)
+
+    # A turn is running → never exited, never killed.
+    m.sessions.end_session.assert_not_called()
+    m.sessions.kill.assert_not_called()
+    m.sessions.launch.assert_not_called()
+    assert result.reaped == 0
+
+
+def test_reaper_active_turn_probe_ignores_stale_scrollback_marker() -> None:
+    """Minor (#4): a STALE ``esc to interrupt`` in deep scrollback must NOT pin the agent "active".
+
+    The active-turn probe scans only the LAST ~30 lines (the live footer region), like
+    ``prompt_pending``. A done + idle agent whose pane carries an OLD ``esc to interrupt`` line far
+    up in scrollback (from a finished turn) followed by an idle prompt at the bottom is correctly
+    classified IDLE → the reaper cleanly exits it. Scanning the whole pane would false-positive
+    "active" forever and never exit the finished agent.
+    """
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = True
+    # A stale running-turn marker buried in scrollback, then 40 blank/idle lines, then an idle
+    # prompt. The marker is OUTSIDE the trailing-30-line scan window → classified idle.
+    m.sessions.capture.return_value = "doing work… (esc to interrupt)\n" + ("\n" * 40) + "❯ "
+    m.store.recent_agent_done.return_value = True
+    done_idle = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,
+        stage="InProgress",
+    )
+    m.store.list_running.return_value = (done_idle,)
+    state = PersistedState(last_probe="probe-1")
+
+    result, _ = tick(m.deps, _config(), state)
+
+    # The stale scrollback marker is ignored → the idle done agent is cleanly exited.
+    m.sessions.end_session.assert_called_once_with("ticket-7")
+    m.sessions.kill.assert_not_called()
+    assert result.reaped == 0
+
+
+def test_reaper_does_not_exit_not_done_alive_session() -> None:
+    """Regression guard: a NOT-done alive+stale+idle session is parked WAITING (Approach A), NOT exited.
+
+    Without a done breadcrumb the new branch is skipped entirely — the pre-Option-1 Approach-A path
+    runs: an alive + stale agent is parked WAITING, never exited and never killed.
+    """
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = True
+    m.sessions.capture.return_value = "❯ "  # idle
+    m.store.recent_agent_done.return_value = False  # NO done signal
+    not_done = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,  # stale
+        stage="InProgress",
+    )
+    m.store.list_running.return_value = (not_done,)
+    state = PersistedState(last_probe="probe-1")
+
+    result, _ = tick(m.deps, _config(), state)
+
+    # Never exited; parked WAITING per Approach A.
+    m.sessions.end_session.assert_not_called()
+    m.sessions.kill.assert_not_called()
+    saved_statuses = [c.args[0].status for c in m.store.save.call_args_list]
+    assert TicketStatus.WAITING in saved_statuses
+    assert result.reaped == 0
+    assert result.relaunched == 0
+
+
+def test_reaper_done_exit_failsoft() -> None:
+    """Option 1 (#1): an end_session error is fail-soft — the sweep does not crash.
+
+    end_session raises (the keystroke dispatch failed); the reaper logs and leaves the ticket for
+    the next tick. The tick completes with no crash and the ticket is neither killed nor purged.
+    """
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = True
+    m.sessions.capture.return_value = "❯ "  # idle
+    m.store.recent_agent_done.return_value = True
+    m.sessions.end_session.side_effect = RuntimeError("tmux send-keys failed")
+    done_idle = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,
+        stage="InProgress",
+    )
+    m.store.list_running.return_value = (done_idle,)
+    state = PersistedState(last_probe="probe-1")
+
+    # Must not raise — the sweep is fail-soft.
+    result, _ = tick(m.deps, _config(), state)
+
+    m.sessions.end_session.assert_called_once_with("ticket-7")
+    m.sessions.kill.assert_not_called()
+    m.store.purge_ticket.assert_not_called()
+    assert result.reaped == 0
+
+
+def test_reaper_done_exit_is_single_shot_across_ticks() -> None:
+    """Option 1 (#1) SINGLE-SHOT (review BLOCKER): end_session fires AT MOST ONCE for a done agent.
+
+    The threat: ``claude`` exits slowly and the out-of-band ``; kanban-session-end`` then does
+    multi-second GitHub I/O — during that window the tmux session is STILL ALIVE + idle. A second
+    reap tick must NOT re-send C-c/C-d (it could interrupt ``kanban-session-end`` mid-teardown).
+    The reaper guards this by CLEARING the done breadcrumb after a successful end_session dispatch,
+    so the next tick no longer enters the done-exit branch. We model the breadcrumb store with a
+    ``clear_agent_done`` side-effect that flips ``recent_agent_done`` to ``False`` (exactly what the
+    real fs marker does), then drive TWO ticks on the SAME still-alive session and assert
+    ``end_session`` was dispatched only once. The second tick parks WAITING via Approach A.
+    """
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = True  # STILL ALIVE across both ticks
+    m.sessions.capture.return_value = "❯ "  # idle pane — no running-turn marker
+    # Model the durable breadcrumb: present until the reaper CLEARS it after a clean end_session.
+    m.store.recent_agent_done.return_value = True
+
+    def _clear(_issue: int) -> None:
+        m.store.recent_agent_done.return_value = False
+
+    m.store.clear_agent_done.side_effect = _clear
+
+    done_idle = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,  # stale (a long agent that finished after going silent)
+        stage="InProgress",
+    )
+    m.store.list_running.return_value = (done_idle,)
+
+    # Tick 1: the done agent is cleanly exited and the breadcrumb is cleared (single-shot).
+    state = PersistedState(last_probe="probe-1")
+    tick(m.deps, _config(), state)
+    m.sessions.end_session.assert_called_once_with("ticket-7")
+    m.store.clear_agent_done.assert_called_once_with(7)
+
+    # Tick 2: the session is STILL alive + idle, but the breadcrumb is gone → the done-exit branch
+    # is NOT re-entered. end_session is NOT dispatched again (no collision with kanban-session-end);
+    # instead the still-alive stale session parks WAITING via Approach A (non-destructive).
+    result2, _ = tick(m.deps, _config(), state)
+    m.sessions.end_session.assert_called_once_with("ticket-7")  # STILL exactly one dispatch
+    saved_statuses = [c.args[0].status for c in m.store.save.call_args_list]
+    assert TicketStatus.WAITING in saved_statuses  # parked WAITING on the second tick (Approach A)
+    m.sessions.kill.assert_not_called()
+    assert result2.reaped == 0
+    assert result2.relaunched == 0
+
+
+def test_reaper_done_exit_failure_does_not_clear_breadcrumb() -> None:
+    """Option 1 (#1) SINGLE-SHOT: a FAILED end_session must NOT clear the breadcrumb (retry next tick).
+
+    If the keystroke dispatch raised, ``; kanban-session-end`` was never triggered, so there is no
+    collision risk — the reaper leaves the breadcrumb in place so the NEXT tick retries the exit.
+    """
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = True
+    m.sessions.capture.return_value = "❯ "  # idle
+    m.store.recent_agent_done.return_value = True
+    m.sessions.end_session.side_effect = RuntimeError("tmux send-keys failed")
+    done_idle = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,
+        stage="InProgress",
+    )
+    m.store.list_running.return_value = (done_idle,)
+    state = PersistedState(last_probe="probe-1")
+
+    tick(m.deps, _config(), state)
+
+    m.sessions.end_session.assert_called_once_with("ticket-7")
+    # The dispatch raised → the breadcrumb is preserved for a retry next tick.
+    m.store.clear_agent_done.assert_not_called()
 
 
 def test_reaper_early_waiting_detection_before_reap_ttl() -> None:

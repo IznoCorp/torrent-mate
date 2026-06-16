@@ -26,6 +26,7 @@ dev = [
 [project.scripts]
 kanban = "kanbanmate.cli.app:main"
 kanban-comment = "kanbanmate.bin.kanban_comment:main"
+kanban-done = "kanbanmate.bin.kanban_done:main"
 kanban-heartbeat = "kanbanmate.bin.kanban_heartbeat:main"
 kanban-move = "kanbanmate.bin.kanban_move:main"
 kanban-progress = "kanbanmate.bin.kanban_progress:main"

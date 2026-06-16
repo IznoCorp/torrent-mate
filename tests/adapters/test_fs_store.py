@@ -1062,6 +1062,80 @@ class TestAgentAdvanceBreadcrumb:
 
 
 # ---------------------------------------------------------------------------
+# Agent-done breadcrumb (the Option-1 clean-termination signal, #1)
+# ---------------------------------------------------------------------------
+
+
+class TestAgentDoneBreadcrumb:
+    """``record_agent_done`` / ``recent_agent_done`` / ``clear_agent_done`` implement the Option-1
+    done signal (#1), keyed by ISSUE number throughout, with a 1800 s TTL (``_DONE_TTL``)."""
+
+    def test_record_then_recent_within_ttl_is_true(self, tmp_path: Path) -> None:
+        store = FsStateStore(root=tmp_path)
+        store.record_agent_done(42, now=1000.0)
+
+        # Exactly at the boundary (_DONE_TTL = 1800 s) still counts as recent.
+        assert store.recent_agent_done(42, now=1000.0) is True
+        assert store.recent_agent_done(42, now=2799.0) is True
+        assert store.recent_agent_done(42, now=2800.0) is True
+
+    def test_recent_is_false_past_ttl(self, tmp_path: Path) -> None:
+        store = FsStateStore(root=tmp_path)
+        store.record_agent_done(42, now=1000.0)
+
+        # One second past the 1800 s window — the done signal aged out.
+        assert store.recent_agent_done(42, now=2801.0) is False
+
+    def test_recent_is_false_when_absent(self, tmp_path: Path) -> None:
+        store = FsStateStore(root=tmp_path)
+        assert store.recent_agent_done(99, now=1000.0) is False
+
+    def test_corrupt_breadcrumb_is_treated_as_absent(self, tmp_path: Path) -> None:
+        """A malformed done breadcrumb must not crash ``recent_agent_done``."""
+        store = FsStateStore(root=tmp_path)
+        (store.root / "done" / "5").write_text("{not json")
+        assert store.recent_agent_done(5, now=1000.0) is False
+
+    def test_clear_removes_breadcrumb(self, tmp_path: Path) -> None:
+        store = FsStateStore(root=tmp_path)
+        store.record_agent_done(42, now=1000.0)
+        assert store.recent_agent_done(42, now=1000.0) is True
+
+        store.clear_agent_done(42)
+
+        assert store.recent_agent_done(42, now=1000.0) is False
+        assert not (store.root / "done" / "42").exists()
+
+    def test_clear_is_noop_when_absent(self, tmp_path: Path) -> None:
+        """Clearing a never-written done breadcrumb must not raise."""
+        store = FsStateStore(root=tmp_path)
+        store.clear_agent_done(404)  # Must not raise.
+
+    def test_purge_removes_done_breadcrumb_keep_budgets_true(self, tmp_path: Path) -> None:
+        """``purge_ticket(keep_budgets=True)`` (reaper/session-end) removes the done breadcrumb."""
+        store = FsStateStore(root=tmp_path)
+        store.record_agent_done(12, now=1000.0)
+        assert (store.root / "done" / "12").exists()
+
+        store.purge_ticket(12, keep_budgets=True)
+
+        assert store.recent_agent_done(12, now=1000.0) is False
+        assert not (store.root / "done" / "12").exists()
+
+    def test_purge_removes_done_breadcrumb_keep_budgets_false(self, tmp_path: Path) -> None:
+        """``purge_ticket(keep_budgets=False)`` (Cancel/reset) ALSO removes the done breadcrumb —
+        it must not leak after an abandonment teardown either."""
+        store = FsStateStore(root=tmp_path)
+        store.record_agent_done(13, now=1000.0)
+        assert (store.root / "done" / "13").exists()
+
+        store.purge_ticket(13, keep_budgets=False)
+
+        assert store.recent_agent_done(13, now=1000.0) is False
+        assert not (store.root / "done" / "13").exists()
+
+
+# ---------------------------------------------------------------------------
 # Slot reservation (O_EXCL + flock)
 # ---------------------------------------------------------------------------
 

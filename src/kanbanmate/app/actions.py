@@ -163,6 +163,13 @@ class Deps:
             to ``"kanban-session-end"`` (the installed console-script resolves on PATH — see
             ``pyproject [project.scripts]``); a real wiring may pass the absolute installed path.
             Defaulted so existing ``Deps(...)`` constructions compile unchanged.
+        kanban_root: The launching daemon's runtime root (e.g. ``~/.kanban-km``). When non-empty it
+            is exported as ``KANBAN_ROOT`` on the launched command (:meth:`LaunchAction._agent_command`)
+            so the trailing ``; kanban-session-end`` AND the agent's kanban-* helpers
+            (``kanban-done`` / ``kanban-move`` / …) target the CORRECT root rather than the hardcoded
+            ``~/.kanban`` (the km-worktree-helper-root bug, #1). Empty (the default daemon) leaves the
+            command line byte-identical. Threaded from :attr:`WiringConfig.kanban_root`. Defaulted
+            ``""`` so existing ``Deps(...)`` constructions compile unchanged.
         config_dir: The project's ``.claude`` directory — the source of
             ``skills``/``commands``/``agents`` the launch COPIES into the worktree via
             :func:`~kanbanmate.adapters.perms.provision_worktree_skills` so the agent resolves
@@ -203,6 +210,10 @@ class Deps:
     profile: str = DEFAULT_PROFILE
     repo: str = ""
     session_end_bin: str = "kanban-session-end"
+    # The launching daemon's runtime root, exported as KANBAN_ROOT on the launched command so the
+    # agent's helpers target the CORRECT root (km-root bug, #1; see the docstring). Empty → the
+    # default ~/.kanban daemon needs no override. Threaded from WiringConfig.kanban_root.
+    kanban_root: str = ""
     config_dir: str = ""
     # The rolling status-update reporter + the board id it posts on (phase-24 §24.3). Defaulted to
     # a no-op reporter so existing constructions compile and a tick with no real reporter is inert.
@@ -540,7 +551,14 @@ class LaunchAction:
         # is left unquoted by shlex.quote (it must EXPAND in the agent's shell); the dir is quoted so
         # a worktree path with spaces stays one segment.
         bin_dir = Path(worktree) / KANBAN_BIN_RELDIR
-        return f'export PATH={shlex.quote(str(bin_dir))}:"$PATH"; {command}'
+        path_prefix = f'export PATH={shlex.quote(str(bin_dir))}:"$PATH"; '
+        # Inject the daemon's runtime root so the trailing ``; kanban-session-end`` AND the agent's
+        # kanban-* helpers target the CORRECT root, not hardcoded ~/.kanban (km-root bug, #1). Only
+        # when non-default — the default ~/.kanban daemon keeps a byte-identical command line.
+        root_prefix = (
+            f"export KANBAN_ROOT={shlex.quote(deps.kanban_root)}; " if deps.kanban_root else ""
+        )
+        return f"{root_prefix}{path_prefix}{command}"
 
     def _fill_prompt(self, deps: Deps, issue: int, worktree: Path) -> str:
         """FILL the transition prompt against the launch context (minor (c): hoisted pre-launch).

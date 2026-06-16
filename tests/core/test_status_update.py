@@ -250,11 +250,11 @@ def test_render_one_agent_layout() -> None:
         "**KanbanMate — orchestration live** · `ACTIVE`",
         f"tick {_hhmm(_NOW)} · cap 3 · queue 0",
         "",
-        "**Agents en cours (1)**",
-        "- **#140** [LLM] Pipeline Assistant — `Backlog→Spec` · profil `docs`",
-        f"  lancé {_hhmm(_NOW - 60)} · ❤ <1m · _« brainstorm milestone »_",
+        "**Agents running (1)**",
+        "- **#140** [LLM] Pipeline Assistant — `Backlog→Spec` · profile `docs`",
+        f'  started {_hhmm(_NOW - 60)} · ❤ <1m · _"brainstorm milestone"_',
         "",
-        "**Événements récents**",
+        "**Recent events**",
         f"- {_hhmm(_NOW - 30)} 🚀 #140 brainstorm",
     ]
 
@@ -263,15 +263,15 @@ def test_render_omits_progress_line_when_none() -> None:
     """A None progress keeps the heartbeat line, drops the italic milestone."""
     agent = _agent(progress=None, heartbeat_age=5.0, launched_at=_NOW - 60)
     body = render_status(_state(agents=(agent,))).body
-    assert f"  lancé {_hhmm(_NOW - 60)} · ❤ <1m" in body  # #10: bucketed to minutes
-    assert "«" not in body  # no progress quote
+    assert f"  started {_hhmm(_NOW - 60)} · ❤ <1m" in body  # #10: bucketed to minutes
+    assert '_"' not in body  # no progress quote
 
 
 def test_render_heartbeat_unknown_dash() -> None:
     """A None heartbeat age renders as ``❤ —``."""
     agent = _agent(heartbeat_age=None, progress=None, launched_at=_NOW - 60)
     body = render_status(_state(agents=(agent,))).body
-    assert f"  lancé {_hhmm(_NOW - 60)} · ❤ —" in body
+    assert f"  started {_hhmm(_NOW - 60)} · ❤ —" in body
 
 
 # ── events: newest-first, per-kind emoji, unknown-kind fallback ─────────────
@@ -333,11 +333,11 @@ def test_render_idle_body() -> None:
         "**KanbanMate — orchestration live** · `COMPLETE`",
         f"tick {_hhmm(_NOW)} · cap 3 · queue 0",
         "",
-        "**Agents en cours (0)**",
-        "Aucun agent en cours.",
+        "**Agents running (0)**",
+        "No agents running.",
         "",
-        "**Événements récents**",
-        "_Aucun événement récent._",
+        "**Recent events**",
+        "_No recent events._",
     ]
 
 
@@ -367,5 +367,6 @@ def test_invalid_override_enum_is_ignored() -> None:
 def test_render_shows_override_banner_and_note() -> None:
     body = render_status(_state(override_enum="WAITING", override_note="incident in prod")).body
     assert "`WAITING`" in body
-    assert "opérateur" in body  # the forced-pill banner
+    assert "pill forced by the operator" in body  # the forced-pill banner
+    assert "Operator note" in body
     assert "incident in prod" in body

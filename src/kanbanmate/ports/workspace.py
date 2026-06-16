@@ -292,3 +292,18 @@ class Sessions(Protocol):
                 caller's concern (the teardown path tolerates it).
         """
         ...
+
+    def end_session(self, name: str) -> None:
+        """Cleanly EXIT the ``claude`` REPL in session ``name`` WITHOUT killing the tmux session (#1).
+
+        Distinct from :meth:`kill` (which destroys the tmux session). The reaper calls this for an
+        ALIVE + IDLE agent that has signalled done: it sends keystrokes that make ``claude`` exit at
+        an idle prompt (Ctrl-C to clear any partial input, then Ctrl-D / EOF). When ``claude`` exits,
+        the trailing ``; kanban-session-end <issue>`` of the launched command line runs in the SAME
+        shell → teardown fires → the card flows. ``kill`` would tear the whole session down and the
+        trailing wrapper would NEVER run, so it MUST NOT be used here.
+
+        Args:
+            name: The session name whose REPL to exit (``ticket-<n>``).
+        """
+        ...

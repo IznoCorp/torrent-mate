@@ -30,9 +30,8 @@ from kanbanmate.adapters.github.client import GithubClient
 from kanbanmate.adapters.github.token import load_token
 from kanbanmate.adapters.store.fs_store import FsStateStore
 from kanbanmate.app.stage_signal import upsert_stage_comment
-from kanbanmate.bin._pin import check_pin, parse_issue_arg
+from kanbanmate.bin._pin import _registry_root, check_pin, parse_issue_arg, resolve_kanban_root
 from kanbanmate.cli.init import (
-    DEFAULT_KANBAN_ROOT,
     ProjectEntry,
     _load_registry,
     _projects_path,
@@ -48,7 +47,9 @@ def _resolve_entry() -> ProjectEntry:
     """Resolve the single registered project from the per-clone registry.
 
     v1 runs one repo per clone (DESIGN §4.3), so the registry must hold exactly one
-    entry; anything else is an operator misconfiguration we surface loudly.
+    entry; anything else is an operator misconfiguration we surface loudly. The registry is read
+    from the runtime root resolved by :func:`_registry_root` (``$KANBAN_ROOT`` when set, else the
+    ~/.kanban default — the km-worktree-helper-root fix, #1).
 
     Returns:
         The sole :class:`~kanbanmate.cli.init.ProjectEntry`.
@@ -56,11 +57,11 @@ def _resolve_entry() -> ProjectEntry:
     Raises:
         RuntimeError: When the registry does not hold exactly one project.
     """
-    registry = _load_registry(_projects_path(DEFAULT_KANBAN_ROOT))
+    projects_path = _projects_path(_registry_root())
+    registry = _load_registry(projects_path)
     if len(registry) != 1:
         raise RuntimeError(
-            f"expected exactly one registered project in "
-            f"{_projects_path(DEFAULT_KANBAN_ROOT)}, found {len(registry)}"
+            f"expected exactly one registered project in {projects_path}, found {len(registry)}"
         )
     return next(iter(registry.values()))
 
@@ -189,7 +190,8 @@ def main(argv: list[str] | None = None) -> int:
             # matching the PoC kanban-progress auto-resolution contract. The launch column
             # recorded on the ticket is NEW's single-source replacement for the PoC's
             # get_item_column — same semantics, different store key.
-            store = FsStateStore()
+            # Resolve the store root from $KANBAN_ROOT (#1 km-root fix); None → ~/.kanban default.
+            store = FsStateStore(resolve_kanban_root())
             state = store.load(issue)
             resolved_stage: str | None = state.stage if state and state.stage else None
             if resolved_stage:

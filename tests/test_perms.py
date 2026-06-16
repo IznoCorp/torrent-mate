@@ -187,6 +187,7 @@ def test_dev_allow_list_is_concrete() -> None:
         "Bash(gh *)",
         "Bash(make *)",
         "Bash(kanban-comment*)",
+        "Bash(kanban-done*)",
         "Bash(kanban-move*)",
         "Bash(kanban-progress*)",
         "Bash(kanban-update-body*)",
@@ -209,6 +210,7 @@ def test_docs_allow_list_is_minimal_no_push_no_merge() -> None:
         "Bash(git diff*)",
         "Bash(gh issue*)",
         "Bash(kanban-comment*)",
+        "Bash(kanban-done*)",
         "Bash(kanban-move*)",
         "Bash(kanban-progress*)",
         "Bash(kanban-update-body*)",
@@ -228,6 +230,7 @@ def test_prepare_allow_list_has_full_git_no_gh() -> None:
         "Edit",
         "Bash(git *)",
         "Bash(kanban-comment*)",
+        "Bash(kanban-done*)",
         "Bash(kanban-move*)",
         "Bash(kanban-progress*)",
         "Bash(kanban-update-body*)",
@@ -244,6 +247,8 @@ def test_check_allow_list_is_read_only_ish() -> None:
         "Read",
         "Bash(gh *)",
         "Bash(git *)",
+        # kanban-done is the UNIVERSAL terminal action (#1) — allowed in every profile.
+        "Bash(kanban-done*)",
     ]
     assert "Edit" not in check
 

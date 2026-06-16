@@ -262,6 +262,7 @@ class StateStore(Protocol):
           * ``state/<issue>.json``    — persisted runtime state
           * ``slots/ticket-<issue>``  — concurrency-cap slot marker
           * ``advances/<issue>``      — agent-advance breadcrumb (DESIGN §8.1.d)
+          * ``done/<issue>``          — agent-done breadcrumb (#1)
           * ``queue/ticket-<issue>``  — relaunch queue marker (DESIGN §7)
 
         And the per-issue BUDGET markers CONDITIONALLY (only when ``keep_budgets``
@@ -413,6 +414,50 @@ class StateStore(Protocol):
 
         Args:
             issue_number: The ticket whose breadcrumb to clear (the key).
+        """
+        ...
+
+    def record_agent_done(self, issue_number: int, *, now: float) -> None:
+        """Drop a breadcrumb that the agent ran ``kanban-done`` — its FINAL terminal step (#1).
+
+        Written SYNCHRONOUSLY by ``bin/kanban_done.py`` as the agent's last action, signalling the
+        agent has finished its work and the REPL may be cleanly exited. The reaper consumes it on
+        its next tick: for an ALIVE + IDLE session whose done breadcrumb is present it calls
+        :meth:`~kanbanmate.ports.workspace.Sessions.end_session` so ``claude`` exits and the trailing
+        ``; kanban-session-end <issue>`` fires (teardown). Distinct from the ADVANCE breadcrumb
+        (:meth:`record_agent_advance`): advance means "I moved my own card" (the ✅/⚠️ split); done
+        means "I am finished, exit the REPL". Both keyed by the issue number.
+
+        Args:
+            issue_number: The ticket whose done-signal to record (the breadcrumb key).
+            now: The wall-clock timestamp written into the breadcrumb.
+        """
+        ...
+
+    def recent_agent_done(self, issue_number: int, *, now: float) -> bool:
+        """Return whether a recent done breadcrumb exists for ``issue_number`` (#1).
+
+        ``True`` iff the breadcrumb exists and ``now - ts`` is within the done TTL
+        (:data:`~kanbanmate.adapters.store.fs_breadcrumbs._DONE_TTL`, 1800 s — the reaper
+        HEARTBEAT_TTL horizon, so a done signal a hung daemon never consumed still ages out). The
+        reaper reads this to decide whether to exit an alive + idle session.
+
+        Args:
+            issue_number: The ticket whose done breadcrumb to check (the key).
+            now: The wall-clock timestamp the TTL is measured against.
+
+        Returns:
+            ``True`` iff a breadcrumb exists and is within the done TTL.
+        """
+        ...
+
+    def clear_agent_done(self, issue_number: int) -> None:
+        """Remove ``issue_number``'s done breadcrumb (no-op when absent).
+
+        Called defensively; the breadcrumb is normally consumed by :meth:`purge_ticket` at teardown.
+
+        Args:
+            issue_number: The ticket whose done breadcrumb to clear (the key).
         """
         ...
 

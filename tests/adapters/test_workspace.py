@@ -1428,6 +1428,27 @@ class TestTmuxSessionsUnit:
             check=True,
         )
 
+    def test_end_session_sends_ctrl_c_then_ctrl_d_no_kill(self) -> None:
+        """end_session (#1) exits the REPL with C-c then C-d — and NEVER runs kill-session.
+
+        The trailing ``; kanban-session-end`` must run when claude exits, so the tmux session must
+        survive: end_session sends exactly two send-keys events (C-c, then C-d / EOF) and issues NO
+        kill-session call.
+        """
+        mock_runner = MagicMock()
+        sessions = TmuxSessions(runner=mock_runner)
+
+        sessions.end_session("ticket-7")
+
+        argvs = [c.args[0] for c in mock_runner.call_args_list]
+        # Exactly two send-keys events, in order: C-c then C-d.
+        assert argvs == [
+            ["tmux", "send-keys", "-t", "ticket-7", "C-c"],
+            ["tmux", "send-keys", "-t", "ticket-7", "C-d"],
+        ]
+        # CRUCIAL: no kill-session — that would prevent the trailing wrapper from firing.
+        assert not any("kill-session" in argv for argv in argvs)
+
     # -- safety (argv lists, no shell) ---------------------------------------
 
     def test_all_tmux_calls_use_argv_lists_no_shell(self) -> None:

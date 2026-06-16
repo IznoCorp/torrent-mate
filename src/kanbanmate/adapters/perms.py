@@ -73,6 +73,9 @@ _KANBAN_HELPER_BINS: tuple[str, ...] = (
     "kanban-progress",
     "kanban-update-body",
     "kanban-session-end",
+    # kanban-done is the universal terminal action (Option 1, #1): every launched agent runs it as
+    # its FINAL step, so it must be symlinked into EVERY worktree's kanban-bin regardless of profile.
+    "kanban-done",
     "kanban-heartbeat",
     "kanban-update-main",
 )
@@ -273,6 +276,7 @@ _PROFILE_ALLOW: dict[str, tuple[str, ...]] = {
         "Bash(git diff*)",
         "Bash(gh issue*)",
         "Bash(kanban-comment*)",
+        "Bash(kanban-done*)",
         "Bash(kanban-move*)",
         "Bash(kanban-progress*)",
         "Bash(kanban-update-body*)",
@@ -282,6 +286,7 @@ _PROFILE_ALLOW: dict[str, tuple[str, ...]] = {
         "Edit",
         "Bash(git *)",
         "Bash(kanban-comment*)",
+        "Bash(kanban-done*)",
         "Bash(kanban-move*)",
         "Bash(kanban-progress*)",
         "Bash(kanban-update-body*)",
@@ -293,15 +298,19 @@ _PROFILE_ALLOW: dict[str, tuple[str, ...]] = {
         "Bash(gh *)",
         "Bash(make *)",
         "Bash(kanban-comment*)",
+        "Bash(kanban-done*)",
         "Bash(kanban-move*)",
         "Bash(kanban-progress*)",
         "Bash(kanban-update-body*)",
         "Bash",
     ),
+    # check is the script-gate profile (typically no agent), but kanban-done is the UNIVERSAL
+    # terminal action (#1) — every profile must allow it so any launched agent can end cleanly.
     "check": (
         "Read",
         "Bash(gh *)",
         "Bash(git *)",
+        "Bash(kanban-done*)",
     ),
 }
 

@@ -7,7 +7,9 @@ which agents are running, what each is doing (its latest progress milestone),
 the launch queue depth, recent significant events, and an overall **health** in KanbanMate's own
 vocabulary (``INACTIVE | BLOCKED | WAITING | ACTIVE | COMPLETE`` — mirroring the agent/board states),
 which the GitHub adapter maps onto GitHub's fixed ``ProjectV2StatusUpdateStatus`` pill enum
-(ACTIVE→ACTIVE, WAITING→WAITING, BLOCKED→BLOCKED; INACTIVE / COMPLETE unchanged).
+(``INACTIVE / ON_TRACK / AT_RISK / OFF_TRACK / COMPLETE``): ACTIVE→ON_TRACK, WAITING→AT_RISK,
+BLOCKED→OFF_TRACK; INACTIVE / COMPLETE unchanged (see ``adapters/github/client.py``
+``_HEALTH_TO_GITHUB_STATUS``).
 
 This module is the **pure** half (sub-phase 24.1): a small set of frozen value
 objects (:class:`RunningAgent`, :class:`StatusEvent`, :class:`OrchestrationState`)
@@ -19,9 +21,11 @@ trivial to tweak, and ZERO I/O — ``now`` is injected via the state, never read
 from a clock, and nothing here touches the network or the filesystem (the
 layering guard enforces that ``core`` imports nothing with I/O).
 
-The user-facing strings are **French** (operator decision for the live
-dashboard) — distinct from the ENGLISH artifacts of ``stage_comment`` (those are
-issue-comment headers; this is the operator's Project status pill).
+The user-facing body strings are **English** — this is a published GitHub artifact (the operator's
+Project status update), like the issue-comment headers of ``stage_comment``, so the English-only
+artifact rule governs it. Only the DOMAIN health vocabulary
+(``INACTIVE / BLOCKED / WAITING / ACTIVE / COMPLETE``) keeps its fixed spelling (the adapter maps it
+to the wire enum); the rendered prose is English.
 """
 
 from __future__ import annotations
@@ -36,12 +40,13 @@ from typing import Final, Literal, cast
 #
 # These are KanbanMate's OWN orchestration-health names — chosen to mirror the agent/board states
 # (an agent is ACTIVE, WAITING for a human, or BLOCKED), not GitHub's spelling. GitHub's Project v2
-# status-update pill is a FIXED enum (``ProjectV2StatusUpdateStatus``: INACTIVE / ACTIVE / WAITING
-# / BLOCKED / COMPLETE) that GitHub renders with its own labels and colours — we cannot rename it.
-# So the GitHub ADAPTER (``adapters/github/client.py``) maps each domain name onto the wire enum
-# before the GraphQL mutation: ACTIVE→ACTIVE, WAITING→WAITING, BLOCKED→BLOCKED (INACTIVE /
-# COMPLETE are spelt the same on both sides). The colored pill keeps GitHub's labels; the body text
-# this module renders carries the DOMAIN name, so the operator sees the orchestration's own wording.
+# status-update pill is a FIXED enum (``ProjectV2StatusUpdateStatus``: INACTIVE / ON_TRACK / AT_RISK
+# / OFF_TRACK / COMPLETE) that GitHub renders with its own labels and colours — we cannot rename it.
+# So the GitHub ADAPTER (``adapters/github/client.py`` ``_HEALTH_TO_GITHUB_STATUS``) maps each domain
+# name onto the wire enum before the GraphQL mutation: ACTIVE→ON_TRACK, WAITING→AT_RISK,
+# BLOCKED→OFF_TRACK (INACTIVE / COMPLETE are spelt the same on both sides). The colored pill keeps
+# GitHub's labels; the body text this module renders carries the DOMAIN name, so the operator sees
+# the orchestration's own wording.
 
 #: KanbanMate's five DOMAIN health names (the values ``compute_status`` returns + the body renders).
 StatusValue = Literal["INACTIVE", "BLOCKED", "WAITING", "ACTIVE", "COMPLETE"]
@@ -66,8 +71,8 @@ DEFAULT_STALE_AFTER_S: Final[float] = 1800.0
 #: the health pill. The ring (last ~10) has no time decay, so on a quiet board a
 #: morning ``block`` would otherwise pin ``BLOCKED`` for hours (observed live:
 #: 3 stale #151 blocks → BLOCKED all afternoon). Only events YOUNGER than this
-#: window count toward the verdict; older ones still RENDER in the "Événements
-#: récents" list, they just no longer drive the pill. Agents-based conditions
+#: window count toward the verdict; older ones still RENDER in the "Recent events"
+#: list, they just no longer drive the pill. Agents-based conditions
 #: (waiting / Blocked-parked / stale heartbeat / queue>cap) are unaffected.
 EVENT_HEALTH_WINDOW_S: Final[float] = 3600.0
 
@@ -82,7 +87,7 @@ DEGRADED_EVENT_KINDS: Final[frozenset[str]] = frozenset({"reap", "rate_limit"})
 # Markdown format constants — emoji + labels grouped so they are easy to tweak.
 # ---------------------------------------------------------------------------
 
-#: Per-event-kind emoji prefix used in the "Événements récents" list. Unknown
+#: Per-event-kind emoji prefix used in the "Recent events" list. Unknown
 #: kinds fall back to :data:`_EVENT_FALLBACK_EMOJI` so a new kind never crashes
 #: the render — it just shows a neutral bullet glyph.
 EVENT_EMOJI: Final[dict[str, str]] = {
@@ -133,13 +138,13 @@ _WAITING_MARKER: Final[str] = "⏳ waiting for input"
 #: Template for the concrete drop-in command a WAITING agent's dashboard block carries (31.2). The
 #: tmux session name is ``ticket-<issue>`` everywhere, so the operator gets a copy-pasteable way to
 #: attach and answer the pending prompt rather than being told only THAT intervention is needed.
-_ATTACH_HINT_TEMPLATE: Final[str] = "→ pour répondre : `tmux attach -t ticket-{issue}`"
+_ATTACH_HINT_TEMPLATE: Final[str] = "→ to reply: `tmux attach -t ticket-{issue}`"
 
 #: Title line of the dashboard body.
 _HEADER_TITLE: Final[str] = "**KanbanMate — orchestration live**"
 
 #: Body rendered in the agents section when no agent is running.
-_NO_AGENTS_LINE: Final[str] = "Aucun agent en cours."
+_NO_AGENTS_LINE: Final[str] = "No agents running."
 
 
 # ---------------------------------------------------------------------------
@@ -387,7 +392,7 @@ def _render_agent_block(agent: RunningAgent) -> list[str]:
     The first line carries the issue, code tag, title, the ``from→to`` transition
     and the profile; the second line carries the launch time, the heartbeat age
     (``❤ Ns``, or ``❤ —`` when unknown), and — only when present — the latest
-    progress milestone as an italic French quote.
+    progress milestone as an italic quote.
 
     Args:
         agent: The running agent to render.
@@ -408,12 +413,12 @@ def _render_agent_block(agent: RunningAgent) -> list[str]:
     waiting_suffix = f" · {_WAITING_MARKER}" if agent.waiting else ""
     lines = [
         f"- **#{agent.issue}** [{agent.code}] {agent.title} — "
-        f"`{agent.from_col}→{agent.to_col}` · profil `{agent.profile}`{waiting_suffix}",
-        f"  lancé {_fmt_hhmm(agent.launched_at)} · {heartbeat}",
+        f"`{agent.from_col}→{agent.to_col}` · profile `{agent.profile}`{waiting_suffix}",
+        f"  started {_fmt_hhmm(agent.launched_at)} · {heartbeat}",
     ]
     if agent.progress is not None:
         # The progress milestone hangs off the heartbeat line as an italic quote.
-        lines[1] += f" · _« {agent.progress} »_"
+        lines[1] += f' · _"{agent.progress}"_'
     # A WAITING agent gets a concrete drop-in command (31.2): the operator can attach to the tmux
     # session and answer the pending prompt straight from the dashboard, instead of being told only
     # THAT a human is needed. Normal running agents carry no such line.
@@ -441,8 +446,8 @@ def render_status(state: OrchestrationState) -> StatusUpdateRender:
     """Render the rolling Project status-update body + status enum (PURE).
 
     Produces the operator-approved layout: a header pill line, an
-    "Agents en cours" section (one block per running agent, with per-agent live
-    progress), and an "Événements récents" section (newest-first). When no agent
+    "Agents running" section (one block per running agent, with per-agent live
+    progress), and a "Recent events" section (newest-first). When no agent
     is running, the agents section degrades to a single clean idle line. The
     status enum is :func:`compute_status` of the same state.
 
@@ -466,11 +471,11 @@ def render_status(state: OrchestrationState) -> StatusUpdateRender:
     # dashboard does not look like a stuck/auto state when the operator forced it.
     if state.override_enum in STATUS_VALUES:
         lines.append(
-            f"⚙️ pill forcé par l'opérateur (`{state.override_enum}`) — `kanban pill clear`"
+            f"⚙️ pill forced by the operator (`{state.override_enum}`) — `kanban pill clear`"
         )
     if state.override_note:
-        lines.append(f"**Note opérateur** — {state.override_note}")
-    lines.extend(["", f"**Agents en cours ({len(state.agents)})**"])
+        lines.append(f"**Operator note** — {state.override_note}")
+    lines.extend(["", f"**Agents running ({len(state.agents)})**"])
 
     if state.agents:
         for agent in state.agents:
@@ -479,12 +484,12 @@ def render_status(state: OrchestrationState) -> StatusUpdateRender:
         lines.append(_NO_AGENTS_LINE)
 
     lines.append("")
-    lines.append("**Événements récents**")
+    lines.append("**Recent events**")
     if state.events:
         # Newest-first: the ring is appended oldest→newest by the app layer.
         for event in sorted(state.events, key=lambda e: e.ts, reverse=True):
             lines.append(_render_event_line(event))
     else:
-        lines.append("_Aucun événement récent._")
+        lines.append("_No recent events._")
 
     return StatusUpdateRender(body="\n".join(lines), status=status)

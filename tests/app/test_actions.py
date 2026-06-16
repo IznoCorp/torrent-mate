@@ -84,7 +84,13 @@ def _launch(ticket: Ticket, **kwargs: object) -> LaunchAction:
     return LaunchAction(ticket=ticket, **kwargs)  # type: ignore[arg-type]
 
 
-def _mocks(*, now: float = 1000.0, worktree: Path | None = None, config_dir: str = "") -> _Mocks:
+def _mocks(
+    *,
+    now: float = 1000.0,
+    worktree: Path | None = None,
+    config_dir: str = "",
+    kanban_root: str = "",
+) -> _Mocks:
     """Build a :class:`_Mocks` bundle with a :class:`Deps` wired from fresh mocks.
 
     Args:
@@ -95,6 +101,9 @@ def _mocks(*, now: float = 1000.0, worktree: Path | None = None, config_dir: str
         config_dir: The project's ``.claude`` dir threaded onto :attr:`Deps.config_dir`; the
             launch COPIES its ``skills``/``commands``/``agents`` into the worktree. Empty (the
             default) skips provisioning.
+        kanban_root: The launching daemon's runtime root threaded onto :attr:`Deps.kanban_root`.
+            Empty (the default) keeps the launched command byte-identical (no ``KANBAN_ROOT``
+            export); a non-empty value injects ``export KANBAN_ROOT=<root>;`` (km-root fix, #1).
 
     Returns:
         A :class:`_Mocks` exposing both the individual mocks and the assembled :class:`Deps`.
@@ -133,6 +142,7 @@ def _mocks(*, now: float = 1000.0, worktree: Path | None = None, config_dir: str
         agent_command="claude /implement:phase",
         repo="owner/repo",
         config_dir=config_dir,
+        kanban_root=kanban_root,
         # Inject a no-op sleeper so the launch's trust/ready poll runs offline (phase-25 §25.1).
         sleeper=lambda _seconds: None,
     )
@@ -266,6 +276,45 @@ def test_launch_command_prefixes_worktree_kanban_bin_on_path(tmp_path: Path) -> 
     assert "; kanban-session-end 7" in command
     # The kanban-bin dir is materialised into the worktree.
     assert expected_bin.is_dir()
+
+
+def test_launch_command_prefixes_kanban_root_export_when_non_default(tmp_path: Path) -> None:
+    """km-root (#1): a non-empty ``Deps.kanban_root`` injects ``export KANBAN_ROOT=<root>;``.
+
+    The launching daemon's runtime root is exported on the command line so the trailing
+    ``; kanban-session-end`` AND the agent's kanban-* helpers target the CORRECT root (e.g.
+    ~/.kanban-km) instead of the hardcoded ~/.kanban (the km-worktree-helper-root bug). The value
+    is shlex-quoted, and the export precedes the PATH prefix + the claude argv.
+    """
+    import shlex  # noqa: PLC0415 — test-local import (hook-safe: used in the same edit)
+
+    root = "/Users/izno/.kanban-km"
+    m = _mocks(worktree=tmp_path, kanban_root=root)
+    _launch(_ticket(issue=7)).execute(m.deps)
+
+    _name, _cwd, command = m.sessions.launch.call_args.args
+    # The command opens with the shlex-quoted KANBAN_ROOT export, BEFORE the PATH prefix.
+    assert command.startswith(f"export KANBAN_ROOT={shlex.quote(root)}; ")
+    assert command.index("export KANBAN_ROOT=") < command.index("export PATH=")
+    # The rest of the launch line (PATH prefix + claude argv + session-end wrapper) still follows.
+    assert "export PATH=" in command
+    assert "--session-id" in command
+    assert "; kanban-session-end 7" in command
+
+
+def test_launch_command_omits_kanban_root_export_for_default_root(tmp_path: Path) -> None:
+    """km-root (#1): an EMPTY ``Deps.kanban_root`` keeps the command byte-identical (no export).
+
+    The default ~/.kanban daemon needs no override, so the launched command line must carry NO
+    ``KANBAN_ROOT`` export — proving the injection is gated strictly on a non-empty root.
+    """
+    m = _mocks(worktree=tmp_path)  # kanban_root defaults to "" (the default daemon)
+    _launch(_ticket(issue=7)).execute(m.deps)
+
+    _name, _cwd, command = m.sessions.launch.call_args.args
+    assert "KANBAN_ROOT" not in command
+    # The command still opens directly with the PATH prefix (the default-root contract).
+    assert command.startswith("export PATH=")
 
 
 def test_launch_action_orders_worktree_before_state_save(tmp_path: Path) -> None:

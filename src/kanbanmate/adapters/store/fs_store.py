@@ -26,6 +26,7 @@ import logging
 import os
 import time
 
+from kanbanmate.adapters.store.fs_breadcrumbs import AgentBreadcrumbsMixin
 from kanbanmate.adapters.store.fs_intents import IntentsStateMixin
 from kanbanmate.adapters.store.fs_status_state import StatusUpdateStateMixin
 from kanbanmate.ports.store import LIVE_STATUSES, TicketState, TicketStatus
@@ -52,23 +53,18 @@ def _warn_corrupt_state(path: Path, err: Exception) -> None:
     logger.warning("skipping corrupt state file %s: %s", path, err)
 
 
-# An advance breadcrumb is "recent" for this long (ported from the PoC
-# ``state.py`` ``_ADVANCE_TTL``). It is the recency window the ✅/⚠️ split
-# consults. DISTINCT from the reaper's ``HEARTBEAT_TTL`` (1800 s agent-liveness
-# reap window, DESIGN §8.3) — do not conflate the two TTLs.
-_ADVANCE_TTL = 300.0
-
 # Per-item AUTO/bot move rate-limit sliding-window width in seconds (ported
 # from the PoC ``state.py`` ``_RATE_WINDOW``). When an issue has accumulated >=
 # the per-hour cap of AUTO/bot moves within this window, the daemon parks the
 # ticket in the Blocked column (DESIGN §6 runaway-loop backstop).
-# DISTINCT from ``_ADVANCE_TTL`` (300 s breadcrumb recency) AND from the
-# reaper's ``HEARTBEAT_TTL`` (1800 s agent-liveness reap window, DESIGN §8.3)
-# — the three TTLs govern different subsystems and must stay separate knobs.
+# DISTINCT from the advance/done breadcrumb TTLs (300 s / 1800 s — see
+# :mod:`kanbanmate.adapters.store.fs_breadcrumbs`) AND from the reaper's
+# ``HEARTBEAT_TTL`` (1800 s agent-liveness reap window, DESIGN §8.3) — these TTLs
+# govern different subsystems and must stay separate knobs.
 _RATE_WINDOW = 3600.0
 
 
-class FsStateStore(StatusUpdateStateMixin, IntentsStateMixin):
+class FsStateStore(AgentBreadcrumbsMixin, StatusUpdateStateMixin, IntentsStateMixin):
     """Filesystem-backed :class:`~kanbanmate.ports.store.StateStore` implementation.
 
     Persists per-ticket runtime state as JSON files under ``<root>/state/``.
@@ -99,6 +95,8 @@ class FsStateStore(StatusUpdateStateMixin, IntentsStateMixin):
         (self.root / "slots").mkdir(parents=True, exist_ok=True)
         # The advance-breadcrumb directory (DESIGN §8.1.d); one marker per issue.
         (self.root / "advances").mkdir(parents=True, exist_ok=True)
+        # The agent-done breadcrumb directory (#1); one marker per issue.
+        (self.root / "done").mkdir(parents=True, exist_ok=True)
         # Per-issue AUTO/bot move rate-limit history (DESIGN §6); one JSON list
         # per issue.  Issue-keyed — a deliberate divergence from the PoC, which
         # keyed ``moves/item_<item>.json`` by content node id.
@@ -317,6 +315,11 @@ class FsStateStore(StatusUpdateStateMixin, IntentsStateMixin):
         # ticket must not leave a stale breadcrumb that a later session-end could
         # misread as a clean advance.
         self._unlink(self._advance_path(issue_number))
+        # Purge the done breadcrumb too (idempotent / no-raise): a torn-down ticket must leave no
+        # stale done signal that a later reap could misread (#1). In the ALWAYS-removed runtime
+        # section (NOT under keep_budgets) so it is purged on BOTH reaper keep_budgets=True and
+        # Cancel keep_budgets=False teardowns.
+        self._unlink(self._done_path(issue_number))
         # ── widened purge (port of OLD purge_ticket's issue-keyed targets) ──
         # Queue marker — a ticket parked in the queue at Cancel time must not
         # be drained later.
@@ -470,77 +473,11 @@ class FsStateStore(StatusUpdateStateMixin, IntentsStateMixin):
         with (log_dir / "dispatch.jsonl").open("a", encoding="utf-8") as fh:
             fh.write(line + "\n")
 
-    # ------------------------------------------------------------------
-    # Agent-advance breadcrumb (the ✅/⚠️ discriminator, DESIGN §8.1.d)
-    # ------------------------------------------------------------------
-
-    def record_agent_advance(self, issue_number: int, *, now: float) -> None:
-        """Drop a breadcrumb that the agent advanced its own card (DESIGN §8.1.d).
-
-        Writes ``<root>/advances/<issue>`` = ``{"ts": now}``. Written
-        SYNCHRONOUSLY before the agent's ``claude`` exits (the NEW analogue of
-        the PoC ``kanban-move``), so session-end can tell "advanced then
-        finished" (breadcrumb present → daemon finalized ✅) from "died without
-        advancing" (breadcrumb absent → session-end finalizes ⚠️) without
-        racing the asynchronous poll — exactly the PoC's race-closing design.
-
-        **Breadcrumb-keying INVARIANT (load-bearing).** Keyed by the **issue
-        number** — never a content node id. The WRITER (here) and the READERS
-        (:meth:`recent_agent_advance` / :meth:`clear_agent_advance`) MUST share
-        the identical issue key, or the ✅/⚠️ split mis-fires. Deliberate
-        divergence from the PoC, which keyed by content node id.
-
-        Args:
-            issue_number: The ticket whose advance to record (the breadcrumb key).
-            now: The wall-clock timestamp written into the breadcrumb.
-        """
-        self._advance_path(issue_number).write_text(json.dumps({"ts": now}))
-
-    def recent_agent_advance(self, issue_number: int, *, now: float) -> bool:
-        """Return whether a recent advance breadcrumb exists for ``issue_number``.
-
-        ``True`` iff ``<root>/advances/<issue>`` exists and ``now - ts`` is
-        within :data:`_ADVANCE_TTL` (300 s). That recency window is DISTINCT
-        from the reaper's ``HEARTBEAT_TTL`` (1800 s, DESIGN §8.3) — the two TTLs
-        are not the same knob.
-
-        **Breadcrumb-keying INVARIANT (load-bearing, DESIGN §8.1.d).** Keyed by
-        the **issue number** — the SAME key :meth:`record_agent_advance` wrote
-        with. A key mismatch makes the breadcrumb always look "absent" and
-        finalizes ⚠️ after a clean advance.
-
-        Args:
-            issue_number: The ticket whose breadcrumb to check (the key).
-            now: The wall-clock timestamp the TTL is measured against.
-
-        Returns:
-            ``True`` iff a breadcrumb exists and is within the advance TTL.
-        """
-        path = self._advance_path(issue_number)
-        if not path.exists():
-            return False
-        try:
-            ts = float(json.loads(path.read_text()).get("ts", 0.0))
-        except (OSError, json.JSONDecodeError, TypeError, ValueError):
-            return False
-        return (now - ts) <= _ADVANCE_TTL
-
-    def clear_agent_advance(self, issue_number: int) -> None:
-        """Remove ``issue_number``'s advance breadcrumb (consumed by session-end).
-
-        Unlinks ``<root>/advances/<issue>``; no-op when absent (the PoC's
-        ``FileNotFoundError`` swallow), so consuming an already-cleared (or
-        never-written) breadcrumb never raises.
-
-        **Breadcrumb-keying INVARIANT (load-bearing, DESIGN §8.1.d).** Keyed by
-        the **issue number** — the SAME key the writer/recency-reader use.
-        Session-end MUST call this with the identical issue key (never a content
-        node id).
-
-        Args:
-            issue_number: The ticket whose breadcrumb to clear (the key).
-        """
-        self._unlink(self._advance_path(issue_number))
+    # The agent-advance (✅/⚠️ discriminator, DESIGN §8.1.d) AND agent-done (Option-1 clean
+    # termination, #1) breadcrumbs live in :class:`AgentBreadcrumbsMixin` — a behaviour-preserving
+    # extraction that keeps this module under the 1000-LOC hard ceiling (mirroring the fs_intents /
+    # fs_status_state mixins). The methods + their TTL constants + issue-keyed path helpers
+    # (``_advance_path`` / ``_done_path``, used by :meth:`purge_ticket`) are provided by the mixin.
 
     # ------------------------------------------------------------------
     # Adapter-specific: slot reservation (ported from PoC engine/cap.py)
@@ -635,13 +572,9 @@ class FsStateStore(StatusUpdateStateMixin, IntentsStateMixin):
             # Swallow: quarantine is best-effort evidence preservation, never load-bearing.
             logger.warning("failed to quarantine corrupt state file %s: %s", path, exc)
 
-    def _advance_path(self, issue_number: int) -> Path:
-        """Return the filesystem path for ``issue_number``'s advance breadcrumb.
-
-        Keyed by the issue number (the breadcrumb-keying invariant, DESIGN
-        §8.1.d), so the writer and the readers always agree on the marker path.
-        """
-        return self.root / "advances" / f"{issue_number}"
+    # ``_advance_path`` / ``_done_path`` are provided by :class:`AgentBreadcrumbsMixin` (the
+    # breadcrumb extraction). They are used here by :meth:`purge_ticket` and by the mixin's own
+    # record/recent/clear methods — all keyed by the issue number (the breadcrumb-keying invariant).
 
     def _moves_path(self, issue_number: int) -> Path:
         """Return the filesystem path for ``issue_number``'s move rate-limit history.

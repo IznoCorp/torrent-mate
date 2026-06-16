@@ -206,6 +206,25 @@ class TmuxSessions:
             check=True,
         )
 
+    def end_session(self, name: str) -> None:
+        """Cleanly EXIT the ``claude`` REPL in session *name* without killing the session (#1).
+
+        Sends two SEPARATE ``send-keys`` events to the live REPL: ``C-c`` (clear any partial input /
+        interrupt an absorbed keystroke) then ``C-d`` (EOF → ``claude`` exits at the idle prompt).
+        Both are tmux KEY NAMES (sent WITHOUT ``-l``, like the ``Enter`` event in :meth:`send_text`),
+        NOT literal text. Crucially this does NOT run ``tmux kill-session``: when ``claude`` exits the
+        surviving shell runs the trailing ``; kanban-session-end <issue>`` of the launched command, so
+        the teardown fires. ``kill-session`` would prevent that wrapper from ever running.
+
+        Args:
+            name: The session name whose REPL to exit (``ticket-<n>``).
+        """
+        # C-c first: clears any partial/absorbed input so the EOF lands at a clean idle prompt.
+        self._runner(["tmux", "send-keys", "-t", name, "C-c"], check=True)
+        # C-d (EOF) → claude exits at the idle prompt; the surviving shell then runs the trailing
+        # ``; kanban-session-end <issue>`` wrapper (the whole point — never kill-session here).
+        self._runner(["tmux", "send-keys", "-t", name, "C-d"], check=True)
+
     def _kill_if_present(self, name: str) -> None:
         """Kill session *name* if it exists, TOLERATING "no such session" (idempotent pre-launch).
 

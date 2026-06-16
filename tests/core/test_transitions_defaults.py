@@ -163,6 +163,40 @@ class TestNoFrenchProse:
                 assert token not in prompt, f"French token {token!r} leaked into a prompt"
 
 
+class TestTerminalDoneStep:
+    """Option 1 (#1): every shipped prompt ends with a concrete ``kanban-done {{code}}`` terminal
+    step (replacing the no-op "End the session" prose), and no bare end-session prose remains."""
+
+    _ALL_PROMPTS = (
+        _BRAINSTORM_PROMPT,
+        _DESIGN_PROMPT,
+        _PLAN_PROMPT,
+        _PREPARE_PROMPT,
+        _IMPLEMENT_PROMPT,
+        _FIXCI_PROMPT,
+        _REVIEW_PROMPT,
+        # _REWORK_PROMPT is a real registered transition (the PR/CI rework step) that ALSO gained the
+        # ``kanban-done {{code}}`` terminal step — it must be covered by the terminal-done assertions
+        # (review finding #6, it was missing from this tuple).
+        _REWORK_PROMPT,
+    )
+
+    def test_every_prompt_runs_kanban_done(self) -> None:
+        """Every shipped prompt instructs the agent to run ``kanban-done {{code}}`` as its terminal step."""
+        for prompt in self._ALL_PROMPTS:
+            assert "kanban-done {{code}}" in prompt
+
+    def test_no_bare_end_the_session_prose(self) -> None:
+        """No prompt carries the OLD no-op "end the session" prose without a kanban-done command.
+
+        The Option-1 fix replaced every "End the session" / "end the session" line with a concrete
+        ``kanban-done {{code}}`` command — a bare prose instruction is a no-op in the interactive REPL
+        (the agent can only end its TURN), which is the bug this fixes.
+        """
+        for prompt in self._ALL_PROMPTS:
+            assert "end the session" not in prompt.lower()
+
+
 class TestAutonomyInstruction:
     """Genesis phase 26: only the brainstorm is interactive; every other agent prompt
     carries an explicit "run fully autonomously — do NOT ask the user any questions"

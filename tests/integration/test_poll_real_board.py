@@ -108,6 +108,13 @@ class _SpySessions:
             name: Session name (ignored).
         """
 
+    def end_session(self, name: str) -> None:
+        """No-op: no real REPL to exit (#1 Protocol member).
+
+        Args:
+            name: Session name (ignored).
+        """
+
 
 class _SpyWorkspace:
     """Spy workspace adapter: records :meth:`ensure_worktree` calls without real git.

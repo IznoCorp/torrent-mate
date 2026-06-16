@@ -15,6 +15,7 @@ launched agent, never an operator's manual invocation.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 # The pin file's name under a worktree's ``.claude/`` dir. Kept in lock-step with
@@ -22,6 +23,42 @@ from pathlib import Path
 # a bare leaf so the bin layer reads the pin without importing the adapters layer.
 _PIN_DIRNAME = ".claude"
 _PIN_FILENAME = "kanban-issue"
+
+
+def resolve_kanban_root() -> str | None:
+    """Return the kanban runtime root from ``$KANBAN_ROOT``, or ``None`` for the ~/.kanban default (#1).
+
+    The launch exports ``KANBAN_ROOT=<root>`` on the agent's command line when the daemon runs on a
+    NON-default root (e.g. the kanban-km daemon at ~/.kanban-km). The kanban-* helpers read it so
+    they target the launching daemon's root rather than the hardcoded ~/.kanban (the
+    km-worktree-helper-root bug). Absent / empty → ``None`` (the helpers' ~/.kanban default stands).
+
+    Returns:
+        The non-empty ``$KANBAN_ROOT`` value, or ``None`` when unset/blank.
+    """
+    root = os.environ.get("KANBAN_ROOT", "").strip()
+    return root or None
+
+
+def _registry_root() -> Path:
+    """Return the runtime root the registry (projects.json) lives under (#1 km-root fix).
+
+    Resolves ``$KANBAN_ROOT`` when set (the launch injects the launching daemon's root for a
+    non-default daemon, e.g. the kanban-km daemon at ~/.kanban-km), else falls back to
+    :data:`~kanbanmate.cli.init.DEFAULT_KANBAN_ROOT` (~/.kanban). The registry lives under the
+    runtime root, so an agent helper on a non-default daemon must read it from the SAME root its
+    store reads/writes target (the km-worktree-helper-root bug). Shared by ``kanban-move`` /
+    ``kanban-progress`` / ``kanban-session-end`` (DRY; the three carried verbatim copies).
+
+    Returns:
+        The runtime root path to resolve ``projects.json`` (and the store) from.
+    """
+    # Imported lazily so the leaf pin reader (pure FS reads) has no import-time dependency on the
+    # cli layer; the three bin entrypoints already import cli.init directly, so this adds no cycle.
+    from kanbanmate.cli.init import DEFAULT_KANBAN_ROOT
+
+    root = resolve_kanban_root()
+    return Path(root) if root else DEFAULT_KANBAN_ROOT
 
 
 def parse_issue_arg(raw: str) -> int:

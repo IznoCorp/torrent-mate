@@ -127,6 +127,12 @@ def build_deps(config: WiringConfig) -> Deps:
         # installed console-script ``kanban-session-end`` resolves on PATH (pyproject
         # [project.scripts]); explicit even though Deps defaults it.
         session_end_bin="kanban-session-end",
+        # The launching daemon's runtime root, exported as KANBAN_ROOT on the launched command so the
+        # trailing ``; kanban-session-end`` AND the agent's kanban-* helpers target the CORRECT root
+        # (the km-worktree-helper-root fix, #1). ``config.kanban_root`` is ``str | None`` → coerce
+        # None to "" (the default ~/.kanban daemon needs no override; an empty value keeps the
+        # launched command byte-identical).
+        kanban_root=config.kanban_root or "",
         # The project's .claude dir the launch COPIES skills/commands/agents from into each
         # worktree (phase 14.6); empty disables provisioning. Mirrors how ``repo``/``clone_dir``
         # are threaded.

@@ -146,6 +146,24 @@ class _FakeStore:
         """Unused by the read-only commands (advance breadcrumb, 8.1.d)."""
         raise AssertionError("status/sessions must not clear advances")
 
+    def record_agent_done(  # pragma: no cover - unused by read-only commands
+        self, issue_number: int, *, now: float
+    ) -> None:
+        """Unused by the read-only commands (done breadcrumb, #1)."""
+        raise AssertionError("status/sessions must not record done")
+
+    def recent_agent_done(  # pragma: no cover - unused by read-only commands
+        self, issue_number: int, *, now: float
+    ) -> bool:
+        """Unused by the read-only commands (done breadcrumb, #1)."""
+        raise AssertionError("status/sessions must not read done")
+
+    def clear_agent_done(  # pragma: no cover - unused by read-only commands
+        self, issue_number: int
+    ) -> None:
+        """Unused by the read-only commands (done breadcrumb, #1)."""
+        raise AssertionError("status/sessions must not clear done")
+
     def kill_switch_active(self) -> bool:  # pragma: no cover - unused by read-only commands
         """Unused by the read-only status/sessions commands."""
         return False
@@ -319,6 +337,10 @@ class _FakeSessions:
     def kill(self, name: str) -> None:  # pragma: no cover - unused
         """Unused by sessions (read-only)."""
         raise AssertionError("sessions must not kill")
+
+    def end_session(self, name: str) -> None:  # pragma: no cover - unused
+        """Unused by read-only status commands (#1 Protocol member)."""
+        raise AssertionError("sessions must not end_session")
 
 
 def _state(
