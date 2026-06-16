@@ -49,6 +49,31 @@ unattended orchestrated session never hangs on a clarifying question (the reaper
 would otherwise churn it). The interactive brainstorm is the one place a human
 ``tmux attach``es to answer.
 
+**The HYBRID auto-advance flow (DESIGN §13, operator decision).** The doc + build
+launch stages carry an ``advance:auto:<col>`` directive the ENGINE now honours (the
+``bin/kanban_session_end`` backstop): when a launch stage ends with a clean
+``kanban-done`` and the agent did NOT move its own card, the engine moves the card to
+``<col>`` and the next tick's diff fires the next stage. This turns the front of the
+flow AUTONOMOUS through Plan, then STOPS at the two HUMAN gates::
+
+    Backlog       -> Brainstorming   advance:auto:Spec      (brainstorm → auto-advance)
+    Brainstorming -> Spec            advance:auto:Plan       (design → auto-advance)
+    Spec          -> Plan            advance:auto:Planned    (plan → auto-advance, then STOP)
+    Plan          -> Planned         no-op                   *** HUMAN REVIEW GATE ***
+    Planned       -> ReadyToDev      no-op                   *** HUMAN drags after review ***
+    ReadyToDev    -> PrepareFeature  advance:auto:InProgress (create-branch → auto-advance)
+    PrepareFeature-> InProgress      advance:auto:PRCI       (implement+PR → auto-advance)
+    InProgress    -> PRCI (SCRIPT)   advance:auto:Review     (green CI → auto-advance, fires review)
+    PRCI          -> Review          advance:stop            *** Review STOPS for human ***
+    Review        -> Merge (SCRIPT)  advance:stop            *** MERGE = HUMAN ONLY ***
+
+``Plan -> Planned`` and ``Planned -> ReadyToDev`` MUST stay no-ops (no advance
+directive) — auto-advancing them would bypass the single pre-build HUMAN review gate
+(the core HYBRID property). ``PrepareFeature -> InProgress``'s ``auto:PRCI`` and the
+``InProgress -> PRCI`` SCRIPT gate's ``auto:Review`` are consumed differently: the
+launch-stage directives by the session-end backstop, the SCRIPT-gate directive by
+``app/script_route._route_success`` (already wired).
+
 **Early skip-to-Done (genesis phase 26).** A single list-expanded no-op entry
 whitelists ``[Backlog, Brainstorming, Spec, Plan, Planned, ReadyToDev] -> Done``
 (6 cartesian edges) so an agent/human can mark an ALREADY-DONE ticket Done
@@ -262,13 +287,26 @@ _DESIGN_PROMPT = (
     + "Write the design into `docs/features/{{codename}}/` (DESIGN.md), and record your milestones "
     'via `kanban-progress {{code}} "…"` as you go.\n'
     + _WRITE_BACK
-    + "IMPORTANT: record the design path via "
-    "`kanban-update-body {{code}} --set-field design <absolute-path-to-DESIGN.md>`.\n"
-    "DONE = DESIGN.md written under docs/features/{{codename}}/ + **design** marker set (durable "
-    "outputs BEFORE any kanban-move). (ALREADY_SHIPPED case: DONE = evidence comment + card moved "
-    "to Done — see STATE CHECK above, which OVERRIDES this checklist.) If the design already exists "
-    "(re-entry), VERIFY and finalize — do NOT redo. Run `kanban-done {{code}}` once the design is "
-    "written.\n" + _CLEAN_STOP
+    + "COMMIT (durable cross-stage carry, DESIGN §13): after writing DESIGN.md, commit it to this "
+    "worktree's per-ticket branch so the NEXT stage's worktree sees it. ONLY once "
+    "docs/features/{{codename}}/ exists with the codename set (you set **codename** earlier — do "
+    "NOT commit with an empty codename, which would stage the whole docs/features/ tree), run the "
+    "stage and the commit as TWO SEPARATE commands, each on its own line (the docs profile allows "
+    "`git add` and `git commit` as SEPARATE allow-patterns — running them joined on ONE line with "
+    "`&&` may NOT match either pattern and would be DENIED headlessly, so keep them apart):\n"
+    "  1. `git add docs/features/{{codename}}/`\n"
+    '  2. `git commit -m "docs({{codename}}): design"`\n'
+    "Both are LOCAL commits, no push. The worktrees share one .git, so "
+    "the committed design is visible to the plan/create-branch stages WITHOUT any push.\n"
+    + "IMPORTANT: record the design path as a REPO-RELATIVE path (NOT an absolute worktree path — "
+    "the next stage gets a different worktree) via "
+    "`kanban-update-body {{code}} --set-field design docs/features/{{codename}}/DESIGN.md`.\n"
+    "DONE = DESIGN.md written under docs/features/{{codename}}/ + COMMITTED to the per-ticket branch "
+    "+ **design** marker set to the repo-relative path (durable outputs BEFORE any kanban-move). "
+    "(ALREADY_SHIPPED case: DONE = evidence comment + card moved to Done — see STATE CHECK above, "
+    "which OVERRIDES this checklist.) If the design already exists (re-entry), VERIFY and finalize "
+    "— do NOT redo. Run `kanban-done {{code}}` once the design is written + committed.\n"
+    + _CLEAN_STOP
 )
 
 # Spec -> Plan: AUTONOMOUS /implement:plan. Precondition: {{design_path}} MUST be
@@ -281,17 +319,34 @@ _PLAN_PROMPT = (
     + _IDENTITY_THEN_STATE
     + _STATE_CHECK_EARLY
     + _DESYNC
-    + "PRECONDITION: {{design_path}} must be a real, non-empty design path. If it is empty (the "
-    "Design stage did not record **design**), that is a DESYNC — follow the DESYNC protocol, do "
-    "NOT guess a path.\n" + _AUTONOMY + _WRITE_BACK + "IMPORTANT: record the plan paths via "
-    "`kanban-update-body {{code}} --set-field plans <path-plan1.md>, <path-plan2.md>, ...`.\n"
+    + "PRECONDITION: {{design_path}} must be a real, non-empty design path. The Design stage "
+    "recorded it as a REPO-RELATIVE path (e.g. docs/features/{{codename}}/DESIGN.md) and COMMITTED "
+    "the file to this worktree's per-ticket branch, so you can `cat {{design_path}}` directly. If "
+    "it is empty (the Design stage did not record **design**), that is a DESYNC — follow the DESYNC "
+    "protocol, do NOT guess a path.\n"
+    + _AUTONOMY
+    + _WRITE_BACK
+    + "COMMIT (durable cross-stage carry, DESIGN §13): after writing the plan files, commit them to "
+    "this worktree's per-ticket branch so create-branch's worktree inherits them. ONLY once "
+    "docs/features/{{codename}}/ exists with the codename set (do NOT commit with an empty codename "
+    "— that would stage the whole docs/features/ tree), run the stage and the commit as TWO "
+    "SEPARATE commands, each on its own line (the docs profile allows `git add` and `git commit` as "
+    "SEPARATE allow-patterns — running them joined on ONE line with `&&` may NOT match either "
+    "pattern and would be DENIED headlessly, so keep them apart):\n"
+    "  1. `git add docs/features/{{codename}}/`\n"
+    '  2. `git commit -m "docs({{codename}}): plan"`\n'
+    "Both are LOCAL commits, no push. The shared .git makes the committed plan visible to the "
+    "create-branch stage WITHOUT any push.\n"
+    + "IMPORTANT: record the plan paths as REPO-RELATIVE paths via "
+    "`kanban-update-body {{code}} --set-field plans docs/features/{{codename}}/plan/<plan1>.md, "
+    "docs/features/{{codename}}/plan/<plan2>.md, ...`.\n"
     'Record your milestones (paths, phase/sub-phase todos) via `kanban-progress {{code}} "…"` as '
     "you go.\n"
-    "DONE = plan files written under docs/features/{{codename}}/plan/ + **plans** marker set "
-    "(durable outputs BEFORE any kanban-move). (ALREADY_SHIPPED case: DONE = evidence comment + card "
-    "moved to Done — see STATE CHECK above, which OVERRIDES this checklist.) If the plans already "
-    "exist (re-entry), VERIFY and finalize — do NOT redo. Run `kanban-done {{code}}` to end your "
-    "session.\n" + _CLEAN_STOP
+    "DONE = plan files written under docs/features/{{codename}}/plan/ + COMMITTED to the per-ticket "
+    "branch + **plans** marker set to the repo-relative paths (durable outputs BEFORE any "
+    "kanban-move). (ALREADY_SHIPPED case: DONE = evidence comment + card moved to Done — see STATE "
+    "CHECK above, which OVERRIDES this checklist.) If the plans already exist (re-entry), VERIFY and "
+    "finalize — do NOT redo. Run `kanban-done {{code}}` to end your session.\n" + _CLEAN_STOP
 )
 
 # ReadyToDev -> PrepareFeature: the create-branch stage. Gains autonomy + identity +
@@ -317,6 +372,14 @@ _PREPARE_PROMPT = (
 
 # PrepareFeature -> InProgress: implement all phases. Late-stage (a worktree/branch
 # exists), so the shipped exit is Blocked, not Done.
+#
+# STOP-AT-PR-CREATION (hybrid flow, DESIGN §13). /implement:phase auto-chains to feature-pr →
+# pr-review, whose terminal step is `gh pr merge` (DENIED by the universal deny-list). Left
+# unguarded the agent stalls mid-chain on the denied merge and NEVER reaches kanban-move/kanban-done
+# → the session parks WAITING with no done breadcrumb, and the Change-1 backstop never fires either.
+# So this prompt makes the stop explicit (mirroring _REVIEW_PROMPT's merge-skip block) PLUS a
+# CI-not-green TERMINAL branch (do NOT idle waiting on CI — an idling session drops no done
+# breadcrumb and parks WAITING forever).
 _IMPLEMENT_PROMPT = (
     "/implement:phase Implement all remaining phases of {{code}} ({{codename}}).\n"
     + _SCOPE_GUARD
@@ -324,9 +387,17 @@ _IMPLEMENT_PROMPT = (
     + _STATE_CHECK_LATE
     + _DESYNC
     + _AUTONOMY
-    + "DONE = all phases implemented + the PR created; THEN `kanban-move {{code}} 'PR/CI'` "
-    "(durable outputs — the pushed branch + open PR — BEFORE the move). If the PR already exists "
-    "(re-entry), VERIFY and finalize — do NOT redo.\n"
+    + "STOP AT PR CREATION: /implement:phase auto-chains to feature-pr → pr-review, which ends in "
+    "`gh pr merge` (DENIED). STOP as soon as the PR is created and CI is pushed. NEVER run "
+    "`gh pr merge` (or any merge command) under any circumstance — merge is HUMAN-ONLY.\n"
+    + "CI-NOT-GREEN TERMINAL BRANCH: do NOT idle waiting on CI inside this session (an idling "
+    "session never ends → it parks WAITING forever). If CI is red or times out, comment the "
+    'failing checks via `kanban-comment {{code}} "CI red: <failing checks>"`, then '
+    "`kanban-move {{code}} 'PR/CI'` ANYWAY — the PR/CI gate + the fix-CI loop own the retry, not "
+    "this session.\n"
+    + "DONE = all phases implemented + the PR created (CI pushed); THEN `kanban-move {{code}} "
+    "'PR/CI'` (durable outputs — the pushed branch + open PR — BEFORE the move). If the PR already "
+    "exists (re-entry), VERIFY and finalize — do NOT redo.\n"
     "Finally, run `kanban-done {{code}}` to end your session (AFTER the kanban-move).\n"
     + _CLEAN_STOP
 )
@@ -345,6 +416,10 @@ _FIXCI_PROMPT = (
     "was stale), do NOT change code — just `kanban-move {{code}} 'PR/CI'` and end. Otherwise fix "
     "ONLY the checks that are actually failing (do not refactor beyond the failure), re-push, then "
     "`kanban-move {{code}} 'PR/CI'`.\n"
+    + "NEVER run `gh pr merge` (or any merge command) — merge is HUMAN-ONLY. Do NOT idle waiting "
+    "on CI inside this session (an idling session never ends → it parks WAITING forever): after "
+    "re-pushing your fix, `kanban-move {{code}} 'PR/CI'` immediately even if CI is still running or "
+    "still red — the PR/CI gate + this fix-CI loop own the retry, not this session.\n"
     + _AUTONOMY
     + "DONE = the failing checks are addressed + re-pushed (or confirmed already green) THEN the "
     "move. If already handled (re-entry), VERIFY and finalize — do NOT redo.\n"
@@ -417,7 +492,9 @@ DEFAULT_TRANSITIONS: list[dict[str, Any]] = [
         "to": "Brainstorming",
         "profile": "docs",
         "prompt": _BRAINSTORM_PROMPT,
-        "advance": "stop",
+        # HYBRID flow (DESIGN §13): the brainstorm completes (kanban-done) → the engine backstop
+        # (bin/kanban_session_end._auto_advance) moves the card to Spec, firing the design stage.
+        "advance": "auto:Spec",
         "permission_mode": "auto",
     },
     # Brainstorming → Spec: AUTONOMOUS design — writes design.md from the brainstorm
@@ -427,7 +504,9 @@ DEFAULT_TRANSITIONS: list[dict[str, Any]] = [
         "to": "Spec",
         "profile": "docs",
         "prompt": _DESIGN_PROMPT,
-        "advance": "stop",
+        # HYBRID flow (DESIGN §13): the design completes → the engine backstop moves the card to
+        # Plan, firing the plan stage.
+        "advance": "auto:Plan",
         "permission_mode": "auto",
     },
     # Spec → Plan: AUTONOMOUS /implement:plan — writes the plan files. No questions.
@@ -436,7 +515,9 @@ DEFAULT_TRANSITIONS: list[dict[str, Any]] = [
         "to": "Plan",
         "profile": "docs",
         "prompt": _PLAN_PROMPT,
-        "advance": "stop",
+        # HYBRID flow (DESIGN §13): the plan completes → the engine backstop moves the card to
+        # Planned, where it STOPS (the only pre-build HUMAN review gate; Plan→Planned is a no-op).
+        "advance": "auto:Planned",
         "permission_mode": "auto",
     },
     # Plan → Planned: no-op. Autonomous design+plans are done; the card lands in
@@ -452,7 +533,9 @@ DEFAULT_TRANSITIONS: list[dict[str, Any]] = [
         "to": "PrepareFeature",
         "profile": "prepare",
         "prompt": _PREPARE_PROMPT,
-        "advance": "stop",
+        # HYBRID flow (DESIGN §13): create-branch completes → the engine backstop moves the card to
+        # InProgress, firing the implement stage (the human already gated at Planned→ReadyToDev).
+        "advance": "auto:InProgress",
         "permission_mode": "auto",
     },
     # Human moves PrepareFeature→InProgress; the agent then auto-advances to PRCI
@@ -465,13 +548,16 @@ DEFAULT_TRANSITIONS: list[dict[str, Any]] = [
         "advance": "auto:PRCI",
         "permission_mode": "auto",
     },
-    # Bot script transition: PR created + CI green?
+    # Bot script transition: PR created + CI green? HYBRID flow (DESIGN §13): on a GREEN gate the
+    # SCRIPT-route auto-advance (app/script_route._route_success, already wired) moves the card to
+    # Review, firing the pr-review stage; a red gate bounces back to InProgress (the fix-CI loop).
     {
         "from": "InProgress",
         "to": "PRCI",
         "profile": "check",
         "script": "bin/check-pr-ready.sh",
         "on_fail": "move:InProgress",
+        "advance": "auto:Review",
     },
     # Bot fix-CI loop (capped, DESIGN §8.4). SAME destination as PrepareFeature→
     # InProgress but a DIFFERENT prompt — the per-(from,to) discriminator the

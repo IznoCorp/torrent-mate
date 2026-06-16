@@ -31,94 +31,31 @@ from __future__ import annotations
 
 import sys
 import time
-from pathlib import Path
 
 from kanbanmate.adapters.github.client import GithubClient
 from kanbanmate.adapters.github.token import load_token
 from kanbanmate.adapters.store.fs_store import FsStateStore
-from kanbanmate.bin._pin import _registry_root, check_pin, parse_issue_arg, resolve_kanban_root
-from kanbanmate.cli.init import (
-    CLONE_COLUMNS_RELPATH,
-    CLONE_TRANSITIONS_RELPATH,
-    ProjectEntry,
-    _load_registry,
-    _projects_path,
-)
-from kanbanmate.core.columns import load_columns
+from kanbanmate.bin._clone_config import load_clone_columns as _load_clone_columns
+from kanbanmate.bin._clone_config import load_clone_transitions as _load_clone_transitions
+from kanbanmate.bin._clone_config import resolve_entry as _resolve_entry
+from kanbanmate.bin._pin import check_pin, parse_issue_arg, resolve_kanban_root
 from kanbanmate.core.domain import Column
-from kanbanmate.core.transitions import TransitionConfig, load_transitions
-from kanbanmate.core.transitions_defaults import default_transition_config
+
+# The three per-clone config loaders (``_resolve_entry`` / ``_load_clone_columns`` /
+# ``_load_clone_transitions``) were LIFTED into :mod:`kanbanmate.bin._clone_config` so the
+# session-end auto-advance backstop (hybrid flow) shares ONE source of truth. They are re-imported
+# under their original private names here for BACK-COMPAT (existing tests import them off this
+# module), keeping ``kanban-move`` small under the 1000-LOC ceiling. ``__all__`` lists them so the
+# re-export is EXPLICIT (mypy's no-implicit-reexport under strict).
+__all__ = [
+    "_load_clone_columns",
+    "_load_clone_transitions",
+    "_resolve_entry",
+    "main",
+    "resolve_target_column",
+]
 
 _PROG = "kanban-move"
-
-
-def _resolve_entry() -> ProjectEntry:
-    """Resolve the single registered project from the per-clone registry.
-
-    v1 runs one repo per clone (DESIGN §4.3), so the registry must hold exactly one
-    entry; anything else is an operator misconfiguration we surface loudly. The registry is read
-    from the runtime root resolved by :func:`_registry_root` (``$KANBAN_ROOT`` when set, else the
-    ~/.kanban default — the km-worktree-helper-root fix, #1).
-
-    Returns:
-        The sole :class:`~kanbanmate.cli.init.ProjectEntry`.
-
-    Raises:
-        RuntimeError: When the registry does not hold exactly one project.
-    """
-    projects_path = _projects_path(_registry_root())
-    registry = _load_registry(projects_path)
-    if len(registry) != 1:
-        raise RuntimeError(
-            f"expected exactly one registered project in {projects_path}, found {len(registry)}"
-        )
-    return next(iter(registry.values()))
-
-
-def _load_clone_columns(entry: ProjectEntry) -> dict[str, Column]:
-    """Load the per-clone column model from ``<clone>/.claude/kanban/columns.yml``.
-
-    ``kanban init`` copies the board's ``columns.yml`` into the clone (DESIGN §4.3); the
-    anti-loop guard reads it back here so a CLI ``target`` given as a human-readable column
-    ``name`` resolves to its stable column ``key`` — the key the transition whitelist's
-    launch targets are expressed in (DESIGN §8.0.5).
-
-    Args:
-        entry: The resolved project registry entry (carries the clone path).
-
-    Returns:
-        A mapping of column ``key`` to its :class:`~kanbanmate.core.domain.Column`.
-
-    Raises:
-        FileNotFoundError: When the clone has no ``columns.yml`` (clone not initialised).
-    """
-    columns_path = Path(entry.clone) / CLONE_COLUMNS_RELPATH
-    return load_columns(columns_path.read_text(encoding="utf-8"))
-
-
-def _load_clone_transitions(entry: ProjectEntry) -> TransitionConfig:
-    """Load the per-clone transition whitelist from ``<clone>/.claude/kanban/transitions.yml``.
-
-    The anti-loop guard (DESIGN §8.0.5) keys on the launch-target columns of this
-    whitelist, so it must read the SAME config the daemon ticks against. Mirrors the
-    daemon's resolution (``daemon/loop.py``): the explicit ``transitions.yml`` when
-    the clone ships one, else the built-in :data:`DEFAULT_TRANSITIONS` fallback (the
-    no-``transitions.yml`` path, DESIGN §8.0.6) — a whitelist is ALWAYS supplied, so
-    the guard never silently degrades to "anything allowed".
-
-    Args:
-        entry: The resolved project registry entry (carries the clone path).
-
-    Returns:
-        The parsed :class:`~kanbanmate.core.transitions.TransitionConfig` — from the
-        clone's ``transitions.yml`` when present, otherwise the default flow.
-    """
-    transitions_path = Path(entry.clone) / CLONE_TRANSITIONS_RELPATH
-    if transitions_path.exists():
-        return load_transitions(transitions_path.read_text(encoding="utf-8"))
-    # No transitions.yml on the clone → the same DEFAULT_TRANSITIONS fallback the
-    # daemon uses (DESIGN §8.0.6); never fall back to "no whitelist / anything goes".
-    return default_transition_config()
 
 
 def resolve_target_column(columns: dict[str, Column], target: str) -> Column:

@@ -11,9 +11,11 @@ silently widen permissions: a reset cannot widen past a file-pinned mode + concr
 Four per-stage profiles (DESIGN §10) — one per autonomous ``/implement:*`` stage, named by
 the matched ``(from, to)`` transition (``transitions.yml``):
 
-* ``docs`` — read/write files + git read + local commit + ``gh issue`` + kanban helpers. NO
-  push, NO PR ops. This is the MOST RESTRICTIVE floor: the kill-switch downgrades every
-  profile to ``docs``, and an unknown profile name degrades to it (see :func:`allow_list`).
+* ``docs`` — read/write files + a minimal shell (``mkdir``/``ls``/``cat`` for the doc stages'
+  ``docs/features/<codename>/`` tree + reading carried artifacts) + git read + local commit +
+  ``gh issue`` + kanban helpers. NO push, NO PR ops, NO broad ``Bash``. This is the MOST
+  RESTRICTIVE floor: the kill-switch downgrades every profile to ``docs``, and an unknown profile
+  name degrades to it (see :func:`allow_list`).
 * ``prepare`` — code edits + full git (including push to create/maintain a branch) + kanban
   helpers. NO ``gh`` (no PR ops yet — this is the create-branch stage).
 * ``dev`` — code edits + full git (including push to open/maintain a PR) + ``gh`` (but NEVER
@@ -269,6 +271,14 @@ _PROFILE_ALLOW: dict[str, tuple[str, ...]] = {
     "docs": (
         "Read",
         "Edit",
+        # Minimal shell the doc stages need (hybrid flow, DESIGN §13): the design/plan stages run
+        # `mkdir -p docs/features/<codename>/plan` and `ls`/`cat` the prior stage's carried
+        # artifacts. Without these the headless docs session is DENIED and stalls on a permission
+        # prompt it cannot answer. The minimum only — NOT a broad ``Bash``: docs still has no push /
+        # gh-write, so the blast radius stays local-FS read + dir-create (the deny-list applies too).
+        "Bash(mkdir*)",
+        "Bash(ls*)",
+        "Bash(cat*)",
         "Bash(git add*)",
         "Bash(git commit*)",
         "Bash(git status*)",

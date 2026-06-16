@@ -43,7 +43,7 @@ class WiringConfig:
         clone_dir: The local clone all per-ticket worktrees are siblings of.
         columns_yaml: The raw ``columns.yml`` document; parsed once into the column model.
         kanban_root: The state-store root; defaults to ``~/.kanban/`` when ``None``.
-        base: The integration base branch new worktrees check out detached.
+        base: The integration base branch the per-ticket WIP branch is first created off.
         agent_command: The shell command launched inside each agent's tmux session.
         kill_switch: When ``True`` (``~/.kanban/PAUSE`` present) every launch is blocked.
         transitions_yaml: The raw ``transitions.yml`` document from the clone's

@@ -196,13 +196,18 @@ def test_dev_allow_list_is_concrete() -> None:
 
 
 def test_docs_allow_list_is_minimal_no_push_no_merge() -> None:
-    """The ``docs`` allow-list is the minimal floor: git read/commit only, NO push / NO PR / NO merge.
+    """The ``docs`` allow-list is the minimal floor: a minimal shell + git read/commit, NO push.
 
-    Ported VERBATIM from the PoC ``test_docs_allow_list_is_minimal_no_push_no_merge``.
+    Hybrid flow (DESIGN §13): the docs profile gained the MINIMAL shell its doc stages need —
+    ``mkdir`` (the ``docs/features/<codename>/plan`` tree), ``ls`` and ``cat`` (reading the prior
+    stage's carried artifacts) — but NOT a broad ``Bash``, NO push, NO PR ops, NO merge.
     """
     assert allow_list("docs") == [
         "Read",
         "Edit",
+        "Bash(mkdir*)",
+        "Bash(ls*)",
+        "Bash(cat*)",
         "Bash(git add*)",
         "Bash(git commit*)",
         "Bash(git status*)",
@@ -215,7 +220,12 @@ def test_docs_allow_list_is_minimal_no_push_no_merge() -> None:
         "Bash(kanban-progress*)",
         "Bash(kanban-update-body*)",
     ]
-    # docs lists NO broad git, NO push, NO PR ops, NO merge.
+    # docs gained the minimal shell (mkdir/ls/cat) for the doc stages (hybrid flow, DESIGN §13)…
+    assert "Bash(mkdir*)" in allow_list("docs")
+    assert "Bash(ls*)" in allow_list("docs")
+    assert "Bash(cat*)" in allow_list("docs")
+    # …but still NO broad Bash, NO broad git, NO push, NO PR ops, NO merge.
+    assert "Bash" not in allow_list("docs")
     assert "Bash(git *)" not in allow_list("docs")
     assert not any("push" in a for a in allow_list("docs"))
     assert not any("gh pr" in a for a in allow_list("docs"))

@@ -46,6 +46,40 @@ GIT_TIMEOUT = 120
 # ``engine/locks.py:15``).
 _SAFE_RESOURCE = re.compile(r"[^A-Za-z0-9._-]+")
 
+# Per-ticket WIP branch name prefix (DESIGN §13 durable cross-stage carry). The worktree is checked
+# out on ``kanban/ticket-<n>`` (created off ``origin/<base>`` the first time, reused thereafter) so a
+# pre-create stage's committed ``docs/features/<codename>/`` artifacts are visible to the next
+# stage's worktree via the shared ``.git`` object store. ``feat/<codename>`` is later branched OFF it
+# by ``implement:create-branch``, so it is a SEPARATE branch — deleting the WIP branch on teardown
+# does not lose the feature work.
+WIP_BRANCH_PREFIX = "kanban/ticket-"
+
+# Fallback git identity (DESIGN §13 durable cross-stage carry). The doc stages now run
+# ``git commit`` INSIDE the agent worktree to carry ``docs/features/<codename>/`` across stages.
+# ``git commit`` ABORTS when neither ``user.name`` nor ``user.email`` is configured (the
+# "Please tell me who you are" failure), which would silently break the carry on a fresh clone
+# with no global identity. We set a LOCAL fallback identity in the clone (shared by every worktree)
+# ONLY when none is configured, so the commit always succeeds — without overriding an existing
+# global/repo identity the operator may have set.
+_FALLBACK_GIT_NAME = "kanbanmate"
+_FALLBACK_GIT_EMAIL = "kanbanmate@localhost"
+
+
+def wip_branch(ticket: int) -> str:
+    """Return the per-ticket WIP branch name ``kanban/ticket-<ticket>`` (DESIGN §13).
+
+    The single source of truth for the WIP branch name shared by :meth:`ensure_worktree` (the
+    checkout) and any caller that needs to name it. Pure.
+
+    Args:
+        ticket: The issue number naming the WIP branch.
+
+    Returns:
+        The WIP branch name, e.g. ``"kanban/ticket-42"``.
+    """
+    return f"{WIP_BRANCH_PREFIX}{ticket}"
+
+
 # Package root for resolving relative ``script:`` transition entries (e.g.
 # ``bin/check-pr-ready.sh``), the PoC ``_SKILL_ROOT`` parity (engine/scripts.py:19).
 # ``worktree.py`` lives at ``src/kanbanmate/adapters/workspace/worktree.py`` → three
@@ -59,12 +93,18 @@ _PACKAGE_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 class GitWorktreeWorkspace:
-    """Idempotent per-ticket git worktree management on the integration base.
+    """Idempotent per-ticket git worktree management on a per-ticket WIP branch.
 
-    Worktrees are checked out DETACHED on ``origin/<base>`` and live as
-    siblings of the clone directory under ``<clone>/../worktrees/ticket-<n>``.
-    Branch creation is owned downstream by ``implement:create-branch`` — this
-    adapter only ensures, removes, and discovers branches.
+    Worktrees are checked out on a per-ticket WIP branch ``kanban/ticket-<n>`` (created off
+    ``origin/<base>`` the first time, reused thereafter) and live as siblings of the clone
+    directory under ``<clone>/../worktrees/ticket-<n>``. The WIP branch makes the orchestrator's
+    cross-stage artifacts DURABLE (DESIGN §13): a pre-create stage (design / plan) COMMITS its
+    ``docs/features/<codename>/`` output to the branch, and because every worktree shares ONE
+    ``.git`` object store + ref namespace, the next stage's fresh worktree — re-using the SAME
+    ``kanban/ticket-<n>`` branch — sees those commits in its working tree on checkout (no push, no
+    re-materialise). ``implement:create-branch`` later branches ``feat/<codename>`` OFF the WIP
+    branch, inheriting the design+plan history; this adapter only ensures, removes, and discovers
+    branches.
 
     Attributes:
         clone_dir: The local clone of the repo (base of all worktrees for it).
@@ -264,14 +304,26 @@ class GitWorktreeWorkspace:
         return self._clone.resolve()
 
     def ensure_worktree(self, ticket: int, base: str = "main") -> Path:
-        """Ensure a detached worktree on ``origin/<base>`` exists for *ticket*.
+        """Ensure a worktree on the per-ticket WIP branch ``kanban/ticket-<n>`` exists for *ticket*.
 
-        Idempotent: an already-registered worktree is reused without re-adding
-        or re-fetching. Never passes ``--force``.
+        Idempotent: an already-registered worktree is reused without re-adding or re-fetching.
+        Never passes ``--force``.
+
+        Durable cross-stage carry (DESIGN §13): instead of a detached ``origin/<base>`` checkout,
+        the worktree is checked out on the per-ticket WIP branch :func:`wip_branch` —
+
+        * if the branch already EXISTS (a prior stage created it) → reuse it WITH its committed
+          ``docs/features/<codename>/`` artifacts (``git worktree add <target> <wip>``);
+        * else (the first stage) → create it off the freshly fetched base
+          (``git worktree add -b <wip> <target> origin/<base>``).
+
+        Because every worktree shares one ``.git``, a stage that commits to ``kanban/ticket-<n>`` in
+        worktree A is seen by a re-created worktree B on checkout — no push, no fetch, no copy.
 
         Args:
-            ticket: The issue number; names the worktree ``ticket-<n>``.
-            base: The integration base branch to check out detached.
+            ticket: The issue number; names the worktree ``ticket-<n>`` and the WIP branch
+                ``kanban/ticket-<n>``.
+            base: The integration base branch the WIP branch is first created off.
 
         Returns:
             The absolute :class:`~pathlib.Path` to the worktree directory.
@@ -283,6 +335,7 @@ class GitWorktreeWorkspace:
         if str(target) in existing:
             return target
 
+        branch = wip_branch(ticket)
         with self._resource_lock(self._repo_resource()):
             # The bare ``git fetch origin <base>`` touches the network and ran WITHOUT a timeout
             # before #6 — and ``ensure_worktree`` is called directly on the tick thread by the launch
@@ -293,21 +346,125 @@ class GitWorktreeWorkspace:
                 check=True,
                 timeout=GIT_TIMEOUT,
             )
-            self._runner(
-                [
+            # Reuse the WIP branch when it already exists (carries the prior stage's commits), else
+            # create it off the freshly fetched base. ``rev-parse --verify --quiet refs/heads/<wip>``
+            # exits 0 iff the local branch exists (``check=False`` so the absent case is a clean
+            # non-zero, never a raise).
+            branch_exists = (
+                self._runner(
+                    [
+                        "git",
+                        "-C",
+                        str(self._clone),
+                        "rev-parse",
+                        "--verify",
+                        "--quiet",
+                        f"refs/heads/{branch}",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=GIT_TIMEOUT,
+                ).returncode
+                == 0
+            )
+            if branch_exists:
+                # Reuse the existing WIP branch (its committed artifacts are in the working tree on
+                # checkout) — no ``-b``, no base ref.
+                add_argv = [
                     "git",
                     "-C",
                     str(self._clone),
                     "worktree",
                     "add",
-                    "--detach",
+                    str(target),
+                    branch,
+                ]
+            else:
+                # First stage: create the WIP branch off the freshly fetched base.
+                add_argv = [
+                    "git",
+                    "-C",
+                    str(self._clone),
+                    "worktree",
+                    "add",
+                    "-b",
+                    branch,
                     str(target),
                     f"origin/{base}",
-                ],
-                check=True,
+                ]
+            self._runner(add_argv, check=True, timeout=GIT_TIMEOUT)
+            # Durable cross-stage carry (DESIGN §13): the doc stages run ``git commit`` in this
+            # worktree, which ABORTS without a configured identity. Set a LOCAL fallback in the clone
+            # (shared by every worktree's commit) ONLY when none is configured — never override an
+            # operator's global/repo identity. Done here (not only in ``ensure_clone``) so a clone
+            # created BEFORE this fix is still healed on the next launch. Fail-soft: a probe/set error
+            # never aborts the launch (a real missing identity surfaces later as the commit's own
+            # failure, which the agent reports — better than freezing the launch).
+            self._ensure_identity()
+        return target
+
+    def _ensure_identity(self) -> None:
+        """Set a LOCAL fallback git identity in the clone when none is configured (DESIGN §13).
+
+        The doc stages (design/plan) run ``git commit`` inside the worktree to carry
+        ``docs/features/<codename>/`` across stages; ``git commit`` ABORTS when neither
+        ``user.name`` nor ``user.email`` is set. We probe ``git config user.name`` and, when empty
+        AND ``user.email`` is also empty, write the :data:`_FALLBACK_GIT_NAME` /
+        :data:`_FALLBACK_GIT_EMAIL` fallbacks via ``git config --local`` (scoped to the clone, which
+        every worktree shares). An EXISTING identity (global or repo) is left untouched. Idempotent
+        and fail-soft: any probe/set error is swallowed so it never aborts the launch.
+        """
+        try:
+            name = self._runner(
+                ["git", "-C", str(self._clone), "config", "user.name"],
+                capture_output=True,
+                text=True,
+                check=False,
                 timeout=GIT_TIMEOUT,
             )
-        return target
+            email = self._runner(
+                ["git", "-C", str(self._clone), "config", "user.email"],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=GIT_TIMEOUT,
+            )
+            has_name = bool((getattr(name, "stdout", "") or "").strip())
+            has_email = bool((getattr(email, "stdout", "") or "").strip())
+            # Only set the fallbacks when BOTH are unset — a partial identity (one of the two) is the
+            # operator's, so we leave it (git only needs both to commit; an operator with a partial
+            # config will see git's own clear error rather than a silent override of their setting).
+            if has_name or has_email:
+                return
+            self._runner(
+                [
+                    "git",
+                    "-C",
+                    str(self._clone),
+                    "config",
+                    "--local",
+                    "user.name",
+                    _FALLBACK_GIT_NAME,
+                ],
+                check=False,
+                timeout=GIT_TIMEOUT,
+            )
+            self._runner(
+                [
+                    "git",
+                    "-C",
+                    str(self._clone),
+                    "config",
+                    "--local",
+                    "user.email",
+                    _FALLBACK_GIT_EMAIL,
+                ],
+                check=False,
+                timeout=GIT_TIMEOUT,
+            )
+        except Exception:  # noqa: BLE001 — fail-soft: identity setup never aborts a launch
+            pass
 
     def worktree_exists(self, ticket: int) -> bool:
         """Return whether *ticket*'s worktree is still registered (replay-safety probe).
@@ -427,10 +584,13 @@ class GitWorktreeWorkspace:
     def discover_branch(self, ticket: int) -> str | None:
         """Return the current branch of *ticket*'s worktree, if any.
 
-        We DISCOVER the branch (set by ``implement:create-branch``) rather than
-        create it. A freshly created detached worktree reports ``"HEAD"`` —
-        that is mapped to ``None``, matching the Protocol's ``str | None``
-        contract. An empty result is also mapped to ``None``.
+        We DISCOVER the branch rather than create it. Since the durable cross-stage carry (DESIGN
+        §13) the worktree is checked out on the per-ticket WIP branch ``kanban/ticket-<n>`` (pre
+        create-branch) or ``feat/<codename>`` (post create-branch), so this now HONESTLY reports a
+        named branch where it previously reported ``"HEAD"`` (detached) → ``None``. That is a strict
+        improvement: the InProgress→PRCI gate's ``KANBAN_BRANCH`` is populated earlier. A still-
+        detached worktree (``"HEAD"``) or an empty result is still mapped to ``None``, matching the
+        Protocol's ``str | None`` contract.
 
         A GONE worktree (defect 10) — e.g. a ticket reap-torn-down then re-dragged
         Blocked → InProgress → PR/CI — must NOT raise: ``git -C <gone> rev-parse``

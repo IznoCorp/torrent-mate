@@ -67,22 +67,30 @@ class TestGitWorktreeWorkspaceUnit:
     # -- ensure_worktree -----------------------------------------------------
 
     def test_ensure_worktree_creates_when_absent(self, tmp_path: Path) -> None:
-        """When no worktree is registered yet, a detached one is added."""
+        """When no worktree AND no WIP branch exist yet, a worktree on a NEW WIP branch is added.
+
+        Hybrid flow (DESIGN §13): the worktree is checked out on the per-ticket WIP branch
+        ``kanban/ticket-<n>``, created off ``origin/<base>`` with ``-b`` when the branch is absent.
+        """
         clone = tmp_path / "clone"
         target = _target_for(clone, 42)
         mock_runner = MagicMock()
-        # _worktree_paths returns a path that does NOT match the target.
+        # _worktree_paths (no match) → fetch → rev-parse --verify (branch ABSENT, rc=1) → add -b →
+        # _ensure_identity probes (config user.name / user.email — non-empty → already set, no set).
         mock_runner.side_effect = [
             _completed_process(stdout="worktree /some/other/path\n"),
             _completed_process(),  # fetch
-            _completed_process(),  # worktree add
+            _completed_process(returncode=1),  # rev-parse --verify: WIP branch absent
+            _completed_process(),  # worktree add -b
+            _completed_process(stdout="Existing Operator\n"),  # config user.name (already set)
+            _completed_process(stdout="op@example.com\n"),  # config user.email (already set)
         ]
 
         ws = GitWorktreeWorkspace(clone_dir=clone, runner=mock_runner)
         result = ws.ensure_worktree(42)
 
         assert result == target
-        # Verify the worktree-add command was issued.
+        # Verify the worktree-add command CREATED the WIP branch (``-b kanban/ticket-42``).
         mock_runner.assert_any_call(
             [
                 "git",
@@ -90,13 +98,58 @@ class TestGitWorktreeWorkspaceUnit:
                 str(clone),
                 "worktree",
                 "add",
-                "--detach",
+                "-b",
+                "kanban/ticket-42",
                 str(target),
                 "origin/main",
             ],
             check=True,
             timeout=GIT_TIMEOUT,
         )
+
+    def test_ensure_worktree_reuses_existing_wip_branch(self, tmp_path: Path) -> None:
+        """When the WIP branch already EXISTS (a prior stage made it), reuse it WITHOUT ``-b``.
+
+        Hybrid flow (DESIGN §13): the existing ``kanban/ticket-<n>`` carries the prior stage's
+        committed artifacts, so the worktree is checked out on it directly (no ``-b``, no base ref)
+        — that is how the next stage sees the design/plan commits via the shared ``.git``.
+        """
+        clone = tmp_path / "clone"
+        target = _target_for(clone, 42)
+        mock_runner = MagicMock()
+        # _worktree_paths (no match) → fetch → rev-parse --verify (branch PRESENT, rc=0) → add →
+        # _ensure_identity probes (config user.name / user.email — non-empty → already set, no set).
+        mock_runner.side_effect = [
+            _completed_process(stdout="worktree /some/other/path\n"),
+            _completed_process(),  # fetch
+            _completed_process(returncode=0),  # rev-parse --verify: WIP branch present
+            _completed_process(),  # worktree add (reuse)
+            _completed_process(stdout="Existing Operator\n"),  # config user.name (already set)
+            _completed_process(stdout="op@example.com\n"),  # config user.email (already set)
+        ]
+
+        ws = GitWorktreeWorkspace(clone_dir=clone, runner=mock_runner)
+        result = ws.ensure_worktree(42)
+
+        assert result == target
+        # The add REUSES the branch (no ``-b``, no ``origin/<base>``).
+        mock_runner.assert_any_call(
+            [
+                "git",
+                "-C",
+                str(clone),
+                "worktree",
+                "add",
+                str(target),
+                "kanban/ticket-42",
+            ],
+            check=True,
+            timeout=GIT_TIMEOUT,
+        )
+        # And the absent-branch ``-b`` form was NOT issued.
+        for call in mock_runner.call_args_list:
+            argv = call.args[0]
+            assert not (isinstance(argv, list) and "add" in argv and "-b" in argv)
 
     def test_ensure_worktree_reuses_existing(self, tmp_path: Path) -> None:
         """When the target is already registered, it is returned without re-adding."""
@@ -115,13 +168,16 @@ class TestGitWorktreeWorkspaceUnit:
         assert mock_runner.call_count == 1
 
     def test_ensure_worktree_custom_base(self, tmp_path: Path) -> None:
-        """A non-default base is passed to fetch and worktree-add."""
+        """A non-default base is passed to fetch and the NEW-WIP-branch worktree-add."""
         clone = tmp_path / "clone"
         mock_runner = MagicMock()
         mock_runner.side_effect = [
             _completed_process(stdout="worktree /other\n"),
             _completed_process(),  # fetch
-            _completed_process(),  # worktree add
+            _completed_process(returncode=1),  # rev-parse --verify: WIP branch absent
+            _completed_process(),  # worktree add -b
+            _completed_process(stdout="Existing Operator\n"),  # config user.name (already set)
+            _completed_process(stdout="op@example.com\n"),  # config user.email (already set)
         ]
 
         ws = GitWorktreeWorkspace(clone_dir=clone, runner=mock_runner)
@@ -139,13 +195,103 @@ class TestGitWorktreeWorkspaceUnit:
                 str(clone),
                 "worktree",
                 "add",
-                "--detach",
+                "-b",
+                "kanban/ticket-7",
                 str(_target_for(clone, 7)),
                 "origin/develop",
             ],
             check=True,
             timeout=GIT_TIMEOUT,
         )
+
+    # -- ensure_worktree fallback git identity (finding 2 / DESIGN §13) ------
+
+    def test_ensure_worktree_sets_fallback_identity_when_unset(self, tmp_path: Path) -> None:
+        """When the clone has NO git identity, ensure_worktree sets the LOCAL fallback.
+
+        The doc stages run ``git commit`` in the worktree (durable cross-stage carry, DESIGN §13);
+        ``git commit`` aborts without an identity. ``_ensure_identity`` probes ``user.name`` /
+        ``user.email`` (both EMPTY here) and writes the ``kanbanmate`` / ``kanbanmate@localhost``
+        fallbacks via ``git config --local``, so the carry commit always succeeds.
+        """
+        clone = tmp_path / "clone"
+        target = _target_for(clone, 42)
+        mock_runner = MagicMock()
+        mock_runner.side_effect = [
+            _completed_process(stdout="worktree /other\n"),  # _worktree_paths
+            _completed_process(),  # fetch
+            _completed_process(returncode=1),  # rev-parse --verify (WIP branch absent)
+            _completed_process(),  # worktree add -b
+            _completed_process(stdout=""),  # config user.name → empty (unset)
+            _completed_process(stdout=""),  # config user.email → empty (unset)
+            _completed_process(),  # config --local user.name (fallback set)
+            _completed_process(),  # config --local user.email (fallback set)
+        ]
+
+        ws = GitWorktreeWorkspace(clone_dir=clone, runner=mock_runner)
+        result = ws.ensure_worktree(42)
+
+        assert result == target
+        # Both fallbacks were written --local to the clone.
+        mock_runner.assert_any_call(
+            ["git", "-C", str(clone), "config", "--local", "user.name", "kanbanmate"],
+            check=False,
+            timeout=GIT_TIMEOUT,
+        )
+        mock_runner.assert_any_call(
+            ["git", "-C", str(clone), "config", "--local", "user.email", "kanbanmate@localhost"],
+            check=False,
+            timeout=GIT_TIMEOUT,
+        )
+
+    def test_ensure_worktree_keeps_existing_identity(self, tmp_path: Path) -> None:
+        """When the clone ALREADY has a git identity, ensure_worktree does NOT override it.
+
+        The probe finds a non-empty ``user.name``, so no ``config --local user.name/user.email``
+        set call is issued — an operator's global/repo identity is preserved.
+        """
+        clone = tmp_path / "clone"
+        mock_runner = MagicMock()
+        mock_runner.side_effect = [
+            _completed_process(stdout="worktree /other\n"),  # _worktree_paths
+            _completed_process(),  # fetch
+            _completed_process(returncode=1),  # rev-parse --verify (WIP branch absent)
+            _completed_process(),  # worktree add -b
+            _completed_process(stdout="Existing Operator\n"),  # config user.name (already set)
+            _completed_process(stdout="op@example.com\n"),  # config user.email (already set)
+        ]
+
+        ws = GitWorktreeWorkspace(clone_dir=clone, runner=mock_runner)
+        ws.ensure_worktree(42)
+
+        # No fallback SET was issued — the existing identity is untouched.
+        for call in mock_runner.call_args_list:
+            argv = call.args[0]
+            assert not (isinstance(argv, list) and "--local" in argv), (
+                "an existing identity must NOT be overridden with the --local fallback"
+            )
+
+    def test_ensure_worktree_identity_probe_failure_is_fail_soft(self, tmp_path: Path) -> None:
+        """A raising identity probe never aborts the launch (fail-soft).
+
+        ``_ensure_identity`` swallows any subprocess error: the worktree is still returned so a
+        flaky ``git config`` probe cannot freeze a launch (a real missing identity surfaces later
+        as the commit's own failure, which the agent reports).
+        """
+        clone = tmp_path / "clone"
+        target = _target_for(clone, 42)
+        mock_runner = MagicMock()
+        mock_runner.side_effect = [
+            _completed_process(stdout="worktree /other\n"),  # _worktree_paths
+            _completed_process(),  # fetch
+            _completed_process(returncode=1),  # rev-parse --verify (WIP branch absent)
+            _completed_process(),  # worktree add -b
+            subprocess.CalledProcessError(1, ["git", "config", "user.name"]),  # probe raises
+        ]
+
+        ws = GitWorktreeWorkspace(clone_dir=clone, runner=mock_runner)
+        # Must NOT raise — the worktree path is returned despite the probe failure.
+        assert ws.ensure_worktree(42) == target
 
     # -- discover_branch -----------------------------------------------------
 
@@ -525,9 +671,14 @@ class TestGitWorktreeWorkspaceUnit:
         clone = tmp_path / "clone"
         mock_runner = MagicMock()
         mock_runner.side_effect = [
-            _completed_process(stdout="worktree /other\n"),
-            _completed_process(),
-            _completed_process(),
+            _completed_process(stdout="worktree /other\n"),  # _worktree_paths
+            _completed_process(),  # fetch
+            _completed_process(returncode=1),  # rev-parse --verify (WIP branch absent)
+            _completed_process(),  # worktree add -b
+            _completed_process(returncode=1),  # config user.name (unset)
+            _completed_process(returncode=1),  # config user.email (unset)
+            _completed_process(),  # config --local user.name (fallback set)
+            _completed_process(),  # config --local user.email (fallback set)
         ]
 
         ws = GitWorktreeWorkspace(clone_dir=clone, runner=mock_runner)
@@ -1007,7 +1158,10 @@ class TestResourceLock:
         mock_runner.side_effect = [
             _completed_process(stdout="worktree /other\n"),
             _completed_process(),  # fetch (inside lock)
-            _completed_process(),  # worktree add (inside lock)
+            _completed_process(returncode=1),  # rev-parse --verify (WIP branch absent)
+            _completed_process(),  # worktree add -b (inside lock)
+            _completed_process(stdout="op\n"),  # config user.name (already set)
+            _completed_process(stdout="op@x\n"),  # config user.email (already set)
         ]
 
         ws = GitWorktreeWorkspace(
@@ -1103,7 +1257,10 @@ class TestResourceLock:
         mock_runner.side_effect = [
             _completed_process(stdout="worktree /other\n"),
             _completed_process(),  # fetch
-            _completed_process(),  # worktree add
+            _completed_process(returncode=1),  # rev-parse --verify (WIP branch absent)
+            _completed_process(),  # worktree add -b
+            _completed_process(stdout="op\n"),  # config user.name (already set)
+            _completed_process(stdout="op@x\n"),  # config user.email (already set)
         ]
 
         ws = GitWorktreeWorkspace(
@@ -1670,11 +1827,15 @@ class TestWorktreeLocalReal:
     """
 
     def test_ensure_discover_remove_cycle(self, tmp_path: Path) -> None:
-        """Full lifecycle: create worktree, discover detached HEAD → None, remove."""
-        # Set up a real bare-ish clone: init + first commit so worktree-add works.
+        """Full lifecycle: create worktree on the WIP branch, discover its name, remove.
+
+        Hybrid flow (DESIGN §13): the fresh worktree is checked out on ``kanban/ticket-<n>`` (not
+        a detached HEAD), so ``discover_branch`` returns the WIP branch name. ``origin`` points at
+        the clone's own first commit so the in-method ``git fetch origin main`` resolves.
+        """
         clone = tmp_path / "clone"
         clone.mkdir()
-        subprocess.run(["git", "-C", str(clone), "init"], check=True)
+        subprocess.run(["git", "-C", str(clone), "init", "-b", "main"], check=True)
         subprocess.run(
             ["git", "-C", str(clone), "config", "user.email", "test@kanbanmate.local"],
             check=True,
@@ -1689,27 +1850,84 @@ class TestWorktreeLocalReal:
             ["git", "-C", str(clone), "commit", "-m", "initial"],
             check=True,
         )
+        # The in-method ``git fetch origin main`` needs an origin → point it at the clone itself.
+        subprocess.run(["git", "-C", str(clone), "remote", "add", "origin", str(clone)], check=True)
 
         ws = GitWorktreeWorkspace(clone_dir=clone)
 
-        # ensure_worktree
+        # ensure_worktree on the WIP branch
         target = ws.ensure_worktree(42)
         assert target.exists()
         assert (target / "README.md").exists()
 
-        # discover_branch on a fresh detached worktree → None
+        # discover_branch now returns the per-ticket WIP branch name (DESIGN §13).
         branch = ws.discover_branch(42)
-        assert branch is None
+        assert branch == "kanban/ticket-42"
 
         # remove_worktree (normal, no force)
         ws.remove_worktree(42)
         assert not target.exists()
 
+    def test_ensure_worktree_carries_commits_across_recreated_worktree(
+        self, tmp_path: Path
+    ) -> None:
+        """INTEGRATION (DESIGN §13): a commit on the WIP branch in worktree A is visible in B.
+
+        The durable cross-stage carry: stage N commits ``docs/features/<codename>/`` to the shared
+        ``kanban/ticket-<n>`` branch in its worktree; stage N+1 gets a FRESH worktree (after the
+        first is removed) re-using the SAME branch, and sees the committed file in its working tree
+        — proving the carry without any push (worktrees share one ``.git``).
+        """
+        clone = tmp_path / "clone"
+        clone.mkdir()
+        subprocess.run(["git", "-C", str(clone), "init", "-b", "main"], check=True)
+        subprocess.run(
+            ["git", "-C", str(clone), "config", "user.email", "test@kanbanmate.local"],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(clone), "config", "user.name", "KanbanMate Test"],
+            check=True,
+        )
+        (clone / "README.md").write_text("# test\n")
+        subprocess.run(["git", "-C", str(clone), "add", "README.md"], check=True)
+        subprocess.run(["git", "-C", str(clone), "commit", "-m", "initial"], check=True)
+        subprocess.run(["git", "-C", str(clone), "remote", "add", "origin", str(clone)], check=True)
+
+        ws = GitWorktreeWorkspace(clone_dir=clone)
+
+        # Stage N: create the worktree on the WIP branch, write + COMMIT a design artifact.
+        wt_a = ws.ensure_worktree(55)
+        design_dir = wt_a / "docs" / "features" / "demo"
+        design_dir.mkdir(parents=True)
+        (design_dir / "DESIGN.md").write_text("# Demo design\n")
+        subprocess.run(
+            ["git", "-C", str(wt_a), "config", "user.email", "test@kanbanmate.local"], check=True
+        )
+        subprocess.run(
+            ["git", "-C", str(wt_a), "config", "user.name", "KanbanMate Test"], check=True
+        )
+        subprocess.run(["git", "-C", str(wt_a), "add", "docs/features/demo/"], check=True)
+        subprocess.run(["git", "-C", str(wt_a), "commit", "-m", "docs(demo): design"], check=True)
+
+        # Tear the first worktree down (the stage's session ended) — the branch + commit survive.
+        ws.remove_worktree(55, force=True)
+        assert not wt_a.exists()
+
+        # Stage N+1: a FRESH worktree re-uses the SAME WIP branch — the committed design is present.
+        wt_b = ws.ensure_worktree(55)
+        carried = wt_b / "docs" / "features" / "demo" / "DESIGN.md"
+        assert carried.is_file(), "the WIP-branch commit must carry into the recreated worktree"
+        assert carried.read_text() == "# Demo design\n"
+        assert ws.discover_branch(55) == "kanban/ticket-55"
+
+        ws.remove_worktree(55, force=True)
+
     def test_ensure_worktree_idempotent(self, tmp_path: Path) -> None:
         """Calling ensure_worktree twice returns the same path and does not error."""
         clone = tmp_path / "clone"
         clone.mkdir()
-        subprocess.run(["git", "-C", str(clone), "init"], check=True)
+        subprocess.run(["git", "-C", str(clone), "init", "-b", "main"], check=True)
         subprocess.run(
             ["git", "-C", str(clone), "config", "user.email", "test@kanbanmate.local"],
             check=True,
@@ -1724,6 +1942,7 @@ class TestWorktreeLocalReal:
             ["git", "-C", str(clone), "commit", "-m", "init"],
             check=True,
         )
+        subprocess.run(["git", "-C", str(clone), "remote", "add", "origin", str(clone)], check=True)
 
         ws = GitWorktreeWorkspace(clone_dir=clone)
 
@@ -1733,14 +1952,19 @@ class TestWorktreeLocalReal:
         assert first == second
         assert first.exists()
 
-        # Clean up.
-        ws.remove_worktree(77)
+        # Clean up (force: the worktree is now on a named WIP branch).
+        ws.remove_worktree(77, force=True)
 
     def test_discover_branch_after_branch_creation(self, tmp_path: Path) -> None:
-        """After creating a branch in the worktree, discover_branch returns its name."""
+        """After create-branch branches feat/<codename> OFF the WIP branch, discover returns it.
+
+        Hybrid flow (DESIGN §13): the worktree starts on ``kanban/ticket-<n>``; create-branch checks
+        out ``feat/<codename>`` from there (inheriting any carried commits), and ``discover_branch``
+        then reports the feature branch.
+        """
         clone = tmp_path / "clone"
         clone.mkdir()
-        subprocess.run(["git", "-C", str(clone), "init"], check=True)
+        subprocess.run(["git", "-C", str(clone), "init", "-b", "main"], check=True)
         subprocess.run(
             ["git", "-C", str(clone), "config", "user.email", "test@kanbanmate.local"],
             check=True,
@@ -1755,11 +1979,15 @@ class TestWorktreeLocalReal:
             ["git", "-C", str(clone), "commit", "-m", "init"],
             check=True,
         )
+        subprocess.run(["git", "-C", str(clone), "remote", "add", "origin", str(clone)], check=True)
 
         ws = GitWorktreeWorkspace(clone_dir=clone)
         target = ws.ensure_worktree(88)
 
-        # Create a branch in the worktree (simulating implement:create-branch).
+        # Fresh worktree is on the WIP branch.
+        assert ws.discover_branch(88) == "kanban/ticket-88"
+
+        # create-branch checks out feat/<codename> OFF the current WIP HEAD.
         subprocess.run(
             ["git", "-C", str(target), "checkout", "-b", "feat/test-branch"],
             check=True,
@@ -1775,7 +2003,7 @@ class TestWorktreeLocalReal:
         """Force-removal succeeds even when the worktree has uncommitted changes."""
         clone = tmp_path / "clone"
         clone.mkdir()
-        subprocess.run(["git", "-C", str(clone), "init"], check=True)
+        subprocess.run(["git", "-C", str(clone), "init", "-b", "main"], check=True)
         subprocess.run(
             ["git", "-C", str(clone), "config", "user.email", "test@kanbanmate.local"],
             check=True,
@@ -1790,6 +2018,8 @@ class TestWorktreeLocalReal:
             ["git", "-C", str(clone), "commit", "-m", "init"],
             check=True,
         )
+        # ensure_worktree now fetches origin/main (the WIP-branch checkout, DESIGN §13) → origin needed.
+        subprocess.run(["git", "-C", str(clone), "remote", "add", "origin", str(clone)], check=True)
 
         ws = GitWorktreeWorkspace(clone_dir=clone)
         target = ws.ensure_worktree(99)

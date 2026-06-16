@@ -713,6 +713,157 @@ class TestRecoveryEdges:
         assert cfg.get("Merge", "Done") is not None
 
 
+class TestHybridAdvanceDirectives:
+    """Hybrid flow (DESIGN §13): the doc + build transitions carry the advance:auto:<col> directives
+    the engine now honours; the two HUMAN gates (Planned, Review) MUST carry no auto-advance."""
+
+    # Each forward transition's expected ``advance`` directive (the HYBRID table).
+    _EXPECTED_ADVANCE = {
+        ("Backlog", "Brainstorming"): "auto:Spec",
+        ("Brainstorming", "Spec"): "auto:Plan",
+        ("Spec", "Plan"): "auto:Planned",
+        ("ReadyToDev", "PrepareFeature"): "auto:InProgress",
+        ("PrepareFeature", "InProgress"): "auto:PRCI",
+        ("InProgress", "PRCI"): "auto:Review",
+        ("PRCI", "InProgress"): "auto:PRCI",
+        ("PRCI", "Review"): "stop",
+        ("Review", "InProgress"): "auto:PRCI",
+    }
+
+    def test_each_transition_advance_matches_the_hybrid_table(self) -> None:
+        """Every forward transition carries exactly its HYBRID-table advance directive."""
+        cfg = load_transitions(_render_doc("owner/repo"))
+        for (from_col, to_col), expected in self._EXPECTED_ADVANCE.items():
+            t = cfg.get(from_col, to_col)
+            assert t is not None, f"{from_col} → {to_col} did not resolve"
+            assert t.advance == expected, (
+                f"{from_col} → {to_col} advance is {t.advance!r}, expected {expected!r}"
+            )
+
+    def test_human_gates_carry_no_auto_advance(self) -> None:
+        """SAFETY ASSERTION: Plan→Planned and Planned→ReadyToDev MUST NOT auto-advance.
+
+        Auto-advancing either would bypass the single pre-build HUMAN review gate (the core HYBRID
+        property). They are no-ops, so their advance defaults to ``stop`` — which :func:`auto_advance_target`
+        maps to ``None`` (no engine move).
+        """
+        from kanbanmate.bin._clone_config import auto_advance_target
+
+        cfg = load_transitions(_render_doc("owner/repo"))
+        for from_col, to_col in (("Plan", "Planned"), ("Planned", "ReadyToDev")):
+            t = cfg.get(from_col, to_col)
+            assert t is not None
+            # No auto directive → the card STOPS at the human gate.
+            assert auto_advance_target(t.advance) is None, (
+                f"{from_col} → {to_col} must NOT carry an auto-advance directive (human gate)"
+            )
+
+    def test_review_stops_for_human(self) -> None:
+        """PRCI→Review carries advance:stop — the Review human gate (no auto-advance past it)."""
+        from kanbanmate.bin._clone_config import auto_advance_target
+
+        cfg = load_transitions(_render_doc("owner/repo"))
+        t = cfg.get("PRCI", "Review")
+        assert t is not None
+        assert t.advance == "stop"
+        assert auto_advance_target(t.advance) is None
+
+    def test_inprogress_to_prci_script_gate_advances_to_review(self) -> None:
+        """The InProgress→PRCI SCRIPT gate carries advance:auto:Review (green CI → fires pr-review).
+
+        This directive is consumed by ``app/script_route._route_success`` (already wired) — the only
+        SCRIPT-gate advance in the build arc.
+        """
+        cfg = load_transitions(_render_doc("owner/repo"))
+        t = cfg.get("InProgress", "PRCI")
+        assert t is not None
+        assert t.script == "bin/check-pr-ready.sh"
+        assert t.advance == "auto:Review"
+
+    def test_default_config_still_parses_no_duplicate_pair(self) -> None:
+        """``default_transition_config()`` still parses the hybrid table (no duplicate-pair error)."""
+        from kanbanmate.core.transitions_defaults import default_transition_config
+
+        cfg = default_transition_config()
+        # Spot-check a hybrid directive landed through the real parser.
+        assert cfg.get("Backlog", "Brainstorming").advance == "auto:Spec"  # type: ignore[union-attr]
+
+
+class TestImplementStagePromptGuards:
+    """Change 4 (DESIGN §13): _IMPLEMENT_PROMPT + _FIXCI_PROMPT carry the stop-at-PR / never-merge /
+    CI-not-green-terminal / do-not-idle guards so the auto-chain stall at the source is reduced."""
+
+    def test_implement_prompt_stops_at_pr_creation(self) -> None:
+        """_IMPLEMENT_PROMPT carries an explicit STOP-AT-PR-CREATION guard."""
+        assert "STOP AT PR CREATION" in _IMPLEMENT_PROMPT
+        assert "STOP as soon as the PR is created" in _IMPLEMENT_PROMPT
+
+    def test_implement_prompt_never_runs_gh_pr_merge(self) -> None:
+        """_IMPLEMENT_PROMPT bans `gh pr merge` verbatim (merge is human-only)."""
+        assert "NEVER run `gh pr merge`" in _IMPLEMENT_PROMPT
+
+    def test_implement_prompt_ci_not_green_terminal_branch(self) -> None:
+        """_IMPLEMENT_PROMPT carries a CI-not-green terminal branch (move PR/CI anyway, don't idle)."""
+        assert "CI-NOT-GREEN TERMINAL BRANCH" in _IMPLEMENT_PROMPT
+        assert "do NOT idle waiting on CI" in _IMPLEMENT_PROMPT
+        # On red/timeout: comment the failing checks then move PR/CI ANYWAY (the gate owns the retry).
+        assert "'PR/CI'` ANYWAY" in _IMPLEMENT_PROMPT
+
+    def test_fixci_prompt_never_merge_and_does_not_idle(self) -> None:
+        """_FIXCI_PROMPT carries the never-merge + do-not-idle-on-CI terminal discipline."""
+        assert "NEVER run `gh pr merge`" in _FIXCI_PROMPT
+        assert "Do NOT idle waiting on CI" in _FIXCI_PROMPT
+        # Move PR/CI even if CI is still running/red — the gate + this loop own the retry.
+        assert "even if CI is still running or still red" in _FIXCI_PROMPT
+
+
+class TestDurableCarryPromptWording:
+    """Change 3 (DESIGN §13): the design/plan prompts COMMIT their artifacts to the WIP branch and
+    record REPO-RELATIVE markers (so the next worktree sees + can `cat` them)."""
+
+    def test_design_prompt_commits_and_records_repo_relative(self) -> None:
+        """_DESIGN_PROMPT commits DESIGN.md to the per-ticket branch + records a repo-relative marker."""
+        assert "git add docs/features/{{codename}}/" in _DESIGN_PROMPT
+        assert 'git commit -m "docs({{codename}}): design"' in _DESIGN_PROMPT
+        # The recorded **design** marker is the REPO-RELATIVE path (not an absolute worktree path).
+        assert "--set-field design docs/features/{{codename}}/DESIGN.md" in _DESIGN_PROMPT
+        assert "REPO-RELATIVE" in _DESIGN_PROMPT
+
+    def test_plan_prompt_commits_and_records_repo_relative(self) -> None:
+        """_PLAN_PROMPT commits the plan files to the per-ticket branch + records repo-relative paths."""
+        assert "git add docs/features/{{codename}}/" in _PLAN_PROMPT
+        assert 'git commit -m "docs({{codename}}): plan"' in _PLAN_PROMPT
+        assert "--set-field plans docs/features/{{codename}}/plan/" in _PLAN_PROMPT
+        assert "REPO-RELATIVE" in _PLAN_PROMPT
+
+    def test_commit_uses_separate_add_and_commit_not_compound(self) -> None:
+        """Finding 1: the carry uses TWO SEPARATE commands, NOT a compound ``git add … && git commit``.
+
+        The ``docs`` permission profile allows ``Bash(git add*)`` and ``Bash(git commit*)`` as
+        DISTINCT allow-patterns under ``permission_mode: auto``; a single compound
+        ``git add … && git commit …`` matches NEITHER and is denied headlessly, silently breaking
+        the carry. Lock the separate form in for both doc prompts.
+        """
+        for prompt in (_DESIGN_PROMPT, _PLAN_PROMPT):
+            assert "&& git commit" not in prompt
+            # The numbered ADD step comes before the numbered COMMIT step (staged tree → commit).
+            assert prompt.index("1. `git add docs/features/{{codename}}/`") < prompt.index(
+                '2. `git commit -m "docs({{codename}}):'
+            )
+
+    def test_commit_guards_empty_codename(self) -> None:
+        """Finding 3: the prompt guards against an empty codename (would stage the whole tree)."""
+        for prompt in (_DESIGN_PROMPT, _PLAN_PROMPT):
+            # The add/commit is gated on the codename'd dir existing — prose-level guard.
+            assert "empty codename" in prompt
+            assert "docs/features/{{codename}}/ exists" in prompt
+
+    def test_plan_precondition_validates_carried_design_path(self) -> None:
+        """_PLAN_PROMPT's precondition now describes a repo-relative, cat-able carried design path."""
+        assert "{{design_path}}" in _PLAN_PROMPT
+        assert "cat {{design_path}}" in _PLAN_PROMPT
+
+
 class TestCleanStopInstruction:
     """firm-exit: the ``_CLEAN_STOP`` discipline lands in every prompt whose terminal step is
     ``kanban-done`` (8 prompts), so the reaper's end_session lands on an EMPTY idle prompt with no

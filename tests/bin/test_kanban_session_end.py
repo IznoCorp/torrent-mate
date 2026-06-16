@@ -26,8 +26,8 @@ from kanbanmate.bin.kanban_session_end import main
 from kanbanmate.ports.store import TicketState, TicketStatus
 
 
-def _state(issue: int = 7, *, stage: str = "Implement") -> TicketState:
-    """Build a widened :class:`TicketState` carrying a launch stage + metadata."""
+def _state(issue: int = 7, *, stage: str = "Implement", advance: str = "") -> TicketState:
+    """Build a widened :class:`TicketState` carrying a launch stage + metadata + advance."""
     return TicketState(
         issue_number=issue,
         item_id="PVTI_node",
@@ -39,7 +39,34 @@ def _state(issue: int = 7, *, stage: str = "Implement") -> TicketState:
         mode="acceptEdits",
         started=900.0,
         worktree="/tmp/wt/ticket-7",
+        advance=advance,
     )
+
+
+def _columns() -> dict[str, object]:
+    """Build the shipped column model (key → Column) for KEY→NAME resolution in the backstop."""
+    from kanbanmate.core.columns import load_columns  # noqa: PLC0415 — test-local
+
+    # A minimal column model mirroring the shipped template's key→name map so the backstop's
+    # KEY→NAME resolution lands ("PRCI" → "PR/CI", "Blocked" → "Blocked").
+    yaml_text = (
+        "columns:\n"
+        "  - {key: Spec, name: Spec}\n"
+        "  - {key: Plan, name: Plan}\n"
+        "  - {key: Planned, name: Planned}\n"
+        "  - {key: InProgress, name: In Progress}\n"
+        "  - {key: PRCI, name: PR/CI}\n"
+        "  - {key: Blocked, name: Blocked}\n"
+    )
+    return load_columns(yaml_text)  # type: ignore[return-value]
+
+
+def _patch_backstop_config(monkeypatch: pytest.MonkeyPatch, *, rate_limit: int = 10) -> None:
+    """Stub the per-clone column + transition config loaders the auto-advance backstop reads."""
+    monkeypatch.setattr(kanban_session_end, "load_clone_columns", lambda entry: _columns())
+    cfg = MagicMock()
+    cfg.move_rate_limit_per_hour = rate_limit
+    monkeypatch.setattr(kanban_session_end, "load_clone_transitions", lambda entry: cfg)
 
 
 def _patch_github(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
@@ -50,6 +77,16 @@ def _patch_github(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     upsert = MagicMock()
     monkeypatch.setattr(kanban_session_end, "upsert_stage_comment", upsert)
     return upsert
+
+
+def _patch_github_capture_client(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+    """Stub the GitHub wiring with a SINGLE shared client and return it (for move_card asserts)."""
+    monkeypatch.setattr(kanban_session_end, "_resolve_entry", lambda: MagicMock())
+    monkeypatch.setattr(kanban_session_end, "load_token", lambda *a, **k: "tok")
+    client = MagicMock()
+    monkeypatch.setattr(kanban_session_end, "GithubClient", lambda *a, **k: client)
+    monkeypatch.setattr(kanban_session_end, "upsert_stage_comment", MagicMock())
+    return client
 
 
 # ---------------------------------------------------------------------------
@@ -302,3 +339,201 @@ def test_done_breadcrumb_read_before_purge_ticket(
     upsert.assert_called_once()
     _args, kwargs = upsert.call_args
     assert kwargs["header"].status == "done"
+
+
+# ---------------------------------------------------------------------------
+# CHANGE 1 — engine auto-advance backstop (DESIGN §13 hybrid flow)
+# ---------------------------------------------------------------------------
+
+
+def test_done_with_advance_auto_moves_card_to_target(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A clean-done launch stage with advance=auto:<col> + NOT advanced → the engine moves it.
+
+    The previously-dead advance:auto config is now honoured for launch stages: a done-without-
+    advance whose persisted advance is ``auto:Spec`` is moved to Spec by the engine, and the move
+    is recorded (so the daemon diff fires the next stage). The ✅ sticky is still finalized.
+    """
+    store = MagicMock()
+    store.load.return_value = _state(stage="Brainstorming", advance="auto:Spec")
+    store.recent_agent_advance.return_value = False  # the agent did NOT advance its own card
+    store.recent_agent_done.return_value = True  # clean done
+    store.move_count_for_item_last_hour.return_value = 0  # within the rate limit
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    client = _patch_github_capture_client(monkeypatch)
+    _patch_backstop_config(monkeypatch)
+
+    assert main(["7"]) == 0
+    # The engine moved the card to the advance target (KEY Spec → NAME "Spec").
+    client.move_card.assert_called_once_with("PVTI_node", "Spec")
+    # The move is recorded (feeds the rate-limit + makes the daemon diff fire the next stage) —
+    # NOT an agent advance (that breadcrumb is the ✅/⚠️ discriminator; the sticky is already ✅).
+    store.record_move_for_item.assert_called_once_with(
+        7, now=store.recent_agent_done.call_args.kwargs["now"]
+    )
+
+
+def test_done_with_advance_auto_records_move_not_agent_advance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The engine move calls record_move_for_item, NEVER record_agent_advance (no masquerade)."""
+    store = MagicMock()
+    store.load.return_value = _state(stage="Spec", advance="auto:Plan")
+    store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = True
+    store.move_count_for_item_last_hour.return_value = 0
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    client = _patch_github_capture_client(monkeypatch)
+    _patch_backstop_config(monkeypatch)
+
+    assert main(["7"]) == 0
+    client.move_card.assert_called_once_with("PVTI_node", "Plan")
+    store.record_move_for_item.assert_called_once()
+    store.record_agent_advance.assert_not_called()
+
+
+def test_done_with_advance_stop_does_not_move(monkeypatch: pytest.MonkeyPatch) -> None:
+    """advance=stop (the Planned/Review human gates) → NO engine move; the card STOPS."""
+    store = MagicMock()
+    store.load.return_value = _state(stage="Plan", advance="stop")
+    store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = True
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    client = _patch_github_capture_client(monkeypatch)
+    _patch_backstop_config(monkeypatch)
+
+    assert main(["7"]) == 0
+    client.move_card.assert_not_called()  # the human-review gate: no auto-advance.
+    store.record_move_for_item.assert_not_called()
+
+
+def test_done_with_advance_empty_does_not_move(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An empty advance directive → NO engine move (old-format / no directive)."""
+    store = MagicMock()
+    store.load.return_value = _state(stage="Plan", advance="")
+    store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = True
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    client = _patch_github_capture_client(monkeypatch)
+    _patch_backstop_config(monkeypatch)
+
+    assert main(["7"]) == 0
+    client.move_card.assert_not_called()
+
+
+def test_advanced_agent_returns_before_backstop_no_move(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An agent that advanced its OWN card returns at branch 4 — the engine never double-moves."""
+    store = MagicMock()
+    store.load.return_value = _state(stage="Brainstorming", advance="auto:Spec")
+    store.recent_agent_advance.return_value = True  # agent self-advanced → branch 4 early return
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    client = _patch_github_capture_client(monkeypatch)
+    _patch_backstop_config(monkeypatch)
+
+    assert main(["7"]) == 0
+    client.move_card.assert_not_called()  # no engine move — the agent already advanced.
+
+
+def test_interrupt_no_breadcrumb_does_not_auto_advance(monkeypatch: pytest.MonkeyPatch) -> None:
+    """NEITHER breadcrumb (a crash/interrupt) → the ⚠️ path, NO auto-advance even with auto:<col>."""
+    store = MagicMock()
+    store.load.return_value = _state(stage="Brainstorming", advance="auto:Spec")
+    store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = False  # NEITHER → ⚠️ interrupted
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    client = _patch_github_capture_client(monkeypatch)
+    _patch_backstop_config(monkeypatch)
+
+    assert main(["7"]) == 0
+    client.move_card.assert_not_called()  # an interrupt never auto-advances.
+
+
+def test_auto_advance_rate_limited_parks_in_blocked(monkeypatch: pytest.MonkeyPatch) -> None:
+    """At/over the per-issue rate limit → parked in Blocked instead of advancing (anti-loop bound)."""
+    store = MagicMock()
+    store.load.return_value = _state(stage="Brainstorming", advance="auto:Spec")
+    store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = True
+    store.move_count_for_item_last_hour.return_value = 10  # >= cap (10) → park
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    client = _patch_github_capture_client(monkeypatch)
+    _patch_backstop_config(monkeypatch, rate_limit=10)
+
+    assert main(["7"]) == 0
+    # The card is parked in Blocked (NOT moved to the target Spec) + a recap comment.
+    client.move_card.assert_called_once_with("PVTI_node", "Blocked")
+    client.comment.assert_called_once()
+    assert "rate limit" in client.comment.call_args.args[1].lower()
+    store.record_move_for_item.assert_called_once()
+
+
+def test_auto_advance_key_to_name_resolution_multiword(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A multiword target KEY resolves to its display NAME: advance=auto:PRCI → move to "PR/CI"."""
+    store = MagicMock()
+    store.load.return_value = _state(stage="InProgress", advance="auto:PRCI")
+    store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = True
+    store.move_count_for_item_last_hour.return_value = 0
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    client = _patch_github_capture_client(monkeypatch)
+    _patch_backstop_config(monkeypatch)
+
+    assert main(["7"]) == 0
+    client.move_card.assert_called_once_with("PVTI_node", "PR/CI")
+
+
+def test_auto_advance_move_card_raises_is_fail_soft(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A move_card error during auto-advance is swallowed — session-end still exits 0, no loop."""
+    store = MagicMock()
+    store.load.return_value = _state(stage="Brainstorming", advance="auto:Spec")
+    store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = True
+    store.move_count_for_item_last_hour.return_value = 0
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    client = _patch_github_capture_client(monkeypatch)
+    client.move_card.side_effect = RuntimeError("github unreachable")
+    _patch_backstop_config(monkeypatch)
+
+    assert main(["7"]) == 0  # fail-soft: the always-run session-end never crashes.
+    # The card was not advanced (the move raised) → no record_move_for_item (so no loop).
+    store.record_move_for_item.assert_not_called()
+
+
+def test_auto_advance_unknown_target_is_fail_soft_no_move(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An advance target that is not a known column → fail-soft no-op (no move, exit 0)."""
+    store = MagicMock()
+    store.load.return_value = _state(stage="Brainstorming", advance="auto:Nonsense")
+    store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = True
+    store.move_count_for_item_last_hour.return_value = 0
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    client = _patch_github_capture_client(monkeypatch)
+    _patch_backstop_config(monkeypatch)
+
+    assert main(["7"]) == 0
+    client.move_card.assert_not_called()
+
+
+def test_auto_advance_honours_kanban_root(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Multi-root: the FsStateStore is constructed from the resolved KANBAN_ROOT (#1 km-root)."""
+    seen_roots: list[object] = []
+
+    def _store_factory(root: object) -> MagicMock:
+        seen_roots.append(root)
+        store = MagicMock()
+        store.load.return_value = _state(stage="Spec", advance="auto:Plan")
+        store.recent_agent_advance.return_value = False
+        store.recent_agent_done.return_value = True
+        store.move_count_for_item_last_hour.return_value = 0
+        return store
+
+    monkeypatch.setenv("KANBAN_ROOT", "/tmp/km-root")
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", _store_factory)
+    client = _patch_github_capture_client(monkeypatch)
+    _patch_backstop_config(monkeypatch)
+
+    assert main(["7"]) == 0
+    # The store was keyed on the resolved KANBAN_ROOT (the move targets the right registry/root).
+    assert seen_roots == ["/tmp/km-root"]
+    client.move_card.assert_called_once_with("PVTI_node", "Plan")

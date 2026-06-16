@@ -663,10 +663,15 @@ class FsStateStore(
         node id.  The history lives at ``<root>/moves/<issue>.json`` — a JSON
         list of float wall-clock timestamps, one per move.
 
-        This is fed **ONLY by an AUTO/bot move the daemon itself issues**
-        (the reaper's move-to-Blocked is the only such move in NEW today) —
-        NEVER a human launch or the agent's own ``kanban-move``.  The §6
-        per-hour cap guards the bot loop, not the human workflow.
+        This is fed **ONLY by an AUTO/bot move the daemon itself issues** —
+        NEVER a human launch or the agent's own ``kanban-move``.  The auto/bot
+        move sites are: the ``advance:auto`` move and the within-cap
+        ``on_fail:move`` bounce (``app.script_route``), the reaper's
+        move-to-Blocked (``app.reaper``), and the hybrid-flow session-end
+        auto-advance backstop (``bin/kanban_session_end.py`` — the launch-stage
+        ``advance:auto`` re-applied when the agent ended without moving the card;
+        DESIGN §13). The §6 per-hour cap guards the bot loop, not the human
+        workflow. The canonical site list lives in :mod:`kanbanmate.core.antiloop`.
 
         Args:
             issue_number: The ticket whose move to record.

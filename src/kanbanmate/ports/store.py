@@ -499,10 +499,14 @@ class StateStore(Protocol):
         DESIGN §8.1.d).  The history file MUST be ``moves/<issue>.json`` —
         issue-keyed, NOT ``moves/item_<node>.json``.
 
-        Fed **ONLY by an AUTO/bot move the daemon itself issues** (the reaper's
-        move-to-Blocked is the only such move in NEW today) — NEVER a human
-        launch or the agent's own ``kanban-move``.  The §6 per-hour cap guards
-        the bot loop, not the human workflow.
+        Fed **ONLY by an AUTO/bot move the daemon itself issues** — NEVER a human
+        launch or the agent's own ``kanban-move``.  The auto/bot move sites are
+        the ``advance:auto`` move + within-cap ``on_fail:move`` bounce
+        (``app.script_route``), the reaper's move-to-Blocked (``app.reaper``), and
+        the hybrid-flow session-end auto-advance backstop
+        (``bin/kanban_session_end.py``, DESIGN §13); the canonical list lives in
+        :mod:`kanbanmate.core.antiloop`.  The §6 per-hour cap guards the bot loop,
+        not the human workflow.
 
         Args:
             issue_number: The ticket whose AUTO/bot move to record.

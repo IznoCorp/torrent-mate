@@ -18,11 +18,15 @@ from typing import Protocol
 
 
 class Workspace(Protocol):
-    """Idempotent per-ticket git worktree management on the integration base.
+    """Idempotent per-ticket git worktree management on a per-ticket WIP branch.
 
-    The worktree is checked out DETACHED on ``origin/<base>``; branch creation
-    is owned downstream by ``implement:create-branch``, so this port only
-    ensures, removes, and DISCOVERS branches — it never creates them.
+    Since the durable cross-stage carry (DESIGN §13) the worktree is checked out
+    on the per-ticket WIP branch ``kanban/ticket-<n>`` (created off
+    ``origin/<base>`` the first time, reused thereafter), so a pre-create-branch
+    stage's committed ``docs/features/<codename>/`` artifacts carry to the next
+    stage's worktree via the shared ``.git``. The ``feat/<codename>`` feature
+    branch is still owned downstream by ``implement:create-branch`` (branched OFF
+    the WIP branch); this port creates only the WIP branch, never the feature one.
     """
 
     def ensure_clone(
@@ -53,14 +57,17 @@ class Workspace(Protocol):
         ...
 
     def ensure_worktree(self, ticket: int, base: str = "main") -> Path:
-        """Ensure a detached worktree on ``origin/<base>`` exists for ``ticket``.
+        """Ensure a worktree on the per-ticket WIP branch ``kanban/ticket-<n>`` exists (DESIGN §13).
 
         Idempotent: an already-registered worktree is reused without re-adding
-        or re-fetching. Never passes ``--force``.
+        or re-fetching. Never passes ``--force``. The WIP branch is created off
+        ``origin/<base>`` the first time and reused thereafter, so a prior stage's
+        committed ``docs/features/<codename>/`` artifacts are present on checkout.
 
         Args:
-            ticket: The issue number; names the worktree ``ticket-<n>``.
-            base: The integration base branch to check out detached.
+            ticket: The issue number; names the worktree ``ticket-<n>`` and the
+                WIP branch ``kanban/ticket-<n>``.
+            base: The integration base branch the WIP branch is first created off.
 
         Returns:
             The absolute :class:`~pathlib.Path` to the worktree directory.
@@ -126,15 +133,18 @@ class Workspace(Protocol):
     def discover_branch(self, ticket: int) -> str | None:
         """Return the current branch of ``ticket``'s worktree, if any.
 
-        We DISCOVER the branch (set by ``implement:create-branch``) rather than
-        create it. A freshly created detached worktree has no branch yet.
+        Since the durable cross-stage carry (DESIGN §13) the worktree is on the
+        per-ticket WIP branch ``kanban/ticket-<n>`` (pre create-branch) or
+        ``feat/<codename>`` (post), so this HONESTLY reports a named branch from
+        the first launch. A still-detached / GONE worktree maps to ``None``.
 
         Args:
             ticket: The issue number whose worktree to inspect.
 
         Returns:
-            The abbreviated branch name (e.g. ``feat/foo``), or ``None`` when
-            the worktree is still detached / has no named branch.
+            The abbreviated branch name (e.g. ``kanban/ticket-7`` or
+            ``feat/foo``), or ``None`` when the worktree is detached / GONE / has
+            no named branch.
         """
         ...
 
@@ -144,7 +154,9 @@ class Workspace(Protocol):
         The Cancel teardown force-deletes the cancelled ticket's local feature
         branch (``git branch -D``). The subprocess lives HERE in the adapter so
         :class:`~kanbanmate.app.actions.TeardownAction` stays free of
-        ``subprocess`` — the action calls this seam instead of shelling out.
+        ``subprocess`` — the action calls this seam instead of shelling out. The
+        caller PRESERVES the per-ticket WIP branch ``kanban/ticket-<n>`` (DESIGN
+        §13 durable carry) and only deletes a ``feat/<codename>`` branch.
 
         Fail-soft and replay-safe: a missing branch (git rc 1/128 on a replay)
         is swallowed, and ``""``/``"HEAD"`` are no-ops (a detached worktree has

@@ -489,8 +489,10 @@ def run_check_script(deps: Deps, issue_number: int, script: str) -> tuple[int, s
     """Discover the worktree branch, build the env, and run a check script (port ``_apply_script``).
 
     The thin "discover branch + env + run" unit shared by the ``run_script`` path AND the launch
-    gate. A fresh DETACHED worktree reports no branch → ``KANBAN_BRANCH=""`` (an honest answer that
-    correctly FAILS a PR check, port ``_discover_branch`` :573-582). The check scripts hard-require
+    gate. The worktree is on its WIP branch ``kanban/ticket-<n>`` (or ``feat/<codename>`` post
+    create-branch); a still-detached / GONE worktree reports no branch → ``KANBAN_BRANCH=""`` (an
+    honest answer that correctly FAILS a PR check, port ``_discover_branch`` :573-582). The check
+    scripts hard-require
     ``KANBAN_REPO`` + ``KANBAN_BRANCH`` (their ``: "${KANBAN_REPO:?}"`` guards, port ``_script_env``
     :585-592). The subprocess itself is bounded inside
     :meth:`~kanbanmate.ports.workspace.Workspace.run_transition_script`.

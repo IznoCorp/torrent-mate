@@ -20,16 +20,20 @@ This repo is also its own **Claude plugin marketplace** (`.claude-plugin/marketp
 
 ## Current Feature
 
-**Feature**: health-field — per-card "Health" GitHub single-select field carrying the operator's own
-vocabulary as native chips (a workaround for the fixed status-update pill enum), maintained by the
-daemon ON CHANGE.
-**Branch**: `feat/health-field`
-**Design**: `docs/features/health-field/DESIGN.md`
+**Feature**: hybrid-flow — robustness batch 2: make the HYBRID autonomous lifecycle flow. The
+engine now honours `advance:auto:<col>` on launch stages (the session-end backstop), the doc/build
+transitions carry the HYBRID advance directives (auto through Plan, human gate at Planned, auto-build
+to PR, CI gate auto-promotes to Review, Review stops, merge = human), cross-stage artifacts are
+durable via a per-ticket WIP branch, the implement-stage prompts stop at PR creation, and the docs
+profile gained a minimal shell.
+**Branch**: `feat/hybrid-flow`
+**Design**: `docs/features/hybrid-flow/DESIGN.md`
 **Plan**: `IMPLEMENTATION.md` (single feature branch — sub-phases tracked there)
 
 > genesis (Extraction & Hardening, 0.0.0 → 0.1.0) shipped + merged to `main` (PR #1) and archived to
 > `docs/archive/features/genesis/`. cockpit (kanban control & monitoring skill) shipped + merged
-> (PR #2). health-field is the current in-flight feature on `feat/health-field`.
+> (PR #2). health-field + robustness batch 1 shipped to `main` (v0.1.1). hybrid-flow is the current
+> in-flight feature on `feat/hybrid-flow` (v0.2.0).
 
 ## Architecture (at a glance)
 

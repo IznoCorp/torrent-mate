@@ -739,6 +739,29 @@ def test_teardown_action_skips_branch_delete_and_pr_for_head() -> None:
     m.store.purge_ticket.assert_called_once_with(7, keep_budgets=False)
 
 
+def test_teardown_action_preserves_wip_branch_on_cancel() -> None:
+    """Cancel PRESERVES the per-ticket WIP branch ``kanban/ticket-<n>`` (DESIGN §13).
+
+    A pre-create-branch ticket's worktree is on the WIP branch carrying committed design/plan;
+    deleting it on Cancel would destroy those artifacts. The branch delete is SKIPPED for the WIP
+    branch (a ``feat/<codename>`` branch is still deleted — see the full-parity test), while the
+    rest of the teardown still runs and the recap says the WIP branch was kept.
+    """
+    m = _mocks()
+    m.workspace.discover_branch.return_value = "kanban/ticket-7"
+    TeardownAction(ticket=_ticket(issue=7)).execute(m.deps)
+
+    # The WIP branch is NOT force-deleted (it carries the committed design/plan).
+    m.workspace.delete_branch.assert_not_called()
+    # The rest of the teardown still runs (worktree removed, state purged, recap posted).
+    m.workspace.remove_worktree.assert_called_once_with(7, force=True)
+    m.store.purge_ticket.assert_called_once_with(7, keep_budgets=False)
+    m.board_writer.comment.assert_called_once()
+    _issue_arg, body_arg = m.board_writer.comment.call_args.args
+    assert "kanban/ticket-7" in body_arg
+    assert "KEPT" in body_arg
+
+
 def test_teardown_action_fail_soft_continues_after_kill_error() -> None:
     """A failing kill step does not prevent the remaining teardown steps."""
     m = _mocks()

@@ -46,20 +46,32 @@ from kanbanmate.adapters.github.client import GithubClient
 from kanbanmate.adapters.github.token import load_token
 from kanbanmate.adapters.store.fs_store import FsStateStore
 from kanbanmate.app.stage_signal import upsert_stage_comment
-from kanbanmate.bin._pin import _registry_root, parse_issue_arg, resolve_kanban_root
-from kanbanmate.cli.init import ProjectEntry, _load_registry, _projects_path
+from kanbanmate.bin._clone_config import (
+    auto_advance_target,
+    load_clone_columns,
+    load_clone_transitions,
+    resolve_entry,
+)
+from kanbanmate.bin._pin import parse_issue_arg, resolve_kanban_root
+from kanbanmate.cli.init import ProjectEntry
+from kanbanmate.core.columns import resolve_column
 from kanbanmate.core.stage_comment import fmt_timestamp, header_from_state
+from kanbanmate.ports.store import TicketState
 
 _PROG = "kanban-session-end"
+
+# The Blocked column the auto-advance backstop parks a rate-limited runaway in (DESIGN §13). The
+# stable column KEY in the shipped board model; resolved to its display NAME before move_card.
+_BLOCKED_KEY = "Blocked"
 
 
 def _resolve_entry() -> ProjectEntry:
     """Resolve the single registered project from the per-clone registry.
 
-    v1 runs one repo per clone (DESIGN §4.3), so the registry must hold exactly one
-    entry; anything else is an operator misconfiguration we surface loudly. The registry is read
-    from the runtime root resolved by :func:`_registry_root` (``$KANBAN_ROOT`` when set, else the
-    ~/.kanban default — the km-worktree-helper-root fix, #1).
+    Back-compat thin wrapper over :func:`kanbanmate.bin._clone_config.resolve_entry` (the loader
+    was lifted into the shared ``_clone_config`` module so this leaf and ``kanban-move`` read the
+    SAME source of truth). Existing tests monkeypatch ``_resolve_entry`` on this module, so the
+    name is preserved here.
 
     Returns:
         The sole :class:`~kanbanmate.cli.init.ProjectEntry`.
@@ -67,13 +79,131 @@ def _resolve_entry() -> ProjectEntry:
     Raises:
         RuntimeError: When the registry does not hold exactly one project.
     """
-    projects_path = _projects_path(_registry_root())
-    registry = _load_registry(projects_path)
-    if len(registry) != 1:
-        raise RuntimeError(
-            f"expected exactly one registered project in {projects_path}, found {len(registry)}"
+    return resolve_entry()
+
+
+def _auto_advance(
+    state: TicketState,
+    issue: int,
+    client: GithubClient,
+    entry: ProjectEntry,
+    store: FsStateStore,
+    *,
+    now: float,
+) -> None:
+    """Honour a clean-done LAUNCH stage's ``advance:auto:<col>`` directive (DESIGN §13 backstop).
+
+    Mirrors ``app/script_route._route_success``'s auto-advance for the LAUNCH-stage path the engine
+    previously left dead: when a launch stage carries ``advance:auto:<col>`` and the agent ran
+    ``kanban-done`` WITHOUT moving its own card (the caller is inside ``done and not advanced``),
+    the ENGINE moves the card to ``<col>`` so the daemon's next ``diff`` fires the next stage. The
+    sticky was ALREADY finalized ✅ by the caller, so this only issues the move.
+
+    Discipline (matching the script-route gold standard):
+
+    * **clean-done gate** — only the caller's ``done and not advanced`` branch reaches here; an
+      interrupt (neither breadcrumb) goes to ⚠️, an agent self-move returned at branch 4. No double
+      move.
+    * **stop = no move** — :func:`auto_advance_target` returns ``None`` for ``advance:stop`` (the
+      Planned + Review human gates) → the card STOPS. This preserves the HYBRID human-review gates.
+    * **KEY → NAME** — the directive carries a column KEY; resolve it to the board's display NAME
+      via :func:`~kanbanmate.core.columns.resolve_column` (the script-route ``_to_board_name``
+      pattern) so a multiword column ("PR/CI") lands instead of raising ``KeyError`` in move_card.
+    * **rate-limit + anti-loop** — the OUTER per-issue rate-limit backstop: at/over
+      ``move_rate_limit_per_hour`` AUTO/bot moves this hour, the card is parked in Blocked instead
+      (bounding a runaway auto-advance chain). The engine move is the SANCTIONED mover (like the
+      script-route auto-move), so it moves directly via ``client.move_card`` — NEVER through
+      ``kanban_move.main()`` (whose AGENT anti-loop guard would refuse a launch-target column).
+    * **records the move, NOT an advance** — a successful move calls
+      :meth:`~kanbanmate.ports.store.StateStore.record_move_for_item` (feeds the rate-limit + makes
+      the daemon diff fire the next stage). It MUST NOT call ``record_agent_advance``: the engine
+      move is not an agent advance (the ✅/⚠️ sticky discriminator), and the sticky is already ✅.
+    * **fail-soft** — every board op is wrapped; on any error a warning is logged to stderr and the
+      session-end still returns 0 (it is the always-run leaf). The card simply does not advance —
+      no loop, no crash. Idempotency: a re-run hits the purged-state early return (no breadcrumb,
+      no move); a move to the column the card already sits in is a GitHub no-op.
+
+    Args:
+        state: The loaded :class:`~kanbanmate.ports.store.TicketState` (carries ``advance`` +
+            ``item_id``).
+        issue: The ticket's issue number (the rate-limit + comment key).
+        client: The fail-soft :class:`~kanbanmate.adapters.github.client.GithubClient` (wired once
+            by the caller for both the sticky finalize and this move).
+        entry: The resolved project registry entry (the clone path for the column + transition
+            config loaders).
+        store: The runtime state store (the rate-limit ledger).
+        now: The current wall-clock time (the rate-limit window + the recorded move timestamp).
+    """
+    target_key = auto_advance_target(state.advance)
+    if target_key is None:
+        # advance:stop (or empty/malformed) → the card STOPS (the Planned/Review human gates). The
+        # previously-dead config was a no-op for launch stages; for a stop directive that is still
+        # correct — nothing to do.
+        return
+    if not state.item_id:
+        # No persisted card node id → nothing to move (a draft/old-format state); fail-soft no-op.
+        return
+    try:
+        columns = load_clone_columns(entry)
+        cfg = load_clone_transitions(entry)
+    except Exception as exc:  # noqa: BLE001 — fail-soft: a config-read failure never breaks session-end.
+        print(
+            f"{_PROG}: warning: could not load clone config for #{issue} auto-advance: {exc}",
+            file=sys.stderr,
         )
-    return next(iter(registry.values()))
+        return
+
+    # Resolve the directive KEY → the board's display NAME (defect-2 pattern) so a multiword
+    # target ("PR/CI") lands. An unknown target column → fail-soft no-op (never raise).
+    target_col = resolve_column(columns, target_key)
+    if target_col is None:
+        print(
+            f"{_PROG}: warning: auto-advance target {target_key!r} for #{issue} is not a known "
+            "column; skipping the engine move",
+            file=sys.stderr,
+        )
+        return
+    target_name = target_col.name
+
+    # OUTER per-issue rate-limit backstop (matching _route_success / reaper._rate_limited: the
+    # cap-th move allowed, the (cap+1)-th parked). Bounds a runaway auto-advance chain. The engine
+    # move is the only feeder of this counter on a launch stage (the agent's own kanban-move never
+    # records it), so the human workflow is never rate-limited.
+    if store.move_count_for_item_last_hour(issue, now=now) >= cfg.move_rate_limit_per_hour:
+        blocked_col = resolve_column(columns, _BLOCKED_KEY)
+        blocked_name = blocked_col.name if blocked_col is not None else _BLOCKED_KEY
+        try:
+            client.move_card(state.item_id, blocked_name)
+            client.comment(
+                issue,
+                "KanbanMate: auto-advance rate limit exceeded — parked in Blocked.",
+            )
+        except Exception as exc:  # noqa: BLE001 — fail-soft: a park-board-op error never breaks session-end.
+            print(
+                f"{_PROG}: warning: could not park #{issue} in Blocked (rate limit): {exc}",
+                file=sys.stderr,
+            )
+        # Record the engine's own park move so a later tick recognises it + the counter stays
+        # bounded (defense-in-depth, matching _park_runaway).
+        store.record_move_for_item(issue, now=now)
+        print(
+            f"{_PROG}: ticket #{issue} auto-advance rate-limited — parked in Blocked.",
+            file=sys.stderr,
+        )
+        return
+
+    # Within the limit → the SANCTIONED engine auto-advance move. Direct client.move_card (NOT
+    # kanban_move.main, whose agent anti-loop guard would refuse a launch-target column). Record
+    # the move so the daemon's next diff sees (stage → target) and fires the target transition.
+    try:
+        client.move_card(state.item_id, target_name)
+        store.record_move_for_item(issue, now=now)
+        print(f"{_PROG}: ticket #{issue} auto-advanced -> {target_name} (engine backstop).")
+    except Exception as exc:  # noqa: BLE001 — fail-soft: the engine move must never break session-end.
+        print(
+            f"{_PROG}: warning: could not auto-advance #{issue} to {target_name!r}: {exc}",
+            file=sys.stderr,
+        )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -185,9 +315,26 @@ def main(argv: list[str] | None = None) -> int:
                     "runtime record removed (slot freed), per-issue budgets preserved."
                 )
                 return 0
+            # Wire a fail-soft GithubClient ONCE for BOTH the ✅ sticky finalize AND the
+            # auto-advance backstop (4c). Both share the same entry/client; an unreachable API
+            # must never break the always-run session-end, so the wiring is wrapped.
             try:
                 entry = _resolve_entry()
                 client = GithubClient(load_token(), project_id=entry.project_id, repo=entry.repo)
+            except Exception as exc:  # noqa: BLE001 — fail-soft: wiring failure never breaks session-end.
+                print(
+                    f"{_PROG}: warning: could not wire GitHub client for #{issue}: {exc}",
+                    file=sys.stderr,
+                )
+                # No client → neither the sticky finalize nor the auto-advance can run; the slot is
+                # already freed (step 3), so report the clean done and return (fail-soft).
+                print(
+                    f"{_PROG}: ticket #{issue} done (clean completion, no advance); runtime record "
+                    "removed (slot freed), per-issue budgets preserved (GitHub finalize skipped)."
+                )
+                return 0
+            # ✅ sticky finalize — a done-without-advance is a CLEAN completion, not a crash.
+            try:
                 header = header_from_state(
                     asdict(state), issue, stage, "done", finished=fmt_timestamp(now)
                 )
@@ -197,6 +344,14 @@ def main(argv: list[str] | None = None) -> int:
                     f"{_PROG}: warning: could not finalize ✅ done sticky for #{issue}: {exc}",
                     file=sys.stderr,
                 )
+            # 4c. ENGINE auto-advance backstop (DESIGN §13 hybrid flow). A clean-done LAUNCH stage
+            #     whose persisted ``advance`` is ``auto:<col>`` and whose agent did NOT advance its
+            #     own card (we are inside ``done and not advanced``) is moved to ``<col>`` by the
+            #     engine — turning the previously-DEAD ``advance:auto`` config into a live move so
+            #     the daemon's next diff fires the next stage. ``advance:stop`` (the Planned + Review
+            #     human gates) returns None here → the card STOPS (no move). Idempotent + fail-soft +
+            #     rate-limited; see :func:`_auto_advance`.
+            _auto_advance(state, issue, client, entry, store, now=now)
             print(
                 f"{_PROG}: ticket #{issue} done (clean completion, no advance); runtime record "
                 "removed (slot freed), per-issue budgets preserved, sticky finalized ✅."

@@ -34,6 +34,7 @@ from kanbanmate.adapters.perms import (
     provision_worktree_skills,
     write_issue_pin,
 )
+from kanbanmate.adapters.workspace.worktree import wip_branch
 from kanbanmate.app.stage_signal import (
     _cancel_open_stickys,
     _done_open_stickys,
@@ -65,8 +66,8 @@ from kanbanmate.ports.workspace import Sessions, Workspace
 
 logger = logging.getLogger(__name__)
 
-# The default integration base a fresh worktree is checked out detached on. Matches the
-# ``Workspace.ensure_worktree`` default; kept here so a config can override it per-repo later.
+# The default integration base the per-ticket WIP branch is first created off (DESIGN §13). Matches
+# the ``Workspace.ensure_worktree`` default; kept here so a config can override it per-repo later.
 DEFAULT_BASE = "main"
 
 # The LEGACY/test-only default for ``Deps.profile`` (DESIGN §10). ``docs`` is the minimal floor
@@ -104,7 +105,7 @@ class Deps:
         pull_requests: PR close side (Cancel teardown only; DESIGN §8.2). The
             same concrete ``GithubClient`` instance that backs ``board_writer``
             satisfies it, so one client is wired into both ports.
-        base: The integration base branch new worktrees check out detached.
+        base: The integration base branch the per-ticket WIP branch is first created off.
         agent_command: DEAD knob (minor (d)). NOTHING reads it: ``LaunchAction._agent_command``
             ALWAYS builds the bare ``claude`` argv via ``build_claude_argv`` (both the prompt-bearing
             AND the ``prompt=None`` paths), so this field is never the launch body. It is retained
@@ -201,7 +202,7 @@ class LaunchAction:
 
     Ported from the PoC ``engine/launch.py`` ``start_session`` (the n8n/payload bits dropped):
 
-    1. ensure the per-ticket detached worktree exists (idempotent);
+    1. ensure the per-ticket worktree exists on its WIP branch ``kanban/ticket-<n>`` (idempotent);
     2. materialise the permission profile into ``<worktree>/.claude/settings.json`` (DESIGN
        §10) so the agent boots under a pinned mode + concrete allow/deny — merge stays
        human-only, force-push and history rewrite are denied;
@@ -329,7 +330,8 @@ class LaunchAction:
         # running under a global ``Deps.profile`` default. ``_resolve_profile`` raises when empty.
         profile = self._resolve_profile()
 
-        # 1. Idempotent detached worktree on origin/<base>.
+        # 1. Idempotent worktree on the per-ticket WIP branch ``kanban/ticket-<n>`` (DESIGN §13 —
+        #    reused so the prior stage's committed docs/features/<codename>/ artifacts are present).
         worktree = deps.workspace.ensure_worktree(issue, base=deps.base)
         # 2. Materialise the permission profile into the worktree BEFORE the session starts, so
         # the agent reads its pinned mode + concrete allow/deny on startup (DESIGN §10: merge is
@@ -646,8 +648,9 @@ class LaunchAction:
         Returns:
             The substitution context mapping for :func:`kanbanmate.core.placeholders.fill`.
         """
-        # Discover the worktree's branch (idempotent read via the workspace port); a fresh
-        # detached worktree reports ``None`` (mapped to ``""`` for the placeholder).
+        # Discover the worktree's branch (idempotent read): the per-ticket WIP branch
+        # ``kanban/ticket-<n>`` (pre create-branch) or ``feat/<codename>`` (post); a still-detached /
+        # gone worktree reports ``None`` (mapped to ``""`` for the placeholder).
         branch = deps.workspace.discover_branch(issue) or ""
         fields = parse_ticket_fields(self.ticket.body or "")
         # 18.2: enrich the prompt with the FIRST cross-referenced issue body (``issue_body``, NOT
@@ -708,7 +711,8 @@ class TeardownAction:
     1. kill the tmux session (guarded — ``Sessions.kill`` raises on an absent session);
     2. remove the worktree with ``--force`` (a cancelled worktree is almost always dirty);
     3. force-delete the local feature branch (``git branch -D`` via the workspace seam; skip
-       ``""``/``"HEAD"``) — the subprocess lives in the adapter, so this action stays pure;
+       ``""``/``"HEAD"`` AND the per-ticket WIP branch ``kanban/ticket-<n>``, PRESERVED so a
+       cancelled ticket's committed design/plan survives — DESIGN §13) — subprocess in the adapter;
     4. release the concurrency slot (idempotent; the fs store also purges the persisted state);
     5. flip any OPEN stage stickies to their terminal status (❌ cancelled, or ✅ done for the
        Done-arrival flavour — DESIGN §8.2.c / phase 28.1);
@@ -823,10 +827,14 @@ class TeardownAction:
         #    in step 0. The ``git branch -D`` subprocess lives in the workspace adapter (the L2 seam),
         #    so this action stays subprocess-free; ``delete_branch`` is itself fail-soft and no-ops on
         #    ""/"HEAD" — and on the falsy ``branch`` a worktree-absent replay leaves (step 0 skipped).
-        # The ``reap`` flavour (defect 5) skips the branch delete — a non-destructive park keeps the
-        # local branch so the operator can recover the work (PoC ``reaper._move_to_blocked`` parity).
+        # The ``reap`` flavour (defect 5) skips it — a non-destructive park keeps the local branch.
+        # PRESERVE the per-ticket WIP branch ``kanban/ticket-<n>`` (DESIGN §13): it carries the
+        # committed ``docs/features/<codename>/`` design/plan, so deleting it on Cancel would DESTROY
+        # those artifacts — we keep it (the teardown's "remote branch kept" philosophy; close ≠
+        # delete-ref). The ``feat/<codename>`` branch (post create-branch) is STILL deleted.
         try:
-            if branch and branch != "HEAD" and self.flavour != "reap":
+            is_wip = bool(branch) and branch == wip_branch(issue)
+            if branch and branch != "HEAD" and self.flavour != "reap" and not is_wip:
                 deps.workspace.delete_branch(issue, branch)
         except Exception:
             logger.exception("teardown step 'branch_delete' failed for #%s; continuing", issue)
@@ -879,6 +887,13 @@ class TeardownAction:
             return
         if self.flavour == "done":
             recap = f"Ticket #{issue} moved to Done — agent torn down (worktree/session removed)."
+        elif branch and branch == wip_branch(issue):
+            # The WIP branch is PRESERVED (DESIGN §13) → the recap must NOT claim "local branch removed".
+            recap = (
+                f"Ticket #{issue} cancelled — worktree / session removed. The per-ticket WIP branch "
+                f"`{branch}` (any committed design/plan) is KEPT, PR closed, remote branch kept. "
+                f"Resume: move the card to Backlog."
+            )
         else:
             recap = (
                 f"Ticket #{issue} cancelled — worktree / local branch / session removed. "

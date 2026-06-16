@@ -74,8 +74,9 @@ class RunScriptAction:
         if issue is None:
             return
         try:
-            # Discover the per-ticket worktree branch (idempotent read via the workspace port);
-            # a fresh detached worktree reports ``None`` (mapped to "" for the env var).
+            # Discover the per-ticket worktree branch (idempotent read via the workspace port): the
+            # per-ticket WIP branch ``kanban/ticket-<n>`` (pre create-branch) or ``feat/<codename>``
+            # (post). A still-detached / gone worktree reports ``None`` (mapped to "" for the env var).
             branch = deps.workspace.discover_branch(issue) or ""
             # Port _script_env: the check scripts hard-require KANBAN_REPO + KANBAN_BRANCH (their
             # ``: "${KANBAN_REPO:?}"`` guards exit 1 without them). KANBAN_REPO is the board repo
