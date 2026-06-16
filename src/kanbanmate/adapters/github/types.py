@@ -75,6 +75,27 @@ class StatusField:
 
 
 @dataclass(frozen=True)
+class HealthField:
+    """The project's per-card "Health" single-select field, resolved once and reused.
+
+    The twin of :class:`StatusField` for the health-field feature: the custom
+    single-select FIELD the daemon maintains so the operator's own vocabulary
+    (``INACTIVE / BLOCKED / WAITING / ACTIVE / COMPLETE``) shows as native chips on
+    each card (GitHub's fixed status-update pill enum cannot carry the operator's
+    words). The client resolves it lazily (find-or-create) and caches it; the tick
+    reuses the cached id + option ids to set each card's Health on change.
+
+    Attributes:
+        field_id: The ``ProjectV2SingleSelectField`` node id (needed by the
+            ``updateProjectV2ItemFieldValue`` mutation alongside the option id).
+        options: Mapping of Health value name -> single-select option id.
+    """
+
+    field_id: str
+    options: dict[str, str]
+
+
+@dataclass(frozen=True)
 class IssueContext:
     """The rich issue context gathered by the ``issue_context`` GraphQL query.
 

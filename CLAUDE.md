@@ -20,14 +20,16 @@ This repo is also its own **Claude plugin marketplace** (`.claude-plugin/marketp
 
 ## Current Feature
 
-**Feature**: _(awaiting /implement:feature)_
-**Branch**: _(to be defined)_
-**Design**: _(to be defined)_
-**Plan**: _(to be defined)_
+**Feature**: health-field — per-card "Health" GitHub single-select field carrying the operator's own
+vocabulary as native chips (a workaround for the fixed status-update pill enum), maintained by the
+daemon ON CHANGE.
+**Branch**: `feat/health-field`
+**Design**: `docs/features/health-field/DESIGN.md`
+**Plan**: `IMPLEMENTATION.md` (single feature branch — sub-phases tracked there)
 
 > genesis (Extraction & Hardening, 0.0.0 → 0.1.0) shipped + merged to `main` (PR #1) and archived to
 > `docs/archive/features/genesis/`. cockpit (kanban control & monitoring skill) shipped + merged
-> (PR #2). Start the next feature with `/implement:feature`.
+> (PR #2). health-field is the current in-flight feature on `feat/health-field`.
 
 ## Architecture (at a glance)
 

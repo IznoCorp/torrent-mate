@@ -5141,6 +5141,63 @@ def test_tick_succeeds_if_status_reporter_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Per-card Health field wiring (health-field): a THIN fail-soft call (Step 4e).
+# ---------------------------------------------------------------------------
+
+
+def test_health_step_writes_chip_for_a_card_on_a_snapshotting_tick() -> None:
+    """A snapshotting tick calls apply_health → a chip write for a changed card."""
+    import dataclasses
+    from unittest.mock import MagicMock
+
+    from kanbanmate.adapters.github.types import HealthField
+
+    ticket = Ticket(item_id="PVTI_7", issue_number=7, title="t", column_key="Done")
+    reader = _FakeBoardReader("probe-1", _snapshot(ticket))
+    m = _mocks(reader)
+    # Pin the health-state reads so apply_health ensures the field then writes the card:
+    # bound to the live project (no rebind), no cached field (→ ensure), no last-written value.
+    m.store.get_health_project_id.return_value = "PVT_proj"
+    m.store.get_health_field_id.return_value = None
+    m.store.get_health_options.return_value = {}
+    m.store.get_item_health.return_value = None
+    spy = MagicMock()
+    spy.ensure_health_field.return_value = HealthField(
+        field_id="HEALTH_F",
+        options={n: n.lower() for n in ("INACTIVE", "WAITING", "ACTIVE", "BLOCKED", "COMPLETE")},
+    )
+    deps = dataclasses.replace(m.deps, health_reporter=spy, project_id="PVT_proj")
+    # The card is in Done with no agent → COMPLETE; the baseline keeps the tick a no-action NOOP.
+    state = PersistedState(columns_by_item={"PVTI_7": "Done"}, last_probe="probe-0")
+
+    tick(deps, _config(), state)
+
+    spy.set_item_health.assert_called_once_with("PVTI_7", "COMPLETE")
+
+
+def test_tick_succeeds_if_health_step_raises() -> None:
+    """A health reporter that raises must NOT break the tick (the step is wholly fail-soft)."""
+    import dataclasses
+    from unittest.mock import MagicMock
+
+    ticket = Ticket(item_id="PVTI_7", issue_number=7, title="t", column_key="InProgress")
+    reader = _FakeBoardReader("probe-1", _snapshot(ticket))
+    m = _mocks(reader)
+    m.store.get_health_project_id.return_value = "PVT_proj"
+    m.store.get_health_field_id.return_value = None
+    m.store.get_health_options.return_value = {}
+    boom = MagicMock()
+    boom.ensure_health_field.side_effect = RuntimeError("health API down")
+    deps = dataclasses.replace(m.deps, health_reporter=boom, project_id="PVT_proj")
+    state = PersistedState(columns_by_item={"PVTI_7": "Backlog"}, last_probe="probe-0")
+
+    # The launch still happened and the tick returned normally despite the health step blowing up.
+    result, _ = tick(deps, _config(), state)
+    m.sessions.launch.assert_called_once()
+    assert result.actions_executed == 1
+
+
+# ---------------------------------------------------------------------------
 # Wrong-stage relaunch guard (engine fix b): a DEAD-session state whose stage no longer matches the
 # card's current column is PURGED instead of relaunched onto the wrong stage (live helm #5).
 # ---------------------------------------------------------------------------

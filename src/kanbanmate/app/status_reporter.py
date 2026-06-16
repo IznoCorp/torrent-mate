@@ -55,6 +55,54 @@ if TYPE_CHECKING:  # pragma: no cover - import only for type checking (no runtim
 
 logger = logging.getLogger(__name__)
 
+
+class _NullStatusReporter:
+    """A no-op :class:`~kanbanmate.ports.board.ProjectStatusReporter` (the safe default).
+
+    Satisfies the port so :class:`~kanbanmate.app.actions.Deps` defaults to a reporter that
+    posts NOTHING — used when no real GitHub client is wired (offline tests, the legacy
+    ``Deps(...)`` constructions that predate phase-24). ``create_status_update`` returns an
+    empty id and ``update_status_update`` is a no-op, so a tick whose reporter is this null
+    one renders the dashboard but never touches the network (the rolling status update is
+    observability, never load-bearing — DESIGN §8.7).
+
+    Lives here (not in :mod:`kanbanmate.app.actions`) so ``actions.py`` — at the 1000-LOC
+    ceiling — only IMPORTS the no-op rather than carrying its body (mirrors
+    :class:`kanbanmate.app.health_reporter._NullHealthReporter`).
+    """
+
+    def create_status_update(self, project_id: str, body: str, status: str) -> str:
+        """Return an empty id (no post). See the class docstring.
+
+        Args:
+            project_id: Ignored.
+            body: Ignored.
+            status: Ignored.
+
+        Returns:
+            The empty string (no status update was created).
+        """
+        return ""
+
+    def update_status_update(self, status_update_id: str, body: str, status: str) -> None:
+        """No-op (no post). See the class docstring.
+
+        Args:
+            status_update_id: Ignored.
+            body: Ignored.
+            status: Ignored.
+        """
+        return None
+
+    def delete_status_update(self, status_update_id: str) -> None:
+        """No-op (no delete). See the class docstring (phase-36 orphan cleanup).
+
+        Args:
+            status_update_id: Ignored.
+        """
+        return None
+
+
 # Maps a decided/executed :class:`~kanbanmate.core.domain.ActionKind` to the
 # coarse event ``kind`` the recent-events ring records (and the pure render's
 # emoji table keys, :data:`kanbanmate.core.status_update.EVENT_EMOJI`). RESET is

@@ -226,6 +226,50 @@ def move_item(
     }
 
 
+def create_project_field_single_select(
+    project_id: str, name: str, options: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Build the ``createProjectV2Field`` mutation for a NEW single-select field (health-field).
+
+    Creates a per-card single-select FIELD (used for the custom "Health" field so the
+    operator's vocabulary shows as native chips). Each option carries a ``name`` +
+    ``color`` (one of GitHub's fixed palette tokens GRAY / BLUE / GREEN / YELLOW /
+    ORANGE / RED / PINK / PURPLE) + a ``description`` — the same
+    ``ProjectV2SingleSelectFieldOptionInput`` shape :func:`update_status_field_options`
+    builds. The response returns the new field id + its option ids so the caller can
+    persist them and set per-card values without a re-read.
+
+    Args:
+        project_id: The ``ProjectV2`` node id to create the field on.
+        name: The field name (``"Health"`` for the health-field feature).
+        options: The single-select options to create, each a
+            ``{"name": ..., "color": ..., "description": ...}`` mapping.
+
+    Returns:
+        A GraphQL ``createProjectV2Field`` mutation payload whose response carries
+        ``projectV2Field { id name options { id name } }``.
+    """
+    query = """
+    mutation($projectId: ID!, $name: String!,
+             $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
+      createProjectV2Field(input: {
+        projectId: $projectId
+        dataType: SINGLE_SELECT
+        name: $name
+        singleSelectOptions: $options
+      }) {
+        projectV2Field {
+          ... on ProjectV2SingleSelectField { id name options { id name } }
+        }
+      }
+    }
+    """
+    return {
+        "query": query,
+        "variables": {"projectId": project_id, "name": name, "options": options},
+    }
+
+
 # NOTE (#14): the GraphQL comment path (``issue_node_id`` builder + ``add_comment`` mutation) was
 # DELETED here. The PoC posted a comment via two GraphQL calls; NEW posts via a single REST POST
 # (:meth:`kanbanmate.adapters.github.client.GithubClient.comment`), so these builders were dead

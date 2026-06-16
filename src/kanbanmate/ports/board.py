@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from kanbanmate.adapters.github.types import CommentRef, IssueContext, IssueRef
+from kanbanmate.adapters.github.types import CommentRef, HealthField, IssueContext, IssueRef
 from kanbanmate.core.domain import BoardSnapshot
 
 
@@ -414,5 +414,55 @@ class ProjectStatusReporter(Protocol):
 
         Args:
             status_update_id: The orphaned ``ProjectV2StatusUpdate`` node id to delete.
+        """
+        ...
+
+
+class ProjectHealthReporter(Protocol):
+    """Per-card "Health" single-select field side of the board (the health-field feature).
+
+    A small, dedicated port (interface segregation) so the on-change Health step depends
+    only on the two capabilities it uses — ensuring the custom "Health" field exists and
+    setting a card's Health value — never the full board write surface. The production
+    :class:`~kanbanmate.adapters.github.client.GithubClient` satisfies it alongside the
+    other board ports, so one client instance is wired into this slot too (DESIGN §3.3).
+
+    The "Health" field carries the operator's OWN vocabulary
+    (``INACTIVE / BLOCKED / WAITING / ACTIVE / COMPLETE``) as native chips on each card —
+    a workaround for GitHub's fixed status-update pill enum, which cannot be renamed (see
+    :mod:`kanbanmate.core.health`). The daemon maintains it ON CHANGE, fully fail-soft (a
+    write error is observability, NEVER a launch blocker), so the call site swallows
+    errors while the adapter still raises on a GraphQL error.
+
+    ``HealthField`` is an adapter value object named here on the
+    :class:`ProjectStatusReporter` / :class:`BoardWriter` precedent — a ``ports`` Protocol
+    may reference adapter records (only ``core`` may not; the downward-only import guard).
+    """
+
+    def ensure_health_field(self, project_id: str) -> HealthField:
+        """Idempotently find-or-create the "Health" single-select field; reconcile drift.
+
+        Resolves the custom per-card "Health" field once (creating it with the 5 named +
+        coloured options when absent, reconciling drifted options when present), so the
+        on-change step can set per-card values. The result is cached by the adapter.
+
+        Args:
+            project_id: The ``ProjectV2`` node id whose Health field to ensure.
+
+        Returns:
+            The resolved/created :class:`~kanbanmate.adapters.github.types.HealthField`.
+        """
+        ...
+
+    def set_item_health(self, item_id: str, value: str) -> None:
+        """Set card ``item_id``'s Health value to ``value`` (one of the 5 Health names).
+
+        Reuses the single-select item-value write the column move uses — the SAME
+        ``updateProjectV2ItemFieldValue`` mutation, only against the Health field.
+
+        Args:
+            item_id: The ``ProjectV2Item`` node id whose Health value to set.
+            value: One of the 5 Health names
+                (:data:`~kanbanmate.core.status_update.STATUS_VALUES`).
         """
         ...

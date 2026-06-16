@@ -141,6 +141,10 @@ def build_deps(config: WiringConfig) -> Deps:
         # (the live dashboard, phase-24 §24.3), so it is wired into this slot too. The board id it
         # posts on is threaded alongside (the reporter ``create``s on it).
         status_reporter=board,
+        # One client, now a FIFTH port: the same instance backs the per-card Health reporter
+        # (the custom chip carrying the operator's vocabulary — health-field), wired into this
+        # slot too so the tick's fail-soft Health step can ensure the field + set per-card values.
+        health_reporter=board,
         project_id=config.project_id,
         # The GithubClient also implements Seeder (create_issue / add_to_project) — threaded for the
         # cockpit ticket_create intent executor (PR3).

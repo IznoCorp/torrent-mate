@@ -27,6 +27,7 @@ import os
 import time
 
 from kanbanmate.adapters.store.fs_breadcrumbs import AgentBreadcrumbsMixin
+from kanbanmate.adapters.store.fs_health_state import HealthStateMixin
 from kanbanmate.adapters.store.fs_intents import IntentsStateMixin
 from kanbanmate.adapters.store.fs_status_state import StatusUpdateStateMixin
 from kanbanmate.ports.store import LIVE_STATUSES, TicketState, TicketStatus
@@ -64,7 +65,9 @@ def _warn_corrupt_state(path: Path, err: Exception) -> None:
 _RATE_WINDOW = 3600.0
 
 
-class FsStateStore(AgentBreadcrumbsMixin, StatusUpdateStateMixin, IntentsStateMixin):
+class FsStateStore(
+    AgentBreadcrumbsMixin, StatusUpdateStateMixin, HealthStateMixin, IntentsStateMixin
+):
     """Filesystem-backed :class:`~kanbanmate.ports.store.StateStore` implementation.
 
     Persists per-ticket runtime state as JSON files under ``<root>/state/``.
@@ -73,8 +76,10 @@ class FsStateStore(AgentBreadcrumbsMixin, StatusUpdateStateMixin, IntentsStateMi
 
     The rolling project status-update markers (``<root>/status/``) live in
     :class:`~kanbanmate.adapters.store.fs_status_state.StatusUpdateStateMixin`,
-    mixed in here (a behaviour-preserving extraction under the 1000-LOC ceiling,
-    phase-24 §24.2); this class still satisfies the FULL ``StateStore`` Protocol.
+    and the per-card Health field markers (``<root>/health/``) in
+    :class:`~kanbanmate.adapters.store.fs_health_state.HealthStateMixin` — both mixed
+    in here (behaviour-preserving extractions under the 1000-LOC ceiling); this class
+    still satisfies the FULL ``StateStore`` Protocol.
 
     Attributes:
         root: The root directory for all persisted state (default ``~/.kanban/``).
@@ -118,6 +123,11 @@ class FsStateStore(AgentBreadcrumbsMixin, StatusUpdateStateMixin, IntentsStateMi
         # per-issue): the rolling update's node id, the last-posted body hash (for
         # on-change diffing), and the bounded recent-events ring (≤10 newest).
         (self.root / "status").mkdir(parents=True, exist_ok=True)
+        # Per-card Health single-select field markers (health-field): board-wide
+        # field id + options under ``health/``, and one ``health/last/<item>`` marker
+        # per card holding its last-written Health value (the on-change diff key).
+        (self.root / "health").mkdir(parents=True, exist_ok=True)
+        (self.root / "health" / "last").mkdir(parents=True, exist_ok=True)
 
     # ------------------------------------------------------------------
     # StateStore Protocol methods

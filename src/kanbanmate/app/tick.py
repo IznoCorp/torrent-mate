@@ -47,6 +47,7 @@ from kanbanmate.app.actions import (
 )
 from kanbanmate.app.depgate import resolve_dependency_gate
 from kanbanmate.app.drain import _drain_queue as _drain_queue_impl
+from kanbanmate.app.health_reporter import apply_health
 from kanbanmate.app.intents import drain_intents
 from kanbanmate.app.reaper import _ReapMove, reap_stale_agents
 from kanbanmate.app.stage_signal import upsert_stage_comment
@@ -910,6 +911,20 @@ def tick(
             queue_depth=len(deps.store.dequeue_pending()),
             paused=kill_switch,
             events=status_events,
+            now=now,
+        )
+
+        # Step 4e: per-card Health single-select chips (health-field). A THIN, wholly fail-soft
+        # call — ``apply_health`` swallows every exception, so the chips are observability that
+        # can NEVER raise into the tick or block a launch. ``snapshot`` is ``None`` when the probe
+        # was unchanged → the step early-returns (Health writes only on a tick that snapshotted,
+        # which is also the only tick a column could have changed; the per-card on-change diff
+        # suppresses repeats). ``list_running`` is the SAME RUNNING+WAITING view report_status uses.
+        apply_health(
+            deps,
+            config,
+            running=deps.store.list_running(),
+            snapshot=snapshot,
             now=now,
         )
 

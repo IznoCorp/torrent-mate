@@ -282,6 +282,42 @@ class _FakeStore:
         """Unused by the read-only commands (status-update state, phase-24)."""
         return ()
 
+    def get_health_project_id(self) -> str | None:  # pragma: no cover
+        """Unused by the read-only commands (Health field state, health-field)."""
+        return None
+
+    def set_health_project_id(self, project_id: str | None) -> None:  # pragma: no cover
+        """Unused by the read-only commands (Health field state, health-field)."""
+        pass
+
+    def get_health_field_id(self) -> str | None:  # pragma: no cover
+        """Unused by the read-only commands (Health field state, health-field)."""
+        return None
+
+    def set_health_field_id(self, field_id: str | None) -> None:  # pragma: no cover
+        """Unused by the read-only commands (Health field state, health-field)."""
+        pass
+
+    def get_health_options(self) -> dict[str, str]:  # pragma: no cover
+        """Unused by the read-only commands (Health field state, health-field)."""
+        return {}
+
+    def set_health_options(self, options: dict[str, str]) -> None:  # pragma: no cover
+        """Unused by the read-only commands (Health field state, health-field)."""
+        pass
+
+    def get_item_health(self, item_id: str) -> str | None:  # pragma: no cover
+        """Unused by the read-only commands (Health field state, health-field)."""
+        return None
+
+    def set_item_health(self, item_id: str, value: str | None) -> None:  # pragma: no cover
+        """Unused by the read-only commands (Health field state, health-field)."""
+        pass
+
+    def clear_health_markers(self) -> None:  # pragma: no cover
+        """Unused by the read-only commands (Health field state, health-field)."""
+        pass
+
     def enqueue_intent(self, intent_id: str, payload: object) -> None:  # pragma: no cover
         """Unused by the read-only commands (intent queue, cockpit PR2)."""
         pass

@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import importlib.resources
 import json
+import logging
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -43,6 +44,8 @@ from kanbanmate.adapters.workspace.worktree import GitWorktreeWorkspace
 from kanbanmate.core.columns import load_columns
 from kanbanmate.core.transitions_defaults import render_transitions_yaml
 from kanbanmate.ports.board import Seeder
+
+logger = logging.getLogger(__name__)
 
 # The package and resource locating the bundled ``columns.yml`` template. Loaded
 # via ``importlib.resources`` so it resolves from installed package data (a wheel
@@ -312,6 +315,24 @@ def init(
     columns = load_columns(template_text)
     column_names = [col.name for col in columns.values()]
     option_map = active_seeder.ensure_columns(project_id, column_names)
+
+    # 2b. Health field (health-field): best-effort find-or-create the per-card "Health"
+    #     single-select chip at init so a fresh board carries it immediately. NOT required
+    #     — the daemon self-heals on its first tick (``apply_health`` ensures the field) —
+    #     so a failure here is logged, never fatal (mirrors update_project_description's
+    #     non-fatal posture). The Seeder Protocol does not declare ensure_health_field, so
+    #     it is invoked via getattr (the production GithubClient implements it; a seeder
+    #     fake without it simply skips this best-effort step).
+    ensure_health = getattr(active_seeder, "ensure_health_field", None)
+    if callable(ensure_health):
+        try:
+            ensure_health(project_id)
+        except Exception:  # noqa: BLE001 — best-effort; the daemon self-heals on tick 1
+            logger.warning(
+                "init: best-effort Health field ensure failed; the daemon will create it on "
+                "its first tick",
+                exc_info=True,
+            )
 
     # 3. Labels: the wave:* / prio:* routing labels the seed step applies.
     label_names = _default_labels()

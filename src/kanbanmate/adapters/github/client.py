@@ -19,7 +19,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from kanbanmate.adapters.github import _parsers, _queries, _rest
+from kanbanmate.adapters.github import _health, _parsers, _queries, _rest
 from kanbanmate.adapters.github._parsers import GitHubHTTPError, raise_for_errors
 from kanbanmate.adapters.github._transport import (
     GraphQLTransport,
@@ -30,6 +30,7 @@ from kanbanmate.adapters.github._transport import (
 )
 from kanbanmate.adapters.github.types import (
     CommentRef,
+    HealthField,
     IssueContext,
     IssueRef,
     RawItem,
@@ -139,6 +140,9 @@ class GithubClient:
         else:
             self._rest_headers = default.rest_with_headers
         self._status_field: StatusField | None = None
+        # The per-card "Health" single-select field, resolved lazily on first use and
+        # cached for the process (health-field). Mirrors ``_status_field``.
+        self._health_field: HealthField | None = None
 
     @property
     def transport_timeouts(self) -> Timeouts:
@@ -581,6 +585,59 @@ class GithubClient:
             GraphQLError: When the mutation response carries errors.
         """
         data = self._graphql(_queries.delete_status_update(status_update_id))
+        raise_for_errors(data)
+
+    # ---- ProjectHealthReporter (per-card Health single-select chip; health-field) ----
+    def ensure_health_field(self, project_id: str) -> HealthField:
+        """Find-or-create the "Health" single-select field; reconcile drift, cache it.
+
+        Mirrors :meth:`_resolve_status_field` / :meth:`ensure_columns`: resolves the
+        custom per-card "Health" field (so the operator's vocabulary shows as native
+        chips, see :mod:`kanbanmate.core.health`) once per process and caches it. The
+        find-or-create + reconcile logic lives in
+        :func:`kanbanmate.adapters.github._health.ensure_health_field` (extracted to keep
+        this already-large client lean); it reuses the ``status_option_map`` read and the
+        ``update_status_field_options`` REPLACE, creating the field only when absent.
+
+        Routes through :attr:`_graphql`, so every read/create/replace inherits the
+        client's mandatory connect+read timeouts (CLAUDE.md Network Timeout Safety).
+
+        Args:
+            project_id: The ``ProjectV2`` node id whose Health field to ensure.
+
+        Returns:
+            The resolved/created :class:`~kanbanmate.adapters.github.types.HealthField`.
+        """
+        if self._health_field is None:
+            self._health_field = _health.ensure_health_field(self._graphql, project_id)
+        return self._health_field
+
+    def set_item_health(self, item_id: str, value: str) -> None:
+        """Set card ``item_id``'s Health single-select value to ``value`` (one HEALTH name).
+
+        REUSES the EXISTING ``move_item`` mutation
+        (``updateProjectV2ItemFieldValue { value: { singleSelectOptionId } }``) with the
+        Health field id + the option id for ``value`` — there is NO new set mutation; the
+        Health write is the SAME single-select item-value write the column move uses,
+        only against the Health field. Ensures the field is resolved/cached first.
+
+        Routes through :attr:`_graphql`, inheriting the client's mandatory connect+read
+        timeouts (CLAUDE.md Network Timeout Safety) — no untimed network path.
+
+        Args:
+            item_id: The ``ProjectV2Item`` node id whose Health value to set.
+            value: One of the 5 Health names
+                (:data:`~kanbanmate.core.status_update.STATUS_VALUES`).
+
+        Raises:
+            KeyError: When ``value`` is not a known Health option.
+            GraphQLError: When the mutation response carries errors.
+        """
+        field = self.ensure_health_field(self._project_id)
+        option_id = field.options[value]  # value is one of STATUS_VALUES
+        data = self._graphql(
+            _queries.move_item(self._project_id, item_id, field.field_id, option_id)
+        )
         raise_for_errors(data)
 
     # ---- Seeder (per-repo init/seed; DESIGN §4.3) ----

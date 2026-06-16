@@ -11,7 +11,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from kanbanmate.adapters.github.types import CommentRef, IssueContext, RawItem, StatusField
+from kanbanmate.adapters.github.types import (
+    CommentRef,
+    HealthField,
+    IssueContext,
+    RawItem,
+    StatusField,
+)
 
 
 def parse_issue_comments(data: list[dict[str, Any]]) -> list[CommentRef]:
@@ -191,6 +197,63 @@ def parse_status_field(data: dict[str, Any]) -> StatusField:
             options = {str(opt["name"]): str(opt["id"]) for opt in field["options"]}
             return StatusField(field_id=str(field["id"]), options=options)
     raise ValueError("no Status single-select field on this project")
+
+
+def parse_health_field(data: dict[str, Any]) -> HealthField | None:
+    """Return the "Health" single-select field's id + options, or ``None`` when absent.
+
+    Reuses the :func:`kanbanmate.adapters.github._queries.status_option_map` response
+    shape (that query reads EVERY ``ProjectV2SingleSelectField``, not just Status — only
+    the Status parsers filter by name), so the client can find-or-create the Health field
+    off a single read. Filters to ``name == "Health"`` AND the presence of an ``options``
+    node — a non-single-select field named "Health" has no ``options`` node and is treated
+    as absent (the caller then creates the real single-select field), per spec §8.5.
+
+    Args:
+        data: A decoded
+            :func:`kanbanmate.adapters.github._queries.status_option_map` response.
+
+    Returns:
+        A :class:`~kanbanmate.adapters.github.types.HealthField` with the field id and a
+        ``{option_name: option_id}`` mapping, or ``None`` when no "Health" single-select
+        field is present (the caller creates it).
+
+    Raises:
+        GraphQLError: When the response carries a non-empty ``errors`` array.
+    """
+    raise_for_errors(data)
+    nodes = (((data.get("data") or {}).get("node") or {}).get("fields") or {}).get("nodes") or []
+    for field in nodes:
+        if field and field.get("name") == "Health" and "options" in field:
+            options = {str(opt["name"]): str(opt["id"]) for opt in field["options"]}
+            return HealthField(field_id=str(field["id"]), options=options)
+    return None  # absent → the caller creates the field
+
+
+def parse_created_single_select_field(data: dict[str, Any]) -> HealthField:
+    """Return a newly-created single-select field's id + options (health-field).
+
+    Parses the ``createProjectV2Field`` response built by
+    :func:`kanbanmate.adapters.github._queries.create_project_field_single_select`.
+    Used by the client right after it creates the "Health" field, so the ids are
+    persisted without a follow-up read.
+
+    Args:
+        data: A decoded
+            :func:`kanbanmate.adapters.github._queries.create_project_field_single_select`
+            response.
+
+    Returns:
+        A :class:`~kanbanmate.adapters.github.types.HealthField` with the created field
+        id and its ``{option_name: option_id}`` map.
+
+    Raises:
+        GraphQLError: When the response carries a non-empty ``errors`` array.
+    """
+    raise_for_errors(data)
+    field = ((data.get("data") or {}).get("createProjectV2Field") or {}).get("projectV2Field") or {}
+    options = {str(opt["name"]): str(opt["id"]) for opt in (field.get("options") or [])}
+    return HealthField(field_id=str(field["id"]), options=options)
 
 
 def parse_issue_context(data: dict[str, Any]) -> IssueContext:

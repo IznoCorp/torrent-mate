@@ -49,9 +49,12 @@ from kanbanmate.core.launch_keys import (
 from kanbanmate.core.placeholders import fill
 from kanbanmate.core.stage_comment import HeaderInfo, fmt_timestamp
 from kanbanmate.core.ticket_fields import parse_ticket_fields
+from kanbanmate.app.health_reporter import _NullHealthReporter
+from kanbanmate.app.status_reporter import _NullStatusReporter
 from kanbanmate.ports.board import (
     BoardReader,
     BoardWriter,
+    ProjectHealthReporter,
     ProjectStatusReporter,
     PullRequests,
     Seeder,
@@ -79,48 +82,6 @@ DEFAULT_PROFILE = "docs"
 # :class:`~kanbanmate.ports.store.TicketStatus`; the reaper only ages tickets whose
 # ``status`` is ``TicketStatus.RUNNING``.
 STATUS_RUNNING: TicketStatus = TicketStatus.RUNNING
-
-
-class _NullStatusReporter:
-    """A no-op :class:`~kanbanmate.ports.board.ProjectStatusReporter` (the safe default).
-
-    Satisfies the port so :class:`Deps` defaults to a reporter that posts NOTHING — used when
-    no real GitHub client is wired (offline tests, the legacy ``Deps(...)`` constructions that
-    predate phase-24). ``create_status_update`` returns an empty id and ``update_status_update``
-    is a no-op, so a tick whose reporter is this null one renders the dashboard but never touches
-    the network (the rolling status update is observability, never load-bearing — DESIGN §8.7).
-    """
-
-    def create_status_update(self, project_id: str, body: str, status: str) -> str:
-        """Return an empty id (no post). See the class docstring.
-
-        Args:
-            project_id: Ignored.
-            body: Ignored.
-            status: Ignored.
-
-        Returns:
-            The empty string (no status update was created).
-        """
-        return ""
-
-    def update_status_update(self, status_update_id: str, body: str, status: str) -> None:
-        """No-op (no post). See the class docstring.
-
-        Args:
-            status_update_id: Ignored.
-            body: Ignored.
-            status: Ignored.
-        """
-        return None
-
-    def delete_status_update(self, status_update_id: str) -> None:
-        """No-op (no delete). See the class docstring (phase-36 orphan cleanup).
-
-        Args:
-            status_update_id: Ignored.
-        """
-        return None
 
 
 @dataclass(frozen=True)
@@ -186,6 +147,10 @@ class Deps:
             tests stub it. Defaulted to a no-op reporter (:class:`_NullStatusReporter`) so existing
             ``Deps(...)`` constructions compile unchanged and a tick without a real reporter simply
             posts nothing.
+        health_reporter: The per-card Health single-select side of the board (the custom
+            chip carrying the operator's vocabulary — health-field). The same ``GithubClient``
+            backs it; consumed only by :func:`kanbanmate.app.health_reporter.apply_health`.
+            Defaulted to a no-op so existing constructions compile.
         project_id: The board's ``ProjectV2`` node id, threaded onto ``Deps`` so the status
             reporter can ``create_status_update`` on it (the reporter is the only consumer; the
             board client already holds its own copy for read/move). Threaded from
@@ -218,6 +183,8 @@ class Deps:
     # The rolling status-update reporter + the board id it posts on (phase-24 §24.3). Defaulted to
     # a no-op reporter so existing constructions compile and a tick with no real reporter is inert.
     status_reporter: ProjectStatusReporter = field(default_factory=lambda: _NullStatusReporter())
+    # The per-card Health single-select reporter (health-field); see the docstring above.
+    health_reporter: ProjectHealthReporter = field(default_factory=_NullHealthReporter)
     project_id: str = ""
     # The issue/project create side (cockpit PR3 ticket_create). The production GithubClient
     # implements Seeder; defaulted to None so existing constructions compile (a tick with no seeder

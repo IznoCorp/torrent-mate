@@ -851,6 +851,84 @@ class StateStore(Protocol):
         ...
 
     # ------------------------------------------------------------------
+    # Per-card Health single-select field state (the custom chip, health-field)
+    # ------------------------------------------------------------------
+
+    def get_health_project_id(self) -> str | None:
+        """Return the project id the persisted Health field markers belong to, or ``None``.
+
+        The board-wide field-id/options markers carry no project binding; this records
+        WHICH project they belong to so the Health step can detect a registry re-point and
+        drop the stale ids (the rebind guard). ``None`` means never-bound (degrade →
+        treated as a project change → markers cleared + a fresh ensure).
+        """
+        ...
+
+    def set_health_project_id(self, project_id: str | None) -> None:
+        """Persist the project id the Health field markers belong to, or clear it (``None``)."""
+        ...
+
+    def get_health_field_id(self) -> str | None:
+        """Return the persisted Health single-select field node id, or ``None`` when absent.
+
+        Backs the cross-restart cache: when present (with :meth:`get_health_options`) the
+        Health step reuses the field WITHOUT a network read; when absent it re-ensures the
+        field via the reporter. Degrades to ``None`` on an unreadable marker.
+        """
+        ...
+
+    def set_health_field_id(self, field_id: str | None) -> None:
+        """Persist the Health field node id atomically, or clear it (``None`` → UNLINK)."""
+        ...
+
+    def get_health_options(self) -> dict[str, str]:
+        """Return the persisted ``{HEALTH_NAME: option_id}`` map, or ``{}`` when absent.
+
+        The option ids needed to set a card's Health value. Degrades to ``{}`` on an
+        absent/corrupt map — a poison file must never wedge the Health step.
+        """
+        ...
+
+    def set_health_options(self, options: dict[str, str]) -> None:
+        """Persist the ``{HEALTH_NAME: option_id}`` map atomically.
+
+        Args:
+            options: The option-name → option-id map to persist.
+        """
+        ...
+
+    def get_item_health(self, item_id: str) -> str | None:
+        """Return the LAST-WRITTEN Health value for card ``item_id``, or ``None``.
+
+        The on-change diff key: the Health step writes a card only when its computed value
+        DIFFERS from this. ``None`` means none has been written yet (or the marker is
+        unreadable — degrade → the next compute is treated as a change).
+
+        Args:
+            item_id: The ``ProjectV2Item`` node id whose last-written value to read.
+        """
+        ...
+
+    def set_item_health(self, item_id: str, value: str | None) -> None:
+        """Persist card ``item_id``'s last-written Health value atomically, or clear it.
+
+        Args:
+            item_id: The ``ProjectV2Item`` node id whose marker to write.
+            value: The Health value to record, or ``None`` to UNLINK the marker.
+        """
+        ...
+
+    def clear_health_markers(self) -> None:
+        """Drop the Health field id + options + ALL per-card last-written markers.
+
+        Called on a project rebind (the registry re-pointed at a new board): the
+        board-wide field id/options and every per-card last-written marker belong to the
+        OLD project and must not leak into the new one. The ``project_id`` marker itself is
+        re-bound separately by the caller.
+        """
+        ...
+
+    # ------------------------------------------------------------------
     # Board-mutation intent queue (cockpit PR2 — daemon is the sole writer)
     # ------------------------------------------------------------------
 
