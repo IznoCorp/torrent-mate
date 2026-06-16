@@ -69,7 +69,8 @@ merge; the "Health" field then auto-appears on the next tick of each daemon (zer
 | 2 | store: `AgentBreadcrumbsMixin` `end_attempts/` counter (`get_end_attempts`/`bump_end_attempt`/`clear_end_attempts`) + `StateStore` Protocol stubs; `FsStateStore.__init__` dir + `purge_ticket` unlink (both paths) | DONE | (same commit) |
 | 3 | reaper: `MAX_END_ATTEMPTS`=3; `_end_done_session` bounded-retry-then-kill escalation (dispatch+bump < MAX, keep breadcrumb; kill_repl_process + clear at MAX); `_reset_stale_end_attempts` defensive not-done reset; Approach A intact | DONE | (same commit) |
 | 4 | prompt tweak: shared `_CLEAN_STOP` appended to all 8 `kanban-done` launch prompts | DONE | (same commit) |
-| 5 | tests + DESIGN delta + this row: robust end_session order + delays; kill_repl_process SIGTERM-not-session + 4 fail-soft paths; counter mixin (8); reaper escalation/retry/reset (7); clean-stop in all 8 prompts | DONE | (same commit) |
+| 5 | tests + DESIGN delta + this row: robust end_session order + delays; kill_repl_process SIGKILL-not-session + 4 fail-soft paths; counter mixin (8); reaper escalation/retry/reset (7); clean-stop in all 8 prompts | DONE | (same commit) |
+| 6 | SIGKILL hardening (branch `fix/escalation-sigkill`, patch Z+1): `kill_repl_process` sends `signal.SIGKILL` (not SIGTERM) to the comm-verified `claude` child — SIGTERM was trapped/survived by a finished REPL with a background shell, re-parking WAITING; SIGKILL guarantees termination while the pane shell still runs the `; kanban-session-end` wrapper. Test + docs updated. | DONE | `fix(reaper): SIGKILL (not SIGTERM) on kill-escalation so a finished REPL with background shells always dies` |
 
 ## Behaviour deltas (gate requirement)
 
@@ -77,9 +78,12 @@ merge; the "Health" field then auto-appears on the next tick of each daemon (zer
   (the second confirms exit past "N shells still running"), with small `sleeper`-seam delays
   (0.3/0.3/0.5s, worst-case 1.1s < 1.5s budget). Fixes the helm #5 NO-OP where a leftover
   `/implement:plan` + background shells blocked the old two-key `C-c`/`C-d`. Never `kill-session`.
-- **`kill_repl_process` escalation primitive.** SIGTERMs the `claude` REPL child (resolved via
+- **`kill_repl_process` escalation primitive.** SIGKILLs the `claude` REPL child (resolved via
   `tmux list-panes` pane-PID → `pgrep`/`ps` child), NOT the session/shell, so the surviving shell
-  still runs `; kanban-session-end`. Fail-soft on every resolution/kill error.
+  still runs `; kanban-session-end`. Fail-soft on every resolution/kill error. SIGKILL (not SIGTERM,
+  fixed on `fix/escalation-sigkill`): a finished REPL with a background shell traps/survives SIGTERM
+  and re-parks WAITING; SIGKILL cannot be trapped → guaranteed termination, pane shell still runs the
+  wrapper. Runs only AFTER `MAX_END_ATTEMPTS` graceful keystroke dispatches have failed.
 - **Bounded-retry-then-kill (REVERSES the SINGLE-SHOT contract).** The reaper re-dispatches
   `end_session` each tick (KEEPING the done breadcrumb + bumping a persisted `end_attempts/<issue>`
   counter) until the REPL exits or `MAX_END_ATTEMPTS`=3 is hit → then it kills the REPL process and

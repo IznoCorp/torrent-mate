@@ -43,7 +43,7 @@ RETRY_LIMIT = 1
 
 # A graceful done-exit (end_session: Escape→C-u→C-d→C-d) is dispatched at most this many times before
 # the reaper ESCALATES to killing the claude REPL process. A genuinely-hung REPL or stubborn leftover
-# state can swallow the keystrokes; after MAX_END_ATTEMPTS we SIGTERM the claude child (NOT the
+# state can swallow the keystrokes; after MAX_END_ATTEMPTS we SIGKILL the claude child (NOT the
 # session/shell) so the surviving shell still runs ``; kanban-session-end``. Kept small (the keystroke
 # path usually works on attempt 1-2; helm #5 needed the menu-close + double-C-d the robust sequence
 # now sends in ONE dispatch).
@@ -224,9 +224,9 @@ def _end_done_session(deps: Deps, state: TicketState, now: float) -> bool:
       retries the SAME attempt number.
     * **attempts >= :data:`MAX_END_ATTEMPTS`** — the graceful exit failed repeatedly (a genuinely-hung
       REPL or stubborn state swallowing the keystrokes). ESCALATE:
-      :meth:`~kanbanmate.ports.workspace.Sessions.kill_repl_process` SIGTERMs the ``claude`` child
+      :meth:`~kanbanmate.ports.workspace.Sessions.kill_repl_process` SIGKILLs the ``claude`` child
       (NOT the session/shell) so the surviving shell still runs ``; kanban-session-end`` → teardown.
-      Then CLEAR the done breadcrumb AND the attempt counter (whether or not the SIGTERM landed
+      Then CLEAR the done breadcrumb AND the attempt counter (whether or not the SIGKILL landed
       cleanly — the graceful budget is spent), so the next tick falls through to Approach A: the
       still-dying session parks WAITING (non-destructive) until it dies → reaped, OR
       ``kanban-session-end`` purges its state (incl. both markers via ``purge_ticket``).
@@ -279,7 +279,7 @@ def _end_done_session(deps: Deps, state: TicketState, now: float) -> bool:
             logger.exception("reaper bump_end_attempt failed for #%s; continuing", issue)
         return True
 
-    # ESCALATION: the graceful budget is exhausted → SIGTERM the claude REPL child (NOT the session)
+    # ESCALATION: the graceful budget is exhausted → SIGKILL the claude REPL child (NOT the session)
     # so the surviving shell still runs ``; kanban-session-end``. Fail-soft — even if the kill raises
     # we still clear, because the graceful budget is spent and re-dispatching would only re-fail.
     try:
@@ -464,7 +464,7 @@ def reap_stale_agents(
     ROBUST :meth:`~kanbanmate.ports.workspace.Sessions.end_session` (Escape→C-u→C-d→C-d, NOT ``kill``)
     so ``claude`` exits and the trailing ``; kanban-session-end <issue>`` runs the teardown → the card
     flows, KEEPING the done breadcrumb + bumping a persisted ``end_attempts/<issue>`` counter so the
-    next tick re-dispatches until the REPL exits or :data:`MAX_END_ATTEMPTS` is hit — then it SIGTERMs
+    next tick re-dispatches until the REPL exits or :data:`MAX_END_ATTEMPTS` is hit — then it SIGKILLs
     the ``claude`` child (:meth:`~kanbanmate.ports.workspace.Sessions.kill_repl_process`, NOT the
     session/shell) and clears both markers. This replaces the earlier SINGLE-SHOT dispatch (which
     no-op'd on the helm #5 leftover-box + background-shell condition and parked the finished agent
@@ -547,7 +547,7 @@ def reap_stale_agents(
                 # BOUNDED-RETRY THEN KILL-ESCALATION (firm-exit) — see :func:`_end_done_session`: it
                 # dispatches the robust end_session and bumps a persisted attempt counter, KEEPING the
                 # done breadcrumb so the next tick re-dispatches, until either the REPL exits or
-                # MAX_END_ATTEMPTS is reached → it SIGTERMs the claude child (NOT the session) and
+                # MAX_END_ATTEMPTS is reached → it SIGKILLs the claude child (NOT the session) and
                 # clears the breadcrumb + counter. Approach A intact: only ever a done + idle + alive
                 # session reaches here.
                 _end_done_session(deps, state, now)

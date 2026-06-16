@@ -116,7 +116,7 @@ class _SpySessions:
         """
 
     def kill_repl_process(self, name: str) -> None:
-        """No-op: no real REPL process to SIGTERM (firm-exit Protocol member).
+        """No-op: no real REPL process to SIGKILL (firm-exit Protocol member).
 
         Args:
             name: Session name (ignored).

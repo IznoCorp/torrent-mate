@@ -285,13 +285,23 @@ class TmuxSessions:
         self._send_key(name, "C-d")
 
     def kill_repl_process(self, name: str) -> None:
-        """SIGTERM the ``claude`` REPL child of session *name*'s pane — NOT the session/shell (#).
+        """SIGKILL the ``claude`` REPL child of session *name*'s pane — NOT the session/shell (#).
 
         Escalation primitive for a graceful exit (:meth:`end_session`) that failed repeatedly (a
         genuinely-hung REPL or stubborn leftover state that swallows the keystrokes). It resolves the
         pane's shell PID (``tmux list-panes -t <name> -F '#{pane_pid}'``), finds the shell's child
-        (the ``claude`` REPL) and sends it ``SIGTERM`` so the REPL dies but the SURVIVING shell still
+        (the ``claude`` REPL) and sends it ``SIGKILL`` so the REPL dies but the SURVIVING shell still
         runs the trailing ``; kanban-session-end <issue>`` of the launched command → teardown fires.
+
+        WHY SIGKILL (guaranteed termination) AND NOT SIGTERM: this escalation runs ONLY after the
+        graceful end_session keystrokes (Escape → C-u → C-d → C-d) have failed ``MAX_END_ATTEMPTS``
+        times — graceful exit was already given every chance. A live test proved SIGTERM is
+        INSUFFICIENT: a finished claude REPL with a background shell still running (the
+        "N shells still running" confirm) traps/survives SIGTERM, so the finished agent never
+        terminates and re-parks WAITING. SIGKILL cannot be trapped, so termination is guaranteed.
+        Because ONLY the claude child is killed (never the session, never the pane shell PID), the
+        pane shell still runs the trailing ``; kanban-session-end <issue>`` wrapper → teardown still
+        fires on the correct root.
 
         INVARIANT — it MUST NOT ``kill-session`` (that kills the shell and the wrapper never runs)
         and MUST NOT kill the shell PID itself. FAIL-SOFT: any resolution/kill error is swallowed
@@ -307,7 +317,7 @@ class TmuxSessions:
         if child is None:
             return  # fail-soft: no live child under the shell
         try:
-            os.kill(child, signal.SIGTERM)
+            os.kill(child, signal.SIGKILL)
         except (ProcessLookupError, PermissionError, OSError):
             # fail-soft: the child raced away or we cannot signal it — the reaper still clears.
             return
@@ -356,9 +366,9 @@ class TmuxSessions:
         Then ALWAYS comm-verify (via ``ps -o comm= -p <pid>``) — even for a SINGLE child: return only
         a child whose command name looks like ``claude``. If the SOLE child is NOT claude (claude has
         already exited and ``; kanban-session-end`` or another command is now the shell's child), or
-        no child matches, return ``None`` so :meth:`kill_repl_process` SKIPS the kill — SIGTERMing a
+        no child matches, return ``None`` so :meth:`kill_repl_process` SKIPS the kill — SIGKILLing a
         non-claude process would kill the teardown mid-flight. Claude already gone → the session will
-        reap normally; we never SIGTERM the wrong process.
+        reap normally; we never SIGKILL the wrong process.
 
         Args:
             pane_pid: The pane's shell PID whose child to resolve.
@@ -372,7 +382,7 @@ class TmuxSessions:
         if not children:
             return None
         # ALWAYS comm-verify (single- AND multi-child): only ever return a child that looks like the
-        # claude REPL, so a surviving ``; kanban-session-end`` (teardown) child is never SIGTERMed.
+        # claude REPL, so a surviving ``; kanban-session-end`` (teardown) child is never SIGKILLed.
         for pid in children:
             if "claude" in self._comm_of(pid):
                 return pid

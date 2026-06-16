@@ -2131,7 +2131,7 @@ def test_reaper_done_exit_retries_across_ticks_until_max() -> None:
     Model the persisted counter advancing 0→1→2 across the first three ticks (each ``bump`` reflected
     in the next ``get_end_attempts``); on each of those ticks ``end_session`` fires (the OLD single-
     shot premise is intentionally reversed — the breadcrumb is kept). On the fourth tick the counter
-    is at MAX (3) → the reaper SIGTERMs the claude REPL (``kill_repl_process("ticket-7")`` once),
+    is at MAX (3) → the reaper SIGKILLs the claude REPL (``kill_repl_process("ticket-7")`` once),
     clears the done breadcrumb + the counter, and does NOT dispatch ``end_session`` that tick.
     """
     from kanbanmate.app.reaper import MAX_END_ATTEMPTS
@@ -2215,7 +2215,7 @@ def test_reaper_escalation_kills_repl_not_session() -> None:
 def test_reaper_escalation_killrepl_failsoft() -> None:
     """firm-exit: a kill_repl_process error at MAX still clears the breadcrumb + counter, no crash.
 
-    Even if the SIGTERM raises, the graceful budget is spent — the reaper clears both markers so the
+    Even if the SIGKILL raises, the graceful budget is spent — the reaper clears both markers so the
     next tick falls through to Approach A (the still-dying session parks WAITING). The sweep does not
     crash.
     """
@@ -2227,7 +2227,7 @@ def test_reaper_escalation_killrepl_failsoft() -> None:
     m.sessions.capture.return_value = "❯ "  # idle
     m.store.recent_agent_done.return_value = True
     m.store.get_end_attempts.return_value = MAX_END_ATTEMPTS
-    m.sessions.kill_repl_process.side_effect = RuntimeError("SIGTERM failed")
+    m.sessions.kill_repl_process.side_effect = RuntimeError("SIGKILL failed")
     done_idle = TicketState(
         issue_number=7,
         item_id="PVTI_7",

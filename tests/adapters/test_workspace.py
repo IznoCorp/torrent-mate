@@ -1485,15 +1485,17 @@ class TestTmuxSessionsUnit:
 
     # -- kill_repl_process (escalation primitive) ----------------------------
 
-    def test_kill_repl_process_sigterms_pane_child_not_session(
+    def test_kill_repl_process_sigkills_pane_child_not_session(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """kill_repl_process SIGTERMs the SINGLE claude REPL child — never kill-session, never the shell.
+        """kill_repl_process SIGKILLs the SINGLE claude REPL child — never kill-session, never the shell.
 
         Resolves the pane shell PID via ``tmux list-panes`` (4242), finds its sole child via
         ``pgrep -P 4242`` (4243), comm-verifies it IS claude (``ps -o comm= -p 4243`` → ``claude``),
-        and sends SIGTERM to 4243 — the claude REPL. It must NOT kill the tmux session (the surviving
-        shell runs ``; kanban-session-end``) nor the shell PID itself.
+        and sends SIGKILL to 4243 — the claude REPL. SIGKILL (not SIGTERM) is the guaranteed-
+        termination escalation: a finished REPL with a background shell traps/survives SIGTERM. It
+        must NOT kill the tmux session (the surviving shell runs ``; kanban-session-end``) nor the
+        shell PID itself.
         """
 
         def _runner(argv: list[str], **_kwargs: object) -> MagicMock:
@@ -1515,18 +1517,18 @@ class TestTmuxSessionsUnit:
 
         sessions.kill_repl_process("ticket-7")
 
-        mock_kill.assert_called_once_with(4243, signal.SIGTERM)
+        mock_kill.assert_called_once_with(4243, signal.SIGKILL)
         argvs = [c.args[0] for c in mock_runner.call_args_list]
         assert not any("kill-session" in argv for argv in argvs)
 
     def test_kill_repl_process_skips_single_non_claude_child(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """kill_repl_process does NOT SIGTERM a SINGLE child that is NOT claude (the teardown guard).
+        """kill_repl_process does NOT SIGKILL a SINGLE child that is NOT claude (the teardown guard).
 
         Adversarial-review fix: at escalation time claude may have ALREADY exited, leaving the
         surviving shell running ``; kanban-session-end`` (teardown) as its SOLE child. The old code
-        returned ``children[0]`` unconditionally for a single child and would SIGTERM that teardown
+        returned ``children[0]`` unconditionally for a single child and would SIGKILL that teardown
         process. The comm-verify guard now runs in the single-child path too: the sole child
         (``kanban-session-end``) is NOT claude → ``_child_pid`` returns ``None`` → no ``os.kill``.
         """

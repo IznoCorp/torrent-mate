@@ -93,13 +93,24 @@ live claude widget (a one-line swap). The **no-`kill-session` invariant is resta
 
 ### `Sessions.kill_repl_process(name)` — escalation primitive
 
-New `Sessions` Protocol member. SIGTERMs the `claude` REPL **child** of the pane's shell — NOT the
+New `Sessions` Protocol member. SIGKILLs the `claude` REPL **child** of the pane's shell — NOT the
 session/shell. It resolves the pane shell PID (`tmux list-panes -t <name> -F '#{pane_pid}'`), finds
 its child (`pgrep -P <pane_pid>`, with a `ps -o ppid=,pid= -A` scan fallback; when several children
-exist it prefers the one whose `comm` contains `claude`), and `os.kill(child, SIGTERM)`. The REPL
+exist it prefers the one whose `comm` contains `claude`), and `os.kill(child, SIGKILL)`. The REPL
 dies but the SURVIVING shell still runs the trailing `; kanban-session-end <issue>` → teardown fires.
 It MUST NOT `kill-session` (kills the shell, the wrapper never runs) and MUST NOT kill the shell PID.
 FAIL-SOFT: any resolution/kill error is swallowed (the reaper logs and still clears the breadcrumb).
+
+**Why SIGKILL, not SIGTERM (RESOLVED — was the residual below).** The first cut sent SIGTERM and a
+known residual remained: a finished `claude` REPL with a background shell still running (the
+"N shells still running" exit confirm) **traps/survives SIGTERM**, so the agent never terminated and
+re-parked WAITING. This escalation only ever runs AFTER `MAX_END_ATTEMPTS` graceful keystroke
+dispatches (Escape → `C-u` → `C-d` → `C-d`) have already failed, so graceful was given every chance —
+SIGKILL is the guaranteed-termination escalation (it cannot be trapped). A live test confirmed a
+manual SIGKILL of the same comm-verified `claude` PID killed the REPL cleanly while the surviving pane
+shell still ran the trailing `; kanban-session-end <issue>` wrapper (state purged on the correct
+root). Because ONLY the `claude` child is killed (never the session, never the pane shell PID), the
+pane shell still runs the wrapper → teardown still fires.
 
 ### Reaper bounded-retry-then-kill escalation (`_end_done_session`)
 
@@ -111,8 +122,8 @@ A per-session attempt counter replaces the single-shot clear. New issue-keyed ma
   **KEEP** the done breadcrumb so the next tick re-dispatches. A FAILED dispatch returns without
   bumping or clearing (the keystrokes never reached claude → no `; kanban-session-end` collision; the
   next tick retries the SAME attempt number).
-* **attempts >= `MAX_END_ATTEMPTS`** — ESCALATE: `kill_repl_process` SIGTERMs the claude child, then
-  CLEAR the done breadcrumb AND the attempt counter (whether or not the SIGTERM landed — the graceful
+* **attempts >= `MAX_END_ATTEMPTS`** — ESCALATE: `kill_repl_process` SIGKILLs the claude child, then
+  CLEAR the done breadcrumb AND the attempt counter (whether or not the SIGKILL landed — the graceful
   budget is spent). The next tick falls through to Approach A: the still-dying session parks WAITING
   (non-destructive) until it dies → reaped, or `kanban-session-end` purges its state.
 
