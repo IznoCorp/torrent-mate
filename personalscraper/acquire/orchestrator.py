@@ -55,7 +55,7 @@ from typing import TYPE_CHECKING, Literal
 
 from personalscraper.acquire._dedup import SearchOutcome, dedup
 from personalscraper.acquire._filters import apply_hard_filters
-from personalscraper.acquire.events import GrabFailed, WantedAbandoned
+from personalscraper.acquire.events import GrabFailed, TrackerAuthFailed, WantedAbandoned
 from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
 from personalscraper.api.tracker._fetch import resolve_source
@@ -247,8 +247,18 @@ class GrabOrchestrator:
         except CircuitOpenError:
             # Sibling of ApiError — MUST precede the ApiError clause.
             return self._retryable(media_ref, "circuit_open", chosen=top)
-        except TrackerAuthError:
+        except TrackerAuthError as exc:
             # 401/403: passkey/config broken — won't self-heal → abandon.
+            # Emit the operator-routable signal BEFORE abandoning (follows the
+            # orchestrator's self-emit-on-failure convention; correlation_id
+            # propagates via the Event base ContextVar).
+            self._event_bus.emit(
+                TrackerAuthFailed(
+                    tracker=top.provider,
+                    http_status=exc.http_status,
+                    media_ref=media_ref,
+                )
+            )
             return self._terminal(media_ref, "tracker_auth", chosen=top)
         except TorrentFetchError:
             # Download/validation failure — transient, retry next run.
