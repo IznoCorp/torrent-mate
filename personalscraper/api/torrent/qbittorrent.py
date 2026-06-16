@@ -322,7 +322,14 @@ class QBitClient(
         """
         if not tags:
             return
-        self._client.torrents_addTags(torrent_hashes=info_hash, tags=",".join(tags))
+        try:
+            self._client.torrents_addTags(torrent_hashes=info_hash, tags=",".join(tags))
+        except qbittorrentapi.APIError as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=502,
+                message=f"qBittorrent add_tags failed: {exc}",
+            ) from exc
 
     def remove_tags(self, info_hash: str, tags: Sequence[str]) -> None:
         """Remove tags from an existing torrent in qBittorrent (idempotent).
@@ -337,7 +344,14 @@ class QBitClient(
         """
         if not tags:
             return
-        self._client.torrents_removeTags(torrent_hashes=info_hash, tags=",".join(tags))
+        try:
+            self._client.torrents_removeTags(torrent_hashes=info_hash, tags=",".join(tags))
+        except qbittorrentapi.APIError as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=502,
+                message=f"qBittorrent remove_tags failed: {exc}",
+            ) from exc
 
     # -- Auth ----------------------------------------------------------------
 

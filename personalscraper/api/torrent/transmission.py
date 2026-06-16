@@ -315,14 +315,21 @@ class TransmissionClient(
         """
         if not tags:
             return
-        t = self._client.get_torrent(info_hash, arguments=["labels"])
-        current_labels: list[str] = list(getattr(t, "labels", None) or [])
-        category, existing_tags = _split_labels(current_labels)
-        new_tags = existing_tags[:]
-        for tag in tags:
-            if tag not in new_tags:
-                new_tags.append(tag)
-        self._client.change_torrent(ids=info_hash, labels=_labels(category, new_tags))
+        try:
+            t = self._client.get_torrent(info_hash, arguments=["labels"])
+            current_labels: list[str] = list(getattr(t, "labels", None) or [])
+            category, existing_tags = _split_labels(current_labels)
+            new_tags = existing_tags[:]
+            for tag in tags:
+                if tag not in new_tags:
+                    new_tags.append(tag)
+            self._client.change_torrent(ids=info_hash, labels=_labels(category, new_tags))
+        except transmission_rpc.TransmissionError as exc:
+            raise ApiError(
+                provider=ProviderName.TRANSMISSION,
+                http_status=502,
+                message=f"Transmission add_tags failed: {exc}",
+            ) from exc
 
     def remove_tags(self, info_hash: str, tags: Sequence[str]) -> None:
         """Remove tags from an existing Transmission torrent (idempotent, read-first).
@@ -339,12 +346,19 @@ class TransmissionClient(
         """
         if not tags:
             return
-        t = self._client.get_torrent(info_hash, arguments=["labels"])
-        current_labels: list[str] = list(getattr(t, "labels", None) or [])
-        category, existing_tags = _split_labels(current_labels)
-        tags_to_remove = set(tags)
-        new_tags = [tag for tag in existing_tags if tag not in tags_to_remove]
-        self._client.change_torrent(ids=info_hash, labels=_labels(category, new_tags))
+        try:
+            t = self._client.get_torrent(info_hash, arguments=["labels"])
+            current_labels: list[str] = list(getattr(t, "labels", None) or [])
+            category, existing_tags = _split_labels(current_labels)
+            tags_to_remove = set(tags)
+            new_tags = [tag for tag in existing_tags if tag not in tags_to_remove]
+            self._client.change_torrent(ids=info_hash, labels=_labels(category, new_tags))
+        except transmission_rpc.TransmissionError as exc:
+            raise ApiError(
+                provider=ProviderName.TRANSMISSION,
+                http_status=502,
+                message=f"Transmission remove_tags failed: {exc}",
+            ) from exc
 
 
 # -- Factory entry point -----------------------------------------------------

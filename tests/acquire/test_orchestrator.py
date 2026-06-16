@@ -195,6 +195,13 @@ def test_grab_happy_path_returns_success_outcome_with_exact_payload() -> None:
     assert kwargs["category"] is None
     assert "tags" not in kwargs
 
+    # Skip-branch pin: this client is MagicMock(spec=TorrentAdder) — it does NOT
+    # implement TorrentTagger, so the orchestrator must NOT call add_tags()
+    # (isinstance check is False → skip the tagging step entirely).
+    assert not hasattr(torrent_client, "add_tags") or not torrent_client.add_tags.called, (
+        "add_tags must NOT be called when client does not implement TorrentTagger"
+    )
+
     # The orchestrator must NOT emit GrabSucceeded (the service owns that emit) —
     # and no failure event may leak either.
     assert not [e for e in spy.events if isinstance(e, GrabSucceeded)], (

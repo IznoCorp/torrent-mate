@@ -223,6 +223,12 @@ def test_grab_tag_failure_is_swallowed_success() -> None:
     tagging failure and logs a warning; the overall grab is still a success.
     The torrent was added — the tag failure must NOT promote to retryable
     ``add_failed``.
+
+    Chain guarantee (sub-phase 3.1): the real TransmissionClient / QBitClient
+    translate raw library exceptions (TransmissionError / qbittorrentapi.APIError)
+    into ApiError at the client boundary, so this swallow type is always correct
+    against real clients.  The client-level translation is tested by the regression
+    suite in tests/api/torrent/test_tagger.py.
     """
     fake_client = _FakeTransmissionClient(
         add_tags_side_effect=ApiError(provider="transmission", http_status=500, message="rpc error")
