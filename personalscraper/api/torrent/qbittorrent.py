@@ -33,6 +33,7 @@ from personalscraper.api.torrent._contracts import (
     TorrentLimiter,
     TorrentLister,
     TorrentStateInspector,
+    TorrentTagger,
 )
 from personalscraper.conf.models.api_config import TorrentClientEntry
 from personalscraper.logger import get_logger
@@ -55,6 +56,7 @@ class QBitClient(
     TorrentController,
     TorrentAdder,
     TorrentLimiter,
+    TorrentTagger,
 ):
     """qBittorrent client wrapping qbittorrentapi.Client.
 
@@ -306,6 +308,36 @@ class QBitClient(
             self._client.torrents_set_upload_limit(torrent_hashes=info_hash, limit=limits.up_bytes_per_s)
         if limits.down_bytes_per_s is not None:
             self._client.torrents_set_download_limit(torrent_hashes=info_hash, limit=limits.down_bytes_per_s)
+
+    def add_tags(self, info_hash: str, tags: Sequence[str]) -> None:
+        """Add tags to an existing torrent in qBittorrent (idempotent).
+
+        Wraps ``qbittorrentapi.torrents_addTags``. Tags already present on
+        the torrent are silently ignored by the qBittorrent API — idempotent
+        by the server's own semantics.
+
+        Args:
+            info_hash: Lowercase-hex info hash of the target torrent.
+            tags: Tag strings to add.
+        """
+        if not tags:
+            return
+        self._client.torrents_addTags(torrent_hashes=info_hash, tags=",".join(tags))
+
+    def remove_tags(self, info_hash: str, tags: Sequence[str]) -> None:
+        """Remove tags from an existing torrent in qBittorrent (idempotent).
+
+        Wraps ``qbittorrentapi.torrents_removeTags``. Absent tags are silently
+        ignored by the qBittorrent API — idempotent by the server's own
+        semantics.
+
+        Args:
+            info_hash: Lowercase-hex info hash of the target torrent.
+            tags: Tag strings to remove.
+        """
+        if not tags:
+            return
+        self._client.torrents_removeTags(torrent_hashes=info_hash, tags=",".join(tags))
 
     # -- Auth ----------------------------------------------------------------
 

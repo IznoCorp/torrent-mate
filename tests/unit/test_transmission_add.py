@@ -168,8 +168,13 @@ class TestLabelsHelper:
         assert _labels("movies", ["action"]) == ["movies", "action"]
 
     def test_no_category(self):
-        """None category is excluded from labels."""
-        assert _labels(None, ["action"]) == ["action"]
+        """None category with tags uses the empty-string no-category sentinel (F-A).
+
+        Previously this returned ``["action"]`` (the tag promoted to the
+        category slot — the bug fixed in F-A). The sentinel keeps the tag
+        readable as a tag on category-less torrents.
+        """
+        assert _labels(None, ["action"]) == ["", "action"]
 
     def test_both_none(self):
         """None category with empty tags produces empty list."""

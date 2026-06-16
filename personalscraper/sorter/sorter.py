@@ -72,6 +72,8 @@ class Sorter:
         self,
         source_dir: Path,
         dest_root: Path | None = None,
+        *,
+        skip_names: frozenset[str] = frozenset(),
     ) -> list[SortResult]:
         """Sort all items from source_dir into type subdirectories under dest_root.
 
@@ -86,6 +88,12 @@ class Sorter:
             dest_root: Root directory for category subdirectories
                 ({movies_dir}/, {tvshows_dir}/, etc.). Defaults to source_dir
                 for backward compat.
+            skip_names: Item names to genuinely exclude from sorting (seed-pure
+                guard). Any direct child whose ``name`` is in this set is never
+                passed to ``sort_item`` — it is reported as a ``skipped``
+                SortResult (``message="seed_pure"``) and left untouched in the
+                source directory. Default empty frozenset = byte-identical
+                behavior for callers that do not opt into the guard.
 
         Returns:
             List of SortResult for each processed item.
@@ -109,6 +117,25 @@ class Sorter:
         for item in items:
             # Skip sorted directories and hidden files
             if item.name in skip_dirs or item.name.startswith("."):
+                continue
+            # Seed-pure guard: genuinely exclude opted-in names. sort_item is
+            # never called, so the item is not moved — it is reported as a
+            # skipped result and left in the source directory for seeding.
+            if item.name in skip_names:
+                log.info("sort.seed_pure_skipped", name=item.name)
+                results.append(
+                    SortResult(
+                        source=item,
+                        destination=item,
+                        media_type="",
+                        title=item.name,
+                        year=None,
+                        season=None,
+                        episode=None,
+                        status="skipped",
+                        message="seed_pure",
+                    )
+                )
                 continue
             result = self.sort_item(item, dest_root)
             results.append(result)

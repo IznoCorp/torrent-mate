@@ -177,6 +177,38 @@ class TorrentLimiter(Protocol):
         ...
 
 
+@runtime_checkable
+class TorrentTagger(Protocol):
+    """Capability — add or remove tags on an existing torrent.
+
+    Implemented by both ``QBitClient`` and ``TransmissionClient``.
+    Both methods are **idempotent**: adding a tag that is already present
+    is a no-op; removing a tag that is absent is a no-op. The torrent is
+    identified by its lowercase-hex ``info_hash`` (``TorrentItem.hash``).
+
+    Transmission requires a read-first write to preserve ``labels[0]``
+    (the category); callers need not know the implementation detail.
+    """
+
+    def add_tags(self, info_hash: str, tags: Sequence[str]) -> None:
+        """Add tags to an existing torrent (idempotent).
+
+        Args:
+            info_hash: Lowercase-hex info hash of the target torrent.
+            tags: Tag strings to add. Already-present tags are ignored.
+        """
+        ...
+
+    def remove_tags(self, info_hash: str, tags: Sequence[str]) -> None:
+        """Remove tags from an existing torrent (idempotent).
+
+        Args:
+            info_hash: Lowercase-hex info hash of the target torrent.
+            tags: Tag strings to remove. Absent tags are ignored.
+        """
+        ...
+
+
 __all__ = [
     "AuthenticatedClient",
     "TorrentAdder",
@@ -185,4 +217,5 @@ __all__ = [
     "TorrentLimiter",
     "TorrentLister",
     "TorrentStateInspector",
+    "TorrentTagger",
 ]
