@@ -74,6 +74,34 @@ _SXXEXX_RE = re.compile(r"S(\d+)E(\d+)", re.IGNORECASE)
 _EPISODE_STRICT_RE = re.compile(r"^S\d{2}E\d{2} - .+\.\w+$")
 _EPISODE_FALLBACK_RE = re.compile(r"^S\d{2}E0*(\d+) - Episode 0*\1\.\w+$", re.IGNORECASE)
 
+# Matches folder titles that are pure season or season+episode tokens with
+# no show name — e.g. " S03", "S3", "S01E01". These trigger the episode-
+# filename fallback in tv_service so the real show title can be recovered.
+# Anchored with optional surrounding whitespace; must NOT match legit titles
+# like "S.W.A.T.", "Sense8", "S Club 7", "S-Town" (verified in tests).
+_DEGENERATE_TITLE_RE = re.compile(r"^\s*S\d+(E\d+)?\s*$", re.IGNORECASE)
+
+
+def is_degenerate_title(title: str) -> bool:
+    r"""Return True when ``title`` is a bare season/episode token with no show name.
+
+    A degenerate title is one that matches ``^\s*S\d+(E\d+)?\s*$`` — for
+    example `` S03``, ``S3``, ``S01E01``.  Such titles arise when the sort
+    step could not parse the torrent name (e.g. a torrent named ``Saison 3``
+    with no show title), leaving only the season token in the folder name.
+
+    Legit titles that start with ``S`` followed by digits but are NOT season
+    tokens — ``S.W.A.T.``, ``Sense8``, ``S Club 7``, ``S-Town``, ``S4C`` —
+    do not match this pattern and correctly return False.
+
+    Args:
+        title: Show title as parsed from the staging folder name.
+
+    Returns:
+        True if the title is a degenerate season/episode token.
+    """
+    return bool(_DEGENERATE_TITLE_RE.match(title))
+
 
 def _parse_folder_name(name: str) -> tuple[str, int | None]:
     """Parse a media folder name into title and year.
