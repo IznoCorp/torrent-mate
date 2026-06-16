@@ -27,7 +27,9 @@ Consequently a short/degenerate query is scored only by `WRatio`, which a substr
 
 ### Unit 1 — Directional length-ratio guard in the confidence path
 
-Wire the existing `min_length_ratio` (0.67) into `_score_result` / `score_match`: when scoring a candidate, if the **query** title is much shorter than the `api_title` (the _query-too-short_ direction only), reject that candidate (it cannot become the accepted match → item falls to `skipped_low_confidence`).
+Add a directional length-ratio guard in `_score_result` / `score_match`: when scoring a candidate, if the **query** title is much shorter than the `api_title` (the _query-too-short_ direction only), reject that candidate (it cannot become the accepted match → item falls to `skipped_low_confidence`).
+
+**Threshold = 0.40** (module constant `_DEFAULT_MIN_LENGTH_RATIO` in `confidence.py`), NOT the `FuzzyMatchConfig.min_length_ratio` default of 0.67. Rationale (verified Phase 1, operator sign-off 2026-06-16): a pre-existing legit match — the French-documentary subject query `"Prince Andrew"` → `"Andrew: The Problem Prince"` (ratio **0.50**, `tests/scraper/test_confidence.py::test_french_documentary_subject_tmdb_fallback`) — is wrongly rejected at 0.67. The threshold must sit in the window (0.312, 0.50): above the worst bug ratio (Among = 0.312, rejected), below the lowest legit ratio (Prince Andrew = 0.50, preserved). 0.40 is the midpoint. NOTE: directionality is inherent to the `len(query)/len(api)` formula (query-longer → ratio > 1, never below the floor); the explicit `len(query) >= len(api)` short-circuit is redundant-but-clarifying, so a "make-it-bidirectional" mutation is not catchable by the current legit corpus.
 
 - **Where**: `personalscraper/scraper/confidence.py` `_score_result` loop (≈245-255) and/or `score_match` (≈117-124).
 - **Directional is mandatory**: the guard must fire ONLY when `len(query) << len(api_title)`. It must NOT fire when the local title is _longer_ than the api title — otherwise it breaks legit matches where the staging title carries an extra subtitle (`"The Hack sur ecoute"` → `"The Hack"`, ratio 0.421; `"Top Chef France"` → `"Top Chef"`, ratio 0.533).
@@ -58,8 +60,8 @@ All tests live under `tests/` and run in `make check`. Each must be mutation-pro
 
 - **AC-1** (Orville suppression): with show folder ` S03` (or title `"S03"`), the matcher does NOT accept `Glina. Nowy rozdział` (length-ratio guard rejects it). Reproduces the bug; mutation = removing the guard re-accepts it.
 - **AC-2** (Orville recovery): with episode files `The Orville - S3E0x.mkv` under a season-token folder, the scraper queries `"The Orville"` and matches the correct TVDB show.
-- **AC-3** (Among Us suppression): query `"Among"` does NOT accept `Love Amongst War` (ratio 0.312 < 0.67); item → `skipped_low_confidence`.
-- **AC-4** (legit preserved — directional): `"The Hack sur ecoute"` still matches `"The Hack"` (local-longer, ratio 0.421, guard does NOT fire); `"Top Chef France"` still matches `"Top Chef"` (ratio 0.533).
+- **AC-3** (Among Us suppression): query `"Among"` does NOT accept `Love Amongst War` (ratio 0.312 < 0.40); item → `skipped_low_confidence`.
+- **AC-4** (legit preserved — directional): `"The Hack sur ecoute"` still matches `"The Hack"` (local-longer, guard does NOT fire); `"Top Chef France"` still matches `"Top Chef"`; **and `"Prince Andrew"` still matches `"Andrew: The Problem Prince"` (query-shorter, ratio 0.50 ≥ 0.40 floor — the case that set the threshold).**
 - **AC-5** (legit preserved — exact/short): `"FROM"` → `"FROM"` @1.0 unaffected.
 - **AC-6** (regex guard scoping): `degenerate?` helper returns True for ` S03`/`S3`/`S01E01`, False for `FROM`/`The Hack`/`Among`/`Top Chef France`/`S.W.A.T.`/`Sense8`.
 - **AC-7**: `make check` green (ruff + mypy + full suite, 0 failed/errors).
