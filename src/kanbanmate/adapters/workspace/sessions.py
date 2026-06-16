@@ -322,6 +322,27 @@ class TmuxSessions:
             # fail-soft: the child raced away or we cannot signal it — the reaper still clears.
             return
 
+    def repl_alive(self, name: str) -> bool:
+        """Return whether session *name*'s pane still hosts a live ``claude`` REPL child (Candidate 2).
+
+        Reuses the SAME comm-verified resolution :meth:`kill_repl_process` relies on: resolve the
+        pane shell PID, then find a child whose ``comm`` is ``claude``. This lets the reaper SKIP a
+        re-dispatch of the graceful end_session keystrokes when the REPL has already exited (a daemon
+        restart racing the wrapper) — there is nothing to exit, so the session-end / purge completes
+        on its own. FAIL-SOFT: a gone pane or no live child returns ``False`` (conservative — an
+        unprobeable pane is treated as "no live REPL").
+
+        Args:
+            name: The session name whose REPL liveness to probe (``ticket-<n>``).
+
+        Returns:
+            ``True`` iff the pane has a live, comm-verified ``claude`` child; ``False`` otherwise.
+        """
+        pane_pid = self._pane_pid(name)
+        if pane_pid is None:
+            return False  # fail-soft: pane gone / unresolved → no live REPL
+        return self._child_pid(pane_pid) is not None
+
     def _pane_pid(self, name: str) -> int | None:
         """Resolve session *name*'s active-pane shell PID via ``tmux list-panes`` (fail-soft).
 

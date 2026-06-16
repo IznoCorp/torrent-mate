@@ -110,6 +110,13 @@ class _FakeStore:
     def save_intent_result(self, intent_id: str, payload: dict[str, object]) -> None:
         self.results[intent_id] = dict(payload)
 
+    gc_calls: list[tuple[float, float]] = field(default_factory=list)
+
+    def gc_intent_results(self, *, now: float, ttl: float) -> None:
+        # Record the GC sweep (cockpit DESIGN §10); the fake keeps results in memory so this is a
+        # no-op beyond recording that the drain invoked it once per drain.
+        self.gc_calls.append((now, ttl))
+
     def list_running(self) -> list[TicketState]:
         return list(self.running)
 
@@ -194,6 +201,14 @@ def test_operator_move_executes() -> None:
     assert next_columns["PVTI_8"] == "Done"  # baseline advanced
     assert store.results["i1"]["state"] == "done"
     assert "i1" not in store.intents  # cleared
+
+
+def test_drain_runs_result_gc_once_even_with_no_pending() -> None:
+    """The drain fires the result GC every tick — even when no intents are pending (cockpit §10)."""
+    store = _FakeStore(intents={})  # nothing pending
+    writer = _FakeWriter()
+    _drain(store, writer)
+    assert store.gc_calls == [(1000.0, 3600.0)]  # GC ran once with the configured TTL
 
 
 def test_move_to_unknown_column_rejected() -> None:

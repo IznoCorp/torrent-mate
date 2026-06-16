@@ -7,6 +7,7 @@ lazy directory creation, poison-tolerant reads, and atomic writes (no ``.tmp`` r
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from kanbanmate.adapters.store.fs_store import FsStateStore
@@ -60,3 +61,41 @@ class TestIntentQueue:
         store.enqueue_intent("t", {"kind": "move", "issue": 1})
         store.save_intent_result("t", {"state": "done"})
         assert list((tmp_path / "intents").glob("*.tmp")) == []
+
+
+class TestIntentResultGc:
+    """The TTL result-file GC (cockpit DESIGN §10 — ``intents/`` must not grow unbounded)."""
+
+    def test_expired_result_is_unlinked(self, tmp_path: Path) -> None:
+        """A result file older than the TTL is unlinked by the GC."""
+        store = FsStateStore(root=tmp_path)
+        store.save_intent_result("old", {"state": "done"})
+        result_path = tmp_path / "intents" / "old.result.json"
+        # Age it well beyond the TTL by back-dating its mtime.
+        old_mtime = 1000.0
+        os.utime(result_path, (old_mtime, old_mtime))
+        store.gc_intent_results(now=1000.0 + 7200.0, ttl=3600.0)
+        assert not result_path.exists()
+
+    def test_fresh_result_is_kept(self, tmp_path: Path) -> None:
+        """A result file younger than the TTL survives the GC."""
+        store = FsStateStore(root=tmp_path)
+        store.save_intent_result("fresh", {"state": "done"})
+        result_path = tmp_path / "intents" / "fresh.result.json"
+        now = result_path.stat().st_mtime + 10.0  # 10s old, well within a 1h TTL
+        store.gc_intent_results(now=now, ttl=3600.0)
+        assert result_path.exists()
+
+    def test_pending_marker_is_never_gcd(self, tmp_path: Path) -> None:
+        """The GC touches ONLY ``*.result.json`` — a still-pending ``<id>.json`` is left intact."""
+        store = FsStateStore(root=tmp_path)
+        store.enqueue_intent("p", {"kind": "move", "issue": 1})
+        pending = tmp_path / "intents" / "p.json"
+        os.utime(pending, (1000.0, 1000.0))  # ancient, but it is NOT a result file
+        store.gc_intent_results(now=1000.0 + 7200.0, ttl=3600.0)
+        assert pending.exists()
+
+    def test_missing_dir_is_noop(self, tmp_path: Path) -> None:
+        """GC on an absent ``intents/`` directory never raises."""
+        store = FsStateStore(root=tmp_path)
+        store.gc_intent_results(now=1.0, ttl=3600.0)  # must not raise

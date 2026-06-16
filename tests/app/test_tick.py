@@ -15,7 +15,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -221,6 +221,10 @@ def _mocks(reader: _FakeBoardReader, *, now: float = 1000.0) -> _Mocks:
     sessions = MagicMock()
     sessions.launch.return_value = "ticket-7"
     sessions.is_alive.return_value = True
+    # Candidate 2: default the done-exit REPL-liveness probe to True (a live claude child) so the
+    # bounded-retry graceful-dispatch path is exercised by existing done-exit tests. A test modelling
+    # a restart-race (REPL already exited) sets this False explicitly.
+    sessions.repl_alive.return_value = True
     # Phase-25 §25.1: a prompt-bearing launch polls ``capture`` then send-keys the filled prompt
     # into the REPL. Default the snapshot to a READY-REPL marker so the bounded poll returns at once
     # (trust_seen=False) — a bare MagicMock here would crash ``classify_pane`` (the ``in`` check).
@@ -246,7 +250,7 @@ def _mocks(reader: _FakeBoardReader, *, now: float = 1000.0) -> _Mocks:
     # Default the per-item move rate-limit gate to "not rate-limited" (zero durable moves in the
     # last hour, gate 13.6) so EXISTING reap tests still record a durable move without tripping
     # the gate. A mock default of a bare MagicMock would raise ``TypeError: '>=' not supported``
-    # when ``_rate_limited`` compares it against the cap — pin it to ``0``.
+    # when the rate-limit gate compares it against the cap — pin it to ``0``.
     store.move_count_for_item_last_hour.return_value = 0
     # Anti-double-session guard (defect 7): default NO recent agent-advance breadcrumb so the guard's
     # "human drag vs agent self-advance" discriminator is exercised. A test modelling a legitimate
@@ -307,6 +311,25 @@ def test_move_into_agent_column_triggers_launch() -> None:
     assert result.snapshot_taken is True
     # The baseline advanced to the new column for the next diff.
     assert next_state.columns_by_item["PVTI_7"] == "InProgress"
+
+
+def test_launch_emits_running_body_status_header() -> None:
+    """FIX 5: a launch into an agent column fires the body-top status header with state='running'."""
+    import dataclasses
+
+    from kanbanmate.app import transition_step as ts_mod
+
+    ticket = Ticket(item_id="PVTI_7", issue_number=7, title="t", column_key="InProgress")
+    reader = _FakeBoardReader("probe-1", _snapshot(ticket))
+    m = _mocks(reader)
+    m.deps = dataclasses.replace(m.deps, seeder=MagicMock())
+    state = PersistedState(columns_by_item={"PVTI_7": "Backlog"}, last_probe="probe-0")
+    body_status = MagicMock()
+    with patch.object(ts_mod, "update_body_status", body_status):
+        tick(m.deps, _config(), state)
+    running_calls = [c for c in body_status.call_args_list if c.kwargs.get("state") == "running"]
+    assert running_calls
+    assert running_calls[0].kwargs["stage"] == "InProgress"
 
 
 def test_move_into_cancel_column_triggers_teardown() -> None:
@@ -1925,6 +1948,65 @@ def test_reaper_marks_waiting_on_stale_alive_waiting_pane_no_reap() -> None:
     assert result.relaunched == 0
 
 
+def test_reaper_waiting_park_emits_body_status_waiting() -> None:
+    """FIX 5: the ⏳ WAITING park also fires the body-top status header with state='waiting'."""
+    import dataclasses
+
+    from kanbanmate.app import reaper as reaper_module
+
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = True
+    m.sessions.capture.return_value = "❯ 1. Yes\n  2. No\nEnter to select, Esc to cancel"
+    m.deps = dataclasses.replace(m.deps, seeder=MagicMock())
+    stale_waiting = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,
+        stage="InProgress",
+        profile="dev",
+        retries=0,
+    )
+    m.store.list_running.return_value = (stale_waiting,)
+    body_status = MagicMock()
+    with patch.object(reaper_module, "update_body_status", body_status):
+        tick(m.deps, _config(), PersistedState(last_probe="probe-1"))
+    body_status.assert_called_once()
+    assert body_status.call_args.kwargs["state"] == "waiting"
+    assert body_status.call_args.kwargs["stage"] == "InProgress"
+
+
+def test_reaper_blocked_park_emits_body_status_blocked() -> None:
+    """FIX 5: the ⛔ Blocked park (dead session) fires the body-top status header with state='blocked'."""
+    import dataclasses
+
+    from kanbanmate.app import reaper as reaper_module
+
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = False  # DEAD → reap/park-in-Blocked path
+    m.deps = dataclasses.replace(m.deps, seeder=MagicMock())
+    stale = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,
+        stage="InProgress",
+        retries=99,  # over RETRY_LIMIT so the reaper parks (does not relaunch)
+    )
+    m.store.list_running.return_value = (stale,)
+    body_status = MagicMock()
+    with patch.object(reaper_module, "update_body_status", body_status):
+        tick(m.deps, _config(), PersistedState(last_probe="probe-1"))
+    # The ⛔ blocked body-status header fired with the blocked state.
+    blocked_calls = [c for c in body_status.call_args_list if c.kwargs.get("state") == "blocked"]
+    assert blocked_calls
+    assert blocked_calls[0].kwargs["stage"] == "InProgress"
+
+
 def test_reaper_marks_waiting_on_stale_alive_idle_pane_never_kills() -> None:
     """Approach A: a stale + ALIVE agent at a BARE idle prompt is parked WAITING — NEVER killed.
 
@@ -2246,6 +2328,72 @@ def test_reaper_done_exit_dispatches_and_bumps_below_max() -> None:
     m.store.clear_agent_done.assert_not_called()  # breadcrumb KEPT (re-enter next tick)
     m.sessions.kill_repl_process.assert_not_called()  # not escalated below MAX
     m.sessions.kill.assert_not_called()
+
+
+def test_reaper_done_exit_skips_dispatch_when_repl_already_exited() -> None:
+    """Candidate 2: a done + idle agent whose REPL already exited is NOT re-sent keystrokes.
+
+    Models a daemon restart that raced the wrapper: the done breadcrumb lingers but the claude
+    child is already gone (``repl_alive`` False). The reaper must CONSUME the branch (no
+    ``end_session``, no bump, no WAITING-park) and let session-end / purge complete.
+    """
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = True  # tmux session still exists…
+    m.sessions.repl_alive.return_value = False  # …but the claude REPL child already exited
+    m.sessions.capture.return_value = "❯ "  # idle
+    m.store.recent_agent_done.return_value = True
+    m.store.get_end_attempts.return_value = 0  # below MAX
+    done_idle = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,
+        stage="InProgress",
+    )
+    m.store.list_running.return_value = (done_idle,)
+    state = PersistedState(last_probe="probe-1")
+
+    tick(m.deps, _config(), state)
+
+    # No wasted keystrokes, no bump, no escalation, no WAITING-park (the branch was consumed).
+    m.sessions.end_session.assert_not_called()
+    m.store.bump_end_attempt.assert_not_called()
+    m.sessions.kill_repl_process.assert_not_called()
+    # The branch was consumed → no WAITING save was written for this idle done agent.
+    waiting_saves = [
+        c.args[0]
+        for c in m.store.save.call_args_list
+        if getattr(c.args[0], "status", None) is TicketStatus.WAITING
+    ]
+    assert waiting_saves == []
+
+
+def test_reaper_done_exit_proceeds_when_repl_probe_raises() -> None:
+    """Candidate 2: a ``repl_alive`` probe error falls through to the normal graceful dispatch."""
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = True
+    m.sessions.repl_alive.side_effect = RuntimeError("tmux probe failed")
+    m.sessions.capture.return_value = "❯ "  # idle
+    m.store.recent_agent_done.return_value = True
+    m.store.get_end_attempts.return_value = 0
+    done_idle = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,
+        stage="InProgress",
+    )
+    m.store.list_running.return_value = (done_idle,)
+
+    tick(m.deps, _config(), PersistedState(last_probe="probe-1"))
+
+    # The probe error is swallowed → the normal graceful dispatch still happens (no regression).
+    m.sessions.end_session.assert_called_once_with("ticket-7")
+    m.store.bump_end_attempt.assert_called_once_with(7)
 
 
 def test_reaper_done_exit_retries_across_ticks_until_max() -> None:
@@ -3153,6 +3301,114 @@ def test_finalize_left_stage_flips_sticky_done_when_state_already_purged() -> No
     assert "<!-- kanban:step=Design -->" in updated  # the LEFT stage's sticky
     assert "✅" in updated and "done" in updated
     assert "left stage progress line" in updated  # the progress zone is preserved across the swap
+
+
+def test_finalize_left_stage_emits_body_status_done() -> None:
+    """FIX 5: the ✅ left-stage finalize also fires the body-top status header with state='done'."""
+    import dataclasses
+
+    from kanbanmate.app import tick as tick_mod
+    from kanbanmate.app.tick import _finalize_left_stage
+
+    m = _mocks(_FakeBoardReader("probe-1", _snapshot()), now=9000.0)
+    # Wire a real seeder so the body-status call is not the seeder=None no-op.
+    seeder = MagicMock()
+    m.deps = dataclasses.replace(m.deps, seeder=seeder)
+    body_status = MagicMock()
+    with patch.object(tick_mod, "update_body_status", body_status):
+        transition = Transition(
+            ticket=Ticket(item_id="PVTI_7", issue_number=7, title="t", column_key="InProgress"),
+            from_column="Design",
+            to_column="InProgress",
+        )
+        _finalize_left_stage(m.deps, transition, None, now=9000.0)
+    body_status.assert_called_once()
+    assert body_status.call_args.kwargs["state"] == "done"
+    assert body_status.call_args.kwargs["stage"] == "Design"
+
+
+def test_finalize_left_stage_skips_body_status_when_write_body_status_false() -> None:
+    """nit 4: ``write_body_status=False`` skips the LEFT-stage ``done`` body-status write.
+
+    The ✅ STICKY flip still runs (the upsert), but the body-top header write is suppressed — the
+    LAUNCH caller passes this so the immediately-following ``running`` write is the single coherent
+    header write per tick (no same-tick double write).
+    """
+    import dataclasses
+
+    from kanbanmate.app import tick as tick_mod
+    from kanbanmate.app.tick import _finalize_left_stage
+
+    m = _mocks(_FakeBoardReader("probe-1", _snapshot()), now=9000.0)
+    m.board_writer.list_issue_comments.return_value = [_existing_sticky("Design")]
+    m.deps = dataclasses.replace(m.deps, seeder=MagicMock())
+    body_status = MagicMock()
+    with patch.object(tick_mod, "update_body_status", body_status):
+        transition = Transition(
+            ticket=Ticket(item_id="PVTI_7", issue_number=7, title="t", column_key="InProgress"),
+            from_column="Design",
+            to_column="InProgress",
+        )
+        _finalize_left_stage(m.deps, transition, None, now=9000.0, write_body_status=False)
+    # No ``done`` body-status write on the launch path …
+    body_status.assert_not_called()
+    # … but the ✅ sticky flip still went out.
+    m.board_writer.update_comment.assert_called_once()
+
+
+def test_launch_writes_body_status_once_running_not_done() -> None:
+    """nit 4: a launch tick writes the body-top header EXACTLY once — the NEW stage's ``running``.
+
+    Before the fix the LEFT stage's ``done`` (via ``_finalize_left_stage``) AND the new stage's
+    ``running`` were both written in the same tick. The header must end the tick showing the NEW
+    stage ``running``, with no wasted LEFT-stage ``done`` write.
+    """
+    import dataclasses
+
+    from kanbanmate.app import tick as tick_mod
+
+    ticket = Ticket(item_id="PVTI_7", issue_number=7, title="t", column_key="InProgress")
+    reader = _FakeBoardReader("probe-1", _snapshot(ticket))
+    m = _mocks(reader)
+    m.deps = dataclasses.replace(m.deps, seeder=MagicMock())
+    # Baseline: previously in Backlog (the ``Backlog -> InProgress`` launch edge in ``_config()``);
+    # the LEFT stage is Backlog (its ``done`` write is what the fix suppresses on the launch path).
+    state = PersistedState(columns_by_item={"PVTI_7": "Backlog"}, last_probe="probe-0")
+    # Patch the SINGLE body-status symbol both call sites share (tick + transition_step import the
+    # same ``kanbanmate.app.body_status.update_body_status``) so every write in the tick is captured.
+    body_status = MagicMock()
+    with patch.object(tick_mod, "update_body_status", body_status):
+        from kanbanmate.app import transition_step as ts_mod
+
+        with patch.object(ts_mod, "update_body_status", body_status):
+            tick(m.deps, _config(), state)
+    states = [c.kwargs.get("state") for c in body_status.call_args_list]
+    # Exactly one body-status write this tick, and it is the NEW stage's ``running`` (no LEFT ``done``).
+    assert states == ["running"], states
+    assert body_status.call_args.kwargs["stage"] == "InProgress"
+
+
+def test_finalize_left_stage_body_status_error_is_fail_soft() -> None:
+    """FIX 5: a body-status error inside the ✅ finalize never breaks the advance (fail-soft)."""
+    import dataclasses
+
+    from kanbanmate.app import tick as tick_mod
+    from kanbanmate.app.tick import _finalize_left_stage
+
+    m = _mocks(_FakeBoardReader("probe-1", _snapshot()), now=9000.0)
+    m.board_writer.list_issue_comments.return_value = [_existing_sticky("Design")]
+    m.deps = dataclasses.replace(m.deps, seeder=MagicMock())
+    transition = Transition(
+        ticket=Ticket(item_id="PVTI_7", issue_number=7, title="t", column_key="InProgress"),
+        from_column="Design",
+        to_column="InProgress",
+    )
+    # The body-status helper raising must NOT prevent the ✅ sticky upsert (it is inside the
+    # finalize's own try/except — defense-in-depth).
+    with patch.object(tick_mod, "update_body_status", MagicMock(side_effect=RuntimeError("boom"))):
+        _finalize_left_stage(m.deps, transition, None, now=9000.0)
+    # The ✅ sticky still went out (the upsert ran before the body-status raised).
+    m.board_writer.update_comment.assert_called_once()
 
 
 def test_watchdog_executor_does_not_block_on_hung_worker() -> None:
@@ -4698,16 +4954,17 @@ def _reap_config(**kw: object) -> TickConfig:
 class TestReapDurableMoveRateLimit:
     """Tests for the durable per-item move rate-limit gate (gate 13.6 / DESIGN §6)."""
 
-    def test_reap_records_move_into_durable_history(self, tmp_path: Path) -> None:
-        """Two reaps within the hour ACCUMULATE in the durable history → count == 2.
+    def test_reap_park_does_not_feed_forward_advance_budget(self, tmp_path: Path) -> None:
+        """Two reaps do NOT feed the durable FORWARD-ADVANCE counter → count stays 0 (Candidate 1).
 
-        The reaper's own AUTO/bot move feeds the on-disk counter (``record_move_for_item``)
-        — NOT just the volatile in-memory ``antiloop`` — so the §6 per-hour cap survives a
-        daemon restart (the headline fix). Crucially, the reaper now constructs
-        ``TeardownAction(keep_budgets=True)`` (13.8), so its teardown PRESERVES
-        ``moves/<issue>.json`` — the count accumulates across reaps instead of perpetually
-        resetting to 1 (the 13.7 dormant defect: purge_ticket wiped the history one step
-        BEFORE the same reap re-wrote a single entry).
+        The reaper park-in-Blocked is a TERMINAL bookkeeping move (baseline→Blocked, never
+        re-fired), so it MUST NOT consume the per-issue forward-advance budget
+        (``moves/<issue>.json``) that the fix-CI / rework auto-advance loops + the session-end
+        advance:auto backstop gate on — otherwise a busy ticket's genuine forward moves and the
+        reaper's bookkeeping parks share one cap and the ticket can hit the cap mid-flow. So the
+        reaper no longer calls ``record_move_for_item`` (the rate-limit-conflation fix); the
+        DURABLE forward counter stays 0 across reaps. The volatile in-memory anti-loop accumulator
+        (the runaway-loop backstop's feeder) is STILL fed — that defense-in-depth survives.
         """
         store, deps, _bw, _ws, _sess = _real_store_reap_deps(tmp_path, now=10000.0)
         _sess.is_alive.return_value = (
@@ -4730,15 +4987,14 @@ class TestReapDurableMoveRateLimit:
 
         antiloop = AntiLoopState()
         with ThreadPoolExecutor(max_workers=1) as executor:
-            # First reap: tears the stale agent down (keep_budgets=True preserves moves/),
-            # then records its move-to-Blocked into the durable history → count 1.
+            # First reap: tears the stale agent down + parks in Blocked, but does NOT feed the
+            # forward-advance counter (Candidate 1).
             _save_stale()
             reaped1, _relaunched1, errors1, antiloop = _reap_stale_agents(
                 deps, config, executor, now=10000.0, antiloop=antiloop
             )
-            # Re-save the ticket stale and reap AGAIN within the same hour. Because the
-            # teardown preserves moves/, the second move-to-Blocked is appended on top of the
-            # first → the durable count accumulates to 2 (not reset to 1).
+            # Re-save the ticket stale and reap AGAIN within the same hour — still no forward-budget
+            # consumption.
             _save_stale()
             reaped2, _relaunched2, errors2, antiloop = _reap_stale_agents(
                 deps, config, executor, now=10000.0, antiloop=antiloop
@@ -4747,32 +5003,52 @@ class TestReapDurableMoveRateLimit:
         # Both reaps completed cleanly.
         assert (reaped1, errors1) == (1, 0)
         assert (reaped2, errors2) == (1, 0)
-        # The durable on-disk history ACCUMULATED both reaper moves within the hour → 2.
-        assert store.move_count_for_item_last_hour(7, now=10000.0) == 2
-        # Defense-in-depth: the in-memory antiloop was ALSO fed (not replaced).
+        # The durable FORWARD-ADVANCE counter was NEVER fed by the reaper park → stays 0.
+        assert store.move_count_for_item_last_hour(7, now=10000.0) == 0
+        # Defense-in-depth: the in-memory antiloop runaway backstop WAS still fed (not removed).
         assert ("PVTI_7", "Blocked") in antiloop.recent_targets
 
-    def test_rate_limited_ticket_not_double_recorded(self, tmp_path: Path) -> None:
-        """A ticket already at cap is NOT double-recorded by a further reap (counter stays at cap).
+    def test_reap_park_preserves_forward_advance_budget(self, tmp_path: Path) -> None:
+        """A ticket with (cap-1) forward moves + a reaper park keeps 1 forward-budget left (Candidate 1).
 
-        Seed the durable moves file to the cap (3), then reap once more: the reaper's
-        move-to-Blocked still happens (parking in Blocked IS the §6 remedy), but the
-        ``record_move_for_item`` call is SKIPPED because the ticket is already at/over its
-        hourly AUTO-move budget — the counter must not run away past the cap (port of OLD's
-        "park instead of acting + stop feeding the loop", runner.py:504-518).
+        The regression for the rate-limit conflation: seed (cap-1) GENUINE forward moves, then
+        reap once (a park-in-Blocked). The park must NOT consume the remaining forward budget, so
+        the durable forward counter stays at (cap-1) — one move still available — and a busy
+        ticket is no longer starved mid-flow by the reaper's bookkeeping.
+        """
+        store, deps, _bw, _ws, _sess = _real_store_reap_deps(tmp_path, now=10000.0)
+        _sess.is_alive.return_value = False  # DEAD → reach the reap/park path
+        store.save(_stale_running())
+        # Seed (cap-1) = 2 genuine forward moves within the window (cap defaults to 3).
+        for seed_ts in (9000.0, 9500.0):
+            store.record_move_for_item(7, now=seed_ts)
+        config = _reap_config(move_rate_limit_per_hour=3)
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            reaped, _relaunched, errors, _ = _reap_stale_agents(
+                deps, config, executor, now=10000.0, antiloop=AntiLoopState()
+            )
+
+        assert (reaped, errors) == (1, 0)
+        # The park did NOT consume the forward budget → still at cap-1 (one forward move left).
+        assert store.move_count_for_item_last_hour(7, now=10000.0) == 2
+
+    def test_reap_park_at_cap_leaves_forward_count_unchanged(self, tmp_path: Path) -> None:
+        """A ticket already at cap: a further reap park leaves the forward count unchanged (Candidate 1).
+
+        After the rate-limit-conflation fix the reaper park never feeds the forward-advance
+        counter at all, so a park on an already-at-cap ticket (3 seeded forward moves) leaves the
+        durable forward count at 3 (the park still happens — parking in Blocked IS the §6 remedy —
+        it just does not consume any forward budget).
         """
         store, deps, _bw, _ws, _sess = _real_store_reap_deps(tmp_path, now=10000.0)
         _sess.is_alive.return_value = (
             False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
         )
         store.save(_stale_running())
-        # Seed the durable history to the cap (3 moves within the last hour).
+        # Seed the durable forward history to the cap (3 genuine forward moves within the hour).
         for seed_ts in (9000.0, 9300.0, 9600.0):
             store.record_move_for_item(7, now=seed_ts)
-        # NO stub: the reaper's TeardownAction now passes keep_budgets=True (13.8), so the REAL
-        # production ``purge_ticket`` runs but PRESERVES the seeded moves/<issue>.json history.
-        # The gate then sees 3 >= cap(3) and SKIPS record_move_for_item, so the count stays 3 —
-        # asserted against the un-stubbed production path (the 13.7 test stubbed purge to pass).
         config = _reap_config(move_rate_limit_per_hour=3)
 
         with ThreadPoolExecutor(max_workers=1) as executor:
@@ -4785,57 +5061,25 @@ class TestReapDurableMoveRateLimit:
             )
 
         assert reaped == 1
-        # The durable count stayed at the cap — NOT cap+1. The gate read the on-disk
-        # count BEFORE recording the new move, saw 3 >= 3 (rate-limited), and skipped the
-        # ``record_move_for_item`` call so the counter did not run away.
+        # The reaper park did NOT touch the forward counter → stays at the seeded cap (3).
         assert store.move_count_for_item_last_hour(7, now=10000.0) == 3
         # The in-memory antiloop was still fed (defense-in-depth survives).
         assert ("PVTI_7", "Blocked") in antiloop.recent_targets
 
-    def test_gate_reads_config_move_rate_limit_per_hour(self, tmp_path: Path) -> None:
-        """The rate-limit gate reads ``config.move_rate_limit_per_hour`` — tunable, not hard-pinned.
-
-        Set the cap to 2 (not the default 10), seed 2 durable moves, and assert a third reap
-        does NOT push the count past 2. Proves the gate respects the board-level knob (13.4)
-        rather than a hard-coded value — the tunability the audit flagged as lost.
-        """
-        store, deps, _bw, _ws, _sess = _real_store_reap_deps(tmp_path, now=10000.0)
-        _sess.is_alive.return_value = (
-            False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
-        )
-        store.save(_stale_running())
-        # Seed 2 moves (the cap) within the rate window.
-        for seed_ts in (9000.0, 9500.0):
-            store.record_move_for_item(7, now=seed_ts)
-        # NO stub: the reaper's TeardownAction passes keep_budgets=True (13.8), so the REAL
-        # purge_ticket preserves the seeded moves/ history; the gate then sees 2 >= cap(2) and
-        # skips the record — the count stays 2 against the un-stubbed production path.
-        config = _reap_config(move_rate_limit_per_hour=2)
-
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            reaped, _relaunched, errors, _ = _reap_stale_agents(
-                deps,
-                config,
-                executor,
-                now=10000.0,
-                antiloop=AntiLoopState(),
-            )
-
-        assert reaped == 1
-        # Count stays at 2 (the configured cap), not 3, not 10 (the default).
-        assert store.move_count_for_item_last_hour(7, now=10000.0) == 2
-
     def test_durable_count_survives_fresh_store_instance(self, tmp_path: Path) -> None:
-        """The durable per-hour move count survives a fresh ``FsStateStore`` over the same root.
+        """The durable per-hour FORWARD move count survives a fresh ``FsStateStore`` + a reaper park.
 
-        This is the headline §6 fix: the on-disk ``moves/<issue>.json`` history persists
+        This is the headline §6 fix: the on-disk ``moves/<issue>.json`` FORWARD history persists
         across a daemon restart, so the per-hour cap holds — unlike the volatile in-memory
-        ``antiloop`` counter which ``loop.py`` re-initialises empty at every startup.
+        ``antiloop`` counter which ``loop.py`` re-initialises empty at every startup. Candidate 1:
+        a subsequent reaper park must NOT add to the forward count, so it stays at the seeded value.
         """
         store, deps, _bw, _ws, _sess = _real_store_reap_deps(tmp_path, now=10000.0)
         _sess.is_alive.return_value = (
             False  # DEAD session → reaches the reap path (Approach A reaps only dead sessions)
         )
+        # Seed ONE genuine forward move (an advance:auto / on_fail bounce would record this).
+        store.record_move_for_item(7, now=9500.0)
         stale = TicketState(
             issue_number=7,
             item_id="PVTI_7",
@@ -4855,10 +5099,10 @@ class TestReapDurableMoveRateLimit:
                 antiloop=AntiLoopState(),
             )
 
-        # The first store recorded 1 move on disk. Create a FRESH store instance over the
-        # SAME root — simulating a daemon restart.
+        # Create a FRESH store instance over the SAME root — simulating a daemon restart.
         fresh_store = FsStateStore(tmp_path)
-        # The durable count survived the "restart": the moves file is still there.
+        # The durable FORWARD count survived the "restart" and the reaper park did NOT add to it
+        # (Candidate 1) → still exactly the seeded 1.
         assert fresh_store.move_count_for_item_last_hour(7, now=10000.0) == 1
 
     def test_antiloop_still_fed_regression(self, tmp_path: Path) -> None:

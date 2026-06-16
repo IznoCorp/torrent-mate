@@ -336,6 +336,10 @@ class _FakeStore:
         """Unused by the read-only commands (Health field state, health-field)."""
         pass
 
+    def prune_item_health(self, live_item_ids: object) -> None:  # pragma: no cover
+        """Unused by the read-only commands (Health marker GC, Candidate 3)."""
+        pass
+
     def enqueue_intent(self, intent_id: str, payload: object) -> None:  # pragma: no cover
         """Unused by the read-only commands (intent queue, cockpit PR2)."""
         pass
@@ -354,6 +358,10 @@ class _FakeStore:
 
     def save_intent_result(self, intent_id: str, payload: object) -> None:  # pragma: no cover
         """Unused by the read-only commands (intent queue, cockpit PR2)."""
+        pass
+
+    def gc_intent_results(self, *, now: float, ttl: float) -> None:  # pragma: no cover
+        """Unused by the read-only commands (intent result GC, cockpit §10)."""
         pass
 
     def load_intent_result(self, intent_id: str) -> dict[str, object] | None:  # pragma: no cover
@@ -395,6 +403,10 @@ class _FakeSessions:
     def end_session(self, name: str) -> None:  # pragma: no cover - unused
         """Unused by read-only status commands (#1 Protocol member)."""
         raise AssertionError("sessions must not end_session")
+
+    def repl_alive(self, name: str) -> bool:  # pragma: no cover - unused
+        """Unused by read-only status commands (Candidate 2 Protocol member)."""
+        raise AssertionError("sessions must not probe repl_alive")
 
     def kill_repl_process(self, name: str) -> None:  # pragma: no cover - unused
         """Unused by read-only status commands (firm-exit Protocol member)."""

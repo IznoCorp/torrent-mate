@@ -304,7 +304,7 @@ class FsStateStore(
             fix-CI budgets accumulate across the gap. WITHOUT this, the reaper's
             teardown wiped ``moves/<issue>.json`` one step BEFORE the same reap
             read it for the rate-limit gate, so the durable §6 counter perpetually
-            reset to 1 and ``_rate_limited`` could never observe ``>= cap``.
+            reset to 1 and the rate-limit gate could never observe ``>= cap``.
           * ``keep_budgets=False`` (default) — the ticket is ABANDONED (Cancel via
             :class:`~kanbanmate.app.actions.TeardownAction`, or Cancel→Backlog
             re-arm via :class:`~kanbanmate.app.actions.ResetAction`): the FULL

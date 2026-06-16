@@ -189,5 +189,11 @@ def apply_health(
                     ticket.item_id,
                     exc_info=True,
                 )
+
+        # 3. Bounded GC (Candidate 3): drop per-card ``health/last/<item>`` markers for cards no
+        #    longer on the board so the marker directory stays proportional to the live board (it
+        #    previously grew unbounded — nothing pruned a card that left). Fail-soft (the whole
+        #    apply_health body already swallows; the store method is itself fail-soft too).
+        deps.store.prune_item_health({t.item_id for t in snapshot.tickets})
     except Exception:  # noqa: BLE001 — observability only: NEVER raise into the tick / block a launch
         logger.warning("health: refresh failed; card chips are stale", exc_info=True)

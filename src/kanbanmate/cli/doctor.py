@@ -22,6 +22,12 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
 
+from kanbanmate.cli.doctor_health import (
+    HealthFieldCheck,
+    _check_health_field,
+    _resolve_health_check,
+)
+
 # ---------------------------------------------------------------------------
 # Injectable types — mirror the ``install.py`` ``Runner`` pattern.
 # ---------------------------------------------------------------------------
@@ -243,21 +249,15 @@ def _check_token(
 ) -> CheckResult:
     """Verify the GitHub token is reachable and correctly scoped (host tier, DESIGN §10).
 
-    Reuses the scope classifier from :mod:`kanbanmate.adapters.github.token`: the
-    token must be reachable (file or ``$KANBAN_TOKEN``) and carry the required
-    ``{project, repo}`` FLOOR (lower bound). Three distinct outcomes mirror the PoC
-    (``cli/plan_doctor.py:40-45,86-97``), restoring its disposition (#6/#7):
+    Reuses the scope classifier from :mod:`kanbanmate.adapters.github.token`: the token must be
+    reachable (file or ``$KANBAN_TOKEN``) and carry the required ``{project, repo}`` FLOOR. Three
+    outcomes mirror the PoC (#6/#7):
 
-    * **FAIL** — a classic PAT MISSING a required scope (under-scoped). This blocks
-      ``doctor`` (returns ``ok=False``).
-    * **WARNING** — an over-scoped token (extra scopes beyond ``{project, repo}``,
-      e.g. ``admin:org``/``delete_repo``). The PoC treated over-scope as advisory,
-      not a gate (least-privilege is advisory here, DESIGN §10), so this returns
-      ``ok=True`` with a ``WARNING:`` detail — flagged but non-blocking. NEW's old
-      behaviour HARD-FAILED here via ``validate_scopes``; #6 downgrades it.
-    * **advisory** — an empty (fine-grained PAT) scope set. GitHub reports no
-      classic scopes for a fine-grained PAT, so this passes with an advisory note
-      (not a silent pass — the floor cannot be proven, only assumed satisfied).
+    * **FAIL** — a classic PAT MISSING a required scope (under-scoped); blocks ``doctor``.
+    * **WARNING** — an over-scoped token (extra scopes beyond ``{project, repo}``); advisory + non-
+      blocking (least-privilege is advisory, DESIGN §10; #6 downgraded the old hard-fail here).
+    * **advisory** — an empty (fine-grained PAT) scope set: passes with a note (the floor cannot be
+      proven, only assumed — not a silent pass).
 
     Args:
         token_scope_check: A zero-arg callable that returns the granted scopes
@@ -810,6 +810,7 @@ def run_doctor(
     geteuid: Callable[[], int] | None = None,
     stat_socket: Callable[[str], int] | None = None,
     board_probe_check: BoardProbeCheck | None = None,
+    health_check: HealthFieldCheck | None = None,
     shim_list_scripts: ShimListScripts | None = None,
     shim_which: ShimWhich | None = None,
     pyenv_version_read: Callable[[], str | None] | None = None,
@@ -819,7 +820,7 @@ def run_doctor(
     time_callable: Callable[[], float] | None = None,
     tmux_socket_path: str = DEFAULT_TMUX_SOCKET,
 ) -> int:
-    """Run all twelve health checks and print a structured pass/fail table.
+    """Run all thirteen health checks and print a structured pass/fail table.
 
     Every external dependency is a keyword argument — in production all are
     ``None`` and the real system calls / imports are used; in tests every one
@@ -830,33 +831,27 @@ def run_doctor(
     2. PM2 daemon up
     3. daemon heartbeat fresh AND healthy (FAIL on consecutive_failures >= 3, #1)
     4. plugin present (``claude plugin list``)
-    5. GitHub token reachable + required floor {project, repo} present
-       (FAIL on missing-required, FAIL on 401/403, WARN on over-scoped, advisory on fine-grained)
-    6. board reachable — authenticated cheap probe (FAIL on unreachable; advisory skip with
-       no registered project, #1)
+    5. GitHub token reachable + required floor {project, repo} (FAIL on missing-required / 401/403,
+       WARN on over-scoped, advisory on fine-grained)
+    6. board reachable — authenticated cheap probe (FAIL on unreachable; advisory skip with no
+       registered project, #1)
+    6b. health field — per-card Health single-select carries the 5 named options (ADVISORY)
     7. branch protection on (advisory — always passes; warns when absent)
     8. orphan slots — a held slot with no matching state file (FAIL; NOT auto-released, #11)
     9. helper shims — every declared ``kanban-*`` console script resolves on PATH (FAIL; phase 35)
     10. pyenv twin — pyenv global vs engine interpreter (advisory WARN; never blocks, phase 38)
-    11. non-root
-    12. tmux socket owned by current user
+    11. non-root; 12. tmux socket owned by current user
 
-    **Intentionally removed (#5 KEEP+DOC).** The PoC checked the ``gh`` CLI is
-    installed (``cli/plan_doctor.py:35-38`` ``gh_installed``). NEW has NO ``gh``-CLI
-    runtime dependency — the polling engine reaches GitHub through the urllib
-    token-scope fetch (:mod:`kanbanmate.adapters.github.token`) and the urllib REST
-    client, never by shelling out to ``gh``. The ``gh_installed`` check is therefore
-    moot and was dropped on purpose; its absence is deliberate, not an omission. No
-    live ``gh`` check is restored.
+    **Intentionally removed (#5 KEEP+DOC).** The PoC's ``gh_installed`` check is dropped on purpose:
+    NEW has no ``gh``-CLI runtime dependency (it reaches GitHub via the urllib token-scope fetch +
+    REST client, never by shelling out to ``gh``), so the check is moot — its absence is deliberate.
 
-    Each check that raises is caught and reported as FAIL — a single broken
-    check never crashes the entire doctor run.
+    Each check that raises is caught and reported as FAIL — a single broken check never crashes the
+    whole doctor run.
 
     Args:
-        root: The kanban runtime root for the heartbeat file. Defaults to
-            ``~/.kanban/``.
-        runner: The subprocess runner for pm2/claude checks. Defaults to
-            :func:`subprocess.run`.
+        root: The kanban runtime root for the heartbeat file. Defaults to ``~/.kanban/``.
+        runner: The subprocess runner for pm2/claude checks. Defaults to :func:`subprocess.run`.
         import_check: Inject for test (see :class:`ImportCheck`).
         token_scope_check: Inject for test (see :class:`TokenScopeCheck`).
         token_load: Inject for test — loads the raw token string.
@@ -865,12 +860,13 @@ def run_doctor(
         stat_socket: Inject for test — returns the owner uid for a path.
         board_probe_check: Inject for test (see :class:`BoardProbeCheck`); ``None`` resolves a
             live registry-derived probe in production and skips advisory when none is registered.
-        shim_list_scripts: Inject for test — returns the declared ``kanban-*`` console-script names.
-            When ``None`` (production), reads them from the installed distribution's entry points.
-        shim_which: Inject for test — a ``name -> path|None`` resolver. When ``None`` (production),
-            uses :func:`shutil.which`.
+        health_check: Inject for test (Health-field probe); ``None`` resolves a live one (ADVISORY).
+        shim_list_scripts: Inject for test — returns the declared ``kanban-*`` console-script names;
+            ``None`` (production) reads them from the installed distribution's entry points.
+        shim_which: Inject for test — a ``name -> path|None`` resolver; ``None`` uses
+            :func:`shutil.which`.
         pyenv_version_read: Inject for test — returns the raw ``~/.pyenv/version`` content for the
-            advisory pyenv-twin check. When ``None`` (production), reads the real file (fail-soft).
+            advisory pyenv-twin check; ``None`` reads the real file (fail-soft).
         now: The wall-clock time for the heartbeat age calculation.
         ttl: The maximum acceptable heartbeat age in seconds. ``None`` (the default) derives it
             as ``max(120, 2*idle_max)`` (#1); pass a value to pin it.
@@ -886,14 +882,16 @@ def run_doctor(
     resolved_runner: Runner = subprocess.run if runner is None else runner
     # Derive the heartbeat TTL (#1): when the caller doesn't pin one, the freshness window is
     # ``max(120, 2*idle_max)`` — the 120 s floor matches the fixed 10 s cadence (a wedged daemon
-    # trips in ~2 min, not the old 30 min), and ``2*idle_max`` tolerates a single missed poll for
-    # an operator who opted into the idle back-off (so back-off never false-FAILs doctor).
+    # trips in ~2 min, not the old 30 min), and ``2*idle_max`` tolerates one missed poll under back-off.
     resolved_ttl = ttl if ttl is not None else max(HEARTBEAT_TTL_FLOOR, 2 * idle_max)
-    # Resolve a LIVE board probe from the registry when none is injected (production path). A
-    # ``None`` (no project registered / resolution failed) keeps the advisory skip.
+    # Resolve a LIVE board probe from the registry when none is injected; ``None`` keeps the skip.
     resolved_board_probe = board_probe_check
     if resolved_board_probe is None and token_scope_check is None and token_load is None:
         resolved_board_probe = _resolve_board_probe(resolved_root)
+    # Resolve a LIVE Health-field probe the same way (advisory, health-field nit; never FAILs).
+    resolved_health_check = health_check
+    if resolved_health_check is None and token_scope_check is None and token_load is None:
+        resolved_health_check = _resolve_health_check(resolved_root)
 
     # Build the check list. Each entry is (label, thunk that returns CheckResult).
     # The thunks close over their injected dependencies so the loop below is uniform.
@@ -915,6 +913,7 @@ def run_doctor(
             "board reachable",
             lambda: _check_board_reachable(board_probe_check=resolved_board_probe),
         ),
+        ("health field", lambda: _check_health_field(health_check=resolved_health_check)),
         ("branch protection", lambda: _check_branch_protection(branch_check=branch_check)),
         ("orphan slots", lambda: _check_orphan_slots(resolved_root)),
         (

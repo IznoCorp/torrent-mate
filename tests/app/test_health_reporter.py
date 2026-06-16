@@ -281,3 +281,19 @@ def test_multi_root_independent_caches(tmp_path: Path) -> None:
     # Root B has NOT seen this card → it writes too (A's marker does not suppress B).
     apply_health(_deps(store_b, reporter_b), _config(), running=(), snapshot=snap, now=1.0)
     assert reporter_b.set_calls == [("PVTI_1", "COMPLETE")]
+
+
+def test_apply_health_prunes_markers_for_departed_cards(tmp_path: Path) -> None:
+    """Candidate 3: a card that left the board has its last-written marker GC'd by apply_health."""
+    store = FsStateStore(tmp_path)
+    reporter = _FakeHealthReporter()
+    # First tick: two cards on the board → two markers written.
+    snap1 = _snapshot(_ticket(1, "PVTI_1", "Done"), _ticket(2, "PVTI_2", "Done"))
+    apply_health(_deps(store, reporter), _config(), running=(), snapshot=snap1, now=1.0)
+    assert store.get_item_health("PVTI_1") == "COMPLETE"
+    assert store.get_item_health("PVTI_2") == "COMPLETE"
+    # Second tick: PVTI_2 has LEFT the board → its stale marker is pruned, PVTI_1's kept.
+    snap2 = _snapshot(_ticket(1, "PVTI_1", "Done"))
+    apply_health(_deps(store, reporter), _config(), running=(), snapshot=snap2, now=2.0)
+    assert store.get_item_health("PVTI_1") == "COMPLETE"
+    assert store.get_item_health("PVTI_2") is None  # GC'd

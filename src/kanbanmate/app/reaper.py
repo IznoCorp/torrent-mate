@@ -23,6 +23,7 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 from kanbanmate.app.actions import BlockAction, Deps, LaunchAction, TeardownAction
+from kanbanmate.app.body_status import update_body_status
 from kanbanmate.app.stage_signal import upsert_stage_comment
 from kanbanmate.core.antiloop import AntiLoopState, record_move
 from kanbanmate.core.domain import Ticket
@@ -77,28 +78,6 @@ class _ReapMove:
             deps: The adapter bundle to act through.
         """
         deps.board_writer.move_card(self.item_id, self.column)
-
-
-def _rate_limited(deps: Deps, issue_number: int, cap: int, now: float) -> bool:
-    """Return whether ``issue_number`` is at/over its hourly AUTO/bot-move budget.
-
-    Reads the DURABLE on-disk move history (13.1) so the §6 rate-limit holds across a
-    daemon restart. Port of the PoC ``runner.py:511-512`` ``>= cap`` check.
-
-    Args:
-        deps: The injected adapter bundle (the store port carrying the durable history).
-        issue_number: The ticket whose move budget to check.
-        cap: The per-hour AUTO/bot-move ceiling (``config.move_rate_limit_per_hour``,
-            sourced from the board-level ``defaults:`` block, 13.4). A board that set
-            e.g. ``6`` gets ``6`` — tunable, not the hard-pinned ``10`` the audit
-            flagged as lost (DESIGN §6).
-        now: The wall-clock timestamp the sliding window is measured against.
-
-    Returns:
-        ``True`` iff the ticket's durable AUTO/bot-move count within the last hour
-        is at or above *cap*.
-    """
-    return deps.store.move_count_for_item_last_hour(issue_number, now=now) >= cap
 
 
 def _session_alive(deps: Deps, issue_number: int) -> bool:
@@ -214,7 +193,12 @@ def _end_done_session(deps: Deps, state: TicketState, now: float) -> bool:
     idle + alive session; the helper reads the persisted attempt counter
     (:meth:`~kanbanmate.ports.store.StateStore.get_end_attempts`) and:
 
-    * **attempts < :data:`MAX_END_ATTEMPTS`** — dispatch the ROBUST graceful exit
+    * **attempts < :data:`MAX_END_ATTEMPTS`** — FIRST probe
+      :meth:`~kanbanmate.ports.workspace.Sessions.repl_alive` (Candidate 2): if the ``claude`` REPL
+      has ALREADY exited (a daemon restart raced the wrapper, so the done breadcrumb lingers but the
+      child is gone), CONSUME the branch (return ``True``) WITHOUT re-sending keystrokes or bumping —
+      session-end / purge completes on its own and the WAITING-park never fires. Otherwise dispatch
+      the ROBUST graceful exit
       (:meth:`~kanbanmate.ports.workspace.Sessions.end_session`: Escape→C-u→C-d→C-d → ``claude``
       exits → the trailing ``; kanban-session-end <issue>`` runs the teardown), then BUMP the counter.
       The done breadcrumb is **LEFT in place** (the single-shot clear of the old contract is gone for
@@ -259,6 +243,24 @@ def _end_done_session(deps: Deps, state: TicketState, now: float) -> bool:
         attempts = 0
 
     if attempts < MAX_END_ATTEMPTS:
+        # Candidate 2 — daemon-restart mid-done-exit idempotency: before re-sending the graceful
+        # end_session keystrokes, confirm the pane still hosts a live comm-verified claude child. A
+        # daemon restart can race the wrapper — the REPL may have already exited (its trailing
+        # ``; kanban-session-end`` is running / has run) while the done breadcrumb has not yet been
+        # purged. Re-sending keystrokes then is wasted and could disturb the pane. When the REPL is
+        # already gone, CONSUME the branch (return True) WITHOUT bumping/dispatching, so the
+        # WAITING-park does not fire and session-end / purge completes on its own. FAIL-SOFT: the
+        # probe never raises (it returns False on any error), so a probe failure simply falls through
+        # to the normal graceful dispatch (no regression).
+        try:
+            if not deps.sessions.repl_alive(f"ticket-{issue}"):
+                # The claude child already exited (restart raced the wrapper). Nothing to exit —
+                # let session-end / purge complete; consume the branch (no keystrokes, no WAITING).
+                return True
+        except Exception:
+            logger.exception(
+                "reaper repl_alive probe failed for #%s; proceeding with graceful dispatch", issue
+            )
         # Bounded-retry path: dispatch the robust graceful exit and bump the counter. Leave the done
         # breadcrumb so the next tick re-enters and re-dispatches until exit or the budget is hit.
         try:
@@ -380,6 +382,15 @@ def _enter_waiting(deps: Deps, state: TicketState, now: float) -> None:
                 state.issue_number,
                 state.stage,
             )
+        # FIX 5: mirror the ⏳ WAITING sticky in the body-top status header. Fully fail-soft.
+        update_body_status(
+            deps.seeder,
+            state.issue_number,
+            stage=state.stage,
+            state="waiting",
+            summary="waiting for your input",
+            now=now,
+        )
 
 
 def _restore_running(deps: Deps, state: TicketState, now: float) -> None:
@@ -427,6 +438,16 @@ def _restore_running(deps: Deps, state: TicketState, now: float) -> None:
                 state.issue_number,
                 state.stage,
             )
+        # FIX 5: re-flip the body-top status header back to "running" on a resumed WAITING ticket,
+        # so the header tracks the live state (no stale "waiting" lingering). Fully fail-soft.
+        update_body_status(
+            deps.seeder,
+            state.issue_number,
+            stage=state.stage,
+            state="running",
+            summary="resumed",
+            now=now,
+        )
 
 
 def reap_stale_agents(
@@ -716,12 +737,16 @@ def reap_stale_agents(
             # Record the daemon's own move so the anti-loop guard recognises it on a later tick
             # (defense-in-depth backstop, DESIGN §6). Only record a move that actually landed.
             antiloop = record_move(antiloop, state.item_id, config.blocked_column, now=now)
-            # Durable per-item §6 rate-limit history (13.1): feed the on-disk counter so the per-hour
-            # AUTO/bot-move cap survives a daemon restart. When the ticket is ALREADY at/over budget
-            # do NOT double-record — the park still happens but the counter must not run past the cap
-            # (port runner.py:504-518). Any future daemon-issued AUTO move MUST likewise feed this.
-            if not _rate_limited(deps, state.issue_number, config.move_rate_limit_per_hour, now):
-                deps.store.record_move_for_item(state.issue_number, now=now)
+            # Candidate 1 (rate-limit conflation fix): the reaper park-in-Blocked is a TERMINAL
+            # bookkeeping move (baseline→Blocked, never re-fired) — it MUST NOT consume the per-issue
+            # FORWARD-ADVANCE budget (``moves/<issue>.json``) that the fix-CI / rework auto-advance
+            # loops + the session-end advance:auto backstop gate on. Previously this branch fed
+            # ``record_move_for_item`` here, so a busy ticket's genuine forward moves + the reaper's
+            # bookkeeping parks shared one cap → a busy ticket could hit the cap and get parked
+            # mid-flow needing manual intervention. The anti-loop ``record_move`` above (the runaway
+            # backstop's feeder) is RETAINED; only the forward-budget feeder is removed here. The
+            # script-route cap-park (``_park_runaway``) was already correct (it never fed
+            # ``record_move_for_item``), so this aligns the reaper with it.
         # ⛔ Flip the stage sticky to "blocked" (DESIGN §8.1.c) from the stale state's OWN metadata,
         # so it carries the original launch context. Skip when stage is empty (old-format state).
         # The try/except is defense-in-depth: a GitHub error must never affect the reap tally.
@@ -746,6 +771,15 @@ def reap_stale_agents(
                     state.issue_number,
                     state.stage,
                 )
+            # FIX 5: mirror the ⛔ blocked sticky in the body-top status header. Fully fail-soft.
+            update_body_status(
+                deps.seeder,
+                state.issue_number,
+                stage=state.stage,
+                state="blocked",
+                summary="agent stalled — parked in Blocked",
+                now=now,
+            )
         if ok_block and ok_teardown and ok_move:
             reaped += 1
         else:

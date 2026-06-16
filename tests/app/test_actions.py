@@ -29,7 +29,8 @@ from kanbanmate.app.actions import (
     RunScriptAction,
     TeardownAction,
 )
-from kanbanmate.adapters.github.types import IssueContext
+from kanbanmate.adapters.github.types import IssueContext, IssueRef
+from kanbanmate.core.body_edit import STATUS_BEGIN
 from kanbanmate.core.domain import Ticket
 from kanbanmate.ports.store import TicketState
 
@@ -1046,6 +1047,84 @@ def test_teardown_worktree_exists_probe_failure_assumes_present() -> None:
 
     m.workspace.discover_branch.assert_called_once_with(7)
     m.workspace.remove_worktree.assert_called_once_with(7, force=True)
+
+
+# ---------------------------------------------------------------------------
+# TeardownAction — body-top status header on the TERMINAL transitions (FIX 5 gap)
+# ---------------------------------------------------------------------------
+
+
+def _deps_with_seeder(m: _Mocks, body: str = "existing body") -> tuple[Deps, MagicMock]:
+    """Wire a fake ``Seeder`` onto ``m.deps`` so the body-status header write is observable.
+
+    The ``_mocks`` bundle leaves ``Deps.seeder=None`` (a no-op for ``update_body_status``), so a
+    test that asserts the terminal-transition header write must inject a seeder. Returns the new
+    frozen :class:`Deps` plus the seeder mock to assert on.
+
+    Args:
+        m: The base mock bundle whose ``deps`` to clone with a seeder.
+        body: The body ``fetch_issue`` returns (the header is prepended above it).
+
+    Returns:
+        A ``(deps_with_seeder, seeder_mock)`` tuple.
+    """
+    seeder = MagicMock()
+    seeder.fetch_issue.return_value = IssueRef(
+        node_id="ISSUE_NODE_7", number=7, title="[A1] X", body=body
+    )
+    return replace(m.deps, seeder=seeder), seeder
+
+
+def test_teardown_done_flavour_writes_done_body_header() -> None:
+    """The Done-arrival teardown refreshes the body-top header to ``done`` (the terminal-gap fix).
+
+    Without this, a card reaching Done kept a STALE header (the prior stage's running/done). The
+    Done flavour must PATCH the body with a ``done`` status block — never left on a stale state.
+    """
+    m = _mocks()
+    deps, seeder = _deps_with_seeder(m)
+    TeardownAction(ticket=_ticket(issue=7), flavour="done").execute(deps)
+
+    seeder.update_issue_body.assert_called_once()
+    _node_id, new_body = seeder.update_issue_body.call_args.args
+    assert new_body.startswith(STATUS_BEGIN)
+    assert "**KanbanMate status** — InProgress · done — merged / done" in new_body
+    assert "existing body" in new_body  # original content preserved below the header
+
+
+def test_teardown_cancel_flavour_writes_cancelled_body_header() -> None:
+    """The Cancel teardown refreshes the body-top header to ``cancelled`` (the terminal-gap fix)."""
+    m = _mocks()
+    deps, seeder = _deps_with_seeder(m)
+    TeardownAction(ticket=_ticket(issue=7), flavour="cancel").execute(deps)
+
+    seeder.update_issue_body.assert_called_once()
+    _node_id, new_body = seeder.update_issue_body.call_args.args
+    assert "**KanbanMate status** — InProgress · cancelled — ticket cancelled" in new_body
+
+
+def test_teardown_reap_flavour_does_not_write_body_header() -> None:
+    """The ``reap`` flavour does NOT write the body header here — the reaper flips it to ``blocked``.
+
+    A parked stale agent is blocked, not done/cancelled, so the teardown must leave the body-status
+    write to the reaper's own ⛔ step (which runs AFTER this non-destructive teardown).
+    """
+    m = _mocks()
+    deps, seeder = _deps_with_seeder(m)
+    TeardownAction(ticket=_ticket(issue=7), flavour="reap").execute(deps)
+
+    seeder.update_issue_body.assert_not_called()
+
+
+def test_teardown_body_header_failure_is_swallowed() -> None:
+    """A seeder error during the terminal body-header write never aborts the teardown (fail-soft)."""
+    m = _mocks()
+    deps, seeder = _deps_with_seeder(m)
+    seeder.fetch_issue.side_effect = RuntimeError("boom")
+
+    # Must NOT raise; the recap comment still posts (the step after the body-header write).
+    TeardownAction(ticket=_ticket(issue=7), flavour="done").execute(deps)
+    m.board_writer.comment.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

@@ -448,7 +448,11 @@ def test_interrupt_no_breadcrumb_does_not_auto_advance(monkeypatch: pytest.Monke
 
 
 def test_auto_advance_rate_limited_parks_in_blocked(monkeypatch: pytest.MonkeyPatch) -> None:
-    """At/over the per-issue rate limit → parked in Blocked instead of advancing (anti-loop bound)."""
+    """At/over the per-issue rate limit → parked in Blocked instead of advancing (anti-loop bound).
+
+    Candidate 4: the stage sticky must be finalized ⛔ BLOCKED on this path — not the misleading
+    ✅ done it used to carry — because the card was rate-limit-parked in Blocked.
+    """
     store = MagicMock()
     store.load.return_value = _state(stage="Brainstorming", advance="auto:Spec")
     store.recent_agent_advance.return_value = False
@@ -456,6 +460,10 @@ def test_auto_advance_rate_limited_parks_in_blocked(monkeypatch: pytest.MonkeyPa
     store.move_count_for_item_last_hour.return_value = 10  # >= cap (10) → park
     monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
     client = _patch_github_capture_client(monkeypatch)
+    upsert = MagicMock()
+    monkeypatch.setattr(kanban_session_end, "upsert_stage_comment", upsert)
+    body_status = MagicMock()
+    monkeypatch.setattr(kanban_session_end, "update_body_status", body_status)
     _patch_backstop_config(monkeypatch, rate_limit=10)
 
     assert main(["7"]) == 0
@@ -464,6 +472,12 @@ def test_auto_advance_rate_limited_parks_in_blocked(monkeypatch: pytest.MonkeyPa
     client.comment.assert_called_once()
     assert "rate limit" in client.comment.call_args.args[1].lower()
     store.record_move_for_item.assert_called_once()
+    # Candidate 4: the sticky reflects the Blocked outcome (⛔), NOT ✅ done.
+    upsert.assert_called_once()
+    assert upsert.call_args.kwargs["header"].status == "blocked"
+    # FIX 5: the body-top status header mirrors the blocked outcome too.
+    body_status.assert_called_once()
+    assert body_status.call_args.kwargs["state"] == "blocked"
 
 
 def test_auto_advance_key_to_name_resolution_multiword(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -537,3 +551,69 @@ def test_auto_advance_honours_kanban_root(monkeypatch: pytest.MonkeyPatch) -> No
     # The store was keyed on the resolved KANBAN_ROOT (the move targets the right registry/root).
     assert seen_roots == ["/tmp/km-root"]
     client.move_card.assert_called_once_with("PVTI_node", "Plan")
+
+
+# ---------------------------------------------------------------------------
+# FIX 5 — body-top status header mirrors the finalized sticky
+# ---------------------------------------------------------------------------
+
+
+def test_done_advance_emits_body_status_done(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A clean within-limit done+auto-advance fires the body-status header with state='done'."""
+    store = MagicMock()
+    store.load.return_value = _state(stage="Spec", advance="auto:Plan")
+    store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = True
+    store.move_count_for_item_last_hour.return_value = 0
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    client = _patch_github_capture_client(monkeypatch)
+    body_status = MagicMock()
+    monkeypatch.setattr(kanban_session_end, "update_body_status", body_status)
+    _patch_backstop_config(monkeypatch)
+
+    assert main(["7"]) == 0
+    client.move_card.assert_called_once_with("PVTI_node", "Plan")
+    body_status.assert_called_once()
+    assert body_status.call_args.kwargs["state"] == "done"
+    assert body_status.call_args.kwargs["stage"] == "Spec"
+
+
+def test_interrupted_emits_body_status_interrupted(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A genuine crash/interrupt (neither breadcrumb) fires body-status with state='interrupted'."""
+    store = MagicMock()
+    store.load.return_value = _state(stage="Implement")
+    store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = False  # NEITHER → ⚠️ interrupted path
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    monkeypatch.setattr(kanban_session_end, "_resolve_entry", lambda: MagicMock())
+    monkeypatch.setattr(kanban_session_end, "load_token", lambda *a, **k: "tok")
+    monkeypatch.setattr(kanban_session_end, "GithubClient", lambda *a, **k: MagicMock())
+    monkeypatch.setattr(kanban_session_end, "upsert_stage_comment", MagicMock())
+    body_status = MagicMock()
+    monkeypatch.setattr(kanban_session_end, "update_body_status", body_status)
+
+    assert main(["7"]) == 0
+    body_status.assert_called_once()
+    assert body_status.call_args.kwargs["state"] == "interrupted"
+    assert body_status.call_args.kwargs["stage"] == "Implement"
+
+
+def test_body_status_error_does_not_break_session_end(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A body-status wire failure (client raising) never breaks the always-run session-end."""
+    store = MagicMock()
+    store.load.return_value = _state(stage="Implement")
+    store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = False
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    monkeypatch.setattr(kanban_session_end, "_resolve_entry", lambda: MagicMock())
+    monkeypatch.setattr(kanban_session_end, "load_token", lambda *a, **k: "tok")
+    monkeypatch.setattr(kanban_session_end, "GithubClient", lambda *a, **k: MagicMock())
+    monkeypatch.setattr(kanban_session_end, "upsert_stage_comment", MagicMock())
+    # The body-status helper itself raising must be swallowed by the surrounding finalize try/except.
+    monkeypatch.setattr(
+        kanban_session_end,
+        "update_body_status",
+        MagicMock(side_effect=RuntimeError("body write boom")),
+    )
+
+    assert main(["7"]) == 0  # fail-soft: never crashes the agent shell.

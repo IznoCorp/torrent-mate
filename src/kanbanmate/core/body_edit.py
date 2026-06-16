@@ -32,6 +32,36 @@ _MARKER_LINE = re.compile(r"^\*\*(\w+)\*\*:[^\n]*$", re.MULTILINE)
 # The authoritative ``[CODE]`` bracket at the START of an issue title (``[CODE] Title``).
 _TITLE_CODE = re.compile(r"^\s*\[([^\]]+)\]")
 
+# FIX 5 — body-top status header (clean-termination DESIGN §FIX-5). The daemon keeps an
+# always-visible current-status block at the TOP of the issue body (GitHub cannot pin a timeline
+# comment). HTML-comment delimiters are invisible in the rendered issue, never collide with the
+# ``**key**:`` markers or ``##`` headings, and survive a GitHub round-trip.
+STATUS_BEGIN = "<!-- kanban:status:begin -->"
+STATUS_END = "<!-- kanban:status:end -->"
+
+# Locate-and-replace an EXISTING status block exactly once. ``re.escape`` on the literal HTML
+# comments means this can only ever match the exact delimited region — never an agent's prose —
+# and ``re.DOTALL`` lets ``.*?`` span the multi-line block content.
+_STATUS_BLOCK = re.compile(re.escape(STATUS_BEGIN) + r".*?" + re.escape(STATUS_END), re.DOTALL)
+
+
+def _strip_delimiters(value: str) -> str:
+    """Remove any literal STATUS_BEGIN/STATUS_END delimiter from an injected status field (nit 5).
+
+    The status block is bounded by the :data:`STATUS_BEGIN` / :data:`STATUS_END` HTML comments and
+    located by the non-greedy :data:`_STATUS_BLOCK` regex. If a field rendered INTO the block ever
+    contained one of those delimiter literals, a later replace could match up to the EMBEDDED
+    delimiter and split the block — leaving a malformed second region. Dropping the literals from the
+    field content keeps the delimiters at the block boundaries ONLY, so the block stays well-formed.
+
+    Args:
+        value: A status field value (``stage`` / ``state`` / ``summary``) about to be rendered.
+
+    Returns:
+        ``value`` with every literal ``STATUS_BEGIN`` / ``STATUS_END`` occurrence removed.
+    """
+    return value.replace(STATUS_BEGIN, "").replace(STATUS_END, "")
+
 
 def set_field(body: str, key: str, value: str) -> str:
     """Rewrite the ``**key**: value`` marker IN PLACE (or append it when absent).
@@ -91,6 +121,68 @@ def append_section(body: str, heading: str, text: str) -> str:
     if not body.strip():
         return section
     return body.rstrip("\n") + "\n\n" + section
+
+
+def set_status_header(
+    body: str,
+    *,
+    stage: str,
+    state: str,
+    summary: str,
+    timestamp: str,
+) -> str:
+    """Insert/replace the body-top current-status block (FIX 5; pure, deterministic).
+
+    The daemon keeps an always-visible header at the TOP of the issue body because GitHub
+    cannot pin a timeline comment (clean-termination DESIGN §FIX-5). The block is delimited by
+    :data:`STATUS_BEGIN` / :data:`STATUS_END` HTML comments so it is a single, region-disjoint
+    zone: it can NEVER overlap a ``**key**:`` marker (:data:`PRESERVED_MARKERS`) or a ``##``
+    heading, so :func:`set_field` / :func:`append_section` and this transform operate on
+    non-overlapping bytes — markers + the ``## Brainstorm`` section are byte-preserved.
+
+    Behaviour:
+
+    * When a status block already exists (``_STATUS_BLOCK`` matches), it is REPLACED in place
+      (``count=1`` guards against a malformed double block), leaving every other byte identical.
+      An identical block produces an identical body — idempotent, so the app-layer body-diff gate
+      can skip the write.
+    * When absent, the block is PREPENDED at the TOP (header above all existing content; the
+      markers + the ``## Brainstorm`` section are untouched, just shifted down) — the operator
+      wants the status always visible at the top of the body.
+
+    Args:
+        body: The current issue body (may be empty).
+        stage: The current stage / column name (e.g. ``"Design"``).
+        state: The lifecycle state word (``running`` / ``done`` / ``blocked`` / ``waiting`` /
+            ``interrupted`` / ``cancelled``).
+        summary: A short free-text summary (empty string omits the ``— …`` clause).
+        timestamp: A pre-formatted ``YYYY-MM-DD HH:MM`` stamp (typically
+            :func:`kanbanmate.core.stage_comment.fmt_timestamp`).
+
+    Returns:
+        The body with the status block set at the top (replaced in place when one existed).
+    """
+    # Defensive de-fanging (nit 5): a ``stage``/``state``/``summary`` carrying the LITERAL
+    # ``STATUS_BEGIN`` / ``STATUS_END`` delimiter would let the non-greedy ``_STATUS_BLOCK`` regex
+    # self-corrupt — a stray ``STATUS_END`` inside the content would terminate the block early on the
+    # NEXT replace, leaving an orphaned tail (a second, malformed region). Stripping any delimiter
+    # occurrence from the injected fields BEFORE rendering guarantees the delimiters only ever appear
+    # at the block boundaries, so the block stays a single well-formed region for any field content.
+    stage = _strip_delimiters(stage)
+    state = _strip_delimiters(state)
+    summary = _strip_delimiters(summary)
+    line = f"**KanbanMate status** — {stage} · {state}"
+    if summary:
+        line += f" — {summary}"
+    rendered = f"{STATUS_BEGIN}\n{line}\n_updated {timestamp}_\n{STATUS_END}"
+    if _STATUS_BLOCK.search(body):
+        # REPLACE the existing block in place (region-disjoint from every marker/section, so they
+        # stay byte-identical). ``count=1`` collapses a (malformed) double block to one.
+        return _STATUS_BLOCK.sub(lambda _m: rendered, body, count=1)
+    if not body:
+        return rendered
+    # ABSENT: prepend at the TOP above all existing content (markers + ## Brainstorm untouched).
+    return f"{rendered}\n\n{body}"
 
 
 def title_code(title: str) -> str | None:

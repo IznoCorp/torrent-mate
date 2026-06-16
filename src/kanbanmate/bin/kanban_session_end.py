@@ -41,10 +41,12 @@ from __future__ import annotations
 import sys
 import time
 from dataclasses import asdict
+from typing import Literal
 
 from kanbanmate.adapters.github.client import GithubClient
 from kanbanmate.adapters.github.token import load_token
 from kanbanmate.adapters.store.fs_store import FsStateStore
+from kanbanmate.app.body_status import update_body_status
 from kanbanmate.app.stage_signal import upsert_stage_comment
 from kanbanmate.bin._clone_config import (
     auto_advance_target,
@@ -55,7 +57,7 @@ from kanbanmate.bin._clone_config import (
 from kanbanmate.bin._pin import parse_issue_arg, resolve_kanban_root
 from kanbanmate.cli.init import ProjectEntry
 from kanbanmate.core.columns import resolve_column
-from kanbanmate.core.stage_comment import fmt_timestamp, header_from_state
+from kanbanmate.core.stage_comment import StageStatus, fmt_timestamp, header_from_state
 from kanbanmate.ports.store import TicketState
 
 _PROG = "kanban-session-end"
@@ -63,6 +65,13 @@ _PROG = "kanban-session-end"
 # The Blocked column the auto-advance backstop parks a rate-limited runaway in (DESIGN §13). The
 # stable column KEY in the shipped board model; resolved to its display NAME before move_card.
 _BLOCKED_KEY = "Blocked"
+
+# The outcome of :func:`_auto_advance` (Candidate 4): ``advanced`` (moved to the auto target),
+# ``stopped`` (advance:stop / no item id / unknown target → no move), or ``parked_blocked`` (the
+# rate-limit backstop parked the card in Blocked). The done-branch caller uses this to make the
+# finalized sticky reflect the REAL outcome — a ⛔ blocked sticky on a parked card, not a misleading
+# ✅ done.
+AutoAdvanceResult = Literal["advanced", "stopped", "parked_blocked"]
 
 
 def _resolve_entry() -> ProjectEntry:
@@ -90,14 +99,18 @@ def _auto_advance(
     store: FsStateStore,
     *,
     now: float,
-) -> None:
+) -> AutoAdvanceResult:
     """Honour a clean-done LAUNCH stage's ``advance:auto:<col>`` directive (DESIGN §13 backstop).
 
     Mirrors ``app/script_route._route_success``'s auto-advance for the LAUNCH-stage path the engine
     previously left dead: when a launch stage carries ``advance:auto:<col>`` and the agent ran
     ``kanban-done`` WITHOUT moving its own card (the caller is inside ``done and not advanced``),
-    the ENGINE moves the card to ``<col>`` so the daemon's next ``diff`` fires the next stage. The
-    sticky was ALREADY finalized ✅ by the caller, so this only issues the move.
+    the ENGINE moves the card to ``<col>`` so the daemon's next ``diff`` fires the next stage.
+
+    Candidate 4: this RETURNS its outcome (``advanced`` / ``stopped`` / ``parked_blocked``) so the
+    caller can finalize the stage sticky to MATCH it. Previously the caller finalized ✅ done BEFORE
+    calling this, leaving a misleading ✅-done sticky on a card this function then parked in Blocked
+    on a rate-limited runaway. The caller now finalizes AFTER reading this result.
 
     Discipline (matching the script-route gold standard):
 
@@ -139,10 +152,10 @@ def _auto_advance(
         # advance:stop (or empty/malformed) → the card STOPS (the Planned/Review human gates). The
         # previously-dead config was a no-op for launch stages; for a stop directive that is still
         # correct — nothing to do.
-        return
+        return "stopped"
     if not state.item_id:
         # No persisted card node id → nothing to move (a draft/old-format state); fail-soft no-op.
-        return
+        return "stopped"
     try:
         columns = load_clone_columns(entry)
         cfg = load_clone_transitions(entry)
@@ -151,7 +164,7 @@ def _auto_advance(
             f"{_PROG}: warning: could not load clone config for #{issue} auto-advance: {exc}",
             file=sys.stderr,
         )
-        return
+        return "stopped"
 
     # Resolve the directive KEY → the board's display NAME (defect-2 pattern) so a multiword
     # target ("PR/CI") lands. An unknown target column → fail-soft no-op (never raise).
@@ -162,13 +175,14 @@ def _auto_advance(
             "column; skipping the engine move",
             file=sys.stderr,
         )
-        return
+        return "stopped"
     target_name = target_col.name
 
-    # OUTER per-issue rate-limit backstop (matching _route_success / reaper._rate_limited: the
+    # OUTER per-issue rate-limit backstop (matching _route_success: the
     # cap-th move allowed, the (cap+1)-th parked). Bounds a runaway auto-advance chain. The engine
     # move is the only feeder of this counter on a launch stage (the agent's own kanban-move never
-    # records it), so the human workflow is never rate-limited.
+    # records it, and the reaper park is excluded — Candidate 1), so the human workflow is never
+    # rate-limited.
     if store.move_count_for_item_last_hour(issue, now=now) >= cfg.move_rate_limit_per_hour:
         blocked_col = resolve_column(columns, _BLOCKED_KEY)
         blocked_name = blocked_col.name if blocked_col is not None else _BLOCKED_KEY
@@ -190,7 +204,7 @@ def _auto_advance(
             f"{_PROG}: ticket #{issue} auto-advance rate-limited — parked in Blocked.",
             file=sys.stderr,
         )
-        return
+        return "parked_blocked"
 
     # Within the limit → the SANCTIONED engine auto-advance move. Direct client.move_card (NOT
     # kanban_move.main, whose agent anti-loop guard would refuse a launch-target column). Record
@@ -199,11 +213,15 @@ def _auto_advance(
         client.move_card(state.item_id, target_name)
         store.record_move_for_item(issue, now=now)
         print(f"{_PROG}: ticket #{issue} auto-advanced -> {target_name} (engine backstop).")
+        return "advanced"
     except Exception as exc:  # noqa: BLE001 — fail-soft: the engine move must never break session-end.
         print(
             f"{_PROG}: warning: could not auto-advance #{issue} to {target_name!r}: {exc}",
             file=sys.stderr,
         )
+        # A failed move did not park or advance; treat as a no-op (the card stays where it is). The
+        # caller finalizes ✅ done — the clean-completion outcome the agent signalled.
+        return "stopped"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -221,8 +239,10 @@ def main(argv: list[str] | None = None) -> int:
        any queue/moves/retries markers — the session is over).
     4. If the advance breadcrumb was present → the agent advanced; the daemon's 8.1.e already
        finalized ✅, so leave the sticky untouched and return.
-    4b. Else if the done breadcrumb was present (#FIX3) → a clean advance:stop completion that never
-       advances; finalize the stage sticky ✅ done via a fail-soft ``GithubClient`` and return.
+    4b. Else if the done breadcrumb was present (#FIX3) → a clean completion that never advances:
+       run the ``advance:auto`` backstop FIRST, then finalize the stage sticky to MATCH its outcome
+       (✅ done normally, ⛔ blocked when the backstop rate-limit-parked the card — Candidate 4) via
+       a fail-soft ``GithubClient`` and return.
     5. Otherwise (NEITHER breadcrumb) → a genuine crash/interrupt: resolve the stage from
        ``TicketState.stage`` alone (8.1.d persists it directly — no separate ``columns/`` marker)
        and finalize the sticky ⚠️ *interrupted* via a fail-soft ``GithubClient``. An empty stage
@@ -333,28 +353,49 @@ def main(argv: list[str] | None = None) -> int:
                     "removed (slot freed), per-issue budgets preserved (GitHub finalize skipped)."
                 )
                 return 0
-            # ✅ sticky finalize — a done-without-advance is a CLEAN completion, not a crash.
-            try:
-                header = header_from_state(
-                    asdict(state), issue, stage, "done", finished=fmt_timestamp(now)
-                )
-                upsert_stage_comment(client, issue, stage, header=header, now=now)
-            except Exception as exc:  # noqa: BLE001 — fail-soft: a finalize error never breaks session-end.
-                print(
-                    f"{_PROG}: warning: could not finalize ✅ done sticky for #{issue}: {exc}",
-                    file=sys.stderr,
-                )
             # 4c. ENGINE auto-advance backstop (DESIGN §13 hybrid flow). A clean-done LAUNCH stage
             #     whose persisted ``advance`` is ``auto:<col>`` and whose agent did NOT advance its
             #     own card (we are inside ``done and not advanced``) is moved to ``<col>`` by the
             #     engine — turning the previously-DEAD ``advance:auto`` config into a live move so
             #     the daemon's next diff fires the next stage. ``advance:stop`` (the Planned + Review
-            #     human gates) returns None here → the card STOPS (no move). Idempotent + fail-soft +
-            #     rate-limited; see :func:`_auto_advance`.
-            _auto_advance(state, issue, client, entry, store, now=now)
+            #     human gates) returns "stopped" here → the card STOPS (no move). Idempotent +
+            #     fail-soft + rate-limited; see :func:`_auto_advance`.
+            #
+            # Candidate 4: run the auto-advance FIRST, then finalize the sticky to MATCH its outcome.
+            # On a rate-limited runaway _auto_advance parks the card in Blocked → the sticky must be
+            # ⛔ blocked, not a misleading ✅ done on a now-Blocked card. Otherwise finalize ✅ done.
+            advance_result = _auto_advance(state, issue, client, entry, store, now=now)
+            sticky_status: StageStatus
+            if advance_result == "parked_blocked":
+                sticky_status = "blocked"
+                body_summary = "rate-limited — parked in Blocked"
+                report_tail = "card parked in Blocked, sticky finalized ⛔."
+            else:
+                sticky_status = "done"
+                body_summary = "stage complete"
+                report_tail = "sticky finalized ✅."
+            try:
+                header = header_from_state(
+                    asdict(state), issue, stage, sticky_status, finished=fmt_timestamp(now)
+                )
+                upsert_stage_comment(client, issue, stage, header=header, now=now)
+            except Exception as exc:  # noqa: BLE001 — fail-soft: a finalize error never breaks session-end.
+                print(
+                    f"{_PROG}: warning: could not finalize {sticky_status} sticky for #{issue}: {exc}",
+                    file=sys.stderr,
+                )
+            # FIX 5: mirror the finalized sticky in the body-top status header (done OR blocked).
+            update_body_status(
+                client,
+                issue,
+                stage=stage,
+                state=sticky_status,
+                summary=body_summary,
+                now=now,
+            )
             print(
                 f"{_PROG}: ticket #{issue} done (clean completion, no advance); runtime record "
-                "removed (slot freed), per-issue budgets preserved, sticky finalized ✅."
+                f"removed (slot freed), per-issue budgets preserved, {report_tail}"
             )
             return 0
 
@@ -385,6 +426,16 @@ def main(argv: list[str] | None = None) -> int:
                 asdict(state), issue, stage, "interrupted", finished=fmt_timestamp(now)
             )
             upsert_stage_comment(client, issue, stage, header=header, now=now)
+            # FIX 5: mirror the ⚠️ interrupted sticky in the body-top status header. The client
+            # is wired (this branch); ``update_body_status`` is itself fully fail-soft.
+            update_body_status(
+                client,
+                issue,
+                stage=stage,
+                state="interrupted",
+                summary="session ended without advancing",
+                now=now,
+            )
         except Exception as exc:  # noqa: BLE001 — fail-soft: a finalize error never breaks session-end.
             print(
                 f"{_PROG}: warning: could not finalize ⚠️ sticky for #{issue}: {exc}",

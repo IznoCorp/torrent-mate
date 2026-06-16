@@ -42,6 +42,7 @@ from kanbanmate.app.actions import (
     RunScriptAction,
     TeardownAction,
 )
+from kanbanmate.app.body_status import update_body_status
 from kanbanmate.app.done_arrival import done_arrival_teardown
 from kanbanmate.app.script_route import fixci_key, route_script_verdict, run_check_script
 from kanbanmate.app.status_reporter import event_kind_for_action
@@ -617,8 +618,25 @@ def process_transition(
         # does NOT flip the LEFT sticky to ✅ (the PoC finalizes ✅ only on accepted
         # non-rollback forward moves, runner.py:497-499,618-620). Finalize from the
         # PRE-READ state (now metadata-bearing); the LaunchAction has already opened the
-        # new stage's 🟡 (8.1.c).
-        _finalize_left_stage(deps, transition, left_state, now)
+        # new stage's 🟡 (8.1.c). ``write_body_status=False`` (nit 4): the body-top header is written
+        # ONCE per launch tick — the new stage's ``running`` below is the meaningful end-of-tick
+        # header, so skipping the LEFT stage's ``done`` body-status here collapses the same-tick
+        # double write to one. The ✅ STICKY flip inside ``_finalize_left_stage`` still runs.
+        _finalize_left_stage(deps, transition, left_state, now, write_body_status=False)
+        # FIX 5: mirror the new stage's 🟡 running sticky in the body-top status header. Emitted
+        # here (transition_step has ample LOC headroom) rather than in the near-ceiling
+        # ``LaunchAction.execute`` (actions.py at 999). Fully fail-soft (it swallows every error),
+        # so it can never break the launch. Skipped for a draft item with no issue number.
+        if transition.ticket.issue_number is not None:
+            launch_profile = command.profile if isinstance(command, LaunchAction) else ""
+            update_body_status(
+                deps.seeder,
+                transition.ticket.issue_number,
+                stage=transition.to_column,
+                state="running",
+                summary=f"agent dispatched ({launch_profile or 'agent'})",
+                now=now,
+            )
     # Advance the baseline regardless of success: the card *is* in the new column on
     # the board, so the next diff must compare against it. A failed action surfaces
     # via the error count / logs, not by replaying the move every tick (which would

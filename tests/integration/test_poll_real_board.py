@@ -115,6 +115,17 @@ class _SpySessions:
             name: Session name (ignored).
         """
 
+    def repl_alive(self, name: str) -> bool:
+        """No real REPL → always False (Candidate 2 Protocol member).
+
+        Args:
+            name: Session name (ignored).
+
+        Returns:
+            ``False`` — this spy hosts no live ``claude`` child.
+        """
+        return False
+
     def kill_repl_process(self, name: str) -> None:
         """No-op: no real REPL process to SIGKILL (firm-exit Protocol member).
 

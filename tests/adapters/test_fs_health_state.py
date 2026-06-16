@@ -123,3 +123,41 @@ def test_atomic_write_leaves_no_temp_file(tmp_path: Path) -> None:
     last_dir = tmp_path / "health" / "last"
     names = [p.name for p in last_dir.iterdir()]
     assert all(not n.endswith(".tmp") for n in names)
+
+
+def test_prune_item_health_removes_stale_keeps_live(tmp_path: Path) -> None:
+    """Candidate 3: prune unlinks markers for cards not on the board, keeps the live ones."""
+    store = _store(tmp_path)
+    store.set_item_health("PVTI_live", "ACTIVE")
+    store.set_item_health("PVTI_gone", "WAITING")
+    # Only PVTI_live is on the board now → PVTI_gone's marker is GC'd.
+    store.prune_item_health({"PVTI_live"})
+    assert store.get_item_health("PVTI_live") == "ACTIVE"  # live marker kept
+    assert store.get_item_health("PVTI_gone") is None  # stale marker removed
+
+
+def test_prune_item_health_empty_live_clears_all(tmp_path: Path) -> None:
+    """Pruning with an empty live set removes every per-card marker."""
+    store = _store(tmp_path)
+    store.set_item_health("PVTI_a", "ACTIVE")
+    store.set_item_health("PVTI_b", "COMPLETE")
+    store.prune_item_health(set())
+    assert list((tmp_path / "health" / "last").iterdir()) == []
+
+
+def test_prune_item_health_missing_dir_is_noop(tmp_path: Path) -> None:
+    """Pruning when ``health/last/`` is empty/absent never raises."""
+    store = _store(tmp_path)
+    # No markers written yet; the dir exists (created in __init__) but is empty.
+    store.prune_item_health({"PVTI_x"})  # must not raise
+    assert list((tmp_path / "health" / "last").iterdir()) == []
+
+
+def test_prune_item_health_membership_uses_same_sanitiser(tmp_path: Path) -> None:
+    """The live-set membership uses the SAME sanitiser the marker write does (no drift)."""
+    store = _store(tmp_path)
+    # A pathological id is written under its SANITISED name.
+    store.set_item_health("weird/id:1", "ACTIVE")
+    # Pruning with the SAME raw id (it sanitises to the same marker name) keeps it.
+    store.prune_item_health({"weird/id:1"})
+    assert store.get_item_health("weird/id:1") == "ACTIVE"

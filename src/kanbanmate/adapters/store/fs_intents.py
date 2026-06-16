@@ -79,6 +79,32 @@ class IntentsStateMixin:
         """Return an intent's result payload, or ``None`` when not yet written/corrupt."""
         return self._read_intent_json(self._intent_result_path(intent_id))
 
+    def gc_intent_results(self, *, now: float, ttl: float) -> None:
+        """Unlink ``*.result.json`` files older than ``ttl`` seconds (cockpit DESIGN §10 Result GC).
+
+        Nothing ever deleted a result file before — :meth:`clear_intent` removes only the PENDING
+        marker and the CLI ``--wait`` never deleted the result it read, so ``intents/`` grew
+        unbounded. This cheap TTL sweep (called once per ``drain_intents``) unlinks any result file
+        whose mtime is older than ``now - ttl``. Only ``*.result.json`` is touched — a still-pending
+        ``<id>.json`` is never removed by the GC. FAIL-SOFT: a missing directory is a no-op and each
+        per-file stat/unlink is guarded (a concurrent removal / race never raises into the tick).
+
+        Args:
+            now: The current wall-clock time (epoch seconds) the TTL window is measured against.
+            ttl: The maximum age (seconds) a result file may reach before it is unlinked.
+        """
+        directory = self._intents_dir()
+        if not directory.exists():
+            return
+        cutoff = now - ttl
+        for path in directory.glob("*.result.json"):
+            try:
+                if path.stat().st_mtime < cutoff:
+                    path.unlink()
+            except (FileNotFoundError, OSError):
+                # A concurrent removal / unstatable file must never wedge the drain — skip it.
+                continue
+
     # ------------------------------------------------------------------
     # Paths + atomic primitives (self-contained — mirror fs_status_state).
     # ------------------------------------------------------------------

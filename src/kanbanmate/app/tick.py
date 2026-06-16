@@ -45,6 +45,7 @@ from kanbanmate.app.actions import (
     RunScriptAction,
     TeardownAction,
 )
+from kanbanmate.app.body_status import update_body_status
 from kanbanmate.app.depgate import resolve_dependency_gate
 from kanbanmate.app.drain import _drain_queue as _drain_queue_impl
 from kanbanmate.app.health_reporter import apply_health
@@ -290,25 +291,17 @@ def _build_action(
     :class:`~kanbanmate.core.dependency_gate.DependencyVerdict` (MET / UNMET /
     UNKNOWN). The resolution is two-layered, **snapshot-primary**:
 
-    * **Snapshot decides the common case** with ZERO I/O. When the verdict is
-      :meth:`~kanbanmate.core.dependency_gate.DependencyVerdict.fully_met` (no UNMET
-      dep, no UNKNOWN dep) the launch proceeds; when ``met`` is ``False`` (an
-      on-board dep is not done) it is a hard block — no live query can satisfy an
-      on-board not-done dep, so none is made. This is the perf property: a ticket
-      whose deps are all on the board triggers ZERO ``issue_state`` calls.
-    * **Live fallback resolves only the UNKNOWN deps.** When ``verdict.unresolved``
-      is non-empty (deps absent from the snapshot — e.g. closed-as-not-planned or
-      moved off the board), the gate queries ``deps.board_reader.issue_state(n)``
-      for EACH such dep: CLOSED → that dep is MET; OPEN → UNMET. The launch proceeds
-      iff ``verdict.met`` AND every unresolved dep resolved to CLOSED. This recovers
-      the PoC behaviour (a closed-but-off-board dep satisfies its dependent) without
-      the per-tick N queries of the all-on-board case.
+    * **Snapshot decides the common case** with ZERO I/O. ``fully_met`` (no UNMET, no UNKNOWN dep) →
+      launch; ``met`` is ``False`` (an on-board dep is not done) → a hard block (no live query can
+      satisfy it). Perf property: an all-on-board ticket triggers ZERO ``issue_state`` calls.
+    * **Live fallback resolves only the UNKNOWN deps.** When ``verdict.unresolved`` is non-empty
+      (deps absent from the snapshot — closed-as-not-planned / moved off-board), the gate queries
+      ``deps.board_reader.issue_state(n)`` per dep: CLOSED → MET, OPEN → UNMET. The launch proceeds
+      iff ``verdict.met`` AND every unresolved dep resolved CLOSED (PoC parity, without N queries).
 
-    **Fail-soft + bounded.** A throwing/slow ``issue_state`` leaves that dep UNMET
-    (conservative — NEVER launch on an undecidable dep); each call inherits the
-    client's mandatory connect+read timeouts (CLAUDE.md). The residual edge the
-    fallback cannot fix: an issue that is OPEN but whose work is genuinely done
-    out-of-band is still UNMET — the correct fix is to represent it on the board.
+    **Fail-soft + bounded.** A throwing/slow ``issue_state`` leaves that dep UNMET (conservative —
+    NEVER launch on an undecidable dep); each call inherits the client's mandatory timeouts. Residual
+    edge: an OPEN issue whose work is done out-of-band is still UNMET (fix: represent it on the board).
 
     If any dependency is unmet the launch is *replaced* by a
     :class:`~kanbanmate.app.actions.BlockAction` carrying the gate's reason, so no
@@ -410,6 +403,8 @@ def _finalize_left_stage(
     transition: Transition,
     left_state: TicketState | None,
     now: float,
+    *,
+    write_body_status: bool = True,
 ) -> None:
     """Finalize the LEFT stage's sticky to ✅ "done" on an accepted forward move (DESIGN §8.1.e).
 
@@ -440,6 +435,12 @@ def _finalize_left_stage(
             ``deps.store.load(issue)`` BEFORE any ``LaunchAction.save`` overwrote the slot
             (header-provenance Fix 4/6). ``None`` when no LEFT state is persisted.
         now: The current wall-clock time, used for the finished timestamp + the upsert stamp.
+        write_body_status: When ``True`` (the default — NOOP-forward / RUN_SCRIPT callers), ALSO
+            mirror the ✅ in the body-top status header (``from_column · done``). The LAUNCH caller
+            passes ``False`` (nit 4): a ``running`` body-status write for the NEW stage immediately
+            follows in the SAME tick, so writing the LEFT stage's ``done`` here would be a wasted
+            second fetch+patch + an extra last-writer race window — collapse to the single end-of-tick
+            ``running``. The ✅ STICKY flip still runs; only the body-status header write is skipped.
     """
     from_column = transition.from_column
     issue = transition.ticket.issue_number
@@ -473,6 +474,19 @@ def _finalize_left_stage(
             header=header,
             now=now,
         )
+        # FIX 5: mirror the ✅ sticky in the body-top status header (done of the LEFT stage), fully
+        # fail-soft. SKIPPED on the LAUNCH path (nit 4 — ``write_body_status=False``): the launch
+        # writes the NEW stage's ``running`` in the SAME tick, so a LEFT ``done`` write here would be
+        # a wasted second fetch+patch + a race window. The ✅ sticky flip above runs unconditionally.
+        if write_body_status:
+            update_body_status(
+                deps.seeder,
+                issue,
+                stage=from_column,
+                state="done",
+                summary="stage complete",
+                now=now,
+            )
     except Exception:
         # Defense-in-depth: the upsert already swallows GitHub errors, but a build/encode error
         # in header construction must likewise never break dispatch (DESIGN §8.1 fail-soft).

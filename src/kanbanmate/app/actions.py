@@ -35,6 +35,7 @@ from kanbanmate.adapters.perms import (
     write_issue_pin,
 )
 from kanbanmate.adapters.workspace.worktree import wip_branch
+from kanbanmate.app.body_status import update_body_status
 from kanbanmate.app.stage_signal import (
     _cancel_open_stickys,
     _done_open_stickys,
@@ -107,61 +108,35 @@ class Deps:
             satisfies it, so one client is wired into both ports.
         base: The integration base branch the per-ticket WIP branch is first created off.
         agent_command: DEAD knob (minor (d)). NOTHING reads it: ``LaunchAction._agent_command``
-            ALWAYS builds the bare ``claude`` argv via ``build_claude_argv`` (both the prompt-bearing
-            AND the ``prompt=None`` paths), so this field is never the launch body. It is retained
-            ONLY so existing ``Deps(...)`` constructions and the ``WiringConfig.agent_command``
-            threading compile — editing it (or ``agent_command`` in ``config.yml``) changes NOTHING.
-            Do NOT add a fallback that consumes it; the bare-claude command is unconditional.
-        profile: DEAD knob (minor (d)). The launch resolves its profile from the matched
-            TRANSITION's ``profile`` ONLY (:meth:`LaunchAction._resolve_profile`, transitions-only
-            model — DESIGN §8.0.6), never from this global. Retained only so existing ``Deps(...)``
-            constructions compile; it is unused by every code path. Defaults to ``docs``.
-        repo: The board's ``owner/name`` slug, exported as ``KANBAN_REPO`` into a transition
-            script's env (:class:`RunScriptAction`; port of the PoC ``_script_env``). Defaulted
-            ``""`` so existing constructions compile; the composition root threads
-            :attr:`WiringConfig.repo` here (wired with the tick in phase 12.8/12.9).
-        session_end_bin: The path to (or name of) the ``kanban-session-end`` shim appended after
-            the launched ``claude`` command (``claude … ; kanban-session-end <issue>``). Defaults
-            to ``"kanban-session-end"`` (the installed console-script resolves on PATH — see
-            ``pyproject [project.scripts]``); a real wiring may pass the absolute installed path.
-            Defaulted so existing ``Deps(...)`` constructions compile unchanged.
-        kanban_root: The launching daemon's runtime root (e.g. ``~/.kanban-km``). When non-empty it
-            is exported as ``KANBAN_ROOT`` on the launched command (:meth:`LaunchAction._agent_command`)
-            so the trailing ``; kanban-session-end`` AND the agent's kanban-* helpers
-            (``kanban-done`` / ``kanban-move`` / …) target the CORRECT root rather than the hardcoded
-            ``~/.kanban`` (the km-worktree-helper-root bug, #1). Empty (the default daemon) leaves the
-            command line byte-identical. Threaded from :attr:`WiringConfig.kanban_root`. Defaulted
-            ``""`` so existing ``Deps(...)`` constructions compile unchanged.
-        config_dir: The project's ``.claude`` directory — the source of
-            ``skills``/``commands``/``agents`` the launch COPIES into the worktree via
-            :func:`~kanbanmate.adapters.perms.provision_worktree_skills` so the agent resolves
-            the ``/implement:*`` skills its column prompt invokes (they live in the gitignored
-            config repo, absent from the clone checkout). An empty ``config_dir`` skips
-            provisioning (offline tests / no config). Threaded from
-            :attr:`WiringConfig.config_dir` (registry → wiring → here). Defaulted ``""`` so
-            existing ``Deps(...)`` constructions compile unchanged.
-        status_reporter: The rolling project status-update side of the board (the live dashboard,
-            phase-24 §24.3). The same concrete ``GithubClient`` instance that backs
-            ``board_writer`` satisfies :class:`~kanbanmate.ports.board.ProjectStatusReporter`, so
-            one client is wired into this slot too. Consumed ONLY by
-            :func:`kanbanmate.app.status_reporter.report_status` (the tick's fail-soft last step);
-            tests stub it. Defaulted to a no-op reporter (:class:`_NullStatusReporter`) so existing
-            ``Deps(...)`` constructions compile unchanged and a tick without a real reporter simply
-            posts nothing.
-        health_reporter: The per-card Health single-select side of the board (the custom
-            chip carrying the operator's vocabulary — health-field). The same ``GithubClient``
-            backs it; consumed only by :func:`kanbanmate.app.health_reporter.apply_health`.
-            Defaulted to a no-op so existing constructions compile.
-        project_id: The board's ``ProjectV2`` node id, threaded onto ``Deps`` so the status
-            reporter can ``create_status_update`` on it (the reporter is the only consumer; the
-            board client already holds its own copy for read/move). Threaded from
-            :attr:`WiringConfig.project_id`. Defaulted ``""`` so existing ``Deps(...)`` constructions
-            compile unchanged (an empty id only matters when a real reporter is wired).
+            ALWAYS builds the bare ``claude`` argv via ``build_claude_argv``. Retained only so existing
+            ``Deps(...)`` / ``WiringConfig.agent_command`` threading compile; do NOT add a consumer.
+        profile: DEAD knob (minor (d)). The launch resolves its profile from the matched TRANSITION's
+            ``profile`` ONLY (:meth:`LaunchAction._resolve_profile`, DESIGN §8.0.6), never from this
+            global. Retained only so existing constructions compile; unused by every path.
+        repo: The board's ``owner/name`` slug, exported as ``KANBAN_REPO`` into a transition script's
+            env (:class:`RunScriptAction`). Defaulted ``""``; threaded from :attr:`WiringConfig.repo`.
+        session_end_bin: The ``kanban-session-end`` shim appended after the launched ``claude``
+            command (``claude … ; kanban-session-end <issue>``). Defaults to ``"kanban-session-end"``
+            (the installed console-script on PATH); a real wiring may pass the absolute path.
+        kanban_root: The launching daemon's runtime root (e.g. ``~/.kanban-km``). When non-empty it is
+            exported as ``KANBAN_ROOT`` on the launched command so the trailing ``; kanban-session-end``
+            AND the agent's kanban-* helpers target the CORRECT root, not the hardcoded ``~/.kanban``
+            (km-root bug, #1). Empty (the default daemon) leaves the command byte-identical.
+        config_dir: The project's ``.claude`` directory — the source of ``skills``/``commands``/
+            ``agents`` the launch COPIES into the worktree so the agent resolves the ``/implement:*``
+            skills its prompt invokes. Empty skips provisioning. Threaded from
+            :attr:`WiringConfig.config_dir`.
+        status_reporter: The rolling project status-update side of the board (phase-24 §24.3). The
+            ``GithubClient`` that backs ``board_writer`` satisfies it; consumed only by
+            :func:`kanbanmate.app.status_reporter.report_status`. Defaulted to a no-op reporter.
+        health_reporter: The per-card Health single-select side of the board (health-field). The same
+            ``GithubClient`` backs it; consumed only by
+            :func:`kanbanmate.app.health_reporter.apply_health`. Defaulted to a no-op.
+        project_id: The board's ``ProjectV2`` node id, threaded so the status reporter can
+            ``create_status_update`` on it. Threaded from :attr:`WiringConfig.project_id`; defaulted ``""``.
         sleeper: The blocking-sleep boundary the launch's trust/ready poll waits on between
-            ``capture-pane`` snapshots (phase-25 §25.1; PoC ``poll_trust_dialog`` ``sleeper=``).
-            Production wires :func:`time.sleep`; tests inject a no-op so the bounded poll runs
-            offline without real waiting. Defaulted to :func:`time.sleep` so existing ``Deps(...)``
-            constructions compile unchanged.
+            ``capture-pane`` snapshots (phase-25 §25.1). Production wires :func:`time.sleep`; tests
+            inject a no-op so the bounded poll runs offline. Defaulted to :func:`time.sleep`.
     """
 
     board_writer: BoardWriter
@@ -176,23 +151,19 @@ class Deps:
     profile: str = DEFAULT_PROFILE
     repo: str = ""
     session_end_bin: str = "kanban-session-end"
-    # The launching daemon's runtime root, exported as KANBAN_ROOT on the launched command so the
-    # agent's helpers target the CORRECT root (km-root bug, #1; see the docstring). Empty → the
-    # default ~/.kanban daemon needs no override. Threaded from WiringConfig.kanban_root.
+    # The launching daemon's runtime root, exported as KANBAN_ROOT so the agent's helpers target the
+    # CORRECT root (km-root bug, #1; see the docstring). Empty → the default ~/.kanban daemon.
     kanban_root: str = ""
     config_dir: str = ""
-    # The rolling status-update reporter + the board id it posts on (phase-24 §24.3). Defaulted to
-    # a no-op reporter so existing constructions compile and a tick with no real reporter is inert.
+    # The rolling status-update reporter + board id it posts on (phase-24 §24.3); no-op by default.
     status_reporter: ProjectStatusReporter = field(default_factory=lambda: _NullStatusReporter())
     # The per-card Health single-select reporter (health-field); see the docstring above.
     health_reporter: ProjectHealthReporter = field(default_factory=_NullHealthReporter)
     project_id: str = ""
     # The issue/project create side (cockpit PR3 ticket_create). The production GithubClient
-    # implements Seeder; defaulted to None so existing constructions compile (a tick with no seeder
-    # rejects ticket_create rather than crashing).
+    # implements Seeder; None → a tick with no seeder rejects ticket_create rather than crashing.
     seeder: Seeder | None = None
-    # The blocking-sleep boundary the launch's trust/ready poll waits on (phase-25 §25.1). Defaulted
-    # to time.sleep; tests inject a no-op so the bounded capture-pane poll runs offline.
+    # The launch's trust/ready poll sleep boundary (phase-25 §25.1); tests inject a no-op.
     sleeper: Callable[[float], None] = time.sleep
 
 
@@ -865,6 +836,36 @@ class TeardownAction:
                 _cancel_open_stickys(deps.board_writer, issue, now=now)
         except Exception:
             logger.exception("teardown step 'finalize_stickys' failed for #%s; continuing", issue)
+
+        # 5b. FIX 5 — mirror the terminal sticky in the body-top status header (the terminal-transition
+        #     gap fix). Without this, a card reaching Done / Cancel keeps a STALE header (still the
+        #     prior stage's ``running``/``done``) — the only stage transitions that did not refresh it.
+        #     Done-arrival → ``done`` ("merged / done"); Cancel → ``cancelled`` ("ticket cancelled")
+        #     (``set_status_header`` lists both as valid states). The ``reap`` flavour is EXCLUDED: the
+        #     reaper flips the body-status to ``blocked`` itself AFTER this teardown (a parked stale
+        #     agent is blocked, not done/cancelled). ``update_body_status`` is itself fully fail-soft;
+        #     the extra try/except keeps this step consistent with the other fail-soft teardown steps.
+        try:
+            if self.flavour == "done":
+                update_body_status(
+                    deps.seeder,
+                    issue,
+                    stage=self.ticket.column_key,
+                    state="done",
+                    summary="merged / done",
+                    now=now,
+                )
+            elif self.flavour == "cancel":
+                update_body_status(
+                    deps.seeder,
+                    issue,
+                    stage=self.ticket.column_key,
+                    state="cancelled",
+                    summary="ticket cancelled",
+                    now=now,
+                )
+        except Exception:
+            logger.exception("teardown step 'body_status' failed for #%s; continuing", issue)
 
         # 6. Close the open PR for the branch, KEEP the remote branch (PoC teardown remote step;
         #    DESIGN §8.2). No-op when there is no branch ("" / "HEAD") or no open PR. Closing is

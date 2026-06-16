@@ -35,6 +35,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 
 
@@ -168,6 +169,31 @@ class HealthStateMixin:
                 except FileNotFoundError:
                     pass
 
+    def prune_item_health(self, live_item_ids: Iterable[str]) -> None:
+        """Unlink per-card ``last/<item>`` markers for cards no longer on the board (Candidate 3).
+
+        Bounded GC: builds the sanitised set of live ids (the same sanitiser
+        :meth:`_health_item_path` writes with, so membership never drifts) and unlinks any
+        ``health/last/`` marker whose name is NOT in it. Keeps the marker directory proportional
+        to the live board — previously a card that LEFT the board leaked its marker forever (only a
+        project rebind dropped them all). FAIL-SOFT: a missing directory is a no-op and each unlink
+        is guarded against a concurrent removal — the GC must never raise into the tick.
+
+        Args:
+            live_item_ids: The ``ProjectV2Item`` node ids currently on the board (the snapshot).
+        """
+        last_dir = self._health_last_dir()
+        if not last_dir.exists():
+            return
+        live = {self._sanitise_item_id(i) for i in live_item_ids}
+        for marker in last_dir.iterdir():
+            if marker.name in live:
+                continue
+            try:
+                marker.unlink()
+            except FileNotFoundError:
+                pass
+
     # ------------------------------------------------------------------
     # Marker paths (board-wide + per-card, under <root>/health/) + primitives.
     # ------------------------------------------------------------------
@@ -203,8 +229,24 @@ class HealthStateMixin:
         Returns:
             The marker path under ``health/last/``.
         """
-        safe = "".join(c if c.isalnum() or c in "._-" else "_" for c in item_id) or "_"
-        return self._health_last_dir() / safe
+        return self._health_last_dir() / self._sanitise_item_id(item_id)
+
+    @staticmethod
+    def _sanitise_item_id(item_id: str) -> str:
+        """Sanitise ``item_id`` to a filesystem-safe marker name (the shared invariant).
+
+        The single source of truth for the ``health/last/`` marker-name mapping: any character
+        outside ``[A-Za-z0-9._-]`` becomes ``_``, and an empty/all-replaced id defaults to ``"_"``.
+        Shared by :meth:`_health_item_path` (write side) and :meth:`prune_item_health` (GC side) so
+        the live-set membership test can never drift from the on-disk name.
+
+        Args:
+            item_id: The ``ProjectV2Item`` node id to sanitise.
+
+        Returns:
+            The sanitised marker name.
+        """
+        return "".join(c if c.isalnum() or c in "._-" else "_" for c in item_id) or "_"
 
     @staticmethod
     def _read_health_marker(path: Path) -> str | None:

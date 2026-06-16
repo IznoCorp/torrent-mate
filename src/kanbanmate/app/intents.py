@@ -44,6 +44,11 @@ if TYPE_CHECKING:  # pragma: no cover - type-only imports (no runtime cycle)
 
 logger = logging.getLogger(__name__)
 
+# Result-file TTL (cockpit DESIGN §10 Result GC): a ``<id>.result.json`` lingers this long after it
+# is written so a CLI ``--wait`` (10s poll cadence) has ample time to read it, then it is GC'd. One
+# hour is generous vs the wait cadence while keeping ``intents/`` bounded.
+_RESULT_TTL_SECONDS = 3600.0
+
 
 def drain_intents(
     deps: Deps,
@@ -74,6 +79,12 @@ def drain_intents(
         kill_switch: Whether ``~/.kanban/PAUSE`` is engaged (the PAUSE matrix).
     """
     try:
+        # Result GC (cockpit DESIGN §10): TTL-expire stale ``<id>.result.json`` files so ``intents/``
+        # never grows unbounded. Runs FIRST — even when no intents are pending — because results
+        # outlive their pending markers (the CLI ``--wait`` reads them after the drain cleared the
+        # pending file). Fail-soft (the store method swallows per-file errors; the whole drain is
+        # wrapped too).
+        deps.store.gc_intent_results(now=now, ttl=_RESULT_TTL_SECONDS)
         pending = deps.store.list_pending_intents()
         if not pending:
             return

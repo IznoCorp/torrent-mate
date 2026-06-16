@@ -180,7 +180,8 @@ BLOCKED→BLOCKED` was corrected: the real `ProjectV2StatusUpdateStatus` enum is
 ## Robustness batch 1 — five contained fixes (branch `fix/robustness-batch-1`)
 
 An audit of this arc surfaced five clearly-correct, independent robustness fixes (none depends on
-an open lifecycle-design decision). FIXES 1-4 ship; FIX 5 is DEFERRED with a concrete design.
+an open lifecycle-design decision). FIXES 1-4 shipped in this batch; FIX 5 shipped subsequently in
+the zero-deferrals batch (v0.3.0) — see "FIX 5 — DONE" below.
 
 ### FIX 1 — multi-root completeness (extends §4.x)
 
@@ -237,17 +238,33 @@ succeeds → a clean tick resets the run to 0 and clears DEGRADED). `snapshot_ta
 *idle* cadence is unaffected by the failure itself; the *failure* cadence is now driven correctly by the
 backoff. Both goals hold: post-steps run AND the breaker engages.
 
-### FIX 5 — DEFERRED: body-top current-status header
+### FIX 5 — DONE (zero-deferrals batch, v0.3.0): body-top current-status header
 
-There is no daemon-side body-write hook to reuse — every stage finalizer writes TIMELINE COMMENTS via
-`app/stage_signal.upsert_stage_comment`, while body writes (`fetch_issue` + marker-preserving
-transform + `update_issue_body`) live only in the `kanban-update-body` agent helper and the `Seeder`
-Protocol (`ports/board.py`), with `Deps.seeder` defaulted `None` and not threaded into the stage
-producers. A body-top header at every transition is cross-cutting and touches 4 modules at/near the
-1000-LOC ceiling, so it is deferred (see `IMPLEMENTATION.md` → "Follow-up — Robustness batch 1" for
-the full deferred design: a `<!-- kanban:status:begin -->`/`:end` delimited block, a pure
-`core/body_edit.set_status_header` helper, an `app/body_status.py` fail-soft orchestrator on the
-existing `Seeder.fetch_issue`/`update_issue_body` surface, and 5 fail-soft wires). **Risk to carry
-into the FIX-5 PR**: `update_issue_body` replaces the WHOLE body, so a daemon header write could race
-an agent's `kanban-update-body --set-field` (last-writer-wins) — keep the header write idempotent +
-body-diff-gated, region-disjoint from the markers, and adversarially test marker/section preservation.
+**Shipped** on `feat/zero-deferrals` (no longer deferred). An always-visible current-status block is
+maintained at the TOP of the issue BODY (GitHub cannot pin a timeline comment), updated on each stage
+transition the engine already finalizes a sticky for, fully fail-soft, idempotent, body-diff-gated,
+region-disjoint from the `**roadmap**`/`**codename**`/`**design**`/`**plans**` markers and the
+`## Brainstorm` section. As-built:
+
+- **Pure core** — `core/body_edit.set_status_header(body, *, stage, state, summary, timestamp)`
+  inserts/replaces a single `<!-- kanban:status:begin -->`/`<!-- kanban:status:end -->` delimited
+  block (HTML comments → invisible, marker-disjoint, GitHub round-trip-safe). A `_STATUS_BLOCK` regex
+  (`re.escape` on the literal comments, `count=1`) REPLACES an existing block in place (idempotent) or
+  PREPENDS it at the top when absent. The `sub` uses a callable replacement so a summary containing
+  backslashes is inserted literally (no regex backreference).
+- **Fail-soft app orchestrator** — `app/body_status.update_body_status(seeder, issue, *, stage, state,
+  summary, now)`: no-op when `seeder is None`; else `fetch_issue` → `set_status_header` → BODY-DIFF
+  GATE (skip the write when unchanged — bounds API cost + shrinks the last-writer-wins race window) →
+  `update_issue_body`. The whole body is wrapped in try/except → it can NEVER raise into the tick.
+- **Wiring** — reuses the EXISTING `Seeder` surface (`fetch_issue` + `update_issue_body`) and the
+  already-wired `Deps.seeder` (the production `GithubClient` satisfies `Seeder`); no port change.
+- **Call sites** (each fail-soft, mirroring `upsert_stage_comment`): launch `running` from
+  `app/transition_step` (NOT `actions.py`, which is at the LOC ceiling); advance `done` from
+  `app/tick._finalize_left_stage`; reaper `blocked` + `waiting` (+ restore `running`) from
+  `app/reaper`; session-end `done`/`blocked`/`interrupted` from `bin/kanban_session_end`.
+- **Race handling** (the carried risk): `update_issue_body` replaces the WHOLE body, so a daemon
+  header write can race an agent's `kanban-update-body --set-field` (last-writer-wins). The header
+  region is disjoint from every `**key**:` marker, so even a losing race only stales the header region
+  for one tick; the body-diff gate makes the write a no-op when unchanged. Adversarially tested:
+  set-header-on-a-body-with-all-markers+`## Brainstorm` preserves every marker + the whole section
+  byte-for-byte and inserts the header exactly once; a second call replaces (never duplicates).

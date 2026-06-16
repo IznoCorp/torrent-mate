@@ -22,6 +22,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Protocol
 
+from kanbanmate.ports.store_health import HealthStateStore
+from kanbanmate.ports.store_intents import IntentStore
+
 
 class TicketStatus(str, Enum):
     """The closed lifecycle status set for a :class:`TicketState`.
@@ -158,11 +161,18 @@ class TicketState:
     body: str = ""
 
 
-class StateStore(Protocol):
+class StateStore(HealthStateStore, IntentStore, Protocol):
     """Persisted per-ticket runtime state for the polling daemon.
 
     Keyed by issue number throughout, matching the worktree/session keying in
     :mod:`kanbanmate.ports.workspace`.
+
+    Composes :class:`~kanbanmate.ports.store_health.HealthStateStore` (per-card Health field
+    markers) and :class:`~kanbanmate.ports.store_intents.IntentStore` (the cockpit intent queue +
+    results) via Protocol inheritance — those two cohesive surfaces were extracted to their own
+    modules for LOC-ceiling headroom (this module sat at the 1000-LOC hard ceiling). The concrete
+    :class:`~kanbanmate.adapters.store.fs_store.FsStateStore` (a mixin composition) satisfies the
+    full combined surface unchanged.
     """
 
     def load(self, issue_number: int) -> TicketState | None:
@@ -499,14 +509,17 @@ class StateStore(Protocol):
         DESIGN §8.1.d).  The history file MUST be ``moves/<issue>.json`` —
         issue-keyed, NOT ``moves/item_<node>.json``.
 
-        Fed **ONLY by an AUTO/bot move the daemon itself issues** — NEVER a human
-        launch or the agent's own ``kanban-move``.  The auto/bot move sites are
-        the ``advance:auto`` move + within-cap ``on_fail:move`` bounce
-        (``app.script_route``), the reaper's move-to-Blocked (``app.reaper``), and
-        the hybrid-flow session-end auto-advance backstop
-        (``bin/kanban_session_end.py``, DESIGN §13); the canonical list lives in
-        :mod:`kanbanmate.core.antiloop`.  The §6 per-hour cap guards the bot loop,
-        not the human workflow.
+        Fed **ONLY by a FORWARD AUTO/bot move the daemon itself issues** — NEVER a
+        human launch, the agent's own ``kanban-move``, or the reaper's TERMINAL
+        park-in-Blocked bookkeeping move (Candidate 1: a terminal park is NOT a
+        forward advance, so it must not consume the forward-advance budget the
+        auto-advance loops gate on — the reaper feeds only the in-memory anti-loop
+        runaway backstop, never this durable forward counter).  The forward auto/bot
+        move sites are the ``advance:auto`` move + within-cap ``on_fail:move``
+        bounce (``app.script_route``) and the hybrid-flow session-end auto-advance
+        backstop (``bin/kanban_session_end.py``, DESIGN §13); the canonical list
+        lives in :mod:`kanbanmate.core.antiloop`.  The §6 per-hour cap guards the
+        forward bot loop, not the human workflow.
 
         Args:
             issue_number: The ticket whose AUTO/bot move to record.
@@ -871,125 +884,9 @@ class StateStore(Protocol):
         """
         ...
 
-    # ------------------------------------------------------------------
-    # Per-card Health single-select field state (the custom chip, health-field)
-    # ------------------------------------------------------------------
-
-    def get_health_project_id(self) -> str | None:
-        """Return the project id the persisted Health field markers belong to, or ``None``.
-
-        The board-wide field-id/options markers carry no project binding; this records
-        WHICH project they belong to so the Health step can detect a registry re-point and
-        drop the stale ids (the rebind guard). ``None`` means never-bound (degrade →
-        treated as a project change → markers cleared + a fresh ensure).
-        """
-        ...
-
-    def set_health_project_id(self, project_id: str | None) -> None:
-        """Persist the project id the Health field markers belong to, or clear it (``None``)."""
-        ...
-
-    def get_health_field_id(self) -> str | None:
-        """Return the persisted Health single-select field node id, or ``None`` when absent.
-
-        Backs the cross-restart cache: when present (with :meth:`get_health_options`) the
-        Health step reuses the field WITHOUT a network read; when absent it re-ensures the
-        field via the reporter. Degrades to ``None`` on an unreadable marker.
-        """
-        ...
-
-    def set_health_field_id(self, field_id: str | None) -> None:
-        """Persist the Health field node id atomically, or clear it (``None`` → UNLINK)."""
-        ...
-
-    def get_health_options(self) -> dict[str, str]:
-        """Return the persisted ``{HEALTH_NAME: option_id}`` map, or ``{}`` when absent.
-
-        The option ids needed to set a card's Health value. Degrades to ``{}`` on an
-        absent/corrupt map — a poison file must never wedge the Health step.
-        """
-        ...
-
-    def set_health_options(self, options: dict[str, str]) -> None:
-        """Persist the ``{HEALTH_NAME: option_id}`` map atomically.
-
-        Args:
-            options: The option-name → option-id map to persist.
-        """
-        ...
-
-    def get_item_health(self, item_id: str) -> str | None:
-        """Return the LAST-WRITTEN Health value for card ``item_id``, or ``None``.
-
-        The on-change diff key: the Health step writes a card only when its computed value
-        DIFFERS from this. ``None`` means none has been written yet (or the marker is
-        unreadable — degrade → the next compute is treated as a change).
-
-        Args:
-            item_id: The ``ProjectV2Item`` node id whose last-written value to read.
-        """
-        ...
-
-    def set_item_health(self, item_id: str, value: str | None) -> None:
-        """Persist card ``item_id``'s last-written Health value atomically, or clear it.
-
-        Args:
-            item_id: The ``ProjectV2Item`` node id whose marker to write.
-            value: The Health value to record, or ``None`` to UNLINK the marker.
-        """
-        ...
-
-    def clear_health_markers(self) -> None:
-        """Drop the Health field id + options + ALL per-card last-written markers.
-
-        Called on a project rebind (the registry re-pointed at a new board): the
-        board-wide field id/options and every per-card last-written marker belong to the
-        OLD project and must not leak into the new one. The ``project_id`` marker itself is
-        re-bound separately by the caller.
-        """
-        ...
-
-    # ------------------------------------------------------------------
-    # Board-mutation intent queue (cockpit PR2 — daemon is the sole writer)
-    # ------------------------------------------------------------------
-
-    def enqueue_intent(self, intent_id: str, payload: Mapping[str, object]) -> None:
-        """Persist a pending board-mutation intent atomically (the CLI/agent enqueue side).
-
-        The daemon's ``drain_intents`` tick step is the ONLY consumer/executor. The payload is the
-        JSON-serialisable intent mapping (``kind`` / ``issue`` / ``args`` / ``requested_at`` /
-        ``caller``).
-
-        Args:
-            intent_id: The intent id (its marker filename stem).
-            payload: The JSON-serialisable intent mapping.
-        """
-        ...
-
-    def load_intent(self, intent_id: str) -> dict[str, object] | None:
-        """Return the pending intent payload, or ``None`` when absent/corrupt (poison-tolerant)."""
-        ...
-
-    def clear_intent(self, intent_id: str) -> None:
-        """Remove the pending intent marker (the drain clears it after writing the result)."""
-        ...
-
-    def list_pending_intents(self) -> tuple[str, ...]:
-        """Return the ids of all pending intents (result files excluded), or ``()`` when none.
-
-        The drain orders these by the intents' ``requested_at`` before executing; this returns them
-        in a stable (lexicographic) order and degrades to ``()`` when the queue is absent/empty.
-        """
-        ...
-
-    def save_intent_result(self, intent_id: str, payload: Mapping[str, object]) -> None:
-        """Persist an intent's result atomically (the CLI ``--wait`` polls it).
-
-        Args:
-            intent_id: The intent id whose result to write.
-            payload: The JSON-serialisable result mapping (``state`` / ``detail``).
-        """
-        ...
+    # The per-card Health field markers (HealthStateStore) and the cockpit intent queue + results
+    # (IntentStore) are inherited Protocol surfaces — see the two extracted modules
+    # ``ports/store_health.py`` and ``ports/store_intents.py`` (LOC-ceiling headroom).
 
     def load_intent_result(self, intent_id: str) -> dict[str, object] | None:
         """Return an intent's result payload, or ``None`` when not yet written/corrupt."""

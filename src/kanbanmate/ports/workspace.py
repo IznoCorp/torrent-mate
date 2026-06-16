@@ -320,6 +320,28 @@ class Sessions(Protocol):
         """
         ...
 
+    def repl_alive(self, name: str) -> bool:
+        """Return whether session ``name``'s pane still hosts a live ``claude`` REPL child (Candidate 2).
+
+        The done-exit idempotency probe: before the reaper re-dispatches :meth:`end_session`
+        keystrokes for a still-present done breadcrumb, it confirms the REPL is actually still
+        running. A daemon restart can race the wrapper — the ``claude`` child may have already
+        exited (its ``; kanban-session-end`` running) while the done breadcrumb has not yet been
+        purged — in which case re-sending keystrokes is wasted (worse, it could disturb the pane).
+        Implementations reuse the SAME comm-verified resolution
+        :meth:`kill_repl_process` uses (resolve the pane shell PID, then find a child whose comm is
+        ``claude``). FAIL-SOFT: any resolution error returns ``False`` (conservative — treat an
+        unprobeable pane as "no live REPL", so the reaper does not re-send keystrokes blindly).
+
+        Args:
+            name: The session name whose REPL liveness to probe (``ticket-<n>``).
+
+        Returns:
+            ``True`` iff the pane has a live, comm-verified ``claude`` child; ``False`` otherwise
+            (no child, no pane, or any probe error).
+        """
+        ...
+
     def kill_repl_process(self, name: str) -> None:
         """SIGKILL the ``claude`` REPL child of session ``name``'s pane — NOT the session/shell (#).
 

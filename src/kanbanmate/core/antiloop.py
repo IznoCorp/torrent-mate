@@ -49,16 +49,20 @@ in the PoC):
   ``move_rate_limit_per_hour`` backstop, port ``runner.py:504-518``): survives a restart and is what
   parks a runaway ticket / blocks-as-comment.
 
-The DAEMON's AUTO/bot move sites that MUST feed ``record_move_for_item`` are: the
+The DAEMON's FORWARD AUTO/bot move sites that MUST feed ``record_move_for_item`` are: the
 ``advance:auto`` move and the within-cap ``on_fail:move`` bounce (both in
 :mod:`kanbanmate.app.script_route` — port of the PoC ``_auto_move`` :230-247, which fed the per-item
-counter and was NOT anti-loop-recorded) and the reaper's park-in-Blocked (:mod:`kanbanmate.app.reaper`,
-guarded so it never runs past the cap). The PoC counted ONLY these auto/bot moves — a human driving
-a ticket through the ~7-step flow in one hour NEVER trips the limit; only a runaway AUTO loop does.
-EXCLUDED from BOTH counters: a human/agent ``LaunchAction`` (not a daemon auto-move) and any
-``bookkeeping`` move (the fix-CI park + the rollback bounce — ``record_move(..., bookkeeping=True)``).
-Any FUTURE daemon-issued AUTO/bot ``move_card`` MUST likewise feed ``record_move_for_item`` so the
-durable §6 backstop stays accurate.
+counter and was NOT anti-loop-recorded) and the hybrid-flow session-end auto-advance backstop
+(:mod:`kanbanmate.bin.kanban_session_end`, DESIGN §13). The PoC counted ONLY these forward auto/bot
+moves — a human driving a ticket through the ~7-step flow in one hour NEVER trips the limit; only a
+runaway forward AUTO loop does.
+EXCLUDED from the DURABLE forward counter: a human/agent ``LaunchAction`` (not a daemon auto-move);
+any ``bookkeeping`` move (the fix-CI park + the rollback bounce — ``record_move(..., bookkeeping=True)``);
+AND the reaper's TERMINAL park-in-Blocked (Candidate 1 — a stale-agent park is not a forward advance,
+so it feeds ONLY the in-memory anti-loop runaway backstop via ``record_move``, never the durable
+forward-advance budget the auto-advance loops gate on; otherwise a busy ticket's genuine forward moves
+and the reaper's parks would share one cap and starve the flow). Any FUTURE daemon-issued FORWARD
+AUTO ``move_card`` MUST likewise feed ``record_move_for_item`` so the durable §6 backstop stays accurate.
 """
 
 from __future__ import annotations

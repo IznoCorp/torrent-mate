@@ -157,7 +157,8 @@ def route_script_verdict(
         move_rate_limit_per_hour: The per-issue AUTO/bot-move ceiling (config default, 13.4). The
             OUTER cross-loop backstop over the per-loop :data:`_FIXCI_CAP`: a triggering auto-advance
             or on_fail bounce that would push the durable move count to/over this cap parks the card
-            in Blocked instead of moving. ``>= cap`` semantics, matching ``reaper._rate_limited``.
+            in Blocked instead of moving (the canonical ``>= cap`` forward-budget semantics; the
+            reaper park is EXCLUDED from this budget — Candidate 1).
         antiloop: The anti-loop state carried in from the tick's baseline.
         now: The current wall-clock time (move timestamps + ledger window).
         columns: The board column model used to resolve ``move:``/``auto:`` destination KEYS to the
@@ -292,8 +293,8 @@ def _route_success(
     finalizes the LEFT stage ✅ either way.
 
     Before the auto-advance move, the OUTER cross-loop rate-limit gate is checked: if the durable
-    per-issue move count is already ``>= move_rate_limit_per_hour`` (matching ``reaper._rate_limited``
-    semantics — the cap-th move allowed, the (cap+1)-th parked), the card is parked in Blocked via
+    per-issue move count is already ``>= move_rate_limit_per_hour`` (the canonical forward-budget
+    ``>= cap`` semantics — the cap-th move allowed, the (cap+1)-th parked), the card is parked in Blocked via
     :func:`_park_runaway` INSTEAD of the move (AUTO/bot moves only). ``advance:stop`` issues no move,
     so it bypasses the gate. The per-loop :data:`_FIXCI_CAP` stays the inner bound.
 
@@ -382,7 +383,8 @@ def _route_failure(
 
     Before a within-cap bounce issues its triggering move, the OUTER cross-loop rate-limit gate is
     checked: if the durable per-issue move count is already ``>= move_rate_limit_per_hour`` (matching
-    ``reaper._rate_limited`` — the cap-th move allowed, the (cap+1)-th parked), the card is parked in
+    the canonical forward-budget ``>= cap`` check — the cap-th move allowed, the (cap+1)-th parked),
+    the card is parked in
     Blocked via :func:`_park_runaway` INSTEAD of bouncing (AUTO/bot moves only). The per-loop fix-CI
     cap stays the inner per-loop bound; this gate is the cross-loop OUTER bound checked on the
     triggering bounce (the cap-park and the rollback path issue no auto/bot move, so they bypass it).

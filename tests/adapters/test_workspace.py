@@ -1785,6 +1785,54 @@ class TestTmuxSessionsUnit:
 
         sessions.kill_repl_process("ticket-7")  # must not raise
 
+    # -- repl_alive (Candidate 2 done-exit idempotency probe) ----------------
+
+    def test_repl_alive_true_when_claude_child_present(self) -> None:
+        """repl_alive returns True when the pane shell hosts a comm-verified claude child."""
+
+        def _runner(argv: list[str], **_kwargs: object) -> MagicMock:
+            res = MagicMock()
+            if argv[:2] == ["tmux", "list-panes"]:
+                res.stdout = "4242\n"
+            elif argv[:1] == ["pgrep"]:
+                res.stdout = "4243\n"
+            elif argv[:3] == ["ps", "-o", "comm="]:
+                res.stdout = "claude\n"
+            else:
+                res.stdout = ""
+            return res
+
+        sessions = TmuxSessions(runner=MagicMock(side_effect=_runner))
+        assert sessions.repl_alive("ticket-7") is True
+
+    def test_repl_alive_false_when_child_is_not_claude(self) -> None:
+        """repl_alive returns False when the sole child is the teardown (claude already exited)."""
+
+        def _runner(argv: list[str], **_kwargs: object) -> MagicMock:
+            res = MagicMock()
+            if argv[:2] == ["tmux", "list-panes"]:
+                res.stdout = "4242\n"
+            elif argv[:1] == ["pgrep"]:
+                res.stdout = "4243\n"
+            elif argv[:3] == ["ps", "-o", "comm="]:
+                res.stdout = "kanban-session-end\n"  # the REPL already exited
+            else:
+                res.stdout = ""
+            return res
+
+        sessions = TmuxSessions(runner=MagicMock(side_effect=_runner))
+        assert sessions.repl_alive("ticket-7") is False
+
+    def test_repl_alive_false_when_pane_unresolved(self) -> None:
+        """repl_alive returns False (fail-soft) when the pane PID cannot be resolved."""
+        sessions = TmuxSessions(runner=MagicMock(return_value=MagicMock(stdout="")))
+        assert sessions.repl_alive("ticket-7") is False
+
+    def test_repl_alive_false_on_runner_error(self) -> None:
+        """repl_alive returns False (fail-soft) when the runner raises — never propagates."""
+        sessions = TmuxSessions(runner=MagicMock(side_effect=RuntimeError("tmux down")))
+        assert sessions.repl_alive("ticket-7") is False
+
     # -- safety (argv lists, no shell) ---------------------------------------
 
     def test_all_tmux_calls_use_argv_lists_no_shell(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1801,6 +1849,7 @@ class TestTmuxSessionsUnit:
         sessions.is_alive("s")
         sessions.kill("s")
         sessions.end_session("s")
+        sessions.repl_alive("s")
         sessions.kill_repl_process("s")
 
         for call_args in mock_runner.call_args_list:
