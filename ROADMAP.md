@@ -3,18 +3,24 @@
 Deferred items from DESIGN §13. These are out of scope for v1.0 but are recognised as
 desirable future enhancements.
 
-## Optional webhook ingress adapter
+## Optional webhook ingress adapter — IMPLEMENTED (0.5.0, ingress-multiproject)
 
-For anyone wanting sub-second latency, a `kanban serve` webhook receiver could slot in
-behind the same `BoardReader` boundary. It would receive GitHub webhook events, translate
-them into the same `Transition` objects the poll loop produces, and feed them to
-`decide → execute`. Polling is the default and only supported ingress in v1 — the webhook
-adapter is an optional acceleration layer, not a replacement for the polling model.
+Shipped in the **ingress-multiproject** feature (`docs/features/ingress-multiproject/DESIGN.md`).
+A `kanban serve` HTTP receiver (the new `http/` entrypoint layer) verifies the GitHub webhook HMAC
+(`X-Hub-Signature-256`), identifies which managed project the event hit, and **bumps that runtime
+root's daemon-wake nudge sentinel** — the EXACT cockpit nudge mechanism. It does NOT synthesize
+`Transition` objects (GitHub `projects_v2_item` payloads don't carry the Status column reliably);
+the daemon then runs its normal `tick → snapshot → diff → decide → execute`, so the receiver "slots
+in behind the same `BoardReader` boundary" by a sub-second wake, **idempotent by construction**
+(a webhook nudge and the slow safety sweep converge on the same diff against persisted state).
+**Polling is never removed** — it is the always-on fallback (webhook mode polls slowly as a safety
+net). The webhook uses a **plain shared secret + the existing PAT** — no GitHub App (see below).
 
-## GitHub App upgrade
+## GitHub App upgrade — DEFERRED (ticket #26)
 
-Currently KanbanMate uses a **user PAT** (fine-grained, scoped `project` + `repo`). A GitHub
-App would provide:
+Currently KanbanMate uses a **user PAT** (fine-grained, scoped `project` + `repo`); the webhook
+(above) uses a plain shared secret, NOT a GitHub App. A GitHub App remains deferred to **ticket
+#26** and would provide:
 
 - **Identity-keyed anti-loop** — the bot's own identity rather than the user's, making it
   easier to distinguish bot moves from human moves in the GitHub UI.
@@ -22,11 +28,16 @@ App would provide:
 - **Short-lived scoped tokens** — per-installation tokens with automatic expiry, removing the
   long-lived PAT from `~/.kanban/token`.
 
-## Multi-org support
+## Multi-org support — IMPLEMENTED (0.5.0, ingress-multiproject)
 
-Currently `kanban init` registers projects keyed by project node id in a flat
-`projects.json`. Multi-org would add org-level namespacing and the ability to run one daemon
-per org with separate configs.
+Shipped in the **ingress-multiproject** feature. `projects.json` generalises from "exactly one
+project" to N entries (still keyed by project node id), each gaining `org` / `enabled` / `ingress` /
+`token_ref`. One daemon now drives **N projects across N orgs**: the run loop sweeps each enabled
+project sequentially with its own diff baseline + circuit-breaker + per-project store sub-root
+(`<root>/projects/<safe(project_id)>/` — the issue-number collision fix), and the multi-org token
+model loads either the shared `<root>/token` (`token_ref=""`) or a per-org `<root>/tokens/<ref>`
+(no GitHub App). N=1 is the back-compat special case (legacy flat store layout, zero behaviour
+change for the deployed single-project daemons).
 
 ## MCP helpers
 

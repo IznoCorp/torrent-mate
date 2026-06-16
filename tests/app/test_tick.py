@@ -5207,7 +5207,8 @@ class TestKeepBudgetsLifecycle:
         # leaf never touches the network (the budget preservation is store-side).
         monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
         monkeypatch.setattr(kanban_session_end, "_resolve_entry", lambda: MagicMock())
-        monkeypatch.setattr(kanban_session_end, "load_token", lambda *a, **k: "tok")
+        # #4: the leaf resolves the per-entry token via ``_resolve_entry_token`` (not load_token).
+        monkeypatch.setattr(kanban_session_end, "_resolve_entry_token", lambda entry: "tok")
         monkeypatch.setattr(kanban_session_end, "GithubClient", lambda *a, **k: MagicMock())
         monkeypatch.setattr(kanban_session_end, "upsert_stage_comment", MagicMock())
 

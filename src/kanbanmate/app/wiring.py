@@ -58,6 +58,14 @@ class WiringConfig:
             ``_wiring_from_registry``. (The registry's ``dev_repo_path`` does NOT reach here — it
             is consumed only by the post-merge ``kanban-update-main`` path, which reads it off the
             registry directly, so it never needs to thread through the tick.)
+        state_root: The PER-PROJECT store sub-root (ingress-multiproject §3.3). When non-empty the
+            :class:`~kanbanmate.adapters.store.fs_store.FsStateStore` is rooted HERE
+            (``<root>/projects/<safe(project_id)>``) instead of the bare ``kanban_root`` — so N>1
+            projects driven by one daemon never collide on issue numbers (two repos can both carry
+            ``#5``). Empty (the N=1 default) keeps the LEGACY FLAT layout (``<root>/state/...``), so
+            an existing single-project deployed daemon sees no path change and needs no migration
+            (the N=1 escape hatch). The runtime-root-level markers (lock, PAUSE, nudge,
+            daemon.heartbeat) stay at ``kanban_root``; only the per-ticket store moves here.
     """
 
     token: str
@@ -71,6 +79,18 @@ class WiringConfig:
     kill_switch: bool = False
     transitions_yaml: str | None = None
     config_dir: str = ""
+    state_root: str = ""
+    # ingress-multiproject §7: True in a MULTI-PROJECT deployment (N>1 enabled projects on one
+    # daemon). Threaded onto :attr:`~kanbanmate.app.actions.Deps.multi_project` so the launch
+    # exports ``KANBAN_PROJECT_ID`` + writes the worktree project pin (so the helpers resolve the
+    # right per-project sub-root). False (the N=1 default) keeps the launched command byte-identical.
+    multi_project: bool = False
+    # ingress-multiproject §5: the project's effective ingress mode — ``"polling"`` (tight 10 s
+    # cadence) or ``"webhook"`` (slow safety-sweep fallback + sub-second nudge). The daemon reads
+    # these across its projects to pick the base poll cadence (the tightest any project needs). The
+    # tick itself NEVER reads this — it always reconciles; ingress only sets how often. Default
+    # ``"polling"`` keeps the historical 10 s cadence for any caller that does not set it.
+    ingress: str = "polling"
 
 
 class _SystemClock:
@@ -104,7 +124,18 @@ def build_deps(config: WiringConfig) -> Deps:
         A fully wired :class:`Deps` the command actions can execute against.
     """
     board = GithubClient(config.token, project_id=config.project_id, repo=config.repo)
-    store = FsStateStore(Path(config.kanban_root) if config.kanban_root else None)
+    # Per-project store sub-root (ingress-multiproject §3.3): the per-ticket state store is rooted at
+    # ``state_root`` when set (the N>1 ``<root>/projects/<safe(pid)>`` sub-root), else the bare
+    # ``kanban_root`` (the N=1 legacy flat layout — zero path change for the deployed daemon).
+    store_root = config.state_root or config.kanban_root
+    # The daemon-wake nudge sentinel is DAEMON-LEVEL (one daemon, one sleep): it stays at the runtime
+    # root even when the per-ticket store moves to a per-project sub-root (§3.2). When ``state_root``
+    # is unset (N=1) the nudge root IS the store root → byte-identical to today.
+    nudge_root = config.kanban_root if config.state_root else None
+    store = FsStateStore(
+        Path(store_root) if store_root else None,
+        nudge_root=Path(nudge_root) if nudge_root else None,
+    )
     workspace = GitWorktreeWorkspace(
         config.clone_dir, repo=config.repo, kanban_root=config.kanban_root
     )
@@ -149,6 +180,9 @@ def build_deps(config: WiringConfig) -> Deps:
         # The GithubClient also implements Seeder (create_issue / add_to_project) — threaded for the
         # cockpit ticket_create intent executor (PR3).
         seeder=board,
+        # Multi-project marker (ingress-multiproject §7): drives the launch's KANBAN_PROJECT_ID
+        # export + worktree project pin. False (N=1) keeps the launched command byte-identical.
+        multi_project=config.multi_project,
     )
 
 

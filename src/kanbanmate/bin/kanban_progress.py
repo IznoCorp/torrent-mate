@@ -27,15 +27,10 @@ import sys
 import time
 
 from kanbanmate.adapters.github.client import GithubClient
-from kanbanmate.adapters.github.token import load_token
 from kanbanmate.adapters.store.fs_store import FsStateStore
 from kanbanmate.app.stage_signal import upsert_stage_comment
-from kanbanmate.bin._pin import _registry_root, check_pin, parse_issue_arg, resolve_kanban_root
-from kanbanmate.cli.init import (
-    ProjectEntry,
-    _load_registry,
-    _projects_path,
-)
+from kanbanmate.bin._pin import check_pin, helper_store_root, parse_issue_arg
+from kanbanmate.cli.init import ProjectEntry
 
 _PROG = "kanban-progress"
 
@@ -44,26 +39,41 @@ _STAGE_FLAG = "--stage"
 
 
 def _resolve_entry() -> ProjectEntry:
-    """Resolve the single registered project from the per-clone registry.
+    """Resolve the registry entry this helper acts on (project-aware, ingress-multiproject §7).
 
-    v1 runs one repo per clone (DESIGN §4.3), so the registry must hold exactly one
-    entry; anything else is an operator misconfiguration we surface loudly. The registry is read
-    from the runtime root resolved by :func:`_registry_root` (``$KANBAN_ROOT`` when set, else the
-    ~/.kanban default — the km-worktree-helper-root fix, #1).
+    Thin delegate to the shared :func:`kanbanmate.bin._clone_config.resolve_entry` (the ONE source
+    of truth, now multi-project-aware: project pin / ``$KANBAN_PROJECT_ID`` → exact entry, else the
+    N=1 sole entry, else fail loud). Kept as a module-level name so existing tests that monkeypatch
+    ``_resolve_entry`` on this module keep working.
 
     Returns:
-        The sole :class:`~kanbanmate.cli.init.ProjectEntry`.
+        The resolved :class:`~kanbanmate.cli.init.ProjectEntry`.
 
     Raises:
-        RuntimeError: When the registry does not hold exactly one project.
+        RuntimeError: When no project is registered, the pinned project is unknown, or N>1 with no
+            pin to disambiguate (see :func:`kanbanmate.bin._clone_config.resolve_entry`).
     """
-    projects_path = _projects_path(_registry_root())
-    registry = _load_registry(projects_path)
-    if len(registry) != 1:
-        raise RuntimeError(
-            f"expected exactly one registered project in {projects_path}, found {len(registry)}"
-        )
-    return next(iter(registry.values()))
+    from kanbanmate.bin._clone_config import resolve_entry
+
+    return resolve_entry()
+
+
+def _resolve_entry_token(entry: ProjectEntry) -> str:
+    """Resolve the PER-ENTRY GitHub token for ``entry`` (multi-org §6, #4).
+
+    Thin delegate to the shared :func:`kanbanmate.bin._clone_config.resolve_entry_token` (the ONE
+    resolver, which the daemon also uses) so a second org's agent authenticates with that org's PAT.
+    Kept as a module-level name so tests can monkeypatch it.
+
+    Args:
+        entry: The resolved registry entry (its ``token_ref`` selects the token file).
+
+    Returns:
+        The resolved token string for this entry.
+    """
+    from kanbanmate.bin._clone_config import resolve_entry_token
+
+    return resolve_entry_token(entry)
 
 
 def _timestamped(line: str, now: float) -> str:
@@ -180,7 +190,10 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         entry = _resolve_entry()
-        client = GithubClient(load_token(), project_id=entry.project_id, repo=entry.repo)
+        # Per-entry token (#4): a second org's entry carries a ``token_ref``; N=1 → the shared token.
+        client = GithubClient(
+            _resolve_entry_token(entry), project_id=entry.project_id, repo=entry.repo
+        )
         now = time.time()
         if stage is not None:
             # Explicit --stage <key> override: append to that step's sticky.
@@ -190,8 +203,15 @@ def main(argv: list[str] | None = None) -> int:
             # matching the PoC kanban-progress auto-resolution contract. The launch column
             # recorded on the ticket is NEW's single-source replacement for the PoC's
             # get_item_column — same semantics, different store key.
-            # Resolve the store root from $KANBAN_ROOT (#1 km-root fix); None → ~/.kanban default.
-            store = FsStateStore(resolve_kanban_root())
+            # Resolve the store at the per-project sub-root when project-pinned (multi-project §3.2),
+            # else the bare runtime root (#1 km-root fix; N=1 byte-identical). The module-scoped
+            # ``FsStateStore`` is used so tests can monkeypatch it.
+            _store_root, _nudge_root = helper_store_root()
+            store = (
+                FsStateStore(_store_root)
+                if _nudge_root is None
+                else FsStateStore(_store_root, nudge_root=_nudge_root)
+            )
             state = store.load(issue)
             resolved_stage: str | None = state.stage if state and state.stage else None
             if resolved_stage:

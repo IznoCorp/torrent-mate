@@ -21,7 +21,7 @@ import sys
 import time
 
 from kanbanmate.adapters.store.fs_store import FsStateStore
-from kanbanmate.bin._pin import check_pin, parse_issue_arg, resolve_kanban_root
+from kanbanmate.bin._pin import check_pin, helper_store_root, parse_issue_arg
 
 _PROG = "kanban-done"
 
@@ -53,8 +53,16 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     try:
-        # Resolve the store root from $KANBAN_ROOT (#1 km-root fix); None → ~/.kanban default.
-        store = FsStateStore(resolve_kanban_root())
+        # Resolve the store at the per-project sub-root (multi-project §3.2) when the worktree is
+        # project-pinned, else the bare runtime root (#1 km-root fix; N=1 byte-identical). The nudge
+        # is wired to the runtime root so the single daemon still wakes. The module-scoped
+        # ``FsStateStore`` is used so tests can monkeypatch it.
+        _store_root, _nudge_root = helper_store_root()
+        store = (
+            FsStateStore(_store_root)
+            if _nudge_root is None
+            else FsStateStore(_store_root, nudge_root=_nudge_root)
+        )
         store.record_agent_done(issue, now=time.time())
     except Exception as exc:  # noqa: BLE001 — never crash the caller; report + exit non-zero.
         print(f"{_PROG}: {exc}", file=sys.stderr)

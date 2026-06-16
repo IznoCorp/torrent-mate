@@ -27,6 +27,7 @@ from kanbanmate.cli import install as host_installer
 from kanbanmate.cli.install import (
     PAUSE_FILENAME,
     PM2_APP_NAME,
+    PM2_SERVE_APP_NAME,
     REAPER_LABEL,
     ROOT_MODE,
     TOKEN_FILENAME,
@@ -556,12 +557,16 @@ class TestHostUninstallReaperPlist:
             geteuid=_non_root,
         )
 
-        # Both PM2 delete and launchctl unload were issued.
+        # Both PM2 deletes (daemon + receiver) and launchctl unload were issued (the receiver
+        # delete is a no-op when it was never installed, but uninstall always issues it — §8).
         mock_runner.assert_any_call(["pm2", "delete", PM2_APP_NAME], capture_output=True, text=True)
+        mock_runner.assert_any_call(
+            ["pm2", "delete", PM2_SERVE_APP_NAME], capture_output=True, text=True
+        )
         mock_runner.assert_any_call(
             ["launchctl", "unload", str(plist)], capture_output=True, text=True
         )
-        assert mock_runner.call_count == 2
+        assert mock_runner.call_count == 3
         # Plist removed.
         assert not plist.exists()
 

@@ -81,7 +81,8 @@ def _wire(monkeypatch: pytest.MonkeyPatch, client: FakeClient) -> None:
         monkeypatch: The pytest monkeypatch fixture.
         client: The fake client every ``GithubClient(...)`` call should yield.
     """
-    monkeypatch.setattr(kanban_comment, "load_token", lambda: "tok")
+    # #4: the helper now resolves the PER-ENTRY token via ``_resolve_entry_token`` (not load_token).
+    monkeypatch.setattr(kanban_comment, "_resolve_entry_token", lambda entry: "tok")
     monkeypatch.setattr(kanban_comment, "_resolve_entry", lambda: _FakeEntry())
     monkeypatch.setattr(kanban_comment, "GithubClient", lambda *a, **k: client)
 
@@ -178,7 +179,7 @@ def test_main_wiring_failure_exits_one_not_crash(monkeypatch: pytest.MonkeyPatch
     def _boom() -> _FakeEntry:
         raise RuntimeError("no registered project")
 
-    monkeypatch.setattr(kanban_comment, "load_token", lambda: "tok")
+    monkeypatch.setattr(kanban_comment, "_resolve_entry_token", lambda entry: "tok")
     monkeypatch.setattr(kanban_comment, "_resolve_entry", _boom)
 
     code = main(["7", "body", "--append"])

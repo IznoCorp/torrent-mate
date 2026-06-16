@@ -178,7 +178,7 @@ def test_reload_failure_keeps_last_good_config(
         )
 
     monkeypatch.setattr(
-        "kanbanmate.daemon.loop.run_one_tick",
+        "kanbanmate.daemon.sweep.run_one_tick",
         mock_run_one_tick,
     )
 
@@ -413,7 +413,7 @@ def test_run_loop_tick_exception_continues(tmp_path: Path, monkeypatch: pytest.M
             state if state is not None else PersistedState(),
         )
 
-    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", mock_run_one_tick)
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", mock_run_one_tick)
 
     # Must not raise — the loop catches the exception and continues.
     run_loop(daemon_config, max_iterations=2, sleep=lambda _s: None)
@@ -427,7 +427,7 @@ def test_run_loop_lock_released_in_finally(tmp_path: Path, monkeypatch: pytest.M
     daemon_config = DaemonConfig(kanban_root=tmp_path, config_path=config_yml)
 
     monkeypatch.setattr(
-        "kanbanmate.daemon.loop.run_one_tick",
+        "kanbanmate.daemon.sweep.run_one_tick",
         _mock_run_one_tick_success,
     )
 
@@ -474,7 +474,7 @@ def test_run_loop_mtime_change_triggers_reload(
 
     monkeypatch.setattr("kanbanmate.daemon.loop._load_wiring_config", _spy_load)
     monkeypatch.setattr(
-        "kanbanmate.daemon.loop.run_one_tick",
+        "kanbanmate.daemon.sweep.run_one_tick",
         _mock_run_one_tick_success,
     )
 
@@ -507,7 +507,7 @@ def test_run_loop_mtime_nochange_skips_reload(
 
     monkeypatch.setattr("kanbanmate.daemon.loop._load_wiring_config", _spy_load)
     monkeypatch.setattr(
-        "kanbanmate.daemon.loop.run_one_tick",
+        "kanbanmate.daemon.sweep.run_one_tick",
         _mock_run_one_tick_success,
     )
 
@@ -551,7 +551,7 @@ def test_run_loop_shutdown_flag_exits_after_tick(
             state if state is not None else PersistedState(),
         )
 
-    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _mock_tick)
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", _mock_tick)
 
     def _sleep_then_flag(delay: float) -> None:
         # Simulate SIGTERM arriving during sleep: set the shutdown flag.
@@ -576,7 +576,7 @@ def test_run_loop_writes_heartbeat(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     daemon_config = DaemonConfig(kanban_root=tmp_path, config_path=config_yml)
 
     monkeypatch.setattr(
-        "kanbanmate.daemon.loop.run_one_tick",
+        "kanbanmate.daemon.sweep.run_one_tick",
         _mock_run_one_tick_success,
     )
 
@@ -611,7 +611,7 @@ def test_run_loop_heartbeat_tracks_consecutive_failures(
     ) -> tuple[TickResult, PersistedState]:
         raise RuntimeError("simulated persistent tick failure")
 
-    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _always_raises)
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", _always_raises)
 
     run_loop(daemon_config, max_iterations=3, sleep=lambda _s: None)
 
@@ -639,7 +639,7 @@ def test_run_loop_heartbeat_failures_snap_back_on_success(
             raise RuntimeError("transient failure")
         return (_make_tick_result(), state if state is not None else PersistedState())
 
-    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _fail_then_succeed)
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", _fail_then_succeed)
 
     run_loop(daemon_config, max_iterations=3, sleep=lambda _s: None)
 
@@ -672,7 +672,7 @@ def test_run_loop_probe_failure_counts_as_failed_poll(
         result = _make_tick_result(probe_failed=True, probe_error=RuntimeError("probe boom"))
         return (result, state if state is not None else PersistedState())
 
-    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _probe_failed_tick)
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", _probe_failed_tick)
 
     run_loop(daemon_config, max_iterations=3, sleep=lambda _s: None)
 
@@ -701,7 +701,7 @@ def test_run_loop_probe_failure_then_recovery_snaps_back(
             return (_make_tick_result(probe_failed=True, probe_error=RuntimeError("blip")), carried)
         return (_make_tick_result(), carried)  # probe recovered → clean tick
 
-    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _probe_fail_then_recover)
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", _probe_fail_then_recover)
 
     run_loop(daemon_config, max_iterations=3, sleep=lambda _s: None)
 
@@ -727,7 +727,7 @@ def test_run_loop_probe_failure_with_401_drops_degraded_sentinel(
         result = _make_tick_result(probe_failed=True, probe_error=err)
         return (result, state if state is not None else PersistedState())
 
-    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _probe_failed_401)
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", _probe_failed_401)
 
     run_loop(daemon_config, max_iterations=1, sleep=lambda _s: None)
 
@@ -751,7 +751,7 @@ def test_run_loop_writes_degraded_sentinel_on_auth_failure(
     ) -> tuple[TickResult, PersistedState]:
         raise GitHubHTTPError(401, '{"message": "Bad credentials"}')
 
-    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _auth_fail)
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", _auth_fail)
 
     run_loop(daemon_config, max_iterations=1, sleep=lambda _s: None)
 
@@ -771,7 +771,7 @@ def test_run_loop_clears_degraded_sentinel_on_recovery(
     # Pre-seed a stale DEGRADED sentinel from a prior auth failure.
     (tmp_path / DEGRADED_FILENAME).write_text("auth HTTP 401\n")
 
-    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _mock_run_one_tick_success)
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", _mock_run_one_tick_success)
 
     run_loop(daemon_config, max_iterations=1, sleep=lambda _s: None)
 
@@ -792,7 +792,7 @@ def test_run_loop_heartbeat_write_failure_warns_and_continues(
     config_yml, _columns_yml = _setup_config_files(tmp_path)
     daemon_config = DaemonConfig(kanban_root=tmp_path, config_path=config_yml)
 
-    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _mock_run_one_tick_success)
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", _mock_run_one_tick_success)
 
     # Force ONLY the heartbeat-marker write to fail (leave every other Path.write_text intact).
     _orig_write_text = Path.write_text
@@ -829,7 +829,7 @@ def test_run_loop_writes_jsonl_log_and_reader_reads_it(
     daemon_config = DaemonConfig(kanban_root=tmp_path, config_path=config_yml)
 
     monkeypatch.setattr(
-        "kanbanmate.daemon.loop.run_one_tick",
+        "kanbanmate.daemon.sweep.run_one_tick",
         _mock_run_one_tick_success,
     )
 
@@ -904,7 +904,7 @@ def test_run_loop_backs_off_during_failures_then_snaps_back(
             raise RuntimeError("outage")
         return (_make_tick_result(), state if state is not None else PersistedState())
 
-    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _fail4_then_succeed)
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", _fail4_then_succeed)
 
     # The inter-tick sleep is now SLICED (0.4.0 interruptible sleep): the injected ``sleep`` records
     # each 0.5 s slice. With no nudge the slices SUM to the per-iteration ``delay``, so group the
@@ -922,7 +922,7 @@ def test_run_loop_backs_off_during_failures_then_snaps_back(
             running[0] = 0.0
         return _fail4_then_succeed(_wiring, state)
 
-    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _tick_boundary)
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", _tick_boundary)
     run_loop(daemon_config, max_iterations=5, sleep=_record_slice)
     # Flush the final iteration's sleep (no tick after it to close the boundary).
     if running[0] > 0:
@@ -953,7 +953,7 @@ def test_run_loop_max_iterations_zero_exits_immediately(
             state if state is not None else PersistedState(),
         )
 
-    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _mock_tick)
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", _mock_tick)
 
     run_loop(daemon_config, max_iterations=0, sleep=lambda _s: None)
 
@@ -1398,7 +1398,7 @@ def test_run_loop_integration_sleeps_full_delay_without_nudge(
     config_yml, _columns_yml = _setup_config_files(tmp_path)
     daemon_config = DaemonConfig(kanban_root=tmp_path, config_path=config_yml)
     monkeypatch.setattr("kanbanmate.daemon.loop.next_sleep", lambda *a, **k: 1.0)
-    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _mock_run_one_tick_success)
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", _mock_run_one_tick_success)
 
     slept: list[float] = []
     run_loop(daemon_config, max_iterations=2, sleep=lambda s: slept.append(s))
@@ -1415,7 +1415,7 @@ def test_run_loop_integration_wakes_early_when_nudged(
     config_yml, _columns_yml = _setup_config_files(tmp_path)
     daemon_config = DaemonConfig(kanban_root=tmp_path, config_path=config_yml)
     monkeypatch.setattr("kanbanmate.daemon.loop.next_sleep", lambda *a, **k: 10.0)
-    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _mock_run_one_tick_success)
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", _mock_run_one_tick_success)
 
     nudge = tmp_path / "intents" / ".nudge"
     slept: list[float] = []
@@ -1463,7 +1463,7 @@ def test_run_loop_integration_wakes_early_on_post_drain_window_nudge(
         nudge.write_text("post-drain")
         return (_make_tick_result(), state if state is not None else PersistedState())
 
-    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _tick_bumps_nudge)
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", _tick_bumps_nudge)
 
     slept: list[float] = []
     run_loop(daemon_config, max_iterations=1, sleep=lambda s: slept.append(s))

@@ -45,11 +45,21 @@ class IntentsStateMixin:
     Operates on the host store's ``root`` directory. The ``intents/`` directory is created lazily on
     the first write (no ``__init__`` change in the host), and reads tolerate its absence.
 
+    The intent QUEUE (``intents/<id>.json``) lives under the host's ``root`` (the per-project
+    sub-root when N>1 — each project drains its own collision-free queue). The daemon-wake NUDGE
+    sentinel (``intents/.nudge``) lives under ``nudge_root`` (the runtime root) — DAEMON-LEVEL, so
+    one daemon = one sleep = one wake even across N projects (ingress-multiproject §3.2). When the
+    host does not set ``nudge_root`` (N=1, or a bare mixin in tests) it falls back to ``root``, so
+    the nudge path is byte-identical to today.
+
     Attributes:
         root: The state-store root directory (set by the host store's ``__init__``).
+        nudge_root: The runtime root the daemon-wake nudge sentinel lives under; falls back to
+            ``root`` when the host does not set it (N=1 byte-identical).
     """
 
     root: Path
+    nudge_root: Path
 
     def enqueue_intent(self, intent_id: str, payload: Mapping[str, object]) -> None:
         """Persist a pending intent atomically as ``intents/<id>.json``.
@@ -140,7 +150,10 @@ class IntentsStateMixin:
         ``stat()`` never sees a half-written file, and ``os.replace`` advances the mtime.
         """
         try:
-            self._ensure_intents_dir()
+            # Ensure the NUDGE dir (which is ``<nudge_root>/intents`` — the runtime root for N>1,
+            # possibly distinct from the per-project queue dir ``<root>/intents``). Create it here on
+            # the write side so a read (``nudge_mtime``) never has a directory side effect.
+            self._nudge_dir().mkdir(parents=True, exist_ok=True)
             # A tiny timestamp payload makes the file non-empty + human-inspectable; the daemon only
             # reads the mtime, so the content is incidental.
             self._atomic_write_intent(self._nudge_path(), str(time.time()))
@@ -169,9 +182,20 @@ class IntentsStateMixin:
         """Return the intent-queue directory (``intents/``)."""
         return self.root / INTENTS_DIRNAME
 
+    def _nudge_dir(self) -> Path:
+        """Return the directory the daemon-wake nudge sentinel lives in (``<nudge_root>/intents``).
+
+        The nudge is DAEMON-LEVEL (ingress-multiproject §3.2): it lives under ``nudge_root`` (the
+        runtime root), NOT under the per-project store ``root``, so one daemon wakes once for any
+        project's enqueue. ``nudge_root`` falls back to ``root`` when the host did not set it (N=1
+        / a bare mixin in tests), keeping the path byte-identical to the single-project layout.
+        """
+        nudge_root = getattr(self, "nudge_root", self.root)
+        return nudge_root / INTENTS_DIRNAME
+
     def _nudge_path(self) -> Path:
-        """Return the daemon-nudge sentinel path (``intents/.nudge``)."""
-        return self._intents_dir() / _NUDGE_FILENAME
+        """Return the daemon-nudge sentinel path (``<nudge_root>/intents/.nudge``); pure, no I/O."""
+        return self._nudge_dir() / _NUDGE_FILENAME
 
     def _intent_path(self, intent_id: str) -> Path:
         """Return the pending-intent marker path (``intents/<id>.json``)."""

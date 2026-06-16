@@ -78,7 +78,7 @@ def _wire(
             any issue. ``None`` (default) means no persisted state → free-form fallback.
     """
     store = FakeStore(store_state)
-    monkeypatch.setattr(kanban_progress, "load_token", lambda: "tok")
+    monkeypatch.setattr(kanban_progress, "_resolve_entry_token", lambda entry: "tok")
     monkeypatch.setattr(kanban_progress, "_resolve_entry", lambda: _FakeEntry())
     monkeypatch.setattr(kanban_progress, "GithubClient", lambda *a, **k: client)
     monkeypatch.setattr(kanban_progress, "FsStateStore", lambda *a, **k: store)
@@ -233,7 +233,7 @@ def test_wiring_failure_exits_one(monkeypatch: pytest.MonkeyPatch) -> None:
     def _boom() -> _FakeEntry:
         raise RuntimeError("no registered project")
 
-    monkeypatch.setattr(kanban_progress, "load_token", lambda: "tok")
+    monkeypatch.setattr(kanban_progress, "_resolve_entry_token", lambda entry: "tok")
     monkeypatch.setattr(kanban_progress, "_resolve_entry", _boom)
 
     assert main(["7", "line"]) == 1

@@ -72,7 +72,7 @@ def _patch_backstop_config(monkeypatch: pytest.MonkeyPatch, *, rate_limit: int =
 def _patch_github(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     """Stub the GitHub wiring (registry / token / client) and return the upsert spy."""
     monkeypatch.setattr(kanban_session_end, "_resolve_entry", lambda: MagicMock())
-    monkeypatch.setattr(kanban_session_end, "load_token", lambda *a, **k: "tok")
+    monkeypatch.setattr(kanban_session_end, "_resolve_entry_token", lambda entry: "tok")
     monkeypatch.setattr(kanban_session_end, "GithubClient", lambda *a, **k: MagicMock())
     upsert = MagicMock()
     monkeypatch.setattr(kanban_session_end, "upsert_stage_comment", upsert)
@@ -82,7 +82,7 @@ def _patch_github(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
 def _patch_github_capture_client(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     """Stub the GitHub wiring with a SINGLE shared client and return it (for move_card asserts)."""
     monkeypatch.setattr(kanban_session_end, "_resolve_entry", lambda: MagicMock())
-    monkeypatch.setattr(kanban_session_end, "load_token", lambda *a, **k: "tok")
+    monkeypatch.setattr(kanban_session_end, "_resolve_entry_token", lambda entry: "tok")
     client = MagicMock()
     monkeypatch.setattr(kanban_session_end, "GithubClient", lambda *a, **k: client)
     monkeypatch.setattr(kanban_session_end, "upsert_stage_comment", MagicMock())
@@ -206,7 +206,7 @@ def test_github_error_during_finalize_is_swallowed(monkeypatch: pytest.MonkeyPat
     store.recent_agent_done.return_value = False  # NEITHER breadcrumb → the ⚠️ path (#FIX3)
     monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
     monkeypatch.setattr(kanban_session_end, "_resolve_entry", lambda: MagicMock())
-    monkeypatch.setattr(kanban_session_end, "load_token", lambda *a, **k: "tok")
+    monkeypatch.setattr(kanban_session_end, "_resolve_entry_token", lambda entry: "tok")
 
     def _boom(*_a: object, **_k: object) -> object:
         raise RuntimeError("github unreachable")
@@ -586,7 +586,7 @@ def test_interrupted_emits_body_status_interrupted(monkeypatch: pytest.MonkeyPat
     store.recent_agent_done.return_value = False  # NEITHER → ⚠️ interrupted path
     monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
     monkeypatch.setattr(kanban_session_end, "_resolve_entry", lambda: MagicMock())
-    monkeypatch.setattr(kanban_session_end, "load_token", lambda *a, **k: "tok")
+    monkeypatch.setattr(kanban_session_end, "_resolve_entry_token", lambda entry: "tok")
     monkeypatch.setattr(kanban_session_end, "GithubClient", lambda *a, **k: MagicMock())
     monkeypatch.setattr(kanban_session_end, "upsert_stage_comment", MagicMock())
     body_status = MagicMock()
@@ -606,7 +606,7 @@ def test_body_status_error_does_not_break_session_end(monkeypatch: pytest.Monkey
     store.recent_agent_done.return_value = False
     monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
     monkeypatch.setattr(kanban_session_end, "_resolve_entry", lambda: MagicMock())
-    monkeypatch.setattr(kanban_session_end, "load_token", lambda *a, **k: "tok")
+    monkeypatch.setattr(kanban_session_end, "_resolve_entry_token", lambda entry: "tok")
     monkeypatch.setattr(kanban_session_end, "GithubClient", lambda *a, **k: MagicMock())
     monkeypatch.setattr(kanban_session_end, "upsert_stage_comment", MagicMock())
     # The body-status helper itself raising must be swallowed by the surrounding finalize try/except.

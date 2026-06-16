@@ -64,7 +64,7 @@ def _wire(
             ``None``, the worktree is unpinned (operator use).
         stdin: The text ``--append-section`` reads from stdin.
     """
-    monkeypatch.setattr(kanban_update_body, "load_token", lambda: "tok")
+    monkeypatch.setattr(kanban_update_body, "_resolve_entry_token", lambda entry: "tok")
     monkeypatch.setattr(kanban_update_body, "_resolve_entry", lambda: _FakeEntry())
     monkeypatch.setattr(kanban_update_body, "GithubClient", lambda *a, **k: client)
 

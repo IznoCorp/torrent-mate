@@ -35,10 +35,9 @@ import sys
 from dataclasses import dataclass
 
 from kanbanmate.adapters.github.client import GithubClient
-from kanbanmate.adapters.github.token import load_token
 from kanbanmate.app.stage_signal import upsert_stage_comment
-from kanbanmate.bin._pin import _registry_root, check_pin, parse_issue_arg
-from kanbanmate.cli.init import ProjectEntry, _load_registry, _projects_path
+from kanbanmate.bin._pin import check_pin, parse_issue_arg
+from kanbanmate.cli.init import ProjectEntry
 from kanbanmate.core.stage_comment import HeaderInfo
 
 _PROG = "kanban-comment"
@@ -116,26 +115,41 @@ def _parse_args(argv: list[str]) -> _Args:
 
 
 def _resolve_entry() -> ProjectEntry:
-    """Resolve the single registered project from the per-clone registry.
+    """Resolve the registry entry this helper acts on (project-aware, ingress-multiproject §7).
 
-    v1 runs one repo per clone (DESIGN §4.3), so the registry must hold exactly one
-    entry; anything else is an operator misconfiguration we surface loudly. The registry is read
-    from the runtime root resolved by :func:`_registry_root` (``$KANBAN_ROOT`` when set, else the
-    ~/.kanban default — the km-worktree-helper-root fix, #1).
+    Thin delegate to the shared :func:`kanbanmate.bin._clone_config.resolve_entry` (the ONE source
+    of truth, now multi-project-aware: project pin / ``$KANBAN_PROJECT_ID`` → exact entry, else the
+    N=1 sole entry, else fail loud). Kept as a module-level name so existing tests that monkeypatch
+    ``_resolve_entry`` on this module keep working.
 
     Returns:
-        The sole :class:`~kanbanmate.cli.init.ProjectEntry`.
+        The resolved :class:`~kanbanmate.cli.init.ProjectEntry`.
 
     Raises:
-        RuntimeError: When the registry does not hold exactly one project.
+        RuntimeError: When no project is registered, the pinned project is unknown, or N>1 with no
+            pin to disambiguate (see :func:`kanbanmate.bin._clone_config.resolve_entry`).
     """
-    projects_path = _projects_path(_registry_root())
-    registry = _load_registry(projects_path)
-    if len(registry) != 1:
-        raise RuntimeError(
-            f"expected exactly one registered project in {projects_path}, found {len(registry)}"
-        )
-    return next(iter(registry.values()))
+    from kanbanmate.bin._clone_config import resolve_entry
+
+    return resolve_entry()
+
+
+def _resolve_entry_token(entry: ProjectEntry) -> str:
+    """Resolve the PER-ENTRY GitHub token for ``entry`` (multi-org §6, #4).
+
+    Thin delegate to the shared :func:`kanbanmate.bin._clone_config.resolve_entry_token` (the ONE
+    resolver, which the daemon also uses) so a second org's agent authenticates with that org's PAT.
+    Kept as a module-level name so tests can monkeypatch it.
+
+    Args:
+        entry: The resolved registry entry (its ``token_ref`` selects the token file).
+
+    Returns:
+        The resolved token string for this entry.
+    """
+    from kanbanmate.bin._clone_config import resolve_entry_token
+
+    return resolve_entry_token(entry)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -178,7 +192,12 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         entry = _resolve_entry()
-        client = GithubClient(load_token(), project_id=entry.project_id, repo=entry.repo)
+        # Resolve the PER-ENTRY token (#4): a second org's entry carries a ``token_ref`` so its agent
+        # authenticates with that org's PAT instead of the shared default (which would 401). N=1 /
+        # no token_ref → the shared token (byte-identical to the historical ``load_token()``).
+        client = GithubClient(
+            _resolve_entry_token(entry), project_id=entry.project_id, repo=entry.repo
+        )
         # Bare-positional defaults to free-form (PoC parity): when neither --sticky nor
         # --append is given, the implicit default is append mode — a plain client.comment
         # with no marker lookup, matching the PoC kanban-comment contract.

@@ -24,6 +24,71 @@ from pathlib import Path
 _PIN_DIRNAME = ".claude"
 _PIN_FILENAME = "kanban-issue"
 
+# The PROJECT-pin file's name under a worktree's ``.claude/`` dir (ingress-multiproject §7). Kept in
+# lock-step with :data:`kanbanmate.adapters.perms.PROJECT_PIN_RELPATH` (``.claude/kanban-project``).
+# Written ONLY in a multi-project deployment; absent → the helpers fall back to ``$KANBAN_PROJECT_ID``
+# then the sole registry entry (N=1 back-compat).
+_PROJECT_PIN_FILENAME = "kanban-project"
+
+
+def resolve_project_id() -> str | None:
+    """Return the launched project node id from ``$KANBAN_PROJECT_ID``, or ``None`` (multi-project §7).
+
+    The launch exports ``KANBAN_PROJECT_ID=<node-id>`` on the agent's command line ONLY in a
+    multi-project deployment, so the kanban-* helpers resolve the EXACT registry entry +
+    per-project store sub-root the daemon used. Absent / empty (the N=1 case) → ``None`` (the
+    helpers fall back to the project pin, then the sole registry entry).
+
+    Returns:
+        The non-empty ``$KANBAN_PROJECT_ID`` value, or ``None`` when unset/blank.
+    """
+    pid = os.environ.get("KANBAN_PROJECT_ID", "").strip()
+    return pid or None
+
+
+def find_pinned_project(start: Path | None = None) -> str | None:
+    """Walk up from ``start`` (default cwd) to find the worktree's pinned project node id (§7).
+
+    Searches ``<dir>/.claude/kanban-project`` at ``start`` and each ancestor up to the filesystem
+    root (mirrors :func:`find_pinned_issue`). The agent's shell runs WITH the worktree as its cwd,
+    so the first pin found on the way up is the launched project's. An empty/unreadable pin is
+    treated as ABSENT (returns ``None``) — a corrupt pin must not hard-block a manual invocation.
+
+    Args:
+        start: The directory to start the upward search from; defaults to the cwd.
+
+    Returns:
+        The pinned project node id when a non-empty pin file is found on the ancestor chain, else
+        ``None`` (no pin — the env / sole-entry fallback applies).
+    """
+    here = (start or Path.cwd()).resolve()
+    for directory in (here, *here.parents):
+        pin = directory / _PIN_DIRNAME / _PROJECT_PIN_FILENAME
+        if not pin.is_file():
+            continue
+        try:
+            text = pin.read_text(encoding="utf-8").strip()
+        except OSError:
+            return None
+        return text or None
+    return None
+
+
+def resolve_pinned_project_id(start: Path | None = None) -> str | None:
+    """Resolve the active project node id: ``$KANBAN_PROJECT_ID`` first, else the worktree pin (§7).
+
+    The env var is the authoritative launched-agent signal (the launch exports it); the worktree
+    pin is the durable fallback (survives a shell that lost the env). Both are absent in an N=1
+    deployment → ``None`` (the helpers use the sole registry entry).
+
+    Args:
+        start: The directory to start the upward pin search from; defaults to the cwd.
+
+    Returns:
+        The resolved project node id, or ``None`` when neither the env nor a pin is present.
+    """
+    return resolve_project_id() or find_pinned_project(start)
+
 
 def resolve_kanban_root() -> str | None:
     """Return the kanban runtime root from ``$KANBAN_ROOT``, or ``None`` for the ~/.kanban default (#1).
@@ -59,6 +124,65 @@ def _registry_root() -> Path:
 
     root = resolve_kanban_root()
     return Path(root) if root else DEFAULT_KANBAN_ROOT
+
+
+def helper_store_root(start: Path | None = None) -> tuple[str | Path | None, Path | None]:
+    """Return ``(store_root, nudge_root)`` the kanban-* helpers must use (multi-project §3.2 / §7).
+
+    A launched agent's helper must write per-ticket state to the SAME sub-root the daemon wrote to.
+
+    * **No project pin (N=1 / manual op)** — ``store_root`` is exactly :func:`resolve_kanban_root`
+      (the ``$KANBAN_ROOT`` value or ``None`` for ~/.kanban), and ``nudge_root`` is ``None`` (the
+      store defaults its nudge to its own root). This makes a single ``FsStateStore(store_root)``
+      call BYTE-IDENTICAL to the historical ``FsStateStore(resolve_kanban_root())`` — the legacy
+      flat layout, so existing single-project behaviour (and tests) are unchanged.
+    * **Project pinned (N>1)** — ``store_root`` is ``<runtime_root>/projects/<safe(project_id)>``
+      (the per-ticket sub-root the daemon wrote to), and ``nudge_root`` is the bare runtime root
+      (one daemon, one wake — the nudge sentinel is daemon-level).
+
+    Args:
+        start: The directory to start the upward project-pin search from; defaults to the cwd.
+
+    Returns:
+        A ``(store_root, nudge_root)`` pair to pass to :class:`FsStateStore` (``nudge_root`` ``None``
+        means "default to the store root" — the N=1 path).
+    """
+    # Imported lazily (the leaf pin reader stays import-cheap; core is below bin so this adds no cycle).
+    from kanbanmate.core.registry_resolve import safe_project_id
+
+    pinned = resolve_pinned_project_id(start)
+    if pinned is None:
+        # N=1 (no pin): the bare ``resolve_kanban_root`` value (str | None) + a default nudge root —
+        # byte-identical to the historical ``FsStateStore(resolve_kanban_root())`` construction.
+        return resolve_kanban_root(), None
+    runtime_root = _registry_root()
+    sub_root = runtime_root / "projects" / safe_project_id(pinned)
+    return sub_root, runtime_root
+
+
+def helper_store(start: Path | None = None) -> object:
+    """Build an :class:`FsStateStore` rooted at the helper's correct sub-root (multi-project §3.2).
+
+    Convenience over :func:`helper_store_root`: returns a ready store with the per-project store root
+    AND (for N>1) the runtime-root nudge root wired, so a launched agent's helper writes
+    breadcrumbs/state to the right place AND its nudge wakes the single daemon. N=1 →
+    ``FsStateStore(resolve_kanban_root())`` (byte-identical to today; the nudge defaults to the
+    store root).
+
+    Args:
+        start: The directory to start the upward project-pin search from; defaults to the cwd.
+
+    Returns:
+        A :class:`~kanbanmate.adapters.store.fs_store.FsStateStore` (typed ``object`` here so the
+        leaf module needs no adapter import at type-check scope; callers annotate concretely).
+    """
+    from kanbanmate.adapters.store.fs_store import FsStateStore
+
+    store_root, nudge_root = helper_store_root(start)
+    if nudge_root is None:
+        # N=1: single-positional construction — byte-identical to FsStateStore(resolve_kanban_root()).
+        return FsStateStore(store_root)
+    return FsStateStore(store_root, nudge_root=nudge_root)
 
 
 def parse_issue_arg(raw: str) -> int:

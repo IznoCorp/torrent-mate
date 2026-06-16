@@ -8,7 +8,12 @@ new pure :func:`auto_advance_target` parser must mirror ``script_route``'s ``"au
 
 from __future__ import annotations
 
-from kanbanmate.bin._clone_config import auto_advance_target
+from pathlib import Path
+
+import pytest
+
+from kanbanmate.bin._clone_config import auto_advance_target, resolve_entry_token
+from kanbanmate.cli.init import ProjectEntry
 
 
 def test_auto_advance_target_parses_col() -> None:
@@ -40,6 +45,57 @@ def test_auto_advance_target_auto_with_empty_target_is_none() -> None:
     """A malformed ``"auto:"`` with no target → ``None`` (never a blank move)."""
     assert auto_advance_target("auto:") is None
     assert auto_advance_target("auto:   ") is None
+
+
+# ---------------------------------------------------------------------------
+# resolve_entry_token (#4) — per-entry token resolution for the agent helpers
+# ---------------------------------------------------------------------------
+
+
+def _entry(token_ref: str = "") -> ProjectEntry:
+    """Build a minimal :class:`ProjectEntry` carrying ``token_ref`` for the token-resolution tests."""
+    return ProjectEntry(
+        repo="orgB/r2",
+        clone="/c",
+        project_id="PVT_B",
+        status_field_node_id="F",
+        token_ref=token_ref,
+    )
+
+
+def test_resolve_entry_token_with_ref_loads_per_org_token(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A non-empty token_ref loads from ``<root>/tokens/<ref>`` (the multi-org path, #4)."""
+    monkeypatch.setenv("KANBAN_ROOT", str(tmp_path))
+    monkeypatch.delenv("KANBAN_TOKEN", raising=False)  # the env override must not win here
+    (tmp_path / "token").write_text("shared-tok", encoding="utf-8")
+    (tmp_path / "tokens").mkdir()
+    (tmp_path / "tokens" / "orgB").write_text("orgB-tok", encoding="utf-8")
+
+    assert resolve_entry_token(_entry(token_ref="orgB")) == "orgB-tok"
+
+
+def test_resolve_entry_token_without_ref_uses_default_token(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An empty token_ref (N=1 path) loads the shared ``<root>/token`` — byte-identical to today."""
+    monkeypatch.setenv("KANBAN_ROOT", str(tmp_path))
+    monkeypatch.delenv("KANBAN_TOKEN", raising=False)
+    (tmp_path / "token").write_text("shared-tok", encoding="utf-8")
+
+    assert resolve_entry_token(_entry(token_ref="")) == "shared-tok"
+
+
+def test_resolve_entry_token_env_override_wins_for_shared(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``$KANBAN_TOKEN`` still wins for the shared (no-ref) token (the env override path is intact)."""
+    monkeypatch.setenv("KANBAN_ROOT", str(tmp_path))
+    monkeypatch.setenv("KANBAN_TOKEN", "env-tok")
+    (tmp_path / "token").write_text("file-tok", encoding="utf-8")
+
+    assert resolve_entry_token(_entry(token_ref="")) == "env-tok"
 
 
 def test_kanban_move_reimports_lifted_helpers() -> None:

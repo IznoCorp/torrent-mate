@@ -64,20 +64,18 @@ def main(argv: list[str] | None = None) -> int:
     # filesystem hiccup) is swallowed so the hook never blocks or influences the agent. The import
     # is local to this branch so it only runs once a valid issue is in hand.
     try:
-        from kanbanmate.adapters.store.fs_store import FsStateStore
-        from kanbanmate.bin._pin import resolve_kanban_root
+        from kanbanmate.bin._pin import helper_store
 
         # Root-aware exactly like the other write-capable helpers (kanban-done / kanban-move /
-        # kanban-progress / kanban-session-end): honour ``$KANBAN_ROOT`` — which the launch exports
-        # into the agent's worktree env (actions._agent_command) for a NON-default daemon — so this
-        # PostToolUse hook writes the heartbeat under the SAME root the daemon reaper reads, not the
-        # hardcoded ~/.kanban. That hardcoded default was the root cause of the km-agent
-        # "never_refreshed" symptom: the kanban-km agent's heartbeat landed under ~/.kanban while the
-        # km daemon aged it against ~/.kanban-km (#1, completing the km-worktree-helper-root fix).
-        store = FsStateStore(resolve_kanban_root())  # $KANBAN_ROOT, else ~/.kanban (DESIGN §4.1)
+        # kanban-progress / kanban-session-end): honour ``$KANBAN_ROOT`` AND the project pin —
+        # both exported into the agent's worktree env (actions._agent_command) — so this PostToolUse
+        # hook writes the heartbeat under the SAME per-project sub-root the daemon reaper reads, not
+        # the hardcoded ~/.kanban (the km-agent "never_refreshed" root cause #1, extended to
+        # multi-project §3.2). N=1 → the bare runtime root, byte-identical.
+        store = helper_store()
         # touch_heartbeat is no-resurrection: a no-op when state/<issue>.json is absent (e.g. after
         # a Cancel teardown), so a late hook never recreates a torn-down ticket's state (§8.3).
-        store.touch_heartbeat(issue, time.time())
+        store.touch_heartbeat(issue, time.time())  # type: ignore[attr-defined]
     except Exception:  # noqa: BLE001 — fail-soft is the whole point (DESIGN §8.3)
         pass
     return 0  # ALWAYS exit 0 — never block/influence the agent (DESIGN §8.3)

@@ -39,6 +39,13 @@ FORBIDDEN: dict[str, list[str]] = {
     "adapters": ["app", "daemon", "cli"],
     # app is the composition root; it must not import the entrypoints.
     "app": ["cli", "daemon"],
+    # http is the webhook-receiver entrypoint (ingress-multiproject §4.1). Like cli/daemon it sits
+    # at the TOP of the hierarchy and may import app/adapters/core, plus the registry loader in
+    # ``cli.init`` (``_load_registry`` / ``_projects_path`` — EXACTLY as the ``daemon`` entrypoint
+    # already does; the registry-FILE reader lives in cli and is a shared concern). It must NOT
+    # reach the ``daemon``/``bin`` sibling entrypoints, so the receiver stays a thin standalone
+    # front-door and ``core`` stays pure.
+    "http": ["daemon", "bin"],
 }
 
 

@@ -33,6 +33,7 @@ from kanbanmate.adapters.perms import (
     provision_worktree_bin,
     provision_worktree_skills,
     write_issue_pin,
+    write_project_pin,
 )
 from kanbanmate.adapters.workspace.worktree import wip_branch
 from kanbanmate.app.body_status import update_body_status
@@ -43,14 +44,14 @@ from kanbanmate.app.stage_signal import (
 )
 from kanbanmate.core.domain import Ticket
 from kanbanmate.core.launch_argv import build_claude_argv, wrap_with_session_end
+from kanbanmate.core.launch_env import build_env_prefix
+from kanbanmate.app.launch_context import build_launch_context
 from kanbanmate.app.prompt_delivery import poll_pane, submit_prompt_with_retries
-from kanbanmate.core.body_edit import declares_dependency_on, title_code
 from kanbanmate.core.launch_keys import (
     build_sendkeys_sequence,
 )
 from kanbanmate.core.placeholders import fill
 from kanbanmate.core.stage_comment import HeaderInfo, fmt_timestamp
-from kanbanmate.core.ticket_fields import parse_ticket_fields
 from kanbanmate.app.health_reporter import _NullHealthReporter
 from kanbanmate.app.status_reporter import _NullStatusReporter
 from kanbanmate.ports.board import (
@@ -165,6 +166,10 @@ class Deps:
     seeder: Seeder | None = None
     # The launch's trust/ready poll sleep boundary (phase-25 §25.1); tests inject a no-op.
     sleeper: Callable[[float], None] = time.sleep
+    # Multi-project marker (ingress-multiproject §7): True when the daemon drives >1 enabled project.
+    # Drives the launch's ``KANBAN_PROJECT_ID`` export + the worktree project pin so the helpers
+    # resolve the right per-project store sub-root. False (N=1) keeps the command byte-identical.
+    multi_project: bool = False
 
 
 @dataclass(frozen=True)
@@ -327,6 +332,10 @@ class LaunchAction:
         provision_worktree_bin(worktree)
         ensure_manual_merge_mode(worktree)
         write_issue_pin(worktree, issue)
+        # Multi-project (§7): also pin the worktree to its project node id so the helpers resolve the
+        # right per-project store sub-root. N=1 → no pin → byte-identical single-project worktree.
+        if deps.multi_project and deps.project_id:
+            write_project_pin(worktree, deps.project_id)
         # 3. Build the BARE agent command: the real ``claude --session-id <uuid> --permission-mode
         # <mode> --add-dir <worktree> ; kanban-session-end <issue>`` line (build_claude_argv +
         # wrap_with_session_end). The prompt is NO LONGER a positional in this command — see 4b
@@ -508,14 +517,18 @@ class LaunchAction:
         # is left unquoted by shlex.quote (it must EXPAND in the agent's shell); the dir is quoted so
         # a worktree path with spaces stays one segment.
         bin_dir = Path(worktree) / KANBAN_BIN_RELDIR
-        path_prefix = f'export PATH={shlex.quote(str(bin_dir))}:"$PATH"; '
-        # Inject the daemon's runtime root so the trailing ``; kanban-session-end`` AND the agent's
-        # kanban-* helpers target the CORRECT root, not hardcoded ~/.kanban (km-root bug, #1). Only
-        # when non-default — the default ~/.kanban daemon keeps a byte-identical command line.
-        root_prefix = (
-            f"export KANBAN_ROOT={shlex.quote(deps.kanban_root)}; " if deps.kanban_root else ""
+        path_segment = f'export PATH={shlex.quote(str(bin_dir))}:"$PATH"; '
+        # The export-prefix chain (KANBAN_ROOT, then KANBAN_PROJECT_ID in a multi-project deployment,
+        # then PATH) is composed by the pure ``core/launch_env`` helper (km-root bug #1 + the
+        # multi-project §7 project export). N=1 / default-root omit their exports → byte-identical
+        # command. Extracted to core to keep the at-ceiling ``actions.py`` from growing (DESIGN §9).
+        prefix = build_env_prefix(
+            kanban_root=deps.kanban_root,
+            project_id=deps.project_id,
+            multi_project=deps.multi_project,
+            path_segment=path_segment,
         )
-        return f"{root_prefix}{path_prefix}{command}"
+        return f"{prefix}{command}"
 
     def _fill_prompt(self, deps: Deps, issue: int, worktree: Path) -> str:
         """FILL the transition prompt against the launch context (minor (c): hoisted pre-launch).
@@ -586,90 +599,22 @@ class LaunchAction:
         submit_prompt_with_retries(deps, issue, session_name, filled, self.ticket.column_key)
 
     def _launch_context(self, deps: Deps, issue: int, worktree: Path) -> dict[str, object]:
-        """Build the placeholder context the shipped ``/implement:*`` prompts reference.
+        """Build the launch prompt's placeholder context — thin delegate (extracted, multiproject §9).
 
-        Sources what NEW HAS TODAY: ``code`` / ``title`` / ``ticket_body`` from the
-        :class:`Ticket`, and ``branch`` from the per-ticket worktree (discovered via the
-        workspace port). ``script_output`` (15.7) is sourced from
-        :meth:`kanbanmate.ports.store.StateStore.load_script_output` — the last failing
-        check's combined stdout+stderr persisted by the script-routing path, or ``""``
-        when absent (non-fix-CI launches are unaffected). Staged enrichment:
-        ``codename`` / ``design_path`` / ``plan_paths`` are parsed from the
-        ticket body via :func:`~kanbanmate.core.ticket_fields.parse_ticket_fields`
-        (PoC parity — the Design/Plan agents write ``**codename**:`` /
-        ``**design**:`` / ``**plans**:`` markers into the issue). A first-contact
-        ticket with no markers fills ``""`` for those keys (back-compat: the
-        Design agent does not reference them). ``issue_body`` (the FIRST cross-
-        referenced linked-issue body) and ``comments`` (the full comment history,
-        joined by ``\n---\n``) are enriched from
-        :meth:`kanbanmate.ports.board.BoardReader.issue_context` (PoC parity,
-        18.2) — **fail-soft**: a GraphQL error degrades both to ``""`` and logs,
-        never breaking the launch. The remaining enrichment keys NEW still cannot
-        supply (``dev_repo_path`` / ``base_clone``) are defaulted to ``""`` so
-        :func:`fill` does not fail loud on a referenced-but-unsuppliable key (no
-        shipped prompt references them). The fail-loud contract still holds for a
-        genuine typo: a template token that is NOT a known key (present or
-        defaulted) raises ``KeyError``.
+        The full assembly lives in :func:`kanbanmate.app.launch_context.build_launch_context` (lifted
+        out to keep the at-ceiling ``actions.py`` under the 1000-LOC hard ceiling). This method is
+        retained as the instance entrypoint (existing tests call ``LaunchAction._launch_context``),
+        forwarding ``self.ticket`` to the free function — behaviour is unchanged.
 
         Args:
-            deps: The adapter bundle (the workspace port discovers the branch).
-            issue: The ticket issue number (the ``{{code}}`` placeholder, as ``#<n>``).
-            worktree: The per-ticket worktree path (unused beyond branch discovery here).
+            deps: The adapter bundle (the workspace port discovers the branch; board reader enriches).
+            issue: The ticket issue number (the ``{{code}}`` placeholder, bare ``<n>``).
+            worktree: The per-ticket worktree path (branch discovery only).
 
         Returns:
             The substitution context mapping for :func:`kanbanmate.core.placeholders.fill`.
         """
-        # Discover the worktree's branch (idempotent read): the per-ticket WIP branch
-        # ``kanban/ticket-<n>`` (pre create-branch) or ``feat/<codename>`` (post); a still-detached /
-        # gone worktree reports ``None`` (mapped to ``""`` for the placeholder).
-        branch = deps.workspace.discover_branch(issue) or ""
-        fields = parse_ticket_fields(self.ticket.body or "")
-        # 18.2: enrich the prompt with the FIRST cross-referenced issue body (``issue_body``, NOT
-        # ``ticket_body``) + the ``\n---\n``-joined comment history (timeouts inherited).
-        try:
-            ctx = deps.board_reader.issue_context(issue)
-            issue_body = ctx.linked_issue_body or ""
-            # §29.3 direction fix (the #91 poisoning): a body declaring a dependency ON us
-            # (``Depends on #<issue>``/``<CODE>``) is a DOWNSTREAM dependent — drop it (not our spec).
-            if declares_dependency_on(issue_body, issue=issue, code=title_code(self.ticket.title)):
-                issue_body = ""
-            comments = "\n---\n".join(ctx.comments)  # PoC join (runner.py:663-704)
-        except Exception:
-            # A GraphQL hiccup must NOT break a launch — degrade to empty context (fail-soft).
-            logger.exception(
-                "issue_context enrichment failed for #%s; launching with empty issue_body/comments",
-                issue,
-            )
-            issue_body = ""
-            comments = ""
-        return {
-            # Fill ``{{code}}`` as the BARE issue number (defect 3): every shipped prompt pins
-            # helper calls like ``kanban-move {{code}} 'PR/CI'`` to this placeholder, and the
-            # kanban-* helpers parse ``int(argv[0])`` — a leading ``#`` makes ``#151`` a bash
-            # comment (zero args → usage exit 2) and ``int('#151')`` raises. The helpers ALSO
-            # strip a leading ``#`` defensively, but the contract value is the bare int.
-            "code": str(issue),
-            "title": self.ticket.title,
-            "branch": branch,
-            "ticket_body": self.ticket.body or "",
-            # 15.7: fill from the LAST failing check's output (persisted by 15.6). Not cleared on
-            # consume — a reaper relaunch re-reads the SAME failure context; 15.6 refreshes it.
-            "script_output": deps.store.load_script_output(issue),
-            # issue_body / comments: enriched from deps.board_reader.issue_context(issue)
-            # above (PoC parity, 18.2) — the first cross-referenced linked-issue body and the
-            # joined comment history; fail-soft to "" on a GraphQL error.
-            "issue_body": issue_body,
-            "comments": comments,
-            # codename / design_path / plan_paths: parsed from the ticket body via
-            # parse_ticket_fields (PoC parity, 18.1). The remaining enrichment keys
-            # (dev_repo_path / base_clone) are still defaulted to "" — no shipped prompt
-            # (e.g. _MERGE_PROMPT) references them, so the empty default is justified.
-            "codename": fields["codename"],
-            "design_path": fields["design_path"],
-            "plan_paths": fields["plan_paths"],
-            "base_clone": "",
-            "dev_repo_path": "",
-        }
+        return build_launch_context(self.ticket, deps, issue, worktree)
 
 
 @dataclass(frozen=True)

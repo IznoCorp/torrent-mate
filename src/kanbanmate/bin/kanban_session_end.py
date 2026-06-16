@@ -44,7 +44,6 @@ from dataclasses import asdict
 from typing import Literal
 
 from kanbanmate.adapters.github.client import GithubClient
-from kanbanmate.adapters.github.token import load_token
 from kanbanmate.adapters.store.fs_store import FsStateStore
 from kanbanmate.app.body_status import update_body_status
 from kanbanmate.app.stage_signal import upsert_stage_comment
@@ -53,8 +52,9 @@ from kanbanmate.bin._clone_config import (
     load_clone_columns,
     load_clone_transitions,
     resolve_entry,
+    resolve_entry_token,
 )
-from kanbanmate.bin._pin import parse_issue_arg, resolve_kanban_root
+from kanbanmate.bin._pin import helper_store_root, parse_issue_arg
 from kanbanmate.cli.init import ProjectEntry
 from kanbanmate.core.columns import resolve_column
 from kanbanmate.core.stage_comment import StageStatus, fmt_timestamp, header_from_state
@@ -89,6 +89,22 @@ def _resolve_entry() -> ProjectEntry:
         RuntimeError: When the registry does not hold exactly one project.
     """
     return resolve_entry()
+
+
+def _resolve_entry_token(entry: ProjectEntry) -> str:
+    """Resolve the PER-ENTRY GitHub token for ``entry`` (multi-org §6, #4).
+
+    Thin delegate to the shared :func:`kanbanmate.bin._clone_config.resolve_entry_token` so the
+    session-end finalize authenticates with the SAME per-org PAT the daemon used (a second org's
+    entry carries a ``token_ref``; N=1 → the shared token). Kept module-level for monkeypatching.
+
+    Args:
+        entry: The resolved registry entry (its ``token_ref`` selects the token file).
+
+    Returns:
+        The resolved token string for this entry.
+    """
+    return resolve_entry_token(entry)
 
 
 def _auto_advance(
@@ -270,8 +286,17 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     try:
-        # Resolve the store root from $KANBAN_ROOT (#1 km-root fix); None → ~/.kanban (DESIGN §4.1).
-        store = FsStateStore(resolve_kanban_root())
+        # Resolve the store at the per-project sub-root when the worktree is project-pinned
+        # (multi-project §3.2), else the bare runtime root (#1 km-root fix; N=1 byte-identical). The
+        # session-end runs as ``; kanban-session-end`` in the agent's worktree cwd, so the upward
+        # project-pin search resolves the SAME sub-root the daemon launched + wrote state to. The
+        # module-scoped ``FsStateStore`` is used so tests can monkeypatch it.
+        _store_root, _nudge_root = helper_store_root()
+        store = (
+            FsStateStore(_store_root)
+            if _nudge_root is None
+            else FsStateStore(_store_root, nudge_root=_nudge_root)
+        )
         now = time.time()
 
         # 1. No-resurrection early-return: a purged state (Cancel teardown already cleaned up the
@@ -340,7 +365,10 @@ def main(argv: list[str] | None = None) -> int:
             # must never break the always-run session-end, so the wiring is wrapped.
             try:
                 entry = _resolve_entry()
-                client = GithubClient(load_token(), project_id=entry.project_id, repo=entry.repo)
+                # Per-entry token (#4): a second org's entry carries a ``token_ref``; N=1 → shared.
+                client = GithubClient(
+                    _resolve_entry_token(entry), project_id=entry.project_id, repo=entry.repo
+                )
             except Exception as exc:  # noqa: BLE001 — fail-soft: wiring failure never breaks session-end.
                 print(
                     f"{_PROG}: warning: could not wire GitHub client for #{issue}: {exc}",
@@ -418,7 +446,10 @@ def main(argv: list[str] | None = None) -> int:
         # fail-soft, and the wiring itself is wrapped here so it cannot crash the leaf).
         try:
             entry = _resolve_entry()
-            client = GithubClient(load_token(), project_id=entry.project_id, repo=entry.repo)
+            # Per-entry token (#4): a second org's entry carries a ``token_ref``; N=1 → shared token.
+            client = GithubClient(
+                _resolve_entry_token(entry), project_id=entry.project_id, repo=entry.repo
+            )
             # The widened TicketState (8.1.d) makes the ⚠️ sticky carry the SAME metadata bullets
             # the PoC rendered (full parity) — build the header via header_from_state, never a bare
             # HeaderInfo. asdict converts the frozen dataclass to the mapping header_from_state reads.

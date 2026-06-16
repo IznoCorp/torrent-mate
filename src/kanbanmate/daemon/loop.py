@@ -52,11 +52,22 @@ import yaml
 # those constants directly to build its path-local nudge reader — a SINGLE source of truth, so the two
 # ends can never drift on the filename (#3 de-dup).
 from kanbanmate.adapters.store.fs_intents import INTENTS_DIRNAME, NUDGE_FILENAME
-from kanbanmate.app.tick import PersistedState
-from kanbanmate.app.wiring import WiringConfig, run_one_tick
+from kanbanmate.app.wiring import WiringConfig
 from kanbanmate.core.heartbeat import Heartbeat, render_heartbeat
-from kanbanmate.core.interval import IntervalConfig, next_sleep
+from kanbanmate.core.interval import IntervalConfig, daemon_base_seconds, next_sleep
 from kanbanmate.daemon.jsonl_log import JSONLHandler
+
+# The CONFIG/PAUSE filenames + the registry→wiring resolution live in ``registry_wiring`` (split out
+# for the LOC ceiling, #1). Re-EXPORTED here (the ``as X`` redundant-alias form marks them explicit
+# re-exports for mypy) so ``daemon.loop.CONFIG_FILENAME`` / ``PAUSE_FILENAME`` stay importable for the
+# many modules + tests that read them off this module (back-compat).
+from kanbanmate.daemon.registry_wiring import CONFIG_FILENAME as CONFIG_FILENAME
+from kanbanmate.daemon.registry_wiring import PAUSE_FILENAME as PAUSE_FILENAME
+from kanbanmate.daemon.registry_wiring import (
+    wiring_for_entry,
+    wiring_for_selection,
+)
+from kanbanmate.daemon.sweep import ProjectSweepState, sweep_projects
 
 logger = logging.getLogger(__name__)
 
@@ -65,14 +76,6 @@ DEFAULT_KANBAN_ROOT = Path("~/.kanban/").expanduser()
 
 # The single-instance lock filename under the kanban root (DESIGN §5).
 LOCK_FILENAME = "daemon.lock"
-
-# The daemon's YAML config filename under the kanban root. Holds the wiring inputs (token, board
-# id, repo, clone dir) plus a pointer to the per-repo ``columns.yml``. Phase 2's ``kanban init``
-# materialises it; the loop only reads it.
-CONFIG_FILENAME = "config.yml"
-
-# The kill-switch sentinel (DESIGN §10 / H5): when present every launch is blocked for the tick.
-PAUSE_FILENAME = "PAUSE"
 
 # Failure-mode circuit breaker (#2). The fixed 10 s cadence stays the NORMAL regime; this geometric
 # back-off engages ONLY after a run of consecutive tick failures, so the daemon stops re-hammering
@@ -253,32 +256,77 @@ def _load_wiring_config(config_path: Path) -> WiringConfig:
 
 
 def _wiring_from_registry(root: Path) -> WiringConfig:
-    """Derive the daemon :class:`WiringConfig` from the ``kanban init`` registry + token file.
+    """Derive a SINGLE :class:`WiringConfig` from the registry, no selector (back-compat shim).
 
-    Reads the single registered project from ``<root>/projects.json``, the PAT from the
-    ``<root>/token`` file, and the clone's ``columns.yml`` — so the daemon wires itself with no
-    hand-written ``config.yml`` and the secret is not duplicated. v1 expects exactly ONE registered
-    project; for more, an explicit ``config.yml`` must select one.
+    Thin no-selector delegate to
+    :func:`~kanbanmate.daemon.registry_wiring.wiring_for_selection` — kept for any caller that still
+    wants "the sole project's wiring" (N=1 returns it; N>1 fails loud via
+    :class:`~kanbanmate.daemon.registry_wiring.ProjectSelectionError`). New code should call
+    ``wiring_for_selection`` with the operator's ``--project``/``--repo`` selector so a
+    multi-project root is usable from the CLI (#1).
 
     Args:
         root: The runtime root (``~/.kanban``) holding ``projects.json`` + ``token``.
 
     Returns:
-        A :class:`WiringConfig` built from the registry entry, token file, and clone columns.
+        A :class:`WiringConfig` for the resolved project.
 
     Raises:
         FileNotFoundError: When no project is registered (run ``kanban init`` first).
-        ValueError: When more than one project is registered (ambiguous; write a ``config.yml``).
+        ProjectSelectionError: When >1 project is registered and no selector disambiguates.
     """
-    # Lazy import: the registry helpers live in the CLI entrypoint. Importing them at call time
-    # (not module scope) keeps the daemon importable without eagerly pulling in the CLI surface.
-    from kanbanmate.adapters.github.token import load_token
-    from kanbanmate.cli.init import (
-        CLONE_COLUMNS_RELPATH,
-        CLONE_TRANSITIONS_RELPATH,
-        _load_registry,
-        _projects_path,
-    )
+    return wiring_for_selection(root)
+
+
+def _load_wirings(config_path: Path) -> list[WiringConfig]:
+    """Build the daemon's per-project :class:`WiringConfig` LIST (ingress-multiproject §3.1).
+
+    Generalises :func:`_load_wiring_config` from "one wiring" to "N wirings — one per enabled
+    project". Two sources, same precedence as the single-wiring loader:
+
+    1. **Explicit ``config.yml``** (when it exists) — the YAML selects exactly ONE project (the
+       override path is unchanged), so this returns a 1-element list. An operator running N projects
+       does NOT write a ``config.yml`` — they register N projects and let the registry path drive.
+    2. **The registry** (when ``config.yml`` is ABSENT) — :func:`_wirings_from_registry` builds one
+       wiring per ENABLED ``projects.json`` entry. N=1 yields a 1-element list with the LEGACY FLAT
+       store layout (no ``state_root``, ``multi_project=False``) → byte-identical to today.
+
+    Args:
+        config_path: The path to the daemon ``config.yml`` (its parent is the runtime root).
+
+    Returns:
+        A non-empty list of :class:`WiringConfig` (one per enabled project).
+
+    Raises:
+        FileNotFoundError: When neither ``config.yml`` nor any enabled project exists.
+        ValueError / KeyError: As :func:`_load_wiring_config` raises for a malformed ``config.yml``.
+    """
+    if config_path.exists():
+        # Explicit override selects one project → a 1-element list (the single-project path).
+        return [_load_wiring_config(config_path)]
+    return _wirings_from_registry(config_path.parent)
+
+
+def _wirings_from_registry(root: Path) -> list[WiringConfig]:
+    """Build one :class:`WiringConfig` per ENABLED registry entry (ingress-multiproject §3.1).
+
+    The N=1 collapse is the back-compat hinge: with exactly one enabled project this returns a
+    1-element list whose wiring carries NO ``state_root`` (the legacy flat store layout) and
+    ``multi_project=False`` (no project pin / KANBAN_PROJECT_ID export) — so an existing deployed
+    single-project daemon sees ZERO behaviour change. With N>1 each wiring is rooted at the
+    per-project store sub-root (``<root>/projects/<safe(pid)>``) and marked ``multi_project=True``.
+
+    Args:
+        root: The runtime root (``~/.kanban``) holding ``projects.json`` + the token(s).
+
+    Returns:
+        A non-empty list of per-project wirings (sorted by ``project_id`` for a stable sweep order).
+
+    Raises:
+        FileNotFoundError: When no project is registered, or all registered projects are disabled.
+    """
+    from kanbanmate.cli.init import _load_registry, _projects_path
+    from kanbanmate.core.registry_resolve import enabled_entries
 
     projects_path = _projects_path(root)
     registry = _load_registry(projects_path) if projects_path.exists() else {}
@@ -287,36 +335,18 @@ def _wiring_from_registry(root: Path) -> WiringConfig:
             f"no {root / CONFIG_FILENAME} and no project registered in {projects_path} — "
             "run `kanban init --repo owner/name` first"
         )
-    if len(registry) != 1:
-        raise ValueError(
-            f"{len(registry)} projects registered in {projects_path}; v1 drives exactly one. "
-            f"Write an explicit {root / CONFIG_FILENAME} to select which project the daemon runs."
+    enabled = enabled_entries(registry)
+    if not enabled:
+        raise FileNotFoundError(
+            f"no ENABLED project in {projects_path} — every registered project has enabled=false"
         )
-    entry = next(iter(registry.values()))
-    columns_yaml = (Path(entry.clone) / CLONE_COLUMNS_RELPATH).read_text(encoding="utf-8")
-    # Read the clone's transitions.yml when it exists (a freshly-init'd clone has
-    # one from phase 12.7). Absent → None → the wiring falls back to the built-in
-    # DEFAULT_TRANSITIONS whitelist (phase 12.9), never a column model.
-    transitions_path = Path(entry.clone) / CLONE_TRANSITIONS_RELPATH
-    transitions_yaml: str | None = None
-    if transitions_path.exists():
-        transitions_yaml = transitions_path.read_text(encoding="utf-8")
-    return WiringConfig(
-        token=load_token(path=root / "token"),
-        project_id=entry.project_id,
-        repo=entry.repo,
-        clone_dir=entry.clone,
-        columns_yaml=columns_yaml,
-        kanban_root=str(root),
-        kill_switch=(root / PAUSE_FILENAME).exists(),
-        transitions_yaml=transitions_yaml,
-        # The project's .claude dir the launch provisions skills from (phase 14.6); threaded onto
-        # Deps.config_dir, mirroring how clone_dir/repo are read off the registry entry. The
-        # entry's ``dev_repo_path`` is deliberately NOT threaded here — it is consumed only by the
-        # post-merge ``kanban-update-main`` path, which reads it off the registry directly, so it
-        # never needs to reach the tick.
-        config_dir=entry.config_dir,
-    )
+    multi = len(enabled) > 1
+    kill_switch = (root / PAUSE_FILENAME).exists()
+    # Each enabled entry → one wiring via the SHARED single-entry builder (so the daemon sweep and
+    # the CLI read-commands construct an entry's wiring identically — one source of truth, #1).
+    return [
+        wiring_for_entry(root, entry, multi=multi, kill_switch=kill_switch) for entry in enabled
+    ]
 
 
 def _config_mtime(config_path: Path) -> float | None:
@@ -398,6 +428,37 @@ def _failure_backoff_sleep(consecutive_failures: int, base_delay: float) -> floa
     extra = consecutive_failures - _BACKOFF_AFTER_FAILURES
     escalated = base_delay * (_BACKOFF_FACTOR**extra)
     return min(max(escalated, base_delay), _BACKOFF_MAX)
+
+
+def _effective_interval(wirings: list[WiringConfig], base_cfg: IntervalConfig) -> IntervalConfig:
+    """Return the cadence config for this sweep, honouring webhook ingress (ingress-multiproject §5.2).
+
+    The daemon's base poll cadence is the TIGHTEST any enabled project needs (one daemon = one
+    sleep): a ``polling`` project keeps the tight ``base_cfg.base`` (10 s by default), while an
+    ALL-``webhook`` daemon polls slowly at the webhook fallback cadence (the always-on safety sweep)
+    and relies on the nudge for fast reaction. When a polling project is present (or the operator
+    has explicitly customised the interval with ``idle_max > base`` — the opt-in back-off), the
+    operator's ``base_cfg`` is returned UNCHANGED, so the deployed single-project polling daemon is
+    byte-identical. Only an all-webhook daemon on the default flat interval gets the slow fallback.
+
+    Args:
+        wirings: The current per-project wirings (their ``ingress`` modes drive the cadence).
+        base_cfg: The operator-configured :class:`IntervalConfig` (the override / default).
+
+    Returns:
+        ``base_cfg`` unchanged when any project polls or the operator opted into a custom back-off;
+        else a flat webhook-fallback :class:`IntervalConfig` (slow safety sweep).
+    """
+    modes = [w.ingress for w in wirings]
+    # An operator who opted into the geometric back-off (idle_max > base) keeps their config as-is.
+    operator_customised = base_cfg.idle_max > base_cfg.base
+    if operator_customised or any(mode == "polling" for mode in modes):
+        return base_cfg
+    # All-webhook on the default flat interval → the slow fallback safety sweep (nudge collapses it).
+    fallback = daemon_base_seconds(modes)
+    if fallback == base_cfg.base:
+        return base_cfg  # already the right base (e.g. a polling daemon / empty wirings)
+    return IntervalConfig(base=fallback, idle_max=fallback, backoff=base_cfg.backoff)
 
 
 def _clear_degraded(kanban_root: Path) -> None:
@@ -570,18 +631,24 @@ def run_loop(
     lock_handle = _acquire_lock(lock_path)
     logger.info("kanban daemon started (lock %s held)", lock_path)
 
-    state = PersistedState()
-    wiring: WiringConfig | None = None
+    # Per-project bookkeeping carried across sweeps (ingress-multiproject §3.1): one
+    # ``ProjectSweepState`` per project_id (its diff baseline + circuit-breaker). N=1 → a single
+    # entry, byte-identical to the old single ``PersistedState`` threading.
+    state_by_project: dict[str, ProjectSweepState] = {}
+    wirings: list[WiringConfig] | None = None
     last_mtime: float | None = None
     # Seed "last activity" at start so the first idle stretch backs off from now, not the epoch.
     last_activity = time.time()
     iterations = 0
-    # Tick-health bookkeeping for the structured heartbeat (#1). ``consecutive_failures``
-    # counts ticks that RAISED in a row (reset to 0 on the first tick that returns); it
-    # is written into ``daemon.heartbeat`` so doctor can FAIL a daemon that is alive but
-    # persistently failing (the proven dead-token 401-loop incident, where the marker
-    # used to stay green forever).
+    # Tick-health bookkeeping for the structured heartbeat (#1). ``consecutive_failures`` is the
+    # OBSERVABILITY signal — the WORST per-project failure run after a sweep — written into
+    # ``daemon.heartbeat`` so doctor can FAIL a daemon that is alive but persistently failing (the
+    # proven dead-token 401-loop incident), and used to drop the DEGRADED breadcrumb on an auth
+    # failure. ``backoff_failures`` is the SEPARATE per-project-aware circuit-breaker input (#5) —
+    # the BEST (lowest) per-project run — so the inter-tick back-off engages only when EVERY project
+    # is failing; one failing project never throttles a healthy sibling's sweep.
     consecutive_failures = 0
+    backoff_failures = 0
 
     try:
         while not flag.requested:
@@ -589,76 +656,74 @@ def run_loop(
                 break
 
             # Step 1: config-reload-on-change (DESIGN §5). Re-read on first pass or mtime change.
+            # The registry path has no single config.yml mtime to watch, so the registry is also
+            # re-read every iteration (cheap: one small JSON read) so a newly-registered / disabled
+            # project is picked up without a restart. The config.yml override path keeps the
+            # mtime-gated reload (its YAML is the watched file).
             current_mtime = _config_mtime(config.config_path)
-            if wiring is None or current_mtime != last_mtime:
+            if wirings is None or current_mtime != last_mtime or current_mtime is None:
                 try:
-                    wiring = _load_wiring_config(config.config_path)
+                    wirings = _load_wirings(config.config_path)
                 except Exception:
-                    if wiring is None:
-                        # First load — no last-good config to fall back to. Let it
-                        # propagate: a daemon that can't load its initial config
-                        # legitimately fails to start.
+                    if wirings is None:
+                        # First load — no last-good config to fall back to. Let it propagate: a
+                        # daemon that can't load its initial config legitimately fails to start.
                         raise
                     logger.exception(
                         "config reload failed — bad or malformed %s? Keeping last-good config",
                         config.config_path,
                     )
                 else:
-                    logger.info("loaded config from %s", config.config_path)
-                # Update the mtime marker even on a failed reload so we don't
-                # retry-storm every iteration on a persistently-bad file; the
-                # reload is re-attempted only when the mtime changes again (a new
-                # write by the operator).
+                    logger.info(
+                        "loaded config (%d project(s)) from %s",
+                        len(wirings),
+                        config.config_path,
+                    )
+                # Update the mtime marker even on a failed reload so a config.yml override path does
+                # not retry-storm on a persistently-bad file.
                 last_mtime = current_mtime
 
-            # #2 post-drain-window fix: capture the nudge baseline at TICK START — BEFORE
-            # run_one_tick (hence before drain_intents and the whole post-drain window) — rather than
-            # at sleep entry. An intent enqueued in this tick's post-drain window (after the drain ran,
-            # before the inter-tick sleep) then has an mtime > this baseline → it wakes THIS sleep
-            # instead of waiting a full extra cycle. Fail-soft: a read error degrades to 0.0 (treated
-            # as "no prior nudge"), so the upcoming sleep still wakes on any subsequent bump.
+            # #2 post-drain-window fix: capture the nudge baseline at SWEEP START — BEFORE the sweep
+            # (hence before drain_intents and the whole post-drain window) — so an intent enqueued in
+            # the post-drain window wakes THIS sleep. Fail-soft: a read error degrades to 0.
             try:
                 nudge_baseline = nudge_mtime()
             except Exception:  # noqa: BLE001 — fail-soft: a stat error → no baseline (wake on any bump)
                 nudge_baseline = 0
 
-            # Step 2: one idempotent tick, threading the persisted baseline forward.
-            try:
-                tick_result, state = run_one_tick(wiring, state)
-            except Exception as exc:  # noqa: BLE001 — one failed tick must not crash the daemon
-                logger.exception("tick raised; continuing")
-                result = None
-                # The tick raised ⇒ this poll FAILED. Bump the consecutive-failure run so the
-                # heartbeat (and doctor) surface a daemon that is alive but not succeeding (#1).
-                consecutive_failures += 1
-                _log_actionable_auth_failure(exc, config.kanban_root)
-            else:
-                # The tick RETURNED — but a probe failure (FIX4) is a FAILED poll even though it
-                # returned: the tick degraded to no-new-launches (running its post-steps so finished
-                # agents aren't stranded) and flagged ``probe_failed`` so the circuit-breaker still
-                # engages here. Without this, a dead token / DNS outage would reset the failure run
-                # every tick, masking the outage (full-cadence polling, doctor + monitor D3 green).
-                # Action-level errors INSIDE a clean tick are still isolated and do NOT count. The
-                # narrowed ``tick_result`` (never None in this branch) is published to ``result`` for
-                # the shared post-tick bookkeeping (idle clock + heartbeat) below.
-                result = tick_result
-                if tick_result.probe_failed:
-                    consecutive_failures += 1
-                    if tick_result.probe_error is not None:
-                        _log_actionable_auth_failure(tick_result.probe_error, config.kanban_root)
-                else:
-                    # A clean tick ⇒ snap the failure run back to zero (#1) and clear any DEGRADED
-                    # sentinel a prior auth failure dropped, so the daemon self-recovers the moment
-                    # the probe succeeds again (the transient failure heals on the next tick).
-                    consecutive_failures = 0
-                    _clear_degraded(config.kanban_root)
-
-            # Step 3: anything happened this tick ⇒ reset the idle clock so the cadence stays tight.
+            # Step 2: ONE sweep — one idempotent tick PER ENABLED PROJECT (§3.1). Each project carries
+            # its own diff baseline + circuit-breaker; a failing project never crashes the sweep or
+            # trips a healthy sibling. The sweep is wholly internally fail-soft per project, so a
+            # raise here is unexpected (defensive): treat it as a daemon-level failure. The rollup
+            # aggregates the per-project outcomes into the idle-clock + back-off signals.
             now = time.time()
-            if result is not None and (
-                result.snapshot_taken or result.actions_executed or result.reaped
-            ):
-                last_activity = now
+            assert wirings is not None  # the first-load raise above guarantees this
+            try:
+                rollup = sweep_projects(
+                    wirings, state_by_project, kanban_root=config.kanban_root, now=now
+                )
+            except Exception:  # noqa: BLE001 — a sweep-level raise must not crash the daemon
+                logger.exception("sweep raised; continuing")
+                # A sweep-LEVEL raise (defensive — the sweep is internally per-project fail-soft)
+                # fails the whole daemon: bump BOTH the observability and the back-off runs.
+                consecutive_failures += 1
+                backoff_failures += 1
+            else:
+                # Observability run = the WORST per-project run this sweep (a single failing project
+                # still surfaces a DEGRADED token). Back-off run = the BEST (lowest) per-project run
+                # (#5) so the daemon backs off only when EVERY project is failing — a healthy sibling
+                # keeps the tight cadence. A clean sweep (max==0) clears the DEGRADED sentinel.
+                consecutive_failures = rollup.max_consecutive_failures
+                backoff_failures = rollup.min_consecutive_failures
+                if consecutive_failures == 0:
+                    _clear_degraded(config.kanban_root)
+                elif rollup.last_error is not None:
+                    # A failing sweep with an auth error (401/403) drops the DEGRADED sentinel + an
+                    # actionable log line so doctor/status surface a dead/over-broad token (#1).
+                    _log_actionable_auth_failure(rollup.last_error, config.kanban_root)
+                # Anything happened on ANY project ⇒ reset the idle clock so the cadence stays tight.
+                if rollup.any_snapshot or rollup.any_action or rollup.any_reap:
+                    last_activity = now
 
             iterations += 1
 
@@ -688,12 +753,22 @@ def run_loop(
             if flag.requested:
                 break
 
-            # The normal cadence is the fixed-10 s ``next_sleep``; during a run of consecutive
-            # failures the circuit breaker (#2) escalates it geometrically (capped 300 s) so the
-            # daemon stops re-hammering GitHub through an outage. A single success resets the run
-            # above, snapping the delay back to the tight cadence.
-            base_delay = next_sleep(last_activity, now, config.interval)
-            delay = _failure_backoff_sleep(consecutive_failures, base_delay)
+            # Cadence (ingress-multiproject §5.2): the daemon runs ONE inter-tick sleep after the
+            # sweep, so the base cadence is the TIGHTEST any enabled project needs — a ``polling``
+            # project pulls the daemon to the tight 10 s, while an ALL-``webhook`` daemon polls
+            # slowly (the safety-sweep fallback) and relies on the sub-second nudge for fast
+            # reaction. The webhook nudge collapses the wait to one slice regardless. The historical
+            # single-project default (config.yml override path / a polling registry) stays the tight
+            # 10 s cadence, so the deployed daemon is unchanged.
+            cadence = _effective_interval(wirings, config.interval)
+            base_delay = next_sleep(last_activity, now, cadence)
+            # During a run of consecutive failures the circuit breaker (#2) escalates the delay
+            # geometrically (capped 300 s) so the daemon stops re-hammering GitHub through an outage.
+            # The back-off keys on ``backoff_failures`` — the BEST per-project run (#5) — so it
+            # engages ONLY when EVERY project is failing; a single healthy project (min==0) keeps the
+            # cadence tight (its sweep is never throttled by a failing sibling). A clean sweep resets
+            # the run above, snapping the delay back to the cadence base.
+            delay = _failure_backoff_sleep(backoff_failures, base_delay)
             # Interruptible inter-tick sleep (0.4.0): sleeps the full ``delay`` UNLESS an intent is
             # enqueued (the enqueue side bumps the nudge sentinel), in which case it returns within one
             # slice so the next tick drains the intent near-instantly — no interval reduction, no API

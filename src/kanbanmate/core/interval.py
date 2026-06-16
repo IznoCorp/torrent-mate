@@ -67,6 +67,46 @@ class IntervalConfig:
     backoff: float = _DEFAULT_BACKOFF
 
 
+# Default webhook-mode safety-sweep cadence (ingress-multiproject §5.2). In ``webhook`` ingress the
+# daemon polls SLOWLY (this) and relies on the sub-second webhook nudge for fast reaction; the slow
+# sweep is the ALWAYS-ON fallback that reconciles the board even when the receiver is down / GitHub
+# drops an event — so the board never stalls. In ``polling`` ingress the base stays the tight 10 s.
+_DEFAULT_WEBHOOK_FALLBACK_SECONDS = 120.0
+
+
+def daemon_base_seconds(
+    ingress_modes: list[str],
+    *,
+    polling_seconds: float = _DEFAULT_BASE,
+    webhook_fallback_seconds: float = _DEFAULT_WEBHOOK_FALLBACK_SECONDS,
+) -> float:
+    """Return the daemon's base poll cadence from its projects' ingress modes (pure; §5.2).
+
+    The daemon runs ONE inter-tick sleep after sweeping all projects, so the cadence is the
+    TIGHTEST any enabled project requires: a ``polling`` project pulls the whole daemon to the tight
+    ``polling_seconds`` (10 s) cadence, while an all-``webhook`` daemon polls slowly at
+    ``webhook_fallback_seconds`` (120 s) — the safety-net fallback that keeps the board correct even
+    with no webhook nudge. The nudge collapses the wait to one slice regardless of mode, so webhook
+    mode reacts in <1 s while still polling slowly as a backstop. An EMPTY list (no enabled project)
+    degrades to the tight cadence (a misconfigured/empty daemon polls at the safe tight default).
+
+    Args:
+        ingress_modes: The per-project effective ingress mode strings (``"webhook"`` / ``"polling"``;
+            any non-``"polling"`` value is treated as webhook-mode — the default).
+        polling_seconds: The tight cadence a ``polling`` project pulls the daemon to (default 10 s).
+        webhook_fallback_seconds: The slow safety-sweep cadence when ALL projects are webhook-mode.
+
+    Returns:
+        ``polling_seconds`` when any project polls (or the list is empty), else
+        ``webhook_fallback_seconds``.
+    """
+    # Any polling project (or no projects at all) → the tight cadence. Only an all-webhook daemon
+    # gets the slow fallback sweep.
+    if not ingress_modes or any(mode == "polling" for mode in ingress_modes):
+        return polling_seconds
+    return webhook_fallback_seconds
+
+
 def next_sleep(
     last_activity_ts: float,
     now: float,

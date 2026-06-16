@@ -85,17 +85,31 @@ class FsStateStore(
         root: The root directory for all persisted state (default ``~/.kanban/``).
     """
 
-    def __init__(self, root: str | Path | None = None) -> None:
+    def __init__(
+        self, root: str | Path | None = None, *, nudge_root: str | Path | None = None
+    ) -> None:
         """Initialise the state store.
 
         Args:
             root: Filesystem root for persisted state. Defaults to
                 ``~/.kanban/`` (via :func:`Path.expanduser`). Pass a
                 ``tmp_path`` in tests to isolate state.
+            nudge_root: The runtime-root the daemon-wake nudge sentinel lives under
+                (ingress-multiproject §3.2). The nudge is DAEMON-LEVEL — one daemon, one
+                sleep, one wake — so it must stay at the runtime root even when ``root`` is a
+                PER-PROJECT sub-root (``<runtime_root>/projects/<safe(pid)>``). Defaults to
+                ``root`` (the N=1 case: the sub-root IS the runtime root, so the nudge path is
+                byte-identical). When N>1 the daemon passes the bare runtime root here so every
+                project's enqueuer bumps the SAME ``<runtime_root>/intents/.nudge`` the daemon
+                sleep watches. The per-project intent QUEUE itself stays under ``root`` (each
+                project drains its own collision-free queue); only the wake sentinel is shared.
         """
         if root is None:
             root = Path("~/.kanban/").expanduser()
         self.root = Path(root)
+        # The nudge sentinel's runtime root (DAEMON-LEVEL wake). Defaults to ``self.root`` so N=1 is
+        # byte-identical; the daemon points it at the bare runtime root for N>1 sub-rooted stores.
+        self.nudge_root = Path(nudge_root) if nudge_root is not None else self.root
         (self.root / "state").mkdir(parents=True, exist_ok=True)
         (self.root / "slots").mkdir(parents=True, exist_ok=True)
         # The advance-breadcrumb directory (DESIGN §8.1.d); one marker per issue.

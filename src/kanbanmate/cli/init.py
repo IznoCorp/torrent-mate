@@ -111,6 +111,22 @@ class ProjectEntry:
             post-merge ``kanban-update-main`` path resolves it from the registry
             instead of demanding it on every call. Defaults to ``""`` (no dev-clone
             update). Port of PoC ``cli/registry.py:40``.
+        org: The owning GitHub organisation/user login. Informational +
+            webhook-routing fallback (ingress-multiproject DESIGN §2.1). When ``""``
+            it is DERIVED from ``repo.split("/", 1)[0]`` (see :meth:`owner`), so an
+            OLD-shaped entry needs no value — no schema break.
+        enabled: Whether the daemon drives this project. ``True`` by default; an
+            operator may set it ``False`` to pause one project (in a multi-project
+            root) without de-registering it (DESIGN §2.1 / §3.1).
+        ingress: The PER-PROJECT ingress switch — ``"webhook"`` (the default) or
+            ``"polling"``. Overrides the daemon-level ``config.yml`` default when set
+            (DESIGN §5.1). It selects only the POLL CADENCE (a webhook-mode project
+            polls slowly as a safety-net fallback; a polling-mode project polls at the
+            tight 10 s cadence). The engine ALWAYS ticks — ingress never disables it.
+        token_ref: The multi-org token selector (DESIGN §6). ``""`` → the shared
+            ``<root>/token`` (today's path; zero behaviour change). A non-empty name
+            loads the token from ``<root>/tokens/<token_ref>`` (mode 0600), so org A
+            and org B can use distinct PATs without a GitHub App.
     """
 
     repo: str
@@ -122,6 +138,29 @@ class ProjectEntry:
     # phase, without the keys) still loads via ``_load_registry`` below.
     config_dir: str = ""
     dev_repo_path: str = ""
+    # NEW (ingress-multiproject §2.1): all defaulted so an OLD-shaped projects.json
+    # (written before this feature, WITHOUT these keys) loads unchanged via the
+    # ``.get(..., default)`` pattern in ``_load_registry`` — no migration (rule <1.0).
+    org: str = ""
+    enabled: bool = True
+    ingress: str = "webhook"
+    token_ref: str = ""
+
+    def owner(self) -> str:
+        """Return the owning org/user login — explicit :attr:`org`, else derived from :attr:`repo`.
+
+        The back-compat hinge for multi-org routing: an OLD-shaped entry carries no
+        ``org``, so the login is derived from the ``owner/name`` slug. A fresh entry may
+        record an explicit ``org`` (e.g. when the project lives in a different org than the
+        repo slug suggests). Never raises — a malformed ``repo`` without ``/`` yields the
+        whole string (the loader already rejects such slugs at ``init`` time).
+
+        Returns:
+            The explicit :attr:`org` when set, else the first ``/``-segment of :attr:`repo`.
+        """
+        if self.org:
+            return self.org
+        return self.repo.split("/", 1)[0]
 
 
 def _engine_assets_template() -> str:
@@ -176,6 +215,13 @@ def _load_registry(path: Path) -> dict[str, ProjectEntry]:
             # registry format stays backward-compatible.
             config_dir=val.get("config_dir", ""),
             dev_repo_path=val.get("dev_repo_path", ""),
+            # ingress-multiproject §2.1: all defaulted, so an OLD-shaped entry that
+            # predates these keys loads with org=""/enabled=True/ingress="webhook"/
+            # token_ref="" — no migration, byte-identical N=1 behaviour.
+            org=val.get("org", ""),
+            enabled=bool(val.get("enabled", True)),
+            ingress=val.get("ingress", "webhook"),
+            token_ref=val.get("token_ref", ""),
         )
         for key, val in raw.items()
     }
@@ -233,6 +279,7 @@ def init(
     template_path: Path | str | None = None,
     dev_repo_path: str = "",
     config_dir: str | None = None,
+    ingress: str = "webhook",
     ensure_clone: Callable[..., object] | None = None,
 ) -> ProjectEntry:
     """Bootstrap one target project for the daemon (DESIGN §4.3).
@@ -380,9 +427,58 @@ def init(
         option_map=dict(option_map),
         config_dir=resolved_config_dir,
         dev_repo_path=dev_repo_path,
+        # ingress-multiproject §2.1: record the per-project ingress switch (default webhook). The
+        # org is left "" (derived from the repo slug by ProjectEntry.owner); enabled/token_ref keep
+        # their defaults — an operator edits projects.json for per-org tokens / pausing a project.
+        org=org,
+        ingress=ingress,
     )
     _upsert_project(_projects_path(resolved_root), project_id, entry)
+    # 5b. ingress-multiproject §4.3: seed the webhook secret skeleton (0600) when ingress=webhook and
+    #     none exists yet, so `kanban serve` has a secret to verify against. NEVER clobber an existing
+    #     one (the operator may have pasted a real secret) and never write a real value (a comment
+    #     placeholder — the operator pastes the secret + sets the SAME value on the GitHub webhook).
+    if ingress == "webhook":
+        _seed_webhook_secret(resolved_root)
     return entry
+
+
+# The webhook-secret skeleton filename + mode (ingress-multiproject §4.3). Mode 0600 (owner-only):
+# a real secret lives here once the operator pastes it; it must never be group/other readable and
+# never committed. The receiver (`kanban serve`) verifies the GitHub HMAC against it.
+WEBHOOK_SECRET_FILENAME = "webhook_secret"
+WEBHOOK_SECRET_MODE = 0o600
+# COMMENT-ONLY placeholder (#3): every line starts with ``#``, so ``load_webhook_secret`` strips it
+# all and `kanban serve` REFUSES to start (a comment-only file holds no real secret, and its exact
+# bytes are public in the source — a publicly-known HMAC key). The operator REPLACES this with a
+# strong random secret. It is deliberately UNUSABLE as-is.
+_WEBHOOK_SECRET_PLACEHOLDER = (
+    "# PLACEHOLDER — replace this entire file with a strong random webhook secret.\n"
+    "# `kanban serve` REFUSES to start while this file is comment-only/empty (a publicly-known\n"
+    "# HMAC key is a security hole). Paste your secret on its OWN line below (delete these comments),\n"
+    "# then set the SAME value on the GitHub org/repo webhook (Settings → Webhooks → Secret).\n"
+    "# `kanban serve` verifies the X-Hub-Signature-256 HMAC against it. Keep this file 600; off-git.\n"
+)
+
+
+def _seed_webhook_secret(root: Path) -> None:
+    """Seed the ``webhook_secret`` skeleton (0600) without clobbering an existing one (§4.3).
+
+    Idempotent: an existing secret file (the operator may have pasted a real value) is left
+    completely untouched — content + mode preserved. Only a fresh file gets the comment placeholder
+    (never a real secret). Mirrors the token-skeleton seeding in :mod:`kanbanmate.cli.install`.
+
+    Args:
+        root: The kanban runtime root the secret file lives under.
+    """
+    import os
+
+    path = root / WEBHOOK_SECRET_FILENAME
+    if path.exists():
+        return  # Never clobber a real secret the operator already pasted.
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_WEBHOOK_SECRET_PLACEHOLDER, encoding="utf-8")
+    os.chmod(path, WEBHOOK_SECRET_MODE)
 
 
 def _default_labels() -> list[str]:

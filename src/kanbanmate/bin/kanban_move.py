@@ -60,7 +60,7 @@ from kanbanmate.adapters.store.fs_store import FsStateStore
 from kanbanmate.bin._clone_config import load_clone_columns as _load_clone_columns
 from kanbanmate.bin._clone_config import load_clone_transitions as _load_clone_transitions
 from kanbanmate.bin._clone_config import resolve_entry as _resolve_entry
-from kanbanmate.bin._pin import check_pin, parse_issue_arg, resolve_kanban_root
+from kanbanmate.bin._pin import check_pin, helper_store_root, parse_issue_arg
 from kanbanmate.core.domain import Column
 
 # The three per-clone config loaders (``_resolve_entry`` / ``_load_clone_columns`` /
@@ -209,11 +209,18 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 1
 
-        # Enqueue the move intent into the SAME queue the operator uses. Resolve the store root from
-        # $KANBAN_ROOT (#1 km-root fix); None → ~/.kanban (DESIGN §4.1). No item_id read is needed —
-        # the daemon resolves issue → item_id from its snapshot in _execute_move (removes the old
-        # "no persisted item id" failure mode).
-        store = FsStateStore(resolve_kanban_root())
+        # Enqueue the move intent into the SAME per-project queue the daemon drains. The store is
+        # rooted at the per-project sub-root when the worktree is project-pinned (multi-project §3.2),
+        # else the bare runtime root (#1 km-root fix; N=1 byte-identical). The NUDGE the enqueue bumps
+        # is wired to the runtime root, so the single daemon wakes regardless of which project moved.
+        # No item_id read is needed — the daemon resolves issue → item_id from its snapshot in
+        # _execute_move. The module-scoped ``FsStateStore`` is used so tests can monkeypatch it.
+        _store_root, _nudge_root = helper_store_root()
+        store = (
+            FsStateStore(_store_root)
+            if _nudge_root is None
+            else FsStateStore(_store_root, nudge_root=_nudge_root)
+        )
         intent_id = uuid.uuid4().hex[:12]
         store.enqueue_intent(
             intent_id,

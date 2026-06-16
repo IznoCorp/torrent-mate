@@ -122,28 +122,29 @@ def _update_dev_clone(dev_repo: str) -> int:
 
 
 def _resolve_from_registry() -> tuple[str, str] | None:
-    """Resolve ``(base_clone, dev_repo)`` from the single registered project (defect 12).
+    """Resolve ``(base_clone, dev_repo)`` from the resolved registry entry (defect 12; multi-project §7).
 
     Reads the ``projects.json`` under the runtime root (``$KANBAN_ROOT`` when set, else
-    ``~/.kanban``) — the km-worktree-helper-root fix, #1. v1 registers exactly one project, so the
-    SINGLE entry's ``clone`` is the base clone and its ``dev_repo_path`` the dev clone (``""`` when
-    the operator never passed ``--dev-repo-path``). Returns ``None`` (the caller falls back to the
-    usage error) when the registry is absent, empty, or ambiguous (>1 project) — in those cases the
-    operator must pass an explicit ``<base_clone>``.
+    ``~/.kanban``) — the km-worktree-helper-root fix, #1 — and resolves the entry PROJECT-AWARELY via
+    :func:`kanbanmate.bin._clone_config.resolve_entry`: a launched agent's worktree project pin /
+    ``$KANBAN_PROJECT_ID`` selects the EXACT entry (multi-project), and an N=1 root keeps the sole
+    entry (back-compat). The entry's ``clone`` is the base clone and its ``dev_repo_path`` the dev
+    clone (``""`` when the operator never passed ``--dev-repo-path``). Returns ``None`` (the caller
+    falls back to the usage error) when the entry cannot be resolved (no project, unknown pin, or
+    N>1 with no pin) — in those cases the operator must pass an explicit ``<base_clone>``.
 
     Returns:
         A ``(base_clone, dev_repo)`` tuple from the registry, or ``None`` when it cannot resolve.
     """
-    # Lazy import (leaf entrypoint): the registry helpers live in the CLI module; importing them at
-    # call time keeps this bin importable without eagerly pulling the CLI surface.
-    from kanbanmate.bin._pin import _registry_root
-    from kanbanmate.cli.init import _load_registry, _projects_path
+    # Lazy import (leaf entrypoint): the resolver lives in the bin/_clone_config module; importing it
+    # at call time keeps this bin importable without eagerly pulling the resolver chain.
+    from kanbanmate.bin._clone_config import resolve_entry
 
-    registry = _load_registry(_projects_path(_registry_root()))
-    if len(registry) != 1:
-        # No project (run init first) or >1 (ambiguous → require an explicit arg).
+    try:
+        entry = resolve_entry()
+    except RuntimeError:
+        # No project (run init first), unknown pin, or >1 with no pin → require an explicit arg.
         return None
-    entry = next(iter(registry.values()))
     return entry.clone, entry.dev_repo_path
 
 

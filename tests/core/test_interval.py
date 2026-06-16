@@ -99,3 +99,34 @@ class TestDefaults:
         # A constant 10.0 across a long sweep of idle durations (no growth anywhere).
         for elapsed in range(0, 1000, 7):
             assert next_sleep(last_activity_ts=0.0, now=float(elapsed)) == 10.0
+
+
+class TestDaemonBaseSeconds:
+    """The webhook-fallback cadence selector (ingress-multiproject §5.2)."""
+
+    def test_all_webhook_returns_slow_fallback(self) -> None:
+        """An all-webhook daemon polls slowly at the safety-sweep fallback (120 s by default)."""
+        from kanbanmate.core.interval import daemon_base_seconds
+
+        assert daemon_base_seconds(["webhook", "webhook"]) == 120.0
+
+    def test_any_polling_pulls_to_tight_cadence(self) -> None:
+        """A single polling project pulls the whole daemon to the tight 10 s cadence."""
+        from kanbanmate.core.interval import daemon_base_seconds
+
+        assert daemon_base_seconds(["webhook", "polling"]) == 10.0
+        assert daemon_base_seconds(["polling"]) == 10.0
+
+    def test_empty_degrades_to_tight(self) -> None:
+        """No enabled project → the safe tight default (never the slow fallback)."""
+        from kanbanmate.core.interval import daemon_base_seconds
+
+        assert daemon_base_seconds([]) == 10.0
+
+    def test_custom_seconds_honoured(self) -> None:
+        from kanbanmate.core.interval import daemon_base_seconds
+
+        assert (
+            daemon_base_seconds(["webhook"], polling_seconds=5.0, webhook_fallback_seconds=300.0)
+            == 300.0
+        )

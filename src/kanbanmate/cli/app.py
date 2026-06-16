@@ -36,6 +36,7 @@ from kanbanmate.cli import state as state_cmd
 from kanbanmate.cli import status as status_cmd
 from kanbanmate.cli import ticket as ticket_cmd
 from kanbanmate.daemon import loop as daemon_loop
+from kanbanmate.daemon.registry_wiring import ProjectSelectionError, wiring_for_selection
 
 app = typer.Typer(
     name="kanban",
@@ -93,19 +94,128 @@ def run(
     daemon_loop.main(root=root)
 
 
-def _wiring_for(root: Path) -> WiringConfig:
-    """Load the daemon ``WiringConfig`` from ``<root>/config.yml`` (the production wiring source).
+@app.command()
+def serve(
+    root: Path = typer.Option(
+        _DEFAULT_ROOT,
+        "--root",
+        help="Runtime root the receiver fronts (default ~/.kanban). Use a separate root to front a "
+        "SECOND daemon on the same machine.",
+    ),
+    host: str = typer.Option(
+        "127.0.0.1",
+        "--host",
+        help="Bind host (default loopback). Use 0.0.0.0 ONLY behind a TLS reverse proxy.",
+    ),
+    port: int = typer.Option(
+        8765,
+        "--port",
+        help="Bind port (unprivileged; default 8765). Front it with your reverse proxy for TLS.",
+    ),
+) -> None:
+    """Start the GitHub webhook receiver (``kanban serve``, ingress-multiproject §4).
 
-    The read-and-act commands (``status``/``sessions``/``cancel``) need the same wiring inputs the
-    daemon uses; this reuses the daemon's YAML loader so there is exactly one config-reading path.
+    A hardened HTTP front-door that verifies the webhook HMAC, identifies which managed project the
+    event hit, and bumps that runtime root's daemon-wake nudge — so the daemon's next tick reconciles
+    the moved board in <1 s instead of waiting out the (slow) safety-sweep interval. The daemon stays
+    the SOLE board writer; the receiver only nudges (it never synthesises Transitions). Runs as a
+    SECOND PM2 app alongside ``kanban run`` on one runtime root. Refuses root + privileged ports.
 
     Args:
-        root: The kanban runtime root holding ``config.yml``.
+        root: The runtime root holding ``projects.json`` / ``webhook_secret`` / the nudge sentinel.
+        host: The bind host (loopback by default; 0.0.0.0 opt-in behind a TLS proxy).
+        port: The bind port (unprivileged; 8765 default).
+    """
+    from kanbanmate.http import serve as http_serve
+
+    # Fail LOUD on a start-time guard (no real secret / root / privileged port) — a clean non-zero
+    # exit with the actionable message, never a raw traceback (#3 part b: refuse to start without a
+    # real secret). A placeholder/empty/comment-only secret raises WebhookSecretMissingError here.
+    try:
+        http_serve.main(root=root, host=host, port=port)
+    except (
+        http_serve.WebhookSecretMissingError,
+        http_serve.RootPrivilegeError,
+        http_serve.PrivilegedPortError,
+    ) as exc:
+        typer.echo(f"kanban serve: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+
+def _wiring_for(
+    root: Path,
+    *,
+    project: str | None = None,
+    repo: str | None = None,
+) -> WiringConfig:
+    """Load the board ``WiringConfig`` for a CLI command, project-aware (ingress-multiproject §8, #1).
+
+    The read-and-act commands (``status``/``state``/``sessions``/``cancel``/``move``/``ticket``/
+    ``pill``) need the SAME wiring the daemon uses, AND — on a multi-project root — must resolve WHICH
+    board to act on. Resolution, in precedence order:
+
+    1. **Explicit ``<root>/config.yml``** — the override path (a single project), unchanged: parsed
+       via the daemon's YAML loader so there is exactly one config-reading path. A selector is moot
+       here (the config.yml already names one project).
+    2. **The registry** (no ``config.yml``) — :func:`~kanbanmate.daemon.registry_wiring.wiring_for_selection`
+       resolves the entry via the SAME pure resolvers the daemon uses: N=1 → the sole entry (no
+       selector needed — byte-identical to before); N>1 → the ``--project``/``--repo`` selector
+       (FAIL LOUD listing the candidates when missing/ambiguous — never silently pick the wrong board).
+
+    Args:
+        root: The kanban runtime root holding ``config.yml`` / ``projects.json``.
+        project: The ``--project`` Project v2 node id selector (N>1 multi-project roots), or ``None``.
+        repo: The ``--repo`` ``owner/name`` selector (N>1 multi-project roots), or ``None``.
 
     Returns:
-        The parsed :class:`~kanbanmate.app.wiring.WiringConfig`.
+        The parsed :class:`~kanbanmate.app.wiring.WiringConfig` for the resolved project.
+
+    Raises:
+        ProjectSelectionError: When N>1 and the selector is missing / matches zero / matches >1.
     """
-    return daemon_loop._load_wiring_config(root / daemon_loop.CONFIG_FILENAME)
+    config_path = root / daemon_loop.CONFIG_FILENAME
+    if config_path.exists():
+        # The config.yml override already names one project — the selector is moot (single-project).
+        return daemon_loop._load_wiring_config(config_path)
+    return wiring_for_selection(root, project=project, repo=repo)
+
+
+def _resolve_wiring(root: Path, project: str | None, repo: str | None) -> WiringConfig:
+    """Resolve the board wiring for a CLI command, failing LOUD + CLEAN on an ambiguous selection.
+
+    Wraps :func:`_wiring_for` so a :class:`~kanbanmate.daemon.registry_wiring.ProjectSelectionError`
+    (a multi-project root with no/ambiguous ``--project``/``--repo``) becomes a clean non-zero
+    ``typer.Exit`` with the actionable candidate list — never a raw traceback, and never a silent
+    wrong-board pick (#1). N=1 roots resolve flagless (the selector is unused).
+
+    Args:
+        root: The kanban runtime root.
+        project: The ``--project`` selector, or ``None``.
+        repo: The ``--repo`` selector, or ``None``.
+
+    Returns:
+        The resolved :class:`~kanbanmate.app.wiring.WiringConfig`.
+    """
+    try:
+        return _wiring_for(root, project=project, repo=repo)
+    except ProjectSelectionError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+
+# Shared ``--project`` / ``--repo`` selectors for the board commands (ingress-multiproject §8, #1).
+# Defined once so every board command declares the SAME option; both default ``None`` so an N=1 root
+# is driven flagless (zero behaviour change) and a multi-project root selects the target board.
+_PROJECT_OPTION = typer.Option(
+    None,
+    "--project",
+    help="Project v2 node id to act on (REQUIRED on a multi-project root; ignored when N=1).",
+)
+_REPO_OPTION = typer.Option(
+    None,
+    "--repo",
+    help="owner/name of the project to act on (alternative to --project on a multi-project root).",
+)
 
 
 @app.command()
@@ -131,13 +241,19 @@ def install(
         help="Console-script command PM2 runs (e.g. an ABSOLUTE pyenv path so PM2's boot "
         "environment need not have the pyenv shims on PATH). Default: the bare 'kanban'.",
     ),
+    serve: bool = typer.Option(
+        False,
+        "--serve/--no-serve",
+        help="Also install + start the `kanban-serve` webhook-receiver PM2 app alongside the "
+        "daemon (ingress-multiproject §8). Use when ingress=webhook; front it with a TLS proxy.",
+    ),
 ) -> None:
     """Install/upgrade the host + claude tiers: skeleton, PM2 daemon, and claude plugin (DESIGN §4).
 
     Idempotent: re-running ensures the root (mode 0o700), seeds the ``token`` skeleton (mode 0o600)
     without clobbering an existing one, writes ``ecosystem.config.js``, (re)registers the
-    ``kanban`` PM2 app, and adds the claude plugin marketplace + installs the ``/kanban`` skill.
-    Refuses to run as root (DESIGN §10).
+    ``kanban`` PM2 app (plus the ``kanban-serve`` receiver app when ``--serve``), and adds the
+    claude plugin marketplace + installs the ``/kanban`` skill. Refuses to run as root (DESIGN §10).
 
     Args:
         root: The kanban runtime root to create; defaults to ``~/.kanban``.
@@ -146,9 +262,13 @@ def install(
         kanban_command: The console-script name baked into the ecosystem file so PM2 runs the
             right interpreter; defaults to the bare ``kanban``. Pass an absolute pyenv path
             (e.g. ``$(pyenv which kanban)``) when PM2's boot environment lacks the pyenv shims.
+        serve: When ``True`` (``--serve``), also install + start the ``kanban-serve`` webhook
+            receiver app (ingress=webhook deployments).
     """
     try:
-        resolved = host_installer.host_install(root, run_pm2=pm2, kanban_command=kanban_command)
+        resolved = host_installer.host_install(
+            root, run_pm2=pm2, kanban_command=kanban_command, serve=serve
+        )
     except host_installer.RootPrivilegeError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc
@@ -258,6 +378,12 @@ def init(
         "Configured ONCE here; the daemon's post-merge update then resolves it from "
         "projects.json instead of demanding it on every kanban-update-main call.",
     ),
+    ingress: str = typer.Option(
+        "webhook",
+        "--ingress",
+        help="Per-project ingress mode: 'webhook' (default — fast nudge + slow safety-sweep "
+        "fallback; seeds <root>/webhook_secret) or 'polling' (tight 10 s cadence).",
+    ),
 ) -> None:
     """Initialise the per-repo tier: project, columns, labels, config, registry (DESIGN §4.3).
 
@@ -274,11 +400,20 @@ def init(
         title: The Project v2 title to find-or-create (defaults to the repo name).
         dev_repo_path: The operator's dev-clone path persisted on the registry entry (the
             post-merge ff-only update target, DESIGN §10); defaults to ``""`` (disabled).
+        ingress: The per-project ingress mode (``webhook`` default | ``polling``); recorded on the
+            registry entry and (for ``webhook``) seeds the ``<root>/webhook_secret`` skeleton.
     """
     entry = init_cmd.init(
-        repo, root=root, clone=clone, project_title=title or None, dev_repo_path=dev_repo_path
+        repo,
+        root=root,
+        clone=clone,
+        project_title=title or None,
+        dev_repo_path=dev_repo_path,
+        ingress=ingress,
     )
-    typer.echo(f"kanban init: project {entry.project_id} ready for {entry.repo}")
+    typer.echo(
+        f"kanban init: project {entry.project_id} ready for {entry.repo} (ingress={ingress})"
+    )
 
 
 @app.command()
@@ -337,6 +472,8 @@ def status(
         "--root",
         help="Kanban runtime root holding config.yml + state (default ~/.kanban).",
     ),
+    project: str = _PROJECT_OPTION,
+    repo: str = _REPO_OPTION,
 ) -> None:
     """Show the single-pane board summary + operator signals (DESIGN §3.3 / §5 / §10, 31.1).
 
@@ -347,8 +484,10 @@ def status(
 
     Args:
         root: The kanban runtime root holding ``config.yml``, the state store, and the markers.
+        project: The ``--project`` node-id selector (multi-project roots; ignored when N=1).
+        repo: The ``--repo`` selector (multi-project roots; alternative to ``--project``).
     """
-    deps = build_deps(_wiring_for(root))
+    deps = build_deps(_resolve_wiring(root, project, repo))
     typer.echo(
         status_cmd.status(
             deps.board_reader,
@@ -371,6 +510,8 @@ def state(
         "--json",
         help="Emit a machine-readable JSON shape (for agents/scripts) instead of the human pane.",
     ),
+    project: str = _PROJECT_OPTION,
+    repo: str = _REPO_OPTION,
 ) -> None:
     """Show the unified read-only board + agents + queue + recent-events + health-pill view (cockpit PR1).
 
@@ -381,8 +522,10 @@ def state(
     Args:
         root: The kanban runtime root holding ``config.yml``, the state store, and the markers.
         json_out: When set, emit JSON instead of the human operator pane.
+        project: The ``--project`` node-id selector (multi-project roots; ignored when N=1).
+        repo: The ``--repo`` selector (multi-project roots; alternative to ``--project``).
     """
-    deps = build_deps(_wiring_for(root))
+    deps = build_deps(_resolve_wiring(root, project, repo))
     typer.echo(
         state_cmd.state(
             deps.board_reader,
@@ -440,6 +583,8 @@ def sessions(
         "--root",
         help="Kanban runtime root holding config.yml + state (default ~/.kanban).",
     ),
+    project: str = _PROJECT_OPTION,
+    repo: str = _REPO_OPTION,
 ) -> None:
     """List the live agent sessions, flagging reaper candidates (DESIGN §3.3 / §8.3).
 
@@ -448,8 +593,10 @@ def sessions(
 
     Args:
         root: The kanban runtime root holding ``config.yml`` and the state store.
+        project: The ``--project`` node-id selector (multi-project roots; ignored when N=1).
+        repo: The ``--repo`` selector (multi-project roots; alternative to ``--project``).
     """
-    deps = build_deps(_wiring_for(root))
+    deps = build_deps(_resolve_wiring(root, project, repo))
     typer.echo(sessions_cmd.sessions(deps.store, deps.sessions))
 
 
@@ -464,6 +611,8 @@ def cancel(
         "--root",
         help="Kanban runtime root holding config.yml + state (default ~/.kanban).",
     ),
+    project: str = _PROJECT_OPTION,
+    repo: str = _REPO_OPTION,
 ) -> None:
     """Manually tear down a ticket's agent via the app-layer ``TeardownAction`` (DESIGN §8.2).
 
@@ -473,8 +622,10 @@ def cancel(
     Args:
         issue: The GitHub issue number whose agent to tear down.
         root: The kanban runtime root holding ``config.yml`` and the state store.
+        project: The ``--project`` node-id selector (multi-project roots; ignored when N=1).
+        repo: The ``--repo`` selector (multi-project roots; alternative to ``--project``).
     """
-    cancel_cmd.cancel(issue, deps=build_deps(_wiring_for(root)))
+    cancel_cmd.cancel(issue, deps=build_deps(_resolve_wiring(root, project, repo)))
     typer.echo(f"kanban cancel: torn down agent for #{issue}")
 
 
@@ -492,6 +643,8 @@ def move(
         "--wait",
         help="Block on the daemon's result (done/rejected) up to a timeout instead of returning now.",
     ),
+    project: str = _PROJECT_OPTION,
+    repo: str = _REPO_OPTION,
 ) -> None:
     """Enqueue an operator move of #issue's card to <column> — executed by the daemon (cockpit PR2).
 
@@ -504,8 +657,10 @@ def move(
         column: The destination column KEY.
         root: The kanban runtime root holding the intent queue.
         wait: When set, block on the daemon's result up to a timeout.
+        project: The ``--project`` node-id selector (multi-project roots; ignored when N=1).
+        repo: The ``--repo`` selector (multi-project roots; alternative to ``--project``).
     """
-    deps = build_deps(_wiring_for(root))
+    deps = build_deps(_resolve_wiring(root, project, repo))
     typer.echo(move_cmd.move(deps.store, issue=issue, to_col=column, wait=wait))
 
 
@@ -600,6 +755,8 @@ def ticket_create(
     wait: bool = typer.Option(
         False, "--wait", help="Block on the daemon's result up to a timeout."
     ),
+    project: str = _PROJECT_OPTION,
+    repo: str = _REPO_OPTION,
 ) -> None:
     """Enqueue an operator ticket-create — executed by the daemon (cockpit PR3).
 
@@ -613,8 +770,10 @@ def ticket_create(
         column: Optional initial column KEY (refused if it is a launch column).
         root: The kanban runtime root holding the intent queue.
         wait: When set, block on the daemon's result.
+        project: The ``--project`` node-id selector (multi-project roots; ignored when N=1).
+        repo: The ``--repo`` selector (multi-project roots; alternative to ``--project``).
     """
-    deps = build_deps(_wiring_for(root))
+    deps = build_deps(_resolve_wiring(root, project, repo))
     typer.echo(
         ticket_cmd.create(
             deps.store,
@@ -639,6 +798,8 @@ def ticket_edit(
     wait: bool = typer.Option(
         False, "--wait", help="Block on the daemon's result up to a timeout."
     ),
+    project: str = _PROJECT_OPTION,
+    repo: str = _REPO_OPTION,
 ) -> None:
     """Enqueue an operator ticket-edit (replace the issue body) — executed by the daemon (cockpit PR3).
 
@@ -647,8 +808,10 @@ def ticket_edit(
         body: The new issue body.
         root: The kanban runtime root holding the intent queue.
         wait: When set, block on the daemon's result.
+        project: The ``--project`` node-id selector (multi-project roots; ignored when N=1).
+        repo: The ``--repo`` selector (multi-project roots; alternative to ``--project``).
     """
-    deps = build_deps(_wiring_for(root))
+    deps = build_deps(_resolve_wiring(root, project, repo))
     typer.echo(ticket_cmd.edit(deps.store, issue=issue, body=body, wait=wait))
 
 
@@ -663,6 +826,8 @@ def ticket_close(
     wait: bool = typer.Option(
         False, "--wait", help="Block on the daemon's result up to a timeout."
     ),
+    project: str = _PROJECT_OPTION,
+    repo: str = _REPO_OPTION,
 ) -> None:
     """Enqueue an operator ticket-close — executed by the daemon (cockpit PR3).
 
@@ -670,8 +835,10 @@ def ticket_close(
         issue: The issue number to close.
         root: The kanban runtime root holding the intent queue.
         wait: When set, block on the daemon's result.
+        project: The ``--project`` node-id selector (multi-project roots; ignored when N=1).
+        repo: The ``--repo`` selector (multi-project roots; alternative to ``--project``).
     """
-    deps = build_deps(_wiring_for(root))
+    deps = build_deps(_resolve_wiring(root, project, repo))
     typer.echo(ticket_cmd.close(deps.store, issue=issue, wait=wait))
 
 
@@ -685,6 +852,8 @@ def pill_set_health(
     wait: bool = typer.Option(
         False, "--wait", help="Block on the daemon's result up to a timeout."
     ),
+    project: str = _PROJECT_OPTION,
+    repo: str = _REPO_OPTION,
 ) -> None:
     """Force the rolling status pill to <enum> until cleared — applied by the daemon (cockpit PR3).
 
@@ -693,8 +862,10 @@ def pill_set_health(
         note: Optional operator note rendered on the dashboard.
         root: The kanban runtime root holding the intent queue.
         wait: When set, block on the daemon's result.
+        project: The ``--project`` node-id selector (multi-project roots; ignored when N=1).
+        repo: The ``--repo`` selector (multi-project roots; alternative to ``--project``).
     """
-    deps = build_deps(_wiring_for(root))
+    deps = build_deps(_resolve_wiring(root, project, repo))
     typer.echo(pill_cmd.set_health(deps.store, enum=enum, note=note or None, wait=wait))
 
 
@@ -707,6 +878,8 @@ def pill_note(
     wait: bool = typer.Option(
         False, "--wait", help="Block on the daemon's result up to a timeout."
     ),
+    project: str = _PROJECT_OPTION,
+    repo: str = _REPO_OPTION,
 ) -> None:
     """Set the operator dashboard note — applied by the daemon (cockpit PR3).
 
@@ -714,8 +887,10 @@ def pill_note(
         text: The operator note to display.
         root: The kanban runtime root holding the intent queue.
         wait: When set, block on the daemon's result.
+        project: The ``--project`` node-id selector (multi-project roots; ignored when N=1).
+        repo: The ``--repo`` selector (multi-project roots; alternative to ``--project``).
     """
-    deps = build_deps(_wiring_for(root))
+    deps = build_deps(_resolve_wiring(root, project, repo))
     typer.echo(pill_cmd.note(deps.store, text=text, wait=wait))
 
 
@@ -727,14 +902,18 @@ def pill_clear(
     wait: bool = typer.Option(
         False, "--wait", help="Block on the daemon's result up to a timeout."
     ),
+    project: str = _PROJECT_OPTION,
+    repo: str = _REPO_OPTION,
 ) -> None:
     """Clear the operator pill override + note (revert to the computed health) — cockpit PR3.
 
     Args:
         root: The kanban runtime root holding the intent queue.
         wait: When set, block on the daemon's result.
+        project: The ``--project`` node-id selector (multi-project roots; ignored when N=1).
+        repo: The ``--repo`` selector (multi-project roots; alternative to ``--project``).
     """
-    deps = build_deps(_wiring_for(root))
+    deps = build_deps(_resolve_wiring(root, project, repo))
     typer.echo(pill_cmd.clear(deps.store, wait=wait))
 
 

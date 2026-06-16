@@ -27,6 +27,7 @@ from kanbanmate.cli.doctor_health import (
     _check_health_field,
     _resolve_health_check,
 )
+from kanbanmate.cli.doctor_ingress import check_registry_summary, check_webhook_secret
 
 # ---------------------------------------------------------------------------
 # Injectable types — mirror the ``install.py`` ``Runner`` pattern.
@@ -914,6 +915,10 @@ def run_doctor(
             lambda: _check_board_reachable(board_probe_check=resolved_board_probe),
         ),
         ("health field", lambda: _check_health_field(health_check=resolved_health_check)),
+        # ingress-multiproject §8: advisory webhook-secret presence/perms + a multi-project registry
+        # summary (both ALWAYS PASS — ingress is config, not a launch gate).
+        ("webhook secret", lambda: check_webhook_secret(resolved_root)),
+        ("registry", lambda: check_registry_summary(resolved_root)),
         ("branch protection", lambda: _check_branch_protection(branch_check=branch_check)),
         ("orphan slots", lambda: _check_orphan_slots(resolved_root)),
         (

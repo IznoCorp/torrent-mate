@@ -93,6 +93,40 @@ def load_token(*, path: str | Path | None = None, env: dict[str, str] | None = N
     raise FileNotFoundError(f"no GitHub token: set $KANBAN_TOKEN or create {token_path}")
 
 
+def load_entry_token(root: str | Path, token_ref: str) -> str:
+    """Resolve a registry entry's token: the shared ``<root>/token`` or ``<root>/tokens/<ref>`` (§6).
+
+    The SINGLE multi-org token-resolution path, shared by the daemon (``daemon/loop.py``) AND the
+    agent's network-capable helpers (``kanban-comment`` / ``-update-body`` / ``-progress``) so the
+    two never drift. The model has NO GitHub App:
+
+    * ``token_ref == ""`` → the shared ``<root>/token`` (today's path; ``$KANBAN_TOKEN`` still wins
+      via :func:`load_token`'s env override) — ZERO behaviour change for an N=1 / no-``token_ref``
+      deployment.
+    * a non-empty ref → ``<root>/tokens/<ref>`` (mode 0600), so org A and org B can use distinct
+      PATs for SSO-gated / least-privilege orgs without a GitHub App.
+
+    Without this, the helpers loaded the DEFAULT token (``load_token()``) regardless of the entry's
+    ``token_ref``, so a second org's agent would 401 (#4 multi-org token half-wired).
+
+    Args:
+        root: The runtime root the token file(s) live under.
+        token_ref: The entry's token selector (``""`` → the shared token; else the ``tokens/<ref>``
+            file name).
+
+    Returns:
+        The resolved token string (stripped).
+
+    Raises:
+        FileNotFoundError: When the selected token file is absent and no ``$KANBAN_TOKEN`` is set.
+    """
+    base = Path(root)
+    path = base / "token" if not token_ref else base / "tokens" / token_ref
+    # Route through ``load_token`` so the env override ($KANBAN_TOKEN) still wins for the shared
+    # token, while a per-ref token reads its dedicated file.
+    return load_token(path=path)
+
+
 def parse_scopes(scope_header: str | None) -> frozenset[str]:
     """Parse a GitHub ``X-OAuth-Scopes`` header value into a set of scope names.
 

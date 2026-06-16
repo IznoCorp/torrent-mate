@@ -166,6 +166,14 @@ _PROVISION_DIRS = ("skills", "commands", "agents")
 # bin-side reader walks up from the cwd to find it.
 ISSUE_PIN_RELPATH = ".claude/kanban-issue"
 
+# The per-worktree PROJECT-pin file (ingress-multiproject §7). Written under the worktree's
+# ``.claude/`` at provision time in a MULTI-PROJECT deployment; the kanban-* helpers read it (when
+# present) so they resolve the SAME per-project store sub-root the daemon used (breadcrumbs/state
+# must land in the right sub-root — the km-root invariant extended to multi-project). Absent in an
+# N=1 deployment (the helpers fall back to the sole registry entry — byte-identical back-compat).
+# Kept in lock-step with the bin-side reader ``bin/_pin._PROJECT_PIN_FILENAME``.
+PROJECT_PIN_RELPATH = ".claude/kanban-project"
+
 # Dev cruft excluded from the per-launch copy (keeps it small + avoids leaking caches/state).
 _COPY_IGNORE = shutil.ignore_patterns(
     ".git",
@@ -654,6 +662,32 @@ def write_issue_pin(worktree: str | Path, issue: int) -> Path:
     path = claude_dir / "kanban-issue"
     # Just the integer (cast guards any caller passing a str-like) + trailing newline.
     path.write_text(f"{int(issue)}\n", encoding="utf-8")
+    return path
+
+
+def write_project_pin(worktree: str | Path, project_id: str) -> Path:
+    """Write the launched ``project_id`` into the worktree's project-pin file (multi-project §7).
+
+    In a MULTI-PROJECT deployment a launched agent's worktree is pinned to its project node id so the
+    kanban-* helpers resolve the EXACT registry entry (``resolve_by_project_id``) — no issue-number
+    collision ambiguity (two repos can both carry ``#5``) — AND target the SAME per-project store
+    sub-root the daemon wrote to. The file holds just the project node id (one line). Absent in an
+    N=1 deployment (the launch only calls this when ``Deps.multi_project`` is set), so single-project
+    worktrees stay byte-identical and the helpers fall back to the sole entry.
+
+    Creates ``<worktree>/.claude/`` if missing. Idempotent — a relaunch re-writes the same id.
+
+    Args:
+        worktree: Absolute path to the git worktree the agent runs in.
+        project_id: The launched project's Project v2 node id to pin the worktree to.
+
+    Returns:
+        The path to the written project-pin file.
+    """
+    claude_dir = Path(worktree) / ".claude"
+    claude_dir.mkdir(parents=True, exist_ok=True)
+    path = claude_dir / "kanban-project"
+    path.write_text(f"{project_id}\n", encoding="utf-8")
     return path
 
 
