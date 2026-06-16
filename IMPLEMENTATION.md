@@ -16,7 +16,7 @@
 | --- | ------------------------------------------------------------- | ------------------------------------- | ------ |
 | 1   | Directional length-ratio guard in confidence path (Unit 1)    | phase-01-length-ratio-guard.md        | [x]    |
 | 2   | Episode-filename fallback for degenerate show titles (Unit 2) | phase-02-episode-filename-fallback.md | [x]    |
-| 3   | Phase gate — make check + AC-1..AC-7 re-exercise              | phase-03-gate.md                      | [ ]    |
+| 3   | Phase gate — make check + AC-1..AC-7 re-exercise              | phase-03-gate.md                      | [x]    |
 
 ## Review cycles
 
@@ -24,4 +24,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Phases 1-2 done. Run `/implement:phase` to execute Phase 3 (gate — make check + AC re-exercise).
+All phases complete — run `/implement:feature-pr` (auto-chained).
