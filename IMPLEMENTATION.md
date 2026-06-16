@@ -32,6 +32,12 @@ Adversarial review (5 dimensions × refute-by-default): 6 findings, **4 confirme
 
 Fix scope expands into merged seed-pure client code (`transmission.py`/`qbittorrent.py`) because the Phase 2 add-then-tag swallow depends on the `TorrentTagger` contract DESIGN §4.2 assumed but the clients never honored. Layering-correct fix: translate at the client boundary.
 
+Cycle-1 fixes (Phase 3, commits `ea84f9eb` + `cfb8978f`): client-level `ApiError` translation (both clients, `add_tags`/`remove_tags`) + 5 regression tests (mutation-proof, re-reproduced independently for both clients) + `Raises: ApiError` on the `TorrentTagger` protocol + `TrackerAuthFailed` formatter exercised + skip-branch assertion.
+
+### Cycle 2 — PR #202 (re-review of the cycle-1 fix)
+
+Focused re-review (fix-resolution + regression-hunt × refute-by-default): the 2 major + 1 medium are **resolved**. 1 **minor** confirmed — the skip-branch assertion shipped in cycle 1 was vacuous (`not hasattr(...)` short-circuits on `MagicMock(spec=TorrentAdder)`). Fixed in `acd4b2c9` with a non-vacuous precondition assertion (`not isinstance(client, TorrentTagger)`), verified to fail when the client is a tagger. No new defects introduced by the fix. **Loop converged (Case A — no critical/major/medium).**
+
 ## Next action
 
-Phase 3 fixes complete + pushed. Re-running CI + cycle-2 re-review, then manual merge handoff.
+Converged + CI re-run pending on `acd4b2c9`. Merge mode **manual** → hand off to operator for squash merge of PR #202.
