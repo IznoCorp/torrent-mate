@@ -1,44 +1,43 @@
-# Implementation Progress — seed-pure
+# Implementation Progress — tracker-auth
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Seed Safety O1: seed-pure tag + pipeline skip (+ manual tagger) (minor)
-**Version bump**: 0.32.0 → 0.33.0
-**Branch**: feat/seed-pure
+**Feature**: RP7 — Tracker Auth Lifecycle (observability): TrackerAuthFailed event on 401 + Transmission add() fix (minor)
+**Version bump**: 0.33.0 → 0.34.0
+**Branch**: feat/tracker-auth
 **PR merge**: manual
-**PR**: https://github.com/IznoCorp/personal-scraper/pull/201
-**Design**: docs/features/seed-pure/DESIGN.md
-**Master plan**: docs/features/seed-pure/plan/INDEX.md
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/202
+**Design**: docs/features/tracker-auth/DESIGN.md
+**Master plan**: docs/features/tracker-auth/plan/INDEX.md
 
 ## Phases
 
-| #   | Phase                         | File                             | Status |
-| --- | ----------------------------- | -------------------------------- | ------ |
-| 1   | Tag vocab + tagger capability | phase-01-tag-vocab-tagger.md     | [x]    |
-| 2   | `seed` CLI group              | phase-02-seed-cli.md             | [x]    |
-| 3   | Ingest skip (always-on)       | phase-03-ingest-skip.md          | [x]    |
-| 4   | Opt-in sort-side guard        | phase-04-optional-guard.md       | [x]    |
-| 5   | Docs + ACCEPTANCE + gate      | phase-05-docs-acceptance-gate.md | [x]    |
-| 6   | PR fixes cycle 1              | phase-06-pr-fixes-cycle-1.md     | [x]    |
+| #   | Phase                                      | File                                   | Status |
+| --- | ------------------------------------------ | -------------------------------------- | ------ |
+| 1   | TrackerAuthFailed event + catalog plumbing | phase-01-event-catalog-plumbing.md     | [x]    |
+| 2   | Grab emit + Transmission add() fix         | phase-02-grab-emit-transmission-fix.md | [x]    |
+| 3   | PR #202 review fixes (cycle 1)             | phase-03-pr-fixes-cycle-1.md           | [x]    |
 
 ## Review cycles
 
-### Cycle 1
+### Cycle 1 — PR #202 (CI green)
 
-- Toolkit: 5 lenses on PR #201 (CI green) — code-reviewer, pr-test-analyzer, silent-failure-hunter, type-design-analyzer, comment-analyzer. (3 hit a transient rate-limit on the first pass; re-dispatched.)
-- **Convergent MAJOR finding (4 lenses):** Transmission tagger silently corrupts on **category-less torrents** (the feature's headline use case). `seed mark` on a Transmission torrent with `labels=[]` writes `labels=["seed-pure"]`; `_torrent_item` reads `labels[0]` as the **category** → `tags=[]` → the ingest skip (`SEED_PURE in tags`) NEVER fires → the seed-only torrent is ingested anyway. `add()` already rejects this ambiguity; the tagger had no guard + no test.
-- Retained: **F-A** (MAJOR — no-category sentinel fix + regression tests) · **F-B** (MEDIUM — `ProcessCleanConfig.verify_seed_pure` is a flag that lies → validator rejects `True`) · **F-C** (type `run_sort` against `TorrentLister`, drop `type: ignore`) · **F-D** (`seed list` defensive `getattr`) · **F-E** (`run_sort` docstring: standalone-sort guard is pipeline-only) · **F-F** (sort-guard log `error_type`+consequence).
-- Ignored: namespace-collision doc note, seed-list completed-only note, list-column assertion (cosmetic).
-- Decision: **Case B**. Fix phase 6 created (6.1 Transmission no-category fix, 6.2 reserved-flag validator + typing/consistency/docs).
+Adversarial review (5 dimensions × refute-by-default): 6 findings, **4 confirmed**, 2 refuted.
 
-### Cycle 2
+- **major** (silent-failure) — orchestrator `except ApiError` swallow around `add_tags()` is defeated: real tagger clients raise raw `transmission_rpc.TransmissionError` / `qbittorrentapi.APIError` (not `ApiError`), so a tag failure escapes the swallow + outer ladder + service isolation → whole-batch abort. → Phase 3.1.
+- **major** (silent-failure) — the tag-failure test injects `personalscraper.ApiError`, the type real clients never raise → vacuous. → Phase 3.1/3.2.
+- **medium** (tests) — `TrackerAuthFailed` omitted from `_ALL_ACQUIRE_EVENT_CLASSES`; the formatter is never exercised (DESIGN §8.1 item 1 unmet). → Phase 3.3.
+- **minor** (tests) — non-`TorrentTagger` skip branch not explicitly asserted. → Phase 3.4.
+- _refuted_: dropped golden `tags` assertion (recovered + strengthened in the new test); tag_failed warning lacks a remediation field (DESIGN-sanctioned non-essential provenance).
 
-- Toolkit: 4 lenses on the cycle-1 fix delta (`67778fa2..eb57a313` — c03f32f4 Transmission sentinel + eb57a313 reserved-flag/typing) — code-reviewer, pr-test-analyzer, silent-failure-hunter, type-design-analyzer. 10 raw findings, each adversarially verified (refute-by-default).
-- **Confirmed (both MINOR after verification):** **F-G1** — the F-A regression test asserts the read side via `_split_labels` in isolation, not through the production reader `_torrent_item`; a re-inline of `_torrent_item` ships green (zero behavioral impact today — ingest/sort read only `tags` — but a real hole in the gate for the headline MAJOR fix). **F-T1** — the `""` no-category sentinel is an untyped magic-string overload (latent footgun, never triggered; remedy = value-object refactor, out of scope).
-- **Refuted (8):** F-G2/F-G3 (`_split_labels` IS the unit under test), F-SF1/F-SF2/F-SF3 (out-of-delta / cosmetic / impossible-by-construction), F-T2/F-T3/F-T4 (intentional add()/add_tags() asymmetry, trust-the-type consistency nit, load-bearing validator).
-- **Decision: Case A — converged** (all retained findings minor; none critical/major/medium). Per skill, minor does not block merge. Added the one high-value F-G1 assertion (`test_tx_torrent_item_no_category_sentinel_reads_as_tag`, mutation-verified) as regression-gate hardening — commit `69bda827`, test-only. F-T1 deferred (out-of-scope refactor).
-- **Backlog (NOT this PR):** (1) `_labels` swallows a tag equal to the category (`category=="seed-pure"`) — pre-existing, impossible by construction. (2) `acquire/orchestrator.py:241` calls `add(category=None, tags=...)` → trips `ValueError` under a real Transmission client — originates in PR #196 (acquire-store), masked by MagicMock; genuine latent bug in another feature.
+Fix scope expands into merged seed-pure client code (`transmission.py`/`qbittorrent.py`) because the Phase 2 add-then-tag swallow depends on the `TorrentTagger` contract DESIGN §4.2 assumed but the clients never honored. Layering-correct fix: translate at the client boundary.
+
+Cycle-1 fixes (Phase 3, commits `ea84f9eb` + `cfb8978f`): client-level `ApiError` translation (both clients, `add_tags`/`remove_tags`) + 5 regression tests (mutation-proof, re-reproduced independently for both clients) + `Raises: ApiError` on the `TorrentTagger` protocol + `TrackerAuthFailed` formatter exercised + skip-branch assertion.
+
+### Cycle 2 — PR #202 (re-review of the cycle-1 fix)
+
+Focused re-review (fix-resolution + regression-hunt × refute-by-default): the 2 major + 1 medium are **resolved**. 1 **minor** confirmed — the skip-branch assertion shipped in cycle 1 was vacuous (`not hasattr(...)` short-circuits on `MagicMock(spec=TorrentAdder)`). Fixed in `acd4b2c9` with a non-vacuous precondition assertion (`not isinstance(client, TorrentTagger)`), verified to fail when the client is a tagger. No new defects introduced by the fix. **Loop converged (Case A — no critical/major/medium).**
 
 ## Next action
 
-Cycle-2 converged (Case A). F-G1 hardening pushed → CI green → manual squash merge (merge_mode=manual). Then `/implement:archive` + next feature.
+Converged + CI re-run pending on `acd4b2c9`. Merge mode **manual** → hand off to operator for squash merge of PR #202.

@@ -55,8 +55,9 @@ from typing import TYPE_CHECKING, Literal
 
 from personalscraper.acquire._dedup import SearchOutcome, dedup
 from personalscraper.acquire._filters import apply_hard_filters
-from personalscraper.acquire.events import GrabFailed, WantedAbandoned
+from personalscraper.acquire.events import GrabFailed, TrackerAuthFailed, WantedAbandoned
 from personalscraper.api._contracts import ApiError, MediaType
+from personalscraper.api.torrent._contracts import TorrentTagger
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
 from personalscraper.api.tracker._fetch import resolve_source
 from personalscraper.api.tracker._ranking import rank
@@ -239,16 +240,41 @@ class GrabOrchestrator:
             return self._retryable(media_ref, "no_torrent_client", chosen=top)
 
         # --- Resolve source then add (taxonomy: §6.2 catch order) ---
+        # category stays None — Transmission uses labels[0] for category, so
+        # passing tags=(...) alongside would clobber it; tags are applied via
+        # a separate add_tags() call on clients that implement TorrentTagger.
         category: str | None = None
-        tags: tuple[str, ...] = (top.provider,)
         try:
             source = resolve_source(top, self._transports)
-            info_hash = self._torrent_client.add(source, category=category, tags=tags)
+            info_hash = self._torrent_client.add(source, category=category)
+            if isinstance(self._torrent_client, TorrentTagger):
+                try:
+                    self._torrent_client.add_tags(info_hash, [top.provider])
+                except ApiError as exc:
+                    # Tagging is best-effort: the torrent is already added.
+                    # Log a warning and continue — do NOT surface as add_failed.
+                    log.warning(
+                        "acquire.grab.tag_failed",
+                        hash=info_hash,
+                        provider=top.provider,
+                        error=str(exc),
+                        error_type=type(exc).__name__,
+                    )
         except CircuitOpenError:
             # Sibling of ApiError — MUST precede the ApiError clause.
             return self._retryable(media_ref, "circuit_open", chosen=top)
-        except TrackerAuthError:
+        except TrackerAuthError as exc:
             # 401/403: passkey/config broken — won't self-heal → abandon.
+            # Emit the operator-routable signal BEFORE abandoning (follows the
+            # orchestrator's self-emit-on-failure convention; correlation_id
+            # propagates via the Event base ContextVar).
+            self._event_bus.emit(
+                TrackerAuthFailed(
+                    tracker=top.provider,
+                    http_status=exc.http_status,
+                    media_ref=media_ref,
+                )
+            )
             return self._terminal(media_ref, "tracker_auth", chosen=top)
         except TorrentFetchError:
             # Download/validation failure — transient, retry next run.
@@ -277,7 +303,7 @@ class GrabOrchestrator:
             info_hash=info_hash,
             chosen=top,
             category=category,
-            tags=tags,
+            tags=(top.provider,),
         )
 
     @staticmethod

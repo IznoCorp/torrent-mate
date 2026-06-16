@@ -28,6 +28,7 @@ from personalscraper.acquire.events import (
     SeedObligationSatisfied,
     SeriesFollowed,
     SeriesUnfollowed,
+    TrackerAuthFailed,
     WantedAbandoned,
     WantedEnqueued,
 )
@@ -99,6 +100,7 @@ __all__ = [
     "StepCompleted",
     "StepErrored",
     "StepStarted",
+    "TrackerAuthFailed",
     "TrailerDownloaded",
     "VerifyItemDone",
     "WantedAbandoned",

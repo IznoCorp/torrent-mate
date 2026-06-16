@@ -9,6 +9,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
+import pytest
+
 if TYPE_CHECKING:
     from personalscraper.api.torrent.qbittorrent import QBitClient
     from personalscraper.api.torrent.transmission import TransmissionClient
@@ -258,3 +260,97 @@ def test_tx_tagger_protocol_compliance():
 
     client = _make_tx_client()
     assert isinstance(client, TorrentTagger)
+
+
+# ---------------------------------------------------------------------------
+# Criterion 4 — Regression: library exceptions must be translated to ApiError
+# (test-per-bug: raw library exceptions currently escape the client boundary)
+# ---------------------------------------------------------------------------
+
+
+def test_tx_add_tags_translates_transmission_error_to_api_error():
+    """TransmissionClient.add_tags translates TransmissionError to ApiError.
+
+    Regression test — before the fix, _client.get_torrent raising
+    TransmissionError escaped the client boundary unchanged, defeating the
+    orchestrator's ``except ApiError`` swallow (DESIGN §4.2/§5/§6/§8).
+    """
+    import transmission_rpc
+
+    from personalscraper.api._contracts import ApiError
+
+    client = _make_tx_client()
+    client._client.get_torrent.side_effect = transmission_rpc.TransmissionError("boom")
+
+    with pytest.raises(ApiError):
+        client.add_tags("h", ["seed-pure"])
+
+
+def test_tx_remove_tags_translates_transmission_error_to_api_error():
+    """TransmissionClient.remove_tags translates TransmissionError to ApiError.
+
+    Regression test — before the fix, _client.get_torrent raising
+    TransmissionError escaped the client boundary (same root cause as
+    add_tags above).
+    """
+    import transmission_rpc
+
+    from personalscraper.api._contracts import ApiError
+
+    client = _make_tx_client()
+    client._client.get_torrent.side_effect = transmission_rpc.TransmissionError("boom")
+
+    with pytest.raises(ApiError):
+        client.remove_tags("h", ["seed-pure"])
+
+
+def test_tx_add_tags_change_torrent_error_translated():
+    """TransmissionClient.add_tags translates change_torrent TransmissionError.
+
+    Covers the second raw call site: _client.change_torrent can also raise
+    TransmissionError (e.g. hash no longer tracked after get_torrent succeeded).
+    """
+    import transmission_rpc
+
+    from personalscraper.api._contracts import ApiError
+
+    client = _make_tx_client()
+    client._client.get_torrent.return_value = _mock_torrent(["movies"])
+    client._client.change_torrent.side_effect = transmission_rpc.TransmissionError("write failed")
+
+    with pytest.raises(ApiError):
+        client.add_tags("h", ["seed-pure"])
+
+
+def test_qbit_add_tags_translates_api_error():
+    """QBitClient.add_tags translates qbittorrentapi.APIError to ApiError.
+
+    Regression test — before the fix, _client.torrents_addTags raising the
+    library APIError escaped the client boundary unchanged.
+    """
+    import qbittorrentapi.exceptions
+
+    from personalscraper.api._contracts import ApiError
+
+    client = _make_qbit_client()
+    client._client.torrents_addTags.side_effect = qbittorrentapi.exceptions.APIError("boom")
+
+    with pytest.raises(ApiError):
+        client.add_tags("h", ["seed-pure"])
+
+
+def test_qbit_remove_tags_translates_api_error():
+    """QBitClient.remove_tags translates qbittorrentapi.APIError to ApiError.
+
+    Regression test — before the fix, _client.torrents_removeTags raising the
+    library APIError escaped the client boundary unchanged.
+    """
+    import qbittorrentapi.exceptions
+
+    from personalscraper.api._contracts import ApiError
+
+    client = _make_qbit_client()
+    client._client.torrents_removeTags.side_effect = qbittorrentapi.exceptions.APIError("boom")
+
+    with pytest.raises(ApiError):
+        client.remove_tags("h", ["seed-pure"])

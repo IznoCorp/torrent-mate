@@ -339,6 +339,7 @@ from personalscraper.acquire.events import (  # noqa: E402, PLC0415
     SeedObligationSatisfied,
     SeriesFollowed,
     SeriesUnfollowed,
+    TrackerAuthFailed,
     WantedAbandoned,
     WantedEnqueued,
 )
@@ -439,6 +440,16 @@ def make_ratio_measured() -> RatioMeasured:
         tracker="lacale",
         observed_ratio=0.87,
         target_ratio=1.0,
+    )
+
+
+@register_factory(TrackerAuthFailed)
+def make_tracker_auth_failed() -> TrackerAuthFailed:
+    """Realistic TrackerAuthFailed factory — lacale 401, Breaking Bad."""
+    return TrackerAuthFailed(
+        tracker="lacale",
+        http_status=401,
+        media_ref=_BREAKING_BAD_REF,
     )
 
 

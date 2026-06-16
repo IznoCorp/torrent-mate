@@ -196,6 +196,9 @@ class TorrentTagger(Protocol):
         Args:
             info_hash: Lowercase-hex info hash of the target torrent.
             tags: Tag strings to add. Already-present tags are ignored.
+
+        Raises:
+            ApiError: Provider-uniform error on transport/API failure.
         """
         ...
 
@@ -205,6 +208,9 @@ class TorrentTagger(Protocol):
         Args:
             info_hash: Lowercase-hex info hash of the target torrent.
             tags: Tag strings to remove. Absent tags are ignored.
+
+        Raises:
+            ApiError: Provider-uniform error on transport/API failure.
         """
         ...
 
