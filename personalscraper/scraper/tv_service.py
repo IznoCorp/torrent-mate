@@ -79,10 +79,23 @@ def _recover_title_from_episodes(show_dir: Path) -> str | None:
         Recovered show title string, or None if no video files are found or
         the recovery produces an empty / token-only string.
     """
+
+    # Restrict candidate videos to genuine episode locations: the show root
+    # or a season directory (``Saison NN/`` / ``Season NN``). Videos under
+    # ``Extras/``, ``Featurettes/``, ``Bonus/``, ``Behind The Scenes/`` etc. are
+    # excluded so a bonus-feature filename — which ``sorted(rglob)`` would place
+    # before ``Saison NN/`` alphabetically — cannot win recovery over the real
+    # episode and yield the wrong show title.
+    def _is_episode_location(path: Path) -> bool:
+        return path.parent == show_dir or bool(SEASON_DIR_RE.match(path.parent.name))
+
     video_files = sorted(
         f
         for f in show_dir.rglob("*")
-        if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS and not is_sample_path(f)
+        if f.is_file()
+        and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+        and not is_sample_path(f)
+        and _is_episode_location(f)
     )
     if not video_files:
         return None

@@ -252,6 +252,32 @@ class TestAC2RealLayoutRecovery:
             "The regex must anchor on S\\d+E\\d+, not bare S\\d+."
         )
 
+    def test_recover_title_ignores_extras_subdir(self, tmp_path: Path) -> None:
+        """Extras/ video must NOT win recovery over the real episode in Saison 3/.
+
+        ``sorted(rglob)`` places ``Extras/`` before ``Saison 3/`` alphabetically,
+        so the unrestricted scan picks the extras video and recovers its title.
+        Recovery must only consider videos whose parent is the show root or a
+        season directory — ``Extras/`` is neither, so the real episode wins.
+        """
+        from personalscraper.scraper.tv_service import _recover_title_from_episodes
+
+        show_dir = tmp_path / " S03"
+        show_dir.mkdir()
+        extras = show_dir / "Extras"
+        extras.mkdir()
+        (extras / "Some Behind The Scenes Doc.mkv").touch()
+        season = show_dir / "Saison 3"
+        season.mkdir()
+        (season / "The Orville - S3E01.mkv").touch()
+
+        recovered = _recover_title_from_episodes(show_dir)
+        assert recovered == "The Orville", (
+            f"Extras-dir wrong-pick regression: expected 'The Orville', got {recovered!r}. "
+            "Recovery must exclude videos under Extras/Featurettes/Bonus and only "
+            "consider root + season-dir locations."
+        )
+
 
 # ---------------------------------------------------------------------------
 # AC-6 — empty/whitespace title is degenerate
