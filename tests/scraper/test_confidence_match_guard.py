@@ -1,7 +1,7 @@
 """Regression tests for the directional length-ratio guard in confidence._score_result.
 
-AC-1: query "S03" does NOT accept "Glina. Nowy rozdział" (ratio 0.150 < 0.67).
-AC-3: query "Among" does NOT accept "Love Amongst War" (ratio 0.312 < 0.67).
+AC-1: query "S03" does NOT accept "Glina. Nowy rozdział" (ratio 0.150 < 0.40 guard threshold).
+AC-3: query "Among" does NOT accept "Love Amongst War" (ratio 0.312 < 0.40 guard threshold).
 AC-4: "The Hack sur ecoute" still matches "The Hack" (local-longer direction — guard must NOT fire).
       "Top Chef France" still matches "Top Chef" (local-longer direction — guard must NOT fire).
 AC-5: "FROM" → "FROM" at 1.0 is unaffected.
@@ -56,7 +56,7 @@ class TestAC1OrvelleSuppression:
 
 
 class TestAC3AmongUsSuppression:
-    """AC-3: query 'Among' must NOT match 'Love Amongst War' (ratio 0.312 < 0.67)."""
+    """AC-3: query 'Among' must NOT match 'Love Amongst War' (ratio 0.312 < 0.40 guard threshold)."""
 
     def test_among_rejects_love_amongst_war(self) -> None:
         """_score_result('Among', None, 'Love Amongst War') < LOW_CONFIDENCE."""
@@ -64,7 +64,7 @@ class TestAC3AmongUsSuppression:
         score = _score_result("Among", None, result)
         assert score < LOW_CONFIDENCE, (
             f"Guard failed: score={score:.3f} — 'Among' matched 'Love Amongst War'; "
-            "length ratio is 0.312, well below 0.67"
+            "length ratio is 0.312, well below 0.40 guard threshold"
         )
 
 
@@ -248,3 +248,148 @@ class TestAC6EmptyTitleDegenerate:
 
         for title in ("The Orville", "S.W.A.T.", "Sense8", "S4C Documentary", "S Club 7"):
             assert is_degenerate_title(title) is False, f"Legit title incorrectly flagged degenerate: {title!r}"
+
+
+# ---------------------------------------------------------------------------
+# AC-1 (alias amplification — de-vacuum)
+# ---------------------------------------------------------------------------
+
+
+class TestAC1AliasAmplification:
+    """AC-1 mutation-proof: guard must fire even when the alias matches well.
+
+    The vacuous test (test_season_token_normalized_rejects_glina, no alias) passes
+    even with the guard REMOVED because WRatio('S03', 'Glina. Nowy rozdzial')=0.15.
+    This class exercises the ALIAS path: with alias 'Glina S03', WRatio(' S03',
+    'Glina S03')≈0.90 — the alias would win if the guard were absent.  With the
+    guard in place the query ' S03' is still too short relative to 'Glina. Nowy
+    rozdzial' (ratio≈0.12) so the guard rejects ALL api_title candidates including
+    the alias, keeping the score < LOW_CONFIDENCE.
+    """
+
+    def test_alias_amplification_rejected(self) -> None:
+        r"""_score_result(' S03', None, Glina+alias) < LOW_CONFIDENCE despite alias hit.
+
+        Mutation-proof: removing _length_ratio_guard in _score_result would cause
+        the alias 'Glina S03' to score ~0.90 and the result would be ACCEPTED.
+        """
+        from personalscraper.scraper.confidence import LOW_CONFIDENCE, _score_result
+
+        result = _sr("Glina. Nowy rozdział", 2025, aliases=["Glina S03"])
+        score = _score_result(" S03", None, result)
+        assert score < LOW_CONFIDENCE, (
+            f"Alias amplification not blocked: score={score:.3f} — "
+            "removing the directional guard is the only way to accept this"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Length-ratio guard boundary — pins the 0.40 threshold
+# ---------------------------------------------------------------------------
+
+
+class TestLengthRatioGuardBoundary:
+    r"""Pin the 0.40 guard threshold with just-below-rejected and just-above-accepted cases.
+
+    The guard default threshold (_DEFAULT_MIN_LENGTH_RATIO) is 0.40.
+    Actual threshold: ratio = len(normed_query) / len(normed_api).
+    - ratio < 0.40 → guard fires → candidate title skipped → score = 0.0
+    - ratio >= 0.40 → guard does NOT fire → normal WRatio scoring
+
+    Calibrated pairs:
+    - 'GO' (normed len 2) vs 'GO AWAY' (normed len 7) → ratio 0.286 → guard fires
+    - 'GO' (normed len 2) vs 'GO ON' (normed len 5) → ratio 0.400 → guard does NOT fire
+    """
+
+    def test_just_below_threshold_rejected(self) -> None:
+        r"""query/api ratio 0.286 < 0.40 → guard fires → score = 0.0.
+
+        'GO' (len 2) vs 'GO AWAY' (normed 'go away', len 7): ratio=0.286 → rejected.
+        """
+        from personalscraper.scraper.confidence import _score_result
+
+        result = _sr("GO AWAY")
+        score = _score_result("GO", None, result)
+        assert score == 0.0, f"Expected score=0.0 (guard fires at ratio 0.286), got {score:.3f}"
+
+    def test_just_at_threshold_accepted(self) -> None:
+        r"""query/api ratio 0.400 >= 0.40 → guard does NOT fire → WRatio-based score.
+
+        'GO' (len 2) vs 'GO ON' (normed 'go on', len 5): ratio=0.400 → accepted.
+        Score is WRatio-based (~0.82) and must be > LOW_CONFIDENCE.
+        """
+        from personalscraper.scraper.confidence import LOW_CONFIDENCE, _score_result
+
+        result = _sr("GO ON")
+        score = _score_result("GO", None, result)
+        assert score > LOW_CONFIDENCE, (
+            f"Expected score > {LOW_CONFIDENCE} (guard does NOT fire at ratio 0.400), got {score:.3f}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Prince Andrew floor — the case that set the 0.40 threshold
+# ---------------------------------------------------------------------------
+
+
+class TestPrinceAndrewFloor:
+    r"""Prince Andrew vs 'Andrew: The Problem Prince' must score >= LOW_CONFIDENCE.
+
+    ratio = len('prince andrew') / len('andrew the problem prince') ≈ 0.52 > 0.40.
+    WRatio score ≈ 0.775. This is the real-world case that drove the threshold
+    down from 0.67 (bidirectional FuzzyMatchConfig) to 0.40 (directional guard).
+    """
+
+    def test_prince_andrew_scores_above_low_confidence(self) -> None:
+        r"""'Prince Andrew' → 'Andrew: The Problem Prince' must be accepted (ratio 0.52 > 0.40)."""
+        from personalscraper.scraper.confidence import LOW_CONFIDENCE, _score_result
+
+        result = _sr("Andrew: The Problem Prince")
+        score = _score_result("Prince Andrew", None, result)
+        assert score >= LOW_CONFIDENCE, (
+            f"Prince Andrew floor broken: score={score:.3f} < LOW_CONFIDENCE={LOW_CONFIDENCE}. "
+            "This is the case that set the 0.40 threshold (not 0.67)."
+        )
+
+
+# ---------------------------------------------------------------------------
+# Recovery branch completeness
+# ---------------------------------------------------------------------------
+
+
+class TestRecoveryBranches:
+    """Cover the remaining _recover_title_from_episodes branches.
+
+    Non-degenerate gate lives in scrape_tvshow (is_degenerate_title check before
+    calling _recover_title_from_episodes), so we test the function itself:
+    - empty folder → None
+    - multi-file: sorted pick is deterministic (E01 before E02, E03)
+    """
+
+    def test_empty_folder_returns_none(self, tmp_path: Path) -> None:
+        """_recover_title_from_episodes returns None when no video files exist."""
+        from personalscraper.scraper.tv_service import _recover_title_from_episodes
+
+        show_dir = tmp_path / " S03"
+        show_dir.mkdir()
+        # Only non-video files
+        (show_dir / "info.txt").touch()
+        (show_dir / "subtitles.srt").touch()
+
+        assert _recover_title_from_episodes(show_dir) is None
+
+    def test_multi_file_sorted_pick(self, tmp_path: Path) -> None:
+        """Multiple episode files: sorted() ensures the first (alphabetically) is picked."""
+        from personalscraper.scraper.tv_service import _recover_title_from_episodes
+
+        show_dir = tmp_path / " S03"
+        show_dir.mkdir()
+        saison = show_dir / "Saison 3"
+        saison.mkdir()
+        # Files added in reverse episode order; sorted() must pick E01 first
+        (saison / "The Orville - S3E03.mkv").touch()
+        (saison / "The Orville - S3E01.mkv").touch()
+        (saison / "The Orville - S3E02.mkv").touch()
+
+        recovered = _recover_title_from_episodes(show_dir)
+        assert recovered == "The Orville", f"Sorted pick returned wrong title: {recovered!r}"
