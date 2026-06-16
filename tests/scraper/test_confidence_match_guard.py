@@ -8,6 +8,9 @@ AC-5: "FROM" → "FROM" at 1.0 is unaffected.
 """
 
 
+
+from pathlib import Path
+
 from personalscraper.api.metadata._base import SearchResult
 from personalscraper.scraper.confidence import HIGH_CONFIDENCE, LOW_CONFIDENCE, _score_result
 
@@ -113,4 +116,58 @@ class TestAC5ExactShortTitlesUnaffected:
         score = _score_result("FROM", None, result)
         assert score >= HIGH_CONFIDENCE, (
             f"Legit short exact match broken: score={score:.3f} for 'FROM' → 'FROM'"
+        )
+
+
+# ---------------------------------------------------------------------------
+# AC-2 — Orville recovery: degenerate folder → episode-filename fallback
+# ---------------------------------------------------------------------------
+
+
+class TestAC2OrvilleRecovery:
+    """AC-2: a season-token folder with Orville episode files recovers 'The Orville'."""
+
+    def test_recover_title_from_episode_files(self, tmp_path: Path) -> None:
+        """_recover_title_from_episodes returns 'The Orville' from episode filenames."""
+        from personalscraper.scraper.tv_service import _recover_title_from_episodes
+
+        show_dir = tmp_path / " S03"
+        show_dir.mkdir()
+        # Create representative episode files matching the real torrent layout
+        (show_dir / "The Orville - S3E01 - Some Episode.mkv").touch()
+        (show_dir / "The Orville - S3E02 - Another Episode.mkv").touch()
+
+        recovered = _recover_title_from_episodes(show_dir)
+        assert recovered == "The Orville", (
+            f"Expected 'The Orville', got {recovered!r}. "
+            "NameCleaner.clean() on the first episode file should extract 'The Orville'."
+        )
+
+    def test_recover_title_strips_season_token(self, tmp_path: Path) -> None:
+        """Recovered title must not contain 'S3'/'S03' residue."""
+        from personalscraper.scraper.tv_service import _recover_title_from_episodes
+
+        show_dir = tmp_path / "S03"
+        show_dir.mkdir()
+        (show_dir / "The Orville - S3E01.mkv").touch()
+
+        recovered = _recover_title_from_episodes(show_dir)
+        assert recovered is not None
+        import re  # noqa: PLC0415
+
+        assert not re.search(r"\bS\d+\b", recovered, re.IGNORECASE), (
+            f"Recovered title still contains season token: {recovered!r}"
+        )
+
+    def test_no_episode_files_returns_none(self, tmp_path: Path) -> None:
+        """Empty show dir with no video files returns None (no recovery possible)."""
+        from personalscraper.scraper.tv_service import _recover_title_from_episodes
+
+        show_dir = tmp_path / "S03"
+        show_dir.mkdir()
+        (show_dir / "subtitles.srt").touch()  # not a video file
+
+        recovered = _recover_title_from_episodes(show_dir)
+        assert recovered is None, (
+            f"Expected None when no video files present, got {recovered!r}"
         )

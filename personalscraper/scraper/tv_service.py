@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import unicodedata
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -50,6 +51,51 @@ if TYPE_CHECKING:
     from personalscraper.scraper.artwork import ArtworkDownloader
 
 log = get_logger("scraper")
+
+# Season/episode token pattern used to strip the SxxEyy suffix from a
+# guessit-extracted episode title so only the show name remains.
+_SEASON_TOKEN_RE = re.compile(r"\s*-?\s*S\d+(?:E\d+)*.*$", re.IGNORECASE)
+
+
+def _recover_title_from_episodes(show_dir: Path) -> str | None:
+    """Recover the show title from episode filenames when the folder name is degenerate.
+
+    When a staging folder is named with only a season token (e.g. `` S03``),
+    ``_parse_folder_name`` returns that token as the title. This function
+    inspects the episode files inside ``show_dir``, picks the first video
+    file, runs ``NameCleaner.clean()`` on its stem, and strips the trailing
+    season/episode token so only the show title remains.
+
+    Args:
+        show_dir: Path to the TV show staging directory.
+
+    Returns:
+        Recovered show title string, or None if no video files are found or
+        the recovery produces an empty / token-only string.
+    """
+    video_files = sorted(
+        f
+        for f in show_dir.iterdir()
+        if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+    )
+    if not video_files:
+        return None
+
+    first = video_files[0]
+    try:
+        from personalscraper.sorter.cleaner import NameCleaner  # noqa: PLC0415
+
+        cleaner = NameCleaner()
+        raw_title = cleaner.clean(first.stem)
+    except Exception:  # pragma: no cover — guard against unexpected guessit failures
+        return None
+
+    if not raw_title:
+        return None
+
+    # Strip trailing SxxEyy and everything after it (episode number, title)
+    recovered = _SEASON_TOKEN_RE.sub("", raw_title).strip(" -").strip()
+    return recovered if recovered else None
 
 
 def _safe_get_rating(client: Any, provider_id: str) -> list[Notations]:
@@ -108,6 +154,23 @@ class TvServiceMixin:
             ScrapeResult with action and details.
         """
         title, year = _parse_folder_name(show_dir.name)
+        # Episode-filename fallback: if the folder title is a bare season/episode
+        # token (e.g. " S03"), re-derive the show title from the first episode
+        # file so the provider query uses the real title ("The Orville") instead
+        # of the degenerate token.  is_degenerate_title is imported inline to
+        # avoid a circular import with classifier.
+        from personalscraper.scraper.classifier import is_degenerate_title  # noqa: PLC0415
+
+        if is_degenerate_title(title):
+            recovered = _recover_title_from_episodes(show_dir)
+            if recovered:
+                log.info(
+                    "show_title_recovered_from_episodes",
+                    degenerate_title=title,
+                    recovered_title=recovered,
+                    show_dir=str(show_dir),
+                )
+                title = recovered
         if year is None:
             year = _infer_year_from_child_names(show_dir, title)
         result = ScrapeResult(media_path=show_dir, media_type="tvshow")
