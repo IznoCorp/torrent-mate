@@ -17,12 +17,17 @@ from kanbanmate.cli.move import move
 class _FakeStore:
     intents: dict[str, dict[str, object]] = field(default_factory=dict)
     results: dict[str, dict[str, object]] = field(default_factory=dict)
+    nudges: int = 0
 
     def enqueue_intent(self, intent_id: str, payload: dict[str, object]) -> None:
         self.intents[intent_id] = dict(payload)
 
     def load_intent_result(self, intent_id: str) -> dict[str, object] | None:
         return self.results.get(intent_id)
+
+    def nudge_daemon(self) -> None:
+        # Record the nudge so a test can assert the enqueue-side wiring fires (0.4.0).
+        self.nudges += 1
 
 
 def test_enqueue_without_wait_records_intent() -> None:
@@ -35,6 +40,13 @@ def test_enqueue_without_wait_records_intent() -> None:
     assert payload["issue"] == 8
     assert payload["args"] == {"to_col": "Done"}
     assert payload["caller"] == "operator"
+
+
+def test_enqueue_nudges_the_daemon() -> None:
+    """Every enqueue pairs with a daemon nudge so the move drains near-instantly (0.4.0)."""
+    store = _FakeStore()
+    move(store, issue=8, to_col="Done", now=100.0)  # type: ignore[arg-type]
+    assert store.nudges == 1
 
 
 def test_wait_returns_done_result() -> None:

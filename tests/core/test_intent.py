@@ -10,10 +10,12 @@ checks (unknown kind / unknown destination), and that ``caller`` is ignored for 
 
 from __future__ import annotations
 
+import importlib.resources
+
 import pytest
 
 from kanbanmate.core.columns import load_columns
-from kanbanmate.core.intent import Intent, IntentRejected, validate_intent
+from kanbanmate.core.intent import _MERGE_COLUMN, Intent, IntentRejected, validate_intent
 from kanbanmate.core.transitions import load_transitions
 
 _COLUMNS = load_columns(
@@ -134,6 +136,26 @@ def test_agent_move_into_merge_rejected() -> None:
             from_col="Review",
             launching_issue=7,
         )
+
+
+def test_merge_column_matches_board_key() -> None:
+    """#4 coupling guard: ``_MERGE_COLUMN`` MUST be a real key in the shipped default board model.
+
+    The merge-deny in :func:`validate_intent` keys on the hardcoded ``_MERGE_COLUMN`` literal because
+    the board model has no "human-only columns" config field to source it from (Merge is just an
+    ``INERT`` column, like Backlog/Done). This test documents + pins that coupling: the literal must
+    match the ``Merge`` column ``key`` shipped in ``assets/columns.yml.tmpl``, so a rename of one
+    without the other fails here loudly rather than silently disarming the deny on the default board.
+    """
+    template = (importlib.resources.files("kanbanmate.assets") / "columns.yml.tmpl").read_text(
+        encoding="utf-8"
+    )
+    board_columns = load_columns(template)
+    assert _MERGE_COLUMN in board_columns, (
+        f"_MERGE_COLUMN={_MERGE_COLUMN!r} is not a key in the shipped board model "
+        f"({sorted(board_columns)}); the merge-deny would not protect the default board. "
+        "Keep _MERGE_COLUMN in sync with the 'Merge' key in assets/columns.yml.tmpl."
+    )
 
 
 def test_agent_move_to_non_trigger_column_ok() -> None:

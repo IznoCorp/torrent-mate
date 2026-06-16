@@ -1,18 +1,29 @@
 """Tests for the ``kanban-move`` agent helper (:mod:`kanbanmate.bin.kanban_move`).
 
-The mandatory contract under test is the **anti-loop guard** (DESIGN §8.0.5): ``kanban-move`` must
-**refuse** to move a card into a **launch-transition target** — a column that is the destination of
-a prompt-bearing whitelisted transition (no ``move_card`` call, non-zero exit) — and must **call**
-:meth:`~kanbanmate.adapters.github.client.GithubClient.move_card` for any non-launch target. The
-refusal is keyed on the transition whitelist, NOT a static column class. A fake board client
-records calls so no test touches the network; the column model and the transition whitelist are
-supplied directly so nothing is read off the clone.
+Since 0.4.0 (move-unification) the helper ENQUEUES a ``move`` intent into the SAME ``intents/`` queue
+the operator uses rather than calling GitHub directly — the daemon is the sole board writer. The
+contracts under test:
+
+* it enqueues a ``move`` intent carrying the canonical column KEY + ``caller="agent"`` (advisory);
+* it is **network-free** (no GitHub client / token — the helper no longer talks to GitHub);
+* it nudges the daemon after enqueuing (so the move drains near-instantly);
+* it writes the advance breadcrumb SYNCHRONOUSLY (keyed by ISSUE number) ONLY on a CONFIRMED
+  (non-rejected) move — i.e. the ``--wait`` ``done``/timeout path; ``--no-wait`` writes NONE (it
+  cannot confirm the move, so it must not leave a false ✅);
+* the cheap pre-flight anti-loop guard (DESIGN §8.0.5) refuses a launch-transition target BEFORE
+  enqueuing (UX guard; the daemon is authoritative);
+* the R1 pin mismatch refuses BEFORE any write;
+* ``--wait`` (default) writes NO breadcrumb + returns 1 on a daemon ``rejected`` result, and writes
+  the breadcrumb + returns 0 on ``done``; ``--no-wait`` returns 0 immediately after enqueue and writes
+  no breadcrumb at all.
+
+A fake store records the enqueue/nudge/breadcrumb calls so no test touches the network; the column
+model and the transition whitelist are supplied directly so nothing is read off the clone.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
 
 import pytest
 
@@ -20,7 +31,6 @@ from kanbanmate.bin import kanban_move
 from kanbanmate.bin.kanban_move import main, resolve_target_column
 from kanbanmate.core.domain import Column, ColumnClass
 from kanbanmate.core.transitions import load_transitions
-from kanbanmate.ports.store import TicketState, TicketStatus
 
 # A small board model covering the columns the launch-target tests target. The
 # ``column_class`` here is irrelevant to the guard (which keys on the transition
@@ -54,48 +64,39 @@ _TRANSITIONS = load_transitions(
 )
 
 
-class FakeBoard:
-    """A board-client double recording every ``move_card`` call (never hits the network)."""
-
-    def __init__(self) -> None:
-        """Initialise an empty call log."""
-        self.calls: list[tuple[Any, ...]] = []
-
-    def move_card(self, item_id: str, column_key: str) -> None:
-        """Record the move so a test can assert exactly which column was targeted."""
-        self.calls.append(("move", item_id, column_key))
-
-
+@dataclass
 class FakeStore:
-    """A store double recording ``record_agent_advance`` calls (the breadcrumb writer).
+    """A store double recording enqueue / nudge / breadcrumb calls (never hits the network).
 
-    ``load`` returns the injected :class:`TicketState`; ``record_agent_advance`` records the
-    ``(issue, now)`` pair so a test can assert the breadcrumb was dropped keyed by ISSUE number
-    (the 8.1.d invariant). Setting ``raise_on_advance`` makes the breadcrumb write blow up so the
-    warn-not-abort path (the move still succeeds) is exercised.
+    ``record_agent_advance`` records the ``(issue, now)`` pair so a test can assert the breadcrumb
+    was dropped keyed by ISSUE number (the 8.1.d invariant). ``load_intent_result`` returns an
+    injected terminal result so the ``--wait`` paths can be exercised. Setting ``raise_on_advance``
+    makes the breadcrumb write blow up so the warn-not-abort path is exercised.
     """
 
-    def __init__(self, state: TicketState | None, *, raise_on_advance: bool = False) -> None:
-        """Store the state ``load`` returns and the breadcrumb-failure toggle.
+    result: dict[str, object] | None = None
+    raise_on_advance: bool = False
+    intents: dict[str, dict[str, object]] = field(default_factory=dict)
+    advances: list[tuple[int, float]] = field(default_factory=list)
+    cleared: list[int] = field(default_factory=list)
+    nudges: int = 0
 
-        Args:
-            state: The :class:`TicketState` ``load`` returns for any issue.
-            raise_on_advance: When ``True``, ``record_agent_advance`` raises (the move must still
-                succeed — warn-not-abort).
-        """
-        self._state = state
-        self._raise = raise_on_advance
-        self.advances: list[tuple[int, float]] = []
+    def enqueue_intent(self, intent_id: str, payload: dict[str, object]) -> None:
+        self.intents[intent_id] = dict(payload)
 
-    def load(self, issue: int) -> TicketState | None:
-        """Return the injected state (independent of ``issue``)."""
-        return self._state
+    def nudge_daemon(self) -> None:
+        self.nudges += 1
 
     def record_agent_advance(self, issue_number: int, *, now: float) -> None:
-        """Record the advance breadcrumb keyed by ISSUE number (8.1.d invariant)."""
-        if self._raise:
+        if self.raise_on_advance:
             raise OSError("disk full")
         self.advances.append((issue_number, now))
+
+    def clear_agent_advance(self, issue_number: int) -> None:
+        self.cleared.append(issue_number)
+
+    def load_intent_result(self, intent_id: str) -> dict[str, object] | None:
+        return self.result
 
 
 @dataclass(frozen=True)
@@ -109,50 +110,38 @@ class _FakeEntry:
     option_map: dict[str, str] = field(default_factory=dict)
 
 
-def _state(item_id: str = "PVTI_ITEM") -> TicketState:
-    """Return a running :class:`TicketState` carrying ``item_id`` (the move target)."""
-    return TicketState(
-        issue_number=7,
-        item_id=item_id,
-        session_id="ticket-7",
-        status=TicketStatus.RUNNING,
-        heartbeat=0.0,
-    )
-
-
-_MISSING = object()
-
-
 def _wire(
     monkeypatch: pytest.MonkeyPatch,
-    board: FakeBoard,
     *,
-    state: TicketState | None | Any = _MISSING,
+    result: dict[str, object] | None = None,
     raise_on_advance: bool = False,
 ) -> FakeStore:
-    """Patch token/registry/columns/store/client so ``main`` uses the fakes.
+    """Patch registry/columns/transitions/store so ``main`` uses the fakes (no GitHub).
 
     Args:
         monkeypatch: The pytest monkeypatch fixture.
-        board: The fake board client every ``GithubClient(...)`` call should yield.
-        state: The :class:`TicketState` the fake store returns for the issue. Omitted defaults to
-            a running state with a non-empty ``item_id``; pass ``None`` explicitly to simulate a
-            ticket with no persisted state.
+        result: The terminal result the fake store's ``load_intent_result`` returns (for ``--wait``).
         raise_on_advance: When ``True``, the fake store's ``record_agent_advance`` raises so the
             breadcrumb-write-failure (warn-not-abort) path is exercised.
 
     Returns:
-        The :class:`FakeStore` wired in, so a test can assert the recorded advances.
+        The :class:`FakeStore` wired in, so a test can assert the recorded enqueue/nudge/advances.
     """
-    resolved: TicketState | None = _state() if state is _MISSING else state
-    store = FakeStore(resolved, raise_on_advance=raise_on_advance)
-    monkeypatch.setattr(kanban_move, "load_token", lambda: "tok")
+    store = FakeStore(result=result, raise_on_advance=raise_on_advance)
     monkeypatch.setattr(kanban_move, "_resolve_entry", lambda: _FakeEntry())
     monkeypatch.setattr(kanban_move, "_load_clone_columns", lambda entry: _COLUMNS)
     monkeypatch.setattr(kanban_move, "_load_clone_transitions", lambda entry: _TRANSITIONS)
     monkeypatch.setattr(kanban_move, "FsStateStore", lambda *a, **k: store)
-    monkeypatch.setattr(kanban_move, "GithubClient", lambda *a, **k: board)
+    # Make --wait poll instantly (no real sleep) so the wait tests don't burn 15 s. Patch the global
+    # ``time`` module the helper imports (string path avoids mypy's no-implicit-reexport on the attr).
+    monkeypatch.setattr("kanbanmate.bin.kanban_move.time.sleep", lambda _s: None)
     return store
+
+
+def _only_intent(store: FakeStore) -> dict[str, object]:
+    """Return the single enqueued intent payload (fails if not exactly one)."""
+    assert len(store.intents) == 1, f"expected exactly one intent, got {len(store.intents)}"
+    return next(iter(store.intents.values()))
 
 
 # ---------------------------------------------------------------------------
@@ -177,70 +166,86 @@ def test_resolve_target_column_unknown_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Anti-loop guard (DESIGN §8.0.5) — the mandatory contract (launch-target keyed)
+# Enqueue path: the move now goes through the intent queue (0.4.0 unification)
 # ---------------------------------------------------------------------------
 
 
-def test_refuses_launch_target_no_move(monkeypatch: pytest.MonkeyPatch) -> None:
-    """REFUSE: a launch-transition target exits non-zero and NEVER calls move_card (anti-loop).
+def test_enqueues_move_intent_with_column_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A non-launch target enqueues a ``move`` intent carrying the column KEY + advisory caller."""
+    store = _wire(monkeypatch)
+    # --no-wait so we assert the bare enqueue without polling for a result.
+    assert main(["7", "Done", "--no-wait"]) == 0
+    payload = _only_intent(store)
+    assert payload["kind"] == "move"
+    assert payload["issue"] == 7
+    assert payload["args"] == {"to_col": "Done"}  # column KEY, not name
+    assert payload["caller"] == "agent"  # ADVISORY only — the daemon derives authority
 
-    ``InProgress`` / ``PRCI`` / ``Review`` are each the destination of a prompt-bearing
-    transition in the whitelist, so moving a card into one would re-fire that launch — the
-    guard refuses (DESIGN §8.0.5), keyed on the whitelist, not a column class.
+
+def test_enqueues_key_when_given_a_human_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A target given as a human NAME is resolved locally to its canonical KEY before enqueue."""
+    store = _wire(monkeypatch)
+    assert main(["7", "Ready to dev", "--no-wait"]) == 0
+    assert _only_intent(store)["args"] == {"to_col": "ReadyToDev"}
+
+
+def test_helper_is_network_free(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The helper no longer constructs a GitHub client or loads a token (network-free, 0.4.0)."""
+    _wire(monkeypatch)
+    # The direct-GitHub wiring is gone — these names must not even exist on the module any more.
+    assert not hasattr(kanban_move, "GithubClient")
+    assert not hasattr(kanban_move, "load_token")
+    # And nothing in main() reaches GitHub: a --no-wait run completes purely against the fake store.
+    assert main(["7", "Done", "--no-wait"]) == 0
+
+
+def test_enqueue_nudges_the_daemon(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The helper nudges the daemon after enqueuing so the move drains near-instantly (0.4.0)."""
+    store = _wire(monkeypatch)
+    assert main(["7", "Done", "--no-wait"]) == 0
+    assert store.nudges == 1
+
+
+# ---------------------------------------------------------------------------
+# Cheap pre-flight anti-loop guard (DESIGN §8.0.5) — refuses a launch target
+# ---------------------------------------------------------------------------
+
+
+def test_refuses_launch_target_no_enqueue(monkeypatch: pytest.MonkeyPatch) -> None:
+    """REFUSE: a launch-transition target exits non-zero and enqueues NOTHING (anti-loop).
+
+    ``InProgress`` / ``PRCI`` / ``Review`` are each the destination of a prompt-bearing transition,
+    so moving a card into one would re-fire that launch — the cheap pre-flight guard refuses BEFORE
+    enqueuing (the daemon's wildcard-aware check is authoritative, but this is the fast UX path).
     """
-    board = FakeBoard()
-    _wire(monkeypatch, board)
-
-    # By key.
+    store = _wire(monkeypatch)
     assert main(["7", "InProgress"]) == 1
     assert main(["7", "PRCI"]) == 1
     assert main(["7", "Review"]) == 1
     # And by human-readable name (resolved to its key before the membership test).
     assert main(["7", "In Progress"]) == 1
-
-    # The whole point: no move was ever issued for a launch target.
-    assert board.calls == []
-
-
-def test_moves_to_inert_target(monkeypatch: pytest.MonkeyPatch) -> None:
-    """ALLOW: a non-launch (inert/terminal) target calls move_card with the column NAME."""
-    board = FakeBoard()
-    _wire(monkeypatch, board)
-
-    # Backlog, Ready to dev, and Done are not launch-transition targets.
-    assert main(["7", "Backlog"]) == 0
-    assert main(["7", "Ready to dev"]) == 0
-    assert main(["7", "Done"]) == 0
-    assert board.calls == [
-        ("move", "PVTI_ITEM", "Backlog"),
-        ("move", "PVTI_ITEM", "Ready to dev"),
-        ("move", "PVTI_ITEM", "Done"),
-    ]
+    # The whole point: no intent was ever enqueued for a launch target.
+    assert store.intents == {}
+    assert store.nudges == 0
 
 
-def test_moves_to_inert_merge_is_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
-    """ALLOW: ``Merge`` is reachable — ``Review → Merge`` is a SCRIPT gate, not a prompt.
+def test_enqueues_to_inert_target(monkeypatch: pytest.MonkeyPatch) -> None:
+    """ALLOW: a non-launch (inert/terminal) target enqueues a move."""
+    store = _wire(monkeypatch)
+    assert main(["7", "Backlog", "--no-wait"]) == 0
+    assert _only_intent(store)["args"] == {"to_col": "Backlog"}
 
-    Because the guard keys on PROMPT-bearing transitions, the script-gated ``Review → Merge``
-    row does NOT make ``Merge`` a launch target, so an agent may move a card into it. This is
-    the merge=human-only preservation (DESIGN §8.0.5): the merge boundary rests on Merge being
-    unreachable as a launch target + branch protection + the ``gh pr merge`` ban, not on this
-    client-side refusal.
+
+def test_enqueues_to_merge_is_allowed_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
+    """ALLOW (pre-flight): ``Merge`` is not a launch target (its row is a SCRIPT gate, no prompt).
+
+    The cheap pre-flight keys on PROMPT-bearing transitions, so it does not refuse Merge here; the
+    Merge deny is enforced authoritatively daemon-side (``validate_intent``). This test only asserts
+    the helper does not block the enqueue at pre-flight.
     """
-    board = FakeBoard()
-    _wire(monkeypatch, board)
-
-    assert main(["7", "Merge"]) == 0
-    assert board.calls == [("move", "PVTI_ITEM", "Merge")]
-
-
-def test_moves_to_reactive_target(monkeypatch: pytest.MonkeyPatch) -> None:
-    """ALLOW: a reactive no-op target (e.g. Cancel, a ``(*, to)`` no-prompt row) is permitted."""
-    board = FakeBoard()
-    _wire(monkeypatch, board)
-
-    assert main(["7", "Cancel"]) == 0
-    assert board.calls == [("move", "PVTI_ITEM", "Cancel")]
+    store = _wire(monkeypatch)
+    assert main(["7", "Merge", "--no-wait"]) == 0
+    assert _only_intent(store)["args"] == {"to_col": "Merge"}
 
 
 # ---------------------------------------------------------------------------
@@ -249,44 +254,25 @@ def test_moves_to_reactive_target(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_bad_arity_is_usage_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Wrong number of arguments is a usage error (exit 2), no move issued."""
-    board = FakeBoard()
-    _wire(monkeypatch, board)
-
+    """Wrong number of positionals is a usage error (exit 2), nothing enqueued."""
+    store = _wire(monkeypatch)
     assert main(["7"]) == 2
     assert main(["7", "Backlog", "extra"]) == 2
-    assert board.calls == []
+    assert store.intents == {}
 
 
 def test_non_int_issue_is_usage_error(monkeypatch: pytest.MonkeyPatch) -> None:
     """A non-integer issue is rejected (exit 2), not a crash."""
-    board = FakeBoard()
-    _wire(monkeypatch, board)
-
+    store = _wire(monkeypatch)
     assert main(["notanint", "Backlog"]) == 2
-    assert board.calls == []
+    assert store.intents == {}
 
 
 def test_hash_prefixed_issue_is_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A leading ``#`` on the issue arg is stripped defensively (defect 3), not rejected.
-
-    An agent that types ``kanban-move #7 Backlog`` (quoted, by habit) must still move the card —
-    the helper strips ONE leading ``#`` before int-parsing.
-    """
-    board = FakeBoard()
-    _wire(monkeypatch, board)
-
-    assert main(["#7", "Backlog"]) == 0
-    assert board.calls == [("move", "PVTI_ITEM", "Backlog")]
-
-
-def test_missing_item_id_exits_one(monkeypatch: pytest.MonkeyPatch) -> None:
-    """No persisted item id for the ticket fails cleanly (exit 1), no move issued."""
-    board = FakeBoard()
-    _wire(monkeypatch, board, state=None)
-
-    assert main(["7", "Backlog"]) == 1
-    assert board.calls == []
+    """A leading ``#`` on the issue arg is stripped defensively (defect 3), not rejected."""
+    store = _wire(monkeypatch)
+    assert main(["#7", "Backlog", "--no-wait"]) == 0
+    assert _only_intent(store)["issue"] == 7
 
 
 def test_wiring_failure_exits_one_not_crash(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -296,58 +282,142 @@ def test_wiring_failure_exits_one_not_crash(monkeypatch: pytest.MonkeyPatch) -> 
         raise RuntimeError("no registered project")
 
     monkeypatch.setattr(kanban_move, "_resolve_entry", _boom)
+    assert main(["7", "Backlog", "--no-wait"]) == 1
 
+
+# ---------------------------------------------------------------------------
+# R1 pin enforcement — refuses a mismatched worktree pin BEFORE any write
+# ---------------------------------------------------------------------------
+
+
+def test_pin_mismatch_refuses_before_enqueue(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A worktree pinned to a DIFFERENT issue refuses (exit 1) and enqueues nothing (R1, layer 1)."""
+    store = _wire(monkeypatch)
+    monkeypatch.setattr(kanban_move, "check_pin", lambda issue, **k: "refusing: pinned to #99")
     assert main(["7", "Backlog"]) == 1
+    assert store.intents == {}
+    assert store.nudges == 0
+    assert store.advances == []
 
 
 # ---------------------------------------------------------------------------
-# Advance breadcrumb (DESIGN §8.1.e) — written synchronously AFTER a successful move
+# Advance breadcrumb — written ONLY on a confirmed (non-rejected) move
 # ---------------------------------------------------------------------------
 
 
-def test_records_advance_breadcrumb_after_successful_move(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A successful move drops the advance breadcrumb keyed by ISSUE number (8.1.d invariant).
+def test_no_breadcrumb_under_no_wait(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``--no-wait`` enqueues the move but writes NO advance breadcrumb (the false-✅ fix).
 
-    The breadcrumb is the proof the daemon's ✅-on-advance finalize relies on; it must be written
-    synchronously, keyed by the issue (``7``), AFTER ``move_card`` lands.
+    Under ``--no-wait`` the helper returns immediately and never polls the daemon's terminal result,
+    so it cannot tell an accepted move from a daemon-REJECTED one. Writing the optimistic breadcrumb
+    there would leave a FALSE ✅ on a rejected move — so it must write NONE. The intent is still
+    enqueued + nudged (those are unconditional); only the breadcrumb is gated on confirmation.
     """
-    board = FakeBoard()
-    store = _wire(monkeypatch, board)
-
-    assert main(["7", "Backlog"]) == 0
-    # The move landed first, then exactly one breadcrumb keyed by the ISSUE number.
-    assert board.calls == [("move", "PVTI_ITEM", "Backlog")]
-    assert [issue for issue, _now in store.advances] == [7]
+    store = _wire(monkeypatch)
+    assert main(["7", "Backlog", "--no-wait"]) == 0
+    assert len(store.intents) == 1  # the move IS enqueued
+    assert store.nudges == 1  # and the daemon nudged
+    assert store.advances == []  # but NO breadcrumb (the move is unconfirmed under --no-wait)
 
 
 def test_advance_breadcrumb_failure_does_not_fail_the_move(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """A breadcrumb-write failure warns to stderr but NEVER aborts the move (warn-not-abort).
+    """A breadcrumb-write failure on a confirmed move warns to stderr but NEVER aborts (warn-not-abort).
 
-    The move already landed on GitHub, so a failing ``record_agent_advance`` must not change the
-    exit code — the helper still returns ``0`` and only logs a warning.
+    The move is already enqueued + confirmed ``done``, so a failing ``record_agent_advance`` must not
+    change the exit code — the helper still returns ``0`` and only logs a warning. Exercised on the
+    ``--wait`` ``done`` path (the only path that writes the breadcrumb now).
     """
-    board = FakeBoard()
-    _wire(monkeypatch, board, raise_on_advance=True)
-
-    # The move succeeds (exit 0) despite the breadcrumb write blowing up.
-    assert main(["7", "Backlog"]) == 0
-    assert board.calls == [("move", "PVTI_ITEM", "Backlog")]
-    # The failure is surfaced as a warning on stderr (not a traceback, not a non-zero exit).
+    store = _wire(
+        monkeypatch,
+        result={"state": "done", "detail": "moved Backlog->Done"},
+        raise_on_advance=True,
+    )
+    assert main(["7", "Backlog"]) == 0  # default --wait, daemon confirmed done
+    assert len(store.intents) == 1  # the intent landed despite the breadcrumb failure
     assert "warning" in capsys.readouterr().err.lower()
 
 
-def test_no_breadcrumb_when_move_refused_for_launch_target(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """An anti-loop refusal (launch target) issues no move and therefore no breadcrumb."""
-    board = FakeBoard()
-    store = _wire(monkeypatch, board)
-
+def test_no_breadcrumb_when_refused_for_launch_target(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An anti-loop pre-flight refusal enqueues nothing and therefore drops no breadcrumb."""
+    store = _wire(monkeypatch)
     assert main(["7", "InProgress"]) == 1
-    assert board.calls == []
+    assert store.intents == {}
     assert store.advances == []
+
+
+# ---------------------------------------------------------------------------
+# --wait: terminal result handling (done writes the breadcrumb; rejected writes none)
+# ---------------------------------------------------------------------------
+
+
+def test_wait_done_returns_zero_and_writes_breadcrumb(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``--wait`` (default) on a daemon ``done`` result returns 0 and WRITES the breadcrumb.
+
+    The breadcrumb is written ONLY here (a confirmed move), keyed by the issue (``7``), so
+    session-end reads it as ✅ advanced.
+    """
+    store = _wire(monkeypatch, result={"state": "done", "detail": "moved Backlog->Done"})
+    assert main(["7", "Done"]) == 0  # default --wait
+    assert [issue for issue, _ in store.advances] == [7]  # breadcrumb written on confirmation
+
+
+def test_wait_reject_writes_no_breadcrumb_and_returns_one(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``--wait`` on a daemon ``rejected`` result writes NO breadcrumb and returns 1.
+
+    A refused move must not leave a false ✅-signal for session-end to read. Because the breadcrumb is
+    now written only on a CONFIRMED move (never optimistically at enqueue), a rejection simply drops
+    nothing — there is no breadcrumb to clear.
+    """
+    store = _wire(monkeypatch, result={"state": "rejected", "detail": "would re-fire a launch"})
+    assert main(["7", "Done"]) == 1
+    assert store.advances == []  # never written for a rejected move
+    assert store.cleared == []  # nothing to clear (none was ever written)
+
+
+def test_wait_timeout_writes_breadcrumb_and_returns_zero(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``--wait`` that times out (no terminal result) writes the breadcrumb (benign-accept) + returns 0.
+
+    A timeout is benign — the daemon still applies the un-rejected move on a later tick — so the
+    breadcrumb is written (the expected outcome is acceptance) and the helper returns 0.
+    """
+    # No injected result → load_intent_result returns None forever → the wait loop times out.
+    store = _wire(monkeypatch, result=None)
+    # Make the deadline fire after one poll so the test does not burn the real 15 s budget.
+    monkeypatch.setattr("kanbanmate.bin.kanban_move._WAIT_TIMEOUT_SECONDS", 0.0)
+    assert main(["7", "Done"]) == 0
+    assert [issue for issue, _ in store.advances] == [7]  # benign-accept → breadcrumb written
+
+
+def test_no_wait_returns_zero_without_polling(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``--no-wait`` returns 0 immediately after enqueue (no result polling, NO breadcrumb)."""
+    # A rejected result is injected, but --no-wait must NOT read it (and writes no breadcrumb anyway).
+    store = _wire(monkeypatch, result={"state": "rejected", "detail": "x"})
+    assert main(["7", "Done", "--no-wait"]) == 0
+    assert store.advances == []  # --no-wait never confirms, so never writes
+    assert store.cleared == []  # and never clears
+
+
+# ---------------------------------------------------------------------------
+# $KANBAN_ROOT routing
+# ---------------------------------------------------------------------------
+
+
+def test_kanban_root_env_routes_enqueue(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``$KANBAN_ROOT`` is passed to the store so the enqueue targets the launching daemon's root."""
+    captured: dict[str, object] = {}
+
+    def _capture_store(root: object = None, *a: object, **k: object) -> FakeStore:
+        captured["root"] = root
+        return FakeStore()
+
+    monkeypatch.setenv("KANBAN_ROOT", "/tmp/kanban-km")
+    monkeypatch.setattr(kanban_move, "_resolve_entry", lambda: _FakeEntry())
+    monkeypatch.setattr(kanban_move, "_load_clone_columns", lambda entry: _COLUMNS)
+    monkeypatch.setattr(kanban_move, "_load_clone_transitions", lambda entry: _TRANSITIONS)
+    monkeypatch.setattr(kanban_move, "FsStateStore", _capture_store)
+
+    assert main(["7", "Backlog", "--no-wait"]) == 0
+    assert captured["root"] == "/tmp/kanban-km"

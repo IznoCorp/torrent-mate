@@ -18,8 +18,25 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from collections.abc import Mapping
 from pathlib import Path
+
+#: The intent-queue directory name under the store root. The SINGLE source of truth for both this
+#: adapter (``_intents_dir``) and the daemon's path-local nudge reader (``loop._NUDGE_RELPATH`` is
+#: derived from this + :data:`NUDGE_FILENAME`), so the two can never drift (#3 de-dup).
+INTENTS_DIRNAME = "intents"
+
+#: The nudge-sentinel filename inside ``intents/``. A dotfile so it is invisible to ``glob("*.json")``
+#: (never listed as a pending intent) and to ``glob("*.result.json")`` (never GC'd as a result). This
+#: is the SINGLE definition of the name: the daemon loop imports it (it may import the store adapter —
+#: ``daemon`` is a top entrypoint, no upward-import constraint) to build its path, so a rename here
+#: propagates to both ends and the two constants can never disagree (#3 de-dup).
+NUDGE_FILENAME = ".nudge"
+
+#: Back-compat private alias (this module's internal call sites historically used the underscore
+#: name). Kept pointing at the public constant so there is still ONE value.
+_NUDGE_FILENAME = NUDGE_FILENAME
 
 
 class IntentsStateMixin:
@@ -106,12 +123,55 @@ class IntentsStateMixin:
                 continue
 
     # ------------------------------------------------------------------
+    # Daemon nudge sentinel (0.4.0) — wake a sleeping daemon early on enqueue.
+    # ------------------------------------------------------------------
+
+    def nudge_daemon(self) -> None:
+        """Bump the nudge sentinel's mtime so a sleeping daemon wakes and drains early (0.4.0).
+
+        Cross-process signal: the CLI/agent enqueuer and the daemon run in separate processes, so an
+        in-memory event cannot bridge them. The enqueue side touches ``intents/.nudge`` (this method)
+        and the daemon's interruptible inter-tick sleep returns early when it observes the mtime
+        advance past the value it captured at sleep entry.
+
+        Best-effort by design: ANY failure is swallowed so a nudge failure simply degrades to the
+        normal full-interval sleep — it must never break an enqueue or crash the caller. The write
+        goes through the existing atomic primitive (temp-file + ``os.replace``) so a concurrent daemon
+        ``stat()`` never sees a half-written file, and ``os.replace`` advances the mtime.
+        """
+        try:
+            self._ensure_intents_dir()
+            # A tiny timestamp payload makes the file non-empty + human-inspectable; the daemon only
+            # reads the mtime, so the content is incidental.
+            self._atomic_write_intent(self._nudge_path(), str(time.time()))
+        except Exception:  # noqa: BLE001 — best-effort: a nudge failure degrades to normal sleep
+            pass
+
+    def nudge_mtime(self) -> float:
+        """Return the nudge sentinel's mtime (epoch seconds), or ``0.0`` when absent/unreadable.
+
+        Fail-soft: an absent sentinel (the common steady state) or any stat error degrades to
+        ``0.0``, so a daemon polling this never crashes — it simply treats "no nudge" as the case.
+
+        Returns:
+            The sentinel's POSIX mtime, or ``0.0`` when the file is absent or unreadable.
+        """
+        try:
+            return self._nudge_path().stat().st_mtime
+        except (FileNotFoundError, OSError):
+            return 0.0
+
+    # ------------------------------------------------------------------
     # Paths + atomic primitives (self-contained — mirror fs_status_state).
     # ------------------------------------------------------------------
 
     def _intents_dir(self) -> Path:
         """Return the intent-queue directory (``intents/``)."""
-        return self.root / "intents"
+        return self.root / INTENTS_DIRNAME
+
+    def _nudge_path(self) -> Path:
+        """Return the daemon-nudge sentinel path (``intents/.nudge``)."""
+        return self._intents_dir() / _NUDGE_FILENAME
 
     def _intent_path(self, intent_id: str) -> Path:
         """Return the pending-intent marker path (``intents/<id>.json``)."""

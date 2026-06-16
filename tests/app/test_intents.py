@@ -230,6 +230,109 @@ def test_agent_move_into_launch_target_rejected() -> None:
     assert "re-fire" in str(store.results["i1"]["detail"])
 
 
+# ---------------------------------------------------------------------------
+# Agent-authority end-to-end (0.4.0 move-unification): agents now ENQUEUE move
+# intents (caller="agent", advisory) which the daemon drains under agent authority.
+# ---------------------------------------------------------------------------
+
+
+def _agent_move_intent(issue: int, to_col: str, requested_at: float = 1.0) -> dict[str, object]:
+    """A move intent carrying the ADVISORY ``caller="agent"`` (as the helper enqueues, 0.4.0)."""
+    return {
+        "kind": "move",
+        "issue": issue,
+        "args": {"to_col": to_col},
+        "requested_at": requested_at,
+        "caller": "agent",
+    }
+
+
+def test_agent_move_to_non_triggering_on_own_issue_executes() -> None:
+    """An agent move to a NON-triggering column on its OWN in-flight issue applies + advances baseline.
+
+    #8 is in the running set → agent authority; Backlog->Done is not prompt-bearing → allowed. The
+    move lands and ``next_columns`` advances so the next diff does NOT re-fire a launch.
+    """
+    store = _FakeStore(intents={"i1": _agent_move_intent(8, "Done")}, running=[_running(8)])
+    writer = _FakeWriter()
+    next_columns = _drain(store, writer)
+    assert writer.moves == [("PVTI_8", "Done")]
+    assert next_columns["PVTI_8"] == "Done"  # baseline advanced → no re-fire
+    assert store.results["i1"]["state"] == "done"
+    assert "i1" not in store.intents
+
+
+def test_agent_move_on_different_issue_rejected_r1() -> None:
+    """R1: the daemon passes ``launching_issue=intent.issue``, so an agent's own issue is the only
+    one it can act on — there is no path to move a DIFFERENT issue under agent authority.
+
+    Authority is derived per-issue: only the issue in the running set is bridled-agent. An intent for
+    a NON-running issue is OPERATOR authority (see the security-heart test below); an agent can never
+    smuggle a foreign-issue move because the issue it names IS the authority key.
+    """
+    # #8 running; the intent names #9 (not running) → authority resolves to OPERATOR, not agent.
+    store = _FakeStore(intents={"i1": _agent_move_intent(9, "Spec")}, running=[_running(8)])
+    writer = _FakeWriter()
+    _drain(store, writer)
+    # #9 → Spec under OPERATOR authority is broad (no re-fire guard) → it executes (proves authority
+    # is derived from the running set, not the spoofable caller field).
+    assert writer.moves == [("PVTI_9", "Spec")]
+    assert store.results["i1"]["state"] == "done"
+
+
+def test_caller_agent_but_not_running_resolves_to_operator() -> None:
+    """SECURITY HEART: ``caller="agent"`` is advisory — a non-running issue is OPERATOR authority.
+
+    An attacker-controlled ``caller="agent"`` for an issue the daemon did NOT launch must NOT bridle
+    the move (or, conversely, must not grant agent privileges); the daemon derives authority SOLELY
+    from its running-set bookkeeping. #8 is not running, so despite ``caller="agent"`` the move into a
+    launch target (Spec) is allowed under operator authority (the re-fire guard is agent-only).
+    """
+    store = _FakeStore(intents={"i1": _agent_move_intent(8, "Spec")}, running=[])  # nothing running
+    writer = _FakeWriter()
+    _drain(store, writer)
+    # Operator authority → broad → the move into the prompt-bearing Spec executes (no agent re-fire
+    # guard applied), proving authority came from the running set, not the caller field.
+    assert writer.moves == [("PVTI_8", "Spec")]
+    assert store.results["i1"]["state"] == "done"
+
+
+def test_agent_move_into_merge_rejected() -> None:
+    """An agent move into the human-only ``Merge`` column is rejected (merge=human-only)."""
+    columns_yaml = _COLUMNS_YAML + "  - key: Merge\n    name: Merge\n"
+    config = TickConfig(
+        columns=load_columns(columns_yaml),
+        transitions=load_transitions(_WHITELIST),
+        concurrency_cap=3,
+    )
+    store = _FakeStore(intents={"i1": _agent_move_intent(8, "Merge")}, running=[_running(8)])
+    writer = _FakeWriter()
+    next_columns: dict[str, str] = {}
+    drain_intents(
+        _deps(store, writer),
+        config,
+        snapshot=_snapshot(_ticket(8, "Backlog")),
+        next_columns=next_columns,
+        running=tuple(store.running),
+        status_events=[],
+        now=1000.0,
+        kill_switch=False,
+    )
+    assert writer.moves == []
+    assert store.results["i1"]["state"] == "rejected"
+    assert "Merge" in str(store.results["i1"]["detail"])
+
+
+def test_agent_move_held_under_pause() -> None:
+    """An agent move (own running issue) is HELD under PAUSE (left pending until resume)."""
+    store = _FakeStore(intents={"i1": _agent_move_intent(8, "Done")}, running=[_running(8)])
+    writer = _FakeWriter()
+    _drain(store, writer, kill_switch=True)
+    assert writer.moves == []
+    assert store.results["i1"]["state"] == "held"
+    assert "i1" in store.intents  # held → still pending
+
+
 def test_pause_holds_agent_intent_but_runs_operator() -> None:
     # Agent intent (#8 running) is HELD under PAUSE (left pending); operator intent (#9) still runs.
     store = _FakeStore(

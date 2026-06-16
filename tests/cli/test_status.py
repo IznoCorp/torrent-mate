@@ -368,6 +368,14 @@ class _FakeStore:
         """Unused by the read-only commands (intent queue, cockpit PR2)."""
         return None
 
+    def nudge_daemon(self) -> None:  # pragma: no cover
+        """Unused by the read-only commands (daemon nudge sentinel, 0.4.0)."""
+        pass
+
+    def nudge_mtime(self) -> float:  # pragma: no cover
+        """Unused by the read-only commands (daemon nudge sentinel, 0.4.0)."""
+        return 0.0
+
 
 class _FakeSessions:
     """A :class:`~kanbanmate.ports.workspace.Sessions` stub with scripted liveness."""

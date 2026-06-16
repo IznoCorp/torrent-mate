@@ -1,7 +1,8 @@
 """Enqueue an operator board-move intent (cockpit PR2).
 
 ``kanban move <issue> <column>`` enqueues a move :class:`~kanbanmate.core.intent.Intent` into the
-``~/.kanban/intents/`` queue; the **daemon** is the sole executor — it applies the move on its tick
+``~/.kanban/intents/`` queue then nudges the daemon (0.4.0) so it wakes from its inter-tick sleep and
+drains the move near-instantly; the **daemon** is the sole executor — it applies the move on its tick
 (re-validating + advancing the diff baseline so the move never re-fires a launch). ``--wait`` blocks
 on the result the daemon writes (``done`` / ``rejected``) up to a timeout, then surfaces it.
 
@@ -63,6 +64,11 @@ def move(
             "caller": "operator",
         },
     )
+    # Nudge the daemon so it wakes from its inter-tick sleep and drains this intent near-instantly
+    # rather than after a full poll interval (0.4.0). Best-effort: the store method swallows any
+    # failure, degrading to the normal full-interval cadence. CONVENTION: every ``enqueue_intent`` is
+    # paired with ``nudge_daemon`` (see also ``bin/kanban_move``; future PR3 enqueuers follow).
+    store.nudge_daemon()
     if not wait:
         return (
             f"kanban move: enqueued #{issue} → {to_col} (intent {intent_id}); the daemon applies it "

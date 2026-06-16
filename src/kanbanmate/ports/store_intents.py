@@ -74,3 +74,29 @@ class IntentStore(Protocol):
             ttl: The maximum age (seconds) a result file may reach before it is unlinked.
         """
         ...
+
+    def nudge_daemon(self) -> None:
+        """Touch the nudge sentinel so a sleeping daemon wakes and drains the queue early (0.4.0).
+
+        The convention is **every** :meth:`enqueue_intent` is followed by :meth:`nudge_daemon` so an
+        enqueued intent does not wait out a full poll interval before the daemon drains it. The
+        sentinel is the cross-process signal (the CLI/agent and the daemon are separate processes, so
+        an in-memory ``threading.Event`` cannot bridge them): this bumps the mtime of
+        ``<root>/intents/.nudge`` and the daemon's interruptible inter-tick sleep returns early when
+        it observes the mtime advance.
+
+        Best-effort: any failure is swallowed (the daemon still drains on its normal interval), so a
+        nudge failure degrades gracefully to the full-interval cadence.
+        """
+        ...
+
+    def nudge_mtime(self) -> float:
+        """Return the nudge sentinel's mtime (epoch seconds), or ``0.0`` when absent/unreadable.
+
+        The daemon's interruptible sleep captures this at sleep entry and returns early when it
+        advances. Degrades to ``0.0`` (fail-soft) so a missing sentinel never crashes the loop.
+
+        Returns:
+            The sentinel's POSIX mtime, or ``0.0`` when the file is absent or unreadable.
+        """
+        ...

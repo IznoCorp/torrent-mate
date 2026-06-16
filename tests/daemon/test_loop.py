@@ -25,8 +25,11 @@ from kanbanmate.daemon.loop import (
     PAUSE_FILENAME,
     DaemonConfig,
     DaemonLockError,
+    _ShutdownFlag,
     _acquire_lock,
+    _interruptible_sleep,
     _load_wiring_config,
+    _make_nudge_reader,
     _wiring_from_registry,
     run_loop,
 )
@@ -903,12 +906,32 @@ def test_run_loop_backs_off_during_failures_then_snaps_back(
 
     monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _fail4_then_succeed)
 
-    sleeps: list[float] = []
-    run_loop(daemon_config, max_iterations=5, sleep=lambda s: sleeps.append(s))
+    # The inter-tick sleep is now SLICED (0.4.0 interruptible sleep): the injected ``sleep`` records
+    # each 0.5 s slice. With no nudge the slices SUM to the per-iteration ``delay``, so group the
+    # slices per ``_interruptible_sleep`` call by snapshotting the running total at each tick boundary.
+    per_tick_totals: list[float] = []
+    running = [0.0]
+
+    def _record_slice(s: float) -> None:
+        running[0] += s
+
+    def _tick_boundary(_wiring: WiringConfig, state: PersistedState | None):  # type: ignore[no-untyped-def]
+        # Close out the previous iteration's accumulated sleep at the START of the next tick.
+        if running[0] > 0:
+            per_tick_totals.append(round(running[0], 6))
+            running[0] = 0.0
+        return _fail4_then_succeed(_wiring, state)
+
+    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _tick_boundary)
+    run_loop(daemon_config, max_iterations=5, sleep=_record_slice)
+    # Flush the final iteration's sleep (no tick after it to close the boundary).
+    if running[0] > 0:
+        per_tick_totals.append(round(running[0], 6))
 
     # Failures 1,2 → base (below threshold); failure 3 → base*2**0=10; failure 4 → base*2**1=20;
-    # success on tick 5 → snap back to base 10.
-    assert sleeps == [10.0, 10.0, 10.0, 20.0, 10.0]
+    # success on tick 5 → snap back to base 10. The interruptible sleep slices each total but the
+    # sums are unchanged (no nudge ever fires here).
+    assert per_tick_totals == [10.0, 10.0, 10.0, 20.0, 10.0]
 
 
 def test_run_loop_max_iterations_zero_exits_immediately(
@@ -1258,3 +1281,291 @@ def test_main_without_root_uses_default(monkeypatch: pytest.MonkeyPatch) -> None
 
     assert captured.get("called") is True
     assert captured["config"] is None
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 0.4.0 — interruptible inter-tick sleep (nudge)
+# ════════════════════════════════════════════════════════════════════════════
+
+
+def _slept_recorder() -> tuple[list[float], object]:
+    """Return a (slept-list, sleep-callable) pair recording each injected slice."""
+    slept: list[float] = []
+
+    def _sleep(s: float) -> None:
+        slept.append(s)
+
+    return slept, _sleep
+
+
+def test_interruptible_sleep_no_nudge_sleeps_full_delay() -> None:
+    """With a constant nudge mtime the sleep sums to the full ``delay`` (within one slice)."""
+    slept, _sleep = _slept_recorder()
+    _interruptible_sleep(
+        2.0,
+        sleep=_sleep,  # type: ignore[arg-type]
+        nudge_mtime=lambda: 100,  # constant → no early wake (int ns, #5)
+        flag=_ShutdownFlag(),
+        slice_seconds=0.5,
+    )
+    assert sum(slept) == pytest.approx(2.0)
+    assert slept == [0.5, 0.5, 0.5, 0.5]
+
+
+def test_interruptible_sleep_wakes_early_on_nudge() -> None:
+    """A nudge (mtime bump) after the first slice returns EARLY (does not sleep the full delay)."""
+    slept, _sleep = _slept_recorder()
+    mtimes = iter([100, 200])  # baseline at entry, then a bump after the first slice (int ns, #5)
+
+    def _nudge() -> int:
+        return next(mtimes, 200)
+
+    _interruptible_sleep(
+        10.0,
+        sleep=_sleep,  # type: ignore[arg-type]
+        nudge_mtime=_nudge,
+        flag=_ShutdownFlag(),
+        slice_seconds=0.5,
+    )
+    # Baseline read once at entry (100.0); after the first 0.5 s slice the read is 200.0 > 100.0 → wake.
+    assert slept == [0.5]
+
+
+def test_interruptible_sleep_honours_shutdown_flag() -> None:
+    """Setting the shutdown flag during the sleep returns early (≤ one slice)."""
+    slept: list[float] = []
+    flag = _ShutdownFlag()
+
+    def _sleep(s: float) -> None:
+        slept.append(s)
+        flag.requested = True  # simulate SIGTERM arriving during the first slice
+
+    _interruptible_sleep(
+        10.0,
+        sleep=_sleep,
+        nudge_mtime=lambda: 0,
+        flag=flag,
+        slice_seconds=0.5,
+    )
+    assert slept == [0.5]  # exited after the in-flight slice
+
+
+def test_interruptible_sleep_fail_soft_on_mtime_error() -> None:
+    """A ``nudge_mtime`` that raises degrades to a full-interval sleep (no crash)."""
+    slept, _sleep = _slept_recorder()
+
+    def _boom() -> int:
+        raise OSError("stat blew up")
+
+    # Must NOT raise; the baseline read fails → treated as no-nudge, the per-slice read also fails →
+    # ignored, so it sleeps the full delay.
+    _interruptible_sleep(
+        1.5,
+        sleep=_sleep,  # type: ignore[arg-type]
+        nudge_mtime=_boom,
+        flag=_ShutdownFlag(),
+        slice_seconds=0.5,
+    )
+    assert sum(slept) == pytest.approx(1.5)
+
+
+def test_interruptible_sleep_zero_delay_returns_immediately() -> None:
+    """``delay <= 0`` returns without sleeping at all."""
+    slept, _sleep = _slept_recorder()
+    _interruptible_sleep(
+        0.0,
+        sleep=_sleep,  # type: ignore[arg-type]
+        nudge_mtime=lambda: 0,
+        flag=_ShutdownFlag(),
+    )
+    assert slept == []
+
+
+def test_make_nudge_reader_absent_then_present(tmp_path: Path) -> None:
+    """The path-local nudge reader returns 0 when absent and the NS mtime once the sentinel exists."""
+    reader = _make_nudge_reader(tmp_path)
+    assert reader() == 0  # sentinel absent (int zero, #5 ns reader)
+    sentinel = tmp_path / "intents" / ".nudge"
+    sentinel.parent.mkdir(parents=True)
+    sentinel.write_text("x")
+    assert reader() == sentinel.stat().st_mtime_ns  # nanosecond resolution (#5)
+
+
+def test_run_loop_integration_sleeps_full_delay_without_nudge(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """End-to-end: with no nudge the per-iteration sleep still sums to ``delay`` (sliced)."""
+    config_yml, _columns_yml = _setup_config_files(tmp_path)
+    daemon_config = DaemonConfig(kanban_root=tmp_path, config_path=config_yml)
+    monkeypatch.setattr("kanbanmate.daemon.loop.next_sleep", lambda *a, **k: 1.0)
+    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _mock_run_one_tick_success)
+
+    slept: list[float] = []
+    run_loop(daemon_config, max_iterations=2, sleep=lambda s: slept.append(s))
+
+    # Two iterations × 1.0 s delay, each sliced into 0.5 s chunks → four 0.5 s slices, summing to 2.0.
+    assert sum(slept) == pytest.approx(2.0)
+    assert all(s == pytest.approx(0.5) for s in slept)
+
+
+def test_run_loop_integration_wakes_early_when_nudged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """End-to-end: a nudge sentinel bumped during the sleep wakes the loop within one slice."""
+    config_yml, _columns_yml = _setup_config_files(tmp_path)
+    daemon_config = DaemonConfig(kanban_root=tmp_path, config_path=config_yml)
+    monkeypatch.setattr("kanbanmate.daemon.loop.next_sleep", lambda *a, **k: 10.0)
+    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _mock_run_one_tick_success)
+
+    nudge = tmp_path / "intents" / ".nudge"
+    slept: list[float] = []
+
+    def _sleep(s: float) -> None:
+        slept.append(s)
+        # On the first slice, simulate an enqueue nudging the daemon (bump the sentinel mtime).
+        if len(slept) == 1:
+            nudge.parent.mkdir(parents=True, exist_ok=True)
+            nudge.write_text(str(len(slept)))
+
+    run_loop(daemon_config, max_iterations=1, sleep=_sleep)
+
+    # The 10 s delay would be 20 slices without a nudge; the bump after slice 1 wakes it immediately.
+    assert slept == [0.5]
+
+
+def test_run_loop_integration_wakes_early_on_post_drain_window_nudge(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#2: an intent enqueued in the TICK's post-drain window still wakes the UPCOMING sleep early.
+
+    Pre-#2 the nudge baseline was captured at SLEEP ENTRY — AFTER ``drain_intents`` had run in the
+    just-completed tick — so a nudge that fired in the post-drain window (after the drain, before the
+    sleep) was already folded into the baseline and the sleep slept the full interval, deferring the
+    wake a whole cycle. The fix captures the baseline at TICK START (before ``run_one_tick`` /
+    ``drain_intents``), so a post-drain-window bump has an mtime > baseline and wakes THIS sleep.
+
+    Here the mocked tick bumps the sentinel from INSIDE ``run_one_tick`` (standing in for an enqueue
+    landing during the tick's post-drain processing). With the tick-start baseline, the very first
+    sleep slice already observes mtime > baseline → an immediate wake.
+    """
+    config_yml, _columns_yml = _setup_config_files(tmp_path)
+    daemon_config = DaemonConfig(kanban_root=tmp_path, config_path=config_yml)
+    monkeypatch.setattr("kanbanmate.daemon.loop.next_sleep", lambda *a, **k: 10.0)
+
+    nudge = tmp_path / "intents" / ".nudge"
+
+    def _tick_bumps_nudge(
+        wiring: WiringConfig, state: PersistedState | None
+    ) -> tuple[TickResult, PersistedState]:
+        # Simulate a post-drain-window enqueue: the sentinel is bumped DURING the tick, after the
+        # tick-start baseline was already captured by run_loop.
+        nudge.parent.mkdir(parents=True, exist_ok=True)
+        nudge.write_text("post-drain")
+        return (_make_tick_result(), state if state is not None else PersistedState())
+
+    monkeypatch.setattr("kanbanmate.daemon.loop.run_one_tick", _tick_bumps_nudge)
+
+    slept: list[float] = []
+    run_loop(daemon_config, max_iterations=1, sleep=lambda s: slept.append(s))
+
+    # The 10 s delay would be 20 slices; the post-drain bump (mtime > tick-start baseline) wakes the
+    # sleep after the very first slice rather than waiting out the full interval.
+    assert slept == [0.5]
+
+
+def test_interruptible_sleep_caller_baseline_wakes_on_pre_entry_bump() -> None:
+    """#2: with a caller-supplied baseline, a bump that PRECEDES sleep entry still wakes early.
+
+    Models the post-drain window: ``nudge_mtime`` already reads the bumped value at sleep entry (the
+    intent was enqueued before this sleep started). Because the baseline was captured EARLIER (at tick
+    start, here a smaller value), the first per-slice read is already > baseline → immediate wake.
+    Pre-#2, capturing the baseline at entry would have read the bumped value as the baseline and
+    missed the wake.
+    """
+    slept, _sleep = _slept_recorder()
+    _interruptible_sleep(
+        10.0,
+        sleep=_sleep,  # type: ignore[arg-type]
+        nudge_mtime=lambda: 200,  # already bumped (the enqueue landed in the post-drain window)
+        flag=_ShutdownFlag(),
+        baseline=100,  # captured EARLIER at tick start, before the bump (int ns, #5)
+        slice_seconds=0.5,
+    )
+    assert slept == [0.5]
+
+
+def test_interruptible_sleep_caller_baseline_no_false_wake() -> None:
+    """#2: a caller baseline EQUAL to the current mtime does not wake early (no drained-nudge replay).
+
+    A nudge already present + drained before tick start has an mtime == the tick-start baseline, so it
+    must NOT wake the sleep again (consume-on-read: exactly one wake per un-drained nudge). The strict
+    ``>`` comparison guarantees this — equal is not greater.
+    """
+    slept, _sleep = _slept_recorder()
+    _interruptible_sleep(
+        1.0,
+        sleep=_sleep,  # type: ignore[arg-type]
+        nudge_mtime=lambda: 100,  # unchanged from the baseline → already drained, no replay
+        flag=_ShutdownFlag(),
+        baseline=100,
+        slice_seconds=0.5,
+    )
+    assert sum(slept) == pytest.approx(1.0)  # slept the full delay (no early wake)
+
+
+def test_interruptible_sleep_detects_subsecond_bump_via_ns() -> None:
+    """#5: a sub-second mtime advance past the baseline still wakes early (nanosecond granularity).
+
+    On a coarse-mtime FS a same-second enqueue shares an identical second-granular ``st_mtime`` with
+    the baseline, so the strict ``>`` would MISS it. The loop's reader returns ``st_mtime_ns``, so a
+    nanosecond-level advance is visible. This unit test injects a baseline + a reader whose value is
+    only sub-second larger to prove the strict ``>`` fires on that fine-grained advance.
+    """
+    slept, _sleep = _slept_recorder()
+    # Baseline + a bump 1 ns later — what a coarse second-granular st_mtime would collapse to the SAME
+    # value. Kept as INT (the real reader returns st_mtime_ns, an int) so the +1 ns is exact: a float
+    # at this ~1.7e18 magnitude could not represent the +1 (float64 ULP > 1 there), which is precisely
+    # why the reader keeps the ns mtime as an int.
+    baseline_ns = 1_700_000_000_000_000_000
+    bumped_ns = baseline_ns + 1
+    _interruptible_sleep(
+        10.0,
+        sleep=_sleep,  # type: ignore[arg-type]
+        nudge_mtime=lambda: bumped_ns,
+        flag=_ShutdownFlag(),
+        baseline=baseline_ns,
+        slice_seconds=0.5,
+    )
+    assert slept == [0.5]  # the sub-second (ns) advance is detected → early wake
+
+
+def test_make_nudge_reader_returns_nanosecond_mtime(tmp_path: Path) -> None:
+    """#5: the path-local nudge reader reports ``st_mtime_ns`` (nanosecond resolution), not seconds."""
+    reader = _make_nudge_reader(tmp_path)
+    sentinel = tmp_path / "intents" / ".nudge"
+    sentinel.parent.mkdir(parents=True)
+    sentinel.write_text("x")
+    # The reader's value must equal the EXACT integer nanosecond mtime (kept as int, NOT cast to
+    # float — a float at this ~1.7e18 magnitude would round away sub-256 ns differences).
+    assert reader() == sentinel.stat().st_mtime_ns
+    assert isinstance(reader(), int)
+
+
+def test_interruptible_sleep_nonpositive_slice_does_not_busy_loop() -> None:
+    """#6: a ``slice_seconds <= 0`` is clamped to the default so it never busy-loops (sleep(0) spin).
+
+    Without the guard, ``chunk = min(slice, remaining)`` would be ``<= 0`` → ``sleep(0)`` never
+    decrements ``remaining`` → a tight infinite loop. The guard clamps the slice to the default, so the
+    sleep terminates in a bounded number of real slices summing to ``delay``.
+    """
+    slept, _sleep = _slept_recorder()
+    _interruptible_sleep(
+        1.0,
+        sleep=_sleep,  # type: ignore[arg-type]
+        nudge_mtime=lambda: 0,
+        flag=_ShutdownFlag(),
+        slice_seconds=0.0,  # degenerate — must be clamped to _NUDGE_SLICE_SECONDS, not busy-loop
+    )
+    # Clamped to the 0.5 s default → two slices summing to the 1.0 s delay (terminates, no spin).
+    assert slept == [0.5, 0.5]
+    assert sum(slept) == pytest.approx(1.0)

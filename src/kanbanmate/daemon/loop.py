@@ -18,6 +18,14 @@ The loop, per DESIGN §5:
   :class:`~kanbanmate.core.interval.IntervalConfig` gives a **fixed 10 s poll cadence** — the idle
   back-off is disabled by default, so a card move is detected within ~10 s no matter how long the
   board has been quiet (the back-off remains opt-in via an explicit ``idle_max > base``).
+* **Sleep-interrupt nudge (0.4.0)** — the inter-tick sleep is INTERRUPTIBLE: it sleeps in fixed
+  slices via :func:`_interruptible_sleep` and returns early the moment the intent-queue nudge
+  sentinel (``intents/.nudge``)'s mtime advances. The enqueue side (CLI ``kanban move`` /
+  ``kanban-move``) bumps the sentinel after every ``enqueue_intent``, so an enqueued intent is
+  drained within one slice (~0.5 s) instead of waiting out a full interval — WITHOUT lowering the
+  interval (no API-quota cost). The mechanism is fail-soft (a sentinel read failure degrades to a
+  full-interval sleep) and cross-process (a ``threading.Event`` cannot bridge the separate enqueuer
+  and daemon processes).
 * **Graceful shutdown** — a SIGTERM (or SIGINT) handler sets a flag the loop checks; the current
   tick always finishes before the process releases the lock and exits (no mid-tick kill).
 
@@ -39,6 +47,11 @@ from typing import IO
 
 import yaml
 
+# The nudge-sentinel name + its directory are owned by the store adapter (the queue's writer). The
+# daemon is a top entrypoint (no upward-import constraint, see test_layering FORBIDDEN), so it imports
+# those constants directly to build its path-local nudge reader — a SINGLE source of truth, so the two
+# ends can never drift on the filename (#3 de-dup).
+from kanbanmate.adapters.store.fs_intents import INTENTS_DIRNAME, NUDGE_FILENAME
 from kanbanmate.app.tick import PersistedState
 from kanbanmate.app.wiring import WiringConfig, run_one_tick
 from kanbanmate.core.heartbeat import Heartbeat, render_heartbeat
@@ -69,6 +82,17 @@ PAUSE_FILENAME = "PAUSE"
 _BACKOFF_AFTER_FAILURES = 3
 _BACKOFF_FACTOR = 2.0
 _BACKOFF_MAX = 300.0
+
+# The intent-queue nudge sentinel (0.4.0). The enqueue side (CLI/agent) bumps its mtime via
+# ``IntentStore.nudge_daemon``; the daemon's interruptible inter-tick sleep returns early when it
+# observes the mtime advance — so an enqueued intent is drained within one slice instead of a full
+# poll interval, WITHOUT lowering the interval (no API-quota cost). The path components are DERIVED
+# from the store adapter's own constants (#3 de-dup) so the name lives in exactly one place.
+_NUDGE_RELPATH = (INTENTS_DIRNAME, NUDGE_FILENAME)
+# Interruptible-sleep granularity: the worst-case nudge wake latency. 0.5 s is imperceptible for a
+# cockpit yet vastly tighter than the ~10 s full interval; at most ``delay/slice`` cheap ``stat()``
+# calls per inter-tick gap (~20 per 10 s) — not a busy-loop (each slice is a real ``sleep``).
+_NUDGE_SLICE_SECONDS = 0.5
 
 
 class DaemonLockError(RuntimeError):
@@ -391,6 +415,106 @@ def _clear_degraded(kanban_root: Path) -> None:
         logger.warning("failed to clear DEGRADED sentinel; continuing")
 
 
+def _make_nudge_reader(kanban_root: Path) -> Callable[[], int]:
+    """Return a closure reading the intent-queue nudge sentinel's NANOSECOND mtime (fail-soft → 0).
+
+    Reads the sentinel path directly rather than constructing a store just for the nudge — mirroring
+    the daemon's existing direct sentinel reads for PAUSE/DEGRADED, so the loop adds no eager adapter
+    pull. The canonical store reader (:meth:`IntentStore.nudge_mtime`) is used by tests + the
+    agent/CLI enqueue symmetry; the loop uses this cheap path-local twin (same file, same semantics).
+
+    #5 mtime-granularity fix: this returns ``st_mtime_ns`` (nanosecond resolution, an ``int``) rather
+    than the second-granular ``st_mtime``. On a coarse-mtime filesystem (1 s resolution) an enqueue
+    within the SAME second as the tick-start baseline could share an identical ``st_mtime`` → the
+    strict ``>`` comparison would MISS it (no early wake). Nanosecond mtimes make a same-second enqueue
+    resolvable, so the strict ``>`` stays correct (consume-on-read: still exactly one wake per
+    un-drained nudge) while detecting sub-second enqueues. The value is kept as an ``int`` (NOT cast to
+    ``float``): a ns timestamp (~1.7e18) exceeds float64's exact-integer range (2**53), so a float cast
+    would round away sub-~256 ns differences — exactly the fine-grained advances #5 needs to detect.
+
+    Args:
+        kanban_root: The runtime root under which ``intents/.nudge`` lives.
+
+    Returns:
+        A zero-arg closure returning the sentinel's POSIX mtime in NANOSECONDS (``int``), or ``0`` when
+        absent/unreadable.
+    """
+    nudge_path = kanban_root.joinpath(*_NUDGE_RELPATH)
+
+    def _read() -> int:
+        try:
+            return nudge_path.stat().st_mtime_ns
+        except (FileNotFoundError, OSError):
+            return 0
+
+    return _read
+
+
+def _interruptible_sleep(
+    delay: float,
+    *,
+    sleep: Callable[[float], object],
+    nudge_mtime: Callable[[], int],
+    flag: _ShutdownFlag,
+    baseline: int | None = None,
+    slice_seconds: float = _NUDGE_SLICE_SECONDS,
+) -> None:
+    """Sleep up to ``delay`` seconds, returning EARLY on a nudge (mtime bump) or shutdown (0.4.0).
+
+    Sleeps in fixed ``slice_seconds`` slices; after each slice it re-reads ``nudge_mtime`` and
+    returns the moment it advances past ``baseline`` — so an enqueued intent wakes the daemon within
+    one slice instead of a full interval, WITHOUT a busy-loop (each slice is a real ``sleep``) and
+    WITHOUT changing the poll interval. The shutdown flag is also honoured between slices, so a SIGTERM
+    during the inter-tick sleep exits within one slice (a bonus responsiveness improvement that does
+    not change the finish-tick-then-exit guarantee — the current tick already completed before this is
+    called). Fail-soft: a ``nudge_mtime`` read that raises is treated as "no nudge" (degrades to the
+    full-interval sleep).
+
+    Consume-on-read via mtime monotonicity. The ``baseline`` is captured by the CALLER at TICK START
+    (#2 fix), BEFORE ``run_one_tick`` (hence before ``drain_intents`` and the whole post-drain window),
+    rather than here at sleep entry. This closes a latency hole: an intent enqueued in the tick's
+    post-drain window (after ``drain_intents`` ran but before this sleep) now has an mtime > the
+    tick-start baseline → it wakes THIS sleep, instead of waiting a full extra cycle for the next
+    sleep-entry baseline to notice it. A single un-drained nudge still wakes exactly one sleep: a
+    nudge already present + drained before tick start has an mtime ≤ baseline (no wake); a nudge after
+    tick start (drained or not) wakes this sleep, and the next tick captures a fresh baseline. ``None``
+    falls back to capturing the baseline here (the pre-#2 behaviour, kept for the test seam).
+
+    Args:
+        delay: The full inter-tick sleep budget in seconds (``<= 0`` returns immediately).
+        sleep: The sleep callable (injected for tests); called once per slice.
+        nudge_mtime: The nudge-sentinel mtime reader (a bump past ``baseline`` wakes early).
+        flag: The shared shutdown flag, re-checked between slices.
+        baseline: The nudge-mtime baseline (nanoseconds, ``int``) captured by the caller at tick start
+            (#2). ``None`` → capture it here at sleep entry (legacy fallback / test seam).
+        slice_seconds: The slice granularity (the worst-case nudge wake latency). A ``<= 0`` value
+            degrades to :data:`_NUDGE_SLICE_SECONDS` so a misconfigured slice can never busy-loop
+            (``sleep(0)`` that never decrements ``remaining``) — defensive (#6).
+    """
+    if delay <= 0:
+        return
+    # #6 defensive guard: a non-positive slice would make ``chunk = min(slice, remaining)`` <= 0, so
+    # ``sleep(0)`` would never decrement ``remaining`` → a tight busy-loop. Clamp to the default.
+    if slice_seconds <= 0:
+        slice_seconds = _NUDGE_SLICE_SECONDS
+    if baseline is None:
+        # Legacy fallback (no caller-supplied baseline): capture at sleep entry, fail-soft to 0.
+        try:
+            baseline = nudge_mtime()
+        except Exception:  # noqa: BLE001 — fail-soft: degrade to a normal full-interval sleep
+            baseline = 0
+    remaining = delay
+    while remaining > 0 and not flag.requested:
+        chunk = min(slice_seconds, remaining)
+        sleep(chunk)
+        remaining -= chunk
+        try:
+            if nudge_mtime() > baseline:
+                return  # an intent was enqueued — wake now, drain on the next tick
+        except Exception:  # noqa: BLE001 — fail-soft: ignore a stat failure, keep sleeping
+            pass
+
+
 def run_loop(
     daemon_config: DaemonConfig | None = None,
     *,
@@ -437,6 +561,11 @@ def run_loop(
     flag = _ShutdownFlag()
     _install_signal_handlers(flag)
 
+    # The intent-queue nudge reader (0.4.0): a cheap path-local closure the interruptible sleep polls
+    # so an enqueued intent wakes the daemon within one slice instead of a full interval. Built once
+    # (the root is fixed for the process lifetime); fail-soft inside (a missing sentinel → 0.0).
+    nudge_mtime = _make_nudge_reader(config.kanban_root)
+
     lock_path = config.kanban_root / LOCK_FILENAME
     lock_handle = _acquire_lock(lock_path)
     logger.info("kanban daemon started (lock %s held)", lock_path)
@@ -481,6 +610,17 @@ def run_loop(
                 # reload is re-attempted only when the mtime changes again (a new
                 # write by the operator).
                 last_mtime = current_mtime
+
+            # #2 post-drain-window fix: capture the nudge baseline at TICK START — BEFORE
+            # run_one_tick (hence before drain_intents and the whole post-drain window) — rather than
+            # at sleep entry. An intent enqueued in this tick's post-drain window (after the drain ran,
+            # before the inter-tick sleep) then has an mtime > this baseline → it wakes THIS sleep
+            # instead of waiting a full extra cycle. Fail-soft: a read error degrades to 0.0 (treated
+            # as "no prior nudge"), so the upcoming sleep still wakes on any subsequent bump.
+            try:
+                nudge_baseline = nudge_mtime()
+            except Exception:  # noqa: BLE001 — fail-soft: a stat error → no baseline (wake on any bump)
+                nudge_baseline = 0
 
             # Step 2: one idempotent tick, threading the persisted baseline forward.
             try:
@@ -554,7 +694,15 @@ def run_loop(
             # above, snapping the delay back to the tight cadence.
             base_delay = next_sleep(last_activity, now, config.interval)
             delay = _failure_backoff_sleep(consecutive_failures, base_delay)
-            sleep(delay)
+            # Interruptible inter-tick sleep (0.4.0): sleeps the full ``delay`` UNLESS an intent is
+            # enqueued (the enqueue side bumps the nudge sentinel), in which case it returns within one
+            # slice so the next tick drains the intent near-instantly — no interval reduction, no API
+            # cost. Also wakes on the shutdown flag. The nudge interrupts the geometric back-off sleep
+            # too, so an operator intent wakes a backed-off daemon within a slice (desirable). The
+            # baseline is the TICK-START value (#2) so a post-drain-window enqueue still wakes here.
+            _interruptible_sleep(
+                delay, sleep=sleep, nudge_mtime=nudge_mtime, flag=flag, baseline=nudge_baseline
+            )
     finally:
         # Release the single-instance lock, log shutdown, and remove our
         # JSONL handler so test suites that call run_loop multiple times

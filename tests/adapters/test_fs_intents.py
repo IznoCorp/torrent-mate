@@ -99,3 +99,54 @@ class TestIntentResultGc:
         """GC on an absent ``intents/`` directory never raises."""
         store = FsStateStore(root=tmp_path)
         store.gc_intent_results(now=1.0, ttl=3600.0)  # must not raise
+
+
+class TestDaemonNudge:
+    """The daemon-nudge sentinel (``intents/.nudge``, 0.4.0) — wake a sleeping daemon early."""
+
+    def test_nudge_creates_sentinel(self, tmp_path: Path) -> None:
+        """``nudge_daemon`` creates ``intents/.nudge`` with a positive mtime."""
+        store = FsStateStore(root=tmp_path)
+        store.nudge_daemon()
+        sentinel = tmp_path / "intents" / ".nudge"
+        assert sentinel.exists()
+        assert store.nudge_mtime() == sentinel.stat().st_mtime > 0.0
+
+    def test_nudge_mtime_advances_on_second_call(self, tmp_path: Path) -> None:
+        """A second nudge strictly advances the sentinel mtime (the early-wake signal)."""
+        store = FsStateStore(root=tmp_path)
+        store.nudge_daemon()
+        first = store.nudge_mtime()
+        # Back-date the sentinel so the second touch is unambiguously newer regardless of clock res.
+        os.utime(tmp_path / "intents" / ".nudge", (first - 5.0, first - 5.0))
+        store.nudge_daemon()
+        assert store.nudge_mtime() > first - 5.0
+
+    def test_nudge_mtime_absent_is_zero(self, tmp_path: Path) -> None:
+        """``nudge_mtime`` is 0.0 when the sentinel has never been touched (fail-soft)."""
+        store = FsStateStore(root=tmp_path)
+        assert store.nudge_mtime() == 0.0
+
+    def test_nudge_is_fail_soft(self, tmp_path: Path, monkeypatch: object) -> None:
+        """A write failure inside ``nudge_daemon`` is swallowed (best-effort → normal sleep)."""
+        store = FsStateStore(root=tmp_path)
+
+        def _boom(*_a: object, **_k: object) -> None:
+            raise OSError("disk full")
+
+        # Force the atomic write to blow up; the nudge must NOT propagate the error.
+        monkeypatch.setattr(  # type: ignore[attr-defined]
+            FsStateStore, "_atomic_write_intent", staticmethod(_boom)
+        )
+        store.nudge_daemon()  # must not raise
+
+    def test_nudge_not_listed_as_pending_or_gcd(self, tmp_path: Path) -> None:
+        """The ``.nudge`` dotfile is invisible to ``list_pending_intents`` and the result GC."""
+        store = FsStateStore(root=tmp_path)
+        store.nudge_daemon()
+        store.enqueue_intent("real", {"kind": "move", "issue": 1})
+        assert store.list_pending_intents() == ("real",)
+        # Back-date the sentinel far beyond any TTL; the GC (results-only) must leave it intact.
+        os.utime(tmp_path / "intents" / ".nudge", (1000.0, 1000.0))
+        store.gc_intent_results(now=1000.0 + 7200.0, ttl=3600.0)
+        assert (tmp_path / "intents" / ".nudge").exists()

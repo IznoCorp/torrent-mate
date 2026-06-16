@@ -21,8 +21,12 @@ Load-bearing invariants (from the adversarial design review):
 * **PAUSE matrix:** under the kill-switch, agent-authority intents are HELD (left pending, resume on
   un-pause); operator intents still execute (the operator is who acts during a pause).
 
-v1 executes only ``move`` (operator-only live; the agent path is validated + tested ahead but agents
-do not enqueue yet). Ticket/pill CRUD kinds are rejected here until PR3 wires their executors.
+``move`` executes for BOTH authorities: the operator path (``kanban move``) and — since 0.4.0 — the
+agent path (``kanban-move`` now ENQUEUES a ``move`` intent rather than writing the board directly, so
+this drain is the single audited write path). Authority is DERIVED here from the running set
+(``intent.issue in running_issues`` → ``agent``), never from the spoofable ``caller`` field, so an
+agent's own in-flight ticket is bridled (R1 / Merge deny / re-fire) while an operator move is broad.
+Ticket/pill CRUD kinds are validated + tested ahead but rejected here until PR3 wires their executors.
 """
 
 from __future__ import annotations

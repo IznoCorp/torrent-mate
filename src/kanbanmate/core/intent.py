@@ -22,8 +22,9 @@ from typing import Literal
 from kanbanmate.core.domain import Column
 from kanbanmate.core.transitions import TransitionConfig
 
-#: The full intent vocabulary. v1 wires only ``move`` live (operator); the rest are designed +
-#: validated here for PR3 (ticket/pill CRUD) and the deferred agent-move unification.
+#: The full intent vocabulary. ``move`` is live for BOTH operator and agent (the agent-move
+#: unification wired in 0.4.0 — agents enqueue via ``kanban-move``); the rest are designed +
+#: validated here for PR3 (ticket/pill CRUD).
 IntentKind = Literal[
     "move",
     "ticket_create",
@@ -57,12 +58,26 @@ VALID_KINDS: frozenset[str] = frozenset(
 )
 
 #: Kinds a bridled AGENT may issue. Everything else is operator-only (ticket/pill/status authority
-#: stays with the operator). v1 keeps this to ``move`` — and even that is operator-only live until the
-#: agent ``kanban-move`` unification (deferred); the agent rules here are designed + tested ahead.
+#: stays with the operator). This is ``move`` only — and it is now LIVE: agents enqueue a ``move``
+#: intent via ``kanban-move`` (0.4.0 unification) which the daemon drains under agent-authority and
+#: re-validates against the rules here.
 AGENT_ALLOWED_KINDS: frozenset[str] = frozenset({"move"})
 
-#: The human-only Merge column: a daemon-executed agent move bypasses the agent Bash deny-list, so an
-#: agent may NOT move a card into Merge (merge=human-only, DESIGN §5 universal deny).
+#: The human-only Merge column KEY a bridled agent may never move a card into (merge=human-only,
+#: DESIGN §5 universal deny): a daemon-executed agent move bypasses the agent Bash deny-list, so this
+#: is the daemon-side backstop for that boundary.
+#:
+#: COUPLING (load-bearing): this literal MUST match the ``Merge`` column ``key`` shipped in the
+#: default board model (``assets/columns.yml.tmpl`` — ``key: Merge``). There is deliberately NO config
+#: field naming "human-only columns": the board model (``core.domain.Column`` / ``columns.yml``) has
+#: only the ``REACTIVE``/``INERT`` classes (Merge is ``INERT``, like Backlog/Done/Blocked), so the
+#: merge boundary is pure policy, not a modelled column attribute — there is nothing in ``columns`` or
+#: ``transitions`` for ``validate_intent`` to source it from. Adding such a field would touch the YAML
+#: schema, loader, renderer and template for a single literal, which is not warranted. A clone that
+#: renames its human-merge column key would therefore not be protected by THIS check — but it remains
+#: protected by the wildcard-aware re-fire guard (any prompt-bearing transition into the renamed
+#: column is still refused) plus the launch-target deny, the ``gh pr merge`` ban, and branch
+#: protection (DESIGN §8.0.5/§10). The coupling is pinned by ``test_merge_column_matches_board_key``.
 _MERGE_COLUMN: str = "Merge"
 
 
