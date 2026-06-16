@@ -186,12 +186,14 @@ def test_grab_happy_path_returns_success_outcome_with_exact_payload() -> None:
     assert outcome.category is None
     assert outcome.tags == ("lacale",)
 
-    # add() was called exactly once with the resolved source + tracker tag
+    # add() was called exactly once with category=None and NO tags kwarg
+    # (tags are applied via add_tags() on TorrentTagger clients; the plain
+    # MagicMock(spec=TorrentAdder) here does not implement TorrentTagger).
     assert torrent_client is not None
     torrent_client.add.assert_called_once()
     _args, kwargs = torrent_client.add.call_args
     assert kwargs["category"] is None
-    assert kwargs["tags"] == ("lacale",)
+    assert "tags" not in kwargs
 
     # The orchestrator must NOT emit GrabSucceeded (the service owns that emit) —
     # and no failure event may leak either.

@@ -93,10 +93,7 @@ class _FakeTransmissionClient(TorrentAdder, TorrentTagger):
             ValueError: If tags is non-empty (mirrors Transmission behavior).
         """
         if tags:
-            raise ValueError(
-                f"Transmission add() does not accept tags={tags!r}; "
-                "use add_tags() after add()."
-            )
+            raise ValueError(f"Transmission add() does not accept tags={tags!r}; use add_tags() after add().")
         self.add_calls.append({"category": category, "tags": list(tags)})
         return INFO_HASH
 

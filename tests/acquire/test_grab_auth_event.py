@@ -142,9 +142,7 @@ def test_grab_emits_tracker_auth_failed_on_401() -> None:
     orchestrator, spy, torrent_client = _make_orchestrator_with_spy()
 
     with patch(_RESOLVE) as mock_resolve:
-        mock_resolve.side_effect = TrackerAuthError(
-            provider=TOP_PROVIDER, http_status=401, message="unauthorized"
-        )
+        mock_resolve.side_effect = TrackerAuthError(provider=TOP_PROVIDER, http_status=401, message="unauthorized")
         outcome = orchestrator.grab(_make_wanted(), QualityProfile())
 
     # Disposition: terminal abandon, reason 'tracker_auth'.
@@ -169,9 +167,7 @@ def test_grab_emits_tracker_auth_failed_on_403() -> None:
     orchestrator, spy, _torrent_client = _make_orchestrator_with_spy()
 
     with patch(_RESOLVE) as mock_resolve:
-        mock_resolve.side_effect = TrackerAuthError(
-            provider=TOP_PROVIDER, http_status=403, message="forbidden"
-        )
+        mock_resolve.side_effect = TrackerAuthError(provider=TOP_PROVIDER, http_status=403, message="forbidden")
         outcome = orchestrator.grab(_make_wanted(), QualityProfile())
 
     assert outcome.disposition == "terminal"
@@ -194,9 +190,7 @@ def test_grab_fetch_error_emits_no_auth_event() -> None:
     orchestrator, spy, _torrent_client = _make_orchestrator_with_spy()
 
     with patch(_RESOLVE) as mock_resolve:
-        mock_resolve.side_effect = TorrentFetchError(
-            provider=TOP_PROVIDER, http_status=0, message="bad body"
-        )
+        mock_resolve.side_effect = TorrentFetchError(provider=TOP_PROVIDER, http_status=0, message="bad body")
         outcome = orchestrator.grab(_make_wanted(), QualityProfile())
 
     assert outcome.disposition == "retryable"
