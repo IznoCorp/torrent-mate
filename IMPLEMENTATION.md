@@ -16,7 +16,7 @@
 | --- | ------------------------------------------ | -------------------------------------- | ------ |
 | 1   | TrackerAuthFailed event + catalog plumbing | phase-01-event-catalog-plumbing.md     | [x]    |
 | 2   | Grab emit + Transmission add() fix         | phase-02-grab-emit-transmission-fix.md | [x]    |
-| 3   | PR #202 review fixes (cycle 1)             | phase-03-pr-fixes-cycle-1.md           | [ ]    |
+| 3   | PR #202 review fixes (cycle 1)             | phase-03-pr-fixes-cycle-1.md           | [x]    |
 
 ## Review cycles
 
@@ -34,4 +34,4 @@ Fix scope expands into merged seed-pure client code (`transmission.py`/`qbittorr
 
 ## Next action
 
-Run `/implement:phase` to execute Phase 3 (PR review fixes, cycle 1).
+Phase 3 fixes complete + pushed. Re-running CI + cycle-2 re-review, then manual merge handoff.
