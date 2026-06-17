@@ -80,3 +80,54 @@ and bumps the runtime-root nudge sentinel (the cockpit mechanism). The daemon th
   bounded GitHub rate budget); concurrency is a noted future optimization.
 - **Per-org webhook secret** — v1 uses one shared `<root>/webhook_secret`; a per-org secret is a
   trivial future refinement (the receiver verifies the single secret first).
+
+---
+
+# Implementation Progress — default-status (0.5.0 → 0.5.1)
+
+**Feature**: default-status — auto-assign the board's first/entry column (`Backlog` on the shipped
+template) to every snapshot item with NO Status, so GitHub's "No Status" bucket becomes self-healing
+(the operator previously fixed such items by hand).
+**Version bump**: patch (Z+1) — 0.5.0 → 0.5.1 (additive; behaviour byte-identical for already-statused
+items, only No-Status items begin healing).
+**Branch**: `feat/default-status-backlog`.
+**Design**: `docs/features/default-status/DESIGN.md`.
+
+Built in an isolated worktree + isolated venv (`/Users/izno/.pyenv/versions/3.12.4/bin/python`); the
+live PM2 daemons (editable install from the MAIN worktree) were never touched, never restarted.
+
+## What shipped
+
+| Area | Modules | Status |
+|---|---|---|
+| No-Status normalization step | NEW `app/default_status.py` (`normalize_default_status` + `_default_column`) | DONE |
+| Tick wiring | `app/tick.py` — import + one call in the snapshot branch (before the diff loop) + the double-write guard; kept at 1000 LOC by condensing existing comments | DONE |
+| Tests | NEW `tests/app/test_default_status.py` (9 unit) + `tests/app/test_tick.py` (1 integration: no agent, durable) | DONE |
+| Version pins | VERSION, pyproject, `__init__.py`, marketplace.json, plugin.json → 0.5.1 | DONE |
+
+## Key decisions
+
+- **Default column derived, not hardcoded.** `next(iter(config.columns.values()), None)` — the first
+  column in the order-preserving model. A renamed first column still works; an empty model no-ops.
+- **Name vs key.** The heal passes the column `.name` to `move_card` (the writer resolves options by
+  NAME, `_parsers.parse_status_field`), not the `.key`.
+- **Bookkeeping move.** `record_move(..., bookkeeping=True)` + no `record_move_for_item` — the heal
+  never consumes the forward-advance / rate-limit budgets (mirrors the reaper's Blocked-park).
+- **Double-write guard.** The diff loop skips the stale `→""` transition for an item the
+  normalization just healed, so the recording NOOP cannot revert the baseline and the next tick cannot
+  ROLLBACK the heal. `decide` / `process_transition` are unchanged.
+- **No agent fires.** The entry column is non-triggering (launches ride `from→to` edges, never an
+  arrival into the entry column).
+- **Multi-project.** Per-project `TickConfig.columns` + `deps.board_writer` → each project heals to
+  ITS first column via ITS Status field, no extra wiring.
+- **Fail-soft.** Per-item + outer try/except; one bad write never drops the rest nor raises into the
+  tick (mirrors `apply_health`). Under PAUSE the daemon makes no moves.
+
+## Phase gate
+
+- `make check` → exit 0 (ruff + `ruff format --check` + mypy strict + full pytest suite green
+  (1894 passed, 9 skipped, 1 deselected) + module-size guard — no module over the 1000-LOC hard
+  ceiling; `tick.py` held at exactly 1000 LOC).
+- `python -c "import kanbanmate"` → version `0.5.1`.
+- All 5 version pins bumped; manifest lockstep test green.
+- Residual-import grep clean (the new module is referenced only by `tick.py` + its test).

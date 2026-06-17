@@ -26,18 +26,12 @@ only Protocols (via :class:`Deps`) plus the pure core; it never names a concrete
 from __future__ import annotations
 
 import dataclasses
-import enum
 import logging
-from collections.abc import Callable, Iterator, Mapping
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
-from contextlib import contextmanager
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
-from typing import Final
-from weakref import WeakKeyDictionary
 
 from kanbanmate.app.actions import (
     BlockAction,
-    DependencyBounceAction,
     Deps,
     LaunchAction,
     ResetAction,
@@ -46,14 +40,35 @@ from kanbanmate.app.actions import (
     TeardownAction,
 )
 from kanbanmate.app.body_status import update_body_status
+from kanbanmate.app.default_status import normalize_default_status
 from kanbanmate.app.depgate import resolve_dependency_gate
 from kanbanmate.app.drain import _drain_queue as _drain_queue_impl
 from kanbanmate.app.health_reporter import apply_health
 from kanbanmate.app.intents import drain_intents
-from kanbanmate.app.reaper import _ReapMove, reap_stale_agents
+from kanbanmate.app.reaper import reap_stale_agents
 from kanbanmate.app.stage_signal import upsert_stage_comment
 from kanbanmate.app.status_reporter import report_status
 from kanbanmate.app.transition_step import process_transition
+
+# Re-export the per-action watchdog under the tick's historical names. The whole watchdog group (the
+# bounded-execution wrappers, the per-tick thread-pool context manager, and the timeout registry)
+# moved out to ``app/watchdog.py`` (LOC budget). ``tick`` only uses ``_watchdog_executor`` directly,
+# but callers + tests still reference the rest VIA ``tick``: the reaper / drain / transition_step
+# LAZILY ``from kanbanmate.app.tick import _run_with_watchdog`` (to dodge the import cycle), and tests
+# monkeypatch ``tick._run_with_watchdog`` / ``tick._run_launch_with_watchdog`` and read
+# ``tick.WatchdogStatus``. The redundant ``as`` aliasing marks each name an explicit re-export, so it
+# stays live on this module's namespace (the lazy lookups + monkeypatches resolve here unchanged).
+from kanbanmate.app.watchdog import (
+    _IDLE_WORKER_GRACE_S as _IDLE_WORKER_GRACE_S,
+    _TIMED_OUT_ACTIONS as _TIMED_OUT_ACTIONS,
+    _record_timed_out_action as _record_timed_out_action,
+    _run_callable_with_watchdog as _run_callable_with_watchdog,
+    _run_launch_with_watchdog as _run_launch_with_watchdog,
+    _run_value_with_watchdog as _run_value_with_watchdog,
+    _run_with_watchdog as _run_with_watchdog,
+    _watchdog_executor as _watchdog_executor,
+    WatchdogStatus as WatchdogStatus,
+)
 from kanbanmate.core.antiloop import AntiLoopConfig, AntiLoopState
 from kanbanmate.core.decide import DecideContext
 from kanbanmate.core.dependency_gate import evaluate as evaluate_dependencies
@@ -65,44 +80,13 @@ from kanbanmate.ports.store import TicketState
 
 logger = logging.getLogger(__name__)
 
-# Re-export the reaper's stale-agent sweep under the tick's historical private name. The reaper
-# moved to ``app/reaper.py`` (15.6 LOC budget); tests + callers still import ``_reap_stale_agents``
-# from ``kanbanmate.app.tick``, so keep the alias stable (no signature change).
+# Re-export the reaper's stale-agent sweep + the queue drain under the tick's historical private
+# names. Both moved out to ``app/reaper.py`` / ``app/drain.py`` (LOC budget) but tests + callers
+# still import ``_reap_stale_agents`` / ``_drain_queue`` here, so keep the aliases stable (no
+# signature change). The explicit assignment (not a bare ``import ... as``) makes mypy treat the
+# private names as re-exported.
 _reap_stale_agents = reap_stale_agents
-
-# Re-export the queue drain under the tick's historical private name. The drain moved to
-# ``app/drain.py`` (18.6 LOC budget — the Md2 reorder pushed tick.py over the 1000-LOC ceiling);
-# tests + the tick body still reference ``_drain_queue`` here, so keep the alias stable. An explicit
-# assignment (not a bare ``import ... as``) is what makes mypy treat the private name as re-exported.
 _drain_queue = _drain_queue_impl
-
-# Per-tick registry of GENUINELY abandoned actions, keyed by the tick's executor (phase-34). When a
-# watchdog wrapper's ``future.result(timeout=...)`` raises ``FutureTimeoutError`` the worker thread is
-# left running with no way to join it — a REAL leaked thread. The wrapper records the action's
-# description here; ``_watchdog_executor`` reads the list at exit and warns ONLY when it is non-empty.
-#
-# This replaces the old ``t.is_alive()`` heuristic, which fired a false positive on EVERY successful
-# action: a ``ThreadPoolExecutor`` worker stays alive IDLE (parked on the work queue) between tasks,
-# so "a worker is alive at tick exit" did NOT mean "an action hung" — it was true after every
-# completed action. The timeout records are the authoritative never-hang signal. The map is weak-keyed
-# on the executor so a tick's records vanish with its (garbage-collected) executor — no manual reset.
-_TIMED_OUT_ACTIONS: WeakKeyDictionary[ThreadPoolExecutor, list[str]] = WeakKeyDictionary()
-
-
-def _record_timed_out_action(executor: ThreadPoolExecutor, description: str) -> None:
-    """Record that a watchdog-bounded action on ``executor`` timed out (genuine hang).
-
-    Appends ``description`` to the executor's per-tick abandoned-action list (created lazily on first
-    timeout). ``_watchdog_executor`` reads the list at tick exit to warn about REAL leaked threads —
-    a worker abandoned mid-call by :class:`~concurrent.futures.TimeoutError`, not an idle pool worker.
-
-    Args:
-        executor: The tick's shared thread pool the timed-out action ran in (the registry key).
-        description: A short human-readable name of the action that hung (e.g. ``"LaunchAction"`` or
-            the callable's label), surfaced in the exit warning so the leak is attributable.
-    """
-    _TIMED_OUT_ACTIONS.setdefault(executor, []).append(description)
-
 
 # A running ticket whose agent heartbeat is older than this (seconds) is considered stale and
 # reaped (DESIGN §8.3, mirrors the PoC ``reaper.HEARTBEAT_TTL``).
@@ -110,10 +94,9 @@ DEFAULT_HEARTBEAT_TTL = 1800.0
 
 # How long (seconds) an agent may be silent before the reaper PROBES its pane for a pending human
 # prompt — far shorter than the reap TTL (31.2). A blocked-on-human agent stops touching its
-# heartbeat the moment it hits the prompt; without this it would sit unsignalled until the heartbeat
-# crossed the full 1800 s reap TTL. Probing once silence exceeds ~180 s flips it to WAITING (signal,
-# never reap) promptly. It is strictly a DETECTION accelerator: a non-waiting silent agent is left
-# untouched until the real reap TTL, so this never changes WHEN an agent is reaped.
+# heartbeat at the prompt; without this it sits unsignalled until the 1800 s reap TTL. Probing once
+# silence exceeds ~180 s flips it to WAITING (signal, never reap). Strictly a DETECTION accelerator:
+# a non-waiting silent agent is left until the real reap TTL, so this never changes WHEN one is reaped.
 DEFAULT_WAITING_PROBE_TTL = 180.0
 
 # The inert column a reaped (stale-agent) ticket's card is parked in (DESIGN §8.3 / §9). The reap
@@ -121,10 +104,9 @@ DEFAULT_WAITING_PROBE_TTL = 180.0
 # ``status_option_map(...).get("Blocked")`` target.
 DEFAULT_BLOCKED_COLUMN = "Blocked"
 
-# The terminal column whose ARRIVAL tears down a still-live agent (phase 28.1). A card landing here
-# while its persisted state shows a LIVE agent (RUNNING/WAITING) fires a DONE-flavoured teardown so
-# the agent's session/worktree are reclaimed and the sticky finalized ✅; the card STAYS in Done. The
-# common trigger is the skip-to-Done "an agent recognises the feature is already shipped" use case.
+# The terminal column whose ARRIVAL tears down a still-live agent (phase 28.1): a card landing here
+# while its state shows a LIVE agent (RUNNING/WAITING) fires a DONE-flavoured teardown (session +
+# worktree reclaimed, sticky finalized ✅; the card STAYS in Done) — the skip-to-Done use case.
 DEFAULT_DONE_COLUMN = "Done"
 
 # Per-action watchdog budget (seconds). A single hung adapter call must not freeze the daemon
@@ -497,260 +479,6 @@ def _finalize_left_stage(
         )
 
 
-def _run_with_watchdog(
-    executor: ThreadPoolExecutor,
-    command: LaunchAction
-    | TeardownAction
-    | ResetAction
-    | BlockAction
-    | RollbackAction
-    | DependencyBounceAction
-    | RunScriptAction
-    | _ReapMove,
-    deps: Deps,
-    timeout: float,
-) -> bool:
-    """Execute one command under a bounded timeout, isolating any failure.
-
-    The command runs in a worker thread so a hung adapter call can be abandoned after ``timeout``
-    seconds (DESIGN §5). Both a timeout and any raised exception are caught and logged; neither
-    aborts the surrounding tick.
-
-    Args:
-        executor: The shared thread pool the action runs in.
-        command: The command object to execute.
-        deps: The injected adapter bundle.
-        timeout: The per-action watchdog budget in seconds.
-
-    Returns:
-        ``True`` if the action completed cleanly, ``False`` on timeout or exception.
-    """
-    future = executor.submit(command.execute, deps)
-    try:
-        future.result(timeout=timeout)
-        return True
-    except FutureTimeoutError:
-        # The worker thread is left running (it cannot be force-killed); the watchdog only
-        # bounds *our* wait so the daemon stays responsive. The next tick's diff/state guards
-        # keep the result idempotent even if the abandoned action later completes. Record the
-        # genuine hang so ``_watchdog_executor`` can warn about the REAL leaked thread at tick exit
-        # (phase-34) — an idle pool worker is NOT a leak, but this abandoned-mid-call one is.
-        _record_timed_out_action(executor, type(command).__name__)
-        logger.warning(
-            "action %s timed out after %.0fs; continuing", type(command).__name__, timeout
-        )
-        return False
-    except Exception:  # noqa: BLE001 — one bad action must never abort the whole tick
-        logger.exception("action %s raised; continuing", type(command).__name__)
-        return False
-
-
-class WatchdogStatus(enum.Enum):
-    """Tri-state outcome of a watchdog-bounded LAUNCH dispatch (defect 13).
-
-    The boolean :func:`_run_with_watchdog` collapses a TIMEOUT and an EXCEPTION into one ``False``,
-    but the launch slot-release path must tell them apart:
-
-    Members:
-        OK: The action completed cleanly within the budget.
-        FAILED: The action RAISED — it definitively did NOT create a session, so the reserved slot
-            must be released (no live agent backs it).
-        UNKNOWN: The action TIMED OUT — the worker thread is abandoned but STILL RUNNING and may yet
-            create the tmux session late. Releasing the slot here would let that late launch run an
-            agent with no slot (cap+1), so the slot is KEPT; the drain's already-running guard
-            adjudicates next tick (a completed launch leaves a RUNNING state that holds the slot; a
-            truly dead one is reconciled by the reaper).
-    """
-
-    OK = "ok"
-    FAILED = "failed"
-    UNKNOWN = "unknown"
-
-
-def _run_launch_with_watchdog(
-    executor: ThreadPoolExecutor,
-    command: LaunchAction,
-    deps: Deps,
-    timeout: float,
-) -> WatchdogStatus:
-    """Run a LAUNCH dispatch under the watchdog, returning a TRI-STATE status (defect 13).
-
-    Identical isolation to :func:`_run_with_watchdog` but distinguishes a TIMEOUT (``UNKNOWN`` — the
-    abandoned worker may still create the session) from an EXCEPTION (``FAILED`` — no session
-    created). The caller releases the reserved slot ONLY on ``FAILED``; on ``UNKNOWN`` it keeps the
-    slot so a late-completing launch never runs an agent without one (the cap+1 the boolean watchdog
-    allowed). Port of the phase-13 deferred residual (IMPLEMENTATION.md:252-254).
-
-    Args:
-        executor: The shared thread pool the launch runs in.
-        command: The :class:`~kanbanmate.app.actions.LaunchAction` to dispatch.
-        deps: The injected adapter bundle.
-        timeout: The per-action watchdog budget in seconds.
-
-    Returns:
-        :attr:`WatchdogStatus.OK` on a clean run, :attr:`WatchdogStatus.UNKNOWN` on timeout,
-        :attr:`WatchdogStatus.FAILED` on an exception.
-    """
-    future = executor.submit(command.execute, deps)
-    try:
-        future.result(timeout=timeout)
-        return WatchdogStatus.OK
-    except FutureTimeoutError:
-        # The abandoned worker is still running and may create the tmux session late — record the
-        # genuine leaked thread (phase-34) and return UNKNOWN so the caller KEEPS the slot.
-        _record_timed_out_action(executor, type(command).__name__)
-        logger.warning(
-            "launch %s timed out after %.0fs; keeping the slot (status UNKNOWN, defect 13)",
-            type(command).__name__,
-            timeout,
-        )
-        return WatchdogStatus.UNKNOWN
-    except Exception:  # noqa: BLE001 — one bad launch must never abort the whole tick
-        logger.exception("launch %s raised; continuing", type(command).__name__)
-        return WatchdogStatus.FAILED
-
-
-def _run_value_with_watchdog(
-    executor: ThreadPoolExecutor,
-    fn: Callable[[], tuple[int, str]],
-    timeout: float,
-) -> tuple[bool, tuple[int, str]]:
-    """Run a VALUE-returning check-script call under the same bounded watchdog (15.6).
-
-    The check-script seam (``run_check_script``) returns an ``(exit_code, output)`` verdict, which
-    the void-returning :func:`_run_with_watchdog` cannot surface. This variant runs ``fn`` in the
-    shared worker thread and returns ``(ok, verdict)``: ``ok`` is ``True`` iff ``fn`` completed
-    within ``timeout`` (mirroring :func:`_run_with_watchdog`'s timeout/exception isolation), and
-    ``verdict`` is ``fn``'s return value on success or a safe ``(0, "")`` placeholder on
-    timeout/exception. The subprocess inside ``fn`` is itself 120s-bounded in the workspace adapter;
-    this watchdog additionally bounds a hung ``gh`` inside the script so the sweep stays responsive.
-
-    Args:
-        executor: The shared thread pool the call runs in.
-        fn: The zero-arg callable producing the ``(exit_code, output)`` verdict.
-        timeout: The per-action watchdog budget in seconds.
-
-    Returns:
-        ``(ok, (exit_code, output))`` — ``ok`` is ``False`` (with a ``(0, "")`` placeholder verdict)
-        on timeout or exception, so the caller can skip routing a phantom verdict.
-    """
-    future = executor.submit(fn)
-    try:
-        return True, future.result(timeout=timeout)
-    except FutureTimeoutError:
-        # Record the genuine hang (phase-34): the worker is abandoned mid-call and leaks, so the
-        # exit warning in ``_watchdog_executor`` should fire — distinct from a benign idle worker.
-        _record_timed_out_action(executor, "check-script")
-        logger.warning("check-script timed out after %.0fs; continuing", timeout)
-        return False, (0, "")
-    except Exception:  # noqa: BLE001 — a wedged script must never abort the whole tick
-        logger.exception("check-script raised; continuing")
-        return False, (0, "")
-
-
-def _run_callable_with_watchdog(
-    executor: ThreadPoolExecutor,
-    fn: Callable[[], object],
-    timeout: float,
-    *,
-    label: str,
-) -> bool:
-    """Run a void/side-effecting callable under the bounded watchdog (#6).
-
-    The general-purpose sibling of :func:`_run_with_watchdog` (which needs an action object with an
-    ``.execute`` method). Used to bound the launch-gate's pre-create ``ensure_worktree`` call, which
-    ran DIRECTLY on the tick thread before #6 — a network-touching ``git fetch`` outside any
-    watchdog. Now it runs in the shared worker thread bounded by ``timeout``, so a hung pre-create
-    can never freeze the daemon. Both timeout and exception are caught and logged.
-
-    Args:
-        executor: The shared thread pool the call runs in.
-        fn: The zero-arg callable to run (its return value is discarded).
-        timeout: The per-action watchdog budget in seconds.
-        label: A short name for the call, used in the timeout/error log line.
-
-    Returns:
-        ``True`` if ``fn`` completed cleanly within ``timeout``, ``False`` on timeout or exception.
-    """
-    future = executor.submit(fn)
-    try:
-        future.result(timeout=timeout)
-        return True
-    except FutureTimeoutError:
-        # Record the genuine hang (phase-34) under the caller-supplied label so the exit warning
-        # can name the leaked pre-create/gate call — an idle pool worker must NOT trip the warning.
-        _record_timed_out_action(executor, label)
-        logger.warning("%s timed out after %.0fs; continuing", label, timeout)
-        return False
-    except Exception:  # noqa: BLE001 — a hung pre-create must never abort the whole tick
-        logger.exception("%s raised; continuing", label)
-        return False
-
-
-#: Short grace period (seconds) given to idle pool workers to wind down after the non-blocking
-#: shutdown, before any leak is assessed. A ``ThreadPoolExecutor`` worker parks IDLE on the work
-#: queue between tasks and exits a beat after ``shutdown()`` signals it; this brief join lets that
-#: happen so a just-finished action's worker is never mistaken for a hang (phase-34). It does NOT
-#: gate the never-hang guarantee — the authoritative leak signal is the timeout registry, not
-#: aliveness — so it is intentionally tiny.
-_IDLE_WORKER_GRACE_S: Final[float] = 0.2
-
-
-@contextmanager
-def _watchdog_executor() -> Iterator[ThreadPoolExecutor]:
-    """Yield the per-tick thread pool with a NON-BLOCKING shutdown (#6, real never-hang).
-
-    The plain ``with ThreadPoolExecutor(...)`` calls ``shutdown(wait=True)`` on exit, which BLOCKS
-    until every worker finishes — so one hung adapter call (the very case the per-action watchdog
-    abandons) would freeze the whole daemon at tick exit, defeating the never-hang guarantee
-    (CLAUDE.md). This context manager instead, on exit, calls
-    ``shutdown(wait=False, cancel_futures=True)`` so the tick returns IMMEDIATELY even if a worker is
-    wedged.
-
-    **Leak detection (phase-34).** It warns about an abandoned thread using the AUTHORITATIVE signal:
-    the per-tick timeout registry (:data:`_TIMED_OUT_ACTIONS`), populated by the watchdog wrappers
-    whenever a ``future.result(timeout=...)`` actually raised ``TimeoutError``. That is the only case
-    where a worker is genuinely orphaned. The previous implementation counted ``t.is_alive()`` on the
-    pool's ``_threads``, but a ``ThreadPoolExecutor`` worker stays alive IDLE (parked on the work
-    queue) BETWEEN tasks — so that check fired a FALSE POSITIVE after EVERY successful action, even
-    when the action completed and had effects on the board. Now the warning fires only on a real hang
-    and names the offending action(s), so the leak is both correct and attributable. As a belt-and-
-    braces nicety, idle workers get a short grace join (:data:`_IDLE_WORKER_GRACE_S`) after the
-    non-blocking shutdown so a just-finished worker has wound down before exit — but no leak is
-    inferred from aliveness; the timeout records are the sole signal.
-
-    A running worker cannot be force-killed (Python has no thread-kill), so a truly wedged adapter
-    call leaks ONE thread per occurrence; the warning makes that visible, and the next tick's
-    diff/state guards keep the result idempotent if the abandoned action later completes.
-
-    Yields:
-        A :class:`~concurrent.futures.ThreadPoolExecutor` for the tick's watchdog-bounded actions.
-    """
-    executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="kanban-tick")
-    try:
-        yield executor
-    finally:
-        # NON-BLOCKING: return immediately even if a worker is wedged. ``cancel_futures=True`` drops
-        # any not-yet-started work; a running worker cannot be force-killed but the tick no longer
-        # waits on it.
-        executor.shutdown(wait=False, cancel_futures=True)
-        # Give idle workers a tiny grace to wind down post-shutdown so a just-finished action's
-        # worker is not lingering — purely cosmetic; the leak verdict is the timeout registry below.
-        for t in getattr(executor, "_threads", ()):
-            t.join(timeout=_IDLE_WORKER_GRACE_S)
-        # Warn ONLY when a watchdog wrapper recorded a genuine timeout this tick — those are the REAL
-        # leaked threads (abandoned mid-call). An idle/just-finished pool worker is NOT a leak, so it
-        # no longer trips this warning (the old ``is_alive()`` heuristic did, on every action).
-        abandoned = _TIMED_OUT_ACTIONS.pop(executor, [])
-        if abandoned:
-            logger.warning(
-                "tick exiting with %d abandoned hung action(s) (worker thread leaked, cannot be "
-                "force-killed); NOT waiting (never-hang). Abandoned: %s",
-                len(abandoned),
-                ", ".join(abandoned),
-            )
-
-
 def tick(
     deps: Deps,
     config: TickConfig,
@@ -831,33 +559,50 @@ def tick(
         if not probe_failed and probe_token != persisted_state.last_probe:
             snapshot_taken = True
             snapshot = deps.board_reader.snapshot()
+            # Heal No-Status items to the entry column BEFORE the diff/decide loop (default-status).
+            # It pre-seeds next_columns so neither this tick's diff nor the next re-fires; fail-soft.
+            antiloop = normalize_default_status(
+                deps,
+                config,
+                snapshot=snapshot,
+                next_columns=next_columns,
+                antiloop=antiloop,
+                now=now,
+                kill_switch=kill_switch,
+            )
             ctx = DecideContext(
                 antiloop_state=antiloop,
-                # Thread the operator's configured move-rate-limit (columns.yml defaults) into
-                # the in-memory anti-loop guard so ``is_blocked`` evaluates against the real cap,
-                # not the AntiLoopConfig DEFAULT (rate_limit=10). recent_ttl / rate_window stay at
-                # their defaults — _DEFAULT_RATE_WINDOW is already 3600s (1h), so rate_limit alone
-                # gives the "per hour" semantics the config promises (#6).
+                # Thread the operator's configured move-rate-limit (columns.yml defaults) into the
+                # in-memory anti-loop guard so ``is_blocked`` evaluates the real cap, not the
+                # AntiLoopConfig DEFAULT (rate_limit=10); recent_ttl / rate_window keep their
+                # defaults (_DEFAULT_RATE_WINDOW is already 3600s → "per hour" semantics, #6).
                 antiloop_config=AntiLoopConfig(rate_limit=config.move_rate_limit_per_hour),
                 kill_switch=kill_switch,
                 now=now,
                 reset_target=config.reset_target,
                 unattended_hours=config.unattended_hours,
-                # Thread the parsed whitelist (phase 12) so decide() classifies each concrete
-                # move against it (launch / run_script / noop / rollback). The whitelist is ALWAYS
-                # present — the wiring supplies the built-in DEFAULT_TRANSITIONS fallback for a clone
-                # with no transitions.yml — so a ``None`` here is a wiring bug and decide() raises
-                # (no column model; DESIGN §8.0.6).
+                # Thread the parsed whitelist (phase 12) so decide() classifies each concrete move
+                # (launch / run_script / noop / rollback). It is ALWAYS present (wiring supplies the
+                # DEFAULT_TRANSITIONS fallback), so a ``None`` here is a wiring bug (DESIGN §8.0.6).
                 transitions=config.transitions,
             )
             for transition in diff(persisted_state.columns_by_item, snapshot):
+                # default-status double-write guard: skip a stale ``→""`` (empty-target) transition
+                # whenever this item ALREADY has a NON-EMPTY ``next_columns`` entry. That entry means a
+                # heal (the default-status normalization just assigned the default column NAME) or an
+                # advance earlier in this loop has already set the item's target THIS tick, so the
+                # ``→""`` move is a stale artifact of diffing the snapshot against the PRE-TICK baseline
+                # — letting the recording-NOOP run it would revert the baseline back to "" and the next
+                # tick would diff ``""→<column>`` (non-None ``from_column``) as a ROLLBACK, bouncing the
+                # card back to No Status. A statusless item with NO such entry (e.g. left unhealed under
+                # PAUSE) is falsy here, so it is NOT skipped and follows the unchanged NOOP path.
+                if transition.to_column == "" and next_columns.get(transition.ticket.item_id):
+                    continue
                 # Per-transition isolation (#3): process ONE transition under a try/except so a
-                # mid-loop raise (decide / _build_action / ensure_worktree / a store call) advances
-                # the baseline to the destination and counts an error — rather than losing the
-                # partially-advanced baseline and REPLAYING this move (and its launch) next tick.
-                # The full decide→build→dispatch pipeline lives in ``process_transition`` (extracted
-                # to keep tick.py under the 1000-LOC ceiling); it mutates ``next_columns`` /
-                # ``status_events`` in place and returns the threaded antiloop + counter deltas.
+                # mid-loop raise advances the baseline to the destination + counts an error rather
+                # than REPLAYING this move (and its launch) next tick. The full decide→build→dispatch
+                # pipeline lives in ``process_transition`` (extracted for the LOC ceiling); it mutates
+                # ``next_columns`` / ``status_events`` in place + returns the threaded antiloop + deltas.
                 try:
                     outcome = process_transition(
                         transition,

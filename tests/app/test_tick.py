@@ -313,6 +313,47 @@ def test_move_into_agent_column_triggers_launch() -> None:
     assert next_state.columns_by_item["PVTI_7"] == "InProgress"
 
 
+def test_statusless_item_healed_to_backlog_no_agent() -> None:
+    """default-status: a No-Status item is healed to the entry column, durably, firing NO agent.
+
+    A brand-new statusless item (``column_key == ""``, no baseline) is auto-assigned the board's
+    first column (``Backlog``) by the normalization step BEFORE the diff loop. The entry column is
+    non-triggering, so: (a) the card is moved to Backlog, (b) ``actions_executed == 0`` and NO
+    launch/session is created. The SAME-tick diff (computed from the pre-tick baseline) still yields
+    a stale ``→""`` transition, but the double-write guard SKIPS it (``next_columns`` already records
+    the heal), so this tick's persisted baseline is the healed ``Backlog`` — NOT ``""``. (c) On the
+    NEXT poll the board reports the card in Backlog; the normalization skips it (non-empty) and the
+    baseline already records Backlog, so the diff yields no transition — still no launch, no re-heal,
+    and crucially NO rollback back to No Status. The heal is durable across both ticks.
+    """
+    statusless = Ticket(item_id="PVTI_9", issue_number=9, title="t", column_key="")
+    reader = _FakeBoardReader("probe-1", _snapshot(statusless))
+    m = _mocks(reader)
+    # First contact: no prior baseline for this item, probe changed so a snapshot is taken.
+    state = PersistedState(columns_by_item={}, last_probe="probe-0")
+
+    result, next_state = tick(m.deps, _config(), state)
+
+    # (a) The card was healed to the entry column NAME ("Backlog").
+    m.board_writer.move_card.assert_called_once_with("PVTI_9", "Backlog")
+    # (b) NO agent fired: no decided action ran, no session launched.
+    assert result.actions_executed == 0
+    m.sessions.launch.assert_not_called()
+
+    # (c) Next poll: the board now reports the card in Backlog. The normalization skips it (the
+    # snapshot column is non-empty), and the diff's ``→Backlog`` forward move is a non-triggering
+    # NOOP — no re-heal, no launch.
+    healed = Ticket(item_id="PVTI_9", issue_number=9, title="t", column_key="Backlog")
+    reader2 = _FakeBoardReader("probe-2", _snapshot(healed))
+    m2 = _mocks(reader2)
+    result2, next_state2 = tick(m2.deps, _config(), next_state)
+    m2.board_writer.move_card.assert_not_called()
+    m2.sessions.launch.assert_not_called()
+    assert result2.actions_executed == 0
+    # The baseline is now durably Backlog (stable thereafter).
+    assert next_state2.columns_by_item["PVTI_9"] == "Backlog"
+
+
 def test_launch_emits_running_body_status_header() -> None:
     """FIX 5: a launch into an agent column fires the body-top status header with state='running'."""
     import dataclasses
