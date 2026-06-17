@@ -547,3 +547,36 @@ class TestUpsertUpdatePersistsDateMetadataRefreshed:
             f"Year-heal UPDATE branch did not persist date_metadata_refreshed: "
             f"expected {epoch}, got {row_after.date_metadata_refreshed}"
         )
+
+    def test_upsert_update_preserves_date_metadata_refreshed_on_none(self, conn: sqlite3.Connection) -> None:
+        """UPDATE with date_metadata_refreshed=None PRESERVES the existing epoch (COALESCE).
+
+        The dispatch re-index path (``media_index.py``) calls ``build_item_row``
+        WITHOUT a scan epoch, so a re-dispatch of an already-scanned item carries
+        ``None``. A plain ``= ?`` UPDATE would clobber the scan's backfill to NULL;
+        ``COALESCE(?, date_metadata_refreshed)`` preserves it. (Invalid items stay
+        rescrape candidates via the ``nfo_status != 'valid'`` arm regardless.)
+        Sequence: insert with <epoch>, re-upsert the same item with None → <epoch>.
+        """
+        epoch = int(time.time())
+        initial = _make_item_with_nfo(
+            nfo_status="valid",
+            date_metadata_refreshed=epoch,
+            title="Preserve Target",
+        )
+        item_id = item_repo.insert(conn, initial)
+
+        redispatch = _make_item_with_nfo(
+            nfo_status="valid",
+            date_metadata_refreshed=None,  # dispatch re-index: no scan epoch
+            title="Preserve Target",  # same canonical title → UPDATE branch
+        )
+        returned_id = item_repo.upsert(conn, redispatch)
+        assert returned_id == item_id
+
+        row_after = item_repo.get_by_id(conn, item_id)
+        assert row_after is not None
+        assert row_after.date_metadata_refreshed == epoch, (
+            f"UPDATE with None clobbered the existing date_metadata_refreshed: "
+            f"expected {epoch} preserved, got {row_after.date_metadata_refreshed}"
+        )
