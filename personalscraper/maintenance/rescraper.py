@@ -569,28 +569,100 @@ def _collect_rescrape_candidates(
     conn: sqlite3.Connection | None,
     disk_filter: str | None,
     category_filter: str | None,
+    item_id: int | None = None,
 ) -> list[tuple[Path, str, str, str]]:
     """Build a list of (media_dir, media_type, disk_id, category_id) candidates.
 
-    When *conn* is provided, queries the indexer DB for items where
-    ``nfo_status != 'valid'`` or ``date_metadata_refreshed IS NULL``.  Paths
-    are reconstructed from the ``disk.mount_path`` + ``path.rel_path`` columns.
+    When *item_id* is provided, the function enters an **item-id fast-path**:
+    it resolves exactly that item from the indexer DB via ``item_repo.get_by_id``
+    and returns it as the sole candidate, **bypassing**
+    ``find_items_needing_rescrape`` entirely.  This allows force-rescaping an
+    item whose ``nfo_status`` is already ``'valid'``.  *item_id* is mutually
+    exclusive with *disk_filter* and *category_filter*; supplying both raises a
+    :exc:`ValueError`.
 
-    When *conn* is ``None``, falls back to a direct filesystem walk of
-    ``config.disks``.
+    When *conn* is provided (and *item_id* is ``None``), queries the indexer DB
+    for items where ``nfo_status != 'valid'`` or
+    ``date_metadata_refreshed IS NULL``.  Paths are reconstructed from the
+    ``disk.mount_path`` + ``path.rel_path`` columns.
+
+    When *conn* is ``None`` and *item_id* is ``None``, falls back to a direct
+    filesystem walk of ``config.disks``.
 
     Args:
         config: Loaded pipeline :class:`~personalscraper.conf.models.Config`.
         conn: Open SQLite connection, or ``None`` to use filesystem walk.
         disk_filter: Restrict to a single disk ID, or ``None`` for all.
         category_filter: Restrict to a single category ID, or ``None`` for all.
+        item_id: When set, target exactly this item by its DB primary key.
+            Mutually exclusive with *disk_filter* and *category_filter*.
 
     Returns:
         List of ``(media_dir, media_type, disk_id, category_id)`` tuples.
+
+    Raises:
+        ValueError: If *item_id* is set together with *disk_filter* or
+            *category_filter* (mutually exclusive options).
     """
     from personalscraper.indexer.repos import item_repo as _item_repo  # noqa: PLC0415
 
     candidates: list[tuple[Path, str, str, str]] = []
+
+    # --- item_id fast-path: resolve a single item, bypassing the predicate ---
+    if item_id is not None:
+        # Mutual exclusion check: combining item_id with a filter makes no sense
+        # and would produce confusing silent no-ops; fail loud instead.
+        if disk_filter or category_filter:
+            raise ValueError(
+                f"item_id={item_id!r} is mutually exclusive with disk_filter and "
+                f"category_filter. Remove disk_filter={disk_filter!r} and "
+                f"category_filter={category_filter!r} when targeting a single item."
+            )
+
+        # item_id requires an open DB connection; conn is guaranteed non-None by
+        # the CLI (which validates this before calling us), but guard defensively.
+        if conn is None:
+            log.warning("library_rescrape_item_id_no_conn", item_id=item_id)
+            return []
+
+        item = _item_repo.get_by_id(conn, item_id)
+        if item is None:
+            log.warning(
+                "library_rescrape_item_id_not_found",
+                item_id=item_id,
+            )
+            return []
+
+        # Resolve the full filesystem path from the dispatch flex attribute.
+        # _ATTR_DISPATCH_PATH stores the complete path as written at dispatch time
+        # (e.g. "/Volumes/Disk1/films/Movie (2024)"), so no path join is needed.
+        path_attr = _item_repo.get_attr(conn, item_id, _item_repo._ATTR_DISPATCH_PATH)
+        if not path_attr or not path_attr.value:
+            log.warning(
+                "library_rescrape_item_id_no_dispatch_path",
+                item_id=item_id,
+                title=item.title,
+            )
+            return []
+
+        media_dir = Path(path_attr.value)
+        if not media_dir.is_dir():
+            log.warning(
+                "library_rescrape_item_id_dir_missing",
+                item_id=item_id,
+                title=item.title,
+                path=str(media_dir),
+            )
+            return []
+
+        # Retrieve the config disk_id from the dispatch disk attribute.
+        # The value can be None if the attribute row has a NULL value column,
+        # so we fall back to "" to satisfy the tuple[..., str, ...] contract.
+        disk_attr = _item_repo.get_attr(conn, item_id, _item_repo._ATTR_DISPATCH_DISK)
+        disk_id: str = (disk_attr.value or "") if disk_attr else ""
+
+        media_type = "tvshow" if item.kind == "show" else "movie"
+        return [(media_dir, media_type, disk_id, item.category_id)]
 
     if conn is not None:
         # DB-query path: find items needing rescrape by NFO / refresh status.
