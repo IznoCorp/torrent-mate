@@ -124,15 +124,36 @@ class YoutubeSearch:
     def search(self, title: str, year: int | None) -> str | None:
         """Search YouTube for a trailer and return the first video URL.
 
-        Never raises: transport, schema, and quota failures all return ``None``
-        and are recorded against the circuit breaker / quota counter.
+        Two tiers. The primary tier (YouTube Data API v3) is fail-soft:
+        transport, schema, and quota failures return ``None`` and are recorded
+        against the circuit breaker / quota counter. The fallback tier (yt-dlp
+        ``ytsearch1`` — used when there is no API key, the breaker is open, quota
+        is exhausted, or the primary found nothing) can RAISE: ``_fallback_search``
+        re-raises yt-dlp / transport / OS errors so the strict cache layer can
+        skip caching ``__no_result__``. The breaker is consulted via
+        ``can_proceed()`` (a bool), so ``CircuitOpenError`` never escapes here.
+
+        Callers must therefore be prepared for the fallback-tier exceptions below.
+        Both in-repo callers already handle them and degrade to "no trailer"
+        rather than letting them escape: ``trailer_finder.find`` catches them and
+        returns ``None`` (skipping its ``__no_result__`` cache write), and the
+        trailers orchestrator wraps its ``search`` call in a broad ``except``.
 
         Args:
             title: Media title to search for.
             year: Release year (substituted into the query format, may be None).
 
         Returns:
-            YouTube watch URL string, or ``None`` on failure / no results.
+            YouTube watch URL string, or ``None`` on no results / a fail-soft
+            primary-tier failure.
+
+        Raises:
+            yt_dlp.utils.DownloadError: yt-dlp download/network failure (fallback tier).
+            KeyError: yt-dlp parser schema drift — missing field (fallback tier).
+            AttributeError: yt-dlp parser schema drift — unexpected None (fallback tier).
+            TypeError: yt-dlp parser schema drift — unexpected type (fallback tier).
+            requests.RequestException: transport error (fallback tier).
+            OSError: OS-level I/O error during the yt-dlp probe (fallback tier).
         """
         year_str = str(year) if year else ""
         query = self._query_format.format(title=title, year=year_str).strip()
@@ -266,6 +287,7 @@ class YoutubeSearch:
             safe for the caller to cache this outcome as ``__no_result__``.
 
         Raises:
+            yt_dlp.utils.DownloadError: On yt-dlp download / network failure.
             KeyError: On yt-dlp parser schema drift (missing expected dict field).
             AttributeError: On yt-dlp parser schema drift (unexpected None value).
             TypeError: On yt-dlp parser schema drift (unexpected type in result).
