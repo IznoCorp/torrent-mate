@@ -9,10 +9,38 @@ from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
 
 if TYPE_CHECKING:
+    from personalscraper.api.metadata._base import EpisodeInfo
     from personalscraper.api.metadata.tmdb import TMDBClient
     from personalscraper.api.metadata.tvdb import TVDBClient
 
 log = get_logger("scraper")
+
+
+def _repair_episode_payload(ep: "EpisodeInfo") -> dict[str, Any]:
+    """Build a repair-path episode payload, including per-episode provider IDs.
+
+    Mirrors :func:`personalscraper.scraper.tv_service_episodes._episode_payload`:
+    the ``{provider}_episode_id`` keys are what reach the NFO writer as the
+    episode ``<uniqueid>`` elements. Omitting them (the pre-0.35.1 repair bug)
+    produced repaired episode NFOs with no canonical ``<uniqueid>``, which fails
+    verify's ``EpisodeCanonicalUniqueidPresent`` check.
+
+    Args:
+        ep: Episode parsed from a TMDB / TVDB season response.
+
+    Returns:
+        Dict with the display title, the still-path placeholder, and the
+        per-provider episode IDs surfaced by the parser.
+    """
+    payload: dict[str, Any] = {
+        "title": ep.title or f"Episode {ep.episode_number}",
+        "still_path": "",
+    }
+    for provider, value in ep.external_ids.items():
+        if not value:
+            continue
+        payload[f"{provider}_episode_id"] = value
+    return payload
 
 
 def _fetch_season_episodes(
@@ -39,10 +67,7 @@ def _fetch_season_episodes(
             s_detail = tmdb.get_tv_season(tmdb_id, s_num)
             for ep in s_detail.episodes:
                 e_num = ep.episode_number
-                api_episodes[(s_num, e_num)] = {
-                    "title": ep.title or f"Episode {e_num}",
-                    "still_path": "",
-                }
+                api_episodes[(s_num, e_num)] = _repair_episode_payload(ep)
         except (OSError, ConnectionError, TimeoutError) as e:
             log.warning("repair_season_fetch_failed", season=s_num, error=str(e))
     return api_episodes
@@ -74,10 +99,7 @@ def _fetch_season_episodes_tvdb(
             s_detail = tvdb.get_series_episodes(tvdb_id, s_num)
             for ep in s_detail.episodes:
                 e_num = ep.episode_number
-                api_episodes[(s_num, e_num)] = {
-                    "title": ep.title or f"Episode {e_num}",
-                    "still_path": "",
-                }
+                api_episodes[(s_num, e_num)] = _repair_episode_payload(ep)
         except (OSError, ConnectionError, TimeoutError) as e:
             log.warning("repair_season_fetch_failed_tvdb", season=s_num, error=str(e))
     return api_episodes

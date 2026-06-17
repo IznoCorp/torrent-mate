@@ -266,6 +266,55 @@ class TestFetchSeasonEpisodes:
         result = _fetch_season_episodes_tvdb(tvdb, 1, [2])
         assert result[(2, 3)]["title"] == "Episode 3"
 
+    def test_tvdb_episode_carries_provider_ids_into_payload(self) -> None:
+        """Regression (0.35.1): TVDB repair fetcher surfaces per-episode provider IDs.
+
+        Pre-fix the payload dropped ``ep.external_ids``, so repaired episode NFOs
+        were written with no ``<uniqueid type="tvdb">`` and failed verify's
+        ``EpisodeCanonicalUniqueidPresent`` check (observed on The Orville,
+        TVDB-primary). The ``{provider}_episode_id`` keys are what reach the NFO
+        writer as the episode ``<uniqueid>`` elements.
+        """
+        tvdb = MagicMock()
+        tvdb.get_series_episodes.return_value = SeasonDetails(
+            season_number=1,
+            tv_id="1",
+            episodes=[
+                EpisodeInfo(
+                    season_number=1,
+                    episode_number=1,
+                    title="Old Wounds",
+                    external_ids={"tvdb": "6072123", "imdb": "tt6038262"},
+                )
+            ],
+            provider="tvdb",
+        )
+        result = _fetch_season_episodes_tvdb(tvdb, 1, [1])
+        assert result[(1, 1)]["tvdb_episode_id"] == "6072123"
+        assert result[(1, 1)]["imdb_episode_id"] == "tt6038262"
+
+    def test_tmdb_episode_carries_provider_ids_into_payload(self) -> None:
+        """Regression (0.35.1): TMDB repair fetcher surfaces the episode's tmdb id.
+
+        Mirror of the TVDB case for TMDB-primary shows (canonical family = tmdb).
+        """
+        tmdb = MagicMock()
+        tmdb.get_tv_season.return_value = SeasonDetails(
+            season_number=1,
+            tv_id="1",
+            episodes=[
+                EpisodeInfo(
+                    season_number=1,
+                    episode_number=1,
+                    title="Pilot",
+                    external_ids={"tmdb": "349232"},
+                )
+            ],
+            provider="tmdb",
+        )
+        result = _fetch_season_episodes(tmdb, 1, [1])
+        assert result[(1, 1)]["tmdb_episode_id"] == "349232"
+
 
 # ---------------------------------------------------------------------------
 # _dedup_and_move_root_episode — dry-run + OSError branches
