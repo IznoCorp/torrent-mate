@@ -421,6 +421,39 @@ class TestBuildRootMovedMap:
         )
         assert result == {}
 
+    def test_carries_provider_ids_into_moved_map(self, tmp_path: Path) -> None:
+        """Regression (0.35.1, RF-1): the root-moved repair path forwards provider IDs.
+
+        ``_repair_episode_files`` goes ``_build_root_moved_map`` ->
+        ``_generate_episode_nfos`` directly (NOT through ``match_episode_files``,
+        which is what the artwork-repair path uses). So the ``{provider}_episode_id``
+        keys must be spread into the moved-map dict, or the repaired episode NFO is
+        written with no ``<uniqueid>`` and fails verify's
+        ``EpisodeCanonicalUniqueidPresent`` (the original bug, root-moved variant).
+        Mutation: dropping the ``**_provider_id_fields`` spread fails this test.
+        """
+        show = tmp_path / "The Orville (2017)"
+        show.mkdir()
+        f = show / "The Orville - S01E01.mkv"
+        f.write_bytes(b"\x00")
+        result = _build_root_moved_map(
+            root_new={(1, 1): [f]},
+            root_api_episodes={
+                (1, 1): {
+                    "title": "Old Wounds",
+                    "still_path": "",
+                    "tvdb_episode_id": "6072123",
+                    "imdb_episode_id": "tt6038262",
+                }
+            },
+            show_dir=show,
+            patterns=NamingPatterns(),
+        )
+        assert len(result) == 1
+        info = next(iter(result.values()))
+        assert info["tvdb_episode_id"] == "6072123"
+        assert info["imdb_episode_id"] == "tt6038262"
+
 
 # ---------------------------------------------------------------------------
 # _check_missing_movie_artwork / _check_missing_tvshow_artwork

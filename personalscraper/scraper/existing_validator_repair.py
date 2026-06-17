@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
+from personalscraper.scraper.episode_manager import _provider_id_fields
 
 if TYPE_CHECKING:
     from personalscraper.api.metadata._base import EpisodeInfo
@@ -56,8 +57,10 @@ def _fetch_season_episodes(
         season_numbers: List of season numbers to fetch.
 
     Returns:
-        Dict mapping ``(season, episode)`` to ``{"title", "still_path"}``.
-        May be empty when all seasons failed to fetch or had no episodes.
+        Dict mapping ``(season, episode)`` to the per-episode payload (title,
+        still-path placeholder, and per-provider ``{provider}_episode_id`` keys —
+        see :func:`_repair_episode_payload`). May be empty when all seasons
+        failed to fetch or had no episodes.
     """
     api_episodes: dict[tuple[int, int], dict[str, Any]] = {}
     for s_num in season_numbers:
@@ -89,7 +92,9 @@ def _fetch_season_episodes_tvdb(
         season_numbers: List of season numbers to fetch.
 
     Returns:
-        Dict mapping ``(season, episode)`` to ``{"title", "still_path"}``.
+        Dict mapping ``(season, episode)`` to the per-episode payload (title,
+        still-path placeholder, and per-provider ``{provider}_episode_id`` keys —
+        see :func:`_repair_episode_payload`).
     """
     api_episodes: dict[tuple[int, int], dict[str, Any]] = {}
     for s_num in season_numbers:
@@ -237,5 +242,10 @@ def _build_root_moved_map(
             "episode": e_num,
             "api_title": ep_title,
             "still_path": ep_info.get("still_path", ""),
+            # Carry the per-episode provider IDs through to _generate_episode_nfos
+            # so the root-moved repair path also emits <uniqueid> (the artwork-repair
+            # path gets these via match_episode_files / _provider_id_fields; this path
+            # builds the dict directly and would otherwise drop them — RF-1).
+            **_provider_id_fields(ep_info),
         }
     return root_moved
