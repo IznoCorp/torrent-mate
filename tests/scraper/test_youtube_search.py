@@ -404,6 +404,44 @@ class TestFallbackExceptionSplit:
         assert error_records, "expected youtube_fallback_unexpected_error log"
         assert error_records[0].levelno == logging.ERROR
 
+    def test_search_propagates_fallback_download_error(self, searcher_no_key: YoutubeSearch) -> None:
+        """The public ``search()`` propagates a fallback-tier DownloadError.
+
+        Locks the corrected Raises contract (0.35.1): ``search()`` is NOT
+        "never raises" — with no API key it delegates straight to
+        ``_fallback_search``, which re-raises yt-dlp download errors, and
+        ``search()`` does not swallow them. Complements
+        ``test_fallback_keyerror_does_not_push_breaker`` (which exercises
+        ``_fallback_search`` directly) by asserting propagation through the
+        public entry point.
+        """
+        import builtins
+
+        class _FakeDownloadError(Exception):
+            pass
+
+        def _make_ydl_raising_download_error() -> object:
+            ydl = MagicMock()
+            ydl.__enter__ = MagicMock(return_value=ydl)
+            ydl.__exit__ = MagicMock(return_value=False)
+            ydl.extract_info.side_effect = _FakeDownloadError("network down")
+            fake = MagicMock()
+            fake.YoutubeDL.return_value = ydl
+            fake.utils.DownloadError = _FakeDownloadError
+            return fake
+
+        real_import = builtins.__import__
+        fake_yt_dlp = _make_ydl_raising_download_error()
+
+        def mock_import(name: str, *args: Any, **kwargs: Any) -> Any:
+            if name == "yt_dlp":
+                return fake_yt_dlp
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            with pytest.raises(_FakeDownloadError, match="network down"):
+                searcher_no_key.search("Fight Club", 1999)
+
 
 class TestPrimarySearchRetry:
     """I6 — _primary_search retries transient transport errors."""
