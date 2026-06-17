@@ -8,11 +8,14 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/trailer-fallback/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/trailer-fallback/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                              | File                                       | Status |
+| --- | ---------------------------------- | ------------------------------------------ | ------ |
+| 1   | Config field + fallback hook (TDD) | phase-01-config-field-and-fallback-hook.md | [ ]    |
+| 2   | Gate                               | phase-02-gate.md                           | [ ]    |
 
 ## Review cycles
 
@@ -20,4 +23,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start Phase 1.
