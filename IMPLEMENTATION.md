@@ -19,7 +19,7 @@
 | 3   | Phase gate — make check + AC-1..AC-7 re-exercise              | phase-03-gate.md                      | [x]    |
 | 4   | PR #203 review fixes (cycle 1)                                | phase-04-pr-fixes-cycle-1.md          | [x]    |
 | 5   | PR #203 review fixes (cycle 2)                                | phase-05-pr-fixes-cycle-2.md          | [x]    |
-| 6   | PR #203 review fixes (cycle 3 — exotic season dirs)           | phase-06-pr-fixes-cycle-3.md          | [ ]    |
+| 6   | PR #203 review fixes (cycle 3 — exotic season dirs)           | phase-06-pr-fixes-cycle-3.md          | [x]    |
 
 ## Review cycles
 
@@ -55,4 +55,4 @@ CI green (8/8) on the cycle-2 fix. Primary goal (zero wrong-match/corruption) fu
 
 ## Next action
 
-Run `/implement:phase` to execute Phase 6 (exotic-season-dir recovery), then converge → manual merge handoff.
+Cycle-3 fix done + pushed. On CI green → converged → manual merge handoff (#203).

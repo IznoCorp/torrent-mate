@@ -40,7 +40,8 @@ Add a directional length-ratio guard in `_score_result` / `score_match`: when sc
 At the scraper entry point, when the parsed show title is empty or matches `^\s*S\d+(E\d+)?$` (a pure season token), re-derive the show title from the first episode filename via guessit, before querying the provider.
 
 - **Where**: `personalscraper/scraper/classifier.py:103-105` (`_parse_folder_name`) or `personalscraper/scraper/tv_service.py:110` (after `title, year = _parse_folder_name(show_dir.name)`).
-- **Verified recovery**: guessit(`"The Orville - S3E01.mkv"`) → `"The Orville S03E01"` → strip `Sxx[Eyy]` → `"The Orville"` → correct TVDB match.
+- **Verified recovery**: guessit(`"The Orville - S3E01.mkv"`) → `"The Orville S03E01"` → strip trailing `Sxx[Eyy]` (end-anchored, also handles season-only `"… S03"`) → `"The Orville"` → correct TVDB match.
+- **Recovery scan (as shipped, post-review)**: recursive (`show_dir.rglob`), so episodes in a `Saison NN/` subdir are found. Two-tier: prefer videos at the show root or under a `SEASON_DIR_RE` dir (`Saison NN`/`Season NN`); if none, fall back to all videos excluding samples and `Extras/Featurettes/Bonus`-type dirs (recovers exotic season dirs `"Saison 3 - VOSTFR"`/`"Staffel 3"`/`"S03"`/`"Disc 1"`). An Extras-only folder yields no recovery → safe suppression. (Refined across review cycles 1-3.)
 - **Regex safety (verified)**: `^\s*S\d+(E\d+)?$` matches ` S03`, `S3`, `S01E01` but NOT `FROM`, `The Hack`, `Among`, `Top Chef France`, nor adversarial S-titles `S.W.A.T.`, `S Club 7`, `S-Town`, `S4C`, `Sense8`. Legit titles never enter the fallback.
 
 ### Combined effect
