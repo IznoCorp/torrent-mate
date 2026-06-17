@@ -146,6 +146,8 @@ class TrailersConfig(_StrictModel):
         pipeline: Pipeline-level flag defaults.
         seasons: Season-level trailer discovery (opt-in, off by default).
         library_check: Per-media-type library-aware idempotence toggles.
+        fallback_youtube_search: When True, a failed TMDB-found download triggers
+            a same-run YouTube search for an alternative upload and one re-download.
     """
 
     enabled: bool = False
@@ -171,3 +173,7 @@ class TrailersConfig(_StrictModel):
     seasons: TrailersSeasonsConfig = Field(default_factory=TrailersSeasonsConfig)
     # DESIGN section 8 extension: library-aware idempotence per-media-type toggles.
     library_check: TrailersLibraryCheckConfig = Field(default_factory=TrailersLibraryCheckConfig)
+    # Same-run fallback: when a TMDB-found URL fails to download, attempt a
+    # YouTube search for an alternative upload and re-download once.
+    # Default True (opt-in by default); set False to disable.
+    fallback_youtube_search: bool = True

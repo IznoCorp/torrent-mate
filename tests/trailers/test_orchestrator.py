@@ -207,6 +207,288 @@ class TestTrailersOrchestratorBasic:
         mock_download.assert_not_called()
 
 
+class TestTrailersOrchestratorFallback:
+    """Tests for the same-run YouTube-search fallback (feat/trailer-fallback).
+
+    All tests reproduce the SMG/FROM miss: TMDB finds a URL, download fails,
+    fallback searches YouTube, re-download may succeed or fail. AC-1..AC-7.
+    """
+
+    def test_ytdlp_failure_triggers_youtube_fallback_and_succeeds(self, orchestrator: "TrailersOrchestrator") -> None:
+        """AC-1: TMDB URL -> YTDLP_ERROR, YouTube search -> ALT_URL -> SUCCESS.
+
+        Reproduces the Super Mario Galaxy / FROM miss (2026-06-16 run).
+        download() is called twice; final state is DOWNLOADED with
+        source=="youtube" and youtube_url==ALT_URL. ytdlp_error counter stays 0.
+        """
+        from unittest.mock import MagicMock, patch
+
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.state import TrailerStatus
+
+        tmdb_url = "https://youtube.com/watch?v=TMDB_DEAD"
+        alt_url = "https://youtube.com/watch?v=ALT_GOOD"
+
+        fail_result = DownloadResult(status=DownloadStatus.YTDLP_ERROR, output_path=None, error_message="dead")
+        success_result = DownloadResult(
+            status=DownloadStatus.SUCCESS,
+            output_path=MagicMock(),
+            error_message=None,
+        )
+        download_mock = MagicMock(side_effect=[fail_result, success_result])
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
+            patch.object(orchestrator._finder, "find", return_value=tmdb_url),
+            patch.object(orchestrator._downloader, "download", download_mock),
+            patch.object(orchestrator._finder._youtube_search, "search", return_value=alt_url),
+            patch("personalscraper.trailers.orchestrator._set_state_for_item") as mock_state,
+        ):
+            counts = orchestrator.run()
+
+        # download called twice: once with tmdb_url, once with alt_url
+        # (assert on the URL positionally; the path arg is an internal Path object)
+        assert download_mock.call_count == 2
+        assert download_mock.call_args_list[0].args[0] == tmdb_url
+        assert download_mock.call_args_list[1].args[0] == alt_url
+
+        # Counters: success path, not error path
+        assert counts.get("downloaded", 0) == 1
+        assert counts.get("ytdlp_error", 0) == 0
+
+        # State written with DOWNLOADED + source=youtube + youtube_url=alt_url
+        assert mock_state.call_count == 1
+        state_arg = mock_state.call_args[0][2]
+        assert state_arg.status == TrailerStatus.DOWNLOADED
+        assert state_arg.source == "youtube"
+        assert state_arg.youtube_url == alt_url
+        # DESIGN §State: one logical item-attempt even though two URLs were tried.
+        assert state_arg.attempts == 1
+
+    def test_ytdlp_failure_fallback_also_fails_keeps_terminal_state(self, orchestrator: "TrailersOrchestrator") -> None:
+        """AC-2: Both downloads fail -> download x2, ytdlp_error==1, terminal state.
+
+        When the fallback also returns YTDLP_ERROR, the item ends in the same
+        terminal state as before (YTDLP_ERROR + next_retry_at) and the counter
+        increments once.
+        """
+        from unittest.mock import MagicMock, patch
+
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.state import TrailerStatus
+
+        tmdb_url = "https://youtube.com/watch?v=TMDB_DEAD"
+        alt_url = "https://youtube.com/watch?v=ALT_ALSO_DEAD"
+
+        fail_result = DownloadResult(status=DownloadStatus.YTDLP_ERROR, output_path=None, error_message="dead")
+        download_mock = MagicMock(side_effect=[fail_result, fail_result])
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
+            patch.object(orchestrator._finder, "find", return_value=tmdb_url),
+            patch.object(orchestrator._downloader, "download", download_mock),
+            patch.object(orchestrator._finder._youtube_search, "search", return_value=alt_url),
+            patch("personalscraper.trailers.orchestrator._set_state_for_item") as mock_state,
+        ):
+            counts = orchestrator.run()
+
+        assert download_mock.call_count == 2
+        assert counts.get("ytdlp_error", 0) == 1
+        assert counts.get("downloaded", 0) == 0
+
+        state_arg = mock_state.call_args[0][2]
+        assert state_arg.status == TrailerStatus.YTDLP_ERROR
+        assert state_arg.next_retry_at is not None
+        # DESIGN §State: the fallback re-download must not inflate the attempt count.
+        assert state_arg.attempts == 1
+
+    def test_ytdlp_failure_fallback_returns_none_no_second_download(self, orchestrator: "TrailersOrchestrator") -> None:
+        """AC-3: YouTube search returns None -> no 2nd download, terminal state.
+
+        When the search engine finds nothing, the fallback is a no-op:
+        download is called exactly once and the item fails terminally.
+        """
+        from unittest.mock import MagicMock, patch
+
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.state import TrailerStatus
+
+        tmdb_url = "https://youtube.com/watch?v=TMDB_DEAD"
+        fail_result = DownloadResult(status=DownloadStatus.YTDLP_ERROR, output_path=None, error_message="dead")
+        download_mock = MagicMock(return_value=fail_result)
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
+            patch.object(orchestrator._finder, "find", return_value=tmdb_url),
+            patch.object(orchestrator._downloader, "download", download_mock),
+            patch.object(orchestrator._finder._youtube_search, "search", return_value=None),
+            patch("personalscraper.trailers.orchestrator._set_state_for_item") as mock_state,
+        ):
+            counts = orchestrator.run()
+
+        assert download_mock.call_count == 1
+        assert counts.get("ytdlp_error", 0) == 1
+
+        state_arg = mock_state.call_args[0][2]
+        assert state_arg.status == TrailerStatus.YTDLP_ERROR
+
+    def test_ytdlp_failure_fallback_returns_same_url_no_double_download(
+        self, orchestrator: "TrailersOrchestrator"
+    ) -> None:
+        """AC-4: YouTube search returns the already-failed URL -> tried-set blocks 2nd download.
+
+        When the fallback search returns the same URL that just failed,
+        the tried-set guard prevents a redundant re-download.
+        download is called exactly once.
+        """
+        from unittest.mock import MagicMock, patch
+
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+
+        tmdb_url = "https://youtube.com/watch?v=SAME"
+        fail_result = DownloadResult(status=DownloadStatus.YTDLP_ERROR, output_path=None, error_message="dead")
+        download_mock = MagicMock(return_value=fail_result)
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
+            patch.object(orchestrator._finder, "find", return_value=tmdb_url),
+            patch.object(orchestrator._downloader, "download", download_mock),
+            patch.object(orchestrator._finder._youtube_search, "search", return_value=tmdb_url),
+        ):
+            orchestrator.run()
+
+        assert download_mock.call_count == 1
+
+    def test_fallback_disabled_by_config(self, orchestrator: "TrailersOrchestrator") -> None:
+        """AC-5: fallback_youtube_search=False -> search NOT called, download x1, terminal.
+
+        When the operator disables the fallback, behavior is identical to
+        pre-0.35.0: one download attempt, terminal failure, no YouTube search.
+        """
+        from unittest.mock import MagicMock, patch
+
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+
+        orchestrator._config.trailers.fallback_youtube_search = False
+
+        tmdb_url = "https://youtube.com/watch?v=TMDB_DEAD"
+        fail_result = DownloadResult(status=DownloadStatus.YTDLP_ERROR, output_path=None, error_message="dead")
+        download_mock = MagicMock(return_value=fail_result)
+        search_mock = MagicMock()
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
+            patch.object(orchestrator._finder, "find", return_value=tmdb_url),
+            patch.object(orchestrator._downloader, "download", download_mock),
+            patch.object(orchestrator._finder._youtube_search, "search", search_mock),
+        ):
+            counts = orchestrator.run()
+
+        search_mock.assert_not_called()
+        assert download_mock.call_count == 1
+        assert counts.get("ytdlp_error", 0) == 1
+
+    def test_fallback_youtube_circuit_open_is_clean(self, orchestrator: "TrailersOrchestrator") -> None:
+        """AC-6: CircuitOpenError from YouTube search -> no crash, no 2nd download, terminal.
+
+        A tripped YouTube circuit breaker must not propagate as an unhandled
+        exception. The fallback is silently skipped and the item fails
+        terminally (same as search-returns-None).
+        """
+        from unittest.mock import MagicMock, patch
+
+        from personalscraper.api._contracts import CircuitOpenError
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+
+        tmdb_url = "https://youtube.com/watch?v=TMDB_DEAD"
+        fail_result = DownloadResult(status=DownloadStatus.YTDLP_ERROR, output_path=None, error_message="dead")
+        download_mock = MagicMock(return_value=fail_result)
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
+            patch.object(orchestrator._finder, "find", return_value=tmdb_url),
+            patch.object(orchestrator._downloader, "download", download_mock),
+            patch.object(
+                orchestrator._finder._youtube_search,
+                "search",
+                side_effect=CircuitOpenError("youtube", 30.0),
+            ),
+        ):
+            # Must NOT raise
+            counts = orchestrator.run()
+
+        assert download_mock.call_count == 1
+        assert counts.get("ytdlp_error", 0) == 1
+
+    def test_http_error_also_triggers_fallback(self, orchestrator: "TrailersOrchestrator") -> None:
+        """AC-7: HTTP_ERROR also falls back to YouTube search.
+
+        The fallback must activate on ALL non-SUCCESS statuses, not just
+        YTDLP_ERROR. BOT_DETECTED is excluded: re-downloading immediately
+        would reset bot_detected_consecutive_attempts incorrectly.
+        Only HTTP_ERROR is covered here (YTDLP_ERROR covered by AC-1..AC-3).
+        """
+        from unittest.mock import MagicMock, patch
+
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.state import TrailerStatus
+
+        tmdb_url = "https://youtube.com/watch?v=TMDB_DEAD"
+        alt_url = "https://youtube.com/watch?v=ALT_GOOD"
+
+        http_fail = DownloadResult(status=DownloadStatus.HTTP_ERROR, output_path=None, error_message="403")
+        success_result = DownloadResult(status=DownloadStatus.SUCCESS, output_path=MagicMock(), error_message=None)
+        download_mock = MagicMock(side_effect=[http_fail, success_result])
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
+            patch.object(orchestrator._finder, "find", return_value=tmdb_url),
+            patch.object(orchestrator._downloader, "download", download_mock),
+            patch.object(orchestrator._finder._youtube_search, "search", return_value=alt_url),
+            patch("personalscraper.trailers.orchestrator._set_state_for_item") as mock_state,
+        ):
+            counts = orchestrator.run()
+
+        assert download_mock.call_count == 2
+        assert download_mock.call_args_list[1].args[0] == alt_url
+        assert counts.get("downloaded", 0) == 1
+        assert counts.get("http_error", 0) == 0
+
+        state_arg = mock_state.call_args[0][2]
+        assert state_arg.status == TrailerStatus.DOWNLOADED
+        # Discriminating: the persisted URL is the fallback alt, not the dead TMDB URL.
+        assert state_arg.youtube_url == alt_url
+
+    def test_bot_detected_does_not_trigger_fallback(self, orchestrator: "TrailersOrchestrator") -> None:
+        """AC-7 companion: BOT_DETECTED is EXCLUDED from the fallback.
+
+        Re-downloading on BOT_DETECTED would reset bot_detected_consecutive_attempts
+        incorrectly, so the fallback must NOT fire: the search is never called and
+        there is exactly one download. Locks in the exclusion (orchestrator.py:503)
+        against a mutation that drops BOT_DETECTED from the exclusion tuple.
+        """
+        from unittest.mock import MagicMock, patch
+
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+
+        tmdb_url = "https://youtube.com/watch?v=TMDB_DEAD"
+        bot_result = DownloadResult(status=DownloadStatus.BOT_DETECTED, output_path=None, error_message="bot")
+        download_mock = MagicMock(return_value=bot_result)
+        search_mock = MagicMock(return_value="https://youtube.com/watch?v=ALT_GOOD")
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
+            patch.object(orchestrator._finder, "find", return_value=tmdb_url),
+            patch.object(orchestrator._downloader, "download", download_mock),
+            patch.object(orchestrator._finder._youtube_search, "search", search_mock),
+        ):
+            counts = orchestrator.run()
+
+        search_mock.assert_not_called()
+        assert download_mock.call_count == 1
+        assert counts.get("bot_detected", 0) == 1
+
+
 class TestDiskSpaceAndBudget:
     """Tests for disk-space pre-check and step-budget enforcement.
 
@@ -673,7 +955,13 @@ class TestTrailersOrchestratorEdgeCases:
         assert counts["bot_detected"] == 1
 
     def test_run_http_error_increments_counter(self, orchestrator: "TrailersOrchestrator", tmp_path: "Path") -> None:
-        """counts[http_error] is incremented when downloader returns HTTP_ERROR."""
+        """counts[http_error] is incremented when downloader returns HTTP_ERROR.
+
+        AC-8 (back-compat): HTTP_ERROR is a non-SUCCESS/non-BOT_DETECTED status, so
+        it triggers the same-run fallback. _finder._youtube_search.search is patched
+        to None so the test does not make a live YouTube call (no alt URL → one
+        download → terminal HTTP_ERROR, the pre-0.35.0 behavior).
+        """
         from unittest.mock import patch
 
         from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
@@ -681,6 +969,7 @@ class TestTrailersOrchestratorEdgeCases:
         with (
             patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
             patch.object(orchestrator._finder, "find", return_value="https://youtube.com/watch?v=X"),
+            patch.object(orchestrator._finder._youtube_search, "search", return_value=None),
             patch.object(
                 orchestrator._downloader,
                 "download",
@@ -706,7 +995,11 @@ class TestTrailersOrchestratorEdgeCases:
         assert counts["error"] == 1
 
     def test_run_ytdlp_error_increments_counter(self, orchestrator: "TrailersOrchestrator") -> None:
-        """counts[ytdlp_error] is incremented when downloader returns an unhandled status."""
+        """counts[ytdlp_error] is incremented when downloader returns an unhandled status.
+
+        AC-8 (back-compat): _finder._youtube_search.search is patched to None so the
+        test does not make a live call when the same-run fallback is active.
+        """
         from unittest.mock import patch
 
         from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
@@ -723,6 +1016,7 @@ class TestTrailersOrchestratorEdgeCases:
                     error_message="ytdlp failed",
                 ),
             ),
+            patch.object(orchestrator._finder._youtube_search, "search", return_value=None),
         ):
             counts = orchestrator.run()
         assert counts["ytdlp_error"] == 1
@@ -798,7 +1092,12 @@ class TestTrailersOrchestratorNfoPropagation:
         assert item.nfo_path.read_text(encoding="utf-8") == original_nfo  # type: ignore[union-attr]
 
     def test_nfo_not_written_on_http_error(self, orchestrator: "TrailersOrchestrator", tmp_path: "Path") -> None:
-        """HTTP_ERROR must NOT touch the NFO."""
+        """HTTP_ERROR must NOT touch the NFO.
+
+        _finder._youtube_search.search is patched to None: HTTP_ERROR triggers the
+        same-run fallback, and stubbing the search keeps the test off the network
+        (no alt URL → one download → terminal HTTP_ERROR, NFO untouched).
+        """
         from unittest.mock import patch
 
         from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
@@ -809,6 +1108,7 @@ class TestTrailersOrchestratorNfoPropagation:
         with (
             patch.object(orchestrator._scanner, "scan_staging", return_value=[item]),
             patch.object(orchestrator._finder, "find", return_value="https://youtube.com/watch?v=X"),
+            patch.object(orchestrator._finder._youtube_search, "search", return_value=None),
             patch.object(
                 orchestrator._downloader,
                 "download",
@@ -1016,6 +1316,9 @@ class TestYtdlpRetryRoundTrip:
             patch.object(orch1._scanner, "scan_staging", return_value=[scan_item]),
             patch.object(orch1._finder, "find", return_value="https://youtube.com/watch?v=X"),
             patch.object(orch1._downloader, "download", return_value=fail_result) as _mock_dl1,
+            # Same-run YouTube fallback is on by default; patch it to a no-op so
+            # this round-trip test asserts the one-download-per-run retry contract.
+            patch.object(orch1._finder._youtube_search, "search", return_value=None),
         ):
             counts1 = orch1.run()
 
@@ -1062,6 +1365,7 @@ class TestYtdlpRetryRoundTrip:
             patch.object(orch2._scanner, "scan_staging", return_value=[scan_item]),
             patch.object(orch2._finder, "find", return_value="https://youtube.com/watch?v=X"),
             patch.object(orch2._downloader, "download", return_value=fail_result) as mock_dl2,
+            patch.object(orch2._finder._youtube_search, "search", return_value=None),
         ):
             counts2 = orch2.run()
 
@@ -1093,6 +1397,7 @@ class TestYtdlpRetryRoundTrip:
             patch.object(orch3._scanner, "scan_staging", return_value=[scan_item]),
             patch.object(orch3._finder, "find", return_value="https://youtube.com/watch?v=X"),
             patch.object(orch3._downloader, "download", return_value=fail_result) as mock_dl3,
+            patch.object(orch3._finder._youtube_search, "search", return_value=None),
         ):
             counts3 = orch3.run()
 

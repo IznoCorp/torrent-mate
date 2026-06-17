@@ -583,6 +583,30 @@ class TestTrailersConfig:
         assert cfg.library_check.movies is False
         assert cfg.library_check.tv_shows is True
 
+    def test_trailers_config_fallback_youtube_search_default(self):
+        """TrailersConfig.fallback_youtube_search defaults to True (AC-9).
+
+        The field must exist on the real model (not just MagicMock) and default
+        to True so existing configs without the key get the opt-in behavior.
+        """
+        from personalscraper.conf.models.trailers import TrailersConfig
+
+        cfg = TrailersConfig()
+        assert cfg.fallback_youtube_search is True
+
+    def test_trailers_config_fallback_youtube_search_round_trips(self):
+        """AC-9: fallback_youtube_search round-trips through the model (overlay) loader.
+
+        A non-default ``false`` from an overlay must survive parsing (not silently
+        revert to the True default), the strict model must accept the key (no
+        ``extra='forbid'`` rejection), and it must serialize back out losslessly.
+        """
+        from personalscraper.conf.models.trailers import TrailersConfig
+
+        cfg = TrailersConfig.model_validate({"fallback_youtube_search": False})
+        assert cfg.fallback_youtube_search is False
+        assert cfg.model_dump()["fallback_youtube_search"] is False
+
     def test_config_trailers_field_defaults_to_disabled(self, tmp_path):
         """Config.trailers defaults to TrailersConfig() with enabled=False."""
         from personalscraper.conf.models.config import Config

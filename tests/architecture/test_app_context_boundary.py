@@ -64,7 +64,11 @@ class _Visitor(ast.NodeVisitor):
 def _scan_module(path: Path) -> _Visitor:
     rel = path.relative_to(_REPO_ROOT).as_posix()
     visitor = _Visitor(rel)
-    visitor.visit(ast.parse(path.read_text()))
+    try:
+        source = path.read_text()
+    except FileNotFoundError:  # transient probe vanished mid-scan (xdist race vs test_layering.py)
+        return visitor  # empty visitor — the vanished file is never an AppContext site
+    visitor.visit(ast.parse(source))
     return visitor
 
 
