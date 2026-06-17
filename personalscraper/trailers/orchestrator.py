@@ -264,6 +264,7 @@ class TrailersOrchestrator:
         retry_policy: list[int] = list(self._config.trailers.retry_after_days)
         movies_check = bool(self._config.trailers.library_check.movies)
         tvshows_check = bool(self._config.trailers.library_check.tv_shows)
+        fallback_yt_search: bool = bool(self._config.trailers.fallback_youtube_search)
 
         self._library_index = None
 
@@ -491,7 +492,21 @@ class TrailersOrchestrator:
                 self._item_results.append((str(item.path), "already_present", "already_present"))
                 continue
 
+            tried: set[str] = {url}
             result = self._downloader.download(url, expected_path)
+
+            # Same-run YouTube-search fallback (feat/trailer-fallback).
+            # Fires when the first download fails AND the fallback is enabled
+            # AND the search is not circuit-open. Re-downloads at most once.
+            # BOT_DETECTED is excluded: re-downloading immediately would
+            # reset bot_detected_consecutive_attempts incorrectly.
+            if result.status not in (DownloadStatus.SUCCESS, DownloadStatus.BOT_DETECTED) and fallback_yt_search:
+                alt = self._youtube_search_fallback(item)
+                if alt and alt not in tried:
+                    tried.add(alt)
+                    url = alt  # state/NFO/events record the URL actually used
+                    result = self._downloader.download(url, expected_path)
+
             now_iso = datetime.now(timezone.utc).isoformat()
 
             if result.status == DownloadStatus.SUCCESS:
@@ -651,6 +666,45 @@ class TrailersOrchestrator:
             Per-item failure tuples: (composite_key, status_string, notes).
         """
         return list(self._failed_items)
+
+    def _youtube_search_fallback(self, item: Any) -> str | None:
+        """Search YouTube for an alternative trailer URL when the first download fails.
+
+        Delegates to ``self._finder._youtube_search.search(title, year)`` without
+        calling ``finder.find()`` — avoids re-hitting the TMDB tier and avoids
+        writing the ``__no_result__`` cache sentinel.
+
+        Handles ``CircuitOpenError`` cleanly (mirrors the pattern at the finder
+        call site): a tripped YouTube breaker returns None rather than
+        propagating as an unhandled exception.
+
+        Args:
+            item: A ``ScanItem``-compatible object with ``title: str`` and
+                ``year: int | None`` attributes.
+
+        Returns:
+            A YouTube video URL string, or None when the search fails, the
+            circuit is open, or ``_finder`` is not available.
+        """
+        from personalscraper.api._contracts import CircuitOpenError  # noqa: PLC0415
+
+        if self._finder is None:
+            return None
+        try:
+            return self._finder._youtube_search.search(item.title, item.year)
+        except CircuitOpenError:
+            log.warning(
+                "trailers_fallback_circuit_open",
+                title=item.title,
+            )
+            return None
+        except Exception:  # noqa: BLE001
+            log.warning(
+                "trailers_fallback_search_error",
+                title=item.title,
+                exc_info=True,
+            )
+            return None
 
     def _build_finder(self) -> "TrailerFinder | None":
         """Construct a fully wired TrailerFinder from config values.

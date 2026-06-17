@@ -407,7 +407,7 @@ class TestTrailersOrchestratorFallback:
             patch.object(
                 orchestrator._finder._youtube_search,
                 "search",
-                side_effect=CircuitOpenError("youtube circuit open"),
+                side_effect=CircuitOpenError("youtube", 30.0),
             ),
         ):
             # Must NOT raise
@@ -1268,6 +1268,9 @@ class TestYtdlpRetryRoundTrip:
             patch.object(orch1._scanner, "scan_staging", return_value=[scan_item]),
             patch.object(orch1._finder, "find", return_value="https://youtube.com/watch?v=X"),
             patch.object(orch1._downloader, "download", return_value=fail_result) as _mock_dl1,
+            # Same-run YouTube fallback is on by default; patch it to a no-op so
+            # this round-trip test asserts the one-download-per-run retry contract.
+            patch.object(orch1._finder._youtube_search, "search", return_value=None),
         ):
             counts1 = orch1.run()
 
@@ -1314,6 +1317,7 @@ class TestYtdlpRetryRoundTrip:
             patch.object(orch2._scanner, "scan_staging", return_value=[scan_item]),
             patch.object(orch2._finder, "find", return_value="https://youtube.com/watch?v=X"),
             patch.object(orch2._downloader, "download", return_value=fail_result) as mock_dl2,
+            patch.object(orch2._finder._youtube_search, "search", return_value=None),
         ):
             counts2 = orch2.run()
 
@@ -1345,6 +1349,7 @@ class TestYtdlpRetryRoundTrip:
             patch.object(orch3._scanner, "scan_staging", return_value=[scan_item]),
             patch.object(orch3._finder, "find", return_value="https://youtube.com/watch?v=X"),
             patch.object(orch3._downloader, "download", return_value=fail_result) as mock_dl3,
+            patch.object(orch3._finder._youtube_search, "search", return_value=None),
         ):
             counts3 = orch3.run()
 
