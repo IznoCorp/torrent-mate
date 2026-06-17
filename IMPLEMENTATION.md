@@ -19,6 +19,7 @@
 | 3   | Phase gate — make check + AC-1..AC-7 re-exercise              | phase-03-gate.md                      | [x]    |
 | 4   | PR #203 review fixes (cycle 1)                                | phase-04-pr-fixes-cycle-1.md          | [x]    |
 | 5   | PR #203 review fixes (cycle 2)                                | phase-05-pr-fixes-cycle-2.md          | [x]    |
+| 6   | PR #203 review fixes (cycle 3 — exotic season dirs)           | phase-06-pr-fixes-cycle-3.md          | [ ]    |
 
 ## Review cycles
 
@@ -43,6 +44,15 @@ The cycle-1 fix INTRODUCED 2 regressions (both concretely reproduced):
 
 Lesson: cycle-1's two changes each traded one bug for another; cycle-2 fixes both at the root + adds the missing regression tests (Extras-subdir, season-only).
 
+### Cycle 3 — PR #203 (re-review of the cycle-2 fix)
+
+Re-review (regression-in-fix + completeness): 3 findings, **1 confirmed (minor, safe-degradation)**, 2 refuted (true but doc-only / out-of-delta).
+
+- **minor (safe)** — the cycle-2 `SEASON_DIR_RE` restriction misses recovery when episodes live in an exotic season dir (`"Saison 3 - VOSTFR"`, `"Staffel 3"`, `"S03"`, `"Disc 1"`, `"Season 3 [1080p]"`) → recovery `None` → degrades to SAFE suppression (no wrong match, no corruption). Operator elected to fix (French content → VOSTFR dirs real). → Phase 6.
+- _refuted (true, scoped out)_: INDEX.md stale (phases 4-5); DESIGN Unit 2 predates the recursive+filtered recovery. Both doc-only, IMPLEMENTATION.md is the canonical tracker.
+
+CI green (8/8) on the cycle-2 fix. Primary goal (zero wrong-match/corruption) fully met + tested; cycle-3 confirms no corruption path remains.
+
 ## Next action
 
-Cycle-2 fixes done + pushed. Re-running CI + cycle-3 re-review (regression-in-fix), then manual merge handoff.
+Run `/implement:phase` to execute Phase 6 (exotic-season-dir recovery), then converge → manual merge handoff.
