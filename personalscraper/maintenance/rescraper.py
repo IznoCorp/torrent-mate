@@ -730,6 +730,7 @@ def rescrape_library(
     conn: sqlite3.Connection | None = None,
     disk_filter: str | None = None,
     category_filter: str | None = None,
+    item_id: int | None = None,
     only: str | None = None,
     interactive: bool = False,
     dry_run: bool = True,
@@ -746,12 +747,21 @@ def rescrape_library(
     (indexer DB path).  When *conn* is ``None``, falls back to a filesystem walk
     of ``config.disks``.
 
+    When *item_id* is set, exactly that item is targeted by DB look-up,
+    bypassing the needs-rescrape predicate so that items with
+    ``nfo_status='valid'`` can be force-rescraped.  *item_id* is mutually
+    exclusive with *disk_filter* and *category_filter* (enforced by
+    :func:`_collect_rescrape_candidates`).
+
     Args:
         config: Config with disk and category definitions.
         conn: Optional open SQLite connection to the indexer DB.  When supplied,
             items are found via DB query instead of a full filesystem walk.
         disk_filter: Only rescrape this disk (by disk.id). None = all.
         category_filter: Only rescrape this category_id. None = all.
+        item_id: Target exactly this item by its indexer DB id, bypassing the
+            needs-rescrape predicate.  Mutually exclusive with *disk_filter* and
+            *category_filter*.  None = use standard candidate discovery.
         only: Only apply this action: "nfo", "artwork", "episodes". None = all.
         interactive: If True, prompt for low-confidence matches.
         dry_run: If True, preview without modifying files.
@@ -786,7 +796,7 @@ def rescrape_library(
     items_processed = 0
     start = datetime.now(tz=timezone.utc).isoformat()
 
-    candidates = _collect_rescrape_candidates(config, conn, disk_filter, category_filter)
+    candidates = _collect_rescrape_candidates(config, conn, disk_filter, category_filter, item_id=item_id)
 
     for media_dir, media_type, disk_id, category_id in candidates:
         if max_items and items_processed >= max_items:

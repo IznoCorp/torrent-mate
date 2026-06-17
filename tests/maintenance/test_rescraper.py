@@ -1740,3 +1740,58 @@ class TestCollectRescrapeCandidatesItemId:
 
         with pytest.raises(ValueError, match="item_id"):
             _collect_rescrape_candidates(config, MagicMock(), "disk1", None, item_id=42)
+
+
+class TestRescrapeLibraryItemIdThreading:
+    """Tests that rescrape_library properly threads item_id through to _collect_rescrape_candidates."""
+
+    def _config(self, tmp_path: Path) -> Config:
+        """Build a minimal Config for threading tests.
+
+        Args:
+            tmp_path: pytest tmp_path fixture.
+
+        Returns:
+            A populated Config instance.
+        """
+        return Config(
+            paths=PathConfig(
+                torrent_complete_dir=tmp_path / "complete",
+                staging_dir=tmp_path / "staging",
+                data_dir=tmp_path / ".data",
+            ),
+            disks=[DiskConfig(id="disk1", path=tmp_path / "disk1", categories=["movies"])],
+            categories={"movies": CategoryConfig(folder_name="films")},
+            staging_dirs=CANONICAL_STAGING_DIRS,
+            scraper=ScraperConfig(),
+        )
+
+    def test_rescrape_library_item_id_threads_through(self, tmp_path: Path) -> None:
+        """rescrape_library must forward item_id to _collect_rescrape_candidates.
+
+        Spy on _collect_rescrape_candidates and assert it is called with
+        item_id=42.  The spy returns an empty list so the processing loop is a
+        no-op — the assertion is solely about argument forwarding.
+        """
+        from personalscraper.maintenance.rescraper import rescrape_library
+
+        with (
+            patch(
+                "personalscraper.maintenance.rescraper._collect_rescrape_candidates",
+                return_value=[],
+            ) as mock_collect,
+            patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
+            patch("personalscraper.scraper.artwork.ArtworkDownloader"),
+        ):
+            rescrape_library(
+                self._config(tmp_path),
+                item_id=42,
+                dry_run=True,
+                event_bus=EventBus(),
+                registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
+            )
+
+        mock_collect.assert_called_once()
+        _call_kwargs = mock_collect.call_args
+        # item_id must have been forwarded — check keyword or positional
+        assert _call_kwargs.kwargs.get("item_id") == 42 or (len(_call_kwargs.args) >= 5 and _call_kwargs.args[4] == 42)
