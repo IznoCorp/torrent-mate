@@ -1111,3 +1111,85 @@ def test_ensure_disk_row_idempotent_when_row_uses_config_id_as_uuid(tmp_path: Pa
 
     disk_count = conn.execute("SELECT COUNT(*) FROM disk").fetchone()[0]
     assert disk_count == 1, f"Expected 1 disk row after two _ensure_disk_row calls, got {disk_count}"
+
+
+# ---------------------------------------------------------------------------
+# date_metadata_refreshed population (rescrape-target feature, Phase 2.1).
+# Regression: build_item_row previously hardcoded None for this column so the
+# rescrape predicate (date_metadata_refreshed IS NULL) always matched every
+# item, preventing incremental re-scrapes. The fix populates the scan epoch
+# when nfo_status == 'valid', leaving None for invalid/missing NFO items.
+# ---------------------------------------------------------------------------
+
+
+def test_build_item_row_valid_nfo_sets_date_refreshed() -> None:
+    """build_item_row sets date_metadata_refreshed to scan_epoch when nfo_status='valid'.
+
+    Regression for the always-None bug: the rescrape candidate predicate
+    (``date_metadata_refreshed IS NULL``) must NOT match items with a valid
+    NFO after a scan.
+    """
+    row = build_item_row(
+        title="Some Movie",
+        kind="movie",
+        year=2020,
+        category_id="movies",
+        tvdb_id=None,
+        tmdb_id="12345",
+        nfo_default="tmdb",
+        nfo_status="valid",
+        scan_epoch=12345,
+    )
+    assert row["date_metadata_refreshed"] == 12345, (
+        f"Expected date_metadata_refreshed=12345 for nfo_status='valid', got {row['date_metadata_refreshed']!r}"
+    )
+
+
+def test_build_item_row_invalid_nfo_keeps_date_refreshed_none() -> None:
+    """build_item_row keeps date_metadata_refreshed=None when nfo_status is not 'valid'.
+
+    Items with a missing or invalid NFO must remain rescrape candidates
+    (the IS NULL predicate must still match them).
+    """
+    for bad_status in ("missing", "invalid"):
+        row = build_item_row(
+            title="Some Movie",
+            kind="movie",
+            year=2020,
+            category_id="movies",
+            tvdb_id=None,
+            tmdb_id=None,
+            nfo_default=None,
+            nfo_status=bad_status,  # type: ignore[arg-type]
+            scan_epoch=12345,
+        )
+        assert row["date_metadata_refreshed"] is None, (
+            f"Expected date_metadata_refreshed=None for nfo_status={bad_status!r}, "
+            f"got {row['date_metadata_refreshed']!r}"
+        )
+
+
+def test_scan_and_stage_dir_valid_nfo_sets_date_refreshed(tmp_path: Path) -> None:
+    """scan_and_stage_dir threads the run timestamp into date_metadata_refreshed for a valid NFO.
+
+    Integration test: proves the scan epoch travels from the now_s argument
+    through scan_and_stage_dir → build_item_row → upsert_item_with_attrs and
+    lands in the persisted media_item row.
+    """
+    conn = _make_db()
+    disk_cfg = _movie_cfg(tmp_path)
+    movie = tmp_path / "films" / "Blade Runner (1982)"
+    movie.mkdir(parents=True)
+    (movie / "Blade Runner.mkv").write_bytes(b"\x00" * 1000)
+    # Complete NFO with a valid <uniqueid> → nfo_status='valid'.
+    (movie / "Blade Runner.nfo").write_text('<movie><uniqueid type="tmdb">78</uniqueid></movie>')
+
+    run_timestamp = 99999
+    item_id = scan_and_stage_dir(conn, movie, disk_cfg, CID.MOVIES, "movie", now_s=run_timestamp)
+
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT date_metadata_refreshed FROM media_item WHERE id = ?", (item_id,)).fetchone()
+    assert row is not None
+    assert row["date_metadata_refreshed"] == run_timestamp, (
+        f"Expected date_metadata_refreshed={run_timestamp}, got {row['date_metadata_refreshed']!r}"
+    )

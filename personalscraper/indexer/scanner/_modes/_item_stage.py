@@ -89,6 +89,7 @@ def build_item_row(
     nfo_status: NfoStatus,
     artwork_json: str = "{}",
     ratings: list[dict[str, Any]] | None = None,
+    scan_epoch: int | None = None,
 ) -> dict[str, Any]:
     """Build a ``media_item`` column dict from parsed NFO inputs.
 
@@ -97,6 +98,11 @@ def build_item_row(
     ``tvdb`` / ``tmdb`` ids are persisted, ``imdb`` is stored verbatim,
     ``"{}"`` when no id is present) and resolves ``canonical_provider`` via
     the kind-deterministic SSOT :func:`derive_canonical_provider`.
+
+    ``date_metadata_refreshed`` is populated with *scan_epoch* only when
+    *nfo_status* is ``"valid"`` (the item carries scraped metadata). Items
+    with a missing or invalid NFO keep ``None`` so they remain candidates for
+    the rescrape predicate (``date_metadata_refreshed IS NULL``).
 
     Args:
         title: Display title (folder-name title for the no-NFO fallback).
@@ -113,6 +119,10 @@ def build_item_row(
             to the empty inventory ``"{}"``.
         ratings: Optional list of ``{source, score, votes}`` rating dicts;
             ``None`` or empty leaves ``ratings_json`` NULL.
+        scan_epoch: Unix epoch seconds of the scanner run, threaded in from
+            :func:`scan_and_stage_dir`. When *nfo_status* is ``"valid"``, this
+            value is written to ``date_metadata_refreshed``; otherwise ``None``
+            is written. Defaults to ``None`` (leaves the column ``NULL``).
 
     Returns:
         A dict keyed by the real post-migration-005 ``media_item`` columns,
@@ -159,7 +169,11 @@ def build_item_row(
         "artwork_json": artwork_json,
         "date_created": 0,
         "date_modified": 0,
-        "date_metadata_refreshed": None,
+        # Populate only when the NFO is valid: a valid NFO means the item
+        # carries scraped metadata, so we record the epoch and remove it from
+        # the rescrape predicate's IS NULL arm.  Missing/invalid NFOs keep NULL
+        # so they remain rescrape candidates.
+        "date_metadata_refreshed": scan_epoch if nfo_status == "valid" else None,
         "is_locked": 0,
         "preferred_lang": "fr",
     }
@@ -688,6 +702,7 @@ def scan_and_stage_dir(
         nfo_status=nfo_status,
         artwork_json=artwork.model_dump_json(),
         ratings=meta["ratings"],
+        scan_epoch=stamp,
     )
 
     # Dispatch flex attributes. Normalization mirrors
