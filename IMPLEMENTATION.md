@@ -20,7 +20,15 @@
 
 ## Review cycles
 
-_(filled by implement:pr-review — max 5 cycles)_
+### Cycle 1
+
+4 reviewers (code, silent-failure, tests, comments). All findings verified; RT-1 reproduced + mutation-checked. No DESIGN contradiction.
+
+- **RT-1 (major, 2 reviewers reproduced)**: `item_repo.upsert` UPDATE branch dropped `date_metadata_refreshed` → Part 2 was a no-op for existing rows (the 1909 NULLs never backfilled). Fixed: both UPDATE stmts now persist the column (`81a94dac`). Regression test (insert→re-scan→populated) mutation-verified. DESIGN note corrected.
+- **RT-2/3/4 (medium)**: CLI `--item-id` error handling — dead `db_path is None` guard → `db_path.exists()`; `open_db`/`apply_migrations` raw tracebacks → clean Exit(1); silent not-found → visible error + exit (`08a89abf`). Tests F1/F2 added.
+- **Minor**: docstring "both"→"either" + typo "force-rescraping" (folded).
+
+Gate after fixes: `make check` 6952 passed / 0 failed. Pushed. Re-CI + cycle-2 re-check.
 
 ## Next action
 
