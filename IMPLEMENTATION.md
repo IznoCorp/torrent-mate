@@ -15,7 +15,7 @@
 | #   | Phase                              | File                                       | Status |
 | --- | ---------------------------------- | ------------------------------------------ | ------ |
 | 1   | Config field + fallback hook (TDD) | phase-01-config-field-and-fallback-hook.md | [x]    |
-| 2   | Gate                               | phase-02-gate.md                           | [ ]    |
+| 2   | Gate                               | phase-02-gate.md                           | [x]    |
 
 ## Review cycles
 
@@ -23,4 +23,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1.
+All phases complete — run `/implement:feature-pr` (push + PR + CI poll).
