@@ -8,11 +8,15 @@
 **PR merge**: auto
 **PR**: _(created after last phase)_
 **Design**: docs/features/rescrape-target/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/rescrape-target/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                     | File                       | Status |
+| --- | ------------------------- | -------------------------- | ------ |
+| 1   | item-id targeting         | phase-01-item-id.md        | [ ]    |
+| 2   | date-refreshed population | phase-02-date-refreshed.md | [ ]    |
+| 3   | gate                      | phase-03-gate.md           | [ ]    |
 
 ## Review cycles
 
@@ -20,4 +24,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to execute Phase 1.
