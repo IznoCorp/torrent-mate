@@ -297,8 +297,8 @@ def library_rescrape(
     # Guard: --item-id requires a configured and reachable indexer DB.
     if item_id is not None:
         db_path = config.indexer.db_path
-        if db_path is None:
-            console.print("[red]--item-id requires the indexer DB to be configured (indexer.db_path is not set).[/red]")
+        if not db_path.exists():
+            console.print(f"[red]Indexer DB not found at {db_path}; run `library-index` first.[/red]")
             raise typer.Exit(1)
 
     if not dry_run:
@@ -319,10 +319,28 @@ def library_rescrape(
             conn: sqlite3.Connection | None = None
             if item_id is not None:
                 from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
-                from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
+                from personalscraper.indexer.db import (  # noqa: PLC0415
+                    IndexerCorruptError,
+                    IndexerDiskFullError,
+                    IndexerInvalidPathError,
+                    IndexerMigrationError,
+                    apply_migrations,
+                    open_db,
+                )
 
-                conn = open_db(config.indexer.db_path, event_bus=app_context.event_bus)
-                apply_migrations(conn, Path(_migrations_pkg.__file__).parent)
+                try:
+                    conn = open_db(config.indexer.db_path, event_bus=app_context.event_bus)
+                    apply_migrations(conn, Path(_migrations_pkg.__file__).parent)
+                except (
+                    IndexerCorruptError,
+                    IndexerInvalidPathError,
+                    IndexerDiskFullError,
+                    IndexerMigrationError,
+                ) as exc:
+                    console.print(f"[red]Failed to open indexer DB:[/red] {exc}")
+                    if conn is not None:
+                        conn.close()
+                    raise typer.Exit(1) from exc
 
             try:
                 result = rescrape_library(
@@ -346,6 +364,17 @@ def library_rescrape(
             finally:
                 if conn is not None:
                     conn.close()
+
+            # RT-4: warn clearly when an explicit --item-id matched nothing
+            # (item not in DB, dispatch path missing, or directory gone).
+            # Soft-skips in the bulk path are intentional; this case is not.
+            if item_id is not None:
+                total = result.fixed_count + result.skipped_count + result.error_count
+                if total == 0:
+                    console.print(
+                        f"[yellow]Warning:[/yellow] item {item_id} not found / not on disk — nothing re-scraped."
+                    )
+                    raise typer.Exit(1)
 
         output_path = config.paths.data_dir / "library_rescrape.json"
         write_json(result, output_path)

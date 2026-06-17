@@ -751,8 +751,17 @@ class TestLibraryRescrape:
         mocking out ``rescrape_library``, ``open_db``, and ``apply_migrations``
         so no real DB is needed.  Asserts that ``rescrape_library`` was called
         with ``item_id=99``.
+
+        A placeholder DB file is created at the path ``config.indexer.db_path``
+        resolves to (``tmp_path/.data/library.db``) so the ``db_path.exists()``
+        guard in the CLI passes before ``open_db`` is reached.
         """
         from personalscraper.maintenance.rescraper import LibraryRescrapeResult
+
+        # Create the DB file so the exists() guard introduced by RT-3 passes.
+        db_file = tmp_path / ".data" / "library.db"
+        db_file.parent.mkdir(parents=True, exist_ok=True)
+        db_file.touch()
 
         mock_result = LibraryRescrapeResult(
             rescraped_at="2026-04-17T12:00:00",
@@ -760,7 +769,7 @@ class TestLibraryRescrape:
             category_filter=None,
             only_filter=None,
             dry_run=True,
-            fixed_count=0,
+            fixed_count=1,
             skipped_count=0,
             error_count=0,
         )
@@ -786,6 +795,60 @@ class TestLibraryRescrape:
         _, call_kwargs = mock_rescrape.call_args
         assert call_kwargs.get("item_id") == 99, (
             f"Expected item_id=99 in rescrape_library call kwargs, got: {call_kwargs}"
+        )
+
+    def test_item_id_missing_db_exits_1(self) -> None:
+        """--item-id when the indexer DB file does not exist → exit 1, clear message, no traceback.
+
+        RT-3: the dead ``db_path is None`` guard was replaced with a
+        ``db_path.exists()`` check.  The test config's DB path points to
+        ``tmp_path/.data/library.db`` which is never created, so ``exists()``
+        returns ``False`` and the command must exit 1 with an actionable message
+        rather than silently creating an empty DB.
+        """
+        with patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]):
+            result = runner.invoke(app, ["library-rescrape", "--item-id", "42", "--dry-run"])
+
+        assert result.exit_code == 1, result.output
+        assert "library-index" in result.output, f"Expected hint to run library-index in output, got: {result.output!r}"
+        assert "Traceback" not in result.output, f"Expected no traceback in output, got: {result.output!r}"
+
+    def test_item_id_with_disk_exits_1_clean_message(self, tmp_path) -> None:
+        """--item-id combined with --disk → exit 1, clean mutual-exclusion message, no traceback.
+
+        RT-4 / RT-2: ``_collect_rescrape_candidates`` raises ``ValueError`` when
+        both ``item_id`` and ``disk_filter`` are provided.  The CLI must catch it
+        cleanly and surface a human-readable message instead of a raw traceback.
+        A real DB file is created so the ``db_path.exists()`` guard passes.
+        """
+        # Simulate the ValueError that the mutual-exclusion guard raises inside
+        # rescrape_library / _collect_rescrape_candidates.
+        mutual_exc = ValueError("item_id=42 is mutually exclusive with disk_filter and category_filter.")
+
+        mock_conn = MagicMock()
+        # Create the DB file so the exists() guard in the CLI passes.
+        db_file = tmp_path / ".data" / "library.db"
+        db_file.parent.mkdir(parents=True, exist_ok=True)
+        db_file.touch()
+
+        with (
+            patch("personalscraper.maintenance.rescraper.rescrape_library", side_effect=mutual_exc),
+            patch("personalscraper.indexer.db.open_db", return_value=mock_conn),
+            patch("personalscraper.indexer.db.apply_migrations"),
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.cli.get_settings") as mock_settings,
+        ):
+            settings = MagicMock()
+            settings.data_dir = tmp_path
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-rescrape", "--item-id", "42", "--disk", "drive_a", "--dry-run"])
+
+        assert result.exit_code == 1, result.output
+        assert "Traceback" not in result.output, f"Expected no traceback in output, got: {result.output!r}"
+        # The CLI must surface something intelligible about the conflict.
+        assert "mutually exclusive" in result.output.lower() or "invalid" in result.output.lower(), (
+            f"Expected mutual-exclusion message in output, got: {result.output!r}"
         )
 
 
