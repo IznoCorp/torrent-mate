@@ -15,7 +15,7 @@
 | #   | Phase                     | File                       | Status |
 | --- | ------------------------- | -------------------------- | ------ |
 | 1   | item-id targeting         | phase-01-item-id.md        | [x]    |
-| 2   | date-refreshed population | phase-02-date-refreshed.md | [ ]    |
+| 2   | date-refreshed population | phase-02-date-refreshed.md | [x]    |
 | 3   | gate                      | phase-03-gate.md           | [ ]    |
 
 ## Review cycles
