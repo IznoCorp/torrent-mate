@@ -207,6 +207,48 @@ def _superstring_penalty(query: str, candidate: str) -> float:
     return max(-0.20, -0.08 * extra)
 
 
+_DEFAULT_MIN_LENGTH_RATIO: float = 0.40  # directional guard: query-too-short direction only;
+# lower than FuzzyMatchConfig.min_length_ratio (0.67, bidirectional) because subject-query
+# variants like "Prince Andrew" vs "Andrew: The Problem Prince" (ratio 0.50) are legit matches.
+
+
+def _length_ratio_guard(query: str, api_title: str, min_ratio: float = _DEFAULT_MIN_LENGTH_RATIO) -> bool:
+    """Return True when the query is too short relative to ``api_title``.
+
+    Implements a DIRECTIONAL guard: only fires when the query title is much
+    shorter than the API candidate title (the query-too-short direction).
+    It must NOT fire when the local title is longer than the API title —
+    that direction covers legit subtitle expansions like
+    ``"The Hack sur ecoute"`` → ``"The Hack"`` or
+    ``"Top Chef France"`` → ``"Top Chef"``.
+
+    Uses ``media_processor`` (accent-stripping + lowercase) to normalise
+    both strings before length comparison, matching the pre-processing done
+    inside ``score_match``.
+
+    Args:
+        query: Local title extracted from the folder name.
+        api_title: Candidate title from the API result (title, original_title, or alias).
+        min_ratio: Minimum ``len(query) / len(api_title)`` ratio below which
+            the candidate is rejected. Default 0.40 (lower than FuzzyMatchConfig's
+            bidirectional 0.67 because subject-query variants like "Prince Andrew"
+            vs "Andrew: The Problem Prince" sit at 0.50 and are legit matches).
+
+    Returns:
+        True if the guard fires (candidate should be rejected), False otherwise.
+    """
+    norm_query = media_processor(query)
+    norm_api = media_processor(api_title)
+    if not norm_query or not norm_api:
+        # Empty after processing — cannot judge; don't reject
+        return False
+    # Directional: only reject when query is shorter than api_title
+    if len(norm_query) >= len(norm_api):
+        return False
+    ratio = len(norm_query) / len(norm_api)
+    return ratio < min_ratio
+
+
 def _score_result(
     local_title: str,
     local_year: int | None,
@@ -248,6 +290,12 @@ def _score_result(
     titles.extend(alias for alias in result.aliases if alias and alias not in titles)
     best = -1.0
     for api_title in titles:
+        # Directional length-ratio guard: skip this candidate title when the
+        # query is much shorter than api_title (e.g. "S03" vs "Glina. Nowy
+        # rozdział", ratio 0.150).  The guard is NOT applied when the local
+        # title is longer — that direction is legit (subtitle expansions).
+        if _length_ratio_guard(local_title, api_title):
+            continue
         scored = score_match(local_title, local_year, api_title, result.year) + _superstring_penalty(
             local_title, api_title
         )

@@ -1,43 +1,58 @@
-# Implementation Progress — tracker-auth
+# Implementation Progress — match-guard
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: RP7 — Tracker Auth Lifecycle (observability): TrackerAuthFailed event on 401 + Transmission add() fix (minor)
-**Version bump**: 0.33.0 → 0.34.0
-**Branch**: feat/tracker-auth
+**Feature**: Scraper match guard for degenerate/truncated titles — directional length-ratio guard + episode-filename fallback (bugfix)
+**Version bump**: 0.34.0 → 0.34.1
+**Branch**: fix/match-guard
 **PR merge**: manual
-**PR**: https://github.com/IznoCorp/personal-scraper/pull/202
-**Design**: docs/features/tracker-auth/DESIGN.md
-**Master plan**: docs/features/tracker-auth/plan/INDEX.md
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/203
+**Design**: docs/features/match-guard/DESIGN.md
+**Master plan**: docs/features/match-guard/plan/INDEX.md
 
 ## Phases
 
-| #   | Phase                                      | File                                   | Status |
-| --- | ------------------------------------------ | -------------------------------------- | ------ |
-| 1   | TrackerAuthFailed event + catalog plumbing | phase-01-event-catalog-plumbing.md     | [x]    |
-| 2   | Grab emit + Transmission add() fix         | phase-02-grab-emit-transmission-fix.md | [x]    |
-| 3   | PR #202 review fixes (cycle 1)             | phase-03-pr-fixes-cycle-1.md           | [x]    |
+| #   | Phase                                                         | File                                  | Status |
+| --- | ------------------------------------------------------------- | ------------------------------------- | ------ |
+| 1   | Directional length-ratio guard in confidence path (Unit 1)    | phase-01-length-ratio-guard.md        | [x]    |
+| 2   | Episode-filename fallback for degenerate show titles (Unit 2) | phase-02-episode-filename-fallback.md | [x]    |
+| 3   | Phase gate — make check + AC-1..AC-7 re-exercise              | phase-03-gate.md                      | [x]    |
+| 4   | PR #203 review fixes (cycle 1)                                | phase-04-pr-fixes-cycle-1.md          | [x]    |
+| 5   | PR #203 review fixes (cycle 2)                                | phase-05-pr-fixes-cycle-2.md          | [x]    |
+| 6   | PR #203 review fixes (cycle 3 — exotic season dirs)           | phase-06-pr-fixes-cycle-3.md          | [x]    |
 
 ## Review cycles
 
-### Cycle 1 — PR #202 (CI green)
+### Cycle 1 — PR #203 (CI green)
 
-Adversarial review (5 dimensions × refute-by-default): 6 findings, **4 confirmed**, 2 refuted.
+Adversarial review (4 dimensions × refute-by-default): 16 findings, **14 confirmed** (all "minor" per verifiers), 2 refuted.
 
-- **major** (silent-failure) — orchestrator `except ApiError` swallow around `add_tags()` is defeated: real tagger clients raise raw `transmission_rpc.TransmissionError` / `qbittorrentapi.APIError` (not `ApiError`), so a tag failure escapes the swallow + outer ladder + service isolation → whole-batch abort. → Phase 3.1.
-- **major** (silent-failure) — the tag-failure test injects `personalscraper.ApiError`, the type real clients never raise → vacuous. → Phase 3.1/3.2.
-- **medium** (tests) — `TrackerAuthFailed` omitted from `_ALL_ACQUIRE_EVENT_CLASSES`; the formatter is never exercised (DESIGN §8.1 item 1 unmet). → Phase 3.3.
-- **minor** (tests) — non-`TorrentTagger` skip branch not explicitly asserted. → Phase 3.4.
-- _refuted_: dropped golden `tags` assertion (recovered + strengthened in the new test); tag_failed warning lacks a remediation field (DESIGN-sanctioned non-essential provenance).
+- **functional** — `_recover_title_from_episodes` scans non-recursively → **Unit 2 Orville recovery returns `None` on the real `…/ S03/Saison 3/…` layout** (PROVEN; AC-2 test used a flat layout). → Phase 4.1.
+- **functional** — `_SEASON_TOKEN_RE` strips from the _first_ `S\d` → over-strips embedded-S-number titles to `""`. → 4.1.
+- **functional** — DESIGN's "empty title" fallback branch unhandled (only season-token). → 4.1.
+- **test-quality** — AC-1 no-alias test is **vacuous** (passes with the guard removed); missing 0.40-boundary / Prince-Andrew / recovery-branch tests. → 4.2.
+- **cosmetic** — bare `except Exception`; stale `0.67` in test docstrings + inline comment. → 4.1/4.3.
+- _refuted_: guard rejects the right long title (best-of over aliases preserves it); AC-6 `^`-anchor mutation.
+- _accepted (no fix)_: guard also applies to the movie path — beneficial, 877 tests green.
 
-Fix scope expands into merged seed-pure client code (`transmission.py`/`qbittorrent.py`) because the Phase 2 add-then-tag swallow depends on the `TorrentTagger` contract DESIGN §4.2 assumed but the clients never honored. Layering-correct fix: translate at the client boundary.
+### Cycle 2 — PR #203 (re-review of the cycle-1 fix)
 
-Cycle-1 fixes (Phase 3, commits `ea84f9eb` + `cfb8978f`): client-level `ApiError` translation (both clients, `add_tags`/`remove_tags`) + 5 regression tests (mutation-proof, re-reproduced independently for both clients) + `Raises: ApiError` on the `TorrentTagger` protocol + `TrackerAuthFailed` formatter exercised + skip-branch assertion.
+The cycle-1 fix INTRODUCED 2 regressions (both concretely reproduced):
 
-### Cycle 2 — PR #202 (re-review of the cycle-1 fix)
+- **major** — `rglob` recovery can pick a video from an `Extras/Featurettes/Bonus` subdir (`is_sample_path` only excludes sample/proof) → wrong show title. PROVEN: ` S03/Extras/…` → recovered `"Some Behind The Scenes Doc"`. → Phase 5.2 (restrict to root + season dirs via `SEASON_DIR_RE`).
+- **medium** — narrowing the regex to `S\d+E\d+` broke the season-only case (`clean → "{title} S03"`): PROVEN `"The Orville Saison 3"` → `"The Orville S03"` (S03 leaked). → Phase 5.1 (end-anchored `S\d+(?:E\d+)?\s*$`).
 
-Focused re-review (fix-resolution + regression-hunt × refute-by-default): the 2 major + 1 medium are **resolved**. 1 **minor** confirmed — the skip-branch assertion shipped in cycle 1 was vacuous (`not hasattr(...)` short-circuits on `MagicMock(spec=TorrentAdder)`). Fixed in `acd4b2c9` with a non-vacuous precondition assertion (`not isinstance(client, TorrentTagger)`), verified to fail when the client is a tagger. No new defects introduced by the fix. **Loop converged (Case A — no critical/major/medium).**
+Lesson: cycle-1's two changes each traded one bug for another; cycle-2 fixes both at the root + adds the missing regression tests (Extras-subdir, season-only).
+
+### Cycle 3 — PR #203 (re-review of the cycle-2 fix)
+
+Re-review (regression-in-fix + completeness): 3 findings, **1 confirmed (minor, safe-degradation)**, 2 refuted (true but doc-only / out-of-delta).
+
+- **minor (safe)** — the cycle-2 `SEASON_DIR_RE` restriction misses recovery when episodes live in an exotic season dir (`"Saison 3 - VOSTFR"`, `"Staffel 3"`, `"S03"`, `"Disc 1"`, `"Season 3 [1080p]"`) → recovery `None` → degrades to SAFE suppression (no wrong match, no corruption). Operator elected to fix (French content → VOSTFR dirs real). → Phase 6.
+- _refuted (true, scoped out)_: INDEX.md stale (phases 4-5); DESIGN Unit 2 predates the recursive+filtered recovery. Both doc-only, IMPLEMENTATION.md is the canonical tracker.
+
+CI green (8/8) on the cycle-2 fix. Primary goal (zero wrong-match/corruption) fully met + tested; cycle-3 confirms no corruption path remains.
 
 ## Next action
 
-Converged + CI re-run pending on `acd4b2c9`. Merge mode **manual** → hand off to operator for squash merge of PR #202.
+Cycle-3 fix done + pushed. On CI green → converged → manual merge handoff (#203).

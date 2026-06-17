@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import unicodedata
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -50,6 +51,143 @@ if TYPE_CHECKING:
     from personalscraper.scraper.artwork import ArtworkDownloader
 
 log = get_logger("scraper")
+
+# Season/episode token pattern used to strip the trailing season/episode
+# suffix from a cleaned episode title so only the show name remains.
+# ``NameCleaner.clean`` appends the token at the END of the string —
+# ``"{title} S{NN}"`` for a season pack or ``"{title} S{NN}E{MM}"`` for a
+# single episode. The pattern is therefore END-ANCHORED with the episode
+# marker OPTIONAL (so season-only packs strip correctly) and NO trailing
+# ``.*`` (so a title-internal S-digit such as "S4C Documentary" — which is
+# not at the end — survives).
+_SEASON_TOKEN_RE = re.compile(r"\s*-?\s*S\d+(?:E\d+)?\s*$", re.IGNORECASE)
+
+# Lowercased names of subdirectory types that contain bonus/extra content
+# and must NEVER be used for title recovery, even as a fallback.
+# Note: bare "specials" is intentionally absent — it is a legitimate Plex
+# season-0 directory and should not be excluded.
+_EXTRAS_DIR_NAMES: frozenset[str] = frozenset(
+    {
+        "extras",
+        "featurettes",
+        "featurette",
+        "bonus",
+        "bonuses",
+        "behind the scenes",
+        "deleted scenes",
+        "deleted",
+        "interviews",
+        "making of",
+        "trailers",
+        "supplements",
+    }
+)
+
+
+def _is_extras_location(path: Path, show_dir: Path) -> bool:
+    """Return True if any ancestor dir between show_dir and path is an extras dir.
+
+    Walks the chain of parent directories strictly between ``show_dir`` (exclusive)
+    and the file itself (exclusive). If any intermediate directory name, lowercased
+    and stripped, matches a name in ``_EXTRAS_DIR_NAMES``, the file is considered
+    bonus content and must be excluded from title recovery.
+
+    Args:
+        path: Path to the candidate video file.
+        show_dir: Root directory of the TV show staging folder.
+
+    Returns:
+        True when the file lives under a known extras subdirectory, False otherwise.
+    """
+    # Iterate ancestors from the file's immediate parent up to (but not including)
+    # show_dir itself to find any intervening extras-type directory.
+    current = path.parent
+    while current != show_dir and current != current.parent:
+        if current.name.lower().strip() in _EXTRAS_DIR_NAMES:
+            return True
+        current = current.parent
+    return False
+
+
+def _recover_title_from_episodes(show_dir: Path) -> str | None:
+    """Recover the show title from episode filenames when the folder name is degenerate.
+
+    When a staging folder is named with only a season token (e.g. `` S03``),
+    ``_parse_folder_name`` returns that token as the title. This function
+    inspects the episode files inside ``show_dir``, picks the first video
+    file, runs ``NameCleaner.clean()`` on its stem, and strips the trailing
+    season/episode token so only the show title remains.
+
+    Two-tier candidate selection:
+
+    1. **Restricted set** (PRIMARY): videos at the show root or in a
+       ``SEASON_DIR_RE``-matching directory (``Saison NN``, ``Season NN``,
+       ``Specials``), minus sample files. This is the cycle-2 behaviour and
+       guarantees that an ``Extras/`` sibling never beats a proper season dir.
+
+    2. **Fallback set**: when the restricted set is empty (e.g. all episodes
+       are in exotic season dirs such as ``"Saison 3 - VOSTFR"``, ``"Staffel 3"``,
+       ``"S03"``, ``"Disc 1"``), the fallback is all video files minus samples
+       minus any file under an extras-type directory (``_EXTRAS_DIR_NAMES``).
+
+    Args:
+        show_dir: Path to the TV show staging directory.
+
+    Returns:
+        Recovered show title string, or None if no video files are found or
+        the recovery produces an empty / token-only string.
+    """
+
+    def _is_episode_location(path: Path) -> bool:
+        """True for show-root or SEASON_DIR_RE-matching parent (strict set)."""
+        return path.parent == show_dir or bool(SEASON_DIR_RE.match(path.parent.name))
+
+    def _all_videos() -> list[Path]:
+        """All video files under show_dir, excluding samples."""
+        return [
+            f
+            for f in show_dir.rglob("*")
+            if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS and not is_sample_path(f)
+        ]
+
+    # PRIMARY — restricted to root + canonical season dirs (cycle-2 behaviour).
+    # Videos under Extras/ and similar non-season dirs are implicitly excluded
+    # because neither their parent == show_dir nor do they match SEASON_DIR_RE.
+    restricted = sorted(f for f in _all_videos() if _is_episode_location(f))
+
+    if restricted:
+        video_files = restricted
+    else:
+        # FALLBACK — all videos minus extras-type locations.
+        # Handles exotic season dirs (VOSTFR, Staffel, S03, Disc NN, …) that do
+        # not match SEASON_DIR_RE but are not bonus content either.
+        video_files = sorted(f for f in _all_videos() if not _is_extras_location(f, show_dir))
+
+    if not video_files:
+        return None
+
+    first = video_files[0]
+    try:
+        from guessit.api import GuessitException  # noqa: PLC0415
+
+        from personalscraper.sorter.cleaner import NameCleaner  # noqa: PLC0415
+
+        cleaner = NameCleaner()
+        raw_title = cleaner.clean(first.stem)
+    except (
+        ValueError,
+        AttributeError,
+        TypeError,
+        GuessitException,
+    ):  # pragma: no cover — guard against unexpected guessit failures
+        return None
+
+    if not raw_title:
+        return None
+
+    # Strip trailing SxxEyy and everything after it (episode number, title)
+    recovered = _SEASON_TOKEN_RE.sub("", raw_title).strip(" -").strip()
+    return recovered if recovered else None
 
 
 def _safe_get_rating(client: Any, provider_id: str) -> list[Notations]:
@@ -108,6 +246,23 @@ class TvServiceMixin:
             ScrapeResult with action and details.
         """
         title, year = _parse_folder_name(show_dir.name)
+        # Episode-filename fallback: if the folder title is a bare season/episode
+        # token (e.g. " S03"), re-derive the show title from the first episode
+        # file so the provider query uses the real title ("The Orville") instead
+        # of the degenerate token.  is_degenerate_title is imported inline to
+        # avoid a circular import with classifier.
+        from personalscraper.scraper.classifier import is_degenerate_title  # noqa: PLC0415
+
+        if is_degenerate_title(title):
+            recovered = _recover_title_from_episodes(show_dir)
+            if recovered:
+                log.info(
+                    "show_title_recovered_from_episodes",
+                    degenerate_title=title,
+                    recovered_title=recovered,
+                    show_dir=str(show_dir),
+                )
+                title = recovered
         if year is None:
             year = _infer_year_from_child_names(show_dir, title)
         result = ScrapeResult(media_path=show_dir, media_type="tvshow")
