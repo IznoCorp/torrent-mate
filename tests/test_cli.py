@@ -744,6 +744,50 @@ class TestLibraryRescrape:
         assert result.exit_code == 0
         mock_lock.assert_not_called()
 
+    def test_cli_library_rescrape_item_id_passed(self, tmp_path) -> None:
+        """--item-id is forwarded to rescrape_library as item_id=99.
+
+        Invokes ``library-rescrape --item-id 99 --dry-run`` via CliRunner,
+        mocking out ``rescrape_library``, ``open_db``, and ``apply_migrations``
+        so no real DB is needed.  Asserts that ``rescrape_library`` was called
+        with ``item_id=99``.
+        """
+        from personalscraper.maintenance.rescraper import LibraryRescrapeResult
+
+        mock_result = LibraryRescrapeResult(
+            rescraped_at="2026-04-17T12:00:00",
+            disk_filter=None,
+            category_filter=None,
+            only_filter=None,
+            dry_run=True,
+            fixed_count=0,
+            skipped_count=0,
+            error_count=0,
+        )
+        mock_conn = MagicMock()
+
+        with (
+            patch("personalscraper.maintenance.rescraper.rescrape_library", return_value=mock_result) as mock_rescrape,
+            patch("personalscraper.indexer.db.open_db", return_value=mock_conn),
+            patch("personalscraper.indexer.db.apply_migrations"),
+            patch("personalscraper.io_utils.write_json"),
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.cli.get_settings") as mock_settings,
+        ):
+            settings = MagicMock()
+            settings.data_dir = tmp_path
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-rescrape", "--item-id", "99", "--dry-run"])
+
+        assert result.exit_code == 0, result.output
+        # Verify item_id=99 was forwarded to rescrape_library.
+        mock_rescrape.assert_called_once()
+        _, call_kwargs = mock_rescrape.call_args
+        assert call_kwargs.get("item_id") == 99, (
+            f"Expected item_id=99 in rescrape_library call kwargs, got: {call_kwargs}"
+        )
+
 
 class TestLibraryReport:
     """Tests for library-report CLI command."""
