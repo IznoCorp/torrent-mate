@@ -706,7 +706,11 @@ class TestTrailersOrchestratorEdgeCases:
         assert counts["error"] == 1
 
     def test_run_ytdlp_error_increments_counter(self, orchestrator: "TrailersOrchestrator") -> None:
-        """counts[ytdlp_error] is incremented when downloader returns an unhandled status."""
+        """counts[ytdlp_error] is incremented when downloader returns an unhandled status.
+
+        AC-8 (back-compat): _finder._youtube_search.search is patched to None so the
+        test does not make a live call when the same-run fallback is active.
+        """
         from unittest.mock import patch
 
         from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
@@ -723,6 +727,7 @@ class TestTrailersOrchestratorEdgeCases:
                     error_message="ytdlp failed",
                 ),
             ),
+            patch.object(orchestrator._finder._youtube_search, "search", return_value=None),
         ):
             counts = orchestrator.run()
         assert counts["ytdlp_error"] == 1
