@@ -6,7 +6,7 @@
 **Version bump**: 0.35.1 → 0.36.0
 **Branch**: feat/rescrape-target
 **PR merge**: auto
-**PR**: _(created after last phase)_
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/206
 **Design**: docs/features/rescrape-target/DESIGN.md
 **Master plan**: docs/features/rescrape-target/plan/INDEX.md
 
