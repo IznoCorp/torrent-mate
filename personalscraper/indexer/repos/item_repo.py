@@ -440,13 +440,14 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
             # seen, so a later *different*-year remake splits into its own row
             # instead of being absorbed by the NULL-year "merge magnet".
             conn.execute(
-                "UPDATE media_item SET category_id = ?, date_modified = ?, year = ? WHERE id = ?",
-                (row.category_id, row.date_modified, row.year, existing.id),
+                "UPDATE media_item SET category_id = ?, date_modified = ?, year = ?,"
+                " date_metadata_refreshed = ? WHERE id = ?",
+                (row.category_id, row.date_modified, row.year, row.date_metadata_refreshed, existing.id),
             )
         else:
             conn.execute(
-                "UPDATE media_item SET category_id = ?, date_modified = ? WHERE id = ?",
-                (row.category_id, row.date_modified, existing.id),
+                "UPDATE media_item SET category_id = ?, date_modified = ?, date_metadata_refreshed = ? WHERE id = ?",
+                (row.category_id, row.date_modified, row.date_metadata_refreshed, existing.id),
             )
         log.info("indexer.item.upsert_update", title=canonical, kind=row.kind, id=existing.id)
         return existing.id

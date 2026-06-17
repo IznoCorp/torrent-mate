@@ -32,7 +32,7 @@
 
 ### Why this split is safe
 
-Part 1 is independent of Part 2 (targeting uses `get_by_id`, not the predicate). Part 2 changes only the value written to one column in the staging row dict; the upsert column list already includes `date_metadata_refreshed`, so no schema change. `is_locked = 0` guard in the predicate is preserved.
+Part 1 is independent of Part 2 (targeting uses `get_by_id`, not the predicate). Part 2 changes only the value written to one column in the staging row dict; `date_metadata_refreshed` is included in the INSERT column list. **Note (PR review cycle 1 fix RT-1):** the two UPDATE statements in `item_repo.upsert` previously omitted `date_metadata_refreshed`, so already-indexed rows were never backfilled — the column stayed NULL across re-scans even when the incoming row carried a non-NULL epoch. Both UPDATE branches were fixed to also write `date_metadata_refreshed`, enabling the organic backfill via re-scan. `is_locked = 0` guard in the predicate is preserved.
 
 ## Acceptance (executable)
 

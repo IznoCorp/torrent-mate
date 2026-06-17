@@ -576,9 +576,9 @@ def _collect_rescrape_candidates(
     When *item_id* is provided, the function enters an **item-id fast-path**:
     it resolves exactly that item from the indexer DB via ``item_repo.get_by_id``
     and returns it as the sole candidate, **bypassing**
-    ``find_items_needing_rescrape`` entirely.  This allows force-rescaping an
+    ``find_items_needing_rescrape`` entirely.  This allows force-rescraping an
     item whose ``nfo_status`` is already ``'valid'``.  *item_id* is mutually
-    exclusive with *disk_filter* and *category_filter*; supplying both raises a
+    exclusive with *disk_filter* and *category_filter*; supplying either raises a
     :exc:`ValueError`.
 
     When *conn* is provided (and *item_id* is ``None``), queries the indexer DB
