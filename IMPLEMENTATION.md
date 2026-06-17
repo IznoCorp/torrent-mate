@@ -28,7 +28,15 @@
 - **RT-2/3/4 (medium)**: CLI `--item-id` error handling — dead `db_path is None` guard → `db_path.exists()`; `open_db`/`apply_migrations` raw tracebacks → clean Exit(1); silent not-found → visible error + exit (`08a89abf`). Tests F1/F2 added.
 - **Minor**: docstring "both"→"either" + typo "force-rescraping" (folded).
 
-Gate after fixes: `make check` 6952 passed / 0 failed. Pushed. Re-CI + cycle-2 re-check.
+Gate after fixes: `make check` 6952 passed / 0 failed. Pushed.
+
+### Cycle 2
+
+Focused re-check of the cycle-1 fix. Found a follow-on regression introduced by RT-1.
+
+- **Clobber (medium)**: the cycle-1 RT-1 fix wrote `date_metadata_refreshed = ?` unconditionally on the upsert UPDATE; the dispatch re-index path (`media_index.py:574`) builds rows without a scan epoch (None) → a re-dispatch would NULL an existing item's backfilled timestamp. Fixed with `COALESCE(?, date_metadata_refreshed)` (non-None overwrites, None preserves; invalid items still caught by the `nfo_status != 'valid'` arm). Clobber-preservation regression test mutation-verified.
+
+Gate: `make check` 6953 passed / 0 failed. Pushed. Re-CI.
 
 ## Next action
 
