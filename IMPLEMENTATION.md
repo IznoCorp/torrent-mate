@@ -14,7 +14,7 @@
 
 | #   | Phase                              | File                                       | Status |
 | --- | ---------------------------------- | ------------------------------------------ | ------ |
-| 1   | Config field + fallback hook (TDD) | phase-01-config-field-and-fallback-hook.md | [ ]    |
+| 1   | Config field + fallback hook (TDD) | phase-01-config-field-and-fallback-hook.md | [x]    |
 | 2   | Gate                               | phase-02-gate.md                           | [ ]    |
 
 ## Review cycles
