@@ -496,9 +496,10 @@ class TrailersOrchestrator:
             result = self._downloader.download(url, expected_path)
 
             # Same-run YouTube-search fallback (feat/trailer-fallback).
-            # Fires when the first download fails AND the fallback is enabled
-            # AND the search is not circuit-open. Re-downloads at most once.
-            # BOT_DETECTED is excluded: re-downloading immediately would
+            # Fires when the first download fails AND the fallback is enabled.
+            # Re-downloads at most once. A tripped YouTube breaker degrades to
+            # no-fallback inside the helper (it returns None), not via a gate
+            # here. BOT_DETECTED is excluded: re-downloading immediately would
             # reset bot_detected_consecutive_attempts incorrectly.
             if result.status not in (DownloadStatus.SUCCESS, DownloadStatus.BOT_DETECTED) and fallback_yt_search:
                 alt = self._youtube_search_fallback(item)
@@ -674,9 +675,12 @@ class TrailersOrchestrator:
         calling ``finder.find()`` — avoids re-hitting the TMDB tier and avoids
         writing the ``__no_result__`` cache sentinel.
 
-        Handles ``CircuitOpenError`` cleanly (mirrors the pattern at the finder
-        call site): a tripped YouTube breaker returns None rather than
-        propagating as an unhandled exception.
+        Fail-soft: the broad ``except Exception`` is the real guard — any error
+        raised by ``search`` (transport, schema, quota) is logged and turned into
+        a clean None (no-fallback). The ``except CircuitOpenError`` branch is
+        kept for parity with the finder call site; ``YoutubeSearch.search`` itself
+        consults the breaker via ``can_proceed()`` and returns None on a tripped
+        breaker rather than raising, so that branch is defensive, not the live path.
 
         Args:
             item: A ``ScanItem``-compatible object with ``title: str`` and
