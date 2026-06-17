@@ -62,6 +62,52 @@ log = get_logger("scraper")
 # not at the end — survives).
 _SEASON_TOKEN_RE = re.compile(r"\s*-?\s*S\d+(?:E\d+)?\s*$", re.IGNORECASE)
 
+# Lowercased names of subdirectory types that contain bonus/extra content
+# and must NEVER be used for title recovery, even as a fallback.
+# Note: bare "specials" is intentionally absent — it is a legitimate Plex
+# season-0 directory and should not be excluded.
+_EXTRAS_DIR_NAMES: frozenset[str] = frozenset(
+    {
+        "extras",
+        "featurettes",
+        "featurette",
+        "bonus",
+        "bonuses",
+        "behind the scenes",
+        "deleted scenes",
+        "deleted",
+        "interviews",
+        "making of",
+        "trailers",
+        "supplements",
+    }
+)
+
+
+def _is_extras_location(path: Path, show_dir: Path) -> bool:
+    """Return True if any ancestor dir between show_dir and path is an extras dir.
+
+    Walks the chain of parent directories strictly between ``show_dir`` (exclusive)
+    and the file itself (exclusive). If any intermediate directory name, lowercased
+    and stripped, matches a name in ``_EXTRAS_DIR_NAMES``, the file is considered
+    bonus content and must be excluded from title recovery.
+
+    Args:
+        path: Path to the candidate video file.
+        show_dir: Root directory of the TV show staging folder.
+
+    Returns:
+        True when the file lives under a known extras subdirectory, False otherwise.
+    """
+    # Iterate ancestors from the file's immediate parent up to (but not including)
+    # show_dir itself to find any intervening extras-type directory.
+    current = path.parent
+    while current != show_dir and current != current.parent:
+        if current.name.lower().strip() in _EXTRAS_DIR_NAMES:
+            return True
+        current = current.parent
+    return False
+
 
 def _recover_title_from_episodes(show_dir: Path) -> str | None:
     """Recover the show title from episode filenames when the folder name is degenerate.
@@ -72,6 +118,18 @@ def _recover_title_from_episodes(show_dir: Path) -> str | None:
     file, runs ``NameCleaner.clean()`` on its stem, and strips the trailing
     season/episode token so only the show title remains.
 
+    Two-tier candidate selection:
+
+    1. **Restricted set** (PRIMARY): videos at the show root or in a
+       ``SEASON_DIR_RE``-matching directory (``Saison NN``, ``Season NN``,
+       ``Specials``), minus sample files. This is the cycle-2 behaviour and
+       guarantees that an ``Extras/`` sibling never beats a proper season dir.
+
+    2. **Fallback set**: when the restricted set is empty (e.g. all episodes
+       are in exotic season dirs such as ``"Saison 3 - VOSTFR"``, ``"Staffel 3"``,
+       ``"S03"``, ``"Disc 1"``), the fallback is all video files minus samples
+       minus any file under an extras-type directory (``_EXTRAS_DIR_NAMES``).
+
     Args:
         show_dir: Path to the TV show staging directory.
 
@@ -80,23 +138,31 @@ def _recover_title_from_episodes(show_dir: Path) -> str | None:
         the recovery produces an empty / token-only string.
     """
 
-    # Restrict candidate videos to genuine episode locations: the show root
-    # or a season directory (``Saison NN/`` / ``Season NN``). Videos under
-    # ``Extras/``, ``Featurettes/``, ``Bonus/``, ``Behind The Scenes/`` etc. are
-    # excluded so a bonus-feature filename — which ``sorted(rglob)`` would place
-    # before ``Saison NN/`` alphabetically — cannot win recovery over the real
-    # episode and yield the wrong show title.
     def _is_episode_location(path: Path) -> bool:
+        """True for show-root or SEASON_DIR_RE-matching parent (strict set)."""
         return path.parent == show_dir or bool(SEASON_DIR_RE.match(path.parent.name))
 
-    video_files = sorted(
-        f
-        for f in show_dir.rglob("*")
-        if f.is_file()
-        and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
-        and not is_sample_path(f)
-        and _is_episode_location(f)
-    )
+    def _all_videos() -> list[Path]:
+        """All video files under show_dir, excluding samples."""
+        return [
+            f
+            for f in show_dir.rglob("*")
+            if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS and not is_sample_path(f)
+        ]
+
+    # PRIMARY — restricted to root + canonical season dirs (cycle-2 behaviour).
+    # Videos under Extras/ and similar non-season dirs are implicitly excluded
+    # because neither their parent == show_dir nor do they match SEASON_DIR_RE.
+    restricted = sorted(f for f in _all_videos() if _is_episode_location(f))
+
+    if restricted:
+        video_files = restricted
+    else:
+        # FALLBACK — all videos minus extras-type locations.
+        # Handles exotic season dirs (VOSTFR, Staffel, S03, Disc NN, …) that do
+        # not match SEASON_DIR_RE but are not bonus content either.
+        video_files = sorted(f for f in _all_videos() if not _is_extras_location(f, show_dir))
+
     if not video_files:
         return None
 

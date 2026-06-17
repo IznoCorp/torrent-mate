@@ -450,3 +450,163 @@ class TestRecoveryBranches:
 
         recovered = _recover_title_from_episodes(show_dir)
         assert recovered == "The Orville", f"Sorted pick returned wrong title: {recovered!r}"
+
+
+# ---------------------------------------------------------------------------
+# AC-2 (exotic season dirs) — fallback scan covers VOSTFR/Staffel/S03/Disc
+# ---------------------------------------------------------------------------
+
+
+class TestAC2ExoticSeasonDirRecovery:
+    """AC-2 (exotic dirs): fallback scan recovers title from non-standard season dirs.
+
+    Exotic parents — 'Saison 3 - VOSTFR', 'Staffel 3', 'S03', 'Disc 1',
+    'Season 3 [1080p]' — do NOT match SEASON_DIR_RE so the restricted set is empty.
+    The fallback (all videos minus samples minus extras) must take over and return
+    'The Orville'.
+
+    Also covers:
+    - Extras-only layout → None (extras excluded even in fallback).
+    - MIXED layout (Extras + exotic season dir) → 'The Orville' (fallback skips Extras).
+    - REGRESSION: Saison 3 + Extras → 'The Orville' (restricted set non-empty, no fallback).
+    """
+
+    # -- helper ----------------------------------------------------------------
+
+    @staticmethod
+    def _fn(tmp_path: Path) -> "type[callable]":  # type: ignore[return]
+        """Import _recover_title_from_episodes once per test (avoids repeated import noise)."""
+        from personalscraper.scraper.tv_service import _recover_title_from_episodes  # noqa: PLC0415
+
+        return _recover_title_from_episodes
+
+    # -- exotic parent dirs ----------------------------------------------------
+
+    def test_recover_vostfr_subdir(self, tmp_path: Path) -> None:
+        """'Saison 3 - VOSTFR' does not match SEASON_DIR_RE → fallback recovers 'The Orville'."""
+        from personalscraper.scraper.tv_service import _recover_title_from_episodes
+
+        show_dir = tmp_path / " S03"
+        show_dir.mkdir()
+        exotic = show_dir / "Saison 3 - VOSTFR"
+        exotic.mkdir()
+        (exotic / "The Orville - S3E01.mkv").touch()
+
+        recovered = _recover_title_from_episodes(show_dir)
+        assert recovered == "The Orville", (
+            f"Expected 'The Orville' from 'Saison 3 - VOSTFR' layout, got {recovered!r}. "
+            "Fallback must pick up videos in exotic season dirs when restricted set is empty."
+        )
+
+    def test_recover_staffel_subdir(self, tmp_path: Path) -> None:
+        """'Staffel 3' (German season dir) does not match SEASON_DIR_RE → fallback recovers."""
+        from personalscraper.scraper.tv_service import _recover_title_from_episodes
+
+        show_dir = tmp_path / " S03"
+        show_dir.mkdir()
+        exotic = show_dir / "Staffel 3"
+        exotic.mkdir()
+        (exotic / "The Orville - S3E01.mkv").touch()
+
+        recovered = _recover_title_from_episodes(show_dir)
+        assert recovered == "The Orville", f"Expected 'The Orville' from 'Staffel 3' layout, got {recovered!r}."
+
+    def test_recover_s03_subdir(self, tmp_path: Path) -> None:
+        """'S03' dir does not match SEASON_DIR_RE → fallback recovers."""
+        from personalscraper.scraper.tv_service import _recover_title_from_episodes
+
+        show_dir = tmp_path / " S03"
+        show_dir.mkdir()
+        exotic = show_dir / "S03"
+        exotic.mkdir()
+        (exotic / "The Orville - S3E01.mkv").touch()
+
+        recovered = _recover_title_from_episodes(show_dir)
+        assert recovered == "The Orville", f"Expected 'The Orville' from 'S03' subdir layout, got {recovered!r}."
+
+    def test_recover_disc1_subdir(self, tmp_path: Path) -> None:
+        """'Disc 1' dir does not match SEASON_DIR_RE → fallback recovers."""
+        from personalscraper.scraper.tv_service import _recover_title_from_episodes
+
+        show_dir = tmp_path / " S03"
+        show_dir.mkdir()
+        exotic = show_dir / "Disc 1"
+        exotic.mkdir()
+        (exotic / "The Orville - S3E01.mkv").touch()
+
+        recovered = _recover_title_from_episodes(show_dir)
+        assert recovered == "The Orville", f"Expected 'The Orville' from 'Disc 1' layout, got {recovered!r}."
+
+    def test_recover_season_bracket_subdir(self, tmp_path: Path) -> None:
+        """'Season 3 [1080p]' does not match SEASON_DIR_RE → fallback recovers."""
+        from personalscraper.scraper.tv_service import _recover_title_from_episodes
+
+        show_dir = tmp_path / " S03"
+        show_dir.mkdir()
+        exotic = show_dir / "Season 3 [1080p]"
+        exotic.mkdir()
+        (exotic / "The Orville - S3E01.mkv").touch()
+
+        recovered = _recover_title_from_episodes(show_dir)
+        assert recovered == "The Orville", f"Expected 'The Orville' from 'Season 3 [1080p]' layout, got {recovered!r}."
+
+    # -- Extras safety ---------------------------------------------------------
+
+    def test_extras_only_returns_none(self, tmp_path: Path) -> None:
+        """Extras-only layout: fallback must exclude extras dirs, returning None."""
+        from personalscraper.scraper.tv_service import _recover_title_from_episodes
+
+        show_dir = tmp_path / " S03"
+        show_dir.mkdir()
+        extras = show_dir / "Extras"
+        extras.mkdir()
+        (extras / "Behind The Scenes.mkv").touch()
+        # No other video file present — restricted set empty, fallback also empty.
+        recovered = _recover_title_from_episodes(show_dir)
+        assert recovered is None, f"Extras-only fallback must return None (extras excluded), got {recovered!r}."
+
+    def test_mixed_extras_and_exotic_returns_episode_title(self, tmp_path: Path) -> None:
+        """MIXED: Extras/Bonus.mkv + 'Saison 3 - VOSTFR'/episode → 'The Orville'.
+
+        Restricted set is empty (no SEASON_DIR_RE match) so fallback runs.
+        Fallback must exclude Extras dir and pick the real episode.
+        """
+        from personalscraper.scraper.tv_service import _recover_title_from_episodes
+
+        show_dir = tmp_path / " S03"
+        show_dir.mkdir()
+        extras = show_dir / "Extras"
+        extras.mkdir()
+        (extras / "Bonus.mkv").touch()
+        exotic = show_dir / "Saison 3 - VOSTFR"
+        exotic.mkdir()
+        (exotic / "The Orville - S3E01.mkv").touch()
+
+        recovered = _recover_title_from_episodes(show_dir)
+        assert recovered == "The Orville", (
+            f"MIXED Extras+VOSTFR: expected 'The Orville', got {recovered!r}. "
+            "Fallback must skip Extras and pick the real episode."
+        )
+
+    def test_regression_saison3_with_extras_uses_restricted_set(self, tmp_path: Path) -> None:
+        """REGRESSION: Saison 3 + Extras → 'The Orville' via restricted set (cycle-2 behavior preserved).
+
+        Restricted set is NON-empty (Saison 3 matches SEASON_DIR_RE) so fallback
+        is never reached. Extras dir is never considered, and the episode wins.
+        """
+        from personalscraper.scraper.tv_service import _recover_title_from_episodes
+
+        show_dir = tmp_path / " S03"
+        show_dir.mkdir()
+        extras = show_dir / "Extras"
+        extras.mkdir()
+        (extras / "x.mkv").touch()
+        saison = show_dir / "Saison 3"
+        saison.mkdir()
+        (saison / "The Orville - S3E01.mkv").touch()
+
+        recovered = _recover_title_from_episodes(show_dir)
+        assert recovered == "The Orville", (
+            f"Cycle-2 regression: expected 'The Orville' from Saison3+Extras layout, got {recovered!r}. "
+            "Restricted set is non-empty so fallback must NOT be reached."
+        )
