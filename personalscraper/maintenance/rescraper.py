@@ -569,28 +569,100 @@ def _collect_rescrape_candidates(
     conn: sqlite3.Connection | None,
     disk_filter: str | None,
     category_filter: str | None,
+    item_id: int | None = None,
 ) -> list[tuple[Path, str, str, str]]:
     """Build a list of (media_dir, media_type, disk_id, category_id) candidates.
 
-    When *conn* is provided, queries the indexer DB for items where
-    ``nfo_status != 'valid'`` or ``date_metadata_refreshed IS NULL``.  Paths
-    are reconstructed from the ``disk.mount_path`` + ``path.rel_path`` columns.
+    When *item_id* is provided, the function enters an **item-id fast-path**:
+    it resolves exactly that item from the indexer DB via ``item_repo.get_by_id``
+    and returns it as the sole candidate, **bypassing**
+    ``find_items_needing_rescrape`` entirely.  This allows force-rescraping an
+    item whose ``nfo_status`` is already ``'valid'``.  *item_id* is mutually
+    exclusive with *disk_filter* and *category_filter*; supplying either raises a
+    :exc:`ValueError`.
 
-    When *conn* is ``None``, falls back to a direct filesystem walk of
-    ``config.disks``.
+    When *conn* is provided (and *item_id* is ``None``), queries the indexer DB
+    for items where ``nfo_status != 'valid'`` or
+    ``date_metadata_refreshed IS NULL``.  Paths are reconstructed from the
+    ``disk.mount_path`` + ``path.rel_path`` columns.
+
+    When *conn* is ``None`` and *item_id* is ``None``, falls back to a direct
+    filesystem walk of ``config.disks``.
 
     Args:
         config: Loaded pipeline :class:`~personalscraper.conf.models.Config`.
         conn: Open SQLite connection, or ``None`` to use filesystem walk.
         disk_filter: Restrict to a single disk ID, or ``None`` for all.
         category_filter: Restrict to a single category ID, or ``None`` for all.
+        item_id: When set, target exactly this item by its DB primary key.
+            Mutually exclusive with *disk_filter* and *category_filter*.
 
     Returns:
         List of ``(media_dir, media_type, disk_id, category_id)`` tuples.
+
+    Raises:
+        ValueError: If *item_id* is set together with *disk_filter* or
+            *category_filter* (mutually exclusive options).
     """
     from personalscraper.indexer.repos import item_repo as _item_repo  # noqa: PLC0415
 
     candidates: list[tuple[Path, str, str, str]] = []
+
+    # --- item_id fast-path: resolve a single item, bypassing the predicate ---
+    if item_id is not None:
+        # Mutual exclusion check: combining item_id with a filter makes no sense
+        # and would produce confusing silent no-ops; fail loud instead.
+        if disk_filter or category_filter:
+            raise ValueError(
+                f"item_id={item_id!r} is mutually exclusive with disk_filter and "
+                f"category_filter. Remove disk_filter={disk_filter!r} and "
+                f"category_filter={category_filter!r} when targeting a single item."
+            )
+
+        # item_id requires an open DB connection; conn is guaranteed non-None by
+        # the CLI (which validates this before calling us), but guard defensively.
+        if conn is None:
+            log.warning("library_rescrape_item_id_no_conn", item_id=item_id)
+            return []
+
+        item = _item_repo.get_by_id(conn, item_id)
+        if item is None:
+            log.warning(
+                "library_rescrape_item_id_not_found",
+                item_id=item_id,
+            )
+            return []
+
+        # Resolve the full filesystem path from the dispatch flex attribute.
+        # _ATTR_DISPATCH_PATH stores the complete path as written at dispatch time
+        # (e.g. "/Volumes/Disk1/films/Movie (2024)"), so no path join is needed.
+        path_attr = _item_repo.get_attr(conn, item_id, _item_repo._ATTR_DISPATCH_PATH)
+        if not path_attr or not path_attr.value:
+            log.warning(
+                "library_rescrape_item_id_no_dispatch_path",
+                item_id=item_id,
+                title=item.title,
+            )
+            return []
+
+        media_dir = Path(path_attr.value)
+        if not media_dir.is_dir():
+            log.warning(
+                "library_rescrape_item_id_dir_missing",
+                item_id=item_id,
+                title=item.title,
+                path=str(media_dir),
+            )
+            return []
+
+        # Retrieve the config disk_id from the dispatch disk attribute.
+        # The value can be None if the attribute row has a NULL value column,
+        # so we fall back to "" to satisfy the tuple[..., str, ...] contract.
+        disk_attr = _item_repo.get_attr(conn, item_id, _item_repo._ATTR_DISPATCH_DISK)
+        disk_id: str = (disk_attr.value or "") if disk_attr else ""
+
+        media_type = "tvshow" if item.kind == "show" else "movie"
+        return [(media_dir, media_type, disk_id, item.category_id)]
 
     if conn is not None:
         # DB-query path: find items needing rescrape by NFO / refresh status.
@@ -658,6 +730,7 @@ def rescrape_library(
     conn: sqlite3.Connection | None = None,
     disk_filter: str | None = None,
     category_filter: str | None = None,
+    item_id: int | None = None,
     only: str | None = None,
     interactive: bool = False,
     dry_run: bool = True,
@@ -674,12 +747,21 @@ def rescrape_library(
     (indexer DB path).  When *conn* is ``None``, falls back to a filesystem walk
     of ``config.disks``.
 
+    When *item_id* is set, exactly that item is targeted by DB look-up,
+    bypassing the needs-rescrape predicate so that items with
+    ``nfo_status='valid'`` can be force-rescraped.  *item_id* is mutually
+    exclusive with *disk_filter* and *category_filter* (enforced by
+    :func:`_collect_rescrape_candidates`).
+
     Args:
         config: Config with disk and category definitions.
         conn: Optional open SQLite connection to the indexer DB.  When supplied,
             items are found via DB query instead of a full filesystem walk.
         disk_filter: Only rescrape this disk (by disk.id). None = all.
         category_filter: Only rescrape this category_id. None = all.
+        item_id: Target exactly this item by its indexer DB id, bypassing the
+            needs-rescrape predicate.  Mutually exclusive with *disk_filter* and
+            *category_filter*.  None = use standard candidate discovery.
         only: Only apply this action: "nfo", "artwork", "episodes". None = all.
         interactive: If True, prompt for low-confidence matches.
         dry_run: If True, preview without modifying files.
@@ -714,7 +796,7 @@ def rescrape_library(
     items_processed = 0
     start = datetime.now(tz=timezone.utc).isoformat()
 
-    candidates = _collect_rescrape_candidates(config, conn, disk_filter, category_filter)
+    candidates = _collect_rescrape_candidates(config, conn, disk_filter, category_filter, item_id=item_id)
 
     for media_dir, media_type, disk_id, category_id in candidates:
         if max_items and items_processed >= max_items:

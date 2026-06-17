@@ -258,18 +258,29 @@ def library_rescrape(
     interactive: bool = typer.Option(False, "--interactive", help="Confirm low-confidence matches"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying files"),
     max_items: int = typer.Option(None, "--max-items", help="Limit number of items to process"),
+    item_id: int = typer.Option(
+        None, "--item-id", help="Re-scrape exactly this item by DB id, bypassing the needs-rescrape predicate."
+    ),  # noqa: E501
 ) -> None:
     """Targeted re-scrape of library items via TMDB/TVDB.
 
     Only repairs what is broken per item: missing NFO, missing artwork,
     unrenamed episodes. Items already conforming are skipped.
 
+    When ``--item-id`` is given, exactly that item is targeted by indexer DB
+    look-up, bypassing the needs-rescrape predicate so that items with a
+    valid NFO can still be force-rescraped.  Requires the indexer DB to be
+    configured.  Mutually exclusive with ``--disk`` and ``--category``.
+
     Examples:
         personalscraper library-rescrape --dry-run
         personalscraper library-rescrape --only artwork
         personalscraper library-rescrape --disk <disk_id> --max-items 50
         personalscraper library-rescrape --interactive
+        personalscraper library-rescrape --item-id 1600
     """
+    import sqlite3  # noqa: PLC0415
+
     from personalscraper.io_utils import write_json
     from personalscraper.maintenance.rescraper import rescrape_library
 
@@ -283,6 +294,13 @@ def library_rescrape(
         console.print(f"[red]Invalid --only value '{only}'. Valid: {', '.join(sorted(valid_only))}[/red]")
         raise typer.Exit(1)
 
+    # Guard: --item-id requires a configured and reachable indexer DB.
+    if item_id is not None:
+        db_path = config.indexer.db_path
+        if not db_path.exists():
+            console.print(f"[red]Indexer DB not found at {db_path}; run `library-index` first.[/red]")
+            raise typer.Exit(1)
+
     if not dry_run:
         if not cli_compat.acquire_lock():
             console.print("[red]Another instance is running. Exiting.[/red]")
@@ -295,17 +313,68 @@ def library_rescrape(
         from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
 
         with per_step_boundary(config, settings) as app_context:
-            result = rescrape_library(
-                config,
-                disk_filter=disk,
-                category_filter=category_id,
-                only=only,
-                interactive=interactive,
-                dry_run=dry_run,
-                max_items=max_items,
-                event_bus=app_context.event_bus,
-                registry=app_context.provider_registry,
-            )
+            # Open the indexer DB connection when item_id is provided so that
+            # _collect_rescrape_candidates can look up the item by id.  The
+            # connection is closed in the finally block below to avoid leaks.
+            conn: sqlite3.Connection | None = None
+            if item_id is not None:
+                from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
+                from personalscraper.indexer.db import (  # noqa: PLC0415
+                    IndexerCorruptError,
+                    IndexerDiskFullError,
+                    IndexerInvalidPathError,
+                    IndexerMigrationError,
+                    apply_migrations,
+                    open_db,
+                )
+
+                try:
+                    conn = open_db(config.indexer.db_path, event_bus=app_context.event_bus)
+                    apply_migrations(conn, Path(_migrations_pkg.__file__).parent)
+                except (
+                    IndexerCorruptError,
+                    IndexerInvalidPathError,
+                    IndexerDiskFullError,
+                    IndexerMigrationError,
+                ) as exc:
+                    console.print(f"[red]Failed to open indexer DB:[/red] {exc}")
+                    if conn is not None:
+                        conn.close()
+                    raise typer.Exit(1) from exc
+
+            try:
+                result = rescrape_library(
+                    config,
+                    conn=conn,
+                    disk_filter=disk,
+                    category_filter=category_id,
+                    item_id=item_id,
+                    only=only,
+                    interactive=interactive,
+                    dry_run=dry_run,
+                    max_items=max_items,
+                    event_bus=app_context.event_bus,
+                    registry=app_context.provider_registry,
+                )
+            except ValueError as exc:
+                # Mutual-exclusion error from _collect_rescrape_candidates
+                # (item_id combined with disk/category filter).
+                console.print(f"[red]Invalid combination of options:[/red] {exc}")
+                raise typer.Exit(1) from exc
+            finally:
+                if conn is not None:
+                    conn.close()
+
+            # RT-4: warn clearly when an explicit --item-id matched nothing
+            # (item not in DB, dispatch path missing, or directory gone).
+            # Soft-skips in the bulk path are intentional; this case is not.
+            if item_id is not None:
+                total = result.fixed_count + result.skipped_count + result.error_count
+                if total == 0:
+                    console.print(
+                        f"[yellow]Warning:[/yellow] item {item_id} not found / not on disk — nothing re-scraped."
+                    )
+                    raise typer.Exit(1)
 
         output_path = config.paths.data_dir / "library_rescrape.json"
         write_json(result, output_path)

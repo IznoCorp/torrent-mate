@@ -402,8 +402,12 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
     (``"Inception (2010)"`` vs ``"Inception"``, one side year-less) still merges.
 
     When a year-compatible row already exists, ``category_id`` and
-    ``date_modified`` are refreshed.  Otherwise a new row is inserted with the
-    canonicalised title.
+    ``date_modified`` are refreshed, and ``date_metadata_refreshed`` is updated
+    via ``COALESCE(?, date_metadata_refreshed)`` — a non-None value (a scanner
+    valid-NFO re-scan carrying the scan epoch) overwrites it, while a None value
+    (e.g. the dispatch re-index path, which does not pass a scan epoch) PRESERVES
+    the existing timestamp rather than clobbering it. Otherwise a new row is
+    inserted with the canonicalised title.
 
     Args:
         conn: Open SQLite connection.
@@ -440,13 +444,15 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
             # seen, so a later *different*-year remake splits into its own row
             # instead of being absorbed by the NULL-year "merge magnet".
             conn.execute(
-                "UPDATE media_item SET category_id = ?, date_modified = ?, year = ? WHERE id = ?",
-                (row.category_id, row.date_modified, row.year, existing.id),
+                "UPDATE media_item SET category_id = ?, date_modified = ?, year = ?,"
+                " date_metadata_refreshed = COALESCE(?, date_metadata_refreshed) WHERE id = ?",
+                (row.category_id, row.date_modified, row.year, row.date_metadata_refreshed, existing.id),
             )
         else:
             conn.execute(
-                "UPDATE media_item SET category_id = ?, date_modified = ? WHERE id = ?",
-                (row.category_id, row.date_modified, existing.id),
+                "UPDATE media_item SET category_id = ?, date_modified = ?,"
+                " date_metadata_refreshed = COALESCE(?, date_metadata_refreshed) WHERE id = ?",
+                (row.category_id, row.date_modified, row.date_metadata_refreshed, existing.id),
             )
         log.info("indexer.item.upsert_update", title=canonical, kind=row.kind, id=existing.id)
         return existing.id

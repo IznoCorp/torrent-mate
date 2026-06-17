@@ -1632,3 +1632,166 @@ class TestLibraryRescrapeResult:
                 error_count=0,
             )
             assert result.only_filter == val
+
+
+class TestCollectRescrapeCandidatesItemId:
+    """Tests for the item_id fast-path in _collect_rescrape_candidates."""
+
+    def _make_config(self, tmp_path: Path) -> Config:
+        """Build a minimal Config with one disk/category.
+
+        Args:
+            tmp_path: pytest tmp_path fixture.
+
+        Returns:
+            A populated Config instance.
+        """
+        return Config(
+            paths=PathConfig(
+                torrent_complete_dir=tmp_path / "complete",
+                staging_dir=tmp_path / "staging",
+                data_dir=tmp_path / ".data",
+            ),
+            disks=[DiskConfig(id="disk1", path=tmp_path / "disk1", categories=["movies"])],
+            categories={"movies": CategoryConfig(folder_name="films")},
+            staging_dirs=CANONICAL_STAGING_DIRS,
+            scraper=ScraperConfig(),
+        )
+
+    def test_collect_candidates_item_id_returns_single_candidate(self, tmp_path: Path) -> None:
+        """item_id fast-path returns exactly one candidate and bypasses find_items_needing_rescrape.
+
+        A valid item with nfo_status='valid' must still be returned when item_id
+        is supplied — the predicate is bypassed entirely so force-rescrape works.
+        find_items_needing_rescrape must NOT be called.
+        """
+        from personalscraper.maintenance.rescraper import _collect_rescrape_candidates
+
+        config = self._make_config(tmp_path)
+        media_dir = tmp_path / "disk1" / "films" / "Movie (2024)"
+        media_dir.mkdir(parents=True)
+
+        item_row = MagicMock()
+        item_row.kind = "movie"
+        item_row.category_id = "movies"
+        item_row.nfo_status = "valid"
+
+        attr_disk = MagicMock()
+        attr_disk.value = "disk1"
+
+        attr_path = MagicMock()
+        attr_path.value = str(media_dir)
+
+        def _get_attr_side_effect(conn, item_id, key):
+            if key == "dispatch_disk":
+                return attr_disk
+            if key == "dispatch_path":
+                return attr_path
+            return None
+
+        with (
+            patch(
+                "personalscraper.indexer.repos.item_repo.get_by_id",
+                return_value=item_row,
+            ) as mock_get_by_id,
+            patch(
+                "personalscraper.indexer.repos.item_repo.get_attr",
+                side_effect=_get_attr_side_effect,
+            ),
+            patch(
+                "personalscraper.indexer.repos.item_repo.find_items_needing_rescrape",
+            ) as mock_find,
+        ):
+            result = _collect_rescrape_candidates(config, MagicMock(), None, None, item_id=42)
+
+        assert len(result) == 1
+        path, media_type, disk_id, cat_id = result[0]
+        assert path == media_dir
+        assert media_type == "movie"
+        assert disk_id == "disk1"
+        assert cat_id == "movies"
+        mock_get_by_id.assert_called_once()
+        mock_find.assert_not_called()
+
+    def test_collect_candidates_item_id_missing_item(self, tmp_path: Path) -> None:
+        """When get_by_id returns None, the fast-path returns an empty list.
+
+        A warning must be logged; no exception must propagate.
+        """
+        from personalscraper.maintenance.rescraper import _collect_rescrape_candidates
+
+        config = self._make_config(tmp_path)
+
+        with patch(
+            "personalscraper.indexer.repos.item_repo.get_by_id",
+            return_value=None,
+        ):
+            result = _collect_rescrape_candidates(config, MagicMock(), None, None, item_id=99)
+
+        assert result == []
+
+    def test_collect_candidates_item_id_mutual_exclusion(self, tmp_path: Path) -> None:
+        """Combining item_id with disk_filter must raise ValueError immediately."""
+        import pytest
+
+        from personalscraper.maintenance.rescraper import _collect_rescrape_candidates
+
+        config = self._make_config(tmp_path)
+
+        with pytest.raises(ValueError, match="item_id"):
+            _collect_rescrape_candidates(config, MagicMock(), "disk1", None, item_id=42)
+
+
+class TestRescrapeLibraryItemIdThreading:
+    """Tests that rescrape_library properly threads item_id through to _collect_rescrape_candidates."""
+
+    def _config(self, tmp_path: Path) -> Config:
+        """Build a minimal Config for threading tests.
+
+        Args:
+            tmp_path: pytest tmp_path fixture.
+
+        Returns:
+            A populated Config instance.
+        """
+        return Config(
+            paths=PathConfig(
+                torrent_complete_dir=tmp_path / "complete",
+                staging_dir=tmp_path / "staging",
+                data_dir=tmp_path / ".data",
+            ),
+            disks=[DiskConfig(id="disk1", path=tmp_path / "disk1", categories=["movies"])],
+            categories={"movies": CategoryConfig(folder_name="films")},
+            staging_dirs=CANONICAL_STAGING_DIRS,
+            scraper=ScraperConfig(),
+        )
+
+    def test_rescrape_library_item_id_threads_through(self, tmp_path: Path) -> None:
+        """rescrape_library must forward item_id to _collect_rescrape_candidates.
+
+        Spy on _collect_rescrape_candidates and assert it is called with
+        item_id=42.  The spy returns an empty list so the processing loop is a
+        no-op — the assertion is solely about argument forwarding.
+        """
+        from personalscraper.maintenance.rescraper import rescrape_library
+
+        with (
+            patch(
+                "personalscraper.maintenance.rescraper._collect_rescrape_candidates",
+                return_value=[],
+            ) as mock_collect,
+            patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
+            patch("personalscraper.scraper.artwork.ArtworkDownloader"),
+        ):
+            rescrape_library(
+                self._config(tmp_path),
+                item_id=42,
+                dry_run=True,
+                event_bus=EventBus(),
+                registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
+            )
+
+        mock_collect.assert_called_once()
+        _call_kwargs = mock_collect.call_args
+        # item_id must have been forwarded — check keyword or positional
+        assert _call_kwargs.kwargs.get("item_id") == 42 or (len(_call_kwargs.args) >= 5 and _call_kwargs.args[4] == 42)

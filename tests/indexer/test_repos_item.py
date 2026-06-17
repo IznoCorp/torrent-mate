@@ -421,3 +421,162 @@ def test_canonical_title_strips_double_space_year() -> None:
 def test_canonical_title_strips_no_space_year() -> None:
     """``"Movie(2020)"`` (no space) canonicalises to ``"Movie"``."""
     assert item_repo._canonical_title("Movie(2020)") == "Movie"
+
+
+# ---------------------------------------------------------------------------
+# RT-1 regression: upsert UPDATE branch must persist date_metadata_refreshed
+# ---------------------------------------------------------------------------
+
+
+class TestUpsertUpdatePersistsDateMetadataRefreshed:
+    """Regression tests for the upsert UPDATE branch writing date_metadata_refreshed.
+
+    Before the fix, both UPDATE statements in ``item_repo.upsert`` omitted the
+    ``date_metadata_refreshed`` column, so the column kept its original value
+    (NULL) even when the incoming row carried a non-NULL epoch.  This caused
+    1909 NULL rows to remain un-backfilled across re-scans, breaking the
+    incremental rescrape predicate (``date_metadata_refreshed IS NULL`` matched
+    the whole library).
+    """
+
+    def test_upsert_update_branch_backfills_date_metadata_refreshed(self, conn: sqlite3.Connection) -> None:
+        """UPDATE branch of upsert overwrites NULL date_metadata_refreshed with the new epoch.
+
+        Sequence:
+        1. Insert a row with ``date_metadata_refreshed=None`` (initial scan).
+        2. Upsert the SAME logical item (same title/kind/year → UPDATE branch)
+           with ``date_metadata_refreshed=<epoch>``.
+        3. Assert the persisted row now carries ``<epoch>``, not ``None``.
+        """
+        epoch = int(time.time())
+
+        # Step 1: insert — date_metadata_refreshed starts as NULL.
+        initial = _make_item_with_nfo(
+            nfo_status="valid",
+            date_metadata_refreshed=None,
+            title="Refresh Target",
+        )
+        item_id = item_repo.insert(conn, initial)
+
+        # Confirm the inserted row has NULL.
+        row_before = item_repo.get_by_id(conn, item_id)
+        assert row_before is not None
+        assert row_before.date_metadata_refreshed is None, (
+            "Precondition: row must start with NULL date_metadata_refreshed"
+        )
+
+        # Step 2: upsert the same logical item with a non-NULL refresh epoch.
+        updated = _make_item_with_nfo(
+            nfo_status="valid",
+            date_metadata_refreshed=epoch,
+            title="Refresh Target",  # same canonical title → UPDATE branch
+        )
+        returned_id = item_repo.upsert(conn, updated)
+
+        # The upsert must have taken the UPDATE path (same id returned).
+        assert returned_id == item_id, f"Expected upsert to UPDATE row {item_id}, got new id {returned_id}"
+
+        # Step 3: verify the column was written.
+        row_after = item_repo.get_by_id(conn, item_id)
+        assert row_after is not None
+        assert row_after.date_metadata_refreshed == epoch, (
+            f"upsert UPDATE branch did not persist date_metadata_refreshed: "
+            f"expected {epoch}, got {row_after.date_metadata_refreshed}"
+        )
+
+    def test_upsert_update_year_heal_branch_also_backfills_date_metadata_refreshed(
+        self, conn: sqlite3.Connection
+    ) -> None:
+        """Year-heal UPDATE path also writes date_metadata_refreshed.
+
+        The year-heal branch (existing.year is None, incoming row carries an
+        explicit year) is a second UPDATE statement.  This test confirms it too
+        persists ``date_metadata_refreshed`` — previously it was also missing
+        the column.
+        """
+        epoch = int(time.time())
+
+        # Insert a year-less row.
+        initial = MediaItemRow(
+            id=0,
+            kind="movie",
+            title="Ageless Movie",
+            title_sort="Ageless Movie",
+            original_title=None,
+            year=None,  # year-less → stored as NULL
+            category_id="movies",
+            external_ids_json="{}",
+            ratings_json=None,
+            canonical_provider=None,
+            nfo_status="valid",
+            artwork_json=None,
+            date_created=int(time.time()),
+            date_modified=int(time.time()),
+            date_metadata_refreshed=None,
+            is_locked=0,
+            preferred_lang="fr",
+        )
+        item_id = item_repo.insert(conn, initial)
+
+        # Upsert an incoming row that carries an explicit year (triggers year-heal path).
+        updated = MediaItemRow(
+            id=0,
+            kind="movie",
+            title="Ageless Movie",
+            title_sort="Ageless Movie",
+            original_title=None,
+            year=2020,  # explicit year triggers the year-heal UPDATE branch
+            category_id="movies",
+            external_ids_json="{}",
+            ratings_json=None,
+            canonical_provider=None,
+            nfo_status="valid",
+            artwork_json=None,
+            date_created=int(time.time()),
+            date_modified=int(time.time()),
+            date_metadata_refreshed=epoch,
+            is_locked=0,
+            preferred_lang="fr",
+        )
+        returned_id = item_repo.upsert(conn, updated)
+        assert returned_id == item_id
+
+        row_after = item_repo.get_by_id(conn, item_id)
+        assert row_after is not None
+        assert row_after.date_metadata_refreshed == epoch, (
+            f"Year-heal UPDATE branch did not persist date_metadata_refreshed: "
+            f"expected {epoch}, got {row_after.date_metadata_refreshed}"
+        )
+
+    def test_upsert_update_preserves_date_metadata_refreshed_on_none(self, conn: sqlite3.Connection) -> None:
+        """UPDATE with date_metadata_refreshed=None PRESERVES the existing epoch (COALESCE).
+
+        The dispatch re-index path (``media_index.py``) calls ``build_item_row``
+        WITHOUT a scan epoch, so a re-dispatch of an already-scanned item carries
+        ``None``. A plain ``= ?`` UPDATE would clobber the scan's backfill to NULL;
+        ``COALESCE(?, date_metadata_refreshed)`` preserves it. (Invalid items stay
+        rescrape candidates via the ``nfo_status != 'valid'`` arm regardless.)
+        Sequence: insert with <epoch>, re-upsert the same item with None → <epoch>.
+        """
+        epoch = int(time.time())
+        initial = _make_item_with_nfo(
+            nfo_status="valid",
+            date_metadata_refreshed=epoch,
+            title="Preserve Target",
+        )
+        item_id = item_repo.insert(conn, initial)
+
+        redispatch = _make_item_with_nfo(
+            nfo_status="valid",
+            date_metadata_refreshed=None,  # dispatch re-index: no scan epoch
+            title="Preserve Target",  # same canonical title → UPDATE branch
+        )
+        returned_id = item_repo.upsert(conn, redispatch)
+        assert returned_id == item_id
+
+        row_after = item_repo.get_by_id(conn, item_id)
+        assert row_after is not None
+        assert row_after.date_metadata_refreshed == epoch, (
+            f"UPDATE with None clobbered the existing date_metadata_refreshed: "
+            f"expected {epoch} preserved, got {row_after.date_metadata_refreshed}"
+        )
