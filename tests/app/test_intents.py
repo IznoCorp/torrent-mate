@@ -203,6 +203,71 @@ def test_operator_move_executes() -> None:
     assert "i1" not in store.intents  # cleared
 
 
+def test_move_translates_column_key_to_github_name() -> None:
+    """A move to a column KEY whose name differs (``PRCI`` → ``PR/CI``) must call move_card with the
+    GitHub option NAME, not the raw key.
+
+    ``move_card`` indexes the Status options by display NAME; the raw key raised ``KeyError: 'PRCI'``
+    for the one shipped column whose key != name, so the agent's ``kanban-move 'PR/CI'`` was rejected
+    every cycle (the engine bug that, compounded with the broken CI gate, stranded #5). The drain now
+    translates via ``resolve_column`` like the session-end / script-route move paths.
+    """
+    columns_yaml = _COLUMNS_YAML + "  - key: PRCI\n    name: PR/CI\n"
+    config = TickConfig(
+        columns=load_columns(columns_yaml),
+        transitions=load_transitions(_WHITELIST),
+        concurrency_cap=3,
+    )
+    store = _FakeStore(intents={"i1": _move_intent(8, "PRCI")})  # operator authority (no running)
+    writer = _FakeWriter()
+    next_columns: dict[str, str] = {}
+    drain_intents(
+        _deps(store, writer),
+        config,
+        snapshot=_snapshot(_ticket(8, "Backlog")),
+        next_columns=next_columns,
+        running=tuple(store.running),
+        status_events=[],
+        now=1000.0,
+        kill_switch=False,
+    )
+    assert writer.moves == [("PVTI_8", "PR/CI")]  # the NAME, not the raw key 'PRCI'
+    assert next_columns["PVTI_8"] == "PRCI"  # baseline records the stable KEY
+    assert store.results["i1"]["state"] == "done"
+    assert "i1" not in store.intents
+
+
+def test_move_idempotent_across_name_key_seam() -> None:
+    """Idempotence holds across the name/key seam.
+
+    A card already in ``PR/CI`` (the NAME the adapter emits as ``column_key``) with a move intent to
+    the ``PRCI`` KEY is a no-op done — NOT a redundant move_card that would needlessly consume the
+    per-ticket auto-advance rate-limit budget.
+    """
+    columns_yaml = _COLUMNS_YAML + "  - key: PRCI\n    name: PR/CI\n"
+    config = TickConfig(
+        columns=load_columns(columns_yaml),
+        transitions=load_transitions(_WHITELIST),
+        concurrency_cap=3,
+    )
+    store = _FakeStore(intents={"i1": _move_intent(8, "PRCI")})
+    writer = _FakeWriter()
+    next_columns: dict[str, str] = {}
+    drain_intents(
+        _deps(store, writer),
+        config,
+        snapshot=_snapshot(_ticket(8, "PR/CI")),  # already there (adapter emits the NAME)
+        next_columns=next_columns,
+        running=tuple(store.running),
+        status_events=[],
+        now=1000.0,
+        kill_switch=False,
+    )
+    assert writer.moves == []  # no redundant move_card
+    assert store.results["i1"]["state"] == "done"
+    assert "already in" in str(store.results["i1"]["detail"])
+
+
 def test_drain_runs_result_gc_once_even_with_no_pending() -> None:
     """The drain fires the result GC every tick — even when no intents are pending (cockpit §10)."""
     store = _FakeStore(intents={})  # nothing pending

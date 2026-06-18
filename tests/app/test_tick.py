@@ -2483,11 +2483,14 @@ def test_reaper_done_exit_retries_across_ticks_until_max() -> None:
     m.sessions.kill_repl_process.assert_not_called()  # not yet escalated
     m.store.clear_agent_done.assert_not_called()  # breadcrumb kept through the retry budget
 
-    # The (MAX+1)-th tick: counter == MAX → escalate (kill the REPL), clear both markers, no dispatch.
+    # The (MAX+1)-th tick: counter == MAX → escalate (kill the REPL), clear the attempt counter, but
+    # PRESERVE the done breadcrumb (helm #5 stranding fix) so the surviving shell's
+    # ``; kanban-session-end`` reads it and AUTO-ADVANCES the finished agent (the SIGKILL is cleanup of
+    # a stuck exit dialog, not a failure). No dispatch on the kill tick.
     tick(m.deps, _config(), state)
     assert m.sessions.end_session.call_count == MAX_END_ATTEMPTS  # NOT dispatched on the kill tick
     m.sessions.kill_repl_process.assert_called_once_with("ticket-7")
-    m.store.clear_agent_done.assert_called_once_with(7)
+    m.store.clear_agent_done.assert_not_called()  # breadcrumb PRESERVED → session-end advances the card
     m.store.clear_end_attempts.assert_called_once_with(7)
     m.sessions.kill.assert_not_called()  # NEVER kill-session (Approach A)
 
@@ -2525,11 +2528,11 @@ def test_reaper_escalation_kills_repl_not_session() -> None:
 
 
 def test_reaper_escalation_killrepl_failsoft() -> None:
-    """firm-exit: a kill_repl_process error at MAX still clears the breadcrumb + counter, no crash.
+    """firm-exit: a kill_repl_process error at MAX still clears the counter (not the breadcrumb), no crash.
 
-    Even if the SIGKILL raises, the graceful budget is spent — the reaper clears both markers so the
-    next tick falls through to Approach A (the still-dying session parks WAITING). The sweep does not
-    crash.
+    Even if the SIGKILL raises, the graceful budget is spent — the reaper clears the attempt counter
+    but PRESERVES the done breadcrumb (helm #5 stranding fix) so ``; kanban-session-end`` can still
+    auto-advance the finished agent. The sweep does not crash.
     """
     from kanbanmate.app.reaper import MAX_END_ATTEMPTS
 
@@ -2554,7 +2557,7 @@ def test_reaper_escalation_killrepl_failsoft() -> None:
     result, _ = tick(m.deps, _config(), state)  # must not raise
 
     m.sessions.kill_repl_process.assert_called_once_with("ticket-7")
-    m.store.clear_agent_done.assert_called_once_with(7)
+    m.store.clear_agent_done.assert_not_called()  # breadcrumb PRESERVED even when the SIGKILL raises
     m.store.clear_end_attempts.assert_called_once_with(7)
     assert result.reaped == 0
 

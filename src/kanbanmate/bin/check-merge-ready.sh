@@ -102,9 +102,12 @@ echo "Reviews: OK (reviewDecision=$review_decision)"
 
 # ----- 3. CI checks --------------------------------------------------------
 echo "Checking CI for PR #${pr_number}…"
+# Use ``bucket`` (gh's normalised roll-up), NOT ``conclusion``: ``gh pr checks --json`` does not
+# expose a ``conclusion`` field, so requesting it makes gh exit non-zero on every call and the gate
+# would ALWAYS fail (engine bug, gh 2.x — mirrors the check-pr-ready.sh fix).
 checks_json=$(gh pr checks "$pr_number" \
                 --repo "$KANBAN_REPO" \
-                --json name,state,conclusion 2>&1) || {
+                --json name,bucket,state 2>&1) || {
   echo "FAIL: could not retrieve checks for PR #$pr_number." >&2
   exit 1
 }
@@ -113,9 +116,9 @@ checks_json=$(gh pr checks "$pr_number" \
 failing=$(_KM_JSON="$checks_json" python3 - << 'PYEOF'
 import os, json
 checks = json.loads(os.environ["_KM_JSON"])
-bad = [c for c in checks if c.get("conclusion") not in ("SUCCESS", "SKIPPED", "NEUTRAL", None) or c.get("state") == "FAILURE"]
+bad = [c for c in checks if c.get("bucket") in ("fail", "cancel")]
 for c in bad:
-    print(f"  - {c.get('name','?')}: state={c.get('state','?')} conclusion={c.get('conclusion','?')}")
+    print(f"  - {c.get('name','?')}: bucket={c.get('bucket','?')} state={c.get('state','?')}")
 PYEOF
 )
 
@@ -123,9 +126,9 @@ PYEOF
 pending=$(_KM_JSON="$checks_json" python3 - << 'PYEOF'
 import os, json
 checks = json.loads(os.environ["_KM_JSON"])
-pending = [c for c in checks if c.get("state") in ("IN_PROGRESS", "QUEUED", "PENDING", "WAITING", "REQUESTED")]
+pending = [c for c in checks if c.get("bucket") == "pending"]
 for c in pending:
-    print(f"  - {c.get('name','?')}: {c.get('state','?')}")
+    print(f"  - {c.get('name','?')}: bucket={c.get('bucket','?')} state={c.get('state','?')}")
 PYEOF
 )
 

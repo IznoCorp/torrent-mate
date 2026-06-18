@@ -105,15 +105,23 @@ def _resolve_console_bin(name: str) -> str | None:
         The absolute path to the shim if it can be located (on ``PATH`` or in the engine's scripts
         dir), else ``None`` so the caller can FAIL-SOFT (skip / bare command).
     """
-    # Primary: the shim on PATH (the common installed case — mirrors the PoC's resolved path).
     found = shutil.which(name)
+    direct = Path(sys.executable).resolve().parent / name
+    # A pyenv/rbenv-style SHIM (its resolved path sits under a ``shims/`` dir) is doubly wrong as a
+    # helper target: it re-dispatches per the agent's ACTIVE pyenv version — DEFEATING the very
+    # ``sys.executable`` pin this function exists for — and it HANGS in ``pyenv-which`` /
+    # ``pyenv-exec`` under concurrent load (the ``kanban-done`` finalize stall that left a finished
+    # agent stranded). When ``which`` lands on such a shim, prefer the engine interpreter's OWN
+    # console script beside ``sys.executable`` whenever it exists — it bypasses pyenv entirely.
+    if found and Path(found).parent.name == "shims" and direct.is_file():
+        return str(direct)
+    # Primary: the resolved path on PATH (the common installed case — mirrors the PoC's path).
     if found:
         return str(Path(found).resolve())
     # Fallback: the engine interpreter's scripts dir (``pip install`` drops console scripts beside
     # the python executable). Covers a venv whose ``bin/`` is not exported on the agent's PATH.
-    candidate = Path(sys.executable).resolve().parent / name
-    if candidate.is_file():
-        return str(candidate)
+    if direct.is_file():
+        return str(direct)
     return None
 
 

@@ -80,13 +80,18 @@ for every brainstorm/plan stage. The fix has three parts:
 ### Robust `end_session` keystroke sequence (`TmuxSessions.end_session`)
 
 `Escape` → sleep(`_END_MENU_DELAY`=0.3s) → `C-u` → sleep(`_END_CLEAR_DELAY`=0.3s) → `C-d` →
-sleep(`_END_CONFIRM_DELAY`=0.5s) → `C-d`. `Escape` closes the slash-command autocomplete/menu; `C-u`
-clears the input line so the EOF lands on an EMPTY idle prompt; the FIRST `C-d` may only surface the
-"N shells still running, press again to exit" confirm, and the SECOND `C-d` confirms past the
-background-shell warning. Every `send-keys` stays `check=True`; each event is a tmux KEY NAME (no
-`-l`). Delays route through the existing `sleeper` seam (offline unit tests pay zero wall time); the
-worst-case wall time is 1.1s, well under the ~1.5s budget — and the sequence runs only once per
-finished session, rarely, from the reaper sweep. A **BSpace burst** fallback (`_END_BSPACE_BURST`=64
+sleep(`_END_CONFIRM_DELAY`=0.5s) → `C-d` → sleep(`_END_MENU_CONFIRM_DELAY`=0.5s) → `Enter`. `Escape`
+closes the slash-command autocomplete/menu; `C-u` clears the input line so the EOF lands on an EMPTY
+idle prompt; the FIRST `C-d` may surface claude v2.1.x's **"Background work is running — Exit anyway?"
+MENU** when the finished agent left background shells; the SECOND `C-d` is a harmless second EOF; and
+the trailing **`Enter` CONFIRMS the highlighted "Exit anyway"** — the menu is confirmed with `Enter`,
+NOT a second `C-d` (fix 0.5.2, `fix/exit-menu-confirm`: without it a finished agent with background
+shells stays stuck at the dialog → the reaper SIGKILLs it, clearing the done breadcrumb → ⚠️ + no
+auto-advance, stranding the card; reproduced live on #5's plan stage). `Enter` is a harmless no-op when
+there is no menu (empty idle prompt / surviving shell). Every `send-keys` stays `check=True`; each
+event is a tmux KEY NAME (no `-l`). Delays route through the existing `sleeper` seam (offline unit
+tests pay zero wall time); the worst-case wall time is 1.6s, well under the ~2s budget — and the
+sequence runs only once per finished session, rarely, from the reaper sweep. A **BSpace burst** fallback (`_END_BSPACE_BURST`=64
 × `BSpace` via `_clear_input_line`) is documented for the case where `C-u` proves unreliable on the
 live claude widget (a one-line swap). The **no-`kill-session` invariant is restated**: the trailing
 `; kanban-session-end` must still run.
@@ -105,7 +110,7 @@ FAIL-SOFT: any resolution/kill error is swallowed (the reaper logs and still cle
 known residual remained: a finished `claude` REPL with a background shell still running (the
 "N shells still running" exit confirm) **traps/survives SIGTERM**, so the agent never terminated and
 re-parked WAITING. This escalation only ever runs AFTER `MAX_END_ATTEMPTS` graceful keystroke
-dispatches (Escape → `C-u` → `C-d` → `C-d`) have already failed, so graceful was given every chance —
+dispatches (Escape → `C-u` → `C-d` → `C-d` → `Enter`) have already failed, so graceful was given every chance —
 SIGKILL is the guaranteed-termination escalation (it cannot be trapped). A live test confirmed a
 manual SIGKILL of the same comm-verified `claude` PID killed the REPL cleanly while the surviving pane
 shell still ran the trailing `; kanban-session-end <issue>` wrapper (state purged on the correct
@@ -118,11 +123,11 @@ A per-session attempt counter replaces the single-shot clear. New issue-keyed ma
 `end_attempts/<issue>` = `{"n": <int>}` on `AgentBreadcrumbsMixin`
 (`get_end_attempts`/`bump_end_attempt`/`clear_end_attempts`, on the `StateStore` port too). Logic:
 
-* **attempts < `MAX_END_ATTEMPTS` (=3)** — dispatch the robust `end_session`, BUMP the counter, and
+- **attempts < `MAX_END_ATTEMPTS` (=3)** — dispatch the robust `end_session`, BUMP the counter, and
   **KEEP** the done breadcrumb so the next tick re-dispatches. A FAILED dispatch returns without
   bumping or clearing (the keystrokes never reached claude → no `; kanban-session-end` collision; the
   next tick retries the SAME attempt number).
-* **attempts >= `MAX_END_ATTEMPTS`** — ESCALATE: `kill_repl_process` SIGKILLs the claude child, then
+- **attempts >= `MAX_END_ATTEMPTS`** — ESCALATE: `kill_repl_process` SIGKILLs the claude child, then
   CLEAR the done breadcrumb AND the attempt counter (whether or not the SIGKILL landed — the graceful
   budget is spent). The next tick falls through to Approach A: the still-dying session parks WAITING
   (non-destructive) until it dies → reaped, or `kanban-session-end` purges its state.
@@ -145,7 +150,7 @@ The illustrative `(e.g. /implement:plan)` is NEGATIVE example text, not a runnab
 
 ## §4.x — `KANBAN_ROOT` injection for non-default daemons (km-worktree-helper-root fix) — #1
 
-The kanban-* helpers (`kanban-session-end`, `kanban-done`, `kanban-move`, `kanban-progress`)
+The kanban-\* helpers (`kanban-session-end`, `kanban-done`, `kanban-move`, `kanban-progress`)
 defaulted to `~/.kanban`, wrong for a non-default daemon (e.g. the kanban-km daemon at
 `~/.kanban-km`). Without this fix the trailing `; kanban-session-end` and the agent's helpers read
 the WRONG root on a non-default daemon, so the #1 fix would silently no-op there.
@@ -217,11 +222,11 @@ raised out of `tick()` and skipped the ENTIRE tick — reap, done-exit, drain, h
 stranded (a finished agent + a freed slot waited for the backoff window). The probe is now wrapped, but
 the wrap must satisfy TWO goals that initially conflicted:
 
-* **(a) don't strand finished agents** — a probe failure sets a `probe_failed` flag that gates out the
+- **(a) don't strand finished agents** — a probe failure sets a `probe_failed` flag that gates out the
   snapshot+diff+decide (the launch path) while EVERY post-step (reap / done-exit / drain / intents /
   heartbeat / health) still runs. `last_probe` is left at the prior token so the next tick re-probes and
   recovery re-triggers a snapshot.
-* **(b) don't mask the failure** — the first cut returned a clean `TickResult` and swallowed the
+- **(b) don't mask the failure** — the first cut returned a clean `TickResult` and swallowed the
   exception, so the daemon loop counted the poll as a SUCCESS: it reset `consecutive_failures` to 0,
   cleared the DEGRADED sentinel, and wrote `last_tick_ok=True` every tick. A dead token / DNS outage then
   looked perfectly healthy — full-cadence polling forever, doctor + monitor **D3** green — which defeats
@@ -235,7 +240,7 @@ breadcrumb, exactly as it does for a tick that raised outright. So `last_tick_ok
 reflect reality: a **sustained** probe failure trips the geometric backoff at `_BACKOFF_AFTER_FAILURES`
 (and surfaces FAIL to doctor/D3), while a **transient** one self-heals the next tick (the re-probe
 succeeds → a clean tick resets the run to 0 and clears DEGRADED). `snapshot_taken` stays `False` so the
-*idle* cadence is unaffected by the failure itself; the *failure* cadence is now driven correctly by the
+_idle_ cadence is unaffected by the failure itself; the _failure_ cadence is now driven correctly by the
 backoff. Both goals hold: post-steps run AND the breaker engages.
 
 ### FIX 5 — DONE (zero-deferrals batch, v0.3.0): body-top current-status header
@@ -253,7 +258,7 @@ region-disjoint from the `**roadmap**`/`**codename**`/`**design**`/`**plans**` m
   PREPENDS it at the top when absent. The `sub` uses a callable replacement so a summary containing
   backslashes is inserted literally (no regex backreference).
 - **Fail-soft app orchestrator** — `app/body_status.update_body_status(seeder, issue, *, stage, state,
-  summary, now)`: no-op when `seeder is None`; else `fetch_issue` → `set_status_header` → BODY-DIFF
+summary, now)`: no-op when `seeder is None`; else `fetch_issue` → `set_status_header` → BODY-DIFF
   GATE (skip the write when unchanged — bounds API cost + shrinks the last-writer-wins race window) →
   `update_issue_body`. The whole body is wrapped in try/except → it can NEVER raise into the tick.
 - **Wiring** — reuses the EXISTING `Seeder` surface (`fetch_issue` + `update_issue_body`) and the

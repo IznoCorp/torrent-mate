@@ -25,6 +25,7 @@ from kanbanmate.adapters.perms import (
     _KANBAN_HELPER_BINS,
     KANBAN_BIN_RELDIR,
     PROFILES,
+    _resolve_console_bin,
     _resolve_heartbeat_bin,
     allow_list,
     build_settings,
@@ -1176,3 +1177,45 @@ def test_resolve_heartbeat_bin_resolves_via_which(
     monkeypatch.setattr("kanbanmate.adapters.perms.shutil.which", lambda name: str(shim))
 
     assert _resolve_heartbeat_bin() == str(shim.resolve())
+
+
+def test_resolve_console_bin_prefers_direct_over_pyenv_shim(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """When ``which`` lands on a pyenv-style shim AND the engine interpreter's own console script
+    exists, resolution returns the DIRECT script — bypassing the shim that re-dispatches per the
+    agent's pyenv version and HANGS under load (the kanban-done finalize stall, BUG C)."""
+    # The engine interpreter's own scripts dir (sibling of sys.executable) holds the direct script.
+    engine_dir = tmp_path / "versions" / "3.12.4" / "bin"
+    engine_dir.mkdir(parents=True)
+    direct = engine_dir / "kanban-done"
+    direct.write_text("#!/bin/sh\nexit 0\n")
+    direct.chmod(0o755)
+    monkeypatch.setattr("kanbanmate.adapters.perms.sys.executable", str(engine_dir / "python3.12"))
+    # ``which`` resolves to the pyenv SHIM — its parent dir is literally named ``shims``.
+    shims_dir = tmp_path / "shims"
+    shims_dir.mkdir()
+    shim = shims_dir / "kanban-done"
+    shim.write_text("#!/bin/sh\nexec pyenv exec kanban-done\n")
+    shim.chmod(0o755)
+    monkeypatch.setattr("kanbanmate.adapters.perms.shutil.which", lambda name: str(shim))
+
+    # Must return the DIRECT engine script, NOT the pyenv shim.
+    assert _resolve_console_bin("kanban-done") == str(direct)
+
+
+def test_resolve_console_bin_keeps_non_shim_which_result(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A non-shim ``which`` result (a normal install dir) is honoured as-is — no spurious override.
+
+    Guards against the BUG-C fix over-reaching: only a path under a ``shims/`` dir is redirected.
+    """
+    bin_dir = tmp_path / "engine-bin"
+    bin_dir.mkdir()
+    script = bin_dir / "kanban-done"
+    script.write_text("#!/bin/sh\nexit 0\n")
+    script.chmod(0o755)
+    monkeypatch.setattr("kanbanmate.adapters.perms.shutil.which", lambda name: str(script))
+
+    assert _resolve_console_bin("kanban-done") == str(script.resolve())

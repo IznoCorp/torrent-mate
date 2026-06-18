@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 # the same stage once; the next miss (``retries >= RETRY_LIMIT``) goes straight to Blocked.
 RETRY_LIMIT = 1
 
-# A graceful done-exit (end_session: Escape→C-u→C-d→C-d) is dispatched at most this many times before
+# A graceful done-exit (end_session: Escape→C-u→C-d→C-d→Enter) is dispatched at most this many times before
 # the reaper ESCALATES to killing the claude REPL process. A genuinely-hung REPL or stubborn leftover
 # state can swallow the keystrokes; after MAX_END_ATTEMPTS we SIGKILL the claude child (NOT the
 # session/shell) so the surviving shell still runs ``; kanban-session-end``. Kept small (the keystroke
@@ -199,7 +199,7 @@ def _end_done_session(deps: Deps, state: TicketState, now: float) -> bool:
       child is gone), CONSUME the branch (return ``True``) WITHOUT re-sending keystrokes or bumping —
       session-end / purge completes on its own and the WAITING-park never fires. Otherwise dispatch
       the ROBUST graceful exit
-      (:meth:`~kanbanmate.ports.workspace.Sessions.end_session`: Escape→C-u→C-d→C-d → ``claude``
+      (:meth:`~kanbanmate.ports.workspace.Sessions.end_session`: Escape→C-u→C-d→C-d→Enter → ``claude``
       exits → the trailing ``; kanban-session-end <issue>`` runs the teardown), then BUMP the counter.
       The done breadcrumb is **LEFT in place** (the single-shot clear of the old contract is gone for
       this path), so the next tick RE-ENTERS the branch and re-dispatches until the REPL exits or the
@@ -290,14 +290,16 @@ def _end_done_session(deps: Deps, state: TicketState, now: float) -> bool:
         logger.exception(
             "reaper kill_repl_process failed for #%s; clearing anyway (budget spent)", issue
         )
-    # Clear the done breadcrumb + the attempt counter so the next tick falls through to Approach A
-    # (the still-dying session parks WAITING, then dies → reaped; or kanban-session-end purges state).
-    try:
-        deps.store.clear_agent_done(issue)
-    except Exception:
-        logger.exception(
-            "reaper clear_agent_done failed for #%s after escalation; continuing", issue
-        )
+    # PRESERVE THE DONE BREADCRUMB (helm #5 stranding fix). The SIGKILL only terminates a stuck REPL
+    # whose AGENT already finished (it is in the ``done`` branch — it dropped ``kanban-done``); the kill
+    # is cleanup of a stubborn exit dialog, NOT a failure. The surviving shell now runs the trailing
+    # ``; kanban-session-end``, which reads the done breadcrumb and AUTO-ADVANCES the card (DESIGN §13).
+    # Clearing the breadcrumb here used to RACE that wrapper — when the reaper won, session-end saw no
+    # done and finalized ⚠️ interrupted with NO advance, stranding a legitimately-finished agent one
+    # stage early. So we DO NOT clear ``done`` — session-end owns its consumption (it purges the
+    # breadcrumb after reading + advancing). We DO clear the attempt counter (the graceful budget is
+    # spent; a re-entry must not re-SIGKILL — and with claude now dead ``repl_alive`` is False, so the
+    # next tick short-circuits without re-dispatching until session-end purges the ticket).
     try:
         deps.store.clear_end_attempts(issue)
     except Exception:
@@ -482,7 +484,7 @@ def reap_stale_agents(
     a persisted ``done/<issue>`` breadcrumb, :meth:`~kanbanmate.ports.store.StateStore.recent_agent_done`)
     AND whose pane is IDLE (no ``esc to interrupt`` active turn — :func:`_pane_has_active_turn`), the
     reaper drives the BOUNDED-RETRY-THEN-KILL escalation in :func:`_end_done_session`: it dispatches the
-    ROBUST :meth:`~kanbanmate.ports.workspace.Sessions.end_session` (Escape→C-u→C-d→C-d, NOT ``kill``)
+    ROBUST :meth:`~kanbanmate.ports.workspace.Sessions.end_session` (Escape→C-u→C-d→C-d→Enter, NOT ``kill``)
     so ``claude`` exits and the trailing ``; kanban-session-end <issue>`` runs the teardown → the card
     flows, KEEPING the done breadcrumb + bumping a persisted ``end_attempts/<issue>`` counter so the
     next tick re-dispatches until the REPL exits or :data:`MAX_END_ATTEMPTS` is hit — then it SIGKILLs

@@ -29,15 +29,27 @@ Sleeper = Callable[[float], None]
 _SHELL_READY_ATTEMPTS = 30
 _SHELL_READY_INTERVAL = 0.1  # seconds between capture probes (overridable for offline tests)
 
+# Large LITERAL sends (the filled ``/implement:*`` prompt embeds the ticket body — up to ~12KB) are
+# CHUNKED so a single huge ``send-keys`` write cannot overflow the pane PTY. The helm #5 launch
+# failure: an ~11KB one-shot ``send-keys -l`` raised ``CalledProcessError`` (exit 1) under daemon load
+# (a transient write failure — the monitor already watches for "No buffer space"), which ABORTED the
+# launch and orphaned claude with no prompt + no persisted state. Chunking keeps each write small, and
+# each chunk is RETRIED on a transient failure so a momentary glitch never aborts a launch. Small sends
+# (the command line, key names) fit in ONE chunk — byte-identical to the pre-fix single send-keys.
+_SEND_CHUNK_SIZE = 1024  # max chars per literal send-keys write (well under any PTY burst limit)
+_SEND_CHUNK_RETRIES = 3  # per-chunk attempts on a transient send-keys CalledProcessError
+_SEND_CHUNK_RETRY_DELAY = 0.2  # backoff between chunk retries (routed through the injected sleeper)
+
 # Delays between the end_session keystrokes so claude v2.1.x processes each step (menu close → box
-# clear → EOF → confirm-EOF). Kept SMALL — end_session runs rarely (once per finished session) and
-# is dispatched from the reaper sweep, so the total must stay well under ~1.5s. Worst case here is
-# 0.3 + 0.3 + 0.5 = 1.1s (under budget). Routed through the existing ``sleeper`` seam so offline
-# tests inject a fake and pay zero real wall time.
+# clear → EOF → confirm-EOF → menu-render). Kept SMALL — end_session runs rarely (once per finished
+# session) and is dispatched from the reaper sweep, so the total must stay well under ~2s. Worst case
+# here is 0.3 + 0.3 + 0.5 + 0.5 = 1.6s (under budget). Routed through the existing ``sleeper`` seam so
+# offline tests inject a fake and pay zero real wall time.
 _END_MENU_DELAY = 0.3  # after Escape (let the slash-command autocomplete/menu close)
 _END_CLEAR_DELAY = 0.3  # after C-u (let the input line clear before EOF)
-_END_CONFIRM_DELAY = (
-    0.5  # between the two C-d (let claude surface the "N shells, press again" confirm)
+_END_CONFIRM_DELAY = 0.5  # between the two C-d (let the background-shell exit MENU surface)
+_END_MENU_CONFIRM_DELAY = (
+    0.5  # after the second C-d (let the "Exit anyway?" menu render before Enter confirms it)
 )
 
 
@@ -177,10 +189,11 @@ class TmuxSessions:
                 event after *text* (so a literal prompt is submitted).
         """
         if literal:
-            argv = ["tmux", "send-keys", "-t", name, "-l", "--", text]
+            # CHUNKED + retried (a huge one-shot send-keys can fail under load → aborted launch +
+            # orphaned claude; see ``_send_literal`` / the chunk-constant note).
+            self._send_literal(name, text)
         else:
-            argv = ["tmux", "send-keys", "-t", name, text]
-        self._runner(argv, check=True)
+            self._runner(["tmux", "send-keys", "-t", name, text], check=True)
         if enter:
             # Enter is a SEPARATE send-keys event (a key NAME, not literal text), so a
             # literal prompt is typed first then submitted — mirroring the PoC's two-call
@@ -219,6 +232,41 @@ class TmuxSessions:
             check=True,
         )
 
+    def _send_literal(self, name: str, text: str) -> None:
+        """Send literal *text* to session *name* in bounded, individually-retried chunks (#helm5).
+
+        A single ``tmux send-keys -l`` write of a very large prompt (the filled ``/implement:*``
+        prompt embeds the ticket body — up to ~12KB) can fail with ``CalledProcessError`` (exit 1)
+        under daemon load — a transient write failure that, left unhandled, ABORTED the launch and
+        orphaned claude with no prompt + no persisted state (helm #5). This splits the payload into
+        ``_SEND_CHUNK_SIZE``-char chunks (so each write stays well under any PTY burst limit) and
+        RETRIES each chunk up to ``_SEND_CHUNK_RETRIES`` times on a transient failure, backing off via
+        the injected ``sleeper``. A payload that fits in one chunk (the command line, key names) sends
+        with a SINGLE ``send-keys`` — byte-identical to the pre-fix behaviour. An empty payload sends
+        nothing (the trailing Enter, if any, is the caller's separate event).
+
+        Args:
+            name: The session name to type into.
+            text: The literal text to send (may be large; may be empty).
+
+        Raises:
+            subprocess.CalledProcessError: If a chunk still fails after ``_SEND_CHUNK_RETRIES``
+                attempts (a genuine, non-transient send failure — the caller decides how to handle).
+        """
+        for start in range(0, len(text), _SEND_CHUNK_SIZE):
+            chunk = text[start : start + _SEND_CHUNK_SIZE]
+            argv = ["tmux", "send-keys", "-t", name, "-l", "--", chunk]
+            for attempt in range(_SEND_CHUNK_RETRIES):
+                try:
+                    self._runner(argv, check=True)
+                    break
+                except Exception:
+                    # Last attempt failed → propagate (a genuine failure, not a transient glitch).
+                    if attempt == _SEND_CHUNK_RETRIES - 1:
+                        raise
+                    # Transient (e.g. a momentary "No buffer space") → back off and re-send the chunk.
+                    self._sleeper(_SEND_CHUNK_RETRY_DELAY)
+
     def _send_key(self, name: str, key: str) -> None:
         """Send one tmux KEY NAME (no ``-l``) to session *name*, ``check=True``.
 
@@ -253,15 +301,22 @@ class TmuxSessions:
            leftover ``/implement:plan`` in the input box kept C-c/C-d from landing on an idle prompt).
         2. ``C-u`` (via :meth:`_clear_input_line`) — clear the input line so the EOF lands on an
            EMPTY idle prompt.
-        3. ``C-d`` — EOF → ``claude`` exits at the idle prompt. With background shells running ("N
-           shells still running"), this FIRST ``C-d`` may only surface the "press again to exit"
-           confirm rather than exiting.
-        4. ``C-d`` — the SECOND ``C-d`` confirms the exit past the background-shell warning.
+        3. ``C-d`` — EOF → ``claude`` exits at the idle prompt. With background shells running, this
+           FIRST ``C-d`` instead surfaces claude v2.1.x's "Background work is running — Exit anyway?"
+           MENU (``❯ 1. Exit anyway`` / ``2. Stay``, "Enter to confirm").
+        4. ``C-d`` — a SECOND EOF (harmless if claude already exited; a no-op against the menu).
+        5. ``Enter`` — CONFIRM the highlighted "Exit anyway" option of the background-shell exit MENU.
+           This step is load-bearing: the menu is confirmed with ENTER, NOT a second ``C-d`` — without
+           it a FINISHED agent that left background shells stays stuck at the dialog forever, never
+           drops past the graceful budget, and the reaper SIGKILLs it (clearing the done breadcrumb →
+           ⚠️ + NO auto-advance, stranding the card). Reproduced live on #5's plan stage. Harmless when
+           there is no menu: Enter on an empty idle prompt / the surviving shell is a no-op newline.
 
         Every event is a tmux KEY NAME (sent WITHOUT ``-l``, like the ``Enter`` event in
         :meth:`send_text`), NOT literal text, and each ``send-keys`` stays ``check=True``. Delays go
         through the injected ``sleeper`` seam (offline tests pay zero wall time); worst case is
-        :data:`_END_MENU_DELAY` + :data:`_END_CLEAR_DELAY` + :data:`_END_CONFIRM_DELAY` = 1.1s.
+        :data:`_END_MENU_DELAY` + :data:`_END_CLEAR_DELAY` + :data:`_END_CONFIRM_DELAY` +
+        :data:`_END_MENU_CONFIRM_DELAY` = 1.6s.
 
         INVARIANT — this NEVER runs ``tmux kill-session``: when ``claude`` exits the surviving shell
         runs the trailing ``; kanban-session-end <issue>`` of the launched command, so the teardown
@@ -276,13 +331,18 @@ class TmuxSessions:
         # 2. Clear the input line so the EOF lands on an EMPTY idle prompt (not a leftover command).
         self._clear_input_line(name)
         self._sleeper(_END_CLEAR_DELAY)
-        # 3. First C-d (EOF): exits at an empty prompt, OR (background shells) surfaces the
-        #    "N shells still running, press again to exit" confirm.
+        # 3. First C-d (EOF): exits at an empty prompt, OR (background shells) surfaces claude
+        #    v2.1.x's "Background work is running — Exit anyway?" MENU.
         self._send_key(name, "C-d")
         self._sleeper(_END_CONFIRM_DELAY)
-        # 4. Second C-d: confirms the exit past the background-shell warning. The surviving shell then
-        #    runs the trailing ``; kanban-session-end <issue>`` wrapper (never kill-session here).
+        # 4. Second C-d: a harmless second EOF (a no-op against the menu; covers any non-menu confirm).
         self._send_key(name, "C-d")
+        self._sleeper(_END_MENU_CONFIRM_DELAY)
+        # 5. Enter: CONFIRM the highlighted "Exit anyway" of the background-shell exit MENU (the menu is
+        #    confirmed with Enter, NOT a second C-d). claude exits and the surviving shell then runs the
+        #    trailing ``; kanban-session-end <issue>`` wrapper (never kill-session here). Harmless no-op
+        #    when there is no menu (empty idle prompt / surviving shell).
+        self._send_key(name, "Enter")
 
     def kill_repl_process(self, name: str) -> None:
         """SIGKILL the ``claude`` REPL child of session *name*'s pane — NOT the session/shell (#).
@@ -294,7 +354,7 @@ class TmuxSessions:
         runs the trailing ``; kanban-session-end <issue>`` of the launched command → teardown fires.
 
         WHY SIGKILL (guaranteed termination) AND NOT SIGTERM: this escalation runs ONLY after the
-        graceful end_session keystrokes (Escape → C-u → C-d → C-d) have failed ``MAX_END_ATTEMPTS``
+        graceful end_session keystrokes (Escape → C-u → C-d → C-d → Enter) have failed ``MAX_END_ATTEMPTS``
         times — graceful exit was already given every chance. A live test proved SIGTERM is
         INSUFFICIENT: a finished claude REPL with a background shell still running (the
         "N shells still running" confirm) traps/survives SIGTERM, so the finished agent never

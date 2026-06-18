@@ -103,6 +103,56 @@ class TestSlashCommands:
         assert "WITHOUT merging" in _REVIEW_PROMPT
 
 
+class TestGroundingDiscipline:
+    """The design + plan stages carry the grounding/self-verification discipline (helm #5 review).
+
+    These two stages produced confident-but-wrong artifacts (a false layering-guard claim, a call
+    with a non-existent signature, tests whose inputs resolved to None). The discipline forces
+    source-verification, real-signature matching, layering respect, real-value tests, and a
+    self-review pass — so an autonomous agent cannot ship those classes of defect unchecked.
+    """
+
+    _MARKER = "GROUND EVERY CLAIM IN THE SOURCE"
+
+    # Every CODE-PRODUCING / code-reasoning stage carries the discipline — not just design+plan
+    # (operator: "tout dois être fixé"). Brainstorm is excluded (interactive requirements-gathering,
+    # writes no code).
+    _CODE_STAGES = (
+        "_DESIGN_PROMPT",
+        "_PLAN_PROMPT",
+        "_IMPLEMENT_PROMPT",
+        "_FIXCI_PROMPT",
+        "_REVIEW_PROMPT",
+        "_REWORK_PROMPT",
+    )
+
+    def test_all_code_producing_stages_carry_grounding_discipline(self) -> None:
+        """Design, plan, implement, fix-CI, review, and rework all carry the grounding discipline."""
+        for name in self._CODE_STAGES:
+            prompt = getattr(defaults_mod, name)
+            assert self._MARKER in prompt, f"{name} missing grounding marker"
+            assert "MATCH REAL SIGNATURES" in prompt, f"{name} missing signature rule"
+            assert "TESTS MUST EXERCISE REAL VALUES" in prompt, (
+                f"{name} missing real-value-tests rule"
+            )
+            assert "ENUMERATE THE COMPLETE SET" in prompt, (
+                f"{name} missing complete-enumeration rule"
+            )
+
+    def test_brainstorm_does_not_carry_grounding_discipline(self) -> None:
+        """The interactive brainstorm stage stays lean — it gathers requirements, writes no code."""
+        assert self._MARKER not in defaults_mod._BRAINSTORM_PROMPT
+
+    def test_grounding_discipline_keeps_the_clean_stop_and_french_guards(self) -> None:
+        """The discipline carries no ``/implement:`` literal and no "end the session" prose.
+
+        Both would trip sibling guards (the fix-CI no-slash-command assertion and the
+        no-bare-end-the-session assertion), so the shared block must stay clean.
+        """
+        assert "/implement:" not in defaults_mod._GROUNDING_DISCIPLINE
+        assert "end the session" not in defaults_mod._GROUNDING_DISCIPLINE.lower()
+
+
 class TestPlaceholdersSurvive:
     """Every ``{{placeholder}}`` survives the French→English translation."""
 

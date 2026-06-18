@@ -22,6 +22,7 @@ import pytest
 from kanbanmate.adapters.workspace.sessions import (
     _END_CLEAR_DELAY,
     _END_CONFIRM_DELAY,
+    _END_MENU_CONFIRM_DELAY,
     _END_MENU_DELAY,
     TmuxSessions,
 )
@@ -1553,6 +1554,70 @@ class TestTmuxSessionsUnit:
             check=True,
         )
 
+    def test_send_text_large_literal_is_chunked(self) -> None:
+        """A large literal prompt is split into <= _SEND_CHUNK_SIZE-char send-keys writes (#helm5).
+
+        A single huge send-keys write can fail under load (the helm #5 launch abort); chunking keeps
+        every write small. The concatenation of the chunks must equal the original payload exactly.
+        """
+        from kanbanmate.adapters.workspace.sessions import _SEND_CHUNK_SIZE
+
+        mock_runner = MagicMock()
+        sessions = TmuxSessions(runner=mock_runner)
+        big = "x" * (_SEND_CHUNK_SIZE * 2 + 17)  # 2 full chunks + a remainder
+
+        sessions.send_text("ticket-7", big, literal=True)
+
+        argvs = [c.args[0] for c in mock_runner.call_args_list]
+        assert len(argvs) == 3  # ceil((2*N+17)/N) = 3 chunks
+        sent = ""
+        for argv in argvs:
+            assert argv[:6] == ["tmux", "send-keys", "-t", "ticket-7", "-l", "--"]
+            assert len(argv[6]) <= _SEND_CHUNK_SIZE
+            sent += argv[6]
+        assert sent == big  # lossless: chunks reconstruct the exact prompt
+
+    def test_send_text_literal_retries_transient_send_failure(self) -> None:
+        """A transient send-keys CalledProcessError is RETRIED (not propagated) so a launch survives.
+
+        The launch's prompt delivery must not abort on a momentary send-keys failure (helm #5). The
+        chunk is re-sent after a backoff; the second attempt succeeds.
+        """
+        import subprocess
+
+        calls = {"n": 0}
+
+        def flaky_runner(argv, **kwargs):  # type: ignore[no-untyped-def]
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise subprocess.CalledProcessError(1, argv)
+            return MagicMock(returncode=0)
+
+        sleeps: list[float] = []
+        sessions = TmuxSessions(runner=flaky_runner, sleeper=sleeps.append)
+
+        sessions.send_text("ticket-7", "the prompt", literal=True)
+
+        assert calls["n"] == 2  # failed once, retried once, succeeded
+        assert len(sleeps) == 1  # one backoff between the two attempts
+
+    def test_send_text_literal_propagates_persistent_send_failure(self) -> None:
+        """A send-keys failure that never recovers propagates after the retry budget is spent."""
+        import subprocess
+
+        from kanbanmate.adapters.workspace.sessions import _SEND_CHUNK_RETRIES
+
+        def always_fails(argv, **kwargs):  # type: ignore[no-untyped-def]
+            raise subprocess.CalledProcessError(1, argv)
+
+        attempts: list[float] = []
+        sessions = TmuxSessions(runner=always_fails, sleeper=attempts.append)
+
+        with pytest.raises(subprocess.CalledProcessError):
+            sessions.send_text("ticket-7", "the prompt", literal=True)
+        # _SEND_CHUNK_RETRIES attempts → _SEND_CHUNK_RETRIES - 1 backoffs before the final raise.
+        assert len(attempts) == _SEND_CHUNK_RETRIES - 1
+
     # -- is_alive -------------------------------------------------------------
 
     def test_is_alive_true_when_returncode_zero(self) -> None:
@@ -1592,13 +1657,15 @@ class TestTmuxSessionsUnit:
         )
 
     def test_end_session_robust_sequence_in_order(self) -> None:
-        """end_session (firm-exit) sends Escape→C-u→C-d→C-d, with delays, and NEVER kill-session.
+        """end_session (firm-exit) sends Escape→C-u→C-d→C-d→Enter, with delays, NEVER kill-session.
 
         The robust exit closes any open slash-command menu (Escape), clears the input line (C-u),
-        then EOFs TWICE (the second C-d confirms past the "N shells still running" warning). Each
-        send-keys is a tmux KEY NAME (no ``-l``) and ``check=True``; the three delays go through the
-        injected sleeper in order; and there is NO kill-session (the trailing ``; kanban-session-end``
-        must still run).
+        then EOFs TWICE (surfacing claude v2.1.x's background-shell exit MENU), then presses Enter to
+        CONFIRM the highlighted "Exit anyway" option — a second C-d does NOT confirm that menu, so
+        without the trailing Enter a finished agent with background shells stays stuck at the dialog
+        forever (reproduced live: #5's plan stage). Each send-keys is a tmux KEY NAME (no ``-l``) and
+        ``check=True``; the four delays go through the injected sleeper in order; and there is NO
+        kill-session (the trailing ``; kanban-session-end`` must still run).
         """
         mock_runner = MagicMock()
         mock_sleeper = MagicMock()
@@ -1607,23 +1674,25 @@ class TestTmuxSessionsUnit:
         sessions.end_session("ticket-7")
 
         argvs = [c.args[0] for c in mock_runner.call_args_list]
-        # Exactly four send-keys events, in order: Escape, C-u, C-d, C-d (each a KEY NAME, no -l).
+        # Exactly five send-keys events, in order: Escape, C-u, C-d, C-d, Enter (each a KEY NAME).
         assert argvs == [
             ["tmux", "send-keys", "-t", "ticket-7", "Escape"],
             ["tmux", "send-keys", "-t", "ticket-7", "C-u"],
             ["tmux", "send-keys", "-t", "ticket-7", "C-d"],
             ["tmux", "send-keys", "-t", "ticket-7", "C-d"],
+            ["tmux", "send-keys", "-t", "ticket-7", "Enter"],
         ]
         # Every send-keys is check=True (no swallowed failures on the exit path).
         for call in mock_runner.call_args_list:
             assert call.kwargs.get("check") is True
         # CRUCIAL: no kill-session — that would prevent the trailing wrapper from firing.
         assert not any("kill-session" in argv for argv in argvs)
-        # The three delays fired in order (menu close → line clear → confirm-EOF).
+        # The four delays fired in order (menu close → line clear → confirm-EOF → menu-confirm).
         assert [c.args[0] for c in mock_sleeper.call_args_list] == [
             _END_MENU_DELAY,
             _END_CLEAR_DELAY,
             _END_CONFIRM_DELAY,
+            _END_MENU_CONFIRM_DELAY,
         ]
 
     def test_end_session_uses_no_real_sleep_offline(self) -> None:
@@ -1638,7 +1707,12 @@ class TestTmuxSessionsUnit:
 
         sessions.end_session("ticket-7")
 
-        assert sleeps == [_END_MENU_DELAY, _END_CLEAR_DELAY, _END_CONFIRM_DELAY]
+        assert sleeps == [
+            _END_MENU_DELAY,
+            _END_CLEAR_DELAY,
+            _END_CONFIRM_DELAY,
+            _END_MENU_CONFIRM_DELAY,
+        ]
 
     # -- kill_repl_process (escalation primitive) ----------------------------
 

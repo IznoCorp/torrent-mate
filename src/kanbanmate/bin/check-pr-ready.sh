@@ -65,9 +65,15 @@ echo "Checking CI checks for PR #${pr_number}…"
 # command-substitution assignment whose command fails ABORTS the script before we can inspect the
 # exit code, so the zero-checks branch would never run.
 set +e
+# Use ``bucket`` — gh's own normalised roll-up (pass/fail/pending/skipping/cancel) — NOT
+# ``conclusion``: ``gh pr checks --json`` does NOT expose a ``conclusion`` field (only the
+# Checks/Runs APIs do), so requesting it makes gh exit non-zero with "Unknown JSON field:
+# conclusion" on every call — the gate then ALWAYS failed and stranded the card in PR/CI
+# regardless of real CI state (engine bug, gh 2.x). ``bucket`` is the stable, documented
+# roll-up; ``state`` is kept for the human-readable recap only.
 checks_json=$(gh pr checks "$pr_number" \
                 --repo "$KANBAN_REPO" \
-                --json name,state,conclusion 2>&1)
+                --json name,bucket,state 2>&1)
 checks_rc=$?
 set -e
 if [[ $checks_rc -ne 0 ]]; then
@@ -82,14 +88,14 @@ if [[ $checks_rc -ne 0 ]]; then
   exit 1
 fi
 
-# Parse: any check that is not successful is a problem
+# Parse on ``bucket``: ``fail``/``cancel`` block; ``pending`` blocks; ``pass``/``skipping`` are green.
 # JSON fed via env var (not stdin) — heredoc overrides the pipe, so stdin = python3 program not data
 failing=$(_KM_JSON="$checks_json" python3 - << 'PYEOF'
 import os, json
 checks = json.loads(os.environ["_KM_JSON"])
-bad = [c for c in checks if c.get("conclusion") not in ("SUCCESS", "SKIPPED", "NEUTRAL", None) or c.get("state") == "FAILURE"]
+bad = [c for c in checks if c.get("bucket") in ("fail", "cancel")]
 for c in bad:
-    print(f"  - {c.get('name','?')}: state={c.get('state','?')} conclusion={c.get('conclusion','?')}")
+    print(f"  - {c.get('name','?')}: bucket={c.get('bucket','?')} state={c.get('state','?')}")
 PYEOF
 )
 
@@ -97,10 +103,10 @@ PYEOF
 pending=$(_KM_JSON="$checks_json" python3 - << 'PYEOF'
 import os, json
 checks = json.loads(os.environ["_KM_JSON"])
-# A check with no conclusion yet is still running
-pending = [c for c in checks if c.get("state") in ("IN_PROGRESS", "QUEUED", "PENDING", "WAITING", "REQUESTED")]
+# A check still in the ``pending`` bucket is queued/running — not yet a verdict.
+pending = [c for c in checks if c.get("bucket") == "pending"]
 for c in pending:
-    print(f"  - {c.get('name','?')}: {c.get('state','?')}")
+    print(f"  - {c.get('name','?')}: bucket={c.get('bucket','?')} state={c.get('state','?')}")
 PYEOF
 )
 

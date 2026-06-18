@@ -34,6 +34,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from kanbanmate.core.columns import resolve_column
 from kanbanmate.core.intent import Intent, IntentRejected, validate_intent
 from kanbanmate.core.status_update import STATUS_VALUES
 
@@ -269,22 +270,35 @@ def _execute_move(
     if intent.issue is not None:
         processed_issues.add(intent.issue)
 
+    # Resolve the intent destination to its Column. ``to_col`` is a column KEY (e.g. ``PRCI``);
+    # ``move_card`` indexes the GitHub Status options by display NAME (e.g. ``PR/CI``), so the raw
+    # key raised KeyError for the one column whose key != name (``PRCI``/``PR/CI``). Mirror the
+    # session-end / script-route move paths, which already translate via ``resolve_column`` (which
+    # also normalises the name/key seam in the idempotence check below — ``from_col`` is the GitHub
+    # NAME the adapter emits as ``column_key``, while ``to_col`` is the engine KEY).
+    to_column = resolve_column(columns, to_col)
+    if to_column is None:
+        _result(deps, intent_id, "rejected", f"unknown destination column {to_col!r}")
+        deps.store.clear_intent(intent_id)
+        return
+    from_column = resolve_column(columns, from_col)
+
     # Optimistic concurrency / idempotence: if the card is ALREADY in the destination (a fresher
     # move, or a crash-resume after the move already landed), this is a no-op success.
-    if from_col == to_col:
-        next_columns[item_id] = to_col
-        _result(deps, intent_id, "done", f"already in {to_col}")
+    if from_column is not None and from_column.key == to_column.key:
+        next_columns[item_id] = to_column.key
+        _result(deps, intent_id, "done", f"already in {to_column.name}")
         deps.store.clear_intent(intent_id)
         return
 
     # Crash-safety breadcrumb: mark claimed BEFORE the mutation, so a re-drain after a crash sees the
-    # move may have landed and the idempotent from_col==to_col check above resolves it.
-    _result(deps, intent_id, "claimed", f"moving {from_col}->{to_col}")
-    deps.board_writer.move_card(item_id, to_col)
+    # move may have landed and the idempotent check above resolves it.
+    _result(deps, intent_id, "claimed", f"moving {from_col}->{to_column.name}")
+    deps.board_writer.move_card(item_id, to_column.name)
     # Baseline advance: record the move so the next diff does NOT re-fire/relaunch it.
-    next_columns[item_id] = to_col
-    status_events.append(("auto", intent.issue, f"moved → {to_col}"))
-    _result(deps, intent_id, "done", f"moved {from_col}->{to_col}")
+    next_columns[item_id] = to_column.key
+    status_events.append(("auto", intent.issue, f"moved → {to_column.name}"))
+    _result(deps, intent_id, "done", f"moved {from_col}->{to_column.name}")
     deps.store.clear_intent(intent_id)
 
 

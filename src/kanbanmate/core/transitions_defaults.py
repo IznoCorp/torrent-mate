@@ -207,6 +207,43 @@ _AUTONOMY = (
     "or STATE ambiguity, follow the DESYNC protocol instead of guessing.\n"
 )
 
+# Grounding + self-verification discipline (helm #5 review, 2026-06-17). The design/plan stages
+# produced confident-but-WRONG artifacts: a false claim about how the layering guard works ("inspects
+# top-level imports only" — it walks the whole AST), a call with a non-existent signature, and tests
+# whose inputs resolved to None so they asserted nothing. The common root: the agent STATED/USED facts
+# about the existing code WITHOUT reading the source, and wrote tests that did not exercise real
+# values. This block forces verification AT THE SOURCE. (Carries no ``/implement:`` literal and no
+# "end the session" prose, so it composes with the autonomy + clean-stop + no-French test guards.)
+_GROUNDING_DISCIPLINE = (
+    "GROUND EVERY CLAIM IN THE SOURCE (do NOT guess about the existing code). Before you state or rely "
+    "on ANY fact about the current codebase — a function/method signature, a constant's value, how an "
+    "existing test/guard/loader behaves, whether a column KEY or transition edge or config field "
+    "exists — OPEN the actual source file, confirm it, and cite it as `path:line`. NEVER assert how an "
+    "existing test or guard works from memory (e.g. do NOT claim an import/layering guard 'only "
+    "inspects top-level imports' without reading it — read it; it may walk the whole AST, in which "
+    "case a function-local import does NOT bypass it). "
+    "MATCH REAL SIGNATURES: when your design or plan calls or references an existing symbol, match its "
+    "actual signature / name / value EXACTLY — a call that does not match the real definition is a "
+    "defect, not a stub. "
+    "RESPECT THE LAYERING: `core/` MUST NOT import `app`/`adapters`/`cli`/`daemon`; if a value you need "
+    "lives in a forbidden layer, relocate its source-of-truth to a permitted layer rather than "
+    "inventing a workaround. "
+    "TESTS MUST EXERCISE REAL VALUES: every assertion must compare a genuinely-produced, non-trivial "
+    "result — confirm your test inputs resolve to real data BEFORE asserting (two None/empty sides "
+    "prove nothing); use real column KEYS, not display labels, and edges that actually exist. Place "
+    "new test files mirroring the repository's existing test-directory layout (e.g. tests/<layer>/), "
+    "never a flat tests/ root. "
+    "ENUMERATE THE COMPLETE SET: when you list a set drawn from the source (allowed values, "
+    "placeholder/context keys, columns, options, validation rules), enumerate the FULL set verified "
+    "against the source and cite the FULL line range — a partial/representative subset (e.g. listing "
+    "10 of 12 keys) is a defect, and the design table and the plan MUST list the same set. "
+    "SELF-REVIEW before finishing: re-read the artifact for internal consistency — API verbs/paths "
+    "agree throughout, every signature used matches the one defined, the design and the plan agree on "
+    "every signature/key-set/route (if the plan refines a design detail, fix the design to match), no "
+    "section contradicts another, and no unverified 'should exist' assumption or placeholder step "
+    "(e.g. a step with no real code) remains.\n"
+)
+
 # All body write-backs route through the pinned, marker-preserving helper ONLY (raw
 # ``gh issue edit`` is denied). Stated in every stage that writes the body.
 _WRITE_BACK = (
@@ -284,6 +321,7 @@ _DESIGN_PROMPT = (
     + _STATE_CHECK_EARLY
     + _DESYNC
     + _AUTONOMY
+    + _GROUNDING_DISCIPLINE
     + "Write the design into `docs/features/{{codename}}/` (DESIGN.md), and record your milestones "
     'via `kanban-progress {{code}} "…"` as you go.\n'
     + _WRITE_BACK
@@ -325,6 +363,7 @@ _PLAN_PROMPT = (
     "it is empty (the Design stage did not record **design**), that is a DESYNC — follow the DESYNC "
     "protocol, do NOT guess a path.\n"
     + _AUTONOMY
+    + _GROUNDING_DISCIPLINE
     + _WRITE_BACK
     + "COMMIT (durable cross-stage carry, DESIGN §13): after writing the plan files, commit them to "
     "this worktree's per-ticket branch so create-branch's worktree inherits them. ONLY once "
@@ -387,6 +426,7 @@ _IMPLEMENT_PROMPT = (
     + _STATE_CHECK_LATE
     + _DESYNC
     + _AUTONOMY
+    + _GROUNDING_DISCIPLINE
     + "STOP AT PR CREATION: /implement:phase auto-chains to feature-pr → pr-review, which ends in "
     "`gh pr merge` (DENIED). STOP as soon as the PR is created and CI is pushed. NEVER run "
     "`gh pr merge` (or any merge command) under any circumstance — merge is HUMAN-ONLY.\n"
@@ -421,6 +461,7 @@ _FIXCI_PROMPT = (
     "re-pushing your fix, `kanban-move {{code}} 'PR/CI'` immediately even if CI is still running or "
     "still red — the PR/CI gate + this fix-CI loop own the retry, not this session.\n"
     + _AUTONOMY
+    + _GROUNDING_DISCIPLINE
     + "DONE = the failing checks are addressed + re-pushed (or confirmed already green) THEN the "
     "move. If already handled (re-entry), VERIFY and finalize — do NOT redo.\n"
     "Finally, run `kanban-done {{code}}` to end your session (AFTER the kanban-move).\n"
@@ -440,6 +481,7 @@ _REVIEW_PROMPT = (
     "step is SKIPPED (merge is HUMAN-ONLY): run every review + fix round but STOP before it. NEVER "
     "run `gh pr merge` (or any merge command) under any circumstance.\n"
     + _AUTONOMY
+    + _GROUNDING_DISCIPLINE
     + "DONE = all review rounds run + fixes pushed, the PR left OPEN for a human to merge (durable "
     "outputs BEFORE any move). If review already completed (re-entry), VERIFY and finalize — do "
     "NOT redo.\n"
@@ -460,6 +502,7 @@ _REWORK_PROMPT = (
     "ONLY the requested changes (do not refactor beyond the review feedback), re-push, then "
     "`kanban-move {{code}} 'PR/CI'` so the CI gate re-runs.\n"
     + _AUTONOMY
+    + _GROUNDING_DISCIPLINE
     + "DONE = the review feedback is addressed + re-pushed THEN the move. If the rework was already "
     "applied (re-entry), VERIFY and finalize — do NOT redo.\n"
     "Finally, run `kanban-done {{code}}` to end your session (AFTER the kanban-move).\n"

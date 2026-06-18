@@ -13,6 +13,8 @@ import os
 import subprocess
 from pathlib import Path
 
+import pytest
+
 
 # The gate scripts are shipped as kanbanmate PACKAGE DATA (defect 1, PoC ``_SKILL_ROOT``
 # parity): a relative ``script:`` entry resolves against ``src/kanbanmate/`` so the gates
@@ -93,6 +95,25 @@ def test_check_merge_ready_uses_gh_not_merge() -> None:
     assert "pr merge" not in src, (
         "check-merge-ready.sh must not call gh pr merge — it inspects, not merges"
     )
+
+
+@pytest.mark.parametrize("script", [CHECK_PR_READY, CHECK_MERGE_READY])
+def test_check_scripts_query_bucket_not_conclusion(script: Path) -> None:
+    """Gate scripts must read the CI roll-up via ``bucket``, never the non-existent ``conclusion``.
+
+    ``gh pr checks --json`` exposes no ``conclusion`` field (only ``bucket``/``state``/…); requesting
+    it makes gh exit non-zero on every call, so a gate keyed on ``conclusion`` ALWAYS failed and
+    stranded the card in PR/CI. This is a static regression guard for that engine bug.
+    """
+    # Ignore comment lines (which legitimately mention 'conclusion' to explain the fix); only the
+    # operative shell/python code must be free of it.
+    code = "\n".join(
+        line for line in script.read_text().splitlines() if not line.lstrip().startswith("#")
+    )
+    assert "conclusion" not in code, (
+        f"{script.name} uses 'conclusion' in code — gh pr checks has no such field; use 'bucket'"
+    )
+    assert "bucket" in code, f"{script.name} must read the CI verdict via the 'bucket' roll-up"
 
 
 # --------------------------------------------------------------------------- #
@@ -186,7 +207,9 @@ class TestStubGh:
         '"reviewDecision":"APPROVED","mergeStateStatus":"CLEAN",'
         '"reviews":[]}'
     )
-    _GREEN_CHECKS = '[{"name":"build","state":"COMPLETED","conclusion":"SUCCESS"}]'
+    # Real ``gh pr checks --json`` shape: a ``bucket`` roll-up (pass/fail/pending/skipping/cancel)
+    # + ``state`` — and NO ``conclusion`` field (the old stub invented one, masking the engine bug).
+    _GREEN_CHECKS = '[{"name":"build","bucket":"pass","state":"SUCCESS"}]'
 
     @staticmethod
     def _write_gh_stub(
@@ -212,7 +235,13 @@ case "$1" in
   pr)
     case "$2" in
       view)  echo '{pr_view_json}' ;;
-      checks) echo '{pr_checks_json}' ;;
+      checks)
+        # Real gh validates --json fields and rejects unknown ones; ``conclusion`` is NOT a
+        # ``pr checks`` field (regression guard: a script requesting it must fail the gate).
+        case "$*" in
+          *conclusion*) echo 'Unknown JSON field: "conclusion"' >&2; exit 1 ;;
+        esac
+        echo '{pr_checks_json}' ;;
       *) echo '{{}}' ;;
     esac
     ;;
@@ -271,7 +300,7 @@ exit 0
 
     def test_pr_ready_fails_when_ci_not_green(self, tmp_path: Path) -> None:
         """With a stub gh returning a FAILURE check, check-pr-ready exits non-zero."""
-        failing_checks = '[{"name":"build","state":"COMPLETED","conclusion":"FAILURE"}]'
+        failing_checks = '[{"name":"build","bucket":"fail","state":"FAILURE"}]'
         self._write_gh_stub(tmp_path, pr_checks_json=failing_checks)
         env = self._stub_env(tmp_path)
         result = subprocess.run(
@@ -283,6 +312,23 @@ exit 0
         )
         assert result.returncode != 0, (
             f"expected non-zero exit (failing CI); got {result.returncode}\n"
+            f"stdout: {result.stdout}\nstderr: {result.stderr}"
+        )
+
+    def test_pr_ready_fails_when_ci_pending(self, tmp_path: Path) -> None:
+        """A check still in the ``pending`` bucket (queued/running) must block the gate."""
+        pending_checks = '[{"name":"build","bucket":"pending","state":"IN_PROGRESS"}]'
+        self._write_gh_stub(tmp_path, pr_checks_json=pending_checks)
+        env = self._stub_env(tmp_path)
+        result = subprocess.run(
+            [str(CHECK_PR_READY)],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert result.returncode != 0, (
+            f"expected non-zero exit (pending CI); got {result.returncode}\n"
             f"stdout: {result.stdout}\nstderr: {result.stderr}"
         )
 
