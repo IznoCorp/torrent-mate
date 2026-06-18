@@ -48,5 +48,12 @@ helper bins.
 
 ## Auto-merge
 
-Permanently forbidden. Merge is always a human action. This item is listed for completeness
-— it will never be implemented.
+**Implemented (operator decision, 2026-06-18).** Originally listed as permanently forbidden, the
+operator chose to make the `Review → Merge` transition an autonomous merge AGENT: under a dedicated
+`merge` permission profile it brings the PR up to date with `main` (merge-main-in, intelligent
+conflict resolution — never rebase/force-push), waits for CI to be fully green, then squash-merges
+via `gh pr merge --squash`, self-routing the card to Done on success or back to Review on any
+blocker. The `merge` profile is the SOLE profile whose deny-list lifts `gh pr merge` (all other
+merge paths, force-push, history-rewrite, and direct-main pushes stay banned even there); a
+pre-launch CI gate refuses to launch on a red PR; GitHub branch protection on the default branch
+remains the authoritative boundary. See `docs/features/helm/DESIGN.md` §15 (V7 carve-out).

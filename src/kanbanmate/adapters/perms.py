@@ -23,23 +23,25 @@ the matched ``(from, to)`` transition (``transitions.yml``):
 * ``check`` — read-only-ish: ``Read`` + git read + ``gh`` read. The script-gate profile
   (typically no agent).
 
-The PoC's fifth ``merge`` profile is deliberately ABSENT: MERGE IS HUMAN ONLY, so KanbanMate
-has no agent profile that may merge — the merge command is denied for ALL four profiles (see
-:func:`deny_list`).
+* ``merge`` — the autonomous Review→Merge stage (operator decision). Broad ``dev``-like surface,
+  but it is the SOLE profile whose deny-list lifts EXACTLY ``gh pr merge`` (see
+  :data:`_MERGE_PROFILE_LIFTED` / :func:`deny_list`) so it may squash-merge a green, mergeable PR.
+  ``--admin``, ``--merge``/``--rebase`` strategies, direct pushes to ``main``, force-push, history
+  rewrite, ref deletion, and the api/graphql/github-curl merge paths ALL stay denied even here.
 
-A universal deny-list is applied to ALL FOUR profiles (DESIGN §10 — MERGE IS HUMAN ONLY):
-``gh pr merge`` (and every reachable merge path), force-push (incl. ``--mirror`` and
-``--force-with-lease``), branch/ref deletion, and history rewrite (``rebase`` /
-``reset --hard`` / ``commit --amend`` / ``push -f`` / ``filter-branch`` / reflog-prune).
-Deny wins over allow. ``bypassPermissions`` is banned everywhere (it would skip the deny
-layer entirely) — and refused outright when the daemon runs under root. Unlike the PoC there
-is no per-profile merge exception: the ``merge`` profile is gone (merge = human-only), so the
-merge ban is universal across all four profiles.
+The deny-list is applied to every profile. For the four non-merge profiles it is the FULL ban set
+(DESIGN §10 — merge is human-only there): ``gh pr merge`` (and every reachable merge path),
+direct-main-push, force-push (incl. ``--mirror`` / ``--force-with-lease``), branch/ref deletion,
+and history rewrite (``rebase`` / ``reset --hard`` / ``commit --amend`` / ``push -f`` /
+``filter-branch`` / reflog-prune). The ``merge`` profile gets that same set minus the single
+``Bash(gh pr merge*)`` entry. Deny wins over allow. ``bypassPermissions`` is banned everywhere (it
+would skip the deny layer entirely) — and refused outright when the daemon runs under root.
 
-DEFENSE-IN-DEPTH ONLY: a string-prefix Bash deny-list cannot be made complete (an agent on
-the same OS user has many equivalents). The REAL boundary for "merge is human-only" is
-GitHub branch protection (require PR review, block force-push + deletion on the default
-branch). This list raises the bar against the routine / accidental paths an agent emits.
+DEFENSE-IN-DEPTH: a string-prefix Bash deny-list cannot be made complete (an agent on the same OS
+user has many equivalents). For the autonomous merge stage the deny-list narrows the merge surface
+to a single squash path; GitHub branch protection (require status checks + block force-push /
+deletion / direct-push on the default branch) remains the authoritative boundary and should be
+configured. This list raises the bar against the routine / accidental paths an agent emits.
 
 Layering: this is an ``adapters`` module — it performs filesystem I/O and may import ``core``
 and ``ports`` but never ``app`` / ``daemon`` / ``cli`` (DESIGN §3.2). ``app`` wires it in.
@@ -158,6 +160,9 @@ _PINNED_MODE: dict[str, str] = {
     "prepare": "auto",
     "dev": "auto",
     "check": "auto",
+    # 'merge' is the autonomous Review→Merge stage (operator decision: the merge transition
+    # squash-merges a green, mergeable PR). Same pinned mode as the other stages.
+    "merge": "auto",
 }
 
 # Fallback mode for an unknown profile name — the strictest pinned value. Unknown profiles also
@@ -224,6 +229,14 @@ _DENY: tuple[str, ...] = (
     "Bash(*pr-merge*)",  # the github-curl gh-api.sh pr-merge path used by pr-review
     "Bash(gh api*merge*)",  # gh api -X PUT .../pulls/N/merge
     "Bash(*mergePullRequest*)",  # gh api graphql mutation
+    # gh pr merge HARDENING — these STAY denied even for the autonomous ``merge`` profile (only the
+    # bare ``Bash(gh pr merge*)`` above is lifted, see :data:`_MERGE_PROFILE_LIFTED`). The merge
+    # stage may ONLY squash-merge a green, mergeable PR: NO ``--admin`` (bypasses branch protection +
+    # required status checks → could merge red/un-reviewed code), and NO non-squash strategy
+    # (``--merge`` commit / ``--rebase`` rewrite — the latter is otherwise universally banned).
+    "Bash(gh pr merge*--admin*)",
+    "Bash(gh pr merge*--merge*)",
+    "Bash(gh pr merge*--rebase*)",
     # force-push — long --force / --force-with-lease (free) + short -f / +refspec
     # (space-anchored), for ``git push`` and ``git -C <dir> push``.
     "Bash(git push*--force*)",
@@ -237,6 +250,21 @@ _DENY: tuple[str, ...] = (
     # --mirror is a long flag (never a branch-name substring) so a free glob is safe.
     "Bash(git push*--mirror*)",
     "Bash(git -C*push*--mirror*)",
+    # direct push to the default branch — NO agent (incl. the autonomous ``merge`` stage) ever
+    # pushes to ``main``; it merges via the PR (``gh pr merge --squash``). GitHub branch protection
+    # (block direct push to the default branch) is the AUTHORITATIVE boundary; these globs cover the
+    # routine + known forms as defense-in-depth (a string-prefix deny-list cannot be made complete —
+    # see the module docstring). Forms covered: ``git push … origin main``, the short ``<src>:main``
+    # refspec, AND the fully-qualified ``<src>:refs/heads/main`` / ``+refs/heads/main`` /
+    # ``refs/heads/main`` refspec (round-2 audit), for ``git push`` and ``git -C <dir> push``. The
+    # merge agent's own push (the merge-main-IN commit to its OWN feature branch) targets neither, so
+    # it is unaffected; only a push whose destination ref is the default branch is blocked.
+    "Bash(git push*origin main*)",
+    "Bash(git -C*push*origin main*)",
+    "Bash(git push*:main*)",
+    "Bash(git -C*push*:main*)",
+    "Bash(git push*refs/heads/main*)",
+    "Bash(git -C*push*refs/heads/main*)",
     # branch deletion — long --delete (free) + short -d + colon-refspec (space-anchored)
     "Bash(git push*--delete*)",
     "Bash(git -C*push*--delete*)",
@@ -268,9 +296,16 @@ _DENY: tuple[str, ...] = (
     "Bash(git gc*--prune*)",
 )
 
-# Concrete per-profile ``permissions.allow`` lists (DESIGN §10). Ported VERBATIM from the PoC
-# ``engine/perms.py`` ``_PROFILE_ALLOW`` for the four stages KanbanMate keeps; the PoC's fifth
-# ``merge`` profile is intentionally NOT ported (merge = human-only).
+# The SINGLE deny entry lifted for the ``merge`` profile (and ONLY that profile, see
+# :func:`deny_list`). ``gh pr merge`` is the squash-merge path the autonomous Review→Merge stage
+# uses. Note ``gh pr merge`` (space) is matched ONLY by ``Bash(gh pr merge*)`` — the github-curl
+# ``Bash(*pr-merge*)`` (hyphen), ``Bash(gh api*merge*)``, and ``Bash(*mergePullRequest*)`` entries
+# do NOT match it and stay banned even for ``merge``, so the lift is exactly one path.
+_MERGE_PROFILE_LIFTED: frozenset[str] = frozenset({"Bash(gh pr merge*)"})
+
+# Concrete per-profile ``permissions.allow`` lists (DESIGN §10). The first four (docs/prepare/dev/
+# check) are ported VERBATIM from the PoC ``engine/perms.py`` ``_PROFILE_ALLOW``; ``merge`` is the
+# autonomous merge stage added later (operator decision — see :data:`_MERGE_PROFILE_LIFTED`).
 #
 # docs    — Read/Edit + git read + local commit + ``gh issue`` + kanban helpers. NO push, NO PR
 #           ops, NO merge. This is the floor the kill-switch downgrades every profile to, and the
@@ -281,8 +316,10 @@ _DENY: tuple[str, ...] = (
 #           which the deny-list blocks) + make + kanban helpers + broad Bash for build/test.
 # check   — read-only-ish: Read + git read + gh read. The script-gate profile (typically no agent).
 #
-# No profile lists a merge command in ``allow``; the deny-list blocks it regardless of any broad
-# ``Bash(gh *)`` glob (deny wins over allow), so MERGE IS HUMAN ONLY for every profile.
+# No profile lists a literal merge command in ``allow``; for the four non-merge profiles the
+# deny-list blocks merge regardless of any broad ``Bash(gh *)`` glob (deny wins over allow), so
+# merge stays human-only there. The ``merge`` profile reaches ``gh pr merge --squash`` only because
+# its deny-list lifts that one entry (NOT via an allow change) — see :func:`deny_list`.
 _PROFILE_ALLOW: dict[str, tuple[str, ...]] = {
     "docs": (
         "Read",
@@ -338,11 +375,32 @@ _PROFILE_ALLOW: dict[str, tuple[str, ...]] = {
         "Bash(git *)",
         "Bash(kanban-done*)",
     ),
+    # merge — the autonomous Review→Merge stage (operator decision). Same broad surface as ``dev``
+    # (git merge-main-in + gh + make for the local gate + kanban helpers); what makes it special is
+    # NOT the allow-list but the per-profile deny-list: ``merge`` is the ONLY profile whose deny
+    # OMITS ``gh pr merge`` (see :data:`_MERGE_PROFILE_LIFTED` / :func:`deny_list`), so it — and only
+    # it — may squash-merge a PR. Force-push, rebase, history rewrite, ref deletion, and every OTHER
+    # merge path (api/graphql/github-curl) stay BANNED even here.
+    "merge": (
+        "Read",
+        "Edit",
+        "Bash(git *)",
+        "Bash(gh *)",
+        "Bash(make *)",
+        "Bash(kanban-comment*)",
+        "Bash(kanban-done*)",
+        "Bash(kanban-move*)",
+        "Bash(kanban-progress*)",
+        "Bash(kanban-update-body*)",
+        "Bash",
+    ),
 }
 
-# Re-exported from ``core.profiles`` (DESIGN §13 layering fix): the validator
-# lives in core and cannot import adapters, so the canonical name-set must sit
-# in core. Existing callers of ``perms.PROFILES`` are unaffected.
+# Re-exported from ``core.profiles`` (helm DESIGN §13 layering fix): the validator lives in core and
+# cannot import adapters, so the canonical name-set sits in core. ``core.profiles.PROFILES`` includes
+# ``merge`` (the autonomous merge stage, operator decision — supersedes the historical
+# merge=human-only floor for THIS stage only; every other profile still bans all merge paths).
+# Existing callers of ``perms.PROFILES`` are unaffected.
 from kanbanmate.core.profiles import PROFILES as PROFILES  # noqa: E402, PLC0414
 
 
@@ -365,17 +423,26 @@ def allow_list(profile: str) -> list[str]:
     return list(_PROFILE_ALLOW.get(profile, _PROFILE_ALLOW["docs"]))
 
 
-def deny_list() -> list[str]:
-    """Return the universal ``permissions.deny`` list applied to EVERY profile.
+def deny_list(profile: str = "") -> list[str]:
+    """Return the ``permissions.deny`` list for ``profile``.
 
-    All four profiles share the full deny-list (DESIGN §10): merge is human-only, and force-push,
-    branch/ref deletion, and history rewrite are banned everywhere. No profile strips any deny
-    entry — unlike the PoC's ``merge`` profile, KanbanMate has no agent profile that may merge, so
-    the PoC's per-profile merge exception is deliberately not ported.
+    Every profile EXCEPT ``merge`` gets the full universal ban set (DESIGN §10): merge, force-push,
+    branch/ref deletion, and history rewrite are banned. The ``merge`` profile — the autonomous
+    Review→Merge stage (operator decision) — is the SOLE exception: its deny-list omits ONLY
+    :data:`_MERGE_PROFILE_LIFTED` (the ``gh pr merge`` path) so it can squash-merge. Every OTHER ban
+    — force-push, rebase, ``reset --hard``, ``--amend``, ``--mirror``, branch/ref deletion, AND the
+    other merge paths (``gh api …merge``, the GraphQL mutation, the github-curl ``pr-merge``) — stays
+    in force even for ``merge``, so that stage may squash-merge a clean PR and do nothing else.
+
+    Args:
+        profile: The profile name. ``"merge"`` lifts the ``gh pr merge`` ban; any other value
+            (including the default empty string) returns the full universal ban set.
 
     Returns:
         A new list of deny-entry strings.
     """
+    if profile == "merge":
+        return [entry for entry in _DENY if entry not in _MERGE_PROFILE_LIFTED]
     return list(_DENY)
 
 
@@ -445,7 +512,9 @@ def build_settings(
         "permissions": {
             "defaultMode": default_mode,
             "allow": allow_list(profile),
-            "deny": deny_list(),
+            # Profile-aware: 'merge' lifts ONLY the gh-pr-merge ban; every other profile gets the
+            # full universal ban set (deny wins over allow, so merge stays human-only elsewhere).
+            "deny": deny_list(profile),
         },
         # Explicitly false everywhere: bypass would skip permissions.deny (DESIGN §10).
         "bypassPermissions": False,
@@ -706,9 +775,12 @@ def ensure_manual_merge_mode(worktree: str | Path) -> bool:
 
     A kanban-launched ``/implement:pr-review`` reads ``**PR merge**:`` from IMPLEMENTATION.md
     and, in ``auto`` mode, squash-merges UNATTENDED. Since the Review column auto-triggers
-    pr-review, we pin the worktree to ``manual`` so it hands off to a human instead.
-    Defense-in-depth ALONGSIDE the deny-list (which blocks the actual merge commands): the
-    prompt's "SANS merger" is advisory, this is the mechanism.
+    pr-review, we pin the worktree to ``manual`` so it hands off instead of merging in the
+    REVIEW stage. (The sanctioned merge is the SEPARATE autonomous Review→Merge stage under the
+    ``merge`` profile, which squash-merges via ``gh pr merge`` — not the pr-review skill's own
+    terminal merge step, which stays disabled here.) Defense-in-depth ALONGSIDE the deny-list
+    (which blocks merge commands for every NON-merge profile): the prompt's "without merging" is
+    advisory, this is the mechanism.
 
     No-op (returns False) when IMPLEMENTATION.md is absent — we never create a malformed file;
     the deny-list still blocks the real merge path. Returns True when the field was set.

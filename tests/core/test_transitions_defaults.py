@@ -284,12 +284,28 @@ class TestAutonomyInstruction:
             assert "do NOT ask the user any questions" in prompt
 
 
-class TestNoAutonomousMergePrompt:
-    """Merge stays human (DESIGN §10): there is NO autonomous squash-merge prompt."""
+class TestAutonomousMergeStage:
+    """Review → Merge is the AUTONOMOUS merge stage (operator decision).
 
-    def test_no_merge_prompt_constant(self) -> None:
-        """The module exposes no ``_MERGE_PROMPT`` constant."""
-        assert not hasattr(defaults_mod, "_MERGE_PROMPT")
+    Supersedes the historical merge=human-only floor for THIS transition only: a claude agent under
+    the dedicated ``merge`` profile squash-merges a green, mergeable PR. The safety rails (squash
+    via ``gh pr merge`` only, NEVER force-push/rebase/direct-main-push, success→Done/blocker→Review)
+    live in ``_MERGE_PROMPT``; every OTHER prompt still bans merge.
+    """
+
+    def test_merge_prompt_is_exposed_and_carries_safety_rails(self) -> None:
+        """``_MERGE_PROMPT`` exists and encodes the merge-stage safety contract."""
+        assert hasattr(defaults_mod, "_MERGE_PROMPT")
+        prompt = defaults_mod._MERGE_PROMPT
+        # The squash-merge mechanism is the gh-pr-merge path, and only that.
+        assert "gh pr merge <pr> --squash" in prompt
+        # The forbidden mechanisms are spelled out.
+        assert "NEVER rebase" in prompt or "NEVER rebase/force-push/rewrite history" in prompt
+        assert "merge-main-IN" in prompt or "merge main INTO" in prompt
+        assert "push to ``main`` directly" in prompt or "push to ``main``" in prompt
+        # Explicit routing: success → Done, blocker → Review.
+        assert "kanban-move {{code}} Done" in prompt
+        assert "kanban-move {{code}} Review" in prompt
 
     def test_no_prompt_instructs_an_agent_to_merge(self) -> None:
         """No shipped prompt INSTRUCTS an agent to merge (§29.4: merge is human-only).
@@ -324,14 +340,33 @@ class TestNoAutonomousMergePrompt:
         assert "SKIPPED" in _REVIEW_PROMPT
         assert "NEVER run `gh pr merge`" in _REVIEW_PROMPT
 
-    def test_review_to_merge_is_a_script_gate_not_a_prompt(self) -> None:
-        """``Review → Merge`` ships a script gate with NO prompt (a human merges)."""
+    def test_review_to_merge_is_an_autonomous_agent_stage(self) -> None:
+        """``Review → Merge`` is an AGENT launch under the ``merge`` profile, not a script gate."""
         rows = [t for t in DEFAULT_TRANSITIONS if t["from"] == "Review" and t["to"] == "Merge"]
         assert len(rows) == 1
         row = rows[0]
-        assert row.get("prompt") is None
-        assert row["script"] == "bin/check-merge-ready.sh"
-        assert row.get("on_fail") == "rollback"
+        assert row.get("prompt") == defaults_mod._MERGE_PROMPT
+        assert row["profile"] == "merge"
+        # advance:stop — the agent routes itself (Done|Review); no engine auto-advance.
+        assert row.get("advance") == "stop"
+        # PRE-LAUNCH CI gate (audit §6 defense-in-depth): don't launch the merge agent on a red PR;
+        # a failed gate bounces the card back to Review without starting a merge.
+        assert row.get("script") == "bin/check-pr-ready.sh"
+        assert row.get("on_fail") == "move:Review"
+
+    def test_merge_route_edges_exist(self) -> None:
+        """Both merge-agent routes are whitelisted: Merge→Done (success) and Merge→Review (blocker)."""
+
+        def rows(frm: str, to: str) -> list[dict[str, object]]:
+            # ``from``/``to`` may be a list (wildcard/multi-source rows) — compare by equality, never
+            # hash, so a list-valued entry does not raise.
+            return [t for t in DEFAULT_TRANSITIONS if t["from"] == frm and t["to"] == to]
+
+        assert rows("Merge", "Done"), "success route Merge→Done must be whitelisted"
+        review_rows = rows("Merge", "Review")
+        assert len(review_rows) == 1, "blocker route Merge→Review must be whitelisted exactly once"
+        # The blocker route is a plain no-op (no prompt) — it must NOT re-fire a launch.
+        assert review_rows[0].get("prompt") is None
 
 
 class TestDefaultTableRoundTrip:

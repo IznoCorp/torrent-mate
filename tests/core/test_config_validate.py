@@ -244,23 +244,38 @@ def test_validate_v3_valid_permission_mode() -> None:
 
 
 def test_validate_v4_unknown_profile() -> None:
-    """V4: 'merge' is not in PROFILES — must produce an error."""
+    """V4: a profile not in PROFILES (e.g. 'bogus') must produce an error."""
     t = TransitionDef(
         from_col="Backlog",
         to_col="InProgress",
-        profile="merge",  # invalid — merge=human-only, not a workflow profile
+        profile="bogus",  # invalid — not a workflow profile
         prompt="/implement:phase {{code}}",
         permission_mode="auto",
     )
     draft = _draft_with_one_transition(t)
     result = validate(draft)
     v4_errors = [f for f in result.findings if f.severity == "error" and "profile" in f.field]
-    assert v4_errors, "Expected a V4 error for unknown profile 'merge'"
+    assert v4_errors, "Expected a V4 error for unknown profile 'bogus'"
+
+
+def test_validate_v4_accepts_merge_profile() -> None:
+    """V4: 'merge' is now a VALID profile (the autonomous merge stage, operator decision)."""
+    t = TransitionDef(
+        from_col="Backlog",
+        to_col="InProgress",
+        profile="merge",
+        prompt="merge it",
+        permission_mode="auto",
+    )
+    draft = _draft_with_one_transition(t)
+    result = validate(draft)
+    v4_errors = [f for f in result.findings if f.severity == "error" and "profile" in f.field]
+    assert not v4_errors, f"'merge' must be accepted by V4; got {v4_errors}"
 
 
 def test_validate_v4_valid_profiles() -> None:
-    """V4: all four valid profiles pass without error."""
-    for profile in ("docs", "prepare", "dev", "check"):
+    """V4: all valid profiles (incl. 'merge') pass without error."""
+    for profile in ("docs", "prepare", "dev", "check", "merge"):
         t = TransitionDef(
             from_col="Backlog",
             to_col="InProgress",
@@ -402,6 +417,38 @@ def test_validate_v7_prompt_into_merge_column() -> None:
         f for f in result.findings if f.severity == "error" and "merge" in f.message.lower()
     ]
     assert v7_errors, "Expected a V7 error for a prompt-bearing transition into Merge"
+
+
+def test_validate_v7_allows_merge_profile_into_merge_column() -> None:
+    """V7 carve-out: a prompt-bearing transition into 'Merge' carrying the 'merge' profile (the
+    sanctioned autonomous merge stage, DESIGN §15) is ALLOWED — no V7 error."""
+    clean = _clean_draft()
+    new_transitions = list(clean.definition.transitions) + [
+        TransitionDef(
+            from_col="Review",
+            to_col="Merge",
+            profile="merge",  # the sanctioned autonomous merge stage
+            prompt="merge {{code}}",
+            permission_mode="auto",
+        )
+    ]
+    draft = PipelineDraft(
+        definition=Definition(
+            columns=clean.definition.columns,
+            transitions=new_transitions,
+            defaults=clean.definition.defaults,
+        ),
+        binding=clean.binding,
+    )
+    result = validate(draft)
+    merge_errors = [
+        f
+        for f in result.findings
+        if f.severity == "error" and "merge" in f.message.lower() and "Merge" in (f.field or "")
+    ]
+    assert not merge_errors, (
+        f"merge-profile transition into Merge must be allowed; got {merge_errors}"
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -523,17 +523,17 @@ def test_launch_targets_default_flow_matches_poc_prompt_destinations() -> None:
     from kanbanmate.core.transitions_defaults import default_transition_config
 
     targets = default_transition_config().launch_target_columns()
-    # Prompt-bearing rows in DEFAULT_TRANSITIONS (genesis phase 26):
+    # Prompt-bearing rows in DEFAULT_TRANSITIONS:
     # Backlog→Brainstorming, Brainstorming→Spec, Spec→Plan, ReadyToDev→PrepareFeature,
-    # PrepareFeature→InProgress, PRCI→InProgress, PRCI→Review. Plan→Planned and
-    # Planned→ReadyToDev are no-ops; the six skip-to-Done edges are no-ops; (*)→Cancel
-    # is a no-op. Merge is a script gate (no prompt).
+    # PrepareFeature→InProgress, PRCI→InProgress, PRCI→Review, AND Review→Merge (the autonomous
+    # merge agent — operator decision). Plan→Planned and Planned→ReadyToDev are no-ops; the
+    # skip-to-Done edges + Merge→Done / Merge→Review + (*)→Cancel are no-ops.
     assert targets == frozenset(
-        {"Brainstorming", "Spec", "Plan", "PrepareFeature", "InProgress", "Review"}
+        {"Brainstorming", "Spec", "Plan", "PrepareFeature", "InProgress", "Review", "Merge"}
     )
-    # Merge stays human (script gate, not a prompt) → NOT a launch target.
-    assert "Merge" not in targets
-    # Done is never a launch target (the skip-to-Done edges are no-ops).
+    # Merge is now a launch target — the Review→Merge autonomous merge agent (operator decision).
+    assert "Merge" in targets
+    # Done is never a launch target (the skip-to-Done edges + Merge→Done are no-ops).
     assert "Done" not in targets
 
 

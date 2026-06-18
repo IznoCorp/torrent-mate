@@ -24,6 +24,7 @@ model and the transition whitelist are supplied directly so nothing is read off 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from types import SimpleNamespace
 
 import pytest
 
@@ -48,9 +49,10 @@ _COLUMNS: dict[str, Column] = {
 }
 
 # A transition whitelist mirroring the load-bearing shape of DEFAULT_TRANSITIONS: the
-# prompt-bearing rows (InProgress / PRCI / Review are launch targets), the Review→Merge
-# SCRIPT gate (no prompt → Merge is NOT a launch target → merge=human-only preserved),
-# and inert no-ops (Backlog, ReadyToDev, Done are reachable).
+# prompt-bearing rows (InProgress / PRCI / Review / Merge are launch targets — Review→Merge is now
+# the autonomous merge AGENT), the Merge→Review blocker route + Merge→Done success route (no-ops),
+# and inert no-ops (Backlog, ReadyToDev, Done reachable). The pre-flight guard keys on whether the
+# SPECIFIC (from, to) pair is prompt-bearing, NOT on the destination being some launch target.
 _TRANSITIONS = load_transitions(
     "project: test/repo\n"
     "transitions:\n"
@@ -58,8 +60,9 @@ _TRANSITIONS = load_transitions(
     "  - {from: 'PrepareFeature', to: 'InProgress', prompt: 'implement'}\n"
     "  - {from: 'InProgress', to: 'PRCI', prompt: 'fix'}\n"
     "  - {from: 'PRCI', to: 'Review', prompt: 'review'}\n"
-    "  - {from: 'Review', to: 'Merge', script: 'bin/check-merge-ready.sh'}\n"  # GATE, no prompt
-    "  - {from: 'Merge', to: 'Done'}\n"  # terminal no-op
+    "  - {from: 'Review', to: 'Merge', prompt: 'merge'}\n"  # autonomous merge agent (prompt-bearing)
+    "  - {from: 'Merge', to: 'Done'}\n"  # success route (no-op)
+    "  - {from: 'Merge', to: 'Review'}\n"  # blocker route (no-op) — must NOT be refused
     "  - {from: '*', to: 'Cancel'}\n"  # reactive no-op
 )
 
@@ -80,6 +83,12 @@ class FakeStore:
     advances: list[tuple[int, float]] = field(default_factory=list)
     cleared: list[int] = field(default_factory=list)
     nudges: int = 0
+    # Injected running-agent state for the pair-aware pre-flight guard; None = no running agent
+    # (operator use), which skips the guard (the daemon stays authoritative).
+    loaded_state: object | None = None
+
+    def load(self, issue_number: int) -> object | None:
+        return self.loaded_state
 
     def enqueue_intent(self, intent_id: str, payload: dict[str, object]) -> None:
         self.intents[intent_id] = dict(payload)
@@ -115,6 +124,7 @@ def _wire(
     *,
     result: dict[str, object] | None = None,
     raise_on_advance: bool = False,
+    stage: str | None = None,
 ) -> FakeStore:
     """Patch registry/columns/transitions/store so ``main`` uses the fakes (no GitHub).
 
@@ -127,7 +137,10 @@ def _wire(
     Returns:
         The :class:`FakeStore` wired in, so a test can assert the recorded enqueue/nudge/advances.
     """
-    store = FakeStore(result=result, raise_on_advance=raise_on_advance)
+    # ``stage`` injects a running-agent state so the pair-aware pre-flight guard has a from_col;
+    # None (default) = no running agent (operator use) → the guard is skipped (daemon authoritative).
+    loaded = SimpleNamespace(stage=stage) if stage is not None else None
+    store = FakeStore(result=result, raise_on_advance=raise_on_advance, loaded_state=loaded)
     monkeypatch.setattr(kanban_move, "_resolve_entry", lambda: _FakeEntry())
     monkeypatch.setattr(kanban_move, "_load_clone_columns", lambda entry: _COLUMNS)
     monkeypatch.setattr(kanban_move, "_load_clone_transitions", lambda entry: _TRANSITIONS)
@@ -211,22 +224,47 @@ def test_enqueue_nudges_the_daemon(monkeypatch: pytest.MonkeyPatch) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_refuses_launch_target_no_enqueue(monkeypatch: pytest.MonkeyPatch) -> None:
-    """REFUSE: a launch-transition target exits non-zero and enqueues NOTHING (anti-loop).
+def test_refuses_re_fire_pair_no_enqueue(monkeypatch: pytest.MonkeyPatch) -> None:
+    """REFUSE: an agent move whose (from, to) pair is itself prompt-bearing would re-fire a launch.
 
-    ``InProgress`` / ``PRCI`` / ``Review`` are each the destination of a prompt-bearing transition,
-    so moving a card into one would re-fire that launch — the cheap pre-flight guard refuses BEFORE
-    enqueuing (the daemon's wildcard-aware check is authoritative, but this is the fast UX path).
+    The pre-flight is PAIR-aware: it reads the agent's launched stage (from_col) and refuses ONLY a
+    move that re-fires a prompt-bearing transition. Here the agent was launched at ``PrepareFeature``;
+    moving to ``InProgress`` re-fires ``PrepareFeature → InProgress`` → refused BEFORE enqueuing (the
+    daemon's wildcard-aware check is authoritative, but this is the fast UX path).
     """
-    store = _wire(monkeypatch)
+    store = _wire(monkeypatch, stage="PrepareFeature")
     assert main(["7", "InProgress"]) == 1
-    assert main(["7", "PRCI"]) == 1
-    assert main(["7", "Review"]) == 1
-    # And by human-readable name (resolved to its key before the membership test).
-    assert main(["7", "In Progress"]) == 1
-    # The whole point: no intent was ever enqueued for a launch target.
+    assert main(["7", "In Progress"]) == 1  # by human name (resolved to its key) too
+    # The whole point: no intent was ever enqueued for a re-fire.
     assert store.intents == {}
     assert store.nudges == 0
+
+
+def test_operator_move_to_launch_target_not_re_fire_guarded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ALLOW: with no running agent (operator use) the pre-flight is skipped — operator moves are
+    not re-fire-guarded (the daemon derives operator authority). Even a launch-target dest enqueues.
+    """
+    store = _wire(monkeypatch)  # no stage → no running state
+    assert main(["7", "InProgress", "--no-wait"]) == 0
+    assert _only_intent(store)["args"] == {"to_col": "InProgress"}
+
+
+def test_allows_move_to_launch_target_from_non_firing_column(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ALLOW (audit regression): the merge agent in ``Merge`` routing a blocked merge to ``Review``
+    must NOT be refused — ``(Merge, Review)`` is a no-op edge, even though ``Review`` is a launch
+    target via ``PRCI → Review``. The prior destination-only guard wrongly refused this and stranded
+    the card in Merge. The success route ``Merge → Done`` is likewise allowed.
+    """
+    store = _wire(monkeypatch, stage="Merge")
+    assert main(["7", "Review", "--no-wait"]) == 0  # blocker route — NOT refused
+    assert _only_intent(store)["args"] == {"to_col": "Review"}
+    store2 = _wire(monkeypatch, stage="Merge")
+    assert main(["7", "Done", "--no-wait"]) == 0  # success route
+    assert _only_intent(store2)["args"] == {"to_col": "Done"}
 
 
 def test_enqueues_to_inert_target(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -236,16 +274,18 @@ def test_enqueues_to_inert_target(monkeypatch: pytest.MonkeyPatch) -> None:
     assert _only_intent(store)["args"] == {"to_col": "Backlog"}
 
 
-def test_enqueues_to_merge_is_allowed_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
-    """ALLOW (pre-flight): ``Merge`` is not a launch target (its row is a SCRIPT gate, no prompt).
-
-    The cheap pre-flight keys on PROMPT-bearing transitions, so it does not refuse Merge here; the
-    Merge deny is enforced authoritatively daemon-side (``validate_intent``). This test only asserts
-    the helper does not block the enqueue at pre-flight.
+def test_agent_in_review_refused_moving_into_merge(monkeypatch: pytest.MonkeyPatch) -> None:
+    """REFUSE: an agent launched at ``Review`` moving to ``Merge`` re-fires the merge agent —
+    ``(Review, Merge)`` is prompt-bearing — so the pre-flight refuses (a human, not an agent, lands a
+    card in Merge to trigger the autonomous merge). An operator move (no running state) is allowed.
     """
-    store = _wire(monkeypatch)
+    store = _wire(monkeypatch, stage="Review")
+    assert main(["7", "Merge"]) == 1
+    assert store.intents == {}
+    # Operator (no running state) may land a card in Merge to trigger the merge agent.
+    op_store = _wire(monkeypatch)
     assert main(["7", "Merge", "--no-wait"]) == 0
-    assert _only_intent(store)["args"] == {"to_col": "Merge"}
+    assert _only_intent(op_store)["args"] == {"to_col": "Merge"}
 
 
 # ---------------------------------------------------------------------------
@@ -340,9 +380,11 @@ def test_advance_breadcrumb_failure_does_not_fail_the_move(
     assert "warning" in capsys.readouterr().err.lower()
 
 
-def test_no_breadcrumb_when_refused_for_launch_target(monkeypatch: pytest.MonkeyPatch) -> None:
-    """An anti-loop pre-flight refusal enqueues nothing and therefore drops no breadcrumb."""
-    store = _wire(monkeypatch)
+def test_no_breadcrumb_when_refused_for_re_fire(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An anti-loop pre-flight refusal (a re-fire pair) enqueues nothing and drops no breadcrumb."""
+    store = _wire(
+        monkeypatch, stage="PrepareFeature"
+    )  # PrepareFeature→InProgress is prompt-bearing
     assert main(["7", "InProgress"]) == 1
     assert store.intents == {}
     assert store.advances == []

@@ -144,7 +144,12 @@ def test_default_mode_is_pinned(profile: str, tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("profile", PROFILES)
 def test_banned_commands_not_permitted(profile: str, tmp_path: Path) -> None:
-    """For ALL profiles, every banned command is absent from allow AND present in deny (§10)."""
+    """Every banned command is denied for every profile — with ONE surgical exception.
+
+    The ``merge`` profile (the autonomous Review→Merge stage, operator decision) lifts EXACTLY the
+    ``gh pr merge`` ban so it can squash-merge; every OTHER ban (force-push, history rewrite, mirror)
+    still holds even for ``merge``, and all four other profiles keep the full ban set (§10).
+    """
     settings = _read_settings(materialise_settings(profile, tmp_path))
     perms = _permissions(settings)
     allow = perms["allow"]
@@ -155,7 +160,14 @@ def test_banned_commands_not_permitted(profile: str, tmp_path: Path) -> None:
     allow_blob = " ".join(str(entry) for entry in allow)
     deny_blob = " ".join(str(entry) for entry in deny)
     for fragment in _BANNED_FRAGMENTS:
-        # MERGE IS HUMAN ONLY: the banned surface must never be in allow, and must be in deny.
+        if profile == "merge" and fragment == "gh pr merge":
+            # The SOLE lift is the BARE ``Bash(gh pr merge*)`` ENTRY (assert the exact entry, not the
+            # substring — the hardened ``--admin``/``--merge``/``--rebase`` entries also contain
+            # "gh pr merge" and MUST remain denied even for the merge profile).
+            assert "Bash(gh pr merge*)" not in deny, "merge profile must lift the bare gh-pr-merge"
+            assert "Bash(gh pr merge*--admin*)" in deny, "merge must STILL ban gh pr merge --admin"
+            continue
+        # Everything else: the banned surface must never be in allow, and must be in deny.
         assert fragment not in allow_blob, f"{fragment!r} must not be allowed in {profile!r}"
         assert fragment in deny_blob, f"{fragment!r} must be denied in {profile!r}"
 
@@ -294,24 +306,34 @@ def test_no_profile_allows_merge() -> None:
 
 
 def test_every_profile_denies_merge() -> None:
-    """The universal deny-list bans every merge path for ALL four profiles (merge = human-only).
+    """The four non-merge profiles keep the FULL merge ban; ``merge`` lifts EXACTLY ``gh pr merge``.
 
-    Ported from the PoC ``test_every_profile_denies_merge_force_and_rewrite`` — but with NO
-    ``merge``-profile exception (that profile is gone); every profile keeps the full deny-list.
+    Operator decision: the autonomous Review→Merge stage (``merge`` profile) squash-merges via
+    ``gh pr merge``. That ONE deny entry is lifted for ``merge`` alone — the other three merge paths
+    (github-curl ``pr-merge``, ``gh api …merge``, the GraphQL mutation) stay banned even there, and
+    the four other profiles keep the complete ban set (merge = human-only everywhere else, §10).
     """
     universal = deny_list()
-    for path in (
+    merge_paths = (
         "Bash(gh pr merge*)",
         "Bash(*pr-merge*)",
         "Bash(gh api*merge*)",
         "Bash(*mergePullRequest*)",
-    ):
-        assert path in universal, f"merge path {path!r} must be denied"
-    # Every profile's materialised deny-list is the full universal one (no profile strips merge).
-    for profile in PROFILES:
-        settings = build_settings(profile)
-        deny = _permissions(settings)["deny"]
+    )
+    for path in merge_paths:
+        assert path in universal, f"merge path {path!r} must be in the universal deny"
+    # Non-merge profiles: the materialised deny is the full universal ban (every merge path denied).
+    for profile in ("docs", "prepare", "dev", "check"):
+        deny = _permissions(build_settings(profile))["deny"]
         assert deny == universal, f"profile {profile!r}: expected the full universal deny-list"
+    # merge profile: lifts EXACTLY gh-pr-merge; the other three merge paths stay banned.
+    merge_deny = _permissions(build_settings("merge"))["deny"]
+    assert isinstance(merge_deny, list)
+    assert "Bash(gh pr merge*)" not in merge_deny, "merge profile must lift the gh-pr-merge ban"
+    for path in ("Bash(*pr-merge*)", "Bash(gh api*merge*)", "Bash(*mergePullRequest*)"):
+        assert path in merge_deny, f"merge profile must still deny {path!r}"
+    # The lift is EXACTLY one entry — nothing else (force-push, rewrite, …) is dropped.
+    assert set(universal) - set(merge_deny) == {"Bash(gh pr merge*)"}
 
 
 def test_every_agent_profile_allows_kanban_progress() -> None:
@@ -464,13 +486,20 @@ def test_no_profile_or_fallback_ever_yields_accept_edits() -> None:
 
 
 def test_deny_list_is_shared_across_profiles() -> None:
-    """The deny-list is universal — no profile strips a ban (KanbanMate v1 has no merge profile)."""
+    """The deny-list is universal for the four non-merge profiles; ``merge`` is the lone exception.
+
+    The ``merge`` profile (autonomous merge stage) strips EXACTLY the ``gh pr merge`` ban; every
+    other profile carries the identical full ban set.
+    """
     universal = deny_list()
     assert "Bash(gh pr merge*)" in universal
-    # build_settings embeds the same universal deny-list for all profiles.
-    for profile in PROFILES:
+    # The four non-merge profiles all embed the identical universal deny-list.
+    for profile in ("docs", "prepare", "dev", "check"):
         perms = _permissions(build_settings(profile))
         assert perms["deny"] == universal
+    # merge: identical EXCEPT the single lifted gh-pr-merge entry.
+    merge_deny = _permissions(build_settings("merge"))["deny"]
+    assert merge_deny == [d for d in universal if d != "Bash(gh pr merge*)"]
 
 
 def test_materialise_is_idempotent(tmp_path: Path) -> None:
@@ -614,11 +643,17 @@ def test_heartbeat_hook_preserves_3_2_invariants(profile: str) -> None:
     # 3.2 invariant: bypassPermissions explicitly false (it would skip the deny layer).
     assert settings["bypassPermissions"] is False
 
-    # 3.2 invariant: universal ban set present — merge/force-push/history-rewrite denied.
+    # 3.2 invariant: ban set present — force-push/history-rewrite denied everywhere; merge denied
+    # everywhere EXCEPT the autonomous ``merge`` stage, which lifts exactly the gh-pr-merge ban.
     deny = perms["deny"]
     assert isinstance(deny, list)
     deny_blob = " ".join(str(entry) for entry in deny)
     for fragment in _BANNED_FRAGMENTS:
+        if profile == "merge" and fragment == "gh pr merge":
+            # Lift is the BARE entry only; the hardened forms stay (assert the exact entry).
+            assert "Bash(gh pr merge*)" not in deny, "merge profile must lift the bare gh-pr-merge"
+            assert "Bash(gh pr merge*--admin*)" in deny, "merge must STILL ban gh pr merge --admin"
+            continue
         assert fragment in deny_blob, f"{fragment!r} must be denied in {profile!r}"
 
     # 3.2 invariant: no merge entry in allow for any profile.
@@ -640,11 +675,12 @@ def test_deny_holds_under_auto_identical_to_deny_list(profile: str) -> None:
     """For every profile under ``auto``, the deny-list is identical to ``deny_list()``.
 
     The mode flip stripped NOTHING from the deny-list — deny wins over allow regardless of
-    ``defaultMode``. This locks in the invariant (§9.3).
+    ``defaultMode``. This locks in the invariant (§9.3). Compared per-profile, since the ``merge``
+    profile's deny legitimately differs (it lifts exactly the gh-pr-merge ban).
     """
     deny_in_settings = _permissions(build_settings(profile))["deny"]
-    assert deny_in_settings == deny_list(), (
-        f"deny list for {profile!r} must be identical to deny_list(); "
+    assert deny_in_settings == deny_list(profile), (
+        f"deny list for {profile!r} must be identical to deny_list({profile!r}); "
         f"the mode flip must strip nothing"
     )
 
@@ -664,6 +700,83 @@ def test_deny_holds_all_merge_paths() -> None:
     )
     for path in merge_paths:
         assert path in deny, f"merge path {path!r} must be in deny_list()"
+
+
+def test_merge_profile_lifts_only_gh_pr_merge() -> None:
+    """The ``merge`` profile permits ``gh pr merge`` (squash-merge) yet keeps every other ban.
+
+    The surgical autonomous-merge carve-out (operator decision): exactly one deny entry is lifted;
+    force-push, rebase, ``reset --hard``, ``--amend``, mirror/branch deletion, and the other merge
+    paths (github-curl, REST API, GraphQL) ALL stay banned even for ``merge``.
+    """
+    deny = deny_list("merge")
+    # The bare squash-merge path is LIFTED.
+    assert "Bash(gh pr merge*)" not in deny
+    # Everything dangerous stays banned even for the merge stage — including the gh-pr-merge
+    # HARDENING (no --admin / --merge / --rebase) and direct-main-push (audit findings).
+    for still_banned in (
+        "Bash(gh pr merge*--admin*)",  # no admin override (bypasses branch protection + checks)
+        "Bash(gh pr merge*--merge*)",  # squash only — no merge commit
+        "Bash(gh pr merge*--rebase*)",  # squash only — no rebase merge
+        "Bash(git push*origin main*)",  # never push directly to the default branch
+        "Bash(git push*:main*)",
+        "Bash(*pr-merge*)",
+        "Bash(gh api*merge*)",
+        "Bash(*mergePullRequest*)",
+        "Bash(git push*--force*)",
+        "Bash(git push* -f*)",
+        "Bash(git push*--mirror*)",
+        "Bash(git push*--delete*)",
+        "Bash(git rebase*)",
+        "Bash(git reset --hard*)",
+        "Bash(git commit*--amend*)",
+    ):
+        assert still_banned in deny, f"{still_banned!r} must stay banned even for the merge profile"
+    # The lift is EXACTLY one entry — nothing else dropped vs the universal ban set.
+    assert set(deny_list()) - set(deny) == {"Bash(gh pr merge*)"}
+    # The allow-list gives the merge agent the surface it needs.
+    allow = allow_list("merge")
+    assert "Bash(git *)" in allow and "Bash(gh *)" in allow and "Bash(make *)" in allow
+    assert "Bash(kanban-move*)" in allow and "Bash(kanban-done*)" in allow
+
+
+def test_merge_profile_denies_real_main_push_commands() -> None:
+    """Real direct-push-to-main command strings are denied for the merge profile (fnmatch model),
+    while the merge agent's OWN feature-branch pushes are not — closes the round-2 refspec-bypass
+    audit finding (the literal ``origin main`` / ``:main`` globs missed ``:refs/heads/main``).
+    """
+    from fnmatch import fnmatch  # noqa: PLC0415 — test-only, mirrors Claude Code's glob model
+
+    deny = deny_list("merge")
+
+    def denied(cmd: str) -> bool:
+        # Claude Code matches the whole ``Bash(<command>)`` string against each ``Bash(...)`` glob.
+        return any(fnmatch(f"Bash({cmd})", pat) for pat in deny)
+
+    # Every direct-to-main spelling MUST be denied — including the fully-qualified refspec forms.
+    for cmd in (
+        "git push origin main",
+        "git push -u origin main",
+        "git push origin HEAD:main",
+        "git push origin mybranch:main",
+        "git push origin HEAD:refs/heads/main",
+        "git push origin +refs/heads/main",
+        "git push origin mybranch:refs/heads/main",
+        "git push origin refs/heads/main",
+        "git -C /x push origin main",
+        "git -C /x push origin HEAD:refs/heads/main",
+    ):
+        assert denied(cmd), f"direct-main push must be denied for the merge profile: {cmd!r}"
+    # The merge agent's legit pushes (its OWN feature branch) must NOT be denied.
+    for cmd in ("git push", "git push origin feat/helm", "git push -u origin feat/helm"):
+        assert not denied(cmd), f"legit feature-branch push must be allowed: {cmd!r}"
+
+
+def test_merge_profile_is_recognised_and_pinned() -> None:
+    """``merge`` is a recognised profile with a pinned, non-bypass mode."""
+    assert "merge" in PROFILES
+    assert pinned_mode("merge") == "auto"
+    assert "bypass" not in pinned_mode("merge").lower()
 
 
 def test_deny_holds_all_force_push_forms() -> None:

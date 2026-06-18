@@ -189,7 +189,7 @@ def _check_v3_permission_mode(t: TransitionDef, idx: int, findings: list[Finding
 
 
 def _check_v4_profile(t: TransitionDef, idx: int, findings: list[Finding]) -> None:
-    """V4: profile must be one of the four workflow profiles or empty string."""
+    """V4: profile must be one of the workflow profiles (docs/prepare/dev/check/merge) or empty."""
     profile = t.profile
     if not profile:
         return  # empty = no-op / script-only transition; allowed
@@ -305,7 +305,8 @@ def _check_v6_wildcard_shadow(transitions: list[TransitionDef], findings: list[F
 
 
 def _check_v7_launch_target_invariant(draft: PipelineDraft, findings: list[Finding]) -> None:
-    """V7: no prompt-bearing transition may resolve into a reactive column or into 'Merge'."""
+    """V7: no prompt-bearing transition may resolve into a reactive column, nor into 'Merge' UNLESS
+    it carries the 'merge' profile (the sanctioned autonomous merge stage, DESIGN §15)."""
     reactive_keys = frozenset(
         c.key for c in draft.definition.columns if c.column_class == "reactive"
     )
@@ -328,13 +329,15 @@ def _check_v7_launch_target_invariant(draft: PipelineDraft, findings: list[Findi
                         locus=f"transitions[{idx}]",
                     )
                 )
-            if col == "Merge":
+            if col == "Merge" and t.profile != "merge":
                 findings.append(
                     Finding(
                         field=f"transitions[{idx}].to_col",
                         message=(
-                            "A prompt-bearing transition targets 'Merge'. Merge is a human-only gate "
-                            "(DESIGN §15 / V7) — an agent must never be launched into Merge."
+                            "A prompt-bearing transition targets 'Merge' WITHOUT the 'merge' profile. "
+                            "Merge is human-only EXCEPT the sanctioned autonomous merge stage "
+                            "(profile 'merge', DESIGN §15 / V7) — no OTHER agent may be launched into "
+                            "Merge."
                         ),
                         severity="error",
                         locus=f"transitions[{idx}]",

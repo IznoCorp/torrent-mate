@@ -1,7 +1,7 @@
 """Tests for :mod:`kanbanmate.core.profiles`.
 
-Verifies that the canonical PROFILES tuple contains the expected four names and
-that it stays in parity with the per-profile allow-list in adapters.perms.
+Verifies that the canonical PROFILES tuple contains the expected names and that it stays in
+parity with the per-profile allow-list in adapters.perms.
 """
 
 from __future__ import annotations
@@ -10,8 +10,8 @@ from kanbanmate.core.profiles import PROFILES
 
 
 def test_profiles_contains_expected_names() -> None:
-    """PROFILES must contain the four documented workflow stages (no more, no less)."""
-    assert set(PROFILES) == {"docs", "prepare", "dev", "check"}
+    """PROFILES = the four workflow stages PLUS 'merge' (the autonomous merge stage)."""
+    assert set(PROFILES) == {"docs", "prepare", "dev", "check", "merge"}
 
 
 def test_profiles_is_tuple() -> None:

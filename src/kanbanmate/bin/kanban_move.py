@@ -194,33 +194,41 @@ def main(argv: list[str] | None = None) -> int:
         # Resolve the CLI target (a key OR a human name) to its Column so we enqueue a canonical
         # column KEY — the same key the daemon's validate_intent tests membership against.
         column = resolve_target_column(columns, target)
-        launch_targets = _load_clone_transitions(entry).launch_target_columns()
-        # Cheap pre-flight anti-loop guard (DESIGN §8.0.5, UX only): an agent may NEVER move a card
-        # into a launch-transition target — re-entering one re-fires its prompt-bearing transition
-        # and forms an orchestration loop. This fails fast with a clear message BEFORE enqueuing; the
-        # daemon's wildcard-aware validate_intent is the AUTHORITATIVE check (it also catches
-        # ``(*, to)`` wildcards the static launch-target set misses).
-        if column.key in launch_targets:
-            print(
-                f"{_PROG}: refusing to move #{issue} into "
-                f"{column.name!r} (anti-loop, DESIGN §8.0.5) — a launch-transition target; "
-                f"agents may only move cards into non-launch columns",
-                file=sys.stderr,
-            )
-            return 1
-
-        # Enqueue the move intent into the SAME per-project queue the daemon drains. The store is
-        # rooted at the per-project sub-root when the worktree is project-pinned (multi-project §3.2),
-        # else the bare runtime root (#1 km-root fix; N=1 byte-identical). The NUDGE the enqueue bumps
-        # is wired to the runtime root, so the single daemon wakes regardless of which project moved.
-        # No item_id read is needed — the daemon resolves issue → item_id from its snapshot in
-        # _execute_move. The module-scoped ``FsStateStore`` is used so tests can monkeypatch it.
+        transitions = _load_clone_transitions(entry)
+        # Build the store FIRST (before the pre-flight) so the guard can read the card's current
+        # column. The store is rooted at the per-project sub-root when the worktree is project-pinned
+        # (multi-project §3.2), else the bare runtime root (#1 km-root fix; N=1 byte-identical). The
+        # NUDGE the enqueue bumps is wired to the runtime root, so the single daemon wakes regardless
+        # of which project moved. The module-scoped ``FsStateStore`` is used so tests can monkeypatch.
         _store_root, _nudge_root = helper_store_root()
         store = (
             FsStateStore(_store_root)
             if _nudge_root is None
             else FsStateStore(_store_root, nudge_root=_nudge_root)
         )
+        # PAIR-AWARE pre-flight anti-loop guard (DESIGN §8.0.5, UX only — the daemon's wildcard-aware
+        # validate_intent stays AUTHORITATIVE). Mirror ``core.intent``'s re-fire guard: refuse ONLY
+        # when the (from, to) pair is ITSELF prompt-bearing (a genuine launch re-fire), NOT every move
+        # whose destination merely happens to be *some* launch target. The card's current column is
+        # the launched stage's column (``state.stage``); e.g. the merge agent in ``Merge`` moving to
+        # ``Review`` is allowed — ``(Merge, Review)`` is a no-op edge — even though ``Review`` is a
+        # launch target via ``PRCI → Review``. A destination-only check (the prior bug) wrongly refused
+        # that, stranding a blocked merge in Merge. Without running state (operator use, no agent) the
+        # move is not re-fire-guarded (operator authority), so the guard is skipped — the daemon, which
+        # re-validates under the derived authority, remains the sole authoritative gate.
+        st = store.load(issue)
+        from_col = st.stage if st is not None else None
+        if from_col:
+            pair = transitions.get(from_col, column.key)
+            if pair is not None and pair.prompt:
+                print(
+                    f"{_PROG}: refusing to move #{issue} {from_col!r}->{column.name!r} "
+                    f"(anti-loop, DESIGN §8.0.5) — that pair is a prompt-bearing launch transition; "
+                    f"an agent may not re-fire a launch",
+                    file=sys.stderr,
+                )
+                return 1
+
         intent_id = uuid.uuid4().hex[:12]
         store.enqueue_intent(
             intent_id,

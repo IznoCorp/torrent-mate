@@ -214,21 +214,22 @@ class TransitionConfig:
         """Return the set of column keys a prompt-bearing transition can launch into.
 
         These are the destinations (``to_col``) of every PROMPT-bearing transition in
-        the whitelist — i.e. every move that fires an agent launch. ``kanban-move``'s
-        anti-loop guard uses this set to refuse an agent's outbound move into a
-        launch target: re-entering such a column would re-fire that transition and
-        form an orchestration loop (DESIGN §8.0.5 — the refusal is keyed on the
-        whitelist, NOT on a static column class).
+        the whitelist — i.e. every move that fires an agent launch. Used by the
+        ticket-create guard (a new card may not be dropped straight into a launch
+        column) and as a coarse signal elsewhere. NOTE: the agent ``kanban-move``
+        re-fire guard is PAIR-aware (it checks whether the specific ``(from, to)`` pair
+        is prompt-bearing, mirroring ``core.intent``), NOT this destination-only set —
+        a move INTO a launch-target column from a column that has no prompt-bearing edge
+        to it (e.g. ``Merge → Review``) is legitimately allowed.
 
         Both the explicit pairs and the ``from='*'`` wild-to entries contribute their
         concrete ``to_col``. A ``to='*'`` wild-from entry is **excluded**: it has no
         concrete destination, so it names no single launch-target column (its
         destination is resolved at move time, not statically known here). A
         script-only or no-op transition (no ``prompt``) is also excluded — it launches
-        no agent, so its destination is not a launch target. In particular the
-        ``Review → Merge`` row is a script GATE (no prompt), so ``Merge`` is NOT a
-        launch target and an agent may freely move a card into it (merge=human-only is
-        preserved, DESIGN §8.0.5).
+        no agent, so its destination is not a launch target. Since the autonomous-merge
+        change, the ``Review → Merge`` row is a PROMPT-bearing agent stage, so ``Merge``
+        IS a launch target (the merge agent fires when a card lands there).
 
         Returns:
             The frozen set of column keys that are the destination of at least one
