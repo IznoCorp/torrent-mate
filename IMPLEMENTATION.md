@@ -12,16 +12,34 @@
 
 ## Phases
 
-| #   | Phase                                                    | File                       | Status |
-| --- | -------------------------------------------------------- | -------------------------- | ------ |
-| 1   | Root-cause `_canonical_title` NFC fix + regression tests | phase-01-root-cause-fix.md | [x]    |
-| 2a  | Red tests for `library-dedup-titles`                     | phase-02a-dedup-tests.md   | [x]    |
-| 2b  | Implement `library-dedup-titles` (green) + 2.3 guard fix | phase-02b-dedup-impl.md    | [x]    |
-| 3   | Live remediation + ACC re-exercise + gate                | phase-03-gate.md           | [x]    |
+| #   | Phase                                                    | File                         | Status |
+| --- | -------------------------------------------------------- | ---------------------------- | ------ |
+| 1   | Root-cause `_canonical_title` NFC fix + regression tests | phase-01-root-cause-fix.md   | [x]    |
+| 2a  | Red tests for `library-dedup-titles`                     | phase-02a-dedup-tests.md     | [x]    |
+| 2b  | Implement `library-dedup-titles` (green) + 2.3 guard fix | phase-02b-dedup-impl.md      | [x]    |
+| 3   | Live remediation + ACC re-exercise + gate                | phase-03-gate.md             | [x]    |
+| 4   | PR fixes cycle 1 — dispatch_path guard hardening + tests | phase-04-pr-fixes-cycle-1.md | [x]    |
 
 ## Review cycles
 
-_(filled by implement:pr-review — max 3 cycles)_
+### Cycle 1
+
+3 review agents (code-reviewer, silent-failure-hunter, pr-test-analyzer) converged on
+one critical issue in `library-dedup-titles`: the `dispatch_path` safety guard
+(`{p for p in paths.values() if p is not None}`) makes a missing/empty `dispatch_path`
+invisible, so a group with one path-bearing + one path-less row passes the guard, and
+`_select_survivor` (path-agnostic) can keep the path-less row and cascade-delete the
+verifiable one — a silent data-loss path contradicting DESIGN's "missing dispatch_path
+→ skip, never guess" contract. Retained findings (fixed in phase 4 / cycle 1):
+
+- **critical** — guard must require every member to have a non-empty NFC-matching path, else skip.
+- **medium** — empty-string path → None; `--db` existence guard; `_canonical_key` docstring (no real `lower()` indexer dedup).
+- **critical coverage** — test skip-branch (divergent real paths) + partial-None (path-bearing row preserved) + CASCADE + idempotent `normalized==0`.
+- **minor** — guard survivor normalize with `_is_nfd` (count inflation).
+
+Ignored (non-blocking LOW): F4 skipped-not-surfaced-prominently, F5 rowcount-vs-pre-count.
+Live run was already safe (all 12 survivors had matching paths; 0 suspect) — fix is for
+future robustness + the merge gate.
 
 ## Next action
 
