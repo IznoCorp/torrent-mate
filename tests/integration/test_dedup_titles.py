@@ -174,6 +174,31 @@ def db_with_year_variants(tmp_path: Path) -> tuple[Path, int, int]:
     return db_path, id_2001, id_2026
 
 
+@pytest.fixture()
+def db_with_solo_nfd_title(tmp_path: Path) -> tuple[Path, int, str, str]:
+    """DB seeded with a single NFD-titled row (no duplicate twin).
+
+    Returns:
+        ``(db_path, item_id, nfd_title, nfc_title)``
+    """
+    db_path = make_synthetic_db(tmp_path)
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    nfd_title = _NFC("NFD", "Amélie")
+    nfc_title = _NFC("NFC", "Amélie")
+    assert nfd_title != nfc_title, "NFD form must differ from NFC for this test"
+    now = int(time.time())
+    item_id = _insert_item(
+        conn,
+        nfd_title,
+        year=2001,
+        date_metadata_refreshed=now,
+        dispatch_path="/Volumes/Disk1/movies/Amélie (2001)",
+    )
+    conn.close()
+    return db_path, item_id, nfd_title, nfc_title
+
+
 def test_apply_dedups_nfc_nfd_divergent_dispatch_paths(
     db_with_divergent_path_pair: tuple[Path, int, int],
     test_config: Any,
@@ -274,3 +299,24 @@ def test_apply_idempotent(
     data = _json_from(result)
     assert data["deleted"] == 0
     assert data["duplicate_groups"] == 0
+
+
+def test_apply_normalizes_solo_nfd_title(
+    db_with_solo_nfd_title: tuple[Path, int, str, str],
+    test_config: Any,
+) -> None:
+    """--apply NFC-normalizes a solo NFD-titled row (no duplicate, no deletion)."""
+    db_path, item_id, _nfd_title, nfc_title = db_with_solo_nfd_title
+
+    result = run_cli(["--format", "json", "library-dedup-titles", "--db", str(db_path), "--apply"])
+
+    assert result.exit_code == 0, f"CLI exited {result.exit_code}: {result.output}"
+    data = _json_from(result)
+    assert data["deleted"] == 0, f"Expected 0 deleted, got {data}"
+    assert data["normalized"] >= 1, f"Expected ≥1 normalized, got {data}"
+
+    conn = sqlite3.connect(str(db_path))
+    row = conn.execute("SELECT title FROM media_item WHERE id = ?", (item_id,)).fetchone()
+    assert row is not None, f"Row id={item_id} must still exist"
+    assert row[0] == nfc_title, f"Title must be NFC: {row[0]!r} != {nfc_title!r}"
+    conn.close()

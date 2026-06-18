@@ -62,31 +62,32 @@ relates to. The canonical source for flag names is `personalscraper <cmd>
 25. [`library-fix-nfo`](#personalscraper-library-fix-nfo) — repair malformed NFO files with trailing URLs
 26. [`library-fix-orphan-files`](#personalscraper-library-fix-orphan-files) — repair `media_file` rows with `release_id IS NULL` (DEVIATION #8, invariant AO)
 27. [`library-fix-season-counts`](#personalscraper-library-fix-season-counts) — repair `season.episode_count` drift (DEVIATION #9, invariant AP)
-28. [`library-validate`](#personalscraper-library-validate) — validate NFO/artwork/naming conformity
-29. [`library-gc`](#personalscraper-library-gc) — GC old index_outbox done rows
+28. [`library-dedup-titles`](#personalscraper-library-dedup-titles) — de-duplicate NFD/NFC media_item twins
+29. [`library-validate`](#personalscraper-library-validate) — validate NFO/artwork/naming conformity
+30. [`library-gc`](#personalscraper-library-gc) — GC old index_outbox done rows
 
 ### Library — analysis & query
 
-30. [`library-analyze`](#personalscraper-library-analyze) — deep ffprobe scan
-31. [`library-recommend`](#personalscraper-library-recommend) — re-download recommendations
-32. [`library-rescrape`](#personalscraper-library-rescrape) — targeted re-scraping
-33. [`library-report`](#personalscraper-library-report) — health statistics
-34. [`library-doctor`](#personalscraper-library-doctor) — health checks on live DB
-35. [`library-search`](#personalscraper-library-search) — flex-attr query
-36. [`library-show`](#personalscraper-library-show) — pretty-print one item
-37. [`library-backfill-ids`](#personalscraper-library-backfill-ids) — backfill provider IDs across releases
+31. [`library-analyze`](#personalscraper-library-analyze) — deep ffprobe scan
+32. [`library-recommend`](#personalscraper-library-recommend) — re-download recommendations
+33. [`library-rescrape`](#personalscraper-library-rescrape) — targeted re-scraping
+34. [`library-report`](#personalscraper-library-report) — health statistics
+35. [`library-doctor`](#personalscraper-library-doctor) — health checks on live DB
+36. [`library-search`](#personalscraper-library-search) — flex-attr query
+37. [`library-show`](#personalscraper-library-show) — pretty-print one item
+38. [`library-backfill-ids`](#personalscraper-library-backfill-ids) — backfill provider IDs across releases
 
 ### Trailers
 
-38. [`trailers`](#personalscraper-trailers) — trailer management (parent command)
-39. [`trailers scan`](#personalscraper-trailers-scan) — discover media missing trailers
-40. [`trailers download`](#personalscraper-trailers-download) — download trailers from YouTube
-41. [`trailers audit`](#personalscraper-trailers-audit) — audit trailer files on disk
-42. [`trailers purge`](#personalscraper-trailers-purge) — remove unwanted trailers
+39. [`trailers`](#personalscraper-trailers) — trailer management (parent command)
+40. [`trailers scan`](#personalscraper-trailers-scan) — discover media missing trailers
+41. [`trailers download`](#personalscraper-trailers-download) — download trailers from YouTube
+42. [`trailers audit`](#personalscraper-trailers-audit) — audit trailer files on disk
+43. [`trailers purge`](#personalscraper-trailers-purge) — remove unwanted trailers
 
 ### Config — sub-commands
 
-43. [`config migrate-category`](#personalscraper-config-migrate-category) — rename a category across config + paths
+44. [`config migrate-category`](#personalscraper-config-migrate-category) — rename a category across config + paths
 
 ### Make targets + scheduling (appendix)
 
@@ -1004,6 +1005,44 @@ count) is emitted for operator inspection.
     personalscraper library-fix-season-counts --db /custom/path/library.db --apply
 
 **Related**: DEVIATION #9, invariant AP
+
+---
+
+## `personalscraper library-dedup-titles`
+
+**Purpose**: De-duplicates `media_item` rows whose titles differ only by Unicode
+normalization (NFD vs NFC). Groups rows by `(NFC(canonical_title).lower(), kind,
+year)`. For groups with > 1 row sharing the same `dispatch_path`, selects the
+live survivor (newest `date_metadata_refreshed`) and deletes the orphan twins
+via `ON DELETE CASCADE`. Also NFC-normalizes the `title` of any non-duplicate
+row stored as NFD. Dry-run by default — use `--apply` to execute.
+
+**Side effects**: `read-only` (default), `mutate DB` (with `--apply`)
+
+**Pipeline position**: n/a (maintenance — run to clean up NFD/NFC duplicates caused by
+macOS `iterdir()` emitting NFD folder names)
+
+**Args**:
+
+- `--apply` : Execute deletions and normalizations (default: dry-run preview)
+- `--config / -c PATH` : Path to config.json5 or config dir
+- `--db PATH` : Path to library.db (overrides config)
+
+**JSON output keys**:
+
+- `apply` (bool)
+- `duplicate_groups` (int) — groups with > 1 row sharing the same `dispatch_path`
+- `deleted` / `would_delete` (int) — orphan rows removed (`deleted` with `--apply`, `would_delete` in dry-run)
+- `normalized` / `would_normalize` (int) — NFD titles NFC-normalized
+- `skipped` (int) — groups skipped because rows lack a common `dispatch_path`
+
+**Examples**:
+
+    personalscraper library-dedup-titles
+    personalscraper library-dedup-titles --apply
+    personalscraper library-dedup-titles --db /custom/path/library.db --apply
+
+**Related**: `library-index`
 
 ---
 
