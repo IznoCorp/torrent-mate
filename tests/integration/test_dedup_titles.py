@@ -16,6 +16,7 @@ import time
 import unicodedata
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
@@ -206,7 +207,8 @@ def test_apply_dedups_nfc_nfd_divergent_dispatch_paths(
     """--apply deduplicates NFC/NFD twins even when dispatch_path strings differ by normalization."""
     db_path, nfc_id, nfd_id = db_with_divergent_path_pair
 
-    result = run_cli(["--format", "json", "library-dedup-titles", "--db", str(db_path), "--apply"])
+    with patch("personalscraper.conf.loader.load_config", return_value=test_config):
+        result = run_cli(["--format", "json", "library-dedup-titles", "--db", str(db_path), "--apply"])
 
     assert result.exit_code == 0, f"CLI exited {result.exit_code}: {result.output}"
     data = _json_from(result)
@@ -234,7 +236,8 @@ def test_dry_run_reports_pairs_and_mutates_nothing(
     before = conn.execute("SELECT COUNT(*) FROM media_item").fetchone()[0]
     conn.close()
 
-    result = run_cli(["--format", "json", "library-dedup-titles", "--db", str(db_path)])
+    with patch("personalscraper.conf.loader.load_config", return_value=test_config):
+        result = run_cli(["--format", "json", "library-dedup-titles", "--db", str(db_path)])
 
     assert result.exit_code == 0, f"CLI exited {result.exit_code}: {result.output}"
     data = _json_from(result)
@@ -255,7 +258,8 @@ def test_apply_deletes_orphan_keeps_survivor(
     """--apply deletes the NFD orphan and keeps the NFC live row."""
     db_path, nfc_id, nfd_id = db_with_nfc_nfd_pair
 
-    result = run_cli(["--format", "json", "library-dedup-titles", "--db", str(db_path), "--apply"])
+    with patch("personalscraper.conf.loader.load_config", return_value=test_config):
+        result = run_cli(["--format", "json", "library-dedup-titles", "--db", str(db_path), "--apply"])
 
     assert result.exit_code == 0, f"CLI exited {result.exit_code}: {result.output}"
     assert _json_from(result)["deleted"] >= 1
@@ -276,7 +280,8 @@ def test_apply_preserves_distinct_year_variants(
 ) -> None:
     """--apply never merges items with different explicit years (remake guard)."""
     db_path, id_2001, id_2026 = db_with_year_variants
-    result = run_cli(["--format", "json", "library-dedup-titles", "--db", str(db_path), "--apply"])
+    with patch("personalscraper.conf.loader.load_config", return_value=test_config):
+        result = run_cli(["--format", "json", "library-dedup-titles", "--db", str(db_path), "--apply"])
     assert result.exit_code == 0
 
     conn = sqlite3.connect(str(db_path))
@@ -291,9 +296,10 @@ def test_apply_idempotent(
 ) -> None:
     """Running --apply twice reports 0 on the second pass."""
     db_path, _nfc_id, _nfd_id = db_with_nfc_nfd_pair
-    run_cli(["library-dedup-titles", "--db", str(db_path), "--apply"])
+    with patch("personalscraper.conf.loader.load_config", return_value=test_config):
+        run_cli(["library-dedup-titles", "--db", str(db_path), "--apply"])
 
-    result = run_cli(["--format", "json", "library-dedup-titles", "--db", str(db_path), "--apply"])
+        result = run_cli(["--format", "json", "library-dedup-titles", "--db", str(db_path), "--apply"])
 
     assert result.exit_code == 0
     data = _json_from(result)
@@ -308,7 +314,8 @@ def test_apply_normalizes_solo_nfd_title(
     """--apply NFC-normalizes a solo NFD-titled row (no duplicate, no deletion)."""
     db_path, item_id, _nfd_title, nfc_title = db_with_solo_nfd_title
 
-    result = run_cli(["--format", "json", "library-dedup-titles", "--db", str(db_path), "--apply"])
+    with patch("personalscraper.conf.loader.load_config", return_value=test_config):
+        result = run_cli(["--format", "json", "library-dedup-titles", "--db", str(db_path), "--apply"])
 
     assert result.exit_code == 0, f"CLI exited {result.exit_code}: {result.output}"
     data = _json_from(result)
