@@ -6,7 +6,7 @@
 **Version bump**: 0.36.1 → 0.36.2
 **Branch**: fix/nfc-dedup
 **PR merge**: auto
-**PR**: _(created after last phase)_
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/208
 **Design**: docs/features/nfc-dedup/DESIGN.md
 **Master plan**: docs/features/nfc-dedup/plan/INDEX.md
 
