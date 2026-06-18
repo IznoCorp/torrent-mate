@@ -340,9 +340,10 @@ _PROFILE_ALLOW: dict[str, tuple[str, ...]] = {
     ),
 }
 
-# All supported profile names (DESIGN §10) — the four per-stage profiles. The PoC's ``merge``
-# profile is deliberately absent (merge = human-only).
-PROFILES: tuple[str, ...] = ("docs", "prepare", "dev", "check")
+# Re-exported from ``core.profiles`` (DESIGN §13 layering fix): the validator
+# lives in core and cannot import adapters, so the canonical name-set must sit
+# in core. Existing callers of ``perms.PROFILES`` are unaffected.
+from kanbanmate.core.profiles import PROFILES as PROFILES  # noqa: E402, PLC0414
 
 
 def allow_list(profile: str) -> list[str]:

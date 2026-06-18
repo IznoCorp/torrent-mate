@@ -25,8 +25,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install package with dev extras
-        run: pip install -e ".[dev]"
+      - name: Install package with dev + ui extras
+        # The ui extra (fastapi/uvicorn) is required so mypy can typecheck the
+        # http/ config API and so the tests/http suite runs for real instead of
+        # being skipped by its pytest.importorskip("fastapi") guard.
+        run: pip install -e ".[dev,ui]"
 
       - name: Run full local gate (lint + test + size)
         run: make check

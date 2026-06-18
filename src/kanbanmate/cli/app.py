@@ -35,6 +35,7 @@ from kanbanmate.cli import sessions as sessions_cmd
 from kanbanmate.cli import state as state_cmd
 from kanbanmate.cli import status as status_cmd
 from kanbanmate.cli import ticket as ticket_cmd
+from kanbanmate.cli.config import config_app
 from kanbanmate.daemon import loop as daemon_loop
 from kanbanmate.daemon.registry_wiring import ProjectSelectionError, wiring_for_selection
 
@@ -65,6 +66,11 @@ pill_app = typer.Typer(
     add_completion=False,
 )
 app.add_typer(pill_app, name="pill")
+
+# Config management sub-app (helm PR 1): `kanban config serve` starts the headless HTTP API for
+# pipeline config editing. Defined in ``cli/config.py`` (the FastAPI import is lazy there, inside
+# the ``serve`` body) so the bare ``kanban`` CLI imports succeed with no ``[ui]`` extra installed.
+app.add_typer(config_app, name="config")
 
 
 # The ``--root`` option default, shared across commands. Resolved eagerly so the command surface

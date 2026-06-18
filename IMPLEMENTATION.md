@@ -1,133 +1,87 @@
-# Implementation Progress — ingress-multiproject (0.4.0 → 0.5.0)
+# Implementation Progress — helm
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: ingress-multiproject — webhook ingress (config-switchable default, polling fallback) +
-multiple GitHub orgs + multiple projects per daemon. The GitHub App is OUT (deferred to ticket #26;
-the webhook uses a plain shared secret + the existing PAT).
-**Version bump**: minor (Y+1) — 0.4.0 → 0.5.0 (additive; N=1 back-compat preserved).
-**Branch**: `feat/ingress-multiproject`
-**PR merge**: manual (human-only).
-**Design**: `docs/features/ingress-multiproject/DESIGN.md`
-**Master plan**: single feature branch — landed as two coherent commit groups (multi-project/org/
-config-switch, then the webhook receiver).
+**Feature**: Configuration interface — config core + HTTP API (PR 1) (type: minor)
+**Version bump**: 0.5.1 → 0.6.0
+**Branch**: `feat/helm`
+**PR merge**: manual
+**PR**: _(created after last phase)_
+**Design**: docs/features/helm/DESIGN.md
+**Master plan**: docs/features/helm/plan/INDEX.md
 
-Built in an isolated worktree + isolated venv (`/Users/izno/.pyenv/versions/3.12.4/bin/python`); the
-live PM2 daemons (editable install from the MAIN worktree) were never touched, never restarted. The
-existing single-project deployed config keeps working unchanged (the N=1 path is byte-identical).
+> Scope: PR 1 only — backend-neutral config core + headless local-loopback HTTP API. No UI (PR 2),
+> no board mutation (PR 3). The 3-PR arc is documented in DESIGN.md so the steps compose, but #5
+> implements PR 1 only.
 
-## Headline decision
+## Phases
 
-The webhook receiver does NOT synthesize Transitions — it verifies the HMAC, identifies the project,
-and bumps the runtime-root nudge sentinel (the cockpit mechanism). The daemon then runs its normal
-`tick → snapshot → diff → decide → execute`, idempotent by construction. Polling is never removed
-(the always-on fallback; webhook mode polls slowly as a safety net).
+| # | Phase | File | Status |
+| --- | --- | --- | --- |
+| 1 | Core: profiles relocation + config model | plan/phase-01-core-profiles-and-model.md | [x] |
+| 2 | Serializer (render_pipeline) | plan/phase-02-serializer.md | [x] |
+| 3 | Validator + resolve | plan/phase-03-validator-and-resolve.md | [x] |
+| 4 | Config service (app) | plan/phase-04-config-service.md | [x] |
+| 5 | HTTP API + CLI + packaging | plan/phase-05-http-cli-packaging.md | [x] |
 
-## What shipped
+## Review cycles
 
-| Area | Modules | Status |
-|---|---|---|
-| Registry generalization (N entries, N=1 collapse) | `cli/init.py` (4 fields + `owner()` + `--ingress` + secret seed) | DONE |
-| Pure resolvers | NEW `core/registry_resolve.py` (Protocol + generic resolvers + `safe_project_id`) | DONE |
-| Per-project sweep | NEW `daemon/sweep.py`; `daemon/loop.py` (`_load_wirings`/`_wirings_from_registry`/`_load_entry_token`/`_effective_interval` + sweep run loop) | DONE |
-| Per-project store sub-roots + daemon-level nudge | `adapters/store/fs_store.py` + `fs_intents.py` (`nudge_root`); `app/wiring.py` (`state_root`) | DONE |
-| Multi-org token model | `daemon/loop._load_entry_token` (`token_ref` → `<root>/tokens/<ref>`) | DONE |
-| Config switch + polling fallback | `core/interval.daemon_base_seconds`; `WiringConfig.ingress`; `loop._effective_interval` | DONE |
-| Helper project-aware resolution | `bin/_pin.py` (project pin + `helper_store_root`), `bin/_clone_config.py` (`resolve_entry`/`resolve_state_root`), 8 `bin/kanban_*.py` | DONE |
-| Launch project pin + env export | `adapters/perms.write_project_pin`; `app/actions.py` (`Deps.multi_project`); NEW `core/launch_env.py` | DONE |
-| Webhook receiver | NEW `http/__init__.py` + `http/serve.py`; NEW `core/webhook_sig.py`; `cli/app.serve`; layering guard | DONE |
-| Install second PM2 app | `cli/install.py` (`kanban-serve` app + secret seed) | DONE |
-| Doctor checks | NEW `cli/doctor_ingress.py` (webhook secret + registry summary); wired into `cli/doctor.py` | DONE |
-| LOC-ceiling relief | NEW `app/launch_context.py` (extracted from actions.py: 1018 → 945) | DONE |
+### Cycle 1
 
-## Behaviour deltas (gate requirement)
+PR #33 reviewed via `/pr-review-toolkit:review-pr` (5 specialised agents: code-reviewer,
+pr-test-analyzer, silent-failure-hunter, type-design-analyzer, design-conformity). Design-conformity
+verdict: 9/10 CONFORM, no design contradictions. Findings filtered against DESIGN.md and the plan;
+retained findings fixed on `feat/helm` (PR left OPEN — merge is human-only).
 
-- **One daemon now drives N projects across N orgs.** The run loop builds one `WiringConfig` per
-  ENABLED registry entry and sweeps them sequentially (each with its own diff baseline +
-  circuit-breaker + per-project heartbeat). A failing project never trips a healthy sibling.
-- **Per-project store sub-roots fix the issue-number collision.** For N>1 each project's state lives
-  under `<root>/projects/<safe(project_id)>/`; the daemon-wake nudge stays at the runtime root (one
-  daemon, one wake). **N=1 keeps the legacy flat layout — zero path change for the deployed daemons.**
-- **Webhook ingress as a sub-second nudge.** `kanban serve` (new `http/` layer) verifies the
-  `X-Hub-Signature-256` HMAC, routes `project_node_id → resolve_by_project_id`, and bumps the
-  runtime-root nudge. It never synthesizes Transitions; the daemon's normal tick + `cheap_probe`
-  scope the work to the changed board. Idempotent (a webhook nudge + the safety sweep converge).
-- **Config-switchable ingress + always-on polling fallback.** `ingress=webhook` (default) polls
-  slowly (120 s safety sweep) and relies on the nudge; `ingress=polling` keeps the tight 10 s. The
-  board never stalls even if the receiver is down.
-- **Multi-org tokens without a GitHub App.** `token_ref=""` → shared `<root>/token`; a ref →
-  `<root>/tokens/<ref>`. `validate_scopes` unchanged (`{project, repo}`; no `admin:org_hook`).
-- **N=1 byte-identical.** No `state_root`, no `multi_project`, no `KANBAN_PROJECT_ID` export, no
-  project pin, the tight 10 s cadence — the deployed single-project daemon behaves exactly as before.
+**Retained + fixed**
 
-## Phase gate
+- **(major) `--root` silently dropped.** `kanban config serve --root X` accepted/echoed the flag but
+  every endpoint called `_get_service()` with no argument → always `~/.kanban/`. Threaded the root via
+  `app.state.kanban_root` (set in `cli/config.py:serve` before `uvicorn.run`, read in
+  `http/config_api._get_service`). Test: `test_get_service_honors_app_state_root`.
+- **(medium) `from_loaded` leaked `YAMLError`/`AttributeError`** instead of the documented `ValueError`
+  (an empty/malformed/non-mapping `transitions.yml` — exactly the input helm exists to fix — would 500
+  on `GET /api/config`). `core/transitions.load_transitions` has no non-dict guard (unlike
+  `load_columns`). Hardened `from_loaded`: parse + `is None`/`isinstance` guard + wrap `YAMLError` as
+  `ValueError`; empty doc → graceful empty draft. Tests: empty / malformed / non-mapping.
+- **(medium) `get_render` + `post_resolve` unguarded** → opaque 500 traceback on a load/loader error.
+  Wrapped to match `get_config` (render → 500 on load error; resolve → 422 on a loader-rejected draft).
+  Tests: `test_post_resolve_invalid_draft_returns_422`.
+- **(medium) `column_class` typo silently demoted reactive→inert** (no V-check, oracle accepts it).
+  Added **V9** (column-class membership). Tests: invalid + clean.
+- **(medium) Defaults had no sanity bound** (a `concurrency_cap`/rate of 0 stalls the pipeline; the
+  published schema declares `minimum: 1`). Added **V10** (defaults sanity). Tests: both fields.
+- **Test gaps** (per `pr-test-analyzer`): structural-422 contract (F1), V8 no-false-positive on a
+  matching block (F2), real explicit-vs-wildcard precedence contention + honest rename (F3), `wild_from`
+  tier (F4), `POST /api/config` write-to-disk side-effect (F5).
+- **(minor)** V1 finding f-string rendered `{{'key'}}` → now `{{key}}`; `Finding.severity` typed
+  `Literal["error", "warning"]` (hardens the save gate). DESIGN §7.1 reconciled (V7 wording; V9/V10 rows;
+  V1–V10 counts).
 
-- `make check` → exit 0 (ruff + `ruff format --check` + mypy strict + the full pytest suite green
-  (9 skipped / 1 deselected) + module-size guard — no module over the 1000-LOC hard ceiling;
-  `actions.py` relieved 1018 → 945 via the `app/launch_context.py` extraction). Adversarial-review
-  fixes (project-aware CLI, accepted-socket slow-loris guard, placeholder-secret refusal, per-entry
-  agent-helper token, per-project back-off, collision-resistant slug, 405/404 + cleanups) added their
-  own tests; the suite stays green (the exact count is intentionally not pinned here — it is brittle).
-- `python -c "import kanbanmate"` → version `0.5.0`.
-- All 5 version pins bumped (VERSION, pyproject, `src/kanbanmate/__init__.py`,
-  `.claude-plugin/marketplace.json`, `plugin/.claude-plugin/plugin.json`); manifest lockstep test green.
+**Ignored (conform to DESIGN — not defects)**
 
-## Deferred (reported, not silent)
+- `ResolvedTransition.would_launch = matched and prompt is not None` — explicitly specified in DESIGN §6
+  ("an agent fires" = prompt present; script-only is a gate, not a launch).
+- `save` is per-file atomic, not transactional across the two files — DESIGN §12 specifies "one file at
+  a time"; validation runs first so content is valid.
+- `resolve` reads `TransitionConfig` private `_explicit/_wild_from/_wild_to` to report the tier — core→core,
+  tested, `noqa`-flagged; `.get()` does not expose the tier. Acceptable for PR 1 (noted for PR 3).
 
-- **GitHub App** → ticket #26 (the webhook uses a plain shared secret + the existing PAT, as the
-  operator decided).
-- **Concurrent per-project ticks** — the sweep is sequential (the proven single-tick semantics +
-  bounded GitHub rate budget); concurrency is a noted future optimization.
-- **Per-org webhook secret** — v1 uses one shared `<root>/webhook_secret`; a per-org secret is a
-  trivial future refinement (the receiver verifies the single secret first).
+**Gate**: `make lint` clean (ruff + mypy, 219 files); helm suites + layering 86 passed; module-size guard
+no hard-ceiling breach (`config_validate.py` 623 LOC); `import kanbanmate` + daemon-purity smoke green.
+(The ~36 `tests/bin/`+`test_doctor` failures are the known env-only helper-shim cases — CI `check` green.)
 
----
+### Cycle 2 (verification)
 
-# Implementation Progress — default-status (0.5.0 → 0.5.1)
+Adversarial re-review of the cycle-1 fix diff (`3df7eb4`): a correctness re-reviewer and a
+design-conformity re-checker. Both verdicts: fixes **correct and complete**, design↔implementation
+**coherent**, **no new critical/major/medium**. One trivial **minor** residue — the
+`config_validate.py` module docstring still said "8 semantic checks (V1–V8)" — fixed in `4b02fcb`.
 
-**Feature**: default-status — auto-assign the board's first/entry column (`Backlog` on the shipped
-template) to every snapshot item with NO Status, so GitHub's "No Status" bucket becomes self-healing
-(the operator previously fixed such items by hand).
-**Version bump**: patch (Z+1) — 0.5.0 → 0.5.1 (additive; behaviour byte-identical for already-statused
-items, only No-Status items begin healing).
-**Branch**: `feat/default-status-backlog`.
-**Design**: `docs/features/default-status/DESIGN.md`.
+`make lint` clean; helm suites + layering green; CI `check` pass on both fix commits.
 
-Built in an isolated worktree + isolated venv (`/Users/izno/.pyenv/versions/3.12.4/bin/python`); the
-live PM2 daemons (editable install from the MAIN worktree) were never touched, never restarted.
+No critical/major/medium findings remain → review loop exits. PR #33 left OPEN for human merge.
 
-## What shipped
+## Next action
 
-| Area | Modules | Status |
-|---|---|---|
-| No-Status normalization step | NEW `app/default_status.py` (`normalize_default_status` + `_default_column`) | DONE |
-| Tick wiring | `app/tick.py` — import + one call in the snapshot branch (before the diff loop) + the double-write guard; kept at 1000 LOC by condensing existing comments | DONE |
-| Tests | NEW `tests/app/test_default_status.py` (9 unit) + `tests/app/test_tick.py` (1 integration: no agent, durable) | DONE |
-| Version pins | VERSION, pyproject, `__init__.py`, marketplace.json, plugin.json → 0.5.1 | DONE |
-
-## Key decisions
-
-- **Default column derived, not hardcoded.** `next(iter(config.columns.values()), None)` — the first
-  column in the order-preserving model. A renamed first column still works; an empty model no-ops.
-- **Name vs key.** The heal passes the column `.name` to `move_card` (the writer resolves options by
-  NAME, `_parsers.parse_status_field`), not the `.key`.
-- **Bookkeeping move.** `record_move(..., bookkeeping=True)` + no `record_move_for_item` — the heal
-  never consumes the forward-advance / rate-limit budgets (mirrors the reaper's Blocked-park).
-- **Double-write guard.** The diff loop skips the stale `→""` transition for an item the
-  normalization just healed, so the recording NOOP cannot revert the baseline and the next tick cannot
-  ROLLBACK the heal. `decide` / `process_transition` are unchanged.
-- **No agent fires.** The entry column is non-triggering (launches ride `from→to` edges, never an
-  arrival into the entry column).
-- **Multi-project.** Per-project `TickConfig.columns` + `deps.board_writer` → each project heals to
-  ITS first column via ITS Status field, no extra wiring.
-- **Fail-soft.** Per-item + outer try/except; one bad write never drops the rest nor raises into the
-  tick (mirrors `apply_health`). Under PAUSE the daemon makes no moves.
-
-## Phase gate
-
-- `make check` → exit 0 (ruff + `ruff format --check` + mypy strict + full pytest suite green
-  (1894 passed, 9 skipped, 1 deselected) + module-size guard — no module over the 1000-LOC hard
-  ceiling; `tick.py` held at exactly 1000 LOC).
-- `python -c "import kanbanmate"` → version `0.5.1`.
-- All 5 version pins bumped; manifest lockstep test green.
-- Residual-import grep clean (the new module is referenced only by `tick.py` + its test).
+All phases complete — run /implement:feature-pr (push + PR + CI).

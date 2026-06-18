@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kanbanmate"
-version = "0.5.3"
+version = "0.6.0"
 description = "Reusable Kanban orchestrator on GitHub Projects v2 with autonomous Claude Code agents."
 requires-python = ">=3.12"
 license = { text = "MIT" }
@@ -21,6 +21,13 @@ dev = [
     "ruff",
     "mypy",
     "types-PyYAML",
+    # httpx backs FastAPI's TestClient (starlette.testclient imports it at module
+    # load); required so the tests/http suite runs for real under the [ui] extra.
+    "httpx>=0.27",
+]
+ui = [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.29",
 ]
 
 [project.scripts]
