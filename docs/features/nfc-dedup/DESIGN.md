@@ -162,16 +162,22 @@ echo "$B == $A"
 # Expected: <N> == <N> (unchanged; e.g. 1909 == 1909)
 ```
 
-ACC-3 — apply removes orphans (NULL-valid drops to only the 2 true orphans, which
-ACC-6 then repairs to 0):
+ACC-3 — final NULL-valid count is 0 after the full live remediation:
 
 ```bash
-personalscraper library-dedup-titles --apply >/dev/null 2>&1; \
 sqlite3 .data/library.db "SELECT COUNT(*) FROM media_item WHERE date_metadata_refreshed IS NULL AND nfo_status='valid'"
-# Expected: 2 immediately after --apply (ids 504, 1438); 0 after ACC-6 repair
+# Expected: 0
 ```
 
-ACC-4 — no duplicate group remains:
+> Remediation outcome (operator-authorized, 2026-06-18): `--apply` removed 12 NFC/NFD
+> orphan rows (1909→1897, NULL-valid 13→4). Two same-folder duplicates the NFC/NFD
+> command does not cover — id 1142 (trailing non-breaking space in the title) and id
+> 1122 (same folder, year column 2011 vs the live twin's 2010) — were deleted manually
+> with operator sign-off (kept live twins 3185/3187), NULL-valid 4→2. Then the 2 true
+> orphans (504, 1438) were repaired (ACC-6), NULL-valid 2→0. Total: 1909→1895.
+
+ACC-4 — no NFC/NFD duplicate group remains (1 documented case-variant residual is
+out of scope):
 
 ```bash
 python -c "
@@ -180,7 +186,11 @@ c=sqlite3.connect('.data/library.db'); g={}
 for i,t,k,y in c.execute('SELECT id,title,kind,year FROM media_item'):
     key=(u.normalize('NFC',re.sub(r'\s*\(\d{4}\)\s*$','',t)).lower(),k,y); g.setdefault(key,[]).append(i)
 print(sum(1 for v in g.values() if len(v)>1))"
-# Expected: 0
+# Expected: 1 — the documented residual 'Les Griffes de la nuit' (1984), ids 492/3234:
+#   two physically-distinct on-disk folders ("…nuit (1984)" vs "…Nuit (1984)") that
+#   both exist and are both live (drefr set). This is a case-variant on-disk folder
+#   duplication, NOT an NFC/NFD DB-row duplication, and is out of this feature's scope.
+#   The dedup command correctly SKIPS it (paths differ as distinct folders).
 ```
 
 ACC-5 — regression suite green:
