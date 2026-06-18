@@ -307,6 +307,168 @@ def test_apply_idempotent(
     assert data["duplicate_groups"] == 0
 
 
+def test_apply_skips_divergent_real_folders(
+    tmp_path: Path,
+    test_config: Any,
+) -> None:
+    """--apply skips a group whose members point to genuinely different real folders."""
+    db_path = make_synthetic_db(tmp_path)
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    now = int(time.time())
+    # Use NFD vs NFC to get the same canonical key with different raw strings.
+    id_a = _insert_item(
+        conn,
+        _NFC_TITLE,
+        year=1984,
+        date_metadata_refreshed=now,
+        dispatch_path="/Volumes/Disk1/movies/X (1984)",
+    )
+    id_b = _insert_item(
+        conn,
+        _NFD_TITLE,
+        year=1984,
+        date_metadata_refreshed=now,
+        dispatch_path="/Volumes/Disk1/movies/Y (1984)",
+    )
+    conn.close()
+
+    with patch("personalscraper.conf.loader.load_config", return_value=test_config):
+        result = run_cli(["--format", "json", "library-dedup-titles", "--db", str(db_path), "--apply"])
+
+    assert result.exit_code == 0, f"CLI exited {result.exit_code}: {result.output}"
+    data = _json_from(result)
+    assert data["deleted"] == 0, f"Expected 0 deleted for divergent folders, got {data}"
+    assert data.get("skipped", 0) >= 1, f"Expected ≥1 skipped, got {data}"
+
+    conn = sqlite3.connect(str(db_path))
+    assert conn.execute("SELECT id FROM media_item WHERE id = ?", (id_a,)).fetchone() is not None, (
+        f"Row id={id_a} must survive (different real folder)"
+    )
+    assert conn.execute("SELECT id FROM media_item WHERE id = ?", (id_b,)).fetchone() is not None, (
+        f"Row id={id_b} must survive (different real folder)"
+    )
+    conn.close()
+
+
+def test_apply_skips_partial_none_dispatch_path(
+    tmp_path: Path,
+    test_config: Any,
+) -> None:
+    """--apply skips a group where one row has a dispatch_path and the other has None.
+
+    This locks the F1 fix: before the fix the guard ``if p is not None``
+    would make the missing path invisible, keep the path-less row, and
+    cascade-delete the verifiable one.
+    """
+    db_path = make_synthetic_db(tmp_path)
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    now = int(time.time())
+    # Path-bearing row (orphan, NFD title — no date_metadata_refreshed)
+    id_path = _insert_item(
+        conn,
+        _NFD_TITLE,
+        year=1996,
+        date_metadata_refreshed=None,
+        dispatch_path="/Volumes/Disk1/movies/Fantômes contre fantômes (1996)",
+    )
+    # Path-less row (live, NFC title — has date_metadata_refreshed, higher id)
+    id_nopath = _insert_item(
+        conn,
+        _NFC_TITLE,
+        year=1996,
+        date_metadata_refreshed=now,
+        dispatch_path=None,
+    )
+    conn.close()
+
+    with patch("personalscraper.conf.loader.load_config", return_value=test_config):
+        result = run_cli(["--format", "json", "library-dedup-titles", "--db", str(db_path), "--apply"])
+
+    assert result.exit_code == 0, f"CLI exited {result.exit_code}: {result.output}"
+    data = _json_from(result)
+    assert data.get("skipped", 0) >= 1, f"Expected ≥1 skipped for partial-None group, got {data}"
+    assert data["deleted"] == 0, f"Expected 0 deleted (partial-None → skip), got {data}"
+
+    # The path-bearing row must NOT be deleted — that's the critical assertion.
+    conn = sqlite3.connect(str(db_path))
+    assert conn.execute("SELECT id FROM media_item WHERE id = ?", (id_path,)).fetchone() is not None, (
+        f"Path-bearing row id={id_path} must NOT be deleted (partial-None → skip)"
+    )
+    assert conn.execute("SELECT id FROM media_item WHERE id = ?", (id_nopath,)).fetchone() is not None, (
+        f"Path-less row id={id_nopath} must survive too"
+    )
+    conn.close()
+
+
+def test_apply_cascade_removes_children(
+    db_with_nfc_nfd_pair: tuple[Path, int, int],
+    test_config: Any,
+) -> None:
+    """--apply CASCADE-deletes child rows (item_attribute) of the removed orphan."""
+    db_path, nfc_id, nfd_id = db_with_nfc_nfd_pair
+
+    # Seed a child row (item_attribute) on the orphan that should be cascade-deleted.
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute(
+        "INSERT OR REPLACE INTO item_attribute (item_id, key, value) VALUES (?, 'test_key', 'test_value')",
+        (nfd_id,),
+    )
+    conn.commit()
+    # Verify the child exists before --apply.
+    assert (
+        conn.execute(
+            "SELECT value FROM item_attribute WHERE item_id = ? AND key = 'test_key'",
+            (nfd_id,),
+        ).fetchone()
+        is not None
+    )
+    conn.close()
+
+    with patch("personalscraper.conf.loader.load_config", return_value=test_config):
+        result = run_cli(["--format", "json", "library-dedup-titles", "--db", str(db_path), "--apply"])
+
+    assert result.exit_code == 0, f"CLI exited {result.exit_code}: {result.output}"
+    data = _json_from(result)
+    assert data["deleted"] >= 1, f"Expected ≥1 deleted, got {data}"
+
+    conn = sqlite3.connect(str(db_path))
+    # Orphan row gone.
+    assert conn.execute("SELECT id FROM media_item WHERE id = ?", (nfd_id,)).fetchone() is None
+    # Child item_attribute row must also be gone (CASCADE fired).
+    assert (
+        conn.execute(
+            "SELECT value FROM item_attribute WHERE item_id = ? AND key = 'test_key'",
+            (nfd_id,),
+        ).fetchone()
+        is None
+    ), f"Child item_attribute row for orphan id={nfd_id} must be cascade-deleted"
+    # Survivor still present.
+    assert conn.execute("SELECT id FROM media_item WHERE id = ?", (nfc_id,)).fetchone() is not None
+    conn.close()
+
+
+def test_apply_idempotent_normalized_zero(
+    db_with_nfc_nfd_pair: tuple[Path, int, int],
+    test_config: Any,
+) -> None:
+    """Second --apply pass reports normalized==0 (idempotent)."""
+    db_path, _nfc_id, _nfd_id = db_with_nfc_nfd_pair
+
+    with patch("personalscraper.conf.loader.load_config", return_value=test_config):
+        run_cli(["library-dedup-titles", "--db", str(db_path), "--apply"])
+
+        result = run_cli(["--format", "json", "library-dedup-titles", "--db", str(db_path), "--apply"])
+
+    assert result.exit_code == 0
+    data = _json_from(result)
+    assert data["deleted"] == 0
+    assert data["duplicate_groups"] == 0
+    assert data.get("normalized", 0) == 0, f"Expected normalized==0 on second pass (already NFC), got {data}"
+
+
 def test_apply_normalizes_solo_nfd_title(
     db_with_solo_nfd_title: tuple[Path, int, str, str],
     test_config: Any,

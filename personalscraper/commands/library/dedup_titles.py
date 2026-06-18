@@ -48,7 +48,14 @@ def _canonical_key(title: str) -> str:
     """Return the NFC-normalized, lowercased base title used as a group key.
 
     Strips a trailing `` (YYYY)`` suffix, NFC-normalizes, then lowercases.
-    Matches the dedup key applied by ``_canonical_title`` + SQLite ``lower()``.
+
+    The real indexer dedup (``item_repo.get_by_title_kind_year``) is
+    case-SENSITIVE (``WHERE title = ?``, no ``lower()``).  The ``.lower()``
+    here is an **intentionally broader** grouping — it can merge case-variant
+    titles that the indexer would keep separate.  Since every group is guarded
+    by the ``dispatch_path`` safety check (all members must share the same
+    non-empty NFC path), even a case-variant group is safe: the guard skips
+    any group that might merge truly distinct folders.
 
     Args:
         title: Raw title from ``media_item.title``.
@@ -75,18 +82,22 @@ def _is_nfd(title: str) -> bool:
 def _get_dispatch_path(conn: _sqlite3.Connection, item_id: int) -> str | None:
     """Fetch the ``dispatch_path`` attribute for *item_id*, or ``None``.
 
+    Returns ``None`` when the attribute is absent, empty, or whitespace-only
+    — all of which are treated as "unverifiable" by the dispatch_path guard.
+
     Args:
         conn: Open SQLite connection.
         item_id: ``media_item.id`` to look up.
 
     Returns:
-        The ``dispatch_path`` string, or ``None`` when absent.
+        The ``dispatch_path`` string, or ``None`` when absent/empty.
     """
     row = conn.execute(
         "SELECT value FROM item_attribute WHERE item_id = ? AND key = 'dispatch_path'",
         (item_id,),
     ).fetchone()
-    return str(row[0]) if row is not None else None
+    value = str(row[0]).strip() if row is not None else None
+    return value or None
 
 
 def _select_survivor(rows: list[dict[str, object]]) -> dict[str, object]:
@@ -169,6 +180,10 @@ def library_dedup_titles(
         typer.echo("indexer.db_path is not configured", err=True)
         raise typer.Exit(code=1)
 
+    if not db_path.exists():
+        typer.echo(f"Database not found: {db_path}", err=True)
+        raise typer.Exit(code=1)
+
     conn = _sqlite3.connect(str(db_path))
     _apply_pragmas(conn)
     conn.row_factory = _sqlite3.Row
@@ -193,16 +208,24 @@ def library_dedup_titles(
                 continue
 
             paths = {int(m["id"]): _get_dispatch_path(conn, int(m["id"])) for m in members}  # type: ignore[call-overload]
-            unique_paths = {_unicodedata.normalize("NFC", p) for p in paths.values() if p is not None}
-            if len(unique_paths) != 1:
-                log.warning("dedup_titles.dispatch_path_mismatch", ids=list(paths), paths=list(unique_paths))
+            path_values = list(paths.values())
+            nfc_paths = {_unicodedata.normalize("NFC", p) for p in path_values if p}
+            if any(not p for p in path_values) or len(nfc_paths) != 1:
+                log.warning(
+                    "dedup_titles.dispatch_path_unverifiable",
+                    ids=list(paths),
+                    paths=sorted(nfc_paths),
+                    missing=[i for i, p in paths.items() if not p],
+                )
                 stats.skipped += 1
                 continue
 
             stats.duplicate_groups += 1
             survivor = _select_survivor(members)
             survivor_id = int(survivor["id"])  # type: ignore[call-overload]
-            to_normalize.append((_unicodedata.normalize("NFC", str(survivor["title"])), survivor_id))
+            survivor_title = str(survivor["title"])
+            if _is_nfd(survivor_title):
+                to_normalize.append((_unicodedata.normalize("NFC", survivor_title), survivor_id))
             to_delete.extend(int(m["id"]) for m in members if int(m["id"]) != survivor_id)  # type: ignore[call-overload]
 
         stats.deleted = len(to_delete)
