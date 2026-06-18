@@ -772,6 +772,7 @@ class TestLibraryRescrape:
             fixed_count=1,
             skipped_count=0,
             error_count=0,
+            candidate_count=1,  # item resolved → the not-found guard must not fire
         )
         mock_conn = MagicMock()
 
@@ -796,6 +797,86 @@ class TestLibraryRescrape:
         assert call_kwargs.get("item_id") == 99, (
             f"Expected item_id=99 in rescrape_library call kwargs, got: {call_kwargs}"
         )
+
+    def test_item_id_found_no_work_does_not_warn(self, tmp_path) -> None:
+        """0.36.1 regression: a FOUND item with 0 work must NOT report not-found.
+
+        The 0.36.0 guard fired ``not found`` whenever ``fixed+skipped+error == 0``,
+        wrongly flagging a resolved item that simply had nothing to do (e.g.
+        ``--item-id N --only artwork`` when artwork already exists — observed live
+        on La Linea). The guard now keys on ``candidate_count``: candidate_count=1
+        (resolved) + 0 work → exit 0, no warning.
+        """
+        from personalscraper.maintenance.rescraper import LibraryRescrapeResult
+
+        db_file = tmp_path / ".data" / "library.db"
+        db_file.parent.mkdir(parents=True, exist_ok=True)
+        db_file.touch()
+
+        mock_result = LibraryRescrapeResult(
+            rescraped_at="2026-04-17T12:00:00",
+            disk_filter=None,
+            category_filter=None,
+            only_filter="artwork",
+            dry_run=True,
+            fixed_count=0,
+            skipped_count=0,
+            error_count=0,
+            candidate_count=1,  # item WAS resolved; just no artwork work to do
+        )
+
+        with (
+            patch("personalscraper.maintenance.rescraper.rescrape_library", return_value=mock_result),
+            patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
+            patch("personalscraper.indexer.db.apply_migrations"),
+            patch("personalscraper.io_utils.write_json"),
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.cli.get_settings") as mock_settings,
+        ):
+            settings = MagicMock()
+            settings.data_dir = tmp_path
+            mock_settings.return_value = settings
+            result = runner.invoke(app, ["library-rescrape", "--item-id", "1600", "--only", "artwork", "--dry-run"])
+
+        assert result.exit_code == 0, result.output
+        assert "not found" not in result.output
+
+    def test_item_id_not_resolved_warns_exit_1(self, tmp_path) -> None:
+        """A genuinely unresolved --item-id (candidate_count=0) → exit 1 + clear warning."""
+        from personalscraper.maintenance.rescraper import LibraryRescrapeResult
+
+        db_file = tmp_path / ".data" / "library.db"
+        db_file.parent.mkdir(parents=True, exist_ok=True)
+        db_file.touch()
+
+        mock_result = LibraryRescrapeResult(
+            rescraped_at="2026-04-17T12:00:00",
+            disk_filter=None,
+            category_filter=None,
+            only_filter=None,
+            dry_run=True,
+            fixed_count=0,
+            skipped_count=0,
+            error_count=0,
+            candidate_count=0,  # item not in DB / dispatch path missing / dir gone
+        )
+
+        with (
+            patch("personalscraper.maintenance.rescraper.rescrape_library", return_value=mock_result),
+            patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
+            patch("personalscraper.indexer.db.apply_migrations"),
+            patch("personalscraper.io_utils.write_json"),
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.cli.get_settings") as mock_settings,
+        ):
+            settings = MagicMock()
+            settings.data_dir = tmp_path
+            mock_settings.return_value = settings
+            result = runner.invoke(app, ["library-rescrape", "--item-id", "99999", "--dry-run"])
+
+        assert result.exit_code == 1
+        assert "not found" in result.output
+        assert "Traceback" not in result.output
 
     def test_item_id_missing_db_exits_1(self) -> None:
         """--item-id when the indexer DB file does not exist → exit 1, clear message, no traceback.

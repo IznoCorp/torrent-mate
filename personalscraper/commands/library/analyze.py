@@ -365,16 +365,15 @@ def library_rescrape(
                 if conn is not None:
                     conn.close()
 
-            # RT-4: warn clearly when an explicit --item-id matched nothing
-            # (item not in DB, dispatch path missing, or directory gone).
-            # Soft-skips in the bulk path are intentional; this case is not.
-            if item_id is not None:
-                total = result.fixed_count + result.skipped_count + result.error_count
-                if total == 0:
-                    console.print(
-                        f"[yellow]Warning:[/yellow] item {item_id} not found / not on disk — nothing re-scraped."
-                    )
-                    raise typer.Exit(1)
+            # Warn clearly only when an explicit --item-id RESOLVED no candidate
+            # (item not in DB, dispatch path missing, or directory gone). Gate on
+            # candidate_count, NOT on fixed+skipped+error: an item that is found
+            # but has nothing to do (e.g. --only artwork when artwork is already
+            # present) legitimately produces 0 work and must NOT be reported as
+            # not-found. Soft-skips in the bulk path are intentional.
+            if item_id is not None and result.candidate_count == 0:
+                console.print(f"[yellow]Warning:[/yellow] item {item_id} not found / not on disk — nothing re-scraped.")
+                raise typer.Exit(1)
 
         output_path = config.paths.data_dir / "library_rescrape.json"
         write_json(result, output_path)
