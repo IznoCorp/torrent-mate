@@ -109,6 +109,10 @@ class LibraryRescrapeResult:
         skipped_count: Items skipped (low confidence, already OK, etc.).
         error_count: Items with errors.
         items: List of per-item rescrape actions.
+        candidate_count: Number of items the rescrape resolved and attempted
+            (``len(candidates)``). Distinguishes "item not found / not on disk"
+            (0 candidates) from "item found but nothing to do" (>=1 candidate,
+            0 fixed/skipped/error) — the latter must not be reported as not-found.
     """
 
     rescraped_at: str
@@ -120,6 +124,7 @@ class LibraryRescrapeResult:
     skipped_count: int
     error_count: int
     items: list[RescrapeAction] = field(default_factory=list)
+    candidate_count: int = 0
 
     def __post_init__(self) -> None:
         """Validate only_filter."""
@@ -867,4 +872,5 @@ def rescrape_library(
         skipped_count=skipped_count,
         error_count=error_count,
         items=items,
+        candidate_count=len(candidates),
     )
