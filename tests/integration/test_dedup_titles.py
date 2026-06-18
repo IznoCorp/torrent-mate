@@ -107,6 +107,41 @@ def db_with_nfc_nfd_pair(tmp_path: Path) -> tuple[Path, int, int]:
 
 
 @pytest.fixture()
+def db_with_divergent_path_pair(tmp_path: Path) -> tuple[Path, int, int]:
+    """DB seeded with an NFC/NFD duplicate pair with divergent dispatch_path strings.
+
+    Same physical folder but NFC vs NFD normalization makes the raw path
+    strings differ — exactly the real-world bug this feature must handle.
+
+    Returns:
+        ``(db_path, nfc_id, nfd_id)`` — ``nfc_id`` is the live survivor (has
+        ``date_metadata_refreshed``), ``nfd_id`` is the orphan (NULL).
+    """
+    db_path = make_synthetic_db(tmp_path)
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    dispatch_nfc = "/Volumes/Disk1/movies/Fantômes contre fantômes (1996)"
+    dispatch_nfd = _NFC("NFD", dispatch_nfc)
+    now = int(time.time())
+    nfc_id = _insert_item(
+        conn,
+        _NFC_TITLE,
+        year=1996,
+        date_metadata_refreshed=now,
+        dispatch_path=dispatch_nfc,
+    )
+    nfd_id = _insert_item(
+        conn,
+        _NFD_TITLE,
+        year=1996,
+        date_metadata_refreshed=None,
+        dispatch_path=dispatch_nfd,
+    )
+    conn.close()
+    return db_path, nfc_id, nfd_id
+
+
+@pytest.fixture()
 def db_with_year_variants(tmp_path: Path) -> tuple[Path, int, int]:
     """DB seeded with two items sharing the same base title but different years.
 
@@ -137,6 +172,31 @@ def db_with_year_variants(tmp_path: Path) -> tuple[Path, int, int]:
     )
     conn.close()
     return db_path, id_2001, id_2026
+
+
+def test_apply_dedups_nfc_nfd_divergent_dispatch_paths(
+    db_with_divergent_path_pair: tuple[Path, int, int],
+    test_config: Any,
+) -> None:
+    """--apply deduplicates NFC/NFD twins even when dispatch_path strings differ by normalization."""
+    db_path, nfc_id, nfd_id = db_with_divergent_path_pair
+
+    result = run_cli(["--format", "json", "library-dedup-titles", "--db", str(db_path), "--apply"])
+
+    assert result.exit_code == 0, f"CLI exited {result.exit_code}: {result.output}"
+    data = _json_from(result)
+    assert data["deleted"] >= 1, f"Expected ≥1 deleted, got {data}"
+    assert data["duplicate_groups"] >= 1, f"Expected ≥1 duplicate_groups, got {data}"
+    assert data.get("skipped", 0) == 0, f"Expected 0 skipped, got {data}"
+
+    conn = sqlite3.connect(str(db_path))
+    assert conn.execute("SELECT id FROM media_item WHERE id = ?", (nfd_id,)).fetchone() is None, (
+        f"Orphan row id={nfd_id} must be deleted"
+    )
+    survivor = conn.execute("SELECT title FROM media_item WHERE id = ?", (nfc_id,)).fetchone()
+    assert survivor is not None, f"Survivor row id={nfc_id} must exist"
+    assert survivor[0] == _NFC("NFC", survivor[0]), "Survivor title must be NFC"
+    conn.close()
 
 
 def test_dry_run_reports_pairs_and_mutates_nothing(

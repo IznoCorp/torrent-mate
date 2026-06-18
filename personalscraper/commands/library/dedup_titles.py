@@ -193,7 +193,7 @@ def library_dedup_titles(
                 continue
 
             paths = {int(m["id"]): _get_dispatch_path(conn, int(m["id"])) for m in members}  # type: ignore[call-overload]
-            unique_paths = {p for p in paths.values() if p is not None}
+            unique_paths = {_unicodedata.normalize("NFC", p) for p in paths.values() if p is not None}
             if len(unique_paths) != 1:
                 log.warning("dedup_titles.dispatch_path_mismatch", ids=list(paths), paths=list(unique_paths))
                 stats.skipped += 1
