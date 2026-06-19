@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Torr9 - Torrents Récents</title>
+    <link>https://torr9.net</link>
+    <description>Flux RSS des derniers torrents publiés sur Torr9</description>
+    <language>fr-FR</language>
+    <item>
+      <title>JacquieEtMichelTV.Les.Mains.de.Sopixel.Sont.Irresistibles.16.06.2026.VFF.1080p.WEB.H264.AAC.2.0.OptimumXXX</title>
+      <link>https://torr9.net/torrents/305189</link>
+      <description>Uploaded by Versatis | Size: 652.7 MB | Category: Films/Vidéos +18</description>
+      <pubDate>Fri, 19 Jun 2026 09:42:25 +0000</pubDate>
+      <category>Films/Vidéos +18</category>
+      <guid>https://torr9.net/torrents/305189</guid>
+      <enclosure url="https://api.torr9.net/api/v1/rss/torrents/305189/download?passkey=<TORR9_PASSKEY>" length="684379123" type="application/x-bittorrent"></enclosure>
+    </item>
+    <item>
+      <title>The.Spy.Next.Door.2010.MULTI.1080p.Bluray.x264.DTS-HiDeF</title>
+      <link>https://torr9.net/torrents/305187</link>
+      <description>Uploaded by Tigourou | Size: 7.9 GB | Category: Films</description>
+      <pubDate>Fri, 19 Jun 2026 09:38:38 +0000</pubDate>
+      <category>Films</category>
+      <guid>https://torr9.net/torrents/305187</guid>
+      <enclosure url="https://api.torr9.net/api/v1/rss/torrents/305187/download?passkey=<TORR9_PASSKEY>" length="8500220701" type="application/x-bittorrent"></enclosure>
+    </item>
+    <item>
+      <title>Christian.Page.Les.Enfants.Tueurs.2026.FRENCH.MP3.128.kbps-NoTag</title>
+      <link>https://torr9.net/torrents/305183</link>
+      <description>Uploaded by Texas_41 | Size: 503.1 MB | Category: Livres Audios</description>
+      <pubDate>Fri, 19 Jun 2026 09:33:28 +0000</pubDate>
+      <category>Livres Audios</category>
+      <guid>https://torr9.net/torrents/305183</guid>
+      <enclosure url="https://api.torr9.net/api/v1/rss/torrents/305183/download?passkey=<TORR9_PASSKEY>" length="527532772" type="application/x-bittorrent"></enclosure>
+    </item>
+  </channel>
+</rss>
