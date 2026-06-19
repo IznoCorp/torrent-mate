@@ -17,9 +17,31 @@
 | 1   | Torr9Client + lazy JWT login + JSON search + golden tests                               | phase-01-client-login-jwt-golden.md            | [x]    |
 | 2   | Registry wiring + creds + config overlays + composition-root tests                      | phase-02-registry-wiring-creds-config.md       | [x]    |
 | 3   | FreeleechAware re-check + capabilities + schema-drift + ACC gate                        | phase-03-capabilities-schema-drift-acc-gate.md | [x]    |
-| 4   | Productionize torr9 — enable + seeders enrich + multi-cred protocol + .torrent download | phase-04-productionize.md                      | [ ]    |
+| 4   | Productionize torr9 — enable + seeders enrich + multi-cred protocol + .torrent download | phase-04-productionize.md                      | [x]    |
 
 ## Review cycles
+
+### Cycle 2 (PR #209) — phase-4 additions: understand workflow → implement → adversarial review → fix
+
+Operator added 4 items to PR #209 (decisions 2026-06-19/20): enable torr9, top-K=10 seeders
+enrichment (default on), generic `from_env` multi-cred protocol, real `.torrent` `/download`
+fallback. Grounded by a live API probe + a 4-agent understand workflow (config/CI safety,
+ranking-seeders necessity, download consumption, protocol design). Implemented in phase 4
+(5 commits a3b028f8..a2a13a43), **live-re-reproduced end-to-end** against the real torr9 API
+(search+enrich+get_details+`.torrent` download all confirmed). Adversarial review
+(code-reviewer + silent-failure-hunter) found and I fixed (2 commits b0825326, 3802dce3):
+
+- **CRITICAL** — enrichment loop caught only `ApiError`; a mid-enrichment `CircuitOpenError`
+  (sibling of `ApiError`, threshold 5 / top_k 10 → reachable in one search) escaped and
+  aborted the WHOLE multi-tracker search, discarding sibling results. Fixed: catch
+  `CircuitOpenError` + `break` (fail-soft as documented). Regression test confirmed
+  fails-before/passes-after.
+- **MEDIUM** — empty `id` → malformed `/torrents//download`; now `download_url=None` (clean
+  `TorrentFetchError`). **MEDIUM** — `transports()` `except Exception` narrowed to
+  `(ApiError, CircuitOpenError, RequestException)` + `error_type` log.
+  Verified: `make check` 7042 passed (0 failed), `make lint` green, 97 tracker tests, all
+  phase-4 gate probes + live e2e pass. No remaining critical/major/medium → loop exits.
+  Merge mode = **manual** → handoff to operator after CI green.
 
 ### Cycle 1 (PR #209) — adversarial review (code-reviewer + silent-failure-hunter + pr-test-analyzer)
 
