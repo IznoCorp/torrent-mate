@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kanbanmate"
-version = "0.7.0"
+version = "0.7.1"
 description = "Reusable Kanban orchestrator on GitHub Projects v2 with autonomous Claude Code agents."
 requires-python = ">=3.12"
 license = { text = "MIT" }
