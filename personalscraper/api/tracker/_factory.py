@@ -29,6 +29,7 @@ log = get_logger("api.tracker.factory")
 _TRACKER_CLASSES: dict[str, str] = {
     "lacale": "personalscraper.api.tracker.lacale:LaCaleClient",
     "c411": "personalscraper.api.tracker.c411:C411Client",
+    "torr9": "personalscraper.api.tracker.torr9:Torr9Client",
 }
 
 
@@ -114,11 +115,22 @@ def build_tracker_registry(
             continue
 
         client_cls = _resolve_tracker_class(name)
-        # Single-key assumption: all current trackers (lacale/c411) have exactly
-        # one credential; revisit if a multi-key tracker is added.
-        api_key = env[required[0]] if required else ""
-        transport = HttpTransport(client_cls.policy(api_key), event_bus=event_bus)  # type: ignore[attr-defined]
-        client = client_cls(transport)
+        # torr9 uses a two-credential JWT login (username + password); its
+        # policy() takes no credentials (NoAuth placeholder) and its __init__
+        # takes username/password separately. All other trackers (lacale/c411)
+        # use a single API key passed to policy(api_key). Guard on name until
+        # a general multi-cred protocol is designed.
+        if name == "torr9":
+            transport = HttpTransport(client_cls.policy(), event_bus=event_bus)  # type: ignore[attr-defined]
+            client = client_cls(
+                transport,
+                username=env.get("TORR9_USERNAME", ""),
+                password=env.get("TORR9_PASSWORD", ""),
+            )
+        else:
+            api_key = env[required[0]] if required else ""
+            transport = HttpTransport(client_cls.policy(api_key), event_bus=event_bus)  # type: ignore[attr-defined]
+            client = client_cls(transport)
 
         if not isinstance(client, TorrentSearchable):
             issues.append(
