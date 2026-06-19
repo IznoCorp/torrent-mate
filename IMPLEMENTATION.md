@@ -6,7 +6,7 @@
 **Version bump**: 0.36.2 → 0.37.0
 **Branch**: feat/torr9
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/209
 **Design**: docs/features/torr9/DESIGN.md
 **Master plan**: docs/features/torr9/plan/INDEX.md
 
