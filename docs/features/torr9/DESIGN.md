@@ -28,18 +28,24 @@ The torr9 API was captured live — full reference in
 **torr9 is a full search tracker** via an authenticated JSON API (+ passkey RSS
 feeds for the freeleech radar). Resolved facts:
 
-| Fact            | Value                                                                                                                                                                                                                                                                                  |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Base**        | `https://api.torr9.net/api/v1`                                                                                                                                                                                                                                                         |
-| **Auth (DUAL)** | **JWT** for the JSON API: `POST /auth/login {username,password}` → `{token,user,message}` → `Authorization: Bearer <token>`. **Passkey** for RSS feeds + announce/download (`TORR9_PASSKEY`). Creds: `TORR9_USERNAME`, `TORR9_PASSWORD`, `TORR9_PASSKEY`.                              |
-| **Search**      | `GET /torrents?q=<query>` + Bearer → JSON `{limit, page, torrents:[...]}`. Param is **`q`** (`search` ignored). Pagination via `page`. Sample: `../../reference/_samples/torr9/torr9_search.json`.                                                                                     |
-| **Item (JSON)** | `id`, `title`, `description`(BBCode), `info_hash`, **`magnet_link`**, `torrent_file_url`(relative), **`file_size_bytes`**, `file_count`, `category_id`(numeric), `uploader_id`, `is_private`, **`is_freeleech`**(bool), `is_anon`, `is_exclu`, `tags[]`, `upload_date`(ISO), `status`. |
-| **Download**    | **`magnet_link`** (direct, auth-free → Q4 magnet exception). `torrent_file_url` = relative, needs base+auth (fallback).                                                                                                                                                                |
-| **Freeleech**   | structured boolean `is_freeleech` (search) + `\| FREELEECH` marker (RSS).                                                                                                                                                                                                              |
-| **Auth errors** | login 401 "Identifiant ou mot de passe invalide"; JSON 401 "Missing authorization token"; 429/403 rate-limit. Token expiry → re-login (RP7).                                                                                                                                           |
+| Fact            | Value                                                                                                                                                                                                                                                                                                                      |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Base**        | `https://api.torr9.net/api/v1`                                                                                                                                                                                                                                                                                             |
+| **Auth (DUAL)** | **JWT** for the JSON API: `POST /auth/login {username,password}` → `{token,user,message}` → `Authorization: Bearer <token>`. **Passkey** for RSS feeds + announce/download (`TORR9_PASSKEY`). Creds: `TORR9_USERNAME`, `TORR9_PASSWORD`, `TORR9_PASSKEY`.                                                                  |
+| **Search**      | `GET /torrents?q=<query>` + Bearer → JSON `{limit, page, torrents:[...]}`. Param is **`q`** (`search` ignored). Pagination via `page`. Sample: `../../reference/_samples/torr9/torr9_search.json`.                                                                                                                         |
+| **Detail**      | `GET /torrents/{id}` + Bearer → JSON **single torrent** object (live-confirmed 2026-06-19). Carries `is_freeleech` AND — unlike search — `seeders`/`leechers`/`times_completed`/`views` + `category_name`. Backs the **FreeleechAware** pre-download re-check. Sample: `../../reference/_samples/torr9/torr9_detail.json`. |
+| **Item (JSON)** | `id`, `title`, `description`(BBCode), `info_hash`, **`magnet_link`**, `torrent_file_url`(relative), **`file_size_bytes`**, `file_count`, `category_id`(numeric), `uploader_id`, `is_private`, **`is_freeleech`**(bool), `is_anon`, `is_exclu`, `tags[]`, `upload_date`(ISO), `status`.                                     |
+| **Download**    | **`magnet_link`** (direct, auth-free → Q4 magnet exception). `torrent_file_url` = relative, needs base+auth (fallback).                                                                                                                                                                                                    |
+| **Freeleech**   | structured boolean `is_freeleech` (search) + `\| FREELEECH` marker (RSS).                                                                                                                                                                                                                                                  |
+| **Auth errors** | login 401 "Identifiant ou mot de passe invalide"; JSON 401 "Missing authorization token"; 429/403 rate-limit. Token expiry → re-login (RP7).                                                                                                                                                                               |
 
-**NOT exposed** (drives the design): **no seeders/leechers** (neither JSON nor RSS),
-no IMDb/TMDb id, no structured codec/resolution beyond `title`/`tags`.
+**NOT exposed by SEARCH** (drives the design): the **search** payload carries **no
+seeders/leechers** (neither the JSON list nor RSS), no IMDb/TMDb id, no structured
+codec/resolution beyond `title`/`tags`. The **detail** endpoint (`GET /torrents/{id}`,
+live-confirmed) _does_ carry `seeders`/`leechers` — but an N+1 detail-fetch per search
+result to populate ranking seeders is **deferred** (DESIGN Risk "no seeders"); search
+results keep `seeders=0`. Detail is fetched only by the `FreeleechAware.is_freeleech`
+pre-download re-check.
 
 **Minor unknowns** (confirm at impl with a fresh token, low-rate): `category_id`→label
 map (`GET /categories`), JWT lifetime/refresh, pagination bound, 429/403 budget.
@@ -58,7 +64,7 @@ prefer `magnet_link` for the grab.
 
 Mirror the proven provider pattern exactly — **no new framework code**:
 
-1. **`personalscraper/api/tracker/torr9.py`** — `Torr9Client(TorrentSearchable, FreeleechAware)`:
+1. **`personalscraper/api/tracker/torr9.py`** — `Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware)`:
    - **Auth = login → Bearer JWT** (NOT a static api-key): `_login()` POSTs
      `{username, password}` to `/auth/login`, caches the returned `token`, injects
      `Authorization: Bearer <token>`. **Re-login on 401** (token expiry, RP7
@@ -72,7 +78,12 @@ Mirror the proven provider pattern exactly — **no new framework code**:
      (`category_id`→label; seed from the fixture, extend with `GET /categories`).
    - `_parse_item(json)` → `TrackerResult`: `title`; size=`file_size_bytes`;
      `is_freeleech` (bool); **download = `magnet_link`** (auth-free); `info_hash`;
-     category from `category_id`; `upload_date`. **`seeders=None`** (not exposed).
+     category from `category_id`; `upload_date`. **`seeders=0`** (search exposes none).
+   - `is_freeleech(self, torrent_id) -> bool` (**FreeleechAware** capability,
+     live-confirmed endpoint): ensure token → `GET /torrents/{id}` (re-login on 401)
+     → return the fresh `is_freeleech` boolean from the single-torrent detail payload.
+     A genuine pre-download re-check (not a stub) — torr9 _does_ expose a per-torrent
+     detail endpoint, unlike c411/lacale.
    - `provider_name = "torr9"`.
 2. **`personalscraper/api/tracker/_factory.py`** — add
    `"torr9": "personalscraper.api.tracker.torr9:Torr9Client"` to `_TRACKER_CLASSES`.
@@ -89,7 +100,11 @@ Mirror the proven provider pattern exactly — **no new framework code**:
    - extend `tests/unit/test_tracker_parser_schema_drift.py` — torr9 survives a
      missing/renamed field via `wrap_parser_drift`.
    - extend `tests/unit/test_tracker_capabilities_composition.py` — `Torr9Client`
-     is a `TorrentSearchable` + `CategoryListable` (+ `FreeleechAware`).
+     is a `TorrentSearchable` + `CategoryListable` + `FreeleechAware` (the last via
+     the live-confirmed `GET /torrents/{id}` detail re-check).
+   - `tests/unit/test_torr9_client.py` — `is_freeleech(torrent_id)` golden test
+     from the **captured** `docs/reference/_samples/torr9/torr9_detail.json`
+     (re-check returns the detail payload's `is_freeleech`), plus a re-login-on-401 path.
    - extend `tests/integration/api/tracker/test_composition_root.py` — with
      `torr9.enabled=true` + `TORR9_USERNAME + TORR9_PASSWORD` set, `build_tracker_registry`
      includes torr9; with creds missing + enabled, boot validation reports the
@@ -112,11 +127,13 @@ Mirror the proven provider pattern exactly — **no new framework code**:
   auth-freshness pattern. A `login()` failure (401 bad creds) must fail loud at
   boot validation, not silently drop torr9. Tests must NOT hit the live login
   (use fixtures + a mocked transport).
-- **No seeders exposed** — `_ranking.py` weights seeders; torr9 results carry none
-  (neither JSON nor RSS) → they rank on freeleech/size/recency only. Mitigation:
-  set `seeders=None`/0 and confirm the merged ranking doesn't unfairly sink torr9
-  (special-case missing-seeders if needed). Do NOT N+1 detail-fetch for seeders
-  unless ranking proves it necessary.
+- **No seeders in SEARCH** — `_ranking.py` weights seeders; torr9 **search** results
+  carry none → they rank on freeleech/size/recency only. Mitigation: set `seeders=0`
+  and confirm the merged ranking doesn't unfairly sink torr9. The **detail** endpoint
+  (`GET /torrents/{id}`) _does_ expose `seeders`/`leechers`, but an N+1 detail-fetch per
+  search hit to populate ranking seeders is **deferred** (not in this feature) — do NOT
+  add it unless ranking proves it necessary. The detail endpoint is used here only for
+  the `FreeleechAware` re-check.
 - **Vacuous parser tests** (project memory: DeepSeek-written parsers/API-wrappers
   pass `make check` while hiding real bugs). Mitigation: golden fixtures from the
   **real captured torr9 payloads** (`../../reference/_samples/torr9/`, passkey-redacted) + adversarial
@@ -184,4 +201,12 @@ ACC-7 — boot validation fails loud when torr9 enabled without creds:
 # with torr9.enabled=true and TORR9_USERNAME + TORR9_PASSWORD unset, build_tracker_registry must report the missing cred
 python -m pytest tests/integration/api/tracker/test_composition_root.py -q -k torr9
 # Expected: passed (the missing-cred fail-loud case is asserted)
+```
+
+ACC-8 — torr9 implements the FreeleechAware capability (pre-download re-check via
+the live-confirmed `GET /torrents/{id}` detail endpoint):
+
+```bash
+python -c "from personalscraper.api.tracker.torr9 import Torr9Client; from personalscraper.api.tracker._contracts import FreeleechAware; t=Torr9Client(__import__('unittest.mock',fromlist=['MagicMock']).MagicMock(), username='u', password='p'); print(isinstance(t, FreeleechAware) and hasattr(Torr9Client,'is_freeleech'))"
+# Expected: True
 ```

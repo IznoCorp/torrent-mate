@@ -88,16 +88,16 @@ Authorization: Bearer <token>
 }
 ```
 
-| `TrackerResult` field  | Source                                                                   |
-| ---------------------- | ------------------------------------------------------------------------ |
-| title                  | `title`                                                                  |
-| size (bytes)           | `file_size_bytes`                                                        |
-| `is_freeleech`         | `is_freeleech` (clean boolean — no text parsing)                         |
-| download               | `magnet_link` (preferred, auth-free) or `torrent_file_url` (base + auth) |
-| upload_date            | `upload_date` (ISO)                                                      |
-| category               | mapped from `category_id` (§Categories)                                  |
-| info hash / tracker id | `info_hash` / `id`                                                       |
-| **seeders / leechers** | **NOT available** — torr9 exposes no swarm health (JSON or RSS)          |
+| `TrackerResult` field  | Source                                                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| title                  | `title`                                                                                                                               |
+| size (bytes)           | `file_size_bytes`                                                                                                                     |
+| `is_freeleech`         | `is_freeleech` (clean boolean — no text parsing)                                                                                      |
+| download               | `magnet_link` (preferred, auth-free) or `torrent_file_url` (base + auth)                                                              |
+| upload_date            | `upload_date` (ISO)                                                                                                                   |
+| category               | mapped from `category_id` (§Categories)                                                                                               |
+| info hash / tracker id | `info_hash` / `id`                                                                                                                    |
+| **seeders / leechers** | **NOT in SEARCH** — torr9's search payload exposes no swarm health (the **detail** endpoint `GET /torrents/{id}` _does_; see §Detail) |
 
 ## Download
 
@@ -105,6 +105,28 @@ Authorization: Bearer <token>
   ROADMAP Q4 "magnet exception"). Hand straight to qBittorrent.
 - `torrent_file_url` is a **relative** path; absolute `.torrent` needs the base +
   auth (passkey or token) — only if a `.torrent` file is specifically required.
+
+## Detail (JSON API) — per-torrent re-check
+
+```
+GET /api/v1/torrents/{id}
+Authorization: Bearer <token>
+```
+
+Live-confirmed 2026-06-19. Returns a **single torrent** object (NOT a list/wrapper).
+Superset of the search item: same `id` / `title` / `info_hash` / `magnet_link` /
+`file_size_bytes` / `is_freeleech` / `tags` / `upload_date`, **plus** fields the
+search omits — `seeders`, `leechers`, `times_completed`, `views`, `age`,
+`category_name`, and uploader stats. Sample: `_samples/torr9/torr9_detail.json`
+(uploader private stats zeroed, avatar redacted — no passkey/token present).
+
+Backs the **`FreeleechAware.is_freeleech(torrent_id)`** pre-download re-check:
+ensure token → `GET /torrents/{id}` (re-login on 401) → return the fresh
+`is_freeleech` boolean. The `seeders`/`leechers` here would also let a future
+ranking improvement N+1-fetch swarm health, but that is **deferred** (not in this
+feature; see DESIGN Risk "No seeders in SEARCH").
+
+`GET /torrent/{id}` (singular) returns **404** — the path is **plural** `torrents`.
 
 ## RSS feeds (passkey) — for the freeleech radar
 
@@ -135,15 +157,22 @@ Séries Animées / …) to map → pipeline `media_type` + `category_id`.
 - **Magnet-first download** (auth-free) — clean for the grab core.
 - **Freeleech** is a structured boolean in search (`is_freeleech`) and a `| FREELEECH`
   marker in the RSS — both feed `TrackerResult.is_freeleech`.
-- **No seeders** — `_ranking.py` weights seeders; torr9 results carry none → rank on
-  freeleech / size / recency. Confirm the merged ranking doesn't unfairly sink them.
+- **`Torr9Client` IS a `FreeleechAware`** — `is_freeleech(torrent_id)` re-checks via
+  the `GET /torrents/{id}` detail endpoint (live-confirmed). A real pre-download
+  re-check, unlike c411/lacale which have no detail endpoint.
+- **No seeders in SEARCH** — `_ranking.py` weights seeders; torr9 _search_ results
+  carry none → rank on freeleech / size / recency. The detail endpoint has them, but
+  populating ranking seeders via N+1 detail-fetch is **deferred**.
 - **Freeleech radar (R1)** — the `rss/freeleech` feed is exactly the "freeleech window
   enumeration" the ROADMAP Q3/R1 wants.
 
 ## Open items (confirm at impl)
 
-1. `category_id` → label map (`GET /categories` with fresh token).
+1. `category_id` → label map (`GET /categories` with fresh token). _Detail responses
+   carry `category_name` directly, which partially covers this._
 2. JWT lifetime / refresh mechanism (token expiry handling).
 3. Pagination upper bound + per-category search params (`?category_id=` ?).
-4. Rate-limit budget (429/403 thresholds) → `TransportPolicy` throttle.
-5. `torrent_file_url` absolute form + auth (only if magnet is ever insufficient).
+
+**Resolved (live 2026-06-19):** the per-torrent **detail** endpoint
+`GET /torrents/{id}` exists and exposes `is_freeleech` + `seeders`/`leechers` —
+backs the `FreeleechAware` re-check (see §Detail). 4. Rate-limit budget (429/403 thresholds) → `TransportPolicy` throttle. 5. `torrent_file_url` absolute form + auth (only if magnet is ever insufficient).
