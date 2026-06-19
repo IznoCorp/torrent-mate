@@ -202,9 +202,7 @@ class TestTorr9Bootstrap:
                 return False
 
             def post(self, path: str, data: dict[str, str]) -> dict[str, str]:
-                raise ApiError(
-                    provider="torr9", http_status=401, message="Identifiant ou mot de passe invalide"
-                )
+                raise ApiError(provider="torr9", http_status=401, message="Identifiant ou mot de passe invalide")
 
             def get(self, path: str, params: dict[str, object] | None = None) -> dict[str, object]:
                 return {}
@@ -273,9 +271,7 @@ class TestTorr9Search:
         )
 
         t2 = MagicMock()
-        t2.get.side_effect = ApiError(
-            provider="torr9", http_status=401, message="Missing authorization token"
-        )
+        t2.get.side_effect = ApiError(provider="torr9", http_status=401, message="Missing authorization token")
         monkeypatch.setattr(client, "_ensure_transport", lambda: t2)
 
         with pytest.raises(ApiError) as exc:
@@ -609,9 +605,7 @@ class TestTorr9FreeleechRecheck:
         )
 
         t2 = MagicMock()
-        t2.get.side_effect = ApiError(
-            provider="torr9", http_status=401, message="Missing authorization token"
-        )
+        t2.get.side_effect = ApiError(provider="torr9", http_status=401, message="Missing authorization token")
         monkeypatch.setattr(client, "_ensure_transport", lambda: t2)
 
         with pytest.raises(ApiError) as exc:
