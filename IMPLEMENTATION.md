@@ -16,7 +16,7 @@
 | --- | ------------------------------------------------------------------ | ---------------------------------------------- | ------ |
 | 1   | Torr9Client + lazy JWT login + JSON search + golden tests          | phase-01-client-login-jwt-golden.md            | [x]    |
 | 2   | Registry wiring + creds + config overlays + composition-root tests | phase-02-registry-wiring-creds-config.md       | [x]    |
-| 3   | Capabilities composition + schema-drift + ACC gate                 | phase-03-capabilities-schema-drift-acc-gate.md | [ ]    |
+| 3   | FreeleechAware re-check + capabilities + schema-drift + ACC gate   | phase-03-capabilities-schema-drift-acc-gate.md | [x]    |
 
 ## Review cycles
 
@@ -24,17 +24,16 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to execute phase 2 (registry wiring + creds + config overlays + composition-root tests).
+All phases complete — run `/implement:feature-pr` (local gate → push → PR → CI → review).
 
-> **Phase 1 concern (carry to phase 3):** DESIGN.md is internally inconsistent on
-> capabilities — Approach §1 says `Torr9Client(TorrentSearchable, FreeleechAware)`
-> but the capabilities-test bullet + ACC-1 require `TorrentSearchable + CategoryListable`.
-> Phase 1 implemented `(TorrentSearchable, CategoryListable)` and deliberately dropped
-> `FreeleechAware` (freeleech is a structured `is_freeleech` bool in the search response —
-> no separate re-check endpoint exists, so the protocol would be vacuous). The binding
-> ACC-1 (search + get_categories) is satisfied. Phase 3's capabilities-composition test
-> must assert `TorrentSearchable + CategoryListable` and NOT require `FreeleechAware`;
-> reconcile DESIGN Approach §1 accordingly (awaiting user decision — do not silently drop).
+> **FreeleechAware concern — RESOLVED (user decision 2026-06-19):** the DESIGN-vs-plan
+> inconsistency flagged at phase 1 was decided by the user: **implement FreeleechAware**.
+> A live probe confirmed torr9 exposes a real per-torrent detail endpoint
+> (`GET /api/v1/torrents/{id}` → single torrent with `is_freeleech` + seeders/leechers),
+> so `is_freeleech(torrent_id)` is a genuine pre-download re-check, NOT a vacuous stub.
+> Phase 3 implements it; DESIGN + api-ref reconciled; ACC-8 added and passing. The class
+> is now `Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware)`. Detail-endpoint
+> `seeders`/`leechers` for ranking is **deferred** (not in this feature).
 
 > **Prep note (research 2026-06-19):** torr9 captured LIVE — it is a full search
 > tracker via the **authenticated JSON API** (`POST /auth/login` → JWT;
