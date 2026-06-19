@@ -12,11 +12,12 @@
 
 ## Phases
 
-| #   | Phase                                                              | File                                           | Status |
-| --- | ------------------------------------------------------------------ | ---------------------------------------------- | ------ |
-| 1   | Torr9Client + lazy JWT login + JSON search + golden tests          | phase-01-client-login-jwt-golden.md            | [x]    |
-| 2   | Registry wiring + creds + config overlays + composition-root tests | phase-02-registry-wiring-creds-config.md       | [x]    |
-| 3   | FreeleechAware re-check + capabilities + schema-drift + ACC gate   | phase-03-capabilities-schema-drift-acc-gate.md | [x]    |
+| #   | Phase                                                                                   | File                                           | Status |
+| --- | --------------------------------------------------------------------------------------- | ---------------------------------------------- | ------ |
+| 1   | Torr9Client + lazy JWT login + JSON search + golden tests                               | phase-01-client-login-jwt-golden.md            | [x]    |
+| 2   | Registry wiring + creds + config overlays + composition-root tests                      | phase-02-registry-wiring-creds-config.md       | [x]    |
+| 3   | FreeleechAware re-check + capabilities + schema-drift + ACC gate                        | phase-03-capabilities-schema-drift-acc-gate.md | [x]    |
+| 4   | Productionize torr9 — enable + seeders enrich + multi-cred protocol + .torrent download | phase-04-productionize.md                      | [ ]    |
 
 ## Review cycles
 
