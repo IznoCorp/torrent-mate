@@ -384,3 +384,78 @@ class TestTorr9MalformedPayload:
             client.search("x")
         assert exc.value.provider == "torr9"
         assert "shape drift" in exc.value.message
+
+
+# ---------------------------------------------------------------------------
+# FreeleechAware re-check tests
+# ---------------------------------------------------------------------------
+
+
+class TestTorr9FreeleechRecheck:
+    """is_freeleech(torrent_id) — pre-download re-check via GET /torrents/{id}.
+
+    Anti-vacuity: asserts the re-check reads the real detail payload's
+    is_freeleech field (golden fixture), the correct path, and the re-login path.
+    """
+
+    def test_is_freeleech_false_from_detail_fixture(self) -> None:
+        """Re-check returns False from the real torr9_detail.json (id 305292)."""
+        client = _make_client()
+        client._token = "t"
+        client._transport.get.return_value = _load("torr9_detail.json")  # type: ignore[attr-defined]
+        assert client.is_freeleech("305292") is False
+
+    def test_is_freeleech_true_when_detail_flag_true(self) -> None:
+        """Re-check returns True when the detail payload reports freeleech."""
+        client = _make_client()
+        client._token = "t"
+        detail = _load("torr9_detail.json")
+        assert isinstance(detail, dict)  # narrow for mypy before mutating
+        detail["is_freeleech"] = True
+        client._transport.get.return_value = detail  # type: ignore[attr-defined]
+        assert client.is_freeleech("305292") is True
+
+    def test_is_freeleech_hits_detail_path(self) -> None:
+        """Re-check calls GET /api/v1/torrents/{id}."""
+        client = _make_client()
+        client._token = "t"
+        client._transport.get.return_value = {"id": 999, "is_freeleech": False}  # type: ignore[attr-defined]
+        client.is_freeleech("999")
+        kwargs = client._transport.get.call_args.kwargs  # type: ignore[attr-defined]
+        assert kwargs["path"] == "/api/v1/torrents/999"
+
+    def test_is_freeleech_missing_field_defaults_false(self) -> None:
+        """A detail payload without is_freeleech defaults to False (graceful)."""
+        client = _make_client()
+        client._token = "t"
+        client._transport.get.return_value = {"id": 1, "title": "x"}  # type: ignore[attr-defined]
+        assert client.is_freeleech("1") is False
+
+    def test_is_freeleech_relogin_on_401(self) -> None:
+        """A 401 on the detail GET triggers re-login and a single retry."""
+        client = _make_client()
+        client._token = "stale"
+        call_count = 0
+
+        def _side_effect(**kwargs: object) -> dict[str, object]:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise ApiError(provider="torr9", http_status=401, message="Missing authorization token")
+            return {"id": 1, "is_freeleech": True}
+
+        client._transport.get.side_effect = _side_effect  # type: ignore[attr-defined]
+        client._transport.post.return_value = {"token": "new-jwt"}  # type: ignore[attr-defined]
+
+        assert client.is_freeleech("305292") is True
+        assert client._transport.post.call_count == 1  # type: ignore[attr-defined]
+
+    def test_is_freeleech_non_dict_payload_raises_api_error(self) -> None:
+        """A non-dict detail payload surfaces as ApiError via wrap_parser_drift."""
+        client = _make_client()
+        client._token = "t"
+        client._transport.get.return_value = [1, 2, 3]  # type: ignore[attr-defined]
+        with pytest.raises(ApiError) as exc:
+            client.is_freeleech("1")
+        assert exc.value.provider == "torr9"
+        assert "shape drift" in exc.value.message

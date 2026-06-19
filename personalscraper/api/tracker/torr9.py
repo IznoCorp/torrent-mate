@@ -31,6 +31,7 @@ from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult, wrap_parser_drift
 from personalscraper.api.tracker._contracts import (
     CategoryListable,
+    FreeleechAware,
     TorrentSearchable,
 )
 from personalscraper.api.transport._auth import BearerAuth, NoAuth
@@ -79,16 +80,17 @@ def _parse_iso(value: Any) -> datetime | None:
         return None
 
 
-class Torr9Client(TorrentSearchable, CategoryListable):
+class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware):
     """torr9 tracker API client — authenticated JSON API with JWT login.
 
-    Composes :class:`~personalscraper.api.tracker._contracts.TorrentSearchable`
-    and :class:`~personalscraper.api.tracker._contracts.CategoryListable`.
+    Composes :class:`~personalscraper.api.tracker._contracts.TorrentSearchable`,
+    :class:`~personalscraper.api.tracker._contracts.CategoryListable`, and
+    :class:`~personalscraper.api.tracker._contracts.FreeleechAware`.
     Auth is lazy JWT login (POST /auth/login) with re-login on 401 (RP7).
 
-    The client does NOT implement :class:`FreeleechAware` because freeleech is
-    already a structured boolean in the search response (``is_freeleech`` field)
-    — no separate re-check endpoint exists or is needed.
+    Unlike c411/lacale (no per-torrent detail endpoint), torr9 exposes
+    ``GET /api/v1/torrents/{id}`` (live-confirmed), so ``is_freeleech`` is a
+    genuine pre-download re-check, not a stub.
     """
 
     provider_name: str = "torr9"
@@ -232,6 +234,48 @@ class Torr9Client(TorrentSearchable, CategoryListable):
             data = cast("dict[str, Any]", raw)
             items = data.get("torrents") or []
             return [self._parse_item(item) for item in items]
+
+        return wrap_parser_drift(self.provider_name, _parse)
+
+    def is_freeleech(self, torrent_id: str) -> bool:
+        """Re-check whether a torrent is currently freeleech (FreeleechAware).
+
+        Pre-download re-check via the per-torrent detail endpoint
+        ``GET /api/v1/torrents/{id}`` (live-confirmed 2026-06-19). Distinct from
+        the ``is_freeleech`` field captured at search time on ``TrackerResult`` —
+        this surfaces a flag that flipped asynchronously. Logs in lazily and
+        re-logins once on 401 (RP7 auth-lifecycle), mirroring ``search()``.
+
+        Args:
+            torrent_id: The torr9 numeric torrent id (as a string).
+
+        Returns:
+            True if the detail payload reports freeleech; False otherwise
+            (including when the ``is_freeleech`` field is absent).
+
+        Raises:
+            ApiError: On a non-401 transport error, a 401 surviving one re-login
+                (bad creds → fail-loud), or a malformed (non-dict) detail payload
+                (surfaced via ``wrap_parser_drift``).
+        """
+        self._ensure_logged_in()
+        path = f"/api/v1/torrents/{torrent_id}"
+
+        try:
+            raw = self._transport.get(path=path)
+        except ApiError as exc:
+            if exc.http_status == 401:
+                # RP7: token expired — re-login once and retry the detail GET.
+                log.info("torr9_relogin_on_401", provider=self.provider_name)
+                self._token = None
+                self._login()
+                raw = self._transport.get(path=path)
+            else:
+                raise
+
+        def _parse() -> bool:
+            data = cast("dict[str, Any]", raw)
+            return bool(data.get("is_freeleech", False))
 
         return wrap_parser_drift(self.provider_name, _parse)
 
