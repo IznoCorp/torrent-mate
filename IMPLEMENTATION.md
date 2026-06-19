@@ -8,11 +8,15 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/torr9/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/torr9/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                                              | File                                           | Status |
+| --- | ------------------------------------------------------------------ | ---------------------------------------------- | ------ |
+| 1   | Torr9Client + lazy JWT login + JSON search + golden tests          | phase-01-client-login-jwt-golden.md            | [ ]    |
+| 2   | Registry wiring + creds + config overlays + composition-root tests | phase-02-registry-wiring-creds-config.md       | [ ]    |
+| 3   | Capabilities composition + schema-drift + ACC gate                 | phase-03-capabilities-schema-drift-acc-gate.md | [ ]    |
 
 ## Review cycles
 
@@ -20,7 +24,7 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to execute phase 1 (Torr9Client + JWT login + JSON search + golden tests).
 
 > **Prep note (research 2026-06-19):** torr9 captured LIVE — it is a full search
 > tracker via the **authenticated JSON API** (`POST /auth/login` → JWT;

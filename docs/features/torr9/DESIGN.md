@@ -32,7 +32,7 @@ feeds for the freeleech radar). Resolved facts:
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Base**        | `https://api.torr9.net/api/v1`                                                                                                                                                                                                                                                         |
 | **Auth (DUAL)** | **JWT** for the JSON API: `POST /auth/login {username,password}` → `{token,user,message}` → `Authorization: Bearer <token>`. **Passkey** for RSS feeds + announce/download (`TORR9_PASSKEY`). Creds: `TORR9_USERNAME`, `TORR9_PASSWORD`, `TORR9_PASSKEY`.                              |
-| **Search**      | `GET /torrents?q=<query>` + Bearer → JSON `{limit, page, torrents:[...]}`. Param is **`q`** (`search` ignored). Pagination via `page`. Sample: `../../reference/_samples/torr9/torr9_search.json`.                                                                                                           |
+| **Search**      | `GET /torrents?q=<query>` + Bearer → JSON `{limit, page, torrents:[...]}`. Param is **`q`** (`search` ignored). Pagination via `page`. Sample: `../../reference/_samples/torr9/torr9_search.json`.                                                                                     |
 | **Item (JSON)** | `id`, `title`, `description`(BBCode), `info_hash`, **`magnet_link`**, `torrent_file_url`(relative), **`file_size_bytes`**, `file_count`, `category_id`(numeric), `uploader_id`, `is_private`, **`is_freeleech`**(bool), `is_anon`, `is_exclu`, `tags[]`, `upload_date`(ISO), `status`. |
 | **Download**    | **`magnet_link`** (direct, auth-free → Q4 magnet exception). `torrent_file_url` = relative, needs base+auth (fallback).                                                                                                                                                                |
 | **Freeleech**   | structured boolean `is_freeleech` (search) + `\| FREELEECH` marker (RSS).                                                                                                                                                                                                              |
@@ -58,32 +58,40 @@ prefer `magnet_link` for the grab.
 
 Mirror the proven provider pattern exactly — **no new framework code**:
 
-1. **`personalscraper/api/tracker/torr9.py`** — `Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware?)`:
-   - `@classmethod policy(cls, api_key: str) -> TransportPolicy` — base URL +
-     `ApiKeyAuth(api_key, param=…, location=…)` (mirror `C411Client.policy`).
+1. **`personalscraper/api/tracker/torr9.py`** — `Torr9Client(TorrentSearchable, FreeleechAware)`:
+   - **Auth = login → Bearer JWT** (NOT a static api-key): `_login()` POSTs
+     `{username, password}` to `/auth/login`, caches the returned `token`, injects
+     `Authorization: Bearer <token>`. **Re-login on 401** (token expiry, RP7
+     auth-lifecycle). `policy(cls, username, password)` builds the `TransportPolicy`
+     (base `…/api/v1`); the Bearer is applied lazily after login.
    - `__init__(self, transport: HttpTransport)`.
-   - `search(query, media_type=MOVIE, year=None) -> list[TrackerResult]` wrapped
-     in `wrap_parser_drift(self.provider_name, _parse)` (parser-drift safety).
-   - `get_categories() -> dict[str, str]` from a static `_CATEGORY_MAP`.
-   - `_parse_item(...)` → `TrackerResult` (title via `_parse_title`, size, seeders,
-     `is_freeleech`, `upload_date`, enclosure URL).
+   - `search(query, media_type=MOVIE, year=None) -> list[TrackerResult]` → ensure
+     token → `GET /torrents?q=<query>` → parse `torrents[]` (wrapped in
+     `wrap_parser_drift`). Pagination via `page` if needed.
+   - `get_categories() -> dict[str, str]` from a static `_CATEGORY_MAP`
+     (`category_id`→label; seed from the fixture, extend with `GET /categories`).
+   - `_parse_item(json)` → `TrackerResult`: `title`; size=`file_size_bytes`;
+     `is_freeleech` (bool); **download = `magnet_link`** (auth-free); `info_hash`;
+     category from `category_id`; `upload_date`. **`seeders=None`** (not exposed).
    - `provider_name = "torr9"`.
 2. **`personalscraper/api/tracker/_factory.py`** — add
-   `"torr9": "personalscraper.api.tracker.torr9:Torr9Client"` to `_CLIENT_PATHS`.
-3. **`personalscraper/api/_activation.py`** — `PROVIDER_CREDS["torr9"] = ["TORR9_API_KEY"]`;
+   `"torr9": "personalscraper.api.tracker.torr9:Torr9Client"` to `_TRACKER_CLASSES`.
+3. **`personalscraper/api/_activation.py`** — `PROVIDER_CREDS["torr9"] = ["TORR9_USERNAME", "TORR9_PASSWORD"]`;
    `PROVIDER_OPTIONAL_SECRETS["torr9"] = ["TORR9_PASSKEY"]` (only if torr9 needs a passkey).
 4. **`config/tracker.json5`** — add `torr9: { enabled: false, economy: { target_ratio, min_ratio, min_seed_time, hit_and_run_grace } }` (default **disabled** until creds are set) and append `"torr9"` to `priority`.
 5. **`config.example/tracker.json5`** — mirror the entry (overlay parity).
 6. **Tests** (golden fixtures — mandatory, see Risks):
-   - `tests/unit/test_torr9_client.py` — search parse from a **captured** torr9
-     payload fixture: asserts title/size/seeders/freeleech/category/url on real
-     fields (mirror `test_c411_client.py`); empty-result + malformed-payload paths.
+   - `tests/unit/test_torr9_client.py` — search parse from the **captured**
+     `docs/reference/_samples/torr9/torr9_search.json`: asserts title /
+     size(`file_size_bytes`) / `is_freeleech` / download(`magnet_link`) / category /
+     `upload_date` on real JSON fields (mirror `test_lacale_client.py`);
+     empty-result + malformed-payload paths; a mocked-login test (re-login on 401).
    - extend `tests/unit/test_tracker_parser_schema_drift.py` — torr9 survives a
      missing/renamed field via `wrap_parser_drift`.
    - extend `tests/unit/test_tracker_capabilities_composition.py` — `Torr9Client`
      is a `TorrentSearchable` + `CategoryListable` (+ `FreeleechAware`).
    - extend `tests/integration/api/tracker/test_composition_root.py` — with
-     `torr9.enabled=true` + `TORR9_API_KEY` set, `build_tracker_registry`
+     `torr9.enabled=true` + `TORR9_USERNAME + TORR9_PASSWORD` set, `build_tracker_registry`
      includes torr9; with creds missing + enabled, boot validation reports the
      missing cred (fail-loud, like lacale/c411).
 
@@ -121,7 +129,7 @@ Mirror the proven provider pattern exactly — **no new framework code**:
 - **Passkey is a secret** — `TORR9_PASSKEY` in `.env` only; redact in fixtures/docs
   (done). The passkey shared in chat during prep should be rotated.
 - **Creds gating** — torr9 ships `enabled: false`; enabling without
-  `TORR9_API_KEY` must fail-loud at boot (parity with c411/lacale), not silently
+  `TORR9_USERNAME + TORR9_PASSWORD` must fail-loud at boot (parity with c411/lacale), not silently
   drop the tracker.
 - **Overlay drift** — `config/` vs `config.example/` (project memory): add the
   entry to **both**.
@@ -138,7 +146,7 @@ python -c "from personalscraper.api.tracker.torr9 import Torr9Client; from perso
 ACC-2 — torr9 is registered in the factory client map:
 
 ```bash
-python -c "from personalscraper.api.tracker._factory import _CLIENT_PATHS; print('torr9' in _CLIENT_PATHS)"
+python -c "from personalscraper.api.tracker._factory import _TRACKER_CLASSES; print('torr9' in _TRACKER_CLASSES)"
 # Expected: True
 ```
 
@@ -146,7 +154,7 @@ ACC-3 — creds are gated:
 
 ```bash
 python -c "from personalscraper.api._activation import PROVIDER_CREDS; print(PROVIDER_CREDS.get('torr9'))"
-# Expected: ['TORR9_API_KEY']
+# Expected: ['TORR9_USERNAME', 'TORR9_PASSWORD']
 ```
 
 ACC-4 — config carries torr9 (both overlays):
@@ -173,7 +181,7 @@ make test 2>&1 | tail -1
 ACC-7 — boot validation fails loud when torr9 enabled without creds:
 
 ```bash
-# with torr9.enabled=true and TORR9_API_KEY unset, build_tracker_registry must report the missing cred
+# with torr9.enabled=true and TORR9_USERNAME + TORR9_PASSWORD unset, build_tracker_registry must report the missing cred
 python -m pytest tests/integration/api/tracker/test_composition_root.py -q -k torr9
 # Expected: passed (the missing-cred fail-loud case is asserted)
 ```
