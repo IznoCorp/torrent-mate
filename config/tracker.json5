@@ -16,7 +16,7 @@
         },
       },
       torr9: {
-        enabled: false,
+        enabled: true,
         economy: {
           target_ratio: 2.0,
           min_ratio: 1.0,
