@@ -138,6 +138,14 @@ class TestGroundingDiscipline:
             assert "ENUMERATE THE COMPLETE SET" in prompt, (
                 f"{name} missing complete-enumeration rule"
             )
+            # Hardening (conduit loop): a new third-party import must be DECLARED in pyproject + the
+            # CI install, verified on the project interpreter — never assumed present (the mcp-dep gap).
+            assert "DECLARE NEW DEPENDENCIES" in prompt, f"{name} missing dep-declaration rule"
+            # Hardening (conduit loop): CLI/Rich-output tests must not depend on terminal width/ANSI
+            # (the `kanban mcp --help` substring test passed locally, failed in CI's narrow non-TTY).
+            assert "terminal-width/ANSI-INDEPENDENT" in prompt, (
+                f"{name} missing terminal-independent-CLI-test rule"
+            )
 
     def test_brainstorm_does_not_carry_grounding_discipline(self) -> None:
         """The interactive brainstorm stage stays lean — it gathers requirements, writes no code."""
