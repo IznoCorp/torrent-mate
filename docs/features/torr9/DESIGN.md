@@ -65,12 +65,23 @@ prefer `magnet_link` for the grab.
 Mirror the proven provider pattern exactly — **no new framework code**:
 
 1. **`personalscraper/api/tracker/torr9.py`** — `Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware)`:
-   - **Auth = login → Bearer JWT** (NOT a static api-key): `_login()` POSTs
-     `{username, password}` to `/auth/login`, caches the returned `token`, injects
-     `Authorization: Bearer <token>`. **Re-login on 401** (token expiry, RP7
-     auth-lifecycle). `policy(cls, username, password)` builds the `TransportPolicy`
-     (base `…/api/v1`); the Bearer is applied lazily after login.
-   - `__init__(self, transport: HttpTransport)`.
+   - **Auth = login → Bearer JWT** (NOT a static api-key), built on the **TVDB
+     lazy-transport pattern** (no private `_session` access). The client owns its
+     transports: `_ensure_transport()` opens a one-shot `NoAuth` bootstrap
+     transport (`_bootstrap_policy()`), POSTs `{username, password}` to
+     `/api/v1/auth/login`, extracts the `token`, then builds and caches the authed
+     main transport whose policy carries `BearerAuth(token)`. `policy(cls, token)`
+     builds that authed `TransportPolicy` (base `…/api/v1`). Construction is
+     network-free: bootstrap is deferred to first `_transport` access (no token at
+     construct time), exactly like `TVDBClient`. **Re-login on 401** via
+     `_authed_get` (drop the cached transport → next access rebuilds it via a fresh
+     bootstrap → retry once; a second 401 fails loud, RP7 auth-lifecycle).
+   - `__init__(self, *, username: str, password: str, event_bus: EventBus)` —
+     stores creds + event bus, leaves the transport lazy (`__transport = None`).
+     The factory hook `build_from_env(cls, *, env, event_bus)` constructs the
+     client from resolved env creds; the registry dispatches on the **presence**
+     of this classmethod (login-style trackers declare it; api-key trackers omit
+     it), never a provider-name literal.
    - `search(query, media_type=MOVIE, year=None) -> list[TrackerResult]` → ensure
      token → `GET /torrents?q=<query>` → parse `torrents[]` (wrapped in
      `wrap_parser_drift`). Pagination via `page` if needed.
@@ -84,9 +95,13 @@ Mirror the proven provider pattern exactly — **no new framework code**:
      → return the fresh `is_freeleech` boolean from the single-torrent detail payload.
      A genuine pre-download re-check (not a stub) — torr9 _does_ expose a per-torrent
      detail endpoint, unlike c411/lacale.
-   - `provider_name = "torr9"`.
+   - `provider_name = ProviderName.TORR9.value` (`ProviderName.TORR9 = "torr9"`).
 2. **`personalscraper/api/tracker/_factory.py`** — add
    `"torr9": "personalscraper.api.tracker.torr9:Torr9Client"` to `_TRACKER_CLASSES`.
+   Construction dispatches on the presence of a `build_from_env` classmethod
+   (login-style trackers self-build their lazy authed transport from env creds);
+   api-key trackers (lacale/c411) omit it and use the single-key `policy(api_key)`
+   path. No `if name == "torr9"` literal.
 3. **`personalscraper/api/_activation.py`** — `PROVIDER_CREDS["torr9"] = ["TORR9_USERNAME", "TORR9_PASSWORD"]`;
    `PROVIDER_OPTIONAL_SECRETS["torr9"] = ["TORR9_PASSKEY"]` (only if torr9 needs a passkey).
 4. **`config/tracker.json5`** — add `torr9: { enabled: false, economy: { target_ratio, min_ratio, min_seed_time, hit_and_run_grace } }` (default **disabled** until creds are set) and append `"torr9"` to `priority`.
