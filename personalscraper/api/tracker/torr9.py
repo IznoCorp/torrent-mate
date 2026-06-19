@@ -12,8 +12,9 @@ Field shapes validated against docs/reference/_samples/torr9/torr9_search.json
 torr9 particularities (live-confirmed):
 - Search param is ``q`` (NOT ``search`` — returns 0 results).
 - Pagination via ``page`` query param (default page 1, limit 20).
-- ``magnet_link`` is auth-free (preferred download). ``torrent_file_url`` is
-  relative and needs base + auth.
+- ``magnet_link`` is auth-free (the ONLY download path used this feature).
+  ``torrent_file_url`` is relative (needs base + auth) and is intentionally
+  NOT consumed — the torrent_file_url fallback is deferred (R1 follow-on).
 - ``is_freeleech`` is a clean boolean (no text parsing needed).
 - No seeders/leechers exposed — ``seeders=0, leechers=0`` on all results.
 - Login 401: "Identifiant ou mot de passe invalide" → fail-loud at boot.
@@ -23,10 +24,11 @@ torr9 particularities (live-confirmed):
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import Any, ClassVar, cast
 
-from personalscraper.api._contracts import ApiError, MediaType
+from personalscraper.api._contracts import ApiError, MediaType, ProviderName
 from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult, wrap_parser_drift
 from personalscraper.api.tracker._contracts import (
@@ -35,16 +37,15 @@ from personalscraper.api.tracker._contracts import (
     TorrentSearchable,
 )
 from personalscraper.api.transport._auth import BearerAuth, NoAuth
+from personalscraper.api.transport._http import HttpTransport
 from personalscraper.api.transport._policy import (
     CircuitPolicy,
     RateLimitPolicy,
     RetryPolicy,
     TransportPolicy,
 )
+from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
-
-if TYPE_CHECKING:
-    from personalscraper.api.transport._http import HttpTransport
 
 log = get_logger("api.tracker.torr9")
 
@@ -93,7 +94,7 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware):
     genuine pre-download re-check, not a stub.
     """
 
-    provider_name: str = "torr9"
+    provider_name: str = ProviderName.TORR9.value
     # PROVIDER_CREDS key: TORR9_USERNAME gates activation (per DESIGN ACC-3 →
     # PROVIDER_CREDS["torr9"] = ["TORR9_USERNAME", "TORR9_PASSWORD"]).
     # Phase 2 registers this in api/_activation.py.
@@ -102,20 +103,70 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware):
     _BASE_URL: ClassVar[str] = "https://api.torr9.net"
 
     @classmethod
-    def policy(cls) -> TransportPolicy:
-        """Build a base TransportPolicy for torr9 (no static auth — login is lazy).
+    def build_from_env(cls, *, env: Mapping[str, str], event_bus: EventBus) -> Torr9Client:
+        """Construct a Torr9Client from resolved environment credentials.
 
-        Auth is NOT applied here: the Bearer token is obtained at first search
-        via ``_ensure_logged_in()`` and injected directly into the transport's
-        session header. ``NoAuth`` is the placeholder so HttpTransport is
-        constructed without a token.
+        Factory hook (RP5b). ``build_tracker_registry`` dispatches on the PRESENCE
+        of this classmethod rather than a provider-name literal: a login-style
+        tracker declares ``build_from_env``; api-key trackers (lacale/c411) omit it
+        and use the default ``policy(api_key)`` construction path. The creds are
+        already validated present by the registry's cred-gating before this runs.
+
+        Args:
+            env: Credential source (the registry passes the resolved env mapping).
+            event_bus: Event bus propagated to the client's HTTP transports.
 
         Returns:
-            TransportPolicy with NoAuth, conservative rate limit, and standard
-            5-fail / 5-min circuit settings.
+            A network-free Torr9Client (transports are built lazily on first search).
+        """
+        return cls(
+            username=env.get("TORR9_USERNAME", ""),
+            password=env.get("TORR9_PASSWORD", ""),
+            event_bus=event_bus,
+        )
+
+    def __init__(self, *, username: str, password: str, event_bus: EventBus) -> None:
+        """Initialize the torr9 client (network-free — transports are lazy).
+
+        Args:
+            username: ``TORR9_USERNAME`` credential.
+            password: ``TORR9_PASSWORD`` credential.
+            event_bus: Event bus forwarded to the bootstrap + main HttpTransports.
+        """
+        self._username = username
+        self._password = password
+        self._event_bus = event_bus
+        # Lazy: the bootstrap login + the authed main transport are built on first
+        # _transport access via _ensure_transport() — construction stays HTTP-free
+        # so registry boot never triggers network (parity with TVDBClient).
+        self.__transport: HttpTransport | None = None
+
+    @classmethod
+    def policy(cls, token: str) -> TransportPolicy:
+        """Build the authed main TransportPolicy — Bearer token applied at transport init.
+
+        Args:
+            token: JWT obtained from the bootstrap login.
+
+        Returns:
+            TransportPolicy with BearerAuth(token), conservative rate limit, and
+            standard 5-fail / 5-min circuit settings.
         """
         return TransportPolicy(
-            provider_name="torr9",
+            provider_name=cls.provider_name,
+            base_url=cls._BASE_URL,
+            auth=BearerAuth(token),
+            timeout_seconds=15,
+            retry=RetryPolicy(max_attempts=3),
+            circuit=CircuitPolicy(failure_threshold=5, cooldown_seconds=300.0),
+            rate_limit=RateLimitPolicy(requests_per_second=0.5),
+        )
+
+    @classmethod
+    def _bootstrap_policy(cls) -> TransportPolicy:
+        """One-shot NoAuth policy for the JWT login exchange (POST /auth/login)."""
+        return TransportPolicy(
+            provider_name=f"{cls.provider_name}-bootstrap",
             base_url=cls._BASE_URL,
             auth=NoAuth(),
             timeout_seconds=15,
@@ -124,43 +175,30 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware):
             rate_limit=RateLimitPolicy(requests_per_second=0.5),
         )
 
-    def __init__(
-        self,
-        transport: HttpTransport,
-        *,
-        username: str,
-        password: str,
-    ) -> None:
-        """Initialize the torr9 client.
+    # -- Auth lifecycle (RP7 auth-lifecycle, TVDB lazy-transport pattern) ----
 
-        Args:
-            transport: HttpTransport pre-configured with the torr9 policy.
-                Token is injected lazily via ``_ensure_logged_in()``.
-            username: ``TORR9_USERNAME`` credential.
-            password: ``TORR9_PASSWORD`` credential.
-        """
-        self._transport = transport
-        self._username = username
-        self._password = password
-        self._token: str | None = None  # Cached JWT, None until first login.
+    def _ensure_transport(self) -> HttpTransport:
+        """Bootstrap-login and build the authed main transport (idempotent).
 
-    # -- Auth lifecycle (RP7 auth-lifecycle) --------------------------------
+        On first call, opens a one-shot NoAuth bootstrap transport, POSTs the
+        credentials to ``/api/v1/auth/login``, extracts the JWT, then builds and
+        caches the main transport whose policy carries ``BearerAuth(token)``.
+        Subsequent calls return the cached transport. Mirrors TVDBClient.
 
-    def _login(self) -> None:
-        """Perform JWT login against POST /api/v1/auth/login.
-
-        Stores the returned token in ``self._token`` and applies it to the
-        transport session header via ``BearerAuth``.
-
-        Args: None (uses ``self._username`` / ``self._password``).
+        Returns:
+            The fully-wired authed main transport.
 
         Raises:
-            ApiError: On HTTP 401 (bad credentials) or any non-2xx response.
-                A 401 here means the stored creds are wrong — fail-loud, do
-                NOT silently swallow (RP7 auth-lifecycle).
+            ApiError: On a 401 (bad credentials) from the login POST, or a login
+                response missing the ``token`` field (fail-loud, RP7).
         """
-        payload = {"username": self._username, "password": self._password}
-        raw = self._transport.post(path="/api/v1/auth/login", data=payload)
+        if self.__transport is not None:
+            return self.__transport
+        with HttpTransport(self._bootstrap_policy(), event_bus=self._event_bus) as bootstrap:
+            raw = bootstrap.post(
+                path="/api/v1/auth/login",
+                data={"username": self._username, "password": self._password},
+            )
         data = cast("dict[str, Any]", raw)
         token = data.get("token")
         if not isinstance(token, str) or not token:
@@ -169,24 +207,46 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware):
                 http_status=0,
                 message=f"torr9 login response missing 'token': {data!r}",
             )
-        self._token = token
-        # Apply Bearer token to the transport session so all subsequent GETs
-        # carry Authorization: Bearer <token> without per-request overhead.
-        BearerAuth(token).apply(self._transport._session)
         log.info("torr9_login_success", provider=self.provider_name)
+        self.__transport = HttpTransport(self.policy(token), event_bus=self._event_bus)
+        return self.__transport
 
-    def _ensure_logged_in(self) -> None:
-        """Login lazily on first call; no-op if token already cached.
+    @property
+    def _transport(self) -> HttpTransport:
+        """Lazy accessor for the authed main transport (triggers bootstrap on first access)."""
+        return self._ensure_transport()
 
-        Args: None.
+    @_transport.setter
+    def _transport(self, value: HttpTransport) -> None:
+        """Setter preserved for tests that inject a mock transport (short-circuits bootstrap)."""
+        self.__transport = value
 
-        Returns: None.
+    def _authed_get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any] | str:
+        """GET via the authed transport; on 401, drop the transport (re-login) and retry ONCE.
+
+        RP7 auth-lifecycle: an expired JWT yields a 401; we discard the cached
+        transport so the next ``_transport`` access rebuilds it via a fresh
+        bootstrap login, then retry the GET exactly once. A second 401 (or any
+        non-401 ApiError) propagates — persistently-bad creds fail loud.
+
+        Args:
+            path: Request path (e.g. ``/api/v1/torrents``).
+            params: Optional query params.
+
+        Returns:
+            The raw transport response (dict or str).
 
         Raises:
-            ApiError: If the login POST fails (401 bad creds, 403 rate-limit).
+            ApiError: A non-401 error, or a 401 that survives the single re-login.
         """
-        if self._token is None:
-            self._login()
+        try:
+            return self._transport.get(path=path, params=params)
+        except ApiError as exc:
+            if exc.http_status != 401:
+                raise
+            log.info("torr9_relogin_on_401", provider=self.provider_name)
+            self.__transport = None  # force a fresh bootstrap login on next access
+            return self._transport.get(path=path, params=params)
 
     # -- TrackerClient Protocol ---------------------------------------------
 
@@ -198,10 +258,11 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware):
     ) -> list[TrackerResult]:
         """Search torr9 via GET /api/v1/torrents?q=<query>.
 
-        Logs in lazily on first call. Re-logins once on 401 (RP7 auth-lifecycle:
-        expired JWT → re-login, then retry). Wraps the parser in
-        ``wrap_parser_drift`` so upstream shape changes surface as ``ApiError``
-        (swallowed by the registry) rather than bare ``KeyError``.
+        Logs in lazily on first transport access. Re-logins once on 401
+        (RP7 auth-lifecycle: expired JWT → re-login, then retry) via
+        ``_authed_get``. Wraps the parser in ``wrap_parser_drift`` so upstream
+        shape changes surface as ``ApiError`` (swallowed by the registry)
+        rather than bare ``KeyError``.
 
         Args:
             query: Free-text search query.
@@ -212,23 +273,8 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware):
             List of TrackerResult ordered as returned by the API (newest first).
         """
         del media_type  # No per-type search endpoint on torr9.
-
-        self._ensure_logged_in()
-
         q = f"{query} {year}" if year is not None else query
-        params: dict[str, Any] = {"q": q}
-
-        try:
-            raw = self._transport.get(path="/api/v1/torrents", params=params)
-        except ApiError as exc:
-            if exc.http_status == 401:
-                # RP7: token expired mid-session — re-login once and retry.
-                log.info("torr9_relogin_on_401", provider=self.provider_name)
-                self._token = None
-                self._login()
-                raw = self._transport.get(path="/api/v1/torrents", params=params)
-            else:
-                raise
+        raw = self._authed_get("/api/v1/torrents", {"q": q})
 
         def _parse() -> list[TrackerResult]:
             data = cast("dict[str, Any]", raw)
@@ -244,7 +290,8 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware):
         ``GET /api/v1/torrents/{id}`` (live-confirmed 2026-06-19). Distinct from
         the ``is_freeleech`` field captured at search time on ``TrackerResult`` —
         this surfaces a flag that flipped asynchronously. Logs in lazily and
-        re-logins once on 401 (RP7 auth-lifecycle), mirroring ``search()``.
+        re-logins once on 401 (RP7 auth-lifecycle) via ``_authed_get``,
+        mirroring ``search()``.
 
         Args:
             torrent_id: The torr9 numeric torrent id (as a string).
@@ -258,20 +305,7 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware):
                 (bad creds → fail-loud), or a malformed (non-dict) detail payload
                 (surfaced via ``wrap_parser_drift``).
         """
-        self._ensure_logged_in()
-        path = f"/api/v1/torrents/{torrent_id}"
-
-        try:
-            raw = self._transport.get(path=path)
-        except ApiError as exc:
-            if exc.http_status == 401:
-                # RP7: token expired — re-login once and retry the detail GET.
-                log.info("torr9_relogin_on_401", provider=self.provider_name)
-                self._token = None
-                self._login()
-                raw = self._transport.get(path=path)
-            else:
-                raise
+        raw = self._authed_get(f"/api/v1/torrents/{torrent_id}")
 
         def _parse() -> bool:
             data = cast("dict[str, Any]", raw)
@@ -313,10 +347,15 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware):
         size_raw = item.get("file_size_bytes", 0)
         size = ByteSize.parse(int(size_raw))
 
-        # Prefer magnet_link (auth-free, maps to the ROADMAP Q4 magnet exception).
-        # torrent_file_url is relative (needs base + auth); use only as last resort.
+        # magnet_link is the ONLY download path used this feature (auth-free,
+        # maps to the ROADMAP Q4 magnet exception). torrent_file_url is relative
+        # (needs base + auth) and is intentionally NOT read — that fallback is
+        # deferred (R1 follow-on). When magnet_link is absent/malformed, leave a
+        # breadcrumb so the resulting None download_url is not a silent failure.
         magnet = item.get("magnet_link")
         download_url: str | None = magnet if isinstance(magnet, str) and magnet.startswith("magnet:") else None
+        if download_url is None:
+            log.warning("torr9_missing_magnet", tracker_id=str(item.get("id", "")), title=title)
 
         category_id = item.get("category_id")
         category = _CATEGORY_MAP.get(int(category_id)) if isinstance(category_id, int | float) else None
