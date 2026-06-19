@@ -33,6 +33,7 @@ from kanbanmate.adapters.perms import (
     provision_worktree_bin,
     provision_worktree_skills,
     write_issue_pin,
+    write_mcp_registration,
     write_project_pin,
 )
 from kanbanmate.adapters.workspace.worktree import wip_branch
@@ -71,6 +72,11 @@ logger = logging.getLogger(__name__)
 # The default integration base the per-ticket WIP branch is first created off (DESIGN §13). Matches
 # the ``Workspace.ensure_worktree`` default; kept here so a config can override it per-repo later.
 DEFAULT_BASE = "main"
+
+# The canonical runtime root the launch bakes into a worktree's ``.mcp.json`` ``--root`` when the
+# daemon runs the DEFAULT root (empty ``Deps.kanban_root``). Mirrors ``cli.app._DEFAULT_ROOT`` /
+# ``daemon.loop.DEFAULT_KANBAN_ROOT`` so the MCP server resolves the same state the daemon writes.
+_DEFAULT_KANBAN_ROOT = Path("~/.kanban/").expanduser()
 
 # The LEGACY/test-only default for ``Deps.profile`` (DESIGN §10). ``docs`` is the minimal floor
 # (the kill-switch downgrades every profile to it; an unknown profile name degrades to it). NOTE
@@ -315,6 +321,21 @@ class LaunchAction:
         # per-transition ``permission_mode`` (minor (a)) so the worktree's ``defaultMode`` matches
         # the mode the launch command emits — not the profile's hardwired pinned default.
         materialise_settings(profile, worktree, issue=issue, permission_mode=self.permission_mode)
+        # 2a. Register the project-scoped ``kanban`` MCP board server in the worktree's ``.mcp.json``
+        # (conduit §8.1) so the headless agent loads it on startup — pre-trusted via the settings'
+        # ``enabledMcpjsonServers`` (§8.2), so no approval prompt fires. ALWAYS written (valid for
+        # N=1 too — it just omits ``--project``); only the ``--project`` arg is gated on
+        # ``multi_project`` inside the writer. ``deps.kanban_root`` may be empty (the default daemon),
+        # in which case the server falls back to the canonical ``~/.kanban`` runtime root — the same
+        # default the ``kanban mcp`` CLI / daemon resolve.
+        mcp_root = Path(deps.kanban_root).expanduser() if deps.kanban_root else _DEFAULT_KANBAN_ROOT
+        write_mcp_registration(
+            worktree,
+            root=mcp_root,
+            issue=issue,
+            project_id=deps.project_id or None,
+            multi_project=deps.multi_project,
+        )
         # 2b. Provision the project's skills/commands/agents into the worktree (COPY, not symlink)
         # so the agent can resolve the ``/implement:*`` skills its column prompt invokes (an empty
         # ``deps.config_dir`` makes this a no-op). Then PIN IMPLEMENTATION.md to ``**PR merge**:

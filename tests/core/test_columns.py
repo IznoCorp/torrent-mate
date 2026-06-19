@@ -16,8 +16,13 @@ import importlib.resources
 
 import pytest
 
-from kanbanmate.core.columns import BoardDefaults, load_board_defaults, load_columns
-from kanbanmate.core.domain import ColumnClass
+from kanbanmate.core.columns import (
+    BoardDefaults,
+    load_board_defaults,
+    load_columns,
+    resolve_target_column,
+)
+from kanbanmate.core.domain import Column, ColumnClass
 
 # The bundled default template, resolved as package data (a wheel / editable
 # install ships it under ``kanbanmate/assets``), NOT a repo-relative path.
@@ -233,6 +238,34 @@ class TestDefaultTemplate:
             "Done",
             "Blocked",
         }
+
+
+class TestResolveTargetColumn:
+    """The key-first, raise-on-miss CLI/agent target resolver (relocated from ``bin/kanban_move``)."""
+
+    def _columns(self) -> dict[str, Column]:
+        """Build a real two-column model whose key differs from its name."""
+        return load_columns(
+            "columns:\n  - key: InProgress\n    name: In Progress\n  - key: Done\n    name: Done\n"
+        )
+
+    def test_resolves_by_key(self) -> None:
+        """A stable column ``key`` resolves to its :class:`Column`."""
+        columns = self._columns()
+        column = resolve_target_column(columns, "InProgress")
+        assert column.key == "InProgress"
+
+    def test_resolves_by_name(self) -> None:
+        """A human-readable column ``name`` resolves to its :class:`Column`."""
+        columns = self._columns()
+        column = resolve_target_column(columns, "In Progress")
+        assert column.key == "InProgress"
+
+    def test_raises_on_unknown_token(self) -> None:
+        """An unknown token raises ``KeyError`` (distinct from ``resolve_column``'s ``None``)."""
+        columns = self._columns()
+        with pytest.raises(KeyError, match="unknown column"):
+            resolve_target_column(columns, "Nope")
 
 
 class TestLoadBoardDefaults:

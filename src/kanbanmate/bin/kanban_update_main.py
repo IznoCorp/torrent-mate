@@ -23,102 +23,11 @@ network call). Bad arguments fail cleanly (non-zero exit, clear stderr).
 
 from __future__ import annotations
 
-import subprocess
 import sys
 
+from kanbanmate.adapters.workspace.base_sync import BaseFetchError, fetch_base, ff_dev_clone
+
 _PROG = "kanban-update-main"
-
-
-def _git(args: list[str], cwd: str) -> subprocess.CompletedProcess[str]:
-    """Run a ``git`` command in ``cwd`` and capture its output.
-
-    Args:
-        args: The git sub-command and its arguments (without the leading ``git``).
-        cwd: The repository directory to run in.
-
-    Returns:
-        The completed process (``returncode`` checked by the caller).
-    """
-    # No --force / no merge anywhere (DESIGN §10): callers only pass fetch / status / pull --ff-only.
-    return subprocess.run(
-        ["git", "-C", cwd, *args],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-
-def _is_dirty(dev_repo: str) -> bool:
-    """Return whether ``dev_repo``'s working tree has uncommitted or untracked changes.
-
-    ``git diff`` / ``git diff --cached`` only catch tracked changes, so ``status --porcelain``
-    is also consulted to catch untracked files that could conflict after a pull.
-
-    Args:
-        dev_repo: The dev clone directory to inspect.
-
-    Returns:
-        ``True`` when the tree is dirty (tracked or untracked changes present).
-    """
-    if _git(["diff", "--quiet"], dev_repo).returncode != 0:
-        return True
-    if _git(["diff", "--cached", "--quiet"], dev_repo).returncode != 0:
-        return True
-    porcelain = _git(["status", "--porcelain"], dev_repo)
-    return bool(porcelain.stdout.strip())
-
-
-def _current_branch(dev_repo: str) -> str:
-    """Return ``dev_repo``'s current branch name (empty on detached/unknown HEAD).
-
-    Args:
-        dev_repo: The dev clone directory to inspect.
-
-    Returns:
-        The abbreviated current branch name, or ``""`` when it cannot be resolved.
-    """
-    result = _git(["rev-parse", "--abbrev-ref", "HEAD"], dev_repo)
-    return result.stdout.strip() if result.returncode == 0 else ""
-
-
-def _update_dev_clone(dev_repo: str) -> int:
-    """Fast-forward ``dev_repo`` on ``main`` when both guards pass; else skip-warn.
-
-    Args:
-        dev_repo: The operator's dev clone directory.
-
-    Returns:
-        Always ``0`` — a skip is best-effort, not a failure (DESIGN §10). A failed
-        ``pull --ff-only`` is reported but still returns ``0`` so a post-merge hook never
-        blocks on the operator's local clone state.
-    """
-    if _is_dirty(dev_repo):
-        print(
-            f"WARNING: skipping dev clone update — working tree is dirty in {dev_repo}",
-            file=sys.stderr,
-        )
-        print(
-            f"  Run 'git -C {dev_repo} pull --ff-only' manually after committing your changes.",
-            file=sys.stderr,
-        )
-        return 0
-    branch = _current_branch(dev_repo)
-    if branch != "main":
-        print(
-            f"WARNING: skipping dev clone update — {dev_repo} is on branch {branch!r}, not 'main'",
-            file=sys.stderr,
-        )
-        print(
-            "  Switch to main and run 'git pull --ff-only' manually when ready.",
-            file=sys.stderr,
-        )
-        return 0
-    print(f"Fast-forwarding dev clone on main: {dev_repo}")
-    # --ff-only is a strict fast-forward: it REFUSES to create a merge commit (DESIGN §10).
-    pull = _git(["pull", "--ff-only"], dev_repo)
-    if pull.returncode != 0:
-        print(f"WARNING: dev clone fast-forward failed: {pull.stderr.strip()}", file=sys.stderr)
-    return 0
 
 
 def _resolve_from_registry() -> tuple[str, str] | None:
@@ -177,17 +86,20 @@ def main(argv: list[str] | None = None) -> int:
         base_clone = raw_argv[0]
         dev_repo = raw_argv[1] if len(raw_argv) > 1 else ""
 
-    # Step 1: always fetch origin/main in the base clone (no working tree to clobber).
+    # Step 1: always fetch origin/main in the base clone (no working tree to clobber). The git work
+    # lives in the workspace adapter (conduit §11.2) — the bin keeps its exact message + exit code.
     print(f"Fetching origin/main in base clone: {base_clone}")
-    fetch = _git(["fetch", "origin", "main"], base_clone)
-    if fetch.returncode != 0:
-        print(f"{_PROG}: base fetch failed: {fetch.stderr.strip()}", file=sys.stderr)
+    try:
+        fetch_base(base_clone)
+    except BaseFetchError as exc:
+        print(f"{_PROG}: base fetch failed: {exc.stderr}", file=sys.stderr)
         return 1
 
-    # Step 2: optionally fast-forward the operator's dev clone (best-effort).
+    # Step 2: optionally fast-forward the operator's dev clone (best-effort; never fails the run).
     if not dev_repo:
         return 0
-    return _update_dev_clone(dev_repo)
+    ff_dev_clone(dev_repo)
+    return 0
 
 
 if __name__ == "__main__":

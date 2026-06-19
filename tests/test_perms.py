@@ -36,6 +36,7 @@ from kanbanmate.adapters.perms import (
     provision_worktree_bin,
     provision_worktree_skills,
     write_issue_pin,
+    write_mcp_registration,
 )
 
 # The banned command surfaces that MERGE-IS-HUMAN-ONLY (DESIGN §10) forbids for every profile.
@@ -385,6 +386,79 @@ def test_write_issue_pin_is_idempotent(tmp_path: Path) -> None:
     first = write_issue_pin(tmp_path, 7).read_text(encoding="utf-8")
     second = write_issue_pin(tmp_path, 7).read_text(encoding="utf-8")
     assert first == second == "7\n"
+
+
+# ---------------------------------------------------------------------------
+# conduit phase 4 — write_mcp_registration + enabledMcpjsonServers pre-trust
+# ---------------------------------------------------------------------------
+
+
+def test_write_mcp_registration_single_project(tmp_path: Path) -> None:
+    """N=1 (``multi_project=False``): ``.mcp.json`` omits ``--project`` (conduit §8.1)."""
+    path = write_mcp_registration(
+        tmp_path, root=Path("/r"), issue=9, project_id=None, multi_project=False
+    )
+    assert path == tmp_path / ".mcp.json"
+    config = json.loads(path.read_text(encoding="utf-8"))
+    assert config == {
+        "mcpServers": {
+            "kanban": {"command": "kanban", "args": ["mcp", "--root", "/r", "--issue", "9"]}
+        }
+    }
+
+
+def test_write_mcp_registration_multi_project_appends_project(tmp_path: Path) -> None:
+    """N>1 (``multi_project=True``): ``args`` ends with ``--project <project_id>`` (conduit §8.1)."""
+    path = write_mcp_registration(
+        tmp_path,
+        root=Path("/r"),
+        issue=5,
+        project_id="PVT_kwDOB3abh84BZiPJ",
+        multi_project=True,
+    )
+    server = json.loads(path.read_text(encoding="utf-8"))["mcpServers"]["kanban"]
+    assert server["command"] == "kanban"
+    assert server["args"] == [
+        "mcp",
+        "--root",
+        "/r",
+        "--issue",
+        "5",
+        "--project",
+        "PVT_kwDOB3abh84BZiPJ",
+    ]
+
+
+def test_write_mcp_registration_omits_project_when_id_missing(tmp_path: Path) -> None:
+    """A truthy ``multi_project`` with no ``project_id`` still omits ``--project`` (no empty arg)."""
+    path = write_mcp_registration(
+        tmp_path, root=Path("/r"), issue=1, project_id=None, multi_project=True
+    )
+    args = json.loads(path.read_text(encoding="utf-8"))["mcpServers"]["kanban"]["args"]
+    assert "--project" not in args
+
+
+def test_write_mcp_registration_is_idempotent(tmp_path: Path) -> None:
+    """A relaunch re-writes byte-identical ``.mcp.json`` content."""
+    first = write_mcp_registration(
+        tmp_path, root=Path("/r"), issue=9, project_id=None, multi_project=False
+    ).read_text(encoding="utf-8")
+    second = write_mcp_registration(
+        tmp_path, root=Path("/r"), issue=9, project_id=None, multi_project=False
+    ).read_text(encoding="utf-8")
+    assert first == second
+
+
+@pytest.mark.parametrize("profile", sorted(PROFILES))
+def test_settings_pre_trust_kanban_mcp_server(profile: str, tmp_path: Path) -> None:
+    """The materialised settings carry ``enabledMcpjsonServers == ["kanban"]`` (conduit §8.2).
+
+    Asserted via the REAL ``materialise_settings`` output (not a hand-built dict), scoped to the
+    single named server (no blanket ``enableAllProjectMcpServers``).
+    """
+    settings = _read_settings(materialise_settings(profile, tmp_path))
+    assert settings["enabledMcpjsonServers"] == ["kanban"]
+    assert "enableAllProjectMcpServers" not in settings
 
 
 def test_unknown_profile_degrades_to_docs() -> None:

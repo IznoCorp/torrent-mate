@@ -416,6 +416,51 @@ def test_launch_action_empty_config_dir_skips_provisioning(tmp_path: Path) -> No
     m.store.save.assert_called_once()
 
 
+def test_launch_action_writes_mcp_registration_single_project(tmp_path: Path) -> None:
+    """The launch block writes a worktree ``.mcp.json`` pinned to the issue (conduit §8.1).
+
+    N=1 (default ``multi_project``): ``args`` omit ``--project``; the empty ``kanban_root`` resolves
+    to the canonical ``~/.kanban`` runtime root. Asserted via the REAL ``write_mcp_registration``
+    output (the launch wrote it into the real ``tmp_path`` worktree).
+    """
+    import json  # noqa: PLC0415 — test-local import (hook-safe: used in the same edit)
+
+    worktree = tmp_path / "worktree"
+    worktree.mkdir()
+    m = _mocks(now=1234.0, worktree=worktree)  # kanban_root="" → default ~/.kanban
+    _launch(_ticket(issue=9)).execute(m.deps)
+
+    config = json.loads((worktree / ".mcp.json").read_text(encoding="utf-8"))
+    server = config["mcpServers"]["kanban"]
+    assert server["command"] == "kanban"
+    assert server["args"][:5] == [
+        "mcp",
+        "--root",
+        str(Path("~/.kanban/").expanduser()),
+        "--issue",
+        "9",
+    ]
+    assert "--project" not in server["args"]
+
+
+def test_launch_action_writes_mcp_registration_multi_project(tmp_path: Path) -> None:
+    """A multi-project launch bakes ``--project <project_id>`` into ``.mcp.json`` (conduit §8.1)."""
+    import json  # noqa: PLC0415 — test-local import (hook-safe: used in the same edit)
+
+    worktree = tmp_path / "worktree"
+    worktree.mkdir()
+    m = _mocks(now=1234.0, worktree=worktree, kanban_root=str(tmp_path / "km"))
+    # Mark the launch context as multi-project with a concrete node id (mirrors write_project_pin).
+    deps = replace(m.deps, multi_project=True, project_id="PVT_node")
+    _launch(_ticket(issue=5)).execute(deps)
+
+    args = json.loads((worktree / ".mcp.json").read_text(encoding="utf-8"))["mcpServers"]["kanban"][
+        "args"
+    ]
+    assert args[-2:] == ["--project", "PVT_node"]
+    assert args[1:3] == ["--root", str(tmp_path / "km")]
+
+
 # ---------------------------------------------------------------------------
 # LaunchAction — per-dispatch audit log (dispatch.jsonl, 15.3)
 # ---------------------------------------------------------------------------

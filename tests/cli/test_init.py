@@ -447,6 +447,83 @@ def test_init_persists_dev_repo_path(tmp_path: Path) -> None:
     assert data["PVT_NEW"]["dev_repo_path"] == "/home/dev/demo"
 
 
+# ---------------------------------------------------------------------------
+# resolve_clone_paths (conduit §6 — server-side clone resolution for update_main)
+# ---------------------------------------------------------------------------
+
+
+def _write_registry_entry(root: Path, *, project_id: str, clone: str, dev_repo_path: str) -> None:
+    """Write a single-entry ``projects.json`` under *root* for ``project_id``."""
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "projects.json").write_text(
+        json.dumps(
+            {
+                project_id: {
+                    "repo": "IznoCorp/demo",
+                    "clone": clone,
+                    "project_id": project_id,
+                    "status_field_node_id": "PVTSSF",
+                    "dev_repo_path": dev_repo_path,
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_resolve_clone_paths_by_project_id(tmp_path: Path) -> None:
+    """The clone pair is resolved by the explicit ``project_id`` (the launched-agent path)."""
+    _write_registry_entry(tmp_path, project_id="PVT_A", clone="/base", dev_repo_path="/dev")
+    assert init_mod.resolve_clone_paths(tmp_path, project_id="PVT_A") == ("/base", "/dev")
+
+
+def test_resolve_clone_paths_sole_entry_when_no_id(tmp_path: Path) -> None:
+    """With no ``project_id`` and exactly one entry, the sole entry resolves (N=1 back-compat)."""
+    _write_registry_entry(tmp_path, project_id="PVT_A", clone="/base", dev_repo_path="")
+    assert init_mod.resolve_clone_paths(tmp_path, project_id=None) == ("/base", "")
+
+
+def test_resolve_clone_paths_unknown_id_raises(tmp_path: Path) -> None:
+    """An unknown ``project_id`` fails loud (RuntimeError) — never a silent wrong-clone pick."""
+    _write_registry_entry(tmp_path, project_id="PVT_A", clone="/base", dev_repo_path="")
+    with pytest.raises(RuntimeError, match="is not in"):
+        init_mod.resolve_clone_paths(tmp_path, project_id="PVT_MISSING")
+
+
+def test_resolve_clone_paths_empty_registry_raises(tmp_path: Path) -> None:
+    """No registered project fails loud (RuntimeError) with the run-init hint."""
+    with pytest.raises(RuntimeError, match="no project registered"):
+        init_mod.resolve_clone_paths(tmp_path, project_id="PVT_A")
+
+
+def test_resolve_clone_paths_n_gt_1_no_id_raises(tmp_path: Path) -> None:
+    """N>1 with no ``project_id`` is ambiguous — fail loud listing the candidates."""
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "projects.json").write_text(
+        json.dumps(
+            {
+                "PVT_A": {
+                    "repo": "IznoCorp/a",
+                    "clone": "/a",
+                    "project_id": "PVT_A",
+                    "status_field_node_id": "X",
+                    "dev_repo_path": "",
+                },
+                "PVT_B": {
+                    "repo": "IznoCorp/b",
+                    "clone": "/b",
+                    "project_id": "PVT_B",
+                    "status_field_node_id": "Y",
+                    "dev_repo_path": "",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(RuntimeError, match="no project_id to"):
+        init_mod.resolve_clone_paths(tmp_path, project_id=None)
+
+
 def test_init_defaults_config_dir_to_clone_dot_claude(tmp_path: Path) -> None:
     """``init`` defaults ``config_dir`` to ``<clone>/.claude`` when not overridden."""
     clone = tmp_path / "clone"

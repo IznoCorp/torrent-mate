@@ -225,6 +225,61 @@ _REPO_OPTION = typer.Option(
 
 
 @app.command()
+def mcp(
+    root: Path = typer.Option(
+        _DEFAULT_ROOT,
+        "--root",
+        help="Kanban runtime root (default ~/.kanban).",
+    ),
+    issue: int = typer.Option(
+        ...,
+        "--issue",
+        help="The agent's pinned issue number (write tools refuse any other).",
+    ),
+    project: str = _PROJECT_OPTION,
+    repo: str = _REPO_OPTION,
+) -> None:
+    """Start the stdio MCP board server, pinned to ``--issue`` (conduit / roadmap mcp).
+
+    A thin stdio front-door exposing the board as MCP resources + tools to the agent's own
+    ``claude`` session. Every WRITE tool is pinned to ``--issue`` (an agent may act ONLY on its own
+    ticket, DESIGN §7) and PAUSE-guarded; there is NO ``merge`` tool. Read resources mirror
+    ``kanban state``. The server runs over stdio and blocks until the client disconnects.
+
+    Requires the ``[mcp]`` optional extra (``pip install 'kanbanmate[mcp]'``); the import is guarded
+    so the bare ``kanban`` CLI works without it (mirrors how ``config serve`` guards the ``[ui]``
+    import in ``cli/config.py``).
+
+    Args:
+        root: The runtime root holding ``config.yml`` / ``projects.json`` and the state markers.
+        issue: The agent's pinned issue number (every write tool refuses any other).
+        project: The ``--project`` node-id selector (multi-project roots; ignored when N=1).
+        repo: The ``--repo`` selector (multi-project roots; alternative to ``--project``).
+    """
+    # Lazy + guarded import: the ``mcp`` SDK is the optional ``[mcp]`` extra, NOT a base dependency.
+    # This guard keeps the bare ``kanban`` CLI importable without it (exactly as ``config serve``
+    # guards the ``[ui]`` FastAPI import in ``cli/config.py:51``).
+    try:
+        from kanbanmate.mcp import server as mcp_server
+    except ImportError as exc:
+        typer.echo(
+            f"Error: {exc}\n\n"
+            "The MCP board server requires the [mcp] optional extra.\n"
+            "Install it with: pip install 'kanbanmate[mcp]'",
+            err=True,
+        )
+        raise typer.Exit(code=1) from exc
+    # Fail LOUD + CLEAN on the start-up pin guard: a worktree pin file disagreeing with --issue is a
+    # misconfiguration (every write would target the wrong ticket). A clean non-zero exit with the
+    # actionable message, never a raw traceback (mirrors how ``serve`` handles its start-up guards).
+    try:
+        mcp_server.main(root=root.expanduser(), issue=issue, project=project, repo=repo)
+    except mcp_server.PinMismatchError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+
+@app.command()
 def install(
     root: Path = typer.Option(
         _DEFAULT_ROOT,

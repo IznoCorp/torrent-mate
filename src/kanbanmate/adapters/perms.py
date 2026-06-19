@@ -492,7 +492,9 @@ def build_settings(
 
     Returns:
         A settings dict with ``permissions.defaultMode`` / ``allow`` / ``deny``,
-        ``bypassPermissions: false``, and optionally ``hooks.PostToolUse``.
+        ``bypassPermissions: false``, ``enabledMcpjsonServers: ["kanban"]`` (pre-trusts the
+        project-scoped ``kanban`` MCP server for headless agents, conduit §8.2), and optionally
+        ``hooks.PostToolUse``.
 
     Raises:
         ValueError: If ``profile`` names a bypass mode (banned, §10).
@@ -518,6 +520,11 @@ def build_settings(
         },
         # Explicitly false everywhere: bypass would skip permissions.deny (DESIGN §10).
         "bypassPermissions": False,
+        # Pre-trust the project-scoped ``kanban`` MCP server (conduit §8.2). Project ``.mcp.json``
+        # servers are untrusted by default and these agents run non-interactively, so without this the
+        # agent would block on an approval prompt. Scoped to the single named server (NOT a blanket
+        # ``enableAllProjectMcpServers``) so only ``kanban`` is loaded without a prompt.
+        "enabledMcpjsonServers": ["kanban"],
     }
     if issue is not None:
         # PostToolUse "*" → the heartbeat command after every tool (DESIGN §8.3). Claude Code
@@ -766,6 +773,49 @@ def write_project_pin(worktree: str | Path, project_id: str) -> Path:
     claude_dir.mkdir(parents=True, exist_ok=True)
     path = claude_dir / "kanban-project"
     path.write_text(f"{project_id}\n", encoding="utf-8")
+    return path
+
+
+def write_mcp_registration(
+    worktree: str | Path, *, root: Path, issue: int, project_id: str | None, multi_project: bool
+) -> Path:
+    """Write ``<worktree>/.mcp.json`` registering the project-scoped ``kanban`` MCP server (conduit §8.1).
+
+    Claude Code reads ``.mcp.json`` from the project root, so the launched headless agent gets the
+    board-surface MCP server without any extra setup. The server is invoked as
+    ``kanban mcp --root <root> --issue <n>`` (the same console-script the daemon installs); the issue
+    pins the server to the single ticket the worktree was launched for. ``--project <project_id>`` is
+    appended to ``args`` ONLY when ``multi_project`` is true (the per-project disambiguation the bins
+    use) — an N=1 deployment omits it and the server resolves the sole registry entry.
+
+    Mirrors the JSON-write idiom of :func:`materialise_settings` / :func:`write_issue_pin`: it creates
+    ``<worktree>`` if missing, writes pretty JSON (``indent=2``) with a trailing newline, and returns
+    the written path. Idempotent — a relaunch re-writes byte-identical content.
+
+    Args:
+        worktree: Absolute path to the git worktree the agent runs in (the ``.mcp.json`` project root).
+        root: The kanban runtime root the MCP server reads state from (baked into ``--root``).
+        issue: The launched issue number the server is pinned to (baked into ``--issue``).
+        project_id: The launched project's ``ProjectV2`` node id; appended as ``--project`` only when
+            ``multi_project`` is true (ignored otherwise — may be ``None`` in an N=1 deployment).
+        multi_project: Whether the daemon drives >1 enabled project; gates the ``--project`` arg.
+
+    Returns:
+        The path to the written ``.mcp.json``.
+    """
+    # The base invocation: ``kanban mcp --root <root> --issue <n>`` (conduit §8.1). ``issue`` is cast
+    # to ``int`` so the emitted arg is a clean integer string (zero injection surface).
+    args = ["mcp", "--root", str(root), "--issue", str(int(issue))]
+    # Multi-project (§7): append the per-project disambiguator so the server resolves the EXACT
+    # registry entry (two repos can both carry ``#5``). N=1 omits it → the sole entry is used.
+    if multi_project and project_id:
+        args += ["--project", project_id]
+    config = {"mcpServers": {"kanban": {"command": "kanban", "args": args}}}
+    worktree_path = Path(worktree)
+    worktree_path.mkdir(parents=True, exist_ok=True)
+    path = worktree_path / ".mcp.json"
+    # Pretty JSON + trailing newline, mirroring the neighbouring perms writers.
+    path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     return path
 
 

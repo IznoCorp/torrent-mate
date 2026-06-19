@@ -47,10 +47,16 @@ class _GitRecorder:
 
 
 def _install(monkeypatch: pytest.MonkeyPatch, recorder: _GitRecorder) -> None:
-    """Route the bin's ``subprocess.run`` through the recorder (no real git)."""
+    """Route the git subprocess through the recorder (no real git).
+
+    The git work was relocated from the bin into the ``base_sync`` workspace adapter (conduit
+    §11.2), so the ``subprocess.run`` seam now lives there — the bin delegates to it. Patching the
+    adapter's ``subprocess.run`` keeps the recorder seeing the EXACT same ``git -C <cwd> <subcmd>``
+    argv the bin produced before the relocation (behaviour-preserving).
+    """
     # String-target form avoids reaching through the module's re-exported ``subprocess``
     # attribute (which mypy treats as not explicitly exported).
-    monkeypatch.setattr("kanbanmate.bin.kanban_update_main.subprocess.run", recorder)
+    monkeypatch.setattr("kanbanmate.adapters.workspace.base_sync.subprocess.run", recorder)
 
 
 def _no_force_or_merge(recorder: _GitRecorder) -> bool:

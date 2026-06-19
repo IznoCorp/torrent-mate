@@ -227,6 +227,66 @@ def _load_registry(path: Path) -> dict[str, ProjectEntry]:
     }
 
 
+def resolve_clone_paths(root: Path, *, project_id: str | None = None) -> tuple[str, str]:
+    """Resolve ``(base_clone, dev_repo)`` from the ``<root>/projects.json`` registry (conduit §6).
+
+    The post-merge ``main`` refresh (``update_main``) must NOT take client-supplied git-repo paths:
+    a launched agent may only act on the project it was launched for, and a write tool must never
+    accept arbitrary local paths (the zero-agent-input pinning philosophy). The clone pair is
+    therefore resolved SERVER-SIDE from the registry — the SAME source the
+    ``kanban-update-main`` bin reads (``bin/kanban_update_main._resolve_from_registry`` →
+    ``bin/_clone_config.resolve_entry``), keeping ONE registry-entry→clone-pair contract.
+
+    The MCP server already knows WHICH project it is pinned to (its ``--project``/``--repo``
+    selector resolved the :class:`~kanbanmate.app.wiring.WiringConfig`, whose ``project_id`` it
+    passes here), so this resolves by that explicit id rather than the bin's worktree-pin / env
+    walk — the two callers have different pin contexts but read the identical registry shape.
+
+    Resolution:
+
+    * ``project_id`` given — the EXACT entry via
+      :func:`~kanbanmate.core.registry_resolve.resolve_by_project_id` (the launched-agent path; no
+      issue-number ambiguity).
+    * ``project_id`` ``None`` AND exactly one entry — that sole entry (N=1 back-compat).
+
+    Args:
+        root: The runtime root holding ``projects.json``.
+        project_id: The Project v2 node id to resolve the clone pair for; ``None`` resolves the
+            sole entry when the registry holds exactly one project.
+
+    Returns:
+        A ``(base_clone, dev_repo)`` pair — the entry's ``clone`` (always fetched) and its
+        ``dev_repo_path`` (``""`` when the operator never configured a dev clone).
+
+    Raises:
+        RuntimeError: When no project is registered, ``project_id`` is not in the registry, or
+            ``project_id`` is ``None`` with N>1 entries (ambiguous — pass an explicit id).
+    """
+    # Local import: the pure by-id resolver lives in ``core`` (below ``cli``), kept function-local so
+    # this loader's module-import surface stays lean (the registry loaders above carry no core import).
+    from kanbanmate.core.registry_resolve import resolve_by_project_id
+
+    projects_path = _projects_path(root)
+    registry = _load_registry(projects_path)
+    if not registry:
+        raise RuntimeError(f"no project registered in {projects_path}; run `kanban init` first")
+    if project_id is not None:
+        entry = resolve_by_project_id(registry, project_id)
+        if entry is None:
+            raise RuntimeError(
+                f"project {project_id!r} is not in {projects_path} (known: {sorted(registry)})"
+            )
+        return entry.clone, entry.dev_repo_path
+    if len(registry) == 1:
+        # N=1 back-compat: the sole entry, no id required.
+        entry = next(iter(registry.values()))
+        return entry.clone, entry.dev_repo_path
+    raise RuntimeError(
+        f"{len(registry)} projects registered in {projects_path} and no project_id to "
+        f"disambiguate (known: {sorted(registry)})"
+    )
+
+
 def _upsert_project(path: Path, project_node_id: str, entry: ProjectEntry) -> None:
     """Insert/replace the entry keyed by ``project_node_id`` and write back.
 

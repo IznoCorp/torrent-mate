@@ -136,6 +136,32 @@ def resolve_column(columns: dict[str, Column], token: str) -> Column | None:
     return columns.get(token)
 
 
+def resolve_target_column(columns: dict[str, Column], target: str) -> Column:
+    """Resolve a caller-supplied ``target`` (a column ``key`` *or* ``name``) to its :class:`Column`.
+
+    Shared by the CLI move path and the ``conduit`` MCP ``move`` tool. The operator/agent may name
+    the destination by either its stable ``key`` (e.g. ``"Backlog"``) or its human-readable ``name``
+    (e.g. ``"In Progress"``). Both map to the same column.
+
+    Args:
+        columns: The loaded column model (keyed by column ``key``).
+        target: The destination column, given as a ``key`` or a ``name``.
+
+    Returns:
+        The matching :class:`Column`.
+
+    Raises:
+        KeyError: When ``target`` matches no column key or name.
+    """
+    if target in columns:
+        return columns[target]
+    for column in columns.values():
+        if column.name == target:
+            return column
+    known = ", ".join(sorted(columns)) or "(none)"
+    raise KeyError(f"unknown column {target!r}; known columns: {known}")
+
+
 @dataclass(frozen=True)
 class BoardDefaults:
     """Board-wide concurrency and rate-limit knobs (DESIGN §6 / §7).

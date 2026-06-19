@@ -46,6 +46,10 @@ FORBIDDEN: dict[str, list[str]] = {
     # reach the ``daemon``/``bin`` sibling entrypoints, so the receiver stays a thin standalone
     # front-door and ``core`` stays pure.
     "http": ["daemon", "bin"],
+    # mcp is the stdio board-server entrypoint (conduit). Like cli/daemon/http it sits at the TOP of
+    # the hierarchy and may import app/adapters/core/ports/cli (the http set — http already imports
+    # cli.init), but must NOT reach the daemon/bin sibling entrypoints.
+    "mcp": ["daemon", "bin"],
 }
 
 

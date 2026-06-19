@@ -25,11 +25,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install package with dev + ui extras
+      - name: Install package with dev + ui + mcp extras
         # The ui extra (fastapi/uvicorn) is required so mypy can typecheck the
         # http/ config API and so the tests/http suite runs for real instead of
-        # being skipped by its pytest.importorskip("fastapi") guard.
-        run: pip install -e ".[dev,ui]"
+        # being skipped by its pytest.importorskip("fastapi") guard. The mcp extra
+        # (mcp SDK) is required so the conduit mcp/ board surface typechecks and its
+        # tests run for real instead of being skipped (conduit DESIGN §4.1).
+        run: pip install -e ".[dev,ui,mcp]"
 
       - name: Run full local gate (lint + test + size)
         run: make check

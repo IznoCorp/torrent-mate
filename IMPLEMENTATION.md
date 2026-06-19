@@ -1,87 +1,62 @@
-# Implementation Progress — helm
+# Implementation Progress — conduit
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Configuration interface — config core + HTTP API (PR 1) (type: minor)
-**Version bump**: 0.5.1 → 0.6.0
-**Branch**: `feat/helm`
+**Feature**: MCP helpers — expose the board as an additive stdio MCP read+write surface (type: minor)
+**Version bump**: 0.7.1 → 0.8.0
+**Branch**: feat/conduit
 **PR merge**: manual
 **PR**: _(created after last phase)_
-**Design**: docs/features/helm/DESIGN.md
-**Master plan**: docs/features/helm/plan/INDEX.md
-
-> Scope: PR 1 only — backend-neutral config core + headless local-loopback HTTP API. No UI (PR 2),
-> no board mutation (PR 3). The 3-PR arc is documented in DESIGN.md so the steps compose, but #5
-> implements PR 1 only.
+**Design**: docs/features/conduit/DESIGN.md
+**Master plan**: docs/features/conduit/plan/INDEX.md
 
 ## Phases
 
-| # | Phase | File | Status |
-| --- | --- | --- | --- |
-| 1 | Core: profiles relocation + config model | plan/phase-01-core-profiles-and-model.md | [x] |
-| 2 | Serializer (render_pipeline) | plan/phase-02-serializer.md | [x] |
-| 3 | Validator + resolve | plan/phase-03-validator-and-resolve.md | [x] |
-| 4 | Config service (app) | plan/phase-04-config-service.md | [x] |
-| 5 | HTTP API + CLI + packaging | plan/phase-05-http-cli-packaging.md | [x] |
+| # | Phase | Plan | Status |
+|---|-------|------|--------|
+| 1 | Layering guard + behaviour-preserving relocations | docs/features/conduit/plan/phase-01-layering-relocations.md | [x] |
+| 2 | MCP pure shell — pin, resources, tools (SDK-free) + unit tests | docs/features/conduit/plan/phase-02-pure-shell.md | [x] |
+| 3 | SDK server + `kanban mcp` command + roundtrip test | docs/features/conduit/plan/phase-03-server-cli.md | [x] |
+| 4 | Lifecycle wiring — `.mcp.json` + `enabledMcpjsonServers` | docs/features/conduit/plan/phase-04-lifecycle-wiring.md | [x] |
+| 5 | Version bump + final gate | docs/features/conduit/plan/phase-05-version-gate.md | [x] |
 
 ## Review cycles
 
+_(filled by implement:pr-review — max 5 cycles)_
+
 ### Cycle 1
 
-PR #33 reviewed via `/pr-review-toolkit:review-pr` (5 specialised agents: code-reviewer,
-pr-test-analyzer, silent-failure-hunter, type-design-analyzer, design-conformity). Design-conformity
-verdict: 9/10 CONFORM, no design contradictions. Findings filtered against DESIGN.md and the plan;
-retained findings fixed on `feat/helm` (PR left OPEN — merge is human-only).
+5 review agents ran against PR #39 (code-reviewer, pr-test-analyzer, silent-failure-hunter,
+type-design-analyzer, comment-analyzer). Findings filtered against DESIGN §6/§7/§12. No design
+contradiction. Retained + fixed:
 
-**Retained + fixed**
+- **F1 (critical)** — `adapters/workspace/base_sync.py:150` printed the happy-path "Fast-forwarding"
+  message to **stdout**. Since `update_main` runs inside the stdio MCP server (stdout = JSON-RPC
+  frames), a clean fast-forward would corrupt the protocol stream. Fix: route the line to `stderr`
+  (behaviour-preserving — informational) + a regression test asserting `stdout == ""`.
+- **F2 (major)** — `mcp/tools.py:update_main` was the only write tool skipping the PAUSE kill-switch
+  floor that DESIGN §7 mandates for *every* write tool. Fix: thread `store` in, refuse (zero git I/O)
+  under PAUSE; server dispatch passes `store`.
+- **F3 (medium)** — `update_main` had no behavioural test and `progress`'s stage-sticky route was
+  untested (DESIGN §12 requires per-write-tool routing tests). Fix: added routing + PAUSE tests.
+- **F4 (medium)** — `move` leaked the bare `KeyError` repr (losing the "known columns: …" hint) on an
+  unknown column, breaking the friendly-refusal contract. Fix: catch `KeyError`, return a refusal
+  string; test added.
+- **F5 (medium)** — `update_body`'s `set_field`/`append_section` array schemas were length-unbounded
+  → a malformed (1/3-element) array `IndexError`'d out of the tuple-unpack. Fix: `minItems/maxItems: 2`
+  so the SDK rejects it up front; both-/neither-mode XOR refusal tests added.
+- Minor folded in: `resolve_target_column` docstring generalised (CLI → caller-supplied; now shared
+  with the MCP `move` tool); a happy-path `move`-through-SDK roundtrip test (GAP-5 marshaling).
 
-- **(major) `--root` silently dropped.** `kanban config serve --root X` accepted/echoed the flag but
-  every endpoint called `_get_service()` with no argument → always `~/.kanban/`. Threaded the root via
-  `app.state.kanban_root` (set in `cli/config.py:serve` before `uvicorn.run`, read in
-  `http/config_api._get_service`). Test: `test_get_service_honors_app_state_root`.
-- **(medium) `from_loaded` leaked `YAMLError`/`AttributeError`** instead of the documented `ValueError`
-  (an empty/malformed/non-mapping `transitions.yml` — exactly the input helm exists to fix — would 500
-  on `GET /api/config`). `core/transitions.load_transitions` has no non-dict guard (unlike
-  `load_columns`). Hardened `from_loaded`: parse + `is None`/`isinstance` guard + wrap `YAMLError` as
-  `ValueError`; empty doc → graceful empty draft. Tests: empty / malformed / non-mapping.
-- **(medium) `get_render` + `post_resolve` unguarded** → opaque 500 traceback on a load/loader error.
-  Wrapped to match `get_config` (render → 500 on load error; resolve → 422 on a loader-rejected draft).
-  Tests: `test_post_resolve_invalid_draft_returns_422`.
-- **(medium) `column_class` typo silently demoted reactive→inert** (no V-check, oracle accepts it).
-  Added **V9** (column-class membership). Tests: invalid + clean.
-- **(medium) Defaults had no sanity bound** (a `concurrency_cap`/rate of 0 stalls the pipeline; the
-  published schema declares `minimum: 1`). Added **V10** (defaults sanity). Tests: both fields.
-- **Test gaps** (per `pr-test-analyzer`): structural-422 contract (F1), V8 no-false-positive on a
-  matching block (F2), real explicit-vs-wildcard precedence contention + honest rename (F3), `wild_from`
-  tier (F4), `POST /api/config` write-to-disk side-effect (F5).
-- **(minor)** V1 finding f-string rendered `{{'key'}}` → now `{{key}}`; `Finding.severity` typed
-  `Literal["error", "warning"]` (hardens the save gate). DESIGN §7.1 reconciled (V7 wording; V9/V10 rows;
-  V1–V10 counts).
+Ignored (out of scope / pre-existing / design-preference): `update_body` sum-type refactor (XOR is
+runtime-enforced + tested), `queue` corrupt-marker observability (pre-existing intentional degrade),
+comment line-number citation nits, the 36 env-only `tests/bin/*` failures (worktree pin + `KANBAN_*`
+env leak; identical on pre-fix HEAD — 36 failed/2038 passed → 36 failed/2047 passed, CI-clean).
 
-**Ignored (conform to DESIGN — not defects)**
-
-- `ResolvedTransition.would_launch = matched and prompt is not None` — explicitly specified in DESIGN §6
-  ("an agent fires" = prompt present; script-only is a gate, not a launch).
-- `save` is per-file atomic, not transactional across the two files — DESIGN §12 specifies "one file at
-  a time"; validation runs first so content is valid.
-- `resolve` reads `TransitionConfig` private `_explicit/_wild_from/_wild_to` to report the tier — core→core,
-  tested, `noqa`-flagged; `.get()` does not expose the tier. Acceptable for PR 1 (noted for PR 3).
-
-**Gate**: `make lint` clean (ruff + mypy, 219 files); helm suites + layering 86 passed; module-size guard
-no hard-ceiling breach (`config_validate.py` 623 LOC); `import kanbanmate` + daemon-purity smoke green.
-(The ~36 `tests/bin/`+`test_doctor` failures are the known env-only helper-shim cases — CI `check` green.)
-
-### Cycle 2 (verification)
-
-Adversarial re-review of the cycle-1 fix diff (`3df7eb4`): a correctness re-reviewer and a
-design-conformity re-checker. Both verdicts: fixes **correct and complete**, design↔implementation
-**coherent**, **no new critical/major/medium**. One trivial **minor** residue — the
-`config_validate.py` module docstring still said "8 semantic checks (V1–V8)" — fixed in `4b02fcb`.
-
-`make lint` clean; helm suites + layering green; CI `check` pass on both fix commits.
-
-No critical/major/medium findings remain → review loop exits. PR #33 left OPEN for human merge.
+Gate after fixes: ruff ✓, ruff format ✓, mypy --strict (231 files) ✓, affected suites 312 passed
+(+9 new). PR left **open** for human merge (merge = human-only).
 
 ## Next action
 
-All phases complete — run /implement:feature-pr (push + PR + CI).
+Cycle 1 fixes pushed. PR #39 open for human merge. Re-review (cycle 2) confirmed no remaining
+critical/major/medium findings.

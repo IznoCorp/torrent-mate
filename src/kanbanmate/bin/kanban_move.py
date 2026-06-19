@@ -61,7 +61,7 @@ from kanbanmate.bin._clone_config import load_clone_columns as _load_clone_colum
 from kanbanmate.bin._clone_config import load_clone_transitions as _load_clone_transitions
 from kanbanmate.bin._clone_config import resolve_entry as _resolve_entry
 from kanbanmate.bin._pin import check_pin, helper_store_root, parse_issue_arg
-from kanbanmate.core.domain import Column
+from kanbanmate.core.columns import resolve_target_column
 
 # The three per-clone config loaders (``_resolve_entry`` / ``_load_clone_columns`` /
 # ``_load_clone_transitions``) were LIFTED into :mod:`kanbanmate.bin._clone_config` so the
@@ -88,32 +88,6 @@ _TERMINAL_STATES: frozenset[str] = frozenset({"done", "rejected"})
 #: benign (the daemon still applies the move) but lets the agent get a definitive answer.
 _WAIT_TIMEOUT_SECONDS = 15.0
 _WAIT_POLL_SECONDS = 0.5
-
-
-def resolve_target_column(columns: dict[str, Column], target: str) -> Column:
-    """Resolve a CLI ``target`` (a column ``key`` *or* ``name``) to its :class:`Column`.
-
-    The operator/agent may name the destination by either its stable ``key`` (e.g.
-    ``"Backlog"``) or its human-readable ``name`` (e.g. ``"In Progress"``). Both map to
-    the same column.
-
-    Args:
-        columns: The loaded column model (keyed by column ``key``).
-        target: The destination column, given as a ``key`` or a ``name``.
-
-    Returns:
-        The matching :class:`Column`.
-
-    Raises:
-        KeyError: When ``target`` matches no column key or name.
-    """
-    if target in columns:
-        return columns[target]
-    for column in columns.values():
-        if column.name == target:
-            return column
-    known = ", ".join(sorted(columns)) or "(none)"
-    raise KeyError(f"unknown column {target!r}; known columns: {known}")
 
 
 def _parse_argv(raw_argv: list[str]) -> tuple[int, str, bool] | int:
