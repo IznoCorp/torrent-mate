@@ -190,12 +190,21 @@ class TrackerRegistry:
         private ``_transport`` are included — the same attribute :meth:`close`
         already relies on. No new public surface is added to the clients.
 
+        Resilient to a lazy ``_transport`` property that triggers a bootstrap
+        login on access (torr9's TVDB-lazy pattern): a login failure there is
+        logged and the tracker is skipped rather than propagated — a single
+        tracker's auth problem must not break the grab seam for the others.
+
         Returns:
             Dict mapping each tracker's lowercase wire name to its transport.
         """
         result: dict[str, HttpTransport] = {}
         for name, client in self._trackers.items():
-            transport = getattr(client, "_transport", None)
+            try:
+                transport = getattr(client, "_transport", None)
+            except Exception as exc:  # noqa: BLE001  # a lazy login may fail; don't break the grab seam
+                log.warning("tracker_transport_unavailable", tracker=name, error=str(exc))
+                continue
             if transport is not None:
                 result[name] = transport
         return result

@@ -7,6 +7,7 @@ Tests NEVER hit the live torr9 API — transport is always mocked.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import timezone
 from pathlib import Path
@@ -16,11 +17,49 @@ import pytest
 
 from personalscraper.api._contracts import ApiError
 from personalscraper.api._units import ByteSize
+from personalscraper.api.torrent._base import TorrentSource
 from personalscraper.api.tracker._base import TrackerResult
+from personalscraper.api.tracker._fetch import resolve_source
 from personalscraper.api.tracker.torr9 import Torr9Client
 from personalscraper.api.transport._auth import BearerAuth
 
 _SAMPLES = Path(__file__).resolve().parents[2] / "docs" / "reference" / "_samples" / "torr9"
+
+
+def _bencode(obj: object) -> bytes:
+    """Encode a Python value as bencode (self-contained test helper)."""
+    if isinstance(obj, bytes):
+        return str(len(obj)).encode() + b":" + obj
+    if isinstance(obj, bool):  # bool is an int subclass — guard first
+        raise TypeError("bool not supported in bencode")
+    if isinstance(obj, int):
+        return b"i" + str(obj).encode() + b"e"
+    if isinstance(obj, list):
+        return b"l" + b"".join(_bencode(x) for x in obj) + b"e"
+    if isinstance(obj, dict):
+        out = b"d"
+        for key in sorted(obj):
+            assert isinstance(key, bytes), "dict keys must be bytes"
+            out += _bencode(key) + _bencode(obj[key])
+        return out + b"e"
+    raise TypeError(f"unsupported bencode type: {type(obj)!r}")
+
+
+def _make_torrent_bytes() -> tuple[bytes, str]:
+    """Build a representative single-file ``.torrent`` (test helper).
+
+    Returns:
+        ``(raw_bytes, expected_info_hash_hex)`` — the lowercase hex SHA-1 of the
+        bencoded top-level ``info`` value.
+    """
+    info: dict[bytes, object] = {
+        b"length": 12345,
+        b"name": b"torr9.release.2026.mkv",
+        b"piece length": 16384,
+        b"pieces": b"\x00" * 20,
+    }
+    torrent: dict[bytes, object] = {b"announce": b"http://t.example/announce", b"info": info}
+    return _bencode(torrent), hashlib.sha1(_bencode(info)).hexdigest()
 
 
 def _load(name: str) -> object:
@@ -410,8 +449,14 @@ class TestTorr9SearchGoldenFixture:
 class TestTorr9ParseBranches:
     """_parse_item branch coverage for missing magnet and unmapped category."""
 
-    def test_missing_magnet_leaves_download_url_none(self) -> None:
-        """An item without magnet_link yields download_url=None (no torrent_file_url leak)."""
+    def test_missing_magnet_falls_back_to_download_endpoint(self) -> None:
+        """An item without magnet_link falls back to the authed .torrent /download endpoint.
+
+        download_url is NO LONGER None when the magnet is absent — it is the real
+        .torrent endpoint ``/api/v1/torrents/{id}/download`` (Bearer, bytes),
+        which resolve_source fetches via the provider's authed transport. The
+        dead torrent_file_url must NOT leak.
+        """
         client = _make_client()
         client._transport.get.return_value = {  # type: ignore[attr-defined]
             "torrents": [
@@ -420,7 +465,7 @@ class TestTorr9ParseBranches:
                     "title": "No Magnet Release",
                     "file_size_bytes": 1000,
                     # magnet_link intentionally absent
-                    "torrent_file_url": "/dl/7.torrent",  # relative, must NOT leak
+                    "torrent_file_url": "/dl/7.torrent",  # dead — must NOT leak
                     "is_freeleech": False,
                     "category_id": 5,
                     "info_hash": "abc",
@@ -430,7 +475,7 @@ class TestTorr9ParseBranches:
         }
 
         result = client.search("x")[0]
-        assert result.download_url is None
+        assert result.download_url == "/api/v1/torrents/7/download"
 
     def test_missing_magnet_emits_warning_log(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """The None download_url path emits a torr9_missing_magnet warning breadcrumb."""
@@ -805,3 +850,60 @@ class TestTorr9SearchEnrichment:
         assert len(results) == 2
         assert all(r.seeders == 0 for r in results)
         assert any(event == "torr9_enrich_failed" for event, _ in warnings)
+
+
+# ---------------------------------------------------------------------------
+# .torrent download fallback wiring (resolve_source via authed transport)
+# ---------------------------------------------------------------------------
+
+
+class TestTorr9DownloadFallbackWiring:
+    """A torr9 result with the /download download_url resolves via the authed transport.
+
+    Pins the authed-bytes fallback: when the magnet is absent, _parse_item emits
+    ``/api/v1/torrents/{id}/download``; resolve_source then fetches it through the
+    provider's transport (get_bytes joins base_url + Bearer) and builds a
+    TorrentSource from the returned .torrent bytes.
+    """
+
+    def test_resolve_source_fetches_torrent_via_transport(self) -> None:
+        """resolve_source(/download result, {torr9: transport}) → TorrentSource from bytes."""
+        raw_torrent, _info_hash = _make_torrent_bytes()
+
+        result = TrackerResult(
+            provider="torr9",
+            tracker_id="7",
+            title="No Magnet Release",
+            size=ByteSize.parse(1000),
+            seeders=3,
+            leechers=1,
+            download_url="/api/v1/torrents/7/download",
+            info_hash=None,  # no cross-check needed for this wiring test
+        )
+
+        transport = MagicMock()
+        transport.provider_name = "torr9"
+        transport.get_bytes.return_value = raw_torrent
+
+        source = resolve_source(result, {"torr9": transport}, cross_check=False)
+
+        assert isinstance(source, TorrentSource)
+        # The transport was asked for the relative /download path (joined +Bearer downstream).
+        transport.get_bytes.assert_called_once_with("/api/v1/torrents/7/download")
+
+    def test_parse_item_download_endpoint_is_relative_path(self) -> None:
+        """The fallback download_url is the relative /download path (not the dead torrent_file_url)."""
+        client = _make_client()
+        client._transport.get.return_value = {  # type: ignore[attr-defined]
+            "torrents": [
+                {
+                    "id": 42,
+                    "title": "No Magnet",
+                    "file_size_bytes": 1,
+                    "torrent_file_url": "/dl/42.torrent",  # dead — must NOT be used
+                    "category_id": 5,
+                }
+            ]
+        }
+        result = client.search("x")[0]
+        assert result.download_url == "/api/v1/torrents/42/download"

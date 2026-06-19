@@ -12,9 +12,12 @@ Field shapes validated against docs/reference/_samples/torr9/torr9_search.json
 torr9 particularities (live-confirmed):
 - Search param is ``q`` (NOT ``search`` — returns 0 results).
 - Pagination via ``page`` query param (default page 1, limit 20).
-- ``magnet_link`` is auth-free (the ONLY download path used this feature).
-  ``torrent_file_url`` is relative (needs base + auth) and is intentionally
-  NOT consumed — the torrent_file_url fallback is deferred (R1 follow-on).
+- ``magnet_link`` is auth-free and is the PRIMARY download path. When it is
+  absent/malformed, the fallback is the real .torrent endpoint
+  ``GET /api/v1/torrents/{id}/download`` (Bearer, returns
+  ``application/x-bittorrent`` bytes — live-confirmed). ``torrent_file_url`` is
+  DEAD (404 at every host/auth, hash mismatch, absent from the detail payload)
+  and is NOT consumed.
 - ``is_freeleech`` is a clean boolean (no text parsing needed).
 - No seeders/leechers exposed — ``seeders=0, leechers=0`` on all results.
 - Login 401: "Identifiant ou mot de passe invalide" → fail-loud at boot.
@@ -441,15 +444,19 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
         size_raw = item.get("file_size_bytes", 0)
         size = ByteSize.parse(int(size_raw))
 
-        # magnet_link is the ONLY download path used this feature (auth-free,
-        # maps to the ROADMAP Q4 magnet exception). torrent_file_url is relative
-        # (needs base + auth) and is intentionally NOT read — that fallback is
-        # deferred (R1 follow-on). When magnet_link is absent/malformed, leave a
-        # breadcrumb so the resulting None download_url is not a silent failure.
+        # Download path: prefer the auth-free magnet_link (the ROADMAP Q4 magnet
+        # exception). When the magnet is absent/malformed, FALL BACK to the real
+        # .torrent endpoint GET /api/v1/torrents/{id}/download (Bearer, bytes —
+        # live-confirmed 200 application/x-bittorrent). resolve_source fetches it
+        # via the provider's authed transport (get_bytes joins base_url + Bearer).
+        # NOTE: torrent_file_url is DEAD (404 everywhere, hash mismatch) — unused.
         magnet = item.get("magnet_link")
-        download_url: str | None = magnet if isinstance(magnet, str) and magnet.startswith("magnet:") else None
-        if download_url is None:
-            log.warning("torr9_missing_magnet", tracker_id=str(item.get("id", "")), title=title)
+        tracker_id = str(item.get("id", ""))
+        if isinstance(magnet, str) and magnet.startswith("magnet:"):
+            download_url: str = magnet
+        else:
+            log.warning("torr9_missing_magnet", tracker_id=tracker_id, title=title)
+            download_url = f"/api/v1/torrents/{tracker_id}/download"
 
         # Category: the SEARCH payload has a numeric ``category_id`` (mapped via
         # _CATEGORY_MAP); the DETAIL payload has NO ``category_id`` but a human
@@ -469,7 +476,7 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
         # The `or 0` collapses a present-but-None value to 0.
         return TrackerResult(
             provider=self.provider_name,
-            tracker_id=str(item.get("id", "")),
+            tracker_id=tracker_id,
             title=title,
             size=size,
             seeders=int(item.get("seeders", 0) or 0),
