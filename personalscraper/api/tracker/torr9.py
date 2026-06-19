@@ -309,6 +309,8 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
 
         Returns:
             List of TrackerResult ordered as returned by the API (newest first).
+            When ``enrich_seeders`` is on, the top-K results carry real
+            seeders/leechers fetched from the detail endpoint.
         """
         del media_type  # No per-type search endpoint on torr9.
         q = f"{query} {year}" if year is not None else query
@@ -319,7 +321,22 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
             items = data.get("torrents") or []
             return [self._parse_item(item) for item in items]
 
-        return wrap_parser_drift(self.provider_name, _parse)
+        results = wrap_parser_drift(self.provider_name, _parse)
+
+        # Swarm enrichment: torr9's search payload has no seeders/leechers, so
+        # every result would be seeders=0 and dropped by the ranking
+        # ``min_seeders`` floor. Backfill the top-K results' swarm health from
+        # the detail endpoint. Fail-soft PER RESULT — a detail error or circuit
+        # trip leaves that result at seeders=0 but never aborts the search.
+        if self._enrich_seeders and results:
+            for r in results[: self._enrich_top_k]:
+                try:
+                    detail = self.get_details(r.tracker_id)
+                    r.seeders = detail.seeders  # TrackerResult is a mutable dataclass
+                    r.leechers = detail.leechers
+                except ApiError as exc:
+                    log.warning("torr9_enrich_failed", tracker_id=r.tracker_id, error=str(exc))
+        return results
 
     def is_freeleech(self, torrent_id: str) -> bool:
         """Re-check whether a torrent is currently freeleech (FreeleechAware).
@@ -351,6 +368,36 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
 
         return wrap_parser_drift(self.provider_name, _parse)
 
+    def get_details(self, torrent_id: str) -> TrackerResult:
+        """Fetch the per-torrent detail (GET /torrents/{id}) as a TrackerResult.
+
+        Implements
+        :class:`~personalscraper.api.tracker._contracts.TorrentDetailsProvider`.
+        Unlike the search payload, the detail carries real seeders/leechers, so
+        ``search()`` calls this to enrich the top-K results' swarm health before
+        ranking. Reuses ``_authed_get`` (lazy login + re-login on 401, RP7) and
+        wraps the parse in ``wrap_parser_drift`` so shape drift surfaces as
+        ``ApiError``. The shared ``_parse_item`` handles the detail shape
+        (``category_name`` label, real swarm fields).
+
+        Args:
+            torrent_id: The torr9 numeric torrent id (as a string).
+
+        Returns:
+            A TrackerResult built from the detail payload, with real
+            seeders/leechers.
+
+        Raises:
+            ApiError: On a non-401 transport error, a 401 surviving one re-login
+                (bad creds → fail-loud), or a malformed (non-dict) detail payload
+                (surfaced via ``wrap_parser_drift``).
+        """
+        raw = self._authed_get(f"/api/v1/torrents/{torrent_id}")
+        return wrap_parser_drift(
+            self.provider_name,
+            lambda: self._parse_item(cast("dict[str, Any]", raw)),
+        )
+
     def get_categories(self) -> dict[str, str]:
         """Return the static torr9 category map as ``{str(id): label}``.
 
@@ -369,12 +416,21 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
     def _parse_item(self, item: dict[str, Any]) -> TrackerResult:
         """Map one torr9 JSON torrent item to a TrackerResult.
 
+        Shared by BOTH payload shapes:
+
+        - the SEARCH item (``response["torrents"][i]``) — carries a numeric
+          ``category_id`` but NO swarm data (``seeders``/``leechers`` absent →
+          default to 0);
+        - the DETAIL item (``GET /torrents/{id}``) — carries real
+          ``seeders``/``leechers`` and a human ``category_name`` label instead
+          of ``category_id``.
+
         Args:
-            item: One element from ``response["torrents"]``.
+            item: One torrent object from either the search or detail payload.
 
         Returns:
-            TrackerResult with ``seeders=0`` and ``leechers=0``
-            (torr9 exposes no swarm health data — JSON or RSS).
+            TrackerResult. ``seeders``/``leechers`` are 0 for a search item
+            (no swarm keys) and the real swarm health for a detail item.
         """
         title = str(item.get("title", ""))
 
@@ -395,20 +451,29 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
         if download_url is None:
             log.warning("torr9_missing_magnet", tracker_id=str(item.get("id", "")), title=title)
 
+        # Category: the SEARCH payload has a numeric ``category_id`` (mapped via
+        # _CATEGORY_MAP); the DETAIL payload has NO ``category_id`` but a human
+        # ``category_name`` label instead. Prefer the id-map, fall back to the
+        # detail's label so both payload shapes yield a real category.
         category_id = item.get("category_id")
-        category = _CATEGORY_MAP.get(int(category_id)) if isinstance(category_id, int | float) else None
+        if isinstance(category_id, int | float):
+            category = _CATEGORY_MAP.get(int(category_id))
+        else:
+            category = item.get("category_name")
 
         upload_date = _parse_iso(item.get("upload_date"))
 
-        # torr9 has no seeder/leecher data in either JSON search or RSS.
-        # _ranking.py weights seeders; absence means ranking on freeleech/size/recency.
+        # Swarm health: the SEARCH payload omits seeders/leechers (→ 0); the
+        # DETAIL payload (GET /torrents/{id}) carries the real values. int()
+        # runs inside wrap_parser_drift, so a bad type surfaces as shape drift.
+        # The `or 0` collapses a present-but-None value to 0.
         return TrackerResult(
             provider=self.provider_name,
             tracker_id=str(item.get("id", "")),
             title=title,
             size=size,
-            seeders=0,
-            leechers=0,
+            seeders=int(item.get("seeders", 0) or 0),
+            leechers=int(item.get("leechers", 0) or 0),
             category=category,
             download_url=download_url,
             info_hash=item.get("info_hash"),

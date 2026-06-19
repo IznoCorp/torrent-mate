@@ -620,3 +620,188 @@ class TestTorr9FreeleechRecheck:
             client.is_freeleech("1")
         assert exc.value.provider == "torr9"
         assert "shape drift" in exc.value.message
+
+
+# ---------------------------------------------------------------------------
+# TorrentDetailsProvider.get_details tests
+# ---------------------------------------------------------------------------
+
+
+class TestTorr9GetDetails:
+    """get_details(torrent_id) — detail payload → TrackerResult with real swarm.
+
+    Anti-vacuity: asserts the concrete seeders/leechers/category from the real
+    torr9_detail.json (id 305292), the correct detail path, and shape-drift.
+    """
+
+    def test_get_details_seeders_leechers_from_fixture(self) -> None:
+        """Detail payload yields the real seeders=1 / leechers=4 (golden fixture)."""
+        client = _make_client()
+        client._transport.get.return_value = _load("torr9_detail.json")  # type: ignore[attr-defined]
+
+        detail = client.get_details("305292")
+
+        assert isinstance(detail, TrackerResult)
+        assert detail.seeders == 1
+        assert detail.leechers == 4
+
+    def test_get_details_title_and_category_from_detail_label(self) -> None:
+        """Detail payload has no category_id but a category_name label → used directly."""
+        client = _make_client()
+        client._transport.get.return_value = _load("torr9_detail.json")  # type: ignore[attr-defined]
+
+        detail = client.get_details("305292")
+
+        assert detail.title == "Oasis.2026.S01.MULTi.AD.1080p.NF.WEB.X264-THESYNDiCATE"
+        # The detail payload carries no numeric category_id, only a label.
+        assert detail.category == "Séries TV"
+
+    def test_get_details_tracker_id_from_detail(self) -> None:
+        """tracker_id is the string of the detail 'id' field."""
+        client = _make_client()
+        client._transport.get.return_value = _load("torr9_detail.json")  # type: ignore[attr-defined]
+
+        detail = client.get_details("305292")
+        assert detail.tracker_id == "305292"
+
+    def test_get_details_hits_detail_path(self) -> None:
+        """get_details calls GET /api/v1/torrents/{id}."""
+        client = _make_client()
+        client._transport.get.return_value = {"id": 42, "title": "x", "file_size_bytes": 1}  # type: ignore[attr-defined]
+        client.get_details("42")
+        kwargs = client._transport.get.call_args.kwargs  # type: ignore[attr-defined]
+        assert kwargs["path"] == "/api/v1/torrents/42"
+
+    def test_get_details_non_dict_payload_raises_api_error(self) -> None:
+        """A non-dict detail payload surfaces as ApiError via wrap_parser_drift."""
+        client = _make_client()
+        client._transport.get.return_value = [1, 2, 3]  # type: ignore[attr-defined]
+        with pytest.raises(ApiError) as exc:
+            client.get_details("1")
+        assert exc.value.provider == "torr9"
+        assert "shape drift" in exc.value.message
+
+
+# ---------------------------------------------------------------------------
+# Search seeders-enrichment tests (top-K, default on / off / fail-soft)
+# ---------------------------------------------------------------------------
+
+
+class TestTorr9SearchEnrichment:
+    """search() enriches the top-K results' seeders from the detail endpoint.
+
+    torr9's search payload has no swarm data, so without enrichment every result
+    is seeders=0 and dropped by the ranking min_seeders floor. These tests pin
+    the top-K bound, the default-on behaviour, the opt-out, and the per-result
+    fail-soft contract.
+    """
+
+    @staticmethod
+    def _search_payload(n: int) -> dict[str, object]:
+        """Build a search payload with n magnet-bearing results (seeders absent)."""
+        return {
+            "torrents": [
+                {
+                    "id": 1000 + i,
+                    "title": f"Release {i}",
+                    "file_size_bytes": 1000,
+                    "magnet_link": f"magnet:?xt=urn:btih:{i:040x}",
+                    "is_freeleech": False,
+                    "category_id": 5,
+                    "info_hash": f"{i:040x}",
+                    "upload_date": None,
+                }
+                for i in range(n)
+            ]
+        }
+
+    def test_enrich_default_on_backfills_top_k_seeders(self) -> None:
+        """With enrich on (default), the top-K results get real seeders via get_details."""
+        client = _make_client()
+        client._transport.get.return_value = self._search_payload(3)  # type: ignore[attr-defined]
+
+        # Each get_details returns a TrackerResult with seeders=7, leechers=2.
+        def _fake_details(tid: str) -> TrackerResult:
+            return TrackerResult(
+                provider="torr9",
+                tracker_id=tid,
+                title="d",
+                size=ByteSize.parse(1),
+                seeders=7,
+                leechers=2,
+            )
+
+        client.get_details = _fake_details  # type: ignore[method-assign]
+
+        results = client.search("x")
+
+        assert len(results) == 3
+        assert all(r.seeders == 7 for r in results)
+        assert all(r.leechers == 2 for r in results)
+
+    def test_enrich_only_top_k_results(self) -> None:
+        """Only the first top_k results are enriched; the remainder stay seeders=0."""
+        client = Torr9Client(
+            username="u", password="p", event_bus=MagicMock(), enrich_seeders=True, enrich_seeders_top_k=2
+        )
+        client._transport = MagicMock()
+        client._transport.get.return_value = self._search_payload(5)  # type: ignore[attr-defined]
+
+        calls: list[str] = []
+
+        def _fake_details(tid: str) -> TrackerResult:
+            calls.append(tid)
+            return TrackerResult(
+                provider="torr9", tracker_id=tid, title="d", size=ByteSize.parse(1), seeders=9, leechers=1
+            )
+
+        client.get_details = _fake_details  # type: ignore[method-assign]
+
+        results = client.search("x")
+
+        assert len(results) == 5
+        assert [r.seeders for r in results] == [9, 9, 0, 0, 0]
+        assert len(calls) == 2  # get_details called at most top_k times
+
+    def test_enrich_off_does_not_call_get_details(self) -> None:
+        """With enrich_seeders=False, search never calls get_details; all seeders=0."""
+        client = Torr9Client(username="u", password="p", event_bus=MagicMock(), enrich_seeders=False)
+        client._transport = MagicMock()
+        client._transport.get.return_value = self._search_payload(3)  # type: ignore[attr-defined]
+
+        called = False
+
+        def _fake_details(tid: str) -> TrackerResult:
+            nonlocal called
+            called = True
+            return TrackerResult(
+                provider="torr9", tracker_id=tid, title="d", size=ByteSize.parse(1), seeders=5, leechers=0
+            )
+
+        client.get_details = _fake_details  # type: ignore[method-assign]
+
+        results = client.search("x")
+
+        assert called is False
+        assert all(r.seeders == 0 for r in results)
+
+    def test_enrich_fail_soft_leaves_seeders_zero_and_logs(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A get_details ApiError is swallowed per result: search still returns, seeders=0."""
+        warnings: list[tuple[str, dict[str, object]]] = []
+        monkeypatch.setattr(
+            "personalscraper.api.tracker.torr9.log.warning",
+            lambda event, **kw: warnings.append((event, kw)),
+        )
+        client = _make_client()
+        client._transport.get.return_value = self._search_payload(2)  # type: ignore[attr-defined]
+
+        def _boom(tid: str) -> TrackerResult:
+            raise ApiError(provider="torr9", http_status=500, message="detail boom")
+
+        client.get_details = _boom  # type: ignore[method-assign]
+
+        results = client.search("x")
+
+        assert len(results) == 2
+        assert all(r.seeders == 0 for r in results)
+        assert any(event == "torr9_enrich_failed" for event, _ in warnings)

@@ -230,10 +230,19 @@ class TrackerProviderConfig(_StrictModel):
     Attributes:
         enabled: Whether this tracker is active.
         economy: Optional seeding economy policy. None = activation-only mode.
+        enrich_seeders: When True (default), the tracker enriches the top-K
+            search results' seeders/leechers from its per-torrent detail
+            endpoint before ranking. Only consumed by trackers whose search
+            payload omits swarm health (currently torr9); api-key trackers
+            ignore it. Without enrichment, torr9 results (seeders=0) are dropped
+            by the ranking ``min_seeders`` floor and win no grab.
+        enrich_seeders_top_k: How many leading results to enrich (default 10).
     """
 
     enabled: bool = False
     economy: TrackerEconomyConfig | None = None
+    enrich_seeders: bool = True
+    enrich_seeders_top_k: int = 10
 
 
 class TrackerConfig(_StrictModel):

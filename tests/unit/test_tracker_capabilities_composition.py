@@ -14,6 +14,7 @@ from unittest.mock import MagicMock
 from personalscraper.api.tracker._contracts import (
     CategoryListable,
     FreeleechAware,
+    TorrentDetailsProvider,
     TorrentSearchable,
 )
 from personalscraper.api.tracker.c411 import C411Client
@@ -84,6 +85,18 @@ def test_torr9_client_is_freeleech_aware_isinstance() -> None:
     """
     assert isinstance(_torr9(), FreeleechAware)
     assert hasattr(_torr9(), "is_freeleech")
+
+
+def test_torr9_client_is_torrent_details_provider_isinstance() -> None:
+    """``Torr9Client`` satisfies ``TorrentDetailsProvider``.
+
+    torr9 exposes a real per-torrent detail endpoint (``GET /torrents/{id}``)
+    carrying real seeders/leechers, so ``get_details`` is a genuine detail fetch
+    used to enrich search results' swarm health before ranking (user decision
+    2026-06-19).
+    """
+    assert isinstance(_torr9(), TorrentDetailsProvider)
+    assert hasattr(_torr9(), "get_details")
 
 
 def test_monolithic_tracker_client_protocol_dropped() -> None:
