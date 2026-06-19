@@ -20,7 +20,16 @@
 
 ## Review cycles
 
-_(filled by implement:pr-review — max 5 cycles)_
+### Cycle 1 (PR #209) — adversarial review (code-reviewer + silent-failure-hunter + pr-test-analyzer)
+
+**Retained findings → fix (user decisions 2026-06-19):**
+
+- **MAJOR (test gaps):** factory torr9 _construction_ path untested (only the negative cred-gate is); second-consecutive-401 fail-loud untested for `search` + `is_freeleech`; `_login` Bearer-application unverified against a real session.
+- **MEDIUM (architecture — user chose the thorough options):** `_login()` reached into the transport's private `_session` → **refactor to the TVDB lazy-transport pattern** (rebuild transport with `BearerAuth` in the policy, no private access). The `if name == "torr9"` factory literal → **generalize** to a `build_from_env` capability dispatch + add `ProviderName.TORR9`.
+- **MEDIUM (doc/comment):** DESIGN §Approach still showed pre-build `policy(username,password)`/`__init__(transport)` signatures → reconcile to as-built; `torrent_file_url` "last resort" comment is rot (never implemented) + silent `download_url=None` with no log → fix comment + add warning.
+- **MINOR:** untested `_parse_item`/`_parse_iso` None-branches.
+
+**Ignored / deferred (noted, not fixed):** batch-atomic parse (one bad item aborts the torr9 batch) is by-design (anti-drift, matches lacale/c411); detail-endpoint `seeders`/`leechers` for ranking deferred (DESIGN). A full multi-cred _protocol_ (vs the `build_from_env` hook) remains a future framework item.
 
 ## Next action
 
