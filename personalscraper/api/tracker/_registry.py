@@ -17,6 +17,7 @@ from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._contracts import TorrentSearchable
 from personalscraper.api.tracker._ranking import RankingConfig, rank
+from personalscraper.core._contracts import CircuitOpenError
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -202,8 +203,17 @@ class TrackerRegistry:
         for name, client in self._trackers.items():
             try:
                 transport = getattr(client, "_transport", None)
-            except Exception as exc:  # noqa: BLE001  # a lazy login may fail; don't break the grab seam
-                log.warning("tracker_transport_unavailable", tracker=name, error=str(exc))
+            except (ApiError, CircuitOpenError, requests.RequestException) as exc:
+                # A lazy bootstrap login can fail operationally (bad creds, outage,
+                # tripped circuit); skip that tracker rather than break the grab seam
+                # for the others. A truly-unexpected exception (a programming bug in a
+                # _transport getter) is NOT caught here — it must surface.
+                log.warning(
+                    "tracker_transport_unavailable",
+                    tracker=name,
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
                 continue
             if transport is not None:
                 result[name] = transport

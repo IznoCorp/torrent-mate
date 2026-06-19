@@ -2,15 +2,21 @@
 
 Verifies:
 - A normal client's ``_transport`` is included.
-- A client whose lazy ``_transport`` getter RAISES (torr9's bootstrap-login
-  property) is skipped — the exception is logged, never propagated — so one
-  tracker's auth failure cannot break the grab seam for the others.
+- A client whose lazy ``_transport`` getter raises an OPERATIONAL exception
+  (torr9's bootstrap-login property: bad creds / outage / tripped circuit) is
+  skipped — the exception is logged, never propagated — so one tracker's auth
+  failure cannot break the grab seam for the others.
+- A client whose ``_transport`` getter raises an UNEXPECTED exception (a real
+  programming bug) PROPAGATES — the narrowed except must not mask code bugs.
 """
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from personalscraper.api._contracts import ApiError
 from personalscraper.api.tracker._ranking import RankingConfig
 from personalscraper.api.tracker._registry import TrackerRegistry
 
@@ -24,15 +30,30 @@ def _make_registry(trackers: dict) -> TrackerRegistry:
 
 
 class _RaisingTransportClient:
-    """Client whose ``_transport`` property raises on access (lazy login fails).
+    """Client whose ``_transport`` property raises an OPERATIONAL error on access.
 
     Mirrors torr9's lazy ``_transport`` property, which triggers a bootstrap
-    login on first access — that login can fail (bad creds / outage).
+    login on first access — that login can fail operationally (bad creds /
+    outage). ``ApiError`` is one of the narrow exceptions ``transports()``
+    swallows; a truly-unexpected exception is exercised separately by
+    :class:`_BuggyTransportClient`.
     """
 
     @property
     def _transport(self) -> object:
-        raise RuntimeError("bootstrap login failed")
+        raise ApiError(provider="torr9", http_status=401, message="bootstrap login failed")
+
+
+class _BuggyTransportClient:
+    """Client whose ``_transport`` getter raises an UNEXPECTED programming bug.
+
+    ``RuntimeError`` is NOT in the narrow except-tuple, so ``transports()`` must
+    let it propagate rather than mask it as ``tracker_transport_unavailable``.
+    """
+
+    @property
+    def _transport(self) -> object:
+        raise RuntimeError("genuine bug in the _transport getter")
 
 
 class _NormalTransportClient:
@@ -63,7 +84,7 @@ class TestTrackerRegistryTransports:
         assert result == {}
 
     def test_raising_transport_logs_warning(self) -> None:
-        """The skipped tracker emits a tracker_transport_unavailable warning."""
+        """The skipped tracker emits a tracker_transport_unavailable warning with error_type."""
         registry = _make_registry({"torr9": _RaisingTransportClient()})
 
         with patch("personalscraper.api.tracker._registry.log") as mock_log:
@@ -71,6 +92,11 @@ class TestTrackerRegistryTransports:
 
         warn_events = [c.args[0] for c in mock_log.warning.call_args_list if c.args]
         assert "tracker_transport_unavailable" in warn_events
+        # The narrowed catch records the concrete exception class for diagnosis.
+        unavailable_calls = [
+            c for c in mock_log.warning.call_args_list if c.args and c.args[0] == "tracker_transport_unavailable"
+        ]
+        assert unavailable_calls[0].kwargs["error_type"] == "ApiError"
 
     def test_healthy_client_survives_a_raising_sibling(self) -> None:
         """A raising tracker must not stop a healthy sibling from being included."""
@@ -81,3 +107,17 @@ class TestTrackerRegistryTransports:
 
         assert "torr9" not in result
         assert result["lacale"] is healthy._transport
+
+    def test_unexpected_transport_exception_propagates(self) -> None:
+        """An UNEXPECTED exception from the _transport getter propagates (not swallowed).
+
+        Regression for the over-broad ``except Exception`` (BLE001): a genuine
+        programming bug in a ``_transport`` getter used to be masked as
+        ``tracker_transport_unavailable``, indistinguishable from a real lazy-login
+        outage. After narrowing to the operational exception set, an unexpected
+        ``RuntimeError`` must surface so the bug is not silently hidden.
+        """
+        registry = _make_registry({"torr9": _BuggyTransportClient()})
+
+        with pytest.raises(RuntimeError, match="genuine bug"):
+            registry.transports()
