@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
+import unicodedata
 
 from personalscraper.indexer.schema import ItemAttributeRow, MediaItemRow
 from personalscraper.logger import get_logger
@@ -58,7 +59,8 @@ def _canonical_title(title: str) -> str:
     Returns:
         The title without the trailing year suffix.
     """
-    return _CANONICAL_RE.sub("", title)
+    stripped = _CANONICAL_RE.sub("", title)
+    return unicodedata.normalize("NFC", stripped)
 
 
 # ---------------------------------------------------------------------------

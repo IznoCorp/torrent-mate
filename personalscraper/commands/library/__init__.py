@@ -10,6 +10,7 @@ from personalscraper.commands.library.analyze import (
     library_rescrape,
 )
 from personalscraper.commands.library.audit import library_ghost_audit, library_reconcile, library_relink
+from personalscraper.commands.library.dedup_titles import library_dedup_titles
 from personalscraper.commands.library.doctor import library_doctor
 from personalscraper.commands.library.fix_canonical_provider import library_fix_canonical_provider
 from personalscraper.commands.library.fix_nfo import library_fix_nfo
@@ -23,6 +24,7 @@ from personalscraper.commands.library.scan import library_index, library_init_ca
 __all__ = [
     "library_analyze",
     "library_clean",
+    "library_dedup_titles",
     "library_fix_canonical_provider",
     "library_fix_nfo",
     "library_fix_orphan_files",
