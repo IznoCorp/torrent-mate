@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import datetime
-from typing import Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from personalscraper.api._contracts import ApiError, MediaType, ProviderName
 from personalscraper.api._units import ByteSize
@@ -34,6 +34,7 @@ from personalscraper.api.tracker._base import TrackerResult, wrap_parser_drift
 from personalscraper.api.tracker._contracts import (
     CategoryListable,
     FreeleechAware,
+    TorrentDetailsProvider,
     TorrentSearchable,
 )
 from personalscraper.api.transport._auth import BearerAuth, NoAuth
@@ -46,6 +47,9 @@ from personalscraper.api.transport._policy import (
 )
 from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
+
+if TYPE_CHECKING:
+    from personalscraper.conf.models.api_config import TrackerProviderConfig
 
 log = get_logger("api.tracker.torr9")
 
@@ -81,17 +85,20 @@ def _parse_iso(value: Any) -> datetime | None:
         return None
 
 
-class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware):
+class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDetailsProvider):
     """torr9 tracker API client — authenticated JSON API with JWT login.
 
     Composes :class:`~personalscraper.api.tracker._contracts.TorrentSearchable`,
-    :class:`~personalscraper.api.tracker._contracts.CategoryListable`, and
-    :class:`~personalscraper.api.tracker._contracts.FreeleechAware`.
+    :class:`~personalscraper.api.tracker._contracts.CategoryListable`,
+    :class:`~personalscraper.api.tracker._contracts.FreeleechAware`, and
+    :class:`~personalscraper.api.tracker._contracts.TorrentDetailsProvider`.
     Auth is lazy JWT login (POST /auth/login) with re-login on 401 (RP7).
 
     Unlike c411/lacale (no per-torrent detail endpoint), torr9 exposes
     ``GET /api/v1/torrents/{id}`` (live-confirmed), so ``is_freeleech`` is a
-    genuine pre-download re-check, not a stub.
+    genuine pre-download re-check (not a stub) and ``get_details`` surfaces the
+    detail payload's real seeders/leechers — used to enrich the top-K search
+    results' swarm health before ranking.
     """
 
     provider_name: str = ProviderName.TORR9.value
@@ -103,39 +110,70 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware):
     _BASE_URL: ClassVar[str] = "https://api.torr9.net"
 
     @classmethod
-    def build_from_env(cls, *, env: Mapping[str, str], event_bus: EventBus) -> Torr9Client:
+    def from_env(
+        cls,
+        *,
+        env: Mapping[str, str],
+        event_bus: EventBus,
+        required: list[str],
+        provider_cfg: TrackerProviderConfig,
+    ) -> Torr9Client:
         """Construct a Torr9Client from resolved environment credentials.
 
-        Factory hook (RP5b). ``build_tracker_registry`` dispatches on the PRESENCE
-        of this classmethod rather than a provider-name literal: a login-style
-        tracker declares ``build_from_env``; api-key trackers (lacale/c411) omit it
-        and use the default ``policy(api_key)`` construction path. The creds are
-        already validated present by the registry's cred-gating before this runs.
+        Implements the :class:`~personalscraper.api.tracker._contracts.TrackerConstructible`
+        contract: ``build_tracker_registry`` dispatches construction uniformly
+        through ``from_env`` for every tracker (no provider-name literal, no
+        cred-style branch). torr9 is a login-style tracker, so it self-builds its
+        authed transport lazily and reads its enrichment options off
+        ``provider_cfg`` (defaults: enrich on, top-K=10). The creds are already
+        validated present by the registry's cred-gating before this runs.
 
         Args:
             env: Credential source (the registry passes the resolved env mapping).
             event_bus: Event bus propagated to the client's HTTP transports.
+            required: Ordered credential env-var names — unused; torr9 reads its
+                own cred names from ``REQUIRED_CREDS`` (no order-coupling).
+            provider_cfg: Per-tracker config — source of the enrich flags.
 
         Returns:
             A network-free Torr9Client (transports are built lazily on first search).
         """
+        del required  # torr9 reads its own cred names from REQUIRED_CREDS
         return cls(
-            username=env.get("TORR9_USERNAME", ""),
-            password=env.get("TORR9_PASSWORD", ""),
+            username=env.get(cls.REQUIRED_CREDS[0], ""),
+            password=env.get(cls.REQUIRED_CREDS[1], ""),
             event_bus=event_bus,
+            enrich_seeders=getattr(provider_cfg, "enrich_seeders", True),
+            enrich_seeders_top_k=getattr(provider_cfg, "enrich_seeders_top_k", 10),
         )
 
-    def __init__(self, *, username: str, password: str, event_bus: EventBus) -> None:
+    def __init__(
+        self,
+        *,
+        username: str,
+        password: str,
+        event_bus: EventBus,
+        enrich_seeders: bool = True,
+        enrich_seeders_top_k: int = 10,
+    ) -> None:
         """Initialize the torr9 client (network-free — transports are lazy).
 
         Args:
             username: ``TORR9_USERNAME`` credential.
             password: ``TORR9_PASSWORD`` credential.
             event_bus: Event bus forwarded to the bootstrap + main HttpTransports.
+            enrich_seeders: When True (default), ``search`` enriches the top-K
+                results' seeders/leechers from the detail endpoint (fail-soft per
+                result). torr9's search payload has no swarm data, so without this
+                every result has ``seeders=0`` and is dropped by the ranking
+                ``min_seeders`` floor.
+            enrich_seeders_top_k: How many leading results to enrich (default 10).
         """
         self._username = username
         self._password = password
         self._event_bus = event_bus
+        self._enrich_seeders = enrich_seeders
+        self._enrich_top_k = enrich_seeders_top_k
         # Lazy: the bootstrap login + the authed main transport are built on first
         # _transport access via _ensure_transport() — construction stays HTTP-free
         # so registry boot never triggers network (parity with TVDBClient).

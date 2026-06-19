@@ -219,11 +219,12 @@ class TestTorr9CredGating:
 
 
 class TestTorr9FactoryConstruction:
-    """torr9 is built (network-free) via build_from_env when creds are present.
+    """torr9 is built (network-free) via the uniform from_env contract when creds are present.
 
     The construction is lazy-transport (no bootstrap login at build time), so
-    this exercises the factory's capability-dispatch path without touching the
-    network. Asserts the registry holds a real Torr9Client carrying the creds.
+    this exercises the factory's uniform ``TrackerConstructible.from_env``
+    dispatch path without touching the network. Asserts the registry holds a
+    real Torr9Client carrying the creds.
     """
 
     def test_torr9_built_when_creds_present(self) -> None:

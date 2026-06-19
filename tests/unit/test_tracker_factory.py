@@ -67,6 +67,11 @@ class _StubSearchable:
         """Return a MagicMock transport policy."""
         return MagicMock()
 
+    @classmethod
+    def from_env(cls, *, env: Any, event_bus: Any, required: Any, provider_cfg: Any) -> "_StubSearchable":
+        """Build the stub via the uniform TrackerConstructible.from_env contract."""
+        return cls(MagicMock())
+
     def __init__(self, transport: Any) -> None:
         """Initialise with a transport instance.
 
@@ -89,6 +94,11 @@ class _NotSearchable:
     def policy(cls, api_key: str) -> MagicMock:
         """Return a MagicMock transport policy."""
         return MagicMock()
+
+    @classmethod
+    def from_env(cls, *, env: Any, event_bus: Any, required: Any, provider_cfg: Any) -> "_NotSearchable":
+        """Build the stub via the uniform from_env contract (still fails TorrentSearchable)."""
+        return cls(MagicMock())
 
     def __init__(self, transport: Any) -> None:
         """Initialise with a transport instance.
@@ -507,3 +517,43 @@ class TestDictCtorRegressionGuard:
         )
         assert r._priority == ["lacale"]
         assert r._priority_by_media_type == {"movie": ["lacale"]}
+
+
+# ---------------------------------------------------------------------------
+# TrackerConstructible conformance: every real client exposes from_env
+# ---------------------------------------------------------------------------
+
+
+class TestTrackerConstructibleConformance:
+    """Every real tracker client implements the uniform from_env contract.
+
+    The factory dispatches construction UNIFORMLY through
+    ``TrackerConstructible.from_env`` (no provider-name literal, no cred-style
+    branch). All three concrete clients must therefore expose a callable
+    ``from_env`` classmethod — a conformance guard so a future client that
+    forgets it is caught here rather than at boot.
+    """
+
+    def test_all_real_clients_expose_from_env(self) -> None:
+        """Lacale / c411 / torr9 all expose a callable from_env classmethod."""
+        from personalscraper.api.tracker.c411 import C411Client  # noqa: PLC0415
+        from personalscraper.api.tracker.lacale import LaCaleClient  # noqa: PLC0415
+        from personalscraper.api.tracker.torr9 import Torr9Client  # noqa: PLC0415
+
+        for cls in (LaCaleClient, C411Client, Torr9Client):
+            assert hasattr(cls, "from_env"), f"{cls.__name__} missing from_env"
+            assert callable(cls.from_env)
+
+    def test_api_key_client_from_env_builds_instance(self) -> None:
+        """LaCaleClient.from_env builds a real client from a single API key (no network)."""
+        from personalscraper.api.tracker.lacale import LaCaleClient  # noqa: PLC0415
+
+        with patch("personalscraper.api.tracker.lacale.HttpTransport") as mock_transport:
+            client = LaCaleClient.from_env(
+                env={"LACALE_API_KEY": "secret"},
+                event_bus=EventBus(),
+                required=["LACALE_API_KEY"],
+                provider_cfg=TrackerProviderConfig(enabled=True),
+            )
+        assert isinstance(client, LaCaleClient)
+        mock_transport.assert_called_once()
