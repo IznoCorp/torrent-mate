@@ -147,3 +147,72 @@ class TestPerStepBoundaryClose:
 
             with per_step_boundary(_config(), _settings()):
                 pass  # must not raise
+
+
+# -- torr9 cred-gating tests -----------------------------------------------
+
+
+def _torr9_tracker_config_enabled() -> MagicMock:
+    """Build a minimal TrackerConfig with torr9 enabled and no other providers."""
+    cfg = MagicMock()
+    # providers: only torr9 enabled
+    torr9_provider = MagicMock()
+    torr9_provider.enabled = True
+    cfg.providers = {"torr9": torr9_provider}
+    cfg.priority = ["torr9"]
+    cfg.priority_by_media_type = {}
+    return cfg
+
+
+class TestTorr9CredGating:
+    """torr9 missing-cred fail-loud test via direct build_tracker_registry call.
+
+    CI has no config.json5, so we call build_tracker_registry directly with an
+    injected env dict (not via _build_app_context which loads real config).
+    """
+
+    def test_torr9_missing_both_creds_raises_tracker_config_error(self) -> None:
+        """With torr9 enabled and both creds absent, raises TrackerConfigError."""
+        from personalscraper.api.tracker._factory import build_tracker_registry  # noqa: PLC0415
+        from personalscraper.api.transport._policy import CircuitPolicy  # noqa: PLC0415
+        from personalscraper.core.event_bus import EventBus  # noqa: PLC0415
+
+        event_bus = EventBus()
+        cb_policy = CircuitPolicy()
+        ranking = RankingConfig()
+
+        with pytest.raises(TrackerConfigError) as exc_info:
+            build_tracker_registry(
+                tracker_config=_torr9_tracker_config_enabled(),
+                ranking=ranking,
+                settings=MagicMock(),
+                event_bus=event_bus,
+                cb_policy=cb_policy,
+                env={},  # No creds in env.
+            )
+
+        issues = exc_info.value.issues
+        assert any(i.provider == "torr9" for i in issues), f"Expected torr9 issue; got {issues!r}"
+        assert any(i.code == "missing_credentials" for i in issues), f"Expected missing_credentials; got {issues!r}"
+
+    def test_torr9_only_username_missing_password_raises(self) -> None:
+        """With only TORR9_USERNAME set but TORR9_PASSWORD absent, still raises."""
+        from personalscraper.api.tracker._factory import build_tracker_registry  # noqa: PLC0415
+        from personalscraper.api.transport._policy import CircuitPolicy  # noqa: PLC0415
+        from personalscraper.core.event_bus import EventBus  # noqa: PLC0415
+
+        event_bus = EventBus()
+        ranking = RankingConfig()
+
+        with pytest.raises(TrackerConfigError) as exc_info:
+            build_tracker_registry(
+                tracker_config=_torr9_tracker_config_enabled(),
+                ranking=ranking,
+                settings=MagicMock(),
+                event_bus=event_bus,
+                cb_policy=CircuitPolicy(),
+                env={"TORR9_USERNAME": "user"},  # password missing
+            )
+
+        issues = exc_info.value.issues
+        assert any(i.provider == "torr9" and i.code == "missing_credentials" for i in issues)
