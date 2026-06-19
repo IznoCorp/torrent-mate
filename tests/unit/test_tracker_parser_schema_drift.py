@@ -29,6 +29,7 @@ from personalscraper.api.tracker._ranking import RankingConfig
 from personalscraper.api.tracker._registry import TrackerRegistry
 from personalscraper.api.tracker.c411 import C411Client
 from personalscraper.api.tracker.lacale import LaCaleClient
+from personalscraper.api.tracker.torr9 import Torr9Client
 
 # -- C411 -----------------------------------------------------------------
 
@@ -183,3 +184,72 @@ def test_lacale_schema_drift_does_not_abort_multi_tracker_search() -> None:
 
     assert len(ranked) == 1, f"Expected c411's result to survive lacale schema drift; got {ranked!r}"
     assert ranked[0][0].provider == "c411"
+
+
+# -- torr9 ----------------------------------------------------------------
+
+
+class TestTorr9SchemaDriftReRaisedAsApiError:
+    """torr9.search() must re-raise parser exceptions as ApiError."""
+
+    def test_response_envelope_not_dict_raises_api_error(self) -> None:
+        """A response that is a list (not a dict) → AttributeError → ApiError."""
+        transport = MagicMock()
+        transport.get.return_value = [{"id": 1}]  # list, not dict
+        client = Torr9Client(transport, username="u", password="p")
+        client._token = "t"
+
+        with pytest.raises(ApiError) as exc:
+            client.search("inception")
+
+        assert exc.value.provider == "torr9"
+        assert exc.value.http_status == 0
+        assert "shape drift" in exc.value.message
+
+    def test_item_file_size_bytes_wrong_type_raises_api_error(self) -> None:
+        """An item where file_size_bytes is a dict → TypeError → ApiError."""
+        transport = MagicMock()
+        transport.get.return_value = {
+            "torrents": [
+                {
+                    "id": 1,
+                    "title": "x",
+                    "file_size_bytes": {"nested": "object"},
+                    "magnet_link": "magnet:?xt=urn:btih:aaa",
+                    "is_freeleech": False,
+                    "upload_date": None,
+                    "category_id": 5,
+                    "info_hash": "aaa",
+                }
+            ],
+            "page": 1,
+            "limit": 20,
+        }
+        client = Torr9Client(transport, username="u", password="p")
+        client._token = "t"
+
+        with pytest.raises(ApiError) as exc:
+            client.search("inception")
+
+        assert exc.value.provider == "torr9"
+        assert "shape drift" in exc.value.message
+
+
+def test_torr9_schema_drift_does_not_abort_multi_tracker_search() -> None:
+    """End-to-end: torr9 parser blowing up must not kill other trackers' results."""
+    transport = MagicMock()
+    transport.get.return_value = [{"id": 1}]  # list, not dict → ApiError
+    bad_torr9 = Torr9Client(transport, username="u", password="p")
+    bad_torr9._token = "t"
+    good = _OkTracker("lacale")
+
+    registry = TrackerRegistry(
+        trackers={"torr9": bad_torr9, "lacale": good},  # type: ignore[dict-item]
+        priority=["torr9", "lacale"],
+        ranking=RankingConfig(min_seeders=0),
+    )
+
+    ranked = registry.search_all("Inception")
+
+    assert len(ranked) == 1, f"Expected lacale's result to survive torr9 drift; got {ranked!r}"
+    assert ranked[0][0].provider == "lacale"
