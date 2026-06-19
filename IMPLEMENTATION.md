@@ -15,7 +15,7 @@
 | #   | Phase                                                              | File                                           | Status |
 | --- | ------------------------------------------------------------------ | ---------------------------------------------- | ------ |
 | 1   | Torr9Client + lazy JWT login + JSON search + golden tests          | phase-01-client-login-jwt-golden.md            | [x]    |
-| 2   | Registry wiring + creds + config overlays + composition-root tests | phase-02-registry-wiring-creds-config.md       | [ ]    |
+| 2   | Registry wiring + creds + config overlays + composition-root tests | phase-02-registry-wiring-creds-config.md       | [x]    |
 | 3   | Capabilities composition + schema-drift + ACC gate                 | phase-03-capabilities-schema-drift-acc-gate.md | [ ]    |
 
 ## Review cycles
