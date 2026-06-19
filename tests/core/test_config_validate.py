@@ -670,3 +670,24 @@ def test_resolve_would_launch_false_for_no_op() -> None:
     result = resolve(draft, "Plan", "Planned")
     assert result.matched is True
     assert result.would_launch is False
+
+
+def test_validate_v11_empty_board_rejected() -> None:
+    """V11: a board with no columns AND no transitions is an error.
+
+    An empty board trips none of V1-V10 and the loaders accept it, so without V11 a POST /api/config
+    of an empty/defaulted draft would validate clean and WIPE the live pipeline (data-loss).
+    """
+    draft = PipelineDraft(
+        definition=Definition(
+            columns=[],
+            transitions=[],
+            defaults=Defaults(concurrency_cap=3, move_rate_limit_per_hour=10),
+        ),
+        binding=Binding(project="owner/repo"),
+    )
+    result = validate(draft)
+    assert not result.ok
+    errs = " ".join(f.message.lower() for f in result.findings if f.severity == "error")
+    assert "at least one column" in errs
+    assert "at least one transition" in errs

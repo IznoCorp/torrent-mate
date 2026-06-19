@@ -460,6 +460,37 @@ def _check_v10_defaults_sanity(draft: PipelineDraft, findings: list[Finding]) ->
         )
 
 
+def _check_v11_nonempty_board(draft: PipelineDraft, findings: list[Finding]) -> None:
+    """V11: a saved pipeline must define at least one column AND at least one transition.
+
+    An empty board (no columns / no transitions) trips none of V1-V10 and the loaders accept it
+    (``load_transitions('transitions: []')`` / ``load_columns('columns: []')`` both succeed), so
+    without this guard a ``POST /api/config`` with an empty or fully-defaulted draft would validate
+    clean and the write path would WIPE the live pipeline (data-loss). A real pipeline always has
+    both, so an empty board is an error.
+    """
+    if not draft.definition.columns:
+        findings.append(
+            Finding(
+                field="definition.columns",
+                message="The pipeline must define at least one column "
+                "(an empty board would wipe the config).",
+                severity="error",
+                locus="definition",
+            )
+        )
+    if not draft.definition.transitions:
+        findings.append(
+            Finding(
+                field="definition.transitions",
+                message="The pipeline must define at least one transition "
+                "(an empty board would wipe the config).",
+                severity="error",
+                locus="definition",
+            )
+        )
+
+
 def validate(draft: PipelineDraft, *, columns_yaml: str | None = None) -> ValidationResult:
     """Validate a :class:`~kanbanmate.core.config_model.PipelineDraft`.
 
@@ -516,10 +547,11 @@ def validate(draft: PipelineDraft, *, columns_yaml: str | None = None) -> Valida
 
     _check_v6_wildcard_shadow(draft.definition.transitions, findings)
 
-    # V9/V10 operate on the draft directly (render-independent), so run them
+    # V9/V10/V11 operate on the draft directly (render-independent), so run them
     # alongside V1–V6 — they must surface even when the oracle rejects the render.
     _check_v9_column_classes(draft, findings)
     _check_v10_defaults_sanity(draft, findings)
+    _check_v11_nonempty_board(draft, findings)
 
     # §7.0 — Oracle pass: render and feed through the real loaders.
     try:

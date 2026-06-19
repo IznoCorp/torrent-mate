@@ -123,10 +123,33 @@ class ConfigService:
 
         rendered = render_pipeline(draft)
 
-        # Atomic write for transitions.yml.
-        self._atomic_write(self._transitions_path, rendered.transitions)
-        # Atomic write for columns.yml.
-        self._atomic_write(self._columns_path, rendered.columns)
+        # Two-file write made all-or-nothing (defense-in-depth): write BOTH temp files FIRST — a
+        # render / disk-full / encoding error then happens BEFORE any rename, so neither destination
+        # is touched. Only once both temps exist do we perform the two ``os.replace`` calls
+        # back-to-back. If the SECOND replace fails after the first already landed, restore the first
+        # file's prior content so transitions.yml and columns.yml can never end up desynced.
+        tmp_transitions = self._write_temp(self._transitions_path, rendered.transitions)
+        try:
+            tmp_columns = self._write_temp(self._columns_path, rendered.columns)
+        except Exception:
+            self._cleanup_temp(tmp_transitions)
+            raise
+
+        prior_transitions = (
+            self._transitions_path.read_text(encoding="utf-8")
+            if self._transitions_path.exists()
+            else None
+        )
+        os.replace(tmp_transitions, self._transitions_path)
+        try:
+            os.replace(tmp_columns, self._columns_path)
+        except Exception:
+            # columns.yml rename failed AFTER transitions.yml landed — roll transitions back to its
+            # prior content so the pair never desyncs, then surface the error.
+            self._cleanup_temp(tmp_columns)
+            if prior_transitions is not None:
+                self._transitions_path.write_text(prior_transitions, encoding="utf-8")
+            raise
 
     def render(self, draft: PipelineDraft) -> RenderedPipeline:
         """Render the draft to YAML strings without writing (preview).
@@ -154,30 +177,38 @@ class ConfigService:
         return resolve(draft, from_col, to_col)
 
     @staticmethod
-    def _atomic_write(path: Path, content: str) -> None:
-        """Write ``content`` to ``path`` atomically via a temp file and ``os.replace``.
+    def _write_temp(path: Path, content: str) -> str:
+        """Write ``content`` to a fsync'd temp file in ``path``'s parent dir; return the temp path.
 
-        The temp file is created in the SAME directory as ``path`` so the rename
-        is guaranteed to stay on the same filesystem (``os.replace`` requires this
-        for atomicity on POSIX systems).
+        The temp file is created in the SAME directory as ``path`` so a later ``os.replace`` stays on
+        one filesystem (atomic on POSIX). The content is flushed + fsync'd so a crash between write
+        and rename cannot leave a half-written temp. The caller performs the ``os.replace`` (so both
+        config files can be written to temps BEFORE either is renamed — the all-or-nothing property).
 
         Args:
-            path: The destination file path.
+            path: The destination file path (only its parent dir is used here).
             content: The UTF-8 content to write.
+
+        Returns:
+            The absolute path to the written temp file.
         """
         parent = path.parent
         parent.mkdir(parents=True, exist_ok=True)
-        # NamedTemporaryFile with delete=False in the same directory as path so
-        # os.replace crosses no filesystem boundary.
         fd, tmp = tempfile.mkstemp(dir=parent, suffix=".tmp")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
-            os.replace(tmp, path)
+                f.flush()
+                os.fsync(f.fileno())
         except Exception:
-            # Clean up the temp file on failure — the destination is untouched.
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
+            ConfigService._cleanup_temp(tmp)
             raise
+        return tmp
+
+    @staticmethod
+    def _cleanup_temp(tmp: str) -> None:
+        """Best-effort unlink of a temp file (never raises)."""
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass

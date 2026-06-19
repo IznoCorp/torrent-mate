@@ -20,6 +20,7 @@ Layering: ``http`` → ``app``, ``core``, ``cli.init`` permitted.
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -40,6 +41,12 @@ from kanbanmate.core.config_validate import Finding, ValidationResult
 
 # Default kanban runtime root (same default as cli/app.py:72).
 _DEFAULT_ROOT = Path("~/.kanban/").expanduser()
+
+# Max accepted request body (1 MiB), mirroring the webhook receiver (``http/serve.py`` MAX_BODY_BYTES).
+# A larger / absent Content-Length is rejected up front (413/411) so a single request can neither OOM
+# the process nor pin a connection while a slow client streams an unbounded body. Connection-level
+# slow-loris is additionally bounded by fronting with a reverse proxy in production (DESIGN §11).
+_MAX_BODY_BYTES = 1 * 1024 * 1024
 
 app = FastAPI(
     title="KanbanMate Config API",
@@ -105,6 +112,48 @@ def _validation_result_to_dict(result: ValidationResult) -> dict[str, Any]:
     }
 
 
+async def _read_json_object(request: fastapi.Request) -> dict[str, Any]:
+    """Read the request body as a bounded JSON OBJECT, failing CLEAN on bad input.
+
+    Shared by all three POST handlers. Guards, in order:
+
+    * BODY SIZE — ``Content-Length`` must be present (a body-carrying request with none means chunked
+      transfer, which we never stream-decode → 411) and within :data:`_MAX_BODY_BYTES` (else 413),
+      mirroring the webhook receiver's bounded read. Caps the OOM blast radius + how much a slow
+      client can stream. Checked HERE, not in a ``BaseHTTPMiddleware`` — that wrapper deadlocks
+      handlers that read the raw request body.
+    * JSON — a raw Starlette ``Request.json()`` raises ``json.JSONDecodeError`` on an empty /
+      non-JSON / malformed body, which FastAPI does NOT auto-convert to 422 for a raw Request →
+      unguarded it is a 500 + traceback. Normalised to 422.
+    * SHAPE — a non-object body (list / scalar / null) would then break the ``.get()``-based
+      deserialiser with an ``AttributeError`` → 500. Rejected as 422 here.
+
+    Returns:
+        The parsed body as a ``dict``.
+
+    Raises:
+        HTTPException: 411 / 413 / 400 (Content-Length), or 422 (not valid JSON / not an object).
+    """
+    raw_len = request.headers.get("content-length")
+    if raw_len is None:
+        raise HTTPException(
+            status_code=411, detail="Content-Length required (chunked not accepted)"
+        )
+    try:
+        length = int(raw_len)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid Content-Length") from exc
+    if length > _MAX_BODY_BYTES:
+        raise HTTPException(status_code=413, detail=f"Request body exceeds {_MAX_BODY_BYTES} bytes")
+    try:
+        body = await request.json()
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail="Request body must be valid JSON") from exc
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=422, detail="Request body must be a JSON object")
+    return body
+
+
 @app.get("/api/health")
 def health() -> dict[str, str]:
     """Liveness probe.
@@ -144,7 +193,7 @@ async def post_validate(request: fastapi.Request) -> JSONResponse:
         A ``ValidationResult`` JSON object: ``{"ok": bool, "findings": [...]}``.
     """
     svc = _get_service()
-    body = await request.json()
+    body = await _read_json_object(request)
     draft = _dict_to_draft(body)
     result = svc.validate(draft)
     return JSONResponse(content=_validation_result_to_dict(result))
@@ -162,7 +211,7 @@ async def post_config(request: fastapi.Request) -> JSONResponse:
         status 422 on validation failure.
     """
     svc = _get_service()
-    body = await request.json()
+    body = await _read_json_object(request)
     draft = _dict_to_draft(body)
     try:
         svc.save(draft)
@@ -207,7 +256,7 @@ async def post_resolve(request: fastapi.Request) -> JSONResponse:
             loader rejects it (resolve renders + loads the draft).
     """
     svc = _get_service()
-    body = await request.json()
+    body = await _read_json_object(request)
     draft = _dict_to_draft(body.get("draft", {}))
     from_col = str(body.get("from_col", ""))
     to_col = str(body.get("to_col", ""))
@@ -245,7 +294,9 @@ def _dict_to_draft(body: dict[str, Any]) -> PipelineDraft:
         A :class:`~kanbanmate.core.config_model.PipelineDraft`.
 
     Raises:
-        HTTPException: 422 when the body is structurally invalid.
+        HTTPException: 422 when the body is structurally invalid, or when it omits ``definition`` /
+            ``binding`` (refusing to silently build an EMPTY draft — a body that defaulted both away
+            would otherwise validate clean and let POST /api/config WIPE the config, data-loss).
     """
     from kanbanmate.core.config_model import (  # noqa: PLC0415
         Binding,
@@ -254,6 +305,15 @@ def _dict_to_draft(body: dict[str, Any]) -> PipelineDraft:
         Definition,
         TransitionDef,
     )
+
+    # The schema declares both REQUIRED (``_generate_schema``: required=["definition","binding"]).
+    # Enforce it here so an empty / partial body is a 422, not a fully-defaulted empty draft that the
+    # validator would accept and the write path would persist over the live config.
+    if "definition" not in body or "binding" not in body:
+        raise HTTPException(
+            status_code=422,
+            detail="Request body must include both 'definition' and 'binding'",
+        )
 
     try:
         definition_raw = body.get("definition", {})
@@ -273,7 +333,9 @@ def _dict_to_draft(body: dict[str, Any]) -> PipelineDraft:
             definition=Definition(columns=columns, transitions=transitions, defaults=defaults),
             binding=binding,
         )
-    except (TypeError, KeyError, ValueError) as exc:
+    except (TypeError, KeyError, ValueError, AttributeError) as exc:
+        # AttributeError covers a nested non-mapping (e.g. definition/defaults/binding posted as a
+        # list/scalar) whose ``.get`` would otherwise escape as a 500.
         raise HTTPException(status_code=422, detail=f"Invalid draft structure: {exc}") from exc
 
 
@@ -312,8 +374,22 @@ def _generate_schema() -> dict[str, Any]:
                             "type": "object",
                             "required": ["from_col", "to_col"],
                             "properties": {
-                                "from_col": {"type": "string"},
-                                "to_col": {"type": "string"},
+                                # str | list[str] — the model + loaders accept a wildcard/list
+                                # source/destination (e.g. the skip-to-Done list row), and
+                                # GET /api/config emits list-valued from/to, so the schema must too
+                                # (string-only would reject a draft the validator + the API accept).
+                                "from_col": {
+                                    "anyOf": [
+                                        {"type": "string"},
+                                        {"type": "array", "items": {"type": "string"}},
+                                    ]
+                                },
+                                "to_col": {
+                                    "anyOf": [
+                                        {"type": "string"},
+                                        {"type": "array", "items": {"type": "string"}},
+                                    ]
+                                },
                                 "profile": {"type": "string", "default": ""},
                                 "prompt": {"type": ["string", "null"]},
                                 "script": {"type": ["string", "null"]},

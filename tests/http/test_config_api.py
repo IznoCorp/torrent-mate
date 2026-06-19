@@ -329,3 +329,93 @@ def test_daemon_purity_no_fastapi_import() -> None:
     assert result.returncode == 0, (
         f"Daemon-purity test failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Adversarial hardening regressions (helm-interface-hardening, 2026-06-19)
+# ---------------------------------------------------------------------------
+
+
+def _client_and_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> tuple[TestClient, Path, Path]:
+    """Build a TestClient AND return the on-disk (transitions, columns) paths (for no-write asserts)."""
+    import kanbanmate.http.config_api as api_mod
+    from kanbanmate.app.config_service import ConfigService
+
+    tp, cp = _make_test_clone(tmp_path)
+    svc = ConfigService(transitions_path=tp, columns_path=cp)
+    monkeypatch.setattr(api_mod, "_get_service", lambda root=None: svc)
+    return TestClient(api_mod.app), tp, cp
+
+
+def test_post_malformed_json_is_422_not_500(client: TestClient) -> None:
+    """B: a non-JSON / malformed body is a clean 422 on every POST — never a 500 traceback."""
+    for path in ("/api/config/validate", "/api/config", "/api/config/resolve"):
+        r = client.post(path, content="{bad json", headers={"content-type": "application/json"})
+        assert r.status_code == 422, f"{path}: got {r.status_code}"
+
+
+def test_post_non_object_body_is_422(client: TestClient) -> None:
+    """C: a JSON array / scalar / null body is 422 on every POST — never a 500 AttributeError."""
+    for body in ("[]", '"x"', "null", "42"):
+        for path in ("/api/config/validate", "/api/config", "/api/config/resolve"):
+            r = client.post(path, content=body, headers={"content-type": "application/json"})
+            assert r.status_code == 422, f"{path} body={body!r}: got {r.status_code}"
+
+
+def test_post_config_empty_body_does_not_wipe(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A: POST /api/config with {} is rejected (422) and the config files are UNCHANGED (no wipe)."""
+    cl, tp, cp = _client_and_paths(tmp_path, monkeypatch)
+    before_t, before_c = tp.read_text(encoding="utf-8"), cp.read_text(encoding="utf-8")
+    r = cl.post("/api/config", json={})
+    assert r.status_code == 422
+    assert tp.read_text(encoding="utf-8") == before_t, "transitions.yml must be unchanged"
+    assert cp.read_text(encoding="utf-8") == before_c, "columns.yml must be unchanged"
+
+
+def test_post_config_missing_definition_or_binding_is_422(client: TestClient) -> None:
+    """A: a body omitting 'definition' (or 'binding') is 422 (not a defaulted empty draft)."""
+    assert client.post("/api/config", json={"binding": {"project": "x"}}).status_code == 422
+    assert client.post("/api/config", json={"definition": {}}).status_code == 422
+
+
+def test_post_config_empty_board_rejected_by_validator(client: TestClient) -> None:
+    """A (V11): a present-but-EMPTY board (0 columns/transitions) is rejected ok:false, not written."""
+    body = {
+        "definition": {
+            "columns": [],
+            "transitions": [],
+            "defaults": {"concurrency_cap": 3, "move_rate_limit_per_hour": 10},
+        },
+        "binding": {"project": "x"},
+    }
+    r = client.post("/api/config", json=body)
+    assert r.status_code == 422
+    msgs = " ".join(f["message"].lower() for f in r.json().get("findings", []))
+    assert "at least one column" in msgs and "at least one transition" in msgs
+
+
+def test_post_oversize_body_is_413(client: TestClient) -> None:
+    """E: a Content-Length over the 1 MiB cap is rejected with 413 before the body is parsed."""
+    big = "x" * (1024 * 1024 + 16)
+    r = client.post(
+        "/api/config/validate", content=big, headers={"content-type": "application/json"}
+    )
+    assert r.status_code == 413
+
+
+def test_resolve_without_draft_is_422(client: TestClient) -> None:
+    """G: resolve with no draft is a clean 422 (not a misleading matched:false verdict)."""
+    r = client.post("/api/config/resolve", json={"from_col": "Review", "to_col": "Merge"})
+    assert r.status_code == 422
+
+
+def test_schema_from_to_col_allow_string_or_list(client: TestClient) -> None:
+    """F: GET /api/schema declares from_col/to_col as str | list[str] (matches the model + GET output)."""
+    schema = client.get("/api/schema").json()
+    titem = schema["properties"]["definition"]["properties"]["transitions"]["items"]["properties"]
+    assert "anyOf" in titem["from_col"], "from_col must allow string|array"
+    assert "anyOf" in titem["to_col"], "to_col must allow string|array"

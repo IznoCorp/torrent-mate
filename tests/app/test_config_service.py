@@ -162,3 +162,44 @@ def test_config_service_injected_paths(tmp_path: Path) -> None:
                 assert "kanbanmate.cli" not in node.module, (
                     "config_service must not import from cli (layering guard: app→cli forbidden)"
                 )
+
+
+def test_save_restores_transitions_when_columns_replace_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A2: if columns.yml's rename fails AFTER transitions.yml landed, transitions is rolled back.
+
+    Guarantees the two config files never end up desynced (a partial write that left transitions.yml
+    updated while columns.yml stayed stale was a HIGH adversarial-audit finding).
+    """
+    import os
+
+    from kanbanmate.core.config_model import Defaults, Definition, PipelineDraft
+
+    tp, cp = _make_clone_config(tmp_path)
+    svc = ConfigService(transitions_path=tp, columns_path=cp)
+    original_t = tp.read_text(encoding="utf-8")
+    base = svc.load()
+    # A valid draft that renders a DIFFERENT transitions.yml (defaults live in transitions.yml).
+    changed = PipelineDraft(
+        definition=Definition(
+            columns=base.definition.columns,
+            transitions=base.definition.transitions,
+            defaults=Defaults(concurrency_cap=7, move_rate_limit_per_hour=9),
+        ),
+        binding=base.binding,
+    )
+    real_replace = os.replace
+
+    def failing_replace(src: object, dst: object) -> None:
+        if str(dst) == str(cp):  # fail ONLY the columns.yml rename (the second one)
+            raise OSError("simulated columns.yml rename failure")
+        real_replace(src, dst)  # type: ignore[arg-type]
+
+    monkeypatch.setattr("kanbanmate.app.config_service.os.replace", failing_replace)
+    with pytest.raises(OSError):
+        svc.save(changed)
+    # transitions.yml must be RESTORED to its original content (not the half-applied concurrency_cap=7).
+    assert tp.read_text(encoding="utf-8") == original_t
+    # No stray temp files left in the config dir.
+    assert not list(tp.parent.glob("*.tmp"))
