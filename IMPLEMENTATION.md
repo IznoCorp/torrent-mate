@@ -41,9 +41,21 @@ Ignored (non-blocking LOW): F4 skipped-not-surfaced-prominently, F5 rowcount-vs-
 Live run was already safe (all 12 survivors had matching paths; 0 suspect) — fix is for
 future robustness + the merge gate.
 
+### Cycle 2
+
+Clean — all cycle-1 findings resolved and verified (commit `66b7ffcf`, phase 4 gate
+`a5c858e4`, CI green). Guard now skips any group with a missing/empty or NFC-divergent
+`dispatch_path` (`dispatch_path_unverifiable`); the critical data-loss path is locked by
+`test_apply_skips_partial_none_dispatch_path` (red→green: the path-bearing row must NOT be
+deleted), plus skip-divergent, CASCADE, and idempotent-`normalized` tests. F2/F3/docstring/
+minor confirmed in the diff. make test 7127, lint clean, CI 8/8 green. No new
+critical/major/medium findings → Case A, proceed to squash merge. (Cycle-2 re-review run
+inline: the toolkit subagents hit their weekly limit; verification done by direct diff +
+test inspection + the green CI gate.)
+
 ## Next action
 
-All phases complete — `/implement:feature-pr` (push + PR + CI), then `/implement:pr-review` (auto-merge).
+Review clean (cycle 2). Auto-squash-merge PR #208 on CI green, then post-merge archive.
 
 **Note (phase 2):** an extra bugfix sub-phase 2.3 was added — the
 `library-dedup-titles` dispatch_path guard compared raw path strings, wrongly
