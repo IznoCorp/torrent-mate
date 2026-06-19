@@ -22,7 +22,12 @@ import pytest
 
 from kanbanmate.adapters.github.types import CommentRef
 from kanbanmate.app.actions import Deps
-from kanbanmate.app.status_reporter import event_kind_for_action, report_status
+from kanbanmate.app.status_reporter import (
+    event_kind_for_action,
+    extract_latest_progress,
+    latest_progress,
+    report_status,
+)
 from kanbanmate.app.tick import TickConfig
 from kanbanmate.core.columns import load_columns
 from kanbanmate.core.domain import ActionKind, BoardSnapshot, Ticket
@@ -496,7 +501,7 @@ def test_heartbeat_age_bucketed_keeps_body_stable_across_ticks() -> None:
 
 
 def test_progress_read_is_ttl_cached() -> None:
-    """#10: ``_latest_progress`` is TTL-cached — a second tick within the TTL does NOT re-read."""
+    """#10: ``latest_progress`` is TTL-cached — a second tick within the TTL does NOT re-read."""
 
     class _CountingReader(_FakeCommentReader):
         reads: int = 0
@@ -927,3 +932,48 @@ def test_event_kind_for_action_maps_known_and_unknown() -> None:
     # NOOP / RUN_SCRIPT are not in the table → the safe fallback.
     assert event_kind_for_action(ActionKind.NOOP) == "auto"
     assert event_kind_for_action(ActionKind.RUN_SCRIPT) == "auto"
+
+
+# ---------------------------------------------------------------------------
+# extract_latest_progress / latest_progress (BUG A — the lifted public helper)
+# ---------------------------------------------------------------------------
+
+
+def test_extract_latest_progress_returns_last_milestone() -> None:
+    """BUG A: the public helper returns the LAST stamped milestone, stamp-stripped, from the sticky."""
+    header = f"{marker('InProgress')}\n### running"
+    body = compose(header, ["- 20:49 — first milestone", "- 21:10 — latest milestone"])
+    comments = [CommentRef(comment_id=1, body=body)]
+    assert extract_latest_progress(comments, "InProgress") == "latest milestone"
+
+
+def test_extract_latest_progress_no_sticky_returns_none() -> None:
+    """BUG A: no sticky matching the stage marker → None (the header falls back to the static summary)."""
+    other = [CommentRef(comment_id=1, body="just an ordinary comment, no marker")]
+    assert extract_latest_progress(other, "InProgress") is None
+
+
+def test_extract_latest_progress_no_progress_lines_returns_none() -> None:
+    """BUG A: a located sticky with NO progress lines → None (a header-only sticky)."""
+    header = f"{marker('InProgress')}\n### running"
+    comments = [CommentRef(comment_id=1, body=compose(header, []))]
+    assert extract_latest_progress(comments, "InProgress") is None
+
+
+def test_latest_progress_reads_via_deps_board_writer() -> None:
+    """BUG A: the deps-bound ``latest_progress`` reads the milestone through ``board_writer``."""
+    header = f"{marker('InProgress')}\n### running"
+    body = compose(header, ["- 21:10 — wired milestone"])
+    reader = _FakeCommentReader(comments={7: [CommentRef(comment_id=1, body=body)]})
+    deps = _deps(reporter=_FakeReporter(), store=_FakeStatusStore(), reader=reader)
+    assert latest_progress(deps, 7, "InProgress", now=1000.0) == "wired milestone"
+
+
+def test_latest_progress_read_error_returns_none() -> None:
+    """BUG A: a raising ``list_issue_comments`` degrades the deps-bound read to None (fail-soft)."""
+    deps = _deps(
+        reporter=_FakeReporter(),
+        store=_FakeStatusStore(),
+        reader=_FakeCommentReader(raises=True),
+    )
+    assert latest_progress(deps, 7, "InProgress", now=1000.0) is None

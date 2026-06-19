@@ -758,7 +758,12 @@ class TestRecoveryEdges:
         """The rework prompt carries the hardened constants (scope guard, identity, autonomy)."""
         # Same hardening fingerprints the other hardened launch prompts carry.
         assert "ONLY" in _REWORK_PROMPT  # scope guard
-        assert "kanban-move {{code}} 'PR/CI'" in _REWORK_PROMPT  # re-runs the CI gate
+        # BUG B: the rework prompt no longer self-moves into the SCRIPT-gate PR/CI column — that move
+        # would slip the agent re-fire guard + suppress the gate diff. The engine's advance:auto:PRCI
+        # backstop (asserted above) re-runs the CI gate after kanban-done; the do-not-move guard is explicit.
+        assert "kanban-move {{code}} 'PR/CI'" not in _REWORK_PROMPT
+        assert "DO NOT MOVE THE CARD" in _REWORK_PROMPT
+        assert "kanban-done {{code}}" in _REWORK_PROMPT
         assert "{{codename}}" in _REWORK_PROMPT and "{{code}}" in _REWORK_PROMPT
 
     def test_planned_to_spec_is_a_noop(self) -> None:
@@ -888,18 +893,43 @@ class TestImplementStagePromptGuards:
         assert "NEVER run `gh pr merge`" in _IMPLEMENT_PROMPT
 
     def test_implement_prompt_ci_not_green_terminal_branch(self) -> None:
-        """_IMPLEMENT_PROMPT carries a CI-not-green terminal branch (move PR/CI anyway, don't idle)."""
+        """_IMPLEMENT_PROMPT carries a CI-not-green terminal branch (end on red/running, don't idle).
+
+        BUG B: the agent must NOT idle waiting on CI, but it must ALSO NOT move the card itself —
+        InProgress→PR/CI is a SCRIPT-gated transition the engine owns. On red/running CI the agent
+        comments the failing checks then ENDS; the engine's advance:auto:PRCI backstop moves the card.
+        """
         assert "CI-NOT-GREEN TERMINAL BRANCH" in _IMPLEMENT_PROMPT
         assert "do NOT idle waiting on CI" in _IMPLEMENT_PROMPT
-        # On red/timeout: comment the failing checks then move PR/CI ANYWAY (the gate owns the retry).
-        assert "'PR/CI'` ANYWAY" in _IMPLEMENT_PROMPT
+        # On red/running: comment the failing checks, then END (no kanban-move). The gate owns retry.
+        assert "you are DONE even if CI is still running or red" in _IMPLEMENT_PROMPT
+
+    def test_implement_prompt_does_not_move_the_card_into_pr_ci(self) -> None:
+        """BUG B: _IMPLEMENT_PROMPT no longer instructs the agent to move the card into PR/CI.
+
+        InProgress→PR/CI is a SCRIPT-gate transition: an agent move into it would slip the
+        prompt-only re-fire guard, advance the diff baseline past the edge, and skip the gate +
+        auto:Review + ✅-finalize. The agent must STOP at PR creation + ``kanban-done`` only; the
+        engine's ``advance:auto:PRCI`` backstop advances the card.
+        """
+        # The OLD instruction to move into PR/CI is GONE (any form: bare or ANYWAY).
+        assert "kanban-move {{code}} 'PR/CI'" not in _IMPLEMENT_PROMPT
+        # The explicit do-not-move guard is present, naming the script-gated ownership.
+        assert "DO NOT MOVE THE CARD" in _IMPLEMENT_PROMPT
+        assert "SCRIPT-gated" in _IMPLEMENT_PROMPT
+        # The agent still ends via kanban-done (the engine then advances it).
+        assert "kanban-done {{code}}" in _IMPLEMENT_PROMPT
 
     def test_fixci_prompt_never_merge_and_does_not_idle(self) -> None:
         """_FIXCI_PROMPT carries the never-merge + do-not-idle-on-CI terminal discipline."""
         assert "NEVER run `gh pr merge`" in _FIXCI_PROMPT
         assert "Do NOT idle waiting on CI" in _FIXCI_PROMPT
-        # Move PR/CI even if CI is still running/red — the gate + this loop own the retry.
+        # End via kanban-done even if CI is still running/red — the engine advances + re-gates.
         assert "even if CI is still running or still red" in _FIXCI_PROMPT
+        # BUG B: the fix-CI prompt no longer self-moves into the SCRIPT-gate PR/CI column (the move
+        # would slip the agent re-fire guard + suppress the gate diff); advance:auto:PRCI re-runs it.
+        assert "kanban-move {{code}} 'PR/CI'" not in _FIXCI_PROMPT
+        assert "DO NOT MOVE THE CARD" in _FIXCI_PROMPT
 
 
 class TestDurableCarryPromptWording:

@@ -212,10 +212,20 @@ def _validate_agent(
         # Universal deny: forbid an agent move into the human-only Merge column.
         if to_col == _MERGE_COLUMN:
             raise IntentRejected("agents may not move a card into Merge (merge=human-only)")
-        # Re-fire guard (wildcard-aware): a move resolving to a prompt-bearing transition would
-        # re-launch an agent. Uses transitions.get so (from,*)/(*,to) wildcards are honoured (the
-        # static launch_target_columns set misses to='*' entries — a real escalation hole).
+        # Re-fire guard (wildcard-aware): a move resolving to ANY TRIGGERING transition (one that
+        # carries a prompt OR a script) is refused — both re-fire engine-owned work. A prompt-bearing
+        # pair would re-launch an agent; a SCRIPT-gate pair (e.g. the InProgress->PRCI gate) is
+        # ALSO engine-owned: only the daemon's RUN_SCRIPT path may enter it. If an agent moved a card
+        # straight into a script-gate column, the intent drain would advance the in-memory diff
+        # baseline past it, the next poll diff would never emit the (from,to) edge, and the gate
+        # script (+ its advance:auto/✅-finalize) would never run. So the only legitimate way into a
+        # triggering column is the engine advancing the card itself. Uses transitions.get so
+        # (from,*)/(*,to) wildcards are honoured (the static launch_target_columns set misses to='*'
+        # entries — a real escalation hole). `has_action` == prompt-or-script (triggering).
         if from_col is not None and isinstance(to_col, str):
             t = transitions.get(from_col, to_col)
-            if t is not None and t.prompt:
-                raise IntentRejected(f"agent move {from_col!r}->{to_col!r} would re-fire a launch")
+            if t is not None and t.has_action:
+                raise IntentRejected(
+                    f"agent move {from_col!r}->{to_col!r} would re-fire a triggering transition "
+                    f"(prompt or script); only the engine advances into triggering columns"
+                )

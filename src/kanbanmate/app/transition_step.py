@@ -45,7 +45,7 @@ from kanbanmate.app.actions import (
 from kanbanmate.app.body_status import update_body_status
 from kanbanmate.app.done_arrival import done_arrival_teardown
 from kanbanmate.app.script_route import fixci_key, route_script_verdict, run_check_script
-from kanbanmate.app.status_reporter import event_kind_for_action
+from kanbanmate.app.status_reporter import event_kind_for_action, latest_progress
 from kanbanmate.core.antiloop import AntiLoopState, forget, record_move
 from kanbanmate.core.columns import resolve_column
 from kanbanmate.core.decide import DecideContext, decide
@@ -629,6 +629,11 @@ def process_transition(
         # so it can never break the launch. Skipped for a draft item with no issue number.
         if transition.ticket.issue_number is not None:
             launch_profile = command.profile if isinstance(command, LaunchAction) else ""
+            # BUG A: surface the latest progress milestone in the header (None at first launch — no
+            # sticky progress yet — falls back to the static "agent dispatched" summary). Fail-soft.
+            progress = latest_progress(
+                deps, transition.ticket.issue_number, transition.to_column, now
+            )
             update_body_status(
                 deps.seeder,
                 transition.ticket.issue_number,
@@ -636,6 +641,7 @@ def process_transition(
                 state="running",
                 summary=f"agent dispatched ({launch_profile or 'agent'})",
                 now=now,
+                latest_progress=progress,
             )
     # Advance the baseline regardless of success: the card *is* in the new column on
     # the board, so the next diff must compare against it. A failed action surfaces

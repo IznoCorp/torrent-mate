@@ -47,7 +47,7 @@ from kanbanmate.app.health_reporter import apply_health
 from kanbanmate.app.intents import drain_intents
 from kanbanmate.app.reaper import reap_stale_agents
 from kanbanmate.app.stage_signal import upsert_stage_comment
-from kanbanmate.app.status_reporter import report_status
+from kanbanmate.app.status_reporter import latest_progress, report_status
 from kanbanmate.app.transition_step import process_transition
 
 # Re-export the per-action watchdog under the tick's historical names. The whole watchdog group (the
@@ -461,6 +461,9 @@ def _finalize_left_stage(
         # writes the NEW stage's ``running`` in the SAME tick, so a LEFT ``done`` write here would be
         # a wasted second fetch+patch + a race window. The ✅ sticky flip above runs unconditionally.
         if write_body_status:
+            # BUG A: surface the latest progress milestone off the just-completed stage's sticky (the
+            # header swap above preserved its progress lines). None → fall back to "stage complete".
+            progress = latest_progress(deps, issue, from_column, now)
             update_body_status(
                 deps.seeder,
                 issue,
@@ -468,6 +471,7 @@ def _finalize_left_stage(
                 state="done",
                 summary="stage complete",
                 now=now,
+                latest_progress=progress,
             )
     except Exception:
         # Defense-in-depth: the upsert already swallows GitHub errors, but a build/encode error

@@ -25,6 +25,10 @@ columns:
     name: Backlog
   - key: Spec
     name: Spec
+  - key: InProgress
+    name: In progress
+  - key: PRCI
+    name: PR/CI
   - key: Review
     name: Review
   - key: Merge
@@ -42,6 +46,9 @@ transitions:
     to: Spec
     profile: docs
     prompt: "design it"
+  - from: InProgress
+    to: PRCI
+    script: "check-pr-ready.sh"
   - from: Review
     to: Merge
     script: "gate.sh"
@@ -122,6 +129,26 @@ def test_agent_move_into_prompt_target_rejected_refire() -> None:
             transitions=_TRANS,
             columns=_COLUMNS,
             from_col="Backlog",
+            launching_issue=7,
+        )
+
+
+def test_agent_move_into_script_gate_rejected_refire() -> None:
+    """BUG B: an agent move resolving to a SCRIPT-gate transition is rejected (not just prompts).
+
+    ``InProgress->PRCI`` carries a SCRIPT but no prompt — it is engine-owned (only the daemon's
+    RUN_SCRIPT path may enter it). The re-fire guard must reject the agent move so the diff baseline
+    is never advanced past the gate edge (which would skip the gate + auto:Review + ✅-finalize). The
+    ``to`` column ``PRCI`` is NOT Merge, so it is the ``has_action`` (prompt-OR-script) widening —
+    not the Merge universal-deny — that does the rejecting here.
+    """
+    with pytest.raises(IntentRejected, match="re-fire a triggering transition"):
+        validate_intent(
+            _move(7, "PRCI"),
+            authority="agent",
+            transitions=_TRANS,
+            columns=_COLUMNS,
+            from_col="InProgress",
             launching_issue=7,
         )
 

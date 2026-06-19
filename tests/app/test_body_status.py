@@ -52,6 +52,62 @@ def test_changed_body_writes_with_fetched_node_id() -> None:
     assert "existing body" in new_body  # original content preserved below the header
 
 
+def test_latest_progress_surfaced_in_header() -> None:
+    """BUG A: a non-empty ``latest_progress`` is rendered AS the header summary (not the static one)."""
+    seeder = MagicMock()
+    seeder.fetch_issue.return_value = _ref("")
+    update_body_status(
+        seeder,
+        7,
+        stage="Design",
+        state="running",
+        summary="agent dispatched (docs)",
+        now=1000.0,
+        latest_progress="wrote DESIGN §3 module map",
+    )
+    seeder.update_issue_body.assert_called_once()
+    new_body = seeder.update_issue_body.call_args.args[1]
+    # The milestone is the visible header text; the static summary is NOT used when progress exists.
+    assert "wrote DESIGN §3 module map" in new_body
+    assert "agent dispatched (docs)" not in new_body
+
+
+def test_none_progress_falls_back_to_static_summary() -> None:
+    """BUG A: ``latest_progress=None`` falls back to the static summary (no blank-header regression)."""
+    seeder = MagicMock()
+    seeder.fetch_issue.return_value = _ref("")
+    update_body_status(
+        seeder,
+        7,
+        stage="Design",
+        state="done",
+        summary="stage complete",
+        now=1000.0,
+        latest_progress=None,
+    )
+    seeder.update_issue_body.assert_called_once()
+    new_body = seeder.update_issue_body.call_args.args[1]
+    assert "stage complete" in new_body
+
+
+def test_empty_progress_falls_back_to_static_summary() -> None:
+    """BUG A: an EMPTY ``latest_progress`` ("") also falls back (treated like a miss)."""
+    seeder = MagicMock()
+    seeder.fetch_issue.return_value = _ref("")
+    update_body_status(
+        seeder,
+        7,
+        stage="Plan",
+        state="waiting",
+        summary="waiting for your input",
+        now=1000.0,
+        latest_progress="",
+    )
+    seeder.update_issue_body.assert_called_once()
+    new_body = seeder.update_issue_body.call_args.args[1]
+    assert "waiting for your input" in new_body
+
+
 def test_fetch_issue_error_swallowed() -> None:
     """A ``fetch_issue`` failure is swallowed — never raises into the caller."""
     seeder = MagicMock()

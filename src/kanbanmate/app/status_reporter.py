@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from kanbanmate.core.domain import ActionKind, BoardSnapshot
@@ -49,6 +50,7 @@ from kanbanmate.core.status_update import (
 from kanbanmate.ports.store import TicketStatus
 
 if TYPE_CHECKING:  # pragma: no cover - import only for type checking (no runtime cycle)
+    from kanbanmate.adapters.github.types import CommentRef
     from kanbanmate.app.actions import Deps
     from kanbanmate.app.tick import TickConfig
     from kanbanmate.ports.store import TicketState
@@ -119,7 +121,7 @@ _ACTION_EVENT_KIND: dict[ActionKind, str] = {
 }
 
 
-# Per-agent progress-read TTL cache (#10). ``_latest_progress`` calls ``list_issue_comments`` —
+# Per-agent progress-read TTL cache (#10). ``latest_progress`` calls ``list_issue_comments`` —
 # one network read PER AGENT PER TICK, BEFORE the on-change hash check — so 3 agents at the 10s
 # cadence cost ~1080 reads/hour of pure waste. A short TTL cache collapses that to ~once/minute per
 # agent: a cache HIT within the TTL returns the last value without a network read. Module-level so it
@@ -147,7 +149,7 @@ def event_kind_for_action(kind: ActionKind) -> str:
     return _ACTION_EVENT_KIND.get(kind, "auto")
 
 
-def _latest_progress(deps: Deps, issue: int, stage: str, now: float) -> str | None:
+def latest_progress(deps: Deps, issue: int, stage: str, now: float) -> str | None:
     """Read the LATEST kanban-progress milestone off ``issue``'s ``stage`` sticky (TTL-cached, #10).
 
     Locates the stage sticky by its hidden HTML marker (reusing the pure
@@ -183,23 +185,30 @@ def _latest_progress(deps: Deps, issue: int, stage: str, now: float) -> str | No
     return result
 
 
-def _read_progress_uncached(deps: Deps, issue: int, stage: str) -> str | None:
-    """Perform the actual sticky read for :func:`_latest_progress` (the network leg).
+def extract_latest_progress(comments: Iterable[CommentRef], stage: str) -> str | None:
+    """Extract the LATEST progress milestone for ``stage`` from an already-fetched comments list.
+
+    The PURE extraction leg of :func:`latest_progress` (no I/O — the caller supplies the comments):
+    locate the ``stage`` sticky by its hidden HTML marker, split off its progress lines, and return
+    the LAST one (the agent appends newest-last) with its ``- HH:MM — `` stamp stripped to the bare
+    milestone text. Reusable by producers that already hold a comment-reader but NOT a full
+    :class:`~kanbanmate.app.actions.Deps` (e.g. ``bin/kanban-session-end``, which wires a raw
+    :class:`~kanbanmate.adapters.github.client.GithubClient`).
+
+    Individually fail-soft: returns ``None`` on a miss (no sticky / no progress) OR any error, so one
+    bad read never breaks the producer (the body header then falls back to its static summary).
 
     Args:
-        deps: The injected adapter bundle (the comment-reader seam).
-        issue: The issue number whose sticky to read.
-        stage: The stage owning the sticky to locate.
+        comments: The issue's comments (any iterable of objects exposing a ``.body`` — typically the
+            adapter's :class:`~kanbanmate.adapters.github.types.CommentRef` list).
+        stage: The stage (column key) owning the sticky to locate.
 
     Returns:
         The latest progress milestone text, or ``None`` on a miss / error.
     """
     try:
         needle = marker(stage)
-        located = next(
-            (c for c in deps.board_writer.list_issue_comments(issue) if needle in (c.body or "")),
-            None,
-        )
+        located = next((c for c in comments if needle in (c.body or "")), None)
         if located is None:
             return None
         _header, progress = split_sticky(located.body or "")
@@ -212,6 +221,28 @@ def _read_progress_uncached(deps: Deps, issue: int, stage: str) -> str | None:
         if " — " in latest:
             latest = latest.split(" — ", 1)[1].strip()
         return latest or None
+    except Exception:  # noqa: BLE001 — fail-soft: one bad read must not break the caller
+        logger.warning(
+            "status reporter: progress extraction failed for stage=%r; omitting progress",
+            stage,
+            exc_info=True,
+        )
+        return None
+
+
+def _read_progress_uncached(deps: Deps, issue: int, stage: str) -> str | None:
+    """Perform the actual sticky read for :func:`latest_progress` (the network leg).
+
+    Args:
+        deps: The injected adapter bundle (the comment-reader seam).
+        issue: The issue number whose sticky to read.
+        stage: The stage owning the sticky to locate.
+
+    Returns:
+        The latest progress milestone text, or ``None`` on a miss / error.
+    """
+    try:
+        comments = deps.board_writer.list_issue_comments(issue)
     except Exception:  # noqa: BLE001 — per-agent fail-soft: one bad read must not drop the update
         logger.warning(
             "status reporter: progress read failed for #%s stage=%r; omitting progress",
@@ -220,6 +251,7 @@ def _read_progress_uncached(deps: Deps, issue: int, stage: str) -> str | None:
             exc_info=True,
         )
         return None
+    return extract_latest_progress(comments, stage)
 
 
 def _running_agent(
@@ -234,7 +266,7 @@ def _running_agent(
     persisted on the state); the profile/launch time come straight off the state;
     the heartbeat age is ``now - state.heartbeat`` (the render shows ``❤ —`` for a
     missing one); and the progress is the latest sticky milestone (``None`` on a
-    miss — read individually fail-soft in :func:`_latest_progress`).
+    miss — read individually fail-soft in :func:`latest_progress`).
 
     Args:
         deps: The injected adapter bundle (the comment-reader for progress).
@@ -268,7 +300,7 @@ def _running_agent(
     # A 0.0/absent heartbeat means "no heartbeat recorded yet" → None (the render
     # shows "❤ —"); otherwise the age since the last liveness touch.
     heartbeat_age = (now - state.heartbeat) if state.heartbeat else None
-    progress = _latest_progress(deps, issue, state.stage, now) if state.stage else None
+    progress = latest_progress(deps, issue, state.stage, now) if state.stage else None
     return RunningAgent(
         issue=issue,
         # ``code`` is the short TYPE TAG rendered in brackets (``[docs]`` / ``[LLM]``; see

@@ -35,6 +35,7 @@ def update_body_status(
     state: str,
     summary: str,
     now: float,
+    latest_progress: str | None = None,
 ) -> None:
     """Best-effort: set the body-top status block on ``issue`` (FIX 5; fully fail-soft).
 
@@ -47,6 +48,14 @@ def update_body_status(
       actually changed (the body-diff gate: bounds API cost + shrinks the last-writer-wins race
       window against an agent's ``kanban-update-body``).
 
+    PROGRESS MILESTONE (BUG A). Every caller passes a STATIC literal ``summary`` ("agent
+    dispatched", "stage complete", …) — so the header never surfaced the agent's latest progress
+    milestone, the most useful at-a-glance signal. When ``latest_progress`` is non-empty the
+    producer has read the LATEST ``- HH:MM — <milestone>`` line off the stage sticky (via
+    :func:`kanbanmate.app.status_reporter.latest_progress`) and we render IT as the header summary.
+    When it is ``None``/empty (no progress line yet, a terminal/edge state, or a fail-soft miss) we
+    FALL BACK to the static ``summary`` so the header never regresses to a blank line.
+
     FAIL-SOFT: the WHOLE body is wrapped in try/except — ANY error (fetch failure, encode error,
     patch failure) is logged once and swallowed. The header write must NEVER raise into the tick or
     block the launch / advance / reap / teardown that triggered it (DESIGN clean-termination §FIX-5).
@@ -58,19 +67,26 @@ def update_body_status(
         stage: The current stage / column name.
         state: The lifecycle state word (``running`` / ``done`` / ``blocked`` / ``waiting`` /
             ``interrupted`` / ``cancelled``).
-        summary: A short free-text summary (empty string omits the ``— …`` clause).
+        summary: A short free-text static summary — the FALLBACK header text when no progress
+            milestone is available (empty string omits the ``— …`` clause).
         now: Epoch seconds for the ``_updated …`` stamp (injected for test determinism).
+        latest_progress: The agent's latest progress milestone text (the producer read it off the
+            stage sticky), or ``None``/empty when none is available. When non-empty it REPLACES
+            ``summary`` as the rendered header text; otherwise ``summary`` is used.
     """
     if seeder is None:
         return
     try:
         ref = seeder.fetch_issue(issue)
         current = ref.body or ""
+        # Surface the latest progress milestone when the producer supplied one; otherwise keep the
+        # static summary so a terminal/edge state never renders a blank header (BUG A).
+        header_summary = latest_progress if latest_progress else summary
         new_body = set_status_header(
             current,
             stage=stage,
             state=state,
-            summary=summary,
+            summary=header_summary,
             timestamp=fmt_timestamp(now),
         )
         # Body-diff gate: skip the write when nothing changed — the on-change discipline that bounds

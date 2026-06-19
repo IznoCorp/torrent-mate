@@ -47,6 +47,7 @@ from kanbanmate.adapters.github.client import GithubClient
 from kanbanmate.adapters.store.fs_store import FsStateStore
 from kanbanmate.app.body_status import update_body_status
 from kanbanmate.app.stage_signal import upsert_stage_comment
+from kanbanmate.app.status_reporter import extract_latest_progress
 from kanbanmate.bin._clone_config import (
     auto_advance_target,
     load_clone_columns,
@@ -72,6 +73,29 @@ _BLOCKED_KEY = "Blocked"
 # finalized sticky reflect the REAL outcome — a ⛔ blocked sticky on a parked card, not a misleading
 # ✅ done.
 AutoAdvanceResult = Literal["advanced", "stopped", "parked_blocked"]
+
+
+def _read_latest_progress(client: GithubClient, issue: int, stage: str) -> str | None:
+    """Read the latest progress milestone off ``issue``'s ``stage`` sticky (BUG A; fully fail-soft).
+
+    Session-end producers hold a raw :class:`GithubClient` (not a ``Deps``), so they fetch the issue
+    comments here and delegate to the PURE
+    :func:`kanbanmate.app.status_reporter.extract_latest_progress`. The whole read is wrapped: ANY
+    error (unreachable API, parse error) degrades to ``None`` so the body header simply falls back to
+    its static summary — a finalize must never break the always-run session-end.
+
+    Args:
+        client: The wired GitHub client (also the comment-reader).
+        issue: The issue number whose sticky to read.
+        stage: The stage owning the sticky to locate.
+
+    Returns:
+        The latest progress milestone text, or ``None`` on a miss / error.
+    """
+    try:
+        return extract_latest_progress(client.list_issue_comments(issue), stage)
+    except Exception:  # noqa: BLE001 — fail-soft: a progress read never breaks session-end.
+        return None
 
 
 def _resolve_entry() -> ProjectEntry:
@@ -335,14 +359,47 @@ def main(argv: list[str] | None = None) -> int:
         #    / teardown race never double-frees.
         store.purge_ticket(issue, keep_budgets=True)
 
-        # 4. The agent advanced its own card: the daemon's ✅-on-advance finalize (8.1.e) already
-        #    flipped the LEFT stage to ✅ done. Leave the sticky untouched (the ✅/⚠️ split — the
-        #    breadcrumb decided). purge_ticket already purged the breadcrumb above, so no explicit
-        #    clear_agent_advance is needed.
+        # 4. The agent advanced its own card. The daemon's ✅-on-advance finalize (8.1.e) USUALLY
+        #    flipped the LEFT stage to ✅ done already — but that finalize only runs when the card
+        #    actually advanced via the diff/RUN_SCRIPT path. When the ENGINE advanced the card
+        #    instead (e.g. a clean kanban-done on a launch stage with advance:auto, or an
+        #    InProgress→PR/CI advance the daemon drove), the left-stage ✅ finalize can race or be
+        #    missed → the sticky is stranded 🟡 running. DEFENSE-IN-DEPTH (BUG B): finalize the
+        #    persisted state.stage sticky ✅ done HERE too. upsert_stage_comment header-swaps in place
+        #    (idempotent — a no-op if already ✅), so this is safe regardless of which path advanced
+        #    the card. Mirrors the 4b/4c done-without-advance finalize. Fully fail-soft.
         if advanced:
+            stage = state.stage
+            if stage:
+                try:
+                    entry = _resolve_entry()
+                    # Per-entry token (#4): a second org's entry carries a ``token_ref``; N=1 → shared.
+                    client = GithubClient(
+                        _resolve_entry_token(entry), project_id=entry.project_id, repo=entry.repo
+                    )
+                    header = header_from_state(
+                        asdict(state), issue, stage, "done", finished=fmt_timestamp(now)
+                    )
+                    upsert_stage_comment(client, issue, stage, header=header, now=now)
+                    # Mirror the ✅ finalize in the body-top status header (idempotent, body-diff-gated).
+                    # BUG A: surface the latest milestone (None → falls back to "stage complete").
+                    update_body_status(
+                        client,
+                        issue,
+                        stage=stage,
+                        state="done",
+                        summary="stage complete",
+                        now=now,
+                        latest_progress=_read_latest_progress(client, issue, stage),
+                    )
+                except Exception as exc:  # noqa: BLE001 — fail-soft: a finalize error never breaks session-end.
+                    print(
+                        f"{_PROG}: warning: could not finalize ✅ sticky for advanced #{issue}: {exc}",
+                        file=sys.stderr,
+                    )
             print(
                 f"{_PROG}: ticket #{issue} advanced; runtime record removed "
-                "(slot freed, breadcrumb consumed), per-issue budgets preserved, sticky kept ✅."
+                "(slot freed, breadcrumb consumed), per-issue budgets preserved, sticky finalized ✅."
             )
             return 0
 
@@ -413,6 +470,7 @@ def main(argv: list[str] | None = None) -> int:
                     file=sys.stderr,
                 )
             # FIX 5: mirror the finalized sticky in the body-top status header (done OR blocked).
+            # BUG A: surface the latest milestone (None → falls back to the static body_summary).
             update_body_status(
                 client,
                 issue,
@@ -420,6 +478,7 @@ def main(argv: list[str] | None = None) -> int:
                 state=sticky_status,
                 summary=body_summary,
                 now=now,
+                latest_progress=_read_latest_progress(client, issue, stage),
             )
             print(
                 f"{_PROG}: ticket #{issue} done (clean completion, no advance); runtime record "
@@ -459,6 +518,8 @@ def main(argv: list[str] | None = None) -> int:
             upsert_stage_comment(client, issue, stage, header=header, now=now)
             # FIX 5: mirror the ⚠️ interrupted sticky in the body-top status header. The client
             # is wired (this branch); ``update_body_status`` is itself fully fail-soft.
+            # BUG A: surface the agent's last milestone before it crashed (None → falls back to the
+            # static "session ended without advancing").
             update_body_status(
                 client,
                 issue,
@@ -466,6 +527,7 @@ def main(argv: list[str] | None = None) -> int:
                 state="interrupted",
                 summary="session ended without advancing",
                 now=now,
+                latest_progress=_read_latest_progress(client, issue, stage),
             )
         except Exception as exc:  # noqa: BLE001 — fail-soft: a finalize error never breaks session-end.
             print(

@@ -140,19 +140,46 @@ def test_purged_state_releases_slot_no_github_io(monkeypatch: pytest.MonkeyPatch
     upsert.assert_not_called()  # no ⚠️ finalize, no GitHub I/O on a purged ticket.
 
 
-def test_recent_breadcrumb_keeps_sticky_and_releases_slot(
+def test_recent_breadcrumb_finalizes_done_idempotent_and_releases_slot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """WITH a recent breadcrumb → sticky untouched (no ⚠️), slot released, exit 0."""
+    """WITH a recent advance breadcrumb → ✅ finalize the left sticky (BUG B defense-in-depth).
+
+    The daemon's 8.1.e finalize USUALLY ran already, but when the ENGINE advanced the card (clean
+    kanban-done with advance:auto, or an engine-driven InProgress→PR/CI advance) the left-stage ✅
+    finalize can be missed → the sticky strands 🟡. Session-end now ALSO finalizes the persisted
+    ``state.stage`` sticky ✅ done itself; ``upsert_stage_comment`` header-swaps in place so this is
+    idempotent (a no-op if already ✅). The slot is still released and exit is 0.
+    """
     store = MagicMock()
-    store.load.return_value = _state()
+    store.load.return_value = _state(stage="InProgress")
     store.recent_agent_advance.return_value = True
     monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
     upsert = _patch_github(monkeypatch)
 
     assert main(["7"]) == 0
     store.purge_ticket.assert_called_once_with(7, keep_budgets=True)
-    upsert.assert_not_called()  # the daemon's 8.1.e already finalized ✅ — leave the sticky.
+    # BUG B: the advanced branch finalizes ✅ on the LEFT stage sticky (was assert_not_called).
+    upsert.assert_called_once()
+    args, kwargs = upsert.call_args
+    assert args[1] == 7
+    assert args[2] == "InProgress"
+    assert kwargs["header"].status == "done"
+
+
+def test_recent_breadcrumb_empty_stage_skips_finalize(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """WITH an advance breadcrumb but an EMPTY stage → no sticky to finalize, slot still released."""
+    store = MagicMock()
+    store.load.return_value = _state(stage="")
+    store.recent_agent_advance.return_value = True
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    upsert = _patch_github(monkeypatch)
+
+    assert main(["7"]) == 0
+    store.purge_ticket.assert_called_once_with(7, keep_budgets=True)
+    upsert.assert_not_called()  # no recorded stage → nothing to finalize (still fail-soft).
 
 
 def test_no_breadcrumb_finalizes_interrupted_and_releases_slot(
@@ -252,8 +279,10 @@ def test_breadcrumb_read_before_purge_ticket(monkeypatch: pytest.MonkeyPatch) ->
     assert main(["7"]) == 0
     # The read MUST precede the purge, or the ✅/⚠️ split silently breaks.
     assert order == ["recent_agent_advance", "purge_ticket"]
-    # And because the breadcrumb was seen present, a clean advance produces NO ⚠️.
-    upsert.assert_not_called()
+    # Because the breadcrumb was seen present, the advanced branch finalizes ✅ (BUG B
+    # defense-in-depth), NEVER ⚠️ interrupted.
+    upsert.assert_called_once()
+    assert upsert.call_args.kwargs["header"].status == "done"
 
 
 # ---------------------------------------------------------------------------

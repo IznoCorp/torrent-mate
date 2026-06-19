@@ -49,16 +49,17 @@ _COLUMNS: dict[str, Column] = {
 }
 
 # A transition whitelist mirroring the load-bearing shape of DEFAULT_TRANSITIONS: the
-# prompt-bearing rows (InProgress / PRCI / Review / Merge are launch targets — Review→Merge is now
-# the autonomous merge AGENT), the Merge→Review blocker route + Merge→Done success route (no-ops),
-# and inert no-ops (Backlog, ReadyToDev, Done reachable). The pre-flight guard keys on whether the
-# SPECIFIC (from, to) pair is prompt-bearing, NOT on the destination being some launch target.
+# prompt-bearing rows (PrepareFeature→InProgress, PRCI→Review, Review→Merge — the autonomous merge
+# AGENT), the SCRIPT-gate row (InProgress→PRCI, engine-owned — no prompt), the Merge→Review blocker
+# route + Merge→Done success route (no-ops), and inert no-ops (Backlog, ReadyToDev, Done reachable).
+# The pre-flight guard keys on whether the SPECIFIC (from, to) pair is TRIGGERING (prompt OR script),
+# NOT on the destination being some launch target.
 _TRANSITIONS = load_transitions(
     "project: test/repo\n"
     "transitions:\n"
     "  - {from: 'Backlog', to: 'ReadyToDev'}\n"  # no-op → ReadyToDev is inert
     "  - {from: 'PrepareFeature', to: 'InProgress', prompt: 'implement'}\n"
-    "  - {from: 'InProgress', to: 'PRCI', prompt: 'fix'}\n"
+    "  - {from: 'InProgress', to: 'PRCI', script: 'check-pr-ready.sh'}\n"  # SCRIPT-gate (engine-owned)
     "  - {from: 'PRCI', to: 'Review', prompt: 'review'}\n"
     "  - {from: 'Review', to: 'Merge', prompt: 'merge'}\n"  # autonomous merge agent (prompt-bearing)
     "  - {from: 'Merge', to: 'Done'}\n"  # success route (no-op)
@@ -236,6 +237,22 @@ def test_refuses_re_fire_pair_no_enqueue(monkeypatch: pytest.MonkeyPatch) -> Non
     assert main(["7", "InProgress"]) == 1
     assert main(["7", "In Progress"]) == 1  # by human name (resolved to its key) too
     # The whole point: no intent was ever enqueued for a re-fire.
+    assert store.intents == {}
+    assert store.nudges == 0
+
+
+def test_refuses_script_gate_pair_no_enqueue(monkeypatch: pytest.MonkeyPatch) -> None:
+    """REFUSE (BUG B): an agent move into a SCRIPT-gate column is refused early (no enqueue).
+
+    ``InProgress → PR/CI`` carries a SCRIPT but no prompt — it is engine-owned (only the daemon's
+    RUN_SCRIPT path enters it). Before the fix the cheap pre-flight keyed on ``pair.prompt`` only, so
+    this move was ACCEPTED and the in-memory diff baseline jumped past the gate → ``check-pr-ready.sh``
+    + auto:Review + the ✅ left-stage finalize were all skipped. The widened ``pair.has_action`` guard
+    (prompt OR script) now refuses it BEFORE enqueuing, in parity with the daemon-side guard.
+    """
+    store = _wire(monkeypatch, stage="InProgress")
+    assert main(["7", "PRCI"]) == 1
+    assert main(["7", "PR/CI"]) == 1  # by human name too
     assert store.intents == {}
     assert store.nudges == 0
 

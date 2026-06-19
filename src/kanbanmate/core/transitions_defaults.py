@@ -435,16 +435,20 @@ _IMPLEMENT_PROMPT = (
     + "STOP AT PR CREATION: /implement:phase auto-chains to feature-pr → pr-review, which ends in "
     "`gh pr merge` (DENIED). STOP as soon as the PR is created and CI is pushed. NEVER run "
     "`gh pr merge` (or any merge command) under any circumstance — merge is HUMAN-ONLY.\n"
+    + "DO NOT MOVE THE CARD: never run `kanban-move` into PR/CI (or any column) — InProgress→PR/CI "
+    "is a SCRIPT-gated transition the ENGINE owns. The engine auto-advances the card to PR/CI for "
+    "you when you end cleanly; if you moved it yourself the PR/CI gate (`check-pr-ready.sh`), the "
+    "auto-promote to Review, and the stage finalize would all be skipped.\n"
     + "CI-NOT-GREEN TERMINAL BRANCH: do NOT idle waiting on CI inside this session (an idling "
-    "session never ends → it parks WAITING forever). If CI is red or times out, comment the "
-    'failing checks via `kanban-comment {{code}} "CI red: <failing checks>"`, then '
-    "`kanban-move {{code}} 'PR/CI'` ANYWAY — the PR/CI gate + the fix-CI loop own the retry, not "
-    "this session.\n"
-    + "DONE = all phases implemented + the PR created (CI pushed); THEN `kanban-move {{code}} "
-    "'PR/CI'` (durable outputs — the pushed branch + open PR — BEFORE the move). If the PR already "
-    "exists (re-entry), VERIFY and finalize — do NOT redo.\n"
-    "Finally, run `kanban-done {{code}}` to end your session (AFTER the kanban-move).\n"
-    + _CLEAN_STOP
+    "session never ends → it parks WAITING forever). Once the PR is created and the branch is "
+    "pushed, you are DONE even if CI is still running or red — comment any known-failing checks via "
+    '`kanban-comment {{code}} "CI red: <failing checks>"`, then end. The PR/CI gate + the fix-CI '
+    "loop own the retry, not this session.\n"
+    + "DONE = all phases implemented + the PR created (CI pushed — the durable outputs are the "
+    "pushed branch + the open PR). If the PR already exists (re-entry), VERIFY and finalize — do "
+    "NOT redo. Do NOT move the card.\n"
+    "Finally, run `kanban-done {{code}}` to end your session — the engine then advances the card to "
+    "PR/CI.\n" + _CLEAN_STOP
 )
 
 # PRCI -> InProgress: the bot fix-CI loop. {{script_output}} may be STALE — re-check
@@ -458,19 +462,21 @@ _FIXCI_PROMPT = (
     + _STATE_CHECK_LATE
     + _DESYNC
     + "FIRST re-check the LIVE CI status of the PR. If CI is ALREADY GREEN (the captured output "
-    "was stale), do NOT change code — just `kanban-move {{code}} 'PR/CI'` and end. Otherwise fix "
-    "ONLY the checks that are actually failing (do not refactor beyond the failure), re-push, then "
-    "`kanban-move {{code}} 'PR/CI'`.\n"
+    "was stale), do NOT change code — just `kanban-done` and end. Otherwise fix ONLY the checks "
+    "that are actually failing (do not refactor beyond the failure), then re-push.\n"
+    + "DO NOT MOVE THE CARD: never run `kanban-move` into PR/CI (or any column) — InProgress→PR/CI "
+    "is a SCRIPT-gated transition the ENGINE owns (advance:auto:PRCI). After you `kanban-done`, the "
+    "engine advances the card to PR/CI and re-runs the gate; the gate + this fix-CI loop own the "
+    "retry, not this session.\n"
     + "NEVER run `gh pr merge` (or any merge command) — merge is HUMAN-ONLY. Do NOT idle waiting "
     "on CI inside this session (an idling session never ends → it parks WAITING forever): after "
-    "re-pushing your fix, `kanban-move {{code}} 'PR/CI'` immediately even if CI is still running or "
-    "still red — the PR/CI gate + this fix-CI loop own the retry, not this session.\n"
+    "re-pushing your fix, `kanban-done {{code}}` immediately even if CI is still running or still "
+    "red — the engine advances + re-gates; this session must not babysit CI.\n"
     + _AUTONOMY
     + _GROUNDING_DISCIPLINE
-    + "DONE = the failing checks are addressed + re-pushed (or confirmed already green) THEN the "
-    "move. If already handled (re-entry), VERIFY and finalize — do NOT redo.\n"
-    "Finally, run `kanban-done {{code}}` to end your session (AFTER the kanban-move).\n"
-    + _CLEAN_STOP
+    + "DONE = the failing checks are addressed + re-pushed (or confirmed already green) THEN "
+    "`kanban-done`. If already handled (re-entry), VERIFY and finalize — do NOT redo.\n"
+    "Finally, run `kanban-done {{code}}` to end your session.\n" + _CLEAN_STOP
 )
 
 # PRCI -> Review: the review rounds. The pr-review skill ends in a terminal squash-
@@ -504,14 +510,15 @@ _REWORK_PROMPT = (
     + _STATE_CHECK_LATE
     + _DESYNC
     + "FIRST read the PR's review threads / comments to find what the reviewer asked for. Address "
-    "ONLY the requested changes (do not refactor beyond the review feedback), re-push, then "
-    "`kanban-move {{code}} 'PR/CI'` so the CI gate re-runs.\n"
+    "ONLY the requested changes (do not refactor beyond the review feedback), then re-push.\n"
+    + "DO NOT MOVE THE CARD: never run `kanban-move` into PR/CI — Review→InProgress→PR/CI is "
+    "engine-owned (advance:auto:PRCI). After you `kanban-done`, the engine advances the card to "
+    "PR/CI and re-runs the CI gate.\n"
     + _AUTONOMY
     + _GROUNDING_DISCIPLINE
-    + "DONE = the review feedback is addressed + re-pushed THEN the move. If the rework was already "
-    "applied (re-entry), VERIFY and finalize — do NOT redo.\n"
-    "Finally, run `kanban-done {{code}}` to end your session (AFTER the kanban-move).\n"
-    + _CLEAN_STOP
+    + "DONE = the review feedback is addressed + re-pushed THEN `kanban-done`. If the rework was "
+    "already applied (re-entry), VERIFY and finalize — do NOT redo.\n"
+    "Finally, run `kanban-done {{code}}` to end your session.\n" + _CLEAN_STOP
 )
 
 # Review -> Merge: the AUTONOMOUS merge stage (operator decision — supersedes the historical

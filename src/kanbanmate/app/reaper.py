@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 from kanbanmate.app.actions import BlockAction, Deps, LaunchAction, TeardownAction
 from kanbanmate.app.body_status import update_body_status
 from kanbanmate.app.stage_signal import upsert_stage_comment
+from kanbanmate.app.status_reporter import latest_progress
 from kanbanmate.core.antiloop import AntiLoopState, record_move
 from kanbanmate.core.domain import Ticket
 from kanbanmate.core.launch_keys import is_waiting_for_input
@@ -385,6 +386,8 @@ def _enter_waiting(deps: Deps, state: TicketState, now: float) -> None:
                 state.stage,
             )
         # FIX 5: mirror the ⏳ WAITING sticky in the body-top status header. Fully fail-soft.
+        # BUG A: surface the latest progress milestone (None → falls back to the waiting summary).
+        progress = latest_progress(deps, state.issue_number, state.stage, now)
         update_body_status(
             deps.seeder,
             state.issue_number,
@@ -392,6 +395,7 @@ def _enter_waiting(deps: Deps, state: TicketState, now: float) -> None:
             state="waiting",
             summary="waiting for your input",
             now=now,
+            latest_progress=progress,
         )
 
 
@@ -774,6 +778,8 @@ def reap_stale_agents(
                     state.stage,
                 )
             # FIX 5: mirror the ⛔ blocked sticky in the body-top status header. Fully fail-soft.
+            # BUG A: surface the latest progress milestone (None → falls back to the blocked summary).
+            progress = latest_progress(deps, state.issue_number, state.stage, now)
             update_body_status(
                 deps.seeder,
                 state.issue_number,
@@ -781,6 +787,7 @@ def reap_stale_agents(
                 state="blocked",
                 summary="agent stalled — parked in Blocked",
                 now=now,
+                latest_progress=progress,
             )
         if ok_block and ok_teardown and ok_move:
             reaped += 1

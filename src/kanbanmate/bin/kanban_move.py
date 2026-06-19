@@ -194,11 +194,15 @@ def main(argv: list[str] | None = None) -> int:
         from_col = st.stage if st is not None else None
         if from_col:
             pair = transitions.get(from_col, column.key)
-            if pair is not None and pair.prompt:
+            # Refuse early for ANY triggering pair (prompt OR script): a prompt pair would re-fire a
+            # launch; a script-gate pair (e.g. InProgress->PRCI) is engine-owned too — only the
+            # daemon's RUN_SCRIPT path may enter it. `has_action` == prompt-or-script. Parity with the
+            # daemon-side guard in core.intent._validate_agent.
+            if pair is not None and pair.has_action:
                 print(
                     f"{_PROG}: refusing to move #{issue} {from_col!r}->{column.name!r} "
-                    f"(anti-loop, DESIGN §8.0.5) — that pair is a prompt-bearing launch transition; "
-                    f"an agent may not re-fire a launch",
+                    f"(anti-loop, DESIGN §8.0.5) — that pair is a TRIGGERING transition "
+                    f"(prompt or script); only the engine advances a card into a triggering column",
                     file=sys.stderr,
                 )
                 return 1
