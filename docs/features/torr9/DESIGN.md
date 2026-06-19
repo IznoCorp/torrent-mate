@@ -111,7 +111,9 @@ Mirror the proven provider pattern exactly — **no new framework code**:
      `docs/reference/_samples/torr9/torr9_search.json`: asserts title /
      size(`file_size_bytes`) / `is_freeleech` / download(`magnet_link`) / category /
      `upload_date` on real JSON fields (mirror `test_lacale_client.py`);
-     empty-result + malformed-payload paths; a mocked-login test (re-login on 401).
+     empty-result + malformed-payload paths; a bootstrap-login test (patches
+     `HttpTransport` to verify the `/auth/login` POST + the authed main policy's
+     `BearerAuth`) + re-login + second-401-fail-loud paths.
    - extend `tests/unit/test_tracker_parser_schema_drift.py` — torr9 survives a
      missing/renamed field via `wrap_parser_drift`.
    - extend `tests/unit/test_tracker_capabilities_composition.py` — `Torr9Client`

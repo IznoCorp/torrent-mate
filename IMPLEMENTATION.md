@@ -31,6 +31,10 @@
 
 **Ignored / deferred (noted, not fixed):** batch-atomic parse (one bad item aborts the torr9 batch) is by-design (anti-drift, matches lacale/c411); detail-endpoint `seeders`/`leechers` for ranking deferred (DESIGN). A full multi-cred _protocol_ (vs the `build_from_env` hook) remains a future framework item.
 
+### Cycle 1 fix (commits efdb99f9..9fbb431d) + re-review CLEAN
+
+torr9 auth rebuilt on the TVDB lazy-transport pattern (no private `_session` access); factory dispatches on the `build_from_env` capability (no name literal); `ProviderName.TORR9` added; gap tests added (second-401 fail-loud ×2 asserting `http_status==401`, factory-construction success asserting `isinstance(built, Torr9Client)` + `_username`, magnet/category None-branches); magnet comment-rot fixed + `torr9_missing_magnet` warning; DESIGN reconciled. Verified: 86 torr9 tests + `make check` 7021 passed (0 failed), `make lint` green, all 6 acceptance probes pass, no `ProviderName` ripple. No new critical/major/medium findings → review loop exits (Case A). Merge mode = **manual** → handoff to operator after CI green.
+
 ## Next action
 
 All phases complete — run `/implement:feature-pr` (local gate → push → PR → CI → review).
