@@ -48,6 +48,7 @@ from personalscraper.api.transport._policy import (
     RetryPolicy,
     TransportPolicy,
 )
+from personalscraper.core._contracts import CircuitOpenError
 from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 
@@ -337,6 +338,11 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
                     detail = self.get_details(r.tracker_id)
                     r.seeders = detail.seeders  # TrackerResult is a mutable dataclass
                     r.leechers = detail.leechers
+                except CircuitOpenError as exc:
+                    # Circuit OPEN — every remaining detail call would re-trip guard().
+                    # Leave the rest at seeders=0 and stop enriching (fail-soft, as documented).
+                    log.warning("torr9_enrich_circuit_open", tracker_id=r.tracker_id, error=str(exc))
+                    break
                 except ApiError as exc:
                     log.warning("torr9_enrich_failed", tracker_id=r.tracker_id, error=str(exc))
         return results
@@ -453,10 +459,13 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
         magnet = item.get("magnet_link")
         tracker_id = str(item.get("id", ""))
         if isinstance(magnet, str) and magnet.startswith("magnet:"):
-            download_url: str = magnet
+            download_url: str | None = magnet
         else:
             log.warning("torr9_missing_magnet", tracker_id=tracker_id, title=title)
-            download_url = f"/api/v1/torrents/{tracker_id}/download"
+            # When the id is also absent, building "/api/v1/torrents//download" would
+            # yield a malformed URL that 404s deep in fetch. Emit None instead so
+            # resolve_source raises a clean "no usable download_url" TorrentFetchError.
+            download_url = f"/api/v1/torrents/{tracker_id}/download" if tracker_id else None
 
         # Category: the SEARCH payload has a numeric ``category_id`` (mapped via
         # _CATEGORY_MAP); the DETAIL payload has NO ``category_id`` but a human

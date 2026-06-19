@@ -22,6 +22,7 @@ from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._fetch import resolve_source
 from personalscraper.api.tracker.torr9 import Torr9Client
 from personalscraper.api.transport._auth import BearerAuth
+from personalscraper.core._contracts import CircuitOpenError
 
 _SAMPLES = Path(__file__).resolve().parents[2] / "docs" / "reference" / "_samples" / "torr9"
 
@@ -477,6 +478,33 @@ class TestTorr9ParseBranches:
         result = client.search("x")[0]
         assert result.download_url == "/api/v1/torrents/7/download"
 
+    def test_missing_magnet_and_missing_id_yields_none_download_url(self) -> None:
+        """No magnet AND no id → download_url is None (no malformed /download URL).
+
+        Regression: when the magnet is absent and the item also carries no ``id``,
+        ``tracker_id`` is "" and the old fallback built
+        ``"/api/v1/torrents//download"`` — a malformed URL that 404s deep in fetch
+        instead of failing cleanly. ``download_url`` must be None so resolve_source
+        raises the clean ``TorrentFetchError("no usable download_url")``.
+        """
+        client = _make_client()
+        client._transport.get.return_value = {  # type: ignore[attr-defined]
+            "torrents": [
+                {
+                    # id intentionally absent → tracker_id == ""
+                    "title": "No Magnet No Id",
+                    "file_size_bytes": 1000,
+                    # magnet_link intentionally absent
+                    "is_freeleech": False,
+                    "category_id": 5,
+                }
+            ]
+        }
+
+        result = client.search("x")[0]
+        assert result.tracker_id == ""
+        assert result.download_url is None
+
     def test_missing_magnet_emits_warning_log(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """The None download_url path emits a torr9_missing_magnet warning breadcrumb."""
         warnings: list[tuple[str, dict[str, object]]] = []
@@ -850,6 +878,42 @@ class TestTorr9SearchEnrichment:
         assert len(results) == 2
         assert all(r.seeders == 0 for r in results)
         assert any(event == "torr9_enrich_failed" for event, _ in warnings)
+
+    def test_enrich_circuit_open_stops_early_and_keeps_all_results(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A mid-enrichment CircuitOpenError stops enriching but never aborts the search.
+
+        Regression for the phase-4 fail-soft gap: the enrichment loop caught only
+        ``ApiError``, so a ``CircuitOpenError`` raised from ``get_details`` (the
+        circuit tripping after 5 failing detail calls) escaped the loop AND the
+        registry's narrowed except-tuple, aborting the WHOLE multi-tracker search
+        and discarding sibling trackers' already-collected results. The loop must
+        now catch ``CircuitOpenError`` separately and ``break`` — once the circuit
+        is OPEN every remaining ``get_details`` just re-trips ``guard()``, so we
+        stop enriching, leave the rest at seeders=0, and return ALL results.
+        """
+        warnings: list[tuple[str, dict[str, object]]] = []
+        monkeypatch.setattr(
+            "personalscraper.api.tracker.torr9.log.warning",
+            lambda event, **kw: warnings.append((event, kw)),
+        )
+        client = _make_client()
+        client._transport.get.return_value = self._search_payload(4)  # type: ignore[attr-defined]
+
+        # The circuit is OPEN on the very first enriched result — every remaining
+        # detail call would re-trip guard(), so the loop must break after one call.
+        get_details = MagicMock(side_effect=CircuitOpenError(provider="torr9", remaining_seconds=300.0))
+        monkeypatch.setattr(client, "get_details", get_details)
+
+        results = client.search("x")
+
+        # No exception propagates AND no result is dropped.
+        assert len(results) == 4
+        # The un-enriched results stay at seeders=0 (search payload has no swarm).
+        assert all(r.seeders == 0 for r in results)
+        # The loop broke after the first re-trip — get_details was called exactly once.
+        assert get_details.call_count == 1
+        # The circuit-open breadcrumb fired (distinct from the per-result ApiError event).
+        assert any(event == "torr9_enrich_circuit_open" for event, _ in warnings)
 
 
 # ---------------------------------------------------------------------------
