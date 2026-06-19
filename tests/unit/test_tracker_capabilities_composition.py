@@ -32,8 +32,7 @@ def _c411() -> C411Client:
 
 
 def _torr9() -> Torr9Client:
-    transport = MagicMock()
-    return Torr9Client(transport=transport, username="u", password="p")
+    return Torr9Client(username="u", password="p", event_bus=MagicMock())
 
 
 def test_lacale_client_is_torrent_searchable_isinstance() -> None:

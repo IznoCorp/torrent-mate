@@ -216,3 +216,33 @@ class TestTorr9CredGating:
 
         issues = exc_info.value.issues
         assert any(i.provider == "torr9" and i.code == "missing_credentials" for i in issues)
+
+
+class TestTorr9FactoryConstruction:
+    """torr9 is built (network-free) via build_from_env when creds are present.
+
+    The construction is lazy-transport (no bootstrap login at build time), so
+    this exercises the factory's capability-dispatch path without touching the
+    network. Asserts the registry holds a real Torr9Client carrying the creds.
+    """
+
+    def test_torr9_built_when_creds_present(self) -> None:
+        """With torr9 enabled and valid creds, the registry holds a Torr9Client."""
+        from personalscraper.api.tracker._factory import build_tracker_registry  # noqa: PLC0415
+        from personalscraper.api.tracker.torr9 import Torr9Client  # noqa: PLC0415
+        from personalscraper.api.transport._policy import CircuitPolicy  # noqa: PLC0415
+        from personalscraper.core.event_bus import EventBus  # noqa: PLC0415
+
+        reg = build_tracker_registry(
+            tracker_config=_torr9_tracker_config_enabled(),
+            ranking=RankingConfig(),
+            settings=MagicMock(),
+            event_bus=EventBus(),
+            cb_policy=CircuitPolicy(),
+            env={"TORR9_USERNAME": "u", "TORR9_PASSWORD": "p"},
+        )
+
+        built = reg._trackers["torr9"]
+        assert isinstance(built, Torr9Client)
+        assert built._username == "u"
+        assert built._password == "p"

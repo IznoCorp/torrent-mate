@@ -115,18 +115,13 @@ def build_tracker_registry(
             continue
 
         client_cls = _resolve_tracker_class(name)
-        # torr9 uses a two-credential JWT login (username + password); its
-        # policy() takes no credentials (NoAuth placeholder) and its __init__
-        # takes username/password separately. All other trackers (lacale/c411)
-        # use a single API key passed to policy(api_key). Guard on name until
-        # a general multi-cred protocol is designed.
-        if name == "torr9":
-            transport = HttpTransport(client_cls.policy(), event_bus=event_bus)  # type: ignore[attr-defined]
-            client = client_cls(
-                transport,
-                username=env.get("TORR9_USERNAME", ""),
-                password=env.get("TORR9_PASSWORD", ""),
-            )
+        # Login-style trackers (e.g. torr9: two-cred JWT) declare a build_from_env
+        # classmethod that self-builds their authed transport lazily from env creds.
+        # api-key trackers (lacale/c411) omit it and use the single-key policy path.
+        # Dispatch on the declared capability, never a provider-name literal.
+        build_from_env = getattr(client_cls, "build_from_env", None)
+        if build_from_env is not None:
+            client = build_from_env(env=env, event_bus=event_bus)
         else:
             api_key = env[required[0]] if required else ""
             transport = HttpTransport(client_cls.policy(api_key), event_bus=event_bus)  # type: ignore[attr-defined]

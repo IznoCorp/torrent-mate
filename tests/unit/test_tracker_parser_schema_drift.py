@@ -196,8 +196,8 @@ class TestTorr9SchemaDriftReRaisedAsApiError:
         """A response that is a list (not a dict) → AttributeError → ApiError."""
         transport = MagicMock()
         transport.get.return_value = [{"id": 1}]  # list, not dict
-        client = Torr9Client(transport, username="u", password="p")
-        client._token = "t"
+        client = Torr9Client(username="u", password="p", event_bus=MagicMock())
+        client._transport = transport
 
         with pytest.raises(ApiError) as exc:
             client.search("inception")
@@ -225,8 +225,8 @@ class TestTorr9SchemaDriftReRaisedAsApiError:
             "page": 1,
             "limit": 20,
         }
-        client = Torr9Client(transport, username="u", password="p")
-        client._token = "t"
+        client = Torr9Client(username="u", password="p", event_bus=MagicMock())
+        client._transport = transport
 
         with pytest.raises(ApiError) as exc:
             client.search("inception")
@@ -239,8 +239,8 @@ def test_torr9_schema_drift_does_not_abort_multi_tracker_search() -> None:
     """End-to-end: torr9 parser blowing up must not kill other trackers' results."""
     transport = MagicMock()
     transport.get.return_value = [{"id": 1}]  # list, not dict → ApiError
-    bad_torr9 = Torr9Client(transport, username="u", password="p")
-    bad_torr9._token = "t"
+    bad_torr9 = Torr9Client(username="u", password="p", event_bus=MagicMock())
+    bad_torr9._transport = transport
     good = _OkTracker("lacale")
 
     registry = TrackerRegistry(
