@@ -27,7 +27,9 @@
   /* ===================== shadcn canonical tokens ===================== */
   --radius: 0.625rem;
 
-  --background: oklch(0.992 0.002 95);   /* very slightly warm paper, not pure white */
+  --background: oklch(
+    0.992 0.002 95
+  ); /* very slightly warm paper, not pure white */
   --foreground: oklch(0.21 0.006 95);
 
   --card: oklch(1 0 0);
@@ -56,11 +58,11 @@
   --input: oklch(0.915 0.004 95);
   --ring: oklch(0.585 0.13 152);
 
-  --chart-1: oklch(0.585 0.13 152);   /* green  — active / flow */
-  --chart-2: oklch(0.55 0.12 255);    /* blue   — complete / info */
-  --chart-3: oklch(0.62 0.16 35);     /* red    — blocked */
-  --chart-4: oklch(0.72 0.15 75);     /* amber  — waiting */
-  --chart-5: oklch(0.56 0.16 295);    /* violet — agent */
+  --chart-1: oklch(0.585 0.13 152); /* green  — active / flow */
+  --chart-2: oklch(0.55 0.12 255); /* blue   — complete / info */
+  --chart-3: oklch(0.62 0.16 35); /* red    — blocked */
+  --chart-4: oklch(0.72 0.15 75); /* amber  — waiting */
+  --chart-5: oklch(0.56 0.16 295); /* violet — agent */
 
   --sidebar: oklch(0.985 0.003 95);
   --sidebar-foreground: oklch(0.21 0.006 95);
@@ -74,58 +76,113 @@
   /* ===================== Base ramps (for KanbanMate extensions) =====================
    * Kept so the health/column extensions and a few component edges have hex stops to
    * lean on. Product UI should prefer the semantic aliases below, never these. */
-  --gray-50:  #f7f7f4; --gray-100: #efefea; --gray-150: #e7e7e1; --gray-200: #deded6;
-  --gray-300: #cbcbc1; --gray-400: #a6a69b; --gray-500: #7d7d72; --gray-600: #5d5d54;
-  --gray-700: #434039; --gray-800: #2a2823; --gray-900: #1a1915; --gray-950: #111010;
+  --gray-50: #f7f7f4;
+  --gray-100: #efefea;
+  --gray-150: #e7e7e1;
+  --gray-200: #deded6;
+  --gray-300: #cbcbc1;
+  --gray-400: #a6a69b;
+  --gray-500: #7d7d72;
+  --gray-600: #5d5d54;
+  --gray-700: #434039;
+  --gray-800: #2a2823;
+  --gray-900: #1a1915;
+  --gray-950: #111010;
 
-  --green-50:  #eaf8ef; --green-100: #d2f0dd; --green-200: #a6e1bd; --green-300: #6cd097;
-  --green-400: #33bd71; --green-500: #1f9d54; --green-600: #178446; --green-700: #126a39; --green-800: #11512e;
+  --green-50: #eaf8ef;
+  --green-100: #d2f0dd;
+  --green-200: #a6e1bd;
+  --green-300: #6cd097;
+  --green-400: #33bd71;
+  --green-500: #1f9d54;
+  --green-600: #178446;
+  --green-700: #126a39;
+  --green-800: #11512e;
 
-  --red-50:  #fdeeee; --red-100: #fad9da; --red-300: #f1a3a6; --red-500: #e0494e; --red-600: #c5363b; --red-700: #9f2a2f;
-  --amber-50:  #fcf3e3; --amber-100: #f8e4bf; --amber-300: #eec479; --amber-500: #d98e29; --amber-600: #b9741d; --amber-700: #94591a;
-  --blue-50:  #eaf2fb; --blue-100: #cfe1f5; --blue-300: #8db9e6; --blue-500: #3b82c4; --blue-600: #2d6cab; --blue-700: #245688;
-  --violet-50:  #f1eefb; --violet-100: #e0d8f6; --violet-300: #b6a3e6; --violet-500: #7c5cd4; --violet-600: #6647bb; --violet-700: #523a96;
+  --red-50: #fdeeee;
+  --red-100: #fad9da;
+  --red-300: #f1a3a6;
+  --red-500: #e0494e;
+  --red-600: #c5363b;
+  --red-700: #9f2a2f;
+  --amber-50: #fcf3e3;
+  --amber-100: #f8e4bf;
+  --amber-300: #eec479;
+  --amber-500: #d98e29;
+  --amber-600: #b9741d;
+  --amber-700: #94591a;
+  --blue-50: #eaf2fb;
+  --blue-100: #cfe1f5;
+  --blue-300: #8db9e6;
+  --blue-500: #3b82c4;
+  --blue-600: #2d6cab;
+  --blue-700: #245688;
+  --violet-50: #f1eefb;
+  --violet-100: #e0d8f6;
+  --violet-300: #b6a3e6;
+  --violet-500: #7c5cd4;
+  --violet-600: #6647bb;
+  --violet-700: #523a96;
 
   /* ===================== KanbanMate health states (brand extension) ===================== */
-  --health-inactive-fg: var(--gray-600); --health-inactive-bg: var(--gray-100); --health-inactive-bd: var(--gray-300);
-  --health-blocked-fg: var(--red-700);   --health-blocked-bg: var(--red-50);    --health-blocked-bd: var(--red-300);
-  --health-waiting-fg: var(--amber-700); --health-waiting-bg: var(--amber-50);  --health-waiting-bd: var(--amber-300);
-  --health-active-fg: var(--green-700);  --health-active-bg: var(--green-50);   --health-active-bd: var(--green-300);
-  --health-complete-fg: var(--blue-700); --health-complete-bg: var(--blue-50);  --health-complete-bd: var(--blue-300);
+  --health-inactive-fg: var(--gray-600);
+  --health-inactive-bg: var(--gray-100);
+  --health-inactive-bd: var(--gray-300);
+  --health-blocked-fg: var(--red-700);
+  --health-blocked-bg: var(--red-50);
+  --health-blocked-bd: var(--red-300);
+  --health-waiting-fg: var(--amber-700);
+  --health-waiting-bg: var(--amber-50);
+  --health-waiting-bd: var(--amber-300);
+  --health-active-fg: var(--green-700);
+  --health-active-bg: var(--green-50);
+  --health-active-bd: var(--green-300);
+  --health-complete-fg: var(--blue-700);
+  --health-complete-bg: var(--blue-50);
+  --health-complete-bd: var(--blue-300);
 
   /* ===================== Column classes (board semantics) ===================== */
-  --col-agent-fg: var(--violet-700);    --col-agent-bg: var(--violet-50);    --col-agent-bd: var(--violet-300);    --col-agent-solid: var(--violet-500);
-  --col-reactive-fg: var(--amber-700);  --col-reactive-bg: var(--amber-50);  --col-reactive-bd: var(--amber-300);  --col-reactive-solid: var(--amber-500);
-  --col-inert-fg: var(--gray-600);      --col-inert-bg: var(--gray-100);     --col-inert-bd: var(--gray-300);      --col-inert-solid: var(--gray-400);
+  --col-agent-fg: var(--violet-700);
+  --col-agent-bg: var(--violet-50);
+  --col-agent-bd: var(--violet-300);
+  --col-agent-solid: var(--violet-500);
+  --col-reactive-fg: var(--amber-700);
+  --col-reactive-bg: var(--amber-50);
+  --col-reactive-bd: var(--amber-300);
+  --col-reactive-solid: var(--amber-500);
+  --col-inert-fg: var(--gray-600);
+  --col-inert-bg: var(--gray-100);
+  --col-inert-bd: var(--gray-300);
+  --col-inert-solid: var(--gray-400);
 
   /* ===================== Legacy KanbanMate aliases → mapped onto shadcn tokens =====================
    * Older components consume these names; they now resolve to the shadcn layer so there
    * is a single source of truth. New work should prefer the shadcn tokens directly. */
-  --surface-app:     var(--background);
-  --surface-card:    var(--card);
-  --surface-sunken:  var(--muted);
-  --surface-raised:  var(--popover);
+  --surface-app: var(--background);
+  --surface-card: var(--card);
+  --surface-sunken: var(--muted);
+  --surface-raised: var(--popover);
   --surface-inverse: var(--foreground);
-  --surface-hover:   var(--secondary);
-  --surface-active:  var(--accent);
+  --surface-hover: var(--secondary);
+  --surface-active: var(--accent);
 
-  --text-strong:  var(--foreground);
-  --text-body:    var(--card-foreground);
-  --text-muted:   var(--muted-foreground);
-  --text-subtle:  var(--muted-foreground);
-  --text-onaccent:var(--primary-foreground);
+  --text-strong: var(--foreground);
+  --text-body: var(--card-foreground);
+  --text-muted: var(--muted-foreground);
+  --text-subtle: var(--muted-foreground);
+  --text-onaccent: var(--primary-foreground);
   --text-inverse: var(--background);
 
   --border-subtle: var(--border);
-  --border-default:var(--border);
+  --border-default: var(--border);
   --border-strong: var(--muted-foreground);
-  --border-focus:  var(--ring);
+  --border-focus: var(--ring);
 
-  --accent-hover:  oklch(0.52 0.13 152);
+  --accent-hover: oklch(0.52 0.13 152);
   --accent-active: oklch(0.46 0.12 152);
-  --accent-weak:   var(--green-50);
+  --accent-weak: var(--green-50);
   --accent-weak-border: var(--green-200);
-  --accent-text:   var(--green-700);
+  --accent-text: var(--green-700);
 }
 
 /* shadcn's dark theme, on both the class and the data-attribute selector */
@@ -175,21 +232,45 @@
   --sidebar-ring: oklch(0.66 0.14 152);
 
   /* health + column extensions, dark */
-  --health-inactive-fg: var(--gray-400); --health-inactive-bg: #1e1d18; --health-inactive-bd: #39362f;
-  --health-blocked-fg: #f1a3a6; --health-blocked-bg: #2a1414; --health-blocked-bd: #5a2426;
-  --health-waiting-fg: #eec479; --health-waiting-bg: #271c0e; --health-waiting-bd: #5a3f18;
-  --health-active-fg: var(--green-300); --health-active-bg: #11221a; --health-active-bd: #1f4530;
-  --health-complete-fg: #8db9e6; --health-complete-bg: #122130; --health-complete-bd: #244a6e;
+  --health-inactive-fg: var(--gray-400);
+  --health-inactive-bg: #1e1d18;
+  --health-inactive-bd: #39362f;
+  --health-blocked-fg: #f1a3a6;
+  --health-blocked-bg: #2a1414;
+  --health-blocked-bd: #5a2426;
+  --health-waiting-fg: #eec479;
+  --health-waiting-bg: #271c0e;
+  --health-waiting-bd: #5a3f18;
+  --health-active-fg: var(--green-300);
+  --health-active-bg: #11221a;
+  --health-active-bd: #1f4530;
+  --health-complete-fg: #8db9e6;
+  --health-complete-bg: #122130;
+  --health-complete-bd: #244a6e;
 
-  --col-agent-fg: #b6a3e6; --col-agent-bg: #1c1630; --col-agent-bd: #3a2c63; --col-agent-solid: var(--violet-500);
-  --col-reactive-fg: #eec479; --col-reactive-bg: #271c0e; --col-reactive-bd: #5a3f18; --col-reactive-solid: var(--amber-500);
-  --col-inert-fg: var(--gray-400); --col-inert-bg: #1e1d18; --col-inert-bd: #39362f; --col-inert-solid: var(--gray-600);
+  --col-agent-fg: #b6a3e6;
+  --col-agent-bg: #1c1630;
+  --col-agent-bd: #3a2c63;
+  --col-agent-solid: var(--violet-500);
+  --col-reactive-fg: #eec479;
+  --col-reactive-bg: #271c0e;
+  --col-reactive-bd: #5a3f18;
+  --col-reactive-solid: var(--amber-500);
+  --col-inert-fg: var(--gray-400);
+  --col-inert-bg: #1e1d18;
+  --col-inert-bd: #39362f;
+  --col-inert-solid: var(--gray-600);
 
   /* legacy aliases re-resolve automatically (they point at the tokens above), but the
    * green-tinted accent helpers need dark values: */
-  --accent-hover:  oklch(0.72 0.14 152);
+  --accent-hover: oklch(0.72 0.14 152);
   --accent-active: oklch(0.8 0.13 152);
-  --accent-weak:   #11221a;
+  --accent-weak: #11221a;
   --accent-weak-border: #1c3d2a;
-  --accent-text:   var(--green-300);
+  --accent-text: var(--green-300);
+
+  /* Terminal/YAML panels render light mono text on this surface. In light mode it resolves to the
+   * (dark) foreground; in dark mode the foreground is light, so pin a near-black here to keep those
+   * inset panels dark — a touch darker than --background so they still read as a recessed surface. */
+  --surface-inverse: oklch(0.12 0.004 95);
 }

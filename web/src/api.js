@@ -69,3 +69,8 @@ export const monitorPane = (issue, project) =>
   );
 export const monitorTicket = (number, project) =>
   call("GET", `/api/monitor/ticket/${encodeURIComponent(number)}${q(project)}`);
+export const monitorFile = (path, project) =>
+  call(
+    "GET",
+    `/api/monitor/file?path=${encodeURIComponent(path)}${project ? `&project=${encodeURIComponent(project)}` : ""}`,
+  );

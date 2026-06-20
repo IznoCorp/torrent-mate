@@ -3,6 +3,7 @@
 // HttpOnly session cookie and onSuccess() re-boots the app. i18n + design-system styled.
 import React from "react";
 import * as api from "../api.js";
+import ThemeSwitcher from "./ThemeSwitcher.jsx";
 import { useT, LangSwitcher } from "../i18n/index.jsx";
 
 const { Button, Input, Banner } = window.KanbanMateDesignSystem_2463ad;
@@ -37,12 +38,13 @@ export default function LoginScreen({ onSuccess }) {
         justifyContent: "center",
         background: "var(--background)",
         color: "var(--foreground)",
+        padding: 16,
       }}
     >
       <form
         onSubmit={submit}
         style={{
-          width: 360,
+          width: "min(360px, 100%)",
           background: "var(--card)",
           border: "1px solid var(--border)",
           borderRadius: "var(--radius-lg)",
@@ -75,7 +77,10 @@ export default function LoginScreen({ onSuccess }) {
           >
             [▸]
           </span>
-          <LangSwitcher />
+          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <ThemeSwitcher />
+            <LangSwitcher />
+          </span>
         </div>
         <div>
           <div

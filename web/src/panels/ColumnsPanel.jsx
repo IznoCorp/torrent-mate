@@ -5,12 +5,14 @@
 import React from "react";
 import SyncBoardDialog from "../components/SyncBoardDialog.jsx";
 import { PageIntro, Hint } from "../components/Help.jsx";
+import useIsMobile from "../useIsMobile.js";
 import { useT } from "../i18n/index.jsx";
 
 const KMNS = window.KanbanMateDesignSystem_2463ad;
 
 export default function ColumnsPanel({ draft, update, dirty, project }) {
   const { t } = useT();
+  const isMobile = useIsMobile();
   const cols = draft.definition.columns;
   const { ColumnClassChip, KeyChip, Select, IconButton, Button, Input } = KMNS;
   const [sync, setSync] = React.useState(false);
@@ -59,9 +61,10 @@ export default function ColumnsPanel({ draft, update, dirty, project }) {
           alignItems: "center",
           gap: 12,
           marginBottom: 12,
+          flexWrap: "wrap",
         }}
       >
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 180 }}>
           <Hint>{t("columns.legend")}</Hint>
         </div>
         <Button variant="secondary" size="sm" onClick={add}>
@@ -96,6 +99,7 @@ export default function ColumnsPanel({ draft, update, dirty, project }) {
                 alignItems: "center",
                 gap: 12,
                 padding: "10px 14px",
+                flexWrap: isMobile ? "wrap" : "nowrap",
               }}
             >
               <span

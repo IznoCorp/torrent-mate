@@ -4,6 +4,26 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>KanbanMate — Configuration</title>
+    <!-- Apply the theme before first paint (no flash). Mirrors web/src/useTheme.js:
+         mode in {light,dark,system}, default system → resolve via prefers-color-scheme. -->
+    <script>
+      (function () {
+        try {
+          var m = localStorage.getItem("bridge.theme");
+          if (m !== "light" && m !== "dark" && m !== "system") m = "system";
+          var dark =
+            m === "dark" ||
+            (m === "system" &&
+              window.matchMedia &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          var t = dark ? "dark" : "light";
+          document.documentElement.setAttribute("data-theme", t);
+          document.documentElement.style.colorScheme = t;
+        } catch (e) {
+          /* storage unavailable — fall through to CSS default (light) */
+        }
+      })();
+    </script>
     <link rel="stylesheet" href="./src/ds/styles.css" />
   </head>
   <body>

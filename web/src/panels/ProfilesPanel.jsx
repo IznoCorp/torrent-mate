@@ -4,12 +4,14 @@
 import React from "react";
 import * as api from "../api.js";
 import { PageIntro } from "../components/Help.jsx";
+import useIsMobile from "../useIsMobile.js";
 import { useT } from "../i18n/index.jsx";
 
 const { Banner, KeyChip, Badge } = window.KanbanMateDesignSystem_2463ad;
 
 export default function ProfilesPanel() {
   const { t } = useT();
+  const isMobile = useIsMobile();
   const [profiles, setProfiles] = React.useState(null);
   const [error, setError] = React.useState(null);
   const [open, setOpen] = React.useState(null);
@@ -99,7 +101,7 @@ export default function ProfilesPanel() {
                     background: "var(--muted)",
                     padding: "12px 14px",
                     display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
+                    gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
                     gap: 16,
                   }}
                 >

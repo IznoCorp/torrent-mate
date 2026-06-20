@@ -1,143 +1,12 @@
-// AppShell: sidebar + header chrome (ported from the kit ui_kit, ES-module form).
-// Carries the board switcher (DESIGN §13.1) and TWO nav groups — board-scoped tabs and a visually
-// distinct Daemon scope (DESIGN §13.2). Header Validate/Save apply to the board scope only.
+// AppShell: nav + header chrome. Desktop = 256px sidebar (SidebarNav) + header. Mobile = a top
+// app-bar with ☰ that slides in the same SidebarNav as a drawer (responsive mobile, DESIGN §4.1).
 import React from "react";
 import { useT, LangSwitcher } from "../i18n/index.jsx";
+import useIsMobile from "../useIsMobile.js";
+import ThemeSwitcher from "./ThemeSwitcher.jsx";
+import SidebarNav, { ALL_NAV } from "./SidebarNav.jsx";
 
-const { HealthPill, Button, Badge, Select } =
-  window.KanbanMateDesignSystem_2463ad;
-
-function Wordmark({ size = 16 }) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 10,
-        fontFamily: "var(--font-display)",
-        fontWeight: 700,
-        letterSpacing: "var(--tracking-tight)",
-        color: "var(--sidebar-foreground)",
-        lineHeight: 1,
-        fontSize: size,
-      }}
-    >
-      <span
-        style={{
-          display: "inline-grid",
-          placeItems: "center",
-          width: size * 1.6,
-          height: size * 1.6,
-          borderRadius: "var(--radius-md)",
-          background: "var(--primary)",
-          color: "var(--primary-foreground)",
-          fontFamily: "var(--font-mono)",
-          fontWeight: 600,
-          fontSize: size * 0.95,
-          flex: "none",
-        }}
-      >
-        [▸]
-      </span>
-      KanbanMate
-    </span>
-  );
-}
-
-const BOARD_NAV = [
-  { id: "columns", tkey: "shell.nav.columns", key: "columns.yml" },
-  { id: "transitions", tkey: "shell.nav.transitions", key: "transitions.yml" },
-  { id: "defaults", tkey: "shell.nav.defaults", key: "defaults" },
-  { id: "validation", tkey: "shell.nav.validation", key: "V1–V11" },
-  { id: "yaml", tkey: "shell.nav.yaml", key: "read-only" },
-  { id: "monitoring", tkey: "shell.nav.monitoring", key: "live" },
-];
-const DAEMON_NAV = [
-  { id: "daemon", tkey: "shell.nav.projects", key: "projects.json" },
-  { id: "profiles", tkey: "shell.nav.profiles", key: "read-only" },
-];
-
-function NavItem({ item, label, active, onClick, badge }) {
-  const [hover, setHover] = React.useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 8,
-        width: "100%",
-        padding: "7px 10px",
-        border: "none",
-        cursor: "pointer",
-        textAlign: "left",
-        borderRadius: "var(--radius-md)",
-        fontFamily: "var(--font-sans)",
-        fontSize: "var(--text-sm)",
-        fontWeight: active ? 600 : 500,
-        color: active
-          ? "var(--sidebar-accent-foreground)"
-          : "var(--muted-foreground)",
-        background: active || hover ? "var(--sidebar-accent)" : "transparent",
-      }}
-    >
-      <span style={{ display: "flex", alignItems: "center", gap: 9 }}>
-        <span
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: 2,
-            flex: "none",
-            background: active ? "var(--primary)" : "var(--border)",
-          }}
-        />
-        {label}
-      </span>
-      {badge != null && badge > 0 ? (
-        <Badge tone="red" size="sm">
-          {badge}
-        </Badge>
-      ) : (
-        <span
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 10,
-            color: "var(--muted-foreground)",
-            opacity: 0.7,
-          }}
-        >
-          {item.key}
-        </span>
-      )}
-    </button>
-  );
-}
-
-function GroupLabel({ children, tone }) {
-  return (
-    <div
-      style={{
-        fontFamily: "var(--font-mono)",
-        fontSize: 10,
-        letterSpacing: ".09em",
-        textTransform: "uppercase",
-        color:
-          tone === "daemon"
-            ? "var(--health-waiting-fg, #b45309)"
-            : "var(--muted-foreground)",
-        padding: "6px 10px 8px",
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
+const { HealthPill, Button, Badge } = window.KanbanMateDesignSystem_2463ad;
 
 export default function AppShell({
   active,
@@ -155,11 +24,171 @@ export default function AppShell({
   children,
 }) {
   const { t } = useT();
+  const isMobile = useIsMobile();
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
   const blocked = errorCount > 0;
-  const allNav = [...BOARD_NAV, ...DAEMON_NAV];
-  const headerTitle = allNav.find((n) => n.id === active) || BOARD_NAV[0];
-  const multiBoard = projects.length > 1;
+  const headerTitle = ALL_NAV.find((n) => n.id === active) || ALL_NAV[0];
 
+  const nav = (
+    <SidebarNav
+      active={active}
+      onNav={onNav}
+      projects={projects}
+      selected={selected}
+      onSelect={onSelect}
+      repo={repo}
+      errorCount={errorCount}
+    />
+  );
+
+  // ---- Mobile: top app-bar + slide-in drawer (DESIGN §4.1) ----
+  if (isMobile) {
+    const navAndClose = (id) => {
+      onNav(id);
+      setDrawerOpen(false);
+    };
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
+          minHeight: 0,
+          background: "var(--background)",
+          color: "var(--foreground)",
+        }}
+      >
+        <header
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 12px",
+            borderBottom: "1px solid var(--border)",
+            background: "var(--card)",
+            position: "sticky",
+            top: 0,
+            zIndex: 50,
+          }}
+        >
+          <button
+            aria-label={t("shell.menu")}
+            onClick={() => setDrawerOpen(true)}
+            style={{
+              border: "none",
+              background: "transparent",
+              fontSize: 20,
+              cursor: "pointer",
+              color: "var(--foreground)",
+              padding: 4,
+              lineHeight: 1,
+            }}
+          >
+            ☰
+          </button>
+          <span
+            style={{
+              flex: 1,
+              minWidth: 0,
+              fontFamily: "var(--font-display)",
+              fontWeight: 600,
+              fontSize: "var(--text-md)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {t(headerTitle.tkey)}
+          </span>
+          {boardScope && (
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={blocked || !dirty}
+              onClick={onSave}
+            >
+              {blocked ? `${errorCount}!` : t("common.save")}
+            </Button>
+          )}
+        </header>
+
+        {drawerOpen && (
+          <div
+            onClick={() => setDrawerOpen(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.4)",
+              zIndex: 100,
+            }}
+          >
+            <aside
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                bottom: 0,
+                width: 280,
+                maxWidth: "85vw",
+                display: "flex",
+                flexDirection: "column",
+                background: "var(--sidebar)",
+                borderRight: "1px solid var(--sidebar-border)",
+                overflow: "auto",
+              }}
+            >
+              <SidebarNav
+                active={active}
+                onNav={navAndClose}
+                projects={projects}
+                selected={selected}
+                onSelect={onSelect}
+                repo={repo}
+                errorCount={errorCount}
+              />
+              <div
+                style={{
+                  marginTop: "auto",
+                  padding: 12,
+                  borderTop: "1px solid var(--sidebar-border)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                {boardScope && (
+                  <Button variant="secondary" size="md" onClick={onValidate}>
+                    {t("common.validate")}
+                  </Button>
+                )}
+                <ThemeSwitcher />
+                <LangSwitcher />
+                {onLogout && (
+                  <Button variant="ghost" size="md" onClick={onLogout}>
+                    {t("login.logout")}
+                  </Button>
+                )}
+              </div>
+            </aside>
+          </div>
+        )}
+
+        <main
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflow: "auto",
+            padding: "16px 14px 28px",
+          }}
+        >
+          {children}
+        </main>
+      </div>
+    );
+  }
+
+  // ---- Desktop: sidebar + header (unchanged) ----
   return (
     <div
       style={{
@@ -180,98 +209,7 @@ export default function AppShell({
           borderRight: "1px solid var(--sidebar-border)",
         }}
       >
-        <div
-          style={{
-            padding: "16px 16px 14px",
-            borderBottom: "1px solid var(--sidebar-border)",
-          }}
-        >
-          <Wordmark />
-          {/* Board switcher (DESIGN §13.1) */}
-          <div style={{ marginTop: 12 }}>
-            <div
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 10,
-                letterSpacing: ".06em",
-                textTransform: "uppercase",
-                color: "var(--muted-foreground)",
-                marginBottom: 5,
-              }}
-            >
-              {t("shell.board")}
-            </div>
-            {multiBoard ? (
-              <Select
-                options={projects.map((p) => p.repo)}
-                value={repo}
-                onChange={(e) => {
-                  const r = e && e.target ? e.target.value : e;
-                  const hit = projects.find((p) => p.repo === r);
-                  if (hit) onSelect(hit.project_id);
-                }}
-                style={{ width: "100%" }}
-              />
-            ) : (
-              <div
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 12,
-                  color: "var(--foreground)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                <span>⎇</span>
-                {repo}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <nav
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-            padding: 10,
-            flex: 1,
-          }}
-        >
-          <GroupLabel>{t("shell.group_board", { repo })}</GroupLabel>
-          {BOARD_NAV.map((n) => (
-            <NavItem
-              key={n.id}
-              item={n}
-              label={t(n.tkey)}
-              active={active === n.id}
-              onClick={() => onNav(n.id)}
-              badge={n.id === "validation" ? errorCount : null}
-            />
-          ))}
-          <div style={{ height: 14 }} />
-          <GroupLabel tone="daemon">
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: "var(--health-waiting-fg, #b45309)",
-              }}
-            />
-            {t("shell.group_daemon")}
-          </GroupLabel>
-          {DAEMON_NAV.map((n) => (
-            <NavItem
-              key={n.id}
-              item={n}
-              label={t(n.tkey)}
-              active={active === n.id}
-              onClick={() => onNav(n.id)}
-            />
-          ))}
-        </nav>
+        {nav}
       </aside>
 
       <div
@@ -321,6 +259,7 @@ export default function AppShell({
               )}
             </div>
           </div>
+          <ThemeSwitcher />
           <LangSwitcher />
           {onLogout && (
             <Button variant="ghost" size="md" onClick={onLogout}>

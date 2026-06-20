@@ -12,6 +12,7 @@ Imported once at the end of ``config_api`` (a side-effect import) so the routes 
 from __future__ import annotations
 
 import time
+from pathlib import Path
 from typing import Any
 
 from fastapi import HTTPException
@@ -29,6 +30,10 @@ from kanbanmate.http.config_api import (
 # snapshot per window per project. Module-level; keyed by project_id.
 _BOARD_CACHE: dict[str, tuple[float, Any]] = {}
 _BOARD_TTL_SECONDS = 15.0
+
+# Cap for the artifact file reader (DESIGN §5.5): these are markdown docs (brainstorm/design/plan),
+# not blobs — a generous ceiling that still blocks accidentally serving a huge file over HTTP.
+_MAX_FILE_BYTES = 512 * 1024
 
 
 def _monitor_store(entry: Any) -> Any:
@@ -192,3 +197,45 @@ def monitor_ticket(number: int, project: str | None = None) -> JSONResponse:
         number, ref.title, column_key, ref.body or "", ctx.comments, progress=[]
     )
     return JSONResponse(content=detail)
+
+
+@app.get("/api/monitor/file")
+def monitor_file(path: str, project: str | None = None) -> JSONResponse:
+    """Read one text file under the board's clone, SANDBOXED to that root. Read-only. DESIGN §5.5.
+
+    Backs the ticket-detail artifact reader: the operator clicks a design/plan marker and the UI
+    renders the markdown. The sandbox mirrors ``/api/files`` — ``resolve()`` collapses ``..`` /
+    symlinks, then ``is_relative_to(root)`` is the gate, so a path cannot escape the clone.
+
+    Args:
+        path: The file path relative to the clone root (a marker value, e.g. ``docs/.../DESIGN.md``).
+        project: The Project v2 node id selecting the board.
+
+    Returns:
+        ``{"path": str, "content": str}`` — ``path`` normalised relative to the clone root.
+
+    Raises:
+        HTTPException: 503/404/400 (project resolution); 400 (path escapes the root); 404 (no such
+        file — e.g. the artifact only exists on a feature branch, not the checked-out tree); 413
+        (file exceeds the size cap).
+    """
+    entry = _resolve_entry(project)
+    root = Path(entry.clone).resolve()
+    target = (root / path).resolve()
+    # SANDBOX: the resolved target must stay within the clone root (blocks ``..`` / absolute /
+    # symlink escapes — resolve() collapses them, then is_relative_to is the gate).
+    if not (target == root or target.is_relative_to(root)):
+        raise HTTPException(status_code=400, detail="Path escapes the project root")
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="File not found in the board clone")
+    size = target.stat().st_size
+    if size > _MAX_FILE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large ({size} bytes; cap {_MAX_FILE_BYTES})",
+        )
+    try:
+        content = target.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:  # noqa: BLE001 — boundary: clean error, never a 500 traceback
+        raise HTTPException(status_code=400, detail=f"Cannot read file: {exc}") from exc
+    return JSONResponse(content={"path": str(target.relative_to(root)), "content": content})

@@ -202,6 +202,47 @@ def test_ticket_detail_endpoint(tmp_path: Path) -> None:
     mon_mod._BOARD_CACHE.clear()
 
 
+def test_monitor_file_reads_sandboxed(tmp_path: Path) -> None:
+    """Happy path + sandbox: reads a clone file, rejects ``..`` escape, 404s a missing file."""
+    import kanbanmate.http.config_api as api_mod
+
+    clone = tmp_path / "clone"
+    (clone / "docs").mkdir(parents=True)
+    (clone / "docs" / "DESIGN.md").write_text("# Design\nhello", encoding="utf-8")
+    (tmp_path / "secret.txt").write_text("top secret", encoding="utf-8")  # outside the clone
+
+    api_mod.app.state.kanban_root = _single_project_root(tmp_path)
+    api_mod.app.state.auth = None
+    with TestClient(api_mod.app) as client:
+        ok = client.get("/api/monitor/file", params={"path": "docs/DESIGN.md"})
+        escape = client.get("/api/monitor/file", params={"path": "../secret.txt"})
+        missing = client.get("/api/monitor/file", params={"path": "docs/NOPE.md"})
+
+    assert ok.status_code == 200
+    assert ok.json() == {"path": "docs/DESIGN.md", "content": "# Design\nhello"}
+    assert escape.status_code == 400  # path escapes the clone root
+    assert "top secret" not in escape.text
+    assert missing.status_code == 404
+
+
+def test_monitor_file_rejects_oversize(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A file larger than the cap is refused with 413 (never streamed)."""
+    import kanbanmate.http.config_api as api_mod
+    import kanbanmate.http.monitor_routes as mon_mod
+
+    clone = tmp_path / "clone"
+    clone.mkdir(parents=True)
+    (clone / "big.md").write_text("x" * 100, encoding="utf-8")
+    monkeypatch.setattr(mon_mod, "_MAX_FILE_BYTES", 10)
+
+    api_mod.app.state.kanban_root = _single_project_root(tmp_path)
+    api_mod.app.state.auth = None
+    with TestClient(api_mod.app) as client:
+        resp = client.get("/api/monitor/file", params={"path": "big.md"})
+
+    assert resp.status_code == 413
+
+
 def test_monitor_github_passes_repo(monkeypatch: pytest.MonkeyPatch) -> None:
     """Regression: the real GitHub client for ticket reads must carry repo (else fetch_issue 404s)."""
     import kanbanmate.adapters.github.client as gh_mod

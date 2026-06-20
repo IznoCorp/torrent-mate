@@ -4,8 +4,10 @@ common:
   saved: Saved
   cancel: Cancel
   apply: Apply
+  close: Close
   loading: Loading…
   add: + Add
+  back: Back
   move_up: move up
   move_down: move down
   remove: remove
@@ -18,6 +20,7 @@ shell:
   group_daemon: Daemon · whole host
   badge_board: "board: {repo}"
   badge_daemon: daemon · whole host
+  menu: Menu
   errors_block_save: "{n} error(s) block save"
   nav:
     columns: Columns
@@ -231,3 +234,12 @@ monitor:
   session_ended: Session ended.
   timeline: Timeline
   artifacts: Artifacts
+  doc_brainstorm: Brainstorm
+  doc_design: Design
+  doc_plan: Plan
+  file_error: Cannot read file
+
+theme:
+  light: Light
+  dark: Dark
+  system: System

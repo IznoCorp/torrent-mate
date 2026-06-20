@@ -4,8 +4,10 @@ common:
   saved: Enregistré
   cancel: Annuler
   apply: Appliquer
+  close: Fermer
   loading: Chargement…
   add: + Ajouter
+  back: Retour
   move_up: monter
   move_down: descendre
   remove: supprimer
@@ -18,6 +20,7 @@ shell:
   group_daemon: Daemon · tout l'hôte
   badge_board: "board : {repo}"
   badge_daemon: daemon · tout l'hôte
+  menu: Menu
   errors_block_save: "{n} erreur(s) bloquent l'enregistrement"
   nav:
     columns: Colonnes
@@ -235,3 +238,12 @@ monitor:
   session_ended: Session terminée.
   timeline: Historique
   artifacts: Artefacts
+  doc_brainstorm: Brainstorm
+  doc_design: Design
+  doc_plan: Plan
+  file_error: Lecture du fichier impossible
+
+theme:
+  light: Clair
+  dark: Sombre
+  system: Système

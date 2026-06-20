@@ -26,7 +26,13 @@ export default function App() {
   const [draft, setDraft] = React.useState(null);
   const [findings, setFindings] = React.useState([]);
   const [dirty, setDirty] = React.useState(false);
-  const [active, setActive] = React.useState("transitions"); // tab id; "daemon" = registry scope
+  // Persist the active tab across reloads (refresh should keep your place — esp. on mobile).
+  const [active, setActive] = React.useState(
+    () =>
+      (typeof localStorage !== "undefined" &&
+        localStorage.getItem("bridge.tab")) ||
+      "transitions",
+  ); // tab id; "daemon" = registry scope
   const [error, setError] = React.useState(null);
   const [bootError, setBootError] = React.useState(null);
   const [authed, setAuthed] = React.useState(null); // null = checking; false = needs login; true = ok
@@ -43,17 +49,41 @@ export default function App() {
       .catch((e) => setBootError(e.message));
   }, []);
 
-  // Boot step 2: once authenticated, load the project list + select the first board.
+  // Boot step 2: once authenticated, load the project list + restore the last board (else first).
   React.useEffect(() => {
     if (!authed) return;
     api
       .listProjects()
       .then((r) => {
         setProjects(r.projects);
-        if (r.projects.length) setSelected(r.projects[0].project_id);
+        if (r.projects.length) {
+          const saved =
+            typeof localStorage !== "undefined"
+              ? localStorage.getItem("bridge.board")
+              : null;
+          const hit = r.projects.find((p) => p.project_id === saved);
+          setSelected(hit ? hit.project_id : r.projects[0].project_id);
+        }
       })
       .catch((e) => setBootError(e.message));
   }, [authed]);
+
+  // Persist tab + selected board so a refresh lands on the same view.
+  React.useEffect(() => {
+    try {
+      localStorage.setItem("bridge.tab", active);
+    } catch (_) {
+      /* storage may be unavailable (private mode) — non-fatal */
+    }
+  }, [active]);
+  React.useEffect(() => {
+    if (!selected) return;
+    try {
+      localStorage.setItem("bridge.board", selected);
+    } catch (_) {
+      /* non-fatal */
+    }
+  }, [selected]);
 
   const onLogout = async () => {
     try {
