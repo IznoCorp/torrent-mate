@@ -18,7 +18,7 @@
 | 2   | Registry wiring + creds + config overlays + composition-root tests                      | phase-02-registry-wiring-creds-config.md       | [x]    |
 | 3   | FreeleechAware re-check + capabilities + schema-drift + ACC gate                        | phase-03-capabilities-schema-drift-acc-gate.md | [x]    |
 | 4   | Productionize torr9 — enable + seeders enrich + multi-cred protocol + .torrent download | phase-04-productionize.md                      | [x]    |
-| 5   | Fix search endpoint (CRITICAL: was hitting listing endpoint) + real shape + tmdb_id     | phase-05-fix-search-endpoint.md                | [ ]    |
+| 5   | Fix search endpoint (CRITICAL: was hitting listing endpoint) + real shape + tmdb_id     | phase-05-fix-search-endpoint.md                | [x]    |
 
 ## Review cycles
 
@@ -54,6 +54,24 @@ ranking-seeders necessity, download consumption, protocol design). Implemented i
 - **MINOR:** untested `_parse_item`/`_parse_iso` None-branches.
 
 **Ignored / deferred (noted, not fixed):** batch-atomic parse (one bad item aborts the torr9 batch) is by-design (anti-drift, matches lacale/c411); detail-endpoint `seeders`/`leechers` for ranking deferred (DESIGN). A full multi-cred _protocol_ (vs the `build_from_env` hook) remains a future framework item.
+
+### Phase 5 (commits 3ef04fb5..f36ddd1c) — CRITICAL search-endpoint fix + live-proven
+
+Operator challenged my "torr9 search is broken server-side" conclusion — rightly. Root cause
+(found in the torr9.net SPA JS bundle): `search()` hit `/api/v1/torrents?q=` (the LISTING/recent
+endpoint, which ignores `q`), not the real `/api/v1/torrents/search?q=`. torr9 was never broken;
+we used the wrong endpoint (the phase-1 fixture was captured from it too). The real endpoint filters
+with just Accept:json + Bearer and returns a RICHER shape: `seeders`/`leechers` + `category_name` +
+`tmdb_id` present, NO `magnet_link` (download via `/torrents/{id}/download`). Fix: correct the
+endpoint; `_parse_item` was already dual-shape-aware (phase 4); added `tmdb_id` to `TrackerResult`
+(framework, additive); defaulted the phase-4 N+1 enrichment OFF (search now provides seeders — it's
+now an opt-in re-check); re-captured the golden fixture; rewrote search tests; corrected docs +
+endpoint catalog; stopped the per-result `missing_magnet` warning (the `/download` path is normal).
+**Live-re-reproduced end-to-end**: search("Inception"/"Batman"/"Top Gun Maverick"/"Dune Part Two")
+→ 25/25 query-relevant results each, real seeders (49/249/158…), real tmdb_id (27205/361743),
+download via `/download`. torr9 is now genuinely functional. Verified: `make check` 7044 passed,
+`make lint` green, 86+57 tracker tests. Lesson saved: don't blame the server on a 200 without
+ruling out my own request (wrong endpoint/headers) first.
 
 ### Cycle 1 fix (commits efdb99f9..9fbb431d) + re-review CLEAN
 
