@@ -1,13 +1,18 @@
 """Unit tests for TrackerRegistry.close() — tracker-wiring RP5a.
 
+``close()`` peeks each client's NON-triggering ``_open_transport`` property
+(NOT the login-triggering lazy ``_transport``), so teardown never fires a
+bootstrap login.
+
 Verifies:
 - Empty registry closes as a no-op (no exception).
-- close() calls _transport.close() on each client.
-- A client with no _transport attribute is skipped gracefully.
-- A _transport.close() that raises is swallowed (does not propagate).
+- close() calls ``close()`` on each client's materialized transport.
+- A client with no ``_open_transport`` (peek → None) is skipped gracefully.
+- A ``transport.close()`` that raises is swallowed (does not propagate).
 - All transports are attempted even when one raises.
-- A client whose _transport is a lazy PROPERTY that raises a login error on
-  access is skipped (fail-soft parity with transports()), and the other
+- A torr9-style client that has NOT logged in (``_open_transport`` is ``None``)
+  is skipped WITHOUT ever accessing its login-triggering ``_transport`` —
+  proving teardown peeks only and fires no spurious bootstrap login. The other
   plain-attribute clients are still closed.
 """
 
@@ -15,30 +20,26 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from personalscraper.api._contracts import ApiError
 from personalscraper.api.tracker._ranking import RankingConfig
 from personalscraper.api.tracker._registry import TrackerRegistry
-from personalscraper.core._contracts import CircuitOpenError
 
 
-class _LazyLoginRaisingClient:
-    """Client whose ``_transport`` is a lazy property raising on first access.
+class _NotLoggedInClient:
+    """torr9-style client that has NOT logged in yet.
 
-    Mirrors torr9's TVDB-lazy pattern: accessing ``_transport`` triggers a
-    bootstrap login (``POST /auth/login``) that may fail operationally. A plain
-    ``MagicMock`` attribute cannot reproduce this (attribute access never
-    raises), so a real descriptor is required to exercise the close() guard.
+    ``_open_transport`` is the non-triggering peek → ``None`` (no transport
+    materialized). The login-triggering ``_transport`` property RAISES if the
+    registry ever touches it — proving close() peeks only and never fires a
+    spurious bootstrap login at teardown.
     """
 
-    def __init__(self, exc: Exception) -> None:
-        self._exc = exc
+    @property
+    def _open_transport(self) -> object | None:
+        return None
 
     @property
-    def _transport(self) -> object:  # noqa: D401 — property raises on access
-        """Raise the configured login error on every access."""
-        raise self._exc
+    def _transport(self) -> object:  # pragma: no cover — must never be accessed
+        raise AssertionError("_transport (login-triggering) was accessed by close()")
 
 
 def _make_registry(trackers: dict) -> TrackerRegistry:
@@ -50,10 +51,16 @@ def _make_registry(trackers: dict) -> TrackerRegistry:
 
 
 def _stub_client(name: str) -> MagicMock:
-    """Return a mock client whose _transport.close() is trackable."""
+    """Return a mock client whose _open_transport.close() is trackable.
+
+    Both ``_transport`` and ``_open_transport`` resolve to the same materialized
+    mock (mirroring an api-key client where the peek just returns ``_transport``).
+    """
     client = MagicMock()
-    client._transport = MagicMock()
-    client._transport.close = MagicMock()
+    transport = MagicMock()
+    transport.close = MagicMock()
+    client._transport = transport
+    client._open_transport = transport
     return client
 
 
@@ -66,41 +73,41 @@ class TestTrackerRegistryClose:
         registry.close()  # must not raise
 
     def test_close_calls_transport_close_on_each_client(self) -> None:
-        """close() must call _transport.close() for every client in the registry."""
+        """close() must call transport.close() for every client in the registry."""
         lacale = _stub_client("lacale")
         c411 = _stub_client("c411")
         registry = _make_registry({"lacale": lacale, "c411": c411})
         registry.close()
-        lacale._transport.close.assert_called_once()
-        c411._transport.close.assert_called_once()
+        lacale._open_transport.close.assert_called_once()
+        c411._open_transport.close.assert_called_once()
 
     def test_client_without_transport_is_skipped(self) -> None:
-        """A client with no _transport attribute must not raise.
+        """A client with no _open_transport attribute must not raise.
 
         MagicMock(spec=[]) rejects attribute access to anything not in the
-        empty spec, so getattr(client, "_transport", None) returns None —
-        matching the Factory's getattr sentinel pattern.
+        empty spec, so getattr(client, "_open_transport", None) returns None —
+        matching the registry's getattr sentinel pattern.
         """
         client = MagicMock(spec=[])
         registry = _make_registry({"ghost": client})
         registry.close()  # must not raise
 
     def test_transport_close_exception_is_swallowed(self) -> None:
-        """If _transport.close() raises, the exception must not propagate."""
+        """If transport.close() raises, the exception must not propagate."""
         client = _stub_client("lacale")
-        client._transport.close.side_effect = RuntimeError("session already closed")
+        client._open_transport.close.side_effect = RuntimeError("session already closed")
         registry = _make_registry({"lacale": client})
         registry.close()  # must not raise
 
     def test_all_transports_closed_even_when_one_raises(self) -> None:
         """A failing close on client A must not prevent client B from being closed."""
         lacale = _stub_client("lacale")
-        lacale._transport.close.side_effect = RuntimeError("boom")
+        lacale._open_transport.close.side_effect = RuntimeError("boom")
         c411 = _stub_client("c411")
         registry = _make_registry({"lacale": lacale, "c411": c411})
         registry.close()
         # c411 must still have been closed despite lacale raising:
-        c411._transport.close.assert_called_once()
+        c411._open_transport.close.assert_called_once()
 
     def test_existing_dict_ctor_still_works(self) -> None:
         """Regression guard: __init__ signature unchanged — no keyword-only drift."""
@@ -125,8 +132,10 @@ class TestTrackerRegistryClose:
         failure log is absent pins the guard specifically.
         """
         client = MagicMock()
-        client._transport = MagicMock()
-        client._transport.close = 5  # present but NOT callable
+        transport = MagicMock()
+        transport.close = 5  # present but NOT callable
+        client._transport = transport
+        client._open_transport = transport
         registry = _make_registry({"lacale": client})
 
         with patch("personalscraper.api.tracker._registry.log") as mock_log:
@@ -135,38 +144,21 @@ class TestTrackerRegistryClose:
         logged = [c.args[0] for c in mock_log.debug.call_args_list if c.args]
         assert "tracker_transport_close_failed" not in logged
 
-    @pytest.mark.parametrize(
-        "exc",
-        [
-            ApiError("torr9", 401, message="login failed: bad creds"),
-            CircuitOpenError("torr9", 30.0),
-        ],
-    )
-    def test_lazy_login_failure_on_access_is_skipped(self, exc: Exception) -> None:
-        """A client whose `_transport` property raises a login error is skipped, not propagated.
+    def test_not_logged_in_client_is_skipped_without_triggering_login(self) -> None:
+        """A torr9-style not-logged-in client is skipped without accessing its _transport.
 
-        torr9's `_transport` is a lazy PROPERTY that triggers a bootstrap login on
-        first access. A read-only command can tear the registry down without ever
-        materializing it, making close()'s getattr the FIRST access. An operational
-        login failure there (ApiError / CircuitOpenError) MUST NOT propagate out of
-        close() — its fail-soft contract has to hold even at teardown (else the
-        acquire/context finally chain leaks store/ownership handles). The skip is
-        logged at DEBUG as `tracker_transport_close_skipped`, and the other
+        torr9's ``_transport`` is a lazy PROPERTY that triggers a bootstrap login on
+        first access. A read-only command can tear the registry down before torr9
+        ever logged in. close() peeks ``_open_transport`` (→ None here), so the
+        login-triggering ``_transport`` is NEVER accessed (it raises if touched) —
+        proving NO spurious bootstrap login is fired at teardown. The other
         plain-attribute clients are STILL closed.
         """
-        lazy = _LazyLoginRaisingClient(exc)
+        lazy = _NotLoggedInClient()
         healthy = _stub_client("lacale")
         registry = _make_registry({"torr9": lazy, "lacale": healthy})
 
-        with patch("personalscraper.api.tracker._registry.log") as mock_log:
-            registry.close()  # must NOT raise despite torr9's property raising
+        registry.close()  # must NOT raise and must NOT access torr9._transport
 
-        # The lazy client was skipped via the DEBUG `..._skipped` log:
-        skipped = [
-            c for c in mock_log.debug.call_args_list if c.args and c.args[0] == "tracker_transport_close_skipped"
-        ]
-        assert len(skipped) == 1
-        assert skipped[0].kwargs.get("tracker") == "torr9"
-        assert skipped[0].kwargs.get("exc_type") == type(exc).__name__
         # The healthy plain-attribute client was STILL closed:
-        healthy._transport.close.assert_called_once()
+        healthy._open_transport.close.assert_called_once()

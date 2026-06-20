@@ -273,13 +273,34 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
 
     @property
     def _transport(self) -> HttpTransport:
-        """Lazy accessor for the authed main transport (triggers bootstrap on first access)."""
+        """Lazy accessor for the authed main transport (triggers bootstrap on first access).
+
+        Accessing this property bootstraps a JWT login when the transport is not
+        yet materialized — so it must NEVER be used by the registry's
+        close()/transports() seams (a teardown that touches it fires a spurious
+        login, breaking the network-free-until-first-use guarantee). Those seams
+        peek :attr:`_open_transport` instead, which returns the cached transport
+        without ever triggering a login.
+        """
         return self._ensure_transport()
 
     @_transport.setter
     def _transport(self, value: HttpTransport) -> None:
         """Setter preserved for tests that inject a mock transport (short-circuits bootstrap)."""
         self.__transport = value
+
+    @property
+    def _open_transport(self) -> HttpTransport | None:
+        """The materialized authed transport, or None if not yet logged in.
+
+        Non-triggering PEEK for the registry's close()/transports() seams: unlike
+        the lazy ``_transport`` property (which bootstraps a JWT login on first
+        access), this returns the cached transport only if a prior search /
+        get_details / is_freeleech already logged in — never triggering network
+        I/O. This preserves the network-free-until-first-use guarantee for
+        acquire-context commands that never actually search torr9.
+        """
+        return self.__transport
 
     def _authed_get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any] | str:
         """GET via the authed transport; on 401, drop the transport (re-login) and retry ONCE.

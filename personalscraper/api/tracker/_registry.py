@@ -17,7 +17,6 @@ from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._contracts import TorrentSearchable
 from personalscraper.api.tracker._ranking import RankingConfig, rank
-from personalscraper.core._contracts import CircuitOpenError
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -188,33 +187,22 @@ class TrackerRegistry:
 
         The grab orchestrator passes these transports to ``resolve_source`` /
         ``fetch_torrent_source`` (DESIGN §6.1). Only clients exposing a non-None
-        private ``_transport`` are included — the same attribute :meth:`close`
-        already relies on. No new public surface is added to the clients.
+        ``_open_transport`` are included — a non-triggering PEEK at the
+        already-materialized transport. No new public surface is added.
 
-        Resilient to a lazy ``_transport`` property that triggers a bootstrap
-        login on access (torr9's TVDB-lazy pattern): a login failure there is
-        logged and the tracker is skipped rather than propagated — a single
-        tracker's auth problem must not break the grab seam for the others.
+        Crucially, this peeks ``_open_transport`` (NOT the login-triggering lazy
+        ``_transport`` property): a lazy tracker (torr9's TVDB pattern) therefore
+        appears here ONLY when it logged in during a prior search — exactly when
+        ``resolve_source`` needs its transport. No spurious bootstrap login is
+        ever fired by building this map.
 
         Returns:
-            Dict mapping each tracker's lowercase wire name to its transport.
+            Dict mapping each tracker's lowercase wire name to its (materialized)
+            transport.
         """
         result: dict[str, HttpTransport] = {}
         for name, client in self._trackers.items():
-            try:
-                transport = getattr(client, "_transport", None)
-            except (ApiError, CircuitOpenError, requests.RequestException) as exc:
-                # A lazy bootstrap login can fail operationally (bad creds, outage,
-                # tripped circuit); skip that tracker rather than break the grab seam
-                # for the others. A truly-unexpected exception (a programming bug in a
-                # _transport getter) is NOT caught here — it must surface.
-                log.warning(
-                    "tracker_transport_unavailable",
-                    tracker=name,
-                    error=str(exc),
-                    error_type=type(exc).__name__,
-                )
-                continue
+            transport = getattr(client, "_open_transport", None)
             if transport is not None:
                 result[name] = transport
         return result
@@ -223,10 +211,10 @@ class TrackerRegistry:
         """Release the HttpTransport owned by each tracker client.
 
         Iterates ``self._trackers`` and calls ``close()`` on each client's
-        ``_transport`` attribute when present. Unlike
-        ``ProviderRegistry.close()`` — which delegates to each provider's own
-        ``close()`` — tracker clients expose no ``close()`` of their own, so
-        the transport is closed directly. The parity with
+        already-materialized transport (peeked via ``_open_transport``) when
+        present. Unlike ``ProviderRegistry.close()`` — which delegates to each
+        provider's own ``close()`` — tracker clients expose no ``close()`` of
+        their own, so the transport is closed directly. The parity with
         ``ProviderRegistry.close()`` is the fail-soft *shape*: iterate a
         copied list, swallow per-client exceptions at DEBUG level, and close
         as a no-op when the registry is empty — not the close target.
@@ -235,29 +223,16 @@ class TrackerRegistry:
         propagate — a failing close on one tracker must not prevent the others
         from releasing their sessions.
 
-        Resilient to a lazy ``_transport`` property that triggers a bootstrap
-        login on access (torr9's TVDB-lazy pattern): a read-only command may
-        tear the registry down without ever materializing torr9's transport, so
-        the ``getattr`` here would be the FIRST access and trigger a login. An
-        operational login failure there is logged at DEBUG and the tracker is
-        skipped — close()'s fail-soft contract must hold even at teardown, or
-        the downstream store/ownership handles in the acquire/context finally
-        chain leak. This is the same narrow guard :meth:`transports` uses.
+        Peeks ``_open_transport`` (NOT the login-triggering lazy ``_transport``
+        property): a read-only command may tear the registry down without ever
+        materializing a lazy tracker's transport (torr9's TVDB pattern). The peek
+        returns None in that case, so close() closes ONLY materialized transports
+        and never fires a spurious bootstrap login at teardown — which would
+        otherwise hit the network and break the network-free-until-first-use
+        guarantee.
         """
         for name, client in list(self._trackers.items()):
-            try:
-                transport = getattr(client, "_transport", None)
-            except (ApiError, CircuitOpenError, requests.RequestException) as exc:
-                # A lazy bootstrap login can fail operationally (bad creds, outage,
-                # tripped circuit) at teardown; skip that tracker rather than break
-                # close()'s fail-soft contract for the others (and leak downstream
-                # handles). A programming bug in a _transport getter is NOT caught.
-                log.debug(
-                    "tracker_transport_close_skipped",
-                    tracker=name,
-                    exc_type=type(exc).__name__,
-                )
-                continue
+            transport = getattr(client, "_open_transport", None)
             if transport is None:
                 continue
             close_fn = getattr(transport, "close", None)
