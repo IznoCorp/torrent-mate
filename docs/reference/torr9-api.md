@@ -52,59 +52,98 @@ the RSS `.torrent` download URLs.
 
 ## Search (JSON API)
 
+> ⚠️ **CRITICAL — endpoint correction (2026-06-20).** Search is
+> **`GET /api/v1/torrents/search?q=`** — the real, q-filtering search endpoint.
+> An earlier integration used `GET /api/v1/torrents?q=` (the **listing/recent**
+> endpoint), which **IGNORES `q`** and returns a static recent feed regardless of
+> the query — so every search returned the same recent torrents. Root cause: the
+> wrong endpoint. The fix is one line (`/torrents` → `/torrents/search`).
+> Filtering works with just `Accept: application/json` + Bearer (no browser
+> headers needed): Batman→Batman, Inception→Inception, nonsense→0 results.
+
 ```
-GET /api/v1/torrents?q=<url-encoded-query>
+GET /api/v1/torrents/search?q=<url-encoded-query>
 Authorization: Bearer <token>
 
-→ 200 { "limit": 20, "page": 1, "torrents": [ {item}, ... ] }
+→ 200 { "count": 25, "current_page": 1, "limit": 25, "query": "Inception",
+        "total_count": 44, "total_pages": 2, "filters": {…},
+        "torrents": [ {item}, ... ] }
 → 401 { "error": "Missing authorization token" }   (no/invalid Bearer)
 ```
 
 - **Query param is `q`** (confirmed). `?search=` is **ignored** (returns 0).
-- **Pagination**: `limit` + `page` (request `&page=N` for more; default page 1, limit 20).
-- Real sample: `fixtures/torr9_search.json`.
+- **Envelope**: `count` / `current_page` / `limit` / `query` / `total_count` /
+  `total_pages`, plus `filters` (`{category, max_age_days, search_in, tag, uploader}`).
+  Items are still under `torrents` (extraction unchanged from the listing shape).
+- **Pagination**: `limit` + `current_page` / `total_pages` (request `&page=N` for
+  more; default page 1, limit 25).
+- Real sample: `_samples/torr9/torr9_search.json` (`?q=Inception`, uploader redacted).
 
-### Torrent item schema (real capture)
+### Endpoint catalog (from the SPA JS bundle, 2026-06-20)
+
+| Use                | Endpoint                                     | Notes                                                |
+| ------------------ | -------------------------------------------- | ---------------------------------------------------- |
+| list / recent feed | `GET /torrents`                              | **IGNORES `q`** — NOT search (history: wrong ep)     |
+| recent             | `GET /torrents/recent`                       | recent feed                                          |
+| **search**         | `GET /torrents/search?q=`                    | **the real q-filtering search** ✓                    |
+| details            | `GET /torrents/{id}`                         | single object, carries `magnet_link` + swarm         |
+| download           | `GET /torrents/{id}/download`                | authed `.torrent` bytes (`application/x-bittorrent`) |
+| comments           | `GET /torrents/{id}/comments`                | —                                                    |
+| check-duplicate    | `GET /torrents/check-duplicate`              | —                                                    |
+| exclus             | `GET /torrents/exclus?days=`                 | —                                                    |
+| featured search    | `GET /torrents/featured/search?query=&type=` | —                                                    |
+| rss recent         | `GET /rss/recent?passkey=`                   | passkey browse feed                                  |
+
+### Torrent item schema (`/torrents/search`, real capture)
 
 ```json
 {
-  "id": 305292,
-  "title": "Oasis.2026.S01.MULTi.AD.1080p.NF.WEB.X264-THESYNDiCATE",
-  "description": "[center]…[/center]",                       // BBCode
-  "info_hash": "d5638677f9986adc3ea155e7b753c36321cc30af",
-  "magnet_link": "magnet:?xt=urn:btih:d563…&dn=…",           // direct magnet (no passkey)
-  "torrent_file_url": "uploads/torrents/<info_hash>.torrent", // relative; needs base + auth
-  "file_size_bytes": 20827331134,                            // exact bytes
-  "file_count": 8,
-  "category_id": 5,                                          // numeric (see §Categories)
-  "uploader_id": 69602,
-  "is_private": true,
+  "id": 13750,
+  "title": "Inception 2010 BluRay 2160p HDR Hybrid DoVi x265 10bit MULTI VFF 5.1 DTS HDMA-telemO",
+  "info_hash": "cc32af3a46e54c48ded0c74ee2a9e798d70834ea",
+  "file_size_bytes": 13832185317,                            // exact bytes
+  "file_count": 1,
+  "upload_date": "2026-02-05T06:56:23.80812Z",               // ISO-8601
   "is_freeleech": false,                                     // structured boolean ✓
-  "is_anon": false,
+  "tags": ["2160p","x265","HDR","DoVi","BluRay","DTS", …],   // quality tags
+  "category_name": "Films",                                  // human label (NO category_id)
+  "category_icon": "Films",
+  "parent_category_name": "Films",
+  "uploader_name": "redacted",
+  "seeders": 49,                                             // real swarm ✓
+  "leechers": 0,                                             // real swarm ✓
+  "times_completed": 109,
+  "comment_count": 0,
+  "tmdb_id": 27205,                                          // 0 means "none"
   "is_exclu": false,
-  "tags": ["1080p","FHD","WEB","H264","x264","FRENCH", …],   // quality tags
-  "upload_date": "2026-06-19T13:29:19.797357Z",              // ISO-8601
-  "status": "active"
+  "status": null
+  // NOTE: NO magnet_link, NO category_id, NO description in the search shape.
 }
 ```
 
-| `TrackerResult` field  | Source                                                                                                                                |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| title                  | `title`                                                                                                                               |
-| size (bytes)           | `file_size_bytes`                                                                                                                     |
-| `is_freeleech`         | `is_freeleech` (clean boolean — no text parsing)                                                                                      |
-| download               | `magnet_link` (preferred, auth-free) or `torrent_file_url` (base + auth)                                                              |
-| upload_date            | `upload_date` (ISO)                                                                                                                   |
-| category               | mapped from `category_id` (§Categories)                                                                                               |
-| info hash / tracker id | `info_hash` / `id`                                                                                                                    |
-| **seeders / leechers** | **NOT in SEARCH** — torr9's search payload exposes no swarm health (the **detail** endpoint `GET /torrents/{id}` _does_; see §Detail) |
+| `TrackerResult` field  | Source                                                                       |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| title                  | `title`                                                                      |
+| size (bytes)           | `file_size_bytes`                                                            |
+| `is_freeleech`         | `is_freeleech` (clean boolean — no text parsing)                             |
+| download               | `/api/v1/torrents/{id}/download` (no magnet in search; see §Download)        |
+| upload_date            | `upload_date` (ISO)                                                          |
+| category               | `category_name` label directly (no `category_id` in search; see §Categories) |
+| info hash / tracker id | `info_hash` / `id`                                                           |
+| **seeders / leechers** | **`seeders` / `leechers`** — the SEARCH endpoint exposes real swarm health ✓ |
+| `tmdb_id`              | `tmdb_id` (int; `0`/absent → `None`)                                         |
 
 ## Download
 
-- **Preferred: `magnet_link`** — direct magnet, **no passkey/auth** (matches the
-  ROADMAP Q4 "magnet exception"). Hand straight to qBittorrent.
-- `torrent_file_url` is a **relative** path; absolute `.torrent` needs the base +
-  auth (passkey or token) — only if a `.torrent` file is specifically required.
+- **Search items carry NO `magnet_link`** → download is the authed `.torrent`
+  endpoint **`GET /api/v1/torrents/{id}/download`** (Bearer, returns
+  `application/x-bittorrent` bytes — live-confirmed 200). Fetched via the
+  provider's authed transport.
+- The **detail** endpoint (`GET /torrents/{id}`) **does** carry `magnet_link`
+  (auth-free, ROADMAP Q4 "magnet exception") — preferred when a result is built
+  from a detail payload.
+- `torrent_file_url` is **DEAD** (404 at every host/auth, hash mismatch, absent
+  from the detail payload) and is **NOT consumed**.
 
 ## Detail (JSON API) — per-torrent re-check
 
@@ -114,17 +153,17 @@ Authorization: Bearer <token>
 ```
 
 Live-confirmed 2026-06-19. Returns a **single torrent** object (NOT a list/wrapper).
-Superset of the search item: same `id` / `title` / `info_hash` / `magnet_link` /
-`file_size_bytes` / `is_freeleech` / `tags` / `upload_date`, **plus** fields the
-search omits — `seeders`, `leechers`, `times_completed`, `views`, `age`,
-`category_name`, and uploader stats. Sample: `_samples/torr9/torr9_detail.json`
-(uploader private stats zeroed, avatar redacted — no passkey/token present).
+Carries the same swarm/category fields as the `/torrents/search` item
+(`seeders`, `leechers`, `times_completed`, `category_name`, …) **plus**
+`magnet_link` (auth-free) and uploader stats. Sample:
+`_samples/torr9/torr9_detail.json` (uploader private stats zeroed, avatar
+redacted — no passkey/token present).
 
 Backs the **`FreeleechAware.is_freeleech(torrent_id)`** pre-download re-check:
 ensure token → `GET /torrents/{id}` (re-login on 401) → return the fresh
-`is_freeleech` boolean. The `seeders`/`leechers` here would also let a future
-ranking improvement N+1-fetch swarm health, but that is **deferred** (not in this
-feature; see DESIGN Risk "No seeders in SEARCH").
+`is_freeleech` boolean. Since `/torrents/search` already carries real
+`seeders`/`leechers`, the detail-based swarm re-check is an **optional opt-in
+re-check** (`enrich_seeders`, default **OFF**), not a necessity.
 
 `GET /torrent/{id}` (singular) returns **404** — the path is **plural** `torrents`.
 
@@ -140,12 +179,17 @@ for search + the structured fields** like `is_freeleech`.)
 
 ## Categories
 
-`category_id` is **numeric**. torr9 exposes **NO `/categories` endpoint**
-(404 confirmed on `/categories`, `/category`, `/torrents/categories` on
-2026-06-20). The `?category_id=` search filter is **ignored** (returns the
-same default set regardless). The id→label map is built empirically by
-correlating the search payload's `category_id` with the detail payload's
-`category_name` (`GET /torrents/{id}`):
+The `/torrents/search` and `/torrents/{id}` payloads carry a human
+**`category_name`** label directly (consumed straight onto `TrackerResult`).
+The numeric **`category_id`** appears only in the **listing** (`/torrents`)
+shape — so the `_CATEGORY_MAP` (id → label) below is now only a **fallback**
+for that listing shape, not the primary path.
+
+torr9 exposes **NO `/categories` endpoint** (404 confirmed on `/categories`,
+`/category`, `/torrents/categories` on 2026-06-20). The `?category_id=` search
+filter is **ignored**. The id→label fallback map is built empirically by
+correlating the listing payload's `category_id` with the search/detail
+`category_name`:
 
 | `category_id` | Label          | Parent      | Source                          |
 | ------------: | -------------- | ----------- | ------------------------------- |
@@ -169,20 +213,25 @@ correlating the search payload's `category_id` with the detail payload's
 ## Fit with personalscraper
 
 - **`Torr9Client` IS a `TorrentSearchable`** — `search(query, media_type, year)`:
-  login → `GET /torrents?q=` → parse `torrents[]` → `TrackerResult[]`. Mirrors the
-  c411/lacale role; auth differs (JWT vs API-key) → RP7 auth lifecycle.
+  login → `GET /torrents/search?q=` (the real search endpoint, NOT `/torrents?q=`)
+  → parse `torrents[]` → `TrackerResult[]`. Mirrors the c411/lacale role; auth
+  differs (JWT vs API-key) → RP7 auth lifecycle.
 - **Dual auth** in `policy()` / client: JWT (login, `TORR9_USERNAME`/`PASSWORD`)
   for search; passkey (`TORR9_PASSKEY`) for the RSS freeleech radar + download
   fallback.
-- **Magnet-first download** (auth-free) — clean for the grab core.
+- **Download** — search items carry no magnet → the authed `.torrent`
+  `/torrents/{id}/download` endpoint; detail items carry the auth-free magnet.
 - **Freeleech** is a structured boolean in search (`is_freeleech`) and a `| FREELEECH`
   marker in the RSS — both feed `TrackerResult.is_freeleech`.
 - **`Torr9Client` IS a `FreeleechAware`** — `is_freeleech(torrent_id)` re-checks via
   the `GET /torrents/{id}` detail endpoint (live-confirmed). A real pre-download
   re-check, unlike c411/lacale which have no detail endpoint.
-- **No seeders in SEARCH** — `_ranking.py` weights seeders; torr9 _search_ results
-  carry none → rank on freeleech / size / recency. The detail endpoint has them, but
-  populating ranking seeders via N+1 detail-fetch is **deferred**.
+- **Real seeders in SEARCH** — `_ranking.py` weights seeders; the
+  `/torrents/search` payload carries real `seeders`/`leechers`, so torr9 results
+  are ranking-ready. The detail-based swarm re-check (`enrich_seeders`) is an
+  **optional opt-in** (default OFF), not a necessity.
+- **`tmdb_id` in SEARCH** — search items carry `tmdb_id`, surfaced on
+  `TrackerResult.tmdb_id` (`0`/absent → `None`).
 - **Freeleech radar (R1)** — the `rss/freeleech` feed is exactly the "freeleech window
   enumeration" the ROADMAP Q3/R1 wants.
 

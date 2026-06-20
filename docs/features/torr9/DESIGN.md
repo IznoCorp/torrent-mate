@@ -28,26 +28,31 @@ The torr9 API was captured live — full reference in
 **torr9 is a full search tracker** via an authenticated JSON API (+ passkey RSS
 feeds for the freeleech radar). Resolved facts:
 
-| Fact            | Value                                                                                                                                                                                                                                                                                                                                              |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Base**        | `https://api.torr9.net/api/v1`                                                                                                                                                                                                                                                                                                                     |
-| **Auth (DUAL)** | **JWT** for the JSON API: `POST /auth/login {username,password}` → `{token,user,message}` → `Authorization: Bearer <token>`. **Passkey** for RSS feeds + announce/download (`TORR9_PASSKEY`). Creds: `TORR9_USERNAME`, `TORR9_PASSWORD`, `TORR9_PASSKEY`.                                                                                          |
-| **Search**      | `GET /torrents?q=<query>` + Bearer → JSON `{limit, page, torrents:[...]}`. Param is **`q`** (`search` ignored). Pagination via `page`. Sample: `../../reference/_samples/torr9/torr9_search.json`.                                                                                                                                                 |
-| **Detail**      | `GET /torrents/{id}` + Bearer → JSON **single torrent** object (live-confirmed 2026-06-19). Carries `is_freeleech` AND — unlike search — `seeders`/`leechers`/`times_completed`/`views` + `category_name`. Backs the **FreeleechAware** pre-download re-check. Sample: `../../reference/_samples/torr9/torr9_detail.json`.                         |
-| **Item (JSON)** | `id`, `title`, `description`(BBCode), `info_hash`, **`magnet_link`**, `torrent_file_url`(relative), **`file_size_bytes`**, `file_count`, `category_id`(numeric), `uploader_id`, `is_private`, **`is_freeleech`**(bool), `is_anon`, `is_exclu`, `tags[]`, `upload_date`(ISO), `status`.                                                             |
-| **Download**    | **`magnet_link`** (direct, auth-free → Q4 magnet exception) PRIMARY. Fallback when magnet absent = the real `.torrent` endpoint `GET /api/v1/torrents/{id}/download` + Bearer → `200 application/x-bittorrent` (live-confirmed 2026-06-19). `torrent_file_url` is **DEAD** (404 at every host/auth, hash mismatch, absent from detail) — NOT used. |
-| **Freeleech**   | structured boolean `is_freeleech` (search) + `\| FREELEECH` marker (RSS).                                                                                                                                                                                                                                                                          |
-| **Auth errors** | login 401 "Identifiant ou mot de passe invalide"; JSON 401 "Missing authorization token"; 429/403 rate-limit. Token expiry → re-login (RP7).                                                                                                                                                                                                       |
+| Fact            | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Base**        | `https://api.torr9.net/api/v1`                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| **Auth (DUAL)** | **JWT** for the JSON API: `POST /auth/login {username,password}` → `{token,user,message}` → `Authorization: Bearer <token>`. **Passkey** for RSS feeds + announce/download (`TORR9_PASSKEY`). Creds: `TORR9_USERNAME`, `TORR9_PASSWORD`, `TORR9_PASSKEY`.                                                                                                                                                                                                          |
+| **Search**      | `GET /torrents/search?q=<query>` + Bearer → JSON `{count, current_page, limit, query, total_count, total_pages, filters, torrents:[...]}`. ⚠️ The REAL search endpoint — NOT `GET /torrents?q=` (the listing/recent endpoint that IGNORES `q`). Param is **`q`** (`search` ignored). Search item carries real **`seeders`/`leechers`** + **`category_name`** + **`tmdb_id`** but **no `magnet_link`**. Sample: `../../reference/_samples/torr9/torr9_search.json`. |
+| **Detail**      | `GET /torrents/{id}` + Bearer → JSON **single torrent** object (live-confirmed 2026-06-19). Carries `is_freeleech` AND — unlike search — `seeders`/`leechers`/`times_completed`/`views` + `category_name`. Backs the **FreeleechAware** pre-download re-check. Sample: `../../reference/_samples/torr9/torr9_detail.json`.                                                                                                                                         |
+| **Item (JSON)** | `id`, `title`, `description`(BBCode), `info_hash`, **`magnet_link`**, `torrent_file_url`(relative), **`file_size_bytes`**, `file_count`, `category_id`(numeric), `uploader_id`, `is_private`, **`is_freeleech`**(bool), `is_anon`, `is_exclu`, `tags[]`, `upload_date`(ISO), `status`.                                                                                                                                                                             |
+| **Download**    | **`magnet_link`** (direct, auth-free → Q4 magnet exception) PRIMARY. Fallback when magnet absent = the real `.torrent` endpoint `GET /api/v1/torrents/{id}/download` + Bearer → `200 application/x-bittorrent` (live-confirmed 2026-06-19). `torrent_file_url` is **DEAD** (404 at every host/auth, hash mismatch, absent from detail) — NOT used.                                                                                                                 |
+| **Freeleech**   | structured boolean `is_freeleech` (search) + `\| FREELEECH` marker (RSS).                                                                                                                                                                                                                                                                                                                                                                                          |
+| **Auth errors** | login 401 "Identifiant ou mot de passe invalide"; JSON 401 "Missing authorization token"; 429/403 rate-limit. Token expiry → re-login (RP7).                                                                                                                                                                                                                                                                                                                       |
 
-**NOT exposed by SEARCH** (drives the design): the **search** payload carries **no
-seeders/leechers** (neither the JSON list nor RSS), no IMDb/TMDb id, no structured
-codec/resolution beyond `title`/`tags`. The **detail** endpoint (`GET /torrents/{id}`,
-live-confirmed) _does_ carry `seeders`/`leechers`. Because `config/ranking.json5` sets
-`min_seeders: 1`, every `seeders=0` search result is dropped before scoring — so torr9
-would win **no grab** without enrichment. Therefore `search()` **enriches the top-K=10
-results' seeders/leechers from the detail endpoint** (`TorrentDetailsProvider.get_details`,
-ON by default, fail-soft per result; phase-04 operator decision 2026-06-19). The detail
-endpoint also backs the `FreeleechAware.is_freeleech` pre-download re-check.
+**EXPOSED by SEARCH** (correction 2026-06-20): the real `/torrents/search` payload
+**DOES carry `seeders`/`leechers`** + a `category_name` label + **`tmdb_id`**
+(surfaced on `TrackerResult.tmdb_id`, `0`/absent → None). The earlier "no seeders
+in search" finding came from hitting the **wrong endpoint** (`/torrents?q=`, the
+listing/recent feed that ignores `q` and exposes no swarm). With the correct
+endpoint, search results are **ranking-ready** (they clear the `min_seeders: 1`
+floor on their own). The `/torrents/search` item does **not** carry `magnet_link`
+(download via `/torrents/{id}/download`); structured codec/resolution beyond
+`title`/`tags` is still absent. The **detail** endpoint (`GET /torrents/{id}`) also
+carries `seeders`/`leechers`, so `search()` **can** opt-in to re-check the top-K=10
+results' swarm health (`TorrentDetailsProvider.get_details`), but this
+`enrich_seeders` re-check now defaults **OFF** (redundant — search already provides
+seeders; operator decision 2026-06-20). The detail endpoint also backs the
+`FreeleechAware.is_freeleech` pre-download re-check.
 
 **Minor unknowns** (confirm at impl with a fresh token, low-rate):
 **`category_id`→label map** — **RESOLVED (2026-06-20):** NO `/categories` endpoint
@@ -82,8 +87,9 @@ Mirror the proven provider pattern exactly — **no new framework code**:
      `_authed_get` (drop the cached transport → next access rebuilds it via a fresh
      bootstrap → retry once; a second 401 fails loud, RP7 auth-lifecycle).
    - `__init__(self, *, username: str, password: str, event_bus: EventBus,
-enrich_seeders=True, enrich_seeders_top_k=10)` — stores creds + event bus +
-     enrich flags, leaves the transport lazy (`__transport = None`). Construction
+enrich_seeders=False, enrich_seeders_top_k=10)` — stores creds + event bus +
+     enrich flags (the seeders re-check defaults OFF; search provides seeders),
+     leaves the transport lazy (`__transport = None`). Construction
      goes through the **uniform `from_env(cls, *, env, event_bus, required,
 provider_cfg)`** classmethod — the `TrackerConstructible` capability
      implemented by EVERY tracker (lacale/c411 api-key shape; torr9 login shape).
@@ -91,17 +97,19 @@ provider_cfg)`** classmethod — the `TrackerConstructible` capability
      literal, no `build_from_env` getattr-hook, no cred-style branch). torr9
      reads its enrich flags off `provider_cfg`.
    - `search(query, media_type=MOVIE, year=None) -> list[TrackerResult]` → ensure
-     token → `GET /torrents?q=<query>` → parse `torrents[]` (wrapped in
+     token → `GET /torrents/search?q=<query>` (the REAL search endpoint, NOT the
+     listing `/torrents?q=` that ignores `q`) → parse `torrents[]` (wrapped in
      `wrap_parser_drift`). Pagination via `page` if needed.
    - `get_categories() -> dict[str, str]` from a static `_CATEGORY_MAP`
      (`category_id`→label; seed from the fixture, extend with `GET /categories`).
    - `_parse_item(json)` → `TrackerResult` (shared by BOTH search items AND
      `get_details`' detail item): `title`; size=`file_size_bytes`; `is_freeleech`
-     (bool); **download = `magnet_link`** (auth-free) with a fallback to the real
-     `.torrent` endpoint `/api/v1/torrents/{id}/download` when magnet absent (NOT
-     the dead `torrent_file_url`); `info_hash`; category from `category_id` (search)
-     ELSE `category_name` (detail); `upload_date`. seeders/leechers read from the
-     item when present (`0` for search items, real values for detail items).
+     (bool); **download** = `magnet_link` (auth-free; on DETAIL items) ELSE the
+     real `.torrent` endpoint `/api/v1/torrents/{id}/download` (search items carry
+     no magnet — NOT the dead `torrent_file_url`); `info_hash`; category from
+     `category_name` label (search/detail) ELSE `_CATEGORY_MAP[category_id]`
+     (listing); `upload_date`; `tmdb_id` (search; `0`/absent → None).
+     seeders/leechers read from the item (real values for search AND detail items).
    - `is_freeleech(self, torrent_id) -> bool` (**FreeleechAware** capability,
      live-confirmed endpoint): ensure token → `GET /torrents/{id}` (re-login on 401)
      → return the fresh `is_freeleech` boolean from the single-torrent detail payload.
@@ -109,8 +117,9 @@ provider_cfg)`** classmethod — the `TrackerConstructible` capability
      detail endpoint, unlike c411/lacale.
    - `get_details(self, torrent_id) -> TrackerResult` (**TorrentDetailsProvider**
      capability): `GET /torrents/{id}` → `_parse_item` → real seeders/leechers.
-     `search()` calls it on the top-K=10 results (default on; fail-soft per result)
-     to enrich swarm health so the ranking `min_seeders` floor doesn't drop them.
+     `search()` can opt in to re-check the top-K=10 results' swarm health with it
+     (`enrich_seeders`, default OFF; fail-soft per result) — but search already
+     carries seeders, so this is a redundant re-check, not a min_seeders necessity.
    - `provider_name = ProviderName.TORR9.value` (`ProviderName.TORR9 = "torr9"`).
 2. **`personalscraper/api/tracker/_factory.py`** — add
    `"torr9": "personalscraper.api.tracker.torr9:Torr9Client"` to `_TRACKER_CLASSES`.
@@ -163,15 +172,19 @@ required=…, provider_cfg=…)` with no provider-name literal, no `build_from_e
   auth-freshness pattern. A `login()` failure (401 bad creds) must fail loud at
   boot validation, not silently drop torr9. Tests must NOT hit the live login
   (use fixtures + a mocked transport).
-- **No seeders in SEARCH** — `_ranking.py` weights seeders AND `config/ranking.json5`
-  sets `min_seeders: 1`, so every `seeders=0` torr9 search result is DROPPED before
-  scoring → torr9 would win no grab. **Resolved (phase-04, operator decision):** the
-  **detail** endpoint (`GET /torrents/{id}`) exposes real `seeders`/`leechers`, so
-  `search()` enriches the **top-K=10** results' swarm health from it via
-  `TorrentDetailsProvider.get_details` (ON by default; config flags
-  `enrich_seeders` / `enrich_seeders_top_k` on `TrackerProviderConfig`). Enrichment is
-  **fail-soft per result** — a detail error or circuit trip leaves that result at
-  `seeders=0` but never aborts the search. The K bound caps the N+1 cost.
+- **Seeders in SEARCH (was: "No seeders in SEARCH")** — `_ranking.py` weights
+  seeders AND `config/ranking.json5` sets `min_seeders: 1`. **Resolved (phase-05,
+  endpoint fix):** the real `/torrents/search` payload **carries `seeders`/`leechers`
+  directly**, so torr9 results clear the floor on their own — ranking-ready. The
+  earlier "no seeders" finding was an artifact of hitting the wrong endpoint
+  (`/torrents?q=`, the listing feed). The **detail** endpoint (`GET /torrents/{id}`)
+  ALSO exposes swarm health, so `search()` keeps an **optional** top-K=10 re-check
+  via `TorrentDetailsProvider.get_details` (config flags `enrich_seeders` /
+  `enrich_seeders_top_k` on `TrackerProviderConfig`), now defaulting **OFF**
+  (redundant re-check, not a necessity; operator decision 2026-06-20). When opted
+  in, the re-check is **fail-soft per result** — a detail error or circuit trip
+  leaves that result's seeders untouched but never aborts the search. The K bound
+  caps the N+1 cost.
 - **Vacuous parser tests** (project memory: DeepSeek-written parsers/API-wrappers
   pass `make check` while hiding real bugs). Mitigation: golden fixtures from the
   **real captured torr9 payloads** (`../../reference/_samples/torr9/`, passkey-redacted) + adversarial
@@ -251,14 +264,15 @@ python -c "from personalscraper.api.tracker.torr9 import Torr9Client; from perso
 # Expected: True
 ```
 
-ACC-9 — torr9 enriches seeders via the TorrentDetailsProvider capability, default on
-(top-K=10), config flags declared on the model:
+ACC-9 — torr9 exposes the TorrentDetailsProvider capability for an OPTIONAL seeders
+re-check (top-K=10), config flags declared on the model. The `/torrents/search`
+payload already carries real seeders, so the re-check defaults **OFF**:
 
 ```bash
 python -c "from personalscraper.api.tracker.torr9 import Torr9Client; from personalscraper.api.tracker._contracts import TorrentDetailsProvider; print(issubclass(Torr9Client, TorrentDetailsProvider) and hasattr(Torr9Client,'get_details'))"
 # Expected: True
 python -c "from personalscraper.conf.models.api_config import TrackerProviderConfig; c=TrackerProviderConfig(); print(c.enrich_seeders, c.enrich_seeders_top_k)"
-# Expected: True 10
+# Expected: False 10
 ```
 
 ACC-10 — `.torrent` download fallback: when `magnet_link` is absent, `_parse_item`
