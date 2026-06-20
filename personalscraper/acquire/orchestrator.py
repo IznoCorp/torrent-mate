@@ -222,7 +222,7 @@ class GrabOrchestrator:
             return self._terminal(media_ref, "no_candidates")
 
         # --- Hard-filter (BEFORE dedup — DESIGN §15 stage order) ---
-        survivors = apply_hard_filters(outcome.results, profile)
+        survivors = apply_hard_filters(outcome.results, profile, media_ref)
         if not survivors:
             return self._terminal(media_ref, "all_filtered")
 

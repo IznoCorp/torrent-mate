@@ -20,10 +20,14 @@ Never imports sorter, cleaner, or indexer.
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
 from personalscraper.acquire.desired import QualityProfile, Resolution
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.logger import get_logger
+
+if TYPE_CHECKING:
+    from personalscraper.core.identity import MediaRef
 
 log = get_logger("acquire.filters")
 
@@ -130,25 +134,48 @@ def _passes_audio(result: TrackerResult, profile: QualityProfile) -> bool:
 def apply_hard_filters(
     results: list[TrackerResult],
     profile: QualityProfile,
+    media_ref: MediaRef | None = None,
 ) -> list[TrackerResult]:
     """Apply eliminatory hard-filters; return surviving results.
 
     Filters applied in order:
+    0. TMDB identity — drops a result whose ``tmdb_id`` contradicts the
+       wanted item's ``tmdb_id`` (prevents grabbing the wrong version/remake,
+       e.g. a 1984 vs 2021 same-title film). Engages ONLY when both the result
+       and ``media_ref`` carry a ``tmdb_id``; otherwise it is a no-op (can't
+       disambiguate). Cheapest and most decisive, so it runs first.
     1. Resolution floor (fail-open on unrecognised tokens).
     2. Audio language (parsed from title with anchored regex).
 
-    A result must pass **both** filters to survive.  An empty survivor list
+    A result must pass **all** filters to survive.  An empty survivor list
     signals ``all_filtered`` → ``WantedAbandoned`` in the orchestrator.
 
     Args:
         results: Candidate results from the search stage.
         profile: Effective quality profile for this grab attempt.
+        media_ref: The wanted item's provider IDs, used by the TMDB identity
+            filter. Optional: when ``None`` (e.g. the manual CLI grab has no
+            wanted item) or when either ``media_ref.tmdb_id`` or the result's
+            ``tmdb_id`` is ``None``, the identity filter is a no-op.
 
     Returns:
         Filtered list (may be empty).
     """
     survivors = []
     for r in results:
+        if (
+            media_ref is not None
+            and media_ref.tmdb_id is not None
+            and r.tmdb_id is not None
+            and r.tmdb_id != media_ref.tmdb_id
+        ):
+            log.debug(
+                "acquire.filter.tmdb_mismatch",
+                title=r.title,
+                result_tmdb=r.tmdb_id,
+                wanted_tmdb=media_ref.tmdb_id,
+            )
+            continue
         if not _passes_resolution(r, profile):
             log.debug(
                 "acquire.filter.resolution_dropped",
