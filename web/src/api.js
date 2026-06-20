@@ -56,3 +56,16 @@ export const provisionBoard = ({ dryRun, renames, project }) =>
     dry_run: dryRun,
     renames: renames || {},
   });
+
+// --- Monitoring (read-only) ---
+export const monitorBoard = (project) =>
+  call("GET", `/api/monitor/board${q(project)}`);
+export const monitorAgents = (project) =>
+  call("GET", `/api/monitor/agents${q(project)}`);
+export const monitorPane = (issue, project) =>
+  call(
+    "GET",
+    `/api/monitor/agent/${encodeURIComponent(issue)}/pane${q(project)}`,
+  );
+export const monitorTicket = (number, project) =>
+  call("GET", `/api/monitor/ticket/${encodeURIComponent(number)}${q(project)}`);

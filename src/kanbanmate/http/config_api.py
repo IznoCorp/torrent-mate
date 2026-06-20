@@ -549,6 +549,11 @@ def get_files(project: str | None = None, path: str = "") -> JSONResponse:
     return JSONResponse(content={"path": rel_path, "entries": entries})
 
 
+# Monitoring endpoints (helm PR 2-bis) live in a sibling module to keep this file under the
+# size ceiling; importing it registers its routes on this ``app`` (side-effect import).
+from kanbanmate.http import monitor_routes as _monitor_routes  # noqa: E402,F401
+
+
 @app.get("/api/schema")
 def get_schema() -> JSONResponse:
     """Return a JSON Schema for the PipelineDraft model.

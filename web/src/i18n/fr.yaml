@@ -25,6 +25,7 @@ shell:
     defaults: Réglages
     validation: Validation
     yaml: Aperçu YAML
+    monitoring: Monitoring
     projects: Projets
     profiles: Profils
 
@@ -218,3 +219,19 @@ sync:
   tag_add: AJOUT
   tag_rename: RENOMMÉ
   tag_reorder: RÉORDONNÉ
+
+monitor:
+  intro_title: Monitoring
+  intro_body: >-
+    Vue live en lecture seule de ce board — colonnes, tickets et les agents en cours. Rafraîchi
+    automatiquement. Lecture seule : pour interagir avec un agent, fais `tmux attach` sur l'hôte.
+  summary: "{running} en cours · {waiting} en attente · {blocked} bloqués"
+  select_hint: Sélectionne un ticket pour voir son détail.
+  no_agent: Aucun agent en cours sur ce ticket.
+  state: état
+  stage: étape
+  branch: branche
+  terminal: terminal (lecture seule)
+  session_ended: Session terminée.
+  timeline: Historique
+  artifacts: Artefacts

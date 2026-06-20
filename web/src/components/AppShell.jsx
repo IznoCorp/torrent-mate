@@ -50,6 +50,7 @@ const BOARD_NAV = [
   { id: "defaults", tkey: "shell.nav.defaults", key: "defaults" },
   { id: "validation", tkey: "shell.nav.validation", key: "V1–V11" },
   { id: "yaml", tkey: "shell.nav.yaml", key: "read-only" },
+  { id: "monitoring", tkey: "shell.nav.monitoring", key: "live" },
 ];
 const DAEMON_NAV = [
   { id: "daemon", tkey: "shell.nav.projects", key: "projects.json" },
