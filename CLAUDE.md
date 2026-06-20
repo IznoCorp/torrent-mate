@@ -15,6 +15,10 @@ webhook and no n8n**.
 Package name: `kanbanmate`. CLI entry point: `kanban <command>`. Runtime state lives outside the
 repo in `~/.kanban/`.
 
+The web SPA in `web/` (config builder + monitoring tab, served by `kanban config serve`, built into
+`src/kanbanmate/webui/`) is called **KanbanMateUI**. In production it is the PM2 app
+`kanban-km-config` (loopback `127.0.0.1:8796`), fronted by Caddy at `https://km.iznogoudatall.xyz`.
+
 This repo is also its own **Claude plugin marketplace** (`.claude-plugin/marketplace.json`): the
 `/kanban` skill is a thin wrapper that shells out to the `kanban` CLI. All logic lives in the engine.
 

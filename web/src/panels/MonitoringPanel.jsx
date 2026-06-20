@@ -89,7 +89,9 @@ export default function MonitoringPanel({ project }) {
       error: null,
     });
     api
-      .monitorFile(path, project)
+      // Pass the ticket (sel) so the endpoint can fall back to the kanban/ticket-<n> WIP branch
+      // when an in-flight design/plan isn't on the clone's checked-out tree.
+      .monitorFile(path, project, sel)
       .then((r) =>
         setReader({
           title,

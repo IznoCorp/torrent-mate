@@ -219,10 +219,64 @@ def test_monitor_file_reads_sandboxed(tmp_path: Path) -> None:
         missing = client.get("/api/monitor/file", params={"path": "docs/NOPE.md"})
 
     assert ok.status_code == 200
-    assert ok.json() == {"path": "docs/DESIGN.md", "content": "# Design\nhello"}
+    assert ok.json() == {
+        "path": "docs/DESIGN.md",
+        "content": "# Design\nhello",
+        "source": "tree",
+    }
     assert escape.status_code == 400  # path escapes the clone root
     assert "top secret" not in escape.text
-    assert missing.status_code == 404
+    assert missing.status_code == 404  # absent, and no ticket given for a WIP fallback
+
+
+def test_monitor_file_falls_back_to_wip_branch(tmp_path: Path) -> None:
+    """An in-flight artifact absent from the checked-out tree is read from kanban/ticket-<n>."""
+    import subprocess
+
+    import kanbanmate.http.config_api as api_mod
+
+    clone = tmp_path / "clone"
+    clone.mkdir(parents=True)
+
+    def git(*args: str) -> None:
+        subprocess.run(
+            ["git", "-C", str(clone), *args],
+            check=True,
+            capture_output=True,
+            env={
+                "GIT_AUTHOR_NAME": "t",
+                "GIT_AUTHOR_EMAIL": "t@t",
+                "GIT_COMMITTER_NAME": "t",
+                "GIT_COMMITTER_EMAIL": "t@t",
+                "PATH": __import__("os").environ.get("PATH", ""),
+            },
+        )
+
+    # main has no design; the design is committed only on the WIP branch.
+    git("init", "-q", "-b", "main")
+    (clone / "README.md").write_text("root", encoding="utf-8")
+    git("add", "README.md")
+    git("commit", "-qm", "init")
+    git("checkout", "-q", "-b", "kanban/ticket-5")
+    (clone / "docs").mkdir()
+    (clone / "docs" / "DESIGN.md").write_text("# anchor design\nbody", encoding="utf-8")
+    git("add", "docs/DESIGN.md")
+    git("commit", "-qm", "design")
+    git("checkout", "-q", "main")  # back to a tree WITHOUT the design file
+
+    api_mod.app.state.kanban_root = _single_project_root(tmp_path)
+    api_mod.app.state.auth = None
+    with TestClient(api_mod.app) as client:
+        no_ticket = client.get("/api/monitor/file", params={"path": "docs/DESIGN.md"})
+        with_ticket = client.get(
+            "/api/monitor/file", params={"path": "docs/DESIGN.md", "ticket": 5}
+        )
+
+    assert no_ticket.status_code == 404  # not on the tree, no ticket → no fallback
+    assert with_ticket.status_code == 200
+    body = with_ticket.json()
+    assert body["content"] == "# anchor design\nbody"
+    assert body["source"] == "kanban/ticket-5"
 
 
 def test_monitor_file_rejects_oversize(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

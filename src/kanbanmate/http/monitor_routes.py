@@ -199,25 +199,53 @@ def monitor_ticket(number: int, project: str | None = None) -> JSONResponse:
     return JSONResponse(content=detail)
 
 
+def _git_show(repo: Path, ref: str, rel: str) -> str | None:
+    """Return ``<ref>:<rel>`` from ``repo`` via ``git show``, or None if it is absent / git fails.
+
+    The clone shares its ``.git`` with the per-ticket worktrees, so an in-flight artifact committed
+    to the ``kanban/ticket-<n>`` WIP branch is readable even though it is not on the checked-out tree.
+    No shell (arg list); ``ref``/``rel`` are caller-validated (int-derived ref, sandboxed rel path).
+    """
+    import subprocess  # noqa: PLC0415
+
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(repo), "show", f"{ref}:{rel}"],
+            capture_output=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode != 0:
+        return None
+    return out.stdout.decode("utf-8", errors="replace")
+
+
 @app.get("/api/monitor/file")
-def monitor_file(path: str, project: str | None = None) -> JSONResponse:
-    """Read one text file under the board's clone, SANDBOXED to that root. Read-only. DESIGN §5.5.
+def monitor_file(path: str, project: str | None = None, ticket: int | None = None) -> JSONResponse:
+    """Read one text file for the board's clone, SANDBOXED to that root. Read-only. DESIGN §5.5.
 
     Backs the ticket-detail artifact reader: the operator clicks a design/plan marker and the UI
     renders the markdown. The sandbox mirrors ``/api/files`` — ``resolve()`` collapses ``..`` /
     symlinks, then ``is_relative_to(root)`` is the gate, so a path cannot escape the clone.
 
+    Resolution order: (1) the checked-out tree (merged artifacts live on the clone's branch); then
+    (2) if ``ticket`` is given, the per-ticket WIP branch ``kanban/ticket-<ticket>`` via ``git show``
+    — in-flight design/plan files are committed there, not on the clone's branch, so without this an
+    active ticket's artifacts read as "file not found".
+
     Args:
         path: The file path relative to the clone root (a marker value, e.g. ``docs/.../DESIGN.md``).
         project: The Project v2 node id selecting the board.
+        ticket: Issue number, enabling the WIP-branch fallback for in-flight artifacts.
 
     Returns:
-        ``{"path": str, "content": str}`` — ``path`` normalised relative to the clone root.
+        ``{"path": str, "content": str, "source": "tree" | "kanban/ticket-<n>"}``.
 
     Raises:
-        HTTPException: 503/404/400 (project resolution); 400 (path escapes the root); 404 (no such
-        file — e.g. the artifact only exists on a feature branch, not the checked-out tree); 413
-        (file exceeds the size cap).
+        HTTPException: 503/404/400 (project resolution); 400 (path escapes the root); 404 (absent
+        on both the tree and the WIP branch); 413 (file exceeds the size cap).
     """
     entry = _resolve_entry(project)
     root = Path(entry.clone).resolve()
@@ -226,16 +254,33 @@ def monitor_file(path: str, project: str | None = None) -> JSONResponse:
     # symlink escapes — resolve() collapses them, then is_relative_to is the gate).
     if not (target == root or target.is_relative_to(root)):
         raise HTTPException(status_code=400, detail="Path escapes the project root")
-    if not target.is_file():
-        raise HTTPException(status_code=404, detail="File not found in the board clone")
-    size = target.stat().st_size
-    if size > _MAX_FILE_BYTES:
-        raise HTTPException(
-            status_code=413,
-            detail=f"File too large ({size} bytes; cap {_MAX_FILE_BYTES})",
-        )
-    try:
-        content = target.read_text(encoding="utf-8", errors="replace")
-    except OSError as exc:  # noqa: BLE001 — boundary: clean error, never a 500 traceback
-        raise HTTPException(status_code=400, detail=f"Cannot read file: {exc}") from exc
-    return JSONResponse(content={"path": str(target.relative_to(root)), "content": content})
+    rel = str(target.relative_to(root))
+
+    # (1) on-disk: the checked-out tree (merged / current-branch artifacts).
+    if target.is_file():
+        size = target.stat().st_size
+        if size > _MAX_FILE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large ({size} bytes; cap {_MAX_FILE_BYTES})",
+            )
+        try:
+            content = target.read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:  # noqa: BLE001 — boundary: clean error, never a 500 traceback
+            raise HTTPException(status_code=400, detail=f"Cannot read file: {exc}") from exc
+        return JSONResponse(content={"path": rel, "content": content, "source": "tree"})
+
+    # (2) fallback: the per-ticket WIP branch (in-flight artifacts the agent committed there).
+    if ticket is not None:
+        ref = f"kanban/ticket-{ticket}"
+        wip = _git_show(root, ref, rel)
+        if wip is not None:
+            if len(wip.encode("utf-8")) > _MAX_FILE_BYTES:
+                raise HTTPException(
+                    status_code=413, detail=f"File too large (cap {_MAX_FILE_BYTES})"
+                )
+            return JSONResponse(content={"path": rel, "content": wip, "source": ref})
+
+    raise HTTPException(
+        status_code=404, detail="File not found on the board tree or the ticket WIP branch"
+    )
