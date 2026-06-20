@@ -18,6 +18,7 @@
 | 2   | Registry wiring + creds + config overlays + composition-root tests                      | phase-02-registry-wiring-creds-config.md       | [x]    |
 | 3   | FreeleechAware re-check + capabilities + schema-drift + ACC gate                        | phase-03-capabilities-schema-drift-acc-gate.md | [x]    |
 | 4   | Productionize torr9 — enable + seeders enrich + multi-cred protocol + .torrent download | phase-04-productionize.md                      | [x]    |
+| 5   | Fix search endpoint (CRITICAL: was hitting listing endpoint) + real shape + tmdb_id     | phase-05-fix-search-endpoint.md                | [ ]    |
 
 ## Review cycles
 
