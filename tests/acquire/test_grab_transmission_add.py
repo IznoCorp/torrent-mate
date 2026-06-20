@@ -164,6 +164,8 @@ def _make_orchestrator(torrent_client) -> tuple[GrabOrchestrator, _EventSpy]:
     registry.search_candidates.return_value = search_outcome
 
     transports = {TOP_PROVIDER: MagicMock()}
+    # Transports are read FRESH at grab time via the registry, not snapshotted.
+    registry.transports.return_value = transports
 
     bus = EventBus()
     spy = _EventSpy()
@@ -171,7 +173,6 @@ def _make_orchestrator(torrent_client) -> tuple[GrabOrchestrator, _EventSpy]:
 
     orchestrator = GrabOrchestrator(
         tracker_registry=registry,
-        transports=transports,
         torrent_client=torrent_client,
         event_bus=bus,
         ranking=RankingConfig(min_seeders=0),

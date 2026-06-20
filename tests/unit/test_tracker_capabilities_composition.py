@@ -3,7 +3,8 @@
 The historical monolithic ``TrackerClient`` Protocol was retired in
 sub-phase 11.1 ; each concrete client now satisfies only the atomic
 capabilities it actually implements (DESIGN §4). These tests pin the
-``isinstance`` contract for ``LaCaleClient`` and ``C411Client``.
+``isinstance`` contract for ``LaCaleClient``, ``C411Client``, and
+``Torr9Client``.
 """
 
 from __future__ import annotations
@@ -13,10 +14,12 @@ from unittest.mock import MagicMock
 from personalscraper.api.tracker._contracts import (
     CategoryListable,
     FreeleechAware,
+    TorrentDetailsProvider,
     TorrentSearchable,
 )
 from personalscraper.api.tracker.c411 import C411Client
 from personalscraper.api.tracker.lacale import LaCaleClient
+from personalscraper.api.tracker.torr9 import Torr9Client
 
 
 def _lacale() -> LaCaleClient:
@@ -27,6 +30,10 @@ def _lacale() -> LaCaleClient:
 def _c411() -> C411Client:
     transport = MagicMock()
     return C411Client(transport=transport)
+
+
+def _torr9() -> Torr9Client:
+    return Torr9Client(username="u", password="p", event_bus=MagicMock())
 
 
 def test_lacale_client_is_torrent_searchable_isinstance() -> None:
@@ -57,6 +64,39 @@ def test_c411_client_not_freeleech_aware_isinstance() -> None:
     accurate composition rather than a stub returning a constant.
     """
     assert not isinstance(_c411(), FreeleechAware)
+
+
+def test_torr9_client_is_torrent_searchable_isinstance() -> None:
+    """``Torr9Client`` satisfies the ``TorrentSearchable`` capability."""
+    assert isinstance(_torr9(), TorrentSearchable)
+
+
+def test_torr9_client_is_category_listable_isinstance() -> None:
+    """``Torr9Client`` satisfies the ``CategoryListable`` capability."""
+    assert isinstance(_torr9(), CategoryListable)
+
+
+def test_torr9_client_is_freeleech_aware_isinstance() -> None:
+    """``Torr9Client`` satisfies ``FreeleechAware``.
+
+    torr9 exposes a real per-torrent detail endpoint (``GET /torrents/{id}``)
+    so ``is_freeleech`` is a genuine pre-download re-check (DESIGN §Approach §1;
+    user decision 2026-06-19).
+    """
+    assert isinstance(_torr9(), FreeleechAware)
+    assert hasattr(_torr9(), "is_freeleech")
+
+
+def test_torr9_client_is_torrent_details_provider_isinstance() -> None:
+    """``Torr9Client`` satisfies ``TorrentDetailsProvider``.
+
+    torr9 exposes a real per-torrent detail endpoint (``GET /torrents/{id}``)
+    carrying real seeders/leechers, so ``get_details`` is a genuine detail fetch
+    used to enrich search results' swarm health before ranking (user decision
+    2026-06-19).
+    """
+    assert isinstance(_torr9(), TorrentDetailsProvider)
+    assert hasattr(_torr9(), "get_details")
 
 
 def test_monolithic_tracker_client_protocol_dropped() -> None:

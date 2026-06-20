@@ -1,6 +1,8 @@
 {
   // PROVIDER_CREDS (activation-gating): lacale → LACALE_API_KEY, c411 → C411_API_KEY
+  // PROVIDER_CREDS (activation-gating): torr9 → TORR9_USERNAME + TORR9_PASSWORD (JWT login)
   // PROVIDER_OPTIONAL_SECRETS (non-gating, RP2): lacale → LACALE_PASSKEY, c411 → C411_PASSKEY
+  //   torr9 → TORR9_PASSKEY (RSS freeleech radar R1 follow-on; does not gate activation)
   // A missing passkey never deactivates a tracker (DESIGN §Non-Goals, D3).
   tracker: {
     providers: {
@@ -22,11 +24,20 @@
         //   hit_and_run_grace: "48h",
         // },
       },
+      torr9: {
+        enabled: false,
+        // economy: {
+        //   target_ratio: 2.0,
+        //   min_ratio: 1.0,
+        //   min_seed_time: "72h",
+        //   hit_and_run_grace: "48h",
+        // },
+      },
     },
-    priority: ["lacale", "c411"],
+    priority: ["lacale", "c411", "torr9"],
     priority_by_media_type: {
-      // movie: ["c411", "lacale"],
-      // tv:    ["lacale", "c411"],
+      // movie: ["c411", "lacale", "torr9"],
+      // tv:    ["lacale", "c411", "torr9"],
     },
     max_total_results: 50,
     max_per_tracker: 30,

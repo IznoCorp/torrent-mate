@@ -33,6 +33,7 @@ from personalscraper.api.tracker._contracts import (
     TorrentSearchable,
 )
 from personalscraper.api.transport._auth import ApiKeyAuth
+from personalscraper.api.transport._http import HttpTransport
 from personalscraper.api.transport._policy import (
     CircuitPolicy,
     RateLimitPolicy,
@@ -42,7 +43,10 @@ from personalscraper.api.transport._policy import (
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
-    from personalscraper.api.transport._http import HttpTransport
+    from collections.abc import Mapping
+
+    from personalscraper.conf.models.api_config import TrackerProviderConfig
+    from personalscraper.core.event_bus import EventBus
 
 log = get_logger("api.tracker.lacale")
 
@@ -101,6 +105,37 @@ class LaCaleClient(TorrentSearchable, CategoryListable):
             rate_limit=RateLimitPolicy(requests_per_second=0.5),
         )
 
+    @classmethod
+    def from_env(
+        cls,
+        *,
+        env: Mapping[str, str],
+        event_bus: EventBus,
+        required: list[str],
+        provider_cfg: TrackerProviderConfig,
+    ) -> LaCaleClient:
+        """Build LaCaleClient from its single API key (the uniform factory contract).
+
+        Implements the :class:`~personalscraper.api.tracker._contracts.TrackerConstructible`
+        contract: the factory dispatches construction uniformly through
+        ``from_env`` for every tracker. LaCale is an api-key tracker, so it
+        builds an HttpTransport from ``policy(env[required[0]])`` and ignores
+        ``provider_cfg`` (no extra construction options).
+
+        Args:
+            env: Resolved credential source (registry passes the env mapping).
+            event_bus: Event bus propagated to the HTTP transport.
+            required: Ordered credential env-var names (``[LACALE_API_KEY]``).
+            provider_cfg: Per-tracker config — unused for api-key trackers.
+
+        Returns:
+            A network-ready LaCaleClient wrapping the authed transport.
+        """
+        del provider_cfg  # api-key tracker: no extra construction options
+        api_key = env.get(required[0], "") if required else ""
+        transport = HttpTransport(cls.policy(api_key), event_bus=event_bus)
+        return cls(transport)
+
     def __init__(self, transport: HttpTransport) -> None:
         """Initialize the client.
 
@@ -108,6 +143,16 @@ class LaCaleClient(TorrentSearchable, CategoryListable):
             transport: HttpTransport pre-configured with the LaCale policy.
         """
         self._transport = transport
+
+    @property
+    def _open_transport(self) -> HttpTransport:
+        """The HTTP transport (always materialized for an api-key client).
+
+        Uniform peek for the registry seams (see Torr9Client._open_transport):
+        api-key trackers build their transport at construction, so this simply
+        returns ``self._transport`` with no laziness.
+        """
+        return self._transport
 
     # -- TrackerClient Protocol ---------------------------------------------
 

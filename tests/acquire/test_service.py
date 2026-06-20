@@ -640,8 +640,16 @@ def test_build_acquire_context_grab_is_grabcore_with_torrent_client(tmp_path: Pa
     assert ctx.grab.orchestrator is not None
 
 
-def test_grabcore_built_via_registry_transports(tmp_path: Path) -> None:
-    """GrabCore construction sources transports from registry.transports() (phase 2 accessor)."""
+def test_factory_does_not_snapshot_transports_at_boot(tmp_path: Path) -> None:
+    """The factory must NOT call registry.transports() at construction (no boot login).
+
+    torr9's ``_transport`` is a lazy property that logs in on first access. An
+    eager ``transports()`` snapshot at boot would force that login (defeating the
+    network-free build guarantee) AND freeze a one-shot map a transient blip
+    could leave stale. The orchestrator now reads ``transports()`` FRESH at grab
+    time, so the factory takes NO snapshot — assert ``transports()`` is never
+    called while building the context.
+    """
     from personalscraper.acquire._factory import build_acquire_context
 
     config = _wiring_config(tmp_path)
@@ -656,7 +664,7 @@ def test_grabcore_built_via_registry_transports(tmp_path: Path) -> None:
             cb_policy=MagicMock(),
             torrent_client=MagicMock(),
         )
-    fake_registry.transports.assert_called_once_with()
+    fake_registry.transports.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

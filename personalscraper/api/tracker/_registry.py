@@ -187,15 +187,22 @@ class TrackerRegistry:
 
         The grab orchestrator passes these transports to ``resolve_source`` /
         ``fetch_torrent_source`` (DESIGN §6.1). Only clients exposing a non-None
-        private ``_transport`` are included — the same attribute :meth:`close`
-        already relies on. No new public surface is added to the clients.
+        ``_open_transport`` are included — a non-triggering PEEK at the
+        already-materialized transport. No new public surface is added.
+
+        Crucially, this peeks ``_open_transport`` (NOT the login-triggering lazy
+        ``_transport`` property): a lazy tracker (torr9's TVDB pattern) therefore
+        appears here ONLY when it logged in during a prior search — exactly when
+        ``resolve_source`` needs its transport. No spurious bootstrap login is
+        ever fired by building this map.
 
         Returns:
-            Dict mapping each tracker's lowercase wire name to its transport.
+            Dict mapping each tracker's lowercase wire name to its (materialized)
+            transport.
         """
         result: dict[str, HttpTransport] = {}
         for name, client in self._trackers.items():
-            transport = getattr(client, "_transport", None)
+            transport = getattr(client, "_open_transport", None)
             if transport is not None:
                 result[name] = transport
         return result
@@ -204,10 +211,10 @@ class TrackerRegistry:
         """Release the HttpTransport owned by each tracker client.
 
         Iterates ``self._trackers`` and calls ``close()`` on each client's
-        ``_transport`` attribute when present. Unlike
-        ``ProviderRegistry.close()`` — which delegates to each provider's own
-        ``close()`` — tracker clients expose no ``close()`` of their own, so
-        the transport is closed directly. The parity with
+        already-materialized transport (peeked via ``_open_transport``) when
+        present. Unlike ``ProviderRegistry.close()`` — which delegates to each
+        provider's own ``close()`` — tracker clients expose no ``close()`` of
+        their own, so the transport is closed directly. The parity with
         ``ProviderRegistry.close()`` is the fail-soft *shape*: iterate a
         copied list, swallow per-client exceptions at DEBUG level, and close
         as a no-op when the registry is empty — not the close target.
@@ -215,9 +222,17 @@ class TrackerRegistry:
         Per-client exceptions are caught, logged at DEBUG level, and do not
         propagate — a failing close on one tracker must not prevent the others
         from releasing their sessions.
+
+        Peeks ``_open_transport`` (NOT the login-triggering lazy ``_transport``
+        property): a read-only command may tear the registry down without ever
+        materializing a lazy tracker's transport (torr9's TVDB pattern). The peek
+        returns None in that case, so close() closes ONLY materialized transports
+        and never fires a spurious bootstrap login at teardown — which would
+        otherwise hit the network and break the network-free-until-first-use
+        guarantee.
         """
         for name, client in list(self._trackers.items()):
-            transport = getattr(client, "_transport", None)
+            transport = getattr(client, "_open_transport", None)
             if transport is None:
                 continue
             close_fn = getattr(transport, "close", None)

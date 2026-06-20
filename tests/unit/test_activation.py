@@ -84,14 +84,14 @@ class TestResolveActive:
 class TestProviderCreds:
     """PROVIDER_CREDS structure tests."""
 
-    def test_has_12_entries(self) -> None:
-        """PROVIDER_CREDS has exactly 12 entries.
+    def test_has_13_entries(self) -> None:
+        """PROVIDER_CREDS has exactly 13 entries (torr9 added RP5b).
 
         The two extra entries (``imdb`` and ``rotten_tomatoes``) are
         façades over the OMDb HTTP backend introduced by the
         ``provider-ids`` feature ; they share OMDb's credential.
         """
-        assert len(PROVIDER_CREDS) == 12
+        assert len(PROVIDER_CREDS) == 13
 
     def test_known_providers(self) -> None:
         """Expected provider keys are present."""
@@ -106,6 +106,7 @@ class TestProviderCreds:
             "transmission",
             "lacale",
             "c411",
+            "torr9",
             "telegram",
             "healthchecks",
         }

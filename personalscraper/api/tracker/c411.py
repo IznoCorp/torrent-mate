@@ -41,6 +41,7 @@ from personalscraper.api.tracker._contracts import (
 )
 from personalscraper.api.tracker.lacale import LaCaleClient
 from personalscraper.api.transport._auth import ApiKeyAuth
+from personalscraper.api.transport._http import HttpTransport
 from personalscraper.api.transport._policy import (
     CircuitPolicy,
     RateLimitPolicy,
@@ -50,9 +51,12 @@ from personalscraper.api.transport._policy import (
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from datetime import datetime
 
-    from personalscraper.api.transport._http import HttpTransport
+    from personalscraper.conf.models.api_config import TrackerProviderConfig
+    from personalscraper.core.event_bus import EventBus
+
 
 log = get_logger("api.tracker.c411")
 
@@ -128,6 +132,37 @@ class C411Client(TorrentSearchable, CategoryListable):
             response_format="xml",
         )
 
+    @classmethod
+    def from_env(
+        cls,
+        *,
+        env: Mapping[str, str],
+        event_bus: EventBus,
+        required: list[str],
+        provider_cfg: TrackerProviderConfig,
+    ) -> C411Client:
+        """Build C411Client from its single API key (the uniform factory contract).
+
+        Implements the :class:`~personalscraper.api.tracker._contracts.TrackerConstructible`
+        contract: the factory dispatches construction uniformly through
+        ``from_env`` for every tracker. C411 is an api-key tracker, so it builds
+        an HttpTransport from ``policy(env[required[0]])`` and ignores
+        ``provider_cfg`` (no extra construction options).
+
+        Args:
+            env: Resolved credential source (registry passes the env mapping).
+            event_bus: Event bus propagated to the HTTP transport.
+            required: Ordered credential env-var names (``[C411_API_KEY]``).
+            provider_cfg: Per-tracker config — unused for api-key trackers.
+
+        Returns:
+            A network-ready C411Client wrapping the authed transport.
+        """
+        del provider_cfg  # api-key tracker: no extra construction options
+        api_key = env.get(required[0], "") if required else ""
+        transport = HttpTransport(cls.policy(api_key), event_bus=event_bus)
+        return cls(transport)
+
     def __init__(self, transport: HttpTransport) -> None:
         """Initialize the client.
 
@@ -135,6 +170,16 @@ class C411Client(TorrentSearchable, CategoryListable):
             transport: HttpTransport pre-configured with the C411 policy.
         """
         self._transport = transport
+
+    @property
+    def _open_transport(self) -> HttpTransport:
+        """The HTTP transport (always materialized for an api-key client).
+
+        Uniform peek for the registry seams (see Torr9Client._open_transport):
+        api-key trackers build their transport at construction, so this simply
+        returns ``self._transport`` with no laziness.
+        """
+        return self._transport
 
     # -- TrackerClient Protocol ---------------------------------------------
 

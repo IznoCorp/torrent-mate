@@ -40,9 +40,13 @@ seed obligation (``record_dispatch`` / ``seed.add``) at grab time — it has no
 store/seed dependency at all. Seed obligations are a dispatch-time concern.
 
 Dep injection: narrow constructor (NOT ``AppContext`` — boundary rule). The
-``transports`` map is injected directly (the ``_factory`` builds it via
-``TrackerRegistry.transports()``) so ``resolve_source`` never reaches back into
-the registry.
+orchestrator holds the ``TrackerRegistry`` and resolves transports FRESH at
+grab time (``tracker_registry.transports()``), NOT from a boot snapshot. This
+matters for a lazy tracker (torr9's TVDB-lazy ``_transport`` property logs in on
+first access): by grab time it has already logged in during that same grab's
+``search()`` (search precedes resolve in the chain), so its authed transport is
+present — and a transient boot-time login blip can no longer strand it in a
+stale snapshot for the process lifetime.
 
 Import direction: ``acquire/`` imports ``api/`` / ``core/`` / ``conf/`` /
 ``events/`` downward only — never the triage packages (layering guard).
@@ -65,15 +69,12 @@ from personalscraper.core._contracts import CircuitOpenError
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
-
     from personalscraper.acquire.desired import QualityProfile
     from personalscraper.acquire.domain import WantedItem
     from personalscraper.api.torrent._contracts import TorrentAdder
     from personalscraper.api.tracker._base import TrackerResult
     from personalscraper.api.tracker._ranking import RankingConfig
     from personalscraper.api.tracker._registry import TrackerRegistry
-    from personalscraper.api.transport._http import HttpTransport
     from personalscraper.core.event_bus import EventBus
     from personalscraper.core.identity import MediaRef
 
@@ -134,10 +135,10 @@ class GrabOrchestrator:
 
     Attributes:
         _tracker_registry: Multi-tracker search coordinator
-            (``search_candidates``).
-        _transports: ``{provider → HttpTransport}`` map injected at
-            construction (built by ``_factory`` via
-            ``TrackerRegistry.transports()``) and passed to ``resolve_source``.
+            (``search_candidates``). Also the source of the per-grab transport
+            map: ``resolve_source`` reads ``tracker_registry.transports()``
+            FRESH at grab time rather than a boot snapshot, so a lazy tracker
+            that logs in during the same grab's search is present.
         _torrent_client: Active :class:`TorrentAdder`, or ``None`` when no
             torrent client is configured (search-only / dry-run) — a ``None``
             client routes to a RETRYABLE ``no_torrent_client`` rather than a
@@ -150,22 +151,26 @@ class GrabOrchestrator:
         self,
         *,
         tracker_registry: TrackerRegistry,
-        transports: Mapping[str, HttpTransport],
         torrent_client: TorrentAdder | None,
         event_bus: EventBus,
         ranking: RankingConfig,
     ) -> None:
         """Initialise the orchestrator with injected narrow deps.
 
+        No transport snapshot is taken at construction: ``resolve_source`` reads
+        ``tracker_registry.transports()`` FRESH at grab time (see
+        :meth:`grab`), so a lazy tracker that materializes its authed transport
+        during the grab's own ``search()`` is present, and a transient boot
+        login blip can't leave a stale snapshot for the process lifetime.
+
         Args:
-            tracker_registry: Multi-tracker search coordinator.
-            transports: ``{provider → HttpTransport}`` map for ``resolve_source``.
+            tracker_registry: Multi-tracker search coordinator; also the source
+                of the per-grab transport map (read fresh in :meth:`grab`).
             torrent_client: Torrent add capability, or ``None`` (search-only).
             event_bus: In-process event bus.
             ranking: Ranking configuration applied after dedup.
         """
         self._tracker_registry = tracker_registry
-        self._transports = transports
         self._torrent_client = torrent_client
         self._event_bus = event_bus
         self._ranking = ranking
@@ -222,7 +227,7 @@ class GrabOrchestrator:
             return self._terminal(media_ref, "no_candidates")
 
         # --- Hard-filter (BEFORE dedup — DESIGN §15 stage order) ---
-        survivors = apply_hard_filters(outcome.results, profile)
+        survivors = apply_hard_filters(outcome.results, profile, media_ref)
         if not survivors:
             return self._terminal(media_ref, "all_filtered")
 
@@ -245,7 +250,13 @@ class GrabOrchestrator:
         # a separate add_tags() call on clients that implement TorrentTagger.
         category: str | None = None
         try:
-            source = resolve_source(top, self._transports)
+            # Read transports FRESH (not a boot snapshot): by here the top
+            # result's tracker has already run its search() in THIS grab, so a
+            # lazy tracker (torr9) has materialized + cached its authed
+            # transport. transports() is cheap (cached transports;
+            # plain-attribute for lacale/c411). A transient boot login blip can
+            # no longer strand a recovered tracker behind a stale snapshot.
+            source = resolve_source(top, self._tracker_registry.transports())
             info_hash = self._torrent_client.add(source, category=category)
             if isinstance(self._torrent_client, TorrentTagger):
                 try:

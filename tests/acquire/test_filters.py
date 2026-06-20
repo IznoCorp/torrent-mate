@@ -10,6 +10,7 @@ from personalscraper.acquire._filters import apply_hard_filters
 from personalscraper.acquire.desired import QualityProfile, Resolution
 from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
+from personalscraper.core.identity import MediaRef
 
 
 def _result(
@@ -17,6 +18,7 @@ def _result(
     resolution: str | None = None,
     audio: str | None = None,
     seeders: int = 10,
+    tmdb_id: int | None = None,
 ) -> TrackerResult:
     return TrackerResult(
         provider="lacale",
@@ -27,6 +29,7 @@ def _result(
         leechers=0,
         resolution=resolution,
         audio=audio,
+        tmdb_id=tmdb_id,
     )
 
 
@@ -250,3 +253,73 @@ def test_audio_regex_multi_exact_match_works() -> None:
 
     langs = _parse_audio_languages("Inception.2010.MULTi.1080p.BluRay.x265")
     assert "VF" in langs
+
+
+# ---------------------------------------------------------------------------
+# TMDB identity filter (wires torr9's tmdb_id into matching)
+# ---------------------------------------------------------------------------
+
+
+class TestTmdbIdentityFilter:
+    """The identity filter drops a result whose tmdb_id contradicts the wanted item.
+
+    Engages ONLY when BOTH the result and the wanted media_ref carry a tmdb_id;
+    otherwise the result passes (can't disambiguate). The permissive default
+    QualityProfile means resolution/audio are no-ops here, isolating the
+    identity behaviour.
+    """
+
+    def test_mismatched_tmdb_is_dropped(self) -> None:
+        """Result tmdb_id != wanted tmdb_id (both set) → DROPPED (wrong remake)."""
+        profile = QualityProfile()  # permissive: isolates the identity filter
+        wanted = MediaRef(tmdb_id=2021)
+        results = [_result("Dune 1984", tmdb_id=1984)]
+        survivors = apply_hard_filters(results, profile, wanted)
+        assert survivors == []
+
+    def test_matching_tmdb_is_kept(self) -> None:
+        """Result tmdb_id == wanted tmdb_id → KEPT (passes resolution/audio)."""
+        profile = QualityProfile()
+        wanted = MediaRef(tmdb_id=2021)
+        results = [_result("Dune 2021", tmdb_id=2021)]
+        survivors = apply_hard_filters(results, profile, wanted)
+        assert len(survivors) == 1
+        assert survivors[0].tmdb_id == 2021
+
+    def test_result_tmdb_none_is_kept(self) -> None:
+        """Result tmdb_id None (lacale/c411) + wanted tmdb set → KEPT (no disambiguation)."""
+        profile = QualityProfile()
+        wanted = MediaRef(tmdb_id=2021)
+        results = [_result("Dune 2021", tmdb_id=None)]
+        survivors = apply_hard_filters(results, profile, wanted)
+        assert len(survivors) == 1
+
+    def test_wanted_tmdb_none_is_kept(self) -> None:
+        """Wanted tmdb_id None (tvdb-only item) + result tmdb set → KEPT (no disambiguation)."""
+        profile = QualityProfile()
+        wanted = MediaRef(tvdb_id=12345)  # tmdb_id defaults to None
+        results = [_result("Dune 2021", tmdb_id=2021)]
+        survivors = apply_hard_filters(results, profile, wanted)
+        assert len(survivors) == 1
+
+    def test_media_ref_none_is_kept(self) -> None:
+        """media_ref None (default, e.g. manual grab) → KEPT (existing behaviour unchanged)."""
+        profile = QualityProfile()
+        results = [_result("Dune 2021", tmdb_id=2021)]
+        survivors = apply_hard_filters(results, profile)
+        assert len(survivors) == 1
+
+    def test_mismatch_drops_only_the_wrong_version(self) -> None:
+        """Mixed batch: the contradicting tmdb_id is dropped, the matching one survives."""
+        profile = QualityProfile()
+        wanted = MediaRef(tmdb_id=2021)
+        results = [
+            _result("Dune 1984", tmdb_id=1984),
+            _result("Dune 2021", tmdb_id=2021),
+            _result("Dune (no tmdb)", tmdb_id=None),
+        ]
+        survivors = apply_hard_filters(results, profile, wanted)
+        survivor_titles = [r.title for r in survivors]
+        assert "Dune 1984" not in survivor_titles
+        assert "Dune 2021" in survivor_titles
+        assert "Dune (no tmdb)" in survivor_titles

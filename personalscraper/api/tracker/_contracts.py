@@ -35,10 +35,16 @@ declared here.
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from personalscraper.api._contracts import MediaType
 from personalscraper.api.tracker._base import TrackerResult
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from personalscraper.conf.models.api_config import TrackerProviderConfig
+    from personalscraper.core.event_bus import EventBus
 
 
 @runtime_checkable
@@ -95,9 +101,32 @@ class TorrentDetailsProvider(Protocol):
     def get_details(self, torrent_id: str) -> TrackerResult: ...
 
 
+@runtime_checkable
+class TrackerConstructible(Protocol):
+    """Capability — construct a tracker client from resolved env credentials.
+
+    The factory dispatches construction UNIFORMLY through ``from_env`` (no
+    provider-name literal, no cred-style branch). api-key trackers build an
+    HttpTransport from ``policy(env[required[0]])``; login-style trackers
+    (torr9) self-build their authed transport lazily and read extra options
+    off ``provider_cfg``.
+    """
+
+    @classmethod
+    def from_env(
+        cls,
+        *,
+        env: "Mapping[str, str]",
+        event_bus: "EventBus",
+        required: list[str],
+        provider_cfg: "TrackerProviderConfig",
+    ) -> "TorrentSearchable": ...
+
+
 __all__ = [
     "TorrentSearchable",
     "CategoryListable",
     "FreeleechAware",
     "TorrentDetailsProvider",
+    "TrackerConstructible",
 ]

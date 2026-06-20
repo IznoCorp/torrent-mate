@@ -33,6 +33,7 @@ PROVIDER_CREDS: dict[str, list[str]] = {
     "transmission": ["TRANSMISSION_USERNAME", "TRANSMISSION_PASSWORD"],
     "lacale": ["LACALE_API_KEY"],
     "c411": ["C411_API_KEY"],
+    "torr9": ["TORR9_USERNAME", "TORR9_PASSWORD"],
     "telegram": ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"],
     "healthchecks": ["HEALTHCHECK_URL"],
 }
@@ -89,6 +90,7 @@ PROVIDER_OPTIONAL_SECRETS: dict[str, list[str]] = {
     # Seed-Safety O2) decide what to do with a missing value.
     "lacale": ["LACALE_PASSKEY"],
     "c411": ["C411_PASSKEY"],
+    "torr9": ["TORR9_PASSKEY"],
 }
 
 

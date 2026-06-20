@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Torr9 - Torrents Freeleech</title>
+    <link>https://torr9.net</link>
+    <description>Flux RSS des torrents en freeleech sur Torr9</description>
+    <language>fr-FR</language>
+    <item>
+      <title>Detrompez.Vous.2007.VFF.1080p.NTFLX.WEB.x264.AAC.2.0-STORiES</title>
+      <link>https://torr9.net/torrents/297817</link>
+      <description>Uploaded by Fabien3124 | Size: 2.6 GB | Category: Films | FREELEECH</description>
+      <pubDate>Wed, 10 Jun 2026 11:23:14 +0000</pubDate>
+      <category>Films</category>
+      <guid>https://torr9.net/torrents/297817</guid>
+      <enclosure url="https://api.torr9.net/api/v1/rss/torrents/297817/download?passkey=<TORR9_PASSKEY>" length="2841773611" type="application/x-bittorrent"></enclosure>
+    </item>
+    <item>
+      <title>Gourou.2026.VOF.2160p.10bit.BluRay.4KLight.DV.HDR10Plus.x265.TrueHD.Atmos.7.1-T4KT</title>
+      <link>https://torr9.net/torrents/297675</link>
+      <description>Uploaded by T4KT | Size: 7.2 GB | Category: Films | FREELEECH</description>
+      <pubDate>Wed, 10 Jun 2026 09:13:26 +0000</pubDate>
+      <category>Films</category>
+      <guid>https://torr9.net/torrents/297675</guid>
+      <enclosure url="https://api.torr9.net/api/v1/rss/torrents/297675/download?passkey=<TORR9_PASSKEY>" length="7694641628" type="application/x-bittorrent"></enclosure>
+    </item>
+    <item>
+      <title>The.Legend.of.Vox.Machina.S04E05.MULTi.VF2.1080p.WEB.H264-FW</title>
+      <link>https://torr9.net/torrents/297615</link>
+      <description>Uploaded by [Anonyme] | Size: 2.0 GB | Category: Séries Animées | FREELEECH</description>
+      <pubDate>Wed, 10 Jun 2026 08:30:09 +0000</pubDate>
+      <category>Séries Animées</category>
+      <guid>https://torr9.net/torrents/297615</guid>
+      <enclosure url="https://api.torr9.net/api/v1/rss/torrents/297615/download?passkey=<TORR9_PASSKEY>" length="2119021879" type="application/x-bittorrent"></enclosure>
+    </item>
+  </channel>
+</rss>

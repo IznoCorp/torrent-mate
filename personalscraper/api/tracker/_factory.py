@@ -10,10 +10,10 @@ from __future__ import annotations
 import importlib
 import os
 from collections.abc import Mapping
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from personalscraper.api._activation import PROVIDER_CREDS
-from personalscraper.api.tracker._contracts import TorrentSearchable
+from personalscraper.api.tracker._contracts import TorrentSearchable, TrackerConstructible
 from personalscraper.api.tracker._errors import TrackerConfigError, TrackerConfigIssue
 from personalscraper.api.tracker._registry import TrackerRegistry
 from personalscraper.logger import get_logger
@@ -29,6 +29,7 @@ log = get_logger("api.tracker.factory")
 _TRACKER_CLASSES: dict[str, str] = {
     "lacale": "personalscraper.api.tracker.lacale:LaCaleClient",
     "c411": "personalscraper.api.tracker.c411:C411Client",
+    "torr9": "personalscraper.api.tracker.torr9:Torr9Client",
 }
 
 
@@ -76,8 +77,6 @@ def build_tracker_registry(
     Raises:
         TrackerConfigError: Any error-severity issue found during validation.
     """
-    from personalscraper.api.transport._http import HttpTransport  # noqa: PLC0415
-
     if env is None:
         env = os.environ
 
@@ -114,11 +113,18 @@ def build_tracker_registry(
             continue
 
         client_cls = _resolve_tracker_class(name)
-        # Single-key assumption: all current trackers (lacale/c411) have exactly
-        # one credential; revisit if a multi-key tracker is added.
-        api_key = env[required[0]] if required else ""
-        transport = HttpTransport(client_cls.policy(api_key), event_bus=event_bus)  # type: ignore[attr-defined]
-        client = client_cls(transport)
+        # Uniform construction contract (TrackerConstructible.from_env): every
+        # tracker builds itself from resolved env creds + its provider config.
+        # No provider-name literal, no cred-style branch — api-key trackers
+        # (lacale/c411) build a single-key transport; login-style trackers
+        # (torr9) self-build their authed transport lazily and read extra
+        # options off provider_cfg.
+        client = cast("type[TrackerConstructible]", client_cls).from_env(
+            env=env,
+            event_bus=event_bus,
+            required=required,
+            provider_cfg=provider_cfg,
+        )
 
         if not isinstance(client, TorrentSearchable):
             issues.append(

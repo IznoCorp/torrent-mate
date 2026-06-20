@@ -82,6 +82,7 @@ class TrackerResult:
             NOTE: this field is codec-only — it never contains language
             markers (VF/VOSTFR/VO). Language detection for the audio
             hard-filter must parse ``result.title`` instead.
+        tmdb_id: TMDB id when the tracker exposes it (torr9 search), else None.
     """
 
     provider: str
@@ -102,6 +103,7 @@ class TrackerResult:
     source: str | None = None
     resolution: str | None = None
     audio: str | None = None
+    tmdb_id: int | None = None
 
 
 # NOTE — provider-ids feature, sub-phase 11.1 :
