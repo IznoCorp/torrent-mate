@@ -57,17 +57,27 @@ if TYPE_CHECKING:
 
 log = get_logger("api.tracker.torr9")
 
-# Numeric category_id → human label (partial; full map from GET /categories).
-# Populated from the golden fixture (ids 5, 51) and RSS category labels.
-# Confirm and extend by running: GET /api/v1/categories with a fresh Bearer token.
+# torr9 numeric category_id -> human label. torr9 exposes NO /categories endpoint
+# (404) and ignores the ?category_id= search filter, so this map is built EMPIRICALLY
+# by correlating the search payload's ``category_id`` with the detail payload's
+# ``category_name`` (live 2026-06-20). Coverage is bounded by which categories appear
+# in search results; an unmapped id yields ``category=None`` (informational only).
 _CATEGORY_MAP: dict[int, str] = {
-    2: "Films",  # confirmed via RSS label cross-ref
-    5: "Séries TV",  # confirmed — golden fixture id 5
-    9: "Films",  # from Hangman search sample
-    46: "Séries Animées",  # from Hangman search sample
-    51: "Films",  # confirmed — golden fixture id 51
-    53: "Anime",  # from Hangman search sample
-    54: "TV Programs",  # from Hangman search sample
+    # Live-verified 2026-06-20 (search category_id <-> detail category_name):
+    5: "Séries TV",  # parent: Séries
+    6: "Emission TV",  # parent: Séries
+    16: "BD",  # parent: Livres
+    23: "Microsoft",  # parent: Jeux-vidéos
+    51: "Films",  # parent: Films
+    65: "Livres Audios",  # parent: Livres
+    # Seen in the 2026-06-19 prep capture (Hangman search) but NOT re-confirmable on
+    # 2026-06-20 (search `q` was degraded, returning recent-only); labels inferred from
+    # RSS cross-reference — best-effort:
+    2: "Films",  # inferred (unverified)
+    9: "Films",  # inferred (unverified)
+    46: "Séries Animées",  # inferred (unverified)
+    53: "Anime",  # inferred (unverified)
+    54: "TV Programs",  # inferred (unverified)
 }
 
 
@@ -410,10 +420,11 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
     def get_categories(self) -> dict[str, str]:
         """Return the static torr9 category map as ``{str(id): label}``.
 
-        The full map requires a live ``GET /api/v1/categories`` call with a
-        fresh Bearer token (rate-limited during prep — confirm and extend at
-        implementation). The static ``_CATEGORY_MAP`` is pre-seeded from the
-        golden fixture and RSS cross-reference.
+        torr9 exposes NO ``/categories`` endpoint (404 live-confirmed on
+        ``/categories``, ``/category``, ``/torrents/categories``), and the
+        ``?category_id=`` search filter is ignored. The ``_CATEGORY_MAP`` is
+        built empirically by correlating the search payload's ``category_id``
+        with the detail payload's ``category_name`` (live 2026-06-20).
 
         Returns:
             Mapping of numeric category id string → display label.

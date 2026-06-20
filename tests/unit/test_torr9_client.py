@@ -558,11 +558,15 @@ class TestTorr9Categories:
         assert all(isinstance(k, str) for k in cats)
 
     def test_get_categories_includes_known_ids(self) -> None:
-        """Known category ids from golden fixture are present."""
+        """Known category ids from golden fixture + live-verified correlation are present."""
         client = _make_client()
         cats = client.get_categories()
         assert cats["5"] == "Séries TV"
+        assert cats["6"] == "Emission TV"
+        assert cats["16"] == "BD"
+        assert cats["23"] == "Microsoft"
         assert cats["51"] == "Films"
+        assert cats["65"] == "Livres Audios"
 
     def test_get_categories_no_live_call(self) -> None:
         """get_categories() never calls the transport (static map)."""

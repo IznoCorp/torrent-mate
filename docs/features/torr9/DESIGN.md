@@ -49,8 +49,11 @@ results' seeders/leechers from the detail endpoint** (`TorrentDetailsProvider.ge
 ON by default, fail-soft per result; phase-04 operator decision 2026-06-19). The detail
 endpoint also backs the `FreeleechAware.is_freeleech` pre-download re-check.
 
-**Minor unknowns** (confirm at impl with a fresh token, low-rate): `category_id`→label
-map (`GET /categories`), JWT lifetime/refresh, pagination bound, 429/403 budget.
+**Minor unknowns** (confirm at impl with a fresh token, low-rate):
+**`category_id`→label map** — **RESOLVED (2026-06-20):** NO `/categories` endpoint
+exists (404 on `/categories`, `/category`, `/torrents/categories`); the map is
+built by correlating search `category_id` ↔ detail `category_name`, live-verified
+for the active categories. JWT lifetime/refresh, pagination bound, 429/403 budget.
 
 ### Reference pattern
 

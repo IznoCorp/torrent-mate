@@ -140,11 +140,31 @@ for search + the structured fields** like `is_freeleech`.)
 
 ## Categories
 
-`category_id` is **numeric** (e.g. a "Hangman" search returned ids
-{5, 51, 46, 53, 2, 9, 54}). Full map: `GET /api/v1/categories` with the Bearer
-token (not captured — was rate-limited 403 during prep; **fetch at impl with a
-fresh token**). Cross-reference with the RSS category labels (Films / Séries /
-Séries Animées / …) to map → pipeline `media_type` + `category_id`.
+`category_id` is **numeric**. torr9 exposes **NO `/categories` endpoint**
+(404 confirmed on `/categories`, `/category`, `/torrents/categories` on
+2026-06-20). The `?category_id=` search filter is **ignored** (returns the
+same default set regardless). The id→label map is built empirically by
+correlating the search payload's `category_id` with the detail payload's
+`category_name` (`GET /torrents/{id}`):
+
+| `category_id` | Label          | Parent      | Source                          |
+| ------------: | -------------- | ----------- | ------------------------------- |
+|             5 | Séries TV      | Séries      | Live-verified 2026-06-20        |
+|             6 | Emission TV    | Séries      | Live-verified 2026-06-20        |
+|            16 | BD             | Livres      | Live-verified 2026-06-20        |
+|            23 | Microsoft      | Jeux-vidéos | Live-verified 2026-06-20        |
+|            51 | Films          | Films       | Live-verified 2026-06-20        |
+|            65 | Livres Audios  | Livres      | Live-verified 2026-06-20        |
+|             2 | Films          | —           | 2026-06-19 prep only (inferred) |
+|             9 | Films          | —           | 2026-06-19 prep only (inferred) |
+|            46 | Séries Animées | —           | 2026-06-19 prep only (inferred) |
+|            53 | Anime          | —           | 2026-06-19 prep only (inferred) |
+|            54 | TV Programs    | —           | 2026-06-19 prep only (inferred) |
+
+> On 2026-06-20 the search `q` param was observed returning a recent-only
+> default set (degraded), so a full category enumeration was not possible —
+> re-run the search↔detail correlation when `q` filtering is healthy to
+> extend the map.
 
 ## Fit with personalscraper
 
