@@ -6,14 +6,39 @@ Verifies:
 - A client with no _transport attribute is skipped gracefully.
 - A _transport.close() that raises is swallowed (does not propagate).
 - All transports are attempted even when one raises.
+- A client whose _transport is a lazy PROPERTY that raises a login error on
+  access is skipped (fail-soft parity with transports()), and the other
+  plain-attribute clients are still closed.
 """
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from personalscraper.api._contracts import ApiError
 from personalscraper.api.tracker._ranking import RankingConfig
 from personalscraper.api.tracker._registry import TrackerRegistry
+from personalscraper.core._contracts import CircuitOpenError
+
+
+class _LazyLoginRaisingClient:
+    """Client whose ``_transport`` is a lazy property raising on first access.
+
+    Mirrors torr9's TVDB-lazy pattern: accessing ``_transport`` triggers a
+    bootstrap login (``POST /auth/login``) that may fail operationally. A plain
+    ``MagicMock`` attribute cannot reproduce this (attribute access never
+    raises), so a real descriptor is required to exercise the close() guard.
+    """
+
+    def __init__(self, exc: Exception) -> None:
+        self._exc = exc
+
+    @property
+    def _transport(self) -> object:  # noqa: D401 — property raises on access
+        """Raise the configured login error on every access."""
+        raise self._exc
 
 
 def _make_registry(trackers: dict) -> TrackerRegistry:
@@ -109,3 +134,39 @@ class TestTrackerRegistryClose:
 
         logged = [c.args[0] for c in mock_log.debug.call_args_list if c.args]
         assert "tracker_transport_close_failed" not in logged
+
+    @pytest.mark.parametrize(
+        "exc",
+        [
+            ApiError("torr9", 401, message="login failed: bad creds"),
+            CircuitOpenError("torr9", 30.0),
+        ],
+    )
+    def test_lazy_login_failure_on_access_is_skipped(self, exc: Exception) -> None:
+        """A client whose `_transport` property raises a login error is skipped, not propagated.
+
+        torr9's `_transport` is a lazy PROPERTY that triggers a bootstrap login on
+        first access. A read-only command can tear the registry down without ever
+        materializing it, making close()'s getattr the FIRST access. An operational
+        login failure there (ApiError / CircuitOpenError) MUST NOT propagate out of
+        close() — its fail-soft contract has to hold even at teardown (else the
+        acquire/context finally chain leaks store/ownership handles). The skip is
+        logged at DEBUG as `tracker_transport_close_skipped`, and the other
+        plain-attribute clients are STILL closed.
+        """
+        lazy = _LazyLoginRaisingClient(exc)
+        healthy = _stub_client("lacale")
+        registry = _make_registry({"torr9": lazy, "lacale": healthy})
+
+        with patch("personalscraper.api.tracker._registry.log") as mock_log:
+            registry.close()  # must NOT raise despite torr9's property raising
+
+        # The lazy client was skipped via the DEBUG `..._skipped` log:
+        skipped = [
+            c for c in mock_log.debug.call_args_list if c.args and c.args[0] == "tracker_transport_close_skipped"
+        ]
+        assert len(skipped) == 1
+        assert skipped[0].kwargs.get("tracker") == "torr9"
+        assert skipped[0].kwargs.get("exc_type") == type(exc).__name__
+        # The healthy plain-attribute client was STILL closed:
+        healthy._transport.close.assert_called_once()

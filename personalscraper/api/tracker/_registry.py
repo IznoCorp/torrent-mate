@@ -234,9 +234,30 @@ class TrackerRegistry:
         Per-client exceptions are caught, logged at DEBUG level, and do not
         propagate — a failing close on one tracker must not prevent the others
         from releasing their sessions.
+
+        Resilient to a lazy ``_transport`` property that triggers a bootstrap
+        login on access (torr9's TVDB-lazy pattern): a read-only command may
+        tear the registry down without ever materializing torr9's transport, so
+        the ``getattr`` here would be the FIRST access and trigger a login. An
+        operational login failure there is logged at DEBUG and the tracker is
+        skipped — close()'s fail-soft contract must hold even at teardown, or
+        the downstream store/ownership handles in the acquire/context finally
+        chain leak. This is the same narrow guard :meth:`transports` uses.
         """
         for name, client in list(self._trackers.items()):
-            transport = getattr(client, "_transport", None)
+            try:
+                transport = getattr(client, "_transport", None)
+            except (ApiError, CircuitOpenError, requests.RequestException) as exc:
+                # A lazy bootstrap login can fail operationally (bad creds, outage,
+                # tripped circuit) at teardown; skip that tracker rather than break
+                # close()'s fail-soft contract for the others (and leak downstream
+                # handles). A programming bug in a _transport getter is NOT caught.
+                log.debug(
+                    "tracker_transport_close_skipped",
+                    tracker=name,
+                    exc_type=type(exc).__name__,
+                )
+                continue
             if transport is None:
                 continue
             close_fn = getattr(transport, "close", None)
