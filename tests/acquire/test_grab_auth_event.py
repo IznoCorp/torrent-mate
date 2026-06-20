@@ -104,6 +104,8 @@ def _make_orchestrator_with_spy(
     registry.search_candidates.return_value = search_outcome
 
     transports = {TOP_PROVIDER: MagicMock()}
+    # Transports are read FRESH at grab time via the registry, not snapshotted.
+    registry.transports.return_value = transports
 
     torrent_client: MagicMock = MagicMock(spec=TorrentAdder)
     if add_side_effect is not None:
@@ -117,7 +119,6 @@ def _make_orchestrator_with_spy(
 
     orchestrator = GrabOrchestrator(
         tracker_registry=registry,
-        transports=transports,
         torrent_client=torrent_client,
         event_bus=bus,
         ranking=RankingConfig(min_seeders=0),

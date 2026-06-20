@@ -118,8 +118,10 @@ def build_acquire_context(
     # ONLY here — the only frame holding registry + config.ranking +
     # torrent_client + event_bus + store together. It is None when there is no
     # torrent_client (read-only / dry-run can still search+filter+rank via the
-    # registry, but cannot add). Transports come from the registry's phase-2
-    # accessor so resolve_source never reaches back into the registry.
+    # registry, but cannot add). No transport snapshot is taken here: the
+    # orchestrator reads tracker_registry.transports() FRESH at grab time, so a
+    # lazy tracker (torr9) is not forced to log in at boot and a transient boot
+    # blip can't strand it in a stale snapshot.
     grab: GrabCore | None = None
     if torrent_client is not None:
         from personalscraper.acquire.orchestrator import GrabOrchestrator  # noqa: PLC0415
@@ -130,7 +132,6 @@ def build_acquire_context(
 
         orchestrator = GrabOrchestrator(
             tracker_registry=tracker_registry,
-            transports=tracker_registry.transports(),
             torrent_client=torrent_client,
             event_bus=event_bus,
             ranking=config.ranking,
