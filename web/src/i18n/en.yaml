@@ -1,0 +1,216 @@
+common:
+  validate: Validate
+  save: Save config
+  saved: Saved
+  cancel: Cancel
+  apply: Apply
+  loading: Loading…
+  add: + Add
+  move_up: move up
+  move_down: move down
+  remove: remove
+  per_project: per project
+  daemon_scope: daemon · whole host
+
+shell:
+  board: Board
+  group_board: "Board config · {repo}"
+  group_daemon: Daemon · whole host
+  badge_board: "board: {repo}"
+  badge_daemon: daemon · whole host
+  errors_block_save: "{n} error(s) block save"
+  nav:
+    columns: Columns
+    transitions: Transitions
+    defaults: Defaults
+    validation: Validation
+    yaml: YAML preview
+    projects: Projects
+    profiles: Profiles
+
+login:
+  title: KanbanMate — sign in
+  subtitle: This config interface is protected. Enter your operator credentials.
+  username: Username
+  password: Password
+  submit: Sign in
+  signing_in: Signing in…
+  failed: Invalid username or password.
+  logout: Sign out
+
+app:
+  cannot_reach_title: Cannot reach the config API
+  cannot_reach_body: "{err}. Start it with `kanban config serve`."
+  no_board_title: No board registered
+  no_board_body: "Register one with `kanban init` first."
+  loading_board: Loading board config…
+  cannot_load_board: Cannot load this board's config
+  action_failed: Action failed
+
+columns:
+  intro_title: Columns
+  intro_body: >-
+    The ordered set of columns for this board — each board has its own columns.yml. The order here
+    is the board order. A reactive column runs a side-effect on entry (e.g. teardown); inert columns
+    are human gates or terminal states. Editing here changes the config file; Sync board then pushes
+    this set onto the GitHub board's Status options.
+  legend: >-
+    Each row: the name (the label shown as the GitHub Status option), its class (reactive / inert),
+    and its order (↑/↓). The grey chip is the stable key used in transitions.
+  add_column: + Add column
+  sync_board: Sync board ⤴
+  save_before_sync: Save before syncing
+  sync_tooltip: Provision GitHub Status options
+
+transitions:
+  intro_title: Transitions
+  intro_body: >-
+    The whitelist of allowed card moves for this board — each board has its own transitions.yml. A
+    row maps a from → to move and says what happens when a card makes it: which agent prompt runs,
+    under which permission profile, and whether the card then auto-advances. Pick a row on the left
+    to edit it.
+  banner: >-
+    The whitelist is order-sensitive — earlier rows win, and a * wildcard shadows specific rows
+    below it. A row launches an agent when it carries a prompt.
+  rows: "{n} rows"
+  select_hint: Select a transition on the left to edit it.
+  row_blocks_save: This row blocks save
+  launch_label: "launch:"
+  launch_fires: fires agent
+  launch_noop: no-op (no prompt)
+  bypass_never: bypassPermissions is never allowed
+  tip_launch: launches agent
+  tip_script: runs script
+  tip_noop: no-op
+  prompt_label: Prompt — markdown (Write / Preview)
+  prompt_hint: >-
+    The slash-command prompt the agent runs. {{placeholders}} are filled at dispatch; a row WITH a
+    prompt launches an agent.
+  labels:
+    from_col: Source column
+    to_col: Destination column
+    profile: Permission profile
+    permission_mode: Permission mode
+    advance: Auto-advance
+    on_fail: On failure
+    script: Script
+  script_placeholder: e.g. .claude/kanban/check-pr-ready.sh
+  browse: Browse…
+  picker_title: Choose a script
+  picker_root: project root
+  picker_up: ↑ up
+  picker_empty: (empty folder)
+  picker_exec: executable
+  fields:
+    from_col: >-
+      Source column. * is a wildcard matching any column — wildcard rows must come last, they shadow
+      specific rows below them.
+    to_col: Destination column. Moving a card into it triggers this transition.
+    profile: >-
+      Permission profile materialised into the agent's worktree (docs < prepare < dev < check).
+      Empty = no agent.
+    permission_mode: Claude Code permission mode for the launched agent. bypassPermissions is never allowed.
+    advance: >-
+      After the stage finishes cleanly, auto-move the card to this column (the autonomy backstop).
+      stop = wait for a human.
+    on_fail: "What to do if the stage fails: move the card to Blocked, or roll the move back."
+    script: "Path to an executable run on this transition (a gate / side-effect), relative to the clone or absolute. A row may carry a script AND/OR a prompt. Leave empty for none."
+
+defaults:
+  intro_title: Defaults
+  intro_body: >-
+    Board-wide runtime limits for this project's pipeline, stored in the defaults: block of its
+    transitions.yml. They bound how many agents run at once and how fast the bot may move cards. The
+    daemon and agents always run non-root.
+  concurrency_cap: concurrency_cap
+  concurrency_cap_hint: Maximum concurrent agent sessions across the whole project.
+  rate_limit: move_rate_limit_per_hour
+  rate_limit_hint: Per-item AUTO / bot move rate limit per hour.
+
+validation:
+  intro_title: Validation
+  intro_body: >-
+    Semantic checks the server runs on this board's config (the V1–V11 rules). Errors block the save
+    — nothing is written until they pass; warnings are advisory. Click a finding to jump straight to
+    the offending field.
+  errors_block: "{n} error(s) block save"
+  errors_block_body: Fix the located fields below — nothing is written until they pass.
+  valid_title: Config is valid
+  valid_body: All semantic checks pass. Save writes columns.yml + transitions.yml.
+  advisory: "{n} advisory warning(s)"
+
+yaml:
+  intro_title: YAML preview
+  intro_body: >-
+    Read-only preview of the two files this board's config renders to, exactly as the daemon reads
+    them. This is generated server-side from your edits — it is what gets written on Save. Nothing
+    here is editable; edit on the Columns / Transitions / Defaults tabs.
+  cannot_render: Cannot render YAML
+  rendering: Rendering…
+
+daemon:
+  intro_title: Daemon — managed projects
+  intro_body: >-
+    The boards this daemon polls, from the host-wide registry (projects.json). This is not a board's
+    config — it is which boards the daemon drives and how it reacts to them. Pick a board on the left
+    to toggle whether it is driven and its ingress mode.
+  banner_title: Daemon-scoped — applies to the whole host
+  banner_body: >-
+    This edits projects.json (the registry), not a board's config. Only enabled and ingress are
+    editable here; repo / clone / token are set by kanban init. The running daemon picks changes up
+    on its next config reload or restart — it is not a live hot-swap of the project set.
+  enabled: enabled
+  enabled_hint: Whether the daemon drives this board at all.
+  enabled_true: true — driven
+  enabled_false: false — ignored
+  ingress: ingress
+  ingress_hint: "webhook = sub-second nudge via kanban serve; polling = the 10s sweep only."
+  save_settings: Save daemon settings
+  saving: Saving…
+  saved_msg: Saved. The daemon applies this on its next config reload / restart.
+  save_failed: Save failed
+  enabled_chip: enabled
+  disabled_chip: disabled
+
+profiles:
+  intro_title: Permission profiles
+  intro_body: >-
+    Read-only reference. A profile is the permission boundary an autonomous agent runs under in its
+    worktree (which tools/commands it may use). Profiles are defined in the engine code
+    (core/profiles + adapters/perms), NOT editable config — editing them would widen what an agent
+    may do. Transitions pick a profile by name.
+  mode: pinned mode
+  allow: allows
+  deny: denies
+  allow_count: "{n} allow rule(s)"
+  deny_count: "{n} deny rule(s)"
+
+prompt:
+  write: Write
+  preview: Preview
+  placeholders_label: known placeholders — click a row to insert
+  insert: Click to insert into the prompt
+  placeholder: No prompt — script-only / no-op transition. Markdown supported.
+  no_prompt_md: "*No prompt.*"
+  unknown_count: "{n} unknown placeholder(s)"
+  did_you_mean: " — did you mean {{{name}}}?"
+  not_known: " is not a known placeholder."
+  click_to_edit: Click to edit the full prompt
+
+sync:
+  title: Sync board
+  desc: Provision GitHub Projects v2 Status options to match columns.yml
+  banner_title: This mutates the GitHub board
+  banner_body: >-
+    Re-provisions the Status options to match columns.yml (via the seeder). Tickets and card
+    positions are untouched. Merge stays human-only.
+  failed: Sync failed
+  computing: Computing diff…
+  already_matches: Board already matches columns.yml. Nothing to apply.
+  removals_title: "{n} column(s) on the board not in columns.yml"
+  removals_body: "Not removed automatically (would orphan cards): {cols}. Remove them in GitHub if intended."
+  apply: Apply to board
+  applying: Applying…
+  tag_add: ADD
+  tag_rename: RENAME
+  tag_reorder: REORDER

@@ -419,3 +419,37 @@ def test_schema_from_to_col_allow_string_or_list(client: TestClient) -> None:
     titem = schema["properties"]["definition"]["properties"]["transitions"]["items"]["properties"]
     assert "anyOf" in titem["from_col"], "from_col must allow string|array"
     assert "anyOf" in titem["to_col"], "to_col must allow string|array"
+
+
+# ---------------------------------------------------------------------------
+# GET /api/placeholders (bridge / helm PR 2)
+# ---------------------------------------------------------------------------
+
+
+def test_get_placeholders_returns_known_set(client: TestClient) -> None:
+    """GET /api/placeholders exposes the canonical placeholder set."""
+    resp = client.get("/api/placeholders")
+    assert resp.status_code == 200
+    names = {p["name"] for p in resp.json()["placeholders"]}
+    assert {"code", "codename", "script_output"} <= names
+    assert all(p["description"] for p in resp.json()["placeholders"])
+
+
+# ---------------------------------------------------------------------------
+# GET /api/profiles (bridge — read-only profile reference)
+# ---------------------------------------------------------------------------
+
+
+def test_get_profiles_returns_reference(client: TestClient) -> None:
+    """GET /api/profiles exposes the code-defined profiles (read-only)."""
+    resp = client.get("/api/profiles")
+    assert resp.status_code == 200
+    profs = {p["name"]: p for p in resp.json()["profiles"]}
+    assert {"docs", "prepare", "dev", "check", "merge"} <= set(profs)
+    # Each carries the engine-sourced mode + a non-empty allow list + a summary.
+    assert profs["docs"]["mode"] == "auto"
+    assert profs["docs"]["allow"]
+    assert all(p["summary"] for p in profs.values())
+    # Merge is the only profile whose deny-list lifts `gh pr merge`.
+    assert "Bash(gh pr merge*)" not in profs["merge"]["deny"]
+    assert "Bash(gh pr merge*)" in profs["dev"]["deny"]

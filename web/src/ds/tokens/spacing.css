@@ -1,0 +1,70 @@
+/* KanbanMate — spacing, radius, shadow, motion tokens
+ *
+ * The product is a dense control surface (a board config editor), so the spacing
+ * scale is tight and the radii are small — this is engineered tooling, not a
+ * marketing page. Shadows are restrained; elevation comes mostly from borders.
+ */
+
+:root {
+  /* Spacing — 4px base grid */
+  --space-0: 0;
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 20px;
+  --space-8: 24px;
+  --space-9: 32px;
+  --space-10: 40px;
+  --space-11: 48px;
+  --space-12: 64px;
+  --space-14: 80px;
+  --space-16: 96px;
+
+  /* Radius — shadcn scale. --radius (0.625rem = 10px) is declared in colors.css;
+   * shadcn derives the steps from it via calc(). We mirror that exactly, then keep
+   * --radius-xs / --radius-pill for the technical chips KanbanMate adds on top. */
+  --radius-xs:  calc(var(--radius) - 6px);  /* ~4px */
+  --radius-sm:  calc(var(--radius) - 4px);  /* ~6px */
+  --radius-md:  calc(var(--radius) - 2px);  /* ~8px */
+  --radius-lg:  var(--radius);              /* ~10px */
+  --radius-xl:  calc(var(--radius) + 4px);  /* ~14px */
+  --radius-2xl: calc(var(--radius) + 10px); /* ~20px */
+  --radius-pill: 999px;
+
+  /* Border widths */
+  --border-hairline: 1px;
+  --border-thick: 1.5px;
+
+  /* Shadows — shadcn's restrained elevation scale (elevation is mostly borders).
+   * Names align to shadcn's shadow-2xs..shadow-lg utilities. */
+  --shadow-2xs: 0 1px 0 0 rgba(17,16,16,0.04);
+  --shadow-xs:  0 1px 2px 0 rgba(17,16,16,0.05);
+  --shadow-sm:  0 1px 2px 0 rgba(17,16,16,0.07), 0 1px 1px -1px rgba(17,16,16,0.05);
+  --shadow-md:  0 2px 4px -1px rgba(17,16,16,0.08), 0 4px 8px -2px rgba(17,16,16,0.06);
+  --shadow-lg:  0 4px 6px -2px rgba(17,16,16,0.08), 0 12px 24px -6px rgba(17,16,16,0.14);
+  /* shadcn focus = a 3px ring at 50% of --ring; we keep a solid ring token too. */
+  --shadow-focus: 0 0 0 3px color-mix(in oklch, var(--ring) 45%, transparent);
+
+  /* Z-index ladder */
+  --z-base: 1;        /* @kind other */
+  --z-sticky: 100;    /* @kind other */
+  --z-dropdown: 200;  /* @kind other */
+  --z-overlay: 300;   /* @kind other */
+  --z-dialog: 400;    /* @kind other */
+  --z-toast: 500;     /* @kind other */
+
+  /* Motion — quick, no bounce. This is tooling: snappy, not playful. */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);  /* @kind other */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);    /* @kind other */
+  --dur-fast: 110ms;  /* @kind other */
+  --dur-base: 160ms;  /* @kind other */
+  --dur-slow: 240ms;  /* @kind other */
+
+  /* Layout */
+  --container-max: 1280px;
+  --sidebar-w: 248px;
+  --board-col-w: 248px;
+}

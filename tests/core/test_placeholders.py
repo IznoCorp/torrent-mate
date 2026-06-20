@@ -9,7 +9,11 @@ from __future__ import annotations
 
 import pytest
 
-from kanbanmate.core.placeholders import fill
+from kanbanmate.core.placeholders import (
+    KNOWN_PLACEHOLDERS,
+    fill,
+    unknown_placeholders,
+)
 
 # ---------------------------------------------------------------------------
 # Shared test context (mirrors the PoC CTX)
@@ -76,3 +80,43 @@ def test_intermediate_not_mapping_raises() -> None:
     ctx: dict[str, object] = {"a": "plain_string"}
     with pytest.raises(KeyError, match="a\\.b"):
         fill("{{a.b}}", ctx)
+
+
+# ---------------------------------------------------------------------------
+# bridge (helm PR 2): known-placeholder set + unknown finder
+# ---------------------------------------------------------------------------
+
+
+def test_known_placeholders_match_launch_context_keys() -> None:
+    # Drift guard: the exposed set must equal the dispatch context keys.
+    # Update BOTH this literal and KNOWN_PLACEHOLDERS if launch_context changes.
+    expected = {
+        "code",
+        "title",
+        "branch",
+        "ticket_body",
+        "script_output",
+        "issue_body",
+        "comments",
+        "codename",
+        "design_path",
+        "plan_paths",
+        "base_clone",
+        "dev_repo_path",
+    }
+    assert set(KNOWN_PLACEHOLDERS) == expected
+    assert all(isinstance(v, str) and v for v in KNOWN_PLACEHOLDERS.values())
+
+
+def test_unknown_placeholders_flags_typos() -> None:
+    tmpl = "Implement {{code}} ({{codename}}); base {{baze}} and {{also_bad}}."
+    assert unknown_placeholders(tmpl) == ["baze", "also_bad"]
+
+
+def test_unknown_placeholders_empty_when_all_known() -> None:
+    assert unknown_placeholders("ticket {{code}} — {{title}}") == []
+
+
+def test_unknown_placeholders_handles_dotted_paths() -> None:
+    # Only the first segment is matched against the known set.
+    assert unknown_placeholders("{{ticket.title}}") == ["ticket"]

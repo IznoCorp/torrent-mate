@@ -1,0 +1,51 @@
+/* KanbanMate — typography tokens (shadcn foundation)
+ *
+ * Built over shadcn/ui, so the families are shadcn's native stack (Geist):
+ *   --font-display → Geist      : wordmark, page titles, large numerics (heavier weights + tight tracking)
+ *   --font-sans    → Geist      : body, UI labels, controls
+ *   --font-mono    → Geist Mono : column keys, YAML, prompts, data badges
+ *
+ * shadcn has no separate display face — headings are the sans with tighter tracking
+ * and heavier weight. We mirror that: --font-display and --font-sans are both Geist.
+ *
+ * The product is mono-heavy: anything that is a literal identifier the daemon reads
+ * (column keys like `InProgress`, permission_mode values, placeholder tokens) is set
+ * in --font-mono so the UI and the config file read the same.
+ */
+
+:root {
+  --font-display: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans:    'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono:    'Geist Mono', ui-monospace, 'SFMono-Regular', 'Menlo', monospace;
+
+  /* Type scale (1.20 minor-third on a 14px UI base) */
+  --text-2xs: 11px;
+  --text-xs:  12px;
+  --text-sm:  13px;
+  --text-base:14px;
+  --text-md:  15px;
+  --text-lg:  17px;
+  --text-xl:  20px;
+  --text-2xl: 24px;
+  --text-3xl: 30px;
+  --text-4xl: 38px;
+  --text-5xl: 50px;
+
+  /* Weights */
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-semibold:600;
+  --weight-bold:    700;
+
+  /* Line heights */
+  --leading-tight:  1.15;
+  --leading-snug:   1.3;
+  --leading-normal: 1.5;
+  --leading-relaxed:1.65;
+
+  /* Letter spacing */
+  --tracking-tight:  -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide:   0.02em;
+  --tracking-caps:   0.08em;  /* uppercase eyebrows / labels */
+}

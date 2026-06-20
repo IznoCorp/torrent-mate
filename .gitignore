@@ -26,3 +26,11 @@ htmlcov/
 *.swp
 # Generated per-host by `kanban install` (absolute pyenv path baked in — not portable)
 ecosystem.config.js
+.superpowers/
+
+# bridge config SPA — build output (CI-built, shipped in wheel) + node deps
+src/kanbanmate/webui/
+web/node_modules/
+
+# Operator credentials for the config UI login (KANBAN_MATE_UI_*) — never commit
+.env

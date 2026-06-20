@@ -69,3 +69,43 @@ def fill(template: str, ctx: Mapping[str, object]) -> str:
         KeyError: If any placeholder references a key absent from *ctx*.
     """
     return _TOKEN.sub(lambda m: str(_resolve(m.group(1), ctx)), template)
+
+
+# The canonical placeholder set the dispatch context supplies (app/launch_context.py:92-113).
+# Single source of truth for bridge's rich prompt editor (GET /api/placeholders). DRIFT GUARD:
+# tests/core/test_placeholders.py pins these names to the launch context — change both together.
+KNOWN_PLACEHOLDERS: dict[str, str] = {
+    "code": "The ticket's issue number (bare int, e.g. 9).",
+    "title": "The ticket title.",
+    "branch": "The per-ticket WIP / worktree branch name.",
+    "ticket_body": "The issue body markdown.",
+    "script_output": "The last failing check's output (CI gate / fix-CI stages).",
+    "issue_body": "The first cross-referenced linked-issue body.",
+    "comments": "The joined ticket comment history.",
+    "codename": "The feature codename parsed from the ticket body.",
+    "design_path": "Path to the feature DESIGN.md (set after design).",
+    "plan_paths": "Path(s) to the implementation plan file(s).",
+    "base_clone": "The base clone path (reserved; empty unless set).",
+    "dev_repo_path": "The operator's dev-clone path (reserved; empty unless set).",
+}
+
+
+def unknown_placeholders(template: str) -> list[str]:
+    """Return the distinct unknown placeholder names referenced by *template*.
+
+    A placeholder is "unknown" when the FIRST dotted segment of its key is not in
+    :data:`KNOWN_PLACEHOLDERS`. Names are returned in first-seen order (deduplicated),
+    backing the editor's "N unknown placeholders" finding.
+
+    Args:
+        template: A prompt template containing zero or more ``{{key}}`` tokens.
+
+    Returns:
+        The unknown top-level placeholder names, in first-seen order.
+    """
+    seen: list[str] = []
+    for match in _TOKEN.finditer(template):
+        head = match.group(1).split(".", 1)[0]
+        if head not in KNOWN_PLACEHOLDERS and head not in seen:
+            seen.append(head)
+    return seen

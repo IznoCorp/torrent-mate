@@ -1,0 +1,14 @@
+/* KanbanMate Design System — global entry point.
+ *
+ * Consumers link THIS one file. It is nothing but @import lines: every token
+ * file and the webfont declarations live downstream of here, and the compiler
+ * ships the whole transitive closure.
+ *
+ * Order matters: fonts + raw tokens first, then anything that aliases them.
+ */
+
+@import url('./tokens/fonts.css');
+@import url('./tokens/colors.css');
+@import url('./tokens/typography.css');
+@import url('./tokens/spacing.css');
+@import url('./tokens/base.css');

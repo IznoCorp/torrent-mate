@@ -23,11 +23,14 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import fastapi
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+
+if TYPE_CHECKING:
+    from kanbanmate.http.auth import AuthConfig
 
 from kanbanmate.app.config_service import ConfigInvalid, ConfigService
 from kanbanmate.cli.init import (
@@ -52,41 +55,122 @@ app = FastAPI(
     title="KanbanMate Config API",
     description=(
         "Headless HTTP API for the KanbanMate pipeline config (helm PR 1). "
-        "Loopback, single-operator, no auth. See DESIGN §11."
+        "Loopback, single-operator, optional login. See DESIGN §11."
     ),
     version="1.0.0",
 )
 
+# Paths reachable WITHOUT a session when the login is enabled: the liveness probe + the login/session
+# endpoints themselves. Everything else under /api/* requires a valid session cookie.
+_AUTH_OPEN_PATHS = frozenset({"/api/health", "/api/login", "/api/logout", "/api/session"})
 
-def _get_service(root: Path | None = None) -> ConfigService:
-    """Build a :class:`~kanbanmate.app.config_service.ConfigService` for the first registry entry.
 
-    Resolves the clone config file paths from the runtime registry and injects
-    them into the service (DESIGN §12 — ``app`` may not import ``cli.init``, but
-    ``http`` may).
+def _auth_config() -> AuthConfig | None:
+    """Return the configured :class:`~kanbanmate.http.auth.AuthConfig`, or ``None`` if unset."""
+    return getattr(app.state, "auth", None)
 
-    Args:
-        root: The kanban runtime root.  When ``None`` (the endpoint call form),
-            falls back to ``app.state.kanban_root`` (set by ``kanban config
-            serve --root``), then to ``~/.kanban/``.
+
+def _request_is_secure(request: fastapi.Request) -> bool:
+    """Whether the request arrived over HTTPS (directly or via a TLS-terminating proxy).
+
+    The operator fronts the UI with Caddy/TLS (``X-Forwarded-Proto: https``); a direct loopback
+    call is plain ``http``. The session cookie's ``Secure`` flag is set accordingly so it works in
+    both cases (a ``Secure`` cookie is dropped by browsers over plain http).
+    """
+    forwarded = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
+    return forwarded == "https" or request.url.scheme == "https"
+
+
+@app.middleware("http")
+async def _auth_guard(request: fastapi.Request, call_next):  # type: ignore[no-untyped-def]
+    """Require a valid session cookie for protected ``/api/*`` routes when login is enabled.
+
+    No-op when auth is disabled (empty password) or for the open paths / the static SPA (the SPA
+    shell is served, then its own ``/api/*`` calls 401 → it renders the login screen). Reads only
+    the cookie — never the request body — so it is safe as an ``http`` middleware.
+    """
+    from kanbanmate.http.auth import COOKIE_NAME, verify_token  # noqa: PLC0415
+
+    config = _auth_config()
+    path = request.url.path
+    if (
+        config is not None
+        and config.enabled
+        and path.startswith("/api/")
+        and path not in _AUTH_OPEN_PATHS
+    ):
+        token = request.cookies.get(COOKIE_NAME, "")
+        if not token or verify_token(token, config.secret) is None:
+            return JSONResponse(status_code=401, content={"detail": "Authentication required"})
+    return await call_next(request)
+
+
+def _kanban_root() -> Path:
+    """Resolve the runtime root: the CLI ``--root`` (via app.state) or the default.
 
     Returns:
-        A :class:`~kanbanmate.app.config_service.ConfigService` with the resolved
-        config file paths.
+        The kanban runtime root holding ``projects.json``.
+    """
+    # The CLI --root reaches here via app.state (set in cli/config.py:serve before uvicorn.run);
+    # otherwise a passed --root would be silently dropped and every request would read ~/.kanban/.
+    return getattr(app.state, "kanban_root", None) or _DEFAULT_ROOT
+
+
+def _resolve_entry(project_id: str | None = None):  # type: ignore[no-untyped-def]
+    """Resolve the registry entry for ``project_id`` (bridge multi-board, DESIGN §13.1).
+
+    Resolution: an explicit ``project_id`` → that entry (404 if unknown); absent + exactly one
+    project → that one (back-compat); absent + N>1 → 400 carrying the project list so the SPA can
+    prompt the operator to choose.
+
+    Args:
+        project_id: The Project v2 node id to edit, or ``None`` to auto-resolve.
+
+    Returns:
+        The resolved :class:`~kanbanmate.cli.init.ProjectEntry`.
 
     Raises:
-        HTTPException: 503 when no project entry exists in the registry.
+        HTTPException: 503 (no project registered), 404 (unknown id), or 400 (ambiguous N>1).
     """
-    # The endpoints call _get_service() with no argument, so the CLI --root must
-    # reach here via app.state (set in cli/config.py:serve before uvicorn.run);
-    # otherwise a passed --root would be silently dropped and every request would
-    # read the default ~/.kanban/ root.
-    kanban_root = root or getattr(app.state, "kanban_root", None) or _DEFAULT_ROOT
-    registry = _load_registry(_projects_path(kanban_root))
+    from kanbanmate.core.registry_resolve import resolve_by_project_id  # noqa: PLC0415
+
+    registry = _load_registry(_projects_path(_kanban_root()))
     if not registry:
         raise HTTPException(status_code=503, detail="No project registered in the kanban root")
-    # PR 1: use the first (only expected) project entry.
-    entry = next(iter(registry.values()))
+    if project_id:
+        entry = resolve_by_project_id(registry, project_id)
+        if entry is None:
+            raise HTTPException(status_code=404, detail=f"Unknown project '{project_id}'")
+        return entry
+    if len(registry) == 1:
+        return next(iter(registry.values()))
+    raise HTTPException(
+        status_code=400,
+        detail={
+            "error": "Multiple projects registered — pass ?project=<project_id>",
+            "projects": [{"project_id": e.project_id, "repo": e.repo} for e in registry.values()],
+        },
+    )
+
+
+def _get_service(project_id: str | None = None) -> ConfigService:
+    """Build a :class:`~kanbanmate.app.config_service.ConfigService` for the selected board.
+
+    Resolves the clone config file paths from the runtime registry entry selected by
+    ``project_id`` (DESIGN §13.1) and injects them into the service (DESIGN §12 — ``app`` may not
+    import ``cli.init``, but ``http`` may).
+
+    Args:
+        project_id: The Project v2 node id whose config to edit; ``None`` auto-resolves
+            (the single project, or 400 when ambiguous — see :func:`_resolve_entry`).
+
+    Returns:
+        A :class:`~kanbanmate.app.config_service.ConfigService` for the selected board's config.
+
+    Raises:
+        HTTPException: 503 / 404 / 400 per :func:`_resolve_entry`.
+    """
+    entry = _resolve_entry(project_id)
     clone = Path(entry.clone)
     return ConfigService(
         transitions_path=clone / CLONE_TRANSITIONS_RELPATH,
@@ -164,17 +248,85 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/api/session")
+def get_session(request: fastapi.Request) -> dict[str, object]:
+    """Report whether login is enabled and whether this request is authenticated.
+
+    The SPA calls this on boot to decide between the login screen and the editor.
+
+    Returns:
+        ``{"auth_enabled": bool, "authenticated": bool, "login": str|None}``.
+    """
+    from kanbanmate.http.auth import COOKIE_NAME, verify_token  # noqa: PLC0415
+
+    config = _auth_config()
+    if config is None or not config.enabled:
+        return {"auth_enabled": False, "authenticated": True, "login": None}
+    token = request.cookies.get(COOKIE_NAME, "")
+    login = verify_token(token, config.secret) if token else None
+    return {"auth_enabled": True, "authenticated": login is not None, "login": login}
+
+
+@app.post("/api/login")
+async def post_login(request: fastapi.Request) -> JSONResponse:
+    """Verify credentials and set the session cookie.
+
+    Body: ``{"login": str, "password": str}``. When auth is disabled this is a no-op success.
+
+    Returns:
+        ``{"authenticated": true, "login": str}`` (200) with a ``Set-Cookie`` on success.
+
+    Raises:
+        HTTPException: 401 on invalid credentials.
+    """
+    from kanbanmate.http.auth import COOKIE_NAME, make_token, verify_credentials  # noqa: PLC0415
+
+    config = _auth_config()
+    if config is None or not config.enabled:
+        return JSONResponse(content={"authenticated": True, "login": None})
+    body = await _read_json_object(request)
+    login = str(body.get("login", ""))
+    password = str(body.get("password", ""))
+    if not verify_credentials(config, login, password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    token = make_token(config.login, config.secret, config.ttl)
+    response = JSONResponse(content={"authenticated": True, "login": config.login})
+    response.set_cookie(
+        COOKIE_NAME,
+        token,
+        max_age=config.ttl,
+        httponly=True,
+        samesite="lax",
+        secure=_request_is_secure(request),
+        path="/",
+    )
+    return response
+
+
+@app.post("/api/logout")
+def post_logout() -> JSONResponse:
+    """Clear the session cookie (idempotent — safe even when not logged in)."""
+    from kanbanmate.http.auth import COOKIE_NAME  # noqa: PLC0415
+
+    response = JSONResponse(content={"authenticated": False})
+    response.delete_cookie(COOKIE_NAME, path="/")
+    return response
+
+
 @app.get("/api/config")
-def get_config() -> JSONResponse:
-    """Return the current pipeline draft loaded from the clone config files.
+def get_config(project: str | None = None) -> JSONResponse:
+    """Return the current pipeline draft loaded from the selected board's config files.
+
+    Args:
+        project: The Project v2 node id to edit (DESIGN §13.1). Omit when a single board.
 
     Returns:
         The draft as a JSON object.
 
     Raises:
-        HTTPException: 503 when no project is registered; 500 on load error.
+        HTTPException: 503/404/400 (project resolution); 500 on load error.
     """
-    svc = _get_service()
+    svc = _get_service(project)
     try:
         draft = svc.load()
     except (ValueError, FileNotFoundError) as exc:
@@ -183,16 +335,20 @@ def get_config() -> JSONResponse:
 
 
 @app.post("/api/config/validate")
-async def post_validate(request: fastapi.Request) -> JSONResponse:
+async def post_validate(request: fastapi.Request, project: str | None = None) -> JSONResponse:
     """Validate a posted draft without writing.
 
     The request body must be a JSON object representing a PipelineDraft
     (same shape as GET /api/config returns).
 
+    Args:
+        request: The HTTP request carrying the draft JSON body.
+        project: The Project v2 node id to validate against (DESIGN §13.1).
+
     Returns:
         A ``ValidationResult`` JSON object: ``{"ok": bool, "findings": [...]}``.
     """
-    svc = _get_service()
+    svc = _get_service(project)
     body = await _read_json_object(request)
     draft = _dict_to_draft(body)
     result = svc.validate(draft)
@@ -200,17 +356,21 @@ async def post_validate(request: fastapi.Request) -> JSONResponse:
 
 
 @app.post("/api/config")
-async def post_config(request: fastapi.Request) -> JSONResponse:
+async def post_config(request: fastapi.Request, project: str | None = None) -> JSONResponse:
     """Validate a posted draft and, if valid, atomically write both config files.
 
     On validation error (any ``error``-severity finding), returns HTTP 422 with
     the findings list — nothing is written.
 
+    Args:
+        request: The HTTP request carrying the draft JSON body.
+        project: The Project v2 node id whose config to write (DESIGN §13.1).
+
     Returns:
         ``{"ok": true}`` on success, or ``{"ok": false, "findings": [...]}`` with
         status 422 on validation failure.
     """
-    svc = _get_service()
+    svc = _get_service(project)
     body = await _read_json_object(request)
     draft = _dict_to_draft(body)
     try:
@@ -224,8 +384,11 @@ async def post_config(request: fastapi.Request) -> JSONResponse:
 
 
 @app.get("/api/config/render")
-def get_render() -> JSONResponse:
+def get_render(project: str | None = None) -> JSONResponse:
     """Preview the rendered YAML strings for the current draft (no write).
+
+    Args:
+        project: The Project v2 node id to render (DESIGN §13.1).
 
     Returns:
         ``{"transitions": "<yaml string>", "columns": "<yaml string>"}``.
@@ -233,7 +396,7 @@ def get_render() -> JSONResponse:
     Raises:
         HTTPException: 500 on load/render error (consistent with GET /api/config).
     """
-    svc = _get_service()
+    svc = _get_service(project)
     try:
         draft = svc.load()
         rendered = svc.render(draft)
@@ -243,10 +406,14 @@ def get_render() -> JSONResponse:
 
 
 @app.post("/api/config/resolve")
-async def post_resolve(request: fastapi.Request) -> JSONResponse:
+async def post_resolve(request: fastapi.Request, project: str | None = None) -> JSONResponse:
     """Simulate whitelist resolution for a (from_col, to_col) move.
 
     Request body: ``{"draft": {...}, "from_col": "Backlog", "to_col": "Brainstorming"}``.
+
+    Args:
+        request: The HTTP request carrying the draft + from/to JSON body.
+        project: The Project v2 node id to resolve against (DESIGN §13.1).
 
     Returns:
         A ``ResolvedTransition`` JSON object.
@@ -255,7 +422,7 @@ async def post_resolve(request: fastapi.Request) -> JSONResponse:
         HTTPException: 422 when the posted draft is structurally invalid or the
             loader rejects it (resolve renders + loads the draft).
     """
-    svc = _get_service()
+    svc = _get_service(project)
     body = await _read_json_object(request)
     draft = _dict_to_draft(body.get("draft", {}))
     from_col = str(body.get("from_col", ""))
@@ -270,6 +437,118 @@ async def post_resolve(request: fastapi.Request) -> JSONResponse:
     return JSONResponse(content=asdict(result))
 
 
+@app.post("/api/board/provision")
+async def provision_board_endpoint(
+    request: fastapi.Request, project: str | None = None
+) -> JSONResponse:
+    """Diff (and optionally apply) the GitHub Status options against the saved columns.
+
+    Body: ``{"dry_run": bool, "renames": {old: new}?}``. The desired column set is
+    read from the SAVED config (not a posted draft) — bridge disables Sync while the
+    editor is dirty (DESIGN §8). On apply, re-provisions Status options via
+    :func:`kanbanmate.app.board_provision.provision_board` (options only — never
+    cards/PRs/merges).
+
+    Args:
+        request: The HTTP request carrying ``{dry_run, renames}``.
+        project: The Project v2 node id to provision (DESIGN §13.1).
+
+    Returns:
+        ``{"applied", "is_noop", "changes", "removals", "option_map"}``.
+
+    Raises:
+        HTTPException: 411/413/422 (bad body); 503/404/400 (project resolution);
+            502 (board/token failure).
+    """
+    from kanbanmate.app.board_provision import provision_board  # noqa: PLC0415
+
+    body = await _read_json_object(request)
+    dry_run = bool(body.get("dry_run", True))
+    renames = body.get("renames") or {}
+    if not isinstance(renames, dict):
+        raise HTTPException(status_code=422, detail="'renames' must be an object")
+
+    # Resolve the SELECTED board's entry (project_id + option-map fallback). The resolution lives
+    # HERE because ``http`` may import ``cli.init`` but ``app`` may not (test_layering FORBIDDEN).
+    entry = _resolve_entry(project)
+    # Desired columns come from the SAVED config (not a posted draft) — DESIGN §8.
+    service = _get_service(project)
+    draft = service.load()
+    desired = [c.name for c in draft.definition.columns]
+
+    injected = getattr(app.state, "seeder", None)
+    try:
+        result = provision_board(
+            project_id=entry.project_id,
+            desired_columns=desired,
+            fallback_options=list(entry.option_map.keys()),
+            renames={str(k): str(v) for k, v in renames.items()},
+            dry_run=dry_run,
+            seeder=injected,
+        )
+    except Exception as exc:  # noqa: BLE001 — boundary handler
+        # Provisioning touches the network (GraphQL), the token file, and the GitHub
+        # response parser; ANY failure (bad/absent token, GraphQLError, unreachable
+        # board) must reach the Sync dialog as a clean message (DESIGN §9) rather than
+        # an opaque 500 the SPA renders as "500: Internal Server Error".
+        raise HTTPException(status_code=502, detail=f"Board provisioning failed: {exc}") from exc
+    return JSONResponse(
+        content={
+            "applied": result.applied,
+            "is_noop": result.diff.is_noop,
+            "changes": [asdict(c) for c in result.diff.changes],
+            "removals": [asdict(c) for c in result.diff.removals],
+            "option_map": result.option_map,
+        }
+    )
+
+
+@app.get("/api/files")
+def get_files(project: str | None = None, path: str = "") -> JSONResponse:
+    """List files/dirs under the selected board's clone, SANDBOXED to that root.
+
+    Backs the transition ``script`` field's file picker (bridge): the operator browses the kanban
+    project's own tree and cannot escape above its clone root. ``path`` is a directory relative to
+    the clone; any attempt to traverse above the root (``..``, absolute, symlink escape) is rejected.
+
+    Args:
+        project: The Project v2 node id selecting the board (DESIGN §13.1).
+        path: A directory relative to the clone root (default: the root itself).
+
+    Returns:
+        ``{"path": str, "entries": [{"name", "is_dir", "is_exec", "rel"}, ...]}`` — dirs first,
+        then files, each sorted by name. ``rel`` is the entry path relative to the clone root.
+
+    Raises:
+        HTTPException: 503/404/400 (project resolution), 400 (path escapes the root or not a dir).
+    """
+    import os  # noqa: PLC0415
+
+    entry = _resolve_entry(project)
+    root = Path(entry.clone).resolve()
+    target = (root / path).resolve()
+    # SANDBOX: the resolved target must stay within the clone root (blocks ``..`` / absolute /
+    # symlink escapes — resolve() collapses them, then is_relative_to is the gate).
+    if not (target == root or target.is_relative_to(root)):
+        raise HTTPException(status_code=400, detail="Path escapes the project root")
+    if not target.is_dir():
+        raise HTTPException(status_code=400, detail="Not a directory")
+
+    entries: list[dict[str, object]] = []
+    for child in sorted(target.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
+        is_dir = child.is_dir()
+        entries.append(
+            {
+                "name": child.name,
+                "is_dir": is_dir,
+                "is_exec": (not is_dir) and os.access(child, os.X_OK),
+                "rel": str(child.resolve().relative_to(root)),
+            }
+        )
+    rel_path = "" if target == root else str(target.relative_to(root))
+    return JSONResponse(content={"path": rel_path, "entries": entries})
+
+
 @app.get("/api/schema")
 def get_schema() -> JSONResponse:
     """Return a JSON Schema for the PipelineDraft model.
@@ -282,6 +561,149 @@ def get_schema() -> JSONResponse:
     """
     schema = _generate_schema()
     return JSONResponse(content=schema)
+
+
+@app.get("/api/placeholders")
+def get_placeholders() -> JSONResponse:
+    """Return the engine's canonical prompt-placeholder set.
+
+    The rich prompt editor (bridge / helm PR 2) highlights + validates
+    ``{{placeholder}}`` tokens against this set, sourced from the single engine
+    definition (:data:`kanbanmate.core.placeholders.KNOWN_PLACEHOLDERS`) so the UI
+    can never drift from the dispatch context.
+
+    Returns:
+        ``{"placeholders": [{"name", "description"}, ...]}`` sorted by name.
+    """
+    from kanbanmate.core.placeholders import KNOWN_PLACEHOLDERS  # noqa: PLC0415
+
+    items = [{"name": k, "description": v} for k, v in sorted(KNOWN_PLACEHOLDERS.items())]
+    return JSONResponse(content={"placeholders": items})
+
+
+# One-line summary per profile (read-only reference, DESIGN §13 operator feedback). The names + the
+# real allow/deny/mode are sourced from the engine (core.profiles + adapters.perms) so the reference
+# never drifts; only the prose summary lives here.
+_PROFILE_SUMMARIES: dict[str, str] = {
+    "docs": "Floor profile: read/write files + minimal shell + local commit. NO push, NO PR ops, "
+    "NO merge. The kill-switch downgrades every profile to this, and an unknown name falls back here.",
+    "prepare": "Code edits + full git incl. push (create/maintain a branch) + kanban helpers. "
+    "NO gh PR operations, NO merge.",
+    "dev": "The build/implementation profile: code edits + git + the kanban helpers the "
+    "implement stages need. NO merge.",
+    "check": "Read-only-ish: Read + git read + gh read. The script-gate profile (usually no agent). "
+    "NO writes that matter, NO merge.",
+    "merge": "The autonomous Review→Merge stage — the SOLE profile whose deny-list lifts "
+    "`gh pr merge` (squash-merge a green, mergeable PR). Force-push + history rewrite stay banned.",
+}
+
+
+@app.get("/api/profiles")
+def get_profiles() -> JSONResponse:
+    """Return the permission profiles as a READ-ONLY reference (DESIGN §13 operator feedback).
+
+    Profiles are a code-defined security boundary (``core.profiles`` names + ``adapters.perms``
+    allow/deny/mode), NOT editable config — the GUI surfaces them so the operator understands the
+    ``profile`` dropdown, but never mutates them (editing would widen what an autonomous agent may
+    do). The real allow/deny/mode are read from the engine so the reference can never drift.
+
+    Returns:
+        ``{"profiles": [{"name", "mode", "summary", "allow": [...], "deny": [...]}, ...]}``.
+    """
+    from kanbanmate.adapters import perms  # noqa: PLC0415
+    from kanbanmate.core.profiles import PROFILES  # noqa: PLC0415
+
+    items = [
+        {
+            "name": p,
+            "mode": perms.pinned_mode(p),
+            "summary": _PROFILE_SUMMARIES.get(p, ""),
+            "allow": perms.allow_list(p),
+            "deny": perms.deny_list(p),
+        }
+        for p in PROFILES
+    ]
+    return JSONResponse(content={"profiles": items})
+
+
+@app.get("/api/projects")
+def get_projects() -> JSONResponse:
+    """List the boards the daemon manages (bridge multi-board switcher, DESIGN §13.1).
+
+    Returns:
+        ``{"projects": [{"project_id", "repo", "enabled", "ingress"}, ...]}`` (registry order).
+
+    Raises:
+        HTTPException: 503 when no project is registered.
+    """
+    registry = _load_registry(_projects_path(_kanban_root()))
+    if not registry:
+        raise HTTPException(status_code=503, detail="No project registered in the kanban root")
+    projects = [
+        {
+            "project_id": e.project_id,
+            "repo": e.repo,
+            "enabled": e.enabled,
+            "ingress": e.ingress,
+        }
+        for e in registry.values()
+    ]
+    return JSONResponse(content={"projects": projects})
+
+
+@app.patch("/api/projects/{project_id}")
+async def patch_project(project_id: str, request: fastapi.Request) -> JSONResponse:
+    """Edit a board's daemon-scoped registry toggles (bridge daemon scope, DESIGN §13.2).
+
+    Body: ``{"enabled": bool?, "ingress": "webhook"|"polling"?}`` — only these two daemon-scoped
+    fields are editable; all other registry fields (repo/clone/project_id/token) are set by
+    ``kanban init`` and stay read-only here. Persisted via the existing
+    :func:`~kanbanmate.cli.init._upsert_project` write path. The running daemon picks the change up
+    on its next config reload / restart (it builds one wiring per enabled entry — not a live swap).
+
+    Args:
+        project_id: The Project v2 node id to edit.
+        request: The HTTP request carrying the toggle JSON body.
+
+    Returns:
+        The updated project row ``{"project_id", "repo", "enabled", "ingress"}``.
+
+    Raises:
+        HTTPException: 411/413/422 (bad body), 404 (unknown id), 503 (no project).
+    """
+    from dataclasses import replace  # noqa: PLC0415
+    from kanbanmate.cli.init import _upsert_project  # noqa: PLC0415
+    from kanbanmate.core.registry_resolve import resolve_by_project_id  # noqa: PLC0415
+
+    body = await _read_json_object(request)
+    registry = _load_registry(_projects_path(_kanban_root()))
+    if not registry:
+        raise HTTPException(status_code=503, detail="No project registered in the kanban root")
+    entry = resolve_by_project_id(registry, project_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail=f"Unknown project '{project_id}'")
+
+    changes: dict[str, Any] = {}
+    if "enabled" in body:
+        changes["enabled"] = bool(body["enabled"])
+    if "ingress" in body:
+        ingress = str(body["ingress"])
+        if ingress not in ("webhook", "polling"):
+            raise HTTPException(status_code=422, detail="'ingress' must be 'webhook' or 'polling'")
+        changes["ingress"] = ingress
+    if not changes:
+        raise HTTPException(status_code=422, detail="No editable field in body (enabled/ingress)")
+
+    updated = replace(entry, **changes)
+    _upsert_project(_projects_path(_kanban_root()), project_id, updated)
+    return JSONResponse(
+        content={
+            "project_id": updated.project_id,
+            "repo": updated.repo,
+            "enabled": updated.enabled,
+            "ingress": updated.ingress,
+        }
+    )
 
 
 def _dict_to_draft(body: dict[str, Any]) -> PipelineDraft:
@@ -422,3 +844,45 @@ def _generate_schema() -> dict[str, Any]:
             },
         },
     }
+
+
+# --- Static SPA mount (bridge / helm PR 2) ------------------------------------------
+# The built React/shadcn SPA lives in the package at ``webui/`` (Vite outDir, shipped
+# under the [ui] extra). Mounted LAST so it never shadows the /api/* routes.
+_WEBUI_DIR = Path(__file__).resolve().parent.parent / "webui"
+
+
+def install_spa_mount(target: FastAPI, webui_dir: Path) -> None:
+    """Mount the built SPA at ``/`` on ``target``, or a friendly fallback when absent.
+
+    Idempotent at module load: called once below with the package ``webui/`` dir. When
+    ``webui_dir/index.html`` exists the built SPA is served (``html=True`` falls back to
+    ``index.html`` for client-side routes); otherwise ``GET /`` returns a friendly
+    "not built" message (a source checkout without ``npm run build``) instead of a 500,
+    and ``/api/*`` keeps working (DESIGN §7/§9). Extracted as a function so both states
+    are unit-testable regardless of the local build state.
+
+    Args:
+        target: The FastAPI app to mount onto.
+        webui_dir: The directory holding the built ``index.html`` + ``assets/``.
+    """
+    if (webui_dir / "index.html").is_file():
+        from fastapi.staticfiles import StaticFiles  # noqa: PLC0415
+
+        target.mount("/", StaticFiles(directory=str(webui_dir), html=True), name="webui")
+        return
+
+    @target.get("/")
+    def _no_build() -> JSONResponse:
+        """Friendly placeholder when the SPA build is absent (DESIGN §9)."""
+        return JSONResponse(
+            content={
+                "message": (
+                    "Config UI not built. Run `npm --prefix web run build` (or install the "
+                    "[ui] extra from a release wheel). The /api/* endpoints work regardless."
+                )
+            }
+        )
+
+
+install_spa_mount(app, _WEBUI_DIR)

@@ -20,6 +20,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build config UI (bridge / helm PR 2)
+        # Vite builds the React/shadcn SPA into src/kanbanmate/webui/ so the wheel
+        # ships it (package-data) and the http static-mount test exercises the served
+        # path. Node is a BUILD-only dependency — never required at runtime.
+        run: npm --prefix web ci && npm --prefix web run build
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -38,11 +49,6 @@ jobs:
 
       - name: Import smoke check
         run: python -c "import kanbanmate"
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
 
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code

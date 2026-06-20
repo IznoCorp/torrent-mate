@@ -1,0 +1,220 @@
+common:
+  validate: Valider
+  save: Enregistrer
+  saved: Enregistré
+  cancel: Annuler
+  apply: Appliquer
+  loading: Chargement…
+  add: + Ajouter
+  move_up: monter
+  move_down: descendre
+  remove: supprimer
+  per_project: par projet
+  daemon_scope: daemon · tout l'hôte
+
+shell:
+  board: Board
+  group_board: "Config board · {repo}"
+  group_daemon: Daemon · tout l'hôte
+  badge_board: "board : {repo}"
+  badge_daemon: daemon · tout l'hôte
+  errors_block_save: "{n} erreur(s) bloquent l'enregistrement"
+  nav:
+    columns: Colonnes
+    transitions: Transitions
+    defaults: Réglages
+    validation: Validation
+    yaml: Aperçu YAML
+    projects: Projets
+    profiles: Profils
+
+login:
+  title: KanbanMate — connexion
+  subtitle: Cette interface de configuration est protégée. Saisis tes identifiants opérateur.
+  username: Identifiant
+  password: Mot de passe
+  submit: Se connecter
+  signing_in: Connexion…
+  failed: Identifiant ou mot de passe invalide.
+  logout: Se déconnecter
+
+app:
+  cannot_reach_title: Impossible de joindre l'API de config
+  cannot_reach_body: "{err}. Démarre-la avec `kanban config serve`."
+  no_board_title: Aucun board enregistré
+  no_board_body: "Enregistres-en un avec `kanban init` d'abord."
+  loading_board: Chargement de la config du board…
+  cannot_load_board: Impossible de charger la config de ce board
+  action_failed: Action échouée
+
+columns:
+  intro_title: Colonnes
+  intro_body: >-
+    L'ensemble ordonné des colonnes de ce board — chaque board a son propre columns.yml. L'ordre ici
+    est l'ordre du board. Une colonne réactive déclenche un effet de bord à l'entrée (ex. teardown) ;
+    les colonnes inertes sont des gates humaines ou des états terminaux. Éditer ici modifie le
+    fichier de config ; « Sync board » pousse ensuite cet ensemble sur les options Status du board
+    GitHub.
+  legend: >-
+    Chaque ligne : le nom (le libellé affiché comme option Status GitHub), sa classe (réactive /
+    inerte) et son ordre (↑/↓). La puce grise est la clé stable utilisée dans les transitions.
+  add_column: + Ajouter une colonne
+  sync_board: Sync board ⤴
+  save_before_sync: Enregistre avant de synchroniser
+  sync_tooltip: Provisionner les options Status GitHub
+
+transitions:
+  intro_title: Transitions
+  intro_body: >-
+    La liste blanche des déplacements de cartes autorisés pour ce board — chaque board a son propre
+    transitions.yml. Une ligne associe un déplacement de → vers et dit ce qui se passe : quel prompt
+    d'agent s'exécute, sous quel profil de permissions, et si la carte avance automatiquement
+    ensuite. Choisis une ligne à gauche pour l'éditer.
+  banner: >-
+    La liste blanche est sensible à l'ordre — les lignes du haut gagnent, et un joker * masque les
+    lignes spécifiques en dessous. Une ligne lance un agent quand elle porte un prompt.
+  rows: "{n} lignes"
+  select_hint: Sélectionne une transition à gauche pour l'éditer.
+  row_blocks_save: Cette ligne bloque l'enregistrement
+  launch_label: "lancement :"
+  launch_fires: lance un agent
+  launch_noop: no-op (pas de prompt)
+  bypass_never: bypassPermissions n'est jamais autorisé
+  tip_launch: lance un agent
+  tip_script: exécute un script
+  tip_noop: no-op
+  prompt_label: Prompt — markdown (Écriture / Aperçu)
+  prompt_hint: >-
+    Le prompt (slash-command) que l'agent exécute. Les {{placeholders}} sont remplis au lancement ;
+    une ligne AVEC un prompt lance un agent.
+  labels:
+    from_col: Colonne source
+    to_col: Colonne destination
+    profile: Profil de permissions
+    permission_mode: Mode de permission
+    advance: Avancement auto
+    on_fail: En cas d'échec
+    script: Script
+  script_placeholder: ex. .claude/kanban/check-pr-ready.sh
+  browse: Parcourir…
+  picker_title: Choisir un script
+  picker_root: racine du projet
+  picker_up: ↑ remonter
+  picker_empty: (dossier vide)
+  picker_exec: exécutable
+  fields:
+    from_col: >-
+      Colonne source. * est un joker correspondant à n'importe quelle colonne — les lignes joker
+      doivent venir en dernier, elles masquent les lignes spécifiques en dessous.
+    to_col: Colonne de destination. Déplacer une carte dedans déclenche cette transition.
+    profile: >-
+      Profil de permissions matérialisé dans le worktree de l'agent (docs < prepare < dev < check).
+      Vide = pas d'agent.
+    permission_mode: Mode de permission Claude Code pour l'agent lancé. bypassPermissions n'est jamais autorisé.
+    advance: >-
+      Une fois l'étape terminée proprement, déplace automatiquement la carte vers cette colonne (le
+      filet de sécurité de l'autonomie). stop = attendre un humain.
+    on_fail: "Que faire si l'étape échoue : déplacer la carte vers Blocked, ou annuler le déplacement."
+    script: "Chemin vers un exécutable lancé sur cette transition (un gate / effet de bord), relatif au clone ou absolu. Une ligne peut porter un script ET/OU un prompt. Vide = aucun."
+
+defaults:
+  intro_title: Réglages
+  intro_body: >-
+    Limites d'exécution à l'échelle de ce projet, stockées dans le bloc defaults: de son
+    transitions.yml. Elles bornent le nombre d'agents simultanés et la vitesse de déplacement des
+    cartes par le bot. Le daemon et les agents tournent toujours en non-root.
+  concurrency_cap: concurrency_cap
+  concurrency_cap_hint: Nombre maximum de sessions d'agent simultanées sur tout le projet.
+  rate_limit: move_rate_limit_per_hour
+  rate_limit_hint: Limite de déplacements AUTO / bot par heure et par carte.
+
+validation:
+  intro_title: Validation
+  intro_body: >-
+    Les vérifications sémantiques que le serveur exécute sur la config de ce board (les règles
+    V1–V11). Les erreurs bloquent l'enregistrement — rien n'est écrit tant qu'elles ne passent pas ;
+    les avertissements sont indicatifs. Clique sur un résultat pour aller directement au champ
+    concerné.
+  errors_block: "{n} erreur(s) bloquent l'enregistrement"
+  errors_block_body: Corrige les champs localisés ci-dessous — rien n'est écrit tant qu'ils ne passent pas.
+  valid_title: Config valide
+  valid_body: Toutes les vérifications passent. L'enregistrement écrit columns.yml + transitions.yml.
+  advisory: "{n} avertissement(s) indicatif(s)"
+
+yaml:
+  intro_title: Aperçu YAML
+  intro_body: >-
+    Aperçu en lecture seule des deux fichiers vers lesquels la config de ce board est rendue,
+    exactement comme le daemon les lit. C'est généré côté serveur depuis tes modifications — c'est ce
+    qui sera écrit à l'enregistrement. Rien n'est éditable ici ; édite dans les onglets Colonnes /
+    Transitions / Réglages.
+  cannot_render: Impossible de rendre le YAML
+  rendering: Rendu…
+
+daemon:
+  intro_title: Daemon — projets gérés
+  intro_body: >-
+    Les boards que ce daemon interroge, depuis le registre à l'échelle de l'hôte (projects.json). Ce
+    n'est pas la config d'un board — c'est quels boards le daemon pilote et comment il y réagit.
+    Choisis un board à gauche pour activer/désactiver son pilotage et son mode d'ingestion.
+  banner_title: Portée daemon — s'applique à tout l'hôte
+  banner_body: >-
+    Ceci édite projects.json (le registre), pas la config d'un board. Seuls enabled et ingress sont
+    éditables ici ; repo / clone / token sont définis par kanban init. Le daemon en cours prend les
+    changements au prochain rechargement de config ou redémarrage — ce n'est pas un échange à chaud
+    de l'ensemble des projets.
+  enabled: enabled
+  enabled_hint: Si le daemon pilote ce board ou non.
+  enabled_true: true — piloté
+  enabled_false: false — ignoré
+  ingress: ingress
+  ingress_hint: "webhook = nudge sous la seconde via kanban serve ; polling = seulement le balayage 10s."
+  save_settings: Enregistrer les réglages daemon
+  saving: Enregistrement…
+  saved_msg: Enregistré. Le daemon l'applique au prochain rechargement de config / redémarrage.
+  save_failed: Échec de l'enregistrement
+  enabled_chip: activé
+  disabled_chip: désactivé
+
+profiles:
+  intro_title: Profils de permissions
+  intro_body: >-
+    Référence en lecture seule. Un profil est la frontière de permissions sous laquelle un agent
+    autonome tourne dans son worktree (quels outils/commandes il peut utiliser). Les profils sont
+    définis dans le code du moteur (core/profiles + adapters/perms), PAS dans une config éditable —
+    les éditer élargirait ce qu'un agent peut faire. Les transitions choisissent un profil par nom.
+  mode: mode épinglé
+  allow: autorise
+  deny: interdit
+  allow_count: "{n} règle(s) d'autorisation"
+  deny_count: "{n} règle(s) d'interdiction"
+
+prompt:
+  write: Écriture
+  preview: Aperçu
+  placeholders_label: placeholders connus — clique une ligne pour insérer
+  insert: Cliquer pour insérer dans le prompt
+  placeholder: Pas de prompt — transition script-only / no-op. Markdown supporté.
+  no_prompt_md: "*Pas de prompt.*"
+  unknown_count: "{n} placeholder(s) inconnu(s)"
+  did_you_mean: " — vouliez-vous dire {{{name}}} ?"
+  not_known: " n'est pas un placeholder connu."
+  click_to_edit: Cliquer pour éditer le prompt complet
+
+sync:
+  title: Sync board
+  desc: Provisionner les options Status de GitHub Projects v2 pour correspondre à columns.yml
+  banner_title: Ceci modifie le board GitHub
+  banner_body: >-
+    Re-provisionne les options Status pour correspondre à columns.yml (via le seeder). Les tickets et
+    les positions des cartes ne sont pas touchés. Le merge reste humain-only.
+  failed: Échec de la synchro
+  computing: Calcul du diff…
+  already_matches: Le board correspond déjà à columns.yml. Rien à appliquer.
+  removals_title: "{n} colonne(s) sur le board absentes de columns.yml"
+  removals_body: "Non supprimées automatiquement (orphelineraient des cartes) : {cols}. Supprime-les dans GitHub si voulu."
+  apply: Appliquer au board
+  applying: Application…
+  tag_add: AJOUT
+  tag_rename: RENOMMÉ
+  tag_reorder: RÉORDONNÉ

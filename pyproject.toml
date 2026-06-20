@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kanbanmate"
-version = "0.8.0"
+version = "0.9.0"
 description = "Reusable Kanban orchestrator on GitHub Projects v2 with autonomous Claude Code agents."
 requires-python = ">=3.12"
 license = { text = "MIT" }
@@ -48,7 +48,7 @@ kanban-update-main = "kanbanmate.bin.kanban_update_main:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-kanbanmate = ["py.typed", "assets/*.tmpl", "assets/*.yml", "bin/check-*.sh"]
+kanbanmate = ["py.typed", "assets/*.tmpl", "assets/*.yml", "bin/check-*.sh", "webui/**/*"]
 
 [tool.ruff]
 line-length = 100

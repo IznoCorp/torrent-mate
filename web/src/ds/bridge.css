@@ -1,0 +1,85 @@
+/* bridge-specific classes (from the kit's new-pieces.html mock) layered over the
+ * design-system tokens: prompt-editor placeholder highlighting + sync-board diff rows. */
+
+.ph {
+  color: var(--primary);
+  background: color-mix(in oklch, var(--primary) 14%, transparent);
+  border-radius: 4px;
+  padding: 0 2px;
+  font-weight: 600;
+}
+.ph.bad {
+  color: var(--destructive);
+  background: color-mix(in oklch, var(--destructive) 14%, transparent);
+  text-decoration: underline wavy var(--destructive);
+}
+
+.diff-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--background);
+}
+.tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.04em;
+}
+.tag.add {
+  color: var(--col-agent-fg, var(--primary));
+  background: color-mix(in oklch, var(--primary) 12%, transparent);
+}
+.tag.ren {
+  color: var(--health-waiting-fg, #b45309);
+  background: color-mix(
+    in oklch,
+    var(--health-waiting-fg, #b45309) 14%,
+    transparent
+  );
+}
+
+/* Markdown preview (Write/Preview prompt editor) — minimal GitHub-ish rendering. */
+.md-preview > *:first-child { margin-top: 0; }
+.md-preview > *:last-child { margin-bottom: 0; }
+.md-preview h1, .md-preview h2, .md-preview h3 {
+  font-family: var(--font-display, var(--font-sans));
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 1em 0 0.5em;
+}
+.md-preview h1 { font-size: 1.5em; }
+.md-preview h2 { font-size: 1.3em; }
+.md-preview h3 { font-size: 1.1em; }
+.md-preview p { margin: 0.6em 0; }
+.md-preview ul, .md-preview ol { margin: 0.6em 0; padding-left: 1.5em; }
+.md-preview li { margin: 0.25em 0; }
+.md-preview code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--muted);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+.md-preview pre {
+  background: var(--surface-inverse, #1e1e1e);
+  color: #e2e2d6;
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  overflow: auto;
+}
+.md-preview pre code { background: transparent; padding: 0; color: inherit; }
+.md-preview blockquote {
+  border-left: 3px solid var(--border);
+  margin: 0.6em 0;
+  padding: 0.2em 0 0.2em 1em;
+  color: var(--muted-foreground);
+}
+.md-preview a { color: var(--primary); }

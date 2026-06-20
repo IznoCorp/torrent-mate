@@ -1,0 +1,16 @@
+/* KanbanMate Design System — webfonts (shadcn foundation)
+ *
+ * This system is built OVER shadcn/ui, so it adopts shadcn's native typeface stack:
+ *   - Geist        → UI, headings, wordmark, large numerics (shadcn's default sans)
+ *   - Geist Mono   → column keys, YAML, prompts, data badges (every literal identifier)
+ *
+ * Geist is the official font of shadcn/ui (by Vercel). KanbanMate is mono-heavy:
+ * anything the daemon reads verbatim (column keys like `InProgress`, permission_mode
+ * values, placeholder tokens) is set in Geist Mono so the UI and the config file match.
+ *
+ * SUBSTITUTION NOTE: KanbanMate ships no brand typeface (it is a Python CLI). Geist is
+ * the shadcn default and the honest foundation for a system created over shadcn. If the
+ * team adopts a different brand face, drop the files here and swap the @import below.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
