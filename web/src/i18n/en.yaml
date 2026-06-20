@@ -5,6 +5,7 @@ common:
   cancel: Cancel
   apply: Apply
   close: Close
+  required: required field
   loading: Loading…
   add: + Add
   back: Back

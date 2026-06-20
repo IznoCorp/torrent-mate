@@ -1,6 +1,44 @@
 /* bridge-specific classes (from the kit's new-pieces.html mock) layered over the
  * design-system tokens: prompt-editor placeholder highlighting + sync-board diff rows. */
 
+/* CodeMirror prompt editor — theme-aware via tokens (CodeMirror ships no dark variant here, so its
+ * default light theme rendered white-on-white in dark mode). Driving every surface off the design
+ * tokens makes it readable in BOTH light and dark. */
+.cm-prompt .cm-editor {
+  background: var(--card);
+  color: var(--foreground);
+}
+.cm-prompt .cm-editor.cm-focused {
+  outline: none;
+}
+.cm-prompt .cm-content {
+  color: var(--foreground);
+  caret-color: var(--foreground);
+}
+.cm-prompt .cm-gutters {
+  background: var(--muted);
+  color: var(--muted-foreground);
+  border: none;
+}
+.cm-prompt .cm-activeLine {
+  background: color-mix(in oklch, var(--foreground) 6%, transparent);
+}
+.cm-prompt .cm-activeLineGutter {
+  background: color-mix(in oklch, var(--foreground) 9%, transparent);
+}
+.cm-prompt .cm-cursor,
+.cm-prompt .cm-dropCursor {
+  border-left-color: var(--foreground);
+}
+.cm-prompt .cm-placeholder {
+  color: var(--muted-foreground);
+}
+.cm-prompt .cm-selectionBackground,
+.cm-prompt .cm-content ::selection,
+.cm-prompt .cm-line ::selection {
+  background: color-mix(in oklch, var(--primary) 30%, transparent) !important;
+}
+
 .ph {
   color: var(--primary);
   background: color-mix(in oklch, var(--primary) 14%, transparent);
@@ -47,20 +85,40 @@
 }
 
 /* Markdown preview (Write/Preview prompt editor) — minimal GitHub-ish rendering. */
-.md-preview > *:first-child { margin-top: 0; }
-.md-preview > *:last-child { margin-bottom: 0; }
-.md-preview h1, .md-preview h2, .md-preview h3 {
+.md-preview > *:first-child {
+  margin-top: 0;
+}
+.md-preview > *:last-child {
+  margin-bottom: 0;
+}
+.md-preview h1,
+.md-preview h2,
+.md-preview h3 {
   font-family: var(--font-display, var(--font-sans));
   font-weight: 600;
   line-height: 1.25;
   margin: 1em 0 0.5em;
 }
-.md-preview h1 { font-size: 1.5em; }
-.md-preview h2 { font-size: 1.3em; }
-.md-preview h3 { font-size: 1.1em; }
-.md-preview p { margin: 0.6em 0; }
-.md-preview ul, .md-preview ol { margin: 0.6em 0; padding-left: 1.5em; }
-.md-preview li { margin: 0.25em 0; }
+.md-preview h1 {
+  font-size: 1.5em;
+}
+.md-preview h2 {
+  font-size: 1.3em;
+}
+.md-preview h3 {
+  font-size: 1.1em;
+}
+.md-preview p {
+  margin: 0.6em 0;
+}
+.md-preview ul,
+.md-preview ol {
+  margin: 0.6em 0;
+  padding-left: 1.5em;
+}
+.md-preview li {
+  margin: 0.25em 0;
+}
 .md-preview code {
   font-family: var(--font-mono);
   font-size: 0.9em;
@@ -75,11 +133,17 @@
   padding: 12px 14px;
   overflow: auto;
 }
-.md-preview pre code { background: transparent; padding: 0; color: inherit; }
+.md-preview pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
 .md-preview blockquote {
   border-left: 3px solid var(--border);
   margin: 0.6em 0;
   padding: 0.2em 0 0.2em 1em;
   color: var(--muted-foreground);
 }
-.md-preview a { color: var(--primary); }
+.md-preview a {
+  color: var(--primary);
+}

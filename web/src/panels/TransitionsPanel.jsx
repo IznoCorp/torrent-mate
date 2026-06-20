@@ -298,6 +298,7 @@ export default function TransitionsPanel({
                     label={t("transitions.labels.from_col")}
                     tech="from_col"
                     hint={t("transitions.fields.from_col")}
+                    required
                   >
                     <Select
                       options={["*", ...colKeys]}
@@ -326,6 +327,7 @@ export default function TransitionsPanel({
                     label={t("transitions.labels.to_col")}
                     tech="to_col"
                     hint={t("transitions.fields.to_col")}
+                    required
                   >
                     <Select
                       options={colKeys}
@@ -493,7 +495,8 @@ function LegendDot({ color, label }) {
   );
 }
 
-function DField({ label, tech, hint, children }) {
+function DField({ label, tech, hint, required = false, children }) {
+  const { t } = useT();
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <span
@@ -508,6 +511,15 @@ function DField({ label, tech, hint, children }) {
           style={{ fontSize: 12, fontWeight: 600, color: "var(--foreground)" }}
         >
           {label}
+          {required && (
+            <span
+              title={t("common.required")}
+              aria-label={t("common.required")}
+              style={{ color: "var(--destructive)", marginLeft: 3 }}
+            >
+              *
+            </span>
+          )}
         </span>
         {tech && (
           <code

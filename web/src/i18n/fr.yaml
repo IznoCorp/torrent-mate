@@ -5,6 +5,7 @@ common:
   cancel: Annuler
   apply: Appliquer
   close: Fermer
+  required: champ obligatoire
   loading: Chargement…
   add: + Ajouter
   back: Retour
