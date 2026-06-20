@@ -264,14 +264,14 @@ class TestTorr9Search:
     """Torr9Client.search() — query param and re-login-on-401 behaviour."""
 
     def test_search_calls_correct_path_and_param(self) -> None:
-        """search() hits /api/v1/torrents with q= param."""
+        """search() hits the REAL search endpoint /api/v1/torrents/search with q= param."""
         client = _make_client()
-        client._transport.get.return_value = {"torrents": [], "limit": 20, "page": 1}  # type: ignore[attr-defined]
+        client._transport.get.return_value = {"torrents": [], "limit": 25, "current_page": 1}  # type: ignore[attr-defined]
 
         client.search("Inception")
 
         kwargs = client._transport.get.call_args.kwargs  # type: ignore[attr-defined]
-        assert kwargs["path"] == "/api/v1/torrents"
+        assert kwargs["path"] == "/api/v1/torrents/search"
         assert kwargs["params"]["q"] == "Inception"
 
     def test_year_appended_to_query(self) -> None:
@@ -334,20 +334,25 @@ class TestTorr9Search:
 class TestTorr9SearchGoldenFixture:
     """Golden-fixture parse tests against the real captured torr9_search.json.
 
+    The fixture is the REAL ``/api/v1/torrents/search?q=Inception`` response
+    (3 items, uploader redacted): it carries real ``seeders``/``leechers``, a
+    human ``category_name`` label, and ``tmdb_id``, but NO ``magnet_link``
+    (download via the ``.torrent`` endpoint).
+
     These tests are ANTI-VACUITY: they assert concrete values from the real
     payload, not just 'isinstance' or 'not None'. A stub-passable test that
     checks nothing specific will not catch real parse bugs (project memory:
     DeepSeek-written parsers pass make check while hiding real bugs).
     """
 
-    def test_search_parses_two_results_from_golden_fixture(self) -> None:
-        """Real payload has exactly 2 torrents in the captured slice."""
+    def test_search_parses_three_results_from_golden_fixture(self) -> None:
+        """Real /torrents/search payload has exactly 3 torrents in the captured slice."""
         client = _make_client()
         client._transport.get.return_value = _load("torr9_search.json")  # type: ignore[attr-defined]
 
-        results = client.search("Oasis")
+        results = client.search("Inception")
 
-        assert len(results) == 2
+        assert len(results) == 3
         assert all(isinstance(r, TrackerResult) for r in results)
         assert all(r.provider == "torr9" for r in results)
 
@@ -356,51 +361,54 @@ class TestTorr9SearchGoldenFixture:
         client = _make_client()
         client._transport.get.return_value = _load("torr9_search.json")  # type: ignore[attr-defined]
 
-        first = client.search("Oasis")[0]
-        assert first.title == "Oasis.2026.S01.MULTi.AD.1080p.NF.WEB.X264-THESYNDiCATE"
+        first = client.search("Inception")[0]
+        assert first.title == "Inception 2010 BluRay 2160p HDR Hybrid DoVi x265 10bit MULTI VFF 5.1 DTS HDMA-telemO"
 
     def test_first_item_size_bytes(self) -> None:
         """Size parsed from file_size_bytes (exact bytes, not KB/MB)."""
         client = _make_client()
         client._transport.get.return_value = _load("torr9_search.json")  # type: ignore[attr-defined]
 
-        first = client.search("Oasis")[0]
+        first = client.search("Inception")[0]
         assert isinstance(first.size, ByteSize)
-        assert first.size.bytes == 20_827_331_134
+        assert first.size.bytes == 13_832_185_317
 
-    def test_first_item_magnet_link_as_download_url(self) -> None:
-        """download_url is the magnet_link (auth-free, preferred)."""
+    def test_first_item_download_url_is_torrent_endpoint(self) -> None:
+        """No magnet on search items → download_url is the authed .torrent endpoint."""
         client = _make_client()
         client._transport.get.return_value = _load("torr9_search.json")  # type: ignore[attr-defined]
 
-        first = client.search("Oasis")[0]
-        assert first.download_url is not None
-        assert first.download_url.startswith("magnet:?xt=urn:btih:")
-        assert "d5638677f9986adc3ea155e7b753c36321cc30af" in first.download_url
+        first = client.search("Inception")[0]
+        assert first.download_url == "/api/v1/torrents/13750/download"
+        assert not first.download_url.startswith("magnet:")
 
     def test_first_item_info_hash(self) -> None:
         """info_hash matches the golden fixture value."""
         client = _make_client()
         client._transport.get.return_value = _load("torr9_search.json")  # type: ignore[attr-defined]
 
-        first = client.search("Oasis")[0]
-        assert first.info_hash == "d5638677f9986adc3ea155e7b753c36321cc30af"
+        first = client.search("Inception")[0]
+        assert first.info_hash == "cc32af3a46e54c48ded0c74ee2a9e798d70834ea"
 
     def test_first_item_is_not_freeleech(self) -> None:
         """is_freeleech is False for the first golden fixture item."""
         client = _make_client()
         client._transport.get.return_value = _load("torr9_search.json")  # type: ignore[attr-defined]
 
-        first = client.search("Oasis")[0]
+        first = client.search("Inception")[0]
         assert first.is_freeleech is False
 
-    def test_first_item_seeders_none_because_torr9_does_not_expose_swarm(self) -> None:
-        """torr9 has no seeder data — seeders=0 on all results."""
+    def test_first_item_real_seeders_from_search(self) -> None:
+        """The /torrents/search payload carries real swarm data — seeders=49, leechers=0.
+
+        This is the KEY PROOF the endpoint fix works: the listing endpoint
+        returned seeders=0 (no swarm keys); the real search endpoint exposes them.
+        """
         client = _make_client()
         client._transport.get.return_value = _load("torr9_search.json")  # type: ignore[attr-defined]
 
-        first = client.search("Oasis")[0]
-        assert first.seeders == 0
+        first = client.search("Inception")[0]
+        assert first.seeders == 49
         assert first.leechers == 0
 
     def test_first_item_upload_date_iso(self) -> None:
@@ -408,38 +416,58 @@ class TestTorr9SearchGoldenFixture:
         client = _make_client()
         client._transport.get.return_value = _load("torr9_search.json")  # type: ignore[attr-defined]
 
-        first = client.search("Oasis")[0]
+        first = client.search("Inception")[0]
         assert first.upload_date is not None
         assert first.upload_date.tzinfo == timezone.utc
         assert first.upload_date.year == 2026
-        assert first.upload_date.month == 6
-        assert first.upload_date.day == 19
+        assert first.upload_date.month == 2
+        assert first.upload_date.day == 5
 
-    def test_first_item_category_from_id_map(self) -> None:
-        """category_id 5 maps to 'Séries TV' via _CATEGORY_MAP."""
+    def test_first_item_category_from_name_label(self) -> None:
+        """Category comes from the search payload's category_name label ('Films'), NOT _CATEGORY_MAP."""
         client = _make_client()
         client._transport.get.return_value = _load("torr9_search.json")  # type: ignore[attr-defined]
 
-        first = client.search("Oasis")[0]
-        assert first.category == "Séries TV"
+        first = client.search("Inception")[0]
+        assert first.category == "Films"
 
-    def test_second_item_category_from_id_map(self) -> None:
-        """category_id 51 maps to 'Films' via _CATEGORY_MAP."""
+    def test_first_item_tmdb_id(self) -> None:
+        """torr9 search exposes tmdb_id — carried on TrackerResult."""
         client = _make_client()
         client._transport.get.return_value = _load("torr9_search.json")  # type: ignore[attr-defined]
 
-        second = client.search("Oasis")[1]
-        assert second.title == "The.Fantastic.Four.1994.VOSTFR.DVDRip.x264.AC3-TeamLampion"
-        assert second.category == "Films"
-        assert second.size.bytes == 1_000_504_347
+        first = client.search("Inception")[0]
+        assert first.tmdb_id == 27205
 
-    def test_second_item_tracker_id(self) -> None:
+    def test_first_item_tracker_id(self) -> None:
         """tracker_id is the string of the JSON 'id' field."""
         client = _make_client()
         client._transport.get.return_value = _load("torr9_search.json")  # type: ignore[attr-defined]
 
-        second = client.search("Oasis")[1]
-        assert second.tracker_id == "305289"
+        first = client.search("Inception")[0]
+        assert first.tracker_id == "13750"
+
+    def test_second_item_seeders_and_tmdb(self) -> None:
+        """Second item carries its own real swarm (seeders=246) and the same tmdb_id."""
+        client = _make_client()
+        client._transport.get.return_value = _load("torr9_search.json")  # type: ignore[attr-defined]
+
+        second = client.search("Inception")[1]
+        assert second.tracker_id == "40003"
+        assert second.seeders == 246
+        assert second.category == "Films"
+        assert second.tmdb_id == 27205
+
+    def test_third_item_music_tmdb_zero_maps_to_none(self) -> None:
+        """The music item carries tmdb_id=0 in the payload → parsed to None."""
+        client = _make_client()
+        client._transport.get.return_value = _load("torr9_search.json")  # type: ignore[attr-defined]
+
+        third = client.search("Inception")[2]
+        assert third.tracker_id == "277217"
+        assert third.category == "Musique"
+        assert third.seeders == 2
+        assert third.tmdb_id is None
 
 
 # ---------------------------------------------------------------------------
@@ -765,13 +793,31 @@ class TestTorr9GetDetails:
 
 
 class TestTorr9SearchEnrichment:
-    """search() enriches the top-K results' seeders from the detail endpoint.
+    """search() re-checks the top-K results' seeders from the detail endpoint.
 
-    torr9's search payload has no swarm data, so without enrichment every result
-    is seeders=0 and dropped by the ranking min_seeders floor. These tests pin
-    the top-K bound, the default-on behaviour, the opt-out, and the per-result
-    fail-soft contract.
+    Enrichment is now an OPT-IN re-check (default OFF): the ``/torrents/search``
+    payload already carries real seeders, so it is a redundant refresh rather
+    than a necessity. These tests build seeders-absent payloads (to make the
+    refresh observable) and pin the top-K bound, the opt-in behaviour, the
+    default opt-out, and the per-result fail-soft contract.
     """
+
+    @staticmethod
+    def _enriching_client(*, top_k: int = 10) -> Torr9Client:
+        """Build a Torr9Client with enrichment explicitly ON and a mock transport.
+
+        Enrichment now defaults OFF, so the enrich-on tests must opt in
+        explicitly. Mirrors ``_make_client`` but flips ``enrich_seeders=True``.
+        """
+        client = Torr9Client(
+            username="user",
+            password="pass",
+            event_bus=MagicMock(),
+            enrich_seeders=True,
+            enrich_seeders_top_k=top_k,
+        )
+        client._transport = MagicMock()
+        return client
 
     @staticmethod
     def _search_payload(n: int) -> dict[str, object]:
@@ -792,9 +838,9 @@ class TestTorr9SearchEnrichment:
             ]
         }
 
-    def test_enrich_default_on_backfills_top_k_seeders(self) -> None:
-        """With enrich on (default), the top-K results get real seeders via get_details."""
-        client = _make_client()
+    def test_enrich_opt_in_backfills_top_k_seeders(self) -> None:
+        """With enrich opted in, the top-K results get real seeders via get_details."""
+        client = self._enriching_client()
         client._transport.get.return_value = self._search_payload(3)  # type: ignore[attr-defined]
 
         # Each get_details returns a TrackerResult with seeders=7, leechers=2.
@@ -869,7 +915,7 @@ class TestTorr9SearchEnrichment:
             "personalscraper.api.tracker.torr9.log.warning",
             lambda event, **kw: warnings.append((event, kw)),
         )
-        client = _make_client()
+        client = self._enriching_client()
         client._transport.get.return_value = self._search_payload(2)  # type: ignore[attr-defined]
 
         def _boom(tid: str) -> TrackerResult:
@@ -900,7 +946,7 @@ class TestTorr9SearchEnrichment:
             "personalscraper.api.tracker.torr9.log.warning",
             lambda event, **kw: warnings.append((event, kw)),
         )
-        client = _make_client()
+        client = self._enriching_client()
         client._transport.get.return_value = self._search_payload(4)  # type: ignore[attr-defined]
 
         # The circuit is OPEN on the very first enriched result — every remaining

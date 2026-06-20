@@ -7,19 +7,23 @@ JSON API (https://api.torr9.net/api/v1). Auth is a two-step JWT login
 
 See docs/reference/torr9-api.md for endpoint and field reference.
 Field shapes validated against docs/reference/_samples/torr9/torr9_search.json
-(real capture 2026-06-19).
+(real ``/torrents/search`` capture 2026-06-20).
 
 torr9 particularities (live-confirmed):
+- Search hits ``GET /api/v1/torrents/search?q=`` — the REAL search endpoint that
+  filters on ``q``. NOT ``GET /api/v1/torrents?q=`` (the listing/recent endpoint,
+  which IGNORES ``q`` and returns a static recent feed). Filtering works with just
+  ``Accept: application/json`` + Bearer (no browser headers needed).
 - Search param is ``q`` (NOT ``search`` — returns 0 results).
-- Pagination via ``page`` query param (default page 1, limit 20).
-- ``magnet_link`` is auth-free and is the PRIMARY download path. When it is
-  absent/malformed, the fallback is the real .torrent endpoint
-  ``GET /api/v1/torrents/{id}/download`` (Bearer, returns
-  ``application/x-bittorrent`` bytes — live-confirmed). ``torrent_file_url`` is
-  DEAD (404 at every host/auth, hash mismatch, absent from the detail payload)
-  and is NOT consumed.
+- Pagination via ``page`` query param (default page 1, limit 25).
+- The ``/torrents/search`` item exposes ``seeders``/``leechers`` + a human
+  ``category_name`` label + ``tmdb_id``, but carries NO ``magnet_link``. Download
+  is the real .torrent endpoint ``GET /api/v1/torrents/{id}/download`` (Bearer,
+  returns ``application/x-bittorrent`` bytes — live-confirmed). The DETAIL payload
+  (``GET /torrents/{id}``) does carry ``magnet_link`` (auth-free) — preferred when
+  present. ``torrent_file_url`` is DEAD (404 at every host/auth, hash mismatch,
+  absent from the detail payload) and is NOT consumed.
 - ``is_freeleech`` is a clean boolean (no text parsing needed).
-- No seeders/leechers exposed — ``seeders=0, leechers=0`` on all results.
 - Login 401: "Identifiant ou mot de passe invalide" → fail-loud at boot.
 - Search 401: "Missing authorization token" → re-login once (RP7).
 - RSS feeds (passkey) for freeleech radar are OUT OF SCOPE (R1 follow-on).
@@ -139,7 +143,7 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
         through ``from_env`` for every tracker (no provider-name literal, no
         cred-style branch). torr9 is a login-style tracker, so it self-builds its
         authed transport lazily and reads its enrichment options off
-        ``provider_cfg`` (defaults: enrich on, top-K=10). The creds are already
+        ``provider_cfg`` (defaults: enrich OFF, top-K=10). The creds are already
         validated present by the registry's cred-gating before this runs.
 
         Args:
@@ -157,7 +161,7 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
             username=env.get(cls.REQUIRED_CREDS[0], ""),
             password=env.get(cls.REQUIRED_CREDS[1], ""),
             event_bus=event_bus,
-            enrich_seeders=getattr(provider_cfg, "enrich_seeders", True),
+            enrich_seeders=getattr(provider_cfg, "enrich_seeders", False),
             enrich_seeders_top_k=getattr(provider_cfg, "enrich_seeders_top_k", 10),
         )
 
@@ -167,7 +171,7 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
         username: str,
         password: str,
         event_bus: EventBus,
-        enrich_seeders: bool = True,
+        enrich_seeders: bool = False,
         enrich_seeders_top_k: int = 10,
     ) -> None:
         """Initialize the torr9 client (network-free — transports are lazy).
@@ -176,11 +180,11 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
             username: ``TORR9_USERNAME`` credential.
             password: ``TORR9_PASSWORD`` credential.
             event_bus: Event bus forwarded to the bootstrap + main HttpTransports.
-            enrich_seeders: When True (default), ``search`` enriches the top-K
-                results' seeders/leechers from the detail endpoint (fail-soft per
-                result). torr9's search payload has no swarm data, so without this
-                every result has ``seeders=0`` and is dropped by the ranking
-                ``min_seeders`` floor.
+            enrich_seeders: When True, ``search`` re-checks the top-K results'
+                seeders/leechers against the detail endpoint (fail-soft per
+                result). Default False (opt-in): torr9's ``/torrents/search``
+                payload already carries real swarm data, so this is a redundant
+                re-check, not a necessity.
             enrich_seeders_top_k: How many leading results to enrich (default 10).
         """
         self._username = username
@@ -308,13 +312,15 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
         media_type: MediaType = MediaType.MOVIE,
         year: int | None = None,
     ) -> list[TrackerResult]:
-        """Search torr9 via GET /api/v1/torrents?q=<query>.
+        """Search torr9 via GET /api/v1/torrents/search?q=<query>.
 
-        Logs in lazily on first transport access. Re-logins once on 401
-        (RP7 auth-lifecycle: expired JWT → re-login, then retry) via
-        ``_authed_get``. Wraps the parser in ``wrap_parser_drift`` so upstream
-        shape changes surface as ``ApiError`` (swallowed by the registry)
-        rather than bare ``KeyError``.
+        Hits the REAL search endpoint ``/api/v1/torrents/search`` (which filters
+        on ``q``), NOT the listing endpoint ``/api/v1/torrents`` (which ignores
+        ``q`` and returns a static recent feed). Logs in lazily on first transport
+        access. Re-logins once on 401 (RP7 auth-lifecycle: expired JWT → re-login,
+        then retry) via ``_authed_get``. Wraps the parser in ``wrap_parser_drift``
+        so upstream shape changes surface as ``ApiError`` (swallowed by the
+        registry) rather than bare ``KeyError``.
 
         Args:
             query: Free-text search query.
@@ -323,12 +329,13 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
 
         Returns:
             List of TrackerResult ordered as returned by the API (newest first).
-            When ``enrich_seeders`` is on, the top-K results carry real
-            seeders/leechers fetched from the detail endpoint.
+            The search payload already carries real seeders/leechers, so results
+            are ranking-ready. When ``enrich_seeders`` is opted in, the top-K
+            results' swarm health is re-checked against the detail endpoint.
         """
         del media_type  # No per-type search endpoint on torr9.
         q = f"{query} {year}" if year is not None else query
-        raw = self._authed_get("/api/v1/torrents", {"q": q})
+        raw = self._authed_get("/api/v1/torrents/search", {"q": q})
 
         def _parse() -> list[TrackerResult]:
             data = cast("dict[str, Any]", raw)
@@ -337,11 +344,12 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
 
         results = wrap_parser_drift(self.provider_name, _parse)
 
-        # Swarm enrichment: torr9's search payload has no seeders/leechers, so
-        # every result would be seeders=0 and dropped by the ranking
-        # ``min_seeders`` floor. Backfill the top-K results' swarm health from
-        # the detail endpoint. Fail-soft PER RESULT — a detail error or circuit
-        # trip leaves that result at seeders=0 but never aborts the search.
+        # Optional swarm re-check (opt-in, default OFF): the ``/torrents/search``
+        # payload already carries real seeders/leechers, so this is a redundant
+        # re-check against the detail endpoint, not a necessity. When opted in,
+        # it refreshes the top-K results' swarm health. Fail-soft PER RESULT — a
+        # detail error or circuit trip leaves that result's seeders untouched but
+        # never aborts the search.
         if self._enrich_seeders and results:
             for r in results[: self._enrich_top_k]:
                 try:
@@ -438,19 +446,24 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
 
         Shared by BOTH payload shapes:
 
-        - the SEARCH item (``response["torrents"][i]``) — carries a numeric
-          ``category_id`` but NO swarm data (``seeders``/``leechers`` absent →
-          default to 0);
-        - the DETAIL item (``GET /torrents/{id}``) — carries real
-          ``seeders``/``leechers`` and a human ``category_name`` label instead
-          of ``category_id``.
+        - the SEARCH item (``GET /torrents/search`` → ``response["torrents"][i]``)
+          — carries real ``seeders``/``leechers``, a human ``category_name``
+          label, and ``tmdb_id``, but NO ``category_id`` and NO ``magnet_link``;
+        - the DETAIL item (``GET /torrents/{id}``) — also carries real
+          ``seeders``/``leechers`` + a ``category_name`` label, and DOES carry
+          ``magnet_link``.
+
+        The LISTING item (``GET /torrents``) instead carries a numeric
+        ``category_id`` + no swarm — handled by the ``_CATEGORY_MAP`` fallback.
 
         Args:
-            item: One torrent object from either the search or detail payload.
+            item: One torrent object from the search, detail, or listing payload.
 
         Returns:
-            TrackerResult. ``seeders``/``leechers`` are 0 for a search item
-            (no swarm keys) and the real swarm health for a detail item.
+            TrackerResult with real swarm health (``seeders``/``leechers``) for
+            search and detail items, and ``category`` resolved from the
+            ``category_name`` label (search/detail) or ``_CATEGORY_MAP``
+            (listing ``category_id``).
         """
         title = str(item.get("title", ""))
 
@@ -478,10 +491,11 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
             # resolve_source raises a clean "no usable download_url" TorrentFetchError.
             download_url = f"/api/v1/torrents/{tracker_id}/download" if tracker_id else None
 
-        # Category: the SEARCH payload has a numeric ``category_id`` (mapped via
-        # _CATEGORY_MAP); the DETAIL payload has NO ``category_id`` but a human
-        # ``category_name`` label instead. Prefer the id-map, fall back to the
-        # detail's label so both payload shapes yield a real category.
+        # Category: the SEARCH/DETAIL payloads carry a human ``category_name``
+        # label (no ``category_id``); the LISTING payload has a numeric
+        # ``category_id`` instead (mapped via _CATEGORY_MAP). Prefer the id-map
+        # when a numeric id is present, fall back to the label so every payload
+        # shape yields a real category.
         category_id = item.get("category_id")
         if isinstance(category_id, int | float):
             category = _CATEGORY_MAP.get(int(category_id))
@@ -490,10 +504,15 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
 
         upload_date = _parse_iso(item.get("upload_date"))
 
-        # Swarm health: the SEARCH payload omits seeders/leechers (→ 0); the
-        # DETAIL payload (GET /torrents/{id}) carries the real values. int()
-        # runs inside wrap_parser_drift, so a bad type surfaces as shape drift.
-        # The `or 0` collapses a present-but-None value to 0.
+        # TMDB id (search payload only): torr9 carries ``tmdb_id`` as an int, with
+        # ``0`` meaning "none" (e.g. music releases). Map 0/absent → None.
+        tmdb_raw = item.get("tmdb_id")
+        tmdb_id = int(tmdb_raw) if isinstance(tmdb_raw, int | float) and int(tmdb_raw) > 0 else None
+
+        # Swarm health: the SEARCH and DETAIL payloads both carry real
+        # seeders/leechers; the LISTING payload omits them (→ 0). int() runs
+        # inside wrap_parser_drift, so a bad type surfaces as shape drift. The
+        # `or 0` collapses a present-but-None value to 0.
         return TrackerResult(
             provider=self.provider_name,
             tracker_id=tracker_id,
@@ -513,4 +532,5 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
             source=None,
             resolution=None,
             audio=None,
+            tmdb_id=tmdb_id,
         )
