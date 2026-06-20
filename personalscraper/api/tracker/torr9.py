@@ -483,13 +483,20 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
         magnet = item.get("magnet_link")
         tracker_id = str(item.get("id", ""))
         if isinstance(magnet, str) and magnet.startswith("magnet:"):
+            # DETAIL items carry an auth-free magnet (ROADMAP Q4 magnet exception).
             download_url: str | None = magnet
+        elif tracker_id:
+            # SEARCH items carry NO magnet — the .torrent endpoint
+            # /torrents/{id}/download (Bearer bytes, live-confirmed 200
+            # application/x-bittorrent) is the NORMAL download path, not an anomaly,
+            # so do NOT warn. resolve_source fetches it via the authed transport.
+            # torrent_file_url is DEAD (404 everywhere, hash mismatch) — unused.
+            download_url = f"/api/v1/torrents/{tracker_id}/download"
         else:
-            log.warning("torr9_missing_magnet", tracker_id=tracker_id, title=title)
-            # When the id is also absent, building "/api/v1/torrents//download" would
-            # yield a malformed URL that 404s deep in fetch. Emit None instead so
-            # resolve_source raises a clean "no usable download_url" TorrentFetchError.
-            download_url = f"/api/v1/torrents/{tracker_id}/download" if tracker_id else None
+            # Genuinely no download: neither magnet nor id. resolve_source raises a
+            # clean "no usable download_url" TorrentFetchError downstream.
+            log.warning("torr9_no_download", title=title)
+            download_url = None
 
         # Category: the SEARCH/DETAIL payloads carry a human ``category_name``
         # label (no ``category_id``); the LISTING payload has a numeric

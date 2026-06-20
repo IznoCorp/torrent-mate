@@ -478,14 +478,21 @@ class TestTorr9SearchGoldenFixture:
 class TestTorr9ParseBranches:
     """_parse_item branch coverage for missing magnet and unmapped category."""
 
-    def test_missing_magnet_falls_back_to_download_endpoint(self) -> None:
+    def test_missing_magnet_falls_back_to_download_endpoint(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """An item without magnet_link falls back to the authed .torrent /download endpoint.
 
         download_url is NO LONGER None when the magnet is absent — it is the real
         .torrent endpoint ``/api/v1/torrents/{id}/download`` (Bearer, bytes),
         which resolve_source fetches via the provider's authed transport. The
         dead torrent_file_url must NOT leak.
+
+        The /download fallback is the NORMAL search path — no warning is emitted.
         """
+        warnings: list[tuple[str, dict[str, object]]] = []
+        monkeypatch.setattr(
+            "personalscraper.api.tracker.torr9.log.warning",
+            lambda event, **kw: warnings.append((event, kw)),
+        )
         client = _make_client()
         client._transport.get.return_value = {  # type: ignore[attr-defined]
             "torrents": [
@@ -505,16 +512,26 @@ class TestTorr9ParseBranches:
 
         result = client.search("x")[0]
         assert result.download_url == "/api/v1/torrents/7/download"
+        # The normal search path (no-magnet + valid id) must NOT warn.
+        assert not any(event == "torr9_no_download" for event, _ in warnings)
 
-    def test_missing_magnet_and_missing_id_yields_none_download_url(self) -> None:
-        """No magnet AND no id → download_url is None (no malformed /download URL).
+    def test_missing_magnet_and_missing_id_yields_none_download_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """No magnet AND no id → download_url is None AND a torr9_no_download warning.
 
         Regression: when the magnet is absent and the item also carries no ``id``,
         ``tracker_id`` is "" and the old fallback built
         ``"/api/v1/torrents//download"`` — a malformed URL that 404s deep in fetch
         instead of failing cleanly. ``download_url`` must be None so resolve_source
         raises the clean ``TorrentFetchError("no usable download_url")``.
+
+        The ``torr9_no_download`` warning breadcrumb is emitted because this is a
+        genuinely missing download — neither magnet nor id.
         """
+        warnings: list[tuple[str, dict[str, object]]] = []
+        monkeypatch.setattr(
+            "personalscraper.api.tracker.torr9.log.warning",
+            lambda event, **kw: warnings.append((event, kw)),
+        )
         client = _make_client()
         client._transport.get.return_value = {  # type: ignore[attr-defined]
             "torrents": [
@@ -532,9 +549,15 @@ class TestTorr9ParseBranches:
         result = client.search("x")[0]
         assert result.tracker_id == ""
         assert result.download_url is None
+        assert any(event == "torr9_no_download" for event, _ in warnings)
 
-    def test_missing_magnet_emits_warning_log(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The None download_url path emits a torr9_missing_magnet warning breadcrumb."""
+    def test_no_magnet_with_valid_id_does_not_warn(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A search item with no magnet but a valid id does NOT emit any warning.
+
+        The /torrents/{id}/download fallback is the NORMAL download path for search
+        results — not an anomaly. Only the truly missing case (no magnet AND no id)
+        emits a ``torr9_no_download`` warning breadcrumb.
+        """
         warnings: list[tuple[str, dict[str, object]]] = []
         monkeypatch.setattr(
             "personalscraper.api.tracker.torr9.log.warning",
@@ -545,8 +568,9 @@ class TestTorr9ParseBranches:
             "torrents": [{"id": 7, "title": "No Magnet", "file_size_bytes": 1, "category_id": 5}]
         }
 
-        client.search("x")
-        assert any(event == "torr9_missing_magnet" for event, _ in warnings)
+        result = client.search("x")[0]
+        assert result.download_url == "/api/v1/torrents/7/download"
+        assert not warnings, f"Unexpected warnings: {warnings}"
 
     def test_unmapped_category_id_yields_none(self) -> None:
         """An item with an unmapped category_id (99999) yields category=None."""
