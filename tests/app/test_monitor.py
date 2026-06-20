@@ -28,6 +28,18 @@ def test_build_board_groups_and_summarises() -> None:
     assert board["agents_summary"] == {"running": 1, "waiting": 0, "blocked": 0}
 
 
+def test_build_board_maps_snapshot_column_name_to_config_key() -> None:
+    """A ticket whose snapshot column is the GitHub option NAME resolves to the config KEY.
+
+    Regression: a card in a multi-word column ("Ready to dev" / key "ReadyToDev") rendered nowhere
+    because the UI groups by key and the snapshot column is the option name.
+    """
+    columns = [("ReadyToDev", "Ready to dev", "inert")]
+    tickets = [(43, "anchor", "Ready to dev")]  # snapshot carries the NAME
+    board = build_board(columns, tickets, running_by_issue={})
+    assert board["tickets"][0]["column_key"] == "ReadyToDev"  # mapped to the key the UI groups on
+
+
 def test_build_agents_computes_age_and_duration() -> None:
     states = [
         SimpleNamespace(

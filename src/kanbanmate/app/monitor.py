@@ -55,13 +55,21 @@ def build_board(
     for state in running_by_issue.values():
         if state in summary:
             summary[state] += 1
+    # The snapshot's ticket column is the GitHub Status option NAME (e.g. "Ready to dev"), but the
+    # config columns key on a stable key that may differ ("ReadyToDev"). Map name→key (and key→key)
+    # so a ticket lands under its column even for multi-word columns — without this the UI groups by
+    # key and a card in a renamed/multi-word column renders nowhere.
+    key_by_token: dict[str, str] = {}
+    for k, n, _c in columns:
+        key_by_token[k] = k
+        key_by_token[n] = k
     return {
         "columns": [{"key": k, "name": n, "column_class": c} for (k, n, c) in columns],
         "tickets": [
             {
                 "number": num,
                 "title": title,
-                "column_key": col,
+                "column_key": key_by_token.get(col, col),
                 "agent_state": running_by_issue.get(num),
             }
             for (num, title, col) in tickets
