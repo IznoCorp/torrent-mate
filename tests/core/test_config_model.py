@@ -28,9 +28,9 @@ def _transitions_yaml() -> str:
 
 
 def test_from_loaded_column_count() -> None:
-    """The shipped board has 14 columns (DESIGN §9)."""
+    """The shipped board has 13 columns (DESIGN §9)."""
     draft = PipelineDraft.from_loaded(_transitions_yaml(), _columns_yaml())
-    assert len(draft.definition.columns) == 14
+    assert len(draft.definition.columns) == 13
 
 
 def test_from_loaded_cancel_is_reactive() -> None:
@@ -108,7 +108,7 @@ def test_from_loaded_empty_transitions_no_attribute_error() -> None:
     draft = PipelineDraft.from_loaded("", _columns_yaml())
     assert draft.definition.transitions == []
     # Columns still load from the valid columns.yml.
-    assert len(draft.definition.columns) == 14
+    assert len(draft.definition.columns) == 13
 
 
 def test_from_loaded_malformed_yaml_raises_value_error() -> None:

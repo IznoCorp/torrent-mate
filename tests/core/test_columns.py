@@ -142,15 +142,15 @@ class TestDefaultTemplate:
         assert _TEMPLATE_RESOURCE.is_file()
         assert _template_text().strip() != ""
 
-    def test_template_parses_to_fourteen_columns(self) -> None:
-        """The default board has exactly 14 columns (genesis phase 26).
+    def test_template_parses_to_thirteen_columns(self) -> None:
+        """The default board has exactly 13 columns.
 
         The front of the flow gained ``Brainstorming`` (after Backlog) and ``Plan``
-        (after Spec), splitting the former single brainstorm+design step so only one
-        step is interactive. That brings the board from 12 to 14 columns.
+        (after Spec); the redundant ``Planned`` gate was later retired (consolidated
+        into ``ReadyToDev``), bringing the board to 13 columns.
         """
         columns = load_columns(_template_text())
-        assert len(columns) == 14
+        assert len(columns) == 13
 
     def test_template_includes_brainstorming_and_plan(self) -> None:
         """The board ships ``Brainstorming`` (after Backlog) and ``Plan`` (after Spec).
@@ -166,9 +166,9 @@ class TestDefaultTemplate:
         assert columns["Plan"].name == "Plan"
         assert columns["Brainstorming"].column_class is ColumnClass.INERT
         assert columns["Plan"].column_class is ColumnClass.INERT
-        # Flow order: Backlog < Brainstorming < Spec < Plan < Planned.
+        # Flow order: Backlog < Brainstorming < Spec < Plan < ReadyToDev.
         assert keys.index("Backlog") < keys.index("Brainstorming") < keys.index("Spec")
-        assert keys.index("Spec") < keys.index("Plan") < keys.index("Planned")
+        assert keys.index("Spec") < keys.index("Plan") < keys.index("ReadyToDev")
 
     def test_template_includes_prepare_feature(self) -> None:
         """The board ships a ``PrepareFeature`` inert column.
@@ -228,7 +228,6 @@ class TestDefaultTemplate:
             "Brainstorming",
             "Spec",
             "Plan",
-            "Planned",
             "ReadyToDev",
             "PrepareFeature",
             "InProgress",

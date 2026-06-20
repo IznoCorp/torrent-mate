@@ -55,7 +55,7 @@ class TransitionDef:
     ``to_col`` are ``str | list[str]`` — a YAML list authors several edges that
     share one action (the loader's ``_expand_side`` cartesian product,
     ``core/transitions.py:47-51``; e.g. the shipped early-skip row
-    ``from: [Backlog, Brainstorming, Spec, Plan, Planned, ReadyToDev]`` →
+    ``from: [Backlog, Brainstorming, Spec, Plan, ReadyToDev]`` →
     ``to: Done``). The frozen runtime ``Transition.from_col`` is a single
     post-expansion ``str``; the draft preserves the list so render is exact and
     list-expansion is NOT re-collapsed at load (§5). A plain ``list[str]`` is

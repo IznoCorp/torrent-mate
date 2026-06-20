@@ -174,16 +174,16 @@ def test_init_ensures_template_columns_as_status_options(tmp_path: Path) -> None
     assert len(seeder.ensure_columns_calls) == 1
     project_id, columns = seeder.ensure_columns_calls[0]
     assert project_id == "PVT_NEW"
-    # The 14-column default template (genesis phase 26), by human-readable name in
-    # order — ``Brainstorming`` (interactive) sits after ``Backlog`` and ``Plan``
-    # (autonomous) after ``Spec``; ``Prepare feature`` (the create-branch stage)
-    # sits between ``Ready to dev`` and ``In Progress``.
+    # The 13-column default template, by human-readable name in order —
+    # ``Brainstorming`` (interactive) sits after ``Backlog`` and ``Plan``
+    # (autonomous) after ``Spec``; the redundant ``Planned`` gate was retired
+    # (consolidated into ``Ready to dev``); ``Prepare feature`` (the create-branch
+    # stage) sits between ``Ready to dev`` and ``In Progress``.
     assert columns == [
         "Backlog",
         "Brainstorming",
         "Spec",
         "Plan",
-        "Planned",
         "Ready to dev",
         "Prepare feature",
         "In Progress",
@@ -290,8 +290,8 @@ def test_render_transitions_yaml_roundtrips() -> None:
     assert t2.prompt is not None
     assert "/implement:phase" not in t2.prompt  # fix-CI, not implement
 
-    # Allowed no-op: Planned → ReadyToDev has no action.
-    t3 = config.get("Planned", "ReadyToDev")
+    # Allowed no-op: Plan → ReadyToDev (the human gate landing) has no action.
+    t3 = config.get("Plan", "ReadyToDev")
     assert t3 is not None
     assert not t3.has_action
 

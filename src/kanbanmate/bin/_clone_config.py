@@ -171,7 +171,7 @@ def auto_advance_target(advance: str) -> str | None:
     The hybrid-flow launch-stage backstop in ``kanban-session-end`` honours the persisted
     ``advance:auto:<col>`` directive a launch stage carries: a clean-done stage whose ``advance``
     is ``"auto:<col>"`` is auto-advanced to ``<col>`` by the engine; ``"stop"`` (or any non-auto
-    value) means the card STOPS (the human-review gates: Plan→Planned, PRCI→Review). This pure
+    value) means the card STOPS (the human-review gates: Plan→ReadyToDev, PRCI→Review). This pure
     parser mirrors ``app/script_route._route_success``'s ``advance.startswith("auto:")`` slice so
     the SCRIPT-gate path and the LAUNCH-stage backstop read the directive identically.
 

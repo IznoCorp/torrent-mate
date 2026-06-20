@@ -666,8 +666,8 @@ def test_resolve_would_launch_true_for_prompt_bearing() -> None:
 def test_resolve_would_launch_false_for_no_op() -> None:
     """would_launch is False for a no-op (no prompt, no script) transition."""
     draft = _clean_draft()
-    # Plan → Planned is a no-op (no prompt, no script).
-    result = resolve(draft, "Plan", "Planned")
+    # Plan → ReadyToDev is a no-op (no prompt, no script).
+    result = resolve(draft, "Plan", "ReadyToDev")
     assert result.matched is True
     assert result.would_launch is False
 

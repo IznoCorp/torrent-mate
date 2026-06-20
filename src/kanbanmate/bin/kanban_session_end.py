@@ -158,7 +158,7 @@ def _auto_advance(
       interrupt (neither breadcrumb) goes to ⚠️, an agent self-move returned at branch 4. No double
       move.
     * **stop = no move** — :func:`auto_advance_target` returns ``None`` for ``advance:stop`` (the
-      Planned + Review human gates) → the card STOPS. This preserves the HYBRID human-review gates.
+      ReadyToDev + Review human gates) → the card STOPS. This preserves the HYBRID human-review gates.
     * **KEY → NAME** — the directive carries a column KEY; resolve it to the board's display NAME
       via :func:`~kanbanmate.core.columns.resolve_column` (the script-route ``_to_board_name``
       pattern) so a multiword column ("PR/CI") lands instead of raising ``KeyError`` in move_card.
@@ -189,7 +189,7 @@ def _auto_advance(
     """
     target_key = auto_advance_target(state.advance)
     if target_key is None:
-        # advance:stop (or empty/malformed) → the card STOPS (the Planned/Review human gates). The
+        # advance:stop (or empty/malformed) → the card STOPS (the ReadyToDev/Review human gates). The
         # previously-dead config was a no-op for launch stages; for a stop directive that is still
         # correct — nothing to do.
         return "stopped"
@@ -442,7 +442,7 @@ def main(argv: list[str] | None = None) -> int:
             #     whose persisted ``advance`` is ``auto:<col>`` and whose agent did NOT advance its
             #     own card (we are inside ``done and not advanced``) is moved to ``<col>`` by the
             #     engine — turning the previously-DEAD ``advance:auto`` config into a live move so
-            #     the daemon's next diff fires the next stage. ``advance:stop`` (the Planned + Review
+            #     the daemon's next diff fires the next stage. ``advance:stop`` (the ReadyToDev + Review
             #     human gates) returns "stopped" here → the card STOPS (no move). Idempotent +
             #     fail-soft + rate-limited; see :func:`_auto_advance`.
             #

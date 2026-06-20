@@ -25,7 +25,7 @@ there is no per-column autonomy gate and no dormant stage.
 names are mapped 1:1 onto NEW's stable keys::
 
     Design          -> Spec
-    Plan            -> Planned
+    Plan            -> Planned          (Planned later RETIRED — gate consolidated into ReadyToDev)
     Ready to dev    -> ReadyToDev
     Prepare feature -> PrepareFeature   (the create-branch stage NEW gained)
     Implement       -> InProgress
@@ -40,8 +40,7 @@ was split so only ONE step is interactive (DESIGN §8/§9):
     Backlog       -> Brainstorming   INTERACTIVE /implement:brainstorm (human attaches)
     Brainstorming -> Spec            AUTONOMOUS design (write design.md, no questions)
     Spec          -> Plan            AUTONOMOUS /implement:plan (no questions)
-    Plan          -> Planned         no-op (lands in Planned for human review)
-    Planned       -> ReadyToDev      no-op (human gate)
+    Plan          -> ReadyToDev      no-op (lands in ReadyToDev = the single human gate)
 
 EVERY agent prompt except ``Backlog -> Brainstorming`` carries an explicit
 "run fully autonomously — do NOT ask the user any questions" instruction so an
@@ -56,28 +55,28 @@ launch stages carry an ``advance:auto:<col>`` directive the ENGINE now honours (
 ``<col>`` and the next tick's diff fires the next stage. This turns the front of the
 flow AUTONOMOUS through Plan, then STOPS at the two HUMAN gates::
 
-    Backlog       -> Brainstorming   advance:auto:Spec      (brainstorm → auto-advance)
-    Brainstorming -> Spec            advance:auto:Plan       (design → auto-advance)
-    Spec          -> Plan            advance:auto:Planned    (plan → auto-advance, then STOP)
-    Plan          -> Planned         no-op                   *** HUMAN REVIEW GATE ***
-    Planned       -> ReadyToDev      no-op                   *** HUMAN drags after review ***
-    ReadyToDev    -> PrepareFeature  advance:auto:InProgress (create-branch → auto-advance)
-    PrepareFeature-> InProgress      advance:auto:PRCI       (implement+PR → auto-advance)
-    InProgress    -> PRCI (SCRIPT)   advance:auto:Review     (green CI → auto-advance, fires review)
-    PRCI          -> Review          advance:stop            *** Review STOPS for human ***
-    Review        -> Merge (AGENT)   advance:stop            autonomous merge agent (operator); it
-                                                             self-routes Done|Review (see below)
+    Backlog       -> Brainstorming   advance:auto:Spec       (brainstorm → auto-advance)
+    Brainstorming -> Spec            advance:auto:Plan        (design → auto-advance)
+    Spec          -> Plan            advance:auto:ReadyToDev  (plan → auto-advance, then STOP)
+    Plan          -> ReadyToDev      no-op                    *** HUMAN REVIEW GATE ***
+    ReadyToDev    -> PrepareFeature  advance:auto:InProgress  (HUMAN drags to build → create-branch)
+    PrepareFeature-> InProgress      advance:auto:PRCI        (implement+PR → auto-advance)
+    InProgress    -> PRCI (SCRIPT)   advance:auto:Review      (green CI → auto-advance, fires review)
+    PRCI          -> Review          advance:stop             *** Review STOPS for human ***
+    Review        -> Merge (AGENT)   advance:stop             autonomous merge agent (operator); it
+                                                              self-routes Done|Review (see below)
 
-``Plan -> Planned`` and ``Planned -> ReadyToDev`` MUST stay no-ops (no advance
-directive) — auto-advancing them would bypass the single pre-build HUMAN review gate
-(the core HYBRID property). ``PrepareFeature -> InProgress``'s ``auto:PRCI`` and the
+``Plan -> ReadyToDev`` MUST stay a no-op (no advance directive) — auto-advancing it
+would bypass the single pre-build HUMAN review gate (the core HYBRID property). The
+former separate ``Planned`` gate was RETIRED: ReadyToDev is now THE gate, and the build
+starts only when the human drags ReadyToDev → PrepareFeature. ``PrepareFeature -> InProgress``'s ``auto:PRCI`` and the
 ``InProgress -> PRCI`` SCRIPT gate's ``auto:Review`` are consumed differently: the
 launch-stage directives by the session-end backstop, the SCRIPT-gate directive by
 ``app/script_route._route_success`` (already wired).
 
 **Early skip-to-Done (genesis phase 26).** A single list-expanded no-op entry
-whitelists ``[Backlog, Brainstorming, Spec, Plan, Planned, ReadyToDev] -> Done``
-(6 cartesian edges) so an agent/human can mark an ALREADY-DONE ticket Done
+whitelists ``[Backlog, Brainstorming, Spec, Plan, ReadyToDev] -> Done``
+(5 cartesian edges) so an agent/human can mark an ALREADY-DONE ticket Done
 without a rollback. It is BOUNDED at ReadyToDev: from ``PrepareFeature`` onward a
 worktree/branch exists, so retirement must go through Cancel (teardown). Done is
 therefore NOT whitelisted from ``PrepareFeature``/``InProgress``/``PRCI``/
@@ -635,25 +634,27 @@ DEFAULT_TRANSITIONS: list[dict[str, Any]] = [
         "profile": "docs",
         "prompt": _PLAN_PROMPT,
         # HYBRID flow (DESIGN §13): the plan completes → the engine backstop moves the card to
-        # Planned, where it STOPS (the only pre-build HUMAN review gate; Plan→Planned is a no-op).
-        "advance": "auto:Planned",
+        # ReadyToDev, where it STOPS (the SINGLE pre-build HUMAN review gate; Plan→ReadyToDev is a
+        # no-op). The redundant "Planned" gate was removed — ReadyToDev is now THE gate.
+        "advance": "auto:ReadyToDev",
         "permission_mode": "auto",
     },
-    # Plan → Planned: no-op. Autonomous design+plans are done; the card lands in
-    # Planned for human review.
-    {"from": "Plan", "to": "Planned"},  # allowed no-op
-    {"from": "Planned", "to": "ReadyToDev"},  # allowed no-op (human gate)
-    # Planned → Spec: operator-recovery no-op (#12). A rejected plan can re-fire the
+    # Plan → ReadyToDev: no-op. Autonomous design+plans are done; the card lands in ReadyToDev
+    # (the human review gate). The build does NOT start on arrival here — the human drags
+    # ReadyToDev → PrepareFeature to launch create-branch.
+    {"from": "Plan", "to": "ReadyToDev"},  # allowed no-op (human gate landing)
+    # ReadyToDev → Spec: operator-recovery no-op (#12). A rejected plan can re-fire the
     # autonomous design via Spec → Plan (no agent launches on THIS edge — the human
     # moves the card back to Spec, then Spec → Plan re-runs /implement:plan).
-    {"from": "Planned", "to": "Spec"},  # allowed no-op (recovery: re-plan)
+    {"from": "ReadyToDev", "to": "Spec"},  # allowed no-op (recovery: re-plan)
     {
         "from": "ReadyToDev",
         "to": "PrepareFeature",
         "profile": "prepare",
         "prompt": _PREPARE_PROMPT,
         # HYBRID flow (DESIGN §13): create-branch completes → the engine backstop moves the card to
-        # InProgress, firing the implement stage (the human already gated at Planned→ReadyToDev).
+        # InProgress, firing the implement stage. The human already gated at ReadyToDev — the build
+        # starts ONLY on this human-initiated ReadyToDev → PrepareFeature move.
         "advance": "auto:InProgress",
         "permission_mode": "auto",
     },
@@ -758,7 +759,7 @@ DEFAULT_TRANSITIONS: list[dict[str, Any]] = [
     # must go through Cancel (teardown) — Done is deliberately NOT whitelisted from
     # PrepareFeature/InProgress/PRCI/Review/Merge (a direct → Done there rolls back).
     {
-        "from": ["Backlog", "Brainstorming", "Spec", "Plan", "Planned", "ReadyToDev"],
+        "from": ["Backlog", "Brainstorming", "Spec", "Plan", "ReadyToDev"],
         "to": "Done",
     },
     # Parking wildcards (any column ↔ Blocked).

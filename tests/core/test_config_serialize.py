@@ -52,7 +52,7 @@ def test_render_columns_parseable() -> None:
     """The rendered columns.yml must be parseable by load_columns."""
     rendered = render_pipeline(_draft())
     col_map = load_columns(rendered.columns)
-    assert len(col_map) == 14
+    assert len(col_map) == 13
 
 
 def test_round_trip_every_real_edge() -> None:

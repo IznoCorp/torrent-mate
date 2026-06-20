@@ -47,16 +47,15 @@ columns:
   - key: Plan
     name: Plan
     # Inert: the AUTONOMOUS plan stage. The launch lives on the Spec -> Plan
-    # transition (writes the plan files — no questions).
-
-  - key: Planned
-    name: Planned
-    # Inert: a HUMAN checkpoint. Autonomous design+plans are done; the card
-    # lands here for human review before ReadyToDev (Plan -> Planned is a no-op).
+    # transition (writes the plan files — no questions). On completion the card
+    # auto-advances to ReadyToDev (the single human gate).
 
   - key: ReadyToDev
     name: Ready to dev
-    # Inert human gate.
+    # Inert: the SINGLE pre-build HUMAN review gate. Autonomous design+plans are
+    # done; the card lands here (Plan -> ReadyToDev is a no-op) for human review.
+    # The build starts only when the human drags ReadyToDev -> PrepareFeature.
+    # (The former separate "Planned" gate was retired — consolidated here.)
 
   - key: PrepareFeature
     name: Prepare feature

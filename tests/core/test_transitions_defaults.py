@@ -418,12 +418,12 @@ class TestDefaultTableRoundTrip:
         assert fixci.prompt == _FIXCI_PROMPT
         assert implement.prompt != fixci.prompt
 
-    def test_planned_to_ready_is_allowed_no_op(self) -> None:
-        """``Planned → ReadyToDev`` is whitelisted with no action (allowed no-op)."""
+    def test_planned_gate_is_retired(self) -> None:
+        """The former ``Planned`` gate is gone — neither ``Plan → Planned`` nor ``Planned → *`` exist."""
         cfg = load_transitions(_render_doc("owner/repo"))
-        t = cfg.get("Planned", "ReadyToDev")
-        assert t is not None
-        assert not t.has_action
+        assert cfg.get("Plan", "Planned") is None
+        assert cfg.get("Planned", "ReadyToDev") is None
+        assert cfg.get("Planned", "Spec") is None
 
     def test_inprogress_to_prci_is_script_only(self) -> None:
         """``InProgress → PRCI`` is a script-only transition (run_script)."""
@@ -484,10 +484,10 @@ class TestFrontFlowSplit:
         assert t.prompt == _PLAN_PROMPT
         assert t.profile == "docs"
 
-    def test_plan_to_planned_is_allowed_no_op(self) -> None:
-        """``Plan → Planned`` is whitelisted with no action (autonomous work done; human review)."""
+    def test_plan_to_readytodev_is_allowed_no_op(self) -> None:
+        """``Plan → ReadyToDev`` is whitelisted with no action (autonomous work done; human gate)."""
         cfg = load_transitions(_render_doc("owner/repo"))
-        t = cfg.get("Plan", "Planned")
+        t = cfg.get("Plan", "ReadyToDev")
         assert t is not None
         assert not t.has_action
 
@@ -495,8 +495,8 @@ class TestFrontFlowSplit:
 class TestSkipToDone:
     """Genesis phase 26: the early skip-to-Done whitelist (bounded at ReadyToDev)."""
 
-    # The six PRE-PrepareFeature columns that may skip straight to Done.
-    _SKIP_SOURCES = ("Backlog", "Brainstorming", "Spec", "Plan", "Planned", "ReadyToDev")
+    # The PRE-PrepareFeature columns that may skip straight to Done.
+    _SKIP_SOURCES = ("Backlog", "Brainstorming", "Spec", "Plan", "ReadyToDev")
     # The columns from which Done is NOT whitelisted (a worktree/branch exists → Cancel only).
     _NON_SKIP_SOURCES = ("PrepareFeature", "InProgress", "PRCI", "Review")
 
@@ -510,8 +510,8 @@ class TestSkipToDone:
         assert row.get("prompt") is None
         assert row.get("script") is None
 
-    def test_six_skip_edges_resolve_to_no_op(self) -> None:
-        """Each of the six skip sources → Done resolves to a whitelisted no-op (no rollback)."""
+    def test_skip_edges_resolve_to_no_op(self) -> None:
+        """Each skip source → Done resolves to a whitelisted no-op (no rollback)."""
         cfg = load_transitions(_render_doc("owner/repo"))
         for source in self._SKIP_SOURCES:
             t = cfg.get(source, "Done")
@@ -747,7 +747,7 @@ class TestBrainstormStateCheck:
 
 
 class TestRecoveryEdges:
-    """#12: the three operator-recovery edges — Review→InProgress, Planned→Spec, Done→Backlog."""
+    """#12: the three operator-recovery edges — Review→InProgress, ReadyToDev→Spec, Done→Backlog."""
 
     def test_review_to_inprogress_rework_edge(self) -> None:
         """Review→InProgress is a LAUNCH (rework prompt) mirroring fix-CI: profile dev, advance auto:PRCI."""
@@ -774,10 +774,10 @@ class TestRecoveryEdges:
         assert "kanban-done {{code}}" in _REWORK_PROMPT
         assert "{{codename}}" in _REWORK_PROMPT and "{{code}}" in _REWORK_PROMPT
 
-    def test_planned_to_spec_is_a_noop(self) -> None:
-        """Planned→Spec is a plain no-op (no agent launches on the edge — re-plan via Spec→Plan)."""
+    def test_readytodev_to_spec_is_a_noop(self) -> None:
+        """ReadyToDev→Spec is a plain no-op (no agent launches on the edge — re-plan via Spec→Plan)."""
         cfg = load_transitions(_render_doc("owner/repo"))
-        edge = cfg.get("Planned", "Spec")
+        edge = cfg.get("ReadyToDev", "Spec")
         assert edge is not None
         assert edge.prompt is None
         assert edge.script is None
@@ -802,7 +802,7 @@ class TestRecoveryEdges:
         cfg = load_transitions(_render_doc("owner/repo"))
         # The three NEW edges resolve.
         assert cfg.get("Review", "InProgress") is not None
-        assert cfg.get("Planned", "Spec") is not None
+        assert cfg.get("ReadyToDev", "Spec") is not None
         assert cfg.get("Done", "Backlog") is not None
         # A spot-check of pre-existing edges still resolves (nothing was removed/broken).
         assert cfg.get("Backlog", "Brainstorming") is not None
@@ -813,13 +813,13 @@ class TestRecoveryEdges:
 
 class TestHybridAdvanceDirectives:
     """Hybrid flow (DESIGN §13): the doc + build transitions carry the advance:auto:<col> directives
-    the engine now honours; the two HUMAN gates (Planned, Review) MUST carry no auto-advance."""
+    the engine now honours; the two HUMAN gates (ReadyToDev, Review) MUST carry no auto-advance."""
 
     # Each forward transition's expected ``advance`` directive (the HYBRID table).
     _EXPECTED_ADVANCE = {
         ("Backlog", "Brainstorming"): "auto:Spec",
         ("Brainstorming", "Spec"): "auto:Plan",
-        ("Spec", "Plan"): "auto:Planned",
+        ("Spec", "Plan"): "auto:ReadyToDev",
         ("ReadyToDev", "PrepareFeature"): "auto:InProgress",
         ("PrepareFeature", "InProgress"): "auto:PRCI",
         ("InProgress", "PRCI"): "auto:Review",
@@ -839,16 +839,16 @@ class TestHybridAdvanceDirectives:
             )
 
     def test_human_gates_carry_no_auto_advance(self) -> None:
-        """SAFETY ASSERTION: Plan→Planned and Planned→ReadyToDev MUST NOT auto-advance.
+        """SAFETY ASSERTION: Plan→ReadyToDev (the gate landing) MUST NOT auto-advance.
 
-        Auto-advancing either would bypass the single pre-build HUMAN review gate (the core HYBRID
-        property). They are no-ops, so their advance defaults to ``stop`` — which :func:`auto_advance_target`
-        maps to ``None`` (no engine move).
+        Auto-advancing it would bypass the single pre-build HUMAN review gate (the core HYBRID
+        property). It is a no-op, so its advance defaults to ``stop`` — which :func:`auto_advance_target`
+        maps to ``None`` (no engine move). The build starts only on the human ReadyToDev→PrepareFeature.
         """
         from kanbanmate.bin._clone_config import auto_advance_target
 
         cfg = load_transitions(_render_doc("owner/repo"))
-        for from_col, to_col in (("Plan", "Planned"), ("Planned", "ReadyToDev")):
+        for from_col, to_col in (("Plan", "ReadyToDev"),):
             t = cfg.get(from_col, to_col)
             assert t is not None
             # No auto directive → the card STOPS at the human gate.
