@@ -61,13 +61,17 @@ if TYPE_CHECKING:
 
 log = get_logger("api.tracker.torr9")
 
-# torr9 numeric category_id -> human label. torr9 exposes NO /categories endpoint
-# (404) and ignores the ?category_id= search filter, so this map is built EMPIRICALLY
-# by correlating the search payload's ``category_id`` with the detail payload's
-# ``category_name`` (live 2026-06-20). Coverage is bounded by which categories appear
-# in search results; an unmapped id yields ``category=None`` (informational only).
+# torr9 numeric category_id -> human label, for the LISTING endpoint (``GET
+# /torrents``) shape — the ONLY shape that carries a numeric ``category_id``. The
+# SEARCH and DETAIL shapes we actually use instead carry a ``category_name`` label
+# directly (no ``category_id``), so this map is a FALLBACK only reached by the
+# listing-shape branch in ``_parse_item`` (NOT hit by the search/detail path).
+# torr9 exposes NO /categories endpoint (404) and ignores the ?category_id= filter,
+# so the map is built EMPIRICALLY by correlating the LISTING ``category_id`` with the
+# detail payload's ``category_name`` (live 2026-06-20). Coverage is bounded by which
+# categories were observed; an unmapped id yields ``category=None`` (informational).
 _CATEGORY_MAP: dict[int, str] = {
-    # Live-verified 2026-06-20 (search category_id <-> detail category_name):
+    # Live-verified 2026-06-20 (listing category_id <-> detail category_name):
     5: "Séries TV",  # parent: Séries
     6: "Emission TV",  # parent: Séries
     16: "BD",  # parent: Livres
@@ -430,9 +434,12 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
 
         torr9 exposes NO ``/categories`` endpoint (404 live-confirmed on
         ``/categories``, ``/category``, ``/torrents/categories``), and the
-        ``?category_id=`` search filter is ignored. The ``_CATEGORY_MAP`` is
-        built empirically by correlating the search payload's ``category_id``
-        with the detail payload's ``category_name`` (live 2026-06-20).
+        ``?category_id=`` search filter is ignored. The ``_CATEGORY_MAP`` keys
+        are the LISTING endpoint's (``GET /torrents``) numeric ``category_id``
+        values — the only shape that carries them; the SEARCH and DETAIL shapes
+        we actually use carry a ``category_name`` label directly. The map is
+        built empirically by correlating the listing ``category_id`` with the
+        detail payload's ``category_name`` (live 2026-06-20).
 
         Returns:
             Mapping of numeric category id string → display label.
