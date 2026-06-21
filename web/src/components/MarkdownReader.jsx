@@ -3,7 +3,7 @@
 // rendered markdown. Read-only; an overlay closed with ✕ / Escape / overlay click. The content is
 // supplied by the caller (already fetched), so this component is purely presentational.
 import React from "react";
-import { marked } from "marked";
+import { renderMarkdown } from "../lib/markdown.js";
 import { useT } from "../i18n/index.jsx";
 
 const { Banner } = window.KanbanMateDesignSystem_2463ad;
@@ -30,7 +30,7 @@ export default function MarkdownReader({
   }, [open, onClose]);
 
   const html = React.useMemo(
-    () => (content ? marked.parse(content, { breaks: true }) : ""),
+    () => (content ? renderMarkdown(content) : ""),
     [content],
   );
 

@@ -16,6 +16,7 @@ import {
   MonitorCheck,
   ServerCog,
   ShieldCogCorner,
+  SquarePlus,
 } from "lucide-react";
 import { useT } from "../i18n/index.jsx";
 
@@ -30,14 +31,17 @@ const NAV_ICON = {
   validation: BadgeCheck,
   yaml: FileCode,
   monitoring: MonitorCheck,
+  "new-ticket": SquarePlus,
   daemon: ServerCog,
   profiles: ShieldCogCorner,
 };
 
 // Three semantic nav groups rendered in order: Views (non-config), Config, Daemon.
 export const VIEWS_NAV = [
-  { id: "board", tkey: "shell.nav.board", key: "native" },
+  // Monitoring first (operator) — it is the default landing view.
   { id: "monitoring", tkey: "shell.nav.monitoring", key: "live" },
+  { id: "board", tkey: "shell.nav.board", key: "native" },
+  { id: "new-ticket", tkey: "shell.nav.new_ticket", key: "issue" },
 ];
 export const CONFIG_NAV = [
   { id: "columns", tkey: "shell.nav.columns", key: "columns.yml" },
@@ -54,23 +58,19 @@ export const ALL_NAV = [...VIEWS_NAV, ...CONFIG_NAV, ...DAEMON_NAV];
 
 export function Wordmark({ size = 16, markOnly = false }) {
   const mark = (
-    <span
+    <img
+      src="/icon.svg"
+      alt="KanbanMate"
+      width={size * 1.7}
+      height={size * 1.7}
       style={{
-        display: "inline-grid",
-        placeItems: "center",
-        width: size * 1.6,
-        height: size * 1.6,
+        width: size * 1.7,
+        height: size * 1.7,
         borderRadius: "var(--radius-md)",
-        background: "var(--primary)",
-        color: "var(--primary-foreground)",
-        fontFamily: "var(--font-mono)",
-        fontWeight: 600,
-        fontSize: size * 0.95,
         flex: "none",
+        display: "block",
       }}
-    >
-      [▸]
-    </span>
+    />
   );
   if (markOnly) return mark;
   return (

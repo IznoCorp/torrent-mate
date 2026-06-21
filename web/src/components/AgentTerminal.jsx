@@ -1,21 +1,20 @@
-// AgentTerminal — interactive xterm.js terminal for a running agent session (tiller §5).
-// Opens a WebSocket to /api/monitor/agent/{issue}/attach; streams ANSI pane snapshots to the
-// xterm Terminal; sends operator keystrokes back. Read-only by default; "take control" arms writes.
+// AgentTerminal — a REAL interactive terminal for a running agent session (tiller §5).
 //
-// Rendering model (tiller robustness, 2026-06-21):
-//   The server resends the WHOLE pane (visible screen + scrollback history) every ~300ms — it is a
-//   MIRROR, not a delta stream. The browser xterm is therefore sized to the pane's REAL width
-//   (reported by the server) and the operator zooms with A-/A+; we never reflow the *running agent's*
-//   tmux pane down to the viewer (that would corrupt the live agent's TUI). On each changed frame we
-//   repaint but PRESERVE the operator's scroll position unless they are pinned to the bottom, so they
-//   can scroll back through history without being yanked down every 300ms.
+// Opens a WebSocket to /api/monitor/agent/{issue}/attach. The server attaches a PTY to the agent's
+// tmux session and streams the master fd bidirectionally (like ttyd / wetty):
+//   • binary frames  = raw terminal bytes → written straight to xterm (real-time, fluid; no polling)
+//   • text frames    = JSON control (armed / released / error)
+// The xterm fits its container (FitAddon) and we drive the tmux pane to that size via a
+// {type:"resize"} message, so the terminal reflows fluidly — fullscreen genuinely enlarges it, and
+// every key xterm emits (arrows, Home/End, Ctrl chords, function keys) is forwarded raw to the PTY.
+// Read-only until "take control" arms input.
 import React from "react";
 import { Terminal } from "xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "xterm/css/xterm.css";
 import { useT } from "../i18n/index.jsx";
 
-const { Banner, Button } = window.KanbanMateDesignSystem_2463ad;
+const { Banner, Button, Tooltip } = window.KanbanMateDesignSystem_2463ad;
 
 const MIN_FONT = 7;
 const MAX_FONT = 28;
@@ -23,8 +22,11 @@ const DEFAULT_FONT = 13;
 const TERM_FONT_FAMILY =
   'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace';
 
+// On-screen quick-key buttons (for keys phones lack) → the raw bytes a terminal expects.
+const KEY_BYTES = { Enter: "\r", Escape: "\x1b", "C-c": "\x03" };
+
 /**
- * Interactive xterm.js terminal for a running agent session.
+ * Interactive PTY-streamed terminal for a running agent session.
  *
  * @param {{ issue: number, onClose: () => void }} props
  */
@@ -35,221 +37,234 @@ export default function AgentTerminal({ issue, onClose }) {
   const fitRef = React.useRef(null);
   const wsRef = React.useRef(null);
   const armedRef = React.useRef(false);
-  // Pane geometry reported by the server (the agent's real tmux pane width). The xterm grid is
-  // pinned to this width; only the ROW count is fitted to the container so the full pane is shown.
-  const paneColsRef = React.useRef(80);
-  const lastDataRef = React.useRef(null); // skip identical repaints (no scroll churn when idle)
-  const autoFontDoneRef = React.useRef(false); // one-shot: pick a font that fits the viewport width
   const [armed, setArmed] = React.useState(false);
   const [error, setError] = React.useState(null);
   const [ended, setEnded] = React.useState(false);
   const [fullscreen, setFullscreen] = React.useState(false);
   const [fontSize, setFontSize] = React.useState(DEFAULT_FONT);
-  const mobileInputRef = React.useRef(null);
+  const [killConfirm, setKillConfirm] = React.useState(false); // 2-step confirm for the destructive kill
+  // Latest toggle callbacks, so the xterm custom-key handler (registered once at mount) always
+  // calls the current ones without going stale.
+  const toggleFullscreenRef = React.useRef(() => {});
+  const toggleControlRef = React.useRef(() => {});
 
-  // Fit only the ROW count to the container (keep cols = the agent pane's real width).
-  const fitRows = React.useCallback(() => {
+  // Send a JSON control / input / resize frame to the server.
+  const send = React.useCallback((obj) => {
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+  }, []);
+
+  // Fit the xterm to its container, then drive the tmux pane to the same size so it reflows.
+  const fitAndResize = React.useCallback(() => {
     const term = termRef.current;
     const fit = fitRef.current;
     if (!term || !fit) return;
-    let rows = 24;
     try {
-      const dims = fit.proposeDimensions();
-      if (dims && dims.rows > 0) rows = dims.rows;
+      fit.fit();
     } catch (_) {
-      /* container not laid out yet — keep the fallback */
+      /* container not laid out yet — ignore */
     }
-    try {
-      term.resize(paneColsRef.current || 80, rows);
-    } catch (_) {
-      /* resize can throw mid-teardown — ignore */
+    if (term.cols > 0 && term.rows > 0) {
+      send({ type: "resize", cols: term.cols, rows: term.rows });
     }
-  }, []);
+  }, [send]);
 
-  // Repaint a full snapshot while preserving the operator's scroll position (sticky-bottom).
-  const writeFrame = React.useCallback((data) => {
-    const term = termRef.current;
-    if (!term) return;
-    if (data === lastDataRef.current) return; // unchanged → don't disturb scroll
-    const buf = term.buffer.active;
-    const distFromBottom = buf.baseY - buf.viewportY; // 0 ⇒ pinned to the bottom
-    const wasPinned = distFromBottom <= 1;
-    term.reset();
-    term.write(data, () => {
-      // When the operator had scrolled UP to read history, restore that offset instead of
-      // snapping to the bottom. History is stable frame-to-frame, so the same offset lands on
-      // the same content. Pinned-to-bottom keeps xterm's default follow behaviour.
-      if (!wasPinned) {
-        const nb = term.buffer.active;
-        term.scrollToLine(Math.max(0, nb.baseY - distFromBottom));
-      }
-    });
-    lastDataRef.current = data;
-  }, []);
-
-  // Mount xterm + open WebSocket
+  // Mount xterm + open the PTY WebSocket.
   React.useEffect(() => {
     const term = new Terminal({
-      convertEol: true,
-      scrollback: 6000,
+      cursorBlink: true,
+      scrollback: 10000,
       fontSize: DEFAULT_FONT,
       fontFamily: TERM_FONT_FAMILY,
+      theme: { background: "#1e1e1e" },
     });
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(containerRef.current);
-    fitRows();
     termRef.current = term;
     fitRef.current = fit;
+    try {
+      fit.fit();
+    } catch (_) {
+      /* not laid out yet */
+    }
 
     const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
     const url = `${proto}//${window.location.host}/api/monitor/agent/${issue}/attach`;
     const ws = new WebSocket(url);
+    ws.binaryType = "arraybuffer";
     wsRef.current = ws;
 
-    ws.onmessage = (ev) => {
-      try {
-        const msg = JSON.parse(ev.data);
-
-        if (msg.alive === false) {
-          setEnded(true);
-          term.write("\r\n[session ended]\r\n");
-          ws.close();
-          return;
-        }
-
-        // Full ANSI pane snapshot (visible screen + scrollback history).
-        if (msg.alive === true && msg.data !== undefined) {
-          // Sync the xterm grid width to the agent pane's real width (so the full pane shows
-          // without reflowing the running agent).
-          if (typeof msg.cols === "number" && msg.cols > 0) {
-            if (msg.cols !== paneColsRef.current) {
-              paneColsRef.current = msg.cols;
-              fitRows();
-            }
-            // One-shot: on first geometry, pick a font size that fits the full width into the
-            // viewport (so narrow/mobile screens see everything; the operator zooms from there).
-            if (!autoFontDoneRef.current && containerRef.current) {
-              autoFontDoneRef.current = true;
-              const cw = containerRef.current.clientWidth || 360;
-              const target = Math.max(
-                MIN_FONT,
-                Math.min(DEFAULT_FONT, Math.floor(cw / (msg.cols * 0.62))),
-              );
-              if (target !== DEFAULT_FONT) setFontSize(target);
-            }
-          }
-          writeFrame(msg.data);
-        }
-
-        if (msg.control === "armed") {
-          setArmed(true);
-          armedRef.current = true;
-        }
-        if (msg.control === "released") {
-          setArmed(false);
-          armedRef.current = false;
-        }
-
-        if (msg.error) setError(msg.error);
-      } catch (_) {
-        /* ignore malformed frames */
+    ws.onopen = () => {
+      // Size the agent pane to our fitted geometry as soon as the socket is up.
+      if (term.cols > 0 && term.rows > 0) {
+        ws.send(
+          JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }),
+        );
       }
+      // Open already IN CONTROL (operator decision): keystrokes flow immediately and the soft
+      // keyboard opens on mobile. "Release control" drops back to a read-only view.
+      ws.send(JSON.stringify({ type: "take_control" }));
+      setArmed(true);
+      armedRef.current = true;
+      term.focus();
     };
-
+    ws.onmessage = (ev) => {
+      if (typeof ev.data === "string") {
+        // JSON control frame.
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg.control === "armed") {
+            setArmed(true);
+            armedRef.current = true;
+          } else if (msg.control === "released") {
+            setArmed(false);
+            armedRef.current = false;
+            setKillConfirm(false); // drop any pending kill confirmation
+          } else if (msg.error) {
+            setError(msg.error);
+          }
+        } catch (_) {
+          /* ignore malformed control frame */
+        }
+        return;
+      }
+      // Binary frame — raw terminal bytes straight into xterm.
+      term.write(new Uint8Array(ev.data));
+    };
     ws.onerror = () => setError("WebSocket error");
     ws.onclose = () => setEnded(true);
 
-    // Forward keystrokes to the server when armed (ref avoids stale closure).
+    // Forward every key sequence xterm produces to the PTY when armed (native key mapping).
     term.onData((data) => {
-      if (ws.readyState === WebSocket.OPEN && armedRef.current) {
-        ws.send(JSON.stringify({ type: "text", data }));
+      if (armedRef.current && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "input", data }));
       }
     });
 
-    // ResizeObserver → re-fit ROWS locally only. We deliberately DO NOT send a resize frame to the
-    // server: shrinking the running agent's tmux pane to the viewer would corrupt its live TUI.
-    const ro = new ResizeObserver(() => fitRows());
+    // Operator shortcuts intercepted BEFORE xterm forwards them to the agent (return false = handled).
+    if (term.attachCustomKeyEventHandler) {
+      term.attachCustomKeyEventHandler((e) => {
+        if (e.type !== "keydown") return true;
+        if (e.ctrlKey && e.shiftKey) {
+          const k = e.key.toLowerCase();
+          if (k === "f") {
+            toggleFullscreenRef.current();
+            return false;
+          }
+          if (k === "i") {
+            toggleControlRef.current();
+            return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    // Refit + resize the pane whenever the container changes size (layout, rotate, fullscreen).
+    const ro = new ResizeObserver(() => fitAndResize());
     ro.observe(containerRef.current);
 
     return () => {
       ro.disconnect();
+      // Detach handlers BEFORE closing: ws.close() is async, so an already-queued binary frame
+      // could otherwise fire ws.onmessage → term.write() on a just-disposed Terminal and throw.
+      ws.onopen = null;
+      ws.onmessage = null;
+      ws.onerror = null;
+      ws.onclose = null;
       ws.close();
       term.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [issue]);
 
-  // Apply font-size changes (zoom) → re-fit rows for the new cell height.
+  // Font-size change (zoom) → refit (fewer/more cells) and resize the pane.
   React.useEffect(() => {
     const term = termRef.current;
     if (!term) return;
     term.options.fontSize = fontSize;
-    fitRows();
-  }, [fontSize, fitRows]);
+    fitAndResize();
+  }, [fontSize, fitAndResize]);
 
-  // Focus the hidden input when armed so the mobile soft-keyboard opens.
+  // Focus the terminal when armed so keystrokes flow (desktop) AND the mobile soft-keyboard opens.
   React.useEffect(() => {
-    if (armed && mobileInputRef.current) {
-      mobileInputRef.current.focus();
-    }
+    if (armed && termRef.current) termRef.current.focus();
   }, [armed]);
 
-  // Refit on fullscreen toggle (wait one tick for DOM layout).
+  // Refit after the DOM settles on a fullscreen toggle (the container grew / shrank).
   React.useEffect(() => {
-    const id = setTimeout(() => fitRows(), 0);
+    const id = setTimeout(() => fitAndResize(), 0);
     return () => clearTimeout(id);
-  }, [fullscreen, fitRows]);
-
-  const sendMsg = React.useCallback((msg) => {
-    const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fullscreen]);
 
   const toggleControl = React.useCallback(() => {
     if (!armedRef.current) {
-      sendMsg({ type: "take_control" });
-      // Optimistic — server ack will confirm/revert via ws.onmessage.
+      send({ type: "take_control" });
+      // Optimistic — the server ack confirms/reverts via ws.onmessage.
       setArmed(true);
       armedRef.current = true;
+      if (termRef.current) termRef.current.focus(); // open the soft keyboard on mobile
     } else {
-      sendMsg({ type: "release_control" });
+      send({ type: "release_control" });
       setArmed(false);
       armedRef.current = false;
+      setKillConfirm(false); // drop any pending kill confirmation when leaving control
     }
-  }, [sendMsg]);
+  }, [send]);
 
+  // On-screen quick keys → send the raw control bytes (only while in control).
   const sendKey = React.useCallback(
     (name) => {
-      if (armedRef.current) sendMsg({ type: "key", name });
+      if (!armedRef.current) return;
+      const bytes = KEY_BYTES[name];
+      if (bytes != null) send({ type: "input", data: bytes });
     },
-    [sendMsg],
+    [send],
   );
 
   const zoom = React.useCallback((delta) => {
     setFontSize((prev) => Math.max(MIN_FONT, Math.min(MAX_FONT, prev + delta)));
   }, []);
 
-  // Hidden input handler — captures mobile soft-keyboard input and forwards it.
-  const handleMobileInput = React.useCallback(
-    (e) => {
-      const val = e.target.value;
-      if (!val) return;
-      sendMsg({ type: "text", data: val });
-      e.target.value = "";
-    },
-    [sendMsg],
-  );
-
   const toggleFullscreen = React.useCallback(() => {
     setFullscreen((prev) => !prev);
   }, []);
 
+  // End the Claude session/agent (kills the REPL; the surviving shell runs the clean teardown).
+  const onKill = React.useCallback(() => {
+    send({ type: "kill" });
+    setKillConfirm(false);
+  }, [send]);
+
+  // Keep the refs the xterm key handler reads pointed at the latest callbacks.
+  toggleFullscreenRef.current = toggleFullscreen;
+  toggleControlRef.current = toggleControl;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      {error && <Banner tone="red">{error}</Banner>}
+    // In fullscreen the OUTER wrapper is the fixed overlay (flex column) so the ControlBar stays
+    // a visible child — otherwise the exit-fullscreen button is buried under the terminal and the
+    // operator is trapped. In normal flow it is a plain stacked column.
+    <div
+      style={
+        fullscreen
+          ? {
+              position: "fixed",
+              inset: 0,
+              zIndex: 9999,
+              background: "#1e1e1e",
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+              padding: 8,
+            }
+          : { display: "flex", flexDirection: "column", gap: 8 }
+      }
+    >
+      {error && <Banner tone="error">{error}</Banner>}
       {ended && (
-        <Banner tone="amber">
+        <Banner tone="warning">
           {t("terminal.session_ended", "Session ended")}
         </Banner>
       )}
@@ -258,23 +273,18 @@ export default function AgentTerminal({ issue, onClose }) {
         style={
           fullscreen
             ? {
-                position: "fixed",
-                inset: 0,
-                zIndex: 9999,
+                // Fill the overlay; the ControlBar takes its natural height below.
+                flex: 1,
+                minHeight: 0,
                 background: "#1e1e1e",
-                borderRadius: 0,
-                // Horizontal scroll when the pane is wider than the viewport; xterm's own
-                // viewport handles vertical scrollback.
-                overflowX: "auto",
-                overflowY: "hidden",
+                overflow: "hidden",
                 border: armed ? "2px solid var(--destructive)" : "none",
               }
             : {
                 height: 320,
                 background: "#1e1e1e",
                 borderRadius: 6,
-                overflowX: "auto",
-                overflowY: "hidden",
+                overflow: "hidden",
                 border: armed
                   ? "2px solid var(--destructive)"
                   : "1px solid var(--border)",
@@ -285,31 +295,19 @@ export default function AgentTerminal({ issue, onClose }) {
         armed={armed}
         fullscreen={fullscreen}
         fontSize={fontSize}
+        killConfirm={killConfirm}
         onToggle={toggleControl}
         onToggleFullscreen={toggleFullscreen}
         onSendKey={sendKey}
         onZoom={zoom}
+        onKill={onKill}
+        onArmKill={() => setKillConfirm(true)}
+        onCancelKill={() => setKillConfirm(false)}
         onClose={onClose}
         t={t}
       />
-      {/* Hidden input — captures mobile soft-keyboard input when the terminal is armed.
-          Keystrokes are forwarded as {type:"text"} frames. */}
-      <input
-        ref={mobileInputRef}
-        style={{
-          position: "absolute",
-          opacity: 0,
-          width: 1,
-          height: 1,
-          pointerEvents: "none",
-        }}
-        onInput={handleMobileInput}
-        aria-hidden="true"
-        tabIndex={-1}
-        autoCapitalize="off"
-        autoCorrect="off"
-        spellCheck={false}
-      />
+      {/* Help/cheatsheet — hidden in fullscreen (the terminal fills the screen there). */}
+      {!fullscreen && <TerminalHelp t={t} />}
     </div>
   );
 }
@@ -319,10 +317,14 @@ function ControlBar({
   armed,
   fullscreen,
   fontSize,
+  killConfirm,
   onToggle,
   onToggleFullscreen,
   onSendKey,
   onZoom,
+  onKill,
+  onArmKill,
+  onCancelKill,
   onClose,
   t,
 }) {
@@ -335,41 +337,56 @@ function ControlBar({
         alignItems: "center",
       }}
     >
-      <Button tone={armed ? "destructive" : "secondary"} onClick={onToggle}>
-        {armed
-          ? t("terminal.release", "Release control")
-          : t("terminal.take_control", "Take control")}
-      </Button>
+      <Tooltip
+        label={
+          armed
+            ? t("tip.term_release", "Stop sending your keystrokes to the agent")
+            : t("tip.term_take_control", "Send your keystrokes to the agent")
+        }
+      >
+        <Button tone={armed ? "destructive" : "secondary"} onClick={onToggle}>
+          {armed
+            ? t("terminal.release", "Release control")
+            : t("terminal.take_control", "Take control")}
+        </Button>
+      </Tooltip>
       {armed && (
         <>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => onSendKey("Enter")}
-          >
-            ↵ Enter
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => onSendKey("Escape")}
-          >
-            Esc
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => onSendKey("C-c")}>
-            Ctrl-C
-          </Button>
+          <Tooltip label={t("tip.term_enter", "Send the Enter key")}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onSendKey("Enter")}
+            >
+              ↵ Enter
+            </Button>
+          </Tooltip>
+          <Tooltip label={t("tip.term_esc", "Send the Escape key")}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onSendKey("Escape")}
+            >
+              Esc
+            </Button>
+          </Tooltip>
+          <Tooltip label={t("tip.term_ctrlc", "Send Ctrl-C (interrupt)")}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onSendKey("C-c")}
+            >
+              Ctrl-C
+            </Button>
+          </Tooltip>
         </>
       )}
-      {/* Zoom controls (operator-driven; never reflows the running agent's pane). */}
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => onZoom(-1)}
-        title={t("terminal.zoom_out", "Zoom out")}
-      >
-        A−
-      </Button>
+      {/* Zoom = font cell size; the pane reflows to the new cell count. */}
+      <Tooltip label={t("terminal.zoom_out", "Zoom out")}>
+        <Button size="sm" variant="outline" onClick={() => onZoom(-1)}>
+          A−
+        </Button>
+      </Tooltip>
       <span
         style={{
           fontSize: 12,
@@ -380,20 +397,173 @@ function ControlBar({
       >
         {fontSize}
       </span>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => onZoom(1)}
-        title={t("terminal.zoom_in", "Zoom in")}
+      <Tooltip label={t("terminal.zoom_in", "Zoom in")}>
+        <Button size="sm" variant="outline" onClick={() => onZoom(1)}>
+          A+
+        </Button>
+      </Tooltip>
+      <Tooltip
+        label={
+          fullscreen
+            ? t("tip.term_fs_exit", "Exit fullscreen")
+            : t("tip.term_fs_enter", "Fullscreen")
+        }
       >
-        A+
-      </Button>
-      <Button size="sm" variant="outline" onClick={onToggleFullscreen}>
-        {fullscreen ? "⤱" : "⤢"}
-      </Button>
-      <Button size="sm" variant="ghost" onClick={onClose}>
-        {t("terminal.close", "Close")}
-      </Button>
+        <Button size="sm" variant="outline" onClick={onToggleFullscreen}>
+          {fullscreen ? "⤱" : "⤢"}
+        </Button>
+      </Tooltip>
+      <Tooltip label={t("tip.term_close", "Close the terminal")}>
+        <Button size="sm" variant="ghost" onClick={onClose}>
+          {t("terminal.close", "Close")}
+        </Button>
+      </Tooltip>
+      {/* Kill = end the Claude session/agent. Destructive → 2-step confirm. Needs control. */}
+      {armed &&
+        (killConfirm ? (
+          <>
+            <Button size="sm" tone="destructive" onClick={onKill}>
+              {t("terminal.kill_confirm", "Confirm kill?")}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onCancelKill}>
+              {t("body.cancel", "Cancel")}
+            </Button>
+          </>
+        ) : (
+          <Tooltip
+            label={t(
+              "tip.term_kill",
+              "End the Claude session and the agent (no need to type exit)",
+            )}
+          >
+            <Button size="sm" variant="outline" onClick={onArmKill}>
+              {t("terminal.kill", "Kill")}
+            </Button>
+          </Tooltip>
+        ))}
+    </div>
+  );
+}
+
+/** A single keycap, shadcn-style (mono, bordered, subtle bottom edge), theme-aware via tokens. */
+function Kbd({ children }) {
+  return (
+    <kbd
+      style={{
+        display: "inline-block",
+        fontFamily: TERM_FONT_FAMILY,
+        fontSize: 11,
+        lineHeight: 1.5,
+        padding: "0 6px",
+        color: "var(--foreground)",
+        background: "var(--muted)",
+        border: "1px solid var(--border)",
+        borderBottomWidth: 2,
+        borderRadius: 5,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {children}
+    </kbd>
+  );
+}
+
+/** A chord (e.g. Ctrl + Shift + F) rendered as Kbd caps joined by "+". */
+function Chord({ keys }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+      {keys.map((k, i) => (
+        <React.Fragment key={k}>
+          {i > 0 && (
+            <span style={{ color: "var(--muted-foreground)", fontSize: 11 }}>
+              +
+            </span>
+          )}
+          <Kbd>{k}</Kbd>
+        </React.Fragment>
+      ))}
+    </span>
+  );
+}
+
+/**
+ * Documentation / cheatsheet shown beneath the terminal: how the viewer works plus the useful
+ * keys. The Ctrl+Shift chords are intercepted before they reach the agent (AgentTerminal mount
+ * effect); the single keys are sent to the agent only while you hold control.
+ */
+function TerminalHelp({ t }) {
+  const shortcuts = [
+    {
+      keys: ["Ctrl", "Shift", "I"],
+      desc: t(
+        "term_help.toggle_control",
+        "Take / release control — start or stop typing to the agent",
+      ),
+    },
+    {
+      keys: ["Ctrl", "Shift", "F"],
+      desc: t("term_help.toggle_fullscreen", "Enter / exit fullscreen"),
+    },
+    {
+      keys: ["Enter"],
+      desc: t("term_help.enter", "Send a newline (only while in control)"),
+    },
+    {
+      keys: ["Esc"],
+      desc: t("term_help.esc", "Send Escape (only while in control)"),
+    },
+    {
+      keys: ["Ctrl", "C"],
+      desc: t(
+        "term_help.ctrlc",
+        "Interrupt the running command (only while in control)",
+      ),
+    },
+  ];
+  return (
+    <div
+      style={{
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius-md)",
+        background: "var(--card)",
+        padding: "10px 12px",
+        fontSize: 12,
+        lineHeight: 1.55,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 10,
+          textTransform: "uppercase",
+          letterSpacing: "0.04em",
+          color: "var(--muted-foreground)",
+        }}
+      >
+        {t("term_help.title", "Keyboard & how it works")}
+      </div>
+      <p style={{ margin: 0, color: "var(--muted-foreground)" }}>
+        {t(
+          "term_help.intro",
+          "This is the agent's live terminal, read-only by default. Take control to send your keystrokes straight to the agent; the red border means you are in control. On mobile, Take control opens the keyboard. Click the terminal first so it has focus, then use the shortcuts below.",
+        )}
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        {shortcuts.map((s) => (
+          <div
+            key={s.keys.join("+")}
+            style={{ display: "flex", alignItems: "center", gap: 9 }}
+          >
+            <span style={{ minWidth: 118 }}>
+              <Chord keys={s.keys} />
+            </span>
+            <span style={{ color: "var(--muted-foreground)" }}>{s.desc}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

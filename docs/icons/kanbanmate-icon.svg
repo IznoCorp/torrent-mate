@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <style>
+      .green { fill: none; stroke: #2BA84A; }
+      .green-fill { fill: #2BA84A; }
+      .amber-fill { fill: #F59E0B; }
+    </style>
+  </defs>
+
+  <!-- Square board tile -->
+  <rect fill="#161616" x="70" y="70" width="884" height="884" rx="150" ry="150"/>
+  <rect class="green" x="70" y="70" width="884" height="884" rx="150" ry="150" stroke-width="40"/>
+
+  <!-- Column dividers (3 columns) -->
+  <line class="green" x1="378" y1="180" x2="378" y2="858" stroke-width="16"/>
+  <line class="green" x1="646" y1="180" x2="646" y2="858" stroke-width="16"/>
+
+  <!-- Left column cards -->
+  <rect class="amber-fill" x="144" y="398" width="200" height="92" rx="16"/>
+  <rect class="amber-fill" x="144" y="528" width="200" height="92" rx="16"/>
+
+  <!-- Right column: row 1 card; row 2 = empty destination slot -->
+  <rect class="amber-fill" x="680" y="398" width="200" height="92" rx="16"/>
+
+  <!-- Middle column row 1 card -->
+  <rect class="amber-fill" x="412" y="398" width="200" height="92" rx="16"/>
+  <!-- Middle column row 2: green card (the moving ticket) -->
+  <rect class="green-fill" x="412" y="528" width="200" height="92" rx="16"/>
+
+  <!-- Arrow: green card moving right into the empty destination slot -->
+  <line class="green" x1="615" y1="574" x2="690" y2="574" stroke-width="18" stroke-linecap="round"/>
+  <path class="green-fill" d="M 687 550 L 724 574 L 687 598 Z"/>
+
+  <!-- Terminal badge (bottom-right, inside the border) -->
+  <circle cx="792" cy="752" r="110" fill="#161616"/>
+  <circle class="green" cx="792" cy="752" r="110" stroke-width="26"/>
+  <path class="green" d="M 745 710 L 787 746 L 745 782" stroke-width="24" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <line class="green" x1="801" y1="788" x2="849" y2="788" stroke-width="24" stroke-linecap="round"/>
+</svg>

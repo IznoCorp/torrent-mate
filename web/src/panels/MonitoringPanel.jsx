@@ -9,7 +9,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
-import { marked } from "marked";
+import { renderMarkdown } from "../lib/markdown.js";
 import * as api from "../api.js";
 import { PageIntro } from "../components/Help.jsx";
 import { MobileBack } from "../components/MobileMasterDetail.jsx";
@@ -19,7 +19,7 @@ import RichPromptEditor from "../components/RichPromptEditor.jsx";
 import useIsMobile from "../useIsMobile.js";
 import { useT } from "../i18n/index.jsx";
 
-const { KeyChip, Badge, Banner, Button, Select } =
+const { KeyChip, Badge, Banner, Button, Select, Tooltip } =
   window.KanbanMateDesignSystem_2463ad;
 
 const STATE_TONE = { running: "accent", waiting: "amber", blocked: "red" };
@@ -431,7 +431,10 @@ export default function MonitoringPanel({ project }) {
         allowed: c.name !== detail.column_key && c.key !== detail.column_key,
       }))
     : [];
-  const currentMoveKey = (moveOptions.find((m) => m.current) || {}).key || "";
+  // Fall back to the ticket's actual column when no option is flagged current, so the Select never
+  // renders blank (which would misrepresent the ticket's column and move from an unknown baseline).
+  const currentMoveKey =
+    (moveOptions.find((m) => m.current) || {}).key || (detail ? detail.column_key : "");
 
   // Per-ticket state dot — the colored summary line (running/waiting/blocked) is its legend. The
   // state is the board's own server-computed `agent_state` (running/waiting/blocked, or null for a
@@ -757,6 +760,11 @@ export default function MonitoringPanel({ project }) {
                               fontFamily: "var(--font-mono)",
                               fontSize: 11,
                               color: "var(--muted-foreground)",
+                              // Fixed width + right align so titles line up regardless of how many
+                              // digits the ticket number has (#2 vs #1243).
+                              minWidth: 44,
+                              textAlign: "right",
+                              flexShrink: 0,
                             }}
                           >
                             #{tk.number}
@@ -764,6 +772,7 @@ export default function MonitoringPanel({ project }) {
                           <span
                             style={{
                               flex: 1,
+                              minWidth: 0,
                               fontSize: 12.5,
                               overflow: "hidden",
                               textOverflow: "ellipsis",
@@ -819,7 +828,15 @@ export default function MonitoringPanel({ project }) {
               <div
                 style={{ display: "flex", flexDirection: "column", gap: 14 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 9,
+                    // Wrap so a long ticket title can't overflow the box on narrow screens.
+                    flexWrap: "wrap",
+                  }}
+                >
                   <span
                     style={{
                       fontFamily: "var(--font-mono)",
@@ -833,6 +850,8 @@ export default function MonitoringPanel({ project }) {
                       fontFamily: "var(--font-display)",
                       fontWeight: 600,
                       fontSize: "var(--text-md)",
+                      minWidth: 0,
+                      overflowWrap: "anywhere",
                     }}
                   >
                     {detail.title}
@@ -926,20 +945,23 @@ export default function MonitoringPanel({ project }) {
                       {t("monitor.description", "Description")}
                     </button>
                     {!editMode && (
-                      <button
-                        onClick={openEdit}
-                        title={t("body.edit")}
-                        style={{
-                          border: "none",
-                          background: "none",
-                          cursor: "pointer",
-                          padding: 2,
-                          color: "var(--muted-foreground)",
-                          marginLeft: "auto",
-                        }}
+                      <Tooltip
+                        label={t("tip.edit_description", "Edit the description")}
+                        style={{ marginLeft: "auto" }}
                       >
-                        <Pencil size={13} strokeWidth={2} />
-                      </button>
+                        <button
+                          onClick={openEdit}
+                          style={{
+                            border: "none",
+                            background: "none",
+                            cursor: "pointer",
+                            padding: 2,
+                            color: "var(--muted-foreground)",
+                          }}
+                        >
+                          <Pencil size={13} strokeWidth={2} />
+                        </button>
+                      </Tooltip>
                     )}
                   </div>
                   {descOpen && !editMode && (
@@ -951,9 +973,7 @@ export default function MonitoringPanel({ project }) {
                         lineHeight: 1.6,
                       }}
                       dangerouslySetInnerHTML={{
-                        __html: marked.parse(detail.body || "", {
-                          breaks: true,
-                        }),
+                        __html: renderMarkdown(detail.body || ""),
                       }}
                     />
                   )}
@@ -971,15 +991,30 @@ export default function MonitoringPanel({ project }) {
                         onChange={setEditFreeform}
                       />
                       <div style={{ display: "flex", gap: 6 }}>
-                        <Button onClick={saveEdit} disabled={saving}>
-                          {saving ? t("body.saving") : t("body.save")}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => setEditMode(false)}
+                        <Tooltip
+                          label={t(
+                            "tip.save_description",
+                            "Save the description to the GitHub issue",
+                          )}
                         >
-                          {t("body.cancel")}
-                        </Button>
+                          <Button
+                            onClick={saveEdit}
+                            disabled={saving}
+                            loading={saving}
+                          >
+                            {saving ? t("body.saving") : t("body.save")}
+                          </Button>
+                        </Tooltip>
+                        <Tooltip
+                          label={t("tip.cancel_edit", "Discard your changes")}
+                        >
+                          <Button
+                            variant="outline"
+                            onClick={() => setEditMode(false)}
+                          >
+                            {t("body.cancel")}
+                          </Button>
+                        </Tooltip>
                       </div>
                     </div>
                   )}
@@ -1066,6 +1101,9 @@ export default function MonitoringPanel({ project }) {
                       style={{
                         display: "flex",
                         gap: 14,
+                        // Wrap on narrow screens; the mono branch name can be long and must not
+                        // push the detail box past the viewport (mobile horizontal-scroll bug).
+                        flexWrap: "wrap",
                         fontFamily: "var(--font-mono)",
                         fontSize: 11,
                         color: "var(--muted-foreground)",
@@ -1078,7 +1116,7 @@ export default function MonitoringPanel({ project }) {
                       <span>
                         {t("monitor.stage")}: {selAgent.stage}
                       </span>
-                      <span>
+                      <span style={{ overflowWrap: "anywhere", minWidth: 0 }}>
                         {t("monitor.branch")}: {selAgent.branch}
                       </span>
                     </div>
@@ -1190,15 +1228,23 @@ export default function MonitoringPanel({ project }) {
                             options={["dev", "check", "prepare", "docs"]}
                           />
                         </label>
-                        <Button
-                          size="sm"
-                          onClick={doLaunch}
-                          disabled={launching}
+                        <Tooltip
+                          label={t(
+                            "tip.launch_agent",
+                            "Run a Claude agent on this ticket now",
+                          )}
                         >
-                          {launching
-                            ? t("monitor.launching", "Launching…")
-                            : t("monitor.launch_button", "Launch agent")}
-                        </Button>
+                          <Button
+                            size="sm"
+                            onClick={doLaunch}
+                            disabled={launching}
+                            loading={launching}
+                          >
+                            {launching
+                              ? t("monitor.launching", "Launching…")
+                              : t("monitor.launch_button", "Launch agent")}
+                          </Button>
+                        </Tooltip>
                       </div>
                       {launchMsg && (
                         <StatusNote tone={launchMsg.tone}>
@@ -1215,9 +1261,19 @@ export default function MonitoringPanel({ project }) {
                   agents.some((a) => a.issue === sel && a.session_alive) && (
                     <div style={{ marginTop: 12 }}>
                       {!terminalOpen ? (
-                        <Button size="sm" onClick={() => setTerminalOpen(true)}>
-                          {t("terminal.interactive", "Interactive terminal")}
-                        </Button>
+                        <Tooltip
+                          label={t(
+                            "tip.open_terminal",
+                            "Attach to the agent's live terminal",
+                          )}
+                        >
+                          <Button
+                            size="sm"
+                            onClick={() => setTerminalOpen(true)}
+                          >
+                            {t("terminal.interactive", "Interactive terminal")}
+                          </Button>
+                        </Tooltip>
                       ) : (
                         <AgentTerminal
                           issue={sel}
@@ -1245,22 +1301,29 @@ export default function MonitoringPanel({ project }) {
                       style={{
                         display: "flex",
                         flexDirection: "column",
-                        gap: 6,
+                        // More breathing room between comment blocks (operator).
+                        gap: 12,
                       }}
                     >
-                      {detail.timeline.map((e, i) => {
-                        const isComment = e.kind === "comment";
-                        return (
-                          <div
-                            key={i}
-                            style={{ fontSize: 12.5, lineHeight: 1.5 }}
-                          >
+                      {detail.timeline
+                        // Newest first (date DESC). Keep original index as a stable tiebreaker for
+                        // undated / same-instant entries.
+                        .map((e, i) => ({ e, i }))
+                        .sort((a, b) => {
+                          const ta = a.e.at ? Date.parse(a.e.at) : 0;
+                          const tb = b.e.at ? Date.parse(b.e.at) : 0;
+                          return tb - ta || b.i - a.i;
+                        })
+                        .map(({ e, i }) => {
+                          const isComment = e.kind === "comment";
+                          // The kind + date header — placed INSIDE the comment block (operator),
+                          // or above the text for non-comment events.
+                          const header = (
                             <div
                               style={{
                                 display: "flex",
                                 alignItems: "center",
                                 gap: 6,
-                                marginBottom: 3,
                               }}
                             >
                               <KeyChip>{e.kind}</KeyChip>
@@ -1275,35 +1338,56 @@ export default function MonitoringPanel({ project }) {
                                 </span>
                               )}
                             </div>
-                            {isComment ? (
-                              // Render comment bodies as markdown (#47, batch 5).
-                              <div
-                                className="km-timeline-md"
-                                style={{
-                                  border: "1px solid var(--border)",
-                                  borderRadius: "var(--radius-md)",
-                                  padding: "8px 11px",
-                                  background: "var(--muted)",
-                                }}
-                                dangerouslySetInnerHTML={{
-                                  __html: marked.parse(e.text || "", {
-                                    breaks: true,
-                                  }),
-                                }}
-                              />
-                            ) : (
-                              <div
-                                style={{
-                                  whiteSpace: "pre-wrap",
-                                  color: "var(--muted-foreground)",
-                                }}
-                              >
-                                {e.text}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                          );
+                          return (
+                            <div
+                              key={i}
+                              style={{ fontSize: 12.5, lineHeight: 1.5 }}
+                            >
+                              {isComment ? (
+                                // Header bar (kind + date) and the markdown body share one block.
+                                <div
+                                  style={{
+                                    border: "1px solid var(--border)",
+                                    borderRadius: "var(--radius-md)",
+                                    background: "var(--muted)",
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      padding: "6px 11px",
+                                      borderBottom: "1px solid var(--border)",
+                                    }}
+                                  >
+                                    {header}
+                                  </div>
+                                  <div
+                                    className="km-timeline-md"
+                                    style={{ padding: "9px 11px" }}
+                                    dangerouslySetInnerHTML={{
+                                      __html: renderMarkdown(e.text || ""),
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                <>
+                                  <div style={{ marginBottom: 3 }}>
+                                    {header}
+                                  </div>
+                                  <div
+                                    style={{
+                                      whiteSpace: "pre-wrap",
+                                      color: "var(--muted-foreground)",
+                                    }}
+                                  >
+                                    {e.text}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          );
+                        })}
                     </div>
                   </div>
                 )}

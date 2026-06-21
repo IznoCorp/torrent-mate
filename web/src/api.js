@@ -85,6 +85,8 @@ export const boardPlace = ({ itemId, columnKey, index, ifVersion }, project) =>
   });
 export const boardImport = ({ dryRun }, project) =>
   call("POST", `/api/board/import${q(project)}`, { dry_run: !!dryRun });
+export const newTicket = ({ title, body }, project) =>
+  call("POST", `/api/board/new-ticket${q(project)}`, { title, body });
 
 // --- Monitoring (read-only) ---
 export const monitorBoard = (project) =>

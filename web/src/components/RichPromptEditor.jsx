@@ -4,7 +4,7 @@
 // (known vs unknown) so the operator sees both formatting and binding. The known-placeholder set
 // is fetched from the server (GET /api/placeholders) so it never drifts from the engine.
 import React from "react";
-import { marked } from "marked";
+import { renderMarkdown } from "../lib/markdown.js";
 import CodeMirror from "@uiw/react-codemirror";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
@@ -110,9 +110,7 @@ export default function RichPromptEditor({ value, onChange }) {
 
   const previewHtml = React.useMemo(() => {
     if (tab !== "preview") return "";
-    const rendered = marked.parse(text || t("prompt.no_prompt_md"), {
-      breaks: true,
-    });
+    const rendered = renderMarkdown(text || t("prompt.no_prompt_md"));
     return highlightPlaceholders(rendered, known, knownNames);
   }, [tab, text, known]); // eslint-disable-line react-hooks/exhaustive-deps
 

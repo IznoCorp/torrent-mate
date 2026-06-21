@@ -7,24 +7,29 @@ from unittest.mock import MagicMock
 
 from kanbanmate.adapters.store.fs_board import FsBoardStateStore
 from kanbanmate.app.board_import import import_board
-from kanbanmate.core.domain import BoardSnapshot, Ticket
+from kanbanmate.core.domain import BoardSnapshot, Column, ColumnClass, Ticket
 
-COLUMNS = [
-    "Backlog",
-    "Brainstorming",
-    "Spec",
-    "Plan",
-    "Planned",
-    "ReadyToDev",
-    "PrepareFeature",
-    "InProgress",
-    "PRCI",
-    "Review",
-    "Merge",
-    "Done",
-    "Cancel",
-    "Blocked",
-]
+# Column model keyed by key; for these keys name == key, so a ticket whose Status name equals the
+# key resolves cleanly (the multi-word name/key mismatch is exercised separately below).
+COLUMNS = {
+    key: Column(key=key, name=key, column_class=ColumnClass.INERT)
+    for key in (
+        "Backlog",
+        "Brainstorming",
+        "Spec",
+        "Plan",
+        "Planned",
+        "ReadyToDev",
+        "PrepareFeature",
+        "InProgress",
+        "PRCI",
+        "Review",
+        "Merge",
+        "Done",
+        "Cancel",
+        "Blocked",
+    )
+}
 
 
 def _forge_with_tickets(*tickets: Ticket) -> MagicMock:
@@ -121,6 +126,34 @@ def test_import_unknown_column_lands_in_entry(tmp_path: pathlib.Path) -> None:
     import_board(forge, store, COLUMNS)
     doc = store.load()
     assert doc["placement"]["x"] == "Backlog", "entry column is COLUMNS[0] = Backlog"
+
+
+def test_import_resolves_status_name_to_column_key(tmp_path: pathlib.Path) -> None:
+    """A GitHub Status NAME that differs from the column KEY must resolve to the key, not fall back.
+
+    Regression for the live #55 bug: the GitHub adapter emits the Status display NAME
+    (``"Ready to Dev"``) as the ticket's ``column_key``, but the native store is keyed by the stable
+    column KEY (``"ReadyToDev"``). The import must bridge that name/key seam via ``resolve_column`` —
+    the old code compared the name against the key list, missed, and dumped the card into
+    ``columns[0]`` (Brainstorming).
+    """
+    columns = {
+        "Brainstorming": Column(
+            key="Brainstorming", name="Brainstorming", column_class=ColumnClass.INERT
+        ),
+        "ReadyToDev": Column(key="ReadyToDev", name="Ready to Dev", column_class=ColumnClass.INERT),
+    }
+    # The snapshot emits the Status NAME, exactly as the GitHub adapter does in production.
+    forge = _forge_with_tickets(_ticket("55", "Ready to Dev"))
+    store = FsBoardStateStore(tmp_path)
+    import_board(forge, store, columns)
+
+    doc = store.load()
+    assert doc["placement"]["55"] == "ReadyToDev", (
+        "Status name must resolve to its column key, not fall back to columns[0]"
+    )
+    assert "55" in doc["order"]["ReadyToDev"]
+    assert "55" not in doc["order"]["Brainstorming"]
 
 
 def test_import_summary_counts_per_column(tmp_path: pathlib.Path) -> None:

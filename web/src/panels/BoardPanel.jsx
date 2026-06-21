@@ -19,7 +19,8 @@ import { PageIntro } from "../components/Help.jsx";
 import useIsMobile from "../useIsMobile.js";
 import { useT } from "../i18n/index.jsx";
 
-const { Banner, Button, Badge, Card } = window.KanbanMateDesignSystem_2463ad;
+const { Banner, Button, Badge, Card, Tooltip } =
+  window.KanbanMateDesignSystem_2463ad;
 
 // One-shot <style> with the drag/hover effects (Item 2). Inline styles cannot express :hover or the
 // .dragging class transition, so the board injects a scoped stylesheet once.
@@ -61,6 +62,7 @@ export default function BoardPanel({ project }) {
   const [notice, setNotice] = React.useState(null); // {tone, text} transient feedback
   const [actionError, setActionError] = React.useState(null); // mutation error (shown even with data)
   const [confirmImport, setConfirmImport] = React.useState(false); // 2-step destructive import
+  const [pendingAction, setPendingAction] = React.useState(null); // which button is mid-flight (spinner)
   const noticeTimer = React.useRef(null);
 
   // Show a transient notice; success/info auto-dismiss, warnings/errors stay until the next action.
@@ -76,6 +78,8 @@ export default function BoardPanel({ project }) {
     [],
   );
 
+  // Resolves to the fetched board on success, or null on a handled failure — so callers (e.g. the
+  // Refresh button) can confirm/deny the action instead of guessing.
   const load = React.useCallback(() => {
     setError(null);
     return api
@@ -83,13 +87,31 @@ export default function BoardPanel({ project }) {
       .then((d) => {
         setData(d);
         setNotNative(false);
+        return d;
       })
       .catch((e) => {
         if (e.status === 409)
           setNotNative(true); // board_backend != native
         else setError(e.message);
+        return null;
       });
   }, [project]);
+
+  // Explicit refresh: a remote round-trip must never look like a no-op. Show busy, then confirm
+  // success (with the board revision as tangible proof it re-synced) or surface the error.
+  const refresh = React.useCallback(async () => {
+    setBusy(true);
+    setPendingAction("refresh");
+    setActionError(null);
+    try {
+      const d = await load();
+      if (d) pushNotice("success", t("board.refreshed", { rev: d.version }));
+      else pushNotice("error", t("board.refresh_failed"));
+    } finally {
+      setBusy(false);
+      setPendingAction(null);
+    }
+  }, [load, pushNotice, t]);
 
   React.useEffect(() => {
     setData(null);
@@ -167,7 +189,10 @@ export default function BoardPanel({ project }) {
     if (res) pushNotice("success", t("board.reordered"));
   };
   const onImport = async () => {
-    const res = await mutate(() => api.boardImport({ dryRun: false }, project));
+    setPendingAction("import");
+    const res = await mutate(() =>
+      api.boardImport({ dryRun: false }, project),
+    ).finally(() => setPendingAction(null));
     if (res) {
       const summary = res.summary || {};
       const n = Object.values(summary).reduce(
@@ -246,33 +271,44 @@ export default function BoardPanel({ project }) {
         </Badge>
       )}
       <span style={{ flex: 1 }} />
-      <Button
-        variant="secondary"
-        size="sm"
-        disabled={busy}
-        onClick={() => {
-          setConfirmImport(false);
-          load();
-        }}
-      >
-        {t("board.refresh")}
-      </Button>
-      {/* Import re-seeds placement from GitHub (overwrites native order) → 2-step confirm. */}
-      <Button
-        variant={confirmImport ? "primary" : "secondary"}
-        size="sm"
-        disabled={busy}
-        onClick={() => {
-          if (confirmImport) {
+      <Tooltip label={t("tip.board_refresh", "Reload the board from the server")}>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={busy}
+          loading={pendingAction === "refresh"}
+          onClick={() => {
             setConfirmImport(false);
-            onImport();
-          } else {
-            setConfirmImport(true);
-          }
-        }}
+            refresh();
+          }}
+        >
+          {t("board.refresh")}
+        </Button>
+      </Tooltip>
+      {/* Import re-seeds placement from GitHub (overwrites native order) → 2-step confirm. */}
+      <Tooltip
+        label={t(
+          "tip.board_import",
+          "Re-seed card placement from GitHub (overwrites local order)",
+        )}
       >
-        {confirmImport ? t("board.import_confirm") : t("board.import")}
-      </Button>
+        <Button
+          variant={confirmImport ? "primary" : "secondary"}
+          size="sm"
+          disabled={busy}
+          loading={pendingAction === "import"}
+          onClick={() => {
+            if (confirmImport) {
+              setConfirmImport(false);
+              onImport();
+            } else {
+              setConfirmImport(true);
+            }
+          }}
+        >
+          {confirmImport ? t("board.import_confirm") : t("board.import")}
+        </Button>
+      </Tooltip>
     </div>
   );
 

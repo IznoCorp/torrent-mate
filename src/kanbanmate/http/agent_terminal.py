@@ -1,8 +1,24 @@
 """WebSocket endpoint for the interactive agent terminal (tiller §4.2).
 
+A REAL terminal, not a screen-scraper. The endpoint allocates a pseudo-terminal
+(``os.openpty``), spawns ``tmux attach-session`` attached to that PTY, and streams
+the master fd **bidirectionally** over the WebSocket — exactly how ttyd / wetty /
+pyxtermjs expose a shell in the browser:
+
+* PTY output bytes  → WebSocket **binary** frames → ``xterm.write`` (raw ANSI, real
+  time — no polling, so animations/spinners and key echo are fluid).
+* WebSocket **text** frames (JSON) → control / input / resize.
+* Browser resize → ``ioctl(TIOCSWINSZ)`` on the master → the tmux client follows,
+  so the agent's pane reflows to fit the browser (fullscreen genuinely enlarges it).
+
+Read-only by default: input bytes reach the PTY only after ``take_control``; every
+armed send is audit-logged and guarded by the reaper sentinel. The child command is
+overridable via ``app.state.terminal_pty_cmd`` (a ``Callable[[int], list[str]]``) so
+the streaming path is testable without tmux.
+
 Registered on the shared config-API ``app`` via side-effect import from
-``http/monitor_routes.py``. The ``@app.middleware("http")`` auth guard does NOT
-run for WebSocket scopes; auth is checked in-handler (cookie → verify_token).
+``http/monitor_routes.py``. The ``@app.middleware("http")`` auth guard does NOT run
+for WebSocket scopes; auth is checked in-handler (cookie → verify_token).
 
 Layering: ``http`` top entrypoint — may import ``app``, ``core``, ``adapters``.
 """
@@ -10,8 +26,17 @@ Layering: ``http`` top entrypoint — may import ``app``, ``core``, ``adapters``
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import fcntl
 import json
 import logging
+import os
+import select
+import signal
+import struct
+import subprocess
+import termios
+from typing import Any, Callable
 
 from fastapi import WebSocket, WebSocketDisconnect
 
@@ -21,19 +46,62 @@ from kanbanmate.http.monitor_routes import _monitor_sessions
 
 logger = logging.getLogger("kanbanmate.http.agent_terminal")
 
-_MAX_MSG_BYTES = 1 * 1024 * 1024  # 1 MiB cap per message
-_CAPTURE_INTERVAL = 0.3  # seconds between pane snapshots
-_IDLE_TIMEOUT = 300.0  # seconds of client silence before auto-close
-_SCROLLBACK_LINES = 500  # lines of pane history sent with each snapshot (operator scroll-back)
+_MAX_MSG_BYTES = 1 * 1024 * 1024  # 1 MiB cap per client message
+_READ_CHUNK = 64 * 1024  # bytes read from the PTY master per readable event
+# Bound the outbound buffer: a chatty agent + a stalled client must NOT grow the queue without
+# limit (OOM). At ~64 KiB/chunk this caps the viewer buffer at ~32 MiB; beyond it, terminal output
+# chunks are dropped (the live stream catches up) — control frames are never dropped.
+_OUT_QUEUE_MAX = 512
+_WRITE_MAX_RETRIES = 20  # bounded retries when the PTY input buffer is momentarily full
+# Resize bounds — a 0 / absurd size from a mid-layout client would break the tmux client.
+_MIN_COLS, _MAX_COLS = 20, 500
+_MIN_ROWS, _MAX_ROWS = 5, 200
+
+
+def _set_winsize(fd: int, rows: int, cols: int) -> None:
+    """Set the PTY window size (``TIOCSWINSZ``) so the attached client gets SIGWINCH."""
+    winsize = struct.pack("HHHH", rows, cols, 0, 0)
+    fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
+
+
+def _write_input(fd: int, data: bytes) -> None:
+    """Write ALL of *data* to the non-blocking PTY master, tolerating partial / would-block writes.
+
+    A single ``os.write`` on a non-blocking fd may write fewer bytes than asked (dropping the tail —
+    losing operator keystrokes) or raise ``BlockingIOError`` when the PTY input buffer is full. Loop
+    until drained, waiting briefly for writability on a full buffer. Bounded so a stuck (non-reading)
+    agent can't block the event loop forever; genuine ``OSError`` (slave gone) propagates to the
+    caller as end-of-session.
+    """
+    view = memoryview(data)
+    for _ in range(_WRITE_MAX_RETRIES):
+        if not view:
+            return
+        try:
+            view = view[os.write(fd, view) :]
+        except BlockingIOError:
+            select.select([], [fd], [], 0.25)  # rare: wait for the PTY to drain (tiny keystrokes)
+        except InterruptedError:
+            continue  # signal — retry
+
+
+def _pty_command(issue: int) -> list[str]:
+    """The child command to run in the PTY (overridable via ``app.state.terminal_pty_cmd``)."""
+    factory: Callable[[int], list[str]] | None = getattr(app.state, "terminal_pty_cmd", None)
+    if factory is not None:
+        return list(factory(issue))
+    # A real, interactive tmux client attached to the agent's session. The client's PTY winsize
+    # drives the session size (window-size defaults to "latest" — the most recent client wins).
+    return ["tmux", "attach-session", "-t", f"ticket-{issue}"]
 
 
 @app.websocket("/api/monitor/agent/{issue}/attach")
 async def agent_attach(websocket: WebSocket, issue: int) -> None:
-    """Bidirectional terminal for agent session ``ticket-<issue>``.
+    """Bidirectional PTY-streamed terminal for agent session ``ticket-<issue>``.
 
-    Auth: in-handler cookie check (middleware skips WS scope). Read-only by
-    default; client sends ``{type:"take_control"}`` to arm writing. Every armed
-    send is audit-logged. Reaper sentinel written on take_control, removed on
+    Auth: in-handler cookie check (middleware does not cover WS scope). Read-only by
+    default; the client sends ``{type:"take_control"}`` to arm input. Every armed send
+    is audit-logged. The reaper sentinel is written on take_control, removed on
     release/disconnect.
 
     Args:
@@ -52,48 +120,94 @@ async def agent_attach(websocket: WebSocket, issue: int) -> None:
         login = "operator"  # open mode
 
     await websocket.accept()
-    sessions = _monitor_sessions()
-    session_name = f"ticket-{issue}"
-    armed = False
     store_root = _kanban_root()
+    session_name = f"ticket-{issue}"  # the agent's tmux session (for kill_repl_process)
+    armed = False
 
-    # Resolve sentinel path lazily (best-effort; sentinel helper imported below)
+    # Resolve the reaper sentinel path lazily (best-effort).
     try:
-        from kanbanmate.app.control_state import remove_sentinel, sentinel_path, write_sentinel  # noqa: PLC0415
+        from kanbanmate.app.control_state import (  # noqa: PLC0415
+            remove_sentinel,
+            sentinel_path,
+            write_sentinel,
+        )
 
         _sentinel = sentinel_path(store_root, issue)
     except Exception:
         _sentinel = None
 
-    async def _read_loop() -> None:
-        """Push ANSI pane snapshots to the client every _CAPTURE_INTERVAL seconds."""
+    # --- Spawn the PTY child (tmux attach by default; injectable for tests) ---
+    try:
+        master_fd, slave_fd = os.openpty()
+        _set_winsize(master_fd, 24, 80)  # sane default until the client's first resize
+        env = dict(os.environ)
+        env["TERM"] = "xterm-256color"
+        # ``login_tty`` (setsid + TIOCSCTTY + dup to 0/1/2) gives the child a CONTROLLING terminal —
+        # without it the tmux client never receives SIGWINCH and resize silently no-ops (merely
+        # inheriting the slave fd is NOT enough). It also makes the child a session leader, so
+        # ``killpg`` on detach cleanly tears down just this client. ``pass_fds`` keeps the slave open
+        # until ``login_tty`` consumes it.
+        proc = subprocess.Popen(  # noqa: S603 — argv list, no shell
+            _pty_command(issue),
+            preexec_fn=lambda: os.login_tty(slave_fd),  # noqa: PLW1509 — PTY controlling-tty setup
+            close_fds=True,
+            pass_fds=(slave_fd,),
+            env=env,
+        )
+        os.close(slave_fd)
+        os.set_blocking(master_fd, False)
+    except Exception as exc:
+        logger.error("agent terminal: failed to start PTY for ticket-%s", issue, exc_info=True)
+        with contextlib.suppress(Exception):
+            await websocket.send_text(json.dumps({"error": f"could not start terminal: {exc}"}))
+        await websocket.close()
+        return
+
+    loop = asyncio.get_running_loop()
+    out_queue: asyncio.Queue[Any] = asyncio.Queue()
+
+    def _on_pty_readable() -> None:
+        """Drain the PTY master and queue the bytes (EOF → sentinel ``None``)."""
+        try:
+            data = os.read(master_fd, _READ_CHUNK)
+        except (BlockingIOError, InterruptedError):
+            return
+        except OSError:
+            data = b""  # fd error == EOF
+        if not data:
+            loop.remove_reader(master_fd)
+            out_queue.put_nowait(None)
+            return
+        # Backpressure: under extreme output flood with a stalled client, drop terminal bytes rather
+        # than grow the queue without bound (the live stream re-syncs). Control frames are unaffected.
+        if out_queue.qsize() < _OUT_QUEUE_MAX:
+            out_queue.put_nowait(data)
+
+    loop.add_reader(master_fd, _on_pty_readable)
+
+    async def _sender() -> None:
+        """Single send path: bytes → binary frame (terminal), dict → text frame (control)."""
         while True:
-            await asyncio.sleep(_CAPTURE_INTERVAL)
-            try:
-                alive = sessions.is_alive(session_name)
-                if not alive:
-                    await websocket.send_text(json.dumps({"alive": False}))
+            item = await out_queue.get()
+            if item is None:  # PTY EOF — the session ended.
+                with contextlib.suppress(Exception):
                     await websocket.close()
-                    return
-                data = sessions.capture_ansi(session_name, scrollback=_SCROLLBACK_LINES)
-                cols, rows = sessions.pane_size(session_name)
-                await websocket.send_text(
-                    json.dumps({"alive": True, "data": data, "cols": cols, "rows": rows})
-                )
+                return
+            try:
+                if isinstance(item, bytes):
+                    await websocket.send_bytes(item)
+                else:
+                    await websocket.send_text(json.dumps(item))
             except Exception:
-                # Fail-soft: a tmux error or a closed socket — exit the loop cleanly.
                 return
 
-    read_task = asyncio.create_task(_read_loop())
+    send_task = asyncio.create_task(_sender())
+
     try:
         while True:
-            try:
-                raw = await asyncio.wait_for(websocket.receive_text(), timeout=_IDLE_TIMEOUT)
-            except asyncio.TimeoutError:
-                await websocket.close(code=1001)
-                break
+            raw = await websocket.receive_text()
             if len(raw.encode()) > _MAX_MSG_BYTES:
-                await websocket.send_text(json.dumps({"error": "message too large"}))
+                out_queue.put_nowait({"error": "message too large"})
                 continue
             try:
                 msg = json.loads(raw)
@@ -103,68 +217,74 @@ async def agent_attach(websocket: WebSocket, issue: int) -> None:
             if kind == "take_control":
                 armed = True
                 if _sentinel is not None:
-                    try:
+                    with contextlib.suppress(Exception):
                         write_sentinel(_sentinel)
-                    except Exception:
-                        pass
-                await websocket.send_text(json.dumps({"control": "armed"}))
+                out_queue.put_nowait({"control": "armed"})
             elif kind == "release_control":
                 armed = False
                 if _sentinel is not None:
-                    try:
+                    with contextlib.suppress(Exception):
                         remove_sentinel(_sentinel)
-                    except Exception:
-                        pass
-                await websocket.send_text(json.dumps({"control": "released"}))
-            elif kind == "text":
+                out_queue.put_nowait({"control": "released"})
+            elif kind == "input":
                 if not armed:
-                    await websocket.send_text(json.dumps({"error": "not in control"}))
+                    out_queue.put_nowait({"error": "not in control"})
                     continue
                 data = msg.get("data", "")
-                _audit(login, issue, f"text len={len(data)}")
+                _audit(login, issue, f"input len={len(data)}")
                 try:
-                    sessions.send_text(session_name, data, literal=True)
-                except Exception as exc:
-                    await websocket.send_text(json.dumps({"error": str(exc)}))
-                    await websocket.close()
-                    break
-            elif kind == "key":
-                if not armed:
-                    await websocket.send_text(json.dumps({"error": "not in control"}))
-                    continue
-                key = msg.get("name", "")
-                _audit(login, issue, f"key={key!r}")
-                try:
-                    sessions.send_text(session_name, key, literal=False)
-                except Exception as exc:
-                    await websocket.send_text(json.dumps({"error": str(exc)}))
-                    await websocket.close()
+                    _write_input(master_fd, data.encode("utf-8", "ignore"))
+                except OSError as exc:
+                    # Genuine PTY error (slave gone) — the session has ended.
+                    out_queue.put_nowait({"error": str(exc)})
                     break
             elif kind == "resize":
-                cols = int(msg.get("cols", 80))
-                rows = int(msg.get("rows", 24))
+                # A malformed (non-numeric) cols/rows must not crash the loop and kill the terminal.
                 try:
-                    sessions.resize(session_name, cols, rows)
-                except Exception:
-                    pass  # fail-soft: resize errors are non-fatal
+                    cols = max(_MIN_COLS, min(_MAX_COLS, int(msg.get("cols", 80))))
+                    rows = max(_MIN_ROWS, min(_MAX_ROWS, int(msg.get("rows", 24))))
+                except (TypeError, ValueError):
+                    continue
+                with contextlib.suppress(Exception):
+                    _set_winsize(master_fd, rows, cols)
+            elif kind == "kill":
+                # End the agent: SIGKILL the claude REPL but let the surviving shell run the
+                # ``; kanban-session-end <issue>`` wrapper → clean teardown / state purge (NOT
+                # tmux kill-session, which would skip that cleanup). Requires control + audited.
+                if not armed:
+                    out_queue.put_nowait({"error": "not in control"})
+                    continue
+                _audit(login, issue, "kill (end claude session)")
+                with contextlib.suppress(Exception):
+                    _monitor_sessions().kill_repl_process(session_name)
+                # The shell then exits → the tmux session ends → the PTY hits EOF → the WS closes.
             # Unknown types silently ignored (forward-compat).
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, RuntimeError):
         pass
+    except Exception:
+        # Teardown path (e.g. a close-state error from the concurrent EOF close) — never propagate.
+        logger.debug("agent terminal: receive loop ended unexpectedly", exc_info=True)
     finally:
-        read_task.cancel()
+        with contextlib.suppress(Exception):
+            loop.remove_reader(master_fd)
+        send_task.cancel()
+        # Detach the tmux client (SIGTERM to the child's group) — the AGENT session keeps running.
+        with contextlib.suppress(Exception):
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+        with contextlib.suppress(Exception):
+            await loop.run_in_executor(None, proc.wait)
+        with contextlib.suppress(Exception):
+            os.close(master_fd)
         if _sentinel is not None:
-            try:
+            with contextlib.suppress(Exception):
                 remove_sentinel(_sentinel)
-            except Exception:
-                pass
 
 
 def _audit(login: str, issue: int, payload_summary: str) -> None:
     """Log a structured audit line for an armed operator write (D2).
 
     Emits to the Python logger, and optionally appends to
-    ``<kanban_root>/control/audit.log`` (fail-soft: file errors never
-    interrupt a send).
+    ``<kanban_root>/control/audit.log`` (fail-soft: file errors never interrupt a send).
 
     Args:
         login: The authenticated operator login (from the session cookie).

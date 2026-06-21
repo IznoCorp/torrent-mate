@@ -62,9 +62,15 @@ pre {
 }
 
 ::selection {
-  /* Clearly visible highlight in both light and dark mode (operator: selection was invisible). */
-  background: color-mix(in oklch, var(--accent) 55%, transparent);
-  color: var(--accent-foreground, var(--foreground));
+  /* Vivid, theme-aware highlight visible in light AND dark mode. Use --primary (the brand color)
+   * — not --accent, which is a near-background subtle gray and rendered the selection invisible.
+   * Deliberately DO NOT override the text color: a translucent highlight keeps the original text
+   * legible, whereas forcing --accent-foreground turned selected text the background color (so the
+   * operator "couldn't see the text being selected"). */
+  background: color-mix(in oklch, var(--primary) 40%, transparent);
+}
+::-moz-selection {
+  background: color-mix(in oklch, var(--primary) 40%, transparent);
 }
 
 /* Eyebrow / section label */

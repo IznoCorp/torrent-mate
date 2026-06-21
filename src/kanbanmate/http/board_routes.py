@@ -482,7 +482,9 @@ async def board_import_endpoint(
 
         columns_path = Path(entry.clone) / CLONE_COLUMNS_RELPATH
         columns_yaml = columns_path.read_text(encoding="utf-8")
-        columns = [col.key for col in load_columns(columns_yaml).values()]
+        # The full column model (key→Column) — import_board needs each column's NAME to resolve a
+        # GitHub Status name back to its stable key (the name/key seam, DESIGN §8/§9).
+        columns = load_columns(columns_yaml)
     except (OSError, ValueError) as exc:
         logger.error("board/import: local columns config unreadable", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Board columns config error: {exc}") from exc
@@ -504,3 +506,89 @@ async def board_import_endpoint(
     if not dry_run:
         _nudge()
     return JSONResponse(content=result)
+
+
+# ---------------------------------------------------------------------------
+# POST /api/board/new-ticket
+# ---------------------------------------------------------------------------
+
+
+@app.post("/api/board/new-ticket")
+async def new_ticket_endpoint(request: fastapi.Request, project: str | None = None) -> JSONResponse:
+    """Create a GitHub issue and drop it on the board at Backlog (SPA 'New ticket').
+
+    Creates the issue in the entry's repo, adds it to the Projects v2 board, and sets its Status to
+    the Backlog column — so a captured idea/bug becomes a tracked Backlog ticket the daemon picks up
+    on its next poll. Body: ``{"title": str, "body"?: str}``.
+
+    Args:
+        request: HTTP request with JSON body.
+        project: The Project v2 node id (required when N>1 projects are registered).
+
+    Returns:
+        ``{"number": int, "url": str, "column": str, "status_confirmed": bool}``.
+
+    Raises:
+        HTTPException: 400 (missing title / columns-config error); 502 on a GitHub failure.
+    """
+    body = await _read_json_object(request)
+    title = str(body.get("title", "")).strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="title is required")
+    ticket_body = str(body.get("body", ""))
+
+    entry = _resolve_entry(project)
+
+    # Resolve the Backlog column's Status NAME from the clone's columns.yml (name/key seam).
+    try:
+        from kanbanmate.cli.init import CLONE_COLUMNS_RELPATH  # noqa: PLC0415
+        from kanbanmate.core.columns import load_columns, resolve_column  # noqa: PLC0415
+
+        columns_yaml = (Path(entry.clone) / CLONE_COLUMNS_RELPATH).read_text(encoding="utf-8")
+        columns = load_columns(columns_yaml)
+        # Require a real Backlog column. Falling back to columns[0] could be a TRIGGERING column
+        # (e.g. Brainstorming) → the new ticket would immediately fire an agent. Fail loud instead.
+        backlog = resolve_column(columns, "Backlog")
+        if backlog is None:
+            raise HTTPException(
+                status_code=400,
+                detail="No 'Backlog' column configured — cannot place the new ticket.",
+            )
+    except (OSError, ValueError) as exc:
+        logger.error("new-ticket: local columns config unreadable", exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Board columns config error: {exc}") from exc
+
+    # Phase 1 — create the issue AND add it to the board. A failure here means nothing was created
+    # (or nothing reusable), so a 502 + retry is safe.
+    try:
+        forge = _get_forge(entry)
+        node_id, number = forge.create_issue(entry.repo, title, ticket_body, [])
+        item_id = forge.add_to_project(entry.project_id, node_id)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 — boundary: clean 502, never a raw traceback
+        logger.error("new-ticket: GitHub create/add failed", exc_info=True)
+        raise HTTPException(status_code=502, detail=f"Create ticket failed: {exc}") from exc
+
+    # Phase 2 — set Status=Backlog. The issue ALREADY EXISTS and is on the board now, so a failure
+    # here must NOT 502 (that would invite a retry → a DUPLICATE issue). Report partial success
+    # (status_confirmed=false) so the operator fixes the status on the board instead of re-creating.
+    status_confirmed = False
+    try:
+        status_confirmed = forge.move_card_confirmed(item_id, backlog.name) == backlog.name
+    except Exception:  # noqa: BLE001 — the ticket exists; a status hiccup is non-fatal here
+        logger.warning(
+            "new-ticket: issue #%s created + on board, but Status=Backlog not set",
+            number,
+            exc_info=True,
+        )
+
+    _nudge()  # wake the daemon so it reconciles the new Backlog item promptly
+    return JSONResponse(
+        content={
+            "number": number,
+            "url": f"https://github.com/{entry.repo}/issues/{number}",
+            "column": backlog.key,
+            "status_confirmed": status_confirmed,
+        }
+    )

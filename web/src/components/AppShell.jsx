@@ -7,7 +7,8 @@ import useIsMobile from "../useIsMobile.js";
 import ThemeSwitcher from "./ThemeSwitcher.jsx";
 import SidebarNav, { ALL_NAV } from "./SidebarNav.jsx";
 
-const { HealthPill, Button, Badge } = window.KanbanMateDesignSystem_2463ad;
+const { HealthPill, Button, Badge, Tooltip } =
+  window.KanbanMateDesignSystem_2463ad;
 
 export default function AppShell({
   active,
@@ -18,6 +19,7 @@ export default function AppShell({
   repo = "—",
   errorCount = 0,
   dirty = false,
+  saving = false,
   onSave,
   onValidate,
   onLogout = null,
@@ -118,14 +120,24 @@ export default function AppShell({
             {t(headerTitle.tkey)}
           </span>
           {boardScope && (
-            <Button
-              variant="primary"
-              size="sm"
-              disabled={blocked || !dirty}
-              onClick={onSave}
+            <Tooltip
+              label={
+                blocked
+                  ? t("tip.save_blocked", "Fix validation errors before saving")
+                  : t("tip.save", "Save your configuration changes")
+              }
+              placement="bottom"
             >
-              {blocked ? `${errorCount}!` : t("common.save")}
-            </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={blocked || !dirty}
+                loading={saving}
+                onClick={onSave}
+              >
+                {blocked ? `${errorCount}!` : t("common.save")}
+              </Button>
+            </Tooltip>
           )}
         </header>
 
@@ -359,9 +371,14 @@ export default function AppShell({
           <ThemeSwitcher />
           <LangSwitcher />
           {onLogout && (
-            <Button variant="ghost" size="md" onClick={onLogout}>
-              {t("login.logout")}
-            </Button>
+            <Tooltip
+              label={t("tip.logout", "Sign out")}
+              placement="bottom"
+            >
+              <Button variant="ghost" size="md" onClick={onLogout}>
+                {t("login.logout")}
+              </Button>
+            </Tooltip>
           )}
           {boardScope && (
             <>
@@ -370,21 +387,39 @@ export default function AppShell({
                 size="md"
                 pulse={!blocked && !dirty}
               />
-              <Button variant="secondary" size="md" onClick={onValidate}>
-                {t("common.validate")}
-              </Button>
-              <Button
-                variant="primary"
-                size="md"
-                disabled={blocked || !dirty}
-                onClick={onSave}
+              <Tooltip
+                label={t("tip.validate", "Check the configuration for errors")}
+                placement="bottom"
               >
-                {blocked
-                  ? t("shell.errors_block_save", { n: errorCount })
-                  : dirty
-                    ? t("common.save")
-                    : t("common.saved")}
-              </Button>
+                <Button variant="secondary" size="md" onClick={onValidate}>
+                  {t("common.validate")}
+                </Button>
+              </Tooltip>
+              <Tooltip
+                label={
+                  blocked
+                    ? t(
+                        "tip.save_blocked",
+                        "Fix validation errors before saving",
+                      )
+                    : t("tip.save", "Save your configuration changes")
+                }
+                placement="bottom"
+              >
+                <Button
+                  variant="primary"
+                  size="md"
+                  disabled={blocked || !dirty}
+                  loading={saving}
+                  onClick={onSave}
+                >
+                  {blocked
+                    ? t("shell.errors_block_save", { n: errorCount })
+                    : dirty
+                      ? t("common.save")
+                      : t("common.saved")}
+                </Button>
+              </Tooltip>
             </>
           )}
         </header>

@@ -57,6 +57,7 @@ export default function SyncBoardDialog({ open, onClose, onApplied, project }) {
           <Button
             variant="primary"
             disabled={busy || !diff || diff.is_noop}
+            loading={busy}
             onClick={apply}
           >
             {busy ? t("sync.applying") : t("sync.apply")}

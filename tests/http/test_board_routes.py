@@ -574,3 +574,90 @@ def test_board_state_card_carries_excerpt(seeded_store: FsBoardStateStore) -> No
     cards_by_id = {card["item_id"]: card for card in resp.json()["cards"]}
     assert cards_by_id["item1"]["excerpt"] == "A concise description of the work."
     assert cards_by_id["item2"]["excerpt"] == ""  # not in the forge snapshot → empty
+
+
+def test_new_ticket_creates_issue_at_backlog(tmp_path: pathlib.Path) -> None:
+    """POST /api/board/new-ticket creates the issue, adds it to the project and sets Status=Backlog."""
+    entry = _entry_with_clone(_clone_with_columns(tmp_path))
+    forge = MagicMock()
+    forge.create_issue.return_value = ("ISSUE_NODE", 77)
+    forge.add_to_project.return_value = "item-new"
+    forge.move_card_confirmed.return_value = "Backlog"
+    with (
+        patch("kanbanmate.http.board_routes._resolve_entry", return_value=entry),
+        patch("kanbanmate.http.board_routes._get_forge", return_value=forge),
+        patch("kanbanmate.http.board_routes._nudge"),
+    ):
+        with TestClient(app) as c:
+            resp = c.post(
+                "/api/board/new-ticket",
+                json={"title": "  Add dark mode  ", "body": "It would be nice."},
+            )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["number"] == 77
+    assert data["url"] == "https://github.com/o/r/issues/77"
+    assert data["column"] == "Backlog"
+    assert data["status_confirmed"] is True
+    forge.create_issue.assert_called_once_with("o/r", "Add dark mode", "It would be nice.", [])
+    forge.add_to_project.assert_called_once_with("pid", "ISSUE_NODE")
+    forge.move_card_confirmed.assert_called_once_with("item-new", "Backlog")
+
+
+def test_new_ticket_requires_title(tmp_path: pathlib.Path) -> None:
+    """A blank title is a 400 (no GitHub call)."""
+    entry = _entry_with_clone(_clone_with_columns(tmp_path))
+    forge = MagicMock()
+    with (
+        patch("kanbanmate.http.board_routes._resolve_entry", return_value=entry),
+        patch("kanbanmate.http.board_routes._get_forge", return_value=forge),
+    ):
+        with TestClient(app) as c:
+            resp = c.post("/api/board/new-ticket", json={"title": "   "})
+    assert resp.status_code == 400
+    forge.create_issue.assert_not_called()
+
+
+def test_new_ticket_move_failure_returns_partial_success(tmp_path: pathlib.Path) -> None:
+    """If Status=Backlog fails AFTER the issue exists, return 200 status_confirmed=false (NO 502).
+
+    A 502 would invite a retry → a DUPLICATE issue. The issue already exists and is on the board,
+    so the endpoint reports partial success and lets the operator fix the status instead.
+    """
+    entry = _entry_with_clone(_clone_with_columns(tmp_path))
+    forge = MagicMock()
+    forge.create_issue.return_value = ("ISSUE_NODE", 88)
+    forge.add_to_project.return_value = "item-new"
+    forge.move_card_confirmed.side_effect = KeyError("Backlog")  # status option drift
+    with (
+        patch("kanbanmate.http.board_routes._resolve_entry", return_value=entry),
+        patch("kanbanmate.http.board_routes._get_forge", return_value=forge),
+        patch("kanbanmate.http.board_routes._nudge"),
+    ):
+        with TestClient(app) as c:
+            resp = c.post("/api/board/new-ticket", json={"title": "Idea"})
+    assert resp.status_code == 200, "issue was created → must not 502 (would duplicate on retry)"
+    assert resp.json()["number"] == 88
+    assert resp.json()["status_confirmed"] is False
+
+
+def test_new_ticket_no_backlog_column_is_400(tmp_path: pathlib.Path) -> None:
+    """No Backlog column configured → 400 (never silently dump into a possibly-triggering column)."""
+    ck = tmp_path / "clone" / ".claude" / "kanban"
+    ck.mkdir(parents=True)
+    ck.joinpath("columns.yml").write_text(
+        "columns:\n"
+        "  - key: Brainstorming\n    name: Brainstorming\n    class: inert\n"
+        "  - key: Done\n    name: Done\n    class: inert\n",
+        encoding="utf-8",
+    )
+    entry = _entry_with_clone(tmp_path / "clone")
+    forge = MagicMock()
+    with (
+        patch("kanbanmate.http.board_routes._resolve_entry", return_value=entry),
+        patch("kanbanmate.http.board_routes._get_forge", return_value=forge),
+    ):
+        with TestClient(app) as c:
+            resp = c.post("/api/board/new-ticket", json={"title": "Idea"})
+    assert resp.status_code == 400
+    forge.create_issue.assert_not_called()

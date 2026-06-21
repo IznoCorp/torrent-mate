@@ -48,9 +48,8 @@ def board_import(
     store = FsBoardStateStore(store_path)
     forge = GithubClient(wc.token, project_id=wc.project_id, repo=wc.repo)
     col_map = load_columns(wc.columns_yaml)
-    columns = [col.key for col in col_map.values()]
 
-    result = import_board(forge, store, columns, dry_run=dry_run)
+    result = import_board(forge, store, col_map, dry_run=dry_run)
 
     prefix = "[DRY RUN] " if dry_run else ""
     typer.echo(

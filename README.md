@@ -1,4 +1,8 @@
-# KanbanMate
+<p align="center">
+  <img src="docs/icons/kanbanmate-512.png" alt="KanbanMate" width="160" height="160" />
+</p>
+
+<h1 align="center">KanbanMate</h1>
 
 **Reusable Kanban orchestrator on GitHub Projects v2.** Each roadmap item is a ticket moved column by column on a board; moving a card into a triggering column fires an autonomous Claude Code agent in an isolated tmux + git-worktree workspace. The agent comments on the ticket, may re-move the card (only to non-triggering columns), and its session is resumable (`tmux attach` / `claude --resume <uuid>`). A single background daemon polls the board and reconciles it against persisted state — there is **no webhook and no n8n**.
 

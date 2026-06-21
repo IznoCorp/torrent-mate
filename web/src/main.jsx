@@ -15,3 +15,11 @@ createRoot(document.getElementById("root")).render(
     </I18nProvider>
   </React.StrictMode>,
 );
+
+// Register the PWA service worker (installability on Android/iOS). Fail-soft: a missing or blocked
+// SW must never break the app, and the SW itself caches nothing (the shell is served no-cache).
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}

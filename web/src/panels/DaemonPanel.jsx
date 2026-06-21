@@ -235,6 +235,7 @@ export default function DaemonPanel({ projects, selected, onChanged }) {
               <Button
                 variant="primary"
                 disabled={busy || !dirty}
+                loading={busy}
                 onClick={save}
               >
                 {busy ? t("daemon.saving") : t("daemon.save_settings")}

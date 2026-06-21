@@ -34,8 +34,27 @@ shell:
     validation: Validation
     yaml: YAML preview
     monitoring: Monitoring
+    new_ticket: New ticket
     projects: Projects
     profiles: Profiles
+
+newticket:
+  title: New ticket
+  intro: >-
+    Capture an idea or bug as a GitHub issue. It is added to the board at Backlog and the daemon
+    picks it up on its next poll.
+  field_title: Title
+  title_placeholder: Short summary of the idea or bug
+  field_body: Description
+  optional: (optional, markdown)
+  body_placeholder: "Context, steps to reproduce, acceptance…"
+  submit: Create ticket
+  hint: ⌘/Ctrl + Enter to submit
+  created_title: Ticket created
+  created_body: "Issue #{n} created in Backlog."
+  view_on_github: View on GitHub
+  status_unconfirmed: Added to the board, but the Backlog status wasn't confirmed — check the board.
+  error_title: Could not create the ticket
 
 login:
   title: KanbanMate — sign in
@@ -275,6 +294,45 @@ terminal:
   interactive: Interactive terminal
   zoom_in: Zoom in
   zoom_out: Zoom out
+  kill: Kill
+  kill_confirm: Confirm kill?
+
+# Terminal cheatsheet shown beneath the viewer (Kbd chips).
+term_help:
+  title: Keyboard & how it works
+  intro: >-
+    This is the agent's live terminal, read-only by default. Take control to send your keystrokes
+    straight to the agent; the red border means you are in control. On mobile, Take control opens
+    the keyboard. Click the terminal first so it has focus, then use the shortcuts below.
+  toggle_control: Take / release control — start or stop typing to the agent
+  toggle_fullscreen: Enter / exit fullscreen
+  enter: Send a newline (only while in control)
+  esc: Send Escape (only while in control)
+  ctrlc: Interrupt the running command (only while in control)
+
+# Short hover hints (shadcn tooltip) describing what each control does.
+tip:
+  term_take_control: Send your keystrokes to the agent
+  term_release: Stop sending your keystrokes to the agent
+  term_enter: Send the Enter key
+  term_esc: Send the Escape key
+  term_ctrlc: Send Ctrl-C (interrupt)
+  term_fs_enter: Fullscreen
+  term_fs_exit: Exit fullscreen
+  term_close: Close the terminal
+  term_kill: End the Claude session and the agent (no need to type exit)
+  board_refresh: Reload the board from the server
+  board_import: Re-seed card placement from GitHub (overwrites local order)
+  save: Save your configuration changes
+  save_blocked: Fix validation errors before saving
+  validate: Check the configuration for errors
+  logout: Sign out
+  edit_description: Edit the description
+  save_description: Save the description to the GitHub issue
+  cancel_edit: Discard your changes
+  launch_agent: Run a Claude agent on this ticket now
+  open_terminal: Attach to the agent's live terminal
+  create_ticket: Create the GitHub issue on the board at Backlog
 
 theme:
   light: Light
@@ -311,5 +369,7 @@ board:
   moved_failed: Moved locally — GitHub sync failed
   reordered: Order updated ✓
   imported: "Imported {n} card(s) from GitHub ✓"
+  refreshed: "Board refreshed ✓ (rev. {rev})"
+  refresh_failed: Refresh failed — could not reach the board
   collapse: Collapse column
   expand: Expand column

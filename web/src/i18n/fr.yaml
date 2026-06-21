@@ -34,8 +34,27 @@ shell:
     validation: Validation
     yaml: Aperçu YAML
     monitoring: Monitoring
+    new_ticket: Nouveau ticket
     projects: Projets
     profiles: Profils
+
+newticket:
+  title: Nouveau ticket
+  intro: >-
+    Capture une idée ou un bug sous forme d'issue GitHub. Elle est ajoutée au board en Backlog et le
+    daemon la prend en compte à son prochain cycle.
+  field_title: Titre
+  title_placeholder: Résumé court de l'idée ou du bug
+  field_body: Description
+  optional: (optionnel, markdown)
+  body_placeholder: "Contexte, étapes de reproduction, critères d'acceptation…"
+  submit: Créer le ticket
+  hint: ⌘/Ctrl + Entrée pour valider
+  created_title: Ticket créé
+  created_body: "Issue #{n} créée en Backlog."
+  view_on_github: Voir sur GitHub
+  status_unconfirmed: Ajouté au board, mais le statut Backlog n'a pas été confirmé — vérifie le board.
+  error_title: Impossible de créer le ticket
 
 login:
   title: KanbanMate — connexion
@@ -279,6 +298,46 @@ terminal:
   interactive: Terminal interactif
   zoom_in: Zoom avant
   zoom_out: Zoom arrière
+  kill: Terminer
+  kill_confirm: Confirmer l'arrêt ?
+
+# Aide-mémoire affiché sous le terminal (touches Kbd).
+term_help:
+  title: Clavier & fonctionnement
+  intro: >-
+    Ceci est le terminal en direct de l'agent, en lecture seule par défaut. Prenez le contrôle pour
+    envoyer vos frappes directement à l'agent ; la bordure rouge indique que vous avez le contrôle.
+    Sur mobile, « Prendre le contrôle » ouvre le clavier. Cliquez d'abord sur le terminal pour lui
+    donner le focus, puis utilisez les raccourcis ci-dessous.
+  toggle_control: Prendre / rendre le contrôle — commencer ou cesser de taper vers l'agent
+  toggle_fullscreen: Entrer / quitter le plein écran
+  enter: Envoie un retour à la ligne (uniquement avec le contrôle)
+  esc: Envoie Échap (uniquement avec le contrôle)
+  ctrlc: Interrompt la commande en cours (uniquement avec le contrôle)
+
+# Bulles d'aide courtes (tooltip shadcn) décrivant l'action de chaque contrôle.
+tip:
+  term_take_control: Transmet vos frappes clavier à l'agent
+  term_release: Cesse de transmettre vos frappes à l'agent
+  term_enter: Envoie la touche Entrée
+  term_esc: Envoie la touche Échap
+  term_ctrlc: Envoie Ctrl-C (interruption)
+  term_fs_enter: Plein écran
+  term_fs_exit: Quitter le plein écran
+  term_close: Fermer le terminal
+  term_kill: Termine la session Claude et l'agent (sans avoir à taper exit)
+  board_refresh: Recharge le board depuis le serveur
+  board_import: Réimporte le placement des cartes depuis GitHub (écrase l'ordre local)
+  save: Enregistre vos modifications de configuration
+  save_blocked: Corrigez les erreurs de validation avant d'enregistrer
+  validate: Vérifie les erreurs de la configuration
+  logout: Se déconnecter
+  edit_description: Modifier la description
+  save_description: Enregistre la description sur l'issue GitHub
+  cancel_edit: Annuler vos modifications
+  launch_agent: Lance un agent Claude sur ce ticket
+  open_terminal: Se connecter au terminal en direct de l'agent
+  create_ticket: Crée l'issue GitHub sur le board en Backlog
 
 theme:
   light: Clair
@@ -315,5 +374,7 @@ board:
   moved_failed: Déplacée localement — échec de la synchro GitHub
   reordered: Ordre mis à jour ✓
   imported: "{n} carte(s) importée(s) depuis GitHub ✓"
+  refreshed: "Board rafraîchi ✓ (rev. {rev})"
+  refresh_failed: Échec du rafraîchissement — board injoignable
   collapse: Réduire la colonne
   expand: Déployer la colonne
