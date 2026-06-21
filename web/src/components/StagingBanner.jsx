@@ -7,15 +7,10 @@
 // never intercepts clicks and causes NO layout reflow. In prod it renders null, so
 // the prod UI is byte-for-byte unchanged.
 import React from "react";
-
-function onStaging() {
-  if (typeof window === "undefined") return false;
-  const host = window.location.hostname || "";
-  return /staging/i.test(host) || window.location.port === "8797";
-}
+import { isStaging } from "../lib/env.js";
 
 export default function StagingBanner() {
-  if (!onStaging()) return null;
+  if (!isStaging()) return null;
   const accent = "#f59e0b"; // amber — distinct from the brand green
   return (
     <div

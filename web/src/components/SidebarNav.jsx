@@ -19,6 +19,7 @@ import {
   SquarePlus,
 } from "lucide-react";
 import { useT } from "../i18n/index.jsx";
+import { BRAND_ICON } from "../lib/env.js";
 
 const { Badge, Select } = window.KanbanMateDesignSystem_2463ad;
 
@@ -59,7 +60,7 @@ export const ALL_NAV = [...VIEWS_NAV, ...CONFIG_NAV, ...DAEMON_NAV];
 export function Wordmark({ size = 16, markOnly = false }) {
   const mark = (
     <img
-      src="/icon.svg"
+      src={BRAND_ICON}
       alt="KanbanMate"
       width={size * 1.7}
       height={size * 1.7}
