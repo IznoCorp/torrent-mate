@@ -201,6 +201,18 @@ def test_board_reorder_duplicate_items_returns_400(
     assert resp.status_code == 400
 
 
+def test_board_reorder_non_list_ordered_item_ids_returns_400(client: TestClient) -> None:
+    # A non-list ordered_item_ids (e.g. a bare string) must be rejected as a 400 BEFORE the store —
+    # otherwise it would iterate its characters into the set/len logic and surface a misleading
+    # "duplicate item ids" 400 (or corrupt the order).
+    resp = client.post(
+        "/api/board/reorder",
+        json={"column_key": "Backlog", "ordered_item_ids": "item1"},
+    )
+    assert resp.status_code == 400
+    assert "list of item id strings" in resp.json()["detail"]
+
+
 def test_board_reorder_stale_version_returns_409(client: TestClient) -> None:
     """Reorder honours optimistic concurrency identically to move (typed VersionConflict → 409)."""
     resp = client.post(

@@ -203,3 +203,75 @@ def test_save_restores_transitions_when_columns_replace_fails(
     assert tp.read_text(encoding="utf-8") == original_t
     # No stray temp files left in the config dir.
     assert not list(tp.parent.glob("*.tmp"))
+
+
+def test_save_first_write_leaves_neither_file_when_columns_replace_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """First write (neither file pre-existed): a columns rename failure must leave NEITHER file.
+
+    With no prior transitions.yml to restore, the all-or-nothing property requires removing the
+    just-landed transitions.yml entirely — otherwise a failed first write strands an orphan
+    transitions.yml with no matching columns.yml.
+    """
+    import os
+
+    # A config dir with NO pre-existing config files (the very first write scenario).
+    config_dir = tmp_path / ".claude" / "kanban"
+    config_dir.mkdir(parents=True)
+    tp = config_dir / "transitions.yml"
+    cp = config_dir / "columns.yml"
+    assert not tp.exists() and not cp.exists()
+
+    # Build a valid draft from the shipped templates (loaded via a throwaway populated clone).
+    seed_dir = tmp_path / "seed"
+    seed_dir.mkdir()
+    seed_tp, seed_cp = _make_clone_config(seed_dir)
+    draft = ConfigService(transitions_path=seed_tp, columns_path=seed_cp).load()
+
+    svc = ConfigService(transitions_path=tp, columns_path=cp)
+    real_replace = os.replace
+
+    def failing_replace(src: object, dst: object) -> None:
+        if str(dst) == str(cp):  # fail ONLY the columns.yml rename (the second one)
+            raise OSError("simulated columns.yml rename failure on first write")
+        real_replace(src, dst)  # type: ignore[arg-type]
+
+    monkeypatch.setattr("kanbanmate.app.config_service.os.replace", failing_replace)
+    with pytest.raises(OSError):
+        svc.save(draft)
+    # NEITHER file may exist — a failed first write is all-or-nothing, not an orphan transitions.yml.
+    assert not tp.exists(), "transitions.yml stranded after a failed first write"
+    assert not cp.exists()
+    # No stray temp files left in the config dir.
+    assert not list(config_dir.glob("*.tmp"))
+
+
+def test_save_render_failure_raises_config_invalid(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A render exception (post-validation) surfaces as ConfigInvalid (→ 422), never a 500.
+
+    Render failures are client errors (the draft does not serialise); they must be mapped to the
+    same structured ValidationResult contract as validation errors, and must write NOTHING.
+    """
+    tp, cp = _make_clone_config(tmp_path)
+    svc = ConfigService(transitions_path=tp, columns_path=cp)
+    draft = svc.load()
+    tp_mtime_before = tp.stat().st_mtime
+    cp_mtime_before = cp.stat().st_mtime
+
+    def boom(_draft: object) -> object:
+        raise RuntimeError("simulated render failure")
+
+    monkeypatch.setattr("kanbanmate.app.config_service.render_pipeline", boom)
+    with pytest.raises(ConfigInvalid) as exc_info:
+        svc.save(draft)
+
+    # The error is carried as a structured ValidationResult (so the HTTP layer maps it to 422).
+    assert not exc_info.value.result.ok
+    assert any(f.severity == "error" for f in exc_info.value.result.findings)
+    # Nothing was written: a render failure happens before any rename.
+    assert tp.stat().st_mtime == tp_mtime_before
+    assert cp.stat().st_mtime == cp_mtime_before
+    assert not list(tp.parent.glob("*.tmp"))

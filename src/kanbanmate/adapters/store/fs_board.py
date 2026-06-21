@@ -160,8 +160,18 @@ class FsBoardStateStore:
             The new version after the write.
 
         Raises:
-            ValueError: Unknown column; unknown/duplicate/missing item id; stale version.
+            ValueError: ``ordered_item_ids`` is not a list of strings; unknown column;
+                unknown/duplicate/missing item id; stale version.
         """
+        # Validate the SHAPE before any set/len logic (DESIGN §10, fail-loud). A non-list JSON value
+        # (e.g. a bare string) would otherwise iterate its characters into ``set()`` — yielding a
+        # misleading "duplicate item ids" error or silent corruption. Reject anything that is not a
+        # list of str up front. Done OUTSIDE the lock: a malformed argument is a caller bug, not a
+        # board-state condition, so there is no reason to take the flock to reject it.
+        if not isinstance(ordered_item_ids, list) or not all(
+            isinstance(i, str) for i in ordered_item_ids
+        ):
+            raise ValueError("ordered_item_ids must be a list of item id strings")
         with self._lock():
             doc = self._read()
             _check_version(doc, if_version)

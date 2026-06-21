@@ -211,6 +211,24 @@ def test_reorder_column_duplicate_item_raises(tmp_path: pathlib.Path) -> None:
         s.reorder_column("Backlog", ["a", "a"])
 
 
+def test_reorder_column_non_list_raises(tmp_path: pathlib.Path) -> None:
+    # A non-list JSON value (e.g. a bare string) must fail loud BEFORE the set/len logic — otherwise
+    # it would iterate its characters and surface a misleading "duplicate item ids" error or corrupt
+    # the order silently.
+    s = FsBoardStateStore(tmp_path)
+    seed_board(s, columns=["Backlog"], placement={"a": "Backlog"}, order={"Backlog": ["a"]})
+    with pytest.raises(ValueError, match="must be a list of item id strings"):
+        s.reorder_column("Backlog", "a")  # type: ignore[arg-type]
+
+
+def test_reorder_column_non_str_element_raises(tmp_path: pathlib.Path) -> None:
+    # A list with a non-str element (e.g. an int) is equally rejected up front.
+    s = FsBoardStateStore(tmp_path)
+    seed_board(s, columns=["Backlog"], placement={"a": "Backlog"}, order={"Backlog": ["a"]})
+    with pytest.raises(ValueError, match="must be a list of item id strings"):
+        s.reorder_column("Backlog", [123])  # type: ignore[list-item]
+
+
 def test_reorder_column_unknown_item_raises(tmp_path: pathlib.Path) -> None:
     s = FsBoardStateStore(tmp_path)
     seed_board(s, columns=["Backlog"], placement={}, order={"Backlog": []})

@@ -34,3 +34,9 @@ web/node_modules/
 
 # Operator credentials for the config UI login (KANBAN_MATE_UI_*) — never commit
 .env
+
+# Generated per-worktree by the daemon (perms.write_mcp_registration) — registers the
+# project-scoped `kanban` MCP server with HOST-LOCAL absolute --root paths + the project node id.
+# Claude reads it from the worktree root, but the worktree shares .git with the WIP branch, so a
+# dev/merge agent's `git add -A` would otherwise bake host-local state into a PR. Never commit it.
+.mcp.json

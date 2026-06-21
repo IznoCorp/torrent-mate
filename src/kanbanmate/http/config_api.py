@@ -230,6 +230,13 @@ async def _read_json_object(request: fastapi.Request) -> dict[str, Any]:
         raise HTTPException(
             status_code=411, detail="Content-Length required (chunked not accepted)"
         )
+    # ``int()`` is too permissive here: it tolerates surrounding whitespace and a leading sign, so
+    # ``int(' -5 ')`` → -5 and ``int('+10')`` → 10. A negative / whitespace / sign-prefixed length
+    # would slip past the ``> _MAX_BODY_BYTES`` cap (the cap is then under-reported). Require a
+    # CANONICAL non-negative integer string (``str.isdigit()`` — no sign, no whitespace, ASCII
+    # digits only) before parsing, so the size guard always sees the true declared length.
+    if not raw_len.isdigit():
+        raise HTTPException(status_code=400, detail="Invalid Content-Length")
     try:
         length = int(raw_len)
     except ValueError as exc:
@@ -551,7 +558,12 @@ def get_files(project: str | None = None, path: str = "") -> JSONResponse:
                 "name": child.name,
                 "is_dir": is_dir,
                 "is_exec": (not is_dir) and os.access(child, os.X_OK),
-                "rel": str(child.resolve().relative_to(root)),
+                # Use the UNRESOLVED child (already ``target/<name>`` inside root): ``child.resolve()``
+                # follows a symlink that points OUTSIDE root → relative_to(root) raised ValueError →
+                # an unhandled 500 that broke the file picker for any dir holding such a symlink
+                # (e.g. a symlinked .claude/ or node_modules). The sandbox gate above already
+                # validated ``target``; listing a symlink entry by name is safe.
+                "rel": str(child.relative_to(root)),
             }
         )
     rel_path = "" if target == root else str(target.relative_to(root))

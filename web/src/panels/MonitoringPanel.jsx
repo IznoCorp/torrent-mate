@@ -141,7 +141,10 @@ export default function MonitoringPanel({ project }) {
   });
   const [detail, setDetail] = React.useState(null);
   const [pane, setPane] = React.useState(null);
-  const [error, setError] = React.useState(null);
+  const [error, setError] = React.useState(null); // ticket-detail / save errors (not the board)
+  // Board-poll health is tracked SEPARATELY so the stale-board note self-heals on the next good poll
+  // and can't be triggered by an unrelated ticket-detail/save failure (cycle-2 regression fix).
+  const [boardError, setBoardError] = React.useState(null);
   const [collapsedOverride, setCollapsedOverride] = React.useState(() => {
     try {
       return JSON.parse(
@@ -168,6 +171,10 @@ export default function MonitoringPanel({ project }) {
   // Status-change (column move) from the ticket detail.
   const [moving, setMoving] = React.useState(false);
   const [moveMsg, setMoveMsg] = React.useState(null); // { tone, text } | null
+  // Optimistic destination KEY after a successful move: the detail/board snapshot can lag (the
+  // mirror to GitHub is eventual + cached), so without this the controlled Select snaps back to the
+  // old column. Cleared on ticket switch and once the snapshot reconciles to it.
+  const [optimisticCol, setOptimisticCol] = React.useState(null);
   // Edit description state (tiller §3.4) — marker-safe freeform edit via PATCH endpoint.
   const [editMode, setEditMode] = React.useState(false);
   const [editFreeform, setEditFreeform] = React.useState("");
@@ -228,6 +235,9 @@ export default function MonitoringPanel({ project }) {
           tone: "green",
           text: t("monitor.move_done", "Card moved."),
         });
+        // Reflect the new column in the Select NOW (the snapshot lags); the override clears once the
+        // board catches up.
+        setOptimisticCol(toCol);
         // Re-fetch the detail so the status select reflects the NEW column immediately (the select
         // value derives from detail.move_targets/column_key; the [sel] effect won't re-run here).
         try {
@@ -306,8 +316,11 @@ export default function MonitoringPanel({ project }) {
     () =>
       api
         .monitorBoard(project)
-        .then(setBoard)
-        .catch((e) => setError(e.message)),
+        .then((b) => {
+          setBoard(b);
+          setBoardError(null); // a good poll clears the staleness note
+        })
+        .catch((e) => setBoardError(e.message)),
     15000,
     [project],
   );
@@ -315,7 +328,9 @@ export default function MonitoringPanel({ project }) {
     () =>
       api
         .monitorAgents(project)
-        .then((r) => setAgents(r.agents))
+        // Guard against a 200 body lacking `agents` (contract drift / 200 error envelope): keep
+        // `agents` ALWAYS an array, else later `agents.find/.some` would crash the panel.
+        .then((r) => setAgents(Array.isArray(r?.agents) ? r.agents : []))
         .catch(() => {}),
     3000,
     [project],
@@ -324,9 +339,14 @@ export default function MonitoringPanel({ project }) {
   React.useEffect(() => {
     if (sel == null) return;
     setDetail(null);
+    setOptimisticCol(null); // new ticket → drop any optimistic move override
+    setError(null); // clear a previous ticket's detail/save error (no latch)
     api
       .monitorTicket(sel, project)
-      .then(setDetail)
+      .then((d) => {
+        setDetail(d);
+        setError(null);
+      })
       .catch((e) => setError(e.message));
   }, [sel, project]);
 
@@ -389,6 +409,7 @@ export default function MonitoringPanel({ project }) {
   // Save edited freeform via PATCH, then refresh the ticket detail.
   const saveEdit = async () => {
     setSaving(true);
+    setError(null);
     try {
       await api.patchTicketBody(sel, editFreeform, project);
       setEditMode(false);
@@ -410,10 +431,10 @@ export default function MonitoringPanel({ project }) {
         .filter(Boolean)
     : [];
 
-  if (error && !board)
+  if (boardError && !board)
     return (
       <Banner tone="error" title={t("monitor.intro_title")}>
-        {error}
+        {boardError}
       </Banner>
     );
   if (!board) return <div style={{ padding: 24 }}>{t("common.loading")}</div>;
@@ -433,8 +454,16 @@ export default function MonitoringPanel({ project }) {
     : [];
   // Fall back to the ticket's actual column when no option is flagged current, so the Select never
   // renders blank (which would misrepresent the ticket's column and move from an unknown baseline).
-  const currentMoveKey =
-    (moveOptions.find((m) => m.current) || {}).key || (detail ? detail.column_key : "");
+  const reconciledMoveKey =
+    (moveOptions.find((m) => m.current) || {}).key ||
+    (detail ? detail.column_key : "");
+  // Prefer the optimistic destination until the (lagging) snapshot catches up to it.
+  const currentMoveKey = optimisticCol || reconciledMoveKey;
+  React.useEffect(() => {
+    // Drop the override once the snapshot reflects it (or moved elsewhere) so it never masks reality.
+    if (optimisticCol && reconciledMoveKey === optimisticCol)
+      setOptimisticCol(null);
+  }, [optimisticCol, reconciledMoveKey]);
 
   // Per-ticket state dot — the colored summary line (running/waiting/blocked) is its legend. The
   // state is the board's own server-computed `agent_state` (running/waiting/blocked, or null for a
@@ -466,6 +495,24 @@ export default function MonitoringPanel({ project }) {
       <PageIntro title={t("monitor.intro_title")} scope="board">
         {t("monitor.intro_body")}
       </PageIntro>
+      {/* Non-blocking staleness indicator: once `board` has loaded, the full-screen error banner
+          (gated on `!board`) never renders again, so a later poll failure (token expiry, daemon
+          down, 5xx) would silently leave a stale board. Surface it inline as an amber note. */}
+      {boardError && (
+        <div style={{ marginBottom: 12 }}>
+          <StatusNote tone="amber">
+            {t("monitor.stale", "Board may be stale — last refresh failed:")}{" "}
+            {boardError}
+          </StatusNote>
+        </div>
+      )}
+      {/* Ticket-detail / description-save failures (token expiry, 5xx, GitHub 4xx). Cleared on a
+          successful detail load / save / ticket switch so it never latches. */}
+      {error && (
+        <div style={{ marginBottom: 12 }}>
+          <StatusNote tone="red">{error}</StatusNote>
+        </div>
+      )}
       {/* Collapse toggle (fixed, left of the legend so it never shifts the list) + colored summary
           bullets — the legend for the per-ticket state dots in the list. */}
       <div
@@ -946,7 +993,10 @@ export default function MonitoringPanel({ project }) {
                     </button>
                     {!editMode && (
                       <Tooltip
-                        label={t("tip.edit_description", "Edit the description")}
+                        label={t(
+                          "tip.edit_description",
+                          "Edit the description",
+                        )}
                         style={{ marginLeft: "auto" }}
                       >
                         <button
@@ -1429,8 +1479,13 @@ function extractFreeform(body) {
   if (sbStart !== -1 && sbEnd !== -1) {
     text = text.slice(0, sbStart) + text.slice(sbEnd + STATUS_END.length);
   }
-  // Remove **key**: value marker lines
-  text = text.replace(/^\*\*\w+\*\*:[^\n]*$/gm, "");
+  // Remove ONLY the known kanban marker lines (PRESERVED_MARKERS in core/body_edit.py:
+  // roadmap | codename | design | plans). Anchoring to these keys preserves the operator's own
+  // bold-prefixed prose (e.g. `**Note**: investigate the cache`), which `\w+` would have eaten.
+  text = text.replace(
+    /^\*\*(?:roadmap|codename|design|plans)\*\*:[^\n]*$/gm,
+    "",
+  );
   // Remove ## Brainstorm section
   const bsIdx = text.indexOf("## Brainstorm");
   if (bsIdx !== -1) text = text.slice(0, bsIdx);

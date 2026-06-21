@@ -41,21 +41,23 @@ def build_board(
     columns: Sequence[tuple[str, str, str]],
     tickets: Sequence[tuple[int, str, str]],
     running_by_issue: dict[int, str],
+    *,
+    blocked_column: str = "Blocked",
 ) -> dict[str, Any]:
     """Assemble the board-overview payload.
 
     Args:
         columns: ``(key, name, column_class)`` triples in board order.
         tickets: ``(number, title, column_key)`` triples.
-        running_by_issue: ``{issue: state}`` for tickets with a live agent.
+        running_by_issue: ``{issue: state}`` for tickets with a LIVE agent
+            (``"running"`` / ``"waiting"`` — from ``list_running()``).
+        blocked_column: The Blocked column KEY (default ``"Blocked"`` —
+            :data:`~kanbanmate.app.tick.DEFAULT_BLOCKED_COLUMN`). A card parked
+            here with no live agent reads ``"blocked"``.
 
     Returns:
         ``{"columns", "tickets", "agents_summary"}`` (see DESIGN §5.1).
     """
-    summary = {"running": 0, "waiting": 0, "blocked": 0}
-    for state in running_by_issue.values():
-        if state in summary:
-            summary[state] += 1
     # The snapshot's ticket column is the GitHub Status option NAME (e.g. "Ready to dev"), but the
     # config columns key on a stable key that may differ ("ReadyToDev"). Map name→key (and key→key)
     # so a ticket lands under its column even for multi-word columns — without this the UI groups by
@@ -64,17 +66,34 @@ def build_board(
     for k, n, _c in columns:
         key_by_token[k] = k
         key_by_token[n] = k
-    return {
-        "columns": [{"key": k, "name": n, "column_class": c} for (k, n, c) in columns],
-        "tickets": [
+    blocked_key = key_by_token.get(blocked_column, blocked_column)
+
+    ticket_payload: list[dict[str, Any]] = []
+    summary = {"running": 0, "waiting": 0, "blocked": 0}
+    for num, title, col in tickets:
+        col_key = key_by_token.get(col, col)
+        # Mirror core.health.compute_health's precedence for the per-card state dot so the board's
+        # `agent_state` matches the Health chip: a LIVE agent's state (running/waiting from
+        # `list_running`) wins; otherwise a card parked in the Blocked column with NO live agent is
+        # "blocked". Without this fallback "blocked" was unreachable — list_running only carries
+        # RUNNING/WAITING, so a rate-limited/parked card never showed as blocked in monitoring even
+        # though core/health computes it from (column + liveness) for the GitHub chip.
+        state = running_by_issue.get(num)
+        if state is None and col_key == blocked_key:
+            state = "blocked"
+        if state in summary:
+            summary[state] += 1
+        ticket_payload.append(
             {
                 "number": num,
                 "title": title,
-                "column_key": key_by_token.get(col, col),
-                "agent_state": running_by_issue.get(num),
+                "column_key": col_key,
+                "agent_state": state,
             }
-            for (num, title, col) in tickets
-        ],
+        )
+    return {
+        "columns": [{"key": k, "name": n, "column_class": c} for (k, n, c) in columns],
+        "tickets": ticket_payload,
         "agents_summary": summary,
     }
 

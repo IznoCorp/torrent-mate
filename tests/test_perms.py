@@ -337,6 +337,27 @@ def test_every_profile_denies_merge() -> None:
     assert set(universal) - set(merge_deny) == {"Bash(gh pr merge*)"}
 
 
+def test_merge_profile_denies_short_flag_merge_and_rebase() -> None:
+    """The ``merge`` profile keeps the SHORT non-squash strategy aliases denied (squash-only).
+
+    Regression for the merge-hardening fix: ``gh pr merge`` accepts the short aliases ``-m``
+    (=``--merge``, a merge commit) and ``-r`` (=``--rebase``, history rewrite). The long-flag
+    globs miss them, so without the dedicated short-flag deny entries a merge-stage agent could
+    slip ``gh pr merge <pr> -r`` past the lifted bare ``Bash(gh pr merge*)`` and rebase-merge.
+    Only the squash strategy (``--squash`` / its short ``-s``) is sanctioned, and it stays allowed.
+    """
+    merge_deny = _permissions(build_settings("merge"))["deny"]
+    assert isinstance(merge_deny, list)
+    # The short non-squash aliases STAY denied even for the merge profile.
+    assert "Bash(gh pr merge* -m*)" in merge_deny, "merge must deny short -m (merge commit)"
+    assert "Bash(gh pr merge* -r*)" in merge_deny, "merge must deny short -r (rebase rewrite)"
+    # The squash strategy is the one sanctioned path — NOT denied (neither long nor short form).
+    assert not any("squash" in str(entry) for entry in merge_deny), (
+        "merge must NOT deny the --squash strategy"
+    )
+    assert "Bash(gh pr merge* -s*)" not in merge_deny, "merge must NOT deny short -s (--squash)"
+
+
 def test_every_agent_profile_allows_kanban_progress() -> None:
     """Every AGENT (launching) profile can record milestones via kanban-progress (DESIGN §8.3).
 
@@ -447,6 +468,26 @@ def test_write_mcp_registration_is_idempotent(tmp_path: Path) -> None:
         tmp_path, root=Path("/r"), issue=9, project_id=None, multi_project=False
     ).read_text(encoding="utf-8")
     assert first == second
+
+
+def test_generated_mcp_json_is_gitignored() -> None:
+    """The generated ``.mcp.json`` filename is in the repo ``.gitignore`` (cannot be committed).
+
+    ``write_mcp_registration`` writes ``.mcp.json`` into the WORKTREE ROOT (Claude reads it from
+    there), which shares ``.git`` with the per-ticket WIP branch. The file bakes host-local
+    absolute ``--root`` paths + the project node id, so a dev/merge agent's ``git add -A`` would
+    otherwise commit host-local state into a PR. The repo ``.gitignore`` must list ``.mcp.json`` so
+    that can never happen. Asserted by parsing the patterns (no git subprocess), since
+    ``git check-ignore`` depends on the file existing in a worktree.
+    """
+    repo_root = Path(__file__).resolve().parents[1]
+    gitignore = repo_root / ".gitignore"
+    patterns = {
+        line.strip()
+        for line in gitignore.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    }
+    assert ".mcp.json" in patterns, ".mcp.json must be gitignored so generated configs never commit"
 
 
 @pytest.mark.parametrize("profile", sorted(PROFILES))

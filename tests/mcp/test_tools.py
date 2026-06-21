@@ -227,6 +227,34 @@ def test_move_anti_loop_refuses_prompt_bearing_pair() -> None:
     assert store.nudges == 0
 
 
+def test_move_anti_loop_normalizes_display_name_from_col_and_gates_on_script() -> None:
+    # FIX 2 parity (bin/kanban_move.py:194-203): from_col may arrive as a display NAME, and a
+    # script-only (no prompt) pair is ALSO triggering (engine-owned) — gate on has_action, not prompt.
+    store = _FakeStore()
+    script_gate = Transition(
+        from_col="InProgress", to_col="Review", profile="dev", prompt=None, script="ci.sh"
+    )
+    transitions = TransitionConfig(
+        project="owner/repo",
+        concurrency_cap=3,
+        _explicit={("InProgress", "Review"): script_gate},
+        _wild_to={},
+        _wild_from={},
+    )
+    out = tools.move(
+        store,  # type: ignore[arg-type]
+        _columns(),
+        transitions,
+        issue=PINNED,
+        pinned=PINNED,
+        to_col="Review",
+        from_col="In Progress",  # display NAME → key InProgress; (InProgress, Review) is a script gate
+    )
+    assert "anti-loop" in out
+    assert store.intents == {}
+    assert store.nudges == 0
+
+
 def test_move_pin_mismatch_writes_nothing() -> None:
     store = _FakeStore()
     out = tools.move(
@@ -442,3 +470,21 @@ def test_update_main_paused_runs_no_git(monkeypatch: pytest.MonkeyPatch) -> None
     out = tools.update_main(store, base_clone="/base", dev_repo="/dev")  # type: ignore[arg-type]
     assert "PAUSE" in out
     assert calls == []  # PAUSE refuses BEFORE any git I/O
+
+
+def test_update_main_no_dev_clone_refreshes_base_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Parity with bin/kanban_update_main.py:99-101 — an empty dev_repo must NOT call ff_dev_clone
+    # (which would run git against the agent's worktree cwd). Only the base clone is refreshed.
+    calls: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        "kanbanmate.adapters.workspace.base_sync.fetch_base",
+        lambda clone: calls.append(("fetch", str(clone))),
+    )
+    monkeypatch.setattr(
+        "kanbanmate.adapters.workspace.base_sync.ff_dev_clone",
+        lambda repo: calls.append(("ff", str(repo))),
+    )
+    store = _FakeStore()
+    out = tools.update_main(store, base_clone="/base", dev_repo="")  # type: ignore[arg-type]
+    assert "no dev clone configured" in out
+    assert calls == [("fetch", "/base")]  # base fetched; ff_dev_clone NEVER called

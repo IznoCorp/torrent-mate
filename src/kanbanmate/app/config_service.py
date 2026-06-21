@@ -23,6 +23,7 @@ from pathlib import Path
 from kanbanmate.core.config_model import PipelineDraft
 from kanbanmate.core.config_serialize import RenderedPipeline, render_pipeline
 from kanbanmate.core.config_validate import (
+    Finding,
     ResolvedTransition,
     ValidationResult,
     resolve,
@@ -115,13 +116,33 @@ class ConfigService:
 
         Raises:
             ConfigInvalid: When the draft has one or more ``error``-severity
-                findings.
+                findings, OR when rendering the draft to YAML fails — both are
+                client-side errors (a 422 at the HTTP boundary), never a 500.
         """
         result = self.validate(draft)
         if not result.ok:
             raise ConfigInvalid(result)
 
-        rendered = render_pipeline(draft)
+        # A render failure is a CLIENT error (the draft does not serialise), not a server fault —
+        # surface it as a ConfigInvalid (→ 422 at the HTTP boundary, consistent with the validation
+        # path) instead of letting the raw exception bubble out as a 500. Nothing has been written
+        # yet at this point, so there is no on-disk state to roll back.
+        try:
+            rendered = render_pipeline(draft)
+        except Exception as exc:
+            raise ConfigInvalid(
+                ValidationResult(
+                    findings=[
+                        Finding(
+                            field="draft",
+                            message=f"Failed to render the draft to YAML: {exc}",
+                            severity="error",
+                            locus="render",
+                        )
+                    ],
+                    ok=False,
+                )
+            ) from exc
 
         # Two-file write made all-or-nothing (defense-in-depth): write BOTH temp files FIRST — a
         # render / disk-full / encoding error then happens BEFORE any rename, so neither destination
@@ -135,20 +156,34 @@ class ConfigService:
             self._cleanup_temp(tmp_transitions)
             raise
 
-        prior_transitions = (
-            self._transitions_path.read_text(encoding="utf-8")
-            if self._transitions_path.exists()
-            else None
-        )
+        try:
+            prior_transitions = (
+                self._transitions_path.read_text(encoding="utf-8")
+                if self._transitions_path.exists()
+                else None
+            )
+        except OSError:
+            # Race (file unlinked / perms changed between exists() and read_text()) BEFORE any rename:
+            # clean both temps so a failed prior-read can't leak orphaned .tmp files (no desync — neither
+            # destination was touched yet).
+            self._cleanup_temp(tmp_transitions)
+            self._cleanup_temp(tmp_columns)
+            raise
         os.replace(tmp_transitions, self._transitions_path)
         try:
             os.replace(tmp_columns, self._columns_path)
         except Exception:
-            # columns.yml rename failed AFTER transitions.yml landed — roll transitions back to its
-            # prior content so the pair never desyncs, then surface the error.
+            # columns.yml rename failed AFTER transitions.yml landed — undo the transitions write so
+            # the pair never desyncs, then surface the error.
             self._cleanup_temp(tmp_columns)
             if prior_transitions is not None:
+                # An UPDATE write: restore transitions.yml's prior content.
                 self._transitions_path.write_text(prior_transitions, encoding="utf-8")
+            else:
+                # The very FIRST write: transitions.yml did not exist before, so restoring "prior
+                # content" is meaningless — remove the just-landed transitions.yml entirely so a
+                # failed first write leaves NEITHER file (all-or-nothing, not an orphan transitions).
+                self._cleanup_temp(str(self._transitions_path))
             raise
 
     def render(self, draft: PipelineDraft) -> RenderedPipeline:

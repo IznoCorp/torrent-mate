@@ -378,6 +378,15 @@ async def board_reorder(request: fastapi.Request, project: str | None = None) ->
     if_version = body.get("if_version")
     if not column_key:
         raise HTTPException(status_code=400, detail="column_key is required")
+    # Validate the SHAPE before touching the store: a non-list JSON value (e.g. a bare string) would
+    # iterate its characters in the store's set/len logic → a misleading "duplicate item ids" error.
+    # Reject it loudly here as a 400 (client error), mirroring the store-side guard.
+    if not isinstance(ordered_item_ids, list) or not all(
+        isinstance(i, str) for i in ordered_item_ids
+    ):
+        raise HTTPException(
+            status_code=400, detail="ordered_item_ids must be a list of item id strings"
+        )
 
     store = _get_store(entry)
     try:

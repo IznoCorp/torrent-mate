@@ -237,6 +237,14 @@ _DENY: tuple[str, ...] = (
     "Bash(gh pr merge*--admin*)",
     "Bash(gh pr merge*--merge*)",
     "Bash(gh pr merge*--rebase*)",
+    # ``gh pr merge`` also accepts the SHORT strategy aliases ``-m`` (--merge) and ``-r`` (--rebase);
+    # the long-flag globs above miss them, so a merge-stage agent running ``gh pr merge <pr> -r``
+    # would slip past the lifted bare ``Bash(gh pr merge*)`` and rebase-merge (history rewrite) or
+    # ``-m`` a merge commit — defeating the squash-only invariant. Space-anchored so they never
+    # false-match a branch name. ``-s`` (--squash) is deliberately NOT denied — it is the one
+    # sanctioned strategy. These STAY denied for the merge profile (not in _MERGE_PROFILE_LIFTED).
+    "Bash(gh pr merge* -m*)",
+    "Bash(gh pr merge* -r*)",
     # force-push — long --force / --force-with-lease (free) + short -f / +refspec
     # (space-anchored), for ``git push`` and ``git -C <dir> push``.
     "Bash(git push*--force*)",
@@ -294,6 +302,28 @@ _DENY: tuple[str, ...] = (
     # --prune stay allowed).
     "Bash(git reflog expire*)",
     "Bash(git gc*--prune*)",
+    # runtime-root secrets — the daemon's ``launch_secret`` (HMAC key for the ad-hoc-launch op-token)
+    # and the webhook secret live in the kanban runtime root, OUTSIDE every worktree. An agent has no
+    # legitimate reason to read them; denying the obvious read paths (the Read tool + a cat/grep via
+    # Bash) keeps a broad-Bash agent from minting a forged launch op-token. Defense-in-depth (a same-
+    # uid string-deny cannot be airtight — the real boundary is OS isolation / a distinct uid).
+    # Read tool: deny any path ENDING in the secret file name (path-anchored, no trailing *).
+    "Read(*launch_secret)",
+    "Read(*webhook_secret)",
+    # Bash: deny the common file-read VERBS against the secret path — path-anchored (no trailing *) so
+    # we block ``cat <root>/launch_secret`` (the forge vector) WITHOUT over-blocking a commit message
+    # or a source grep that merely mentions the token (this repo self-hosts: 12+ files reference these
+    # names, and a leading+trailing ``*`` glob would hard-deny `git commit -m '…launch_secret…'`).
+    "Bash(cat *launch_secret)",
+    "Bash(cat *webhook_secret)",
+    "Bash(head *launch_secret)",
+    "Bash(head *webhook_secret)",
+    "Bash(tail *launch_secret)",
+    "Bash(tail *webhook_secret)",
+    "Bash(less *launch_secret)",
+    "Bash(less *webhook_secret)",
+    "Bash(more *launch_secret)",
+    "Bash(more *webhook_secret)",
 )
 
 # The SINGLE deny entry lifted for the ``merge`` profile (and ONLY that profile, see

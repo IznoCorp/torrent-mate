@@ -9,6 +9,7 @@ fail-soft.
 
 from __future__ import annotations
 
+import pathlib
 from dataclasses import dataclass, field
 
 import pytest
@@ -145,7 +146,7 @@ class _FakeStore:
         self.released.append(issue_number)
 
 
-def _deps(store: _FakeStore, writer: _FakeWriter) -> Deps:
+def _deps(store: _FakeStore, writer: _FakeWriter, *, kanban_root: str = "") -> Deps:
     placeholder = object()
     return Deps(
         board_writer=writer,  # type: ignore[arg-type]
@@ -159,6 +160,7 @@ def _deps(store: _FakeStore, writer: _FakeWriter) -> Deps:
         project_id="PVT_proj",
         repo="o/r",
         seeder=writer,  # type: ignore[arg-type]
+        kanban_root=kanban_root,
     )
 
 
@@ -192,11 +194,17 @@ def _move_intent(issue: int, to_col: str, requested_at: float = 1.0) -> dict[str
     }
 
 
-def _drain(store: _FakeStore, writer: _FakeWriter, *, kill_switch: bool = False) -> dict[str, str]:
+def _drain(
+    store: _FakeStore,
+    writer: _FakeWriter,
+    *,
+    kill_switch: bool = False,
+    kanban_root: str = "",
+) -> dict[str, str]:
     """Run drain_intents with a Backlog snapshot for #8 and #9; return next_columns."""
     next_columns: dict[str, str] = {}
     drain_intents(
-        _deps(store, writer),
+        _deps(store, writer, kanban_root=kanban_root),
         _config(),
         snapshot=_snapshot(_ticket(8, "Backlog"), _ticket(9, "Backlog")),
         next_columns=next_columns,
@@ -657,7 +665,8 @@ def test_ticket_edit_preserves_markers() -> None:
             "i1": {
                 "kind": "ticket_edit",
                 "issue": 8,
-                "args": {"body": "New freeform only."},
+                # `freeform` (SPA merge path) → markers are preserved around the new prose.
+                "args": {"freeform": "New freeform only."},
                 "requested_at": 1.0,
             }
         }
@@ -739,13 +748,41 @@ def test_pill_clear_clears_override() -> None:
 # --- ad-hoc launch intent (tiller follow-up, 2026-06-21) -------------------------------------------
 
 
+def _seed_launch_secret(root) -> bytes:  # type: ignore[no-untyped-def]
+    """Mint the runtime-root launch secret (FIX 4) so the UI-minted op_token verifies; return it."""
+    from kanbanmate.app.intents import load_launch_secret
+
+    secret = load_launch_secret(root, create=True)
+    assert secret is not None
+    return secret
+
+
 def _launch_intent(
-    issue: int, prompt: str = "fix the bug", profile: str = "dev", requested_at: float = 1.0
+    issue: int,
+    prompt: str = "fix the bug",
+    profile: str = "dev",
+    requested_at: float = 1.0,
+    *,
+    op_token: str | None = None,
+    secret: bytes | None = None,
 ) -> dict[str, object]:
+    """Build a launch intent.
+
+    Pass ``secret`` (the runtime-root launch secret) to mint a VALID op_token for (issue, profile) —
+    the operator-authorized path. Pass ``op_token`` to force a specific (possibly forged) token. Omit
+    both to enqueue a TOKEN-LESS launch (the agent-forged case the FIX-4 guard rejects).
+    """
+    from kanbanmate.app.intents import compute_launch_token
+
+    args: dict[str, object] = {"prompt": prompt, "profile": profile}
+    if op_token is not None:
+        args["op_token"] = op_token
+    elif secret is not None:
+        args["op_token"] = compute_launch_token(secret, issue, profile)
     return {
         "kind": "launch",
         "issue": issue,
-        "args": {"prompt": prompt, "profile": profile},
+        "args": args,
         "requested_at": requested_at,
     }
 
@@ -764,14 +801,19 @@ class _SpyLaunch:
         self.executed = True
 
 
-def test_operator_launch_executes_without_moving(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_operator_launch_executes_without_moving(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
     import kanbanmate.app.actions as actions_mod
 
     _SpyLaunch.last = None
     monkeypatch.setattr(actions_mod, "LaunchAction", _SpyLaunch)
-    store = _FakeStore(intents={"i1": _launch_intent(8, prompt="fix it", profile="dev")})
+    secret = _seed_launch_secret(tmp_path)
+    store = _FakeStore(
+        intents={"i1": _launch_intent(8, prompt="fix it", profile="dev", secret=secret)}
+    )
     writer = _FakeWriter()
-    _drain(store, writer)
+    _drain(store, writer, kanban_root=str(tmp_path))
     # The agent was launched but the card NEVER moved (no transition).
     assert writer.moves == []
     assert store.reserved == [8]
@@ -822,14 +864,17 @@ def test_agent_launch_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "i1" not in store.intents
 
 
-def test_launch_empty_prompt_launches_bare(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_launch_empty_prompt_launches_bare(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
     """An empty prompt is OPTIONAL → launch a BARE claude (prompt=None) the operator drives manually."""
     import kanbanmate.app.actions as actions_mod
 
     _SpyLaunch.last = None
     monkeypatch.setattr(actions_mod, "LaunchAction", _SpyLaunch)
-    store = _FakeStore(intents={"i1": _launch_intent(8, prompt="   ")})
-    _drain(store, _FakeWriter())
+    secret = _seed_launch_secret(tmp_path)
+    store = _FakeStore(intents={"i1": _launch_intent(8, prompt="   ", secret=secret)})
+    _drain(store, _FakeWriter(), kanban_root=str(tmp_path))
     assert store.results["i1"]["state"] == "done"
     assert _SpyLaunch.last is not None
     assert _SpyLaunch.last.kwargs["prompt"] is None  # bare claude — nothing injected into the REPL
@@ -837,19 +882,22 @@ def test_launch_empty_prompt_launches_bare(monkeypatch: pytest.MonkeyPatch) -> N
     assert store.reserved == [8]
 
 
-def test_launch_cap_full_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_launch_cap_full_rejected(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     import kanbanmate.app.actions as actions_mod
 
     _SpyLaunch.last = None
     monkeypatch.setattr(actions_mod, "LaunchAction", _SpyLaunch)
-    store = _FakeStore(intents={"i1": _launch_intent(8)}, slot_cap_full=True)
-    _drain(store, _FakeWriter())
+    secret = _seed_launch_secret(tmp_path)
+    store = _FakeStore(intents={"i1": _launch_intent(8, secret=secret)}, slot_cap_full=True)
+    _drain(store, _FakeWriter(), kanban_root=str(tmp_path))
     assert store.results["i1"]["state"] == "rejected"
     assert _SpyLaunch.last is None  # cap rejected BEFORE constructing the action
     assert "i1" not in store.intents
 
 
-def test_launch_failure_releases_slot(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_launch_failure_releases_slot(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
     """If the launch raises, the reserved slot is released (no leak) and the intent is rejected."""
     import kanbanmate.app.actions as actions_mod
 
@@ -861,9 +909,235 @@ def test_launch_failure_releases_slot(monkeypatch: pytest.MonkeyPatch) -> None:
             raise RuntimeError("boom")
 
     monkeypatch.setattr(actions_mod, "LaunchAction", _BoomLaunch)
-    store = _FakeStore(intents={"i1": _launch_intent(8)})
-    _drain(store, _FakeWriter())
+    secret = _seed_launch_secret(tmp_path)
+    store = _FakeStore(intents={"i1": _launch_intent(8, secret=secret)})
+    _drain(store, _FakeWriter(), kanban_root=str(tmp_path))
     assert store.reserved == [8]
     assert store.released == [8]  # slot released on failure
     assert store.results["i1"]["state"] == "rejected"
     assert "i1" not in store.intents
+
+
+# ---------------------------------------------------------------------------
+# Reviewed defects (intents.py): FIX 1 (no-overwrite on fetch fail), FIX 2
+# (explicit freeform-merge vs body-replace), FIX 3 (coherence gate on merge),
+# FIX 4 (launch op_token guard against agent-forged ad-hoc launches).
+# ---------------------------------------------------------------------------
+
+
+def _marker_body() -> str:
+    """A body carrying a status block + a roadmap marker + freeform (the protected regions)."""
+    return (
+        "<!-- kanban:status:begin -->\nWAITING\n<!-- kanban:status:end -->\n\n"
+        "Original freeform prose.\n\n**roadmap**: A1"
+    )
+
+
+def _fetch_returning(writer: _FakeWriter, *, body: str, title: str) -> None:
+    """Patch the writer fake's fetch_issue to return a specific body + title for #8."""
+
+    def _fetch(issue_number: int):  # type: ignore[no-untyped-def]
+        from kanbanmate.adapters.github.types import IssueRef
+
+        return IssueRef(node_id=f"NODE_{issue_number}", number=issue_number, title=title, body=body)
+
+    writer.fetch_issue = _fetch  # type: ignore[method-assign]
+
+
+def test_ticket_edit_merge_rejects_on_fetch_failure_never_overwrites() -> None:
+    """FIX 1: a fetch failure on the MERGE path REJECTS — it must NEVER write (no region loss).
+
+    The old code swallowed the fetch error and merged against an EMPTY current body, writing only the
+    new freeform — permanently deleting the real status block + markers + ## Brainstorm. The fix
+    refuses the write entirely (mirroring the SPA route's 404).
+    """
+    writer = _FakeWriter(missing_issues=frozenset({8}))
+    store = _FakeStore(
+        intents={
+            "i1": {
+                "kind": "ticket_edit",
+                "issue": 8,
+                "args": {"freeform": "New prose."},
+                "requested_at": 1.0,
+            }
+        }
+    )
+    _drain(store, writer)
+    assert writer.edited == []  # CRITICAL: nothing written → no region loss
+    assert store.results["i1"]["state"] == "rejected"
+    assert "not found" in str(store.results["i1"]["detail"])
+    assert "i1" not in store.intents
+
+
+def test_ticket_edit_merge_fetches_issue_only_once() -> None:
+    """FIX 1: the merge path fetches the issue ONCE (node id + body + title), not twice."""
+    calls: list[int] = []
+    writer = _FakeWriter()
+    orig = writer.fetch_issue
+
+    def _counting(issue_number: int):  # type: ignore[no-untyped-def]
+        calls.append(issue_number)
+        return orig(issue_number)
+
+    writer.fetch_issue = _counting  # type: ignore[method-assign]
+    store = _FakeStore(
+        intents={
+            "i1": {
+                "kind": "ticket_edit",
+                "issue": 8,
+                "args": {"freeform": "x"},
+                "requested_at": 1.0,
+            }
+        }
+    )
+    _drain(store, writer)
+    assert calls == [8]  # exactly one fetch (was two: _resolve_node_id + the body fetch)
+    assert store.results["i1"]["state"] == "done"
+
+
+def test_ticket_edit_body_is_full_replace_not_merge() -> None:
+    """FIX 2: ``args["body"]`` (the CLI path) is a FULL replace — markers are NOT re-appended.
+
+    Regression: the executor briefly treated every edit as freeform-only, so the CLI ``--body`` (a
+    complete intended body) had STALE markers re-appended and its content mangled.
+    """
+    writer = _FakeWriter()
+    _fetch_returning(writer, body=_marker_body(), title="[A1] T")
+    store = _FakeStore(
+        intents={
+            "i1": {
+                "kind": "ticket_edit",
+                "issue": 8,
+                "args": {"body": "Complete new body, no markers."},
+                "requested_at": 1.0,
+            }
+        }
+    )
+    _drain(store, writer)
+    assert writer.edited == [("NODE_8", "Complete new body, no markers.")]  # verbatim, no merge
+    assert store.results["i1"]["state"] == "done"
+
+
+def test_ticket_edit_freeform_merges_preserving_status_block() -> None:
+    """FIX 2: ``args["freeform"]`` (the SPA path) MERGES — protected regions survive."""
+    writer = _FakeWriter()
+    _fetch_returning(writer, body=_marker_body(), title="[A1] T")
+    store = _FakeStore(
+        intents={
+            "i1": {
+                "kind": "ticket_edit",
+                "issue": 8,
+                "args": {"freeform": "Edited prose only."},
+                "requested_at": 1.0,
+            }
+        }
+    )
+    _drain(store, writer)
+    assert len(writer.edited) == 1
+    updated = writer.edited[0][1]
+    assert "Edited prose only." in updated
+    assert "kanban:status:begin" in updated  # status block preserved
+    assert "**roadmap**: A1" in updated  # marker preserved
+    assert "Original freeform prose." not in updated  # old freeform replaced
+
+
+def test_ticket_edit_merge_rejected_on_roadmap_title_incoherence() -> None:
+    """FIX 3: the merge path runs the same coherence gate the SPA route enforces (reject on mismatch).
+
+    A merged body whose ``**roadmap**`` code disagrees with the title ``[CODE]`` is refused — the
+    ticket↔roadmap binding must stay coherent (§29.1).
+    """
+    writer = _FakeWriter()
+    # Body marker says A1; title bracket says B2 → incoherent → the merge must be refused.
+    _fetch_returning(writer, body=_marker_body(), title="[B2] T")
+    store = _FakeStore(
+        intents={
+            "i1": {
+                "kind": "ticket_edit",
+                "issue": 8,
+                "args": {"freeform": "New prose."},
+                "requested_at": 1.0,
+            }
+        }
+    )
+    _drain(store, writer)
+    assert writer.edited == []  # refused → not written
+    assert store.results["i1"]["state"] == "rejected"
+    assert "roadmap" in str(store.results["i1"]["detail"]).lower()
+    assert "i1" not in store.intents
+
+
+def test_launch_without_op_token_rejected(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
+    """FIX 4: a token-LESS launch for an idle issue (the agent-forged case) is REJECTED.
+
+    Authority for an idle issue derives to OPERATOR, so the running-set check does not stop a bridled
+    agent from enqueuing a launch. Without a valid op_token (which only the UI can mint from the
+    runtime-root secret) the launch is refused — no slot reserved, no action constructed.
+    """
+    import kanbanmate.app.actions as actions_mod
+
+    _SpyLaunch.last = None
+    monkeypatch.setattr(actions_mod, "LaunchAction", _SpyLaunch)
+    _seed_launch_secret(tmp_path)  # secret exists, but the intent carries NO token
+    store = _FakeStore(intents={"i1": _launch_intent(8)})  # no secret/op_token → token-less
+    _drain(store, _FakeWriter(), kanban_root=str(tmp_path))
+    assert store.results["i1"]["state"] == "rejected"
+    assert "op_token" in str(store.results["i1"]["detail"])
+    assert _SpyLaunch.last is None  # never constructed
+    assert store.reserved == []  # never reserved a slot
+    assert "i1" not in store.intents
+
+
+def test_launch_with_forged_op_token_rejected(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
+    """FIX 4: a launch carrying a WRONG op_token (a guessed/forged value) is rejected."""
+    import kanbanmate.app.actions as actions_mod
+
+    _SpyLaunch.last = None
+    monkeypatch.setattr(actions_mod, "LaunchAction", _SpyLaunch)
+    _seed_launch_secret(tmp_path)
+    store = _FakeStore(intents={"i1": _launch_intent(8, op_token="deadbeef" * 8)})
+    _drain(store, _FakeWriter(), kanban_root=str(tmp_path))
+    assert store.results["i1"]["state"] == "rejected"
+    assert _SpyLaunch.last is None
+    assert store.reserved == []
+
+
+def test_launch_op_token_bound_to_profile(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
+    """FIX 4: a token minted for one profile cannot be replayed to escalate to another profile."""
+    import kanbanmate.app.actions as actions_mod
+    from kanbanmate.app.intents import compute_launch_token
+
+    _SpyLaunch.last = None
+    monkeypatch.setattr(actions_mod, "LaunchAction", _SpyLaunch)
+    secret = _seed_launch_secret(tmp_path)
+    # Token minted for `docs`, but the intent requests `dev` → mismatch → rejected.
+    token_for_docs = compute_launch_token(secret, 8, "docs")
+    store = _FakeStore(intents={"i1": _launch_intent(8, profile="dev", op_token=token_for_docs)})
+    _drain(store, _FakeWriter(), kanban_root=str(tmp_path))
+    assert store.results["i1"]["state"] == "rejected"
+    assert _SpyLaunch.last is None
+
+
+def test_launch_rejected_when_no_secret_minted(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
+    """FIX 4: with NO launch secret on disk, no launch can be proven operator-originated → reject.
+
+    Fail-CLOSED: a missing secret must never silently trust a launch.
+    """
+    import kanbanmate.app.actions as actions_mod
+
+    _SpyLaunch.last = None
+    monkeypatch.setattr(actions_mod, "LaunchAction", _SpyLaunch)
+    # tmp_path has NO launch_secret file; even a (necessarily un-verifiable) token is refused.
+    store = _FakeStore(intents={"i1": _launch_intent(8, op_token="anything")})
+    _drain(store, _FakeWriter(), kanban_root=str(tmp_path))
+    assert store.results["i1"]["state"] == "rejected"
+    assert _SpyLaunch.last is None
+    assert store.reserved == []

@@ -263,6 +263,14 @@ def build_server(
             return [_json_block(resources.events(store))]
         if key.startswith(_RESOURCE_TICKET_PREFIX):
             number = int(key[len(_RESOURCE_TICKET_PREFIX) :])
+            # Pin reads too (DESIGN §7): writes are pin-guarded, and _list_resources advertises ONLY
+            # the pinned ticket URI, so an arbitrary issue number here is a scope violation. Refuse it
+            # with the same shape used elsewhere — an agent may only read its own ticket.
+            if number != pinned_issue:
+                raise ValueError(
+                    f"refusing to read #{number}: this MCP server is pinned to #{pinned_issue} "
+                    f"(an agent may only act on its own ticket — see conduit DESIGN §7)"
+                )
             return [_json_block(resources.ticket(board_reader, number))]
         raise ValueError(f"unknown resource: {key}")
 
@@ -341,7 +349,15 @@ def _dispatch_tool(
     if name in {"get_board", "get_state"}:
         return resources.board(board_reader, store, root=root)
     if name == "get_ticket":
-        return resources.ticket(board_reader, int(arguments["issue"]))
+        number = int(arguments["issue"])
+        # Pin reads too (DESIGN §7): refuse a foreign ticket with the same refusal shape the write
+        # tools use — an agent may only read its own ticket, even via the tool-call path.
+        if number != pinned_issue:
+            return (
+                f"refusing to read #{number}: this MCP server is pinned to #{pinned_issue} "
+                f"(an agent may only act on its own ticket — see conduit DESIGN §7)"
+            )
+        return resources.ticket(board_reader, number)
     # --- write tools (pinned + PAUSE-guarded inside the body) ---
     if name == "comment":
         return tools.comment(

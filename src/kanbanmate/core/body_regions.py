@@ -17,11 +17,14 @@ from kanbanmate.core.body_edit import (
     PRESERVED_MARKERS,
     STATUS_BEGIN,
     STATUS_END,
+    _MARKER_LINE,
     _STATUS_BLOCK,
 )
 
 # Heading that marks the start of the brainstorm section (appended by the brainstorm agent).
 _BRAINSTORM_HEADING = "## Brainstorm"
+# A ``## Brainstorm`` heading line, anchored at line start, to strip from operator freeform.
+_BRAINSTORM_HEADING_LINE = re.compile(r"^## Brainstorm\b[^\n]*$", re.MULTILINE)
 # Match the brainstorm section: the heading + everything after it (greedy to end of string).
 _BRAINSTORM_SECTION = re.compile(
     r"^## Brainstorm\b.*",
@@ -108,9 +111,17 @@ def merge_body_regions(regions: BodyRegions, *, new_freeform: str) -> str:
     3. Preserved marker lines (one per line, blank-line separated block).
     4. Brainstorm section.
 
-    *new_freeform* is de-fanged: any literal ``STATUS_BEGIN``/``STATUS_END`` delimiter is
-    stripped so an operator cannot embed a fake status block that confuses the region parser
-    on the next read.
+    *new_freeform* is de-fanged so an operator edit can NEVER shadow or override a protected
+    region on the next read:
+
+    * any literal ``STATUS_BEGIN``/``STATUS_END`` delimiter is stripped (no fake status block);
+    * any line matching a preserved ``**key**: value`` marker for a key in
+      :data:`PRESERVED_MARKERS` is dropped (no injected ``**design**: …`` / ``**codename**: …``
+      that would parse as a second, attacker-controlled marker and shadow the real one);
+    * any ``## Brainstorm`` heading line is dropped (no injected brainstorm section).
+
+    This preserves the module guarantee: protected content is sourced ONLY from *regions*, never
+    from operator freeform.
 
     Args:
         regions: The :class:`BodyRegions` from :func:`split_body_regions`.
@@ -120,7 +131,17 @@ def merge_body_regions(regions: BodyRegions, *, new_freeform: str) -> str:
         The reassembled issue body string.
     """
     # De-fang: strip delimiter literals from the operator-supplied freeform.
-    safe_freeform = new_freeform.replace(STATUS_BEGIN, "").replace(STATUS_END, "").strip()
+    safe_freeform = new_freeform.replace(STATUS_BEGIN, "").replace(STATUS_END, "")
+    # De-fang: drop any line that would parse back as a PROTECTED region on the next read — a
+    # preserved ``**key**: value`` marker (PRESERVED_MARKERS) or a ``## Brainstorm`` heading. Left
+    # in freeform, such a line would shadow/override the real protected region the operator must
+    # not be able to alter via a freeform edit.
+    safe_freeform = _MARKER_LINE.sub(
+        lambda m: "" if m.group(1) in PRESERVED_MARKERS else m.group(0),
+        safe_freeform,
+    )
+    safe_freeform = _BRAINSTORM_HEADING_LINE.sub("", safe_freeform)
+    safe_freeform = safe_freeform.strip()
 
     parts: list[str] = []
     if regions.status_block:

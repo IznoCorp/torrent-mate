@@ -369,7 +369,25 @@ def _check_v8_defaults_coherence(
     # document, never on the loader's defaulted return (else raising the
     # transitions cap with columns.yml's block still commented would emit a
     # false-positive warning).
-    raw_cols: Any = yaml.safe_load(columns_yaml)
+    # Fail-soft: validate() must return a ValidationResult, never let a raw YAMLError escape (the
+    # rest of this validator converts loader errors into Findings — V8 must hold the same contract).
+    # A malformed columns_yaml surfaces as a warning Finding and skips the comparison; the operator
+    # still gets a save-time signal rather than an uncaught exception out of the daemon/HTTP boundary.
+    try:
+        raw_cols: Any = yaml.safe_load(columns_yaml)
+    except yaml.YAMLError as exc:
+        findings.append(
+            Finding(
+                field="columns.defaults",
+                message=(
+                    f"columns.yml is not parseable YAML ({exc}); skipping the V8 defaults-coherence "
+                    "check. Fix columns.yml so its defaults block can be compared to transitions.yml."
+                ),
+                severity="warning",
+                locus="columns.defaults",
+            )
+        )
+        return
     if not isinstance(raw_cols, dict) or not isinstance(raw_cols.get("defaults"), dict):
         return  # No uncommented columns.yml defaults: block — nothing to compare.
 

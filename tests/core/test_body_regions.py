@@ -90,6 +90,40 @@ class TestDefang:
         merged = merge_body_regions(regions, new_freeform=evil_freeform)
         assert merged.count(STATUS_END) == 0
 
+    def test_defang_injected_codename_marker_in_freeform(self) -> None:
+        # An operator must not shadow the real **codename** by smuggling one into freeform.
+        regions = BodyRegions(markers={"codename": "**codename**: tiller"})
+        evil_freeform = "notes\n**codename**: hijacked"
+        merged = merge_body_regions(regions, new_freeform=evil_freeform)
+        # The injected marker line is dropped; only the real protected marker survives.
+        assert "**codename**: hijacked" not in merged
+        assert "**codename**: tiller" in merged
+        assert merged.count("**codename**") == 1
+        assert "notes" in merged
+
+    def test_defang_injected_design_marker_in_freeform(self) -> None:
+        regions = BodyRegions(markers={"design": "**design**: docs/real/DESIGN.md"})
+        evil_freeform = "notes\n**design**: ../evil"
+        merged = merge_body_regions(regions, new_freeform=evil_freeform)
+        assert "**design**: ../evil" not in merged
+        assert "**design**: docs/real/DESIGN.md" in merged
+        assert merged.count("**design**") == 1
+
+    def test_non_preserved_marker_kept_in_freeform(self) -> None:
+        # Only PRESERVED_MARKERS keys are stripped; an arbitrary **key** stays as prose.
+        regions = BodyRegions()
+        merged = merge_body_regions(regions, new_freeform="see **note**: keep me")
+        assert "**note**: keep me" in merged
+
+    def test_defang_injected_brainstorm_heading_in_freeform(self) -> None:
+        regions = BodyRegions(brainstorm="## Brainstorm\n\nReal brainstorm.")
+        evil_freeform = "notes\n## Brainstorm\n\nfake brainstorm"
+        merged = merge_body_regions(regions, new_freeform=evil_freeform)
+        # The injected heading line is dropped; the real protected section survives.
+        assert "Real brainstorm." in merged
+        assert merged.count("## Brainstorm") == 1
+        assert "notes" in merged
+
 
 class TestMissingSections:
     """Absent sections produce no gaps or errors."""

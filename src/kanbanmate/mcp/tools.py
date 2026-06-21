@@ -172,12 +172,26 @@ def move(
     # Refuse ONLY when the (from, to) pair is ITSELF a prompt-bearing launch transition (a genuine
     # launch re-fire), never every move whose destination merely happens to be some launch target.
     if from_col:
-        pair = transitions.get(from_col, column.key)
-        if pair is not None and pair.prompt:
-            return (
-                f"refusing to move #{issue} {from_col!r}->{column.name!r} (anti-loop): "
-                f"that pair is a prompt-bearing launch transition; an agent may not re-fire a launch"
-            )
+        # Normalize from_col to a column KEY before the lookup — the client may supply a display NAME
+        # (resolve_target_column accepts key OR name), but transitions are keyed by column KEY. The bin
+        # (kanban_move.py:194-203) derives from_col from the persisted stage, which is already a key;
+        # here we must resolve it. An unknown from_col resolves to None → skip the guard (the daemon's
+        # validate_intent stays authoritative).
+        try:
+            from_key: str | None = resolve_target_column(columns, from_col).key
+        except KeyError:
+            from_key = None
+        if from_key is not None:
+            pair = transitions.get(from_key, column.key)
+            # Gate on has_action (prompt OR script), parity with the bin: a prompt pair would re-fire a
+            # launch; a script-gate pair (e.g. InProgress->PRCI) is engine-owned too — only the daemon's
+            # RUN_SCRIPT path may enter it. Mirrors core.intent._validate_agent's daemon-side guard.
+            if pair is not None and pair.has_action:
+                return (
+                    f"refusing to move #{issue} {from_col!r}->{column.name!r} (anti-loop): "
+                    f"that pair is a triggering transition (prompt or script); only the engine "
+                    f"advances a card into a triggering column"
+                )
     intent_id = uuid.uuid4().hex[:12]
     store.enqueue_intent(
         intent_id,
@@ -282,5 +296,10 @@ def update_main(
     from kanbanmate.adapters.workspace.base_sync import fetch_base, ff_dev_clone
 
     fetch_base(base_clone)
+    # Parity with bin/kanban_update_main.py:99-101 — when no dev clone is configured, ``dev_repo`` is
+    # the empty string. Guard BEFORE ff_dev_clone: passing an empty path would run git against the
+    # agent's worktree (cwd) instead of the operator's dev clone. Stop after the base refresh.
+    if not dev_repo:
+        return "refreshed main: fetched origin/main into the base clone (no dev clone configured)"
     ff_dev_clone(dev_repo)
     return "refreshed main: fetched origin/main into the base clone, fast-forwarded the dev clone"

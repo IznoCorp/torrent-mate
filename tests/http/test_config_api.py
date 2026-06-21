@@ -425,6 +425,23 @@ def test_post_oversize_body_is_413(client: TestClient) -> None:
     assert r.status_code == 413
 
 
+@pytest.mark.parametrize("forged", ["-5", " -5 ", "+10", " 10", "10 ", "0x10", "abc"])
+def test_post_non_canonical_content_length_is_400(client: TestClient, forged: str) -> None:
+    """E: a non-canonical Content-Length (negative / signed / whitespace) is a clean 400.
+
+    ``int()`` tolerates whitespace + a leading sign, so a forged ``-5`` / ``+10`` / `` -5 `` would
+    parse and could under-report the size cap. The guard now requires a canonical non-negative
+    integer string, rejecting these BEFORE the cap comparison.
+    """
+    r = client.post(
+        "/api/config/validate",
+        content=b"{}",
+        headers={"content-type": "application/json", "content-length": forged},
+    )
+    assert r.status_code == 400
+    assert "Invalid Content-Length" in r.json()["detail"]
+
+
 def test_resolve_without_draft_is_422(client: TestClient) -> None:
     """G: resolve with no draft is a clean 422 (not a misleading matched:false verdict)."""
     r = client.post("/api/config/resolve", json={"from_col": "Review", "to_col": "Merge"})

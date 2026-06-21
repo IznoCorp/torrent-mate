@@ -139,6 +139,7 @@ def monitor_board(project: str | None = None) -> JSONResponse:
         HTTPException: 503/404/400 (project resolution); 502 (snapshot failure).
     """
     from kanbanmate.app.monitor import build_board, derive_state  # noqa: PLC0415
+    from kanbanmate.app.tick import DEFAULT_BLOCKED_COLUMN  # noqa: PLC0415
 
     entry = _resolve_entry(project)
     draft = _get_service(project).load()
@@ -151,7 +152,12 @@ def monitor_board(project: str | None = None) -> JSONResponse:
         (t.issue_number, t.title, t.column_key) for t in snap.tickets if t.issue_number is not None
     ]
     running = {s.issue_number: derive_state(s.status) for s in _monitor_store(entry).list_running()}
-    return JSONResponse(content=build_board(columns, tickets, running))
+    # Pass the Blocked column so a card parked there with NO live agent reads "blocked" — the same
+    # (column + liveness) signal core.health uses for the GitHub Health chip (build_board mirrors its
+    # precedence). list_running only carries RUNNING/WAITING, so without this blocked is unreachable.
+    return JSONResponse(
+        content=build_board(columns, tickets, running, blocked_column=DEFAULT_BLOCKED_COLUMN)
+    )
 
 
 @app.get("/api/monitor/agent/{issue}/pane")
@@ -372,13 +378,28 @@ def launch_agent(number: int, req: _LaunchRequest, project: str | None = None) -
 
     entry = _resolve_entry(project)
     store = _monitor_store(entry)
+
+    # Mint the operator ``op_token`` (FIX 4): an HMAC over (issue, profile) keyed by the runtime-root
+    # launch secret (lazily created on first use). The daemon's _execute_launch recomputes + verifies
+    # it; a bridled agent cannot forge it without the secret file. This is what makes a launch
+    # provably operator-originated rather than just "operator authority because the target is idle".
+    from kanbanmate.app.intents import compute_launch_token, load_launch_secret  # noqa: PLC0415
+
+    secret = load_launch_secret(_kanban_root(), create=True)
+    if secret is None:
+        raise HTTPException(
+            status_code=503,
+            detail="cannot mint launch authorization (runtime-root launch secret unavailable)",
+        )
+    op_token = compute_launch_token(secret, number, profile)
+
     intent_id = uuid.uuid4().hex[:12]
     store.enqueue_intent(
         intent_id,
         {
             "kind": "launch",
             "issue": number,
-            "args": {"prompt": prompt, "profile": profile},
+            "args": {"prompt": prompt, "profile": profile, "op_token": op_token},
             "requested_at": time.time(),
             "caller": "operator",
         },
@@ -471,6 +492,33 @@ def intent_result(intent_id: str, project: str | None = None) -> JSONResponse:
     return JSONResponse(content=res or {"state": "pending"})
 
 
+def _git_blob_size(repo: Path, ref: str, rel: str) -> int | None:
+    """Return the byte size of ``<ref>:<rel>`` via ``git cat-file -s``, or None if absent / git fails.
+
+    Mirrors the on-disk ``st_size`` pre-check for the WIP-branch path: querying the blob size lets the
+    caller reject an oversize artifact BEFORE materialising its content into memory (the size cap was
+    previously applied only after buffering the whole ``git show`` output). No shell (arg list);
+    ``ref``/``rel`` are caller-validated (int-derived ref, sandboxed rel path).
+    """
+    import subprocess  # noqa: PLC0415
+
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(repo), "cat-file", "-s", f"{ref}:{rel}"],
+            capture_output=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode != 0:
+        return None
+    try:
+        return int(out.stdout.decode("utf-8", errors="replace").strip())
+    except ValueError:
+        return None
+
+
 def _git_show(repo: Path, ref: str, rel: str) -> str | None:
     """Return ``<ref>:<rel>`` from ``repo`` via ``git show``, or None if it is absent / git fails.
 
@@ -545,12 +593,17 @@ def monitor_file(path: str, project: str | None = None, ticket: int | None = Non
     # (2) fallback: the per-ticket WIP branch (in-flight artifacts the agent committed there).
     if ticket is not None:
         ref = f"kanban/ticket-{ticket}"
+        # Mirror the on-disk st_size pre-check: query the blob size FIRST and reject an oversize file
+        # BEFORE materialising its content (the cap was previously applied only after buffering the
+        # whole git-show output into memory). Same error shape as the on-disk oversize path.
+        wip_size = _git_blob_size(root, ref, rel)
+        if wip_size is not None and wip_size > _MAX_FILE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large ({wip_size} bytes; cap {_MAX_FILE_BYTES})",
+            )
         wip = _git_show(root, ref, rel)
         if wip is not None:
-            if len(wip.encode("utf-8")) > _MAX_FILE_BYTES:
-                raise HTTPException(
-                    status_code=413, detail=f"File too large (cap {_MAX_FILE_BYTES})"
-                )
             return JSONResponse(content={"path": rel, "content": wip, "source": ref})
 
     raise HTTPException(

@@ -501,6 +501,27 @@ def test_validate_v8_no_false_positive_on_matching_block() -> None:
     assert not v8_warnings, f"V8 false-positive on a matching defaults block: {v8_warnings}"
 
 
+def test_validate_v8_malformed_columns_yaml_is_fail_soft() -> None:
+    """V8: a malformed columns_yaml must NOT escape validate() as an uncaught YAMLError.
+
+    The validator's contract is to return a ValidationResult of Findings, never raise on
+    operator-supplied content. A columns_yaml that is not parseable YAML must degrade to a
+    warning Finding (fail-soft), keeping validate()'s structured-result contract.
+    """
+    # A valid draft built from the shipped templates — so the draft itself is fine; only the
+    # separately-passed columns_yaml is corrupt (e.g. an unterminated flow mapping).
+    draft = _clean_draft()
+    malformed = "columns:\n  - key: Backlog\n    name: [unterminated\n"
+    # Must not raise — the corrupt YAML becomes a warning, not an exception.
+    result = validate(draft, columns_yaml=malformed)
+    parse_warnings = [
+        f for f in result.findings if f.severity == "warning" and "not parseable" in f.message
+    ]
+    assert parse_warnings, "Expected a fail-soft warning when columns_yaml is not parseable YAML"
+    # A parse-only warning must not, on its own, block the save (no error-severity finding from V8).
+    assert all(f.locus != "columns.defaults" or f.severity == "warning" for f in result.findings)
+
+
 # ---------------------------------------------------------------------------
 # validate: V9 — column-class membership
 # ---------------------------------------------------------------------------

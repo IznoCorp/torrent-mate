@@ -268,6 +268,32 @@ async def test_pinned_write_with_foreign_issue_refuses_zero_writes(tmp_path: Pat
 
 
 @pytest.mark.anyio
+async def test_get_ticket_with_foreign_issue_refuses(tmp_path: Path) -> None:
+    """FIX 3: the ``get_ticket`` READ tool is pinned too — a foreign issue refuses (DESIGN §7)."""
+    from mcp.shared.memory import create_connected_server_and_client_session
+
+    server = _build_server(_FakeWriter(), _FakeStore(), tmp_path)
+    async with create_connected_server_and_client_session(server) as client:
+        result = await client.call_tool("get_ticket", {"issue": 99})
+        assert not result.isError  # a refusal is a normal (non-error) string result
+        text = result.content[0].text  # type: ignore[union-attr]
+    assert "refusing to read #99" in text
+    assert f"pinned to #{PINNED}" in text
+
+
+@pytest.mark.anyio
+async def test_read_ticket_resource_with_foreign_issue_refuses(tmp_path: Path) -> None:
+    """FIX 3: reading ``kanban://ticket/<n>`` for a foreign issue is refused (reads are pinned too)."""
+    from mcp.shared.memory import create_connected_server_and_client_session
+    from pydantic import AnyUrl
+
+    server = _build_server(_FakeWriter(), _FakeStore(), tmp_path)
+    async with create_connected_server_and_client_session(server) as client:
+        with pytest.raises(Exception, match="refusing to read #99"):
+            await client.read_resource(AnyUrl("kanban://ticket/99"))
+
+
+@pytest.mark.anyio
 async def test_update_main_listed_with_no_client_args(tmp_path: Path) -> None:
     """list_tools → ``update_main`` advertises NO client inputs (empty schema, no required, §6/§7).
 

@@ -72,6 +72,11 @@ def _write_input(fd: int, data: bytes) -> None:
     until drained, waiting briefly for writability on a full buffer. Bounded so a stuck (non-reading)
     agent can't block the event loop forever; genuine ``OSError`` (slave gone) propagates to the
     caller as end-of-session.
+
+    Raises:
+        OSError: When the retry budget is exhausted with bytes still undelivered (a persistently
+            full PTY buffer). Surfaces the dropped keystrokes to the caller as an end-of-session
+            error frame rather than silently truncating the operator's input.
     """
     view = memoryview(data)
     for _ in range(_WRITE_MAX_RETRIES):
@@ -83,6 +88,14 @@ def _write_input(fd: int, data: bytes) -> None:
             select.select([], [fd], [], 0.25)  # rare: wait for the PTY to drain (tiny keystrokes)
         except InterruptedError:
             continue  # signal — retry
+    # Budget exhausted with bytes still pending: do NOT silently drop the remaining keystrokes. Raise
+    # so the receive loop's OSError handler emits an {"error": ...} frame and ends the session — the
+    # operator sees their input was not delivered instead of it vanishing.
+    if view:
+        raise OSError(
+            f"PTY input buffer stayed full after {_WRITE_MAX_RETRIES} retries; "
+            f"{len(view)} byte(s) of operator input undelivered"
+        )
 
 
 def _pty_command(issue: int) -> list[str]:
