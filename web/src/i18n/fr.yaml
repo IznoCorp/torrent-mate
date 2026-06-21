@@ -22,6 +22,8 @@ shell:
   badge_board: "board : {repo}"
   badge_daemon: daemon · tout l'hôte
   menu: Menu
+  collapse: Replier la barre latérale
+  expand: Déplier la barre latérale
   errors_block_save: "{n} erreur(s) bloquent l'enregistrement"
   nav:
     board: Tableau
@@ -244,6 +246,19 @@ monitor:
   doc_design: Design
   doc_plan: Plan
   file_error: Lecture du fichier impossible
+
+body:
+  edit: Éditer la description
+  save: Enregistrer
+  cancel: Annuler
+  saving: Enregistrement…
+
+terminal:
+  take_control: Prendre le contrôle
+  release: Rendre la main
+  session_ended: Session terminée
+  close: Fermer
+  interactive: Terminal interactif
 
 theme:
   light: Clair

@@ -42,4 +42,6 @@ def test_present_build_is_served(tmp_path: Path) -> None:
 def test_api_health_still_works_on_real_app() -> None:
     # The real app mounts the SPA (built or fallback); /api/* must keep working either way.
     with TestClient(app) as client:
-        assert client.get("/api/health").json() == {"status": "ok"}
+        body = client.get("/api/health").json()
+        assert body["status"] == "ok"
+        assert body["version"]  # the deployed package version (tiller §7.4)

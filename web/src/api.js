@@ -30,6 +30,7 @@ const q = (project) =>
 export const getSession = () => call("GET", "/api/session");
 export const login = (creds) => call("POST", "/api/login", creds);
 export const logout = () => call("POST", "/api/logout", {});
+export const fetchHealth = () => call("GET", "/api/health");
 
 // --- Daemon-scoped (registry) ---
 export const listProjects = () => call("GET", "/api/projects");
@@ -97,6 +98,13 @@ export const monitorPane = (issue, project) =>
   );
 export const monitorTicket = (number, project) =>
   call("GET", `/api/monitor/ticket/${encodeURIComponent(number)}${q(project)}`);
+export const patchTicketBody = (number, freeform, project) =>
+  call(
+    "PATCH",
+    `/api/monitor/ticket/${encodeURIComponent(number)}/body${q(project)}`,
+    { freeform },
+  );
+
 export const monitorFile = (path, project, ticket) =>
   call(
     "GET",

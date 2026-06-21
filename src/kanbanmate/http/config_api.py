@@ -240,12 +240,14 @@ async def _read_json_object(request: fastapi.Request) -> dict[str, Any]:
 
 @app.get("/api/health")
 def health() -> dict[str, str]:
-    """Liveness probe.
+    """Liveness probe — now also surfaces the deployed package version (tiller §7.4).
 
     Returns:
-        ``{"status": "ok"}``.
+        ``{"status": "ok", "version": "<kanbanmate.__version__>"}``.
     """
-    return {"status": "ok"}
+    import kanbanmate  # noqa: PLC0415
+
+    return {"status": "ok", "version": kanbanmate.__version__}
 
 
 @app.get("/api/session")

@@ -18,19 +18,32 @@ import { PageIntro } from "../components/Help.jsx";
 import useIsMobile from "../useIsMobile.js";
 import { useT } from "../i18n/index.jsx";
 
-const { Banner, Button, Badge } = window.KanbanMateDesignSystem_2463ad;
+const { Banner, Button, Badge, Card } = window.KanbanMateDesignSystem_2463ad;
 
 // One-shot <style> with the drag/hover effects (Item 2). Inline styles cannot express :hover or the
 // .dragging class transition, so the board injects a scoped stylesheet once.
 function BoardStyles() {
   return (
     <style>{`
-      .km-card { transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease; }
-      .km-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
-      .km-card.km-dragging { opacity: .4; transform: scale(.97); }
+      .km-card {
+        transition: transform .12s ease, box-shadow .15s ease, opacity .12s ease;
+      }
+      .km-card:hover {
+        transform: translateY(-2px);
+      }
+      .km-card.km-dragging {
+        opacity: .35;
+        transform: scale(.96);
+      }
       .km-card.km-grab { cursor: grab; }
       .km-card.km-grab:active { cursor: grabbing; }
-      .km-dropline { height: 3px; border-radius: 2px; background: var(--primary); margin: 1px 4px; }
+      .km-dropline {
+        height: 3px;
+        border-radius: 2px;
+        background: var(--primary);
+        margin: 2px 4px;
+        transition: opacity .1s ease;
+      }
       .km-colstrip { transition: background .12s ease, border-color .12s ease; }
       .km-colstrip:hover { background: var(--muted); }
     `}</style>
@@ -321,24 +334,32 @@ function DesktopBoard({
   const [dropTarget, setDropTarget] = React.useState(null); // {col, idx} insertion indicator
   const [boardH, setBoardH] = React.useState(null); // measured full-height (Item 3)
 
-  // Collapsed columns persist per project (Item 4 — visual-only hide).
+  // Collapsed columns: override map {col: bool} persisted per project.
+  // Effective collapsed = override[col] if the operator explicitly toggled,
+  // else cardCount === 0 (empty columns collapse by default).
   const storageKey = `km:board:collapsed:${project || "default"}`;
-  const [collapsed, setCollapsed] = React.useState(() => {
+  const [override, setOverride] = React.useState(() => {
     try {
-      return new Set(
-        JSON.parse(window.localStorage.getItem(storageKey) || "[]"),
-      );
+      const raw = window.localStorage.getItem(storageKey);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      // Migrate old array format (Set serialized as JSON array) → {col: true}.
+      if (Array.isArray(parsed)) {
+        const migrated = {};
+        for (const k of parsed) migrated[k] = true;
+        return migrated;
+      }
+      if (typeof parsed === "object" && parsed !== null) return parsed;
+      return {};
     } catch (_) {
-      return new Set();
+      return {};
     }
   });
   const toggleCollapsed = (col) => {
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(col)) next.delete(col);
-      else next.add(col);
+    setOverride((prev) => {
+      const next = { ...prev, [col]: !prev[col] };
       try {
-        window.localStorage.setItem(storageKey, JSON.stringify([...next]));
+        window.localStorage.setItem(storageKey, JSON.stringify(next));
       } catch (_) {
         /* ignore persistence failure */
       }
@@ -392,12 +413,14 @@ function DesktopBoard({
           minHeight: 0,
         }}
       >
-        {columns.map((col) =>
-          collapsed.has(col) ? (
+        {columns.map((col) => {
+          const cardCount = (cardsByCol[col] || []).length;
+          const collapsed = col in override ? override[col] : cardCount === 0;
+          return collapsed ? (
             <CollapsedColumn
               key={col}
               col={col}
-              count={(cardsByCol[col] || []).length}
+              count={cardCount}
               t={t}
               dragRef={dragRef}
               onExpand={() => toggleCollapsed(col)}
@@ -424,8 +447,8 @@ function DesktopBoard({
               onDropColumn={onDropColumn}
               onDropCard={onDropCard}
             />
-          ),
-        )}
+          );
+        })}
       </div>
     </>
   );
@@ -531,7 +554,12 @@ function DColumn({
                 onDragEnd();
               }}
             >
-              <CardFace card={card} t={t} rich />
+              <Card
+                padding="none"
+                style={busy ? { cursor: "default" } : undefined}
+              >
+                <RichCardFace card={card} t={t} />
+              </Card>
             </div>
           </React.Fragment>
         ))}
@@ -697,19 +725,14 @@ function MobileBoard({ columns, cardsByCol, busy, t, onMove, onReorder }) {
           <div
             key={card.item_id}
             style={{
-              background: "var(--card)",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius-lg)",
-              boxShadow: "var(--shadow-xs)",
-              padding: "12px 14px",
               display: "flex",
               alignItems: "center",
               gap: 10,
             }}
           >
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <CardFace card={card} t={t} rich />
-            </div>
+            <Card padding="none" style={{ flex: 1, minWidth: 0 }}>
+              <RichCardFace card={card} t={t} />
+            </Card>
             <div
               style={{
                 display: "inline-flex",
@@ -872,20 +895,37 @@ function MoveSheet({ card, columns, current, t, onPick, onClose }) {
 // Shared bits
 // ---------------------------------------------------------------------------
 
-// A card face. `rich` adds a multi-line title + a body excerpt (Item 2 — more info on cards).
-function CardFace({ card, t, rich }) {
+// Multi-line clamp helper (line-clamp via the webkit box model — supported in the Chromium target).
+function textClamp(lines) {
+  return {
+    display: "-webkit-box",
+    WebkitLineClamp: lines,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
+  };
+}
+
+// Rich card face: number + multi-line title + body excerpt inside a DS Card surface.
+function RichCardFace({ card, t }) {
   return (
     <div
-      style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+        padding: "9px 11px",
+        minWidth: 0,
+      }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
         {card.issue_number != null && (
           <span
             style={{
               fontFamily: "var(--font-mono)",
-              fontSize: 11,
+              fontSize: "var(--text-2xs)",
               color: "var(--muted-foreground)",
               flex: "none",
+              paddingTop: 1,
             }}
           >
             #{card.issue_number}
@@ -895,23 +935,24 @@ function CardFace({ card, t, rich }) {
           style={{
             flex: 1,
             minWidth: 0,
-            fontSize: 13.5,
-            fontWeight: rich ? 600 : 500,
-            lineHeight: 1.3,
-            ...(rich ? clamp(2) : ONE_LINE),
+            fontSize: "var(--text-sm)",
+            fontWeight: 600,
+            lineHeight: 1.35,
             color: card.title ? "var(--foreground)" : "var(--muted-foreground)",
+            ...textClamp(2),
           }}
         >
           {card.title || t("board.untitled")}
         </span>
       </div>
-      {rich && card.excerpt && (
+      {card.excerpt && (
         <div
           style={{
-            fontSize: 12,
+            fontSize: "var(--text-2xs)",
             lineHeight: 1.35,
             color: "var(--muted-foreground)",
-            ...clamp(2),
+            marginTop: 2,
+            ...textClamp(2),
           }}
         >
           {card.excerpt}
@@ -919,22 +960,6 @@ function CardFace({ card, t, rich }) {
       )}
     </div>
   );
-}
-
-const ONE_LINE = {
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
-};
-
-// Multi-line clamp helper (line-clamp via the webkit box model — supported in the Chromium target).
-function clamp(lines) {
-  return {
-    display: "-webkit-box",
-    WebkitLineClamp: lines,
-    WebkitBoxOrient: "vertical",
-    overflow: "hidden",
-  };
 }
 
 function ColumnHeader({ col, count, t, onCollapse }) {

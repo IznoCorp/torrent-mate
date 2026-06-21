@@ -317,3 +317,102 @@ def test_monitor_github_passes_repo(monkeypatch: pytest.MonkeyPatch) -> None:
     mon_mod._monitor_github(SimpleNamespace(project_id="PVT_x", repo="Org/repo"))
     assert captured["repo"] == "Org/repo"
     assert captured["project_id"] == "PVT_x"
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/monitor/ticket/{number}/body — marker-safe ticket-body editing
+# (tiller §3.2).
+# ---------------------------------------------------------------------------
+
+
+class _FakeIssueRef:
+    def __init__(self, body: str, title: str = "[A1] My ticket", node_id: str = "NODE_1") -> None:
+        self.body = body
+        self.title = title
+        self.node_id = node_id
+
+
+class _FakePatchGithub:
+    def __init__(
+        self, body: str = "**roadmap**: A1\n\nSome freeform.", title: str = "[A1] My ticket"
+    ) -> None:
+        self._ref = _FakeIssueRef(body=body, title=title)
+        self.updated_body: str | None = None
+
+    def fetch_issue(self, number: int) -> _FakeIssueRef:
+        return self._ref
+
+    def update_issue_body(self, node_id: str, body: str) -> None:
+        self.updated_body = body
+
+
+def test_body_patch_happy_path(tmp_path: Path) -> None:
+    import kanbanmate.http.config_api as api_mod
+
+    api_mod.app.state.kanban_root = _single_project_root(tmp_path)
+    api_mod.app.state.auth = None
+    gh = _FakePatchGithub()
+    api_mod.app.state.monitor_github = gh
+    with TestClient(api_mod.app) as client:
+        resp = client.patch(
+            "/api/monitor/ticket/1/body?project=PVT_x",
+            json={"freeform": "Updated operator description."},
+        )
+    assert resp.status_code == 200
+    assert resp.json() == {"ok": True}
+    assert gh.updated_body is not None
+    assert "Updated operator description." in gh.updated_body
+    assert "**roadmap**: A1" in gh.updated_body  # marker preserved
+
+
+def test_body_patch_400_on_roadmap_title_incoherence(tmp_path: Path) -> None:
+    import kanbanmate.http.config_api as api_mod
+
+    api_mod.app.state.kanban_root = _single_project_root(tmp_path)
+    api_mod.app.state.auth = None
+    # Body has roadmap B2 but title has [A1] — incoherent
+    gh = _FakePatchGithub(body="**roadmap**: B2\n\nDesc.", title="[A1] My ticket")
+    api_mod.app.state.monitor_github = gh
+    with TestClient(api_mod.app) as client:
+        resp = client.patch(
+            "/api/monitor/ticket/1/body?project=PVT_x",
+            json={"freeform": "New prose."},
+        )
+    assert resp.status_code == 400
+    assert "roadmap" in str(resp.json()["detail"])
+
+
+def test_body_patch_422_bad_shape(tmp_path: Path) -> None:
+    import kanbanmate.http.config_api as api_mod
+
+    api_mod.app.state.kanban_root = _single_project_root(tmp_path)
+    api_mod.app.state.auth = None
+    api_mod.app.state.monitor_github = _FakePatchGithub()
+    with TestClient(api_mod.app) as client:
+        resp = client.patch(
+            "/api/monitor/ticket/1/body?project=PVT_x",
+            json={"wrong_field": "oops"},
+        )
+    assert resp.status_code == 422
+
+
+def test_body_patch_preserves_status_block(tmp_path: Path) -> None:
+    from kanbanmate.core.body_edit import STATUS_BEGIN, STATUS_END
+
+    import kanbanmate.http.config_api as api_mod
+
+    api_mod.app.state.kanban_root = _single_project_root(tmp_path)
+    api_mod.app.state.auth = None
+    status = f"{STATUS_BEGIN}\n**KanbanMate status** — Design · running\n{STATUS_END}"
+    gh = _FakePatchGithub(body=f"{status}\n\n**roadmap**: A1\n\nOld prose.", title="[A1] T")
+    api_mod.app.state.monitor_github = gh
+    with TestClient(api_mod.app) as client:
+        resp = client.patch(
+            "/api/monitor/ticket/1/body?project=PVT_x",
+            json={"freeform": "New prose."},
+        )
+    assert resp.status_code == 200
+    assert gh.updated_body is not None
+    assert STATUS_BEGIN in gh.updated_body
+    assert STATUS_END in gh.updated_body
+    assert "**roadmap**: A1" in gh.updated_body

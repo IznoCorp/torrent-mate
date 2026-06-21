@@ -168,6 +168,23 @@ class TmuxSessions:
         )
         return res.stdout or ""
 
+    def capture_ansi(self, name: str) -> str:
+        """ANSI-preserving capture (``-e``) for the interactive terminal stream (tiller §4.2).
+
+        Args:
+            name: The session name whose active pane to snapshot.
+
+        Returns:
+            The joined, ANSI-preserved pane text (empty string when runner returns no stdout).
+        """
+        res = self._runner(
+            ["tmux", "capture-pane", "-p", "-J", "-e", "-t", name],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return res.stdout or ""
+
     def send_text(self, name: str, text: str, *, literal: bool = True, enter: bool = False) -> None:
         """Send *text* to session *name*, optionally followed by Enter.
 
@@ -202,6 +219,19 @@ class TmuxSessions:
                 ["tmux", "send-keys", "-t", name, "Enter"],
                 check=True,
             )
+
+    def resize(self, name: str, cols: int, rows: int) -> None:
+        """Resize session *name*'s window to *cols* × *rows* (DESIGN §4.1).
+
+        Args:
+            name: The session name to resize.
+            cols: Terminal width in columns.
+            rows: Terminal height in rows.
+        """
+        self._runner(
+            ["tmux", "resize-window", "-t", name, "-x", str(cols), "-y", str(rows)],
+            check=True,
+        )
 
     def is_alive(self, name: str) -> bool:
         """Return whether the tmux session *name* currently exists.

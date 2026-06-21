@@ -15,6 +15,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from pydantic import BaseModel
+
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 
@@ -199,6 +201,67 @@ def monitor_ticket(number: int, project: str | None = None) -> JSONResponse:
     return JSONResponse(content=detail)
 
 
+class _BodyPatchRequest(BaseModel):
+    """Request body for the PATCH ticket body endpoint (tiller §6.2).
+
+    ``freeform`` is the operator's edited description prose — it replaces only the
+    freeform region of the issue body; protected regions (status block, markers,
+    brainstorm) are preserved byte-identically by the split/merge pipeline.
+    """
+
+    freeform: str
+
+
+@app.patch("/api/monitor/ticket/{number}/body")
+def patch_ticket_body(
+    number: int, req: _BodyPatchRequest, project: str | None = None
+) -> JSONResponse:
+    """Marker-safe rewrite of a ticket's issue body (tiller §6.2).
+
+    Fetches the current body, splits into protected regions + freeform, merges
+    with the operator's new freeform, validates coherence, and patches GitHub.
+    Protected regions (status block, markers, brainstorm) are NEVER altered.
+
+    Args:
+        number: The GitHub issue number.
+        req: ``{"freeform": "<edited prose>"}`` — 1 MiB cap enforced by FastAPI.
+        project: The Project v2 node id selector (optional; auto-resolved for N=1).
+
+    Returns:
+        ``{"ok": true}`` on success.
+
+    Raises:
+        HTTPException: 400 on roadmap/title incoherence; 404 issue not found; 502 GitHub error.
+    """
+    from kanbanmate.core.body_edit import validate_roadmap_matches_title  # noqa: PLC0415
+    from kanbanmate.core.body_regions import merge_body_regions, split_body_regions  # noqa: PLC0415
+
+    entry = _resolve_entry(project)
+    gh = _monitor_github(entry)
+
+    try:
+        issue_ref = gh.fetch_issue(number)
+    except Exception as exc:
+        raise HTTPException(status_code=404, detail=f"Issue #{number} not found: {exc}") from exc
+
+    current_body = issue_ref.body or ""
+    title = issue_ref.title or ""
+
+    regions = split_body_regions(current_body)
+    merged = merge_body_regions(regions, new_freeform=req.freeform)
+
+    coherence_error = validate_roadmap_matches_title(merged, title)
+    if coherence_error:
+        raise HTTPException(status_code=400, detail=coherence_error)
+
+    try:
+        gh.update_issue_body(issue_ref.node_id, merged)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"GitHub update failed: {exc}") from exc
+
+    return JSONResponse(content={"ok": True})
+
+
 def _git_show(repo: Path, ref: str, rel: str) -> str | None:
     """Return ``<ref>:<rel>`` from ``repo`` via ``git show``, or None if it is absent / git fails.
 
@@ -284,3 +347,7 @@ def monitor_file(path: str, project: str | None = None, ticket: int | None = Non
     raise HTTPException(
         status_code=404, detail="File not found on the board tree or the ticket WIP branch"
     )
+
+
+# Side-effect import: registers the agent-terminal WS endpoint on `app` (tiller §1.3).
+import kanbanmate.http.agent_terminal as _agent_terminal  # noqa: F401, E402

@@ -596,6 +596,41 @@ def test_agent_cannot_edit_its_ticket() -> None:
     assert "may not" in str(store.results["i1"]["detail"])
 
 
+def test_ticket_edit_preserves_markers() -> None:
+    """tiller §6.2: a ticket_edit with marker-bearing body preserves markers via split/merge."""
+    body_with_marker = "**roadmap**: A1\n\nOld freeform."
+    writer = _FakeWriter()
+    # Override the default body="b" so fetch_issue returns a marker-bearing body.
+
+    def _fetch_with_marker(issue_number: int):  # type: ignore[no-untyped-def]
+        from kanbanmate.adapters.github.types import IssueRef
+
+        return IssueRef(
+            node_id=f"NODE_{issue_number}",
+            number=issue_number,
+            title="[A1] T",
+            body=body_with_marker,
+        )
+
+    writer.fetch_issue = _fetch_with_marker  # type: ignore[method-assign]
+    store = _FakeStore(
+        intents={
+            "i1": {
+                "kind": "ticket_edit",
+                "issue": 8,
+                "args": {"body": "New freeform only."},
+                "requested_at": 1.0,
+            }
+        }
+    )
+    _drain(store, writer)
+    assert len(writer.edited) == 1
+    updated = writer.edited[0][1]
+    assert "New freeform only." in updated  # operator freeform landed
+    assert "**roadmap**: A1" in updated  # marker preserved
+    assert store.results["i1"]["state"] == "done"
+
+
 # ---------------------------------------------------------------------------
 # pill override (cockpit PR3.3) — operator-only; writes override markers only.
 # ---------------------------------------------------------------------------

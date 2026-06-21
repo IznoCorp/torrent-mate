@@ -399,6 +399,14 @@ class _FakeSessions:
         """Unused by read-only status commands."""
         raise AssertionError("sessions must not send_text")
 
+    def resize(self, name: str, cols: int, rows: int) -> None:  # pragma: no cover - unused
+        """Unused by read-only status commands (§1.1 Protocol member)."""
+        raise AssertionError("sessions must not resize")
+
+    def capture_ansi(self, name: str) -> str:  # pragma: no cover - unused
+        """Unused by read-only status commands (§1.2 Protocol member)."""
+        raise AssertionError("sessions must not capture_ansi")
+
     def is_alive(self, name: str) -> bool:
         """Record the probe and return the scripted liveness (default ``False``)."""
         self.probed.append(name)

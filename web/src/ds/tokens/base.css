@@ -3,9 +3,23 @@
  * components and specimen cards reuse. Not a utility framework — just the floor.
  */
 
-*, *::before, *::after { box-sizing: border-box; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
-html { -webkit-text-size-adjust: 100%; }
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Anchor the full-height chain to the viewport so the app shell (sidebar + main)
+ * fills the screen instead of growing/shrinking with each panel's content. */
+html,
+body,
+#root {
+  height: 100%;
+}
 
 body {
   margin: 0;
@@ -18,7 +32,12 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-display);
   color: var(--text-strong);
   font-weight: var(--weight-semibold);
@@ -27,12 +46,24 @@ h1, h2, h3, h4, h5, h6 {
   margin: 0;
 }
 
-a { color: var(--accent-text); text-decoration: none; }
-a:hover { text-decoration: underline; }
+a {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
 
-code, kbd, samp, pre { font-family: var(--font-mono); }
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono);
+}
 
-::selection { background: color-mix(in oklch, var(--accent) 28%, transparent); }
+::selection {
+  background: color-mix(in oklch, var(--accent) 28%, transparent);
+}
 
 /* Eyebrow / section label */
 .km-eyebrow {
@@ -70,7 +101,8 @@ code, kbd, samp, pre { font-family: var(--font-mono); }
 .km-wordmark .km-glyph {
   display: inline-grid;
   place-items: center;
-  width: 1.5em; height: 1.5em;
+  width: 1.5em;
+  height: 1.5em;
   border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--text-onaccent);

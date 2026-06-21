@@ -64,10 +64,28 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
 
 
 def test_health(client: TestClient) -> None:
-    """GET /api/health returns 200 and {"status": "ok"}."""
+    """GET /api/health returns 200, status ok, and a non-empty version."""
     resp = client.get("/api/health")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "ok"}
+    data = resp.json()
+    assert data["status"] == "ok"
+    assert data["version"]  # non-empty
+
+
+def test_health_includes_version() -> None:
+    """GET /api/health version matches the imported kanbanmate.__version__."""
+    import kanbanmate
+    import kanbanmate.http.config_api as api_mod
+    from fastapi.testclient import TestClient
+
+    api_mod.app.state.auth = None
+    with TestClient(api_mod.app) as client:
+        resp = client.get("/api/health")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "ok"
+    assert data["version"] == kanbanmate.__version__
+    assert data["version"]  # not empty
 
 
 # ---------------------------------------------------------------------------

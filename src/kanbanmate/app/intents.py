@@ -418,7 +418,20 @@ def _execute_ticket_edit(
         return
 
     _result(deps, intent_id, "claimed", "editing body")
-    seeder.update_issue_body(node_id, body)
+
+    # Fetch the current body so we can apply a marker-safe merge (tiller §6.2 D4).
+    try:
+        issue_ref = seeder.fetch_issue(intent.issue)
+        current_body = issue_ref.body or ""
+    except Exception:
+        current_body = ""  # fail-soft: if we can't fetch, treat as empty (first write)
+
+    from kanbanmate.core.body_regions import merge_body_regions, split_body_regions  # noqa: PLC0415
+
+    regions = split_body_regions(current_body)
+    merged = merge_body_regions(regions, new_freeform=body)
+
+    seeder.update_issue_body(node_id, merged)
     status_events.append(("auto", intent.issue, "edited body"))
     _result(deps, intent_id, "done", f"edited #{intent.issue} body")
     deps.store.clear_intent(intent_id)

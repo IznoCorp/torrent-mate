@@ -235,6 +235,24 @@ def _end_done_session(deps: Deps, state: TicketState, now: float) -> bool:
         ``False`` only when the graceful dispatch RAISED (no bump/clear — retried next tick).
     """
     issue = state.issue_number
+
+    # Sentinel check (tiller §4.4): skip end_session while the operator has taken control of the
+    # agent session via the KanbanMateUI terminal. The WS handler writes the sentinel under the
+    # RUNTIME root (``nudge_root``) — NOT the per-project root — so we must use the same root
+    # for the reaper to see it.
+    try:
+        from kanbanmate.app.control_state import is_attached, sentinel_path  # noqa: PLC0415
+
+        _store_root = getattr(deps.store, "nudge_root", None)
+        if _store_root is not None and is_attached(sentinel_path(_store_root, state.issue_number)):
+            logger.info(
+                "reaper: end_session deferred for #%s — human attached (tiller sentinel)",
+                state.issue_number,
+            )
+            return False
+    except Exception:
+        pass  # fail-soft: a broken sentinel check must never block the reaper
+
     # Read the persisted attempt budget; a read error degrades to 0 (treat as the first attempt — the
     # fs reader is already poison-tolerant, but guard the call so the sweep never crashes).
     try:

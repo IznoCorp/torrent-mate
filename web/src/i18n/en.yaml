@@ -22,6 +22,8 @@ shell:
   badge_board: "board: {repo}"
   badge_daemon: daemon · whole host
   menu: Menu
+  collapse: Collapse sidebar
+  expand: Expand sidebar
   errors_block_save: "{n} error(s) block save"
   nav:
     board: Board
@@ -240,6 +242,19 @@ monitor:
   doc_design: Design
   doc_plan: Plan
   file_error: Cannot read file
+
+body:
+  edit: Edit description
+  save: Save
+  cancel: Cancel
+  saving: Saving…
+
+terminal:
+  take_control: Take control
+  release: Release control
+  session_ended: Session ended
+  close: Close
+  interactive: Interactive terminal
 
 theme:
   light: Light

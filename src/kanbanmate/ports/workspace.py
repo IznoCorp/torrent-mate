@@ -267,6 +267,22 @@ class Sessions(Protocol):
         """
         ...
 
+    def capture_ansi(self, name: str) -> str:
+        """Return the ANSI-escape-preserved contents of session ``name``'s active pane.
+
+        Like :meth:`capture` but passes ``-e`` to ``tmux capture-pane`` so ANSI
+        colour/style sequences are included. Used by the WS terminal stream so
+        xterm.js renders colour faithfully. The existing :meth:`capture` (no ``-e``)
+        is unchanged for the read-only tail and all other callers.
+
+        Args:
+            name: The session name whose active pane to snapshot.
+
+        Returns:
+            The joined (``-J``), ANSI-preserved (``-e``) pane text.
+        """
+        ...
+
     def send_text(self, name: str, text: str, *, literal: bool = True, enter: bool = False) -> None:
         """Send ``text`` to session ``name``, optionally followed by ``Enter``.
 
@@ -282,6 +298,19 @@ class Sessions(Protocol):
             literal: When ``True`` (default), send raw text so slash-commands and
                 spaces are typed verbatim; when ``False``, ``text`` is a key name.
             enter: When ``True``, send a trailing ``Enter`` key after ``text``.
+        """
+        ...
+
+    def resize(self, name: str, cols: int, rows: int) -> None:
+        """Resize session ``name``'s window to ``cols`` × ``rows``.
+
+        Runs ``tmux resize-window -t <name> -x <cols> -y <rows>`` (argv-list,
+        no shell) so the agent's terminal wrapping matches the browser xterm size.
+
+        Args:
+            name: The session name (e.g. ``ticket-7``).
+            cols: Number of terminal columns.
+            rows: Number of terminal rows.
         """
         ...
 

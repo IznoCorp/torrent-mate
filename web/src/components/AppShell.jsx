@@ -1,6 +1,7 @@
 // AppShell: nav + header chrome. Desktop = 256px sidebar (SidebarNav) + header. Mobile = a top
 // app-bar with ☰ that slides in the same SidebarNav as a drawer (responsive mobile, DESIGN §4.1).
 import React from "react";
+import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useT, LangSwitcher } from "../i18n/index.jsx";
 import useIsMobile from "../useIsMobile.js";
 import ThemeSwitcher from "./ThemeSwitcher.jsx";
@@ -26,20 +27,35 @@ export default function AppShell({
   const { t } = useT();
   const isMobile = useIsMobile();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+  // Desktop sidebar collapse (mini/icon rail) — persisted client-side (#47).
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(() => {
+    try {
+      return localStorage.getItem("bridge.sidebar.collapsed") === "1";
+    } catch (_) {
+      return false;
+    }
+  });
+  React.useEffect(() => {
+    try {
+      localStorage.setItem(
+        "bridge.sidebar.collapsed",
+        sidebarCollapsed ? "1" : "0",
+      );
+    } catch (_) {
+      /* storage may be unavailable (private mode) */
+    }
+  }, [sidebarCollapsed]);
+  // Fetch kanbanmate version once at boot (tiller §4.5).
+  const [version, setVersion] = React.useState(null);
+  React.useEffect(() => {
+    import("../api.js").then(({ fetchHealth }) =>
+      fetchHealth()
+        .then((d) => setVersion(d.version))
+        .catch(() => {}),
+    );
+  }, []);
   const blocked = errorCount > 0;
   const headerTitle = ALL_NAV.find((n) => n.id === active) || ALL_NAV[0];
-
-  const nav = (
-    <SidebarNav
-      active={active}
-      onNav={onNav}
-      projects={projects}
-      selected={selected}
-      onSelect={onSelect}
-      repo={repo}
-      errorCount={errorCount}
-    />
-  );
 
   // ---- Mobile: top app-bar + slide-in drawer (DESIGN §4.1) ----
   if (isMobile) {
@@ -75,16 +91,17 @@ export default function AppShell({
             aria-label={t("shell.menu")}
             onClick={() => setDrawerOpen(true)}
             style={{
+              display: "flex",
+              alignItems: "center",
               border: "none",
               background: "transparent",
-              fontSize: 20,
               cursor: "pointer",
               color: "var(--foreground)",
               padding: 4,
               lineHeight: 1,
             }}
           >
-            ☰
+            <Menu size={22} strokeWidth={1.75} />
           </button>
           <span
             style={{
@@ -169,6 +186,18 @@ export default function AppShell({
                     {t("login.logout")}
                   </Button>
                 )}
+                {/* Version footer (tiller §4.5) — mobile drawer. */}
+                {version && (
+                  <div
+                    style={{
+                      fontSize: "var(--text-2xs)",
+                      color: "var(--muted-foreground)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
+                    v{version}
+                  </div>
+                )}
               </div>
             </aside>
           </div>
@@ -201,15 +230,83 @@ export default function AppShell({
     >
       <aside
         style={{
-          width: 256,
+          width: sidebarCollapsed ? 64 : 256,
           flex: "none",
           display: "flex",
           flexDirection: "column",
           background: "var(--sidebar)",
           borderRight: "1px solid var(--sidebar-border)",
+          transition: "width .15s ease",
         }}
       >
-        {nav}
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "auto",
+          }}
+        >
+          <SidebarNav
+            active={active}
+            onNav={onNav}
+            projects={projects}
+            selected={selected}
+            onSelect={onSelect}
+            repo={repo}
+            errorCount={errorCount}
+            collapsed={sidebarCollapsed}
+          />
+        </div>
+        {/* Collapse toggle (#47): panel-left-close (expanded) / panel-left-open (collapsed). */}
+        <button
+          onClick={() => setSidebarCollapsed((v) => !v)}
+          title={sidebarCollapsed ? t("shell.expand") : t("shell.collapse")}
+          aria-label={
+            sidebarCollapsed ? t("shell.expand") : t("shell.collapse")
+          }
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: sidebarCollapsed ? "center" : "flex-start",
+            gap: 9,
+            padding: sidebarCollapsed ? "10px 0" : "10px 14px",
+            border: "none",
+            borderTop: "1px solid var(--sidebar-border)",
+            background: "transparent",
+            color: "var(--muted-foreground)",
+            cursor: "pointer",
+            fontFamily: "var(--font-sans)",
+            fontSize: "var(--text-sm)",
+          }}
+        >
+          {sidebarCollapsed ? (
+            <PanelLeftOpen size={18} strokeWidth={1.75} />
+          ) : (
+            <>
+              <PanelLeftClose size={18} strokeWidth={1.75} />
+              {t("shell.collapse")}
+            </>
+          )}
+        </button>
+        {/* Version footer (tiller §4.5): muted at the very bottom of the sidebar. */}
+        {version && (
+          <div
+            style={{
+              padding: sidebarCollapsed ? "4px 0" : "6px 14px",
+              fontSize: "var(--text-2xs)",
+              color: "var(--muted-foreground)",
+              textAlign: sidebarCollapsed ? "center" : "left",
+              fontFamily: "var(--font-mono)",
+              borderTop: sidebarCollapsed
+                ? "none"
+                : "1px solid var(--sidebar-border)",
+            }}
+          >
+            v{version}
+          </div>
+        )}
       </aside>
 
       <div

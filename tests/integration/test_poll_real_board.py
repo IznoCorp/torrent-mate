@@ -90,6 +90,26 @@ class _SpySessions:
         if literal:
             self.sent.append(text)
 
+    def resize(self, name: str, cols: int, rows: int) -> None:
+        """No-op: no real window to resize (§1.1 Protocol member).
+
+        Args:
+            name: Session name (ignored).
+            cols: Terminal columns (ignored).
+            rows: Terminal rows (ignored).
+        """
+
+    def capture_ansi(self, name: str) -> str:
+        """Return an ANSI capture similar to :meth:`capture` (§1.2 Protocol member).
+
+        Args:
+            name: Session name (ignored).
+
+        Returns:
+            A canned ANSI pane snapshot string.
+        """
+        return "\x1b[32mready\x1b[0m"
+
     def is_alive(self, name: str) -> bool:
         """Always return ``False`` — no real session exists.
 
