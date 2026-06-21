@@ -213,9 +213,33 @@ def test_operator_move_executes() -> None:
     writer = _FakeWriter()
     next_columns = _drain(store, writer)
     assert writer.moves == [("PVTI_8", "Done")]
-    assert next_columns["PVTI_8"] == "Done"  # baseline advanced
+    assert (
+        next_columns["PVTI_8"] == "Done"
+    )  # baseline advanced (Backlog->Done is not prompt-bearing)
     assert store.results["i1"]["state"] == "done"
     assert "i1" not in store.intents  # cleared
+
+
+def test_operator_move_into_launch_column_does_not_advance_baseline() -> None:
+    """An operator move INTO a launch-bearing column must NOT advance the diff baseline.
+
+    Regression for the live #55 bug: moving ReadyToDev→PrepareFeature from the Monitoring panel
+    launched no prepare/create-branch agent because the intent advanced the baseline (next_columns),
+    so the next tick's diff never re-detected the arrival. Leaving the baseline unadvanced makes the
+    next diff fire the column's entry agent — exactly like a GitHub board drag. (Backlog->Spec is the
+    prompt-bearing launch target in the fixture.)
+    """
+    store = _FakeStore(
+        intents={"i1": _move_intent(8, "Spec")}
+    )  # operator authority (nothing running)
+    writer = _FakeWriter()
+    next_columns = _drain(store, writer)
+    assert writer.moves == [("PVTI_8", "Spec")]  # the move still lands
+    assert "PVTI_8" not in next_columns, (
+        "launch edge must NOT advance baseline (next diff fires it)"
+    )
+    assert store.results["i1"]["state"] == "done"
+    assert "i1" not in store.intents
 
 
 def test_move_translates_column_key_to_github_name() -> None:

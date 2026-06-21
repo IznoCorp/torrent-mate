@@ -312,8 +312,18 @@ def _execute_move(
     # move may have landed and the idempotent check above resolves it.
     _result(deps, intent_id, "claimed", f"moving {from_col}->{to_column.name}")
     deps.board_writer.move_card(item_id, to_column.name)
-    # Baseline advance: record the move so the next diff does NOT re-fire/relaunch it.
-    next_columns[item_id] = to_column.key
+    # Baseline advance — but NOT for a launch-bearing edge. An operator move INTO a triggering column
+    # must fire that column's entry agent, exactly like a GitHub board drag: the launch is driven by
+    # diff(baseline, snapshot), so advancing the baseline here would suppress it (the live #55
+    # ReadyToDev→PrepareFeature bug — the prepare/create-branch agent never fired). Leaving the
+    # baseline UNADVANCED makes the next tick re-detect the arrival and run decide() (which applies the
+    # anti-loop / rate-limit / kill-switch guards and itself advances the baseline once it launches —
+    # so it fires exactly once, no loop). Non-launch edges (no-op / unlisted / script-only) still
+    # advance: pure board mutations that must never re-fire or bounce.
+    from_key = from_column.key if from_column is not None else from_col
+    edge = transitions.get(from_key, to_column.key)
+    if edge is None or not edge.prompt:
+        next_columns[item_id] = to_column.key
     status_events.append(("auto", intent.issue, f"moved → {to_column.name}"))
     _result(deps, intent_id, "done", f"moved {from_col}->{to_column.name}")
     deps.store.clear_intent(intent_id)
