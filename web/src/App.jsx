@@ -11,6 +11,7 @@ import {
 import DaemonPanel from "./panels/DaemonPanel.jsx";
 import ProfilesPanel from "./panels/ProfilesPanel.jsx";
 import MonitoringPanel from "./panels/MonitoringPanel.jsx";
+import BoardPanel from "./panels/BoardPanel.jsx";
 import LoginScreen from "./components/LoginScreen.jsx";
 import { useT } from "./i18n/index.jsx";
 
@@ -196,6 +197,8 @@ export default function App() {
     content = <ProfilesPanel />;
   } else if (active === "monitoring") {
     content = <MonitoringPanel project={selected} />;
+  } else if (active === "board") {
+    content = <BoardPanel project={selected} />;
   } else if (error && !draft) {
     content = (
       <Banner tone="error" title={t("app.cannot_load_board")}>

@@ -159,3 +159,56 @@ def test_no_registry_raises_file_not_found(tmp_path: Path) -> None:
     """An empty root (no projects.json) raises FileNotFoundError (run `kanban init` first)."""
     with pytest.raises(FileNotFoundError):
         wiring_for_selection(tmp_path)
+
+
+def test_board_mirror_threads_from_registry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``board_mirror`` from projects.json reaches the wiring (Cycle-2 MEDIUM: was a dead switch).
+
+    The registry → ``wiring_for_entry`` path never threaded ``board_mirror``, so a project that set
+    ``board_mirror=False`` still got a mirror in the daemon. Pin that the switch is honoured, and
+    that it defaults ``True`` when the key is absent.
+    """
+    monkeypatch.delenv("KANBAN_TOKEN", raising=False)
+    clone = _write_clone(tmp_path, "clone-a")
+    _registry(
+        tmp_path,
+        {
+            "PVT_A": {
+                "repo": "o/r1",
+                "clone": str(clone),
+                "project_id": "PVT_A",
+                "status_field_node_id": "F",
+                "board_backend": "native",
+                "board_mirror": False,
+            }
+        },
+    )
+    _seed_token(tmp_path)
+
+    wiring = wiring_for_selection(tmp_path)
+    assert wiring.board_backend == "native"
+    assert wiring.board_mirror is False, "board_mirror=False must reach the daemon wiring"
+
+
+def test_board_mirror_defaults_true_in_wiring(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A registry entry without ``board_mirror`` yields ``board_mirror=True`` in the wiring."""
+    monkeypatch.delenv("KANBAN_TOKEN", raising=False)
+    clone = _write_clone(tmp_path, "clone-a")
+    _registry(
+        tmp_path,
+        {
+            "PVT_A": {
+                "repo": "o/r1",
+                "clone": str(clone),
+                "project_id": "PVT_A",
+                "status_field_node_id": "F",
+            }
+        },
+    )
+    _seed_token(tmp_path)
+
+    assert wiring_for_selection(tmp_path).board_mirror is True

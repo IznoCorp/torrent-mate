@@ -404,6 +404,49 @@ def test_project_entry_roundtrips_config_dir_and_dev_repo_path(tmp_path: Path) -
     assert loaded["PVT_NEW"].dev_repo_path == "/home/dev/demo"
 
 
+def test_project_entry_roundtrips_board_mirror(tmp_path: Path) -> None:
+    """``board_mirror`` round-trips through ``_upsert_project`` → ``_load_registry``.
+
+    Regression for the Cycle-2 MEDIUM: ``board_mirror=False`` was a dead switch — the HTTP layer
+    read ``entry.board_mirror`` but the registry never loaded it (always defaulted ``True``), so the
+    daemon mirror could never be disabled. ``asdict`` serialises it; ``.get`` reads it back.
+    """
+    path = tmp_path / "projects.json"
+    entry = ProjectEntry(
+        repo="IznoCorp/demo",
+        clone="/tmp/clone",
+        project_id="PVT_NM",
+        status_field_node_id="PVTSSF_x",
+        board_backend="native",
+        board_mirror=False,
+    )
+    init_mod._upsert_project(path, "PVT_NM", entry)
+
+    loaded = init_mod._load_registry(path)
+    assert loaded["PVT_NM"].board_backend == "native"
+    assert loaded["PVT_NM"].board_mirror is False, "board_mirror=False must survive the round-trip"
+
+
+def test_load_registry_defaults_board_mirror_true(tmp_path: Path) -> None:
+    """An entry without a ``board_mirror`` key defaults to ``True`` (mirror on, byte-compatible)."""
+    path = tmp_path / "projects.json"
+    path.write_text(
+        json.dumps(
+            {
+                "PVT_OLD": {
+                    "repo": "IznoCorp/demo",
+                    "clone": "/tmp/clone",
+                    "project_id": "PVT_OLD",
+                    "status_field_node_id": "PVTSSF_x",
+                    # NO board_mirror key.
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert init_mod._load_registry(path)["PVT_OLD"].board_mirror is True
+
+
 def test_load_registry_loads_old_shaped_entry_without_new_fields(tmp_path: Path) -> None:
     """An OLD-shaped ``projects.json`` (no ``config_dir``/``dev_repo_path`` keys) still loads,
     with the new fields defaulted to ``""`` (registry format stays backward-compatible)."""
@@ -554,3 +597,59 @@ def test_init_runs_ensure_clone_before_columns_yml_with_tokenless_url(tmp_path: 
     assert fake.columns_existed_at_call is False
     # And it does exist after init completes.
     assert columns_yml.exists()
+
+
+def test_project_entry_board_backend_defaults_to_github() -> None:
+    from kanbanmate.cli.init import ProjectEntry
+
+    entry = ProjectEntry(
+        repo="o/r",
+        clone="/tmp/c",
+        project_id="pid",
+        status_field_node_id="sfid",
+    )
+    assert entry.board_backend == "github"
+
+
+def test_load_registry_board_backend_back_compat(tmp_path: Path) -> None:
+    """An OLD-shaped projects.json without board_backend loads with default 'github'."""
+    import json
+    from kanbanmate.cli.init import _load_registry
+
+    path = tmp_path / "projects.json"
+    path.write_text(
+        json.dumps(
+            {
+                "pid": {
+                    "repo": "o/r",
+                    "clone": "/tmp/c",
+                    "project_id": "pid",
+                    "status_field_node_id": "sfid",
+                }
+            }
+        )
+    )
+    reg = _load_registry(path)
+    assert reg["pid"].board_backend == "github"
+
+
+def test_load_registry_board_backend_explicit(tmp_path: Path) -> None:
+    import json
+    from kanbanmate.cli.init import _load_registry
+
+    path = tmp_path / "projects.json"
+    path.write_text(
+        json.dumps(
+            {
+                "pid": {
+                    "repo": "o/r",
+                    "clone": "/tmp/c",
+                    "project_id": "pid",
+                    "status_field_node_id": "sfid",
+                    "board_backend": "native",
+                }
+            }
+        )
+    )
+    reg = _load_registry(path)
+    assert reg["pid"].board_backend == "native"

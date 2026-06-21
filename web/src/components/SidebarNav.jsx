@@ -7,6 +7,7 @@ import { useT } from "../i18n/index.jsx";
 const { Badge, Select } = window.KanbanMateDesignSystem_2463ad;
 
 export const BOARD_NAV = [
+  { id: "board", tkey: "shell.nav.board", key: "native" },
   { id: "columns", tkey: "shell.nav.columns", key: "columns.yml" },
   { id: "transitions", tkey: "shell.nav.transitions", key: "transitions.yml" },
   { id: "defaults", tkey: "shell.nav.defaults", key: "defaults" },

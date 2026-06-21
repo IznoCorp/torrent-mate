@@ -24,6 +24,7 @@ shell:
   menu: Menu
   errors_block_save: "{n} erreur(s) bloquent l'enregistrement"
   nav:
+    board: Tableau
     columns: Colonnes
     transitions: Transitions
     defaults: Réglages
@@ -248,3 +249,33 @@ theme:
   light: Clair
   dark: Sombre
   system: Système
+
+board:
+  intro_title: Tableau
+  intro_body: >-
+    Tableau kanban natif de ce projet. Déplacer une carte ici fait autorité sur le placement — ça
+    pilote le board GitHub Projects via le miroir, et le workflow de transition autonome continue de
+    se déclencher sur la colonne. Glisse les cartes sur desktop ; touche « Déplacer » sur mobile.
+  not_native_title: Board natif non activé
+  not_native_body: >-
+    Ce board utilise encore le backend GitHub. Active le backend natif pour ce projet
+    (board_backend = native) dans la page Projets, puis lance Import pour l'amorcer.
+  mirror_degraded: Miroir GitHub échoué — natif enregistré
+  identity_degraded: GitHub injoignable — titres indisponibles
+  refresh: Rafraîchir
+  import: Importer depuis GitHub
+  import_confirm: Confirmer l'import ?
+  action_failed: Action échouée
+  move: Déplacer
+  move_to: Déplacer vers la colonne
+  untitled: (sans titre)
+  no_cards: Aucune carte
+  conflict: Board modifié — rafraîchi
+  moved_synced: Carte déplacée et synchronisée sur GitHub ✓
+  moved_local: Carte déplacée ✓
+  moved_unconfirmed: Déplacée localement — synchro GitHub non confirmée (Rafraîchir)
+  moved_failed: Déplacée localement — échec de la synchro GitHub
+  reordered: Ordre mis à jour ✓
+  imported: "{n} carte(s) importée(s) depuis GitHub ✓"
+  collapse: Réduire la colonne
+  expand: Déployer la colonne

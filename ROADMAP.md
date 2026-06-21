@@ -3,6 +3,25 @@
 Deferred items from DESIGN §13. These are out of scope for v1.0 but are recognised as
 desirable future enhancements.
 
+## Board repatriation (columns + card positions) — IMPLEMENTED (0.11.0, anchor / helm PR 3)
+
+Shipped in the **anchor** feature (`docs/features/anchor/DESIGN.md`), the 3rd PR of the helm
+config-interface arc (PR 1 `helm` #5/#33; PR 2 `bridge`). A per-project **`board_backend: github |
+native`** switch (default `github` → every live daemon byte-identical until opt-in) routes the
+board's read/move slots to a new **`NativeBoardBackend`** — a decorator over `GithubClient` that
+keeps all forge ops (issues, comments, PRs) on GitHub but holds **columns + card placement + a new
+intra-column ordering** natively in a `flock`-serialised, atomically-replaced
+`<root>/board.json` (`BoardStateStore` port + `FsBoardStateStore` adapter, stdlib-only, no new
+dependency). The snapshot becomes a **JOIN** of the GitHub issue set with native placement, and a
+**combined `cheap_probe`** (native store version ⊕ forge issue probe) detects both native moves and
+new/closed issues. A **one-way GitHub mirror** (default on) keeps the GitHub Projects board, status
+pill and Health field reflecting native placement. Genuinely-new **`reorder`/`place`** capability
+(GitHub withholds order from its API) is exposed via the interface-segregated `BoardOrdering` port
+and the **`/api/board/{state,move,reorder,place,import}`** helm HTTP routes (the PR-2 SPA contract).
+Cutover is a per-project, operator-run **`kanban board import`** that seeds `board.json` from the
+live Projects v2 snapshot (idempotent). **Merge stays human-only; tickets stay GitHub Issues** —
+only the board *view* repatriates.
+
 ## Optional webhook ingress adapter — IMPLEMENTED (0.5.0, ingress-multiproject)
 
 Shipped in the **ingress-multiproject** feature (`docs/features/ingress-multiproject/DESIGN.md`).

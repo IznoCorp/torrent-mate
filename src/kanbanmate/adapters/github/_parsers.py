@@ -583,3 +583,26 @@ def parse_added_item(data: dict[str, Any]) -> str:
     raise_for_errors(data)
     item = ((data.get("data") or {}).get("addProjectV2ItemById") or {}).get("item") or {}
     return str(item["id"])
+
+
+def parse_moved_status_name(data: dict[str, Any]) -> str | None:
+    """Return the Status name a ``move_item`` mutation recorded, or ``None``.
+
+    Reads the resulting single-select value straight out of the mutation payload
+    (read-your-write — no second query). Fail-soft: any shape surprise degrades to
+    ``None``, which callers treat as an unconfirmed move rather than a crash. The
+    caller checks ``errors`` separately, so this parser does not raise.
+
+    Args:
+        data: A decoded :func:`kanbanmate.adapters.github._queries.move_item`
+            response.
+
+    Returns:
+        The Status option name GitHub reports after the mutation, or ``None`` when
+        the response carries no single-select value.
+    """
+    try:
+        value = data["data"]["updateProjectV2ItemFieldValue"]["projectV2Item"]["fieldValueByName"]
+    except (KeyError, TypeError):
+        return None
+    return value.get("name") if isinstance(value, dict) else None

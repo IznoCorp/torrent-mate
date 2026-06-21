@@ -24,6 +24,7 @@ shell:
   menu: Menu
   errors_block_save: "{n} error(s) block save"
   nav:
+    board: Board
     columns: Columns
     transitions: Transitions
     defaults: Defaults
@@ -244,3 +245,33 @@ theme:
   light: Light
   dark: Dark
   system: System
+
+board:
+  intro_title: Board
+  intro_body: >-
+    Native kanban board for this project. Moving a card here is the placement authority — it drives
+    the GitHub Projects board via the mirror, and the autonomous transition workflow keeps firing on
+    the column. Drag cards on desktop; tap "Move" on mobile.
+  not_native_title: Native board not enabled
+  not_native_body: >-
+    This board still uses the GitHub backend. Enable the native board backend for this project
+    (board_backend = native) on the Projects page, then run Import to seed it.
+  mirror_degraded: GitHub mirror failed — native saved
+  identity_degraded: GitHub unreachable — titles unavailable
+  refresh: Refresh
+  import: Import from GitHub
+  import_confirm: Confirm import?
+  action_failed: Action failed
+  move: Move
+  move_to: Move to column
+  untitled: (untitled)
+  no_cards: No cards
+  conflict: Board changed — refreshed
+  moved_synced: Card moved and synced to GitHub ✓
+  moved_local: Card moved ✓
+  moved_unconfirmed: Moved locally — GitHub sync not confirmed (try Refresh)
+  moved_failed: Moved locally — GitHub sync failed
+  reordered: Order updated ✓
+  imported: "Imported {n} card(s) from GitHub ✓"
+  collapse: Collapse column
+  expand: Expand column

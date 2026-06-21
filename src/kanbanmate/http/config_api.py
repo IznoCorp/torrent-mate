@@ -553,6 +553,9 @@ def get_files(project: str | None = None, path: str = "") -> JSONResponse:
 # size ceiling; importing it registers its routes on this ``app`` (side-effect import).
 from kanbanmate.http import monitor_routes as _monitor_routes  # noqa: E402,F401
 
+# Board state endpoints (anchor §10) live in a sibling module; same side-effect-import pattern.
+from kanbanmate.http import board_routes as _board_routes  # noqa: E402,F401
+
 
 @app.get("/api/schema")
 def get_schema() -> JSONResponse:
@@ -772,7 +775,7 @@ def _generate_schema() -> dict[str, Any]:
     Returns:
         A dict representing the JSON Schema.
     """
-    return {
+    schema = {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "title": "PipelineDraft",
         "description": "Editable pipeline config draft (helm PR 1, DESIGN §4).",
@@ -849,6 +852,29 @@ def _generate_schema() -> dict[str, Any]:
             },
         },
     }
+    # anchor §10: board.json schema so the SPA can validate client-side.
+    defs: dict[str, Any] = schema.setdefault("$defs", {})  # type: ignore[assignment]
+    defs["BoardState"] = {
+        "type": "object",
+        "description": "Native board state document (board.json, anchor §6.1).",
+        "required": ["version", "columns", "placement", "order"],
+        "properties": {
+            "version": {"type": "integer", "minimum": 0},
+            "columns": {"type": "array", "items": {"type": "string"}},
+            "placement": {
+                "type": "object",
+                "additionalProperties": {"type": "string"},
+            },
+            "order": {
+                "type": "object",
+                "additionalProperties": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+            },
+        },
+    }
+    return schema
 
 
 # --- Static SPA mount (bridge / helm PR 2) ------------------------------------------

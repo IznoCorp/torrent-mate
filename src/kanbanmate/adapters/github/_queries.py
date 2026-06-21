@@ -203,6 +203,9 @@ def move_item(
     Returns:
         A GraphQL ``updateProjectV2ItemFieldValue`` mutation payload.
     """
+    # The mutation returns the item's RESULTING Status name so a caller can verify the remote state
+    # read-your-write (no second query, no eventual-consistency lag) — used by the board-mirror's
+    # verified-move path.
     query = """
     mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
       updateProjectV2ItemFieldValue(input: {
@@ -211,7 +214,12 @@ def move_item(
         fieldId: $fieldId
         value: { singleSelectOptionId: $optionId }
       }) {
-        projectV2Item { id }
+        projectV2Item {
+          id
+          fieldValueByName(name: "Status") {
+            ... on ProjectV2ItemFieldSingleSelectValue { name }
+          }
+        }
       }
     }
     """

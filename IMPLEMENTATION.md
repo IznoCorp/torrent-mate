@@ -1,62 +1,69 @@
-# Implementation Progress — conduit
+# Implementation Progress — anchor
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: MCP helpers — expose the board as an additive stdio MCP read+write surface (type: minor)
-**Version bump**: 0.7.1 → 0.8.0
-**Branch**: feat/conduit
-**PR merge**: manual
-**PR**: _(created after last phase)_
-**Design**: docs/features/conduit/DESIGN.md
-**Master plan**: docs/features/conduit/plan/INDEX.md
+**Feature**: [helm-pr3] Board repatriation — columns + card positions off Projects v2 (minor)
+**Version bump**: 0.10.0 → 0.11.0
+**Branch**: feat/anchor
+**PR merge**: manual (human-only)
+**PR**: https://github.com/IznoCorp/kanban-mate/pull/52
+**Design**: docs/features/anchor/DESIGN.md
+**Master plan**: docs/features/anchor/plan/INDEX.md
 
 ## Phases
 
 | # | Phase | Plan | Status |
 |---|-------|------|--------|
-| 1 | Layering guard + behaviour-preserving relocations | docs/features/conduit/plan/phase-01-layering-relocations.md | [x] |
-| 2 | MCP pure shell — pin, resources, tools (SDK-free) + unit tests | docs/features/conduit/plan/phase-02-pure-shell.md | [x] |
-| 3 | SDK server + `kanban mcp` command + roundtrip test | docs/features/conduit/plan/phase-03-server-cli.md | [x] |
-| 4 | Lifecycle wiring — `.mcp.json` + `enabledMcpjsonServers` | docs/features/conduit/plan/phase-04-lifecycle-wiring.md | [x] |
-| 5 | Version bump + final gate | docs/features/conduit/plan/phase-05-version-gate.md | [x] |
+| 1 | Native board store | docs/features/anchor/plan/phase-01-native-store.md | [x] |
+| 2 | NativeBoardBackend decorator | docs/features/anchor/plan/phase-02-native-backend.md | [x] |
+| 3 | Wiring + registry + daemon switch | docs/features/anchor/plan/phase-03-wiring-registry.md | [x] |
+| 4 | Import migration + CLI | docs/features/anchor/plan/phase-04-import-cli.md | [x] |
+| 5 | helm HTTP API board routes | docs/features/anchor/plan/phase-05-http-routes.md | [x] |
+| 6 | Version bump + final gate | docs/features/anchor/plan/phase-06-version-gate.md | [x] |
 
 ## Review cycles
 
-_(filled by implement:pr-review — max 5 cycles)_
-
 ### Cycle 1
 
-5 review agents ran against PR #39 (code-reviewer, pr-test-analyzer, silent-failure-hunter,
-type-design-analyzer, comment-analyzer). Findings filtered against DESIGN §6/§7/§12. No design
-contradiction. Retained + fixed:
+PR-review (`/implement:pr-review`, merge SKIPPED — human-only). Five Sonnet review agents
+(code-reviewer, silent-failure-hunter, pr-test-analyzer, type-design-analyzer, comment-analyzer)
+filtered against `docs/features/anchor/DESIGN.md`. Retained + fixed:
 
-- **F1 (critical)** — `adapters/workspace/base_sync.py:150` printed the happy-path "Fast-forwarding"
-  message to **stdout**. Since `update_main` runs inside the stdio MCP server (stdout = JSON-RPC
-  frames), a clean fast-forward would corrupt the protocol stream. Fix: route the line to `stderr`
-  (behaviour-preserving — informational) + a regression test asserting `stdout == ""`.
-- **F2 (major)** — `mcp/tools.py:update_main` was the only write tool skipping the PAUSE kill-switch
-  floor that DESIGN §7 mandates for *every* write tool. Fix: thread `store` in, refuse (zero git I/O)
-  under PAUSE; server dispatch passes `store`.
-- **F3 (medium)** — `update_main` had no behavioural test and `progress`'s stage-sticky route was
-  untested (DESIGN §12 requires per-write-tool routing tests). Fix: added routing + PAUSE tests.
-- **F4 (medium)** — `move` leaked the bare `KeyError` repr (losing the "known columns: …" hint) on an
-  unknown column, breaking the friendly-refusal contract. Fix: catch `KeyError`, return a refusal
-  string; test added.
-- **F5 (medium)** — `update_body`'s `set_field`/`append_section` array schemas were length-unbounded
-  → a malformed (1/3-element) array `IndexError`'d out of the tuple-unpack. Fix: `minItems/maxItems: 2`
-  so the SDK rejects it up front; both-/neither-mode XOR refusal tests added.
-- Minor folded in: `resolve_target_column` docstring generalised (CLI → caller-supplied; now shared
-  with the MCP `move` tool); a happy-path `move`-through-SDK roundtrip test (GAP-5 marshaling).
+- **MAJOR** — `/api/board/*` store-root divergence (`http/board_routes.py:_get_store` used
+  `len(registry)>1`; daemon/CLI use `len(enabled)>1`) → daemon + HTTP wrote *different* `board.json`
+  when a 2nd project is registered-but-disabled (defeats the dual-writer flock guarantee, DESIGN §6.3).
+- **MAJOR** — `GET /api/board/state` omitted `issue_number`+`title` (DESIGN §10:499 pins
+  `cards:[{item_id,issue_number,title,column_key,index}]`) → now JOINs the forge issue set (fail-soft).
+- **MEDIUM** — `place_card` accepted negative/out-of-range `index` (silent `list.insert` clamp) →
+  now validated, fail-loud `400` (DESIGN §10 input contract).
+- **MEDIUM** — HTTP `/move`,`/place` accepted empty `item_id` (phantom `""` card) → `400`.
+- **MEDIUM** — brittle `"concurrency" in msg` 409/400 split → typed `VersionConflict(ValueError)`.
+- **MEDIUM** — corrupt `board.json` raised opaque `JSONDecodeError` from the daemon tick → clear
+  `ValueError("board.json at … is corrupt")`.
+- **MEDIUM** — `snapshot()` empty-columns silent fallback to GitHub Status (non-authoritative) → logged loud.
+- **MEDIUM** — docstring fixes (`import_board` "updatedAt"→POSITION page order; `cheap_probe` token wording).
+- **MINOR** — `_nudge()` bare `except: pass` → `logger.debug(exc_info=True)`.
+- **TESTS** — added cli/board.py coverage; combined-probe forge dimension; import `moved_in` branch;
+  snapshot first-sight idempotency; index/empty-id validation; reorder/place 409; state JOIN + fail-soft.
 
-Ignored (out of scope / pre-existing / design-preference): `update_body` sum-type refactor (XOR is
-runtime-enforced + tested), `queue` corrupt-marker observability (pre-existing intentional degrade),
-comment line-number citation nits, the 36 env-only `tests/bin/*` failures (worktree pin + `KANBAN_*`
-env leak; identical on pre-fix HEAD — 36 failed/2038 passed → 36 failed/2047 passed, CI-clean).
+Ignored (out of scope / precedent-consistent, not defects): `dict[str,Any]` board doc lacks a TypedDict
+(quality, matches `fs_store` precedent); `_write` no dir-fsync (matches `FsStateStore.save`);
+`forge:Any`/`mirror:Any` typing; `seed_board` private-member reach. Merge stays human-only; PR left OPEN.
 
-Gate after fixes: ruff ✓, ruff format ✓, mypy --strict (231 files) ✓, affected suites 312 passed
-(+9 new). PR left **open** for human merge (merge = human-only).
+Local gate after fixes: ruff + format + mypy + size green on the anchor diff; full suite 2094 passed,
+9 skipped (the local `mcp/server.py` mypy noise + `tests/bin/*` failures are pre-existing, env-only,
+in untouched files, and CI-clean on the 3.12 `[dev,ui,mcp]` install).
+
+### Cycle 2
+
+Adversarial verification of the cycle-1 fix commit (`9de426f`) by an independent code-reviewer:
+all six fixes CONFIRMED correct against source (store-root matches `wiring_for_entry`; `/state` card
+shape matches DESIGN §10:499; `place_card` range correct for the remove-then-insert order; internal
+`index=None` callers unaffected; `VersionConflict` subclass caught before bare `ValueError` — no dead
+handler; `_parse_board` routes both `load`/`_read` and preserves the empty-skeleton path; layering
+guard green). **No new critical/major/medium finding.** Loop converges → Case A (no remaining
+findings). Final squash-merge SKIPPED — merge is human-only. PR #52 left OPEN.
 
 ## Next action
 
-Cycle 1 fixes pushed. PR #39 open for human merge. Re-review (cycle 2) confirmed no remaining
-critical/major/medium findings.
+All phases complete — run `/implement:feature-pr` (create the PR; CI owns the gate).

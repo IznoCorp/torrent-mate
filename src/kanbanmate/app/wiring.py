@@ -22,6 +22,7 @@ from kanbanmate.adapters.store.fs_store import FsStateStore
 from kanbanmate.adapters.workspace.sessions import TmuxSessions
 from kanbanmate.adapters.workspace.worktree import GitWorktreeWorkspace
 from kanbanmate.app.actions import DEFAULT_BASE, Deps
+from kanbanmate.ports.board import BoardReader, BoardWriter
 from kanbanmate.app.tick import PersistedState, TickConfig, TickResult, tick
 from kanbanmate.core.columns import load_columns
 from kanbanmate.core.transitions import load_transitions
@@ -91,6 +92,14 @@ class WiringConfig:
     # tick itself NEVER reads this — it always reconciles; ingress only sets how often. Default
     # ``"polling"`` keeps the historical 10 s cadence for any caller that does not set it.
     ingress: str = "polling"
+    # anchor §4.2: the per-project board backend. "github" (default) keeps every live
+    # daemon byte-identical until the operator opts in. "native" routes to NativeBoardBackend
+    # one-way (native authority → GitHub mirror; board-view §4.3). "hybrid" adds GitHub→native
+    # reconciliation each tick (board-sync) so cards can be moved on EITHER surface.
+    board_backend: str = "github"
+    # anchor §5: one-way GitHub mirror under native — default on so the GitHub Projects
+    # board + status pill + Health field keep reflecting native placement after cutover.
+    board_mirror: bool = True
 
 
 class _SystemClock:
@@ -123,7 +132,7 @@ def build_deps(config: WiringConfig) -> Deps:
     Returns:
         A fully wired :class:`Deps` the command actions can execute against.
     """
-    board = GithubClient(config.token, project_id=config.project_id, repo=config.repo)
+    github = GithubClient(config.token, project_id=config.project_id, repo=config.repo)
     # Per-project store sub-root (ingress-multiproject §3.3): the per-ticket state store is rooted at
     # ``state_root`` when set (the N>1 ``<root>/projects/<safe(pid)>`` sub-root), else the bare
     # ``kanban_root`` (the N=1 legacy flat layout — zero path change for the deployed daemon).
@@ -136,21 +145,50 @@ def build_deps(config: WiringConfig) -> Deps:
         Path(store_root) if store_root else None,
         nudge_root=Path(nudge_root) if nudge_root else None,
     )
+    # anchor §4.2: the board_backend switch — the ONLY place concrete adapter classes are named
+    # (CLAUDE.md hexagonal rule). Default "github" keeps every live daemon byte-identical.
+    board_reader: BoardReader
+    board_writer: BoardWriter
+    if config.board_backend in ("native", "hybrid"):
+        from kanbanmate.adapters.board.native import NativeBoardBackend  # noqa: PLC0415
+        from kanbanmate.adapters.store.fs_board import FsBoardStateStore  # noqa: PLC0415
+        from kanbanmate.core.columns import load_columns  # noqa: PLC0415
+
+        board_store = FsBoardStateStore(
+            Path(store_root) if store_root else Path(config.kanban_root or "~/.kanban").expanduser()
+        )
+        col_map = load_columns(config.columns_yaml)
+        columns = [col.key for col in col_map.values()]
+        # Map column key → GitHub Status display name (used by the mirror to call move_card
+        # with the option NAME, not the key — see GithubClient.move_card / field.options).
+        _col_name_map: dict[str, str] = {col.key: col.name for col in col_map.values()}
+        # "hybrid" = bidirectional (native authority + GitHub→native reconcile each tick); "native"
+        # = one-way (native → GitHub mirror only). Both keep the mirror on so GitHub stays in sync.
+        board_reader = board_writer = NativeBoardBackend(
+            forge=github,
+            store=board_store,
+            columns=columns,
+            option_name_for_key=lambda key: _col_name_map.get(key, key),
+            mirror=github if config.board_mirror else None,
+            hybrid=config.board_backend == "hybrid",
+        )
+    else:
+        board_reader = board_writer = github
     workspace = GitWorktreeWorkspace(
         config.clone_dir, repo=config.repo, kanban_root=config.kanban_root
     )
     sessions = TmuxSessions()
     clock = _SystemClock()
     return Deps(
-        board_writer=board,
-        board_reader=board,
+        board_writer=board_writer,
+        board_reader=board_reader,
         workspace=workspace,
         sessions=sessions,
         store=store,
         clock=clock,
         # One client, three ports: the same instance backs the PR-close port the
         # Cancel teardown uses (DESIGN §8.2), mirroring the board_writer wiring.
-        pull_requests=board,
+        pull_requests=github,
         base=config.base,
         agent_command=config.agent_command,
         repo=config.repo,
@@ -171,15 +209,15 @@ def build_deps(config: WiringConfig) -> Deps:
         # One client, now four ports: the same instance backs the rolling status-update reporter
         # (the live dashboard, phase-24 §24.3), so it is wired into this slot too. The board id it
         # posts on is threaded alongside (the reporter ``create``s on it).
-        status_reporter=board,
+        status_reporter=github,
         # One client, now a FIFTH port: the same instance backs the per-card Health reporter
         # (the custom chip carrying the operator's vocabulary — health-field), wired into this
         # slot too so the tick's fail-soft Health step can ensure the field + set per-card values.
-        health_reporter=board,
+        health_reporter=github,
         project_id=config.project_id,
         # The GithubClient also implements Seeder (create_issue / add_to_project) — threaded for the
         # cockpit ticket_create intent executor (PR3).
-        seeder=board,
+        seeder=github,
         # Multi-project marker (ingress-multiproject §7): drives the launch's KANBAN_PROJECT_ID
         # export + worktree project pin. False (N=1) keeps the launched command byte-identical.
         multi_project=config.multi_project,

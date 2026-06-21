@@ -57,6 +57,34 @@ export const provisionBoard = ({ dryRun, renames, project }) =>
     renames: renames || {},
   });
 
+// --- Native board (anchor) — placement authority is the native store; drives GitHub via mirror ---
+export const boardState = (project) =>
+  call("GET", `/api/board/state${q(project)}`);
+export const boardMove = ({ itemId, toColumn, ifVersion }, project) =>
+  call("POST", `/api/board/move${q(project)}`, {
+    item_id: itemId,
+    to_column: toColumn,
+    ...(ifVersion != null ? { if_version: ifVersion } : {}),
+  });
+export const boardReorder = (
+  { columnKey, orderedItemIds, ifVersion },
+  project,
+) =>
+  call("POST", `/api/board/reorder${q(project)}`, {
+    column_key: columnKey,
+    ordered_item_ids: orderedItemIds,
+    ...(ifVersion != null ? { if_version: ifVersion } : {}),
+  });
+export const boardPlace = ({ itemId, columnKey, index, ifVersion }, project) =>
+  call("POST", `/api/board/place${q(project)}`, {
+    item_id: itemId,
+    column_key: columnKey,
+    index: index ?? null,
+    ...(ifVersion != null ? { if_version: ifVersion } : {}),
+  });
+export const boardImport = ({ dryRun }, project) =>
+  call("POST", `/api/board/import${q(project)}`, { dry_run: !!dryRun });
+
 // --- Monitoring (read-only) ---
 export const monitorBoard = (project) =>
   call("GET", `/api/monitor/board${q(project)}`);

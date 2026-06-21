@@ -91,6 +91,8 @@ def wiring_for_entry(
         state_root=state_root,
         multi_project=multi,
         ingress=entry.ingress or "webhook",  # type: ignore[attr-defined]
+        board_backend=getattr(entry, "board_backend", "github"),  # anchor §9
+        board_mirror=bool(getattr(entry, "board_mirror", True)),  # anchor §5 — honour the switch
     )
 
 

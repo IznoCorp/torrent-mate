@@ -466,3 +466,9 @@ class ProjectHealthReporter(Protocol):
                 (:data:`~kanbanmate.core.status_update.STATUS_VALUES`).
         """
         ...
+
+
+# Re-export for callers that access the ordering Protocol via the board port namespace.
+# The definition lives in ``ports/store_board.py`` (interface segregation: the store
+# port and the board-communication port are separate files — ``PullRequests`` precedent).
+from kanbanmate.ports.store_board import BoardOrdering as BoardOrdering  # noqa: E402, F401

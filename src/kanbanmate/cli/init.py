@@ -145,6 +145,15 @@ class ProjectEntry:
     enabled: bool = True
     ingress: str = "webhook"
     token_ref: str = ""
+    # anchor §9: the per-project board backend switch — ``"github"`` (default) keeps all
+    # existing projects byte-identical until an explicit opt-in. ``"native"`` routes the
+    # daemon's board slots to ``NativeBoardBackend`` (anchor §4.2).
+    board_backend: str = "github"
+    # anchor §5: the one-way native→GitHub mirror. ``True`` (default) keeps the GitHub Status in
+    # sync with native placement; ``False`` disables it (native is then the sole authority and the
+    # GitHub board drifts). Threaded to BOTH the daemon wiring and the HTTP move endpoints so the
+    # switch is honoured everywhere, not just one surface.
+    board_mirror: bool = True
 
     def owner(self) -> str:
         """Return the owning org/user login — explicit :attr:`org`, else derived from :attr:`repo`.
@@ -222,6 +231,8 @@ def _load_registry(path: Path) -> dict[str, ProjectEntry]:
             enabled=bool(val.get("enabled", True)),
             ingress=val.get("ingress", "webhook"),
             token_ref=val.get("token_ref", ""),
+            board_backend=val.get("board_backend", "github"),
+            board_mirror=bool(val.get("board_mirror", True)),
         )
         for key, val in raw.items()
     }

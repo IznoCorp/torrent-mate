@@ -226,12 +226,34 @@ class GithubClient:
     def move_card(self, item_id: str, column_key: str) -> None:
         """Move card ``item_id`` into the column named ``column_key``.
 
-        Resolves ``column_key`` to the project's Status single-select option id and
-        runs the ``updateProjectV2ItemFieldValue`` mutation.
+        Thin BoardWriter wrapper over :meth:`move_card_confirmed` that discards the
+        read-your-write Status name — callers of this method only need the move applied.
 
         Args:
             item_id: The ``ProjectV2Item`` node id to move.
             column_key: The destination column key (a Status option name).
+
+        Raises:
+            KeyError: When ``column_key`` is not a known Status option.
+            GraphQLError: When the mutation response carries errors.
+        """
+        self.move_card_confirmed(item_id, column_key)
+
+    def move_card_confirmed(self, item_id: str, column_key: str) -> str | None:
+        """Move ``item_id`` to ``column_key`` and return the Status name GitHub recorded.
+
+        Same mutation as :meth:`move_card`, but reads the resulting Status name out of the
+        SAME response (read-your-write — no second query, no eventual-consistency lag). A
+        returned name equal to ``column_key`` proves GitHub applied the change; ``None``
+        means the response carried no Status value, treated by the caller as unconfirmed.
+
+        Args:
+            item_id: The ``ProjectV2Item`` node id to move.
+            column_key: The destination column key (a Status option name).
+
+        Returns:
+            The Status option name GitHub reports after the mutation, or ``None`` when the
+            response carries no single-select value.
 
         Raises:
             KeyError: When ``column_key`` is not a known Status option.
@@ -247,6 +269,7 @@ class GithubClient:
             _queries.move_item(self._project_id, item_id, field.field_id, option_id)
         )
         raise_for_errors(data)
+        return _parsers.parse_moved_status_name(data)
 
     def comment(self, issue_number: int, body: str) -> None:
         """Post a comment on issue ``issue_number`` via the REST API.

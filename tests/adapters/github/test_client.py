@@ -336,6 +336,47 @@ def test_move_card_rejects_unknown_column() -> None:
         client.move_card("PVTI_001", "Nope")
 
 
+def _confirmed_move_transport(returned_name: object) -> object:
+    """A GraphQL transport: answers the Status-field query, then a move whose response carries
+    ``returned_name`` as the resulting single-select value (a dict, or ``None`` for no value)."""
+
+    def transport(payload: dict[str, Any]) -> dict[str, Any]:
+        q = payload["query"]
+        if "ProjectV2SingleSelectField" in q and "options" in q:
+            return _status_field_response()
+        if "updateProjectV2ItemFieldValue" in q:
+            value = {"name": returned_name} if returned_name is not None else None
+            return {
+                "data": {
+                    "updateProjectV2ItemFieldValue": {
+                        "projectV2Item": {"id": "PVTI_001", "fieldValueByName": value}
+                    }
+                }
+            }
+        raise AssertionError(f"unexpected query: {q[:60]}")
+
+    return transport
+
+
+def test_move_card_confirmed_returns_status_name() -> None:
+    """``move_card_confirmed`` returns the Status name read out of the mutation response (read-your-write)."""
+    client = _client(_confirmed_move_transport("In Progress"), FakeRest())  # type: ignore[arg-type]
+    assert client.move_card_confirmed("PVTI_001", "In Progress") == "In Progress"
+
+
+def test_move_card_confirmed_none_when_value_absent() -> None:
+    """A mutation response with no single-select value yields ``None`` (caller → 'unconfirmed')."""
+    client = _client(_confirmed_move_transport(None), FakeRest())  # type: ignore[arg-type]
+    assert client.move_card_confirmed("PVTI_001", "In Progress") is None
+
+
+def test_move_card_confirmed_rejects_unknown_column() -> None:
+    """Unknown column fails loud (same guard as move_card) before any mutation."""
+    client = _client(FakeGraphQL(), FakeRest())
+    with pytest.raises(KeyError, match="unknown column 'Nope'"):
+        client.move_card_confirmed("PVTI_001", "Nope")
+
+
 # ---------------------------------------------------------------------------
 # ProjectStatusReporter: rolling status-update create + update (phase-24 §24.2)
 # ---------------------------------------------------------------------------

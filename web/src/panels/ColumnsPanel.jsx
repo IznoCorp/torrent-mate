@@ -74,7 +74,9 @@ export default function ColumnsPanel({ draft, update, dirty, project }) {
           variant="primary"
           size="sm"
           disabled={dirty}
-          title={dirty ? t("columns.save_before_sync") : t("columns.sync_tooltip")}
+          title={
+            dirty ? t("columns.save_before_sync") : t("columns.sync_tooltip")
+          }
           onClick={() => setSync(true)}
         >
           {t("columns.sync_board")}
@@ -96,32 +98,13 @@ export default function ColumnsPanel({ draft, update, dirty, project }) {
                 borderRadius: "var(--radius-lg)",
                 boxShadow: "var(--shadow-xs)",
                 display: "flex",
-                alignItems: "center",
-                gap: 12,
+                flexDirection: isMobile ? "column" : "row",
+                alignItems: isMobile ? "stretch" : "center",
+                gap: isMobile ? 10 : 12,
                 padding: "10px 14px",
-                flexWrap: isMobile ? "wrap" : "nowrap",
               }}
             >
-              <span
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 11,
-                  color: "var(--muted-foreground)",
-                  width: 18,
-                  flex: "none",
-                }}
-              >
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <span
-                style={{
-                  width: 3,
-                  height: 26,
-                  borderRadius: 2,
-                  background: accent,
-                  flex: "none",
-                }}
-              />
+              {/* name area: number + accent bar + name input (full width) + key chip */}
               <div
                 style={{
                   flex: 1,
@@ -131,43 +114,78 @@ export default function ColumnsPanel({ draft, update, dirty, project }) {
                   gap: 9,
                 }}
               >
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 11,
+                    color: "var(--muted-foreground)",
+                    width: 18,
+                    flex: "none",
+                  }}
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span
+                  style={{
+                    width: 3,
+                    height: 26,
+                    borderRadius: 2,
+                    background: accent,
+                    flex: "none",
+                  }}
+                />
                 <Input
                   value={c.name}
                   onChange={(e) => setName(i, e.target.value)}
-                  style={{ maxWidth: 220 }}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    maxWidth: isMobile ? "none" : 220,
+                  }}
                 />
                 <KeyChip>{c.key}</KeyChip>
               </div>
-              <Select
-                options={["inert", "reactive"]}
-                value={c.column_class}
-                onChange={(e) => setClass(i, e.target ? e.target.value : e)}
-                style={{ width: 120 }}
-              />
-              <ColumnClassChip columnClass={c.column_class} />
-              <span style={{ display: "inline-flex", gap: 2 }}>
-                <IconButton
-                  aria-label={t("common.move_up")}
-                  size="sm"
-                  onClick={() => move(i, -1)}
-                >
-                  ↑
-                </IconButton>
-                <IconButton
-                  aria-label={t("common.move_down")}
-                  size="sm"
-                  onClick={() => move(i, 1)}
-                >
-                  ↓
-                </IconButton>
-                <IconButton
-                  aria-label={t("common.remove")}
-                  size="sm"
-                  onClick={() => remove(i)}
-                >
-                  ✕
-                </IconButton>
-              </span>
+              {/* controls: class select + chip + reorder/remove (own row on mobile) */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 9,
+                  flex: "none",
+                  justifyContent: isMobile ? "space-between" : "flex-end",
+                }}
+              >
+                <Select
+                  options={["inert", "reactive"]}
+                  value={c.column_class}
+                  onChange={(e) => setClass(i, e.target ? e.target.value : e)}
+                  style={{ width: 120 }}
+                />
+                <ColumnClassChip columnClass={c.column_class} />
+                <span style={{ display: "inline-flex", gap: 2 }}>
+                  <IconButton
+                    aria-label={t("common.move_up")}
+                    size="sm"
+                    onClick={() => move(i, -1)}
+                  >
+                    ↑
+                  </IconButton>
+                  <IconButton
+                    aria-label={t("common.move_down")}
+                    size="sm"
+                    onClick={() => move(i, 1)}
+                  >
+                    ↓
+                  </IconButton>
+                  <IconButton
+                    aria-label={t("common.remove")}
+                    size="sm"
+                    onClick={() => remove(i)}
+                  >
+                    ✕
+                  </IconButton>
+                </span>
+              </div>
             </div>
           );
         })}
