@@ -20,9 +20,9 @@
       content="black-translucent"
     />
     <meta name="apple-mobile-web-app-title" content="KanbanMate" />
-    <!-- On the staging host, swap to the distinct staging PWA identity (amber-liseret icon +
-         "KM staging" name) BEFORE install/paint, so prod and staging install as separate apps
-         that are visually distinguishable on the home screen. Mirrors StagingBanner's detection. -->
+    <!-- On the staging host, swap ONLY the PWA icons to the amber-liseret variant BEFORE
+         install/paint. The NAME stays "KanbanMate" everywhere (operator) — prod and staging are
+         told apart by the logo alone. Mirrors StagingBanner's host detection. -->
     <script>
       (function () {
         try {
@@ -38,13 +38,6 @@
             "/apple-touch-icon-staging.png",
           );
           setHref('link[rel="icon"]', "/icon-staging.svg");
-          var tc = document.querySelector('meta[name="theme-color"]');
-          if (tc) tc.setAttribute("content", "#f59e0b");
-          var at = document.querySelector(
-            'meta[name="apple-mobile-web-app-title"]',
-          );
-          if (at) at.setAttribute("content", "KM staging");
-          document.title = "KanbanMate (staging)";
         } catch (e) {
           /* detection best-effort — prod identity stays as the default */
         }

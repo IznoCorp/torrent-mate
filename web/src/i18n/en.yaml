@@ -4,6 +4,7 @@ common:
   saved: Saved
   cancel: Cancel
   apply: Apply
+  install: Install
   close: Close
   required: required field
   loading: Loading…
@@ -327,6 +328,7 @@ tip:
   save_blocked: Fix validation errors before saving
   validate: Check the configuration for errors
   logout: Sign out
+  install: Install KanbanMate as an app
   edit_description: Edit the description
   save_description: Save the description to the GitHub issue
   cancel_edit: Discard your changes

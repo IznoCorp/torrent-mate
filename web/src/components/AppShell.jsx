@@ -5,6 +5,7 @@ import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useT, LangSwitcher } from "../i18n/index.jsx";
 import useIsMobile from "../useIsMobile.js";
 import ThemeSwitcher from "./ThemeSwitcher.jsx";
+import PwaInstallButton from "./PwaInstallButton.jsx";
 import SidebarNav, { ALL_NAV } from "./SidebarNav.jsx";
 
 const { HealthPill, Button, Badge, Tooltip } =
@@ -119,6 +120,7 @@ export default function AppShell({
           >
             {t(headerTitle.tkey)}
           </span>
+          <PwaInstallButton size="sm" />
           {boardScope && (
             <Tooltip
               label={
@@ -368,6 +370,7 @@ export default function AppShell({
               )}
             </div>
           </div>
+          <PwaInstallButton size="md" />
           <ThemeSwitcher />
           <LangSwitcher />
           {onLogout && (

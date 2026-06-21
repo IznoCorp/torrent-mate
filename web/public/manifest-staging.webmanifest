@@ -1,6 +1,6 @@
 {
-  "name": "KanbanMate (staging)",
-  "short_name": "KM staging",
+  "name": "KanbanMate",
+  "short_name": "KanbanMate",
   "description": "KanbanMate STAGING — acts on the real prod board.",
   "start_url": "/",
   "scope": "/",
@@ -8,7 +8,7 @@
   "display": "standalone",
   "orientation": "any",
   "background_color": "#ffffff",
-  "theme_color": "#f59e0b",
+  "theme_color": "#2e9e57",
   "icons": [
     { "src": "/icon-192-staging.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icon-512-staging.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },

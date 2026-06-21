@@ -23,3 +23,15 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
   });
 }
+
+// Capture the install prompt as early as possible (it can fire before React mounts) so a persistent
+// in-app "Install" button can offer it later — Chrome only shows its own mini-infobar once.
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  window.__pwaPrompt = e;
+  window.dispatchEvent(new Event("pwa-installable"));
+});
+window.addEventListener("appinstalled", () => {
+  window.__pwaPrompt = null;
+  window.dispatchEvent(new Event("pwa-installed"));
+});

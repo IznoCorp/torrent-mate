@@ -5,6 +5,7 @@ common:
   cancel: Annuler
   apply: Appliquer
   close: Fermer
+  install: Installer
   required: champ obligatoire
   loading: Chargement…
   add: + Ajouter
@@ -332,6 +333,7 @@ tip:
   save_blocked: Corrigez les erreurs de validation avant d'enregistrer
   validate: Vérifie les erreurs de la configuration
   logout: Se déconnecter
+  install: Installer KanbanMate comme application
   edit_description: Modifier la description
   save_description: Enregistre la description sur l'issue GitHub
   cancel_edit: Annuler vos modifications
