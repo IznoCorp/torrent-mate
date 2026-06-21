@@ -7,7 +7,7 @@ building the ordered ``send-keys`` actions that drive a fresh interactive ``clau
 trust dialog if seen, then type the filled prompt literally, then submit with Enter).
 
 Ported faithfully from the PoC at
-``PersonnalScaper/.claude/skills/kanban/kanbanmate/engine/launch.py``:
+``PersonalScraper/.claude/skills/kanban/kanbanmate/engine/launch.py``:
 ``_TRUST_MARKER`` / ``_REPL_READY_MARKERS`` / ``_TRUST_POLL_ATTEMPTS`` / ``_TRUST_POLL_INTERVAL``
 (L27-44) and ``build_sendkeys_sequence`` (L47-77). The PoC's ``poll_trust_dialog`` is the bounded
 capture-pane poll; here the PURE half is :func:`classify_pane` (the per-snapshot verdict) and the
