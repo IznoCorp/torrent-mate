@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+#
+# reference-transaction hook — HARD guard against losing local branches.
+#
+# Rule (operator, 2026-06-21):
+#   Interdiction de nettoyer une branche locale tant qu'elle n'a pas de branche
+#   distante ET qu'elle n'est pas mergée sur `main`.
+#
+# This hook ABORTS the deletion of a local branch (refs/heads/<b>) unless it is
+# BOTH:
+#   (a) pushed   — refs/remotes/origin/<b> exists, and
+#   (b) merged   — its tip is an ancestor of `main`.
+# Anything else (un-pushed and/or un-merged work) cannot be deleted: the commits
+# are protected from `git branch -D`, `git update-ref -d`, worktree-branch prune,
+# etc. — so committed work can never be silently lost.
+#
+# Activated per-clone via scripts/install-git-guards.sh (sets core.hooksPath).
+#
+set -uo pipefail
+
+# Only veto at the 'prepared' stage (a non-zero exit there aborts the txn).
+[ "${1:-}" = "prepared" ] || exit 0
+
+while read -r old new ref; do
+  case "$ref" in
+    refs/heads/*) ;;
+    *) continue ;;
+  esac
+  # A deletion has an all-zero new object id (works for sha1 and sha256).
+  printf '%s' "$new" | grep -Eq '^0+$' || continue
+
+  branch="${ref#refs/heads/}"
+
+  pushed=0
+  git rev-parse --verify --quiet "refs/remotes/origin/$branch" >/dev/null 2>&1 && pushed=1
+
+  merged=0
+  if git rev-parse --verify --quiet refs/heads/main >/dev/null 2>&1; then
+    git merge-base --is-ancestor "$old" main >/dev/null 2>&1 && merged=1
+  fi
+
+  if [ "$pushed" -ne 1 ] || [ "$merged" -ne 1 ]; then
+    {
+      echo "❌ SUPPRESSION DE BRANCHE REFUSÉE : '$branch'"
+      [ "$pushed" -ne 1 ] && echo "   • aucune distante origin/$branch — commits non poussés, perte possible"
+      [ "$merged" -ne 1 ] && echo "   • pas mergée dans main — travail non intégré"
+      echo "   Règle : on ne nettoie une branche locale QUE si elle est poussée ET mergée sur main."
+      echo "   → pousse-la d'abord :  git push -u origin $branch"
+    } >&2
+    exit 1
+  fi
+done
+
+exit 0
