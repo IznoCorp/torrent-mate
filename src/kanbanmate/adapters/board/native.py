@@ -310,14 +310,23 @@ class NativeBoardBackend:
     def move_card(self, item_id: str, column_key: str) -> None:
         """Write native placement (tail append) and optionally mirror to GitHub (anchor §5).
 
+        Accepts a column KEY *or* a Status display NAME: the engine's intent path passes the Column
+        NAME (``to_column.name``) because the pure-GitHub adapter's ``move_card`` is name-indexed, so
+        the native store — which is KEY-indexed — must bridge the same name/key seam (DESIGN §8/§9).
+        A KEY always wins (checked first); a token matching neither key nor name falls through to the
+        store and raises the usual ``unknown column_key``.
+
         Args:
             item_id: The ``ProjectV2Item`` node id to move.
-            column_key: The destination column key.
+            column_key: The destination column KEY, or its Status display NAME.
 
         Raises:
             ValueError: Unknown ``column_key`` (propagated from the native store; the mirror write
                 is fail-soft and never raises).
         """
+        # Bridge the name/key seam: keep a KEY as-is, but translate a display NAME to its key.
+        if column_key not in self._columns and column_key in self._key_for_name:
+            column_key = self._key_for_name[column_key]
         self._store.place_card(item_id, column_key)
         if self._mirror is not None:
             try:

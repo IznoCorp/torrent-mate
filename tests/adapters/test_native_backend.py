@@ -235,6 +235,40 @@ def test_move_card_writes_native_and_mirrors(tmp_path: pathlib.Path) -> None:
     mirror.move_card.assert_called_once_with("item1", "InProgress")
 
 
+def test_move_card_accepts_display_name_when_key_differs(tmp_path: pathlib.Path) -> None:
+    """move_card resolves a Status display NAME → column KEY (prod #55 'Prepare feature' bug).
+
+    The engine's intent path passes the Column NAME (``to_column.name``). For a column whose name
+    differs from its key (``PrepareFeature`` / 'Prepare feature'), the native store — keyed by KEY —
+    must resolve the name; passing it raw raised 'unknown column_key' and the move-intent failed with
+    'internal error processing intent'.
+    """
+    mirror = MagicMock()
+    forge = _forge_snapshot(_ticket("item1"))
+    store = FsBoardStateStore(tmp_path)
+    seed_board(
+        store,
+        columns=COLUMNS,
+        placement={"item1": "Backlog"},
+        order={"Backlog": ["item1"], **{c: [] for c in COLUMNS if c != "Backlog"}},
+    )
+    # Names differ from keys for the multi-word columns (mirrors a real columns.yml).
+    names = {"ReadyToDev": "Ready to dev", "PrepareFeature": "Prepare feature"}
+    backend = NativeBoardBackend(
+        forge=forge,
+        store=store,
+        columns=COLUMNS,
+        option_name_for_key=lambda key: names.get(key, key),
+        mirror=mirror,
+    )
+
+    backend.move_card("item1", "Prepare feature")  # the DISPLAY NAME — must not raise
+
+    assert backend._store.load()["placement"]["item1"] == "PrepareFeature"
+    # The mirror still receives the GitHub display name.
+    mirror.move_card.assert_called_once_with("item1", "Prepare feature")
+
+
 def test_move_card_mirror_error_swallowed_native_lands(tmp_path: pathlib.Path) -> None:
     """A mirror write error is swallowed; native placement is already correct (§5.2)."""
     mirror = MagicMock()
