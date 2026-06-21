@@ -21,8 +21,11 @@ class _FakeSessions:
     def is_alive(self, name: str) -> bool:
         return self._alive
 
-    def capture_ansi(self, name: str) -> str:
+    def capture_ansi(self, name: str, *, scrollback: int = 0) -> str:
         return f"\x1b[32m{name}\x1b[0m"
+
+    def pane_size(self, name: str) -> tuple[int, int]:
+        return (120, 40)
 
     def send_text(self, name: str, text: str, *, literal: bool = True, enter: bool = False) -> None:
         self.send_calls.append((name, text, literal))

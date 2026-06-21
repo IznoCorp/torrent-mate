@@ -144,7 +144,7 @@ def issue_context(owner: str, name: str, number: int) -> dict[str, Any]:
         issue(number: $number) {
           body
           comments(first: 50) {
-            nodes { body }
+            nodes { body createdAt }
           }
           timelineItems(first: 20, itemTypes: [CROSS_REFERENCED_EVENT]) {
             nodes {

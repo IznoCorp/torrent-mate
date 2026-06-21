@@ -36,3 +36,37 @@ def test_capture_plain_does_not_include_e_flag() -> None:
     s = TmuxSessions(runner=runner)
     s.capture("ticket-3")
     assert "-e" not in calls[-1]
+
+
+def test_capture_ansi_scrollback_adds_start_line() -> None:
+    """``scrollback=N`` captures N lines of history via ``-S -<N>`` (operator scroll-back)."""
+    runner, calls = _recording_runner("history")
+    s = TmuxSessions(runner=runner)
+    s.capture_ansi("ticket-3", scrollback=500)
+    argv = calls[-1]
+    assert "-S" in argv
+    assert argv[argv.index("-S") + 1] == "-500"
+    assert "-e" in argv
+
+
+def test_capture_ansi_no_scrollback_omits_start_line() -> None:
+    """Default (scrollback=0) captures only the visible pane (no ``-S``)."""
+    runner, calls = _recording_runner("visible")
+    s = TmuxSessions(runner=runner)
+    s.capture_ansi("ticket-3")
+    assert "-S" not in calls[-1]
+
+
+def test_pane_size_parses_display_message() -> None:
+    """pane_size returns the (cols, rows) reported by tmux display-message."""
+    runner, calls = _recording_runner("213 51")
+    s = TmuxSessions(runner=runner)
+    assert s.pane_size("ticket-3") == (213, 51)
+    assert "display-message" in calls[-1]
+
+
+def test_pane_size_falls_back_on_error() -> None:
+    """A malformed/empty display-message degrades to the 80x24 default."""
+    runner, _ = _recording_runner("")  # empty stdout → parse error → fallback
+    s = TmuxSessions(runner=runner)
+    assert s.pane_size("ticket-3") == (80, 24)

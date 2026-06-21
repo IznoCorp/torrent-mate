@@ -111,6 +111,9 @@ class IssueContext:
         body: The issue's markdown body (empty string when absent).
         comments: Comment bodies in chronological order (≤50, tuple for
             hashable/immutable — consistent with the other frozen records).
+        comment_dates: Parallel ISO-8601 ``createdAt`` strings, same length and
+            order as ``comments``.  Defaults to an empty tuple so existing
+            callers (tests, fakes) keep working without changes.
         linked_issue_body: The body of the first cross-referenced Issue in the
             timeline, or ``None`` when there are no cross-references (or the
             cross-referenced source is not an Issue).
@@ -118,7 +121,8 @@ class IssueContext:
 
     body: str
     comments: tuple[str, ...]
-    linked_issue_body: str | None
+    comment_dates: tuple[str, ...] = ()
+    linked_issue_body: str | None = None
 
 
 @dataclass(frozen=True)

@@ -17,7 +17,8 @@ common:
 
 shell:
   board: Board
-  group_board: "Config board · {repo}"
+  group_views: Vues
+  group_config: "Configuration · {repo}"
   group_daemon: Daemon · tout l'hôte
   badge_board: "board : {repo}"
   badge_daemon: daemon · tout l'hôte
@@ -233,8 +234,25 @@ monitor:
     Vue live en lecture seule de ce board — colonnes, tickets et les agents en cours. Rafraîchi
     automatiquement. Lecture seule : pour interagir avec un agent, fais `tmux attach` sur l'hôte.
   summary: "{running} en cours · {waiting} en attente · {blocked} bloqués"
+  running: en cours
+  waiting: en attente
+  blocked: bloqués
+  description: Description
+  show_list: Afficher les tickets
+  hide_list: Masquer les tickets
   select_hint: Sélectionne un ticket pour voir son détail.
   no_agent: Aucun agent en cours sur ce ticket.
+  launch_title: Lancer un agent
+  launch_placeholder: Prompt optionnel — sinon prends le contrôle du terminal et tape tes instructions
+  launch_profile: Profil
+  launch_button: Lancer l'agent
+  launching: Lancement…
+  launch_queued: Lancement de l'agent en file — il apparaîtra sous peu.
+  launch_done: Agent lancé.
+  move_to: Statut
+  moving: Déplacement…
+  move_queued: Déplacement en file — le tableau se met à jour sous peu.
+  move_done: Carte déplacée.
   state: état
   stage: étape
   branch: branche
@@ -259,6 +277,8 @@ terminal:
   session_ended: Session terminée
   close: Fermer
   interactive: Terminal interactif
+  zoom_in: Zoom avant
+  zoom_out: Zoom arrière
 
 theme:
   light: Clair
@@ -267,6 +287,9 @@ theme:
 
 board:
   intro_title: Tableau
+  revision_label: "rév."
+  revision_hint: Révision du tableau — incrémentée à chaque changement ; sert à détecter les modifications concurrentes (verrouillage optimiste).
+  open_monitoring: Voir dans le monitoring
   intro_body: >-
     Tableau kanban natif de ce projet. Déplacer une carte ici fait autorité sur le placement — ça
     pilote le board GitHub Projects via le miroir, et le workflow de transition autonome continue de

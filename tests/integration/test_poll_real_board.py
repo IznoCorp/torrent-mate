@@ -99,16 +99,28 @@ class _SpySessions:
             rows: Terminal rows (ignored).
         """
 
-    def capture_ansi(self, name: str) -> str:
+    def capture_ansi(self, name: str, *, scrollback: int = 0) -> str:
         """Return an ANSI capture similar to :meth:`capture` (§1.2 Protocol member).
 
         Args:
             name: Session name (ignored).
+            scrollback: History lines to include (ignored by the spy).
 
         Returns:
             A canned ANSI pane snapshot string.
         """
         return "\x1b[32mready\x1b[0m"
+
+    def pane_size(self, name: str) -> tuple[int, int]:
+        """Return a canned pane size (Sessions Protocol member).
+
+        Args:
+            name: Session name (ignored).
+
+        Returns:
+            A fixed ``(cols, rows)``.
+        """
+        return (80, 24)
 
     def is_alive(self, name: str) -> bool:
         """Always return ``False`` — no real session exists.

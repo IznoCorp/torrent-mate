@@ -69,6 +69,24 @@ def test_wrap_with_session_end_appends_semicolon_wrapper() -> None:
     assert "&&" not in command
 
 
+def test_wrap_with_session_end_terminate_session_appends_kill() -> None:
+    """terminate_session=True appends a kill-session for ticket-<issue> AFTER the session-end shim."""
+    argv = build_claude_argv("uuid-123", "/work/tree", "docs", "auto")
+    command = wrap_with_session_end(
+        argv, 7, session_end_bin="kanban-session-end", terminate_session=True
+    )
+    assert command.endswith("; tmux kill-session -t ticket-7")
+    # The kill runs AFTER session-end (state is purged first, then the session is removed).
+    assert command.index("kanban-session-end 7") < command.index("tmux kill-session")
+
+
+def test_wrap_with_session_end_default_no_kill() -> None:
+    """The autonomous default leaves the session attachable (no kill-session)."""
+    argv = build_claude_argv("uuid-123", "/work/tree", "docs", "auto")
+    command = wrap_with_session_end(argv, 7, session_end_bin="kanban-session-end")
+    assert "kill-session" not in command
+
+
 def test_wrap_with_session_end_quotes_each_element() -> None:
     """Each argv element is shlex-quoted (the composed line round-trips via shlex.split)."""
     argv = ["claude", "--add-dir", "/work/tree"]

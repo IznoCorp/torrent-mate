@@ -127,9 +127,32 @@ export function ValidationPanel({ findings = [], onGoto }) {
           {t("validation.errors_block_body")}
         </Banner>
       ) : (
-        <Banner tone="success" title={t("validation.valid_title")}>
-          {t("validation.valid_body")}
-        </Banner>
+        // Compact integrated "valid" note — the full success Banner was too tall for one line.
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 12,
+            color: "var(--muted-foreground)",
+          }}
+        >
+          <span
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              background: "var(--health-active-fg, #1f9d54)",
+              flexShrink: 0,
+            }}
+          />
+          <span>
+            <strong style={{ color: "var(--foreground)", fontWeight: 600 }}>
+              {t("validation.valid_title")}
+            </strong>{" "}
+            — {t("validation.valid_body")}
+          </span>
+        </div>
       )}
       {warns.length > 0 && (
         <div

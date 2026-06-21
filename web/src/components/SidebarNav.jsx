@@ -34,20 +34,23 @@ const NAV_ICON = {
   profiles: ShieldCogCorner,
 };
 
-export const BOARD_NAV = [
+// Three semantic nav groups rendered in order: Views (non-config), Config, Daemon.
+export const VIEWS_NAV = [
   { id: "board", tkey: "shell.nav.board", key: "native" },
+  { id: "monitoring", tkey: "shell.nav.monitoring", key: "live" },
+];
+export const CONFIG_NAV = [
   { id: "columns", tkey: "shell.nav.columns", key: "columns.yml" },
   { id: "transitions", tkey: "shell.nav.transitions", key: "transitions.yml" },
   { id: "defaults", tkey: "shell.nav.defaults", key: "defaults" },
   { id: "validation", tkey: "shell.nav.validation", key: "V1–V11" },
   { id: "yaml", tkey: "shell.nav.yaml", key: "read-only" },
-  { id: "monitoring", tkey: "shell.nav.monitoring", key: "live" },
 ];
 export const DAEMON_NAV = [
   { id: "daemon", tkey: "shell.nav.projects", key: "projects.json" },
   { id: "profiles", tkey: "shell.nav.profiles", key: "read-only" },
 ];
-export const ALL_NAV = [...BOARD_NAV, ...DAEMON_NAV];
+export const ALL_NAV = [...VIEWS_NAV, ...CONFIG_NAV, ...DAEMON_NAV];
 
 export function Wordmark({ size = 16, markOnly = false }) {
   const mark = (
@@ -286,8 +289,24 @@ export default function SidebarNav({
           flex: 1,
         }}
       >
-        {!collapsed && <GroupLabel>{t("shell.group_board", { repo })}</GroupLabel>}
-        {BOARD_NAV.map((n) => (
+        {/* Views: board + monitoring — non-config views shown first */}
+        {!collapsed && <GroupLabel>{t("shell.group_views")}</GroupLabel>}
+        {VIEWS_NAV.map((n) => (
+          <NavItem
+            key={n.id}
+            item={n}
+            label={t(n.tkey)}
+            active={active === n.id}
+            onClick={() => onNav(n.id)}
+            collapsed={collapsed}
+          />
+        ))}
+        <div style={{ height: collapsed ? 8 : 14 }} />
+        {/* Config: columns, transitions, defaults, validation, yaml — board-scoped */}
+        {!collapsed && (
+          <GroupLabel>{t("shell.group_config", { repo })}</GroupLabel>
+        )}
+        {CONFIG_NAV.map((n) => (
           <NavItem
             key={n.id}
             item={n}

@@ -14,3 +14,12 @@ from __future__ import annotations
 # prompt-bearing transition into the ``Merge`` column may carry (validator V7 carve-out). Every
 # other profile still bans all merge paths.
 PROFILES: tuple[str, ...] = ("docs", "prepare", "dev", "check", "merge")
+
+# Profiles an AD-HOC launch may use (the operator "launch an agent on this ticket" path). This is
+# ``PROFILES`` minus ``merge`` ON PURPOSE: ``merge`` lifts the ``gh pr merge`` ban and is reachable
+# ONLY through the engine-gated Review→Merge stage (validator V7), NEVER via an ad-hoc launch — which
+# would attach merge capability to any ticket in any column and, because authority is DERIVED per
+# issue (a ``launch`` intent for a non-running target resolves to operator authority), be reachable
+# by a bridled agent. Excluding ``merge`` here keeps merge=human-only intact. Enforced server-side in
+# ``app/intents._execute_launch`` AND the ``launch_agent`` HTTP endpoint (never trust the UI select).
+SAFE_LAUNCH_PROFILES: frozenset[str] = frozenset({"docs", "prepare", "dev", "check"})

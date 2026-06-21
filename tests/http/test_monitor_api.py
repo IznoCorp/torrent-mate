@@ -183,7 +183,11 @@ def test_ticket_detail_endpoint(tmp_path: Path) -> None:
             )
 
         def issue_context(self, number: int) -> Any:
-            return SimpleNamespace(comments=("hi",), linked_issue_body=None)
+            return SimpleNamespace(
+                comments=("hi",),
+                comment_dates=("2026-06-21T08:48:01Z",),
+                linked_issue_body=None,
+            )
 
     api_mod.app.state.kanban_root = _root_with_clone(tmp_path)
     api_mod.app.state.auth = None
@@ -416,3 +420,159 @@ def test_body_patch_preserves_status_block(tmp_path: Path) -> None:
     assert STATUS_BEGIN in gh.updated_body
     assert STATUS_END in gh.updated_body
     assert "**roadmap**: A1" in gh.updated_body
+
+
+class _EnqStore:
+    """Minimal store recording enqueued intents for the launch endpoint test."""
+
+    def __init__(self) -> None:
+        self.enq: list[tuple[str, dict[str, Any]]] = []
+
+    def enqueue_intent(self, intent_id: str, payload: dict[str, Any]) -> None:
+        self.enq.append((intent_id, dict(payload)))
+
+
+def test_launch_endpoint_enqueues_intent(tmp_path: Path) -> None:
+    import kanbanmate.http.config_api as api_mod
+
+    api_mod.app.state.kanban_root = _single_project_root(tmp_path)
+    api_mod.app.state.auth = None
+    store = _EnqStore()
+    api_mod.app.state.monitor_store = store
+    with TestClient(api_mod.app) as client:
+        resp = client.post(
+            "/api/monitor/ticket/7/launch",
+            json={"prompt": "fix the failing test", "profile": "dev"},
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is True
+    assert isinstance(body["intent_id"], str) and body["intent_id"]
+    assert len(store.enq) == 1
+    _iid, payload = store.enq[0]
+    assert payload["kind"] == "launch"
+    assert payload["issue"] == 7
+    assert payload["args"]["prompt"] == "fix the failing test"
+    assert payload["args"]["profile"] == "dev"
+    assert payload["caller"] == "operator"
+    del api_mod.app.state.monitor_store
+
+
+def test_launch_endpoint_accepts_empty_prompt(tmp_path: Path) -> None:
+    """An empty prompt is allowed (bare claude the operator drives) — it still enqueues a launch."""
+    import kanbanmate.http.config_api as api_mod
+
+    api_mod.app.state.kanban_root = _single_project_root(tmp_path)
+    api_mod.app.state.auth = None
+    store = _EnqStore()
+    api_mod.app.state.monitor_store = store
+    with TestClient(api_mod.app) as client:
+        resp = client.post("/api/monitor/ticket/7/launch", json={"prompt": "   "})
+    assert resp.status_code == 200
+    assert len(store.enq) == 1
+    _iid, payload = store.enq[0]
+    assert payload["kind"] == "launch"
+    assert payload["args"]["prompt"] == ""  # trimmed empty → daemon launches a bare claude
+    del api_mod.app.state.monitor_store
+
+
+def test_move_endpoint_enqueues_move_intent(tmp_path: Path) -> None:
+    import kanbanmate.http.config_api as api_mod
+
+    api_mod.app.state.kanban_root = _single_project_root(tmp_path)
+    api_mod.app.state.auth = None
+    store = _EnqStore()
+    api_mod.app.state.monitor_store = store
+    with TestClient(api_mod.app) as client:
+        resp = client.post("/api/monitor/ticket/7/move", json={"to_col": "Done"})
+    assert resp.status_code == 200
+    assert resp.json()["ok"] is True
+    assert len(store.enq) == 1
+    _iid, payload = store.enq[0]
+    assert payload["kind"] == "move"
+    assert payload["issue"] == 7
+    assert payload["args"]["to_col"] == "Done"
+    assert payload["caller"] == "operator"
+    del api_mod.app.state.monitor_store
+
+
+def test_move_endpoint_rejects_empty_destination(tmp_path: Path) -> None:
+    import kanbanmate.http.config_api as api_mod
+
+    api_mod.app.state.kanban_root = _single_project_root(tmp_path)
+    api_mod.app.state.auth = None
+    store = _EnqStore()
+    api_mod.app.state.monitor_store = store
+    with TestClient(api_mod.app) as client:
+        resp = client.post("/api/monitor/ticket/7/move", json={"to_col": "  "})
+    assert resp.status_code == 400
+    assert store.enq == []
+    del api_mod.app.state.monitor_store
+
+
+def test_intent_result_endpoint(tmp_path: Path) -> None:
+    import kanbanmate.http.config_api as api_mod
+
+    api_mod.app.state.kanban_root = _single_project_root(tmp_path)
+    api_mod.app.state.auth = None
+
+    class _ResultStore:
+        def load_intent_result(self, intent_id: str) -> dict[str, Any] | None:
+            if intent_id == "known":
+                return {"intent_id": "known", "state": "rejected", "detail": "nope"}
+            return None
+
+    api_mod.app.state.monitor_store = _ResultStore()
+    with TestClient(api_mod.app) as client:
+        hit = client.get("/api/monitor/intent/known").json()
+        miss = client.get("/api/monitor/intent/unknown").json()
+    assert hit == {"intent_id": "known", "state": "rejected", "detail": "nope"}
+    assert miss == {"state": "pending"}
+    del api_mod.app.state.monitor_store
+
+
+def test_launch_endpoint_rejects_merge_profile(tmp_path: Path) -> None:
+    """The launch endpoint refuses the engine-gated `merge` profile (400, nothing enqueued)."""
+    import kanbanmate.http.config_api as api_mod
+
+    api_mod.app.state.kanban_root = _single_project_root(tmp_path)
+    api_mod.app.state.auth = None
+    store = _EnqStore()
+    api_mod.app.state.monitor_store = store
+    with TestClient(api_mod.app) as client:
+        resp = client.post(
+            "/api/monitor/ticket/7/launch",
+            json={"prompt": "do it", "profile": "merge"},
+        )
+    assert resp.status_code == 400
+    assert store.enq == []
+    del api_mod.app.state.monitor_store
+
+
+def test_move_targets_flags_mapping_and_fallback(tmp_path: Path) -> None:
+    """_move_targets: current flag (allowed=False), shape, NAME->KEY mapping, fail-soft None."""
+    import kanbanmate.http.monitor_routes as mon_mod
+    from kanbanmate.cli.init import CLONE_COLUMNS_RELPATH
+    from kanbanmate.core.columns import load_columns
+
+    _root_with_clone(tmp_path)  # writes a real columns.yml + transitions.yml under the clone
+    clone = tmp_path / "clone"
+    cols = load_columns((clone / CLONE_COLUMNS_RELPATH).read_text(encoding="utf-8"))
+    first_key = next(iter(cols))
+    entry = SimpleNamespace(clone=str(clone), project_id="PVT_x")
+
+    targets = mon_mod._move_targets(entry, first_key)
+    assert targets is not None
+    for m in targets:
+        assert set(m) == {"key", "name", "allowed", "current"}
+    current = [m for m in targets if m["current"]]
+    assert len(current) == 1 and current[0]["key"] == first_key
+    assert current[0]["allowed"] is False  # cannot move to the column it is already in
+
+    # NAME -> KEY seam: passing the current column's display NAME resolves to the same current KEY.
+    by_name = mon_mod._move_targets(entry, cols[first_key].name)
+    assert by_name is not None
+    assert [m for m in by_name if m["current"]][0]["key"] == first_key
+
+    # Fail-soft: a clone with no config yields None (UI falls back to a plain all-columns select).
+    assert mon_mod._move_targets(SimpleNamespace(clone=str(tmp_path / "nope")), "X") is None

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterable, Sequence
+from itertools import zip_longest
 from typing import Any
 
 from kanbanmate.core.body_edit import roadmap_marker
@@ -117,6 +118,8 @@ def build_ticket_detail(
     body: str,
     comments: Iterable[Any],
     progress: Iterable[dict[str, str]],
+    *,
+    comment_dates: Iterable[str] = (),
 ) -> dict[str, Any]:
     """Assemble the on-demand ticket-detail payload (markers + comments + merged timeline).
 
@@ -128,6 +131,8 @@ def build_ticket_detail(
         comments: Comment bodies in chronological order (the engine's ``IssueContext.comments``
             carries plain strings — no author/timestamp).
         progress: ``{"at", "text"}`` progress events from the store (``at`` optional).
+        comment_dates: ISO-8601 ``createdAt`` strings, same length and order as ``comments``.
+            Defaults to empty so existing callers (tests) keep working.
 
     Returns:
         ``{number, title, column_key, body, markers, comments, timeline}`` (DESIGN §5.4). The
@@ -144,7 +149,10 @@ def build_ticket_detail(
     comment_list = [str(c) for c in comments]
     timeline = [
         {"kind": "progress", "at": p.get("at", ""), "text": p["text"]} for p in progress
-    ] + [{"kind": "comment", "at": "", "text": c} for c in comment_list]
+    ] + [
+        {"kind": "comment", "at": d, "text": c}
+        for c, d in zip_longest(comment_list, list(comment_dates), fillvalue="")
+    ]
     return {
         "number": number,
         "title": title,

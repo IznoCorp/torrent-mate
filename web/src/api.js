@@ -104,6 +104,26 @@ export const patchTicketBody = (number, freeform, project) =>
     `/api/monitor/ticket/${encodeURIComponent(number)}/body${q(project)}`,
     { freeform },
   );
+// Enqueue an ad-hoc agent launch on a ticket (no transition / no card move).
+export const launchAgent = (number, { prompt, profile }, project) =>
+  call(
+    "POST",
+    `/api/monitor/ticket/${encodeURIComponent(number)}/launch${q(project)}`,
+    { prompt, profile: profile || "dev" },
+  );
+// Change a ticket's column from Monitoring (operator move intent).
+export const moveTicket = (number, toCol, project) =>
+  call(
+    "POST",
+    `/api/monitor/ticket/${encodeURIComponent(number)}/move${q(project)}`,
+    { to_col: toCol },
+  );
+// Poll an enqueued intent's result (so the UI shows the real outcome, not an optimistic "queued").
+export const intentResult = (intentId, project) =>
+  call(
+    "GET",
+    `/api/monitor/intent/${encodeURIComponent(intentId)}${q(project)}`,
+  );
 
 export const monitorFile = (path, project, ticket) =>
   call(

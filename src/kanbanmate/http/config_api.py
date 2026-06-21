@@ -102,7 +102,14 @@ async def _auth_guard(request: fastapi.Request, call_next):  # type: ignore[no-u
         token = request.cookies.get(COOKIE_NAME, "")
         if not token or verify_token(token, config.secret) is None:
             return JSONResponse(status_code=401, content={"detail": "Authentication required"})
-    return await call_next(request)
+    response = await call_next(request)
+    # The SPA shell (index.html) must NOT be heuristically cached: without this a browser keeps a
+    # stale index.html that references an OLD content-hashed JS bundle after a redeploy, so the
+    # operator sees no changes until a hard refresh. Force-revalidate the HTML document only — the
+    # content-hashed assets under /assets/ keep their own (effectively immutable) cache.
+    if response.headers.get("content-type", "").startswith("text/html"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
 
 
 def _kanban_root() -> Path:

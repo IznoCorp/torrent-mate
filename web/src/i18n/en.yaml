@@ -17,7 +17,8 @@ common:
 
 shell:
   board: Board
-  group_board: "Board config · {repo}"
+  group_views: Views
+  group_config: "Configuration · {repo}"
   group_daemon: Daemon · whole host
   badge_board: "board: {repo}"
   badge_daemon: daemon · whole host
@@ -229,8 +230,25 @@ monitor:
     Live read-only view of this board — columns, tickets, and the agents currently running.
     Refreshes automatically. Read-only: to interact with an agent, `tmux attach` on the host.
   summary: "{running} running · {waiting} waiting · {blocked} blocked"
+  running: running
+  waiting: waiting
+  blocked: blocked
+  description: Description
+  show_list: Show tickets
+  hide_list: Hide tickets
   select_hint: Select a ticket to see its detail.
   no_agent: No agent running on this ticket.
+  launch_title: Launch an agent
+  launch_placeholder: Optional prompt — or take control of the terminal and type your instructions
+  launch_profile: Profile
+  launch_button: Launch agent
+  launching: Launching…
+  launch_queued: Agent launch queued — it will appear shortly.
+  launch_done: Agent launched.
+  move_to: Status
+  moving: Moving…
+  move_queued: Move queued — the board updates shortly.
+  move_done: Card moved.
   state: state
   stage: stage
   branch: branch
@@ -255,6 +273,8 @@ terminal:
   session_ended: Session ended
   close: Close
   interactive: Interactive terminal
+  zoom_in: Zoom in
+  zoom_out: Zoom out
 
 theme:
   light: Light
@@ -263,6 +283,9 @@ theme:
 
 board:
   intro_title: Board
+  revision_label: "rev."
+  revision_hint: Board revision — increments on every change; used to detect concurrent edits (optimistic locking).
+  open_monitoring: View in Monitoring
   intro_body: >-
     Native kanban board for this project. Moving a card here is the placement authority — it drives
     the GitHub Projects board via the mirror, and the autonomous transition workflow keeps firing on

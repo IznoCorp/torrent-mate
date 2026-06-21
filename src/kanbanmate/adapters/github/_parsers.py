@@ -282,6 +282,11 @@ def parse_issue_context(data: dict[str, Any]) -> IssueContext:
         for node in ((issue.get("comments") or {}).get("nodes") or [])
         if node and node.get("body") is not None
     ]
+    comment_dates: list[str] = [
+        str(node.get("createdAt") or "")
+        for node in ((issue.get("comments") or {}).get("nodes") or [])
+        if node and node.get("body") is not None
+    ]
     linked_issue_body: str | None = None
     for node in (issue.get("timelineItems") or {}).get("nodes") or []:
         if not node:
@@ -291,7 +296,12 @@ def parse_issue_context(data: dict[str, Any]) -> IssueContext:
         if src_body is not None:
             linked_issue_body = str(src_body)
             break
-    return IssueContext(body=body, comments=tuple(comments), linked_issue_body=linked_issue_body)
+    return IssueContext(
+        body=body,
+        comments=tuple(comments),
+        comment_dates=tuple(comment_dates),
+        linked_issue_body=linked_issue_body,
+    )
 
 
 def parse_issue_closed(data: dict[str, Any]) -> bool:

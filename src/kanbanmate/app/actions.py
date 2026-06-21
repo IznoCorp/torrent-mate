@@ -256,6 +256,17 @@ class LaunchAction:
     # without it ``execute`` would default ``TicketState.retries`` to 0 and silently RESET the reaper's
     # retry budget, defeating ``RETRY_LIMIT`` (a dead session would relaunch forever).
     retries: int = 0
+    # Whether to run the prompt through the placeholder ``fill()`` before delivery. Transition prompts
+    # are authored templates ({{code}}/{{title}}/…) so they MUST be filled (default True). An ad-hoc
+    # operator launch carries free-form prose: ``fill`` is fail-loud on unknown ``{{…}}`` tokens (a
+    # pasted snippet with braces would abort the launch), so the ad-hoc path sets this False to deliver
+    # the prompt VERBATIM. Delivery is send-keys literal either way (no shell injection).
+    fill_prompt: bool = True
+    # Whether to KILL the tmux session when claude exits (``; tmux kill-session`` appended after the
+    # session-end shim). Ad-hoc operator launches set this True so the session DISAPPEARS on exit (the
+    # operator drove it and quit); session-end has already purged the state by then, so nothing is left
+    # for the reaper to relaunch. Autonomous launches leave it False (the pane stays attachable).
+    terminate_on_exit: bool = False
 
     def _resolve_profile(self) -> str:
         """Resolve the launch profile from the matched transition ONLY (FAIL-LOUD; phase 20).
@@ -368,9 +379,13 @@ class LaunchAction:
         # saved, so the reaper could never own it. Hoisting the fill above the launch means a typo'd
         # token aborts BEFORE any session/state exists (nothing to clean up). ``None`` for a bare
         # (prompt-less) launch — nothing is delivered into the REPL.
-        filled_prompt = (
-            self._fill_prompt(deps, issue, worktree) if self.prompt is not None else None
-        )
+        if self.prompt is None:
+            filled_prompt = None
+        elif self.fill_prompt:
+            filled_prompt = self._fill_prompt(deps, issue, worktree)
+        else:
+            # Ad-hoc operator prompt: deliver VERBATIM (skip fill so a literal ``{{…}}`` doesn't abort).
+            filled_prompt = self.prompt
         # 4. Launch the agent in a detached tmux session rooted at the worktree. The launch return
         # value is no longer used for session_id — the uuid is the authoritative session id.
         deps.sessions.launch(session_name, str(worktree), command)
@@ -528,7 +543,12 @@ class LaunchAction:
         argv = build_claude_argv(session_uuid, str(worktree), profile, self.permission_mode)
         # NO positional prompt append (phase-25 §25.1). The prompt is delivered into the live REPL
         # by ``_deliver_prompt`` AFTER launch, not composed into the launched command line.
-        command = wrap_with_session_end(argv, issue, session_end_bin=deps.session_end_bin)
+        command = wrap_with_session_end(
+            argv,
+            issue,
+            session_end_bin=deps.session_end_bin,
+            terminate_session=self.terminate_on_exit,
+        )
         # PATH prefix (phase 38): prepend the worktree's kanban-bin symlink dir so BOTH ``claude``
         # AND the trailing ``; kanban-session-end <issue>`` resolve the engine's OWN helper scripts,
         # not whatever ``pyenv global`` python the agent's tmux session inherited (the live-e2e

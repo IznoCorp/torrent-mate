@@ -60,13 +60,33 @@ export default function DaemonPanel({ projects, selected, onChanged }) {
       <PageIntro title={t("daemon.intro_title")} scope="daemon">
         {t("daemon.intro_body")}
       </PageIntro>
-      <Banner
-        tone="amber"
-        title={t("daemon.banner_title")}
-        style={{ marginBottom: 16 }}
+      {/* Compact scope note — a single integrated line (the full Banner was too tall here). */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          fontSize: 12,
+          color: "var(--muted-foreground)",
+          marginBottom: 14,
+        }}
       >
-        {t("daemon.banner_body")}
-      </Banner>
+        <span
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            background: "var(--health-waiting-fg, #d98e29)",
+            flexShrink: 0,
+          }}
+        />
+        <span>
+          <strong style={{ color: "var(--foreground)", fontWeight: 600 }}>
+            {t("daemon.banner_title")}
+          </strong>{" "}
+          — {t("daemon.banner_body")}
+        </span>
+      </div>
 
       {isMobile && pick != null && (
         <MobileBack onClick={() => setPick(null)} label={current.repo} />

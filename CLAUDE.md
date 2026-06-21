@@ -142,7 +142,13 @@ Guardrails make that impossible. Three SSH clones of this repo:
   (`:8797` → `km-staging.iznogoudatall.xyz`).
 
 **Continuous deployment** — PM2 `kanban-autodeploy` (`scripts/autodeploy-poll.sh`, ~60 s poll):
-push to **`main`** → prod auto-redeploys; push to **`staging`** → staging auto-redeploys.
+push to **`main`** → prod auto-redeploys; push to **`staging`** → staging auto-redeploys. The poller
+**hard-resets** each clone to its tracked remote tip, so a **force-pushed** `staging` (rebased feature
+branch) deploys cleanly. (Historical bug, fixed 2026-06-21: the old poller used `git pull --ff-only`,
+which aborted on a diverged/force-pushed `staging` — `ff-only pull failed (diverged) — skipping` —
+and silently never updated staging; now `git reset --hard origin/<branch>`. The fix ships in
+`autodeploy-poll.sh`; the **running** poller executes the **prod clone's** copy, so it only takes
+effect once the fix is on `main` and the poller is restarted.)
 
 **To test not-yet-merged work on staging** — staging runs against the **REAL prod board** (no test
 board: a card move / config edit there applies for real). Push your branch onto the `staging` branch:
@@ -151,9 +157,25 @@ board: a card move / config edit there applies for real). Push your branch onto 
 git push origin <your-branch>:staging --force-with-lease
 ```
 
-Within ~60 s, open `https://km-staging.iznogoudatall.xyz` (same login as prod). An amber **STAGING**
-frame marks it. Keep on-disk state/config **backward-compatible** so the feature build (staging) and
-the prod daemon (`main`) share `~/.kanban-km` safely.
+Within ~60 s, open `https://km-staging.iznogoudatall.xyz` (same login as prod) and **confirm** the
+served asset hash (`curl -s https://km-staging.iznogoudatall.xyz/ | grep -o 'index-[A-Za-z0-9_-]*\.js'`)
+or `/api/health` version changed. An amber **STAGING** frame marks it.
+
+**Reliable manual staging deploy** — use when the poller is mid-rollout or stale (e.g. its `reset
+--hard` fix is on a branch not yet merged to `main`), or when you want a deterministic, immediate
+deploy. Deploy straight from the staging clone:
+
+```bash
+cd ~/staging/kanban-mate \
+  && git remote update --prune origin \
+  && git reset --hard origin/staging \
+  && PATH="$HOME/staging/venv/bin:$PATH" bash scripts/deploy-staging.sh
+```
+
+(`git remote update`, **not** `git fetch` — the repo's network-timeout hook flags the bare word
+`fetch`.) This touches only the staging clone + `kanban-staging-config`, never prod. Keep on-disk
+state/config **backward-compatible** so the feature build (staging) and the prod daemon (`main`)
+share `~/.kanban-km` safely.
 
 **Never** run `npm run build` + `pm2 restart` by hand — use `scripts/deploy.sh` (prod; refuses unless
 clean `main` synced with origin) or `scripts/deploy-staging.sh`. **Always commit** (nothing lives only

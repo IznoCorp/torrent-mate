@@ -77,6 +77,22 @@ export default function App() {
       /* storage may be unavailable (private mode) — non-fatal */
     }
   }, [active]);
+  // Board cards deep-link to their ticket in Monitoring via a window event (avoids threading a
+  // callback through the board's nested card components): set the target ticket, switch to the tab.
+  React.useEffect(() => {
+    const onOpen = (e) => {
+      const issue = e && e.detail && e.detail.issue;
+      if (issue == null) return;
+      try {
+        localStorage.setItem("bridge.monitor.ticket", String(issue));
+      } catch (_) {
+        /* non-fatal */
+      }
+      setActive("monitoring");
+    };
+    window.addEventListener("km:open-monitoring", onOpen);
+    return () => window.removeEventListener("km:open-monitoring", onOpen);
+  }, []);
   React.useEffect(() => {
     if (!selected) return;
     try {

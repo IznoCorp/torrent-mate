@@ -393,7 +393,7 @@ export default function AppShell({
             flex: 1,
             minHeight: 0,
             overflow: "auto",
-            padding: "22px 26px 72px",
+            padding: "22px 26px 20px",
             background: "var(--background)",
           }}
         >

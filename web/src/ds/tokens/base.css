@@ -62,7 +62,9 @@ pre {
 }
 
 ::selection {
-  background: color-mix(in oklch, var(--accent) 28%, transparent);
+  /* Clearly visible highlight in both light and dark mode (operator: selection was invisible). */
+  background: color-mix(in oklch, var(--accent) 55%, transparent);
+  color: var(--accent-foreground, var(--foreground));
 }
 
 /* Eyebrow / section label */

@@ -27,6 +27,7 @@ from kanbanmate.core.transitions import TransitionConfig
 #: validated here for PR3 (ticket/pill CRUD).
 IntentKind = Literal[
     "move",
+    "launch",
     "ticket_create",
     "ticket_edit",
     "ticket_close",
@@ -45,6 +46,7 @@ Authority = Literal["operator", "agent"]
 VALID_KINDS: frozenset[str] = frozenset(
     {
         "move",
+        "launch",
         "ticket_create",
         "ticket_edit",
         "ticket_close",

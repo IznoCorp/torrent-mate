@@ -24,6 +24,7 @@ logger = logging.getLogger("kanbanmate.http.agent_terminal")
 _MAX_MSG_BYTES = 1 * 1024 * 1024  # 1 MiB cap per message
 _CAPTURE_INTERVAL = 0.3  # seconds between pane snapshots
 _IDLE_TIMEOUT = 300.0  # seconds of client silence before auto-close
+_SCROLLBACK_LINES = 500  # lines of pane history sent with each snapshot (operator scroll-back)
 
 
 @app.websocket("/api/monitor/agent/{issue}/attach")
@@ -74,8 +75,11 @@ async def agent_attach(websocket: WebSocket, issue: int) -> None:
                     await websocket.send_text(json.dumps({"alive": False}))
                     await websocket.close()
                     return
-                data = sessions.capture_ansi(session_name)
-                await websocket.send_text(json.dumps({"alive": True, "data": data}))
+                data = sessions.capture_ansi(session_name, scrollback=_SCROLLBACK_LINES)
+                cols, rows = sessions.pane_size(session_name)
+                await websocket.send_text(
+                    json.dumps({"alive": True, "data": data, "cols": cols, "rows": rows})
+                )
             except Exception:
                 # Fail-soft: a tmux error or a closed socket — exit the loop cleanly.
                 return

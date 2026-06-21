@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING
 
 from kanbanmate.core.columns import resolve_column
 from kanbanmate.core.intent import Intent, IntentRejected, validate_intent
+from kanbanmate.core.profiles import SAFE_LAUNCH_PROFILES
 from kanbanmate.core.status_update import STATUS_VALUES
 
 if TYPE_CHECKING:  # pragma: no cover - type-only imports (no runtime cycle)
@@ -124,6 +125,7 @@ def drain_intents(
                     status_events=status_events,
                     processed_issues=processed_issues,
                     kill_switch=kill_switch,
+                    concurrency_cap=config.concurrency_cap,
                 )
             except Exception:  # noqa: BLE001 — one bad intent must never block the others / the tick
                 logger.exception("intent %s raised; rejecting it", intent_id)
@@ -146,6 +148,7 @@ def _process_intent(
     status_events: list[tuple[str, int | None, str]],
     processed_issues: set[int],
     kill_switch: bool,
+    concurrency_cap: int,
 ) -> None:
     """Validate + execute ONE intent: common gates then per-kind dispatch (caller isolates)."""
     intent = _parse_intent(payload)
@@ -182,6 +185,20 @@ def _process_intent(
             next_columns=next_columns,
             status_events=status_events,
             processed_issues=processed_issues,
+        )
+    elif intent.kind == "launch":
+        _execute_launch(
+            deps,
+            intent,
+            intent_id=intent_id,
+            authority=authority,
+            transitions=transitions,
+            columns=columns,
+            by_issue=by_issue,
+            running_issues=running_issues,
+            status_events=status_events,
+            processed_issues=processed_issues,
+            concurrency_cap=concurrency_cap,
         )
     elif intent.kind == "ticket_create":
         _execute_ticket_create(
@@ -299,6 +316,121 @@ def _execute_move(
     next_columns[item_id] = to_column.key
     status_events.append(("auto", intent.issue, f"moved → {to_column.name}"))
     _result(deps, intent_id, "done", f"moved {from_col}->{to_column.name}")
+    deps.store.clear_intent(intent_id)
+
+
+def _execute_launch(
+    deps: Deps,
+    intent: Intent,
+    *,
+    intent_id: str,
+    authority: Authority,
+    transitions: TransitionConfig,
+    columns: dict[str, Column],
+    by_issue: dict[int, Ticket],
+    running_issues: set[int],
+    status_events: list[tuple[str, int | None, str]],
+    processed_issues: set[int],
+    concurrency_cap: int,
+) -> None:
+    """Execute an ad-hoc ``launch`` intent: start a Claude agent on a ticket WITHOUT a board move.
+
+    Operator-only (``validate_intent`` rejects agents — ``launch`` is absent from
+    ``AGENT_ALLOWED_KINDS``). Boots a bare ``claude`` in the ticket's worktree, delivers the
+    operator's free-form prompt, and persists RUNNING state — but performs NO transition (the
+    :class:`~kanbanmate.app.actions.LaunchAction` carries ``advance="stop"``), so the card stays in
+    its current column. The use case is a one-off fix driven by an agent without exercising the
+    column flow (operator 2026-06-21).
+
+    Guards: refuses when an agent is already tracked for the issue (no double-launch), when the issue
+    is absent from the board, when the prompt is empty, or when the concurrency cap is full. The slot
+    is reserved BEFORE the launch and RELEASED if the launch raises (no slot leak).
+    """
+    try:
+        validate_intent(
+            intent,
+            authority=authority,
+            transitions=transitions,
+            columns=columns,
+            launching_issue=intent.issue,
+        )
+    except IntentRejected as exc:
+        _result(deps, intent_id, "rejected", str(exc))
+        deps.store.clear_intent(intent_id)
+        return
+
+    if intent.issue is None:
+        _result(deps, intent_id, "rejected", "launch requires an issue")
+        deps.store.clear_intent(intent_id)
+        return
+
+    # No double-launch: the daemon's own running-set is authoritative (the UI only offers the launch
+    # form when idle, but an intent may have been enqueued while an agent was already starting).
+    if intent.issue in running_issues:
+        _result(deps, intent_id, "rejected", f"agent already running on #{intent.issue}")
+        deps.store.clear_intent(intent_id)
+        return
+
+    ticket = by_issue.get(intent.issue)
+    if ticket is None:
+        _result(deps, intent_id, "rejected", f"issue #{intent.issue} not on the board")
+        deps.store.clear_intent(intent_id)
+        return
+
+    # Prompt is OPTIONAL: empty → launch a BARE claude (the operator takes control of the terminal and
+    # types instructions directly). A non-empty prompt is delivered verbatim into the REPL on launch.
+    prompt = str(intent.args.get("prompt") or "").strip()
+    launch_prompt = prompt if prompt else None
+    # The ad-hoc use case is "make a fix" → default to `dev` (edit/commit/push). RESTRICT to the safe
+    # set: `merge` (which lifts the gh-pr-merge ban) is engine-gated to Review→Merge ONLY and must
+    # NEVER be attachable via an ad-hoc launch — that would break merge=human-only and is reachable by
+    # a bridled agent (a launch intent for a non-running issue resolves to operator authority). Reject
+    # anything outside the safe set loudly (not a silent degrade) so the operator sees the refusal.
+    profile = str(intent.args.get("profile") or "dev")
+    if profile not in SAFE_LAUNCH_PROFILES:
+        _result(
+            deps,
+            intent_id,
+            "rejected",
+            f"profile {profile!r} not allowed for ad-hoc launch "
+            f"(merge is engine-gated; allowed: {sorted(SAFE_LAUNCH_PROFILES)})",
+        )
+        deps.store.clear_intent(intent_id)
+        return
+
+    # Reserve a slot so an ad-hoc launch still respects the concurrency cap (idempotent per issue).
+    if not deps.store.reserve_slot(intent.issue, concurrency_cap):
+        _result(deps, intent_id, "rejected", "no free agent slot (concurrency cap reached)")
+        deps.store.clear_intent(intent_id)
+        return
+
+    processed_issues.add(intent.issue)
+    _result(deps, intent_id, "claimed", f"launching agent on #{intent.issue}")
+
+    # Lazy import: keeps the heavy actions module off intents.py's import-time path (consistent with
+    # this module's other lazy imports). app->app is permitted by the layering contract; no cycle.
+    from kanbanmate.app.actions import LaunchAction  # noqa: PLC0415
+
+    action = LaunchAction(
+        ticket=ticket,
+        prompt=launch_prompt,  # None → bare claude (operator types in the terminal); else verbatim
+        profile=profile,
+        permission_mode="auto",
+        advance="stop",  # ad-hoc: NEVER move the card (no transition fires)
+        fill_prompt=False,  # operator free-form prompt: deliver verbatim (NO placeholder fill)
+        terminate_on_exit=True,  # the tmux session DISAPPEARS when the operator exits claude
+    )
+    try:
+        action.execute(deps)
+    except Exception as exc:  # noqa: BLE001 — release the slot so a failed launch never leaks it
+        deps.store.release_slot(intent.issue)
+        logger.exception("ad-hoc launch for #%s failed", intent.issue)
+        _result(deps, intent_id, "rejected", f"launch failed: {exc}")
+        deps.store.clear_intent(intent_id)
+        return
+
+    status_events.append(("launch", intent.issue, f"ad-hoc agent launched ({profile})"))
+    _result(deps, intent_id, "done", f"launched agent on #{intent.issue}")
     deps.store.clear_intent(intent_id)
 
 

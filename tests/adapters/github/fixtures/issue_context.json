@@ -5,8 +5,14 @@
         "body": "Kick off the engine.\n\nDepends on #4",
         "comments": {
           "nodes": [
-            { "body": "First comment — agent launched." },
-            { "body": "Second comment — step completed." }
+            {
+              "body": "First comment — agent launched.",
+              "createdAt": "2026-06-20T10:15:00Z"
+            },
+            {
+              "body": "Second comment — step completed.",
+              "createdAt": "2026-06-20T11:30:00Z"
+            }
           ]
         },
         "timelineItems": {

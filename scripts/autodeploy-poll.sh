@@ -33,9 +33,14 @@ redeploy_if_advanced() {
     || { echo "[$(stamp)] $clone: no origin/$branch"; return; }
   [ "$cur" = "$rem" ] && return  # already up to date
   echo "[$(stamp)] $clone: $branch advanced ${cur:0:8} -> ${rem:0:8} — deploying"
-  git checkout -q "$branch" 2>/dev/null
-  if ! git pull -q --ff-only origin "$branch"; then
-    echo "[$(stamp)] $clone: ff-only pull failed (diverged) — skipping"; return
+  git checkout -q "$branch" 2>/dev/null || git checkout -q -B "$branch" "origin/$branch"
+  # Hard-reset to the remote tip. `staging` is intentionally FORCE-PUSHED (rebased
+  # feature branches per docs/reference/deployment.md), so a fast-forward-only pull
+  # fails on a diverged history and the env never updates. main only fast-forwards,
+  # so reset --hard is equivalent there. The deploy scripts refuse a dirty tree, so
+  # a clone never carries local work to discard.
+  if ! git reset -q --hard "origin/$branch"; then
+    echo "[$(stamp)] $clone: reset to origin/$branch failed — skipping"; return
   fi
   PATH="$venvbin:$PATH" bash "$deploy" 2>&1 | sed "s/^/[$(stamp)] /"
 }

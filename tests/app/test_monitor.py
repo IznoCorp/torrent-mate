@@ -64,12 +64,29 @@ def test_build_agents_computes_age_and_duration() -> None:
 
 def test_build_ticket_detail_markers_and_timeline() -> None:
     comments = ["hello"]  # the engine's IssueContext.comments are plain strings
+    comment_dates = ["2026-06-20T11:30:00Z"]
     progress = [{"at": "2026-06-20T11:00:00Z", "text": "phase 1 done"}]
     body = "**codename**: monitoring\n**design**: docs/d.md\n**plans**: docs/p.md\nbody text"
-    d = build_ticket_detail(7, "Build it", "InProgress", body, comments, progress)
+    d = build_ticket_detail(
+        7, "Build it", "InProgress", body, comments, progress, comment_dates=comment_dates
+    )
     assert d["markers"]["codename"] == "monitoring"
     assert d["markers"]["design"] == "docs/d.md"
     assert d["comments"] == ["hello"]
     # timeline: progress milestones first, then chronological comments
     kinds = [e["kind"] for e in d["timeline"]]
     assert kinds == ["progress", "comment"]
+    assert d["timeline"][0]["at"] == "2026-06-20T11:00:00Z"  # progress timestamp
+    assert d["timeline"][1]["at"] == "2026-06-20T11:30:00Z"  # comment createdAt
+    assert d["timeline"][1]["text"] == "hello"
+
+
+def test_build_ticket_detail_comment_dates_defaults_empty() -> None:
+    """Without comment_dates kwarg, comment entries have empty ``at``."""
+    comments = ["one", "two"]
+    d = build_ticket_detail(7, "T", "Backlog", "body", comments, [])
+    comment_entries = [e for e in d["timeline"] if e["kind"] == "comment"]
+    assert comment_entries == [
+        {"kind": "comment", "at": "", "text": "one"},
+        {"kind": "comment", "at": "", "text": "two"},
+    ]

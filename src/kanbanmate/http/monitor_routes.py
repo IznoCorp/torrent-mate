@@ -21,6 +21,7 @@ from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 
 from kanbanmate.cli.init import _load_registry, _projects_path
+from kanbanmate.core.profiles import SAFE_LAUNCH_PROFILES
 from kanbanmate.http.config_api import (
     _get_service,
     _kanban_root,
@@ -196,9 +197,69 @@ def monitor_ticket(number: int, project: str | None = None) -> JSONResponse:
     except Exception as exc:  # noqa: BLE001 — boundary: clean error in the detail pane (DESIGN §7)
         raise HTTPException(status_code=502, detail=f"Ticket fetch failed: {exc}") from exc
     detail = build_ticket_detail(
-        number, ref.title, column_key, ref.body or "", ctx.comments, progress=[]
+        number,
+        ref.title,
+        column_key,
+        ref.body or "",
+        ctx.comments,
+        progress=[],
+        comment_dates=ctx.comment_dates,
     )
+    # Status-change select (tiller follow-up): the columns the operator may move this card into, with
+    # the workflow-allowed ones flagged (a target is "allowed" when a transition exists from the
+    # current column; the current column is flagged so the UI disables it). Fail-soft: a missing
+    # config yields ``None`` and the UI falls back to a plain all-columns select.
+    detail["move_targets"] = _move_targets(entry, column_key)
     return JSONResponse(content=detail)
+
+
+def _move_targets(entry: Any, current_col: str) -> list[dict[str, Any]] | None:
+    """Compute the per-column move affordance for a ticket's current column.
+
+    Loads the clone's ``columns.yml`` + ``transitions.yml`` and returns one entry per column::
+
+        {"key": str, "name": str, "allowed": bool, "current": bool}
+
+    ``allowed`` is ``True`` when a (wildcard-aware) transition exists from the current column to that
+    column — the board's configured workflow edges. The current column is ``current=True`` +
+    ``allowed=False`` (a no-op). Returns ``None`` (UI falls back to a plain select) on any config error.
+
+    Args:
+        entry: The resolved registry entry (carries the clone path).
+        current_col: The ticket's current column as the snapshot reports it (a NAME or KEY).
+
+    Returns:
+        The move-target list, or ``None`` when the clone config is unreadable.
+    """
+    try:
+        from kanbanmate.cli.init import (  # noqa: PLC0415
+            CLONE_COLUMNS_RELPATH,
+            CLONE_TRANSITIONS_RELPATH,
+        )
+        from kanbanmate.core.columns import load_columns  # noqa: PLC0415
+        from kanbanmate.core.transitions import load_transitions  # noqa: PLC0415
+
+        clone = Path(entry.clone)
+        columns = load_columns((clone / CLONE_COLUMNS_RELPATH).read_text(encoding="utf-8"))
+        transitions = load_transitions(
+            (clone / CLONE_TRANSITIONS_RELPATH).read_text(encoding="utf-8")
+        )
+    except Exception:  # noqa: BLE001 — fail-soft: the select degrades to all-columns-enabled
+        return None
+
+    # The snapshot column is the GitHub Status NAME; transitions key on the stable KEY. Map both.
+    key_by_token: dict[str, str] = {}
+    for key, col in columns.items():
+        key_by_token[key] = key
+        key_by_token[col.name] = key
+    current_key = key_by_token.get(current_col, current_col)
+
+    targets: list[dict[str, Any]] = []
+    for key, col in columns.items():
+        is_current = key == current_key
+        allowed = (not is_current) and transitions.get(current_key, key) is not None
+        targets.append({"key": key, "name": col.name, "allowed": allowed, "current": is_current})
+    return targets
 
 
 class _BodyPatchRequest(BaseModel):
@@ -260,6 +321,154 @@ def patch_ticket_body(
         raise HTTPException(status_code=502, detail=f"GitHub update failed: {exc}") from exc
 
     return JSONResponse(content={"ok": True})
+
+
+class _LaunchRequest(BaseModel):
+    """Request body for the ad-hoc agent-launch endpoint (tiller follow-up, 2026-06-21).
+
+    ``prompt`` is the operator's free-form instruction delivered into the agent's REPL — OPTIONAL:
+    empty launches a bare claude the operator drives by taking control of the terminal. ``profile`` is
+    the permission profile the agent runs under (default ``dev`` — the ad-hoc "make a fix" case).
+    """
+
+    prompt: str = ""
+    profile: str = "dev"
+
+
+@app.post("/api/monitor/ticket/{number}/launch")
+def launch_agent(number: int, req: _LaunchRequest, project: str | None = None) -> JSONResponse:
+    """Enqueue an ad-hoc agent launch for a ticket WITHOUT moving the card (no transition).
+
+    The daemon drains the ``launch`` intent on its next tick (nudged here for near-instant pickup),
+    boots a Claude agent in the ticket's worktree under the chosen permission profile, delivers the
+    prompt, and persists RUNNING state — but performs no board transition. Merge stays human-only and
+    every profile keeps the §10 safety floor. Operator-authority is derived by the daemon; this
+    endpoint sits behind the config-API auth middleware like the other ``/api/monitor`` writes.
+
+    Args:
+        number: The GitHub issue number to launch an agent on.
+        req: ``{"prompt": str, "profile"?: str}``.
+        project: The Project v2 node id selector (optional; auto-resolved for N=1).
+
+    Returns:
+        ``{"ok": true, "intent_id": str}`` — the enqueued intent's id (poll the board for the agent).
+
+    Raises:
+        HTTPException: 400 on a non-safe profile (e.g. ``merge``); 503/404 on project resolution.
+    """
+    import uuid  # noqa: PLC0415
+
+    # Prompt is OPTIONAL (empty → bare claude the operator drives by taking control of the terminal).
+    prompt = (req.prompt or "").strip()
+    profile = req.profile or "dev"
+    # Defense-in-depth: refuse `merge` (and any non-safe name) here too — the daemon's _execute_launch
+    # is authoritative, but reject early so a direct API call (not just the UI select) gets a clear 400
+    # and never even enqueues an engine-gated/merge-capable profile.
+    if profile not in SAFE_LAUNCH_PROFILES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"profile {profile!r} not allowed for ad-hoc launch (merge is engine-gated)",
+        )
+
+    entry = _resolve_entry(project)
+    store = _monitor_store(entry)
+    intent_id = uuid.uuid4().hex[:12]
+    store.enqueue_intent(
+        intent_id,
+        {
+            "kind": "launch",
+            "issue": number,
+            "args": {"prompt": prompt, "profile": profile},
+            "requested_at": time.time(),
+            "caller": "operator",
+        },
+    )
+    # Wake the daemon from its inter-tick sleep so the launch fires near-instantly. The nudge sentinel
+    # is DAEMON-LEVEL (runtime root), so nudge via the runtime-root store (mirrors board_routes._nudge);
+    # best-effort — a nudge failure only delays pickup to the next poll.
+    try:
+        from kanbanmate.adapters.store.fs_store import FsStateStore  # noqa: PLC0415
+
+        FsStateStore(_kanban_root()).nudge_daemon()
+    except Exception:  # noqa: BLE001
+        pass
+    return JSONResponse(content={"ok": True, "intent_id": intent_id})
+
+
+class _MoveRequest(BaseModel):
+    """Request body for the Monitoring status-change (column move) endpoint (tiller follow-up)."""
+
+    to_col: str
+
+
+@app.post("/api/monitor/ticket/{number}/move")
+def move_ticket(number: int, req: _MoveRequest, project: str | None = None) -> JSONResponse:
+    """Enqueue an operator ``move`` intent to change a ticket's column from the Monitoring detail.
+
+    Mirrors ``kanban move`` (the daemon is the sole board writer): enqueues a ``move`` intent and
+    nudges the daemon for near-instant pickup. Operator-authority is derived by the daemon; this sits
+    behind the config-API auth middleware. The daemon validates the destination and moves the card.
+
+    Args:
+        number: The GitHub issue number to move.
+        req: ``{"to_col": "<column key>"}``.
+        project: The Project v2 node id selector (optional; auto-resolved for N=1).
+
+    Returns:
+        ``{"ok": true, "intent_id": str}``.
+
+    Raises:
+        HTTPException: 400 on an empty destination; 503/404 on project resolution.
+    """
+    import uuid  # noqa: PLC0415
+
+    to_col = (req.to_col or "").strip()
+    if not to_col:
+        raise HTTPException(status_code=400, detail="to_col is required")
+
+    entry = _resolve_entry(project)
+    store = _monitor_store(entry)
+    intent_id = uuid.uuid4().hex[:12]
+    store.enqueue_intent(
+        intent_id,
+        {
+            "kind": "move",
+            "issue": number,
+            "args": {"to_col": to_col},
+            "requested_at": time.time(),
+            "caller": "operator",
+        },
+    )
+    try:
+        from kanbanmate.adapters.store.fs_store import FsStateStore  # noqa: PLC0415
+
+        FsStateStore(_kanban_root()).nudge_daemon()
+    except Exception:  # noqa: BLE001 — a nudge failure only delays pickup to the next poll
+        pass
+    return JSONResponse(content={"ok": True, "intent_id": intent_id})
+
+
+@app.get("/api/monitor/intent/{intent_id}")
+def intent_result(intent_id: str, project: str | None = None) -> JSONResponse:
+    """Return an enqueued intent's latest result so the SPA can surface the REAL outcome.
+
+    The launch/move endpoints return an ``intent_id``; the daemon writes a ``<id>.result.json`` as it
+    processes the intent (``claimed`` → ``done`` / ``rejected`` / ``held``). The SPA polls this to show
+    whether the agent actually launched / the card actually moved instead of an optimistic "queued"
+    (e.g. an older daemon that does not know the ``launch`` kind rejects it — the operator must see
+    that). Returns ``{"state": "pending"}`` when no result has been written yet.
+
+    Args:
+        intent_id: The intent id returned by the launch/move endpoint.
+        project: The Project v2 node id selector (optional; auto-resolved for N=1).
+
+    Returns:
+        The persisted ``{"intent_id", "state", "detail"}`` result, or ``{"state": "pending"}``.
+    """
+    entry = _resolve_entry(project)
+    store = _monitor_store(entry)
+    res = store.load_intent_result(intent_id)
+    return JSONResponse(content=res or {"state": "pending"})
 
 
 def _git_show(repo: Path, ref: str, rel: str) -> str | None:

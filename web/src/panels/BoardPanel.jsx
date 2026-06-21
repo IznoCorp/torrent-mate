@@ -13,6 +13,7 @@
 // Every mutation reports VERIFIED completion: the server reads the GitHub state back after a mirror
 // write, so a toast distinguishes "synced to GitHub" from "saved locally, GitHub not confirmed".
 import React from "react";
+import { MonitorCheck } from "lucide-react";
 import * as api from "../api.js";
 import { PageIntro } from "../components/Help.jsx";
 import useIsMobile from "../useIsMobile.js";
@@ -225,9 +226,14 @@ export default function BoardPanel({ project }) {
           fontFamily: "var(--font-mono)",
           fontSize: 11,
           color: "var(--muted-foreground)",
+          cursor: "help",
         }}
+        title={t(
+          "board.revision_hint",
+          "Board revision — increments on every change; used to detect concurrent edits (optimistic locking).",
+        )}
       >
-        v{data.version}
+        {t("board.revision_label", "rev.")} {data.version}
       </span>
       {notice && (
         <Badge tone={noticeTone[notice.tone] || "neutral"} size="sm">
@@ -366,6 +372,45 @@ function DesktopBoard({
       return next;
     });
   };
+
+  // Auto-collapse/expand when a column's card count crosses the empty↔non-empty boundary.
+  // A column going empty → non-empty auto-expands (clear override); non-empty → empty
+  // auto-collapses (clear override). Columns that stay on the same side keep their override.
+  const prevCountsRef = React.useRef({});
+  // Keep a stable ref of override so the effect below doesn't re-trigger on every toggle.
+  const overrideRef = React.useRef(override);
+  overrideRef.current = override;
+  React.useEffect(() => {
+    const cur = {};
+    for (const col of columns) cur[col] = (cardsByCol[col] || []).length;
+    const prev = prevCountsRef.current;
+    // Skip initial mount — no previous state to compare against.
+    if (Object.keys(prev).length === 0) {
+      prevCountsRef.current = cur;
+      return;
+    }
+    let changed = false;
+    const next = { ...overrideRef.current };
+    for (const col of columns) {
+      const was = prev[col] ?? -1;
+      const now = cur[col];
+      if ((was === 0 && now > 0) || (was > 0 && now === 0)) {
+        if (col in next) {
+          delete next[col];
+          changed = true;
+        }
+      }
+    }
+    prevCountsRef.current = cur;
+    if (changed) {
+      setOverride(next);
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify(next));
+      } catch (_) {
+        /* ignore persistence failure */
+      }
+    }
+  }, [columns, cardsByCol, storageKey]);
 
   // Measure the available height so the board fills the viewport; only columns scroll internally.
   // A ResizeObserver on the document body re-measures when ANYTHING above the board reflows (a
@@ -944,6 +989,37 @@ function RichCardFace({ card, t }) {
         >
           {card.title || t("board.untitled")}
         </span>
+        {/* Deep-link to this ticket in Monitoring (stops propagation so it never starts a drag). */}
+        {card.issue_number != null && (
+          <button
+            type="button"
+            title={t("board.open_monitoring", "View in Monitoring")}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              window.dispatchEvent(
+                new CustomEvent("km:open-monitoring", {
+                  detail: { issue: card.issue_number },
+                }),
+              );
+            }}
+            style={{
+              flex: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 22,
+              height: 22,
+              padding: 0,
+              border: "none",
+              background: "transparent",
+              color: "var(--muted-foreground)",
+              cursor: "pointer",
+            }}
+          >
+            <MonitorCheck size={14} strokeWidth={1.75} />
+          </button>
+        )}
       </div>
       {card.excerpt && (
         <div

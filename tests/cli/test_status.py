@@ -403,9 +403,13 @@ class _FakeSessions:
         """Unused by read-only status commands (§1.1 Protocol member)."""
         raise AssertionError("sessions must not resize")
 
-    def capture_ansi(self, name: str) -> str:  # pragma: no cover - unused
+    def capture_ansi(self, name: str, *, scrollback: int = 0) -> str:  # pragma: no cover - unused
         """Unused by read-only status commands (§1.2 Protocol member)."""
         raise AssertionError("sessions must not capture_ansi")
+
+    def pane_size(self, name: str) -> tuple[int, int]:  # pragma: no cover - unused
+        """Unused by read-only status commands (Sessions Protocol member)."""
+        raise AssertionError("sessions must not pane_size")
 
     def is_alive(self, name: str) -> bool:
         """Record the probe and return the scripted liveness (default ``False``)."""

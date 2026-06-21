@@ -267,7 +267,7 @@ class Sessions(Protocol):
         """
         ...
 
-    def capture_ansi(self, name: str) -> str:
+    def capture_ansi(self, name: str, *, scrollback: int = 0) -> str:
         """Return the ANSI-escape-preserved contents of session ``name``'s active pane.
 
         Like :meth:`capture` but passes ``-e`` to ``tmux capture-pane`` so ANSI
@@ -277,9 +277,27 @@ class Sessions(Protocol):
 
         Args:
             name: The session name whose active pane to snapshot.
+            scrollback: When > 0, also capture this many lines of pane HISTORY above
+                the visible screen (``-S -<n>``) so the interactive terminal can scroll
+                back. ``0`` (default) captures only the visible pane.
 
         Returns:
             The joined (``-J``), ANSI-preserved (``-e``) pane text.
+        """
+        ...
+
+    def pane_size(self, name: str) -> tuple[int, int]:
+        """Return session ``name``'s active pane size as ``(cols, rows)``.
+
+        Used by the interactive terminal to size the browser xterm to the pane's real
+        geometry (showing the full width scaled to fit) rather than reflowing the
+        running agent's pane down to the viewer's size.
+
+        Args:
+            name: The session name to measure.
+
+        Returns:
+            ``(cols, rows)``; falls back to ``(80, 24)`` on any runner/parse error.
         """
         ...
 

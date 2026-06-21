@@ -717,6 +717,10 @@ def test_issue_context_returns_body_comments_and_linked_issue() -> None:
         "First comment — agent launched.",
         "Second comment — step completed.",
     )
+    assert ctx.comment_dates == (
+        "2026-06-20T10:15:00Z",
+        "2026-06-20T11:30:00Z",
+    )
     assert ctx.linked_issue_body == "This is the linked issue body — the upstream ticket."
 
     # Query carried the correct owner/name/number variables.

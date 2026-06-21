@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import pytest
+
 from kanbanmate.app.actions import Deps
 from kanbanmate.app.intents import drain_intents
 from kanbanmate.app.tick import TickConfig
@@ -128,6 +130,19 @@ class _FakeStore:
 
     def set_status_override_note(self, note: str | None) -> None:
         self.override_note = note
+
+    reserved: list[int] = field(default_factory=list)
+    released: list[int] = field(default_factory=list)
+    slot_cap_full: bool = False
+
+    def reserve_slot(self, issue_number: int, cap: int) -> bool:
+        if self.slot_cap_full:
+            return False
+        self.reserved.append(issue_number)
+        return True
+
+    def release_slot(self, issue_number: int) -> None:
+        self.released.append(issue_number)
 
 
 def _deps(store: _FakeStore, writer: _FakeWriter) -> Deps:
@@ -695,3 +710,136 @@ def test_pill_clear_clears_override() -> None:
     assert store.override_enum is None
     assert store.override_note is None
     assert store.results["i1"]["state"] == "done"
+
+
+# --- ad-hoc launch intent (tiller follow-up, 2026-06-21) -------------------------------------------
+
+
+def _launch_intent(
+    issue: int, prompt: str = "fix the bug", profile: str = "dev", requested_at: float = 1.0
+) -> dict[str, object]:
+    return {
+        "kind": "launch",
+        "issue": issue,
+        "args": {"prompt": prompt, "profile": profile},
+        "requested_at": requested_at,
+    }
+
+
+class _SpyLaunch:
+    """Stand-in for LaunchAction recording its construction + execution (no real worktree/tmux I/O)."""
+
+    last: _SpyLaunch | None = None
+
+    def __init__(self, **kwargs: object) -> None:
+        self.kwargs = kwargs
+        self.executed = False
+        _SpyLaunch.last = self
+
+    def execute(self, deps: object) -> None:
+        self.executed = True
+
+
+def test_operator_launch_executes_without_moving(monkeypatch: pytest.MonkeyPatch) -> None:
+    import kanbanmate.app.actions as actions_mod
+
+    _SpyLaunch.last = None
+    monkeypatch.setattr(actions_mod, "LaunchAction", _SpyLaunch)
+    store = _FakeStore(intents={"i1": _launch_intent(8, prompt="fix it", profile="dev")})
+    writer = _FakeWriter()
+    _drain(store, writer)
+    # The agent was launched but the card NEVER moved (no transition).
+    assert writer.moves == []
+    assert store.reserved == [8]
+    assert _SpyLaunch.last is not None
+    assert _SpyLaunch.last.executed
+    assert _SpyLaunch.last.kwargs["advance"] == "stop"
+    assert _SpyLaunch.last.kwargs["prompt"] == "fix it"
+    assert _SpyLaunch.last.kwargs["profile"] == "dev"
+    # Ad-hoc operator prompt is delivered VERBATIM (no placeholder fill → no KeyError on `{{...}}`).
+    assert _SpyLaunch.last.kwargs["fill_prompt"] is False
+    # The ad-hoc session is killed on claude exit so it disappears (state already purged by session-end).
+    assert _SpyLaunch.last.kwargs["terminate_on_exit"] is True
+    assert store.results["i1"]["state"] == "done"
+    assert "i1" not in store.intents
+
+
+def test_launch_merge_profile_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The `merge` profile (which lifts the gh-pr-merge ban) is REFUSED for an ad-hoc launch.
+
+    merge=human-only: the merge-capable profile is reachable only via the engine-gated Review→Merge
+    stage, never an ad-hoc launch (else a bridled agent could escalate via a non-running target issue).
+    The refusal happens BEFORE reserving a slot or constructing the action.
+    """
+    import kanbanmate.app.actions as actions_mod
+
+    _SpyLaunch.last = None
+    monkeypatch.setattr(actions_mod, "LaunchAction", _SpyLaunch)
+    store = _FakeStore(intents={"i1": _launch_intent(8, profile="merge")})
+    _drain(store, _FakeWriter())
+    assert store.results["i1"]["state"] == "rejected"
+    assert "merge" in str(store.results["i1"]["detail"]).lower()
+    assert _SpyLaunch.last is None  # action never constructed
+    assert store.reserved == []  # rejected before reserving a slot
+    assert "i1" not in store.intents
+
+
+def test_agent_launch_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A launch whose issue is a daemon-tracked running agent → agent authority → rejected."""
+    import kanbanmate.app.actions as actions_mod
+
+    _SpyLaunch.last = None
+    monkeypatch.setattr(actions_mod, "LaunchAction", _SpyLaunch)
+    store = _FakeStore(intents={"i1": _launch_intent(8)}, running=[_running(8)])
+    _drain(store, _FakeWriter())
+    assert store.results["i1"]["state"] == "rejected"
+    assert _SpyLaunch.last is None  # never constructed
+    assert store.reserved == []
+    assert "i1" not in store.intents
+
+
+def test_launch_empty_prompt_launches_bare(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An empty prompt is OPTIONAL → launch a BARE claude (prompt=None) the operator drives manually."""
+    import kanbanmate.app.actions as actions_mod
+
+    _SpyLaunch.last = None
+    monkeypatch.setattr(actions_mod, "LaunchAction", _SpyLaunch)
+    store = _FakeStore(intents={"i1": _launch_intent(8, prompt="   ")})
+    _drain(store, _FakeWriter())
+    assert store.results["i1"]["state"] == "done"
+    assert _SpyLaunch.last is not None
+    assert _SpyLaunch.last.kwargs["prompt"] is None  # bare claude — nothing injected into the REPL
+    assert _SpyLaunch.last.kwargs["advance"] == "stop"
+    assert store.reserved == [8]
+
+
+def test_launch_cap_full_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    import kanbanmate.app.actions as actions_mod
+
+    _SpyLaunch.last = None
+    monkeypatch.setattr(actions_mod, "LaunchAction", _SpyLaunch)
+    store = _FakeStore(intents={"i1": _launch_intent(8)}, slot_cap_full=True)
+    _drain(store, _FakeWriter())
+    assert store.results["i1"]["state"] == "rejected"
+    assert _SpyLaunch.last is None  # cap rejected BEFORE constructing the action
+    assert "i1" not in store.intents
+
+
+def test_launch_failure_releases_slot(monkeypatch: pytest.MonkeyPatch) -> None:
+    """If the launch raises, the reserved slot is released (no leak) and the intent is rejected."""
+    import kanbanmate.app.actions as actions_mod
+
+    class _BoomLaunch:
+        def __init__(self, **kwargs: object) -> None:
+            pass
+
+        def execute(self, deps: object) -> None:
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr(actions_mod, "LaunchAction", _BoomLaunch)
+    store = _FakeStore(intents={"i1": _launch_intent(8)})
+    _drain(store, _FakeWriter())
+    assert store.reserved == [8]
+    assert store.released == [8]  # slot released on failure
+    assert store.results["i1"]["state"] == "rejected"
+    assert "i1" not in store.intents

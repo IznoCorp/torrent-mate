@@ -168,22 +168,50 @@ class TmuxSessions:
         )
         return res.stdout or ""
 
-    def capture_ansi(self, name: str) -> str:
+    def capture_ansi(self, name: str, *, scrollback: int = 0) -> str:
         """ANSI-preserving capture (``-e``) for the interactive terminal stream (tiller §4.2).
 
         Args:
             name: The session name whose active pane to snapshot.
+            scrollback: When > 0, also capture this many lines of pane HISTORY above the
+                visible screen (``-S -<n>``) so the operator can scroll back through output
+                that has already scrolled off. ``0`` (default) captures only the visible pane.
 
         Returns:
             The joined, ANSI-preserved pane text (empty string when runner returns no stdout).
         """
-        res = self._runner(
-            ["tmux", "capture-pane", "-p", "-J", "-e", "-t", name],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
+        argv = ["tmux", "capture-pane", "-p", "-J", "-e"]
+        if scrollback > 0:
+            # ``-S -<n>`` starts the capture n lines into the scrollback history.
+            argv += ["-S", f"-{scrollback}"]
+        argv += ["-t", name]
+        res = self._runner(argv, capture_output=True, text=True, check=True)
         return res.stdout or ""
+
+    def pane_size(self, name: str) -> tuple[int, int]:
+        """Return session *name*'s active pane size as ``(cols, rows)``.
+
+        The interactive terminal sizes the browser xterm to the pane's REAL geometry so the
+        full width is shown (scaled / scrolled to fit the viewport) instead of reflowing the
+        running agent's pane down to the viewer's size — which would disrupt the live agent.
+
+        Args:
+            name: The session name to measure.
+
+        Returns:
+            ``(cols, rows)``; falls back to ``(80, 24)`` on any runner/parse error.
+        """
+        try:
+            res = self._runner(
+                ["tmux", "display-message", "-p", "-t", name, "#{pane_width} #{pane_height}"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            parts = (res.stdout or "").split()
+            return (int(parts[0]), int(parts[1]))
+        except Exception:  # noqa: BLE001 — best-effort geometry; the viewer defaults to 80x24
+            return (80, 24)
 
     def send_text(self, name: str, text: str, *, literal: bool = True, enter: bool = False) -> None:
         """Send *text* to session *name*, optionally followed by Enter.
