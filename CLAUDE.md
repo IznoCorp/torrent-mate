@@ -128,3 +128,35 @@ pip install -e ".[dev]"   # once the package exists (phase 1)
 ```
 
 The portable Claude config lives in `.claude/` (its own git repo, gitignored by this repo).
+
+## Deployment, Staging & CD
+
+**Only `main` is ever served in prod.** The `webui/` SPA build is gitignored, so a manual
+`npm run build` from a dirty/non-main tree once silently deployed — then lost — uncommitted UI work.
+Guardrails make that impossible. Three SSH clones of this repo:
+
+- `~/dev/KanbanMate` — **development** (branches, worktrees). PM2 NEVER serves from here.
+- `~/deploy/kanban-mate` — **prod**, pinned to `main`. PM2 serves from here: `kanban-km` (daemon),
+  `kanban-km-serve` (webhook `:8765`), `kanban-km-config` (UI `:8796` → `km.iznogoudatall.xyz`).
+- `~/staging/kanban-mate` — **staging**, tracks branch `staging`. PM2 `kanban-staging-config`
+  (`:8797` → `km-staging.iznogoudatall.xyz`).
+
+**Continuous deployment** — PM2 `kanban-autodeploy` (`scripts/autodeploy-poll.sh`, ~60 s poll):
+push to **`main`** → prod auto-redeploys; push to **`staging`** → staging auto-redeploys.
+
+**To test not-yet-merged work on staging** — staging runs against the **REAL prod board** (no test
+board: a card move / config edit there applies for real). Push your branch onto the `staging` branch:
+
+```bash
+git push origin <your-branch>:staging --force-with-lease
+```
+
+Within ~60 s, open `https://km-staging.iznogoudatall.xyz` (same login as prod). An amber **STAGING**
+frame marks it. Keep on-disk state/config **backward-compatible** so the feature build (staging) and
+the prod daemon (`main`) share `~/.kanban-km` safely.
+
+**Never** run `npm run build` + `pm2 restart` by hand — use `scripts/deploy.sh` (prod; refuses unless
+clean `main` synced with origin) or `scripts/deploy-staging.sh`. **Always commit** (nothing lives only
+in a working tree). **Never delete a local branch** that isn't pushed AND merged to `main` (enforced by
+`hooks/reference-transaction`; activate per clone with `scripts/install-git-guards.sh`). Full detail:
+`docs/reference/deployment.md` + `docs/reference/repo-safety.md`.
