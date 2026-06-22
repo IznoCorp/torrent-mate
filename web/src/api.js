@@ -170,6 +170,11 @@ export const daemonAction = (app, action) =>
     "POST",
     `/api/admin/daemon/${encodeURIComponent(app)}/${encodeURIComponent(action)}`,
   );
+// Graceful restart of a UI config server (kanban-km-config / kanban-staging-config): spawns a
+// DETACHED `pm2 restart` job that survives this server's own death. The SPA briefly loses the
+// backend, then reconnects by polling getDaemon() until the app is back with a fresh pid (Option A).
+export const uiRestart = (app) =>
+  call("POST", `/api/admin/ui-restart/${encodeURIComponent(app)}`);
 export const getDaemonLogs = (app, lines) =>
   call(
     "GET",

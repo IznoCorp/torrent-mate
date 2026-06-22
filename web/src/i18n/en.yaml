@@ -355,6 +355,8 @@ admin:
   daemon_uiapp_tip: UI app — bounced only via redeploy, not as a standalone action.
   daemon_already_running: Already running.
   daemon_not_running: Not running.
+  daemon_graceful_restart: Graceful restart
+  daemon_graceful_restart_tip: Restart this UI server — the page briefly disconnects, then reconnects automatically.
   ctl_notice_title: Daemon control
   ctl_job_ok: "{app}: action completed."
   ctl_job_failed: "{app}: action failed (exit {code})."
@@ -384,6 +386,17 @@ admin:
     This redeploys the {target} clone from the latest main and bounces its config server. The UI will
     briefly disconnect, then reconnect on the new build. Running agents are not affected.
   confirm_redeploy_apply: Redeploy
+  # --- graceful UI-app restart ---
+  ui_restart_running: "Restarting {app}…"
+  ui_restart_reconnecting: "Restarting {app} — reconnecting…"
+  ui_restart_done: "{app} restarted."
+  ui_restart_failed: "{app} restart failed."
+  ui_restart_reconnect_slow: "Restart UNCONFIRMED — {app} did not come back in time. Check the jobs ledger."
+  confirm_ui_restart_title: "Restart {app}?"
+  confirm_ui_restart_body: >-
+    This restarts the {app} config server. This page will briefly disconnect, then reconnect
+    automatically. Running agents are not affected.
+  confirm_ui_restart_apply: Restart
   # --- project onboarding (bosun phase 4) ---
   section_onboard: Projects
   onboard_help: >-

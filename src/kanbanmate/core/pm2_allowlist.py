@@ -33,3 +33,27 @@ def validate_daemon_action(app: str, action: str) -> str | None:
     if app in UI_APP_NAMES and action in {"start", "stop", "restart"}:
         return f"standalone '{action}' of UI app '{app}' is refused (bounce only via redeploy)"
     return None
+
+
+def validate_graceful_restart(app: str) -> str | None:
+    """Return ``None`` if ``app`` may be GRACEFULLY restarted, else a refusal reason.
+
+    A *graceful* restart is the sanctioned way to bounce a **UI app** (config server) on its own: the
+    HTTP layer spawns a detached ``pm2 restart`` job that survives the server's own death, and the
+    browser tolerates the gap and reconnects. It is therefore the inverse of
+    :func:`validate_daemon_action`'s D1 rule — permitted ONLY for the UI apps, which a plain
+    ``restart`` refuses. Non-UI daemons (``kanban-km`` / ``kanban-km-serve``) do not serve the UI, so
+    they use the ordinary restart and have no graceful variant.
+
+    Args:
+        app: The PM2 app name.
+
+    Returns:
+        ``None`` when ``app`` is a graceful-restartable UI app; otherwise a human-readable refusal
+        string (the HTTP layer maps a non-``None`` return to a 422).
+    """
+    if app not in PM2_ALLOWLIST:
+        return f"app '{app}' is not in the PM2 allowlist"
+    if app not in UI_APP_NAMES:
+        return f"graceful restart applies only to a UI app, not '{app}' (use a plain restart)"
+    return None

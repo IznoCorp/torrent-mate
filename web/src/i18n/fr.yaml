@@ -360,6 +360,8 @@ admin:
   daemon_uiapp_tip: App UI — relancée uniquement via un redéploiement, pas en action isolée.
   daemon_already_running: Déjà en cours d'exécution.
   daemon_not_running: À l'arrêt.
+  daemon_graceful_restart: Redémarrer (gracieux)
+  daemon_graceful_restart_tip: Redémarre ce serveur UI — la page se déconnecte brièvement puis se reconnecte automatiquement.
   ctl_notice_title: Contrôle du daemon
   ctl_job_ok: "{app} : action terminée."
   ctl_job_failed: "{app} : action échouée (sortie {code})."
@@ -391,6 +393,17 @@ admin:
     se déconnectera brièvement, puis se reconnectera sur le nouveau build. Les agents en cours ne sont
     pas affectés.
   confirm_redeploy_apply: Redéployer
+  # --- redémarrage gracieux d'une app UI ---
+  ui_restart_running: "Redémarrage de {app}…"
+  ui_restart_reconnecting: "Redémarrage de {app} — reconnexion…"
+  ui_restart_done: "{app} redémarré."
+  ui_restart_failed: "Échec du redémarrage de {app}."
+  ui_restart_reconnect_slow: "Redémarrage NON CONFIRMÉ — {app} n'est pas revenu à temps. Vérifie le journal des jobs."
+  confirm_ui_restart_title: "Redémarrer {app} ?"
+  confirm_ui_restart_body: >-
+    Ceci redémarre le serveur de config {app}. Cette page se déconnectera brièvement puis se
+    reconnectera automatiquement. Les agents en cours ne sont pas affectés.
+  confirm_ui_restart_apply: Redémarrer
   # --- onboarding de projet (bosun phase 4) ---
   section_onboard: Projets
   onboard_help: >-

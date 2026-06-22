@@ -7,6 +7,7 @@ from kanbanmate.core.pm2_allowlist import (
     PM2_ALLOWLIST,
     UI_APP_NAMES,
     validate_daemon_action,
+    validate_graceful_restart,
 )
 
 NON_UI = sorted(PM2_ALLOWLIST - UI_APP_NAMES)  # ["kanban-km", "kanban-km-serve"]
@@ -38,3 +39,24 @@ def test_out_of_allowlist_refused() -> None:
 
 def test_unknown_action_refused() -> None:
     assert validate_daemon_action("kanban-km", "destroy") is not None
+
+
+# ── validate_graceful_restart (graceful-restart feature) ──────────────────────
+
+
+@pytest.mark.parametrize("app", UI)
+def test_graceful_restart_permitted_for_ui_apps(app: str) -> None:
+    """The graceful (detached + reconnect) restart is permitted ONLY for the UI config servers."""
+    assert validate_graceful_restart(app) is None
+
+
+@pytest.mark.parametrize("app", NON_UI)
+def test_graceful_restart_refused_for_non_ui_apps(app: str) -> None:
+    """Non-UI daemons use the plain restart (no self-bounce) — graceful restart is refused for them."""
+    reason = validate_graceful_restart(app)
+    assert reason is not None and "UI app" in reason
+
+
+def test_graceful_restart_refused_out_of_allowlist() -> None:
+    assert validate_graceful_restart("kanban-autodeploy") is not None
+    assert validate_graceful_restart("rm-rf") is not None

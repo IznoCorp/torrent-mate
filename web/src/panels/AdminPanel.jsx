@@ -6,7 +6,7 @@ import React from "react";
 import * as api from "../api.js";
 import { PageIntro } from "../components/Help.jsx";
 import Spinner from "../components/Spinner.jsx";
-import useIsMobile from "../useIsMobile.js"; // eslint-disable-line no-unused-vars -- reserved for future master/detail
+import useIsMobile from "../useIsMobile.js";
 import { useT } from "../i18n/index.jsx";
 
 // Spinner is a local component (../components/Spinner.jsx) — the DS bundle exports no Spinner
@@ -43,7 +43,9 @@ function BoolChip({ ok, label }) {
 
 export default function AdminPanel() {
   const { t } = useT();
-  useIsMobile();
+  // Drives the mobile-first layout branches below: rows stack vertically, action buttons go
+  // full-width for tap targets, and multi-column grids collapse to a single column (DESIGN §3).
+  const isMobile = useIsMobile();
   const [health, setHealth] = React.useState(null);
   const [version, setVersion] = React.useState(null);
   const [ops, setOps] = React.useState(null);
@@ -66,6 +68,10 @@ export default function AdminPanel() {
   const [projects, setProjects] = React.useState(null); // [] | null
   // In-flight add job → disables the add buttons + drives a status badge.
   const [adding, setAdding] = React.useState(false);
+  // Graceful UI-app restart: {app, phase:"running"|"bouncing"|"done"|"failed"} | null. Like the
+  // redeploy bounce, `phase==="bouncing"` is the tolerated window where (for the app serving THIS
+  // page) fetches are expected to fail — we show "reconnecting…" and resolve when it is back online.
+  const [uiRestart, setUiRestart] = React.useState(null);
 
   usePoll(
     () =>
@@ -181,6 +187,112 @@ export default function AdminPanel() {
     } else {
       runDaemonAction(app, action);
     }
+  };
+
+  // Graceful restart of a UI config server (Option A). The POST spawns a DETACHED `pm2 restart`
+  // job that survives this server's own death; we then tolerate the bounce and reconnect by polling
+  // the daemon list until the app is back online with a FRESH pid (or a bumped restart count). Works
+  // whether we are restarting the app serving THIS page (fetches fail mid-bounce — tolerated) or the
+  // other UI app (fetches keep working — we just detect the pid flip). Mirrors the redeploy bounce,
+  // but the liveness signal is the process identity (no build-SHA flip on a plain restart).
+  const runUiRestart = React.useCallback(
+    async (app) => {
+      // Set "running" FIRST (synchronously, before any await) so the row's button disables before
+      // the confirm modal closes — closes the double-click window without holding the modal open.
+      setNotice(null);
+      setUiRestart({ app, phase: "running" });
+      // Snapshot the pre-restart identity from a FRESH daemon read (not the possibly-stale polled
+      // `daemon` closure): a reliable baseline rules out a false "done" when the closure lacked the
+      // app / its pid. Tolerate a read failure — detection below still works off the restart count.
+      let beforePid = null;
+      let beforeRestarts = 0;
+      try {
+        const snap = await api.getDaemon();
+        const b = snap.find((d) => d.app === app);
+        if (b) {
+          beforePid = b.pid ?? null;
+          beforeRestarts = b.restarts ?? 0;
+        }
+      } catch {
+        // Couldn't snapshot — proceed; the pid-flip OR restart-bump check stays conservative.
+      }
+      let jobId;
+      try {
+        ({ job_id: jobId } = await api.uiRestart(app));
+      } catch (e) {
+        setUiRestart({ app, phase: "failed" });
+        setNotice({ tone: "error", msg: e.detail || e.message });
+        return;
+      }
+      // The detached job now runs `pm2 restart` — the server may die under us at any moment.
+      setUiRestart({ app, phase: "bouncing" });
+      const deadline = Date.now() + 90 * 1000; // 90s cap — a pm2 restart is quick; generous for slow hosts
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 2000));
+        // Fast-fail: the detached job's record is durable on disk and survives the bounce, so an
+        // explicit failure surfaces with its log tail instead of waiting out the whole deadline.
+        try {
+          const job = await api.getOp(jobId);
+          if (job && (job.state === "failed" || job.state === "error")) {
+            setUiRestart({ app, phase: "failed" });
+            setNotice({
+              tone: "error",
+              msg: job.stdout_tail || t("admin.ui_restart_failed", { app }),
+            });
+            return;
+          }
+        } catch {
+          // Server bouncing (or transient) — ignore and try the liveness probe below.
+        }
+        // Success: the app is back online with a brand-new process. Confirmed by EITHER a pid flip
+        // (definitive) OR a bumped restart count (covers the rare pid reuse). Against the fresh
+        // baseline above, the restart-count clause is a true signal — it only bumps on a real
+        // restart — so neither a reused pid nor a missing baseline pid yields a false "done".
+        try {
+          const apps = await api.getDaemon();
+          const cur = apps.find((d) => d.app === app);
+          if (cur && cur.status === "online" && cur.pid != null) {
+            const flipped =
+              (beforePid != null && cur.pid !== beforePid) ||
+              (cur.restarts ?? 0) > beforeRestarts;
+            if (flipped) {
+              setDaemon(apps);
+              setUiRestart({ app, phase: "done" });
+              return;
+            }
+          }
+        } catch {
+          // Expected while the app serving this page is down — keep waiting, stay "bouncing".
+        }
+      }
+      // Never confirmed it came back within the deadline. Mark failed (not done) — the detached
+      // job's real outcome is still in the jobs ledger below for the operator to check.
+      setUiRestart({ app, phase: "failed" });
+      setNotice({
+        tone: "error",
+        msg: t("admin.ui_restart_reconnect_slow", { app }),
+      });
+    },
+    // No `daemon` dep: the baseline is read fresh inside, so the callback need not be recreated on
+    // every 5s daemon poll.
+    [t],
+  );
+
+  // Graceful restart is high-impact (it bounces a config server) → confirm-gated, like restart.
+  const onGracefulRestart = (app) => {
+    setConfirm({
+      kind: "ui_restart",
+      app,
+      // Fire-and-forget (no returned promise) so the confirm modal closes immediately; the bounce +
+      // reconnect can take tens of seconds and shows inline on the row via `uiRestart`, not as a
+      // modal held open the whole time. Safe: runUiRestart wraps every await, so the promise never
+      // rejects (no unhandled rejection), and it sets phase:"running" synchronously before the modal
+      // closes, so the row button is already disabled (no double-fire). On React 18 a late setState
+      // after an unmount is a silent no-op, so an in-flight restart needs no mounted-ref guard.
+      run: () => {
+        runUiRestart(app);
+      },
+    });
   };
 
   // Flip the PAUSE kill-switch. Turning it ON requires confirm (it stops all launches).
@@ -448,7 +560,12 @@ export default function AdminPanel() {
 
       {/* global kill-switch (PAUSE) */}
       <SectionLabel>{t("admin.section_pause")}</SectionLabel>
-      <PauseControl pause={pause} onToggle={onTogglePause} t={t} />
+      <PauseControl
+        pause={pause}
+        onToggle={onTogglePause}
+        isMobile={isMobile}
+        t={t}
+      />
 
       {/* daemon control + log tail */}
       <SectionLabel>{t("admin.section_daemon")}</SectionLabel>
@@ -456,6 +573,9 @@ export default function AdminPanel() {
         daemon={daemon}
         busyApps={busyApps}
         onAction={onDaemonAction}
+        onGracefulRestart={onGracefulRestart}
+        uiRestart={uiRestart}
+        isMobile={isMobile}
         t={t}
       />
 
@@ -465,6 +585,7 @@ export default function AdminPanel() {
         redeploy={redeploy}
         busy={redeployBusy}
         onRedeploy={onRedeploy}
+        isMobile={isMobile}
         t={t}
       />
 
@@ -480,6 +601,7 @@ export default function AdminPanel() {
           runAddProject(repo, () => api.addProjectClone(repo, gitUrl))
         }
         onRemove={onRemoveProject}
+        isMobile={isMobile}
         t={t}
       />
 
@@ -497,7 +619,10 @@ export default function AdminPanel() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+            // Phones: one card per row (minmax(280px,…) can overflow the narrowest viewports).
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "repeat(auto-fill, minmax(280px, 1fr))",
             gap: 12,
             marginBottom: 22,
           }}
@@ -510,7 +635,7 @@ export default function AdminPanel() {
 
       {/* recent jobs ledger */}
       <SectionLabel>{t("admin.section_jobs")}</SectionLabel>
-      <JobsList ops={ops} t={t} />
+      <JobsList ops={ops} isMobile={isMobile} t={t} />
 
       {/* confirm modal for destructive actions (restart, PAUSE-on) */}
       <ConfirmDialog confirm={confirm} onClose={() => setConfirm(null)} t={t} />
@@ -526,20 +651,25 @@ function ConfirmDialog({ confirm, onClose, t }) {
   const isPause = confirm.kind === "pause_on";
   const isRedeploy = confirm.kind === "redeploy";
   const isRemove = confirm.kind === "remove_project";
+  const isUiRestart = confirm.kind === "ui_restart";
   const title = isPause
     ? t("admin.confirm_pause_title")
     : isRedeploy
       ? t("admin.confirm_redeploy_title", { target: confirm.target })
       : isRemove
         ? t("admin.confirm_remove_title")
-        : t("admin.confirm_restart_title");
+        : isUiRestart
+          ? t("admin.confirm_ui_restart_title", { app: confirm.app })
+          : t("admin.confirm_restart_title");
   const body = isPause
     ? t("admin.confirm_pause_body")
     : isRedeploy
       ? t("admin.confirm_redeploy_body", { target: confirm.target })
       : isRemove
         ? t("admin.confirm_remove_body", { repo: confirm.repo })
-        : t("admin.confirm_restart_body", { app: confirm.app });
+        : isUiRestart
+          ? t("admin.confirm_ui_restart_body", { app: confirm.app })
+          : t("admin.confirm_restart_body", { app: confirm.app });
   const run = async () => {
     setBusy(true);
     try {
@@ -567,7 +697,9 @@ function ConfirmDialog({ confirm, onClose, t }) {
                 ? t("admin.confirm_redeploy_apply")
                 : isRemove
                   ? t("admin.confirm_remove_apply")
-                  : t("admin.confirm_restart_apply")}
+                  : isUiRestart
+                    ? t("admin.confirm_ui_restart_apply")
+                    : t("admin.confirm_restart_apply")}
           </Button>
         </>
       }
@@ -579,7 +711,7 @@ function ConfirmDialog({ confirm, onClose, t }) {
 
 // Global PAUSE kill-switch toggle. Reads GET /api/admin/pause; the button flips it (POST). When
 // active, a red banner makes the kill-switch state unmistakable.
-function PauseControl({ pause, onToggle, t }) {
+function PauseControl({ pause, onToggle, isMobile, t }) {
   if (pause == null)
     return (
       <div style={{ padding: 16, color: "var(--muted-foreground)" }}>
@@ -597,7 +729,10 @@ function PauseControl({ pause, onToggle, t }) {
         padding: 14,
         marginBottom: 22,
         display: "flex",
-        alignItems: "center",
+        // Mobile: stack badge + help over a full-width button so the help text is readable and the
+        // toggle is a comfortable tap target instead of being squeezed at the end of a wrapped row.
+        flexDirection: isMobile ? "column" : "row",
+        alignItems: isMobile ? "stretch" : "center",
         gap: 12,
         flexWrap: "wrap",
       }}
@@ -617,7 +752,8 @@ function PauseControl({ pause, onToggle, t }) {
       </span>
       <Button
         variant={active ? "secondary" : "danger"}
-        size="sm"
+        size={isMobile ? "md" : "sm"}
+        fullWidth={isMobile}
         onClick={onToggle}
       >
         {active ? t("admin.pause_resume") : t("admin.pause_activate")}
@@ -629,7 +765,7 @@ function PauseControl({ pause, onToggle, t }) {
 // Redeploy-from-main control — two confirm-gated buttons (prod / staging). While a redeploy runs,
 // it streams the job log into a scrollable <pre> and, during the config-server bounce, shows a
 // "reconnecting…" status instead of an error. Resolves when the new build answers (version flip).
-function RedeployControl({ redeploy, busy, onRedeploy, t }) {
+function RedeployControl({ redeploy, busy, onRedeploy, isMobile, t }) {
   const phase = redeploy ? redeploy.phase : null;
   // Status line under the buttons reflects the lifecycle phase.
   let statusMsg = null;
@@ -663,8 +799,10 @@ function RedeployControl({ redeploy, busy, onRedeploy, t }) {
       <div
         style={{
           display: "flex",
-          alignItems: "center",
-          gap: 12,
+          // Mobile: help text on its own line, then the two targets as full-width stacked buttons.
+          flexDirection: isMobile ? "column" : "row",
+          alignItems: isMobile ? "stretch" : "center",
+          gap: isMobile ? 8 : 12,
           flexWrap: "wrap",
         }}
       >
@@ -680,7 +818,8 @@ function RedeployControl({ redeploy, busy, onRedeploy, t }) {
         </span>
         <Button
           variant="secondary"
-          size="sm"
+          size={isMobile ? "md" : "sm"}
+          fullWidth={isMobile}
           disabled={busy}
           onClick={() => onRedeploy("staging")}
         >
@@ -688,7 +827,8 @@ function RedeployControl({ redeploy, busy, onRedeploy, t }) {
         </Button>
         <Button
           variant="danger"
-          size="sm"
+          size={isMobile ? "md" : "sm"}
+          fullWidth={isMobile}
           disabled={busy}
           onClick={() => onRedeploy("prod")}
         >
@@ -744,6 +884,7 @@ function OnboardingControl({
   onAddLocal,
   onAddClone,
   onRemove,
+  isMobile,
   t,
 }) {
   const [tab, setTab] = React.useState("local"); // "local" | "clone"
@@ -805,11 +946,22 @@ function OnboardingControl({
 
       {tab === "local" ? (
         <>
-          <DirBrowser picked={pickedPath} onPick={setPickedPath} t={t} />
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <DirBrowser
+            picked={pickedPath}
+            onPick={setPickedPath}
+            isMobile={isMobile}
+            t={t}
+          />
+          <div
+            style={{
+              display: "flex",
+              justifyContent: isMobile ? "stretch" : "flex-end",
+            }}
+          >
             <Button
               variant="primary"
-              size="sm"
+              size={isMobile ? "md" : "sm"}
+              fullWidth={isMobile}
               disabled={adding || !localValid}
               loading={adding}
               onClick={() => onAddLocal(repo.trim(), pickedPath)}
@@ -833,10 +985,16 @@ function OnboardingControl({
               mono
             />
           </label>
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: isMobile ? "stretch" : "flex-end",
+            }}
+          >
             <Button
               variant="primary"
-              size="sm"
+              size={isMobile ? "md" : "sm"}
+              fullWidth={isMobile}
               disabled={adding || !cloneValid}
               loading={adding}
               onClick={() => onAddClone(repo.trim(), gitUrl.trim())}
@@ -867,7 +1025,10 @@ function OnboardingControl({
               key={p.project_id}
               style={{
                 display: "flex",
-                alignItems: "center",
+                // Mobile: repo (+ disabled badge) over a full-width remove button, so a long
+                // owner/name slug never collides with the destructive control.
+                flexDirection: isMobile ? "column" : "row",
+                alignItems: isMobile ? "stretch" : "center",
                 gap: 10,
                 padding: "8px 10px",
                 border: "1px solid var(--border)",
@@ -882,7 +1043,7 @@ function OnboardingControl({
                   fontWeight: 600,
                   color: "var(--foreground)",
                   flex: 1,
-                  minWidth: 120,
+                  minWidth: isMobile ? 0 : 120,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
@@ -895,7 +1056,12 @@ function OnboardingControl({
                   disabled
                 </Badge>
               )}
-              <Button variant="danger" size="sm" onClick={() => onRemove(p)}>
+              <Button
+                variant="danger"
+                size={isMobile ? "md" : "sm"}
+                fullWidth={isMobile}
+                onClick={() => onRemove(p)}
+              >
                 {t("admin.onboard_remove")}
               </Button>
             </div>
@@ -909,7 +1075,7 @@ function OnboardingControl({
 // Directory browser confined server-side to ONBOARD_BASE_DIRS (GET /api/admin/browse). Click into a
 // sub-folder to descend; ".." ascends (still server-confined — a 422 outside the roots surfaces as an
 // inline error and the descent is refused). The currently-listed `path` IS the pickable clone dir.
-function DirBrowser({ picked, onPick, t }) {
+function DirBrowser({ picked, onPick, isMobile, t }) {
   const [path, setPath] = React.useState("");
   const [entries, setEntries] = React.useState(null); // [] | null
   const [busy, setBusy] = React.useState(false);
@@ -1018,20 +1184,29 @@ function DirBrowser({ picked, onPick, t }) {
       <div
         style={{
           display: "flex",
-          alignItems: "center",
+          // Mobile: full-width pick button with the "picked: …" caption beneath it.
+          flexDirection: isMobile ? "column" : "row",
+          alignItems: isMobile ? "stretch" : "center",
           gap: 8,
           flexWrap: "wrap",
         }}
       >
         <Button
           variant="secondary"
-          size="sm"
+          size={isMobile ? "md" : "sm"}
+          fullWidth={isMobile}
           disabled={busy || !path}
           onClick={() => onPick(path)}
         >
           {t("admin.onboard_browse_pick_btn")}
         </Button>
-        <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
+        <span
+          style={{
+            fontSize: 12,
+            color: "var(--muted-foreground)",
+            wordBreak: "break-all",
+          }}
+        >
           {picked
             ? t("admin.onboard_browse_pick", { path: picked })
             : t("admin.onboard_browse_none")}
@@ -1056,9 +1231,17 @@ const dirRowStyle = {
 };
 
 // Daemon list — one row per allowlisted PM2 app with start/stop/restart/status buttons and a
-// per-row log-tail toggle. UI apps (the config servers) have their standalone mutate buttons
-// disabled with an explanatory tooltip (D1 — bounced only via redeploy).
-function DaemonList({ daemon, busyApps, onAction, t }) {
+// per-row log-tail toggle. UI apps (the config servers) swap the standalone mutate buttons (refused
+// by D1) for a single confirm-gated "graceful restart" that bounces + reconnects.
+function DaemonList({
+  daemon,
+  busyApps,
+  onAction,
+  onGracefulRestart,
+  uiRestart,
+  isMobile,
+  t,
+}) {
   if (daemon == null)
     return (
       <div style={{ padding: 16, color: "var(--muted-foreground)" }}>
@@ -1088,6 +1271,11 @@ function DaemonList({ daemon, busyApps, onAction, t }) {
           d={d}
           busy={!!busyApps[d.app]}
           onAction={onAction}
+          onGracefulRestart={onGracefulRestart}
+          restartPhase={
+            uiRestart && uiRestart.app === d.app ? uiRestart.phase : null
+          }
+          isMobile={isMobile}
           t={t}
         />
       ))}
@@ -1095,12 +1283,22 @@ function DaemonList({ daemon, busyApps, onAction, t }) {
   );
 }
 
-function DaemonRow({ d, busy, onAction, t }) {
+function DaemonRow({
+  d,
+  busy,
+  onAction,
+  onGracefulRestart,
+  restartPhase,
+  isMobile,
+  t,
+}) {
   const [logs, setLogs] = React.useState(null); // null = closed; [] = open, fetching/empty
   const [logErr, setLogErr] = React.useState(null);
   const [logBusy, setLogBusy] = React.useState(false);
   const isUiApp = UI_APP_NAMES.has(d.app);
   const online = d.status === "online";
+  // A graceful restart is in flight for THIS app while its phase is running/bouncing.
+  const restarting = restartPhase === "running" || restartPhase === "bouncing";
 
   const toggleLogs = async () => {
     if (logs != null) {
@@ -1126,27 +1324,45 @@ function DaemonRow({ d, busy, onAction, t }) {
       <div
         style={{
           display: "flex",
-          alignItems: "center",
-          gap: 10,
+          // Mobile: stack identity → meta → action grid so nothing is squeezed onto a wrapping row.
+          flexDirection: isMobile ? "column" : "row",
+          alignItems: isMobile ? "stretch" : "center",
+          gap: isMobile ? 8 : 10,
           padding: "10px 13px",
           flexWrap: "wrap",
         }}
       >
-        <Badge tone={online ? "accent" : "red"} size="sm">
-          {d.status || "—"}
-        </Badge>
-        <span
+        {/* identity: status chip + app name (truncates) + the in-flight spinner */}
+        <div
           style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 13,
-            fontWeight: 600,
-            color: "var(--foreground)",
-            flex: 1,
-            minWidth: 120,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            minWidth: 0,
+            flex: isMobile ? undefined : 1,
           }}
         >
-          {d.app}
-        </span>
+          <Badge tone={online ? "accent" : "red"} size="sm">
+            {d.status || "—"}
+          </Badge>
+          <span
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 13,
+              fontWeight: 600,
+              color: "var(--foreground)",
+              flex: 1,
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {d.app}
+          </span>
+          {/* Generic daemon-action spinner; the graceful restart shows its own button + status. */}
+          {busy && <Spinner />}
+        </div>
         <span
           style={{
             fontFamily: "var(--font-mono)",
@@ -1160,38 +1376,63 @@ function DaemonRow({ d, busy, onAction, t }) {
             restarts: d.restarts != null ? d.restarts : "—",
           })}
         </span>
-        {busy && <Spinner />}
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {MUTATE_ACTIONS.map((action) => {
-            // Reflect the live PM2 state: "start" is meaningless while the app is online; "stop"
-            // and "restart" are meaningless while it is stopped. UI apps stay fully guarded
-            // regardless (foot-gun: the config server is bounced only via redeploy, D1).
-            const stateDisabled = action === "start" ? online : !online;
-            const why = isUiApp
-              ? t("admin.daemon_uiapp_tip")
-              : stateDisabled
+        <div
+          style={{
+            // Mobile: a 2-column grid of comfortable (36px) tap targets instead of a tight wrap.
+            display: isMobile ? "grid" : "flex",
+            gridTemplateColumns: isMobile ? "1fr 1fr" : undefined,
+            gap: 6,
+            flexWrap: isMobile ? undefined : "wrap",
+          }}
+        >
+          {isUiApp ? (
+            // UI config server: the naked start/stop/restart are refused (D1, foot-gun). Offer the
+            // sanctioned graceful restart instead — a detached pm2 restart this page reconnects to.
+            <Button
+              size={isMobile ? "md" : "sm"}
+              fullWidth={isMobile}
+              variant="secondary"
+              disabled={busy || restarting}
+              loading={restarting}
+              title={t("admin.daemon_graceful_restart_tip")}
+              onClick={() => onGracefulRestart(d.app)}
+            >
+              {t("admin.daemon_graceful_restart")}
+            </Button>
+          ) : (
+            MUTATE_ACTIONS.map((action) => {
+              // Reflect the live PM2 state: "start" is meaningless while the app is online; "stop"
+              // and "restart" are meaningless while it is stopped.
+              const stateDisabled = action === "start" ? online : !online;
+              const why = stateDisabled
                 ? t(
                     action === "start"
                       ? "admin.daemon_already_running"
                       : "admin.daemon_not_running",
                   )
                 : undefined;
-            return (
-              <Button
-                key={action}
-                size="sm"
-                variant={action === "restart" ? "secondary" : "ghost"}
-                disabled={busy || isUiApp || stateDisabled}
-                title={why}
-                onClick={() => onAction(d.app, action)}
-              >
-                {t(`admin.daemon_${action}`)}
-              </Button>
-            );
-          })}
+              return (
+                <Button
+                  key={action}
+                  size={isMobile ? "md" : "sm"}
+                  fullWidth={isMobile}
+                  // All control buttons use the bordered `secondary` variant: the `ghost` variant
+                  // has a transparent border + transparent fill, so Start/Stop read as borderless
+                  // text — invisible as buttons in dark theme (--border is white at 11%).
+                  variant="secondary"
+                  disabled={busy || stateDisabled}
+                  title={why}
+                  onClick={() => onAction(d.app, action)}
+                >
+                  {t(`admin.daemon_${action}`)}
+                </Button>
+              );
+            })
+          )}
           <Button
-            size="sm"
-            variant="ghost"
+            size={isMobile ? "md" : "sm"}
+            fullWidth={isMobile}
+            variant="secondary"
             disabled={logBusy}
             onClick={toggleLogs}
           >
@@ -1201,6 +1442,39 @@ function DaemonRow({ d, busy, onAction, t }) {
           </Button>
         </div>
       </div>
+      {restartPhase && (
+        <div
+          style={{
+            padding: "0 13px 12px",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <Badge
+            tone={
+              restartPhase === "done"
+                ? "accent"
+                : restartPhase === "failed"
+                  ? "red"
+                  : "amber"
+            }
+            size="sm"
+          >
+            {t(
+              restartPhase === "done"
+                ? "admin.ui_restart_done"
+                : restartPhase === "failed"
+                  ? "admin.ui_restart_failed"
+                  : restartPhase === "bouncing"
+                    ? "admin.ui_restart_reconnecting"
+                    : "admin.ui_restart_running",
+              { app: d.app },
+            )}
+          </Badge>
+          {restarting && <Spinner />}
+        </div>
+      )}
       {logs != null && (
         <div style={{ padding: "0 13px 12px" }}>
           {logErr && (
@@ -1328,7 +1602,7 @@ function ProjectCard({ p, t }) {
 }
 
 // Recent jobs list — id / type / actor / state / exit-code, newest first (as returned).
-function JobsList({ ops, t }) {
+function JobsList({ ops, isMobile, t }) {
   if (ops == null)
     return (
       <div style={{ padding: 16, color: "var(--muted-foreground)" }}>
@@ -1386,6 +1660,8 @@ function JobsList({ ops, t }) {
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
                 flex: 1,
+                // Mobile: take the whole next line rather than fighting the badges for width.
+                flexBasis: isMobile ? "100%" : undefined,
                 minWidth: 0,
               }}
             >

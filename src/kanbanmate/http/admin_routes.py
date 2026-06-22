@@ -23,7 +23,11 @@ from kanbanmate.app import ops
 from kanbanmate.app.audit import append_audit
 from kanbanmate.app.health_dashboard import build_health
 from kanbanmate.app.onboard import list_dir
-from kanbanmate.core.pm2_allowlist import PM2_ALLOWLIST, validate_daemon_action
+from kanbanmate.core.pm2_allowlist import (
+    PM2_ALLOWLIST,
+    validate_daemon_action,
+    validate_graceful_restart,
+)
 from kanbanmate.core.redeploy_target import script_for_target
 from kanbanmate.http.config_api import (
     _actor_login,
@@ -160,6 +164,33 @@ async def admin_daemon_action(app_name: str, action: str, request: fastapi.Reque
     # Record the job_id in the audit line so an operator can join control/audit.log to the durable
     # job record (which carries the outcome: exit code, stdout tail) — BOSUN-3.
     append_audit(_kanban_root(), login, f"daemon_{action}", f"{app_name} job={job_id}")
+    return JSONResponse(content={"job_id": job_id})
+
+
+@app.post("/api/admin/ui-restart/{app_name}")
+async def admin_ui_restart(app_name: str, request: fastapi.Request) -> JSONResponse:
+    """Gracefully restart a UI config server; 422 on non-UI / non-allowlisted app (graceful-restart).
+
+    This is the sanctioned way to bounce a UI app on its own — the foot-gun a plain
+    ``POST /api/admin/daemon/<ui-app>/restart`` deliberately refuses (D1). The crux is that the
+    spawned job is **detached** (``ops.create_job`` → ``Popen(start_new_session=True)``): the
+    ``pm2 restart`` survives this very server's death, and its record is durable on disk, so the
+    browser tolerates the bounce and reconnects by polling ``GET /api/admin/daemon`` until the app
+    is back online with a fresh pid / bumped restart count. The argv is server-constructed (never
+    client-supplied) — it is always a plain ``pm2 restart <app>`` (DESIGN §11.4).
+    """
+    reason = validate_graceful_restart(app_name)
+    if reason is not None:
+        raise HTTPException(status_code=422, detail=reason)
+    login = _actor_login(request)
+    job_id = ops.create_job(
+        _kanban_root(),
+        type="daemon",
+        actor=login,
+        argv=["pm2", "restart", app_name],
+        args_summary=f"graceful-restart {app_name}",
+    )
+    append_audit(_kanban_root(), login, "daemon_graceful_restart", f"{app_name} job={job_id}")
     return JSONResponse(content={"job_id": job_id})
 
 

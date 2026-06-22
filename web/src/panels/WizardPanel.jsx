@@ -9,6 +9,7 @@
 import React from "react";
 import * as api from "../api.js";
 import Spinner from "../components/Spinner.jsx";
+import useIsMobile from "../useIsMobile.js";
 import { useT } from "../i18n/index.jsx";
 
 const { Banner, Badge, KeyChip, Button, Dialog, Input } =
@@ -39,6 +40,8 @@ const STEPS = ["token", "project", "provision", "bootstrap"];
 
 export default function WizardPanel({ onComplete }) {
   const { t } = useT();
+  // Compact stepper (dots, no labels/connectors) + full-width controls on phones (DESIGN §3).
+  const isMobile = useIsMobile();
   // 0..3 = the active step; 4 = the "setup complete" end state.
   const [step, setStep] = React.useState(0);
   // Per-step error (surfaced inline). Cleared on each new attempt.
@@ -194,7 +197,7 @@ export default function WizardPanel({ onComplete }) {
       style={{
         maxWidth: 720,
         margin: "0 auto",
-        padding: "32px 20px 64px",
+        padding: isMobile ? "20px 14px 48px" : "32px 20px 64px",
         minHeight: "100%",
         boxSizing: "border-box",
       }}
@@ -240,7 +243,7 @@ export default function WizardPanel({ onComplete }) {
         {t("wizard.subtitle")}
       </p>
 
-      <Stepper step={step} t={t} />
+      <Stepper step={step} isMobile={isMobile} t={t} />
 
       <div
         style={{
@@ -301,14 +304,16 @@ export default function WizardPanel({ onComplete }) {
           >
             <div style={{ display: "flex", gap: 6 }}>
               <Button
-                size="sm"
+                size={isMobile ? "md" : "sm"}
+                style={isMobile ? { flex: 1 } : undefined}
                 variant={mode === "local" ? "secondary" : "ghost"}
                 onClick={() => setMode("local")}
               >
                 {t("admin.onboard_tab_local")}
               </Button>
               <Button
-                size="sm"
+                size={isMobile ? "md" : "sm"}
+                style={isMobile ? { flex: 1 } : undefined}
                 variant={mode === "clone" ? "secondary" : "ghost"}
                 onClick={() => setMode("clone")}
               >
@@ -327,7 +332,12 @@ export default function WizardPanel({ onComplete }) {
               />
             </label>
             {mode === "local" ? (
-              <DirBrowser picked={pickedPath} onPick={setPickedPath} t={t} />
+              <DirBrowser
+                picked={pickedPath}
+                onPick={setPickedPath}
+                isMobile={isMobile}
+                t={t}
+              />
             ) : (
               <label
                 style={{ display: "flex", flexDirection: "column", gap: 4 }}
@@ -509,7 +519,52 @@ export default function WizardPanel({ onComplete }) {
 }
 
 // The numbered step rail across the top. The active step is highlighted; completed steps show a check.
-function Stepper({ step, t }) {
+// On phones the labels + connector lines wrap into a broken zig-zag, so mobile drops them and renders
+// just the numbered dots in a single row — the active step's name is already the StepBody title.
+function Stepper({ step, isMobile, t }) {
+  const dot = (s, i) => {
+    const done = step > i;
+    const active = step === i;
+    return (
+      <span
+        style={{
+          display: "inline-grid",
+          placeItems: "center",
+          width: 22,
+          height: 22,
+          borderRadius: "50%",
+          fontSize: 12,
+          fontWeight: 600,
+          fontFamily: "var(--font-mono)",
+          background: done || active ? "var(--primary)" : "var(--muted)",
+          color:
+            done || active
+              ? "var(--primary-foreground)"
+              : "var(--muted-foreground)",
+        }}
+      >
+        {done ? "✓" : i + 1}
+      </span>
+    );
+  };
+
+  if (isMobile) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+        }}
+      >
+        {STEPS.map((s, i) => (
+          <React.Fragment key={s}>{dot(s, i)}</React.Fragment>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
@@ -521,7 +576,6 @@ function Stepper({ step, t }) {
       }}
     >
       {STEPS.map((s, i) => {
-        const done = step > i;
         const active = step === i;
         return (
           <React.Fragment key={s}>
@@ -537,29 +591,7 @@ function Stepper({ step, t }) {
                   : "transparent",
               }}
             >
-              <span
-                style={{
-                  display: "inline-grid",
-                  placeItems: "center",
-                  width: 22,
-                  height: 22,
-                  borderRadius: "50%",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  fontFamily: "var(--font-mono)",
-                  background: done
-                    ? "var(--primary)"
-                    : active
-                      ? "var(--primary)"
-                      : "var(--muted)",
-                  color:
-                    done || active
-                      ? "var(--primary-foreground)"
-                      : "var(--muted-foreground)",
-                }}
-              >
-                {done ? "✓" : i + 1}
-              </span>
+              {dot(s, i)}
               <span
                 style={{
                   fontSize: 12,
@@ -646,7 +678,7 @@ function Footer({ onBack, backLabel, children }) {
 // Directory browser confined server-side to ONBOARD_BASE_DIRS (GET /api/admin/browse). Same behaviour
 // as the AdminPanel onboarding browser — click into a sub-folder to descend, ".." ascends, and the
 // currently-listed path IS the pickable clone dir. Reuses the admin.onboard_browse_* i18n keys.
-function DirBrowser({ picked, onPick, t }) {
+function DirBrowser({ picked, onPick, isMobile, t }) {
   const [path, setPath] = React.useState("");
   const [entries, setEntries] = React.useState(null); // [] | null
   const [busy, setBusy] = React.useState(false);
@@ -753,20 +785,28 @@ function DirBrowser({ picked, onPick, t }) {
       <div
         style={{
           display: "flex",
-          alignItems: "center",
+          flexDirection: isMobile ? "column" : "row",
+          alignItems: isMobile ? "stretch" : "center",
           gap: 8,
           flexWrap: "wrap",
         }}
       >
         <Button
           variant="secondary"
-          size="sm"
+          size={isMobile ? "md" : "sm"}
+          fullWidth={isMobile}
           disabled={busy || !path}
           onClick={() => onPick(path)}
         >
           {t("admin.onboard_browse_pick_btn")}
         </Button>
-        <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
+        <span
+          style={{
+            fontSize: 12,
+            color: "var(--muted-foreground)",
+            wordBreak: "break-all",
+          }}
+        >
           {picked
             ? t("admin.onboard_browse_pick", { path: picked })
             : t("admin.onboard_browse_none")}

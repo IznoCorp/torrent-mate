@@ -235,6 +235,65 @@ def test_daemon_status_allowed_on_ui_app(tmp_path: Path, monkeypatch: pytest.Mon
         assert r.json()["job_id"] == "job-status-1"
 
 
+# ── POST /api/admin/ui-restart/{app} (graceful restart) ──────────────────────
+
+
+def test_ui_restart_ui_app_creates_pm2_restart_job(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Graceful restart of a UI app spawns a detached ``pm2 restart <app>`` job (200)."""
+    api_mod = _setup(tmp_path)
+
+    from kanbanmate.app import ops
+
+    captured: dict[str, Any] = {}
+
+    def _fake_create_job(_root: Any, **kwargs: Any) -> str:
+        captured.update(kwargs)
+        return "job-gr-1"
+
+    monkeypatch.setattr(ops, "create_job", _fake_create_job)
+    with TestClient(api_mod.app) as client:
+        client.get("/api/health")
+        token = client.cookies.get("km_csrf")
+        r = client.post(
+            "/api/admin/ui-restart/kanban-km-config",
+            headers={"X-KM-CSRF": token} if token else {},
+        )
+        assert r.status_code == 200
+        assert r.json()["job_id"] == "job-gr-1"
+        # The job must shell a plain ``pm2 restart`` (server-constructed argv, never client-supplied).
+        assert captured["type"] == "daemon"
+        assert captured["argv"] == ["pm2", "restart", "kanban-km-config"]
+
+
+def test_ui_restart_non_ui_app_refused_422(tmp_path: Path) -> None:
+    """Graceful restart is UI-only: a non-UI daemon (kanban-km) is refused (422)."""
+    api_mod = _setup(tmp_path)
+    with TestClient(api_mod.app) as client:
+        client.get("/api/health")
+        token = client.cookies.get("km_csrf")
+        r = client.post(
+            "/api/admin/ui-restart/kanban-km",
+            headers={"X-KM-CSRF": token} if token else {},
+        )
+        assert r.status_code == 422
+        assert "UI app" in r.json()["detail"]
+
+
+def test_ui_restart_out_of_allowlist_refused_422(tmp_path: Path) -> None:
+    """Graceful restart of a non-allowlisted app name is refused (422)."""
+    api_mod = _setup(tmp_path)
+    with TestClient(api_mod.app) as client:
+        client.get("/api/health")
+        token = client.cookies.get("km_csrf")
+        r = client.post(
+            "/api/admin/ui-restart/rm-rf",
+            headers={"X-KM-CSRF": token} if token else {},
+        )
+        assert r.status_code == 422
+
+
 # ── GET /api/admin/daemon/{app}/logs ──────────────────────────────────────────
 
 
