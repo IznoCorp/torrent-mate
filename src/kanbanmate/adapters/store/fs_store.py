@@ -29,6 +29,7 @@ import time
 from kanbanmate.adapters.store.fs_breadcrumbs import AgentBreadcrumbsMixin
 from kanbanmate.adapters.store.fs_health_state import HealthStateMixin
 from kanbanmate.adapters.store.fs_intents import IntentsStateMixin
+from kanbanmate.adapters.store.fs_pending_launch import PendingLaunchMixin
 from kanbanmate.adapters.store.fs_status_state import StatusUpdateStateMixin
 from kanbanmate.ports.store import LIVE_STATUSES, TicketState, TicketStatus
 
@@ -66,7 +67,11 @@ _RATE_WINDOW = 3600.0
 
 
 class FsStateStore(
-    AgentBreadcrumbsMixin, StatusUpdateStateMixin, HealthStateMixin, IntentsStateMixin
+    AgentBreadcrumbsMixin,
+    StatusUpdateStateMixin,
+    HealthStateMixin,
+    IntentsStateMixin,
+    PendingLaunchMixin,
 ):
     """Filesystem-backed :class:`~kanbanmate.ports.store.StateStore` implementation.
 
@@ -145,6 +150,10 @@ class FsStateStore(
         # per card holding its last-written Health value (the on-change diff key).
         (self.root / "health").mkdir(parents=True, exist_ok=True)
         (self.root / "health" / "last").mkdir(parents=True, exist_ok=True)
+        # Restart-durable pending-launch breadcrumbs (#55); one marker per ITEM (item_id-keyed, like
+        # ``health/last/<item>``) holding ``{"from", "to", "ts"}`` so a launch-bearing move survives a
+        # daemon restart between the move and its diff-driven launch (the wiped in-memory baseline, #20).
+        (self.root / "pending_launch").mkdir(parents=True, exist_ok=True)
 
     # ------------------------------------------------------------------
     # StateStore Protocol methods

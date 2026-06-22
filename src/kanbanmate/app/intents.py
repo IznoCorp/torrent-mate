@@ -141,6 +141,7 @@ def drain_intents(
                     processed_issues=processed_issues,
                     kill_switch=kill_switch,
                     concurrency_cap=config.concurrency_cap,
+                    now=now,
                 )
             except Exception:  # noqa: BLE001 — one bad intent must never block the others / the tick
                 logger.exception("intent %s raised; rejecting it", intent_id)
@@ -164,6 +165,7 @@ def _process_intent(
     processed_issues: set[int],
     kill_switch: bool,
     concurrency_cap: int,
+    now: float,
 ) -> None:
     """Validate + execute ONE intent: common gates then per-kind dispatch (caller isolates)."""
     intent = _parse_intent(payload)
@@ -200,6 +202,7 @@ def _process_intent(
             next_columns=next_columns,
             status_events=status_events,
             processed_issues=processed_issues,
+            now=now,
         )
     elif intent.kind == "launch":
         _execute_launch(
@@ -274,6 +277,7 @@ def _execute_move(
     next_columns: dict[str, str],
     status_events: list[tuple[str, int | None, str]],
     processed_issues: set[int],
+    now: float,
 ) -> None:
     """Execute a ``move`` intent: validate (re-fire/Merge/R1 guards) then move with idempotence."""
     ticket = by_issue.get(intent.issue) if intent.issue is not None else None
@@ -339,6 +343,15 @@ def _execute_move(
     edge = transitions.get(from_key, to_column.key)
     if edge is None or not edge.prompt:
         next_columns[item_id] = to_column.key
+    else:
+        # Launch-bearing edge: the baseline stays UNADVANCED (above) so the NEXT tick's diff fires the
+        # entry agent. Drop a restart-durable breadcrumb (#55) so that pending launch is NOT lost if
+        # the daemon restarts before the detect tick — the wiped in-memory baseline (#20) would
+        # otherwise make the card look first-contact (from=None → decide NOOP) and silently drop the
+        # launch (the live #55 ReadyToDev→PrepareFeature bug). The tick overlays ``from_key`` back onto
+        # the baseline after a restart so the genuine transition is re-detected (fired exactly once:
+        # the LaunchAction consumes the breadcrumb; the tick clears it if the card leaves the column).
+        deps.store.record_pending_launch(item_id, from_col=from_key, to_col=to_column.key, now=now)
     status_events.append(("auto", intent.issue, f"moved → {to_column.name}"))
     _result(deps, intent_id, "done", f"moved {from_col}->{to_column.name}")
     deps.store.clear_intent(intent_id)

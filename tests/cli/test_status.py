@@ -30,7 +30,7 @@ from kanbanmate.cli.status import (
 )
 from kanbanmate.core.domain import BoardSnapshot, Ticket
 from kanbanmate.core.heartbeat import Heartbeat, render_heartbeat
-from kanbanmate.ports.store import TicketState, TicketStatus
+from kanbanmate.ports.store import PendingLaunch, TicketState, TicketStatus
 
 
 class _FakeBoardReader:
@@ -175,6 +175,24 @@ class _FakeStore:
     ) -> int:
         """Unused by the read-only commands (done-exit attempt counter, firm-exit)."""
         raise AssertionError("status/sessions must not read end attempts")
+
+    def record_pending_launch(  # pragma: no cover - unused by read-only commands
+        self, item_id: str, *, from_col: str, to_col: str, now: float
+    ) -> None:
+        """Unused by the read-only commands (pending-launch breadcrumb, #55)."""
+        raise AssertionError("status/sessions must not record pending launches")
+
+    def pending_launches(  # pragma: no cover - unused by read-only commands
+        self, *, now: float
+    ) -> dict[str, PendingLaunch]:
+        """Unused by the read-only commands (pending-launch breadcrumb, #55)."""
+        raise AssertionError("status/sessions must not read pending launches")
+
+    def clear_pending_launch(  # pragma: no cover - unused by read-only commands
+        self, item_id: str
+    ) -> None:
+        """Unused by the read-only commands (pending-launch breadcrumb, #55)."""
+        raise AssertionError("status/sessions must not clear pending launches")
 
     def clear_end_attempts(  # pragma: no cover - unused by read-only commands
         self, issue_number: int

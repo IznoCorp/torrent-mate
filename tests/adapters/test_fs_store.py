@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from kanbanmate.adapters.store.fs_store import FsStateStore
-from kanbanmate.ports.store import TicketState, TicketStatus
+from kanbanmate.ports.store import PendingLaunch, TicketState, TicketStatus
 
 
 # ---------------------------------------------------------------------------
@@ -1956,3 +1956,63 @@ class TestStatusUpdateState:
         on_disk = json.loads((store.root / "status" / "events.json").read_text())
         assert isinstance(on_disk, list)
         assert on_disk[0]["kind"] == "block" and on_disk[0]["issue"] is None
+
+
+class TestPendingLaunchBreadcrumb:
+    """The restart-durable pending-launch breadcrumb (#55).
+
+    A launch-bearing operator move records ``pending_launch/<item_id>`` so a daemon restart
+    between the move and the launch-detect tick does NOT silently drop the launch (the in-memory
+    diff baseline is wiped on restart, #20). Keyed by the ``item_id`` (the diff-baseline key), not
+    the issue number.
+    """
+
+    def test_record_then_read_round_trip(self, tmp_path: Path) -> None:
+        store = FsStateStore(root=tmp_path)
+        store.record_pending_launch(
+            "PVTI_001", from_col="ReadyToDev", to_col="PrepareFeature", now=1000.0
+        )
+        pending = store.pending_launches(now=1000.0)
+        assert set(pending) == {"PVTI_001"}
+        assert pending["PVTI_001"] == PendingLaunch(
+            item_id="PVTI_001", from_col="ReadyToDev", to_col="PrepareFeature", ts=1000.0
+        )
+
+    def test_empty_when_none_recorded(self, tmp_path: Path) -> None:
+        store = FsStateStore(root=tmp_path)
+        assert store.pending_launches(now=1000.0) == {}
+
+    def test_clear_removes_the_breadcrumb(self, tmp_path: Path) -> None:
+        store = FsStateStore(root=tmp_path)
+        store.record_pending_launch(
+            "PVTI_001", from_col="ReadyToDev", to_col="PrepareFeature", now=1000.0
+        )
+        store.clear_pending_launch("PVTI_001")
+        assert store.pending_launches(now=1000.0) == {}
+
+    def test_clear_absent_is_a_noop(self, tmp_path: Path) -> None:
+        store = FsStateStore(root=tmp_path)
+        store.clear_pending_launch("PVTI_404")  # must not raise
+
+    def test_breadcrumb_survives_a_fresh_store_instance(self, tmp_path: Path) -> None:
+        """The whole point: a NEW store (daemon restart) still sees the breadcrumb on disk."""
+        FsStateStore(root=tmp_path).record_pending_launch(
+            "PVTI_001", from_col="ReadyToDev", to_col="PrepareFeature", now=1000.0
+        )
+        reborn = FsStateStore(root=tmp_path)
+        assert reborn.pending_launches(now=1000.0)["PVTI_001"].from_col == "ReadyToDev"
+
+    def test_expired_breadcrumb_is_filtered_out(self, tmp_path: Path) -> None:
+        store = FsStateStore(root=tmp_path)
+        store.record_pending_launch(
+            "PVTI_001", from_col="ReadyToDev", to_col="PrepareFeature", now=1000.0
+        )
+        assert store.pending_launches(now=1000.0 + 1_000_000.0) == {}
+
+    def test_poison_marker_degrades_to_skip(self, tmp_path: Path) -> None:
+        store = FsStateStore(root=tmp_path)
+        store.record_pending_launch(
+            "PVTI_001", from_col="ReadyToDev", to_col="PrepareFeature", now=1000.0
+        )
+        (store.root / "pending_launch" / "PVTI_001").write_text("{not json")
+        assert store.pending_launches(now=1000.0) == {}

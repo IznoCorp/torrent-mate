@@ -264,6 +264,10 @@ def _mocks(reader: _FakeBoardReader, *, now: float = 1000.0) -> _Mocks:
     # is exercised; a bare MagicMock would raise ``TypeError: '<' not supported`` when compared to
     # MAX_END_ATTEMPTS. A test driving the escalation overrides ``get_end_attempts`` explicitly.
     store.get_end_attempts.return_value = 0
+    # Restart-durable pending-launch recovery (#55): default NO breadcrumbs so the diff baseline is
+    # untouched for the pre-existing tick tests (a bare MagicMock return is non-iterable and would
+    # crash the overlay's ``.items()``). A test modelling a surviving breadcrumb sets this explicitly.
+    store.pending_launches.return_value = {}
     clock = MagicMock()
     clock.now.return_value = now
     pull_requests = MagicMock()

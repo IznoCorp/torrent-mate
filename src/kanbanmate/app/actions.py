@@ -306,6 +306,13 @@ class LaunchAction:
         if issue is None:
             return
 
+        # The launch is now committed for this item: consume its restart-durable pending_launch
+        # breadcrumb (#55) so it fires EXACTLY ONCE. The breadcrumb exists only for an operator move
+        # into a launch-bearing column (``_execute_move``); it is also cleared by the tick when the
+        # card leaves the launch column. No-op when absent — every other launch path (a GitHub-drag
+        # launch, the reaper relaunch, the ad-hoc launch intent) simply has nothing to clear.
+        deps.store.clear_pending_launch(self.ticket.item_id)
+
         # The tmux session NAME stays the Sessions correlation key (``ticket-<n>``). The CLAUDE
         # session id is the generated uuid below — the two are deliberately distinct.
         session_name = f"ticket-{issue}"

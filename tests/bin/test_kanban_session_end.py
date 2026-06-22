@@ -420,6 +420,61 @@ def test_done_with_advance_auto_records_move_not_agent_advance(
     store.record_agent_advance.assert_not_called()
 
 
+def test_auto_advance_into_launch_edge_records_pending_launch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A launch-bearing auto-advance drops a restart-durable pending_launch breadcrumb (#55/#27).
+
+    The engine's autonomous advance into a launch column (e.g. PrepareFeature->InProgress) faces the
+    SAME restart/stale-baseline window as an operator move: a daemon restart — or a stale in-memory
+    diff baseline — between this move and the daemon's launch-detect tick would silently DROP the next
+    stage's launch. Recording the breadcrumb lets the tick re-create the (stage -> target) transition
+    and fire the launch regardless (app/tick.py overlay).
+    """
+    store = MagicMock()
+    store.load.return_value = _state(stage="Spec", advance="auto:Plan")
+    store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = True
+    store.move_count_for_item_last_hour.return_value = 0
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    client = _patch_github_capture_client(monkeypatch)
+    _patch_backstop_config(monkeypatch)  # cfg.get -> a launch-bearing edge (truthy .prompt)
+
+    assert main(["7"]) == 0
+    client.move_card.assert_called_once_with("PVTI_node", "Plan")
+    store.record_pending_launch.assert_called_once()
+    args, kwargs = store.record_pending_launch.call_args
+    assert args == ("PVTI_node",)
+    assert kwargs["from_col"] == "Spec"
+    assert kwargs["to_col"] == "Plan"
+
+
+def test_auto_advance_into_noop_edge_records_no_pending_launch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A NON-launch auto-advance target (a no-op gate edge, e.g. Plan->ReadyToDev) drops NO breadcrumb.
+
+    Only launch-bearing advance targets need recovery; a no-op gate would otherwise re-fire a NOOP.
+    """
+    store = MagicMock()
+    store.load.return_value = _state(stage="Plan", advance="auto:Planned")
+    store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = True
+    store.move_count_for_item_last_hour.return_value = 0
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    _patch_github_capture_client(monkeypatch)
+    monkeypatch.setattr(kanban_session_end, "load_clone_columns", lambda entry: _columns())
+    cfg = MagicMock()
+    cfg.move_rate_limit_per_hour = 10
+    noop_edge = MagicMock()
+    noop_edge.prompt = None  # a no-op gate edge → not launch-bearing
+    cfg.get.return_value = noop_edge
+    monkeypatch.setattr(kanban_session_end, "load_clone_transitions", lambda entry: cfg)
+
+    assert main(["7"]) == 0
+    store.record_pending_launch.assert_not_called()
+
+
 def test_done_with_advance_stop_does_not_move(monkeypatch: pytest.MonkeyPatch) -> None:
     """advance=stop (the Planned/Review human gates) → NO engine move; the card STOPS."""
     store = MagicMock()

@@ -252,6 +252,18 @@ def _auto_advance(
     try:
         client.move_card(state.item_id, target_name)
         store.record_move_for_item(issue, now=now)
+        # Restart-durable launch recovery (#55/#27): if the advance target is itself a LAUNCH edge
+        # (the next stage fires an agent), drop a pending_launch breadcrumb so a daemon restart — or a
+        # STALE in-memory diff baseline — between this engine move and the daemon's launch-detect tick
+        # does NOT silently drop the next stage's launch (the same window an operator move faces; see
+        # ``app/intents._execute_move``). The breadcrumb records the TRUE ``(stage -> target)`` edge;
+        # the daemon's tick overlays it (``app/tick``). A no-op advance target (e.g. the ReadyToDev
+        # gate) carries no prompt → no breadcrumb (re-creating a NOOP would be pointless).
+        edge = cfg.get(state.stage, target_col.key)
+        if edge is not None and getattr(edge, "prompt", None):
+            store.record_pending_launch(
+                state.item_id, from_col=state.stage, to_col=target_col.key, now=now
+            )
         print(f"{_PROG}: ticket #{issue} auto-advanced -> {target_name} (engine backstop).")
         return "advanced"
     except Exception as exc:  # noqa: BLE001 — fail-soft: the engine move must never break session-end.

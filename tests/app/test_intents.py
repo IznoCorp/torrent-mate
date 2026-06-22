@@ -145,6 +145,21 @@ class _FakeStore:
     def release_slot(self, issue_number: int) -> None:
         self.released.append(issue_number)
 
+    # Restart-durable pending-launch breadcrumb (#55): _execute_move records one on a launch edge.
+    pending_launch_records: list[tuple[str, str, str]] = field(default_factory=list)
+    pending_launch_cleared: list[str] = field(default_factory=list)
+
+    def record_pending_launch(
+        self, item_id: str, *, from_col: str, to_col: str, now: float
+    ) -> None:
+        self.pending_launch_records.append((item_id, from_col, to_col))
+
+    def pending_launches(self, *, now: float) -> dict[str, object]:
+        return {}
+
+    def clear_pending_launch(self, item_id: str) -> None:
+        self.pending_launch_cleared.append(item_id)
+
 
 def _deps(store: _FakeStore, writer: _FakeWriter, *, kanban_root: str = "") -> Deps:
     placeholder = object()
@@ -248,6 +263,32 @@ def test_operator_move_into_launch_column_does_not_advance_baseline() -> None:
     )
     assert store.results["i1"]["state"] == "done"
     assert "i1" not in store.intents
+
+
+def test_operator_move_into_launch_column_records_pending_launch() -> None:
+    """A launch-edge move drops a restart-durable pending_launch breadcrumb (#55).
+
+    Pairs with the baseline-not-advanced behaviour: leaving the baseline unadvanced makes the next
+    tick's diff fire the entry agent, but a daemon restart in that window wipes the in-memory
+    baseline (#20) and the launch is silently dropped. The breadcrumb lets the tick re-create the
+    transition after a restart. Recorded with (item_id, from_col KEY, to_col KEY).
+    """
+    store = _FakeStore(intents={"i1": _move_intent(8, "Spec")})
+    writer = _FakeWriter()
+    _drain(store, writer)
+    assert store.pending_launch_records == [("PVTI_8", "Backlog", "Spec")]
+
+
+def test_operator_move_into_noop_column_records_no_pending_launch() -> None:
+    """A NON-launch (no-action) move must NOT drop a pending_launch breadcrumb (#55).
+
+    Backlog->Done carries no prompt: the baseline advances normally and there is nothing to recover
+    after a restart, so no breadcrumb is written (it would otherwise re-fire a non-launch move).
+    """
+    store = _FakeStore(intents={"i1": _move_intent(8, "Done")})
+    writer = _FakeWriter()
+    _drain(store, writer)
+    assert store.pending_launch_records == []
 
 
 def test_move_translates_column_key_to_github_name() -> None:

@@ -161,6 +161,32 @@ class TicketState:
     body: str = ""
 
 
+@dataclass(frozen=True)
+class PendingLaunch:
+    """A durable record that a launch-bearing move is awaiting its diff-driven launch (#55).
+
+    The daemon's diff baseline (``columns_by_item`` in :class:`~kanbanmate.app.tick.PersistedState`)
+    is IN-MEMORY only and wiped on a restart (#20). A launch-bearing operator move (e.g.
+    ``ReadyToDev → PrepareFeature``) is detected by ``diff(baseline, snapshot)`` on the tick AFTER
+    the move drains, so a daemon restart in that window erases the "from" column and the card looks
+    first-contact (``from=None`` → ``decide`` NOOP), silently dropping the launch. ``_execute_move``
+    drops one of these breadcrumbs for exactly such an edge; the tick OVERLAYS it onto the baseline
+    so the genuine transition is re-detected. Keyed by ``item_id`` (the diff-baseline key) — NOT the
+    issue number.
+
+    Attributes:
+        item_id: The ``ProjectV2Item`` node id (the diff-baseline / breadcrumb key).
+        from_col: The column key the card moved OUT of (the transition origin to re-create).
+        to_col: The launch-bearing destination column key (the card must still be here to re-fire).
+        ts: The wall-clock epoch the breadcrumb was recorded (the TTL anchor).
+    """
+
+    item_id: str
+    from_col: str
+    to_col: str
+    ts: float
+
+
 class StateStore(HealthStateStore, IntentStore, Protocol):
     """Persisted per-ticket runtime state for the polling daemon.
 
@@ -407,6 +433,58 @@ class StateStore(HealthStateStore, IntentStore, Protocol):
 
         Args:
             issue_number: The ticket whose breadcrumb to clear (the key).
+        """
+        ...
+
+    # ------------------------------------------------------------------
+    # Restart-durable pending-launch breadcrumb (#55) — item_id-keyed
+    # ------------------------------------------------------------------
+
+    def record_pending_launch(
+        self, item_id: str, *, from_col: str, to_col: str, now: float
+    ) -> None:
+        """Record a restart-durable pending-launch breadcrumb for ``item_id`` (#55).
+
+        Written by ``_execute_move`` when an operator move lands on a LAUNCH-BEARING edge (the same
+        ``edge.prompt`` branch that deliberately leaves the in-memory diff baseline unadvanced). The
+        breadcrumb survives a daemon restart so the tick can OVERLAY ``from_col`` back onto the wiped
+        baseline (:class:`PendingLaunch`) and re-detect the genuine transition — otherwise the
+        restart drops the launch (the live #55 ``ReadyToDev → PrepareFeature`` bug). Keyed by
+        ``item_id`` (the diff-baseline key), NOT the issue number.
+
+        Args:
+            item_id: The ``ProjectV2Item`` node id (the diff-baseline / breadcrumb key).
+            from_col: The transition origin column key, to re-create on the baseline post-restart.
+            to_col: The launch-bearing destination column key.
+            now: The wall-clock timestamp written into the breadcrumb (the TTL anchor).
+        """
+        ...
+
+    def pending_launches(self, *, now: float) -> dict[str, PendingLaunch]:
+        """Return the live (non-expired) pending-launch breadcrumbs, keyed by ``item_id`` (#55).
+
+        The tick overlays these onto the in-memory diff baseline before ``diff`` so a launch-bearing
+        move survives a daemon restart. Breadcrumbs older than the TTL
+        (:data:`~kanbanmate.adapters.store.fs_pending_launch._PENDING_LAUNCH_TTL`) and corrupt
+        markers are skipped (degrade, never raise — a poison file must not wedge the tick).
+
+        Args:
+            now: The wall-clock timestamp the TTL is measured against.
+
+        Returns:
+            ``{item_id: PendingLaunch}`` for every live breadcrumb.
+        """
+        ...
+
+    def clear_pending_launch(self, item_id: str) -> None:
+        """Remove ``item_id``'s pending-launch breadcrumb; no-op when absent (#55).
+
+        Consumed when the launch dispatches (``LaunchAction.execute``) so it fires exactly once, and
+        cleared by the tick when the card has left the launch column (the operator pulled it back) so
+        a stale breadcrumb can never re-fire.
+
+        Args:
+            item_id: The ``ProjectV2Item`` node id whose breadcrumb to clear (the key).
         """
         ...
 

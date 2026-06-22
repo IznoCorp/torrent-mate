@@ -590,7 +590,31 @@ def tick(
                 # DEFAULT_TRANSITIONS fallback), so a ``None`` here is a wiring bug (DESIGN §8.0.6).
                 transitions=config.transitions,
             )
-            for transition in diff(persisted_state.columns_by_item, snapshot):
+            # Restart-durable launch recovery (#55 / #27): a launch-bearing move records a durable
+            # ``pending_launch`` breadcrumb (``_execute_move`` for an operator move, the engine
+            # auto-advance for an autonomous one), capturing the TRUE origin column at move time. The
+            # in-memory diff baseline (``columns_by_item``) is unreliable across the launch window: it
+            # is WIPED on a daemon restart (#20 — the card then looks first-contact ``from=None`` →
+            # ``decide`` NOOP, the #55 silent-drop) and it can lag STALE-WRONG (the live #27 bug: the
+            # baseline still said ``Plan`` while the card had advanced to ``ReadyToDev``, so the
+            # launch-edge move diffed as the un-whitelisted ``Plan → PrepareFeature`` and ROLLED BACK).
+            # So for a breadcrumbed item still parked in the launch target, OVERRIDE the baseline with
+            # the breadcrumb's recorded origin — re-creating the genuine transition so the existing
+            # diff→decide→LAUNCH path fires unchanged. Targeted to breadcrumbed items only (never all
+            # cards), so the #20 in-memory-baseline decision stands (no restart storm). A stale
+            # breadcrumb (the card has LEFT the launch column — launched-then-advanced, or the operator
+            # pulled it back) is cleared here so it can never re-fire; the consumed-on-launch clear
+            # lives in ``LaunchAction.execute`` (so a successful launch fires exactly once).
+            recovery_baseline = dict(persisted_state.columns_by_item)
+            pending_map = deps.store.pending_launches(now=now)
+            if pending_map:
+                current_by_item = {t.item_id: t.column_key for t in snapshot.tickets}
+                for pending_item, pending in pending_map.items():
+                    if current_by_item.get(pending_item) != pending.to_col:
+                        deps.store.clear_pending_launch(pending_item)
+                    else:
+                        recovery_baseline[pending_item] = pending.from_col
+            for transition in diff(recovery_baseline, snapshot):
                 # default-status double-write guard: skip a stale ``→""`` (empty-target) transition
                 # whenever this item ALREADY has a NON-EMPTY ``next_columns`` entry. That entry means a
                 # heal (the default-status normalization just assigned the default column NAME) or an
