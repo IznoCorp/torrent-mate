@@ -1708,26 +1708,30 @@
         onDismiss = null,
         style,
       }) {
+        // Tones lean on the dark-aware --health-* tokens (identical to the raw
+        // ramp in light mode, but they flip to dark surfaces + light text in
+        // dark mode). The raw --*-50/-700 ramp stops are NOT theme-aware, so a
+        // banner built on them stayed light-on-light in dark mode (invisible).
         const tones = {
           info: {
-            fg: "var(--blue-700)",
-            bg: "var(--blue-50)",
-            bd: "var(--blue-300)",
+            fg: "var(--health-complete-fg)",
+            bg: "var(--health-complete-bg)",
+            bd: "var(--health-complete-bd)",
           },
           success: {
-            fg: "var(--green-700)",
-            bg: "var(--green-50)",
-            bd: "var(--green-300)",
+            fg: "var(--health-active-fg)",
+            bg: "var(--health-active-bg)",
+            bd: "var(--health-active-bd)",
           },
           warning: {
-            fg: "var(--amber-700)",
-            bg: "var(--amber-50)",
-            bd: "var(--amber-300)",
+            fg: "var(--health-waiting-fg)",
+            bg: "var(--health-waiting-bg)",
+            bd: "var(--health-waiting-bd)",
           },
           error: {
-            fg: "var(--red-700)",
-            bg: "var(--red-50)",
-            bd: "var(--red-300)",
+            fg: "var(--health-blocked-fg)",
+            bg: "var(--health-blocked-bg)",
+            bd: "var(--health-blocked-bd)",
           },
           neutral: {
             fg: "var(--text-body)",
@@ -1798,7 +1802,7 @@
                 {
                   style: {
                     fontSize: "var(--text-sm)",
-                    color: "var(--text-body)",
+                    color: t.fg,
                     lineHeight: 1.5,
                   },
                 },

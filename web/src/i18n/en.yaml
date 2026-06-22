@@ -35,27 +35,9 @@ shell:
     validation: Validation
     yaml: YAML preview
     monitoring: Monitoring
-    new_ticket: New ticket
+    issues: Issues
     projects: Projects
     profiles: Profiles
-
-newticket:
-  title: New ticket
-  intro: >-
-    Capture an idea or bug as a GitHub issue. It is added to the board at Backlog and the daemon
-    picks it up on its next poll.
-  field_title: Title
-  title_placeholder: Short summary of the idea or bug
-  field_body: Description
-  optional: (optional, markdown)
-  body_placeholder: "Context, steps to reproduce, acceptance…"
-  submit: Create ticket
-  hint: ⌘/Ctrl + Enter to submit
-  created_title: Ticket created
-  created_body: "Issue #{n} created in Backlog."
-  view_on_github: View on GitHub
-  status_unconfirmed: Added to the board, but the Backlog status wasn't confirmed — check the board.
-  error_title: Could not create the ticket
 
 login:
   title: KanbanMate — sign in
@@ -244,8 +226,43 @@ sync:
   tag_rename: RENAME
   tag_reorder: REORDER
 
+# Shared GitHub-PR-style markdown editor (MarkdownField).
+md:
+  write: Write
+  preview: Preview
+  nothing: Nothing to preview
+
+# Issues hub — list / create / edit-description.
+issues:
+  title: Issues
+  intro: >-
+    Every ticket on the board — capture ideas as new tickets, open one to edit its description.
+    New tickets land in Backlog.
+  count: "{n} ticket(s)"
+  empty: No tickets yet — create your first idea.
+  new_title: New ticket
+  new_tip: Create a new idea/bug ticket
+  new_intro: >-
+    Capture an idea or bug. It is created on GitHub and added to the board at Backlog; you then
+    land on it to refine the description.
+  field_title: Title
+  title_ph: Short summary of the idea or bug
+  field_desc: Description
+  optional: (optional, markdown)
+  desc_ph: "Context, steps to reproduce, acceptance…"
+  create_btn: Create ticket
+  create_tip: Create the issue on the board at Backlog
+  back: Issues
+  on_github: GitHub ↗
+  save_btn: Save description
+  done_btn: Done
+  created: "Ticket #{n} created in Backlog."
+  saved: Description saved ✓
+
 monitor:
   intro_title: Monitoring
+  desc_placeholder: "Describe the ticket (markdown)…"
+  stale: "Board may be stale — last refresh failed:"
   intro_body: >-
     Live read-only view of this board — columns, tickets, and the agents currently running.
     Refreshes automatically. Read-only: to interact with an agent, `tmux attach` on the host.

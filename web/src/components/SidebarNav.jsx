@@ -16,7 +16,7 @@ import {
   MonitorCheck,
   ServerCog,
   ShieldCogCorner,
-  SquarePlus,
+  CircleDot,
 } from "lucide-react";
 import { useT } from "../i18n/index.jsx";
 import { BRAND_ICON } from "../lib/env.js";
@@ -32,7 +32,7 @@ const NAV_ICON = {
   validation: BadgeCheck,
   yaml: FileCode,
   monitoring: MonitorCheck,
-  "new-ticket": SquarePlus,
+  issues: CircleDot,
   daemon: ServerCog,
   profiles: ShieldCogCorner,
 };
@@ -42,7 +42,7 @@ export const VIEWS_NAV = [
   // Monitoring first (operator) — it is the default landing view.
   { id: "monitoring", tkey: "shell.nav.monitoring", key: "live" },
   { id: "board", tkey: "shell.nav.board", key: "native" },
-  { id: "new-ticket", tkey: "shell.nav.new_ticket", key: "issue" },
+  { id: "issues", tkey: "shell.nav.issues", key: "ideas" },
 ];
 export const CONFIG_NAV = [
   { id: "columns", tkey: "shell.nav.columns", key: "columns.yml" },

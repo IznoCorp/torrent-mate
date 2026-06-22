@@ -35,27 +35,9 @@ shell:
     validation: Validation
     yaml: Aperçu YAML
     monitoring: Monitoring
-    new_ticket: Nouveau ticket
+    issues: Issues
     projects: Projets
     profiles: Profils
-
-newticket:
-  title: Nouveau ticket
-  intro: >-
-    Capture une idée ou un bug sous forme d'issue GitHub. Elle est ajoutée au board en Backlog et le
-    daemon la prend en compte à son prochain cycle.
-  field_title: Titre
-  title_placeholder: Résumé court de l'idée ou du bug
-  field_body: Description
-  optional: (optionnel, markdown)
-  body_placeholder: "Contexte, étapes de reproduction, critères d'acceptation…"
-  submit: Créer le ticket
-  hint: ⌘/Ctrl + Entrée pour valider
-  created_title: Ticket créé
-  created_body: "Issue #{n} créée en Backlog."
-  view_on_github: Voir sur GitHub
-  status_unconfirmed: Ajouté au board, mais le statut Backlog n'a pas été confirmé — vérifie le board.
-  error_title: Impossible de créer le ticket
 
 login:
   title: KanbanMate — connexion
@@ -248,8 +230,43 @@ sync:
   tag_rename: RENOMMÉ
   tag_reorder: RÉORDONNÉ
 
+# Éditeur markdown partagé façon PR GitHub (MarkdownField).
+md:
+  write: Écrire
+  preview: Aperçu
+  nothing: Rien à prévisualiser
+
+# Hub Issues — liste / création / édition de description.
+issues:
+  title: Issues
+  intro: >-
+    Tous les tickets du board — note tes idées en nouveaux tickets, ouvre-en un pour éditer sa
+    description. Les nouveaux tickets arrivent en Backlog.
+  count: "{n} ticket(s)"
+  empty: Aucun ticket pour l'instant — crée ta première idée.
+  new_title: Nouveau ticket
+  new_tip: Créer un ticket idée/bug
+  new_intro: >-
+    Capture une idée ou un bug. Il est créé sur GitHub et ajouté au board en Backlog ; tu arrives
+    ensuite dessus pour affiner la description.
+  field_title: Titre
+  title_ph: Résumé court de l'idée ou du bug
+  field_desc: Description
+  optional: (optionnel, markdown)
+  desc_ph: "Contexte, étapes de reproduction, critères d'acceptation…"
+  create_btn: Créer le ticket
+  create_tip: Crée l'issue sur le board en Backlog
+  back: Issues
+  on_github: GitHub ↗
+  save_btn: Enregistrer la description
+  done_btn: Terminé
+  created: "Ticket #{n} créé en Backlog."
+  saved: Description enregistrée ✓
+
 monitor:
   intro_title: Monitoring
+  desc_placeholder: "Décrivez le ticket (markdown)…"
+  stale: "Le board est peut-être périmé — échec du dernier rafraîchissement :"
   intro_body: >-
     Vue live en lecture seule de ce board — colonnes, tickets et les agents en cours. Rafraîchi
     automatiquement. Lecture seule : pour interagir avec un agent, fais `tmux attach` sur l'hôte.

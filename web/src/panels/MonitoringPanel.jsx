@@ -10,12 +10,13 @@ import {
   PanelLeftOpen,
 } from "lucide-react";
 import { renderMarkdown } from "../lib/markdown.js";
+import { extractFreeform } from "../lib/body.js";
 import * as api from "../api.js";
 import { PageIntro } from "../components/Help.jsx";
 import { MobileBack } from "../components/MobileMasterDetail.jsx";
 import AgentTerminal from "../components/AgentTerminal.jsx";
 import MarkdownReader from "../components/MarkdownReader.jsx";
-import RichPromptEditor from "../components/RichPromptEditor.jsx";
+import MarkdownField from "../components/MarkdownField.jsx";
 import useIsMobile from "../useIsMobile.js";
 import { useT } from "../i18n/index.jsx";
 
@@ -422,6 +423,24 @@ export default function MonitoringPanel({ project }) {
     }
   };
 
+  // Drop the optimistic column override once the real snapshot reflects it (or the card moved
+  // elsewhere), so it never masks reality. Hoisted ABOVE the board/detail early-returns below so it
+  // runs on EVERY render — a hook placed after a conditional return crashes with React #310 ("more
+  // hooks than the previous render") the moment `board` flips from null (loading) to loaded.
+  React.useEffect(() => {
+    if (!optimisticCol || !board) return;
+    const opts =
+      detail?.move_targets ||
+      board.columns.map((c) => ({
+        key: c.key,
+        current: c.name === detail?.column_key || c.key === detail?.column_key,
+      }));
+    const reconciled =
+      (opts.find((m) => m.current) || {}).key ||
+      (detail ? detail.column_key : "");
+    if (reconciled === optimisticCol) setOptimisticCol(null);
+  }, [optimisticCol, detail, board]);
+
   // Derived artifact sources from the loaded detail (null/[] when no detail yet).
   const brainstorm = detail ? brainstormSection(detail.body) : null;
   const planPaths = detail?.markers?.plans
@@ -459,11 +478,6 @@ export default function MonitoringPanel({ project }) {
     (detail ? detail.column_key : "");
   // Prefer the optimistic destination until the (lagging) snapshot catches up to it.
   const currentMoveKey = optimisticCol || reconciledMoveKey;
-  React.useEffect(() => {
-    // Drop the override once the snapshot reflects it (or moved elsewhere) so it never masks reality.
-    if (optimisticCol && reconciledMoveKey === optimisticCol)
-      setOptimisticCol(null);
-  }, [optimisticCol, reconciledMoveKey]);
 
   // Per-ticket state dot — the colored summary line (running/waiting/blocked) is its legend. The
   // state is the board's own server-computed `agent_state` (running/waiting/blocked, or null for a
@@ -1036,9 +1050,14 @@ export default function MonitoringPanel({ project }) {
                         gap: 8,
                       }}
                     >
-                      <RichPromptEditor
+                      <MarkdownField
                         value={editFreeform}
                         onChange={setEditFreeform}
+                        minRows={12}
+                        placeholder={t(
+                          "monitor.desc_placeholder",
+                          "Describe the ticket (markdown)…",
+                        )}
                       />
                       <div style={{ display: "flex", gap: 6 }}>
                         <Tooltip
@@ -1232,26 +1251,15 @@ export default function MonitoringPanel({ project }) {
                       <div style={{ fontSize: 12, fontWeight: 600 }}>
                         {t("monitor.launch_title", "Launch an agent")}
                       </div>
-                      <textarea
+                      <MarkdownField
                         value={launchPrompt}
-                        onChange={(e) => setLaunchPrompt(e.target.value)}
+                        onChange={setLaunchPrompt}
+                        minRows={6}
+                        mono
                         placeholder={t(
                           "monitor.launch_placeholder",
                           "Prompt for the agent (e.g. fix the failing test in …)",
                         )}
-                        rows={3}
-                        style={{
-                          width: "100%",
-                          resize: "vertical",
-                          fontFamily: "var(--font-mono)",
-                          fontSize: 12,
-                          padding: 8,
-                          borderRadius: "var(--radius-sm)",
-                          border: "1px solid var(--border)",
-                          background: "var(--background)",
-                          color: "var(--foreground)",
-                          boxSizing: "border-box",
-                        }}
                       />
                       <div
                         style={{
@@ -1468,30 +1476,6 @@ function brainstormSection(body) {
 }
 
 // Extract freeform prose from the body — strip marker/status regions and ## Brainstorm.
-function extractFreeform(body) {
-  if (!body) return "";
-  const STATUS_BEGIN = "<!-- kanban:status:begin -->";
-  const STATUS_END = "<!-- kanban:status:end -->";
-  let text = body;
-  // Remove status block
-  const sbStart = text.indexOf(STATUS_BEGIN);
-  const sbEnd = text.indexOf(STATUS_END);
-  if (sbStart !== -1 && sbEnd !== -1) {
-    text = text.slice(0, sbStart) + text.slice(sbEnd + STATUS_END.length);
-  }
-  // Remove ONLY the known kanban marker lines (PRESERVED_MARKERS in core/body_edit.py:
-  // roadmap | codename | design | plans). Anchoring to these keys preserves the operator's own
-  // bold-prefixed prose (e.g. `**Note**: investigate the cache`), which `\w+` would have eaten.
-  text = text.replace(
-    /^\*\*(?:roadmap|codename|design|plans)\*\*:[^\n]*$/gm,
-    "",
-  );
-  // Remove ## Brainstorm section
-  const bsIdx = text.indexOf("## Brainstorm");
-  if (bsIdx !== -1) text = text.slice(0, bsIdx);
-  return text.trim();
-}
-
 // Last path segment — a compact label for plan files (paths can be long / multiple).
 function baseName(path) {
   const parts = String(path).split("/");

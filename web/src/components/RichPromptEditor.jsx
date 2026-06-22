@@ -11,6 +11,7 @@ import { languages } from "@codemirror/language-data";
 import { EditorView } from "@codemirror/view";
 import * as api from "../api.js";
 import { useT } from "../i18n/index.jsx";
+import useIsMobile from "../useIsMobile.js";
 
 const { KeyChip, Banner, SegmentedControl } =
   window.KanbanMateDesignSystem_2463ad;
@@ -65,9 +66,13 @@ const CM_EXTENSIONS = [
 
 export default function RichPromptEditor({ value, onChange }) {
   const { t } = useT();
+  const isMobile = useIsMobile();
   const [known, setKnown] = React.useState({});
   const [tab, setTab] = React.useState("write");
   const cmRef = React.useRef(null);
+  // Bigger + mobile-friendly: fill the screen on a phone, a generous band on desktop.
+  const minH = isMobile ? "44vh" : "320px";
+  const maxH = isMobile ? "72vh" : "62vh";
 
   React.useEffect(() => {
     api
@@ -141,8 +146,8 @@ export default function RichPromptEditor({ value, onChange }) {
             onChange={(v) => onChange(v)}
             extensions={CM_EXTENSIONS}
             placeholder={t("prompt.placeholder")}
-            minHeight="260px"
-            maxHeight="460px"
+            minHeight={minH}
+            maxHeight={maxH}
             basicSetup={{
               lineNumbers: true,
               foldGutter: false,
@@ -162,7 +167,8 @@ export default function RichPromptEditor({ value, onChange }) {
             border: "1px solid var(--border)",
             borderRadius: "var(--radius-md)",
             color: "var(--foreground)",
-            minHeight: 260,
+            minHeight: minH,
+            maxHeight: maxH,
             overflow: "auto",
           }}
           dangerouslySetInnerHTML={{ __html: previewHtml }}

@@ -19,7 +19,9 @@ function lookup(bundle, key) {
 }
 
 function interpolate(str, vars) {
-  if (!vars) return str;
+  // Only an OBJECT is a valid vars map. Guarding the type avoids `k in vars` throwing a TypeError
+  // when a caller accidentally passes a string here (e.g. a fallback) — which blanked the whole app.
+  if (!vars || typeof vars !== "object") return str;
   return str.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
 }
 
@@ -46,10 +48,18 @@ export function I18nProvider({ children }) {
   }, []);
 
   const t = React.useCallback(
-    (key, vars) => {
+    (key, fallbackOrVars, maybeVars) => {
       const hit = lookup(BUNDLES[lang], key);
       const enHit = hit !== undefined ? hit : lookup(BUNDLES.en, key);
-      return interpolate(enHit !== undefined ? enHit : key, vars);
+      // Forms supported: t(key), t(key, vars), t(key, fallback), t(key, fallback, vars). A STRING
+      // 2nd arg is an English fallback (used only when the key is absent from BOTH bundles); an
+      // OBJECT 2nd arg is the interpolation vars. The whole UI uses inline fallbacks, so this must
+      // not treat the fallback as vars (which crashed on any translation containing {placeholder}).
+      const fallback =
+        typeof fallbackOrVars === "string" ? fallbackOrVars : undefined;
+      const vars = typeof fallbackOrVars === "string" ? maybeVars : fallbackOrVars;
+      const str = enHit !== undefined ? enHit : fallback !== undefined ? fallback : key;
+      return interpolate(str, vars);
     },
     [lang],
   );

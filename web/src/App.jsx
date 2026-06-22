@@ -12,7 +12,7 @@ import DaemonPanel from "./panels/DaemonPanel.jsx";
 import ProfilesPanel from "./panels/ProfilesPanel.jsx";
 import MonitoringPanel from "./panels/MonitoringPanel.jsx";
 import BoardPanel from "./panels/BoardPanel.jsx";
-import NewTicketPanel from "./panels/NewTicketPanel.jsx";
+import IssuesPanel from "./panels/IssuesPanel.jsx";
 import LoginScreen from "./components/LoginScreen.jsx";
 import { useT } from "./i18n/index.jsx";
 
@@ -31,12 +31,13 @@ export default function App() {
   const [saving, setSaving] = React.useState(false); // config-save in flight (spinner + multi-click guard)
   // Persist the active tab across reloads (refresh should keep your place — esp. on mobile).
   // Default landing after login = Monitoring (operator).
-  const [active, setActive] = React.useState(
-    () =>
+  const [active, setActive] = React.useState(() => {
+    const stored =
       (typeof localStorage !== "undefined" &&
         localStorage.getItem("bridge.tab")) ||
-      "monitoring",
-  ); // tab id; "daemon" = registry scope
+      "monitoring";
+    return stored === "new-ticket" ? "issues" : stored; // legacy id → Issues hub
+  }); // tab id; "daemon" = registry scope
   const [error, setError] = React.useState(null);
   const [bootError, setBootError] = React.useState(null);
   const [authed, setAuthed] = React.useState(null); // null = checking; false = needs login; true = ok
@@ -222,8 +223,8 @@ export default function App() {
     content = <MonitoringPanel project={selected} />;
   } else if (active === "board") {
     content = <BoardPanel project={selected} />;
-  } else if (active === "new-ticket") {
-    content = <NewTicketPanel project={selected} />;
+  } else if (active === "issues") {
+    content = <IssuesPanel project={selected} repo={currentRepo} />;
   } else if (error && !draft) {
     content = (
       <Banner tone="error" title={t("app.cannot_load_board")}>
