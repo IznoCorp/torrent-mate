@@ -25,7 +25,9 @@ from kanbanmate.core.launch_keys import (
     TRUST_POLL_ATTEMPTS,
     TRUST_POLL_INTERVAL,
     classify_pane,
+    is_waiting_for_input,
     prompt_pending,
+    turn_running,
 )
 
 if TYPE_CHECKING:
@@ -44,6 +46,13 @@ SUBMIT_RETRY_ATTEMPTS = 8
 # Seconds between submit-retry capture+resend cycles. Long enough for claude to render the post-submit
 # state (so a landed submit is seen and NOT re-Entered), short enough to keep launch latency low.
 SUBMIT_RETRY_INTERVAL = 0.6
+
+# How many times the loop RE-PASTES the whole prompt when the input box is EMPTY with no running turn
+# — the EATEN-paste case (claude v2.1.175's intro/welcome screen swallows the launch paste). Distinct
+# from the Enter-resend path (which only helps when the prompt is still sitting in the box): an eaten
+# paste leaves nothing to submit, so re-sending Enter is futile and the agent sits idle forever (the
+# live #27 Review stall). Bounded so a genuinely undeliverable prompt still terminates (→ the WARN).
+REDELIVER_ATTEMPTS = 2
 
 # How many trailing lines of a captured tmux pane to surface in a diagnostic log (#11). Enough to
 # show the REPL's current state without flooding the structured log with the full scrollback.
@@ -169,23 +178,30 @@ def verify_prompt_delivered(
 def submit_prompt_with_retries(
     deps: Deps, issue: int, session_name: str, filled: str, column_key: str
 ) -> bool:
-    """RE-SEND Enter until the prompt leaves the input box — the submit-reliability fix.
+    """Confirm a turn actually started — re-sending Enter OR re-delivering an eaten paste.
 
-    The single submit Enter that :meth:`kanbanmate.app.actions.LaunchAction._deliver_prompt` sends
-    can be ABSORBED on claude v2.1.x: the REPL renders a ready prompt (``❯`` / ``auto mode on``) a
-    beat before it accepts input, so the keystroke lands while the input loop is not yet listening and
-    the filled prompt is left sitting in the input box (a collapsed ``[Pasted text …]`` for a
-    multi-line prompt). For an INTERACTIVE stage a human eventually presses Enter; for an AUTONOMOUS
-    stage (Spec / Plan / dev) NO human is there, so the agent never starts and — post-Approach-A —
-    parks ``WAITING`` forever. This loop closes that gap: after the initial submit it polls the pane
-    and, while the prompt is still :func:`~kanbanmate.core.launch_keys.prompt_pending`, re-sends Enter
-    (bounded by :data:`SUBMIT_RETRY_ATTEMPTS`). A landed submit (a running-turn marker, or the prompt
-    gone from the input-box tail) stops the loop with NO further Enter — and an Enter at an already
-    empty input box is a harmless no-op, so an over-eager resend never corrupts a submitted turn.
+    Two distinct delivery failures both leave an AUTONOMOUS stage (Spec / Plan / dev) with no human to
+    rescue it, so the agent never starts and — post-Approach-A — parks ``WAITING`` forever:
+
+    * **Absorbed Enter** — the REPL renders a ready prompt (``❯`` / ``auto mode on``) a beat before it
+      accepts input, so the submit Enter lands while the input loop is not yet listening and the filled
+      prompt is left sitting in the input box (a collapsed ``[Pasted text …]`` for a multi-line prompt).
+      While the prompt is still :func:`~kanbanmate.core.launch_keys.prompt_pending`, re-send Enter.
+    * **Eaten paste** — claude v2.1.175's intro/welcome screen swallows the literal paste itself, so the
+      input box ends up EMPTY (the live #27 Review stall). The old ``not prompt_pending`` success check
+      read that empty box as "submitted" and gave up; re-sending Enter is futile (nothing to submit).
+      When NEITHER a running turn NOR a pending prompt is seen, the whole prompt is RE-DELIVERED (paste
+      + autocomplete-closing space + Enter), bounded by :data:`REDELIVER_ATTEMPTS`.
+
+    Success is now the STRICT :func:`~kanbanmate.core.launch_keys.turn_running` signal (a turn in
+    flight), NOT merely "the box emptied" — that is what lets the loop tell a real submit from an eaten
+    paste. The whole loop is bounded by :data:`SUBMIT_RETRY_ATTEMPTS`; an Enter / re-paste at an already
+    empty or already-submitted box is a harmless no-op, so an over-eager resend never corrupts a turn.
 
     Fully fail-soft: a capture/send error ends the loop quietly (the launch already happened). On
-    exhaustion (still pending after the budget) it falls back to :func:`verify_prompt_delivered` —
-    the WARN + advisory sticky — so an operator still sees a genuinely stuck prompt.
+    exhaustion (no running turn confirmed) it WARNs + drops an advisory sticky — via
+    :func:`verify_prompt_delivered` for a still-VISIBLE stuck prompt, or an explicit empty-box /
+    no-turn warning for an eaten paste — so an operator always sees a genuinely undelivered prompt.
 
     Args:
         deps: The adapter bundle (the sessions ``capture`` / ``send_text`` seams + the injected
@@ -199,6 +215,7 @@ def submit_prompt_with_retries(
         ``True`` iff the prompt was confirmed submitted within the retry budget; ``False`` on
         exhaustion or a fail-soft early exit (the fallback warning has been emitted on exhaustion).
     """
+    redeliveries = 0
     for _attempt in range(SUBMIT_RETRY_ATTEMPTS):
         # Give claude a beat to render the post-submit state BEFORE judging, so a submit that DID
         # land is seen as submitted and not needlessly re-Entered.
@@ -212,20 +229,74 @@ def submit_prompt_with_retries(
                 session_name,
             )
             return False
-        if not prompt_pending(pane, filled):
-            # The submit landed (a turn is running, or the prompt left the input box).
+        # STRICT success: a turn is actually in flight. Unlike the old ``not prompt_pending`` check,
+        # this does NOT treat an EMPTY input box as success — an empty box is BOTH a real submit AND an
+        # eaten paste, and conflating them is exactly the silent-stall bug (live #27).
+        if turn_running(pane):
             return True
-        # Still sitting in the input box → the submit Enter was absorbed; re-send it.
+        if prompt_pending(pane, filled):
+            # The prompt is still sitting in the input box → the submit Enter was absorbed; re-send it.
+            try:
+                deps.sessions.send_text(session_name, "Enter", literal=False)
+            except Exception:  # noqa: BLE001 — best-effort; a send blip must not break the launch
+                logger.warning(
+                    "submit-retry Enter resend failed for #%s session %s; stopping retries",
+                    issue,
+                    session_name,
+                )
+                return False
+            continue
+        if is_waiting_for_input(pane):
+            # The submit landed and the agent immediately hit a permission/menu prompt — it is ENGAGED,
+            # not eaten. Re-pasting the whole prompt INTO that menu would corrupt it, so treat this as
+            # delivered (the reaper owns the WAITING state from here).
+            return True
+        # NEITHER a running turn NOR the prompt in the box → the input box is EMPTY: the paste was
+        # EATEN (claude v2.1.175's intro/welcome screen swallowed it). Re-sending Enter is futile —
+        # RE-DELIVER the whole prompt (paste + the autocomplete-closing space + Enter), bounded, so
+        # the agent actually starts instead of sitting idle forever.
+        if redeliveries < REDELIVER_ATTEMPTS:
+            redeliveries += 1
+            try:
+                deps.sessions.send_text(session_name, filled, literal=True, enter=False)
+                deps.sessions.send_text(session_name, " ", literal=True, enter=False)
+                deps.sessions.send_text(session_name, "Enter", literal=False)
+            except Exception:  # noqa: BLE001 — best-effort; a send blip must not break the launch
+                logger.warning(
+                    "submit-retry prompt re-delivery failed for #%s session %s; stopping retries",
+                    issue,
+                    session_name,
+                )
+                return False
+    # Budget spent without a confirmed running turn → surface it so a bad launch is NEVER silently
+    # dropped. The two failure shapes need different messages: a still-VISIBLE prompt is the
+    # "sitting untyped" case (:func:`verify_prompt_delivered`), while an EATEN paste — an EMPTY input
+    # box with no running turn — is invisible to that text-probe check, so it is warned explicitly
+    # here (the live #27 silent Review stall: empty box, agent idle, no sticky). One sticky either way.
+    try:
+        final_pane = deps.sessions.capture(session_name)
+    except Exception:  # noqa: BLE001 — best-effort observability; never break the launch
+        final_pane = ""
+    if prompt_pending(final_pane, filled):
+        verify_prompt_delivered(deps, issue, session_name, filled, column_key)
+    else:
+        logger.warning(
+            "launch prompt for #%s appears UNDELIVERED — no running turn after %d submit retries + "
+            "%d re-deliveries (input box empty; the claude REPL ate the paste?). Pane tail:\n%s",
+            issue,
+            SUBMIT_RETRY_ATTEMPTS,
+            REDELIVER_ATTEMPTS,
+            pane_tail(final_pane),
+        )
         try:
-            deps.sessions.send_text(session_name, "Enter", literal=False)
-        except Exception:  # noqa: BLE001 — best-effort; a send blip must not break the launch
-            logger.warning(
-                "submit-retry Enter resend failed for #%s session %s; stopping retries",
+            upsert_stage_comment(
+                deps.board_writer,
                 issue,
-                session_name,
+                column_key,
+                append="the launch prompt could not be confirmed delivered (the agent's input box "
+                "was empty with no running turn after re-delivery) — the agent may be sitting idle; "
+                "check the tmux session",
             )
-            return False
-    # Budget spent and the prompt still appears pending → surface it (WARN + advisory sticky) exactly
-    # as the pre-retry behaviour did, so a genuinely undeliverable prompt is never silently dropped.
-    verify_prompt_delivered(deps, issue, session_name, filled, column_key)
+        except Exception:  # noqa: BLE001 — the sticky is advisory; never break the launch
+            logger.warning("post-exhaustion warning sticky failed for #%s; continuing", issue)
     return False

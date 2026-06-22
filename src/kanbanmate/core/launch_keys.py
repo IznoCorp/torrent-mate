@@ -230,6 +230,29 @@ def prompt_pending(pane: str, filled: str) -> bool:
     return len(probe) >= SUBMIT_MIN_PROBE_LEN and probe in lowered
 
 
+def turn_running(pane: str) -> bool:
+    """Return whether the pane shows a turn ACTUALLY in flight (a running-turn marker).
+
+    The STRICT post-submit success signal. :func:`prompt_pending` answers "is the prompt still in the
+    input box?" and returns ``False`` for BOTH a submitted prompt AND an EMPTY box — so an EATEN paste
+    (claude v2.1.175's intro/welcome screen swallows the launch paste, leaving the box empty) is
+    indistinguishable from a real submit by ``prompt_pending`` alone. This function closes that gap:
+    it is ``True`` only when a running-turn marker (:data:`SUBMITTED_MARKERS` — ``esc to interrupt``)
+    is present, so the delivery loop can tell "the agent is working" (success) from "nothing landed"
+    (re-paste needed). Scans only the live input-box tail (:data:`SUBMIT_SCAN_LINES`) so a marker left
+    in scrollback by a PRIOR turn never false-positives.
+
+    Args:
+        pane: The raw ``capture-pane`` text (may be empty). Matched case-insensitively.
+
+    Returns:
+        ``True`` iff a running-turn marker is present in the pane's trailing input-box region.
+    """
+    tail = "\n".join((pane or "").splitlines()[-SUBMIT_SCAN_LINES:])
+    lowered = tail.lower()
+    return any(marker in lowered for marker in SUBMITTED_MARKERS)
+
+
 def is_waiting_for_input(pane: str) -> bool:
     """Return whether a captured pane shows an agent BLOCKED on a PENDING human prompt (§B).
 

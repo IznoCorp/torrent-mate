@@ -114,8 +114,9 @@ def test_verify_prompt_delivered_short_prompt_never_false_positives() -> None:
 
 
 # ---------------------------------------------------------------------------
-# submit_prompt_with_retries — the submit-reliability fix. Re-sends Enter until the prompt leaves the
-# input box (claude v2.1.x can absorb the first submit Enter); bounded, fail-soft, WARN on exhaustion.
+# submit_prompt_with_retries — the submit-reliability fix. Success = a turn is actually running; an
+# absorbed Enter re-sends Enter, while an EATEN paste (empty box, no turn — claude v2.1.175's intro
+# screen) re-delivers the whole prompt. Bounded, fail-soft, WARN + sticky on exhaustion (both shapes).
 # ---------------------------------------------------------------------------
 
 
@@ -145,18 +146,80 @@ def test_submit_resends_enter_until_submitted() -> None:
     from kanbanmate.app.prompt_delivery import submit_prompt_with_retries
 
     deps = _submit_deps()
-    # pending, pending, then submitted (empty input box).
+    # pending, pending, then a RUNNING TURN (the strict success signal — not just an empty box).
     deps.sessions.capture.side_effect = [
         "❯ [Pasted text #1 +20 lines]\n  auto mode on",
         "❯ [Pasted text #1 +20 lines]\n  auto mode on",
-        "assistant: working\n❯ \n  auto mode on",
+        "assistant: working\n  esc to interrupt",
     ]
     ok = submit_prompt_with_retries(deps, 7, "ticket-7", "/implement:brainstorm do the thing", "B")
     assert ok is True
-    # Enter re-sent exactly twice (the two pending probes), then the third probe saw it submitted.
+    # Enter re-sent exactly twice (the two pending probes), then the third probe saw a running turn.
     enter_calls = [c for c in deps.sessions.send_text.call_args_list if c.args[1:2] == ("Enter",)]
     assert len(enter_calls) == 2
     assert all(c.kwargs.get("literal") is False for c in enter_calls)
+
+
+def test_submit_redelivers_when_paste_eaten() -> None:
+    """An EATEN paste (empty box, no turn) ⇒ the loop RE-PASTES the whole prompt, not just Enter.
+
+    claude v2.1.175's intro/welcome screen can swallow the launch paste so the input box ends up
+    EMPTY (NOT the prompt-pending case). The old loop read the empty box as 'submitted' and the agent
+    sat idle forever; the fix re-delivers the full prompt and confirms a turn actually starts.
+    """
+    from kanbanmate.app.prompt_delivery import submit_prompt_with_retries
+
+    deps = _submit_deps()
+    filled = "/implement:brainstorm review PR #85 and post findings now please"
+    deps.sessions.capture.side_effect = [
+        # Probe 1: the welcome screen with an empty box — the paste was eaten (NOT pending, NO turn).
+        "Welcome to Claude\n  Using flicker-free rendering\n❯ \n  ⏵⏵ auto mode on (shift+tab to cycle)",
+        # Probe 2: after the re-paste + Enter, a turn is running.
+        "● Pouncing…\n  esc to interrupt",
+    ]
+    ok = submit_prompt_with_retries(deps, 27, "ticket-27", filled, "Review")
+    assert ok is True
+    # The WHOLE prompt was re-PASTED literally (not merely an Enter resend) to recover the eaten paste.
+    repaste = [c for c in deps.sessions.send_text.call_args_list if c.args[1:2] == (filled,)]
+    assert len(repaste) == 1
+    assert repaste[0].kwargs.get("literal") is True
+
+
+def test_submit_treats_permission_menu_as_delivered_not_eaten() -> None:
+    """A submit that immediately hits a permission/menu prompt is ENGAGED, not eaten.
+
+    The agent DID submit and start — it is now blocked on a human/profile decision (a menu). Re-pasting
+    the whole prompt into that menu would corrupt it; the loop must treat this as delivered (True) and
+    leave the WAITING state to the reaper.
+    """
+    from kanbanmate.app.prompt_delivery import submit_prompt_with_retries
+
+    deps = _submit_deps()
+    filled = "/implement:phase do the work for #7 right now please and thanks"
+    # No running-turn marker, the prompt is not in the box, but a permission menu is up.
+    deps.sessions.capture.return_value = "Do you want to proceed?\n❯ 1. Yes\n  2. No"
+    ok = submit_prompt_with_retries(deps, 7, "ticket-7", filled, "InProgress")
+    assert ok is True
+    # The whole prompt was NOT re-pasted into the menu.
+    repaste = [c for c in deps.sessions.send_text.call_args_list if c.args[1:2] == (filled,)]
+    assert repaste == []
+
+
+def test_submit_redeliver_is_bounded_then_warns() -> None:
+    """A paste eaten on EVERY probe re-delivers up to the bound, then exhausts → False + WARN."""
+    from kanbanmate.app.prompt_delivery import REDELIVER_ATTEMPTS, submit_prompt_with_retries
+
+    deps = _submit_deps()
+    deps.board_writer.list_issue_comments.return_value = []
+    filled = "/implement:brainstorm do the long thing for #7 right now"
+    # Always the empty welcome screen — every probe sees an eaten paste (never a turn, never pending).
+    deps.sessions.capture.return_value = "Welcome to Claude\n❯ \n  ⏵⏵ auto mode on"
+    ok = submit_prompt_with_retries(deps, 7, "ticket-7", filled, "B")
+    assert ok is False
+    # Re-pasted at most REDELIVER_ATTEMPTS times (bounded — never an unbounded re-paste loop).
+    repaste = [c for c in deps.sessions.send_text.call_args_list if c.args[1:2] == (filled,)]
+    assert len(repaste) == REDELIVER_ATTEMPTS
+    assert deps.board_writer.list_issue_comments.called  # the WARN fallback ran
 
 
 def test_submit_exhaustion_returns_false_and_warns() -> None:

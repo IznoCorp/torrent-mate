@@ -274,3 +274,38 @@ def test_prompt_pending_window_is_30() -> None:
     from kanbanmate.core.launch_keys import SUBMIT_SCAN_LINES
 
     assert SUBMIT_SCAN_LINES == 30
+
+
+# ---------------------------------------------------------------------------
+# turn_running — the STRICT post-submit success signal: a turn is actually in flight. Distinguishes a
+# genuinely-submitted prompt (a running turn) from an EATEN paste (empty box, no turn) so the delivery
+# can re-paste an eaten prompt instead of falsely declaring success (claude v2.1.175 intro-screen race).
+# ---------------------------------------------------------------------------
+
+
+def test_turn_running_detects_running_marker() -> None:
+    """A running-turn footer (esc to interrupt) ⇒ a turn is in flight."""
+    from kanbanmate.core.launch_keys import turn_running
+
+    assert turn_running("● Pouncing…\n  esc to interrupt") is True
+
+
+def test_turn_running_empty_or_idle_welcome_is_false() -> None:
+    """An empty box / the bare v2.1.175 welcome screen ⇒ NO turn (the eaten-paste signal)."""
+    from kanbanmate.core.launch_keys import turn_running
+
+    assert turn_running("") is False
+    welcome = (
+        "Welcome to Claude\n  Using flicker-free rendering\n❯ \n"
+        "  ⏵⏵ auto mode on (shift+tab to cycle)"
+    )
+    assert turn_running(welcome) is False
+
+
+def test_turn_running_only_scans_input_box_tail_not_scrollback() -> None:
+    """A running-turn marker far up in scrollback (a prior turn) does NOT count — only the live tail."""
+    from kanbanmate.core.launch_keys import SUBMIT_SCAN_LINES, turn_running
+
+    pane = "● esc to interrupt\n" + "\n".join(f"line {i}" for i in range(SUBMIT_SCAN_LINES + 5))
+    pane += "\n❯ \n  ⏵⏵ auto mode on"
+    assert turn_running(pane) is False

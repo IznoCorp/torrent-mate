@@ -122,8 +122,10 @@ def _mocks(
     sessions.is_alive.return_value = True
     # Phase-25 §25.1: a prompt-bearing launch polls ``capture`` then send-keys the filled prompt
     # into the REPL. Default the capture snapshot to a READY-REPL marker so the bounded poll
-    # returns immediately (trust_seen=False) — a launch test that wants the trust path overrides it.
-    sessions.capture.return_value = "│ > Welcome to Claude"
+    # returns immediately (trust_seen=False), AND carry a running-turn marker so the post-send
+    # submit-retry sees the prompt landed (a turn in flight) and does NOT re-deliver — a launch test
+    # that wants the trust path / a stuck or eaten prompt overrides it.
+    sessions.capture.return_value = "│ > Welcome to Claude\n  esc to interrupt"
     store = MagicMock()
     # 15.7: every LaunchAction._launch_context now reads script output from the store.
     store.load_script_output.return_value = ""
@@ -1434,8 +1436,12 @@ def test_launch_action_with_trust_dialog_sends_dismiss_enter_first(tmp_path: Pat
     "Is this a project you trust?" BEFORE typing the prompt — so the first send_text is an Enter.
     """
     m = _mocks(now=1234.0, worktree=tmp_path)
-    # First capture: the trust dialog. (The poll stops on the first trust marker, so one is enough.)
-    m.sessions.capture.return_value = "Do you trust the files in this folder?"
+    # First capture: the trust dialog (the poll stops on the first trust marker). Then a running-turn
+    # pane backs the submit-retry check so the prompt reads as landed (no re-delivery).
+    m.sessions.capture.side_effect = [
+        "Do you trust the files in this folder?",
+        "● working…\n  esc to interrupt",
+    ]
 
     LaunchAction(
         ticket=_ticket(issue=7),
@@ -1471,7 +1477,8 @@ def test_launch_action_poll_waits_for_ready_then_sends(tmp_path: Path) -> None:
         "booting...",
         "starting...",
         "│ > Welcome to Claude",
-        "│ > Welcome to Claude",  # submit-retry check: input box clean → submitted → no resend
+        # submit-retry check: a running turn ⇒ the prompt landed → no resend, no re-delivery.
+        "│ > Welcome to Claude\n  esc to interrupt",
     ]
     sleeps: list[float] = []
     m.deps = replace(m.deps, sleeper=sleeps.append)
