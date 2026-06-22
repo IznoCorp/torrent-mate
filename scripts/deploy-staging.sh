@@ -34,7 +34,7 @@ printf '→ build staging : %s @ %s\n' "$branch" "$sha"
 ( cd web && npm ci && npm run build )
 printf '%s @ %s\n' "$branch" "$sha" > src/kanbanmate/webui/BUILD_COMMIT
 
-pip install -e . >/dev/null 2>&1 || true
+pip install -e . >/dev/null 2>&1
 pm2 restart kanban-staging-config >/dev/null 2>&1 || true
 
 printf '\n✅ staging déployé : %s @ %s\n   UI sur 127.0.0.1:8797 — board RÉEL (~/.kanban-km)\n' "$branch" "$sha"

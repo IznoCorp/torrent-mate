@@ -18,11 +18,37 @@ and the cli.init registry helpers).
 
 from __future__ import annotations
 
+import ipaddress
+import logging
 import os
 import secrets
 from pathlib import Path
 
 import typer
+
+logger = logging.getLogger(__name__)
+
+
+def _is_loopback_host(host: str) -> bool:
+    """Return ``True`` if ``host`` binds only to the loopback interface (127.0.0.0/8 or ::1).
+
+    A bare hostname that does not parse as an IP (e.g. ``localhost``) is treated as loopback
+    (the conservative reading: a literal ``0.0.0.0`` / ``::`` / a routable IP is what we warn
+    about). Used to gate the non-loopback + auth-disabled exposure warning in :func:`serve`.
+
+    Args:
+        host: The bind address string passed to ``--host``.
+
+    Returns:
+        ``True`` when the address is a loopback IP or a non-IP hostname; ``False`` for any
+        non-loopback IP literal (e.g. ``0.0.0.0``, ``::``, a LAN/public address).
+    """
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        # Not an IP literal (e.g. "localhost"): conservatively treat as loopback.
+        return True
+
 
 config_app = typer.Typer(
     name="config",
@@ -124,13 +150,39 @@ def serve(
     ui_env = _resolve_ui_env(env_file)
     resolved_port = port if port is not None else int(ui_env.get(_ENV_PORT, _DEFAULT_PORT))
 
-    # Build the auth config. A random secret is generated when none is provided — sessions then drop
-    # on restart, which is fine for a single operator; set KANBAN_MATE_UI_SESSION_SECRET to persist.
+    # Build the auth config.
     password = ui_env.get(_ENV_PASSWORD, "")
+    # bosun §12: a random per-start secret logs the operator out on every restart/redeploy, defeating
+    # in-UI redeploy. Warn loudly when auth is on but the secret is unpinned; surface it in the dashboard.
+    _pinned = bool(ui_env.get(_ENV_SECRET, ""))
+    secret = ui_env.get(_ENV_SECRET, "") or secrets.token_hex(32)
+    if password and not _pinned:  # auth enabled (non-empty password) + no pinned secret
+        logger.warning(
+            "KANBAN_MATE_UI_SESSION_SECRET is not set — the session secret is random per start, "
+            "so a restart/redeploy will log the operator out. "
+            "Set it in the UI .env to persist sessions."
+        )
+    # bosun review-c2: the whole privileged surface (POST /api/admin/redeploy, daemon stop/restart,
+    # PAT overwrite via /api/admin/wizard/token, project delete, PAUSE toggle) is unauthenticated AND
+    # CSRF-unprotected when the password is empty (auth disabled). A non-loopback bind with no password
+    # therefore exposes daemon control + PAT overwrite + prod redeploy world-open. Warn LOUDLY (do NOT
+    # refuse — that would break a valid --host 0.0.0.0 + password-set deploy fronted by Caddy).
+    if not password and not _is_loopback_host(host):
+        logger.warning(
+            "INSECURE: binding to non-loopback host %r with NO password (auth disabled) — the "
+            "privileged /api/admin/* surface (daemon stop/restart, prod redeploy, GitHub PAT "
+            "overwrite, project delete, PAUSE toggle) is WORLD-OPEN with no auth and no CSRF. "
+            "Set KANBAN_MATE_UI_PASSWORD or bind to 127.0.0.1.",
+            host,
+        )
+    # Export a pinned secret from the .env file to the process environment so the dashboard
+    # can detect it (os.environ wins over .env in _resolve_ui_env, so this is idempotent).
+    if _pinned and not os.environ.get(_ENV_SECRET):
+        os.environ[_ENV_SECRET] = ui_env[_ENV_SECRET]
     fastapi_app.state.auth = AuthConfig(
         login=ui_env.get(_ENV_LOGIN, "admin"),
         password=password,
-        secret=ui_env.get(_ENV_SECRET, "") or secrets.token_hex(32),
+        secret=secret,
     )
 
     # Thread the runtime root into the app so every endpoint's _get_service()

@@ -316,6 +316,28 @@ def _upsert_project(path: Path, project_node_id: str, entry: ProjectEntry) -> No
     path.write_text(json.dumps(serialisable, indent=2, sort_keys=True), encoding="utf-8")
 
 
+def _delete_project(path: Path, project_node_id: str) -> bool:
+    """Remove the registry entry keyed by ``project_node_id``; return whether it existed.
+
+    Mirrors :func:`_upsert_project` (the registry has no delete today — removal was manual JSON
+    editing). The clone on disk is NOT touched (bosun §9 leaves it).
+
+    Args:
+        path: The ``projects.json`` path.
+        project_node_id: The registry key to remove.
+
+    Returns:
+        ``True`` if an entry was removed, ``False`` if the key was absent.
+    """
+    registry = _load_registry(path)
+    if project_node_id not in registry:
+        return False
+    del registry[project_node_id]
+    serialisable = {key: asdict(val) for key, val in registry.items()}
+    path.write_text(json.dumps(serialisable, indent=2, sort_keys=True), encoding="utf-8")
+    return True
+
+
 def _resolve_status_field_id(seeder: Seeder, project_id: str, option_map: dict[str, str]) -> str:
     """Resolve the Status field node id for the registry entry.
 

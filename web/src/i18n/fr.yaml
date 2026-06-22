@@ -38,6 +38,8 @@ shell:
     issues: Issues
     projects: Projets
     profiles: Profils
+    admin: Admin / Ops
+    wizard: Assistant d'installation
 
 login:
   title: KanbanMate — connexion
@@ -310,6 +312,178 @@ body:
   save: Enregistrer
   cancel: Annuler
   saving: Enregistrement…
+
+admin:
+  intro_title: Admin / Ops
+  intro_body: >-
+    Tableau de bord santé et contrôle des daemons, à l'échelle de l'hôte. Vivacité du daemon par
+    projet, joignabilité GitHub/tableau et présence du token, version installée vs disponible,
+    indicateurs globaux (coupe-circuit / secret de session / agents en attente), et le journal des
+    jobs récents — plus démarrage/arrêt/redémarrage des daemons PM2, consultation des logs, et le
+    coupe-circuit PAUSE.
+  section_health: Santé des projets
+  section_jobs: Jobs récents
+  no_projects: Aucun projet enregistré.
+  no_jobs: Aucun job enregistré pour l'instant.
+  flag_active: actif (non suspendu)
+  flag_paused: SUSPENDU (coupe-circuit)
+  flag_secret_pinned: secret de session épinglé
+  flag_secret_random: secret de session non épinglé
+  flag_agents_waiting: "{n} agent(s) en attente"
+  version_offline: vérification version hors ligne
+  version_update: "mise à jour disponible → {remote}"
+  version_uptodate: à jour
+  chip_daemon_up: daemon actif
+  chip_daemon_down: daemon arrêté
+  chip_github: github
+  chip_board: tableau
+  chip_token: token
+  heartbeat_age: "heartbeat : il y a {age}"
+  exit_code: "sortie {code}"
+  # --- contrôle des daemons + PAUSE + logs (bosun phase 2) ---
+  section_pause: Coupe-circuit
+  section_daemon: Daemons
+  no_daemons: Aucun daemon signalé.
+  pause_help: >-
+    Le coupe-circuit PAUSE global stoppe tous les lancements d'agents et rétrograde les agents en
+    cours au niveau de permissions minimal. Le daemon le prend en compte au tick suivant.
+  pause_activate: Activer PAUSE
+  pause_resume: Reprendre
+  daemon_meta: "pid {pid} · actif {uptime} · ↻{restarts}"
+  daemon_start: Démarrer
+  daemon_stop: Arrêter
+  daemon_restart: Redémarrer
+  daemon_logs: Logs
+  daemon_logs_hide: Masquer les logs
+  daemon_logs_empty: (aucune ligne de log)
+  daemon_logs_failed: Impossible de charger les logs
+  daemon_uiapp_tip: App UI — relancée uniquement via un redéploiement, pas en action isolée.
+  daemon_already_running: Déjà en cours d'exécution.
+  daemon_not_running: À l'arrêt.
+  ctl_notice_title: Contrôle du daemon
+  ctl_job_ok: "{app} : action terminée."
+  ctl_job_failed: "{app} : action échouée (sortie {code})."
+  ctl_job_timeout: "{app} : action toujours en cours — voir le journal des jobs."
+  confirm_restart_title: Redémarrer le daemon ?
+  confirm_restart_body: "Redémarrer {app} ? Les agents en cours sur ce daemon sont interrompus pendant le redémarrage."
+  confirm_restart_apply: Redémarrer
+  confirm_pause_title: Activer le coupe-circuit ?
+  confirm_pause_body: >-
+    Activer PAUSE stoppe tous les lancements d'agents et rétrograde les agents en cours au niveau
+    de permissions minimal jusqu'à la reprise.
+  confirm_pause_apply: Activer PAUSE
+  # --- redéploiement depuis main (bosun phase 3) ---
+  section_redeploy: Redéploiement depuis main
+  redeploy_help: >-
+    Redéploie le clone prod ou staging depuis le dernier main via le script de déploiement audité. Le
+    serveur de config redémarre en dernière étape : cette UI se déconnecte brièvement puis se
+    reconnecte sur le nouveau build.
+  redeploy_prod: Redéployer (prod)
+  redeploy_staging: Redéployer (staging)
+  redeploy_running: "Redéploiement de {target} — exécution du script…"
+  redeploy_reconnecting: "Redéploiement de {target} — reconnexion…"
+  redeploy_done: "Redéploiement de {target} terminé — nouveau build en ligne."
+  redeploy_failed: "Échec du redéploiement de {target} — voir le log ci-dessous."
+  redeploy_reconnect_slow: "Redéploiement NON CONFIRMÉ — le build servi n'a pas changé à temps. Vérifie le journal des jobs et la version servie avant de le considérer en ligne."
+  confirm_redeploy_title: "Redéployer {target} depuis main ?"
+  confirm_redeploy_body: >-
+    Ceci redéploie le clone {target} depuis le dernier main et redémarre son serveur de config. L'UI
+    se déconnectera brièvement, puis se reconnectera sur le nouveau build. Les agents en cours ne sont
+    pas affectés.
+  confirm_redeploy_apply: Redéployer
+  # --- onboarding de projet (bosun phase 4) ---
+  section_onboard: Projets
+  onboard_help: >-
+    Enregistrer un nouveau projet sur ce daemon. Ajouter un clone local existant depuis un dossier
+    sous les racines d'onboarding (~/dev, ~/deploy, ~/staging), ou cloner un dépôt GitHub par URL.
+    Le daemon le prend en compte au prochain tick. Le retrait désenregistre un projet (le clone
+    reste sur le disque).
+  onboard_repo_label: "Dépôt (owner/name)"
+  onboard_repo_ph: owner/name
+  onboard_tab_local: Ajouter depuis un dossier
+  onboard_tab_clone: Ajouter depuis une URL git
+  onboard_browse_label: Dossier du clone du projet
+  onboard_browse_pick: "Sélectionné : {path}"
+  onboard_browse_pick_btn: Utiliser ce dossier
+  onboard_browse_none: Aucun dossier sélectionné.
+  onboard_browse_up: ".. (parent)"
+  onboard_browse_empty: (aucun sous-dossier)
+  onboard_browse_loading: Chargement…
+  onboard_browse_failed: Impossible de parcourir ce dossier
+  onboard_add_local: Ajouter le projet
+  onboard_giturl_label: URL git (https://github.com/owner/repo)
+  onboard_giturl_ph: https://github.com/owner/repo
+  onboard_add_clone: Cloner et ajouter
+  onboard_adding: "Ajout de {repo}…"
+  onboard_add_ok: "{repo} ajouté — le daemon le prendra en compte sous peu."
+  onboard_add_failed: "Échec de l'ajout"
+  onboard_add_timeout: "Ajout toujours en cours — voir le journal des jobs."
+  onboard_registered: Projets enregistrés
+  onboard_no_registered: Aucun projet enregistré sur ce daemon.
+  onboard_remove: Retirer
+  onboard_remove_ok: "{repo} retiré."
+  onboard_remove_failed: Échec du retrait
+  confirm_remove_title: "Retirer le projet ?"
+  confirm_remove_body: >-
+    Désenregistrer {repo} de ce daemon ? Le daemon cessera de surveiller son tableau. Le clone sur
+    le disque reste intact. Cette action est refusée tant que le projet a un agent actif.
+  confirm_remove_apply: Retirer
+
+wizard:
+  title: Bienvenue dans KanbanMate
+  subtitle: Installation initiale — de zéro à un orchestrateur en marche en quatre étapes.
+  steps:
+    token: Token
+    project: Premier projet
+    provision: Tableau
+    bootstrap: PM2
+  next: Suivant
+  finish: Continuer
+  step_failed: Cette étape a échoué
+  job_timeout: Toujours en cours — voir le journal des jobs sur la page Admin / Ops.
+  registering: Enregistrement…
+  provisioning: Provisionnement…
+  bootstrapping: Démarrage…
+  token_title: Token GitHub
+  token_help: >-
+    Colle un token GitHub ayant accès à ton tableau Projects v2. Il est écrit dans la racine
+    d'exécution avec les permissions 0600 et ne quitte jamais cet hôte.
+  token_label: Token GitHub
+  token_ph: ghp_…
+  project_title: Premier projet
+  project_help: >-
+    Enregistre le premier tableau que ce daemon pilotera — soit un clone local existant sous les
+    racines d'onboarding (~/dev, ~/deploy, ~/staging), soit un dépôt GitHub cloné par URL.
+  project_failed: Impossible d'enregistrer le projet
+  project_resolve_failed: >-
+    Le projet a été enregistré mais n'a pas pu être résolu — relance cette étape avant de
+    provisionner.
+  provision_title: Provisionner le tableau
+  provision_help: >-
+    Provisionne le tableau GitHub Projects v2 de ce projet — les colonnes Status dont le daemon a
+    besoin. Ceci s'exécute comme un job en arrière-plan.
+  provision_target: "Tableau :"
+  provision_btn: Provisionner le tableau
+  provision_failed: Impossible de provisionner le tableau
+  bootstrap_title: Démarrer les daemons (PM2)
+  bootstrap_help: >-
+    Démarre les apps PM2 de KanbanMate — le poller, le récepteur de webhook et l'UI de config. C'est
+    une action réservée à la première installation ; elle est désactivée si les apps existent déjà.
+  bootstrap_btn: Démarrer PM2
+  bootstrap_failed: Impossible de démarrer PM2
+  bootstrap_done_title: Apps PM2 déjà en cours
+  bootstrap_done_body: >-
+    Les apps PM2 de KanbanMate existent déjà sur cet hôte, le démarrage est donc ignoré. Gère-les
+    depuis la page Admin / Ops.
+  confirm_bootstrap_title: Démarrer les apps PM2 ?
+  confirm_bootstrap_body: >-
+    Ceci démarre les apps PM2 de KanbanMate (kanban-km, kanban-km-serve, kanban-km-config) et
+    enregistre la liste des processus. C'est une action réservée à la première installation.
+  confirm_bootstrap_apply: Démarrer PM2
+  done_title: Installation terminée
+  done_help: KanbanMate est configuré et en marche. Tu peux maintenant gérer ton tableau.
+  done_badge: Tout est prêt — orchestrateur opérationnel
+  open_dashboard: Ouvrir le tableau de bord
 
 terminal:
   take_control: Prendre le contrôle

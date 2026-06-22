@@ -11,7 +11,9 @@ import {
 import DaemonPanel from "./panels/DaemonPanel.jsx";
 import ProfilesPanel from "./panels/ProfilesPanel.jsx";
 import MonitoringPanel from "./panels/MonitoringPanel.jsx";
+import AdminPanel from "./panels/AdminPanel.jsx";
 import BoardPanel from "./panels/BoardPanel.jsx";
+import WizardPanel from "./panels/WizardPanel.jsx";
 import IssuesPanel from "./panels/IssuesPanel.jsx";
 import LoginScreen from "./components/LoginScreen.jsx";
 import { useT } from "./i18n/index.jsx";
@@ -54,9 +56,9 @@ export default function App() {
       .catch((e) => setBootError(e.message));
   }, []);
 
-  // Boot step 2: once authenticated, load the project list + restore the last board (else first).
-  React.useEffect(() => {
-    if (!authed) return;
+  // Load the project list + restore the last board (else first). Reused at boot and after the
+  // first-run wizard registers the first project (so the app leaves the wizard for the normal shell).
+  const loadProjects = React.useCallback(() => {
     api
       .listProjects()
       .then((r) => {
@@ -70,8 +72,22 @@ export default function App() {
           setSelected(hit ? hit.project_id : r.projects[0].project_id);
         }
       })
-      .catch((e) => setBootError(e.message));
-  }, [authed]);
+      .catch((e) => {
+        // GET /api/projects returns 503 on a FRESH host (empty registry) — exactly the first-run
+        // case the install wizard exists for. Treat it as "zero projects" so the `!projects.length`
+        // branch renders <WizardPanel/>, rather than the "cannot reach API" boot banner (which the
+        // 503 would otherwise trip, leaving the wizard dead on arrival). Any other error is a real
+        // boot failure.
+        if (e.status === 503) setProjects([]);
+        else setBootError(e.message);
+      });
+  }, []);
+
+  // Boot step 2: once authenticated, load the project list.
+  React.useEffect(() => {
+    if (!authed) return;
+    loadProjects();
+  }, [authed, loadProjects]);
 
   // Persist tab + selected board so a refresh lands on the same view.
   React.useEffect(() => {
@@ -194,19 +210,18 @@ export default function App() {
     return <LoginScreen onSuccess={() => setAuthed(true)} />;
   if (!projects)
     return <div style={{ padding: 24 }}>{t("common.loading")}</div>;
+  // First run: no project registered → show the install wizard (token → first project →
+  // provisioning → PM2 bootstrap). On completion it re-loads the registry and the app falls through
+  // to the normal shell (bosun §10).
   if (!projects.length) {
-    return (
-      <div style={{ padding: 24 }}>
-        <Banner tone="error" title={t("app.no_board_title")}>
-          {t("app.no_board_body")}
-        </Banner>
-      </div>
-    );
+    return <WizardPanel onComplete={loadProjects} />;
   }
 
   const isDaemon = active === "daemon";
   const isProfiles = active === "profiles";
-  const daemonScope = isDaemon || isProfiles;
+  const isAdmin = active === "admin";
+  // Admin/Ops is host-wide (daemon-scoped), like daemon + profiles.
+  const daemonScope = isDaemon || isProfiles || isAdmin;
 
   let content;
   if (isDaemon) {
@@ -219,6 +234,8 @@ export default function App() {
     );
   } else if (isProfiles) {
     content = <ProfilesPanel />;
+  } else if (isAdmin) {
+    content = <AdminPanel />;
   } else if (active === "monitoring") {
     content = <MonitoringPanel project={selected} />;
   } else if (active === "board") {

@@ -16,6 +16,7 @@ import {
   MonitorCheck,
   ServerCog,
   ShieldCogCorner,
+  Activity,
   CircleDot,
 } from "lucide-react";
 import { useT } from "../i18n/index.jsx";
@@ -35,6 +36,7 @@ const NAV_ICON = {
   issues: CircleDot,
   daemon: ServerCog,
   profiles: ShieldCogCorner,
+  admin: Activity,
 };
 
 // Three semantic nav groups rendered in order: Views (non-config), Config, Daemon.
@@ -54,6 +56,7 @@ export const CONFIG_NAV = [
 export const DAEMON_NAV = [
   { id: "daemon", tkey: "shell.nav.projects", key: "projects.json" },
   { id: "profiles", tkey: "shell.nav.profiles", key: "read-only" },
+  { id: "admin", tkey: "shell.nav.admin", key: "host ops" },
 ];
 export const ALL_NAV = [...VIEWS_NAV, ...CONFIG_NAV, ...DAEMON_NAV];
 

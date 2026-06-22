@@ -70,6 +70,30 @@ def _auth_config() -> AuthConfig | None:
     return getattr(app.state, "auth", None)
 
 
+def _actor_login(request: fastapi.Request) -> str:
+    """Resolve the operator login from the session cookie, or ``"operator"`` in open mode.
+
+    Shared by the bosun admin/ops/projects routes for the audit trail. Lives here (the base module
+    both ``admin_routes`` and ``projects_routes`` already import from) so neither route module has to
+    import the other — that would form an import cycle through ``config_api``'s side-effect imports.
+    By the time a privileged handler runs, ``_auth_guard`` has already verified the session, so a
+    valid cookie is guaranteed when auth is enabled; this only extracts the login for the audit line.
+
+    Args:
+        request: The incoming request whose session cookie carries the login.
+
+    Returns:
+        The authenticated operator login, or ``"operator"`` when auth is disabled.
+    """
+    from kanbanmate.http.auth import COOKIE_NAME, verify_token  # noqa: PLC0415
+
+    config = _auth_config()
+    if config is None or not config.enabled:
+        return "operator"
+    login = verify_token(request.cookies.get(COOKIE_NAME, ""), config.secret)
+    return login or "operator"
+
+
 def _request_is_secure(request: fastapi.Request) -> bool:
     """Whether the request arrived over HTTPS (directly or via a TLS-terminating proxy).
 
@@ -312,7 +336,11 @@ async def post_login(request: fastapi.Request) -> JSONResponse:
         token,
         max_age=config.ttl,
         httponly=True,
-        samesite="lax",
+        # SameSite=Strict (defense-in-depth, bosun review-c3): the UI is single-operator with no
+        # cross-site navigation, so the session cookie is never legitimately sent on a cross-site
+        # request — Strict prevents it riding along on any cross-origin request (incl. the CSWSH
+        # WebSocket handshake) even when the operator is logged in.
+        samesite="strict",
         secure=_request_is_secure(request),
         path="/",
     )
@@ -576,6 +604,14 @@ from kanbanmate.http import monitor_routes as _monitor_routes  # noqa: E402,F401
 
 # Board state endpoints (anchor §10) live in a sibling module; same side-effect-import pattern.
 from kanbanmate.http import board_routes as _board_routes  # noqa: E402,F401
+
+# bosun read-only admin/ops routes (bosun §1). MUST register BEFORE ``install_spa_mount`` below:
+# the SPA catch-all mount shadows any API route registered after it once the webui build exists,
+# so these imports belong here with the sibling route modules, not at the bottom of the file.
+from kanbanmate.http import admin_routes as _bosun_admin_routes  # noqa: E402,F401
+from kanbanmate.http import csrf_mw as _bosun_csrf_mw  # noqa: E402,F401
+from kanbanmate.http import ops_routes as _bosun_ops_routes  # noqa: E402,F401
+from kanbanmate.http import projects_routes as _bosun_projects_routes  # noqa: E402,F401
 
 
 @app.get("/api/schema")

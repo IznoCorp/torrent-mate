@@ -38,6 +38,8 @@ shell:
     issues: Issues
     projects: Projects
     profiles: Profiles
+    admin: Admin / Ops
+    wizard: Setup wizard
 
 login:
   title: KanbanMate — sign in
@@ -306,6 +308,173 @@ body:
   save: Save
   cancel: Cancel
   saving: Saving…
+
+admin:
+  intro_title: Admin / Ops
+  intro_body: >-
+    Host-wide health dashboard and daemon control. Per-project daemon liveness, GitHub/board
+    reachability and token presence, the installed vs available version, the global kill-switch /
+    session-secret / waiting-agents flags, and the recent jobs ledger — plus PM2 daemon
+    start/stop/restart, log tails, and the PAUSE kill-switch.
+  section_health: Project health
+  section_jobs: Recent jobs
+  no_projects: No projects registered.
+  no_jobs: No jobs recorded yet.
+  flag_active: not paused
+  flag_paused: PAUSED (kill-switch)
+  flag_secret_pinned: session secret pinned
+  flag_secret_random: session secret not pinned
+  flag_agents_waiting: "{n} agent(s) waiting"
+  version_offline: version check offline
+  version_update: "update available → {remote}"
+  version_uptodate: up to date
+  chip_daemon_up: daemon up
+  chip_daemon_down: daemon down
+  chip_github: github
+  chip_board: board
+  chip_token: token
+  heartbeat_age: "heartbeat: {age} ago"
+  exit_code: "exit {code}"
+  # --- daemon control + PAUSE + logs (bosun phase 2) ---
+  section_pause: Kill-switch
+  section_daemon: Daemons
+  no_daemons: No daemons reported.
+  pause_help: >-
+    The global PAUSE kill-switch stops all agent launches and downgrades running agents to the
+    minimal permission floor. The daemon picks it up on its next tick.
+  pause_activate: Activate PAUSE
+  pause_resume: Resume
+  daemon_meta: "pid {pid} · up {uptime} · ↻{restarts}"
+  daemon_start: Start
+  daemon_stop: Stop
+  daemon_restart: Restart
+  daemon_logs: Logs
+  daemon_logs_hide: Hide logs
+  daemon_logs_empty: (no log lines)
+  daemon_logs_failed: Could not load logs
+  daemon_uiapp_tip: UI app — bounced only via redeploy, not as a standalone action.
+  daemon_already_running: Already running.
+  daemon_not_running: Not running.
+  ctl_notice_title: Daemon control
+  ctl_job_ok: "{app}: action completed."
+  ctl_job_failed: "{app}: action failed (exit {code})."
+  ctl_job_timeout: "{app}: action still running — check the jobs ledger."
+  confirm_restart_title: Restart daemon?
+  confirm_restart_body: "Restart {app}? Running agents on this daemon are interrupted while it bounces."
+  confirm_restart_apply: Restart
+  confirm_pause_title: Activate the kill-switch?
+  confirm_pause_body: >-
+    Turning PAUSE on stops all agent launches and downgrades running agents to the minimal
+    permission floor until you resume.
+  confirm_pause_apply: Activate PAUSE
+  # --- redeploy from main (bosun phase 3) ---
+  section_redeploy: Redeploy from main
+  redeploy_help: >-
+    Redeploy the prod or staging clone from the latest main via the audited deploy script. The config
+    server bounces as the last step, so this UI briefly disconnects then reconnects on the new build.
+  redeploy_prod: Redeploy (prod)
+  redeploy_staging: Redeploy (staging)
+  redeploy_running: "Redeploying {target} — running deploy script…"
+  redeploy_reconnecting: "Redeploying {target} — reconnecting…"
+  redeploy_done: "{target} redeploy complete — new build live."
+  redeploy_failed: "{target} redeploy failed — see the log below."
+  redeploy_reconnect_slow: "Redeploy UNCONFIRMED — the served build did not change in time. Check the jobs ledger and the served version before assuming it is live."
+  confirm_redeploy_title: "Redeploy {target} from main?"
+  confirm_redeploy_body: >-
+    This redeploys the {target} clone from the latest main and bounces its config server. The UI will
+    briefly disconnect, then reconnect on the new build. Running agents are not affected.
+  confirm_redeploy_apply: Redeploy
+  # --- project onboarding (bosun phase 4) ---
+  section_onboard: Projects
+  onboard_help: >-
+    Register a new project on this daemon. Add an existing local clone from a folder under the
+    onboarding roots (~/dev, ~/deploy, ~/staging), or clone a GitHub repo by URL. The daemon picks
+    it up on its next tick. Remove deregisters a project (the clone is left on disk).
+  onboard_repo_label: "Repo (owner/name)"
+  onboard_repo_ph: owner/name
+  onboard_tab_local: Add from folder
+  onboard_tab_clone: Add from git URL
+  onboard_browse_label: Project clone folder
+  onboard_browse_pick: "Selected: {path}"
+  onboard_browse_pick_btn: Use this folder
+  onboard_browse_none: No folder selected.
+  onboard_browse_up: ".. (parent)"
+  onboard_browse_empty: (no sub-folders)
+  onboard_browse_loading: Loading…
+  onboard_browse_failed: Could not browse this folder
+  onboard_add_local: Add project
+  onboard_giturl_label: Git URL (https://github.com/owner/repo)
+  onboard_giturl_ph: https://github.com/owner/repo
+  onboard_add_clone: Clone and add
+  onboard_adding: "Adding {repo}…"
+  onboard_add_ok: "{repo} added — the daemon will pick it up shortly."
+  onboard_add_failed: "Add failed"
+  onboard_add_timeout: "Add still running — check the jobs ledger."
+  onboard_registered: Registered projects
+  onboard_no_registered: No projects registered on this daemon.
+  onboard_remove: Remove
+  onboard_remove_ok: "{repo} removed."
+  onboard_remove_failed: Remove failed
+  confirm_remove_title: "Remove project?"
+  confirm_remove_body: >-
+    Deregister {repo} from this daemon? The daemon will stop polling its board. The clone on disk
+    is left untouched. This is refused while the project has a live agent.
+  confirm_remove_apply: Remove
+
+wizard:
+  title: Welcome to KanbanMate
+  subtitle: First-run setup — go from nothing to a running orchestrator in four steps.
+  steps:
+    token: Token
+    project: First project
+    provision: Board
+    bootstrap: PM2
+  next: Next
+  finish: Continue
+  step_failed: This step failed
+  job_timeout: Still running — check the jobs ledger on the Admin / Ops page.
+  registering: Registering…
+  provisioning: Provisioning…
+  bootstrapping: Bootstrapping…
+  token_title: GitHub token
+  token_help: >-
+    Paste a GitHub token with access to your Projects v2 board. It is written to the runtime root
+    with 0600 permissions and never leaves this host.
+  token_label: GitHub token
+  token_ph: ghp_…
+  project_title: First project
+  project_help: >-
+    Register the first board this daemon will drive — either an existing local clone under the
+    onboarding roots (~/dev, ~/deploy, ~/staging), or a GitHub repo cloned by URL.
+  project_failed: Could not register the project
+  project_resolve_failed: >-
+    The project was registered but could not be resolved — retry this step before provisioning.
+  provision_title: Provision the board
+  provision_help: >-
+    Provision the GitHub Projects v2 board for this project — the Status columns the daemon needs.
+    This runs as a background job.
+  provision_target: "Board:"
+  provision_btn: Provision board
+  provision_failed: Could not provision the board
+  bootstrap_title: Start the daemons (PM2)
+  bootstrap_help: >-
+    Bootstrap the KanbanMate PM2 apps — the poller, the webhook receiver, and the config UI. This is
+    a first-run-only action; it is disabled once the apps already exist.
+  bootstrap_btn: Bootstrap PM2
+  bootstrap_failed: Could not bootstrap PM2
+  bootstrap_done_title: PM2 apps already running
+  bootstrap_done_body: >-
+    The KanbanMate PM2 apps already exist on this host, so bootstrap is skipped. Manage them from
+    the Admin / Ops page.
+  confirm_bootstrap_title: Bootstrap the PM2 apps?
+  confirm_bootstrap_body: >-
+    This starts the KanbanMate PM2 apps (kanban-km, kanban-km-serve, kanban-km-config) and saves the
+    process list. It is a first-run-only action.
+  confirm_bootstrap_apply: Bootstrap PM2
+  done_title: Setup complete
+  done_help: KanbanMate is configured and running. You can now manage your board.
+  done_badge: All set — orchestrator ready
+  open_dashboard: Open the dashboard
 
 terminal:
   take_control: Take control
