@@ -90,6 +90,9 @@ transitions:
   launch_fires: fires agent
   launch_noop: no-op (no prompt)
   bypass_never: bypassPermissions is never allowed
+  validate_btn: Validate
+  save_btn: Save changes
+  saved: Saved ✓
   tip_launch: launches agent
   tip_script: runs script
   tip_noop: no-op

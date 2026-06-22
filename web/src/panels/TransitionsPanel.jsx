@@ -4,6 +4,7 @@
 // from_col / to_col / profile / prompt / script / advance / on_fail / permission_mode.
 import React from "react";
 import RichPromptEditor from "../components/RichPromptEditor.jsx";
+import ConfigSaveBar from "../components/ConfigSaveBar.jsx";
 import FilePicker from "../components/FilePicker.jsx";
 import { MobileBack } from "../components/MobileMasterDetail.jsx";
 import { PageIntro, Hint } from "../components/Help.jsx";
@@ -33,6 +34,10 @@ export default function TransitionsPanel({
   update,
   findings = [],
   project,
+  onSave,
+  onValidate,
+  saving = false,
+  dirty = false,
 }) {
   const { t } = useT();
   const isMobile = useIsMobile();
@@ -462,6 +467,15 @@ export default function TransitionsPanel({
                     {t("transitions.bypass_never")}
                   </span>
                 </div>
+
+                {/* Explicit save/validate — shared component; fixed to the screen bottom on mobile
+                    so it stays under the thumb. Saves the whole config draft (shared dirty flag). */}
+                <ConfigSaveBar
+                  onSave={onSave}
+                  onValidate={onValidate}
+                  saving={saving}
+                  dirty={dirty}
+                />
               </div>
             )}
           </div>

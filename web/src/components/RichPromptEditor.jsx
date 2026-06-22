@@ -70,9 +70,11 @@ export default function RichPromptEditor({ value, onChange }) {
   const [known, setKnown] = React.useState({});
   const [tab, setTab] = React.useState("write");
   const cmRef = React.useRef(null);
-  // Bigger + mobile-friendly: fill the screen on a phone, a generous band on desktop.
-  const minH = isMobile ? "44vh" : "320px";
-  const maxH = isMobile ? "72vh" : "62vh";
+  // Desktop: a generous band. Mobile: CAP the height at half the screen so the placeholder chips
+  // (rendered BELOW the editor) stay reachable — a long prompt scrolls inside the editor instead of
+  // pushing the chips off-screen.
+  const minH = isMobile ? "26vh" : "320px";
+  const maxH = isMobile ? "50vh" : "62vh";
 
   React.useEffect(() => {
     api
@@ -175,8 +177,11 @@ export default function RichPromptEditor({ value, onChange }) {
         />
       )}
 
+      {/* Placeholder cloud — BELOW the editor (operator). Each unit is a full tap target that
+          inserts the token at the caret; the description is always visible (no hover needed), so it
+          works on mobile where chips wrap to full-width rows. */}
       {tab === "write" && knownNames.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div
             style={{
               fontFamily: "var(--font-mono)",
@@ -184,48 +189,46 @@ export default function RichPromptEditor({ value, onChange }) {
               letterSpacing: ".06em",
               textTransform: "uppercase",
               color: "var(--muted-foreground)",
-              marginBottom: 2,
             }}
           >
             {t("prompt.placeholders_label")}
           </div>
-          {knownNames.map((n) => (
-            <div
-              key={n}
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                gap: 8,
-                padding: "2px 0",
-              }}
-            >
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {knownNames.map((n) => (
               <button
+                key={n}
                 type="button"
                 onClick={() => insert(`{{${n}}}`)}
                 title={t("prompt.insert")}
                 style={{
-                  flex: "none",
-                  minWidth: 150,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 7,
+                  flex: isMobile ? "1 1 100%" : "0 1 auto",
+                  maxWidth: "100%",
                   textAlign: "left",
-                  border: "none",
-                  background: "transparent",
-                  padding: 0,
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-md)",
+                  background: "var(--card)",
+                  padding: "7px 10px",
                   cursor: "pointer",
+                  minHeight: 40,
                 }}
               >
                 <KeyChip>{`{{${n}}}`}</KeyChip>
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: "var(--muted-foreground)",
+                    lineHeight: 1.4,
+                    minWidth: 0,
+                  }}
+                >
+                  {known[n]}
+                </span>
               </button>
-              <span
-                style={{
-                  fontSize: 12,
-                  color: "var(--muted-foreground)",
-                  lineHeight: 1.5,
-                }}
-              >
-                {known[n]}
-              </span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 

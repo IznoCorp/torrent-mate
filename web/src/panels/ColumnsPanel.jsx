@@ -4,13 +4,22 @@
 // / remove, plus the explicit "Sync board" action (dialog wired in Task 10).
 import React from "react";
 import SyncBoardDialog from "../components/SyncBoardDialog.jsx";
+import ConfigSaveBar from "../components/ConfigSaveBar.jsx";
 import { PageIntro, Hint } from "../components/Help.jsx";
 import useIsMobile from "../useIsMobile.js";
 import { useT } from "../i18n/index.jsx";
 
 const KMNS = window.KanbanMateDesignSystem_2463ad;
 
-export default function ColumnsPanel({ draft, update, dirty, project }) {
+export default function ColumnsPanel({
+  draft,
+  update,
+  dirty,
+  project,
+  onSave,
+  onValidate,
+  saving = false,
+}) {
   const { t } = useT();
   const isMobile = useIsMobile();
   const cols = draft.definition.columns;
@@ -190,6 +199,13 @@ export default function ColumnsPanel({ draft, update, dirty, project }) {
           );
         })}
       </div>
+
+      <ConfigSaveBar
+        onSave={onSave}
+        onValidate={onValidate}
+        saving={saving}
+        dirty={dirty}
+      />
 
       <SyncBoardDialog
         open={sync}

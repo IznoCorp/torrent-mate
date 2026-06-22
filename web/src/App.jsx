@@ -241,6 +241,9 @@ export default function App() {
           update={update}
           dirty={dirty}
           project={selected}
+          onSave={onSave}
+          onValidate={onValidate}
+          saving={saving}
         />
       ),
       transitions: (
@@ -249,6 +252,10 @@ export default function App() {
           update={update}
           findings={findings}
           project={selected}
+          onSave={onSave}
+          onValidate={onValidate}
+          saving={saving}
+          dirty={dirty}
         />
       ),
       defaults: <DefaultsPanel draft={draft} update={update} />,
