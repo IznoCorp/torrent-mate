@@ -54,7 +54,14 @@ export default function AgentTerminal({ issue, onClose }) {
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
   }, []);
 
-  // Fit the xterm to its container, then drive the tmux pane to the same size so it reflows.
+  // Last size we actually sent to the pane + the debounce timer for ResizeObserver bursts.
+  const lastSizeRef = React.useRef({ cols: 0, rows: 0 });
+  const resizeTimerRef = React.useRef(null);
+
+  // Fit xterm to its container, then drive the tmux pane to match — but ONLY when the size really
+  // changed. Re-sending an identical size fires a redundant SIGWINCH, which makes Claude Code's Ink
+  // TUI repaint mid-menu and is a prime trigger of the redraw drift that garbles /model, /effort, …
+  // (Claude #29937). Deduping the resize is the single biggest thing we control here.
   const fitAndResize = React.useCallback(() => {
     const term = termRef.current;
     const fit = fitRef.current;
@@ -64,9 +71,35 @@ export default function AgentTerminal({ issue, onClose }) {
     } catch (_) {
       /* container not laid out yet — ignore */
     }
-    if (term.cols > 0 && term.rows > 0) {
-      send({ type: "resize", cols: term.cols, rows: term.rows });
+    const { cols, rows } = term;
+    if (cols > 0 && rows > 0) {
+      const last = lastSizeRef.current;
+      if (cols !== last.cols || rows !== last.rows) {
+        lastSizeRef.current = { cols, rows };
+        send({ type: "resize", cols, rows });
+      }
     }
+  }, [send]);
+
+  // Debounced fit for the ResizeObserver: a burst of layout callbacks (rotation, fullscreen toggle,
+  // the mobile soft-keyboard opening) coalesces into ONE resize instead of a SIGWINCH storm.
+  const scheduleFit = React.useCallback(() => {
+    clearTimeout(resizeTimerRef.current);
+    resizeTimerRef.current = setTimeout(fitAndResize, 180);
+  }, [fitAndResize]);
+
+  // Force Claude's Ink TUI to fully re-render — the reliable way to clear accumulated redraw drift
+  // (Ctrl-L / tmux redraw do NOT, since the drift lives in Ink's virtual buffer, Claude #29937). A
+  // one-row size nudge is the signal that makes Ink recompute its layout from scratch.
+  const redraw = React.useCallback(() => {
+    const term = termRef.current;
+    if (!term || term.cols <= 0 || term.rows <= 0) return;
+    const { cols, rows } = term;
+    send({ type: "resize", cols, rows: Math.max(5, rows - 1) });
+    setTimeout(() => {
+      lastSizeRef.current = { cols, rows };
+      send({ type: "resize", cols, rows });
+    }, 120);
   }, [send]);
 
   // Mount xterm + open the PTY WebSocket.
@@ -98,6 +131,7 @@ export default function AgentTerminal({ issue, onClose }) {
     ws.onopen = () => {
       // Size the agent pane to our fitted geometry as soon as the socket is up.
       if (term.cols > 0 && term.rows > 0) {
+        lastSizeRef.current = { cols: term.cols, rows: term.rows };
         ws.send(
           JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }),
         );
@@ -162,11 +196,13 @@ export default function AgentTerminal({ issue, onClose }) {
     }
 
     // Refit + resize the pane whenever the container changes size (layout, rotate, fullscreen).
-    const ro = new ResizeObserver(() => fitAndResize());
+    // Debounced + deduped so a burst of layout callbacks never storms the pane with SIGWINCHs.
+    const ro = new ResizeObserver(() => scheduleFit());
     ro.observe(containerRef.current);
 
     return () => {
       ro.disconnect();
+      clearTimeout(resizeTimerRef.current);
       // Detach handlers BEFORE closing: ws.close() is async, so an already-queued binary frame
       // could otherwise fire ws.onmessage → term.write() on a just-disposed Terminal and throw.
       ws.onopen = null;
@@ -300,6 +336,7 @@ export default function AgentTerminal({ issue, onClose }) {
         onToggleFullscreen={toggleFullscreen}
         onSendKey={sendKey}
         onZoom={zoom}
+        onRedraw={redraw}
         onKill={onKill}
         onArmKill={() => setKillConfirm(true)}
         onCancelKill={() => setKillConfirm(false)}
@@ -322,6 +359,7 @@ function ControlBar({
   onToggleFullscreen,
   onSendKey,
   onZoom,
+  onRedraw,
   onKill,
   onArmKill,
   onCancelKill,
@@ -411,6 +449,16 @@ function ControlBar({
       >
         <Button size="sm" variant="outline" onClick={onToggleFullscreen}>
           {fullscreen ? "⤱" : "⤢"}
+        </Button>
+      </Tooltip>
+      <Tooltip
+        label={t(
+          "tip.term_redraw",
+          "Redraw — fixes a garbled display after interactive menus (/model, /effort…)",
+        )}
+      >
+        <Button size="sm" variant="outline" onClick={onRedraw}>
+          ⟳
         </Button>
       </Tooltip>
       <Tooltip label={t("tip.term_close", "Close the terminal")}>
@@ -548,7 +596,7 @@ function TerminalHelp({ t }) {
       <p style={{ margin: 0, color: "var(--muted-foreground)" }}>
         {t(
           "term_help.intro",
-          "This is the agent's live terminal, read-only by default. Take control to send your keystrokes straight to the agent; the red border means you are in control. On mobile, Take control opens the keyboard. Click the terminal first so it has focus, then use the shortcuts below.",
+          "This is the agent's live terminal, read-only by default. Take control to send your keystrokes straight to the agent; the red border means you are in control. On mobile, Take control opens the keyboard. Click the terminal first so it has focus, then use the shortcuts below. If an interactive menu (/model, /effort…) garbles the display, press ⟳ Redraw, or type /clear in the agent.",
         )}
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>

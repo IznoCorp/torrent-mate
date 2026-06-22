@@ -340,6 +340,7 @@ tip:
   term_ctrlc: Send Ctrl-C (interrupt)
   term_fs_enter: Fullscreen
   term_fs_exit: Exit fullscreen
+  term_redraw: Redraw — fixes a garbled display after interactive menus (/model, /effort…)
   term_close: Close the terminal
   term_kill: End the Claude session and the agent (no need to type exit)
   board_refresh: Reload the board from the server

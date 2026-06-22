@@ -105,7 +105,26 @@ def _pty_command(issue: int) -> list[str]:
         return list(factory(issue))
     # A real, interactive tmux client attached to the agent's session. The client's PTY winsize
     # drives the session size (window-size defaults to "latest" — the most recent client wins).
-    return ["tmux", "attach-session", "-t", f"ticket-{issue}"]
+    #
+    # `set status off` (chained after the attach): drop tmux's status bar so the pane height equals
+    # the client (xterm) height. Otherwise the status row steals the bottom line and Claude Code's
+    # Ink TUI — which assumes the full window — paints its footer/menus *under* the bar (invisible
+    # bottom rows; Claude issue #51497). A single-pane agent session has no use for a status bar, and
+    # removing it also makes xterm's geometry match Claude's exactly, reducing the Ink redraw drift
+    # (#29937) that garbles interactive menus (/model, /plugin, …).
+    name = f"ticket-{issue}"
+    return [
+        "tmux",
+        "attach-session",
+        "-t",
+        name,
+        ";",
+        "set-option",
+        "-t",
+        name,
+        "status",
+        "off",
+    ]
 
 
 @app.websocket("/api/monitor/agent/{issue}/attach")

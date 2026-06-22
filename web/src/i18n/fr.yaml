@@ -329,7 +329,8 @@ term_help:
     Ceci est le terminal en direct de l'agent, en lecture seule par défaut. Prenez le contrôle pour
     envoyer vos frappes directement à l'agent ; la bordure rouge indique que vous avez le contrôle.
     Sur mobile, « Prendre le contrôle » ouvre le clavier. Cliquez d'abord sur le terminal pour lui
-    donner le focus, puis utilisez les raccourcis ci-dessous.
+    donner le focus, puis utilisez les raccourcis ci-dessous. Si un menu interactif (/model, /effort…)
+    brouille l'affichage, appuyez sur ⟳ Rafraîchir, ou tapez /clear dans l'agent.
   toggle_control: Prendre / rendre le contrôle — commencer ou cesser de taper vers l'agent
   toggle_fullscreen: Entrer / quitter le plein écran
   enter: Envoie un retour à la ligne (uniquement avec le contrôle)
@@ -345,6 +346,7 @@ tip:
   term_ctrlc: Envoie Ctrl-C (interruption)
   term_fs_enter: Plein écran
   term_fs_exit: Quitter le plein écran
+  term_redraw: Rafraîchir — corrige un affichage brouillé après un menu interactif (/model, /effort…)
   term_close: Fermer le terminal
   term_kill: Termine la session Claude et l'agent (sans avoir à taper exit)
   board_refresh: Recharge le board depuis le serveur
