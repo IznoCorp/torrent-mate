@@ -1331,6 +1331,37 @@ def test_interruptible_sleep_wakes_early_on_nudge() -> None:
     assert slept == [0.5]
 
 
+def test_interruptible_sleep_returns_true_on_nudge() -> None:
+    """The sleep RETURNS True when a nudge wakes it early — the caller opens a fast-poll window."""
+    _slept, _sleep = _slept_recorder()
+    mtimes = iter([100, 200])  # baseline at entry, bump after the first slice (int ns, #5)
+
+    def _nudge() -> int:
+        return next(mtimes, 200)
+
+    woke = _interruptible_sleep(
+        10.0,
+        sleep=_sleep,  # type: ignore[arg-type]
+        nudge_mtime=_nudge,
+        flag=_ShutdownFlag(),
+        slice_seconds=0.5,
+    )
+    assert woke is True
+
+
+def test_interruptible_sleep_returns_false_on_timeout() -> None:
+    """The sleep RETURNS False when it runs the full delay without a nudge (no fast-poll window)."""
+    _slept, _sleep = _slept_recorder()
+    woke = _interruptible_sleep(
+        1.0,
+        sleep=_sleep,  # type: ignore[arg-type]
+        nudge_mtime=lambda: 100,  # constant → no early wake
+        flag=_ShutdownFlag(),
+        slice_seconds=0.5,
+    )
+    assert woke is False
+
+
 def test_interruptible_sleep_honours_shutdown_flag() -> None:
     """Setting the shutdown flag during the sleep returns early (≤ one slice)."""
     slept: list[float] = []
@@ -1431,6 +1462,72 @@ def test_run_loop_integration_wakes_early_when_nudged(
 
     # The 10 s delay would be 20 slices without a nudge; the bump after slice 1 wakes it immediately.
     assert slept == [0.5]
+
+
+def test_run_loop_fast_polls_after_nudge_wake(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """After a nudge wakes the loop, the NEXT few ticks poll at the TIGHT base, not the slow fallback.
+
+    A self-initiated auto-advance nudges the daemon, but the just-read snapshot can still lag
+    GitHub's eventual-consistent API. Re-checking fast for a few cycles fires the next-stage launch
+    within ~base seconds instead of waiting out the ~120 s webhook fallback again (reflex).
+    """
+    config_yml, _columns_yml = _setup_config_files(tmp_path)
+    daemon_config = DaemonConfig(kanban_root=tmp_path, config_path=config_yml)
+    monkeypatch.setattr("kanbanmate.daemon.loop.next_sleep", lambda *a, **k: 120.0)  # slow fallback
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", _mock_run_one_tick_success)
+
+    delays: list[float] = []
+    calls = {"n": 0}
+
+    def _fake_sleep(delay: float, **_kwargs: object) -> bool:
+        """Record the delay and simulate a nudge waking ONLY the first sleep."""
+        delays.append(delay)
+        calls["n"] += 1
+        return calls["n"] == 1
+
+    monkeypatch.setattr("kanbanmate.daemon.loop._interruptible_sleep", _fake_sleep)
+    run_loop(daemon_config, max_iterations=4, sleep=lambda _s: None)
+
+    # Iteration 1 polls the slow fallback (no fast window yet); the nudge then opens a 3-tick fast
+    # window so iterations 2-4 poll the tight base (10 s default), not 120 s.
+    assert delays[0] == pytest.approx(120.0)
+    assert all(d == pytest.approx(10.0) for d in delays[1:]), delays
+
+
+def test_run_loop_fast_poll_window_refreshes_on_repeat_nudge(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A second nudge mid-window REFRESHES the fast-poll budget (sustained activity stays fast)."""
+    config_yml, _columns_yml = _setup_config_files(tmp_path)
+    daemon_config = DaemonConfig(kanban_root=tmp_path, config_path=config_yml)
+    monkeypatch.setattr("kanbanmate.daemon.loop.next_sleep", lambda *a, **k: 120.0)  # slow fallback
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", _mock_run_one_tick_success)
+
+    delays: list[float] = []
+    calls = {"n": 0}
+
+    def _fake_sleep(delay: float, **_kwargs: object) -> bool:
+        """Nudge wakes the FIRST and SECOND sleeps; the second refreshes the window mid-decay."""
+        delays.append(delay)
+        calls["n"] += 1
+        return calls["n"] in (1, 2)
+
+    monkeypatch.setattr("kanbanmate.daemon.loop._interruptible_sleep", _fake_sleep)
+    run_loop(daemon_config, max_iterations=6, sleep=lambda _s: None)
+
+    # it1 slow; nudge → window=3. it2 fast, nudge again → window REFRESHED to 3 (not decayed to 2).
+    # it3..it5 fast (3 ticks from the refresh), it6 reverts to slow. Without the refresh, it5 would
+    # already be slow.
+    assert delays == [
+        pytest.approx(120.0),
+        pytest.approx(10.0),
+        pytest.approx(10.0),
+        pytest.approx(10.0),
+        pytest.approx(10.0),
+        pytest.approx(120.0),
+    ], delays
 
 
 def test_run_loop_integration_wakes_early_on_post_drain_window_nudge(

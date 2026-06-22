@@ -490,6 +490,49 @@ def test_done_with_advance_stop_does_not_move(monkeypatch: pytest.MonkeyPatch) -
     store.record_move_for_item.assert_not_called()
 
 
+def test_auto_advance_nudges_daemon_after_durable_breadcrumb(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A successful engine auto-advance NUDGES the daemon, written LAST (reflex).
+
+    A self-initiated auto-advance moves the card via the API but does NOT enqueue an intent, so
+    nothing wakes the sleeping daemon — on an all-webhook daemon it then waits out the slow
+    webhook-fallback poll (~120 s) before firing the next stage. Touching the daemon-wake nudge
+    sentinel here collapses that to one sleep-slice. The nudge MUST be written AFTER the move is
+    recorded AND the durable ``pending_launch`` breadcrumb is dropped, so the woken tick finds the
+    breadcrumb already in place instead of racing GitHub's eventual-consistent API.
+    """
+    store = MagicMock()
+    store.load.return_value = _state(stage="Spec", advance="auto:Plan")
+    store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = True
+    store.move_count_for_item_last_hour.return_value = 0
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    _patch_github_capture_client(monkeypatch)
+    _patch_backstop_config(monkeypatch)  # cfg.get -> a launch-bearing edge (truthy .prompt)
+
+    assert main(["7"]) == 0
+    store.nudge_daemon.assert_called_once_with()
+    # ORDERING (load-bearing): the wake fires only after the move + breadcrumb are durable.
+    names = [c[0] for c in store.mock_calls]
+    assert names.index("nudge_daemon") > names.index("record_move_for_item")
+    assert names.index("nudge_daemon") > names.index("record_pending_launch")
+
+
+def test_auto_advance_stop_does_not_nudge(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A human-gate stop (advance=stop) makes no move → no reflex wake (nothing to fire)."""
+    store = MagicMock()
+    store.load.return_value = _state(stage="Plan", advance="stop")
+    store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = True
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    _patch_github_capture_client(monkeypatch)
+    _patch_backstop_config(monkeypatch)
+
+    assert main(["7"]) == 0
+    store.nudge_daemon.assert_not_called()
+
+
 def test_done_with_advance_empty_does_not_move(monkeypatch: pytest.MonkeyPatch) -> None:
     """An empty advance directive → NO engine move (old-format / no directive)."""
     store = MagicMock()

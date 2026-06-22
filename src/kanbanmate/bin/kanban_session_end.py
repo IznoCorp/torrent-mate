@@ -264,6 +264,14 @@ def _auto_advance(
             store.record_pending_launch(
                 state.item_id, from_col=state.stage, to_col=target_col.key, now=now
             )
+        # Reflex wake: a self-initiated auto-advance moves the card via the API but enqueues no intent,
+        # so nothing wakes the sleeping daemon — on an all-webhook daemon it then waits out the slow
+        # webhook-fallback poll (~120 s) before firing the next stage. Touch the daemon-wake nudge
+        # sentinel so the daemon re-ticks within one sleep-slice. Written LAST — AFTER the move and the
+        # durable pending_launch breadcrumb — so the woken tick finds the breadcrumb already in place
+        # (a webhook nudge instead races GitHub's eventual-consistent API and can clear a not-yet-
+        # visible move). ``nudge_daemon`` is internally best-effort, so a failure degrades to the poll.
+        store.nudge_daemon()
         print(f"{_PROG}: ticket #{issue} auto-advanced -> {target_name} (engine backstop).")
         return "advanced"
     except Exception as exc:  # noqa: BLE001 — fail-soft: the engine move must never break session-end.

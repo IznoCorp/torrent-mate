@@ -96,6 +96,12 @@ _NUDGE_RELPATH = (INTENTS_DIRNAME, NUDGE_FILENAME)
 # cockpit yet vastly tighter than the ~10 s full interval; at most ``delay/slice`` cheap ``stat()``
 # calls per inter-tick gap (~20 per 10 s) — not a busy-loop (each slice is a real ``sleep``).
 _NUDGE_SLICE_SECONDS = 0.5
+# Reflex fast-poll window: how many ticks after a nudge wake poll at the TIGHT base instead of the
+# slow webhook fallback. A self-initiated auto-advance nudges the daemon, but the just-read board
+# snapshot can lag GitHub's eventual-consistent API by a beat — so the wake tick may not yet see the
+# move. Re-checking fast for a few ticks fires the next-stage launch within ~base seconds rather than
+# waiting out another full fallback (~120 s). 3 ticks × base (~10 s) comfortably covers the API lag.
+_FAST_POLL_AFTER_NUDGE_TICKS = 3
 
 
 class DaemonLockError(RuntimeError):
@@ -519,7 +525,7 @@ def _interruptible_sleep(
     flag: _ShutdownFlag,
     baseline: int | None = None,
     slice_seconds: float = _NUDGE_SLICE_SECONDS,
-) -> None:
+) -> bool:
     """Sleep up to ``delay`` seconds, returning EARLY on a nudge (mtime bump) or shutdown (0.4.0).
 
     Sleeps in fixed ``slice_seconds`` slices; after each slice it re-reads ``nudge_mtime`` and
@@ -551,9 +557,15 @@ def _interruptible_sleep(
         slice_seconds: The slice granularity (the worst-case nudge wake latency). A ``<= 0`` value
             degrades to :data:`_NUDGE_SLICE_SECONDS` so a misconfigured slice can never busy-loop
             (``sleep(0)`` that never decrements ``remaining``) — defensive (#6).
+
+    Returns:
+        ``True`` when a nudge (mtime bump past ``baseline``) woke the sleep EARLY — the caller uses
+        this to open a fast-poll window that beats GitHub's eventual-consistent API after a self-move
+        (reflex). ``False`` when the full ``delay`` elapsed, ``delay <= 0``, or the shutdown flag was
+        set (none of which warrant a fast re-check).
     """
     if delay <= 0:
-        return
+        return False
     # #6 defensive guard: a non-positive slice would make ``chunk = min(slice, remaining)`` <= 0, so
     # ``sleep(0)`` would never decrement ``remaining`` → a tight busy-loop. Clamp to the default.
     if slice_seconds <= 0:
@@ -571,9 +583,11 @@ def _interruptible_sleep(
         remaining -= chunk
         try:
             if nudge_mtime() > baseline:
-                return  # an intent was enqueued — wake now, drain on the next tick
+                return True  # an intent was enqueued — wake now, drain on the next tick
         except Exception:  # noqa: BLE001 — fail-soft: ignore a stat failure, keep sleeping
             pass
+    # The full delay elapsed (or the shutdown flag tripped) with no nudge — a plain timeout.
+    return False
 
 
 def run_loop(
@@ -649,6 +663,11 @@ def run_loop(
     # is failing; one failing project never throttles a healthy sibling's sweep.
     consecutive_failures = 0
     backoff_failures = 0
+    # Reflex fast-poll window (#auto-advance latency): a positive counter forces the next few
+    # inter-tick sleeps onto the TIGHT base after a nudge wake, so a self-initiated auto-advance whose
+    # move lags GitHub's eventual-consistent API is still picked up within ~base seconds instead of
+    # the slow webhook fallback. Decremented per fast tick; refreshed on every nudge wake.
+    fast_ticks_remaining = 0
 
     try:
         while not flag.requested:
@@ -769,15 +788,28 @@ def run_loop(
             # cadence tight (its sweep is never throttled by a failing sibling). A clean sweep resets
             # the run above, snapping the delay back to the cadence base.
             delay = _failure_backoff_sleep(backoff_failures, base_delay)
+            # Reflex fast-poll window: while the counter is open, re-check at the TIGHT base instead of
+            # the slow webhook fallback so a self-initiated auto-advance lagging GitHub's eventual-
+            # consistent API is caught within ~base seconds, not after another ~120 s fallback. Gated
+            # off during a failure back-off (``backoff_failures == 0``) so an outage is never
+            # re-hammered. A polling daemon already sits at the base, so this is a no-op there.
+            if fast_ticks_remaining > 0 and backoff_failures == 0:
+                delay = min(delay, config.interval.base)
+                fast_ticks_remaining -= 1
             # Interruptible inter-tick sleep (0.4.0): sleeps the full ``delay`` UNLESS an intent is
             # enqueued (the enqueue side bumps the nudge sentinel), in which case it returns within one
             # slice so the next tick drains the intent near-instantly — no interval reduction, no API
             # cost. Also wakes on the shutdown flag. The nudge interrupts the geometric back-off sleep
             # too, so an operator intent wakes a backed-off daemon within a slice (desirable). The
             # baseline is the TICK-START value (#2) so a post-drain-window enqueue still wakes here.
-            _interruptible_sleep(
+            woke_on_nudge = _interruptible_sleep(
                 delay, sleep=sleep, nudge_mtime=nudge_mtime, flag=flag, baseline=nudge_baseline
             )
+            # A nudge wake (self-move auto-advance, operator intent, or webhook) opens/refreshes the
+            # fast-poll window: the just-completed sweep may have read a board that still lagged the
+            # move, so re-check fast for the next few ticks to fire the next-stage launch promptly.
+            if woke_on_nudge:
+                fast_ticks_remaining = _FAST_POLL_AFTER_NUDGE_TICKS
     finally:
         # Release the single-instance lock, log shutdown, and remove our
         # JSONL handler so test suites that call run_loop multiple times
