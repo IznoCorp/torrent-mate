@@ -257,7 +257,7 @@ def process_transition(
                 errors += 1
             next_columns[transition.ticket.item_id] = transition.to_column
             return TransitionOutcome(antiloop, actions_executed, errors)
-        elif destination is not None:
+        elif destination is not None and transition.to_column != config.blocked_column:
             # NOOP-forward (e.g. Plan→Ready-to-dev) OR a Done arrival with NO live agent:
             # an accepted, non-rollback forward move into a REAL inert column finalizes the
             # LEFT stage ✅ (DESIGN §8.1.e), even though nothing launches. A Done arrival
@@ -266,6 +266,15 @@ def process_transition(
             # exists), exactly like any other inert arrival. No slot was overwritten on this
             # branch, so ``store.load`` still returns the LEFT state. (The unknown-column
             # branch above does NOT finalize — there is no real stage to advance.)
+            #
+            # moor: a move INTO the Blocked column is the ONE inert destination that must NOT
+            # finalize the LEFT stage ✅ done — it is a PARK (the reaper's stall-park, a runaway
+            # park, or a manual block), never a stage completion. The park already wrote the ⛔
+            # blocked sticky for the LEFT stage; a ✅ "stage complete" flip here would OVERWRITE it
+            # with a misleading "done" on a card that is actually Blocked (live: an API-stalled
+            # triage agent parked Blocked by the reaper showed ✅ Triage done on its NEXT diff). The
+            # ``*→Blocked`` wildcard transition makes every such park an accepted NOOP-forward, so
+            # this guard — not the absence of a transition — is what suppresses the wrong finalize.
             _finalize_left_stage(
                 deps,
                 transition,

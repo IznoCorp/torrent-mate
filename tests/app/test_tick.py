@@ -667,6 +667,74 @@ def test_inert_move_is_noop() -> None:
     assert next_state.columns_by_item["PVTI_7"] == "Done"
 
 
+# Minimal board with a Blocked column + NOOP-forward edges into both an ordinary inert column (Done)
+# and the Blocked column — the moor regression fixture (a move into Blocked must NOT finalize ✅).
+_BLOCKED_BOARD_COLUMNS = """
+columns:
+  - key: Backlog
+    name: Backlog
+  - key: InProgress
+    name: In Progress
+  - key: Blocked
+    name: Blocked
+  - key: Done
+    name: Done
+"""
+_BLOCKED_BOARD_WHITELIST = """
+project: owner/repo
+transitions:
+  - from: InProgress
+    to: Blocked
+  - from: InProgress
+    to: Done
+"""
+
+
+def test_move_into_blocked_does_not_finalize_left_stage_done() -> None:
+    """moor: a NOOP-forward move INTO the Blocked column must NOT flip the LEFT stage ✅ done.
+
+    Parking a card in Blocked (the reaper's stall-park, a runaway park, or a manual block) is not a
+    stage completion. The ``*→Blocked`` wildcard makes the park an accepted NOOP-forward, so without
+    the guard the next diff flips the LEFT stage's ⛔ blocked sticky to a misleading ✅ "stage
+    complete" (live: an API-stalled triage agent parked Blocked by the reaper showed ✅ Triage done).
+    The contrast move into the ordinary inert ``Done`` column STILL finalizes ✅ (unchanged §8.1.e).
+    """
+    config = TickConfig(
+        columns=load_columns(_BLOCKED_BOARD_COLUMNS),
+        blocked_column="Blocked",
+        transitions=load_transitions(_BLOCKED_BOARD_WHITELIST),
+    )
+
+    # Case 1 — INTO Blocked: the LEFT (InProgress) sticky must NOT be finalized ✅ done.
+    blocked_ticket = Ticket(item_id="PVTI_7", issue_number=7, title="t", column_key="Blocked")
+    m = _mocks(_FakeBoardReader("probe-1", _snapshot(blocked_ticket)), now=9000.0)
+    m.store.load.return_value = _left_state(stage="InProgress")
+    m.board_writer.list_issue_comments.return_value = [_existing_sticky("InProgress")]
+    _, next_state = tick(
+        m.deps,
+        config,
+        PersistedState(columns_by_item={"PVTI_7": "InProgress"}, last_probe="probe-0"),
+    )
+    # No ✅ done header-swap on the LEFT stage (the park's ⛔ sticky is left intact).
+    m.board_writer.update_comment.assert_not_called()
+    # The baseline still advances to Blocked so the next diff does not re-process the park.
+    assert next_state.columns_by_item["PVTI_7"] == "Blocked"
+
+    # Case 2 — INTO Done (ordinary inert column): the LEFT stage IS finalized ✅ done (unchanged).
+    done_ticket = Ticket(item_id="PVTI_7", issue_number=7, title="t", column_key="Done")
+    m2 = _mocks(_FakeBoardReader("probe-1", _snapshot(done_ticket)), now=9000.0)
+    m2.store.load.return_value = _left_state(stage="InProgress")
+    m2.board_writer.list_issue_comments.return_value = [_existing_sticky("InProgress")]
+    tick(
+        m2.deps,
+        config,
+        PersistedState(columns_by_item={"PVTI_7": "InProgress"}, last_probe="probe-0"),
+    )
+    m2.board_writer.update_comment.assert_called_once()
+    updated = m2.board_writer.update_comment.call_args.args[1]
+    assert "<!-- kanban:step=InProgress -->" in updated and "✅" in updated and "done" in updated
+
+
 def test_configured_move_rate_limit_reaches_the_in_memory_guard() -> None:
     """#6: ``config.move_rate_limit_per_hour`` is threaded into the decision-time anti-loop guard.
 
