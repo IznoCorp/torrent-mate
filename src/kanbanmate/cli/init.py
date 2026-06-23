@@ -561,6 +561,13 @@ def init(
         # their defaults — an operator edits projects.json for per-org tokens / pausing a project.
         org=org,
         ingress=ingress,
+        # Operator rule (2026-06-23): every NEW kanban defaults to the native ``hybrid`` backend
+        # (like kanban-mate), so the KanbanMateUI Tableau works out of the box — the native board
+        # endpoints require a native-backed project. This is an EXPLICIT write (not the dataclass
+        # default, which stays "github"): a brand-new board has no cards, so the native store seeds
+        # lazily as an empty doc and the GitHub mirror keeps Status in sync. The dataclass default +
+        # load-fallback remain "github" so a legacy projects.json WITHOUT the key is byte-identical.
+        board_backend="hybrid",
     )
     _upsert_project(_projects_path(resolved_root), project_id, entry)
     # 5b. ingress-multiproject §4.3: seed the webhook secret skeleton (0600) when ingress=webhook and

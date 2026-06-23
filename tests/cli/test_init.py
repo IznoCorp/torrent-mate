@@ -248,6 +248,23 @@ def test_init_registers_project_keyed_by_node_id(tmp_path: Path) -> None:
     assert record["option_map"]["Backlog"] == "opt_0"
 
 
+def test_init_creates_hybrid_board_backend(tmp_path: Path) -> None:
+    """A freshly-init'd project defaults to the native ``hybrid`` board backend.
+
+    Operator rule (2026-06-23): every NEW kanban must be ``hybrid`` like kanban-mate, so the
+    KanbanMateUI Tableau works out of the box (the native board endpoints require a native-backed
+    project). ``init`` therefore writes ``board_backend="hybrid"`` explicitly — both the returned
+    entry and the persisted ``projects.json`` record carry it. The dataclass default + load-fallback
+    stay ``"github"`` so a legacy entry WITHOUT the key is still read as ``github`` (byte-identical),
+    proven by ``test_load_registry_board_backend_back_compat``.
+    """
+    _seeder, entry = _run_init(tmp_path)
+    assert entry.board_backend == "hybrid"
+
+    data = json.loads((tmp_path / "kanban" / "projects.json").read_text(encoding="utf-8"))
+    assert data["PVT_NEW"]["board_backend"] == "hybrid"
+
+
 def test_init_is_idempotent_on_rerun(tmp_path: Path) -> None:
     """Re-running ``init`` overwrites the same registry key in place (no duplication)."""
     seeder, _ = _run_init(tmp_path)
