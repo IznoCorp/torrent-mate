@@ -64,6 +64,13 @@ def main(argv: list[str] | None = None) -> int:
             else FsStateStore(_store_root, nudge_root=_nudge_root)
         )
         store.record_agent_done(issue, now=time.time())
+        # Reflex wake: the breadcrumb is a completion EVENT the reaper must act on (end the idle
+        # session → the session-end backstop auto-advances the card). Without a nudge the reaper only
+        # notices it on the next poll — up to the slow webhook-fallback interval (~120 s) — so a
+        # finished launch stage sits idle before advancing (the live Plan→ReadyToDev stall). Touch the
+        # daemon-wake nudge sentinel so the reaper reacts within one sleep-slice. Best-effort (the
+        # store swallows any nudge error), so it never turns a recorded completion into a failure.
+        store.nudge_daemon()
     except Exception as exc:  # noqa: BLE001 — never crash the caller; report + exit non-zero.
         print(f"{_PROG}: {exc}", file=sys.stderr)
         return 1

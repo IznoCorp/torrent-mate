@@ -69,6 +69,23 @@ def test_valid_issue_writes_done_marker(tmp_path: Path, monkeypatch: pytest.Monk
     assert store.recent_agent_done(7, now=0.0) is True
 
 
+def test_valid_issue_nudges_daemon(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """kanban-done NUDGES the daemon so the reaper ends the finished session promptly.
+
+    Without the nudge the reaper only notices the done breadcrumb on its next poll — up to the slow
+    webhook-fallback interval (~120 s) — so a finished launch stage sits idle before auto-advancing
+    (the live stall: a done Plan stage sat ~2 min in Plan before moving to ReadyToDev). Touching the
+    daemon-wake nudge sentinel collapses that to one sleep-slice (the reflex pattern, applied to the
+    completion signal itself).
+    """
+    monkeypatch.setenv("KANBAN_ROOT", str(tmp_path))
+
+    assert main(["7"]) == 0
+
+    # The daemon-wake nudge sentinel was touched (N=1 → nudge_root falls back to the runtime root).
+    assert (tmp_path / "intents" / ".nudge").exists()
+
+
 def test_strips_leading_hash(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An agent typing ``#7`` is parsed to issue 7 (defect-3 leading-# strip)."""
     monkeypatch.setenv("KANBAN_ROOT", str(tmp_path))
