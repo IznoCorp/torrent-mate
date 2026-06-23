@@ -97,11 +97,19 @@ _NUDGE_RELPATH = (INTENTS_DIRNAME, NUDGE_FILENAME)
 # calls per inter-tick gap (~20 per 10 s) — not a busy-loop (each slice is a real ``sleep``).
 _NUDGE_SLICE_SECONDS = 0.5
 # Reflex fast-poll window: how many ticks after a nudge wake poll at the TIGHT base instead of the
-# slow webhook fallback. A self-initiated auto-advance nudges the daemon, but the just-read board
-# snapshot can lag GitHub's eventual-consistent API by a beat — so the wake tick may not yet see the
-# move. Re-checking fast for a few ticks fires the next-stage launch within ~base seconds rather than
-# waiting out another full fallback (~120 s). 3 ticks × base (~10 s) comfortably covers the API lag.
-_FAST_POLL_AFTER_NUDGE_TICKS = 3
+# slow webhook fallback. It covers two post-nudge waits:
+#   1. a self-initiated auto-advance whose move lags GitHub's eventual-consistent API by a beat (the
+#      original reflex case — needs only a few ticks);
+#   2. a kanban-done nudge where the agent is still finishing its FINAL turn: the reaper must NOT cut a
+#      mid-turn agent, so it DEFERS ending the session until the pane goes idle (reaper.py
+#      ``_pane_has_active_turn``). That final turn can run for tens of seconds AFTER kanban-done, and
+#      the window must stay open across it — else the daemon reverts to the slow ~120 s fallback and
+#      the now-idle done agent waits a full poll before its session is ended + the card advances (the
+#      observed ~60 s "finished-but-idle" gap).
+# 8 ticks × base (~10 s) ≈ ~100 s comfortably covers a realistic final turn while staying bounded. This
+# ONLY changes the poll CADENCE, never WHEN a session is ended (the reaper's idle-guard is untouched),
+# so it cannot interrupt a working agent.
+_FAST_POLL_AFTER_NUDGE_TICKS = 8
 
 
 class DaemonLockError(RuntimeError):

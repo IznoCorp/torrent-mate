@@ -1508,6 +1508,8 @@ def test_run_loop_fast_poll_window_refreshes_on_repeat_nudge(
     delays: list[float] = []
     calls = {"n": 0}
 
+    from kanbanmate.daemon.loop import _FAST_POLL_AFTER_NUDGE_TICKS as window
+
     def _fake_sleep(delay: float, **_kwargs: object) -> bool:
         """Nudge wakes the FIRST and SECOND sleeps; the second refreshes the window mid-decay."""
         delays.append(delay)
@@ -1515,19 +1517,30 @@ def test_run_loop_fast_poll_window_refreshes_on_repeat_nudge(
         return calls["n"] in (1, 2)
 
     monkeypatch.setattr("kanbanmate.daemon.loop._interruptible_sleep", _fake_sleep)
-    run_loop(daemon_config, max_iterations=6, sleep=lambda _s: None)
+    run_loop(daemon_config, max_iterations=window + 3, sleep=lambda _s: None)
 
-    # it1 slow; nudge → window=3. it2 fast, nudge again → window REFRESHED to 3 (not decayed to 2).
-    # it3..it5 fast (3 ticks from the refresh), it6 reverts to slow. Without the refresh, it5 would
-    # already be slow.
-    assert delays == [
-        pytest.approx(120.0),
-        pytest.approx(10.0),
-        pytest.approx(10.0),
-        pytest.approx(10.0),
-        pytest.approx(10.0),
-        pytest.approx(120.0),
-    ], delays
+    # it1 slow; nudge → window opens. it2 fast, nudge again → window REFRESHED (decay restarts from
+    # it2), so it2..it(window+2) are fast (window+1 ticks) and it(window+3) reverts to slow. Without
+    # the refresh the window would have closed one tick earlier — the refresh extends it by a tick.
+    assert delays == (
+        [pytest.approx(120.0)] + [pytest.approx(10.0)] * (window + 1) + [pytest.approx(120.0)]
+    ), delays
+
+
+def test_fast_poll_window_covers_a_finished_agents_final_turn() -> None:
+    """The fast-poll window must OUTLAST a finished agent's final turn (idle-gap fix).
+
+    After ``kanban-done`` the reaper defers ending the session until the pane goes idle (it must never
+    cut a mid-turn agent). That final turn can run tens of seconds; if the window closed first the
+    daemon would revert to the slow ~120 s fallback and the now-idle done agent would wait a full poll
+    before advancing (the observed ~60 s gap). The window × base must therefore cover a realistic final
+    turn — a guard against silently shrinking it back below that.
+    """
+    from kanbanmate.core.interval import IntervalConfig
+
+    from kanbanmate.daemon.loop import _FAST_POLL_AFTER_NUDGE_TICKS
+
+    assert _FAST_POLL_AFTER_NUDGE_TICKS * IntervalConfig().base >= 80.0
 
 
 def test_run_loop_integration_wakes_early_on_post_drain_window_nudge(
