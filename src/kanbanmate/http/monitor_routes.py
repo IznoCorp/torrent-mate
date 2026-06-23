@@ -18,7 +18,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from fastapi import HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from kanbanmate.cli.init import _load_registry, _projects_path
 from kanbanmate.core.profiles import SAFE_LAUNCH_PROFILES
@@ -766,6 +766,85 @@ def monitor_file(path: str, project: str | None = None, ticket: int | None = Non
 
     raise HTTPException(
         status_code=404, detail="File not found on the board tree or the ticket WIP branch"
+    )
+
+
+def _board_json_path(entry: Any) -> Path:
+    """Resolve the per-project ``board.json`` path the daemon/board endpoints write (keel STEP 4).
+
+    Reuses :func:`_board_store` so the SSE version reader and the board VIEW read the IDENTICAL
+    ``board.json`` (the daemon/CLI sub-root resolution lives there). Overridable indirectly via
+    ``app.state.board_store`` (tests inject a store whose ``root`` points at the fixture board).
+
+    Args:
+        entry: The resolved registry entry.
+
+    Returns:
+        The path to the selected board's ``board.json``.
+    """
+    return Path(_board_store(entry).root) / "board.json"
+
+
+@app.get("/api/monitor/stream")
+def monitor_stream(project: str | None = None) -> StreamingResponse:
+    """SSE push of the board change signal for sub-second Monitoring + board updates (keel STEP 4).
+
+    A long-lived ``text/event-stream`` that emits an ``event: change`` carrying the per-project
+    ``board.json`` ``version`` int + the daemon ``daemon.heartbeat`` ``ts`` whenever EITHER changes
+    — so an operator drag (via KanbanMateUI) OR an engine transition (the daemon's intent-drain /
+    auto-advance bumps the store version) reaches the SPA sub-second instead of on the next ~4 s
+    poll. The SPA refetches ``/api/monitor/board`` (+ ``/api/board/state``) on each change event and
+    KEEPS a backstop poll, so a dropped/flapping stream degrades gracefully to polling.
+
+    CONSTRAINTS honoured here: this route sits behind the SAME ``@app.middleware('http')`` auth guard
+    as every other ``/api/*`` route (a streaming endpoint that bypassed auth would leak board state)
+    and respects the ``?project=`` selector via ``_resolve_entry``. The stream body does only LOCAL,
+    CHEAP reads (``stat`` + a tiny JSON parse of ``board.json``; a read of ``daemon.heartbeat``) on a
+    BOUNDED sleep-poll loop — NO GitHub call, no busy-spin.
+
+    Args:
+        project: The Project v2 node id selector (optional; auto-resolved for N=1).
+
+    Returns:
+        A ``StreamingResponse`` (``text/event-stream``) of SSE frames.
+
+    Raises:
+        HTTPException: 503/404/400 (project resolution — same as the other monitor routes).
+    """
+    from kanbanmate.http.monitor_stream import (  # noqa: PLC0415
+        monitor_event_stream,
+        read_board_version,
+        read_daemon_tick,
+    )
+
+    entry = _resolve_entry(project)  # auth (middleware) + selector resolution happen here
+    board_path = _board_json_path(entry)
+    heartbeat_path = _kanban_root() / "daemon.heartbeat"
+
+    # Poll/keepalive cadence are overridable via app.state (tests run the loop fast; an operator
+    # could tune it). Defaults: ~1 s sub-second floor, ~20 s keep-alive — see monitor_stream.
+    # ``max_iterations`` is None in production (the loop runs until the client disconnects and the
+    # ASGI server closes the generator); tests cap it so the bounded stream terminates.
+    poll_interval = getattr(app.state, "monitor_stream_poll_interval", 1.0)
+    keepalive_interval = getattr(app.state, "monitor_stream_keepalive_interval", 20.0)
+    max_iterations = getattr(app.state, "monitor_stream_max_iterations", None)
+    stream = monitor_event_stream(
+        lambda: read_board_version(board_path),
+        lambda: read_daemon_tick(heartbeat_path),
+        poll_interval=poll_interval,
+        keepalive_interval=keepalive_interval,
+        max_iterations=max_iterations,
+    )
+    # Headers that keep the stream healthy through proxies (Caddy) + the browser: no-cache so a
+    # stale event-stream is never served from cache; no proxy buffering so events flush immediately.
+    return StreamingResponse(
+        stream,
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # disable proxy (nginx/Caddy) response buffering for SSE
+            "Connection": "keep-alive",
+        },
     )
 
 

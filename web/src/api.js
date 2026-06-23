@@ -159,6 +159,11 @@ export const monitorFile = (path, project, ticket) =>
     `/api/monitor/file?path=${encodeURIComponent(path)}${project ? `&project=${encodeURIComponent(project)}` : ""}${ticket != null ? `&ticket=${encodeURIComponent(ticket)}` : ""}`,
   );
 
+// SSE push (keel STEP 4): the URL of the board change-signal stream for a board. The caller opens an
+// EventSource on it (cookie auth rides along same-origin) and refetches the board on a `change`
+// event, keeping a backstop poll so a dropped/flapping stream degrades gracefully to polling.
+export const monitorStreamUrl = (project) => `/api/monitor/stream${q(project)}`;
+
 // --- Admin / Ops (read-only, host-wide; bosun phase 1) ---
 // Auth-gated GETs (no CSRF for reads). Health = per-project liveness + global flags;
 // version = {local (semver), build (served SHA), remote (origin/main SHA), update_available};

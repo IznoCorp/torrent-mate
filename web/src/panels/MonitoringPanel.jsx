@@ -1,8 +1,10 @@
 // Monitoring tab (helm PR 2-bis) — read-only live board + ticket detail + agent panel + pane tail.
-// Polling: agents + pane ~3 s, board + tracks ~4 s, ticket detail on open. The board placement now
-// reads the LOCAL board.json (keel STEP 2 — <5 ms, no GitHub gating), so a 4 s cadence matching the
-// agents poll is affordable; the version int the board API returns lets the SPA skip re-render when
-// unchanged. Pauses when the tab is hidden. Read-only — to interact with an agent use `tmux attach`.
+// Updates: board + agents are PUSHED over SSE (keel STEP 4 — /api/monitor/stream emits on a
+// board.json version / daemon-tick change, so an operator drag or an engine transition surfaces
+// SUB-SECOND), with a 15 s backstop poll so a dropped/flapping stream degrades gracefully to
+// polling. Tracks ~4 s (still a GitHub label read), pane ~3 s (interactive tail), detail on open.
+// The board placement reads the LOCAL board.json (keel STEP 2 — <5 ms, no GitHub gating); the
+// deep-equal guard skips re-render when unchanged. Pauses when the tab is hidden. Read-only.
 import React from "react";
 import {
   ChevronDown,
@@ -20,6 +22,7 @@ import AgentTerminal from "../components/AgentTerminal.jsx";
 import MarkdownReader from "../components/MarkdownReader.jsx";
 import MarkdownField from "../components/MarkdownField.jsx";
 import useIsMobile from "../useIsMobile.js";
+import useMonitorStream from "../useMonitorStream.js";
 import { useT } from "../i18n/index.jsx";
 
 const { KeyChip, Badge, Banner, Button, Select, Tooltip } =
@@ -439,23 +442,40 @@ export default function MonitoringPanel({ project }) {
     });
   };
 
-  usePoll(
-    () =>
-      api
-        .monitorBoard(project)
-        .then((b) => {
-          // Skip the state update (→ no re-render) when the board is byte-identical to the last
-          // poll: with the keel STEP 2 local-placement read + the faster 4 s cadence, most polls
-          // return an unchanged board, so a deep-equal guard avoids needless re-renders.
-          setBoard((prev) =>
-            prev && JSON.stringify(prev) === JSON.stringify(b) ? prev : b,
-          );
-          setBoardError(null); // a good poll clears the staleness note
-        })
-        .catch((e) => setBoardError(e.message)),
-    4000,
-    [project],
-  );
+  // One board fetch, shared by the SSE-driven fast path AND the backstop poll. The deep-equal guard
+  // skips the state update (→ no re-render) when the board is byte-identical to the last fetch.
+  const fetchBoard = React.useCallback(() => {
+    return api
+      .monitorBoard(project)
+      .then((b) => {
+        setBoard((prev) =>
+          prev && JSON.stringify(prev) === JSON.stringify(b) ? prev : b,
+        );
+        setBoardError(null); // a good fetch clears the staleness note
+      })
+      .catch((e) => setBoardError(e.message));
+  }, [project]);
+  // Agents fetch, shared by the SSE fast path + the backstop poll. ALWAYS keep `agents` an array
+  // (guard a 200 body lacking `agents`), else later `agents.find/.some` would crash the panel.
+  const fetchAgents = React.useCallback(() => {
+    return api
+      .monitorAgents(project)
+      .then((r) => setAgents(Array.isArray(r?.agents) ? r.agents : []))
+      .catch(() => {});
+  }, [project]);
+  // keel STEP 4: a board change (operator drag OR engine transition — both bump board.json version;
+  // a daemon tick bumps the heartbeat) pushes a `change` event over SSE; refetch the board + agents
+  // immediately so the view updates SUB-SECOND. The 15 s polls below are the backstop so a
+  // dropped/flapping stream degrades gracefully to polling (no functional loss).
+  const onStreamChange = React.useCallback(() => {
+    fetchBoard();
+    fetchAgents();
+  }, [fetchBoard, fetchAgents]);
+  useMonitorStream(project, onStreamChange);
+  // Backstop polls (15 s — lengthened from the prior 4 s / 3 s now SSE drives the fast path). They
+  // self-heal the stale-board note and cover the no-EventSource / stream-down case.
+  usePoll(fetchBoard, 15000, [fetchBoard]);
+  usePoll(fetchAgents, 15000, [fetchAgents]);
   // Per-ticket fast-track lanes (skiff), polled alongside the board (~4 s, matching the board +
   // agents cadence). Skip while a track write is in flight so a mid-poll response can't clobber the
   // optimistic boardTracks update; the next poll reconciles. A bad poll is swallowed (the selectors
@@ -476,18 +496,6 @@ export default function MonitoringPanel({ project }) {
     4000,
     [project, tracking],
   );
-  usePoll(
-    () =>
-      api
-        .monitorAgents(project)
-        // Guard against a 200 body lacking `agents` (contract drift / 200 error envelope): keep
-        // `agents` ALWAYS an array, else later `agents.find/.some` would crash the panel.
-        .then((r) => setAgents(Array.isArray(r?.agents) ? r.agents : []))
-        .catch(() => {}),
-    3000,
-    [project],
-  );
-
   React.useEffect(() => {
     if (sel == null) return;
     setDetail(null);

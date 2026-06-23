@@ -17,6 +17,7 @@ import { MonitorCheck } from "lucide-react";
 import * as api from "../api.js";
 import { PageIntro } from "../components/Help.jsx";
 import useIsMobile from "../useIsMobile.js";
+import useMonitorStream from "../useMonitorStream.js";
 import { useT } from "../i18n/index.jsx";
 
 const { Banner, Button, Badge, Card, Tooltip } =
@@ -92,8 +93,9 @@ export default function BoardPanel({ project }) {
       .boardState(project)
       .then((d) => {
         // Skip the state update (→ no re-render, no DnD churn) when the board revision is unchanged:
-        // the keel STEP 3 background poll fires every few seconds and the version int is the cheap
-        // change signal, so an unchanged board never re-renders the columns under the operator.
+        // the SSE fast path (keel STEP 4) + the 15 s backstop both refetch, and the version int is
+        // the cheap change signal, so an unchanged board never re-renders the columns under the
+        // operator.
         setData((prev) => (prev && d && prev.version === d.version ? prev : d));
         setNotNative(false);
         return d;
@@ -106,21 +108,29 @@ export default function BoardPanel({ project }) {
       });
   }, [project]);
 
-  // keel STEP 3: a visibility-gated low-cadence (~4 s) background poll so the daemon's auto-advances
-  // and a second operator's moves surface WITHOUT a manual Refresh. /api/board/state is now a local
-  // read (placement authority is board.json) so this cadence is cheap. Guards: pause when the tab is
-  // hidden (no point polling a backgrounded tab), and skip while a mutation is in flight (`busy`) or
-  // a 2-step import is awaiting confirmation (`confirmImport`) so a poll can't reset that UI state or
-  // race the operator's own write. The version-skip in `load` makes an unchanged poll a no-op.
+  // A guarded reload shared by the SSE fast path AND the backstop poll: skip while a mutation is in
+  // flight (`busy`) or a 2-step import is awaiting confirmation (`confirmImport`) so a refresh can't
+  // reset that UI state or race the operator's own write. The version-skip in `load` makes an
+  // unchanged reload a no-op (no DnD churn under the operator).
+  const guardedReload = React.useCallback(() => {
+    if (busyRef.current || confirmRef.current) return;
+    load();
+  }, [load]);
+  // keel STEP 4: a board change (operator drag OR engine transition — both bump board.json version)
+  // is PUSHED over SSE, so a second operator's move / the daemon's auto-advance surfaces SUB-SECOND
+  // without a manual Refresh. /api/board/state is a local read (placement authority is board.json),
+  // so the refetch is cheap. The 15 s backstop poll below covers a dropped/flapping stream (graceful
+  // degradation to polling) and the no-EventSource case.
+  useMonitorStream(project, guardedReload);
+  // Backstop poll (15 s, visibility-gated — lengthened from 4 s now SSE drives the fast path).
   React.useEffect(() => {
     const tick = () => {
       if (document.visibilityState !== "visible") return;
-      if (busyRef.current || confirmRef.current) return;
-      load();
+      guardedReload();
     };
-    const id = setInterval(tick, 4000);
+    const id = setInterval(tick, 15000);
     return () => clearInterval(id);
-  }, [load]);
+  }, [guardedReload]);
 
   // Explicit refresh: a remote round-trip must never look like a no-op. Show busy, then confirm
   // success (with the board revision as tangible proof it re-synced) or surface the error.

@@ -1,6 +1,6 @@
 {
   "name": "kanban",
-  "version": "0.19.5",
+  "version": "0.19.6",
   "description": "Kanban orchestrator CLI — the /kanban skill is a thin wrapper that shells out to the kanban CLI for all operations (install, init, seed, status, sessions, cancel, logs, doctor, run, poll).",
   "author": { "name": "LounisBou" }
 }
