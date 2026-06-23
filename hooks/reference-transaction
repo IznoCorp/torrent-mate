@@ -3,16 +3,31 @@
 # reference-transaction hook — HARD guard against losing local branches.
 #
 # Rule (operator, 2026-06-21):
-#   Interdiction de nettoyer une branche locale tant qu'elle n'a pas de branche
-#   distante ET qu'elle n'est pas mergée sur `main`.
+#   Interdiction de nettoyer une branche locale tant qu'elle n'est pas intégrée
+#   dans `main` (le travail vit alors dans main — rien n'est perdu).
 #
-# This hook ABORTS the deletion of a local branch (refs/heads/<b>) unless it is
-# BOTH:
-#   (a) pushed   — refs/remotes/origin/<b> exists, and
-#   (b) merged   — its tip is an ancestor of `main`.
-# Anything else (un-pushed and/or un-merged work) cannot be deleted: the commits
-# are protected from `git branch -D`, `git update-ref -d`, worktree-branch prune,
-# etc. — so committed work can never be silently lost.
+# This hook ABORTS the deletion of a local branch (refs/heads/<b>) UNLESS its
+# work is integrated into `main`. Integration takes two shapes — we accept both:
+#   (a) ancestry — the branch tip is already an ancestor of `main`
+#                  (fast-forward / true merge); or
+#   (b) squash   — the branch was squash-merged. A squash collapses the branch
+#                  into ONE new commit on `main`, so the tip is NEVER an ancestor
+#                  (the ancestry test above always fails). Since this repo
+#                  squash-merges EVERY PR, an ancestry-only check produced a false
+#                  "not merged" and blocked the cleanup of every merged branch.
+#                  We detect a squash by synthesising the branch's total diff as a
+#                  single commit off the merge-base and asking whether `main`
+#                  already contains an equivalent patch (`git cherry` marks an
+#                  already-applied change with a leading '-').
+# A branch that is NOT integrated (work exists only on the branch) cannot be
+# deleted: the commits are protected from `git branch -D`, `git update-ref -d`,
+# worktree-branch prune, etc. — so committed work can never be silently lost.
+#
+# Note on remotes: once a branch is integrated into `main`, the existence of a
+# remote tracking branch is irrelevant — squash + delete-on-merge removes
+# `origin/<b>` the instant the PR merges, so requiring it would block exactly the
+# branches that were correctly merged-and-cleaned-up. We therefore key purely on
+# integration, not on `origin/<b>`.
 #
 # Activated per-clone via scripts/install-git-guards.sh (sets core.hooksPath).
 #
@@ -31,21 +46,48 @@ while read -r old new ref; do
 
   branch="${ref#refs/heads/}"
 
-  pushed=0
-  git rev-parse --verify --quiet "refs/remotes/origin/$branch" >/dev/null 2>&1 && pushed=1
-
-  merged=0
-  if git rev-parse --verify --quiet refs/heads/main >/dev/null 2>&1; then
-    git merge-base --is-ancestor "$old" main >/dev/null 2>&1 && merged=1
+  # Resolve the branch TIP. At the 'prepared' stage of a `git branch -D`, git
+  # (≥2.46) passes the old-value as all-zeros — so $old is NOT the tip here. The
+  # ref itself is still readable until 'committed', so we resolve it by name. We
+  # fall back to $old for backends/versions that DO populate it. If neither yields
+  # a real commit we leave $tip empty → the integration check below fails closed
+  # (deletion refused), which is the safe default.
+  tip="$old"
+  if printf '%s' "$tip" | grep -Eq '^0+$'; then
+    tip=$(git rev-parse --verify --quiet "refs/heads/$branch" 2>/dev/null || true)
   fi
 
-  if [ "$pushed" -ne 1 ] || [ "$merged" -ne 1 ]; then
+  # Determine whether the branch's work is integrated into `main` (see header).
+  merged=0
+  if [ -n "$tip" ] && git rev-parse --verify --quiet refs/heads/main >/dev/null 2>&1; then
+    if git merge-base --is-ancestor "$tip" main >/dev/null 2>&1; then
+      merged=1  # (a) ancestry — fast-forward / true merge
+    else
+      # (b) squash-merge detection — purely local, no network / gh.
+      base=$(git merge-base "$tip" main 2>/dev/null || true)
+      if [ -n "$base" ]; then
+        tree=$(git rev-parse --verify --quiet "$tip^{tree}" 2>/dev/null || true)
+        if [ -n "$tree" ]; then
+          # Synthesise the branch's TOTAL diff as one commit off the merge-base,
+          # then ask git cherry whether `main` already has an equivalent patch.
+          synth=$(git commit-tree "$tree" -p "$base" -m squash-probe </dev/null 2>/dev/null || true)
+          if [ -n "$synth" ]; then
+            case "$(git cherry main "$synth" 2>/dev/null)" in
+              '-'*) merged=1 ;;  # leading '-' == already applied in main (squash-merged)
+            esac
+          fi
+        fi
+      fi
+    fi
+  fi
+
+  if [ "$merged" -ne 1 ]; then
     {
       echo "❌ SUPPRESSION DE BRANCHE REFUSÉE : '$branch'"
-      [ "$pushed" -ne 1 ] && echo "   • aucune distante origin/$branch — commits non poussés, perte possible"
-      [ "$merged" -ne 1 ] && echo "   • pas mergée dans main — travail non intégré"
-      echo "   Règle : on ne nettoie une branche locale QUE si elle est poussée ET mergée sur main."
-      echo "   → pousse-la d'abord :  git push -u origin $branch"
+      echo "   • pas mergée dans main (ni fast-forward, ni squash) — travail non intégré"
+      echo "   Règle : on ne nettoie une branche locale QUE si elle est mergée sur main (squash inclus)."
+      echo "   → si la PR est déjà mergée : gh pr list --head $branch --state merged"
+      echo "     sinon pousse + merge d'abord :  git push -u origin $branch"
     } >&2
     exit 1
   fi
