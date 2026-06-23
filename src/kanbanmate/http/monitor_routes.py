@@ -68,6 +68,65 @@ def _monitor_sessions() -> Any:
     return TmuxSessions()
 
 
+def _is_native_backed(entry: Any) -> bool:
+    """True when the project has a native board store ('native' or 'hybrid' backend).
+
+    keel STEP 2: a native-backed board reads PLACEMENT from the local ``board.json`` (the board
+    VIEW's source) — never gated by a GitHub call. A pure-'github' board has no native store, so it
+    keeps the legacy cached-snapshot placement path.
+    """
+    return getattr(entry, "board_backend", "github") in ("native", "hybrid")
+
+
+def _board_store(entry: Any) -> Any:
+    """Open the SAME native board store the board VIEW reads (keel STEP 2 — one source of truth).
+
+    Reuses ``board_routes._get_store`` (the daemon/CLI sub-root resolution) so Monitoring placement
+    and the board view read the identical ``board.json``. Overridable via ``app.state.board_store``
+    (tests).
+    """
+    injected = getattr(app.state, "board_store", None)
+    if injected is not None:
+        return injected
+    from kanbanmate.http.board_routes import _get_store  # noqa: PLC0415,PLC2701
+
+    return _get_store(entry)
+
+
+def _identity_fetcher(entry: Any) -> Any:
+    """Return a zero-arg callable yielding ``{item_id: (issue_number, title)}`` from GitHub.
+
+    Used ONLY for ticket IDENTITY in the native placement path (keel STEP 2) — its result is
+    TTL-cached and a raising call degrades to last-known identity, so placement never depends on it.
+    The underlying snapshot source is the SAME ``app.state.monitor_snapshotter`` override the legacy
+    path uses (tests inject one snapshotter for both paths).
+    """
+
+    def fetch() -> dict[str, tuple[int | None, str]]:
+        snap = _board_snapshot_uncached(entry)
+        return {t.item_id: (t.issue_number, t.title) for t in snap.tickets}
+
+    return fetch
+
+
+def _board_snapshot_uncached(entry: Any) -> Any:
+    """Fetch a fresh GitHub board snapshot (no TTL cache) for the identity JOIN.
+
+    Source overridable via ``app.state.monitor_snapshotter`` (tests). The native path's own
+    identity cache (``monitor_board_source._IDENTITY_CACHE``) provides the longer-TTL layer; the
+    legacy ``_board_snapshot`` keeps its separate 15 s placement cache for pure-'github' boards.
+    """
+    snapper = getattr(app.state, "monitor_snapshotter", None)
+    if snapper is None:
+        from kanbanmate.adapters.github.client import GithubClient  # noqa: PLC0415
+        from kanbanmate.adapters.github.token import load_token  # noqa: PLC0415
+
+        def snapper(pid: str) -> Any:
+            return GithubClient(load_token(), project_id=pid).snapshot()
+
+    return snapper(entry.project_id)
+
+
 def _board_snapshot(entry: Any) -> Any:
     """Return a cached GitHub board snapshot for ``entry`` (TTL ~15 s).
 
@@ -127,16 +186,21 @@ def monitor_agents(project: str | None = None) -> JSONResponse:
 
 @app.get("/api/monitor/board")
 def monitor_board(project: str | None = None) -> JSONResponse:
-    """Board overview: columns (from config) + tickets (cached snapshot) + agent overlay. DESIGN §5.1.
+    """Board overview: columns (from config) + tickets (LOCAL placement) + agent overlay. DESIGN §5.1.
 
-    Columns come from the board's ``columns.yml`` (no GitHub); tickets from the cached snapshot;
-    per-ticket agent state from the persisted store. Read-only.
+    Columns come from the board's ``columns.yml`` (no GitHub). For a native-backed board (keel
+    STEP 2) ticket PLACEMENT (column + order) is read from the LOCAL ``board.json`` — the SAME
+    store the board view reads — so a card's column is fresh within a tick (<5 ms) and NEVER gated
+    by a GitHub call; GitHub is consulted only for identity (issue number + title) under a
+    longer-TTL identity cache, so an outage degrades titles, never placement. A pure-'github' board
+    keeps the legacy 15 s cached-snapshot placement path. Per-ticket agent state is local
+    (store + tmux). Read-only.
 
     Returns:
         ``{"columns", "tickets", "agents_summary"}``.
 
     Raises:
-        HTTPException: 503/404/400 (project resolution); 502 (snapshot failure).
+        HTTPException: 503/404/400 (project resolution); 502 (legacy snapshot failure, github-only).
     """
     from kanbanmate.app.monitor import build_board, derive_state  # noqa: PLC0415
     from kanbanmate.app.tick import DEFAULT_BLOCKED_COLUMN  # noqa: PLC0415
@@ -144,13 +208,24 @@ def monitor_board(project: str | None = None) -> JSONResponse:
     entry = _resolve_entry(project)
     draft = _get_service(project).load()
     columns = [(c.key, c.name, c.column_class) for c in draft.definition.columns]
-    try:
-        snap = _board_snapshot(entry)
-    except Exception as exc:  # noqa: BLE001 — boundary: clean error, never a 500 traceback
-        raise HTTPException(status_code=502, detail=f"Board snapshot failed: {exc}") from exc
-    tickets = [
-        (t.issue_number, t.title, t.column_key) for t in snap.tickets if t.issue_number is not None
-    ]
+    if _is_native_backed(entry):
+        # keel STEP 2: placement from the local board store; GitHub only for identity (TTL-cached,
+        # fail-soft). A raising identity fetch degrades titles but the local placement still renders.
+        from kanbanmate.http.monitor_board_source import native_board_triples  # noqa: PLC0415
+
+        doc = _board_store(entry).load()
+        tickets = native_board_triples(entry.project_id, doc, _identity_fetcher(entry))
+    else:
+        # Legacy pure-'github' board: no native store → cached GitHub snapshot drives placement.
+        try:
+            snap = _board_snapshot(entry)
+        except Exception as exc:  # noqa: BLE001 — boundary: clean error, never a 500 traceback
+            raise HTTPException(status_code=502, detail=f"Board snapshot failed: {exc}") from exc
+        tickets = [
+            (t.issue_number, t.title, t.column_key)
+            for t in snap.tickets
+            if t.issue_number is not None
+        ]
     running = {s.issue_number: derive_state(s.status) for s in _monitor_store(entry).list_running()}
     # Pass the Blocked column so a card parked there with NO live agent reads "blocked" — the same
     # (column + liveness) signal core.health uses for the GitHub Health chip (build_board mirrors its

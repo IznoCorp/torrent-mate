@@ -678,6 +678,225 @@ def test_board_tracks_endpoint(tmp_path: Path) -> None:
     del api_mod.app.state.monitor_github
 
 
+# ---------------------------------------------------------------------------
+# keel STEP 2 — Monitoring board placement reads the LOCAL native board.json,
+# not the GitHub snapshot; GitHub is consulted ONLY for identity (issue/title)
+# under a longer-TTL identity cache that never gates placement.
+# ---------------------------------------------------------------------------
+
+
+class _FakeBoardStore:
+    """Minimal native board store: returns a fixed board.json-shaped ``load()`` doc."""
+
+    def __init__(self, doc: dict[str, Any]) -> None:
+        self._doc = doc
+
+    def load(self) -> dict[str, Any]:
+        return dict(self._doc)
+
+
+def _native_root_with_clone(tmp_path: Path) -> Path:
+    """Like ``_root_with_clone`` but the registry entry is native-backed (board_backend=native)."""
+    import importlib.resources as r
+
+    from kanbanmate.core.transitions_defaults import render_transitions_yaml
+
+    root = tmp_path / "root"
+    root.mkdir()
+    ck = tmp_path / "clone" / ".claude" / "kanban"
+    ck.mkdir(parents=True)
+    ck.joinpath("transitions.yml").write_text(render_transitions_yaml("Org/repo"), encoding="utf-8")
+    cols = (r.files("kanbanmate") / "assets" / "columns.yml.tmpl").read_text()
+    ck.joinpath("columns.yml").write_text(cols, encoding="utf-8")
+    (root / "projects.json").write_text(
+        json.dumps(
+            {
+                "PVT_x": {
+                    "repo": "Org/repo",
+                    "clone": str(tmp_path / "clone"),
+                    "project_id": "PVT_x",
+                    "status_field_node_id": "FLD",
+                    "board_backend": "native",
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    return root
+
+
+def test_native_board_placement_comes_from_local_store_not_github_cache(tmp_path: Path) -> None:
+    """Placement (column) is read from board.json; the GitHub snapshot supplies ONLY identity.
+
+    The local store places item ``i1`` in ``InProgress``; the GitHub snapshot (identity source)
+    reports a DIFFERENT, stale column (``Backlog``). The endpoint must report the LOCAL column.
+    """
+    import kanbanmate.http.config_api as api_mod
+    import kanbanmate.http.monitor_board_source as src_mod
+    from kanbanmate.core.domain import BoardSnapshot, Ticket
+
+    # GitHub snapshot is identity-only here; its column_key (Backlog) is deliberately STALE/ignored.
+    snap = BoardSnapshot(
+        tickets=(Ticket(item_id="i1", issue_number=42, title="First", column_key="Backlog"),),
+        fetched_at=0.0,
+    )
+    api_mod.app.state.kanban_root = _native_root_with_clone(tmp_path)
+    api_mod.app.state.auth = None
+    api_mod.app.state.monitor_store = _FakeStore([])  # no live agents
+    api_mod.app.state.board_store = _FakeBoardStore(
+        {"version": 5, "columns": ["Backlog", "InProgress"], "order": {"InProgress": ["i1"]}}
+    )
+    api_mod.app.state.monitor_snapshotter = _CountingSnapshotter(snap)
+    src_mod._IDENTITY_CACHE.clear()
+    try:
+        with TestClient(api_mod.app) as client:
+            b = client.get("/api/monitor/board").json()
+    finally:
+        for k in ("monitor_store", "board_store", "monitor_snapshotter"):
+            delattr(api_mod.app.state, k)
+        src_mod._IDENTITY_CACHE.clear()
+
+    assert len(b["tickets"]) == 1
+    t = b["tickets"][0]
+    assert t["number"] == 42  # identity (issue number) from GitHub
+    assert t["title"] == "First"  # identity (title) from GitHub
+    assert t["column_key"] == "InProgress"  # PLACEMENT from the LOCAL store, NOT the stale snapshot
+
+
+def test_native_board_placement_survives_a_raising_github_identity_fetch(tmp_path: Path) -> None:
+    """A GitHub outage degrades titles/identity but MUST NOT block placement (keel STEP 2)."""
+    import kanbanmate.http.config_api as api_mod
+    import kanbanmate.http.monitor_board_source as src_mod
+
+    class _BoomSnapshotter:
+        def __call__(self, project_id: str) -> Any:
+            raise RuntimeError("github is down")
+
+    api_mod.app.state.kanban_root = _native_root_with_clone(tmp_path)
+    api_mod.app.state.auth = None
+    api_mod.app.state.monitor_store = _FakeStore([])
+    api_mod.app.state.board_store = _FakeBoardStore(
+        {"version": 1, "columns": ["Backlog", "InProgress"], "order": {"InProgress": ["i1"]}}
+    )
+    api_mod.app.state.monitor_snapshotter = _BoomSnapshotter()
+    src_mod._IDENTITY_CACHE.clear()  # cold cache → fetch raises → identity is empty (degraded)
+    try:
+        with TestClient(api_mod.app) as client:
+            resp = client.get("/api/monitor/board")
+    finally:
+        for k in ("monitor_store", "board_store", "monitor_snapshotter"):
+            delattr(api_mod.app.state, k)
+        src_mod._IDENTITY_CACHE.clear()
+
+    # Placement still renders (200), the columns come from config, and a card with no resolvable
+    # identity is omitted (legacy parity) — crucially the endpoint did NOT 5xx on the GitHub outage.
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "InProgress" in {c["key"] for c in body["columns"]}
+    assert body["tickets"] == []  # no identity available → card omitted, but NO error
+
+
+def test_native_board_serves_last_known_identity_across_an_outage(tmp_path: Path) -> None:
+    """Once the identity cache is warm, a later raising fetch keeps serving the cached identity."""
+    import kanbanmate.http.config_api as api_mod
+    import kanbanmate.http.monitor_board_source as src_mod
+    from kanbanmate.core.domain import BoardSnapshot, Ticket
+
+    snap = BoardSnapshot(
+        tickets=(Ticket(item_id="i1", issue_number=7, title="Warm", column_key="Backlog"),),
+        fetched_at=0.0,
+    )
+
+    class _OnceThenBoom:
+        def __init__(self, ok_snap: Any) -> None:
+            self._snap = ok_snap
+            self.calls = 0
+
+        def __call__(self, project_id: str) -> Any:
+            self.calls += 1
+            if self.calls == 1:
+                return self._snap
+            raise RuntimeError("github went down after the first poll")
+
+    api_mod.app.state.kanban_root = _native_root_with_clone(tmp_path)
+    api_mod.app.state.auth = None
+    api_mod.app.state.monitor_store = _FakeStore([])
+    api_mod.app.state.board_store = _FakeBoardStore(
+        {"version": 1, "columns": ["Backlog"], "order": {"Backlog": ["i1"]}}
+    )
+    snapper = _OnceThenBoom(snap)
+    api_mod.app.state.monitor_snapshotter = snapper
+    src_mod._IDENTITY_CACHE.clear()
+    # Force a TTL of 0 so the SECOND poll re-fetches (and raises), proving the cache fallback path.
+    orig_ttl = src_mod._IDENTITY_TTL_SECONDS
+    src_mod._IDENTITY_TTL_SECONDS = 0.0
+    try:
+        with TestClient(api_mod.app) as client:
+            first = client.get("/api/monitor/board").json()
+            second = client.get("/api/monitor/board").json()
+    finally:
+        src_mod._IDENTITY_TTL_SECONDS = orig_ttl
+        for k in ("monitor_store", "board_store", "monitor_snapshotter"):
+            delattr(api_mod.app.state, k)
+        src_mod._IDENTITY_CACHE.clear()
+
+    assert snapper.calls == 2  # the second poll DID attempt a refetch (TTL=0) and it raised
+    assert first["tickets"][0]["title"] == "Warm"
+    # Even though the second fetch raised, the warmed identity is still served — placement + title.
+    assert second["tickets"][0]["title"] == "Warm"
+    assert second["tickets"][0]["column_key"] == "Backlog"
+
+
+def test_native_board_triples_is_pure_and_keeps_build_board_signature() -> None:
+    """``native_board_triples`` produces (number, title, column) triples build_board consumes as-is.
+
+    Guards the keel STEP 2 contract: build_board's signature is UNCHANGED — the triples it receives
+    have the same shape whether they came from the GitHub snapshot or the local store.
+    """
+    import inspect
+
+    from kanbanmate.app.monitor import build_board
+    import kanbanmate.http.monitor_board_source as src_mod
+    from kanbanmate.http.monitor_board_source import native_board_triples
+
+    src_mod._IDENTITY_CACHE.clear()  # isolate from any HTTP-test-warmed cache (shared module state)
+    # build_board signature is unchanged (the documented STEP 2 invariant).
+    params = list(inspect.signature(build_board).parameters)
+    assert params == ["columns", "tickets", "running_by_issue", "blocked_column"]
+
+    doc = {
+        "version": 3,
+        "columns": ["Backlog", "InProgress"],
+        "order": {"Backlog": ["i2"], "InProgress": ["i1"]},
+    }
+    identity: dict[str, tuple[int | None, str]] = {
+        "i1": (10, "Build"),
+        "i2": (11, "Spec"),
+        "i3": (12, "Orphan"),
+    }
+    triples = native_board_triples("keel-pure-1", doc, lambda: identity)
+    # Order follows the doc's column order then per-column order; i3 (not placed) is excluded.
+    assert triples == [(11, "Spec", "Backlog"), (10, "Build", "InProgress")]
+
+    # The triples feed build_board with NO adaptation (proves the contract end-to-end).
+    columns = [("Backlog", "Backlog", "neutral"), ("InProgress", "In progress", "active")]
+    out = build_board(columns, triples, {})
+    nums = {tk["number"] for tk in out["tickets"]}
+    assert nums == {10, 11}
+
+
+def test_native_board_triples_omits_cards_with_unknown_issue_number() -> None:
+    """A placed item with no resolvable issue number (draft / cold cache) is omitted (legacy parity)."""
+    import kanbanmate.http.monitor_board_source as src_mod
+    from kanbanmate.http.monitor_board_source import native_board_triples
+
+    src_mod._IDENTITY_CACHE.clear()  # isolate from any HTTP-test-warmed cache (shared module state)
+    doc = {"columns": ["Backlog"], "order": {"Backlog": ["draft1", "real1"]}}
+    identity: dict[str, tuple[int | None, str]] = {"real1": (5, "Real")}  # draft1 has no identity
+    triples = native_board_triples("keel-pure-2", doc, lambda: identity)
+    assert triples == [(5, "Real", "Backlog")]
+
+
 def test_move_targets_flags_mapping_and_fallback(tmp_path: Path) -> None:
     """_move_targets: current flag (allowed=False), shape, NAME->KEY mapping, fail-soft None."""
     import kanbanmate.http.monitor_routes as mon_mod

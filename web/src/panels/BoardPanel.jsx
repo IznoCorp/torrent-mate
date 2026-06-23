@@ -64,6 +64,12 @@ export default function BoardPanel({ project }) {
   const [confirmImport, setConfirmImport] = React.useState(false); // 2-step destructive import
   const [pendingAction, setPendingAction] = React.useState(null); // which button is mid-flight (spinner)
   const noticeTimer = React.useRef(null);
+  // Refs mirroring `busy` / `confirmImport` so the keel STEP 3 background-poll interval can read the
+  // latest values WITHOUT being re-armed (and resetting its timer) on every render of those states.
+  const busyRef = React.useRef(busy);
+  busyRef.current = busy;
+  const confirmRef = React.useRef(confirmImport);
+  confirmRef.current = confirmImport;
 
   // Show a transient notice; success/info auto-dismiss, warnings/errors stay until the next action.
   const pushNotice = React.useCallback((tone, text) => {
@@ -85,7 +91,10 @@ export default function BoardPanel({ project }) {
     return api
       .boardState(project)
       .then((d) => {
-        setData(d);
+        // Skip the state update (→ no re-render, no DnD churn) when the board revision is unchanged:
+        // the keel STEP 3 background poll fires every few seconds and the version int is the cheap
+        // change signal, so an unchanged board never re-renders the columns under the operator.
+        setData((prev) => (prev && d && prev.version === d.version ? prev : d));
         setNotNative(false);
         return d;
       })
@@ -96,6 +105,22 @@ export default function BoardPanel({ project }) {
         return null;
       });
   }, [project]);
+
+  // keel STEP 3: a visibility-gated low-cadence (~4 s) background poll so the daemon's auto-advances
+  // and a second operator's moves surface WITHOUT a manual Refresh. /api/board/state is now a local
+  // read (placement authority is board.json) so this cadence is cheap. Guards: pause when the tab is
+  // hidden (no point polling a backgrounded tab), and skip while a mutation is in flight (`busy`) or
+  // a 2-step import is awaiting confirmation (`confirmImport`) so a poll can't reset that UI state or
+  // race the operator's own write. The version-skip in `load` makes an unchanged poll a no-op.
+  React.useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState !== "visible") return;
+      if (busyRef.current || confirmRef.current) return;
+      load();
+    };
+    const id = setInterval(tick, 4000);
+    return () => clearInterval(id);
+  }, [load]);
 
   // Explicit refresh: a remote round-trip must never look like a no-op. Show busy, then confirm
   // success (with the board revision as tangible proof it re-synced) or surface the error.
@@ -271,7 +296,9 @@ export default function BoardPanel({ project }) {
         </Badge>
       )}
       <span style={{ flex: 1 }} />
-      <Tooltip label={t("tip.board_refresh", "Reload the board from the server")}>
+      <Tooltip
+        label={t("tip.board_refresh", "Reload the board from the server")}
+      >
         <Button
           variant="secondary"
           size="sm"

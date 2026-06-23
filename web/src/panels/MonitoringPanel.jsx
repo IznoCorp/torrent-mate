@@ -1,6 +1,8 @@
 // Monitoring tab (helm PR 2-bis) — read-only live board + ticket detail + agent panel + pane tail.
-// Two-speed polling: agents + pane ~3 s, board ~15 s, ticket detail on open. Pauses when the tab is
-// hidden. Read-only — no actions; to interact with an agent the operator uses `tmux attach`.
+// Polling: agents + pane ~3 s, board + tracks ~4 s, ticket detail on open. The board placement now
+// reads the LOCAL board.json (keel STEP 2 — <5 ms, no GitHub gating), so a 4 s cadence matching the
+// agents poll is affordable; the version int the board API returns lets the SPA skip re-render when
+// unchanged. Pauses when the tab is hidden. Read-only — to interact with an agent use `tmux attach`.
 import React from "react";
 import {
   ChevronDown,
@@ -442,16 +444,23 @@ export default function MonitoringPanel({ project }) {
       api
         .monitorBoard(project)
         .then((b) => {
-          setBoard(b);
+          // Skip the state update (→ no re-render) when the board is byte-identical to the last
+          // poll: with the keel STEP 2 local-placement read + the faster 4 s cadence, most polls
+          // return an unchanged board, so a deep-equal guard avoids needless re-renders.
+          setBoard((prev) =>
+            prev && JSON.stringify(prev) === JSON.stringify(b) ? prev : b,
+          );
           setBoardError(null); // a good poll clears the staleness note
         })
         .catch((e) => setBoardError(e.message)),
-    15000,
+    4000,
     [project],
   );
-  // Per-ticket fast-track lanes (skiff), polled alongside the board. Skip while a track write is in
-  // flight so a mid-poll response can't clobber the optimistic boardTracks update; the next poll
-  // reconciles. A bad poll is swallowed (the selectors just keep their last-known values).
+  // Per-ticket fast-track lanes (skiff), polled alongside the board (~4 s, matching the board +
+  // agents cadence). Skip while a track write is in flight so a mid-poll response can't clobber the
+  // optimistic boardTracks update; the next poll reconciles. A bad poll is swallowed (the selectors
+  // just keep their last-known values). NOTE: this read still hits GitHub for the track:* labels, so
+  // it is the one poll that is NOT purely local — kept at the same cadence for a coherent refresh.
   usePoll(
     () => {
       if (tracking) return;
@@ -464,7 +473,7 @@ export default function MonitoringPanel({ project }) {
         )
         .catch(() => {});
     },
-    15000,
+    4000,
     [project, tracking],
   );
   usePoll(
