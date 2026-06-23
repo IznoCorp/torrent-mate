@@ -8,12 +8,29 @@ paths: # globs matched against the ticket's probable scope
   - "src/kanbanmate/core/intent.py"
   - "src/kanbanmate/adapters/perms.py"
   - "src/kanbanmate/bin/kanban_session_end.py"
+  # Autonomy / idempotency / persistence / board-write risk surface (trim): a SMALL/mechanical edit
+  # to any of these is still high-regression-risk — force full so it never fast-tracks on a thin lane.
+  - "src/kanbanmate/core/antiloop.py" # runaway-loop rate-limit backstop
+  - "src/kanbanmate/core/diff.py" # the reconciliation / move-detection heart
+  - "src/kanbanmate/core/webhook_sig.py" # HMAC verification
+  - "src/kanbanmate/adapters/github/client.py" # the ONLY board-write path
+  - "src/kanbanmate/app/drain.py" # the audited single-write intent drain
+  - "src/kanbanmate/app/intents.py" # intent queue / derived authority
+  - "src/kanbanmate/app/reaper.py" # stale-agent kill / park
+  - "src/kanbanmate/adapters/store/**" # runtime state persistence
 keywords: # case-insensitive substrings in the ticket text
   - security
   - credential
   - secret
   - migration
   - permission
+  - rate-limit
+  - rate limit
+  - idempoten
+  - concurrency
+  - locking
+  - hmac
+  - signature
 labels: # GitHub labels that force full regardless of size
   - sensitive
   - security

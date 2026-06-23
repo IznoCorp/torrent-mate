@@ -274,10 +274,15 @@ class TestAutonomyInstruction:
     _MARKER = "Run fully autonomously"
 
     def test_brainstorm_is_the_only_interactive_prompt(self) -> None:
-        """``_BRAINSTORM_PROMPT`` does NOT carry the autonomy instruction — it is interactive."""
+        """``_BRAINSTORM_PROMPT`` does NOT carry the full-autonomy instruction — it is interactive,
+        but with the trim decide-by-default discipline (it may ask GENUINE questions, never confirm
+        an already-made choice)."""
         assert self._MARKER not in _BRAINSTORM_PROMPT
-        # It explicitly invites the user to be asked questions (the human attaches).
-        assert "MAY ask the user" in _BRAINSTORM_PROMPT
+        # It still allows GENUINE clarifying questions (the human attaches) ...
+        assert "MAY ask genuine clarifying questions" in _BRAINSTORM_PROMPT
+        # ... but carries the decide-by-default discipline + the no-confirm-gate rule (trim, #82 fix).
+        assert "DECIDE, RECORD, and" in _BRAINSTORM_PROMPT
+        assert "does this look" in _BRAINSTORM_PROMPT.lower()
 
     def test_every_other_agent_prompt_is_autonomous(self) -> None:
         """Every non-brainstorm agent prompt carries the no-questions autonomy instruction."""
@@ -739,9 +744,9 @@ class TestBrainstormStateCheck:
         assert "STATE CHECK FIRST" in _BRAINSTORM_PROMPT
 
     def test_state_check_precedes_the_interactive_brainstorm(self) -> None:
-        """The state check is placed BEFORE the interactive Q&A invitation."""
+        """The state check is placed BEFORE the interactive Q&A discipline."""
         assert _BRAINSTORM_PROMPT.index("STATE CHECK FIRST") < _BRAINSTORM_PROMPT.index(
-            "MAY ask the user"
+            "BRAINSTORM INTERACTION DISCIPLINE"
         )
 
     def test_shipped_exit_moves_to_done_and_is_mandatory(self) -> None:
@@ -762,8 +767,8 @@ class TestBrainstormStateCheck:
         )
 
     def test_brainstorm_stays_interactive_on_the_non_shipped_path(self) -> None:
-        """The non-shipped path is unchanged: the interactive Q&A is still allowed."""
-        assert "MAY ask the user" in _BRAINSTORM_PROMPT
+        """The non-shipped path still ALLOWS genuine Q&A (interactive), under the trim discipline."""
+        assert "MAY ask genuine clarifying questions" in _BRAINSTORM_PROMPT
         assert "Run fully autonomously" not in _BRAINSTORM_PROMPT
 
 
@@ -1181,8 +1186,8 @@ class TestSkiffRouting:
         """The triage prompt routes by SIZE × SENSITIVITY, defaults to ``full``, and records the lane."""
         from kanbanmate.core.transitions_defaults import _TRIAGE_PROMPT
 
-        # Conservative-by-construction: any doubt / sensitivity / failure → full.
-        assert "the conservative default" in _TRIAGE_PROMPT
+        # Conservative-by-construction: a REAL inability to assess / sensitivity → full.
+        assert "CANNOT ASSESS" in _TRIAGE_PROMPT
         assert "full" in _TRIAGE_PROMPT
         # Records the lane via the durable field + the route breadcrumb, then ends.
         assert "--set-field track" in _TRIAGE_PROMPT
@@ -1190,6 +1195,30 @@ class TestSkiffRouting:
         assert "kanban-done {{code}}" in _TRIAGE_PROMPT
         # It does NOT write code or open a PR (a cheap, read-only classifier).
         assert "do NOT write code" in _TRIAGE_PROMPT
+
+    def test_triage_size_is_novel_decisions_not_file_count(self) -> None:
+        """trim recalibration: SIZE measures novel design decisions/unknowns/risk, NOT files-touched —
+        so a mechanical multi-file change (e.g. #82) routes to a fast lane, not ``full``."""
+        from kanbanmate.core.transitions_defaults import _TRIAGE_PROMPT
+
+        assert "NOVEL DESIGN DECISIONS" in _TRIAGE_PROMPT
+        assert "breadth is not effort" in _TRIAGE_PROMPT
+        # The ordered decision tree replaced the bare "otherwise full".
+        assert "DECISION TREE" in _TRIAGE_PROMPT
+        # Under-classify guard (adversarial finding): a small edit to a risk-bearing surface is full.
+        assert "risk-bearing" in _TRIAGE_PROMPT
+        # The track:* down-override is gated BEHIND the safety+size checks (cannot pull a full down).
+        assert "can NEVER pull a step-1/2/3 `full` DOWN" in _TRIAGE_PROMPT
+
+    def test_brainstorm_forbids_the_confirm_gate(self) -> None:
+        """trim recalibration: the full-lane brainstorm decides+records by default and NEVER asks the
+        user to rubber-stamp an already-made choice (the #82 hung-stage failure)."""
+        from kanbanmate.core.transitions_defaults import _BRAINSTORM_PROMPT
+
+        assert "DECIDE, RECORD, and" in _BRAINSTORM_PROMPT
+        assert "FORBIDDEN" in _BRAINSTORM_PROMPT  # the "does this look right?" gate
+        assert "### Open questions" in _BRAINSTORM_PROMPT  # non-blocking escape hatch
+        assert "must ALWAYS reach kanban-done" in _BRAINSTORM_PROMPT
 
 
 class TestSkiffAdaptivePrompts:

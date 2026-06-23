@@ -118,6 +118,26 @@ the route helper allowed). Algorithm:
 5. Write `**track**: <lane>` into the ticket body via the existing `--set-field` body-marker mechanism
    (`core/body_edit.py`), call the new `kanban-route <lane>` helper, then `kanban-done`.
 
+> **Recalibration — `trim` (2026-06-23, v0.19.3).** Live #82 (a per-card CLOSED badge — a mechanical
+> add-a-field threaded through the hexagonal layers) was mis-routed to **full** because steps 3–4
+> equated _file-count / stack-crossing_ with _substantial_ and the blanket _"any doubt → full"_
+> swallowed every small-but-not-provably-trivial ticket — starving the fast lanes by construction.
+> The triage prompt (`_TRIAGE_PROMPT`) now measures **SIZE by the number of NOVEL DESIGN DECISIONS /
+> UNKNOWNS / IRREVERSIBLE CHOICES, not files-touched** (three SIZING QUESTIONS Q1/Q2/Q3) and runs an
+> **ordered DECISION TREE** (1 sensitive→full, 2 cannot-assess→full, 3 substantial→full, 4 explicit
+> `track:*` override _gated behind 1–3_, 5 small→lite, 6 trivial→express); ties break **down**, and
+> _"any doubt → full"_ now applies **only to design doubt**, never to breadth. Two safety
+> counterweights (from the adversarial review): **Q3 forces full on any edit — however small — to a
+> concurrency / rate-limit / idempotency / persistence / HMAC / board-write surface**, and
+> `sensitive.yml` is **expanded** to enumerate that risk surface (`core/antiloop.py`, `core/diff.py`,
+> `core/webhook_sig.py`, `adapters/github/client.py`, `app/drain.py`, `app/intents.py`,
+> `app/reaper.py`, `adapters/store/**`) so a down-override can never fast-track it. The full-lane
+> **brainstorm** (`_BRAINSTORM_PROMPT`) was simultaneously recalibrated to **decide-by-default**:
+> it batches genuine human decisions into a single up-front `AskUserQuestion` round, records ordinary
+> calls as settled decisions, and **never** stops to rubber-stamp an already-made choice (the #82
+> brainstorm hung on a trailing _"does this look right?"_ gate — now forbidden; lingering genuine
+> questions go under a non-blocking `### Open questions` heading, resolved at the ReadyToDev gate).
+
 ### `sensitive.yml` (new, versioned, lives beside `transitions.yml`/`columns.yml`)
 
 ```yaml
