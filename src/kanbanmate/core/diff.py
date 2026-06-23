@@ -13,7 +13,7 @@ model from the KanbanMate core layer.
 
 from __future__ import annotations
 
-from kanbanmate.core.domain import BoardSnapshot, Transition
+from kanbanmate.core.domain import BoardSnapshot, Ticket, Transition
 
 
 def diff(persisted: dict[str, str], snapshot: BoardSnapshot) -> list[Transition]:
@@ -30,6 +30,15 @@ def diff(persisted: dict[str, str], snapshot: BoardSnapshot) -> list[Transition]
     reported here; their teardown/cleanup is handled by the reap step of the
     tick, not by the diff.
 
+    **One transition per item (P4 de-dup).** A well-formed snapshot carries each
+    ``item_id`` once, but a duplicated item — a malformed forge page, a stale
+    cursor that re-listed an item, or a native↔forge JOIN that emitted the same
+    id twice — would otherwise yield TWO transitions for one card and could
+    drop or mis-route the launch (two ``decide`` verdicts, the second clobbering
+    the first's baseline advance). To make the diff robust to a duplicated item
+    the LAST occurrence per ``item_id`` wins (it reflects the latest column the
+    snapshot reported), so exactly one :class:`Transition` is emitted per card.
+
     Args:
         persisted: Mapping of ``item_id`` to the column key the ticket occupied
             at the previous poll.  Items unknown to the daemon are simply absent.
@@ -37,11 +46,18 @@ def diff(persisted: dict[str, str], snapshot: BoardSnapshot) -> list[Transition]
 
     Returns:
         A list of :class:`Transition` objects, one per moved or new ticket, in
-        snapshot order.  An empty list means the board is unchanged relative to
+        snapshot order (first-seen position; the LAST occurrence's column wins on
+        a duplicated id).  An empty list means the board is unchanged relative to
         the persisted state.
     """
-    transitions: list[Transition] = []
+    # Collapse to the LAST occurrence per item_id (P4): a dict keyed by item_id keeps the latest
+    # ticket the snapshot reported for that id while preserving first-seen insertion order, so a
+    # duplicated item can never emit two transitions (a dropped / mis-routed launch).
+    latest_by_item: dict[str, Ticket] = {}
     for ticket in snapshot.tickets:
+        latest_by_item[ticket.item_id] = ticket
+    transitions: list[Transition] = []
+    for ticket in latest_by_item.values():
         previous_column = persisted.get(ticket.item_id)
         # No change → nothing to decide on. ``previous_column`` is ``None`` for a
         # brand-new item, which always differs from a real column key.

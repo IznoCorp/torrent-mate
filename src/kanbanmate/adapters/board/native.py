@@ -254,12 +254,21 @@ class NativeBoardBackend:
                 )
             )
 
-        # Persist the refreshed bookkeeping (hybrid only) iff it changed — no version bump.
+        # Persist the refreshed bookkeeping (hybrid only) iff it changed. P1 self-wake: a write that
+        # ARMS A FRESH debounce candidate (a new item in ``new_pending``, or one whose candidate value
+        # changed vs the prior ``pending``) bumps the store version so the next ``cheap_probe`` differs
+        # and the tick re-snapshots to reach the confirming second tick — otherwise an external move
+        # that bumps the forge probe exactly once arms the candidate then stalls (probe stable → no
+        # snapshot → the 2-tick debounce never confirms). A settled / re-confirming / native-authority
+        # write arms NO new candidate, so it bumps nothing (no busy-loop; the debounce stays 2-tick).
         # Fail-soft like the per-item writes: a write hiccup must not abort the whole tick (it
         # self-corrects next tick; an adopted move already bumped the version via place_card).
         if self._hybrid and (new_shadow != shadow or new_pending != pending):
+            armed_new_candidate = any(pending.get(iid) != cand for iid, cand in new_pending.items())
             try:
-                self._store.set_sync_state(new_shadow, new_pending)
+                self._store.set_sync_state(
+                    new_shadow, new_pending, bump_version=armed_new_candidate
+                )
             except Exception:  # noqa: BLE001 — bookkeeping write; never abort the tick
                 logger.error("anchor hybrid: failed to persist forge sync state", exc_info=True)
         # Observability: a placed item absent from the forge snapshot is omitted this tick. The

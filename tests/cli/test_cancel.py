@@ -193,6 +193,61 @@ def test_cancel_reset_move_is_fail_soft() -> None:
     m.board_writer.move_card.assert_called_once_with("PVTI_140", "Backlog")
 
 
+def test_cancel_nudges_daemon_after_reset() -> None:
+    """P3: ``kanban cancel`` nudges the daemon so it reconciles the Backlog reset within one slice.
+
+    The cancel writes the board directly (not via the intent queue), so the daemon must be woken to
+    re-snapshot + advance its diff baseline rather than wait out a full poll interval.
+    """
+    state = TicketState(
+        issue_number=140,
+        item_id="PVTI_140",
+        session_id="ticket-140",
+        status=TicketStatus.RUNNING,
+        heartbeat=1000.0,
+    )
+    m = _mocks(alive=True, loaded_state=state)
+
+    cancel(140, deps=m.deps)
+
+    m.store.nudge_daemon.assert_called_once_with()
+
+
+def test_cancel_nudges_daemon_even_when_reset_move_fails() -> None:
+    """P3: the nudge fires even when the courtesy reset move raised (the state purge is worth a wake)."""
+    state = TicketState(
+        issue_number=140,
+        item_id="PVTI_140",
+        session_id="ticket-140",
+        status=TicketStatus.RUNNING,
+        heartbeat=1000.0,
+    )
+    m = _mocks(alive=True, loaded_state=state)
+    m.board_writer.move_card.side_effect = RuntimeError("github 503")
+
+    cancel(140, deps=m.deps)  # must not raise
+
+    m.store.nudge_daemon.assert_called_once_with()
+
+
+def test_cancel_nudge_failure_does_not_break_teardown() -> None:
+    """P3 fail-soft: a nudge that raises must NOT break the (already-applied) teardown."""
+    state = TicketState(
+        issue_number=140,
+        item_id="PVTI_140",
+        session_id="ticket-140",
+        status=TicketStatus.RUNNING,
+        heartbeat=1000.0,
+    )
+    m = _mocks(alive=True, loaded_state=state)
+    m.store.nudge_daemon.side_effect = RuntimeError("nudge boom")
+
+    cancel(140, deps=m.deps)  # must not raise
+
+    m.workspace.remove_worktree.assert_called_once_with(140, force=True)
+    m.store.purge_ticket.assert_called_once_with(140, keep_budgets=False)
+
+
 def test_cancel_without_persisted_state_skips_reset_move() -> None:
     """No persisted state → no ``item_id`` → no card identity to move (the move is skipped)."""
     m = _mocks(alive=False, loaded_state=None)

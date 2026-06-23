@@ -92,6 +92,7 @@ def sweep_projects(
     *,
     kanban_root: Path,
     now: float,
+    force_snapshot: bool = False,
 ) -> SweepResult:
     """Run one tick per project sequentially, aggregating into a daemon-level :class:`SweepResult`.
 
@@ -110,6 +111,10 @@ def sweep_projects(
             MUTATED in place (the loop owns the dict across iterations).
         kanban_root: The runtime root the per-project heartbeat markers are written under.
         now: The sweep's wall-clock time (one timestamp for the whole sweep — the heartbeat ``ts``).
+        force_snapshot: When ``True`` (P2) EVERY project's tick re-snapshots even on an unchanged
+            probe — the loop passes this on a nudge-woken / fast-poll sweep so a CLI move or a
+            restart-present move is reconciled within one slice. Default ``False`` keeps the
+            probe-gated cadence (the normal poll sweep).
 
     Returns:
         The daemon-level :class:`SweepResult` rollup feeding the loop's idle clock + back-off.
@@ -121,7 +126,14 @@ def sweep_projects(
     for wiring in wirings:
         pid = wiring.project_id
         sweep_state = state_by_project.setdefault(pid, ProjectSweepState())
-        _sweep_one(wiring, sweep_state, rollup, kanban_root=kanban_root, now=now)
+        _sweep_one(
+            wiring,
+            sweep_state,
+            rollup,
+            kanban_root=kanban_root,
+            now=now,
+            force_snapshot=force_snapshot,
+        )
         rollup.projects_swept += 1
         failure_runs.append(sweep_state.consecutive_failures)
         rollup.max_consecutive_failures = max(
@@ -141,6 +153,7 @@ def _sweep_one(
     *,
     kanban_root: Path,
     now: float,
+    force_snapshot: bool = False,
 ) -> None:
     """Tick ONE project, updating its bookkeeping + folding into ``rollup`` (isolated per project).
 
@@ -150,10 +163,20 @@ def _sweep_one(
         rollup: The daemon-level rollup (MUTATED in place).
         kanban_root: The runtime root the per-project heartbeat marker is written under.
         now: The sweep's wall-clock time.
+        force_snapshot: Forwarded to :func:`~kanbanmate.app.wiring.run_one_tick` (P2): re-snapshot
+            even on an unchanged probe (a nudge / fast-poll tick). Default ``False``.
     """
     pid = wiring.project_id
     try:
-        tick_result, next_persisted = run_one_tick(wiring, sweep_state.persisted)
+        # Pass ``force_snapshot`` ONLY when set (the nudge / fast-poll path) so the common
+        # probe-gated sweep calls ``run_one_tick`` with its historical 2-arg positional signature —
+        # keeping every existing 2-arg test double (``lambda w, s: ...``) working unchanged.
+        if force_snapshot:
+            tick_result, next_persisted = run_one_tick(
+                wiring, sweep_state.persisted, force_snapshot=True
+            )
+        else:
+            tick_result, next_persisted = run_one_tick(wiring, sweep_state.persisted)
     except Exception as exc:  # noqa: BLE001 — one project's failed tick must NOT crash the sweep
         logger.exception("project %s: tick raised; continuing", pid)
         sweep_state.consecutive_failures += 1

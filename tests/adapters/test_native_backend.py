@@ -555,6 +555,91 @@ def test_hybrid_multi_move_not_reverted_by_mirror_echo(tmp_path: pathlib.Path) -
     assert backend.snapshot().tickets[0].column_key == "Done"
 
 
+def test_hybrid_arming_candidate_bumps_probe_self_wake(tmp_path: pathlib.Path) -> None:
+    """P1: arming a fresh debounce candidate bumps the store version so the next cheap_probe differs.
+
+    Without the self-wake bump, an external GitHub move that moves the forge probe exactly once arms
+    the pending candidate on tick 1, then the probe is stable → the daemon never re-snapshots → the
+    2-tick debounce never reaches its confirming tick (the probe-starves-debounce stall). The arming
+    write must therefore bump the version so the combined probe changes and the next tick re-evaluates.
+    """
+    forge = MagicMock()
+    forge.cheap_probe.return_value = "frozen-forge"  # forge token frozen → only the version moves
+    forge.snapshot.return_value = BoardSnapshot(
+        tickets=(_ticket("item1", "Backlog"),), fetched_at=0.0
+    )
+    backend = _hybrid_backend(tmp_path, forge)
+    backend.snapshot()  # seed shadow=Backlog (settled), no candidate
+
+    probe_settled = backend.cheap_probe()
+    # External GitHub move: forge now shows Review (native still Backlog) → ARMS the candidate.
+    forge.snapshot.return_value = BoardSnapshot(
+        tickets=(_ticket("item1", "Review"),), fetched_at=0.0
+    )
+    backend.snapshot()
+    probe_after_arm = backend.cheap_probe()
+    assert probe_after_arm != probe_settled, (
+        "arming a fresh candidate must change the combined probe (P1 self-wake)"
+    )
+
+
+def test_hybrid_settled_tick_does_not_bump_probe(tmp_path: pathlib.Path) -> None:
+    """P1 guard: a settled tick (no fresh candidate armed) must NOT bump the probe (no busy-loop).
+
+    The self-wake bump is gated to candidate-arming only; a tick where forge and native agree (or
+    re-confirms an existing candidate value) must leave the version untouched so a quiescent hybrid
+    board does not churn cheap_probe every poll.
+    """
+    forge = MagicMock()
+    forge.cheap_probe.return_value = "frozen-forge"
+    forge.snapshot.return_value = BoardSnapshot(
+        tickets=(_ticket("item1", "Backlog"),), fetched_at=0.0
+    )
+    backend = _hybrid_backend(tmp_path, forge)
+    backend.snapshot()  # seed shadow
+
+    probe_a = backend.cheap_probe()
+    backend.snapshot()  # forge still agrees → settled, nothing armed
+    probe_b = backend.cheap_probe()
+    assert probe_a == probe_b, "a settled hybrid tick must not bump the probe (no busy-loop)"
+
+
+def test_hybrid_self_mirror_echo_arms_then_drops_without_false_adoption(
+    tmp_path: pathlib.Path,
+) -> None:
+    """P1 + debounce: the self-wake bump on a transient echo must NOT cause a false adoption.
+
+    A native A→B→A bounce makes GitHub transiently replay the intermediate value (Review). The first
+    divergent tick arms the candidate (and bumps the probe — self-wake), but the value does not
+    persist into the confirming tick (GitHub catches up to Backlog), so the debounce drops it and the
+    card is NEVER adopted to Review. This proves the self-wake does not weaken the echo guard.
+    """
+    forge = MagicMock()
+    forge.cheap_probe.return_value = "frozen-forge"
+    forge.snapshot.return_value = BoardSnapshot(
+        tickets=(_ticket("item1", "Backlog"),), fetched_at=0.0
+    )
+    backend = _hybrid_backend(tmp_path, forge)
+    backend.snapshot()  # seed shadow=Backlog (settled)
+
+    # Native bounce Backlog→Review→Backlog (net Backlog); GitHub echoes the intermediate Review once.
+    backend._store.place_card("item1", "Review")
+    backend._store.place_card("item1", "Backlog")
+    forge.snapshot.return_value = BoardSnapshot(
+        tickets=(_ticket("item1", "Review"),), fetched_at=0.0
+    )
+    snap_arm = backend.snapshot()  # arms candidate (bumps probe), but does NOT adopt
+    assert snap_arm.tickets[0].column_key == "Backlog"
+
+    # GitHub catches up to the net value (Backlog) → the transient Review never persists → dropped.
+    forge.snapshot.return_value = BoardSnapshot(
+        tickets=(_ticket("item1", "Backlog"),), fetched_at=0.0
+    )
+    snap_confirm = backend.snapshot()
+    assert snap_confirm.tickets[0].column_key == "Backlog", "transient echo must never be adopted"
+    assert backend._store.load()["placement"]["item1"] == "Backlog"
+
+
 def test_hybrid_conflict_native_wins(tmp_path: pathlib.Path) -> None:
     """On a simultaneous conflict (both sides moved since settle), native (the authority) wins."""
     forge = MagicMock()

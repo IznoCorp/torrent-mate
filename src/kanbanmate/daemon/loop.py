@@ -723,11 +723,24 @@ def run_loop(
             # trips a healthy sibling. The sweep is wholly internally fail-soft per project, so a
             # raise here is unexpected (defensive): treat it as a daemon-level failure. The rollup
             # aggregates the per-project outcomes into the idle-clock + back-off signals.
+            #
+            # P2 self-wake: while the fast-poll window is open (it was opened by the PREVIOUS
+            # iteration's nudge wake — a self-move auto-advance, an operator CLI intent, or a webhook),
+            # FORCE the sweep to re-snapshot even on an unchanged cheap_probe. cheap_probe excludes the
+            # intent queue and can be stable across a restart-present move, so without this a nudged
+            # tick would probe-gate the snapshot and never see the move (the probe-starves-debounce /
+            # CLI-move stall). The window is bounded by ``_FAST_POLL_AFTER_NUDGE_TICKS`` so the forced
+            # GraphQL snapshots are capped; a quiescent daemon (window closed) keeps the probe gate.
+            force_snapshot = fast_ticks_remaining > 0
             now = time.time()
             assert wirings is not None  # the first-load raise above guarantees this
             try:
                 rollup = sweep_projects(
-                    wirings, state_by_project, kanban_root=config.kanban_root, now=now
+                    wirings,
+                    state_by_project,
+                    kanban_root=config.kanban_root,
+                    now=now,
+                    force_snapshot=force_snapshot,
                 )
             except Exception:  # noqa: BLE001 — a sweep-level raise must not crash the daemon
                 logger.exception("sweep raised; continuing")

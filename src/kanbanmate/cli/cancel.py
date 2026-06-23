@@ -98,6 +98,19 @@ def cancel(issue_number: int, *, deps: Deps) -> None:
                 DEFAULT_RESET_TARGET,
                 issue_number,
             )
+        # P3: nudge the daemon so it reconciles the Backlog reset within one slice instead of waiting
+        # out a full poll interval (the operator move-latency collapse). Unlike the intent-queue CLIs
+        # (move/pill/ticket) the cancel writes the board directly, so the nudge wakes the daemon to
+        # re-snapshot + advance its diff baseline. Best-effort + OUTSIDE the move try (run it even when
+        # the courtesy move failed — the teardown's state purge is itself worth reconciling promptly);
+        # ``nudge_daemon`` swallows its own errors, so this can never break the applied teardown.
+        try:
+            deps.store.nudge_daemon()
+        except Exception:  # noqa: BLE001 — advisory wake; never break the (applied) teardown
+            logger.exception(
+                "cancel: daemon nudge failed for #%s; teardown already applied, continuing",
+                issue_number,
+            )
 
 
 def cancel_from_config(issue_number: int, config: WiringConfig) -> None:

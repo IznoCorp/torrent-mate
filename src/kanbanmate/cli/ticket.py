@@ -74,6 +74,8 @@ def create(
             "caller": "operator",
         },
     )
+    # P3: pair every enqueue with a nudge so the daemon drains it within one slice (best-effort).
+    store.nudge_daemon()
     if not wait:
         return (
             f"kanban ticket create: enqueued '{title}' (intent {intent_id}); the daemon creates it "
@@ -120,6 +122,8 @@ def edit(
             "caller": "operator",
         },
     )
+    # P3: pair every enqueue with a nudge so the daemon drains it within one slice (best-effort).
+    store.nudge_daemon()
     if not wait:
         return (
             f"kanban ticket edit: enqueued #{issue} (intent {intent_id}); the daemon applies it on "
@@ -165,6 +169,8 @@ def close(
             "caller": "operator",
         },
     )
+    # P3: pair every enqueue with a nudge so the daemon drains it within one slice (best-effort).
+    store.nudge_daemon()
     if not wait:
         return (
             f"kanban ticket close: enqueued #{issue} (intent {intent_id}); the daemon closes it on "

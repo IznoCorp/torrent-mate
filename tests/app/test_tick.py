@@ -1048,6 +1048,94 @@ def test_unchanged_probe_skips_snapshot_and_does_nothing() -> None:
     assert result.actions_executed == 0
 
 
+def test_force_snapshot_adopts_and_launches_in_one_tick_on_stable_probe() -> None:
+    """P2: an external move present on a STABLE probe still launches in ONE forced tick.
+
+    Models the probe-starves-debounce / CLI-move stall: the cheap probe is unchanged (it excludes
+    the intent queue and can be stable across a restart-present move), yet the snapshot already shows
+    the card in the agent column. ``force_snapshot=True`` (the nudge / fast-poll sweep) overrides the
+    gate so the tick snapshots, diffs vs the baseline, and fires the launch in this single tick.
+    """
+    ticket = Ticket(item_id="PVTI_7", issue_number=7, title="t", column_key="InProgress")
+    reader = _FakeBoardReader("probe-1", _snapshot(ticket))
+    m = _mocks(reader)
+    # last_probe already equals the reader's probe → the gate would normally SKIP the snapshot.
+    state = PersistedState(columns_by_item={"PVTI_7": "Backlog"}, last_probe="probe-1")
+
+    result, next_state = tick(m.deps, _config(), state, force_snapshot=True)
+
+    assert reader.snapshot_calls == 1, "force_snapshot must snapshot despite the unchanged probe"
+    assert result.snapshot_taken is True
+    m.sessions.launch.assert_called_once()
+    assert result.actions_executed == 1
+    assert next_state.columns_by_item["PVTI_7"] == "InProgress"
+
+
+def test_force_snapshot_on_unchanged_board_is_idempotent_no_launch() -> None:
+    """P2: a forced re-snapshot of an UNCHANGED board yields no transition and no duplicate launch.
+
+    force_snapshot bypasses the probe gate but NOT the diff: when the snapshot column equals the
+    persisted baseline the diff is empty, so a nudge that arrives with nothing new fires nothing.
+    """
+    ticket = Ticket(item_id="PVTI_7", issue_number=7, title="t", column_key="InProgress")
+    reader = _FakeBoardReader("probe-1", _snapshot(ticket))
+    m = _mocks(reader)
+    # The baseline already matches the snapshot column → a forced snapshot finds no change.
+    state = PersistedState(columns_by_item={"PVTI_7": "InProgress"}, last_probe="probe-1")
+
+    result, _ = tick(m.deps, _config(), state, force_snapshot=True)
+
+    assert reader.snapshot_calls == 1, "force_snapshot still snapshots"
+    m.sessions.launch.assert_not_called()
+    assert result.actions_executed == 0
+
+
+def test_force_snapshot_does_not_override_probe_failure() -> None:
+    """P2 guard: a probe FAILURE always wins — force_snapshot must NOT snapshot through a dead probe.
+
+    A 401/DNS outage must still degrade to no-new-launches; forcing a snapshot on a failed probe
+    would re-hammer GitHub through the outage. The failure short-circuits before the (forced) gate.
+    """
+    reader = _FakeBoardReader("probe-1", _snapshot(), raise_on_probe=True)
+    m = _mocks(reader)
+    state = PersistedState(last_probe="probe-1")
+
+    result, _ = tick(m.deps, _config(), state, force_snapshot=True)
+
+    assert reader.snapshot_calls == 0, "a probe failure wins over force_snapshot (no snapshot)"
+    assert result.snapshot_taken is False
+    assert result.probe_failed is True
+
+
+def test_force_snapshot_consumes_restart_pending_launch_on_stable_probe() -> None:
+    """P2 + #55: a restart-present in-flight move is NOT dropped — a forced snapshot re-fires it.
+
+    On restart the in-memory baseline is wiped (card looks first-contact → NOOP) but a durable
+    ``pending_launch`` breadcrumb carries the true origin. If the probe is stable (the move landed
+    before the restart, so cheap_probe never advanced), only ``force_snapshot`` (a nudge / fast-poll
+    sweep) gets the tick to snapshot at all — then the breadcrumb overlay re-creates the genuine
+    transition and the launch fires. Without force_snapshot the daemon would never snapshot and the
+    in-flight move would stay dropped.
+    """
+    from kanbanmate.ports.store import PendingLaunch
+
+    ticket = Ticket(item_id="PVTI_7", issue_number=7, title="t", column_key="InProgress")
+    reader = _FakeBoardReader("probe-1", _snapshot(ticket))
+    m = _mocks(reader)
+    # A durable breadcrumb: the card moved Backlog → InProgress (launch-bearing) before the restart.
+    m.store.pending_launches.return_value = {
+        "PVTI_7": PendingLaunch(item_id="PVTI_7", from_col="Backlog", to_col="InProgress", ts=0.0)
+    }
+    # Post-restart cold state, BUT the probe matches last_probe (the move predates the restart).
+    state = PersistedState(columns_by_item={}, last_probe="probe-1")
+
+    result, _ = tick(m.deps, _config(), state, force_snapshot=True)
+
+    assert reader.snapshot_calls == 1, "force_snapshot must snapshot so the breadcrumb is consulted"
+    m.sessions.launch.assert_called_once()
+    assert result.actions_executed == 1
+
+
 def test_idempotent_second_tick_does_not_relaunch() -> None:
     """Two ticks against the same board produce exactly one launch (idempotence)."""
     ticket = Ticket(item_id="PVTI_7", issue_number=7, title="t", column_key="InProgress")

@@ -78,3 +78,33 @@ def test_multiple_moves_all_reported_in_order() -> None:
 def test_empty_snapshot_yields_no_transitions() -> None:
     """An empty board produces no transitions regardless of persisted state."""
     assert diff({"a": "Backlog"}, _snapshot()) == []
+
+
+def test_duplicated_item_yields_one_transition_last_occurrence_wins() -> None:
+    """P4: a snapshot carrying the same item_id twice emits ONE transition (last occurrence wins).
+
+    A malformed forge page / stale cursor / JOIN glitch could duplicate an item; without de-dup the
+    diff would emit two transitions for one card → a dropped or mis-routed launch (the second decide
+    clobbering the first's baseline advance). The de-dup keeps the LAST occurrence's column.
+    """
+    snapshot = _snapshot(
+        _ticket("a", "InProgress"),  # first occurrence
+        _ticket("a", "Review"),  # duplicate — the LATER column the snapshot reported
+    )
+    transitions = diff({"a": "Backlog"}, snapshot)
+    assert len(transitions) == 1, "a duplicated item must yield exactly one transition"
+    assert transitions[0].to_column == "Review", "the LAST occurrence's column must win"
+    assert transitions[0].from_column == "Backlog"
+
+
+def test_duplicated_item_collapsing_to_unchanged_yields_no_transition() -> None:
+    """P4: if the LAST occurrence of a duplicated item matches persisted state, no transition fires.
+
+    The de-dup must compare the LAST occurrence (not the first) against persisted state, so a card
+    whose latest reported column equals where it already was produces no spurious launch.
+    """
+    snapshot = _snapshot(
+        _ticket("a", "Review"),  # first occurrence (would diff vs Backlog)
+        _ticket("a", "Backlog"),  # last occurrence == persisted → no change
+    )
+    assert diff({"a": "Backlog"}, snapshot) == []

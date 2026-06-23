@@ -15,12 +15,17 @@ from kanbanmate.cli.pill import clear, note, set_health
 class _FakeStore:
     intents: dict[str, dict[str, object]] = field(default_factory=dict)
     results: dict[str, dict[str, object]] = field(default_factory=dict)
+    nudges: int = 0
 
     def enqueue_intent(self, intent_id: str, payload: dict[str, object]) -> None:
         self.intents[intent_id] = dict(payload)
 
     def load_intent_result(self, intent_id: str) -> dict[str, object] | None:
         return self.results.get(intent_id)
+
+    def nudge_daemon(self) -> None:
+        # P3: every enqueue is paired with a nudge so the daemon drains within one slice.
+        self.nudges += 1
 
 
 def test_set_health_enqueues_pill_set_health() -> None:
@@ -64,3 +69,14 @@ def test_set_health_wait_applied() -> None:
         clock=iter([100.0, 100.0, 100.5]).__next__,
     )
     assert "applied" in msg
+
+
+def test_pill_intents_nudge_the_daemon() -> None:
+    """P3: every pill write path nudges the daemon so the move-latency collapses to one slice."""
+    store = _FakeStore()
+    set_health(store, enum="WAITING", now=100.0)  # type: ignore[arg-type]
+    note(store, text="incident", now=100.0)  # type: ignore[arg-type]
+    clear(store, now=100.0)  # type: ignore[arg-type]
+    # One nudge per enqueue (three enqueues → three nudges).
+    assert store.nudges == 3
+    assert len(store.intents) == 3

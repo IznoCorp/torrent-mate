@@ -125,21 +125,37 @@ class FsBoardStateStore:
             self._write(doc)
             return int(doc["version"])
 
-    def set_sync_state(self, shadow: dict[str, str], pending: dict[str, str]) -> None:
-        """Persist the hybrid board-sync bookkeeping (``shadow`` + ``pending``), NO version bump.
+    def set_sync_state(
+        self, shadow: dict[str, str], pending: dict[str, str], *, bump_version: bool = False
+    ) -> None:
+        """Persist the hybrid board-sync bookkeeping (``shadow`` + ``pending``).
 
         ``shadow`` is the last synced forge column per item; ``pending`` is the debounce candidate
-        (a divergent forge value awaiting a second confirming tick). Neither is a placement change,
-        so this must NOT bump ``version`` (that would churn ``cheap_probe`` and re-trigger the tick).
+        (a divergent forge value awaiting a second confirming tick). Normally neither is a placement
+        change, so by default this does NOT bump ``version`` (a bump would churn ``cheap_probe`` and
+        re-trigger the tick on every settled poll).
+
+        **The ``bump_version`` self-wake (P1).** When a NEW debounce candidate is armed (the FIRST
+        tick of an external GitHub move's divergence), the caller passes ``bump_version=True`` so the
+        combined ``cheap_probe`` token (``"{version}:{forge}"``) changes for the NEXT tick. Without
+        it, an external move that bumps the forge probe exactly once arms the pending candidate on
+        tick 1, then the probe is stable → ``tick`` skips ``snapshot`` → the 2-tick debounce can
+        NEVER reach its confirming tick → the move is never adopted (the probe-starves-debounce
+        stall). The bump is gated to candidate-arming ONLY (caller-side), so a settled / re-confirming
+        / native-authority write still bumps nothing — no busy-loop, the debounce logic is untouched.
 
         Args:
             shadow: The full ``{item_id: forge_column_key}`` synced map (replaces the prior one).
             pending: The full ``{item_id: forge_column_key}`` debounce-candidate map (replaces prior).
+            bump_version: When ``True`` increment ``version`` so the next ``cheap_probe`` differs
+                (the P1 self-wake — pass it ONLY when a fresh debounce candidate was armed).
         """
         with self._lock():
             doc = self._read()
             doc["shadow"] = dict(shadow)
             doc["pending"] = dict(pending)
+            if bump_version:
+                doc["version"] += 1
             self._write(doc)
 
     def reorder_column(

@@ -16,12 +16,17 @@ from kanbanmate.cli.ticket import close, create, edit
 class _FakeStore:
     intents: dict[str, dict[str, object]] = field(default_factory=dict)
     results: dict[str, dict[str, object]] = field(default_factory=dict)
+    nudges: int = 0
 
     def enqueue_intent(self, intent_id: str, payload: dict[str, object]) -> None:
         self.intents[intent_id] = dict(payload)
 
     def load_intent_result(self, intent_id: str) -> dict[str, object] | None:
         return self.results.get(intent_id)
+
+    def nudge_daemon(self) -> None:
+        # P3: every enqueue is paired with a nudge so the daemon drains within one slice.
+        self.nudges += 1
 
 
 def test_enqueue_without_wait_records_ticket_create() -> None:
@@ -124,3 +129,14 @@ def test_edit_wait_returns_edited() -> None:
         clock=iter([100.0, 100.0, 100.5]).__next__,
     )
     assert "edited" in msg
+
+
+def test_ticket_intents_nudge_the_daemon() -> None:
+    """P3: create/edit/close each nudge the daemon so the operator move-latency collapses."""
+    store = _FakeStore()
+    create(store, title="N", now=100.0)  # type: ignore[arg-type]
+    edit(store, issue=8, body="b", now=100.0)  # type: ignore[arg-type]
+    close(store, issue=8, now=100.0)  # type: ignore[arg-type]
+    # One nudge per enqueue (three enqueues → three nudges).
+    assert store.nudges == 3
+    assert len(store.intents) == 3

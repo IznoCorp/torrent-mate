@@ -20,12 +20,19 @@ _TERMINAL_STATES: frozenset[str] = frozenset({"done", "rejected"})
 
 
 def _enqueue(store: StateStore, kind: str, args: dict[str, object], start: float) -> str:
-    """Persist a board-wide operator pill intent; return its id."""
+    """Persist a board-wide operator pill intent, nudge the daemon, return its id.
+
+    CONVENTION (P3): every ``enqueue_intent`` is paired with ``nudge_daemon`` so the sleeping daemon
+    wakes within one slice and drains the intent near-instantly instead of waiting out a full poll
+    interval (the operator move-latency collapse, mirroring ``cli/move`` / ``bin/kanban_move``). The
+    nudge is internally best-effort, so a failure degrades to the normal full-interval cadence.
+    """
     intent_id = uuid.uuid4().hex[:12]
     store.enqueue_intent(
         intent_id,
         {"kind": kind, "issue": None, "args": args, "requested_at": start, "caller": "operator"},
     )
+    store.nudge_daemon()
     return intent_id
 
 

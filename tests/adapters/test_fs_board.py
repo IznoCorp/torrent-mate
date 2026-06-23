@@ -349,9 +349,24 @@ def test_seed_board_preserves_existing_sync_state(tmp_path: pathlib.Path) -> Non
 
 
 def test_set_sync_state_does_not_bump_version(tmp_path: pathlib.Path) -> None:
-    """set_sync_state is bookkeeping only — it must NOT bump version (no cheap_probe churn)."""
+    """set_sync_state is bookkeeping only — by default it must NOT bump version (no cheap_probe churn)."""
     s = FsBoardStateStore(tmp_path)
     seed_board(s, columns=["Backlog"], placement={}, order={"Backlog": []})
     v_before = s.load()["version"]
     s.set_sync_state({"item1": "Done"}, {"item1": "Review"})
     assert s.load()["version"] == v_before, "sync-state write must not change version"
+
+
+def test_set_sync_state_bump_version_self_wake(tmp_path: pathlib.Path) -> None:
+    """P1: set_sync_state(bump_version=True) increments version so the next cheap_probe differs.
+
+    Arming a fresh debounce candidate must wake the next tick — without the bump, the probe stays
+    stable and the 2-tick debounce never reaches its confirming snapshot (the probe-starves stall).
+    """
+    s = FsBoardStateStore(tmp_path)
+    seed_board(s, columns=["Backlog"], placement={}, order={"Backlog": []})
+    v_before = s.load()["version"]
+    s.set_sync_state({"item1": "Backlog"}, {"item1": "Review"}, bump_version=True)
+    assert s.load()["version"] == v_before + 1, "an armed candidate must bump version (self-wake)"
+    # The bookkeeping still persisted alongside the bump.
+    assert s.load()["pending"] == {"item1": "Review"}

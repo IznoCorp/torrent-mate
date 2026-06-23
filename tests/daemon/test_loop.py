@@ -92,8 +92,14 @@ def _make_tick_result(**overrides: object) -> TickResult:
 def _mock_run_one_tick_success(
     _wiring: WiringConfig,
     state: PersistedState | None,
+    *,
+    force_snapshot: bool = False,
 ) -> tuple[TickResult, PersistedState]:
-    """A :func:`run_one_tick` stand-in that always succeeds."""
+    """A :func:`run_one_tick` stand-in that always succeeds.
+
+    Accepts the P2 ``force_snapshot`` keyword (the fast-poll / nudge sweep passes it) so the
+    fast-poll loop tests that open a nudge window can drive this stand-in unchanged.
+    """
     return (_make_tick_result(), state if state is not None else PersistedState())
 
 
@@ -1499,6 +1505,47 @@ def test_run_loop_fast_polls_after_nudge_wake(
     # window so iterations 2-4 poll the tight base (10 s default), not 120 s.
     assert delays[0] == pytest.approx(120.0)
     assert all(d == pytest.approx(10.0) for d in delays[1:]), delays
+
+
+def test_run_loop_forces_snapshot_during_fast_poll_window(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """P2: while the fast-poll window is open, the sweep is FORCED to snapshot even on a stable probe.
+
+    The first sweep (window closed) runs with ``force_snapshot=False`` (the probe gate stands); the
+    nudge then opens the window, so every subsequent sweep is forced to re-snapshot — that is what
+    lets a CLI move (cheap_probe excludes the intent queue) or a restart-present move be reconciled
+    within one slice instead of stalling behind an unchanged probe.
+    """
+    config_yml, _columns_yml = _setup_config_files(tmp_path)
+    daemon_config = DaemonConfig(kanban_root=tmp_path, config_path=config_yml)
+    monkeypatch.setattr("kanbanmate.daemon.loop.next_sleep", lambda *a, **k: 120.0)
+
+    forced: list[bool] = []
+
+    def _capture(
+        _wiring: WiringConfig,
+        state: PersistedState | None,
+        *,
+        force_snapshot: bool = False,
+    ) -> tuple[TickResult, PersistedState]:
+        forced.append(force_snapshot)
+        return (_make_tick_result(), state if state is not None else PersistedState())
+
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", _capture)
+
+    calls = {"n": 0}
+
+    def _fake_sleep(delay: float, **_kwargs: object) -> bool:
+        # The first sleep wakes on a nudge → opens the fast-poll window for the following sweeps.
+        calls["n"] += 1
+        return calls["n"] == 1
+
+    monkeypatch.setattr("kanbanmate.daemon.loop._interruptible_sleep", _fake_sleep)
+    run_loop(daemon_config, max_iterations=3, sleep=lambda _s: None)
+
+    # Sweep 1: window closed → probe-gated (not forced). Sweeps 2-3: window open → forced snapshot.
+    assert forced == [False, True, True], forced
 
 
 def test_run_loop_fast_poll_window_refreshes_on_repeat_nudge(

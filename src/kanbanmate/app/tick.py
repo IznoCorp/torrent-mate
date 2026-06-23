@@ -487,13 +487,16 @@ def tick(
     deps: Deps,
     config: TickConfig,
     persisted_state: PersistedState,
+    *,
+    force_snapshot: bool = False,
 ) -> tuple[TickResult, PersistedState]:
     """Run one poll cycle and return the result plus the next persisted baseline.
 
     The cycle (DESIGN §3.1):
 
     1. ``cheap_probe()`` — if the token equals ``persisted_state.last_probe`` the board is
-       unchanged; skip straight to the post-steps (no snapshot, no diff).
+       unchanged; skip straight to the post-steps (no snapshot, no diff). ``force_snapshot``
+       OVERRIDES this gate (P2): a nudge / fast-poll tick re-snapshots even when the probe is stable.
     2. ``snapshot()`` then ``diff(persisted, snapshot)`` to get the moved/new tickets.
     3. For each :class:`~kanbanmate.core.domain.Transition`, ``decide`` the action and run the
        matching command under the per-action watchdog (NOOPs skipped).
@@ -507,6 +510,14 @@ def tick(
         deps: The injected adapter bundle (all ``ports`` Protocols).
         config: The per-tick policy inputs (columns, kill-switch, TTLs, watchdog).
         persisted_state: The diff baseline carried over from the previous tick.
+        force_snapshot: When ``True`` (P2 self-wake), take a snapshot + run the diff/decide loop
+            EVEN IF the cheap probe is unchanged — so a nudge-woken or fast-poll tick re-evaluates
+            the board after a CLI move (cheap_probe excludes the intent queue) or a restart-present
+            move (the probe was stable across the restart). It is STILL idempotent: the diff compares
+            against the persisted baseline, so a forced re-snapshot of an unchanged board yields no
+            transitions and no duplicate launch. A probe FAILURE always wins (no snapshot), and the
+            loop bounds how many forced ticks fire via its fast-poll counter so the GraphQL budget is
+            capped. Default ``False`` keeps the historical probe-gated behaviour byte-identical.
 
     Returns:
         A ``(TickResult, PersistedState)`` pair: the cycle summary and the next baseline.
@@ -557,10 +568,14 @@ def tick(
     # non-blocking-shutdown context manager (#6) makes the never-hang guarantee REAL: tick exit
     # never blocks on a wedged worker (the plain ``with`` would call shutdown(wait=True)).
     with _watchdog_executor() as executor:
-        # Step 1-3: only when the probe changed is a snapshot worth its API cost (DESIGN §3.1). A
-        # probe FAILURE (FIX4) is gated out here too — ``snapshot`` stays ``None`` / ``snapshot_taken``
-        # stays ``False`` so the launch path is skipped, while every post-step below still runs.
-        if not probe_failed and probe_token != persisted_state.last_probe:
+        # Step 1-3: only when the probe changed is a snapshot worth its API cost (DESIGN §3.1) —
+        # UNLESS ``force_snapshot`` (P2) overrides the gate so a nudge / fast-poll tick re-snapshots a
+        # stable-probe board (a CLI move bypasses cheap_probe; a restart-present move left the probe
+        # unchanged). A probe FAILURE (FIX4) still wins regardless of ``force_snapshot`` — ``snapshot``
+        # stays ``None`` / ``snapshot_taken`` stays ``False`` so the launch path is skipped, while
+        # every post-step below still runs. The forced re-snapshot is idempotent: the diff runs against
+        # the persisted baseline, so an unchanged board yields no transitions and no duplicate launch.
+        if not probe_failed and (force_snapshot or probe_token != persisted_state.last_probe):
             snapshot_taken = True
             snapshot = deps.board_reader.snapshot()
             # Heal No-Status items to the entry column BEFORE the diff/decide loop (default-status).

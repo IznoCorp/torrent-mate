@@ -272,6 +272,8 @@ def build_tick_config(config: WiringConfig) -> TickConfig:
 def run_one_tick(
     config: WiringConfig,
     state: PersistedState | None = None,
+    *,
+    force_snapshot: bool = False,
 ) -> tuple[TickResult, PersistedState]:
     """Wire dependencies and run exactly one :func:`~kanbanmate.app.tick.tick` cycle.
 
@@ -284,10 +286,13 @@ def run_one_tick(
         config: The runtime configuration to wire from.
         state: The diff baseline carried over from a previous tick; a fresh
             :class:`~kanbanmate.app.tick.PersistedState` when ``None`` (first tick / cold start).
+        force_snapshot: Forwarded to :func:`~kanbanmate.app.tick.tick` (P2): when ``True`` the tick
+            snapshots even on an unchanged probe (a nudge / fast-poll re-evaluation). Default
+            ``False`` keeps the historical probe-gated behaviour.
 
     Returns:
         A ``(TickResult, PersistedState)`` pair: the cycle summary and the next baseline.
     """
     deps = build_deps(config)
     tick_config = build_tick_config(config)
-    return tick(deps, tick_config, state or PersistedState())
+    return tick(deps, tick_config, state or PersistedState(), force_snapshot=force_snapshot)

@@ -48,7 +48,9 @@ def test_each_project_ticks_with_own_state(tmp_path: Path, monkeypatch: pytest.M
     """Two projects each get their own run_one_tick call + per-project persisted baseline."""
     seen: list[tuple[str, PersistedState]] = []
 
-    def _mock(wiring: WiringConfig, state: PersistedState) -> tuple[TickResult, PersistedState]:
+    def _mock(
+        wiring: WiringConfig, state: PersistedState, *, force_snapshot: bool = False
+    ) -> tuple[TickResult, PersistedState]:
         seen.append((wiring.project_id, state))
         # Return a NEW baseline carrying this project's id so the next sweep threads it back.
         return _tick(snapshot_taken=True), PersistedState(columns_by_item={wiring.project_id: "X"})
@@ -72,7 +74,9 @@ def test_failing_project_does_not_trip_healthy_sibling(
 ) -> None:
     """One project raising bumps ONLY its own failure run; the healthy one stays at zero."""
 
-    def _mock(wiring: WiringConfig, state: PersistedState) -> tuple[TickResult, PersistedState]:
+    def _mock(
+        wiring: WiringConfig, state: PersistedState, *, force_snapshot: bool = False
+    ) -> tuple[TickResult, PersistedState]:
         if wiring.project_id == "PVT_BAD":
             raise RuntimeError("boom")
         return _tick(), state
@@ -98,7 +102,9 @@ def test_all_projects_failing_backoff_signal_is_nonzero(
 ) -> None:
     """#5: when EVERY project is failing, the back-off signal (min) is > 0 so the daemon backs off."""
 
-    def _mock(wiring: WiringConfig, state: PersistedState) -> tuple[TickResult, PersistedState]:
+    def _mock(
+        wiring: WiringConfig, state: PersistedState, *, force_snapshot: bool = False
+    ) -> tuple[TickResult, PersistedState]:
         raise RuntimeError("boom")
 
     monkeypatch.setattr(sweep_mod, "run_one_tick", _mock)
@@ -122,7 +128,9 @@ def test_probe_failure_counts_without_reset(
 ) -> None:
     """A returned-but-probe_failed tick bumps the failure run (the dead-token / outage signal)."""
 
-    def _mock(wiring: WiringConfig, state: PersistedState) -> tuple[TickResult, PersistedState]:
+    def _mock(
+        wiring: WiringConfig, state: PersistedState, *, force_snapshot: bool = False
+    ) -> tuple[TickResult, PersistedState]:
         return _tick(probe_failed=True), state
 
     monkeypatch.setattr(sweep_mod, "run_one_tick", _mock)
@@ -135,7 +143,7 @@ def test_probe_failure_counts_without_reset(
 
 def test_clean_tick_snaps_failure_run_back(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A clean tick resets the project's failure run to zero (self-recovery)."""
-    monkeypatch.setattr(sweep_mod, "run_one_tick", lambda w, s: (_tick(), s))
+    monkeypatch.setattr(sweep_mod, "run_one_tick", lambda w, s, **k: (_tick(), s))
     state_by = {"PVT_A": ProjectSweepState(consecutive_failures=5)}
 
     sweep_projects([_wiring("PVT_A")], state_by, kanban_root=tmp_path, now=100.0)
@@ -147,7 +155,7 @@ def test_per_project_heartbeat_marker_written(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A per-project heartbeat marker lands under projects/heartbeats/<safe(pid)>.heartbeat."""
-    monkeypatch.setattr(sweep_mod, "run_one_tick", lambda w, s: (_tick(), s))
+    monkeypatch.setattr(sweep_mod, "run_one_tick", lambda w, s, **k: (_tick(), s))
 
     sweep_projects([_wiring("PVT_A")], {}, kanban_root=tmp_path, now=123.0)
 
