@@ -142,15 +142,17 @@ class TestDefaultTemplate:
         assert _TEMPLATE_RESOURCE.is_file()
         assert _template_text().strip() != ""
 
-    def test_template_parses_to_thirteen_columns(self) -> None:
-        """The default board has exactly 13 columns.
+    def test_template_parses_to_fourteen_columns(self) -> None:
+        """The default board has exactly 14 columns.
 
         The front of the flow gained ``Brainstorming`` (after Backlog) and ``Plan``
         (after Spec); the redundant ``Planned`` gate was later retired (consolidated
-        into ``ReadyToDev``), bringing the board to 13 columns.
+        into ``ReadyToDev``); ``ReadyToMerge`` (the human merge gate the review stage
+        auto-advances to) was added between ``Review`` and ``Merge`` — bringing the board to
+        14 columns.
         """
         columns = load_columns(_template_text())
-        assert len(columns) == 13
+        assert len(columns) == 14
 
     def test_template_includes_brainstorming_and_plan(self) -> None:
         """The board ships ``Brainstorming`` (after Backlog) and ``Plan`` (after Spec).
@@ -233,6 +235,7 @@ class TestDefaultTemplate:
             "InProgress",
             "PRCI",
             "Review",
+            "ReadyToMerge",
             "Merge",
             "Done",
             "Blocked",

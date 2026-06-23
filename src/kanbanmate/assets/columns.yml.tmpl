@@ -71,12 +71,18 @@ columns:
 
   - key: Review
     name: Review
-    # Inert.
+    # Inert. The review agent runs here, then AUTO-ADVANCES to ReadyToMerge on completion.
+
+  - key: ReadyToMerge
+    name: Ready to merge
+    # Inert: the HUMAN merge gate. The review agent auto-advances a card here when the review
+    # is done; the human drags ReadyToMerge -> Merge to fire the autonomous merge agent. A
+    # blocked merge bounces the card BACK here (not Review).
 
   - key: Merge
     name: Merge
     # Inert: merge is a HUMAN action. The merge boundary is that Merge is not a launch
-    # target (Review -> Merge is a script gate, no prompt) + branch protection + the
+    # target (ReadyToMerge -> Merge is a script gate, no prompt) + branch protection + the
     # `gh pr merge` ban — NOT that the bot cannot move a card here (DESIGN §8.0.5/§10).
 
   - key: Cancel

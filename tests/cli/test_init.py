@@ -174,11 +174,12 @@ def test_init_ensures_template_columns_as_status_options(tmp_path: Path) -> None
     assert len(seeder.ensure_columns_calls) == 1
     project_id, columns = seeder.ensure_columns_calls[0]
     assert project_id == "PVT_NEW"
-    # The 13-column default template, by human-readable name in order —
+    # The 14-column default template, by human-readable name in order —
     # ``Brainstorming`` (interactive) sits after ``Backlog`` and ``Plan``
     # (autonomous) after ``Spec``; the redundant ``Planned`` gate was retired
     # (consolidated into ``Ready to dev``); ``Prepare feature`` (the create-branch
-    # stage) sits between ``Ready to dev`` and ``In Progress``.
+    # stage) sits between ``Ready to dev`` and ``In Progress``; ``Ready to merge``
+    # (the human merge gate the review auto-advances to) sits between ``Review`` and ``Merge``.
     assert columns == [
         "Backlog",
         "Brainstorming",
@@ -189,6 +190,7 @@ def test_init_ensures_template_columns_as_status_options(tmp_path: Path) -> None
         "In Progress",
         "PR/CI",
         "Review",
+        "Ready to merge",
         "Merge",
         "Cancel",
         "Done",

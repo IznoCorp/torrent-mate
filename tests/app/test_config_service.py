@@ -47,7 +47,7 @@ def test_config_service_load_returns_draft(tmp_path: Path) -> None:
     svc = ConfigService(transitions_path=tp, columns_path=cp)
     draft = svc.load()
     assert isinstance(draft, PipelineDraft)
-    assert len(draft.definition.columns) == 13
+    assert len(draft.definition.columns) == 14
 
 
 def test_config_service_validate_clean(tmp_path: Path) -> None:

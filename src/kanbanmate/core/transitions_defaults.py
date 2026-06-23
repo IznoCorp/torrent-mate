@@ -62,9 +62,10 @@ flow AUTONOMOUS through Plan, then STOPS at the two HUMAN gates::
     ReadyToDev    -> PrepareFeature  advance:auto:InProgress  (HUMAN drags to build → create-branch)
     PrepareFeature-> InProgress      advance:auto:PRCI        (implement+PR → auto-advance)
     InProgress    -> PRCI (SCRIPT)   advance:auto:Review      (green CI → auto-advance, fires review)
-    PRCI          -> Review          advance:stop             *** Review STOPS for human ***
-    Review        -> Merge (AGENT)   advance:stop             autonomous merge agent (operator); it
-                                                              self-routes Done|Review (see below)
+    PRCI          -> Review          advance:auto:ReadyToMerge (review done → auto-advance)
+    Review        -> ReadyToMerge    no-op                    *** HUMAN MERGE GATE ***
+    ReadyToMerge  -> Merge (AGENT)   advance:stop             autonomous merge agent (operator); it
+                                                              self-routes Done|ReadyToMerge (see below)
 
 ``Plan -> ReadyToDev`` MUST stay a no-op (no advance directive) — auto-advancing it
 would bypass the single pre-build HUMAN review gate (the core HYBRID property). The
@@ -83,14 +84,15 @@ therefore NOT whitelisted from ``PrepareFeature``/``InProgress``/``PRCI``/
 ``Review``/``Merge`` (those → Cancel only); a direct ``PrepareFeature -> Done``
 rolls back.
 
-**Autonomous merge (operator decision).** ``Review -> Merge`` is now an AGENT stage driven by
-``_MERGE_PROMPT`` under the dedicated ``merge`` permission profile — the SOLE profile whose
+**Autonomous merge (operator decision).** The review stage AUTO-ADVANCES to ``ReadyToMerge`` (the
+human merge gate) on completion; the human then drags ``ReadyToMerge -> Merge``, an AGENT stage
+driven by ``_MERGE_PROMPT`` under the dedicated ``merge`` permission profile — the SOLE profile whose
 deny-list lifts ``gh pr merge`` (force-push, rebase, history rewrite, ref deletion, and the
 api/graphql/github-curl merge paths stay banned even there). The merge agent brings the PR up to
 date with main (merge-main-IN, intelligent conflict resolution — never rebase/force-push), waits
 for CI to be fully green, then squash-merges via ``gh pr merge --squash``. ``advance:stop``: the
 agent routes itself — success → ``Done``, any blocker (unresolvable conflict, red/stuck CI, not
-mergeable) → back to ``Review`` for a human. ``bin/check-pr-ready.sh`` (the PR/CI gate) is
+mergeable) → back to ``Ready to merge`` for a human. ``bin/check-pr-ready.sh`` (the PR/CI gate) is
 unchanged; ``bin/check-merge-ready.sh`` is retained as a helper but the launch transition no
 longer gates on it (the agent owns the mergeability + CI checks).
 
@@ -546,7 +548,8 @@ _MERGE_PROMPT = (
     + _IDENTITY_THEN_STATE
     + _STATE_CHECK_LATE
     + _DESYNC
-    + "Do these steps IN ORDER; on ANY blocker, STOP and route to Review (below) — never force it:\n"
+    + "Do these steps IN ORDER; on ANY blocker, STOP and route to Ready to merge (below) — never "
+    "force it:\n"
     "1. RESOLVE + BIND THE PR (ticket binding — never merge an unrelated PR): take this worktree's "
     "branch from `git branch --show-current` and run `gh pr list --head <branch> --state open`. If "
     "that finds no PR (the worktree may be on the WIP branch `kanban/ticket-{{code}}` rather than the "
@@ -554,8 +557,8 @@ _MERGE_PROMPT = (
     '"{{code}} in:title" --state open` (or the issue→PR link). EITHER way you MUST end with EXACTLY '
     "ONE open PR whose base is ``main`` AND whose title/linked work is ticket {{code}}; record its "
     "head branch and PR number. If zero match, more than one matches, the base is not main, or it is "
-    "not ticket {{code}}'s PR — do NOT guess or merge a PR number from anywhere else: route to Review "
-    "(step below) with a comment. You may ONLY ever merge ticket {{code}}'s own PR.\n"
+    "not ticket {{code}}'s PR — do NOT guess or merge a PR number from anywhere else: route to Ready "
+    "to merge (step below) with a comment. You may ONLY ever merge ticket {{code}}'s own PR.\n"
     "2. UP TO DATE WITH MAIN — merge main INTO the PR branch (NEVER rebase, NEVER force-push): "
     "`git fetch origin main` then `git merge origin/main`. On CONFLICTS, resolve INTELLIGENTLY: for "
     "version files (VERSION, pyproject.toml, src/kanbanmate/__init__.py, the two .claude-plugin "
@@ -567,7 +570,7 @@ _MERGE_PROMPT = (
     "3. WAIT FOR CI: poll `gh pr checks <pr>` until EVERY check is conclusively GREEN. Do NOT merge "
     "while any check is pending or failing. Do NOT idle-spin forever: poll a BOUNDED number of times "
     "with short sleeps; if CI is still pending/failing after a reasonable wait, treat it as "
-    "not-ready and route to Review.\n"
+    "not-ready and route to Ready to merge.\n"
     "4. CONFIRM MERGEABILITY: `gh pr view <pr> --json mergeable,mergeStateStatus` must be "
     "MERGEABLE / CLEAN.\n"
     "5. SQUASH-MERGE: `gh pr merge <pr> --squash` — this is the ONLY merge command you may run (it "
@@ -576,12 +579,12 @@ _MERGE_PROMPT = (
     "ON SUCCESS (the squash-merge landed): `kanban-move {{code}} Done`.\n"
     "ON ANY BLOCKER (unresolvable conflict, CI red or stuck, not mergeable, the merge command "
     'refused): do NOT retry blindly — `kanban-comment {{code}} "merge blocked: <grounded reason>"` '
-    "then `kanban-move {{code}} Review` so a human can triage. NEVER leave a half-merged or broken "
-    "state on the branch.\n"
+    "then `kanban-move {{code}} ReadyToMerge` so a human can triage. NEVER leave a half-merged or "
+    "broken state on the branch.\n"
     + _AUTONOMY
     + _GROUNDING_DISCIPLINE
     + "DONE = EITHER the PR is squash-merged AND the card moved to Done, OR the card is moved back "
-    "to Review with a grounded blocker comment. If re-entered after a partial run, VERIFY the "
+    "to Ready to merge with a grounded blocker comment. If re-entered after a partial run, VERIFY the "
     "current PR/branch state FIRST and finalize — do NOT redo a merge that already landed.\n"
     "Finally, run `kanban-done {{code}}` to end your session (AFTER the kanban-move).\n"
     + _CLEAN_STOP
@@ -690,15 +693,21 @@ DEFAULT_TRANSITIONS: list[dict[str, Any]] = [
         "advance": "auto:PRCI",
         "permission_mode": "auto",
     },
-    # Human: review rounds.
+    # Human: review rounds. On clean completion the review agent AUTO-ADVANCES to ReadyToMerge (the
+    # human merge gate) — the review no longer STOPS at Review; the human decision moves to
+    # ReadyToMerge. A red CI gate still bounces back to InProgress (the fix-CI loop, above).
     {
         "from": "PRCI",
         "to": "Review",
         "profile": "dev",
         "prompt": _REVIEW_PROMPT,
-        "advance": "stop",
+        "advance": "auto:ReadyToMerge",
         "permission_mode": "auto",
     },
+    # Review → ReadyToMerge: the no-op whitelist edge that LANDS the review's auto-advance (the engine
+    # backstop moves the card here when the review agent ends cleanly; whitelisting it prevents a
+    # rollback of that move). ReadyToMerge is inert — the human merge gate.
+    {"from": "Review", "to": "ReadyToMerge"},
     # Review → InProgress: operator-requested REWORK (#12). A human drags the card back
     # from Review to InProgress to ask for changes — mirrors the PRCI → InProgress fix-CI
     # pattern (profile dev, advance auto:PRCI re-runs the CI gate after the rework push),
@@ -712,25 +721,26 @@ DEFAULT_TRANSITIONS: list[dict[str, Any]] = [
         "advance": "auto:PRCI",
         "permission_mode": "auto",
     },
-    # AUTONOMOUS MERGE (operator decision): a claude agent under the dedicated ``merge`` profile
-    # (the SOLE profile whose deny lifts ``gh pr merge``) brings the PR up to date with main
-    # (merge-main-IN, intelligent conflict resolution — never rebase/force-push), waits for CI to be
-    # fully green, then squash-merges via ``gh pr merge --squash``. ``advance:stop`` — the agent
-    # routes itself: success → Done, any blocker → back to Review (the agent's explicit kanban-move).
+    # AUTONOMOUS MERGE (operator decision): the human drags a reviewed card from ReadyToMerge → Merge,
+    # firing a claude agent under the dedicated ``merge`` profile (the SOLE profile whose deny lifts
+    # ``gh pr merge``) that brings the PR up to date with main (merge-main-IN, intelligent conflict
+    # resolution — never rebase/force-push), waits for CI to be fully green, then squash-merges via
+    # ``gh pr merge --squash``. ``advance:stop`` — the agent routes itself: success → Done, any blocker
+    # → back to Ready to merge (the agent's explicit kanban-move).
     #
     # PRE-LAUNCH CI GATE (audit §6 defense-in-depth): ``bin/check-pr-ready.sh`` runs BEFORE the agent
-    # launches — a red/pending CI fails the gate and ``on_fail:move:Review`` bounces the card back to
-    # Review WITHOUT starting the merge agent (don't even attempt a merge on a red PR). NOTE this
-    # checks the PRE-merge-IN CI; the agent's own CI-wait after merging main in is the second layer,
-    # and a server-side ``required_status_checks`` branch ruleset on the default branch is the
+    # launches — a red/pending CI fails the gate and ``on_fail:move:ReadyToMerge`` bounces the card back
+    # to Ready to merge WITHOUT starting the merge agent (don't even attempt a merge on a red PR). NOTE
+    # this checks the PRE-merge-IN CI; the agent's own CI-wait after merging main in is the second
+    # layer, and a server-side ``required_status_checks`` branch ruleset on the default branch is the
     # AUTHORITATIVE third layer (recommended — without it ``gh pr merge`` is not server-gated on CI).
     {
-        "from": "Review",
+        "from": "ReadyToMerge",
         "to": "Merge",
         "profile": "merge",
         "prompt": _MERGE_PROMPT,
         "script": "bin/check-pr-ready.sh",
-        "on_fail": "move:Review",
+        "on_fail": "move:ReadyToMerge",
         "advance": "stop",
         "permission_mode": "auto",
     },
@@ -738,10 +748,22 @@ DEFAULT_TRANSITIONS: list[dict[str, Any]] = [
         "from": "Merge",
         "to": "Done",
     },  # success route (the merge agent moves here after squash-merge)
-    # Failure route: the merge agent moves the card BACK to Review (a plain no-op edge — it does NOT
-    # re-fire Review→Merge, which only triggers on a move INTO Merge) so a human can triage a blocked
-    # merge (unresolvable conflict / red CI / not mergeable).
-    {"from": "Merge", "to": "Review"},
+    # Failure route: the merge agent moves the card BACK to Ready to merge (a plain no-op edge — it
+    # does NOT re-fire ReadyToMerge→Merge, which only triggers on a move INTO Merge) so a human can
+    # triage a blocked merge (unresolvable conflict / red CI / not mergeable).
+    {"from": "Merge", "to": "ReadyToMerge"},
+    # ReadyToMerge → InProgress: operator-requested REWORK from the merge gate (mirror of
+    # Review→InProgress) — if the human, at the merge gate, wants changes instead of a merge, dragging
+    # the card here fires the rework stage (profile dev, advance auto:PRCI re-runs the CI gate after
+    # the rework push). Keeps the gate's rework path whitelisted so the drag is not rolled back.
+    {
+        "from": "ReadyToMerge",
+        "to": "InProgress",
+        "profile": "dev",
+        "prompt": _REWORK_PROMPT,
+        "advance": "auto:PRCI",
+        "permission_mode": "auto",
+    },
     # Done → Backlog: operator-recovery reopen (#12). A PLAIN no-op whitelist edge — NOT a
     # RESET (the whitelist schema carries no `action:` field, and decide() hard-wires RESET to
     # the reactive Cancel column; a Done-as-RESET would touch the whitelist model). So this is a

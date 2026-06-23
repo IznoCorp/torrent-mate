@@ -311,9 +311,10 @@ class TestAutonomousMergeStage:
         assert "NEVER rebase" in prompt or "NEVER rebase/force-push/rewrite history" in prompt
         assert "merge-main-IN" in prompt or "merge main INTO" in prompt
         assert "push to ``main`` directly" in prompt or "push to ``main``" in prompt
-        # Explicit routing: success → Done, blocker → Review.
+        # Explicit routing: success → Done, blocker → Ready to merge (NOT Review — the gate moved).
         assert "kanban-move {{code}} Done" in prompt
-        assert "kanban-move {{code}} Review" in prompt
+        assert "kanban-move {{code}} ReadyToMerge" in prompt
+        assert "kanban-move {{code}} Review" not in prompt
 
     def test_no_prompt_instructs_an_agent_to_merge(self) -> None:
         """No shipped prompt INSTRUCTS an agent to merge (§29.4: merge is human-only).
@@ -348,22 +349,30 @@ class TestAutonomousMergeStage:
         assert "SKIPPED" in _REVIEW_PROMPT
         assert "NEVER run `gh pr merge`" in _REVIEW_PROMPT
 
-    def test_review_to_merge_is_an_autonomous_agent_stage(self) -> None:
-        """``Review → Merge`` is an AGENT launch under the ``merge`` profile, not a script gate."""
-        rows = [t for t in DEFAULT_TRANSITIONS if t["from"] == "Review" and t["to"] == "Merge"]
+    def test_ready_to_merge_to_merge_is_an_autonomous_agent_stage(self) -> None:
+        """``ReadyToMerge → Merge`` is an AGENT launch under the ``merge`` profile, not a script gate.
+
+        The merge gate moved from Review to ReadyToMerge: the review stage now auto-advances to
+        ReadyToMerge, and the human drags ReadyToMerge → Merge to fire the merge agent.
+        """
+        rows = [
+            t for t in DEFAULT_TRANSITIONS if t["from"] == "ReadyToMerge" and t["to"] == "Merge"
+        ]
         assert len(rows) == 1
         row = rows[0]
         assert row.get("prompt") == defaults_mod._MERGE_PROMPT
         assert row["profile"] == "merge"
-        # advance:stop — the agent routes itself (Done|Review); no engine auto-advance.
+        # advance:stop — the agent routes itself (Done|Ready to merge); no engine auto-advance.
         assert row.get("advance") == "stop"
         # PRE-LAUNCH CI gate (audit §6 defense-in-depth): don't launch the merge agent on a red PR;
-        # a failed gate bounces the card back to Review without starting a merge.
+        # a failed gate bounces the card back to Ready to merge without starting a merge.
         assert row.get("script") == "bin/check-pr-ready.sh"
-        assert row.get("on_fail") == "move:Review"
+        assert row.get("on_fail") == "move:ReadyToMerge"
+        # The OLD Review→Merge launch edge is GONE (so a stray Review→Merge drag no longer fires merge).
+        assert not [t for t in DEFAULT_TRANSITIONS if t["from"] == "Review" and t["to"] == "Merge"]
 
     def test_merge_route_edges_exist(self) -> None:
-        """Both merge-agent routes are whitelisted: Merge→Done (success) and Merge→Review (blocker)."""
+        """Both merge-agent routes are whitelisted: Merge→Done (success) and Merge→ReadyToMerge (blocker)."""
 
         def rows(frm: str, to: str) -> list[dict[str, object]]:
             # ``from``/``to`` may be a list (wildcard/multi-source rows) — compare by equality, never
@@ -371,10 +380,15 @@ class TestAutonomousMergeStage:
             return [t for t in DEFAULT_TRANSITIONS if t["from"] == frm and t["to"] == to]
 
         assert rows("Merge", "Done"), "success route Merge→Done must be whitelisted"
-        review_rows = rows("Merge", "Review")
-        assert len(review_rows) == 1, "blocker route Merge→Review must be whitelisted exactly once"
+        blocker_rows = rows("Merge", "ReadyToMerge")
+        assert len(blocker_rows) == 1, (
+            "blocker route Merge→ReadyToMerge must be whitelisted exactly once"
+        )
         # The blocker route is a plain no-op (no prompt) — it must NOT re-fire a launch.
-        assert review_rows[0].get("prompt") is None
+        assert blocker_rows[0].get("prompt") is None
+        # The OLD Merge→Review blocker route is GONE (re-pointed to ReadyToMerge to avoid a rollback
+        # loop now that Review→Merge is removed).
+        assert not rows("Merge", "Review"), "stale Merge→Review must be removed"
 
 
 class TestDefaultTableRoundTrip:
@@ -807,13 +821,14 @@ class TestRecoveryEdges:
         # A spot-check of pre-existing edges still resolves (nothing was removed/broken).
         assert cfg.get("Backlog", "Brainstorming") is not None
         assert cfg.get("PrepareFeature", "InProgress") is not None
-        assert cfg.get("Review", "Merge") is not None
+        assert cfg.get("ReadyToMerge", "Merge") is not None
         assert cfg.get("Merge", "Done") is not None
 
 
 class TestHybridAdvanceDirectives:
     """Hybrid flow (DESIGN §13): the doc + build transitions carry the advance:auto:<col> directives
-    the engine now honours; the two HUMAN gates (ReadyToDev, Review) MUST carry no auto-advance."""
+    the engine now honours; the two HUMAN gates (ReadyToDev, ReadyToMerge) MUST carry no auto-advance
+    OUT of them (Review now auto-advances INTO ReadyToMerge, where the card stops for the human)."""
 
     # Each forward transition's expected ``advance`` directive (the HYBRID table).
     _EXPECTED_ADVANCE = {
@@ -824,8 +839,9 @@ class TestHybridAdvanceDirectives:
         ("PrepareFeature", "InProgress"): "auto:PRCI",
         ("InProgress", "PRCI"): "auto:Review",
         ("PRCI", "InProgress"): "auto:PRCI",
-        ("PRCI", "Review"): "stop",
+        ("PRCI", "Review"): "auto:ReadyToMerge",
         ("Review", "InProgress"): "auto:PRCI",
+        ("ReadyToMerge", "InProgress"): "auto:PRCI",
     }
 
     def test_each_transition_advance_matches_the_hybrid_table(self) -> None:
@@ -856,15 +872,22 @@ class TestHybridAdvanceDirectives:
                 f"{from_col} → {to_col} must NOT carry an auto-advance directive (human gate)"
             )
 
-    def test_review_stops_for_human(self) -> None:
-        """PRCI→Review carries advance:stop — the Review human gate (no auto-advance past it)."""
+    def test_review_auto_advances_to_ready_to_merge_the_human_gate(self) -> None:
+        """PRCI→Review now AUTO-advances to ReadyToMerge (the review no longer STOPS at Review); the
+        card then STOPS at ReadyToMerge — the human merge gate, with no auto-advance out into Merge."""
         from kanbanmate.bin._clone_config import auto_advance_target
 
         cfg = load_transitions(_render_doc("owner/repo"))
         t = cfg.get("PRCI", "Review")
         assert t is not None
-        assert t.advance == "stop"
-        assert auto_advance_target(t.advance) is None
+        assert t.advance == "auto:ReadyToMerge"
+        assert auto_advance_target(t.advance) == "ReadyToMerge"
+        # ReadyToMerge is the human gate: the Review→ReadyToMerge landing is a no-op (the card stops
+        # there), and ReadyToMerge→Merge is human-triggered (advance:stop) — nothing auto-advances out.
+        landing = cfg.get("Review", "ReadyToMerge")
+        assert landing is not None and auto_advance_target(landing.advance) is None
+        merge_edge = cfg.get("ReadyToMerge", "Merge")
+        assert merge_edge is not None and merge_edge.advance == "stop"
 
     def test_inprogress_to_prci_script_gate_advances_to_review(self) -> None:
         """The InProgress→PRCI SCRIPT gate carries advance:auto:Review (green CI → fires pr-review).

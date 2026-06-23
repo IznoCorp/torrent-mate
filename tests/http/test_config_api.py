@@ -94,13 +94,13 @@ def test_health_includes_version() -> None:
 
 
 def test_get_config(client: TestClient) -> None:
-    """GET /api/config returns the current draft with 13 columns."""
+    """GET /api/config returns the current draft with 14 columns."""
     resp = client.get("/api/config")
     assert resp.status_code == 200
     body = resp.json()
     assert "definition" in body
     assert "binding" in body
-    assert len(body["definition"]["columns"]) == 13
+    assert len(body["definition"]["columns"]) == 14
 
 
 # ---------------------------------------------------------------------------
