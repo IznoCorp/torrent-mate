@@ -92,11 +92,14 @@ class WiringConfig:
     # tick itself NEVER reads this — it always reconciles; ingress only sets how often. Default
     # ``"polling"`` keeps the historical 10 s cadence for any caller that does not set it.
     ingress: str = "polling"
-    # anchor §4.2: the per-project board backend. "github" (default) keeps every live
-    # daemon byte-identical until the operator opts in. "native" routes to NativeBoardBackend
-    # one-way (native authority → GitHub mirror; board-view §4.3). "hybrid" adds GitHub→native
-    # reconciliation each tick (board-sync) so cards can be moved on EITHER surface.
-    board_backend: str = "github"
+    # anchor §4.2 / keel step 5 (A): the per-project board backend. The DEFAULT flipped to
+    # "native" (one-way: native authority → GitHub mirror; board-view §4.3) so a wiring built
+    # without an explicit value is on the new system. "hybrid" adds GitHub→native reconciliation
+    # each tick (board-sync) so cards can be moved on EITHER surface (kept valid until keel step 6).
+    # "github" (the legacy forge authority) is still accepted. The daemon always passes an explicit
+    # value resolved from the registry entry, so this default only affects direct WiringConfig
+    # construction (tests / ad-hoc callers).
+    board_backend: str = "native"
     # anchor §5: one-way GitHub mirror under native — default on so the GitHub Projects
     # board + status pill + Health field keep reflecting native placement after cutover.
     board_mirror: bool = True
@@ -146,7 +149,9 @@ def build_deps(config: WiringConfig) -> Deps:
         nudge_root=Path(nudge_root) if nudge_root else None,
     )
     # anchor §4.2: the board_backend switch — the ONLY place concrete adapter classes are named
-    # (CLAUDE.md hexagonal rule). Default "github" keeps every live daemon byte-identical.
+    # (CLAUDE.md hexagonal rule). Default is "native" (keel: KanbanMateUI-first, one-way GitHub
+    # mirror); "hybrid" (bidirectional reconcile) and "github" (legacy) stay valid for existing
+    # entries, which carry their backend explicitly in projects.json.
     board_reader: BoardReader
     board_writer: BoardWriter
     if config.board_backend in ("native", "hybrid"):

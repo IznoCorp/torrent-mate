@@ -113,6 +113,11 @@ def _root_with_clone(tmp_path: Path) -> Path:
                     "clone": str(tmp_path / "clone"),
                     "project_id": "PVT_x",
                     "status_field_node_id": "FLD",
+                    # keel step 5 (A): the registry default flipped to "native", which routes the
+                    # monitor board endpoint to the LOCAL board.json placement source. These tests
+                    # exercise the GitHub-snapshot cached path (they inject a _CountingSnapshotter),
+                    # so pin the github backend explicitly to keep testing THAT path.
+                    "board_backend": "github",
                 }
             }
         ),

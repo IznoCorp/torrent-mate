@@ -340,3 +340,161 @@ def test_main_refuses_privileged_port(tmp_path: Path) -> None:
 def test_main_refuses_without_secret(tmp_path: Path) -> None:
     with pytest.raises(WebhookSecretMissingError):
         main(root=tmp_path, geteuid=lambda: 1000)
+
+
+# ── keel step 5 (B): external-move ingestion through the full HTTP stack ──────
+
+_COLUMNS_YAML = """
+columns:
+  - key: Backlog
+    name: Backlog
+  - key: InProgress
+    name: In Progress
+"""
+
+
+class _IngestServerFixture:
+    """A running receiver wired with the REAL ``ingest_external_move`` + a real native project.
+
+    Sets up a native-backed registry entry with a clone ``columns.yml`` and a seeded ``board.json``
+    under the runtime root, so a Status-change webhook drives a real ``board.json`` write.
+    """
+
+    def __init__(self, root: Path) -> None:
+        from kanbanmate.adapters.store.fs_board import FsBoardStateStore, seed_board
+        from kanbanmate.http.webhook_ingest import ingest_external_move
+
+        self.root = root
+        self.nudged: list[Path] = []
+        # Clone with columns.yml so the ingest maps Status name → column key.
+        clone = root / "clone"
+        cols = clone / ".claude" / "kanban"
+        cols.mkdir(parents=True)
+        (cols / "columns.yml").write_text(_COLUMNS_YAML, encoding="utf-8")
+        _upsert_project(
+            _projects_path(root),
+            "PVT_A",
+            ProjectEntry(
+                repo="o/r",
+                clone=str(clone),
+                project_id="PVT_A",
+                status_field_node_id="PVTSSF_status",
+                board_backend="native",
+            ),
+        )
+        # N=1 → flat layout: board.json sits at the runtime root.
+        self.store = FsBoardStateStore(root)
+        seed_board(
+            self.store, ["Backlog", "InProgress"], {"PVTI_1": "Backlog"}, {"Backlog": ["PVTI_1"]}
+        )
+        config = WebhookConfig(root=root, secret=_SECRET, host="127.0.0.1", port=0)
+        self.server = build_server(config, nudge=self.nudged.append, ingest=ingest_external_move)
+        self.port = self.server.server_address[1]
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+
+    def post(self, body: bytes, *, sign: bool = True) -> tuple[int, bytes]:
+        headers = {"Content-Type": "application/json", "X-GitHub-Event": "projects_v2_item"}
+        if sign:
+            headers["X-Hub-Signature-256"] = _sign(body)
+        conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
+        try:
+            conn.request("POST", "/webhook", body=body, headers=headers)
+            resp = conn.getresponse()
+            return resp.status, resp.read()
+        finally:
+            conn.close()
+
+    def close(self) -> None:
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join(timeout=5)
+
+
+def _status_payload(to_name: str) -> bytes:
+    return json.dumps(
+        {
+            "action": "edited",
+            "projects_v2_item": {"project_node_id": "PVT_A", "node_id": "PVTI_1"},
+            "changes": {
+                "field_value": {
+                    "field_node_id": "PVTSSF_status",
+                    "field_type": "single_select",
+                    "to": {"name": to_name},
+                }
+            },
+        }
+    ).encode()
+
+
+@pytest.fixture
+def ingest_server(tmp_path: Path):  # type: ignore[no-untyped-def]
+    fix = _IngestServerFixture(tmp_path)
+    yield fix
+    fix.close()
+
+
+def test_external_drag_adopts_into_board_and_nudges(ingest_server: _IngestServerFixture) -> None:
+    """A projects_v2_item Status change to a NEW column adopts into board.json AND nudges."""
+    status, body = ingest_server.post(_status_payload("In Progress"))
+    assert status == 202
+    assert b"adopted" in body
+    assert ingest_server.store.load()["placement"]["PVTI_1"] == "InProgress"
+    assert ingest_server.nudged == [ingest_server.root]
+
+
+def test_self_echo_dropped_but_still_nudges(ingest_server: _IngestServerFixture) -> None:
+    """A Status equal to the current native placement (our own mirror echo) is DROPPED, not adopted.
+
+    The placement is unchanged and the version is not bumped (no false adoption), but the receiver
+    still nudges a managed project (a harmless no-op diff — preserves the no-lost-trigger contract).
+    """
+    version_before = ingest_server.store.load()["version"]
+    # board.json already has PVTI_1 in Backlog; GitHub reports Backlog → self-echo.
+    status, body = ingest_server.post(_status_payload("Backlog"))
+    assert status == 202
+    assert b"echo_dropped" in body
+    after = ingest_server.store.load()
+    assert after["placement"]["PVTI_1"] == "Backlog"
+    assert after["version"] == version_before
+    assert ingest_server.nudged == [ingest_server.root]
+
+
+def test_ingest_requires_valid_hmac(ingest_server: _IngestServerFixture) -> None:
+    """A bad signature → 401 with NO ingest and NO nudge (HMAC verified FIRST, before any write)."""
+    body = _status_payload("In Progress")
+    conn = HTTPConnection("127.0.0.1", ingest_server.port, timeout=5)
+    try:
+        conn.request(
+            "POST",
+            "/webhook",
+            body=body,
+            headers={
+                "Content-Type": "application/json",
+                "X-GitHub-Event": "projects_v2_item",
+                "X-Hub-Signature-256": "sha256=deadbeef",
+            },
+        )
+        resp = conn.getresponse()
+        status = resp.status
+        resp.read()
+    finally:
+        conn.close()
+    assert status == 401
+    # Placement untouched and no nudge (the unsigned request never reached the ingest).
+    assert ingest_server.store.load()["placement"]["PVTI_1"] == "Backlog"
+    assert ingest_server.nudged == []
+
+
+def test_no_status_change_event_nudges_without_ingest(
+    ingest_server: _IngestServerFixture,
+) -> None:
+    """A managed-project event with no Status change still nudges (today's nudge-only path)."""
+    body = json.dumps(
+        {"action": "edited", "projects_v2_item": {"project_node_id": "PVT_A", "node_id": "PVTI_1"}}
+    ).encode()
+    status, resp_body = ingest_server.post(body)
+    assert status == 202
+    assert b"no_status" in resp_body
+    assert ingest_server.store.load()["placement"]["PVTI_1"] == "Backlog"
+    assert ingest_server.nudged == [ingest_server.root]

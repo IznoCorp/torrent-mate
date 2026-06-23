@@ -248,21 +248,22 @@ def test_init_registers_project_keyed_by_node_id(tmp_path: Path) -> None:
     assert record["option_map"]["Backlog"] == "opt_0"
 
 
-def test_init_creates_hybrid_board_backend(tmp_path: Path) -> None:
-    """A freshly-init'd project defaults to the native ``hybrid`` board backend.
+def test_init_creates_native_board_backend(tmp_path: Path) -> None:
+    """A freshly-init'd project defaults to the native ONE-WAY board backend (keel step 5 A).
 
-    Operator rule (2026-06-23): every NEW kanban must be ``hybrid`` like kanban-mate, so the
-    KanbanMateUI Tableau works out of the box (the native board endpoints require a native-backed
-    project). ``init`` therefore writes ``board_backend="hybrid"`` explicitly — both the returned
-    entry and the persisted ``projects.json`` record carry it. The dataclass default + load-fallback
-    stay ``"github"`` so a legacy entry WITHOUT the key is still read as ``github`` (byte-identical),
-    proven by ``test_load_registry_board_backend_back_compat``.
+    Operator rule: every NEW kanban created by ``kanban init`` must be on the new system by
+    construction — ``board_backend="native"`` (native store is authority, GitHub mirrors
+    native→github; KanbanMateUI is the PRIMARY surface, GitHub the SECONDARY). ``init`` writes it
+    explicitly — both the returned entry and the persisted ``projects.json`` record carry it. The
+    dataclass default + load-fallback now also resolve to ``"native"`` so a key-less entry is on the
+    new system; the live (explicit) entries are untouched, proven by
+    ``test_load_registry_board_backend_back_compat``.
     """
     _seeder, entry = _run_init(tmp_path)
-    assert entry.board_backend == "hybrid"
+    assert entry.board_backend == "native"
 
     data = json.loads((tmp_path / "kanban" / "projects.json").read_text(encoding="utf-8"))
-    assert data["PVT_NEW"]["board_backend"] == "hybrid"
+    assert data["PVT_NEW"]["board_backend"] == "native"
 
 
 def test_init_is_idempotent_on_rerun(tmp_path: Path) -> None:
@@ -631,7 +632,8 @@ def test_init_runs_ensure_clone_before_columns_yml_with_tokenless_url(tmp_path: 
     assert columns_yml.exists()
 
 
-def test_project_entry_board_backend_defaults_to_github() -> None:
+def test_project_entry_board_backend_defaults_to_native() -> None:
+    """The ``ProjectEntry`` dataclass default flipped to ``"native"`` (keel step 5 A)."""
     from kanbanmate.cli.init import ProjectEntry
 
     entry = ProjectEntry(
@@ -640,11 +642,17 @@ def test_project_entry_board_backend_defaults_to_github() -> None:
         project_id="pid",
         status_field_node_id="sfid",
     )
-    assert entry.board_backend == "github"
+    assert entry.board_backend == "native"
 
 
 def test_load_registry_board_backend_back_compat(tmp_path: Path) -> None:
-    """An OLD-shaped projects.json without board_backend loads with default 'github'."""
+    """A key-less projects.json entry loads with the flipped default 'native' (keel step 5 A).
+
+    The default-only change: a registry entry written WITHOUT the ``board_backend`` key now resolves
+    to ``"native"`` (the new system) rather than the old ``"github"``. The live (explicit) entries
+    are untouched — they carry their own value, proven by ``test_load_registry_board_backend_explicit``
+    and ``test_load_registry_board_backend_hybrid_still_valid``.
+    """
     import json
     from kanbanmate.cli.init import _load_registry
 
@@ -657,6 +665,60 @@ def test_load_registry_board_backend_back_compat(tmp_path: Path) -> None:
                     "clone": "/tmp/c",
                     "project_id": "pid",
                     "status_field_node_id": "sfid",
+                }
+            }
+        )
+    )
+    reg = _load_registry(path)
+    assert reg["pid"].board_backend == "native"
+
+
+def test_load_registry_board_backend_hybrid_still_valid(tmp_path: Path) -> None:
+    """An explicit ``board_backend="hybrid"`` (a deployed board) still loads unchanged (keel step 5 A).
+
+    ``"hybrid"`` remains a VALID value until keel step 6 retires it, so the deployed hybrid boards
+    keep working until their data-flip — the default change must not coerce them.
+    """
+    import json
+    from kanbanmate.cli.init import _load_registry
+
+    path = tmp_path / "projects.json"
+    path.write_text(
+        json.dumps(
+            {
+                "pid": {
+                    "repo": "o/r",
+                    "clone": "/tmp/c",
+                    "project_id": "pid",
+                    "status_field_node_id": "sfid",
+                    "board_backend": "hybrid",
+                }
+            }
+        )
+    )
+    reg = _load_registry(path)
+    assert reg["pid"].board_backend == "hybrid"
+
+
+def test_load_registry_board_backend_github_still_valid(tmp_path: Path) -> None:
+    """An explicit ``board_backend="github"`` still loads as github (keel step 5 A).
+
+    The legacy forge-authority value stays accepted, so an operator who pinned a board to
+    ``"github"`` keeps it — only the DEFAULT (a key-less entry) flipped to native.
+    """
+    import json
+    from kanbanmate.cli.init import _load_registry
+
+    path = tmp_path / "projects.json"
+    path.write_text(
+        json.dumps(
+            {
+                "pid": {
+                    "repo": "o/r",
+                    "clone": "/tmp/c",
+                    "project_id": "pid",
+                    "status_field_node_id": "sfid",
+                    "board_backend": "github",
                 }
             }
         )

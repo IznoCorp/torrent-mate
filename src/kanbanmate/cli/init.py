@@ -156,10 +156,15 @@ class ProjectEntry:
     enabled: bool = True
     ingress: str = "webhook"
     token_ref: str = ""
-    # anchor §9: the per-project board backend switch — ``"github"`` (default) keeps all
-    # existing projects byte-identical until an explicit opt-in. ``"native"`` routes the
-    # daemon's board slots to ``NativeBoardBackend`` (anchor §4.2).
-    board_backend: str = "github"
+    # anchor §9 / keel step 5 (A): the per-project board backend switch. The DEFAULT flipped to
+    # ``"native"`` (one-way: native store is authority, GitHub mirrors native→github) so EVERY
+    # FUTURE board created by ``kanban init`` is on the new system by construction. ``"hybrid"``
+    # (bidirectional reconcile) remains a VALID value for now — keel step 6 retires it — so the
+    # deployed hybrid boards keep working until their data-flip. ``"github"`` (the legacy forge
+    # authority) is still accepted. A legacy ``projects.json`` entry carries its OWN
+    # ``board_backend`` (the live entries are explicit), so this default-only change leaves them
+    # untouched; the load fallback below matches this default so a key-less entry resolves native.
+    board_backend: str = "native"
     # anchor §5: the one-way native→GitHub mirror. ``True`` (default) keeps the GitHub Status in
     # sync with native placement; ``False`` disables it (native is then the sole authority and the
     # GitHub board drifts). Threaded to BOTH the daemon wiring and the HTTP move endpoints so the
@@ -259,7 +264,10 @@ def _load_registry(path: Path) -> dict[str, ProjectEntry]:
             enabled=bool(val.get("enabled", True)),
             ingress=val.get("ingress", "webhook"),
             token_ref=val.get("token_ref", ""),
-            board_backend=val.get("board_backend", "github"),
+            # keel step 5 (A): the load fallback matches the dataclass default ("native") so a
+            # key-less entry resolves to the new system. The live entries carry an explicit value,
+            # so this is a default-only change — they load byte-identical to before.
+            board_backend=val.get("board_backend", "native"),
             board_mirror=bool(val.get("board_mirror", True)),
         )
         for key, val in raw.items()
@@ -561,13 +569,14 @@ def init(
         # their defaults — an operator edits projects.json for per-org tokens / pausing a project.
         org=org,
         ingress=ingress,
-        # Operator rule (2026-06-23): every NEW kanban defaults to the native ``hybrid`` backend
-        # (like kanban-mate), so the KanbanMateUI Tableau works out of the box — the native board
-        # endpoints require a native-backed project. This is an EXPLICIT write (not the dataclass
-        # default, which stays "github"): a brand-new board has no cards, so the native store seeds
-        # lazily as an empty doc and the GitHub mirror keeps Status in sync. The dataclass default +
-        # load-fallback remain "github" so a legacy projects.json WITHOUT the key is byte-identical.
-        board_backend="hybrid",
+        # keel step 5 (A) — operator rule: every NEW kanban defaults to the native ONE-WAY backend,
+        # so the KanbanMateUI Tableau (the PRIMARY surface) works out of the box and GitHub becomes
+        # the SECONDARY mirror (native → github). This matches the dataclass default; it is written
+        # explicitly so a fresh ``projects.json`` records the value rather than relying on the
+        # load-fallback. A brand-new board has no cards, so the native store seeds lazily as an empty
+        # doc and the one-way mirror keeps the GitHub Status in sync. ``"hybrid"`` stays a valid
+        # value (keel step 6 retires it); the deployed hybrid boards keep working until their flip.
+        board_backend="native",
     )
     _upsert_project(_projects_path(resolved_root), project_id, entry)
     # 5b. ingress-multiproject §4.3: seed the webhook secret skeleton (0600) when ingress=webhook and

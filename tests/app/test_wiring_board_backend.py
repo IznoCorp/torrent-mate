@@ -26,7 +26,8 @@ def test_wiring_config_has_board_backend_default() -> None:
         clone_dir="/tmp/clone",
         columns_yaml="columns: []",
     )
-    assert wc.board_backend == "github"
+    # keel step 5 (A): the WiringConfig default flipped to "native" (one-way native authority).
+    assert wc.board_backend == "native"
     assert wc.board_mirror is True
 
 
@@ -56,8 +57,12 @@ def test_build_deps_native_backend_routes_to_native(tmp_path: pathlib.Path) -> N
     assert isinstance(deps.board_writer, NativeBoardBackend)
 
 
-def test_build_deps_github_default_byte_identical(tmp_path: pathlib.Path) -> None:
-    """build_deps with board_backend='github' (default) wires GithubClient — back-compat."""
+def test_build_deps_github_backend_still_routes_to_github(tmp_path: pathlib.Path) -> None:
+    """build_deps with an EXPLICIT board_backend='github' wires GithubClient — the legacy path.
+
+    After keel step 5 (A) the DEFAULT is native, but ``"github"`` stays a valid explicit value so a
+    board pinned to the legacy forge-authority backend keeps wiring the plain GithubClient.
+    """
     from kanbanmate.adapters.github.client import GithubClient
     from kanbanmate.app.wiring import WiringConfig, build_deps
 
@@ -74,11 +79,38 @@ def test_build_deps_github_default_byte_identical(tmp_path: pathlib.Path) -> Non
         clone_dir=str(clone),
         columns_yaml=_MINIMAL_COLUMNS_YAML,
         kanban_root=str(root),
-        # NO board_backend set → defaults to "github"
+        board_backend="github",  # EXPLICIT legacy backend (the default is now native)
     )
     deps = build_deps(wc)
     assert isinstance(deps.board_reader, GithubClient)
     assert isinstance(deps.board_writer, GithubClient)
+
+
+def test_build_deps_default_routes_to_native(tmp_path: pathlib.Path) -> None:
+    """A default WiringConfig (no board_backend) now wires NativeBoardBackend (keel step 5 A)."""
+    from kanbanmate.adapters.board.native import NativeBoardBackend
+    from kanbanmate.app.wiring import WiringConfig, build_deps
+
+    clone = tmp_path / "clone"
+    clone.mkdir()
+    root = tmp_path / "root"
+    root.mkdir()
+    (root / "token").write_text("tok")
+
+    wc = WiringConfig(
+        token="tok",
+        project_id="pid",
+        repo="o/r",
+        clone_dir=str(clone),
+        columns_yaml=_MINIMAL_COLUMNS_YAML,
+        kanban_root=str(root),
+        # NO board_backend set → defaults to "native" (one-way native authority)
+    )
+    deps = build_deps(wc)
+    assert isinstance(deps.board_reader, NativeBoardBackend)
+    assert isinstance(deps.board_writer, NativeBoardBackend)
+    # One-way default: not hybrid (no GitHub→native reconcile) unless explicitly hybrid.
+    assert deps.board_reader._hybrid is False
 
 
 def test_wiring_for_entry_threads_board_backend(tmp_path: pathlib.Path) -> None:

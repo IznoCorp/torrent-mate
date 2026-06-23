@@ -8,4 +8,4 @@ front-door — no GitHub App) nudges the daemon for sub-second reaction. There i
 external workflow engine.
 """
 
-__version__ = "0.19.6"
+__version__ = "0.19.7"

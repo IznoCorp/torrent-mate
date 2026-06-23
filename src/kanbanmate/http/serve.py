@@ -43,6 +43,7 @@ from pathlib import Path
 from typing import Any
 
 from kanbanmate.core.webhook_sig import SIGNATURE_HEADER, verify_signature
+from kanbanmate.http.webhook_ingest import IngestOutcome, ingest_external_move  # keel step 5 (B)
 
 logger = logging.getLogger(__name__)
 
@@ -192,22 +193,23 @@ def project_id_from_payload(payload: dict[str, Any]) -> str | None:
     return top if isinstance(top, str) and top else None
 
 
-def _resolve_nudge_root(config: WebhookConfig, project_id: str | None) -> Path | None:
-    """Return the runtime root to nudge for ``project_id``, or ``None`` for an unmanaged project.
+def _resolve_entry(config: WebhookConfig, project_id: str | None) -> Any | None:
+    """Return the registry entry for ``project_id``, or ``None`` for an unmanaged/absent project.
 
     Resolves the registry entry via :func:`~kanbanmate.core.registry_resolve.resolve_by_project_id`.
     An UNKNOWN project (one this daemon does not manage) → ``None`` (the caller responds ``202`` and
-    does NOT nudge — we never 4xx a board we do not manage, so GitHub keeps the hook enabled). A
-    KNOWN project → the runtime ``root`` (the nudge sentinel is DAEMON-LEVEL — one daemon, one wake —
-    so any managed project's event wakes the single sweep, which re-probes all boards cheaply and
-    snapshots only the changed one).
+    does NOT nudge / ingest — we never 4xx a board we do not manage, so GitHub keeps the hook
+    enabled). A KNOWN project → its :class:`~kanbanmate.cli.init.ProjectEntry`, which the caller uses
+    both to INGEST the external Status into ``board.json`` (keel step 5 B) and to nudge the daemon
+    (the nudge sentinel is DAEMON-LEVEL — one daemon, one wake — so any managed project's event wakes
+    the single sweep, which re-probes all boards cheaply and snapshots only the changed one).
 
     Args:
         config: The receiver config (carries the runtime root + the registry location).
         project_id: The project node id extracted from the payload (``None`` when absent).
 
     Returns:
-        The runtime root to nudge, or ``None`` when the project is unknown / absent.
+        The resolved registry entry, or ``None`` when the project is unknown / absent.
     """
     if project_id is None:
         return None
@@ -218,8 +220,7 @@ def _resolve_nudge_root(config: WebhookConfig, project_id: str | None) -> Path |
 
     projects_path = _projects_path(config.root)
     registry = _load_registry(projects_path) if projects_path.exists() else {}
-    entry = resolve_by_project_id(registry, project_id)
-    return config.root if entry is not None else None
+    return resolve_by_project_id(registry, project_id)
 
 
 def nudge_root(root: Path) -> None:
@@ -241,17 +242,22 @@ def make_handler(
     config: WebhookConfig,
     *,
     nudge: Callable[[Path], None] = nudge_root,
+    ingest: Callable[[Path, Any, dict[str, Any]], IngestOutcome] = ingest_external_move,
 ) -> type[BaseHTTPRequestHandler]:
     """Build the :class:`BaseHTTPRequestHandler` subclass closed over ``config`` (testable factory).
 
     The handler is defined inside this factory so it captures the resolved ``config`` + the injected
-    ``nudge`` callable WITHOUT module-global state — so tests drive the handler directly (a fake
-    request) with a fake nudge, and a real server gets the production nudge. All hardening
+    ``nudge`` / ``ingest`` callables WITHOUT module-global state — so tests drive the handler directly
+    (a fake request) with fakes, and a real server gets the production callables. All hardening
     (bounded read, HMAC-first, method/path allow-list, fixed responses) lives here.
 
     Args:
         config: The receiver config (root, secret, host, port).
         nudge: The daemon-wake callable, injected for tests; defaults to :func:`nudge_root`.
+        ingest: The external-move ingestion callable (keel step 5 B), injected for tests; defaults
+            to :func:`~kanbanmate.http.webhook_ingest.ingest_external_move`. Called with the runtime
+            root, the resolved registry entry, and the verified payload; its
+            :class:`~kanbanmate.http.webhook_ingest.IngestOutcome` is reflected in the 202 body.
 
     Returns:
         A ``BaseHTTPRequestHandler`` subclass ready to hand to a :class:`ThreadingHTTPServer`.
@@ -381,21 +387,31 @@ def make_handler(
                 return
 
             project_id = project_id_from_payload(payload)
-            target_root = _resolve_nudge_root(config, project_id)
-            if target_root is None:
+            entry = _resolve_entry(config, project_id)
+            if entry is None:
                 # Unknown / unmanaged project (or no project id) → accept + no-op. Never 4xx a board
                 # we do not manage, so GitHub keeps the hook enabled (DESIGN §4.4).
                 self._send(202, "accepted (unmanaged project)")
                 return
 
-            # Bump the daemon-wake nudge so the next sweep reconciles the changed board (<1 s).
+            # keel step 5 (B): ingest an EXTERNAL GitHub drag into board.json BEFORE nudging, so the
+            # daemon's diff fires the launch. Echo-safe (an incoming Status equal to the current
+            # native placement — our own mirror echo — is dropped) and flock-safe (the FsBoardStateStore
+            # lock). Fail-soft: any ingest failure is an outcome, never an exception, so we always fall
+            # through to the nudge (the safety sweep reconciles). A non-native project / a non-Status
+            # event ingests nothing and degrades to today's nudge-only behaviour.
+            outcome = ingest(config.root, entry, payload)
+
+            # Bump the daemon-wake nudge so the next sweep reconciles the changed board (<1 s). Always
+            # nudge a managed project (even an echo-drop / no-status): the diff is a harmless no-op
+            # when board.json did not change, preserving today's no-lost-trigger contract.
             # Fail-soft: nudge_daemon swallows its own errors; wrap defensively so a nudge failure
             # still returns 202 (the slow safety sweep is the always-on fallback).
             try:
-                nudge(target_root)
+                nudge(config.root)
             except Exception:  # noqa: BLE001 — a nudge failure degrades to the slow fallback sweep
                 logger.warning("kanban serve: nudge failed; the safety sweep will reconcile")
-            self._send(202, "accepted")
+            self._send(202, f"accepted ({outcome.value})")
 
         def _read_bounded_body(self) -> bytes | None:
             """Read the request body within the size + transfer-encoding bounds, or send an error.
@@ -434,6 +450,7 @@ def build_server(
     config: WebhookConfig,
     *,
     nudge: Callable[[Path], None] = nudge_root,
+    ingest: Callable[[Path, Any, dict[str, Any]], IngestOutcome] = ingest_external_move,
 ) -> ThreadingHTTPServer:
     """Build (do NOT start) the hardened :class:`ThreadingHTTPServer` for the webhook receiver.
 
@@ -446,11 +463,13 @@ def build_server(
     Args:
         config: The receiver config (host/port/root/secret).
         nudge: The daemon-wake callable, injected for tests; defaults to :func:`nudge_root`.
+        ingest: The external-move ingestion callable (keel step 5 B), injected for tests; defaults
+            to :func:`~kanbanmate.http.webhook_ingest.ingest_external_move`.
 
     Returns:
         A ready-but-not-serving :class:`ThreadingHTTPServer`.
     """
-    handler_cls = make_handler(config, nudge=nudge)
+    handler_cls = make_handler(config, nudge=nudge, ingest=ingest)
     server = ThreadingHTTPServer((config.host, config.port), handler_cls)
     # The accept-poll timeout for ``handle_request`` (the per-CONNECTION read deadline that actually
     # stops a slow-loris lives in the handler's ``setup`` on the accepted socket, #2).
