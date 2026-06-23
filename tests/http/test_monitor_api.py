@@ -180,6 +180,7 @@ def test_ticket_detail_endpoint(tmp_path: Path) -> None:
                 number=number,
                 title="Build it",
                 body="**codename**: monitoring\nbody",
+                labels=(),  # real IssueRef always carries labels (defaults to ())
             )
 
         def issue_context(self, number: int) -> Any:
@@ -201,6 +202,49 @@ def test_ticket_detail_endpoint(tmp_path: Path) -> None:
     assert d["column_key"] == "InProgress"
     assert d["markers"]["codename"] == "monitoring"
     assert d["comments"] == ["hi"]
+    for k in ("monitor_store", "monitor_snapshotter", "monitor_github"):
+        delattr(api_mod.app.state, k)
+    mon_mod._BOARD_CACHE.clear()
+
+
+def test_ticket_detail_exposes_track_and_labels(tmp_path: Path) -> None:
+    """The detail GET surfaces the ticket's ``track`` (from a ``track:*`` label) + raw labels."""
+    import kanbanmate.http.config_api as api_mod
+    import kanbanmate.http.monitor_routes as mon_mod
+    from kanbanmate.core.domain import BoardSnapshot, Ticket
+
+    snap = BoardSnapshot(
+        tickets=(Ticket(item_id="i7", issue_number=7, title="Build it", column_key="InProgress"),),
+        fetched_at=0.0,
+    )
+
+    class _FakeGH:
+        def fetch_issue(self, number: int) -> Any:
+            return SimpleNamespace(
+                node_id="n",
+                number=number,
+                title="Build it",
+                body="**codename**: monitoring\nbody",
+                labels=("bug", "track:lite"),
+            )
+
+        def issue_context(self, number: int) -> Any:
+            return SimpleNamespace(
+                comments=(),
+                comment_dates=(),
+                linked_issue_body=None,
+            )
+
+    api_mod.app.state.kanban_root = _root_with_clone(tmp_path)
+    api_mod.app.state.auth = None
+    api_mod.app.state.monitor_store = _FakeStore([])
+    api_mod.app.state.monitor_snapshotter = _CountingSnapshotter(snap)
+    api_mod.app.state.monitor_github = _FakeGH()
+    mon_mod._BOARD_CACHE.clear()
+    with TestClient(api_mod.app) as client:
+        d = client.get("/api/monitor/ticket/7").json()
+    assert d["track"] == "lite"
+    assert d["labels"] == ["bug", "track:lite"]
     for k in ("monitor_store", "monitor_snapshotter", "monitor_github"):
         delattr(api_mod.app.state, k)
     mon_mod._BOARD_CACHE.clear()
@@ -547,6 +591,91 @@ def test_launch_endpoint_rejects_merge_profile(tmp_path: Path) -> None:
     assert resp.status_code == 400
     assert store.enq == []
     del api_mod.app.state.monitor_store
+
+
+# ---------------------------------------------------------------------------
+# POST /api/monitor/ticket/{number}/track — set/clear the track:* override
+# GET  /api/monitor/board/tracks — read the board's track:* overrides
+# (skiff Task 14).
+# ---------------------------------------------------------------------------
+
+
+class _FakeTrackGithub:
+    """Spy GH for the track endpoints: records set_issue_track_label calls; can raise ValueError."""
+
+    def __init__(self, *, tracks: dict[int, str] | None = None) -> None:
+        self.set_calls: list[tuple[int, str | None]] = []
+        self._tracks = tracks or {}
+
+    def set_issue_track_label(self, number: int, track_value: str | None) -> None:
+        # Mirror the real client: an unknown lane is a ValueError BEFORE any write.
+        from kanbanmate.core.transitions_defaults import TRACK_VALUES
+
+        if track_value is not None and track_value not in TRACK_VALUES:
+            raise ValueError(f"unknown track value {track_value!r}")
+        self.set_calls.append((number, track_value))
+
+    def board_item_tracks(self) -> dict[int, str]:
+        return dict(self._tracks)
+
+
+def test_set_track_endpoint(tmp_path: Path) -> None:
+    import kanbanmate.http.config_api as api_mod
+
+    api_mod.app.state.kanban_root = _single_project_root(tmp_path)
+    api_mod.app.state.auth = None
+    gh = _FakeTrackGithub()
+    api_mod.app.state.monitor_github = gh
+    with TestClient(api_mod.app) as client:
+        resp = client.post("/api/monitor/ticket/7/track?project=PVT_x", json={"track": "express"})
+    assert resp.status_code == 200
+    assert resp.json() == {"ok": True}
+    assert gh.set_calls == [(7, "express")]
+    del api_mod.app.state.monitor_github
+
+
+def test_set_track_endpoint_clears_with_null(tmp_path: Path) -> None:
+    import kanbanmate.http.config_api as api_mod
+
+    api_mod.app.state.kanban_root = _single_project_root(tmp_path)
+    api_mod.app.state.auth = None
+    gh = _FakeTrackGithub()
+    api_mod.app.state.monitor_github = gh
+    with TestClient(api_mod.app) as client:
+        resp = client.post("/api/monitor/ticket/7/track?project=PVT_x", json={"track": None})
+    assert resp.status_code == 200
+    assert gh.set_calls == [(7, None)]  # null clears the override
+    del api_mod.app.state.monitor_github
+
+
+def test_set_track_endpoint_400_on_invalid_value(tmp_path: Path) -> None:
+    """An unknown lane → the client raises ValueError → the handler maps it to 400."""
+    import kanbanmate.http.config_api as api_mod
+
+    api_mod.app.state.kanban_root = _single_project_root(tmp_path)
+    api_mod.app.state.auth = None
+    gh = _FakeTrackGithub()
+    api_mod.app.state.monitor_github = gh
+    with TestClient(api_mod.app) as client:
+        resp = client.post("/api/monitor/ticket/7/track?project=PVT_x", json={"track": "bogus"})
+    assert resp.status_code == 400
+    assert gh.set_calls == []  # nothing was written
+    del api_mod.app.state.monitor_github
+
+
+def test_board_tracks_endpoint(tmp_path: Path) -> None:
+    import kanbanmate.http.config_api as api_mod
+
+    api_mod.app.state.kanban_root = _single_project_root(tmp_path)
+    api_mod.app.state.auth = None
+    gh = _FakeTrackGithub(tracks={7: "full", 9: "lite"})
+    api_mod.app.state.monitor_github = gh
+    with TestClient(api_mod.app) as client:
+        resp = client.get("/api/monitor/board/tracks?project=PVT_x")
+    assert resp.status_code == 200
+    # JSON object keys are strings on the wire; the handler stringifies the int issue numbers.
+    assert resp.json() == {"tracks": {"7": "full", "9": "lite"}}
+    del api_mod.app.state.monitor_github
 
 
 def test_move_targets_flags_mapping_and_fallback(tmp_path: Path) -> None:

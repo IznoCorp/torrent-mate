@@ -21,6 +21,7 @@ from typing import Any
 
 from kanbanmate.adapters.github import _health, _parsers, _queries, _rest
 from kanbanmate.adapters.github._parsers import GitHubHTTPError, raise_for_errors
+from kanbanmate.adapters.github.client_labels import GithubLabelsMixin
 from kanbanmate.adapters.github._transport import (
     GraphQLTransport,
     RestHeadersTransport,
@@ -78,7 +79,7 @@ def _to_github_status(health: str) -> str:
     return _HEALTH_TO_GITHUB_STATUS.get(health, health)
 
 
-class GithubClient:
+class GithubClient(GithubLabelsMixin):
     """GitHub Projects v2 board adapter — the single client behind every board port.
 
     One instance satisfies the FULL board surface (DESIGN §3.3 wires it into all slots):
@@ -740,31 +741,6 @@ class GithubClient:
         option_map = _parsers.parse_updated_field_options(updated) or option_map
         return {col: option_map[col] for col in columns}
 
-    def ensure_labels(self, repo: str, labels: list[str]) -> dict[str, str]:
-        """Idempotently ensure ``labels`` exist on ``repo``; return ``{name: id}``.
-
-        Existing labels are reused; missing ones are created (a neutral grey
-        ``ededed``). The returned map covers exactly the requested ``labels``.
-
-        Args:
-            repo: The ``owner/name`` repository slug.
-            labels: The label names to find-or-create.
-
-        Returns:
-            A ``{label_name: label_id}`` map for every requested label.
-        """
-        owner, name = repo.split("/", 1)
-        repo_node, existing = _parsers.parse_repo(self._graphql(_queries.repo_id(owner, name)))
-        result = dict(existing)
-        for label in labels:
-            if label in result:
-                continue
-            node_id, label_name = _parsers.parse_created_label(
-                self._graphql(_queries.create_label(repo_node, label, "ededed"))
-            )
-            result[label_name] = node_id
-        return {label: result[label] for label in labels}
-
     def link_to_repo(self, project_id: str, repo: str) -> None:
         """Link Project v2 ``project_id`` to ``repo`` (``owner/name``).
 
@@ -863,12 +839,17 @@ class GithubClient:
         path = f"/repos/{self._repo}/issues/{issue_number}"
         raw = self._rest("GET", path, None)
         data: dict[str, Any] = raw if isinstance(raw, dict) else {}
+        # The REST issue payload carries a ``labels`` array; carry its names so the
+        # skiff fast-track override (``set_issue_track_label``) can read the current
+        # ``track:*`` labels. ``labels`` may be absent (older/partial payload) → "".
+        labels = tuple(str(label["name"]) for label in (data.get("labels") or []))
         return IssueRef(
             node_id=str(data.get("node_id", "")),
             number=int(data.get("number", issue_number)),
             title=str(data.get("title", "")),
             # GitHub returns ``body: null`` for an empty body — normalise to "".
             body=str(data.get("body") or ""),
+            labels=labels,
         )
 
     def update_issue_body(self, issue_node_id: str, body: str) -> None:

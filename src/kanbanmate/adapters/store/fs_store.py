@@ -121,6 +121,9 @@ class FsStateStore(
         (self.root / "advances").mkdir(parents=True, exist_ok=True)
         # The agent-done breadcrumb directory (#1); one marker per issue.
         (self.root / "done").mkdir(parents=True, exist_ok=True)
+        # The agent-route breadcrumb directory (skiff fast-track); one marker per issue holding
+        # ``{"ts", "lane"}`` — the lane the triage stage chose, read by the session-end backstop.
+        (self.root / "route").mkdir(parents=True, exist_ok=True)
         # The reaper done-exit attempt-counter directory (firm-exit); one marker per issue holding
         # ``{"n": <int>}`` — the bounded-retry count before the reaper escalates to kill_repl_process.
         (self.root / "end_attempts").mkdir(parents=True, exist_ok=True)
@@ -295,6 +298,8 @@ class FsStateStore(
           * ``slots/ticket-<issue>``       — concurrency-cap slot marker
           * ``advances/<issue>``           — agent-advance breadcrumb
           * ``done/<issue>``               — agent-done breadcrumb (#1)
+          * ``route/<issue>``              — agent-route breadcrumb (skiff
+                                             fast-track lane marker)
           * ``end_attempts/<issue>``       — reaper done-exit attempt counter
                                              (firm-exit) — reset so a future agent
                                              on this issue starts its done-exit
@@ -361,6 +366,11 @@ class FsStateStore(
         # section (NOT under keep_budgets) so it is purged on BOTH reaper keep_budgets=True and
         # Cancel keep_budgets=False teardowns.
         self._unlink(self._done_path(issue_number))
+        # Purge the route breadcrumb too (idempotent / no-raise): a torn-down ticket must leave no
+        # stale lane marker that a later session-end could misread (skiff). ALWAYS-removed (NOT under
+        # keep_budgets) so it is dropped on BOTH the reaper keep_budgets=True and the Cancel
+        # keep_budgets=False teardowns.
+        self._unlink(self._route_path(issue_number))
         # Purge the reaper done-exit attempt counter too (firm-exit): teardown must leave no stale
         # counter so a future agent on the same ticket starts its done-exit budget clean. ALWAYS-
         # removed (NOT under keep_budgets) — it is a RUNTIME marker, not a per-issue budget, so it
@@ -519,11 +529,12 @@ class FsStateStore(
         with (log_dir / "dispatch.jsonl").open("a", encoding="utf-8") as fh:
             fh.write(line + "\n")
 
-    # The agent-advance (✅/⚠️ discriminator, DESIGN §8.1.d) AND agent-done (Option-1 clean
-    # termination, #1) breadcrumbs live in :class:`AgentBreadcrumbsMixin` — a behaviour-preserving
-    # extraction that keeps this module under the 1000-LOC hard ceiling (mirroring the fs_intents /
-    # fs_status_state mixins). The methods + their TTL constants + issue-keyed path helpers
-    # (``_advance_path`` / ``_done_path``, used by :meth:`purge_ticket`) are provided by the mixin.
+    # The agent-advance (✅/⚠️ discriminator, DESIGN §8.1.d), agent-done (Option-1 clean termination,
+    # #1) AND agent-route (skiff fast-track lane) breadcrumbs live in :class:`AgentBreadcrumbsMixin`
+    # — a behaviour-preserving extraction that keeps this module under the 1000-LOC hard ceiling
+    # (mirroring the fs_intents / fs_status_state mixins). The methods + their TTL constants +
+    # issue-keyed path helpers (``_advance_path`` / ``_done_path`` / ``_route_path``, used by
+    # :meth:`purge_ticket`) are provided by the mixin.
 
     # ------------------------------------------------------------------
     # Adapter-specific: slot reservation (ported from PoC engine/cap.py)

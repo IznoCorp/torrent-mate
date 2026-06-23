@@ -164,6 +164,24 @@ class _FakeStore:
         """Unused by the read-only commands (done breadcrumb, #1)."""
         raise AssertionError("status/sessions must not clear done")
 
+    def record_agent_route(  # pragma: no cover - unused by read-only commands
+        self, issue_number: int, lane: str, *, now: float
+    ) -> None:
+        """Unused by the read-only commands (route breadcrumb, skiff)."""
+        raise AssertionError("status/sessions must not record routes")
+
+    def recent_agent_route(  # pragma: no cover - unused by read-only commands
+        self, issue_number: int, *, now: float
+    ) -> str:
+        """Unused by the read-only commands (route breadcrumb, skiff)."""
+        raise AssertionError("status/sessions must not read routes")
+
+    def clear_agent_route(  # pragma: no cover - unused by read-only commands
+        self, issue_number: int
+    ) -> None:
+        """Unused by the read-only commands (route breadcrumb, skiff)."""
+        raise AssertionError("status/sessions must not clear routes")
+
     def bump_end_attempt(  # pragma: no cover - unused by read-only commands
         self, issue_number: int
     ) -> int:

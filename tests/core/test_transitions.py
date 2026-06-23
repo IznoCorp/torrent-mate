@@ -523,15 +523,28 @@ def test_launch_targets_default_flow_matches_poc_prompt_destinations() -> None:
     from kanbanmate.core.transitions_defaults import default_transition_config
 
     targets = default_transition_config().launch_target_columns()
-    # Prompt-bearing rows in DEFAULT_TRANSITIONS:
-    # Backlog→Brainstorming, Brainstorming→Spec, Spec→Plan, ReadyToDev→PrepareFeature,
-    # PrepareFeature→InProgress, PRCI→InProgress, PRCI→Review, AND Review→Merge (the autonomous
-    # merge agent — operator decision). Plan→Planned and Planned→ReadyToDev are no-ops; the
-    # skip-to-Done edges + Merge→Done / Merge→Review + (*)→Cancel are no-ops.
+    # Prompt-bearing rows in DEFAULT_TRANSITIONS (skiff routing added the triage + lane-head edges):
+    # Backlog→Triage (classifier), Triage→Brainstorming (full lane head), Triage→Scope (lite lane
+    # head), Triage→PrepareFeature (express lane head), Scope→PrepareFeature, Brainstorming→Spec,
+    # Spec→Plan, ReadyToDev→PrepareFeature, PrepareFeature→InProgress, PRCI→InProgress, PRCI→Review,
+    # Review→InProgress (rework), AND Review→Merge (the autonomous merge agent — operator decision).
+    # Plan→ReadyToDev / ReadyToDev→Spec are no-ops; the skip-to-Done edges + Merge→Done / Merge→Review
+    # + (*)→Cancel are no-ops.
     assert targets == frozenset(
-        {"Brainstorming", "Spec", "Plan", "PrepareFeature", "InProgress", "Review", "Merge"}
+        {
+            "Triage",
+            "Brainstorming",
+            "Scope",
+            "Spec",
+            "Plan",
+            "PrepareFeature",
+            "InProgress",
+            "Review",
+            "Merge",
+        }
     )
-    # Merge is now a launch target — the Review→Merge autonomous merge agent (operator decision).
+    # Triage is now the first launch target (skiff); Merge is the Review→Merge autonomous merge agent.
+    assert "Triage" in targets
     assert "Merge" in targets
     # Done is never a launch target (the skip-to-Done edges + Merge→Done are no-ops).
     assert "Done" not in targets

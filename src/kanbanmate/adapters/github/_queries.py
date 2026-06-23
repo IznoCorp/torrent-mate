@@ -740,3 +740,99 @@ def add_item_to_project(project_id: str, content_id: str) -> dict[str, Any]:
     }
     """
     return {"query": query, "variables": {"projectId": project_id, "contentId": content_id}}
+
+
+# ---------------------------------------------------------------------------
+# skiff fast-track: read/write the ``track:*`` manual-override issue label.
+# The triage stage and the UI set ``track:full|lite|express`` on an issue to
+# force a lane; these builders add/remove the label on an issue node and read
+# every board item's track label in one paginated query (UI-only read).
+# ---------------------------------------------------------------------------
+
+
+def add_labels_to_issue(node_id: str, label_ids: list[str]) -> dict[str, Any]:
+    """Build the ``addLabelsToLabelable`` mutation (attach labels to an issue node).
+
+    Adds the given label node ids to the labelable (an Issue). GitHub treats
+    re-adding a label the issue already carries as a harmless no-op, so this is
+    safe to call idempotently (the skiff override re-applies the target track
+    label even when it is already present).
+
+    Args:
+        node_id: The labelable (Issue) global node id.
+        label_ids: The label node ids to attach.
+
+    Returns:
+        A GraphQL ``addLabelsToLabelable`` mutation payload.
+    """
+    query = """
+    mutation($labelableId: ID!, $labelIds: [ID!]!) {
+      addLabelsToLabelable(input: { labelableId: $labelableId, labelIds: $labelIds }) {
+        clientMutationId
+      }
+    }
+    """
+    return {"query": query, "variables": {"labelableId": node_id, "labelIds": label_ids}}
+
+
+def remove_labels_from_issue(node_id: str, label_ids: list[str]) -> dict[str, Any]:
+    """Build the ``removeLabelsFromLabelable`` mutation (detach labels from an issue node).
+
+    Removes the given label node ids from the labelable (an Issue). The skiff
+    override removes any stale ``track:*`` labels before adding the target so the
+    issue carries at most one track label.
+
+    Args:
+        node_id: The labelable (Issue) global node id.
+        label_ids: The label node ids to detach.
+
+    Returns:
+        A GraphQL ``removeLabelsFromLabelable`` mutation payload.
+    """
+    query = """
+    mutation($labelableId: ID!, $labelIds: [ID!]!) {
+      removeLabelsFromLabelable(input: { labelableId: $labelableId, labelIds: $labelIds }) {
+        clientMutationId
+      }
+    }
+    """
+    return {"query": query, "variables": {"labelableId": node_id, "labelIds": label_ids}}
+
+
+def project_item_labels(project_id: str, after: str | None = None) -> dict[str, Any]:
+    """Page through a project's items, reading each Issue's number + label names.
+
+    Backs the UI-only ``board_item_tracks`` read: it resolves which board cards
+    carry a ``track:*`` manual-override label without touching the daemon
+    snapshot (the daemon snapshot reads ``track`` off the issue body / labels on
+    its own hot path). Only Issue content carries a number + labels; draft / PR
+    items return an empty ``content`` and are skipped by the caller.
+
+    Args:
+        project_id: The ``ProjectV2`` node id whose items to read.
+        after: Optional ``endCursor`` for the next page.
+
+    Returns:
+        A GraphQL payload reading one page of the project's item issue numbers +
+        label names.
+    """
+    query = """
+    query($pid: ID!, $after: String) {
+      node(id: $pid) {
+        ... on ProjectV2 {
+          items(first: 100, after: $after) {
+            pageInfo { hasNextPage endCursor }
+            nodes {
+              content {
+                ... on Issue {
+                  number
+                  labels(first: 20) { nodes { name id } }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    return {"query": query, "variables": {"pid": project_id, "after": after}}

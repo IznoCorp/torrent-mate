@@ -110,3 +110,25 @@ def test_kanban_move_reimports_lifted_helpers() -> None:
     assert kanban_move._resolve_entry is resolve_entry
     assert kanban_move._load_clone_columns is load_clone_columns
     assert kanban_move._load_clone_transitions is load_clone_transitions
+
+
+# ---------------------------------------------------------------------------
+# route_entry_column (#2, skiff) — lane → entry column resolver
+# ---------------------------------------------------------------------------
+
+
+def test_route_entry_column_maps_known_lanes() -> None:
+    """``route_entry_column`` maps each lane to its entry column key (skiff fast-track)."""
+    from kanbanmate.bin._clone_config import route_entry_column
+
+    assert route_entry_column("full") == "Brainstorming"
+    assert route_entry_column("lite") == "Scope"
+    assert route_entry_column("express") == "PrepareFeature"
+
+
+def test_route_entry_column_unknown_lane_is_none() -> None:
+    """An unknown lane or empty string returns ``None`` (session-end backstop fail-soft)."""
+    from kanbanmate.bin._clone_config import route_entry_column
+
+    assert route_entry_column("") is None
+    assert route_entry_column("turbo") is None

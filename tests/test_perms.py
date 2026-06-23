@@ -277,6 +277,57 @@ def test_check_allow_list_is_read_only_ish() -> None:
     assert "Edit" not in check
 
 
+def test_triage_is_a_known_profile() -> None:
+    """The ``triage`` profile is recognised in PROFILES."""
+    assert "triage" in PROFILES
+
+
+def test_triage_allow_list_is_read_only_no_edit() -> None:
+    """The ``triage`` (classifier) profile is read-only: Read + code search + kanban decision helpers.
+
+    No Edit, no broad Bash — only code-search verbs + the kanban decision/terminal helpers.
+    """
+    triage = allow_list("triage")
+    assert triage == [
+        "Read",
+        "Bash(cat*)",
+        "Bash(ls*)",
+        "Bash(grep*)",
+        "Bash(rg*)",
+        "Bash(git status*)",
+        "Bash(git log*)",
+        "Bash(git diff*)",
+        "Bash(git show*)",
+        "Bash(gh issue view*)",
+        "Bash(kanban-comment*)",
+        "Bash(kanban-update-body*)",
+        "Bash(kanban-route*)",
+        "Bash(kanban-done*)",
+    ]
+    # triage is read-only: no Edit, no broad Bash
+    assert "Edit" not in triage
+    assert "Bash" not in triage  # no broad shell
+
+
+def test_triage_inherits_the_full_deny_set() -> None:
+    """The ``triage`` profile inherits the FULL universal deny-list — merge/force-push banned."""
+    triage_deny = _permissions(build_settings("triage"))["deny"]
+    universal_deny = deny_list()
+    assert triage_deny == universal_deny, (
+        "triage must inherit the full universal deny-list (merge / force-push / history-rewrite)"
+    )
+    # Spot-check the core bans.
+    deny_blob = " ".join(str(entry) for entry in triage_deny)
+    assert "gh pr merge" in deny_blob, "triage must deny merge"
+    assert "push*--force" in deny_blob, "triage must deny force-push"
+    assert "git rebase" in deny_blob, "triage must deny history-rewrite"
+
+
+def test_triage_pinned_mode_is_auto() -> None:
+    """The ``triage`` profile pins ``defaultMode`` to ``"auto"``."""
+    assert pinned_mode("triage") == "auto"
+
+
 def test_docs_is_more_restrictive_than_dev() -> None:
     """The ``docs`` floor grants no push / no PR ops; ``dev`` adds full git + gh + broad Bash."""
     docs = allow_list("docs")

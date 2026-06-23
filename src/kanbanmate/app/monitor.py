@@ -130,6 +130,9 @@ def build_agents(
     return agents
 
 
+_TRACK_LABEL_PREFIX = "track:"
+
+
 def build_ticket_detail(
     number: int,
     title: str,
@@ -139,6 +142,7 @@ def build_ticket_detail(
     progress: Iterable[dict[str, str]],
     *,
     comment_dates: Iterable[str] = (),
+    labels: tuple[str, ...] | list[str] | None = None,
 ) -> dict[str, Any]:
     """Assemble the on-demand ticket-detail payload (markers + comments + merged timeline).
 
@@ -152,11 +156,17 @@ def build_ticket_detail(
         progress: ``{"at", "text"}`` progress events from the store (``at`` optional).
         comment_dates: ISO-8601 ``createdAt`` strings, same length and order as ``comments``.
             Defaults to empty so existing callers (tests) keep working.
+        labels: The issue's raw label NAMES (``IssueRef.labels``). The skiff fast-track
+            override (``track:full|lite|express``) is surfaced as a top-level ``track`` field
+            (the value with the ``track:`` prefix stripped, ``None`` if no such label).
+            Defaults to ``None`` (treated as no labels) — back-compatible with existing callers.
 
     Returns:
-        ``{number, title, column_key, body, markers, comments, timeline}`` (DESIGN §5.4). The
-        timeline lists progress milestones first, then the chronological comments (the engine's
-        comments have no timestamps, so a strict cross-merge isn't possible).
+        ``{number, title, column_key, body, markers, comments, timeline, track, labels}``
+        (DESIGN §5.4). The timeline lists progress milestones first, then the chronological
+        comments (the engine's comments have no timestamps, so a strict cross-merge isn't
+        possible). ``track`` is the parsed fast-track lane (or ``None``); ``labels`` is the
+        raw list of label names.
     """
     fields = parse_ticket_fields(body)
     markers = {
@@ -172,6 +182,17 @@ def build_ticket_detail(
         {"kind": "comment", "at": d, "text": c}
         for c, d in zip_longest(comment_list, list(comment_dates), fillvalue="")
     ]
+    # Derive the fast-track lane from a ``track:*`` label (the operator/triage manual override).
+    # At most one track label is expected (the writer enforces it); take the first if present.
+    label_names = list(labels or ())
+    track = next(
+        (
+            name[len(_TRACK_LABEL_PREFIX) :]
+            for name in label_names
+            if name.startswith(_TRACK_LABEL_PREFIX)
+        ),
+        None,
+    )
     return {
         "number": number,
         "title": title,
@@ -180,4 +201,6 @@ def build_ticket_detail(
         "markers": markers,
         "comments": comment_list,
         "timeline": timeline,
+        "track": track,
+        "labels": label_names,
     }

@@ -1235,11 +1235,16 @@ def test_no_transitions_yaml_ticks_with_default_whitelist(tmp_path: Path) -> Non
     tick_config = build_tick_config(wiring)
 
     # The tick still gets a whitelist (the default PoC flow), never None / a column model.
+    # skiff: Backlog now → Triage (the classifier); the interactive brainstorm moved to the FULL
+    # lane head Triage → Brainstorming.
     assert tick_config.transitions is not None
-    backlog_to_brainstorming = tick_config.transitions.get("Backlog", "Brainstorming")
-    assert backlog_to_brainstorming is not None
-    assert backlog_to_brainstorming.prompt is not None
-    assert "/implement:brainstorm" in backlog_to_brainstorming.prompt
+    backlog_to_triage = tick_config.transitions.get("Backlog", "Triage")
+    assert backlog_to_triage is not None
+    assert backlog_to_triage.prompt is not None
+    triage_to_brainstorming = tick_config.transitions.get("Triage", "Brainstorming")
+    assert triage_to_brainstorming is not None
+    assert triage_to_brainstorming.prompt is not None
+    assert "/implement:brainstorm" in triage_to_brainstorming.prompt
 
 
 def test_main_with_root_targets_alternate_runtime_root(

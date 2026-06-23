@@ -163,6 +163,8 @@ _PINNED_MODE: dict[str, str] = {
     # 'merge' is the autonomous Review→Merge stage (operator decision: the merge transition
     # squash-merges a green, mergeable PR). Same pinned mode as the other stages.
     "merge": "auto",
+    # 'triage' is the fast-track classifier (skiff feature). Same pinned mode.
+    "triage": "auto",
 }
 
 # Fallback mode for an unknown profile name — the strictest pinned value. Unknown profiles also
@@ -424,6 +426,27 @@ _PROFILE_ALLOW: dict[str, tuple[str, ...]] = {
         "Bash(kanban-update-body*)",
         "Bash",
     ),
+    # triage — the skiff fast-track classifier (read-only). It reads the ticket + a quick code peek
+    # + the sensitive-paths config, then records its decision (the **track** body field + the route
+    # breadcrumb). It NEVER edits source, pushes, or merges: no ``Edit``, no broad ``Bash`` — only
+    # read + code-search verbs + the kanban decision/terminal helpers. The universal deny-list applies
+    # unchanged, so merge / force-push / history-rewrite stay banned.
+    "triage": (
+        "Read",
+        "Bash(cat*)",
+        "Bash(ls*)",
+        "Bash(grep*)",
+        "Bash(rg*)",
+        "Bash(git status*)",
+        "Bash(git log*)",
+        "Bash(git diff*)",
+        "Bash(git show*)",
+        "Bash(gh issue view*)",
+        "Bash(kanban-comment*)",
+        "Bash(kanban-update-body*)",
+        "Bash(kanban-route*)",
+        "Bash(kanban-done*)",
+    ),
 }
 
 # Re-exported from ``core.profiles`` (helm DESIGN §13 layering fix): the validator lives in core and
@@ -444,8 +467,9 @@ def allow_list(profile: str) -> list[str]:
     stance. The shipped transitions name all four profiles, so this fallback is a safety net only.
 
     Args:
-        profile: The profile name (case-sensitive); ``"docs"``, ``"prepare"``, ``"dev"``, or
-            ``"check"``.
+        profile: The profile name (case-sensitive); any known profile in
+            :data:`~kanbanmate.core.profiles.PROFILES` — ``"docs"``, ``"prepare"``, ``"dev"``,
+            ``"check"``, ``"merge"``, or ``"triage"``. An unknown name degrades to ``"docs"``.
 
     Returns:
         A new list of allow-entry strings for the profile.

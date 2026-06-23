@@ -21,6 +21,19 @@ body,
   height: 100%;
 }
 
+/* Soft-scroll: keep scrolling (wheel / trackpad / keyboard) but HIDE the native scrollbar — it is
+ * visually noisy and off-brand. Scrollability is signalled instead by a JS-driven top/bottom fade
+ * mask (see MonitoringPanel useScrollFade). */
+.km-scroll-soft {
+  scrollbar-width: none; /* Firefox + Chromium 121+ */
+  -ms-overflow-style: none; /* legacy Edge */
+}
+.km-scroll-soft::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none; /* WebKit / Blink */
+}
+
 body {
   margin: 0;
   font-family: var(--font-sans);

@@ -532,6 +532,32 @@ class StateStore(HealthStateStore, IntentStore, Protocol):
         """
         ...
 
+    def record_agent_route(self, issue_number: int, lane: str, *, now: float) -> None:
+        """Drop the triage stage's LANE breadcrumb (skiff; carries the lane PAYLOAD), read by session-end.
+
+        Args:
+            issue_number: The ticket whose lane to record (the breadcrumb key).
+            lane: The chosen lane (one of ``"full"`` / ``"lite"`` / ``"express"``).
+            now: The wall-clock timestamp written into the breadcrumb.
+        """
+        ...
+
+    def recent_agent_route(self, issue_number: int, *, now: float) -> str:
+        """Return the route lane (skiff) within the done TTL (1800 s), or ``""`` when absent/aged/corrupt.
+
+        Args:
+            issue_number: The ticket whose lane to read (the key).
+            now: The wall-clock timestamp the TTL is measured against.
+
+        Returns:
+            The recorded lane string, or ``""`` when no fresh, well-formed breadcrumb exists.
+        """
+        ...
+
+    def clear_agent_route(self, issue_number: int) -> None:
+        """Remove ``issue_number``'s route breadcrumb (skiff; no-op when absent; consumed by purge_ticket)."""
+        ...
+
     def bump_end_attempt(self, issue_number: int) -> int:
         """Increment + return ``issue_number``'s reaper done-exit attempt counter (from 1; firm-exit).
 

@@ -54,6 +54,7 @@ from kanbanmate.bin._clone_config import (
     load_clone_transitions,
     resolve_entry,
     resolve_entry_token,
+    route_entry_column,
 )
 from kanbanmate.bin._pin import helper_store_root, parse_issue_arg
 from kanbanmate.cli.init import ProjectEntry
@@ -73,6 +74,11 @@ _BLOCKED_KEY = "Blocked"
 # finalized sticky reflect the REAL outcome — a ⛔ blocked sticky on a parked card, not a misleading
 # ✅ done.
 AutoAdvanceResult = Literal["advanced", "stopped", "parked_blocked"]
+
+# The outcome of :func:`_routed_advance` (skiff): ``routed`` (moved to the lane entry), ``stopped``
+# (unknown/empty lane / no item id / unwhitelisted entry → no move), or ``parked_blocked`` (the
+# rate-limit backstop parked the card). The done-branch caller finalizes the sticky to match.
+RoutedAdvanceResult = Literal["routed", "stopped", "parked_blocked"]
 
 
 def _read_latest_progress(client: GithubClient, issue: int, stage: str) -> str | None:
@@ -284,6 +290,123 @@ def _auto_advance(
         return "stopped"
 
 
+def _routed_advance(
+    state: TicketState,
+    issue: int,
+    lane: str,
+    client: GithubClient,
+    entry: ProjectEntry,
+    store: FsStateStore,
+    *,
+    now: float,
+) -> RoutedAdvanceResult:
+    """Move a clean-done TRIAGE stage's card to its chosen lane's entry column (skiff backstop).
+
+    The triage transition carries ``advance: route``; the agent recorded a lane via ``kanban-route``
+    and ran ``kanban-done``. This resolves the lane → entry column (:func:`route_entry_column`),
+    VALIDATES that ``Triage → entry`` is a whitelisted launch transition (the engine only ever moves
+    along a real, prompt-bearing edge it would have launched anyway — the routing safety guard), then
+    moves the card there so the daemon's next diff fires the lane's head stage. Mirrors
+    :func:`_auto_advance`: same rate-limit backstop, same direct ``client.move_card`` (never
+    ``kanban_move.main``), same ``record_move_for_item`` + ``record_pending_launch`` + reflex
+    ``nudge_daemon``, same fail-soft discipline (every board op wrapped; a failure logs + returns a
+    degraded result, session-end still exits 0).
+
+    Conservative fallback: an unknown/empty lane resolves to ``None`` → no move (the card stays in
+    Triage, visible for an operator re-drag) rather than guessing a target.
+
+    Args:
+        state: The loaded ticket state (carries ``stage`` == "Triage" and ``item_id``).
+        issue: The ticket's issue number (rate-limit + comment key).
+        lane: The recorded lane (``full`` / ``lite`` / ``express``).
+        client: The fail-soft GitHub client wired by the caller.
+        entry: The resolved project registry entry (for the clone config loaders).
+        store: The runtime state store (rate-limit ledger + breadcrumbs).
+        now: Current wall-clock time (rate-limit window + recorded move timestamp).
+
+    Returns:
+        ``"routed"`` (moved to the lane entry), ``"stopped"`` (unknown/empty lane / no item id /
+        config-read failure / unwhitelisted entry → no move), or ``"parked_blocked"`` (the
+        rate-limit backstop parked the card in Blocked).
+    """
+    entry_key = route_entry_column(lane)
+    if entry_key is None:
+        # Unknown/empty lane → no move (triage failure / pre-route crash). Fail-soft: the card stays
+        # in Triage; an operator re-drag (Backlog→Triage) re-runs triage.
+        print(
+            f"{_PROG}: warning: ticket #{issue} route lane {lane!r} is not a known lane; "
+            "skipping the engine move (card stays in Triage)",
+            file=sys.stderr,
+        )
+        return "stopped"
+    if not state.item_id:
+        return "stopped"
+    try:
+        columns = load_clone_columns(entry)
+        cfg = load_clone_transitions(entry)
+    except Exception as exc:  # noqa: BLE001 — fail-soft: a config-read failure never breaks session-end.
+        print(
+            f"{_PROG}: warning: could not load clone config for #{issue} route: {exc}",
+            file=sys.stderr,
+        )
+        return "stopped"
+
+    target_col = resolve_column(columns, entry_key)
+    if target_col is None:
+        print(
+            f"{_PROG}: warning: route entry {entry_key!r} for #{issue} is not a known column; skipping",
+            file=sys.stderr,
+        )
+        return "stopped"
+
+    # ROUTING SAFETY GUARD: the engine only moves along a whitelisted Triage→entry launch edge. An
+    # entry that is not a real transition (mis-config / tampered breadcrumb) → no move.
+    edge = cfg.get(state.stage, target_col.key)
+    if edge is None or not getattr(edge, "prompt", None):
+        print(
+            f"{_PROG}: warning: {state.stage}->{target_col.key} for #{issue} is not a whitelisted "
+            "launch transition; refusing the route move",
+            file=sys.stderr,
+        )
+        return "stopped"
+
+    # OUTER per-issue rate-limit backstop (identical to _auto_advance).
+    if store.move_count_for_item_last_hour(issue, now=now) >= cfg.move_rate_limit_per_hour:
+        blocked_col = resolve_column(columns, _BLOCKED_KEY)
+        blocked_name = blocked_col.name if blocked_col is not None else _BLOCKED_KEY
+        try:
+            client.move_card(state.item_id, blocked_name)
+            client.comment(
+                issue, "KanbanMate: triage route rate limit exceeded — parked in Blocked."
+            )
+        except Exception as exc:  # noqa: BLE001 — fail-soft.
+            print(
+                f"{_PROG}: warning: could not park #{issue} in Blocked (route rate limit): {exc}",
+                file=sys.stderr,
+            )
+        store.record_move_for_item(issue, now=now)
+        return "parked_blocked"
+
+    try:
+        client.move_card(state.item_id, target_col.name)
+        store.record_move_for_item(issue, now=now)
+        # The lane entry is ALWAYS a launch edge (validated above) → record the pending_launch
+        # breadcrumb so a daemon restart / stale baseline between this move and the launch-detect
+        # tick never drops the head stage (#55/#27 pattern).
+        store.record_pending_launch(
+            state.item_id, from_col=state.stage, to_col=target_col.key, now=now
+        )
+        store.nudge_daemon()  # reflex wake
+        print(f"{_PROG}: ticket #{issue} routed -> {target_col.name} (lane {lane!r}).")
+        return "routed"
+    except Exception as exc:  # noqa: BLE001 — fail-soft: a route move never breaks session-end.
+        print(
+            f"{_PROG}: warning: could not route #{issue} to {target_col.name!r}: {exc}",
+            file=sys.stderr,
+        )
+        return "stopped"
+
+
 def main(argv: list[str] | None = None) -> int:
     """Entry point: release the ticket's slot, then finalize ⚠️ iff it died without advancing.
 
@@ -368,6 +491,10 @@ def main(argv: list[str] | None = None) -> int:
         # BEFORE purge_ticket (purge clears done/<issue> too — same load-bearing ordering as the advance
         # breadcrumb above), so a post-purge read would always look "absent". Keyed by the issue number.
         done = store.recent_agent_done(issue, now=now)
+
+        # skiff: read the triage route lane BEFORE purge_ticket clears it (same load-bearing
+        # ordering as advance/done). Empty when the stage is not a triage route.
+        routed_lane = store.recent_agent_route(issue, now=now)
 
         # 3. The agent process exited, so tear the RUNTIME state down: purge the cap slot + running
         #    state (the reaper stops aging the ticket) + the now-consumed breadcrumb + the queue
@@ -469,7 +596,22 @@ def main(argv: list[str] | None = None) -> int:
             # Candidate 4: run the auto-advance FIRST, then finalize the sticky to MATCH its outcome.
             # On a rate-limited runaway _auto_advance parks the card in Blocked → the sticky must be
             # ⛔ blocked, not a misleading ✅ done on a now-Blocked card. Otherwise finalize ✅ done.
-            advance_result = _auto_advance(state, issue, client, entry, store, now=now)
+            #
+            # skiff: a TRIAGE stage carries ``advance: route`` (not ``auto:<col>``). It routes to the
+            # lane entry the agent recorded via ``kanban-route`` (read pre-purge into ``routed_lane``)
+            # rather than a fixed auto target. ``"routed"`` is treated like ``"advanced"`` (✅ sticky);
+            # ``"parked_blocked"`` keeps the ⛔ park sticky; anything else → no move (stopped → ✅ done).
+            if state.advance == "route":
+                route_result = _routed_advance(
+                    state, issue, routed_lane, client, entry, store, now=now
+                )
+                advance_result = (
+                    "parked_blocked"
+                    if route_result == "parked_blocked"
+                    else ("advanced" if route_result == "routed" else "stopped")
+                )
+            else:
+                advance_result = _auto_advance(state, issue, client, entry, store, now=now)
             sticky_status: StageStatus
             if advance_result == "parked_blocked":
                 sticky_status = "blocked"

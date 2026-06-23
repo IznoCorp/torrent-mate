@@ -90,3 +90,20 @@ def test_build_ticket_detail_comment_dates_defaults_empty() -> None:
         {"kind": "comment", "at": "", "text": "one"},
         {"kind": "comment", "at": "", "text": "two"},
     ]
+
+
+def test_build_ticket_detail_track_and_labels() -> None:
+    """A ``track:*`` label is parsed into ``track``; raw label names pass through as ``labels``."""
+    d = build_ticket_detail(7, "T", "Backlog", "body", [], [], labels=("bug", "track:express"))
+    assert d["track"] == "express"
+    assert d["labels"] == ["bug", "track:express"]
+
+
+def test_build_ticket_detail_track_none_when_absent() -> None:
+    """No ``track:*`` label → ``track`` is None; default (None) labels → empty list."""
+    with_labels = build_ticket_detail(7, "T", "Backlog", "body", [], [], labels=["bug"])
+    assert with_labels["track"] is None
+    assert with_labels["labels"] == ["bug"]
+    default = build_ticket_detail(7, "T", "Backlog", "body", [], [])
+    assert default["track"] is None
+    assert default["labels"] == []

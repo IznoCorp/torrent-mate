@@ -210,6 +210,7 @@ def monitor_ticket(number: int, project: str | None = None) -> JSONResponse:
         ctx.comments,
         progress=[],
         comment_dates=ctx.comment_dates,
+        labels=ref.labels,
     )
     # Status-change select (tiller follow-up): the columns the operator may move this card into, with
     # the workflow-allowed ones flagged (a target is "allowed" when a transition exists from the
@@ -467,6 +468,88 @@ def move_ticket(number: int, req: _MoveRequest, project: str | None = None) -> J
     except Exception:  # noqa: BLE001 — a nudge failure only delays pickup to the next poll
         pass
     return JSONResponse(content={"ok": True, "intent_id": intent_id})
+
+
+class _TrackRequest(BaseModel):
+    """Request body for the set-track endpoint (skiff Task 14).
+
+    ``track`` is the fast-track lane override the operator/triage forces on a ticket — one of
+    ``"full"`` / ``"lite"`` / ``"express"``, or ``None`` (also accepts ``""``) to CLEAR the
+    override. An unknown value is rejected by the GitHub client (``ValueError`` → 400).
+    """
+
+    track: str | None = None
+
+
+@app.post("/api/monitor/ticket/{number}/track")
+def set_ticket_track(number: int, req: _TrackRequest, project: str | None = None) -> JSONResponse:
+    """Set (or clear) a ticket's ``track:*`` fast-track override label (skiff Task 14).
+
+    Stamps the manual lane override directly on the issue via the GitHub client (NOT a daemon
+    intent — the label is a board read input the daemon consumes on its next snapshot). Passing
+    ``track=null`` (or ``""``) CLEARS the override. Sits behind the config-API CSRF/auth
+    middleware like the other ``/api/monitor`` writes. Best-effort nudges the daemon so the new
+    lane is picked up near-instantly.
+
+    Args:
+        number: The GitHub issue number.
+        req: ``{"track": "full"|"lite"|"express"|null}``.
+        project: The Project v2 node id selector (optional; auto-resolved for N=1).
+
+    Returns:
+        ``{"ok": true}`` on success.
+
+    Raises:
+        HTTPException: 400 on an unknown lane value (the client raises ``ValueError``);
+        503/404 on project resolution; 502 on any other GitHub error.
+    """
+    # Treat "" the same as null — an empty select clears the override (mirrors the client's None path).
+    track = (req.track or "").strip() or None
+
+    entry = _resolve_entry(project)
+    gh = _monitor_github(entry)
+    try:
+        gh.set_issue_track_label(number, track)
+    except ValueError as exc:  # unknown lane — fail loud as a 400, never a 500
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001 — boundary: clean error, never a 500 traceback
+        raise HTTPException(status_code=502, detail=f"GitHub track update failed: {exc}") from exc
+
+    # Wake the daemon so the new lane is reflected on the next tick (best-effort — mirrors launch).
+    try:
+        from kanbanmate.adapters.store.fs_store import FsStateStore  # noqa: PLC0415
+
+        FsStateStore(_kanban_root()).nudge_daemon()
+    except Exception:  # noqa: BLE001 — a nudge failure only delays pickup to the next poll
+        pass
+    return JSONResponse(content={"ok": True})
+
+
+@app.get("/api/monitor/board/tracks")
+def board_tracks(project: str | None = None) -> JSONResponse:
+    """Return the board's ``track:*`` overrides as ``{"tracks": {issue_number: lane}}``. Read-only.
+
+    Backs the board overlay that marks which cards carry a manual fast-track lane. The keys are
+    stringified issue numbers (JSON object keys are always strings on the wire; we stringify
+    explicitly so the shape is deterministic) and the values are the lane (``track:`` prefix
+    stripped). The frontend reads ``tracks[String(number)]``.
+
+    Args:
+        project: The Project v2 node id selector (optional; auto-resolved for N=1).
+
+    Returns:
+        ``{"tracks": {"<issue_number>": "<lane>", ...}}`` — only cards carrying a ``track:*`` label.
+
+    Raises:
+        HTTPException: 503/404/400 (project resolution); 502 on a GitHub error.
+    """
+    entry = _resolve_entry(project)
+    gh = _monitor_github(entry)
+    try:
+        tracks = gh.board_item_tracks()
+    except Exception as exc:  # noqa: BLE001 — boundary: clean error, never a 500 traceback
+        raise HTTPException(status_code=502, detail=f"Board tracks fetch failed: {exc}") from exc
+    return JSONResponse(content={"tracks": {str(num): lane for num, lane in tracks.items()}})
 
 
 @app.get("/api/monitor/intent/{intent_id}")

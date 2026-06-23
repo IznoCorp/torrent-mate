@@ -10,8 +10,8 @@ from kanbanmate.core.profiles import PROFILES
 
 
 def test_profiles_contains_expected_names() -> None:
-    """PROFILES = the four workflow stages PLUS 'merge' (the autonomous merge stage)."""
-    assert set(PROFILES) == {"docs", "prepare", "dev", "check", "merge"}
+    """PROFILES = the four workflow stages PLUS 'merge' (autonomous merge) and 'triage' (skiff)."""
+    assert set(PROFILES) == {"docs", "prepare", "dev", "check", "merge", "triage"}
 
 
 def test_profiles_is_tuple() -> None:

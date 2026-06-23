@@ -52,6 +52,12 @@ logger = logging.getLogger(__name__)
 # or ``pip install -e .``), not a computed repo-root path (DESIGN §9).
 _ASSET_PACKAGE = "kanbanmate.assets"
 _COLUMNS_TEMPLATE_RESOURCE = "columns.yml.tmpl"
+# The bundled ``sensitive.yml`` template (skiff fast-track). Like ``columns.yml`` it ships as
+# package data and is read via ``importlib.resources``, so it resolves from the installed package
+# (a wheel or ``pip install -e .``). It is an operator-maintained, prompt-read file: the triage
+# stage ``cat``s it to force any path/keyword/label hit onto the FULL lane. There is no engine
+# loader — the triage agent reads + reasons over it (DESIGN: triage autonomy).
+_SENSITIVE_TEMPLATE_RESOURCE = "sensitive.yml.tmpl"
 
 # The default kanban runtime root (DESIGN §4.1 / §5). Configurable via the
 # ``root`` parameter so tests pass a ``tmp_path`` and never touch the real home.
@@ -77,6 +83,11 @@ DEFAULT_PROJECT_DESCRIPTION = (
 # daemon watches ``config.yml``'s ``mtime`` and reloads the whole config (including
 # the referenced ``columns.yml``) on change; it does NOT watch this file directly.
 CLONE_COLUMNS_RELPATH = Path(".claude") / "kanban" / "columns.yml"
+# Where the per-repo sensitive-areas config is copied inside the clone (skiff fast-track). It sits
+# beside ``columns.yml`` so the triage prompt finds it under the same ``.claude/kanban`` dir. Like
+# ``columns.yml`` it is a static ``.tmpl`` asset copied verbatim (not rendered) and is then
+# operator-maintained; the daemon does NOT watch or load it — only the triage agent reads it.
+CLONE_SENSITIVE_RELPATH = Path(".claude") / "kanban" / "sensitive.yml"
 # Where the per-repo transition whitelist is rendered inside the clone (DESIGN §9,
 # phase 12.7). Unlike columns.yml (a static .tmpl asset), transitions.yml is
 # RENDERED — it carries the project slug — so the renderer in
@@ -185,6 +196,23 @@ def _engine_assets_template() -> str:
         The text content of ``kanbanmate/assets/columns.yml.tmpl``.
     """
     resource = importlib.resources.files(_ASSET_PACKAGE) / _COLUMNS_TEMPLATE_RESOURCE
+    return resource.read_text(encoding="utf-8")
+
+
+def _sensitive_template() -> str:
+    """Return the text of the bundled ``sensitive.yml`` template (skiff fast-track).
+
+    Mirrors :func:`_engine_assets_template`: the template ships as **package data**
+    under ``kanbanmate/assets`` and is read via :mod:`importlib.resources`, so it
+    resolves from the installed package (a wheel or ``pip install -e .``) rather than
+    a computed repo-root path absent from a site-packages install. ``init`` copies it
+    verbatim into each clone so the triage stage has a sensible default sensitive-areas
+    config; the operator then edits it to fit the project.
+
+    Returns:
+        The text content of ``kanbanmate/assets/sensitive.yml.tmpl``.
+    """
+    resource = importlib.resources.files(_ASSET_PACKAGE) / _SENSITIVE_TEMPLATE_RESOURCE
     return resource.read_text(encoding="utf-8")
 
 
@@ -499,6 +527,14 @@ def init(
     clone_columns = clone_path / CLONE_COLUMNS_RELPATH
     clone_columns.parent.mkdir(parents=True, exist_ok=True)
     clone_columns.write_text(template_text, encoding="utf-8")
+
+    # 4a. Sensitive-areas config (skiff fast-track): copy the bundled template verbatim into the
+    #     clone NEXT TO columns.yml (the parent dir was just mkdir'd above). It is the
+    #     operator-maintained, prompt-read file the triage stage ``cat``s to force any sensitive
+    #     path/keyword/label hit onto the FULL lane. Like columns.yml it is a static .tmpl asset
+    #     (not rendered), and the daemon never loads it — only the triage agent reads it.
+    clone_sensitive = clone_path / CLONE_SENSITIVE_RELPATH
+    clone_sensitive.write_text(_sensitive_template(), encoding="utf-8")
 
     # 4b. Transitions: render the per-repo whitelist into the clone (DESIGN §9,
     #     phase 12.7). Divergence from the columns.yml pattern above:

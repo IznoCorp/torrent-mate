@@ -22,7 +22,7 @@ import re
 # only adds text below the existing body, so it preserves these by construction; ``--set-field``
 # rewrites exactly one of them in place. Kept in lock-step with the keys
 # :func:`kanbanmate.core.ticket_fields.parse_ticket_fields` recognises.
-PRESERVED_MARKERS: tuple[str, ...] = ("roadmap", "codename", "design", "plans")
+PRESERVED_MARKERS: tuple[str, ...] = ("roadmap", "codename", "design", "plans", "track")
 
 # A ``**key**: value`` marker line, anchored at line start (mirrors ``ticket_fields._TICKET_FIELD``
 # but parameterised on a single key for the in-place rewrite). ``re.MULTILINE`` so ``^`` matches

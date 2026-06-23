@@ -28,9 +28,9 @@ def _transitions_yaml() -> str:
 
 
 def test_from_loaded_column_count() -> None:
-    """The shipped board has 14 columns (DESIGN §9) — Ready to merge added before Merge."""
+    """The shipped board has 16 columns (DESIGN §9 + Ready to merge + skiff Triage/Scope)."""
     draft = PipelineDraft.from_loaded(_transitions_yaml(), _columns_yaml())
-    assert len(draft.definition.columns) == 14
+    assert len(draft.definition.columns) == 16
 
 
 def test_from_loaded_cancel_is_reactive() -> None:
@@ -107,8 +107,8 @@ def test_from_loaded_empty_transitions_no_attribute_error() -> None:
     """
     draft = PipelineDraft.from_loaded("", _columns_yaml())
     assert draft.definition.transitions == []
-    # Columns still load from the valid columns.yml.
-    assert len(draft.definition.columns) == 14
+    # Columns still load from the valid columns.yml (16 incl. Ready to merge + skiff Triage/Scope).
+    assert len(draft.definition.columns) == 16
 
 
 def test_from_loaded_malformed_yaml_raises_value_error() -> None:

@@ -12,8 +12,8 @@ from __future__ import annotations
 # decision — it supersedes the historical merge=human-only floor for THAT stage only): it is the
 # SOLE profile whose deny-list lifts ``gh pr merge`` (``adapters/perms.py``), and the SOLE profile a
 # prompt-bearing transition into the ``Merge`` column may carry (validator V7 carve-out). Every
-# other profile still bans all merge paths.
-PROFILES: tuple[str, ...] = ("docs", "prepare", "dev", "check", "merge")
+# other profile still bans all merge paths. ``triage`` is the fast-track classifier (skiff feature).
+PROFILES: tuple[str, ...] = ("docs", "prepare", "dev", "check", "merge", "triage")
 
 # Profiles an AD-HOC launch may use (the operator "launch an agent on this ticket" path). This is
 # ``PROFILES`` minus ``merge`` ON PURPOSE: ``merge`` lifts the ``gh pr merge`` ban and is reachable

@@ -295,6 +295,14 @@ monitor:
   moving: Déplacement…
   move_queued: Déplacement en file — le tableau se met à jour sous peu.
   move_done: Carte déplacée.
+  track: Voie
+  track_auto: Auto
+  track_full: Complète
+  track_lite: Légère
+  track_express: Express
+  track_saving: Mise à jour de la voie…
+  track_queued: Mise à jour de la voie en file…
+  track_done: Voie mise à jour.
   state: état
   stage: étape
   branch: branche

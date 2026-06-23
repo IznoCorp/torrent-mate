@@ -33,7 +33,7 @@ from kanbanmate.core.columns import load_columns
 from kanbanmate.core.domain import Column
 from kanbanmate.core.registry_resolve import resolve_by_project_id
 from kanbanmate.core.transitions import TransitionConfig, load_transitions
-from kanbanmate.core.transitions_defaults import default_transition_config
+from kanbanmate.core.transitions_defaults import TRACK_ENTRY, default_transition_config
 
 
 def resolve_entry() -> ProjectEntry:
@@ -188,10 +188,28 @@ def auto_advance_target(advance: str) -> str | None:
     return target or None
 
 
+def route_entry_column(lane: str) -> str | None:
+    """Return the entry column KEY for a triage-chosen ``lane``, else ``None`` (skiff).
+
+    The triage stage records a lane (``full`` / ``lite`` / ``express``) via ``kanban-route``; the
+    session-end backstop maps it here to the column the engine moves the card into (the head edge
+    that fires the lane's first stage). An unknown lane → ``None`` → the backstop fails soft to
+    ``full`` (the conservative default) without moving into an unwhitelisted column.
+
+    Args:
+        lane: The recorded lane string.
+
+    Returns:
+        The entry column key for a known lane, else ``None``.
+    """
+    return TRACK_ENTRY.get(lane)
+
+
 __all__ = [
     "auto_advance_target",
     "load_clone_columns",
     "load_clone_transitions",
     "resolve_entry",
     "resolve_entry_token",
+    "route_entry_column",
 ]

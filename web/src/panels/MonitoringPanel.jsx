@@ -25,6 +25,18 @@ const { KeyChip, Badge, Banner, Button, Select, Tooltip } =
 
 const STATE_TONE = { running: "accent", waiting: "amber", blocked: "red" };
 
+// Fast-track lane options (skiff). The closed vocabulary is full/lite/express; "" (Auto) clears the
+// label. Shared by the detail-panel Track selector and the compact per-row selector so they can't
+// drift. `t` is the i18n lookup so the labels localize.
+function trackOptions(t) {
+  return [
+    { value: "", label: t("monitor.track_auto", "Auto") },
+    { value: "full", label: t("monitor.track_full", "Full") },
+    { value: "lite", label: t("monitor.track_lite", "Lite") },
+    { value: "express", label: t("monitor.track_express", "Express") },
+  ];
+}
+
 // Square icon-button used to collapse/expand the master ticket-list column (sidebar-style).
 // Same footprint as a collapsed-rail ticket chip (34×28, radius 7) so the toggle aligns vertically
 // with the minified ticket buttons below it.
@@ -126,6 +138,48 @@ function usePoll(fn, ms, deps) {
   }, deps);
 }
 
+// Track which edges of a soft-scroll container should fade: bottom while there is more below, top
+// once you've scrolled down (so you can tell you can scroll back up). Recomputes on scroll, on
+// resize, and whenever `deps` change the content (board poll / collapse). Returns { top, bottom }.
+function useScrollFade(ref, deps) {
+  const [edges, setEdges] = React.useState({ top: false, bottom: false });
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) {
+      setEdges({ top: false, bottom: false });
+      return;
+    }
+    const update = () => {
+      const top = el.scrollTop > 4;
+      const bottom = el.scrollTop + el.clientHeight < el.scrollHeight - 4;
+      setEdges((e) =>
+        e.top === top && e.bottom === bottom ? e : { top, bottom },
+      );
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", update);
+      ro.disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return edges;
+}
+
+// CSS mask gradient for the active fade edges (a `px`-tall fade). "none" when neither edge fades, so
+// a non-overflowing list is fully crisp. Alpha gradient: transparent = hidden, #000 = shown.
+function fadeMask({ top, bottom }, px = 24) {
+  if (!top && !bottom) return "none";
+  const head = top ? `transparent 0, #000 ${px}px` : "#000 0";
+  const tail = bottom
+    ? `#000 calc(100% - ${px}px), transparent 100%`
+    : "#000 100%";
+  return `linear-gradient(to bottom, ${head}, ${tail})`;
+}
+
 export default function MonitoringPanel({ project }) {
   const { t, lang } = useT();
   const isMobile = useIsMobile();
@@ -176,6 +230,12 @@ export default function MonitoringPanel({ project }) {
   // mirror to GitHub is eventual + cached), so without this the controlled Select snaps back to the
   // old column. Cleared on ticket switch and once the snapshot reconciles to it.
   const [optimisticCol, setOptimisticCol] = React.useState(null);
+  // Fast-track lane per ticket (skiff): { "<number>": "full"|"lite"|"express" } from the board poll.
+  // The row + detail Track selectors read their current value here; an optimistic write updates it
+  // immediately, then the next board poll reconciles. A ticket absent from the map = Auto (no label).
+  const [boardTracks, setBoardTracks] = React.useState({});
+  const [tracking, setTracking] = React.useState(false); // a track write is in flight (disable selects)
+  const [trackMsg, setTrackMsg] = React.useState(null); // { tone, text } | null (detail-panel note)
   // Edit description state (tiller §3.4) — marker-safe freeform edit via PATCH endpoint.
   const [editMode, setEditMode] = React.useState(false);
   const [editFreeform, setEditFreeform] = React.useState("");
@@ -206,6 +266,27 @@ export default function MonitoringPanel({ project }) {
       return next;
     });
   };
+  // Keep the selected ticket visible in the (full-height, scrollable) master list: scroll it into
+  // view when the selection changes, the list is collapsed/expanded, or the board first loads (a
+  // persisted #47 selection on reload). block:"nearest" scrolls only the list container, not the
+  // page. The ref attaches to whichever the selected ticket renders as (expanded row / rail chip).
+  const selectedRowRef = React.useRef(null);
+  React.useEffect(() => {
+    selectedRowRef.current?.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+    });
+  }, [sel, masterCollapsed, board != null]);
+  // Soft-scroll fade for the master list / rail (native scrollbar hidden via km-scroll-soft). One
+  // ref is attached to whichever of the two containers is rendered (expanded vs collapsed rail);
+  // recompute when the content/element changes (board poll, collapse toggle, per-group collapse).
+  const listRef = React.useRef(null);
+  const scrollFade = useScrollFade(listRef, [
+    board,
+    masterCollapsed,
+    collapsedOverride,
+  ]);
+  const scrollMask = fadeMask(scrollFade);
   // Reset terminal visibility when the selected ticket changes.
   React.useEffect(() => {
     setTerminalOpen(false);
@@ -214,6 +295,7 @@ export default function MonitoringPanel({ project }) {
     setLaunching(false);
     setMoveMsg(null);
     setMoving(false);
+    setTrackMsg(null);
   }, [sel]);
   const doMove = async (toCol) => {
     if (sel == null || !toCol) return;
@@ -252,6 +334,48 @@ export default function MonitoringPanel({ project }) {
       setMoveMsg({ tone: "red", text: String((e && e.message) || e) });
     } finally {
       setMoving(false);
+    }
+  };
+  // Set (or clear) a ticket's fast-track lane (skiff). `track` is "full"|"lite"|"express" or "" → null
+  // (the "Auto" choice, which clears the label). Optimistic: update the boardTracks map NOW so both the
+  // row and the detail selector reflect the choice immediately, then refetch the ticket detail to
+  // reconcile (mirrors the move handler). The 15s board-tracks poll is the eventual backstop.
+  const doTrack = async (number, track) => {
+    if (number == null) return;
+    const lane = track || null; // "" (Auto) → null clears the label
+    const prev = boardTracks; // snapshot for rollback on failure
+    setTracking(true);
+    setTrackMsg({
+      tone: "amber",
+      text: t("monitor.track_queued", "Track update queued…"),
+    });
+    // Optimistic update of the per-ticket map (drop the key when clearing to Auto).
+    setBoardTracks((m) => {
+      const next = { ...m };
+      if (lane) next[String(number)] = lane;
+      else delete next[String(number)];
+      return next;
+    });
+    try {
+      await api.setTicketTrack(number, lane, project);
+      setTrackMsg({
+        tone: "green",
+        text: t("monitor.track_done", "Track updated."),
+      });
+      // Refetch the detail so its `track` field reflects the new label (the [sel] effect won't re-run).
+      if (sel === number) {
+        try {
+          const d = await api.monitorTicket(number, project);
+          setDetail(d);
+        } catch (_) {
+          /* the board-tracks poll will reconcile if this fails */
+        }
+      }
+    } catch (e) {
+      setBoardTracks(prev); // roll back the optimistic change
+      setTrackMsg({ tone: "red", text: String((e && e.message) || e) });
+    } finally {
+      setTracking(false);
     }
   };
   const doLaunch = async () => {
@@ -324,6 +448,24 @@ export default function MonitoringPanel({ project }) {
         .catch((e) => setBoardError(e.message)),
     15000,
     [project],
+  );
+  // Per-ticket fast-track lanes (skiff), polled alongside the board. Skip while a track write is in
+  // flight so a mid-poll response can't clobber the optimistic boardTracks update; the next poll
+  // reconciles. A bad poll is swallowed (the selectors just keep their last-known values).
+  usePoll(
+    () => {
+      if (tracking) return;
+      api
+        .getBoardTracks(project)
+        .then((r) =>
+          setBoardTracks(
+            r && r.tracks && typeof r.tracks === "object" ? r.tracks : {},
+          ),
+        )
+        .catch(() => {});
+    },
+    15000,
+    [project, tracking],
   );
   usePoll(
     () =>
@@ -641,14 +783,23 @@ export default function MonitoringPanel({ project }) {
           // headers) then one chip per ticket — its BORDER colored by the agent state (legend = the
           // running/waiting/blocked line above). Click a chip to select.
           <div
+            ref={listRef}
+            className="km-scroll-soft"
             style={{
               display: "flex",
               flexDirection: "column",
               gap: 4,
               alignItems: "center",
-              overflow: "auto",
+              // Vertical scroll only: a space-taking vertical scrollbar (classic / mouse) would
+              // otherwise make the 34–38px chips overflow the 46px rail → a parasitic horizontal
+              // scrollbar. overflowX:hidden kills it (overlay scrollbars never showed it).
+              overflowX: "hidden",
+              overflowY: "auto",
               minHeight: 0,
               paddingTop: 2,
+              // Hidden native scrollbar (km-scroll-soft) → top/bottom fade signals scrollability.
+              maskImage: scrollMask,
+              WebkitMaskImage: scrollMask,
             }}
           >
             {board.columns.map((c) => {
@@ -661,6 +812,7 @@ export default function MonitoringPanel({ project }) {
                     title={`${c.name} · ${tix.length}`}
                     style={{
                       width: 38,
+                      flexShrink: 0,
                       marginTop: 4,
                       fontFamily: "var(--font-mono)",
                       fontSize: 8,
@@ -682,6 +834,7 @@ export default function MonitoringPanel({ project }) {
                     return (
                       <button
                         key={tk.number}
+                        ref={selected ? selectedRowRef : undefined}
                         type="button"
                         onClick={() => setSel(tk.number)}
                         title={`#${tk.number} · ${c.name}`}
@@ -729,11 +882,20 @@ export default function MonitoringPanel({ project }) {
         ) : (
           (!isMobile || sel == null) && (
             <div
+              ref={listRef}
+              className="km-scroll-soft"
               style={{
                 display: "flex",
                 flexDirection: "column",
                 gap: 12,
-                ...(isMobile ? {} : { overflow: "auto", minHeight: 0 }),
+                // Desktop: fill the available height + scroll INTERNALLY (page stays fixed). Mobile:
+                // natural document scroll. The group cards below carry flexShrink:0 so they keep
+                // their full height and the LIST overflows (→ scrolls) instead of each card being
+                // crushed and clipped by its own overflow:hidden (the truncation bug).
+                ...(isMobile ? {} : { overflowY: "auto", minHeight: 0 }),
+                // Hidden native scrollbar (km-scroll-soft) → top/bottom fade signals scrollability.
+                maskImage: scrollMask,
+                WebkitMaskImage: scrollMask,
               }}
             >
               {board.columns.map((c) => {
@@ -754,6 +916,10 @@ export default function MonitoringPanel({ project }) {
                       borderRadius: "var(--radius-lg)",
                       overflow: "hidden",
                       boxShadow: "var(--shadow-xs)",
+                      // Do NOT shrink: in the fixed-height flex list, the default flex-shrink:1 would
+                      // crush a tall group (e.g. Backlog) and its overflow:hidden would clip the rows
+                      // → truncated + non-scrollable. Full height makes the LIST overflow → scrolls.
+                      flexShrink: 0,
                     }}
                   >
                     <button
@@ -785,9 +951,21 @@ export default function MonitoringPanel({ project }) {
                     </button>
                     {!collapsed &&
                       tix.map((tk) => (
-                        <button
+                        // A div (role=button), NOT a <button>, because the row now contains an
+                        // interactive Track <select> — nested interactive controls inside a <button>
+                        // are invalid HTML. Keyboard select kept via Enter/Space on the row.
+                        <div
                           key={tk.number}
+                          ref={sel === tk.number ? selectedRowRef : undefined}
+                          role="button"
+                          tabIndex={0}
                           onClick={() => setSel(tk.number)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSel(tk.number);
+                            }
+                          }}
                           style={{
                             display: "flex",
                             alignItems: "center",
@@ -850,7 +1028,26 @@ export default function MonitoringPanel({ project }) {
                               {tk.agent_state}
                             </Badge>
                           )}
-                        </button>
+                          {/* Compact Track selector. Wrapped in a stopPropagation div so changing
+                              the lane (or just opening the dropdown) doesn't select the row. Its
+                              value comes from the boardTracks map ("" = Auto / no label). */}
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            style={{ flexShrink: 0 }}
+                          >
+                            <Select
+                              size="sm"
+                              mono={false}
+                              value={boardTracks[String(tk.number)] || ""}
+                              disabled={tracking}
+                              onChange={(e) =>
+                                doTrack(tk.number, e.target.value)
+                              }
+                              options={trackOptions(t)}
+                            />
+                          </div>
+                        </div>
                       ))}
                   </div>
                 );
@@ -963,6 +1160,48 @@ export default function MonitoringPanel({ project }) {
                 </div>
                 {moveMsg && (
                   <StatusNote tone={moveMsg.tone}>{moveMsg.text}</StatusNote>
+                )}
+
+                {/* Fast-track lane (skiff). "" (Auto) clears the track:* label; full/lite/express set
+                    it. The detail's `track` field is authoritative; the boardTracks map is the
+                    fallback so an optimistic row change is reflected here even before the detail
+                    refetch lands. */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <label
+                    style={{ fontSize: 12, color: "var(--muted-foreground)" }}
+                  >
+                    {t("monitor.track", "Track")}
+                  </label>
+                  <Select
+                    size="sm"
+                    mono={false}
+                    value={
+                      detail.track || boardTracks[String(detail.number)] || ""
+                    }
+                    disabled={tracking}
+                    onChange={(e) => doTrack(detail.number, e.target.value)}
+                    options={trackOptions(t)}
+                  />
+                  {tracking && (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: "var(--muted-foreground)",
+                      }}
+                    >
+                      {t("monitor.track_saving", "Updating track…")}
+                    </span>
+                  )}
+                </div>
+                {trackMsg && (
+                  <StatusNote tone={trackMsg.tone}>{trackMsg.text}</StatusNote>
                 )}
 
                 {/* Description accordion (collapsible) + pencil edit button.

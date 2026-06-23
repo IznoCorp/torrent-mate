@@ -49,10 +49,10 @@ def test_render_transitions_parseable() -> None:
 
 
 def test_render_columns_parseable() -> None:
-    """The rendered columns.yml must be parseable by load_columns."""
+    """The rendered columns.yml must be parseable by load_columns (15 incl. skiff Triage/Scope)."""
     rendered = render_pipeline(_draft())
     col_map = load_columns(rendered.columns)
-    assert len(col_map) == 14
+    assert len(col_map) == 16
 
 
 def test_round_trip_every_real_edge() -> None:

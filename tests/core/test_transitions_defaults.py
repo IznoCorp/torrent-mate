@@ -462,15 +462,22 @@ class TestDefaultTableRoundTrip:
 
 
 class TestFrontFlowSplit:
-    """Genesis phase 26: the brainstorm↔design split + the new Brainstorming/Plan edges."""
+    """Genesis phase 26: the brainstorm↔design split + the new Brainstorming/Plan edges.
 
-    def test_backlog_to_brainstorming_is_the_interactive_brainstorm(self) -> None:
-        """``Backlog → Brainstorming`` carries the interactive ``_BRAINSTORM_PROMPT``."""
+    skiff: Backlog now enters via Triage (the classifier), which routes onto a lane; the FULL lane's
+    interactive brainstorm moved from the direct ``Backlog → Brainstorming`` launch to
+    ``Triage → Brainstorming`` (see :class:`TestSkiffRouting`).
+    """
+
+    def test_triage_to_brainstorming_is_the_interactive_brainstorm(self) -> None:
+        """``Triage → Brainstorming`` (the FULL lane head) carries the interactive ``_BRAINSTORM_PROMPT``."""
         cfg = load_transitions(_render_doc("owner/repo"))
-        t = cfg.get("Backlog", "Brainstorming")
+        t = cfg.get("Triage", "Brainstorming")
         assert t is not None
         assert t.prompt == _BRAINSTORM_PROMPT
         assert t.profile == "docs"
+        # The old direct Backlog → Brainstorming launch is gone (Backlog now → Triage).
+        assert cfg.get("Backlog", "Brainstorming") is None
 
     def test_old_backlog_to_spec_edge_is_gone(self) -> None:
         """The former ``Backlog → Spec`` brainstorm+design edge no longer exists.
@@ -509,13 +516,13 @@ class TestFrontFlowSplit:
 class TestSkipToDone:
     """Genesis phase 26: the early skip-to-Done whitelist (bounded at ReadyToDev)."""
 
-    # The PRE-PrepareFeature columns that may skip straight to Done.
-    _SKIP_SOURCES = ("Backlog", "Brainstorming", "Spec", "Plan", "ReadyToDev")
+    # The PRE-PrepareFeature columns that may skip straight to Done (skiff added Triage/Scope).
+    _SKIP_SOURCES = ("Backlog", "Triage", "Brainstorming", "Scope", "Spec", "Plan", "ReadyToDev")
     # The columns from which Done is NOT whitelisted (a worktree/branch exists → Cancel only).
     _NON_SKIP_SOURCES = ("PrepareFeature", "InProgress", "PRCI", "Review")
 
     def test_skip_to_done_is_a_single_list_expanded_entry(self) -> None:
-        """The skip-to-Done ships as ONE list-expanded entry (six sources → Done, no action)."""
+        """The skip-to-Done ships as ONE list-expanded entry (seven sources → Done, no action)."""
         rows = [t for t in DEFAULT_TRANSITIONS if t["to"] == "Done" and isinstance(t["from"], list)]
         assert len(rows) == 1
         row = rows[0]
@@ -819,7 +826,9 @@ class TestRecoveryEdges:
         assert cfg.get("ReadyToDev", "Spec") is not None
         assert cfg.get("Done", "Backlog") is not None
         # A spot-check of pre-existing edges still resolves (nothing was removed/broken).
-        assert cfg.get("Backlog", "Brainstorming") is not None
+        # skiff: Backlog now → Triage (the classifier), and the FULL lane head is Triage → Brainstorming.
+        assert cfg.get("Backlog", "Triage") is not None
+        assert cfg.get("Triage", "Brainstorming") is not None
         assert cfg.get("PrepareFeature", "InProgress") is not None
         assert cfg.get("ReadyToMerge", "Merge") is not None
         assert cfg.get("Merge", "Done") is not None
@@ -831,8 +840,14 @@ class TestHybridAdvanceDirectives:
     OUT of them (Review now auto-advances INTO ReadyToMerge, where the card stops for the human)."""
 
     # Each forward transition's expected ``advance`` directive (the HYBRID table).
+    # skiff: Backlog → Triage carries ``route`` (the classifier), and the FULL lane head moved to
+    # Triage → Brainstorming (advance auto:Spec, unchanged content).
     _EXPECTED_ADVANCE = {
-        ("Backlog", "Brainstorming"): "auto:Spec",
+        ("Backlog", "Triage"): "route",
+        ("Triage", "Brainstorming"): "auto:Spec",
+        ("Triage", "Scope"): "auto:PrepareFeature",
+        ("Triage", "PrepareFeature"): "auto:InProgress",
+        ("Scope", "PrepareFeature"): "auto:InProgress",
         ("Brainstorming", "Spec"): "auto:Plan",
         ("Spec", "Plan"): "auto:ReadyToDev",
         ("ReadyToDev", "PrepareFeature"): "auto:InProgress",
@@ -906,8 +921,10 @@ class TestHybridAdvanceDirectives:
         from kanbanmate.core.transitions_defaults import default_transition_config
 
         cfg = default_transition_config()
-        # Spot-check a hybrid directive landed through the real parser.
-        assert cfg.get("Backlog", "Brainstorming").advance == "auto:Spec"  # type: ignore[union-attr]
+        # Spot-check a hybrid directive landed through the real parser. skiff: the FULL lane head
+        # moved to Triage → Brainstorming (Backlog now → Triage with advance: route).
+        assert cfg.get("Triage", "Brainstorming").advance == "auto:Spec"  # type: ignore[union-attr]
+        assert cfg.get("Backlog", "Triage").advance == "route"  # type: ignore[union-attr]
 
 
 class TestImplementStagePromptGuards:
@@ -1089,3 +1106,115 @@ class TestCleanStopInstruction:
         # stop, so it carries the discipline too (it is not built from the shared constants above).
         assert "WITHOUT starting the interactive brainstorm" in _BRAINSTORM_PROMPT
         assert "next-stage slash command" in _BRAINSTORM_PROMPT
+
+
+class TestSkiffRouting:
+    """skiff fast-track: Backlog routes through Triage (the classifier), which fans out onto the
+    three lanes (full → Brainstorming, lite → Scope, express → PrepareFeature) by a whitelisted
+    Triage → {entry} launch edge carrying the lane head's advance directive. Routing is topological —
+    no ``core/decide.py`` change — so these assertions pin the transitions table, not a code branch.
+    """
+
+    def test_backlog_routes_through_triage(self) -> None:
+        """Backlog now launches the triage stage, which routes (advance: route)."""
+        cfg = load_transitions(_render_doc("owner/repo"))
+        t = cfg.get("Backlog", "Triage")
+        assert t is not None and t.profile == "triage" and t.advance == "route"
+        assert t.prompt  # a launch transition
+        # The old direct Backlog → Brainstorming launch is gone.
+        assert cfg.get("Backlog", "Brainstorming") is None
+
+    def test_triage_lane_entries_are_whitelisted_launches(self) -> None:
+        """Each Triage → {lane entry} edge is a launch carrying the head stage's advance directive."""
+        cfg = load_transitions(_render_doc("owner/repo"))
+        full = cfg.get("Triage", "Brainstorming")
+        lite = cfg.get("Triage", "Scope")
+        express = cfg.get("Triage", "PrepareFeature")
+        assert full and full.advance == "auto:Spec" and full.prompt
+        assert lite and lite.advance == "auto:PrepareFeature" and lite.prompt
+        assert express and express.advance == "auto:InProgress" and express.prompt
+
+    def test_scope_auto_advances_into_prepare_feature(self) -> None:
+        """The LITE lane continues Scope → PrepareFeature (engine auto-advance into build)."""
+        cfg = load_transitions(_render_doc("owner/repo"))
+        t = cfg.get("Scope", "PrepareFeature")
+        assert t is not None and t.advance == "auto:InProgress" and t.prompt
+
+    def test_track_entry_targets_all_exist_as_columns(self) -> None:
+        """Every TRACK_ENTRY value is a real board column KEY (the routed-to entry must exist)."""
+        import importlib.resources
+
+        from kanbanmate.core.columns import load_columns
+        from kanbanmate.core.transitions_defaults import TRACK_ENTRY
+
+        cols = load_columns(
+            (importlib.resources.files("kanbanmate.assets") / "columns.yml.tmpl").read_text(
+                encoding="utf-8"
+            )
+        )
+        for entry_key in TRACK_ENTRY.values():
+            assert entry_key in cols
+
+    def test_track_entry_edges_match_track_entry_map(self) -> None:
+        """Each TRACK_ENTRY lane → entry column has a matching whitelisted Triage → entry launch.
+
+        The triage agent routes onto a lane by recording ``kanban-route <lane>``; the engine maps the
+        lane through ``TRACK_ENTRY`` to the entry column and moves the card there — so EVERY lane's
+        entry MUST be a real Triage → entry launch edge (else the routed move bounces).
+        """
+        from kanbanmate.core.transitions_defaults import TRACK_ENTRY
+
+        cfg = load_transitions(_render_doc("owner/repo"))
+        for entry_key in TRACK_ENTRY.values():
+            t = cfg.get("Triage", entry_key)
+            assert t is not None and t.prompt, f"Triage → {entry_key} must be a launch edge"
+
+    def test_triage_and_scope_prompts_fill_against_prod_context(self) -> None:
+        """The two new skiff prompts fill cleanly against the production placeholder context."""
+        from kanbanmate.core.transitions_defaults import _SCOPE_PROMPT, _TRIAGE_PROMPT
+
+        for prompt in (_TRIAGE_PROMPT, _SCOPE_PROMPT):
+            filled = fill(prompt, _PROD_CTX)  # raises KeyError on an unknown key
+            assert "{{" not in filled, "a placeholder leaked unfilled"
+
+    def test_triage_prompt_is_conservative_and_records_lane(self) -> None:
+        """The triage prompt routes by SIZE × SENSITIVITY, defaults to ``full``, and records the lane."""
+        from kanbanmate.core.transitions_defaults import _TRIAGE_PROMPT
+
+        # Conservative-by-construction: any doubt / sensitivity / failure → full.
+        assert "the conservative default" in _TRIAGE_PROMPT
+        assert "full" in _TRIAGE_PROMPT
+        # Records the lane via the durable field + the route breadcrumb, then ends.
+        assert "--set-field track" in _TRIAGE_PROMPT
+        assert "kanban-route {{code}}" in _TRIAGE_PROMPT
+        assert "kanban-done {{code}}" in _TRIAGE_PROMPT
+        # It does NOT write code or open a PR (a cheap, read-only classifier).
+        assert "do NOT write code" in _TRIAGE_PROMPT
+
+
+class TestSkiffAdaptivePrompts:
+    """skiff: create-branch (_PREPARE_PROMPT) + build (_IMPLEMENT_PROMPT) are plan-adaptive — they
+    execute whatever the WIP branch carries (full plan / SCOPE.md only / neither = express)."""
+
+    def test_prepare_prompt_is_plan_adaptive(self) -> None:
+        """_PREPARE_PROMPT branches on the carried artifacts (full DESIGN.md / SCOPE.md / neither)."""
+        assert "ADAPTIVE INPUTS" in _PREPARE_PROMPT
+        assert "SCOPE.md" in _PREPARE_PROMPT
+        assert "EXPRESS lane" in _PREPARE_PROMPT
+        # The precondition is now FULL-lane-only — a lite/express empty marker is EXPECTED, not DESYNC.
+        assert "PRECONDITION (FULL lane only)" in _PREPARE_PROMPT
+        # The placeholders the existing precondition test pins are still present.
+        assert "{{design_path}}" in _PREPARE_PROMPT and "{{plan_paths}}" in _PREPARE_PROMPT
+
+    def test_implement_prompt_is_plan_adaptive(self) -> None:
+        """_IMPLEMENT_PROMPT executes a full plan / a SCOPE.md checklist / the express minimal change."""
+        assert "PLAN-ADAPTIVE" in _IMPLEMENT_PROMPT
+        assert "docs/features/{{codename}}/plan/" in _IMPLEMENT_PROMPT
+        assert "SCOPE.md" in _IMPLEMENT_PROMPT
+        assert "express lane" in _IMPLEMENT_PROMPT
+        # The express path writes the design rationale into the PR body (no DESIGN.md).
+        assert "design rationale" in _IMPLEMENT_PROMPT and "PR body" in _IMPLEMENT_PROMPT
+        # The plan-adaptive block precedes the STOP-AT-PR-CREATION guard (execute, then stop at PR).
+        assert _IMPLEMENT_PROMPT.index("PLAN-ADAPTIVE") < _IMPLEMENT_PROMPT.index(
+            "STOP AT PR CREATION"
+        )

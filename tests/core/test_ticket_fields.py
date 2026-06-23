@@ -22,6 +22,7 @@ def test_all_three_markers_parsed_correctly() -> None:
         "codename": "genesis",
         "design_path": "docs/features/genesis/DESIGN.md",
         "plan_paths": "docs/plan-1.md, docs/plan-2.md",
+        "track": "",
     }
 
 
@@ -40,9 +41,9 @@ def test_plans_marker_remapped_to_plan_paths() -> None:
 
 
 def test_missing_markers_default_to_empty_string() -> None:
-    """A body with no markers returns all three keys as empty strings."""
+    """A body with no markers returns all four keys as empty strings."""
     result = parse_ticket_fields("Just a regular issue body with no markers.")
-    assert result == {"codename": "", "design_path": "", "plan_paths": ""}
+    assert result == {"codename": "", "design_path": "", "plan_paths": "", "track": ""}
 
 
 def test_partial_markers_others_empty() -> None:
@@ -82,13 +83,13 @@ def test_unknown_key_silently_ignored() -> None:
 def test_none_body_treated_as_empty() -> None:
     """``None`` is treated as the empty string — all keys default to ``\"\"``."""
     result = parse_ticket_fields(None)
-    assert result == {"codename": "", "design_path": "", "plan_paths": ""}
+    assert result == {"codename": "", "design_path": "", "plan_paths": "", "track": ""}
 
 
 def test_empty_body_defaults_all_keys() -> None:
     """An empty string body defaults all keys to ``\"\"`` (no crash)."""
     result = parse_ticket_fields("")
-    assert result == {"codename": "", "design_path": "", "plan_paths": ""}
+    assert result == {"codename": "", "design_path": "", "plan_paths": "", "track": ""}
 
 
 def test_markers_interleaved_with_free_text() -> None:
@@ -113,3 +114,15 @@ def test_return_type_is_dict_str_str() -> None:
     for k, v in result.items():
         assert isinstance(k, str)
         assert isinstance(v, str)
+
+
+def test_parses_the_track_field() -> None:
+    """The body ``**track**`` marker is parsed as-is into the result dict."""
+    body = "**codename**: skiff\n**track**: express\n"
+    fields = parse_ticket_fields(body)
+    assert fields["track"] == "express"
+
+
+def test_track_defaults_to_empty_when_absent() -> None:
+    """Missing ``**track**`` defaults to ``""`` (no crash)."""
+    assert parse_ticket_fields("**codename**: x")["track"] == ""

@@ -1665,3 +1665,291 @@ def test_close_issue_query_selects_issue_id() -> None:
     assert "closeIssue" in q["query"]
     assert "issue { id }" in q["query"]
     assert q["variables"] == {"id": "NODE_1"}
+
+
+# ---------------------------------------------------------------------------
+# track:* label read/write (skiff fast-track manual override, Task 13)
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_issue_parses_labels() -> None:
+    """``fetch_issue`` carries the issue's label NAMES off the REST ``labels`` array.
+
+    The REST ``GET /issues/{n}`` payload includes a ``labels`` array the parser
+    previously dropped; the track-override read path needs the current label names
+    so it can compute which ``track:*`` labels to remove.
+    """
+
+    def fake_rest(method: str, path: str, _body: dict[str, Any] | None) -> Any:
+        assert method == "GET"
+        assert path == "/repos/IznoCorp/demo/issues/7"
+        return {
+            "node_id": "ISSUE_NODE_7",
+            "number": 7,
+            "title": "A ticket",
+            "body": "the body",
+            "labels": [{"name": "track:express"}, {"name": "bug"}],
+        }
+
+    client = GithubClient(
+        token="tok",
+        project_id="PVT",
+        repo="IznoCorp/demo",
+        graphql_transport=FakeGraphQL(),
+        rest_transport=fake_rest,
+    )
+    ref = client.fetch_issue(7)
+    assert "track:express" in ref.labels
+    assert "bug" in ref.labels
+
+
+def test_fetch_issue_no_labels_key_yields_empty_tuple() -> None:
+    """A payload with no ``labels`` key → an empty ``labels`` tuple (back-compat)."""
+
+    def fake_rest(_method: str, _path: str, _body: dict[str, Any] | None) -> Any:
+        return {"node_id": "N", "number": 7, "title": "t", "body": "b"}
+
+    client = GithubClient(
+        token="tok",
+        project_id="PVT",
+        repo="IznoCorp/demo",
+        graphql_transport=FakeGraphQL(),
+        rest_transport=fake_rest,
+    )
+    assert client.fetch_issue(7).labels == ()
+
+
+class _TrackGraphQL:
+    """A GraphQL transport for the track-label read/write path.
+
+    Routes the find-or-create repo label query (``ensure_labels``), the
+    add/remove label mutations (recording the label NAMES applied so a test can
+    assert them), and the paginated ``project_item_labels`` board read.
+
+    The repo's known labels (name → id) are seeded so ``ensure_labels`` resolves
+    ids without creating; the add/remove recorders translate the applied label
+    IDS back to NAMES via that same map for ergonomic assertions.
+    """
+
+    def __init__(self) -> None:
+        """Seed the repo labels and init the add/remove recorders."""
+        self.calls: list[dict[str, Any]] = []
+        # Repo labels (name -> id) used by ensure_labels' repo_id read.
+        self._labels = {
+            "track:full": "lbl_full",
+            "track:lite": "lbl_lite",
+            "track:express": "lbl_express",
+            "bug": "lbl_bug",
+        }
+        self._id_to_name = {v: k for k, v in self._labels.items()}
+        self.added: list[str] = []
+        self.removed: list[str] = []
+
+    def __call__(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Route by the operation embedded in the query string."""
+        self.calls.append(payload)
+        q = payload["query"]
+        if "repository(owner:" in q and "labels(first: 100)" in q:
+            return {
+                "data": {
+                    "repository": {
+                        "id": "REPO_NODE",
+                        "labels": {
+                            "nodes": [
+                                {"id": lid, "name": name} for name, lid in self._labels.items()
+                            ]
+                        },
+                    }
+                }
+            }
+        if "addLabelsToLabelable" in q:
+            self.added.extend(self._id_to_name[i] for i in payload["variables"]["labelIds"])
+            return {"data": {"addLabelsToLabelable": {"clientMutationId": None}}}
+        if "removeLabelsFromLabelable" in q:
+            self.removed.extend(self._id_to_name[i] for i in payload["variables"]["labelIds"])
+            return {"data": {"removeLabelsFromLabelable": {"clientMutationId": None}}}
+        raise AssertionError(f"unexpected GraphQL query: {q[:80]}")
+
+
+def _track_client(graphql: _TrackGraphQL, current_labels: list[str]) -> GithubClient:
+    """A client whose ``fetch_issue`` returns an issue carrying ``current_labels``."""
+
+    def fake_rest(_method: str, _path: str, _body: dict[str, Any] | None) -> Any:
+        return {
+            "node_id": "ISSUE_NODE_7",
+            "number": 7,
+            "title": "A ticket",
+            "body": "b",
+            "labels": [{"name": n} for n in current_labels],
+        }
+
+    return GithubClient(
+        token="tok",
+        project_id="PVT_PROJECT",
+        repo="IznoCorp/demo",
+        graphql_transport=graphql,
+        rest_transport=fake_rest,
+    )
+
+
+def test_set_issue_track_label_replaces_existing_track() -> None:
+    """Setting ``express`` removes the existing ``track:full`` and adds ``track:express``."""
+    graphql = _TrackGraphQL()
+    client = _track_client(graphql, current_labels=["track:full", "bug"])
+
+    client.set_issue_track_label(7, "express")
+
+    assert graphql.removed == ["track:full"]
+    assert graphql.added == ["track:express"]
+
+
+def test_set_issue_track_label_none_clears_all() -> None:
+    """``set_issue_track_label(n, None)`` removes every ``track:*`` and adds nothing."""
+    graphql = _TrackGraphQL()
+    client = _track_client(graphql, current_labels=["track:full", "bug"])
+
+    client.set_issue_track_label(7, None)
+
+    assert "track:full" in graphql.removed
+    assert graphql.added == []
+
+
+def test_set_issue_track_label_rejects_unknown() -> None:
+    """A value not in ``TRACK_VALUES`` fails loud before any mutation."""
+    graphql = _TrackGraphQL()
+    client = _track_client(graphql, current_labels=["track:full"])
+
+    with pytest.raises(ValueError, match="turbo"):
+        client.set_issue_track_label(7, "turbo")
+    # No mutation was attempted (fail-loud before touching the board).
+    assert graphql.added == []
+    assert graphql.removed == []
+
+
+def test_set_issue_track_label_idempotent_when_already_set() -> None:
+    """Setting the value already present adds the target and removes no OTHER track label."""
+    graphql = _TrackGraphQL()
+    client = _track_client(graphql, current_labels=["track:express"])
+
+    client.set_issue_track_label(7, "express")
+
+    # The target is (re)applied; no spurious removal of a different track label.
+    assert graphql.added == ["track:express"]
+    assert graphql.removed == []
+
+
+def test_board_item_tracks_collects_track_values() -> None:
+    """``board_item_tracks`` returns ``{number: value}`` for items carrying a ``track:*`` label."""
+
+    def fake_graphql(payload: dict[str, Any]) -> dict[str, Any]:
+        assert "ProjectV2" in payload["query"]
+        assert payload["variables"]["pid"] == "PVT_PROJECT"
+        return {
+            "data": {
+                "node": {
+                    "items": {
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        "nodes": [
+                            {
+                                "content": {
+                                    "number": 7,
+                                    "labels": {"nodes": [{"name": "track:full"}]},
+                                }
+                            },
+                            {"content": {"number": 8, "labels": {"nodes": [{"name": "bug"}]}}},
+                            {
+                                "content": {
+                                    "number": 9,
+                                    "labels": {"nodes": [{"name": "track:express"}]},
+                                }
+                            },
+                            {"content": {}},  # a draft / non-issue content — skipped
+                        ],
+                    }
+                }
+            }
+        }
+
+    client = GithubClient(
+        token="tok",
+        project_id="PVT_PROJECT",
+        repo="IznoCorp/demo",
+        graphql_transport=fake_graphql,
+        rest_transport=FakeRest(),
+    )
+    assert client.board_item_tracks() == {7: "full", 9: "express"}
+
+
+def test_board_item_tracks_paginates() -> None:
+    """``board_item_tracks`` threads ``endCursor`` across pages and merges the results."""
+    pages = [
+        {
+            "data": {
+                "node": {
+                    "items": {
+                        "pageInfo": {"hasNextPage": True, "endCursor": "C1"},
+                        "nodes": [
+                            {
+                                "content": {
+                                    "number": 7,
+                                    "labels": {"nodes": [{"name": "track:lite"}]},
+                                }
+                            },
+                        ],
+                    }
+                }
+            }
+        },
+        {
+            "data": {
+                "node": {
+                    "items": {
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        "nodes": [
+                            {
+                                "content": {
+                                    "number": 12,
+                                    "labels": {"nodes": [{"name": "track:express"}]},
+                                }
+                            },
+                        ],
+                    }
+                }
+            }
+        },
+    ]
+    seen_cursors: list[Any] = []
+
+    def fake_graphql(payload: dict[str, Any]) -> dict[str, Any]:
+        seen_cursors.append(payload["variables"].get("after"))
+        return pages.pop(0)
+
+    client = GithubClient(
+        token="tok",
+        project_id="PVT_PROJECT",
+        repo="IznoCorp/demo",
+        graphql_transport=fake_graphql,
+        rest_transport=FakeRest(),
+    )
+    result = client.board_item_tracks()
+
+    assert result == {7: "lite", 12: "express"}
+    # Page 1 with no cursor, page 2 with page 1's endCursor.
+    assert seen_cursors == [None, "C1"]
+
+
+def test_add_remove_label_queries_shape() -> None:
+    """The label mutations target the labelable node id and select the right operation."""
+    from kanbanmate.adapters.github import _queries
+
+    add = _queries.add_labels_to_issue("NODE_1", ["lbl_a", "lbl_b"])
+    assert "addLabelsToLabelable" in add["query"]
+    assert add["variables"] == {"labelableId": "NODE_1", "labelIds": ["lbl_a", "lbl_b"]}
+
+    rem = _queries.remove_labels_from_issue("NODE_1", ["lbl_c"])
+    assert "removeLabelsFromLabelable" in rem["query"]
+    assert rem["variables"] == {"labelableId": "NODE_1", "labelIds": ["lbl_c"]}
+
+    pil = _queries.project_item_labels("PVT", "CURSOR")
+    assert "ProjectV2" in pil["query"]
+    assert pil["variables"] == {"pid": "PVT", "after": "CURSOR"}

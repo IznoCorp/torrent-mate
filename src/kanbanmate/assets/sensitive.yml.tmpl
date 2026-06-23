@@ -1,0 +1,19 @@
+# skiff fast-track — ANY match forces the FULL lane (triage reads this; it never fast-tracks a hit).
+# Copied per-repo by `kanban init`; edit to fit the project. A missing/empty file is NOT "nothing is
+# sensitive" — the triage prompt leans to `full` for anything it cannot confidently classify as safe.
+paths: # globs matched against the ticket's probable scope
+  - "**/auth/**"
+  - "**/billing/**"
+  - "src/kanbanmate/core/decide.py"
+  - "src/kanbanmate/core/intent.py"
+  - "src/kanbanmate/adapters/perms.py"
+  - "src/kanbanmate/bin/kanban_session_end.py"
+keywords: # case-insensitive substrings in the ticket text
+  - security
+  - credential
+  - secret
+  - migration
+  - permission
+labels: # GitHub labels that force full regardless of size
+  - sensitive
+  - security

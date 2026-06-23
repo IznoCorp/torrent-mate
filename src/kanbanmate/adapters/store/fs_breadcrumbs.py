@@ -18,6 +18,12 @@ Two distinct issue-keyed breadcrumbs live here, both written SYNCHRONOUSLY by th
   (1800 s — the reaper HEARTBEAT_TTL horizon, so a done signal a hung daemon never consumed still
   ages out).
 
+* ``route/<issue>`` — the skiff fast-track lane the triage stage chose (``{"ts", "lane"}``). Written
+  SYNCHRONOUSLY by ``bin/kanban_route.py`` BEFORE ``kanban-done``; read by the session-end backstop
+  to move the card to the lane's entry column. Unlike the boolean done/advance breadcrumbs it carries
+  a PAYLOAD (the lane string). Same recency window :data:`_DONE_TTL` (1800 s) as the done breadcrumb,
+  which triage writes in the same breath.
+
 A third issue-keyed marker (firm-exit) mirrors the done breadcrumb but counts the reaper's done-exit
 attempts rather than a timestamp:
 
@@ -50,9 +56,9 @@ _DONE_TTL = 1800.0
 class AgentBreadcrumbsMixin:
     """Agent-advance + agent-done breadcrumbs (mixed into the fs state store).
 
-    Operates on the host store's ``root`` directory. The ``advances/`` and ``done/`` directories are
-    created by the host store's ``__init__`` (so an empty store directory tree is well-formed); reads
-    degrade gracefully on a missing/poison marker.
+    Operates on the host store's ``root`` directory. The ``advances/``, ``done/`` and ``route/``
+    directories are created by the host store's ``__init__`` (so an empty store directory tree is
+    well-formed); reads degrade gracefully on a missing/poison marker.
 
     Attributes:
         root: The state-store root directory (set by the host store's ``__init__``).
@@ -124,7 +130,11 @@ class AgentBreadcrumbsMixin:
             return False
         try:
             ts = float(json.loads(path.read_text()).get("ts", 0.0))
-        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        except (OSError, json.JSONDecodeError, TypeError, ValueError, AttributeError, KeyError):
+            # AttributeError/KeyError guard a well-formed-JSON-but-WRONG-SHAPE file (e.g. ``[1,2,3]``
+            # or ``"x"`` has no ``.get``; a dict missing the key on a non-default read): without them
+            # an escaping exception would strand the ticket — this read runs BEFORE purge_ticket in
+            # session-end, so a poison file must degrade to the safe default, never raise.
             return False
         return (now - ts) <= _ADVANCE_TTL
 
@@ -189,7 +199,10 @@ class AgentBreadcrumbsMixin:
             return False
         try:
             ts = float(json.loads(path.read_text()).get("ts", 0.0))
-        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        except (OSError, json.JSONDecodeError, TypeError, ValueError, AttributeError, KeyError):
+            # AttributeError/KeyError guard a well-formed-JSON-but-WRONG-SHAPE file (a JSON list or
+            # bare string has no ``.get``) — a poison done file must degrade to ``False``, never
+            # raise (this runs BEFORE purge_ticket in session-end; an escape would strand the slot).
             return False
         return (now - ts) <= _DONE_TTL
 
@@ -204,6 +217,68 @@ class AgentBreadcrumbsMixin:
             issue_number: The ticket whose done breadcrumb to clear (the key).
         """
         self._unlink(self._done_path(issue_number))
+
+    # ------------------------------------------------------------------
+    # Agent-route breadcrumb (the lane the triage stage chose, skiff)
+    # ------------------------------------------------------------------
+
+    def _route_path(self, issue_number: int) -> Path:
+        """Return the filesystem path for ``issue_number``'s route breadcrumb (issue-keyed)."""
+        return self.root / "route" / f"{issue_number}"
+
+    def record_agent_route(self, issue_number: int, lane: str, *, now: float) -> None:
+        """Drop the triage stage's chosen LANE breadcrumb (skiff fast-track routing).
+
+        Writes ``<root>/route/<issue>`` = ``{"ts": now, "lane": lane}``. Written SYNCHRONOUSLY by
+        ``bin/kanban_route.py`` when the triage stage has classified the ticket, BEFORE it runs
+        ``kanban-done``. The session-end backstop reads it (:meth:`recent_agent_route`) to move the
+        card to the lane's entry column. Unlike the boolean done/advance breadcrumbs this carries a
+        PAYLOAD (the lane), because the engine move target depends on it. Keyed by the issue number.
+
+        Args:
+            issue_number: The ticket whose lane to record (the breadcrumb key).
+            lane: The chosen lane (one of ``"full"`` / ``"lite"`` / ``"express"``).
+            now: The wall-clock timestamp written into the breadcrumb.
+        """
+        self._route_path(issue_number).write_text(json.dumps({"ts": now, "lane": lane}))
+
+    def recent_agent_route(self, issue_number: int, *, now: float) -> str:
+        """Return the recent route lane for ``issue_number``, or ``""`` when absent/expired/corrupt.
+
+        The lane is "recent" within :data:`_DONE_TTL` (1800 s — the same horizon as the done
+        breadcrumb, which triage writes in the same breath). Degrades to ``""`` on a missing or
+        unreadable marker (no raise — a poison file must never wedge the session-end leaf).
+
+        Args:
+            issue_number: The ticket whose lane to read (the key).
+            now: The wall-clock timestamp the TTL is measured against.
+
+        Returns:
+            The recorded lane string, or ``""`` when no fresh, well-formed breadcrumb exists.
+        """
+        path = self._route_path(issue_number)
+        if not path.exists():
+            return ""
+        try:
+            data = json.loads(path.read_text())
+            ts = float(data.get("ts", 0.0))
+            lane = str(data.get("lane", ""))
+        except (OSError, json.JSONDecodeError, TypeError, ValueError, AttributeError, KeyError):
+            # AttributeError/KeyError guard a well-formed-JSON-but-WRONG-SHAPE file (a JSON list or
+            # bare string has no ``.get``) — a poison route file must degrade to ``""``, never raise
+            # (this read feeds the session-end backstop; an escape would strand the slot).
+            return ""
+        return lane if (now - ts) <= _DONE_TTL else ""
+
+    def clear_agent_route(self, issue_number: int) -> None:
+        """Remove ``issue_number``'s route breadcrumb (no-op when absent).
+
+        Unlinks ``<root>/route/<issue>``; normally consumed by ``purge_ticket`` at teardown.
+
+        Args:
+            issue_number: The ticket whose route breadcrumb to clear (the key).
+        """
+        self._unlink(self._route_path(issue_number))
 
     # ------------------------------------------------------------------
     # Reaper done-exit attempt counter (firm-exit kill-escalation)
@@ -230,7 +305,10 @@ class AgentBreadcrumbsMixin:
             return 0
         try:
             return int(json.loads(path.read_text()).get("n", 0))
-        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        except (OSError, json.JSONDecodeError, TypeError, ValueError, AttributeError, KeyError):
+            # AttributeError/KeyError guard a well-formed-JSON-but-WRONG-SHAPE file (a JSON list or
+            # bare string has no ``.get``) — a poison counter file must degrade to ``0``, never
+            # raise (this feeds the reaper sweep; an escape would wedge the slot's bounded retry).
             return 0
 
     def bump_end_attempt(self, issue_number: int) -> int:

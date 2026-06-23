@@ -166,10 +166,12 @@ def test_validate_v1_known_placeholder_no_error() -> None:
 def test_validate_v2_mangled_slash_command() -> None:
     """V2: a prompt where the /implement: token is replaced by garbage → error."""
     clean = _clean_draft()
-    # Find the Backlog→Brainstorming transition and mangle its prompt.
+    # Find the Triage→Brainstorming transition (the FULL lane head — it carries
+    # /implement:brainstorm) and mangle its prompt. skiff: Backlog now → Triage (the classifier),
+    # so the brainstorm launch moved to Triage → Brainstorming.
     mangled_transitions = []
     for tr in clean.definition.transitions:
-        if tr.from_col == "Backlog" and tr.to_col == "Brainstorming":
+        if tr.from_col == "Triage" and tr.to_col == "Brainstorming":
             mangled_transitions.append(
                 TransitionDef(
                     from_col=tr.from_col,
@@ -592,11 +594,13 @@ def test_validate_clean_config_no_findings() -> None:
 
 
 def test_resolve_explicit_edge() -> None:
-    """An uncontested explicit edge resolves with tier='explicit' (real shipped edge)."""
+    """An uncontested explicit edge resolves with tier='explicit' (real shipped edge).
+
+    skiff: Backlog → Triage is the front-of-flow explicit launch edge (no (*, Triage) wildcard
+    exists, so this is uncontested) — it replaced the former Backlog → Brainstorming.
+    """
     draft = _clean_draft()
-    # Backlog → Brainstorming is an explicit edge in the shipped config (no
-    # (*, Brainstorming) wildcard exists, so this is uncontested).
-    result = resolve(draft, "Backlog", "Brainstorming")
+    result = resolve(draft, "Backlog", "Triage")
     assert result.matched is True
     assert result.tier == "explicit"
 
@@ -677,10 +681,13 @@ def test_resolve_cancel_to_backlog_engine_handled_reset() -> None:
 
 
 def test_resolve_would_launch_true_for_prompt_bearing() -> None:
-    """would_launch is True for a transition that has a prompt."""
+    """would_launch is True for a transition that has a prompt.
+
+    skiff: Backlog → Triage carries the triage prompt in the shipped config (it replaced the former
+    prompt-bearing Backlog → Brainstorming launch).
+    """
     draft = _clean_draft()
-    # Backlog → Brainstorming has a prompt in the shipped config.
-    result = resolve(draft, "Backlog", "Brainstorming")
+    result = resolve(draft, "Backlog", "Triage")
     assert result.would_launch is True
 
 

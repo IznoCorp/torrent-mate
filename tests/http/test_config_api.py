@@ -94,13 +94,13 @@ def test_health_includes_version() -> None:
 
 
 def test_get_config(client: TestClient) -> None:
-    """GET /api/config returns the current draft with 14 columns."""
+    """GET /api/config returns the current draft with 16 columns (Ready to merge + Triage + Scope)."""
     resp = client.get("/api/config")
     assert resp.status_code == 200
     body = resp.json()
     assert "definition" in body
     assert "binding" in body
-    assert len(body["definition"]["columns"]) == 14
+    assert len(body["definition"]["columns"]) == 16
 
 
 # ---------------------------------------------------------------------------
@@ -227,12 +227,15 @@ def test_get_render(client: TestClient) -> None:
 
 
 def test_post_resolve_known_edge(client: TestClient) -> None:
-    """POST /api/config/resolve for Backlog→Brainstorming returns matched=True, would_launch=True."""
+    """POST /api/config/resolve for Backlog→Triage returns matched=True, would_launch=True.
+
+    skiff: Backlog now → Triage (the classifier launch edge) — it replaced Backlog → Brainstorming.
+    """
     draft = PipelineDraft.from_loaded(
         render_transitions_yaml("owner/repo"),
         _columns_template_path().read_text(encoding="utf-8"),
     )
-    payload = {"draft": asdict(draft), "from_col": "Backlog", "to_col": "Brainstorming"}
+    payload = {"draft": asdict(draft), "from_col": "Backlog", "to_col": "Triage"}
     resp = client.post("/api/config/resolve", json=payload)
     assert resp.status_code == 200
     body = resp.json()

@@ -21,32 +21,12 @@ the BLOCK guards LAUNCHes unconditionally (:func:`kanbanmate.core.decide.decide`
 ``columns.yml`` carries **no** launch configuration — it is a bare column SET — so
 there is no per-column autonomy gate and no dormant stage.
 
-**The PoC display-name → NEW-key map (DESIGN §9).** The PoC's column display
-names are mapped 1:1 onto NEW's stable keys::
-
-    Design          -> Spec
-    Plan            -> Planned          (Planned later RETIRED — gate consolidated into ReadyToDev)
-    Ready to dev    -> ReadyToDev
-    Prepare feature -> PrepareFeature   (the create-branch stage NEW gained)
-    Implement       -> InProgress
-    PR Ready        -> PRCI
-    (Backlog / Review / Merge / Done / Cancel / Blocked are identical)
-
-**The brainstorming/design split (genesis phase 26, e2e-driven).** The front of
-the flow gained two columns — ``Brainstorming`` (after Backlog) and ``Plan``
-(after Spec) — and the single former ``Backlog -> Spec`` brainstorm+design step
-was split so only ONE step is interactive (DESIGN §8/§9):
-
-    Backlog       -> Brainstorming   INTERACTIVE /implement:brainstorm (human attaches)
-    Brainstorming -> Spec            AUTONOMOUS design (write design.md, no questions)
-    Spec          -> Plan            AUTONOMOUS /implement:plan (no questions)
-    Plan          -> ReadyToDev      no-op (lands in ReadyToDev = the single human gate)
-
-EVERY agent prompt except ``Backlog -> Brainstorming`` carries an explicit
-"run fully autonomously — do NOT ask the user any questions" instruction so an
-unattended orchestrated session never hangs on a clarifying question (the reaper
-would otherwise churn it). The interactive brainstorm is the one place a human
-``tmux attach``es to answer.
+**History (condensed; full detail in DESIGN §8/§9).** The PoC display names map 1:1 onto NEW's
+stable keys (Design→Spec, Implement→InProgress, PR Ready→PRCI, …); the former ``Planned`` gate was
+retired into ``ReadyToDev``. The front of the flow was split so only ``Backlog -> Brainstorming`` is
+INTERACTIVE; EVERY other agent prompt carries an explicit "run fully autonomously — do NOT ask the
+user any questions" instruction so an unattended session never hangs (the reaper would churn it). The
+interactive brainstorm is the one place a human ``tmux attach``es to answer.
 
 **The HYBRID auto-advance flow (DESIGN §13, operator decision).** The doc + build
 launch stages carry an ``advance:auto:<col>`` directive the ENGINE now honours (the
@@ -75,14 +55,16 @@ starts only when the human drags ReadyToDev → PrepareFeature. ``PrepareFeature
 launch-stage directives by the session-end backstop, the SCRIPT-gate directive by
 ``app/script_route._route_success`` (already wired).
 
-**Early skip-to-Done (genesis phase 26).** A single list-expanded no-op entry
-whitelists ``[Backlog, Brainstorming, Spec, Plan, ReadyToDev] -> Done``
-(5 cartesian edges) so an agent/human can mark an ALREADY-DONE ticket Done
-without a rollback. It is BOUNDED at ReadyToDev: from ``PrepareFeature`` onward a
-worktree/branch exists, so retirement must go through Cancel (teardown). Done is
-therefore NOT whitelisted from ``PrepareFeature``/``InProgress``/``PRCI``/
-``Review``/``Merge`` (those → Cancel only); a direct ``PrepareFeature -> Done``
-rolls back.
+**Early skip-to-Done (genesis phase 26; skiff added Triage/Scope).** A single
+list-expanded no-op entry whitelists
+``[Backlog, Triage, Brainstorming, Scope, Spec, Plan, ReadyToDev] -> Done``
+(7 cartesian edges) so an agent/human can mark an ALREADY-DONE ticket Done
+without a rollback. The skiff fast-track heads ``Triage`` and ``Scope`` join the
+set for symmetry — they too write no worktree/branch. It is BOUNDED at
+ReadyToDev/Scope: from ``PrepareFeature`` onward a worktree/branch exists, so
+retirement must go through Cancel (teardown). Done is therefore NOT whitelisted
+from ``PrepareFeature``/``InProgress``/``PRCI``/``Review``/``Merge`` (those →
+Cancel only); a direct ``PrepareFeature -> Done`` rolls back.
 
 **Autonomous merge (operator decision).** The review stage AUTO-ADVANCES to ``ReadyToMerge`` (the
 human merge gate) on completion; the human then drags ``ReadyToMerge -> Merge``, an AGENT stage
@@ -281,15 +263,17 @@ _CLEAN_STOP = (
     "any command). Leave the prompt EMPTY and idle.\n"
 )
 
-# Backlog -> Brainstorming: the ONLY interactive step. The agent gathers requirements
+# Triage -> Brainstorming: the ONLY interactive step. The agent gathers requirements
 # (it MAY ask — the tmux session is resumable), derives the codename, and APPENDS the
 # brainstorm OUTPUT under a `## Brainstorm` heading — it must NEVER overwrite the seeded
 # description or the **roadmap** marker (§29.4: the brainstorm append, not overwrite).
+# (skiff: this is now the FULL-lane head, wired on Triage → Brainstorming — TRIAGE is the
+# first stage; the lite/express lanes never reach it.)
 #
-# Phase 39b (R2, live #146): brainstorming is the FIRST stage — the cheapest place to
-# catch already-shipped work, so the prompt now carries a STATE CHECK FIRST block (the
-# shared early-stage _STATE_CHECK_EARLY, set-codename instead of set-roadmap so the
-# Done card still carries its marker) BEFORE the interactive Q&A. On #146 the agent
+# Phase 39b (R2, live #146): brainstorming is the cheapest place to catch already-shipped
+# work, so the prompt now carries a STATE CHECK FIRST block (the shared early-stage
+# _STATE_CHECK_EARLY, set-codename instead of set-roadmap so the Done card still carries
+# its marker) BEFORE the interactive Q&A. On #146 the agent
 # self-checked out of pure judgment, found ALREADY_SHIPPED, then stopped WITHOUT moving
 # the card (no INSTRUCTED exit). The state-check now mandates the Done move (it OVERRIDES
 # the normal DONE checklist) and the agent only enters the interactive brainstorm when
@@ -325,6 +309,66 @@ _BRAINSTORM_PROMPT = (
     "card moved to Done — see STATE CHECK FIRST above, which OVERRIDES this checklist.) If they "
     "already exist (re-entry), VERIFY and finalize — do NOT redo.\n"
     "Run `kanban-done {{code}}` once the brainstorm output + codename are recorded.\n" + _CLEAN_STOP
+)
+
+# Backlog -> Triage: the skiff fast-track CLASSIFIER (cheap, read-only). It classifies the ticket on
+# two axes (SIZE × SENSITIVITY), records the lane (durable **track** field + the kanban-route
+# breadcrumb the engine consumes), and ends. The ENGINE then routes the card to the lane's entry
+# column (bin/kanban_session_end._routed_advance, advance: route). Conservative-by-construction: any
+# doubt / any sensitivity / any self-failure → ``full``. It writes no code and opens no PR, so it is
+# the cheapest place to gate effort. There is no IDENTITY/STATE block here (it precedes the lane
+# heads which carry their own); it leads with the routing instruction.
+_TRIAGE_PROMPT = (
+    "/kanban Triage ticket {{code}} ({{codename}}) onto a fast-track lane.\n"
+    + _IDENTITY_THEN_STATE
+    + "You are the skiff TRIAGE stage. Classify this ticket on TWO axes and route it:\n"
+    "- SIZE: trivial / small / substantial (read the ticket; take a QUICK code peek at the likely "
+    "files with `rg`/`grep` to gauge effort — do NOT start implementing).\n"
+    "- SENSITIVITY: read `.claude/kanban/sensitive.yml`. If the ticket's probable scope matches any "
+    "sensitive path glob or keyword, OR the ticket carries a `sensitive`/listed `area:*` label → it "
+    "is SENSITIVE.\n"
+    "OVERRIDE: if the ticket carries exactly ONE explicit `track:full|lite|express` label, honour it — "
+    "EXCEPT a `sensitive` match always wins and forces `full` (post a kanban-comment noting the "
+    "override-down). If MULTIPLE conflicting `track:*` labels are present (the UI keeps it single-select, "
+    "so this means a manual mistake), treat the override as ambiguous → `full`.\n"
+    "DECIDE: `express` = trivial AND safe; `lite` = small AND safe; otherwise `full`. ANY doubt, any "
+    "sensitivity, any failure to assess → `full` (the conservative default).\n"
+    "RECORD your decision, in this order:\n"
+    "1. `kanban-update-body {{code}} --set-field track <lane>` (durable; read later by the review).\n"
+    "2. `kanban-route {{code}} <lane>` (the routing breadcrumb the engine consumes).\n"
+    "3. `kanban-done {{code}}` (end the session; the engine moves the card to the lane entry).\n"
+    "Do NOT move the card yourself, do NOT write code, do NOT open a PR.\n" + _CLEAN_STOP
+)
+
+# Triage -> Scope: the skiff LITE lane head (a small, safe ticket). It produces a COMPRESSED
+# design+plan in ONE pass — no separate brainstorm, no full DESIGN.md, no multi-phase plan. It first
+# DERIVES + SETS the codename + SemVer bump (triage did not set the codename, so the SCOPE.md path
+# depends on it being set first), THEN commits a SCOPE.md under docs/features/<codename>/ onto the
+# per-ticket WIP branch so the build stage inherits it, and ends; the engine auto-advances the card
+# to Prepare feature (build). It carries the autonomy + grounding discipline (it writes durable
+# artifacts) but no human gate.
+_SCOPE_PROMPT = (
+    "/kanban Scope ticket {{code}} ({{codename}}) — the LITE fast-track design+plan in one pass.\n"
+    + _SCOPE_GUARD
+    + _IDENTITY_THEN_STATE
+    + "You are the skiff LITE SCOPE stage (a small, safe ticket). Produce a COMPRESSED design+plan "
+    "in a SINGLE pass — no separate brainstorm, no full DESIGN.md, no multi-phase plan:\n"
+    "- DERIVE + SET THE CODENAME FIRST (triage did NOT set it, so `{{codename}}` is empty until you "
+    "do — and the SCOPE.md path below DERIVES FROM it). Derive a codename + SemVer bump (usually "
+    "patch/minor) and set the codename: "
+    "`kanban-update-body {{code}} --set-field codename <codename>`.\n"
+    "- THEN write a few-line scope note + a short checklist plan to "
+    "`docs/features/<codename>/SCOPE.md` (under the codename you just set) and `git add` + "
+    "`git commit` it (the WIP branch carries it to the build stage). Run `git add` and `git commit` "
+    "as TWO SEPARATE commands, each on its own line (the docs profile allows them as SEPARATE "
+    "allow-patterns — joining them with `&&` may match NEITHER and be DENIED headlessly):\n"
+    "  1. `git add docs/features/<codename>/SCOPE.md`\n"
+    '  2. `git commit -m "docs(<codename>): scope"`\n'
+    + _AUTONOMY
+    + _GROUNDING_DISCIPLINE
+    + "DONE = SCOPE.md committed to the per-ticket branch + **codename** marker set. If they already "
+    "exist (re-entry), VERIFY and finalize — do NOT redo. Then `kanban-done {{code}}` — the engine "
+    "advances the card to Prepare feature (build).\n" + _CLEAN_STOP
 )
 
 # Brainstorming -> Spec: AUTONOMOUS design. Reads the brainstorm output already in the
@@ -416,13 +460,25 @@ _PREPARE_PROMPT = (
     + _IDENTITY_THEN_STATE
     + _STATE_CHECK_LATE
     + _DESYNC
-    + "PRECONDITION: {{design_path}} AND {{plan_paths}} must both be non-empty (the Design + Plan "
-    "stages recorded them). If either is empty, that is a DESYNC — follow the DESYNC protocol, do "
-    "NOT guess.\n"
+    + "ADAPTIVE INPUTS (skiff): a prior stage may have left artifacts on the per-ticket WIP branch — "
+    "inspect what is actually present, then proceed accordingly:\n"
+    "- If `docs/features/{{codename}}/DESIGN.md` AND a plan dir exist (FULL lane) → use the codename "
+    "+ bump already set; the {{design_path}}/{{plan_paths}} PRECONDITION below applies.\n"
+    "- If only `docs/features/{{codename}}/SCOPE.md` exists (LITE lane) → use the codename already "
+    "set; bump = the scope note's bump. There is no full DESIGN.md/plan dir — that is EXPECTED, not "
+    "a DESYNC.\n"
+    "- If NEITHER exists (EXPRESS lane) → derive the codename from the issue title (slug) and bump = "
+    "patch; there is no DESIGN.md — the design rationale goes in the PR body. An empty "
+    "{{design_path}}/{{plan_paths}} is EXPECTED for this lane, not a DESYNC.\n"
+    + "PRECONDITION (FULL lane only): when a DESIGN.md + plan dir are present, {{design_path}} AND "
+    "{{plan_paths}} must both be non-empty (the Design + Plan stages recorded them). If a full-lane "
+    "design/plan exists on disk but its marker is empty, that is a DESYNC — follow the DESYNC "
+    "protocol, do NOT guess. (For the LITE/EXPRESS lanes the markers are legitimately empty — see "
+    "ADAPTIVE INPUTS above.)\n"
     + _AUTONOMY
-    + "DONE = branch created + design/plan committed + IMPLEMENTATION.md initialized (durable "
-    "outputs BEFORE any kanban-move). If the branch already exists (re-entry), VERIFY and finalize "
-    "— do NOT redo. Then run `kanban-done {{code}}` to end your session.\n" + _CLEAN_STOP
+    + "DONE = branch created + any carried design/plan committed + IMPLEMENTATION.md initialized "
+    "(durable outputs BEFORE any kanban-move). If the branch already exists (re-entry), VERIFY and "
+    "finalize — do NOT redo. Then run `kanban-done {{code}}` to end your session.\n" + _CLEAN_STOP
 )
 
 # PrepareFeature -> InProgress: implement all phases. Late-stage (a worktree/branch
@@ -443,6 +499,12 @@ _IMPLEMENT_PROMPT = (
     + _DESYNC
     + _AUTONOMY
     + _GROUNDING_DISCIPLINE
+    + "PLAN-ADAPTIVE (skiff): execute whatever the per-ticket WIP branch actually carries —\n"
+    "- a full plan (`docs/features/{{codename}}/plan/`) → run it phase by phase (the full lane);\n"
+    "- a `docs/features/{{codename}}/SCOPE.md` only → implement the checklist directly, no phase "
+    "orchestration (the lite lane);\n"
+    "- neither (the express lane) → scope the fix from the ticket, implement the MINIMAL change, and "
+    "write the design rationale (a few lines) into the PR body.\n"
     + "STOP AT PR CREATION: /implement:phase auto-chains to feature-pr → pr-review, which ends in "
     "`gh pr merge` (DENIED). STOP as soon as the PR is created and CI is pushed. NEVER run "
     "`gh pr merge` (or any merge command) under any circumstance — merge is HUMAN-ONLY.\n"
@@ -605,17 +667,62 @@ _MERGE_PROMPT = (
 # launch no agent, so they carry no mode.
 DEFAULT_TRANSITIONS: list[dict[str, Any]] = [
     # ── Normal forward workflow ──────────────────────────────────────────────
-    # Backlog → Brainstorming: the ONLY interactive step (a human tmux-attaches to
-    # answer the agent's clarifying questions). Writes the brainstorm output +
-    # codename to the ticket body — NOT the formal design.
+    # Backlog → Triage: the skiff fast-track CLASSIFIER (cheap, read-only). It records the lane (the
+    # durable **track** field + the kanban-route breadcrumb) and ends; the ENGINE then routes the card
+    # to the lane's entry column (bin/kanban_session_end._routed_advance, advance: route). This
+    # REPLACES the former direct Backlog → Brainstorming launch — every ticket now enters via triage.
     {
         "from": "Backlog",
+        "to": "Triage",
+        "profile": "triage",
+        "prompt": _TRIAGE_PROMPT,
+        # skiff routing (DESIGN): advance: route → the session-end backstop reads the kanban-route
+        # breadcrumb and moves the card to the lane entry (TRACK_ENTRY). NOT an auto:<col> directive.
+        "advance": "route",
+        "permission_mode": "auto",
+    },
+    # Triage → Brainstorming: the FULL lane head (interactive brainstorm, unchanged). The one place a
+    # human tmux-attaches to answer clarifying questions. Matches TRACK_ENTRY["full"].
+    {
+        "from": "Triage",
         "to": "Brainstorming",
         "profile": "docs",
         "prompt": _BRAINSTORM_PROMPT,
         # HYBRID flow (DESIGN §13): the brainstorm completes (kanban-done) → the engine backstop
         # (bin/kanban_session_end._auto_advance) moves the card to Spec, firing the design stage.
         "advance": "auto:Spec",
+        "permission_mode": "auto",
+    },
+    # Triage → Scope: the LITE lane head (compressed design+plan in one pass; no human gate). Matches
+    # TRACK_ENTRY["lite"]. Auto-advances into PrepareFeature (build) when the scope note is committed.
+    {
+        "from": "Triage",
+        "to": "Scope",
+        "profile": "docs",
+        "prompt": _SCOPE_PROMPT,
+        "advance": "auto:PrepareFeature",
+        "permission_mode": "auto",
+    },
+    # Triage → PrepareFeature: the EXPRESS lane head (no design — straight to create-branch/build; the
+    # design rationale lives in the PR body). Matches TRACK_ENTRY["express"]. create-branch runs on
+    # arrival (the plan-adaptive _PREPARE_PROMPT handles the no-DESIGN.md case). Same profile + prompt
+    # as the full-lane ReadyToDev → PrepareFeature human-drag row.
+    {
+        "from": "Triage",
+        "to": "PrepareFeature",
+        "profile": "prepare",
+        "prompt": _PREPARE_PROMPT,
+        "advance": "auto:InProgress",
+        "permission_mode": "auto",
+    },
+    # Scope → PrepareFeature: the LITE lane continues into create-branch/build (engine auto-advance).
+    # The SCOPE.md committed on the WIP branch is read by the plan-adaptive _PREPARE_PROMPT.
+    {
+        "from": "Scope",
+        "to": "PrepareFeature",
+        "profile": "prepare",
+        "prompt": _PREPARE_PROMPT,
+        "advance": "auto:InProgress",
         "permission_mode": "auto",
     },
     # Brainstorming → Spec: AUTONOMOUS design — writes design.md from the brainstorm
@@ -773,15 +880,16 @@ DEFAULT_TRANSITIONS: list[dict[str, Any]] = [
     # ticket is already rare, so the no-op variant loses little. Re-seed-fresh-board stays the
     # primary recovery doctrine; this is a convenience reopen.
     {"from": "Done", "to": "Backlog"},  # allowed no-op (recovery: reopen)
-    # Early skip-to-Done (genesis phase 26, e2e-driven). A single list-expanded
-    # no-op entry whitelists the six PRE-PrepareFeature columns → Done so an
-    # agent/human can mark an ALREADY-DONE ticket Done without a rollback. It
-    # cartesian-expands to six explicit no-op edges (no prompt/script). BOUNDED at
-    # ReadyToDev: from PrepareFeature onward a worktree/branch exists, so retirement
-    # must go through Cancel (teardown) — Done is deliberately NOT whitelisted from
-    # PrepareFeature/InProgress/PRCI/Review/Merge (a direct → Done there rolls back).
+    # Early skip-to-Done (genesis phase 26, e2e-driven; skiff added Triage/Scope). A single
+    # list-expanded no-op entry whitelists the seven PRE-PrepareFeature columns → Done so an
+    # agent/human can mark an ALREADY-DONE ticket Done without a rollback. It cartesian-expands to
+    # seven explicit no-op edges (no prompt/script). The skiff fast-track heads ``Triage`` and
+    # ``Scope`` are included for symmetry with the other pre-PrepareFeature columns (they too write
+    # no worktree/branch). BOUNDED at ReadyToDev/Scope: from PrepareFeature onward a worktree/branch
+    # exists, so retirement must go through Cancel (teardown) — Done is deliberately NOT whitelisted
+    # from PrepareFeature/InProgress/PRCI/Review/Merge (a direct → Done there rolls back).
     {
-        "from": ["Backlog", "Brainstorming", "Spec", "Plan", "ReadyToDev"],
+        "from": ["Backlog", "Triage", "Brainstorming", "Scope", "Spec", "Plan", "ReadyToDev"],
         "to": "Done",
     },
     # Parking wildcards (any column ↔ Blocked).
@@ -802,6 +910,18 @@ DEFAULT_TRANSITIONS: list[dict[str, Any]] = [
 # surface), and the per-item AUTO/bot move rate limit is 10 per hour.
 DEFAULT_CONCURRENCY_CAP = 3
 DEFAULT_MOVE_RATE_LIMIT_PER_HOUR = 10
+
+# skiff fast-track: the lane vocabulary + each lane's entry column KEY. The triage stage routes a
+# ticket onto a lane by having the ENGINE move the card to this column (a whitelisted Triage→entry
+# edge), so the launch on that edge fires the lane's head stage. Pairs with the columns shipped in
+# columns.yml.tmpl + the Triage→{entry} transitions below; a custom board that renames these columns
+# must update this map too.
+TRACK_VALUES: tuple[str, ...] = ("full", "lite", "express")
+TRACK_ENTRY: dict[str, str] = {
+    "full": "Brainstorming",
+    "lite": "Scope",
+    "express": "PrepareFeature",
+}
 
 
 def render_transitions_yaml(project: str) -> str:

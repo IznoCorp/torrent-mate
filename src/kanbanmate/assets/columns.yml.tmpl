@@ -32,6 +32,13 @@ columns:
     name: Backlog
     # Inert: manual entry point; also the reset target from Cancel.
 
+  - key: Triage
+    name: Triage
+    # Inert: the skiff fast-track classifier stage. The launch lives on the
+    # Backlog -> Triage transition (a cheap agent classifies size + sensitivity
+    # and records the lane). The engine then routes the card to the lane's entry
+    # column (full -> Brainstorming, lite -> Scope, express -> Prepare feature).
+
   - key: Brainstorming
     name: Brainstorming
     # Inert: the INTERACTIVE brainstorm stage. The launch lives on the
@@ -49,6 +56,12 @@ columns:
     # Inert: the AUTONOMOUS plan stage. The launch lives on the Spec -> Plan
     # transition (writes the plan files — no questions). On completion the card
     # auto-advances to ReadyToDev (the single human gate).
+
+  - key: Scope
+    name: Scope
+    # Inert: the lite-lane compressed design+plan stage. The launch lives on the
+    # Triage -> Scope transition (one pass: mini-design + mini-plan, obvious
+    # decisions taken autonomously, no human gate). Auto-advances to Prepare feature.
 
   - key: ReadyToDev
     name: Ready to dev

@@ -135,6 +135,17 @@ export const moveTicket = (number, toCol, project) =>
     `/api/monitor/ticket/${encodeURIComponent(number)}/move${q(project)}`,
     { to_col: toCol },
   );
+// Set (or clear) a ticket's fast-track lane (skiff). `track` is "full"|"lite"|"express"
+// or null to clear the label (the "Auto" choice). The backend toggles the track:* label.
+export const setTicketTrack = (number, track, project) =>
+  call(
+    "POST",
+    `/api/monitor/ticket/${encodeURIComponent(number)}/track${q(project)}`,
+    { track: track || null },
+  );
+// Fetch the per-ticket track lane map for a board: { "<number>": "<lane>" } (string-keyed).
+export const getBoardTracks = (project) =>
+  call("GET", `/api/monitor/board/tracks${q(project)}`);
 // Poll an enqueued intent's result (so the UI shows the real outcome, not an optimistic "queued").
 export const intentResult = (intentId, project) =>
   call(

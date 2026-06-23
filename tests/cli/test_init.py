@@ -174,17 +174,20 @@ def test_init_ensures_template_columns_as_status_options(tmp_path: Path) -> None
     assert len(seeder.ensure_columns_calls) == 1
     project_id, columns = seeder.ensure_columns_calls[0]
     assert project_id == "PVT_NEW"
-    # The 14-column default template, by human-readable name in order —
-    # ``Brainstorming`` (interactive) sits after ``Backlog`` and ``Plan``
-    # (autonomous) after ``Spec``; the redundant ``Planned`` gate was retired
-    # (consolidated into ``Ready to dev``); ``Prepare feature`` (the create-branch
-    # stage) sits between ``Ready to dev`` and ``In Progress``; ``Ready to merge``
-    # (the human merge gate the review auto-advances to) sits between ``Review`` and ``Merge``.
+    # The 16-column default template, by human-readable name in order —
+    # ``Brainstorming`` (interactive) sits after ``Backlog`` and ``Plan`` (autonomous) after
+    # ``Spec``; the redundant ``Planned`` gate was retired (consolidated into ``Ready to dev``);
+    # ``Prepare feature`` (the create-branch stage) sits between ``Ready to dev`` and ``In
+    # Progress``; ``Ready to merge`` (the human merge gate the review auto-advances to) sits between
+    # ``Review`` and ``Merge``. The skiff fast-track adds the inert ``Triage`` (after ``Backlog``)
+    # and ``Scope`` (after ``Plan``).
     assert columns == [
         "Backlog",
+        "Triage",
         "Brainstorming",
         "Spec",
         "Plan",
+        "Scope",
         "Ready to dev",
         "Prepare feature",
         "In Progress",
@@ -216,6 +219,16 @@ def test_init_writes_columns_yml_into_clone(tmp_path: Path) -> None:
     written = tmp_path / "clone" / ".claude" / "kanban" / "columns.yml"
     assert written.exists()
     source = init_mod._engine_assets_template()
+    assert written.read_text(encoding="utf-8") == source
+
+
+def test_init_writes_sensitive_yml_into_clone(tmp_path: Path) -> None:
+    """The sensitive-areas template is copied into ``<clone>/.claude/kanban/sensitive.yml`` (skiff)."""
+    _run_init(tmp_path)
+
+    written = tmp_path / "clone" / ".claude" / "kanban" / "sensitive.yml"
+    assert written.exists()
+    source = init_mod._sensitive_template()
     assert written.read_text(encoding="utf-8") == source
 
 

@@ -47,7 +47,7 @@ def test_config_service_load_returns_draft(tmp_path: Path) -> None:
     svc = ConfigService(transitions_path=tp, columns_path=cp)
     draft = svc.load()
     assert isinstance(draft, PipelineDraft)
-    assert len(draft.definition.columns) == 14
+    assert len(draft.definition.columns) == 16  # base 13 + Ready to merge + Triage + Scope
 
 
 def test_config_service_validate_clean(tmp_path: Path) -> None:
@@ -142,7 +142,8 @@ def test_config_service_resolve(tmp_path: Path) -> None:
     tp, cp = _make_clone_config(tmp_path)
     svc = ConfigService(transitions_path=tp, columns_path=cp)
     draft = svc.load()
-    result = svc.resolve(draft, "Backlog", "Brainstorming")
+    # skiff: Backlog now → Triage (the classifier launch edge); it replaced Backlog → Brainstorming.
+    result = svc.resolve(draft, "Backlog", "Triage")
     assert result.matched is True
     assert result.would_launch is True
 

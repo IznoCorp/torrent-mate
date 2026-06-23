@@ -153,11 +153,15 @@ def test_transitions_yaml_absent_falls_back_to_default_flow() -> None:
 
     # A whitelist is always present; it is the shipped PoC default flow, never None.
     assert tick_config.transitions is not None
-    # A known forward edge (Backlog → Brainstorming) carries the interactive brainstorm prompt.
-    backlog_to_brainstorming = tick_config.transitions.get("Backlog", "Brainstorming")
-    assert backlog_to_brainstorming is not None
-    assert backlog_to_brainstorming.prompt is not None
-    assert "/implement:brainstorm" in backlog_to_brainstorming.prompt
+    # A known forward edge (Backlog → Triage) carries the skiff classifier prompt. skiff: Backlog
+    # now → Triage; the interactive brainstorm moved to Triage → Brainstorming (the FULL lane head).
+    backlog_to_triage = tick_config.transitions.get("Backlog", "Triage")
+    assert backlog_to_triage is not None
+    assert backlog_to_triage.prompt is not None
+    triage_to_brainstorming = tick_config.transitions.get("Triage", "Brainstorming")
+    assert triage_to_brainstorming is not None
+    assert triage_to_brainstorming.prompt is not None
+    assert "/implement:brainstorm" in triage_to_brainstorming.prompt
     # Another known edge (PrepareFeature → InProgress) resolves to the implement prompt.
     prepare_to_inprogress = tick_config.transitions.get("PrepareFeature", "InProgress")
     assert prepare_to_inprogress is not None
@@ -175,8 +179,10 @@ def test_transitions_yaml_default_fallback_equals_default_transition_config() ->
     expected = default_transition_config()
     assert tick_config.transitions is not None
     # Same resolved edges across the whole default flow (explicit, wildcard, and no-op rows).
+    # skiff: the front-of-flow launch is now Backlog → Triage.
     for from_col, to_col in [
-        ("Backlog", "Brainstorming"),
+        ("Backlog", "Triage"),
+        ("Triage", "Brainstorming"),
         ("PrepareFeature", "InProgress"),
         ("Review", "Merge"),
         ("Anything", "Cancel"),  # (*, Cancel) wildcard

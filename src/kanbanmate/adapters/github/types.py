@@ -140,9 +140,15 @@ class IssueRef:
         number: The issue number (echoed back for an integrity check).
         title: The issue title (carries the authoritative ``[CODE]`` bracket).
         body: The issue's current markdown body (empty string when absent).
+        labels: The issue's current label NAMES (e.g. ``("track:full", "bug")``).
+            Read off the REST ``labels`` array so the skiff fast-track override
+            (``set_issue_track_label``) can compute which ``track:*`` labels to
+            remove. Defaults to an empty tuple — back-compatible with every
+            existing caller that constructs an :class:`IssueRef` without labels.
     """
 
     node_id: str
     number: int
     title: str
     body: str
+    labels: tuple[str, ...] = ()

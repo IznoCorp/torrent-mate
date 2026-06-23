@@ -291,6 +291,14 @@ monitor:
   moving: Moving…
   move_queued: Move queued — the board updates shortly.
   move_done: Card moved.
+  track: Track
+  track_auto: Auto
+  track_full: Full
+  track_lite: Lite
+  track_express: Express
+  track_saving: Updating track…
+  track_queued: Track update queued…
+  track_done: Track updated.
   state: state
   stage: stage
   branch: branch

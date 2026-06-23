@@ -660,6 +660,8 @@ _PROFILE_SUMMARIES: dict[str, str] = {
     "NO writes that matter, NO merge.",
     "merge": "The autonomous Review→Merge stage — the SOLE profile whose deny-list lifts "
     "`gh pr merge` (squash-merge a green, mergeable PR). Force-push + history rewrite stay banned.",
+    "triage": "Read-only fast-track classifier: reads the ticket + sensitive-paths config and "
+    "records the lane. NO file edits, NO git/push, NO PR ops, NO merge.",
 }
 
 

@@ -48,9 +48,14 @@ def _columns() -> dict[str, object]:
     from kanbanmate.core.columns import load_columns  # noqa: PLC0415 — test-local
 
     # A minimal column model mirroring the shipped template's key→name map so the backstop's
-    # KEY→NAME resolution lands ("PRCI" → "PR/CI", "Blocked" → "Blocked").
+    # KEY→NAME resolution lands ("PRCI" → "PR/CI", "Blocked" → "Blocked"). skiff: the three lane
+    # entry columns (Brainstorming / Scope / PrepareFeature→"Prepare feature") are added so the
+    # routed-advance backstop resolves each lane's entry KEY → its display NAME.
     yaml_text = (
         "columns:\n"
+        "  - {key: Brainstorming, name: Brainstorming}\n"
+        "  - {key: Scope, name: Scope}\n"
+        "  - {key: PrepareFeature, name: Prepare feature}\n"
         "  - {key: Spec, name: Spec}\n"
         "  - {key: Plan, name: Plan}\n"
         "  - {key: Planned, name: Planned}\n"
@@ -62,10 +67,19 @@ def _columns() -> dict[str, object]:
 
 
 def _patch_backstop_config(monkeypatch: pytest.MonkeyPatch, *, rate_limit: int = 10) -> None:
-    """Stub the per-clone column + transition config loaders the auto-advance backstop reads."""
+    """Stub the per-clone column + transition config loaders the auto/routed-advance backstops read.
+
+    ``cfg.get(stage, target)`` returns an explicit launch edge (a truthy ``.prompt``) so BOTH the
+    auto-advance pending-launch check AND the skiff routed-advance whitelist guard see a real,
+    prompt-bearing edge (e.g. ``Triage→Brainstorming|Scope|PrepareFeature`` is a whitelisted launch
+    transition). Tests needing a NON-launch (no-op gate) edge build their own ``cfg`` inline.
+    """
     monkeypatch.setattr(kanban_session_end, "load_clone_columns", lambda entry: _columns())
     cfg = MagicMock()
     cfg.move_rate_limit_per_hour = rate_limit
+    launch_edge = MagicMock()
+    launch_edge.prompt = "launch the stage"  # a whitelisted, prompt-bearing launch edge.
+    cfg.get.return_value = launch_edge
     monkeypatch.setattr(kanban_session_end, "load_clone_transitions", lambda entry: cfg)
 
 
@@ -744,3 +758,61 @@ def test_body_status_error_does_not_break_session_end(monkeypatch: pytest.Monkey
     )
 
     assert main(["7"]) == 0  # fail-soft: never crashes the agent shell.
+
+
+# ---------------------------------------------------------------------------
+# skiff — routed-advance backstop (triage stage advance='route')
+# ---------------------------------------------------------------------------
+
+
+def test_route_directive_moves_card_to_lane_entry(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A clean-done triage stage (advance='route') moves the card to the lane's entry column."""
+    store = MagicMock()
+    store.load.return_value = _state(stage="Triage", advance="route")
+    store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = True
+    store.recent_agent_route.return_value = "express"  # triage chose express
+    store.move_count_for_item_last_hour.return_value = 0
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    client = _patch_github_capture_client(monkeypatch)
+    _patch_backstop_config(monkeypatch)
+
+    assert main(["7"]) == 0
+    # express → PrepareFeature (key) → its display name "Prepare feature".
+    client.move_card.assert_called_once_with("PVTI_node", "Prepare feature")
+    store.record_move_for_item.assert_called_once()
+
+
+def test_route_directive_unknown_lane_fails_soft(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An empty/unknown recorded lane → no move, session-end still exits 0 (card stays in Triage)."""
+    store = MagicMock()
+    store.load.return_value = _state(stage="Triage", advance="route")
+    store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = True
+    store.recent_agent_route.return_value = ""  # triage crashed before routing
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    client = _patch_github_capture_client(monkeypatch)
+    _patch_backstop_config(monkeypatch)
+
+    assert main(["7"]) == 0
+    client.move_card.assert_not_called()
+
+
+def test_route_rate_limited_parks_in_blocked(monkeypatch: pytest.MonkeyPatch) -> None:
+    """At/over the per-issue rate limit the routed move parks in Blocked (anti-loop bound)."""
+    store = MagicMock()
+    store.load.return_value = _state(stage="Triage", advance="route")
+    store.recent_agent_advance.return_value = False
+    store.recent_agent_done.return_value = True
+    store.recent_agent_route.return_value = "lite"
+    store.move_count_for_item_last_hour.return_value = 10  # >= cap
+    monkeypatch.setattr(kanban_session_end, "FsStateStore", lambda *a, **k: store)
+    client = _patch_github_capture_client(monkeypatch)
+    upsert = MagicMock()
+    monkeypatch.setattr(kanban_session_end, "upsert_stage_comment", upsert)
+    monkeypatch.setattr(kanban_session_end, "update_body_status", MagicMock())
+    _patch_backstop_config(monkeypatch, rate_limit=10)
+
+    assert main(["7"]) == 0
+    client.move_card.assert_called_once_with("PVTI_node", "Blocked")
+    assert upsert.call_args.kwargs["header"].status == "blocked"

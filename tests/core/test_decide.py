@@ -258,10 +258,14 @@ class TestAdapterNameSeam:
         assert action.kind is ActionKind.LAUNCH
 
     def test_first_agent_step_by_option_name_launches(self) -> None:
-        """``Backlog → Brainstorming`` (the interactive brainstorm step) LAUNCHes by NAMEs."""
+        """``Backlog → Triage`` (the skiff classifier — the first agent step) LAUNCHes by NAMEs.
+
+        skiff: Backlog now → Triage; the former Backlog → Brainstorming launch moved to
+        Triage → Brainstorming (the FULL lane head).
+        """
         columns = _shipped_columns()
         ctx = _ctx(transitions=default_transition_config())
-        action = decide(_transition("Brainstorming", "Backlog"), columns, ctx)
+        action = decide(_transition("Triage", "Backlog"), columns, ctx)
         assert action.kind is ActionKind.LAUNCH
 
     def test_cancel_option_name_tears_down(self) -> None:

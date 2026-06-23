@@ -142,17 +142,15 @@ class TestDefaultTemplate:
         assert _TEMPLATE_RESOURCE.is_file()
         assert _template_text().strip() != ""
 
-    def test_template_parses_to_fourteen_columns(self) -> None:
-        """The default board has exactly 14 columns.
+    def test_template_parses_to_sixteen_columns(self) -> None:
+        """The default board has exactly 16 columns.
 
-        The front of the flow gained ``Brainstorming`` (after Backlog) and ``Plan``
-        (after Spec); the redundant ``Planned`` gate was later retired (consolidated
-        into ``ReadyToDev``); ``ReadyToMerge`` (the human merge gate the review stage
-        auto-advances to) was added between ``Review`` and ``Merge`` — bringing the board to
-        14 columns.
+        Base 13, plus ``ReadyToMerge`` (the human merge gate the review stage auto-advances to,
+        between ``Review`` and ``Merge``), plus the skiff fast-track's ``Triage`` (after Backlog)
+        and ``Scope`` (after Plan, for the lite lane).
         """
         columns = load_columns(_template_text())
-        assert len(columns) == 14
+        assert len(columns) == 16
 
     def test_template_includes_brainstorming_and_plan(self) -> None:
         """The board ships ``Brainstorming`` (after Backlog) and ``Plan`` (after Spec).
@@ -171,6 +169,26 @@ class TestDefaultTemplate:
         # Flow order: Backlog < Brainstorming < Spec < Plan < ReadyToDev.
         assert keys.index("Backlog") < keys.index("Brainstorming") < keys.index("Spec")
         assert keys.index("Spec") < keys.index("Plan") < keys.index("ReadyToDev")
+
+    def test_template_declares_triage_and_scope(self) -> None:
+        """The skiff fast-track board ships ``Triage`` and ``Scope`` inert columns.
+
+        ``Triage`` is the classifier stage (after Backlog): a cheap agent routes the
+        ticket to the appropriate lane (full, lite, express) based on size and
+        sensitivity. ``Scope`` is the lite-lane compressed design+plan stage
+        (after Plan): one autonomous pass with obvious decisions, then auto-advance
+        to Prepare feature. Both are inert (no agent class).
+        """
+        columns = load_columns(_template_text())
+        assert "Triage" in columns and columns["Triage"].name == "Triage"
+        assert "Scope" in columns and columns["Scope"].name == "Scope"
+        assert columns["Triage"].column_class is ColumnClass.INERT
+        assert columns["Scope"].column_class is ColumnClass.INERT
+        # Flow order: Backlog < Triage < Brainstorming.
+        # Flow order: Plan < Scope < ReadyToDev.
+        keys = list(columns.keys())
+        assert keys.index("Backlog") < keys.index("Triage") < keys.index("Brainstorming")
+        assert keys.index("Plan") < keys.index("Scope") < keys.index("ReadyToDev")
 
     def test_template_includes_prepare_feature(self) -> None:
         """The board ships a ``PrepareFeature`` inert column.
@@ -227,9 +245,11 @@ class TestDefaultTemplate:
         inert_keys = {k for k, c in columns.items() if c.column_class is ColumnClass.INERT}
         assert inert_keys == {
             "Backlog",
+            "Triage",
             "Brainstorming",
             "Spec",
             "Plan",
+            "Scope",
             "ReadyToDev",
             "PrepareFeature",
             "InProgress",
