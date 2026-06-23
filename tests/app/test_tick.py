@@ -1246,6 +1246,48 @@ def test_reap_reason_is_dead_session_and_alive_stale_is_not_reaped() -> None:
     assert any(s.status is TicketStatus.WAITING for s in saved2)
 
 
+def test_alive_stale_api_stall_is_blocked_with_explicit_cause_not_waiting() -> None:
+    """buoy: an ALIVE+stale agent IDLE on an exhausted-retries API error is parked Blocked, not WAITING.
+
+    An Anthropic API outage (the ``claude`` turn failed on a 5xx/Overloaded error and gave up) leaves
+    the agent alive but idle — it is NOT waiting for a human. The reaper routes it to the Block path
+    with the API outage named explicitly (so the operator sees the cause), and SKIPS the relaunch
+    (re-running a stage into a known-down API would just re-stall) even though a stage is set and the
+    retry budget is unspent.
+    """
+    reader = _FakeBoardReader("probe-1", _snapshot())
+    m = _mocks(reader, now=10_000.0)
+    m.sessions.is_alive.return_value = True  # session ALIVE (claude REPL idle, not crashed)
+    # The verbatim claude idle banner: an API error with NO running-turn marker (the agent gave up).
+    m.sessions.capture.return_value = (
+        "⏺ API Error: 529 Overloaded. This is a server-side issue, usually temporary.\n"
+        "✻ Churned for 3m 21s\n"
+        "❯ \n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents"
+    )
+    stale = TicketState(
+        issue_number=7,
+        item_id="PVTI_7",
+        session_id="ticket-7",
+        status=TicketStatus.RUNNING,
+        heartbeat=0.0,  # ancient → past the TTL (stale), but the session is still ALIVE
+        stage="Triage",  # a stage IS set → the dead-session path would relaunch; api_stall must not
+    )
+    m.store.list_running.return_value = (stale,)
+
+    result, _ = tick(m.deps, _config(), PersistedState(last_probe="probe-1"))
+
+    # Parked Blocked (NOT WAITING): the card moves to the Blocked column and the reap tally counts it.
+    m.board_writer.move_card.assert_called_once_with("PVTI_7", "Blocked")
+    assert result.reaped == 1
+    saved = [c.args[0] for c in m.store.save.call_args_list]
+    assert not any(s.status is TicketStatus.WAITING for s in saved)
+    # The stall comment NAMES the API outage so the operator sees the cause, not a generic "stalled".
+    comment = " ".join(c.args[1] for c in m.board_writer.comment.call_args_list)
+    assert "Anthropic API outage" in comment
+    # The relaunch is SKIPPED despite a set stage + unspent retry budget (api_stall gate).
+    m.sessions.launch.assert_not_called()
+
+
 def test_fresh_agent_is_not_reaped() -> None:
     """A running ticket within the TTL is left alone by the reap step (no teardown, no move)."""
     reader = _FakeBoardReader("probe-1", _snapshot())
@@ -2772,19 +2814,19 @@ def test_reaper_reaps_waiting_ticket_when_session_dies() -> None:
 
 
 def test_reaper_alive_stale_parks_waiting_even_if_pane_would_raise() -> None:
-    """An alive + stale agent is parked WAITING WITHOUT consulting the pane (Approach A).
+    """An alive + stale agent with a BROKEN pane is parked WAITING (the api-stall probe fails closed).
 
-    The stale-but-alive path no longer probes the pane to decide reap-vs-wait — an alive session is
-    ALWAYS parked WAITING (never killed), so a broken ``capture`` is irrelevant: the pane is not even
-    captured. This proves the live session is preserved regardless of pane state, and the sweep does
-    not crash.
+    buoy: the stale-but-alive path now probes the pane to tell an Anthropic API stall (→ Blocked with
+    the cause) from a human-wait (→ WAITING). But that probe is FAIL-CLOSED: a broken ``capture`` is
+    treated as NOT a stall, so the agent falls back to the UNCHANGED Approach-A WAITING parking — the
+    live session is never killed on an undecidable pane, and the sweep does not crash.
     """
     reader = _FakeBoardReader("probe-1", _snapshot())
     m = _mocks(reader, now=10_000.0)
     m.sessions.is_alive.return_value = True  # alive...
     m.sessions.capture.side_effect = RuntimeError(
         "capture-pane failed"
-    )  # ...and even a broken pane is irrelevant on the stale-alive path
+    )  # ...and a broken pane fails the api-stall probe CLOSED → WAITING (never Blocked on a blip)
     stale = TicketState(
         issue_number=7,
         item_id="PVTI_7",
@@ -2797,10 +2839,9 @@ def test_reaper_alive_stale_parks_waiting_even_if_pane_would_raise() -> None:
     m.store.list_running.return_value = (stale,)
     state = PersistedState(last_probe="probe-1")
 
-    # The sweep must not crash; the pane is never even captured on the stale-alive path.
+    # The sweep must not crash; the broken pane fails closed → WAITING, never a kill or a Blocked move.
     result, _ = tick(m.deps, _config(), state)
 
-    m.sessions.capture.assert_not_called()
     m.sessions.kill.assert_not_called()
     m.board_writer.move_card.assert_not_called()
     saved = [c.args[0] for c in m.store.save.call_args_list]

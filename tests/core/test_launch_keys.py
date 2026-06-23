@@ -309,3 +309,72 @@ def test_turn_running_only_scans_input_box_tail_not_scrollback() -> None:
     pane = "● esc to interrupt\n" + "\n".join(f"line {i}" for i in range(SUBMIT_SCAN_LINES + 5))
     pane += "\n❯ \n  ⏵⏵ auto mode on"
     assert turn_running(pane) is False
+
+
+# ---------------------------------------------------------------------------
+# pane_shows_api_stall — an idle, exhausted-retries API error (buoy)
+# ---------------------------------------------------------------------------
+
+# The verbatim claude v2.1.x banner that an exhausted-retries API failure leaves on an IDLE pane.
+_API_STALL_PANE = (
+    "⏺ API Error: 529 Overloaded. This is a server-side issue, usually\n"
+    "  temporary — try again in a moment. If it persists, check\n"
+    "  https://status.claude.com.\n"
+    "\n"
+    "✻ Churned for 3m 21s\n"
+    "\n"
+    "────────────────────────────────────────────\n"
+    "❯ \n"
+    "────────────────────────────────────────────\n"
+    "  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents"
+)
+
+
+def test_pane_shows_api_stall_detects_idle_exhausted_banner() -> None:
+    """The real idle banner (API error + no running turn) is an API stall."""
+    from kanbanmate.core.launch_keys import pane_shows_api_stall
+
+    assert pane_shows_api_stall(_API_STALL_PANE) is True
+
+
+def test_pane_shows_api_stall_false_while_turn_in_flight() -> None:
+    """A turn still in flight (claude mid-retry, ``esc to interrupt``) is NOT a settled stall."""
+    from kanbanmate.core.launch_keys import pane_shows_api_stall
+
+    retrying = "✻ 529 Overloaded · Retrying in 14s · attempt 10/10\n  esc to interrupt"
+    assert pane_shows_api_stall(retrying) is False
+
+
+def test_pane_shows_api_stall_false_on_normal_idle_pane() -> None:
+    """A plain idle prompt with no API error is NOT a stall (it would park WAITING / reap normally)."""
+    from kanbanmate.core.launch_keys import pane_shows_api_stall
+
+    idle = "❯ \n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents"
+    assert pane_shows_api_stall(idle) is False
+
+
+def test_pane_shows_api_stall_false_on_empty_pane() -> None:
+    """An empty pane is never an API stall."""
+    from kanbanmate.core.launch_keys import pane_shows_api_stall
+
+    assert pane_shows_api_stall("") is False
+
+
+def test_pane_shows_api_stall_ignores_stale_scrollback_banner() -> None:
+    """An API error only in OLD scrollback (the agent recovered) does NOT match — last-lines scan."""
+    from kanbanmate.core.launch_keys import API_STALL_SCAN_LINES, pane_shows_api_stall
+
+    # The banner is at the top; the live bottom is plain idle output past the scan window.
+    recovered = "⏺ API Error: 529 Overloaded.\n" + "\n".join(
+        f"recovered step {i}" for i in range(API_STALL_SCAN_LINES + 10)
+    )
+    assert pane_shows_api_stall(recovered) is False
+
+
+def test_api_stall_markers_and_window_are_named_constants() -> None:
+    """The markers + scan window live in named, tunable constants (evolve with claude's chrome)."""
+    from kanbanmate.core.launch_keys import API_STALL_MARKERS, API_STALL_SCAN_LINES
+
+    assert "api error" in API_STALL_MARKERS
+    assert "overloaded" in API_STALL_MARKERS
+    assert API_STALL_SCAN_LINES == 20

@@ -253,6 +253,73 @@ def turn_running(pane: str) -> bool:
     return any(marker in lowered for marker in SUBMITTED_MARKERS)
 
 
+# Markers of an Anthropic API STALL: the ``claude`` REPL prints these when a turn fails on a
+# server-side error (5xx / Overloaded) and EXHAUSTS its built-in retry budget — the agent then
+# returns to an IDLE prompt having done nothing. An agent stalled here is NOT waiting for a human
+# (so the reaper must NOT park it WAITING with a "waiting for your input" sticky) and is NOT a
+# generic hang either — it is a recoverable outage whose CAUSE must be surfaced explicitly (parked
+# Blocked with the reason). Matched case-insensitively in :func:`pane_shows_api_stall`. Tunable:
+# add a phrase here as ``claude``'s error chrome evolves.
+#
+# Coverage rationale (observed claude v2.1.x banner): "⏺ API Error: 529 Overloaded. This is a
+# server-side issue, usually temporary…":
+#   * "api error"                    — the banner lead-in (the strongest, most stable signal).
+#   * "overloaded"                   — the 529 Overloaded variant.
+#   * "this is a server-side issue"  — the banner's verbatim explanatory line (very distinctive).
+#   * "internal server error"        — the 500 variant.
+API_STALL_MARKERS = (
+    "api error",
+    "overloaded",
+    "this is a server-side issue",
+    "internal server error",
+)
+
+# How many TRAILING pane lines :func:`pane_shows_api_stall` scans for an API-error banner. The banner
+# sits a handful of lines above the idle prompt footer (error text + a "Churned/Cooked for …" line +
+# blank lines + the box), so the window must be a little wider than the bare footer — but still small
+# enough that an error from a PRIOR turn the agent already RECOVERED from (and scrolled past) does not
+# false-positive. 20 covers the live banner+footer region while staying clear of older scrollback; a
+# recovered agent would also have a FRESH heartbeat and so never reach the reaper's stale branch.
+API_STALL_SCAN_LINES = 20
+
+
+def pane_shows_api_stall(pane: str) -> bool:
+    """Return whether a captured pane shows an agent STALLED on an exhausted-retries API error.
+
+    Pure, marker-based — a sibling of :func:`is_waiting_for_input`. The reaper calls this on a
+    STALE-heartbeat but STILL-ALIVE session's captured pane to tell an Anthropic API outage (the
+    ``claude`` turn failed on a 5xx/Overloaded error and gave up after its retries) from a genuine
+    human-wait. An API stall is NOT a human-wait: it must be parked Blocked with the cause made
+    explicit, not WAITING with a misleading "waiting for your input" sticky.
+
+    Two conditions, both required:
+
+    * a running-turn marker (:data:`SUBMITTED_MARKERS`, ``esc to interrupt``) is ABSENT — the agent
+      is IDLE (it gave up). While a turn is still in flight the agent may yet recover on its own
+      (claude is mid-retry), so an active pane is deliberately NOT a stall.
+    * an :data:`API_STALL_MARKERS` phrase is present in the trailing region — the last failure was a
+      server-side API error.
+
+    **Last-lines scan.** Only the last :data:`API_STALL_SCAN_LINES` lines are scanned so an API error
+    from a PRIOR turn the agent already recovered from (now in scrollback) does not false-positive —
+    the same stale-scrollback guard :func:`is_waiting_for_input` uses.
+
+    Args:
+        pane: The raw ``capture-pane`` text (may be empty). Matched case-insensitively.
+
+    Returns:
+        ``True`` iff the pane's TRAILING region shows an API-error banner AND no running turn;
+        ``False`` otherwise (empty pane, a turn in flight, no API marker, or a marker only in stale
+        scrollback).
+    """
+    tail = "\n".join((pane or "").splitlines()[-API_STALL_SCAN_LINES:])
+    lowered = tail.lower()
+    if any(marker in lowered for marker in SUBMITTED_MARKERS):
+        # A turn is in flight (claude may still be retrying) → not a settled stall.
+        return False
+    return any(marker in lowered for marker in API_STALL_MARKERS)
+
+
 def is_waiting_for_input(pane: str) -> bool:
     """Return whether a captured pane shows an agent BLOCKED on a PENDING human prompt (§B).
 

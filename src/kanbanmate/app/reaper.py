@@ -28,7 +28,7 @@ from kanbanmate.app.stage_signal import upsert_stage_comment
 from kanbanmate.app.status_reporter import latest_progress
 from kanbanmate.core.antiloop import AntiLoopState, record_move
 from kanbanmate.core.domain import Ticket
-from kanbanmate.core.launch_keys import is_waiting_for_input
+from kanbanmate.core.launch_keys import is_waiting_for_input, pane_shows_api_stall
 from kanbanmate.core.stage_comment import HeaderInfo, fmt_timestamp, header_from_state
 from kanbanmate.ports.store import TicketState, TicketStatus
 
@@ -42,6 +42,16 @@ logger = logging.getLogger(__name__)
 # kills the dead session, bumps ``TicketState.retries`` and refreshes the heartbeat, then relaunches
 # the same stage once; the next miss (``retries >= RETRY_LIMIT``) goes straight to Blocked.
 RETRY_LIMIT = 1
+
+# buoy — the explicit Blocked reason for an agent that STALLED on an Anthropic API outage (a
+# server-side 5xx / Overloaded error its built-in retries could not clear). Surfaced as the
+# BlockAction stall comment + mirrored in the body-top status summary, so the parked card SAYS the
+# cause (an API outage) rather than the misleading generic "waiting for your input". The operator
+# re-triggers the stage (or re-moves the card) once the API recovers.
+_API_STALL_REASON = (
+    "agent stalled on an Anthropic API outage (server-side 5xx/Overloaded; the agent exhausted its "
+    "retries) — parked in Blocked. Re-trigger this stage once the API has recovered."
+)
 
 # A graceful done-exit (end_session: Escape→C-u→C-d→C-d→Enter) is dispatched at most this many times before
 # the reaper ESCALATES to killing the claude REPL process. A genuinely-hung REPL or stubborn leftover
@@ -143,6 +153,39 @@ def _pane_shows_waiting(deps: Deps, issue_number: int) -> bool:
         # NOT waiting so the ticket is reaped (the conservative call, phase-27 §B).
         logger.exception(
             "reaper pane-capture/classify failed for #%s; treating as NOT waiting (fail-closed reap)",
+            issue_number,
+        )
+        return False
+
+
+def _pane_shows_api_stall(deps: Deps, issue_number: int) -> bool:
+    """Return whether ``issue_number``'s alive session is STALLED on an exhausted-retries API error.
+
+    Captures the tmux pane and classifies it with the pure
+    :func:`kanbanmate.core.launch_keys.pane_shows_api_stall`. A ``True`` verdict means the agent's
+    ``claude`` turn failed on a server-side Anthropic error (5xx / Overloaded) and gave up after its
+    retries — it is IDLE having done nothing, NOT waiting for a human. The reaper routes such a
+    ticket to Blocked with the cause made explicit, rather than the misleading WAITING sticky.
+
+    FAIL-CLOSED to ``False`` on ANY capture/classify error: an undecidable pane falls back to the
+    UNCHANGED Approach-A handling (parked WAITING), never wrongly Blocked on a probe blip.
+
+    Args:
+        deps: The injected adapter bundle (the sessions port backing the pane capture).
+        issue_number: The ticket whose pane to classify (session ``ticket-<issue>``).
+
+    Returns:
+        ``True`` iff the captured pane shows a settled API stall; ``False`` on no marker OR any
+        capture/classify error (fail-closed → the unchanged WAITING path).
+    """
+    session_name = f"ticket-{issue_number}"
+    try:
+        return pane_shows_api_stall(deps.sessions.capture(session_name))
+    except Exception:
+        # Fail-closed: a throwing capture must not wrongly Block a ticket — fall back to the
+        # unchanged WAITING parking (the conservative, non-destructive default).
+        logger.exception(
+            "reaper api-stall probe failed for #%s; treating as NOT a stall (fall back to WAITING)",
             issue_number,
         )
         return False
@@ -577,6 +620,11 @@ def reap_stale_agents(
         # SKIP a running ticket only when it is BOTH fresh AND alive.
         fresh = (now - state.heartbeat) <= config.heartbeat_ttl
         alive = _session_alive(deps, state.issue_number)
+        # buoy: set when an ALIVE session is routed to the reap→Block path because it STALLED on an
+        # Anthropic API outage (not a human-wait, not a crash). Drives the explicit Blocked cause +
+        # SKIPS the relaunch (re-running a stage into a known-down API is wasteful — the operator
+        # re-triggers when the API recovers). Stays False for the normal DEAD-session reap.
+        api_stall = False
 
         # Option 1 (#1): a DONE + IDLE alive session is cleanly EXITED so its trailing
         # ``; kanban-session-end`` fires (teardown → the card flows). This runs BEFORE the
@@ -640,8 +688,22 @@ def reap_stale_agents(
             # kill+relaunch path below is reserved for DEAD sessions only (a crashed agent whose tmux
             # session is gone). A genuinely-hung LIVE agent is the operator's call: attach and answer,
             # or Ctrl-C / ``kanban cancel``.
-            _enter_waiting(deps, state, now)
-            continue
+            #
+            # EXCEPTION (buoy) — an API outage is NOT a human-wait. If the pane shows a SETTLED API
+            # stall (an exhausted-retries 5xx/Overloaded error on an IDLE pane — the agent gave up),
+            # it is neither blocked-on-human nor a generic hang: route it to the reap→Block path so
+            # the card is parked Blocked with the CAUSE made explicit, instead of the misleading
+            # "waiting for your input" WAITING sticky. This is the ONLY case the reaper acts on a
+            # LIVE session, and it is tightly gated — ``pane_shows_api_stall`` requires the error
+            # marker AND no running turn, so a working agent or an interactive Q&A is never caught.
+            # The Block path's teardown is the NON-DESTRUCTIVE ``reap`` flavour (keeps worktree /
+            # branch / PR / unpushed work), so an agent that did real work before the outage loses
+            # nothing but its idle REPL; the relaunch is SKIPPED (see ``api_stall`` gate below).
+            if not _pane_shows_api_stall(deps, state.issue_number):
+                _enter_waiting(deps, state, now)
+                continue
+            api_stall = True
+            # fall through to the reap → Block path below
         # The session is DEAD (``not alive``). BEFORE relaunching it, guard against a WRONG-STAGE
         # relaunch: if the card has ALREADY ADVANCED past this agent's stage (its current board column
         # no longer equals ``state.stage``), the running-state is STALE — relaunching it would re-run
@@ -694,10 +756,11 @@ def reap_stale_agents(
         # Surface the stall reason ONCE; both branches want the operator to see WHY the reaper
         # acted. The BLOCK branch reuses ``ok_block`` toward its reap tally, so a relaunch that
         # later falls through does NOT double-post the comment (port the PoC comment-first ordering).
-        # Under Approach A the reap path is reached ONLY for a DEAD session (an alive session — even
-        # one whose heartbeat aged past the TTL — is parked WAITING above and never reaches here), so
-        # the trigger is always a crashed/gone tmux session.
-        reap_reason = "dead agent session (reaped)"
+        # The reap path is reached either for a DEAD session (a crashed/gone tmux session — the
+        # normal trigger) OR, via the buoy carve-out above, for an ALIVE session that STALLED on an
+        # Anthropic API outage (``api_stall``); the reason names whichever applies so the operator
+        # sees the real cause (an API outage reads very differently from a crash).
+        reap_reason = _API_STALL_REASON if api_stall else "dead agent session (reaped)"
         block = BlockAction(ticket=ticket, reason=reap_reason)
         ok_block = _run_with_watchdog(executor, block, deps, config.action_timeout)
 
@@ -705,8 +768,11 @@ def reap_stale_agents(
         # (an empty stage cannot re-enter a column — fail-soft straight to BLOCK below). Under PAUSE
         # (kill_switch, defect 6) the relaunch is SUPPRESSED entirely so no agent launches while the
         # operator has the kill-switch on — the ticket parks in Blocked (reap bookkeeping) and a
-        # later resume re-drives it. DESIGN §10 / CLAUDE.md "PAUSE stops launches".
-        if not kill_switch and state.retries < RETRY_LIMIT and state.stage:
+        # later resume re-drives it. DESIGN §10 / CLAUDE.md "PAUSE stops launches". buoy: an API
+        # stall ALSO skips the relaunch — re-running a stage straight into a known-down API would
+        # just churn + re-stall; the card parks Blocked with the cause and the operator (or a fresh
+        # board move) re-drives it once the API recovers.
+        if not kill_switch and not api_stall and state.retries < RETRY_LIMIT and state.stage:
             if _try_relaunch(deps, config, executor, state, now):
                 relaunched += 1
                 continue
@@ -803,7 +869,13 @@ def reap_stale_agents(
                 state.issue_number,
                 stage=state.stage,
                 state="blocked",
-                summary="agent stalled — parked in Blocked",
+                # buoy: name the API outage in the body-top header too (not just the stall comment),
+                # so the cause is visible without scrolling the timeline.
+                summary=(
+                    "agent stalled on an Anthropic API outage — parked in Blocked"
+                    if api_stall
+                    else "agent stalled — parked in Blocked"
+                ),
                 now=now,
                 latest_progress=progress,
             )
