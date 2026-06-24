@@ -296,6 +296,12 @@ monitor:
   moving: Déplacement…
   move_queued: Déplacement en file — le tableau se met à jour sous peu.
   move_done: Carte déplacée.
+  # BUG #12 — affiché (infobulle + note) quand le sélecteur de statut est verrouillé parce qu'un
+  # agent est en cours d'exécution sur le ticket ; déplacer la carte entrerait en conflit avec les
+  # déplacements de l'agent.
+  move_locked_agent: >-
+    Un agent est en cours — impossible de changer le statut ; attendez la fin ou agissez via le
+    terminal.
   track: Voie
   track_auto: Auto
   track_full: Complète
@@ -350,6 +356,10 @@ admin:
   chip_token: token
   heartbeat_age: "heartbeat : il y a {age}"
   exit_code: "sortie {code}"
+  # FEAT #11 — date par job. `job_when_relative` est la pastille compacte « il y a x » ;
+  # la date/heure locale absolue est affichée à côté (et en attribut title / infobulle).
+  job_when_relative: "il y a {ago}"
+  job_when_just_now: à l'instant
   # --- contrôle des daemons + PAUSE + logs (bosun phase 2) ---
   section_pause: Coupe-circuit
   section_daemon: Daemons

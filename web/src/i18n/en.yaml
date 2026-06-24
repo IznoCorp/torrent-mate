@@ -292,6 +292,11 @@ monitor:
   moving: Moving…
   move_queued: Move queued — the board updates shortly.
   move_done: Card moved.
+  # BUG #12 — shown (Tooltip + note) when the Status select is locked because a live agent is
+  # actively running the ticket; moving the card would collide with the agent's own moves.
+  move_locked_agent: >-
+    An agent is running — you can't change the status; wait for it to finish or act via the
+    terminal.
   track: Track
   track_auto: Auto
   track_full: Full
@@ -345,6 +350,10 @@ admin:
   chip_token: token
   heartbeat_age: "heartbeat: {age} ago"
   exit_code: "exit {code}"
+  # FEAT #11 — per-job date. `job_when_relative` is the compact "x ago" pill; the absolute
+  # local datetime is shown alongside it (and as the title attribute / tooltip).
+  job_when_relative: "{ago} ago"
+  job_when_just_now: just now
   # --- daemon control + PAUSE + logs (bosun phase 2) ---
   section_pause: Kill-switch
   section_daemon: Daemons

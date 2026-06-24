@@ -1661,6 +1661,42 @@ function ProjectCard({ p, t }) {
   );
 }
 
+// FEAT #11 — derive the date to show for a job row. Prefer the most informative terminal stamp
+// (ended_at), else the start, else the queue time. Returns null when none parse, so the row simply
+// omits the date instead of rendering "Invalid Date". The record carries ISO-8601 UTC strings
+// (app/ops.py: created_at / started_at / ended_at — note the field is `ended_at`, not `finished_at`).
+function jobDate(j) {
+  for (const iso of [j.ended_at, j.started_at, j.created_at]) {
+    if (!iso) continue;
+    const d = new Date(iso);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return null;
+}
+
+// Compact local datetime, e.g. "22 Jun, 14:03" — locale-aware via the browser default locale.
+function formatJobDateTime(d) {
+  return d.toLocaleString(undefined, {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+// Short relative age ("3m", "2h", "4d") for the "x ago" pill. Always rounds DOWN to the largest
+// whole unit so a fresh job reads "just now" rather than a noisy seconds count.
+function relativeJobAge(d, t, now = Date.now()) {
+  const sec = Math.max(0, Math.floor((now - d.getTime()) / 1000));
+  if (sec < 60) return t("admin.job_when_just_now", "just now");
+  const min = Math.floor(sec / 60);
+  if (min < 60) return t("admin.job_when_relative", { ago: `${min}m` });
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return t("admin.job_when_relative", { ago: `${hr}h` });
+  const day = Math.floor(hr / 24);
+  return t("admin.job_when_relative", { ago: `${day}d` });
+}
+
 // Recent jobs list — id / type / actor / state / exit-code, newest first (as returned).
 function JobsList({ ops, isMobile, t }) {
   if (ops == null)
@@ -1737,6 +1773,26 @@ function JobsList({ ops, isMobile, t }) {
           >
             {j.actor}
           </span>
+          {/* FEAT #11 — per-job date: compact relative age + absolute local datetime.
+              The full datetime is the title so a hover/long-press surfaces the exact stamp. */}
+          {(() => {
+            const d = jobDate(j);
+            if (!d) return null;
+            const abs = formatJobDateTime(d);
+            return (
+              <span
+                title={abs}
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 10.5,
+                  color: "var(--muted-foreground)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {relativeJobAge(d, t)} · {abs}
+              </span>
+            );
+          })()}
           {j.exit_code != null && (
             <Badge tone={j.exit_code === 0 ? "accent" : "red"} size="sm">
               {t("admin.exit_code", { code: j.exit_code })}

@@ -708,6 +708,15 @@ export default function MonitoringPanel({ project }) {
   // Prefer the optimistic destination until the (lagging) snapshot catches up to it.
   const currentMoveKey = optimisticCol || reconciledMoveKey;
 
+  // BUG #12 — an agent is actively RUNNING the selected ticket. Moving the card mid-agent conflicts
+  // with the agent's own lifecycle moves, so the Status (column-move) Select is locked while this is
+  // true. Reuse the same agents list the terminal gate reads: a live (session_alive) agent whose
+  // server-computed state is "running" (derive_state — running/waiting/blocked/idle). Waiting/blocked
+  // agents are not mid-move, so only "running" locks the control.
+  const agentRunning = agents.some(
+    (a) => a.issue === sel && a.session_alive && a.state === "running",
+  );
+
   // BUG #8 — fast-track lane derivation for the detail-panel Voie selector.
   // - The body **track** marker (markers.track) is the REAL lane the triage classifier chose.
   // - The top-level `track` / boardTracks value is the manual track:* LABEL override (triage does
@@ -1309,22 +1318,43 @@ export default function MonitoringPanel({ project }) {
                       >
                         {t("monitor.move_to", "Status")}
                       </label>
-                      <Select
-                        size="sm"
-                        mono={false}
-                        value={currentMoveKey}
-                        disabled={moving}
-                        onChange={(e) => doMove(e.target.value)}
-                        options={moveOptions.map((m) => ({
-                          value: m.key,
-                          label: m.current
-                            ? `${m.name} ✓`
-                            : m.allowed
-                              ? m.name
-                              : `${m.name} —`,
-                          disabled: !m.allowed && !m.current,
-                        }))}
-                      />
+                      {/* BUG #12 — lock the Status (column-move) Select while an agent is RUNNING
+                          the ticket: moving the card conflicts with the agent's own lifecycle moves.
+                          Keep the existing in-flight `moving` disable. When locked, wrap in a Tooltip
+                          carrying the why-locked hint; otherwise render the bare Select (the DS
+                          Tooltip shows an empty bubble for a null label, so only wrap when locked). */}
+                      {(() => {
+                        const moveSelect = (
+                          <Select
+                            size="sm"
+                            mono={false}
+                            value={currentMoveKey}
+                            disabled={moving || agentRunning}
+                            onChange={(e) => doMove(e.target.value)}
+                            options={moveOptions.map((m) => ({
+                              value: m.key,
+                              label: m.current
+                                ? `${m.name} ✓`
+                                : m.allowed
+                                  ? m.name
+                                  : `${m.name} —`,
+                              disabled: !m.allowed && !m.current,
+                            }))}
+                          />
+                        );
+                        return agentRunning ? (
+                          <Tooltip
+                            label={t(
+                              "monitor.move_locked_agent",
+                              "An agent is running — you can't change the status; wait for it to finish or act via the terminal.",
+                            )}
+                          >
+                            <span>{moveSelect}</span>
+                          </Tooltip>
+                        ) : (
+                          moveSelect
+                        );
+                      })()}
                       {moving && (
                         <span
                           style={{
@@ -1336,6 +1366,17 @@ export default function MonitoringPanel({ project }) {
                         </span>
                       )}
                     </div>
+                    {/* BUG #12 — always-visible locked note (the Tooltip needs hover/tap; this makes
+                        the reason legible at a glance). Suppressed while a move is in flight so the
+                        transient move status note isn't double-stacked. */}
+                    {agentRunning && !moving && (
+                      <StatusNote tone="amber">
+                        {t(
+                          "monitor.move_locked_agent",
+                          "An agent is running — you can't change the status; wait for it to finish or act via the terminal.",
+                        )}
+                      </StatusNote>
+                    )}
                     {moveMsg && (
                       <StatusNote tone={moveMsg.tone}>
                         {moveMsg.text}
