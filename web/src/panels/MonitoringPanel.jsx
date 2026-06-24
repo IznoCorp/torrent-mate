@@ -1187,7 +1187,14 @@ export default function MonitoringPanel({ project }) {
                               size="sm"
                               mono={false}
                               value={boardTracks[String(tk.number)] || ""}
-                              disabled={tracking}
+                              // Gate like the detail-panel Voie (BUG #10): the override only
+                              // re-routes at triage, so the per-row selector is read-only past
+                              // triage (editable only in Backlog/Triage) — stops a misleading
+                              // post-triage no-op change from the issues list.
+                              disabled={
+                                tracking ||
+                                !trackEditableInColumn(tk.column_key)
+                              }
                               onChange={(e) =>
                                 doTrack(tk.number, e.target.value)
                               }
