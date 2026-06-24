@@ -236,6 +236,10 @@ export default function MonitoringPanel({ project }) {
   // mirror to GitHub is eventual + cached), so without this the controlled Select snaps back to the
   // old column. Cleared on ticket switch and once the snapshot reconciles to it.
   const [optimisticCol, setOptimisticCol] = React.useState(null);
+  // Guard for the live-board → detail refetch (BUG #4): set while an api.monitorTicket triggered by
+  // an agent/auto column change is in flight, so the keyed effect can't fire a second overlapping
+  // fetch (and thus can't loop) before the first setDetail lands.
+  const fetchingLiveDetail = React.useRef(false);
   // Fast-track lane per ticket (skiff): { "<number>": "full"|"lite"|"express" } from the board poll.
   // The row + detail Track selectors read their current value here; an optimistic write updates it
   // immediately, then the next board poll reconciles. A ticket absent from the map = Auto (no label).
@@ -601,6 +605,41 @@ export default function MonitoringPanel({ project }) {
     if (reconciled === optimisticCol) setOptimisticCol(null);
   }, [optimisticCol, detail, board]);
 
+  // BUG #4 — keep the detail-panel Status selector REACTIVE to the live board. The board (board.json,
+  // pushed over SSE / 15 s backstop) updates on an AGENT or AUTO column move, but `detail` is only
+  // refetched on (re)selection or after a manual move/track/save — so an agent move left the Status
+  // Select (and its move_targets) stale until a re-select or page refresh. Here we read the selected
+  // ticket's LIVE column from the board and, when it diverges from the loaded detail (and no manual
+  // move is mid-flight), refetch the detail so column_key AND move_targets both refresh.
+  // Hoisted ABOVE the early-returns below (same React #310 reasoning as the effect above).
+  const liveCol = board
+    ? (board.tickets.find((tk) => tk.number === sel) || {}).column_key
+    : undefined;
+  React.useEffect(() => {
+    // Nothing to do until we have a selection, a board placement, and a loaded detail to compare to.
+    if (sel == null || !liveCol || !detail) return;
+    // Don't fight an in-flight manual move: optimisticCol holds the operator's chosen destination
+    // until the snapshot reconciles — let that path own the value.
+    if (optimisticCol) return;
+    // `detail.column_key` may be the column NAME or KEY depending on the backend; `liveCol` is always
+    // the KEY. Treat a match on either form as "already in sync" so we never refetch needlessly.
+    if (liveCol === detail.column_key) return;
+    if (fetchingLiveDetail.current) return; // a refetch is already running — avoid an overlapping one
+    fetchingLiveDetail.current = true;
+    api
+      .monitorTicket(sel, project)
+      .then((d) => setDetail(d))
+      .catch(() => {
+        /* the [sel] effect / next poll will reconcile if this transient fetch fails */
+      })
+      .finally(() => {
+        fetchingLiveDetail.current = false;
+      });
+    // Keyed on the live column + selection + the detail's current column so the effect re-evaluates
+    // exactly when divergence appears or clears; optimisticCol so it re-checks once a manual move
+    // reconciles; project so a board switch is honoured.
+  }, [liveCol, sel, detail?.column_key, optimisticCol, project]);
+
   // Derived artifact sources from the loaded detail (null/[] when no detail yet).
   const brainstorm = detail ? brainstormSection(detail.body) : null;
   const planPaths = detail?.markers?.plans
@@ -633,7 +672,11 @@ export default function MonitoringPanel({ project }) {
     : [];
   // Fall back to the ticket's actual column when no option is flagged current, so the Select never
   // renders blank (which would misrepresent the ticket's column and move from an unknown baseline).
+  // BUG #4 belt-and-suspenders: when the loaded detail is stale relative to the live board (an agent/
+  // auto move happened and the refetch above hasn't landed yet), prefer the LIVE column so the brief
+  // window before the refetch still displays the correct value instead of the old one.
   const reconciledMoveKey =
+    (detail && liveCol && liveCol !== detail.column_key ? liveCol : null) ||
     (moveOptions.find((m) => m.current) || {}).key ||
     (detail ? detail.column_key : "");
   // Prefer the optimistic destination until the (lagging) snapshot catches up to it.
@@ -1175,92 +1218,137 @@ export default function MonitoringPanel({ project }) {
                   <KeyChip>{detail.column_key}</KeyChip>
                 </div>
 
-                {/* Status / column change (operator move intent). Disallowed columns are disabled. */}
+                {/* BUG #3 — Status + Track selectors SIDE BY SIDE on desktop, STACKED on mobile.
+                    Same `isMobile` (max-width:768px) breakpoint the rest of the panel uses. Each
+                    selector keeps its own label, in-flight disabled state and note (move/track),
+                    grouped in a per-control column so the note sits under its own selector. */}
                 <div
                   style={{
                     display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    flexWrap: "wrap",
+                    flexDirection: isMobile ? "column" : "row",
+                    alignItems: isMobile ? "stretch" : "flex-start",
+                    gap: isMobile ? 14 : 18,
                   }}
                 >
-                  <label
-                    style={{ fontSize: 12, color: "var(--muted-foreground)" }}
+                  {/* Status / column change (operator move intent). Disallowed columns are disabled. */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 6,
+                      flex: isMobile ? "none" : "1 1 0",
+                      minWidth: 0,
+                    }}
                   >
-                    {t("monitor.move_to", "Status")}
-                  </label>
-                  <Select
-                    size="sm"
-                    mono={false}
-                    value={currentMoveKey}
-                    disabled={moving}
-                    onChange={(e) => doMove(e.target.value)}
-                    options={moveOptions.map((m) => ({
-                      value: m.key,
-                      label: m.current
-                        ? `${m.name} ✓`
-                        : m.allowed
-                          ? m.name
-                          : `${m.name} —`,
-                      disabled: !m.allowed && !m.current,
-                    }))}
-                  />
-                  {moving && (
-                    <span
+                    <div
                       style={{
-                        fontSize: 11,
-                        color: "var(--muted-foreground)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        flexWrap: "wrap",
                       }}
                     >
-                      {t("monitor.moving", "Moving…")}
-                    </span>
-                  )}
-                </div>
-                {moveMsg && (
-                  <StatusNote tone={moveMsg.tone}>{moveMsg.text}</StatusNote>
-                )}
+                      <label
+                        style={{
+                          fontSize: 12,
+                          color: "var(--muted-foreground)",
+                        }}
+                      >
+                        {t("monitor.move_to", "Status")}
+                      </label>
+                      <Select
+                        size="sm"
+                        mono={false}
+                        value={currentMoveKey}
+                        disabled={moving}
+                        onChange={(e) => doMove(e.target.value)}
+                        options={moveOptions.map((m) => ({
+                          value: m.key,
+                          label: m.current
+                            ? `${m.name} ✓`
+                            : m.allowed
+                              ? m.name
+                              : `${m.name} —`,
+                          disabled: !m.allowed && !m.current,
+                        }))}
+                      />
+                      {moving && (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color: "var(--muted-foreground)",
+                          }}
+                        >
+                          {t("monitor.moving", "Moving…")}
+                        </span>
+                      )}
+                    </div>
+                    {moveMsg && (
+                      <StatusNote tone={moveMsg.tone}>
+                        {moveMsg.text}
+                      </StatusNote>
+                    )}
+                  </div>
 
-                {/* Fast-track lane (skiff). "" (Auto) clears the track:* label; full/lite/express set
-                    it. The detail's `track` field is authoritative; the boardTracks map is the
-                    fallback so an optimistic row change is reflected here even before the detail
-                    refetch lands. */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <label
-                    style={{ fontSize: 12, color: "var(--muted-foreground)" }}
+                  {/* Fast-track lane (skiff). "" (Auto) clears the track:* label; full/lite/express
+                      set it. The detail's `track` field is authoritative; the boardTracks map is the
+                      fallback so an optimistic row change is reflected here even before the detail
+                      refetch lands. */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 6,
+                      flex: isMobile ? "none" : "1 1 0",
+                      minWidth: 0,
+                    }}
                   >
-                    {t("monitor.track", "Track")}
-                  </label>
-                  <Select
-                    size="sm"
-                    mono={false}
-                    value={
-                      detail.track || boardTracks[String(detail.number)] || ""
-                    }
-                    disabled={tracking}
-                    onChange={(e) => doTrack(detail.number, e.target.value)}
-                    options={trackOptions(t)}
-                  />
-                  {tracking && (
-                    <span
+                    <div
                       style={{
-                        fontSize: 11,
-                        color: "var(--muted-foreground)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        flexWrap: "wrap",
                       }}
                     >
-                      {t("monitor.track_saving", "Updating track…")}
-                    </span>
-                  )}
+                      <label
+                        style={{
+                          fontSize: 12,
+                          color: "var(--muted-foreground)",
+                        }}
+                      >
+                        {t("monitor.track", "Track")}
+                      </label>
+                      <Select
+                        size="sm"
+                        mono={false}
+                        value={
+                          detail.track ||
+                          boardTracks[String(detail.number)] ||
+                          ""
+                        }
+                        disabled={tracking}
+                        onChange={(e) => doTrack(detail.number, e.target.value)}
+                        options={trackOptions(t)}
+                      />
+                      {tracking && (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color: "var(--muted-foreground)",
+                          }}
+                        >
+                          {t("monitor.track_saving", "Updating track…")}
+                        </span>
+                      )}
+                    </div>
+                    {trackMsg && (
+                      <StatusNote tone={trackMsg.tone}>
+                        {trackMsg.text}
+                      </StatusNote>
+                    )}
+                  </div>
                 </div>
-                {trackMsg && (
-                  <StatusNote tone={trackMsg.tone}>{trackMsg.text}</StatusNote>
-                )}
 
                 {/* Description accordion (collapsible) + pencil edit button.
                     Read view renders body as markdown; pencil opens the freeform editor. */}
