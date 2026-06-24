@@ -10,7 +10,7 @@ import { renderMarkdown } from "../lib/markdown.js";
 import { extractFreeform } from "../lib/body.js";
 import { useT } from "../i18n/index.jsx";
 
-const { Banner, Button, Input, Badge, Tooltip } =
+const { Banner, Button, Input, Badge, Select, Tooltip } =
   window.KanbanMateDesignSystem_2463ad;
 
 function Note({ tone, children }) {
@@ -27,6 +27,7 @@ export default function IssuesPanel({ project, repo: repoProp }) {
   const [mode, setMode] = React.useState("list"); // list | create | edit
   const [board, setBoard] = React.useState(null);
   const [listError, setListError] = React.useState(null);
+  const [statusFilter, setStatusFilter] = React.useState(""); // "" = all statuses
   // create
   const [newTitle, setNewTitle] = React.useState("");
   const [newBody, setNewBody] = React.useState("");
@@ -58,10 +59,30 @@ export default function IssuesPanel({ project, repo: repoProp }) {
       .map((tk) => ({
         number: tk.number,
         title: tk.title,
+        column_key: tk.column_key,
         column_name: colName[tk.column_key] || tk.column_key,
       }))
       .sort((a, b) => b.number - a.number); // newest first
   }, [board]);
+
+  // Status-filter options: "All statuses" + one entry per board column (in board order),
+  // selecting on the stable column key (robust to display renames).
+  const statusOptions = React.useMemo(
+    () => [
+      { value: "", label: t("issues.filter_all", "All statuses") },
+      ...(board?.columns || []).map((c) => ({ value: c.key, label: c.name })),
+    ],
+    [board, t],
+  );
+
+  // Client-side filter: "" shows all, else narrow to the selected column key.
+  const filtered = React.useMemo(
+    () =>
+      statusFilter
+        ? issues.filter((it) => it.column_key === statusFilter)
+        : issues,
+    [issues, statusFilter],
+  );
 
   const openEdit = async (number) => {
     setSel(number);
@@ -344,8 +365,23 @@ export default function IssuesPanel({ project, repo: repoProp }) {
           </Button>
         </Tooltip>
         <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
-          {t("issues.count", "{n} ticket(s)", { n: issues.length })}
+          {t("issues.count", "{n} ticket(s)", { n: filtered.length })}
         </span>
+        {board && (
+          <Tooltip
+            label={t(
+              "issues.filter_tip",
+              "Filter the list by status (board column)",
+            )}
+          >
+            <Select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              options={statusOptions}
+              size="sm"
+            />
+          </Tooltip>
+        )}
       </div>
       {listError && (
         <div style={{ marginBottom: 12 }}>
@@ -369,7 +405,7 @@ export default function IssuesPanel({ project, repo: repoProp }) {
             overflow: "hidden",
           }}
         >
-          {issues.map((it) => (
+          {filtered.map((it) => (
             <button
               key={it.number}
               type="button"

@@ -249,6 +249,8 @@ issues:
     Tous les tickets du board — note tes idées en nouveaux tickets, ouvre-en un pour éditer sa
     description. Les nouveaux tickets arrivent en Backlog.
   count: "{n} ticket(s)"
+  filter_all: Tous les statuts
+  filter_tip: Filtrer la liste par statut (colonne du board)
   empty: Aucun ticket pour l'instant — crée ta première idée.
   new_title: Nouveau ticket
   new_tip: Créer un ticket idée/bug

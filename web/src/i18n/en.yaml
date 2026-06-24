@@ -245,6 +245,8 @@ issues:
     Every ticket on the board — capture ideas as new tickets, open one to edit its description.
     New tickets land in Backlog.
   count: "{n} ticket(s)"
+  filter_all: All statuses
+  filter_tip: Filter the list by status (board column)
   empty: No tickets yet — create your first idea.
   new_title: New ticket
   new_tip: Create a new idea/bug ticket
