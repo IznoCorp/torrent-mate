@@ -115,3 +115,86 @@ def done_arrival_teardown(
     # budgets too (like Cancel).
     logger.info("Done arrival for #%s: reclaiming clean worktree (done-flavoured teardown)", issue)
     return TeardownAction(ticket=transition.ticket, flavour="done")
+
+
+def close_done_issue(deps: Deps, transition: Transition) -> bool:
+    """Close the GitHub issue on a GENUINE Done arrival — idempotent + wholly fail-soft (#9 / BUG #9).
+
+    A ticket reaching the configured Done column completes its lifecycle, so its GitHub issue must be
+    CLOSED (Done = closed → the ensign "Clôturé" badge appears consistently). The engine already had a
+    ``close_issue`` capability, but it only ran on the Cancel/``ticket_close`` intent path — never on a
+    normal Done arrival — so merged tickets sat in Done with their issue still OPEN (live: #27, #76).
+
+    This closes the issue for the TWO genuine-Done cases the caller dispatches it on:
+
+    * the clean-reclaim case (``done_arrival_teardown`` returned a ``flavour="done"``
+      :class:`~kanbanmate.app.actions.TeardownAction` — the worktree was clean, the work is complete), and
+    * the no-worktree case (``done_arrival_teardown`` returned ``None`` BUT the card is in the Done
+      column — the DOMINANT merged path, where ``session-end`` already purged state + removed the
+      worktree before the card reached Done).
+
+    It is NEVER called on the unpushed-work-blocked case (``done_arrival_teardown`` returned a
+    :class:`~kanbanmate.app.actions.BlockAction`): a dirty/ahead worktree means the work is NOT finished,
+    so closing the issue would be wrong. The not-Block gate lives in the caller; this function trusts it.
+
+    The close is orthogonal to the worktree reclaim — the card STAYS in Done either way (this never
+    moves it). Two robustness invariants:
+
+    * **Idempotent.** It first probes ``deps.board_reader.issue_state(number)`` (``True`` iff already
+      closed) and SKIPS an already-closed issue. This is what makes it safe to re-evaluate every Done
+      tick: a Done card stays in Done and is re-diffed (or re-snapshotted on a forced tick), so without
+      this guard it would re-close the issue on every poll. Resolving the issue's node id then closing
+      reuses the proven ``_resolve_node_id`` + ``seeder.close_issue`` pattern from the intent path.
+    * **Fail-soft.** A close failure (a GitHub error, a missing seeder, an unresolvable issue) must
+      NEVER break the tick — every branch swallows + logs and returns ``False``. The arrival's worktree
+      reclaim already ran (or is a no-op) independently; the issue close is a best-effort finalizer.
+
+    Args:
+        deps: The injected adapter bundle. ``deps.board_reader.issue_state`` supplies the idempotence
+            probe and ``deps.seeder`` (``fetch_issue`` → node id, then ``close_issue``) does the close.
+        transition: The Done arrival whose ticket's issue to close; ``issue_number`` names it.
+
+    Returns:
+        ``True`` iff this call issued a ``close_issue`` (the issue was open and the close succeeded);
+        ``False`` on every skip (no issue number, no seeder, already closed, unresolvable) or failure
+        (so the caller can record an event only on a real close, and never raises).
+    """
+    issue = transition.ticket.issue_number
+    if issue is None:
+        return False
+    seeder = deps.seeder
+    if seeder is None:
+        # No seeder wired (a daemon configured without the bootstrap port): nothing to close through.
+        # This is a config shape, not an error — fail-soft no-op.
+        logger.debug(
+            "Done arrival for #%s: no seeder configured, cannot close issue (no-op)", issue
+        )
+        return False
+    try:
+        # Idempotence: skip an already-closed issue. ``issue_state`` is ``True`` iff CLOSED. This both
+        # avoids a redundant close mutation AND prevents re-closing on every subsequent Done tick (a
+        # Done card stays in Done and is re-evaluated). A throwing probe is fail-soft below.
+        if deps.board_reader.issue_state(issue):
+            logger.debug(
+                "Done arrival for #%s: issue already closed, skipping close (idempotent)", issue
+            )
+            return False
+        # Resolve number → node id (the close mutation needs the global node id), then close. Reuses
+        # the proven intent-path pattern (``_resolve_node_id`` + ``seeder.close_issue``).
+        ref = seeder.fetch_issue(issue)
+        node_id = ref.node_id if ref is not None else None
+        if node_id is None:
+            logger.warning(
+                "Done arrival for #%s: could not resolve issue node id, not closing", issue
+            )
+            return False
+        seeder.close_issue(node_id)
+        logger.info("Done arrival for #%s: closed the GitHub issue (Done = closed)", issue)
+        return True
+    except Exception:
+        # Fail-soft: a close failure (GitHub error, timeout, missing issue) must NEVER break the tick.
+        # The worktree reclaim already ran independently; the close is a best-effort finalizer.
+        logger.exception(
+            "Done arrival for #%s: closing the issue failed; continuing (fail-soft)", issue
+        )
+        return False

@@ -9,6 +9,7 @@ reactive Cancel column tears down, an inert move is a noop, an unchanged probe d
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import subprocess
 import time
@@ -619,6 +620,157 @@ def test_done_arrival_teardown_forgets_in_memory_rate_limit_history() -> None:
     # The torn-down item's in-memory history is gone; the unrelated ticket's survives.
     assert "PVTI_7" not in next_state.antiloop.move_times
     assert "PVTI_8" in next_state.antiloop.move_times
+
+
+# ---------------------------------------------------------------------------
+# BUG #9 — Done arrival closes the GitHub issue (Done = closed → ensign "Clôturé")
+# ---------------------------------------------------------------------------
+
+
+def _close_seeder(*, node_id: str = "I_node7", close_raises: bool = False) -> MagicMock:
+    """Build a mocked :class:`~kanbanmate.ports.board.Seeder` for the BUG #9 close path.
+
+    Wires ``fetch_issue`` to return an :class:`IssueRef` carrying ``node_id`` (the close handle) and
+    ``close_issue`` either as a plain recorder or as a raiser (to exercise the fail-soft path).
+    """
+    from kanbanmate.adapters.github.types import IssueRef
+
+    seeder = MagicMock()
+    seeder.fetch_issue.return_value = IssueRef(node_id=node_id, number=7, title="t", body="")
+    if close_raises:
+        seeder.close_issue.side_effect = RuntimeError("simulated GitHub close failure")
+    return seeder
+
+
+def test_done_arrival_clean_reclaim_closes_issue() -> None:
+    """BUG #9: a CLEAN Done reclaim (TeardownAction done) also CLOSES the open GitHub issue.
+
+    The card landed in Done with a clean worktree → the work is complete, so beyond the worktree
+    reclaim the issue is closed (Done = closed → the ensign "Clôturé" badge). The issue was OPEN
+    (``issue_state`` False) so the close fires exactly once on its resolved node id.
+    """
+    ticket = Ticket(item_id="PVTI_7", issue_number=7, title="t", column_key="Done")
+    # issue_state is False (open) by default → the idempotence guard lets the close through.
+    reader = _FakeBoardReader("probe-1", _snapshot(ticket))
+    m = _mocks(reader)
+    seeder = _close_seeder()
+    m.deps = dataclasses.replace(m.deps, seeder=seeder)
+    m.store.load.return_value = _running_state(7, status=TicketStatus.RUNNING)
+    m.workspace.worktree_exists.return_value = True  # clean worktree → reclaim
+    m.workspace.has_unpushed_work.return_value = False
+    m.workspace.discover_branch.return_value = "feat/genesis"
+    state = PersistedState(columns_by_item={"PVTI_7": "InProgress"}, last_probe="probe-0")
+
+    result, _ = tick(m.deps, _config(), state)
+
+    # The reclaim ran AND the issue was closed on its resolved node id.
+    m.workspace.remove_worktree.assert_called_once_with(7, force=True)
+    seeder.close_issue.assert_called_once_with("I_node7")
+    assert result.actions_executed == 1
+
+
+def test_done_arrival_no_worktree_closes_issue() -> None:
+    """BUG #9: a Done arrival with NO worktree (the DOMINANT merged case) CLOSES the open issue.
+
+    session-end already purged state + removed the worktree, then the card reached Done. There is
+    nothing to reclaim (a pure NOOP-forward, zero actions), but the issue IS a genuine completion,
+    so it is closed.
+    """
+    ticket = Ticket(item_id="PVTI_7", issue_number=7, title="t", column_key="Done")
+    reader = _FakeBoardReader("probe-1", _snapshot(ticket))
+    m = _mocks(reader)
+    seeder = _close_seeder()
+    m.deps = dataclasses.replace(m.deps, seeder=seeder)
+    m.workspace.worktree_exists.return_value = False  # no worktree → no reclaim, just close
+    m.store.load.return_value = None
+    m.board_writer.list_issue_comments.return_value = []
+    state = PersistedState(columns_by_item={"PVTI_7": "InProgress"}, last_probe="probe-0")
+
+    result, next_state = tick(m.deps, _config(), state)
+
+    # No reclaim side effects, but the issue WAS closed.
+    m.workspace.remove_worktree.assert_not_called()
+    m.store.purge_ticket.assert_not_called()
+    seeder.close_issue.assert_called_once_with("I_node7")
+    assert result.actions_executed == 0  # the close is not a decided action (orthogonal finalizer)
+    assert next_state.columns_by_item["PVTI_7"] == "Done"
+
+
+def test_done_arrival_unpushed_block_does_not_close_issue() -> None:
+    """BUG #9: an UNPUSHED-work Done arrival (BlockAction) must NOT close the issue (work unfinished).
+
+    A dirty/ahead worktree downgrades to a Blocked sticky (the work is NOT complete). Closing the
+    issue here would be wrong, so the close is suppressed — only the genuine-completion paths close.
+    """
+    ticket = Ticket(item_id="PVTI_7", issue_number=7, title="t", column_key="Done")
+    reader = _FakeBoardReader("probe-1", _snapshot(ticket))
+    m = _mocks(reader)
+    seeder = _close_seeder()
+    m.deps = dataclasses.replace(m.deps, seeder=seeder)
+    m.store.load.return_value = None
+    m.workspace.worktree_exists.return_value = True
+    m.workspace.has_unpushed_work.return_value = True  # unpushed → BlockAction
+    state = PersistedState(columns_by_item={"PVTI_7": "InProgress"}, last_probe="probe-0")
+
+    result, _ = tick(m.deps, _config(), state)
+
+    # The Blocked sticky was posted, the worktree KEPT — and the issue was NOT closed.
+    m.workspace.remove_worktree.assert_not_called()
+    seeder.close_issue.assert_not_called()
+    assert result.actions_executed == 1
+
+
+def test_done_arrival_already_closed_issue_is_idempotent_no_reclose() -> None:
+    """BUG #9 idempotence: an ALREADY-CLOSED issue is NOT re-closed on a (re-)evaluated Done arrival.
+
+    A Done card stays in Done and is re-diffed every poll; ``issue_state`` True (closed) short-circuits
+    the close so the engine never re-closes the same issue every tick.
+    """
+    ticket = Ticket(item_id="PVTI_7", issue_number=7, title="t", column_key="Done")
+    # issue_state True (already CLOSED) → the close is skipped.
+    reader = _FakeBoardReader("probe-1", _snapshot(ticket), closed={7: True})
+    m = _mocks(reader)
+    seeder = _close_seeder()
+    m.deps = dataclasses.replace(m.deps, seeder=seeder)
+    m.workspace.worktree_exists.return_value = False
+    m.store.load.return_value = None
+    m.board_writer.list_issue_comments.return_value = []
+    state = PersistedState(columns_by_item={"PVTI_7": "InProgress"}, last_probe="probe-0")
+
+    result, _ = tick(m.deps, _config(), state)
+
+    # The idempotence probe fired but the close did NOT (already closed).
+    assert 7 in reader.issue_state_calls
+    seeder.close_issue.assert_not_called()
+    assert result.errors == 0
+
+
+def test_done_arrival_close_failure_does_not_raise_into_tick() -> None:
+    """BUG #9 fail-soft: a ``close_issue`` error is swallowed — it never breaks the tick.
+
+    The worktree reclaim already ran; a GitHub close failure is logged and swallowed inside
+    ``close_done_issue`` so the tick completes with zero raised errors and the reclaim intact.
+    """
+    ticket = Ticket(item_id="PVTI_7", issue_number=7, title="t", column_key="Done")
+    reader = _FakeBoardReader("probe-1", _snapshot(ticket))
+    m = _mocks(reader)
+    seeder = _close_seeder(close_raises=True)
+    m.deps = dataclasses.replace(m.deps, seeder=seeder)
+    m.store.load.return_value = _running_state(7, status=TicketStatus.RUNNING)
+    m.workspace.worktree_exists.return_value = True  # clean worktree → reclaim + (failing) close
+    m.workspace.has_unpushed_work.return_value = False
+    m.workspace.discover_branch.return_value = "feat/genesis"
+    state = PersistedState(columns_by_item={"PVTI_7": "InProgress"}, last_probe="probe-0")
+
+    result, next_state = tick(m.deps, _config(), state)
+
+    # The close was attempted (and raised internally) but the tick did NOT count an error and the
+    # reclaim completed normally — fail-soft.
+    seeder.close_issue.assert_called_once_with("I_node7")
+    m.workspace.remove_worktree.assert_called_once_with(7, force=True)
+    assert result.errors == 0
+    assert result.actions_executed == 1
+    assert next_state.columns_by_item["PVTI_7"] == "Done"
 
 
 def test_post_restart_empty_baseline_resyncs_without_spurious_launches() -> None:

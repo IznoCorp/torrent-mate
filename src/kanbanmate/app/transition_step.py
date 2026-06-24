@@ -43,7 +43,7 @@ from kanbanmate.app.actions import (
     TeardownAction,
 )
 from kanbanmate.app.body_status import update_body_status
-from kanbanmate.app.done_arrival import done_arrival_teardown
+from kanbanmate.app.done_arrival import close_done_issue, done_arrival_teardown
 from kanbanmate.app.script_route import fixci_key, route_script_verdict, run_check_script
 from kanbanmate.app.status_reporter import event_kind_for_action, latest_progress
 from kanbanmate.core.antiloop import AntiLoopState, forget, record_move
@@ -255,6 +255,15 @@ def process_transition(
                 )
             else:
                 errors += 1
+            # BUG #9: a GENUINE Done arrival closes the GitHub issue (Done = closed → the ensign
+            # "Clôturé" badge appears). Fire ONLY on the clean-reclaim case (a ``flavour="done"``
+            # TeardownAction = the work is complete), NEVER on the unpushed-work BlockAction (the work
+            # is NOT finished — closing would be wrong). The close is idempotent (skips an
+            # already-closed issue) + wholly fail-soft inside ``close_done_issue``, and orthogonal to
+            # the worktree reclaim above — the card STAYS in Done (the baseline advance below records
+            # Done; the issue is never moved). A real close adds a dashboard "closed" event.
+            if not isinstance(done_teardown, BlockAction) and close_done_issue(deps, transition):
+                status_events.append(("teardown", transition.ticket.issue_number, "closed"))
             next_columns[transition.ticket.item_id] = transition.to_column
             return TransitionOutcome(antiloop, actions_executed, errors)
         elif destination is not None and transition.to_column != config.blocked_column:
@@ -283,6 +292,16 @@ def process_transition(
                 else None,
                 now,
             )
+            # BUG #9: a Done arrival with NO worktree (the DOMINANT merged case — session-end already
+            # purged state + removed the worktree before the card reached Done) is a genuine
+            # completion, so close the GitHub issue too. Gated on the RESOLVED destination being the
+            # configured Done column (compare ``destination.key``, not the raw board token, so a Status
+            # option NAME ≠ column KEY still matches — the same name-then-key resolution
+            # ``done_arrival_teardown`` uses). This NOOP-forward branch also serves ordinary inert
+            # moves like Plan→Ready-to-dev, which must NOT close. Idempotent + fail-soft inside
+            # ``close_done_issue``; the card STAYS in Done (never moved).
+            if destination.key == config.done_column and close_done_issue(deps, transition):
+                status_events.append(("teardown", transition.ticket.issue_number, "closed"))
         # Operator pull-back (13.7 #5): a queued card the operator dragged to an inert
         # (or unknown) column is now a NOOP — clear any queue marker (idempotent no-op
         # when absent) so a later ``_drain_queue`` sweep does not resurrect a ticket the
