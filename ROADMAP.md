@@ -3,6 +3,16 @@
 Deferred items from DESIGN §13. These are out of scope for v1.0 but are recognised as
 desirable future enhancements.
 
+## Genesis cutover — old PoC skill decommissioned — IMPLEMENTED (0.17.1, scuttle)
+
+The final un-ticked bullet of genesis `DESIGN.md` §11 ("Decommission old location"). The old PoC
+skill `skills/kanban/` (n8n dispatcher + a copy of the engine + helper bins + tests) was removed
+from the **separate `.claude` portable-config repo** via `git rm -r skills/kanban` (backed up to
+`~/kanban-poc-skill-backup-<date>.tgz` first). It is fully superseded by the `kanbanmate` daemon
+and the live plugin skills (`plugin/skills/kanban`, `plugin/skills/kanban-monitor`). The other two
+§11 bullets (global skill removed; launchd reaper plist + `.claude/CLAUDE.md` refs cleaned) were
+already done. Genesis extraction cutover is now fully complete.
+
 ## Board repatriation (columns + card positions) — IMPLEMENTED (0.11.0, anchor / helm PR 3)
 
 Shipped in the **anchor** feature (`docs/features/anchor/DESIGN.md`), the 3rd PR of the helm
