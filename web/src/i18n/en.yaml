@@ -299,6 +299,7 @@ monitor:
   track_saving: Updating track…
   track_queued: Track update queued…
   track_done: Track updated.
+  track_locked: Locked past triage — re-route only in Backlog/Triage
   state: state
   stage: stage
   branch: branch

@@ -303,6 +303,7 @@ monitor:
   track_saving: Mise à jour de la voie…
   track_queued: Mise à jour de la voie en file…
   track_done: Voie mise à jour.
+  track_locked: Verrouillée après le triage — re-routage uniquement en Backlog/Triage
   state: état
   stage: étape
   branch: branche

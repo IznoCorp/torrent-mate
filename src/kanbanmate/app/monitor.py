@@ -167,8 +167,9 @@ def build_ticket_detail(
         ``{number, title, column_key, body, markers, comments, timeline, track, labels}``
         (DESIGN §5.4). The timeline lists progress milestones first, then the chronological
         comments (the engine's comments have no timestamps, so a strict cross-merge isn't
-        possible). ``track`` is the parsed fast-track lane (or ``None``); ``labels`` is the
-        raw list of label names.
+        possible). ``markers.track`` is the body ``**track**`` lane recorded by the triage
+        classifier (the real chosen lane, or ``None``); the top-level ``track`` is the
+        ``track:*`` LABEL override (or ``None``); ``labels`` is the raw list of label names.
     """
     fields = parse_ticket_fields(body)
     markers = {
@@ -176,6 +177,10 @@ def build_ticket_detail(
         "codename": fields.get("codename") or None,
         "design": fields.get("design_path") or None,
         "plans": fields.get("plan_paths") or None,
+        # The body ``**track**`` lane recorded by the triage classifier — the REAL chosen lane,
+        # distinct from the top-level ``track`` LABEL override (which triage does not set). The UI
+        # reads this as the effective-lane fallback when there is no label override.
+        "track": fields.get("track") or None,
     }
     comment_list = [str(c) for c in comments]
     timeline = [

@@ -1031,7 +1031,66 @@ function textClamp(lines) {
 }
 
 // Rich card face: number + multi-line title + body excerpt inside a DS Card surface.
+//
+// BUG #7: a CLOSED card carries an extra "Clôturé" badge on the header row, which (alongside the
+// #number and the deep-link button) squeezed the title into a sliver of the same line. So when the
+// card is closed, the title drops to its OWN full-width line BELOW the #number + badge row, keeping
+// it readable (still struck-through). Open cards keep the original single-line header layout.
 function RichCardFace({ card, t }) {
+  const titleSpan = (
+    <span
+      style={{
+        flex: 1,
+        minWidth: 0,
+        fontSize: "var(--text-sm)",
+        fontWeight: 600,
+        lineHeight: 1.35,
+        color:
+          card.is_closed || !card.title
+            ? "var(--muted-foreground)"
+            : "var(--foreground)",
+        textDecoration: card.is_closed ? "line-through" : "none",
+        ...textClamp(2),
+      }}
+    >
+      {card.title || t("board.untitled")}
+    </span>
+  );
+  // Deep-link to this ticket in Monitoring (stops propagation so it never starts a drag).
+  const deepLink = card.issue_number != null && (
+    <Tooltip
+      label={t("board.open_monitoring", "View in Monitoring")}
+      style={{ flex: "none" }}
+    >
+      <button
+        type="button"
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          window.dispatchEvent(
+            new CustomEvent("km:open-monitoring", {
+              detail: { issue: card.issue_number },
+            }),
+          );
+        }}
+        style={{
+          flex: "none",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 22,
+          height: 22,
+          padding: 0,
+          border: "none",
+          background: "transparent",
+          color: "var(--muted-foreground)",
+          cursor: "pointer",
+        }}
+      >
+        <MonitorCheck size={14} strokeWidth={1.75} />
+      </button>
+    </Tooltip>
+  );
   return (
     <div
       style={{
@@ -1056,7 +1115,7 @@ function RichCardFace({ card, t }) {
             #{card.issue_number}
           </span>
         )}
-        {/* CLOSED-issue indicator (ensign): a muted badge by the number + a struck-through title. */}
+        {/* CLOSED-issue indicator (ensign): a muted badge by the number. */}
         {card.is_closed && (
           <Badge
             tone="violet"
@@ -1068,59 +1127,15 @@ function RichCardFace({ card, t }) {
             {t("board.closed")}
           </Badge>
         )}
-        <span
-          style={{
-            flex: 1,
-            minWidth: 0,
-            fontSize: "var(--text-sm)",
-            fontWeight: 600,
-            lineHeight: 1.35,
-            color:
-              card.is_closed || !card.title
-                ? "var(--muted-foreground)"
-                : "var(--foreground)",
-            textDecoration: card.is_closed ? "line-through" : "none",
-            ...textClamp(2),
-          }}
-        >
-          {card.title || t("board.untitled")}
-        </span>
-        {/* Deep-link to this ticket in Monitoring (stops propagation so it never starts a drag). */}
-        {card.issue_number != null && (
-          <Tooltip
-            label={t("board.open_monitoring", "View in Monitoring")}
-            style={{ flex: "none" }}
-          >
-            <button
-              type="button"
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                window.dispatchEvent(
-                  new CustomEvent("km:open-monitoring", {
-                    detail: { issue: card.issue_number },
-                  }),
-                );
-              }}
-              style={{
-                flex: "none",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 22,
-                height: 22,
-                padding: 0,
-                border: "none",
-                background: "transparent",
-                color: "var(--muted-foreground)",
-                cursor: "pointer",
-              }}
-            >
-              <MonitorCheck size={14} strokeWidth={1.75} />
-            </button>
-          </Tooltip>
-        )}
+        {/* Open card: title shares the header row. Closed card: only a spacer keeps the deep-link
+            right-aligned — the title moves to its own full-width line below. */}
+        {card.is_closed ? <span style={{ flex: 1, minWidth: 0 }} /> : titleSpan}
+        {deepLink}
       </div>
+      {/* Closed card: full-width title line below the #number + Clôturé row (BUG #7). */}
+      {card.is_closed && (
+        <div style={{ display: "flex", minWidth: 0 }}>{titleSpan}</div>
+      )}
       {card.excerpt && (
         <div
           style={{

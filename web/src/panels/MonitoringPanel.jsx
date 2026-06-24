@@ -34,13 +34,39 @@ const STATE_TONE = { running: "accent", waiting: "amber", blocked: "red" };
 // Fast-track lane options (skiff). The closed vocabulary is full/lite/express; "" (Auto) clears the
 // label. Shared by the detail-panel Track selector and the compact per-row selector so they can't
 // drift. `t` is the i18n lookup so the labels localize.
-function trackOptions(t) {
+//
+// `bodyLane` (BUG #8) is the REAL triage lane recorded in the body **track** marker. When present
+// and there is no label override, the "Auto" option reads "Auto · Lite" so the operator can see the
+// effective lane the daemon will use instead of a bare "Auto" that looks like "undecided".
+function trackOptions(t, bodyLane) {
+  const laneLabels = {
+    full: t("monitor.track_full", "Full"),
+    lite: t("monitor.track_lite", "Lite"),
+    express: t("monitor.track_express", "Express"),
+  };
+  const auto = t("monitor.track_auto", "Auto");
   return [
-    { value: "", label: t("monitor.track_auto", "Auto") },
-    { value: "full", label: t("monitor.track_full", "Full") },
-    { value: "lite", label: t("monitor.track_lite", "Lite") },
-    { value: "express", label: t("monitor.track_express", "Express") },
+    {
+      value: "",
+      label:
+        bodyLane && laneLabels[bodyLane]
+          ? `${auto} · ${laneLabels[bodyLane]}`
+          : auto,
+    },
+    { value: "full", label: laneLabels.full },
+    { value: "lite", label: laneLabels.lite },
+    { value: "express", label: laneLabels.express },
   ];
+}
+
+// Whether the fast-track override is still actionable: editable ONLY while the ticket sits in a
+// pre/at-triage column (Backlog or Triage), where a re-triage will consume the override. Past triage
+// the label no longer re-routes (pr-review reads the body **track** marker, not the label), so the
+// selector is read-only there to stop a misleading no-op. `column_key` may be a column NAME or KEY,
+// but Backlog/Triage have key === name, so a direct membership test handles both. (BUG #8b)
+const _TRIAGE_EDITABLE_COLUMNS = new Set(["Backlog", "Triage"]);
+function trackEditableInColumn(columnKey) {
+  return _TRIAGE_EDITABLE_COLUMNS.has(columnKey);
 }
 
 // Square icon-button used to collapse/expand the master ticket-list column (sidebar-style).
@@ -682,6 +708,26 @@ export default function MonitoringPanel({ project }) {
   // Prefer the optimistic destination until the (lagging) snapshot catches up to it.
   const currentMoveKey = optimisticCol || reconciledMoveKey;
 
+  // BUG #8 — fast-track lane derivation for the detail-panel Voie selector.
+  // - The body **track** marker (markers.track) is the REAL lane the triage classifier chose.
+  // - The top-level `track` / boardTracks value is the manual track:* LABEL override (triage does
+  //   NOT set it). The override wins when present; otherwise the body lane is the effective lane.
+  // - The override only re-routes at/before triage (pr-review reads the body marker, not the label),
+  //   so the selector is editable ONLY while the card sits in Backlog/Triage and read-only past it.
+  const detailLabelOverride = detail
+    ? detail.track || boardTracks[String(detail.number)] || ""
+    : "";
+  const detailBodyLane = detail?.markers?.track || "";
+  // The Select's controlled value: the label override if set, else "" (Auto) — the Auto option then
+  // surfaces the body lane in its label (e.g. "Auto · Lite") so the effective lane is still visible.
+  const detailTrackValue = detailLabelOverride || "";
+  // Use the LIVE column when known (it reconciles ahead of a stale detail refetch — same BUG #4
+  // reasoning as currentMoveKey) so the editable gate flips the instant the card leaves triage.
+  const detailTrackColumn = (detail && liveCol) || detail?.column_key || "";
+  const trackEditable = detail
+    ? trackEditableInColumn(detailTrackColumn)
+    : false;
+
   // Per-ticket state dot — the colored summary line (running/waiting/blocked) is its legend. The
   // state is the board's own server-computed `agent_state` (running/waiting/blocked, or null for a
   // ticket with no live agent → a muted dot).
@@ -1290,10 +1336,12 @@ export default function MonitoringPanel({ project }) {
                     )}
                   </div>
 
-                  {/* Fast-track lane (skiff). "" (Auto) clears the track:* label; full/lite/express
-                      set it. The detail's `track` field is authoritative; the boardTracks map is the
-                      fallback so an optimistic row change is reflected here even before the detail
-                      refetch lands. */}
+                  {/* Fast-track lane (skiff). The effective lane is the track:* LABEL override
+                      (detail.track / boardTracks) if set, ELSE the body **track** lane chosen by
+                      triage (markers.track) — surfaced in the "Auto" option's label (e.g.
+                      "Auto · Lite"). BUG #8: the override only re-routes at/before triage, so the
+                      selector is editable ONLY in Backlog/Triage and read-only past triage (where it
+                      would be a misleading no-op). */}
                   <div
                     style={{
                       display: "flex",
@@ -1322,14 +1370,10 @@ export default function MonitoringPanel({ project }) {
                       <Select
                         size="sm"
                         mono={false}
-                        value={
-                          detail.track ||
-                          boardTracks[String(detail.number)] ||
-                          ""
-                        }
-                        disabled={tracking}
+                        value={detailTrackValue}
+                        disabled={tracking || !trackEditable}
                         onChange={(e) => doTrack(detail.number, e.target.value)}
-                        options={trackOptions(t)}
+                        options={trackOptions(t, detailBodyLane)}
                       />
                       {tracking && (
                         <span
@@ -1339,6 +1383,19 @@ export default function MonitoringPanel({ project }) {
                           }}
                         >
                           {t("monitor.track_saving", "Updating track…")}
+                        </span>
+                      )}
+                      {!trackEditable && !tracking && (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color: "var(--muted-foreground)",
+                          }}
+                        >
+                          {t(
+                            "monitor.track_locked",
+                            "Locked past triage — re-route only in Backlog/Triage",
+                          )}
                         </span>
                       )}
                     </div>

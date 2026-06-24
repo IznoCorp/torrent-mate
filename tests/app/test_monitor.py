@@ -91,6 +91,22 @@ def test_build_ticket_detail_markers_and_timeline() -> None:
     assert d["timeline"][1]["text"] == "hello"
 
 
+def test_build_ticket_detail_markers_track_surfaces_body_lane() -> None:
+    """``markers.track`` surfaces the body ``**track**`` lane (triage's chosen lane).
+
+    The top-level ``track`` field stays the ``track:*`` LABEL override (absent here → None),
+    so the UI can show the real triage lane when no manual override label is set.
+    """
+    body = "**codename**: skiff\n**track**: lite\nbody text"
+    d = build_ticket_detail(7, "T", "Backlog", body, [], [])
+    assert d["markers"]["track"] == "lite"  # body lane (triage decision)
+    assert d["track"] is None  # no track:* label override
+
+    # No body **track** marker → markers.track is None (not "").
+    bare = build_ticket_detail(7, "T", "Backlog", "no markers", [], [])
+    assert bare["markers"]["track"] is None
+
+
 def test_build_ticket_detail_comment_dates_defaults_empty() -> None:
     """Without comment_dates kwarg, comment entries have empty ``at``."""
     comments = ["one", "two"]
