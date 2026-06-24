@@ -19,11 +19,23 @@ from pathlib import Path
 
 from kanbanmate.app.wiring import WiringConfig
 
+# The backend-aware effective-ingress resolution lives in ``core`` (pure, shared by the daemon wiring
+# + the http config API + the cli) so the layering guard is satisfied (``http`` may not import
+# ``daemon``). Imported under the historical underscore name so the call site + existing imports/tests
+# keep resolving against one definition (tug FIX 1).
+from kanbanmate.core.registry_resolve import effective_ingress as _effective_ingress
+
 # The daemon's YAML config + PAUSE sentinel filenames under the kanban root. They live HERE (the
 # resolution module) and are re-exported by ``daemon/loop`` for back-compat (many modules import
 # ``daemon.loop.CONFIG_FILENAME`` / ``PAUSE_FILENAME``). One definition, no drift.
 CONFIG_FILENAME = "config.yml"
 PAUSE_FILENAME = "PAUSE"
+
+
+# The backend-aware effective-ingress resolution lives in ``core`` (pure, shared by the daemon
+# wiring + the http config API + the cli) so the layering guard is satisfied (``http`` may not import
+# ``daemon``). Re-exported here under the historical underscore name so this module's call site +
+# existing imports/tests keep resolving against one definition (tug FIX 1).
 
 
 class ProjectSelectionError(RuntimeError):
@@ -90,7 +102,7 @@ def wiring_for_entry(
         config_dir=entry.config_dir,  # type: ignore[attr-defined]
         state_root=state_root,
         multi_project=multi,
-        ingress=entry.ingress or "webhook",  # type: ignore[attr-defined]
+        ingress=_effective_ingress(entry),
         board_backend=getattr(entry, "board_backend", "native"),  # anchor §9 / keel step 5 (A)
         board_mirror=bool(getattr(entry, "board_mirror", True)),  # anchor §5 — honour the switch
     )

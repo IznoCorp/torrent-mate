@@ -551,6 +551,41 @@ def test_launch_action_audit_failure_is_swallowed(tmp_path: Path) -> None:
     m.store.append_dispatch.assert_called_once()
 
 
+def test_launch_action_dispatch_recorded_before_sticky_and_sticky_failure_is_soft(
+    tmp_path: Path,
+) -> None:
+    """tug FIX 4: the 🟡 sticky upsert is OFF the critical path.
+
+    The dispatch record (the "launched" audit signal) is appended BEFORE the 🟡 running-header
+    upsert, and a sticky upsert that RAISES must NOT break the launch — the agent has already
+    started (tmux + prompt) and the dispatch is already recorded. Patches
+    ``actions.upsert_stage_comment`` to raise and asserts (a) ``append_dispatch`` still ran, and
+    (b) the dispatch append happened BEFORE the sticky upsert (the reordering).
+    """
+    from unittest.mock import patch  # noqa: PLC0415
+
+    m = _mocks(now=1234.0, worktree=tmp_path)
+    call_order: list[str] = []
+    m.store.append_dispatch.side_effect = lambda *_a, **_k: call_order.append("dispatch")
+
+    def _boom(*_a: object, **_k: object) -> None:
+        call_order.append("sticky")
+        raise RuntimeError("github down")
+
+    with patch("kanbanmate.app.actions.upsert_stage_comment", side_effect=_boom) as upsert:
+        # Must NOT raise even though the sticky upsert blows up.
+        _launch(_ticket(issue=7)).execute(m.deps)
+
+    # The agent is fully launched: tmux session started + running state persisted.
+    m.sessions.launch.assert_called_once()
+    m.store.save.assert_called_once()
+    # The dispatch record was written EVEN THOUGH the sticky raised (fail-soft, off critical path).
+    m.store.append_dispatch.assert_called_once()
+    upsert.assert_called_once()
+    # Ordering: dispatch BEFORE sticky (FIX 4 reorder — the audit signal is not blocked on GitHub).
+    assert call_order == ["dispatch", "sticky"]
+
+
 def test_launch_action_clears_stale_done_and_end_attempts(tmp_path: Path) -> None:
     """FIX 2: a fresh launch clears a stale done/<issue> breadcrumb + end_attempts counter.
 

@@ -224,8 +224,44 @@ def enabled_entries(registry: dict[str, _E]) -> list[_E]:
     )
 
 
+def effective_ingress(entry: object) -> str:
+    """Resolve an entry's effective ingress mode, backend-aware (tug FIX 1; pure core helper).
+
+    A registry entry carries an explicit ``ingress`` string today, but an entry written with a BLANK
+    ``ingress`` (``""``) — e.g. an OLD-shaped or hand-edited file — must resolve to the mode that
+    fits its board KIND, not a blanket ``"webhook"``:
+
+    * **native-backed** (``board_backend`` ``"native"`` / ``"hybrid"``) — a native board's primary
+      input is LOCAL (KanbanMateUI writes ``board.json``; no webhook fires for a local drag), so the
+      120 s webhook safety-sweep fallback would make every operator action wait out the slow poll. A
+      blank ingress therefore resolves to ``"polling"`` (the tight 10 s base cadence) so a fresh
+      native board reacts promptly out of the box.
+    * **github-backed** (the legacy forge-authority backend) — keeps the historical ``"webhook"``
+      default (its placement authority IS GitHub, so a webhook can fire and the slow sweep backstops).
+
+    An EXPLICIT ``ingress`` value always wins — ``"webhook"`` / ``"polling"`` stay overridable per
+    entry; this only governs a blank value. Lives in ``core`` (pure, no I/O) so the daemon wiring,
+    the http config API, and the cli all resolve it identically without crossing a layer boundary
+    (``http`` may not import ``daemon``).
+
+    Args:
+        entry: The registry entry (read structurally — its ``ingress`` / ``board_backend`` attributes
+            are read via ``getattr`` so a partial/test stub also resolves without raising).
+
+    Returns:
+        The explicit ``ingress`` when set, else ``"polling"`` for a native-backed board or
+        ``"webhook"`` for a github-backed board.
+    """
+    explicit = getattr(entry, "ingress", "")
+    if explicit:
+        return str(explicit)
+    backend = getattr(entry, "board_backend", "native")
+    return "polling" if backend in ("native", "hybrid") else "webhook"
+
+
 __all__ = [
     "ProjectEntryLike",
+    "effective_ingress",
     "enabled_entries",
     "resolve_by_issue",
     "resolve_by_project_id",

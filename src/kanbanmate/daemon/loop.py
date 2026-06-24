@@ -831,6 +831,15 @@ def run_loop(
             # move, so re-check fast for the next few ticks to fire the next-stage launch promptly.
             if woke_on_nudge:
                 fast_ticks_remaining = _FAST_POLL_AFTER_NUDGE_TICKS
+                # tug FIX 5 — observability: surface a nudge-driven early wake at INFO so an operator
+                # action's fast path (UI drag / kanban move / ticket create → nudge) is VISIBLE in
+                # daemon.jsonl, distinguishable from a scheduled-tick wake. Cheap (one log line); no
+                # behaviour change. ``project(s)`` names the sweep breadth (the nudge is daemon-level,
+                # so it is not attributable to a single project here).
+                logger.info(
+                    "woke early on nudge (project(s)=%d) — draining within one slice",
+                    len(wirings),
+                )
     finally:
         # Release the single-instance lock, log shutdown, and remove our
         # JSONL handler so test suites that call run_loop multiple times

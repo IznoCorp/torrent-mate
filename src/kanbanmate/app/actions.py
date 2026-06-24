@@ -464,35 +464,18 @@ class LaunchAction:
                 body=self.ticket.body,
             )
         )
-        # 6. Stage-sticky running header (🟡 "in progress", DESIGN §8.1.c). The upsert is
-        # fail-soft (it swallows any GitHub error), so signaling never breaks the launch.
-        upsert_stage_comment(
-            deps.board_writer,
-            issue,
-            stage=self.ticket.column_key,
-            header=HeaderInfo(
-                stage=self.ticket.column_key,
-                status="running",
-                session=session_uuid,
-                profile=profile,
-                started=fmt_timestamp(now),
-                worktree=Path(worktree).name,
-                log_hint=f"kanban logs {issue}",
-            ),
-            now=now,
-        )
-        # 7. Per-dispatch audit record — the NEW LAST step (port of PoC
-        # launch.py:297-309 + audit.append_dispatch). One structured JSON line
-        # per dispatch under ``<root>/log/dispatch.jsonl``, carrying the full PoC
-        # field set keyed off the locals confirmed in scope above. ``ts=now`` is
-        # the injected clock's now (deterministic); the store stamps ``logged_at``
-        # with ``time.time()`` so the port stays clock-free. The reaper relaunch
-        # reuses this SAME LaunchAction path, so a relaunch ALSO appends a record
-        # (faithful: the PoC's launch_next went through start_session too).
+        # 6. Per-dispatch audit record (port of PoC launch.py:297-309 + audit.append_dispatch): one
+        # structured JSON line per dispatch under ``<root>/log/dispatch.jsonl``. ``ts=now`` is the
+        # injected clock's now; the store stamps ``logged_at`` via ``time.time()`` (the port stays
+        # clock-free). The reaper relaunch reuses this SAME path, so a relaunch also appends a record.
         #
-        # FAIL-SOFT + LAST: wrapped in its own try/except so an audit-log write
-        # failure NEVER breaks a launch — the agent already started, so even a
-        # failure here leaves a fully-launched ticket (state saved, 🟡 posted).
+        # tug FIX 4 — OFF THE CRITICAL PATH: the dispatch record is appended BEFORE the 🟡 sticky
+        # upsert (which previously ran first and blocked the launch on TWO sequential GitHub
+        # round-trips ~0.5–1.5 s). An agent is "launched" once tmux + prompt (steps 4/4b) + running
+        # state (step 5) + this audit line land — none depend on GitHub. The 🟡 sticky is a
+        # best-effort GitHub flourish → it moves to the LAST step (7). Crash-safety holds: a crash
+        # after prompt-send but before the sticky still leaves the agent running + dispatch recorded.
+        # FAIL-SOFT: an audit-log write failure NEVER breaks a launch (the agent already started).
         record: dict[str, object] = {
             "issue": issue,
             "repo": deps.repo,
@@ -507,6 +490,27 @@ class LaunchAction:
             deps.store.append_dispatch(record)
         except Exception:
             logger.exception("dispatch-audit append failed for #%s; continuing", issue)
+        # 7. Stage-sticky running header (🟡 "in progress", DESIGN §8.1.c) — the NEW LAST step, OFF the
+        # critical path (tug FIX 4). The upsert is itself fail-soft; the extra try/except is
+        # belt-and-suspenders so a future non-fail-soft change cannot undo the already-launched agent.
+        try:
+            upsert_stage_comment(
+                deps.board_writer,
+                issue,
+                stage=self.ticket.column_key,
+                header=HeaderInfo(
+                    stage=self.ticket.column_key,
+                    status="running",
+                    session=session_uuid,
+                    profile=profile,
+                    started=fmt_timestamp(now),
+                    worktree=Path(worktree).name,
+                    log_hint=f"kanban logs {issue}",
+                ),
+                now=now,
+            )
+        except Exception:
+            logger.exception("launch 🟡 sticky upsert failed for #%s; continuing", issue)
 
     def _agent_command(self, deps: Deps, issue: int, worktree: Path, session_uuid: str) -> str:
         """Assemble the BARE ``claude`` command line launched inside the agent's tmux session.

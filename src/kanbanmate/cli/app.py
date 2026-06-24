@@ -443,10 +443,11 @@ def init(
         "projects.json instead of demanding it on every kanban-update-main call.",
     ),
     ingress: str = typer.Option(
-        "webhook",
+        "polling",
         "--ingress",
-        help="Per-project ingress mode: 'webhook' (default — fast nudge + slow safety-sweep "
-        "fallback; seeds <root>/webhook_secret) or 'polling' (tight 10 s cadence).",
+        help="Per-project ingress mode: 'polling' (default — tight 10 s cadence, right for a native "
+        "ONE-WAY board whose input is local) or 'webhook' (fast nudge + slow safety-sweep fallback; "
+        "seeds <root>/webhook_secret — for a github-backed board).",
     ),
 ) -> None:
     """Initialise the per-repo tier: project, columns, labels, config, registry (DESIGN §4.3).
@@ -464,7 +465,7 @@ def init(
         title: The Project v2 title to find-or-create (defaults to the repo name).
         dev_repo_path: The operator's dev-clone path persisted on the registry entry (the
             post-merge ff-only update target, DESIGN §10); defaults to ``""`` (disabled).
-        ingress: The per-project ingress mode (``webhook`` default | ``polling``); recorded on the
+        ingress: The per-project ingress mode (``polling`` default | ``webhook``); recorded on the
             registry entry and (for ``webhook``) seeds the ``<root>/webhook_secret`` skeleton.
     """
     entry = init_cmd.init(

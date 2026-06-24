@@ -1507,6 +1507,37 @@ def test_run_loop_fast_polls_after_nudge_wake(
     assert all(d == pytest.approx(10.0) for d in delays[1:]), delays
 
 
+def test_run_loop_logs_info_on_nudge_wake(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """tug FIX 5: a nudge-driven early wake emits ONE INFO line so the fast path is visible.
+
+    An operator action (UI drag / kanban move / ticket create) bumps the nudge sentinel, waking the
+    inter-tick sleep early. That early wake was previously invisible (DEBUG); this asserts it now
+    surfaces at INFO with the ``woke early on nudge`` breadcrumb (one line, naming the sweep breadth)
+    so a nudge-wake is distinguishable from a scheduled-tick wake in ``daemon.jsonl``.
+    """
+    config_yml, _columns_yml = _setup_config_files(tmp_path)
+    daemon_config = DaemonConfig(kanban_root=tmp_path, config_path=config_yml)
+    monkeypatch.setattr("kanbanmate.daemon.sweep.run_one_tick", _mock_run_one_tick_success)
+
+    calls = {"n": 0}
+
+    def _fake_sleep(_delay: float, **_kwargs: object) -> bool:
+        """Wake on a nudge ONLY for the first sleep — the rest time out normally."""
+        calls["n"] += 1
+        return calls["n"] == 1
+
+    monkeypatch.setattr("kanbanmate.daemon.loop._interruptible_sleep", _fake_sleep)
+    with caplog.at_level(logging.INFO, logger="kanbanmate.daemon.loop"):
+        run_loop(daemon_config, max_iterations=2, sleep=lambda _s: None)
+
+    nudge_lines = [r for r in caplog.records if "woke early on nudge" in r.getMessage()]
+    # EXACTLY one nudge-wake (the first sleep) → exactly one INFO line, no flood.
+    assert len(nudge_lines) == 1
+    assert nudge_lines[0].levelno == logging.INFO
+
+
 def test_run_loop_forces_snapshot_during_fast_poll_window(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

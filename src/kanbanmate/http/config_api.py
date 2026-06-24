@@ -703,6 +703,8 @@ def get_projects() -> JSONResponse:
     Raises:
         HTTPException: 503 when no project is registered.
     """
+    from kanbanmate.core.registry_resolve import effective_ingress  # noqa: PLC0415
+
     registry = _load_registry(_projects_path(_kanban_root()))
     if not registry:
         raise HTTPException(status_code=503, detail="No project registered in the kanban root")
@@ -711,7 +713,9 @@ def get_projects() -> JSONResponse:
             "project_id": e.project_id,
             "repo": e.repo,
             "enabled": e.enabled,
-            "ingress": e.ingress,
+            # tug FIX 1: surface the EFFECTIVE ingress (backend-aware resolution of a blank value) so
+            # the UI shows what the daemon actually uses — never a bare "" for a key-less native entry.
+            "ingress": effective_ingress(e),
         }
         for e in registry.values()
     ]

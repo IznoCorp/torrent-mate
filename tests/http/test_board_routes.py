@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pathlib
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -280,6 +280,74 @@ def test_board_move_bumps_nudge(tmp_path: pathlib.Path, seeded_store: FsBoardSta
         with TestClient(app) as c:
             c.post("/api/board/move", json={"item_id": "item1", "to_column": "Done"})
     assert nudge_calls, "move must bump the daemon nudge"
+
+
+def _record_mirror(order: list[str]) -> Callable[..., dict[str, object]]:
+    """Return a ``_mirror_to_github`` stub that records its call order, then returns a synced result.
+
+    Split out so the side_effect APPENDS (returning None) and THEN returns the mirror dict in two
+    statements — an ``append(...) or {...}`` one-liner trips mypy (``append`` returns None).
+    """
+
+    def _stub(*_a: object, **_k: object) -> dict[str, object]:
+        order.append("mirror")
+        return {"state": "synced", "detail": None}
+
+    return _stub
+
+
+def test_board_move_nudges_before_github_mirror(
+    tmp_path: pathlib.Path, seeded_store: FsBoardStateStore
+) -> None:
+    """tug FIX 3: /api/board/move nudges the daemon BEFORE the synchronous GitHub mirror round-trip.
+
+    Coupling the daemon-wake latency to GitHub speed (~0.5–1.5 s GraphQL) was the observed drag→agent
+    lag. The local board.json write has already landed, so the cheap nudge must fire first; the mirror
+    runs after (fail-soft). Records the call order of the injected ``_nudge`` + ``_mirror_to_github``.
+    """
+    order: list[str] = []
+    with (
+        patch("kanbanmate.http.board_routes._resolve_entry", return_value=_FAKE_ENTRY),
+        patch("kanbanmate.http.board_routes._get_store", return_value=seeded_store),
+        patch(
+            "kanbanmate.http.board_routes._nudge",
+            side_effect=lambda: order.append("nudge"),
+        ),
+        patch(
+            "kanbanmate.http.board_routes._mirror_to_github",
+            side_effect=_record_mirror(order),
+        ),
+    ):
+        with TestClient(app) as c:
+            resp = c.post("/api/board/move", json={"item_id": "item1", "to_column": "Done"})
+    assert resp.status_code == 200
+    assert order == ["nudge", "mirror"], order
+
+
+def test_board_place_nudges_before_github_mirror(
+    tmp_path: pathlib.Path, seeded_store: FsBoardStateStore
+) -> None:
+    """tug FIX 3: /api/board/place nudges before the GitHub mirror too (same coupling fix as move)."""
+    order: list[str] = []
+    with (
+        patch("kanbanmate.http.board_routes._resolve_entry", return_value=_FAKE_ENTRY),
+        patch("kanbanmate.http.board_routes._get_store", return_value=seeded_store),
+        patch(
+            "kanbanmate.http.board_routes._nudge",
+            side_effect=lambda: order.append("nudge"),
+        ),
+        patch(
+            "kanbanmate.http.board_routes._mirror_to_github",
+            side_effect=_record_mirror(order),
+        ),
+    ):
+        with TestClient(app) as c:
+            resp = c.post(
+                "/api/board/place",
+                json={"item_id": "item2", "column_key": "Backlog", "index": 0},
+            )
+    assert resp.status_code == 200
+    assert order == ["nudge", "mirror"], order
 
 
 # ---------------------------------------------------------------------------

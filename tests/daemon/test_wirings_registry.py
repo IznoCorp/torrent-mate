@@ -86,8 +86,10 @@ def test_old_shaped_registry_loads_unchanged(tmp_path: Path) -> None:
 
     wirings = _wirings_from_registry(tmp_path)
     assert len(wirings) == 1
-    # ingress defaults to webhook (entry default); multi_project False for N=1.
-    assert wirings[0].ingress == "webhook"
+    # tug FIX 1: an OLD-shaped entry has no board_backend (→ defaults to "native", the keel default)
+    # and no ingress, so the effective ingress resolves backend-aware to "polling" — a native board's
+    # primary input is local, so it polls on the tight base rather than the slow webhook fallback.
+    assert wirings[0].ingress == "polling"
     assert wirings[0].multi_project is False
 
 
@@ -239,3 +241,114 @@ def test_load_wirings_config_yml_override_single(tmp_path: Path) -> None:
     assert len(wirings) == 1
     assert wirings[0].project_id == "PVT_OVR"
     assert wirings[0].state_root == ""  # override path keeps the flat layout
+
+
+# ---------------------------------------------------------------------------
+# tug FIX 1: native boards default to a responsive (polling) cadence.
+# ---------------------------------------------------------------------------
+
+
+def test_native_entry_without_ingress_resolves_polling(tmp_path: Path) -> None:
+    """tug FIX 1: a native registry entry with NO ingress key wires ingress='polling' (not webhook).
+
+    A native ONE-WAY board's input is local, so a blank ingress on a native-backed entry resolves to
+    the tight polling cadence — never the slow webhook fallback.
+    """
+    clone = _write_clone(tmp_path, "clone-native")
+    _write_registry(
+        tmp_path,
+        {
+            "PVT_N": {
+                "repo": "o/rn",
+                "clone": str(clone),
+                "project_id": "PVT_N",
+                "status_field_node_id": "F",
+                "board_backend": "native",
+                # ingress deliberately omitted — the effective resolution must default it to polling.
+            }
+        },
+    )
+    _seed_token(tmp_path)
+
+    wirings = _wirings_from_registry(tmp_path)
+    assert len(wirings) == 1
+    assert wirings[0].ingress == "polling"
+
+
+def test_native_default_ingress_drives_tight_effective_interval(tmp_path: Path) -> None:
+    """tug FIX 1 (end-to-end): a native, no-ingress daemon polls the TIGHT base, not the 120 s fallback.
+
+    Wires the registry entry exactly as the daemon sweep does, then runs the SAME
+    ``_effective_interval`` the loop uses on the resulting wirings: the effective base must be the
+    tight 10 s default, NOT the 120 s all-webhook safety-sweep fallback.
+    """
+    from kanbanmate.core.interval import IntervalConfig
+    from kanbanmate.daemon.loop import _effective_interval
+
+    clone = _write_clone(tmp_path, "clone-native2")
+    _write_registry(
+        tmp_path,
+        {
+            "PVT_N2": {
+                "repo": "o/rn2",
+                "clone": str(clone),
+                "project_id": "PVT_N2",
+                "status_field_node_id": "F",
+                "board_backend": "native",
+            }
+        },
+    )
+    _seed_token(tmp_path)
+
+    wirings = _wirings_from_registry(tmp_path)
+    cadence = _effective_interval(wirings, IntervalConfig())
+    # The tight base (10 s default) — a polling project keeps the daemon on the responsive cadence.
+    assert cadence.base == 10.0
+    assert cadence.idle_max == 10.0
+
+
+def test_github_entry_without_ingress_keeps_webhook(tmp_path: Path) -> None:
+    """tug FIX 1: a GITHUB-backed entry with no ingress keeps the historical webhook default.
+
+    The backend-aware resolution only flips native boards to polling — a github-backed board (its
+    placement authority IS GitHub) keeps webhook so the slow safety sweep + nudge backstop stand.
+    """
+    clone = _write_clone(tmp_path, "clone-gh")
+    _write_registry(
+        tmp_path,
+        {
+            "PVT_G": {
+                "repo": "o/rg",
+                "clone": str(clone),
+                "project_id": "PVT_G",
+                "status_field_node_id": "F",
+                "board_backend": "github",
+            }
+        },
+    )
+    _seed_token(tmp_path)
+
+    wirings = _wirings_from_registry(tmp_path)
+    assert wirings[0].ingress == "webhook"
+
+
+def test_explicit_webhook_on_native_entry_is_honoured(tmp_path: Path) -> None:
+    """tug FIX 1: an EXPLICIT ingress always wins — a native entry pinned to webhook stays webhook."""
+    clone = _write_clone(tmp_path, "clone-native3")
+    _write_registry(
+        tmp_path,
+        {
+            "PVT_N3": {
+                "repo": "o/rn3",
+                "clone": str(clone),
+                "project_id": "PVT_N3",
+                "status_field_node_id": "F",
+                "board_backend": "native",
+                "ingress": "webhook",
+            }
+        },
+    )
+    _seed_token(tmp_path)
+
+    wirings = _wirings_from_registry(tmp_path)
+    assert wirings[0].ingress == "webhook"

@@ -339,8 +339,12 @@ async def board_move(request: fastapi.Request, project: str | None = None) -> JS
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    mirror = _mirror_to_github(entry, item_id, to_column)
+    # tug FIX 3: NUDGE before the GitHub mirror. The local board.json write has landed (it is the
+    # placement authority), so wake the daemon IMMEDIATELY — a cheap local sentinel touch — rather
+    # than after the synchronous GraphQL mirror round-trip (~0.5–1.5 s). Coupling daemon-wake latency
+    # to GitHub speed was the observed drag→agent lag; the mirror stays (fail-soft) but runs AFTER.
     _nudge()
+    mirror = _mirror_to_github(entry, item_id, to_column)
     return JSONResponse(
         content={
             "version": version,
@@ -444,8 +448,10 @@ async def board_place(request: fastapi.Request, project: str | None = None) -> J
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    mirror = _mirror_to_github(entry, item_id, column_key)
+    # tug FIX 3: NUDGE before the GitHub mirror (see /api/board/move) — wake the daemon off the local
+    # board.json write, not off the slow synchronous GraphQL mirror round-trip.
     _nudge()
+    mirror = _mirror_to_github(entry, item_id, column_key)
     return JSONResponse(
         content={
             "version": version,

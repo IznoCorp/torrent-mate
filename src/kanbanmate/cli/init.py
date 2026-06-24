@@ -129,11 +129,15 @@ class ProjectEntry:
         enabled: Whether the daemon drives this project. ``True`` by default; an
             operator may set it ``False`` to pause one project (in a multi-project
             root) without de-registering it (DESIGN §2.1 / §3.1).
-        ingress: The PER-PROJECT ingress switch — ``"webhook"`` (the default) or
-            ``"polling"``. Overrides the daemon-level ``config.yml`` default when set
-            (DESIGN §5.1). It selects only the POLL CADENCE (a webhook-mode project
-            polls slowly as a safety-net fallback; a polling-mode project polls at the
-            tight 10 s cadence). The engine ALWAYS ticks — ingress never disables it.
+        ingress: The PER-PROJECT ingress switch — ``"polling"`` (the default, since the
+            default board backend is the native ONE-WAY store whose primary input is LOCAL)
+            or ``"webhook"``. Overrides the daemon-level ``config.yml`` default when set
+            (DESIGN §5.1). It selects only the POLL CADENCE (a webhook-mode project polls
+            slowly as a safety-net fallback; a polling-mode project polls at the tight 10 s
+            cadence). The engine ALWAYS ticks — ingress never disables it. A BLANK value
+            (``""``) resolves backend-aware in
+            :func:`~kanbanmate.daemon.registry_wiring._effective_ingress` (native → polling,
+            github → webhook), so a fresh native board reacts promptly out of the box (tug FIX 1).
         token_ref: The multi-org token selector (DESIGN §6). ``""`` → the shared
             ``<root>/token`` (today's path; zero behaviour change). A non-empty name
             loads the token from ``<root>/tokens/<token_ref>`` (mode 0600), so org A
@@ -154,7 +158,13 @@ class ProjectEntry:
     # ``.get(..., default)`` pattern in ``_load_registry`` — no migration (rule <1.0).
     org: str = ""
     enabled: bool = True
-    ingress: str = "webhook"
+    # tug FIX 1: the default flipped to ``"polling"`` to match the default ``board_backend="native"``.
+    # A native ONE-WAY board's primary input is LOCAL (KanbanMateUI writes ``board.json``; no webhook
+    # fires for a local drag), so an all-webhook daemon would make every operator action wait out the
+    # slow 120 s safety-sweep fallback instead of the tight 10 s base. ``"webhook"`` stays a valid
+    # explicit value for a github-backed board; a BLANK ``""`` resolves backend-aware in
+    # ``daemon.registry_wiring._effective_ingress`` (native → polling, github → webhook).
+    ingress: str = "polling"
     token_ref: str = ""
     # anchor §9 / keel step 5 (A): the per-project board backend switch. The DEFAULT flipped to
     # ``"native"`` (one-way: native store is authority, GitHub mirrors native→github) so EVERY
@@ -262,7 +272,12 @@ def _load_registry(path: Path) -> dict[str, ProjectEntry]:
             # token_ref="" — no migration, byte-identical N=1 behaviour.
             org=val.get("org", ""),
             enabled=bool(val.get("enabled", True)),
-            ingress=val.get("ingress", "webhook"),
+            # tug FIX 1: a key-less entry loads with a BLANK ingress (``""``) so the effective ingress
+            # is resolved BACKEND-AWARE in ``daemon.registry_wiring._effective_ingress`` (native →
+            # polling, github → webhook) rather than hard-coding one default for both board kinds. An
+            # OLD entry that carried an explicit ``"webhook"``/``"polling"`` loads byte-identical (the
+            # explicit value wins); only a brand-new key-less entry defers to the backend-aware rule.
+            ingress=val.get("ingress", ""),
             token_ref=val.get("token_ref", ""),
             # keel step 5 (A): the load fallback matches the dataclass default ("native") so a
             # key-less entry resolves to the new system. The live entries carry an explicit value,
@@ -408,7 +423,7 @@ def init(
     template_path: Path | str | None = None,
     dev_repo_path: str = "",
     config_dir: str | None = None,
-    ingress: str = "webhook",
+    ingress: str = "polling",
     ensure_clone: Callable[..., object] | None = None,
 ) -> ProjectEntry:
     """Bootstrap one target project for the daemon (DESIGN §4.3).
@@ -564,9 +579,10 @@ def init(
         option_map=dict(option_map),
         config_dir=resolved_config_dir,
         dev_repo_path=dev_repo_path,
-        # ingress-multiproject §2.1: record the per-project ingress switch (default webhook). The
-        # org is left "" (derived from the repo slug by ProjectEntry.owner); enabled/token_ref keep
-        # their defaults — an operator edits projects.json for per-org tokens / pausing a project.
+        # ingress-multiproject §2.1: record the per-project ingress switch (default ``"polling"`` now,
+        # tug FIX 1 — matching the default native backend whose primary input is local). The org is
+        # left "" (derived from the repo slug by ProjectEntry.owner); enabled/token_ref keep their
+        # defaults — an operator edits projects.json for per-org tokens / pausing a project.
         org=org,
         ingress=ingress,
         # keel step 5 (A) — operator rule: every NEW kanban defaults to the native ONE-WAY backend,
