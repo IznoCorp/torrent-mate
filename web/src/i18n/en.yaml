@@ -71,6 +71,7 @@ columns:
     Each row: the name (the label shown as the GitHub Status option), its class (reactive / inert),
     and its order (↑/↓). The grey chip is the stable key used in transitions.
   add_column: + Add column
+  add_column_tip: Append a new inert column to this board
   sync_board: Sync board ⤴
   save_before_sync: Save before syncing
   sync_tooltip: Provision GitHub Status options
@@ -366,6 +367,20 @@ admin:
   daemon_not_running: Not running.
   daemon_graceful_restart: Graceful restart
   daemon_graceful_restart_tip: Restart this UI server — the page briefly disconnects, then reconnects automatically.
+  # --- action-button hover tooltips (bug caulk) ---
+  tip_pause_activate: Stop all agent launches and downgrade running agents to the minimal permission floor
+  tip_pause_resume: Lift the kill-switch and resume normal agent launches
+  tip_daemon_start: Start this PM2 app
+  tip_daemon_stop: Stop this PM2 app
+  tip_daemon_restart: Restart this PM2 app — running agents on it are interrupted while it bounces
+  tip_daemon_logs: Show the last log lines for this app
+  tip_daemon_logs_hide: Hide the log tail
+  tip_redeploy_prod: Redeploy the prod clone from the latest main (high-impact — confirm-gated)
+  tip_redeploy_staging: Redeploy the staging clone from the latest main (confirm-gated)
+  tip_onboard_add_local: Register this local clone as a new project on the daemon
+  tip_onboard_add_clone: Clone the git repo and register it as a new project
+  tip_onboard_browse_pick: Use the currently-listed folder as the project clone
+  tip_onboard_remove: Deregister this project — the daemon stops polling its board (the clone is kept on disk)
   ctl_notice_title: Daemon control
   ctl_job_ok: "{app}: action completed."
   ctl_job_failed: "{app}: action failed (exit {code})."
@@ -563,6 +578,11 @@ theme:
   light: Light
   dark: Dark
   system: System
+
+# Language switcher segment tooltips (the terse EN/FR codes get a legible hint).
+lang:
+  en: English
+  fr: Français
 
 board:
   intro_title: Board

@@ -72,6 +72,7 @@ columns:
     Chaque ligne : le nom (le libellé affiché comme option Status GitHub), sa classe (réactive /
     inerte) et son ordre (↑/↓). La puce grise est la clé stable utilisée dans les transitions.
   add_column: + Ajouter une colonne
+  add_column_tip: Ajoute une nouvelle colonne inerte à ce tableau
   sync_board: Sync board ⤴
   save_before_sync: Enregistre avant de synchroniser
   sync_tooltip: Provisionner les options Status GitHub
@@ -371,6 +372,20 @@ admin:
   daemon_not_running: À l'arrêt.
   daemon_graceful_restart: Redémarrer (gracieux)
   daemon_graceful_restart_tip: Redémarre ce serveur UI — la page se déconnecte brièvement puis se reconnecte automatiquement.
+  # --- infobulles des boutons d'action (bug caulk) ---
+  tip_pause_activate: Stoppe tous les lancements d'agents et rétrograde les agents en cours au niveau de permissions minimal
+  tip_pause_resume: Lève le coupe-circuit et reprend les lancements d'agents normaux
+  tip_daemon_start: Démarre cette app PM2
+  tip_daemon_stop: Arrête cette app PM2
+  tip_daemon_restart: Redémarre cette app PM2 — les agents en cours dessus sont interrompus pendant le redémarrage
+  tip_daemon_logs: Affiche les dernières lignes de log de cette app
+  tip_daemon_logs_hide: Masque la fin des logs
+  tip_redeploy_prod: Redéploie le clone prod depuis le dernier main (impact fort — confirmation requise)
+  tip_redeploy_staging: Redéploie le clone staging depuis le dernier main (confirmation requise)
+  tip_onboard_add_local: Enregistre ce clone local comme nouveau projet du daemon
+  tip_onboard_add_clone: Clone le dépôt git et l'enregistre comme nouveau projet
+  tip_onboard_browse_pick: Utilise le dossier actuellement listé comme clone du projet
+  tip_onboard_remove: Désenregistre ce projet — le daemon arrête de surveiller son tableau (le clone reste sur le disque)
   ctl_notice_title: Contrôle du daemon
   ctl_job_ok: "{app} : action terminée."
   ctl_job_failed: "{app} : action échouée (sortie {code})."
@@ -574,6 +589,11 @@ theme:
   light: Clair
   dark: Sombre
   system: Système
+
+# Infobulles des segments du sélecteur de langue (les codes EN/FR sont explicités).
+lang:
+  en: English
+  fr: Français
 
 board:
   intro_title: Tableau

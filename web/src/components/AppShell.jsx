@@ -273,9 +273,14 @@ export default function AppShell({
             collapsed={sidebarCollapsed}
           />
         </div>
-        {/* Collapse toggle (#47): panel-left-close (expanded) / panel-left-open (collapsed). */}
+        {/* Collapse toggle (#47): panel-left-close (expanded) / panel-left-open (collapsed). The
+            Tooltip wrapper must span the full rail width (default is inline-flex → shrink-to-fit),
+            otherwise the button's click zone and its centred icon are confined to the icon box
+            instead of the whole (collapsed) sidebar (bug caulk). */}
         <Tooltip
           label={sidebarCollapsed ? t("shell.expand") : t("shell.collapse")}
+          placement="right"
+          style={{ display: "flex", width: "100%" }}
         >
           <button
             onClick={() => setSidebarCollapsed((v) => !v)}
@@ -283,6 +288,9 @@ export default function AppShell({
               sidebarCollapsed ? t("shell.expand") : t("shell.collapse")
             }
             style={{
+              // Full-width click zone so the whole collapsed rail toggles, and the icon centres
+              // against the rail rather than a shrink-wrapped box.
+              width: "100%",
               display: "flex",
               alignItems: "center",
               justifyContent: sidebarCollapsed ? "center" : "flex-start",
@@ -377,10 +385,7 @@ export default function AppShell({
           <ThemeSwitcher />
           <LangSwitcher />
           {onLogout && (
-            <Tooltip
-              label={t("tip.logout", "Sign out")}
-              placement="bottom"
-            >
+            <Tooltip label={t("tip.logout", "Sign out")} placement="bottom">
               <Button variant="ghost" size="md" onClick={onLogout}>
                 {t("login.logout")}
               </Button>

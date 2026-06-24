@@ -23,8 +23,15 @@ export default function ColumnsPanel({
   const { t } = useT();
   const isMobile = useIsMobile();
   const cols = draft.definition.columns;
-  const { ColumnClassChip, KeyChip, Select, IconButton, Button, Input, Tooltip } =
-    KMNS;
+  const {
+    ColumnClassChip,
+    KeyChip,
+    Select,
+    IconButton,
+    Button,
+    Input,
+    Tooltip,
+  } = KMNS;
   const [sync, setSync] = React.useState(false);
 
   const setName = (i, name) =>
@@ -77,20 +84,26 @@ export default function ColumnsPanel({
         <div style={{ flex: 1, minWidth: 180 }}>
           <Hint>{t("columns.legend")}</Hint>
         </div>
-        <Button variant="secondary" size="sm" onClick={add}>
-          {t("columns.add_column")}
-        </Button>
-        <Button
-          variant="primary"
-          size="sm"
-          disabled={dirty}
-          title={
+        <Tooltip label={t("columns.add_column_tip")} placement="bottom">
+          <Button variant="secondary" size="sm" onClick={add}>
+            {t("columns.add_column")}
+          </Button>
+        </Tooltip>
+        <Tooltip
+          label={
             dirty ? t("columns.save_before_sync") : t("columns.sync_tooltip")
           }
-          onClick={() => setSync(true)}
+          placement="bottom"
         >
-          {t("columns.sync_board")}
-        </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={dirty}
+            onClick={() => setSync(true)}
+          >
+            {t("columns.sync_board")}
+          </Button>
+        </Tooltip>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

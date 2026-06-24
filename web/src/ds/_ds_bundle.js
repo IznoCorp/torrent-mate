@@ -2014,36 +2014,69 @@
        */
       function Tooltip({ label, children, placement = "top", style }) {
         const [show, setShow] = React.useState(false);
-        const pos = {
-          top: {
-            bottom: "100%",
-            left: "50%",
-            transform: "translateX(-50%)",
-            marginBottom: 6,
-          },
-          bottom: {
-            top: "100%",
-            left: "50%",
-            transform: "translateX(-50%)",
-            marginTop: 6,
-          },
-          right: {
-            left: "100%",
-            top: "50%",
-            transform: "translateY(-50%)",
-            marginLeft: 6,
-          },
-          left: {
-            right: "100%",
-            top: "50%",
-            transform: "translateY(-50%)",
-            marginRight: 6,
-          },
-        }[placement];
+        // Computed fixed-position rect for the popup; null until measured on show.
+        const [coords, setCoords] = React.useState(null);
+        const triggerRef = React.useRef(null);
+        const tipRef = React.useRef(null);
         const tipId = React.useId();
+        // Measure the trigger + popup and compute a viewport-clamped fixed
+        // position. `position: fixed` is viewport-relative, so the popup ESCAPES
+        // any ancestor `overflow: hidden` (the narrow collapsed sidebar rail,
+        // edge containers) instead of being clipped. Placement is collision-
+        // aware: flip to the opposite side when there is no room, then shift the
+        // cross-axis to keep the popup inside the viewport.
+        const place = React.useCallback(() => {
+          const trig = triggerRef.current;
+          const tip = tipRef.current;
+          if (!trig || !tip) return;
+          const r = trig.getBoundingClientRect();
+          const tw = tip.offsetWidth;
+          const th = tip.offsetHeight;
+          const vw = window.innerWidth;
+          const vh = window.innerHeight;
+          const gap = 6;
+          const margin = 4; // keep this far from the viewport edge
+          let side = placement;
+          if (side === "top" && r.top - th - gap < margin) side = "bottom";
+          else if (side === "bottom" && r.bottom + th + gap > vh - margin)
+            side = "top";
+          else if (side === "left" && r.left - tw - gap < margin)
+            side = "right";
+          else if (side === "right" && r.right + tw + gap > vw - margin)
+            side = "left";
+          let top;
+          let left;
+          if (side === "top" || side === "bottom") {
+            top = side === "top" ? r.top - th - gap : r.bottom + gap;
+            left = r.left + r.width / 2 - tw / 2; // centre on the trigger
+          } else {
+            left = side === "left" ? r.left - tw - gap : r.right + gap;
+            top = r.top + r.height / 2 - th / 2;
+          }
+          left = Math.max(margin, Math.min(left, vw - tw - margin));
+          top = Math.max(margin, Math.min(top, vh - th - margin));
+          setCoords({ top, left });
+        }, [placement]);
+        // Re-measure on show and on scroll/resize while visible (fixed coords
+        // are viewport-relative, so they drift if the page scrolls).
+        React.useLayoutEffect(() => {
+          if (!show) {
+            setCoords(null);
+            return undefined;
+          }
+          place();
+          const onMove = () => place();
+          window.addEventListener("scroll", onMove, true);
+          window.addEventListener("resize", onMove);
+          return () => {
+            window.removeEventListener("scroll", onMove, true);
+            window.removeEventListener("resize", onMove);
+          };
+        }, [show, place]);
         return /*#__PURE__*/ React.createElement(
           "span",
           {
+            ref: triggerRef,
             onMouseEnter: () => setShow(true),
             onMouseLeave: () => setShow(false),
             onFocus: () => setShow(true),
@@ -2073,11 +2106,14 @@
               "span",
               {
                 id: tipId,
+                ref: tipRef,
                 role: "tooltip",
                 style: {
-                  position: "absolute",
-                  zIndex: 300,
-                  ...pos,
+                  position: "fixed",
+                  // Off-screen until measured to avoid a one-frame flash at (0,0).
+                  top: coords ? coords.top : -9999,
+                  left: coords ? coords.left : -9999,
+                  zIndex: 1000,
                   whiteSpace: "nowrap",
                   pointerEvents: "none",
                   background: "var(--tooltip-bg)",

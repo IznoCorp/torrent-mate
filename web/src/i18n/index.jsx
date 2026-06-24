@@ -15,7 +15,9 @@ export const LANGUAGES = [
 const STORAGE_KEY = "bridge.lang";
 
 function lookup(bundle, key) {
-  return key.split(".").reduce((node, part) => (node == null ? undefined : node[part]), bundle);
+  return key
+    .split(".")
+    .reduce((node, part) => (node == null ? undefined : node[part]), bundle);
 }
 
 function interpolate(str, vars) {
@@ -25,7 +27,11 @@ function interpolate(str, vars) {
   return str.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
 }
 
-const I18nContext = React.createContext({ lang: "en", setLang: () => {}, t: (k) => k });
+const I18nContext = React.createContext({
+  lang: "en",
+  setLang: () => {},
+  t: (k) => k,
+});
 
 export function I18nProvider({ children }) {
   const [lang, setLangState] = React.useState(() => {
@@ -57,8 +63,10 @@ export function I18nProvider({ children }) {
       // not treat the fallback as vars (which crashed on any translation containing {placeholder}).
       const fallback =
         typeof fallbackOrVars === "string" ? fallbackOrVars : undefined;
-      const vars = typeof fallbackOrVars === "string" ? maybeVars : fallbackOrVars;
-      const str = enHit !== undefined ? enHit : fallback !== undefined ? fallback : key;
+      const vars =
+        typeof fallbackOrVars === "string" ? maybeVars : fallbackOrVars;
+      const str =
+        enHit !== undefined ? enHit : fallback !== undefined ? fallback : key;
       return interpolate(str, vars);
     },
     [lang],
@@ -72,13 +80,22 @@ export function useT() {
   return React.useContext(I18nContext);
 }
 
-// Language switcher (SegmentedControl). Placed in the shell header.
+// Language switcher (SegmentedControl). Placed in the shell header. Each segment carries a themed
+// DS Tooltip naming the language it selects, so the terse "EN"/"FR" codes get a legible hint on
+// hover/tap. SegmentedControl renders the label node verbatim, so the Tooltip wraps the code text.
 export function LangSwitcher() {
-  const { lang, setLang } = useT();
-  const { SegmentedControl } = window.KanbanMateDesignSystem_2463ad;
+  const { lang, setLang, t } = useT();
+  const { SegmentedControl, Tooltip } = window.KanbanMateDesignSystem_2463ad;
   return (
     <SegmentedControl
-      options={LANGUAGES.map((l) => ({ value: l.code, label: l.label }))}
+      options={LANGUAGES.map((l) => ({
+        value: l.code,
+        label: (
+          <Tooltip label={t(`lang.${l.code}`)}>
+            <span>{l.label}</span>
+          </Tooltip>
+        ),
+      }))}
       value={lang}
       onChange={setLang}
     />

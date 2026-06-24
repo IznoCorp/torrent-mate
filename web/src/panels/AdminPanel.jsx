@@ -11,7 +11,7 @@ import { useT } from "../i18n/index.jsx";
 
 // Spinner is a local component (../components/Spinner.jsx) — the DS bundle exports no Spinner
 // primitive; destructuring it from the DS global yielded `undefined` → React #130 (blank page).
-const { Banner, Badge, KeyChip, Button, Dialog, Input } =
+const { Banner, Badge, KeyChip, Button, Dialog, Input, Tooltip } =
   window.KanbanMateDesignSystem_2463ad;
 
 // PM2 UI apps (the config servers) — standalone start/stop/restart is refused server-side (D1);
@@ -750,14 +750,22 @@ function PauseControl({ pause, onToggle, isMobile, t }) {
       >
         {t("admin.pause_help")}
       </span>
-      <Button
-        variant={active ? "secondary" : "danger"}
-        size={isMobile ? "md" : "sm"}
-        fullWidth={isMobile}
-        onClick={onToggle}
+      <Tooltip
+        label={
+          active ? t("admin.tip_pause_resume") : t("admin.tip_pause_activate")
+        }
+        placement="bottom"
+        style={isMobile ? { width: "100%" } : undefined}
       >
-        {active ? t("admin.pause_resume") : t("admin.pause_activate")}
-      </Button>
+        <Button
+          variant={active ? "secondary" : "danger"}
+          size={isMobile ? "md" : "sm"}
+          fullWidth={isMobile}
+          onClick={onToggle}
+        >
+          {active ? t("admin.pause_resume") : t("admin.pause_activate")}
+        </Button>
+      </Tooltip>
     </div>
   );
 }
@@ -816,24 +824,36 @@ function RedeployControl({ redeploy, busy, onRedeploy, isMobile, t }) {
         >
           {t("admin.redeploy_help")}
         </span>
-        <Button
-          variant="secondary"
-          size={isMobile ? "md" : "sm"}
-          fullWidth={isMobile}
-          disabled={busy}
-          onClick={() => onRedeploy("staging")}
+        <Tooltip
+          label={t("admin.tip_redeploy_staging")}
+          placement="bottom"
+          style={isMobile ? { width: "100%" } : undefined}
         >
-          {t("admin.redeploy_staging")}
-        </Button>
-        <Button
-          variant="danger"
-          size={isMobile ? "md" : "sm"}
-          fullWidth={isMobile}
-          disabled={busy}
-          onClick={() => onRedeploy("prod")}
+          <Button
+            variant="secondary"
+            size={isMobile ? "md" : "sm"}
+            fullWidth={isMobile}
+            disabled={busy}
+            onClick={() => onRedeploy("staging")}
+          >
+            {t("admin.redeploy_staging")}
+          </Button>
+        </Tooltip>
+        <Tooltip
+          label={t("admin.tip_redeploy_prod")}
+          placement="bottom"
+          style={isMobile ? { width: "100%" } : undefined}
         >
-          {t("admin.redeploy_prod")}
-        </Button>
+          <Button
+            variant="danger"
+            size={isMobile ? "md" : "sm"}
+            fullWidth={isMobile}
+            disabled={busy}
+            onClick={() => onRedeploy("prod")}
+          >
+            {t("admin.redeploy_prod")}
+          </Button>
+        </Tooltip>
       </div>
       {statusMsg && (
         <div
@@ -958,18 +978,24 @@ function OnboardingControl({
               justifyContent: isMobile ? "stretch" : "flex-end",
             }}
           >
-            <Button
-              variant="primary"
-              size={isMobile ? "md" : "sm"}
-              fullWidth={isMobile}
-              disabled={adding || !localValid}
-              loading={adding}
-              onClick={() => onAddLocal(repo.trim(), pickedPath)}
+            <Tooltip
+              label={t("admin.tip_onboard_add_local")}
+              placement="top"
+              style={isMobile ? { width: "100%" } : undefined}
             >
-              {adding
-                ? t("admin.onboard_adding", { repo: repo.trim() })
-                : t("admin.onboard_add_local")}
-            </Button>
+              <Button
+                variant="primary"
+                size={isMobile ? "md" : "sm"}
+                fullWidth={isMobile}
+                disabled={adding || !localValid}
+                loading={adding}
+                onClick={() => onAddLocal(repo.trim(), pickedPath)}
+              >
+                {adding
+                  ? t("admin.onboard_adding", { repo: repo.trim() })
+                  : t("admin.onboard_add_local")}
+              </Button>
+            </Tooltip>
           </div>
         </>
       ) : (
@@ -991,18 +1017,24 @@ function OnboardingControl({
               justifyContent: isMobile ? "stretch" : "flex-end",
             }}
           >
-            <Button
-              variant="primary"
-              size={isMobile ? "md" : "sm"}
-              fullWidth={isMobile}
-              disabled={adding || !cloneValid}
-              loading={adding}
-              onClick={() => onAddClone(repo.trim(), gitUrl.trim())}
+            <Tooltip
+              label={t("admin.tip_onboard_add_clone")}
+              placement="top"
+              style={isMobile ? { width: "100%" } : undefined}
             >
-              {adding
-                ? t("admin.onboard_adding", { repo: repo.trim() })
-                : t("admin.onboard_add_clone")}
-            </Button>
+              <Button
+                variant="primary"
+                size={isMobile ? "md" : "sm"}
+                fullWidth={isMobile}
+                disabled={adding || !cloneValid}
+                loading={adding}
+                onClick={() => onAddClone(repo.trim(), gitUrl.trim())}
+              >
+                {adding
+                  ? t("admin.onboard_adding", { repo: repo.trim() })
+                  : t("admin.onboard_add_clone")}
+              </Button>
+            </Tooltip>
           </div>
         </>
       )}
@@ -1056,14 +1088,20 @@ function OnboardingControl({
                   disabled
                 </Badge>
               )}
-              <Button
-                variant="danger"
-                size={isMobile ? "md" : "sm"}
-                fullWidth={isMobile}
-                onClick={() => onRemove(p)}
+              <Tooltip
+                label={t("admin.tip_onboard_remove")}
+                placement="top"
+                style={isMobile ? { width: "100%" } : undefined}
               >
-                {t("admin.onboard_remove")}
-              </Button>
+                <Button
+                  variant="danger"
+                  size={isMobile ? "md" : "sm"}
+                  fullWidth={isMobile}
+                  onClick={() => onRemove(p)}
+                >
+                  {t("admin.onboard_remove")}
+                </Button>
+              </Tooltip>
             </div>
           ))}
         </div>
@@ -1191,15 +1229,21 @@ function DirBrowser({ picked, onPick, isMobile, t }) {
           flexWrap: "wrap",
         }}
       >
-        <Button
-          variant="secondary"
-          size={isMobile ? "md" : "sm"}
-          fullWidth={isMobile}
-          disabled={busy || !path}
-          onClick={() => onPick(path)}
+        <Tooltip
+          label={t("admin.tip_onboard_browse_pick")}
+          placement="top"
+          style={isMobile ? { width: "100%" } : undefined}
         >
-          {t("admin.onboard_browse_pick_btn")}
-        </Button>
+          <Button
+            variant="secondary"
+            size={isMobile ? "md" : "sm"}
+            fullWidth={isMobile}
+            disabled={busy || !path}
+            onClick={() => onPick(path)}
+          >
+            {t("admin.onboard_browse_pick_btn")}
+          </Button>
+        </Tooltip>
         <span
           style={{
             fontSize: 12,
@@ -1412,34 +1456,50 @@ function DaemonRow({
                   )
                 : undefined;
               return (
-                <Button
+                <Tooltip
                   key={action}
-                  size={isMobile ? "md" : "sm"}
-                  fullWidth={isMobile}
-                  // All control buttons use the bordered `secondary` variant: the `ghost` variant
-                  // has a transparent border + transparent fill, so Start/Stop read as borderless
-                  // text — invisible as buttons in dark theme (--border is white at 11%).
-                  variant="secondary"
-                  disabled={busy || stateDisabled}
-                  title={why}
-                  onClick={() => onAction(d.app, action)}
+                  // Prefer the disabled reason ("Already running.") when present, else the action hint.
+                  label={why || t(`admin.tip_daemon_${action}`)}
+                  placement="bottom"
+                  style={isMobile ? { width: "100%" } : undefined}
                 >
-                  {t(`admin.daemon_${action}`)}
-                </Button>
+                  <Button
+                    size={isMobile ? "md" : "sm"}
+                    fullWidth={isMobile}
+                    // All control buttons use the bordered `secondary` variant: the `ghost` variant
+                    // has a transparent border + transparent fill, so Start/Stop read as borderless
+                    // text — invisible as buttons in dark theme (--border is white at 11%).
+                    variant="secondary"
+                    disabled={busy || stateDisabled}
+                    onClick={() => onAction(d.app, action)}
+                  >
+                    {t(`admin.daemon_${action}`)}
+                  </Button>
+                </Tooltip>
               );
             })
           )}
-          <Button
-            size={isMobile ? "md" : "sm"}
-            fullWidth={isMobile}
-            variant="secondary"
-            disabled={logBusy}
-            onClick={toggleLogs}
+          <Tooltip
+            label={
+              logs != null
+                ? t("admin.tip_daemon_logs_hide")
+                : t("admin.tip_daemon_logs")
+            }
+            placement="bottom"
+            style={isMobile ? { width: "100%" } : undefined}
           >
-            {logs != null
-              ? t("admin.daemon_logs_hide")
-              : t("admin.daemon_logs")}
-          </Button>
+            <Button
+              size={isMobile ? "md" : "sm"}
+              fullWidth={isMobile}
+              variant="secondary"
+              disabled={logBusy}
+              onClick={toggleLogs}
+            >
+              {logs != null
+                ? t("admin.daemon_logs_hide")
+                : t("admin.daemon_logs")}
+            </Button>
+          </Tooltip>
         </div>
       </div>
       {restartPhase && (
