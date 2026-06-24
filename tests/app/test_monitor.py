@@ -19,13 +19,23 @@ def test_derive_state_maps_status() -> None:
 
 def test_build_board_groups_and_summarises() -> None:
     columns = [("Backlog", "Backlog", "inert"), ("InProgress", "In Progress", "inert")]
-    tickets = [(1, "First", "Backlog"), (2, "Second", "InProgress")]
+    tickets = [(1, "First", "Backlog", False), (2, "Second", "InProgress", False)]
     board = build_board(columns, tickets, running_by_issue={2: "running"})
     assert board["columns"][0] == {"key": "Backlog", "name": "Backlog", "column_class": "inert"}
     by_num = {t["number"]: t for t in board["tickets"]}
     assert by_num[1]["agent_state"] is None
     assert by_num[2]["agent_state"] == "running"
     assert board["agents_summary"] == {"running": 1, "waiting": 0, "blocked": 0}
+
+
+def test_build_board_surfaces_is_closed() -> None:
+    """``build_board`` carries each ticket's ensign ``is_closed`` flag into its payload."""
+    columns = [("Backlog", "Backlog", "inert")]
+    tickets = [(1, "Closed one", "Backlog", True), (2, "Open one", "Backlog", False)]
+    board = build_board(columns, tickets, running_by_issue={})
+    by_num = {t["number"]: t for t in board["tickets"]}
+    assert by_num[1]["is_closed"] is True
+    assert by_num[2]["is_closed"] is False
 
 
 def test_build_board_maps_snapshot_column_name_to_config_key() -> None:
@@ -35,7 +45,7 @@ def test_build_board_maps_snapshot_column_name_to_config_key() -> None:
     because the UI groups by key and the snapshot column is the option name.
     """
     columns = [("ReadyToDev", "Ready to dev", "inert")]
-    tickets = [(43, "anchor", "Ready to dev")]  # snapshot carries the NAME
+    tickets = [(43, "anchor", "Ready to dev", False)]  # snapshot carries the NAME
     board = build_board(columns, tickets, running_by_issue={})
     assert board["tickets"][0]["column_key"] == "ReadyToDev"  # mapped to the key the UI groups on
 

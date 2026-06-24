@@ -39,7 +39,7 @@ def derive_state(status: object) -> str:
 
 def build_board(
     columns: Sequence[tuple[str, str, str]],
-    tickets: Sequence[tuple[int, str, str]],
+    tickets: Sequence[tuple[int, str, str, bool]],
     running_by_issue: dict[int, str],
     *,
     blocked_column: str = "Blocked",
@@ -48,7 +48,8 @@ def build_board(
 
     Args:
         columns: ``(key, name, column_class)`` triples in board order.
-        tickets: ``(number, title, column_key)`` triples.
+        tickets: ``(number, title, column_key, is_closed)`` quads — ``is_closed``
+            is the ensign CLOSED-issue flag surfaced on each ticket payload.
         running_by_issue: ``{issue: state}`` for tickets with a LIVE agent
             (``"running"`` / ``"waiting"`` — from ``list_running()``).
         blocked_column: The Blocked column KEY (default ``"Blocked"`` —
@@ -70,7 +71,7 @@ def build_board(
 
     ticket_payload: list[dict[str, Any]] = []
     summary = {"running": 0, "waiting": 0, "blocked": 0}
-    for num, title, col in tickets:
+    for num, title, col, is_closed in tickets:
         col_key = key_by_token.get(col, col)
         # Mirror core.health.compute_health's precedence for the per-card state dot so the board's
         # `agent_state` matches the Health chip: a LIVE agent's state (running/waiting from
@@ -89,6 +90,7 @@ def build_board(
                 "title": title,
                 "column_key": col_key,
                 "agent_state": state,
+                "is_closed": is_closed,
             }
         )
     return {

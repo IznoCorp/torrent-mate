@@ -12,6 +12,7 @@ import {
   Pencil,
   PanelLeftClose,
   PanelLeftOpen,
+  CircleSlash,
 } from "lucide-react";
 import { renderMarkdown } from "../lib/markdown.js";
 import { extractFreeform } from "../lib/body.js";
@@ -854,7 +855,11 @@ export default function MonitoringPanel({ project }) {
                         ref={selected ? selectedRowRef : undefined}
                         type="button"
                         onClick={() => setSel(tk.number)}
-                        title={`#${tk.number} · ${c.name}`}
+                        title={
+                          tk.is_closed
+                            ? `#${tk.number} · ${c.name} · ${t("board.closed")}`
+                            : `#${tk.number} · ${c.name}`
+                        }
                         style={{
                           position: "relative",
                           width: 34,
@@ -872,7 +877,11 @@ export default function MonitoringPanel({ project }) {
                           // a neutral filled background.
                           border: "none",
                           background: selected ? "var(--muted)" : "var(--card)",
-                          color: "var(--foreground)",
+                          // CLOSED issue (ensign): strike + mute the number so the chip reads "closed".
+                          color: tk.is_closed
+                            ? "var(--muted-foreground)"
+                            : "var(--foreground)",
+                          textDecoration: tk.is_closed ? "line-through" : "none",
                         }}
                       >
                         {tk.number}
@@ -1033,10 +1042,28 @@ export default function MonitoringPanel({ project }) {
                               overflow: "hidden",
                               textOverflow: "ellipsis",
                               whiteSpace: "nowrap",
+                              // CLOSED issue (ensign): strike + mute the title.
+                              color: tk.is_closed
+                                ? "var(--muted-foreground)"
+                                : undefined,
+                              textDecoration: tk.is_closed
+                                ? "line-through"
+                                : "none",
                             }}
                           >
                             {tk.title}
                           </span>
+                          {tk.is_closed && (
+                            <Badge
+                              tone="violet"
+                              size="sm"
+                              style={{ gap: 3 }}
+                              title={t("board.closed_hint")}
+                            >
+                              <CircleSlash size={11} strokeWidth={2} />
+                              {t("board.closed")}
+                            </Badge>
+                          )}
                           {tk.agent_state && (
                             <Badge
                               tone={STATE_TONE[tk.agent_state] || "neutral"}

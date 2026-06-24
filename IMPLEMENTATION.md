@@ -1,100 +1,54 @@
-# Implementation Progress — bosun
+# Implementation Progress — ensign
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Fully installable & controllable via KanbanMateUI — daemon control, health, redeploy, project onboarding (minor)
-**Version bump**: 0.15.0 → 0.16.0
-**Branch**: feat/bosun
+**Feature**: Indicateurs visuel issues close — visual indicator for CLOSED issues on the
+KanbanMateUI Board + Monitoring views (minor)
+**Version bump**: 0.18.0 → 0.19.0
+**Branch**: feat/ensign
+**Track**: lite (skiff)
 **PR merge**: manual
-**PR**: https://github.com/IznoCorp/kanban-mate/pull/73
-**Design**: docs/features/bosun/DESIGN.md
-**Master plan**: docs/features/bosun/plan/INDEX.md
+**PR**: _(created after last phase)_
+**Scope**: docs/features/ensign/SCOPE.md
+**Master plan**: docs/features/ensign/SCOPE.md (lite lane — the scope note's `## Plan` checklist is the master plan; no separate plan dir)
 
 ## Phases
 
-| #   | Phase                             | File                           | Status |
-| --- | --------------------------------- | ------------------------------ | ------ |
-| 1   | Jobs primitive + health dashboard | phase-01-jobs-and-health.md    | [x]    |
-| 2   | Daemon control + CSRF + PAUSE     | phase-02-control-csrf-pause.md | [x]    |
-| 3   | Redeploy from main                | phase-03-redeploy.md           | [x]    |
-| 4   | Project onboarding                | phase-04-onboarding.md         | [x]    |
-| 5   | First-run wizard + ACCEPTANCE     | phase-05-wizard-acceptance.md  | [x]    |
+_(lite lane — phases follow the SCOPE.md `## Plan` checklist)_
+
+| #   | Phase                                         | Status |
+| --- | --------------------------------------------- | ------ |
+| B1  | Plumb backend (is_closed, touchpoints 1-6)    | [x]    |
+| B2  | Serving endpoints (touchpoints 7-9)           | [x]    |
+| F1  | Board panel closed badge (touchpoint 10)      | [x]    |
+| F2  | Monitoring panel closed badge (touchpoint 11) | [x]    |
+| F3  | i18n closed/closed_hint (touchpoint 12)       | [x]    |
+| T   | Tests (pagination / monitor / board_routes)   | [x]    |
 
 ## Review cycles
 
-### Cycle 1 — 2026-06-22 (PR #73, CI green at entry)
+### Cycle 1 (lite lane — track=lite, max 2)
 
-Multi-lens Opus review (security/correctness of the HTTP + jobs surface · test coverage vs
-ACCEPTANCE · conventions/layering) + inline read of the pure `core/` validators. **Merge SKIPPED
-(human-only).**
-
-Retained + fixed:
-
-- **Major — clone-mode path-confinement escape.** `onboard_exec` validated `target.parent` instead
-  of the resolved target, and `validate_git_url` accepted `.`/`..`/empty repo segments, so a URL
-  like `https://github.com/owner/..` derived a clone dir resolving above `ONBOARD_BASE_DIRS` yet
-  passing the check. Fixed at the validator (root cause) + confine the target itself (defense-in-depth).
-  `fix(bosun)` `1c8bed4`. DESIGN §5.2 updated.
-- **Medium — ACC-08/ACC-12 detection proven only with the detector stubbed.** Added real unit tests
-  for `_project_has_live_agent` (seeded RUNNING state in the per-project store) and
-  `_any_allowlisted_pm2_app_exists` (real `pm2 jlist` parse), plus a redeploy `cwd` assertion.
-  `test(bosun)` `be51cfc`.
-- **Minor — cruft + auditability.** Enforce `_JOB_TYPES` in `create_job` (retires the unused-symbol
-  anchor), close the parent log fd after the detached spawn, append `job_id` to every async-op audit
-  line (joins `control/audit.log` to the durable job record), drop the dead `script_for_target`
-  rebind, complete the `redeploy_target` docstring. `refactor(bosun)` `6967c59`.
-
-Verdict: no critical findings; all retained critical/major/medium resolved. Local gate re-run green
-(ruff + mypy 152 src files + 1517 area tests + layering 6/6 + size: no hard-ceiling). Loop exits;
-**PR left OPEN for a human to merge.**
-
-Acknowledged-but-deferred minors (non-blocking, noted for the human): a redundant happy-path
-confinement test (F3), a cosmetic test rename coupled to the ACC-02 name mapping (F5), and routing
-`status` reads through the job path (F6 — consistent + tested by design).
-
-### Cycle 2 — 2026-06-22 (post-`main`-merge re-review; commit `e058acd`)
-
-Adversarial multi-lens review of the tree after merging current `main` (#74/#72/#71/#62 …). 12
-findings fixed, 2 flagged as design/pre-existing. **Merge SKIPPED (human-only).** (The commit subject
-self-labels this "review cycle 1" — it is the first pass of the re-review run, chronologically after
-Cycle 1 above.)
-
-- **App.jsx** — treat `GET /api/projects` 503 (empty registry) as zero-projects so the first-run
-  wizard renders (was dead-on-arrival).
-- **AdminPanel** — redeploy now confirms the SERVED build-SHA flip (`admin/version` exposes `build`);
-  a timeout counts as failed, not a false "done".
-- **WizardPanel/AdminPanel/api.js** — `getDaemon()` unwraps `{apps:[…]}` centrally (daemon panel no
-  longer crashes; bootstrap-done guard accurate).
-- **core/git_url** — reject embedded credentials. **admin_routes** — daemon-logs degrade gracefully on
-  pm2 missing/timeout; version `update_available` is a real SHA compare. **app/ops** — any runner
-  exception marks the job failed (no stuck "running").
-- **tests** — ACC-10 unauth/CSRF (403/401), git-URL creds, ops failure, daemon-logs degrade.
-  **docs** — DESIGN/ACCEPTANCE corrected.
-
-### Cycle 3 — 2026-06-22 (commit `9d689bd`)
-
-10 findings fixed, 0 regressions. **Merge SKIPPED (human-only).** (Commit subject self-labels "review
-cycle 2".)
-
-- **cli/config** — loud stderr warning when binding non-loopback with auth disabled (privileged
-  `/api/admin/*` would be world-open) — non-breaking.
-- **app/audit** — log (warning, `exc_info`) on a swallowed audit-append failure, keeping it fail-soft
-  (PAUSE/project-delete are audit-only).
-- **admin_routes** — wizard first-run gate now FAILS CLOSED (503) when the pm2 probe is indeterminate
-  (was fail-open).
-- **app/ops** — stream full job stdout/stderr to the durable `<id>.log` (was only a 4 KiB in-record tail).
-- **app/health_dashboard** — distinguish UNKNOWN (read-error + null heartbeat) from measured-down;
-  narrowed excepts + logging.
-- **scripts/deploy-staging.sh** — drop `pip install || true` so a failed build aborts before the pm2
-  restart (matches `deploy.sh`).
-- **tests** — ACC-02 authed-session, ACC-07 positive add-project, `_actor_login` auth-on identity,
-  pm2-indeterminate, durable-log, unknown-vs-down.
+- **Code review** (norms subset: correctness / security / test-coverage; filtered vs
+  `docs/features/ensign/SCOPE.md`): implementation matches touchpoints 1–12 exactly —
+  `is_closed` threaded query → `_content_fields` → `RawItem` → `Ticket` → `_to_ticket`,
+  surfaced on both serving endpoints with a fail-soft `False` default, rendered as a muted
+  `Badge`+`CircleSlash` indicator in BoardPanel + MonitoringPanel, i18n keys present in
+  `en.yaml`/`fr.yaml`. Tests assert real non-trivial values (closed=True/open=False/draft=False,
+  issue numbers verified non-None). **No critical/major/medium code findings.**
+- **Blocker fixed — merge conflict**: the PR was `CONFLICTING` (main advanced 0.19.0 → 0.19.3
+  via skiff/buoy/moor, overlapping ensign's touchpoints). Merged `origin/main` into the branch;
+  code files auto-merged cleanly, only the four version files conflicted → reconciled to **0.20.0**
+  (minor feature on top of 0.19.3), incl. `plugin/.claude-plugin/plugin.json` for the
+  version-sync manifest tests. PR is now `MERGEABLE`.
+- **Gate**: ruff clean, mypy clean (156 files), full suite **2599 passed**; the 40 remaining
+  failures are all `tests/bin/` + `tests/cli/test_doctor.py` — proven environmental (the helpers
+  are pinned to #82 and `KANBAN_ROOT` is set in this PM2-spawned worktree; identical failures on a
+  clean `origin/main` checkout in the same env — they are CI-clean).
+- **Outcome**: no fix-phase needed (Case A — only the conflict blocker, now resolved + pushed).
+  Loop exits at cycle 1. Merge left to human (merge = human-only).
 
 ## Next action
 
-All 5 phases complete + three PR-review cycles run (see Review cycles). All retained
-critical/major/medium findings fixed; local `feat/bosun` carries the Cycle 2/3 corrections and a clean
-merge of current `main` (`5713b79`). Branch fast-forward-pushed to PR #73 (the CONFLICTING state was an
-artifact of the stale remote head, not a real conflict — local `merge origin/main` is "already
-up-to-date"). PR is OPEN — **merge is human-only** (NOT performed automatically). Live verification
-(DESIGN §17) is post-merge per the operator rule.
+All phases complete; review cycle 1 clean. PR #107 conflict resolved and pushed (now MERGEABLE).
+Awaiting human review + merge (merge = human-only).

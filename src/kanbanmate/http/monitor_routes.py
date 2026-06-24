@@ -94,17 +94,19 @@ def _board_store(entry: Any) -> Any:
 
 
 def _identity_fetcher(entry: Any) -> Any:
-    """Return a zero-arg callable yielding ``{item_id: (issue_number, title)}`` from GitHub.
+    """Return a zero-arg callable yielding ``{item_id: (issue_number, title, is_closed)}`` from GitHub.
 
     Used ONLY for ticket IDENTITY in the native placement path (keel STEP 2) — its result is
     TTL-cached and a raising call degrades to last-known identity, so placement never depends on it.
-    The underlying snapshot source is the SAME ``app.state.monitor_snapshotter`` override the legacy
-    path uses (tests inject one snapshotter for both paths).
+    ``is_closed`` rides this identity fetch (it is GitHub-side issue metadata like the title) so the
+    native board surfaces the ensign CLOSED-issue indicator. The underlying snapshot source is the
+    SAME ``app.state.monitor_snapshotter`` override the legacy path uses (tests inject one
+    snapshotter for both paths).
     """
 
-    def fetch() -> dict[str, tuple[int | None, str]]:
+    def fetch() -> dict[str, tuple[int | None, str, bool]]:
         snap = _board_snapshot_uncached(entry)
-        return {t.item_id: (t.issue_number, t.title) for t in snap.tickets}
+        return {t.item_id: (t.issue_number, t.title, t.is_closed) for t in snap.tickets}
 
     return fetch
 
@@ -211,6 +213,8 @@ def monitor_board(project: str | None = None) -> JSONResponse:
     if _is_native_backed(entry):
         # keel STEP 2: placement from the local board store; GitHub only for identity (TTL-cached,
         # fail-soft). A raising identity fetch degrades titles but the local placement still renders.
+        # The identity fetch also carries is_closed, so the native board surfaces the ensign
+        # CLOSED-issue indicator (degrades to open when identity is unavailable).
         from kanbanmate.http.monitor_board_source import native_board_triples  # noqa: PLC0415
 
         doc = _board_store(entry).load()
@@ -222,7 +226,7 @@ def monitor_board(project: str | None = None) -> JSONResponse:
         except Exception as exc:  # noqa: BLE001 — boundary: clean error, never a 500 traceback
             raise HTTPException(status_code=502, detail=f"Board snapshot failed: {exc}") from exc
         tickets = [
-            (t.issue_number, t.title, t.column_key)
+            (t.issue_number, t.title, t.column_key, t.is_closed)
             for t in snap.tickets
             if t.issue_number is not None
         ]

@@ -71,6 +71,9 @@ class Ticket:
         body: The linked issue's markdown body, used by the dependency gate
             (DESIGN §9) to parse ``Depends on #N`` references before a launch.
             Empty for draft items / non-Issue content, which carry no body.
+        is_closed: ``True`` when the linked issue's GitHub state is ``"CLOSED"``
+            (the ensign closed-card visual indicator surfaced by the SPA);
+            ``False`` for open issues and draft/non-Issue items.
     """
 
     item_id: str
@@ -78,6 +81,7 @@ class Ticket:
     title: str
     column_key: str
     body: str = ""
+    is_closed: bool = False
 
 
 @dataclass(frozen=True)

@@ -253,14 +253,16 @@ def board_state(project: str | None = None) -> JSONResponse:
 
     # JOIN the forge issue set for identity (issue_number + title). Fail-soft: GitHub unreachable →
     # serve placement/order without identity rather than 5xx-ing a local read.
-    # identity maps item_id → (issue_number, title, body_excerpt) — the card-display fields the native
-    # store does not hold. body_excerpt (Item 2) gives the card a glimpse of the ticket's content.
-    identity: dict[str, tuple[int | None, str | None, str]] = {}
+    # identity maps item_id → (issue_number, title, body_excerpt, is_closed) — the card-display fields
+    # the native store does not hold. body_excerpt (Item 2) gives the card a glimpse of the ticket's
+    # content; is_closed (ensign) drives the SPA's CLOSED-issue visual indicator.
+    identity: dict[str, tuple[int | None, str | None, str, bool]] = {}
     identity_degraded = False
     try:
         forge_snap = _get_forge(entry).snapshot()
         identity = {
-            t.item_id: (t.issue_number, t.title, _body_excerpt(t.body)) for t in forge_snap.tickets
+            t.item_id: (t.issue_number, t.title, _body_excerpt(t.body), t.is_closed)
+            for t in forge_snap.tickets
         }
     except Exception:  # noqa: BLE001 — fail-soft: a local read must not 5xx on a forge outage
         identity_degraded = True
@@ -272,13 +274,14 @@ def board_state(project: str | None = None) -> JSONResponse:
     cards = []
     for col in doc.get("columns", []):
         for idx, item_id in enumerate(doc.get("order", {}).get(col, [])):
-            issue_number, title, excerpt = identity.get(item_id, (None, None, ""))
+            issue_number, title, excerpt, is_closed = identity.get(item_id, (None, None, "", False))
             cards.append(
                 {
                     "item_id": item_id,
                     "issue_number": issue_number,
                     "title": title,
                     "excerpt": excerpt,
+                    "is_closed": is_closed,
                     "column_key": col,
                     "index": idx,
                 }

@@ -73,7 +73,14 @@ def test_board_state_joins_issue_identity(
     fake_forge = MagicMock()
     fake_forge.snapshot.return_value = BoardSnapshot(
         tickets=(
-            Ticket(item_id="item1", issue_number=42, title="First", column_key="Backlog", body=""),
+            Ticket(
+                item_id="item1",
+                issue_number=42,
+                title="First",
+                column_key="Backlog",
+                body="",
+                is_closed=True,
+            ),
             Ticket(
                 item_id="item2", issue_number=43, title="Second", column_key="InProgress", body=""
             ),
@@ -93,6 +100,9 @@ def test_board_state_joins_issue_identity(
     assert cards_by_id["item1"]["issue_number"] == 42
     assert cards_by_id["item1"]["title"] == "First"
     assert cards_by_id["item2"]["issue_number"] == 43
+    # ensign: the closed-issue flag rides the same forge JOIN onto each card.
+    assert cards_by_id["item1"]["is_closed"] is True
+    assert cards_by_id["item2"]["is_closed"] is False
     assert body["identity_degraded"] is False, (
         "identity is NOT degraded when the forge JOIN succeeds"
     )
@@ -114,6 +124,7 @@ def test_board_state_forge_failure_is_failsoft(seeded_store: FsBoardStateStore) 
     cards_by_id = {card["item_id"]: card for card in body["cards"]}
     assert cards_by_id["item1"]["column_key"] == "Backlog"
     assert cards_by_id["item1"]["issue_number"] is None, "identity is null when the forge is down"
+    assert cards_by_id["item1"]["is_closed"] is False, "is_closed defaults False when forge is down"
     assert body["identity_degraded"] is True, (
         "the response must flag degraded identity so the SPA distinguishes 'GitHub down' from "
         "'card has no identity'"

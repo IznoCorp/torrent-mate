@@ -585,6 +585,8 @@ board:
   move: Déplacer
   move_to: Déplacer vers la colonne
   untitled: (sans titre)
+  closed: Clôturé
+  closed_hint: Cette issue est clôturée
   no_cards: Aucune carte
   conflict: Board modifié — rafraîchi
   moved_synced: Carte déplacée et synchronisée sur GitHub ✓

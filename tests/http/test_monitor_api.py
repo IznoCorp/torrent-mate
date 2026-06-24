@@ -853,10 +853,12 @@ def test_native_board_serves_last_known_identity_across_an_outage(tmp_path: Path
 
 
 def test_native_board_triples_is_pure_and_keeps_build_board_signature() -> None:
-    """``native_board_triples`` produces (number, title, column) triples build_board consumes as-is.
+    """``native_board_triples`` produces (number, title, column, is_closed) quads build_board consumes.
 
-    Guards the keel STEP 2 contract: build_board's signature is UNCHANGED — the triples it receives
-    have the same shape whether they came from the GitHub snapshot or the local store.
+    Guards the keel STEP 2 contract: build_board's PARAMETER signature is UNCHANGED — the per-ticket
+    tuples it receives have the same shape whether they came from the GitHub snapshot or the local
+    store. The quad's 4th element (``is_closed``) is the ensign CLOSED-issue indicator, joined from
+    the identity fetch.
     """
     import inspect
 
@@ -865,7 +867,7 @@ def test_native_board_triples_is_pure_and_keeps_build_board_signature() -> None:
     from kanbanmate.http.monitor_board_source import native_board_triples
 
     src_mod._IDENTITY_CACHE.clear()  # isolate from any HTTP-test-warmed cache (shared module state)
-    # build_board signature is unchanged (the documented STEP 2 invariant).
+    # build_board parameter signature is unchanged (the documented STEP 2 invariant).
     params = list(inspect.signature(build_board).parameters)
     assert params == ["columns", "tickets", "running_by_issue", "blocked_column"]
 
@@ -874,20 +876,22 @@ def test_native_board_triples_is_pure_and_keeps_build_board_signature() -> None:
         "columns": ["Backlog", "InProgress"],
         "order": {"Backlog": ["i2"], "InProgress": ["i1"]},
     }
-    identity: dict[str, tuple[int | None, str]] = {
-        "i1": (10, "Build"),
-        "i2": (11, "Spec"),
-        "i3": (12, "Orphan"),
+    identity: dict[str, tuple[int | None, str, bool]] = {
+        "i1": (10, "Build", False),
+        "i2": (11, "Spec", True),  # CLOSED issue → is_closed rides through to the quad
+        "i3": (12, "Orphan", False),
     }
-    triples = native_board_triples("keel-pure-1", doc, lambda: identity)
+    quads = native_board_triples("keel-pure-1", doc, lambda: identity)
     # Order follows the doc's column order then per-column order; i3 (not placed) is excluded.
-    assert triples == [(11, "Spec", "Backlog"), (10, "Build", "InProgress")]
+    assert quads == [(11, "Spec", "Backlog", True), (10, "Build", "InProgress", False)]
 
-    # The triples feed build_board with NO adaptation (proves the contract end-to-end).
+    # The quads feed build_board with NO adaptation (proves the contract end-to-end).
     columns = [("Backlog", "Backlog", "neutral"), ("InProgress", "In progress", "active")]
-    out = build_board(columns, triples, {})
+    out = build_board(columns, quads, {})
     nums = {tk["number"] for tk in out["tickets"]}
     assert nums == {10, 11}
+    closed_by_num = {tk["number"]: tk["is_closed"] for tk in out["tickets"]}
+    assert closed_by_num == {11: True, 10: False}
 
 
 def test_native_board_triples_omits_cards_with_unknown_issue_number() -> None:
@@ -897,9 +901,10 @@ def test_native_board_triples_omits_cards_with_unknown_issue_number() -> None:
 
     src_mod._IDENTITY_CACHE.clear()  # isolate from any HTTP-test-warmed cache (shared module state)
     doc = {"columns": ["Backlog"], "order": {"Backlog": ["draft1", "real1"]}}
-    identity: dict[str, tuple[int | None, str]] = {"real1": (5, "Real")}  # draft1 has no identity
-    triples = native_board_triples("keel-pure-2", doc, lambda: identity)
-    assert triples == [(5, "Real", "Backlog")]
+    # draft1 has no identity → omitted; real1 resolves to an open issue (is_closed=False).
+    identity: dict[str, tuple[int | None, str, bool]] = {"real1": (5, "Real", False)}
+    quads = native_board_triples("keel-pure-2", doc, lambda: identity)
+    assert quads == [(5, "Real", "Backlog", False)]
 
 
 def test_move_targets_flags_mapping_and_fallback(tmp_path: Path) -> None:

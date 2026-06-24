@@ -78,7 +78,7 @@ def board_items(project_id: str, after: str | None = None) -> dict[str, Any]:
               }
               content {
                 __typename
-                ... on Issue { number title body }
+                ... on Issue { number title body state }
                 ... on DraftIssue { title }
               }
             }

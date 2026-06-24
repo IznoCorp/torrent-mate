@@ -221,6 +221,7 @@ class GithubClient(GithubLabelsMixin):
             title=raw.title,
             column_key=raw.status_column,
             body=raw.body,
+            is_closed=raw.is_closed,
         )
 
     # ---- BoardWriter ----

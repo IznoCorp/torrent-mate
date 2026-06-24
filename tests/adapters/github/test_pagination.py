@@ -72,12 +72,27 @@ class _PageFixture:
 
 
 def _board_item(
-    item_id: str, title: str, column: str, *, issue_number: int | None = None
+    item_id: str,
+    title: str,
+    column: str,
+    *,
+    issue_number: int | None = None,
+    state: str = "OPEN",
 ) -> dict[str, Any]:
-    """Build a single ``ProjectV2Item`` node dict for use in a page fixture."""
+    """Build a single ``ProjectV2Item`` node dict for use in a page fixture.
+
+    ``state`` is GitHub's ``IssueState`` enum (``"OPEN"`` / ``"CLOSED"``) and is
+    carried only on Issue content (drafts have none) — it drives the ensign
+    ``is_closed`` flag the parser derives.
+    """
     content: dict[str, Any]
     if issue_number is not None:
-        content = {"__typename": "Issue", "number": issue_number, "title": title}
+        content = {
+            "__typename": "Issue",
+            "number": issue_number,
+            "title": title,
+            "state": state,
+        }
     else:
         content = {"__typename": "DraftIssue", "title": title}
     return {
@@ -1001,3 +1016,33 @@ def test_request_is_thin_body_only_wrapper_over_headers_impl(
     # Even the body-only path applied both budgets — no untimed read path exists.
     assert conn.connect_timeout == 3.0
     assert conn.sock.read_timeout == 9.0
+
+
+def test_parse_board_items_derives_is_closed_from_issue_state() -> None:
+    """``parse_board_items`` sets ``RawItem.is_closed`` from the Issue ``state`` (ensign).
+
+    A ``state:"CLOSED"`` Issue → ``is_closed=True``; an open Issue and a draft (which
+    carries no state) → ``is_closed=False``. Real, non-trivial values on both sides.
+    """
+    from kanbanmate.adapters.github._parsers import parse_board_items
+
+    page = _PageFixture(
+        items=[
+            _board_item("PVTI_C", "Closed Issue", "Done", issue_number=7, state="CLOSED"),
+            _board_item("PVTI_O", "Open Issue", "Backlog", issue_number=8, state="OPEN"),
+            _board_item("PVTI_D", "A Draft", "Backlog"),
+        ],
+        has_next=False,
+        cursor=None,
+    )
+
+    items, has_next, cursor = parse_board_items(page.as_response())
+
+    by_id = {raw.item_id: raw for raw in items}
+    assert by_id["PVTI_C"].is_closed is True
+    assert by_id["PVTI_C"].issue_number == 7  # the closed side resolves to a real issue
+    assert by_id["PVTI_O"].is_closed is False
+    assert by_id["PVTI_O"].issue_number == 8
+    assert by_id["PVTI_D"].is_closed is False  # a draft is never closed
+    assert has_next is False
+    assert cursor is None

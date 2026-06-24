@@ -115,20 +115,23 @@ def parse_cheap_probe(data: dict[str, Any]) -> str:
     return "\n".join(stamps)
 
 
-def _content_fields(content: dict[str, Any] | None) -> tuple[int | None, str, str]:
-    """Extract ``(issue_number, title, body)`` from a project item's ``content`` node.
+def _content_fields(content: dict[str, Any] | None) -> tuple[int | None, str, str, bool]:
+    """Extract ``(issue_number, title, body, is_closed)`` from a project item's ``content`` node.
 
     Draft items and non-Issue content (e.g. a PullRequest) have no issue number;
     a draft still carries a title. Only Issue content carries a body — the
     dependency gate (DESIGN §9) parses ``Depends on #N`` from it, so a draft/PR
-    yields an empty body.
+    yields an empty body. ``is_closed`` is ``True`` only for an Issue whose
+    GitHub ``state`` is ``"CLOSED"`` (the ``IssueState`` enum is uppercase,
+    confirmed at ``_queries.py``); draft/PR content is never closed.
 
     Args:
         content: The decoded ``content`` node of a project item, or ``None``.
 
     Returns:
-        A ``(issue_number, title, body)`` triple; ``issue_number`` and ``body``
-        are ``None``/empty unless the content is an Issue.
+        A ``(issue_number, title, body, is_closed)`` quad; ``issue_number`` and
+        ``body`` are ``None``/empty unless the content is an Issue, and
+        ``is_closed`` is ``False`` unless the content is a ``"CLOSED"`` Issue.
     """
     content = content or {}
     title = str(content.get("title") or "")
@@ -137,7 +140,10 @@ def _content_fields(content: dict[str, Any] | None) -> tuple[int | None, str, st
     issue_number = int(number) if is_issue and number is not None else None
     # The body is only meaningful for an Issue; a draft/PR has none, so default to "".
     body = str(content.get("body") or "") if is_issue else ""
-    return issue_number, title, body
+    # Surface the open/closed state for the closed-card visual indicator (ensign). GitHub's
+    # IssueState enum is uppercase ("OPEN"/"CLOSED"); only an Issue carries it.
+    is_closed = is_issue and content.get("state") == "CLOSED"
+    return issue_number, title, body, is_closed
 
 
 def parse_board_items(data: dict[str, Any]) -> tuple[tuple[RawItem, ...], bool, str | None]:
@@ -161,7 +167,7 @@ def parse_board_items(data: dict[str, Any]) -> tuple[tuple[RawItem, ...], bool, 
         if not node or not node.get("id"):
             continue
         status_value = node.get("fieldValueByName") or {}
-        issue_number, title, body = _content_fields(node.get("content"))
+        issue_number, title, body, is_closed = _content_fields(node.get("content"))
         raw.append(
             RawItem(
                 item_id=str(node["id"]),
@@ -170,6 +176,7 @@ def parse_board_items(data: dict[str, Any]) -> tuple[tuple[RawItem, ...], bool, 
                 status_column=str(status_value.get("name") or ""),
                 updated_at=str(node.get("updatedAt") or ""),
                 body=body,
+                is_closed=is_closed,
             )
         )
     return tuple(raw), bool(page_info.get("hasNextPage")), page_info.get("endCursor")

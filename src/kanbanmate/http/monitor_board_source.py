@@ -25,20 +25,22 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-# Identity-only TTL cache (keel STEP 2): item_id → (issue_number, title), keyed by project_id.
-# DELIBERATELY longer than the placement read (which is local + un-cached): titles change rarely,
-# and a longer TTL means a GitHub blip is invisible to the board. The cache also acts as a
-# last-known-good store across a GitHub outage — a raising fetch falls back to whatever is cached.
-_IDENTITY_CACHE: dict[str, tuple[float, dict[str, tuple[int | None, str]]]] = {}
+# Identity-only TTL cache (keel STEP 2): item_id → (issue_number, title, is_closed), keyed by
+# project_id. DELIBERATELY longer than the placement read (which is local + un-cached): titles and
+# the issue's open/closed state change rarely, and a longer TTL means a GitHub blip is invisible to
+# the board. The cache also acts as a last-known-good store across a GitHub outage — a raising fetch
+# falls back to whatever is cached. ``is_closed`` rides here (not the local store) because it is
+# GitHub-side issue metadata, exactly like the title (ensign: CLOSED-issue indicator).
+_IDENTITY_CACHE: dict[str, tuple[float, dict[str, tuple[int | None, str, bool]]]] = {}
 # 5 minutes: identity (title) is near-static; placement (local) is always fresh, so a stale title
 # for a few minutes is harmless and keeps the board immune to GitHub latency/outages.
 _IDENTITY_TTL_SECONDS = 300.0
 
 
 def _cached_identity(
-    project_id: str, fetcher: Callable[[], dict[str, tuple[int | None, str]]]
-) -> dict[str, tuple[int | None, str]]:
-    """Return the per-project ``item_id → (issue_number, title)`` identity map (TTL-cached).
+    project_id: str, fetcher: Callable[[], dict[str, tuple[int | None, str, bool]]]
+) -> dict[str, tuple[int | None, str, bool]]:
+    """Return the per-project ``item_id → (issue_number, title, is_closed)`` identity map (cached).
 
     On a cache hit within the TTL, returns the cached map WITHOUT calling ``fetcher``. On a miss
     (or expiry), calls ``fetcher`` and stores the result. If ``fetcher`` RAISES, the last cached
@@ -69,34 +71,36 @@ def _cached_identity(
 def native_board_triples(
     project_id: str,
     doc: dict[str, Any],
-    identity_fetcher: Callable[[], dict[str, tuple[int | None, str]]],
-) -> list[tuple[int, str, str]]:
-    """Build the ``(issue_number, title, column_key)`` triples for ``build_board`` from local state.
+    identity_fetcher: Callable[[], dict[str, tuple[int | None, str, bool]]],
+) -> list[tuple[int, str, str, bool]]:
+    """Build the ``(issue_number, title, column_key, is_closed)`` quads for ``build_board``.
 
     PLACEMENT (column_key, ordering) comes from the LOCAL ``board.json`` ``doc`` (``columns`` +
-    ``order``) — never from GitHub. IDENTITY (issue_number, title) is JOINed from the TTL-cached
-    ``identity_fetcher`` keyed by item_id. A card whose item_id has no known issue number (draft
-    item, or first poll before the identity cache warms) is omitted — mirroring the legacy GitHub
-    path, which filters ``issue_number is not None``. A known-but-untitled card keeps its number
-    with an empty title.
+    ``order``) — never from GitHub. IDENTITY (issue_number, title, is_closed) is JOINed from the
+    TTL-cached ``identity_fetcher`` keyed by item_id — ``is_closed`` is GitHub-side issue metadata
+    (ensign: CLOSED-issue indicator) so it rides the identity fetch alongside the title, never the
+    local store. A card whose item_id has no known issue number (draft item, or first poll before
+    the identity cache warms) is omitted — mirroring the legacy GitHub path, which filters
+    ``issue_number is not None``. A known-but-untitled card keeps its number with an empty title and
+    ``is_closed=False`` (open by default until identity resolves).
 
     Args:
         project_id: The board's Project v2 node id (identity cache key).
         doc: The ``FsBoardStateStore.load()`` document (``{columns, order, ...}``).
-        identity_fetcher: A zero-arg callable returning ``{item_id: (issue_number, title)}``.
+        identity_fetcher: A zero-arg callable returning ``{item_id: (issue_number, title, is_closed)}``.
 
     Returns:
-        ``[(issue_number, title, column_key), ...]`` in board (column, index) order.
+        ``[(issue_number, title, column_key, is_closed), ...]`` in board (column, index) order.
     """
     identity = _cached_identity(project_id, identity_fetcher)
-    triples: list[tuple[int, str, str]] = []
+    quads: list[tuple[int, str, str, bool]] = []
     order = doc.get("order", {})
     for col in doc.get("columns", []):
         for item_id in order.get(col, []):
-            issue_number, title = identity.get(item_id, (None, ""))
+            issue_number, title, is_closed = identity.get(item_id, (None, "", False))
             # Placement is authoritative; a card with no resolvable issue number can't be keyed in
             # the monitoring view (build_board / the SPA key by number) → omit it (legacy parity).
             if issue_number is None:
                 continue
-            triples.append((issue_number, title, col))
-    return triples
+            quads.append((issue_number, title, col, is_closed))
+    return quads

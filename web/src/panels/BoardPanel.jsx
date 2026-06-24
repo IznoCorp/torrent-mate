@@ -13,7 +13,7 @@
 // Every mutation reports VERIFIED completion: the server reads the GitHub state back after a mirror
 // write, so a toast distinguishes "synced to GitHub" from "saved locally, GitHub not confirmed".
 import React from "react";
-import { MonitorCheck } from "lucide-react";
+import { MonitorCheck, CircleSlash } from "lucide-react";
 import * as api from "../api.js";
 import { PageIntro } from "../components/Help.jsx";
 import useIsMobile from "../useIsMobile.js";
@@ -1049,6 +1049,18 @@ function RichCardFace({ card, t }) {
             #{card.issue_number}
           </span>
         )}
+        {/* CLOSED-issue indicator (ensign): a muted badge by the number + a struck-through title. */}
+        {card.is_closed && (
+          <Badge
+            tone="violet"
+            size="sm"
+            style={{ flex: "none", gap: 3 }}
+            title={t("board.closed_hint")}
+          >
+            <CircleSlash size={11} strokeWidth={2} />
+            {t("board.closed")}
+          </Badge>
+        )}
         <span
           style={{
             flex: 1,
@@ -1056,7 +1068,11 @@ function RichCardFace({ card, t }) {
             fontSize: "var(--text-sm)",
             fontWeight: 600,
             lineHeight: 1.35,
-            color: card.title ? "var(--foreground)" : "var(--muted-foreground)",
+            color:
+              card.is_closed || !card.title
+                ? "var(--muted-foreground)"
+                : "var(--foreground)",
+            textDecoration: card.is_closed ? "line-through" : "none",
             ...textClamp(2),
           }}
         >

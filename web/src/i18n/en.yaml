@@ -574,6 +574,8 @@ board:
   move: Move
   move_to: Move to column
   untitled: (untitled)
+  closed: Closed
+  closed_hint: This issue is closed
   no_cards: No cards
   conflict: Board changed — refreshed
   moved_synced: Card moved and synced to GitHub ✓

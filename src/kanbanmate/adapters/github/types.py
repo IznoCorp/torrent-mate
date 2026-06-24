@@ -32,6 +32,9 @@ class RawItem:
         body: The linked Issue's markdown body, carried so the dependency gate
             (DESIGN §9) can parse ``Depends on #N`` before a launch. Empty for
             draft items / non-Issue content (a PullRequest or DraftIssue).
+        is_closed: ``True`` when the content is an Issue whose GitHub state is
+            ``"CLOSED"`` (the ensign closed-card visual indicator); ``False`` for
+            open issues and for draft/PR content.
     """
 
     item_id: str
@@ -40,6 +43,7 @@ class RawItem:
     status_column: str
     updated_at: str
     body: str = ""
+    is_closed: bool = False
 
 
 @dataclass(frozen=True)
