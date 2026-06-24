@@ -8,12 +8,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **ticket** moved column by column on a board; moving a card into a triggering column fires an
 autonomous **Claude Code agent** in an isolated **tmux + git-worktree** workspace. The agent
 comments on the ticket, may re-move the card (only to non-triggering columns), and its session is
-**resumable** (`tmux attach` / `claude --resume <uuid>`). A single background daemon (`kanban run`,
-PM2-supervised) **polls** the board and reconciles it against persisted state — there is **no
-webhook and no n8n**.
+**resumable** (`tmux attach` / `claude --resume <uuid>`).
+
+The board runs **native one-way** (codename _keel_): placement authority is a per-project local
+`board.json`, GitHub Status is a **one-way mirror**, and operators work primarily through
+KanbanMateUI. A single background daemon (`kanban run`, PM2-supervised) reconciles the board each
+tick; a `.nudge` sentinel wakes it &lt;1s on an operator action. Secondary GitHub-side drags are
+ingested by a **webhook receiver** (`kanban serve`) — there is **no n8n**. (The legacy
+GitHub-primary polling / hybrid bidirectional model is retired; see `docs/how-it-works.md`.)
 
 Package name: `kanbanmate`. CLI entry point: `kanban <command>`. Runtime state lives outside the
-repo in `~/.kanban/`.
+repo — in production `~/.kanban-km/` (the multi-project root; `~/.kanban/` is the legacy
+single-project default).
 
 The web SPA in `web/` (config builder + monitoring tab, served by `kanban config serve`, built into
 `src/kanbanmate/webui/`) is called **KanbanMateUI**. In production it is the PM2 app
@@ -22,22 +28,26 @@ The web SPA in `web/` (config builder + monitoring tab, served by `kanban config
 This repo is also its own **Claude plugin marketplace** (`.claude-plugin/marketplace.json`): the
 `/kanban` skill is a thin wrapper that shells out to the `kanban` CLI. All logic lives in the engine.
 
-## Current Feature
+## Current State
 
-**Feature**: hybrid-flow — robustness batch 2: make the HYBRID autonomous lifecycle flow. The
-engine now honours `advance:auto:<col>` on launch stages (the session-end backstop), the doc/build
-transitions carry the HYBRID advance directives (auto through Plan, human gate at Planned, auto-build
-to PR, CI gate auto-promotes to Review, Review stops, merge = human), cross-stage artifacts are
-durable via a per-ticket WIP branch, the implement-stage prompts stop at PR creation, and the docs
-profile gained a minimal shell.
-**Branch**: `feat/hybrid-flow`
-**Design**: `docs/features/hybrid-flow/DESIGN.md`
-**Plan**: `IMPLEMENTATION.md` (single feature branch — sub-phases tracked there)
+On **`main` at v0.21.1**, fully **native one-way** (codename _keel_): KanbanMateUI is the primary
+surface, per-project `board.json` is the placement authority, GitHub Status is a **one-way mirror**,
+secondary GitHub-side drags are ingested via the webhook receiver, and monitoring reads local state
+(sub-second via SSE). The **skiff** fast-track routes every ticket through a Triage classifier into
+one of three lanes — **full** (Brainstorming→Spec→Plan→Ready-to-dev human gate→…), **lite** (Scope→…,
+no pre-build gate), **express** (straight to build). **Merge is human-only on every lane.**
 
-> genesis (Extraction & Hardening, 0.0.0 → 0.1.0) shipped + merged to `main` (PR #1) and archived to
-> `docs/archive/features/genesis/`. cockpit (kanban control & monitoring skill) shipped + merged
-> (PR #2). health-field + robustness batch 1 shipped to `main` (v0.1.1). hybrid-flow is the current
-> in-flight feature on `feat/hybrid-flow` (v0.2.0).
+**Read the docs** (refreshed + grounded in code): [`docs/how-it-works.md`](docs/how-it-works.md)
+(native one-way runtime), [`docs/lanes.md`](docs/lanes.md) (skiff lanes + Triage + gates),
+[`docs/configuration.md`](docs/configuration.md) (registry / columns / transitions / sensitive /
+profiles / cadence), [`docs/kanbanmateui.md`](docs/kanbanmateui.md) (the SPA).
+
+> Shipped + merged to `main`: genesis (0.0.0→0.1.0, PR #1, archived), cockpit (PR #2), helm, tiller,
+> conduit, ingress-multiproject, anchor (native repatriation), **skiff** (3-lane fast-track),
+> **keel** (native one-way migration through step 5.5), tug (sub-second operator-action latency),
+> lucid (self-documenting tooltips), ensign (closed-issue indicator).
+> **keel step 6 — retire the hybrid bidirectional-reconcile code — is ticket #112 (_jettison_)**,
+> resting in Ready to dev pending a soak.
 
 ## Architecture (at a glance)
 

@@ -18,9 +18,10 @@ daemon can drive it:
 5. **Registry** — register the project in ``<root>/projects.json``, keyed by the
    Project v2 node id (what the daemon routes by).
 
-There is **no webhook / n8n step** — polling is the sole ingress (DESIGN §4.3).
-Every step is idempotent where GitHub allows it, so a re-run converges rather
-than duplicating.
+There is **no n8n step**. A fresh board defaults to ``board_backend="native"`` +
+``ingress="polling"`` (KanbanMateUI-primary, one-way GitHub mirror); a webhook
+receiver (``kanban serve``) ingests secondary GitHub-side drags. Every step is
+idempotent where GitHub allows it, so a re-run converges rather than duplicating.
 
 Layering: ``cli`` is an entrypoint at the top of the import hierarchy (DESIGN
 §3.2); it composes the concrete GitHub :class:`~kanbanmate.adapters.github.client.GithubClient`
@@ -99,9 +100,9 @@ CLONE_TRANSITIONS_RELPATH = Path(".claude") / "kanban" / "transitions.yml"
 class ProjectEntry:
     """One project's GitHub binding, keyed in the registry by its project node id.
 
-    A lean, fresh-genesis shape (no webhook fields — polling is the sole
-    ingress, DESIGN §4.3). The daemon resolves the board, the Status field, and
-    the option map from this entry.
+    A lean shape carrying ``board_backend`` (default ``native``) and ``ingress``
+    (default ``polling`` for native boards). The daemon resolves the board, the
+    Status field, and the option map from this entry.
 
     Attributes:
         repo: The ``owner/name`` slug (clone resolution, comments, protection).
