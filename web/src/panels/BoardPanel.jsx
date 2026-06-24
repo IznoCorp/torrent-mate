@@ -281,20 +281,23 @@ export default function BoardPanel({ project }) {
         flexWrap: "wrap",
       }}
     >
-      <span
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: 11,
-          color: "var(--muted-foreground)",
-          cursor: "help",
-        }}
-        title={t(
+      <Tooltip
+        label={t(
           "board.revision_hint",
           "Board revision — increments on every change; used to detect concurrent edits (optimistic locking).",
         )}
       >
-        {t("board.revision_label", "rev.")} {data.version}
-      </span>
+        <span
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            color: "var(--muted-foreground)",
+            cursor: "help",
+          }}
+        >
+          {t("board.revision_label", "rev.")} {data.version}
+        </span>
+      </Tooltip>
       {notice && (
         <Badge tone={noticeTone[notice.tone] || "neutral"} size="sm">
           {notice.text}
@@ -699,59 +702,63 @@ function CollapsedColumn({
 }) {
   const [over, setOver] = React.useState(false);
   return (
-    <button
-      className="km-colstrip"
-      aria-label={t("board.expand")}
-      title={`${col} — ${t("board.expand")}`}
-      onClick={onExpand}
-      onDragOver={(e) => {
-        e.preventDefault();
-        setOver(true);
-      }}
-      onDragLeave={() => setOver(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setOver(false);
-        const itemId = dragRef.current;
-        if (itemId) onDropColumn(itemId, col); // drop into a collapsed column → tail
-        onDragEnd();
-      }}
-      style={{
-        flex: "0 0 46px",
-        width: 46,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 10,
-        padding: "10px 0",
-        background: over ? "var(--muted)" : "var(--card)",
-        border: `1px solid ${over ? "var(--primary)" : "var(--border)"}`,
-        borderRadius: "var(--radius-lg)",
-        boxShadow: "var(--shadow-xs)",
-        cursor: "pointer",
-        color: "var(--muted-foreground)",
-      }}
+    <Tooltip
+      label={`${col} — ${t("board.expand")}`}
+      style={{ flex: "0 0 46px", width: 46, alignSelf: "stretch" }}
     >
-      <Badge tone="neutral" size="sm">
-        {count}
-      </Badge>
-      <span
+      <button
+        className="km-colstrip"
+        aria-label={t("board.expand")}
+        onClick={onExpand}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setOver(true);
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setOver(false);
+          const itemId = dragRef.current;
+          if (itemId) onDropColumn(itemId, col); // drop into a collapsed column → tail
+          onDragEnd();
+        }}
         style={{
-          writingMode: "vertical-rl",
-          transform: "rotate(180deg)",
-          fontFamily: "var(--font-mono)",
-          fontSize: 11.5,
-          textTransform: "uppercase",
-          letterSpacing: "0.04em",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          maxHeight: "100%",
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 10,
+          padding: "10px 0",
+          background: over ? "var(--muted)" : "var(--card)",
+          border: `1px solid ${over ? "var(--primary)" : "var(--border)"}`,
+          borderRadius: "var(--radius-lg)",
+          boxShadow: "var(--shadow-xs)",
+          cursor: "pointer",
+          color: "var(--muted-foreground)",
         }}
       >
-        {col}
-      </span>
-    </button>
+        <Badge tone="neutral" size="sm">
+          {count}
+        </Badge>
+        <span
+          style={{
+            writingMode: "vertical-rl",
+            transform: "rotate(180deg)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 11.5,
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            maxHeight: "100%",
+          }}
+        >
+          {col}
+        </span>
+      </button>
+    </Tooltip>
   );
 }
 
@@ -1080,34 +1087,38 @@ function RichCardFace({ card, t }) {
         </span>
         {/* Deep-link to this ticket in Monitoring (stops propagation so it never starts a drag). */}
         {card.issue_number != null && (
-          <button
-            type="button"
-            title={t("board.open_monitoring", "View in Monitoring")}
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              window.dispatchEvent(
-                new CustomEvent("km:open-monitoring", {
-                  detail: { issue: card.issue_number },
-                }),
-              );
-            }}
-            style={{
-              flex: "none",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 22,
-              height: 22,
-              padding: 0,
-              border: "none",
-              background: "transparent",
-              color: "var(--muted-foreground)",
-              cursor: "pointer",
-            }}
+          <Tooltip
+            label={t("board.open_monitoring", "View in Monitoring")}
+            style={{ flex: "none" }}
           >
-            <MonitorCheck size={14} strokeWidth={1.75} />
-          </button>
+            <button
+              type="button"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                window.dispatchEvent(
+                  new CustomEvent("km:open-monitoring", {
+                    detail: { issue: card.issue_number },
+                  }),
+                );
+              }}
+              style={{
+                flex: "none",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 22,
+                height: 22,
+                padding: 0,
+                border: "none",
+                background: "transparent",
+                color: "var(--muted-foreground)",
+                cursor: "pointer",
+              }}
+            >
+              <MonitorCheck size={14} strokeWidth={1.75} />
+            </button>
+          </Tooltip>
         )}
       </div>
       {card.excerpt && (
@@ -1156,22 +1167,23 @@ function ColumnHeader({ col, count, t, onCollapse }) {
         {count}
       </Badge>
       {onCollapse && (
-        <button
-          aria-label={t("board.collapse")}
-          title={t("board.collapse")}
-          onClick={onCollapse}
-          style={{
-            border: "none",
-            background: "transparent",
-            cursor: "pointer",
-            color: "var(--muted-foreground)",
-            fontSize: 14,
-            lineHeight: 1,
-            padding: "2px 4px",
-          }}
-        >
-          ⟨
-        </button>
+        <Tooltip label={t("board.collapse")}>
+          <button
+            aria-label={t("board.collapse")}
+            onClick={onCollapse}
+            style={{
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              color: "var(--muted-foreground)",
+              fontSize: 14,
+              lineHeight: 1,
+              padding: "2px 4px",
+            }}
+          >
+            ⟨
+          </button>
+        </Tooltip>
       )}
     </div>
   );
@@ -1194,25 +1206,26 @@ function EmptyHint({ t }) {
 
 function MiniBtn({ label, ariaLabel, disabled, onClick }) {
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={ariaLabel}
-      title={ariaLabel}
-      style={{
-        border: "1px solid var(--border)",
-        background: "var(--background)",
-        borderRadius: 8,
-        width: 38,
-        height: 34,
-        cursor: disabled ? "default" : "pointer",
-        color: disabled ? "var(--muted-foreground)" : "var(--foreground)",
-        opacity: disabled ? 0.5 : 1,
-        fontSize: 15,
-        lineHeight: 1,
-      }}
-    >
-      {label}
-    </button>
+    <Tooltip label={ariaLabel}>
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={ariaLabel}
+        style={{
+          border: "1px solid var(--border)",
+          background: "var(--background)",
+          borderRadius: 8,
+          width: 38,
+          height: 34,
+          cursor: disabled ? "default" : "pointer",
+          color: disabled ? "var(--muted-foreground)" : "var(--foreground)",
+          opacity: disabled ? 0.5 : 1,
+          fontSize: 15,
+          lineHeight: 1,
+        }}
+      >
+        {label}
+      </button>
+    </Tooltip>
   );
 }

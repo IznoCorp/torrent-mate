@@ -13,7 +13,7 @@ import * as api from "../api.js";
 import { useT } from "../i18n/index.jsx";
 import useIsMobile from "../useIsMobile.js";
 
-const { KeyChip, Banner, SegmentedControl } =
+const { KeyChip, Banner, SegmentedControl, Tooltip } =
   window.KanbanMateDesignSystem_2463ad;
 const TOKEN = /\{\{\s*([\w.]+)\s*\}\}/g;
 
@@ -195,38 +195,45 @@ export default function RichPromptEditor({ value, onChange }) {
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {knownNames.map((n) => (
-              <button
+              <Tooltip
                 key={n}
-                type="button"
-                onClick={() => insert(`{{${n}}}`)}
-                title={t("prompt.insert")}
+                label={t("prompt.insert")}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 7,
                   flex: isMobile ? "1 1 100%" : "0 1 auto",
                   maxWidth: "100%",
-                  textAlign: "left",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-md)",
-                  background: "var(--card)",
-                  padding: "7px 10px",
-                  cursor: "pointer",
-                  minHeight: 40,
                 }}
               >
-                <KeyChip>{`{{${n}}}`}</KeyChip>
-                <span
+                <button
+                  type="button"
+                  onClick={() => insert(`{{${n}}}`)}
                   style={{
-                    fontSize: 12,
-                    color: "var(--muted-foreground)",
-                    lineHeight: 1.4,
-                    minWidth: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 7,
+                    width: "100%",
+                    maxWidth: "100%",
+                    textAlign: "left",
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--radius-md)",
+                    background: "var(--card)",
+                    padding: "7px 10px",
+                    cursor: "pointer",
+                    minHeight: 40,
                   }}
                 >
-                  {known[n]}
-                </span>
-              </button>
+                  <KeyChip>{`{{${n}}}`}</KeyChip>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: "var(--muted-foreground)",
+                      lineHeight: 1.4,
+                      minWidth: 0,
+                    }}
+                  >
+                    {known[n]}
+                  </span>
+                </button>
+              </Tooltip>
             ))}
           </div>
         </div>

@@ -196,26 +196,30 @@ export default function TransitionsPanel({
                       padding: "9px 12px",
                     }}
                   >
-                    <span
-                      style={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: "50%",
-                        flex: "none",
-                        background: r.prompt
-                          ? "var(--col-agent-solid, var(--primary))"
-                          : r.script
-                            ? "var(--col-reactive-solid, var(--border))"
-                            : "var(--border)",
-                      }}
-                      title={
+                    <KMT.Tooltip
+                      style={{ flex: "none" }}
+                      label={
                         r.prompt
                           ? t("transitions.tip_launch")
                           : r.script
                             ? t("transitions.tip_script")
                             : t("transitions.tip_noop")
                       }
-                    />
+                    >
+                      <span
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          flex: "none",
+                          background: r.prompt
+                            ? "var(--col-agent-solid, var(--primary))"
+                            : r.script
+                              ? "var(--col-reactive-solid, var(--border))"
+                              : "var(--border)",
+                        }}
+                      />
+                    </KMT.Tooltip>
                     <span
                       style={{
                         fontFamily: "var(--font-mono)",
@@ -272,13 +276,15 @@ export default function TransitionsPanel({
                   </span>
                   {edit.profile ? <ProfileTag profile={edit.profile} /> : null}
                   <span style={{ flex: 1 }} />
-                  <IconButton
-                    aria-label={t("common.remove")}
-                    size="sm"
-                    onClick={() => removeRow(sel)}
-                  >
-                    ✕
-                  </IconButton>
+                  <KMT.Tooltip label={t("common.remove")}>
+                    <IconButton
+                      aria-label={t("common.remove")}
+                      size="sm"
+                      onClick={() => removeRow(sel)}
+                    >
+                      ✕
+                    </IconButton>
+                  </KMT.Tooltip>
                 </div>
 
                 {invalidIdx.has(sel) && (
@@ -526,13 +532,14 @@ function DField({ label, tech, hint, required = false, children }) {
         >
           {label}
           {required && (
-            <span
-              title={t("common.required")}
-              aria-label={t("common.required")}
-              style={{ color: "var(--destructive)", marginLeft: 3 }}
-            >
-              *
-            </span>
+            <KMT.Tooltip label={t("common.required")}>
+              <span
+                aria-label={t("common.required")}
+                style={{ color: "var(--destructive)", marginLeft: 3 }}
+              >
+                *
+              </span>
+            </KMT.Tooltip>
           )}
         </span>
         {tech && (

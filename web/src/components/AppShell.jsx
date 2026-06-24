@@ -274,36 +274,39 @@ export default function AppShell({
           />
         </div>
         {/* Collapse toggle (#47): panel-left-close (expanded) / panel-left-open (collapsed). */}
-        <button
-          onClick={() => setSidebarCollapsed((v) => !v)}
-          title={sidebarCollapsed ? t("shell.expand") : t("shell.collapse")}
-          aria-label={
-            sidebarCollapsed ? t("shell.expand") : t("shell.collapse")
-          }
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: sidebarCollapsed ? "center" : "flex-start",
-            gap: 9,
-            padding: sidebarCollapsed ? "10px 0" : "10px 14px",
-            border: "none",
-            borderTop: "1px solid var(--sidebar-border)",
-            background: "transparent",
-            color: "var(--muted-foreground)",
-            cursor: "pointer",
-            fontFamily: "var(--font-sans)",
-            fontSize: "var(--text-sm)",
-          }}
+        <Tooltip
+          label={sidebarCollapsed ? t("shell.expand") : t("shell.collapse")}
         >
-          {sidebarCollapsed ? (
-            <PanelLeftOpen size={18} strokeWidth={1.75} />
-          ) : (
-            <>
-              <PanelLeftClose size={18} strokeWidth={1.75} />
-              {t("shell.collapse")}
-            </>
-          )}
-        </button>
+          <button
+            onClick={() => setSidebarCollapsed((v) => !v)}
+            aria-label={
+              sidebarCollapsed ? t("shell.expand") : t("shell.collapse")
+            }
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: sidebarCollapsed ? "center" : "flex-start",
+              gap: 9,
+              padding: sidebarCollapsed ? "10px 0" : "10px 14px",
+              border: "none",
+              borderTop: "1px solid var(--sidebar-border)",
+              background: "transparent",
+              color: "var(--muted-foreground)",
+              cursor: "pointer",
+              fontFamily: "var(--font-sans)",
+              fontSize: "var(--text-sm)",
+            }}
+          >
+            {sidebarCollapsed ? (
+              <PanelLeftOpen size={18} strokeWidth={1.75} />
+            ) : (
+              <>
+                <PanelLeftClose size={18} strokeWidth={1.75} />
+                {t("shell.collapse")}
+              </>
+            )}
+          </button>
+        </Tooltip>
         {/* Version footer (tiller §4.5): muted at the very bottom of the sidebar. */}
         {version && (
           <div

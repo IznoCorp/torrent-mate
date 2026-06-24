@@ -546,6 +546,12 @@ tip:
   launch_agent: Run a Claude agent on this ticket now
   open_terminal: Attach to the agent's live terminal
   create_ticket: Create the GitHub issue on the board at Backlog
+  md_heading: Heading
+  md_bold: Bold
+  md_italic: Italic
+  md_list: Bullet list
+  md_link: Insert link
+  md_code: Code block
 
 theme:
   light: Light

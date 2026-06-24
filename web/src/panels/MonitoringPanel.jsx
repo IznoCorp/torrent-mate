@@ -708,22 +708,25 @@ export default function MonitoringPanel({ project }) {
               flexShrink: 0,
             }}
           >
-            <button
-              type="button"
-              onClick={toggleMaster}
-              title={
+            <Tooltip
+              label={
                 masterCollapsed
                   ? t("monitor.show_list", "Show tickets")
                   : t("monitor.hide_list", "Hide tickets")
               }
-              style={MASTER_TOGGLE_STYLE}
             >
-              {masterCollapsed ? (
-                <PanelLeftOpen size={18} strokeWidth={1.75} />
-              ) : (
-                <PanelLeftClose size={18} strokeWidth={1.75} />
-              )}
-            </button>
+              <button
+                type="button"
+                onClick={toggleMaster}
+                style={MASTER_TOGGLE_STYLE}
+              >
+                {masterCollapsed ? (
+                  <PanelLeftOpen size={18} strokeWidth={1.75} />
+                ) : (
+                  <PanelLeftClose size={18} strokeWidth={1.75} />
+                )}
+              </button>
+            </Tooltip>
           </div>
         )}
         <div
@@ -826,79 +829,90 @@ export default function MonitoringPanel({ project }) {
               return (
                 <React.Fragment key={c.key}>
                   {/* Status separator: the column name abbreviated (full name on hover). */}
-                  <div
-                    title={`${c.name} · ${tix.length}`}
-                    style={{
-                      width: 38,
-                      flexShrink: 0,
-                      marginTop: 4,
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 8,
-                      letterSpacing: "0.04em",
-                      textTransform: "uppercase",
-                      textAlign: "center",
-                      color: "var(--muted-foreground)",
-                      borderTop: "1px solid var(--border)",
-                      paddingTop: 3,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
+                  <Tooltip
+                    label={`${c.name} · ${tix.length}`}
+                    style={{ width: 38, marginTop: 4 }}
                   >
-                    {c.name.slice(0, 3)}
-                  </div>
+                    <div
+                      style={{
+                        width: "100%",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 8,
+                        letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                        textAlign: "center",
+                        color: "var(--muted-foreground)",
+                        borderTop: "1px solid var(--border)",
+                        paddingTop: 3,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {c.name.slice(0, 3)}
+                    </div>
+                  </Tooltip>
                   {tix.map((tk) => {
                     const selected = sel === tk.number;
                     return (
-                      <button
+                      <Tooltip
                         key={tk.number}
-                        ref={selected ? selectedRowRef : undefined}
-                        type="button"
-                        onClick={() => setSel(tk.number)}
-                        title={
+                        // CLOSED issue (ensign): annotate the themed tooltip label too.
+                        label={
                           tk.is_closed
                             ? `#${tk.number} · ${c.name} · ${t("board.closed")}`
                             : `#${tk.number} · ${c.name}`
                         }
-                        style={{
-                          position: "relative",
-                          width: 34,
-                          height: 28,
-                          flexShrink: 0,
-                          borderRadius: 7,
-                          fontFamily: "var(--font-mono)",
-                          fontSize: 11,
-                          fontWeight: selected ? 700 : 400,
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          // No border (it read like a state color). State = the dot only; selection =
-                          // a neutral filled background.
-                          border: "none",
-                          background: selected ? "var(--muted)" : "var(--card)",
-                          // CLOSED issue (ensign): strike + mute the number so the chip reads "closed".
-                          color: tk.is_closed
-                            ? "var(--muted-foreground)"
-                            : "var(--foreground)",
-                          textDecoration: tk.is_closed ? "line-through" : "none",
-                        }}
+                        style={{ flexShrink: 0 }}
                       >
-                        {tk.number}
-                        {/* State dot (same legend as the summary line), top-right corner. */}
-                        <span
+                        <button
+                          ref={selected ? selectedRowRef : undefined}
+                          type="button"
+                          onClick={() => setSel(tk.number)}
                           style={{
-                            position: "absolute",
-                            top: -3,
-                            right: -3,
-                            width: 9,
-                            height: 9,
-                            borderRadius: "50%",
-                            background: stateDotColor(tk.agent_state),
-                            border: "1.5px solid var(--card)",
+                            position: "relative",
+                            width: 34,
+                            height: 28,
+                            flexShrink: 0,
+                            borderRadius: 7,
+                            fontFamily: "var(--font-mono)",
+                            fontSize: 11,
+                            fontWeight: selected ? 700 : 400,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            // No border (it read like a state color). State = the dot only; selection =
+                            // a neutral filled background.
+                            border: "none",
+                            background: selected
+                              ? "var(--muted)"
+                              : "var(--card)",
+                            // CLOSED issue (ensign): strike + mute the number so the chip reads "closed".
+                            color: tk.is_closed
+                              ? "var(--muted-foreground)"
+                              : "var(--foreground)",
+                            textDecoration: tk.is_closed
+                              ? "line-through"
+                              : "none",
                           }}
-                        />
-                      </button>
+                        >
+                          {tk.number}
+                          {/* State dot (same legend as the summary line), top-right corner. */}
+                          <span
+                            style={{
+                              position: "absolute",
+                              top: -3,
+                              right: -3,
+                              width: 9,
+                              height: 9,
+                              borderRadius: "50%",
+                              background: stateDotColor(tk.agent_state),
+                              border: "1.5px solid var(--card)",
+                            }}
+                          />
+                        </button>
+                      </Tooltip>
                     );
                   })}
                 </React.Fragment>
@@ -1397,9 +1411,11 @@ export default function MonitoringPanel({ project }) {
                       }}
                     >
                       {detail.markers.roadmap && (
-                        <span title={detail.markers.roadmap}>
-                          <KeyChip>roadmap: {detail.markers.roadmap}</KeyChip>
-                        </span>
+                        <Tooltip label={detail.markers.roadmap}>
+                          <span>
+                            <KeyChip>roadmap: {detail.markers.roadmap}</KeyChip>
+                          </span>
+                        </Tooltip>
                       )}
                       {detail.markers.codename && (
                         <KeyChip>codename: {detail.markers.codename}</KeyChip>
@@ -1767,11 +1783,10 @@ function baseName(path) {
 
 // A clickable artifact "link" rendered as a chip with a 📄 affordance.
 function DocLink({ onClick, title, children }) {
-  return (
+  const btn = (
     <button
       type="button"
       onClick={onClick}
-      title={title}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -1798,5 +1813,14 @@ function DocLink({ onClick, title, children }) {
         {children}
       </span>
     </button>
+  );
+  // `title` carries the full artifact path (data, not a UI label) — show it as a
+  // themed tooltip when present; the brainstorm DocLink passes none.
+  return title ? (
+    <Tooltip label={title} style={{ maxWidth: 240 }}>
+      {btn}
+    </Tooltip>
+  ) : (
+    btn
   );
 }

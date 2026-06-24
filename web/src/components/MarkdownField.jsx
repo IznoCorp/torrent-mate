@@ -7,7 +7,7 @@ import { renderMarkdown } from "../lib/markdown.js";
 import { useT } from "../i18n/index.jsx";
 import useIsMobile from "../useIsMobile.js";
 
-const { SegmentedControl } = window.KanbanMateDesignSystem_2463ad;
+const { SegmentedControl, Tooltip } = window.KanbanMateDesignSystem_2463ad;
 
 // Wrap/insert markdown around the textarea's current selection, then restore a useful selection.
 function applyFormat(textarea, value, onChange, kind) {
@@ -124,27 +124,29 @@ export default function MarkdownField({
         {tab === "write" && (
           <div style={{ display: "flex", gap: 3 }}>
             {TOOLBAR.map(([kind, label, st]) => (
-              <button
-                key={kind}
-                type="button"
-                title={kind}
-                onMouseDown={(e) => e.preventDefault()} // keep the textarea selection
-                onClick={() => applyFormat(taRef.current, text, onChange, kind)}
-                style={{
-                  minWidth: 30,
-                  height: 30,
-                  padding: "0 7px",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--card)",
-                  color: "var(--muted-foreground)",
-                  cursor: "pointer",
-                  fontSize: 13,
-                  lineHeight: 1,
-                }}
-              >
-                <span style={st}>{label}</span>
-              </button>
+              <Tooltip key={kind} label={t(`tip.md_${kind}`, kind)}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()} // keep the textarea selection
+                  onClick={() =>
+                    applyFormat(taRef.current, text, onChange, kind)
+                  }
+                  style={{
+                    minWidth: 30,
+                    height: 30,
+                    padding: "0 7px",
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--radius-sm)",
+                    background: "var(--card)",
+                    color: "var(--muted-foreground)",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    lineHeight: 1,
+                  }}
+                >
+                  <span style={st}>{label}</span>
+                </button>
+              </Tooltip>
             ))}
           </div>
         )}

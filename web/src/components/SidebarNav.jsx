@@ -22,7 +22,7 @@ import {
 import { useT } from "../i18n/index.jsx";
 import { BRAND_ICON } from "../lib/env.js";
 
-const { Badge, Select } = window.KanbanMateDesignSystem_2463ad;
+const { Badge, Select, Tooltip } = window.KanbanMateDesignSystem_2463ad;
 
 // lucide icon per nav entry — operator-validated set (#47, "Decided — sidebar icons" 2026-06-20).
 const NAV_ICON = {
@@ -101,12 +101,11 @@ function NavItem({ item, label, active, onClick, badge, collapsed = false }) {
   const [hover, setHover] = React.useState(false);
   const Icon = NAV_ICON[item.id];
   const hasBadge = badge != null && badge > 0;
-  return (
+  const btn = (
     <button
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      title={collapsed ? label : undefined}
       aria-label={collapsed ? label : undefined}
       style={{
         position: "relative",
@@ -191,6 +190,9 @@ function NavItem({ item, label, active, onClick, badge, collapsed = false }) {
       )}
     </button>
   );
+  // Collapsed rail is icon-only — surface the label as a themed tooltip (the
+  // expanded rail already shows the label text inline, so no tooltip needed).
+  return collapsed ? <Tooltip label={label}>{btn}</Tooltip> : btn;
 }
 
 function GroupLabel({ children, tone }) {

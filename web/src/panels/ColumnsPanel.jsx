@@ -23,7 +23,8 @@ export default function ColumnsPanel({
   const { t } = useT();
   const isMobile = useIsMobile();
   const cols = draft.definition.columns;
-  const { ColumnClassChip, KeyChip, Select, IconButton, Button, Input } = KMNS;
+  const { ColumnClassChip, KeyChip, Select, IconButton, Button, Input, Tooltip } =
+    KMNS;
   const [sync, setSync] = React.useState(false);
 
   const setName = (i, name) =>
@@ -172,27 +173,33 @@ export default function ColumnsPanel({
                 />
                 <ColumnClassChip columnClass={c.column_class} />
                 <span style={{ display: "inline-flex", gap: 2 }}>
-                  <IconButton
-                    aria-label={t("common.move_up")}
-                    size="sm"
-                    onClick={() => move(i, -1)}
-                  >
-                    ↑
-                  </IconButton>
-                  <IconButton
-                    aria-label={t("common.move_down")}
-                    size="sm"
-                    onClick={() => move(i, 1)}
-                  >
-                    ↓
-                  </IconButton>
-                  <IconButton
-                    aria-label={t("common.remove")}
-                    size="sm"
-                    onClick={() => remove(i)}
-                  >
-                    ✕
-                  </IconButton>
+                  <Tooltip label={t("common.move_up")}>
+                    <IconButton
+                      aria-label={t("common.move_up")}
+                      size="sm"
+                      onClick={() => move(i, -1)}
+                    >
+                      ↑
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip label={t("common.move_down")}>
+                    <IconButton
+                      aria-label={t("common.move_down")}
+                      size="sm"
+                      onClick={() => move(i, 1)}
+                    >
+                      ↓
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip label={t("common.remove")}>
+                    <IconButton
+                      aria-label={t("common.remove")}
+                      size="sm"
+                      onClick={() => remove(i)}
+                    >
+                      ✕
+                    </IconButton>
+                  </Tooltip>
                 </span>
               </div>
             </div>

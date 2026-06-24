@@ -4,14 +4,16 @@ import React from "react";
 import useTheme from "../useTheme.js";
 import { useT } from "../i18n/index.jsx";
 
-const { SegmentedControl } = window.KanbanMateDesignSystem_2463ad;
+const { SegmentedControl, Tooltip } = window.KanbanMateDesignSystem_2463ad;
 
-// Icon + accessible title (SegmentedControl renders the label node verbatim, so a titled span gives
-// a native tooltip on hover and an accessible name).
+// Icon + accessible label. SegmentedControl renders the label node verbatim, so wrapping the icon in
+// the themed DS <Tooltip> gives a legible (light+dark) hint on hover/tap plus an accessible name.
 const Glyph = ({ icon, label }) => (
-  <span title={label} aria-label={label} role="img">
-    {icon}
-  </span>
+  <Tooltip label={label}>
+    <span aria-label={label} role="img">
+      {icon}
+    </span>
+  </Tooltip>
 );
 
 export default function ThemeSwitcher() {

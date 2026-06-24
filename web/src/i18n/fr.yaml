@@ -557,6 +557,12 @@ tip:
   launch_agent: Lance un agent Claude sur ce ticket
   open_terminal: Se connecter au terminal en direct de l'agent
   create_ticket: Crée l'issue GitHub sur le board en Backlog
+  md_heading: Titre
+  md_bold: Gras
+  md_italic: Italique
+  md_list: Liste à puces
+  md_link: Insérer un lien
+  md_code: Bloc de code
 
 theme:
   light: Clair

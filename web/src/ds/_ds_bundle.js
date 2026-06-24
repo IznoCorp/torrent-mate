@@ -2040,6 +2040,7 @@
             marginRight: 6,
           },
         }[placement];
+        const tipId = React.useId();
         return /*#__PURE__*/ React.createElement(
           "span",
           {
@@ -2047,17 +2048,31 @@
             onMouseLeave: () => setShow(false),
             onFocus: () => setShow(true),
             onBlur: () => setShow(false),
+            onClick: () => setShow(!show),
             style: {
               position: "relative",
               display: "inline-flex",
               ...style,
             },
           },
-          children,
+          React.isValidElement(children)
+            ? React.cloneElement(
+                children,
+                Object.assign(
+                  { "aria-describedby": tipId },
+                  typeof label === "string" &&
+                    children.props &&
+                    !children.props["aria-label"]
+                    ? { "aria-label": label }
+                    : {},
+                ),
+              )
+            : children,
           show &&
             /*#__PURE__*/ React.createElement(
               "span",
               {
+                id: tipId,
                 role: "tooltip",
                 style: {
                   position: "absolute",
@@ -2065,8 +2080,8 @@
                   ...pos,
                   whiteSpace: "nowrap",
                   pointerEvents: "none",
-                  background: "var(--surface-inverse)",
-                  color: "var(--text-inverse)",
+                  background: "var(--tooltip-bg)",
+                  color: "var(--tooltip-text)",
                   fontFamily: "var(--font-sans)",
                   fontSize: "var(--text-xs)",
                   fontWeight: 500,

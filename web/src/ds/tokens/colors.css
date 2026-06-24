@@ -173,6 +173,11 @@
   --text-onaccent: var(--primary-foreground);
   --text-inverse: var(--background);
 
+  /* Tooltip — self-inverting bubble that always contrasts with the page surface.
+   * Decoupled from --surface-inverse so terminal-panel repurposing can never collide again. */
+  --tooltip-bg:   var(--foreground);   /* dark bubble in light mode  */
+  --tooltip-text: var(--background);   /* light text  in light mode  */
+
   --border-subtle: var(--border);
   --border-default: var(--border);
   --border-strong: var(--muted-foreground);
@@ -273,4 +278,10 @@
    * (dark) foreground; in dark mode the foreground is light, so pin a near-black here to keep those
    * inset panels dark — a touch darker than --background so they still read as a recessed surface. */
   --surface-inverse: oklch(0.12 0.004 95);
+
+  /* Tooltip — defined explicitly in dark (operator decision: "both themes").
+   * Values are inherited-identical to :root (--foreground/--background), but explicit
+   * definition immunises against any future :root-only repurposing of these tokens. */
+  --tooltip-bg:   var(--foreground);   /* light bubble in dark mode  */
+  --tooltip-text: var(--background);   /* dark text   in dark mode   */
 }
