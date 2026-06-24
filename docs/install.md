@@ -55,9 +55,19 @@ claude plugin install kanban@kanbanmate --scope user
 
 ### Token scope (PAT)
 
-The GitHub token lives in `~/.kanban/token` (mode `600`, off-git). For v1 it must be a
-**fine-grained user PAT** scoped to `project` + `repo` only — **not** `admin:org_hook`
-(webhooks are gone; DESIGN §10). `kanban doctor` checks the token scope is not over-broad.
+The GitHub token lives in `~/.kanban/token` (mode `600`, off-git). It must be a
+**fine-grained user PAT** scoped to `project` + `repo` only — enough for the daemon's
+GraphQL board reads/writes and issue/PR ops. `kanban doctor` checks the token scope is
+not over-broad.
+
+> **Webhook ingestion is optional and out-of-band of this token.** Polling is the
+> sole ingress required for the default native board (a local KanbanMateUI/CLI move
+> writes `board.json` directly). If you also want a card dragged _on the GitHub board_
+> to be re-ingested, run the `kanban serve` receiver (it verifies an HMAC against
+> `~/.kanban/webhook_secret`) and register a GitHub webhook pointing at it — that
+> webhook is created/managed on GitHub separately and does **not** require the daemon's
+> PAT to carry `admin:org_hook`. See [how-it-works.md](how-it-works.md) and
+> [configuration.md](configuration.md).
 
 ## Tier 3 — Per-repo (`kanban init` + `kanban seed`)
 
