@@ -519,6 +519,7 @@ term_help:
   toggle_fullscreen: Enter / exit fullscreen
   enter: Send a newline (only while in control)
   esc: Send Escape (only while in control)
+  arrows: Move a menu selection / the cursor (on-screen buttons for mobile)
   ctrlc: Interrupt the running command (only while in control)
 
 # Short hover hints (shadcn tooltip) describing what each control does.
@@ -528,6 +529,10 @@ tip:
   term_enter: Send the Enter key
   term_esc: Send the Escape key
   term_ctrlc: Send Ctrl-C (interrupt)
+  term_up: Send the Up arrow
+  term_down: Send the Down arrow
+  term_left: Send the Left arrow
+  term_right: Send the Right arrow
   term_fs_enter: Fullscreen
   term_fs_exit: Exit fullscreen
   term_redraw: Redraw — fixes a garbled display after interactive menus (/model, /effort…)

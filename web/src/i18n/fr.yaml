@@ -530,6 +530,7 @@ term_help:
   toggle_fullscreen: Entrer / quitter le plein écran
   enter: Envoie un retour à la ligne (uniquement avec le contrôle)
   esc: Envoie Échap (uniquement avec le contrôle)
+  arrows: Déplace une sélection de menu / le curseur (boutons à l'écran pour mobile)
   ctrlc: Interrompt la commande en cours (uniquement avec le contrôle)
 
 # Bulles d'aide courtes (tooltip shadcn) décrivant l'action de chaque contrôle.
@@ -539,6 +540,10 @@ tip:
   term_enter: Envoie la touche Entrée
   term_esc: Envoie la touche Échap
   term_ctrlc: Envoie Ctrl-C (interruption)
+  term_up: Envoie la flèche Haut
+  term_down: Envoie la flèche Bas
+  term_left: Envoie la flèche Gauche
+  term_right: Envoie la flèche Droite
   term_fs_enter: Plein écran
   term_fs_exit: Quitter le plein écran
   term_redraw: Rafraîchir — corrige un affichage brouillé après un menu interactif (/model, /effort…)

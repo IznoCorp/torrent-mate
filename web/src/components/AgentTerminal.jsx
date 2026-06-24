@@ -23,7 +23,18 @@ const TERM_FONT_FAMILY =
   'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace';
 
 // On-screen quick-key buttons (for keys phones lack) → the raw bytes a terminal expects.
-const KEY_BYTES = { Enter: "\r", Escape: "\x1b", "C-c": "\x03" };
+const KEY_BYTES = {
+  Enter: "\r",
+  Escape: "\x1b",
+  "C-c": "\x03",
+  // Standard ANSI cursor keys (DECCKM-off / normal mode) — what xterm emits and
+  // Claude's Ink TUI / readline menus consume. Mobile soft keyboards lack arrows,
+  // so these on-screen buttons let the operator move an agent menu's selection.
+  Up: "\x1b[A",
+  Down: "\x1b[B",
+  Right: "\x1b[C",
+  Left: "\x1b[D",
+};
 
 /**
  * Interactive PTY-streamed terminal for a running agent session.
@@ -417,6 +428,39 @@ function ControlBar({
               Ctrl-C
             </Button>
           </Tooltip>
+          {/* Directional keys for menu selection — mobile keyboards have no arrows. */}
+          <Tooltip label={t("tip.term_up", "Send the Up arrow")}>
+            <Button size="sm" variant="outline" onClick={() => onSendKey("Up")}>
+              ↑
+            </Button>
+          </Tooltip>
+          <Tooltip label={t("tip.term_down", "Send the Down arrow")}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onSendKey("Down")}
+            >
+              ↓
+            </Button>
+          </Tooltip>
+          <Tooltip label={t("tip.term_left", "Send the Left arrow")}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onSendKey("Left")}
+            >
+              ←
+            </Button>
+          </Tooltip>
+          <Tooltip label={t("tip.term_right", "Send the Right arrow")}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onSendKey("Right")}
+            >
+              →
+            </Button>
+          </Tooltip>
         </>
       )}
       {/* Zoom = font cell size; the pane reflows to the new cell count. */}
@@ -559,6 +603,13 @@ function TerminalHelp({ t }) {
     {
       keys: ["Esc"],
       desc: t("term_help.esc", "Send Escape (only while in control)"),
+    },
+    {
+      keys: ["↑", "↓", "←", "→"],
+      desc: t(
+        "term_help.arrows",
+        "Move a menu selection / the cursor (on-screen buttons for mobile)",
+      ),
     },
     {
       keys: ["Ctrl", "C"],
