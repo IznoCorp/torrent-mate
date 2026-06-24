@@ -222,6 +222,10 @@ export default function App() {
   const isAdmin = active === "admin";
   // Admin/Ops is host-wide (daemon-scoped), like daemon + profiles.
   const daemonScope = isDaemon || isProfiles || isAdmin;
+  // Only these three tabs render an editable config draft (live `draft` + `update`
+  // + `onSave` → api.saveConfig). `validation`/`yaml` are read-only views, so the
+  // config toolbar (Save · Validate · HealthPill) is gated on this, not boardScope.
+  const configScope = ["columns", "transitions", "defaults"].includes(active);
 
   let content;
   if (isDaemon) {
@@ -308,6 +312,7 @@ export default function App() {
       onValidate={onValidate}
       onLogout={authEnabled ? onLogout : null}
       boardScope={!daemonScope}
+      configScope={configScope}
     >
       {content}
     </AppShell>

@@ -25,6 +25,7 @@ export default function AppShell({
   onValidate,
   onLogout = null,
   boardScope = true,
+  configScope = false,
   children,
 }) {
   const { t } = useT();
@@ -121,7 +122,7 @@ export default function AppShell({
             {t(headerTitle.tkey)}
           </span>
           <PwaInstallButton size="sm" />
-          {boardScope && (
+          {configScope && (
             <Tooltip
               label={
                 blocked
@@ -188,7 +189,7 @@ export default function AppShell({
                   gap: 8,
                 }}
               >
-                {boardScope && (
+                {configScope && (
                   <Button variant="secondary" size="md" onClick={onValidate}>
                     {t("common.validate")}
                   </Button>
@@ -391,7 +392,7 @@ export default function AppShell({
               </Button>
             </Tooltip>
           )}
-          {boardScope && (
+          {configScope && (
             <>
               <HealthPill
                 status={blocked ? "BLOCKED" : dirty ? "WAITING" : "ACTIVE"}
