@@ -69,40 +69,6 @@ def _scan_disk_incremental(config: Config, disk: str) -> int:
     return rc
 
 
-def _count_unlinked_files_for_disk(config: Config, disk_label: str) -> int:
-    """Count media_file rows with release_id=NULL on a specific disk.
-
-    Args:
-        config: Validated application Config.
-        disk_label: Disk label (e.g. ``"disk_1"``).
-
-    Returns:
-        Number of unlinked media_file rows (release_id IS NULL and not
-        soft-deleted) that live on the given disk.
-    """
-    import sqlite3
-
-    from personalscraper.indexer.db import _apply_pragmas
-
-    db_path = config.indexer.db_path
-    assert db_path is not None, "indexer.db_path must be resolved"
-    conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
-    _apply_pragmas(conn)
-    try:
-        row = conn.execute(
-            """
-            SELECT COUNT(*) FROM media_file mf
-            JOIN path p ON p.id = mf.path_id
-            JOIN disk d ON d.id = p.disk_id
-            WHERE d.label = ? AND mf.release_id IS NULL AND mf.deleted_at IS NULL
-            """,
-            (disk_label,),
-        ).fetchone()
-        return int(row[0]) if row else 0
-    finally:
-        conn.close()
-
-
 def _run_relink(config: Config) -> dict[str, int]:
     """Relink ``media_file`` rows with ``release_id IS NULL``.
 
@@ -250,34 +216,16 @@ def run_post_dispatch_maintenance(
     _log.info("post_maintenance_start", disks=sorted(touched_disks))
 
     # Per-disk incremental scan — sequential (parallel dies on SQLite writer lock).
+    # New dispatched dirs have new mtimes → incremental walks them.
+    # Fallback: if items remain unlinked after incremental, the fail-soft
+    # warning + manual fallback command is logged for the operator (no
+    # automatic full scan — operator decision, 2026-06-30).
     scan_failures: list[str] = []
     for disk in sorted(touched_disks):
         try:
             rc = _scan_disk_incremental(config, disk)
             if rc != 0:
                 scan_failures.append(disk)
-                continue
-            # Fallback: if items on this disk still have 0 linked files,
-            # incremental might have missed them → re-run full.
-            # (DESIGN index-sync Risk §1)
-            unlinked = _count_unlinked_files_for_disk(config, disk)
-            if unlinked > 0:
-                _log.warning(
-                    "post_maintenance_incremental_missed",
-                    disk=disk,
-                    unlinked_files=unlinked,
-                )
-                from personalscraper.core.event_bus import EventBus
-                from personalscraper.indexer.commands.scan import library_index_command
-
-                rc_full = library_index_command(
-                    mode="full",
-                    disk=disk,
-                    no_budget=True,
-                    event_bus=EventBus(),
-                )
-                if rc_full != 0:
-                    scan_failures.append(disk)
         except Exception as exc:
             scan_failures.append(disk)
             _log.warning("post_maintenance_scan_exception", disk=disk, error=str(exc))

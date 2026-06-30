@@ -67,8 +67,9 @@ SQLite writer lock):
 1. `library-index --mode incremental --disk D --no-budget`
    - incremental (NOT quick): quick's merkle short-circuit would not re-stage new items and
      a post-maintenance quick scan trips the bulk-restore freeze guard.
-   - fallback: if a post-scan check shows a dispatched item on `D` still has no linked
-     files, re-run `--mode full --disk D --no-budget` once for that disk.
+   - new dispatched dirs have new mtimes → incremental walks them. If items remain
+     unlinked, the fail-soft warning + manual fallback command is logged for the operator
+     (no automatic full scan — operator decision, 2026-06-30).
      Then once, globally (these are fast, DB-only):
 2. `library-relink --apply`
 3. `library-fix-season-counts --apply`
@@ -166,9 +167,10 @@ have linked files). Recorded in the phase report with before/after `items_withou
 
 ## Risks
 
-- Incremental scan might not re-stage brand-new dispatched dirs the way full does → the
-  validation phase MUST verify and wire the full `--disk` fallback. This is the main
-  technical unknown.
+- Incremental scan might not re-stage brand-new dispatched dirs. New dispatched dirs have
+  new mtimes → incremental walks them. If items remain unlinked, the fail-soft warning +
+  manual fallback command is logged for the operator (no automatic full scan — operator
+  decision, 2026-06-30).
 - Scan duration on a large touched disk (disk_1 ~12 min for full). incremental should be
   far faster; if not acceptable, the opt-out flag is the escape hatch.
 - Writer-lock contention if another indexer process runs concurrently → the hook should

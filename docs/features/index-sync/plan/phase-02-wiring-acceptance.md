@@ -465,149 +465,37 @@ git commit -m "test(index-sync): add integration + regression test for items_wit
 
 ---
 
-### Sub-phase 2.5: Validation — incremental indexes new items, fallback check
+### Sub-phase 2.5: Validation — incremental indexes new items (auto-fallback removed)
 
 **Files:**
 
-- No new files (manual validation + code guard)
+- No new files (manual validation — code guard removed per operator)
 
 **Commit**: `chore(index-sync): validate incremental scan indexes dispatched items`
 
-This sub-phase is **validation**, not implementation. The DESIGN's Risk §1 says:
+**Status**: ~~Done~~ — auto-fallback REMOVED per operator decision (2026-06-30).
+
+This sub-phase was **validation**, not implementation. The DESIGN's Risk §1 originally read:
 "Incremental scan might not re-stage brand-new dispatched dirs the way full does."
 
-- [ ] **Step 1: Manual check — scan mode understanding**
+The plan called for a full-scan fallback when incremental left unlinked files —
+`_count_unlinked_files_for_disk` + `library_index_command(mode="full", ...)`.
+However, this fired on every dispatch (counted `release_id IS NULL` BEFORE relink
 
-Verify by reading `personalscraper/indexer/scanner/` that `--mode incremental` walks the full filesystem and re-stages files with new or changed mtimes (not just files known from a prior full scan). The DESIGN explicitly chooses incremental over quick because quick's merkle short-circuit would skip new dirs.
+- standing orphans already exist → library-wide full scan every time, defeating
+  the incremental design).
 
-Read the incremental scan implementation:
+**Operator decision (2026-06-30):** REMOVE the auto full-scan fallback entirely.
+New dispatched dirs have new mtimes → incremental walks them. If items remain
+unlinked, the fail-soft warning + manual fallback command is logged for the
+operator (no automatic full scan). The `_count_unlinked_files_for_disk` function
+was deleted and the fallback block was stripped from the per-disk scan loop.
 
-```bash
-# Locate the incremental mode handler
-grep -rn "incremental" --type py personalscraper/indexer/scanner/ | head -10
-```
-
-- [ ] **Step 2: Code guard — if a dispatched item on D still has no linked files after incremental scan, re-run full --disk D**
-
-Add to `run_post_dispatch_maintenance` in `personalscraper/dispatch/post_maintenance.py` a fallback check after each per-disk scan:
-
-```python
-# After each incremental scan, check if any newly dispatched items on this
-# disk still have 0 linked files. If so, fall back to full scan for that disk.
-# This handles the DESIGN Risk §1: incremental might not re-stage brand-new
-# dispatched directories the way full does.
-
-def _count_unlinked_files_for_disk(config: Config, disk_label: str) -> int:
-    """Count media_file rows with release_id=NULL on a specific disk."""
-    import sqlite3
-    from personalscraper.indexer.db import _apply_pragmas
-
-    db_path = config.indexer.db_path
-    assert db_path is not None
-    conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
-    _apply_pragmas(conn)
-    try:
-        row = conn.execute(
-            """
-            SELECT COUNT(*) FROM media_file mf
-            JOIN path p ON p.id = mf.path_id
-            JOIN disk d ON d.id = p.disk_id
-            WHERE d.label = ? AND mf.release_id IS NULL AND mf.deleted_at IS NULL
-            """,
-            (disk_label,),
-        ).fetchone()
-        return int(row[0]) if row else 0
-    finally:
-        conn.close()
-```
-
-And in the per-disk loop in `run_post_dispatch_maintenance`:
-
-```python
-for disk in sorted(touched_disks):
-    try:
-        rc = _scan_disk_incremental(config, disk)
-        if rc != 0:
-            scan_failures.append(disk)
-            continue
-        # Fallback: if items on this disk still have 0 linked files,
-        # incremental might have missed them → re-run full.
-        unlinked = _count_unlinked_files_for_disk(config, disk)
-        if unlinked > 0:
-            _log.warning(
-                "post_maintenance_incremental_missed",
-                disk=disk,
-                unlinked_files=unlinked,
-            )
-            from personalscraper.core.event_bus import EventBus
-            from personalscraper.indexer.cli import library_index_command
-
-            rc_full = library_index_command(
-                mode="full",
-                disk=disk,
-                no_budget=True,
-                event_bus=EventBus(),
-            )
-            if rc_full != 0:
-                scan_failures.append(disk)
-    except Exception as exc:
-        scan_failures.append(disk)
-        _log.warning("post_maintenance_scan_exception", disk=disk, error=str(exc))
-```
-
-- [ ] **Step 3: Unit test for the fallback path**
-
-Add to `tests/dispatch/test_post_maintenance.py`:
-
-```python
-def test_full_scan_fallback_when_incremental_leaves_unlinked(
-    mock_config: MagicMock,
-) -> None:
-    """When incremental scan leaves unlinked files, fall back to full scan."""
-    with (
-        patch(
-            "personalscraper.dispatch.post_maintenance._scan_disk_incremental",
-            return_value=0,
-        ) as mock_incr,
-        patch(
-            "personalscraper.dispatch.post_maintenance._count_unlinked_files_for_disk",
-            return_value=3,  # 3 files still unlinked after incremental
-        ) as mock_count,
-        patch(
-            "personalscraper.dispatch.post_maintenance.library_index_command",
-            return_value=0,
-        ) as mock_full,
-        patch(
-            "personalscraper.dispatch.post_maintenance._run_relink",
-            return_value={"linked": 0, "unmatched": 0, "errors": 0},
-        ),
-        patch(
-            "personalscraper.dispatch.post_maintenance._run_fix_season_counts",
-            return_value=0,
-        ),
-    ):
-        run_post_dispatch_maintenance(mock_config, {"disk_1"}, enabled=True)
-        mock_incr.assert_called_once_with(mock_config, "disk_1")
-        mock_count.assert_called_once_with(mock_config, "disk_1")
-        # Full scan called as fallback
-        mock_full.assert_called_once()
-        assert mock_full.call_args.kwargs["mode"] == "full"
-        assert mock_full.call_args.kwargs["disk"] == "disk_1"
-```
-
-- [ ] **Step 4: Run all post_maintenance tests**
-
-```bash
-python -m pytest tests/dispatch/test_post_maintenance.py tests/dispatch/test_post_maintenance_integration.py -v
-# Expected: all tests pass (7 unit + 2 integration + 1 fallback = 10 tests)
-```
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add personalscraper/dispatch/post_maintenance.py tests/dispatch/test_post_maintenance.py
-git commit -m "chore(index-sync): add full-scan fallback when incremental leaves unlinked files"
-```
+- [x] **Step 1: Manual check — scan mode understanding** (done, validated)
+- [x] **Step 2: Code guard removed** — operator decision
+- [x] **Step 3: Unit test deleted** — `test_full_scan_fallback_when_incremental_leaves_unlinked` removed
+- [x] **Step 4: Tests pass without the fallback**
+- [x] **Step 5: Committed** (see current commit)
 
 ---
 
