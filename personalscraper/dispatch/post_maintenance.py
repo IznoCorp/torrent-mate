@@ -77,12 +77,7 @@ def _run_relink(config: Config) -> dict[str, int]:
     linked = unmatched = errors = 0
     try:
         conn.execute("BEGIN IMMEDIATE")
-        disks = {
-            did: Path(mp)
-            for did, mp in conn.execute(
-                "SELECT id, mount_path FROM disk WHERE is_mounted = 1"
-            )
-        }
+        disks = {did: Path(mp) for did, mp in conn.execute("SELECT id, mount_path FROM disk WHERE is_mounted = 1")}
         if not disks:
             _log.info("post_maintenance_relink_no_disks")
             return {"linked": 0, "unmatched": 0, "errors": 0}

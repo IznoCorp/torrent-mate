@@ -49,7 +49,10 @@ def test_sequential_per_disk_scan(mock_config: MagicMock) -> None:
     touched = {"disk_1", "disk_2"}
     with (
         patch("personalscraper.dispatch.post_maintenance._scan_disk_incremental", return_value=0) as mock_scan,
-        patch("personalscraper.dispatch.post_maintenance._run_relink", return_value={"linked": 0, "unmatched": 0, "errors": 0}),
+        patch(
+            "personalscraper.dispatch.post_maintenance._run_relink",
+            return_value={"linked": 0, "unmatched": 0, "errors": 0},
+        ),
         patch("personalscraper.dispatch.post_maintenance._run_fix_season_counts", return_value=0),
     ):
         run_post_dispatch_maintenance(mock_config, touched, enabled=True)
@@ -63,7 +66,10 @@ def test_relink_and_fix_called_after_scans(mock_config: MagicMock) -> None:
     """Relink and fix-season-counts are each called exactly once after all scans."""
     with (
         patch("personalscraper.dispatch.post_maintenance._scan_disk_incremental", return_value=0) as mock_scan,
-        patch("personalscraper.dispatch.post_maintenance._run_relink", return_value={"linked": 3, "unmatched": 0, "errors": 0}) as mock_relink,
+        patch(
+            "personalscraper.dispatch.post_maintenance._run_relink",
+            return_value={"linked": 3, "unmatched": 0, "errors": 0},
+        ) as mock_relink,
         patch("personalscraper.dispatch.post_maintenance._run_fix_season_counts", return_value=5) as mock_fix,
     ):
         run_post_dispatch_maintenance(mock_config, {"disk_1"}, enabled=True)
@@ -76,7 +82,10 @@ def test_fail_soft_scan_exception_swallowed(mock_config: MagicMock) -> None:
     """An exception in a scan step is caught and does NOT propagate."""
     with (
         patch("personalscraper.dispatch.post_maintenance._scan_disk_incremental", side_effect=RuntimeError("boom")),
-        patch("personalscraper.dispatch.post_maintenance._run_relink", return_value={"linked": 0, "unmatched": 0, "errors": 0}),
+        patch(
+            "personalscraper.dispatch.post_maintenance._run_relink",
+            return_value={"linked": 0, "unmatched": 0, "errors": 0},
+        ),
         patch("personalscraper.dispatch.post_maintenance._run_fix_season_counts", return_value=0),
     ):
         # Must not raise
@@ -97,7 +106,10 @@ def test_fail_soft_fix_exception_swallowed(mock_config: MagicMock) -> None:
     """An exception in fix-season-counts is caught and does NOT propagate."""
     with (
         patch("personalscraper.dispatch.post_maintenance._scan_disk_incremental", return_value=0),
-        patch("personalscraper.dispatch.post_maintenance._run_relink", return_value={"linked": 0, "unmatched": 0, "errors": 0}),
+        patch(
+            "personalscraper.dispatch.post_maintenance._run_relink",
+            return_value={"linked": 0, "unmatched": 0, "errors": 0},
+        ),
         patch("personalscraper.dispatch.post_maintenance._run_fix_season_counts", side_effect=RuntimeError("boom")),
     ):
         run_post_dispatch_maintenance(mock_config, {"disk_1"}, enabled=True)
