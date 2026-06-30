@@ -23,5 +23,8 @@
     log: {
       deleted_item_retention_days: 365,
     },
+    post_dispatch_maintenance: {
+      enabled: true,                        // auto-run index maintenance after dispatch
+    },
   },
 }

@@ -114,6 +114,18 @@ class IndexerLogConfig(_StrictModel):
     )
 
 
+class PostDispatchMaintenanceConfig(_StrictModel):
+    """Post-dispatch index maintenance tunables.
+
+    Attributes:
+        enabled: When ``True`` (default), automatically run per-disk
+            incremental scan + relink + fix-season-counts after every
+            dispatch that moved ≥1 item.
+    """
+
+    enabled: bool = Field(default=True, description="Run index maintenance automatically after dispatch.")
+
+
 class IndexerConfig(_StrictModel):
     """Configuration for the media indexer sub-system (DESIGN §5.3).
 
@@ -144,6 +156,9 @@ class IndexerConfig(_StrictModel):
     drift: IndexerDriftConfig = Field(default_factory=IndexerDriftConfig)
     spotlight: IndexerSpotlightConfig = Field(default_factory=IndexerSpotlightConfig)
     log: IndexerLogConfig = Field(default_factory=IndexerLogConfig)
+    post_dispatch_maintenance: PostDispatchMaintenanceConfig = Field(
+        default_factory=PostDispatchMaintenanceConfig,
+    )
 
     @field_validator("db_path", mode="after")
     @classmethod
