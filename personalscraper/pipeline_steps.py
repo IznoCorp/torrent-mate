@@ -292,9 +292,9 @@ class DispatchStep:
         if maintenance_enabled:
             maintenance_enabled = ctx.app.config.indexer.post_dispatch_maintenance.enabled
 
-        touched_disks: set[str] = {
-            r.disk for r in results if r.disk is not None and r.action in ("moved", "merged", "replaced")
-        }
+        from personalscraper.dispatch.post_maintenance import collect_touched_disks
+
+        touched_disks = collect_touched_disks(results)
         if touched_disks and maintenance_enabled and not ctx.dry_run:
             from personalscraper.dispatch.post_maintenance import run_post_dispatch_maintenance
 

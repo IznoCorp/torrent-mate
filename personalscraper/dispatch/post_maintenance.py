@@ -21,6 +21,22 @@ if TYPE_CHECKING:
 _log = get_logger("dispatch.post_maintenance")
 
 
+def collect_touched_disks(results: list) -> set[str]:  # type: ignore[type-arg]
+    """Collect distinct, non-None disk labels from dispatch results.
+
+    Extracts the ``disk`` attribute from every :class:`DispatchResult` whose
+    ``action`` is ``moved``, ``merged``, or ``replaced``.
+
+    Args:
+        results: Raw per-item dispatch results from :func:`run_dispatch`.
+
+    Returns:
+        Distinct set of disk labels (e.g. ``{"disk_1", "disk_2"}``). Empty
+        set if no items were actually dispatched.
+    """
+    return {r.disk for r in results if r.disk is not None and r.action in ("moved", "merged", "replaced")}
+
+
 def _scan_disk_incremental(config: Config, disk: str) -> int:
     """Run ``library-index --mode incremental --disk D --no-budget``.
 

@@ -295,9 +295,9 @@ def dispatch(
             report, results = run_dispatch(settings, config=config, dry_run=dry_run, event_bus=app_context.event_bus)
 
         # Collect touched disks from DispatchResult objects (index-sync DESIGN).
-        touched_disks: set[str] = {
-            r.disk for r in results if r.disk is not None and r.action in ("moved", "merged", "replaced")
-        }
+        from personalscraper.dispatch.post_maintenance import collect_touched_disks
+
+        touched_disks = collect_touched_disks(results)
 
         # Resolve post-maintenance enablement: flag > config > default(true).
         maintenance_enabled = not no_post_maintenance
