@@ -129,7 +129,7 @@ class TestDispatchCommand:
         """Dispatch runs and prints summary line."""
         with patch(
             "personalscraper.dispatch.run.run_dispatch",
-            return_value=_step("dispatch"),
+            return_value=(_step("dispatch"), []),
         ):
             result = runner.invoke(app, ["dispatch"])
         assert result.exit_code == 0
@@ -139,7 +139,7 @@ class TestDispatchCommand:
         """--dry-run is forwarded."""
         with patch(
             "personalscraper.dispatch.run.run_dispatch",
-            return_value=_step("dispatch"),
+            return_value=(_step("dispatch"), []),
         ) as mock_run:
             result = runner.invoke(app, ["dispatch", "--dry-run"])
         assert result.exit_code == 0
@@ -150,7 +150,7 @@ class TestDispatchCommand:
         """--verbose prints detail lines."""
         with patch(
             "personalscraper.dispatch.run.run_dispatch",
-            return_value=_step("dispatch"),
+            return_value=(_step("dispatch"), []),
         ):
             result = runner.invoke(app, ["--verbose", "dispatch"])
         assert result.exit_code == 0

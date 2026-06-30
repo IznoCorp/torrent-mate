@@ -48,7 +48,7 @@ def test_dispatch_no_items_noop(
     mock_settings,
 ) -> None:
     """No verified items → zero ops, exit 0."""
-    mock_run.return_value = StepReport(name="dispatch")
+    mock_run.return_value = (StepReport(name="dispatch"), [])
     mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["dispatch"])
@@ -69,17 +69,20 @@ def test_dispatch_mixed_results(
     mock_settings,
 ) -> None:
     """Some items dispatched, some skipped, some errors → summary reflects all."""
-    mock_run.return_value = StepReport(
-        name="dispatch",
-        success_count=2,
-        skip_count=1,
-        error_count=1,
-        details=[
-            "action=moved     Inception (2010) → Disk1",
-            "action=merged    Show.S01 → Disk2",
-            "action=skipped   Small.File.mkv: too small",
-            "action=error     Bad.Item: no space",
-        ],
+    mock_run.return_value = (
+        StepReport(
+            name="dispatch",
+            success_count=2,
+            skip_count=1,
+            error_count=1,
+            details=[
+                "action=moved     Inception (2010) → Disk1",
+                "action=merged    Show.S01 → Disk2",
+                "action=skipped   Small.File.mkv: too small",
+                "action=error     Bad.Item: no space",
+            ],
+        ),
+        [],
     )
     mock_settings.return_value = make_typed_settings_stub()
 
@@ -103,7 +106,10 @@ def test_dispatch_all_skipped(
     mock_settings,
 ) -> None:
     """All items skipped (e.g., all duplicates) → zero dispatch, exit 0."""
-    mock_run.return_value = StepReport(name="dispatch", skip_count=3, details=["action=skipped  dup: already on disk"])
+    mock_run.return_value = (
+        StepReport(name="dispatch", skip_count=3, details=["action=skipped  dup: already on disk"]),
+        [],
+    )
     mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["dispatch"])
@@ -145,10 +151,13 @@ def test_dispatch_all_errors(
     mock_settings,
 ) -> None:
     """run_dispatch reports all errors → exit 0, errors in summary."""
-    mock_run.return_value = StepReport(
-        name="dispatch",
-        error_count=2,
-        details=["action=error    item_1: disk full", "action=error    item_2: permission denied"],
+    mock_run.return_value = (
+        StepReport(
+            name="dispatch",
+            error_count=2,
+            details=["action=error    item_1: disk full", "action=error    item_2: permission denied"],
+        ),
+        [],
     )
     mock_settings.return_value = make_typed_settings_stub()
 
@@ -172,7 +181,7 @@ def test_dispatch_idempotent(
     mock_settings,
 ) -> None:
     """Two consecutive dispatch calls exit 0, mock called twice."""
-    mock_run.return_value = StepReport(name="dispatch", skip_count=5)
+    mock_run.return_value = (StepReport(name="dispatch", skip_count=5), [])
     mock_settings.return_value = make_typed_settings_stub()
 
     r1 = run_cli(["dispatch"])
@@ -198,7 +207,7 @@ def test_dispatch_dry_run_forwards_flag(
     mock_settings,
 ) -> None:
     """--dry-run flag is forwarded to run_dispatch."""
-    mock_run.return_value = StepReport(name="dispatch")
+    mock_run.return_value = (StepReport(name="dispatch"), [])
     mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["dispatch", "--dry-run"])
@@ -222,7 +231,7 @@ def test_dispatch_output_no_traceback(
     mock_settings,
 ) -> None:
     """Output is Rich-formatted, never a raw Python traceback."""
-    mock_run.return_value = StepReport(name="dispatch", success_count=1)
+    mock_run.return_value = (StepReport(name="dispatch", success_count=1), [])
     mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["dispatch"])
@@ -242,7 +251,7 @@ def test_dispatch_summary_always_printed(
     mock_settings,
 ) -> None:
     """Even on errors, the summary line is always printed."""
-    mock_run.return_value = StepReport(name="dispatch", error_count=3)
+    mock_run.return_value = (StepReport(name="dispatch", error_count=3), [])
     mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["dispatch"])
@@ -263,10 +272,13 @@ def test_dispatch_verbose_prints_details(
     mock_settings,
 ) -> None:
     """--verbose prints per-item detail lines from the report."""
-    mock_run.return_value = StepReport(
-        name="dispatch",
-        success_count=1,
-        details=["action=moved     Inception (2010) → Disk1"],
+    mock_run.return_value = (
+        StepReport(
+            name="dispatch",
+            success_count=1,
+            details=["action=moved     Inception (2010) → Disk1"],
+        ),
+        [],
     )
     mock_settings.return_value = make_typed_settings_stub()
 
@@ -306,7 +318,7 @@ def test_dispatch_emits_item_progressed_events(
                     details={"dest": "/Volumes/Disk1/001-MOVIES/Test (2024)", "disk": "Disk1"},
                 )
             )
-        return StepReport(name="dispatch", success_count=1)
+        return StepReport(name="dispatch", success_count=1), []
 
     with patch("personalscraper.dispatch.run.run_dispatch", side_effect=_emit_and_return):
         result = run_cli(["dispatch"])
