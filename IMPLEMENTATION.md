@@ -7,7 +7,7 @@
 **Version bump**: 0.37.0 → 0.38.0 (minor)
 **Branch**: feat/index-sync
 **PR merge**: auto
-**PR**: _(created after last phase)_
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/211
 **Design**: docs/features/index-sync/DESIGN.md
 **Master plan**: docs/features/index-sync/plan/INDEX.md
 
