@@ -9,11 +9,14 @@
 **PR merge**: auto
 **PR**: _(created after last phase)_
 **Design**: docs/features/index-sync/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/index-sync/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                        | File                          | Status |
+| --- | -------------------------------------------- | ----------------------------- | ------ |
+| 1   | Core function + config + flag + unit tests   | phase-01-core-function.md     | [ ]    |
+| 2   | Wiring + integration + regression + ACC gate | phase-02-wiring-acceptance.md | [ ]    |
 
 ## Review cycles
 
@@ -21,4 +24,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start Phase 1.
