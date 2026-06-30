@@ -16,7 +16,7 @@
 | #   | Phase                                        | File                          | Status |
 | --- | -------------------------------------------- | ----------------------------- | ------ |
 | 1   | Core function + config + flag + unit tests   | phase-01-core-function.md     | [x]    |
-| 2   | Wiring + integration + regression + ACC gate | phase-02-wiring-acceptance.md | [ ]    |
+| 2   | Wiring + integration + regression + ACC gate | phase-02-wiring-acceptance.md | [x]    |
 
 ## Review cycles
 
@@ -24,4 +24,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 2.
+All phases complete — run /implement:feature-pr (push + PR + CI + squash merge auto).
