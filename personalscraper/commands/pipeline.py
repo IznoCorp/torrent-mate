@@ -304,7 +304,7 @@ def dispatch(
         if maintenance_enabled:
             maintenance_enabled = config.indexer.post_dispatch_maintenance.enabled
 
-        if touched_disks:
+        if touched_disks and not dry_run:
             from personalscraper.dispatch.post_maintenance import run_post_dispatch_maintenance
 
             run_post_dispatch_maintenance(config, touched_disks, enabled=maintenance_enabled)
