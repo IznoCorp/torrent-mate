@@ -231,30 +231,40 @@ def run_post_dispatch_maintenance(
             _log.warning("post_maintenance_scan_exception", disk=disk, error=str(exc))
 
     # Global relink — fast, DB-only.
+    relink_failed = False
     try:
         relink_counts = _run_relink(config)
     except Exception as exc:
         relink_counts = {"linked": 0, "unmatched": 0, "errors": 0}
+        relink_failed = True
         _log.warning("post_maintenance_relink_exception", error=str(exc))
 
     # Global fix-season-counts — fast, DB-only.
+    fix_failed = False
     try:
         fixed_seasons = _run_fix_season_counts(config)
     except Exception as exc:
         fixed_seasons = 0
+        fix_failed = True
         _log.warning("post_maintenance_fix_season_counts_exception", error=str(exc))
 
     # Print manual fallback if anything failed.
-    if scan_failures or relink_counts.get("errors", 0) > 0:
-        disks_str = " ".join("--disk " + d for d in scan_failures) if scan_failures else ""
+    # DESIGN Decision #2: surface manual fallback on ANY maintenance error,
+    # including total _run_relink or _run_fix_season_counts exceptions.
+    if scan_failures or relink_failed or fix_failed or relink_counts.get("errors", 0) > 0:
+        if scan_failures:
+            disks_str = " ".join("--disk " + d for d in scan_failures)
+            manual_fallback = (
+                f"library-index --mode full {disks_str} --no-budget && "
+                f"library-relink --apply && library-fix-season-counts --apply"
+            )
+        else:
+            manual_fallback = "library-relink --apply && library-fix-season-counts --apply"
         _log.warning(
             "post_maintenance_incomplete",
             failed_disks=scan_failures,
             relink_errors=relink_counts.get("errors", 0),
-            manual_fallback=(
-                f"library-index --mode full {disks_str} --no-budget && "
-                f"library-relink --apply && library-fix-season-counts --apply"
-            ).strip(),
+            manual_fallback=manual_fallback,
         )
 
     _log.info(
