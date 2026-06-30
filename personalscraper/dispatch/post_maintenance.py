@@ -49,6 +49,10 @@ def _scan_disk_incremental(config: Config, disk: str) -> int:
     Returns:
         Exit code (0 = success, non-zero = failure).
     """
+    # Warm the cli<->scan circular import chain so the scan import never
+    # fails in a cold process (scan.py:13 ↔ cli.py:21 circular dependency).
+    import personalscraper.indexer.cli as _cli  # noqa: F401
+    from personalscraper.conf.loader import resolve_config_path
     from personalscraper.core.event_bus import EventBus
     from personalscraper.indexer.commands.scan import library_index_command
 
@@ -58,6 +62,7 @@ def _scan_disk_incremental(config: Config, disk: str) -> int:
         disk=disk,
         no_budget=True,
         event_bus=EventBus(),
+        config_path=resolve_config_path(),
         # wait_for_lock: 0 means fail immediately if locked — consistent
         # with the CLI default. The dispatch command already holds
         # pipeline.lock so no concurrent indexer should be running.
@@ -161,7 +166,7 @@ def _run_fix_season_counts(config: Config) -> int:
     db_path = config.indexer.db_path
     assert db_path is not None, "indexer.db_path must be resolved"
 
-    conn = sqlite3.connect(str(db_path))
+    conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
     _apply_pragmas(conn)
     try:
         conn.execute("BEGIN IMMEDIATE")
