@@ -293,6 +293,22 @@ def dispatch(
         settings = cli_compat.get_settings()
         with per_step_boundary(config, settings) as app_context:
             report, results = run_dispatch(settings, config=config, dry_run=dry_run, event_bus=app_context.event_bus)
+
+        # Collect touched disks from DispatchResult objects (index-sync DESIGN).
+        touched_disks: set[str] = {
+            r.disk for r in results if r.disk is not None and r.action in ("moved", "merged", "replaced")
+        }
+
+        # Resolve post-maintenance enablement: flag > config > default(true).
+        maintenance_enabled = not no_post_maintenance
+        if maintenance_enabled:
+            maintenance_enabled = config.indexer.post_dispatch_maintenance.enabled
+
+        if touched_disks:
+            from personalscraper.dispatch.post_maintenance import run_post_dispatch_maintenance
+
+            run_post_dispatch_maintenance(config, touched_disks, enabled=maintenance_enabled)
+
         console.print(
             f"[bold]Dispatch:[/bold] {report.success_count} OK, "
             f"{report.skip_count} skipped, {report.error_count} errors"
