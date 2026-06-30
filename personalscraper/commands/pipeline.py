@@ -274,6 +274,11 @@ def enforce(
 def dispatch(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
+    no_post_maintenance: bool = typer.Option(
+        False,
+        "--no-post-maintenance",
+        help="Skip automatic index maintenance after dispatch (scan/relink/fix).",
+    ),
 ) -> None:
     """Move media to storage disks."""
     from personalscraper.dispatch.run import run_dispatch
