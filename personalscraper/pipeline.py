@@ -265,6 +265,7 @@ class Pipeline:
         step_overrides: Mapping[str, Callable[..., Any]] | None = None,
         skip_trailers: bool = False,
         continue_on_trailer_error: bool = False,
+        no_post_maintenance: bool = False,
     ) -> PipelineReport:
         """Execute all pipeline phases sequentially with gates.
 
@@ -287,6 +288,9 @@ class Pipeline:
             continue_on_trailer_error: When True, log the trailers step
                 error and proceed to dispatch; when False (the default),
                 abort dispatch on a trailers step error.
+            no_post_maintenance: When True, skip post-dispatch index
+                maintenance (scan/relink/fix) even when the config toggle
+                is enabled. Defaults to ``False``.
 
         Returns:
             PipelineReport with 9 StepReports (ingest, sort, clean,
@@ -320,6 +324,7 @@ class Pipeline:
         report = PipelineReport(started_at=datetime.now())
         extras: dict[str, Any] = {
             "skip_trailers": self.skip_trailers,
+            "no_post_maintenance": no_post_maintenance,
             # Step adapters that need the registry (currently ``ScrapeStep``)
             # pick it up via ``ctx.extras["registry"]``. Keeping it here avoids
             # widening ``AppContext`` (boundary-only rule, DESIGN §Architecture).

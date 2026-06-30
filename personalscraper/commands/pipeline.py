@@ -483,6 +483,11 @@ def run(
             "Disables Rich console output and Telegram notifications."
         ),
     ),
+    no_post_maintenance: bool = typer.Option(
+        False,
+        "--no-post-maintenance",
+        help="Skip automatic index maintenance after dispatch (scan/relink/fix).",
+    ),
 ) -> None:
     """Execute all pipeline phases via ``Pipeline.run``.
 
@@ -602,6 +607,7 @@ def run(
                         verbose=verbose,
                         skip_trailers=effective_skip_trailers,
                         continue_on_trailer_error=effective_continue_on_trailer_error,
+                        no_post_maintenance=no_post_maintenance,
                     )
                 finally:
                     if rich_subscriber is not None:
