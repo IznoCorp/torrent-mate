@@ -6,6 +6,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# Pre-load cli so personalscraper.indexer.commands.scan is importable.
+# scan.py has a circular import with cli.py; patching its module path
+# requires the module to already be in sys.modules as an attribute of
+# the commands package.
+import personalscraper.indexer.cli  # noqa: F401  # needed for mock patch path
 from personalscraper.dispatch.post_maintenance import run_post_dispatch_maintenance
 
 
@@ -113,3 +118,38 @@ def test_fail_soft_fix_exception_swallowed(mock_config: MagicMock) -> None:
         patch("personalscraper.dispatch.post_maintenance._run_fix_season_counts", side_effect=RuntimeError("boom")),
     ):
         run_post_dispatch_maintenance(mock_config, {"disk_1"}, enabled=True)
+
+
+def test_full_scan_fallback_when_incremental_leaves_unlinked(
+    mock_config: MagicMock,
+) -> None:
+    """When incremental scan leaves unlinked files, fall back to full scan."""
+    with (
+        patch(
+            "personalscraper.dispatch.post_maintenance._scan_disk_incremental",
+            return_value=0,
+        ) as mock_incr,
+        patch(
+            "personalscraper.dispatch.post_maintenance._count_unlinked_files_for_disk",
+            return_value=3,  # 3 files still unlinked after incremental
+        ) as mock_count,
+        patch(
+            "personalscraper.indexer.commands.scan.library_index_command",
+            return_value=0,
+        ) as mock_full,
+        patch(
+            "personalscraper.dispatch.post_maintenance._run_relink",
+            return_value={"linked": 0, "unmatched": 0, "errors": 0},
+        ),
+        patch(
+            "personalscraper.dispatch.post_maintenance._run_fix_season_counts",
+            return_value=0,
+        ),
+    ):
+        run_post_dispatch_maintenance(mock_config, {"disk_1"}, enabled=True)
+        mock_incr.assert_called_once_with(mock_config, "disk_1")
+        mock_count.assert_called_once_with(mock_config, "disk_1")
+        # Full scan called as fallback
+        mock_full.assert_called_once()
+        assert mock_full.call_args.kwargs["mode"] == "full"
+        assert mock_full.call_args.kwargs["disk"] == "disk_1"
