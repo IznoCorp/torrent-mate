@@ -48,7 +48,7 @@ def test_dispatch_no_items_noop(
     mock_settings,
 ) -> None:
     """No verified items → zero ops, exit 0."""
-    mock_run.return_value = StepReport(name="dispatch")
+    mock_run.return_value = (StepReport(name="dispatch"), [])
     mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["dispatch"])
@@ -69,17 +69,20 @@ def test_dispatch_mixed_results(
     mock_settings,
 ) -> None:
     """Some items dispatched, some skipped, some errors → summary reflects all."""
-    mock_run.return_value = StepReport(
-        name="dispatch",
-        success_count=2,
-        skip_count=1,
-        error_count=1,
-        details=[
-            "action=moved     Inception (2010) → Disk1",
-            "action=merged    Show.S01 → Disk2",
-            "action=skipped   Small.File.mkv: too small",
-            "action=error     Bad.Item: no space",
-        ],
+    mock_run.return_value = (
+        StepReport(
+            name="dispatch",
+            success_count=2,
+            skip_count=1,
+            error_count=1,
+            details=[
+                "action=moved     Inception (2010) → Disk1",
+                "action=merged    Show.S01 → Disk2",
+                "action=skipped   Small.File.mkv: too small",
+                "action=error     Bad.Item: no space",
+            ],
+        ),
+        [],
     )
     mock_settings.return_value = make_typed_settings_stub()
 
@@ -103,7 +106,10 @@ def test_dispatch_all_skipped(
     mock_settings,
 ) -> None:
     """All items skipped (e.g., all duplicates) → zero dispatch, exit 0."""
-    mock_run.return_value = StepReport(name="dispatch", skip_count=3, details=["action=skipped  dup: already on disk"])
+    mock_run.return_value = (
+        StepReport(name="dispatch", skip_count=3, details=["action=skipped  dup: already on disk"]),
+        [],
+    )
     mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["dispatch"])
@@ -145,10 +151,13 @@ def test_dispatch_all_errors(
     mock_settings,
 ) -> None:
     """run_dispatch reports all errors → exit 0, errors in summary."""
-    mock_run.return_value = StepReport(
-        name="dispatch",
-        error_count=2,
-        details=["action=error    item_1: disk full", "action=error    item_2: permission denied"],
+    mock_run.return_value = (
+        StepReport(
+            name="dispatch",
+            error_count=2,
+            details=["action=error    item_1: disk full", "action=error    item_2: permission denied"],
+        ),
+        [],
     )
     mock_settings.return_value = make_typed_settings_stub()
 
@@ -172,7 +181,7 @@ def test_dispatch_idempotent(
     mock_settings,
 ) -> None:
     """Two consecutive dispatch calls exit 0, mock called twice."""
-    mock_run.return_value = StepReport(name="dispatch", skip_count=5)
+    mock_run.return_value = (StepReport(name="dispatch", skip_count=5), [])
     mock_settings.return_value = make_typed_settings_stub()
 
     r1 = run_cli(["dispatch"])
@@ -198,7 +207,7 @@ def test_dispatch_dry_run_forwards_flag(
     mock_settings,
 ) -> None:
     """--dry-run flag is forwarded to run_dispatch."""
-    mock_run.return_value = StepReport(name="dispatch")
+    mock_run.return_value = (StepReport(name="dispatch"), [])
     mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["dispatch", "--dry-run"])
@@ -222,7 +231,7 @@ def test_dispatch_output_no_traceback(
     mock_settings,
 ) -> None:
     """Output is Rich-formatted, never a raw Python traceback."""
-    mock_run.return_value = StepReport(name="dispatch", success_count=1)
+    mock_run.return_value = (StepReport(name="dispatch", success_count=1), [])
     mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["dispatch"])
@@ -242,7 +251,7 @@ def test_dispatch_summary_always_printed(
     mock_settings,
 ) -> None:
     """Even on errors, the summary line is always printed."""
-    mock_run.return_value = StepReport(name="dispatch", error_count=3)
+    mock_run.return_value = (StepReport(name="dispatch", error_count=3), [])
     mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["dispatch"])
@@ -263,10 +272,13 @@ def test_dispatch_verbose_prints_details(
     mock_settings,
 ) -> None:
     """--verbose prints per-item detail lines from the report."""
-    mock_run.return_value = StepReport(
-        name="dispatch",
-        success_count=1,
-        details=["action=moved     Inception (2010) → Disk1"],
+    mock_run.return_value = (
+        StepReport(
+            name="dispatch",
+            success_count=1,
+            details=["action=moved     Inception (2010) → Disk1"],
+        ),
+        [],
     )
     mock_settings.return_value = make_typed_settings_stub()
 
@@ -306,7 +318,7 @@ def test_dispatch_emits_item_progressed_events(
                     details={"dest": "/Volumes/Disk1/001-MOVIES/Test (2024)", "disk": "Disk1"},
                 )
             )
-        return StepReport(name="dispatch", success_count=1)
+        return StepReport(name="dispatch", success_count=1), []
 
     with patch("personalscraper.dispatch.run.run_dispatch", side_effect=_emit_and_return):
         result = run_cli(["dispatch"])
@@ -319,7 +331,99 @@ def test_dispatch_emits_item_progressed_events(
     assert_events_emitted(captured, [ItemProgressed])
 
 
-# ── 8. Closure-of-loop ──
+# ── 8. Post-maintenance guards ──
+
+
+@patch("personalscraper.cli.get_settings")
+@patch("personalscraper.cli.release_lock")
+@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.dispatch.run.run_dispatch")
+@patch("personalscraper.dispatch.post_maintenance.run_post_dispatch_maintenance")
+def test_dry_run_skips_post_maintenance(
+    mock_maintenance,
+    mock_run,
+    mock_lock,
+    mock_release,
+    mock_settings,
+) -> None:
+    """--dry-run with touched results does NOT call post-dispatch maintenance."""
+    from pathlib import Path
+
+    from personalscraper.dispatch._types import DispatchResult
+
+    mock_run.return_value = (
+        StepReport(name="dispatch", success_count=1),
+        [DispatchResult(source=Path("/src/a"), disk="disk_1", action="moved")],
+    )
+    mock_settings.return_value = make_typed_settings_stub()
+
+    result = run_cli(["dispatch", "--dry-run"])
+
+    assert result.exit_code == 0, result.output
+    mock_maintenance.assert_not_called()
+
+
+@patch("personalscraper.cli.get_settings")
+@patch("personalscraper.cli.release_lock")
+@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.dispatch.run.run_dispatch")
+@patch("personalscraper.dispatch.post_maintenance.run_post_dispatch_maintenance")
+def test_no_post_maintenance_flag_disables(
+    mock_maintenance,
+    mock_run,
+    mock_lock,
+    mock_release,
+    mock_settings,
+) -> None:
+    """--no-post-maintenance flag calls maintenance with enabled=False."""
+    from pathlib import Path
+
+    from personalscraper.dispatch._types import DispatchResult
+
+    mock_run.return_value = (
+        StepReport(name="dispatch", success_count=1),
+        [DispatchResult(source=Path("/src/a"), disk="disk_1", action="moved")],
+    )
+    mock_settings.return_value = make_typed_settings_stub()
+
+    result = run_cli(["dispatch", "--no-post-maintenance"])
+
+    assert result.exit_code == 0, result.output
+    mock_maintenance.assert_called_once()
+    _, kwargs = mock_maintenance.call_args
+    assert kwargs["enabled"] is False, "--no-post-maintenance should pass enabled=False"
+
+
+@patch("personalscraper.cli.get_settings")
+@patch("personalscraper.cli.release_lock")
+@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.dispatch.run.run_dispatch")
+@patch("personalscraper.dispatch.post_maintenance.run_post_dispatch_maintenance")
+def test_default_runs_post_maintenance(
+    mock_maintenance,
+    mock_run,
+    mock_lock,
+    mock_release,
+    mock_settings,
+) -> None:
+    """Default (no flag) with touched results calls post-dispatch maintenance."""
+    from pathlib import Path
+
+    from personalscraper.dispatch._types import DispatchResult
+
+    mock_run.return_value = (
+        StepReport(name="dispatch", success_count=1),
+        [DispatchResult(source=Path("/src/a"), disk="disk_1", action="moved")],
+    )
+    mock_settings.return_value = make_typed_settings_stub()
+
+    result = run_cli(["dispatch"])
+
+    assert result.exit_code == 0, result.output
+    mock_maintenance.assert_called_once()
+
+
+# ── 9. Closure-of-loop ──
 
 # N/A: dispatch operates on the filesystem (moving media from staging to
 # storage disks) and the indexer database (outbox drain + Merkle reset).

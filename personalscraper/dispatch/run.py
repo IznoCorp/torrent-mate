@@ -83,7 +83,7 @@ def run_dispatch(
     event_bus: EventBus,
     permit: DeletePermit = AllowAllPermit(),
     recorder: SeedObligationRecorder = AllowAllPermit(),
-) -> StepReport:
+) -> tuple[StepReport, list[DispatchResult]]:
     """Run the dispatch pipeline step.
 
     Args:
@@ -102,7 +102,9 @@ def run_dispatch(
             :class:`Dispatcher` (default: ``AllowAllPermit`` — no-op).
 
     Returns:
-        StepReport with dispatch counts and details.
+        ``(StepReport, list[DispatchResult])`` — the step report with
+        counts/details for CLI output, and the raw per-item results for
+        post-dispatch processing (touched-disk collection).
     """
     staging_dir = config.paths.staging_dir
     # Dispatch must consult the same indexer DB populated by ``library-index``
@@ -206,7 +208,7 @@ def run_dispatch(
     report = _to_step_report(results)
     if cleaned:
         report.details.insert(0, f"Cleaned {cleaned} staging orphan(s)")
-    return report
+    return report, results
 
 
 def _drain_dispatch_outbox(config: Config) -> None:

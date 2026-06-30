@@ -274,6 +274,11 @@ def enforce(
 def dispatch(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
+    no_post_maintenance: bool = typer.Option(
+        False,
+        "--no-post-maintenance",
+        help="Skip automatic index maintenance after dispatch (scan/relink/fix).",
+    ),
 ) -> None:
     """Move media to storage disks."""
     from personalscraper.dispatch.run import run_dispatch
@@ -287,7 +292,23 @@ def dispatch(
         _bootstrap_staging(ctx)
         settings = cli_compat.get_settings()
         with per_step_boundary(config, settings) as app_context:
-            report = run_dispatch(settings, config=config, dry_run=dry_run, event_bus=app_context.event_bus)
+            report, results = run_dispatch(settings, config=config, dry_run=dry_run, event_bus=app_context.event_bus)
+
+        # Collect touched disks from DispatchResult objects (index-sync DESIGN).
+        from personalscraper.dispatch.post_maintenance import collect_touched_disks
+
+        touched_disks = collect_touched_disks(results)
+
+        # Resolve post-maintenance enablement: flag > config > default(true).
+        maintenance_enabled = not no_post_maintenance
+        if maintenance_enabled:
+            maintenance_enabled = config.indexer.post_dispatch_maintenance.enabled
+
+        if touched_disks and not dry_run:
+            from personalscraper.dispatch.post_maintenance import run_post_dispatch_maintenance
+
+            run_post_dispatch_maintenance(config, touched_disks, enabled=maintenance_enabled)
+
         console.print(
             f"[bold]Dispatch:[/bold] {report.success_count} OK, "
             f"{report.skip_count} skipped, {report.error_count} errors"
@@ -462,6 +483,11 @@ def run(
             "Disables Rich console output and Telegram notifications."
         ),
     ),
+    no_post_maintenance: bool = typer.Option(
+        False,
+        "--no-post-maintenance",
+        help="Skip automatic index maintenance after dispatch (scan/relink/fix).",
+    ),
 ) -> None:
     """Execute all pipeline phases via ``Pipeline.run``.
 
@@ -581,6 +607,7 @@ def run(
                         verbose=verbose,
                         skip_trailers=effective_skip_trailers,
                         continue_on_trailer_error=effective_continue_on_trailer_error,
+                        no_post_maintenance=no_post_maintenance,
                     )
                 finally:
                     if rich_subscriber is not None:

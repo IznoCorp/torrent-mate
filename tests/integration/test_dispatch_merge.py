@@ -174,7 +174,7 @@ def test_dispatch_merges_tvshow_new_episodes(
         episodes=["S01E02 - The Target.mkv"],
     )
 
-    report = run_dispatch(_make_settings(), config, dry_run=False, verified=None, event_bus=EventBus())
+    report, _ = run_dispatch(_make_settings(), config, dry_run=False, verified=None, event_bus=EventBus())
 
     # Dispatch must report at least one success (the merge action).
     assert report.error_count == 0, f"Expected no dispatch errors. Got: {report.details}"

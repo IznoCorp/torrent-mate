@@ -276,7 +276,7 @@ class DispatchStep:
         if authority is not None:
             kw = {"permit": authority, "recorder": authority}
 
-        return run_dispatch(
+        report, results = run_dispatch(
             ctx.app.settings,
             config=ctx.app.config,
             dry_run=ctx.dry_run,
@@ -284,6 +284,23 @@ class DispatchStep:
             event_bus=ctx.app.event_bus,
             **kw,
         )
+
+        # Post-dispatch index maintenance (DESIGN index-sync):
+        # triggered for run command too; flag resolution from StepContext extras.
+        no_maintenance = bool(ctx.extras.get("no_post_maintenance", False))
+        maintenance_enabled = not no_maintenance
+        if maintenance_enabled:
+            maintenance_enabled = ctx.app.config.indexer.post_dispatch_maintenance.enabled
+
+        from personalscraper.dispatch.post_maintenance import collect_touched_disks
+
+        touched_disks = collect_touched_disks(results)
+        if touched_disks and maintenance_enabled and not ctx.dry_run:
+            from personalscraper.dispatch.post_maintenance import run_post_dispatch_maintenance
+
+            run_post_dispatch_maintenance(ctx.app.config, touched_disks, enabled=maintenance_enabled)
+
+        return report
 
 
 class LegacyCallableStep:

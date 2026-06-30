@@ -44,7 +44,7 @@ class TestDispatchProgress:
         bus = EventBus()
         collector = CollectingSubscriber(bus, ItemProgressed)
 
-        report = run_dispatch(MagicMock(), config=_base_config(), dry_run=True, verified=[], event_bus=bus)
+        report, _ = run_dispatch(MagicMock(), config=_base_config(), dry_run=True, verified=[], event_bus=bus)
 
         assert report.name == "dispatch"
         assert collector.received == []

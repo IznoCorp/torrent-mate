@@ -197,7 +197,7 @@ def test_dispatch_picks_disk_with_most_space(
     movie_year = 2023
     _build_verified_movie_dir(movies_staging, title=movie_title, year=movie_year)
 
-    report = run_dispatch(_make_settings(), config, dry_run=False, verified=None, event_bus=EventBus())
+    report, _ = run_dispatch(_make_settings(), config, dry_run=False, verified=None, event_bus=EventBus())
 
     # No dispatch errors expected.
     assert report.error_count == 0, f"Expected no dispatch errors. Got: {report.details}"

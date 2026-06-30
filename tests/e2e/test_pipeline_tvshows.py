@@ -164,7 +164,7 @@ class TestTVShowFullPipeline:
             # ── 6. V5 Dispatch (DRY-RUN — disks are NEVER modified) ──
             from personalscraper.dispatch.run import run_dispatch
 
-            dispatch_report = run_dispatch(
+            dispatch_report, _ = run_dispatch(
                 settings, config=e2e_config, dry_run=True, verified=verified, event_bus=EventBus()
             )
             print(f"  V5 Dispatch (dry-run): {dispatch_report.success_count} would dispatch")
