@@ -98,7 +98,7 @@ def test_dispatch_step_forwards_authority_as_permit_and_recorder(monkeypatch: py
     def _fake_run_dispatch(settings: object, **kwargs: object) -> object:
         captured.update(kwargs)
         captured["settings"] = settings
-        return MagicMock(name="StepReport")
+        return MagicMock(name="StepReport"), []
 
     monkeypatch.setattr("personalscraper.dispatch.run.run_dispatch", _fake_run_dispatch)
 

@@ -153,7 +153,7 @@ def test_crash_recovery_uses_filesystem_scan(
     new_marker = new_movie_dir / "file_new.txt"
     new_marker.write_bytes(b"new_content" * 10)
 
-    report = run_dispatch(_make_settings(), config, dry_run=False, verified=None, event_bus=EventBus())
+    report, _ = run_dispatch(_make_settings(), config, dry_run=False, verified=None, event_bus=EventBus())
 
     # Dispatch must succeed with no errors.
     assert report.error_count == 0, f"Expected no dispatch errors. Got: {report.details}"

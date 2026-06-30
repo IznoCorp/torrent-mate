@@ -192,7 +192,7 @@ class TestRunDispatch:
             mock_disp.process.return_value = []
 
             caller_bus = EventBus()
-            report = run_dispatch(settings, config=config, dry_run=True, event_bus=caller_bus)
+            report, _ = run_dispatch(settings, config=config, dry_run=True, event_bus=caller_bus)
 
         assert report.name == "dispatch"
         MockIdx.assert_called_once_with(config.indexer.db_path, config=config, auto_rebuild=False, event_bus=caller_bus)
@@ -216,7 +216,7 @@ class TestRunDispatch:
         config.categories = {}
         config.staging_dirs = CANONICAL_STAGING_DIRS
 
-        report = run_dispatch(settings, config=config, dry_run=True, verified=[], event_bus=EventBus())
+        report, _ = run_dispatch(settings, config=config, dry_run=True, verified=[], event_bus=EventBus())
 
         assert report.name == "dispatch"
         with sqlite3.connect(config.indexer.db_path) as conn:
@@ -256,7 +256,7 @@ class TestRunDispatch:
             mock_disp = MockDisp.return_value
             mock_disp.process.return_value = []
 
-            report = run_dispatch(settings, config=config, dry_run=False, verified=[], event_bus=EventBus())
+            report, _ = run_dispatch(settings, config=config, dry_run=False, verified=[], event_bus=EventBus())
 
         assert report.name == "dispatch"
         assert any("Cleaned" in d and "staging orphan" in d for d in report.details)

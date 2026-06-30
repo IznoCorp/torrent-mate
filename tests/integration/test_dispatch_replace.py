@@ -146,7 +146,7 @@ def test_dispatch_replaces_existing_movie(
     # verify check, so the marker uses a .txt extension).
     (new_movie_dir / "new_big_file.txt").write_bytes(b"y" * 50)
 
-    report = run_dispatch(_make_settings(), config, dry_run=False, verified=None, event_bus=EventBus())
+    report, _ = run_dispatch(_make_settings(), config, dry_run=False, verified=None, event_bus=EventBus())
 
     # Dispatch must report at least one success (the replace action).
     assert report.error_count == 0, f"Expected no dispatch errors. Got: {report.details}"

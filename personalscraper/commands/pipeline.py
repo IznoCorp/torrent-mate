@@ -292,7 +292,7 @@ def dispatch(
         _bootstrap_staging(ctx)
         settings = cli_compat.get_settings()
         with per_step_boundary(config, settings) as app_context:
-            report = run_dispatch(settings, config=config, dry_run=dry_run, event_bus=app_context.event_bus)
+            report, results = run_dispatch(settings, config=config, dry_run=dry_run, event_bus=app_context.event_bus)
         console.print(
             f"[bold]Dispatch:[/bold] {report.success_count} OK, "
             f"{report.skip_count} skipped, {report.error_count} errors"

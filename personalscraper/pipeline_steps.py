@@ -276,7 +276,7 @@ class DispatchStep:
         if authority is not None:
             kw = {"permit": authority, "recorder": authority}
 
-        return run_dispatch(
+        report, _results = run_dispatch(
             ctx.app.settings,
             config=ctx.app.config,
             dry_run=ctx.dry_run,
@@ -284,6 +284,7 @@ class DispatchStep:
             event_bus=ctx.app.event_bus,
             **kw,
         )
+        return report
 
 
 class LegacyCallableStep:
