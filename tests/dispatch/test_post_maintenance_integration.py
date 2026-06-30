@@ -168,9 +168,9 @@ def test_integration_media_file_linked_after_maintenance(tmp_path: Path, temp_li
     conn.close()
 
     assert row is not None, "media_file row should exist"
-    assert row[0] is not None, (
-        "REGRESSION: media_file.release_id is still NULL after post_maintenance — "
-        "the 2026-06-29 symptom (items_without_files=6) was NOT fixed"
+    assert row[0] == 1, (
+        f"REGRESSION: media_file.release_id is {row[0]}, expected 1 after post_maintenance — "
+        f"the 2026-06-29 symptom (items_without_files=6) was NOT fixed"
     )
 
 
