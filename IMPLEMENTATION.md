@@ -15,7 +15,7 @@
 
 | #   | Phase                                        | File                          | Status |
 | --- | -------------------------------------------- | ----------------------------- | ------ |
-| 1   | Core function + config + flag + unit tests   | phase-01-core-function.md     | [ ]    |
+| 1   | Core function + config + flag + unit tests   | phase-01-core-function.md     | [x]    |
 | 2   | Wiring + integration + regression + ACC gate | phase-02-wiring-acceptance.md | [ ]    |
 
 ## Review cycles
@@ -24,4 +24,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1.
+Run `/implement:phase` to start Phase 2.
