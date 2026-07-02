@@ -29,66 +29,42 @@ Write the E2E roundtrip test (fixture `complete/` + fake trackers → sweep → 
 
 Uses fake qBit client + fake HTTP transport for the tracker registry.
 No real network calls, no real torrent filesystem.
+
+Reuses fakes from tests/integration/acquire/test_cross_seed_service.py.
 """
 
 import pytest
 
 from personalscraper.acquire.cross_seed import CrossSeedService
+from personalscraper.core.event_bus import EventBus
 
 
 @pytest.mark.e2e
 class TestCrossSeedRoundtrip:
     """ACC-7: injected cross-seed → SEED_PURE tag → ingest skips it."""
 
-    def test_cross_seed_injection_survives_ingest_skip(self, fake_qbit, fake_registry,
-                                                       fake_store, test_config):
-        """Full roundtrip:
-        1. Source torrent exists in fake qBit complete/ list.
+    def test_cross_seed_injection_survives_ingest_skip(self, tmp_path, store):
+        """Full roundtrip with fakes + real tmp_path acquire.db:
+        1. Source torrent exists in fake client's completed list.
         2. Fake registry returns one matching candidate.
         3. CrossSeedService.check() → inject → recheck 100% → tag SEED_PURE
            → write SeedObligation.
-        4. Verify SEED_PURE tag is present on the injected torrent.
-        5. Verify SeedObligation was written via SeedSubStore.
-        6. Verify the injected torrent's info_hash IS in the SEED_PURE set
-           (ingest predicate would skip it).
+        4. Verify SEED_PURE tag is present on the injected torrent
+           (ingest.py:416-432 skips unconditionally on this tag).
+        5. Verify SeedObligation was written via store.seed.find_active_under().
+        6. Verify CrossSeedInjected event was emitted.
         """
-        info_hash = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
-        source_data = _make_source_torrent(info_hash)
-        fake_qbit.add_torrent(source_data, save_path="/complete/Release.Name.2024",
-                              tags=set())  # not SEED_PURE
+        # Full ctor: CrossSeedService(registry, lister, injector, controller,
+        #   tagger, store, config, event_bus, clock, sleep) — all 9 params
+        # required. Reuse _build_service() from the integration test.
+        ...
 
-        candidate_bytes = _make_candidate_torrent_bytes()
-        fake_registry.add_candidate("lacale", info_hash, candidate_bytes)
-
-        cs = CrossSeedService(
-            registry=fake_registry,
-            lister=fake_qbit,
-            injector=fake_qbit,
-            store=fake_store,
-            config=test_config,
-        )
-
-        result = cs.check(info_hash)
-
-        # Assert injection happened
-        assert len(result.injected) >= 1
-
-        # Assert SEED_PURE tag was applied
-        torrents = fake_qbit.get_completed()
-        injected = next(t for t in torrents if t.info_hash == info_hash)
-        from personalscraper.core.tags import SEED_PURE
-        assert SEED_PURE in injected.tags
-
-        # Assert SeedObligation was written
-        obligations = fake_store.find_active_under("/complete/Release.Name.2024")
-        assert any(o.source_tracker == "lacale" for o in obligations)
-
-    def test_watcher_predicate_ignores_seed_pure(self, fake_qbit):
+    def test_watcher_predicate_ignores_seed_pure(self):
         """Watcher work predicate (W7) must exclude SEED_PURE-tagged torrents."""
         from personalscraper.acquire.watcher import WatcherInput, WatcherService
         from personalscraper.conf.models.watch_seed import WatchConfig
 
-        svc = WatcherService(WatchConfig())
+        svc = WatcherService(WatchConfig(enabled=True))  # default enabled=False → vacuous
         inp = WatcherInput(
             completed_hashes=frozenset({"hash1"}),
             ingested_hashes=frozenset(),
@@ -98,7 +74,10 @@ class TestCrossSeedRoundtrip:
             now=1_000_000.0,
         )
         from personalscraper.acquire.watcher import WatcherState, WatcherDecision
-        out = svc.evaluate(inp, WatcherState())
+        # Safety net fires when last_successful_run_at is None; pin it to a
+        # recent value so the test focuses on the SEED_PURE exclusion.
+        state = WatcherState(last_successful_run_at=1_000_000.0 - 3600.0)
+        out = svc.evaluate(inp, state)
         # SEED_PURE exclusion → work predicate false → IDLE (no cross-seed, no run)
         assert out.decision == WatcherDecision.IDLE
 ```
