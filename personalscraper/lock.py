@@ -81,6 +81,45 @@ def acquire_lock(lock_file: Path | None = None) -> bool:
     return True
 
 
+def is_lock_held(lock_file: Path | None = None) -> bool:
+    """Return ``True`` if *lock_file* is held by a live process (read-only probe).
+
+    Implements the SAME stale-PID detection as :func:`acquire_lock` — exists +
+    valid PID integer + ``os.kill(pid, 0)`` alive → ``True``; missing / stale /
+    corrupt / owned by another user → ``False`` — but performs NO write and
+    NEVER unlinks the file.  Safe to call every poll cycle from a long-lived
+    daemon (the Watcher loop) that must not mutate a lock owned by a concurrent
+    pipeline run.
+
+    Args:
+        lock_file: Path to the lock file.  Defaults to
+            ``paths.data_dir / "pipeline.lock"`` resolved from config.
+
+    Returns:
+        ``True`` when the lock file exists AND contains a PID of a live process
+        reachable by the current user; ``False`` otherwise.
+    """
+    if lock_file is None:
+        lock_file = _default_lock_file()
+    if not lock_file.exists():
+        return False
+    try:
+        stored_pid = int(lock_file.read_text().strip())
+    except (ValueError, OSError):
+        # Corrupt PID file or unreadable — lock is effectively not held.
+        return False
+    try:
+        os.kill(stored_pid, 0)
+        # Process is alive — lock is valid.
+        return True
+    except ProcessLookupError:
+        # Process dead — lock is stale.
+        return False
+    except PermissionError:
+        # Process exists but owned by another user — treat as held.
+        return True
+
+
 def release_lock(lock_file: Path | None = None) -> None:
     """Remove the lock file.
 
