@@ -25,7 +25,7 @@
 | 8   | PM2 ecosystem + launchd decommission                 | phase-08-pm2-launchd-cutover.md         | [x]    |
 | 9   | E2E roundtrip + ACCEPTANCE gate                      | phase-09-e2e-acceptance-gate.md         | [x]    |
 | 10  | PR fixes cycle 1                                     | phase-10-pr-fixes-cycle-1.md            | [x]    |
-| 11  | PR fixes cycle 2                                     | phase-11-pr-fixes-cycle-2.md            | [ ]    |
+| 11  | PR fixes cycle 2                                     | phase-11-pr-fixes-cycle-2.md            | [x]    |
 
 ## Review cycles
 
@@ -50,7 +50,7 @@
 - Ignored (informational): backoff growth under safety-net-only operation (clamped, by design); SIGTERM-during-child residual (design-inherent W5, acknowledged in comment)
 - Design contradictions: none
 - Fix phase created: phase-11-pr-fixes-cycle-2.md
-- Status: fix phase dispatched → awaiting /implement:phase
+- Status: fix phase COMPLETE (12 commits across 4 sub-phases; 1 wrapper-timeout continuation on 11.3, 2 in-flight corrections: mypy import from real module, ruff format stragglers) — make check green (91.03% cov) → pushed for re-review cycle 3
 
 ## Next action
 
