@@ -215,10 +215,72 @@ class TorrentTagger(Protocol):
         ...
 
 
+@runtime_checkable
+class TorrentInjector(Protocol):
+    """Capability — inject a .torrent at a specified save path with recheck.
+
+    Composed by :class:`~personalscraper.api.torrent.qbittorrent.QBitClient`.
+    Not implemented by :class:`TransmissionClient` — Transmission lacks
+    ``savepath`` on add (D2) and 1:1 recheck semantics.
+
+    Duplicate injects are idempotent — injecting a torrent whose info-hash
+    is already present in the client is a no-op (same contract as
+    :class:`TorrentAdder`).
+    """
+
+    def inject(
+        self,
+        torrent_bytes: bytes,
+        *,
+        save_path: str,
+        recheck: bool = True,
+        paused: bool = True,
+    ) -> str:
+        """Inject a .torrent into the client, pointed at an existing data path.
+
+        Args:
+            torrent_bytes: Raw .torrent file bytes.
+            save_path: Absolute path to the existing data directory
+                (the source torrent's ``save_path``).
+            recheck: Whether to run a recheck after adding (default True).
+            paused: Whether to add in paused state (default True).
+
+        Returns:
+            The info-hash (v1) of the injected torrent.
+        """
+        ...
+
+    def list_files(self, info_hash: str) -> list[tuple[str, int]]:
+        """Return ``(name, size)`` for every file in a torrent.
+
+        Wraps qBittorrent ``torrents/files``.
+
+        Args:
+            info_hash: V1 info-hash of an active torrent.
+
+        Returns:
+            Ordered list of (relative_path, byte_size) for each file.
+        """
+        ...
+
+    def properties(self, info_hash: str) -> dict[str, object]:
+        """Return the raw ``torrents/properties`` dict for *info_hash*.
+
+        Args:
+            info_hash: V1 info-hash.
+
+        Returns:
+            The full properties dictionary. The ``piece_size`` key is
+            the torrent's ``piece_length`` in bytes.
+        """
+        ...
+
+
 __all__ = [
     "AuthenticatedClient",
     "TorrentAdder",
     "TorrentController",
+    "TorrentInjector",
     "TorrentInspector",
     "TorrentLimiter",
     "TorrentLister",

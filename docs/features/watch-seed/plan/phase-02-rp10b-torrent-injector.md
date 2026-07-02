@@ -57,11 +57,8 @@ class TorrentInjector(Protocol):
         Returns:
             The info-hash (v1) of the injected torrent.
 
-        Raises:
-            Conflict409: A torrent with the same hash is already present.
-            QBitAuthError: Authentication failed.
-            QBitError: Generic API error.
         """
+
         ...
 
     def list_files(self, info_hash: str) -> list[tuple[str, int]]:
