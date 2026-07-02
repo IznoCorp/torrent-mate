@@ -263,8 +263,31 @@ class CrossSeedRejected(Event):
             source). When the candidate carries no hash, this is the
             download URL or ``"unknown"``.
         tracker: The tracker the candidate was fetched from.
-        reason: Human-readable rejection reason
-            (e.g. ``"structural_mismatch: root_name"``, ``"fetch_failed"``).
+        reason: Closed-set rejection reason:
+            ``"fetch_failed"``
+                Transport/auth/circuit error during candidate download.
+            ``"magnet_not_supported"``
+                Candidate resolved to a magnet link (no ``.torrent`` bytes).
+            ``"parse_failed"``
+                Candidate ``.torrent`` bytes failed bencode parsing.
+            ``"self_candidate"``
+                Candidate ``info_hash`` equals the source ``info_hash``
+                (same-release cross-post, or origin-unresolvable loop).
+            ``"piece_length_mismatch"``
+                ``structural_match``: ``piece_length`` differs.
+            ``"file_list_mismatch"``
+                ``structural_match``: file count or name/size list differs.
+            ``"root_name_mismatch"``
+                ``structural_match``: ``info.name`` differs.
+            ``"v2_hybrid"``
+                ``structural_match``: candidate is v2/hybrid (non-v1).
+            ``"obligation_write_failed"``
+                Seed obligation persist failed — injection deleted.
+            ``"verify_timeout"``
+                Recheck verification deadline passed without progress ≥ 1.0.
+            ``"recheck_failed"``
+                **Reserved** — recheck finished but progress < 1.0 (not
+                reachable with the current progress-only poll).
         source_hash: The info-hash of the source torrent that triggered the
             cross-seed attempt.
     """

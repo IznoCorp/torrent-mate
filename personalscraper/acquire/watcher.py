@@ -89,15 +89,16 @@ class WatcherOutput:
 
     Attributes:
         decision: The action the loop should take.
+        new_state: Updated watcher state to carry forward (required — every
+            branch must produce an explicit successor state).
         run_reason: If decision is FIRE_RUN, why (completion/safety_net/manual).
         cross_seed_hashes: If decision includes cross-seed, which hashes to spawn.
-        new_state: Updated watcher state to carry forward.
     """
 
     decision: WatcherDecision
+    new_state: WatcherState
     run_reason: str = ""
     cross_seed_hashes: list[str] = field(default_factory=list)
-    new_state: WatcherState = field(default_factory=WatcherState)
 
 
 class WatcherService:
