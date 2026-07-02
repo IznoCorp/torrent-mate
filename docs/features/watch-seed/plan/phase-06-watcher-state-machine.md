@@ -62,11 +62,17 @@ class WatcherState:
             pipeline run. Persisted in acquire.db across restarts.
         backoff_multiplier: Exponential backoff factor for the anti-storm
             mechanism (W7).  0 = normal (no backoff).
+        cross_seed_dispatched: Info-hashes already sent to cross-seed this
+            daemon lifetime.  Prevents re-firing cross-seed every poll cycle
+            for the same not-yet-ingested hashes during the entire debounce
+            window.  Cleared on daemon restart (in-memory); ingestion
+            eventually makes entries irrelevant.
     """
 
     debounce_until: float | None = None
     last_successful_run_at: float | None = None
     backoff_multiplier: int = 0
+    cross_seed_dispatched: frozenset[str] = frozenset()
 
 
 @dataclass
