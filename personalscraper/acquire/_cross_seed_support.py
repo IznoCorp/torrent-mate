@@ -52,7 +52,7 @@ class SweepResult:
 
     Attributes:
         checked: Number of torrents where :meth:`CrossSeedService.check` was
-            actually invoked.
+            actually invoked and returned without raising.
         injected: Total number of successfully injected cross-seeds across
             all checked torrents.
         quota_exhausted: ``True`` when the sweep stopped early because the
@@ -61,12 +61,17 @@ class SweepResult:
             raised an exception — the sweep could not even enumerate the
             torrent list.  The caller (CLI) should surface this as a hard
             error (exit 1).
+        item_errors: Number of per-item :meth:`CrossSeedService.check` calls
+            that raised an exception.  The caller (CLI) should emit a warning
+            when this is > 0, and exit 1 when this is > 0 and *checked* is 0
+            (total failure — every attempted item errored).
     """
 
     checked: int = 0
     injected: int = 0
     quota_exhausted: bool = False
     lister_failed: bool = False
+    item_errors: int = 0
 
 
 # ---------------------------------------------------------------------------

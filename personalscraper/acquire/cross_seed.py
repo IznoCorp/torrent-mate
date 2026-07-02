@@ -566,6 +566,7 @@ class CrossSeedService:
 
         checked = 0
         injected = 0
+        item_errors = 0
         quota_exhausted = False
         max_per_day = self._config.cross_seed.max_searches_per_day
         delay = self._config.cross_seed.min_delay_between_searches_s
@@ -609,6 +610,13 @@ class CrossSeedService:
                     info_hash=item.hash,
                     error=str(exc),
                 )
+                item_errors += 1
+                # Consume quota + set sleep even on error — the search was
+                # attempted and the throttle must hold (throttle-hole fix:
+                # per-item errors used to bypass both, allowing an unbounded
+                # fast-iterate error loop with no inter-call delay).
+                self._store.cross_seed.increment_daily_count()
+                need_sleep = True
                 continue
             checked += 1
             injected += len(result.injected)
@@ -624,12 +632,14 @@ class CrossSeedService:
             "acquire.cross_seed.sweep.finished",
             checked=checked,
             injected=injected,
+            item_errors=item_errors,
             quota_exhausted=quota_exhausted,
         )
         return SweepResult(
             checked=checked,
             injected=injected,
             quota_exhausted=quota_exhausted,
+            item_errors=item_errors,
         )
 
     # ------------------------------------------------------------------

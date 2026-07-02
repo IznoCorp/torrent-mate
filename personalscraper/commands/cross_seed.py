@@ -55,6 +55,11 @@ def cross_seed(
     When ``cross_seed.enabled`` is ``False`` in config the service returns
     immediately — the command still exits 0 but echoes the disabled state.
 
+    Exit codes (``--sweep``): 0 on success or partial success (some items
+    errored but others succeeded); 1 when ``lister_failed`` is True (torrent
+    client unreachable) or when ALL attempted items errored (``item_errors > 0``
+    and ``checked == 0`` — total failure); 2 on invalid argument combination.
+
     Args:
         ctx: Typer context carrying the loaded ``Config`` in ``ctx.obj``.
         sweep: When ``True``, run the full back-catalog sweep.
@@ -107,6 +112,22 @@ def cross_seed(
                 )
                 raise typer.Exit(code=1)
 
+            # Per-item errors: warn + total-failure exit.
+            # The threshold is: yellow warning when any items errored (but some
+            # succeeded → partial success), hard exit 1 when ALL attempted items
+            # errored (checked == 0 and item_errors > 0 → total failure).
+            if sweep_result.item_errors > 0:
+                console.print(
+                    f"[yellow]Sweep: {sweep_result.item_errors} item error(s) "
+                    f"(see log for details).[/yellow]"
+                )
+                if sweep_result.checked == 0:
+                    console.print(
+                        "[red]Sweep failed:[/red] all items raised errors "
+                        "(see log for per-item details)."
+                    )
+                    raise typer.Exit(code=1)
+
             console.print(
                 f"[green]Sweep complete:[/green] "
                 f"{sweep_result.checked} checked, "
@@ -119,6 +140,7 @@ def cross_seed(
                 injected=sweep_result.injected,
                 quota_exhausted=sweep_result.quota_exhausted,
                 lister_failed=sweep_result.lister_failed,
+                item_errors=sweep_result.item_errors,
             )
         else:
             assert info_hash is not None  # guaranteed by mutual-exclusion gate above
