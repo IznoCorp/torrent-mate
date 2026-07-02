@@ -93,9 +93,9 @@ class CrossSeedService:
         _tagger: Torrent tagging capability.
         _store: The acquire store (cross_seed history + seed obligations).
         _config: The loaded application configuration.
-        _event_bus: Optional event bus — when set, ``CrossSeedInjected`` and
-            ``CrossSeedRejected`` are emitted per the emit-after-persist
-            convention. ``None`` (default) disables emission (tests / dry-run).
+        _event_bus: In-process event bus — ``CrossSeedInjected`` and
+            ``CrossSeedRejected`` are emitted unconditionally per the
+            emit-after-persist convention.
         _clock: Monotonic clock callable (default: :func:`time.monotonic`).
         _sleep: Sleep callable (default: :func:`time.sleep`).
     """
@@ -109,7 +109,7 @@ class CrossSeedService:
         tagger: TorrentTagger,
         store: ConcreteAcquireStore,
         config: Config,
-        event_bus: EventBus | None = None,
+        event_bus: EventBus,
         clock: Callable[[], float] = _time_module.monotonic,
         sleep: Callable[[float], None] = _time_module.sleep,
     ) -> None:
@@ -123,9 +123,7 @@ class CrossSeedService:
             tagger: Torrent tagging capability.
             store: The acquire store.
             config: The loaded application configuration.
-            event_bus: Optional event bus for typed emission. ``None``
-                (default) disables event emission so tests and dry-run
-                callers need no bus fixture.
+            event_bus: In-process event bus for typed emission.
             clock: Monotonic clock callable (injectable for tests).
             sleep: Sleep callable (injectable for tests).
         """
@@ -254,15 +252,14 @@ class CrossSeedService:
                         error=str(exc),
                     )
                     result.rejected.append((_candidate_id(candidate), tracker, "fetch_failed"))
-                    if self._event_bus is not None:
-                        self._event_bus.emit(
-                            CrossSeedRejected(
-                                info_hash=_candidate_id(candidate),
-                                tracker=tracker,
-                                reason="fetch_failed",
-                                source_hash=info_hash,
-                            )
+                    self._event_bus.emit(
+                        CrossSeedRejected(
+                            info_hash=_candidate_id(candidate),
+                            tracker=tracker,
+                            reason="fetch_failed",
+                            source_hash=info_hash,
                         )
+                    )
                     continue
 
                 # Cross-seed only works with .torrent file bytes (not magnets).
@@ -274,15 +271,14 @@ class CrossSeedService:
                         reason="magnet_not_supported",
                     )
                     result.rejected.append((_candidate_id(candidate), tracker, "magnet_not_supported"))
-                    if self._event_bus is not None:
-                        self._event_bus.emit(
-                            CrossSeedRejected(
-                                info_hash=_candidate_id(candidate),
-                                tracker=tracker,
-                                reason="magnet_not_supported",
-                                source_hash=info_hash,
-                            )
+                    self._event_bus.emit(
+                        CrossSeedRejected(
+                            info_hash=_candidate_id(candidate),
+                            tracker=tracker,
+                            reason="magnet_not_supported",
+                            source_hash=info_hash,
                         )
+                    )
                     continue
 
                 # Parse candidate layout.
@@ -297,15 +293,14 @@ class CrossSeedService:
                         error=str(exc),
                     )
                     result.rejected.append((_candidate_id(candidate), tracker, "parse_failed"))
-                    if self._event_bus is not None:
-                        self._event_bus.emit(
-                            CrossSeedRejected(
-                                info_hash=_candidate_id(candidate),
-                                tracker=tracker,
-                                reason="parse_failed",
-                                source_hash=info_hash,
-                            )
+                    self._event_bus.emit(
+                        CrossSeedRejected(
+                            info_hash=_candidate_id(candidate),
+                            tracker=tracker,
+                            reason="parse_failed",
+                            source_hash=info_hash,
                         )
+                    )
                     continue
 
                 # Structural match — strict full-match only (D4).
@@ -318,15 +313,14 @@ class CrossSeedService:
                         reason=verdict.value,
                     )
                     result.rejected.append((_candidate_id(candidate), tracker, verdict.value))
-                    if self._event_bus is not None:
-                        self._event_bus.emit(
-                            CrossSeedRejected(
-                                info_hash=_candidate_id(candidate),
-                                tracker=tracker,
-                                reason=verdict.value,
-                                source_hash=info_hash,
-                            )
+                    self._event_bus.emit(
+                        CrossSeedRejected(
+                            info_hash=_candidate_id(candidate),
+                            tracker=tracker,
+                            reason=verdict.value,
+                            source_hash=info_hash,
                         )
+                    )
                     continue
 
                 # 8. MATCH → inject → verify → resume + tag + obligation.
@@ -349,15 +343,14 @@ class CrossSeedService:
                             error=str(exc),
                         )
                     self._write_obligation(injected_hash, tracker, item)
-                    if self._event_bus is not None:
-                        self._event_bus.emit(
-                            CrossSeedInjected(
-                                info_hash=injected_hash,
-                                source_tracker=tracker,
-                                source_hash=info_hash,
-                                save_path=item.save_path,
-                            )
+                    self._event_bus.emit(
+                        CrossSeedInjected(
+                            info_hash=injected_hash,
+                            source_tracker=tracker,
+                            source_hash=info_hash,
+                            save_path=item.save_path,
                         )
+                    )
                     logger.info(
                         "acquire.cross_seed.injected",
                         info_hash=info_hash,
@@ -378,15 +371,14 @@ class CrossSeedService:
                         reason="recheck_failed",
                     )
                     result.rejected.append((injected_hash, tracker, "recheck_failed"))
-                    if self._event_bus is not None:
-                        self._event_bus.emit(
-                            CrossSeedRejected(
-                                info_hash=injected_hash,
-                                tracker=tracker,
-                                reason="recheck_failed",
-                                source_hash=info_hash,
-                            )
+                    self._event_bus.emit(
+                        CrossSeedRejected(
+                            info_hash=injected_hash,
+                            tracker=tracker,
+                            reason="recheck_failed",
+                            source_hash=info_hash,
                         )
+                    )
                     # Continue to next candidate in this tracker.
 
         return result

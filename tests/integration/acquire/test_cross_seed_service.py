@@ -16,6 +16,7 @@ import pytest
 
 from personalscraper.acquire._dedup import SearchOutcome
 from personalscraper.acquire.cross_seed import CrossSeedService
+from personalscraper.acquire.events import CrossSeedInjected, CrossSeedRejected
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.api._contracts import MediaType
 from personalscraper.api._units import ByteSize
@@ -28,6 +29,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.paths import PathConfig
 from personalscraper.conf.models.watch_seed import CrossSeedConfig
+from personalscraper.core.event_bus import EventBus
 from personalscraper.core.tags import SEED_PURE
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
@@ -611,6 +613,7 @@ def _build_service(
     fake_registry: FakeRegistry,
     clock: Any = None,
     sleep: Any = None,
+    event_bus: EventBus | None = None,
 ) -> CrossSeedService:
     """Build a :class:`CrossSeedService` with all fakes wired in.
 
@@ -621,11 +624,17 @@ def _build_service(
         fake_registry: :class:`FakeRegistry` for search + transport resolution.
         clock: Optional fake clock callable.
         sleep: Optional fake sleep callable.
+        event_bus: Optional :class:`EventBus` for event assertion.  When
+            ``None`` (default), a fresh :class:`EventBus` is created so
+            emission is always exercised.
 
     Returns:
         A fully wired :class:`CrossSeedService`.
     """
     import time as _time_module
+
+    if event_bus is None:
+        event_bus = EventBus()
 
     return CrossSeedService(
         registry=fake_registry,  # type: ignore[arg-type]  # FakeRegistry, not TrackerRegistry
@@ -635,6 +644,7 @@ def _build_service(
         tagger=fake_client,
         store=store,
         config=config,
+        event_bus=event_bus,
         clock=clock if clock is not None else _time_module.monotonic,
         sleep=sleep if sleep is not None else _time_module.sleep,
     )
@@ -690,6 +700,10 @@ class TestCheckHappyPath:
             priority=[_TRACKER_LACALE, _TRACKER_TORR9],
         )
 
+        injected_events: list[CrossSeedInjected] = []
+        bus = EventBus()
+        bus.subscribe(CrossSeedInjected, lambda e: injected_events.append(e))
+
         cfg = make_config(
             tmp_path,
             tracker_providers={
@@ -699,7 +713,7 @@ class TestCheckHappyPath:
             tracker_priority=[_TRACKER_LACALE, _TRACKER_TORR9],
         )
 
-        svc = _build_service(cfg, store, fake_client, fake_registry)
+        svc = _build_service(cfg, store, fake_client, fake_registry, event_bus=bus)
 
         # -- Act --------------------------------------------------------------
         result = svc.check(_SOURCE_HASH)
@@ -710,6 +724,13 @@ class TestCheckHappyPath:
         assert result.rejected == []
         assert result.skipped is False
         assert result.skip_reason is None
+
+        # EventBus: exactly one CrossSeedInjected emitted with the right info_hash.
+        assert len(injected_events) == 1
+        assert injected_events[0].info_hash == injected_hash
+        assert injected_events[0].source_tracker == _TRACKER_TORR9
+        assert injected_events[0].source_hash == _SOURCE_HASH
+        assert injected_events[0].save_path == item.save_path
 
         # Torrent client calls.
         assert injected_hash in fake_client.resumed
@@ -794,6 +815,10 @@ class TestCheckRecheckFails:
         clock_ticks = iter([0.0, 2.0, 130.0])
         sleep_log: list[float] = []
 
+        rejected_events: list[CrossSeedRejected] = []
+        bus = EventBus()
+        bus.subscribe(CrossSeedRejected, lambda e: rejected_events.append(e))
+
         svc = _build_service(
             cfg,
             store,
@@ -801,6 +826,7 @@ class TestCheckRecheckFails:
             fake_registry,
             clock=lambda: next(clock_ticks),
             sleep=lambda s: sleep_log.append(s),
+            event_bus=bus,
         )
 
         # -- Act --------------------------------------------------------------
@@ -814,6 +840,13 @@ class TestCheckRecheckFails:
         _, rejected_tracker, rejected_reason = result.rejected[0]
         assert rejected_tracker == _TRACKER_TORR9
         assert rejected_reason == "recheck_failed"
+
+        # EventBus: a CrossSeedRejected with reason=recheck_failed was emitted.
+        recheck_rejections = [e for e in rejected_events if e.reason == "recheck_failed"]
+        assert len(recheck_rejections) == 1
+        assert recheck_rejections[0].info_hash == injected_hash
+        assert recheck_rejections[0].tracker == _TRACKER_TORR9
+        assert recheck_rejections[0].source_hash == _SOURCE_HASH
 
         # Delete called (delete_files=False).
         assert any(h == injected_hash and not df for h, df in fake_client.deleted)
