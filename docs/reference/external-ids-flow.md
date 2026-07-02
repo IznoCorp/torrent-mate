@@ -184,28 +184,17 @@ before surfacing the error.
 
 ### Scheduling
 
-A launchd entry example for weekly off-peak runs:
+The `ecosystem.config.js` PM2 config includes a weekly backfill cron (Sunday 05:00):
 
-```xml
-<plist version="1.0">
-  <dict>
-    <key>Label</key><string>com.personalscraper.backfill-ids</string>
-    <key>ProgramArguments</key>
-    <array>
-      <string>/usr/local/bin/personalscraper</string>
-      <string>library-backfill-ids</string>
-    </array>
-    <key>StartCalendarInterval</key>
-    <dict>
-      <key>Weekday</key><integer>3</integer> <!-- Wednesday -->
-      <key>Hour</key><integer>3</integer>
-      <key>Minute</key><integer>15</integer>
-    </dict>
-    <key>StandardOutPath</key><string>/var/log/personalscraper-backfill.log</string>
-    <key>StandardErrorPath</key><string>/var/log/personalscraper-backfill.err</string>
-  </dict>
-</plist>
+```javascript
+{
+  name: "personalscraper-backfill-ids",
+  script: "personalscraper",
+  args: "library-backfill-ids",
+  interpreter: "none",
+  autorestart: false,
+  cron_restart: "0 5 * * 0", // Sundays 05:00 local (after enrich)
+}
 ```
 
-Save as `~/Library/LaunchAgents/com.personalscraper.backfill-ids.plist` and
-`launchctl load` it.
+Start it with: `pm2 start ecosystem.config.js && pm2 save`

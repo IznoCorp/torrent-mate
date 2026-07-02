@@ -306,48 +306,58 @@ and budget planning.
 
 ---
 
-## Cron Setup (launchd)
+## Scheduled Jobs (PM2)
 
-Three plist templates are provided under `docs/reference/launchd/`. They are
-**opt-in** — copy to `~/Library/LaunchAgents/` and bootstrap manually.
+The `ecosystem.config.js` PM2 config at the repo root defines two scheduled
+indexer jobs that replace the legacy agents:
 
-### Quick nightly scan (03:30 every day)
+### Legacy agents (decommissioned)
 
-```bash
-cp docs/reference/launchd/personalscraper-index-quick.plist \
-   ~/Library/LaunchAgents/
-launchctl bootstrap gui/$(id -u) \
-   ~/Library/LaunchAgents/personalscraper-index-quick.plist
+- **index-quick** + **index-rotate** → **deleted** — redundant since post-dispatch
+  maintenance (#211) handles index freshness. The daily quick scan and rotating
+  full scan are no longer needed.
+- **index-enrich** → replaced by the PM2 cron entry below.
+
+### Weekly enrich pass (Sunday 04:30)
+
+Defined in `ecosystem.config.js` as `personalscraper-index-enrich`:
+
+```javascript
+{
+  name: "personalscraper-index-enrich",
+  script: "personalscraper",
+  args: "library-index --mode enrich --budget 1800 --wait-for-lock 0",
+  interpreter: "none",
+  cwd: __dirname,
+  autorestart: false,
+  cron_restart: "30 4 * * 0", // Sundays 04:30 local — off-peak
+}
 ```
 
-### Rotating full scan (Mon–Thu by disk)
+Start it with: `pm2 start ecosystem.config.js && pm2 save`
 
-```bash
-cp docs/reference/launchd/personalscraper-index-rotate.plist \
-   ~/Library/LaunchAgents/
-cp docs/reference/launchd/index-rotate.sh ~/bin/   # or any dir on $PATH
-chmod +x ~/bin/index-rotate.sh
-launchctl bootstrap gui/$(id -u) \
-   ~/Library/LaunchAgents/personalscraper-index-rotate.plist
+### Weekly backfill-ids (Sunday 05:00)
+
+Defined in `ecosystem.config.js` as `personalscraper-backfill-ids`, scheduled
+after the enrich pass:
+
+```javascript
+{
+  name: "personalscraper-backfill-ids",
+  script: "personalscraper",
+  args: "library-backfill-ids",
+  interpreter: "none",
+  cwd: __dirname,
+  autorestart: false,
+  cron_restart: "0 5 * * 0", // Sundays 05:00 local (after enrich)
+}
 ```
 
-The shell wrapper (`index-rotate.sh`) maps the weekday (`date +%u`) to a disk
-label (Mon=Disk1, Tue=Disk2, Wed=Disk3, Thu=Disk4) and falls back to `--mode
-quick` on Fri/Sat/Sun.
-
-### Weekly enrich pass (Sunday 04:00)
+### Monitoring cron jobs
 
 ```bash
-cp docs/reference/launchd/personalscraper-index-enrich.plist \
-   ~/Library/LaunchAgents/
-launchctl bootstrap gui/$(id -u) \
-   ~/Library/LaunchAgents/personalscraper-index-enrich.plist
-```
-
-### Uninstalling a job
-
-```bash
-launchctl bootout gui/$(id -u)/com.personalscraper.index-quick
+pm2 status personalscraper-index-enrich
+pm2 logs personalscraper-index-enrich --lines 20
 ```
 
 ---

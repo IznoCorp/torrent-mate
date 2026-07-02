@@ -197,7 +197,7 @@ staging/
 │   ├── commands/        # CLI command tests
 │   ├── e2e/             # Real torrent E2E (pytest -m e2e_torrent); indexer E2E scenarios
 │   ├── fixtures/        # Shared test fixtures + config
-│   ├── indexer/         # indexer unit + property tests (db, schema, repos, scanner, drift, query, CLI, plists)
+│   ├── indexer/         # indexer unit + property tests (db, schema, repos, scanner, drift, query, CLI)
 │   ├── info/            # info command tests
 │   ├── reports/         # StepReport payload tests
 │   ├── scripts/         # script-level tests
@@ -221,7 +221,7 @@ staging/
 ├── Makefile             # make test/lint/format/install-dev
 ├── MANUAL.md            # User manual (French) — shell commands, disk layout, naming
 ├── .env.example         # Config template
-├── com.personalscraper.pipeline.plist.template  # launchd daily agent (3am)
+├── ecosystem.config.js  # PM2 daemon + cron config (watcher, enrich, backfill)
 └── logs/                # Structured JSON logs (gitignored)
 ```
 

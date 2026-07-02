@@ -55,12 +55,13 @@ personal-scraper/        # Racine du dépôt git
 ├── personalscraper/     # Package Python (ingest, sorter, process, scraper, enforce, verify, dispatch, indexer, trailers, commands)
 ├── tests/               # Tests unitaires + E2E
 ├── docs/                # Documentation
-├── scripts/             # Scripts utilitaires (install-launchd.sh, check-logging.py, etc.)
+├── scripts/             # Scripts utilitaires (check-logging.py, etc.)
 ├── config.example/      # Template de configuration (v2 split)
 ├── config/              # Configuration utilisateur — chemins, disques, catégories, règles (gitignored)
 ├── .env                 # Secrets API uniquement — TMDB/TVDB keys, qBit credentials (gitignored)
 ├── .env.example         # Template .env
 ├── assets/              # Fichiers .torrent pour tests E2E
+├── ecosystem.config.js  # Configuration PM2 (watcher daemon + crons)
 └── Makefile             # make test/lint/format/install-dev
 ```
 

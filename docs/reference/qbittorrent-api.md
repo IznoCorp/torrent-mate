@@ -229,7 +229,7 @@ that does NOT increment the ban counter.
 
 Our client wrapper maintains a lockout file (`~/.cache/personalscraper/qbit_auth_lockout`,
 1-hour TTL) to short-circuit further attempts after a credential failure, preventing
-cron/launchd from accumulating attempts across scheduled runs. This is implemented in
+PM2 cron from accumulating attempts across scheduled runs. This is implemented in
 `build_client` (raw `GET /` pre-check via `requests`) and `QBitClient.login`
 (`_check_lockout` / `_set_lockout`) in `personalscraper/api/torrent/qbittorrent.py`.
 
